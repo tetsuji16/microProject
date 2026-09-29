@@ -1055,14 +1055,86 @@ class MpoFileImporterTest {
 		}
 	}
 
+	@Test
+	void mpoTaskCreateOperationRetainsItsParentWhenReplayed() throws Exception {
+		Project project = projectForRoundTrip();
+		MpoFileImporter writer = new MpoFileImporter();
+		ByteArrayOutputStream initial = new ByteArrayOutputStream();
+		writer.saveProject(project, initial);
+		Project base = new MpoFileImporter().loadProject(new ByteArrayInputStream(initial.toByteArray()));
+
+		NormalTask parent = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		parent.setName("Created parent");
+		NormalTask child = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		child.setName("Created child");
+		project.setLocalParent(child, parent);
+		ByteArrayOutputStream changed = new ByteArrayOutputStream();
+		writer.saveProject(project, changed);
+
+		java.util.List<OperationLog.Operation> operations = new OperationLog().readJsonl(
+				readEntries(changed.toByteArray()).get(MpoFileImporter.OPERATIONS_ENTRY)).operations();
+		new com.microproject.collaboration.MpoTaskOperationService().apply(base, operations);
+		assertEquals(parent.getUniqueId(), base.findByUniqueId(child.getUniqueId()).getWbsParentTask().getUniqueId());
+	}
+
+	@Test
+	void separateJvmSavesMergeDifferentFieldsOnTheSameTask() throws Exception {
+		Project initial = projectForRoundTrip();
+		assignPositiveUniqueIds(initial);
+		long taskId = firstTask(initial).getUniqueId();
+		File shared = File.createTempFile("mpo-process-field-merge", ".mpo");
+		shared.deleteOnExit();
+		new File(shared.getAbsolutePath() + ".lock").deleteOnExit();
+		MpoFileImporter seed = new MpoFileImporter();
+		seed.setFileName(shared.getAbsolutePath());
+		seed.setProject(initial);
+		seed.exportFile();
+
+		Path tempDirectory = Files.createTempDirectory("mpo-process-fields-" + System.nanoTime());
+		Path release = tempDirectory.resolve("release.flag");
+		Path firstReady = release.resolveSibling("first-ready.flag");
+		Path secondReady = release.resolveSibling("second-ready.flag");
+		Path firstLog = release.resolveSibling("first-worker.log");
+		Path secondLog = release.resolveSibling("second-worker.log");
+		Process first = null;
+		Process second = null;
+		try {
+			first = startMpoSaveWorker(shared, taskId, "name", "Process name", firstReady, release, firstLog);
+			second = startMpoSaveWorker(shared, taskId, "notes", "Process notes", secondReady, release, secondLog);
+			awaitWorkerReady(first, firstReady, firstLog);
+			awaitWorkerReady(second, secondReady, secondLog);
+			Files.createFile(release);
+			assertWorkerSucceeded(first, firstLog);
+			assertWorkerSucceeded(second, secondLog);
+
+			Task mergedTask = load(shared).findByUniqueId(taskId);
+			assertEquals("Process name", mergedTask.getName());
+			assertEquals("Process notes", mergedTask.getNotes());
+		} finally {
+			stopWorker(first);
+			stopWorker(second);
+			Files.deleteIfExists(release);
+			Files.deleteIfExists(firstReady);
+			Files.deleteIfExists(secondReady);
+			Files.deleteIfExists(firstLog);
+			Files.deleteIfExists(secondLog);
+			Files.deleteIfExists(tempDirectory);
+		}
+	}
+
 	private static Process startMpoSaveWorker(File shared, long taskId, String name, Path ready,
 			Path release, Path log) throws Exception {
+		return startMpoSaveWorker(shared, taskId, "name", name, ready, release, log);
+	}
+
+	private static Process startMpoSaveWorker(File shared, long taskId, String field, String value,
+			Path ready, Path release, Path log) throws Exception {
 		String javaExecutable = Path.of(System.getProperty("java.home"), "bin",
 				System.getProperty("os.name").toLowerCase(java.util.Locale.ROOT).contains("win") ? "java.exe" : "java")
 			.toString();
 		ProcessBuilder builder = new ProcessBuilder(javaExecutable, "-Djava.awt.headless=true", "-Dfile.encoding=UTF-8", "-cp",
 				processTestClasspath(), MpoConcurrentSaveProcess.class.getName(), shared.getAbsolutePath(),
-				Long.toString(taskId), name, ready.toString(), release.toString());
+				Long.toString(taskId), field, value, ready.toString(), release.toString());
 		builder.redirectErrorStream(true);
 		builder.redirectOutput(log.toFile());
 		return builder.start();

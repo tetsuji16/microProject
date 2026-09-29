@@ -154,10 +154,27 @@ public final class OperationLog {
 
 	private static boolean overlaps(Operation left, Operation right) {
 		if (left.kind().endsWith(".delete") || right.kind().endsWith(".delete")) return true;
+		if (isTaskEdit(left.kind()) && isTaskEdit(right.kind())
+				&& !left.kind().equals(right.kind())) return false;
 		if (!left.kind().equals(right.kind())) return true;
 		if (left.payload().isEmpty() || right.payload().isEmpty()) return true;
-		for (String key : left.payload().keySet()) if (right.payload().containsKey(key)) return true;
+		for (String key : left.payload().keySet()) {
+			if (isIdentityField(left.kind(), key) || !right.payload().containsKey(key)) continue;
+			if (!sameJsonValue(left.payload().get(key), right.payload().get(key))) return true;
+		}
 		return false;
+	}
+
+	private static boolean isTaskEdit(String kind) {
+		return "task.update".equals(kind) || "task.move".equals(kind);
+	}
+
+	private static boolean isIdentityField(String kind, String field) {
+		return (kind.startsWith("task.") && "legacyUniqueId".equals(field))
+			|| (kind.startsWith("dependency.") && ("predecessorLegacyUniqueId".equals(field)
+				|| "successorLegacyUniqueId".equals(field) || "dependencyType".equals(field)))
+			|| (kind.startsWith("assignment.") && ("taskLegacyUniqueId".equals(field)
+				|| "resourceUniqueId".equals(field)));
 	}
 	public byte[] write(String documentId, Collection<Operation> operations) throws java.io.IOException {
 		requireUuid(documentId, "document id");

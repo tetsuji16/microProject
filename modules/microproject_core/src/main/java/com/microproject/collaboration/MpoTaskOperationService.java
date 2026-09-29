@@ -129,10 +129,16 @@ public final class MpoTaskOperationService {
 	private static void applyCreate(Project project, Map<String, Object> payload) throws IOException {
 		long uniqueId = legacyUniqueId(payload);
 		Task existing = project.findByUniqueId(uniqueId);
-		if (existing != null) { applyUpdate(existing, payload); return; }
-		Task created = (Task) project.createLocalTaskNode(null).getImpl();
-		created.setUniqueId(uniqueId);
-		applyUpdate(created, payload);
+		Task task;
+		if (existing != null) {
+			task = existing;
+		} else {
+			task = (Task) project.createLocalTaskNode(null).getImpl();
+			task.setUniqueId(uniqueId);
+		}
+		applyUpdate(task, payload);
+		if (payload.containsKey("parentLegacyUniqueId"))
+			applyMove(project, payload);
 	}
 
 	private static void applyUpdate(Project project, Map<String, Object> payload) throws IOException {

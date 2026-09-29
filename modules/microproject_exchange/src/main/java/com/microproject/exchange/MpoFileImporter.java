@@ -1991,11 +1991,33 @@ public class MpoFileImporter extends FileImporter {
 	private static final class MpoOperationState {
 		private byte[] json; private String documentId; private String actorId = java.util.UUID.randomUUID().toString();
 		private final java.util.List<OperationLog.Operation> operations = new java.util.ArrayList<OperationLog.Operation>();
-		private final java.util.Map<Long, String> snapshots = new java.util.LinkedHashMap<Long, String>();
+		private final java.util.Map<Long, TaskSnapshot> snapshots = new java.util.LinkedHashMap<Long, TaskSnapshot>();
 		private final java.util.Map<Long, Long> parentSnapshots = new java.util.LinkedHashMap<Long, Long>();
 		private final java.util.Set<String> dependencySnapshots = new java.util.LinkedHashSet<String>();
 		private final java.util.Map<String, String> assignmentSnapshots = new java.util.LinkedHashMap<String, String>();
-		private void capture(Project project) { snapshots.clear(); parentSnapshots.clear(); dependencySnapshots.clear(); assignmentSnapshots.clear(); for (java.util.Iterator<?> it = project.getTaskOutlineIterator(); it.hasNext();) { Task task = (Task) it.next(); Long id = Long.valueOf(task.getUniqueId()); snapshots.put(id, signature(task)); parentSnapshots.put(id, parentId(task)); for (java.util.Iterator<?> links = task.getSuccessorList().iterator(); links.hasNext();) { Dependency dependency = (Dependency) links.next(); dependencySnapshots.add(dependencyKey(dependency)); } if (task instanceof NormalTask) for (java.util.Iterator<?> assignments = ((NormalTask) task).getAssignments().iterator(); assignments.hasNext();) { Assignment assignment = (Assignment) assignments.next(); if (!assignment.isDefault()) assignmentSnapshots.put(assignmentKey(assignment), assignmentValue(assignment)); } } }
+		private void capture(Project project) {
+			snapshots.clear();
+			parentSnapshots.clear();
+			dependencySnapshots.clear();
+			assignmentSnapshots.clear();
+			for (java.util.Iterator<?> it = project.getTaskOutlineIterator(); it.hasNext();) {
+				Task task = (Task) it.next();
+				Long id = Long.valueOf(task.getUniqueId());
+				snapshots.put(id, signature(task));
+				parentSnapshots.put(id, parentId(task));
+				for (java.util.Iterator<?> links = task.getSuccessorList().iterator(); links.hasNext();) {
+					Dependency dependency = (Dependency) links.next();
+					dependencySnapshots.add(dependencyKey(dependency));
+				}
+				if (task instanceof NormalTask) {
+					for (java.util.Iterator<?> assignments = ((NormalTask) task).getAssignments().iterator(); assignments.hasNext();) {
+						Assignment assignment = (Assignment) assignments.next();
+						if (!assignment.isDefault())
+							assignmentSnapshots.put(assignmentKey(assignment), assignmentValue(assignment));
+					}
+				}
+			}
+		}
 		private void remapTaskIds(java.util.Map<Long, Long> identities) throws IOException {
 			java.util.List<OperationLog.Operation> normalized = remapTaskOperations(operations, identities);
 			ensureOperationCount(normalized);
@@ -2004,7 +2026,46 @@ public class MpoFileImporter extends FileImporter {
 		private void appendChanges(Project project) throws IOException {
 			boolean changed = false; long sequence = operations.stream().filter(value -> actorId.equals(value.actorId())).mapToLong(OperationLog.Operation::sequence).max().orElse(0L);
 			java.util.Set<Long> seen = new java.util.LinkedHashSet<Long>();
-			for (java.util.Iterator<?> it = project.getTaskOutlineIterator(); it.hasNext();) { com.microproject.pm.task.Task task = (com.microproject.pm.task.Task) it.next(); Long id = Long.valueOf(task.getUniqueId()); seen.add(id); String signature = signature(task); Long parentId = parentId(task); String kind = snapshots.containsKey(id) ? "task.update" : "task.create"; if (!snapshots.containsKey(id) || !signature.equals(snapshots.get(id)) || !java.util.Objects.equals(parentId, parentSnapshots.get(id))) { java.util.Map<String,Object> payload = new java.util.LinkedHashMap<String,Object>(); payload.put("legacyUniqueId", id); if (snapshots.containsKey(id) && !java.util.Objects.equals(parentId, parentSnapshots.get(id))) { kind = "task.move"; if (parentId != null) payload.put("parentLegacyUniqueId", parentId); } else { payload.put("name", task.getName()); payload.put("notes", task.getNotes()); payload.put("percentComplete", Double.valueOf(task.getPercentComplete())); } operations.add(new OperationLog.Operation(java.util.UUID.randomUUID().toString(), actorId, ++sequence, java.util.Set.of(), kind, java.util.UUID.nameUUIDFromBytes((documentId + ":" + task.getUniqueId()).getBytes(StandardCharsets.UTF_8)).toString(), payload)); changed = true; } }
+			for (java.util.Iterator<?> it = project.getTaskOutlineIterator(); it.hasNext();) {
+				Task task = (Task) it.next();
+				Long id = Long.valueOf(task.getUniqueId());
+				seen.add(id);
+				TaskSnapshot current = signature(task);
+				TaskSnapshot previous = snapshots.get(id);
+				Long currentParentId = parentId(task);
+				if (previous == null) {
+					java.util.Map<String, Object> payload = new java.util.LinkedHashMap<String, Object>();
+					payload.put("legacyUniqueId", id);
+					payload.put("name", task.getName());
+					payload.put("notes", task.getNotes());
+					payload.put("percentComplete", Double.valueOf(task.getPercentComplete()));
+					if (currentParentId != null)
+						payload.put("parentLegacyUniqueId", currentParentId);
+					addTaskOperation("task.create", id.longValue(), payload, ++sequence);
+					changed = true;
+				} else {
+					if (!java.util.Objects.equals(currentParentId, parentSnapshots.get(id))) {
+						java.util.Map<String, Object> payload = new java.util.LinkedHashMap<String, Object>();
+						payload.put("legacyUniqueId", id);
+						if (currentParentId != null)
+							payload.put("parentLegacyUniqueId", currentParentId);
+						addTaskOperation("task.move", id.longValue(), payload, ++sequence);
+						changed = true;
+					}
+					java.util.Map<String, Object> payload = new java.util.LinkedHashMap<String, Object>();
+					payload.put("legacyUniqueId", id);
+					if (!java.util.Objects.equals(current.name(), previous.name()))
+						payload.put("name", current.name());
+					if (!java.util.Objects.equals(current.notes(), previous.notes()))
+						payload.put("notes", current.notes());
+					if (Double.compare(current.percentComplete(), previous.percentComplete()) != 0)
+						payload.put("percentComplete", Double.valueOf(current.percentComplete()));
+					if (payload.size() > 1) {
+						addTaskOperation("task.update", id.longValue(), payload, ++sequence);
+						changed = true;
+					}
+				}
+			}
 			for (Long id : snapshots.keySet()) if (!seen.contains(id)) { operations.add(new OperationLog.Operation(java.util.UUID.randomUUID().toString(), actorId, ++sequence, java.util.Set.of(), "task.delete", java.util.UUID.nameUUIDFromBytes((documentId + ":" + id).getBytes(StandardCharsets.UTF_8)).toString(), java.util.Map.of("legacyUniqueId", id))); changed = true; }
 			java.util.Set<String> dependencies = new java.util.LinkedHashSet<String>(); java.util.Map<String, String> assignments = new java.util.LinkedHashMap<String, String>();
 			for (java.util.Iterator<?> it = project.getTaskOutlineIterator(); it.hasNext();) { Task task = (Task) it.next(); for (java.util.Iterator<?> links = task.getSuccessorList().iterator(); links.hasNext();) dependencies.add(dependencyKey((Dependency) links.next())); if (task instanceof NormalTask) for (java.util.Iterator<?> values = ((NormalTask) task).getAssignments().iterator(); values.hasNext();) { Assignment assignment = (Assignment) values.next(); if (!assignment.isDefault()) assignments.put(assignmentKey(assignment), assignmentValue(assignment)); } }
@@ -2037,12 +2098,20 @@ public class MpoFileImporter extends FileImporter {
 			dependencySnapshots.clear(); dependencySnapshots.addAll(source.dependencySnapshots);
 			assignmentSnapshots.clear(); assignmentSnapshots.putAll(source.assignmentSnapshots);
 		}
-		private static String signature(com.microproject.pm.task.Task task) { return String.valueOf(task.getName()) + "\u0000" + String.valueOf(task.getNotes()) + "\u0000" + task.getPercentComplete(); }
+		private static TaskSnapshot signature(Task task) {
+			return new TaskSnapshot(task.getName(), task.getNotes(), task.getPercentComplete());
+		}
+		private void addTaskOperation(String kind, long taskId, java.util.Map<String, Object> payload, long sequence) {
+			String entityId = java.util.UUID.nameUUIDFromBytes((documentId + ":" + taskId).getBytes(StandardCharsets.UTF_8)).toString();
+			operations.add(new OperationLog.Operation(java.util.UUID.randomUUID().toString(), actorId, sequence,
+					java.util.Set.of(), kind, entityId, payload));
+		}
 		private static Long parentId(com.microproject.pm.task.Task task) { return task.getWbsParentTask() == null ? null : Long.valueOf(task.getWbsParentTask().getUniqueId()); }
 		private static String dependencyKey(Dependency dependency) { return dependency.getPredecessorId() + ":" + dependency.getSuccessorId() + ":" + dependency.getDependencyType() + ":" + dependency.getLag(); }
 		private static String assignmentKey(Assignment assignment) { return assignment.getTask().getUniqueId() + ":" + assignment.getResource().getUniqueId(); }
 		private static String assignmentValue(Assignment assignment) { return assignment.getUnits() + ":" + assignment.getDelay(); }
 		private static Assignment findAssignment(Project project, long taskId, long resourceId) { Task task = project.findByUniqueId(taskId); if (task instanceof NormalTask) for (java.util.Iterator<?> it = ((NormalTask) task).getAssignments().iterator(); it.hasNext();) { Assignment assignment = (Assignment) it.next(); if (!assignment.isDefault() && assignment.getResource().getUniqueId() == resourceId) return assignment; } throw new IllegalStateException("Assignment snapshot disappeared"); }
+		private record TaskSnapshot(String name, String notes, double percentComplete) { }
 	}
 
 	private static String sha256(byte[] data) {

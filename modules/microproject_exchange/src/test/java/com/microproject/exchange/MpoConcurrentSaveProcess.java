@@ -39,9 +39,10 @@ public final class MpoConcurrentSaveProcess {
 	public static void main(String[] args) throws Exception {
 		Path sharedArchive = Path.of(args[0]);
 		long taskId = Long.parseLong(args[1]);
-		String name = args[2];
-		Path ready = Path.of(args[3]);
-		Path release = Path.of(args[4]);
+		String field = args[2];
+		String value = args[3];
+		Path ready = Path.of(args[4]);
+		Path release = Path.of(args[5]);
 
 		MpoFileImporter reader = new MpoFileImporter();
 		reader.setFileName(sharedArchive.toString());
@@ -51,7 +52,11 @@ public final class MpoConcurrentSaveProcess {
 		Task task = project.findByUniqueId(taskId);
 		if (task == null)
 			throw new IllegalStateException("Task " + taskId + " is missing from shared archive");
-		task.setName(name);
+		switch (field) {
+			case "name" -> task.setName(value);
+			case "notes" -> task.setNotes(value);
+			default -> throw new IllegalArgumentException("Unsupported worker task field: " + field);
+		}
 		Files.createFile(ready);
 
 		long deadline = System.nanoTime() + Duration.ofSeconds(30).toNanos();

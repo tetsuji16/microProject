@@ -65,6 +65,26 @@ class OperationLogTest {
 		org.junit.jupiter.api.Assertions.assertTrue(json.contains("operationIds"));
 	}
 
+	@Test void allowsConcurrentUpdatesToDifferentFieldsOfTheSameTask() {
+		OperationLog log = new OperationLog();
+		OperationLog.Operation rename = new OperationLog.Operation(FIRST, ACTOR_A, 1, Set.of(), "task.update", ENTITY,
+				Map.of("legacyUniqueId", 7L, "name", "Renamed"));
+		OperationLog.Operation editNotes = new OperationLog.Operation(NEXT, ACTOR_B, 1, Set.of(), "task.update", ENTITY,
+				Map.of("legacyUniqueId", 7L, "notes", "Notes"));
+
+		assertEquals(List.of(), log.merge(List.of(rename, editNotes)).conflicts());
+	}
+
+	@Test void identicalConcurrentFieldValuesAreNotConflicts() {
+		OperationLog log = new OperationLog();
+		OperationLog.Operation left = new OperationLog.Operation(FIRST, ACTOR_A, 1, Set.of(), "task.update", ENTITY,
+				Map.of("legacyUniqueId", 7L, "name", "Same"));
+		OperationLog.Operation right = new OperationLog.Operation(NEXT, ACTOR_B, 1, Set.of(), "task.update", ENTITY,
+				Map.of("legacyUniqueId", 7L, "name", "Same"));
+
+		assertEquals(List.of(), log.merge(List.of(left, right)).conflicts());
+	}
+
 	@Test void rejectsStaleConflictMetadata() throws Exception {
 		String json = "{\"schemaVersion\":1,\"documentId\":\"" + DOCUMENT
 			+ "\",\"operations\":[],\"conflicts\":[{\"entityId\":\"" + ENTITY
