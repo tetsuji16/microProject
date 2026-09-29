@@ -39,7 +39,9 @@ import com.microproject.session.SessionFactory;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.Environment;
+import com.microproject.util.UiDispatch;
 import com.microproject.util.UiServices;
+import com.microproject.ui.util.SwingUiDispatcher;
 
 /** GUI-MSP-OPEN-01: one Open command expands a multiple-file selection into independent project documents. */
 class MultipleLocalProjectOpenGuiAcceptanceTest {
@@ -80,6 +82,7 @@ class MultipleLocalProjectOpenGuiAcceptanceTest {
 		Environment.setClientSide(true);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
+		UiDispatch.setDispatcher(new SwingUiDispatcher());
 		firstFile = Files.createTempFile("msp-open-alpha-", ".mpo");
 		secondFile = Files.createTempFile("msp-open-beta-", ".mpo");
 		writeProject(firstFile, "Multiple Open Alpha");

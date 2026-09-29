@@ -52,8 +52,10 @@ import com.microproject.strings.Messages;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.testsupport.DialogLayoutAssertions;
 import com.microproject.util.Environment;
+import com.microproject.util.UiDispatch;
 import com.microproject.util.SwingFileChooserProvider;
 import com.microproject.util.UiServices;
+import com.microproject.ui.util.SwingUiDispatcher;
 import com.microproject.undo.DataFactoryUndoController;
 
 /**
@@ -548,6 +550,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		Environment.setClientSide(true);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
+		UiDispatch.setDispatcher(new SwingUiDispatcher());
 		restartFirstProject = Files.createTempFile("restart-workspace-alpha-", ".mpo");
 		restartSecondProject = Files.createTempFile("restart-workspace-beta-", ".mpo");
 		writeMpoProject(restartFirstProject, "Restart workspace Alpha");

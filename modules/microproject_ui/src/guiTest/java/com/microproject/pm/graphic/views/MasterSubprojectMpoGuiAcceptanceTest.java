@@ -66,7 +66,11 @@ import com.microproject.session.SessionFactory;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.Environment;
+import com.microproject.util.UiDispatch;
 import com.microproject.util.UiServices;
+import com.microproject.ui.util.SwingUiDispatcher;
+import com.microproject.ui.util.SwingAlertPresenter;
+import com.microproject.util.Alert;
 
 /**
  * GUI-MSP-01: loads a real MPO child, persists the master link, and renders the
@@ -226,7 +230,7 @@ class MasterSubprojectMpoGuiAcceptanceTest {
 				"the normal local-file route did not materialize the first embedded child in the reopened master: "
 						+ "master=" + runtimeMaster.isMaster() + ", openedAsSubproject=" + runtimeMaster.isOpenedAsSubproject()
 						+ ", states=" + subprojectStates(runtimeMaster));
-		dismissReadOnlyWarning(robot);
+		dismissReadOnlyWarning();
 		GuiAcceptanceSupport.await(() -> hasTaskNamed(runtimeMaster, writableTask.getName()),
 				"the normal local-file route did not materialize the writable embedded child after dismissing the read-only notice: "
 						+ "states=" + subprojectStates(runtimeMaster));
@@ -429,6 +433,8 @@ class MasterSubprojectMpoGuiAcceptanceTest {
 	}
 
 	private void showRuntimeMaster(File masterFile) throws Exception {
+		Alert.setPresenter(new SwingAlertPresenter());
+		UiDispatch.setDispatcher(new SwingUiDispatcher());
 		SwingUtilities.invokeAndWait(() -> {
 			applicationWindow = new MainRibbonFrame("microProject — MPO Master/Sub-project GUI acceptance", null, null);
 			RuntimeGraphicManager manager = new RuntimeGraphicManager(applicationWindow);
@@ -444,7 +450,7 @@ class MasterSubprojectMpoGuiAcceptanceTest {
 		});
 	}
 
-	private static void dismissReadOnlyWarning(Robot robot) throws Exception {
+	private static void dismissReadOnlyWarning() throws Exception {
 		final Dialog[] warning = new Dialog[1];
 		GuiAcceptanceSupport.await(() -> {
 			for (Window candidate : Window.getWindows())
@@ -457,10 +463,7 @@ class MasterSubprojectMpoGuiAcceptanceTest {
 		warning[0].toFront();
 		JButton button = findButton(warning[0]);
 		assertNotNull(button, "read-only child warning must provide a close button");
-		java.awt.Point location = button.getLocationOnScreen();
-		robot.mouseMove(location.x + button.getWidth() / 2, location.y + button.getHeight() / 2);
-		robot.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
-		robot.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		SwingUtilities.invokeAndWait(button::doClick);
 		GuiAcceptanceSupport.await(() -> !warning[0].isShowing(), "read-only child warning did not dismiss");
 	}
 
