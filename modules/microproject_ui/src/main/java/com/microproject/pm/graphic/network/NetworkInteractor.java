@@ -29,7 +29,6 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
-import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -124,11 +123,10 @@ public class NetworkInteractor extends GraphInteractor{
 	    	if (state!=savedState){
 	    		if (savedState==BAR_SELECTION){
 	    			NetworkUI nui=(NetworkUI)ui;
-	    			List changes=nui.getEditorChange();
+					List<FieldChange> changes = nui.getEditorChange();
 	    			GraphicNode node=nui.getEditorNode();
 	    			nui.editNode(null);
-	    			if (changes!=null) for (Iterator i=changes.iterator();i.hasNext();){
-	    				FieldChange change=(FieldChange)i.next();
+				    if (changes != null) for (FieldChange change : changes) {
 						try {
 							nui.getGraph().getCache().getModel().setFieldValue(change.getField(),node.getNode(), this, change.getValue(), null,NodeModel.NORMAL);
 						} catch (FieldParseException e) {

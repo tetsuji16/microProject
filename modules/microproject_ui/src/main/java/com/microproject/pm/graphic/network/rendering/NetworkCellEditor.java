@@ -107,7 +107,7 @@ public class NetworkCellEditor{
 		}
 	}
 	
-	public List getCellEditorChange() {
+	public List<FieldChange> getCellEditorChange() {
 		return (form==null)?null:form.getChange();
 	}
 	

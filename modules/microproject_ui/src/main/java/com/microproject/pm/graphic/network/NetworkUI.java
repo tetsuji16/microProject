@@ -34,6 +34,7 @@ import com.microproject.pm.graphic.graph.GraphRenderer;
 import com.microproject.pm.graphic.graph.GraphUI;
 import com.microproject.pm.graphic.graph.GraphZone;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
+import com.microproject.pm.graphic.network.rendering.FieldChange;
 
 /**
  *
@@ -64,7 +65,7 @@ public abstract class NetworkUI extends GraphUI{
 		((NetworkRenderer)graphRenderer).getEditor().initEditorComponent(node,getZoom(),(node==null)?null:((NetworkRenderer)graphRenderer).getBounds(node));
 	}
 
-	public List getEditorChange(){
+	public List<FieldChange> getEditorChange(){
 		return ((NetworkRenderer)graphRenderer).getEditor().getCellEditorChange();
 	}
 	public GraphicNode getEditorNode(){
