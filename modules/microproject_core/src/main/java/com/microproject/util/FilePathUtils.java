@@ -7,6 +7,8 @@ package com.microproject.util;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,7 +21,7 @@ public final class FilePathUtils {
 		if (fileName == null || fileName.isBlank())
 			return fileName;
 		if (isWindowsPath(fileName))
-			return normalizeWindowsPath(fileName);
+			return canonicalWindowsPath(fileName);
 		try {
 			return new File(fileName).getCanonicalPath();
 		} catch (IOException exception) {
@@ -32,7 +34,7 @@ public final class FilePathUtils {
 		if (first == null || second == null || first.isBlank() || second.isBlank())
 			return false;
 		if (isWindowsPath(first) && isWindowsPath(second))
-			return normalizeWindowsPath(first).equalsIgnoreCase(normalizeWindowsPath(second));
+			return canonicalWindowsPath(first).equalsIgnoreCase(canonicalWindowsPath(second));
 		try {
 			return new File(first).getCanonicalFile().equals(new File(second).getCanonicalFile());
 		} catch (IOException exception) {
@@ -64,6 +66,17 @@ public final class FilePathUtils {
 
 	private static boolean isWindowsPath(String value) {
 		return value != null && value.matches("(?i)^[a-z]:[\\\\/].*");
+	}
+
+	private static String canonicalWindowsPath(String value) {
+		if (File.separatorChar == '\\') {
+			try {
+				return Path.of(value).toRealPath().toString();
+			} catch (IOException | InvalidPathException ignored) {
+				// Nonexistent paths still receive deterministic lexical normalization.
+			}
+		}
+		return normalizeWindowsPath(value);
 	}
 
 	private static String normalizeWindowsPath(String value) {

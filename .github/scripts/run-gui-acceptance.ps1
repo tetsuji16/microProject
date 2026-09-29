@@ -29,7 +29,42 @@ function Save-GuiFailureScreenshot([string]$label) {
   }
 }
 
+function Minimize-HostedRunnerConsole {
+  if (-not ('MicroProject.GuiTestDesktop' -as [type])) {
+    Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+namespace MicroProject {
+  public static class GuiTestDesktop {
+    [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    public static extern int GetWindowText(IntPtr window, StringBuilder text, int capacity);
+    [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr window, int command);
+    [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr window);
+  }
+}
+'@
+  }
+  $foreground = [MicroProject.GuiTestDesktop]::GetForegroundWindow()
+  if ($foreground -eq [IntPtr]::Zero) { return }
+  $title = [System.Text.StringBuilder]::new(512)
+  [void][MicroProject.GuiTestDesktop]::GetWindowText($foreground, $title, $title.Capacity)
+  $windowTitle = $title.ToString()
+  if ($windowTitle.IndexOf('C:\ProgramData\GitHub\Host', [StringComparison]::OrdinalIgnoreCase) -ge 0) {
+    [void][MicroProject.GuiTestDesktop]::ShowWindow($foreground, 6) # SW_MINIMIZE
+    Start-Sleep -Milliseconds 150
+    if (-not [MicroProject.GuiTestDesktop]::IsIconic($foreground)) {
+      throw "Could not minimize the known hosted-runner console before GUI tests: $windowTitle"
+    }
+    Write-Host "Minimized the hosted-runner console before GUI gate: $windowTitle"
+  } else {
+    Write-Host "Foreground window before GUI gate: $windowTitle"
+  }
+}
+
 function Invoke-GuiGate([string]$label, [string[]]$arguments) {
+  Minimize-HostedRunnerConsole
   $safe = ($label -replace '[^A-Za-z0-9_.-]', '_')
   $stdout = Join-Path $gateLogs "$safe.stdout.log"
   $stderr = Join-Path $gateLogs "$safe.stderr.log"
