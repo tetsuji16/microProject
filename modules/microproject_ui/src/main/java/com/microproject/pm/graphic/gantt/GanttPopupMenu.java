@@ -38,7 +38,6 @@ import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JRadioButtonMenuItem;
 
-import org.apache.commons.collections.CollectionUtils;
 
 import com.microproject.pm.graphic.graph.GraphInteractor;
 import com.microproject.pm.graphic.graph.GraphModel;
@@ -270,11 +269,10 @@ public class GanttPopupMenu extends GraphPopupMenu{
 			String fieldId = ((Gantt) interactor.getGraph()).getAnnotationFieldId();
 			return fieldId == null ? ANNOTATION_FIELD_RESOURCE_NAMES : fieldId;
 		}
-		Object firstAnnotationField = CollectionUtils.find(interactor.getGraph().getBarStyles().getRows(), new org.apache.commons.collections.Predicate() {
-			public boolean evaluate(Object object) {
-				return object instanceof BarStyle && ((BarStyle)object).isAnnotation();
-			}
-		});
+		Object firstAnnotationField = interactor.getGraph().getBarStyles().getRows().stream()
+				.filter(style -> style != null && style.isAnnotation())
+				.findFirst()
+				.orElse(null);
 		if (!(firstAnnotationField instanceof BarStyle))
 			return ANNOTATION_FIELD_RESOURCE_NAMES;
 		String fieldId = ((BarStyle)firstAnnotationField).getBarFormat().getFieldId();

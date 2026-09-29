@@ -47,7 +47,6 @@ import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.apache.commons.collections.CollectionUtils;
 
 import com.microproject.server.data.linker.Linker;
 import com.microproject.server.data.linker.ResourceLinker;

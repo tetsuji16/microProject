@@ -33,7 +33,6 @@ import java.awt.event.ActionListener;
 import javax.swing.JMenu;
 import javax.swing.JRadioButtonMenuItem;
 
-import org.apache.commons.collections.CollectionUtils;
 
 import com.microproject.pm.graphic.graph.GraphInteractor;
 import com.microproject.pm.graphic.graph.GraphModel;
@@ -91,4 +90,3 @@ public class NetworkPopupMenu extends GraphPopupMenu{
     }
 
 }
-

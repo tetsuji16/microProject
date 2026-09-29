@@ -45,8 +45,6 @@ import net.sf.jasperreports.engine.JasperFillManager;
 import net.sf.jasperreports.engine.JasperPrint;
 import net.sf.jasperreports.engine.JasperReport;
 
-import org.apache.commons.collections.CollectionUtils;
-import org.apache.commons.collections.Predicate;
 
 import com.microproject.help.HelpUtil;
 import com.microproject.pm.graphic.frames.DocumentFrame;
@@ -187,10 +185,7 @@ public class ReportView extends JPanel implements BaseView, CacheListener {
         SpreadSheetFieldArray fa = null;
         if (fieldArray != null) {
         	fa =(SpreadSheetFieldArray) fieldArray.clone();
-        	CollectionUtils.filter(fa,new Predicate() {
-        		public boolean evaluate(Object arg0) {
-        			return !((Field)arg0).isGraphical(); // get rid of fields that can't be shown
-        		}});
+            fa.removeIf(Field::isGraphical); // get rid of fields that can't be shown
         }
         JasperReport report = ReportUtil.getReport(reportDefinition, coord.getProjectTimeIterator(), fa);
 

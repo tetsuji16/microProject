@@ -30,6 +30,7 @@ import java.awt.datatransfer.UnsupportedFlavorException;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -41,7 +42,6 @@ import java.util.logging.Logger;
 
 import javax.swing.tree.TreeNode;
 
-import org.apache.commons.collections.CollectionUtils;
 
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheetModel;
@@ -105,9 +105,7 @@ public class NodeListTransferable implements Transferable {
 			//sdata=nodeListToString(nodeList,spreadSheet,fields);
 		}
 		flavorSet=new HashSet<>();
-		//Collections.addAll(flavorSet,flavors); //jdk 1.5
-		//for (int i=0;i<flavors.length;i++) flavorSet.add(flavors[i]);
-		CollectionUtils.addAll(flavorSet,flavors); //replaced JDK 1.5 code with this call
+		Collections.addAll(flavorSet, flavors);
 		this.spreadsheet=spreadSheet;
 		this.rows=rows;
 		this.cols=cols;

@@ -71,8 +71,6 @@ import javax.swing.text.JTextComponent;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.Utilities;
 
-import org.apache.commons.collections.CollectionUtils;
-import org.apache.commons.collections.Predicate;
 
 import com.microproject.pm.graphic.ChangeAwareComponent;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
@@ -1073,18 +1071,13 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
     }
     public List<Node> getSelectedDeletableRows() {
     	var list = getSelectedNodes();
-    	CollectionUtils.filter(list, new Predicate() {
-			public boolean evaluate(Object arg0) {
-				return isNodeDeletable((Node)arg0);
-			}});
+        list.removeIf(node -> !isNodeDeletable(node));
     	return list;
 
     }
     public List<Node> getSelectedCuttableRows(List<Node> nodes) {
-    	CollectionUtils.filter(nodes, new Predicate() {
-			public boolean evaluate(Object arg0) {
-				return isNodeCuttable((Node)arg0);
-			}});
+        if (nodes != null)
+            nodes.removeIf(node -> !isNodeCuttable(node));
     	return nodes;
 
     }

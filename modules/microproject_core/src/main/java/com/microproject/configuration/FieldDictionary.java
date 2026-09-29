@@ -33,9 +33,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.MapIterator;
-import org.apache.commons.collections.Predicate;
 import org.apache.commons.collections.map.HashedMap;
 import org.apache.commons.digester.Digester;
 
@@ -203,11 +201,10 @@ public class FieldDictionary {
  */
 	public static LinkedList<Field> extractExtraFields(Collection<Field> from, final boolean mustBeValidOnObjectCreate) {
 		LinkedList<Field> result = new LinkedList<>();
-		CollectionUtils.select(from, new Predicate() {
-			public boolean evaluate(Object arg0) {
-				Field f = (Field)arg0;
-				return f.isExtra() && (!mustBeValidOnObjectCreate || f.isValidOnObjectCreate());
-			}},result);
+		if (from != null)
+			from.stream()
+					.filter(field -> field.isExtra() && (!mustBeValidOnObjectCreate || field.isValidOnObjectCreate()))
+					.forEach(result::add);
 		return result;
 	}
 

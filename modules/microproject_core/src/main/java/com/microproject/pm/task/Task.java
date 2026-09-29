@@ -39,7 +39,6 @@ import java.util.TreeSet;
 import java.util.logging.Logger;
 
 
-import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.Predicate;
 
 import com.microproject.association.Association;

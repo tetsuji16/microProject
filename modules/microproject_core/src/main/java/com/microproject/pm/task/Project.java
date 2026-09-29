@@ -50,7 +50,6 @@ import java.util.TreeMap;
 import java.util.logging.Logger;
 
 
-import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.Predicate;
 
 import com.microproject.algorithm.ReverseQuery;

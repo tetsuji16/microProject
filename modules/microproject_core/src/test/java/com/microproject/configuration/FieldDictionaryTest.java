@@ -39,6 +39,11 @@ class FieldDictionaryTest {
 	Path temporaryDirectory;
 
 	@Test
+	void extractingFieldsFromNullCollectionReturnsEmptyList() {
+		assertTrue(FieldDictionary.extractExtraFields(null, false).isEmpty());
+	}
+
+	@Test
 	void generatedResourceFieldTableContainsResourceFields() throws IOException {
 		FieldDictionary dictionary = FieldDictionary.getInstance();
 		Set<String> projectFieldIds = dictionary.getProjectFields().stream()
