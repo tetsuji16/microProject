@@ -208,10 +208,8 @@ public class ReportView extends JPanel implements BaseView, CacheListener {
         	model = updateCacheForView(viewName);
             if (cache == null){
             	iterator = GeneralFilteredIterator.instance(model.iterator());
-            	//for (Iterator i=GeneralFilteredIterator.instance(model.iterator());i.hasNext();) System.out.println("Report model iterator: "+i.next());
             }else{ 
             	iterator = GeneralFilteredIterator.instance(cache.getIterator());
-            	//for (Iterator i=GeneralFilteredIterator.instance(cache.getIterator());i.hasNext();) System.out.println("Report cache iterator: "+i.next());
             }
         }
         dataSource = DataSourceProvider.createDataSource(report,project,iterator,model);

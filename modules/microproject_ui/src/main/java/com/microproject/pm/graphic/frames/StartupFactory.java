@@ -384,17 +384,9 @@ public abstract class StartupFactory {
 				ClassLoaderUtils.forName("javax.jnlp.BasicService").getMethod("showDocument", URL.class)
 				.invoke(basicService, new URL(jnlpUrl));
 			} catch(Exception e) {
-				//e.printStackTrace();
 				// Not running in JavaWebStart or service is not supported.
 				return;
-				//Runtime.getRuntime().exec("javaws ");
 			}
-//			try {
-//			BasicService basicService=(BasicService)ServiceManager.lookup("javax.jnlp.BasicService");
-//			basicService.showDocument(/*new URL(basicService.getCodeBase(),*/new URL(jnlpUrl));
-//			}catch (UnavailableServiceException e) {
-//			Runtime.getRuntime().exec("javaws ");
-//			}
 			System.exit(0);
 		}
 	}

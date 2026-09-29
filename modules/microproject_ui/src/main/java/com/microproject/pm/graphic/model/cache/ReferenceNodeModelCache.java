@@ -358,11 +358,7 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 		DependencyService service=DependencyService.getInstance();
 		HasDependencies startObject=(HasDependencies)startNode.getNode().getImpl();
 		HasDependencies endObject=(HasDependencies)endNode.getNode().getImpl();
-		//try {
 			Dependency dep=service.newDependency(startObject,endObject,DependencyType.Kind.FS,0L,this);
-		//} catch (InvalidAssociationException e) {
-		//	e.printStackTrace();
-		//}
 	}
 	
 
