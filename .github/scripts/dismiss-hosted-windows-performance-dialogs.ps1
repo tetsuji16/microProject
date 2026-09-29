@@ -36,15 +36,18 @@ namespace MicroProject {
       return name.ToString();
     }
 
-    public static bool DismissKnownPagingFileWarning() {
+    public static string DismissKnownHostedConfigurationDialog() {
       var warningPrefix = "Windows created a temporary paging file on your computer";
       var warningSuffix = "paging file configuration";
-      IntPtr matchedDialog = IntPtr.Zero;
-      IntPtr okButton = IntPtr.Zero;
-      string matchedText = null;
+      var performanceHeading = "Processor scheduling";
+      var virtualMemoryHeading = "Virtual memory";
+      string dismissed = null;
 
       EnumWindows((window, parameter) => {
-        if (!IsWindowVisible(window) || !String.Equals(ReadText(window), "System Properties", StringComparison.Ordinal)) return true;
+        if (!IsWindowVisible(window)) return true;
+        var title = ReadText(window);
+        if (!String.Equals(title, "System Properties", StringComparison.Ordinal)
+            && !String.Equals(title, "Performance Options", StringComparison.Ordinal)) return true;
         var parts = new List<string>();
         var candidateButton = IntPtr.Zero;
         EnumChildWindows(window, (child, childParameter) => {
@@ -54,19 +57,22 @@ namespace MicroProject {
           return true;
         }, IntPtr.Zero);
         var content = String.Join(" ", parts);
-        if (candidateButton != IntPtr.Zero && content.Contains(warningPrefix) && content.Contains(warningSuffix)) {
-          matchedDialog = window;
-          okButton = candidateButton;
-          matchedText = content;
+        if (String.Equals(title, "System Properties", StringComparison.Ordinal)
+            && candidateButton != IntPtr.Zero && content.Contains(warningPrefix) && content.Contains(warningSuffix)) {
+          SendMessage(candidateButton, 0x00F5, IntPtr.Zero, IntPtr.Zero); // BM_CLICK
+          dismissed = "title=System Properties; text=" + content;
+          return false;
+        }
+        if (String.Equals(title, "Performance Options", StringComparison.Ordinal)
+            && content.Contains(performanceHeading) && content.Contains(virtualMemoryHeading)) {
+          SendMessage(window, 0x0010, IntPtr.Zero, IntPtr.Zero); // WM_CLOSE, equivalent to the title-bar X (discard changes)
+          dismissed = "title=Performance Options; text=" + content;
           return false;
         }
         return true;
       }, IntPtr.Zero);
 
-      if (matchedDialog == IntPtr.Zero) return false;
-      SendMessage(okButton, 0x00F5, IntPtr.Zero, IntPtr.Zero); // BM_CLICK
-      Console.WriteLine("{0:o} dismissed exact hosted paging-file warning; title=System Properties; text={1}", DateTimeOffset.Now, matchedText);
-      return true;
+      return dismissed;
     }
   }
 }
@@ -76,12 +82,16 @@ namespace MicroProject {
 $deadline = [DateTimeOffset]::Now.AddMinutes($MaximumMinutes)
 $logDirectory = Split-Path -Parent $LogFile
 New-Item -ItemType Directory -Force -Path $logDirectory | Out-Null
-"$(Get-Date -Format o) watcher started; strict System Properties title and paging-file diagnostic match only" |
+"$(Get-Date -Format o) watcher started; strict System Properties or Performance Options title and diagnostic match only" |
   Add-Content -LiteralPath $LogFile -Encoding utf8
 
 while ([DateTimeOffset]::Now -lt $deadline) {
   try {
-    [void][MicroProject.HostedDialogWatcher]::DismissKnownPagingFileWarning()
+    $dismissedDialog = [MicroProject.HostedDialogWatcher]::DismissKnownHostedConfigurationDialog()
+    if ($null -ne $dismissedDialog) {
+      "$(Get-Date -Format o) dismissed exact hosted configuration dialog; $dismissedDialog" |
+        Add-Content -LiteralPath $LogFile -Encoding utf8
+    }
   } catch {
     "$(Get-Date -Format o) watcher error: $_" | Add-Content -LiteralPath $LogFile -Encoding utf8
   }

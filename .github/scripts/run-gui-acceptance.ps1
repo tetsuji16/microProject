@@ -11,8 +11,8 @@ New-Item -ItemType Directory -Force -Path $gateLogs | Out-Null
 
 function Start-HostedWarningWatcher {
   if ($null -ne $script:hostedWarningWatcher -and -not $script:hostedWarningWatcher.HasExited) { return }
-  $watcherScript = Join-Path $PWD '.github/scripts/dismiss-hosted-paging-file-warning.ps1'
-  $watcherLog = Join-Path $script:gateLogs 'hosted-paging-file-warning-watcher.log'
+  $watcherScript = Join-Path $PWD '.github/scripts/dismiss-hosted-windows-performance-dialogs.ps1'
+  $watcherLog = Join-Path $script:gateLogs 'hosted-windows-dialog-watcher.log'
   $argumentLine = '-NoProfile -NonInteractive -File "{0}" -LogFile "{1}"' -f $watcherScript, $watcherLog
   $script:hostedWarningWatcher = Start-Process -FilePath (Join-Path $PSHOME 'pwsh.exe') `
     -ArgumentList $argumentLine -PassThru -WindowStyle Hidden
