@@ -84,7 +84,8 @@ class CanonicalProjectWindowGuiAcceptanceTest {
 			window.setVisible(true);
 		});
 		GuiAcceptanceSupport.await(() -> window.isShowing() && frames[0].isShowing(), "canonical project frame did not become visible");
-		assertSame(frames[0], frames[1]);
+		assertSame(frames[0], frames[1], "equivalent project paths created separate document frames: first="
+				+ frames[0].getProject().getFileName() + ", alias=" + alias.getFileName());
 		assertSame(frames[0], managers[0].getCurrentFrame());
 		assertEquals(existingFrameCount[0] + 1, frameManager.getAllFrames().size());
 		Robot robot = new Robot();

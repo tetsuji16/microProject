@@ -39,7 +39,7 @@ function Invoke-GuiGate([string]$label, [string[]]$arguments) {
     Remove-Item -Force
   $process = Start-Process -FilePath (Join-Path $PWD 'gradlew.bat') `
     -ArgumentList $arguments -PassThru -RedirectStandardOutput $stdout `
-    -RedirectStandardError $stderr
+    -RedirectStandardError $stderr -WindowStyle Hidden
   if (-not $process.WaitForExit(900000)) {
     taskkill.exe /PID $process.Id /T /F | Out-Null
     Save-GuiFailureScreenshot $label

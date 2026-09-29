@@ -467,8 +467,17 @@ class MasterSubprojectMpoGuiAcceptanceTest {
 		warning[0].toFront();
 		JButton button = findButton(warning[0]);
 		assertNotNull(button, "read-only child warning must provide a close button");
-		SwingUtilities.invokeAndWait(button::doClick);
+		Robot robot = new Robot();
+		robot.setAutoDelay(50);
+		java.awt.Point buttonLocation = button.getLocationOnScreen();
+		robot.mouseMove(buttonLocation.x + button.getWidth() / 2, buttonLocation.y + button.getHeight() / 2);
+		robot.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
 		GuiAcceptanceSupport.await(() -> !warning[0].isShowing(), "read-only child warning did not dismiss");
+		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
+				.noneMatch(candidate -> candidate instanceof Dialog dialog && dialog.isShowing()),
+			"another modal dialog remained after dismissing the read-only warning");
 	}
 
 	private static JButton findButton(Container container) {
