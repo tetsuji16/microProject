@@ -31,11 +31,11 @@ import java.io.ObjectOutputStream;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.Date;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.commons.collections.Predicate;
 
 import com.microproject.algorithm.ReverseQuery;
 import com.microproject.algorithm.TimeIteratorGenerator;
@@ -709,11 +709,8 @@ public class ResourceImpl implements Resource, HasAvailability, HasResourceIndic
 		return globalResource.getRemainingCost(fieldContext);
 	}
 
-	public static Predicate instanceofPredicate() {
-		return new Predicate() {
-			public boolean evaluate(Object arg0) {
-				return arg0 instanceof Resource;
-			}};
+	public static Predicate<Object> instanceofPredicate() {
+		return Resource.class::isInstance;
 	}
 	public void invalidateAssignmentCalendars() {
 		globalResource.invalidateAssignmentCalendars();

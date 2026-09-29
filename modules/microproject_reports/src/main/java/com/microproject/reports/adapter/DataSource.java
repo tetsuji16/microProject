@@ -26,11 +26,10 @@ package com.microproject.reports.adapter;
 
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.function.Predicate;
 import net.sf.jasperreports.engine.JRDataSource;
 import net.sf.jasperreports.engine.JRException;
 import net.sf.jasperreports.engine.JRField;
-
-import org.apache.commons.collections.Predicate;
 
 import com.microproject.field.Field;
 import com.microproject.field.FieldContext;
@@ -58,8 +57,8 @@ public class DataSource implements JRDataSource, ObjectRef {
 	public void setIterator(Iterator<?> iterator) {
 		this.iterator = iterator;
 	}
-	public void setPredicate(Predicate predicate) {
-		((PredicatedNodeFilterIterator)iterator).setPredicate(predicate);
+	public void setPredicate(Predicate<Object> predicate) {
+		((PredicatedNodeFilterIterator)iterator).setPredicate(predicate == null ? null : predicate::test);
 	}
 	public void setNodeBased(boolean nodeBased) {
 		this.nodeBased = nodeBased;

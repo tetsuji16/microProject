@@ -24,6 +24,7 @@
  *******************************************************************************/
 package com.microproject.reports.adapter;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -37,7 +38,6 @@ import org.junit.jupiter.api.Test;
 import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.grouping.core.model.NodeModelDataFactory;
 import com.microproject.grouping.core.transform.filtering.PredicatedNodeFilterIterator;
-import org.apache.commons.collections.Predicate;
 
 class DataSourceTest {
 	@Test
@@ -49,6 +49,17 @@ class DataSourceTest {
 		dataSource.setNodeBased(true);
 
 		assertTrue(iterator.nodeBased);
+	}
+
+	@Test
+	void adaptsStandardPredicateForLegacyIterator() {
+		TrackingPredicatedIterator iterator = new TrackingPredicatedIterator();
+		DataSource dataSource = new DataSource();
+		dataSource.setIterator(iterator);
+		dataSource.setPredicate(value -> "accepted".equals(value));
+
+		assertTrue(iterator.predicate.evaluate("accepted"));
+		assertFalse(iterator.predicate.evaluate("rejected"));
 	}
 
 	@Test
@@ -98,6 +109,7 @@ class DataSourceTest {
 
 	private static final class TrackingPredicatedIterator implements PredicatedNodeFilterIterator {
 		private boolean nodeBased;
+		private org.apache.commons.collections.Predicate predicate;
 
 		@Override
 		public boolean hasNext() {
@@ -110,7 +122,8 @@ class DataSourceTest {
 		}
 
 		@Override
-		public void setPredicate(Predicate predicate) {
+		public void setPredicate(org.apache.commons.collections.Predicate predicate) {
+			this.predicate = predicate;
 		}
 
 		@Override

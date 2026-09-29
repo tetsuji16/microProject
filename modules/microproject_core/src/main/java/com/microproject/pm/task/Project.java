@@ -48,9 +48,9 @@ import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.TreeMap;
 import java.util.logging.Logger;
+import java.util.function.Predicate;
 
 
-import org.apache.commons.collections.Predicate;
 
 import com.microproject.algorithm.ReverseQuery;
 import com.microproject.association.Association;
@@ -1814,11 +1814,8 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		if (undoController!=null) undoController.setDataFactory(this);
 	}
 
-	public static Predicate instanceofPredicate() {
-		return new Predicate() {
-			public boolean evaluate(Object arg0) {
-				return arg0 instanceof Project;
-			}};
+	public static Predicate<Object> instanceofPredicate() {
+		return Project.class::isInstance;
 	}
 
 
@@ -2208,7 +2205,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
  * A condition can be applied. The condition tests the task and sees whether it can be a successor task ornot
  * @param parent - should be null if whole project
  */
-	public void linkAllSiblings(Node parent, java.util.function.Predicate<Object> canBeSuccessorCondition, Object eventSource) {
+	public void linkAllSiblings(Node parent, Predicate<Object> canBeSuccessorCondition, Object eventSource) {
 		List<Node> children = getTaskModel().getChildren(parent);
 
 		if (children == null)

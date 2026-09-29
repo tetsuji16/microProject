@@ -28,6 +28,7 @@ import com.microproject.util.DataUtils;
 
 import java.util.Collection;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
@@ -39,7 +40,6 @@ import java.util.TreeSet;
 import java.util.logging.Logger;
 
 
-import org.apache.commons.collections.Predicate;
 
 import com.microproject.association.Association;
 import com.microproject.association.AssociationFormatParameters;
@@ -315,9 +315,9 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	}
 
 
-	public static Consumer<Object> forAllChildren(Consumer<Object> visitor, Predicate filter) {
+	public static Consumer<Object> forAllChildren(Consumer<Object> visitor, Predicate<Object> filter) {
 		return value -> ((Task) value).getProject().getTaskOutline().getHierarchy().getChildren((Node) value)
-				.stream().filter(filter::evaluate).forEach(visitor);
+				.stream().filter(filter).forEach(visitor);
 	}
 
 	public static Consumer<Object> forAllChildren(Consumer<Object> visitor) {
@@ -1753,11 +1753,8 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 
 	}
 
-	public static Predicate instanceofPredicate() {
-		return new Predicate() {
-			public boolean evaluate(Object arg0) {
-				return arg0 instanceof Task;
-			}};
+	public static Predicate<Object> instanceofPredicate() {
+		return Task.class::isInstance;
 	}
 
 	public void invalidateSchedules() {

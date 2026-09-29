@@ -25,6 +25,7 @@
 package com.microproject.reports.adapter;
 
 import java.util.Collection;
+import java.util.function.Predicate;
 
 import net.sf.jasperreports.engine.JRBand;
 import net.sf.jasperreports.engine.JRDataSource;
@@ -44,7 +45,6 @@ import net.sf.jasperreports.engine.design.JasperDesign;
 import net.sf.jasperreports.engine.design.JRDesignSection;
 import net.sf.jasperreports.engine.type.HorizontalTextAlignEnum;
 
-import org.apache.commons.collections.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -223,7 +223,7 @@ public class DataSourceProvider implements JRDataSourceProvider {
 		}
 		
 		
-		Predicate predicate = null;
+		Predicate<Object> predicate = null;
 		boolean tree = false;
 		switch (type) {
 			case PROJECT: 
