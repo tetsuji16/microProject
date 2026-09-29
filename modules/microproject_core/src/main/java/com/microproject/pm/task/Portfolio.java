@@ -102,8 +102,6 @@ public class Portfolio implements Document, NodeModelDataFactory {
 			_addProject(project);
 			return;
 		}
-//		if (Environment.getStandAlone())
-//			createJob = false;
 		Job job=null;
 		if (creating)
 			return;
@@ -113,10 +111,9 @@ public class Portfolio implements Document, NodeModelDataFactory {
 				//TODO be sure all references are removed
 				return;
 			}else{
-			    //removeProject((Project)oldNode.getImpl());
 				job=getRemoveProjectJob((Project)oldNode.getImpl(),true);
 				if (job!=null&&!createJob){
-					//job.addSync(); //sync leads to a lock
+					// Do not wait synchronously here; it deadlocks the shared job queue.
 			    	SessionFactory.getInstance().getSession(project.isLocal()).schedule(job);
 				}
 			}
