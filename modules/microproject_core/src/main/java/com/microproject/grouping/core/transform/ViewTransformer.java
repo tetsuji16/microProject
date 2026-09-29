@@ -282,7 +282,6 @@ public class ViewTransformer{
     public NodeTransformer getTransformer() {
         if (transformerIdDirty){
             transformer=(NodeTransformer)getTransform("transformers",transformerId);
-        	//hiddenFilter.setRedefinitionCallBack(redefinition);
            transformerIdDirty=false;
         }
         return transformer;

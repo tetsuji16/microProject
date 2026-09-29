@@ -336,15 +336,6 @@ public class CriticalPath implements SchedulingAlgorithm {
 
 		}
 	}
-//
-//	public void scheduleTask(NormalTask task) {
-//		calcEarlyStartAndFinish(task, task.getProject().getStart());
-//		calcLateStartAndLateFinish(task, task.getProject().getEnd(), false);
-//		task.calcStartAndFinish();
-//	}
-
-
-	
 	
 	/**
 	 * Respond to object create/delete events
