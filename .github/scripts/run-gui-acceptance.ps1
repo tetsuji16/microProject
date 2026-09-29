@@ -6,7 +6,31 @@ param(
 $ErrorActionPreference = 'Stop'
 $gateLogs = 'modules/microproject_ui/build/reports/guiTest-artifacts'
 $gateFailures = [System.Collections.Generic.List[string]]::new()
+$hostedWarningWatcher = $null
 New-Item -ItemType Directory -Force -Path $gateLogs | Out-Null
+
+function Start-HostedWarningWatcher {
+  if ($null -ne $script:hostedWarningWatcher -and -not $script:hostedWarningWatcher.HasExited) { return }
+  $watcherScript = Join-Path $PWD '.github/scripts/dismiss-hosted-paging-file-warning.ps1'
+  $watcherLog = Join-Path $script:gateLogs 'hosted-paging-file-warning-watcher.log'
+  $argumentLine = '-NoProfile -NonInteractive -File "{0}" -LogFile "{1}"' -f $watcherScript, $watcherLog
+  $script:hostedWarningWatcher = Start-Process -FilePath (Join-Path $PSHOME 'pwsh.exe') `
+    -ArgumentList $argumentLine -PassThru -WindowStyle Hidden
+  Start-Sleep -Milliseconds 300
+  if ($script:hostedWarningWatcher.HasExited) {
+    throw 'Could not start the bounded hosted paging-file warning watcher.'
+  }
+  Write-Host "Started strict hosted paging-file warning watcher (PID $($script:hostedWarningWatcher.Id)); log=$watcherLog"
+}
+
+function Stop-HostedWarningWatcher {
+  if ($null -eq $script:hostedWarningWatcher) { return }
+  if (-not $script:hostedWarningWatcher.HasExited) {
+    Stop-Process -Id $script:hostedWarningWatcher.Id -Force -ErrorAction SilentlyContinue
+    [void]$script:hostedWarningWatcher.WaitForExit(5000)
+  }
+  $script:hostedWarningWatcher = $null
+}
 
 function Save-GuiFailureScreenshot([string]$label) {
   try {
@@ -64,6 +88,7 @@ namespace MicroProject {
 }
 
 function Invoke-GuiGate([string]$label, [string[]]$arguments) {
+  Start-HostedWarningWatcher
   Minimize-HostedRunnerConsole
   $safe = ($label -replace '[^A-Za-z0-9_.-]', '_')
   $stdout = Join-Path $gateLogs "$safe.stdout.log"
@@ -181,6 +206,8 @@ if ($Suite -eq 'full') {
     }
   }
 }
+
+Stop-HostedWarningWatcher
 
 if ($gateFailures.Count -gt 0) {
   throw "GUI audit completed all requested gates with $($gateFailures.Count) failure(s): $($gateFailures -join ' | ')"
