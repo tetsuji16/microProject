@@ -59,8 +59,9 @@ public interface FrameManager extends Serializable, SavableToWorkspace {
 	AbstractList getAllFrames();
 	/** Returns a stable snapshot of the document frames owned by this manager. */
 	default List<DocumentFrame> getDocumentFrames() {
-		List<DocumentFrame> documents = new ArrayList<>();
-		for (Object value : getAllFrames()) {
+		AbstractList frames = getAllFrames();
+		List<DocumentFrame> documents = new ArrayList<>(frames.size());
+		for (Object value : frames) {
 			if (value instanceof DocumentFrame frame)
 				documents.add(frame);
 		}
