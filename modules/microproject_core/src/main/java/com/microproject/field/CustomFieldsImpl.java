@@ -119,9 +119,7 @@ public class CustomFieldsImpl implements CustomFields, Serializable, Cloneable {
 		}
 		if (text==null) cf.text=null;
 		else{
-			cf.text=new String[text.length];
-			for (int i=0;i<text.length;i++)
-				cf.text[i]=text[i]==null?null:new String(text[i]);
+			cf.text = text.clone();
 		}
 		return cf;
 	}

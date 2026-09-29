@@ -63,6 +63,7 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 
 	// Cache for add() results during scheduling passes. Cleared after each pass.
 	ConcurrentHashMap<AddCacheKey, Long> addCache = new ConcurrentHashMap<>(256);
+	private transient volatile long addCacheGeneration;
 
 	/**
 	 *
@@ -277,7 +278,8 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 	/**
 	 * Clear the add() result cache. Called after each scheduling pass to prevent stale results.
 	 */
-	public void clearAddCache() {
+	public synchronized void clearAddCache() {
+		addCacheGeneration++;
 		addCache.clear();
 	}
 
@@ -286,7 +288,7 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 	/** A scheduling operation's cache ownership boundary, isolated to its thread. */
 	public static final class AddCacheScope implements AutoCloseable {
 		private final AddCacheScope parent;
-		private final IdentityHashMap<CalendarDefinition, ConcurrentHashMap<AddCacheKey, Long>> caches =
+		private final IdentityHashMap<CalendarDefinition, ScopedAddCache> caches =
 				new IdentityHashMap<>();
 		private boolean closed;
 
@@ -308,14 +310,25 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 		}
 
 		private long add(CalendarDefinition calendar, AddCacheKey key) {
-			ConcurrentHashMap<AddCacheKey, Long> cache = caches.computeIfAbsent(calendar,
-					ignored -> new ConcurrentHashMap<>(256));
-			Long cached = cache.get(key);
-			if (cached != null)
-				return cached.longValue();
-			long result = calendar.calculateAddition(key.date(), key.duration(), key.useSooner());
-			cache.put(key, result);
-			return result;
+			while (true) {
+				long generation = calendar.addCacheGeneration;
+				ScopedAddCache cache = caches.get(calendar);
+				if (cache == null || cache.generation != generation) {
+					cache = new ScopedAddCache(generation);
+					caches.put(calendar, cache);
+				}
+				Long cached = cache.values.get(key);
+				if (cached != null) {
+					if (generation == calendar.addCacheGeneration)
+						return cached.longValue();
+					continue;
+				}
+				long result = calendar.calculateAddition(key.date(), key.duration(), key.useSooner());
+				if (generation != calendar.addCacheGeneration)
+					continue;
+				cache.values.put(key, result);
+				return result;
+			}
 		}
 
 		int cachedCalendarCount() {
@@ -323,8 +336,17 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 		}
 
 		int cachedResultCount(CalendarDefinition calendar) {
-			ConcurrentHashMap<AddCacheKey, Long> cache = caches.get(calendar);
-			return cache == null ? 0 : cache.size();
+			ScopedAddCache cache = caches.get(calendar);
+			return cache == null ? 0 : cache.values.size();
+		}
+	}
+
+	private static final class ScopedAddCache {
+		private final long generation;
+		private final ConcurrentHashMap<AddCacheKey, Long> values = new ConcurrentHashMap<>(256);
+
+		private ScopedAddCache(long generation) {
+			this.generation = generation;
 		}
 	}
 
@@ -348,13 +370,20 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 		AddCacheScope scope = currentAddCacheScope.get();
 		if (scope != null)
 			return scope.add(this, key);
-		Long cached = addCache.get(key);
-		if (cached != null) {
-			return cached.longValue();
+		while (true) {
+			long generation = addCacheGeneration;
+			Long cached = addCache.get(key);
+			if (cached != null) {
+				if (generation == addCacheGeneration)
+					return cached.longValue();
+				continue;
+			}
+			long result = calculateAddition(date, duration, useSooner);
+			if (generation != addCacheGeneration)
+				continue;
+			addCache.put(key, result);
+			return result;
 		}
-		long result = calculateAddition(date, duration, useSooner);
-		addCache.put(key, result);
-		return result;
 	}
 
 	private long calculateAddition(long date, long duration, boolean useSooner) {

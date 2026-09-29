@@ -26,6 +26,7 @@ package com.microproject.pm.calendar;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -55,6 +56,33 @@ class CalendarDefinitionTest {
 		}
 		assertTrue(sharedCalendar.addCache.isEmpty(),
 				"schedule-scoped values must not leak into the shared instance cache");
+	}
+
+	@Test
+	void invalidatingCalendarClearsValuesFromTheActiveSchedulingScope() {
+		CalendarDefinition calendar = standardWeekCalendar();
+		long mondayAtNine = timestamp(2024, Calendar.JUNE, 3, 9);
+		CalendarDefinition updatedCalendar = standardWeekCalendar();
+		markMondayAsNonWorking(updatedCalendar);
+		long updatedResult = updatedCalendar.add(mondayAtNine, eightHours(), true);
+		try (CalendarDefinition.AddCacheScope scope = CalendarDefinition.beginAddCacheScope()) {
+			long cachedResult = calendar.add(mondayAtNine, eightHours(), true);
+			assertNotEquals(updatedResult, cachedResult, "the calendar edit must change this calculation");
+
+			markMondayAsNonWorking(calendar);
+			calendar.invalidate();
+
+			assertEquals(updatedResult, calendar.add(mondayAtNine, eightHours(), true),
+					"the active scheduling scope must not return a result calculated before invalidation");
+			assertEquals(1, scope.cachedCalendarCount());
+			assertEquals(1, scope.cachedResultCount(calendar));
+		}
+	}
+
+	private static void markMondayAsNonWorking(CalendarDefinition calendar) {
+		calendar.addOrReplaceException(nonWorkingDay(DateTime.calendarInstance(2024, Calendar.JUNE, 3).getTimeInMillis()));
+		calendar.addSentinelsAndMakeArray();
+		calendar.invalidate();
 	}
 
 	@Test

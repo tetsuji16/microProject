@@ -61,6 +61,7 @@ class ValueObjectForIntervalTableTest {
 
 		AvailabilityTable clone = (AvailabilityTable) table.clone();
 		clone.initAfterCloning();
+		assertSame(table.getName(), clone.getName());
 		assertNotSame(table.getList().get(0), clone.getList().get(0));
 		for (ValueObjectForInterval valueObject : clone.getList())
 			assertSame(clone, valueObject.getTable());

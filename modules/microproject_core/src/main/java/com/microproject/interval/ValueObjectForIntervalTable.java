@@ -228,7 +228,7 @@ public abstract class ValueObjectForIntervalTable implements NodeModelDataFactor
 	public Object clone(){ 
 		try {
 			ValueObjectForIntervalTable v=(ValueObjectForIntervalTable)super.clone();
-			v.name=(name==null)?null:new String(name);
+			v.name = name;
 			ArrayList<ValueObjectForInterval> newList = new ArrayList<>(valueObjects.size());
 			for (ValueObjectForInterval valueObject : valueObjects)
 				newList.add((ValueObjectForInterval) valueObject.clone());

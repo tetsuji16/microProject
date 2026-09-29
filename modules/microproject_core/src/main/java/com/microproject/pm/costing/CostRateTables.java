@@ -62,10 +62,7 @@ public class CostRateTables implements Cost, Serializable, Cloneable {
 	public Object clone(){ 
 		try {
 			CostRateTables c=(CostRateTables)super.clone();
-			if (names!=null) c.names=new String[names.length];
-			else for (int i=0;i<names.length;i++){
-				c.names[i]=(names[i]==null)?null:new String(names[i]);
-			}
+			c.names = names == null ? null : names.clone();
 			if (costRateTableArray!=null){
 				c.costRateTableArray=new CostRateTable[costRateTableArray.length];
 				for (int i=0;i<costRateTableArray.length;i++){
