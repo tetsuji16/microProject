@@ -5,6 +5,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $gateLogs = 'modules/microproject_ui/build/reports/guiTest-artifacts'
+$gateFailures = [System.Collections.Generic.List[string]]::new()
 New-Item -ItemType Directory -Force -Path $gateLogs | Out-Null
 
 function Save-GuiFailureScreenshot([string]$label) {
@@ -90,10 +91,15 @@ function Invoke-GuiGate([string]$label, [string[]]$arguments) {
 
 # Release runs the efficient shared-cause smoke gate. The scheduled/manual
 # audit selects full and adds locale × scale visual checks without publishing.
-Invoke-GuiGate "functional-$Suite-ja-100" @(
-  ':microproject_ui:guiTest', '--max-workers=1', '--console=plain',
-  "-PguiTestSuite=$Suite", '-PguiTestLocale=ja', '-PguiTestUiScale=1.0'
-)
+try {
+  Invoke-GuiGate "functional-$Suite-ja-100" @(
+    ':microproject_ui:guiTest', '--max-workers=1', '--console=plain',
+    "-PguiTestSuite=$Suite", '-PguiTestLocale=ja', '-PguiTestUiScale=1.0'
+  )
+} catch {
+  $gateFailures.Add($_.Exception.Message)
+  Write-Warning "Continuing GUI audit after functional gate failure: $($_.Exception.Message)"
+}
 
 if ($Suite -eq 'full') {
   $visualTests = @(
@@ -111,7 +117,16 @@ if ($Suite -eq 'full') {
         "-PguiTestLocale=$locale", "-PguiTestUiScale=$scale"
       )
       foreach ($testClass in $visualTests) { $gradleArgs += @('--tests', $testClass) }
-      Invoke-GuiGate "visual-$locale-$scale" $gradleArgs
+      try {
+        Invoke-GuiGate "visual-$locale-$scale" $gradleArgs
+      } catch {
+        $gateFailures.Add($_.Exception.Message)
+        Write-Warning "Continuing GUI audit after visual gate failure: $($_.Exception.Message)"
+      }
     }
   }
+}
+
+if ($gateFailures.Count -gt 0) {
+  throw "GUI audit completed all requested gates with $($gateFailures.Count) failure(s): $($gateFailures -join ' | ')"
 }
