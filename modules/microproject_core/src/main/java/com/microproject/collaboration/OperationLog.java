@@ -179,11 +179,10 @@ public final class OperationLog {
 	public byte[] write(String documentId, Collection<Operation> operations) throws java.io.IOException {
 		requireUuid(documentId, "document id");
 		ObjectNode root = JSON.createObjectNode(); root.put("schemaVersion", 1); root.put("documentId", documentId);
-		ArrayNode values = root.putArray("operations"); root.putArray("conflicts");
+		ArrayNode values = root.putArray("operations");
 		MergeResult merged = merge(operations); List<Operation> all = new ArrayList<>(merged.ready()); all.addAll(merged.pending());
 		for (Operation op : all) { ObjectNode value = values.addObject(); value.put("id", op.id()); value.put("actorId", op.actorId()); value.put("sequence", op.sequence()); ArrayNode parents = value.putArray("parents"); op.parents().stream().sorted().forEach(parents::add); value.put("kind", op.kind()); value.put("entityId", op.entityId()); value.set("payload", JSON.valueToTree(op.payload())); }
-		ArrayNode conflictValues = (ArrayNode) root.withArray("conflicts");
-		for (Conflict conflict : merged.conflicts()) { ObjectNode value = conflictValues.addObject(); value.put("entityId", conflict.entityId()); value.put("kind", conflict.kind()); ArrayNode ids = value.putArray("operationIds"); conflict.operationIds().forEach(ids::add); }
+		writeConflictMetadata(root, merged.conflicts());
 		ArrayNode applied = root.putArray("appliedOperationIds");
 		merged.ready().stream().map(Operation::id).sorted().forEach(applied::add);
 		return JSON.writeValueAsBytes(root);
@@ -195,6 +194,7 @@ public final class OperationLog {
 		StringBuilder result = new StringBuilder();
 		ObjectNode header = JSON.createObjectNode();
 		header.put("type", "header"); header.put("schemaVersion", 1); header.put("documentId", documentId);
+		writeConflictMetadata(header, merged.conflicts());
 		result.append(JSON.writeValueAsString(header)).append('\n');
 		List<Operation> all = new ArrayList<>(merged.ready()); all.addAll(merged.pending());
 		for (Operation op : all) {
@@ -227,6 +227,7 @@ public final class OperationLog {
 			} catch (IllegalArgumentException exception) { throw new java.io.IOException("Invalid JSONL operation record", exception); }
 		}
 		MergeResult merged = merge(operations);
+		validateConflictMetadata(header, merged, false);
 		return new DocumentLog(documentId, mergeAll(merged), merged.ready().stream().map(Operation::id).collect(java.util.stream.Collectors.toUnmodifiableSet()));
 	}
 
@@ -237,16 +238,47 @@ public final class OperationLog {
 		ObjectNode value = JSON.createObjectNode(); value.put("id", op.id()); value.put("actorId", op.actorId()); value.put("sequence", op.sequence());
 		ArrayNode parents = value.putArray("parents"); op.parents().stream().sorted().forEach(parents::add); value.put("kind", op.kind()); value.put("entityId", op.entityId()); value.set("payload", JSON.valueToTree(op.payload())); return value;
 	}
+
+	private static void writeConflictMetadata(ObjectNode parent, List<Conflict> conflicts) {
+		ArrayNode conflictValues = parent.putArray("conflicts");
+		for (Conflict conflict : conflicts) {
+			ObjectNode value = conflictValues.addObject();
+			value.put("entityId", conflict.entityId());
+			value.put("kind", conflict.kind());
+			ArrayNode ids = value.putArray("operationIds");
+			conflict.operationIds().forEach(ids::add);
+		}
+	}
+
+	private static void validateConflictMetadata(JsonNode root, MergeResult merged, boolean required) throws java.io.IOException {
+		JsonNode declared = root.get("conflicts");
+		if (declared == null && !required) return; // Older JSONL headers did not carry derived conflicts.
+		if (declared == null || !declared.isArray()) throw new java.io.IOException("Invalid operation conflict metadata");
+		Set<String> expectedConflicts = new LinkedHashSet<>(merged.conflicts().size() * 4 / 3 + 1);
+		for (Conflict conflict : merged.conflicts()) expectedConflicts.add(conflictKey(conflict));
+		Set<String> declaredConflicts = new LinkedHashSet<>(declared.size() * 4 / 3 + 1);
+		for (JsonNode conflict : declared) {
+			if (!conflict.isObject() || !conflict.path("entityId").isTextual()
+					|| !conflict.path("kind").isTextual() || !conflict.path("operationIds").isArray()
+					|| conflict.path("operationIds").size() < 2)
+				throw new java.io.IOException("Invalid operation conflict");
+			List<String> ids = new ArrayList<>(conflict.path("operationIds").size());
+			for (JsonNode id : conflict.path("operationIds")) {
+				if (!id.isTextual()) throw new java.io.IOException("Invalid operation conflict member");
+				ids.add(id.textValue());
+			}
+			ids.sort(String::compareTo);
+			declaredConflicts.add(conflict.path("entityId").textValue() + "|" + conflict.path("kind").textValue() + "|" + String.join(",", ids));
+		}
+		if (declaredConflicts.size() != declared.size() || !expectedConflicts.equals(declaredConflicts))
+			throw new java.io.IOException("Operation conflict metadata does not match operations");
+	}
 	public List<Operation> read(byte[] json) throws java.io.IOException {
 		return readDocument(json).operations();
 	}
 	public DocumentLog readDocument(byte[] json) throws java.io.IOException {
 		JsonNode root = JSON.readTree(json);
-		if (root == null || !root.isObject() || !root.path("schemaVersion").canConvertToInt() || root.path("schemaVersion").asInt(-1) != 1 || !root.path("operations").isArray() || !root.path("conflicts").isArray()) throw new java.io.IOException("Invalid operation log");
-		for (JsonNode conflict : root.path("conflicts")) {
-			if (!conflict.isObject() || !conflict.path("entityId").isTextual() || !conflict.path("kind").isTextual() || !conflict.path("operationIds").isArray()) throw new java.io.IOException("Invalid operation conflict");
-			if (conflict.path("operationIds").size() < 2) throw new java.io.IOException("Invalid operation conflict members");
-		}
+		if (root == null || !root.isObject() || !root.path("schemaVersion").canConvertToInt() || root.path("schemaVersion").asInt(-1) != 1 || !root.path("operations").isArray()) throw new java.io.IOException("Invalid operation log");
 		String documentId = text(root, "documentId");
 		try { requireUuid(documentId, "document id"); } catch (IllegalArgumentException exception) { throw new java.io.IOException("Invalid operation document id", exception); }
 		List<Operation> result = new ArrayList<>(root.path("operations").size()); for (JsonNode value : root.path("operations")) {
@@ -256,16 +288,7 @@ public final class OperationLog {
 			try { result.add(new Operation(text(value,"id"), text(value,"actorId"), value.path("sequence").longValue(), parents, text(value,"kind"), text(value,"entityId"), payload)); } catch (IllegalArgumentException exception) { throw new java.io.IOException("Invalid operation", exception); }
 		}
 		MergeResult merged = merge(result);
-		Set<String> expectedConflicts = new LinkedHashSet<>(merged.conflicts().size() * 4 / 3 + 1);
-		for (Conflict conflict : merged.conflicts()) expectedConflicts.add(conflictKey(conflict));
-		Set<String> declaredConflicts = new LinkedHashSet<>(root.path("conflicts").size() * 4 / 3 + 1);
-		for (JsonNode conflict : root.path("conflicts")) {
-			List<String> ids = new ArrayList<>(conflict.path("operationIds").size());
-			for (JsonNode id : conflict.path("operationIds")) ids.add(id.textValue());
-			ids.sort(String::compareTo);
-			declaredConflicts.add(conflict.path("entityId").textValue() + "|" + conflict.path("kind").textValue() + "|" + String.join(",", ids));
-		}
-		if (!expectedConflicts.equals(declaredConflicts)) throw new java.io.IOException("Operation conflict metadata does not match operations");
+		validateConflictMetadata(root, merged, true);
 		List<Operation> all = new ArrayList<>(merged.ready()); all.addAll(merged.pending());
 		JsonNode appliedNode = root.get("appliedOperationIds");
 		int appliedIdCount = appliedNode == null ? merged.ready().size()

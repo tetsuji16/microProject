@@ -1,6 +1,7 @@
 package com.microproject.collaboration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.Map;
@@ -63,6 +64,41 @@ class OperationLogTest {
 		assertEquals(1, log.merge(List.of(left, right)).conflicts().size());
 		String json = new String(log.write(DOCUMENT, List.of(left, right)), java.nio.charset.StandardCharsets.UTF_8);
 		org.junit.jupiter.api.Assertions.assertTrue(json.contains("operationIds"));
+	}
+
+	@Test void jsonlRoundTripRetainsConcurrentConflictRecordAndBothOperations() throws Exception {
+		OperationLog log = new OperationLog();
+		OperationLog.Operation left = new OperationLog.Operation(FIRST, ACTOR_A, 1, Set.of(), "task.update", ENTITY, Map.of("name", "A"));
+		OperationLog.Operation right = new OperationLog.Operation(NEXT, ACTOR_B, 1, Set.of(), "task.update", ENTITY, Map.of("name", "B"));
+
+		byte[] jsonl = log.writeJsonl(DOCUMENT, List.of(left, right));
+		String header = new String(jsonl, java.nio.charset.StandardCharsets.UTF_8).lines().findFirst().orElseThrow();
+		assertTrue(header.contains("\"conflicts\":[{\"entityId\":\"" + ENTITY + "\""));
+		OperationLog.DocumentLog restored = log.readJsonl(jsonl);
+		assertEquals(Set.of(FIRST, NEXT), restored.operations().stream().map(OperationLog.Operation::id).collect(java.util.stream.Collectors.toSet()));
+		assertEquals(1, log.merge(restored.operations()).conflicts().size());
+	}
+
+	@Test void jsonlReaderRejectsStaleConflictMetadata() throws Exception {
+		OperationLog log = new OperationLog();
+		OperationLog.Operation left = new OperationLog.Operation(FIRST, ACTOR_A, 1, Set.of(), "task.update", ENTITY, Map.of("name", "A"));
+		OperationLog.Operation right = new OperationLog.Operation(NEXT, ACTOR_B, 1, Set.of(), "task.update", ENTITY, Map.of("name", "B"));
+		String[] lines = new String(log.writeJsonl(DOCUMENT, List.of(left, right)), java.nio.charset.StandardCharsets.UTF_8).split("\\n", -1);
+		com.fasterxml.jackson.databind.node.ObjectNode header = (com.fasterxml.jackson.databind.node.ObjectNode)
+			new com.fasterxml.jackson.databind.ObjectMapper().readTree(lines[0]);
+		header.putArray("conflicts");
+		lines[0] = header.toString();
+
+		org.junit.jupiter.api.Assertions.assertThrows(java.io.IOException.class,
+			() -> log.readJsonl(String.join("\n", lines).getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+	}
+
+	@Test void jsonlReaderAcceptsLegacyHeaderWithoutConflictMetadata() throws Exception {
+		OperationLog.Operation operation = new OperationLog.Operation(FIRST, ACTOR_A, 1, Set.of(), "task.update", ENTITY, Map.of("name", "A"));
+		String jsonl = "{\"type\":\"header\",\"schemaVersion\":1,\"documentId\":\"" + DOCUMENT + "\"}\n"
+			+ "{\"id\":\"" + FIRST + "\",\"actorId\":\"" + ACTOR_A + "\",\"sequence\":1,\"parents\":[],\"kind\":\"task.update\",\"entityId\":\"" + ENTITY + "\",\"payload\":{\"name\":\"A\"}}\n";
+
+		assertEquals(List.of(operation), new OperationLog().readJsonl(jsonl.getBytes(java.nio.charset.StandardCharsets.UTF_8)).operations());
 	}
 
 	@Test void allowsConcurrentUpdatesToDifferentFieldsOfTheSameTask() {
