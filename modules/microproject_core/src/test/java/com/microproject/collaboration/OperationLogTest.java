@@ -176,6 +176,26 @@ class OperationLogTest {
 		assertEquals(1, log.merge(List.of(left, right)).conflicts().size());
 	}
 
+	@Test void concurrentAssignmentUnitChangesConflictOnTaskResourceIdentity() {
+		OperationLog log = new OperationLog();
+		OperationLog.Operation left = new OperationLog.Operation(FIRST, ACTOR_A, 1, Set.of(), "assignment.add", ENTITY,
+				Map.of("taskLegacyUniqueId", 11L, "resourceUniqueId", 12L, "units", 0.5D, "delay", 0L));
+		OperationLog.Operation right = new OperationLog.Operation(NEXT, ACTOR_B, 1, Set.of(), "assignment.add", ENTITY,
+				Map.of("taskLegacyUniqueId", 11L, "resourceUniqueId", 12L, "units", 1D, "delay", 0L));
+
+		assertEquals(1, log.merge(List.of(left, right)).conflicts().size());
+	}
+
+	@Test void concurrentTaskDeleteAndUpdateConflict() {
+		OperationLog log = new OperationLog();
+		OperationLog.Operation delete = new OperationLog.Operation(FIRST, ACTOR_A, 1, Set.of(), "task.delete", ENTITY,
+				Map.of("legacyUniqueId", 11L));
+		OperationLog.Operation update = new OperationLog.Operation(NEXT, ACTOR_B, 1, Set.of(), "task.update", ENTITY,
+				Map.of("legacyUniqueId", 11L, "name", "Updated"));
+
+		assertEquals(1, log.merge(List.of(delete, update)).conflicts().size());
+	}
+
 	@Test void rejectsStaleConflictMetadata() throws Exception {
 		String json = "{\"schemaVersion\":1,\"documentId\":\"" + DOCUMENT
 			+ "\",\"operations\":[],\"conflicts\":[{\"entityId\":\"" + ENTITY
