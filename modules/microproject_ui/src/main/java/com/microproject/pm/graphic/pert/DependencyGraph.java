@@ -29,6 +29,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Set;
 
 import com.microproject.pm.graphic.model.cache.GraphicDependency;
@@ -86,8 +87,8 @@ public class DependencyGraph{
 	
 	
 	public void updatePertLevels(){
-	    for (Iterator<?> i = cache.getIterator(); i.hasNext();) {
-	        resetCachePertLevel((GraphicNode) i.next());
+	    for (ListIterator<GraphicNode> i = cache.getIterator(); i.hasNext();) {
+	        resetCachePertLevel(i.next());
 	    }
 	    
 	    Set<Node> predecessors = new HashSet<>();

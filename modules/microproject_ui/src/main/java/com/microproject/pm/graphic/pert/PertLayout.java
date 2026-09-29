@@ -28,7 +28,7 @@ import java.awt.Rectangle;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
-import java.util.Iterator;
+import java.util.ListIterator;
 import java.util.function.Consumer;
 
 
@@ -88,8 +88,8 @@ public class PertLayout extends AbstractNetworkLayout {
 		int row=0;
 		int col=-1;
 		setEmpty();
-		for (Iterator i=cache.getIterator();i.hasNext();){
-		    GraphicNode current=(GraphicNode)i.next();
+		for (ListIterator<GraphicNode> i = cache.getIterator(); i.hasNext();) {
+		    GraphicNode current = i.next();
 		    int currentCol=cache.getPertLevel(current)-1;
 		    if (currentCol<=col) row++;
 		    col=currentCol;
