@@ -134,6 +134,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	protected SpreadSheetPopupMenu popup=null;
 	private boolean hierarchyActionInProgress;
 	private boolean tableMouseHandlerInstalled;
+	private final PopupTriggerController popupTriggerController = new PopupTriggerController();
 	private String[] actionList = null;
 	private Map<String, CommonSpreadSheetAction> actionMap = null;
 
@@ -1125,6 +1126,8 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			if (taskRowsBeforePress != null && (e.isControlDown() || e.isMetaDown() || e.isShiftDown()))
 				restoreTaskRowSelection(taskRowsBeforePress, getSelection().getActiveRow(), getSelection().getActiveColumn());
 			handleTableMousePressed(e);
+			if (popupTriggerController.mousePressed(e))
+				handleTablePopupTrigger(e);
 			if (isTaskTable() && SwingUtilities.isLeftMouseButton(e)) {
 				taskRowsSelectedAfterPress = getSelectedRows();
 				restoreModifiedTaskSelection = e.isControlDown() || e.isMetaDown() || e.isShiftDown();
@@ -1155,7 +1158,8 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			} else if (SwingUtilities.isLeftMouseButton(e) && !e.isControlDown()
 					&& !e.isMetaDown() && !e.isShiftDown())
 				restoreTaskRowSelection(releasedRow, releasedColumn);
-			handleTablePopupTrigger(e);
+			if (popupTriggerController.mouseReleased(e))
+				handleTablePopupTrigger(e);
 		} else if (e.getID() == MouseEvent.MOUSE_CLICKED && SwingUtilities.isLeftMouseButton(e)) {
 			if (suppressTaskClickRestore) {
 				suppressTaskClickRestore = false;
@@ -1199,7 +1203,6 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		var p = e.getPoint();
 		var row = rowAtPoint(p);
 		var col = columnAtPoint(p);
-		var popup = getPopup();
 		if (row < 0 || col < 0) {
 			return;
 		}
@@ -1251,8 +1254,6 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 				// once its single selection route has run.
 				e.consume();
 			}
-		} else if (popup != null && e.isPopupTrigger()) {
-			showPopupForCell(row, col, this, e);
 		}
 	}
 

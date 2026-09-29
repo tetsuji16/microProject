@@ -42,6 +42,7 @@ import javax.swing.table.DefaultTableColumnModel;
 
 import com.microproject.menu.MenuActionConstants;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
+import com.microproject.pm.graphic.spreadsheet.PopupTriggerController;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetPopupMenu;
 import com.microproject.strings.Messages;
 import com.microproject.util.Alert;
@@ -104,6 +105,7 @@ public class SpreadSheetRowHeader extends JTable {
 			if (!mouseHandlersInstalled){
 				mouseHandlersInstalled=true;
 				MouseInputAdapter handler=new MouseInputAdapter() {
+					private final PopupTriggerController popupTriggers = new PopupTriggerController();
 					private Point pressPoint;
 					private int pressRow = -1;
 					private boolean dragging;
@@ -111,6 +113,7 @@ public class SpreadSheetRowHeader extends JTable {
 					private boolean dropAfter;
 					private boolean validDrop;
 					public void mousePressed(MouseEvent e) {
+						boolean popupTrigger = popupTriggers.mousePressed(e);
 						if (SwingUtilities.isLeftMouseButton(e)){
 							int row = rowAtPoint(e.getPoint());
 							if (row < 0) {
@@ -135,7 +138,7 @@ public class SpreadSheetRowHeader extends JTable {
 //								mainFrame.doInformationDialog(false);
 //
 							}
-						}else if (e.isPopupTrigger()){
+						}else if (popupTrigger){
 							showTaskPopup(e);
 						}
 					}
@@ -153,9 +156,10 @@ public class SpreadSheetRowHeader extends JTable {
 						}
 					}
 					public void mouseReleased(MouseEvent e) {
+						boolean popupTrigger = popupTriggers.mouseReleased(e);
 						if (dragging && validDrop && confirmDragMove(spreadSheet))
 							spreadSheet.moveSelectedTaskRowsTo(targetRow,dropAfter);
-						if (e.isPopupTrigger())
+						if (popupTrigger)
 							showTaskPopup(e);
 						pressPoint=null;
 						pressRow=-1;

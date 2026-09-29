@@ -124,7 +124,8 @@ class SpreadSheetMouseInteractionTest {
 			int column = findNameColumn(sheet);
 			sheet.changeSelection(firstRow, column, false, false);
 
-			sheet.handleTableMousePressed(mousePress(sheet, secondRow, column, MouseEvent.BUTTON3, 1));
+			sheet.dispatchEvent(mousePress(sheet, secondRow, column, MouseEvent.BUTTON3, 1));
+			sheet.dispatchEvent(mouseReleasePopup(sheet, secondRow, column));
 
 			assertEquals(secondRow, sheet.getSelectedRow());
 			assertTrue(sheet.getSelection().isActiveCell(secondRow, column));
@@ -211,6 +212,23 @@ class SpreadSheetMouseInteractionTest {
 	}
 
 	@Test
+	void taskPopupIsShownOnlyOnceWhenBothPlatformEventsMarkTheGesture() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createFixture();
+			RecordingSpreadSheet sheet = fixture.sheet();
+			int row = findRow(sheet, fixture.secondTask());
+			int column = findNameColumn(sheet);
+
+			sheet.dispatchEvent(mousePress(sheet, row, column, MouseEvent.BUTTON3, 1));
+			sheet.dispatchEvent(mouseReleasePopup(sheet, row, column));
+
+			assertEquals(1, sheet.popupShowCount,
+				"a platform that reports popup triggers on both press and release must show one popup");
+			assertEquals(row, sheet.shownPopup.getRow());
+		});
+	}
+
+	@Test
 	void clickingATaskSheetHeaderSelectsItsColumn() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			Fixture fixture = createFixture();
@@ -240,6 +258,25 @@ class SpreadSheetMouseInteractionTest {
 			assertTrue(sheet.popupShown);
 			assertEquals(row, sheet.shownPopup.getRow());
 			assertEquals(0, sheet.shownPopup.getCol());
+			assertEquals(header, sheet.popupInvoker);
+		});
+	}
+
+	@Test
+	void rowHeaderPopupIsShownOnlyOnceWhenBothPlatformEventsMarkTheGesture() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createFixture();
+			RecordingSpreadSheet sheet = fixture.sheet();
+			int row = findRow(sheet, fixture.secondTask());
+			SpreadSheetRowHeader header = sheet.getRowHeader();
+			header.setUI(null);
+
+			header.dispatchEvent(rowHeaderPopupPress(header, row));
+			header.dispatchEvent(rowHeaderPopupRelease(header, row));
+
+			assertEquals(1, sheet.popupShowCount,
+				"row-header press/release popup triggers must share one popup dispatch");
+			assertEquals(row, sheet.shownPopup.getRow());
 			assertEquals(header, sheet.popupInvoker);
 		});
 	}
@@ -806,6 +843,13 @@ class SpreadSheetMouseInteractionTest {
 			1, true, MouseEvent.BUTTON3);
 	}
 
+	private MouseEvent rowHeaderPopupPress(SpreadSheetRowHeader header, int row) {
+		Rectangle bounds = header.getCellRect(row, 0, true);
+		return new MouseEvent(header, MouseEvent.MOUSE_PRESSED, System.currentTimeMillis(),
+			MouseEvent.BUTTON3_DOWN_MASK, bounds.x + Math.max(1, bounds.width / 2),
+			bounds.y + Math.max(1, bounds.height / 2), 1, true, MouseEvent.BUTTON3);
+	}
+
 	private MouseEvent rowHeaderMousePress(SpreadSheetRowHeader rowHeader, int row, int clickCount) {
 		return rowHeaderMousePress(rowHeader, row, clickCount, false);
 	}
@@ -865,6 +909,7 @@ class SpreadSheetMouseInteractionTest {
 		private boolean popupShown;
 		private SpreadSheetPopupMenu shownPopup;
 		private java.awt.Component popupInvoker;
+		private int popupShowCount;
 		private int focusRequestCount;
 		private int tableMousePressCount;
 
@@ -894,6 +939,7 @@ class SpreadSheetMouseInteractionTest {
 		@Override
 		protected void showPopupMenu(SpreadSheetPopupMenu popup, java.awt.Component invoker, MouseEvent e) {
 			popupShown = true;
+			popupShowCount++;
 			shownPopup = popup;
 			popupInvoker = invoker;
 		}

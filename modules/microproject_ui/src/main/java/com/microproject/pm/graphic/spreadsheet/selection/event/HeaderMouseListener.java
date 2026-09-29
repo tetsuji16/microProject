@@ -31,12 +31,14 @@ import javax.swing.SwingUtilities;
 
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetColumnMenu;
+import com.microproject.pm.graphic.spreadsheet.PopupTriggerController;
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet;
 /**
  *
  */
 public class HeaderMouseListener extends MouseAdapter {
 	protected SpreadSheet table;
+	private final PopupTriggerController popupTriggers = new PopupTriggerController();
 	public HeaderMouseListener(SpreadSheet table) {
 		super();
 		this.table=table;
@@ -50,16 +52,29 @@ public class HeaderMouseListener extends MouseAdapter {
 				return;
 			}
 			table.selectColumnAndAllRows(col);
-		} else if (SwingUtilities.isRightMouseButton(e)) {
-			if (table instanceof CommonSpreadSheet && ((CommonSpreadSheet)table).getSpreadSheetCategory() != null){
-				CommonSpreadSheet sp=(CommonSpreadSheet)table;
-				if (sp.isHasColumnHeaderPopup()) {
-					SpreadSheetColumnMenu columnsPopup = new SpreadSheetColumnMenu(sp,col+1);
-					columnsPopup.show(sp,e.getX(),e.getY());
-				}
-			}
 		}
 
+	}
+
+	@Override
+	public void mousePressed(MouseEvent e) {
+		if (popupTriggers.mousePressed(e))
+			showColumnPopup(e);
+	}
+
+	@Override
+	public void mouseReleased(MouseEvent e) {
+		if (popupTriggers.mouseReleased(e))
+			showColumnPopup(e);
+	}
+
+	private void showColumnPopup(MouseEvent e) {
+		int column = table.columnAtPoint(e.getPoint());
+		if (column < 0 || !(table instanceof CommonSpreadSheet sheet)
+				|| sheet.getSpreadSheetCategory() == null || !sheet.isHasColumnHeaderPopup())
+			return;
+		SpreadSheetColumnMenu popup = new SpreadSheetColumnMenu(sheet, column + 1);
+		popup.show(e.getComponent(), e.getX(), e.getY());
 	}
 }
 
