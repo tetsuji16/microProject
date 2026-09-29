@@ -5,10 +5,12 @@
  ******************************************************************************/
 package com.microproject.exchange;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -199,6 +201,47 @@ class MpoFileImporterTest {
 		assertTrue(restored.isManualWidth(0));
 		assertFalse(restored.isManualWidth(1));
 		assertTrue(restored.isManualWidth(2));
+	}
+
+	@Test
+	void mpoPreservesUnknownExtensionBytesAcrossLoadAndSave() throws Exception {
+		Project project = projectForRoundTrip();
+		ByteArrayOutputStream generated = new ByteArrayOutputStream();
+		new MpoFileImporter().saveProject(project, generated);
+		Map<String, byte[]> entries = readEntries(generated.toByteArray());
+		String extensionPath = "future/vendor-state.bin";
+		byte[] extension = new byte[] { 0, 1, 2, (byte) 0xFE, (byte) 0xFF };
+		entries.put(extensionPath, extension);
+		String manifest = new String(entries.get(MpoFileImporter.MANIFEST_ENTRY), StandardCharsets.UTF_8);
+		manifest = manifest.replace("</manifest>", "<entry path=\"" + extensionPath + "\" sha256=\""
+			+ sha256(extension) + "\"/></manifest>");
+		entries.put(MpoFileImporter.MANIFEST_ENTRY, manifest.getBytes(StandardCharsets.UTF_8));
+
+		Project reopened = loadFromBytes(zip(entries).toByteArray());
+		ByteArrayOutputStream resaved = new ByteArrayOutputStream();
+		new MpoFileImporter().saveProject(reopened, resaved);
+
+		assertArrayEquals(extension, readEntries(resaved.toByteArray()).get(extensionPath));
+	}
+
+	@Test
+	void mpoTaskCreateOperationCanBeReplayedWithoutChangingTheResult() throws Exception {
+		Project project = projectForRoundTrip();
+		String operationId = java.util.UUID.randomUUID().toString();
+		OperationLog.Operation operation = new OperationLog.Operation(operationId,
+			java.util.UUID.randomUUID().toString(), 1L, java.util.Set.of(), "task.create",
+			java.util.UUID.randomUUID().toString(), Map.of("legacyUniqueId", 987654321L,
+				"name", "Idempotent task", "notes", "", "percentComplete", 0D));
+		com.microproject.collaboration.MpoTaskOperationService service = new com.microproject.collaboration.MpoTaskOperationService();
+		int taskCountBefore = project.getTaskList().size();
+
+		service.apply(project, List.of(operation));
+		Task created = project.findByUniqueId(987654321L);
+		service.apply(project, List.of(operation));
+
+		assertEquals(taskCountBefore + 1, project.getTaskList().size());
+		assertSame(created, project.findByUniqueId(987654321L));
+		assertEquals("Idempotent task", created.getName());
 	}
 
 	@Test

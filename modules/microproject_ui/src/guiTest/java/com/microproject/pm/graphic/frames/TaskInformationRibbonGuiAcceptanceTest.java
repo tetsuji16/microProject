@@ -5,6 +5,7 @@
  ******************************************************************************/
 package com.microproject.pm.graphic.frames;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -26,9 +27,9 @@ import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Files;
 import java.util.ResourceBundle;
 import java.util.ArrayList;
 import java.util.List;
@@ -51,6 +52,7 @@ import javax.swing.SwingUtilities;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.dialog.BaselineDialog;
@@ -87,6 +89,7 @@ import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.graphic.views.ResourceView;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.strings.Messages;
@@ -97,6 +100,8 @@ import com.microproject.testsupport.GuiPhysicalRouteAdapter;
 import com.microproject.testsupport.DialogLayoutAssertions;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.Environment;
+import com.microproject.util.Alert;
+import com.microproject.ui.util.SwingAlertPresenter;
 
 /**
  * Non-headless regression coverage for issue #330.
@@ -111,9 +116,15 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	private GraphicManager manager;
 	private boolean previousRibbonUi;
 	private boolean previousNewLook;
+	private boolean previousClientSide;
 	private String previousUiDebug;
 	private JobQueue previousJobQueue;
 	private Locale previousFormatLocale;
+
+	@BeforeEach
+	void captureClientSide() {
+		previousClientSide = Environment.isClientSide();
+	}
 
 	@AfterEach
 	void closeWindow() throws Exception {
@@ -132,6 +143,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		});
 		Environment.setRibbonUI(previousRibbonUi);
 		Environment.setNewLook(previousNewLook);
+		Environment.setClientSide(previousClientSide);
 		if (previousUiDebug == null)
 			System.clearProperty("microproject.ui.debug");
 		else
@@ -139,6 +151,96 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		SessionFactory.getInstance().setJobQueue(previousJobQueue);
 		if (previousFormatLocale != null)
 			Locale.setDefault(Locale.Category.FORMAT, previousFormatLocale);
+	}
+
+	@Test
+	void robotSaveShowsMpoRecoveryCopyAfterLockFailure() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		previousClientSide = Environment.isClientSide();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		Environment.setClientSide(true);
+		Alert.setPresenter(new SwingAlertPresenter());
+
+		NormalTask task = createTask();
+		Project project = task.getOwningProject();
+		Path target = Files.createTempFile("mpo-save-feedback-", ".mpo");
+		Path lockPath = Path.of(target + ".lock");
+		Path recoveryCopy = null;
+		Project[] cleanupProject = new Project[1];
+		Dialog[] alert = new Dialog[1];
+		try {
+			MpoFileImporter importer = new MpoFileImporter();
+			try (OutputStream output = Files.newOutputStream(target)) {
+				assertTrue(importer.saveProject(project, output), "the initial MPO fixture must save");
+			}
+			byte[] originalArchive = Files.readAllBytes(target);
+			project = new MpoFileImporter().loadProject(new ByteArrayInputStream(originalArchive));
+			task = taskNamed(project, "Ribbon information acceptance");
+			long taskId = task.getUniqueId();
+			project.setFileName(target.toString());
+			task.setName("Edit preserved in recovery copy");
+			Files.createDirectory(lockPath);
+			Project openedProject = project;
+			cleanupProject[0] = openedProject;
+			ProjectFactory.getInstance().addProject(openedProject, false, false);
+			showProject(openedProject);
+			SessionFactory.getInstance().setJobQueue(manager.getJobQueue());
+			GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getProject() == openedProject, "the MPO project did not open");
+
+			Robot robot = new Robot();
+			robot.setAutoDelay(45);
+			activateWindow(robot, window);
+			AbstractButton fileTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+				.getString("FileRibbonTask.title"));
+			click(robot, boundsOnScreen(fileTab));
+			GuiAcceptanceSupport.await(fileTab::isSelected, "Robot click did not select the File ribbon tab");
+			AbstractButton save = findShowingButtonByCommand("RibbonSaveProject");
+			assertTrue(save.isEnabled(), "Save must be enabled for the edited MPO project");
+			click(robot, boundsOnScreen(save));
+
+			GuiAcceptanceSupport.await(() -> {
+				for (Window candidate : Window.getWindows())
+					if (candidate instanceof Dialog dialog && dialog.isShowing()
+						&& UiComponentWalker.flatten(dialog).stream().filter(JLabel.class::isInstance)
+							.map(JLabel.class::cast).anyMatch(label -> label.getText() != null
+								&& label.getText().contains(target.getFileName() + ".conflict-"))) {
+						alert[0] = dialog;
+						return true;
+					}
+				return false;
+			}, "the physical Save route did not display the recovery-copy path");
+			assertArrayEquals(originalArchive, Files.readAllBytes(target), "a failed save must leave the shared archive untouched");
+			try (var files = Files.list(target.getParent())) {
+				recoveryCopy = files.filter(path -> path.getFileName().toString().startsWith(target.getFileName() + ".conflict-"))
+					.filter(path -> path.getFileName().toString().endsWith(".mpo"))
+					.findFirst().orElseThrow(() -> new AssertionError("the alert named a recovery copy that was not written"));
+			}
+			Project recovered;
+			try (var input = Files.newInputStream(recoveryCopy)) {
+				recovered = new MpoFileImporter().loadProject(input);
+			}
+			assertEquals("Edit preserved in recovery copy", recovered.findByUniqueId(taskId).getName(),
+				"the recovery copy must retain the user's unsaved edit");
+			robot.keyPress(KeyEvent.VK_ENTER);
+			robot.keyRelease(KeyEvent.VK_ENTER);
+			GuiAcceptanceSupport.await(() -> !alert[0].isShowing(), "the recovery alert did not close after Enter");
+		} finally {
+			if (alert[0] != null && alert[0].isShowing())
+				SwingUtilities.invokeAndWait(alert[0]::dispose);
+			if (cleanupProject[0] != null) {
+				ProjectFactory factory = ProjectFactory.getInstance();
+				factory.removeProject(cleanupProject[0], false, false, false);
+				GuiAcceptanceSupport.await(() -> factory.getPortfolio().getNodeModel().search(cleanupProject[0]) == null,
+					"the test project did not leave the portfolio before the GUI manager closed");
+			}
+			if (recoveryCopy != null) Files.deleteIfExists(recoveryCopy);
+			Files.deleteIfExists(lockPath);
+			Files.deleteIfExists(target);
+		}
 	}
 
 	@Test

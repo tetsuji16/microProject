@@ -318,6 +318,10 @@ public class Job extends Thread {
 					return;
 				}
 				InternalRunnable runnable=runnableIterator.next();
+				// Preserve a child job's failure before dispatching a Swing exception
+				// handler, which may run after previousRunnable advances to that handler.
+				if (previousRunnable != null && previousRunnable.getException() != null)
+					failureException = previousRunnable.getException();
 				if (previousRunnable!=null&&previousRunnable.getException()!=null){//an exception occured
 					if (!runnable.isExceptionHandler()) continue;
 				}else{
