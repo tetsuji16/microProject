@@ -368,6 +368,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	}
 
 	public void cleanUp() {
+		// Discard any document-load completions already queued on the EDT before
+		// tearing down the frame manager they would otherwise target.
+		documentGeneration.advance();
 		autoRecoveryManager.stop();
 		if (!projectArtifactLifecycleCoordinator.closeAll(LocalSession.MPO_PROJECT_IMPORTER))
 			logger.warning("Unable to close MPO project artifacts: no lifecycle provider is registered");
@@ -3378,6 +3381,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				opt.setId(SessionFactory.getInstance().getLocalSession().registerProjectFile(fileName));
 			opt.setEndSwingClosure(new Consumer<Object>() { public void accept(Object arg0) {
 					Runnable completion = () -> {
+						// Some loads intentionally survive a project-frame switch, but no
+						// completion may publish into a manager that has already been closed.
+						if (frameManager == null)
+							return;
 					setMeAsLastGraphicManager();
 					if (arg0 instanceof Project) {
 						Project loadedProject = (Project)arg0;

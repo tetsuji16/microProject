@@ -32,6 +32,9 @@ class ResourceInformationLayoutGuiAcceptanceTest {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for layout acceptance coverage.");
 		SwingUtilities.invokeAndWait(() -> {
 			resourceDialog = ResourceInformationDialog.getInstance(null, null);
+			// FieldDialog schedules an initial update before AbstractDialog builds
+			// the content panel. Keep that supported initialization order safe.
+			resourceDialog.updateAll();
 			host = new JFrame("Resource Information General layout acceptance");
 			host.setContentPane(resourceDialog.createGeneralPanel());
 			host.pack();

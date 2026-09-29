@@ -95,6 +95,10 @@ public class ResourceInformationDialog extends InformationDialog {
 		
 		builder.add(resourceTabbedPane);
 		mainComponent = resourceTabbedPane;
+		updateAssignmentSpreadsheet();
+		updateCostTableSpreadsheets();
+		updateAvailabilitySpreadsheet();
+		setVisibleAndEnabledState();
 		return builder.getPanel();
 	}
 	
@@ -184,6 +188,8 @@ public class ResourceInformationDialog extends InformationDialog {
 		return assignmentPane;
     }
     protected void updateAssignmentSpreadsheet() {
+		if (assignmentSpreadSheet == null)
+			return;
 		AssociationList assignments = object == null ? null : ((Resource)object).getAssignments();
 		AssignmentSpreadsheetSupport.update(assignmentSpreadSheet, assignments,
 				AssignmentSpreadsheetSupport.Perspective.RESOURCE_ASSIGNMENTS);
@@ -220,11 +226,15 @@ public class ResourceInformationDialog extends InformationDialog {
 //				,resourceImpl.getGlobalResource().isLocal()
 //				,resourceImpl.getGlobalResource().isMaster()
 				);
-    	availabilityPane = SpreadSheetUtils.makeSpreadsheetScrollPane(availabilitySpreadsheet);
+		availabilityPane = SpreadSheetUtils.makeSpreadsheetScrollPane(availabilitySpreadsheet);
+		if (availabilitySpreadsheet.getCache() != null)
+			availabilitySpreadsheet.getCache().setReceiveEvents(listenersActivated);
 		return availabilityPane;
     }
 	
     protected void updateAvailabilitySpreadsheet() {
+		if (availabilitySpreadsheet == null)
+			return;
     	SpreadSheetUtils.updateCollectionSpreadSheet(availabilitySpreadsheet
 				,(object==null)?new LinkedList():((ResourceImpl)object).getAvailabilityTable().getList()
 				,(object==null)?null:((ResourceImpl)object).getAvailabilityTable(),
@@ -263,7 +273,7 @@ public class ResourceInformationDialog extends InformationDialog {
 
     }
 	
-    protected void createCostTableSpreadsheets() {
+	protected void createCostTableSpreadsheets() {
     	ResourceImpl resourceImpl=(ResourceImpl)object;
     	for (int i = 0; i < Settings.NUM_COST_RATES; i++) {
         	SpreadSheetUtils.createCollectionSpreadSheet(costTableSpreadsheets[i]
@@ -278,10 +288,13 @@ public class ResourceInformationDialog extends InformationDialog {
 //					,resourceImpl.getGlobalResource().isLocal()
 //					,resourceImpl.getGlobalResource().isMaster()
 					);
-     	}
+		}
+		setCostTableReceiveEvents(listenersActivated);
     }
     protected void updateCostTableSpreadsheets() {
     	for (int i = 0; i < Settings.NUM_COST_RATES; i++) {
+			if (costTableSpreadsheets[i] == null)
+				continue;
         	SpreadSheetUtils.updateCollectionSpreadSheet(costTableSpreadsheets[i]
 					,(object==null)?new LinkedList():((Resource)object).getCostRateTable(i).getList()
 					,(object==null)?null:((Resource)object).getCostRateTable(i)
@@ -349,10 +362,13 @@ public class ResourceInformationDialog extends InformationDialog {
 	protected void setVisibleAndEnabledState() {
 		super.setVisibleAndEnabledState();
 		boolean showing = (object != null && object instanceof Resource);
-		assignmentPane.setVisible(showing);
-		costTabbedPane.setVisible(showing);
+		if (assignmentPane != null)
+			assignmentPane.setVisible(showing);
+		if (costTabbedPane != null)
+			costTabbedPane.setVisible(showing);
 		boolean isLaborResource = showing && ((Resource)object).isLabor();
-		availabilityPane.setVisible(isLaborResource);
+		if (availabilityPane != null)
+			availabilityPane.setVisible(isLaborResource);
 	}
 	public void updateAll() {
 		activateListeners();
@@ -360,7 +376,8 @@ public class ResourceInformationDialog extends InformationDialog {
 		updateAssignmentSpreadsheet();
 		updateCostTableSpreadsheets();
 		updateAvailabilitySpreadsheet();
-		changeWorkingTimeButton.setEnabled(getObject() != null && !((ResourceImpl)getObject()).isReadOnly());
+		if (changeWorkingTimeButton != null)
+			changeWorkingTimeButton.setEnabled(getObject() != null && !((ResourceImpl)getObject()).isReadOnly());
 
 	}
 	public void documentSelected(DocumentSelectedEvent evt) {
@@ -372,15 +389,24 @@ public class ResourceInformationDialog extends InformationDialog {
 	
 	protected void activateListeners() {
 		super.activateListeners();
-		for (int i=0;i<costTableSpreadsheets.length;i++) costTableSpreadsheets[i].getCache().setReceiveEvents(true);
-		availabilitySpreadsheet.getCache().setReceiveEvents(true);
+		setCostTableReceiveEvents(true);
+		if (availabilitySpreadsheet != null)
+			availabilitySpreadsheet.getCache().setReceiveEvents(true);
 	}
 
 	protected void desactivateListeners() {
 		super.desactivateListeners();
-		for (int i=0;i<costTableSpreadsheets.length;i++) costTableSpreadsheets[i].getCache().setReceiveEvents(true);
-		availabilitySpreadsheet.getCache().setReceiveEvents(false);
+		setCostTableReceiveEvents(false);
+		if (availabilitySpreadsheet != null)
+			availabilitySpreadsheet.getCache().setReceiveEvents(false);
 		//causes an update problem of the filtered cache
+	}
+
+	private void setCostTableReceiveEvents(boolean receiveEvents) {
+		for (SpreadSheet spreadsheet : costTableSpreadsheets) {
+			if (spreadsheet != null && spreadsheet.getCache() != null)
+				spreadsheet.getCache().setReceiveEvents(receiveEvents);
+		}
 	}
 
 	
