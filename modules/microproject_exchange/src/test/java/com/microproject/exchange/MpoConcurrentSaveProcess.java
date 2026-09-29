@@ -59,6 +59,7 @@ public final class MpoConcurrentSaveProcess {
 		switch (field) {
 			case "name" -> task.setName(value);
 			case "notes" -> task.setNotes(value);
+			case "delete" -> project.removeExternal(task);
 			default -> {
 				if (field.startsWith("dependencyLag:")) {
 					long successorId = Long.parseLong(field.substring("dependencyLag:".length()));

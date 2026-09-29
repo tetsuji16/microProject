@@ -1966,6 +1966,71 @@ class MpoFileImporterTest {
 		}
 	}
 
+	@Test
+	void separateJvmTaskDeleteConflictsWithConcurrentUpdate() throws Exception {
+		Project initial = projectForRoundTrip();
+		assignPositiveUniqueIds(initial);
+		long taskId = firstTask(initial).getUniqueId();
+		File shared = File.createTempFile("mpo-process-delete-conflict", ".mpo");
+		MpoFileImporter seed = new MpoFileImporter();
+		seed.setFileName(shared.getAbsolutePath());
+		seed.setProject(initial);
+		seed.exportFile();
+
+		Path tempDirectory = Files.createTempDirectory("mpo-process-delete-conflict-" + System.nanoTime());
+		Path release = tempDirectory.resolve("release.flag");
+		Path deleteReady = tempDirectory.resolve("delete-ready.flag");
+		Path updateReady = tempDirectory.resolve("update-ready.flag");
+		Path deleteLog = tempDirectory.resolve("delete-worker.log");
+		Path updateLog = tempDirectory.resolve("update-worker.log");
+		Process deleteWorker = null;
+		Process updateWorker = null;
+		Path recoveryCopy = null;
+		try {
+			deleteWorker = startMpoSaveWorker(shared, taskId, "delete", "", deleteReady, release, deleteLog);
+			updateWorker = startMpoSaveWorker(shared, taskId, "name", "Updated concurrently", updateReady, release,
+					updateLog);
+			awaitWorkerReady(deleteWorker, deleteReady, deleteLog);
+			awaitWorkerReady(updateWorker, updateReady, updateLog);
+			Files.createFile(release);
+			assertWorkerSucceeded(deleteWorker, deleteLog);
+			assertWorkerSucceeded(updateWorker, updateLog);
+
+			List<String> recoveryMarkers = java.util.stream.Stream.of(readWorkerLog(deleteLog), readWorkerLog(updateLog))
+					.flatMap(value -> value.lines()).filter(value -> value.startsWith("MPO_CONFLICT_RECOVERY=")).toList();
+			assertEquals(1, recoveryMarkers.size(), "one process must preserve its delete/update branch");
+			recoveryCopy = Path.of(recoveryMarkers.getFirst().substring("MPO_CONFLICT_RECOVERY=".length()));
+			assertTrue(Files.isRegularFile(recoveryCopy));
+			Project sharedProject = load(shared);
+			Project recoveredProject = load(recoveryCopy.toFile());
+			assertTrue((sharedProject.findByUniqueId(taskId) == null)
+					!= (recoveredProject.findByUniqueId(taskId) == null),
+					"shared and recovery archives must preserve opposite delete/update outcomes");
+			Project updateBranch = sharedProject.findByUniqueId(taskId) == null ? recoveredProject : sharedProject;
+			assertEquals("Updated concurrently", updateBranch.findByUniqueId(taskId).getName(),
+					"the surviving task branch must retain the concurrent update");
+			OperationLog.DocumentLog recoveryLog = new OperationLog().readJsonl(
+					readEntries(Files.readAllBytes(recoveryCopy)).get(MpoFileImporter.OPERATIONS_ENTRY));
+			assertTrue(recoveryLog.operations().size() >= 2,
+					"the recovery journal must retain both competing branches");
+			assertTrue(recoveryLog.operations().stream().anyMatch(operation -> operation.kind().equals("task.delete")));
+			assertTrue(recoveryLog.operations().stream().anyMatch(operation -> operation.kind().equals("task.update")));
+			assertEquals(1, new OperationLog().merge(recoveryLog.operations()).conflicts().size());
+		} finally {
+			stopWorker(deleteWorker);
+			stopWorker(updateWorker);
+			if (recoveryCopy != null) Files.deleteIfExists(recoveryCopy);
+			Files.deleteIfExists(release);
+			Files.deleteIfExists(deleteReady);
+			Files.deleteIfExists(updateReady);
+			Files.deleteIfExists(deleteLog);
+			Files.deleteIfExists(updateLog);
+			Files.deleteIfExists(tempDirectory);
+			Files.deleteIfExists(Path.of(shared.getAbsolutePath() + ".lock"));
+			Files.deleteIfExists(shared.toPath());
+		}
+	}
+
 	private static byte[] saveMpo(Project project) throws Exception {
 		ByteArrayOutputStream output = new ByteArrayOutputStream();
 		new MpoFileImporter().saveProject(project, output);
