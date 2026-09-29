@@ -1,0 +1,65 @@
+name: GUI acceptance audit
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 2 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gui-acceptance-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  full-gui-matrix:
+    name: Full GUI locale and DPI matrix
+    runs-on: windows-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build fresh desktop install
+        shell: pwsh
+        run: .\gradlew.bat clean installDist --console=plain
+
+      - name: Run complete GUI acceptance and visual matrix
+        shell: pwsh
+        timeout-minutes: 110
+        run: .\.github\scripts\run-gui-acceptance.ps1 -Suite full
+
+      - name: Capture GUI failure diagnostics
+        if: failure()
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $diagnostics = 'modules/microproject_ui/build/reports/guiTest-artifacts'
+          New-Item -ItemType Directory -Force -Path $diagnostics | Out-Null
+          Get-Process java,javaw -ErrorAction SilentlyContinue |
+            Select-Object Id,ProcessName,CPU,StartTime,Path |
+            Out-File (Join-Path $diagnostics 'java-processes.txt')
+          $jcmd = Join-Path $env:JAVA_HOME 'bin/jcmd.exe'
+          if (-not (Test-Path -LiteralPath $jcmd)) { $jcmd = 'jcmd' }
+          Get-Process java,javaw -ErrorAction SilentlyContinue | ForEach-Object {
+            $dump = Join-Path $diagnostics ("thread-dump-$($_.Id).txt")
+            & $jcmd $_.Id Thread.print 2>&1 | Out-File $dump
+          }
+
+      - name: Upload GUI acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gui-audit-evidence-${{ github.run_id }}
+          if-no-files-found: warn
+          path: |
+            modules/microproject_ui/build/reports/tests/guiTest
+            modules/microproject_ui/build/test-results/guiTest
+            modules/microproject_ui/build/reports/guiTest-artifacts
