@@ -58,7 +58,6 @@ public class NodeTransformerFactory extends CommonTransformFactory{
 			return t;
 		} catch (Exception e) {
 //			e.printStackTrace();
-//		    System.out.println("classText="+classText);
 			throw new InvalidFormulaException(e);
 		}
 	}

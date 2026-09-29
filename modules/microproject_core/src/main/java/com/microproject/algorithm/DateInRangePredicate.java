@@ -45,12 +45,6 @@ public class DateInRangePredicate implements Predicate, HasStartAndEnd {
 
 	public boolean evaluate(Object arg0) {
 		HasStartAndEnd interval = (HasStartAndEnd)arg0;
-//		boolean x = (interval.getStart() >= start && interval.getEnd() <= end);
-//		System.out.println("where " + x + "range: " 
-//				+ new java.util.Date(start) + "-"
-//				+ new java.util.Date(end) + "  interval "
-//				+ new java.util.Date(interval.getStart()) + "-"
-//				+ new java.util.Date(interval.getEnd()));
 		return (interval.getStart() >= start && interval.getEnd() <= end);
 	}
 		

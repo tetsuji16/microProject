@@ -90,12 +90,6 @@ public class ContextStore  implements NamedItem {
 
 
 	public List<ConverterContext> getContexts(int type,Predicate<ConverterContext> filter){
-//	System.out.println("getContext type="+type);
-//	for (int t: contexts.keySet()){
-//		System.out.println("type="+t);
-//		for (ConverterContext ctx: contexts.get(t))
-//			System.out.println("\tctx="+ctx);
-//	}
 		List<ConverterContext> ctxs=contexts.get(type);
 		if (ctxs == null)
 			return Collections.emptyList();

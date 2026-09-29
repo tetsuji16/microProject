@@ -123,7 +123,6 @@ public class SerializedDataObject extends CommonDataObject {
 		return (status&UPDATE)==UPDATE;
 	}
 	public void setDirty(boolean dirty) {
-		//System.out.println("SerializedDataObject _setDirty("+dirty+"): "+getName());
 		if (dirty) status|=UPDATE;
 		else status=0;
 	}

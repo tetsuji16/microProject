@@ -1132,8 +1132,6 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 
 		if (hierarchy != null) { // for dialogs
 		// for parents with This summary type
-		// System.out.println("summary is " + summary + " THIS " + THIS + " NONE
-		// " + NONE + " parent " + hierarchy.isParent());
 			if (!taskSheetSummaryScheduleEdit && summary != NONE)
 				if (hierarchy.isParent())
 					return true;

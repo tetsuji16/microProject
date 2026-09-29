@@ -74,7 +74,6 @@ public class FormulaClass {
 				compileException = e;
 				logger.log(Level.WARNING, "Failed to compile scripted formula class " + className, e);
 			}
-//					System.out.println("compiled class " + className + " in " + (System.currentTimeMillis()-x) + "ms");
 		}
 	}
 	

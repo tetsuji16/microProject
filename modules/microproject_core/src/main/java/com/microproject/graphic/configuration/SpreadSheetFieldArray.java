@@ -294,7 +294,6 @@ public class SpreadSheetFieldArray extends ArrayList<Field> implements NamedItem
 			add(field);
 			//widths.add(field.getColumnWidth());
 		} else {
-//			System.out.println("field is null in SpreadSheetFieldArray addField : ");
 		}
 	}
 	public void removeField(String fieldId) {

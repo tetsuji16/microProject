@@ -67,7 +67,6 @@ public class DelayableImpl implements Delayable, Cloneable {
 
 	public void setDelay(long delay) {
 //		delay = Duration.millis(delay);
-//		System.out.println("setting delay" + delay);
 		this.delay = delay;
 	}
 

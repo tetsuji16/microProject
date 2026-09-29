@@ -45,11 +45,9 @@ public class HasUniqueIdImpl implements Serializable{
      */
     public HasUniqueIdImpl(DataObject hasUniqueId,long uniqueId) {
     	setLocal(CommonDataObject.isLocal(uniqueId));
-    	//System.out.println((hasUniqueId==null?"null":hasUniqueId.getClass()+"")+" UniqueId "+uniqueId+", local? "+local);
     }
     public HasUniqueIdImpl(boolean local,DataObject hasUniqueId) {
     	setLocal(local);
-    	//System.out.println((hasUniqueId==null?"null":hasUniqueId.getClass()+"")+" UniqueId ?, local? "+local);
 		uniqueId = session.getId();
     }
 

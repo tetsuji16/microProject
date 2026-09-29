@@ -102,7 +102,6 @@ public class NonGroupedCalculatedValues  implements CalculatedValues  {
 			setValue(endDate,-v);
 			
 		} else {
-//System.out.println("start " + new Date(startDate) + " end " + new Date(endDate) + " value" + value );//+ " v/s " + v/s + " cal " + DurationFormat.format(duration));		
 			setValue(startDate,0);
 			setValue(endDate,value);
 		}

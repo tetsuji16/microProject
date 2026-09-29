@@ -113,7 +113,6 @@ public class TimeIntervals implements Serializable,Cloneable{
 		update(start,end,DEFAULT_WINDOW_COUNT);
 	}
 	public void update(long start,long end,int winCount) { //winCount positive in this case
-//		System.out.println("TimeIntervals.update");
 		this.start=start;
 		this.end=end;
 		win.clear();

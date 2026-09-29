@@ -106,7 +106,6 @@ public class Query implements Factory, HasStartAndEnd {
 			start = groupByGenerator.currentStart();
 			end = groupByGenerator.currentEnd();
 			executedIntervals.add(RangeIntervalGenerator.getInstance(start, end));
-//			System.out.println("query dates " + new java.util.Date(start) + " - " + new java.util.Date(end));		
 			Iterator<SelectFrom> i = selectFromClauses.iterator();
 			while (i.hasNext()) { // go thru select from clauses until they are used up
 				clause = i.next();
