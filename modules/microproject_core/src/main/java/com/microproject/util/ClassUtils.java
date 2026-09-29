@@ -165,7 +165,6 @@ public class ClassUtils {
 	 * @throws ClassCastException if class is unknown primitive
 	 */
 	public static Class<?> primitiveToObjectClass(Class<?> clazz) {
-//		return MethodUtils.toNonPrimitiveClass(clazz);
 		if (clazz == Boolean.TYPE)
 			return Boolean.class;
 		else if (clazz == Character.TYPE)

@@ -57,7 +57,6 @@ public class NodeTransformerFactory extends CommonTransformFactory{
 			setProperties(t);
 			return t;
 		} catch (Exception e) {
-//			e.printStackTrace();
 			throw new InvalidFormulaException(e);
 		}
 	}
