@@ -47,6 +47,7 @@ import com.microproject.port.SessionImporter;
 import com.microproject.port.SessionImporterProvider;
 import com.microproject.port.SessionImporterRegistry;
 import com.microproject.port.PortRegistry;
+import com.microproject.port.SaveFailureFeedback;
 import com.microproject.grouping.core.model.DefaultNodeModel;
 import com.microproject.job.Job;
 import com.microproject.job.JobRunnable;
@@ -487,7 +488,7 @@ public class LocalSession extends AbstractSession{
 				// Recovery snapshots run in the background. Their failure must not
 				// interrupt the user with a dialog.
 				if (!opt.isRecoverySnapshot()) {
-					Alert.error(Messages.getString("Message.saveError"));
+					Alert.error(saveFailureMessage(failure));
 				}
 				return null;
 			}
@@ -498,6 +499,14 @@ public class LocalSession extends AbstractSession{
 	private void logSaveFailure(String fileName, boolean recoverySnapshot, Exception failure) {
 		String operation = recoverySnapshot ? "Automatic recovery snapshot save failed" : "Project save failed";
 		logJobFailure(operation + "; file=" + fileName, failure);
+	}
+
+	static String saveFailureMessage(Exception failure) {
+		for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+			if (cause instanceof SaveFailureFeedback feedback)
+				return feedback.userFacingMessage();
+		}
+		return Messages.getString("Message.saveError");
 	}
 
 	private void logJobFailure(String operation, Exception failure) {

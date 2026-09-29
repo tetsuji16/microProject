@@ -8,6 +8,7 @@ package com.microproject.exchange;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -59,6 +60,18 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 class MpoFileImporterTest {
+	@Test
+	void saveFailureFeedbackDistinguishesConflictFromLockFailureAndNamesRecoveryCopy() {
+		Path recoveryCopy = Path.of("C:/projects/recovery.mpo");
+		MpoConflictRecoveryException conflict = new MpoConflictRecoveryException(recoveryCopy, List.of());
+		MpoConflictRecoveryException lockFailure = MpoConflictRecoveryException.lockUnavailable(
+			recoveryCopy, new IOException("locked"));
+
+		assertTrue(conflict.userFacingMessage().contains(recoveryCopy.toString()));
+		assertTrue(lockFailure.userFacingMessage().contains(recoveryCopy.toString()));
+		assertNotEquals(conflict.userFacingMessage(), lockFailure.userFacingMessage());
+	}
+
 	@AfterEach
 	void closeOwnedExtractionSessions() {
 		MpoExtractionOwnershipRegistry.closeAll();
