@@ -26,13 +26,12 @@ package com.microproject.pm.dependency;
 
 import java.text.MessageFormat;
 import java.util.ArrayList;
+import java.util.function.Predicate;
 import java.util.Collection;
 import java.util.List;
 
 import javax.swing.undo.UndoableEdit;
 import javax.swing.undo.UndoableEditSupport;
-
-import org.apache.commons.collections.Predicate;
 
 import com.microproject.association.InvalidAssociationException;
 import com.microproject.pm.task.SubProj;
@@ -212,7 +211,7 @@ public class DependencyService {
 	 * @param eventSource
 	 * @throws InvalidAssociationException
 	 */
-	public void connect(List<?> tasks, Object eventSource, Predicate canBeSuccessorCondition) throws InvalidAssociationException {
+	public void connect(List<?> tasks, Object eventSource, Predicate<Object> canBeSuccessorCondition) throws InvalidAssociationException {
 		ArrayList<Dependency> newDependencies = new ArrayList<>(Math.max(0, tasks.size() - 1));
 		ArrayList<HasDependencies> connectableTasks = new ArrayList<>(tasks.size());
 		for (Object task : tasks) {
@@ -224,7 +223,7 @@ public class DependencyService {
 			HasDependencies pred = connectableTasks.get(i);
 			for (int j = i+1; j < connectableTasks.size(); j++) {
 				HasDependencies succ = connectableTasks.get(j);
-				if (canBeSuccessorCondition != null && !canBeSuccessorCondition.evaluate(succ)) // allow exclusion of certain nodes that we don't want to be successors
+				if (canBeSuccessorCondition != null && !canBeSuccessorCondition.test(succ)) // allow exclusion of certain nodes that we don't want to be successors
 					continue;
 				if (succ.getPredecessorList().findLeft(pred) != null) // if dependency already exists, skip it
 					continue;

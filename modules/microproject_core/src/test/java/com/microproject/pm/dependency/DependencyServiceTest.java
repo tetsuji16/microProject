@@ -410,6 +410,25 @@ class DependencyServiceTest {
 	}
 
 	@Test
+	void connectListPredicateFiltersOnlySuccessorCandidates() throws InvalidAssociationException {
+		Project project = createProject("connect-successor-filter");
+		NormalTask predecessor = new NormalTask(project);
+		NormalTask excludedSuccessor = new NormalTask(project);
+		NormalTask successor = new NormalTask(project);
+		project.connectTask(predecessor);
+		project.connectTask(excludedSuccessor);
+		project.connectTask(successor);
+
+		DependencyService.getInstance().connect(List.of(predecessor, excludedSuccessor, successor), this,
+				task -> task != excludedSuccessor);
+
+		assertTrue(excludedSuccessor.getPredecessorList().isEmpty());
+		assertEquals(1, successor.getPredecessorList().size());
+		assertSame(excludedSuccessor,
+				((Dependency) successor.getPredecessorList().iterator().next()).getPredecessor());
+	}
+
+	@Test
 	void removeAnyDependenciesSkipsReadOnlyTasks() throws InvalidAssociationException {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
 		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);

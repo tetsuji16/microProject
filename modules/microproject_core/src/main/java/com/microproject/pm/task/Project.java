@@ -2208,7 +2208,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
  * A condition can be applied. The condition tests the task and sees whether it can be a successor task ornot
  * @param parent - should be null if whole project
  */
-	public void linkAllSiblings(Node parent, Predicate canBeSuccessorCondition, Object eventSource) {
+	public void linkAllSiblings(Node parent, java.util.function.Predicate<Object> canBeSuccessorCondition, Object eventSource) {
 		List<Node> children = getTaskModel().getChildren(parent);
 
 		if (children == null)
