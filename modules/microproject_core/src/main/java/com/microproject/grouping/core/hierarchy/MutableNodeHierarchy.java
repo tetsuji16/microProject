@@ -114,13 +114,11 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 
     public void add(Node parent,List<Node> children,int position,int actionType){
     	Node p=(parent==null)?root:parent;
-//    	ArrayList trees =new Vector();
-//    	extractParents(children,trees);
-    	if (/*trees*/children.size()==0) return;
+		if (children.size()==0) return;
 
     	int subprojectLevel=getChildrenSubprojectLevel(parent);
 
-    	int childCount=p.getChildCount();
+		int childCount=p.getChildCount();
     	if (position>childCount){
     		NodeFactory nodeFactory=NodeFactory.getInstance();
     		for (int i=childCount;i<position;i++){
@@ -132,9 +130,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 
     	int j=position;
         for (Node node : children){
-        	//if (node.getImpl() instanceof Task) System.out.println("ADD parent="+parent+":"+(parent==null?"X":parent.isInSubproject())+", node="+node+":"+node.isInSubproject());
 			setSubprojectLevel(node,subprojectLevel);
-			//if (node.getImpl() instanceof Task) System.out.println("ADD node in sub="+node.isInSubproject());
     		if (position==-1) p.add(node);
 			else p.insert(node,j++);
        	}
@@ -152,12 +148,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 	ResourcePool resourcePool = dataFactory instanceof ResourcePool poolFactory ? poolFactory : null;
 
     	int subprojectLevel=getChildrenSubprojectLevel(parent);
-
-
-//    	ArrayList trees =new Vector();
-//    	HierarchyUtils.extractParents(children,trees);
-
-    	int childCount=p.getChildCount();
+		int childCount=p.getChildCount();
     	if (position>childCount){
     		NodeFactory nodeFactory=NodeFactory.getInstance();
     		for (int i=childCount;i<position;i++){
@@ -174,9 +165,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 		if ((project!=null && (node.getImpl() instanceof Task || node.getImpl() instanceof SubProj))||
        				(resourcePool!=null && node.getImpl() instanceof Resource)||
        				node.isVoid()){
-	        	//if (node.getImpl() instanceof Task) System.out.println("PASTE parent="+parent+":"+(parent==null?"X":parent.isInSubproject())+", node="+node+":"+node.isInSubproject());
-    			setSubprojectLevel(node,subprojectLevel);
-				//if (node.getImpl() instanceof Task) System.out.println("PASTE node in sub="+node.isInSubproject());
+				setSubprojectLevel(node,subprojectLevel);
 	    		if (position==-1) p.add(node);
 			else p.insert(node,j++);
        		}
@@ -495,10 +484,6 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 
 
 
-//indentation
-//    public void indent(Node node,int deltaLevel,int actionType){
-//    	internalIndent(node,deltaLevel,actionType);
-//    }
     public void indent(List<Node> nodes,int deltaLevel, NodeModel model,int actionType){
     	boolean doTransaction = model.getDocument() != null;
     	int transactionId = 0;
@@ -736,16 +721,14 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     }
 
 	private boolean contains(Object node){
-	    //return parents.containsKey(node)||children.containsKey(node);
 		Alert.error("contains not implemented");
 		return false;
 	}
 
 
     public Object clone(){
-    		Alert.error("clone not implemented");
-    		return null;
-            //return new MutableNodeHierarchy((Hashtable)parents.clone(),(MultiHashMap)children.clone(),(Hashtable)voidNodes.clone());
+		Alert.error("clone not implemented");
+		return null;
     }
 
 
