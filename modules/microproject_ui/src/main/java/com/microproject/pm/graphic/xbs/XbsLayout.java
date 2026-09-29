@@ -98,8 +98,8 @@ public class XbsLayout extends AbstractNetworkLayout {
 		double y=origin.getY()+ref.getHeight()/2;
 		GraphicNode node,previous=null;
 		int maxLevel=0;
-		for (ListIterator i=cache.getIterator();i.hasNext();){
-			node=(GraphicNode)i.next();
+		for (ListIterator<GraphicNode> i = cache.getIterator(); i.hasNext();) {
+			node = i.next();
 			if (node.getLevel()>maxLevel) maxLevel=node.getLevel();
 			if (previous!=null&&node.getLevel()<=previous.getLevel()){
 				setShape(previous,ref,x,y+(previous.getLevel()-1)*(ref.getMaxY()));
@@ -119,14 +119,14 @@ public class XbsLayout extends AbstractNetworkLayout {
 		double x0,x1;
 		GraphicNode node,child;
 		boolean hasChild;
-		for (ListIterator i=cache.getIterator();i.hasNext();){
-			node=(GraphicNode)i.next();
+		for (ListIterator<GraphicNode> i = cache.getIterator(); i.hasNext();) {
+			node = i.next();
 			if (node.getLevel()==level){
 				x0=-1;
 				x1=-1;
 				hasChild=false;
 				while (i.hasNext()){
-					child=(GraphicNode)i.next();
+					child = i.next();
 					if (child.getLevel()<=level){
 						i.previous();
 						break;
