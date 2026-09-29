@@ -49,6 +49,12 @@ function Invoke-GuiGate([string]$label, [string[]]$arguments) {
   $stderrText = Get-Content -LiteralPath $stderr -Raw
   $stdoutText
   $stderrText
+  $evidenceDirectory = Join-Path $gateLogs "$safe-junit"
+  New-Item -ItemType Directory -Force -Path $evidenceDirectory | Out-Null
+  $resultFiles = @(Get-ChildItem -LiteralPath $testResults -Filter '*.xml' -File -ErrorAction SilentlyContinue)
+  foreach ($resultFile in $resultFiles) {
+    Copy-Item -LiteralPath $resultFile.FullName -Destination $evidenceDirectory -Force
+  }
   # Alert.error/Alert.warn intentionally logs expected validation cases. Detect
   # uncaught failures in process logs and deferred EDT exceptions in test XML.
   $unexpectedError = '(?im)Exception in thread|(?:^|\s)(?:java\.)?lang\.NullPointerException(?:$|\s)|(?:^|\s)(?:java\.)?lang\.ClassCastException(?:$|\s)|(?:^|\s)(?:java\.)?lang\.ArrayIndexOutOfBoundsException(?:$|\s)'
@@ -60,11 +66,18 @@ function Invoke-GuiGate([string]$label, [string[]]$arguments) {
     Save-GuiFailureScreenshot $label
     throw "GUI gate failed: $label exit=$($process.ExitCode)"
   }
-  $deferredExceptions = Get-ChildItem -LiteralPath $testResults -Filter '*.xml' -File -ErrorAction SilentlyContinue |
-    Select-String -Pattern $unexpectedError
-  if ($null -ne $deferredExceptions) {
+  $deferredExceptions = @()
+  foreach ($resultFile in $resultFiles) {
+    [xml]$resultXml = Get-Content -LiteralPath $resultFile.FullName -Raw
+    foreach ($systemError in @($resultXml.SelectNodes('//system-err'))) {
+      if ([string]$systemError.InnerText -match $unexpectedError) {
+        $deferredExceptions += $resultFile.FullName
+      }
+    }
+  }
+  if ($deferredExceptions.Count -gt 0) {
     Save-GuiFailureScreenshot $label
-    $files = ($deferredExceptions | Select-Object -ExpandProperty Path -Unique) -join ', '
+    $files = ($deferredExceptions | Select-Object -Unique) -join ', '
     throw "GUI gate found an unexpected deferred GUI exception in test XML: $label ($files)"
   }
   $allowedSkipReasons = @(
@@ -72,7 +85,7 @@ function Invoke-GuiGate([string]$label, [string[]]$arguments) {
     'This visual-matrix case is the high-DPI counterpart of the 100% command sweep.'
   )
   $unexpectedSkips = @()
-  foreach ($resultFile in (Get-ChildItem -LiteralPath $testResults -Filter '*.xml' -File -ErrorAction SilentlyContinue)) {
+  foreach ($resultFile in $resultFiles) {
     [xml]$resultXml = Get-Content -LiteralPath $resultFile.FullName -Raw
     foreach ($testCase in @($resultXml.testsuite.testcase)) {
       if ($null -ne $testCase.skipped) {

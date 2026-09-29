@@ -2311,6 +2311,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		first.getOwningProject().setFileName("secondary-window-first.mpo");
 		second.getOwningProject().setFileName("secondary-window-second.mpo");
 		showProject(first.getOwningProject());
+		SwingUtilities.invokeAndWait(() -> window.setAlwaysOnTop(false));
+		assertFalse(window.isAlwaysOnTop(), "the primary test fixture must not cover the secondary document window");
 		SwingUtilities.invokeAndWait(() -> manager.addProjectFrame(second.getOwningProject()));
 		assertTrue(manager.getFrameManager().getAllFrames().size() >= 2,
 			"second document was not registered: firstId=" + first.getOwningProject().getUniqueId()
@@ -2339,6 +2341,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Robot robot = new Robot();
 		robot.setAutoDelay(35);
 		activateWindow(robot, secondary);
+		GuiAcceptanceSupport.await(secondary::isFocused,
+			"physical activation did not bring the secondary document window above the primary window");
 		AbstractButton closeButton = UiComponentWalker.flatten(secondary.getRootPane()).stream()
 			.filter(AbstractButton.class::isInstance)
 			.map(AbstractButton.class::cast)
@@ -2346,7 +2350,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				&& button.getClass().getName().startsWith("com.formdev.flatlaf.ui.FlatTitlePane$")
 				&& "Close".equals(button.getAccessibleContext().getAccessibleName()))
 			.findFirst().orElseThrow(() -> new AssertionError("FlatLaf title-bar close button is absent"));
-		clickWithWindowsDpi(robot, boundsOnScreen(closeButton));
+		clickWithWindowsDpi(robot, secondary, closeButton, boundsOnScreen(closeButton));
 		GuiAcceptanceSupport.await(() -> !secondary.isShowing(),
 			"Robot title-bar close button did not close the secondary window");
 		GuiAcceptanceSupport.await(() -> manager.getFrameForProject(second.getOwningProject()) == null,
@@ -2547,10 +2551,36 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		robot.delay(150);
 	}
 
-	private static void clickWithWindowsDpi(Robot robot, Rectangle bounds) {
+	private static void clickWithWindowsDpi(Robot robot, MainRibbonFrame frame, AbstractButton button, Rectangle bounds)
+		throws Exception {
 		double dpiScale = java.awt.Toolkit.getDefaultToolkit().getScreenResolution() / 96.0d;
-		robot.mouseMove((int) Math.round((bounds.x + bounds.width / 2) * dpiScale),
-			(int) Math.round((bounds.y + bounds.height / 2) * dpiScale));
+		Point awtTarget = new Point(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+		Point robotTarget = new Point((int) Math.round(awtTarget.x * dpiScale),
+			(int) Math.round(awtTarget.y * dpiScale));
+		GraphicsConfiguration configuration = frame.getGraphicsConfiguration();
+		Rectangle screenBounds = configuration.getBounds();
+		String suffix = (System.getProperty("user.language", "unknown") + "-"
+			+ System.getProperty("sun.java2d.uiScale", "default")).replaceAll("[^A-Za-z0-9_.-]", "_");
+		String name = "secondary-window-close-" + suffix;
+		Path artifactDirectory = Path.of(System.getProperty("microproject.gui.artifacts.dir", "build/reports/guiTest-artifacts"));
+		Files.createDirectories(artifactDirectory);
+		BufferedImage screenshot = robot.createScreenCapture(screenBounds);
+		ImageIO.write(screenshot, "png", artifactDirectory.resolve(name + "-before-click.png").toFile());
+		robot.mouseMove(robotTarget.x, robotTarget.y);
+		robot.waitForIdle();
+		Point actualPointer = java.awt.MouseInfo.getPointerInfo().getLocation();
+		String diagnostics = "frameBounds=" + frame.getBounds() + System.lineSeparator()
+			+ "frameLocationOnScreen=" + frame.getLocationOnScreen() + System.lineSeparator()
+			+ "closeButtonBoundsOnScreen=" + bounds + System.lineSeparator()
+			+ "screenBounds=" + screenBounds + System.lineSeparator()
+			+ "toolkitDpi=" + Toolkit.getDefaultToolkit().getScreenResolution() + System.lineSeparator()
+			+ "graphicsTransform=" + configuration.getDefaultTransform() + System.lineSeparator()
+			+ "dpiScaleUsed=" + dpiScale + System.lineSeparator()
+			+ "awtTarget=" + awtTarget + System.lineSeparator()
+			+ "robotTarget=" + robotTarget + System.lineSeparator()
+			+ "pointerAfterMove=" + actualPointer + System.lineSeparator()
+			+ "buttonShowing=" + button.isShowing() + System.lineSeparator();
+		Files.writeString(artifactDirectory.resolve(name + "-coordinates.txt"), diagnostics);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 		robot.waitForIdle();
