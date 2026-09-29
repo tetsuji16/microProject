@@ -1066,6 +1066,46 @@ class MpoFileImporterTest {
 	}
 
 	@Test
+	void mpoLockOpenFailurePreservesLocalEditsInReloadableRecoveryCopy() throws Exception {
+		Project initial = projectForRoundTrip();
+		assignPositiveUniqueIds(initial);
+		File shared = File.createTempFile("mpo-lock-recovery", ".mpo");
+		Path lockPath = Path.of(shared.getAbsolutePath() + ".lock");
+		MpoFileImporter seed = new MpoFileImporter();
+		seed.setFileName(shared.getAbsolutePath());
+		seed.setProject(initial);
+		seed.exportFile();
+		byte[] sharedArchive = Files.readAllBytes(shared.toPath());
+		Project editor = load(shared);
+		firstTask(editor).setName("Recover after lock failure");
+		Files.delete(lockPath);
+		Files.createDirectory(lockPath);
+		MpoFileImporter writer = new MpoFileImporter();
+		writer.setFileName(shared.getAbsolutePath());
+		writer.setProject(editor);
+		try {
+			MpoConflictRecoveryException failure = assertThrows(MpoConflictRecoveryException.class, writer::exportFile);
+			assertTrue(failure.conflicts().isEmpty(), "a lock failure is not an operation conflict");
+			assertTrue(failure.getMessage().contains("transaction lock"));
+			Path recoveryCopy = failure.recoveryCopy();
+			try {
+				assertTrue(Files.isRegularFile(recoveryCopy));
+				org.junit.jupiter.api.Assertions.assertArrayEquals(sharedArchive, Files.readAllBytes(shared.toPath()));
+				assertEquals("Recover after lock failure", firstTask(load(recoveryCopy.toFile())).getName());
+				OperationLog.DocumentLog recoveryLog = new OperationLog().readJsonl(
+						readEntries(Files.readAllBytes(recoveryCopy)).get(MpoFileImporter.OPERATIONS_ENTRY));
+				assertEquals(1, recoveryLog.operations().size(), "the local edit must be recoverable as an operation");
+				assertEquals(1, recoveryLog.appliedOperationIds().size());
+			} finally {
+				Files.deleteIfExists(recoveryCopy);
+			}
+		} finally {
+			Files.deleteIfExists(lockPath);
+			Files.deleteIfExists(shared.toPath());
+		}
+	}
+
+	@Test
 	void separateJvmSavesMergeIndependentTaskEdits() throws Exception {
 		Project initial = projectForRoundTrip();
 		NormalTask second = (NormalTask) initial.createLocalTaskNode(null).getImpl();

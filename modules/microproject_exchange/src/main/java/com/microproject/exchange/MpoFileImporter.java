@@ -308,11 +308,34 @@ public class MpoFileImporter extends FileImporter {
 		// stable sidecar (rather than the atomically replaced mpo inode) so the
 		// read/merge/write transaction is serialized across JVMs as well.
 		synchronized (EXPORT_LOCK_GUARD) {
-			try (FileChannel lockChannel = FileChannel.open(lockPath, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
-				 FileLock ignored = lockChannel.lock()) {
-				exportFileLocked(target);
+			FileChannel lockChannel;
+			try {
+				lockChannel = FileChannel.open(lockPath, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+			} catch (IOException lockFailure) {
+				throw persistLockFailureRecovery(target, lockFailure);
+			}
+			try (lockChannel) {
+				FileLock fileLock;
+				try {
+					fileLock = lockChannel.lock();
+				} catch (IOException lockFailure) {
+					throw persistLockFailureRecovery(target, lockFailure);
+				}
+				try (fileLock) {
+					exportFileLocked(target);
+				}
 			}
 		}
+	}
+
+	private MpoConflictRecoveryException persistLockFailureRecovery(File target, IOException lockFailure) throws IOException {
+		MpoOperationState operationState = workingOperationStateFor(project);
+		operationState.appendChanges(project);
+		ensureOperationCount(operationState.operations);
+		Path recoveryCopy = persistRecoveryCopy(target, project, operationState,
+				new java.util.ArrayList<>(operationState.operations), null);
+		commitOperationState(project, operationState);
+		return MpoConflictRecoveryException.lockUnavailable(recoveryCopy, lockFailure);
 	}
 
 	private void exportFileLocked(File target) throws Exception {
@@ -723,7 +746,7 @@ public class MpoFileImporter extends FileImporter {
 			if (!merged.conflicts().isEmpty()) {
 				java.util.List<OperationLog.Operation> conflictOperations = new java.util.ArrayList<>(merged.ready());
 				conflictOperations.addAll(merged.pending());
-				Path recoveryCopy = persistConflictRecoveryCopy(target, project, local, conflictOperations,
+				Path recoveryCopy = persistRecoveryCopy(target, project, local, conflictOperations,
 						external.extensions);
 				throw new MpoConflictRecoveryException(recoveryCopy, merged.conflicts());
 			}
@@ -747,7 +770,7 @@ public class MpoFileImporter extends FileImporter {
 		}
 	}
 
-	private Path persistConflictRecoveryCopy(File target, Project project, MpoOperationState local,
+	private Path persistRecoveryCopy(File target, Project project, MpoOperationState local,
 			java.util.List<OperationLog.Operation> mergedOperations, MpoExtensions externalExtensions) throws IOException {
 		Project recoveryProject = copyProjectForTransaction(project);
 		if (externalExtensions != null && !externalExtensions.entries.isEmpty()) {
