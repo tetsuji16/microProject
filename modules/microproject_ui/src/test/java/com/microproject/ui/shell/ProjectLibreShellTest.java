@@ -65,19 +65,23 @@ class ProjectLibreShellTest {
 	}
 
 	@Test
-	void officeChromePanelContainsTheTopControlsAndRibbonSurface() {
+	void officeChromePanelKeepsWindowControlsAtTheTopAndRibbonOptionsAtTheBottomRight() {
 		MenuManager menuManager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
 		JPanel ribbonBody = new JPanel();
 
 		OfficeChromePanel panel = new OfficeChromePanel(menuManager, ribbonBody, () -> {});
 
-		assertSame(ribbonBody, ((BorderLayout) panel.getLayout()).getLayoutComponent(BorderLayout.CENTER));
+		JComponent surface = (JComponent) ((BorderLayout) panel.getLayout()).getLayoutComponent(BorderLayout.CENTER);
+		assertEquals(OfficeChromePanel.RIBBON_SURFACE_NAME, surface.getName());
+		assertSame(ribbonBody, ((BorderLayout) surface.getLayout()).getLayoutComponent(BorderLayout.CENTER));
 		assertTrue(hasComponent(panel, OfficeChromePanel.SEARCH_BOX_NAME));
 		assertTrue(hasComponent(panel, OfficeChromePanel.SEARCH_FIELD_NAME));
 		assertTrue(hasComponent(panel, OfficeChromePanel.HELP_BUTTON_NAME));
 		assertTrue(hasComponent(panel, OfficeChromePanel.AUTO_SAVE_NAME));
 		assertTrue(hasComponent(panel, OfficeChromePanel.DOCUMENT_TITLE_NAME));
 		assertTrue(hasComponent(panel, OfficeChromePanel.WINDOW_BUTTONS_PLACEHOLDER_NAME));
+		assertTrue(hasComponent(panel, OfficeChromePanel.RIBBON_DISPLAY_OPTIONS_FOOTER_NAME));
+		assertTrue(hasComponent(panel, OfficeChromePanel.RIBBON_DISPLAY_OPTIONS_NAME));
 	}
 
 	@Test

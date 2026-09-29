@@ -39,6 +39,7 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.configuration.Dictionary;
 import com.microproject.exchange.MpoFileImporter;
+import com.microproject.job.JobQueue;
 import com.microproject.graphic.configuration.BarStyles;
 import com.microproject.graphic.configuration.SpreadSheetCategories;
 import com.microproject.grouping.core.Node;
@@ -87,6 +88,7 @@ class MasterSubprojectMpoGuiAcceptanceTest {
 	private boolean previousRibbonUi;
 	private boolean previousNewLook;
 	private UiServices.FileChooserProvider previousChooser;
+	private JobQueue previousJobQueue;
 
 	@AfterEach
 	void closeWindow() throws Exception {
@@ -98,6 +100,7 @@ class MasterSubprojectMpoGuiAcceptanceTest {
 			SwingUtilities.invokeAndWait(() -> frame.dispose());
 		if (gantt != null)
 			gantt.cleanUp();
+		SessionFactory.getInstance().setJobQueue(previousJobQueue);
 		Environment.setClientSide(previousClientSide);
 		Environment.setStandAlone(previousStandalone);
 		Environment.setRibbonUI(previousRibbonUi);
@@ -433,6 +436,7 @@ class MasterSubprojectMpoGuiAcceptanceTest {
 	}
 
 	private void showRuntimeMaster(File masterFile) throws Exception {
+		previousJobQueue = SessionFactory.getInstance().getJobQueue();
 		Alert.setPresenter(new SwingAlertPresenter());
 		UiDispatch.setDispatcher(new SwingUiDispatcher());
 		SwingUtilities.invokeAndWait(() -> {

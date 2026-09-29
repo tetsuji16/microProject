@@ -71,6 +71,8 @@ final class OfficeChromePanel extends JPanel {
 	static final String HELP_BUTTON_NAME = "officeChromeHelpButton";
 	static final String RIBBON_DISPLAY_OPTIONS_NAME = "officeChromeRibbonDisplayOptions";
 	static final String RIBBON_DISPLAY_OPTIONS_POPUP_NAME = "officeChromeRibbonDisplayOptionsPopup";
+	static final String RIBBON_SURFACE_NAME = "officeChromeRibbonSurface";
+	static final String RIBBON_DISPLAY_OPTIONS_FOOTER_NAME = "officeChromeRibbonDisplayOptionsFooter";
 	static final String WINDOW_BUTTONS_PLACEHOLDER_NAME = "officeChromeWindowButtonsPlaceholder";
 	static final String BRAND_ICON_NAME = "officeChromeBrandIcon";
 
@@ -123,7 +125,22 @@ final class OfficeChromePanel extends JPanel {
 		// reach Swing command buttons on the full-window-content shell.
 		ribbonPanel.putClientProperty("JComponent.titleBarCaption", Boolean.FALSE);
 		add(buildHeader(), BorderLayout.NORTH);
-		add(ribbonPanel, BorderLayout.CENTER);
+		add(buildRibbonSurface(ribbonPanel), BorderLayout.CENTER);
+	}
+
+	private JComponent buildRibbonSurface(JComponent ribbonPanel) {
+		JPanel surface = new JPanel(new BorderLayout());
+		surface.setName(RIBBON_SURFACE_NAME);
+		surface.setOpaque(false);
+		surface.add(ribbonPanel, BorderLayout.CENTER);
+
+		JPanel footer = new JPanel(new BorderLayout());
+		footer.setName(RIBBON_DISPLAY_OPTIONS_FOOTER_NAME);
+		footer.setOpaque(false);
+		footer.setBorder(new EmptyBorder(0, 0, 2, FlatUiSupport.ribbonHorizontalInset()));
+		footer.add(createRibbonDisplayOptionsButton(), BorderLayout.EAST);
+		surface.add(footer, BorderLayout.SOUTH);
+		return surface;
 	}
 
 	private JComponent buildHeader() {
@@ -266,9 +283,6 @@ final class OfficeChromePanel extends JPanel {
 		GridBagConstraints constraints = new GridBagConstraints();
 		constraints.gridx = 0;
 		constraints.insets = new Insets(0, 0, 0, 4);
-		cluster.add(createRibbonDisplayOptionsButton(), constraints);
-		constraints.gridx++;
-		constraints.insets = new Insets(0, 0, 0, 4);
 		cluster.add(createHelpButton(), constraints);
 		constraints.gridx++;
 		constraints.insets = new Insets(0, 0, 0, 0);
@@ -304,7 +318,7 @@ final class OfficeChromePanel extends JPanel {
 		addRibbonDisplayItem(popup, ribbon, RibbonDisplayMode.AUTO_HIDE, "chrome.ribbonAutoHide");
 		addRibbonDisplayItem(popup, ribbon, RibbonDisplayMode.TABS_ONLY, "chrome.ribbonTabsOnly");
 		addRibbonDisplayItem(popup, ribbon, RibbonDisplayMode.ALWAYS_SHOW, "chrome.ribbonAlwaysShow");
-		popup.show(button, 0, button.getHeight());
+		popup.show(button, 0, -popup.getPreferredSize().height);
 	}
 
 	private boolean isRibbonDisplayOptionsPopupVisible() {

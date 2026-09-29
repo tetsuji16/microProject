@@ -130,10 +130,26 @@ public abstract class StartupFactory {
 		SessionFactory.getInstance().setJobQueue(graphicManager.getJobQueue());
 		//if (Environment.isNewLook())
 			graphicManager.initLookAndFeel();
-		SwingUtilities.invokeLater(() -> {
-			long initViewStartTime=System.currentTimeMillis();
-			graphicManager.initView();
-		});
+		Runnable initialize = () -> {
+			graphicManager.beginInitialization();
+			try {
+				graphicManager.initView();
+			} finally {
+				graphicManager.finishInitialization();
+			}
+		};
+		if (SwingUtilities.isEventDispatchThread()) {
+			initialize.run();
+		} else {
+			try {
+				SwingUtilities.invokeAndWait(initialize);
+			} catch (InterruptedException exception) {
+				Thread.currentThread().interrupt();
+				throw new IllegalStateException("Interrupted while restoring the application window", exception);
+			} catch (java.lang.reflect.InvocationTargetException exception) {
+				throw new IllegalStateException("Failed to restore the application window", exception.getCause());
+			}
+		}
 //		graphicManager.invalidate();
 		return graphicManager;
 	}

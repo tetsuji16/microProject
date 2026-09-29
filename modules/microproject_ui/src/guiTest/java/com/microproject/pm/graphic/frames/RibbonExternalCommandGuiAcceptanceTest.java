@@ -39,6 +39,7 @@ import com.microproject.dialog.AboutDialog;
 import com.microproject.dialog.HelpDialog;
 import com.microproject.dialog.LocaleDialog;
 import com.microproject.dialog.ProjectDialog;
+import com.microproject.job.JobQueue;
 import com.microproject.exchange.MpoFileImporter;
 import com.microproject.init.Init;
 import com.microproject.menu.MenuActionConstants;
@@ -72,6 +73,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 	private boolean previousClientSide;
 	private UiServices.FileChooserProvider previousChooser;
 	private String previousSystemChooserProperty;
+	private JobQueue previousJobQueue;
 	private Path legacyPod;
 	private Path restartFirstProject;
 	private Path restartSecondProject;
@@ -94,6 +96,8 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			System.clearProperty("flatlaf.useSystemFileChooser");
 		else
 			System.setProperty("flatlaf.useSystemFileChooser", previousSystemChooserProperty);
+		if (previousJobQueue != null || manager != null)
+			SessionFactory.getInstance().setJobQueue(previousJobQueue);
 		if (legacyPod != null) Files.deleteIfExists(legacyPod);
 		if (restartFirstProject != null) Files.deleteIfExists(restartFirstProject);
 		if (restartSecondProject != null) Files.deleteIfExists(restartSecondProject);
@@ -598,6 +602,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 	}
 
 	private void createWindow(String title) throws Exception {
+		previousJobQueue = SessionFactory.getInstance().getJobQueue();
 		SwingUtilities.invokeAndWait(() -> {
 			window = new MainRibbonFrame(title, null, null);
 			manager = new GraphicManager(window);
@@ -618,6 +623,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 	 * command state before the File ribbon is shown.
 	 */
 	private void createStartedWindow(String title) throws Exception {
+		previousJobQueue = SessionFactory.getInstance().getJobQueue();
 		SwingUtilities.invokeAndWait(() -> {
 			window = new MainRibbonFrame(title, null, null);
 			manager = new ApplicationStartupFactory(new HashMap<>()).instanceFromNewSession(window, false);
