@@ -180,18 +180,6 @@ public class PredecessorTaskList {
 		return true;
 	}
 	
-	private void setDebugDependencyOrder() {
-		int count = 0;
-		Iterator<TaskReference> i = list.iterator();
-		while (i.hasNext()) {
-			TaskReference ref = i.next();
-			if (ref.getKind() == TaskReference.Kind.PARENT_END)
-				continue;
-			Task task = ref.getTask();
-			task.setDebugDependencyOrder(count++);
-		}
-	}
-	
 	void rearrangeAll() {
 		LinkedList<TaskReference> oldList = list;
 		// store off sentinels to put them back later
@@ -206,7 +194,6 @@ public class PredecessorTaskList {
 		}
 		list.addFirst(startSentinel);
 		list.addLast(endSentinel);
-//		setDebugDependencyOrder();
  	}
 	
 	boolean hasReverseScheduledTasks() {
