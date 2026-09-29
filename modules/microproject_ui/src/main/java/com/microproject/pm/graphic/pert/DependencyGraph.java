@@ -48,7 +48,6 @@ public class DependencyGraph{
 	}
 	
 	public void insertDependency(GraphicDependency dependency){
-		//System.out.println("insertDependency");
 	    GraphicNode preValue = (GraphicNode) dependency.getPredecessor();
 	    GraphicNode sucValue = (GraphicNode) dependency.getSuccessor();
 	    Node pre = nodeMap.get(preValue);
@@ -66,7 +65,6 @@ public class DependencyGraph{
 	    suc.addPredecessor(pre);
 	}
 	public void removeDependency(GraphicDependency dependency){
-		//System.out.println("removeDependency");
 	    GraphicNode preValue = (GraphicNode) dependency.getPredecessor();
 	    GraphicNode sucValue = (GraphicNode) dependency.getSuccessor();
 	    Node pre = nodeMap.get(preValue);
@@ -88,7 +86,6 @@ public class DependencyGraph{
 	
 	
 	public void updatePertLevels(){
-//		System.out.println("updatePertLevels");
 	    for (Iterator<?> i = cache.getIterator(); i.hasNext();) {
 	        resetCachePertLevel((GraphicNode) i.next());
 	    }

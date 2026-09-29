@@ -48,7 +48,6 @@ public class FontManager {
 	
 	public static void setComponentFont(CellFormat props, Component component) {
 		Font font=component.getFont();
-//		System.out.println("font="+font);
 		if (offlineDefaultFont!=null) component.setFont(offlineDefaultFont);
 		if (props.isBold()||props.isItalic()){
 			Map map;
@@ -72,11 +71,9 @@ public class FontManager {
 		}
 		
 //		if (props.isBold()){
-//			System.out.println("bold");
 //			component.setFont(component.getFont().deriveFont(Font.BOLD));
 //		}
 //		if (props.isItalic()){
-//			System.out.println("italic");
 //			component.setFont(component.getFont().deriveFont(Font.ITALIC));
 //		}
 	}

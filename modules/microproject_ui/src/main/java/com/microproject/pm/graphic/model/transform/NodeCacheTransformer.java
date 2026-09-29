@@ -70,7 +70,6 @@ public class NodeCacheTransformer implements CacheTransformer<GraphicNode> {
     protected ViewConfiguration view;
 
     public NodeCacheTransformer(String viewName,ReferenceNodeModelCache refCache,Consumer<Object> transformerClosure){
-    	//System.out.println("viewName="+viewName);
     	view=ViewConfiguration.getView(viewName);
         if (view == null || view.getTransform() == null) {
             view = new ViewConfiguration();
@@ -165,7 +164,6 @@ public class NodeCacheTransformer implements CacheTransformer<GraphicNode> {
              if (preserveHierarchy){
 	             //contruct a temporary tree for sorting and grouping
 //            	 if (parents==null||previous==null){
-//            		 System.out.println("null");
 //            	 }
 	             if (gnode.getLevel()==1){
 	            	 localList.add(gnode);

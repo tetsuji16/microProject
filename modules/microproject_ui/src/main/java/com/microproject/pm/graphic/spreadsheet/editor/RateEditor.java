@@ -67,7 +67,6 @@ public class RateEditor extends SimpleEditor {
 	 */
 	public RateEditor(String timeUnit, boolean money, boolean percent, boolean temporal) {
 		super();
-//		System.out.println("RateEditor timeUnit="+timeUnit + " money="+money);
 		this.money = money;
 		this.percent = percent;
 		this.temporal = temporal;

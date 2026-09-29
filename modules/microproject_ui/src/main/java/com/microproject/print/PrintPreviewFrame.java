@@ -358,7 +358,6 @@ public class PrintPreviewFrame extends FlatLafFrame implements  ProjectMenuActio
 		}else d.setSize(Math.round(size.getY(PageSize.INCH)*PageSize.POINTS_PER_INCH)*zoom,Math.round(size.getX(PageSize.INCH)*PageSize.POINTS_PER_INCH)*zoom);
 		pagePanel.setPreferredSize(d);
 		pagePanel.revalidate();
-		//System.out.println("d="+d);
 	}
 
 	protected void zoomIn() {

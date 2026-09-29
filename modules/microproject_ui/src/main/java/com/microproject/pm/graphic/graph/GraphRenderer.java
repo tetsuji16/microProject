@@ -57,12 +57,10 @@ public abstract class GraphRenderer extends Renderer{
 	}
 	
     public void updateShapes(){
-    	//System.out.println("Deep update");
     	if (graphInfo.getCache() == null) return;
     	updateShapes(graphInfo.getCache().getIterator());
     }
     public void updateShapes(List nodes){
-    	//System.out.println("Shallow update");
     	if (nodes==null) updateShapes();
     	else updateShapes(nodes.listIterator());
     }

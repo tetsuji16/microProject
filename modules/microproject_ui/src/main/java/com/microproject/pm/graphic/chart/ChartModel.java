@@ -296,7 +296,6 @@ public class ChartModel implements TimeDistributedConstants, Serializable {
 		secondSeriesCollection = null;
 		XYSeries series;
 		for (int i = 0; i < traces.length; i++) {
-			//System.out.println("\n trace #"+i);
 			valuesArray[i] = computeTrace(tasks==null?null:tasks.iterator(),resources,traces[i],histogram,cumulative);
 		}
 		

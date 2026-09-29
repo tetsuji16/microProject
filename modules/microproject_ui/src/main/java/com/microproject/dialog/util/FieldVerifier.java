@@ -111,7 +111,6 @@ public class FieldVerifier extends InputVerifier {
 		c.setForeground(FlatUiSupport.infoForeground());
 		
 		Object newValue = ComponentFactory.getValueFromComponent(component, field);
-//System.out.println("new value " + newValue + " " + (newValue != null ?newValue.getClass():""));
 		
 		// avoid validating unchanged controls
 		if (newValue == value || (newValue != null && newValue.equals(value))) { //unchanged

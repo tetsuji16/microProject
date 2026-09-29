@@ -67,15 +67,12 @@ public class NodeCache extends CellCache<GraphicNode, VisibleNodes> {
 			if (node.isComposite()&&node.isCollapsed()) minLevel=node.getLevel();
 		}
 //		long t1=System.currentTimeMillis();
-//		System.out.println("\t\tcache NodeCache#1 ran in "+(t1-t0)+"ms");
 
 		v.applyTransformer();
 //		t0=System.currentTimeMillis();
-//		System.out.println("\t\tcache NodeCache#2 ran in "+(t0-t1)+"ms");
 
 		applyUpdates(oldList, visibleElements, updates, v.getEvents(), this);
 //		t1=System.currentTimeMillis();
-//		System.out.println("\t\tcache NodeCache#3 ran in "+(t1-t0)+"ms");
 
 	}
 
@@ -96,7 +93,6 @@ public class NodeCache extends CellCache<GraphicNode, VisibleNodes> {
 			}
 		//}
 //			long t1=System.currentTimeMillis();
-//			System.out.println("\t\t\tcache applyUpdates#1 ran in "+(t1-t0)+"ms");
 		
 		ArrayList<CacheInterval> insertList =null;
 		ArrayList<T> insertNodeList =null;
@@ -110,7 +106,6 @@ public class NodeCache extends CellCache<GraphicNode, VisibleNodes> {
 			}
 		//}
 //			t0=System.currentTimeMillis();
-//			System.out.println("\t\t\tcache applyUpdates#2 ran in "+(t0-t1)+"ms");
 		
 		//if (removeFunctor!=null&&insertFunctor!=null){
 			removeList.clear();
@@ -127,7 +122,6 @@ public class NodeCache extends CellCache<GraphicNode, VisibleNodes> {
 				//insertFunctor.execute(insertNodeList,insertList);
 			}
 //			t1=System.currentTimeMillis();
-//			System.out.println("\t\t\tcache applyUpdates#3 ran in "+(t1-t0)+"ms");
 		//}
 		
 		//if (updateFunctor!=null){
@@ -140,7 +134,6 @@ public class NodeCache extends CellCache<GraphicNode, VisibleNodes> {
 			}
 		//}
 //			t0=System.currentTimeMillis();
-//			System.out.println("\t\t\tcache applyUpdates#4 ran in "+(t0-t1)+"ms");
 		
 	}
 	

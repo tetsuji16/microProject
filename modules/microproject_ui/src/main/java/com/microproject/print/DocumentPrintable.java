@@ -87,7 +87,6 @@ public class DocumentPrintable implements Printable,Pageable{
 
 	public int print (Graphics g, int page) throws PrinterException {
 		int pageCount=getNumberOfPages();
-		//System.out.println(page+"/"+(pageCount-1));
 		if (page<pageCount){
 			if (jr!=null&&jr.getJob().isCanceled()) printerJob.cancel();
 			Graphics2D g2 = (Graphics2D) g;
@@ -96,7 +95,6 @@ public class DocumentPrintable implements Printable,Pageable{
 			Stroke svgStroke=g2.getStroke();
 
 			g2.transform(printableParams.getTransform());
-			//System.out.println("Print transform="+printableParams.getTransform()+" zx="+printableParams.getTotalZoomX()+", zy="+printableParams.getTotalZoomY());
 			g2.setStroke(spreadSheetStroke);
 			g2.setColor(spreadSheetColor);
 
@@ -106,7 +104,6 @@ public class DocumentPrintable implements Printable,Pageable{
 			g2.setStroke(svgStroke);
 			g2.setTransform(svgTransform);
 			if (jr!=null){
-				//System.out.println("Progress: "+(page+1));
 				if (jr.getJob().isCanceled()){
 					printerJob.cancel();
 					return NO_SUCH_PAGE;

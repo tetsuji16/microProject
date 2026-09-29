@@ -113,7 +113,6 @@ public class SpreadSheetModel extends CommonSpreadSheetModel implements OutlineM
 		if (!nodeModel.isLocal()&&!nodeModel.isMaster()&&!Environment.getStandAlone()&&!roleField) return;
 		
 		
-		// System.out.println("Field " + getFieldInColumn(col) +
 		// "setValueAt("+value+","+row+","+col+")");
 
 		Object oldValue = getValueAt(row, col);

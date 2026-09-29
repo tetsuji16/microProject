@@ -98,7 +98,6 @@ public abstract class StartupFactory {
 	protected HashMap<String, Object> opts = null;
 
 	protected StartupFactory() {
-//		System.out.println("---------- StartupFactory");
 	}
 
 	/**
@@ -114,7 +113,6 @@ public abstract class StartupFactory {
 		GraphicManager g = instanceFromExistingSession((Container) con);
 //		g.decodeWorkspace();
 
-//		System.out.println("restarted");
 		return g;
 	}
 
@@ -127,18 +125,14 @@ public abstract class StartupFactory {
 
 
 		long t=System.currentTimeMillis();
-//		System.out.println("---------- StartupFactory instanceFromExistingSession#1");
 		final GraphicManager graphicManager = new GraphicManager(container);
 		graphicManager.setRestartAction(() -> restart(graphicManager));
 		SessionFactory.getInstance().setJobQueue(graphicManager.getJobQueue());
 		//if (Environment.isNewLook())
 			graphicManager.initLookAndFeel();
-//		System.out.println("---------- StartupFactory instanceFromExistingSession#1 done in "+(System.currentTimeMillis()-t)+" ms");
 		SwingUtilities.invokeLater(() -> {
 			long initViewStartTime=System.currentTimeMillis();
-//				System.out.println("---------- StartupFactory instanceFromExistingSession#2");
 			graphicManager.initView();
-//				System.out.println("---------- StartupFactory instanceFromExistingSession#2 done in "+(System.currentTimeMillis()-initViewStartTime)+" ms");
 		});
 //		graphicManager.invalidate();
 		return graphicManager;
@@ -147,15 +141,12 @@ public abstract class StartupFactory {
 
 	public GraphicManager instanceFromNewSession(Container container,  final boolean doWelcome) {
 		long t=System.currentTimeMillis();
-//		System.out.println("---------- StartupFactory instanceFromNewSession#1 main");
 		Environment.setClientSide(true);
 
 		// System.setSecurityManager(null); // DISABLED for Java 17+ compatibility
 		Thread loadConfigThread = new Thread(() -> {
 			long configLoadStartTime = System.currentTimeMillis();
-//			System.out.println("---------- StartupFactory instanceFromNewSession#1 doLoadConfig");
 			doLoadConfig();
-//			System.out.println("---------- StartupFactory instanceFromNewSession#1 doLoadConfig done in "+(System.currentTimeMillis()-configLoadStartTime)+" ms");
 		}, "loadConfig");
 		loadConfigThread.start();
 
@@ -187,7 +178,6 @@ public abstract class StartupFactory {
 			}
 		}
 
-//		System.out.println("---------- StartupFactory instanceFromNewSession#1 main done in "+(System.currentTimeMillis()-t)+" ms");
 		try {
 			loadConfigThread.join();
 		} catch (InterruptedException e1) {
@@ -196,7 +186,6 @@ public abstract class StartupFactory {
 		}
 
 		t=System.currentTimeMillis();
-//		System.out.println("---------- StartupFactory instanceFromNewSession#2");
 
 		if (partnerInfo!=null){
 
@@ -355,7 +344,6 @@ public abstract class StartupFactory {
 						return false;
 					}
 
-//					System.out.println("Application started with args: credentials=" + credentials.get("login") + " name " + session.getUser().getName() + " Roles " + session.getUser().getServerRoles());
 					break;
 				} catch (Exception e) {
 					if (Session.EXPIRED.equals(e.getMessage())) {

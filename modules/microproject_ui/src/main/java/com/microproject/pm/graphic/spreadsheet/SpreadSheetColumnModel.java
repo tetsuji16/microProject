@@ -201,7 +201,6 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 			super.addColumn(tc);
 			Field field = (Field) originalFieldArray.get(columnIndex);
 			tc.setIdentifier(field); // store the field with the column
-//			System.out.println("setting column " + columnIndex + " to field " + field + " ok = " + (field == getFieldInColumn(columnIndex)));
 
 			if (field.isNameField()) {
 				tc.setPreferredWidth((svg)?170:150);
@@ -373,7 +372,6 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 
 //	@Override
 //	protected void fireColumnSelectionChanged(ListSelectionEvent lse) {
-//		System.out.println("Model: "+((lse.getValueIsAdjusting())?"lse=":"LSE=")+lse.getFirstIndex()+", "+lse.getLastIndex());
 //		super.fireColumnSelectionChanged(lse);
 //	}
 

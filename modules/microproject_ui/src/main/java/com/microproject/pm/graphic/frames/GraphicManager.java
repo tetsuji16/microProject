@@ -326,12 +326,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		container.addFocusListener(new FocusListener() {
 
 			public void focusGained(FocusEvent e) {
-//				System.out.println("GainFocus " + GraphicManager.this.hashCode());
 				setMeAsLastGraphicManager();
 			}
 
 			public void focusLost(FocusEvent e) {
-//				System.out.println("LostFocus " + GraphicManager.this.hashCode());
 			}});
 
 		projectFactory = ProjectFactory.getInstance();
@@ -3198,7 +3196,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 //        if (projectUrl == null && !GeneralOption.getInstance().isStartWithBlankProject()) {
 //			//System.out.println("not opening anything");
 //		} else if (projectUrl == null   || projectUrl.length==0 || projectUrl[0].startsWith("http")) { //same as in Main //$NON-NLS-1$
-//			System.out.println("loading local project:" +projectUrl); //$NON-NLS-1$
 //			boolean ok = loadLocalDocument(projectUrl[0],true); //if null then it will create a new project. WebStart will send a file name
 //			if (!ok)
 //				return;
@@ -3373,7 +3370,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		}
 		Project project;
 		if (fileName==null) {
-			//System.out.println("creating empty project");
 			project = projectFactory.createProject();
 
 		} else {
@@ -4036,7 +4032,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 
 	public void namedFrameActivated(NamedFrameEvent evt) {
-//		System.out.println("Frame activated");
 		NamedFrame frame = evt.getNamedFrame();
 		if (frame instanceof DocumentFrame){
 			DocumentFrame df=(DocumentFrame)frame;

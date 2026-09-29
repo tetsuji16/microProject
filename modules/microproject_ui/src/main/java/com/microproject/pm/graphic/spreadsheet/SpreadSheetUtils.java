@@ -187,11 +187,8 @@ public class SpreadSheetUtils {
 //				Dimension dmain=spreadSheetScrollPane.getViewport().getViewSize();
 //				if (dmain.equals(olddmain)) return;
 //				olddmain=dmain;
-//				System.out.println("pref size #1="+spreadSheetScrollPane.getColumnHeader().getPreferredSize());
 //				spreadSheetScrollPane.getColumnHeader().setPreferredSize(new Dimension(dmain.width,spreadSheetScrollPane.getColumnHeader().getPreferredSize().height));
-//				System.out.println("pref size #2="+spreadSheetScrollPane.getColumnHeader().getPreferredSize());
 //				spreadSheetScrollPane.getColumnHeader().revalidate();
-//				System.out.println("pref size #3="+spreadSheetScrollPane.getColumnHeader().getPreferredSize());
 //
 
 //				Dimension d=spreadSheetScrollPane.getColumnHeader().getPreferredSize();

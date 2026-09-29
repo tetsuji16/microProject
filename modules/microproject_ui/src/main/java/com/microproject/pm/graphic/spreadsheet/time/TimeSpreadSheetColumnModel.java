@@ -72,7 +72,6 @@ public class TimeSpreadSheetColumnModel extends DefaultTableColumnModel implemen
 		//int totalW=0;
 		for (int i=1;iterator.hasNext();i++){
 			interval=iterator.next();
-			//System.out.println("interval#"+i+"="+interval);
 			int w=(int)Math.round(coord.toW(interval.getEnd1()-interval.getStart1()));
 			TableColumn col=new TableColumn(i,w);
 			col.setMinWidth(w);
@@ -86,7 +85,6 @@ public class TimeSpreadSheetColumnModel extends DefaultTableColumnModel implemen
 		//spreadSheet.setPreferredSize(new Dimension(totalW,spreadSheet.getPreferredSize().height));
 //		int totalWidth=getTotalColumnWidth();
 //		spreadSheet.setPreferredSize(new Dimension(totalWidth,spreadSheet.getPreferredSize().height));
-		//System.out.println("updateColumns coord="+CalendarUtil.toString(coord.getEnd()));
 	}
 	
 	

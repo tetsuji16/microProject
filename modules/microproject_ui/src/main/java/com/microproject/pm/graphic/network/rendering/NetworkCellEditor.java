@@ -55,7 +55,6 @@ public class NetworkCellEditor{
 	public void initEditorComponent(GraphicNode node,int zoom,Rectangle bounds){
 		cancel();
 		if (node==null) return;
-		//System.out.println("create editor node="+node);
 		this.node=node;
 		form=formatSelector.getForm(node,zoom,true);
 		form.setFields(node.getNode(),params.getCache().getModel());
@@ -72,7 +71,6 @@ public class NetworkCellEditor{
 	
 	public void paintEditor(GraphicNode node){
 		if (node==null||this.node!=node) return;
-		//System.out.println("paint editor node="+node);
 		paintComponentApart(form,form.getBounds());
 	}
 	protected void paintComponentApart(Component c,Rectangle bounds){
@@ -100,7 +98,6 @@ public class NetworkCellEditor{
 	}
 	public void cancel(){
 		if (node!=null){
-			//System.out.println("cancel editor");
 			Container parent=form.getParent();
 			if (parent!=null) parent.remove(form);
 			Rectangle bounds=form.getBounds();

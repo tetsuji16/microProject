@@ -613,7 +613,6 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 
 
 		public void consumeInterval(ScheduleInterval interval){
-//			System.out.println("GanttUI consuming interval " + new java.util.Date(interval.getStart()) + " " + new java.util.Date(interval.getEnd()));
 //			if (interval.getEnd() < interval.getStart())
 //				return;
 			CoordinatesConverter coord=((GanttParams)graphInfo).getCoord();

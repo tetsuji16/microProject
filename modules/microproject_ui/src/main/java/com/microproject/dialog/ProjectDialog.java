@@ -334,8 +334,6 @@ public final class ProjectDialog extends FieldDialog { // extends FieldDialog fo
 //			startDateChooser.setDate(new Date(form.getStartDate()));
 			Date d = new Date(form.getStartDate());
 			Date zz = DateTime.gmtDate(d);
-//			System.out.println("start " +d);
-//			System.out.println("zz " +zz);
 			startDateChooser.setValue(d);
 			forward.setSelected(form.isForward());
 			resourcePool.setSelectedItem(form.getResourcePool() == null ? "" : form.getResourcePool());
@@ -359,7 +357,6 @@ public final class ProjectDialog extends FieldDialog { // extends FieldDialog fo
 			// make valid start
 //			long d = DateTime.gmt(startDateChooser.getDate()); // + startDateChooser.getDate().getTimezoneOffset() * 60000;
 			long d = DateTime.gmt((Date) startDateChooser.getValue()); // + startDateChooser.getDate().getTimezoneOffset() * 60000;
-//	System.out.println("chooser " + new Date(d));
 			//		d = ((Date)startDateChooser.getValue()).getTime();
 			if (forward.isSelected()) {
 				d = CalendarOption.getInstance().makeValidStart(d, true);

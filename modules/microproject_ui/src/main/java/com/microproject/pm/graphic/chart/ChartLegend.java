@@ -119,7 +119,6 @@ public class ChartLegend  implements SelectionNodeListener, Serializable , Savab
 	}
 	
 	void rebuildTree() {
-//		System.out.println("rebuilding tree");
 		initTree();
 //		((AbstractMutableNodeHierarchy)chartInfo.getCache().getReference().getModel().getHierarchy()).dump();
 	}

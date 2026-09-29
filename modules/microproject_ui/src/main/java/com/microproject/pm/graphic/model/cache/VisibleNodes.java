@@ -71,7 +71,6 @@ public class VisibleNodes extends VisibleElements<GraphicNode> {
 		return (CacheListener[]) listenerList.getListeners(CacheListener.class);
 	}
 	 protected void fireGraphicNodesCompositeEvent(Object source, List<CacheEvent> nodeEvents, List<CacheEvent> edgeEvents) {
-			//System.out.println("fireGraphicNodesCompositeEvent: \n\t"+nodeEvents+"\n\t"+edgeEvents/*+", source="+source*/);
 			Object[] listeners = listenerList.getListenerList();
 			CompositeCacheEvent e = null;
 			for (int i = listeners.length - 2; i >= 0; i -= 2) {

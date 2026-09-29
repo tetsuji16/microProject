@@ -60,7 +60,6 @@ public class GradientCorner extends JComponent {
 
 	public void setSelected(boolean selected) {
 		if (this.selected != selected){
-			//System.out.println("selected="+selected);
 			this.selected = selected;
 			repaint();
 		}

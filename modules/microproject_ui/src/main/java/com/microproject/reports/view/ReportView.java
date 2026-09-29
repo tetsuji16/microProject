@@ -195,7 +195,6 @@ public class ReportView extends JPanel implements BaseView, CacheListener {
         JasperReport report = ReportUtil.getReport(reportDefinition, coord.getProjectTimeIterator(), fa);
 
         viewName = DataSourceProvider.getViewName(report);
-        //System.out.println("viewName="+viewName);
         documentFrame.setComboBoxesViewName(viewName); 
 
         NodeModel model = null;

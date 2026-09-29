@@ -1028,7 +1028,6 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		}
 		inputMethodEditingSessionActive = false;
 		pendingReceivedText.setLength(0);
-		//System.out.println("finishCurrentOperations()="+rows);
 		return rows;
 	}
 
@@ -1163,7 +1162,6 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		editingGeneration++;
 		var editingStarted = super.editCellAt(row, column, e);
     	if (editingStarted && editorComp != null) {
-//    		System.out.println("editing cell at " + row + " " + column);
     		configureEditorComponentAfterStart(row, column, e);
 		// JTable attaches the editor synchronously, but the real F2/click route
 		// must transfer keyboard focus before the next physical key arrives.
@@ -1604,7 +1602,6 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 	}
 
     public void graphicNodesCompositeEvent(CompositeCacheEvent compositeEvent){
-    	//System.out.println("cache event -> editCellAt");
     	if (isEditing()){
     		int row=getEditingRow();
     		int col=getEditingColumn();

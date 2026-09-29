@@ -284,7 +284,6 @@ public class NodeListTransferHandler extends TransferHandler {
 
 	    protected DataFlavor getFlavor(DataFlavor[] flavors) {
 //    		for (int i=0;i<flavors.length;i++){
-//    			System.out.println("flavor #"+i+": "+flavors[i]);
 //    		}
 			for (int i=0;i<flavors.length;i++){
 				if (NodeListTransferable.isNodeListFlavor(flavors[i])

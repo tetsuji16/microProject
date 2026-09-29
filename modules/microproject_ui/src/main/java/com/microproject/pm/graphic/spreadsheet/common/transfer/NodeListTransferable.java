@@ -172,7 +172,6 @@ public class NodeListTransferable implements Transferable {
 			else sb.append('\t');
 			sb.append((value==null)?"":value.toString());
 			//s=sb.toString();
-			//System.out.println("s="+s);
 		}
 		sb.append('\n');
 		for (Iterator<TreeNode> i=node.childrenIterator();i.hasNext();)

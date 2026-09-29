@@ -63,7 +63,6 @@ public class GeneralFilteredIterator extends FilterIterator implements Predicate
 		} else {
 			obj = GraphicNode.getImpl(obj);
 		}
-		//System.out.println("GenalFilteredIterator: next()="+obj);
 		return obj;
 	}
 	/**

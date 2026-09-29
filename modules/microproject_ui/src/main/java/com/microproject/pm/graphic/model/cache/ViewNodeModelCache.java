@@ -116,7 +116,6 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 	}
 
 	public void update(){
-//		System.out.println("ViewNodeModelCache update "+getViewName());
 		reference.updateVisibleElements(visibleNodes);
 	}
 

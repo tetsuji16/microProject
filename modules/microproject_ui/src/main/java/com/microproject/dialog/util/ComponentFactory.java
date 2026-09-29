@@ -148,7 +148,6 @@ public class ComponentFactory {
 			} else {
 				// Keep the spinner editor in sync with the converted value until the escape-key restore path is fixed.
 //				getSpinnerTextField((JSpinner)component).setText(value.toString());
-//				System.out.println("setting spinner text " + value);
 			}
 		} else if (component instanceof LinkLabel) {
 			((LinkLabel)component).setHyperlink((Hyperlink) value);

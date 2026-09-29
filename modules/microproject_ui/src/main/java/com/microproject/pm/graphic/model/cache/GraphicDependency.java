@@ -96,7 +96,6 @@ public class GraphicDependency /*extends GraphicNode*/{
         return dirty;
     }
     public void setDirty(boolean dirty) {
-//		System.out.println("GraphicDependency _setDirty");
         this.dirty = dirty;
     }
 }

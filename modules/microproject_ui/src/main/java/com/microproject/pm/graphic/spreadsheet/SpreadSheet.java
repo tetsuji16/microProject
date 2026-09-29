@@ -1016,7 +1016,6 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		setModel(spreadSheetModel);
 		
 		if (spreadSheetColumnModel != null) {
-			//System.out.println("creating new ColModel");
 			setColumnModel(spreadSheetColumnModel);
 	
 			selection = new SpreadSheetSelectionModel(this);
@@ -1609,7 +1608,6 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	}
 
 //    public void columnSelectionChanged(ListSelectionEvent e) {
-//		System.out.println("JTable: "+((e.getValueIsAdjusting())?"lse=":"LSE=")+e.getFirstIndex()+", "+e.getLastIndex());
 //    	super.columnSelectionChanged(e);
 //    }
     

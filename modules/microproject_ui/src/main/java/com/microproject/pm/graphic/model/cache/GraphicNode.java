@@ -217,7 +217,6 @@ public class GraphicNode implements HierarchicObject<GraphicNode>{
 	}
 
 	public void setDirty(boolean dirty) {
-//		System.out.println("GraphicNode _setDirty");
 		this.dirty = dirty;
 	}
 

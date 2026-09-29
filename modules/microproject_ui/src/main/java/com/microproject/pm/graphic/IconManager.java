@@ -406,7 +406,6 @@ public class IconManager {
 	
 	
 	public static Image getImage(String key) {
-//		System.out.println("getImage: "+key);
 		ImageIcon icon=getIcon(key);
 		if (icon==null) return null;
 		else return icon.getImage();

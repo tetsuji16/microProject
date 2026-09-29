@@ -89,7 +89,6 @@ public class DependencyCache extends CellCache<GraphicDependency, VisibleDepende
 			containsSuccessor=visibleNodesSet.contains(dep.getSuccessor());
 			containsDependency=visibleDependenciesSet.contains(dep);
 			
-//System.out.println("contains " + dep.getPredecessor() + " / " + dep.getSuccessor() + " pred " + containsPredecessor + " succ " + containsSuccessor + " dep " + containsDependency);			
 			if (containsPredecessor&&containsSuccessor&&!containsDependency){
 			    visibleDependencies.add(dep);
 			    visibleDependenciesSet.add(dep);
@@ -104,7 +103,6 @@ public class DependencyCache extends CellCache<GraphicDependency, VisibleDepende
 			}
 		}
 //		long t1=System.currentTimeMillis();
-//		System.out.println("\t\tDependencyCache#1 ran in "+(t1-t0)+"ms");
 		Collection<GraphicDependency> cacheCol=getContainsCollection(cache);
 		for(Iterator<GraphicDependency> i=visibleDependencies.iterator();i.hasNext();){
 			GraphicDependency dep=i.next();
@@ -116,7 +114,6 @@ public class DependencyCache extends CellCache<GraphicDependency, VisibleDepende
 			}
 		}
 //		t0=System.currentTimeMillis();
-//		System.out.println("\t\tDependencyCache#2 ran in "+(t0-t1)+"ms");
 
 	}
 
