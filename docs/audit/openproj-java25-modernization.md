@@ -2910,3 +2910,13 @@ and public collection contracts remain unchanged; capacities, element order,
 and hierarchy restore logic are unchanged. `git blame` traces these methods
 to the OpenProj-derived implementation. The complete core suite is used as
 verification because the `NodeIndentEdit` undo route has no focused core test.
+
+The OpenProj 1.4 graph model and network view still exposed node/dependency
+traversal as raw `ListIterator` values. `GraphModel` now carries the existing
+`GraphicNode` and `GraphicDependency` element types through those accessor
+signatures; `GraphUI` and `NetworkUI` consume the typed iterators without casts.
+The three source hunks are present in the pinned OpenProj 1.4 tree at
+`d2fa3c20`, verified under `openproj_ui/src/com/projity/pm/graphic/{graph,network}`.
+Traversal order, path hit-testing, shape lookup, and the erased method
+signatures are unchanged. UI unit tests and the existing physical WBS/network
+view journey passed; no visual behavior was intended to change.

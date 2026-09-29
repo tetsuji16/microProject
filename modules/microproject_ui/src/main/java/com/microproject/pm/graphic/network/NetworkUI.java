@@ -88,10 +88,9 @@ public abstract class NetworkUI extends GraphUI{
 
 
     public GraphZone getNodeAt(double x,double y){
-		GraphicNode node;
 		GeneralPath shape;
-		for (ListIterator<?> i=graph.getModel().getNodeIterator();i.hasNext();){
-			node=(GraphicNode)i.next();
+		for (ListIterator<GraphicNode> i=graph.getModel().getNodeIterator();i.hasNext();){
+			GraphicNode node = i.next();
 			shape=((NetworkRenderer)graphRenderer).getShape(node);
 			if (shape!=null&&shape.contains(x,y)){
 				return node==null?null:new GraphZone(node);

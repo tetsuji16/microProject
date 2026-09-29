@@ -35,6 +35,7 @@ import javax.swing.event.EventListenerList;
 
 import com.microproject.pm.graphic.graph.event.GraphEvent;
 import com.microproject.pm.graphic.graph.event.GraphListener;
+import com.microproject.pm.graphic.model.cache.GraphicDependency;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.event.CacheListener;
@@ -92,13 +93,13 @@ public class GraphModel implements Serializable, /*ScheduleEventListener,*/ Cach
 	}
 	
 	
-	public ListIterator getNodeIterator(){
+	public ListIterator<GraphicNode> getNodeIterator(){
 		return cache.getIterator();
 	}
-	public ListIterator getNodeIterator(int i){
+	public ListIterator<GraphicNode> getNodeIterator(int i){
 		return cache.getIterator(i);
 	}
-	public ListIterator getDependencyIterator(){
+	public ListIterator<GraphicDependency> getDependencyIterator(){
 		return cache.getEdgesIterator();
 	}
 	

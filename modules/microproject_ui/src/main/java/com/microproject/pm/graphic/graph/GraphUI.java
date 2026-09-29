@@ -83,13 +83,12 @@ public class GraphUI extends ComponentUI implements Serializable {
     public GraphZone getLinkAt(double x,double y){
     	return getLinkAt(x, y, graph.getModel().getDependencyIterator());
     }
-    protected GraphZone getLinkAt(double x,double y,Iterator i){
+	protected GraphZone getLinkAt(double x,double y,Iterator<GraphicDependency> i){
 		double delta=config.getSelectionSquare();
 		double flatness=config.getLinkFlatness();
     	Rectangle2D selectionZone=(delta==0)?null:new Rectangle2D.Double(x-delta,y-delta,2*delta+1,2*delta+1);
-    	GraphicDependency dependency;
 		while(i.hasNext()){
-			dependency=(GraphicDependency)i.next();
+			GraphicDependency dependency = i.next();
 			if (selectionZone==null&&dependency.getPath().contains(x,y)) return dependency==null?null:new GraphZone(dependency);
 			else if (selectionZone!=null){
 				int segType;
