@@ -39,6 +39,8 @@ import com.microproject.grouping.core.NodeFactory;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.undo.DataFactoryUndoController;
+import com.microproject.ui.util.SwingAlertPresenter;
+import com.microproject.util.Alert;
 import com.microproject.util.Environment;
 
 /** GUI-MSP-CYCLE-01: a circular child insertion is rejected with its reference chain. */
@@ -57,6 +59,7 @@ class CircularSubprojectGuiAcceptanceTest {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		previousClientSide = Environment.isClientSide();
 		Environment.setClientSide(true);
+		Alert.setPresenter(new SwingAlertPresenter());
 		Fixture fixture = createFixture();
 		show();
 		AtomicBoolean completed = new AtomicBoolean();

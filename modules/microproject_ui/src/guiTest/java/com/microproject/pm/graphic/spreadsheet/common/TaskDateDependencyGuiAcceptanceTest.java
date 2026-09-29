@@ -59,6 +59,8 @@ import com.microproject.pm.task.Project;
 import com.microproject.strings.Messages;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.undo.DataFactoryUndoController;
+import com.microproject.ui.util.SwingAlertPresenter;
+import com.microproject.util.Alert;
 import com.microproject.util.Environment;
 import com.microproject.util.DateTime;
 
@@ -105,6 +107,7 @@ class TaskDateDependencyGuiAcceptanceTest {
 		long originalStart = fixture.predecessor.getStart();
 		boolean previousClientSide = Environment.isClientSide();
 		Environment.setClientSide(true);
+		Alert.setPresenter(new SwingAlertPresenter());
 		AtomicBoolean warningSeen = new AtomicBoolean();
 		Timer closer = scheduleWarningDismissal(warningSeen);
 		try {
@@ -136,6 +139,7 @@ class TaskDateDependencyGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(fixture.sheet::isEditing, "F2 did not start predecessor editing");
 		boolean previousClientSide = Environment.isClientSide();
 		Environment.setClientSide(true);
+		Alert.setPresenter(new SwingAlertPresenter());
 		AtomicBoolean warningSeen = new AtomicBoolean();
 		Timer closer = scheduleWarningDismissal(warningSeen);
 		try {

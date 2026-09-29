@@ -31,6 +31,7 @@ import com.microproject.pm.graphic.frames.workspace.FrameHolder;
 import com.microproject.pm.graphic.frames.workspace.FrameManager;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.Project;
+import com.microproject.strings.Messages;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.undo.DataFactoryUndoController;
 
@@ -63,7 +64,8 @@ class UnresolvedSharedResourcePoolGuiAcceptanceTest {
 			AbstractButton button = findButton(frame, name);
 			assertTrue(button != null, "missing assignment button: " + name);
 			assertFalse(button.isEnabled(), "unresolved pool must disable " + name);
-			assertTrue(button.getToolTipText().contains("resource-pool"), "button must explain pool recovery");
+			assertTrue(Messages.getString("SharedResourcePool.poolNotOpen").equals(button.getToolTipText()),
+				"button must explain pool recovery in the active locale");
 		}
 		capture(new Robot());
 	}
