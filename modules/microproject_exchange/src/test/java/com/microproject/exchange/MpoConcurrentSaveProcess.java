@@ -49,6 +49,7 @@ public final class MpoConcurrentSaveProcess {
 		String value = args[3];
 		Path ready = Path.of(args[4]);
 		Path release = Path.of(args[5]);
+		String crashPoint = args.length > 6 ? args[6] : "";
 
 		MpoFileImporter reader = new MpoFileImporter();
 		reader.setFileName(sharedArchive.toString());
@@ -102,7 +103,23 @@ public final class MpoConcurrentSaveProcess {
 			Thread.sleep(20L);
 		}
 
-		MpoFileImporter writer = new MpoFileImporter();
+		MpoFileImporter writer = switch (crashPoint) {
+			case "before-replace" -> new MpoFileImporter() {
+				@Override
+				protected void moveTemporary(Path temporary, Path target) {
+					Runtime.getRuntime().halt(71);
+				}
+			};
+			case "after-replace" -> new MpoFileImporter() {
+				@Override
+				protected void moveTemporary(Path temporary, Path target) throws java.io.IOException {
+					super.moveTemporary(temporary, target);
+					Runtime.getRuntime().halt(72);
+				}
+			};
+			case "" -> new MpoFileImporter();
+			default -> throw new IllegalArgumentException("Unsupported crash point: " + crashPoint);
+		};
 		writer.setFileName(sharedArchive.toString());
 		writer.setProject(project);
 		try {

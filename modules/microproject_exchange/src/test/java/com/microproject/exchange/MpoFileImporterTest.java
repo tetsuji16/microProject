@@ -1382,12 +1382,19 @@ class MpoFileImporterTest {
 
 	private static Process startMpoSaveWorker(File shared, long taskId, String field, String value,
 			Path ready, Path release, Path log) throws Exception {
+		return startMpoSaveWorker(shared, taskId, field, value, ready, release, log, "");
+	}
+
+	private static Process startMpoSaveWorker(File shared, long taskId, String field, String value,
+			Path ready, Path release, Path log, String crashPoint) throws Exception {
 		String javaExecutable = Path.of(System.getProperty("java.home"), "bin",
 				System.getProperty("os.name").toLowerCase(java.util.Locale.ROOT).contains("win") ? "java.exe" : "java")
 			.toString();
-		ProcessBuilder builder = new ProcessBuilder(javaExecutable, "-Djava.awt.headless=true", "-Dfile.encoding=UTF-8", "-cp",
+		List<String> command = new ArrayList<>(List.of(javaExecutable, "-Djava.awt.headless=true", "-Dfile.encoding=UTF-8", "-cp",
 				processTestClasspath(), MpoConcurrentSaveProcess.class.getName(), shared.getAbsolutePath(),
-				Long.toString(taskId), field, value, ready.toString(), release.toString());
+				Long.toString(taskId), field, value, ready.toString(), release.toString()));
+		if (!crashPoint.isEmpty()) command.add(crashPoint);
+		ProcessBuilder builder = new ProcessBuilder(command);
 		builder.redirectErrorStream(true);
 		builder.redirectOutput(log.toFile());
 		return builder.start();
@@ -2095,6 +2102,67 @@ class MpoFileImporterTest {
 			Files.deleteIfExists(tempDirectory);
 			Files.deleteIfExists(Path.of(shared.getAbsolutePath() + ".lock"));
 			Files.deleteIfExists(shared.toPath());
+		}
+	}
+
+	@Test
+	void separateJvmCrashAroundAtomicReplaceLeavesReloadableArchive() throws Exception {
+		for (String crashPoint : List.of("before-replace", "after-replace")) {
+			Project initial = projectForRoundTrip();
+			assignPositiveUniqueIds(initial);
+			long taskId = firstTask(initial).getUniqueId();
+			String originalName = firstTask(initial).getName();
+			File shared = File.createTempFile("mpo-process-crash-" + crashPoint, ".mpo");
+			MpoFileImporter seed = new MpoFileImporter();
+			seed.setFileName(shared.getAbsolutePath());
+			seed.setProject(initial);
+			seed.exportFile();
+			byte[] originalArchive = Files.readAllBytes(shared.toPath());
+
+			Path tempDirectory = Files.createTempDirectory("mpo-process-crash-" + crashPoint + "-" + System.nanoTime());
+			Path release = tempDirectory.resolve("release.flag");
+			Path ready = tempDirectory.resolve("worker-ready.flag");
+			Path log = tempDirectory.resolve("worker.log");
+			Process worker = null;
+			try {
+				worker = startMpoSaveWorker(shared, taskId, "name", "Crash edit " + crashPoint, ready, release, log,
+						crashPoint);
+				awaitWorkerReady(worker, ready, log);
+				Files.createFile(release);
+				assertTrue(worker.waitFor(30, java.util.concurrent.TimeUnit.SECONDS),
+						"crash-injected worker did not terminate: " + readWorkerLog(log));
+				assertEquals(crashPoint.equals("before-replace") ? 71 : 72, worker.exitValue());
+				Project reopened = load(shared);
+				assertEquals(crashPoint.equals("before-replace") ? originalName : "Crash edit " + crashPoint,
+						firstTask(reopened).getName(), "destination must be a complete old or new archive");
+				if (crashPoint.equals("before-replace")) {
+					org.junit.jupiter.api.Assertions.assertArrayEquals(originalArchive, Files.readAllBytes(shared.toPath()),
+							"crash before replacement must preserve the original archive byte-for-byte");
+				} else {
+					OperationLog.DocumentLog logAfterCrash = new OperationLog().readJsonl(
+							readEntries(Files.readAllBytes(shared.toPath())).get(MpoFileImporter.OPERATIONS_ENTRY));
+					String updateId = logAfterCrash.operations().stream()
+							.filter(operation -> operation.kind().equals("task.update"))
+							.map(OperationLog.Operation::id).findFirst()
+							.orElseThrow(() -> new AssertionError("atomic replacement archive is missing its task.update"));
+					assertTrue(logAfterCrash.appliedOperationIds().contains(updateId),
+							"the post-crash snapshot must mark its task.update as applied");
+				}
+			} finally {
+				stopWorker(worker);
+				Files.deleteIfExists(ready);
+				Files.deleteIfExists(release);
+				Files.deleteIfExists(log);
+				Files.deleteIfExists(tempDirectory);
+				Path targetPath = shared.toPath().toAbsolutePath();
+				try (java.util.stream.Stream<Path> siblings = Files.list(targetPath.getParent())) {
+					for (Path sibling : siblings.filter(path -> path.getFileName().toString().startsWith(shared.getName() + ".")
+							&& path.getFileName().toString().endsWith(".tmp")).toList())
+						Files.deleteIfExists(sibling);
+				}
+				Files.deleteIfExists(Path.of(shared.getAbsolutePath() + ".lock"));
+				Files.deleteIfExists(shared.toPath());
+			}
 		}
 	}
 
