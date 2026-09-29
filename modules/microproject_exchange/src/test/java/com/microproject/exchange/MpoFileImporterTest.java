@@ -1916,6 +1916,56 @@ class MpoFileImporterTest {
 		}
 	}
 
+	@Test
+	void separateJvmSaveWaitsForProcessHoldingTransactionLock() throws Exception {
+		Project initial = projectForRoundTrip();
+		assignPositiveUniqueIds(initial);
+		long taskId = firstTask(initial).getUniqueId();
+		File shared = File.createTempFile("mpo-process-lock-wait", ".mpo");
+		MpoFileImporter seed = new MpoFileImporter();
+		seed.setFileName(shared.getAbsolutePath());
+		seed.setProject(initial);
+		seed.exportFile();
+		byte[] originalArchive = Files.readAllBytes(shared.toPath());
+
+		Path lockPath = Path.of(shared.getAbsolutePath() + ".lock");
+		Path tempDirectory = Files.createTempDirectory("mpo-process-lock-wait-" + System.nanoTime());
+		Path release = tempDirectory.resolve("release.flag");
+		Path ready = tempDirectory.resolve("worker-ready.flag");
+		Path log = tempDirectory.resolve("worker.log");
+		Process worker = null;
+		try (java.nio.channels.FileChannel lockChannel = java.nio.channels.FileChannel.open(lockPath,
+				java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.WRITE);
+				java.nio.channels.FileLock heldLock = lockChannel.lock()) {
+			worker = startMpoSaveWorker(shared, taskId, "name", "Saved after lock release", ready, release, log);
+			awaitWorkerReady(worker, ready, log);
+			Files.createFile(release);
+			long attemptDeadline = System.nanoTime()
+					+ java.util.concurrent.TimeUnit.SECONDS.toNanos(10);
+			while (!readWorkerLog(log).contains("MPO_SAVE_ATTEMPT=")) {
+				if (!worker.isAlive())
+					throw new AssertionError("MPO worker exited before attempting its save: " + readWorkerLog(log));
+				if (System.nanoTime() >= attemptDeadline)
+					throw new AssertionError("MPO worker did not attempt save in time: " + readWorkerLog(log));
+				Thread.sleep(20L);
+			}
+			assertTrue(worker.isAlive(), "save must wait while another process owns the transaction lock");
+			org.junit.jupiter.api.Assertions.assertArrayEquals(originalArchive, Files.readAllBytes(shared.toPath()),
+					"the shared archive must remain unchanged while the lock is held");
+			heldLock.release();
+			assertWorkerSucceeded(worker, log);
+			assertEquals("Saved after lock release", firstTask(load(shared)).getName());
+		} finally {
+			stopWorker(worker);
+			Files.deleteIfExists(ready);
+			Files.deleteIfExists(release);
+			Files.deleteIfExists(log);
+			Files.deleteIfExists(tempDirectory);
+			Files.deleteIfExists(lockPath);
+			Files.deleteIfExists(shared.toPath());
+		}
+	}
+
 	private static byte[] saveMpo(Project project) throws Exception {
 		ByteArrayOutputStream output = new ByteArrayOutputStream();
 		new MpoFileImporter().saveProject(project, output);
