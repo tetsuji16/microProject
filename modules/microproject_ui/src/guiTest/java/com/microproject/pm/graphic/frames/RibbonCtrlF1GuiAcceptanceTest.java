@@ -58,28 +58,35 @@ class RibbonCtrlF1GuiAcceptanceTest {
 			.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
 		Robot robot = new Robot();
 		robot.setAutoDelay(40);
-		robot.keyPress(KeyEvent.VK_CONTROL);
-		robot.keyPress(KeyEvent.VK_F1);
-		robot.keyRelease(KeyEvent.VK_F1);
-		robot.keyRelease(KeyEvent.VK_CONTROL);
+		java.awt.Rectangle[] windowBounds = new java.awt.Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> windowBounds[0] = new java.awt.Rectangle(window.getLocationOnScreen(), window.getSize()));
+		robot.mouseMove(windowBounds[0].x + Math.min(40, windowBounds[0].width / 2), windowBounds[0].y + 12);
+		robot.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(window::isActive,
+			"physical title-bar activation did not give the document window keyboard focus");
+		pressCtrlF1(robot);
 		GuiAcceptanceSupport.await(() -> ribbon.getRibbonDisplayMode() == RibbonDisplayMode.TABS_ONLY,
 			"physical Ctrl+F1 did not hide ribbon commands");
 		assertTrue(!ribbon.isCommandSurfaceVisible());
 
-		robot.keyPress(KeyEvent.VK_CONTROL);
-		robot.keyPress(KeyEvent.VK_F1);
-		robot.keyRelease(KeyEvent.VK_F1);
-		robot.keyRelease(KeyEvent.VK_CONTROL);
+		pressCtrlF1(robot);
 		GuiAcceptanceSupport.await(() -> ribbon.getRibbonDisplayMode() == RibbonDisplayMode.ALWAYS_SHOW,
 			"physical Ctrl+F1 did not restore ribbon commands");
 		assertTrue(ribbon.isCommandSurfaceVisible());
 
 		SwingUtilities.invokeAndWait(() -> ribbon.setRibbonDisplayMode(RibbonDisplayMode.AUTO_HIDE));
+		pressCtrlF1(robot);
+		GuiAcceptanceSupport.await(() -> ribbon.getRibbonDisplayMode() == RibbonDisplayMode.ALWAYS_SHOW,
+			"physical Ctrl+F1 did not restore an auto-hidden ribbon");
+	}
+
+	private static void pressCtrlF1(Robot robot) {
 		robot.keyPress(KeyEvent.VK_CONTROL);
 		robot.keyPress(KeyEvent.VK_F1);
 		robot.keyRelease(KeyEvent.VK_F1);
 		robot.keyRelease(KeyEvent.VK_CONTROL);
-		GuiAcceptanceSupport.await(() -> ribbon.getRibbonDisplayMode() == RibbonDisplayMode.ALWAYS_SHOW,
-			"physical Ctrl+F1 did not restore an auto-hidden ribbon");
+		robot.waitForIdle();
 	}
 }
