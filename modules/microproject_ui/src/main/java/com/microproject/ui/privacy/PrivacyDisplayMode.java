@@ -76,6 +76,14 @@ public final class PrivacyDisplayMode {
 		return result;
 	}
 
+	/** Applies privacy masking to Gantt bar annotations in both screen and print renderers. */
+	public static String annotationText(Task task, String fieldId, String value) {
+		if (task == null || !isMasked(task.getProject())) return value;
+		if ("Field.name".equals(fieldId)) return taskName(task);
+		if ("Field.resourceNames".equals(fieldId)) return resourceNames(task.getProject(), value);
+		return value;
+	}
+
 	private static State state(Project project) {
 		return project == null ? null : STATES.get(project);
 	}

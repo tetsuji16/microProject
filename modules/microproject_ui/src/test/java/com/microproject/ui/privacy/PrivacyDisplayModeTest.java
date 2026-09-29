@@ -32,11 +32,16 @@ class PrivacyDisplayModeTest {
 		assertEquals("Resource 01", PrivacyDisplayMode.resourceName(project, resource));
 		assertEquals("Project 01", PrivacyDisplayMode.projectName(project));
 		assertEquals("Resource 01", PrivacyDisplayMode.resourceNames(project, "Alice"));
+		assertEquals("Task 01", PrivacyDisplayMode.annotationText(task, "Field.name", "Confidential milestone"));
+		assertEquals("Resource 01", PrivacyDisplayMode.annotationText(task, "Field.resourceNames", "Alice"));
+		assertEquals("8 hours", PrivacyDisplayMode.annotationText(task, "Field.work", "8 hours"));
 		assertEquals("Confidential milestone", task.getName());
 
 		assertFalse(PrivacyDisplayMode.toggle(project));
 		assertFalse(PrivacyDisplayMode.isMasked(project));
 		assertEquals("Confidential milestone", PrivacyDisplayMode.taskName(task));
+		assertEquals("Confidential milestone", PrivacyDisplayMode.annotationText(task, "Field.name", "Confidential milestone"));
 		assertEquals("Alice", PrivacyDisplayMode.resourceName(project, resource));
+		assertEquals("Alice", PrivacyDisplayMode.annotationText(task, "Field.resourceNames", "Alice"));
 	}
 }
