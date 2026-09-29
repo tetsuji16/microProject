@@ -39,9 +39,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
 
-import org.apache.commons.collections.MultiHashMap;
-import org.apache.commons.collections.MultiMap;
-
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.model.cache.ReferenceNodeModelCache;
 import com.microproject.document.Document;
@@ -452,12 +449,12 @@ public class NodeCacheTransformer implements CacheTransformer<GraphicNode> {
 
 	private TransformerNodeModel model=new TransformerNodeModel();
 	class TransformerNodeModel implements WalkersNodeModel{
-	    protected MultiMap childrenMap=new MultiHashMap();
+	    protected Map<Node, List<Node>> childrenMap=new HashMap<>();
 	    protected Map<Node,Node> parentMap=new HashMap<>();
 
 		public List<?> getChildren(Node node) {
 			if (node.getImpl() instanceof GroupNodeImpl){
-				return (List<GraphicNode>)childrenMap.get(node);
+				return childrenMap.get(node);
 			}
 			else return refCache.getModel().getChildren(node);
 		}
@@ -478,7 +475,7 @@ public class NodeCacheTransformer implements CacheTransformer<GraphicNode> {
 		}
 
 		public void addRelationship(Node parent,Node child){
-			if (parent!=null) childrenMap.put(parent,child);
+			if (parent!=null) childrenMap.computeIfAbsent(parent, ignored -> new ArrayList<>()).add(child);
 			parentMap.put(child,parent);
 		}
 
