@@ -909,7 +909,8 @@ public class ResourceImpl implements Resource, HasAvailability, HasResourceIndic
 	public boolean isReadOnlyExtendedRole(FieldContext fieldContext) { // moved out of spreadsheet model
 		if (Environment.getStandAlone())
 			return true;
-		return Environment.getUser().getResourceId() == getUniqueId(); // prevents a user from losing access to his project
+		ApplicationUser user = Environment.getUser();
+		return user == null || user.getResourceId() == getUniqueId(); // fail closed without a current user
 	}
 
 	public int getLicense(){

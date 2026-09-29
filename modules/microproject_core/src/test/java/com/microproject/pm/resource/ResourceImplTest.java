@@ -37,6 +37,7 @@ import com.microproject.pm.costing.Accrual;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.undo.DataFactoryUndoController;
+import com.microproject.util.Environment;
 
 class ResourceImplTest {
 	@Test
@@ -49,6 +50,27 @@ class ResourceImplTest {
 		assertTrue(resource.fieldHideActualFixedCost(FieldContext.DEFAULT_CONTEXT));
 		assertEquals(45L, resource.getStartOffset());
 		assertEquals(67L, resource.getFinishOffset());
+	}
+
+	@Test
+	void extendedRolePermissionFailsClosedWhenNoUserIsAvailable() {
+		Project project = createProject();
+		ResourceImpl resource = project.getResourcePool().newResourceInstance();
+		boolean previousStandalone = Environment.getStandAlone();
+		ApplicationUser previousUser = Environment.getUser();
+		try {
+			Environment.setStandAlone(false);
+			Environment.setUser(null);
+			assertTrue(resource.isReadOnlyExtendedRole(FieldContext.DEFAULT_CONTEXT));
+
+			Environment.setUser(applicationUser(resource.getUniqueId() + 1));
+			assertFalse(resource.isReadOnlyExtendedRole(FieldContext.DEFAULT_CONTEXT));
+			Environment.setUser(applicationUser(resource.getUniqueId()));
+			assertTrue(resource.isReadOnlyExtendedRole(FieldContext.DEFAULT_CONTEXT));
+		} finally {
+			Environment.setUser(previousUser);
+			Environment.setStandAlone(previousStandalone);
+		}
 	}
 
 	@Test
@@ -117,6 +139,16 @@ class ResourceImplTest {
 		Project project = Project.createProject(resourcePool, undoController);
 		project.initialize(false, false);
 		return project;
+	}
+
+	private static ApplicationUser applicationUser(long resourceId) {
+		return new ApplicationUser() {
+			@Override public boolean isAdministrator() { return false; }
+			@Override public boolean isExternal() { return false; }
+			@Override public long getUniqueId() { return resourceId; }
+			@Override public long getResourceId() { return resourceId; }
+			@Override public String getName() { return "GUI acceptance user"; }
+		};
 	}
 
 	private NormalTask createTask(Project project) {
