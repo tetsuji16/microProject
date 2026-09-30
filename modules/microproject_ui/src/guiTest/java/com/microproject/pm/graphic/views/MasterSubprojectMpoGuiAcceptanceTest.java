@@ -602,7 +602,12 @@ class MasterSubprojectMpoGuiAcceptanceTest {
 	}
 
 	private static boolean hasTaskNamed(Project project, String taskName) {
-		return project.getTasks().stream().anyMatch(task -> taskName.equals(task.getName()));
+		try {
+			return project.getTasks().stream().anyMatch(task -> taskName.equals(task.getName()));
+		} catch (java.util.ConcurrentModificationException e) {
+			// Subproject materialization updates this list asynchronously; GuiAcceptanceSupport.await retries.
+			return false;
+		}
 	}
 
 	private static String subprojectStates(Project project) {
