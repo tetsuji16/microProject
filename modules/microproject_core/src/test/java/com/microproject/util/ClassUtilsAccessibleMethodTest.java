@@ -30,6 +30,14 @@ class ClassUtilsAccessibleMethodTest {
 		assertEquals(VisibleBase.class, method.getDeclaringClass());
 	}
 
+	@Test
+	void resolvesPublicMethodFromAccessibleInterfaceWhenRuntimeTypeIsNotPublic() {
+		Method method = ClassUtils.getAccessibleMethod(HiddenInterfaceImplementation.class, "label");
+
+		assertNotNull(method);
+		assertEquals(VisibleContract.class, method.getDeclaringClass());
+	}
+
 	public static class VisibleBase {
 		public String name() {
 			return "name";
@@ -46,6 +54,17 @@ class ClassUtilsAccessibleMethodTest {
 		@Override
 		public String name() {
 			return "hidden";
+		}
+	}
+
+	public interface VisibleContract {
+		String label();
+	}
+
+	static class HiddenInterfaceImplementation implements VisibleContract {
+		@Override
+		public String label() {
+			return "label";
 		}
 	}
 
