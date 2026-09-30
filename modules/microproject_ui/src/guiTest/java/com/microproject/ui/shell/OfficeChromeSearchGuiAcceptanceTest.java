@@ -61,8 +61,10 @@ class OfficeChromeSearchGuiAcceptanceTest {
 			@Override public Action getAction(String key) {
 				return new AbstractAction(key) {
 					@Override public void actionPerformed(ActionEvent event) {
-						if ("RibbonFind".equals(key)) searchCalls.incrementAndGet();
-						if ("RibbonTopBarSaveProject".equals(key)) saveCalls.incrementAndGet();
+						// MenuManager resolves user-facing ids through menuInternal.properties
+						// before asking this map for the canonical application action.
+						if ("FindAction".equals(key)) searchCalls.incrementAndGet();
+						if ("SaveProjectAction".equals(key)) saveCalls.incrementAndGet();
 					}
 				};
 			}
