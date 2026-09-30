@@ -10,10 +10,13 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.awt.Frame;
 import java.awt.GraphicsEnvironment;
 import java.awt.Point;
+import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
 
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -102,6 +105,33 @@ class WindowShellNativeDecorationGuiAcceptanceTest {
 			+ before + ", after=" + frame.getLocation() + ", dragTarget=" + start
 			+ ", windowBounds=" + frame.getBounds());
 		assertNotEquals(before, frame.getLocation());
+
+		Rectangle normalBounds = frame.getBounds();
+		pressAltSpace(robot);
+		pressKey(robot, KeyEvent.VK_X); // Windows system-menu accelerator for Maximize.
+		GuiAcceptanceSupport.await(() -> (frame.getExtendedState() & Frame.MAXIMIZED_BOTH) == Frame.MAXIMIZED_BOTH,
+			"physical Alt+Space system-menu Maximize did not maximize the native window");
+		pressAltSpace(robot);
+		pressKey(robot, KeyEvent.VK_R); // Windows system-menu accelerator for Restore.
+		GuiAcceptanceSupport.await(() -> (frame.getExtendedState() & Frame.MAXIMIZED_BOTH) == 0,
+			"physical Alt+Space system-menu Restore did not restore the native window");
+		GuiAcceptanceSupport.await(() -> normalBounds.equals(frame.getBounds()),
+			"native system-menu Restore did not recover the pre-maximize bounds: expected=" + normalBounds
+				+ ", actual=" + frame.getBounds());
+	}
+
+	private static void pressAltSpace(Robot robot) {
+		robot.keyPress(KeyEvent.VK_ALT);
+		robot.keyPress(KeyEvent.VK_SPACE);
+		robot.keyRelease(KeyEvent.VK_SPACE);
+		robot.keyRelease(KeyEvent.VK_ALT);
+		robot.waitForIdle();
+	}
+
+	private static void pressKey(Robot robot, int keyCode) {
+		robot.keyPress(keyCode);
+		robot.keyRelease(keyCode);
+		robot.waitForIdle();
 	}
 
 	private static JLabel findTitle(java.awt.Container root) {
