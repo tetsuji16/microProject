@@ -41,7 +41,6 @@ import java.util.Map;
 
 
 import org.apache.commons.beanutils.MethodUtils;
-import org.apache.commons.beanutils.PropertyUtils;
 import org.apache.commons.lang.builder.ToStringBuilder;
 
 import com.microproject.configuration.Configuration;
@@ -1994,7 +1993,7 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 		if (property == null)
 			return null;
 		try {
-			return PropertyUtils.getProperty(obj, property);
+			return ClassUtils.getSimpleProperty(obj, property);
 		} catch (Exception e) { //claur
 		}
 		return null;
@@ -2005,7 +2004,7 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 		if (referencedObjectProperty == null)
 			return null;
 		try {
-			return PropertyUtils.getProperty(obj, referencedObjectProperty);
+			return ClassUtils.getSimpleProperty(obj, referencedObjectProperty);
 		} catch (Exception e) { //claur
 		}
 		return null;
@@ -2015,7 +2014,7 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 		Long result = null;
 		if (referencedIdProperty != null) {
 			try {
-				result = (Long) PropertyUtils.getProperty(obj, referencedIdProperty);
+				result = (Long) ClassUtils.getSimpleProperty(obj, referencedIdProperty);
 			} catch (Exception e) { //claur
 			}
 		}
