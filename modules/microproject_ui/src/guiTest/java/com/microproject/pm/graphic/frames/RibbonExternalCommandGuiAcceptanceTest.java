@@ -360,11 +360,17 @@ class RibbonExternalCommandGuiAcceptanceTest {
 
 		Robot robot = new Robot();
 		robot.setAutoDelay(45);
+		activateWindowForRobot(robot);
 		AbstractButton reportTab = findRibbonTab(window.getRibbonPanel(), "Report", "レポート");
+		assertTrue(reportTab.isShowing(), "Report ribbon tab must be physically visible");
 		click(robot, reportTab);
 		robot.waitForIdle();
 		GuiAcceptanceSupport.await(reportTab::isSelected, "Report ribbon tab did not become selected");
-		click(robot, findCommandButton(window.getRibbonPanel(), "RibbonReport"));
+		AbstractButton report = findCommandButton(window.getRibbonPanel(), "RibbonReport");
+		assertTrue(report.isShowing() && report.isEnabled(), "RibbonReport must be visible and enabled before its physical click");
+		assertEquals(window, SwingUtilities.getWindowAncestor(report), "RibbonReport must belong to the active document shell");
+		click(robot, report);
+		robot.waitForIdle();
 		GuiAcceptanceSupport.await(() -> MenuActionConstants.ACTION_REPORT.equals(manager.getTopViewId()),
 			"Report command did not activate the report view");
 
