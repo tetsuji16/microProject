@@ -1098,6 +1098,13 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		Calendar expectedStart = Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"));
 		expectedStart.setTimeInMillis(originalStart);
 		expectedStart.add(Calendar.DAY_OF_MONTH, 3);
+		// The standard project calendar does not schedule task starts on weekends.
+		// Keep the physical edit target on a working weekday so this test verifies
+		// date entry and viewport behavior instead of weekend scheduling policy.
+		while (expectedStart.get(Calendar.DAY_OF_WEEK) == Calendar.SATURDAY
+				|| expectedStart.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
+			expectedStart.add(Calendar.DAY_OF_MONTH, 1);
+		}
 		String inputDate = String.format(java.util.Locale.ROOT, "%d/%d/%d",
 			expectedStart.get(Calendar.YEAR), expectedStart.get(Calendar.MONTH) + 1,
 			expectedStart.get(Calendar.DAY_OF_MONTH));
