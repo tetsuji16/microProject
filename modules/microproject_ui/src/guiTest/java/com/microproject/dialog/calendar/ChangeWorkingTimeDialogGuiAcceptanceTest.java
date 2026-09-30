@@ -348,7 +348,10 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 		}
 		click(robot, buttonNamed(details, Messages.getString("ButtonText.OK")));
 		GuiAcceptanceSupport.await(() -> visibleChildDialog() == null, "Work Week Details did not close after OK");
-		assertEquals(1, calendarWorkWeeks(dialog).size(), "detail edits affect only the parent dialog's scratch calendar");
+		// The modal can become hidden before its EDT action callback finishes updating the calendar.
+		int[] scratchWorkWeekCount = new int[1];
+		SwingUtilities.invokeAndWait(() -> scratchWorkWeekCount[0] = calendarWorkWeeks(dialog).size());
+		assertEquals(1, scratchWorkWeekCount[0], "detail edits affect only the parent dialog's scratch calendar");
 		click(robot, okButton(dialog));
 		GuiAcceptanceSupport.await(() -> !dialog.isVisible(), "parent OK did not close Change Working Time");
 		assertTrue(dialog.isCalendarCommitted());
