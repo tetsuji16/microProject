@@ -74,6 +74,12 @@ class SummaryVisitorFactoryTest {
 	}
 
 	@Test
+	void summaryNameLookupPreservesKnownAndUnknownValues() {
+		assertEquals(SummaryNames.OR, SummaryVisitorFactory.getSummaryId("OR"));
+		assertEquals(SummaryNames.NONE, SummaryVisitorFactory.getSummaryId("unknown"));
+	}
+
+	@Test
 	void thisSummaryUsesCurrentNodeValueEvenForSummaryRows() {
 		TestNode parent = new TestNode("parent");
 		TestNode child = new TestNode("child");

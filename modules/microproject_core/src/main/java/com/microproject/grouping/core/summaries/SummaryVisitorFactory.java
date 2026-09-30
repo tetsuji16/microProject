@@ -136,7 +136,7 @@ public class SummaryVisitorFactory implements SummaryNames {
 	
 	private static final Map<String, Integer> ALL_SUMMARY_MAP;
 	static {
-		Map<String, Integer> m = new HashMap<>();
+		Map<String, Integer> m = HashMap.newHashMap(14);
 		m.put("None", Integer.valueOf(NONE));
 		m.put("This", Integer.valueOf(THIS));
 		m.put("List", Integer.valueOf(LIST));
