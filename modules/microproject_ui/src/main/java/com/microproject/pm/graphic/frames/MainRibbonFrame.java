@@ -36,6 +36,7 @@ import com.microproject.pm.graphic.IconManager;
 import com.microproject.pm.graphic.frames.workspace.FrameHolder;
 import com.microproject.pm.graphic.frames.workspace.FrameManager;
 import com.microproject.ui.ribbon.ModernRibbonPanel;
+import com.microproject.ui.shell.WindowBoundsSupport;
 import com.microproject.ui.shell.WindowShellInstaller;
 import com.microproject.util.Environment;
 import com.microproject.util.FlatLafFrame;
@@ -126,6 +127,7 @@ public class MainRibbonFrame extends FlatLafFrame implements FrameHolder{
 
 	public void setVisible(boolean visible){
 		super.setVisible(visible);
+		if (visible) WindowBoundsSupport.fitWithinUsableScreen(this);
 	}
 	
 

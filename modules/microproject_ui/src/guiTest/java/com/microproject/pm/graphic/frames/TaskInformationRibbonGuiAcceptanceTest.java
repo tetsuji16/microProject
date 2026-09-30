@@ -2335,6 +2335,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			.map(MainRibbonFrame.class::cast)
 			.filter(candidate -> candidate.isShowing() && documentTitleContains(candidate, "secondary-window-second"))
 			.findFirst().orElseThrow(() -> new AssertionError("secondary window disappeared"));
+		assertWindowFitsUsableScreen(window, "primary document window");
+		assertWindowFitsUsableScreen(secondary, "secondary document window");
 		DocumentFrame secondaryDocument = manager.getFrameForProject(second.getOwningProject());
 		assertNotNull(secondaryDocument, "secondary project must remain registered before close");
 		assertEquals(2, manager.getFrameManager().getAllFrames().size());
@@ -2541,6 +2543,18 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Rectangle[] result = new Rectangle[1];
 		SwingUtilities.invokeAndWait(() -> result[0] = new Rectangle(component.getLocationOnScreen(), component.getSize()));
 		return result[0];
+	}
+
+	private static void assertWindowFitsUsableScreen(MainRibbonFrame frame, String description) {
+		GraphicsConfiguration configuration = frame.getGraphicsConfiguration();
+		Rectangle usable = new Rectangle(configuration.getBounds());
+		Insets insets = Toolkit.getDefaultToolkit().getScreenInsets(configuration);
+		usable.x += insets.left;
+		usable.y += insets.top;
+		usable.width -= insets.left + insets.right;
+		usable.height -= insets.top + insets.bottom;
+		assertTrue(usable.contains(frame.getBounds()), description + " must remain fully visible in the monitor work area; frame="
+			+ frame.getBounds() + ", usable=" + usable + ", scale=" + configuration.getDefaultTransform());
 	}
 
 	private static void click(Robot robot, Rectangle bounds) {
