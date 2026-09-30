@@ -24,6 +24,8 @@
  *******************************************************************************/
 package com.microproject.util;
 
+import java.beans.Introspector;
+import java.beans.PropertyDescriptor;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -34,7 +36,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.apache.commons.beanutils.PropertyUtils;
 import com.microproject.datatype.Duration;
 import com.microproject.datatype.Money;
 import com.microproject.datatype.Rate;
@@ -304,8 +305,15 @@ public class ClassUtils {
 		
 		public static boolean setSimpleProperty(Object bean, String name, Object value) {
 			try {
-				PropertyUtils.setSimpleProperty(bean,name,value);
-				return true;
+				if (bean == null || name == null || name.isEmpty())
+					throw new IllegalArgumentException("Bean and simple property name are required");
+				for (PropertyDescriptor descriptor : Introspector.getBeanInfo(bean.getClass()).getPropertyDescriptors()) {
+					if (name.equals(descriptor.getName()) && descriptor.getWriteMethod() != null) {
+						descriptor.getWriteMethod().invoke(bean, value);
+						return true;
+					}
+				}
+				throw new IllegalArgumentException("No writable JavaBean property named " + name);
 			} catch (Exception e) { //claur
 				logger.log(Level.WARNING, "Failed to set property " + name + " on " + bean, e);
 			}
