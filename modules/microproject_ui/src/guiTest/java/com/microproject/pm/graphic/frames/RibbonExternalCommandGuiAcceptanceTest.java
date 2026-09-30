@@ -41,6 +41,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
+import com.formdev.flatlaf.ui.FlatNativeWindowsLibrary;
 import com.microproject.dialog.AbstractDialog;
 import com.microproject.dialog.AboutDialog;
 import com.microproject.dialog.HelpDialog;
@@ -291,6 +292,8 @@ class RibbonExternalCommandGuiAcceptanceTest {
 	void robotEscapeCancelsDefaultWindowsFileOpenChooserWithoutOpeningAProject() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(),
 			"A desktop session is required for native chooser acceptance coverage.");
+		assertTrue(FlatNativeWindowsLibrary.isLoaded(),
+			"The Windows native chooser acceptance route requires FlatLaf's loaded Windows native library.");
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
 		previousStandalone = Environment.getStandAlone();
