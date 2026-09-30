@@ -95,13 +95,13 @@ class OfficeChromeSearchGuiAcceptanceTest {
 		robot.setAutoDelay(35);
 		click(robot, field[0]);
 		GuiAcceptanceSupport.await(field[0]::isFocusOwner, "physical click in the search field did not focus the text field");
-		robot.keyPress(KeyEvent.VK_X);
-		robot.keyRelease(KeyEvent.VK_X);
+		robot.keyPress(KeyEvent.VK_1);
+		robot.keyRelease(KeyEvent.VK_1);
 		robot.keyPress(KeyEvent.VK_ENTER);
 		robot.keyRelease(KeyEvent.VK_ENTER);
 		GuiAcceptanceSupport.await(() -> searchCalls.get() == 1,
 			"physical search submission did not invoke the canonical RibbonFind action exactly once");
-		assertEquals("x", field[0].getText(), "physical keyboard input was not retained by the search field");
+		assertEquals("1", field[0].getText(), "physical keyboard input was not retained by the search field");
 		click(robot, save[0]);
 		GuiAcceptanceSupport.await(() -> saveCalls.get() == 1,
 			"physical QAT Save click did not invoke its action exactly once");
