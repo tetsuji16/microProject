@@ -339,25 +339,14 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		activateWindowForRobot(robot);
 		AbstractButton open = findCommandButton(window.getRibbonPanel(), "RibbonOpenProject");
 		int documentsBefore = manager.getFrameManager().getAllFrames().size();
-		click(robot, open);
-		try {
-			GuiAcceptanceSupport.await(chooserCallStarted::get,
-				"File/Open did not enter the default Windows native chooser provider");
-			robot.delay(500);
-			assertFalse(chooserCallReturned.get(), "File/Open chooser must remain modal until the physical Escape key is sent");
-			captureNativeChooserScreen(robot);
-			robot.keyPress(java.awt.event.KeyEvent.VK_ESCAPE);
-			robot.keyRelease(java.awt.event.KeyEvent.VK_ESCAPE);
-		} finally {
-			if (chooserCallStarted.get() && !chooserCallReturned.get()) {
-				robot.keyPress(java.awt.event.KeyEvent.VK_ESCAPE);
-				robot.keyRelease(java.awt.event.KeyEvent.VK_ESCAPE);
-			}
-		}
-		GuiAcceptanceSupport.await(chooserCallReturned::get, "Escape did not return from the default Windows file chooser");
-		assertTrue(chooserCancelled.get(), "Escape must cancel the default Windows file chooser");
+		verifyNativeChooserEscape(robot, () -> pressCtrlO(robot), chooserCallStarted, chooserCallReturned,
+			chooserCancelled, "Ctrl+O");
 		assertEquals(documentsBefore, manager.getFrameManager().getAllFrames().size(),
-			"native chooser cancellation must not open a project");
+			"native Ctrl+O cancellation must not open a project");
+		verifyNativeChooserEscape(robot, () -> click(robot, open), chooserCallStarted, chooserCallReturned,
+			chooserCancelled, "Ribbon Open");
+		assertEquals(documentsBefore, manager.getFrameManager().getAllFrames().size(),
+			"native Ribbon Open cancellation must not open a project");
 	}
 
 	@Test
@@ -704,12 +693,71 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> window.isShowing(), "real ribbon window did not become visible");
 	}
 
-	private static void captureNativeChooserScreen(Robot robot) throws IOException {
-		Rectangle bounds = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
-		BufferedImage image = robot.createScreenCapture(bounds);
-		Path output = Path.of("build", "reports", "guiTest-artifacts", "issue-398-native-file-open-before-escape.png");
+	private void verifyNativeChooserEscape(Robot robot, GuiCommand openCommand, AtomicBoolean chooserCallStarted,
+			AtomicBoolean chooserCallReturned, AtomicBoolean chooserCancelled, String route) throws Exception {
+		activateWindowForRobot(robot);
+		chooserCallStarted.set(false);
+		chooserCallReturned.set(false);
+		chooserCancelled.set(false);
+		BufferedImage beforeOpen = captureScreen(robot);
+		openCommand.run();
+		try {
+			GuiAcceptanceSupport.await(chooserCallStarted::get,
+				route + " did not enter the default Windows native chooser provider");
+			GuiAcceptanceSupport.await(() -> hasVisibleDialogOverlay(beforeOpen, captureScreen(robot)),
+				route + " called the native provider but no visible chooser appeared on the desktop");
+			assertFalse(chooserCallReturned.get(), route + " chooser must remain modal until physical Escape");
+			String artifactName = "issue-398-native-" + route.toLowerCase(Locale.ROOT).replace(' ', '-')
+				+ "-before-escape.png";
+			captureNativeChooserScreen(robot, artifactName);
+			robot.keyPress(java.awt.event.KeyEvent.VK_ESCAPE);
+			robot.keyRelease(java.awt.event.KeyEvent.VK_ESCAPE);
+		} finally {
+			if (chooserCallStarted.get() && !chooserCallReturned.get()) {
+				robot.keyPress(java.awt.event.KeyEvent.VK_ESCAPE);
+				robot.keyRelease(java.awt.event.KeyEvent.VK_ESCAPE);
+			}
+		}
+		GuiAcceptanceSupport.await(chooserCallReturned::get,
+			route + " Escape did not return from the default Windows file chooser");
+		assertTrue(chooserCancelled.get(), route + " Escape must cancel the default Windows file chooser");
+	}
+
+	private static void captureNativeChooserScreen(Robot robot, String artifactName) throws IOException {
+		BufferedImage image = captureScreen(robot);
+		Path output = Path.of("build", "reports", "guiTest-artifacts", artifactName);
 		Files.createDirectories(output.getParent());
 		ImageIO.write(image, "png", output.toFile());
+	}
+
+	private static BufferedImage captureScreen(Robot robot) {
+		Rectangle bounds = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
+		return robot.createScreenCapture(bounds);
+	}
+
+	private static boolean hasVisibleDialogOverlay(BufferedImage before, BufferedImage after) {
+		if (before.getWidth() != after.getWidth() || before.getHeight() != after.getHeight())
+			return false;
+		int changedSamples = 0;
+		for (int y = 20; y < before.getHeight(); y += 8) {
+			for (int x = 20; x < before.getWidth(); x += 8) {
+				if (before.getRGB(x, y) != after.getRGB(x, y) && ++changedSamples >= 1000)
+					return true;
+			}
+		}
+		return false;
+	}
+
+	private static void pressCtrlO(Robot robot) {
+		robot.keyPress(java.awt.event.KeyEvent.VK_CONTROL);
+		robot.keyPress(java.awt.event.KeyEvent.VK_O);
+		robot.keyRelease(java.awt.event.KeyEvent.VK_O);
+		robot.keyRelease(java.awt.event.KeyEvent.VK_CONTROL);
+	}
+
+	@FunctionalInterface
+	private interface GuiCommand {
+		void run() throws Exception;
 	}
 
 	/**
