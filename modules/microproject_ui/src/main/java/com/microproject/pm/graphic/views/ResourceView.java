@@ -246,7 +246,9 @@ public class ResourceView extends JScrollPane implements BaseView {
 
 		@Override
 		public int compare(Object left, Object right) {
-			int result = field.compare(left, right);
+			Object leftResource = left instanceof Node node ? node.getImpl() : left;
+			Object rightResource = right instanceof Node node ? node.getImpl() : right;
+			int result = field.compare(leftResource, rightResource);
 			return ascending ? result : Integer.compare(0, result);
 		}
 	}
