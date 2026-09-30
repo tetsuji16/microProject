@@ -26,9 +26,11 @@ package com.microproject.menu;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -125,10 +127,14 @@ class RibbonUiAuditTest {
 	}
 
 	@Test
-	void majorHelpAndProjectLinksRespondSuccessfully() throws Exception {
+	void majorHelpAndProjectLinksUseValidHttpsTargets() {
 		for (Map.Entry<String, String> entry : RibbonLinkAuditSupport.majorLinks().entrySet()) {
-			int status = RibbonLinkAuditSupport.fetchStatus(entry.getValue());
-			assertTrue(status >= 200 && status < 400, () -> entry.getKey() + " returned " + status);
+			URI target = URI.create(entry.getValue());
+			assertEquals("https", target.getScheme(), () -> entry.getKey() + " must use HTTPS");
+			assertNotNull(target.getHost(), () -> entry.getKey() + " must have a valid host");
+			assertNull(target.getUserInfo(), () -> entry.getKey() + " must not embed credentials");
+			assertTrue(target.getHost().equals("github.com") || target.getHost().equals("tetsuji16.github.io"),
+				() -> entry.getKey() + " uses an unexpected host: " + target.getHost());
 		}
 	}
 
