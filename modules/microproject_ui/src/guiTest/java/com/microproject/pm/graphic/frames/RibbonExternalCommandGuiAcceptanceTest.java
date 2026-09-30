@@ -6,6 +6,7 @@
 package com.microproject.pm.graphic.frames;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Component;
@@ -13,9 +14,13 @@ import java.awt.Container;
 import java.awt.GraphicsEnvironment;
 import java.awt.IllegalComponentStateException;
 import java.awt.Point;
+import java.awt.Rectangle;
 import java.awt.Robot;
+import java.awt.Toolkit;
 import java.awt.Window;
 import java.awt.event.InputEvent;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -23,7 +28,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.prefs.Preferences;
+import java.util.concurrent.atomic.AtomicBoolean;
 
+import javax.imageio.ImageIO;
 import javax.swing.AbstractButton;
 import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
@@ -277,6 +284,80 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			"Physical Cancel did not close File/Open");
 		assertEquals(documentsBefore, manager.getFrameManager().getAllFrames().size(),
 			"Cancel must not open a project");
+	}
+
+	/** #398: exercise Escape against the default Windows native chooser, not only FlatLaf's Swing fallback. */
+	@Test
+	void robotEscapeCancelsDefaultWindowsFileOpenChooserWithoutOpeningAProject() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(),
+			"A desktop session is required for native chooser acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		previousStandalone = Environment.getStandAlone();
+		previousClientSide = Environment.isClientSide();
+		previousChooser = UiServices.getFileChooserProvider();
+		previousSystemChooserProperty = System.getProperty("flatlaf.useSystemFileChooser");
+		System.clearProperty("flatlaf.useSystemFileChooser");
+		Environment.setStandAlone(true);
+		Environment.setClientSide(true);
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+
+		createWindow("microProject — native File/Open Escape acceptance (#398)");
+		AtomicBoolean chooserCallStarted = new AtomicBoolean();
+		AtomicBoolean chooserCallReturned = new AtomicBoolean();
+		AtomicBoolean chooserCancelled = new AtomicBoolean();
+		SwingFileChooserProvider nativeProvider = new SwingFileChooserProvider();
+		UiServices.setFileChooserProvider(new UiServices.FileChooserProvider() {
+			@Override
+			public String chooseFileName(boolean save, String selectedFileName, Object parent) {
+				chooserCallStarted.set(true);
+				try {
+					String selected = nativeProvider.chooseFileName(save, selectedFileName, parent);
+					chooserCancelled.set(selected == null);
+					return selected;
+				} finally {
+					chooserCallReturned.set(true);
+				}
+			}
+
+			@Override
+			public List<String> chooseFileNames(boolean save, String selectedFileName, Object parent) {
+				chooserCallStarted.set(true);
+				try {
+					List<String> selected = nativeProvider.chooseFileNames(save, selectedFileName, parent);
+					chooserCancelled.set(selected.isEmpty());
+					return selected;
+				} finally {
+					chooserCallReturned.set(true);
+				}
+			}
+		});
+
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		activateWindowForRobot(robot);
+		AbstractButton open = findCommandButton(window.getRibbonPanel(), "RibbonOpenProject");
+		int documentsBefore = manager.getFrameManager().getAllFrames().size();
+		click(robot, open);
+		try {
+			GuiAcceptanceSupport.await(chooserCallStarted::get,
+				"File/Open did not enter the default Windows native chooser provider");
+			robot.delay(500);
+			assertFalse(chooserCallReturned.get(), "File/Open chooser must remain modal until the physical Escape key is sent");
+			captureNativeChooserScreen(robot);
+			robot.keyPress(java.awt.event.KeyEvent.VK_ESCAPE);
+			robot.keyRelease(java.awt.event.KeyEvent.VK_ESCAPE);
+		} finally {
+			if (chooserCallStarted.get() && !chooserCallReturned.get()) {
+				robot.keyPress(java.awt.event.KeyEvent.VK_ESCAPE);
+				robot.keyRelease(java.awt.event.KeyEvent.VK_ESCAPE);
+			}
+		}
+		GuiAcceptanceSupport.await(chooserCallReturned::get, "Escape did not return from the default Windows file chooser");
+		assertTrue(chooserCancelled.get(), "Escape must cancel the default Windows file chooser");
+		assertEquals(documentsBefore, manager.getFrameManager().getAllFrames().size(),
+			"native chooser cancellation must not open a project");
 	}
 
 	@Test
@@ -621,6 +702,14 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			window.setVisible(true);
 		});
 		GuiAcceptanceSupport.await(() -> window.isShowing(), "real ribbon window did not become visible");
+	}
+
+	private static void captureNativeChooserScreen(Robot robot) throws IOException {
+		Rectangle bounds = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
+		BufferedImage image = robot.createScreenCapture(bounds);
+		Path output = Path.of("build", "reports", "guiTest-artifacts", "issue-398-native-file-open-before-escape.png");
+		Files.createDirectories(output.getParent());
+		ImageIO.write(image, "png", output.toFile());
 	}
 
 	/**
