@@ -111,13 +111,25 @@ class WindowShellNativeDecorationGuiAcceptanceTest {
 		pressKey(robot, KeyEvent.VK_X); // Windows system-menu accelerator for Maximize.
 		GuiAcceptanceSupport.await(() -> (frame.getExtendedState() & Frame.MAXIMIZED_BOTH) == Frame.MAXIMIZED_BOTH,
 			"physical Alt+Space system-menu Maximize did not maximize the native window");
-		pressAltSpace(robot);
+		rightClick(robot, title[0]);
 		pressKey(robot, KeyEvent.VK_R); // Windows system-menu accelerator for Restore.
 		GuiAcceptanceSupport.await(() -> (frame.getExtendedState() & Frame.MAXIMIZED_BOTH) == 0,
-			"physical Alt+Space system-menu Restore did not restore the native window");
+			"physical title-area context-menu Restore did not restore the native window");
 		GuiAcceptanceSupport.await(() -> normalBounds.equals(frame.getBounds()),
 			"native system-menu Restore did not recover the pre-maximize bounds: expected=" + normalBounds
 				+ ", actual=" + frame.getBounds());
+
+		Rectangle beforeResize = frame.getBounds();
+		int edgeX = beforeResize.x + beforeResize.width - 1;
+		int edgeY = beforeResize.y + beforeResize.height / 2;
+		robot.mouseMove(edgeX, edgeY);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseMove(edgeX - 60, edgeY);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(() -> frame.getWidth() < beforeResize.width,
+			"physical right-edge drag did not resize the native window: before=" + beforeResize
+				+ ", after=" + frame.getBounds());
 	}
 
 	private static void pressAltSpace(Robot robot) {
@@ -131,6 +143,17 @@ class WindowShellNativeDecorationGuiAcceptanceTest {
 	private static void pressKey(Robot robot, int keyCode) {
 		robot.keyPress(keyCode);
 		robot.keyRelease(keyCode);
+		robot.waitForIdle();
+	}
+
+	private static void rightClick(Robot robot, java.awt.Component component) throws Exception {
+		Point[] point = new Point[1];
+		SwingUtilities.invokeAndWait(() -> point[0] = component.getLocationOnScreen());
+		point[0].translate(Math.max(4, component.getWidth() / 2), Math.max(4, component.getHeight() / 2));
+		robot.waitForIdle();
+		robot.mouseMove(point[0].x, point[0].y);
+		robot.mousePress(InputEvent.BUTTON3_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
 		robot.waitForIdle();
 	}
 
