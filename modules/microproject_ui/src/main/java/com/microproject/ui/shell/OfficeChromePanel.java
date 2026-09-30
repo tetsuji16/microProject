@@ -171,6 +171,10 @@ final class OfficeChromePanel extends JPanel {
 			}
 		};
 		content.setOpaque(false);
+		// Only the document title and brand icon opt into caption dragging.
+		// Mark the interactive layout host as non-caption so FlatLaf does not
+		// inherit the header's draggable hit area for QAT, search, or Help.
+		content.putClientProperty("JComponent.titleBarCaption", Boolean.FALSE);
 		content.setBorder(new EmptyBorder(
 			FlatUiSupport.ribbonChromeVerticalInset(),
 			FlatUiSupport.ribbonHorizontalInset(),
@@ -203,6 +207,7 @@ final class OfficeChromePanel extends JPanel {
 		JPanel cluster = new JPanel(new GridBagLayout());
 		cluster.setOpaque(false);
 		cluster.setName(QUICK_ACCESS_NAME);
+		cluster.putClientProperty("JComponent.titleBarCaption", Boolean.FALSE);
 		GridBagConstraints constraints = new GridBagConstraints();
 		constraints.gridx = 0;
 		constraints.gridy = 0;
@@ -280,6 +285,7 @@ final class OfficeChromePanel extends JPanel {
 		JPanel cluster = new JPanel(new GridBagLayout());
 		cluster.setOpaque(false);
 		cluster.setName(RIGHT_ACTIONS_NAME);
+		cluster.putClientProperty("JComponent.titleBarCaption", Boolean.FALSE);
 		GridBagConstraints constraints = new GridBagConstraints();
 		constraints.gridx = 0;
 		constraints.insets = new Insets(0, 0, 0, 4);
