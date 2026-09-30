@@ -353,7 +353,7 @@ public class ClassUtils {
 		@SuppressWarnings("unchecked")
 		public static Comparator<Object> getComparator(Class<?> clazz) {
 			if (comparatorMap == null) {
-				comparatorMap = new HashMap<>();
+				comparatorMap = HashMap.newHashMap(13);
 				registerComparator(String.class, nullSafeNaturalComparator());
 				registerComparator(Date.class, nullSafeNaturalComparator());
 				registerComparator(Integer.class, nullSafeNaturalComparator());
