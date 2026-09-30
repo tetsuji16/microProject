@@ -57,6 +57,13 @@ class CustomReportDialogBoxChooserGuiAcceptanceTest {
 		Path cancelled = exportDirectory.resolve("cancelled-report.csv");
 		AtomicInteger selection = new AtomicInteger();
 		List<UiServices.FileChooserOptions> requestedOptions = new CopyOnWriteArrayList<>();
+		Project project = CriticalChainStatusDialogGuiAcceptanceTest.newProjectWithTasks();
+		SwingUtilities.invokeAndWait(() -> {
+			dialog = new CustomReportDialogBox(null, project);
+			dialog.setVisible(true);
+		});
+		// FlatLafDialog initializes the application theme in its constructor, which
+		// installs the production provider. Override it only after that initialization.
 		UiServices.setFileChooserProvider(new UiServices.FileChooserProvider() {
 			@Override
 			public String chooseFileName(boolean save, String selectedFileName, Object parent) {
@@ -68,11 +75,6 @@ class CustomReportDialogBoxChooserGuiAcceptanceTest {
 				requestedOptions.add(options);
 				return selection.getAndIncrement() == 0 ? csv.toString() : null;
 			}
-		});
-		Project project = CriticalChainStatusDialogGuiAcceptanceTest.newProjectWithTasks();
-		SwingUtilities.invokeAndWait(() -> {
-			dialog = new CustomReportDialogBox(null, project);
-			dialog.setVisible(true);
 		});
 		GuiAcceptanceSupport.await(() -> dialog.isShowing(), "Custom Report dialog did not open");
 		GuiAcceptanceSupport.await(() -> dialog.isActive(), "Custom Report dialog did not become active");
