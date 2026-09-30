@@ -47,11 +47,13 @@ class WindowShellNativeDecorationGuiAcceptanceTest {
 		Assumptions.assumeTrue(Environment.isWindows(), "FlatLaf native window shell is Windows-specific.");
 		final JLabel[] title = new JLabel[1];
 		final JComponent[] brand = new JComponent[1];
+		final JComponent[] content = new JComponent[1];
 		SwingUtilities.invokeAndWait(() -> {
 			frame = new MainRibbonFrame("Native window shell acceptance", "", "");
 			OfficeChromePanel panel = new OfficeChromePanel(frame,
 				MenuManager.getInstance(MenuActionMapSupport.noopActionMap()), new JPanel(), () -> { },
 				AutoSaveControl.DISABLED);
+			content[0] = panel;
 			frame.setRibbonPanel(panel);
 			title[0] = findTitle(panel);
 			brand[0] = findComponent(panel, OfficeChromePanel.BRAND_ICON_NAME);
@@ -74,6 +76,13 @@ class WindowShellNativeDecorationGuiAcceptanceTest {
 		assertEquals(18, brand[0].getPreferredSize().width);
 		assertTrue(brand[0] instanceof JLabel label && label.getIcon() != null,
 			"Windows full-content header must show the application icon");
+		assertTrue(frame.getIconImage() != null,
+			"full-window-content must retain the application icon for native window surfaces");
+		assertEquals(Boolean.TRUE, brand[0].getClientProperty("JComponent.titleBarCaption"),
+			"the non-interactive brand icon must remain part of the draggable caption");
+		assertEquals(Boolean.FALSE, findComponent(content[0], OfficeChromePanel.SEARCH_BOX_NAME)
+			.getClientProperty("JComponent.titleBarCaption"),
+			"the interactive search box must not be treated as a caption hit target");
 
 		// In FlatLaf full-window-content mode the draggable caption is the
 		// document-title component marked as titleBarCaption, not an arbitrary
