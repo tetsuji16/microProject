@@ -44,6 +44,7 @@ import java.lang.ref.WeakReference;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.function.Consumer;
+import java.util.function.IntConsumer;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -135,6 +136,17 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	private boolean hierarchyActionInProgress;
 	private boolean tableMouseHandlerInstalled;
 	private final PopupTriggerController popupTriggerController = new PopupTriggerController();
+	private transient IntConsumer headerClickHandler;
+
+	public void setHeaderClickHandler(IntConsumer handler) {
+		headerClickHandler = handler;
+	}
+
+	public boolean handleHeaderClick(int viewColumn) {
+		if (headerClickHandler == null) return false;
+		headerClickHandler.accept(viewColumn);
+		return true;
+	}
 	private String[] actionList = null;
 	private Map<String, CommonSpreadSheetAction> actionMap = null;
 

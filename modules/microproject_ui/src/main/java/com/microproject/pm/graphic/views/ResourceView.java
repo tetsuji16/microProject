@@ -38,13 +38,17 @@ import com.microproject.menu.MenuActionConstants;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
 import com.microproject.pm.graphic.model.cache.ReferenceNodeModelCache;
+import com.microproject.pm.graphic.model.cache.GraphicNode;
+import com.microproject.pm.graphic.model.transform.NodeCacheTransformer;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.document.Document;
+import com.microproject.field.Field;
 import com.microproject.field.FieldContext;
 import com.microproject.graphic.configuration.CellStyle;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.grouping.core.transform.sorting.NodeSorter;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.strings.Messages;
@@ -88,6 +92,8 @@ public class ResourceView extends JScrollPane implements BaseView {
 	FieldContext fieldContext;
 	CellStyle cellStyle;
 	boolean readOnly;
+	private String sortedFieldId;
+	private boolean sortAscending = true;
 	/**
 	 * @param master 
 	 * 
@@ -115,6 +121,7 @@ public class ResourceView extends JScrollPane implements BaseView {
 		JViewport viewport = createViewport();
 		viewport.setView(spreadSheet);
 		setViewport(viewport);
+		setColumnHeaderView(spreadSheet.getTableHeader());
 		
 		cache.update(); //this is not required by certain views 
 		if (!master && !Environment.isProjectLibre()) {
@@ -197,8 +204,51 @@ public class ResourceView extends JScrollPane implements BaseView {
 			fields.removeField("Field.userRole"); //$NON-NLS-1$
 		}
 		spreadSheet.setCache(cache,fields,fields.getCellStyle(),fields.getActionList());
+		spreadSheet.setHeaderClickHandler(this::sortByViewColumn);
 		((SpreadSheetModel)spreadSheet.getModel()).setFieldContext(fieldContext);
 		spreadSheet.setReadOnly(readOnly);
+	}
+
+	private void sortByViewColumn(int viewColumn) {
+		int modelColumn = spreadSheet.convertColumnIndexToModel(viewColumn);
+		List<Field> fields = spreadSheet.getFieldArray();
+		if (modelColumn < 0 || modelColumn >= fields.size()) return;
+		Field field = fields.get(modelColumn);
+		boolean ascending = !field.getId().equals(sortedFieldId) || !sortAscending;
+		applySort(field, ascending);
+	}
+
+	private void applySort(Field field, boolean ascending) {
+		if (field == null) return;
+		List<GraphicNode> selected = spreadSheet.getSelectedGraphicNodes();
+		sortedFieldId = field.getId();
+		sortAscending = ascending;
+		NodeSorter sorter = new ResourceFieldSorter(field, ascending);
+		((NodeCacheTransformer) cache.getVisibleNodes().getTransformer()).getTransformer().setUserSorter(sorter);
+		spreadSheet.clearSelection();
+		for (GraphicNode selectedNode : selected) {
+			Object visible = cache.getGraphicNode(selectedNode.getNode());
+			int row = cache.getRowAt(visible);
+			if (row >= 0 && row < spreadSheet.getRowCount()) spreadSheet.addRowSelectionInterval(row, row);
+		}
+	}
+
+	private static final class ResourceFieldSorter extends NodeSorter {
+		private final Field field;
+		private final boolean ascending;
+
+		private ResourceFieldSorter(Field field, boolean ascending) {
+			this.field = field;
+			this.ascending = ascending;
+			setShowAssignments(false);
+			setPreserveHierarchy(true);
+		}
+
+		@Override
+		public int compare(Object left, Object right) {
+			int result = field.compare(left, right);
+			return ascending ? result : Integer.compare(0, result);
+		}
 	}
 
 	/**
@@ -248,22 +298,38 @@ public class ResourceView extends JScrollPane implements BaseView {
 	public void restoreWorkspace(WorkspaceSetting w, int context) {
 		Workspace ws = (Workspace) w;
 		spreadSheet.restoreWorkspace(ws.spreadSheet, context);
+		if (ws.sortedFieldId != null) {
+			for (Field field : spreadSheet.getFieldArray()) {
+				if (ws.sortedFieldId.equals(field.getId())) {
+					applySort(field, ws.sortAscending);
+					break;
+				}
+			}
+		}
 	}
 	public WorkspaceSetting createWorkspace(int context) {
 		Workspace ws = new Workspace();
 		ws.spreadSheet = spreadSheet.createWorkspace(context);
+		ws.sortedFieldId = sortedFieldId;
+		ws.sortAscending = sortAscending;
 		return ws;
 	}
 
 	public static class Workspace implements WorkspaceSetting { 
 		private static final long serialVersionUID = -1251204386431239291L;
 		WorkspaceSetting spreadSheet;
+		private String sortedFieldId;
+		private boolean sortAscending = true;
 		public WorkspaceSetting getSpreadSheet() {
 			return spreadSheet;
 		}
 		public void setSpreadSheet(WorkspaceSetting spreadSheet) {
 			this.spreadSheet = spreadSheet;
 		}
+		public String getSortedFieldId() { return sortedFieldId; }
+		public void setSortedFieldId(String sortedFieldId) { this.sortedFieldId = sortedFieldId; }
+		public boolean isSortAscending() { return sortAscending; }
+		public void setSortAscending(boolean sortAscending) { this.sortAscending = sortAscending; }
 	}
 
 	public boolean canScrollToTask() {

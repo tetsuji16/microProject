@@ -278,6 +278,9 @@ public class ViewTransformer{
     }
     public void setUserSorter(NodeSorter userSorter) {
         this.userSorter = userSorter;
+        userSorterId = SORTER_NONE_ID;
+        userSorterIdDirty = false;
+        fireTransformerChanged(this);
     }
     public NodeTransformer getTransformer() {
         if (transformerIdDirty){
@@ -360,7 +363,7 @@ public class ViewTransformer{
     	return userFilterId==null||FILTER_NONE_ID.equals(userFilterId);
     }
     public boolean isNoneSorter(){
-    	return userSorterId==null||SORTER_NONE_ID.equals(userSorterId);
+	return userSorter == null && (userSorterId==null||SORTER_NONE_ID.equals(userSorterId));
     }
     public boolean isNoneGrouper(){
     	return userGrouperId==null||GROUPER_NONE_ID.equals(userGrouperId);

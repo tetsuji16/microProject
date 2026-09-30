@@ -46,6 +46,10 @@ public class HeaderMouseListener extends MouseAdapter {
 	public void mouseClicked(MouseEvent e){
 		int col = table.columnAtPoint(e.getPoint());
 		if  (SwingUtilities.isLeftMouseButton(e)) {
+			if (col >= 0 && table.handleHeaderClick(col)) {
+				e.consume();
+				return;
+			}
 			if (table.isColumnFullySelected(col)) {
 				table.clearSelection();
 				e.consume();
