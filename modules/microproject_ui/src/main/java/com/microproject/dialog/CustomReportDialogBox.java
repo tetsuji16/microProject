@@ -84,6 +84,7 @@ import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectHierarchyQueries;
 import com.microproject.pm.task.Task;
 import com.microproject.util.Alert;
+import com.microproject.util.UiServices;
 import com.microproject.help.HelpUtil;
 import com.microproject.ui.util.PopupDialogSupport;
 import com.microproject.util.FlatUiSupport;
@@ -411,18 +412,11 @@ public final class CustomReportDialogBox extends FlatLafDialog implements Schedu
 
 	private void exportCsv() {
 		generate();
-		com.formdev.flatlaf.util.SystemFileChooser chooser = new com.formdev.flatlaf.util.SystemFileChooser();
-		chooser.setSelectedFile(new java.io.File("project-report.csv"));
-		chooser.setFileFilter(new com.formdev.flatlaf.util.SystemFileChooser.FileNameExtensionFilter("CSV (*.csv)", "csv"));
-		if (chooser.showSaveDialog(this) != com.formdev.flatlaf.util.SystemFileChooser.APPROVE_OPTION) return;
-		java.io.File selected = ensureCsvExtension(chooser.getSelectedFile());
-		try (OutputStream out = Files.newOutputStream(selected.toPath())) { writeReportCsv(previewModel, out); }
+		String selectedFile = UiServices.getFileChooserProvider().chooseFileName(
+			new UiServices.FileChooserOptions(true, "project-report.csv", "Export custom report", "CSV (*.csv)", "csv"), this);
+		if (selectedFile == null) return;
+		try (OutputStream out = Files.newOutputStream(Path.of(selectedFile))) { writeReportCsv(previewModel, out); }
 		catch (Exception error) { Alert.error(t("report.exportError") + " " + error.getMessage()); }
-	}
-
-	static java.io.File ensureCsvExtension(java.io.File file) {
-		String name = file.getName().toLowerCase(Locale.ROOT);
-		return name.endsWith(".csv") ? file : new java.io.File(file.getParentFile(), file.getName() + ".csv");
 	}
 
 	/**

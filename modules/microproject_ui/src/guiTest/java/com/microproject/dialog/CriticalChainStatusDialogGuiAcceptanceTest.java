@@ -293,7 +293,7 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 		return count;
 	}
 
-	private static AbstractButton findButton(java.awt.Container container, String text) {
+	static AbstractButton findButton(java.awt.Container container, String text) {
 		for (Component child : container.getComponents()) {
 			if (child instanceof AbstractButton button && text.equals(button.getText())) return button;
 			if (child instanceof java.awt.Container nested) {
@@ -315,7 +315,7 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 		return dialog;
 	}
 
-	private static void click(Robot robot, Component component) throws Exception {
+	static void click(Robot robot, Component component) throws Exception {
 		Point point = new Point();
 		SwingUtilities.invokeAndWait(() -> {
 			Point location = component.getLocationOnScreen();
@@ -327,13 +327,13 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 		robot.waitForIdle();
 	}
 
-	private static Window visibleFileChooser() {
+	static Window visibleFileChooser() {
 		for (Window window : Window.getWindows())
 			if (window.isShowing() && findFileChooser(window) != null) return window;
 		return null;
 	}
 
-	private static JFileChooser findFileChooser(java.awt.Container container) {
+	static JFileChooser findFileChooser(java.awt.Container container) {
 		for (Component component : container.getComponents()) {
 			if (component instanceof JFileChooser chooser) return chooser;
 			if (component instanceof java.awt.Container nested) {
@@ -344,11 +344,11 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 		return null;
 	}
 
-	private static AbstractButton findApproveButton(Window chooser) {
+	static AbstractButton findApproveButton(Window chooser) {
 		return findChooserButton(chooser, "approve");
 	}
 
-	private static AbstractButton findCancelButton(Window chooser) {
+	static AbstractButton findCancelButton(Window chooser) {
 		return findChooserButton(chooser, "cancel");
 	}
 
@@ -371,7 +371,7 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 		throw new AssertionError("chooser has no " + command + " button");
 	}
 
-	private static Project newProjectWithTasks() throws Exception {
+	static Project newProjectWithTasks() throws Exception {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		ResourcePool pool = ResourcePool.createRourcePool("ccpm-status-dialog", undo);
 		pool.setLocal(true);
