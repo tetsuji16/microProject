@@ -48,8 +48,6 @@ import javax.swing.table.DefaultTableColumnModel;
 import javax.swing.table.JTableHeader;
 import javax.swing.table.TableColumn;
 
-import org.apache.commons.beanutils.BeanUtils;
-
 import com.jgoodies.forms.builder.DefaultFormBuilder;
 import com.jgoodies.forms.layout.CellConstraints;
 import com.jgoodies.forms.layout.FormLayout;
@@ -57,6 +55,7 @@ import com.microproject.help.HelpUtil;
 import com.microproject.configuration.Settings;
 import com.microproject.exchange.ResourceMappingForm;
 import com.microproject.strings.Messages;
+import com.microproject.util.ClassUtils;
 import com.microproject.util.FlatUiSupport;
 
 public final class ResourceMappingDialog extends AbstractDialog {
@@ -338,7 +337,7 @@ public final class ResourceMappingDialog extends AbstractDialog {
 		public Object getValueAt(int rowIndex, int columnIndex) {
 			if (columnIndex==0){
 				try {
-					return BeanUtils.getProperty(importedResources().get(rowIndex),"name"); //$NON-NLS-1$
+					return ClassUtils.getSimpleProperty(importedResources().get(rowIndex), "name"); //$NON-NLS-1$
 				} catch (Exception e) { //claur
 					logger.log(Level.WARNING, "Failed to resolve imported resource name", e);
 				}
