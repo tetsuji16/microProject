@@ -27,6 +27,7 @@ package com.microproject.util;
 import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Date;
@@ -318,6 +319,25 @@ public class ClassUtils {
 				logger.log(Level.WARNING, "Failed to set property " + name + " on " + bean, e);
 			}
 			return false;
+		}
+
+		/** Resolves a public method through an accessible type in the class hierarchy. */
+		public static Method getAccessibleMethod(Class<?> type, String name, Class<?>... parameterTypes) {
+			if (type == null || name == null)
+				return null;
+			try {
+				Method method = type.getMethod(name, parameterTypes);
+				if (Modifier.isPublic(method.getDeclaringClass().getModifiers()))
+					return method;
+			} catch (NoSuchMethodException e) {
+				// Search accessible interfaces and superclasses below.
+			}
+			for (Class<?> interfaceType : type.getInterfaces()) {
+				Method method = getAccessibleMethod(interfaceType, name, parameterTypes);
+				if (method != null)
+					return method;
+			}
+			return getAccessibleMethod(type.getSuperclass(), name, parameterTypes);
 		}
 
 		/** Reads a simple JavaBean property without accepting nested or indexed paths. */

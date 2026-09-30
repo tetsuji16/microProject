@@ -40,7 +40,6 @@ import java.util.Locale;
 import java.util.Map;
 
 
-import org.apache.commons.beanutils.MethodUtils;
 import org.apache.commons.lang.builder.ToStringBuilder;
 
 import com.microproject.configuration.Configuration;
@@ -1221,16 +1220,16 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 			javaName.setCharAt(0, Character.toUpperCase(javaName.charAt(0)));
 
 			// First look for a getter that has a context (indexed or not)
-			methodGet = MethodUtils.getAccessibleMethod(clazz, "get" + javaName, (isIndexed() ? getterIndexedContextParams : getterContextParams));
+			methodGet = ClassUtils.getAccessibleMethod(clazz, "get" + javaName, (isIndexed() ? getterIndexedContextParams : getterContextParams));
 			if (methodGet == null) // try is instead of get
-				methodGet = MethodUtils.getAccessibleMethod(clazz, "is" + javaName, (isIndexed() ? getterIndexedContextParams : getterContextParams));
+				methodGet = ClassUtils.getAccessibleMethod(clazz, "is" + javaName, (isIndexed() ? getterIndexedContextParams : getterContextParams));
 
 			// If not found, then use standard getter (indexed or not)
 			if (methodGet == null) {
 				getHasNoContext = true;
-				methodGet = MethodUtils.getAccessibleMethod(clazz, "get" + javaName, (isIndexed() ? getterIndexedParams : getterParams));
+				methodGet = ClassUtils.getAccessibleMethod(clazz, "get" + javaName, (isIndexed() ? getterIndexedParams : getterParams));
 				if (methodGet == null) // try is instead of get
-					methodGet = MethodUtils.getAccessibleMethod(clazz, "is" + javaName, (isIndexed() ? getterIndexedParams : getterParams));
+					methodGet = ClassUtils.getAccessibleMethod(clazz, "is" + javaName, (isIndexed() ? getterIndexedParams : getterParams));
 			}
 			if (methodGet != null)
 				internalType = methodGet.getReturnType();
@@ -1238,33 +1237,33 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 				logger.severe("Not getter found for field " + getId());
 
 			// First look for a setter that has a context (indexed or not)
-			methodSet = MethodUtils.getAccessibleMethod(clazz, "set" + javaName, (isIndexed() ? new Class<?>[] { int.class, internalType,
+			methodSet = ClassUtils.getAccessibleMethod(clazz, "set" + javaName, (isIndexed() ? new Class<?>[] { int.class, internalType,
 					FieldContext.class } : new Class<?>[] { internalType, FieldContext.class }));
 
 			// If not found, then use standard setter (indexed or not)
 			if (methodSet == null) {
 				setHasNoContext = true;
-				methodSet = MethodUtils.getAccessibleMethod(clazz, "set" + javaName, (isIndexed() ? new Class<?>[] { int.class, internalType }
+				methodSet = ClassUtils.getAccessibleMethod(clazz, "set" + javaName, (isIndexed() ? new Class<?>[] { int.class, internalType }
 						: new Class<?>[] { internalType }));
 			}
 			if (methodSet == null && !readOnly) {
 				logger.warning("No setter found for non-read-only field: " + getId());
 			}
-			methodReset = MethodUtils.getAccessibleMethod(clazz, "fieldReset" + javaName, getterContextParams);
+			methodReset = ClassUtils.getAccessibleMethod(clazz, "fieldReset" + javaName, getterContextParams);
 
 			if (resetHasNoContext = (methodReset == null))
-				methodReset = MethodUtils.getAccessibleMethod(clazz, "fieldReset" + javaName, getterParams);
+				methodReset = ClassUtils.getAccessibleMethod(clazz, "fieldReset" + javaName, getterParams);
 
-			methodReadOnly = MethodUtils.getAccessibleMethod(clazz, "isReadOnly" + javaName, getterContextParams);
+			methodReadOnly = ClassUtils.getAccessibleMethod(clazz, "isReadOnly" + javaName, getterContextParams);
 			if (readOnlyHasNoContext = (methodReadOnly == null))
-				methodReadOnly = MethodUtils.getAccessibleMethod(clazz, "isReadOnly" + javaName, getterParams);
-			methodHide = MethodUtils.getAccessibleMethod(clazz, "fieldHide" + javaName, (isIndexed() ? getterIndexedContextParams
+				methodReadOnly = ClassUtils.getAccessibleMethod(clazz, "isReadOnly" + javaName, getterParams);
+			methodHide = ClassUtils.getAccessibleMethod(clazz, "fieldHide" + javaName, (isIndexed() ? getterIndexedContextParams
 					: getterContextParams));
 			if (hideHasNoContext = (methodHide == null))
-				methodHide = MethodUtils.getAccessibleMethod(clazz, "fieldHide" + javaName, (isIndexed() ? getterIndexedParams : getterParams));
-			methodOptions = MethodUtils.getAccessibleMethod(clazz, "fieldOptions" + javaName, getterContextParams);
+				methodHide = ClassUtils.getAccessibleMethod(clazz, "fieldHide" + javaName, (isIndexed() ? getterIndexedParams : getterParams));
+			methodOptions = ClassUtils.getAccessibleMethod(clazz, "fieldOptions" + javaName, getterContextParams);
 			if (optionsHasNoContext = (methodOptions == null))
-				methodOptions = MethodUtils.getAccessibleMethod(clazz, "fieldOptions" + javaName, getterParams);
+				methodOptions = ClassUtils.getAccessibleMethod(clazz, "fieldOptions" + javaName, getterParams);
 		}
 	}
 
