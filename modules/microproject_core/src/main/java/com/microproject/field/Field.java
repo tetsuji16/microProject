@@ -1259,9 +1259,6 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 			methodReadOnly = MethodUtils.getAccessibleMethod(clazz, "isReadOnly" + javaName, getterContextParams);
 			if (readOnlyHasNoContext = (methodReadOnly == null))
 				methodReadOnly = MethodUtils.getAccessibleMethod(clazz, "isReadOnly" + javaName, getterParams);
-			//lc
-//			methodObjectReadOnly = MethodUtils.getAccessibleMethod(clazz, "isReadOnly", getterParams);
-
 			methodHide = MethodUtils.getAccessibleMethod(clazz, "fieldHide" + javaName, (isIndexed() ? getterIndexedContextParams
 					: getterContextParams));
 			if (hideHasNoContext = (methodHide == null))

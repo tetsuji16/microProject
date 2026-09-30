@@ -1308,8 +1308,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				project.setFinishDate(form.getStartDate());
 			// copy any extra fields to the project
 			project.getExtraFields().putAll(form.getExtra().getExtraFields());
-
-//			PropertyUtils.copyProperties(project, projectDialog.getForm());
 		} catch (Exception propertyException) {
 			logger.log(Level.WARNING, "Failed to populate project from form", propertyException);
 		}

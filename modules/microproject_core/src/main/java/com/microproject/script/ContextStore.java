@@ -33,7 +33,6 @@ import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.apache.commons.beanutils.Converter;
 import org.apache.commons.digester.Digester;
 
 import com.microproject.configuration.Dictionary;
