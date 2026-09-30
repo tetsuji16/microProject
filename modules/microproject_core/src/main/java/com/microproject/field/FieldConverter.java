@@ -105,7 +105,7 @@ public class FieldConverter  {
 					if (contextMap != null)
 						contextConverter = contextMap.get(clazz);
 					if (contextConverter != null) {
-						contextConverter.convert(clazz,value);
+						result = contextConverter.convert(clazz, value);
 					} else {
 						logger.fine("no context converter found");
 						result = ConvertUtils.convert(string,clazz);

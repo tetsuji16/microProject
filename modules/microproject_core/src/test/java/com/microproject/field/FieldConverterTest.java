@@ -55,6 +55,12 @@ class FieldConverterTest {
 	}
 
 	@Test
+	void returnsTheResultFromAContextSpecificConverter() throws FieldParseException {
+		assertEquals("value", FieldConverter.convert("value", String.class,
+			FieldConverter.COMPACT_CONVERTER_CONTEXT));
+	}
+
+	@Test
 	void convertsAFormattedStringIntoCalendarUsingTheTypedConverterPath() throws Exception {
 		Date source = new Date(1_700_000_000_000L);
 		var dateFormat = EditOption.getInstance().getDateFormat();
