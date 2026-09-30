@@ -91,7 +91,6 @@ public final class ProjectLibreShell {
 
 	public static ShellHandles installRibbonShell(MainRibbonFrame frame, MenuManager menuManager, Runnable helpAction,
 		AutoSaveControl autoSaveControl) {
-		WindowShellInstaller.installOfficeRibbonShell(frame);
 		JPanel ribbonPanel = menuManager.createRibbonPanel(MenuManager.STANDARD_RIBBON, helpAction);
 		if (ribbonPanel == null) {
 			ribbonPanel = new JPanel(new BorderLayout());

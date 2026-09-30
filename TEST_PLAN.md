@@ -281,7 +281,7 @@
 - #464 縮退リボン表示回帰（2026-09-06）: 700px相当の狭幅Robotケースを追加し、全体縮退時も「ファイル …」ランチャーへ先頭コマンドのアイコンが表示され、物理クリックでコマンドポップアップを開けることを確認。日本語100%／150%の新ケースがBUILD SUCCESSFUL。150%の既存1200px全タブ直接クリックケースは画面幅前提のため別テスト基盤課題として扱う。
 - U-20内容不変条件強化（2026-09-06）: usage viewの受入fixtureに実リソースを追加し、物理Ribbonクリック後のTask/Resource Usageモデル行数を `> 0` と検査。従来の常に真となる `>= 0` 判定を除去し、focused U-20 GUIと`:microproject_ui:test`がBUILD SUCCESSFUL。
 - #482 複数 document window shell 回帰（2026-09-10）: secondary window の FlatLaf/native decoration 契約を表示前に登録する生成順へ修正し、初回 focus が primary container へ誤配置しないようにした。`DefaultFrameManagerGuiAcceptanceTest` で secondary の native decoration、full-window-content、実 restore bounds、focus 切替、title、物理 close を検査。
-- #480 Office header hit-test hostile follow-up（2026-09-30）: caption対象が header 全体へ曖昧に継承されないよう、対話レイアウト/QAT/right-action host を明示的に非caption化。既存のsynthetic MouseEvent検索テストを実native shell上でのRobot入力・検索実行・QAT Save・Helpの一回配送確認へ置換。focused UI unit testsは成功、`compileGuiTestJava`は成功。ローカルRobot実行は入力に失敗し、失敗時desktop screenshot全体が黒（lock/secure desktop）で操作結果を証明できなかったため、製品不具合とも受入成功とも判定しない。Hosted full GUI matrixで物理経路を確認するまでissueをopenに保つ。
+- #480 Office header hit-test hostile follow-up（2026-09-30）: caption対象が header 全体へ曖昧に継承されないよう、対話レイアウト/QAT/right-action host を明示的に非caption化。装飾propertyの登録責務も`MainRibbonFrame.init()`一か所に集約し、shell構築時の重複登録を除去。既存のsynthetic MouseEvent検索テストを実native shell上でのRobot入力・検索実行・QAT Save・Helpの一回配送確認へ置換。focused UI unit testsは成功、`compileGuiTestJava`は成功。ローカルRobot実行は入力に失敗し、失敗時desktop screenshot全体が黒（lock/secure desktop）で操作結果を証明できなかったため、製品不具合とも受入成功とも判定しない。Hosted full GUI matrixで物理経路を確認するまでissueをopenに保つ。
 
 ### Gantt表示範囲 / MSP文書準拠
 
