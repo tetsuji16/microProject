@@ -320,6 +320,19 @@ public class ClassUtils {
 			return false;
 		}
 
+		/** Reads a simple JavaBean property without accepting nested or indexed paths. */
+		public static Object getSimpleProperty(Object bean, String name)
+				throws java.beans.IntrospectionException, ReflectiveOperationException {
+			if (bean == null || name == null || name.isEmpty() || name.indexOf('.') >= 0
+					|| name.indexOf('[') >= 0 || name.indexOf('(') >= 0)
+				throw new IllegalArgumentException("Bean and simple property name are required");
+			for (PropertyDescriptor descriptor : Introspector.getBeanInfo(bean.getClass()).getPropertyDescriptors()) {
+				if (name.equals(descriptor.getName()) && descriptor.getReadMethod() != null)
+					return descriptor.getReadMethod().invoke(bean);
+			}
+			throw new IllegalArgumentException("No readable JavaBean property named " + name);
+		}
+
 		public static boolean isObjectReadOnly(Object object){
 			return invokeReadOnly(object, new Class<?>[0]);
 		}

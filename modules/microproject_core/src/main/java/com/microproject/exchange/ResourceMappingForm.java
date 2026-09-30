@@ -33,7 +33,7 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.apache.commons.beanutils.PropertyUtils;
+import com.microproject.util.ClassUtils;
 
 /**
  * Used to merge resources found in an imported file
@@ -132,7 +132,7 @@ import org.apache.commons.beanutils.PropertyUtils;
 			if (mergeField!=NO_MERGE) {
 			for (Object resource : resources){
 				try {
-					Object value=PropertyUtils.getProperty(resource,mergeField.getProjectLibreName());
+					Object value=ClassUtils.getSimpleProperty(resource,mergeField.getProjectLibreName());
 					if (notMergedValues.contains(value)) continue;
 					if (mergeFieldMap.containsKey(value)){ //not duplicates
 						mergeFieldMap.remove(value);
@@ -149,7 +149,7 @@ import org.apache.commons.beanutils.PropertyUtils;
 				if (mergeField==NO_MERGE) selectedResources.add(unassignedResource);
 				else{
 					try {
-						Object value=PropertyUtils.getProperty(resource,mergeField.getImportName());
+						Object value=ClassUtils.getSimpleProperty(resource,mergeField.getImportName());
 						if (value==null||!mergeFieldMap.containsKey(value)) selectedResources.add(unassignedResource);
 						else selectedResources.add(mergeFieldMap.get(value));
 					} catch (Exception e) {selectedResources.add(unassignedResource);}
