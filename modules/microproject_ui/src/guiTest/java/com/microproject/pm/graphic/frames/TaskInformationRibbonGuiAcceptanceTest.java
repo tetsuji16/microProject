@@ -1798,6 +1798,17 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertSame(parent, child.getWbsParentTask(), "Collapse must not mutate the project hierarchy");
 		assertFalse(undo.canUndo(), "view-only Collapse must not add a project undo edit");
 		assertRibbonOutcome(manager, previousCollapseOutcome, RibbonCommandResult.Status.CHANGED, parent.getUniqueId());
+		ByteArrayOutputStream collapsedSnapshot = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, collapsedSnapshot),
+				"MPO save failed after the view-only Collapse operation");
+		Project collapsedReload = new MpoFileImporter().loadProject(new ByteArrayInputStream(collapsedSnapshot.toByteArray()));
+		NormalTask reloadedParent = taskNamed(collapsedReload, "Outline parent");
+		NormalTask reloadedChild = taskNamed(collapsedReload, "Outline child");
+		assertNotNull(reloadedParent, "Collapse persistence check lost the summary task");
+		assertNotNull(reloadedChild, "Collapse persistence check lost the child task");
+		assertSame(reloadedParent, reloadedChild.getWbsParentTask(),
+				"view-only Collapse must preserve the hierarchy after MPO save/reload");
+		assertFalse(reloadedChild.isHiddenTask(), "view-only Collapse must not persist as a hidden-task mutation");
 
 		AbstractButton expand = findShowingButtonByCommand("RibbonExpand");
 		RibbonCommandResult previousExpandOutcome = manager.getLastRibbonCommandResult();

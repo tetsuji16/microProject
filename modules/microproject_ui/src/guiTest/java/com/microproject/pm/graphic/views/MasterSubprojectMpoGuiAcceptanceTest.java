@@ -464,14 +464,29 @@ class MasterSubprojectMpoGuiAcceptanceTest {
 		if (graphicManager == null) return;
 		JobQueue queue = graphicManager.getJobQueue();
 		final long[] idleSince = {0L};
-		GuiAcceptanceSupport.await(() -> {
+		long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(20);
+		while (System.nanoTime() < deadline) {
 			if (queue.hasExecutingJobs()) {
 				idleSince[0] = 0L;
-				return false;
+			} else {
+				if (idleSince[0] == 0L) idleSince[0] = System.nanoTime();
+				if (System.nanoTime() - idleSince[0] >= java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(300))
+					return;
 			}
-			if (idleSince[0] == 0L) idleSince[0] = System.nanoTime();
-			return System.nanoTime() - idleSince[0] >= java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(300);
-		}, "scheduled document jobs did not become idle");
+			Thread.sleep(25L);
+		}
+		Thread[] active = new Thread[Math.max(8, queue.activeCount() * 2)];
+		int activeCount = queue.enumerate(active, true);
+		StringBuilder diagnostic = new StringBuilder("scheduled document jobs did not become idle; active queue threads:");
+		for (int i = 0; i < activeCount; i++) {
+			Thread thread = active[i];
+			if (thread == null) continue;
+			diagnostic.append("\n").append(thread.getName()).append(" [").append(thread.getState()).append(']');
+			StackTraceElement[] trace = thread.getStackTrace();
+			for (int frame = 0; frame < Math.min(trace.length, 8); frame++)
+				diagnostic.append("\n  at ").append(trace[frame]);
+		}
+		throw new AssertionError(diagnostic.toString());
 	}
 
 	private static void dismissReadOnlyWarning() throws Exception {
