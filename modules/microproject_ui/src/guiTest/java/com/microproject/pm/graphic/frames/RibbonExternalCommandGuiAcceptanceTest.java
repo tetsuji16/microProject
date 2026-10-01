@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Component;
 import java.awt.Container;
+import java.awt.Color;
 import java.awt.GraphicsEnvironment;
 import java.awt.IllegalComponentStateException;
 import java.awt.Point;
@@ -350,6 +351,31 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			chooserCancelled, "Ribbon Open");
 		assertEquals(documentsBefore, manager.getFrameManager().getAllFrames().size(),
 			"native Ribbon Open cancellation must not open a project");
+	}
+
+	@Test
+	void nativeChooserOverlayDetectionAcceptsAWhiteDialogWithVisibleChrome() {
+		BufferedImage before = new BufferedImage(400, 300, BufferedImage.TYPE_INT_RGB);
+		BufferedImage after = new BufferedImage(400, 300, BufferedImage.TYPE_INT_RGB);
+		for (int y = 0; y < before.getHeight(); y++) {
+			for (int x = 0; x < before.getWidth(); x++) {
+				before.setRGB(x, y, Color.WHITE.getRGB());
+				after.setRGB(x, y, Color.WHITE.getRGB());
+			}
+		}
+		// A native chooser can have a white body over a white application. Its
+		// title bar and frame still provide a large, connected desktop overlay.
+		for (int x = 30; x < 370; x++) {
+			after.setRGB(x, 20, Color.GRAY.getRGB());
+			after.setRGB(x, 45, Color.LIGHT_GRAY.getRGB());
+			after.setRGB(x, 279, Color.GRAY.getRGB());
+		}
+		for (int y = 20; y < 280; y++) {
+			after.setRGB(30, y, Color.GRAY.getRGB());
+			after.setRGB(369, y, Color.GRAY.getRGB());
+		}
+		assertTrue(hasVisibleDialogOverlay(before, after),
+			"visible native chooser chrome must count even when its white body matches the application");
 	}
 
 	@Test
@@ -742,9 +768,31 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		if (before.getWidth() != after.getWidth() || before.getHeight() != after.getHeight())
 			return false;
 		int changedSamples = 0;
-		for (int y = 20; y < before.getHeight(); y += 8) {
-			for (int x = 20; x < before.getWidth(); x += 8) {
-				if (before.getRGB(x, y) != after.getRGB(x, y) && ++changedSamples >= 1000)
+		int minX = before.getWidth();
+		int minY = before.getHeight();
+		int maxX = -1;
+		int maxY = -1;
+		for (int y = 20; y < before.getHeight(); y += 4) {
+			for (int x = 20; x < before.getWidth(); x += 4) {
+				if (!hasPixelDifferenceInSampleBlock(before, after, x, y, 4))
+					continue;
+				changedSamples++;
+				minX = Math.min(minX, x);
+				minY = Math.min(minY, y);
+				maxX = Math.max(maxX, x);
+				maxY = Math.max(maxY, y);
+			}
+		}
+		return changedSamples >= 80
+			&& maxX - minX >= before.getWidth() * 0.30
+			&& maxY - minY >= before.getHeight() * 0.20;
+	}
+
+	private static boolean hasPixelDifferenceInSampleBlock(BufferedImage before, BufferedImage after,
+			int x, int y, int blockSize) {
+		for (int sampleY = y; sampleY < Math.min(y + blockSize, before.getHeight()); sampleY++) {
+			for (int sampleX = x; sampleX < Math.min(x + blockSize, before.getWidth()); sampleX++) {
+				if (before.getRGB(sampleX, sampleY) != after.getRGB(sampleX, sampleY))
 					return true;
 			}
 		}
