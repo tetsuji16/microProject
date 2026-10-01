@@ -15,9 +15,11 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.grouping.core.Node;
+import com.microproject.grouping.core.NodeFactory;
 import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.options.CalendarOption;
 import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.task.DefaultSubProj;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.RecurringTaskSpec;
 import com.microproject.pm.task.Task;
@@ -74,6 +76,29 @@ class TaskVisibilityServiceTest {
 		assertFalse(TaskVisibilityService.hasHiddenTasks(project));
 		project.getUndoController().undo();
 		assertTrue(task.isHiddenTask());
+	}
+
+	@Test
+	void visibilityCommandsPreserveReadOnlySubprojectTasks() {
+		Project project = createProject();
+		DefaultSubProj readOnlyTask = new DefaultSubProj(project, 9001L);
+		readOnlyTask.setName("Read-only child project");
+		readOnlyTask.setSubprojectReadOnly(true);
+		project.connectTask(readOnlyTask);
+		project.getTaskOutlines().addToAll(readOnlyTask, null);
+		Node readOnlyNode = NodeFactory.getInstance().createNode(readOnlyTask);
+		assertTrue(readOnlyTask.isReadOnly());
+
+		assertEquals(List.of(), TaskVisibilityService.affectedHiddenTaskIds(List.of(readOnlyNode)));
+		assertEquals(0, TaskVisibilityService.hideSelected(project, List.of(readOnlyNode), project.getUndoController()));
+		assertFalse(readOnlyTask.isHiddenTask(), "Hide must not modify a read-only subproject row");
+
+		readOnlyTask.setHiddenTask(true);
+		assertEquals(List.of(), TaskVisibilityService.affectedShownTaskIds(project));
+		assertFalse(TaskVisibilityService.hasHiddenTasks(project),
+			"Show All availability must ignore hidden rows the document cannot edit");
+		assertEquals(0, TaskVisibilityService.showAll(project, project.getUndoController()));
+		assertTrue(readOnlyTask.isHiddenTask(), "Show All must not modify a read-only subproject row");
 	}
 
 	private Project createProject() {

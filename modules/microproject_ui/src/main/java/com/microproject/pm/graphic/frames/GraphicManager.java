@@ -3037,7 +3037,15 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			DocumentFrame frame = getCurrentFrame();
 			java.util.List<Long> selectedTaskIds = frame.getSelectedTaskIds();
 			java.util.List<com.microproject.grouping.core.Node> selectedNodes = frame.getSelectedVisibilityTaskNodes();
-			java.util.List<Long> affectedTaskIds = TaskVisibilityService.affectedHiddenTaskIds(selectedNodes);
+			java.util.List<Task> tasksToHide = TaskVisibilityService.tasksToHide(selectedNodes);
+			java.util.List<Long> affectedTaskIds = tasksToHide.stream().map(Task::getUniqueId)
+					.filter(id -> id != null).toList();
+			if (!CollaborationHelper.tryLockNodes(frame.getProject(), tasksToHide, frame, "hide")) {
+				publishTaskCommandOutcome(this, new RibbonCommandResult("HideSelectedTasks",
+					RibbonCommandResult.Status.REJECTED, "lock-failed", selectedTaskIds, java.util.List.of(), ""));
+				traceUi("hide-selected rejected reason=lock-failed selectedTasks=" + selectedTaskIds.size());
+				return;
+			}
 			int changed = TaskVisibilityService.hideSelected(frame.getProject(),
 					selectedNodes, frame.getUndoController());
 			publishTaskCommandOutcome(this, new RibbonCommandResult("HideSelectedTasks",
@@ -3061,7 +3069,15 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			}
 			DocumentFrame frame = getCurrentFrame();
 			java.util.List<Long> selectedTaskIds = frame.getSelectedTaskIds();
-			java.util.List<Long> affectedTaskIds = TaskVisibilityService.affectedShownTaskIds(frame.getProject());
+			java.util.List<Task> tasksToShow = TaskVisibilityService.tasksToShow(frame.getProject());
+			java.util.List<Long> affectedTaskIds = tasksToShow.stream().map(Task::getUniqueId)
+					.filter(id -> id != null).toList();
+			if (!CollaborationHelper.tryLockNodes(frame.getProject(), tasksToShow, frame, "show")) {
+				publishTaskCommandOutcome(this, new RibbonCommandResult("ShowAllTasks",
+					RibbonCommandResult.Status.REJECTED, "lock-failed", selectedTaskIds, java.util.List.of(), ""));
+				traceUi("show-all rejected reason=lock-failed selectedTasks=" + selectedTaskIds.size());
+				return;
+			}
 			int changed = TaskVisibilityService.showAll(frame.getProject(), frame.getUndoController());
 			publishTaskCommandOutcome(this, new RibbonCommandResult("ShowAllTasks",
 				changed > 0 ? RibbonCommandResult.Status.CHANGED : RibbonCommandResult.Status.NO_CHANGE,

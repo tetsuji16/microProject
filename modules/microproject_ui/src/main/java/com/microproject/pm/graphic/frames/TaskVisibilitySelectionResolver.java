@@ -34,7 +34,7 @@ final class TaskVisibilitySelectionResolver {
 			IdentityHashMap<Node, Boolean> visited) {
 		if (node == null || visited.put(node, Boolean.TRUE) != null) return;
 		if (!(node.getImpl() instanceof GroupNodeImpl)) {
-			if (node.getImpl() instanceof Task) result.add(node);
+			if (node.getImpl() instanceof Task task && !task.isReadOnly()) result.add(node);
 			return;
 		}
 		if (viewModel == null) return;

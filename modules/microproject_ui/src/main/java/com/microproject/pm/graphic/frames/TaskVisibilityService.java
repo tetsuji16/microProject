@@ -25,54 +25,49 @@ final class TaskVisibilityService {
 	}
 
 	static int hideSelected(Project project, Collection<Node> selectedNodes, UndoController undoController) {
+		if (project == null || project.isReadOnly()) return 0;
+		Map<Task, Boolean> changes = new LinkedHashMap<>();
+		for (Task task : tasksToHide(selectedNodes)) changes.put(task, Boolean.TRUE);
+		return apply(project, changes, undoController, "Hide Tasks");
+	}
+
+	/** Tasks whose persistent visibility state will change for the selected rows. */
+	static List<Task> tasksToHide(Collection<Node> selectedNodes) {
 		Map<Task, Boolean> changes = new LinkedHashMap<>();
 		if (selectedNodes != null) {
 			for (Node node : selectedNodes) {
-				if (node != null && node.getImpl() instanceof Task task) {
+				if (node != null && node.getImpl() instanceof Task task)
 					collectTaskAndDescendants(task, true, changes, new IdentityHashMap<>());
-				}
 			}
 		}
-		return apply(project, changes, undoController, "Hide Tasks");
+		return List.copyOf(changes.keySet());
 	}
 
 	/** Returns stable IDs for tasks that will transition to hidden state. */
 	static List<Long> affectedHiddenTaskIds(Collection<Node> selectedNodes) {
-		Map<Task, Boolean> changes = new LinkedHashMap<>();
-		if (selectedNodes != null) {
-			for (Node node : selectedNodes) {
-				if (node != null && node.getImpl() instanceof Task task) {
-					collectTaskAndDescendants(task, true, changes, new IdentityHashMap<>());
-				}
-			}
-		}
-		return changes.keySet().stream().map(Task::getUniqueId).filter(id -> id != null).toList();
+		return tasksToHide(selectedNodes).stream().map(Task::getUniqueId).filter(id -> id != null).toList();
 	}
 
 	/** Returns stable IDs for tasks that will transition to visible state. */
 	static List<Long> affectedShownTaskIds(Project project) {
+		return tasksToShow(project).stream().map(Task::getUniqueId).filter(id -> id != null).toList();
+	}
+
+	/** Hidden editable tasks that Show All would mutate. */
+	static List<Task> tasksToShow(Project project) {
+		if (project == null || project.isReadOnly()) return List.of();
 		return ProjectHierarchyQueries.outline(project).stream()
-				.filter(Task::isHiddenTask).map(Task::getUniqueId).filter(id -> id != null).toList();
+				.filter(task -> task.isHiddenTask() && !task.isReadOnly()).toList();
 	}
 
 	static int showAll(Project project, UndoController undoController) {
 		Map<Task, Boolean> changes = new LinkedHashMap<>();
-		for (Task task : ProjectHierarchyQueries.outline(project)) {
-			if (task.isHiddenTask()) {
-				changes.put(task, Boolean.FALSE);
-			}
-		}
+		for (Task task : tasksToShow(project)) changes.put(task, Boolean.FALSE);
 		return apply(project, changes, undoController, "Show All Tasks");
 	}
 
 	static boolean hasHiddenTasks(Project project) {
-		if (project == null)
-			return false;
-		for (Task task : ProjectHierarchyQueries.outline(project)) {
-			if (task.isHiddenTask())
-				return true;
-		}
-		return false;
+		return !tasksToShow(project).isEmpty();
 	}
 
 	private static void collectTaskAndDescendants(Task task, boolean hidden, Map<Task, Boolean> changes,
@@ -80,7 +75,7 @@ final class TaskVisibilityService {
 		if (visited.put(task, Boolean.TRUE) != null) {
 			return;
 		}
-		if (task.isHiddenTask() != hidden) {
+		if (!task.isReadOnly() && task.isHiddenTask() != hidden) {
 			changes.put(task, hidden);
 		}
 		Collection<?> children = task.getWbsChildrenNodes();

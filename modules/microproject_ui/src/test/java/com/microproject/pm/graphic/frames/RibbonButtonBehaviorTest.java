@@ -62,6 +62,7 @@ import com.microproject.grouping.core.NodeFactory;
 import com.microproject.grouping.core.transform.grouping.NodeGroup;
 import com.microproject.menu.MenuActionConstants;
 import com.microproject.menu.MenuManager;
+import com.microproject.collaboration.CollaborationSession;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourcePool;
@@ -398,6 +399,12 @@ class RibbonButtonBehaviorTest {
 				"Mark on Track execution must use the same editable selection filter");
 			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_UNLINK).isEnabled(),
 				"Unlink must be disabled for a read-only selected task");
+			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_HIDE_SELECTED_TASKS).isEnabled(),
+				"Hide Selected must be disabled for a read-only selected task");
+			readOnlySubproject.setHiddenTask(true);
+			harness.manager.setButtonState(readOnlySubproject, harness.project);
+			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_SHOW_ALL_TASKS).isEnabled(),
+				"Show All must ignore a hidden row that the current document cannot edit");
 			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_TASK_MODE_MANUAL).isEnabled(),
 				"Manual scheduling must be disabled for a read-only selected task");
 			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_TASK_MODE_AUTOMATIC).isEnabled(),
@@ -610,6 +617,35 @@ class RibbonButtonBehaviorTest {
 			"Show All must not report changed tasks as selected rows");
 		assertEquals(List.of(harness.task.getUniqueId()), showResult.affectedTaskIds());
 		assertEquals(MenuActionConstants.ACTION_GANTT, showResult.activeViewId());
+	}
+
+	@Test
+	void visibilityCommandsAcquireLocksForEveryTaskTheyWillChange() throws Exception {
+		Harness harness = newHarness();
+		harness.setTaskInformation(true, false);
+		List<List<Task>> requestedLocks = new ArrayList<>();
+		CollaborationSession session = new CollaborationSession(harness.project,
+				System.getProperty("java.io.tmpdir") + "/microproject-visibility-lock-test.mpo", "visibility-test") {
+			@Override
+			public Task tryAcquireTasks(Iterable<Task> tasks) {
+				List<Task> requested = new ArrayList<>();
+				if (tasks != null) tasks.forEach(requested::add);
+				requestedLocks.add(requested);
+				return null;
+			}
+		};
+		harness.project.setCollaborationSession(session);
+		SwingUtilities.invokeAndWait(() -> harness.frame.setVisibilitySelectionForTest(List.of(harness.taskNode)));
+
+		harness.invoke("RibbonHideSelectedTasks");
+		assertTrue(harness.task.isHiddenTask());
+		assertEquals(List.of(harness.task), requestedLocks.getLast(),
+				"Hide must lock the exact tasks its visibility mutation will change");
+
+		harness.invoke("RibbonShowAllTasks");
+		assertFalse(harness.task.isHiddenTask());
+		assertEquals(List.of(harness.task), requestedLocks.getLast(),
+				"Show All must lock the exact hidden tasks its visibility mutation will change");
 	}
 
 	@Test
