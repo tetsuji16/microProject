@@ -77,6 +77,8 @@ import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.assignment.AssignmentService;
+import com.microproject.pm.graphic.gantt.Gantt;
+import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetPopupMenu;
@@ -1747,6 +1749,11 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Robot robot = new Robot();
 		robot.setAutoDelay(45);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		Gantt gantt = manager.getCurrentFrame().getGanttView().getGantt();
+		undo.clear();
+		assertTrue(isTaskVisibleInGantt(gantt, parent), "Gantt must show the selected summary before collapse");
+		assertTrue(isTaskVisibleInGantt(gantt, child), "Gantt must show the child before collapse");
+		assertFalse(undo.canUndo(), "view-state fixture must start with an empty project undo history");
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, parent), nameColumn(sheet)));
 		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("TaskRibbonTask.title"));
@@ -1756,12 +1763,19 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		RibbonCommandResult previousCollapseOutcome = manager.getLastRibbonCommandResult();
 		click(robot, boundsOnScreen(collapse));
 		GuiAcceptanceSupport.await(() -> !isTaskVisible(sheet, child), "Collapse did not hide the child row");
+		GuiAcceptanceSupport.await(() -> !isTaskVisibleInGantt(gantt, child), "Collapse did not hide the child Gantt row");
+		assertTrue(isTaskVisibleInGantt(gantt, parent), "Collapse must keep the summary visible in Gantt");
+		assertSame(parent, child.getWbsParentTask(), "Collapse must not mutate the project hierarchy");
+		assertFalse(undo.canUndo(), "view-only Collapse must not add a project undo edit");
 		assertRibbonOutcome(manager, previousCollapseOutcome, RibbonCommandResult.Status.CHANGED, parent.getUniqueId());
 
 		AbstractButton expand = findShowingButtonByCommand("RibbonExpand");
 		RibbonCommandResult previousExpandOutcome = manager.getLastRibbonCommandResult();
 		click(robot, boundsOnScreen(expand));
 		GuiAcceptanceSupport.await(() -> isTaskVisible(sheet, child), "Expand did not restore the child row");
+		GuiAcceptanceSupport.await(() -> isTaskVisibleInGantt(gantt, child), "Expand did not restore the child Gantt row");
+		assertSame(parent, child.getWbsParentTask(), "Expand must not mutate the project hierarchy");
+		assertFalse(undo.canUndo(), "view-only Expand must not add a project undo edit");
 		assertRibbonOutcome(manager, previousExpandOutcome, RibbonCommandResult.Status.CHANGED, parent.getUniqueId());
 	}
 
@@ -2531,6 +2545,17 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		for (int row = 0; row < sheet.getRowCount(); row++) {
 			if (model.getNode(row) != null && model.getNode(row).getNode() != null
 					&& model.getNode(row).getNode().getImpl() == task)
+				return true;
+		}
+		return false;
+	}
+
+	private static boolean isTaskVisibleInGantt(Gantt gantt, NormalTask task) {
+		var cache = gantt.getModel().getCache();
+		for (int row = 0; row < cache.getSize(); row++) {
+			Object element = cache.getElementAt(row);
+			if (element instanceof GraphicNode graphicNode && graphicNode.getNode() != null
+					&& graphicNode.getNode().getImpl() == task)
 				return true;
 		}
 		return false;
