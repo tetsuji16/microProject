@@ -84,7 +84,7 @@ public final class SwingRibbonFactory {
 		host.setOpaque(true);
 		host.setBackground(new FlatLafRibbonTheme().chromeBackground());
 		host.add(panel, BorderLayout.CENTER);
-		host.putClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY, panel);
+		host.putClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY, panel);
 		return host;
 	}
 

@@ -75,9 +75,10 @@ import com.microproject.ribbon.SwingRibbonModel;
 import com.microproject.ribbon.RibbonTheme;
 import com.microproject.dialog.UsabilityStrings;
 
-public final class ModernRibbonPanel extends JPanel {
-	/** Client-property key on the ribbon host for view-context coordination. */
-	public static final String CONTEXTUAL_TABS_PROPERTY = "microproject.ribbon.contextualTabs";
+public final class ModernRibbonPanel extends JPanel implements RibbonController {
+	/** @deprecated Use {@link RibbonController#CONTEXTUAL_TABS_PROPERTY}. */
+	@Deprecated(forRemoval = false)
+	public static final String CONTEXTUAL_TABS_PROPERTY = RibbonController.CONTEXTUAL_TABS_PROPERTY;
 	public static final String DISPLAY_MODE_POPUP_NAME = "microproject.ribbon.displayModePopup";
 	static final String RIBBON_SURFACE_COMPONENT_NAME = "projectLibreRibbonSurface";
 	static final String RIBBON_BAND_COMPONENT_NAME = "projectLibreRibbonBand";

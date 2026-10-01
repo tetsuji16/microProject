@@ -98,7 +98,7 @@ import javax.swing.undo.CannotUndoException;
 
 import com.microproject.menu.resource.MissingListenerException;
 import com.microproject.ui.shell.ProjectLibreShell;
-import com.microproject.ui.ribbon.ModernRibbonPanel;
+import com.microproject.ui.ribbon.RibbonController;
 import com.microproject.configuration.Configuration;
 import com.microproject.configuration.FieldDictionary;
 import com.microproject.configuration.Settings;
@@ -4676,8 +4676,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				@Override public void actionPerformed(ActionEvent event) {
 					if (!(container instanceof MainRibbonFrame mainFrame) || mainFrame.getRibbonPanel() == null) return;
 					Object controller = mainFrame.getRibbonPanel()
-						.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
-					if (controller instanceof ModernRibbonPanel ribbon) ribbon.toggleRibbonCollapseMode();
+						.getClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY);
+					if (controller instanceof RibbonController ribbon) ribbon.toggleRibbonCollapseMode();
 				}
 			});
 		// Microsoft Project uses F3 to clear the active view's filter and show all

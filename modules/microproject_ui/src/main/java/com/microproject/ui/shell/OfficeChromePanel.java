@@ -58,7 +58,7 @@ import com.microproject.dialog.UsabilityStrings;
 import com.microproject.util.FlatUiSupport;
 import com.microproject.util.Environment;
 import com.microproject.util.FlatLafSupport;
-import com.microproject.ui.ribbon.ModernRibbonPanel;
+import com.microproject.ui.ribbon.RibbonController;
 import com.microproject.ui.ribbon.RibbonDisplayMode;
 
 final class OfficeChromePanel extends JPanel {
@@ -95,7 +95,7 @@ final class OfficeChromePanel extends JPanel {
 	private final JLabel documentTitleLabel;
 	private final AutoSaveControl autoSaveControl;
 	private final OfficeChromeTitleBinding titleBinding;
-	private final ModernRibbonPanel ribbonController;
+	private final RibbonController ribbonController;
 
 	OfficeChromePanel(MenuManager menuManager, JComponent ribbonPanel, Runnable helpAction) {
 		this(null, menuManager, ribbonPanel, helpAction, AutoSaveControl.DISABLED);
@@ -114,8 +114,8 @@ final class OfficeChromePanel extends JPanel {
 		this.helpAction = helpAction;
 		this.autoSaveControl = autoSaveControl == null ? AutoSaveControl.DISABLED : autoSaveControl;
 		Object ribbonValue = ribbonPanel == null ? null
-			: ribbonPanel.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
-		this.ribbonController = ribbonValue instanceof ModernRibbonPanel ribbon ? ribbon : null;
+			: ribbonPanel.getClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY);
+		this.ribbonController = ribbonValue instanceof RibbonController ribbon ? ribbon : null;
 		this.searchField = new JTextField(28);
 		this.documentTitleLabel = createDocumentTitleLabel(frame == null ? "" : frame.getTitle());
 		this.titleBinding = frame == null ? null : OfficeChromeTitleBinding.attach(frame, this::updateDocumentTitle);
@@ -321,7 +321,7 @@ final class OfficeChromePanel extends JPanel {
 
 	private void showRibbonDisplayOptions(AbstractButton button) {
 		if (isRibbonDisplayOptionsPopupVisible()) return;
-		ModernRibbonPanel ribbon = findRibbonController();
+		RibbonController ribbon = findRibbonController();
 		if (ribbon == null) return;
 		JPopupMenu popup = new JPopupMenu();
 		popup.setName(RIBBON_DISPLAY_OPTIONS_POPUP_NAME);
@@ -338,19 +338,19 @@ final class OfficeChromePanel extends JPanel {
 			.anyMatch(popup -> RIBBON_DISPLAY_OPTIONS_POPUP_NAME.equals(popup.getName()));
 	}
 
-	private void addRibbonDisplayItem(JPopupMenu popup, ModernRibbonPanel ribbon, RibbonDisplayMode mode, String textKey) {
+	private void addRibbonDisplayItem(JPopupMenu popup, RibbonController ribbon, RibbonDisplayMode mode, String textKey) {
 		javax.swing.JRadioButtonMenuItem item = new javax.swing.JRadioButtonMenuItem(UsabilityStrings.text(textKey),
 			ribbon.getRibbonDisplayMode() == mode);
 		item.addActionListener(event -> ribbon.setRibbonDisplayMode(mode));
 		popup.add(item);
 	}
 
-	private ModernRibbonPanel findRibbonController() {
+	private RibbonController findRibbonController() {
 		if (ribbonController != null) return ribbonController;
 		for (java.awt.Component component : getComponents()) {
 			if (component instanceof JComponent child) {
-				Object value = child.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
-				if (value instanceof ModernRibbonPanel ribbon) return ribbon;
+				Object value = child.getClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY);
+				if (value instanceof RibbonController ribbon) return ribbon;
 			}
 		}
 		return null;

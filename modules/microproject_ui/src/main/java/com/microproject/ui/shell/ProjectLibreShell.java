@@ -43,7 +43,7 @@ import javax.swing.JTabbedPane;
 import javax.swing.JToolBar;
 
 import com.microproject.menu.MenuManager;
-import com.microproject.ui.ribbon.ModernRibbonPanel;
+import com.microproject.ui.ribbon.RibbonController;
 import com.microproject.ui.ribbon.RibbonDisplayPreferences;
 import com.microproject.pm.graphic.TabbedNavigation;
 import com.microproject.pm.graphic.frames.MainRibbonFrame;
@@ -95,16 +95,16 @@ public final class ProjectLibreShell {
 		if (ribbonPanel == null) {
 			ribbonPanel = new JPanel(new BorderLayout());
 		}
-		Object controller = ribbonPanel.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
-		if (controller instanceof ModernRibbonPanel ribbon) {
+		Object controller = ribbonPanel.getClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY);
+		if (controller instanceof RibbonController ribbon) {
 			ribbon.setRibbonDisplayMode(RibbonDisplayPreferences.load());
 			ribbon.addRibbonDisplayModeListener(RibbonDisplayPreferences::save);
 		}
 		JPanel shell = new OfficeChromePanel(frame, menuManager, ribbonPanel, helpAction, autoSaveControl);
 		// MainRibbonFrame owns the outer Office chrome. Preserve the contextual-tab
 		// controller on that host instead of forcing the frame to know its child layout.
-		shell.putClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY,
-			ribbonPanel.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY));
+		shell.putClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY,
+			ribbonPanel.getClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY));
 		frame.setRibbonPanel(shell);
 		return new ShellHandles(null, null, null);
 	}

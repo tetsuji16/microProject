@@ -35,7 +35,7 @@ import javax.swing.WindowConstants;
 import com.microproject.pm.graphic.IconManager;
 import com.microproject.pm.graphic.frames.workspace.FrameHolder;
 import com.microproject.pm.graphic.frames.workspace.FrameManager;
-import com.microproject.ui.ribbon.ModernRibbonPanel;
+import com.microproject.ui.ribbon.RibbonController;
 import com.microproject.ui.shell.WindowBoundsSupport;
 import com.microproject.ui.shell.WindowShellInstaller;
 import com.microproject.util.Environment;
@@ -104,21 +104,21 @@ public class MainRibbonFrame extends FlatLafFrame implements FrameHolder{
 	/** Updates view-specific tabs without rebuilding or re-registering commands. */
 	public void setVisibleContextualRibbonTabs(java.util.Collection<String> tabIds) {
 		if (ribbonPanel == null) return;
-		Object value = ribbonPanel.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
-		if (value instanceof ModernRibbonPanel panel) panel.setVisibleContextualTabs(tabIds);
+		Object value = ribbonPanel.getClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY);
+		if (value instanceof RibbonController panel) panel.setVisibleContextualTabs(tabIds);
 	}
 
 	/** Selects the document-oriented ribbon tab after a project opens. */
 	public void showProjectRibbon() {
 		if (ribbonPanel == null) return;
-		Object value = ribbonPanel.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
-		if (value instanceof ModernRibbonPanel panel) panel.showProjectTab();
+		Object value = ribbonPanel.getClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY);
+		if (value instanceof RibbonController panel) panel.showProjectTab();
 	}
 
 	public void setContextualRibbonTabTitles(java.util.Map<String, String> titles) {
 		if (ribbonPanel == null) return;
-		Object value = ribbonPanel.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
-		if (value instanceof ModernRibbonPanel panel) panel.setContextualTabTitles(titles);
+		Object value = ribbonPanel.getClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY);
+		if (value instanceof RibbonController panel) panel.setContextualTabTitles(titles);
 	}
 
 	public FrameManager getFrameManager() {
