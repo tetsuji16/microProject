@@ -17,6 +17,7 @@ import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeFactory;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.Task;
 import com.microproject.undo.DataFactoryUndoController;
 
 class ActiveTaskSelectionResolverTest {
@@ -29,6 +30,8 @@ class ActiveTaskSelectionResolverTest {
 		var selection = ActiveTaskSelectionResolver.resolve(List.of(first, second), false, false, false);
 
 		assertEquals(List.of(first, second), selection.nodes());
+		assertEquals(List.of(((Task) first.getImpl()).getUniqueId(), ((Task) second.getImpl()).getUniqueId()),
+			selection.stableTaskIds());
 		assertTrue(selection.isEligible(1));
 		assertTrue(selection.isEligible(2));
 		assertFalse(selection.isEligible(3));

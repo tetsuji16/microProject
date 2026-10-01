@@ -644,7 +644,7 @@ public class DocumentFrame extends NamedFrame implements
 		var result = new com.microproject.pm.task.TaskProgressService().markOnTrack(project, tasks);
 		SwingUndoAdapter.post(project.getUndoController().getEditSupport(), result.change());
 		getActiveSpreadSheet().restoreTaskRowSelection(selection);
-		List<Long> affectedTaskIds = tasks.stream().map(Task::getId).toList();
+		List<Long> affectedTaskIds = tasks.stream().map(Task::getUniqueId).toList();
 		return (result.changedCount() > 0 ? RibbonCommandResult.changed(command.actionId(), affectedTaskIds)
 				: RibbonCommandResult.noChange(command.actionId(), affectedTaskIds)).withActiveView("task");
 	}
@@ -735,19 +735,13 @@ public class DocumentFrame extends NamedFrame implements
 	}
 
 	private static List<Long> taskIds(List<Node> nodes) {
-		return nodes.stream().filter(java.util.Objects::nonNull).map(Node::getImpl)
-			.filter(Task.class::isInstance).map(Task.class::cast).map(Task::getId).toList();
+		return ActiveTaskSelectionResolver.resolve(nodes, false, false, true).stableTaskIds();
 	}
 
 	private void publishTaskCommandResult(CommandId command, RibbonCommandResult.Status status,
 			String reason, List<Node> nodes) {
-		List<Long> affectedTaskIds = nodes == null ? List.of() : nodes.stream()
-			.filter(java.util.Objects::nonNull)
-			.map(Node::getImpl)
-			.filter(Task.class::isInstance)
-			.map(Task.class::cast)
-			.map(Task::getId)
-			.toList();
+		List<Long> affectedTaskIds = ActiveTaskSelectionResolver.resolve(nodes, false, false, true)
+			.stableTaskIds();
 		lastTaskCommandResult = new RibbonCommandResult(command.actionId(), status, reason, affectedTaskIds);
 	}
 

@@ -1747,7 +1747,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		InformationTarget target = resolveInformationTarget(false, true, false);
 		boolean opened = executeInformation(target, notes);
 		List<Long> affectedTaskIds = target != null && target.kind() == InformationTargetKind.TASK
-			? List.of(target.task().getId()) : List.of();
+			? List.of(target.task().getUniqueId()) : List.of();
 		publishTaskCommandOutcome(action, new RibbonCommandResult("RibbonTaskInformation",
 			opened ? RibbonCommandResult.Status.DISPATCHED : RibbonCommandResult.Status.FAILED,
 			opened ? "" : "dialog-not-opened", affectedTaskIds));

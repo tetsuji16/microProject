@@ -53,5 +53,10 @@ final class ActiveTaskSelectionResolver {
 		boolean isEligible(int minimumCount) {
 			return rejectionReason.isEmpty() && nodes.size() >= minimumCount;
 		}
+
+		List<Long> stableTaskIds() {
+		return nodes.stream().map(Node::getImpl).filter(Task.class::isInstance)
+			.map(Task.class::cast).map(Task::getUniqueId).toList();
+		}
 	}
 }
