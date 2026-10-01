@@ -225,9 +225,6 @@ tasks.register("verifyArchitectureBoundaries") {
             "modules/microproject_exchange/src/main/java/com/microproject/exchange/DefaultFileImporterProvider.java" to setOf(
                 "com.projectlibre1.exchange.LocalFileImporter", "com.projectlibre.exchange.LocalFileImporter"
             ),
-            "modules/microproject_core/src/main/java/com/microproject/exchange/ImporterRegistry.java" to setOf(
-                "com.projectlibre1.exchange.LocalFileImporter", "com.projectlibre.exchange.LocalFileImporter"
-            )
         )
         val legacyFqnPattern = Regex("(?<![A-Za-z0-9_$])com\\.projectlibre(?:1)?(?:\\.[A-Za-z0-9_$]+)*(?![A-Za-z0-9_$])")
         val legacyNamespaceReferences = fileTree(layout.projectDirectory.dir("modules")) {
