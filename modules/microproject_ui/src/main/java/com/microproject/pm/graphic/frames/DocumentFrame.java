@@ -1110,7 +1110,7 @@ public class DocumentFrame extends NamedFrame implements
 			// The table is the authoritative selection owner while an editor is
 			// focused.  Resolve it directly after commit; the frame selection
 			// provider may still expose the previous editor row for one event turn.
-			ActiveTaskSelectionResolver.Selection selection = resolveTaskSelection(true, true);
+			ActiveTaskSelectionResolver.Selection selection = resolveTaskSelection(true, false);
 			List<Node> taskNodes = new ArrayList<>(selection.nodes());
 			// The editor commit above may rebuild the outline and invalidate the
 			// pre-commit JTable row indexes.  Resolve rows from this same stable
