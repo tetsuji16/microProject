@@ -49,6 +49,7 @@ import javax.swing.JMenuBar;
 import javax.swing.JPopupMenu;
 import javax.swing.JLabel;
 import javax.swing.SwingUtilities;
+import javax.swing.text.JTextComponent;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
@@ -2700,9 +2701,11 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		StringBuilder text = new StringBuilder();
 		for (Component component : container.getComponents()) {
 			if (component instanceof JLabel label) text.append(label.getText());
+			if (component instanceof JTextComponent textComponent) text.append(textComponent.getText());
 			if (component instanceof java.awt.Container child) text.append(componentText(child));
 		}
-		return text.toString();
+		return text.toString().replaceAll("(?i)<br\\s*/?>", " ")
+				.replaceAll("<[^>]+>", " ").replaceAll("\\s+", " ");
 	}
 
 	private static boolean isTaskVisibleInGantt(Gantt gantt, NormalTask task) {
