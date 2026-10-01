@@ -2962,16 +2962,19 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent event) {
 			setMeAsLastGraphicManager();
-			putValue("MicroProject.ribbonOutcome", RibbonCommandResult.Status.NO_CHANGE);
-			putValue("MicroProject.ribbonAffectedTaskIds", java.util.List.of());
-			if (!isDocumentActive())
+			if (!isDocumentActive()) {
+				publishTaskCommandOutcome(this,
+					RibbonCommandResult.rejected("HideSelectedTasks", "no-active-document"));
 				return;
+			}
 			DocumentFrame frame = getCurrentFrame();
 			java.util.List<com.microproject.grouping.core.Node> selectedNodes = frame.getSelectedVisibilityTaskNodes();
-			putValue("MicroProject.ribbonAffectedTaskIds", TaskVisibilityService.affectedHiddenTaskIds(selectedNodes));
+			java.util.List<Long> affectedTaskIds = TaskVisibilityService.affectedHiddenTaskIds(selectedNodes);
 			int changed = TaskVisibilityService.hideSelected(frame.getProject(),
 					selectedNodes, frame.getUndoController());
-			putValue("MicroProject.ribbonOutcome", changed > 0 ? RibbonCommandResult.Status.CHANGED : RibbonCommandResult.Status.NO_CHANGE);
+			publishTaskCommandOutcome(this, new RibbonCommandResult("HideSelectedTasks",
+				changed > 0 ? RibbonCommandResult.Status.CHANGED : RibbonCommandResult.Status.NO_CHANGE,
+				"", affectedTaskIds));
 			setButtonState(frame.getSelectedImpl(), frame.getProject());
 			traceUi("hide-selected result changedTasks=" + changed);
 		}
@@ -2983,14 +2986,17 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent event) {
 			setMeAsLastGraphicManager();
-			putValue("MicroProject.ribbonOutcome", RibbonCommandResult.Status.NO_CHANGE);
-			putValue("MicroProject.ribbonAffectedTaskIds", java.util.List.of());
-			if (!isDocumentActive())
+			if (!isDocumentActive()) {
+				publishTaskCommandOutcome(this,
+					RibbonCommandResult.rejected("ShowAllTasks", "no-active-document"));
 				return;
+			}
 			DocumentFrame frame = getCurrentFrame();
-			putValue("MicroProject.ribbonAffectedTaskIds", TaskVisibilityService.affectedShownTaskIds(frame.getProject()));
+			java.util.List<Long> affectedTaskIds = TaskVisibilityService.affectedShownTaskIds(frame.getProject());
 			int changed = TaskVisibilityService.showAll(frame.getProject(), frame.getUndoController());
-			putValue("MicroProject.ribbonOutcome", changed > 0 ? RibbonCommandResult.Status.CHANGED : RibbonCommandResult.Status.NO_CHANGE);
+			publishTaskCommandOutcome(this, new RibbonCommandResult("ShowAllTasks",
+				changed > 0 ? RibbonCommandResult.Status.CHANGED : RibbonCommandResult.Status.NO_CHANGE,
+				"", affectedTaskIds));
 			setButtonState(frame.getSelectedImpl(), frame.getProject());
 			traceUi("show-all result changedTasks=" + changed);
 		}

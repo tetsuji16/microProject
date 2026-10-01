@@ -589,8 +589,19 @@ class RibbonButtonBehaviorTest {
 		harness.invoke("RibbonHideSelectedTasks");
 
 		assertTrue(harness.task.isHiddenTask(), "execution must hide the group's resolved task member");
+		RibbonCommandResult hideResult = harness.manager.getLastRibbonCommandResult();
+		assertEquals(RibbonCommandResult.Status.CHANGED, hideResult.status());
+		assertEquals(List.of(harness.task.getUniqueId()), hideResult.affectedTaskIds());
+		assertEquals(MenuActionConstants.ACTION_GANTT, hideResult.activeViewId());
 		harness.undoController.undo();
 		assertFalse(harness.task.isHiddenTask(), "the visibility command must retain one undo boundary");
+		harness.invoke("RibbonHideSelectedTasks");
+		harness.invoke("RibbonShowAllTasks");
+		assertFalse(harness.task.isHiddenTask(), "Show All must restore the hidden task");
+		RibbonCommandResult showResult = harness.manager.getLastRibbonCommandResult();
+		assertEquals(RibbonCommandResult.Status.CHANGED, showResult.status());
+		assertEquals(List.of(harness.task.getUniqueId()), showResult.affectedTaskIds());
+		assertEquals(MenuActionConstants.ACTION_GANTT, showResult.activeViewId());
 	}
 
 	@Test
