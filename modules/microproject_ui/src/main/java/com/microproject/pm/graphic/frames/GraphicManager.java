@@ -158,7 +158,6 @@ import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.selection.event.SelectionNodeEvent;
 import com.microproject.pm.graphic.spreadsheet.selection.event.SelectionNodeListener;
-import com.microproject.pm.graphic.views.BaseView;
 import com.microproject.pm.graphic.views.GanttView;
 import com.microproject.ui.privacy.PrivacyDisplayMode;
 import com.microproject.pm.graphic.views.ProjectsDialog;
@@ -173,7 +172,6 @@ import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.SubProj;
 import com.microproject.pm.task.Task;
-import com.microproject.pm.time.HasStartAndEnd;
 import com.microproject.preference.ConfigurationFile;
 import com.microproject.preference.GlobalPreferences;
 import com.microproject.print.GraphPageable;
@@ -4160,15 +4158,13 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		List<com.microproject.grouping.core.Node> hierarchyTaskNodes = getCurrentFrame() == null
 			? java.util.List.of() : getCurrentFrame().getSelectedTaskNodes(true, true);
 		boolean isTask = currentImpl instanceof Task || !selectedTaskNodes.isEmpty();
-		boolean isResource = currentImpl != null && currentImpl instanceof Resource;
 		boolean isLinkedSubproject = selectedSubprojectReference() != null;
-		boolean isHasStartAndEnd = currentImpl != null && currentImpl instanceof HasStartAndEnd;
 		boolean hasEditableTaskSelection = !hierarchyTaskNodes.isEmpty();
 		boolean hasOneTaskSelection = getCurrentFrame() != null && getCurrentFrame().hasTaskSelection(false, 1, true);
 		boolean hasOutlineTaskSelection = getCurrentFrame() != null
 			&& getCurrentFrame().hasTaskSelection(false, 1, false);
-		boolean hierarchySelection = (!hierarchyTaskNodes.isEmpty() && isTask) || isResource;
-		boolean canOutdent = !isTask || hierarchyTaskNodes.stream()
+		boolean hierarchySelection = !hierarchyTaskNodes.isEmpty();
+		boolean canOutdent = hierarchyTaskNodes.stream()
 			.anyMatch(node -> node != null && node.getImpl() instanceof Task task
 					&& task.getWbsParentTask() != null);
 		// The task table owns both hierarchy commands even while its model cache is
@@ -4235,12 +4231,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled(ACTION_OPEN_SUBPROJECT, isLinkedSubproject);
 		getMenuManager().setActionEnabled(ACTION_REMOVE_SUBPROJECT, !readOnly && isLinkedSubproject);
 
-		BaseView view=null;
 		DocumentFrame frame=getCurrentFrame();
-		if (frame!=null){
-			view=(BaseView)frame.getMainView().getTopComponent();
-		}
-		getMenuManager().setActionEnabled(ACTION_SCROLL_TO_TASK,isHasStartAndEnd&&view.canScrollToTask());
+		getMenuManager().setActionEnabled(ACTION_SCROLL_TO_TASK,
+				frame != null && frame.hasTaskSelection(true, 1, false)
+					&& frame.canScrollToTask());
 		boolean hasDocument = getCurrentFrame() != null;
 		getMenuManager().setActionEnabled(ACTION_CHOOSE_FILTER, hasDocument);
 		getMenuManager().setActionEnabled(ACTION_CHOOSE_SORT, hasDocument);

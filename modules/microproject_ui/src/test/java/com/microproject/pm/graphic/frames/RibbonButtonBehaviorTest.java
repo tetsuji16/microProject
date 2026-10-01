@@ -436,6 +436,33 @@ class RibbonButtonBehaviorTest {
 	}
 
 	@Test
+	void taskHierarchyCommandsStayDisabledForResourceSelection() throws Exception {
+		Harness harness = newHarness();
+		harness.setTaskInformation(false, true);
+		SwingUtilities.invokeAndWait(() -> {
+			harness.frame.activateView(MenuActionConstants.ACTION_RESOURCES);
+			harness.frame.getResourceView().getSpreadSheet().setRowSelectionInterval(0, 0);
+			harness.frame.setSelection(List.of(harness.resourceNode));
+			harness.manager.setButtonState(harness.resource, harness.project);
+			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_INDENT).isEnabled(),
+				"Indent must follow the task-only selection used by its execution path");
+			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_OUTDENT).isEnabled(),
+				"Outdent must follow the task-only selection used by its execution path");
+		});
+	}
+
+	@Test
+	void scrollToTaskRequiresTaskSelectionInsteadOfStaleTaskLeadImpl() throws Exception {
+		Harness harness = newHarness();
+		SwingUtilities.invokeAndWait(() -> {
+			harness.frame.setSelection(List.of(harness.projectNode));
+			harness.manager.setButtonState(harness.task, harness.project);
+			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_SCROLL_TO_TASK).isEnabled(),
+				"Scroll to Task must use the task-selection precondition used by its action");
+		});
+	}
+
+	@Test
 	void informationRibbonEnablementFollowsTheSelectedResourceWhenLeadImplIsStale() throws Exception {
 		Harness harness = newHarness();
 		harness.setTaskInformation(true, true);
