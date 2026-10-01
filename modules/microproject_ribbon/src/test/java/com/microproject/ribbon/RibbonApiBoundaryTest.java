@@ -58,8 +58,14 @@ class RibbonApiBoundaryTest {
 	void semanticResultKeepsAffectedTaskIdsImmutable() {
 		var ids = new java.util.ArrayList<Long>();
 		ids.add(42L);
-		RibbonCommandResult result = RibbonCommandResult.changed("HideSelectedTasks", ids);
+		var selectedIds = new java.util.ArrayList<Long>();
+		selectedIds.add(7L);
+		RibbonCommandResult result = new RibbonCommandResult("HideSelectedTasks",
+			RibbonCommandResult.Status.CHANGED, "", selectedIds, ids, "");
 		ids.add(99L);
+		selectedIds.add(8L);
+		assertEquals(List.of(7L), result.selectedTaskIds());
+		assertThrows(UnsupportedOperationException.class, () -> result.selectedTaskIds().add(9L));
 		assertEquals(List.of(42L), result.affectedTaskIds());
 		assertThrows(UnsupportedOperationException.class, () -> result.affectedTaskIds().add(7L));
 		assertEquals("", result.activeViewId());

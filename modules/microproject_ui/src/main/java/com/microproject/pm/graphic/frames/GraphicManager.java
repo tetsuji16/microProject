@@ -1747,17 +1747,20 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		InformationTarget target = resolveInformationTarget(false, true, false);
 		if (target == null) {
 			publishTaskCommandOutcome(action,
-				RibbonCommandResult.rejected("RibbonTaskInformation", "no-selection"));
+				RibbonCommandResult.rejected("RibbonTaskInformation", "no-selection")
+					.withSelectedTaskIds(selectedTaskIdsForActiveFrame()));
 			return;
 		}
 		finishAnyOperations();
 		if (!beforeTaskInformationRoute(target.task(), notes, target.assignmentResourcesTab())) {
 			publishTaskCommandOutcome(action, new RibbonCommandResult("RibbonTaskInformation",
-				RibbonCommandResult.Status.REJECTED, "route-rejected", List.of(target.task().getUniqueId())));
+				RibbonCommandResult.Status.REJECTED, "route-rejected", List.of(target.task().getUniqueId()),
+				List.of(target.task().getUniqueId()), ""));
 			return;
 		}
 		publishTaskCommandOutcome(action, new RibbonCommandResult("RibbonTaskInformation",
-			RibbonCommandResult.Status.DISPATCHED, "", List.of(target.task().getUniqueId())));
+			RibbonCommandResult.Status.DISPATCHED, "", List.of(target.task().getUniqueId()),
+			List.of(target.task().getUniqueId()), ""));
 		openTaskInformation(target.task(), notes, target.assignmentResourcesTab());
 	}
 
@@ -1778,18 +1781,27 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		Objects.requireNonNull(command, "command");
 		if (getCurrentFrame() == null)
 			return RibbonCommandResult.rejected(command.actionId(), "no-active-document");
-		RibbonCommandResult result = getCurrentFrame().routeTaskCommand(command);
-		return result;
+		DocumentFrame frame = getCurrentFrame();
+		List<Long> selectedTaskIds = frame.getSelectedTaskIds();
+		return frame.routeTaskCommand(command).withSelectedTaskIds(selectedTaskIds);
+	}
+
+	private List<Long> selectedTaskIdsForActiveFrame() {
+		DocumentFrame frame = getCurrentFrame();
+		return frame == null ? List.of() : frame.getSelectedTaskIds();
 	}
 
 	private void publishTaskCommandOutcome(Action action, RibbonCommandResult result) {
-		if (result != null && getCurrentFrame() != null)
-			result = result.withActiveView(getCurrentFrame().getTopViewId());
-		action.putValue("MicroProject.ribbonOutcome", result.status());
-		action.putValue("MicroProject.ribbonReason", result.reason());
-		action.putValue("MicroProject.ribbonAffectedTaskIds", result.affectedTaskIds());
-		action.putValue("MicroProject.ribbonCommandResult", result);
-		action.putValue("MicroProject.ribbonActiveView", result.activeViewId());
+		if (result != null && getCurrentFrame() != null) {
+			DocumentFrame frame = getCurrentFrame();
+			result = result.withActiveView(frame.getTopViewId());
+		}
+		action.putValue(RibbonCommandResult.STATUS_ACTION_PROPERTY, result.status());
+		action.putValue(RibbonCommandResult.REASON_ACTION_PROPERTY, result.reason());
+		action.putValue(RibbonCommandResult.SELECTED_TASK_IDS_ACTION_PROPERTY, result.selectedTaskIds());
+		action.putValue(RibbonCommandResult.AFFECTED_TASK_IDS_ACTION_PROPERTY, result.affectedTaskIds());
+		action.putValue(RibbonCommandResult.RESULT_ACTION_PROPERTY, result);
+		action.putValue(RibbonCommandResult.ACTIVE_VIEW_ACTION_PROPERTY, result.activeViewId());
 		recordRibbonCommandResult(result);
 	}
 
@@ -1830,7 +1842,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		lastRibbonCommandResult = result;
 		logger.fine("UI_COMMAND_RESULT id=" + result.commandId() + " status=" + result.status()
 			+ (result.reason().isEmpty() ? "" : " reason=" + result.reason())
-			+ " selectedTaskIds=" + result.affectedTaskIds()
+			+ " selectedTaskIds=" + result.selectedTaskIds()
+			+ " affectedTaskIds=" + result.affectedTaskIds()
 			+ " activeView=" + result.activeViewId());
 	}
 
@@ -2928,7 +2941,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.LINK.actionId(), "no-active-document"));
 			if (isDocumentActive()) {
 				if (!getCurrentFrame().hasTaskSelection(true, 2, true)) {
-					publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.LINK.actionId(), "selection-too-small"));
+					publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.LINK.actionId(), "selection-too-small")
+						.withSelectedTaskIds(selectedTaskIdsForActiveFrame()));
 					return;
 				}
 				if (beforeActionRoute("link"))
@@ -2944,7 +2958,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.UNLINK.actionId(), "no-active-document"));
 			if (isDocumentActive()) {
 				if (!getCurrentFrame().hasTaskSelection(true, 1, true)) {
-					publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.UNLINK.actionId(), "no-selection"));
+					publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.UNLINK.actionId(), "no-selection")
+						.withSelectedTaskIds(selectedTaskIdsForActiveFrame()));
 					return;
 				}
 				if (beforeActionRoute("unlink"))
@@ -2987,7 +3002,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			if (isDocumentActive() && getCurrentFrame().hasTaskSelection(false, 1, false))
 				publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.EXPAND));
 			else
-				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.EXPAND.actionId(), "no-selection"));
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.EXPAND.actionId(), "no-selection")
+					.withSelectedTaskIds(selectedTaskIdsForActiveFrame()));
 		}
 		protected boolean allowed(boolean enable) {
 			if (enable==false) return true;
@@ -3001,7 +3017,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			if (isDocumentActive() && getCurrentFrame().hasTaskSelection(false, 1, false))
 				publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.COLLAPSE));
 			else
-				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.COLLAPSE.actionId(), "no-selection"));
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.COLLAPSE.actionId(), "no-selection")
+					.withSelectedTaskIds(selectedTaskIdsForActiveFrame()));
 		}
 		protected boolean allowed(boolean enable) {
 			if (enable==false) return true;
@@ -3018,13 +3035,14 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				return;
 			}
 			DocumentFrame frame = getCurrentFrame();
+			java.util.List<Long> selectedTaskIds = frame.getSelectedTaskIds();
 			java.util.List<com.microproject.grouping.core.Node> selectedNodes = frame.getSelectedVisibilityTaskNodes();
 			java.util.List<Long> affectedTaskIds = TaskVisibilityService.affectedHiddenTaskIds(selectedNodes);
 			int changed = TaskVisibilityService.hideSelected(frame.getProject(),
 					selectedNodes, frame.getUndoController());
 			publishTaskCommandOutcome(this, new RibbonCommandResult("HideSelectedTasks",
 				changed > 0 ? RibbonCommandResult.Status.CHANGED : RibbonCommandResult.Status.NO_CHANGE,
-				"", affectedTaskIds));
+				"", selectedTaskIds, affectedTaskIds, ""));
 			setButtonState(frame.getSelectedImpl(), frame.getProject());
 			traceUi("hide-selected result changedTasks=" + changed);
 		}
@@ -3042,11 +3060,12 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				return;
 			}
 			DocumentFrame frame = getCurrentFrame();
+			java.util.List<Long> selectedTaskIds = frame.getSelectedTaskIds();
 			java.util.List<Long> affectedTaskIds = TaskVisibilityService.affectedShownTaskIds(frame.getProject());
 			int changed = TaskVisibilityService.showAll(frame.getProject(), frame.getUndoController());
 			publishTaskCommandOutcome(this, new RibbonCommandResult("ShowAllTasks",
 				changed > 0 ? RibbonCommandResult.Status.CHANGED : RibbonCommandResult.Status.NO_CHANGE,
-				"", affectedTaskIds));
+				"", selectedTaskIds, affectedTaskIds, ""));
 			setButtonState(frame.getSelectedImpl(), frame.getProject());
 			traceUi("show-all result changedTasks=" + changed);
 		}
@@ -3063,7 +3082,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			if (isDocumentActive() && getCurrentFrame().hasTaskSelection(true, 1, false))
 				publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.INDENT));
 			else if (isDocumentActive())
-				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.INDENT.actionId(), "no-selection"));
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.INDENT.actionId(), "no-selection")
+					.withSelectedTaskIds(selectedTaskIdsForActiveFrame()));
 		}
 		protected boolean allowed(boolean enable) {
 			if (enable==false) return true;
@@ -3078,7 +3098,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			if (isDocumentActive() && getCurrentFrame().hasTaskSelection(true, 1, false))
 				publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.OUTDENT));
 			else if (isDocumentActive())
-				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.OUTDENT.actionId(), "no-selection"));
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.OUTDENT.actionId(), "no-selection")
+					.withSelectedTaskIds(selectedTaskIdsForActiveFrame()));
 		}
 		protected boolean allowed(boolean enable) {
 			if (enable==false) return true;

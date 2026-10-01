@@ -268,9 +268,9 @@ class GraphicManagerLinkRouteTest {
 		link.actionPerformed(new ActionEvent(this, ActionEvent.ACTION_PERFORMED, "Link"));
 
 		assertEquals(RibbonCommandResult.Status.REJECTED,
-			link.getValue("MicroProject.ribbonOutcome"));
+			link.getValue(RibbonCommandResult.STATUS_ACTION_PROPERTY));
 		assertEquals("selection-too-small",
-			link.getValue("MicroProject.ribbonReason"));
+			link.getValue(RibbonCommandResult.REASON_ACTION_PROPERTY));
 		assertFalse(documentFrame.linkInvoked);
 	}
 

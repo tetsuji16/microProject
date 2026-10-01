@@ -35,11 +35,6 @@ import com.microproject.ui.diagnostics.UiButtonDiagnostics;
  */
 public final class MenuRibbonCommandSource implements RibbonCommandSource {
 	private static final Logger logger = Logger.getLogger(MenuRibbonCommandSource.class.getName());
-	private static final String OUTCOME_KEY = "MicroProject.ribbonOutcome";
-	private static final String REASON_KEY = "MicroProject.ribbonReason";
-	private static final String AFFECTED_TASK_IDS_KEY = "MicroProject.ribbonAffectedTaskIds";
-	private static final String COMMAND_RESULT_KEY = "MicroProject.ribbonCommandResult";
-	private static final String ACTIVE_VIEW_KEY = "MicroProject.ribbonActiveView";
 	private final ExtToolBarFactory factory;
 	private final Map<String, CommandBinding> bindingsById = new LinkedHashMap<>();
 
@@ -119,11 +114,12 @@ public final class MenuRibbonCommandSource implements RibbonCommandSource {
 		// Semantic properties belong to this invocation.  Leaving the previous
 		// value on the legacy action made a later NO_CHANGE/DISPATCHED click look
 		// like the preceding CHANGED click.
-		action.putValue(OUTCOME_KEY, null);
-		action.putValue(REASON_KEY, null);
-		action.putValue(AFFECTED_TASK_IDS_KEY, null);
-		action.putValue(COMMAND_RESULT_KEY, null);
-		action.putValue(ACTIVE_VIEW_KEY, null);
+		action.putValue(RibbonCommandResult.STATUS_ACTION_PROPERTY, null);
+		action.putValue(RibbonCommandResult.REASON_ACTION_PROPERTY, null);
+		action.putValue(RibbonCommandResult.SELECTED_TASK_IDS_ACTION_PROPERTY, null);
+		action.putValue(RibbonCommandResult.AFFECTED_TASK_IDS_ACTION_PROPERTY, null);
+		action.putValue(RibbonCommandResult.RESULT_ACTION_PROPERTY, null);
+		action.putValue(RibbonCommandResult.ACTIVE_VIEW_ACTION_PROPERTY, null);
 		try {
 			action.actionPerformed(new ActionEvent(invocation.source() == null ? action : invocation.source(),
 				ActionEvent.ACTION_PERFORMED,
@@ -141,18 +137,21 @@ public final class MenuRibbonCommandSource implements RibbonCommandSource {
 	}
 
 	private RibbonCommandResult resultFromAction(String commandId, Action action) {
-		Object completeResult = action.getValue(COMMAND_RESULT_KEY);
+		Object completeResult = action.getValue(RibbonCommandResult.RESULT_ACTION_PROPERTY);
 		if (completeResult instanceof RibbonCommandResult result)
 			return result;
-		Object semantic = action.getValue(OUTCOME_KEY);
-		Object reason = action.getValue(REASON_KEY);
-		Object ids = action.getValue(AFFECTED_TASK_IDS_KEY);
+		Object semantic = action.getValue(RibbonCommandResult.STATUS_ACTION_PROPERTY);
+		Object reason = action.getValue(RibbonCommandResult.REASON_ACTION_PROPERTY);
+		Object selectedIds = action.getValue(RibbonCommandResult.SELECTED_TASK_IDS_ACTION_PROPERTY);
+		Object ids = action.getValue(RibbonCommandResult.AFFECTED_TASK_IDS_ACTION_PROPERTY);
+		List<Long> selected = selectedIds instanceof List<?> list ? list.stream().filter(Number.class::isInstance)
+			.map(value -> ((Number) value).longValue()).toList() : List.of();
 		List<Long> affected = ids instanceof List<?> list ? list.stream().filter(Number.class::isInstance)
 			.map(value -> ((Number) value).longValue()).toList() : List.of();
 		String rejectionReason = reason == null ? "" : reason.toString();
-		String activeView = Objects.toString(action.getValue(ACTIVE_VIEW_KEY), "");
+		String activeView = Objects.toString(action.getValue(RibbonCommandResult.ACTIVE_VIEW_ACTION_PROPERTY), "");
 		if (semantic instanceof RibbonCommandResult.Status status)
-			return new RibbonCommandResult(commandId, status, rejectionReason, affected, activeView);
+			return new RibbonCommandResult(commandId, status, rejectionReason, selected, affected, activeView);
 		return RibbonCommandResult.dispatched(commandId);
 	}
 
@@ -212,8 +211,12 @@ public final class MenuRibbonCommandSource implements RibbonCommandSource {
 		}
 
 		private void publishResult(RibbonCommandResult result) {
-			dispatchAction.putValue(OUTCOME_KEY, result.status());
-			dispatchAction.putValue(AFFECTED_TASK_IDS_KEY, result.affectedTaskIds());
+			dispatchAction.putValue(RibbonCommandResult.STATUS_ACTION_PROPERTY, result.status());
+			dispatchAction.putValue(RibbonCommandResult.REASON_ACTION_PROPERTY, result.reason());
+			dispatchAction.putValue(RibbonCommandResult.SELECTED_TASK_IDS_ACTION_PROPERTY, result.selectedTaskIds());
+			dispatchAction.putValue(RibbonCommandResult.AFFECTED_TASK_IDS_ACTION_PROPERTY, result.affectedTaskIds());
+			dispatchAction.putValue(RibbonCommandResult.RESULT_ACTION_PROPERTY, result);
+			dispatchAction.putValue(RibbonCommandResult.ACTIVE_VIEW_ACTION_PROPERTY, result.activeViewId());
 		}
 
 		private final class RibbonDispatchAction extends AbstractAction {

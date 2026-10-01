@@ -1049,8 +1049,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		RibbonCommandResult previousHideOutcome = manager.getLastRibbonCommandResult();
 		click(robot, boundsOnScreen(hide));
 		GuiAcceptanceSupport.await(task::isHiddenTask, "Hide Selected Tasks did not update the task model");
-		assertRibbonOutcome(manager, previousHideOutcome, RibbonCommandResult.Status.CHANGED, task.getUniqueId());
-		Object affectedIds = hide.getAction().getValue("MicroProject.ribbonAffectedTaskIds");
+		assertRibbonOutcome(manager, previousHideOutcome, RibbonCommandResult.Status.CHANGED,
+			List.of(task.getUniqueId()), List.of(task.getUniqueId()));
+		Object affectedIds = hide.getAction().getValue(RibbonCommandResult.AFFECTED_TASK_IDS_ACTION_PROPERTY);
 		assertTrue(affectedIds instanceof java.util.List<?> ids && ids.contains(task.getUniqueId()),
 				"Hide Selected Tasks semantic result must identify the changed task");
 		GuiAcceptanceSupport.await(() -> !isTaskVisible(sheet, task),
@@ -1089,7 +1090,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, boundsOnScreen(show));
 		GuiAcceptanceSupport.await(() -> !task.isHiddenTask(), "Show All Tasks did not restore the task model");
 		GuiAcceptanceSupport.await(() -> rowForTask(sheet, task) >= 0, "Show All Tasks did not restore the visible task row");
-		assertRibbonOutcome(manager, previousShowOutcome, RibbonCommandResult.Status.CHANGED, task.getUniqueId());
+		assertRibbonOutcome(manager, previousShowOutcome, RibbonCommandResult.Status.CHANGED,
+			List.of(), List.of(task.getUniqueId()));
 	}
 
 	@Test
@@ -2566,14 +2568,23 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	private static void assertRibbonOutcome(GraphicManager manager, RibbonCommandResult previousOutcome,
 			RibbonCommandResult.Status expectedStatus,
 			Long... expectedTaskIds) throws Exception {
+		List<Long> expectedIds = List.of(expectedTaskIds);
+		assertRibbonOutcome(manager, previousOutcome, expectedStatus, expectedIds, expectedIds);
+	}
+
+	private static void assertRibbonOutcome(GraphicManager manager, RibbonCommandResult previousOutcome,
+			RibbonCommandResult.Status expectedStatus, List<Long> expectedSelectedTaskIds,
+			List<Long> expectedAffectedTaskIds) throws Exception {
 		GuiAcceptanceSupport.await(() -> manager.getLastRibbonCommandResult() != null
 				&& manager.getLastRibbonCommandResult() != previousOutcome
 				&& manager.getLastRibbonCommandResult().status() == expectedStatus,
 			"GraphicManager did not record " + expectedStatus + " command outcome");
 		RibbonCommandResult result = manager.getLastRibbonCommandResult();
 		assertEquals(expectedStatus, result.status(), "ribbon command status");
-		assertEquals(List.of(expectedTaskIds), result.affectedTaskIds(), "ribbon command stable task IDs");
-		assertFalse(result.activeViewId().isBlank(), "ribbon command outcome must identify the active view");
+		assertEquals(expectedSelectedTaskIds, result.selectedTaskIds(), "ribbon command selected task IDs");
+		assertEquals(expectedAffectedTaskIds, result.affectedTaskIds(), "ribbon command affected task IDs");
+		assertEquals(manager.getCurrentFrame().getTopViewId(), result.activeViewId(),
+			"ribbon command outcome must identify the independently observed active view");
 	}
 
 	private static Rectangle boundsOnScreen(java.awt.Component component) throws Exception {

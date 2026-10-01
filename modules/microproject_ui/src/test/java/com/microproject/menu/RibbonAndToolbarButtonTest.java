@@ -503,16 +503,19 @@ class RibbonAndToolbarButtonTest {
 	@Test
 	void ribbonDispatchPreservesCompleteSemanticCommandResult() throws Exception {
 		ClickRecordingActionMap actions = new ClickRecordingActionMap();
-		RibbonCommandResult expected = new RibbonCommandResult("RibbonSaveProject",
-			RibbonCommandResult.Status.REJECTED, "selection-stale", List.of(41L), "task");
+		RibbonCommandResult expected = new RibbonCommandResult("RibbonHideSelectedTasks",
+			RibbonCommandResult.Status.CHANGED, "", List.of(7L), List.of(41L), "task");
 		actions.reportResultOnce(expected);
 		MenuRibbonCommandSource source = new MenuRibbonCommandSource(
 			new ExtToolBarFactory(actions, ribbonBundles(Locale.ROOT)));
 		SwingUtilities.invokeAndWait(() -> {
-			source.createButton("RibbonSaveProject");
-			RibbonCommandResult actual = source.dispatch(new RibbonCommandInvocation("RibbonSaveProject",
+			AbstractButton button = source.createButton("RibbonHideSelectedTasks");
+			RibbonCommandResult actual = source.dispatch(new RibbonCommandInvocation("RibbonHideSelectedTasks",
 				RibbonCommandInvocation.Origin.RIBBON_BUTTON, this));
 			assertEquals(expected, actual);
+			assertEquals(List.of(7L), button.getAction().getValue(RibbonCommandResult.SELECTED_TASK_IDS_ACTION_PROPERTY));
+			assertEquals(List.of(41L), button.getAction().getValue(RibbonCommandResult.AFFECTED_TASK_IDS_ACTION_PROPERTY));
+			assertEquals(expected, button.getAction().getValue(RibbonCommandResult.RESULT_ACTION_PROPERTY));
 		});
 	}
 
@@ -810,11 +813,11 @@ class RibbonAndToolbarButtonTest {
 				public void actionPerformed(java.awt.event.ActionEvent event) {
 					clickCounts.merge(actionId, 1, Integer::sum);
 					if (outcomeOnce != null) {
-						putValue("MicroProject.ribbonOutcome", outcomeOnce);
+						putValue(RibbonCommandResult.STATUS_ACTION_PROPERTY, outcomeOnce);
 						outcomeOnce = null;
 					}
 					if (resultOnce != null) {
-						putValue("MicroProject.ribbonCommandResult", resultOnce);
+						putValue(RibbonCommandResult.RESULT_ACTION_PROPERTY, resultOnce);
 						resultOnce = null;
 					}
 				}

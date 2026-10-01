@@ -47,8 +47,9 @@ class CommandRouteMatrixTest {
 			GraphicManager manager = new GraphicManager(new JPanel());
 			Method record = GraphicManager.class.getDeclaredMethod("recordRibbonCommandResult", RibbonCommandResult.class);
 			record.setAccessible(true);
-			record.invoke(manager, RibbonCommandResult.changed("Link", List.of(42L)).withActiveView("task"));
-			assertTrue(messages.toString().contains("selectedTaskIds=[42] activeView=task"));
+			record.invoke(manager, RibbonCommandResult.changed("HideSelectedTasks", List.of(42L))
+				.withSelectedTaskIds(List.of(7L)).withActiveView("task"));
+			assertTrue(messages.toString().contains("selectedTaskIds=[7] affectedTaskIds=[42] activeView=task"));
 		} finally {
 			logger.removeHandler(capture);
 			logger.setLevel(originalLevel);
@@ -73,6 +74,7 @@ class CommandRouteMatrixTest {
 			RibbonCommandResult outcome = (RibbonCommandResult) dispatch.invoke(manager, command);
 			assertEquals(command.actionId(), outcome.commandId());
 			assertEquals(RibbonCommandResult.Status.CHANGED, outcome.status());
+			assertEquals(List.of(7L), outcome.selectedTaskIds());
 			assertEquals(List.of(42L), outcome.affectedTaskIds());
 			assertEquals("task", outcome.activeViewId());
 			assertSame(command, routed.removeFirst());
@@ -108,5 +110,7 @@ class CommandRouteMatrixTest {
 			invocations.merge(command, 1, Integer::sum);
 			return RibbonCommandResult.changed(command.actionId(), List.of(42L)).withActiveView("task");
 		}
+
+		@Override List<Long> getSelectedTaskIds() { return List.of(7L); }
 	}
 }

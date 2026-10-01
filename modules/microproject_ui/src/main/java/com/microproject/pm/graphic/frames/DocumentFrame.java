@@ -1708,6 +1708,10 @@ public class DocumentFrame extends NamedFrame implements
 		return resolveTaskSelection(excludeReadOnly, allowMixedSelection).nodes();
 	}
 
+	List<Long> getSelectedTaskIds() {
+		return resolveTaskSelection(true, true).stableTaskIds();
+	}
+
 	private ActiveTaskSelectionResolver.Selection resolveTaskSelection(boolean excludeReadOnly,
 			boolean allowMixedSelection) {
 		SpreadSheet activeSheet = getActiveSpreadSheet();

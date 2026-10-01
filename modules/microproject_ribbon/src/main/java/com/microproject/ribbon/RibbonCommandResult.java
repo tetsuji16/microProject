@@ -9,8 +9,15 @@ import java.util.Objects;
 import java.util.List;
 
 /** Outcome recorded by the canonical ribbon command route. */
-public record RibbonCommandResult(String commandId, Status status, String reason, List<Long> affectedTaskIds,
-		String activeViewId) {
+public record RibbonCommandResult(String commandId, Status status, String reason, List<Long> selectedTaskIds,
+		List<Long> affectedTaskIds, String activeViewId) {
+	public static final String STATUS_ACTION_PROPERTY = "MicroProject.ribbonOutcome";
+	public static final String REASON_ACTION_PROPERTY = "MicroProject.ribbonReason";
+	public static final String SELECTED_TASK_IDS_ACTION_PROPERTY = "MicroProject.ribbonSelectedTaskIds";
+	public static final String AFFECTED_TASK_IDS_ACTION_PROPERTY = "MicroProject.ribbonAffectedTaskIds";
+	public static final String RESULT_ACTION_PROPERTY = "MicroProject.ribbonCommandResult";
+	public static final String ACTIVE_VIEW_ACTION_PROPERTY = "MicroProject.ribbonActiveView";
+
 	public enum Status {
 		/** The input route accepted the command; asynchronous work may still fail. */
 		DISPATCHED,
@@ -26,18 +33,27 @@ public record RibbonCommandResult(String commandId, Status status, String reason
 		Objects.requireNonNull(commandId, "commandId");
 		Objects.requireNonNull(status, "status");
 		reason = reason == null ? "" : reason;
+		selectedTaskIds = selectedTaskIds == null ? List.of() : List.copyOf(selectedTaskIds);
 		affectedTaskIds = affectedTaskIds == null ? List.of() : List.copyOf(affectedTaskIds);
 		activeViewId = activeViewId == null ? "" : activeViewId;
 	}
 	public RibbonCommandResult(String commandId, Status status, String reason, List<Long> affectedTaskIds) {
-		this(commandId, status, reason, affectedTaskIds, "");
+		this(commandId, status, reason, List.of(), affectedTaskIds, "");
+	}
+	public RibbonCommandResult(String commandId, Status status, String reason, List<Long> affectedTaskIds,
+			String activeViewId) {
+		this(commandId, status, reason, List.of(), affectedTaskIds, activeViewId);
 	}
 	public RibbonCommandResult(String commandId, Status status, String reason) {
 		this(commandId, status, reason, List.of());
 	}
 
 	public RibbonCommandResult withActiveView(String viewId) {
-		return new RibbonCommandResult(commandId, status, reason, affectedTaskIds, viewId);
+		return new RibbonCommandResult(commandId, status, reason, selectedTaskIds, affectedTaskIds, viewId);
+	}
+
+	public RibbonCommandResult withSelectedTaskIds(List<Long> ids) {
+		return new RibbonCommandResult(commandId, status, reason, ids, affectedTaskIds, activeViewId);
 	}
 
 	public static RibbonCommandResult dispatched(String commandId) {

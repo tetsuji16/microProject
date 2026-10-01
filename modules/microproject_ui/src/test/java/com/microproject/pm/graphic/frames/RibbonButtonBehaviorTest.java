@@ -429,7 +429,7 @@ class RibbonButtonBehaviorTest {
 			manualAction.actionPerformed(new ActionEvent(harness.frame, ActionEvent.ACTION_PERFORMED,
 				MenuActionConstants.ACTION_TASK_MODE_MANUAL));
 			assertEquals(RibbonCommandResult.Status.CHANGED,
-				manualAction.getValue("MicroProject.ribbonOutcome"),
+				manualAction.getValue(RibbonCommandResult.STATUS_ACTION_PROPERTY),
 				"Task Mode must publish its semantic command outcome for diagnostics");
 			assertTrue(harness.manager.getAction(MenuActionConstants.ACTION_TASK_MODE_AUTOMATIC).isEnabled());
 			harness.frame.setSelection(List.of(readOnlyNode));
@@ -591,15 +591,23 @@ class RibbonButtonBehaviorTest {
 		assertTrue(harness.task.isHiddenTask(), "execution must hide the group's resolved task member");
 		RibbonCommandResult hideResult = harness.manager.getLastRibbonCommandResult();
 		assertEquals(RibbonCommandResult.Status.CHANGED, hideResult.status());
+		assertNotEquals(hideResult.selectedTaskIds(), hideResult.affectedTaskIds(),
+			"the selected group/task context must remain distinct from its changed member task");
 		assertEquals(List.of(harness.task.getUniqueId()), hideResult.affectedTaskIds());
 		assertEquals(MenuActionConstants.ACTION_GANTT, hideResult.activeViewId());
 		harness.undoController.undo();
 		assertFalse(harness.task.isHiddenTask(), "the visibility command must retain one undo boundary");
 		harness.invoke("RibbonHideSelectedTasks");
+		SwingUtilities.invokeAndWait(() -> {
+			harness.frame.getTopSpreadSheet().clearSelection();
+			harness.frame.setSelection(List.of());
+		});
 		harness.invoke("RibbonShowAllTasks");
 		assertFalse(harness.task.isHiddenTask(), "Show All must restore the hidden task");
 		RibbonCommandResult showResult = harness.manager.getLastRibbonCommandResult();
 		assertEquals(RibbonCommandResult.Status.CHANGED, showResult.status());
+		assertEquals(List.of(), showResult.selectedTaskIds(),
+			"Show All must not report changed tasks as selected rows");
 		assertEquals(List.of(harness.task.getUniqueId()), showResult.affectedTaskIds());
 		assertEquals(MenuActionConstants.ACTION_GANTT, showResult.activeViewId());
 	}
