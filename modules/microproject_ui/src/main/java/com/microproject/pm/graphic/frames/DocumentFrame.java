@@ -1712,10 +1712,10 @@ public class DocumentFrame extends NamedFrame implements
 		// Visibility is also valid for a virtual grouping row.  Do not filter it
 		// through getSelectedTaskNodes() first: that would discard the group before
 		// TaskVisibilitySelectionResolver can expand its member tasks.
-		List<Node> selected = getSelectedNodes(true);
-		if ((selected == null || selected.isEmpty()) && spreadSheet != null
-				&& spreadSheet.getSelectedRows().length > 0)
-			selected = spreadSheet.getSelectedNodes();
+		// Match ordinary task commands: the active spreadsheet owns a physical
+		// row selection even while the frame-level selection event is stale.
+		List<Node> selected = spreadSheet != null && spreadSheet.getSelectedRows().length > 0
+			? spreadSheet.getSelectedNodes() : getSelectedNodes(true);
 		if (selected == null || selected.isEmpty()) return Collections.emptyList();
 		if (spreadSheet == null || !(spreadSheet.getModel() instanceof SpreadSheetModel model))
 			return TaskVisibilitySelectionResolver.resolve(selected, null);

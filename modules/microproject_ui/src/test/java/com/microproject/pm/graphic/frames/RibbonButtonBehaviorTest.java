@@ -346,6 +346,10 @@ class RibbonButtonBehaviorTest {
 			resolvedTasks = harness.frame.getSelectedTaskNodes(true, true);
 			assertEquals(1, resolvedTasks.size());
 			assertSame(harness.secondTask, resolvedTasks.get(0).getImpl());
+			List<Node> visibilityTasks = harness.frame.getSelectedVisibilityTaskNodes();
+			assertEquals(1, visibilityTasks.size());
+			assertSame(harness.secondTask, visibilityTasks.get(0).getImpl(),
+				"Hide Selected must use the same active table row as other task commands");
 			harness.frame.setExecuteIndentForSelectionTest(true);
 			RibbonCommandResult indent = harness.frame.routeTaskCommand(CommandId.INDENT);
 			assertEquals(RibbonCommandResult.Status.CHANGED, indent.status(), indent.reason());
