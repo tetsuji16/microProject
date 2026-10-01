@@ -1666,25 +1666,26 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	}
 
 	/** Canonical Information command: target snapshot, edit teardown, route, view. */
-	private void executeInformation(InformationTarget target, boolean notes) {
+	private boolean executeInformation(InformationTarget target, boolean notes) {
 		if (target == null)
-			return;
+			return false;
 		finishAnyOperations();
 		switch (target.kind()) {
 		case TASK:
-			if (beforeTaskInformationRoute(target.task(), notes, target.assignmentResourcesTab()))
-				openTaskInformation(target.task(), notes, target.assignmentResourcesTab());
-			break;
+			if (!beforeTaskInformationRoute(target.task(), notes, target.assignmentResourcesTab()))
+				return false;
+			openTaskInformation(target.task(), notes, target.assignmentResourcesTab());
+			return informationDialogCoordinator.isTaskDialogVisible();
 		case RESOURCE:
 			if (!beforeResourceInformationRoute(target.resource(), notes))
-				return;
+				return false;
 			informationDialogCoordinator.showResource(getFrame(), getCurrentFrame(), target.resource(), notes);
-			break;
+			return true;
 		case PROJECT:
 			doProjectInformationDialog();
-			break;
+			return true;
 		default:
-			break;
+			return false;
 		}
 	}
 
@@ -1728,13 +1729,12 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	private void showTaskInformationForSelection(Action action, boolean notes) {
 		traceUi("task-information.command received notes=" + notes);
 		InformationTarget target = resolveInformationTarget(false, true, false);
-		executeInformation(target, notes);
+		boolean opened = executeInformation(target, notes);
 		List<Long> affectedTaskIds = target != null && target.kind() == InformationTargetKind.TASK
 			? List.of(target.task().getId()) : List.of();
-		boolean visible = informationDialogCoordinator.isTaskDialogVisible();
 		publishTaskCommandOutcome(action, new RibbonCommandResult("RibbonTaskInformation",
-			visible ? RibbonCommandResult.Status.DISPATCHED : RibbonCommandResult.Status.FAILED,
-			visible ? "" : "dialog-not-visible", affectedTaskIds));
+			opened ? RibbonCommandResult.Status.DISPATCHED : RibbonCommandResult.Status.FAILED,
+			opened ? "" : "dialog-not-opened", affectedTaskIds));
 	}
 
 	private void showResourceInformationForSelection(boolean notes) {
