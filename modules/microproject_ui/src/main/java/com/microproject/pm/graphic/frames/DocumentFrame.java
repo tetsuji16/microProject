@@ -1680,15 +1680,13 @@ public class DocumentFrame extends NamedFrame implements
 		// a task command against every task in the project.
 		if (activeSheet != null && activeSheet.isHeaderColumnSelectionActive())
 			return Collections.emptyList();
-		List<Node> nodes = getSelectedNodes(excludeReadOnly);
-		// A few integrations override the frame-level selection provider while the
-		// JTable still owns the physical selection.  Resolve that fallback here so
-		// every command route observes the same active task-table selection.
-		if (nodes == null || nodes.isEmpty()) {
-			SpreadSheet sheet = activeSheet;
-			if (sheet != null && sheet.getSelectedRows().length > 0)
-				nodes = sheet.getSelectedNodes();
-		}
+		// The active table owns the user's physical row selection whenever it has
+		// one. The frame-level provider can lag during editor commit or projection
+		// refresh, so consulting it first made command enablement disagree with the
+		// rows the command would mutate. Keep this as the one resolver used by both
+		// enablement and execution.
+		List<Node> nodes = activeSheet != null && activeSheet.getSelectedRows().length > 0
+			? activeSheet.getSelectedNodes() : getSelectedNodes(excludeReadOnly);
 		if (nodes == null || nodes.isEmpty())
 			return Collections.emptyList();
 		ArrayList<Node> taskNodes = new ArrayList<>(nodes.size());
@@ -1697,7 +1695,8 @@ public class DocumentFrame extends NamedFrame implements
 				continue;
 			Object impl = node.getImpl();
 			if (impl instanceof Task) {
-				taskNodes.add(node);
+				if (!excludeReadOnly || !ClassUtils.isObjectReadOnly(impl))
+					taskNodes.add(node);
 			} else if (!allowMixedSelection) {
 				return Collections.emptyList();
 			}

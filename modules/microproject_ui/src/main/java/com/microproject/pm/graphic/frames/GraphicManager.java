@@ -4147,15 +4147,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		// same stable task selection that execution uses, not that stale singleton.
 		List<com.microproject.grouping.core.Node> selectedTaskNodes = getCurrentFrame() == null
 			? java.util.List.of() : getCurrentFrame().getSelectedTaskNodes(false, true);
-		// While a reused cell editor owns focus, the frame provider can lag the
-		// JTable selection by one event. The active sheet is the authoritative
-		// physical selection owner; prefer its typed task nodes when available.
-		if (getCurrentFrame() != null && getCurrentFrame().getActiveSpreadSheet() != null
-				&& getCurrentFrame().getActiveSpreadSheet().getSelectedRows().length > 0) {
-			List<com.microproject.grouping.core.Node> tableTasks = getCurrentFrame().getActiveSpreadSheet().getSelectedNodes().stream()
-				.filter(node -> node != null && node.getImpl() instanceof Task).toList();
-			if (!tableTasks.isEmpty()) selectedTaskNodes = tableTasks;
-		}
 		boolean isTask = currentImpl instanceof Task || !selectedTaskNodes.isEmpty();
 		boolean isResource = currentImpl != null && currentImpl instanceof Resource;
 		boolean isLinkedSubproject = currentImpl instanceof SubProj;

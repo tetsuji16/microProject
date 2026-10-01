@@ -315,6 +315,31 @@ class RibbonButtonBehaviorTest {
 			// The first task is at the root and therefore cannot be outdented;
 			// selection still enables the hierarchy command that is applicable.
 			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_OUTDENT).isEnabled());
+
+			// A deferred frame selection can still expose the previous pair while
+			// the active JTable already owns one selected row. Enablement and command
+			// execution must both resolve the active table's typed selection.
+			harness.frame.setSelection(List.of(harness.taskNode, harness.secondTaskNode));
+			List<Node> resolvedTasks = harness.frame.getSelectedTaskNodes(false, true);
+			assertEquals(1, resolvedTasks.size());
+			assertSame(harness.task, resolvedTasks.get(0).getImpl());
+			harness.manager.setButtonState(harness.task, harness.project);
+			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_LINK).isEnabled(),
+				"one physical row must not enable Link from a stale two-task frame selection");
+			harness.frame.setExecuteLinkForSelectionTest(true);
+			RibbonCommandResult rejectedLink = harness.frame.routeTaskCommand(CommandId.LINK);
+			assertEquals(RibbonCommandResult.Status.REJECTED, rejectedLink.status(), rejectedLink.reason());
+			assertTrue(harness.secondTask.getPredecessorList().isEmpty(),
+				"execution must use the same one-row selection and leave dependencies unchanged");
+
+			harness.frame.getTopSpreadSheet().setRowSelectionInterval(0, 1);
+			resolvedTasks = harness.frame.getSelectedTaskNodes(false, true);
+			assertEquals(2, resolvedTasks.size());
+			assertSame(harness.task, resolvedTasks.get(0).getImpl());
+			assertSame(harness.secondTask, resolvedTasks.get(1).getImpl());
+			harness.manager.setButtonState(harness.task, harness.project);
+			assertTrue(harness.manager.getAction(MenuActionConstants.ACTION_LINK).isEnabled(),
+				"two physical task rows must enable Link from the same resolver used at execution");
 		});
 	}
 
@@ -1188,6 +1213,7 @@ class RibbonButtonBehaviorTest {
 		private List<Node> selectedNodes;
 		private final Map<String, Integer> structuralCalls = new LinkedHashMap<>();
 		private final Map<Boolean, Integer> baselineDialogCalls = new LinkedHashMap<>();
+		private boolean executeLinkForSelectionTest;
 
 		TestDocumentFrame(GraphicManager parentFrame, Project project) {
 			super(parentFrame, project, "ribbon-test");
@@ -1195,6 +1221,10 @@ class RibbonButtonBehaviorTest {
 
 		void setSelection(List<Node> nodes) {
 			selectedNodes = nodes;
+		}
+
+		void setExecuteLinkForSelectionTest(boolean execute) {
+			executeLinkForSelectionTest = execute;
 		}
 
 		@Override
@@ -1270,6 +1300,10 @@ class RibbonButtonBehaviorTest {
 
 		@Override
 		public void doLinkTasks() {
+			if (executeLinkForSelectionTest) {
+				super.doLinkTasks();
+				return;
+			}
 			recordStructuralCall("RibbonLink");
 		}
 
