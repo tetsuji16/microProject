@@ -48,6 +48,7 @@ import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JPopupMenu;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import javax.swing.text.JTextComponent;
 
@@ -2702,10 +2703,23 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		for (Component component : container.getComponents()) {
 			if (component instanceof JLabel label) text.append(label.getText());
 			if (component instanceof JTextComponent textComponent) text.append(textComponent.getText());
+			if (component instanceof JOptionPane optionPane) appendMessageText(optionPane.getMessage(), text);
 			if (component instanceof java.awt.Container child) text.append(componentText(child));
 		}
 		return text.toString().replaceAll("(?i)<br\\s*/?>", " ")
 				.replaceAll("<[^>]+>", " ").replaceAll("\\s+", " ");
+	}
+
+	private static void appendMessageText(Object message, StringBuilder text) {
+		if (message instanceof Object[] messages) {
+			for (Object item : messages) appendMessageText(item, text);
+		} else if (message instanceof Component component) {
+			if (component instanceof JLabel label) text.append(label.getText());
+			if (component instanceof JTextComponent textComponent) text.append(textComponent.getText());
+			if (component instanceof java.awt.Container container) text.append(componentText(container));
+		} else if (message != null) {
+			text.append(message);
+		}
 	}
 
 	private static boolean isTaskVisibleInGantt(Gantt gantt, NormalTask task) {
