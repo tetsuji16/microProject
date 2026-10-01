@@ -46,6 +46,7 @@ import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeFactory;
 import com.microproject.pm.graphic.gantt.Gantt;
 import com.microproject.pm.graphic.frames.GraphicManager;
+import com.microproject.pm.graphic.frames.DocumentFrame;
 import com.microproject.pm.graphic.frames.MainRibbonFrame;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
@@ -353,9 +354,17 @@ class MasterSubprojectMpoGuiAcceptanceTest {
 		manager.openForTest(firstIndependentFile.getAbsolutePath());
 		GuiAcceptanceSupport.await(() -> graphicManager.findFrameForProjectFile(firstIndependentFile.getAbsolutePath()) != null,
 				"the first independent project did not open");
+		Project firstIndependent = graphicManager.findFrameForProjectFile(firstIndependentFile.getAbsolutePath()).getProject();
+		assertFalse(firstIndependent.isMaster(), "an independent document must not inherit the master's marker");
+		assertFalse(firstIndependent.needsSaving(), "opening an independent document must not dirty its project");
+		assertDocumentTitleMatchesProject(firstIndependent, "Independent one");
 		manager.openForTest(secondIndependentFile.getAbsolutePath());
 		GuiAcceptanceSupport.await(() -> graphicManager.findFrameForProjectFile(secondIndependentFile.getAbsolutePath()) != null,
 				"the second independent project did not open");
+		Project secondIndependent = graphicManager.findFrameForProjectFile(secondIndependentFile.getAbsolutePath()).getProject();
+		assertFalse(secondIndependent.isMaster(), "a second independent document must not inherit the master's marker");
+		assertFalse(secondIndependent.needsSaving(), "opening a second independent document must not dirty its project");
+		assertDocumentTitleMatchesProject(secondIndependent, "Independent two");
 		boolean[] openedChild = new boolean[1];
 		SwingUtilities.invokeAndWait(() -> openedChild[0] = graphicManager.activateSubproject(findSubproject(runtimeMaster)));
 		assertTrue(openedChild[0],
@@ -366,7 +375,8 @@ class MasterSubprojectMpoGuiAcceptanceTest {
 				"the opened child must have its own DocumentFrame");
 		SwingUtilities.invokeAndWait(() -> graphicManager.getFrameManager().arrangeAll(
 				com.microproject.pm.graphic.frames.workspace.FrameManager.WindowArrangement.TILE));
-		capture(new Robot(), "msp-master-four-window-navigation.png");
+		assertDesktopWindowsAreTiled(4);
+		captureDesktop(new Robot(), "msp-master-four-window-navigation.png");
 	}
 
 	/** GUI-MSP-SAVE-01: saving a clean master persists a dirty linked child. */
@@ -589,6 +599,58 @@ class MasterSubprojectMpoGuiAcceptanceTest {
 			bounds.setBounds(point.x, point.y, target.getWidth(), target.getHeight());
 			target.toFront();
 		});
+		BufferedImage image = robot.createScreenCapture(bounds);
+		Path artifact = Path.of(System.getProperty("microproject.gui.artifacts.dir", "build/guiTest-artifacts"),
+				artifactName);
+		Files.createDirectories(artifact.getParent());
+		ImageIO.write(image, "png", artifact.toFile());
+	}
+
+	private void assertDesktopWindowsAreTiled(int expectedCount) throws Exception {
+		java.util.List<Window> documentWindows = new java.util.ArrayList<>();
+		// The primary project lives directly in the application frame; secondary
+		// documents each have their own top-level JFrame. Verify by actual content
+		// ownership rather than title text, which is the behavior under test here.
+		SwingUtilities.invokeAndWait(() -> {
+			for (Window candidate : Window.getWindows()) {
+				if (!(candidate instanceof JFrame) || !candidate.isShowing()) continue;
+				if (containsDocumentFrame((Container) candidate)) documentWindows.add(candidate);
+			}
+			assertEquals(expectedCount, documentWindows.size(), "every open document must have a visible top-level window");
+			Rectangle workArea = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
+			for (int i = 0; i < documentWindows.size(); i++) {
+				Rectangle bounds = documentWindows.get(i).getBounds();
+				assertTrue(workArea.contains(bounds), "document window must fit within the desktop work area: " + bounds);
+				for (int j = i + 1; j < documentWindows.size(); j++)
+					assertFalse(bounds.intersects(documentWindows.get(j).getBounds()),
+						"tiled document windows must not overlap: " + bounds + " and " + documentWindows.get(j).getBounds());
+			}
+		});
+	}
+
+	private void assertDocumentTitleMatchesProject(Project project, String expectedName) throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			JFrame owner = java.util.Arrays.stream(Window.getWindows())
+				.filter(JFrame.class::isInstance).map(JFrame.class::cast)
+				.filter(window -> expectedName.equals(window.getTitle()) || window.getTitle().contains(expectedName))
+				.findFirst().orElseThrow(() -> new AssertionError("No native window title for " + expectedName));
+			String title = owner.getTitle();
+			assertTrue(title.contains(expectedName), "native title must name its own project: " + title);
+			assertEquals(project.isMaster(), title.contains("[Master]"), "native master marker must match the window's project: " + title);
+			assertEquals(project.needsSaving(), title.endsWith("*"), "native dirty marker must match the window's project: " + title);
+		});
+	}
+
+	private static boolean containsDocumentFrame(java.awt.Container container) {
+		for (Component component : container.getComponents()) {
+			if (component instanceof DocumentFrame) return true;
+			if (component instanceof java.awt.Container child && containsDocumentFrame(child)) return true;
+		}
+		return false;
+	}
+
+	private void captureDesktop(Robot robot, String artifactName) throws Exception {
+		Rectangle bounds = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
 		BufferedImage image = robot.createScreenCapture(bounds);
 		Path artifact = Path.of(System.getProperty("microproject.gui.artifacts.dir", "build/guiTest-artifacts"),
 				artifactName);
