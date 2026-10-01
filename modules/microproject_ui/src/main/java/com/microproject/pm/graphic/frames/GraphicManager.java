@@ -4175,7 +4175,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled(ACTION_LINK, !readOnly && hasLinkSelection);
 		getMenuManager().setActionEnabled(ACTION_UNLINK, !readOnly && hasOneTaskSelection);
 		getMenuManager().setActionEnabled(ACTION_HIDE_SELECTED_TASKS,
-				!readOnly && getCurrentFrame() != null && getCurrentFrame().hasTaskSelection(true, 1, true));
+				!readOnly && getCurrentFrame() != null
+					&& !getCurrentFrame().getSelectedVisibilityTaskNodes().isEmpty());
 		getMenuManager().setActionEnabled(ACTION_SHOW_ALL_TASKS,
 				!readOnly && TaskVisibilityService.hasHiddenTasks(project));
 		getMenuManager().setActionEnabled(ACTION_ASSIGN_RESOURCES,isTask && writable);
