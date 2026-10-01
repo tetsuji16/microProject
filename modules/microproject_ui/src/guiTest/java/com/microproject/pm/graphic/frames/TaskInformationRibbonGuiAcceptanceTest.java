@@ -121,6 +121,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	private boolean previousRibbonUi;
 	private boolean previousNewLook;
 	private boolean previousClientSide;
+	private boolean previousBatchMode;
 	private String previousUiDebug;
 	private JobQueue previousJobQueue;
 	private Locale previousFormatLocale;
@@ -128,6 +129,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	@BeforeEach
 	void captureClientSide() {
 		previousClientSide = Environment.isClientSide();
+		previousBatchMode = Environment.isBatchMode();
 	}
 
 	@AfterEach
@@ -148,6 +150,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Environment.setRibbonUI(previousRibbonUi);
 		Environment.setNewLook(previousNewLook);
 		Environment.setClientSide(previousClientSide);
+		Environment.setBatchMode(previousBatchMode);
 		if (previousUiDebug == null)
 			System.clearProperty("microproject.ui.debug");
 		else
@@ -2029,6 +2032,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
 		Environment.setClientSide(true);
+		Environment.setBatchMode(false);
+		assertTrue(Alert.allowPopups(), "the lock rejection acceptance test requires interactive alerts");
 		NormalTask target = createTask();
 		Project project = target.getOwningProject();
 		NormalTask companion = project.createScriptedTask();
