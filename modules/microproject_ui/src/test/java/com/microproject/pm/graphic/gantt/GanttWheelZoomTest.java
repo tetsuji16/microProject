@@ -9,6 +9,7 @@ import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
+import java.time.Instant;
 
 import javax.swing.JPanel;
 import javax.swing.JScrollBar;
@@ -193,6 +194,10 @@ class GanttWheelZoomTest {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
 		ResourcePool resourcePool = ResourcePool.createRourcePool("wheel-zoom-test", undoController);
 		Project project = Project.createProject(resourcePool, undoController);
+		// Keep the chart's time origin independent of wall-clock and host timezone.
+		long projectStart = Instant.parse("2025-01-06T08:00:00Z").toEpochMilli();
+		project.setStart(projectStart);
+		project.setEnd(projectStart + 30L * 24 * 60 * 60 * 1000);
 		return new Gantt(project, "Gantt");
 	}
 
