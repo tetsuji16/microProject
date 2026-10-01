@@ -724,7 +724,9 @@ class RibbonExternalCommandGuiAcceptanceTest {
 
 	private void verifyNativeChooserEscape(Robot robot, GuiCommand openCommand, AtomicBoolean chooserCallStarted,
 			AtomicBoolean chooserCallReturned, AtomicBoolean chooserCancelled, String route) throws Exception {
-		activateWindowForRobot(robot);
+		// Native Windows choosers are external top-level windows. Do not place the
+		// owner above them in the test window's z-order while exercising this route.
+		activateWindowForRobot(robot, false);
 		chooserCallStarted.set(false);
 		chooserCallReturned.set(false);
 		chooserCancelled.set(false);
@@ -892,10 +894,14 @@ class RibbonExternalCommandGuiAcceptanceTest {
 	 * activation policy of the desktop hosting Gradle.
 	 */
 	private void activateWindowForRobot(Robot robot) throws Exception {
+		activateWindowForRobot(robot, true);
+	}
+
+	private void activateWindowForRobot(Robot robot, boolean alwaysOnTop) throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			window.toFront();
 			window.requestFocus();
-			window.setAlwaysOnTop(true);
+			window.setAlwaysOnTop(alwaysOnTop);
 		});
 		Point location = window.getLocationOnScreen();
 		// The Alt transition grants a foreground activation opportunity on
