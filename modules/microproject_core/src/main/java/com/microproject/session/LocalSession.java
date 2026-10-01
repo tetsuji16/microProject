@@ -378,6 +378,11 @@ public class LocalSession extends AbstractSession{
 	    				project.setMaster(true); //local project is always master
 	    				project.setLocal(true);
 	    			}
+					// Importers may mark the model dirty while normalizing serialized
+					// metadata. Those changes are part of opening the document, not edits
+					// made by the user; establish the clean baseline after all load-time
+					// identity and locality adjustments are complete.
+					project.setGroupDirty(false);
 	     			setProgress(1.0f);
 	                return project;
 	 			
