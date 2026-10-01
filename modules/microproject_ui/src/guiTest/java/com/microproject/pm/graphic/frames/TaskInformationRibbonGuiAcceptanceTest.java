@@ -1833,6 +1833,12 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> second.getWbsParentTask() == null,
 				"Outdent did not restore the selected task to the top level");
 		assertRibbonOutcome(manager, previousOutdentOutcome, RibbonCommandResult.Status.CHANGED, second.getUniqueId());
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> second.getWbsParentTask() == first,
+				"Ctrl+Z did not undo Outdent");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> second.getWbsParentTask() == null,
+				"Ctrl+Y did not redo Outdent");
 
 		ByteArrayOutputStream saved = new ByteArrayOutputStream();
 		assertTrue(new MpoFileImporter().saveProject(project, saved),
@@ -2206,6 +2212,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"link test project did not become visible");
 		Robot robot = new Robot();
 		robot.setAutoDelay(45);
+		Gantt gantt = manager.getCurrentFrame().getGanttView().getGantt();
+		assertEquals(0, gantt.getModel().getCache().getEdgesSize(), "fixture must start without Gantt dependencies");
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, predecessor), nameColumn(sheet)));
 		robot.keyPress(KeyEvent.VK_SHIFT);
@@ -2225,6 +2233,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, boundsOnScreen(link));
 		GuiAcceptanceSupport.await(() -> successor.getPredecessorList().size() == 1,
 				"Link did not create a dependency between the selected tasks");
+		GuiAcceptanceSupport.await(() -> gantt.getModel().getCache().getEdgesSize() == 1,
+				"Link did not create one visible Gantt dependency");
 		assertRibbonOutcome(manager, previousLinkOutcome, RibbonCommandResult.Status.CHANGED,
 			predecessor.getUniqueId(), successor.getUniqueId());
 		ByteArrayOutputStream saved = new ByteArrayOutputStream();
@@ -2246,13 +2256,15 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		robot.keyRelease(KeyEvent.VK_Z);
 		robot.keyRelease(KeyEvent.VK_CONTROL);
 		robot.waitForIdle();
-		GuiAcceptanceSupport.await(() -> successor.getPredecessorList().isEmpty(), "Ctrl+Z did not undo the link");
+		GuiAcceptanceSupport.await(() -> successor.getPredecessorList().isEmpty()
+				&& gantt.getModel().getCache().getEdgesSize() == 0, "Ctrl+Z did not undo the link");
 		robot.keyPress(KeyEvent.VK_CONTROL);
 		robot.keyPress(KeyEvent.VK_Y);
 		robot.keyRelease(KeyEvent.VK_Y);
 		robot.keyRelease(KeyEvent.VK_CONTROL);
 		robot.waitForIdle();
-		GuiAcceptanceSupport.await(() -> successor.getPredecessorList().size() == 1, "Ctrl+Y did not redo the link");
+		GuiAcceptanceSupport.await(() -> successor.getPredecessorList().size() == 1
+				&& gantt.getModel().getCache().getEdgesSize() == 1, "Ctrl+Y did not redo the link");
 
 		AbstractButton unlink = findShowingButtonByCommand("RibbonUnlink");
 		GuiAcceptanceSupport.await(unlink::isEnabled, "Unlink became disabled after link creation");
@@ -2263,8 +2275,22 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, boundsOnScreen(unlink));
 		GuiAcceptanceSupport.await(() -> successor.getPredecessorList().isEmpty(),
 				"Unlink did not remove the dependency between the selected tasks");
+		GuiAcceptanceSupport.await(() -> gantt.getModel().getCache().getEdgesSize() == 0,
+				"Unlink did not remove the visible Gantt dependency");
 		assertRibbonOutcome(manager, previousUnlinkOutcome, RibbonCommandResult.Status.CHANGED,
 			predecessor.getUniqueId(), successor.getUniqueId());
+		ByteArrayOutputStream unlinkedSnapshot = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, unlinkedSnapshot),
+				"MPO save did not accept the project after the physical Unlink command");
+		Project unlinkedReload = new MpoFileImporter().loadProject(new ByteArrayInputStream(unlinkedSnapshot.toByteArray()));
+		assertEquals(0, taskNamed(unlinkedReload, "Link successor").getPredecessorList().size(),
+				"MPO reload restored the dependency removed through the ribbon");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> successor.getPredecessorList().size() == 1
+				&& gantt.getModel().getCache().getEdgesSize() == 1, "Ctrl+Z did not undo Unlink");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> successor.getPredecessorList().isEmpty()
+				&& gantt.getModel().getCache().getEdgesSize() == 0, "Ctrl+Y did not redo Unlink");
 	}
 
 	@Test
