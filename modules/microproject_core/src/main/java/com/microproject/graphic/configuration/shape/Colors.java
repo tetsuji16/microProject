@@ -352,7 +352,7 @@ public class Colors {
 			synchronized (Colors.class) {
 				result = colorMap;
 				if (result == null) {
-					Map<String, Color> m = new HashMap<>(data.length * 4 / 3 + 1);
+					Map<String, Color> m = HashMap.newHashMap(data.length);
 					for (int i = 0; i < data.length; i++) {
 						Object row[] = data[i];
 						m.put((String) row[0], (Color) row[1]);

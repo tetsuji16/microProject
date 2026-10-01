@@ -115,7 +115,7 @@ final class RibbonCommandCatalog {
 				commandOccurrences += band.getButtons().size();
 			}
 		}
-		Map<String, Set<String>> tabsByCommand = new LinkedHashMap<>(commandOccurrences * 4 / 3 + 1);
+		Map<String, Set<String>> tabsByCommand = LinkedHashMap.newLinkedHashMap(commandOccurrences);
 		for (SwingRibbonModel.RibbonTab tab : model.getTabs()) {
 			for (SwingRibbonModel.RibbonBand band : tab.getBands()) {
 				for (SwingRibbonModel.RibbonButton button : band.getButtons()) {

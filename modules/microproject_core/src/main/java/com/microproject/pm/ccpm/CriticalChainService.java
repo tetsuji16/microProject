@@ -345,7 +345,7 @@ public final class CriticalChainService {
 		Baseline baseline = findBaselineStatic(project);
 		if (baseline == null || baseline.allResources()) return null;
 		List<Resource> projectResources = project.getResourcePool().getResourceList();
-		Map<Long, Resource> byId = new LinkedHashMap<>(Math.max(4, projectResources.size() * 4 / 3 + 1));
+		Map<Long, Resource> byId = LinkedHashMap.newLinkedHashMap(projectResources.size());
 		for (Resource resource : projectResources) byId.put(Long.valueOf(resource.getUniqueId()), resource);
 		List<Resource> selected = new ArrayList<>(baseline.resourceIds().size());
 		for (Long id : baseline.resourceIds()) {
@@ -389,8 +389,7 @@ public final class CriticalChainService {
 
 	private Analysis analyze(Project project, ResourceLevelingService.Plan plan, Settings settings, Collection<? extends Resource> selectedResources) {
 		java.util.Set<Task> criticalSet = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<Task, Boolean>());
-		int taskCapacity = Math.max(4, project.getTaskList().size() * 4 / 3 + 1);
-		Map<Long, Task> tasksById = new LinkedHashMap<>(taskCapacity);
+		Map<Long, Task> tasksById = LinkedHashMap.newLinkedHashMap(project.getTaskList().size());
 		for (Task task : ProjectHierarchyQueries.outline(project)) {
 			tasksById.put(Long.valueOf(task.getUniqueId()), task);
 			if (!task.isSummary() && task.isCritical()) {
@@ -422,7 +421,7 @@ public final class CriticalChainService {
 			ids.add(Long.valueOf(task.getUniqueId()));
 			chainDuration += Math.max(0L, Duration.millis(task.getDuration()));
 		}
-		Map<Long, Long> feeding = new LinkedHashMap<>(Math.max(4, criticalTasks.size() * 4 / 3 + 1));
+		Map<Long, Long> feeding = LinkedHashMap.newLinkedHashMap(criticalTasks.size());
 		for (Task critical : criticalTasks) {
 			long feederDuration = 0L;
 			for (Object value : critical.getPredecessorList()) {
@@ -445,7 +444,7 @@ public final class CriticalChainService {
 		boolean baselineMatches = baseline != null && Double.compare(baseline.bufferFraction(), settings.getBufferFraction()) == 0;
 		Buffer projectBuffer = buffer(baselineMatches ? baseline.projectBufferMillis() : recommendedProjectBuffer,
 			baselineMatches ? Math.max(0L, project.getEnd() - baseline.projectFinishMillis()) : 0L);
-		Map<Long, Buffer> feedingBuffers = new LinkedHashMap<>(Math.max(4, feeding.size() * 4 / 3 + 1));
+		Map<Long, Buffer> feedingBuffers = LinkedHashMap.newLinkedHashMap(feeding.size());
 		for (Map.Entry<Long, Long> entry : feeding.entrySet()) {
 			long planned = baselineMatches ? baseline.feedingBufferMillis().getOrDefault(entry.getKey(), entry.getValue()) : entry.getValue();
 			Task target = tasksById.get(entry.getKey());
@@ -458,7 +457,7 @@ public final class CriticalChainService {
 
 	private static Map<Long, Buffer> resourceBuffers(Collection<? extends Resource> selectedResources, Settings settings, Project project) {
 		Collection<? extends Resource> resources = selectedResources == null ? project.getResourcePool().getResourceList() : selectedResources;
-		Map<Long, Buffer> result = new LinkedHashMap<>(Math.max(4, resources.size() * 4 / 3 + 1));
+		Map<Long, Buffer> result = LinkedHashMap.newLinkedHashMap(resources.size());
 		for (Resource resource : resources) {
 			long planned = 0L;
 			long consumed = 0L;
@@ -552,9 +551,8 @@ public final class CriticalChainService {
 	}
 
 	private static Map<Long, Long> taskStarts(Project project, Collection<Long> ids) {
-		Map<Long, Long> result = new LinkedHashMap<>(Math.max(4, ids.size() * 4 / 3 + 1));
-		int taskCapacity = Math.max(4, project.getTaskList().size() * 4 / 3 + 1);
-		Map<Long, Task> tasksById = new LinkedHashMap<>(taskCapacity);
+		Map<Long, Long> result = LinkedHashMap.newLinkedHashMap(ids.size());
+		Map<Long, Task> tasksById = LinkedHashMap.newLinkedHashMap(project.getTaskList().size());
 		for (Task task : ProjectHierarchyQueries.outline(project)) {
 			tasksById.put(Long.valueOf(task.getUniqueId()), task);
 		}

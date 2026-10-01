@@ -407,7 +407,7 @@ public final class ResourceLevelingService {
 	}
 
 	private static List<Conflict> deduplicate(List<Conflict> values) {
-		Map<String, Conflict> unique = new LinkedHashMap<>(Math.max(4, values.size() * 4 / 3 + 1));
+		Map<String, Conflict> unique = LinkedHashMap.newLinkedHashMap(values.size());
 		for (Conflict value : values) {
 			String key = value.resource().getUniqueId() + ":" + value.task().getUniqueId() + ":" + value.reason();
 			unique.put(key, value);

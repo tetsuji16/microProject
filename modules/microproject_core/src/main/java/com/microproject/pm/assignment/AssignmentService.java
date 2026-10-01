@@ -134,7 +134,7 @@ public class AssignmentService {
 		BatchUpdate batchUpdate = new BatchUpdate();
 		List<Assignment> created = new ArrayList<Assignment>(replacements.size());
 		int detailCapacity = undo ? replacements.size() + 1 : 0;
-		Map<Assignment, Object> detailBefore = new LinkedHashMap<>(Math.max(4, detailCapacity * 4 / 3 + 1));
+		Map<Assignment, Object> detailBefore = LinkedHashMap.newLinkedHashMap(detailCapacity);
 		if (undo)
 			detailBefore.put(source, source.backupDetail());
 		boolean sourceHasActualWork = source.getActualWork(null) > 0L;
@@ -180,7 +180,7 @@ public class AssignmentService {
 			return List.of();
 		Project sourceProject = ((NormalTask) source.getTask()).getProject();
 		ResourcePool resourcePool = null;
-		Set<Resource> unique = new LinkedHashSet<>(replacementResources.size() * 4 / 3 + 1);
+		Set<Resource> unique = LinkedHashSet.newLinkedHashSet(replacementResources.size());
 		for (Resource resource : replacementResources) {
 			if (resource == null || resource == source.getResource()
 					|| ((NormalTask) source.getTask()).findAssignment(resource) != null)

@@ -520,8 +520,8 @@ private static int autoId = 0;
 	}
 
 	private static final class ExportIdAllocator {
-		private final Map<IdNamespace, Map<Long, Integer>> idsByNamespace = new HashMap<>(IdNamespace.values().length * 4 / 3 + 1);
-		private final Map<IdNamespace, Integer> nextIds = new HashMap<>(IdNamespace.values().length * 4 / 3 + 1);
+		private final Map<IdNamespace, Map<Long, Integer>> idsByNamespace = HashMap.newHashMap(IdNamespace.values().length);
+		private final Map<IdNamespace, Integer> nextIds = HashMap.newHashMap(IdNamespace.values().length);
 
 		int get(IdNamespace namespace, long sourceId) {
 			Map<Long, Integer> ids = idsByNamespace.get(namespace);

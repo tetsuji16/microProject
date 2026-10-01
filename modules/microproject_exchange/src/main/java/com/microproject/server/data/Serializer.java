@@ -337,7 +337,7 @@ public class Serializer {
 		taskLinker.addOutline(project.getTaskOutlineRoot());
 		long projectId = project.getUniqueId();
 		Collection<TaskData> taskDataCollection=getTaskDataCollection(projectData);
-		Map<Task, TaskData> externalTaskData=new HashMap<>(project.getTaskList().size() * 4 / 3 + 1);
+		Map<Task, TaskData> externalTaskData = HashMap.newHashMap(project.getTaskList().size());
         //dependencies
         //Count depCount=new Count("Dependencies");
         for (Task outlineTask : ProjectHierarchyQueries.outline(project)) {
@@ -528,7 +528,7 @@ public class Serializer {
     	if (incrementalDistributions&&distMap.size()>0){
 			List<Task> outline = ProjectHierarchyQueries.outline(project);
 			int expectedUnchangedTasks = incremental ? outline.size() : 0;
-			Set<Long> noChangeTaskIds=new HashSet<>(Math.max(4, expectedUnchangedTasks * 4 / 3 + 1));
+			Set<Long> noChangeTaskIds = HashSet.newHashSet(expectedUnchangedTasks);
 
 			for (Task task : outline) {
 				if(incremental&&!task.isDirty()) noChangeTaskIds.add(task.getUniqueId());
@@ -671,7 +671,7 @@ public class Serializer {
     	resourcePool.setLocal(project.isLocal());
     	resourcePool.updateOutlineTypes();
 	    Collection<ResourceData> resources=(Collection<ResourceData>)(Collection<?>)projectData.getResources();
-    final Map<Object, Node> resourceNodeMap = resources == null ? new HashMap<>() : new HashMap<>(resources.size() * 4 / 3 + 1);
+    final Map<Object, Node> resourceNodeMap = resources == null ? new HashMap<>() : HashMap.newHashMap(resources.size());
     	if (resources!=null)
     		for (ResourceData resourceData:sortResourcesByChildPosition(resources)){
     			ResourceImpl resource=deserializeResourceAndAddToPool(resourceData,resourcePool,reindex,enterpriseResources);
@@ -714,7 +714,7 @@ public class Serializer {
 
     	//tasks
     	Collection<TaskData> tasks=getTaskDataCollection(projectData);
-    Map<TaskData, Node> taskNodeMap = tasks == null ? new HashMap<>() : new HashMap<>(tasks.size() * 4 / 3 + 1);
+    Map<TaskData, Node> taskNodeMap = tasks == null ? new HashMap<>() : HashMap.newHashMap(tasks.size());
     	long projectId = project.getUniqueId();
     	NormalTask task;
 
@@ -913,7 +913,7 @@ public class Serializer {
     		Node summaryNode=null;
 
 
-			Map<Long, Node> subprojectsMap=new HashMap<>(tasks.size() * 4 / 3 + 1);
+			Map<Long, Node> subprojectsMap = HashMap.newHashMap(tasks.size());
     		for (TaskData taskData:tasks){
     			TaskData parentData=taskData.getParentTask();
 //  			if (taskData.isTimesheetCreated())
@@ -1089,7 +1089,7 @@ public class Serializer {
         if (authRoles!=null){
         	EnterpriseResource globalResource=resource.getGlobalResource();
         	globalResource.setDefaultRole(authRoles.length>0?authRoles[0]:ApplicationUser.INACTIVE);
-		Set<Integer> roles=new HashSet<>(authRoles.length * 4 / 3 + 1);
+		Set<Integer> roles = HashSet.newHashSet(authRoles.length);
         	for (int i=0;i<authRoles.length;i++) {
 				roles.add(UserUtil.toExtendedRole(authRoles[i],resource.isUser()));
 			}
@@ -1108,7 +1108,7 @@ public class Serializer {
 
     public static void setEnterpriseResources(Collection<EnterpriseResourceData> resources,ResourcePool resourcePool,Session reindex) throws IOException, ClassNotFoundException{
         if (resources!=null){
-        Map<EnterpriseResourceData, Node> resourceNodeMap = new HashMap<>(resources.size() * 4 / 3 + 1);
+        Map<EnterpriseResourceData, Node> resourceNodeMap = HashMap.newHashMap(resources.size());
             for (EnterpriseResourceData resourceData : resources){
                 ResourceImpl resource=deserializeResourceAndAddToPool(resourceData,resourcePool,reindex);
                 resourceNodeMap.put(resourceData,NodeFactory.getInstance().createNode(resource));
@@ -1343,7 +1343,7 @@ public class Serializer {
 
 
 	    public static Map<Long, DataObject> createIdMap(Collection<? extends DataObject> c){
-    Map<Long, DataObject> map = c == null ? new HashMap<>() : new HashMap<>(c.size() * 4 / 3 + 1);
+    Map<Long, DataObject> map = c == null ? new HashMap<>() : HashMap.newHashMap(c.size());
         if (c!=null){
 	        for (DataObject d : c){
 			map.put(Long.valueOf(d.getUniqueId()),d);
@@ -1365,7 +1365,7 @@ public class Serializer {
 		b.append(builder.toString());
     }
     private void printTaskDataHierarchy(Collection<TaskData> tasks,final StringBuilder b){
-    Map<Long, Set<TaskData>> taskMap = new HashMap<>(tasks.size() * 4 / 3 + 1);
+		Map<Long, Set<TaskData>> taskMap = HashMap.newHashMap(tasks.size());
     	for (TaskData taskData:tasks){
     		if (taskData == null) continue;
 			Long key=Long.valueOf(taskData.getParentTaskId());

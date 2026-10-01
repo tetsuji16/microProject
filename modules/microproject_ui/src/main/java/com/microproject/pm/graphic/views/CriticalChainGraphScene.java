@@ -60,7 +60,7 @@ public final class CriticalChainGraphScene {
 		this.preferredSize = new Dimension(preferredSize);
 		this.nodes = List.copyOf(nodes);
 		this.edges = List.copyOf(edges);
-		Map<String, Node> index = new LinkedHashMap<>(Math.max(4, nodes.size() * 4 / 3 + 1));
+		Map<String, Node> index = LinkedHashMap.newLinkedHashMap(nodes.size());
 		for (Node node : nodes) index.put(node.key(), node);
 		this.nodesByKey = Map.copyOf(index);
 	}
@@ -131,7 +131,7 @@ public final class CriticalChainGraphScene {
 	}
 
 	private static Map<Long, String> taskNames(Project project, CriticalChainService.Analysis analysis) {
-		Map<Long, String> result = new LinkedHashMap<>(Math.max(4, analysis.criticalTaskIds().size() * 4 / 3 + 1));
+		Map<Long, String> result = LinkedHashMap.newLinkedHashMap(analysis.criticalTaskIds().size());
 		if (project == null) return result;
 		for (var iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
 			Task task = (Task) iterator.next();
@@ -141,7 +141,7 @@ public final class CriticalChainGraphScene {
 	}
 
 	private static Map<Long, Integer> columns(List<Long> ids, List<CriticalChainService.ChainEdge> edges) {
-		Map<Long, Integer> result = new LinkedHashMap<>(Math.max(4, ids.size() * 4 / 3 + 1));
+		Map<Long, Integer> result = LinkedHashMap.newLinkedHashMap(ids.size());
 		for (Long id : ids) result.put(id, Integer.valueOf(0));
 		boolean changed;
 		int rounds = 0;
