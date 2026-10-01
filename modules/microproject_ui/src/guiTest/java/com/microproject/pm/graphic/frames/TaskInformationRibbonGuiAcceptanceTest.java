@@ -388,11 +388,12 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"Task Properties > Information remained disabled after selecting a task");
 		assertTrue(information.getAction().getClass().getName().contains("UiButtonDiagnostics"),
 			"Debug mode must instrument the physical ribbon button action");
+		RibbonCommandResult previousOutcome = manager.getLastRibbonCommandResult();
 		click(robot, boundsOnScreen(information));
 
 		GuiAcceptanceSupport.await(() -> findTaskInformationDialog() != null,
 			"Task Properties > Information did not open Task Information after a Robot click");
-		assertRibbonOutcome(information, RibbonCommandResult.Status.DISPATCHED, task.getUniqueId());
+		assertRibbonOutcome(manager, previousOutcome, RibbonCommandResult.Status.DISPATCHED, task.getUniqueId());
 		TaskInformationDialog dialog = findTaskInformationDialog();
 		assertEquals(Messages.getString("TaskInformationDialog.TaskInformation") + " - " + task.getId(), dialog.getTitle());
 		assertTextStyleTabComponentsFit(dialog);
@@ -1045,9 +1046,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, boundsOnScreen(taskTab));
 		AbstractButton hide = findVisibleOrOverflowButton(robot, "RibbonHideSelectedTasks");
 		GuiAcceptanceSupport.await(hide::isEnabled, "Hide Selected Tasks remained disabled after selection");
+		RibbonCommandResult previousHideOutcome = manager.getLastRibbonCommandResult();
 		click(robot, boundsOnScreen(hide));
 		GuiAcceptanceSupport.await(task::isHiddenTask, "Hide Selected Tasks did not update the task model");
-		assertRibbonOutcome(hide, RibbonCommandResult.Status.CHANGED, task.getUniqueId());
+		assertRibbonOutcome(manager, previousHideOutcome, RibbonCommandResult.Status.CHANGED, task.getUniqueId());
 		Object affectedIds = hide.getAction().getValue("MicroProject.ribbonAffectedTaskIds");
 		assertTrue(affectedIds instanceof java.util.List<?> ids && ids.contains(task.getUniqueId()),
 				"Hide Selected Tasks semantic result must identify the changed task");
@@ -1083,10 +1085,11 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		AbstractButton show = findVisibleOrOverflowButton(robot, "RibbonShowAllTasks");
 		assertTrue(show.isShowing(), "Show All Tasks must remain discoverable beside Hide Selected Tasks after hiding");
 		assertTrue(show.isEnabled(), "Show All Tasks must become enabled after a task is hidden");
+		RibbonCommandResult previousShowOutcome = manager.getLastRibbonCommandResult();
 		click(robot, boundsOnScreen(show));
 		GuiAcceptanceSupport.await(() -> !task.isHiddenTask(), "Show All Tasks did not restore the task model");
 		GuiAcceptanceSupport.await(() -> rowForTask(sheet, task) >= 0, "Show All Tasks did not restore the visible task row");
-		assertRibbonOutcome(show, RibbonCommandResult.Status.CHANGED, task.getUniqueId());
+		assertRibbonOutcome(manager, previousShowOutcome, RibbonCommandResult.Status.CHANGED, task.getUniqueId());
 	}
 
 	@Test
@@ -1748,14 +1751,16 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, boundsOnScreen(taskTab));
 		AbstractButton collapse = findShowingButtonByCommand("RibbonCollapse");
 		GuiAcceptanceSupport.await(collapse::isEnabled, "Collapse remained disabled for a selected summary");
+		RibbonCommandResult previousCollapseOutcome = manager.getLastRibbonCommandResult();
 		click(robot, boundsOnScreen(collapse));
 		GuiAcceptanceSupport.await(() -> !isTaskVisible(sheet, child), "Collapse did not hide the child row");
-		assertRibbonOutcome(collapse, RibbonCommandResult.Status.CHANGED, parent.getUniqueId());
+		assertRibbonOutcome(manager, previousCollapseOutcome, RibbonCommandResult.Status.CHANGED, parent.getUniqueId());
 
 		AbstractButton expand = findShowingButtonByCommand("RibbonExpand");
+		RibbonCommandResult previousExpandOutcome = manager.getLastRibbonCommandResult();
 		click(robot, boundsOnScreen(expand));
 		GuiAcceptanceSupport.await(() -> isTaskVisible(sheet, child), "Expand did not restore the child row");
-		assertRibbonOutcome(expand, RibbonCommandResult.Status.CHANGED, parent.getUniqueId());
+		assertRibbonOutcome(manager, previousExpandOutcome, RibbonCommandResult.Status.CHANGED, parent.getUniqueId());
 	}
 
 	@Test
@@ -1783,16 +1788,18 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Robot robot = new Robot();
 		robot.setAutoDelay(45);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
-		click(robot, cellOnScreen(sheet, rowForTask(sheet, second), nameColumn(sheet)));
+		activateWindow(robot, window);
+		clickUntilSelected(robot, window, sheet, rowForTask(sheet, second), nameColumn(sheet));
 		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("TaskRibbonTask.title"));
 		click(robot, boundsOnScreen(taskTab));
 		AbstractButton indent = findShowingButtonByCommand("RibbonIndent");
 		GuiAcceptanceSupport.await(indent::isEnabled, "Indent remained disabled for the selected task");
+		RibbonCommandResult previousIndentOutcome = manager.getLastRibbonCommandResult();
 		click(robot, boundsOnScreen(indent));
 		GuiAcceptanceSupport.await(() -> second.getWbsParentTask() == first,
 				"Indent did not make the selected task a child of its predecessor");
-		assertRibbonOutcome(indent, RibbonCommandResult.Status.CHANGED, second.getUniqueId());
+		assertRibbonOutcome(manager, previousIndentOutcome, RibbonCommandResult.Status.CHANGED, second.getUniqueId());
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(second),
 				"Indent did not preserve the selected task after hierarchy refresh");
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
@@ -1805,10 +1812,11 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		AbstractButton outdent = findShowingButtonByCommand("RibbonOutdent");
 		GuiAcceptanceSupport.await(outdent::isEnabled, "Outdent became disabled after Indent: readOnly="
 				+ project.isReadOnly() + " parent=" + (second.getWbsParentTask() == null ? "null" : second.getWbsParentTask().getName()));
+		RibbonCommandResult previousOutdentOutcome = manager.getLastRibbonCommandResult();
 		click(robot, boundsOnScreen(outdent));
 		GuiAcceptanceSupport.await(() -> second.getWbsParentTask() == null,
 				"Outdent did not restore the selected task to the top level");
-		assertRibbonOutcome(outdent, RibbonCommandResult.Status.CHANGED, second.getUniqueId());
+		assertRibbonOutcome(manager, previousOutdentOutcome, RibbonCommandResult.Status.CHANGED, second.getUniqueId());
 
 		ByteArrayOutputStream saved = new ByteArrayOutputStream();
 		assertTrue(new MpoFileImporter().saveProject(project, saved),
@@ -2197,10 +2205,12 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"Task Information must not stay enabled for a multi-task selection");
 		AbstractButton link = findShowingButtonByCommand("RibbonLink");
 		GuiAcceptanceSupport.await(link::isEnabled, "Link remained disabled for two selected tasks");
+		RibbonCommandResult previousLinkOutcome = manager.getLastRibbonCommandResult();
 		click(robot, boundsOnScreen(link));
 		GuiAcceptanceSupport.await(() -> successor.getPredecessorList().size() == 1,
 				"Link did not create a dependency between the selected tasks");
-		assertRibbonOutcome(link, RibbonCommandResult.Status.CHANGED, predecessor.getUniqueId(), successor.getUniqueId());
+		assertRibbonOutcome(manager, previousLinkOutcome, RibbonCommandResult.Status.CHANGED,
+			predecessor.getUniqueId(), successor.getUniqueId());
 		ByteArrayOutputStream saved = new ByteArrayOutputStream();
 		assertTrue(new MpoFileImporter().saveProject(project, saved),
 				"MPO save did not accept the project after the physical Link command");
@@ -2233,10 +2243,12 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(predecessor)
 				&& manager.getCurrentFrame().getSelectedImpls(false).contains(successor),
 			"Undo/Redo did not preserve both selected tasks for Unlink");
+		RibbonCommandResult previousUnlinkOutcome = manager.getLastRibbonCommandResult();
 		click(robot, boundsOnScreen(unlink));
 		GuiAcceptanceSupport.await(() -> successor.getPredecessorList().isEmpty(),
 				"Unlink did not remove the dependency between the selected tasks");
-		assertRibbonOutcome(unlink, RibbonCommandResult.Status.CHANGED, predecessor.getUniqueId(), successor.getUniqueId());
+		assertRibbonOutcome(manager, previousUnlinkOutcome, RibbonCommandResult.Status.CHANGED,
+			predecessor.getUniqueId(), successor.getUniqueId());
 	}
 
 	@Test
@@ -2551,17 +2563,16 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		return result[0];
 	}
 
-	private static void assertRibbonOutcome(AbstractButton button, RibbonCommandResult.Status expectedStatus,
+	private static void assertRibbonOutcome(GraphicManager manager, RibbonCommandResult previousOutcome,
+			RibbonCommandResult.Status expectedStatus,
 			Long... expectedTaskIds) throws Exception {
-		GuiAcceptanceSupport.await(() -> {
-			Object outcome = button.getAction().getValue("MicroProject.ribbonCommandResult");
-			return outcome instanceof RibbonCommandResult result && result.status() == expectedStatus;
-		}, "ribbon action did not publish " + expectedStatus + " outcome");
-		Object value = button.getAction().getValue("MicroProject.ribbonCommandResult");
-		assertTrue(value instanceof RibbonCommandResult, "ribbon action must expose a semantic command outcome");
-		RibbonCommandResult result = (RibbonCommandResult) value;
+		GuiAcceptanceSupport.await(() -> manager.getLastRibbonCommandResult() != null
+				&& manager.getLastRibbonCommandResult() != previousOutcome
+				&& manager.getLastRibbonCommandResult().status() == expectedStatus,
+			"GraphicManager did not record " + expectedStatus + " command outcome");
+		RibbonCommandResult result = manager.getLastRibbonCommandResult();
 		assertEquals(expectedStatus, result.status(), "ribbon command status");
-		assertEquals(List.of(expectedTaskIds), result.affectedTaskIds(), "ribbon command task IDs");
+		assertEquals(List.of(expectedTaskIds), result.affectedTaskIds(), "ribbon command stable task IDs");
 		assertFalse(result.activeViewId().isBlank(), "ribbon command outcome must identify the active view");
 	}
 
