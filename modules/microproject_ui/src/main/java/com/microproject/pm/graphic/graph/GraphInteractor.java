@@ -35,16 +35,11 @@ import java.awt.Toolkit;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
-import java.awt.event.MouseWheelEvent;
-import java.awt.event.MouseWheelListener;
-import java.awt.Component;
 import java.awt.geom.Line2D;
 import java.awt.geom.Rectangle2D;
 import java.io.Serializable;
 
 import javax.swing.JOptionPane;
-import javax.swing.JScrollBar;
-import javax.swing.JScrollPane;
 import javax.swing.JViewport;
 import javax.swing.SwingUtilities;
 
@@ -58,7 +53,7 @@ import com.microproject.graphic.configuration.GraphicConfiguration;
 /**
  *
  */
-public abstract class GraphInteractor implements MouseListener, MouseMotionListener, MouseWheelListener, Serializable{
+public abstract class GraphInteractor implements MouseListener, MouseMotionListener, Serializable{
 	protected static final int NOTHING_SELECTED=0;
 	protected static final int LINK_CREATION=1;
 	protected static final int LINK_SELECTION=2;
@@ -90,7 +85,6 @@ public abstract class GraphInteractor implements MouseListener, MouseMotionListe
 	protected void init(){
     	ui.getGraph().addMouseListener(this);
     	ui.getGraph().addMouseMotionListener(this);
-    	ui.getGraph().addMouseWheelListener(this);
     	defaultCursor=getGraph().getCursor();
     }
 
@@ -262,27 +256,6 @@ public abstract class GraphInteractor implements MouseListener, MouseMotionListe
 
     //Mouse
     public void mouseClicked(MouseEvent e){}
-    public void mouseWheelMoved(MouseWheelEvent e){
-        if (e.isConsumed() || e.isShiftDown() || e.isControlDown()
-				|| ScrollPaneSynchronizer.hasWheelOwner(getGraph())) {
-            return;
-        }
-        // Directly scroll the parent scroll pane by manipulating its vertical scrollbar
-        Component comp = getGraph();
-        while (comp != null && !(comp instanceof JScrollPane)) {
-            comp = comp.getParent();
-        }
-        if (comp instanceof JScrollPane) {
-            JScrollPane sp = (JScrollPane) comp;
-            JScrollBar bar = sp.getVerticalScrollBar();
-            int rotation = e.getWheelRotation();
-            int increment = (rotation < 0) ? -bar.getUnitIncrement() : bar.getUnitIncrement();
-            bar.setValue(bar.getValue() + increment);
-            e.consume();
-        }
-    }
-
-
     public void mousePressed(MouseEvent e){
     	if (isReadOnly()) return;
     	if (SwingUtilities.isRightMouseButton(e)){

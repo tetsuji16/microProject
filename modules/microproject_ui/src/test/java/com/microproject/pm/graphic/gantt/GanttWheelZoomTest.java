@@ -173,6 +173,8 @@ class GanttWheelZoomTest {
 			JScrollPane otherPane = new JScrollPane(new JPanel());
 			Synchronizer synchronizer = new Synchronizer();
 			synchronizer.addSynchro(chartPane, otherPane, ScrollPaneSynchronizer.HORIZONTAL);
+			assertEquals(1, gantt.getMouseWheelListeners().length,
+				"a synchronized Gantt must have exactly one wheel controller");
 
 			JScrollBar vertical = chartPane.getVerticalScrollBar();
 			int before = vertical.getValue();

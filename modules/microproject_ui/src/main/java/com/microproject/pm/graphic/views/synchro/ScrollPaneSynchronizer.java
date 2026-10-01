@@ -794,10 +794,6 @@ public class ScrollPaneSynchronizer {
 		return null;
 	}
 
-	public static boolean hasWheelOwner(Component component) {
-		return findSynchronizer(component) != null;
-	}
-
 	private static JScrollPane findScrollPane(Component component) {
 		Component current = component;
 		while (current != null && !(current instanceof JScrollPane)) {
