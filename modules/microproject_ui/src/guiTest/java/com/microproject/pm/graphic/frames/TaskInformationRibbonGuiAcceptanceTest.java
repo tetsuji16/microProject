@@ -1086,6 +1086,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, boundsOnScreen(show));
 		GuiAcceptanceSupport.await(() -> !task.isHiddenTask(), "Show All Tasks did not restore the task model");
 		GuiAcceptanceSupport.await(() -> rowForTask(sheet, task) >= 0, "Show All Tasks did not restore the visible task row");
+		assertRibbonOutcome(show, RibbonCommandResult.Status.CHANGED, task.getId());
 	}
 
 	@Test
