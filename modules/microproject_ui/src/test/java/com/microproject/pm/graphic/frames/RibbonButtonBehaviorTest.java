@@ -340,6 +340,17 @@ class RibbonButtonBehaviorTest {
 			harness.manager.setButtonState(harness.task, harness.project);
 			assertTrue(harness.manager.getAction(MenuActionConstants.ACTION_LINK).isEnabled(),
 				"two physical task rows must enable Link from the same resolver used at execution");
+
+			harness.frame.getTopSpreadSheet().setRowSelectionInterval(1, 1);
+			harness.frame.setSelection(List.of(harness.taskNode));
+			resolvedTasks = harness.frame.getSelectedTaskNodes(true, true);
+			assertEquals(1, resolvedTasks.size());
+			assertSame(harness.secondTask, resolvedTasks.get(0).getImpl());
+			harness.frame.setExecuteIndentForSelectionTest(true);
+			RibbonCommandResult indent = harness.frame.routeTaskCommand(CommandId.INDENT);
+			assertEquals(RibbonCommandResult.Status.CHANGED, indent.status(), indent.reason());
+			assertSame(harness.task, harness.secondTask.getWbsParentTask(),
+				"Indent execution must use the active table row, not the stale frame selection");
 		});
 	}
 
@@ -1214,6 +1225,7 @@ class RibbonButtonBehaviorTest {
 		private final Map<String, Integer> structuralCalls = new LinkedHashMap<>();
 		private final Map<Boolean, Integer> baselineDialogCalls = new LinkedHashMap<>();
 		private boolean executeLinkForSelectionTest;
+		private boolean executeIndentForSelectionTest;
 
 		TestDocumentFrame(GraphicManager parentFrame, Project project) {
 			super(parentFrame, project, "ribbon-test");
@@ -1225,6 +1237,10 @@ class RibbonButtonBehaviorTest {
 
 		void setExecuteLinkForSelectionTest(boolean execute) {
 			executeLinkForSelectionTest = execute;
+		}
+
+		void setExecuteIndentForSelectionTest(boolean execute) {
+			executeIndentForSelectionTest = execute;
 		}
 
 		@Override
@@ -1275,6 +1291,10 @@ class RibbonButtonBehaviorTest {
 
 		@Override
 		public void doIndent() {
+			if (executeIndentForSelectionTest) {
+				super.doIndent();
+				return;
+			}
 			recordStructuralCall("RibbonIndent");
 		}
 

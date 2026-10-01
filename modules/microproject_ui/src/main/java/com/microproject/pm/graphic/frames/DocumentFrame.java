@@ -1072,11 +1072,7 @@ public class DocumentFrame extends NamedFrame implements
 			// The table is the authoritative selection owner while an editor is
 			// focused.  Resolve it directly after commit; the frame selection
 			// provider may still expose the previous editor row for one event turn.
-			ArrayList<Node> selectedNodes = ss.getSelectedNodes();
-			List<Node> taskNodes = new ArrayList<>(selectedNodes.size());
-			for (Node node : selectedNodes)
-				if (node != null && node.getImpl() instanceof Task && !ClassUtils.isObjectReadOnly(node.getImpl()))
-					taskNodes.add(node);
+			List<Node> taskNodes = new ArrayList<>(getSelectedTaskNodes(true, true));
 			// The editor commit above may rebuild the outline and invalidate the
 			// pre-commit JTable row indexes.  Resolve rows from this same stable
 			// node snapshot so mutation and selection restoration target one set.
