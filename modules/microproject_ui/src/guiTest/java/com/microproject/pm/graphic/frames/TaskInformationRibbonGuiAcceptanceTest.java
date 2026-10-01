@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -1879,6 +1880,25 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertNotNull(reloadedSecond, "MPO reload lost the Outdent target");
 		assertTrue(reloadedSecond.getWbsParentTask() == null,
 				"MPO reload retained a parent after the physical Outdent route");
+
+		// A whole-project read-only state disables the Ribbon Action, while the
+		// focused-editor shortcut adapter must still reach the same canonical
+		// transaction and publish its explicit rejection without a mutation.
+		undo.clear();
+		project.setReadOnly(true);
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, second), nameColumn(sheet)));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(second),
+				"read-only outline test did not select the target task");
+		manager.setButtonState(second, project);
+		AbstractButton readOnlyIndent = findShowingButtonByCommand("RibbonIndent");
+		assertFalse(readOnlyIndent.isEnabled(), "Ribbon Indent must be disabled for a read-only project");
+		press(robot, KeyEvent.VK_ALT, KeyEvent.VK_SHIFT, KeyEvent.VK_RIGHT);
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getLastTaskCommandResult() != null
+				&& manager.getCurrentFrame().getLastTaskCommandResult().status() == RibbonCommandResult.Status.REJECTED,
+				"the outline shortcut did not publish rejection for the read-only project");
+		assertEquals("document-read-only", manager.getCurrentFrame().getLastTaskCommandResult().reason());
+		assertNull(second.getWbsParentTask(), "read-only outline shortcut changed the task hierarchy");
+		assertFalse(undo.canUndo(), "read-only outline shortcut created an undo edit");
 	}
 
 	@Test
