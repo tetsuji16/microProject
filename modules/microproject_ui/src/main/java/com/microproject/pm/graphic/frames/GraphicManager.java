@@ -4133,7 +4133,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		boolean infoEnabled = informationTargetFor(selectedInfoImpl, true, true, true) != null;
 		boolean taskInfoEnabled = informationTargetFor(selectedInfoImpl, false, true, false) != null;
 		boolean resourceInfoEnabled = informationTargetFor(selectedInfoImpl, false, false, true) != null;
-		boolean notVoid = currentImpl != null && !(currentImpl instanceof VoidNodeImpl);
+		DocumentFrame editFrame = getCurrentFrame();
+		SpreadSheet editSheet = editFrame == null ? null : editFrame.getActiveSpreadSheet();
+		boolean hasClipboardSelection = editSheet != null && !editSheet.getSelectedNodes().isEmpty();
 		traceUi("button-state impl=" + describeUiObject(currentImpl)
 			+ " taskInformationEnabled=" + taskInfoEnabled
 			+ " documentActive=" + isDocumentActive());
@@ -4146,8 +4148,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled(ACTION_INSERT_TASK, !readOnly && (taskType || resourceType)&&(actions==null||actions.contains(ACTION_INSERT_TASK)));
 		getMenuManager().setActionEnabled(ACTION_INSERT_RESOURCE, !readOnly && resourceType && (actions==null||actions.contains(ACTION_INSERT_RESOURCE)));
 		getMenuManager().setActionEnabled(ACTION_INSERT_RECURRING, !readOnly && taskType);
-		getMenuManager().setActionEnabled(ACTION_CUT,!readOnly &&notVoid&&(actions==null||actions.contains(ACTION_CUT)));
-		getMenuManager().setActionEnabled(ACTION_COPY,notVoid&&(actions==null||actions.contains(ACTION_COPY)));
+		getMenuManager().setActionEnabled(ACTION_CUT,!readOnly && hasClipboardSelection && (actions==null||actions.contains(ACTION_CUT)));
+		getMenuManager().setActionEnabled(ACTION_COPY,hasClipboardSelection&&(actions==null||actions.contains(ACTION_COPY)));
 		getMenuManager().setActionEnabled(ACTION_PASTE,!readOnly && (actions==null||actions.contains(ACTION_PASTE)));
 		getMenuManager().setActionEnabled(ACTION_DELETE,!readOnly && (actions==null||actions.contains(ACTION_DELETE)));
 		// After hierarchy Undo/Redo the lead node supplied by the selection event

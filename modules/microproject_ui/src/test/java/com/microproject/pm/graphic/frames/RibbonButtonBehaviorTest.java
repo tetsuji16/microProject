@@ -463,6 +463,31 @@ class RibbonButtonBehaviorTest {
 	}
 
 	@Test
+	void clipboardRoutesAcceptSelectedResourceRows() throws Exception {
+		Harness harness = newHarness();
+		AtomicReference<RibbonCommandResult> copyResult = new AtomicReference<>();
+		AtomicReference<RibbonCommandResult> cutResult = new AtomicReference<>();
+		SwingUtilities.invokeAndWait(() -> {
+			harness.frame.activateView(MenuActionConstants.ACTION_RESOURCES);
+			harness.frame.getResourceView().getSpreadSheet().setRowSelectionInterval(0, 0);
+			harness.frame.setSelection(List.of(harness.resourceNode));
+			harness.manager.setButtonState(null, harness.project);
+			assertTrue(harness.manager.getAction(MenuActionConstants.ACTION_COPY).isEnabled(),
+				"Copy is exposed by the resource sheet for a selected resource row");
+			assertTrue(harness.manager.getAction(MenuActionConstants.ACTION_CUT).isEnabled(),
+				"Cut is exposed by the writable resource sheet for a selected resource row");
+			copyResult.set(harness.frame.routeTaskCommand(CommandId.COPY));
+			cutResult.set(harness.frame.routeTaskCommand(CommandId.CUT));
+		});
+		assertEquals(RibbonCommandResult.Status.DISPATCHED, copyResult.get().status(),
+			"Copy must accept the active sheet's non-task row selection");
+		assertNotEquals(RibbonCommandResult.Status.REJECTED, cutResult.get().status(),
+			"Cut must accept the active sheet's writable non-task row selection");
+		assertEquals(1, harness.frame.copyCallCount());
+		assertEquals(1, harness.frame.cutCallCount());
+	}
+
+	@Test
 	void informationRibbonEnablementFollowsTheSelectedResourceWhenLeadImplIsStale() throws Exception {
 		Harness harness = newHarness();
 		harness.setTaskInformation(true, true);
@@ -1372,6 +1397,8 @@ class RibbonButtonBehaviorTest {
 		private boolean executeLinkForSelectionTest;
 		private boolean executeIndentForSelectionTest;
 		private List<Node> visibilitySelectionForTest;
+		private int copyCalls;
+		private int cutCalls;
 
 		TestDocumentFrame(GraphicManager parentFrame, Project project) {
 			super(parentFrame, project, "ribbon-test");
@@ -1391,6 +1418,14 @@ class RibbonButtonBehaviorTest {
 
 		void setVisibilitySelectionForTest(List<Node> nodes) {
 			visibilitySelectionForTest = nodes;
+		}
+
+		int copyCallCount() {
+			return copyCalls;
+		}
+
+		int cutCallCount() {
+			return cutCalls;
 		}
 
 		@Override
@@ -1434,6 +1469,16 @@ class RibbonButtonBehaviorTest {
 		@Override
 		public void doScrollToTask() {
 			recordStructuralCall("RibbonScrollToTask");
+		}
+
+		@Override
+		public void doCopy() {
+			copyCalls++;
+		}
+
+		@Override
+		public void doCut() {
+			cutCalls++;
 		}
 
 		@Override

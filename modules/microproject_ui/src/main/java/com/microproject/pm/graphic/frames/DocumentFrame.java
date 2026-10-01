@@ -545,8 +545,8 @@ public class DocumentFrame extends NamedFrame implements
 		switch (command) {
 		case INSERT -> lastTaskCommandResult = insertTaskRows(command);
 		case DELETE -> lastTaskCommandResult = executeTaskTableMutation(command, this::doDelete, true);
-		case CUT -> lastTaskCommandResult = executeTaskTableMutation(command, this::doCut, true);
-		case COPY -> lastTaskCommandResult = executeTaskTableMutation(command, this::doCopy, true);
+		case CUT -> lastTaskCommandResult = executeSpreadsheetClipboardCommand(command, this::doCut);
+		case COPY -> lastTaskCommandResult = executeSpreadsheetClipboardCommand(command, this::doCopy);
 		case PASTE -> lastTaskCommandResult = executeTaskTableMutation(command, this::doPaste, true);
 		case PASTE_INSERT -> lastTaskCommandResult = executeTaskTableMutation(command, this::doPasteInsert, true);
 		case LINK -> doLinkTasks();
@@ -687,6 +687,42 @@ public class DocumentFrame extends NamedFrame implements
 			: command == CommandId.COPY
 				? RibbonCommandResult.dispatched(command.actionId())
 				: RibbonCommandResult.noChange(command.actionId(), ids);
+	}
+
+	/**
+	 * Cut and Copy are spreadsheet commands, not task-only commands: the resource
+	 * sheet also exposes them and its transfer handler accepts resource rows.
+	 */
+	private RibbonCommandResult executeSpreadsheetClipboardCommand(CommandId command, Runnable operation) {
+		SpreadSheet sheet = getActiveSpreadSheet();
+		if (sheet == null)
+			return executeLegacyWithoutTable(command, operation);
+		finishAnyOperations();
+		sheet = getActiveSpreadSheet();
+		if (sheet == null)
+			return RibbonCommandResult.rejected(command.actionId(), "no-active-spreadsheet");
+		List<Node> selection = new ArrayList<>(sheet.getSelectedNodes());
+		if (selection.isEmpty())
+			return RibbonCommandResult.rejected(command.actionId(), "no-selection");
+		if (command == CommandId.CUT && (project == null || project.isReadOnly()))
+			return RibbonCommandResult.rejected(command.actionId(), "document-read-only");
+		int beforeRows = sheet.getRowCount();
+		int beforeTasks = project == null ? 0 : project.getTaskList().size();
+		try {
+			operation.run();
+		} catch (RuntimeException failure) {
+			return RibbonCommandResult.failed(command.actionId(), failure);
+		}
+		if (lastTaskCommandResult != null)
+			return lastTaskCommandResult;
+		if (command == CommandId.COPY)
+			return RibbonCommandResult.dispatched(command.actionId());
+		int afterRows = sheet.getRowCount();
+		int afterTasks = project == null ? 0 : project.getTaskList().size();
+		List<Long> ids = taskIds(selection);
+		return beforeRows != afterRows || beforeTasks != afterTasks
+			? RibbonCommandResult.changed(command.actionId(), ids)
+			: RibbonCommandResult.noChange(command.actionId(), ids);
 	}
 
 	private RibbonCommandResult executeLegacyWithoutTable(CommandId command, Runnable operation) {
