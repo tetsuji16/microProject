@@ -4161,7 +4161,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			? java.util.List.of() : getCurrentFrame().getSelectedTaskNodes(true, true);
 		boolean isTask = currentImpl instanceof Task || !selectedTaskNodes.isEmpty();
 		boolean isResource = currentImpl != null && currentImpl instanceof Resource;
-		boolean isLinkedSubproject = currentImpl instanceof SubProj;
+		boolean isLinkedSubproject = selectedSubprojectReference() != null;
 		boolean isHasStartAndEnd = currentImpl != null && currentImpl instanceof HasStartAndEnd;
 		boolean hasEditableTaskSelection = !hierarchyTaskNodes.isEmpty();
 		boolean hasOneTaskSelection = getCurrentFrame() != null && getCurrentFrame().hasTaskSelection(false, 1, true);

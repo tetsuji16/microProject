@@ -416,6 +416,26 @@ class RibbonButtonBehaviorTest {
 	}
 
 	@Test
+	void linkedProjectCommandsFollowTheCurrentTaskRowInsteadOfStaleLeadImpl() throws Exception {
+		Harness harness = newHarness();
+		DefaultSubProj staleSubproject = new DefaultSubProj(harness.project, 773L);
+		staleSubproject.setName("Stale linked project");
+		harness.project.connectTask(staleSubproject);
+		harness.project.getTaskOutlines().addToAll(staleSubproject, null);
+
+		SwingUtilities.invokeAndWait(() -> {
+			SpreadSheet sheet = harness.frame.getTopSpreadSheet();
+			sheet.setRowSelectionInterval(0, 0);
+			harness.frame.setSelection(List.of(harness.taskNode));
+			harness.manager.setButtonState(staleSubproject, harness.project);
+			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_OPEN_SUBPROJECT).isEnabled(),
+				"Open Subproject must follow the selected task rather than the stale lead node");
+			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_REMOVE_SUBPROJECT).isEnabled(),
+				"Remove Subproject must follow the selected task rather than the stale lead node");
+		});
+	}
+
+	@Test
 	void informationRibbonEnablementFollowsTheSelectedResourceWhenLeadImplIsStale() throws Exception {
 		Harness harness = newHarness();
 		harness.setTaskInformation(true, true);
