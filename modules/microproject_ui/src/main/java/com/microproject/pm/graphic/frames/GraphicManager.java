@@ -1658,6 +1658,22 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	private Object selectedInformationImpl() {
 		if (!isDocumentActive() || getCurrentFrame() == null)
 			return null;
+		SpreadSheet activeSheet = getCurrentFrame().getActiveSpreadSheet();
+		if (activeSheet != null && activeSheet.getSelectedRows().length > 0) {
+			if (activeSheet.isHeaderColumnSelectionActive())
+				return null;
+			List<com.microproject.grouping.core.Node> activeSelection = activeSheet.getSelectedNodes();
+			if (activeSelection == null || activeSelection.size() != 1)
+				return null;
+			Object impl = activeSelection.get(0).getImpl();
+			if (impl instanceof Task) {
+				List<com.microproject.grouping.core.Node> selectedTasks = getCurrentFrame()
+					.getSelectedTaskNodes(false, false);
+				if (selectedTasks.size() != 1 || selectedTasks.get(0).getImpl() != impl)
+					return null;
+			}
+			return impl;
+		}
 		List nodes = getCurrentFrame().getSelectedNodes(false);
 		if (nodes == null || nodes.size() != 1
 				|| !(nodes.get(0) instanceof com.microproject.grouping.core.Node node))
@@ -2903,7 +2919,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			setMeAsLastGraphicManager();
 			publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.LINK.actionId(), "no-active-document"));
 			if (isDocumentActive()) {
-				if (!getCurrentFrame().hasTaskSelection(false, 2, true)) {
+				if (!getCurrentFrame().hasTaskSelection(true, 2, true)) {
 					publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.LINK.actionId(), "selection-too-small"));
 					return;
 				}
@@ -2919,7 +2935,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			setMeAsLastGraphicManager();
 			publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.UNLINK.actionId(), "no-active-document"));
 			if (isDocumentActive()) {
-				if (!getCurrentFrame().hasTaskSelection(false, 1, true)) {
+				if (!getCurrentFrame().hasTaskSelection(true, 1, true)) {
 					publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.UNLINK.actionId(), "no-selection"));
 					return;
 				}
@@ -3036,7 +3052,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
 			publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.INDENT.actionId(), "no-active-document"));
-			if (isDocumentActive() && getCurrentFrame().hasTaskSelection(false, 1, false))
+			if (isDocumentActive() && getCurrentFrame().hasTaskSelection(true, 1, false))
 				publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.INDENT));
 			else if (isDocumentActive())
 				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.INDENT.actionId(), "no-selection"));
@@ -3051,7 +3067,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
 			publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.OUTDENT.actionId(), "no-active-document"));
-			if (isDocumentActive() && getCurrentFrame().hasTaskSelection(false, 1, false))
+			if (isDocumentActive() && getCurrentFrame().hasTaskSelection(true, 1, false))
 				publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.OUTDENT));
 			else if (isDocumentActive())
 				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.OUTDENT.actionId(), "no-selection"));

@@ -2193,6 +2193,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("TaskRibbonTask.title"));
 		click(robot, boundsOnScreen(taskTab));
+		assertFalse(findShowingButtonByCommand("RibbonTaskInformation").isEnabled(),
+			"Task Information must not stay enabled for a multi-task selection");
 		AbstractButton link = findShowingButtonByCommand("RibbonLink");
 		GuiAcceptanceSupport.await(link::isEnabled, "Link remained disabled for two selected tasks");
 		click(robot, boundsOnScreen(link));
