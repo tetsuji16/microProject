@@ -755,7 +755,8 @@ public class DocumentFrame extends NamedFrame implements
 		// Capture the selection before finishing an editor.  Stopping a cell
 		// editor can clear the JTable selection, which previously made the
 		// ribbon command silently return even though it was enabled.
-		List<Node> taskNodes = new ArrayList<>(getSelectedTaskNodes(true, true));
+		ActiveTaskSelectionResolver.Selection selection = resolveTaskSelection(true, true);
+		List<Node> taskNodes = new ArrayList<>(selection.nodes());
 		publishTaskCommandResult(CommandId.LINK, RibbonCommandResult.Status.REJECTED,
 			"selection-too-small", taskNodes);
 		if (taskNodes.size() > 1)
@@ -770,7 +771,7 @@ public class DocumentFrame extends NamedFrame implements
 				getGraphicManager().traceUi("link rejected reason=document-read-only");
 				return;
 			}
-			if (taskNodes.size() < 2) {
+			if (!selection.isEligible(2)) {
 				getGraphicManager().traceUi("link rejected reason=selection-too-small selectedTasks=" + taskNodes.size());
 				return;
 			}
@@ -807,7 +808,8 @@ public class DocumentFrame extends NamedFrame implements
 		}
 	}
 	public void doUnlinkTasks() {
-		List<Node> taskNodes = new ArrayList<>(getSelectedTaskNodes(true, true));
+		ActiveTaskSelectionResolver.Selection selection = resolveTaskSelection(true, true);
+		List<Node> taskNodes = new ArrayList<>(selection.nodes());
 		publishTaskCommandResult(CommandId.UNLINK, RibbonCommandResult.Status.REJECTED,
 			"no-selection", taskNodes);
 		if (taskNodes.size() > 1)
@@ -815,7 +817,7 @@ public class DocumentFrame extends NamedFrame implements
 		getGraphicManager().traceUi("unlink start selectedTasks=" + taskNodes.size()
 				+ " undo=" + canUndoState() + " redo=" + canRedoState());
 		finishAnyOperations();
-		if (taskNodes.isEmpty()) {
+		if (!selection.isEligible(1)) {
 			getGraphicManager().traceUi("unlink rejected reason=no-selection");
 			return;
 		}
@@ -1108,7 +1110,8 @@ public class DocumentFrame extends NamedFrame implements
 			// The table is the authoritative selection owner while an editor is
 			// focused.  Resolve it directly after commit; the frame selection
 			// provider may still expose the previous editor row for one event turn.
-			List<Node> taskNodes = new ArrayList<>(getSelectedTaskNodes(true, true));
+			ActiveTaskSelectionResolver.Selection selection = resolveTaskSelection(true, true);
+			List<Node> taskNodes = new ArrayList<>(selection.nodes());
 			// The editor commit above may rebuild the outline and invalidate the
 			// pre-commit JTable row indexes.  Resolve rows from this same stable
 			// node snapshot so mutation and selection restoration target one set.
@@ -1122,7 +1125,7 @@ public class DocumentFrame extends NamedFrame implements
 				getGraphicManager().traceUi(diagnosticId + " rejected reason=document-read-only");
 				return;
 			}
-			if (taskNodes.isEmpty()) {
+			if (!selection.isEligible(1)) {
 				getGraphicManager().traceUi(diagnosticId + " rejected reason=no-selection");
 				return;
 			}
@@ -1160,7 +1163,8 @@ public class DocumentFrame extends NamedFrame implements
 	public void doExpand() {
 		SpreadSheet ss = getActiveSpreadSheet();
 		if (ss !=null) {
-			if (!hasTaskSelection(false, 1, false))
+			ActiveTaskSelectionResolver.Selection selection = resolveTaskSelection(false, false);
+			if (!selection.isEligible(1))
 				return;
 			focusSingleTaskSelectionAnchor(ss);
 			ss.executeAction(MenuActionConstants.ACTION_EXPAND);
@@ -1169,7 +1173,8 @@ public class DocumentFrame extends NamedFrame implements
 	public void doCollapse() {
 		SpreadSheet ss = getActiveSpreadSheet();
 		if (ss !=null) {
-			if (!hasTaskSelection(false, 1, false))
+			ActiveTaskSelectionResolver.Selection selection = resolveTaskSelection(false, false);
+			if (!selection.isEligible(1))
 				return;
 			focusSingleTaskSelectionAnchor(ss);
 			ss.executeAction(MenuActionConstants.ACTION_COLLAPSE);
