@@ -1834,6 +1834,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Robot robot = new Robot();
 		robot.setAutoDelay(45);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		Gantt gantt = manager.getCurrentFrame().getGanttView().getGantt();
 		activateWindow(robot, window);
 		clickUntilSelected(robot, window, sheet, rowForTask(sheet, second), nameColumn(sheet));
 		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
@@ -1845,6 +1846,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, boundsOnScreen(indent));
 		GuiAcceptanceSupport.await(() -> second.getWbsParentTask() == first,
 				"Indent did not make the selected task a child of its predecessor");
+		GuiAcceptanceSupport.await(() -> rowForTask(sheet, second) >= 0 && isTaskVisibleInGantt(gantt, second),
+				"Indent changed hierarchy but lost the task from the table or Gantt projection");
 		assertRibbonOutcome(manager, previousIndentOutcome, RibbonCommandResult.Status.CHANGED, second.getUniqueId());
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(second),
 				"Indent did not preserve the selected task after hierarchy refresh");
@@ -1862,6 +1865,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, boundsOnScreen(outdent));
 		GuiAcceptanceSupport.await(() -> second.getWbsParentTask() == null,
 				"Outdent did not restore the selected task to the top level");
+		GuiAcceptanceSupport.await(() -> rowForTask(sheet, second) >= 0 && isTaskVisibleInGantt(gantt, second),
+				"Outdent changed hierarchy but lost the task from the table or Gantt projection");
 		assertRibbonOutcome(manager, previousOutdentOutcome, RibbonCommandResult.Status.CHANGED, second.getUniqueId());
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
 		GuiAcceptanceSupport.await(() -> second.getWbsParentTask() == first,
