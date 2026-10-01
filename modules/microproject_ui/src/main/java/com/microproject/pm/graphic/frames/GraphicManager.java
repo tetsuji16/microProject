@@ -195,7 +195,6 @@ import com.microproject.undo.CommandInfo;
 import com.microproject.undo.UndoController;
 import com.microproject.util.Alert;
 import com.microproject.util.BrowserControl;
-import com.microproject.util.ClassUtils;
 import com.microproject.util.Environment;
 import com.microproject.util.FilePathUtils;
 import com.microproject.util.FlatUiSupport;
@@ -4164,7 +4163,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		boolean isResource = currentImpl != null && currentImpl instanceof Resource;
 		boolean isLinkedSubproject = currentImpl instanceof SubProj;
 		boolean isHasStartAndEnd = currentImpl != null && currentImpl instanceof HasStartAndEnd;
-		boolean writable = (currentImpl != null && !ClassUtils.isObjectReadOnly(currentImpl));
+		boolean hasEditableTaskSelection = !hierarchyTaskNodes.isEmpty();
 		boolean hasOneTaskSelection = getCurrentFrame() != null && getCurrentFrame().hasTaskSelection(false, 1, true);
 		boolean hasOutlineTaskSelection = getCurrentFrame() != null
 			&& getCurrentFrame().hasTaskSelection(false, 1, false);
@@ -4196,7 +4195,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 					&& !getCurrentFrame().getSelectedVisibilityTaskNodes().isEmpty());
 		getMenuManager().setActionEnabled(ACTION_SHOW_ALL_TASKS,
 				!readOnly && TaskVisibilityService.hasHiddenTasks(project));
-		getMenuManager().setActionEnabled(ACTION_ASSIGN_RESOURCES,isTask && writable);
+		getMenuManager().setActionEnabled(ACTION_ASSIGN_RESOURCES, !readOnly && hasEditableTaskSelection);
 		getMenuManager().setActionEnabled(ACTION_TIMESHEET,!readOnly && project != null);
 		getMenuManager().setActionEnabled(ACTION_LEVEL_RESOURCES,!readOnly && project != null);
 		boolean hasCcpmPlan = project != null && new com.microproject.pm.ccpm.CriticalChainService().findBaseline(project) != null;
@@ -4215,8 +4214,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		}
 		getMenuManager().setActionSelected(ACTION_TOGGLE_CRITICAL_CHAIN,
 			hasCcpmPlan && com.microproject.pm.graphic.gantt.CriticalChainDisplayState.isVisible(project));
-		getMenuManager().setActionEnabled(ACTION_DELEGATE_TASKS,isTask && writable);
-		getMenuManager().setActionEnabled(ACTION_UPDATE_TASKS,!readOnly && isTask);
+		getMenuManager().setActionEnabled(ACTION_DELEGATE_TASKS, !readOnly && hasEditableTaskSelection);
+		getMenuManager().setActionEnabled(ACTION_UPDATE_TASKS,
+				!readOnly && hasEditableTaskSelection);
 		// MSP documents Mark on Track as an operation on selected tasks. Keep its
 		// enablement aligned with the typed selection snapshot used by dispatch.
 		getMenuManager().setActionEnabled(ACTION_MARK_ON_TRACK,

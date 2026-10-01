@@ -394,6 +394,28 @@ class RibbonButtonBehaviorTest {
 	}
 
 	@Test
+	void taskAssignmentCommandsUseTheEditableSelectionInsteadOfStaleLeadImpl() throws Exception {
+		Harness harness = newHarness();
+		DefaultSubProj readOnlySubproject = new DefaultSubProj(harness.project, 772L);
+		readOnlySubproject.setName("Read-only assignment row");
+		harness.project.connectTask(readOnlySubproject);
+		harness.project.getTaskOutlines().addToAll(readOnlySubproject, null);
+		Node readOnlyNode = NodeFactory.getInstance().createNode(readOnlySubproject);
+
+		SwingUtilities.invokeAndWait(() -> {
+			harness.frame.getTopSpreadSheet().clearSelection();
+			harness.frame.setSelection(List.of(readOnlyNode));
+			harness.manager.setButtonState(harness.task, harness.project);
+			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_ASSIGN_RESOURCES).isEnabled(),
+				"Assign Resources must not inherit writability from a stale task lead node");
+			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_DELEGATE_TASKS).isEnabled(),
+				"Delegate Tasks must be disabled when the selected task is not editable");
+			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_UPDATE_TASKS).isEnabled(),
+				"Update Tasks must be disabled when the selected task is not editable");
+		});
+	}
+
+	@Test
 	void informationRibbonEnablementFollowsTheSelectedResourceWhenLeadImplIsStale() throws Exception {
 		Harness harness = newHarness();
 		harness.setTaskInformation(true, true);
