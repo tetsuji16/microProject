@@ -46,6 +46,7 @@ import com.microproject.ui.theme.MicroProjectTheme;
 public final class FlatLafSupport {
 	private static final Logger logger = Logger.getLogger(FlatLafSupport.class.getName());
 	private static boolean initialized;
+	private static boolean nativeWindowDecorationsEnabled;
 	private static Font platformDefaultFont;
 	private static final int MS_PROJECT_UI_FONT_SIZE = 12;
 	private static final String MS_PROJECT_FONT = "Segoe UI";
@@ -59,11 +60,14 @@ public final class FlatLafSupport {
 	public static synchronized void initialize() {
 		try {
 			Environment.setNewLook(true);
-			configureNativeWindowDecorations();
+			nativeWindowDecorationsEnabled = configureNativeWindowDecorations();
 
-			// Let FlatLaf paint the title bar so it can share the same chrome color as the menu bar.
-			JFrame.setDefaultLookAndFeelDecorated(true);
-			JDialog.setDefaultLookAndFeelDecorated(true);
+			// Use FlatLaf decorations only when Windows native support is available.
+			// Otherwise retain OS-owned frames instead of creating a Java-painted
+			// title bar that cannot provide the required Windows shell behavior.
+			boolean useLookAndFeelDecorations = !isWindows() || nativeWindowDecorationsEnabled;
+			JFrame.setDefaultLookAndFeelDecorated(useLookAndFeelDecorations);
+			JDialog.setDefaultLookAndFeelDecorated(useLookAndFeelDecorations);
 
 			UiServices.setFileChooserProvider(new SwingFileChooserProvider());
 			boolean darkTheme = new GlobalPreferences().isDarkTheme();
@@ -129,10 +133,17 @@ public final class FlatLafSupport {
 	 * resize border, and window buttons; unsupported platforms keep their
 	 * normal Swing/OS decoration fallback.
 	 */
-	private static void configureNativeWindowDecorations() {
-		if (isWindows() && FlatLaf.supportsNativeWindowDecorations()) {
-			FlatLaf.setUseNativeWindowDecorations(true);
+	private static boolean configureNativeWindowDecorations() {
+		if (!isWindows() || !FlatLaf.supportsNativeWindowDecorations()) {
+			return false;
 		}
+		FlatLaf.setUseNativeWindowDecorations(true);
+		return true;
+	}
+
+	/** Returns whether FlatLaf's Windows native window shell was enabled at startup. */
+	public static boolean isNativeWindowDecorationsEnabled() {
+		return nativeWindowDecorationsEnabled;
 	}
 
 	private static Font createDefaultFont() {

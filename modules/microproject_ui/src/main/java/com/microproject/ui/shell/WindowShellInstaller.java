@@ -9,6 +9,7 @@ import javax.swing.JFrame;
 import javax.swing.JRootPane;
 
 import com.microproject.util.Environment;
+import com.microproject.util.FlatLafSupport;
 
 /**
  * Configures the one supported top-level window shell for the Office ribbon.
@@ -33,19 +34,23 @@ public final class WindowShellInstaller {
 	 * client properties and the platform decorations remain the fallback.
 	 */
 	public static void installOfficeRibbonShell(JFrame frame) {
-		installOfficeRibbonShell(frame.getRootPane());
+		installOfficeRibbonShell(frame.getRootPane(),
+			Environment.isWindows() && FlatLafSupport.isNativeWindowDecorationsEnabled());
 	}
 
-	static void installOfficeRibbonShell(JRootPane rootPane) {
-		if (Environment.isWindows()) {
+	static void installOfficeRibbonShell(JRootPane rootPane, boolean nativeWindowShellAvailable) {
+		if (nativeWindowShellAvailable) {
 			rootPane.putClientProperty(USE_WINDOW_DECORATIONS, Boolean.TRUE);
 			rootPane.putClientProperty(FULL_WINDOW_CONTENT, Boolean.TRUE);
 			// The brand icon is rendered in the Office header in this mode.
 			rootPane.putClientProperty(TITLE_BAR_SHOW_TITLE, Boolean.FALSE);
 			rootPane.putClientProperty(TITLE_BAR_SHOW_ICON, Boolean.FALSE);
 		} else {
-			// Do not hide the platform title/icon on a platform where FlatLaf's
-			// Windows full-content decoration is unavailable.
+			// Keep the platform frame and title/icon when FlatLaf's native
+			// Windows shell is unavailable. Do not create Java-painted chrome.
+			if (Environment.isWindows()) {
+				rootPane.putClientProperty(USE_WINDOW_DECORATIONS, Boolean.FALSE);
+			}
 			rootPane.putClientProperty(FULL_WINDOW_CONTENT, Boolean.FALSE);
 			rootPane.putClientProperty(TITLE_BAR_SHOW_TITLE, Boolean.TRUE);
 			rootPane.putClientProperty(TITLE_BAR_SHOW_ICON, Boolean.TRUE);
