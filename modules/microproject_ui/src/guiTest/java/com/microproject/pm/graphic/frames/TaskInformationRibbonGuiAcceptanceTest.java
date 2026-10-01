@@ -2344,6 +2344,38 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"Task Information must not stay enabled for a multi-task selection");
 		AbstractButton link = findShowingButtonByCommand("RibbonLink");
 		GuiAcceptanceSupport.await(link::isEnabled, "Link remained disabled for two selected tasks");
+		Environment.setClientSide(true);
+		Environment.setBatchMode(false);
+		Alert.setPresenter(new SwingAlertPresenter());
+		undo.clear();
+		project.setCollaborationSession(new CollaborationSession(project,
+				System.getProperty("java.io.tmpdir") + "/microproject-ribbon-link-lock.mpo", "link-lock-test") {
+			@Override
+			public Task tryAcquireTasks(Iterable<Task> tasks) {
+				if (tasks == null) return null;
+				java.util.Iterator<Task> iterator = tasks.iterator();
+				return iterator.hasNext() ? iterator.next() : null;
+			}
+
+			@Override
+			public String describeLockOwner(Task task) {
+				return "robot link lock test";
+			}
+		});
+		click(robot, boundsOnScreen(link));
+		GuiAcceptanceSupport.await(() -> findDialogContainingText("locked by robot link lock test") != null,
+				"the Ribbon Link route did not show the collaboration lock rejection");
+		Dialog lockWarning = findDialogContainingText("locked by robot link lock test");
+		assertTrue(successor.getPredecessorList().isEmpty(), "a lock-rejected Ribbon Link must not mutate dependencies");
+		assertEquals(0, gantt.getModel().getCache().getEdgesSize(), "a lock-rejected Ribbon Link must not add a Gantt edge");
+		assertEquals(RibbonCommandResult.Status.REJECTED, manager.getLastRibbonCommandResult().status(),
+				"the Ribbon Link route must publish rejection while its warning remains open");
+		assertEquals("lock-failed", manager.getLastRibbonCommandResult().reason());
+		assertFalse(undo.canUndo(), "a lock-rejected Ribbon Link must not create an undo edit");
+		press(robot, KeyEvent.VK_ENTER);
+		GuiAcceptanceSupport.await(() -> !lockWarning.isShowing(), "the Ribbon Link lock warning did not close after Enter");
+		project.setCollaborationSession(null);
+		GuiAcceptanceSupport.await(link::isEnabled, "Link stayed disabled after dismissing the lock rejection");
 		RibbonCommandResult previousLinkOutcome = manager.getLastRibbonCommandResult();
 		click(robot, boundsOnScreen(link));
 		GuiAcceptanceSupport.await(() -> successor.getPredecessorList().size() == 1,
