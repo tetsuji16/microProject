@@ -24,9 +24,14 @@
 package com.microproject.ui.input;
 
 import java.awt.event.MouseEvent;
+import java.io.Serial;
+import java.io.Serializable;
 
 /** Ensures a popup gesture is dispatched once across platform press/release triggers. */
-public final class PopupTriggerController {
+public final class PopupTriggerController implements Serializable {
+	@Serial
+	private static final long serialVersionUID = 1L;
+
 	public enum ReleaseOutcome {
 		NONE,
 		SHOW,
