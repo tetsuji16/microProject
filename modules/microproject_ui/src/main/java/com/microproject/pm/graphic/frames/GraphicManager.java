@@ -1603,6 +1603,25 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			boolean allowTask, boolean allowResource) {
 		if (!isDocumentActive())
 			return null;
+		var activeSheet = getCurrentFrame().getActiveSpreadSheet();
+		if (allowTask && taskType && activeSheet != null && activeSheet.getSelectedRows().length > 0) {
+			if (activeSheet.isHeaderColumnSelectionActive())
+				return null;
+			List<com.microproject.grouping.core.Node> activeNodes = activeSheet.getSelectedNodes();
+			if (activeNodes == null || activeNodes.size() != 1) {
+				if (activeNodes != null && activeNodes.size() > 1)
+					Alert.warn(Messages.getString("Message.onlySelectOneElement"), getContainer()); //$NON-NLS-1$
+				return null;
+			}
+			Object selectedImpl = activeNodes.get(0).getImpl();
+			if (selectedImpl instanceof Task) {
+				List<com.microproject.grouping.core.Node> selectedTasks = getCurrentFrame()
+					.getSelectedTaskNodes(false, false);
+				if (selectedTasks.size() != 1 || selectedTasks.get(0).getImpl() != selectedImpl)
+					return null;
+			}
+			return informationTargetFor(selectedImpl, allowProject, allowTask, allowResource);
+		}
 		List nodes = getCurrentFrame().getSelectedNodes(false);
 		if (isEmptySelection(nodes))
 			return null;
@@ -1706,9 +1725,16 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		}
 	}
 
-	private void showTaskInformationForSelection(boolean notes) {
+	private void showTaskInformationForSelection(Action action, boolean notes) {
 		traceUi("task-information.command received notes=" + notes);
-		executeInformation(resolveInformationTarget(false, true, false), notes);
+		InformationTarget target = resolveInformationTarget(false, true, false);
+		executeInformation(target, notes);
+		List<Long> affectedTaskIds = target != null && target.kind() == InformationTargetKind.TASK
+			? List.of(target.task().getId()) : List.of();
+		boolean visible = informationDialogCoordinator.isTaskDialogVisible();
+		publishTaskCommandOutcome(action, new RibbonCommandResult("RibbonTaskInformation",
+			visible ? RibbonCommandResult.Status.DISPATCHED : RibbonCommandResult.Status.FAILED,
+			visible ? "" : "dialog-not-visible", affectedTaskIds));
 	}
 
 	private void showResourceInformationForSelection(boolean notes) {
@@ -2245,7 +2271,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		public void actionPerformed(ActionEvent arg0) {
 			traceUi("task-information.ribbon actionPerformed source=" + describeUiObject(arg0.getSource()));
 			setMeAsLastGraphicManager();
-			showTaskInformationForSelection(false);
+			showTaskInformationForSelection(this, false);
 		}
 	}
 	public class RibbonResourceInformationAction extends MenuActionsMap.DocumentMenuAction {

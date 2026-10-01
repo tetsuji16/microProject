@@ -67,6 +67,7 @@ import com.microproject.dialog.DependencyDialog;
 import com.microproject.dialog.assignment.TimesheetDialog;
 import com.microproject.dialog.assignment.TimesheetEntryPane;
 import com.microproject.menu.MenuManager;
+import com.microproject.ribbon.RibbonCommandResult;
 import com.microproject.exchange.MpoFileImporter;
 import com.microproject.field.Field;
 import com.microproject.grouping.core.Node;
@@ -391,6 +392,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 
 		GuiAcceptanceSupport.await(() -> findTaskInformationDialog() != null,
 			"Task Properties > Information did not open Task Information after a Robot click");
+		assertRibbonOutcome(information, RibbonCommandResult.Status.DISPATCHED, task.getId());
 		TaskInformationDialog dialog = findTaskInformationDialog();
 		assertEquals(Messages.getString("TaskInformationDialog.TaskInformation") + " - " + task.getId(), dialog.getTitle());
 		assertTextStyleTabComponentsFit(dialog);
@@ -1045,6 +1047,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(hide::isEnabled, "Hide Selected Tasks remained disabled after selection");
 		click(robot, boundsOnScreen(hide));
 		GuiAcceptanceSupport.await(task::isHiddenTask, "Hide Selected Tasks did not update the task model");
+		assertRibbonOutcome(hide, RibbonCommandResult.Status.CHANGED, task.getId());
 		Object affectedIds = hide.getAction().getValue("MicroProject.ribbonAffectedTaskIds");
 		assertTrue(affectedIds instanceof java.util.List<?> ids && ids.contains(task.getUniqueId()),
 				"Hide Selected Tasks semantic result must identify the changed task");
@@ -1746,10 +1749,12 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(collapse::isEnabled, "Collapse remained disabled for a selected summary");
 		click(robot, boundsOnScreen(collapse));
 		GuiAcceptanceSupport.await(() -> !isTaskVisible(sheet, child), "Collapse did not hide the child row");
+		assertRibbonOutcome(collapse, RibbonCommandResult.Status.CHANGED, parent.getId());
 
 		AbstractButton expand = findShowingButtonByCommand("RibbonExpand");
 		click(robot, boundsOnScreen(expand));
 		GuiAcceptanceSupport.await(() -> isTaskVisible(sheet, child), "Expand did not restore the child row");
+		assertRibbonOutcome(expand, RibbonCommandResult.Status.CHANGED, parent.getId());
 	}
 
 	@Test
@@ -1786,6 +1791,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, boundsOnScreen(indent));
 		GuiAcceptanceSupport.await(() -> second.getWbsParentTask() == first,
 				"Indent did not make the selected task a child of its predecessor");
+		assertRibbonOutcome(indent, RibbonCommandResult.Status.CHANGED, second.getId());
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(second),
 				"Indent did not preserve the selected task after hierarchy refresh");
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
@@ -1801,6 +1807,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, boundsOnScreen(outdent));
 		GuiAcceptanceSupport.await(() -> second.getWbsParentTask() == null,
 				"Outdent did not restore the selected task to the top level");
+		assertRibbonOutcome(outdent, RibbonCommandResult.Status.CHANGED, second.getId());
 
 		ByteArrayOutputStream saved = new ByteArrayOutputStream();
 		assertTrue(new MpoFileImporter().saveProject(project, saved),
@@ -2190,6 +2197,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, boundsOnScreen(link));
 		GuiAcceptanceSupport.await(() -> successor.getPredecessorList().size() == 1,
 				"Link did not create a dependency between the selected tasks");
+		assertRibbonOutcome(link, RibbonCommandResult.Status.CHANGED, predecessor.getId(), successor.getId());
 		ByteArrayOutputStream saved = new ByteArrayOutputStream();
 		assertTrue(new MpoFileImporter().saveProject(project, saved),
 				"MPO save did not accept the project after the physical Link command");
@@ -2225,6 +2233,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, boundsOnScreen(unlink));
 		GuiAcceptanceSupport.await(() -> successor.getPredecessorList().isEmpty(),
 				"Unlink did not remove the dependency between the selected tasks");
+		assertRibbonOutcome(unlink, RibbonCommandResult.Status.CHANGED, predecessor.getId(), successor.getId());
 	}
 
 	@Test
@@ -2537,6 +2546,16 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			result[0] = new Rectangle(location.x + cell.x, location.y + cell.y, cell.width, cell.height);
 		});
 		return result[0];
+	}
+
+	private static void assertRibbonOutcome(AbstractButton button, RibbonCommandResult.Status expectedStatus,
+			Long... expectedTaskIds) {
+		Object value = button.getAction().getValue("MicroProject.ribbonCommandResult");
+		assertTrue(value instanceof RibbonCommandResult, "ribbon action must expose a semantic command outcome");
+		RibbonCommandResult result = (RibbonCommandResult) value;
+		assertEquals(expectedStatus, result.status(), "ribbon command status");
+		assertEquals(List.of(expectedTaskIds), result.affectedTaskIds(), "ribbon command task IDs");
+		assertFalse(result.activeViewId().isBlank(), "ribbon command outcome must identify the active view");
 	}
 
 	private static Rectangle boundsOnScreen(java.awt.Component component) throws Exception {
