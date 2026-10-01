@@ -57,6 +57,7 @@ import com.microproject.pm.graphic.IconManager;
 import com.microproject.dialog.UsabilityStrings;
 import com.microproject.util.FlatUiSupport;
 import com.microproject.util.Environment;
+import com.microproject.util.FlatLafSupport;
 import com.microproject.ui.ribbon.ModernRibbonPanel;
 import com.microproject.ui.ribbon.RibbonDisplayMode;
 
@@ -108,7 +109,8 @@ final class OfficeChromePanel extends JPanel {
 		AutoSaveControl autoSaveControl) {
 		super(new BorderLayout());
 		this.menuManager = menuManager;
-		this.officeWindow = frame != null && Environment.isWindows();
+		this.officeWindow = frame != null && Environment.isWindows()
+			&& FlatLafSupport.isNativeWindowDecorationsEnabled();
 		this.helpAction = helpAction;
 		this.autoSaveControl = autoSaveControl == null ? AutoSaveControl.DISABLED : autoSaveControl;
 		Object ribbonValue = ribbonPanel == null ? null
@@ -290,9 +292,11 @@ final class OfficeChromePanel extends JPanel {
 		constraints.gridx = 0;
 		constraints.insets = new Insets(0, 0, 0, 4);
 		cluster.add(createHelpButton(), constraints);
-		constraints.gridx++;
-		constraints.insets = new Insets(0, 0, 0, 0);
-		cluster.add(createWindowButtonsPlaceholder(), constraints);
+		if (officeWindow) {
+			constraints.gridx++;
+			constraints.insets = new Insets(0, 0, 0, 0);
+			cluster.add(createWindowButtonsPlaceholder(), constraints);
+		}
 		return cluster;
 	}
 

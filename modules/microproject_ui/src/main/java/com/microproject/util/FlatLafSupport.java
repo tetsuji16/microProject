@@ -46,7 +46,7 @@ import com.microproject.ui.theme.MicroProjectTheme;
 public final class FlatLafSupport {
 	private static final Logger logger = Logger.getLogger(FlatLafSupport.class.getName());
 	private static boolean initialized;
-	private static boolean nativeWindowDecorationsEnabled;
+	private static volatile boolean nativeWindowDecorationsEnabled;
 	private static Font platformDefaultFont;
 	private static final int MS_PROJECT_UI_FONT_SIZE = 12;
 	private static final String MS_PROJECT_FONT = "Segoe UI";
@@ -134,7 +134,9 @@ public final class FlatLafSupport {
 	 * normal Swing/OS decoration fallback.
 	 */
 	private static boolean configureNativeWindowDecorations() {
-		if (!isWindows() || !FlatLaf.supportsNativeWindowDecorations()) {
+		if (!isWindows()
+			|| "false".equalsIgnoreCase(System.getProperty("flatlaf.useWindowDecorations"))
+			|| !FlatLaf.supportsNativeWindowDecorations()) {
 			return false;
 		}
 		FlatLaf.setUseNativeWindowDecorations(true);
