@@ -1639,6 +1639,16 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		return null;
 	}
 
+	private Object selectedInformationImpl() {
+		if (!isDocumentActive() || getCurrentFrame() == null)
+			return null;
+		List nodes = getCurrentFrame().getSelectedNodes(false);
+		if (nodes == null || nodes.size() != 1
+				|| !(nodes.get(0) instanceof com.microproject.grouping.core.Node node))
+			return null;
+		return node.getImpl();
+	}
+
 	/** Canonical Information command: target snapshot, edit teardown, route, view. */
 	private void executeInformation(InformationTarget target, boolean notes) {
 		if (target == null)
@@ -4122,9 +4132,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 	void setButtonState(Object currentImpl, Project project) {
 		Set actions=getActionSet();
-		boolean infoEnabled = currentImpl != null && (currentImpl instanceof Assignment||currentImpl instanceof Task||currentImpl instanceof Resource);
-		boolean taskInfoEnabled = currentImpl != null && (currentImpl instanceof Task || (currentImpl instanceof Assignment && taskType));
-		boolean resourceInfoEnabled = currentImpl != null && (currentImpl instanceof Resource || (currentImpl instanceof Assignment && resourceType));
+		Object selectedInfoImpl = selectedInformationImpl();
+		boolean infoEnabled = informationTargetFor(selectedInfoImpl, true, true, true) != null;
+		boolean taskInfoEnabled = informationTargetFor(selectedInfoImpl, false, true, false) != null;
+		boolean resourceInfoEnabled = informationTargetFor(selectedInfoImpl, false, false, true) != null;
 		boolean notVoid = currentImpl != null && !(currentImpl instanceof VoidNodeImpl);
 		traceUi("button-state impl=" + describeUiObject(currentImpl)
 			+ " taskInformationEnabled=" + taskInfoEnabled

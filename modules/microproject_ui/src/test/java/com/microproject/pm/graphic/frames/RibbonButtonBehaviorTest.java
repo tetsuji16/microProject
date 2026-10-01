@@ -394,6 +394,22 @@ class RibbonButtonBehaviorTest {
 	}
 
 	@Test
+	void informationRibbonEnablementFollowsTheSelectedResourceWhenLeadImplIsStale() throws Exception {
+		Harness harness = newHarness();
+		harness.setTaskInformation(true, true);
+		SwingUtilities.invokeAndWait(() -> {
+			harness.frame.activateView(MenuActionConstants.ACTION_RESOURCES);
+			harness.frame.getResourceView().getSpreadSheet().setRowSelectionInterval(0, 0);
+			harness.frame.setSelection(List.of(harness.resourceNode));
+			harness.manager.setButtonState(harness.task, harness.project);
+			assertFalse(harness.manager.getAction("RibbonTaskInformation").isEnabled(),
+				"Task Information must not remain enabled from a stale task lead node");
+			assertTrue(harness.manager.getAction("RibbonResourceInformation").isEnabled(),
+				"Resource Information must follow the selected resource");
+		});
+	}
+
+	@Test
 	void hideSelectedRemainsEnabledForVirtualGroupRows() throws Exception {
 		Harness harness = newHarness();
 		harness.setTaskInformation(true, false);
