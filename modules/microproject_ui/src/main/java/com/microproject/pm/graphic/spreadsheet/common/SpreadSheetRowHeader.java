@@ -42,8 +42,8 @@ import javax.swing.table.DefaultTableColumnModel;
 
 import com.microproject.menu.MenuActionConstants;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
-import com.microproject.pm.graphic.spreadsheet.PopupTriggerController;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetPopupMenu;
+import com.microproject.ui.input.PopupTriggerController;
 import com.microproject.strings.Messages;
 import com.microproject.util.Alert;
 import java.awt.Dimension;
@@ -156,7 +156,7 @@ public class SpreadSheetRowHeader extends JTable {
 						}
 					}
 					public void mouseReleased(MouseEvent e) {
-						boolean popupTrigger = popupTriggers.mouseReleased(e);
+						boolean popupTrigger = popupTriggers.mouseReleased(e) == PopupTriggerController.ReleaseOutcome.SHOW;
 						if (dragging && validDrop && confirmDragMove(spreadSheet))
 							spreadSheet.moveSelectedTaskRowsTo(targetRow,dropAfter);
 						if (popupTrigger)

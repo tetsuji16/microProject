@@ -31,8 +31,8 @@ import javax.swing.SwingUtilities;
 
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetColumnMenu;
-import com.microproject.pm.graphic.spreadsheet.PopupTriggerController;
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet;
+import com.microproject.ui.input.PopupTriggerController;
 /**
  *
  */
@@ -68,7 +68,7 @@ public class HeaderMouseListener extends MouseAdapter {
 
 	@Override
 	public void mouseReleased(MouseEvent e) {
-		if (popupTriggers.mouseReleased(e))
+		if (popupTriggers.mouseReleased(e) == PopupTriggerController.ReleaseOutcome.SHOW)
 			showColumnPopup(e);
 	}
 

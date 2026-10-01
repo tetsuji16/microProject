@@ -79,6 +79,7 @@ import com.microproject.menu.MenuActionConstants;
 import com.microproject.pm.graphic.IconManager;
 import com.microproject.pm.graphic.frames.DocumentFrame;
 import com.microproject.pm.graphic.frames.GraphicManager;
+import com.microproject.ui.input.PopupTriggerController;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.collaboration.CollaborationHelper;
@@ -1170,7 +1171,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			} else if (SwingUtilities.isLeftMouseButton(e) && !e.isControlDown()
 					&& !e.isMetaDown() && !e.isShiftDown())
 				restoreTaskRowSelection(releasedRow, releasedColumn);
-			if (popupTriggerController.mouseReleased(e))
+			if (popupTriggerController.mouseReleased(e) == PopupTriggerController.ReleaseOutcome.SHOW)
 				handleTablePopupTrigger(e);
 		} else if (e.getID() == MouseEvent.MOUSE_CLICKED && SwingUtilities.isLeftMouseButton(e)) {
 			if (suppressTaskClickRestore) {

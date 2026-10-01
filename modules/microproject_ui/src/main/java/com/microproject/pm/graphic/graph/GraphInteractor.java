@@ -49,6 +49,7 @@ import com.microproject.pm.graphic.model.cache.GraphicDependency;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.views.synchro.ScrollPaneSynchronizer;
 import com.microproject.graphic.configuration.GraphicConfiguration;
+import com.microproject.ui.input.PopupTriggerController;
 
 /**
  *
@@ -66,6 +67,7 @@ public abstract class GraphInteractor implements MouseListener, MouseMotionListe
 	protected double x0,y0;
 	protected GraphicConfiguration config;
 	protected GraphPopupMenu popup=null;
+	private final PopupTriggerController popupTriggerController = new PopupTriggerController();
 	protected DependencyDialog dependencyPropertiesDialog;
 	// Drag scroll throttling: avoid excessive scrollRectToVisible calls during mouse drag
 	private static final int SCROLL_THROTTLE_PX = 30;
@@ -257,31 +259,37 @@ public abstract class GraphInteractor implements MouseListener, MouseMotionListe
     //Mouse
     public void mouseClicked(MouseEvent e){}
     public void mousePressed(MouseEvent e){
-    	if (isReadOnly()) return;
-    	if (SwingUtilities.isRightMouseButton(e)){
-    		if (popup!=null) popup.show(getGraph(),e.getX(),e.getY());
-	    }else{
-	    	if (selected==null) return;
-	    	if (isMove()){
-	    		ScrollPaneSynchronizer.invalidateZoomRestore(getGraph());
-	    		selection=false;
-	    		x0=e.getX();
-	    		y0=e.getY();
-	    		drawBarShadow(x0,y0,true);
-	    	}else if (isDirectAction()){
-	    		if (isZoomRestoreInvalidatingDirectAction()) {
-	    			ScrollPaneSynchronizer.invalidateZoomRestore(getGraph());
-	    		}
-	    		executeAction(e.getX(),e.getY());
-	    		state=NOTHING_SELECTED;
-	    	}
-    	}
+        boolean popupTrigger = popupTriggerController.mousePressed(e);
+        if (popupTrigger) {
+            showPopup(e);
+            return;
+        }
+        if (isReadOnly()) return;
+        if (SwingUtilities.isRightMouseButton(e) || selected==null) return;
+        if (isMove()){
+            ScrollPaneSynchronizer.invalidateZoomRestore(getGraph());
+            selection=false;
+            x0=e.getX();
+            y0=e.getY();
+            drawBarShadow(x0,y0,true);
+        }else if (isDirectAction()){
+            if (isZoomRestoreInvalidatingDirectAction()) {
+                ScrollPaneSynchronizer.invalidateZoomRestore(getGraph());
+            }
+            executeAction(e.getX(),e.getY());
+            state=NOTHING_SELECTED;
+        }
     }
 
     public void mouseReleased(MouseEvent e){
-    	if (isReadOnly()) return;
-    	if (!SwingUtilities.isLeftMouseButton(e)) return;
-    	if (selected==null||state==NOTHING_SELECTED) return;
+        PopupTriggerController.ReleaseOutcome popupRelease = popupTriggerController.mouseReleased(e);
+        if (popupRelease != PopupTriggerController.ReleaseOutcome.NONE) {
+            if (popupRelease == PopupTriggerController.ReleaseOutcome.SHOW) showPopup(e);
+            return;
+        }
+        if (isReadOnly()) return;
+        if (!SwingUtilities.isLeftMouseButton(e)) return;
+        if (selected==null||state==NOTHING_SELECTED) return;
 		if (isRepaintOnRelease()) getGraph().repaint();
 
     	double x1=e.getX();
@@ -293,6 +301,16 @@ public abstract class GraphInteractor implements MouseListener, MouseMotionListe
 
     public void mouseEntered(MouseEvent e){}
     public void mouseExited(MouseEvent e){}
+
+	protected final boolean wasPopupTriggeredOnPress() {
+		return popupTriggerController.wasTriggeredOnPress();
+	}
+
+	private void showPopup(MouseEvent event) {
+		if (!isReadOnly() && popup != null) {
+			popup.show(getGraph(), event.getX(), event.getY());
+		}
+	}
 
     private void scrollToVisible(int x,int y){
      	// Throttle: skip if mouse hasn't moved far enough since last scroll.

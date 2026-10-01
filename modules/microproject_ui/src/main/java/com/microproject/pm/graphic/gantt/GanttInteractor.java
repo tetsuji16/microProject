@@ -206,7 +206,7 @@ public class GanttInteractor extends GraphInteractor{
     }
     private NodeSelectionIntervalConsumer nodeSelectionIntervalConsumer=new NodeSelectionIntervalConsumer();
 
-    public void mousePressed(MouseEvent e) {
+	public void mousePressed(MouseEvent e) {
     	if (isReadOnly()) {
 			// Read-only applies to bar editing, not to inspecting a task.  Keep
 			// Task Information available for imported/read-only projects.
@@ -220,13 +220,13 @@ public class GanttInteractor extends GraphInteractor{
     		return;
     	}
     	getGraph().requestFocusInWindow();
-    	if (SwingUtilities.isRightMouseButton(e)) {
+		if (SwingUtilities.isRightMouseButton(e) || e.isPopupTrigger()) {
 			select(e.getX(), e.getY());
 			notifyBarSelection(e);
-    		super.mousePressed(e);
-    		return;
-    	}
-    	if (!SwingUtilities.isLeftMouseButton(e)) {
+			super.mousePressed(e);
+			return;
+		}
+		if (!SwingUtilities.isLeftMouseButton(e)) {
     		super.mousePressed(e);
     		return;
     	}
@@ -284,6 +284,18 @@ public class GanttInteractor extends GraphInteractor{
     }
 
     public void mouseReleased(MouseEvent e) {
+		if (e.isPopupTrigger() || wasPopupTriggeredOnPress()) {
+			if (calendarRangeSelecting) {
+				calendarRangeSelecting = false;
+				lastCalendarRangeNode = null;
+			}
+			if (panning) stopPan();
+			super.mouseReleased(e);
+			state = NOTHING_SELECTED;
+			reset();
+			notifyMode("StatusBar.Ready");
+			return;
+		}
 		if (calendarRangeSelecting) {
 			calendarRangeSelecting = false;
 			lastCalendarRangeNode = null;

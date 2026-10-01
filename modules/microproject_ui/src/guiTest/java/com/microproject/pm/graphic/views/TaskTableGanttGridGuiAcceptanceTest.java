@@ -38,6 +38,7 @@ import javax.swing.JComponent;
 import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
 import javax.swing.JMenuItem;
+import javax.swing.JPopupMenu;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
@@ -243,6 +244,53 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			SwingUtilities.invokeAndWait(() -> synchronizer.removeSynchro(ganttScroll, tableScroll,
 				ScrollPaneSynchronizer.HORIZONTAL));
 		}
+	}
+
+	@Test
+	void physicalGanttPopupSelectsTheTaskAndOpensOnceOnThePlatformTrigger() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Fixture fixture = createFixture(3);
+		showFixture(fixture);
+		Robot robot = new Robot();
+		robot.setAutoDelay(40);
+		GraphicNode node = (GraphicNode) fixture.gantt.getModel().getCache().getElementAt(0);
+		NormalTask task = (NormalTask) node.getNode().getImpl();
+		BarGeometry bar = barGeometry(fixture.gantt, task);
+		int x = bar.startX() + Math.max(1, bar.width() / 2);
+		int y = node.getRow() * fixture.gantt.getRowHeight() + fixture.gantt.getRowHeight() / 2;
+		Point point = screenCenter(fixture.gantt, new Rectangle(x, y, 1, 1));
+		long startBefore = task.getStart();
+		long durationBefore = task.getRawDuration();
+		SwingUtilities.invokeAndWait(() -> {
+			frame.toFront();
+			frame.requestFocus();
+		});
+		robot.mouseMove(point.x, point.y);
+		robot.mousePress(InputEvent.BUTTON3_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
+		GuiAcceptanceSupport.await(TaskTableGanttGridGuiAcceptanceTest::ganttPopupIsSelected,
+			"a physical Gantt right-click did not open its popup on the platform popup trigger");
+		SwingUtilities.invokeAndWait(() -> assertEquals(node,
+			((GanttUI) fixture.gantt.getUI()).getInteractor().getSelectedObject(),
+			"the task under the popup gesture must become the Gantt selection"));
+		assertEquals(startBefore, task.getStart(), "opening the Gantt popup must not change task dates");
+		assertEquals(durationBefore, task.getRawDuration(), "opening the Gantt popup must not change task duration");
+		robot.keyPress(KeyEvent.VK_ESCAPE);
+		robot.keyRelease(KeyEvent.VK_ESCAPE);
+		GuiAcceptanceSupport.await(() -> !ganttPopupIsSelected(), "Escape did not close the Gantt popup");
+	}
+
+	private static boolean ganttPopupIsSelected() {
+		MenuElement[][] path = new MenuElement[1][];
+		try {
+			SwingUtilities.invokeAndWait(() -> path[0] = MenuSelectionManager.defaultManager().getSelectedPath());
+		} catch (Exception exception) {
+			throw new IllegalStateException("Unable to inspect the active popup path", exception);
+		}
+		for (MenuElement element : path[0]) {
+			if (element instanceof JPopupMenu) return true;
+		}
+		return false;
 	}
 
 	@Test
