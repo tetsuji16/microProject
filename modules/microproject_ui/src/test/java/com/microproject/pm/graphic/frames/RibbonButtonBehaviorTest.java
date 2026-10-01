@@ -65,6 +65,7 @@ import com.microproject.menu.MenuManager;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.task.DefaultSubProj;
 import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
@@ -363,6 +364,32 @@ class RibbonButtonBehaviorTest {
 			assertEquals(RibbonCommandResult.Status.CHANGED, indent.status(), indent.reason());
 			assertSame(harness.task, harness.secondTask.getWbsParentTask(),
 				"Indent execution must use the active table row, not the stale frame selection");
+		});
+	}
+
+	@Test
+	void hierarchyCommandsAreDisabledForReadOnlySubprojectSelection() throws Exception {
+		Harness harness = newHarness();
+		DefaultSubProj readOnlySubproject = new DefaultSubProj(harness.project, 771L);
+		readOnlySubproject.setName("Read-only subproject row");
+		harness.project.connectTask(readOnlySubproject);
+		harness.project.getTaskOutlines().addToAll(readOnlySubproject, null);
+		Node readOnlyNode = NodeFactory.getInstance().createNode(readOnlySubproject);
+
+		SwingUtilities.invokeAndWait(() -> {
+			SpreadSheet sheet = harness.frame.getTopSpreadSheet();
+			sheet.clearSelection();
+			assertEquals(0, sheet.getSelectedRows().length);
+			harness.frame.setSelection(List.of(readOnlyNode));
+			List<Node> selectedTasks = harness.frame.getSelectedTaskNodes(false, true);
+			assertEquals(1, selectedTasks.size());
+			assertSame(readOnlySubproject, selectedTasks.get(0).getImpl());
+			assertTrue(harness.frame.getSelectedTaskNodes(true, true).isEmpty(),
+				"execution must exclude this read-only subproject task");
+			harness.manager.setButtonState(readOnlySubproject, harness.project);
+			assertTrue(readOnlySubproject.isReadOnly());
+			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_INDENT).isEnabled(),
+				"Indent enablement must apply the read-only filter used by execution");
 		});
 	}
 

@@ -4147,6 +4147,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		// same stable task selection that execution uses, not that stale singleton.
 		List<com.microproject.grouping.core.Node> selectedTaskNodes = getCurrentFrame() == null
 			? java.util.List.of() : getCurrentFrame().getSelectedTaskNodes(false, true);
+		List<com.microproject.grouping.core.Node> hierarchyTaskNodes = getCurrentFrame() == null
+			? java.util.List.of() : getCurrentFrame().getSelectedTaskNodes(true, true);
 		boolean isTask = currentImpl instanceof Task || !selectedTaskNodes.isEmpty();
 		boolean isResource = currentImpl != null && currentImpl instanceof Resource;
 		boolean isLinkedSubproject = currentImpl instanceof SubProj;
@@ -4155,8 +4157,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		boolean hasOneTaskSelection = getCurrentFrame() != null && getCurrentFrame().hasTaskSelection(false, 1, true);
 		boolean hasOutlineTaskSelection = getCurrentFrame() != null
 			&& getCurrentFrame().hasTaskSelection(false, 1, false);
-		boolean hierarchySelection = (!selectedTaskNodes.isEmpty() && isTask) || isResource;
-		boolean canOutdent = !isTask || selectedTaskNodes.stream()
+		boolean hierarchySelection = (!hierarchyTaskNodes.isEmpty() && isTask) || isResource;
+		boolean canOutdent = !isTask || hierarchyTaskNodes.stream()
 			.anyMatch(node -> node != null && node.getImpl() instanceof Task task
 					&& task.getWbsParentTask() != null);
 		// The task table owns both hierarchy commands even while its model cache is
