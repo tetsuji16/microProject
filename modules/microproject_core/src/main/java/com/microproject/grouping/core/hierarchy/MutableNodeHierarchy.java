@@ -185,13 +185,13 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 
     	if (project!=null){
 			int resourceCount = project.getResourcePool().getResourceList().size();
-			HashMap<Long, Resource> resourceMap = new HashMap<Long, Resource>(resourceCount * 4 / 3 + 1);
+			HashMap<Long, Resource> resourceMap = HashMap.newHashMap(resourceCount);
 			for (Resource r : project.getResourcePool().getResourceList())
     			resourceMap.put(r.getUniqueId(),r);
 
     		HashMap<Long, Task> taskMap = null;
     		if (Environment.isKeepExternalLinks()){
-				taskMap=new HashMap<Long, Task>(project.getTaskList().size() * 4 / 3 + 1);
+				taskMap=HashMap.newHashMap(project.getTaskList().size());
     			for (Task t: project.getTaskList()) //use model instead?
     				taskMap.put(t.getUniqueId(),t);
     		}

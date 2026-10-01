@@ -81,7 +81,7 @@ public class ResourcePool implements Document, NodeModelDataFactory {
 	public Resource findById(long id) {
 		if (idMap == null) {
 		    int resourceCount = getResourceList().size();
-		    idMap = new HashMap<>(resourceCount * 4 / 3 + 1);
+		    idMap = HashMap.newHashMap(resourceCount);
 			for (Resource resource : getResourceList()) {
 				idMap.put(resource.getUniqueId(),resource);
 			}
