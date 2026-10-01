@@ -1094,6 +1094,19 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> rowForTask(sheet, task) >= 0, "Show All Tasks did not restore the visible task row");
 		assertRibbonOutcome(manager, previousShowOutcome, RibbonCommandResult.Status.CHANGED,
 			List.of(), List.of(task.getUniqueId()));
+		ByteArrayOutputStream shownSnapshot = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(task.getOwningProject(), shownSnapshot),
+				"MPO save did not accept the project after Show All Tasks");
+		Project shownReload = new MpoFileImporter().loadProject(new ByteArrayInputStream(shownSnapshot.toByteArray()));
+		assertFalse(taskNamed(shownReload, task.getName()).isHiddenTask(),
+				"MPO reload lost the task restored through Show All Tasks");
+
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(task::isHiddenTask, "Ctrl+Z did not undo Show All Tasks");
+		GuiAcceptanceSupport.await(() -> rowForTask(sheet, task) < 0, "Undo Show All Tasks did not hide the task row");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> !task.isHiddenTask(), "Ctrl+Y did not redo Show All Tasks");
+		GuiAcceptanceSupport.await(() -> rowForTask(sheet, task) >= 0, "Redo Show All Tasks did not restore the task row");
 	}
 
 	@Test
