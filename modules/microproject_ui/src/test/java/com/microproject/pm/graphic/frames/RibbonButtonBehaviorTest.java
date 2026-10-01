@@ -370,6 +370,7 @@ class RibbonButtonBehaviorTest {
 	@Test
 	void hierarchyCommandsAreDisabledForReadOnlySubprojectSelection() throws Exception {
 		Harness harness = newHarness();
+		harness.setTaskInformation(true, false);
 		DefaultSubProj readOnlySubproject = new DefaultSubProj(harness.project, 771L);
 		readOnlySubproject.setName("Read-only subproject row");
 		harness.project.connectTask(readOnlySubproject);
@@ -390,6 +391,68 @@ class RibbonButtonBehaviorTest {
 			assertTrue(readOnlySubproject.isReadOnly());
 			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_INDENT).isEnabled(),
 				"Indent enablement must apply the read-only filter used by execution");
+			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_MARK_ON_TRACK).isEnabled(),
+				"Mark on Track must be disabled when the selected task is not editable");
+			assertEquals(RibbonCommandResult.Status.REJECTED,
+				harness.frame.routeTaskCommand(CommandId.MARK_ON_TRACK).status(),
+				"Mark on Track execution must use the same editable selection filter");
+			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_UNLINK).isEnabled(),
+				"Unlink must be disabled for a read-only selected task");
+			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_TASK_MODE_MANUAL).isEnabled(),
+				"Manual scheduling must be disabled for a read-only selected task");
+			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_TASK_MODE_AUTOMATIC).isEnabled(),
+				"Automatic scheduling must be disabled for a read-only selected task");
+			harness.frame.setExecuteUnlinkForSelectionTest(true);
+			assertEquals(RibbonCommandResult.Status.REJECTED,
+				harness.frame.routeTaskCommand(CommandId.UNLINK).status(),
+				"Unlink execution must use the same editable selection filter");
+			assertEquals(RibbonCommandResult.Status.REJECTED,
+				harness.frame.routeTaskCommand(CommandId.TASK_MODE_MANUAL).status(),
+				"Task mode execution must not modify a read-only selected task");
+		});
+	}
+
+	@Test
+	void taskModeButtonsRequireAnEditableTaskSelection() throws Exception {
+		Harness harness = newHarness();
+		harness.setTaskInformation(true, false);
+		DefaultSubProj readOnlySubproject = new DefaultSubProj(harness.project, 775L);
+		readOnlySubproject.setName("Read-only task mode row");
+		harness.project.connectTask(readOnlySubproject);
+		harness.project.getTaskOutlines().addToAll(readOnlySubproject, null);
+		Node readOnlyNode = NodeFactory.getInstance().createNode(readOnlySubproject);
+		SwingUtilities.invokeAndWait(() -> {
+			harness.frame.setSelection(List.of(harness.taskNode));
+			harness.manager.setButtonState(harness.task, harness.project);
+			assertTrue(harness.manager.getAction(MenuActionConstants.ACTION_TASK_MODE_MANUAL).isEnabled());
+			assertTrue(harness.manager.getAction(MenuActionConstants.ACTION_TASK_MODE_AUTOMATIC).isEnabled());
+			harness.frame.setSelection(List.of(readOnlyNode));
+			harness.manager.setButtonState(readOnlySubproject, harness.project);
+			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_TASK_MODE_MANUAL).isEnabled());
+			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_TASK_MODE_AUTOMATIC).isEnabled());
+		});
+	}
+
+	@Test
+	void linkEnablementAndExecutionRequireTwoEditableTasks() throws Exception {
+		Harness harness = newHarness();
+		harness.setTaskInformation(true, false);
+		DefaultSubProj readOnlySubproject = new DefaultSubProj(harness.project, 774L);
+		readOnlySubproject.setName("Read-only link row");
+		harness.project.connectTask(readOnlySubproject);
+		harness.project.getTaskOutlines().addToAll(readOnlySubproject, null);
+		Node readOnlyNode = NodeFactory.getInstance().createNode(readOnlySubproject);
+		SwingUtilities.invokeAndWait(() -> {
+			harness.frame.setSelection(List.of(readOnlyNode, harness.secondTaskNode));
+			harness.frame.setExecuteLinkForSelectionTest(true);
+			harness.manager.setButtonState(harness.secondTask, harness.project);
+			assertTrue(harness.frame.hasTaskSelection(false, 2, true),
+				"the unfiltered selection demonstrates why the link enablement was wrong");
+			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_LINK).isEnabled(),
+				"Link must require two editable tasks, not count a read-only subproject task");
+			assertEquals(RibbonCommandResult.Status.REJECTED,
+				harness.frame.routeTaskCommand(CommandId.LINK).status(),
+				"Link execution must use the same editable task selection as enablement");
 		});
 	}
 
@@ -1395,6 +1458,7 @@ class RibbonButtonBehaviorTest {
 		private final Map<String, Integer> structuralCalls = new LinkedHashMap<>();
 		private final Map<Boolean, Integer> baselineDialogCalls = new LinkedHashMap<>();
 		private boolean executeLinkForSelectionTest;
+		private boolean executeUnlinkForSelectionTest;
 		private boolean executeIndentForSelectionTest;
 		private List<Node> visibilitySelectionForTest;
 		private int copyCalls;
@@ -1410,6 +1474,10 @@ class RibbonButtonBehaviorTest {
 
 		void setExecuteLinkForSelectionTest(boolean execute) {
 			executeLinkForSelectionTest = execute;
+		}
+
+		void setExecuteUnlinkForSelectionTest(boolean execute) {
+			executeUnlinkForSelectionTest = execute;
 		}
 
 		void setExecuteIndentForSelectionTest(boolean execute) {
@@ -1530,6 +1598,10 @@ class RibbonButtonBehaviorTest {
 
 		@Override
 		public void doUnlinkTasks() {
+			if (executeUnlinkForSelectionTest) {
+				super.doUnlinkTasks();
+				return;
+			}
 			recordStructuralCall("RibbonUnlink");
 		}
 

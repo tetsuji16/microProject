@@ -605,7 +605,7 @@ public class DocumentFrame extends NamedFrame implements
 	}
 
 	private RibbonCommandResult applyTaskMode(CommandId command, com.microproject.pm.task.TaskModeService.Mode mode) {
-		List<Node> selection = new ArrayList<>(getSelectedTaskNodes(false, true));
+		List<Node> selection = new ArrayList<>(getSelectedTaskNodes(true, true));
 		if (selection.isEmpty()) return RibbonCommandResult.rejected(command.actionId(), "no-selection");
 		if (project == null || project.isReadOnly()) return RibbonCommandResult.rejected(command.actionId(), "document-read-only");
 		List<Task> tasks = selection.stream().map(Node::getImpl).filter(Task.class::isInstance).map(Task.class::cast).toList();
@@ -636,7 +636,7 @@ public class DocumentFrame extends NamedFrame implements
 	}
 
 	private RibbonCommandResult applyMarkOnTrack(CommandId command) {
-		List<Node> selection = new ArrayList<>(getSelectedTaskNodes(false, true));
+		List<Node> selection = new ArrayList<>(getSelectedTaskNodes(true, true));
 		if (project == null || project.isReadOnly()) return RibbonCommandResult.rejected(command.actionId(), "document-read-only");
 		if (selection.isEmpty()) return RibbonCommandResult.rejected(command.actionId(), "no-selection");
 		List<Task> tasks = selection.stream().map(Node::getImpl).filter(Task.class::isInstance).map(Task.class::cast).toList();
@@ -755,7 +755,7 @@ public class DocumentFrame extends NamedFrame implements
 		// Capture the selection before finishing an editor.  Stopping a cell
 		// editor can clear the JTable selection, which previously made the
 		// ribbon command silently return even though it was enabled.
-		List<Node> taskNodes = new ArrayList<>(getSelectedTaskNodes(false, true));
+		List<Node> taskNodes = new ArrayList<>(getSelectedTaskNodes(true, true));
 		publishTaskCommandResult(CommandId.LINK, RibbonCommandResult.Status.REJECTED,
 			"selection-too-small", taskNodes);
 		if (taskNodes.size() > 1)
@@ -807,7 +807,7 @@ public class DocumentFrame extends NamedFrame implements
 		}
 	}
 	public void doUnlinkTasks() {
-		List<Node> taskNodes = new ArrayList<>(getSelectedTaskNodes(false, true));
+		List<Node> taskNodes = new ArrayList<>(getSelectedTaskNodes(true, true));
 		publishTaskCommandResult(CommandId.UNLINK, RibbonCommandResult.Status.REJECTED,
 			"no-selection", taskNodes);
 		if (taskNodes.size() > 1)

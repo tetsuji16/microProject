@@ -4162,7 +4162,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		boolean isTask = currentImpl instanceof Task || !selectedTaskNodes.isEmpty();
 		boolean isLinkedSubproject = selectedSubprojectReference() != null;
 		boolean hasEditableTaskSelection = !hierarchyTaskNodes.isEmpty();
-		boolean hasOneTaskSelection = getCurrentFrame() != null && getCurrentFrame().hasTaskSelection(false, 1, true);
 		boolean hasOutlineTaskSelection = getCurrentFrame() != null
 			&& getCurrentFrame().hasTaskSelection(false, 1, false);
 		boolean hierarchySelection = !hierarchyTaskNodes.isEmpty();
@@ -4185,9 +4184,12 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				!readOnly && hasOutlineTaskSelection && (actions==null||actions.contains(ACTION_EXPAND)));
 		getMenuManager().setActionEnabled(ACTION_COLLAPSE,
 				!readOnly && hasOutlineTaskSelection && (actions==null||actions.contains(ACTION_COLLAPSE)));
-		boolean hasLinkSelection = getCurrentFrame() != null && getCurrentFrame().hasTaskSelection(false, 2, true);
+		boolean hasLinkSelection = hierarchyTaskNodes.size() >= 2;
 		getMenuManager().setActionEnabled(ACTION_LINK, !readOnly && hasLinkSelection);
-		getMenuManager().setActionEnabled(ACTION_UNLINK, !readOnly && hasOneTaskSelection);
+		getMenuManager().setActionEnabled(ACTION_UNLINK, !readOnly && hasEditableTaskSelection);
+		boolean taskModeEnabled = !readOnly && taskType && hasEditableTaskSelection;
+		getMenuManager().setActionEnabled(ACTION_TASK_MODE_MANUAL, taskModeEnabled);
+		getMenuManager().setActionEnabled(ACTION_TASK_MODE_AUTOMATIC, taskModeEnabled);
 		getMenuManager().setActionEnabled(ACTION_HIDE_SELECTED_TASKS,
 				!readOnly && getCurrentFrame() != null
 					&& !getCurrentFrame().getSelectedVisibilityTaskNodes().isEmpty());
@@ -4218,7 +4220,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		// MSP documents Mark on Track as an operation on selected tasks. Keep its
 		// enablement aligned with the typed selection snapshot used by dispatch.
 		getMenuManager().setActionEnabled(ACTION_MARK_ON_TRACK,
-				!readOnly && taskType && !selectedTaskNodes.isEmpty());
+				!readOnly && taskType && hasEditableTaskSelection);
 		getMenuManager().setActionEnabled(ACTION_CALENDAR_OPTIONS,getCurrentFrame() != null);
 		refreshStatusDateControl(project);
 
