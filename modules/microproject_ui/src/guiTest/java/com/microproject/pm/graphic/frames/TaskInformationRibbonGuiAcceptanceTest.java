@@ -1103,10 +1103,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
 		GuiAcceptanceSupport.await(task::isHiddenTask, "Ctrl+Z did not undo Show All Tasks");
-		GuiAcceptanceSupport.await(() -> rowForTask(sheet, task) < 0, "Undo Show All Tasks did not hide the task row");
+		GuiAcceptanceSupport.await(() -> !isTaskVisible(sheet, task), "Undo Show All Tasks did not hide the task row");
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
 		GuiAcceptanceSupport.await(() -> !task.isHiddenTask(), "Ctrl+Y did not redo Show All Tasks");
-		GuiAcceptanceSupport.await(() -> rowForTask(sheet, task) >= 0, "Redo Show All Tasks did not restore the task row");
+		GuiAcceptanceSupport.await(() -> isTaskVisible(sheet, task), "Redo Show All Tasks did not restore the task row");
 	}
 
 	@Test
