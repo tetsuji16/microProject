@@ -6,6 +6,7 @@ package com.microproject.pm.graphic.frames;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.event.ActionEvent;
 import java.lang.reflect.Field;
@@ -14,6 +15,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.EnumMap;
 import java.util.Map;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 
 import javax.swing.JPanel;
 
@@ -26,6 +31,30 @@ import sun.misc.Unsafe;
 
 /** Contract matrix proving presentation routes converge on one frame route. */
 class CommandRouteMatrixTest {
+	@Test
+	void commandResultDiagnosticsIncludeSelectionAndActiveView() throws Exception {
+		Logger logger = Logger.getLogger(GraphicManager.class.getName());
+		Level originalLevel = logger.getLevel();
+		StringBuilder messages = new StringBuilder();
+		Handler capture = new Handler() {
+			@Override public void publish(LogRecord record) { messages.append(record.getMessage()).append('\n'); }
+			@Override public void flush() { }
+			@Override public void close() { }
+		};
+		logger.addHandler(capture);
+		logger.setLevel(Level.FINE);
+		try {
+			GraphicManager manager = new GraphicManager(new JPanel());
+			Method record = GraphicManager.class.getDeclaredMethod("recordRibbonCommandResult", RibbonCommandResult.class);
+			record.setAccessible(true);
+			record.invoke(manager, RibbonCommandResult.changed("Link", List.of(42L)).withActiveView("task"));
+			assertTrue(messages.toString().contains("selectedTaskIds=[42] activeView=task"));
+		} finally {
+			logger.removeHandler(capture);
+			logger.setLevel(originalLevel);
+		}
+	}
+
 	@Test
 	void everyCommandIdUsesTheSameCanonicalDocumentRoute() throws Exception {
 		List<CommandId> routed = new ArrayList<>();

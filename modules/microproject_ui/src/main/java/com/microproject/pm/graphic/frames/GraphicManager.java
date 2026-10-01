@@ -1779,7 +1779,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	private void recordRibbonCommandResult(RibbonCommandResult result) {
 		lastRibbonCommandResult = result;
 		logger.fine("UI_COMMAND_RESULT id=" + result.commandId() + " status=" + result.status()
-			+ (result.reason().isEmpty() ? "" : " reason=" + result.reason()));
+			+ (result.reason().isEmpty() ? "" : " reason=" + result.reason())
+			+ " selectedTaskIds=" + result.affectedTaskIds()
+			+ " activeView=" + result.activeViewId());
 	}
 
 	protected boolean beforeViewSwitchRoute(String viewId) {
