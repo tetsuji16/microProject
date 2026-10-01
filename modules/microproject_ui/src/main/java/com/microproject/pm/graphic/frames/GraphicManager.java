@@ -4153,6 +4153,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		boolean isHasStartAndEnd = currentImpl != null && currentImpl instanceof HasStartAndEnd;
 		boolean writable = (currentImpl != null && !ClassUtils.isObjectReadOnly(currentImpl));
 		boolean hasOneTaskSelection = getCurrentFrame() != null && getCurrentFrame().hasTaskSelection(false, 1, true);
+		boolean hasOutlineTaskSelection = getCurrentFrame() != null
+			&& getCurrentFrame().hasTaskSelection(false, 1, false);
 		boolean hierarchySelection = (!selectedTaskNodes.isEmpty() && isTask) || isResource;
 		boolean canOutdent = !isTask || selectedTaskNodes.stream()
 			.anyMatch(node -> node != null && node.getImpl() instanceof Task task
@@ -4169,8 +4171,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				!readOnly && hierarchySelection && canOutdent && hierarchyCommandsAvailable);
 		getMenuManager().setActionEnabled(ACTION_MOVE_TASK_UP,!readOnly && isTask && getCurrentFrame() != null && getCurrentFrame().canMoveSelectedTasks(-1));
 		getMenuManager().setActionEnabled(ACTION_MOVE_TASK_DOWN,!readOnly && isTask && getCurrentFrame() != null && getCurrentFrame().canMoveSelectedTasks(1));
-		getMenuManager().setActionEnabled(ACTION_EXPAND,!readOnly && notVoid && (actions==null||actions.contains(ACTION_EXPAND)));
-		getMenuManager().setActionEnabled(ACTION_COLLAPSE,!readOnly && notVoid && (actions==null||actions.contains(ACTION_COLLAPSE)));
+		getMenuManager().setActionEnabled(ACTION_EXPAND,
+				!readOnly && hasOutlineTaskSelection && (actions==null||actions.contains(ACTION_EXPAND)));
+		getMenuManager().setActionEnabled(ACTION_COLLAPSE,
+				!readOnly && hasOutlineTaskSelection && (actions==null||actions.contains(ACTION_COLLAPSE)));
 		boolean hasLinkSelection = getCurrentFrame() != null && getCurrentFrame().hasTaskSelection(false, 2, true);
 		getMenuManager().setActionEnabled(ACTION_LINK, !readOnly && hasLinkSelection);
 		getMenuManager().setActionEnabled(ACTION_UNLINK, !readOnly && hasOneTaskSelection);

@@ -311,11 +311,15 @@ class RibbonButtonBehaviorTest {
 			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_INDENT).isEnabled());
 			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_OUTDENT).isEnabled());
 			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_HIDE_SELECTED_TASKS).isEnabled());
+			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_EXPAND).isEnabled());
+			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_COLLAPSE).isEnabled());
 			harness.frame.getTopSpreadSheet().setRowSelectionInterval(0, 0);
 			harness.manager.setButtonState(harness.task, harness.project);
 			assertTrue(harness.manager.getAction(MenuActionConstants.ACTION_INDENT).isEnabled());
 			assertTrue(harness.manager.getAction(MenuActionConstants.ACTION_HIDE_SELECTED_TASKS).isEnabled(),
 				"Hide Selected enablement must use the same visibility resolver as execution");
+			assertTrue(harness.manager.getAction(MenuActionConstants.ACTION_EXPAND).isEnabled());
+			assertTrue(harness.manager.getAction(MenuActionConstants.ACTION_COLLAPSE).isEnabled());
 			// The first task is at the root and therefore cannot be outdented;
 			// selection still enables the hierarchy command that is applicable.
 			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_OUTDENT).isEnabled());
