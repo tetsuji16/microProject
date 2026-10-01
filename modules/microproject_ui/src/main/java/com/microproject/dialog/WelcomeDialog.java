@@ -245,7 +245,10 @@ public final class WelcomeDialog extends AbstractDialog {
 				setText("<html><div style='line-height:1.2'><b>"
 					+ escapeHtml(pinMark + entry.path().getFileName())
 					+ "</b></div><div style='color:#6e6e6e;font-size:0.85em'>"
-					+ escapeHtml(entry.path().getParent().toString())
+					// Japanese Windows fonts can render ASCII backslash as a yen mark.
+					// Use a portable display separator while retaining the native Path
+					// object for opening, pinning, and removing the recent project.
+					+ escapeHtml(entry.path().getParent().toString().replace('\\', '/'))
 					+ "</div></html>");
 				return this;
 			}

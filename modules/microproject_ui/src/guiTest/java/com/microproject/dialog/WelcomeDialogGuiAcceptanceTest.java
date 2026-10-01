@@ -65,10 +65,16 @@ class WelcomeDialogGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> {
 			int entryIndex = findEntryIndex();
 			assertTrue(entryIndex >= 0, "the visible welcome list must contain the recorded project");
+			RecentProjectStore.Entry entry = dialog.recentProjects.getModel().getElementAt(entryIndex);
 			JLabel row = (JLabel) dialog.recentProjects.getCellRenderer().getListCellRendererComponent(
-				dialog.recentProjects, dialog.recentProjects.getModel().getElementAt(entryIndex), entryIndex, true, true);
+				dialog.recentProjects, entry, entryIndex, true, true);
 			assertTrue(row.getText().contains(projectFile.getFileName().toString()),
 				"the visible welcome row must retain the recent project name");
+			String displayedFolder = projectFile.getParent().toString().replace('\\', '/');
+			assertTrue(row.getText().contains(displayedFolder),
+				"the visible welcome row must use a slash separator so Japanese Windows does not render backslashes as yen marks");
+			assertEquals(projectFile.toAbsolutePath(), entry.path(),
+				"display formatting must not change the native path used by recent-project commands");
 		});
 		capture(robot);
 
