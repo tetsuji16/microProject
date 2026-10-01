@@ -31,6 +31,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import javax.swing.JOptionPane;
+import javax.swing.SwingUtilities;
 
 import com.microproject.collaboration.CollaborationSession;
 import com.microproject.grouping.core.Node;
@@ -104,7 +105,12 @@ public final class CollaborationHelper {
 			return true;
 		}
 		String owner = session.describeLockOwner(blockedTask);
-		Alert.warn("Cannot " + actionLabel + " task \"" + blockedTask.getName() + "\" because it is locked by " + owner + ".", parent);
+		String warning = "Cannot " + actionLabel + " task \"" + blockedTask.getName()
+				+ "\" because it is locked by " + owner + ".";
+		// Let the command return its semantic REJECTED outcome before the modal
+		// warning enters Swing's nested event loop. This keeps diagnostics and
+		// callers observable while the user-facing rejection is still open.
+		SwingUtilities.invokeLater(() -> Alert.warn(warning, parent));
 		return false;
 	}
 
