@@ -25,6 +25,7 @@
 package com.microproject.ui.shell;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -79,7 +80,8 @@ class ProjectLibreShellTest {
 		assertTrue(hasComponent(panel, OfficeChromePanel.HELP_BUTTON_NAME));
 		assertTrue(hasComponent(panel, OfficeChromePanel.AUTO_SAVE_NAME));
 		assertTrue(hasComponent(panel, OfficeChromePanel.DOCUMENT_TITLE_NAME));
-		assertTrue(hasComponent(panel, OfficeChromePanel.WINDOW_BUTTONS_PLACEHOLDER_NAME));
+		assertFalse(hasComponent(panel, OfficeChromePanel.WINDOW_BUTTONS_PLACEHOLDER_NAME),
+			"the shared header fixture has no native window button area to reserve");
 		assertTrue(hasComponent(panel, OfficeChromePanel.RIBBON_DISPLAY_OPTIONS_FOOTER_NAME));
 		assertTrue(hasComponent(panel, OfficeChromePanel.RIBBON_DISPLAY_OPTIONS_NAME));
 	}
