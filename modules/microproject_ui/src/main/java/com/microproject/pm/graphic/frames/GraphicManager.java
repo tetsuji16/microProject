@@ -1738,6 +1738,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		action.putValue("MicroProject.ribbonOutcome", result.status());
 		action.putValue("MicroProject.ribbonReason", result.reason());
 		action.putValue("MicroProject.ribbonAffectedTaskIds", result.affectedTaskIds());
+		action.putValue("MicroProject.ribbonCommandResult", result);
+		action.putValue("MicroProject.ribbonActiveView", result.activeViewId());
 		recordRibbonCommandResult(result);
 	}
 

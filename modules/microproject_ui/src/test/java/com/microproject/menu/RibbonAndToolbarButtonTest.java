@@ -501,6 +501,22 @@ class RibbonAndToolbarButtonTest {
 	}
 
 	@Test
+	void ribbonDispatchPreservesCompleteSemanticCommandResult() throws Exception {
+		ClickRecordingActionMap actions = new ClickRecordingActionMap();
+		RibbonCommandResult expected = new RibbonCommandResult("RibbonSaveProject",
+			RibbonCommandResult.Status.REJECTED, "selection-stale", List.of(41L), "task");
+		actions.reportResultOnce(expected);
+		MenuRibbonCommandSource source = new MenuRibbonCommandSource(
+			new ExtToolBarFactory(actions, ribbonBundles(Locale.ROOT)));
+		SwingUtilities.invokeAndWait(() -> {
+			source.createButton("RibbonSaveProject");
+			RibbonCommandResult actual = source.dispatch(new RibbonCommandInvocation("RibbonSaveProject",
+				RibbonCommandInvocation.Origin.RIBBON_BUTTON, this));
+			assertEquals(expected, actual);
+		});
+	}
+
+	@Test
 	void buttonLookupReturnsStableSnapshotDuringRibbonRebuild() throws Exception {
 		ExtToolBarFactory factory = new ExtToolBarFactory(
 			MenuActionMapSupport.noopActionMap(), ribbonBundles(Locale.ROOT));
@@ -785,6 +801,7 @@ class RibbonAndToolbarButtonTest {
 		private final Map<String, Integer> clickCounts = new HashMap<>();
 		private final Map<String, Action> actions = new HashMap<>();
 		private RibbonCommandResult.Status outcomeOnce;
+		private RibbonCommandResult resultOnce;
 
 		@Override
 		public Action getAction(String key) {
@@ -795,6 +812,10 @@ class RibbonAndToolbarButtonTest {
 					if (outcomeOnce != null) {
 						putValue("MicroProject.ribbonOutcome", outcomeOnce);
 						outcomeOnce = null;
+					}
+					if (resultOnce != null) {
+						putValue("MicroProject.ribbonCommandResult", resultOnce);
+						resultOnce = null;
 					}
 				}
 			});
@@ -812,6 +833,10 @@ class RibbonAndToolbarButtonTest {
 
 		void reportOutcomeOnce(RibbonCommandResult.Status outcome) {
 			outcomeOnce = outcome;
+		}
+
+		void reportResultOnce(RibbonCommandResult result) {
+			resultOnce = result;
 		}
 	}
 }

@@ -38,6 +38,8 @@ public final class MenuRibbonCommandSource implements RibbonCommandSource {
 	private static final String OUTCOME_KEY = "MicroProject.ribbonOutcome";
 	private static final String REASON_KEY = "MicroProject.ribbonReason";
 	private static final String AFFECTED_TASK_IDS_KEY = "MicroProject.ribbonAffectedTaskIds";
+	private static final String COMMAND_RESULT_KEY = "MicroProject.ribbonCommandResult";
+	private static final String ACTIVE_VIEW_KEY = "MicroProject.ribbonActiveView";
 	private final ExtToolBarFactory factory;
 	private final Map<String, CommandBinding> bindingsById = new LinkedHashMap<>();
 
@@ -120,6 +122,8 @@ public final class MenuRibbonCommandSource implements RibbonCommandSource {
 		action.putValue(OUTCOME_KEY, null);
 		action.putValue(REASON_KEY, null);
 		action.putValue(AFFECTED_TASK_IDS_KEY, null);
+		action.putValue(COMMAND_RESULT_KEY, null);
+		action.putValue(ACTIVE_VIEW_KEY, null);
 		try {
 			action.actionPerformed(new ActionEvent(invocation.source() == null ? action : invocation.source(),
 				ActionEvent.ACTION_PERFORMED,
@@ -137,12 +141,18 @@ public final class MenuRibbonCommandSource implements RibbonCommandSource {
 	}
 
 	private RibbonCommandResult resultFromAction(String commandId, Action action) {
+		Object completeResult = action.getValue(COMMAND_RESULT_KEY);
+		if (completeResult instanceof RibbonCommandResult result)
+			return result;
 		Object semantic = action.getValue(OUTCOME_KEY);
+		Object reason = action.getValue(REASON_KEY);
 		Object ids = action.getValue(AFFECTED_TASK_IDS_KEY);
 		List<Long> affected = ids instanceof List<?> list ? list.stream().filter(Number.class::isInstance)
 			.map(value -> ((Number) value).longValue()).toList() : List.of();
-		if (semantic == RibbonCommandResult.Status.CHANGED) return RibbonCommandResult.changed(commandId, affected);
-		if (semantic == RibbonCommandResult.Status.NO_CHANGE) return RibbonCommandResult.noChange(commandId, affected);
+		String rejectionReason = reason == null ? "" : reason.toString();
+		String activeView = Objects.toString(action.getValue(ACTIVE_VIEW_KEY), "");
+		if (semantic instanceof RibbonCommandResult.Status status)
+			return new RibbonCommandResult(commandId, status, rejectionReason, affected, activeView);
 		return RibbonCommandResult.dispatched(commandId);
 	}
 
