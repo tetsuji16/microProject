@@ -355,14 +355,14 @@ class MasterSubprojectMpoGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> graphicManager.findFrameForProjectFile(firstIndependentFile.getAbsolutePath()) != null,
 				"the first independent project did not open");
 		Project firstIndependent = graphicManager.findFrameForProjectFile(firstIndependentFile.getAbsolutePath()).getProject();
-		assertFalse(firstIndependent.isMaster(), "an independent document must not inherit the master's marker");
+		assertTrue(firstIndependent.isMaster(), "a standalone local document is a master root even when opened beside another project");
 		assertFalse(firstIndependent.needsSaving(), "opening an independent document must not dirty its project");
 		assertDocumentTitleMatchesProject(firstIndependent, "Independent one");
 		manager.openForTest(secondIndependentFile.getAbsolutePath());
 		GuiAcceptanceSupport.await(() -> graphicManager.findFrameForProjectFile(secondIndependentFile.getAbsolutePath()) != null,
 				"the second independent project did not open");
 		Project secondIndependent = graphicManager.findFrameForProjectFile(secondIndependentFile.getAbsolutePath()).getProject();
-		assertFalse(secondIndependent.isMaster(), "a second independent document must not inherit the master's marker");
+		assertTrue(secondIndependent.isMaster(), "a second standalone local document is also a master root");
 		assertFalse(secondIndependent.needsSaving(), "opening a second independent document must not dirty its project");
 		assertDocumentTitleMatchesProject(secondIndependent, "Independent two");
 		boolean[] openedChild = new boolean[1];
