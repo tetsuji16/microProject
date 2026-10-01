@@ -1918,6 +1918,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"physical right click did not show the task popup");
 		JMenuItem indent = popupItem(popup, "popup." + com.microproject.menu.MenuActionConstants.ACTION_INDENT);
 		GuiAcceptanceSupport.await(indent::isEnabled, "popup Indent remained disabled for the selected task");
+		assertSame(manager.getAction(com.microproject.menu.MenuActionConstants.ACTION_INDENT), indent.getAction(),
+				"the physical task popup must use the canonical GraphicManager Indent Action");
 		click(robot, boundsOnScreen(indent));
 		GuiAcceptanceSupport.await(() -> target.getWbsParentTask() == predecessor,
 			"popup Indent did not use the shared command route");

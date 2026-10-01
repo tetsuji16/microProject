@@ -295,6 +295,17 @@ class MicrosoftShortcutsRootPaneTest {
 					harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_F5,
 						InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
 					"Ctrl+Shift+F5 must use the same Scroll to Task action as the ribbon and menu");
+			assertSame(harness.manager.getMenuManager().getActionFromId(MenuActionConstants.ACTION_LINK),
+				harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_F2, InputEvent.CTRL_DOWN_MASK)),
+				"Ctrl+F2 must use the same Link action as the menu");
+			assertSame(harness.manager.getMenuManager().getActionFromId(MenuActionConstants.ACTION_UNLINK),
+				harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_F2,
+					InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
+				"Ctrl+Shift+F2 must use the same Unlink action as the menu");
+			// Indent/Outdent deliberately use focused-editor adapters here so a reused
+			// JTable editor does not suppress the root-pane shortcut from stale Action
+			// enablement. Their Robot acceptance journeys verify that both adapters
+			// reach DocumentFrame's canonical hierarchy transaction.
 			assertNotNull(harness.panel.getActionMap().get("DeleteRow"),
 					"Ctrl+Minus must keep its row-delete action separate from Delete");
 		});
