@@ -2552,7 +2552,11 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	private static void assertRibbonOutcome(AbstractButton button, RibbonCommandResult.Status expectedStatus,
-			Long... expectedTaskIds) {
+			Long... expectedTaskIds) throws Exception {
+		GuiAcceptanceSupport.await(() -> {
+			Object outcome = button.getAction().getValue("MicroProject.ribbonCommandResult");
+			return outcome instanceof RibbonCommandResult result && result.status() == expectedStatus;
+		}, "ribbon action did not publish " + expectedStatus + " outcome");
 		Object value = button.getAction().getValue("MicroProject.ribbonCommandResult");
 		assertTrue(value instanceof RibbonCommandResult, "ribbon action must expose a semantic command outcome");
 		RibbonCommandResult result = (RibbonCommandResult) value;

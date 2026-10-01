@@ -1682,26 +1682,26 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	}
 
 	/** Canonical Information command: target snapshot, edit teardown, route, view. */
-	private boolean executeInformation(InformationTarget target, boolean notes) {
+	private void executeInformation(InformationTarget target, boolean notes) {
 		if (target == null)
-			return false;
+			return;
 		finishAnyOperations();
 		switch (target.kind()) {
 		case TASK:
 			if (!beforeTaskInformationRoute(target.task(), notes, target.assignmentResourcesTab()))
-				return false;
+				return;
 			openTaskInformation(target.task(), notes, target.assignmentResourcesTab());
-			return informationDialogCoordinator.isTaskDialogVisible();
+			break;
 		case RESOURCE:
 			if (!beforeResourceInformationRoute(target.resource(), notes))
-				return false;
+				return;
 			informationDialogCoordinator.showResource(getFrame(), getCurrentFrame(), target.resource(), notes);
-			return true;
+			break;
 		case PROJECT:
 			doProjectInformationDialog();
-			return true;
+			break;
 		default:
-			return false;
+			break;
 		}
 	}
 
@@ -1745,12 +1745,20 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	private void showTaskInformationForSelection(Action action, boolean notes) {
 		traceUi("task-information.command received notes=" + notes);
 		InformationTarget target = resolveInformationTarget(false, true, false);
-		boolean opened = executeInformation(target, notes);
-		List<Long> affectedTaskIds = target != null && target.kind() == InformationTargetKind.TASK
-			? List.of(target.task().getUniqueId()) : List.of();
+		if (target == null) {
+			publishTaskCommandOutcome(action,
+				RibbonCommandResult.rejected("RibbonTaskInformation", "no-selection"));
+			return;
+		}
+		finishAnyOperations();
+		if (!beforeTaskInformationRoute(target.task(), notes, target.assignmentResourcesTab())) {
+			publishTaskCommandOutcome(action, new RibbonCommandResult("RibbonTaskInformation",
+				RibbonCommandResult.Status.REJECTED, "route-rejected", List.of(target.task().getUniqueId())));
+			return;
+		}
 		publishTaskCommandOutcome(action, new RibbonCommandResult("RibbonTaskInformation",
-			opened ? RibbonCommandResult.Status.DISPATCHED : RibbonCommandResult.Status.FAILED,
-			opened ? "" : "dialog-not-opened", affectedTaskIds));
+			RibbonCommandResult.Status.DISPATCHED, "", List.of(target.task().getUniqueId())));
+		openTaskInformation(target.task(), notes, target.assignmentResourcesTab());
 	}
 
 	private void showResourceInformationForSelection(boolean notes) {
