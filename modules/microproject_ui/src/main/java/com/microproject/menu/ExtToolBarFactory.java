@@ -35,6 +35,7 @@ import java.util.Map;
 import java.util.ResourceBundle;
 
 import javax.swing.AbstractButton;
+import javax.swing.Action;
 import javax.swing.ImageIcon;
 
 import com.microproject.menu.resource.MissingListenerException;
@@ -48,12 +49,19 @@ import com.microproject.pm.graphic.IconManager;
  */
 public class ExtToolBarFactory extends ToolBarFactory {
 	private final Map<String, List<AbstractButton>> toolButtons = new LinkedHashMap<>();
+	private final ProjectMenuActionMap actionMap;
 	/**
 	 * @param rb
 	 * @param am
 	 */
 	public ExtToolBarFactory(ProjectMenuActionMap am,ResourceBundle...rb) {
 		super(am,rb);
+		actionMap = am;
+	}
+
+	public Action getActionForId(String id) {
+		String actionId = getActionStringFromId(id);
+		return actionMap.getAction(actionId == null ? id : actionId);
 	}
 	
 	

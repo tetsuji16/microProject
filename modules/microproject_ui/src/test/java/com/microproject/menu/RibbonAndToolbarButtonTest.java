@@ -520,6 +520,35 @@ class RibbonAndToolbarButtonTest {
 	}
 
 	@Test
+	void ribbonCanCreateOneSharedDispatcherWithoutRegisteringAButton() throws Exception {
+		java.util.concurrent.atomic.AtomicInteger calls = new java.util.concurrent.atomic.AtomicInteger();
+		AbstractAction command = new AbstractAction("LinkAction") {
+			@Override public void actionPerformed(java.awt.event.ActionEvent event) { calls.incrementAndGet(); }
+		};
+		ProjectMenuActionMap actions = new ProjectMenuActionMap() {
+			@Override public Action getAction(String key) { return command; }
+			@Override public String getStringFromAction(Action action) { return "LinkAction"; }
+		};
+		MenuRibbonCommandSource source = new MenuRibbonCommandSource(
+			new ExtToolBarFactory(actions, ribbonBundles(Locale.ROOT)));
+		SwingUtilities.invokeAndWait(() -> {
+			Action sharedAction = source.createAction("RibbonLink");
+			assertTrue(source.getButtons("LinkAction").isEmpty(), "Action lookup must not register a hidden Swing button");
+			assertTrue(sharedAction.isEnabled());
+			AbstractButton swingButton = source.createButton("RibbonLink");
+			assertSame(sharedAction, swingButton.getAction(), "all ribbon surfaces use the shared dispatcher Action");
+			actions.getAction("LinkAction").setEnabled(false);
+			assertFalse(sharedAction.isEnabled(), "native adapters observe command enablement changes");
+			actions.getAction("LinkAction").setEnabled(true);
+			assertTrue(sharedAction.isEnabled());
+			swingButton.doClick(0);
+			sharedAction.actionPerformed(new java.awt.event.ActionEvent(this, java.awt.event.ActionEvent.ACTION_PERFORMED,
+				"RibbonLink"));
+			assertEquals(2, calls.get(), "both Swing and native-component adapters reach one command");
+		});
+	}
+
+	@Test
 	void buttonLookupReturnsStableSnapshotDuringRibbonRebuild() throws Exception {
 		ExtToolBarFactory factory = new ExtToolBarFactory(
 			MenuActionMapSupport.noopActionMap(), ribbonBundles(Locale.ROOT));

@@ -52,6 +52,17 @@ public final class MenuRibbonCommandSource implements RibbonCommandSource {
 	}
 
 	@Override
+	public Action createAction(String commandId) {
+		CommandBinding binding = bindingsById.computeIfAbsent(commandId, CommandBinding::new);
+		if (binding.command == null) {
+			Action action = factory.getActionForId(commandId);
+			if (action == null) throw new IllegalStateException("Ribbon command has no Action: " + commandId);
+			bindCommand(action, commandId);
+		}
+		return binding.dispatchAction;
+	}
+
+	@Override
 	public AbstractButton createTransientButton(String commandId) {
 		try {
 			return bind(factory.createUnregisteredJButton(commandId), commandId);
@@ -85,8 +96,13 @@ public final class MenuRibbonCommandSource implements RibbonCommandSource {
 	}
 
 	private AbstractButton bind(AbstractButton button, String commandId) {
+		button.setAction(bindCommand(button.getAction(), commandId));
+		button.setActionCommand(commandId);
+		return button;
+	}
+
+	private Action bindCommand(Action buttonAction, String commandId) {
 		CommandBinding binding = bindingsById.computeIfAbsent(commandId, ignored -> new CommandBinding(commandId));
-		Action buttonAction = button.getAction();
 		Action command = UiButtonDiagnostics.unwrapAction(buttonAction);
 		// A transient popup may be created from a registered button that already
 		// carries this source's dispatcher.  Never install that dispatcher as its
@@ -96,9 +112,7 @@ public final class MenuRibbonCommandSource implements RibbonCommandSource {
 			command = binding.command;
 		if (command == null) throw new IllegalStateException("Ribbon command has no Action: " + commandId);
 		binding.setCommand(command);
-		button.setAction(binding.dispatchAction);
-		button.setActionCommand(commandId);
-		return button;
+		return binding.dispatchAction;
 	}
 
 	private RibbonCommandResult dispatchOnEdt(RibbonCommandInvocation invocation) {
