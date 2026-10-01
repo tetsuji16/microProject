@@ -2025,8 +2025,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
+		previousClientSide = Environment.isClientSide();
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
+		Environment.setClientSide(true);
 		NormalTask target = createTask();
 		Project project = target.getOwningProject();
 		NormalTask companion = project.createScriptedTask();
