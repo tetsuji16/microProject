@@ -1041,6 +1041,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		Gantt gantt = manager.getCurrentFrame().getGanttView().getGantt();
+		assertTrue(isTaskVisibleInGantt(gantt, task), "task must start visible in Gantt");
 		int row = rowForTask(sheet, task);
 		clickUntilSelected(robot, window, sheet, row, nameColumn(sheet));
 		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
@@ -1058,6 +1060,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				"Hide Selected Tasks semantic result must identify the changed task");
 		GuiAcceptanceSupport.await(() -> !isTaskVisible(sheet, task),
 				"hidden task remained visible in the task sheet");
+		GuiAcceptanceSupport.await(() -> !isTaskVisibleInGantt(gantt, task),
+				"hidden task remained visible in Gantt");
 		ByteArrayOutputStream hiddenSnapshot = new ByteArrayOutputStream();
 		assertTrue(new MpoFileImporter().saveProject(task.getOwningProject(), hiddenSnapshot),
 				"MPO save did not accept the hidden task state");
@@ -1073,17 +1077,20 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		robot.waitForIdle();
 		GuiAcceptanceSupport.await(() -> !task.isHiddenTask(), "Ctrl+Z did not restore task visibility");
 		GuiAcceptanceSupport.await(() -> rowForTask(sheet, task) >= 0, "Ctrl+Z did not restore the visible task row");
+		GuiAcceptanceSupport.await(() -> isTaskVisibleInGantt(gantt, task), "Ctrl+Z did not restore the visible Gantt row");
 
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, task), nameColumn(sheet)));
 		hide = findVisibleOrOverflowButton(robot, "RibbonHideSelectedTasks");
 		click(robot, boundsOnScreen(hide));
 		GuiAcceptanceSupport.await(task::isHiddenTask, "second hide did not update the task model");
+		GuiAcceptanceSupport.await(() -> !isTaskVisibleInGantt(gantt, task), "second Hide did not hide the Gantt row");
 		robot.keyPress(KeyEvent.VK_CONTROL);
 		robot.keyPress(KeyEvent.VK_Y);
 		robot.keyRelease(KeyEvent.VK_Y);
 		robot.keyRelease(KeyEvent.VK_CONTROL);
 		robot.waitForIdle();
 		GuiAcceptanceSupport.await(task::isHiddenTask, "Ctrl+Y did not reapply task visibility");
+		GuiAcceptanceSupport.await(() -> !isTaskVisibleInGantt(gantt, task), "Ctrl+Y did not rehide the Gantt row");
 
 		AbstractButton show = findVisibleOrOverflowButton(robot, "RibbonShowAllTasks");
 		assertTrue(show.isShowing(), "Show All Tasks must remain discoverable beside Hide Selected Tasks after hiding");
@@ -1092,6 +1099,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, boundsOnScreen(show));
 		GuiAcceptanceSupport.await(() -> !task.isHiddenTask(), "Show All Tasks did not restore the task model");
 		GuiAcceptanceSupport.await(() -> rowForTask(sheet, task) >= 0, "Show All Tasks did not restore the visible task row");
+		GuiAcceptanceSupport.await(() -> isTaskVisibleInGantt(gantt, task), "Show All Tasks did not restore the visible Gantt row");
 		assertRibbonOutcome(manager, previousShowOutcome, RibbonCommandResult.Status.CHANGED,
 			List.of(), List.of(task.getUniqueId()));
 		ByteArrayOutputStream shownSnapshot = new ByteArrayOutputStream();
@@ -1104,9 +1112,11 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
 		GuiAcceptanceSupport.await(task::isHiddenTask, "Ctrl+Z did not undo Show All Tasks");
 		GuiAcceptanceSupport.await(() -> !isTaskVisible(sheet, task), "Undo Show All Tasks did not hide the task row");
+		GuiAcceptanceSupport.await(() -> !isTaskVisibleInGantt(gantt, task), "Undo Show All Tasks did not hide the Gantt row");
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
 		GuiAcceptanceSupport.await(() -> !task.isHiddenTask(), "Ctrl+Y did not redo Show All Tasks");
 		GuiAcceptanceSupport.await(() -> isTaskVisible(sheet, task), "Redo Show All Tasks did not restore the task row");
+		GuiAcceptanceSupport.await(() -> isTaskVisibleInGantt(gantt, task), "Redo Show All Tasks did not restore the Gantt row");
 	}
 
 	@Test
@@ -2031,6 +2041,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		Gantt gantt = manager.getCurrentFrame().getGanttView().getGantt();
 		Rectangle targetCell = cellOnScreen(sheet, rowForTask(sheet, target), nameColumn(sheet));
 		click(robot, targetCell);
 		rightClick(robot, targetCell);
@@ -2042,10 +2053,15 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, boundsOnScreen(hide));
 		GuiAcceptanceSupport.await(target::isHiddenTask, "popup Hide Selected Tasks did not update the task model");
 		GuiAcceptanceSupport.await(() -> !isTaskVisible(sheet, target), "popup Hide Selected Tasks did not remove the visible row");
+		GuiAcceptanceSupport.await(() -> !isTaskVisibleInGantt(gantt, target), "popup Hide Selected Tasks did not remove the Gantt row");
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
 		GuiAcceptanceSupport.await(() -> !target.isHiddenTask(), "Ctrl+Z did not undo popup Hide Selected Tasks");
+		GuiAcceptanceSupport.await(() -> isTaskVisible(sheet, target) && isTaskVisibleInGantt(gantt, target),
+				"Undo popup Hide did not restore the table and Gantt rows");
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
 		GuiAcceptanceSupport.await(target::isHiddenTask, "Ctrl+Y did not redo popup Hide Selected Tasks");
+		GuiAcceptanceSupport.await(() -> !isTaskVisible(sheet, target) && !isTaskVisibleInGantt(gantt, target),
+				"Redo popup Hide did not hide the table and Gantt rows");
 
 		ByteArrayOutputStream saved = new ByteArrayOutputStream();
 		assertTrue(new MpoFileImporter().saveProject(project, saved), "MPO save rejected the popup-hidden task state");
@@ -2061,6 +2077,19 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, boundsOnScreen(show));
 		GuiAcceptanceSupport.await(() -> !target.isHiddenTask(), "popup Show All Tasks did not restore the task model");
 		GuiAcceptanceSupport.await(() -> isTaskVisible(sheet, target), "popup Show All Tasks did not restore the visible row");
+		GuiAcceptanceSupport.await(() -> isTaskVisibleInGantt(gantt, target), "popup Show All Tasks did not restore the Gantt row");
+		ByteArrayOutputStream shownSnapshot = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, shownSnapshot), "MPO save rejected popup Show All state");
+		Project shownReload = new MpoFileImporter().loadProject(new ByteArrayInputStream(shownSnapshot.toByteArray()));
+		assertFalse(taskNamed(shownReload, target.getName()).isHiddenTask(), "MPO reload lost popup Show All state");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(target::isHiddenTask, "Ctrl+Z did not undo popup Show All Tasks");
+		GuiAcceptanceSupport.await(() -> !isTaskVisible(sheet, target) && !isTaskVisibleInGantt(gantt, target),
+				"Undo popup Show All did not hide the table and Gantt rows");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> !target.isHiddenTask(), "Ctrl+Y did not redo popup Show All Tasks");
+		GuiAcceptanceSupport.await(() -> isTaskVisible(sheet, target) && isTaskVisibleInGantt(gantt, target),
+				"Redo popup Show All did not restore the table and Gantt rows");
 	}
 
 	@Test
@@ -2151,7 +2180,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	@Test
-	void robotNameCellIndentShortcutsFollowMicrosoftProjectSemantics() throws Exception {
+	void robotNameCellIndentShortcutsRoundTripModelAndPersistence() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
@@ -2175,6 +2204,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
 				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
 			"shortcut test project did not become visible");
+		Gantt gantt = manager.getCurrentFrame().getGanttView().getGantt();
 		Robot robot = new Robot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
@@ -2183,7 +2213,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(sheet::requestFocusInWindow);
 		GuiAcceptanceSupport.await(sheet::isFocusOwner, "shortcut spreadsheet did not accept focus before Robot input");
 
-		// MSP outline shortcuts: Alt+Shift+Right indents; Alt+Shift+Left outdents.
+		// Microsoft publishes conflicting Project Desktop key directions in these references:
+		// https://support.microsoft.com/en-us/accessibility/project/keyboard-shortcuts-for-project
+		// https://support.microsoft.com/en-us/project/edit-a-project-in-project-desktop
+		// This verifies microProject's existing root-pane binding; the compatibility choice remains open in issue #414.
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, target), nameColumn));
 		GuiAcceptanceSupport.await(sheet::isFocusOwner, "name-cell click did not give focus to the spreadsheet");
 		press(robot, KeyEvent.VK_F2);
@@ -2191,8 +2224,16 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		press(robot, KeyEvent.VK_ALT, KeyEvent.VK_SHIFT, KeyEvent.VK_RIGHT);
 		GuiAcceptanceSupport.await(() -> target.getWbsParentTask() == predecessor,
 				"Robot Alt+Shift+Right did not indent the selected name row");
+		GuiAcceptanceSupport.await(() -> isTaskVisibleInGantt(gantt, target),
+				"Indent shortcut removed the task from the Gantt projection");
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(target),
 				"Robot Alt+Shift+Right lost the selected task");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> target.getWbsParentTask() == null,
+				"Ctrl+Z did not undo shortcut Indent");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> target.getWbsParentTask() == predecessor,
+				"Ctrl+Y did not redo shortcut Indent");
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, outdentTarget), nameColumn));
 		GuiAcceptanceSupport.await(sheet::isFocusOwner, "second name-cell click did not give focus to the spreadsheet");
 		press(robot, KeyEvent.VK_F2);
@@ -2200,6 +2241,24 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		press(robot, KeyEvent.VK_ALT, KeyEvent.VK_SHIFT, KeyEvent.VK_LEFT);
 		GuiAcceptanceSupport.await(() -> outdentTarget.getWbsParentTask() == null,
 				"Robot Alt+Shift+Left did not outdent the selected name row");
+		GuiAcceptanceSupport.await(() -> isTaskVisibleInGantt(gantt, outdentTarget),
+				"Outdent shortcut removed the task from the Gantt projection");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> outdentTarget.getWbsParentTask() == predecessor,
+				"Ctrl+Z did not undo shortcut Outdent");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> outdentTarget.getWbsParentTask() == null,
+				"Ctrl+Y did not redo shortcut Outdent");
+
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, saved),
+				"MPO save rejected the hierarchy from the physical indent shortcuts");
+		Project reloaded = new MpoFileImporter().loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		assertNotNull(taskNamed(reloaded, "Shortcut predecessor"), "MPO reload lost the shortcut predecessor");
+		assertSame(taskNamed(reloaded, "Shortcut predecessor"), taskNamed(reloaded, "Shortcut target").getWbsParentTask(),
+				"MPO reload lost the hierarchy from Alt+Shift+Right");
+		assertTrue(taskNamed(reloaded, "Shortcut outdent target").getWbsParentTask() == null,
+				"MPO reload retained the parent removed by Alt+Shift+Left");
 
 	}
 
