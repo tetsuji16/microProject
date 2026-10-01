@@ -69,6 +69,7 @@ import com.microproject.dialog.assignment.TimesheetEntryPane;
 import com.microproject.menu.MenuManager;
 import com.microproject.ribbon.RibbonCommandResult;
 import com.microproject.exchange.MpoFileImporter;
+import com.microproject.collaboration.CollaborationSession;
 import com.microproject.field.Field;
 import com.microproject.grouping.core.Node;
 import com.microproject.job.JobQueue;
@@ -2050,6 +2051,37 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"physical right click did not show the task popup for Hide");
 		JMenuItem hide = popupItem(popup, "popup." + com.microproject.menu.MenuActionConstants.ACTION_HIDE_SELECTED_TASKS);
 		GuiAcceptanceSupport.await(hide::isEnabled, "popup Hide Selected Tasks remained disabled for the selected task");
+		Alert.setPresenter(new SwingAlertPresenter());
+		project.setCollaborationSession(new CollaborationSession(project,
+				System.getProperty("java.io.tmpdir") + "/microproject-popup-visibility-lock.mpo", "visibility-lock-test") {
+			@Override
+			public Task tryAcquireTasks(Iterable<Task> tasks) {
+				if (tasks == null) return null;
+				java.util.Iterator<Task> iterator = tasks.iterator();
+				return iterator.hasNext() ? iterator.next() : null;
+			}
+
+			@Override
+			public String describeLockOwner(Task task) {
+				return "robot lock test";
+			}
+		});
+		click(robot, boundsOnScreen(hide));
+		GuiAcceptanceSupport.await(() -> findDialogContainingText("locked by robot lock test") != null,
+				"locked Hide did not report the collaboration rejection to the user");
+		Dialog lockWarning = findDialogContainingText("locked by robot lock test");
+		assertFalse(target.isHiddenTask(), "a collaborator-locked task must remain unchanged after Hide rejection");
+		assertTrue(isTaskVisible(sheet, target) && isTaskVisibleInGantt(gantt, target),
+				"a rejected Hide must preserve both table and Gantt rows");
+		assertEquals(RibbonCommandResult.Status.REJECTED, manager.getLastRibbonCommandResult().status(),
+				"the popup route must publish a rejected semantic command outcome when locking fails");
+		assertEquals("lock-failed", manager.getLastRibbonCommandResult().reason());
+		press(robot, KeyEvent.VK_ENTER);
+		GuiAcceptanceSupport.await(() -> !lockWarning.isShowing(), "the collaboration lock warning did not close after Enter");
+		project.setCollaborationSession(null);
+		rightClick(robot, targetCell);
+		GuiAcceptanceSupport.await(popup::isVisible, "task popup did not reopen after dismissing the lock warning");
+		hide = popupItem(popup, "popup." + com.microproject.menu.MenuActionConstants.ACTION_HIDE_SELECTED_TASKS);
 		click(robot, boundsOnScreen(hide));
 		GuiAcceptanceSupport.await(target::isHiddenTask, "popup Hide Selected Tasks did not update the task model");
 		GuiAcceptanceSupport.await(() -> !isTaskVisible(sheet, target), "popup Hide Selected Tasks did not remove the visible row");
@@ -2646,6 +2678,24 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				return true;
 		}
 		return false;
+	}
+
+	private static Dialog findDialogContainingText(String expected) {
+		for (Window candidate : Window.getWindows()) {
+			if (candidate instanceof Dialog dialog && dialog.isShowing()
+					&& componentText(dialog).contains(expected))
+				return dialog;
+		}
+		return null;
+	}
+
+	private static String componentText(java.awt.Container container) {
+		StringBuilder text = new StringBuilder();
+		for (Component component : container.getComponents()) {
+			if (component instanceof JLabel label) text.append(label.getText());
+			if (component instanceof java.awt.Container child) text.append(componentText(child));
+		}
+		return text.toString();
 	}
 
 	private static boolean isTaskVisibleInGantt(Gantt gantt, NormalTask task) {
