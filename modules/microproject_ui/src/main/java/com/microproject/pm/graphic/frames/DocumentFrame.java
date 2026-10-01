@@ -1706,12 +1706,12 @@ public class DocumentFrame extends NamedFrame implements
 	}
 
 	protected List<Node> getSelectedTaskNodes(boolean excludeReadOnly, boolean allowMixedSelection) {
+		return resolveTaskSelection(excludeReadOnly, allowMixedSelection).nodes();
+	}
+
+	private ActiveTaskSelectionResolver.Selection resolveTaskSelection(boolean excludeReadOnly,
+			boolean allowMixedSelection) {
 		SpreadSheet activeSheet = getActiveSpreadSheet();
-		// Ctrl+Space/header selection is intentionally a column-only operation.
-		// Its JTable representation includes every row, but it must not authorize
-		// a task command against every task in the project.
-		if (activeSheet != null && activeSheet.isHeaderColumnSelectionActive())
-			return Collections.emptyList();
 		// The active table owns the user's physical row selection whenever it has
 		// one. The frame-level provider can lag during editor commit or projection
 		// refresh, so consulting it first made command enablement disagree with the
@@ -1719,21 +1719,9 @@ public class DocumentFrame extends NamedFrame implements
 		// enablement and execution.
 		List<Node> nodes = activeSheet != null && activeSheet.getSelectedRows().length > 0
 			? activeSheet.getSelectedNodes() : getSelectedNodes(excludeReadOnly);
-		if (nodes == null || nodes.isEmpty())
-			return Collections.emptyList();
-		ArrayList<Node> taskNodes = new ArrayList<>(nodes.size());
-		for (Node node : nodes) {
-			if (node == null)
-				continue;
-			Object impl = node.getImpl();
-			if (impl instanceof Task) {
-				if (!excludeReadOnly || !ClassUtils.isObjectReadOnly(impl))
-					taskNodes.add(node);
-			} else if (!allowMixedSelection) {
-				return Collections.emptyList();
-			}
-		}
-		return taskNodes;
+		return ActiveTaskSelectionResolver.resolve(nodes,
+			activeSheet != null && activeSheet.isHeaderColumnSelectionActive(),
+			excludeReadOnly, allowMixedSelection);
 	}
 
 	/**
@@ -1760,7 +1748,7 @@ public class DocumentFrame extends NamedFrame implements
 	}
 
 	protected boolean hasTaskSelection(boolean excludeReadOnly, int minCount, boolean allowMixedSelection) {
-		return getSelectedTaskNodes(excludeReadOnly, allowMixedSelection).size() >= minCount;
+		return resolveTaskSelection(excludeReadOnly, allowMixedSelection).isEligible(minCount);
 	}
 
 	protected boolean canPasteIntoCurrentSelection() {
