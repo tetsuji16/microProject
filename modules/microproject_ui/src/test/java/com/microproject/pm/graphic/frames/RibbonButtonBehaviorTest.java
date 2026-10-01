@@ -59,6 +59,7 @@ import com.microproject.configuration.FieldDictionary;
 import com.microproject.field.Field;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeFactory;
+import com.microproject.grouping.core.transform.grouping.NodeGroup;
 import com.microproject.menu.MenuActionConstants;
 import com.microproject.menu.MenuManager;
 import com.microproject.pm.assignment.Assignment;
@@ -359,6 +360,27 @@ class RibbonButtonBehaviorTest {
 			assertSame(harness.task, harness.secondTask.getWbsParentTask(),
 				"Indent execution must use the active table row, not the stale frame selection");
 		});
+	}
+
+	@Test
+	void hideSelectedRemainsEnabledForVirtualGroupRows() throws Exception {
+		Harness harness = newHarness();
+		harness.setTaskInformation(true, false);
+		Node groupNode = NodeFactory.getInstance().createGroup(new NodeGroup(), "Grouped tasks");
+		SwingUtilities.invokeAndWait(() -> {
+			harness.frame.getTopSpreadSheet().clearSelection();
+			harness.frame.setSelection(List.of(groupNode));
+			harness.frame.setVisibilitySelectionForTest(List.of(harness.taskNode));
+			harness.manager.setButtonState(groupNode.getImpl(), harness.project);
+			assertTrue(harness.manager.getAction(MenuActionConstants.ACTION_HIDE_SELECTED_TASKS).isEnabled(),
+				"Hide Selected must use its group-aware visibility resolver for enablement");
+		});
+
+		harness.invoke("RibbonHideSelectedTasks");
+
+		assertTrue(harness.task.isHiddenTask(), "execution must hide the group's resolved task member");
+		harness.undoController.undo();
+		assertFalse(harness.task.isHiddenTask(), "the visibility command must retain one undo boundary");
 	}
 
 	@Test
@@ -1233,6 +1255,7 @@ class RibbonButtonBehaviorTest {
 		private final Map<Boolean, Integer> baselineDialogCalls = new LinkedHashMap<>();
 		private boolean executeLinkForSelectionTest;
 		private boolean executeIndentForSelectionTest;
+		private List<Node> visibilitySelectionForTest;
 
 		TestDocumentFrame(GraphicManager parentFrame, Project project) {
 			super(parentFrame, project, "ribbon-test");
@@ -1248,6 +1271,16 @@ class RibbonButtonBehaviorTest {
 
 		void setExecuteIndentForSelectionTest(boolean execute) {
 			executeIndentForSelectionTest = execute;
+		}
+
+		void setVisibilitySelectionForTest(List<Node> nodes) {
+			visibilitySelectionForTest = nodes;
+		}
+
+		@Override
+		protected List<Node> getSelectedVisibilityTaskNodes() {
+			return visibilitySelectionForTest == null
+				? super.getSelectedVisibilityTaskNodes() : visibilitySelectionForTest;
 		}
 
 		@Override
