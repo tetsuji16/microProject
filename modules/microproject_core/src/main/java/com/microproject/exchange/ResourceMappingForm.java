@@ -126,9 +126,8 @@ import com.microproject.util.ClassUtils;
 		public void setMergeField(MergeField mergeField) {
 			this.mergeField = mergeField;
 			int resourceCount = resources == null ? 0 : resources.size();
-			int expectedEntries = resourceCount * 4 / 3 + 1;
-			Map<Object, Object> mergeFieldMap=new HashMap<>(expectedEntries);
-			Set<Object> notMergedValues=new HashSet<>(expectedEntries);
+			Map<Object, Object> mergeFieldMap = HashMap.newHashMap(resourceCount);
+			Set<Object> notMergedValues = HashSet.newHashSet(resourceCount);
 			if (mergeField!=NO_MERGE) {
 			for (Object resource : resources){
 				try {
