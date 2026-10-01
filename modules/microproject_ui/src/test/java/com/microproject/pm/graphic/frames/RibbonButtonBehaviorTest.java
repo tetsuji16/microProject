@@ -424,7 +424,13 @@ class RibbonButtonBehaviorTest {
 		SwingUtilities.invokeAndWait(() -> {
 			harness.frame.setSelection(List.of(harness.taskNode));
 			harness.manager.setButtonState(harness.task, harness.project);
-			assertTrue(harness.manager.getAction(MenuActionConstants.ACTION_TASK_MODE_MANUAL).isEnabled());
+			Action manualAction = harness.manager.getAction(MenuActionConstants.ACTION_TASK_MODE_MANUAL);
+			assertTrue(manualAction.isEnabled());
+			manualAction.actionPerformed(new ActionEvent(harness.frame, ActionEvent.ACTION_PERFORMED,
+				MenuActionConstants.ACTION_TASK_MODE_MANUAL));
+			assertEquals(RibbonCommandResult.Status.CHANGED,
+				manualAction.getValue("MicroProject.ribbonOutcome"),
+				"Task Mode must publish its semantic command outcome for diagnostics");
 			assertTrue(harness.manager.getAction(MenuActionConstants.ACTION_TASK_MODE_AUTOMATIC).isEnabled());
 			harness.frame.setSelection(List.of(readOnlyNode));
 			harness.manager.setButtonState(readOnlySubproject, harness.project);

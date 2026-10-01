@@ -2804,8 +2804,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private TaskModeAction(boolean manual) { this.manual = manual; }
 		@Override public void actionPerformed(ActionEvent event) {
 			setMeAsLastGraphicManager();
-			if (!isDocumentActive()) return;
-			getCurrentFrame().routeTaskCommand(manual ? CommandId.TASK_MODE_MANUAL : CommandId.TASK_MODE_AUTOMATIC);
+			publishTaskCommandOutcome(this,
+				dispatchTaskCommand(manual ? CommandId.TASK_MODE_MANUAL : CommandId.TASK_MODE_AUTOMATIC));
 		}
 	}
 	private final class StatusDateAction extends MenuActionsMap.DocumentMenuAction {
