@@ -334,6 +334,12 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		assertEquals(1, taskRow(fixture.sheet, fixture.project, "Sequential 2"),
 			"Undo must restore the moved task's original row");
 		assertEquals(originalOrder, taskOrder(fixture.project));
+		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().redo());
+		GuiAcceptanceSupport.await(() -> taskOrder(fixture.project).equals(
+			List.of("Sequential 2", "Sequential 1", "Sequential 3")),
+			"one Redo must reapply the task row relocation");
+		assertEquals(0, taskRow(fixture.sheet, fixture.project, "Sequential 2"),
+			"Redo must redraw the moved task at its relocated row");
 	}
 
 	@Test

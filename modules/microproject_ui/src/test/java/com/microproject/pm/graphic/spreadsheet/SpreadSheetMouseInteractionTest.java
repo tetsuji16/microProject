@@ -463,6 +463,10 @@ class SpreadSheetMouseInteractionTest {
 			fixture.project().getUndoController().undo();
 			assertTrue(findRow(sheet, fixture.firstTask()) < findRow(sheet, fixture.secondTask()),
 				"one Undo must restore the exact task order after relocation");
+
+			fixture.project().getUndoController().redo();
+			assertTrue(findRow(sheet, fixture.secondTask()) < findRow(sheet, fixture.firstTask()),
+				"one Redo must restore the exact task order after relocation");
 		});
 	}
 
