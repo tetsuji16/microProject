@@ -28,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -49,6 +50,7 @@ import com.microproject.grouping.core.NodeFactory;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
 import com.microproject.pm.graphic.spreadsheet.common.SpreadSheetRowHeader;
+import com.microproject.pm.graphic.spreadsheet.command.TaskHierarchyEditIntent;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
@@ -455,8 +457,15 @@ class SpreadSheetMouseInteractionTest {
 			int sourceRow = findRow(sheet, fixture.secondTask());
 			int targetRow = findRow(sheet, fixture.firstTask());
 			sheet.selectRowAndAllColumns(sourceRow);
+			TaskHierarchyEditIntent.SelectionSnapshot selection = sheet.captureHierarchySelection();
+			assertNotNull(selection, "drag must capture stable selected task identities before row-header selection changes");
+			// The row-header JTable shares the task table's selection model. Its native drag handling
+			// can move the visible selection to the drop row, so the command must use the press snapshot.
+			sheet.selectRowAndAllColumns(targetRow);
+			TaskHierarchyEditIntent intent = sheet.createRelocationIntent(selection, targetRow, false);
+			assertTrue(sheet.canMoveTaskRowsTo(intent));
 
-			assertTrue(sheet.moveSelectedTaskRowsTo(targetRow, false),
+			assertTrue(sheet.moveTaskRowsTo(intent),
 				"drag relocation before the target must route through a stable task-row intent");
 			assertTrue(findRow(sheet, fixture.secondTask()) < findRow(sheet, fixture.firstTask()));
 
@@ -640,8 +649,7 @@ class SpreadSheetMouseInteractionTest {
 
 			// Reproduce the reported sequence again, this time for the ID-column
 			// drag-and-drop move path: select a column, then click a single cell.
-			// The drag drop target validation is canMoveSelectedTaskRowsTo, which
-			// (unlike the keyboard/ribbon paths) still required the entire row.
+			// The row-header intent must reject this incomplete row selection too.
 			sheet.selectColumnAndAllRows(column);
 			sheet.changeSelection(secondRow, column, false, false);
 			assertEquals(1, sheet.getSelectedRowCount(),
@@ -651,10 +659,12 @@ class SpreadSheetMouseInteractionTest {
 			assertFalse(sheet.getColumnCount() == sheet.getSelectedColumnCount(),
 					"the selection is a single cell, NOT a whole row");
 
-			assertFalse(sheet.canMoveSelectedTaskRowsTo(firstRow, false),
-					"drag-drop move target must reject a single task-cell selection");
-			assertFalse(sheet.moveSelectedTaskRowsTo(firstRow, false),
-					"drag-drop move must not mutate a single-cell selection");
+			TaskHierarchyEditIntent.SelectionSnapshot selection = sheet.captureHierarchySelection();
+			assertNull(selection, "a single cell cannot create a task hierarchy selection snapshot");
+			TaskHierarchyEditIntent intent = sheet.createRelocationIntent(selection, firstRow, false);
+			assertNull(intent, "an incomplete row selection cannot create a relocation intent");
+			assertFalse(sheet.canMoveTaskRowsTo(intent), "drag-drop must reject a single task-cell selection");
+			assertFalse(sheet.moveTaskRowsTo(intent), "drag-drop must not mutate a single-cell selection");
 			assertEquals(secondRow, findRow(sheet, fixture.secondTask()),
 					"single-cell drag must leave the task order unchanged");
 		});

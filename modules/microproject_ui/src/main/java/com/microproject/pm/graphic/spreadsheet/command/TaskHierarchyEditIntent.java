@@ -12,6 +12,16 @@ import com.microproject.pm.graphic.model.cache.ProjectionRowKey;
 /** A hierarchy gesture addressed to task occurrences in one visible projection. */
 public record TaskHierarchyEditIntent(Operation operation, List<ProjectionRowKey.TaskRow> tasks,
 		long projectionRevision, ProjectionRowKey.TaskRow anchor, boolean after, int direction) {
+	public record SelectionSnapshot(List<ProjectionRowKey.TaskRow> tasks, long projectionRevision) {
+		public SelectionSnapshot {
+			tasks = tasks == null ? List.of() : List.copyOf(tasks);
+			if (tasks.isEmpty() || tasks.stream().anyMatch(Objects::isNull))
+				throw new IllegalArgumentException("task rows are required");
+			if (projectionRevision < 0L)
+				throw new IllegalArgumentException("projectionRevision must not be negative");
+		}
+	}
+
 	public enum Operation {
 		MOVE,
 		RELOCATE

@@ -201,8 +201,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		if (!canMoveSelectedTaskRows(direction, true))
 			return false;
 		List<Node> nodes = new ArrayList<Node>(getSelectedNodes());
-		TaskHierarchyEditIntent intent = captureHierarchyIntent(TaskHierarchyEditIntent.Operation.MOVE, direction,
-			-1, false);
+		TaskHierarchyEditIntent intent = captureMoveIntent(direction);
 		if (nodes.isEmpty() || intent == null)
 			return false;
 		boolean moved = TaskCommandGateway.execute(this, intent).status() == TaskCommandResult.Status.CHANGED;
@@ -213,36 +212,9 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		return moved;
 	}
 
-	public boolean canMoveSelectedTaskRowsTo(int targetRow, boolean after) {
-		if (!(getModel() instanceof SpreadSheetModel model))
-			return false;
-		if (targetRow < 0 || targetRow >= getRowCount() || !hasEntireRowSelection() || !hasOnlyTaskRowsSelected())
-			return false;
-		GraphicNode target = model.getNode(targetRow);
-		return target != null && target.getNode() != null
-			&& getCache().canRelocateNodes(getSelectedGraphicNodes(), target.getNode(), after);
-	}
-
-	public boolean moveSelectedTaskRowsTo(int targetRow, boolean after) {
-		finishCurrentOperations();
-		if (!canMoveSelectedTaskRowsTo(targetRow, after) || !(getModel() instanceof SpreadSheetModel model))
-			return false;
-		List<Node> nodes = new ArrayList<Node>(getSelectedNodes());
-		TaskHierarchyEditIntent intent = captureHierarchyIntent(TaskHierarchyEditIntent.Operation.RELOCATE, 0,
-			targetRow, after);
-		if (nodes.isEmpty() || intent == null)
-			return false;
-		boolean moved = TaskCommandGateway.execute(this, intent).status() == TaskCommandResult.Status.CHANGED;
-		if (moved) {
-			refreshTaskMoveViews();
-			restoreTaskRowSelection(nodes);
-		}
-		return moved;
-	}
-
-	private TaskHierarchyEditIntent captureHierarchyIntent(TaskHierarchyEditIntent.Operation operation,
-			int direction, int targetRow, boolean after) {
-		if (!(getModel() instanceof SpreadSheetModel model) || model.getRowMultiple() != 1)
+	public TaskHierarchyEditIntent.SelectionSnapshot captureHierarchySelection() {
+		if (!(getModel() instanceof SpreadSheetModel model) || model.getRowMultiple() != 1
+				|| !hasEntireRowSelection() || !hasOnlyTaskRowsSelected())
 			return null;
 		var projection = model.getCache().getVisibleNodes().getProjectionIndex();
 		List<ProjectionRowKey.TaskRow> taskRows = new ArrayList<>();
@@ -253,15 +225,67 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 				return null;
 			taskRows.add(taskRow);
 		}
-		ProjectionRowKey.TaskRow anchor = null;
-		if (operation == TaskHierarchyEditIntent.Operation.RELOCATE) {
-			int modelRow = convertRowIndexToModel(targetRow);
-			if (modelRow < 0 || modelRow >= projection.size()
-					|| !(projection.keyAt(modelRow) instanceof ProjectionRowKey.TaskRow target))
-				return null;
-			anchor = target;
+		return taskRows.isEmpty() ? null
+			: new TaskHierarchyEditIntent.SelectionSnapshot(taskRows, projection.topologyRevision());
+	}
+
+	public TaskHierarchyEditIntent createRelocationIntent(TaskHierarchyEditIntent.SelectionSnapshot selection,
+			int targetRow, boolean after) {
+		if (selection == null || !(getModel() instanceof SpreadSheetModel model))
+			return null;
+		var projection = model.getCache().getVisibleNodes().getProjectionIndex();
+		int modelRow = convertRowIndexToModel(targetRow);
+		if (modelRow < 0 || modelRow >= projection.size()
+				|| !(projection.keyAt(modelRow) instanceof ProjectionRowKey.TaskRow anchor))
+			return null;
+		return new TaskHierarchyEditIntent(TaskHierarchyEditIntent.Operation.RELOCATE,
+			selection.tasks(), selection.projectionRevision(), anchor, after, 0);
+	}
+
+	public boolean canMoveTaskRowsTo(TaskHierarchyEditIntent intent) {
+		return intent != null && TaskCommandGateway.canExecute(this, intent);
+	}
+
+	public boolean moveTaskRowsTo(TaskHierarchyEditIntent intent) {
+		finishCurrentOperations();
+		if (intent == null)
+			return false;
+		boolean moved = TaskCommandGateway.execute(this, intent).status() == TaskCommandResult.Status.CHANGED;
+		if (moved) {
+			refreshTaskMoveViews();
+			restoreTaskRowSelectionByKeys(intent.tasks());
 		}
-		return new TaskHierarchyEditIntent(operation, taskRows, projection.topologyRevision(), anchor, after, direction);
+		return moved;
+	}
+
+	private TaskHierarchyEditIntent captureMoveIntent(int direction) {
+		TaskHierarchyEditIntent.SelectionSnapshot selection = captureHierarchySelection();
+		if (selection == null)
+			return null;
+		return new TaskHierarchyEditIntent(TaskHierarchyEditIntent.Operation.MOVE, selection.tasks(),
+			selection.projectionRevision(), null, false, direction);
+	}
+
+	private void restoreTaskRowSelectionByKeys(List<ProjectionRowKey.TaskRow> taskRows) {
+		if (!(getModel() instanceof SpreadSheetModel model) || taskRows == null || taskRows.isEmpty())
+			return;
+		var projection = model.getCache().getVisibleNodes().getProjectionIndex();
+		List<Integer> rows = new ArrayList<>(taskRows.size());
+		for (ProjectionRowKey.TaskRow key : taskRows) {
+			int row = projection.rowForKey(key);
+			if (row >= 0)
+				rows.add(row);
+		}
+		if (rows.isEmpty())
+			return;
+		clearSelection();
+		setRowHeaderSelectionActive(true);
+		getSelectionModel().setSelectionInterval(rows.getFirst(), rows.getFirst());
+		for (int i = 1; i < rows.size(); i++)
+			getSelectionModel().addSelectionInterval(rows.get(i), rows.get(i));
+		if (getColumnCount() > 0)
+			getColumnModel().getSelectionModel().setSelectionInterval(0, getColumnCount() - 1);
+		scrollRectToVisible(getCellRect(rows.getFirst(), 0, true));
 	}
 
 	private boolean hasEntireRowSelection() {

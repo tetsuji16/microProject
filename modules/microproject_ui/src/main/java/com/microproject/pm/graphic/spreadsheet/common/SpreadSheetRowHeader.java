@@ -43,6 +43,7 @@ import javax.swing.table.DefaultTableColumnModel;
 import com.microproject.menu.MenuActionConstants;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetPopupMenu;
+import com.microproject.pm.graphic.spreadsheet.command.TaskHierarchyEditIntent;
 import com.microproject.ui.input.PopupTriggerController;
 import com.microproject.strings.Messages;
 import com.microproject.util.Alert;
@@ -52,11 +53,10 @@ import com.microproject.util.FlatUiSupport;
 /**
  * Row header (ID column) of the task spreadsheet.
  *
- * <p>Dragging through the row header selects a range of rows and keeps the
- * Gantt chart's row highlight in sync live, matching Microsoft Project's
- * behaviour (issue #179). Reordering tasks is performed from the Move Up/Down
- * ribbon buttons and the keyboard shortcuts, not by dragging here, so a plain
- * selection drag never triggers an accidental move or a system beep.
+ * <p>Pressing the row header selects task rows and keeps the Gantt chart's row
+ * highlight in sync (issue #179). Dragging a valid drop target requests an
+ * explicit confirmation before relocating the captured task identities. The
+ * move buttons and keyboard shortcuts use the same hierarchy command gateway.
  */
 public class SpreadSheetRowHeader extends JTable {
 	protected CommonSpreadSheet table;
@@ -112,6 +112,8 @@ public class SpreadSheetRowHeader extends JTable {
 					private int targetRow = -1;
 					private boolean dropAfter;
 					private boolean validDrop;
+					private TaskHierarchyEditIntent.SelectionSnapshot dragSelection;
+					private TaskHierarchyEditIntent dragIntent;
 					public void mousePressed(MouseEvent e) {
 						boolean popupTrigger = popupTriggers.mousePressed(e);
 						if (SwingUtilities.isLeftMouseButton(e)){
@@ -121,6 +123,7 @@ public class SpreadSheetRowHeader extends JTable {
 							}
 							boolean keepExisting=isRowSelected(row)&&getSelectedRowCount()>1&&!e.isControlDown()&&!e.isShiftDown();
 							selectRowForMove(row,e.isShiftDown(),e.isControlDown(),keepExisting);
+							dragSelection = spreadSheet.captureHierarchySelection();
 							// The row header is only a selection affordance.  Keep keyboard
 							// input on the task table so Ctrl+C/V and typed edits continue
 							// through the document's single root-pane shortcut routing.
@@ -130,6 +133,7 @@ public class SpreadSheetRowHeader extends JTable {
 							dragging=false;
 							targetRow=-1;
 							validDrop=false;
+							dragIntent=null;
 							if (e.getClickCount()==2){
 								spreadSheet.doDoubleClick(row,0);
 //								Component comp=SpreadSheetRowHeader.this;
@@ -151,14 +155,15 @@ public class SpreadSheetRowHeader extends JTable {
 							targetRow=currentRow;
 							Rectangle bounds=getCellRect(currentRow,0,true);
 							dropAfter=e.getY()>=bounds.y+bounds.height/2;
-							validDrop=spreadSheet.canMoveSelectedTaskRowsTo(targetRow,dropAfter);
+							dragIntent=spreadSheet.createRelocationIntent(dragSelection,targetRow,dropAfter);
+							validDrop=spreadSheet.canMoveTaskRowsTo(dragIntent);
 							setCursor(validDrop ? Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR) : Cursor.getDefaultCursor());
 						}
 					}
 					public void mouseReleased(MouseEvent e) {
 						boolean popupTrigger = popupTriggers.mouseReleased(e) == PopupTriggerController.ReleaseOutcome.SHOW;
 						if (dragging && validDrop && confirmDragMove(spreadSheet))
-							spreadSheet.moveSelectedTaskRowsTo(targetRow,dropAfter);
+							spreadSheet.moveTaskRowsTo(dragIntent);
 						if (popupTrigger)
 							showTaskPopup(e);
 						pressPoint=null;
@@ -166,6 +171,8 @@ public class SpreadSheetRowHeader extends JTable {
 						dragging=false;
 						targetRow=-1;
 						validDrop=false;
+						dragSelection=null;
+						dragIntent=null;
 						setCursor(Cursor.getDefaultCursor());
 						repaint();
 					}
