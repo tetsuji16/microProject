@@ -89,6 +89,7 @@ import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.ui.util.SwingAlertPresenter;
 import com.microproject.util.Alert;
+import com.microproject.util.Environment;
 import com.microproject.util.FlatUiSupport;
 import com.microproject.util.GanttProgress;
 import com.microproject.workspace.SavableToWorkspace;
@@ -99,9 +100,15 @@ class TaskTableGanttGridGuiAcceptanceTest {
 	private JFrame frame;
 	private Gantt gantt;
 	private TaskSelectionController selectionController;
+	private boolean previousClientSide;
+	private boolean previousBatchMode;
 
 	@BeforeEach
 	void installSwingAlertPresenter() {
+		previousClientSide = Environment.isClientSide();
+		previousBatchMode = Environment.isBatchMode();
+		Environment.setClientSide(true);
+		Environment.setBatchMode(false);
 		Alert.setPresenter(new SwingAlertPresenter());
 	}
 
@@ -122,6 +129,8 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			gantt = null;
 		}
 		Alert.setPresenter(null);
+		Environment.setClientSide(previousClientSide);
+		Environment.setBatchMode(previousBatchMode);
 	}
 
 	@Test
