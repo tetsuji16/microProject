@@ -993,7 +993,8 @@ class RibbonExternalCommandGuiAcceptanceTest {
 	private static AbstractButton findRibbonTab(Component root, RibbonTask task) {
 		for (Component component : flatten(root)) {
 			if (component instanceof JRibbonTaskToggleButton tab && tab.isShowing()
-				&& tab.getRibbonTask() == task)
+				&& tab.getRibbonTask() != null
+				&& task.getTitle().equals(tab.getRibbonTask().getTitle()))
 				return RibbonGuiButton.adapt(tab);
 		}
 		throw new AssertionError("Requested ribbon task does not have a visible native tab control: " + task.getTitle());
