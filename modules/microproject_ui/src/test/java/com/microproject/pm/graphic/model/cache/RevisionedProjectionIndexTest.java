@@ -27,14 +27,20 @@ class RevisionedProjectionIndexTest {
 		GraphicNode first = graphicNode(project, firstTask);
 		GraphicNode second = graphicNode(project, secondTask);
 
-		RevisionedProjectionIndex firstView = RevisionedProjectionIndex.create(List.of(first, second), null);
-		RevisionedProjectionIndex secondView = RevisionedProjectionIndex.create(List.of(second, first), null);
+		VisibleNodes firstView = new VisibleNodes("first-view", ignored -> { });
+		firstView.getElements().addAll(List.of(first, second));
+		firstView.publishProjectionIndex();
+		VisibleNodes secondView = new VisibleNodes("second-view", ignored -> { });
+		secondView.getElements().addAll(List.of(second, first));
+		secondView.publishProjectionIndex();
+		ProjectionRowKey firstTaskKey = firstView.getProjectionIndex().keyAt(0);
 
-		assertEquals(0, firstView.rowForKey(firstView.keyAt(0)));
-		assertEquals(1, firstView.rowForKey(firstView.keyAt(1)));
-		assertEquals(0, secondView.rowForKey(secondView.keyAt(0)));
-		assertEquals(1, secondView.rowForKey(secondView.keyAt(1)));
-		assertNotEquals(firstView.rowForKey(firstView.keyAt(0)), secondView.rowForKey(firstView.keyAt(0)));
+		assertEquals(0, firstView.getRow(first));
+		assertEquals(1, firstView.getRow(second));
+		assertEquals(1, secondView.getProjectionIndex().rowForKey(firstTaskKey));
+		assertEquals(0, secondView.getRow(second));
+		assertEquals(1, secondView.getRow(first));
+		assertNotEquals(firstView.getRow(first), secondView.getRow(first));
 	}
 
 	@Test
