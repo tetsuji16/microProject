@@ -51,6 +51,7 @@ import com.microproject.grouping.core.transform.ViewTransformerListener;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.SubProj;
 import com.microproject.pm.task.Task;
+import com.microproject.pm.graphic.spreadsheet.command.TaskCommandGateway;
 import com.microproject.strings.Messages;
 import com.microproject.util.Alert;
 
@@ -243,7 +244,7 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 
     public void createDependency(GraphicNode startNode, GraphicNode endNode)
             throws InvalidAssociationException {
-       reference.createDependency(startNode,endNode);
+        TaskCommandGateway.createDependency(this, startNode, endNode, this);
 
     }
 

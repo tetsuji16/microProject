@@ -44,12 +44,12 @@ import com.microproject.pm.graphic.frames.DocumentFrame;
 import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.pm.graphic.model.cache.GraphicDependency;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
+import com.microproject.pm.graphic.spreadsheet.command.TaskCommandGateway;
+import com.microproject.pm.graphic.spreadsheet.command.TaskCommandResult;
 import com.microproject.pm.graphic.timescale.CoordinatesConverter;
 import com.microproject.pm.graphic.views.synchro.ScrollPaneSynchronizer;
 import com.microproject.association.InvalidAssociationException;
 import com.microproject.pm.scheduling.IntervalConsumer;
-import com.microproject.pm.dependency.DependencyService;
-import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.dependency.HasDependencies;
 import com.microproject.pm.scheduling.ConstraintType;
 import com.microproject.pm.scheduling.Schedule;
@@ -76,12 +76,7 @@ public class GanttInteractor extends GraphInteractor{
 	private static final int HORIZONTAL_PAN_SPEED_MULTIPLIER = 2;
 
 	/** Immutable snapshot used while committing a bar-to-bar dependency drag. */
-	private record DependencyLinkEndpoints(
-			GraphicNode sourceNode,
-			GraphicNode destinationNode,
-			HasDependencies source,
-			HasDependencies destination) {
-	}
+	private record DependencyLinkEndpoints(GraphicNode sourceNode, GraphicNode destinationNode) { }
 
 	protected Consumer<String> modeListener;
 
@@ -284,7 +279,7 @@ public class GanttInteractor extends GraphInteractor{
     		e.consume();
     		return;
     	}
-    	super.mouseDragged(e);
+     super.mouseDragged(e);
     }
 
     public void mouseReleased(MouseEvent e) {
@@ -439,14 +434,11 @@ public class GanttInteractor extends GraphInteractor{
 			return false;
 		}
 		try {
-			if (!CollaborationHelper.tryLockObject(null, endpoints.sourceNode().getNode(), getGraph(), "link"))
-				return false;
-			if (!CollaborationHelper.tryLockObject(null, endpoints.destinationNode().getNode(), getGraph(), "link"))
-				return false;
 			// MS Project creates a Finish-to-Start link with zero lag when users drag between bars.
-			DependencyService.getInstance().newDependency(endpoints.source(), endpoints.destination(),
-					DependencyType.Kind.FS, 0, this);
-			return true;
+			TaskCommandResult result = TaskCommandGateway.createDependency(getGraph().getModel().getCache(), endpoints.sourceNode(),
+				endpoints.destinationNode(), this, getGraph());
+			return result.status() == TaskCommandResult.Status.CHANGED
+				|| result.status() == TaskCommandResult.Status.NO_CHANGE;
 		} catch (InvalidAssociationException e) {
 			Alert.error(e.getMessage());
 			return false;
@@ -470,7 +462,7 @@ public class GanttInteractor extends GraphInteractor{
 				|| !(destinationImpl instanceof HasDependencies destination)) {
 			return null;
 		}
-		return new DependencyLinkEndpoints(sourceNode, destinationNode, source, destination);
+		return new DependencyLinkEndpoints(sourceNode, destinationNode);
 	}
 
     private boolean applyIntervalDrag(long dt, UndoableEditSupport undoSupport) {

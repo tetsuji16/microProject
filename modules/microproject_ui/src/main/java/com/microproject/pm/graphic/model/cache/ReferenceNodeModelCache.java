@@ -363,14 +363,6 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 	}
 
 	
-	public void createDependency(GraphicNode startNode,GraphicNode endNode) throws InvalidAssociationException{
-		DependencyService service=DependencyService.getInstance();
-		HasDependencies startObject=(HasDependencies)startNode.getNode().getImpl();
-		HasDependencies endObject=(HasDependencies)endNode.getNode().getImpl();
-			Dependency dep=service.newDependency(startObject,endObject,DependencyType.Kind.FS,0L,this);
-	}
-	
-
 	public void removeEdge(GraphicDependency dep){
 		if (dep==null) return;
 		edgeCache.deleteElement(dep);

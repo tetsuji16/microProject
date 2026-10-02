@@ -4,6 +4,7 @@
  ******************************************************************************/
 package com.microproject.pm.graphic.spreadsheet.command;
 
+import java.awt.Component;
 import java.util.Objects;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -33,6 +34,35 @@ import com.microproject.util.ClassUtils;
 /** Resolves task edits against the current projection before entering the canonical field/Undo path. */
 public final class TaskCommandGateway {
 	private TaskCommandGateway() {
+	}
+
+	/** Resolves visible Gantt/Network endpoints to stable task keys before using the shared dependency command. */
+	public static TaskCommandResult createDependency(NodeModelCache cache, GraphicNode startNode,
+			GraphicNode endNode, Object eventSource) throws InvalidAssociationException {
+		return createDependency(cache, startNode, endNode, eventSource, null);
+	}
+
+	public static TaskCommandResult createDependency(NodeModelCache cache, GraphicNode startNode,
+			GraphicNode endNode, Object eventSource, Component dialogParent) throws InvalidAssociationException {
+		if (cache == null || startNode == null || endNode == null || startNode.getNode() == null
+				|| endNode.getNode() == null || !(startNode.getNode().getImpl() instanceof Task)
+				|| !(endNode.getNode().getImpl() instanceof Task))
+			throw new InvalidAssociationException("Dependencies require two task rows");
+		RevisionedProjectionIndex projection = cache.getVisibleNodes().getProjectionIndex();
+		int startRow = projection.rowForNode(startNode);
+		int endRow = projection.rowForNode(endNode);
+		if (startRow < 0 || endRow < 0 || !(projection.keyAt(startRow) instanceof ProjectionRowKey.TaskRow startKey)
+				|| !(projection.keyAt(endRow) instanceof ProjectionRowKey.TaskRow endKey))
+			throw new InvalidAssociationException("Dependency tasks are not in the active projection");
+		if (startKey.taskKey().equals(endKey.taskKey()))
+			throw new InvalidAssociationException("A task cannot depend on itself");
+		TaskCommandResult result = execute(cache, new TaskDependencyIntent(TaskDependencyIntent.Operation.LINK,
+			List.of(startKey, endKey), projection.topologyRevision(), null), eventSource, dialogParent);
+		if (result.status() == TaskCommandResult.Status.LOCKED)
+			return result;
+		if (result.status() != TaskCommandResult.Status.CHANGED && result.status() != TaskCommandResult.Status.NO_CHANGE)
+			throw new InvalidAssociationException("Unable to create task dependency: " + result.reason());
+		return result;
 	}
 
 	public static TaskCommandResult execute(SpreadSheetModel sheetModel, TaskFieldEditIntent intent,
@@ -134,14 +164,27 @@ public final class TaskCommandGateway {
 	public static TaskCommandResult execute(SpreadSheet sheet, TaskDependencyIntent intent, Object eventSource)
 			throws InvalidAssociationException {
 		Objects.requireNonNull(sheet, "sheet");
+		if (!(sheet.getModel() instanceof SpreadSheetModel sheetModel) || sheetModel.getCache() == null)
+			return new TaskCommandResult(TaskCommandResult.Status.INVALID_INTENT, "task-dependency-requires-project-model");
+		return execute(sheetModel.getCache(), intent, eventSource, sheet);
+	}
+
+	/** Applies dependency edits from any task projection through the same validated command path. */
+	public static TaskCommandResult execute(NodeModelCache cache, TaskDependencyIntent intent, Object eventSource)
+			throws InvalidAssociationException {
+		return execute(cache, intent, eventSource, null);
+	}
+
+	private static TaskCommandResult execute(NodeModelCache cache, TaskDependencyIntent intent, Object eventSource,
+			Component lockParent) throws InvalidAssociationException {
+		Objects.requireNonNull(cache, "cache");
 		Objects.requireNonNull(intent, "intent");
-		if (!(sheet.getModel() instanceof SpreadSheetModel sheetModel) || sheetModel.getCache() == null
-				|| !(sheetModel.getCache().getModel().getDataFactory() instanceof Project project))
+		if (!(cache.getModel().getDataFactory() instanceof Project project))
 			return new TaskCommandResult(TaskCommandResult.Status.INVALID_INTENT, "task-dependency-requires-project-model");
 		if (project.isReadOnly())
 			return new TaskCommandResult(TaskCommandResult.Status.REJECTED, "document-read-only");
 
-		RevisionedProjectionIndex projection = sheetModel.getCache().getVisibleNodes().getProjectionIndex();
+		RevisionedProjectionIndex projection = cache.getVisibleNodes().getProjectionIndex();
 		if (projection.topologyRevision() != intent.projectionRevision())
 			return new TaskCommandResult(TaskCommandResult.Status.STALE_PROJECTION, "projection-revision-changed");
 
@@ -175,7 +218,7 @@ public final class TaskCommandGateway {
 					&& tasks.stream().noneMatch(task -> task == successor))
 				lockTargets.add(successor);
 		}
-		if (!CollaborationHelper.tryLockNodes(null, lockTargets, sheet,
+		if (!CollaborationHelper.tryLockNodes(null, lockTargets, lockParent,
 			intent.operation() == TaskDependencyIntent.Operation.LINK ? "link" : "unlink"))
 			return new TaskCommandResult(TaskCommandResult.Status.LOCKED, "collaboration-lock-denied");
 

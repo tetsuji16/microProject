@@ -147,6 +147,32 @@ class TaskCommandGatewayTest {
 	}
 
 	@Test
+	void viewCacheDependencyCreationUsesTheStableTaskCommandGateway() throws Exception {
+		Fixture fixture = createDependencyFixture();
+		NormalTask successor = fixture.project().getTaskList().stream()
+			.filter(task -> "Successor".equals(task.getName())).map(NormalTask.class::cast).findFirst().orElseThrow();
+		RevisionedProjectionIndex projection = fixture.cache().getVisibleNodes().getProjectionIndex();
+		var predecessorNode = projection.nodeAt(projection.rowForKey(taskRowFor(projection, fixture.task())));
+		var successorNode = projection.nodeAt(projection.rowForKey(taskRowFor(projection, successor)));
+		assertTrue(successor.getPredecessorList().isEmpty());
+
+		SwingUtilities.invokeAndWait(() -> {
+			try {
+				fixture.cache().createDependency(predecessorNode, successorNode);
+			} catch (Exception failure) {
+				throw new RuntimeException(failure);
+			}
+		});
+
+		assertEquals(1, successor.getPredecessorList().size(),
+			"Gantt/Network cache route must share the canonical dependency mutation");
+		SwingUtilities.invokeAndWait(() -> fixture.project().getUndoController().undo());
+		assertTrue(successor.getPredecessorList().isEmpty());
+		SwingUtilities.invokeAndWait(() -> fixture.project().getUndoController().redo());
+		assertEquals(1, successor.getPredecessorList().size());
+	}
+
+	@Test
 	void structuralTaskPasteUsesStableAnchorAndOneUndoAcrossSaveReload() throws Exception {
 		Fixture fixture = createFixture();
 		DataFactoryUndoController sourceUndo = new DataFactoryUndoController();
