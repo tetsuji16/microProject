@@ -102,6 +102,7 @@ import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.strings.Messages;
 import com.microproject.session.SessionFactory;
 import com.microproject.testsupport.GuiAcceptanceSupport;
+import com.microproject.testsupport.RibbonGuiButton;
 import com.microproject.testsupport.GuiCommandAcceptanceFixture;
 import com.microproject.testsupport.GuiPhysicalRouteAdapter;
 import com.microproject.testsupport.DialogLayoutAssertions;
@@ -2662,7 +2663,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	private AbstractButton findShowingButtonByText(String text) throws Exception {
 		AbstractButton[] result = new AbstractButton[1];
 		SwingUtilities.invokeAndWait(() -> result[0] = UiComponentWalker.flatten(window).stream()
-			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+			.filter(component -> component instanceof AbstractButton || component instanceof org.pushingpixels.flamingo.api.common.AbstractCommandButton)
+			.map(RibbonGuiButton::adapt)
 			.filter(AbstractButton::isShowing).filter(button -> text.equals(button.getText()))
 			.findFirst().orElseThrow(() -> new AssertionError("Visible ribbon button not found: " + text)));
 		return result[0];
@@ -2671,7 +2673,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	private static AbstractButton findShowingButtonByText(java.awt.Container container, String text) throws Exception {
 		AbstractButton[] result = new AbstractButton[1];
 		SwingUtilities.invokeAndWait(() -> result[0] = UiComponentWalker.flatten(container).stream()
-				.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+				.filter(component -> component instanceof AbstractButton || component instanceof org.pushingpixels.flamingo.api.common.AbstractCommandButton)
+				.map(RibbonGuiButton::adapt)
 				.filter(AbstractButton::isShowing).filter(button -> text.equals(button.getText())).findFirst()
 				.orElseThrow(() -> new AssertionError("Visible dialog button not found: " + text)));
 		return result[0];
@@ -2680,11 +2683,13 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	private AbstractButton findShowingButtonByCommand(String command) throws Exception {
 		AbstractButton[] result = new AbstractButton[1];
 		SwingUtilities.invokeAndWait(() -> result[0] = UiComponentWalker.flatten(window).stream()
-			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+			.filter(component -> component instanceof AbstractButton || component instanceof org.pushingpixels.flamingo.api.common.AbstractCommandButton)
+			.map(RibbonGuiButton::adapt)
 			.filter(AbstractButton::isShowing).filter(button -> command.equals(button.getActionCommand()))
 			.findFirst().orElseThrow(() -> new AssertionError("Visible ribbon command not found: " + command
 				+ " visibleCommands=" + UiComponentWalker.flatten(window).stream()
-					.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+					.filter(component -> component instanceof AbstractButton || component instanceof org.pushingpixels.flamingo.api.common.AbstractCommandButton)
+					.map(RibbonGuiButton::adapt)
 					.filter(AbstractButton::isShowing).map(AbstractButton::getActionCommand)
 					.filter(java.util.Objects::nonNull).collect(Collectors.joining(",")))));
 		return result[0];
@@ -2720,7 +2725,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	private AbstractButton findVisibleCommandOrNull(String command) throws Exception {
 		AbstractButton[] result = new AbstractButton[1];
 		SwingUtilities.invokeAndWait(() -> result[0] = UiComponentWalker.flatten(window).stream()
-			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+			.filter(component -> component instanceof AbstractButton || component instanceof org.pushingpixels.flamingo.api.common.AbstractCommandButton)
+			.map(RibbonGuiButton::adapt)
 			.filter(AbstractButton::isShowing).filter(button -> command.equals(button.getActionCommand()))
 			.findFirst().orElse(null));
 		return result[0];
@@ -2734,8 +2740,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 
 	private static AbstractButton popupCommandOrNull(JPopupMenu popup, String command) {
 		for (java.awt.Component component : UiComponentWalker.flatten(popup)) {
-			if (component instanceof AbstractButton button && command.equals(button.getActionCommand()))
-				return button;
+			if ((component instanceof AbstractButton || component instanceof org.pushingpixels.flamingo.api.common.AbstractCommandButton)
+				&& command.equals(RibbonGuiButton.adapt(component).getActionCommand()))
+				return RibbonGuiButton.adapt(component);
 		}
 		return null;
 	}

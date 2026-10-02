@@ -60,6 +60,7 @@ import com.microproject.preference.ConfigurationFile;
 import com.microproject.session.SessionFactory;
 import com.microproject.strings.Messages;
 import com.microproject.testsupport.GuiAcceptanceSupport;
+import com.microproject.testsupport.RibbonGuiButton;
 import com.microproject.testsupport.DialogLayoutAssertions;
 import com.microproject.util.Environment;
 import com.microproject.util.UiDispatch;
@@ -938,10 +939,11 @@ class RibbonExternalCommandGuiAcceptanceTest {
 	private static AbstractButton findCommandButton(Component root, String commandId) {
 		AbstractButton match = null;
 		for (Component component : flatten(root)) {
-			if (component instanceof AbstractButton button && commandId.equals(button.getActionCommand()) && button.isShowing()
-				&& isInsideTopLevelContent(button)
-				&& (match == null || button.getWidth() * button.getHeight() > match.getWidth() * match.getHeight())) {
-				match = button;
+			if ((component instanceof AbstractButton || component instanceof org.pushingpixels.flamingo.api.common.AbstractCommandButton)
+				&& commandId.equals(RibbonGuiButton.adapt(component).getActionCommand()) && RibbonGuiButton.adapt(component).isShowing()
+				&& isInsideTopLevelContent(component)
+				&& (match == null || component.getWidth() * component.getHeight() > match.getWidth() * match.getHeight())) {
+				match = RibbonGuiButton.adapt(component);
 			}
 		}
 		if (match != null) return match;
@@ -964,7 +966,9 @@ class RibbonExternalCommandGuiAcceptanceTest {
 
 	private static AbstractButton findRibbonTab(Component root, String... titles) {
 		for (Component component : flatten(root)) {
-			if (component instanceof AbstractButton button && button.isShowing()) {
+			if ((component instanceof AbstractButton || component instanceof org.pushingpixels.flamingo.api.common.AbstractCommandButton)
+				&& RibbonGuiButton.adapt(component).isShowing()) {
+				AbstractButton button = RibbonGuiButton.adapt(component);
 				for (String title : titles) {
 					if (title.equals(button.getText())) return button;
 				}

@@ -44,6 +44,7 @@ import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
 import com.microproject.testsupport.GuiAcceptanceSupport;
+import com.microproject.testsupport.RibbonGuiButton;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.Environment;
 import com.microproject.util.FlatUiSupport;
@@ -277,7 +278,8 @@ class AssignmentDialogGuiAcceptanceTest {
 	private AbstractButton buttonByCommand(String command) throws Exception {
 		final AbstractButton[] button = new AbstractButton[1];
 		SwingUtilities.invokeAndWait(() -> button[0] = com.microproject.menu.testsupport.UiComponentWalker.flatten(window).stream()
-			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+			.filter(component -> component instanceof AbstractButton || component instanceof org.pushingpixels.flamingo.api.common.AbstractCommandButton)
+			.map(RibbonGuiButton::adapt)
 			.filter(AbstractButton::isShowing).filter(value -> command.equals(value.getActionCommand()))
 			.findFirst().orElseThrow(() -> new AssertionError("Visible command not found: " + command)));
 		return button[0];
@@ -290,7 +292,8 @@ class AssignmentDialogGuiAcceptanceTest {
 	private AbstractButton buttonByText(java.awt.Component root, String text) throws Exception {
 		final AbstractButton[] button = new AbstractButton[1];
 		SwingUtilities.invokeAndWait(() -> button[0] = com.microproject.menu.testsupport.UiComponentWalker.flatten(root).stream()
-			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+			.filter(component -> component instanceof AbstractButton || component instanceof org.pushingpixels.flamingo.api.common.AbstractCommandButton)
+			.map(RibbonGuiButton::adapt)
 			.filter(AbstractButton::isShowing).filter(value -> text.equals(value.getText()))
 			.findFirst().orElseThrow(() -> new AssertionError("Visible button not found: " + text)));
 		return button[0];
