@@ -14,6 +14,7 @@ import javax.swing.AbstractButton;
 import javax.swing.SwingUtilities;
 
 import org.pushingpixels.flamingo.api.common.AbstractCommandButton;
+import org.pushingpixels.flamingo.api.common.popup.PopupPanelManager;
 import org.pushingpixels.flamingo.api.ribbon.JRibbonBand;
 
 import com.microproject.menu.testsupport.UiComponentWalker;
@@ -58,7 +59,27 @@ public final class RibbonGuiSupport {
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 		robot.waitForIdle();
-		GuiAcceptanceSupport.await(popupCommand.get()::isShowing,
+		GuiAcceptanceSupport.await(() -> {
+			AtomicReference<AbstractCommandButton> showing = new AtomicReference<>();
+			try {
+				SwingUtilities.invokeAndWait(() -> {
+				for (PopupPanelManager.PopupInfo popup : PopupPanelManager.defaultManager().getShownPath()) {
+					AbstractCommandButton command = findShowingCommand(popup.getPopupPanel(), commandId);
+					if (command != null) {
+						showing.set(command);
+						break;
+					}
+				}
+				});
+			} catch (InterruptedException interrupted) {
+				Thread.currentThread().interrupt();
+				throw new AssertionError("Interrupted while inspecting ribbon popup", interrupted);
+			} catch (java.lang.reflect.InvocationTargetException failure) {
+				throw new AssertionError("Could not inspect ribbon popup", failure.getCause());
+			}
+			popupCommand.set(showing.get());
+			return popupCommand.get() != null;
+		},
 			"Flamingo collapsed band did not expose " + commandId + " after its expand control was clicked");
 		return RibbonGuiButton.adapt(popupCommand.get());
 	}
@@ -72,6 +93,13 @@ public final class RibbonGuiSupport {
 	private static AbstractCommandButton findCommand(Component root, String commandId) {
 		for (Component component : UiComponentWalker.flatten(root))
 			if (component instanceof AbstractCommandButton button && commandId.equals(button.getName())) return button;
+		return null;
+	}
+
+	private static AbstractCommandButton findShowingCommand(Component root, String commandId) {
+		for (Component component : UiComponentWalker.flatten(root))
+			if (component instanceof AbstractCommandButton button && button.isShowing()
+				&& commandId.equals(button.getName())) return button;
 		return null;
 	}
 

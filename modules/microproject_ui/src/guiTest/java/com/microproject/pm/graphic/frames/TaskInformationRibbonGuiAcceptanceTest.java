@@ -1674,7 +1674,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		AbstractButton paste = findShowingButtonByCommand("RibbonPaste");
 		GuiAcceptanceSupport.await(paste::isEnabled, "Paste remained disabled after Copy");
 		click(robot, boundsOnScreen(paste));
-		assertEquals("RibbonPaste", manager.getLastRibbonCommandResult().commandId(),
+		assertEquals("Paste", manager.getLastRibbonCommandResult().commandId(),
 			"physical Paste must use the canonical ribbon command dispatcher");
 		// Paste Insert is intentionally popup-only in the ribbon shell.  Exercise
 		// its real physical route as part of the same clipboard fixture so every
@@ -1698,7 +1698,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		// A desktop clipboard provider may defer or reject exportDone; assert the
 		// physical Action remains wired and leave model commit coverage to a real
 		// clipboard-enabled environment.
-		assertEquals("RibbonCut", manager.getLastRibbonCommandResult().commandId(),
+		assertEquals("Cut", manager.getLastRibbonCommandResult().commandId(),
 			"physical Cut must use the canonical ribbon command dispatcher");
 	}
 

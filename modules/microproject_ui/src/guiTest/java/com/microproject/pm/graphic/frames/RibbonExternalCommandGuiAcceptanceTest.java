@@ -638,8 +638,12 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			&& window.getGraphicManager() != initialManager,
 			"Locale change did not install a new GraphicManager through StartupFactory");
 		manager = window.getGraphicManager();
-		AbstractButton restoredNewProject = RibbonGuiSupport.findVisibleOrExpand(robot, window.getRibbonPanel(), "RibbonNewProject");
-		assertTrue(window.isShowing() && manager.getFrameManager() != null && restoredNewProject.isShowing(),
+		String taskTitle = Messages.getString("TaskRibbonTask.title");
+		AbstractButton taskTab = findRibbonTab(window.getRibbonPanel(), taskTitle);
+		click(robot, taskTab);
+		GuiAcceptanceSupport.await(taskTab::isSelected, "Restarted application did not restore the Task ribbon tab");
+		AbstractButton restoredTaskInformation = RibbonGuiSupport.findVisibleOrExpand(robot, window.getRibbonPanel(), "RibbonTaskInformation");
+		assertTrue(window.isShowing() && manager.getFrameManager() != null && restoredTaskInformation.isShowing(),
 			"Restarted application did not restore an interactive JRibbon in the existing visible window");
 		assertEquals("de_DE", localePreferences.get("locale", "missing"),
 			"Locale restart did not preserve the selected preference");
