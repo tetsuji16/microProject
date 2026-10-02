@@ -31,7 +31,7 @@ import com.microproject.menu.MenuActionMapSupport;
 import com.microproject.menu.MenuManager;
 import com.microproject.menu.testsupport.UiComponentWalker;
 import com.microproject.testsupport.GuiAcceptanceSupport;
-import com.microproject.ui.ribbon.ModernRibbonPanel;
+import com.microproject.ui.ribbon.RibbonController;
 import com.microproject.ui.ribbon.RibbonDisplayMode;
 
 class OfficeChromeRibbonDisplayGuiAcceptanceTest {
@@ -47,7 +47,7 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
 		JPanel ribbonHost = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
-		ModernRibbonPanel ribbon = (ModernRibbonPanel) ribbonHost.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+		RibbonController ribbon = (RibbonController) ribbonHost.getClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY);
 		OfficeChromePanel chrome = new OfficeChromePanel(manager, ribbonHost, () -> { });
 		SwingUtilities.invokeAndWait(() -> {
 			frame = new JFrame("Office chrome ribbon display acceptance");

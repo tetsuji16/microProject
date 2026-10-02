@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.testsupport.GuiAcceptanceSupport;
-import com.microproject.ui.ribbon.ModernRibbonPanel;
+import com.microproject.ui.ribbon.RibbonController;
 import com.microproject.ui.ribbon.RibbonDisplayMode;
 import com.microproject.util.Environment;
 
@@ -54,8 +54,8 @@ class RibbonCtrlF1GuiAcceptanceTest {
 		});
 		GuiAcceptanceSupport.await(() -> window.isShowing() && window.getRibbonPanel() != null,
 			"document window and ribbon did not become visible");
-		ModernRibbonPanel ribbon = (ModernRibbonPanel) window.getRibbonPanel()
-			.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+		RibbonController ribbon = (RibbonController) window.getRibbonPanel()
+			.getClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY);
 		Robot robot = new Robot();
 		robot.setAutoDelay(40);
 		java.awt.Rectangle[] windowBounds = new java.awt.Rectangle[1];

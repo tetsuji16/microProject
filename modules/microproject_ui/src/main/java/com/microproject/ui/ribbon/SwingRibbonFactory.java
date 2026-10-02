@@ -78,14 +78,9 @@ public final class SwingRibbonFactory {
 
 	public JPanel createPanel(SwingRibbonModel model, Runnable helpAction) {
 		Objects.requireNonNull(model);
-		ModernRibbonPanel panel = new ModernRibbonPanel(model, commandSource, bundles, helpAction);
-		panel.build();
-		JPanel host = new JPanel(new BorderLayout());
-		host.setOpaque(true);
-		host.setBackground(new FlatLafRibbonTheme().chromeBackground());
-		host.add(panel, BorderLayout.CENTER);
-		host.putClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY, panel);
-		return host;
+		FlamingoRibbonController panel = new FlamingoRibbonController(model, commandSource);
+		panel.putClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY, panel);
+		return panel;
 	}
 
 	public String getActionStringFromId(String id) {
@@ -94,6 +89,14 @@ public final class SwingRibbonFactory {
 
 	public List<?> getButtonsFromId(String id) {
 		return commandSource.getButtons(id);
+	}
+
+	public List<JComponent> getRibbonControlsFromId(String id) {
+		return commandSource.getCommandControls(id);
+	}
+
+	public void registerRibbonControl(String id, JComponent component) {
+		commandSource.registerCommandControl(id, component);
 	}
 
 	private SwingRibbonModel.RibbonTab createTab(String tabId, CustomRibbonBandGenerator customBandsGenerator) {

@@ -10,6 +10,7 @@ import java.util.List;
 
 import javax.swing.AbstractButton;
 import javax.swing.Action;
+import javax.swing.JComponent;
 
 /**
  * Boundary between the ribbon presentation and an application's command
@@ -24,6 +25,12 @@ import javax.swing.Action;
 public interface RibbonCommandSource {
 	/** Returns the shared ribbon dispatcher for a command without creating a Swing button. */
 	Action createAction(String commandId);
+
+	void registerCommandControl(String commandId, JComponent control);
+
+	List<JComponent> getCommandControls(String actionId);
+
+	void unregisterCommandControls(Collection<? extends JComponent> controls);
 
 	/** Creates and registers a normal ribbon command button. */
 	AbstractButton createButton(String commandId);

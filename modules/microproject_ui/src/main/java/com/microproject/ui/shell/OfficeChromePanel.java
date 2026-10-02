@@ -438,6 +438,8 @@ final class OfficeChromePanel extends JPanel {
 		button.setText("");
 		button.setName(actionId);
 		button.setToolTipText(resolveTooltip(actionId));
+		if (menuManager != null && menuManager.getRibbonFactory() != null)
+			menuManager.getRibbonFactory().registerRibbonControl(actionId, button);
 		return button;
 	}
 

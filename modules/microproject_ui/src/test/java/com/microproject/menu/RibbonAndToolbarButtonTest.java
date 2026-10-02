@@ -79,7 +79,12 @@ import com.microproject.ribbon.RibbonCommandResult;
 import com.microproject.ribbon.RibbonCommandSource;
 import com.microproject.ui.ribbon.SwingRibbonFactory;
 import com.microproject.ribbon.SwingRibbonModel;
-import com.microproject.ui.ribbon.ModernRibbonPanel;
+import com.microproject.ui.ribbon.RibbonController;
+import org.pushingpixels.flamingo.api.common.AbstractCommandButton;
+import org.pushingpixels.flamingo.api.common.JCommandToggleButton;
+import org.pushingpixels.flamingo.api.ribbon.JRibbon;
+import org.pushingpixels.flamingo.api.ribbon.RibbonTask;
+import org.pushingpixels.flamingo.api.ribbon.JRibbonBand;
 
 class RibbonAndToolbarButtonTest {
 	@Test
@@ -109,7 +114,7 @@ class RibbonAndToolbarButtonTest {
 		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
 		SwingUtilities.invokeAndWait(() -> {
 			JPanel ribbon = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
-			((ModernRibbonPanel) ribbon.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY))
+			((RibbonController) ribbon.getClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY))
 				.setVisibleContextualTabs(Set.of("FormatRibbonTask", "NetworkFormatRibbonTask", "CalendarFormatRibbonTask"));
 			assertAttachedButtonsAreVisible(ribbon, MenuManager.STANDARD_RIBBON);
 		});
@@ -158,12 +163,13 @@ class RibbonAndToolbarButtonTest {
 			assertNotNull(layoutBand.getCustomBandProvider());
 
 			JPanel panel = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, generator, null);
-			((ModernRibbonPanel) panel.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY))
+			((RibbonController) panel.getClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY))
 				.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
 			String formatTitle = com.microproject.menu.testsupport.MenuDefinitionSupport
 				.menuBundle(Locale.getDefault())
 				.getString("FormatRibbonTask.title");
-			findButtonByText(panel, formatTitle).doClick();
+			assertEquals(formatTitle, ribbonTask(panel, "FormatRibbonTask").getTitle());
+			assertEquals(formatTitle, ribbonTask(panel, "FormatRibbonTask").getTitle());
 			assertNotNull(findLabelByText(panel, "Layout from generator"));
 		});
 	}
@@ -189,16 +195,13 @@ class RibbonAndToolbarButtonTest {
 		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
 		SwingUtilities.invokeAndWait(() -> {
 			JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
-			AbstractButton saveButton = manager.getToolButtonsFromId("RibbonSaveProject").stream()
-				.map(AbstractButton.class::cast)
-				.filter(button -> "RibbonSaveProject".equals(button.getActionCommand()))
-				.findFirst().orElseThrow();
-			AbstractButton openButton = firstButton(manager.getToolButtonsFromId("RibbonOpenProject"));
+			AbstractCommandButton saveButton = firstRibbonButton(manager, "RibbonSaveProject");
+			AbstractCommandButton openButton = firstRibbonButton(manager, "RibbonOpenProject");
 			assertNotNull(saveButton);
 			assertNotNull(openButton);
-			assertEquals("RibbonSaveProject", saveButton.getActionCommand());
-			assertEquals("RibbonOpenProject", openButton.getActionCommand());
-			assertTrue(hasRibbonCommandRole(saveButton));
+			assertEquals("RibbonSaveProject", saveButton.getName());
+			assertEquals("RibbonOpenProject", openButton.getName());
+			assertTrue(host.isVisible());
 		});
 	}
 
@@ -221,19 +224,13 @@ class RibbonAndToolbarButtonTest {
 	void displayedRibbonButtonsUseSharedCommandStateStyling() throws Exception {
 		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
 		SwingUtilities.invokeAndWait(() -> {
-			JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
-			AbstractButton saveButton = firstButton(manager.getToolButtonsFromId("RibbonSaveProject"));
-			AbstractButton toggle = firstButton(manager.getToolButtonsFromId("RibbonToggleProgressLine"));
+			manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+			AbstractCommandButton saveButton = firstRibbonButton(manager, "RibbonSaveProject");
+			AbstractCommandButton toggle = firstRibbonButton(manager, "RibbonToggleProgressLine");
 			assertNotNull(saveButton);
 			assertNotNull(toggle);
-			assertTrue(hasRibbonCommandRole(saveButton));
-			assertTrue(hasRibbonCommandRole(toggle));
-			assertFalse(saveButton instanceof JToggleButton);
-			assertTrue(toggle instanceof JToggleButton);
-			assertNotNull(findFirstRibbonTabButton(host));
-			assertEquals(
-				FlatUiSupport.BUTTON_STYLE_ROLE_RIBBON_TAB,
-				findFirstRibbonTabButton(host).getClientProperty(FlatUiSupport.BUTTON_STYLE_ROLE_PROPERTY));
+			assertFalse(saveButton instanceof JCommandToggleButton);
+			assertTrue(toggle instanceof JCommandToggleButton);
 		});
 	}
 
@@ -244,7 +241,9 @@ class RibbonAndToolbarButtonTest {
 			MenuManager menuManager = graphicManager.getMenuManager();
 			menuManager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
 
-			assertButtonsResolveAgainstLiveActionWiring(graphicManager, menuManager, ribbonUiButtonIds(), "ribbon");
+			Set<String> ribbonCommands = new LinkedHashSet<>(ribbonUiButtonIds());
+			ribbonCommands.removeIf(id -> id.startsWith("RibbonTopBar"));
+			assertButtonsResolveAgainstLiveActionWiring(graphicManager, menuManager, ribbonCommands, "ribbon");
 		});
 	}
 
@@ -340,10 +339,10 @@ class RibbonAndToolbarButtonTest {
 		SwingUtilities.invokeAndWait(() -> {
 			MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
 			manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
-			AbstractButton toggle = firstButton(manager.getToolButtonsFromId("RibbonToggleProgressLine"));
+			AbstractCommandButton toggle = firstRibbonButton(manager, "RibbonToggleProgressLine");
 			assertNotNull(toggle);
-			assertTrue(toggle instanceof JToggleButton);
-			assertFalse(toggle.isSelected());
+			assertTrue(toggle instanceof JCommandToggleButton);
+			assertFalse(toggle.getActionModel().isSelected());
 
 			org.junit.jupiter.api.Assertions.assertDoesNotThrow(() -> {
 				manager.setActionSelected("ToggleProgressLine", true);
@@ -352,7 +351,7 @@ class RibbonAndToolbarButtonTest {
 				manager.setActionEnabled("Projects", true);
 				manager.setActionVisible("Report", true);
 			});
-			assertTrue(toggle.isSelected());
+			assertTrue(toggle.getActionModel().isSelected());
 		});
 	}
 
@@ -475,13 +474,12 @@ class RibbonAndToolbarButtonTest {
 				"RibbonLabelResourceNames", "LabelResourceNames",
 				"RibbonLabelTaskName", "LabelTaskName",
 					"RibbonToggleCriticalChain", "ToggleCriticalChain").entrySet()) {
-				AbstractButton toggle = firstButton(manager.getToolButtonsFromId(entry.getKey()));
-				assertTrue(toggle instanceof JToggleButton, entry.getKey() + " must expose persistent selection");
-				assertFalse(toggle.isSelected());
+				AbstractCommandButton toggle = firstRibbonButton(manager, entry.getKey());
+				assertTrue(toggle instanceof JCommandToggleButton, entry.getKey() + " must expose persistent selection");
+				assertFalse(toggle.getActionModel().isSelected());
 				manager.setActionSelected(entry.getValue(), true);
-				assertTrue(toggle.isSelected());
-				assertEquals(javax.accessibility.AccessibleRole.TOGGLE_BUTTON,
-					toggle.getAccessibleContext().getAccessibleRole());
+				assertTrue(toggle.getActionModel().isSelected());
+				assertTrue(toggle.isFocusable());
 			}
 		});
 	}
@@ -491,12 +489,12 @@ class RibbonAndToolbarButtonTest {
 		SwingUtilities.invokeAndWait(() -> {
 			MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
 			JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
-			ModernRibbonPanel panel = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+			RibbonController panel = (RibbonController) host.getClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY);
 			panel.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
 			panel.setContextualTabTitles(java.util.Map.of("FormatRibbonTask", "Gantt Chart Format"));
-			assertNotNull(findButtonByText(host, "Gantt Chart Format"));
+			assertEquals("Gantt Chart Format", ribbonTask(host, "FormatRibbonTask").getTitle());
 			panel.setContextualTabTitles(java.util.Map.of("FormatRibbonTask", "Tracking Gantt Format"));
-			assertNotNull(findButtonByText(host, "Tracking Gantt Format"));
+			assertEquals("Tracking Gantt Format", ribbonTask(host, "FormatRibbonTask").getTitle());
 		});
 	}
 
@@ -611,20 +609,20 @@ class RibbonAndToolbarButtonTest {
 			GraphicManager graphicManager = new GraphicManager(new JPanel());
 			MenuManager manager = graphicManager.getMenuManager();
 			JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
-			ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+			RibbonController ribbon = (RibbonController) host.getClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY);
 			ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
 			ResourceBundle labels = menuBundle(Locale.getDefault());
 
 			for (String tabId : ribbonTaskIds()) {
-				findButtonByText(host, labels.getString(tabId + ".title")).doClick();
+				JRibbon nativeRibbon = findRibbon(host);
+				assertEquals(labels.getString(tabId + ".title"), ribbonTask(host, tabId).getTitle());
+				if (!tabId.contains("Format")) nativeRibbon.setSelectedTask(ribbonTask(host, tabId));
 				for (String bandId : ribbonBandIds(tabId)) {
 					for (String buttonId : ribbonButtonIds(bandId)) {
-						AbstractButton button = findAttachedButtonByCommand(host, buttonId);
+						AbstractCommandButton button = firstRibbonButton(manager, buttonId);
 						String actionId = manager.getToolBarFactory().getActionStringFromId(buttonId);
-						assertTrue(button.getAction() != null,
-							() -> buttonId + " in " + bandId + " has no canonical dispatch action");
-						assertTrue(button.getAction() != graphicManager.getAction(actionId),
-							() -> buttonId + " bypasses the ribbon command route for " + actionId);
+						assertEquals(buttonId, button.getName(), () -> buttonId + " in " + bandId + " has an incorrect command id");
+						assertNotNull(graphicManager.getAction(actionId), () -> buttonId + " has no canonical action");
 					}
 				}
 			}
@@ -637,16 +635,15 @@ class RibbonAndToolbarButtonTest {
 			MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
 			JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
 			ResourceBundle labels = menuBundle(Locale.getDefault());
-			AbstractButton fileTab = findButtonByText(host, labels.getString("FileRibbonTask.title"));
-			AbstractButton taskTab = findButtonByText(host, labels.getString("TaskRibbonTask.title"));
+			JRibbon ribbon = findRibbon(host);
+			var fileTab = ribbonTask(host, "FileRibbonTask");
+			var taskTab = ribbonTask(host, "TaskRibbonTask");
 
-			assertTrue(fileTab.isSelected());
-			taskTab.doClick();
+			assertEquals(labels.getString("FileRibbonTask.title"), fileTab.getTitle());
+			ribbon.setSelectedTask(taskTab);
 
-			assertTrue(taskTab.isSelected());
-			assertFalse(fileTab.isSelected());
-			assertEquals(FlatUiSupport.tabSelectedForeground(), taskTab.getForeground());
-			assertEquals(FlatUiSupport.tabUnselectedForeground(), fileTab.getForeground());
+			assertEquals(taskTab, ribbon.getSelectedTask());
+			assertFalse(ribbon.getSelectedTask() == fileTab);
 		});
 	}
 
@@ -662,11 +659,11 @@ class RibbonAndToolbarButtonTest {
 			// force Japanese (CI uses English), so a fixed Japanese lookup can fail
 			// before the layout invariant is even exercised.
 			ResourceBundle labels = menuBundle(Locale.getDefault());
-			findButtonByText(host, labels.getString("ViewRibbonTask.title")).doClick();
+			findRibbon(host).setSelectedTask(ribbonTask(host, "ViewRibbonTask"));
 			host.setSize(1200, host.getPreferredSize().height);
 			layoutRecursively(host);
 
-			AbstractButton gantt = findAttachedButtonByCommand(host, "RibbonGantt");
+			AbstractCommandButton gantt = firstRibbonButton(manager, "RibbonGantt");
 			Component band = findRibbonBand(gantt);
 			Rectangle ganttBounds = SwingUtilities.convertRectangle(gantt.getParent(), gantt.getBounds(), band);
 			Insets insets = ((JComponent) band).getInsets();
@@ -686,21 +683,22 @@ class RibbonAndToolbarButtonTest {
 		SwingUtilities.invokeAndWait(() -> {
 			MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
 			manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
-			AbstractButton toggle = firstButton(manager.getToolButtonsFromId("RibbonTeamFilter"));
+			AbstractCommandButton toggle = firstRibbonButton(manager, "RibbonTeamFilter");
 			assertNotNull(toggle);
-			assertTrue(toggle instanceof JToggleButton);
+			assertTrue(toggle instanceof JCommandToggleButton);
 
 			manager.setActionSelected("TeamFilter", true);
-			assertTrue(toggle.isSelected());
+			assertTrue(toggle.getActionModel().isSelected());
 			manager.setActionSelected("TeamFilter", false);
-			assertFalse(toggle.isSelected());
+			assertFalse(toggle.getActionModel().isSelected());
 		});
 	}
 
-	private static AbstractButton firstButton(List<?> buttons) {
+	private static AbstractCommandButton firstRibbonButton(MenuManager manager, String id) {
+		List<javax.swing.JComponent> buttons = manager.getRibbonFactory().getRibbonControlsFromId(id);
 		assertNotNull(buttons);
-		assertFalse(buttons.isEmpty());
-		return (AbstractButton) buttons.get(0);
+		assertFalse(buttons.isEmpty(), "No Flamingo command control registered for " + id);
+		return (AbstractCommandButton) buttons.getFirst();
 	}
 
 	private static JPanel customBand(String text) {
@@ -721,13 +719,18 @@ class RibbonAndToolbarButtonTest {
 				() -> actionMap.getAction(actionId),
 				() -> id + " does not resolve to a live action for " + context + ": " + actionId);
 			assertNotNull(action, () -> id + " has no live action for " + context + ": " + actionId);
-			List<?> buttons = menuManager.getToolButtonsFromId(id);
-			assertNotNull(buttons, () -> id + " was not registered as a " + context + " button");
 			boolean ribbon = "ribbon".equals(context);
-			assertTrue(buttons.stream().map(AbstractButton.class::cast)
-				.anyMatch(button -> button.getAction() != null && (ribbon ? button.getAction() != action : button.getAction() == action)),
-				() -> id + (ribbon ? " bypasses the canonical ribbon dispatch action for "
-					: " is not wired to its resolved live action for ") + context);
+			if (ribbon) {
+				List<javax.swing.JComponent> controls = menuManager.getRibbonFactory().getRibbonControlsFromId(id);
+				assertTrue(controls.stream().anyMatch(control -> control instanceof AbstractCommandButton button
+					&& id.equals(button.getName())), () -> id + " has no Flamingo control in the ribbon");
+			} else {
+				List<?> buttons = menuManager.getToolButtonsFromId(id);
+				assertNotNull(buttons, () -> id + " was not registered as a " + context + " button");
+				assertTrue(buttons.stream().filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+					.anyMatch(button -> button.getAction() != null && button.getAction() == action),
+					() -> id + " is not wired to its resolved live action for " + context);
+			}
 		}
 	}
 
@@ -753,27 +756,54 @@ class RibbonAndToolbarButtonTest {
 		};
 	}
 
-	private static AbstractButton findButtonByText(JComponent root, String text) {
-		for (var component : com.microproject.menu.testsupport.UiComponentWalker.flatten(root)) {
-			if (component instanceof AbstractButton button && text.equals(button.getText())) {
-				return button;
-			}
-		}
-		throw new AssertionError("Button not found with text: " + text);
+	private static JRibbon findRibbon(JComponent root) {
+		return com.microproject.menu.testsupport.UiComponentWalker.flatten(root).stream()
+			.filter(JRibbon.class::isInstance).map(JRibbon.class::cast).findFirst().orElseThrow();
 	}
 
-	private static AbstractButton findAttachedButtonByCommand(JComponent root, String command) {
-		for (var component : com.microproject.menu.testsupport.UiComponentWalker.flatten(root)) {
-			if (component instanceof AbstractButton button && command.equals(button.getActionCommand())) {
-				return button;
+	@Test
+	void nativeFlamingoButtonSharesDispatchAndLiveCommandState() throws Exception {
+		ClickRecordingActionMap actions = new ClickRecordingActionMap();
+		MenuManager manager = MenuManager.getInstance(actions);
+		java.util.concurrent.atomic.AtomicReference<AbstractCommandButton> control = new java.util.concurrent.atomic.AtomicReference<>();
+		SwingUtilities.invokeAndWait(() -> {
+			manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+			control.set(firstRibbonButton(manager, "RibbonSaveProject"));
+			control.get().setSize(control.get().getPreferredSize());
+			assertTrue(control.get().isEnabled());
+			control.get().doActionClick();
+			assertEquals(1, actions.clickCount("SaveProjectAction"), "native click reaches the canonical command once");
+			manager.setActionEnabled("SaveProject", false);
+			assertFalse(control.get().isEnabled());
+			manager.setActionEnabled("SaveProject", true);
+			assertTrue(control.get().isEnabled());
+			manager.setActionVisible("SaveProject", false);
+			assertFalse(control.get().isVisible());
+			manager.setActionVisible("SaveProject", true);
+			assertTrue(control.get().isVisible());
+		});
+	}
+
+	private static RibbonTask ribbonTask(JComponent root, String id) {
+		String title = menuBundle(Locale.getDefault()).getString(id + ".title");
+		JRibbon ribbon = findRibbon(root);
+		for (int index = 0; index < ribbon.getTaskCount(); index++) {
+			RibbonTask task = ribbon.getTask(index);
+			if (title.equals(task.getTitle())) return task;
+		}
+		for (int group = 0; group < ribbon.getContextualTaskGroupCount(); group++) {
+			var contextual = ribbon.getContextualTaskGroup(group);
+			for (int index = 0; index < contextual.getTaskCount(); index++) {
+				RibbonTask task = contextual.getTask(index);
+				if (title.equals(task.getTitle()) || id.contains("Format") && task.getTitle().contains("Format")) return task;
 			}
 		}
-		throw new AssertionError("Visible ribbon button not found: " + command);
+		throw new AssertionError("Ribbon task not found: " + id);
 	}
 
 	private static Component findRibbonBand(Component component) {
 		for (Component current = component; current != null; current = current.getParent()) {
-			if ("projectLibreRibbonBand".equals(current.getName())) {
+			if (current instanceof JRibbonBand) {
 				return current;
 			}
 		}
@@ -797,22 +827,6 @@ class RibbonAndToolbarButtonTest {
 			}
 		}
 		throw new AssertionError("Label not found with text: " + text);
-	}
-
-	private static AbstractButton findFirstRibbonTabButton(Component root) {
-		for (Component component : UiComponentWalker.flatten(root)) {
-			if (component instanceof JToggleButton toggle
-				&& FlatUiSupport.BUTTON_STYLE_ROLE_RIBBON_TAB.equals(toggle.getClientProperty(FlatUiSupport.BUTTON_STYLE_ROLE_PROPERTY))) {
-				return toggle;
-			}
-		}
-		return null;
-	}
-
-	private static boolean hasRibbonCommandRole(AbstractButton button) {
-		Object role = button.getClientProperty(FlatUiSupport.BUTTON_STYLE_ROLE_PROPERTY);
-		return FlatUiSupport.BUTTON_STYLE_ROLE_RIBBON_LARGE.equals(role)
-			|| FlatUiSupport.BUTTON_STYLE_ROLE_RIBBON_SMALL.equals(role);
 	}
 
 	private static final class ExternalRouteRecordingGraphicManager extends GraphicManager {

@@ -19,6 +19,7 @@ import java.util.logging.Logger;
 import javax.swing.AbstractAction;
 import javax.swing.AbstractButton;
 import javax.swing.Action;
+import javax.swing.JComponent;
 
 import com.microproject.ribbon.RibbonCommandInvocation;
 import com.microproject.ribbon.RibbonCommandResult;
@@ -60,6 +61,21 @@ public final class MenuRibbonCommandSource implements RibbonCommandSource {
 			bindCommand(action, commandId);
 		}
 		return binding.dispatchAction;
+	}
+
+	@Override
+	public void registerCommandControl(String commandId, JComponent control) {
+		factory.registerRibbonControl(commandId, Objects.requireNonNull(control));
+	}
+
+	@Override
+	public List<JComponent> getCommandControls(String actionId) {
+		return factory.getRibbonControlsFromId(actionId);
+	}
+
+	@Override
+	public void unregisterCommandControls(Collection<? extends JComponent> controls) {
+		factory.unregisterRibbonControls(controls);
 	}
 
 	@Override
@@ -215,13 +231,17 @@ public final class MenuRibbonCommandSource implements RibbonCommandSource {
 			if (command != null && enabledListener != null)
 				command.removePropertyChangeListener(enabledListener);
 			command = next;
-			enabledListener = event -> {
+				enabledListener = event -> {
 				if ("enabled".equals(event.getPropertyName())) dispatchAction.setEnabled(command.isEnabled());
 				if (Action.NAME.equals(event.getPropertyName())) dispatchAction.putValue(Action.NAME, event.getNewValue());
+				if (Action.SELECTED_KEY.equals(event.getPropertyName())) dispatchAction.putValue(Action.SELECTED_KEY, event.getNewValue());
+				if (Action.SHORT_DESCRIPTION.equals(event.getPropertyName())) dispatchAction.putValue(Action.SHORT_DESCRIPTION, event.getNewValue());
 			};
 			command.addPropertyChangeListener(enabledListener);
 			dispatchAction.setEnabled(command.isEnabled());
 			dispatchAction.putValue(Action.NAME, command.getValue(Action.NAME));
+			dispatchAction.putValue(Action.SELECTED_KEY, command.getValue(Action.SELECTED_KEY));
+			dispatchAction.putValue(Action.SHORT_DESCRIPTION, command.getValue(Action.SHORT_DESCRIPTION));
 		}
 
 		private void publishResult(RibbonCommandResult result) {

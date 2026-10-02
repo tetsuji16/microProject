@@ -23,6 +23,8 @@ public interface RibbonController {
 
 	RibbonDisplayMode getRibbonDisplayMode();
 
+	boolean isCommandSurfaceVisible();
+
 	void toggleRibbonCollapseMode();
 
 	void addRibbonDisplayModeListener(Consumer<RibbonDisplayMode> listener);

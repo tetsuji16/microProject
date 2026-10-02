@@ -43,6 +43,8 @@ import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JToolBar;
 
+import org.pushingpixels.flamingo.api.common.RichTooltip;
+import org.pushingpixels.flamingo.api.common.AbstractCommandButton;
 import org.pushingpixels.flamingo.api.common.JCommandToggleButton;
 
 import com.microproject.ui.ribbon.SwingRibbonFactory;
@@ -178,6 +180,7 @@ public class MenuManager {
 				result.ensureCapacity(result.size() + ribbonButtons.size());
 				result.addAll(ribbonButtons);
 			}
+			result.addAll(ribbonFactory.getRibbonControlsFromId(id));
 		}
 		return result.isEmpty() ? null : result;
 	}
@@ -228,6 +231,8 @@ public class MenuManager {
 			for (Object button : buttons) {
 				if (button instanceof AbstractButton abstractButton)
 					abstractButton.setVisible(enable);
+				else if (button instanceof AbstractCommandButton commandButton)
+					commandButton.setVisible(enable);
 			}
 		}
 		JMenuItem menuItem = menuFactory.getMenuItemFromId(id);
@@ -245,6 +250,8 @@ public class MenuManager {
 					abstractButton.setSelected(enable);
 				} else if (button instanceof JCommandToggleButton commandToggleButton) {
 					commandToggleButton.getActionModel().setSelected(enable);
+				} else if (button instanceof AbstractCommandButton commandButton) {
+					commandButton.getActionModel().setSelected(enable);
 				}
 			}
 		}
@@ -262,11 +269,19 @@ public class MenuManager {
 			for (Object button : buttons) {
 				if (button instanceof AbstractButton abstractButton)
 					abstractButton.setToolTipText(text);
+				else if (button instanceof AbstractCommandButton commandButton)
+					commandButton.setActionRichTooltip(richTooltip(text));
 			}
 		}
 		JMenuItem menuItem = menuFactory.getMenuItemFromId(id);
 		if (menuItem != null)
 			menuItem.setText(text);
+	}
+
+	private static RichTooltip richTooltip(String text) {
+		RichTooltip tooltip = new RichTooltip(text, text);
+		tooltip.addDescriptionSection(text);
+		return tooltip;
 	}
 	
 	

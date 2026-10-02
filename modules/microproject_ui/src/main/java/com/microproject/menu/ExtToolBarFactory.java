@@ -36,6 +36,7 @@ import java.util.ResourceBundle;
 
 import javax.swing.AbstractButton;
 import javax.swing.Action;
+import javax.swing.JComponent;
 import javax.swing.ImageIcon;
 
 import com.microproject.menu.resource.MissingListenerException;
@@ -49,6 +50,7 @@ import com.microproject.pm.graphic.IconManager;
  */
 public class ExtToolBarFactory extends ToolBarFactory {
 	private final Map<String, List<AbstractButton>> toolButtons = new LinkedHashMap<>();
+	private final Map<String, List<JComponent>> ribbonControls = new LinkedHashMap<>();
 	private final ProjectMenuActionMap actionMap;
 	/**
 	 * @param rb
@@ -62,6 +64,25 @@ public class ExtToolBarFactory extends ToolBarFactory {
 	public Action getActionForId(String id) {
 		String actionId = getActionStringFromId(id);
 		return actionMap.getAction(actionId == null ? id : actionId);
+	}
+
+	public synchronized void registerRibbonControl(String id, JComponent control) {
+		String actionId = getActionStringFromId(id);
+		if (actionId == null) actionId = id;
+		List<JComponent> controls = ribbonControls.computeIfAbsent(actionId, ignored -> new ArrayList<>());
+		if (!controls.contains(control)) controls.add(control);
+	}
+
+	public synchronized List<JComponent> getRibbonControlsFromId(String id) {
+		String actionId = getActionStringFromId(id);
+		if (actionId == null) actionId = id;
+		List<JComponent> controls = ribbonControls.get(actionId);
+		return controls == null ? List.of() : List.copyOf(controls);
+	}
+
+	public synchronized void unregisterRibbonControls(Collection<? extends JComponent> controls) {
+		for (List<JComponent> registered : ribbonControls.values()) registered.removeAll(controls);
+		ribbonControls.values().removeIf(List::isEmpty);
 	}
 	
 	
