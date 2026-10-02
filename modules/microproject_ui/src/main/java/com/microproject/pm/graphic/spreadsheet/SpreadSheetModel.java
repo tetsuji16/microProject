@@ -30,9 +30,9 @@ import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.model.cache.ProjectionRowKey;
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheetModel;
-import com.microproject.pm.graphic.spreadsheet.command.TaskFieldEditGateway;
+import com.microproject.pm.graphic.spreadsheet.command.TaskCommandGateway;
 import com.microproject.pm.graphic.spreadsheet.command.TaskFieldEditIntent;
-import com.microproject.pm.graphic.spreadsheet.command.TaskFieldEditResult;
+import com.microproject.pm.graphic.spreadsheet.command.TaskCommandResult;
 import com.microproject.association.InvalidAssociationException;
 import com.microproject.datatype.Duration;
 import com.microproject.field.Field;
@@ -151,9 +151,9 @@ public class SpreadSheetModel extends CommonSpreadSheetModel implements OutlineM
 				ProjectionRowKey.TaskRow taskRow = (ProjectionRowKey.TaskRow) projection.keyAt(row);
 				TaskFieldEditIntent intent = new TaskFieldEditIntent(taskRow.taskKey(), taskRow.occurrence(),
 					projection.topologyRevision(), field, oldValue, value);
-				TaskFieldEditResult result = TaskFieldEditGateway.execute(this, intent, this);
-				if (result.status() != TaskFieldEditResult.Status.CHANGED
-						&& result.status() != TaskFieldEditResult.Status.NO_CHANGE)
+				TaskCommandResult result = TaskCommandGateway.execute(this, intent, this);
+				if (result.status() != TaskCommandResult.Status.CHANGED
+						&& result.status() != TaskCommandResult.Status.NO_CHANGE)
 					throw new IllegalStateException("Task field edit rejected: " + result.reason());
 			} else if (rowNode.getImpl() instanceof Dependency) { // dependencies
 																	// need

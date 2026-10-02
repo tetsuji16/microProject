@@ -5,7 +5,7 @@
 package com.microproject.pm.graphic.spreadsheet.command;
 
 /** Outcome of resolving and applying one stable-key task field edit. */
-public record TaskFieldEditResult(Status status, String reason) {
+public record TaskCommandResult(Status status, String reason) {
 	public enum Status {
 		CHANGED,
 		NO_CHANGE,
@@ -14,13 +14,13 @@ public record TaskFieldEditResult(Status status, String reason) {
 		MISSING_TASK
 	}
 
-	public TaskFieldEditResult {
+	public TaskCommandResult {
 		if (status == null)
 			throw new IllegalArgumentException("status must not be null");
 		reason = reason == null ? "" : reason;
 	}
 
-	public static TaskFieldEditResult of(Status status) {
-		return new TaskFieldEditResult(status, "");
+	public static TaskCommandResult of(Status status) {
+		return new TaskCommandResult(status, "");
 	}
 }

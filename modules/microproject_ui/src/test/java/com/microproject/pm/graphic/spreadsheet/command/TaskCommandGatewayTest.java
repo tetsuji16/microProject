@@ -31,7 +31,7 @@ import com.microproject.pm.task.ProjectTaskKey;
 import com.microproject.pm.task.Task;
 import com.microproject.undo.DataFactoryUndoController;
 
-class TaskFieldEditGatewayTest {
+class TaskCommandGatewayTest {
 	@Test
 	void spreadsheetModelRoutesTaskFieldInputThroughStableIntent() throws Exception {
 		Fixture fixture = createFixture();
@@ -72,20 +72,20 @@ class TaskFieldEditGatewayTest {
 			projection.topologyRevision(), FieldDictionary.getInstance().getFieldFromId("Field.name"),
 			"Before", "After");
 
-		AtomicReference<TaskFieldEditResult> changed = new AtomicReference<>();
-		AtomicReference<TaskFieldEditResult> unchanged = new AtomicReference<>();
+		AtomicReference<TaskCommandResult> changed = new AtomicReference<>();
+		AtomicReference<TaskCommandResult> unchanged = new AtomicReference<>();
 		SwingUtilities.invokeAndWait(() -> {
 			try {
-				changed.set(TaskFieldEditGateway.execute(fixture.model(), intent, this));
-				unchanged.set(TaskFieldEditGateway.execute(fixture.model(),
+				changed.set(TaskCommandGateway.execute(fixture.model(), intent, this));
+				unchanged.set(TaskCommandGateway.execute(fixture.model(),
 					new TaskFieldEditIntent(fixture.taskKey(), 0, projection.topologyRevision(), intent.field(), "After", "After"), this));
 			} catch (Exception failure) {
 				throw new RuntimeException(failure);
 			}
 		});
 
-		assertEquals(TaskFieldEditResult.Status.CHANGED, changed.get().status());
-		assertEquals(TaskFieldEditResult.Status.NO_CHANGE, unchanged.get().status());
+		assertEquals(TaskCommandResult.Status.CHANGED, changed.get().status());
+		assertEquals(TaskCommandResult.Status.NO_CHANGE, unchanged.get().status());
 		assertEquals("After", fixture.task().getName());
 		SwingUtilities.invokeAndWait(() -> fixture.project().getUndoController().undo());
 		assertEquals("Before", fixture.task().getName(), "no-op must not add a second Undo edit");
@@ -97,13 +97,13 @@ class TaskFieldEditGatewayTest {
 		var projection = fixture.cache().getVisibleNodes().getProjectionIndex();
 		var name = FieldDictionary.getInstance().getFieldFromId("Field.name");
 
-		TaskFieldEditResult staleProjection = TaskFieldEditGateway.execute(fixture.model(),
+		TaskCommandResult staleProjection = TaskCommandGateway.execute(fixture.model(),
 			new TaskFieldEditIntent(fixture.taskKey(), 0, projection.topologyRevision() + 1, name, "Before", "Wrong"), this);
-		TaskFieldEditResult staleValue = TaskFieldEditGateway.execute(fixture.model(),
+		TaskCommandResult staleValue = TaskCommandGateway.execute(fixture.model(),
 			new TaskFieldEditIntent(fixture.taskKey(), 0, projection.topologyRevision(), name, "Other", "Wrong"), this);
 
-		assertEquals(TaskFieldEditResult.Status.STALE_PROJECTION, staleProjection.status());
-		assertEquals(TaskFieldEditResult.Status.STALE_VALUE, staleValue.status());
+		assertEquals(TaskCommandResult.Status.STALE_PROJECTION, staleProjection.status());
+		assertEquals(TaskCommandResult.Status.STALE_VALUE, staleValue.status());
 		assertEquals("Before", fixture.task().getName());
 	}
 
@@ -111,11 +111,11 @@ class TaskFieldEditGatewayTest {
 	void keyThatDoesNotBelongToTheCurrentProjectionIsPruned() throws Exception {
 		Fixture fixture = createFixture();
 		RevisionedProjectionIndex projection = fixture.cache().getVisibleNodes().getProjectionIndex();
-		TaskFieldEditResult result = TaskFieldEditGateway.execute(fixture.model(),
+		TaskCommandResult result = TaskCommandGateway.execute(fixture.model(),
 			new TaskFieldEditIntent(new ProjectTaskKey(fixture.project().getUniqueId(), fixture.task().getUniqueId() + 1000),
 				0, projection.topologyRevision(), FieldDictionary.getInstance().getFieldFromId("Field.name"), "Before", "Wrong"), this);
 
-		assertEquals(TaskFieldEditResult.Status.MISSING_TASK, result.status());
+		assertEquals(TaskCommandResult.Status.MISSING_TASK, result.status());
 		assertEquals("Before", fixture.task().getName());
 	}
 
