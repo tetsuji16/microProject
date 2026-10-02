@@ -28,7 +28,11 @@ import java.util.LinkedList;
 
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
+import com.microproject.pm.graphic.model.cache.ProjectionRowKey;
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheetModel;
+import com.microproject.pm.graphic.spreadsheet.command.TaskFieldEditGateway;
+import com.microproject.pm.graphic.spreadsheet.command.TaskFieldEditIntent;
+import com.microproject.pm.graphic.spreadsheet.command.TaskFieldEditResult;
 import com.microproject.association.InvalidAssociationException;
 import com.microproject.datatype.Duration;
 import com.microproject.field.Field;
@@ -40,6 +44,7 @@ import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
+import com.microproject.pm.task.Task;
 import com.microproject.util.ClassUtils;
 import com.microproject.util.Environment;
 
@@ -138,6 +143,18 @@ public class SpreadSheetModel extends CommonSpreadSheetModel implements OutlineM
 							.replaceImplAndSetFieldValue(rowNode, previousNodes, getFieldInColumn(col), this, value, fieldContext, NodeModel.NORMAL);
 			
 				}
+			} else if (rowNode.getImpl() instanceof Task) {
+				var projection = getCache().getVisibleNodes().getProjectionIndex();
+				if (getRowMultiple() != 1 || row >= projection.size()
+						|| !(projection.keyAt(row) instanceof ProjectionRowKey.TaskRow))
+					throw new IllegalStateException("Task field edit requires a durable projected task identity");
+				ProjectionRowKey.TaskRow taskRow = (ProjectionRowKey.TaskRow) projection.keyAt(row);
+				TaskFieldEditIntent intent = new TaskFieldEditIntent(taskRow.taskKey(), taskRow.occurrence(),
+					projection.topologyRevision(), field, oldValue, value);
+				TaskFieldEditResult result = TaskFieldEditGateway.execute(this, intent, this);
+				if (result.status() != TaskFieldEditResult.Status.CHANGED
+						&& result.status() != TaskFieldEditResult.Status.NO_CHANGE)
+					throw new IllegalStateException("Task field edit rejected: " + result.reason());
 			} else if (rowNode.getImpl() instanceof Dependency) { // dependencies
 																	// need
 																	// specific
