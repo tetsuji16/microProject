@@ -19,7 +19,7 @@
 | microproject_exchange | 120 | 9 | 0 | 0 | 0 | 0 | 111 |
 | microproject_reports | 15 | 0 | 9 | 0 | 0 | 0 | 6 |
 | microproject_ribbon | 10 | 0 | 0 | 0 | 0 | 0 | 10 |
-| microproject_ui | 1173 | 153 | 40 | 0 | 0 | 0 | 980 |
+| microproject_ui | 1174 | 153 | 40 | 0 | 0 | 0 | 981 |
 | packaging | 29 | 0 | 4 | 0 | 0 | 0 | 25 |
 
 ## Required human follow-up

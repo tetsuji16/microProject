@@ -467,9 +467,10 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		click(robot, reportTab);
 		robot.waitForIdle();
 		GuiAcceptanceSupport.await(reportTab::isSelected, "Report ribbon tab did not become selected");
-		AbstractButton report = findCommandButton(window.getRibbonPanel(), "RibbonReport");
+		AbstractButton report = RibbonGuiSupport.findVisibleOrExpand(robot, window.getRibbonPanel(), "RibbonReport");
 		assertTrue(report.isShowing() && report.isEnabled(), "RibbonReport must be visible and enabled before its physical click");
-		assertEquals(window, SwingUtilities.getWindowAncestor(report), "RibbonReport must belong to the active document shell");
+		assertEquals(window, SwingUtilities.getWindowAncestor(RibbonGuiButton.component(report)),
+			"RibbonReport must belong to the active document shell");
 		click(robot, report);
 		robot.waitForIdle();
 		GuiAcceptanceSupport.await(() -> MenuActionConstants.ACTION_REPORT.equals(manager.getTopViewId()),
@@ -479,7 +480,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		click(robot, viewTab);
 		robot.waitForIdle();
 		GuiAcceptanceSupport.await(viewTab::isSelected, "View ribbon tab did not become selected");
-		AbstractButton gantt = findCommandButton(window.getRibbonPanel(), "RibbonGantt");
+		AbstractButton gantt = RibbonGuiSupport.findVisibleOrExpand(robot, window.getRibbonPanel(), "RibbonGantt");
 		assertTrue(gantt.isShowing() && gantt.isEnabled(),
 			"View > Gantt Chart must remain an available return route from Report");
 		click(robot, gantt);
@@ -637,12 +638,9 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			&& window.getGraphicManager() != initialManager,
 			"Locale change did not install a new GraphicManager through StartupFactory");
 		manager = window.getGraphicManager();
-		GuiAcceptanceSupport.await(() -> {
-			List<?> newProjectButtons = manager.getMenuManager().getToolButtonsFromId("RibbonNewProject");
-			return window.isShowing() && manager.getFrameManager() != null && newProjectButtons != null
-				&& newProjectButtons.stream().anyMatch(button -> button instanceof AbstractButton component
-					&& component.isShowing());
-		}, "Restarted application did not restore an interactive ribbon in the existing visible window");
+		AbstractButton restoredNewProject = RibbonGuiSupport.findVisibleOrExpand(robot, window.getRibbonPanel(), "RibbonNewProject");
+		assertTrue(window.isShowing() && manager.getFrameManager() != null && restoredNewProject.isShowing(),
+			"Restarted application did not restore an interactive JRibbon in the existing visible window");
 		assertEquals("de_DE", localePreferences.get("locale", "missing"),
 			"Locale restart did not preserve the selected preference");
 		assertTrue(manager.getContainer() == window,

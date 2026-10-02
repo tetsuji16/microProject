@@ -16,6 +16,7 @@ import javax.swing.JPanel;
 import javax.swing.JComponent;
 import javax.swing.JRootPane;
 import javax.swing.SwingUtilities;
+import javax.swing.Action;
 
 import org.junit.jupiter.api.Test;
 
@@ -29,6 +30,22 @@ import org.pushingpixels.flamingo.api.common.AbstractCommandButton;
 import org.pushingpixels.flamingo.api.ribbon.JRibbon;
 
 class FlamingoRibbonControllerTest {
+	@Test
+	void commandActionNameChangesUpdateNativeButtonTextAndAccessibilityName() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			ExtToolBarFactory buttons = new ExtToolBarFactory(MenuActionMapSupport.noopActionMap(),
+				MenuDefinitionSupport.ribbonBundles(Locale.ROOT));
+			MenuRibbonCommandSource commands = new MenuRibbonCommandSource(buttons);
+			SwingRibbonFactory factory = new SwingRibbonFactory(commands, MenuDefinitionSupport.ribbonBundles(Locale.ROOT));
+			JPanel host = factory.createPanel(MenuManager.STANDARD_RIBBON, () -> { });
+			AbstractCommandButton button = findCommand(host, "RibbonTaskInformation");
+			assertNotNull(button);
+			Action action = commands.createAction("RibbonTaskInformation");
+			action.putValue(Action.NAME, "Updated command name");
+			assertEquals("Updated command name", button.getText());
+		});
+	}
+
 	@Test
 	void autoHideAltBindingRevealsTheRibbonAndIsRemovedWhenModeChanges() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {

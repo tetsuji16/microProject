@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Rectangle;
+import java.awt.Robot;
 import java.util.Objects;
 import java.util.function.BooleanSupplier;
 
@@ -20,6 +21,7 @@ import javax.swing.JPopupMenu;
 import javax.swing.KeyStroke;
 import javax.swing.MenuElement;
 import javax.swing.MenuSelectionManager;
+import org.pushingpixels.flamingo.api.common.AbstractCommandButton;
 
 /** Locates physical Swing routes without dispatching actions directly. */
 public final class GuiPhysicalRouteAdapter {
@@ -46,7 +48,18 @@ public final class GuiPhysicalRouteAdapter {
 	}
 
 	public static AbstractButton visibleButton(Container root, String actionCommand) {
-		return find(root, AbstractButton.class, actionCommand);
+		for (Component component : com.microproject.menu.testsupport.UiComponentWalker.flatten(root)) {
+			if (component instanceof AbstractButton button && button.isShowing()
+				&& (Objects.equals(actionCommand, button.getActionCommand()) || Objects.equals(actionCommand, button.getName())))
+				return button;
+			if (component instanceof AbstractCommandButton button && button.isShowing()
+				&& Objects.equals(actionCommand, button.getName())) return RibbonGuiButton.adapt(button);
+		}
+		throw new AssertionError("Visible physical route is absent: " + actionCommand);
+	}
+
+	public static AbstractButton visibleButton(Robot robot, Container root, String actionCommand) throws Exception {
+		return RibbonGuiSupport.findVisibleOrExpand(robot, root, actionCommand);
 	}
 
 	public static void assertRootPaneBinding(JComponent root, KeyStroke keyStroke, String actionKey) {

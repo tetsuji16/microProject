@@ -15,6 +15,8 @@ import org.pushingpixels.flamingo.api.common.AbstractCommandButton;
 import org.pushingpixels.flamingo.api.common.JCommandToggleButton;
 import org.pushingpixels.flamingo.api.ribbon.JRibbon;
 
+import com.microproject.menu.testsupport.UiComponentWalker;
+
 /** Adapts native Flamingo controls to the existing Robot test vocabulary. */
 public final class RibbonGuiButton {
 	private RibbonGuiButton() { }
@@ -23,20 +25,48 @@ public final class RibbonGuiButton {
 		if (component instanceof AbstractButton button) return button;
 		if (!(component instanceof AbstractCommandButton commandButton))
 			throw new IllegalArgumentException("Not a ribbon command control: " + component);
-		return new JToggleButton(commandButton.getText()) {
-			@Override public boolean isShowing() { return commandButton.isShowing(); }
-			@Override public boolean isEnabled() { return commandButton.isEnabled(); }
-			@Override public int getWidth() { return commandButton.getWidth(); }
-			@Override public int getHeight() { return commandButton.getHeight(); }
-			@Override public Point getLocationOnScreen() { return commandButton.getLocationOnScreen(); }
-			@Override public String getActionCommand() { return commandButton.getName(); }
-			@Override public boolean isSelected() {
-				if (commandButton instanceof JCommandToggleButton toggle)
-					return toggle.getActionModel().isSelected();
-				JRibbon ribbon = (JRibbon) SwingUtilities.getAncestorOfClass(JRibbon.class, commandButton);
-				return ribbon != null && ribbon.getSelectedTask() != null
-					&& ribbon.getSelectedTask().getTitle().equals(commandButton.getText());
-			}
-		};
+		return new RibbonButton(commandButton);
+	}
+
+	public static Component component(AbstractButton button) {
+		return button instanceof RibbonButton ribbonButton ? ribbonButton.delegate : button;
+	}
+
+	public static Component findCommand(Component root, String commandId) {
+		for (Component component : UiComponentWalker.flatten(root))
+			if (component instanceof AbstractCommandButton button && commandId.equals(button.getName())) return button;
+		for (Component component : UiComponentWalker.flatten(root)) {
+			if (component instanceof org.pushingpixels.flamingo.api.ribbon.JRibbonBand band
+				&& band.getPopupRibbonBand() != null)
+				for (Component popupChild : UiComponentWalker.flatten(band.getPopupRibbonBand()))
+					if (popupChild instanceof AbstractCommandButton button && commandId.equals(button.getName())) return button;
+		}
+		return null;
+	}
+
+	private static final class RibbonButton extends JToggleButton {
+		private final AbstractCommandButton delegate;
+		private RibbonButton(AbstractCommandButton delegate) {
+			super(delegate.getText());
+			this.delegate = delegate;
+		}
+		@Override public javax.accessibility.AccessibleContext getAccessibleContext() {
+			javax.accessibility.AccessibleContext context = delegate.getAccessibleContext();
+			return context == null ? super.getAccessibleContext() : context;
+		}
+		@Override public boolean isShowing() { return delegate.isShowing(); }
+		@Override public boolean isEnabled() { return delegate.isEnabled(); }
+		@Override public int getWidth() { return delegate.getWidth(); }
+		@Override public int getHeight() { return delegate.getHeight(); }
+		@Override public java.awt.Dimension getSize() { return delegate.getSize(); }
+		@Override public Point getLocationOnScreen() { return delegate.getLocationOnScreen(); }
+		@Override public String getText() { return delegate.getText(); }
+		@Override public String getActionCommand() { return delegate.getName(); }
+		@Override public boolean isSelected() {
+			if (delegate instanceof JCommandToggleButton toggle) return toggle.getActionModel().isSelected();
+			JRibbon ribbon = (JRibbon) SwingUtilities.getAncestorOfClass(JRibbon.class, delegate);
+			return ribbon != null && ribbon.getSelectedTask() != null
+				&& ribbon.getSelectedTask().getTitle().equals(delegate.getText());
+		}
 	}
 }

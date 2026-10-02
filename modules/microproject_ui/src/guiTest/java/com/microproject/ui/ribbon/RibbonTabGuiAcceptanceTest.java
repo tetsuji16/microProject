@@ -100,12 +100,12 @@ class RibbonTabGuiAcceptanceTest {
 				+ ", receivedMousePresses=" + physicalPresses.get());
 		assertTrue(physicalPresses.get() > 0, "Robot must physically reach the native Flamingo task tab");
 
-		AbstractCommandButton save = findCommand(host, "RibbonSaveProject");
-		String actionId = manager.getToolBarFactory().getActionStringFromId("RibbonSaveProject");
+		AbstractCommandButton information = findCommand(host, "RibbonTaskInformation");
+		String actionId = manager.getToolBarFactory().getActionStringFromId("RibbonTaskInformation");
 		assertNotNull(actionId);
-		GuiAcceptanceSupport.await(save::isShowing, "native command button is not visible in the selected task");
+		GuiAcceptanceSupport.await(information::isShowing, "native Information command is not visible in the selected task");
 		int before = actions.count(actionId);
-		click(robot, save);
+		click(robot, information);
 		GuiAcceptanceSupport.await(() -> actions.count(actionId) == before + 1,
 			"physical JRibbon command click did not dispatch exactly once: " + actionId);
 	}

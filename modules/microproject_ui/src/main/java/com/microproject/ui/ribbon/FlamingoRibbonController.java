@@ -129,6 +129,7 @@ final class FlamingoRibbonController extends JPanel implements RibbonController 
 			if (!keyTip.isBlank()) button.setActionKeyTip(keyTip);
 			PropertyChangeListener stateSync = event -> {
 				if ("enabled".equals(event.getPropertyName())) button.setEnabled(action.isEnabled());
+				if (Action.NAME.equals(event.getPropertyName())) button.setText(Objects.toString(event.getNewValue(), spec.getId()));
 				if (Action.SELECTED_KEY.equals(event.getPropertyName()))
 					button.getActionModel().setSelected(Boolean.TRUE.equals(event.getNewValue()));
 				if (Action.SHORT_DESCRIPTION.equals(event.getPropertyName())) setRichTooltip(button, Objects.toString(event.getNewValue(), ""));
