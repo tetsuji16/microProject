@@ -16,6 +16,8 @@ import java.awt.Robot;
 import java.awt.Window;
 import java.awt.event.InputEvent;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -33,6 +35,7 @@ import com.microproject.graphic.configuration.BarStyles;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
+import com.microproject.exchange.MpoFileImporter;
 import com.microproject.pm.graphic.gantt.Gantt;
 import com.microproject.pm.graphic.gantt.GanttUI;
 import com.microproject.pm.graphic.graph.GraphZone;
@@ -90,6 +93,61 @@ class GanttBarDateDragGuiAcceptanceTest {
 	void robotDragMovesBarAndRecalculatesSfSuccessor() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		dragBarAndAssertSuccessor(createFixture(DependencyType.SF));
+	}
+
+	@Test
+	void robotDragBetweenBarsCreatesDependencyAndUndoRestoresModel() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Fixture fixture = createFixture(DependencyType.FS, false);
+		showFixture(fixture);
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		SwingUtilities.invokeAndWait(() -> {
+			frame.toFront();
+			frame.requestFocus();
+			gantt.requestFocusInWindow();
+		});
+		GuiAcceptanceSupport.await(gantt::isShowing, "Gantt was not visible");
+		activateWindow(robot);
+		Rectangle source = barBounds(fixture, fixture.predecessor);
+		Rectangle target = barBounds(fixture, fixture.successor);
+		int startX = source.x + source.width / 2;
+		int startY = source.y + source.height / 2;
+		int endX = target.x + target.width / 2;
+		int endY = target.y + target.height / 2;
+		assertTrue(fixture.successor.getPredecessorList().isEmpty(), "fixture must begin without a dependency");
+		SwingUtilities.invokeAndWait(() -> {
+			GraphZone sourceZone = gantt.getUI().getNodeAt(startX - gantt.getLocationOnScreen().x,
+				startY - gantt.getLocationOnScreen().y);
+			GraphZone targetZone = gantt.getUI().getNodeAt(endX - gantt.getLocationOnScreen().x,
+				endY - gantt.getLocationOnScreen().y);
+			assertTrue(sourceZone != null && sourceZone.getObject() instanceof GraphicNode sourceNode
+				&& sourceNode.getNode().getImpl() == fixture.predecessor, "source point must hit predecessor bar");
+			assertTrue(targetZone != null && targetZone.getObject() instanceof GraphicNode targetNode
+				&& targetNode.getNode().getImpl() == fixture.successor, "target point must hit successor bar");
+		});
+		robot.mouseMove(startX, startY);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		for (int step = 1; step <= 10; step++)
+			robot.mouseMove(startX + (endX - startX) * step / 10, startY + (endY - startY) * step / 10);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		GuiAcceptanceSupport.await(() -> !fixture.successor.getPredecessorList().isEmpty(),
+			"Gantt bar-to-bar drag did not create a dependency");
+		GuiAcceptanceSupport.await(() -> fixture.cache.getEdgesSize() == 1,
+			"Gantt projection did not publish the newly created dependency edge");
+		assertEquals(fixture.predecessor,
+			((Dependency) fixture.successor.getPredecessorList().iterator().next()).getPredecessor());
+		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().undo());
+		assertTrue(fixture.successor.getPredecessorList().isEmpty(), "Undo must restore the pre-drag model state");
+		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().redo());
+		assertEquals(1, fixture.successor.getPredecessorList().size(), "Redo must restore the dependency");
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		MpoFileImporter importer = new MpoFileImporter();
+		assertTrue(importer.saveProject(fixture.project, saved), "the Gantt-created dependency must be serializable");
+		Project reopened = importer.loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		assertEquals(1, reopened.getTaskList().stream().filter(task -> "Drag successor".equals(task.getName()))
+			.findFirst().orElseThrow().getPredecessorList().size(), "the Gantt-created dependency must survive MPO reload");
+		capture(robot);
 	}
 
 	private void dragBarAndAssertSuccessor(Fixture fixture) throws Exception {
@@ -164,6 +222,10 @@ class GanttBarDateDragGuiAcceptanceTest {
 	}
 
 	private Rectangle barBounds(Fixture fixture) throws Exception {
+		return barBounds(fixture, fixture.predecessor);
+	}
+
+	private Rectangle barBounds(Fixture fixture, NormalTask task) throws Exception {
 		Rectangle[] result = new Rectangle[1];
 		SwingUtilities.invokeAndWait(() -> {
 			int rowHeight = gantt.getRowHeight();
@@ -172,12 +234,12 @@ class GanttBarDateDragGuiAcceptanceTest {
 				for (int x = 0; x < Math.min(gantt.getWidth(), 1200) && result[0] == null; x += 2) {
 					GraphZone zone = gantt.getUI().getNodeAt(x, y);
 					if (zone != null && zone.getObject() instanceof GraphicNode node
-							&& node.getNode().getImpl() == fixture.predecessor) {
+							&& node.getNode().getImpl() == task) {
 						int row = gantt.getModel().getCache().getVisibleNodes().getProjectionIndex().rowForNode(node);
 						int barY = (int) Math.round(((GanttUI) gantt.getUI()).getBarY(row)
 							+ node.getGanttShapeOffset() + node.getGanttShapeHeight() / 2.0d);
-						int barCenter = (int) Math.round((gantt.getCoord().toX(fixture.predecessor.getStart())
-							+ gantt.getCoord().toX(fixture.predecessor.getEnd())) / 2.0d);
+						int barCenter = (int) Math.round((gantt.getCoord().toX(task.getStart())
+							+ gantt.getCoord().toX(task.getEnd())) / 2.0d);
 						result[0] = new Rectangle(location.x + barCenter - 4,
 							location.y + barY - 4, 8, 8);
 					}
@@ -200,6 +262,10 @@ class GanttBarDateDragGuiAcceptanceTest {
 	}
 
 	private Fixture createFixture(int dependencyType) throws Exception {
+		return createFixture(dependencyType, true);
+	}
+
+	private Fixture createFixture(int dependencyType, boolean includeDependency) throws Exception {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		ResourcePool pool = ResourcePool.createRourcePool("gui-gantt-date-drag", undo);
 		Project project = Project.createProject(pool, undo);
@@ -209,7 +275,8 @@ class GanttBarDateDragGuiAcceptanceTest {
 		long predecessorStart = DateTime.calendarInstance(2026, java.util.Calendar.JUNE, 8).getTimeInMillis();
 		predecessor.getCurrentSchedule().setStart(predecessorStart);
 		predecessor.setDuration(3L * com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
-		Dependency dependency = DependencyService.getInstance().newDependency(predecessor, successor, dependencyType, 0L, project);
+		Dependency dependency = includeDependency
+			? DependencyService.getInstance().newDependency(predecessor, successor, dependencyType, 0L, project) : null;
 		project.recalculate();
 		final Fixture[] result = new Fixture[1];
 		SwingUtilities.invokeAndWait(() -> {
