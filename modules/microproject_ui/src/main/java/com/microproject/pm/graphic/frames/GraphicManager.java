@@ -3031,28 +3031,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			setMeAsLastGraphicManager();
 			if (!isDocumentActive()) {
 				publishTaskCommandOutcome(this,
-					RibbonCommandResult.rejected("HideSelectedTasks", "no-active-document"));
+					RibbonCommandResult.rejected(CommandId.HIDE_SELECTED.actionId(), "no-active-document"));
 				return;
 			}
-			DocumentFrame frame = getCurrentFrame();
-			java.util.List<Long> selectedTaskIds = frame.getSelectedTaskIds();
-			java.util.List<com.microproject.grouping.core.Node> selectedNodes = frame.getSelectedVisibilityTaskNodes();
-			java.util.List<Task> tasksToHide = TaskVisibilityService.tasksToHide(selectedNodes);
-			java.util.List<Long> affectedTaskIds = tasksToHide.stream().map(Task::getUniqueId)
-					.filter(id -> id != null).toList();
-			if (!CollaborationHelper.tryLockNodes(frame.getProject(), tasksToHide, frame, "hide")) {
-				publishTaskCommandOutcome(this, new RibbonCommandResult("HideSelectedTasks",
-					RibbonCommandResult.Status.REJECTED, "lock-failed", selectedTaskIds, java.util.List.of(), ""));
-				traceUi("hide-selected rejected reason=lock-failed selectedTasks=" + selectedTaskIds.size());
-				return;
-			}
-			int changed = TaskVisibilityService.hideSelected(frame.getProject(),
-					selectedNodes, frame.getUndoController());
-			publishTaskCommandOutcome(this, new RibbonCommandResult("HideSelectedTasks",
-				changed > 0 ? RibbonCommandResult.Status.CHANGED : RibbonCommandResult.Status.NO_CHANGE,
-				"", selectedTaskIds, affectedTaskIds, ""));
-			setButtonState(frame.getSelectedImpl(), frame.getProject());
-			traceUi("hide-selected result changedTasks=" + changed);
+			publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.HIDE_SELECTED));
 		}
 		protected boolean allowed(boolean enable) {
 			return !enable || isDocumentWritable();
@@ -3064,26 +3046,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			setMeAsLastGraphicManager();
 			if (!isDocumentActive()) {
 				publishTaskCommandOutcome(this,
-					RibbonCommandResult.rejected("ShowAllTasks", "no-active-document"));
+					RibbonCommandResult.rejected(CommandId.SHOW_ALL.actionId(), "no-active-document"));
 				return;
 			}
-			DocumentFrame frame = getCurrentFrame();
-			java.util.List<Long> selectedTaskIds = frame.getSelectedTaskIds();
-			java.util.List<Task> tasksToShow = TaskVisibilityService.tasksToShow(frame.getProject());
-			java.util.List<Long> affectedTaskIds = tasksToShow.stream().map(Task::getUniqueId)
-					.filter(id -> id != null).toList();
-			if (!CollaborationHelper.tryLockNodes(frame.getProject(), tasksToShow, frame, "show")) {
-				publishTaskCommandOutcome(this, new RibbonCommandResult("ShowAllTasks",
-					RibbonCommandResult.Status.REJECTED, "lock-failed", selectedTaskIds, java.util.List.of(), ""));
-				traceUi("show-all rejected reason=lock-failed selectedTasks=" + selectedTaskIds.size());
-				return;
-			}
-			int changed = TaskVisibilityService.showAll(frame.getProject(), frame.getUndoController());
-			publishTaskCommandOutcome(this, new RibbonCommandResult("ShowAllTasks",
-				changed > 0 ? RibbonCommandResult.Status.CHANGED : RibbonCommandResult.Status.NO_CHANGE,
-				"", selectedTaskIds, affectedTaskIds, ""));
-			setButtonState(frame.getSelectedImpl(), frame.getProject());
-			traceUi("show-all result changedTasks=" + changed);
+			publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.SHOW_ALL));
 		}
 		protected boolean allowed(boolean enable) {
 			return !enable || isDocumentWritable();

@@ -551,6 +551,8 @@ public class DocumentFrame extends NamedFrame implements
 		case OUTDENT -> doOutdent();
 		case EXPAND -> lastTaskCommandResult = executeTaskTableMutation(command, this::doExpand, true);
 		case COLLAPSE -> lastTaskCommandResult = executeTaskTableMutation(command, this::doCollapse, true);
+		case HIDE_SELECTED -> lastTaskCommandResult = applyTaskVisibility(command, true);
+		case SHOW_ALL -> lastTaskCommandResult = applyTaskVisibility(command, false);
 		case TASK_MODE_MANUAL -> lastTaskCommandResult = applyTaskMode(command, com.microproject.pm.task.TaskModeService.Mode.MANUAL);
 		case TASK_MODE_AUTOMATIC -> lastTaskCommandResult = applyTaskMode(command, com.microproject.pm.task.TaskModeService.Mode.AUTOMATIC);
 		case STATUS_DATE -> lastTaskCommandResult = applyStatusDate(command);
@@ -560,6 +562,39 @@ public class DocumentFrame extends NamedFrame implements
 		if (lastTaskCommandResult == null)
 			lastTaskCommandResult = RibbonCommandResult.dispatched(command.actionId());
 		return lastTaskCommandResult;
+	}
+
+	private RibbonCommandResult applyTaskVisibility(CommandId command, boolean hide) {
+		List<Long> selectedTaskIds = getSelectedTaskIds();
+		if (project == null)
+			return RibbonCommandResult.rejected(command.actionId(), "no-active-document")
+				.withSelectedTaskIds(selectedTaskIds);
+		if (project.isReadOnly())
+			return RibbonCommandResult.rejected(command.actionId(), "document-read-only")
+				.withSelectedTaskIds(selectedTaskIds);
+
+		List<Node> selectedNodes = hide ? getSelectedVisibilityTaskNodes() : List.of();
+		List<Task> affectedTasks = hide
+			? TaskVisibilityService.tasksToHide(selectedNodes)
+			: TaskVisibilityService.tasksToShow(project);
+		List<Long> affectedTaskIds = affectedTasks.stream().map(Task::getUniqueId)
+			.filter(id -> id != null).toList();
+		if (hide && affectedTasks.isEmpty())
+			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.REJECTED,
+				"no-selection", selectedTaskIds, List.of(), "");
+		if (!CollaborationHelper.tryLockNodes(project, affectedTasks, this, hide ? "hide" : "show"))
+			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.REJECTED,
+				"lock-failed", selectedTaskIds, List.of(), "");
+
+		int changed = hide
+			? TaskVisibilityService.hideTasks(project, affectedTasks, getUndoController())
+			: TaskVisibilityService.showTasks(project, affectedTasks, getUndoController());
+		getGraphicManager().setButtonState(getSelectedImpl(), project);
+		getGraphicManager().traceUi((hide ? "hide-selected" : "show-all")
+			+ " result changedTasks=" + changed);
+		return new RibbonCommandResult(command.actionId(),
+			changed > 0 ? RibbonCommandResult.Status.CHANGED : RibbonCommandResult.Status.NO_CHANGE,
+			"", selectedTaskIds, affectedTaskIds, getTopViewId());
 	}
 
 	private RibbonCommandResult insertTaskRows(CommandId command) {

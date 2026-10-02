@@ -31,6 +31,8 @@ public enum CommandId {
 	OUTDENT("Outdent"),
 	EXPAND("Expand"),
 	COLLAPSE("Collapse"),
+	HIDE_SELECTED("HideSelectedTasks"),
+	SHOW_ALL("ShowAllTasks"),
 	TASK_MODE_MANUAL("TaskModeManual"),
 	TASK_MODE_AUTOMATIC("TaskModeAutomatic"),
 	STATUS_DATE("StatusDate"),

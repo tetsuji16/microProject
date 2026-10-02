@@ -25,9 +25,19 @@ final class TaskVisibilityService {
 	}
 
 	static int hideSelected(Project project, Collection<Node> selectedNodes, UndoController undoController) {
+		return hideTasks(project, tasksToHide(selectedNodes), undoController);
+	}
+
+	/** Applies a previously resolved hide target set without resolving the selection again. */
+	static int hideTasks(Project project, Collection<Task> tasks, UndoController undoController) {
 		if (project == null || project.isReadOnly()) return 0;
 		Map<Task, Boolean> changes = new LinkedHashMap<>();
-		for (Task task : tasksToHide(selectedNodes)) changes.put(task, Boolean.TRUE);
+		if (tasks != null) {
+			for (Task task : tasks) {
+				if (task != null && !task.isReadOnly() && !task.isHiddenTask())
+					changes.put(task, Boolean.TRUE);
+			}
+		}
 		return apply(project, changes, undoController, "Hide Tasks");
 	}
 
@@ -61,8 +71,19 @@ final class TaskVisibilityService {
 	}
 
 	static int showAll(Project project, UndoController undoController) {
+		return showTasks(project, tasksToShow(project), undoController);
+	}
+
+	/** Applies a previously resolved show target set without querying project visibility again. */
+	static int showTasks(Project project, Collection<Task> tasks, UndoController undoController) {
+		if (project == null || project.isReadOnly()) return 0;
 		Map<Task, Boolean> changes = new LinkedHashMap<>();
-		for (Task task : tasksToShow(project)) changes.put(task, Boolean.FALSE);
+		if (tasks != null) {
+			for (Task task : tasks) {
+				if (task != null && !task.isReadOnly() && task.isHiddenTask())
+					changes.put(task, Boolean.FALSE);
+			}
+		}
 		return apply(project, changes, undoController, "Show All Tasks");
 	}
 
