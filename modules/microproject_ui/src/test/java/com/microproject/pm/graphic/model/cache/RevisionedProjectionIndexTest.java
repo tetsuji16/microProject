@@ -13,6 +13,8 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import com.microproject.grouping.core.Node;
+import com.microproject.grouping.core.NodeFactory;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
@@ -85,6 +87,30 @@ class RevisionedProjectionIndexTest {
 		assertNotEquals(index.keyAt(0), index.keyAt(1));
 		assertEquals(List.of(0, 1), index.rowsForNode(node));
 		assertEquals(0, index.rowForNode(node));
+	}
+
+	@Test
+	void syntheticRowsKeepNodeIdentityAndOccurrenceAcrossReorder() {
+		Node firstSyntheticNode = NodeFactory.getInstance().createVoidNode();
+		Node secondSyntheticNode = NodeFactory.getInstance().createVoidNode();
+		GraphicNode first = new GraphicNode(firstSyntheticNode, 0);
+		GraphicNode repeatedFirst = new GraphicNode(firstSyntheticNode, 1);
+		GraphicNode second = new GraphicNode(secondSyntheticNode, 0);
+		RevisionedProjectionIndex before = RevisionedProjectionIndex.create(
+				List.of(first, repeatedFirst, second), null);
+		ProjectionRowKey firstOccurrence = before.keyAt(0);
+		ProjectionRowKey secondOccurrence = before.keyAt(1);
+		ProjectionRowKey otherNode = before.keyAt(2);
+
+		RevisionedProjectionIndex after = RevisionedProjectionIndex.create(
+				List.of(second, first, repeatedFirst), before);
+
+		assertNotEquals(firstOccurrence, secondOccurrence);
+		assertNotEquals(firstOccurrence, otherNode);
+		assertEquals(1, after.rowForKey(firstOccurrence));
+		assertEquals(2, after.rowForKey(secondOccurrence));
+		assertEquals(0, after.rowForKey(otherNode));
+		assertEquals(before.topologyRevision() + 1, after.topologyRevision());
 	}
 
 	private static Project project() {
