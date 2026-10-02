@@ -47,22 +47,25 @@ public final class RibbonGuiButton {
 	private static final class RibbonButton extends JToggleButton {
 		private final AbstractCommandButton delegate;
 		private RibbonButton(AbstractCommandButton delegate) {
-			super(delegate.getText());
+			super();
 			this.delegate = delegate;
+			setText(delegate.getText());
 		}
 		@Override public javax.accessibility.AccessibleContext getAccessibleContext() {
+			if (delegate == null) return super.getAccessibleContext();
 			javax.accessibility.AccessibleContext context = delegate.getAccessibleContext();
 			return context == null ? super.getAccessibleContext() : context;
 		}
-		@Override public boolean isShowing() { return delegate.isShowing(); }
-		@Override public boolean isEnabled() { return delegate.isEnabled(); }
-		@Override public int getWidth() { return delegate.getWidth(); }
-		@Override public int getHeight() { return delegate.getHeight(); }
-		@Override public java.awt.Dimension getSize() { return delegate.getSize(); }
-		@Override public Point getLocationOnScreen() { return delegate.getLocationOnScreen(); }
-		@Override public String getText() { return delegate.getText(); }
-		@Override public String getActionCommand() { return delegate.getName(); }
+		@Override public boolean isShowing() { return delegate == null ? super.isShowing() : delegate.isShowing(); }
+		@Override public boolean isEnabled() { return delegate == null ? super.isEnabled() : delegate.isEnabled(); }
+		@Override public int getWidth() { return delegate == null ? super.getWidth() : delegate.getWidth(); }
+		@Override public int getHeight() { return delegate == null ? super.getHeight() : delegate.getHeight(); }
+		@Override public java.awt.Dimension getSize() { return delegate == null ? super.getSize() : delegate.getSize(); }
+		@Override public Point getLocationOnScreen() { return delegate == null ? super.getLocationOnScreen() : delegate.getLocationOnScreen(); }
+		@Override public String getText() { return delegate == null ? super.getText() : delegate.getText(); }
+		@Override public String getActionCommand() { return delegate == null ? super.getActionCommand() : delegate.getName(); }
 		@Override public boolean isSelected() {
+			if (delegate == null) return super.isSelected();
 			if (delegate instanceof JCommandToggleButton toggle) return toggle.getActionModel().isSelected();
 			JRibbon ribbon = (JRibbon) SwingUtilities.getAncestorOfClass(JRibbon.class, delegate);
 			return ribbon != null && ribbon.getSelectedTask() != null
