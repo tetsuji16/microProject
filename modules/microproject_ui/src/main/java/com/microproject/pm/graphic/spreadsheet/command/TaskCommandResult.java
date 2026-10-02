@@ -4,14 +4,17 @@
  ******************************************************************************/
 package com.microproject.pm.graphic.spreadsheet.command;
 
-/** Outcome of resolving and applying one stable-key task field edit. */
+/** Outcome of resolving and applying one stable-key task command. */
 public record TaskCommandResult(Status status, String reason) {
 	public enum Status {
 		CHANGED,
 		NO_CHANGE,
 		STALE_PROJECTION,
 		STALE_VALUE,
-		MISSING_TASK
+		MISSING_TASK,
+		INVALID_INTENT,
+		LOCKED,
+		REJECTED
 	}
 
 	public TaskCommandResult {

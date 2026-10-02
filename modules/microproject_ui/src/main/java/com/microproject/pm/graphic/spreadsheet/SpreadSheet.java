@@ -82,12 +82,16 @@ import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.ui.input.PopupTriggerController;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
+import com.microproject.pm.graphic.model.cache.ProjectionRowKey;
 import com.microproject.pm.graphic.collaboration.CollaborationHelper;
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheetAction;
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheetModel;
 import com.microproject.pm.graphic.spreadsheet.common.transfer.NodeListTransferHandler;
 import com.microproject.pm.graphic.spreadsheet.common.transfer.NodeListTransferable;
+import com.microproject.pm.graphic.spreadsheet.command.TaskCommandGateway;
+import com.microproject.pm.graphic.spreadsheet.command.TaskCommandResult;
+import com.microproject.pm.graphic.spreadsheet.command.TaskHierarchyEditIntent;
 import com.microproject.pm.graphic.spreadsheet.editor.SimpleComboBoxEditor;
 import com.microproject.pm.graphic.spreadsheet.renderer.NameCellComponent;
 import com.microproject.pm.graphic.spreadsheet.selection.SpreadSheetListSelectionModel;
@@ -197,9 +201,11 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		if (!canMoveSelectedTaskRows(direction, true))
 			return false;
 		List<Node> nodes = new ArrayList<Node>(getSelectedNodes());
-		if (nodes.isEmpty() || !CollaborationHelper.tryLockNodes(null, nodes, this, "move task"))
+		TaskHierarchyEditIntent intent = captureHierarchyIntent(TaskHierarchyEditIntent.Operation.MOVE, direction,
+			-1, false);
+		if (nodes.isEmpty() || intent == null)
 			return false;
-		boolean moved = getCache().moveNodes(getSelectedGraphicNodes(), direction);
+		boolean moved = TaskCommandGateway.execute(this, intent).status() == TaskCommandResult.Status.CHANGED;
 		if (moved) {
 			refreshTaskMoveViews();
 			restoreTaskRowSelection(nodes);
@@ -221,19 +227,41 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		finishCurrentOperations();
 		if (!canMoveSelectedTaskRowsTo(targetRow, after) || !(getModel() instanceof SpreadSheetModel model))
 			return false;
-		GraphicNode target = model.getNode(targetRow);
 		List<Node> nodes = new ArrayList<Node>(getSelectedNodes());
-		List<Node> locks = new ArrayList<Node>(nodes);
-		if (!locks.contains(target.getNode()))
-			locks.add(target.getNode());
-		if (nodes.isEmpty() || !CollaborationHelper.tryLockNodes(null, locks, this, "drag task"))
+		TaskHierarchyEditIntent intent = captureHierarchyIntent(TaskHierarchyEditIntent.Operation.RELOCATE, 0,
+			targetRow, after);
+		if (nodes.isEmpty() || intent == null)
 			return false;
-		boolean moved = getCache().relocateNodes(getSelectedGraphicNodes(), target.getNode(), after);
+		boolean moved = TaskCommandGateway.execute(this, intent).status() == TaskCommandResult.Status.CHANGED;
 		if (moved) {
 			refreshTaskMoveViews();
 			restoreTaskRowSelection(nodes);
 		}
 		return moved;
+	}
+
+	private TaskHierarchyEditIntent captureHierarchyIntent(TaskHierarchyEditIntent.Operation operation,
+			int direction, int targetRow, boolean after) {
+		if (!(getModel() instanceof SpreadSheetModel model) || model.getRowMultiple() != 1)
+			return null;
+		var projection = model.getCache().getVisibleNodes().getProjectionIndex();
+		List<ProjectionRowKey.TaskRow> taskRows = new ArrayList<>();
+		for (int selectedRow : getSelectedRows()) {
+			int modelRow = convertRowIndexToModel(selectedRow);
+			if (modelRow < 0 || modelRow >= projection.size()
+					|| !(projection.keyAt(modelRow) instanceof ProjectionRowKey.TaskRow taskRow))
+				return null;
+			taskRows.add(taskRow);
+		}
+		ProjectionRowKey.TaskRow anchor = null;
+		if (operation == TaskHierarchyEditIntent.Operation.RELOCATE) {
+			int modelRow = convertRowIndexToModel(targetRow);
+			if (modelRow < 0 || modelRow >= projection.size()
+					|| !(projection.keyAt(modelRow) instanceof ProjectionRowKey.TaskRow target))
+				return null;
+			anchor = target;
+		}
+		return new TaskHierarchyEditIntent(operation, taskRows, projection.topologyRevision(), anchor, after, direction);
 	}
 
 	private boolean hasEntireRowSelection() {

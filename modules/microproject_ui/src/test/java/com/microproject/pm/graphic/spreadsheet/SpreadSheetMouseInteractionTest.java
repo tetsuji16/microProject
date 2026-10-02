@@ -447,6 +447,26 @@ class SpreadSheetMouseInteractionTest {
 	}
 
 	@Test
+	void taskTableRowRelocationUsesStableTargetIdentityAndOneUndo() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createFixture();
+			RecordingSpreadSheet sheet = fixture.sheet();
+			fixture.project().getUndoController().clear();
+			int sourceRow = findRow(sheet, fixture.secondTask());
+			int targetRow = findRow(sheet, fixture.firstTask());
+			sheet.selectRowAndAllColumns(sourceRow);
+
+			assertTrue(sheet.moveSelectedTaskRowsTo(targetRow, false),
+				"drag relocation before the target must route through a stable task-row intent");
+			assertTrue(findRow(sheet, fixture.secondTask()) < findRow(sheet, fixture.firstTask()));
+
+			fixture.project().getUndoController().undo();
+			assertTrue(findRow(sheet, fixture.firstTask()) < findRow(sheet, fixture.secondTask()),
+				"one Undo must restore the exact task order after relocation");
+		});
+	}
+
+	@Test
 	void rowHeaderSelectionReturnsKeyboardFocusToTheTaskTable() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			Fixture fixture = createFixture();
