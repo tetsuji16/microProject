@@ -57,6 +57,7 @@ import javax.swing.table.TableCellRenderer;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.graphic.configuration.SpreadSheetCategories;
@@ -86,6 +87,8 @@ import com.microproject.field.Field;
 import com.microproject.exchange.MpoFileImporter;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.undo.DataFactoryUndoController;
+import com.microproject.ui.util.SwingAlertPresenter;
+import com.microproject.util.Alert;
 import com.microproject.util.FlatUiSupport;
 import com.microproject.util.GanttProgress;
 import com.microproject.workspace.SavableToWorkspace;
@@ -96,6 +99,11 @@ class TaskTableGanttGridGuiAcceptanceTest {
 	private JFrame frame;
 	private Gantt gantt;
 	private TaskSelectionController selectionController;
+
+	@BeforeEach
+	void installSwingAlertPresenter() {
+		Alert.setPresenter(new SwingAlertPresenter());
+	}
 
 	@AfterEach
 	void closeWindow() throws Exception {
@@ -113,6 +121,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			gantt.cleanUp();
 			gantt = null;
 		}
+		Alert.setPresenter(null);
 	}
 
 	@Test
