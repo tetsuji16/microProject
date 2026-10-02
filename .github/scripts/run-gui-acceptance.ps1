@@ -187,6 +187,8 @@ if ($Suite -eq 'full') {
     'com.microproject.dialog.ChangeWorkingTimeDialogGuiAcceptanceTest',
     'com.microproject.dialog.ProjectInformationDialogGuiAcceptanceTest',
     'com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest',
+    'com.microproject.pm.graphic.frames.workspace.DefaultFrameManagerGuiAcceptanceTest',
+    'com.microproject.ui.shell.WindowShellNativeDecorationGuiAcceptanceTest',
     'com.microproject.ui.ribbon.RibbonTabGuiAcceptanceTest'
   )
   foreach ($locale in @('ja', 'en')) {

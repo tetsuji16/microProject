@@ -97,6 +97,8 @@ public final class WindowAcceptanceAssertions {
 		Files.createDirectories(directory);
 		String environment = (System.getProperty("user.language", "unknown") + "-"
 			+ System.getProperty("sun.java2d.uiScale", "default")).replaceAll("[^A-Za-z0-9_.-]", "_");
-		ImageIO.write(screenshot, "png", directory.resolve(label + "-" + environment + ".png").toFile());
+		String artifactName = label + "-" + environment;
+		GuiEnvironmentExtension.writeEnvironmentSnapshot(directory, artifactName);
+		ImageIO.write(screenshot, "png", directory.resolve(artifactName + ".png").toFile());
 	}
 }

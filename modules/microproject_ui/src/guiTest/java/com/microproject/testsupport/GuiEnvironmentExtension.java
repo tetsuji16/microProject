@@ -52,6 +52,31 @@ public final class GuiEnvironmentExtension implements BeforeEachCallback, AfterE
 		Files.createDirectories(directory);
 		String safeName = (context.getRequiredTestClass().getSimpleName() + "-" + context.getDisplayName())
 			.replaceAll("[^A-Za-z0-9_.-]", "_");
+		writeEnvironmentSnapshot(directory, safeName);
+		if (GraphicsEnvironment.isHeadless()) return;
+		Rectangle desktop = null;
+		for (GraphicsDevice device : GraphicsEnvironment.getLocalGraphicsEnvironment().getScreenDevices()) {
+			Rectangle bounds = device.getDefaultConfiguration().getBounds();
+			desktop = desktop == null ? new Rectangle(bounds) : desktop.union(bounds);
+		}
+		if (desktop != null && desktop.width > 0 && desktop.height > 0) {
+			BufferedImage screenshot = new Robot().createScreenCapture(desktop);
+			ImageIO.write(screenshot, "png", directory.resolve(safeName + ".failure.png").toFile());
+		}
+		StringBuilder windows = new StringBuilder();
+		for (Window window : Window.getWindows()) {
+			windows.append(window.getClass().getName())
+				.append(" showing=").append(window.isShowing())
+				.append(" displayable=").append(window.isDisplayable())
+				.append(" bounds=").append(window.getBounds())
+				.append(" title=").append(window instanceof java.awt.Frame frame ? frame.getTitle() : "")
+				.append(System.lineSeparator());
+		}
+		Files.writeString(directory.resolve(safeName + ".windows.txt"), windows.toString());
+	}
+
+	static void writeEnvironmentSnapshot(Path directory, String safeName) throws Exception {
+		Files.createDirectories(directory);
 		StringBuilder environment = new StringBuilder()
 			.append("os.name=").append(System.getProperty("os.name")).append(System.lineSeparator())
 			.append("os.version=").append(System.getProperty("os.version")).append(System.lineSeparator())
@@ -80,26 +105,6 @@ public final class GuiEnvironmentExtension implements BeforeEachCallback, AfterE
 			}
 		}
 		Files.writeString(directory.resolve(safeName + ".environment.txt"), environment.toString());
-		if (GraphicsEnvironment.isHeadless()) return;
-		Rectangle desktop = null;
-		for (GraphicsDevice device : GraphicsEnvironment.getLocalGraphicsEnvironment().getScreenDevices()) {
-			Rectangle bounds = device.getDefaultConfiguration().getBounds();
-			desktop = desktop == null ? new Rectangle(bounds) : desktop.union(bounds);
-		}
-		if (desktop != null && desktop.width > 0 && desktop.height > 0) {
-			BufferedImage screenshot = new Robot().createScreenCapture(desktop);
-			ImageIO.write(screenshot, "png", directory.resolve(safeName + ".failure.png").toFile());
-		}
-		StringBuilder windows = new StringBuilder();
-		for (Window window : Window.getWindows()) {
-			windows.append(window.getClass().getName())
-				.append(" showing=").append(window.isShowing())
-				.append(" displayable=").append(window.isDisplayable())
-				.append(" bounds=").append(window.getBounds())
-				.append(" title=").append(window instanceof java.awt.Frame frame ? frame.getTitle() : "")
-				.append(System.lineSeparator());
-		}
-		Files.writeString(directory.resolve(safeName + ".windows.txt"), windows.toString());
 	}
 
 	private static String windowsKernelVersion() {
