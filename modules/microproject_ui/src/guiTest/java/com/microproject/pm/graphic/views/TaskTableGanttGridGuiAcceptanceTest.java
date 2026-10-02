@@ -405,6 +405,17 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			assertTrue(fixture.sheet.getSelection().isActiveCell(cellRow, column + 1),
 				"Right Arrow must retain the clicked row and advance exactly one visible column");
 		});
+
+		SwingUtilities.invokeAndWait(() ->
+			fixture.sheet.getCache().deleteNodes(List.of(retainedTask[0].getNode())));
+		GuiAcceptanceSupport.await(() -> fixture.sheet.getCache().getVisibleNodes().getProjectionIndex()
+			.rowForNode(retainedTask[0]) < 0, "deleted selected task must leave the visible projection");
+		SwingUtilities.invokeAndWait(() -> {
+			assertEquals(0, fixture.sheet.getSelectedRowCount(),
+				"deleting the selected task must clear its table selection");
+			assertTrue(fixture.gantt.getHighlightedRows().isEmpty(),
+				"a deleted selection key must be pruned from the Gantt and not reappear implicitly");
+		});
 	}
 
 	@Test
