@@ -7,6 +7,7 @@ package com.microproject.pm.graphic.views;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Dimension;
@@ -22,6 +23,8 @@ import java.awt.Window;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -36,6 +39,7 @@ import javax.swing.JSplitPane;
 import javax.swing.JPanel;
 import javax.swing.JComponent;
 import javax.swing.JScrollPane;
+import javax.swing.JViewport;
 import javax.swing.SwingUtilities;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
@@ -83,6 +87,8 @@ import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.FlatUiSupport;
 import com.microproject.util.GanttProgress;
+import com.microproject.workspace.SavableToWorkspace;
+import com.microproject.workspace.WorkspaceSetting;
 
 /** Verifies that the visible task-table/Gantt pair shares one grid-style path. */
 class TaskTableGanttGridGuiAcceptanceTest {
@@ -416,6 +422,131 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			assertTrue(fixture.gantt.getHighlightedRows().isEmpty(),
 				"a deleted selection key must be pruned from the Gantt and not reappear implicitly");
 		});
+	}
+
+	@Test
+	void workspaceV2RestoresTaskSelectionAndScrollAnchorAfterEarlierTaskDeletion() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Fixture fixture = createFixture(30);
+		showFixture(fixture);
+
+		Robot robot = new Robot();
+		robot.setAutoDelay(40);
+		JScrollPane tableScroll = (JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class, fixture.sheet);
+		assertTrue(tableScroll != null, "task table must be hosted by a scroll pane");
+		SwingUtilities.invokeAndWait(() -> {
+			selectionController = new TaskSelectionController(fixture.gantt, fixture.sheet);
+			frame.setSize(1100, 500);
+			frame.toFront();
+			frame.requestFocus();
+		});
+		GuiAcceptanceSupport.await(() -> frame.isActive() && fixture.sheet.isShowing(),
+			"workspace acceptance frame or task table was not ready");
+		robot.delay(250);
+
+		int selectedRow = 15;
+		int anchorRow = 10;
+		GraphicNode[] selectedTask = new GraphicNode[1];
+		GraphicNode[] scrollAnchor = new GraphicNode[1];
+		com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet.Workspace[] saved =
+			new com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet.Workspace[1];
+		SwingUtilities.invokeAndWait(() -> {
+			JViewport viewport = tableScroll.getViewport();
+			viewport.setViewPosition(new Point(0, fixture.sheet.getCellRect(anchorRow, 0, true).y + 5));
+			selectedTask[0] = (GraphicNode) fixture.sheet.getCache().getElementAt(selectedRow);
+		});
+		Point selectedCell = screenCenter(fixture.sheet, fixture.sheet.getCellRect(selectedRow, 1, true));
+		robot.mouseMove(selectedCell.x, selectedCell.y);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.delay(120);
+		SwingUtilities.invokeAndWait(() -> {
+			assertEquals(selectedRow, fixture.sheet.getSelectedRow(), "physical row selection must choose the target task");
+			JViewport viewport = tableScroll.getViewport();
+			int topRow = fixture.sheet.rowAtPoint(new Point(0, viewport.getViewPosition().y));
+			assertEquals(anchorRow, topRow, "the chosen task must remain below the saved scroll anchor");
+			scrollAnchor[0] = (GraphicNode) fixture.sheet.getCache().getElementAt(topRow);
+			saved[0] = (com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet.Workspace)
+				fixture.sheet.createWorkspace(SavableToWorkspace.VIEW);
+			assertTrue(saved[0].isStableTaskSelectionPresent(), "V2 workspace must contain durable selected task keys");
+			assertTrue(saved[0].isStableScrollAnchorPresent(), "V2 workspace must contain the visible task scroll anchor");
+		});
+		WorkspaceSetting serializedWorkspace = roundTripWorkspace(saved[0]);
+
+		SwingUtilities.invokeAndWait(() -> {
+			GraphicNode earlierTask = (GraphicNode) fixture.sheet.getCache().getElementAt(0);
+			fixture.sheet.getCache().deleteNodes(List.of(earlierTask.getNode()));
+		});
+		GuiAcceptanceSupport.await(() -> fixture.sheet.getCache().getVisibleNodes().getProjectionIndex()
+			.rowForNode(selectedTask[0]) == selectedRow - 1, "deleting the first task must shift the selected task projection");
+		SwingUtilities.invokeAndWait(() -> fixture.sheet.restoreWorkspace(serializedWorkspace, SavableToWorkspace.VIEW));
+		SwingUtilities.invokeAndWait(() -> {
+			assertTrue(fixture.sheet.getSelectedGraphicNodes().contains(selectedTask[0]),
+				"V2 restore must retain task identity after an earlier row is removed");
+			assertEquals(selectedRow - 1, fixture.sheet.getSelectedRow(),
+				"V2 selection must resolve to the task's new table row");
+			assertEquals(Set.of(selectedRow - 1), fixture.gantt.getHighlightedRows(),
+				"the Gantt highlight must follow the restored stable selection");
+			JViewport viewport = tableScroll.getViewport();
+			int restoredTopRow = fixture.sheet.rowAtPoint(new Point(0, viewport.getViewPosition().y));
+			assertTrue(restoredTopRow >= 0, "restored viewport must begin on a visible row");
+			assertSame(scrollAnchor[0].getNode(), ((com.microproject.pm.graphic.spreadsheet.SpreadSheetModel)
+				fixture.sheet.getModel()).getNodeForDisplayRow(restoredTopRow),
+				"V2 scroll restore must keep the same task at the top anchor after row changes");
+		});
+		robot.delay(150);
+		captureVisibleLayout(robot, "workspace-v2-restored-selection-anchor.png");
+
+		SwingUtilities.invokeAndWait(() -> fixture.sheet.getCache().deleteNodes(List.of(selectedTask[0].getNode())));
+		GuiAcceptanceSupport.await(() -> fixture.sheet.getCache().getVisibleNodes().getProjectionIndex()
+			.rowForNode(selectedTask[0]) < 0, "deleted V2 selection key must leave the projection");
+		SwingUtilities.invokeAndWait(() -> {
+			fixture.sheet.restoreWorkspace(serializedWorkspace, SavableToWorkspace.VIEW);
+			assertEquals(0, fixture.sheet.getSelectedRowCount(),
+				"a valid V2 key that no longer exists must be pruned instead of resolving by its old row number");
+			assertTrue(fixture.gantt.getHighlightedRows().isEmpty(),
+				"a missing V2 selection key must not highlight a different task");
+		});
+
+		com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet.Workspace legacy =
+			new com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet.Workspace();
+		legacy.setWorkspaceVersion(1);
+		legacy.setSelectedRows(new int[] { 2 });
+		legacy.setViewPosition(new Point(0, fixture.sheet.getCellRect(1, 0, true).y));
+		SwingUtilities.invokeAndWait(() -> {
+			fixture.sheet.clearSelection();
+			fixture.sheet.restoreWorkspace(legacy, SavableToWorkspace.VIEW);
+			assertEquals(2, fixture.sheet.getSelectedRow(), "V1 must continue restoring its legacy row selection");
+			assertEquals(legacy.getViewPosition(), tableScroll.getViewport().getViewPosition(),
+				"V1 must continue restoring its legacy pixel scroll position");
+		});
+
+		com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet.Workspace malformed =
+			new com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet.Workspace();
+		malformed.setWorkspaceVersion(2);
+		malformed.setStableTaskSelectionPresent(true);
+		malformed.setSelectedProjectIds(new long[] { 1L, 1L });
+		malformed.setSelectedTaskIds(new long[] { 2L });
+		malformed.setSelectedOccurrences(new int[] { 0, 0 });
+		malformed.setSelectedRows(new int[] { 3 });
+		malformed.setViewPosition(new Point(0, fixture.sheet.getCellRect(1, 0, true).y));
+		SwingUtilities.invokeAndWait(() -> {
+			fixture.sheet.clearSelection();
+			fixture.sheet.restoreWorkspace(malformed, SavableToWorkspace.VIEW);
+			assertEquals(3, fixture.sheet.getSelectedRow(), "malformed V2 selection must fall back to its V1 row array");
+			assertEquals(malformed.getViewPosition(), tableScroll.getViewport().getViewPosition(),
+				"malformed V2 anchor must fall back to the V1 pixel position");
+		});
+	}
+
+	private static WorkspaceSetting roundTripWorkspace(WorkspaceSetting workspace) throws Exception {
+		ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+		try (ObjectOutputStream output = new ObjectOutputStream(bytes)) {
+			output.writeObject(workspace);
+		}
+		try (ObjectInputStream input = new ObjectInputStream(new ByteArrayInputStream(bytes.toByteArray()))) {
+			return (WorkspaceSetting) input.readObject();
+		}
 	}
 
 	@Test

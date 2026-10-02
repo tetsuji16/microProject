@@ -75,6 +75,8 @@ import javax.swing.text.Utilities;
 import com.microproject.pm.graphic.ChangeAwareComponent;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
+import com.microproject.pm.graphic.model.cache.ProjectionRowKey;
+import com.microproject.pm.graphic.model.cache.RevisionedProjectionIndex;
 import com.microproject.pm.graphic.model.event.CacheListener;
 import com.microproject.pm.graphic.model.event.CompositeCacheEvent;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetColumnModel;
@@ -92,6 +94,7 @@ import com.microproject.pm.graphic.spreadsheet.selection.event.SelectionNodeList
 import com.microproject.pm.graphic.timescale.ScaledScrollPane;
 import com.microproject.pm.graphic.views.SearchContext;
 import com.microproject.pm.graphic.views.Searchable;
+import com.microproject.pm.task.ProjectTaskKey;
 import com.microproject.configuration.Dictionary;
 import com.microproject.field.Field;
 import com.microproject.field.FieldParseException;
@@ -1768,18 +1771,9 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 			setEditingColumn(ws.editingColumn);
 		if (getRowCount() > ws.lastEditingRow)
 			lastEditingRow = ws.lastEditingRow;
-		if (ws.selectedRows != null) {
-			for (int i=0; i < ws.selectedRows.length; i++) {
-				try {
-					addRowSelectionInterval(ws.selectedRows[i], ws.selectedRows[i]);
-					// this isn't quite right.
-					rowHeader.addRowSelectionInterval(ws.selectedRows[i], ws.selectedRows[i]);
-
-				} catch (RuntimeException e) {
-					// in case out of bounds
-				}
-			}
-		}
+		boolean restoredStableSelection = restoreStableTaskSelection(ws);
+		if (!restoredStableSelection)
+			restoreLegacyRowSelection(ws.selectedRows);
 		if (ws.selectedColumns != null) {
 			for (int i=0; i < ws.selectedColumns.length; i++) {
 				try {
@@ -1792,12 +1786,13 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		SpreadSheetFieldArray s = (SpreadSheetFieldArray) Dictionary.get(getSpreadSheetCategory(),ws.fieldArrayName);
 		if (s != null)
 			setFieldArray(s);
-     	Container p = getParent();
-     	if (p instanceof JViewport && ws.viewPosition != null) {
-     		try {
-     		((JViewport)p).setViewPosition(ws.viewPosition);
-     		} catch (RuntimeException e) {
-     			logger.log(Level.FINE, "problem restoring viewport to point {0}", ws.viewPosition);
+		Container p = getParent();
+		if (p instanceof JViewport && ws.viewPosition != null) {
+			try {
+			Point stablePosition = resolveStableScrollPosition(ws);
+			((JViewport)p).setViewPosition(stablePosition == null ? ws.viewPosition : stablePosition);
+			} catch (RuntimeException e) {
+				logger.log(Level.FINE, "problem restoring viewport to point {0}", ws.viewPosition);
      		}
      	}
 	}
@@ -1809,14 +1804,121 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		ws.editingRow = getEditingRow();
 		ws.editingColumn = getEditingColumn();
 		ws.lastEditingRow = lastEditingRow;
-		ws.selectedRows = getSelectedRows();
-		ws.selectedColumns = getSelectedColumns();
+		int[] selectedRows = getSelectedRows();
+		int[] selectedColumns = getSelectedColumns();
+		ws.selectedRows = selectedRows == null ? null : selectedRows.clone();
+		ws.selectedColumns = selectedColumns == null ? null : selectedColumns.clone();
 		ws.fieldArrayName = getFieldArray().toString();
-     	Container p = getParent();
-     	if (p instanceof JViewport) {
-     		ws.viewPosition = ((JViewport)p).getViewPosition();
-     	}
+		captureStableTaskSelection(ws);
+		Container p = getParent();
+		if (p instanceof JViewport) {
+			ws.viewPosition = new Point(((JViewport)p).getViewPosition());
+			captureStableScrollAnchor(ws, ws.viewPosition);
+		}
 		return ws;
+	}
+
+	private void restoreLegacyRowSelection(int[] rows) {
+		if (rows == null)
+			return;
+		for (int row : rows) {
+			try {
+				addRowSelectionInterval(row, row);
+				rowHeader.addRowSelectionInterval(row, row);
+			} catch (RuntimeException e) {
+				// Legacy workspaces may contain row numbers outside the current projection.
+			}
+		}
+	}
+
+	private boolean restoreStableTaskSelection(Workspace ws) {
+		if (!ws.hasValidStableTaskSelection())
+			return false;
+		if (!(getModel() instanceof SpreadSheetModel model) || model.getRowMultiple() != 1 || getCache() == null)
+			return false;
+		RevisionedProjectionIndex projection = getCache().getVisibleNodes().getProjectionIndex();
+		clearSelection();
+		if (rowHeader != null)
+			rowHeader.clearSelection();
+		for (int index = 0; index < ws.selectedTaskIds.length; index++) {
+			ProjectTaskKey taskKey = new ProjectTaskKey(ws.selectedProjectIds[index], ws.selectedTaskIds[index]);
+			ProjectionRowKey key = new ProjectionRowKey.TaskRow(taskKey, ws.selectedOccurrences[index]);
+			int modelRow = projection.rowForKey(key);
+			if (modelRow < 0)
+				continue;
+			int viewRow = convertRowIndexToView(modelRow);
+			if (viewRow < 0)
+				continue;
+			addRowSelectionInterval(viewRow, viewRow);
+			rowHeader.addRowSelectionInterval(viewRow, viewRow);
+		}
+		setHeaderColumnSelectionActive(ws.headerColumnSelectionActive);
+		setRowHeaderSelectionActive(ws.rowHeaderSelectionActive);
+		return true;
+	}
+
+	private Point resolveStableScrollPosition(Workspace ws) {
+		if (!ws.hasValidStableScrollAnchor() || !(getModel() instanceof SpreadSheetModel model)
+				|| model.getRowMultiple() != 1 || getCache() == null)
+			return null;
+		RevisionedProjectionIndex projection = getCache().getVisibleNodes().getProjectionIndex();
+		ProjectionRowKey key = new ProjectionRowKey.TaskRow(
+			new ProjectTaskKey(ws.scrollAnchorProjectId, ws.scrollAnchorTaskId), ws.scrollAnchorOccurrence);
+		int modelRow = projection.rowForKey(key);
+		if (modelRow < 0)
+			return null;
+		int viewRow = convertRowIndexToView(modelRow);
+		if (viewRow < 0)
+			return null;
+		Rectangle rowBounds = getCellRect(viewRow, 0, true);
+		int offset = Math.min(ws.scrollAnchorOffset, Math.max(0, rowBounds.height - 1));
+		int x = ws.viewPosition == null ? 0 : Math.max(0, ws.viewPosition.x);
+		return new Point(x, Math.max(0, rowBounds.y + offset));
+	}
+
+	private void captureStableTaskSelection(Workspace ws) {
+		if (!(getModel() instanceof SpreadSheetModel model) || model.getRowMultiple() != 1 || getCache() == null)
+			return;
+		int[] viewRows = getSelectedRows();
+		long[] projectIds = new long[viewRows.length];
+		long[] taskIds = new long[viewRows.length];
+		int[] occurrences = new int[viewRows.length];
+		RevisionedProjectionIndex projection = getCache().getVisibleNodes().getProjectionIndex();
+		for (int index = 0; index < viewRows.length; index++) {
+			int modelRow = convertRowIndexToModel(viewRows[index]);
+			if (modelRow < 0 || modelRow >= projection.size()
+					|| !(projection.keyAt(modelRow) instanceof ProjectionRowKey.TaskRow taskRow))
+				return;
+			projectIds[index] = taskRow.taskKey().owningProjectId();
+			taskIds[index] = taskRow.taskKey().taskUniqueId();
+			occurrences[index] = taskRow.occurrence();
+		}
+		ws.selectedProjectIds = projectIds;
+		ws.selectedTaskIds = taskIds;
+		ws.selectedOccurrences = occurrences;
+		ws.stableTaskSelectionPresent = true;
+		ws.headerColumnSelectionActive = isHeaderColumnSelectionActive();
+		ws.rowHeaderSelectionActive = isRowHeaderSelectionActive();
+	}
+
+	private void captureStableScrollAnchor(Workspace ws, Point viewPosition) {
+		if (viewPosition == null || !(getModel() instanceof SpreadSheetModel model)
+				|| model.getRowMultiple() != 1 || getCache() == null)
+			return;
+		int viewRow = rowAtPoint(new Point(0, viewPosition.y));
+		if (viewRow < 0)
+			return;
+		int modelRow = convertRowIndexToModel(viewRow);
+		RevisionedProjectionIndex projection = getCache().getVisibleNodes().getProjectionIndex();
+		if (modelRow < 0 || modelRow >= projection.size()
+				|| !(projection.keyAt(modelRow) instanceof ProjectionRowKey.TaskRow taskRow))
+			return;
+		Rectangle rowBounds = getCellRect(viewRow, 0, true);
+		ws.scrollAnchorProjectId = taskRow.taskKey().owningProjectId();
+		ws.scrollAnchorTaskId = taskRow.taskKey().taskUniqueId();
+		ws.scrollAnchorOccurrence = taskRow.occurrence();
+		ws.scrollAnchorOffset = Math.max(0, viewPosition.y - rowBounds.y);
+		ws.stableScrollAnchorPresent = true;
 	}
 
 	public static class Workspace implements WorkspaceSetting {
@@ -1828,6 +1930,132 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		int[] selectedColumns=null;
 		String fieldArrayName;
 		Point viewPosition = null;
+		int workspaceVersion = 2;
+		boolean stableTaskSelectionPresent;
+		long[] selectedProjectIds;
+		long[] selectedTaskIds;
+		int[] selectedOccurrences;
+		boolean headerColumnSelectionActive;
+		boolean rowHeaderSelectionActive;
+		boolean stableScrollAnchorPresent;
+		long scrollAnchorProjectId;
+		long scrollAnchorTaskId;
+		int scrollAnchorOccurrence;
+		int scrollAnchorOffset;
+
+		boolean hasValidStableTaskSelection() {
+			if (workspaceVersion != 2 || !stableTaskSelectionPresent || selectedProjectIds == null
+					|| selectedTaskIds == null || selectedOccurrences == null
+					|| selectedProjectIds.length != selectedTaskIds.length
+					|| selectedProjectIds.length != selectedOccurrences.length)
+				return false;
+			for (int index = 0; index < selectedProjectIds.length; index++) {
+				if (selectedProjectIds[index] <= 0L || selectedTaskIds[index] <= 0L || selectedOccurrences[index] < 0)
+					return false;
+			}
+			return true;
+		}
+
+		boolean hasValidStableScrollAnchor() {
+			return workspaceVersion == 2 && stableScrollAnchorPresent && scrollAnchorProjectId > 0L
+					&& scrollAnchorTaskId > 0L && scrollAnchorOccurrence >= 0 && scrollAnchorOffset >= 0;
+		}
+
+		public int getWorkspaceVersion() {
+			return workspaceVersion;
+		}
+
+		public void setWorkspaceVersion(int workspaceVersion) {
+			this.workspaceVersion = workspaceVersion;
+		}
+
+		public long[] getSelectedProjectIds() {
+			return selectedProjectIds == null ? null : selectedProjectIds.clone();
+		}
+
+		public void setSelectedProjectIds(long[] selectedProjectIds) {
+			this.selectedProjectIds = selectedProjectIds == null ? null : selectedProjectIds.clone();
+		}
+
+		public long[] getSelectedTaskIds() {
+			return selectedTaskIds == null ? null : selectedTaskIds.clone();
+		}
+
+		public void setSelectedTaskIds(long[] selectedTaskIds) {
+			this.selectedTaskIds = selectedTaskIds == null ? null : selectedTaskIds.clone();
+		}
+
+		public int[] getSelectedOccurrences() {
+			return selectedOccurrences == null ? null : selectedOccurrences.clone();
+		}
+
+		public void setSelectedOccurrences(int[] selectedOccurrences) {
+			this.selectedOccurrences = selectedOccurrences == null ? null : selectedOccurrences.clone();
+		}
+
+		public boolean isStableTaskSelectionPresent() {
+			return stableTaskSelectionPresent;
+		}
+
+		public void setStableTaskSelectionPresent(boolean present) {
+			stableTaskSelectionPresent = present;
+		}
+
+		public boolean isHeaderColumnSelectionActive() {
+			return headerColumnSelectionActive;
+		}
+
+		public void setHeaderColumnSelectionActive(boolean active) {
+			headerColumnSelectionActive = active;
+		}
+
+		public boolean isRowHeaderSelectionActive() {
+			return rowHeaderSelectionActive;
+		}
+
+		public void setRowHeaderSelectionActive(boolean active) {
+			rowHeaderSelectionActive = active;
+		}
+
+		public boolean isStableScrollAnchorPresent() {
+			return stableScrollAnchorPresent;
+		}
+
+		public void setStableScrollAnchorPresent(boolean present) {
+			stableScrollAnchorPresent = present;
+		}
+
+		public long getScrollAnchorProjectId() {
+			return scrollAnchorProjectId;
+		}
+
+		public void setScrollAnchorProjectId(long value) {
+			scrollAnchorProjectId = value;
+		}
+
+		public long getScrollAnchorTaskId() {
+			return scrollAnchorTaskId;
+		}
+
+		public void setScrollAnchorTaskId(long value) {
+			scrollAnchorTaskId = value;
+		}
+
+		public int getScrollAnchorOccurrence() {
+			return scrollAnchorOccurrence;
+		}
+
+		public void setScrollAnchorOccurrence(int value) {
+			scrollAnchorOccurrence = value;
+		}
+
+		public int getScrollAnchorOffset() {
+			return scrollAnchorOffset;
+		}
+
+		public void setScrollAnchorOffset(int value) {
+			scrollAnchorOffset = value;
+		}
 
 		public final int getEditingColumn() {
 			return editingColumn;
@@ -1878,11 +2106,11 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		}
 
 		public Point getViewPosition() {
-			return viewPosition;
+			return viewPosition == null ? null : new Point(viewPosition);
 		}
 
 		public void setViewPosition(Point viewPosition) {
-			this.viewPosition = viewPosition;
+			this.viewPosition = viewPosition == null ? null : new Point(viewPosition);
 		}
 	}
 
