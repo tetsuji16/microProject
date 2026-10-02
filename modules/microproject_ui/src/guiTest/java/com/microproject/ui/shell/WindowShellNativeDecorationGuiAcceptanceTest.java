@@ -33,6 +33,7 @@ import com.microproject.menu.MenuActionMapSupport;
 import com.microproject.menu.MenuManager;
 import com.microproject.pm.graphic.frames.MainRibbonFrame;
 import com.microproject.testsupport.GuiAcceptanceSupport;
+import com.microproject.testsupport.WindowAcceptanceAssertions;
 import com.microproject.util.Environment;
 
 /** Verifies that Windows caption movement is supplied by FlatLaf/Windows. */
@@ -118,6 +119,7 @@ class WindowShellNativeDecorationGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> normalBounds.equals(frame.getBounds()),
 			"native system-menu Restore did not recover the pre-maximize bounds: expected=" + normalBounds
 				+ ", actual=" + frame.getBounds());
+		WindowAcceptanceAssertions.assertWithinUsableWorkArea(frame, "restored primary native window");
 
 		Rectangle beforeResize = frame.getBounds();
 		int edgeX = beforeResize.x + beforeResize.width - 1;
@@ -130,6 +132,7 @@ class WindowShellNativeDecorationGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> frame.getWidth() < beforeResize.width,
 			"physical right-edge drag did not resize the native window: before=" + beforeResize
 				+ ", after=" + frame.getBounds());
+		WindowAcceptanceAssertions.assertWithinUsableWorkArea(frame, "resized primary native window before close");
 	}
 
 	private static void pressAltSpace(Robot robot) {

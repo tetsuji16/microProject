@@ -41,6 +41,7 @@ import com.microproject.pm.graphic.frames.MainRibbonFrame;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.Project;
 import com.microproject.testsupport.GuiAcceptanceSupport;
+import com.microproject.testsupport.WindowAcceptanceAssertions;
 import com.microproject.undo.DataFactoryUndoController;
 
 /** GUI-NC-11: switch between two open project frames with real keyboard/mouse input. */
@@ -123,6 +124,8 @@ class DefaultFrameManagerGuiAcceptanceTest {
 			secondary.toFront();
 			secondary.requestFocus();
 		});
+		WindowAcceptanceAssertions.assertWithinUsableWorkArea(secondary,
+			"secondary project window immediately before physical title-bar close");
 		Rectangle secondaryBounds = secondary.getBounds();
 		robot.mouseMove(secondaryBounds.x + secondaryBounds.width - 22, secondaryBounds.y + 15);
 		robot.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);

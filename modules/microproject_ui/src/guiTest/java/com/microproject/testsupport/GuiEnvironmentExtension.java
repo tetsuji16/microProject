@@ -13,6 +13,8 @@ import java.awt.Robot;
 import java.awt.Window;
 import java.awt.Toolkit;
 import java.awt.image.BufferedImage;
+import java.awt.geom.AffineTransform;
+import java.util.Locale;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import javax.imageio.ImageIO;
@@ -49,6 +51,34 @@ public final class GuiEnvironmentExtension implements BeforeEachCallback, AfterE
 		Files.createDirectories(directory);
 		String safeName = (context.getRequiredTestClass().getSimpleName() + "-" + context.getDisplayName())
 			.replaceAll("[^A-Za-z0-9_.-]", "_");
+		StringBuilder environment = new StringBuilder()
+			.append("os.name=").append(System.getProperty("os.name")).append(System.lineSeparator())
+			.append("os.version=").append(System.getProperty("os.version")).append(System.lineSeparator())
+			.append("os.arch=").append(System.getProperty("os.arch")).append(System.lineSeparator())
+			.append("java.version=").append(System.getProperty("java.version")).append(System.lineSeparator())
+			.append("locale.default=").append(Locale.getDefault().toLanguageTag()).append(System.lineSeparator())
+			.append("locale.language=").append(System.getProperty("user.language")).append(System.lineSeparator())
+			.append("locale.country=").append(System.getProperty("user.country")).append(System.lineSeparator())
+			.append("java2d.uiScale=").append(System.getProperty("sun.java2d.uiScale", "default"))
+				.append(System.lineSeparator());
+		if (!GraphicsEnvironment.isHeadless()) {
+			for (GraphicsDevice device : GraphicsEnvironment.getLocalGraphicsEnvironment().getScreenDevices()) {
+				var configuration = device.getDefaultConfiguration();
+				Rectangle bounds = configuration.getBounds();
+				java.awt.Insets insets = Toolkit.getDefaultToolkit().getScreenInsets(configuration);
+				Rectangle usable = new Rectangle(bounds.x + insets.left, bounds.y + insets.top,
+					bounds.width - insets.left - insets.right, bounds.height - insets.top - insets.bottom);
+				AffineTransform transform = configuration.getDefaultTransform();
+				environment.append("screen=").append(device.getIDstring())
+					.append(" bounds=").append(bounds)
+					.append(" insets=").append(insets)
+					.append(" usable=").append(usable)
+					.append(" scale=").append(transform.getScaleX()).append('x').append(transform.getScaleY())
+					.append(System.lineSeparator());
+			}
+		}
+		Files.writeString(directory.resolve(safeName + ".environment.txt"), environment.toString());
+		if (GraphicsEnvironment.isHeadless()) return;
 		Rectangle desktop = null;
 		for (GraphicsDevice device : GraphicsEnvironment.getLocalGraphicsEnvironment().getScreenDevices()) {
 			Rectangle bounds = device.getDefaultConfiguration().getBounds();
