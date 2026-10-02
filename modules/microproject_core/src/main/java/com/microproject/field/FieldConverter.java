@@ -127,11 +127,11 @@ public class FieldConverter  {
 	private Object convertValue(Object value, Class<?> clazz) {
 		if (clazz == null)
 			throw new ConversionException("Target type must not be null");
-		if (value == null)
-			return null;
 		ValueConverter converter = converters.get(clazz);
 		if (converter != null)
 			return converter.convert(clazz, value);
+		if (value == null)
+			return defaultScalarValue(clazz);
 		if (clazz.isInstance(value))
 			return value;
 		if (clazz.isEnum() && value instanceof String text) {
@@ -154,6 +154,20 @@ public class FieldConverter  {
 		}
 		// Preserve ConvertUtils' legacy fallback for unregistered target types.
 		return stringConverter.convert(clazz, value);
+	}
+
+	private static Object defaultScalarValue(Class<?> type) {
+		if (type == Boolean.TYPE || type == Boolean.class)
+			return Boolean.FALSE;
+		if (type == Byte.TYPE || type == Byte.class)
+			return Byte.valueOf((byte) 0);
+		if (type == Short.TYPE || type == Short.class)
+			return Short.valueOf((short) 0);
+		if (type == Integer.TYPE || type == Integer.class)
+			return Integer.valueOf(0);
+		if (type == Float.TYPE || type == Float.class)
+			return Float.valueOf(0.0f);
+		return null;
 	}
         
 	
@@ -263,14 +277,14 @@ public class FieldConverter  {
 	private static class BooleanConverter implements ValueConverter {
 		public Object convert(Class<?> type, Object value) {
 			if (value == null)
-				return type == Boolean.TYPE ? Boolean.FALSE : null;
+				return Boolean.FALSE;
 			if (value instanceof Boolean booleanValue)
 				return booleanValue;
 			String normalized = value.toString().trim().toLowerCase(Locale.ROOT);
 			return switch (normalized) {
 			case "true", "yes", "y", "on", "1" -> Boolean.TRUE;
 			case "false", "no", "n", "off", "0" -> Boolean.FALSE;
-			default -> throw new ConversionException("Invalid boolean value: " + value);
+			default -> Boolean.FALSE;
 			};
 		}
 	};
@@ -387,7 +401,7 @@ public class FieldConverter  {
 				}
 			}
 			if (value == null)
-				return null;
+				return Double.valueOf(0.0D);
 			try {
 				return Double.valueOf(value.toString().trim());
 			} catch (NumberFormatException exception) {
