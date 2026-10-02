@@ -86,6 +86,10 @@ final class TaskSelectionController implements ListSelectionListener, CacheListe
 			return;
 		}
 		selectionTopologyRevision = projection.topologyRevision();
+		if (isColumnPresentationSelection()) {
+			publish();
+			return;
+		}
 		applyingChartSelection = true;
 		try {
 			sheet.clearSelection();
