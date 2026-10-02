@@ -39,6 +39,7 @@ import com.microproject.pm.graphic.model.transform.CacheTransformer;
  */
 public class VisibleNodes extends VisibleElements<GraphicNode> {
     protected VisibleDependencies visibleDependencies;
+    private volatile RevisionedProjectionIndex projectionIndex = RevisionedProjectionIndex.empty();
     /**
      * @param transformer
      */
@@ -53,6 +54,27 @@ public class VisibleNodes extends VisibleElements<GraphicNode> {
     }
     public void setVisibleDependencies(VisibleDependencies visibleDependencies) {
         this.visibleDependencies = visibleDependencies;
+    }
+
+    public RevisionedProjectionIndex getProjectionIndex() {
+        return projectionIndex;
+    }
+
+    void publishProjectionIndex() {
+        projectionIndex = RevisionedProjectionIndex.create(elements, projectionIndex);
+    }
+
+    @Override
+    public int getRow(Object element) {
+        return element instanceof GraphicNode graphicNode
+                ? projectionIndex.rowForNode(graphicNode)
+                : -1;
+    }
+
+    @Override
+    public void clear() {
+        super.clear();
+        publishProjectionIndex();
     }
     
 

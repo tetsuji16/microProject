@@ -69,6 +69,7 @@ public class NodeCache extends CellCache<GraphicNode, VisibleNodes> {
 //		long t1=System.currentTimeMillis();
 
 		v.applyTransformer();
+		v.publishProjectionIndex();
 //		t0=System.currentTimeMillis();
 
 		applyUpdates(oldList, visibleElements, updates, v.getEvents(), this);

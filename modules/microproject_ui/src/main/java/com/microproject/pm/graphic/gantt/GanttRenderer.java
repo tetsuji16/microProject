@@ -66,6 +66,7 @@ import com.microproject.pm.graphic.graph.LinkRouting;
 import com.microproject.pm.graphic.model.cache.GraphicDependency;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
+import com.microproject.pm.graphic.model.cache.RevisionedProjectionIndex;
 import com.microproject.pm.graphic.timescale.CoordinatesConverter;
 import com.microproject.field.Field;
 import com.microproject.field.FieldConverter;
@@ -521,11 +522,11 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		protected int minLayer=0;
 		protected double intervalProgressRatio;
 
-		public void initialize(Graphics2D g2, GraphicNode node) {
+		public void initialize(Graphics2D g2, GraphicNode node, int row) {
 			this.g2 = g2;
 			this.node = node;
 			int rowHeight=((GanttParams)graphInfo).getRowHeight();
-			yrow=node.getRow()*rowHeight;
+			yrow=row*rowHeight;
 			setLayers(BarFormat.MIN_FOREGROUND_LAYER,BarFormat.MAX_FOREGROUND_LAYER);
 		}
 
@@ -715,17 +716,19 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		GraphicNode node;
 		Graphics2D g2;
 		protected int yrow;
+		protected int row;
 		FontMetrics fontMetrics;
 		Font annotationFont;
 		Set<String> renderedAnnotationKeys;
 		boolean annotationRenderedForNode;
 
-		public void initialize(Graphics2D g2, GraphicNode node) {
+		public void initialize(Graphics2D g2, GraphicNode node, int row) {
 			this.g2 = g2;
 			this.node = node;
+			this.row = row;
 			int rowHeight=((GanttParams)graphInfo).getRowHeight();
 			config=((GanttParams)graphInfo).getConfiguration();
-			yrow=node.getRow()*rowHeight;
+			yrow=row*rowHeight;
 			annotationFont = TaskFontStyle.resolveFont(getNodeImpl(node), FlatUiSupport.uiFont().deriveFont(Font.PLAIN));
 			fontMetrics = g2.getFontMetrics(annotationFont);
 			renderedAnnotationKeys = new HashSet<String>();
@@ -836,9 +839,13 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		protected BarFormat format;
 		protected GraphicDependency dependency;
 		protected Graphics2D g2;
-		void initialize(Graphics2D g2, GraphicDependency dependency) {
+		protected int predecessorRow;
+		protected int successorRow;
+		void initialize(Graphics2D g2, GraphicDependency dependency, int predecessorRow, int successorRow) {
 			this.g2 = g2;
 			this.dependency = dependency;
+			this.predecessorRow = predecessorRow;
+			this.successorRow = successorRow;
 		}
 
 
@@ -865,8 +872,8 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 				double x1=toSign<0?tx0:tx1;
 				int rowHeight=((GanttParams)graphInfo).getRowHeight();
 				int yOffset=config.getGanttBarYOffset()+config.getGanttBarHeight()/2;
-				int y0=rowHeight*from.getRow();
-				int y1=rowHeight*to.getRow();
+				int y0=rowHeight*predecessorRow;
+				int y1=rowHeight*successorRow;
 				double y2=Math.max(y0,y1);
 				y0+=yOffset;
 				y1+=yOffset;
@@ -952,7 +959,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 	}
 
 
-    public void updateShapes(ListIterator nodeIterator){
+	public void updateShapes(ListIterator nodeIterator){
 
     	Rectangle bounds = ((GanttParams)graphInfo).getGanttBounds();
     	CoordinatesConverter coord=((GanttParams)graphInfo).getCoord();
@@ -968,25 +975,37 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		while (i.hasNext()&&i.nextIndex()<i1){
 			int row=i.nextIndex();
 			node=i.next();
-			node.setRow(row);
-			if (!node.isVoid()) updateShape(node);
+			if (!node.isVoid()) updateShape(node, row);
 		}
     }
 
     public void updateShape(GraphicNode node){
+		RevisionedProjectionIndex projection = currentProjection();
+		updateShape(node, projection.rowForNode(node));
+	}
+
+	private void updateShape(GraphicNode node, int row){
+		if (row < 0) return;
     	if (((GanttParams)graphInfo).getCoord()==null) return; //not initialized
     	BarStyles barStyles = graphInfo.getBarStyles();
 		if (barStyles == null) return;
-		nodeRenderer.initialize(null,node);
+		nodeRenderer.initialize(null,node,row);
 		barStyles.apply(node.getNode().getImpl(),nodeRenderer);
 
-    }
+	}
 
 	public void paintNode(Graphics2D g2,GraphicNode node, boolean background){
+		paintNode(g2, node, background, currentProjection());
+	}
+
+	private void paintNode(Graphics2D g2, GraphicNode node, boolean background,
+			RevisionedProjectionIndex projection) {
+		int row = projection.rowForNode(node);
+		if (row < 0) return;
 		BarStyles barStyles = graphInfo.getBarStyles();
 		if (barStyles == null) return;
 		enablePaintHints(g2);
-		nodeRenderer.initialize(g2,node);
+		nodeRenderer.initialize(g2,node,row);
 
 		if (background)
 			nodeRenderer.setLayers(BarFormat.MIN_BACKGROUND_LAYER,BarFormat.MAX_BACKGROUND_LAYER);
@@ -996,16 +1015,26 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 	}
 
 	public void paintAnnotation(Graphics2D g2,GraphicNode node){
+		paintAnnotation(g2, node, currentProjection());
+	}
+
+	private void paintAnnotation(Graphics2D g2, GraphicNode node, RevisionedProjectionIndex projection) {
+		int row = projection.rowForNode(node);
+		if (row < 0) return;
 		BarStyles barStyles = graphInfo.getBarStyles();
 		if (barStyles == null) return;
 		enablePaintHints(g2);
-		annotationRenderer.initialize(g2,node);
+		annotationRenderer.initialize(g2,node,row);
 		barStyles.apply(node.getNode().getImpl(),annotationRenderer,false,true,false, false);
 	}
 
 	public void paintHorizontalLine(Graphics2D g2,GraphicNode node){
 		if (node == null) return;
-		paintHorizontalLine(g2, node.getRow());
+		paintHorizontalLine(g2, currentProjection().rowForNode(node));
+	}
+
+	private RevisionedProjectionIndex currentProjection() {
+		return graphInfo.getCache().getVisibleNodes().getProjectionIndex();
 	}
 
 	/** Paints the Gantt-row separator independently of task/bar formatting. */
@@ -1026,10 +1055,19 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 	}
 
 	public void paintLink(Graphics2D g2, GraphicDependency dependency){
+		paintLink(g2, dependency, currentProjection());
+	}
+
+	private void paintLink(Graphics2D g2, GraphicDependency dependency,
+			RevisionedProjectionIndex projection){
 		BarStyles barStyles = graphInfo.getBarStyles();
 		if (barStyles == null) return;
 		enablePaintHints(g2);
-		linkRenderer.initialize(g2,dependency);
+		GraphicNode predecessor = dependency.getPredecessor();
+		GraphicNode successor = dependency.getSuccessor();
+		int predecessorRow = predecessor == null ? -1 : projection.rowForNode(predecessor);
+		int successorRow = successor == null ? -1 : projection.rowForNode(successor);
+		linkRenderer.initialize(g2,dependency,predecessorRow,successorRow);
 		barStyles.apply(dependency,linkRenderer,true,false,false, false);
 	}
 
@@ -1090,7 +1128,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		}
 	}
 
-	private void paintProgressLine(Graphics2D g2) {
+	private void paintProgressLine(Graphics2D g2, RevisionedProjectionIndex projection) {
 		if (!(graphInfo instanceof Gantt))
 			return;
 
@@ -1098,7 +1136,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		if (!gantt.isProgressLineEnabled())
 			return;
 
-		GeneralPath path = createProgressLinePath();
+		GeneralPath path = createProgressLinePath(projection);
 		if (path == null)
 			return;
 
@@ -1106,7 +1144,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		Stroke oldStroke = g2.getStroke();
 		paintProgressLinePath(g2, path, getProgressLineHaloColor(), PROGRESS_LINE_HALO_STROKE);
 		paintProgressLinePath(g2, path, getProgressLineColor(), PROGRESS_LINE_STROKE);
-		paintProgressLinePoints(g2);
+		paintProgressLinePoints(g2, projection);
 		if (oldColor != null)
 			g2.setColor(oldColor);
 		if (oldStroke != null)
@@ -1120,7 +1158,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		g2.draw(path);
 	}
 
-	private void paintProgressLinePoints(Graphics2D g2) {
+	private void paintProgressLinePoints(Graphics2D g2, RevisionedProjectionIndex projection) {
 		CoordinatesConverter coord=((GanttParams)graphInfo).getCoord();
 		if (coord == null)
 			return;
@@ -1132,7 +1170,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 				continue;
 			Task task = (Task)node.getNode().getImpl();
 			int x = (int)Math.round(getProgressLineX(coord, task));
-			int y = (int)Math.round(getProgressLineY(node));
+			int y = (int)Math.round(getProgressLineY(node, projection));
 			g2.setColor(getProgressLineHaloColor());
 			g2.fillOval(x - half - 1, y - half - 1, size + 2, size + 2);
 			g2.setColor(getProgressLineColor());
@@ -1140,7 +1178,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		}
 	}
 
-	private GeneralPath createProgressLinePath() {
+	private GeneralPath createProgressLinePath(RevisionedProjectionIndex projection) {
 		CoordinatesConverter coord=((GanttParams)graphInfo).getCoord();
 		if (coord == null)
 			return null;
@@ -1155,7 +1193,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 
 			Task task = (Task)node.getNode().getImpl();
 			double progressX = getProgressLineX(coord, task);
-			double y = getProgressLineY(node);
+			double y = getProgressLineY(node, projection);
 			if (path == null) {
 				path = new GeneralPath();
 				referenceX = coord.toX(getProgressReferenceDate(task));
@@ -1199,10 +1237,14 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		return project == null ? 0L : project.getStatusDate();
 	}
 
-	double getProgressLineY(GraphicNode node) {
+	double getProgressLineY(GraphicNode node, RevisionedProjectionIndex projection) {
 		int rowHeight=((GanttParams)graphInfo).getRowHeight();
 		int yOffset=config.getGanttBarYOffset()+config.getGanttBarHeight()/2;
-		return rowHeight*node.getRow()+yOffset;
+		return rowHeight*projection.rowForNode(node)+yOffset;
+	}
+
+	double getProgressLineY(GraphicNode node) {
+		return getProgressLineY(node, currentProjection());
 	}
 
 	protected BarFormat calendarFormat;
@@ -1379,34 +1421,21 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		GraphicNode node;
 
 		NodeModelCache cache=graphInfo.getCache();
-		int rowCount = cache.getSize();
+		RevisionedProjectionIndex projection = cache.getVisibleNodes().getProjectionIndex();
+		int rowCount = projection.size();
 		i0 = clampVisibleRow(i0, rowCount);
 		i1 = Math.max(i0, clampVisibleRow(i1, rowCount));
-		@SuppressWarnings("unchecked")
-		ListIterator<GraphicNode> i=cache.getIterator(i0);
-		for (;i.hasNext()&&i.nextIndex()<i1;){
-			int row=i.nextIndex();
-			node=i.next();
-			node.setRow(row);
+		for (int row = i0; row < i1; row++) {
+			node = projection.nodeAt(row);
 			// Gantt row separators belong to the row grid, not to a bar style.
 			// Paint them for empty and non-scheduled rows as well (issue #451).
 			paintHorizontalLine(g2, row);
 			if (!node.isSchedule()) continue;
 			nodeList.add(node);
-			paintNode(g2,node,true);
+			paintNode(g2,node,true,projection);
 		}
 
 		GraphicDependency dependency;
-		Map<GraphicNode, Integer> rowByNode = new IdentityHashMap<>();
-		if (cache.getVisibleNodes() != null && cache.getVisibleNodes().getElements() != null) {
-			List<?> visibleNodes = cache.getVisibleNodes().getElements();
-			for (int row = 0; row < visibleNodes.size(); row++) {
-				Object visibleNode = visibleNodes.get(row);
-				if (visibleNode instanceof GraphicNode graphicNode) {
-					rowByNode.put(graphicNode, row);
-				}
-			}
-		}
 		@SuppressWarnings("unchecked")
 		Iterator<GraphicDependency> dependencyIterator = cache.getVisibleDependencies().getIterator();
 		for (;dependencyIterator.hasNext();){
@@ -1414,34 +1443,28 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			GraphicNode predecessor = dependency.getPredecessor();
 			GraphicNode successor = dependency.getSuccessor();
 			if (predecessor == null || successor == null) {
-				paintLink(g2,dependency);
+				paintLink(g2,dependency,projection);
 				continue;
 			}
-			int predecessorRow = rowByNode.getOrDefault(predecessor, -1);
-			int successorRow = rowByNode.getOrDefault(successor, -1);
-			if (predecessorRow >= 0 && successorRow >= 0) {
-				// LinkRenderer uses the temporary row on each endpoint. Keep it in
-				// sync when a dependency reaches in from outside the paint clip.
-				predecessor.setRow(predecessorRow);
-				successor.setRow(successorRow);
-			}
+			int predecessorRow = projection.rowForNode(predecessor);
+			int successorRow = projection.rowForNode(successor);
 			if (isDependencyPotentiallyVisible(predecessorRow, successorRow,
 					(int) rowHeight, clipBounds))
-				paintLink(g2,dependency);
+				paintLink(g2,dependency,projection);
 		}
 
 		for (ListIterator<GraphicNode> nodeIterator=nodeList.listIterator();nodeIterator.hasNext();){
 			node=nodeIterator.next();
-			paintNode(g2,node,false);
+			paintNode(g2,node,false,projection);
 		}
 		// Keep bar labels in the topmost layer.  Dependency paths can cross the
 		// area beside a task bar, so painting annotations before links makes task
 		// names hard to read.
 		for (ListIterator<GraphicNode> nodeIterator=nodeList.listIterator();nodeIterator.hasNext();){
 			node=nodeIterator.next();
-			paintAnnotation(g2,node);
+			paintAnnotation(g2,node,projection);
 		}
-		paintProgressLine(g2);
+		paintProgressLine(g2,projection);
 
 		if (visibleBounds!=null) g2.setClip(svgClip);
 

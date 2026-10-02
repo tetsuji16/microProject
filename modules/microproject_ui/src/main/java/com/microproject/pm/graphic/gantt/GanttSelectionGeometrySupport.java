@@ -180,6 +180,7 @@ final class GanttSelectionGeometrySupport {
 	}
 
 	private double barY(GraphicNode node) {
-		return ui.getBarY(node.getRow());
+		int row = ui.getGraph().getCache().getVisibleNodes().getProjectionIndex().rowForNode(node);
+		return row < 0 ? Double.NaN : ui.getBarY(row);
 	}
 }

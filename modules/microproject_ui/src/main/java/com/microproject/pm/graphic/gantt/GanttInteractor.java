@@ -360,7 +360,8 @@ public class GanttInteractor extends GraphInteractor{
 		GraphicNode node=(GraphicNode)selected;
 		Object impl = node.getNode().getImpl();
 		return impl instanceof HasDependencies &&
-				((int)y)/((Gantt)getGraph()).getRowHeight()!=node.getRow() ;
+				((int)y)/((Gantt)getGraph()).getRowHeight()!=getGraph().getCache().getVisibleNodes()
+						.getProjectionIndex().rowForNode(node) ;
     }
 
     public Cursor selectCursor(){

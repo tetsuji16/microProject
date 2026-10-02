@@ -257,7 +257,8 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		NormalTask task = (NormalTask) node.getNode().getImpl();
 		BarGeometry bar = barGeometry(fixture.gantt, task);
 		int x = bar.startX() + Math.max(1, bar.width() / 2);
-		int y = node.getRow() * fixture.gantt.getRowHeight() + fixture.gantt.getRowHeight() / 2;
+		int row = fixture.gantt.getModel().getCache().getVisibleNodes().getProjectionIndex().rowForNode(node);
+		int y = row * fixture.gantt.getRowHeight() + fixture.gantt.getRowHeight() / 2;
 		Point point = screenCenter(fixture.gantt, new Rectangle(x, y, 1, 1));
 		long startBefore = task.getStart();
 		long durationBefore = task.getRawDuration();
@@ -823,7 +824,8 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		GanttUI ui = (GanttUI) fixture.gantt.getUI();
 		int x = (int) Math.round(fixture.gantt.getCoord().toX(
 			GanttProgress.progressLineDate(task, task.getProject().getStatusDate())));
-		int y = (int) Math.round(ui.getBarY(node.getRow()) + node.getGanttShapeOffset()
+		int row = fixture.gantt.getModel().getCache().getVisibleNodes().getProjectionIndex().rowForNode(node);
+		int y = (int) Math.round(ui.getBarY(row) + node.getGanttShapeOffset()
 			+ node.getGanttShapeHeight() / 2.0d);
 		JScrollPane pane = (JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class, fixture.gantt);
 		assertTrue(pane != null, "Gantt must be hosted by a scroll pane");
@@ -1103,7 +1105,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> {
 			frame.toFront();
 			frame.requestFocus();
-			fixture.sheet.changeSelection(node.getRow(), durationColumn, false, false);
+			fixture.sheet.changeSelection(fixture.sheet.getCache().getRowAt(node), durationColumn, false, false);
 		});
 		GuiAcceptanceSupport.await(() -> fixture.sheet.isShowing() && fixture.gantt.isShowing(),
 			"task table and Gantt must be visible before duration input");
@@ -1111,7 +1113,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		assertTrue(pane != null, "Gantt must be hosted by a scroll pane");
 		Point viewportBefore = pane.getViewport().getViewPosition();
 		BarGeometry before = barGeometry(fixture.gantt, task);
-		editCellPhysically(robot, fixture.sheet, node.getRow(), durationColumn, "10");
+		editCellPhysically(robot, fixture.sheet, fixture.sheet.getCache().getRowAt(node), durationColumn, "10");
 		assertEquals(10L * CalendarOption.getInstance().getMillisPerDay(), task.getRawDuration(),
 			"the task-table physical duration edit must commit the complete value");
 		GuiAcceptanceSupport.await(() -> task.getRawDuration() == 10L * CalendarOption.getInstance().getMillisPerDay(),
@@ -1156,7 +1158,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		String inputDate = String.format(java.util.Locale.ROOT, "%d/%d/%d",
 			expectedStart.get(Calendar.YEAR), expectedStart.get(Calendar.MONTH) + 1,
 			expectedStart.get(Calendar.DAY_OF_MONTH));
-		editCellPhysically(robot, fixture.sheet, node.getRow(), startColumn, inputDate);
+		editCellPhysically(robot, fixture.sheet, fixture.sheet.getCache().getRowAt(node), startColumn, inputDate);
 		Calendar committed = Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"));
 		committed.setTimeInMillis(task.getStart());
 		assertEquals(expectedStart.get(Calendar.YEAR), committed.get(Calendar.YEAR), "date input must commit the year");
@@ -1177,7 +1179,8 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		Robot robot = new Robot();
 		robot.setAutoDelay(35);
 		GraphicNode node = (GraphicNode) fixture.gantt.getModel().getCache().getElementAt(0);
-		editCellPhysically(robot, fixture.sheet, node.getRow(), findColumn(fixture.sheet, "Field.duration"), "10");
+		editCellPhysically(robot, fixture.sheet, fixture.sheet.getCache().getRowAt(node),
+			findColumn(fixture.sheet, "Field.duration"), "10");
 		assertEquals(10L * CalendarOption.getInstance().getMillisPerDay(), fixture.project.getTasks().stream()
 			.filter(value -> value instanceof NormalTask && "Sequential 1".equals(((NormalTask) value).getName()))
 			.map(value -> ((NormalTask) value).getRawDuration()).findFirst().orElseThrow());

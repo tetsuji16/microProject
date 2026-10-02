@@ -378,13 +378,6 @@ public class GraphicNode implements HierarchicObject<GraphicNode>{
 	}
 
 
-	protected int row; //tmp value for performance reasons
-	public int getRow() {
-		return row;
-	}
-	public void setRow(int row) {
-		this.row = row;
-	}
 	protected GeneralPath pertShape=null;
 	protected GeneralPath xbsShape=null;
 	protected Point2D pertCenter=null;

@@ -173,7 +173,8 @@ class GanttBarDateDragGuiAcceptanceTest {
 					GraphZone zone = gantt.getUI().getNodeAt(x, y);
 					if (zone != null && zone.getObject() instanceof GraphicNode node
 							&& node.getNode().getImpl() == fixture.predecessor) {
-						int barY = (int) Math.round(((GanttUI) gantt.getUI()).getBarY(node.getRow())
+						int row = gantt.getModel().getCache().getVisibleNodes().getProjectionIndex().rowForNode(node);
+						int barY = (int) Math.round(((GanttUI) gantt.getUI()).getBarY(row)
 							+ node.getGanttShapeOffset() + node.getGanttShapeHeight() / 2.0d);
 						int barCenter = (int) Math.round((gantt.getCoord().toX(fixture.predecessor.getStart())
 							+ gantt.getCoord().toX(fixture.predecessor.getEnd())) / 2.0d);
