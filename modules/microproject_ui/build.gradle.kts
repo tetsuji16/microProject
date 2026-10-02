@@ -17,7 +17,6 @@ dependencies {
 	implementation(libs.commons.collections4)
 	// UI owns these legacy Swing libraries explicitly; they are no longer
 	// injected into every subproject by the root build.
-	implementation(libs.commons.beanutils)
 	implementation(libs.commons.digester)
 	implementation(libs.commons.lang)
 	implementation(libs.commons.lang3)

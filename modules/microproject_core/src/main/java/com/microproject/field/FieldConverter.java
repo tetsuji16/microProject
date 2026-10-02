@@ -25,16 +25,14 @@
 package com.microproject.field;
 
 import java.text.ParseException;
+import java.beans.PropertyEditor;
+import java.beans.PropertyEditorManager;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import org.apache.commons.beanutils.ConversionException;
-import org.apache.commons.beanutils.ConvertUtils;
-import org.apache.commons.beanutils.Converter;
 
 import com.microproject.datatype.Duration;
 import com.microproject.datatype.DurationFormat;
@@ -44,11 +42,12 @@ import com.microproject.options.EditOption;
 import com.microproject.strings.Messages;
 import com.microproject.util.DateTime;
 /**
- * This class decorates ConvertUtils to use ProjectLibre specific types and validation
+ * Converts field values while applying ProjectLibre specific types and validation.
  */
 public class FieldConverter  {
 	private static final Logger logger = Logger.getLogger(FieldConverter.class.getName());
-	HashMap<FieldContext,HashMap<Class<?>,Converter>> contextMaps = HashMap.newHashMap(1);
+	HashMap<FieldContext,HashMap<Class<?>,ValueConverter>> contextMaps = HashMap.newHashMap(1);
+	private final HashMap<Class<?>, ValueConverter> converters = HashMap.newHashMap(8);
 	private StringConverter stringConverter;
 	private StringConverter compactStringConverter;
 	
@@ -59,7 +58,7 @@ public class FieldConverter  {
 		return getInstance()._toString(value,value.getClass(),null);
 	}
 	public static Object fromString(String value, Class<?> clazz) {
-		return ConvertUtils.convert(value, clazz);
+		return getInstance().convertValue(value, clazz);
 	}
 
 	
@@ -96,20 +95,17 @@ public class FieldConverter  {
 	private Object _convert(Object value, Class<?> clazz, FieldContext context) throws FieldParseException {
 		try {
 			if (value instanceof String string) {
-				Object result = null;
-				if (context == null)
-					result = ConvertUtils.convert(string,clazz);
+				ValueConverter contextConverter = null;
+				HashMap<Class<?>, ValueConverter> contextMap = contextMaps.get(context);
+				if (contextMap != null)
+					contextConverter = contextMap.get(clazz);
+				Object result;
+				if (contextConverter != null)
+					result = contextConverter.convert(clazz, value);
 				else {
-					Converter contextConverter = null;
-					HashMap<Class<?>, Converter> contextMap = contextMaps.get(context);
-					if (contextMap != null)
-						contextConverter = contextMap.get(clazz);
-					if (contextConverter != null) {
-						result = contextConverter.convert(clazz, value);
-					} else {
+					if (context != null)
 						logger.fine("no context converter found");
-						result = ConvertUtils.convert(string,clazz);
-					}
+					result = convertValue(string, clazz);
 				}
 	//			if (result instanceof java.util.Date) { //  dates need to be normalized
 	//				result = new Date(DateTime.gmt((Date) result));
@@ -120,17 +116,43 @@ public class FieldConverter  {
 				return result;
 			}	
 	
-			// Because of stupidity of beanutils which assumes type string, I implement this by hand
-			Converter converter = ConvertUtils.lookup(clazz);                       
-			if (converter == null) {                         
-				logger.log(Level.WARNING, "converter is null for class {0} instance {1} resetting", new Object[] {clazz, instance.hashCode()});
-				instance = new FieldConverter();
-				converter = ConvertUtils.lookup(String.class);  
-			} 
-			return converter.convert(clazz, value);
+			// Object-to-object conversions use the same typed registry as text conversion.
+			return convertValue(value, clazz);
 		} catch (ConversionException conversionException) {
 			throw new FieldParseException(conversionException);
 		}
+	}
+
+	private Object convertValue(Object value, Class<?> clazz) {
+		if (clazz == null)
+			throw new ConversionException("Target type must not be null");
+		if (value == null)
+			return null;
+		ValueConverter converter = converters.get(clazz);
+		if (converter != null)
+			return converter.convert(clazz, value);
+		if (clazz.isInstance(value))
+			return value;
+		if (clazz.isEnum() && value instanceof String text) {
+			try {
+				@SuppressWarnings({"rawtypes", "unchecked"})
+				Object enumValue = Enum.valueOf((Class<? extends Enum>) clazz, text);
+				return enumValue;
+			} catch (IllegalArgumentException exception) {
+				throw new ConversionException(exception);
+			}
+		}
+		PropertyEditor editor = PropertyEditorManager.findEditor(clazz);
+		if (editor != null) {
+			try {
+				editor.setAsText(value.toString());
+				return editor.getValue();
+			} catch (IllegalArgumentException exception) {
+				throw new ConversionException(exception);
+			}
+		}
+		// Preserve ConvertUtils' legacy fallback for unregistered target types.
+		return stringConverter.convert(clazz, value);
 	}
         
 	
@@ -153,28 +175,38 @@ public class FieldConverter  {
 		instance = this;
 		stringConverter = new StringConverter(false);
 		compactStringConverter = new StringConverter(true);
-		ConvertUtils.register(stringConverter, String.class);   // Wrapper class
-		ConvertUtils.register(new DateConverter(), Date.class);   // Wrapper class
-		ConvertUtils.register(new CalendarConverter(), GregorianCalendar.class);   // Wrapper class
-		ConvertUtils.register(new DurationConverter(), Duration.class);   // Wrapper class
-		ConvertUtils.register(new WorkConverter(), Work.class);   // Wrapper class
-		ConvertUtils.register(new MoneyConverter(), Money.class);   // Wrapper class
-		Converter longConverter = new LongConverter();
-		ConvertUtils.register(longConverter, Long.TYPE);    // Native type
-		ConvertUtils.register(longConverter, Long.class);   // Wrapper class
-		Converter doubleConverter = new DoubleConverter();
-		ConvertUtils.register(doubleConverter, Double.TYPE);    // Native type
-		ConvertUtils.register(doubleConverter, Double.class);   // Wrapper class
+		converters.put(String.class, stringConverter);
+		converters.put(Date.class, new DateConverter());
+		converters.put(GregorianCalendar.class, new CalendarConverter());
+		converters.put(Duration.class, new DurationConverter());
+		converters.put(Work.class, new WorkConverter());
+		converters.put(Money.class, new MoneyConverter());
+		ValueConverter longConverter = new LongConverter();
+		converters.put(Long.TYPE, longConverter);
+		converters.put(Long.class, longConverter);
+		ValueConverter doubleConverter = new DoubleConverter();
+		converters.put(Double.TYPE, doubleConverter);
+		converters.put(Double.class, doubleConverter);
 		
 
 		// short context converters
-		HashMap<Class<?>, Converter> compactMap = HashMap.newHashMap(1);
+		HashMap<Class<?>, ValueConverter> compactMap = HashMap.newHashMap(1);
 		contextMaps.put(COMPACT_CONVERTER_CONTEXT, compactMap);
 		compactMap.put(String.class,compactStringConverter);
 		// no need for duration or money as parsing is done in long form
 		
 	}
-	private static class StringConverter implements Converter {
+	private interface ValueConverter {
+		Object convert(Class<?> type, Object value);
+	}
+
+	private static class ConversionException extends IllegalArgumentException {
+		private static final long serialVersionUID = 1L;
+		ConversionException(String message) { super(message); }
+		ConversionException(Throwable cause) { super(cause); }
+	}
+
+	private static class StringConverter implements ValueConverter {
 		private boolean compact = false;
 		StringConverter(boolean compact) {
 			this.compact = compact;
@@ -205,9 +237,8 @@ public class FieldConverter  {
 		}
 	}
 	// make a converter for long that can process dates and durations
-	private static class LongConverter implements Converter {
-		Converter baseConverter = new org.apache.commons.beanutils.converters.LongConverter(); 
-		public Object convert(Class type, Object value) throws ConversionException {
+	private static class LongConverter implements ValueConverter {
+		public Object convert(Class<?> type, Object value) throws ConversionException {
 			if (value == null)
 				return null;
 			if (value instanceof Date date) {
@@ -217,12 +248,16 @@ public class FieldConverter  {
 			} else if (value instanceof Duration duration) {
 				return Long.valueOf(duration.getEncodedMillis());
 			}
-			return baseConverter.convert(type,value);
+			try {
+				return Long.valueOf(value.toString());
+			} catch (NumberFormatException exception) {
+				throw new ConversionException(exception);
+			}
 		}
 	};
 	
-	private static class DateConverter implements Converter {
-		public Object convert(Class type, Object value) throws ConversionException {
+	private static class DateConverter implements ValueConverter {
+		public Object convert(Class<?> type, Object value) throws ConversionException {
 			if (value == null)
 				return null;
 			if (value instanceof Long longValueObject) {
@@ -251,9 +286,9 @@ public class FieldConverter  {
 	};		
 		
 	// GregorianCalendar converter
-	private static class CalendarConverter implements Converter {
+	private static class CalendarConverter implements ValueConverter {
 		private static DateConverter dateConverter = new DateConverter();
-		public Object convert(Class type, Object value) throws ConversionException {
+		public Object convert(Class<?> type, Object value) throws ConversionException {
 			GregorianCalendar cal = DateTime.calendarInstance();
 			if (value == null) {
 				return null;
@@ -275,8 +310,8 @@ public class FieldConverter  {
 			throw new ConversionException("Error: no conversion from " + value.getClass().getName() + " to " + type.getName() + " for value" + value);
 		}
 	};		
-	private static class DurationConverter implements Converter {
-			public Object convert(Class type, Object value) throws ConversionException {
+	private static class DurationConverter implements ValueConverter {
+			public Object convert(Class<?> type, Object value) throws ConversionException {
 			if (value == null)
 				return Duration.getInstanceFromDouble(null);
 			
@@ -297,8 +332,8 @@ public class FieldConverter  {
 		}
 	};		
 
-	private static class WorkConverter implements Converter {
-		public Object convert(Class type, Object value) throws ConversionException {
+	private static class WorkConverter implements ValueConverter {
+		public Object convert(Class<?> type, Object value) throws ConversionException {
 			if (value == null)
 				return Duration.getInstanceFromDouble(null);
 			
@@ -318,9 +353,8 @@ public class FieldConverter  {
 			throw new ConversionException("Error: no conversion from " + value.getClass().getName() + " to " + type.getName() + " for value" + value);
 		}
 	};		
-	private static class DoubleConverter implements Converter {
-		Converter baseConverter = new org.apache.commons.beanutils.converters.DoubleConverter(); 
-		public Object convert(Class type, Object value) throws ConversionException {
+	private static class DoubleConverter implements ValueConverter {
+		public Object convert(Class<?> type, Object value) throws ConversionException {
 			if (value != null) {
 				if (value instanceof Double doubleValue) {
 					return doubleValue;
@@ -333,7 +367,13 @@ public class FieldConverter  {
 					return Double.valueOf(num);
 				}
 			}
-			return baseConverter.convert(type,value);
+			if (value == null)
+				return null;
+			try {
+				return Double.valueOf(value.toString());
+			} catch (NumberFormatException exception) {
+				throw new ConversionException(exception);
+			}
 		}
 	};
 
@@ -343,8 +383,8 @@ public class FieldConverter  {
 	 * http://www.bindingpoint.com/service.aspx?skey=377e6659-061f-4956-8edb-19b5023bc33b
 	 *  
 	 */
-	private static class MoneyConverter implements Converter {
-		public Object convert(Class type, Object value) throws ConversionException {
+	private static class MoneyConverter implements ValueConverter {
+		public Object convert(Class<?> type, Object value) throws ConversionException {
 			if (value == null)
 				return Money.getInstance(0);
 			if (value instanceof Money money) {

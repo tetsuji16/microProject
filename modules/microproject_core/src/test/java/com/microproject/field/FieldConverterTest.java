@@ -21,6 +21,8 @@ package com.microproject.field;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Calendar;
 import java.util.Date;
@@ -52,7 +54,14 @@ class FieldConverterTest {
 	void convertsUsingTypedRuntimeClassMetadata() throws FieldParseException {
 		assertEquals(42, FieldConverter.convert("42", Integer.class, null));
 		assertEquals(42, FieldConverter.fromString("42", Integer.class));
+		assertTrue((Boolean) FieldConverter.convert("true", Boolean.class, null));
+		assertEquals(42L, FieldConverter.convert(42, Long.class, null));
+		assertEquals(12.5D, FieldConverter.convert("12.5", Double.TYPE, null));
+		assertEquals(TestMode.ACTIVE, FieldConverter.convert("ACTIVE", TestMode.class, null));
+		assertThrows(FieldParseException.class, () -> FieldConverter.convert("not-a-number", Integer.class, null));
 	}
+
+	private enum TestMode { ACTIVE }
 
 	@Test
 	void returnsTheResultFromAContextSpecificConverter() throws FieldParseException {
