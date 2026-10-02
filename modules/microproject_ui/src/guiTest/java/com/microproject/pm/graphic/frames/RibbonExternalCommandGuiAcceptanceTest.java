@@ -641,23 +641,19 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			&& window.getGraphicManager() != initialManager,
 			"Locale change did not install a new GraphicManager through StartupFactory");
 		manager = window.getGraphicManager();
-		RibbonTask task = null;
-		for (Component component : flatten(window.getRibbonPanel())) {
-			if (component instanceof JRibbon ribbon && ribbon.getTaskCount() > 1) {
-				task = ribbon.getTask(1);
-				break;
-			}
-		}
-		assertTrue(task != null, "Restarted JRibbon did not restore its Task ribbon definition");
-		RibbonTask restoredTask = task;
 		AbstractButton[] restoredTaskTab = new AbstractButton[1];
 		GuiAcceptanceSupport.await(() -> {
-			try {
-				restoredTaskTab[0] = findRibbonTab(window.getRibbonPanel(), restoredTask);
-				return true;
-			} catch (AssertionError notLaidOutYet) {
-				return false;
+			for (Component component : flatten(window.getRibbonPanel())) {
+				if (component instanceof JRibbon ribbon && ribbon.isShowing() && ribbon.getTaskCount() > 1) {
+					try {
+						restoredTaskTab[0] = findRibbonTab(window.getRibbonPanel(), ribbon.getTask(1));
+						return true;
+					} catch (AssertionError notLaidOutYet) {
+						// A visible wrapper can precede installation of its native tab controls.
+					}
+				}
 			}
+			return false;
 		}, "Restarted JRibbon did not lay out its native Task tab");
 		AbstractButton taskTab = restoredTaskTab[0];
 		click(robot, taskTab);

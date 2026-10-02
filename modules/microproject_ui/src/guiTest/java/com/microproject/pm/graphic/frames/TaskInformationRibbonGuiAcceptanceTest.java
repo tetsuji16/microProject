@@ -251,6 +251,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				Job removal = factory.getRemoveProjectJob(cleanupProject[0], false, false, false);
 				if (removal != null) {
 					CountDownLatch removalComplete = new CountDownLatch(1);
+					removal.setName("gui-acceptance-remove-" + System.nanoTime());
 					removal.addCompletionRunnable(removalComplete::countDown);
 					SessionFactory.getInstance().getSession(cleanupProject[0].isLocal()).schedule(removal);
 					assertTrue(removalComplete.await(30, TimeUnit.SECONDS),
