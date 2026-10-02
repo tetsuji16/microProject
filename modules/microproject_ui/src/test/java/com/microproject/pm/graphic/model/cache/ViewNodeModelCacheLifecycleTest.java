@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.grouping.core.Node;
 import com.microproject.pm.graphic.graph.GraphModel;
-import com.microproject.pm.graphic.graph.event.GraphListener;
+import com.microproject.pm.graphic.network.Network;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
@@ -61,16 +61,17 @@ class ViewNodeModelCacheLifecycleTest {
 				project.getTaskModel());
 		ViewNodeModelCache view = (ViewNodeModelCache) NodeModelCacheFactory.getInstance()
 				.createFilteredCache(reference, "graph-view", null);
-		GraphModel graphModel = new GraphModel(project, "graph-lifecycle-test");
-		GraphListener listener = event -> {};
-		graphModel.addGraphListener(listener);
-		graphModel.setCache(view);
+		Network graph = new Network(project, "graph-lifecycle-test");
+		GraphModel graphModel = graph.getModel();
+		graph.setCache(view);
 		assertTrue(Arrays.asList(view.getNodeModelListeners()).contains(graphModel));
+		assertTrue(Arrays.asList(graphModel.getGraphListeners()).contains(graph));
 
-		graphModel.close();
-		graphModel.close();
+		graph.cleanUp();
+		graph.cleanUp();
 
 		assertFalse(Arrays.asList(view.getNodeModelListeners()).contains(graphModel));
+		assertFalse(Arrays.asList(graphModel.getGraphListeners()).contains(graph));
 		assertSame(project.getTaskModel(), reference.getModel(),
 				"graph teardown releases only its listener and does not close the document cache");
 		view.close();

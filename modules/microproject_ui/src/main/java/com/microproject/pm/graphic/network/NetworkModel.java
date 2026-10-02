@@ -49,7 +49,8 @@ public class NetworkModel extends GraphModel{
 	}
 
 	public void setCache(NodeModelCache cache){
-		networkLayout.setCache(cache);
+		if (networkLayout != null)
+			networkLayout.setCache(cache);
 		super.setCache(cache);
 	}
 	public void setBarStyles(BarStyles barStyles) {
@@ -82,4 +83,3 @@ public class NetworkModel extends GraphModel{
 	
 	
 }
-
