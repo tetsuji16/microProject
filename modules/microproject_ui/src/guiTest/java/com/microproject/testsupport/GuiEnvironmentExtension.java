@@ -15,6 +15,7 @@ import java.awt.Toolkit;
 import java.awt.image.BufferedImage;
 import java.awt.geom.AffineTransform;
 import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import javax.imageio.ImageIO;
@@ -54,6 +55,7 @@ public final class GuiEnvironmentExtension implements BeforeEachCallback, AfterE
 		StringBuilder environment = new StringBuilder()
 			.append("os.name=").append(System.getProperty("os.name")).append(System.lineSeparator())
 			.append("os.version=").append(System.getProperty("os.version")).append(System.lineSeparator())
+			.append("os.kernelVersion=").append(windowsKernelVersion()).append(System.lineSeparator())
 			.append("os.arch=").append(System.getProperty("os.arch")).append(System.lineSeparator())
 			.append("java.version=").append(System.getProperty("java.version")).append(System.lineSeparator())
 			.append("locale.default=").append(Locale.getDefault().toLanguageTag()).append(System.lineSeparator())
@@ -98,6 +100,24 @@ public final class GuiEnvironmentExtension implements BeforeEachCallback, AfterE
 				.append(System.lineSeparator());
 		}
 		Files.writeString(directory.resolve(safeName + ".windows.txt"), windows.toString());
+	}
+
+	private static String windowsKernelVersion() {
+		if (!System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("windows")) return "not-applicable";
+		Process process = null;
+		try {
+			process = new ProcessBuilder("cmd.exe", "/c", "ver").redirectErrorStream(true).start();
+			if (!process.waitFor(3, TimeUnit.SECONDS)) {
+				process.destroyForcibly();
+				return "query timed out";
+			}
+			String output = new String(process.getInputStream().readAllBytes(), java.nio.charset.Charset.defaultCharset())
+				.replace('\r', ' ').replace('\n', ' ').trim();
+			return process.exitValue() == 0 ? output : "query failed: " + output;
+		} catch (Exception exception) {
+			if (process != null) process.destroyForcibly();
+			return "query failed: " + exception.getClass().getSimpleName();
+		}
 	}
 
 	private static void cleanupDesktop(String description) throws Exception {

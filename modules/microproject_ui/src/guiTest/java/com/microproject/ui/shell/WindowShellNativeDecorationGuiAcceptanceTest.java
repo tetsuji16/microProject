@@ -108,10 +108,15 @@ class WindowShellNativeDecorationGuiAcceptanceTest {
 		assertNotEquals(before, frame.getLocation());
 
 		Rectangle normalBounds = frame.getBounds();
-		clickNativeMaximizeButton(robot, content[0]);
+		WindowAcceptanceAssertions.hoverNativeTitleButton(robot, frame, "Maximize", 1_200);
+		robot.keyPress(KeyEvent.VK_ESCAPE);
+		robot.keyRelease(KeyEvent.VK_ESCAPE);
+		robot.mouseMove(start.x, start.y);
+		robot.waitForIdle();
+		WindowAcceptanceAssertions.clickNativeTitleButton(robot, frame, "Maximize");
 		GuiAcceptanceSupport.await(() -> isMaximized(frame),
 			"physical native maximize-button click did not maximize the window");
-		clickNativeMaximizeButton(robot, content[0]);
+		WindowAcceptanceAssertions.clickNativeTitleButton(robot, frame, "Restore");
 		GuiAcceptanceSupport.await(() -> !isMaximized(frame),
 			"physical native restore-button click did not restore the window");
 		GuiAcceptanceSupport.await(() -> normalBounds.equals(frame.getBounds()),
@@ -144,20 +149,6 @@ class WindowShellNativeDecorationGuiAcceptanceTest {
 			"physical right-edge drag did not resize the native window: before=" + beforeResize
 				+ ", after=" + frame.getBounds());
 		WindowAcceptanceAssertions.assertWithinUsableWorkArea(frame, "resized primary native window before close");
-	}
-
-	private static void clickNativeMaximizeButton(Robot robot, JComponent content) throws Exception {
-		Point[] point = new Point[1];
-		SwingUtilities.invokeAndWait(() -> {
-			JComponent placeholder = findComponent(content, OfficeChromePanel.WINDOW_BUTTONS_PLACEHOLDER_NAME);
-			point[0] = placeholder.getLocationOnScreen();
-			point[0].translate(placeholder.getWidth() / 2, placeholder.getHeight() / 2);
-		});
-		robot.mouseMove(point[0].x, point[0].y);
-		robot.delay(1_200); // Keep the physical hover long enough for Windows 11 Snap Layouts.
-		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-		robot.waitForIdle();
 	}
 
 	private static boolean isMaximized(MainRibbonFrame target) {

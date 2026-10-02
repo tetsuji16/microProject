@@ -105,6 +105,7 @@ import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.strings.Messages;
 import com.microproject.session.SessionFactory;
 import com.microproject.testsupport.GuiAcceptanceSupport;
+import com.microproject.testsupport.WindowAcceptanceAssertions;
 import com.microproject.testsupport.RibbonGuiButton;
 import com.microproject.testsupport.RibbonGuiSupport;
 import com.microproject.testsupport.GuiCommandAcceptanceFixture;
@@ -2611,13 +2612,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		activateWindow(robot, secondary);
 		GuiAcceptanceSupport.await(secondary::isFocused,
 			"physical activation did not bring the secondary document window above the primary window");
-		AbstractButton closeButton = UiComponentWalker.flatten(secondary.getRootPane()).stream()
-			.filter(AbstractButton.class::isInstance)
-			.map(AbstractButton.class::cast)
-			.filter(button -> button.isShowing()
-				&& button.getClass().getName().startsWith("com.formdev.flatlaf.ui.FlatTitlePane$")
-				&& "Close".equals(button.getAccessibleContext().getAccessibleName()))
-			.findFirst().orElseThrow(() -> new AssertionError("FlatLaf title-bar close button is absent"));
+		AbstractButton closeButton = WindowAcceptanceAssertions.findFlatLafTitleButton(secondary, "Close");
 		clickWithWindowsDpi(robot, secondary, closeButton, boundsOnScreen(closeButton));
 		GuiAcceptanceSupport.await(() -> !secondary.isShowing(),
 			"Robot title-bar close button did not close the secondary window");
@@ -2830,9 +2825,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	private static Rectangle boundsOnScreen(java.awt.Component component) throws Exception {
-		Rectangle[] result = new Rectangle[1];
-		SwingUtilities.invokeAndWait(() -> result[0] = new Rectangle(component.getLocationOnScreen(), component.getSize()));
-		return result[0];
+		return WindowAcceptanceAssertions.boundsOnScreen(component);
 	}
 
 	private static void assertWindowFitsUsableScreen(MainRibbonFrame frame, String description) {
@@ -2859,8 +2852,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		throws Exception {
 		double dpiScale = java.awt.Toolkit.getDefaultToolkit().getScreenResolution() / 96.0d;
 		Point awtTarget = new Point(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
-		Point robotTarget = new Point((int) Math.round(awtTarget.x * dpiScale),
-			(int) Math.round(awtTarget.y * dpiScale));
+		Point robotTarget = WindowAcceptanceAssertions.robotPointFor(bounds);
 		GraphicsConfiguration configuration = frame.getGraphicsConfiguration();
 		Rectangle screenBounds = configuration.getBounds();
 		String suffix = (System.getProperty("user.language", "unknown") + "-"
