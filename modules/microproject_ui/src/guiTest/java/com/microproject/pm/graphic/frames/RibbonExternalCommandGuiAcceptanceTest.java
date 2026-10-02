@@ -649,7 +649,17 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			}
 		}
 		assertTrue(task != null, "Restarted JRibbon did not restore its Task ribbon definition");
-		AbstractButton taskTab = findRibbonTab(window.getRibbonPanel(), task);
+		RibbonTask restoredTask = task;
+		AbstractButton[] restoredTaskTab = new AbstractButton[1];
+		GuiAcceptanceSupport.await(() -> {
+			try {
+				restoredTaskTab[0] = findRibbonTab(window.getRibbonPanel(), restoredTask);
+				return true;
+			} catch (AssertionError notLaidOutYet) {
+				return false;
+			}
+		}, "Restarted JRibbon did not lay out its native Task tab");
+		AbstractButton taskTab = restoredTaskTab[0];
 		click(robot, taskTab);
 		GuiAcceptanceSupport.await(taskTab::isSelected, "Restarted application did not restore the Task ribbon tab");
 		AbstractButton restoredTaskInformation = RibbonGuiSupport.findVisibleOrExpand(robot, window.getRibbonPanel(), "RibbonTaskInformation");

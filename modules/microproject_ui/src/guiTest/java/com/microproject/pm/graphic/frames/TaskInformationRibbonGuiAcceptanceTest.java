@@ -35,6 +35,8 @@ import java.util.ResourceBundle;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
@@ -248,8 +250,11 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				ProjectFactory factory = ProjectFactory.getInstance();
 				Job removal = factory.getRemoveProjectJob(cleanupProject[0], false, false, false);
 				if (removal != null) {
+					CountDownLatch removalComplete = new CountDownLatch(1);
+					removal.addCompletionRunnable(removalComplete::countDown);
 					SessionFactory.getInstance().getSession(cleanupProject[0].isLocal()).schedule(removal);
-					removal.waitResult();
+					assertTrue(removalComplete.await(30, TimeUnit.SECONDS),
+						"the project removal job did not finish before the GUI manager closed");
 				}
 				GuiAcceptanceSupport.await(() -> factory.getPortfolio().getNodeModel().search(cleanupProject[0]) == null,
 					"the test project did not leave the portfolio before the GUI manager closed");
