@@ -613,10 +613,14 @@ class RibbonAndToolbarButtonTest {
 			ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
 			ResourceBundle labels = menuBundle(Locale.getDefault());
 
-			for (String tabId : ribbonTaskIds()) {
+			List<String> tabIds = ribbonTaskIds();
+			for (int tabIndex = 0; tabIndex < tabIds.size(); tabIndex++) {
+				String tabId = tabIds.get(tabIndex);
 				JRibbon nativeRibbon = findRibbon(host);
-				assertEquals(labels.getString(tabId + ".title"), ribbonTask(host, tabId).getTitle());
-				if (!tabId.contains("Format")) nativeRibbon.setSelectedTask(ribbonTask(host, tabId));
+				RibbonTask task = ribbonTaskAt(nativeRibbon, tabIndex);
+				assertEquals(labels.getString(tabId + ".title"), task.getTitle(),
+					tabId + " must keep its own localized Flamingo task title");
+				if (!tabId.contains("Format")) nativeRibbon.setSelectedTask(task);
 				for (String bandId : ribbonBandIds(tabId)) {
 					for (String buttonId : ribbonButtonIds(bandId)) {
 						AbstractCommandButton button = firstRibbonButton(manager, buttonId);
@@ -799,6 +803,13 @@ class RibbonAndToolbarButtonTest {
 			}
 		}
 		throw new AssertionError("Ribbon task not found: " + id);
+	}
+
+	private static RibbonTask ribbonTaskAt(JRibbon ribbon, int tabIndex) {
+		if (tabIndex < ribbon.getTaskCount()) return ribbon.getTask(tabIndex);
+		var group = ribbon.getContextualTaskGroup(tabIndex - ribbon.getTaskCount());
+		assertEquals(1, group.getTaskCount(), "each contextual group must contain its own resource task");
+		return group.getTask(0);
 	}
 
 	private static Component findRibbonBand(Component component) {
