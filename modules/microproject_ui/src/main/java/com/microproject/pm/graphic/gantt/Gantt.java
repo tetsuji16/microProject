@@ -50,6 +50,7 @@ import com.microproject.graphic.configuration.GanttBarFormatOverrides;
 import com.microproject.graphic.configuration.GanttBarFormatOverrides.BarFormat;
 import com.microproject.pm.graphic.link_routing.DefaultGanttLinkRouting;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
+import com.microproject.pm.graphic.model.cache.ProjectionRowKey;
 import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.pm.graphic.graph.Graph;
 import com.microproject.pm.graphic.graph.GraphParams;
@@ -111,8 +112,8 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 	private String annotationFieldId;
 	private String annotationPosition = GlobalPreferences.GANTT_BAR_TEXT_POSITION_AUTO;
 	private String formatViewName = GanttBarFormatOverrides.STANDARD_VIEW;
-	/** Rows whose full calendar width is highlighted because they are selected in the task table. */
-	private Set<Integer> highlightedRows = Collections.emptySet();
+	/** Stable rows selected in this view; row numbers are resolved only for paint. */
+	private Set<ProjectionRowKey> highlightedRowKeys = Collections.emptySet();
 	private Consumer<BarClick> barSelectionListener;
 
 	/**
@@ -121,7 +122,10 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 	 * toggles it in the selection, Shift+click extends the selection, and a
 	 * click on empty chart space (node == null) clears the selection.
 	 */
-	public record BarClick(GraphicNode node, boolean toggle, boolean extend) {
+	public record BarClick(GraphicNode node, ProjectionRowKey rowKey, boolean toggle, boolean extend) {
+		public BarClick(GraphicNode node, boolean toggle, boolean extend) {
+			this(node, null, toggle, extend);
+		}
 	}
 	public Gantt(Project project,String viewName) {
 		this(new GanttModel(project,viewName),project);
@@ -176,17 +180,32 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 	 * mirroring the selection made in the task table on the left. Row indexes
 	 * refer to the shared node cache that backs both the table and the chart.
 	 */
-	public void setHighlightedRows(Set<Integer> rows) {
-		Set<Integer> copy = (rows == null || rows.isEmpty()) ? Collections.emptySet() : new HashSet<>(rows);
-		if (copy.equals(highlightedRows)) {
+	public void setHighlightedRowKeys(Set<ProjectionRowKey> keys) {
+		Set<ProjectionRowKey> copy = (keys == null || keys.isEmpty()) ? Collections.emptySet() : Set.copyOf(keys);
+		if (copy.equals(highlightedRowKeys)) {
 			return;
 		}
-		highlightedRows = copy;
+		highlightedRowKeys = copy;
 		repaint();
 	}
 
 	public Set<Integer> getHighlightedRows() {
-		return highlightedRows;
+		if (getCache() == null) {
+			return Collections.emptySet();
+		}
+		var projection = getCache().getVisibleNodes().getProjectionIndex();
+		Set<Integer> rows = new HashSet<>();
+		for (ProjectionRowKey key : highlightedRowKeys) {
+			int row = projection.rowForKey(key);
+			if (row >= 0) {
+				rows.add(row);
+			}
+		}
+		return Set.copyOf(rows);
+	}
+
+	public Set<ProjectionRowKey> getHighlightedRowKeys() {
+		return highlightedRowKeys;
 	}
 
 	/**

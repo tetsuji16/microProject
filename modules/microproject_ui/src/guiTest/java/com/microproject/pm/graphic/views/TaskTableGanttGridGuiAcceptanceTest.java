@@ -88,9 +88,14 @@ import com.microproject.util.GanttProgress;
 class TaskTableGanttGridGuiAcceptanceTest {
 	private JFrame frame;
 	private Gantt gantt;
+	private TaskSelectionController selectionController;
 
 	@AfterEach
 	void closeWindow() throws Exception {
+		if (selectionController != null) {
+			SwingUtilities.invokeAndWait(() -> selectionController.close());
+			selectionController = null;
+		}
 		if (frame != null) {
 			SwingUtilities.invokeAndWait(() -> {
 				frame.dispose();
@@ -320,12 +325,12 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		Robot robot = new Robot();
 		robot.setAutoDelay(40);
 		SwingUtilities.invokeAndWait(() -> {
-			fixture.sheet.getSelectionModel().addListSelectionListener(
-				GanttView.createGanttSelectionListener(fixture.gantt, fixture.sheet));
+			selectionController = new TaskSelectionController(fixture.gantt, fixture.sheet);
 			frame.toFront();
 			frame.requestFocus();
 			fixture.sheet.requestFocusInWindow();
 		});
+		GuiAcceptanceSupport.await(() -> frame.isActive(), "task table selection test frame did not become active");
 		GuiAcceptanceSupport.await(() -> fixture.sheet.isShowing() && fixture.sheet.getRowCount() >= 3,
 			"task table was not ready for physical selection verification");
 		robot.delay(300);
@@ -349,6 +354,20 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			assertHeaderHighlight(fixture.sheet, column);
 			assertEquals(Set.of(row), fixture.gantt.getHighlightedRows(),
 				"a task-cell selection must project only its task row to the Gantt");
+		});
+		GraphicNode[] retainedTask = new GraphicNode[1];
+		SwingUtilities.invokeAndWait(() -> {
+			retainedTask[0] = fixture.sheet.getSelectedGraphicNodes().getFirst();
+			GraphicNode deletedEarlierTask = (GraphicNode) fixture.sheet.getCache().getElementAt(0);
+			fixture.sheet.getCache().deleteNodes(List.of(deletedEarlierTask));
+		});
+		SwingUtilities.invokeAndWait(() -> {
+			assertTrue(fixture.sheet.getSelectedGraphicNodes().contains(retainedTask[0]),
+				"deleting an earlier projected row must preserve the selected task identity");
+			assertEquals(0, fixture.sheet.getSelectedRow(),
+				"the retained task must be selected at its new table row after deletion");
+			assertEquals(Set.of(0), fixture.gantt.getHighlightedRows(),
+				"the Gantt highlight must follow the retained identity to its new row");
 		});
 
 		Point headerPoint = screenCenter(fixture.sheet.getTableHeader(), fixture.sheet.getTableHeader().getHeaderRect(column));
@@ -768,12 +787,11 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		Robot robot = new Robot();
 		robot.setAutoDelay(40);
 		SwingUtilities.invokeAndWait(() -> {
-			fixture.sheet.getSelectionModel().addListSelectionListener(
-				GanttView.createGanttSelectionListener(fixture.gantt, fixture.sheet));
-			fixture.gantt.setBarSelectionListener(click -> GanttView.syncSpreadsheetSelection(click, fixture.sheet));
+			selectionController = new TaskSelectionController(fixture.gantt, fixture.sheet);
 			frame.toFront();
 			frame.requestFocus();
 		});
+		GuiAcceptanceSupport.await(() -> frame.isActive(), "calendar drag test frame did not become active");
 		GuiAcceptanceSupport.await(() -> fixture.sheet.isShowing() && fixture.gantt.isShowing(),
 			"task table or Gantt was not visible for calendar whitespace drag");
 
@@ -851,12 +869,11 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		Robot robot = new Robot();
 		robot.setAutoDelay(40);
 		SwingUtilities.invokeAndWait(() -> {
-			fixture.sheet.getSelectionModel().addListSelectionListener(
-				GanttView.createGanttSelectionListener(fixture.gantt, fixture.sheet));
-			fixture.gantt.setBarSelectionListener(click -> GanttView.syncSpreadsheetSelection(click, fixture.sheet));
+			selectionController = new TaskSelectionController(fixture.gantt, fixture.sheet);
 			frame.toFront();
 			frame.requestFocus();
 		});
+		GuiAcceptanceSupport.await(() -> frame.isActive(), "calendar row test frame did not become active");
 		GuiAcceptanceSupport.await(() -> fixture.sheet.isShowing() && fixture.gantt.isShowing(),
 			"task table or Gantt was not visible for calendar-row selection");
 
@@ -911,8 +928,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		Robot robot = new Robot();
 		robot.setAutoDelay(50);
 		SwingUtilities.invokeAndWait(() -> {
-			fixture.sheet.getSelectionModel().addListSelectionListener(
-				GanttView.createGanttSelectionListener(fixture.gantt, fixture.sheet));
+			selectionController = new TaskSelectionController(fixture.gantt, fixture.sheet);
 			frame.toFront();
 			frame.requestFocus();
 			fixture.sheet.requestFocusInWindow();

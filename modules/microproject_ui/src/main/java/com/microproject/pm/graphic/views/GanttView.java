@@ -27,20 +27,15 @@ package com.microproject.pm.graphic.views;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
 import javax.swing.JScrollPane;
-import javax.swing.JTable;
 import javax.swing.SwingUtilities;
 import javax.swing.JViewport;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-import javax.swing.event.ListSelectionListener;
 
 import com.microproject.help.HelpUtil;
 import com.microproject.menu.MenuActionConstants;
@@ -101,7 +96,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	private boolean spreadsheetGridVisible = Gantt.DEFAULT_GRID_LINES_VISIBLE;
 	private String currentAnnotationFieldId = ANNOTATION_FIELD_RESOURCE_NAMES;
 	private ChangeListener spreadsheetViewportListener;
-	private ListSelectionListener spreadsheetSelectionListener;
+	private TaskSelectionController taskSelectionController;
 	private boolean synchronizingRowGeometry;
 	public static final String spreadsheetCategory=taskSpreadsheetCategory;
 
@@ -145,23 +140,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 
 		//sync the height of spreadsheet and gantt
 		installSpreadsheetViewportListener();
-		installSpreadsheetSelectionListener();
-		installGanttBarSelectionListener();
-
-//		spreadSheet.getRowHeader().getSelectionModel().addListSelectionListener(new ListSelectionListener(){
-//			public void valueChanged(ListSelectionEvent e) {
-//				if (!e.getValueIsAdjusting()&&spreadSheet.getRowHeader().getSelectedRowCount()==1){
-//					List impls=spreadSheet.getSelectedNodesImpl();
-//					if (impls.size()!=1) return;
-//					Object impl=impls.get(0);
-//					if (!(impl instanceof HasStartAndEnd)) return;
-//					HasStartAndEnd interval=(HasStartAndEnd)impl;
-//					gantt.scrollToTask(interval, true);
-//				}
-//			}
-//		});
-
-
+		installTaskSelectionController();
 		cache.update();
 
 		//Call this last to be sure everything is initialized
@@ -170,7 +149,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	}
 	public void cleanUp() {
 		removeSpreadsheetViewportListener();
-		removeSpreadsheetSelectionListener();
+		removeTaskSelectionController();
 		if (gantt != null) {
 			gantt.setBarSelectionListener(null);
 		}
@@ -451,6 +430,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 
 	public void reinitialize() { // applet
 		removeSpreadsheetViewportListener();
+		removeTaskSelectionController();
 		if (coord != null && ganttScrollPane != null) {
 			coord.removeTimeScaleListener(ganttScrollPane);
 		}
@@ -460,8 +440,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		updateHeight(project);
 		updateSize();
 		installSpreadsheetViewportListener();
-		installSpreadsheetSelectionListener();
-		installGanttBarSelectionListener();
+		installTaskSelectionController();
 		synchronizeGanttHeightWithSpreadsheet(leftScrollPane.getViewport().getViewSize());
 	}
 	public void restoreWorkspace(WorkspaceSetting w, int context) {
@@ -684,104 +663,17 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	 * selection: selecting tasks in the table highlights their complete
 	 * calendar row in the chart (issue #179).
 	 */
-	private void installSpreadsheetSelectionListener() {
-		if (spreadsheetSelectionListener == null && spreadSheet != null) {
-			spreadsheetSelectionListener = createGanttSelectionListener(gantt, spreadSheet);
-			spreadSheet.getSelectionModel().addListSelectionListener(spreadsheetSelectionListener);
+	private void installTaskSelectionController() {
+		if (taskSelectionController == null && spreadSheet != null && gantt != null) {
+			taskSelectionController = new TaskSelectionController(gantt, spreadSheet);
 		}
 	}
 
-	/**
-	 * Creates the task-table selection bridge for the Gantt. JTable sends
-	 * adjusting events while the user drags across rows; they must update the
-	 * Gantt immediately so both panes match Microsoft Project's live selection.
-	 */
-	static ListSelectionListener createGanttSelectionListener(Gantt gantt, JTable table) {
-		return event -> {
-			// A JTable encodes a header column selection as all rows selected.  That
-			// is a grid/presentation selection, not a task selection, and must not
-			// create (or replace) Gantt bar highlights.
-			if (isColumnPresentationSelection(table))
-				return;
-			syncGanttHighlightedRows(gantt, table == null ? null : table.getSelectedRows());
-		};
-	}
-
-	private void removeSpreadsheetSelectionListener() {
-		if (spreadsheetSelectionListener != null && spreadSheet != null
-				&& spreadSheet.getSelectionModel() != null) {
-			spreadSheet.getSelectionModel().removeListSelectionListener(spreadsheetSelectionListener);
+	private void removeTaskSelectionController() {
+		if (taskSelectionController != null) {
+			taskSelectionController.close();
+			taskSelectionController = null;
 		}
-		spreadsheetSelectionListener = null;
-	}
-
-	private void updateGanttHighlightedRows() {
-		if (isColumnPresentationSelection(spreadSheet))
-			return;
-		syncGanttHighlightedRows(gantt, spreadSheet == null ? null : spreadSheet.getSelectedRows());
-	}
-
-	private static boolean isColumnPresentationSelection(JTable table) {
-		return table instanceof com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet sheet
-				&& sheet.isHeaderColumnSelectionActive();
-	}
-
-	private static void syncGanttHighlightedRows(Gantt gantt, int[] rows) {
-		if (gantt == null) {
-			return;
-		}
-		if (rows == null || rows.length == 0) {
-			gantt.setHighlightedRows(Collections.emptySet());
-			return;
-		}
-		Set<Integer> highlighted = new HashSet<>(rows.length);
-		for (int row : rows) {
-			if (row >= 0) {
-				highlighted.add(row);
-			}
-		}
-		gantt.setHighlightedRows(highlighted);
-	}
-
-	/**
-	 * Clicking the chart updates the task table selection exactly like
-	 * Microsoft Project (issue #179): a plain click selects the task, Ctrl/
-	 * Cmd+click toggles it in the selection, Shift+click extends the
-	 * selection, and a click on empty chart space clears the selection.  Both
-	 * panes therefore always highlight the same tasks.
-	 */
-	private void installGanttBarSelectionListener() {
-		if (gantt == null) {
-			return;
-		}
-		gantt.setBarSelectionListener(this::onGanttChartClick);
-	}
-
-	private void onGanttChartClick(Gantt.BarClick click) {
-		syncSpreadsheetSelection(click, spreadSheet);
-	}
-
-	/** One chart-to-table selection path for bar and calendar-row clicks. */
-	static void syncSpreadsheetSelection(Gantt.BarClick click, SpreadSheet spreadSheet) {
-		if (click == null) {
-			return;
-		}
-		if (click.node() == null) {
-			if (spreadSheet != null) {
-				spreadSheet.clearSelection();
-			}
-			return;
-		}
-		GraphicNode node = click.node();
-		if (node == null || spreadSheet == null
-				|| !(spreadSheet.getModel() instanceof com.microproject.pm.graphic.spreadsheet.SpreadSheetModel model)) {
-			return;
-		}
-		int row = model.findGraphicNodeRow(node);
-		if (row < 0 || row >= spreadSheet.getRowCount()) {
-			return;
-		}
-		spreadSheet.selectTaskRowFromGantt(row, click.toggle(), click.extend());
 	}
 
 	private void applySpreadsheetGridStyle() {

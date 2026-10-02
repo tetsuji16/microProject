@@ -32,11 +32,17 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import com.microproject.pm.graphic.model.cache.NodeModelCache;
+import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
+import com.microproject.pm.graphic.model.cache.ReferenceNodeModelCache;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.Project;
 import com.microproject.undo.DataFactoryUndoController;
@@ -48,12 +54,26 @@ import com.microproject.util.FlatUiSupport;
  */
 class GanttRendererSelectedRowTest {
 	private static final int ROW_HEIGHT = 24;
+	private final List<NodeModelCache> caches = new ArrayList<>();
+	private final List<ReferenceNodeModelCache> references = new ArrayList<>();
+
+	@AfterEach
+	void closeCaches() {
+		for (NodeModelCache cache : caches) {
+			cache.close();
+		}
+		caches.clear();
+		for (ReferenceNodeModelCache reference : references) {
+			reference.close();
+		}
+		references.clear();
+	}
 
 	@Test
 	void highlightedRowsSpanTheFullChartWidth() {
 		Gantt gantt = newGantt();
 		try {
-			gantt.setHighlightedRows(Set.of(1, 3));
+			gantt.setHighlightedRowKeys(Set.of(keyAt(gantt, 1), keyAt(gantt, 3)));
 			BufferedImage image = render(gantt);
 
 			Color highlight = FlatUiSupport.spreadsheetRangeSelectionBackground();
@@ -74,8 +94,8 @@ class GanttRendererSelectedRowTest {
 	void clearingHighlightedRowsRemovesTheBand() {
 		Gantt gantt = newGantt();
 		try {
-			gantt.setHighlightedRows(Set.of(1));
-			gantt.setHighlightedRows(Collections.emptySet());
+			gantt.setHighlightedRowKeys(Set.of(keyAt(gantt, 1)));
+			gantt.setHighlightedRowKeys(Collections.emptySet());
 			BufferedImage image = render(gantt);
 
 			Color highlight = FlatUiSupport.spreadsheetRangeSelectionBackground();
@@ -112,10 +132,10 @@ class GanttRendererSelectedRowTest {
 	void highlightedRowsStateStoresAndNormalizesItsInput() {
 		Gantt gantt = newGantt();
 		try {
-			gantt.setHighlightedRows(null);
+			gantt.setHighlightedRowKeys(null);
 			assertTrue(gantt.getHighlightedRows().isEmpty(), "null should clear highlighted rows");
 
-			gantt.setHighlightedRows(Set.of(5, 7));
+			gantt.setHighlightedRowKeys(Set.of(keyAt(gantt, 5), keyAt(gantt, 7)));
 			Set<Integer> rows = gantt.getHighlightedRows();
 			assertEquals(2, rows.size());
 			assertTrue(rows.contains(5));
@@ -125,13 +145,28 @@ class GanttRendererSelectedRowTest {
 		}
 	}
 
-	private static Gantt newGantt() {
+	private Gantt newGantt() {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
 		ResourcePool resourcePool = ResourcePool.createRourcePool("selected-row-test", undoController);
 		Project project = Project.createProject(resourcePool, undoController);
+		project.initialize(false, false);
+		for (int i = 0; i < 8; i++) {
+			project.createScriptedTask().setName("Selection row " + i);
+		}
+		project.recalculate();
 		Gantt gantt = new Gantt(project, "Gantt");
+		ReferenceNodeModelCache reference = NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel());
+		references.add(reference);
+		var cache = NodeModelCacheFactory.getInstance().createFilteredCache(reference, "selected-row-test", null);
+		caches.add(cache);
+		cache.update();
+		gantt.setCache(cache);
 		gantt.setRowHeight(ROW_HEIGHT);
 		return gantt;
+	}
+
+	private static com.microproject.pm.graphic.model.cache.ProjectionRowKey keyAt(Gantt gantt, int row) {
+		return gantt.getCache().getVisibleNodes().getProjectionIndex().keyAt(row);
 	}
 
 	private static BufferedImage render(Gantt gantt) {

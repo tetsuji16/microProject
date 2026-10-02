@@ -268,8 +268,12 @@ public class GanttInteractor extends GraphInteractor{
 		if (calendarRangeSelecting) {
 			GraphicNode calendarNode = getTaskRowAt(e.getY());
 			if (calendarNode != null && calendarNode != lastCalendarRangeNode) {
-				if (getGraph() instanceof Gantt gantt)
-					gantt.notifyBarSelection(new Gantt.BarClick(calendarNode, false, true));
+				if (getGraph() instanceof Gantt gantt && gantt.getCache() != null) {
+					var projection = gantt.getCache().getVisibleNodes().getProjectionIndex();
+					int row = Math.max(0, e.getY() / Math.max(1, gantt.getRowHeight()));
+					var key = row < projection.size() ? projection.keyAt(row) : null;
+					gantt.notifyBarSelection(new Gantt.BarClick(calendarNode, key, false, true));
+				}
 				lastCalendarRangeNode = calendarNode;
 			}
 			e.consume();
@@ -795,7 +799,11 @@ public class GanttInteractor extends GraphInteractor{
     	// A right click on empty space (or on a link) keeps the current
     	// selection; only left clicks on empty chart space clear it.
     	if (node == null && !(leftClick && selected == null)) return;
-    	gantt.notifyBarSelection(new Gantt.BarClick(node, isToggleModifier(e), e != null && e.isShiftDown()));
+		var projection = gantt.getCache() == null ? null
+				: gantt.getCache().getVisibleNodes().getProjectionIndex();
+		int row = e == null ? -1 : Math.max(0, e.getY() / Math.max(1, gantt.getRowHeight()));
+		var key = projection != null && row < projection.size() ? projection.keyAt(row) : null;
+		gantt.notifyBarSelection(new Gantt.BarClick(node, key, isToggleModifier(e), e != null && e.isShiftDown()));
     }
 
 	private GraphicNode getTaskRowAt(int y) {
