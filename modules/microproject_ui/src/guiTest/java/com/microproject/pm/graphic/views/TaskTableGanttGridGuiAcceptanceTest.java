@@ -17,6 +17,7 @@ import java.awt.Robot;
 import java.awt.Point;
 import java.awt.Component;
 import java.awt.Container;
+import java.awt.Cursor;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.Window;
@@ -269,6 +270,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		int sourceRow = taskRow(fixture.sheet, fixture.project, "Sequential 2");
 		int targetRow = taskRow(fixture.sheet, fixture.project, "Sequential 1");
 		java.awt.Point[] points = new java.awt.Point[2];
+		int[] dragState = { 0, -1 };
 		SwingUtilities.invokeAndWait(() -> {
 			frame.toFront();
 			frame.requestFocus();
@@ -280,6 +282,13 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			points[0] = new Point(location.x + source.x + source.width / 2,
 				location.y + source.y + source.height / 2);
 			points[1] = new Point(location.x + target.x + target.width / 2, location.y + target.y + 3);
+			rowHeader.addMouseMotionListener(new java.awt.event.MouseMotionAdapter() {
+				@Override
+				public void mouseDragged(java.awt.event.MouseEvent event) {
+					dragState[0]++;
+					dragState[1] = rowHeader.rowAtPoint(event.getPoint());
+				}
+			});
 		});
 		GuiAcceptanceSupport.await(() -> fixture.sheet.isShowing() && fixture.sheet.getRowHeader().isShowing(),
 			"task row header was not visible for the physical move gesture");
@@ -298,7 +307,18 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		},
 			"physical row-header press must select the complete source task row before dragging");
 		robot.mouseMove((points[0].x + points[1].x) / 2, (points[0].y + points[1].y) / 2);
+		robot.delay(100);
 		robot.mouseMove(points[1].x, points[1].y);
+		robot.delay(150);
+		int[] observedDrag = new int[3];
+		SwingUtilities.invokeAndWait(() -> {
+			observedDrag[0] = dragState[0];
+			observedDrag[1] = dragState[1];
+			observedDrag[2] = fixture.sheet.getRowHeader().getCursor().getType();
+		});
+		assertTrue(observedDrag[0] > 0, "physical row-header drag must deliver MOUSE_DRAGGED");
+		assertEquals(targetRow, observedDrag[1], "physical drag must reach the intended target task row");
+		assertEquals(Cursor.MOVE_CURSOR, observedDrag[2], "valid row-header target must show move cursor before release");
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 
 		GuiAcceptanceSupport.await(() -> visibleMoveConfirmation() != null,
