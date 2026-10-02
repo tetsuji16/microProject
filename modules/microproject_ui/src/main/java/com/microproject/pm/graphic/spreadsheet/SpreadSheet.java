@@ -2156,27 +2156,10 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		}
 
 		public void execute(Object object) {
-			if (object instanceof List<?> pastedNodes) {
-				finishCurrentOperations();
-				List selectedNodes = getSelectedNodes();
-				if (!CollaborationHelper.tryLockNodes(null, selectedNodes, SpreadSheet.this, "paste"))
-					return;
-				Node parent = null;
-				int position = 0;
-				if (selectedNodes.size() > 0) {
-					Node node = (Node) selectedNodes.get(0);
-					parent = (Node) node.getParent();
-					position = ((NodeBridge) parent).getIndex(node);
-				}
-				executeFirst();
-				spreadSheet.clearSelection();
-				getCache().pasteNodes(parent, pastedNodes, position);
-//				if (nodes.size() > 0) {
-//					int row = ((SpreadSheetModel) spreadSheet.getModel()).findGraphicNodeRow(spreadSheet.getCache().getGraphicNode(nodes.get(0)));
-//					changeSelection(row, 0, false, false);
-//					if (nodes.size() > 1)
-//						changeSelection(row + nodes.size() - 1, getColumnCount(), false, true);
-//				}
+			if (object instanceof List<?> nodes && nodes.stream().allMatch(Node.class::isInstance)) {
+				@SuppressWarnings("unchecked")
+				List<Node> pastedNodes = (List<Node>) nodes;
+				pasteNodesFromClipboard(pastedNodes);
 			}
 		}
 	};

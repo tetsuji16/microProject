@@ -161,6 +161,30 @@ class NodeListTransferablePasteFailureTest {
 	}
 
 	@Test
+	void legacyPasteActionUsesTheCanonicalPasteAndUndoPath() throws Exception {
+		Project sourceProject = createProject();
+		NormalTask sourceTask = createTask(sourceProject, "Copied through legacy adapter");
+		Project targetProject = createProject();
+		createTask(targetProject, "Paste anchor");
+		SpreadSheet[] sheetRef = new SpreadSheet[1];
+		List<Node> copiedNodes = sourceProject.getTaskModel().copy(
+			List.of(sourceProject.getTaskModel().search(sourceTask)), NodeModel.SILENT);
+
+		SwingUtilities.invokeAndWait(() -> {
+			sheetRef[0] = createSheet(targetProject, "canonical-paste-adapter");
+			sheetRef[0].selectRowAndAllColumns(0);
+			sheetRef[0].getPasteAction().execute(copiedNodes);
+		});
+
+		Node pastedNode = findNodeByName(targetProject, "Copied through legacy adapter");
+		assertNotNull(targetProject.getTaskModel().search(pastedNode.getImpl()));
+		SwingUtilities.invokeAndWait(() -> targetProject.getUndoController().undo());
+		assertNull(targetProject.getTaskModel().search(pastedNode.getImpl()));
+		SwingUtilities.invokeAndWait(() -> targetProject.getUndoController().redo());
+		assertNotNull(targetProject.getTaskModel().search(pastedNode.getImpl()));
+	}
+
+	@Test
 	void clipboardFailureDoesNotRemoveCutTask() throws Exception {
 		Project project = createProject();
 		NormalTask task = createTask(project, "Keep me");
