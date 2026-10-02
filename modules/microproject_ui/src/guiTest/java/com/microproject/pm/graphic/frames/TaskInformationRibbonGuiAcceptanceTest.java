@@ -19,6 +19,7 @@ import java.awt.Insets;
 import java.awt.Toolkit;
 import java.awt.Dialog;
 import java.awt.Component;
+import java.awt.Cursor;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Robot;
@@ -53,6 +54,7 @@ import javax.swing.JPopupMenu;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
+import javax.swing.JTable;
 import javax.swing.text.JTextComponent;
 
 import org.junit.jupiter.api.AfterEach;
@@ -161,6 +163,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Environment.setNewLook(previousNewLook);
 		Environment.setClientSide(previousClientSide);
 		Environment.setBatchMode(previousBatchMode);
+		Alert.setPresenter(null);
 		if (previousUiDebug == null)
 			System.clearProperty("microproject.ui.debug");
 		else
@@ -2230,6 +2233,124 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	@Test
+	void physicalTaskRowHeaderDragReordersStableTasksAndSurvivesUndoAndReload() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		Environment.setClientSide(true);
+		Environment.setBatchMode(false);
+		Alert.setPresenter(new SwingAlertPresenter());
+
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("physical-task-row-drag", undo), undo);
+		project.initialize(false, false);
+		NormalTask first = project.createScriptedTask();
+		first.setName("Row drag first");
+		NormalTask second = project.createScriptedTask();
+		second.setName("Row drag second");
+		NormalTask third = project.createScriptedTask();
+		third.setName("Row drag third");
+		project.recalculate();
+		List<String> originalOrder = taskOrder(project);
+		assertEquals(List.of("Row drag first", "Row drag second", "Row drag third"), originalOrder);
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"row-drag test project did not become visible");
+
+		Robot robot = new Robot();
+		robot.setAutoDelay(40);
+		activateWindow(robot, window);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		int sourceRow = rowForTask(sheet, second);
+		int targetRow = rowForTask(sheet, first);
+		JTable[] rowHeaderBox = new JTable[1];
+		Point[] points = new Point[2];
+		int[] dragState = { 0, -1 };
+		SwingUtilities.invokeAndWait(() -> {
+			rowHeaderBox[0] = sheet.getRowHeader();
+			JTable rowHeader = rowHeaderBox[0];
+			java.awt.Rectangle source = rowHeader.getCellRect(sourceRow, 0, true);
+			java.awt.Rectangle target = rowHeader.getCellRect(targetRow, 0, true);
+			Point location = rowHeader.getLocationOnScreen();
+			points[0] = new Point(location.x + source.x + source.width / 2,
+				location.y + source.y + source.height / 2);
+			points[1] = new Point(location.x + target.x + target.width / 2, location.y + target.y + 3);
+			rowHeader.addMouseMotionListener(new java.awt.event.MouseMotionAdapter() {
+				@Override
+				public void mouseDragged(java.awt.event.MouseEvent event) {
+					dragState[0]++;
+					dragState[1] = rowHeader.rowAtPoint(event.getPoint());
+				}
+			});
+		});
+		JTable rowHeader = rowHeaderBox[0];
+		GuiAcceptanceSupport.await(() -> sheet.isShowing() && rowHeader.isShowing(),
+			"task row header was not visible for the physical move gesture");
+		robot.mouseMove(points[0].x, points[0].y);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.delay(100);
+		GuiAcceptanceSupport.await(() -> {
+			boolean[] selected = new boolean[1];
+			try {
+				SwingUtilities.invokeAndWait(() -> selected[0] = sheet.isRowFullySelected(sourceRow));
+			} catch (Exception exception) {
+				throw new AssertionError("could not inspect row selection on the EDT", exception);
+			}
+			return selected[0];
+		}, "physical row-header press must select the complete source task row before dragging");
+		robot.mouseMove((points[0].x + points[1].x) / 2, (points[0].y + points[1].y) / 2);
+		robot.delay(100);
+		robot.mouseMove(points[1].x, points[1].y);
+		robot.delay(150);
+		int[] observedDrag = new int[3];
+		SwingUtilities.invokeAndWait(() -> {
+			observedDrag[0] = dragState[0];
+			observedDrag[1] = dragState[1];
+			observedDrag[2] = rowHeader.getCursor().getType();
+		});
+		assertTrue(observedDrag[0] > 0, "physical row-header drag must deliver MOUSE_DRAGGED");
+		assertEquals(targetRow, observedDrag[1], "physical drag must reach the intended target task row");
+		assertEquals(Cursor.MOVE_CURSOR, observedDrag[2], "valid row-header target must show move cursor before release");
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+
+		GuiAcceptanceSupport.await(() -> visibleMoveConfirmation() != null,
+			"physical row-header drag did not ask for its documented move confirmation");
+		Dialog confirmation = visibleMoveConfirmation();
+		AbstractButton accept = findVisibleButton(confirmation, "OK");
+		if (accept == null) accept = findVisibleButton(confirmation, "はい");
+		if (accept == null) accept = findVisibleButton(confirmation, "確認");
+		assertNotNull(accept, "move confirmation must expose its affirmative button");
+		click(robot, boundsOnScreen(accept));
+		List<String> movedOrder = List.of("Row drag second", "Row drag first", "Row drag third");
+		GuiAcceptanceSupport.await(() -> taskOrder(project).equals(movedOrder),
+			"accepted physical task row drag did not reorder the selected stable task");
+		assertEquals(0, rowForTask(sheet, second), "the spreadsheet must redraw the moved task at its new row");
+		assertEquals(1, rowForTask(sheet, first), "the spreadsheet must redraw the relocation anchor after the moved task");
+
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		MpoFileImporter importer = new MpoFileImporter();
+		assertTrue(importer.saveProject(project, saved), "row-drag hierarchy mutation must save as MPO");
+		Project reopened = importer.loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		assertEquals(movedOrder, taskOrder(reopened), "row-drag hierarchy mutation must survive MPO save/reload");
+		activateWindow(robot, window);
+		SwingUtilities.invokeAndWait(sheet::requestFocusInWindow);
+		GuiAcceptanceSupport.await(() -> sheet.isFocusOwner(), "task table did not regain focus for physical Undo/Redo");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> taskOrder(project).equals(originalOrder),
+			"one physical Ctrl+Z must restore the exact pre-drag task order");
+		assertEquals(0, rowForTask(sheet, first), "Undo must redraw the original task table order");
+		assertEquals(1, rowForTask(sheet, second), "Undo must restore the moved task's original row");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> taskOrder(project).equals(movedOrder),
+			"one physical Ctrl+Y must reapply the task row relocation");
+		assertEquals(0, rowForTask(sheet, second), "Redo must redraw the moved task at its relocated row");
+	}
+
+	@Test
 	void robotRightClickTaskPopupDeleteUsesSharedRouteAndRoundTripsPersistence() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
@@ -2717,6 +2838,24 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				return row;
 		}
 		throw new AssertionError("Task is absent from the visible spreadsheet");
+	}
+
+	private static List<String> taskOrder(Project project) {
+		List<String> names = new ArrayList<>();
+		java.util.Iterator<Task> iterator = project.getTaskOutlineIterator();
+		while (iterator.hasNext())
+			names.add(iterator.next().getName());
+		return names;
+	}
+
+	private static Dialog visibleMoveConfirmation() {
+		for (Window candidate : Window.getWindows()) {
+			if (candidate instanceof Dialog dialog && dialog.isShowing()
+					&& (findVisibleButton(dialog, "OK") != null || findVisibleButton(dialog, "はい") != null
+							|| findVisibleButton(dialog, "確認") != null))
+				return dialog;
+		}
+		return null;
 	}
 
 	private static boolean isTaskVisible(SpreadSheet sheet, NormalTask task) {

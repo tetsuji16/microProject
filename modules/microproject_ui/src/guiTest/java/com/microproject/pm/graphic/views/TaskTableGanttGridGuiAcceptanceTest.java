@@ -17,7 +17,6 @@ import java.awt.Robot;
 import java.awt.Point;
 import java.awt.Component;
 import java.awt.Container;
-import java.awt.Cursor;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.Window;
@@ -57,7 +56,6 @@ import javax.swing.table.TableCellRenderer;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.graphic.configuration.SpreadSheetCategories;
@@ -87,9 +85,6 @@ import com.microproject.field.Field;
 import com.microproject.exchange.MpoFileImporter;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.undo.DataFactoryUndoController;
-import com.microproject.ui.util.SwingAlertPresenter;
-import com.microproject.util.Alert;
-import com.microproject.util.Environment;
 import com.microproject.util.FlatUiSupport;
 import com.microproject.util.GanttProgress;
 import com.microproject.workspace.SavableToWorkspace;
@@ -100,18 +95,6 @@ class TaskTableGanttGridGuiAcceptanceTest {
 	private JFrame frame;
 	private Gantt gantt;
 	private TaskSelectionController selectionController;
-	private boolean previousClientSide;
-	private boolean previousBatchMode;
-
-	@BeforeEach
-	void installSwingAlertPresenter() {
-		previousClientSide = Environment.isClientSide();
-		previousBatchMode = Environment.isBatchMode();
-		Environment.setClientSide(true);
-		Environment.setBatchMode(false);
-		Alert.setPresenter(new SwingAlertPresenter());
-	}
-
 	@AfterEach
 	void closeWindow() throws Exception {
 		if (selectionController != null) {
@@ -128,9 +111,6 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			gantt.cleanUp();
 			gantt = null;
 		}
-		Alert.setPresenter(null);
-		Environment.setClientSide(previousClientSide);
-		Environment.setBatchMode(previousBatchMode);
 	}
 
 	@Test
@@ -274,123 +254,6 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			SwingUtilities.invokeAndWait(() -> synchronizer.removeSynchro(ganttScroll, tableScroll,
 				ScrollPaneSynchronizer.HORIZONTAL));
 		}
-	}
-
-	@Test
-	void physicalTaskRowHeaderDragReordersStableTasksAndSurvivesUndoAndReload() throws Exception {
-		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
-		Fixture fixture = createFixture(3);
-		showFixture(fixture);
-		Robot robot = new Robot();
-		robot.setAutoDelay(40);
-		List<String> originalOrder = taskOrder(fixture.project);
-		assertEquals(List.of("Sequential 1", "Sequential 2", "Sequential 3"), originalOrder);
-		int sourceRow = taskRow(fixture.sheet, fixture.project, "Sequential 2");
-		int targetRow = taskRow(fixture.sheet, fixture.project, "Sequential 1");
-		java.awt.Point[] points = new java.awt.Point[2];
-		int[] dragState = { 0, -1 };
-		SwingUtilities.invokeAndWait(() -> {
-			frame.toFront();
-			frame.requestFocus();
-			fixture.sheet.requestFocusInWindow();
-			var rowHeader = fixture.sheet.getRowHeader();
-			Rectangle source = rowHeader.getCellRect(sourceRow, 0, true);
-			Rectangle target = rowHeader.getCellRect(targetRow, 0, true);
-			Point location = rowHeader.getLocationOnScreen();
-			points[0] = new Point(location.x + source.x + source.width / 2,
-				location.y + source.y + source.height / 2);
-			points[1] = new Point(location.x + target.x + target.width / 2, location.y + target.y + 3);
-			rowHeader.addMouseMotionListener(new java.awt.event.MouseMotionAdapter() {
-				@Override
-				public void mouseDragged(java.awt.event.MouseEvent event) {
-					dragState[0]++;
-					dragState[1] = rowHeader.rowAtPoint(event.getPoint());
-				}
-			});
-		});
-		GuiAcceptanceSupport.await(() -> fixture.sheet.isShowing() && fixture.sheet.getRowHeader().isShowing(),
-			"task row header was not visible for the physical move gesture");
-		GuiAcceptanceSupport.await(() -> frame.isActive(), "task table frame did not become active for row drag");
-		robot.mouseMove(points[0].x, points[0].y);
-		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-		robot.delay(100);
-		GuiAcceptanceSupport.await(() -> {
-			boolean[] selected = new boolean[1];
-			try {
-				SwingUtilities.invokeAndWait(() -> selected[0] = fixture.sheet.isRowFullySelected(sourceRow));
-			} catch (Exception exception) {
-				throw new AssertionError("could not inspect row selection on the EDT", exception);
-			}
-			return selected[0];
-		},
-			"physical row-header press must select the complete source task row before dragging");
-		robot.mouseMove((points[0].x + points[1].x) / 2, (points[0].y + points[1].y) / 2);
-		robot.delay(100);
-		robot.mouseMove(points[1].x, points[1].y);
-		robot.delay(150);
-		int[] observedDrag = new int[3];
-		SwingUtilities.invokeAndWait(() -> {
-			observedDrag[0] = dragState[0];
-			observedDrag[1] = dragState[1];
-			observedDrag[2] = fixture.sheet.getRowHeader().getCursor().getType();
-		});
-		assertTrue(observedDrag[0] > 0, "physical row-header drag must deliver MOUSE_DRAGGED");
-		assertEquals(targetRow, observedDrag[1], "physical drag must reach the intended target task row");
-		assertEquals(Cursor.MOVE_CURSOR, observedDrag[2], "valid row-header target must show move cursor before release");
-		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-
-		GuiAcceptanceSupport.await(() -> visibleMoveConfirmation() != null,
-			"physical row-header drag did not ask for its documented move confirmation");
-		Window confirmation = visibleMoveConfirmation();
-		JButton accept = findButton(confirmation, "OK", "確認", "はい");
-		assertTrue(accept != null, "move confirmation must expose its affirmative button");
-		Rectangle acceptBounds = new Rectangle();
-		SwingUtilities.invokeAndWait(() -> {
-			Point location = accept.getLocationOnScreen();
-			acceptBounds.setBounds(location.x, location.y, accept.getWidth(), accept.getHeight());
-		});
-		robot.mouseMove(acceptBounds.x + acceptBounds.width / 2, acceptBounds.y + acceptBounds.height / 2);
-		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-		GuiAcceptanceSupport.await(() -> taskOrder(fixture.project).equals(
-			List.of("Sequential 2", "Sequential 1", "Sequential 3")),
-			"accepted physical task row drag did not reorder the selected stable task");
-		assertEquals(0, taskRow(fixture.sheet, fixture.project, "Sequential 2"),
-			"the task table projection must redraw the moved task at its new row");
-		assertEquals(1, taskRow(fixture.sheet, fixture.project, "Sequential 1"),
-			"the task table projection must redraw the relocation anchor after the moved task");
-		captureVisibleLayout(robot, "task-row-drag-move.png");
-
-		Project reopened = new MpoFileImporter().loadProject(writeProject(fixture.project));
-		assertEquals(List.of("Sequential 2", "Sequential 1", "Sequential 3"), taskOrder(reopened),
-			"row drag hierarchy mutation must survive native project save/reload");
-		SwingUtilities.invokeAndWait(() -> {
-			frame.toFront();
-			frame.requestFocus();
-			fixture.sheet.requestFocusInWindow();
-		});
-		GuiAcceptanceSupport.await(() -> frame.isActive() && fixture.sheet.isFocusOwner(),
-			"task table did not regain focus for the physical Undo/Redo route");
-		robot.keyPress(KeyEvent.VK_CONTROL);
-		robot.keyPress(KeyEvent.VK_Z);
-		robot.keyRelease(KeyEvent.VK_Z);
-		robot.keyRelease(KeyEvent.VK_CONTROL);
-		GuiAcceptanceSupport.await(() -> taskOrder(fixture.project).equals(originalOrder),
-			"one Undo must restore the exact pre-drag task order");
-		assertEquals(0, taskRow(fixture.sheet, fixture.project, "Sequential 1"),
-			"Undo must redraw the original task table order");
-		assertEquals(1, taskRow(fixture.sheet, fixture.project, "Sequential 2"),
-			"Undo must restore the moved task's original row");
-		assertEquals(originalOrder, taskOrder(fixture.project));
-		robot.keyPress(KeyEvent.VK_CONTROL);
-		robot.keyPress(KeyEvent.VK_Y);
-		robot.keyRelease(KeyEvent.VK_Y);
-		robot.keyRelease(KeyEvent.VK_CONTROL);
-		GuiAcceptanceSupport.await(() -> taskOrder(fixture.project).equals(
-			List.of("Sequential 2", "Sequential 1", "Sequential 3")),
-			"one Redo must reapply the task row relocation");
-		assertEquals(0, taskRow(fixture.sheet, fixture.project, "Sequential 2"),
-			"Redo must redraw the moved task at its relocated row");
 	}
 
 	@Test
@@ -1276,14 +1139,6 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		return new Point(location.x + bounds.x + bounds.width / 2, location.y + bounds.y + bounds.height / 2);
 	}
 
-	private static java.util.List<String> taskOrder(Project project) {
-		java.util.List<String> names = new ArrayList<>();
-		java.util.Iterator<com.microproject.pm.task.Task> iterator = project.getTaskOutlineIterator();
-		while (iterator.hasNext())
-			names.add(iterator.next().getName());
-		return names;
-	}
-
 	private static com.microproject.grouping.core.Node findTaskNode(Project project, String name) {
 		java.util.Iterator<com.microproject.pm.task.Task> iterator = project.getTaskOutlineIterator();
 		while (iterator.hasNext()) {
@@ -1300,21 +1155,6 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		if (row < 0)
 			throw new AssertionError("task row not visible in fixture: " + name);
 		return row;
-	}
-
-	private static Window visibleMoveConfirmation() {
-		for (Window window : Window.getWindows()) {
-			if (window instanceof java.awt.Dialog && window.isShowing()
-					&& findButton(window, "OK", "確認", "はい") != null)
-				return window;
-		}
-		return null;
-	}
-
-	private static ByteArrayInputStream writeProject(Project project) throws Exception {
-		ByteArrayOutputStream output = new ByteArrayOutputStream();
-		assertTrue(new MpoFileImporter().saveProject(project, output), "task order must serialize successfully");
-		return new ByteArrayInputStream(output.toByteArray());
 	}
 
 	private void captureVisibleLayout(Robot robot) throws Exception {
