@@ -61,6 +61,7 @@ import com.microproject.session.SessionFactory;
 import com.microproject.strings.Messages;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.testsupport.RibbonGuiButton;
+import com.microproject.testsupport.RibbonGuiSupport;
 import com.microproject.testsupport.DialogLayoutAssertions;
 import com.microproject.util.Environment;
 import com.microproject.util.UiDispatch;
@@ -837,7 +838,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 	}
 
 	private void clickAndClose(Robot robot, String commandId, Class<? extends Window> dialogType) throws Exception {
-		AbstractButton button = findCommandButton(window.getRibbonPanel(), commandId);
+		AbstractButton button = RibbonGuiSupport.findVisibleOrExpand(robot, window.getRibbonPanel(), commandId);
 		assertTrue(button.isShowing(), commandId + " is not physically visible");
 		assertTrue(button.isEnabled(), commandId + " is disabled in the real application state");
 		click(robot, button);

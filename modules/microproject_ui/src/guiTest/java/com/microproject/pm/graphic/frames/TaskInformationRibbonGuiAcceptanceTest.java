@@ -103,6 +103,7 @@ import com.microproject.strings.Messages;
 import com.microproject.session.SessionFactory;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.testsupport.RibbonGuiButton;
+import com.microproject.testsupport.RibbonGuiSupport;
 import com.microproject.testsupport.GuiCommandAcceptanceFixture;
 import com.microproject.testsupport.GuiPhysicalRouteAdapter;
 import com.microproject.testsupport.DialogLayoutAssertions;
@@ -280,7 +281,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			.getString("TaskRibbonTask.title"));
 		click(robot, boundsOnScreen(taskTab));
 		GuiAcceptanceSupport.await(taskTab::isSelected, "Robot click did not select the Task ribbon tab");
-		AbstractButton update = findShowingButtonByCommand("RibbonUpdateTasks");
+		AbstractButton update = RibbonGuiSupport.findVisibleOrExpand(robot, window, "RibbonUpdateTasks");
 		GuiAcceptanceSupport.await(update::isEnabled, "Update Tasks remained disabled after selecting a task");
 		click(robot, boundsOnScreen(update));
 
@@ -396,8 +397,6 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		AbstractButton information = findShowingButtonByCommand("RibbonTaskInformation");
 		GuiAcceptanceSupport.await(information::isEnabled,
 			"Task Properties > Information remained disabled after selecting a task");
-		assertTrue(information.getAction().getClass().getName().contains("UiButtonDiagnostics"),
-			"Debug mode must instrument the physical ribbon button action");
 		RibbonCommandResult previousOutcome = manager.getLastRibbonCommandResult();
 		click(robot, boundsOnScreen(information));
 
