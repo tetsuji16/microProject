@@ -57,6 +57,7 @@ import com.microproject.pm.task.Project;
 import com.microproject.pm.task.DefaultSubProj;
 import com.microproject.pm.task.Task;
 import com.microproject.strings.Messages;
+import com.microproject.menu.MenuManager;
 import com.microproject.undo.DataFactoryUndoController;
 
 class SpreadSheetMouseInteractionTest {
@@ -389,9 +390,14 @@ class SpreadSheetMouseInteractionTest {
 			SpreadSheetPopupMenu popup = sheet.getPopup();
 			popup.setRow(findRow(sheet, reference));
 
-			assertEquals(Messages.getString("RibbonOpenSubproject.text"), menuItem(popup, "openLinkedProject").getText());
-			assertEquals(Messages.getString("RibbonRefreshSubprojects.text"), menuItem(popup, "refreshLinkedProject").getText());
-			assertEquals(Messages.getString("RibbonLocateLinkedProject.text"), menuItem(popup, "locateLinkedProject").getText());
+			assertEquals(MenuManager.getMenuString("RibbonOpenSubproject.text"), menuItem(popup, "openLinkedProject").getText());
+			assertEquals(MenuManager.getMenuString("RibbonRefreshSubprojects.text"), menuItem(popup, "refreshLinkedProject").getText());
+			assertEquals(MenuManager.getMenuString("RibbonLocateLinkedProject.text"), menuItem(popup, "locateLinkedProject").getText());
+			assertEquals(MenuManager.getMenuString("RibbonRemoveSubproject.text"), menuItem(popup, "removeLinkedProject").getText());
+			assertFalse(menuItem(popup, "openLinkedProject").getText().startsWith("!"));
+			assertFalse(menuItem(popup, "refreshLinkedProject").getText().startsWith("!"));
+			assertFalse(menuItem(popup, "locateLinkedProject").getText().startsWith("!"));
+			assertFalse(menuItem(popup, "removeLinkedProject").getText().startsWith("!"));
 			assertNotNull(menuItem(popup, "openLinkedProject").getIcon());
 			assertNotNull(menuItem(popup, "refreshLinkedProject").getIcon());
 			assertNotNull(menuItem(popup, "locateLinkedProject").getIcon());

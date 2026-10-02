@@ -90,18 +90,7 @@ public class MenuManager {
 		tabbedNavigations.add(t);
 	}
 	private MenuManager(ProjectMenuActionMap rootActionMap) {
-		ResourceBundle internalBundle=null,bundle=null;
-				
-		if (bundle==null){
-			try{
-				bundle=ConfigurationFile.getDirectoryBundle(MENU_BUNDLE_CONF_DIR);
-			}catch(Exception e){
-				logger.log(Level.FINE, "Failed to load menu bundle from config directory", e);
-			}
-			if (internalBundle==null) internalBundle =  ResourceBundle.getBundle(MENU_INTERNAL_BUNDLE,Locale.getDefault(),ClassLoaderUtils.getLocalClassLoader());
-			if (bundle==null) bundle =  ResourceBundle.getBundle(MENU_BUNDLE,Locale.getDefault(),ClassLoaderUtils.getLocalClassLoader());
-			bundles=new ResourceBundle[]{internalBundle,bundle};
-		}
+		ensureBundles();
 	menuFactory = new ExtMenuFactory(rootActionMap,bundles);
 	toolBarFactory = new ExtToolBarFactory(rootActionMap,bundles);
 	if (Environment.isRibbonUI()) {
@@ -125,20 +114,39 @@ public class MenuManager {
 	}
 
 	public static String getMenuString(String key) {
-    	MissingResourceException exception=null;
-    	String s=null;
-    	for (ResourceBundle bundle : bundles){
-    		try {
-				s=bundle.getString(key);
-				exception=null;
+		MissingResourceException exception = null;
+		String value = null;
+		for (ResourceBundle bundle : ensureBundles()) {
+			try {
+				value = bundle.getString(key);
+				exception = null;
 			} catch (MissingResourceException e) {
-				exception=e;
+				exception = e;
 				continue;
 			}
-    		if (s!=null) break;
-    	}
-    	if (exception!=null) throw exception;
-    	return s;
+			if (value != null)
+				break;
+		}
+		if (exception != null)
+			throw exception;
+		return value;
+	}
+
+	private static synchronized ResourceBundle[] ensureBundles() {
+		if (bundles == null) {
+			ResourceBundle internalBundle = ResourceBundle.getBundle(MENU_INTERNAL_BUNDLE, Locale.getDefault(),
+				ClassLoaderUtils.getLocalClassLoader());
+			ResourceBundle bundle = null;
+			try {
+				bundle = ConfigurationFile.getDirectoryBundle(MENU_BUNDLE_CONF_DIR);
+			} catch (Exception e) {
+				logger.log(Level.FINE, "Failed to load menu bundle from config directory", e);
+			}
+			if (bundle == null)
+				bundle = ResourceBundle.getBundle(MENU_BUNDLE, Locale.getDefault(), ClassLoaderUtils.getLocalClassLoader());
+			bundles = new ResourceBundle[] { internalBundle, bundle };
+		}
+		return bundles;
 	}
 	public String getString(String key) {
 		return menuFactory.getString(key);

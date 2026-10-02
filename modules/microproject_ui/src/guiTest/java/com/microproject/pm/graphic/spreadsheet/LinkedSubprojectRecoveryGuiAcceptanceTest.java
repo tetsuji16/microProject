@@ -4,6 +4,7 @@
  ******************************************************************************/
 package com.microproject.pm.graphic.spreadsheet;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.BorderLayout;
@@ -26,6 +27,7 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.graphic.configuration.SpreadSheetCategories;
 import com.microproject.grouping.core.NodeFactory;
+import com.microproject.menu.MenuManager;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
 import com.microproject.pm.resource.ResourcePool;
@@ -97,6 +99,10 @@ class LinkedSubprojectRecoveryGuiAcceptanceTest {
 		assertTrue(menuItemIsVisible(popup, "refreshLinkedProject"));
 		assertTrue(menuItemIsVisible(popup, "locateLinkedProject"));
 		assertTrue(menuItemIsVisible(popup, "removeLinkedProject"));
+		assertMenuText(popup, "openLinkedProject", "RibbonOpenSubproject.text");
+		assertMenuText(popup, "refreshLinkedProject", "RibbonRefreshSubprojects.text");
+		assertMenuText(popup, "locateLinkedProject", "RibbonLocateLinkedProject.text");
+		assertMenuText(popup, "removeLinkedProject", "RibbonRemoveSubproject.text");
 		capture(robot, popup, artifactName);
 	}
 
@@ -136,6 +142,17 @@ class LinkedSubprojectRecoveryGuiAcceptanceTest {
 			if (component instanceof javax.swing.JMenuItem item && name.equals(item.getName()))
 				return item.isVisible() && item.isEnabled();
 		return false;
+	}
+
+	private static void assertMenuText(SpreadSheetPopupMenu popup, String itemName, String resourceKey) {
+		for (java.awt.Component component : popup.getComponents()) {
+			if (component instanceof javax.swing.JMenuItem item && itemName.equals(item.getName())) {
+				assertEquals(MenuManager.getMenuString(resourceKey), item.getText());
+				assertTrue(!item.getText().startsWith("!"), "unresolved menu label: " + resourceKey);
+				return;
+			}
+		}
+		throw new AssertionError("missing linked-project popup item: " + itemName);
 	}
 
 	private void capture(Robot robot, SpreadSheetPopupMenu popup, String artifactName) throws Exception {
