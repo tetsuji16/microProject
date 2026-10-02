@@ -656,6 +656,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			return false;
 		}, "Restarted JRibbon did not lay out its native Task tab");
 		AbstractButton taskTab = restoredTaskTab[0];
+		activateWindowForRobot(robot);
 		click(robot, taskTab);
 		GuiAcceptanceSupport.await(taskTab::isSelected, "Restarted application did not restore the Task ribbon tab");
 		AbstractButton restoredTaskInformation = RibbonGuiSupport.findVisibleOrExpand(robot, window.getRibbonPanel(), "RibbonTaskInformation");
