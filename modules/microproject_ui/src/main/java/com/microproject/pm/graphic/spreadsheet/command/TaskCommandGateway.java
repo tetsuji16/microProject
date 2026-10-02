@@ -11,6 +11,8 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Set;
 
+import javax.swing.undo.UndoableEditSupport;
+
 import com.microproject.pm.graphic.collaboration.CollaborationHelper;
 import com.microproject.grouping.core.Node;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
@@ -23,6 +25,10 @@ import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.dependency.Dependency;
+import com.microproject.pm.dependency.DependencyService;
+import com.microproject.association.InvalidAssociationException;
+import com.microproject.util.ClassUtils;
 
 /** Resolves task edits against the current projection before entering the canonical field/Undo path. */
 public final class TaskCommandGateway {
@@ -122,6 +128,104 @@ public final class TaskCommandGateway {
 		int position = anchor == null || parent == null ? 0 : ((com.microproject.grouping.core.NodeBridge) parent).getIndex(anchor);
 		boolean pasted = sheetModel.getCache().pasteNodes(parent, new ArrayList<>(intent.copiedRoots()), position);
 		return TaskCommandResult.of(pasted ? TaskCommandResult.Status.CHANGED : TaskCommandResult.Status.REJECTED);
+	}
+
+	/** Resolves a stable task selection before creating or removing dependencies. */
+	public static TaskCommandResult execute(SpreadSheet sheet, TaskDependencyIntent intent, Object eventSource)
+			throws InvalidAssociationException {
+		Objects.requireNonNull(sheet, "sheet");
+		Objects.requireNonNull(intent, "intent");
+		if (!(sheet.getModel() instanceof SpreadSheetModel sheetModel) || sheetModel.getCache() == null
+				|| !(sheetModel.getCache().getModel().getDataFactory() instanceof Project project))
+			return new TaskCommandResult(TaskCommandResult.Status.INVALID_INTENT, "task-dependency-requires-project-model");
+		if (project.isReadOnly())
+			return new TaskCommandResult(TaskCommandResult.Status.REJECTED, "document-read-only");
+
+		RevisionedProjectionIndex projection = sheetModel.getCache().getVisibleNodes().getProjectionIndex();
+		if (projection.topologyRevision() != intent.projectionRevision())
+			return new TaskCommandResult(TaskCommandResult.Status.STALE_PROJECTION, "projection-revision-changed");
+
+		List<Node> selectedNodes = new ArrayList<>(intent.tasks().size());
+		List<Task> tasks = new ArrayList<>(intent.tasks().size());
+		for (ProjectionRowKey.TaskRow key : intent.tasks()) {
+			int row = projection.rowForKey(key);
+			if (row < 0)
+				return new TaskCommandResult(TaskCommandResult.Status.MISSING_TASK, "task-not-visible");
+			GraphicNode graphicNode = projection.nodeAt(row);
+			Node node = graphicNode == null ? null : graphicNode.getNode();
+			if (node == null || node.isVoid() || !(node.getImpl() instanceof Task task))
+				return new TaskCommandResult(TaskCommandResult.Status.MISSING_TASK, "task-not-editable");
+			selectedNodes.add(node);
+			tasks.add(task);
+		}
+		DependencyService service = DependencyService.getInstance();
+		Dependency selectedDependency = null;
+		if (intent.operation() == TaskDependencyIntent.Operation.UNLINK && intent.dependency() != null) {
+			selectedDependency = tasks.stream().flatMap(task -> service.getIncidentDependencies(task).stream())
+				.filter(intent.dependency()::matches).findFirst().orElse(null);
+			if (selectedDependency == null)
+				return new TaskCommandResult(TaskCommandResult.Status.MISSING_TASK, "dependency-not-found");
+		}
+		List<Object> lockTargets = new ArrayList<>(selectedNodes);
+		if (selectedDependency != null) {
+			if (selectedDependency.getPredecessor() instanceof Task predecessor
+					&& tasks.stream().noneMatch(task -> task == predecessor))
+				lockTargets.add(predecessor);
+			if (selectedDependency.getSuccessor() instanceof Task successor
+					&& tasks.stream().noneMatch(task -> task == successor))
+				lockTargets.add(successor);
+		}
+		if (!CollaborationHelper.tryLockNodes(null, lockTargets, sheet,
+			intent.operation() == TaskDependencyIntent.Operation.LINK ? "link" : "unlink"))
+			return new TaskCommandResult(TaskCommandResult.Status.LOCKED, "collaboration-lock-denied");
+
+		int before = dependencyCount(tasks);
+		int anticipatedEdits = intent.operation() == TaskDependencyIntent.Operation.LINK
+			? adjacentLinksToCreate(tasks) : intent.dependency() == null ? before : 1;
+		UndoableEditSupport undoSupport = beginCompoundUndo(project, anticipatedEdits);
+		try {
+			if (intent.operation() == TaskDependencyIntent.Operation.LINK) {
+				service.connect(tasks, eventSource, null);
+			} else if (intent.dependency() != null) {
+				service.remove(selectedDependency, eventSource, true);
+			} else {
+				service.removeAnyDependencies(tasks, eventSource);
+			}
+		} finally {
+			if (undoSupport != null)
+				undoSupport.endUpdate();
+		}
+		int after = dependencyCount(tasks);
+		boolean changed = intent.operation() == TaskDependencyIntent.Operation.LINK ? after > before : after < before;
+		return TaskCommandResult.of(changed ? TaskCommandResult.Status.CHANGED : TaskCommandResult.Status.NO_CHANGE);
+	}
+
+	private static int dependencyCount(List<Task> tasks) {
+		Set<Dependency> incident = Collections.newSetFromMap(new IdentityHashMap<>());
+		for (Task task : tasks)
+			incident.addAll(DependencyService.getInstance().getIncidentDependencies(task));
+		return incident.size();
+	}
+
+	private static int adjacentLinksToCreate(List<Task> tasks) {
+		int count = 0;
+		for (int index = 0; index + 1 < tasks.size(); index++) {
+			Task predecessor = tasks.get(index);
+			Task successor = tasks.get(index + 1);
+			if (!ClassUtils.isObjectReadOnly(predecessor) && !ClassUtils.isObjectReadOnly(successor)
+					&& successor.getPredecessorList().findLeft(predecessor) == null)
+				count++;
+		}
+		return count;
+	}
+
+	private static UndoableEditSupport beginCompoundUndo(Project project, int editCount) {
+		if (editCount <= 1 || project.getUndoController() == null)
+			return null;
+		UndoableEditSupport undoSupport = project.getUndoController().getEditSupport();
+		if (undoSupport != null)
+			undoSupport.beginUpdate();
+		return undoSupport;
 	}
 
 	private static PreparedHierarchyEdit prepare(SpreadSheet sheet, TaskHierarchyEditIntent intent) {

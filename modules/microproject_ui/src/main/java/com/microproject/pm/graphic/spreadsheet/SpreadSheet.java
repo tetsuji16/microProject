@@ -214,8 +214,18 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	}
 
 	public TaskHierarchyEditIntent.SelectionSnapshot captureHierarchySelection() {
-		if (!(getModel() instanceof SpreadSheetModel model) || model.getRowMultiple() != 1
-				|| !hasEntireRowSelection() || !hasOnlyTaskRowsSelected())
+		return captureTaskSelection(true);
+	}
+
+	/** Captures selected task rows for dependency commands without retaining mutable node references. */
+	public TaskHierarchyEditIntent.SelectionSnapshot captureTaskDependencySelection() {
+		return captureTaskSelection(false);
+	}
+
+	private TaskHierarchyEditIntent.SelectionSnapshot captureTaskSelection(boolean requireEntireRows) {
+		if (!(getModel() instanceof SpreadSheetModel model) || model.getCache() == null || model.getRowMultiple() != 1
+				|| getSelectedRowCount() == 0 || (requireEntireRows && !hasEntireRowSelection())
+				|| !hasOnlyTaskRowsSelected())
 			return null;
 		var projection = model.getCache().getVisibleNodes().getProjectionIndex();
 		List<ProjectionRowKey.TaskRow> taskRows = new ArrayList<>();

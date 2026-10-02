@@ -23,6 +23,7 @@ import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
+import com.microproject.pm.graphic.model.cache.ProjectionRowKey;
 import com.microproject.pm.graphic.model.cache.RevisionedProjectionIndex;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
@@ -33,9 +34,118 @@ import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectTaskKey;
 import com.microproject.pm.task.Task;
+import com.microproject.pm.dependency.Dependency;
 import com.microproject.undo.DataFactoryUndoController;
 
 class TaskCommandGatewayTest {
+	@Test
+	void dependencyIntentUsesStableTaskRowsAndSharesUndoAndPersistencePath() throws Exception {
+		Fixture fixture = createDependencyFixture();
+		NormalTask successor = fixture.project().getTaskList().stream()
+			.filter(task -> "Successor".equals(task.getName())).map(NormalTask.class::cast).findFirst().orElseThrow();
+		NormalTask finalTask = fixture.project().getTaskList().stream()
+			.filter(task -> "Final task".equals(task.getName())).map(NormalTask.class::cast).findFirst().orElseThrow();
+		var projection = fixture.cache().getVisibleNodes().getProjectionIndex();
+		List<ProjectionRowKey.TaskRow> rows = List.of(taskRowFor(projection, fixture.task()),
+			taskRowFor(projection, successor), taskRowFor(projection, finalTask));
+		TaskDependencyIntent link = new TaskDependencyIntent(TaskDependencyIntent.Operation.LINK, rows,
+			projection.topologyRevision(), null);
+		TaskDependencyIntent staleLink = new TaskDependencyIntent(TaskDependencyIntent.Operation.LINK, rows,
+			projection.topologyRevision() + 1, null);
+		AtomicReference<TaskCommandResult> stale = new AtomicReference<>();
+		SwingUtilities.invokeAndWait(() -> {
+			try {
+				stale.set(TaskCommandGateway.execute(fixture.sheet(), staleLink, this));
+			} catch (Exception failure) {
+				throw new RuntimeException(failure);
+			}
+		});
+		assertEquals(TaskCommandResult.Status.STALE_PROJECTION, stale.get().status());
+		assertTrue(successor.getPredecessorList().isEmpty(), "stale task rows must not create a dependency");
+		AtomicReference<TaskCommandResult> linked = new AtomicReference<>();
+
+		SwingUtilities.invokeAndWait(() -> {
+			try {
+				linked.set(TaskCommandGateway.execute(fixture.sheet(), link, this));
+			} catch (Exception failure) {
+				throw new RuntimeException(failure);
+			}
+		});
+		assertEquals(TaskCommandResult.Status.CHANGED, linked.get().status());
+		assertEquals(1, successor.getPredecessorList().size());
+		assertEquals(1, finalTask.getPredecessorList().size());
+		assertTrue(fixture.project().getUndoController().canUndo());
+		AtomicReference<TaskCommandResult> unchanged = new AtomicReference<>();
+		SwingUtilities.invokeAndWait(() -> {
+			try {
+				unchanged.set(TaskCommandGateway.execute(fixture.sheet(), link, this));
+			} catch (Exception failure) {
+				throw new RuntimeException(failure);
+			}
+		});
+		assertEquals(TaskCommandResult.Status.NO_CHANGE, unchanged.get().status(),
+			"repeating the same link must not publish a second mutation");
+
+		SwingUtilities.invokeAndWait(() -> fixture.project().getUndoController().undo());
+		assertTrue(successor.getPredecessorList().isEmpty(), "one Undo must remove the created dependency");
+		assertTrue(finalTask.getPredecessorList().isEmpty(), "one Undo must remove every dependency in the batch");
+		SwingUtilities.invokeAndWait(() -> fixture.project().getUndoController().redo());
+		assertEquals(1, successor.getPredecessorList().size(), "one Redo must restore the created dependency");
+		assertEquals(1, finalTask.getPredecessorList().size(), "one Redo must restore every dependency in the batch");
+
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		MpoFileImporter serializer = new MpoFileImporter();
+		assertTrue(serializer.saveProject(fixture.project(), saved));
+		Project reopened = serializer.loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		assertEquals(1, reopened.getTaskList().stream().filter(task -> "Successor".equals(task.getName()))
+			.findFirst().orElseThrow().getPredecessorList().size(), "linked dependency must survive MPO reload; ids="
+				+ fixture.project().getTaskList().stream().map(task -> task.getName() + "=" + task.getUniqueId()).toList());
+		assertEquals(1, reopened.getTaskList().stream().filter(task -> "Final task".equals(task.getName()))
+			.findFirst().orElseThrow().getPredecessorList().size(), "every dependency in the batch must survive MPO reload");
+
+		var currentProjection = fixture.cache().getVisibleNodes().getProjectionIndex();
+		TaskDependencyIntent.DependencyTarget dependency = TaskDependencyIntent.DependencyTarget.from(
+			(Dependency) successor.getPredecessorList().iterator().next());
+		TaskDependencyIntent unlink = new TaskDependencyIntent(TaskDependencyIntent.Operation.UNLINK,
+			List.of(taskRowFor(currentProjection, successor)), currentProjection.topologyRevision(), dependency);
+		AtomicReference<TaskCommandResult> unlinked = new AtomicReference<>();
+		SwingUtilities.invokeAndWait(() -> {
+			try {
+				unlinked.set(TaskCommandGateway.execute(fixture.sheet(), unlink, this));
+			} catch (Exception failure) {
+				throw new RuntimeException(failure);
+			}
+		});
+		assertEquals(TaskCommandResult.Status.CHANGED, unlinked.get().status());
+		assertTrue(successor.getPredecessorList().isEmpty(), "stable endpoint keys must remove the selected dependency");
+		assertEquals(1, finalTask.getPredecessorList().size(), "targeted unlink must leave the other batch dependency intact");
+		SwingUtilities.invokeAndWait(() -> fixture.project().getUndoController().undo());
+		assertEquals(1, successor.getPredecessorList().size(), "Undo must restore the specifically unlinked dependency");
+		SwingUtilities.invokeAndWait(() -> fixture.project().getUndoController().redo());
+		assertTrue(successor.getPredecessorList().isEmpty(), "Redo must remove the specifically unlinked dependency");
+		SwingUtilities.invokeAndWait(() -> fixture.project().getUndoController().undo());
+
+		TaskDependencyIntent unlinkAll = new TaskDependencyIntent(TaskDependencyIntent.Operation.UNLINK, rows,
+			currentProjection.topologyRevision(), null);
+		AtomicReference<TaskCommandResult> allUnlinked = new AtomicReference<>();
+		SwingUtilities.invokeAndWait(() -> {
+			try {
+				allUnlinked.set(TaskCommandGateway.execute(fixture.sheet(), unlinkAll, this));
+			} catch (Exception failure) {
+				throw new RuntimeException(failure);
+			}
+		});
+		assertEquals(TaskCommandResult.Status.CHANGED, allUnlinked.get().status());
+		assertTrue(successor.getPredecessorList().isEmpty());
+		assertTrue(finalTask.getPredecessorList().isEmpty());
+		SwingUtilities.invokeAndWait(() -> fixture.project().getUndoController().undo());
+		assertEquals(1, successor.getPredecessorList().size(), "one Undo must restore every removed link");
+		assertEquals(1, finalTask.getPredecessorList().size(), "one Undo must restore every removed link");
+		SwingUtilities.invokeAndWait(() -> fixture.project().getUndoController().redo());
+		assertTrue(successor.getPredecessorList().isEmpty());
+		assertTrue(finalTask.getPredecessorList().isEmpty());
+	}
+
 	@Test
 	void structuralTaskPasteUsesStableAnchorAndOneUndoAcrossSaveReload() throws Exception {
 		Fixture fixture = createFixture();
@@ -188,6 +298,40 @@ class TaskCommandGatewayTest {
 		});
 		return new Fixture(project, task, cache, (SpreadSheetModel) sheet[0].getModel(), sheet[0],
 			ProjectTaskKey.from(task).orElseThrow());
+	}
+
+	private Fixture createDependencyFixture() throws Exception {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("task-dependency-edit", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		project.initialize(false, false);
+		NormalTask predecessor = project.createScriptedTask();
+		predecessor.setName("Before");
+		NormalTask successor = project.createScriptedTask();
+		successor.setName("Successor");
+		NormalTask finalTask = project.createScriptedTask();
+		finalTask.setName("Final task");
+		NodeModelCache cache = NodeModelCacheFactory.getInstance().createFilteredCache(
+			NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel()), "task-dependency-edit", null);
+		cache.update();
+		SpreadSheet[] sheet = new SpreadSheet[1];
+		SwingUtilities.invokeAndWait(() -> {
+			sheet[0] = new SpreadSheet();
+			sheet[0].setSpreadSheetCategory(SpreadSheetCategories.taskSpreadsheetCategory);
+			SpreadSheetUtils.setFieldsAndContext(sheet[0], cache, SpreadSheetCategories.taskSpreadsheetCategory,
+				"Spreadsheet.Task.entry", true);
+		});
+		return new Fixture(project, predecessor, cache, (SpreadSheetModel) sheet[0].getModel(), sheet[0],
+			ProjectTaskKey.from(predecessor).orElseThrow());
+	}
+
+	private static ProjectionRowKey.TaskRow taskRowFor(RevisionedProjectionIndex projection, Task task) {
+		for (int row = 0; row < projection.size(); row++) {
+			if (projection.nodeAt(row).getNode().getImpl() == task
+					&& projection.keyAt(row) instanceof ProjectionRowKey.TaskRow taskRow)
+				return taskRow;
+		}
+		throw new AssertionError("Task is absent from the current visible projection: " + task.getName());
 	}
 
 	private record Fixture(Project project, NormalTask task, NodeModelCache cache, SpreadSheetModel model, SpreadSheet sheet,

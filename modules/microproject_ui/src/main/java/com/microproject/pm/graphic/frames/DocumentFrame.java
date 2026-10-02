@@ -74,6 +74,10 @@ import com.microproject.pm.graphic.model.cache.ReferenceNodeModelCache;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
+import com.microproject.pm.graphic.spreadsheet.command.TaskCommandGateway;
+import com.microproject.pm.graphic.spreadsheet.command.TaskCommandResult;
+import com.microproject.pm.graphic.spreadsheet.command.TaskDependencyIntent;
+import com.microproject.pm.graphic.spreadsheet.command.TaskHierarchyEditIntent;
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.selection.event.SelectionNodeEvent;
 import com.microproject.pm.graphic.spreadsheet.selection.event.SelectionNodeListener;
@@ -105,7 +109,6 @@ import com.microproject.grouping.core.model.WalkersNodeModel;
 import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.grouping.core.transform.ViewTransformer;
 import com.microproject.grouping.core.transform.filtering.NodeFilter;
-import com.microproject.grouping.core.transform.filtering.NotAssignmentFilter;
 import com.microproject.grouping.core.transform.filtering.ResourceInTeamFilter;
 import com.microproject.job.JobQueue;
 import com.microproject.pm.calendar.CalendarService;
@@ -782,6 +785,8 @@ public class DocumentFrame extends NamedFrame implements
 		// ribbon command silently return even though it was enabled.
 		ActiveTaskSelectionResolver.Selection selection = resolveTaskSelection(true, true);
 		List<Node> taskNodes = new ArrayList<>(selection.nodes());
+		SpreadSheet sheet = getActiveSpreadSheet();
+		TaskHierarchyEditIntent.SelectionSnapshot snapshot = sheet == null ? null : sheet.captureTaskDependencySelection();
 		publishTaskCommandResult(CommandId.LINK, RibbonCommandResult.Status.REJECTED,
 			"selection-too-small", taskNodes);
 		if (taskNodes.size() > 1)
@@ -800,31 +805,22 @@ public class DocumentFrame extends NamedFrame implements
 				getGraphicManager().traceUi("link rejected reason=selection-too-small selectedTasks=" + taskNodes.size());
 				return;
 			}
-			if (!CollaborationHelper.tryLockNodes(getProject(), taskNodes, this, "link")) {
+			if (snapshot == null) {
 				publishTaskCommandResult(CommandId.LINK, RibbonCommandResult.Status.REJECTED,
-					"lock-failed", taskNodes);
-				getGraphicManager().traceUi("link rejected reason=lock-failed selectedTasks=" + taskNodes.size());
+					"task-selection-not-stable", taskNodes);
+				getGraphicManager().traceUi("link rejected reason=task-selection-not-stable selectedTasks=" + taskNodes.size());
 				return;
 			}
-			List list = NodeList.nodeListToImplList(taskNodes, NotAssignmentFilter.getInstance());
-			if (list.size() < 2) {
-				publishTaskCommandResult(CommandId.LINK, RibbonCommandResult.Status.REJECTED,
-					"task-filter", taskNodes);
-				getGraphicManager().traceUi("link rejected reason=task-filter selectedTasks=" + list.size());
-				return;
-			}
-			int beforeDependencies = dependencyCount(list);
-			DependencyService.getInstance().connect(list,this,null);
-			getActiveSpreadSheet().restoreTaskRowSelection(taskNodes);
-			int afterDependencies = dependencyCount(list);
-			publishTaskCommandResult(CommandId.LINK,
-				afterDependencies > beforeDependencies
-					? RibbonCommandResult.Status.CHANGED : RibbonCommandResult.Status.NO_CHANGE,
-				"", taskNodes);
+			TaskCommandResult result = TaskCommandGateway.execute(sheet,
+				new TaskDependencyIntent(TaskDependencyIntent.Operation.LINK, snapshot.tasks(),
+					snapshot.projectionRevision(), null), this);
+			publishDependencyCommandResult(CommandId.LINK, result, taskNodes);
+			if (result.status() == TaskCommandResult.Status.CHANGED
+					|| result.status() == TaskCommandResult.Status.NO_CHANGE)
+				sheet.restoreTaskRowSelection(taskNodes);
 			refreshUndoButtonsSafely();
 			getGraphicManager().traceUi("link complete selectedTasks=" + taskNodes.size()
-				+ " dependencies=" + dependencyCount(list) + " undo=" + canUndoState() + " redo=" + canRedoState());
-			//DependencyService.getInstance().connect(list,this);
+				+ " result=" + result.status() + " undo=" + canUndoState() + " redo=" + canRedoState());
 		} catch (InvalidAssociationException e) {
 			publishTaskCommandResult(CommandId.LINK, RibbonCommandResult.Status.REJECTED,
 				"invalid-association", taskNodes);
@@ -835,6 +831,8 @@ public class DocumentFrame extends NamedFrame implements
 	public void doUnlinkTasks() {
 		ActiveTaskSelectionResolver.Selection selection = resolveTaskSelection(true, true);
 		List<Node> taskNodes = new ArrayList<>(selection.nodes());
+		SpreadSheet sheet = getActiveSpreadSheet();
+		TaskHierarchyEditIntent.SelectionSnapshot snapshot = sheet == null ? null : sheet.captureTaskDependencySelection();
 		publishTaskCommandResult(CommandId.UNLINK, RibbonCommandResult.Status.REJECTED,
 			"no-selection", taskNodes);
 		if (taskNodes.size() > 1)
@@ -852,25 +850,17 @@ public class DocumentFrame extends NamedFrame implements
 			getGraphicManager().traceUi("unlink rejected reason=document-read-only");
 			return;
 		}
-		if (!CollaborationHelper.tryLockNodes(getProject(), taskNodes, this, "unlink")) {
+		if (snapshot == null) {
 			publishTaskCommandResult(CommandId.UNLINK, RibbonCommandResult.Status.REJECTED,
-				"lock-failed", taskNodes);
-			getGraphicManager().traceUi("unlink rejected reason=lock-failed selectedTasks=" + taskNodes.size());
+				"task-selection-not-stable", taskNodes);
+			getGraphicManager().traceUi("unlink rejected reason=task-selection-not-stable selectedTasks=" + taskNodes.size());
 			return;
 		}
-		List list = NodeList.nodeListToImplList(taskNodes, NotAssignmentFilter.getInstance());
-		if (list.isEmpty()) {
-			publishTaskCommandResult(CommandId.UNLINK, RibbonCommandResult.Status.REJECTED,
-				"task-filter", taskNodes);
-			getGraphicManager().traceUi("unlink rejected reason=task-filter");
-			return;
-		}
-		int beforeDependencies = dependencyCount(list);
-
-
-		if (list.size() == 1 && list.get(0) instanceof HasDependencies && !java.awt.GraphicsEnvironment.isHeadless()) {
+		TaskDependencyIntent.DependencyTarget selectedDependencyTarget = null;
+		if (taskNodes.size() == 1 && taskNodes.getFirst().getImpl() instanceof HasDependencies dependencies
+				&& !java.awt.GraphicsEnvironment.isHeadless()) {
 			List<Dependency> incident = DependencyService.getInstance()
-				.getIncidentDependencies((HasDependencies) list.get(0));
+				.getIncidentDependencies(dependencies);
 			if (incident.size() > 1) {
 				Dependency selected = chooseDependencyToUnlink(incident);
 				if (selected == null) {
@@ -879,22 +869,44 @@ public class DocumentFrame extends NamedFrame implements
 					getGraphicManager().traceUi("unlink cancelled reason=dependency-not-selected");
 					return;
 				}
-				DependencyService.getInstance().remove(selected, this, true);
-			} else {
-				DependencyService.getInstance().removeAnyDependencies(list, this);
+				selectedDependencyTarget = TaskDependencyIntent.DependencyTarget.from(selected);
 			}
-		} else {
-			DependencyService.getInstance().removeAnyDependencies(list,this);
 		}
-		getActiveSpreadSheet().restoreTaskRowSelection(taskNodes);
-		int afterDependencies = dependencyCount(list);
-		publishTaskCommandResult(CommandId.UNLINK,
-			afterDependencies < beforeDependencies
-				? RibbonCommandResult.Status.CHANGED : RibbonCommandResult.Status.NO_CHANGE,
-			"", taskNodes);
+		TaskCommandResult result;
+		try {
+			result = TaskCommandGateway.execute(sheet,
+				new TaskDependencyIntent(TaskDependencyIntent.Operation.UNLINK, snapshot.tasks(),
+					snapshot.projectionRevision(), selectedDependencyTarget), this);
+		} catch (InvalidAssociationException unexpectedValidationFailure) {
+			publishTaskCommandResult(CommandId.UNLINK, RibbonCommandResult.Status.REJECTED,
+				"invalid-association", taskNodes);
+			Alert.error(unexpectedValidationFailure.getMessage(), this);
+			return;
+		}
+		publishDependencyCommandResult(CommandId.UNLINK, result, taskNodes);
+		if (result.status() == TaskCommandResult.Status.CHANGED
+				|| result.status() == TaskCommandResult.Status.NO_CHANGE)
+			sheet.restoreTaskRowSelection(taskNodes);
 		refreshUndoButtonsSafely();
 		getGraphicManager().traceUi("unlink complete selectedTasks=" + taskNodes.size()
-				+ " dependencies=" + dependencyCount(list) + " undo=" + canUndoState() + " redo=" + canRedoState());
+				+ " result=" + result.status() + " undo=" + canUndoState() + " redo=" + canRedoState());
+	}
+
+	private void publishDependencyCommandResult(CommandId command, TaskCommandResult result, List<Node> taskNodes) {
+		String reason = switch (result.status()) {
+		case LOCKED -> "lock-failed";
+		case STALE_PROJECTION -> "stale-projection";
+		case MISSING_TASK -> result.reason();
+		case INVALID_INTENT -> result.reason();
+		case REJECTED -> result.reason();
+		default -> "";
+		};
+		RibbonCommandResult.Status status = switch (result.status()) {
+		case CHANGED -> RibbonCommandResult.Status.CHANGED;
+		case NO_CHANGE -> RibbonCommandResult.Status.NO_CHANGE;
+		default -> RibbonCommandResult.Status.REJECTED;
+		};
+		publishTaskCommandResult(command, status, reason, taskNodes);
 	}
 
 	private Dependency chooseDependencyToUnlink(List<Dependency> dependencies) {
@@ -939,15 +951,6 @@ public class DocumentFrame extends NamedFrame implements
 			getGraphicManager().traceUi((isUndo ? "undo" : "redo") + " complete canUndo=" + canUndoState() + " canRedo=" + canRedoState()
 					+ " selectedTasks=" + getSelectedTaskNodes(false, true).size());
 		}
-	}
-
-	private static int dependencyCount(List<?> tasks) {
-		int count = 0;
-		for (Object value : tasks) {
-			if (value instanceof Task task)
-				count += task.getPredecessorList().size();
-		}
-		return count;
 	}
 
 	private boolean canUndoState() {
