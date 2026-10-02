@@ -356,6 +356,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 				"a task-cell selection must project only its task row to the Gantt");
 		});
 		GraphicNode[] retainedTask = new GraphicNode[1];
+		int[] retainedRow = new int[1];
 		SwingUtilities.invokeAndWait(() -> {
 			retainedTask[0] = fixture.sheet.getSelectedGraphicNodes().getFirst();
 			GraphicNode deletedEarlierTask = (GraphicNode) fixture.sheet.getCache().getElementAt(0);
@@ -366,7 +367,8 @@ class TaskTableGanttGridGuiAcceptanceTest {
 				"deleting an earlier projected row must preserve the selected task identity");
 			assertEquals(0, fixture.sheet.getSelectedRow(),
 				"the retained task must be selected at its new table row after deletion");
-			assertEquals(Set.of(0), fixture.gantt.getHighlightedRows(),
+			retainedRow[0] = fixture.sheet.getSelectedRow();
+			assertEquals(Set.of(retainedRow[0]), fixture.gantt.getHighlightedRows(),
 				"the Gantt highlight must follow the retained identity to its new row");
 		});
 
@@ -382,9 +384,9 @@ class TaskTableGanttGridGuiAcceptanceTest {
 				"physical column-header click must select the complete column");
 			assertTrue(fixture.sheet.isHeaderColumnSelectionActive(),
 				"column-header selection must use the column-header rendering state");
-			assertFalse(fixture.sheet.getSelection().isActiveCell(row, column),
+			assertFalse(fixture.sheet.getSelection().isActiveCell(retainedRow[0], column),
 				"a full column selection must not retain a misleading active-cell highlight");
-			assertEquals(Set.of(row), fixture.gantt.getHighlightedRows(),
+			assertEquals(Set.of(retainedRow[0]), fixture.gantt.getHighlightedRows(),
 				"a presentation-only column selection must not select every Gantt task row");
 		});
 
