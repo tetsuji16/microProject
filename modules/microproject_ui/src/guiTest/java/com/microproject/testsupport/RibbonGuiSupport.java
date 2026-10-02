@@ -35,6 +35,13 @@ public final class RibbonGuiSupport {
 					return;
 				}
 			}
+			for (PopupPanelManager.PopupInfo popup : PopupPanelManager.defaultManager().getShownPath()) {
+				AbstractCommandButton command = findShowingCommand(popup.getPopupPanel(), commandId);
+				if (command != null) {
+					visible.set(RibbonGuiButton.adapt(command));
+					return;
+				}
+			}
 			for (Component component : UiComponentWalker.flatten(root)) {
 				if (!(component instanceof JRibbonBand band)) continue;
 				if (band.getPopupRibbonBand() == null) continue;

@@ -41,6 +41,7 @@ import javax.swing.SwingUtilities;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
+import org.pushingpixels.flamingo.api.ribbon.JRibbon;
 
 import com.formdev.flatlaf.ui.FlatNativeWindowsLibrary;
 import com.microproject.dialog.AbstractDialog;
@@ -638,7 +639,14 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			&& window.getGraphicManager() != initialManager,
 			"Locale change did not install a new GraphicManager through StartupFactory");
 		manager = window.getGraphicManager();
-		String taskTitle = Messages.getString("TaskRibbonTask.title");
+		String taskTitle = null;
+		for (Component component : flatten(window.getRibbonPanel())) {
+			if (component instanceof JRibbon ribbon && ribbon.getTaskCount() > 1) {
+				taskTitle = ribbon.getTask(1).getTitle();
+				break;
+			}
+		}
+		assertTrue(taskTitle != null, "Restarted JRibbon did not restore its Task ribbon definition");
 		AbstractButton taskTab = findRibbonTab(window.getRibbonPanel(), taskTitle);
 		click(robot, taskTab);
 		GuiAcceptanceSupport.await(taskTab::isSelected, "Restarted application did not restore the Task ribbon tab");
@@ -977,7 +985,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 				}
 			}
 		}
-		throw new AssertionError("File ribbon tab is not physically visible");
+		throw new AssertionError("Requested ribbon tab is not physically visible: " + String.join(", ", titles));
 	}
 
 	private static AbstractButton findButton(Component root, String text) {
