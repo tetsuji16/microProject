@@ -359,7 +359,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> {
 			retainedTask[0] = fixture.sheet.getSelectedGraphicNodes().getFirst();
 			GraphicNode deletedEarlierTask = (GraphicNode) fixture.sheet.getCache().getElementAt(0);
-			fixture.sheet.getCache().deleteNodes(List.of(deletedEarlierTask));
+			fixture.sheet.getCache().deleteNodes(List.of(deletedEarlierTask.getNode()));
 		});
 		SwingUtilities.invokeAndWait(() -> {
 			assertTrue(fixture.sheet.getSelectedGraphicNodes().contains(retainedTask[0]),
