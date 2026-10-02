@@ -108,13 +108,24 @@ class WindowShellNativeDecorationGuiAcceptanceTest {
 		assertNotEquals(before, frame.getLocation());
 
 		Rectangle normalBounds = frame.getBounds();
+		clickNativeMaximizeButton(robot, content[0]);
+		GuiAcceptanceSupport.await(() -> isMaximized(frame),
+			"physical native maximize-button click did not maximize the window");
+		clickNativeMaximizeButton(robot, content[0]);
+		GuiAcceptanceSupport.await(() -> !isMaximized(frame),
+			"physical native restore-button click did not restore the window");
+		GuiAcceptanceSupport.await(() -> normalBounds.equals(frame.getBounds()),
+			"native caption-button Restore did not recover the pre-maximize bounds: expected=" + normalBounds
+				+ ", actual=" + frame.getBounds());
+		WindowAcceptanceAssertions.assertWithinUsableWorkArea(frame, "caption-button-restored primary native window");
+
 		pressAltSpace(robot);
 		pressKey(robot, KeyEvent.VK_X); // Windows system-menu accelerator for Maximize.
-		GuiAcceptanceSupport.await(() -> (frame.getExtendedState() & Frame.MAXIMIZED_BOTH) == Frame.MAXIMIZED_BOTH,
+		GuiAcceptanceSupport.await(() -> isMaximized(frame),
 			"physical Alt+Space system-menu Maximize did not maximize the native window");
 		rightClick(robot, title[0]);
 		pressKey(robot, KeyEvent.VK_R); // Windows system-menu accelerator for Restore.
-		GuiAcceptanceSupport.await(() -> (frame.getExtendedState() & Frame.MAXIMIZED_BOTH) == 0,
+		GuiAcceptanceSupport.await(() -> !isMaximized(frame),
 			"physical title-area context-menu Restore did not restore the native window");
 		GuiAcceptanceSupport.await(() -> normalBounds.equals(frame.getBounds()),
 			"native system-menu Restore did not recover the pre-maximize bounds: expected=" + normalBounds
@@ -133,6 +144,24 @@ class WindowShellNativeDecorationGuiAcceptanceTest {
 			"physical right-edge drag did not resize the native window: before=" + beforeResize
 				+ ", after=" + frame.getBounds());
 		WindowAcceptanceAssertions.assertWithinUsableWorkArea(frame, "resized primary native window before close");
+	}
+
+	private static void clickNativeMaximizeButton(Robot robot, JComponent content) throws Exception {
+		Point[] point = new Point[1];
+		SwingUtilities.invokeAndWait(() -> {
+			JComponent placeholder = findComponent(content, OfficeChromePanel.WINDOW_BUTTONS_PLACEHOLDER_NAME);
+			point[0] = placeholder.getLocationOnScreen();
+			point[0].translate(placeholder.getWidth() / 2, placeholder.getHeight() / 2);
+		});
+		robot.mouseMove(point[0].x, point[0].y);
+		robot.delay(1_200); // Keep the physical hover long enough for Windows 11 Snap Layouts.
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+	}
+
+	private static boolean isMaximized(MainRibbonFrame target) {
+		return (target.getExtendedState() & Frame.MAXIMIZED_BOTH) == Frame.MAXIMIZED_BOTH;
 	}
 
 	private static void pressAltSpace(Robot robot) {
