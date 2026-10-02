@@ -186,6 +186,11 @@ class SpreadSheetMouseInteractionTest {
 			fixture.sheet().getCache().update();
 			row = findRow(sheet, fixture.secondTask());
 			column = findNameColumn(sheet);
+			// BasicTableUI asks HeadlessToolkit for the native menu shortcut mask
+			// on every plain press. This regression is specifically about the
+			// spreadsheet's own post-delegate handler, so isolate that route from
+			// the platform UI delegate while retaining normal component dispatch.
+			sheet.setUI(null);
 			sheet.resetMousePressCount();
 			sheet.dispatchEvent(mousePress(sheet, row, column, MouseEvent.BUTTON1, 1));
 			sheet.dispatchEvent(mousePress(sheet, row, column, MouseEvent.BUTTON1, 1));
