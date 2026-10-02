@@ -131,6 +131,7 @@ tasks.register<Test>("guiTest") {
 	val guiTestSuite = providers.gradleProperty("guiTestSuite").orElse("full").get()
 	val guiSmokeTestPatterns = listOf(
 		"com.microproject.pm.graphic.spreadsheet.common.U26SpreadsheetInputTransactionGuiAcceptanceTest.robotTypesDurationAndPercentAsOneInputTransaction",
+		"com.microproject.pm.graphic.views.TaskTableGanttGridGuiAcceptanceTest.physicalTaskRowHeaderDragReordersStableTasksAndSurvivesUndoAndReload",
 		"com.microproject.pm.graphic.views.TaskTableGanttGridGuiAcceptanceTest.physicalTaskTableDurationEditDoesNotPanGanttViewport",
 		"com.microproject.pm.graphic.views.TaskTableGanttGridGuiAcceptanceTest.physicalTaskTableDateEditRepositionsBarWithoutPanningGanttViewport",
 		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.robotClickOnTaskPropertiesInformationOpensTaskInformation",
