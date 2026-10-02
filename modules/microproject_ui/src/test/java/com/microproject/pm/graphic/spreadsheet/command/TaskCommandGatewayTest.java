@@ -5,11 +5,13 @@
 package com.microproject.pm.graphic.spreadsheet.command;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.List;
 
 import javax.swing.SwingUtilities;
 
@@ -17,6 +19,8 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.configuration.FieldDictionary;
 import com.microproject.graphic.configuration.SpreadSheetCategories;
+import com.microproject.grouping.core.Node;
+import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
 import com.microproject.pm.graphic.model.cache.RevisionedProjectionIndex;
@@ -32,6 +36,50 @@ import com.microproject.pm.task.Task;
 import com.microproject.undo.DataFactoryUndoController;
 
 class TaskCommandGatewayTest {
+	@Test
+	void structuralTaskPasteUsesStableAnchorAndOneUndoAcrossSaveReload() throws Exception {
+		Fixture fixture = createFixture();
+		DataFactoryUndoController sourceUndo = new DataFactoryUndoController();
+		Project sourceProject = Project.createProject(ResourcePool.createRourcePool("task-paste-source", sourceUndo), sourceUndo);
+		sourceProject.initialize(false, false);
+		NormalTask sourceTask = sourceProject.createScriptedTask();
+		sourceTask.setName("Pasted");
+		sourceProject.connectTask(sourceTask);
+		sourceProject.getTaskOutlines().addToAll(sourceTask, null);
+		List<Node> copiedRoots = sourceProject.getTaskModel().copy(
+			List.of(sourceProject.getTaskModel().search(sourceTask)), NodeModel.SILENT);
+		fixture.sheet().selectRowAndAllColumns(0);
+		int taskCountBefore = fixture.project().getTaskList().size();
+		ByteArrayOutputStream baseline = new ByteArrayOutputStream();
+		MpoFileImporter serializer = new MpoFileImporter();
+		assertTrue(serializer.saveProject(fixture.project(), baseline));
+		int persistedTaskCountBefore = serializer.loadProject(new ByteArrayInputStream(baseline.toByteArray())).getTaskList().size();
+		List<Long> existingTaskIds = fixture.project().getTaskList().stream().map(Task::getUniqueId).toList();
+		boolean[] pasted = new boolean[1];
+
+		SwingUtilities.invokeAndWait(() -> pasted[0] = fixture.sheet().pasteNodesFromClipboard(copiedRoots));
+		assertTrue(pasted[0]);
+		assertEquals(taskCountBefore + 1, fixture.project().getTaskList().size());
+		assertTrue(fixture.project().getTaskList().stream().anyMatch(task -> "Pasted".equals(task.getName())));
+		Task pastedTask = fixture.project().getTaskList().stream().filter(task -> "Pasted".equals(task.getName())).findFirst().orElseThrow();
+		assertTrue(existingTaskIds.stream().noneMatch(id -> id == pastedTask.getUniqueId()),
+			"pasted task identity must not collide with existing task identities");
+		assertTrue(fixture.project().getUndoController().canUndo());
+
+		SwingUtilities.invokeAndWait(() -> fixture.project().getUndoController().undo());
+		assertEquals(taskCountBefore, fixture.project().getTaskList().size());
+		assertNull(fixture.project().getTaskModel().search(copiedRoots.getFirst().getImpl()));
+		SwingUtilities.invokeAndWait(() -> fixture.project().getUndoController().redo());
+		assertEquals(taskCountBefore + 1, fixture.project().getTaskList().size());
+
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		assertTrue(serializer.saveProject(fixture.project(), saved), "pasted task batch must serialize successfully");
+		Project reopened = serializer.loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		assertEquals(persistedTaskCountBefore + 1, reopened.getTaskList().size(),
+			"paste must add one persisted task even when the fixture contains duplicate legacy entries");
+		assertTrue(reopened.getTaskList().stream().anyMatch(task -> "Pasted".equals(task.getName())));
+	}
+
 	@Test
 	void spreadsheetModelRoutesTaskFieldInputThroughStableIntent() throws Exception {
 		Fixture fixture = createFixture();
@@ -138,10 +186,10 @@ class TaskCommandGatewayTest {
 			SpreadSheetUtils.setFieldsAndContext(sheet[0], cache, SpreadSheetCategories.taskSpreadsheetCategory,
 				"Spreadsheet.Task.entry", true);
 		});
-		return new Fixture(project, task, cache, (SpreadSheetModel) sheet[0].getModel(),
+		return new Fixture(project, task, cache, (SpreadSheetModel) sheet[0].getModel(), sheet[0],
 			ProjectTaskKey.from(task).orElseThrow());
 	}
 
-	private record Fixture(Project project, NormalTask task, NodeModelCache cache, SpreadSheetModel model,
+	private record Fixture(Project project, NormalTask task, NodeModelCache cache, SpreadSheetModel model, SpreadSheet sheet,
 			ProjectTaskKey taskKey) { }
 }

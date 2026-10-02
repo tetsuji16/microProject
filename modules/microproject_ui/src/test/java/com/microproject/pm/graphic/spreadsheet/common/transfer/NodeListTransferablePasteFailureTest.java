@@ -161,6 +161,33 @@ class NodeListTransferablePasteFailureTest {
 	}
 
 	@Test
+	void mixedRowTypesRejectStructuralPasteBeforeChangingTheProject() throws Exception {
+		Project sourceProject = createProject();
+		NormalTask copiedTask = createTask(sourceProject, "Copied task");
+		List<Node> taskCopies = sourceProject.getTaskModel().copy(
+			List.of(sourceProject.getTaskModel().search(copiedTask)), NodeModel.SILENT);
+		Project targetProject = createProject();
+		NormalTask anchor = createTask(targetProject, "Anchor");
+		var wrongCategoryResource = targetProject.getResourcePool().createScriptedResource();
+		Node resourceNode = targetProject.getResourcePool().getResourceOutline().search(wrongCategoryResource);
+		List<Node> mixedBatch = new ArrayList<>(taskCopies);
+		mixedBatch.add(resourceNode);
+		SpreadSheet[] sheetRef = new SpreadSheet[1];
+		boolean[] pasted = new boolean[1];
+
+		SwingUtilities.invokeAndWait(() -> {
+			sheetRef[0] = createSheet(targetProject, "mixed-row-type-paste");
+			sheetRef[0].selectRowAndAllColumns(0);
+			pasted[0] = sheetRef[0].pasteNodesFromClipboard(mixedBatch);
+		});
+
+		assertFalse(pasted[0], "A mixed category batch must be rejected as a whole");
+		assertEquals(List.of("Anchor"), rootTaskNames(targetProject));
+		assertNotNull(targetProject.getTaskModel().search(anchor));
+		assertNull(targetProject.getTaskModel().search(taskCopies.getFirst().getImpl()));
+	}
+
+	@Test
 	void legacyPasteActionUsesTheCanonicalPasteAndUndoPath() throws Exception {
 		Project sourceProject = createProject();
 		NormalTask sourceTask = createTask(sourceProject, "Copied through legacy adapter");

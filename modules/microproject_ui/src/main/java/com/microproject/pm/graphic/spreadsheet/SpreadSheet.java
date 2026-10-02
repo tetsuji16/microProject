@@ -92,6 +92,7 @@ import com.microproject.pm.graphic.spreadsheet.common.transfer.NodeListTransfera
 import com.microproject.pm.graphic.spreadsheet.command.TaskCommandGateway;
 import com.microproject.pm.graphic.spreadsheet.command.TaskCommandResult;
 import com.microproject.pm.graphic.spreadsheet.command.TaskHierarchyEditIntent;
+import com.microproject.pm.graphic.spreadsheet.command.TaskPasteIntent;
 import com.microproject.pm.graphic.spreadsheet.editor.SimpleComboBoxEditor;
 import com.microproject.pm.graphic.spreadsheet.renderer.NameCellComponent;
 import com.microproject.pm.graphic.spreadsheet.selection.SpreadSheetListSelectionModel;
@@ -544,30 +545,98 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			return false;
 		}
 		finishCurrentOperations();
-		List<Node> selectedNodes = getSelectedNodes();
-		if (!CollaborationHelper.tryLockNodes(null, selectedNodes, this, "paste")) {
+		Object factory = ((CommonSpreadSheetModel)getModel()).getCache().getModel().getDataFactory();
+		boolean taskModel = factory instanceof Project;
+		if (!taskModel && !isCompatibleResourcePasteBatch(pastedNodes)) {
 			return false;
 		}
-		Node parent = null;
-		int position = 0;
-		if (!selectedNodes.isEmpty()) {
-			Node node = selectedNodes.get(0);
-			parent = (Node)node.getParent();
-			if (parent != null) {
-				position = ((NodeBridge)parent).getIndex(node);
-			}
-		}
+		List<ProjectionRowKey> selectedRowKeys = captureSelectedProjectionRowKeys();
 		int[] previousRows = getSelectedRows();
-		boolean pasted = getCache().pasteNodes(parent, pastedNodes, position);
+		boolean pasted;
+		if (taskModel) {
+			var projection = ((CommonSpreadSheetModel)getModel()).getCache().getVisibleNodes().getProjectionIndex();
+			TaskPasteIntent intent = new TaskPasteIntent(pastedNodes, selectedRowKeys, projection.topologyRevision());
+			pasted = TaskCommandGateway.execute(this, intent).status() == TaskCommandResult.Status.CHANGED;
+		} else {
+			List<Node> selectedNodes = getSelectedNodes();
+			if (!CollaborationHelper.tryLockNodes(null, selectedNodes, this, "paste"))
+				return false;
+			Node parent = null;
+			int position = 0;
+			if (!selectedNodes.isEmpty()) {
+				Node node = selectedNodes.getFirst();
+				parent = (Node)node.getParent();
+				if (parent != null)
+					position = ((NodeBridge)parent).getIndex(node);
+			}
+			pasted = getCache().pasteNodes(parent, pastedNodes, position);
+		}
 		if (pasted) {
 			clearSelection();
+		} else if (!selectedRowKeys.isEmpty()) {
+			restoreSelectionByProjectionRowKeys(selectedRowKeys);
 		} else if (previousRows.length > 0) {
 			clearSelection();
-			getSelectionModel().setSelectionInterval(previousRows[0], previousRows[0]);
-			for (int index = 1; index < previousRows.length; index++)
-				getSelectionModel().addSelectionInterval(previousRows[index], previousRows[index]);
+			for (int index = 0; index < previousRows.length; index++) {
+				if (index == 0)
+					getSelectionModel().setSelectionInterval(previousRows[index], previousRows[index]);
+				else
+					getSelectionModel().addSelectionInterval(previousRows[index], previousRows[index]);
+			}
 		}
 		return pasted;
+	}
+
+	private List<ProjectionRowKey> captureSelectedProjectionRowKeys() {
+		if (!(getModel() instanceof SpreadSheetModel model) || model.getCache() == null)
+			return List.of();
+		var projection = model.getCache().getVisibleNodes().getProjectionIndex();
+		List<ProjectionRowKey> keys = new ArrayList<>();
+		for (int selectedRow : getSelectedRows()) {
+			int modelRow = convertRowIndexToModel(selectedRow);
+			if (modelRow < 0 || modelRow >= projection.size())
+				return List.of();
+			keys.add(projection.keyAt(modelRow));
+		}
+		return List.copyOf(keys);
+	}
+
+	private void restoreSelectionByProjectionRowKeys(List<ProjectionRowKey> rowKeys) {
+		if (!(getModel() instanceof SpreadSheetModel model) || model.getCache() == null)
+			return;
+		var projection = model.getCache().getVisibleNodes().getProjectionIndex();
+		List<Integer> viewRows = new ArrayList<>(rowKeys.size());
+		for (ProjectionRowKey key : rowKeys) {
+			int modelRow = projection.rowForKey(key);
+			if (modelRow >= 0) {
+				int viewRow = convertRowIndexToView(modelRow);
+				if (viewRow >= 0)
+					viewRows.add(viewRow);
+			}
+		}
+		clearSelection();
+		for (int i = 0; i < viewRows.size(); i++) {
+			if (i == 0)
+				getSelectionModel().setSelectionInterval(viewRows.getFirst(), viewRows.getFirst());
+			else
+				getSelectionModel().addSelectionInterval(viewRows.get(i), viewRows.get(i));
+		}
+	}
+
+	private boolean isCompatibleResourcePasteBatch(List<Node> pastedNodes) {
+		if (!(getModel() instanceof CommonSpreadSheetModel spreadsheetModel)
+				|| spreadsheetModel.getCache() == null) {
+			return false;
+		}
+		Object factory = spreadsheetModel.getCache().getModel().getDataFactory();
+		for (Node node : pastedNodes) {
+			boolean compatible = node != null && (node.isVoid()
+				|| factory instanceof ResourcePool && node.getImpl() instanceof ResourceImpl);
+			if (!compatible) {
+				return false;
+			}
+		}
+		return factory instanceof ResourcePool;
 	}
 
 	public boolean prepareCellPaste() {

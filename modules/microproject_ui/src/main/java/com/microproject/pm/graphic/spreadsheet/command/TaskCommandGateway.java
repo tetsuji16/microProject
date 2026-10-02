@@ -6,7 +6,10 @@ package com.microproject.pm.graphic.spreadsheet.command;
 
 import java.util.Objects;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Set;
 
 import com.microproject.pm.graphic.collaboration.CollaborationHelper;
 import com.microproject.grouping.core.Node;
@@ -19,6 +22,7 @@ import com.microproject.pm.graphic.model.cache.RevisionedProjectionIndex;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.pm.task.Task;
+import com.microproject.pm.task.Project;
 
 /** Resolves task edits against the current projection before entering the canonical field/Undo path. */
 public final class TaskCommandGateway {
@@ -77,6 +81,47 @@ public final class TaskCommandGateway {
 			? prepared.cache().moveNodes(prepared.graphicNodes(), intent.direction())
 			: prepared.cache().relocateNodes(prepared.graphicNodes(), prepared.anchor(), intent.after());
 		return TaskCommandResult.of(changed ? TaskCommandResult.Status.CHANGED : TaskCommandResult.Status.REJECTED);
+	}
+
+	/** Validates and applies one task-row paste against the captured projection and selection. */
+	public static TaskCommandResult execute(SpreadSheet sheet, TaskPasteIntent intent) {
+		Objects.requireNonNull(sheet, "sheet");
+		Objects.requireNonNull(intent, "intent");
+		if (!(sheet.getModel() instanceof SpreadSheetModel sheetModel) || sheetModel.getCache() == null
+				|| !(sheetModel.getCache().getModel().getDataFactory() instanceof Project project))
+			return new TaskCommandResult(TaskCommandResult.Status.INVALID_INTENT, "task-paste-requires-project-model");
+		if (project.isReadOnly())
+			return new TaskCommandResult(TaskCommandResult.Status.REJECTED, "document-read-only");
+
+		RevisionedProjectionIndex projection = sheetModel.getCache().getVisibleNodes().getProjectionIndex();
+		if (projection.topologyRevision() != intent.projectionRevision())
+			return new TaskCommandResult(TaskCommandResult.Status.STALE_PROJECTION, "projection-revision-changed");
+
+		Set<Node> uniqueRoots = Collections.newSetFromMap(new IdentityHashMap<>());
+		for (Node root : intent.copiedRoots()) {
+			if (!uniqueRoots.add(root) || (!root.isVoid() && !(root.getImpl() instanceof Task)))
+				return new TaskCommandResult(TaskCommandResult.Status.INVALID_INTENT, "invalid-task-paste-batch");
+		}
+
+		List<Node> selectedNodes = new ArrayList<>(intent.selectedRows().size());
+		for (ProjectionRowKey rowKey : intent.selectedRows()) {
+			int row = projection.rowForKey(rowKey);
+			if (row < 0)
+				return new TaskCommandResult(TaskCommandResult.Status.MISSING_TASK, "paste-anchor-not-visible");
+			GraphicNode graphicNode = projection.nodeAt(row);
+			Node node = graphicNode == null ? null : graphicNode.getNode();
+			if (node == null || node.isVoid() && !(rowKey instanceof ProjectionRowKey.SyntheticRow))
+				return new TaskCommandResult(TaskCommandResult.Status.MISSING_TASK, "paste-anchor-not-editable");
+			selectedNodes.add(node);
+		}
+		if (!selectedNodes.isEmpty() && !CollaborationHelper.tryLockNodes(null, selectedNodes, sheet, "paste"))
+			return new TaskCommandResult(TaskCommandResult.Status.LOCKED, "collaboration-lock-denied");
+
+		Node anchor = selectedNodes.isEmpty() ? null : selectedNodes.getFirst();
+		Node parent = anchor == null ? null : (Node) anchor.getParent();
+		int position = anchor == null || parent == null ? 0 : ((com.microproject.grouping.core.NodeBridge) parent).getIndex(anchor);
+		boolean pasted = sheetModel.getCache().pasteNodes(parent, new ArrayList<>(intent.copiedRoots()), position);
+		return TaskCommandResult.of(pasted ? TaskCommandResult.Status.CHANGED : TaskCommandResult.Status.REJECTED);
 	}
 
 	private static PreparedHierarchyEdit prepare(SpreadSheet sheet, TaskHierarchyEditIntent intent) {
