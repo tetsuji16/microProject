@@ -49,11 +49,11 @@ public class NodeModelCacheFactory {
 	    return new ViewNodeModelCache(cache,viewName,transformerClosure);
 	}
 	public NodeModelCache createFilteredCache(ReferenceNodeModelCache cache,String viewName,Consumer<Object> transformerClosure){
-	    return new ViewNodeModelCache(cache,viewName,transformerClosure);
+	    return new ViewNodeModelCache(cache,viewName,transformerClosure,false);
 	}
 	
 	public NodeModelCache createDefaultCache(NodeModel model,Document document,int type,String viewName,Consumer<Object> transformerClosure){
-	    return createFilteredCache(createReferenceCache(model,document,type),viewName,transformerClosure);
+	    return new ViewNodeModelCache(createReferenceCache(model,document,type),viewName,transformerClosure,true);
 	}
 
 	

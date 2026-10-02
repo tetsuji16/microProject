@@ -70,6 +70,7 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 	protected NodeCache nodeCache;
 	protected DependencyCache edgeCache;
 	protected Document document;
+	private boolean closed;
 	
 	protected int type;
 		
@@ -110,13 +111,15 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 	
 	
 	public void close(){
-	    if (model!=null) {
-	    	removeListeners();
-	    	nodeCache.removeAllVisibleElements();
-	    	nodeCache.clear();
-	    	edgeCache.removeAllVisibleElements();
-	    	edgeCache.clear();
-	    }
+		if (closed)
+			return;
+		closed = true;
+		if (model != null)
+			removeListeners();
+		nodeCache.removeAllVisibleElements();
+		nodeCache.clear();
+		edgeCache.removeAllVisibleElements();
+		edgeCache.clear();
 	}
 	
 	private void removeListeners() {
@@ -168,6 +171,8 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 		update(new HashSet<GraphicNode>(),reschedule);
 	}
 	public void update(Set<? super GraphicNode> change,boolean reschedule){
+		if (closed)
+			return;
 		NodeCache newCache=new NodeCache();
 		update(null,newCache,change,reschedule);
 		
@@ -280,6 +285,10 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 	 * @param model The model to set.
 	 */
 	public void setModel(NodeModel model) {
+		if (closed)
+			throw new IllegalStateException("A closed reference cache cannot be rebound");
+		if (model == null)
+			throw new IllegalArgumentException("model must not be null");
 	    if (this.model!=null) {
 	    	removeListeners();
 	    }

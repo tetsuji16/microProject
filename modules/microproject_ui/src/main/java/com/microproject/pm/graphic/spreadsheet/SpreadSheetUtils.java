@@ -107,8 +107,9 @@ public class SpreadSheetUtils {
 //    	nodeModel.setLocal(local);
 //    	nodeModel.setMaster(master);
 		nodeModel.getHierarchy().setNbEndVoidNodes(nbVoidNodes);
-		ReferenceNodeModelCache refCache = NodeModelCacheFactory.getInstance().createReferenceCache(nodeModel, /*document*/null,((leftAssociation)?NodeModelCache.TASK_TYPE:NodeModelCache.RESOURCE_TYPE)|NodeModelCache.ASSIGNMENT_TYPE);
-		NodeModelCache cache = NodeModelCacheFactory.getInstance().createFilteredCache(refCache, Messages.getString(viewId),null);
+		NodeModelCache cache = NodeModelCacheFactory.getInstance().createDefaultCache(nodeModel, null,
+				((leftAssociation) ? NodeModelCache.TASK_TYPE : NodeModelCache.RESOURCE_TYPE) | NodeModelCache.ASSIGNMENT_TYPE,
+				Messages.getString(viewId), null);
 		setFieldsAndContext(ss,cache,spreadSheetCategory,spreadSheetId,leftAssociation);
 
 	}

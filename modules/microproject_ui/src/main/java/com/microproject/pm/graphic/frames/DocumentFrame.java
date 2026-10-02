@@ -170,6 +170,8 @@ public class DocumentFrame extends NamedFrame implements
 	private FindDialog findDialog = null;
 	protected CoordinatesConverter coord;
 	protected Project project;
+	private ReferenceNodeModelCache taskNodeModelCache;
+	private ReferenceNodeModelCache resourceNodeModelCache;
 	protected GraphicManager graphicManager;
 	protected MenuManager menuManager;
 	MenuActionsMap actionsMap = null;
@@ -218,20 +220,14 @@ public class DocumentFrame extends NamedFrame implements
 	}
 
 	public ReferenceNodeModelCache getTaskNodeModelCache() {
-		ReferenceNodeModelCache taskCache = (ReferenceNodeModelCache) project.getTaskCache();
-		if (taskCache == null) {
-			taskCache =NodeModelCacheFactory.createTaskNodeModelCache(project, getTaskModel());
-			project.setTaskCache(taskCache);
-		}
-		return taskCache;
+		if (taskNodeModelCache == null)
+			taskNodeModelCache = NodeModelCacheFactory.createTaskNodeModelCache(project, getTaskModel());
+		return taskNodeModelCache;
 	}
 	public ReferenceNodeModelCache getResourceNodeModelCache() {
-		ReferenceNodeModelCache resourceCache = (ReferenceNodeModelCache) project.getResourceCache();
-		if (resourceCache == null) {
-			resourceCache =NodeModelCacheFactory.createResourceNodeModelCache(project.getResourcePool(), getResourceModel());
-			project.setResourceCache(resourceCache);
-		}
-		return resourceCache;
+		if (resourceNodeModelCache == null)
+			resourceNodeModelCache = NodeModelCacheFactory.createResourceNodeModelCache(project.getResourcePool(), getResourceModel());
+		return resourceNodeModelCache;
 	}
 
 
@@ -1990,9 +1986,21 @@ public class DocumentFrame extends NamedFrame implements
 		if (coord != null)
 			coord.removeTimeScaleListener(mainView);
 		forAllViews(v -> {
-			if (v != null)
-				((BaseView)v).cleanUp();
+			if (v instanceof BaseView view) {
+				NodeModelCache viewCache = view.getCache();
+				view.cleanUp();
+				if (viewCache != null)
+					viewCache.close();
+			}
 		});
+		if (taskNodeModelCache != null) {
+			taskNodeModelCache.close();
+			taskNodeModelCache = null;
+		}
+		if (resourceNodeModelCache != null) {
+			resourceNodeModelCache.close();
+			resourceNodeModelCache = null;
+		}
     	resetViews();
     	if (jobQueue != null)
     		jobQueue.cancel();

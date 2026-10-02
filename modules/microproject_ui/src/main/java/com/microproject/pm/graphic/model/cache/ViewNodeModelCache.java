@@ -62,11 +62,18 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
     protected VisibleNodes visibleNodes;
     protected VisibleDependencies visibleDependencies;
     protected String viewName;
+    private final boolean ownsReference;
+    private boolean closed;
 
 
     ViewNodeModelCache(ReferenceNodeModelCache reference,String viewName,Consumer<Object> transformerClosure) {
+        this(reference, viewName, transformerClosure, false);
+    }
+
+    ViewNodeModelCache(ReferenceNodeModelCache reference, String viewName, Consumer<Object> transformerClosure,
+            boolean ownsReference) {
         this(reference,new VisibleNodes(viewName,new NodeCacheTransformer(viewName,reference,transformerClosure)),
-                new VisibleDependencies(viewName));
+                new VisibleDependencies(viewName), ownsReference);
         this.viewName=viewName;
     }
     /**
@@ -75,10 +82,11 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
      * @param visibleDependencies
      */
     private ViewNodeModelCache(ReferenceNodeModelCache reference,
-            VisibleNodes visibleNodes, VisibleDependencies visibleDependencies) {
+            VisibleNodes visibleNodes, VisibleDependencies visibleDependencies, boolean ownsReference) {
         this.reference = reference;
         this.visibleNodes = visibleNodes;
         this.visibleDependencies = visibleDependencies;
+        this.ownsReference = ownsReference;
         addNodeModelListener(this);
         visibleDependencies.setVisibleNodes(visibleNodes);
         visibleNodes.setVisibleDependencies(visibleDependencies);
@@ -115,7 +123,9 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 		update();
 	}
 
-	public void update(){
+    public void update(){
+		if (closed)
+			return;
 		reference.updateVisibleElements(visibleNodes);
 	}
 
@@ -253,6 +263,18 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 
 
     public void close() {
+		if (closed)
+			return;
+		closed = true;
+		visibleNodes.removeNodeModelListener(this);
+		((NodeCacheTransformer) visibleNodes.getTransformer()).getTransformer().removeViewTransformerListener(this);
+		reference.unbindView(visibleNodes, visibleDependencies);
+		visibleNodes.clear();
+		visibleNodes.getEvents().clear();
+		visibleDependencies.clear();
+		visibleDependencies.getEvents().clear();
+		if (ownsReference)
+			reference.close();
     }
 
     private boolean isAllowedAction(Node node,boolean isParent){

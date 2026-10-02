@@ -633,10 +633,6 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	}
 	public void setCache(NodeModelCache cache, ArrayList fieldArray, CellStyle cellStyle, ActionList actionList) {
 		unregisterLayoutTarget();
-		// if (getCache()!=null) getCache().close();
-		if (getCache() != null) {
-			getCache().getReference().close(); // deepClose
-		}
 		
 		var oldColModel = getColumnModel();
 		var colModel = (oldColModel instanceof SpreadSheetColumnModel spreadSheetColumnModel
