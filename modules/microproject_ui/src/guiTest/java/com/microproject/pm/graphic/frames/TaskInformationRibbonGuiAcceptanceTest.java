@@ -113,6 +113,7 @@ import com.microproject.testsupport.DialogLayoutAssertions;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.Environment;
 import com.microproject.util.Alert;
+import com.microproject.util.UiDispatch;
 import com.microproject.ui.util.SwingAlertPresenter;
 
 /**
@@ -248,7 +249,11 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				SwingUtilities.invokeAndWait(alert[0]::dispose);
 			if (cleanupProject[0] != null) {
 				ProjectFactory factory = ProjectFactory.getInstance();
-				Job removal = factory.getRemoveProjectJob(cleanupProject[0], false, false, false);
+				// Removing a project changes Swing-backed portfolio models. Keep that
+				// mutation on the EDT, as production close routes do, while retaining a
+				// unique name so JobQueue duplicate suppression cannot discard cleanup.
+				UiDispatch.setDispatcher(new com.microproject.ui.util.SwingUiDispatcher());
+				Job removal = factory.getRemoveProjectJob(cleanupProject[0], false, false, true);
 				if (removal != null) {
 					CountDownLatch removalComplete = new CountDownLatch(1);
 					removal.setName("gui-acceptance-remove-" + System.nanoTime());

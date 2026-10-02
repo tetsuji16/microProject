@@ -42,8 +42,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.pushingpixels.flamingo.api.ribbon.JRibbon;
-import org.pushingpixels.flamingo.api.ribbon.RibbonTask;
-import org.pushingpixels.flamingo.internal.ui.ribbon.JRibbonTaskToggleButton;
 
 import com.formdev.flatlaf.ui.FlatNativeWindowsLibrary;
 import com.microproject.dialog.AbstractDialog;
@@ -642,11 +640,13 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			"Locale change did not install a new GraphicManager through StartupFactory");
 		manager = window.getGraphicManager();
 		AbstractButton[] restoredTaskTab = new AbstractButton[1];
+		String taskTabTitle = java.util.ResourceBundle.getBundle("com.microproject.menu.menu")
+			.getString("TaskRibbonTask.title");
 		GuiAcceptanceSupport.await(() -> {
 			for (Component component : flatten(window.getRibbonPanel())) {
 				if (component instanceof JRibbon ribbon && ribbon.isShowing() && ribbon.getTaskCount() > 1) {
 					try {
-						restoredTaskTab[0] = findRibbonTab(window.getRibbonPanel(), ribbon.getTask(1));
+						restoredTaskTab[0] = findRibbonTab(window.getRibbonPanel(), taskTabTitle);
 						return true;
 					} catch (AssertionError notLaidOutYet) {
 						// A visible wrapper can precede installation of its native tab controls.
@@ -994,16 +994,6 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			}
 		}
 		throw new AssertionError("Requested ribbon tab is not physically visible: " + String.join(", ", titles));
-	}
-
-	private static AbstractButton findRibbonTab(Component root, RibbonTask task) {
-		for (Component component : flatten(root)) {
-			if (component instanceof JRibbonTaskToggleButton tab && tab.isShowing()
-				&& tab.getRibbonTask() != null
-				&& task.getTitle().equals(tab.getRibbonTask().getTitle()))
-				return RibbonGuiButton.adapt(tab);
-		}
-		throw new AssertionError("Requested ribbon task does not have a visible native tab control: " + task.getTitle());
 	}
 
 	private static AbstractButton findButton(Component root, String text) {
