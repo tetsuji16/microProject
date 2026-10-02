@@ -24,13 +24,14 @@
  *******************************************************************************/
 package com.microproject.field;
 
-import java.text.ParseException;
 import java.beans.PropertyEditor;
 import java.beans.PropertyEditorManager;
+import java.text.ParseException;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -181,6 +182,9 @@ public class FieldConverter  {
 		converters.put(Duration.class, new DurationConverter());
 		converters.put(Work.class, new WorkConverter());
 		converters.put(Money.class, new MoneyConverter());
+		ValueConverter booleanConverter = new BooleanConverter();
+		converters.put(Boolean.TYPE, booleanConverter);
+		converters.put(Boolean.class, booleanConverter);
 		ValueConverter longConverter = new LongConverter();
 		converters.put(Long.TYPE, longConverter);
 		converters.put(Long.class, longConverter);
@@ -249,13 +253,28 @@ public class FieldConverter  {
 				return Long.valueOf(duration.getEncodedMillis());
 			}
 			try {
-				return Long.valueOf(value.toString());
+				return Long.valueOf(value.toString().trim());
 			} catch (NumberFormatException exception) {
 				throw new ConversionException(exception);
 			}
 		}
 	};
 	
+	private static class BooleanConverter implements ValueConverter {
+		public Object convert(Class<?> type, Object value) {
+			if (value == null)
+				return type == Boolean.TYPE ? Boolean.FALSE : null;
+			if (value instanceof Boolean booleanValue)
+				return booleanValue;
+			String normalized = value.toString().trim().toLowerCase(Locale.ROOT);
+			return switch (normalized) {
+			case "true", "yes", "y", "on", "1" -> Boolean.TRUE;
+			case "false", "no", "n", "off", "0" -> Boolean.FALSE;
+			default -> throw new ConversionException("Invalid boolean value: " + value);
+			};
+		}
+	};
+
 	private static class DateConverter implements ValueConverter {
 		public Object convert(Class<?> type, Object value) throws ConversionException {
 			if (value == null)
@@ -370,7 +389,7 @@ public class FieldConverter  {
 			if (value == null)
 				return null;
 			try {
-				return Double.valueOf(value.toString());
+				return Double.valueOf(value.toString().trim());
 			} catch (NumberFormatException exception) {
 				throw new ConversionException(exception);
 			}

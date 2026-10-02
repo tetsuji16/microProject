@@ -55,6 +55,8 @@ class FieldConverterTest {
 		assertEquals(42, FieldConverter.convert("42", Integer.class, null));
 		assertEquals(42, FieldConverter.fromString("42", Integer.class));
 		assertTrue((Boolean) FieldConverter.convert("true", Boolean.class, null));
+		assertTrue((Boolean) FieldConverter.convert(" YES ", Boolean.class, null));
+		assertEquals(42L, FieldConverter.convert(" 42 ", Long.class, null));
 		assertEquals(42L, FieldConverter.convert(42, Long.class, null));
 		assertEquals(12.5D, FieldConverter.convert("12.5", Double.TYPE, null));
 		assertEquals(TestMode.ACTIVE, FieldConverter.convert("ACTIVE", TestMode.class, null));
