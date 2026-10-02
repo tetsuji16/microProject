@@ -76,6 +76,7 @@ import com.microproject.collaboration.CollaborationSession;
 import com.microproject.field.Field;
 import com.microproject.grouping.core.Node;
 import com.microproject.job.JobQueue;
+import com.microproject.job.Job;
 import com.microproject.menu.testsupport.UiComponentWalker;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;
@@ -245,7 +246,11 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				SwingUtilities.invokeAndWait(alert[0]::dispose);
 			if (cleanupProject[0] != null) {
 				ProjectFactory factory = ProjectFactory.getInstance();
-				factory.removeProject(cleanupProject[0], false, false, false);
+				Job removal = factory.getRemoveProjectJob(cleanupProject[0], false, false, false);
+				if (removal != null) {
+					SessionFactory.getInstance().getSession(cleanupProject[0].isLocal()).schedule(removal);
+					removal.waitResult();
+				}
 				GuiAcceptanceSupport.await(() -> factory.getPortfolio().getNodeModel().search(cleanupProject[0]) == null,
 					"the test project did not leave the portfolio before the GUI manager closed");
 			}

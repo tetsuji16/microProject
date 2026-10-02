@@ -42,6 +42,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.pushingpixels.flamingo.api.ribbon.JRibbon;
+import org.pushingpixels.flamingo.api.ribbon.RibbonTask;
+import org.pushingpixels.flamingo.internal.ui.ribbon.JRibbonTaskToggleButton;
 
 import com.formdev.flatlaf.ui.FlatNativeWindowsLibrary;
 import com.microproject.dialog.AbstractDialog;
@@ -639,15 +641,15 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			&& window.getGraphicManager() != initialManager,
 			"Locale change did not install a new GraphicManager through StartupFactory");
 		manager = window.getGraphicManager();
-		String taskTitle = null;
+		RibbonTask task = null;
 		for (Component component : flatten(window.getRibbonPanel())) {
 			if (component instanceof JRibbon ribbon && ribbon.getTaskCount() > 1) {
-				taskTitle = ribbon.getTask(1).getTitle();
+				task = ribbon.getTask(1);
 				break;
 			}
 		}
-		assertTrue(taskTitle != null, "Restarted JRibbon did not restore its Task ribbon definition");
-		AbstractButton taskTab = findRibbonTab(window.getRibbonPanel(), taskTitle);
+		assertTrue(task != null, "Restarted JRibbon did not restore its Task ribbon definition");
+		AbstractButton taskTab = findRibbonTab(window.getRibbonPanel(), task);
 		click(robot, taskTab);
 		GuiAcceptanceSupport.await(taskTab::isSelected, "Restarted application did not restore the Task ribbon tab");
 		AbstractButton restoredTaskInformation = RibbonGuiSupport.findVisibleOrExpand(robot, window.getRibbonPanel(), "RibbonTaskInformation");
@@ -986,6 +988,15 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			}
 		}
 		throw new AssertionError("Requested ribbon tab is not physically visible: " + String.join(", ", titles));
+	}
+
+	private static AbstractButton findRibbonTab(Component root, RibbonTask task) {
+		for (Component component : flatten(root)) {
+			if (component instanceof JRibbonTaskToggleButton tab && tab.isShowing()
+				&& tab.getRibbonTask() == task)
+				return RibbonGuiButton.adapt(tab);
+		}
+		throw new AssertionError("Requested ribbon task does not have a visible native tab control: " + task.getTitle());
 	}
 
 	private static AbstractButton findButton(Component root, String text) {
