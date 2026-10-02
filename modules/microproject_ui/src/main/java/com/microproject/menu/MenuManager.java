@@ -80,6 +80,7 @@ public class MenuManager {
 	public static final String STANDARD_RIBBON = "StandardRibbon";
 
 	static ResourceBundle[] bundles;
+	private static Locale bundlesLocale;
 	/*static*/ ExtMenuFactory menuFactory;
 	ExtToolBarFactory toolBarFactory;
 	SwingRibbonFactory ribbonFactory;
@@ -133,8 +134,9 @@ public class MenuManager {
 	}
 
 	private static synchronized ResourceBundle[] ensureBundles() {
-		if (bundles == null) {
-			ResourceBundle internalBundle = ResourceBundle.getBundle(MENU_INTERNAL_BUNDLE, Locale.getDefault(),
+		Locale locale = Locale.getDefault();
+		if (bundles == null || !locale.equals(bundlesLocale)) {
+			ResourceBundle internalBundle = ResourceBundle.getBundle(MENU_INTERNAL_BUNDLE, locale,
 				ClassLoaderUtils.getLocalClassLoader());
 			ResourceBundle bundle = null;
 			try {
@@ -143,8 +145,9 @@ public class MenuManager {
 				logger.log(Level.FINE, "Failed to load menu bundle from config directory", e);
 			}
 			if (bundle == null)
-				bundle = ResourceBundle.getBundle(MENU_BUNDLE, Locale.getDefault(), ClassLoaderUtils.getLocalClassLoader());
+				bundle = ResourceBundle.getBundle(MENU_BUNDLE, locale, ClassLoaderUtils.getLocalClassLoader());
 			bundles = new ResourceBundle[] { internalBundle, bundle };
+			bundlesLocale = locale;
 		}
 		return bundles;
 	}
