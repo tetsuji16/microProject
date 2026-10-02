@@ -354,6 +354,10 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			chooserCancelled, "Ribbon Open");
 		assertEquals(documentsBefore, manager.getFrameManager().getAllFrames().size(),
 			"native Ribbon Open cancellation must not open a project");
+		verifyNativeChooserCancelButton(robot, () -> click(robot, open), chooserCallStarted,
+			chooserCallReturned, chooserCancelled, "Ribbon Open");
+		assertEquals(documentsBefore, manager.getFrameManager().getAllFrames().size(),
+			"native Ribbon Open Cancel must not open a project");
 	}
 
 	@Test
@@ -377,7 +381,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			after.setRGB(30, y, Color.GRAY.getRGB());
 			after.setRGB(369, y, Color.GRAY.getRGB());
 		}
-		assertTrue(hasVisibleDialogOverlay(before, after),
+		assertTrue(!visibleDialogOverlayBounds(before, after).isEmpty(),
 			"visible native chooser chrome must count even when its white body matches the application");
 	}
 
@@ -756,7 +760,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		try {
 			GuiAcceptanceSupport.await(chooserCallStarted::get,
 				route + " did not enter the default Windows native chooser provider");
-			GuiAcceptanceSupport.await(() -> hasVisibleDialogOverlay(beforeOpen, captureScreen(robot)),
+			GuiAcceptanceSupport.await(() -> !visibleDialogOverlayBounds(beforeOpen, captureScreen(robot)).isEmpty(),
 				route + " called the native provider but no visible chooser appeared on the desktop");
 			assertFalse(chooserCallReturned.get(), route + " chooser must remain modal until physical Escape");
 			String artifactName = "issue-398-native-" + route.toLowerCase(Locale.ROOT).replace(' ', '-')
@@ -787,9 +791,9 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		return robot.createScreenCapture(bounds);
 	}
 
-	private static boolean hasVisibleDialogOverlay(BufferedImage before, BufferedImage after) {
+	private static Rectangle visibleDialogOverlayBounds(BufferedImage before, BufferedImage after) {
 		if (before.getWidth() != after.getWidth() || before.getHeight() != after.getHeight())
-			return false;
+			return new Rectangle();
 		int changedSamples = 0;
 		int minX = before.getWidth();
 		int minY = before.getHeight();
@@ -806,9 +810,42 @@ class RibbonExternalCommandGuiAcceptanceTest {
 				maxY = Math.max(maxY, y);
 			}
 		}
-		return changedSamples >= 80
-			&& maxX - minX >= before.getWidth() * 0.30
-			&& maxY - minY >= before.getHeight() * 0.20;
+		if (changedSamples < 80 || maxX - minX < before.getWidth() * 0.30
+				|| maxY - minY < before.getHeight() * 0.20)
+			return new Rectangle();
+		return new Rectangle(minX, minY, maxX - minX + 1, maxY - minY + 1);
+	}
+
+	private void verifyNativeChooserCancelButton(Robot robot, GuiCommand openCommand,
+			AtomicBoolean chooserCallStarted, AtomicBoolean chooserCallReturned,
+			AtomicBoolean chooserCancelled, String route) throws Exception {
+		activateWindowForRobot(robot, false);
+		chooserCallStarted.set(false);
+		chooserCallReturned.set(false);
+		chooserCancelled.set(false);
+		BufferedImage beforeOpen = captureScreen(robot);
+		openCommand.run();
+		GuiAcceptanceSupport.await(chooserCallStarted::get,
+			route + " did not enter the default Windows native chooser provider for Cancel acceptance");
+		Rectangle[] chooserBounds = new Rectangle[1];
+		GuiAcceptanceSupport.await(() -> {
+			chooserBounds[0] = visibleDialogOverlayBounds(beforeOpen, captureScreen(robot));
+			return !chooserBounds[0].isEmpty();
+		}, route + " did not show a visible Windows chooser before physical Cancel");
+		assertFalse(chooserCallReturned.get(), route + " native chooser returned before physical Cancel");
+		captureNativeChooserScreen(robot, "issue-398-native-ribbon-open-before-cancel.png");
+		Rectangle bounds = chooserBounds[0];
+		int cancelX = bounds.x + bounds.width - Math.round(bounds.width * 0.06f);
+		int cancelY = bounds.y + bounds.height - Math.round(bounds.height * 0.055f);
+		robot.mouseMove(cancelX, cancelY);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(chooserCallReturned::get,
+			route + " physical click on native chooser Cancel did not return from the provider");
+		assertTrue(chooserCancelled.get(), route + " native chooser Cancel must report cancellation");
+		assertTrue(visibleDialogOverlayBounds(beforeOpen, captureScreen(robot)).isEmpty(),
+			route + " native chooser remained visible after physical Cancel");
 	}
 
 	private static boolean hasPixelDifferenceInSampleBlock(BufferedImage before, BufferedImage after,
