@@ -326,7 +326,17 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		Project reopened = new MpoFileImporter().loadProject(writeProject(fixture.project));
 		assertEquals(List.of("Sequential 2", "Sequential 1", "Sequential 3"), taskOrder(reopened),
 			"row drag hierarchy mutation must survive native project save/reload");
-		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().undo());
+		SwingUtilities.invokeAndWait(() -> {
+			frame.toFront();
+			frame.requestFocus();
+			fixture.sheet.requestFocusInWindow();
+		});
+		GuiAcceptanceSupport.await(() -> frame.isActive() && fixture.sheet.isFocusOwner(),
+			"task table did not regain focus for the physical Undo/Redo route");
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_Z);
+		robot.keyRelease(KeyEvent.VK_Z);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
 		GuiAcceptanceSupport.await(() -> taskOrder(fixture.project).equals(originalOrder),
 			"one Undo must restore the exact pre-drag task order");
 		assertEquals(0, taskRow(fixture.sheet, fixture.project, "Sequential 1"),
@@ -334,7 +344,10 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		assertEquals(1, taskRow(fixture.sheet, fixture.project, "Sequential 2"),
 			"Undo must restore the moved task's original row");
 		assertEquals(originalOrder, taskOrder(fixture.project));
-		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().redo());
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_Y);
+		robot.keyRelease(KeyEvent.VK_Y);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
 		GuiAcceptanceSupport.await(() -> taskOrder(fixture.project).equals(
 			List.of("Sequential 2", "Sequential 1", "Sequential 3")),
 			"one Redo must reapply the task row relocation");
