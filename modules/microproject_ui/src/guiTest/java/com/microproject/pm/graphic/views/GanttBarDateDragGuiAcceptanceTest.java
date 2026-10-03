@@ -6,6 +6,7 @@
 package com.microproject.pm.graphic.views;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Cursor;
@@ -240,6 +241,26 @@ class GanttBarDateDragGuiAcceptanceTest {
 			fixture.predecessor.setPercentComplete(0.4d);
 			fixture.project.recalculate();
 		});
+		long originalProgress = fixture.predecessor.getCompletedThrough();
+		Point progressHandle = screenPointForTaskDate(fixture, originalProgress);
+		assertProgressBarHit(fixture, progressHandle);
+		long progressTarget = originalProgress + (fixture.predecessor.getEnd() - originalProgress) * 3L / 4L;
+		assertTrue(progressTarget > originalProgress && progressTarget < fixture.predecessor.getEnd(),
+			"progress target must remain inside the scheduled interval: progress=" + originalProgress
+				+ " end=" + fixture.predecessor.getEnd() + " target=" + progressTarget);
+		Point laterProgress = screenPointForTaskDate(fixture, progressTarget);
+		drag(robot, progressHandle, laterProgress);
+		GuiAcceptanceSupport.await(() -> fixture.predecessor.getCompletedThrough() > originalProgress,
+			"dragging the progress handle did not update task progress: before=" + originalProgress
+				+ " requested=" + progressTarget + " actual=" + fixture.predecessor.getCompletedThrough()
+				+ " end=" + fixture.predecessor.getEnd() + " origin=" + progressHandle + " target=" + laterProgress);
+		long updatedProgress = fixture.predecessor.getCompletedThrough();
+		assertTrue(barBounds(fixture).width > 0, "the updated progress bar must be visible after redraw");
+		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().undo());
+		assertEquals(originalProgress, fixture.predecessor.getCompletedThrough(), "one Undo must restore task progress");
+		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().redo());
+		assertEquals(updatedProgress, fixture.predecessor.getCompletedThrough(), "one Redo must restore updated progress");
+
 		long currentProgress = fixture.predecessor.getCompletedThrough();
 		List<String> originalIntervals = assignmentIntervals(fixture.predecessor);
 		List<String> originalContours = assignmentContours(fixture.predecessor);
@@ -279,29 +300,14 @@ class GanttBarDateDragGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().undo());
 		assertEquals(originalIntervals, assignmentIntervals(fixture.predecessor),
 			"one Undo must restore the original assignment work intervals");
+		assertFalse(containsGapAt(taskIntervals(fixture.predecessor), clickedSplitAt),
+			"one Undo must remove the split gap from the intervals consumed by Gantt");
 		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().redo());
 		assertEquals(splitIntervals, assignmentIntervals(fixture.predecessor),
 			"one Redo must restore the split assignment work intervals");
+		assertTrue(containsGapAt(taskIntervals(fixture.predecessor), clickedSplitAt),
+			"one Redo must restore the split gap consumed by Gantt");
 
-		long originalProgress = fixture.predecessor.getCompletedThrough();
-		Point progressHandle = screenPointForTaskDate(fixture, originalProgress);
-		assertProgressBarHit(fixture, progressHandle);
-		long progressTarget = originalProgress + (fixture.predecessor.getEnd() - originalProgress) * 3L / 4L;
-		assertTrue(progressTarget > originalProgress && progressTarget < fixture.predecessor.getEnd(),
-			"progress target must remain inside the scheduled interval: progress=" + originalProgress
-				+ " end=" + fixture.predecessor.getEnd() + " target=" + progressTarget);
-		Point laterProgress = screenPointForTaskDate(fixture, progressTarget);
-		drag(robot, progressHandle, laterProgress);
-		GuiAcceptanceSupport.await(() -> fixture.predecessor.getCompletedThrough() > originalProgress,
-			"dragging the progress handle did not update task progress: before=" + originalProgress
-				+ " requested=" + progressTarget + " actual=" + fixture.predecessor.getCompletedThrough()
-				+ " end=" + fixture.predecessor.getEnd() + " origin=" + progressHandle + " target=" + laterProgress);
-		long updatedProgress = fixture.predecessor.getCompletedThrough();
-		assertTrue(barBounds(fixture).width > 0, "the updated progress bar must be visible after redraw");
-		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().undo());
-		assertEquals(originalProgress, fixture.predecessor.getCompletedThrough(), "one Undo must restore task progress");
-		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().redo());
-		assertEquals(updatedProgress, fixture.predecessor.getCompletedThrough(), "one Redo must restore updated progress");
 		List<String> persistedIntervals = assignmentIntervals(fixture.predecessor);
 
 		ByteArrayOutputStream saved = new ByteArrayOutputStream();
@@ -314,6 +320,8 @@ class GanttBarDateDragGuiAcceptanceTest {
 		assertEquals(resizedEnd, reopenedTask.getEnd(), "resized finish must survive MPO reload");
 		assertEquals(updatedProgress, reopenedTask.getCompletedThrough(), "progress must survive MPO reload");
 		assertEquals(persistedIntervals, assignmentIntervals(reopenedTask), "split intervals must survive MPO reload");
+		assertTrue(containsGapAt(taskIntervals(reopenedTask), clickedSplitAt),
+			"the split gap rendered by Gantt must survive MPO reload");
 		capture(robot, "gantt-schedule-gestures-final.png");
 	}
 
