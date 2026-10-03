@@ -37,6 +37,7 @@ import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.exchange.MpoFileImporter;
 import com.microproject.pm.graphic.gantt.Gantt;
+import com.microproject.pm.graphic.gantt.GanttInteractor;
 import com.microproject.pm.graphic.gantt.GanttUI;
 import com.microproject.pm.graphic.graph.GraphZone;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
@@ -150,6 +151,101 @@ class GanttBarDateDragGuiAcceptanceTest {
 		capture(robot);
 	}
 
+	@Test
+	void robotResizeProgressAndSplitUseTypedScheduleGatewayWithUndoAndPersistence() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Fixture fixture = createFixture(DependencyType.FS, false);
+		SwingUtilities.invokeAndWait(() -> {
+			fixture.predecessor.setPercentComplete(0.4d);
+			fixture.project.recalculate();
+		});
+		showFixture(fixture);
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		activateGantt(robot);
+		capture(robot, "gantt-schedule-gestures-initial.png");
+
+		long originalStart = fixture.predecessor.getStart();
+		Point startHandle = screenPointForTaskDate(fixture, originalStart);
+		assertTaskBarHit(fixture, startHandle);
+		Point earlierDate = screenPointForTaskDate(fixture,
+			originalStart - com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
+		drag(robot, startHandle, earlierDate);
+		GuiAcceptanceSupport.await(() -> fixture.predecessor.getStart() < originalStart,
+			"dragging the leading bar handle did not resize the task start");
+		assertTrue(barBounds(fixture).width > 0, "the resized bar must remain visible after redraw");
+		long resizedStart = fixture.predecessor.getStart();
+		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().undo());
+		assertEquals(originalStart, fixture.predecessor.getStart(), "one Undo must restore the original start");
+		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().redo());
+		assertEquals(resizedStart, fixture.predecessor.getStart(), "one Redo must restore the resized start");
+
+		long originalEnd = fixture.predecessor.getEnd();
+		Point endHandle = screenPointForTaskDate(fixture, originalEnd);
+		assertTaskBarHit(fixture, endHandle);
+		Point laterDate = screenPointForTaskDate(fixture,
+			originalEnd + com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
+		drag(robot, endHandle, laterDate);
+		GuiAcceptanceSupport.await(() -> fixture.predecessor.getEnd() > originalEnd,
+			"dragging the trailing bar handle did not resize the task finish");
+		long resizedEnd = fixture.predecessor.getEnd();
+		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().undo());
+		assertEquals(originalEnd, fixture.predecessor.getEnd(), "one Undo must restore the original finish");
+		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().redo());
+		assertEquals(resizedEnd, fixture.predecessor.getEnd(), "one Redo must restore the resized finish");
+
+		long originalProgress = fixture.predecessor.getCompletedThrough();
+		Point progressHandle = screenPointForTaskDate(fixture, originalProgress);
+		assertTaskBarHit(fixture, progressHandle);
+		Point laterProgress = screenPointForTaskDate(fixture,
+			originalProgress + com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
+		drag(robot, progressHandle, laterProgress);
+		GuiAcceptanceSupport.await(() -> fixture.predecessor.getCompletedThrough() > originalProgress,
+			"dragging the progress handle did not update task progress");
+		long updatedProgress = fixture.predecessor.getCompletedThrough();
+		assertTrue(barBounds(fixture).width > 0, "the updated progress bar must be visible after redraw");
+		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().undo());
+		assertEquals(originalProgress, fixture.predecessor.getCompletedThrough(), "one Undo must restore task progress");
+		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().redo());
+		assertEquals(updatedProgress, fixture.predecessor.getCompletedThrough(), "one Redo must restore updated progress");
+
+		long originalResume = fixture.predecessor.getResume();
+		long originalStop = fixture.predecessor.getStop();
+		long splitAt = fixture.predecessor.getStart()
+			+ com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		Point splitStart = screenPointForTaskDate(fixture, splitAt);
+		assertTaskBarHit(fixture, splitStart);
+		Point splitEnd = screenPointForTaskDate(fixture, splitAt + Math.max(1L,
+			com.microproject.options.CalendarOption.getInstance().getMillisPerDay() / 8L));
+		SwingUtilities.invokeAndWait(() -> ((GanttUI)gantt.getUI()).getInteractor().setSplitMode());
+		drag(robot, splitStart, splitEnd);
+		GuiAcceptanceSupport.await(() -> fixture.predecessor.getResume() != originalResume
+				|| fixture.predecessor.getStop() != originalStop,
+			"Gantt split gesture did not add a nonworking interval");
+		long splitResume = fixture.predecessor.getResume();
+		long splitStop = fixture.predecessor.getStop();
+		assertTrue(barBounds(fixture).width > 0, "the split task must remain visible after redraw");
+		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().undo());
+		assertEquals(originalResume, fixture.predecessor.getResume(), "one Undo must restore the original resume date");
+		assertEquals(originalStop, fixture.predecessor.getStop(), "one Undo must restore the original stop date");
+		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().redo());
+		assertEquals(splitResume, fixture.predecessor.getResume(), "one Redo must restore the split resume date");
+		assertEquals(splitStop, fixture.predecessor.getStop(), "one Redo must restore the split stop date");
+
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		MpoFileImporter importer = new MpoFileImporter();
+		assertTrue(importer.saveProject(fixture.project, saved), "edited schedule must be serializable");
+		Project reopened = importer.loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		NormalTask reopenedTask = reopened.getTaskList().stream()
+			.filter(task -> "Drag predecessor".equals(task.getName())).map(NormalTask.class::cast).findFirst().orElseThrow();
+		assertEquals(resizedStart, reopenedTask.getStart(), "resized start must survive MPO reload");
+		assertEquals(resizedEnd, reopenedTask.getEnd(), "resized finish must survive MPO reload");
+		assertEquals(updatedProgress, reopenedTask.getCompletedThrough(), "progress must survive MPO reload");
+		assertEquals(splitResume, reopenedTask.getResume(), "split resume must survive MPO reload");
+		assertEquals(splitStop, reopenedTask.getStop(), "split stop must survive MPO reload");
+		capture(robot, "gantt-schedule-gestures-final.png");
+	}
+
 	private void dragBarAndAssertSuccessor(Fixture fixture) throws Exception {
 		long oldStart = fixture.predecessor.getStart();
 		showFixture(fixture);
@@ -225,6 +321,61 @@ class GanttBarDateDragGuiAcceptanceTest {
 		return barBounds(fixture, fixture.predecessor);
 	}
 
+	private void activateGantt(Robot robot) throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			frame.toFront();
+			frame.requestFocus();
+			gantt.requestFocusInWindow();
+		});
+		GuiAcceptanceSupport.await(gantt::isShowing, "Gantt was not visible");
+		activateWindow(robot);
+	}
+
+	private void drag(Robot robot, Point start, Point end) {
+		robot.mouseMove(start.x, start.y);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		for (int step = 1; step <= 8; step++)
+			robot.mouseMove(start.x + (end.x - start.x) * step / 8,
+				start.y + (end.y - start.y) * step / 8);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+	}
+
+	private Point screenPointForTaskDate(Fixture fixture, long date) throws Exception {
+		Point[] result = new Point[1];
+		SwingUtilities.invokeAndWait(() -> {
+			var projection = fixture.cache.getVisibleNodes().getProjectionIndex();
+			GraphicNode node = null;
+			int row = -1;
+			for (int candidate = 0; candidate < projection.size(); candidate++) {
+				GraphicNode visible = projection.nodeAt(candidate);
+				if (visible.getNode().getImpl() == fixture.predecessor) {
+					node = visible;
+					row = candidate;
+					break;
+				}
+			}
+			if (node == null)
+				throw new AssertionError("Gantt task is absent from its projection");
+			int x = (int)Math.round(gantt.getCoord().toX(date));
+			int y = (int)Math.round(((GanttUI)gantt.getUI()).getBarY(row)
+				+ node.getGanttShapeOffset() + node.getGanttShapeHeight() / 2.0d);
+			Point location = gantt.getLocationOnScreen();
+			result[0] = new Point(location.x + x, location.y + y);
+		});
+		return result[0];
+	}
+
+	private void assertTaskBarHit(Fixture fixture, Point screenPoint) throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Point location = gantt.getLocationOnScreen();
+			GraphZone hit = gantt.getUI().getNodeAt(screenPoint.x - location.x, screenPoint.y - location.y);
+			assertTrue(hit != null && hit.getObject() instanceof GraphicNode hitNode
+				&& hitNode.getNode().getImpl() == fixture.predecessor,
+				"gesture origin must hit the task's rendered Gantt bar: " + screenPoint);
+		});
+	}
+
 	private Rectangle barBounds(Fixture fixture, NormalTask task) throws Exception {
 		Rectangle[] result = new Rectangle[1];
 		SwingUtilities.invokeAndWait(() -> {
@@ -253,12 +404,16 @@ class GanttBarDateDragGuiAcceptanceTest {
 	}
 
 	private void capture(Robot robot) throws Exception {
+		capture(robot, "gantt-bar-date-drag.png");
+	}
+
+	private void capture(Robot robot, String fileName) throws Exception {
 		Rectangle[] bounds = new Rectangle[1];
 		SwingUtilities.invokeAndWait(() -> bounds[0] = new Rectangle(frame.getRootPane().getLocationOnScreen(), frame.getRootPane().getSize()));
 		BufferedImage image = robot.createScreenCapture(bounds[0]);
 		Path directory = Path.of(System.getProperty("microproject.gui.artifacts.dir", "build/guiTest-artifacts"));
 		Files.createDirectories(directory);
-		javax.imageio.ImageIO.write(image, "png", directory.resolve("gantt-bar-date-drag.png").toFile());
+		javax.imageio.ImageIO.write(image, "png", directory.resolve(fileName).toFile());
 	}
 
 	private Fixture createFixture(int dependencyType) throws Exception {
