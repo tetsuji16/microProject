@@ -242,6 +242,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 		});
 		long currentProgress = fixture.predecessor.getCompletedThrough();
 		List<String> originalIntervals = assignmentIntervals(fixture.predecessor);
+		List<String> originalContours = assignmentContours(fixture.predecessor);
 		long splitAt = currentProgress + (fixture.predecessor.getEnd() - currentProgress) / 4L;
 		assertTrue(splitAt > fixture.predecessor.getResume() && splitAt < fixture.predecessor.getEnd(),
 			"split point must be inside remaining work: resume=" + fixture.predecessor.getResume()
@@ -251,8 +252,15 @@ class GanttBarDateDragGuiAcceptanceTest {
 		assertTaskBarHit(fixture, splitStart);
 		openPopupAndChoose(robot, splitStart, Messages.getString("Gantt.Popup.splitMode"));
 		click(robot, splitStart);
-		GuiAcceptanceSupport.await(() -> !assignmentIntervals(fixture.predecessor).equals(originalIntervals),
-			"Gantt split gesture did not add a nonworking interval to the resource assignment");
+		try {
+			GuiAcceptanceSupport.await(() -> !assignmentIntervals(fixture.predecessor).equals(originalIntervals),
+				"Gantt split gesture did not add a nonworking interval to the resource assignment");
+		} catch (AssertionError failure) {
+			throw new AssertionError(failure.getMessage() + ": intervals before=" + originalIntervals
+				+ " after=" + assignmentIntervals(fixture.predecessor)
+				+ " contours before=" + originalContours
+				+ " after=" + assignmentContours(fixture.predecessor), failure);
+		}
 		List<String> splitIntervals = assignmentIntervals(fixture.predecessor);
 		assertTrue(splitIntervals.size() > originalIntervals.size(),
 			"a split must add a distinct scheduled interval: before=" + originalIntervals + " after=" + splitIntervals);
@@ -388,6 +396,23 @@ class GanttBarDateDragGuiAcceptanceTest {
 			});
 		} catch (Exception exception) {
 			throw new AssertionError("Could not snapshot task intervals on the EDT", exception);
+		}
+		return snapshot.get();
+	}
+
+	private List<String> assignmentContours(NormalTask task) {
+		AtomicReference<List<String>> snapshot = new AtomicReference<>();
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				List<String> contours = new ArrayList<>();
+				for (var association : task.getAssignments()) {
+					Assignment assignment = (Assignment) association;
+					contours.add(assignment.getWorkContour().toString(assignment.getDuration()));
+				}
+				snapshot.set(List.copyOf(contours));
+			});
+		} catch (Exception exception) {
+			throw new AssertionError("Could not snapshot assignment work contours on the EDT", exception);
 		}
 		return snapshot.get();
 	}
