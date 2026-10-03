@@ -223,6 +223,18 @@ class GanttRendererProgressTest {
 	}
 
 	@Test
+	void unsplitTaskFallsBackToGeneratedIntervalsDuringTransientInvalidSchedule() {
+		BarFormat task = barFormat("Bar.task");
+		List<ScheduleInterval> intervals = GanttBarSupport.displayIntervals(task,
+				List.of(new ScheduleInterval(12L, 88L)), new ScheduleInterval(90L, 10L));
+
+		assertEquals(1, intervals.size());
+		assertInterval(intervals.get(0), 12L, 88L);
+		assertEquals(1, GanttBarSupport.progressRatiosForIntervals(intervals, 0.5d).size(),
+				"every rendered interval must have a matching progress ratio");
+	}
+
+	@Test
 	void progressMatrixChangesOnlyCompletionOverlayNotPlannedBarGeometry() {
 		final double x = 10.0d;
 		final double y = 20.0d;

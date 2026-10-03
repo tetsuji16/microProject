@@ -138,7 +138,8 @@ final class GanttBarSupport {
 		if (shouldPreserveSplitIntervals(format) && normalized.size() > 1) {
 			return normalized;
 		}
-		if (shouldUsePlannedEnvelopeInterval(format) && plannedInterval != null) {
+		if (shouldUsePlannedEnvelopeInterval(format) && plannedInterval != null
+				&& plannedInterval.getStart() <= plannedInterval.getEnd()) {
 			return List.of(plannedInterval);
 		}
 		ScheduleInterval merged = mergeIntervalsForDisplay(normalized);
