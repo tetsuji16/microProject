@@ -136,14 +136,25 @@ public class ScheduleService {
 	 * @param oldStart is the prior start for the bar.  It will be used to identify what bar changed
 	 */
 	public boolean setInterval(Object eventSource, Schedule schedule, long start, long end, ScheduleInterval interval,UndoableEditSupport undoableEditSupport) {
+		return setInterval(eventSource, schedule, start, end, interval, undoableEditSupport, null);
+	}
+
+	/**
+	 * Applies an interval edit using a detail snapshot captured before any related
+	 * constraint preparation. Gantt start drags may temporarily set a constraint
+	 * before moving the interval; its undo must restore the state from before both
+	 * mutations.
+	 */
+	public boolean setInterval(Object eventSource, Schedule schedule, long start, long end, ScheduleInterval interval,
+			UndoableEditSupport undoableEditSupport, Object beforeEditDetailBackup) {
 		if (isReadOnly(schedule))
 			return false;
-		Object detailBackup=null;
+		Object detailBackup=beforeEditDetailBackup;
 		start = DateTime.hourFloor(start);
 		end = DateTime.hourFloor(end);
 		if (interval.getStart() == start && interval.getEnd() == end) // if no move do nothing
 			return false;
-		if (undoableEditSupport!=null&&!(eventSource instanceof UndoableEdit)){
+		if (detailBackup == null && undoableEditSupport!=null&&!(eventSource instanceof UndoableEdit)){
 			detailBackup=schedule.backupDetail();
 		}
 		

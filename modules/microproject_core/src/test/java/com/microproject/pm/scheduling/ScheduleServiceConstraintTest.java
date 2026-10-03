@@ -36,6 +36,7 @@ import com.microproject.pm.scheduling.ScheduleInterval;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.undo.DataFactoryUndoController;
+import com.microproject.undo.TaskConstraintEdit;
 
 class ScheduleServiceConstraintTest {
 	@Test
@@ -61,6 +62,42 @@ class ScheduleServiceConstraintTest {
 		undoController.redo();
 		assertEquals(ConstraintType.SNET, task.getConstraintType());
 		assertEquals(targetDate, task.getConstraintDate());
+	}
+
+	@Test
+	void preparedStartConstraintAndIntervalUndoFromOnePreEditSnapshot() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		NormalTask task = new NormalTask(project);
+		project.connectTask(task);
+		task.setDuration(3L * CalendarOption.getInstance().getMillisPerDay());
+		project.recalculate();
+		long originalStart = task.getStart();
+		long originalEnd = task.getEnd();
+		int originalConstraintType = task.getConstraintType();
+		long originalConstraintDate = task.getConstraintDate();
+		long requestedStart = task.getEffectiveWorkCalendar().add(originalStart,
+			-3L * CalendarOption.getInstance().getMillisPerDay(), false);
+		Object beforeEditDetailBackup = task.backupDetail();
+
+		undoController.beginUpdate();
+		task.setScheduleConstraint(ConstraintType.Kind.SNET, requestedStart);
+		ScheduleService.getInstance().setInterval(this, task, requestedStart, originalEnd,
+			new ScheduleInterval(originalStart, originalEnd), undoController.getEditSupport(), beforeEditDetailBackup);
+		undoController.getEditSupport().postEdit(new TaskConstraintEdit(task, originalConstraintType,
+			originalConstraintDate, ConstraintType.Kind.SNET.code(), task.getConstraintDate(), this));
+		undoController.endUpdate();
+
+		undoController.undo();
+		assertEquals(originalStart, task.getStart(), "one Undo must restore the schedule before constraint preparation");
+		assertEquals(originalEnd, task.getEnd());
+		assertEquals(originalConstraintType, task.getConstraintType());
+		assertEquals(originalConstraintDate, task.getConstraintDate());
+
+		undoController.redo();
+		assertEquals(requestedStart, task.getStart());
+		assertEquals(ConstraintType.SNET, task.getConstraintType());
 	}
 
 	@Test

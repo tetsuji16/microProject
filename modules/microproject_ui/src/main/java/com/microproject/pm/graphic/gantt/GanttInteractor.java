@@ -541,6 +541,7 @@ public class GanttInteractor extends GraphInteractor{
 		}
 		boolean updateConstraint = shouldUpdateTaskConstraint();
 		boolean preparedConstraint = false;
+		Object beforeIntervalDetailBackup = updateConstraint && undoSupport != null ? schedule.backupDetail() : null;
 		ConstraintType.Kind targetConstraintType = updateConstraint ? getConstraintTypeForDrag() : ConstraintType.Kind.ASAP;
 		long requestedConstraintDate = updateConstraint ? getRequestedConstraintDate(start, end) : 0L;
 		if (updateConstraint && undoSupport != null) {
@@ -551,7 +552,8 @@ public class GanttInteractor extends GraphInteractor{
 			if (updateConstraint && task != null) {
 				preparedConstraint = prepareConstraintForIntervalUpdate(task, targetConstraintType, requestedConstraintDate, originalConstraintType, originalConstraintDate);
 			}
-			scheduleChanged = ScheduleService.getInstance().setInterval(this,schedule,start,end,selectedInterval,undoSupport);
+			scheduleChanged = ScheduleService.getInstance().setInterval(this, schedule, start, end, selectedInterval,
+				undoSupport, beforeIntervalDetailBackup);
 			if (!scheduleChanged) {
 				scheduleChanged = didScheduleChange(schedule, task, originalScheduleStart, originalScheduleEnd, originalTaskStart, originalTaskEnd);
 			}
