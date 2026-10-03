@@ -40,7 +40,7 @@ public class ScheduleEdit extends AbstractUndoableEdit{
 	protected ScheduleInterval interval;
 	protected long start,end;
 	protected boolean isChild;
-	protected Object source,detailBackup;
+	protected Object source,detailBackup,afterDetailBackup;
 	
 	/**
 	 * @param interval
@@ -58,6 +58,15 @@ public class ScheduleEdit extends AbstractUndoableEdit{
 		this.source = source;
 		this.detailBackup=detailBackup;
 	}
+
+	/** Creates one schedule edit from exact before and after detail snapshots. */
+	public ScheduleEdit(Schedule schedule, Object beforeDetailBackup, Object afterDetailBackup, Object source) {
+		super();
+		this.schedule = schedule;
+		this.detailBackup = beforeDetailBackup;
+		this.afterDetailBackup = afterDetailBackup;
+		this.source = source;
+	}
 	public boolean canRedo() {
 		return super.canRedo();
 	}
@@ -69,8 +78,12 @@ public class ScheduleEdit extends AbstractUndoableEdit{
 	}
 	public void redo() throws CannotRedoException {
 		super.redo();
-		ScheduleService.getInstance().setInterval(this, schedule, start, end, interval, null);
-		//schedule.moveInterval(this,start,end,interval,isChild);
+		if (afterDetailBackup != null) {
+			schedule.restoreDetail(this, afterDetailBackup, false);
+		} else {
+			ScheduleService.getInstance().setInterval(this, schedule, start, end, interval, null);
+			//schedule.moveInterval(this,start,end,interval,isChild);
+		}
 	}
 	public void undo() throws CannotUndoException {
 		super.undo();

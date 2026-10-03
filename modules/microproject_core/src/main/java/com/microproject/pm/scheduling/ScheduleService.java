@@ -24,9 +24,6 @@
  *******************************************************************************/
 package com.microproject.pm.scheduling;
 
-import javax.swing.undo.AbstractUndoableEdit;
-import javax.swing.undo.CannotRedoException;
-import javax.swing.undo.CannotUndoException;
 import javax.swing.undo.UndoableEdit;
 import javax.swing.undo.UndoableEditSupport;
 
@@ -90,7 +87,7 @@ public class ScheduleService {
 		}
 		if (beforeDetailBackup != null) {
 			Object afterDetailBackup = schedule.backupDetail();
-			undoableEditSupport.postEdit(new CompletedEdit(schedule, beforeDetailBackup, afterDetailBackup, eventSource));
+			undoableEditSupport.postEdit(new ScheduleEdit(schedule, beforeDetailBackup, afterDetailBackup, eventSource));
 		}
 		return true;
 	}
@@ -210,33 +207,6 @@ public class ScheduleService {
 			schedule.consumeIntervals(consumer);
 		} finally {
 			consuming = false;
-		}
-	}
-
-	private static final class CompletedEdit extends AbstractUndoableEdit {
-		private static final long serialVersionUID = 1L;
-		private final Schedule schedule;
-		private final Object beforeDetailBackup;
-		private final Object afterDetailBackup;
-		private final Object source;
-
-		private CompletedEdit(Schedule schedule, Object beforeDetailBackup, Object afterDetailBackup, Object source) {
-			this.schedule = schedule;
-			this.beforeDetailBackup = beforeDetailBackup;
-			this.afterDetailBackup = afterDetailBackup;
-			this.source = source;
-		}
-
-		@Override
-		public void undo() throws CannotUndoException {
-			super.undo();
-			schedule.restoreDetail(source, beforeDetailBackup, false);
-		}
-
-		@Override
-		public void redo() throws CannotRedoException {
-			super.redo();
-			schedule.restoreDetail(source, afterDetailBackup, false);
 		}
 	}
 }
