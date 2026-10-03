@@ -21,6 +21,9 @@ import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import javax.swing.JMenuItem;
+import javax.swing.MenuElement;
+import javax.swing.MenuSelectionManager;
 import javax.swing.JFrame;
 import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
@@ -48,6 +51,7 @@ import com.microproject.pm.graphic.timescale.CoordinatesConverter;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
+import com.microproject.strings.Messages;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.DateTime;
@@ -216,7 +220,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 		assertTaskBarHit(fixture, splitStart);
 		Point splitEnd = screenPointForTaskDate(fixture, splitAt + Math.max(1L,
 			com.microproject.options.CalendarOption.getInstance().getMillisPerDay() / 8L));
-		SwingUtilities.invokeAndWait(() -> ((GanttUI)gantt.getUI()).getInteractor().setSplitMode());
+		openPopupAndChoose(robot, splitStart, Messages.getString("Gantt.Popup.splitMode"));
 		drag(robot, splitStart, splitEnd);
 		GuiAcceptanceSupport.await(() -> fixture.predecessor.getResume() != originalResume
 				|| fixture.predecessor.getStop() != originalStop,
@@ -338,6 +342,47 @@ class GanttBarDateDragGuiAcceptanceTest {
 				start.y + (end.y - start.y) * step / 8);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 		robot.waitForIdle();
+	}
+
+	private void openPopupAndChoose(Robot robot, Point point, String itemText) throws Exception {
+		robot.mouseMove(point.x, point.y);
+		robot.mousePress(InputEvent.BUTTON3_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
+		robot.waitForIdle();
+		JMenuItem[] target = new JMenuItem[1];
+		GuiAcceptanceSupport.await(() -> findSelectedMenuItem(itemText, target),
+			"Gantt popup item was not shown: " + itemText);
+		Point[] itemCenter = new Point[1];
+		SwingUtilities.invokeAndWait(() -> {
+			Point itemLocation = target[0].getLocationOnScreen();
+			itemCenter[0] = new Point(itemLocation.x + target[0].getWidth() / 2,
+				itemLocation.y + target[0].getHeight() / 2);
+		});
+		robot.mouseMove(itemCenter[0].x, itemCenter[0].y);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+	}
+
+	private boolean findSelectedMenuItem(String text, JMenuItem[] target) {
+		boolean[] found = new boolean[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				for (MenuElement element : MenuSelectionManager.defaultManager().getSelectedPath()) {
+					for (MenuElement child : element.getSubElements()) {
+						if (child.getComponent() instanceof JMenuItem item && text.equals(item.getText())) {
+							target[0] = item;
+							found[0] = true;
+							break;
+						}
+					}
+					if (found[0]) break;
+				}
+			});
+		} catch (Exception exception) {
+			throw new AssertionError("Could not inspect the Gantt popup on the EDT", exception);
+		}
+		return found[0];
 	}
 
 	private Point screenPointForTaskDate(Fixture fixture, long date) throws Exception {
