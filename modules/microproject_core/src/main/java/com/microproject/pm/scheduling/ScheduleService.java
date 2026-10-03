@@ -24,12 +24,18 @@
  *******************************************************************************/
 package com.microproject.pm.scheduling;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import javax.swing.undo.UndoableEdit;
 import javax.swing.undo.UndoableEditSupport;
 
 import com.microproject.pm.scheduling.IntervalConsumer;
+import com.microproject.association.Association;
+import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.NormalTask;
 import com.microproject.undo.TaskConstraintEdit;
 import com.microproject.undo.ScheduleEdit;
 import com.microproject.undo.SplitEdit;
@@ -172,25 +178,49 @@ public class ScheduleService {
 	public boolean split(Object eventSource, Schedule schedule, long from, long to,UndoableEditSupport undoableEditSupport) {
 		if (isReadOnly(schedule))
 			return false;
-		Object detailBackup=null;
-		if (undoableEditSupport!=null&&!(eventSource instanceof UndoableEdit)){
-			detailBackup=schedule.backupDetail();
-		}
+		if (schedule instanceof NormalTask task && !task.hasRealAssignments())
+			return false;
+		boolean recordUndo = undoableEditSupport != null && !(eventSource instanceof UndoableEdit);
+		Object detailBackup = schedule instanceof NormalTask || schedule instanceof Assignment
+			|| recordUndo ? schedule.backupDetail() : null;
+		List<String> intervalsBefore = splitIntervalState(schedule);
 		schedule.split(eventSource,DateTime.hourFloor(from),DateTime.hourFloor(to));
-		//Undo
-		if (detailBackup!=null&&didSplitChangeSchedule(schedule, detailBackup)){
+		boolean changed = didSplitChangeSchedule(schedule, detailBackup, intervalsBefore);
+		if (!changed && detailBackup != null) {
+			schedule.restoreDetail(eventSource, detailBackup, false);
+		}
+		if (changed && recordUndo) {
 			undoableEditSupport.postEdit(new SplitEdit(schedule,detailBackup,from,to,eventSource));
 		}
-		return true;
+		return changed;
 	}
 
-	private boolean didSplitChangeSchedule(Schedule schedule, Object detailBackup) {
+	private boolean didSplitChangeSchedule(Schedule schedule, Object detailBackup, List<String> intervalsBefore) {
 		if (!(schedule instanceof Project) || !(detailBackup instanceof Project.ProjectBackup)) {
-			return true;
+			return !intervalsBefore.equals(splitIntervalState(schedule));
 		}
 		Project project = (Project) schedule;
 		Project.ProjectBackup backup = (Project.ProjectBackup) detailBackup;
 		return project.getStart() != backup.getStart() || project.getEnd() != backup.getEnd();
+	}
+
+	private List<String> splitIntervalState(Schedule schedule) {
+		List<String> state = new ArrayList<>();
+		appendSplitIntervals(state, "schedule", schedule);
+		if (schedule instanceof NormalTask task) {
+			int index = 0;
+			for (Association association : task.getAssignments()) {
+				appendSplitIntervals(state, "assignment-" + index++, (Assignment) association);
+			}
+		}
+		return List.copyOf(state);
+	}
+
+	private void appendSplitIntervals(List<String> state, String owner, Schedule schedule) {
+		int previousSize = state.size();
+		schedule.consumeIntervals(interval -> state.add(owner + ":" + interval.getStart() + ":" + interval.getEnd()));
+		if (state.size() == previousSize)
+			state.add(owner + ":<no-intervals>");
 	}
 	
 	/**

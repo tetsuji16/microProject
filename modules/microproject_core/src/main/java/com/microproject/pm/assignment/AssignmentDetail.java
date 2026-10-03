@@ -650,11 +650,22 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 		from = Math.max(from, getResume());
 		if (from >= to)
 			return;
+		WorkCalendar calendar = getEffectiveWorkCalendar();
+		long splitDuration = calendar.compare(to, from, false);
+		long taskStart = task == null ? getStart() : task.getStart();
+		long startOffset = calendar.compare(from, taskStart, false);
+		long endOffset = calendar.compare(getEnd(), taskStart, false);
+		if (getResume() != 0 && from >= getResume()) {
+			long existingSplitDuration = getSplitDuration();
+			startOffset -= existingSplitDuration;
+			endOffset -= existingSplitDuration;
+		}
+		if (startOffset >= endOffset)
+			return;
 		if (!workContour.isPersonal()) {
 			workContour = PersonalContour.makePersonal(workContour, getDuration());
 		}
-		long duration = getEffectiveWorkCalendar().compare(to, from, false);
-		shift(from, getEnd(), duration);
+		shift(startOffset, endOffset, splitDuration);
 	}
 
 	

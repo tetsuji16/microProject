@@ -29,10 +29,15 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
 
+import com.microproject.options.CalendarOption;
+import com.microproject.pm.assignment.Assignment;
+import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.NormalTask;
@@ -93,6 +98,70 @@ class ScheduleServiceSplitTest {
 		assertFalse(changed);
 		assertEquals(originalCompleted, task.getCompletedThrough());
 		assertFalse(undoController.canUndo());
+	}
+
+	@Test
+	void splittingUnassignedTaskIsRejectedWithoutMutationOrUndo() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		project.initialize(false, false);
+		NormalTask task = new NormalTask(project);
+		project.connectTask(task);
+		task.setDuration(3L * CalendarOption.getInstance().getMillisPerDay());
+		undoController.discardAllEdits();
+		project.setDirty(false);
+		task.setDirty(false);
+		long originalStart = task.getStart();
+		long originalEnd = task.getEnd();
+		long splitEnd = task.getEffectiveWorkCalendar().add(originalStart,
+			CalendarOption.getInstance().getMillisPerDay(), false);
+
+		boolean changed = ScheduleService.getInstance().split(this, task, originalStart, splitEnd,
+			undoController.getEditSupport());
+
+		assertFalse(changed);
+		assertEquals(originalStart, task.getStart());
+		assertEquals(originalEnd, task.getEnd());
+		assertFalse(project.isDirty());
+		assertFalse(task.isDirty());
+		assertFalse(undoController.canUndo());
+	}
+
+	@Test
+	void splittingAssignedTaskAddsOneGapAndUndoRedoRestoreIt() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		project.initialize(false, false);
+		NormalTask task = new NormalTask(project);
+		project.connectTask(task);
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		task.setDuration(3L * day);
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task,
+			resourcePool.newResourceInstance(), 1.0D, 0L, this);
+		long splitFrom = assignment.getEffectiveWorkCalendar().add(task.getStart(), day, false);
+		long splitTo = assignment.getEffectiveWorkCalendar().add(splitFrom, day, false);
+		List<String> originalIntervals = assignmentIntervals(assignment);
+		undoController.discardAllEdits();
+
+		boolean changed = ScheduleService.getInstance().split(this, task, splitFrom, splitTo,
+			undoController.getEditSupport());
+
+		assertTrue(changed);
+		List<String> splitIntervals = assignmentIntervals(assignment);
+		assertTrue(splitIntervals.size() > originalIntervals.size());
+		assertTrue(undoController.canUndo());
+		undoController.undo();
+		assertEquals(originalIntervals, assignmentIntervals(assignment));
+		undoController.redo();
+		assertEquals(splitIntervals, assignmentIntervals(assignment));
+	}
+
+	private List<String> assignmentIntervals(Assignment assignment) {
+		List<String> intervals = new ArrayList<>();
+		assignment.consumeIntervals(interval -> intervals.add(interval.getStart() + ":" + interval.getEnd()));
+		return List.copyOf(intervals);
 	}
 
 	@Test

@@ -28,7 +28,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
@@ -39,6 +41,7 @@ import com.microproject.pm.assignment.contour.ContourTypes;
 import com.microproject.pm.assignment.contour.ContourBucketIntervalGenerator;
 import com.microproject.pm.assignment.contour.PersonalContourBucket;
 import com.microproject.pm.assignment.functor.ResourceAvailabilityFunctor;
+import com.microproject.pm.scheduling.ScheduleInterval;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
@@ -151,15 +154,31 @@ class AssignmentContourBehaviorTest {
 	void assignmentDetailSplitShiftsTheRemainingWork() {
 		Project project = createProject();
 		NormalTask task = createTask(project);
-		long duration = 2L * CalendarOption.getInstance().getMillisPerDay();
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		long duration = 3L * day;
 		task.setDuration(duration);
 		Assignment assignment = firstAssignment(task);
-		long splitFrom = assignment.getStart();
-		long splitTo = assignment.getEffectiveWorkCalendar().add(splitFrom, CalendarOption.getInstance().getMillisPerDay(), false);
+		var calendar = assignment.getEffectiveWorkCalendar();
+		long splitFrom = calendar.add(assignment.getStart(), day, false);
+		long splitTo = calendar.add(splitFrom, day, false);
+		List<ScheduleInterval> before = assignmentIntervals(assignment);
 
 		assignment.detail.split(null, splitFrom, splitTo);
 
 		assertTrue(assignment.getWorkContour().isPersonal());
+		List<ScheduleInterval> after = assignmentIntervals(assignment);
+		assertEquals(1, before.size());
+		assertEquals(2, after.size(), "split must add a distinct working interval after the nonworking gap");
+		assertEquals(before.getFirst().getStart(), after.getFirst().getStart());
+		assertTrue(after.getFirst().getEnd() < after.getLast().getStart(),
+			"split must leave a nonworking gap in the requested interval");
+		assertEquals(day, calendar.compare(after.getLast().getStart(), after.getFirst().getEnd(), false));
+	}
+
+	private List<ScheduleInterval> assignmentIntervals(Assignment assignment) {
+		List<ScheduleInterval> intervals = new ArrayList<>();
+		assignment.consumeIntervals(intervals::add);
+		return List.copyOf(intervals);
 	}
 
 	@Test
