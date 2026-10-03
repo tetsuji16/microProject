@@ -110,6 +110,46 @@ class ScheduleServiceConstraintTest {
 	}
 
 	@Test
+	void endResizeRedoRemainsCorrectAfterStartResizeUndoAndRedo() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		NormalTask task = new NormalTask(project);
+		project.connectTask(task);
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		task.setDuration(3L * day);
+		task.setPercentComplete(0.4d);
+		project.recalculate();
+		long initialStart = task.getStart();
+		long initialEnd = task.getEnd();
+		long movedStart = task.getEffectiveWorkCalendar().add(initialStart, day, false);
+		long movedEnd = task.getEffectiveWorkCalendar().add(initialEnd, day, false);
+
+		undoController.beginUpdate();
+		ScheduleService.getInstance().setInterval(this, task, movedStart, movedEnd,
+			new ScheduleInterval(initialStart, initialEnd), undoController.getEditSupport());
+		ScheduleService.getInstance().setConstraint(this, task, ConstraintType.Kind.SNET, movedStart,
+			undoController.getEditSupport());
+		undoController.endUpdate();
+		undoController.undo();
+		undoController.redo();
+		assertEquals(movedStart, task.getStart());
+		assertEquals(movedEnd, task.getEnd());
+
+		long resizedEnd = task.getEffectiveWorkCalendar().add(task.getEnd(), day, false);
+		undoController.beginUpdate();
+		ScheduleService.getInstance().setInterval(this, task, task.getStart(), resizedEnd,
+			new ScheduleInterval(task.getStart(), task.getEnd()), undoController.getEditSupport());
+		undoController.endUpdate();
+		assertEquals(resizedEnd, task.getEnd());
+
+		undoController.undo();
+		assertEquals(movedEnd, task.getEnd());
+		undoController.redo();
+		assertEquals(resizedEnd, task.getEnd());
+	}
+
+	@Test
 	void assignmentlessTaskCanMoveAgainAfterConstraintUpdate() {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
 		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);

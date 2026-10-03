@@ -169,6 +169,8 @@ class GanttBarDateDragGuiAcceptanceTest {
 		capture(robot, "gantt-schedule-gestures-initial.png");
 
 		long originalStart = fixture.predecessor.getStart();
+		int originalConstraintType = fixture.predecessor.getConstraintType();
+		long originalConstraintDate = fixture.predecessor.getConstraintDate();
 		Point startHandle = screenPointForTaskDate(fixture, originalStart);
 		startHandle.translate(1, 0);
 		assertTaskBarHit(fixture, startHandle);
@@ -194,10 +196,20 @@ class GanttBarDateDragGuiAcceptanceTest {
 		long resizedStart = fixture.predecessor.getStart();
 		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().undo());
 		assertEquals(originalStart, fixture.predecessor.getStart(), "one Undo must restore the original start");
+		assertEquals(originalConstraintType, fixture.predecessor.getConstraintType(),
+			"one Undo must restore the original start constraint");
+		assertEquals(originalConstraintDate, fixture.predecessor.getConstraintDate(),
+			"one Undo must restore the original constraint date");
 		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().redo());
 		assertEquals(resizedStart, fixture.predecessor.getStart(), "one Redo must restore the resized start");
+		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, fixture.predecessor.getConstraintTypeKind(),
+			"start resize must retain its start constraint after Redo");
+		assertEquals(resizedStart, fixture.predecessor.getConstraintDate(),
+			"start resize must retain its constraint date after Redo");
 
 		long originalEnd = fixture.predecessor.getEnd();
+		int startConstraintType = fixture.predecessor.getConstraintType();
+		long startConstraintDate = fixture.predecessor.getConstraintDate();
 		Point endHandle = screenPointForTaskDate(fixture, originalEnd);
 		assertTaskBarHit(fixture, endHandle);
 		Point laterDate = screenPointForTaskDate(fixture,
@@ -206,10 +218,18 @@ class GanttBarDateDragGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> fixture.predecessor.getEnd() > originalEnd,
 			"dragging the trailing bar handle did not resize the task finish");
 		long resizedEnd = fixture.predecessor.getEnd();
+		assertEquals(startConstraintType, fixture.predecessor.getConstraintType(),
+			"finish resize must preserve the existing start constraint");
+		assertEquals(startConstraintDate, fixture.predecessor.getConstraintDate(),
+			"finish resize must preserve the existing constraint date");
 		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().undo());
 		assertEquals(originalEnd, fixture.predecessor.getEnd(), "one Undo must restore the original finish");
+		assertEquals(startConstraintType, fixture.predecessor.getConstraintType(),
+			"one Undo must preserve the start constraint after finish resize");
 		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().redo());
 		assertEquals(resizedEnd, fixture.predecessor.getEnd(), "one Redo must restore the resized finish");
+		assertEquals(startConstraintType, fixture.predecessor.getConstraintType(),
+			"one Redo must preserve the start constraint after finish resize");
 
 		long originalProgress = fixture.predecessor.getCompletedThrough();
 		Point progressHandle = screenPointForTaskDate(fixture, originalProgress);

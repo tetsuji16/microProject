@@ -585,12 +585,12 @@ public class GanttInteractor extends GraphInteractor{
     	return impl instanceof Task ? (Task) impl : null;
     }
 
-    private boolean shouldUpdateTaskConstraint() {
-    	return sourceNode != null
-    			&& getSourceTask() != null
-    			&& selectedIntervalNumber == 0
-    			&& (state == BAR_MOVE || state == BAR_MOVE_START || state == BAR_MOVE_END);
-    }
+	private boolean shouldUpdateTaskConstraint() {
+		return sourceNode != null
+				&& getSourceTask() != null
+				&& selectedIntervalNumber == 0
+				&& (state == BAR_MOVE || state == BAR_MOVE_START);
+	}
 
 	private ConstraintType.Kind getConstraintTypeForDrag() {
 		return ConstraintType.Kind.SNET;
