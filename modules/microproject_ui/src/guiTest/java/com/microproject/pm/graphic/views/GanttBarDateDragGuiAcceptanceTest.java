@@ -471,7 +471,18 @@ class GanttBarDateDragGuiAcceptanceTest {
 				throw new AssertionError("Could not inspect Gantt resize cursor", exception);
 			}
 			return actualCursor[0] == cursorType;
-		}, gesture + " handle did not expose the resize cursor at " + screenPoint);
+		}, gesture + " handle did not expose the resize cursor at " + screenPoint
+			+ " (expected=" + cursorType + ", actual=" + cursorTypeAt() + ")");
+	}
+
+	private int cursorTypeAt() {
+		int[] actualCursor = new int[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> actualCursor[0] = gantt.getCursor().getType());
+		} catch (Exception exception) {
+			throw new AssertionError("Could not inspect Gantt cursor after resize hit-test", exception);
+		}
+		return actualCursor[0];
 	}
 
 	private Rectangle barBounds(Fixture fixture, NormalTask task) throws Exception {
