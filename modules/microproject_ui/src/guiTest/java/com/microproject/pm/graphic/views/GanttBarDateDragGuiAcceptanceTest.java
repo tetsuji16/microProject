@@ -238,8 +238,11 @@ class GanttBarDateDragGuiAcceptanceTest {
 		long originalProgress = fixture.predecessor.getCompletedThrough();
 		Point progressHandle = screenPointForTaskDate(fixture, originalProgress);
 		assertProgressBarHit(fixture, progressHandle);
-		Point laterProgress = screenPointForTaskDate(fixture,
-			originalProgress + com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
+		long progressTarget = originalProgress + (fixture.predecessor.getEnd() - originalProgress) / 2L;
+		assertTrue(progressTarget > originalProgress && progressTarget < fixture.predecessor.getEnd(),
+			"progress target must remain inside the scheduled interval: progress=" + originalProgress
+				+ " end=" + fixture.predecessor.getEnd() + " target=" + progressTarget);
+		Point laterProgress = screenPointForTaskDate(fixture, progressTarget);
 		drag(robot, progressHandle, laterProgress);
 		GuiAcceptanceSupport.await(() -> fixture.predecessor.getCompletedThrough() > originalProgress,
 			"dragging the progress handle did not update task progress");
@@ -252,11 +255,11 @@ class GanttBarDateDragGuiAcceptanceTest {
 
 		long originalResume = fixture.predecessor.getResume();
 		long originalStop = fixture.predecessor.getStop();
-		long splitAt = fixture.predecessor.getCompletedThrough()
-			+ com.microproject.options.CalendarOption.getInstance().getMillisPerDay() / 4L;
+		long currentProgress = fixture.predecessor.getCompletedThrough();
+		long splitAt = currentProgress + (fixture.predecessor.getEnd() - currentProgress) / 4L;
 		assertTrue(splitAt > fixture.predecessor.getResume() && splitAt < fixture.predecessor.getEnd(),
 			"split point must be inside remaining work: resume=" + fixture.predecessor.getResume()
-				+ " completedThrough=" + fixture.predecessor.getCompletedThrough()
+				+ " completedThrough=" + currentProgress
 				+ " splitAt=" + splitAt + " end=" + fixture.predecessor.getEnd());
 		Point splitStart = screenPointForTaskDate(fixture, splitAt);
 		assertTaskBarHit(fixture, splitStart);
