@@ -252,14 +252,16 @@ class GanttBarDateDragGuiAcceptanceTest {
 
 		long originalResume = fixture.predecessor.getResume();
 		long originalStop = fixture.predecessor.getStop();
-		long splitAt = fixture.predecessor.getStart()
-			+ com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		long splitAt = fixture.predecessor.getCompletedThrough()
+			+ com.microproject.options.CalendarOption.getInstance().getMillisPerDay() / 4L;
+		assertTrue(splitAt > fixture.predecessor.getResume() && splitAt < fixture.predecessor.getEnd(),
+			"split point must be inside remaining work: resume=" + fixture.predecessor.getResume()
+				+ " completedThrough=" + fixture.predecessor.getCompletedThrough()
+				+ " splitAt=" + splitAt + " end=" + fixture.predecessor.getEnd());
 		Point splitStart = screenPointForTaskDate(fixture, splitAt);
 		assertTaskBarHit(fixture, splitStart);
-		Point splitEnd = screenPointForTaskDate(fixture, splitAt + Math.max(1L,
-			com.microproject.options.CalendarOption.getInstance().getMillisPerDay() / 8L));
 		openPopupAndChoose(robot, splitStart, Messages.getString("Gantt.Popup.splitMode"));
-		drag(robot, splitStart, splitEnd);
+		click(robot, splitStart);
 		GuiAcceptanceSupport.await(() -> fixture.predecessor.getResume() != originalResume
 				|| fixture.predecessor.getStop() != originalStop,
 			"Gantt split gesture did not add a nonworking interval");
@@ -378,6 +380,13 @@ class GanttBarDateDragGuiAcceptanceTest {
 		for (int step = 1; step <= 8; step++)
 			robot.mouseMove(start.x + (end.x - start.x) * step / 8,
 				start.y + (end.y - start.y) * step / 8);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+	}
+
+	private void click(Robot robot, Point point) {
+		robot.mouseMove(point.x, point.y);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 		robot.waitForIdle();
 	}
