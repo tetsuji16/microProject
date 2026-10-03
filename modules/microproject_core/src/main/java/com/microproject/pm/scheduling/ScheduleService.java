@@ -24,16 +24,16 @@
  *******************************************************************************/
 package com.microproject.pm.scheduling;
 
+import javax.swing.undo.AbstractUndoableEdit;
+import javax.swing.undo.CannotRedoException;
+import javax.swing.undo.CannotUndoException;
 import javax.swing.undo.UndoableEdit;
 import javax.swing.undo.UndoableEditSupport;
 
-import com.microproject.configuration.Configuration;
-import com.microproject.field.Field;
 import com.microproject.pm.scheduling.IntervalConsumer;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.task.Project;
 import com.microproject.undo.TaskConstraintEdit;
-import com.microproject.undo.FieldEdit;
 import com.microproject.undo.ScheduleEdit;
 import com.microproject.undo.SplitEdit;
 import com.microproject.util.ClassUtils;
@@ -44,13 +44,6 @@ import com.microproject.util.DateTime;
  */
 public class ScheduleService {
 	private boolean consuming = false;
-
-	private static Field completedFieldInstance = null;
-	public static Field getCompletedField() {
-		if (completedFieldInstance == null)
-			completedFieldInstance = Configuration.getFieldFromId("Field.stop");
-		return completedFieldInstance;
-	}
 
 	private static ScheduleService instance = null;
 
@@ -84,16 +77,20 @@ public class ScheduleService {
 		// greater-than-100% progress before the renderer has a chance to clamp it.
 		// Keep the model valid at the service boundary used by every caller.
 		completed = Math.max(schedule.getStart(), Math.min(completed, schedule.getEnd()));
-		Field completedField=getCompletedField();
-		Object oldValue=completedField.getValue(schedule);
-		if (oldValue==null) oldValue=Long.valueOf(schedule.getActualStart());
-		Object value=Long.valueOf(completed);
-		if (value.equals(oldValue)) {
+		long oldCompleted = schedule.getCompletedThrough();
+		if (completed == oldCompleted) {
 			return false;
 		}
-		completedField.setValue(schedule,eventSource,value);
-		if (undoableEditSupport!=null&&!(eventSource instanceof UndoableEdit)){
-			undoableEditSupport.postEdit(new FieldEdit(completedField,schedule,value,oldValue,eventSource,null));
+		boolean recordUndo = undoableEditSupport != null && !(eventSource instanceof UndoableEdit);
+		Object beforeDetailBackup = recordUndo
+			? schedule.backupDetail() : null;
+		schedule.setCompletedThrough(completed);
+		if (schedule.getCompletedThrough() == oldCompleted) {
+			return false;
+		}
+		if (beforeDetailBackup != null) {
+			Object afterDetailBackup = schedule.backupDetail();
+			undoableEditSupport.postEdit(new CompletedEdit(schedule, beforeDetailBackup, afterDetailBackup, eventSource));
 		}
 		return true;
 	}
@@ -213,6 +210,33 @@ public class ScheduleService {
 			schedule.consumeIntervals(consumer);
 		} finally {
 			consuming = false;
+		}
+	}
+
+	private static final class CompletedEdit extends AbstractUndoableEdit {
+		private static final long serialVersionUID = 1L;
+		private final Schedule schedule;
+		private final Object beforeDetailBackup;
+		private final Object afterDetailBackup;
+		private final Object source;
+
+		private CompletedEdit(Schedule schedule, Object beforeDetailBackup, Object afterDetailBackup, Object source) {
+			this.schedule = schedule;
+			this.beforeDetailBackup = beforeDetailBackup;
+			this.afterDetailBackup = afterDetailBackup;
+			this.source = source;
+		}
+
+		@Override
+		public void undo() throws CannotUndoException {
+			super.undo();
+			schedule.restoreDetail(source, beforeDetailBackup, false);
+		}
+
+		@Override
+		public void redo() throws CannotRedoException {
+			super.redo();
+			schedule.restoreDetail(source, afterDetailBackup, false);
 		}
 	}
 }

@@ -117,6 +117,30 @@ class ScheduleServiceSplitTest {
 	}
 
 	@Test
+	void setCompletedUndoRestoresPercentDerivedProgressExactly() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		project.initialize(false, false);
+		NormalTask task = project.createScriptedTask();
+		task.setDuration(3L * 8L * 60L * 60L * 1000L);
+		project.recalculate();
+		task.setPercentComplete(0.4d);
+		long originalCompleted = task.getCompletedThrough();
+		long laterCompleted = task.getEffectiveWorkCalendar().add(originalCompleted, 8L * 60L * 60L * 1000L, false);
+
+		assertTrue(ScheduleService.getInstance().setCompleted(this, task, laterCompleted, undoController.getEditSupport()));
+		long updatedCompleted = task.getCompletedThrough();
+		assertTrue(updatedCompleted > originalCompleted);
+		undoController.undo();
+		assertEquals(originalCompleted, task.getCompletedThrough(), "Undo must restore the exact prior progress instant"
+			+ "; percent=" + task.getPercentComplete() + ", actualDuration=" + task.getActualDuration()
+			+ ", actualStart=" + task.getActualStart() + ", assignments=" + task.getAssignments().size());
+		undoController.redo();
+		assertEquals(updatedCompleted, task.getCompletedThrough());
+	}
+
+	@Test
 	void consumeIntervalsRecoversAfterConsumerThrows() {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
 		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);

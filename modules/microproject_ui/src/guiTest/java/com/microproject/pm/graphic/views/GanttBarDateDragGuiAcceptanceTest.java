@@ -237,7 +237,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 		});
 		long originalProgress = fixture.predecessor.getCompletedThrough();
 		Point progressHandle = screenPointForTaskDate(fixture, originalProgress);
-		assertTaskBarHit(fixture, progressHandle);
+		assertProgressBarHit(fixture, progressHandle);
 		Point laterProgress = screenPointForTaskDate(fixture,
 			originalProgress + com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
 		drag(robot, progressHandle, laterProgress);
@@ -496,6 +496,17 @@ class GanttBarDateDragGuiAcceptanceTest {
 			assertTrue(hit != null && hit.getObject() instanceof GraphicNode hitNode
 				&& hitNode.getNode().getImpl() == fixture.predecessor,
 				"gesture origin must hit the task's rendered Gantt bar: " + screenPoint);
+		});
+	}
+
+	private void assertProgressBarHit(Fixture fixture, Point screenPoint) throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Point location = gantt.getLocationOnScreen();
+			GraphZone hit = gantt.getUI().getNodeAt(screenPoint.x - location.x, screenPoint.y - location.y);
+			assertTrue(hit != null && hit.getObject() instanceof GraphicNode hitNode
+					&& hitNode.getNode().getImpl() == fixture.predecessor
+					&& hit.getZoneId() == GanttUI.PROGRESS_BAR_ZONE_ID,
+				"progress gesture origin must hit the task's rendered progress bar: " + screenPoint);
 		});
 	}
 
