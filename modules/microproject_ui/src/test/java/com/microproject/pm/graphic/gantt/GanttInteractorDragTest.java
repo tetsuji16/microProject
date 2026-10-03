@@ -33,6 +33,12 @@ class GanttInteractorDragTest {
 	}
 
 	@Test
+	void splitPointActionIsMeaningfulWithoutPointerMovement() {
+		assertTrue(GanttInteractor.hasMeaningfulAction(false, true, 120.0d, 120.0d));
+		assertFalse(GanttInteractor.hasMeaningfulAction(false, false, 120.0d, 120.0d));
+	}
+
+	@Test
 	void progressLineHitTargetRetainsAZeroLengthPointHalo() {
 		assertTrue(GanttUI.isWithinProgressLineHitTarget(100.0d, 50.0d, 100.0d, 50.0d, 4.0d));
 		assertTrue(GanttUI.isWithinProgressLineHitTarget(104.0d, 54.0d, 100.0d, 50.0d, 4.0d));

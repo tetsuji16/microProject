@@ -386,7 +386,7 @@ public class GanttInteractor extends GraphInteractor{
     }
 
     public boolean executeAction(double x,double y){
-		if (selected==null || !hasMeaningfulDrag(state == LINK_CREATION, x0, x)) return false;
+		if (selected==null || !hasMeaningfulAction(state == LINK_CREATION, state == SPLIT, x0, x)) return false;
     	if (state==BAR_MOVE||state==BAR_MOVE_START||state==BAR_MOVE_END||state==PROGRESS_BAR_MOVE||state==SPLIT){
     		if (!(selected instanceof GraphicNode)) return false;
     		sourceNode=(GraphicNode)selected;
@@ -481,7 +481,13 @@ public class GanttInteractor extends GraphInteractor{
 
 	static boolean hasMeaningfulDrag(boolean linkCreation, double startX, double endX) {
 		// Link creation can be a vertical drag between bars on the same date.
-		return linkCreation || endX != startX;
+		return hasMeaningfulAction(linkCreation, false, startX, endX);
+	}
+
+	static boolean hasMeaningfulAction(boolean linkCreation, boolean directPointAction, double startX, double endX) {
+		// Split mode is executed at the clicked date, not dragged from the previous
+		// pointer position.  Its action must not depend on a stale x0 from a prior drag.
+		return linkCreation || directPointAction || endX != startX;
 	}
 
 	private boolean createDependencyLink() {
