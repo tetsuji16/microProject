@@ -24,11 +24,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.logging.Handler;
-import java.util.logging.Level;
-import java.util.logging.LogRecord;
-import java.util.logging.Logger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.swing.JMenuItem;
@@ -254,36 +249,11 @@ class GanttBarDateDragGuiAcceptanceTest {
 			"progress target must remain inside the scheduled interval: progress=" + originalProgress
 				+ " end=" + fixture.predecessor.getEnd() + " target=" + progressTarget);
 		Point laterProgress = screenPointForTaskDate(fixture, progressTarget);
-		Logger ganttLogger = Logger.getLogger("com.microproject.pm.graphic.gantt.GanttInteractor");
-		Level previousLogLevel = ganttLogger.getLevel();
-		List<String> progressTrace = new CopyOnWriteArrayList<>();
-		Handler traceHandler = new Handler() {
-			@Override
-			public void publish(LogRecord record) {
-				if (record != null && record.getMessage() != null
-						&& record.getMessage().startsWith("Gantt progress "))
-					progressTrace.add(record.getMessage());
-			}
-
-			@Override
-			public void flush() {}
-
-			@Override
-			public void close() {}
-		};
-		ganttLogger.setLevel(Level.INFO);
-		ganttLogger.addHandler(traceHandler);
-		try {
-			drag(robot, progressHandle, laterProgress);
-			GuiAcceptanceSupport.await(() -> fixture.predecessor.getCompletedThrough() > originalProgress,
-				"dragging the progress handle did not update task progress: before=" + originalProgress
-					+ " requested=" + progressTarget + " actual=" + fixture.predecessor.getCompletedThrough()
-					+ " end=" + fixture.predecessor.getEnd() + " origin=" + progressHandle + " target=" + laterProgress
-					+ " trace=" + progressTrace);
-		} finally {
-			ganttLogger.removeHandler(traceHandler);
-			ganttLogger.setLevel(previousLogLevel);
-		}
+		drag(robot, progressHandle, laterProgress);
+		GuiAcceptanceSupport.await(() -> fixture.predecessor.getCompletedThrough() > originalProgress,
+			"dragging the progress handle did not update task progress: before=" + originalProgress
+				+ " requested=" + progressTarget + " actual=" + fixture.predecessor.getCompletedThrough()
+				+ " end=" + fixture.predecessor.getEnd() + " origin=" + progressHandle + " target=" + laterProgress);
 		long updatedProgress = fixture.predecessor.getCompletedThrough();
 		assertTrue(barBounds(fixture).width > 0, "the updated progress bar must be visible after redraw");
 		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().undo());

@@ -177,26 +177,31 @@ public class GanttInteractor extends GraphInteractor{
 			}
     		if (isMilestoneInterval(interval)) {
     			// Milestones have no resizable body. Treat the diamond as a movable point.
-    			if (selectedIsNonSummaryNode()) {
-    				state=BAR_MOVE;
-    			}
-    			selectedInterval=interval;
-    			consumed=true;
-    			return;
-    		}
-    		if (t<interval.getStart()&&t>=interval.getStart()-deltaOutside){
-    			if (selectedIsNonSummaryNode()) state=BAR_MOVE_START;
-    		}else if (t>interval.getEnd()&&t<=interval.getEnd()+deltaOutside){
-    			if (selectedIsNonSummaryNode()) state=BAR_MOVE_END;
-    		}else if (t<interval.getStart()||t>interval.getEnd()){
-    			selectedIntervalNumber++;
-    			return;
-       		}else if (completedInterval!=null&&t>=completedInterval.getEnd()-completedDeltaT0&&t<=completedInterval.getEnd()+completedDeltaT1&&selectedZone!=null&&selectedZone.getZoneId()==GanttUI.PROGRESS_BAR_ZONE_ID){
-       			if (selectedIsNonSummaryNode()) state=PROGRESS_BAR_MOVE;
-    		}else if (t<=interval.getStart()+deltaResize0){
-    			if (selectedIsNonSummaryNode()) state=BAR_MOVE_START;
-    		}else if (t>=interval.getEnd()-deltaResize1){
-    			if (selectedIsNonSummaryNode()) state=BAR_MOVE_END;
+				if (selectedIsNonSummaryNode()) {
+					state=BAR_MOVE;
+				}
+				selectedInterval=interval;
+				consumed=true;
+				return;
+			}
+			// Progress handles sit exactly at the completed interval boundary. Resolve
+			// their hit target before resize-edge tolerance, which can otherwise win
+			// when pixel-to-time conversion puts the pointer a fraction past the bar.
+			if (completedInterval!=null&&t>=completedInterval.getEnd()-completedDeltaT0
+					&&t<=completedInterval.getEnd()+completedDeltaT1&&selectedZone!=null
+					&&selectedZone.getZoneId()==GanttUI.PROGRESS_BAR_ZONE_ID){
+				if (selectedIsNonSummaryNode()) state=PROGRESS_BAR_MOVE;
+			}else if (t<interval.getStart()&&t>=interval.getStart()-deltaOutside){
+				if (selectedIsNonSummaryNode()) state=BAR_MOVE_START;
+			}else if (t>interval.getEnd()&&t<=interval.getEnd()+deltaOutside){
+				if (selectedIsNonSummaryNode()) state=BAR_MOVE_END;
+			}else if (t<interval.getStart()||t>interval.getEnd()){
+				selectedIntervalNumber++;
+				return;
+			}else if (t<=interval.getStart()+deltaResize0){
+				if (selectedIsNonSummaryNode()) state=BAR_MOVE_START;
+			}else if (t>=interval.getEnd()-deltaResize1){
+				if (selectedIsNonSummaryNode()) state=BAR_MOVE_END;
     		} else state= BAR_MOVE;
     		selectedInterval=interval;
 			consumed=true;
@@ -259,10 +264,6 @@ public class GanttInteractor extends GraphInteractor{
 			return;
 		}
      super.mousePressed(e);
-		if (selectedZone != null && selectedZone.getZoneId() == GanttUI.PROGRESS_BAR_ZONE_ID)
-			LOGGER.info(() -> "Gantt progress press: state=" + state + " selected=" + selected + " x=" + e.getX()
-				+ " zone=" + (selectedZone == null ? null : selectedZone.getZoneId())
-				+ " interval=" + selectedInterval);
      notifyMode();
     }
 
@@ -487,10 +488,6 @@ public class GanttInteractor extends GraphInteractor{
 		});
 		if (operation == TaskScheduleEditIntent.Operation.SPLIT)
 			LOGGER.info(() -> "Gantt split command result: " + result.status() + " reason=" + result.reason());
-		if (operation == TaskScheduleEditIntent.Operation.PROGRESS)
-			LOGGER.info(() -> "Gantt progress command result: requested=" + committedRequestedValue
-				+ " expectedCompleted=" + intent.expectedCompletedThrough() + " status=" + result.status()
-				+ " reason=" + result.reason());
 		return result.status() == TaskCommandResult.Status.CHANGED;
 	}
 
