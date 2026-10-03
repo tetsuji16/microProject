@@ -39,13 +39,14 @@ import javax.swing.undo.UndoableEditSupport;
 import com.microproject.pm.graphic.graph.GraphInteractor;
 import com.microproject.pm.graphic.graph.GraphUI;
 import com.microproject.pm.graphic.graph.GraphZone;
-import com.microproject.pm.graphic.collaboration.CollaborationHelper;
 import com.microproject.pm.graphic.frames.DocumentFrame;
 import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.pm.graphic.model.cache.GraphicDependency;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
+import com.microproject.pm.graphic.model.cache.ProjectionRowKey;
 import com.microproject.pm.graphic.spreadsheet.command.TaskCommandGateway;
 import com.microproject.pm.graphic.spreadsheet.command.TaskCommandResult;
+import com.microproject.pm.graphic.spreadsheet.command.TaskScheduleEditIntent;
 import com.microproject.pm.graphic.timescale.CoordinatesConverter;
 import com.microproject.pm.graphic.views.synchro.ScrollPaneSynchronizer;
 import com.microproject.association.InvalidAssociationException;
@@ -389,9 +390,6 @@ public class GanttInteractor extends GraphInteractor{
     	if (state==BAR_MOVE||state==BAR_MOVE_START||state==BAR_MOVE_END||state==PROGRESS_BAR_MOVE||state==SPLIT){
     		if (!(selected instanceof GraphicNode)) return false;
     		sourceNode=(GraphicNode)selected;
-    		if (!CollaborationHelper.tryLockObject(null, sourceNode.getNode(), getGraph(), "edit")) {
-    			return false;
-    		}
     	}
     	UndoableEditSupport undoSupport = getUndoableEditSupport();
 		boolean actionPerformed;
@@ -399,10 +397,9 @@ public class GanttInteractor extends GraphInteractor{
 		case BAR_MOVE:
 		case BAR_MOVE_START:
 		case BAR_MOVE_END:
-			actionPerformed = applyIntervalDrag((long)getCoord().toDuration(x-x0),undoSupport);
-			break;
 		case PROGRESS_BAR_MOVE:
-			actionPerformed = applyProgressDrag((long)getCoord().toTime(x),undoSupport);
+		case SPLIT:
+			actionPerformed = executeScheduleEdit(x, undoSupport);
 			break;
 		case LINK_CREATION:
 			actionPerformed = createDependencyLink();
@@ -410,11 +407,6 @@ public class GanttInteractor extends GraphInteractor{
 		case LINK_SELECTION:
 			showDependencyPropertiesDialog((GraphicDependency)selected);
 			return true;
-		case SPLIT:
-			long t=(long)getCoord().toTime(x);
-			Schedule schedule = getSourceSchedule();
-			actionPerformed = ScheduleService.getInstance().split(this,schedule,t,t,undoSupport);
-			break;
 		default:
 			return false;
 		}
@@ -422,6 +414,66 @@ public class GanttInteractor extends GraphInteractor{
 		// new gesture types from silently omitting the root-pane Ctrl+Z refresh.
 		return refreshUndoState(actionPerformed);
     }
+
+	private boolean executeScheduleEdit(double x, UndoableEditSupport undoSupport) {
+		if (sourceNode == null || selectedInterval == null || !(getGraph() instanceof Gantt gantt)
+				|| gantt.getCache() == null || !(sourceNode.getNode().getImpl() instanceof Task task))
+			return false;
+		var projection = gantt.getCache().getVisibleNodes().getProjectionIndex();
+		int row = projection.rowForNode(sourceNode);
+		if (row < 0 || !(projection.keyAt(row) instanceof ProjectionRowKey.TaskRow taskRow))
+			return false;
+		TaskScheduleEditIntent.Operation operation;
+		long requestedStart = selectedInterval.getStart();
+		long requestedEnd = selectedInterval.getEnd();
+		long requestedValue = 0L;
+		switch (state) {
+		case BAR_MOVE:
+			operation = TaskScheduleEditIntent.Operation.MOVE;
+			requestedStart += (long)getCoord().toDuration(x - x0);
+			requestedEnd += (long)getCoord().toDuration(x - x0);
+			break;
+		case BAR_MOVE_START:
+			operation = TaskScheduleEditIntent.Operation.RESIZE_START;
+			requestedStart += (long)getCoord().toDuration(x - x0);
+			break;
+		case BAR_MOVE_END:
+			operation = TaskScheduleEditIntent.Operation.RESIZE_END;
+			requestedEnd += (long)getCoord().toDuration(x - x0);
+			break;
+		case PROGRESS_BAR_MOVE:
+			operation = TaskScheduleEditIntent.Operation.PROGRESS;
+			requestedValue = (long)getCoord().toTime(x);
+			break;
+		case SPLIT:
+			operation = TaskScheduleEditIntent.Operation.SPLIT;
+			requestedValue = (long)getCoord().toTime(x);
+			break;
+		default:
+			return false;
+		}
+		Schedule schedule = getSourceSchedule();
+		TaskScheduleEditIntent intent = new TaskScheduleEditIntent(taskRow, projection.topologyRevision(), operation,
+			schedule.getStart(), schedule.getEnd(), schedule.getCompletedThrough(), selectedInterval.getStart(),
+			selectedInterval.getEnd(), task.getConstraintType(), task.getConstraintDate(), requestedStart,
+			requestedEnd, requestedValue);
+		long committedRequestedValue = requestedValue;
+		Schedule committedSchedule = schedule;
+		TaskCommandResult result = TaskCommandGateway.executeScheduleEdit(gantt.getCache(), intent, gantt, () -> {
+			switch (operation) {
+			case MOVE, RESIZE_START, RESIZE_END:
+				return applyIntervalDrag(intent.requestedStart(), intent.requestedEnd(), undoSupport);
+			case PROGRESS:
+				return applyProgressDrag(committedRequestedValue, undoSupport);
+			case SPLIT:
+				return ScheduleService.getInstance().split(this, committedSchedule, committedRequestedValue,
+					committedRequestedValue, undoSupport);
+			default:
+				return false;
+			}
+		});
+		return result.status() == TaskCommandResult.Status.CHANGED;
+	}
 
 	static boolean hasMeaningfulDrag(boolean linkCreation, double startX, double endX) {
 		// Link creation can be a vertical drag between bars on the same date.
@@ -465,9 +517,7 @@ public class GanttInteractor extends GraphInteractor{
 		return new DependencyLinkEndpoints(sourceNode, destinationNode);
 	}
 
-    private boolean applyIntervalDrag(long dt, UndoableEditSupport undoSupport) {
-    	long start=selectedInterval.getStart();
-    	long end=selectedInterval.getEnd();
+    private boolean applyIntervalDrag(long start, long end, UndoableEditSupport undoSupport) {
 		Schedule schedule = getSourceSchedule();
 		Task task = getSourceTask();
 		long originalScheduleStart = schedule.getStart();
@@ -477,20 +527,8 @@ public class GanttInteractor extends GraphInteractor{
 		int originalConstraintTypeCode = task == null ? ConstraintType.Kind.ASAP.code() : task.getConstraintType();
 		ConstraintType.Kind originalConstraintType = task == null ? ConstraintType.Kind.ASAP : task.getConstraintTypeKind();
 		long originalConstraintDate = task == null ? 0L : task.getConstraintDate();
-    	switch (state) {
-		case BAR_MOVE:
-			start+=dt;
-			end+=dt;
-			break;
-		case BAR_MOVE_START:
-			start+=dt;
-			break;
-		case BAR_MOVE_END:
-			end+=dt;
-			break;
-		default:
+		if (state != BAR_MOVE && state != BAR_MOVE_START && state != BAR_MOVE_END)
 			return false;
-		}
 		if (!changesIntervalAtHourPrecision(selectedInterval, start, end)) {
 			// Do not turn a sub-hour, visually ineffective drag into a constraint
 			// edit.  The old ordering changed SNET/FNLT before ScheduleService

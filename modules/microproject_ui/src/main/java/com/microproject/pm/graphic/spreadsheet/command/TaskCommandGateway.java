@@ -11,6 +11,7 @@ import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Set;
+import java.util.function.BooleanSupplier;
 
 import javax.swing.undo.UndoableEditSupport;
 
@@ -20,14 +21,15 @@ import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.field.FieldParseException;
 import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.pm.dependency.Dependency;
+import com.microproject.pm.dependency.DependencyService;
+import com.microproject.pm.scheduling.Schedule;
+import com.microproject.pm.task.Project;
+import com.microproject.pm.task.Task;
 import com.microproject.pm.graphic.model.cache.ProjectionRowKey;
 import com.microproject.pm.graphic.model.cache.RevisionedProjectionIndex;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
-import com.microproject.pm.task.Task;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.dependency.Dependency;
-import com.microproject.pm.dependency.DependencyService;
 import com.microproject.association.InvalidAssociationException;
 import com.microproject.util.ClassUtils;
 
@@ -158,6 +160,61 @@ public final class TaskCommandGateway {
 		int position = anchor == null || parent == null ? 0 : ((com.microproject.grouping.core.NodeBridge) parent).getIndex(anchor);
 		boolean pasted = sheetModel.getCache().pasteNodes(parent, new ArrayList<>(intent.copiedRoots()), position);
 		return TaskCommandResult.of(pasted ? TaskCommandResult.Status.CHANGED : TaskCommandResult.Status.REJECTED);
+	}
+
+	/** Validates the captured task projection and schedule values before a Gantt edit runs. */
+	public static TaskCommandResult executeScheduleEdit(NodeModelCache cache, TaskScheduleEditIntent intent,
+			Component lockParent, BooleanSupplier mutation) {
+		Objects.requireNonNull(cache, "cache");
+		Objects.requireNonNull(intent, "intent");
+		Objects.requireNonNull(mutation, "mutation");
+		if (!(cache.getModel().getDataFactory() instanceof Project project))
+			return new TaskCommandResult(TaskCommandResult.Status.INVALID_INTENT, "schedule-edit-requires-project-model");
+		if (project.isReadOnly())
+			return new TaskCommandResult(TaskCommandResult.Status.REJECTED, "document-read-only");
+		RevisionedProjectionIndex projection = cache.getVisibleNodes().getProjectionIndex();
+		if (projection.topologyRevision() != intent.projectionRevision())
+			return new TaskCommandResult(TaskCommandResult.Status.STALE_PROJECTION, "projection-revision-changed");
+		int row = projection.rowForKey(intent.task());
+		if (row < 0)
+			return new TaskCommandResult(TaskCommandResult.Status.MISSING_TASK, "task-not-visible");
+		GraphicNode graphicNode = projection.nodeAt(row);
+		Node node = graphicNode == null ? null : graphicNode.getNode();
+		if (node == null || node.isVoid() || !(node.getImpl() instanceof Task task)
+				|| !(node.getImpl() instanceof Schedule schedule))
+			return new TaskCommandResult(TaskCommandResult.Status.MISSING_TASK, "task-not-editable");
+		if (schedule.getStart() != intent.expectedScheduleStart()
+				|| schedule.getEnd() != intent.expectedScheduleEnd()
+				|| schedule.getCompletedThrough() != intent.expectedCompletedThrough()
+				|| task.getConstraintType() != intent.expectedConstraintType()
+				|| task.getConstraintDate() != intent.expectedConstraintDate())
+			return new TaskCommandResult(TaskCommandResult.Status.STALE_VALUE, "schedule-value-changed");
+		if ((intent.operation() == TaskScheduleEditIntent.Operation.MOVE
+				|| intent.operation() == TaskScheduleEditIntent.Operation.RESIZE_START
+				|| intent.operation() == TaskScheduleEditIntent.Operation.RESIZE_END)
+				&& !containsScheduleInterval(schedule, intent.expectedIntervalStart(), intent.expectedIntervalEnd(),
+					intent.expectedScheduleStart(), intent.expectedScheduleEnd()))
+			return new TaskCommandResult(TaskCommandResult.Status.STALE_VALUE, "schedule-interval-changed");
+		if (intent.operation() == TaskScheduleEditIntent.Operation.PROGRESS
+				&& intent.requestedValue() == intent.expectedCompletedThrough())
+			return TaskCommandResult.of(TaskCommandResult.Status.NO_CHANGE);
+		if (!CollaborationHelper.tryLockNodes(null, List.of(node), lockParent, "edit"))
+			return new TaskCommandResult(TaskCommandResult.Status.LOCKED, "collaboration-lock-denied");
+		return TaskCommandResult.of(mutation.getAsBoolean()
+			? TaskCommandResult.Status.CHANGED : TaskCommandResult.Status.NO_CHANGE);
+	}
+
+	private static boolean containsScheduleInterval(Schedule schedule, long expectedStart, long expectedEnd,
+			long expectedScheduleStart, long expectedScheduleEnd) {
+		boolean[] found = { false };
+		schedule.consumeIntervals(interval -> {
+			if (interval.getStart() == expectedStart
+					&& (interval.getEnd() == expectedEnd
+						|| (expectedEnd >= interval.getEnd() && expectedStart == expectedScheduleStart
+							&& interval.getEnd() == expectedScheduleEnd)))
+				found[0] = true;
+		});
+		return found[0];
 	}
 
 	/** Resolves a stable task selection before creating or removing dependencies. */

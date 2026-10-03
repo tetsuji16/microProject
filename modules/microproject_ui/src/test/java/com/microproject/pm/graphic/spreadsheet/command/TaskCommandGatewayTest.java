@@ -5,6 +5,7 @@
 package com.microproject.pm.graphic.spreadsheet.command;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -35,6 +36,7 @@ import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectTaskKey;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.dependency.Dependency;
+import com.microproject.pm.scheduling.Schedule;
 import com.microproject.undo.DataFactoryUndoController;
 
 class TaskCommandGatewayTest {
@@ -289,6 +291,56 @@ class TaskCommandGatewayTest {
 		assertEquals(TaskCommandResult.Status.STALE_PROJECTION, staleProjection.status());
 		assertEquals(TaskCommandResult.Status.STALE_VALUE, staleValue.status());
 		assertEquals("Before", fixture.task().getName());
+	}
+
+	@Test
+	void ganttScheduleIntentRejectsStaleProjectionAndScheduleBeforeInvokingMutation() throws Exception {
+		Fixture fixture = createFixture();
+		RevisionedProjectionIndex projection = fixture.cache().getVisibleNodes().getProjectionIndex();
+		Schedule schedule = (Schedule)fixture.task();
+		ProjectionRowKey.TaskRow row = taskRowFor(projection, fixture.task());
+		TaskScheduleEditIntent current = new TaskScheduleEditIntent(row, projection.topologyRevision(),
+			TaskScheduleEditIntent.Operation.PROGRESS, schedule.getStart(), schedule.getEnd(),
+			schedule.getCompletedThrough(), schedule.getStart(), schedule.getEnd(), fixture.task().getConstraintType(),
+			fixture.task().getConstraintDate(), schedule.getStart(), schedule.getEnd(),
+			schedule.getCompletedThrough() + 1);
+		TaskScheduleEditIntent staleProjection = new TaskScheduleEditIntent(row, projection.topologyRevision() + 1,
+			current.operation(), current.expectedScheduleStart(), current.expectedScheduleEnd(),
+			current.expectedCompletedThrough(), current.expectedIntervalStart(), current.expectedIntervalEnd(),
+			current.expectedConstraintType(), current.expectedConstraintDate(), current.requestedStart(),
+			current.requestedEnd(), current.requestedValue());
+		TaskScheduleEditIntent staleSchedule = new TaskScheduleEditIntent(row, projection.topologyRevision(),
+			current.operation(), current.expectedScheduleStart() + 1, current.expectedScheduleEnd(),
+			current.expectedCompletedThrough(), current.expectedIntervalStart(), current.expectedIntervalEnd(),
+			current.expectedConstraintType(), current.expectedConstraintDate(), current.requestedStart(),
+			current.requestedEnd(), current.requestedValue());
+		TaskScheduleEditIntent noOp = new TaskScheduleEditIntent(row, projection.topologyRevision(),
+			current.operation(), current.expectedScheduleStart(), current.expectedScheduleEnd(),
+			current.expectedCompletedThrough(), current.expectedIntervalStart(), current.expectedIntervalEnd(),
+			current.expectedConstraintType(), current.expectedConstraintDate(), current.expectedIntervalStart(),
+			current.expectedIntervalEnd(), current.expectedCompletedThrough());
+		AtomicReference<TaskCommandResult> staleProjectionResult = new AtomicReference<>();
+		AtomicReference<TaskCommandResult> staleScheduleResult = new AtomicReference<>();
+		AtomicReference<TaskCommandResult> noOpResult = new AtomicReference<>();
+		AtomicReference<Boolean> mutationCalled = new AtomicReference<>(false);
+		SwingUtilities.invokeAndWait(() -> {
+			staleProjectionResult.set(TaskCommandGateway.executeScheduleEdit(fixture.cache(), staleProjection,
+				fixture.sheet(), () -> { mutationCalled.set(true); return true; }));
+			staleScheduleResult.set(TaskCommandGateway.executeScheduleEdit(fixture.cache(), staleSchedule,
+				fixture.sheet(), () -> { mutationCalled.set(true); return true; }));
+			noOpResult.set(TaskCommandGateway.executeScheduleEdit(fixture.cache(), noOp,
+				fixture.sheet(), () -> { mutationCalled.set(true); return true; }));
+		});
+		assertEquals(TaskCommandResult.Status.STALE_PROJECTION, staleProjectionResult.get().status());
+		assertEquals(TaskCommandResult.Status.STALE_VALUE, staleScheduleResult.get().status());
+		assertEquals(TaskCommandResult.Status.NO_CHANGE, noOpResult.get().status());
+		assertFalse(mutationCalled.get(), "a stale gesture must not enter the scheduling mutation");
+
+		AtomicReference<TaskCommandResult> currentResult = new AtomicReference<>();
+		SwingUtilities.invokeAndWait(() -> currentResult.set(TaskCommandGateway.executeScheduleEdit(fixture.cache(), current,
+			fixture.sheet(), () -> { mutationCalled.set(true); return true; })));
+		assertEquals(TaskCommandResult.Status.CHANGED, currentResult.get().status());
+		assertTrue(mutationCalled.get(), "a current, validated gesture must reach the single mutation callback");
 	}
 
 	@Test
