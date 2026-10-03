@@ -31,6 +31,7 @@ import java.awt.Shape;
 import java.awt.geom.Rectangle2D;
 import java.awt.event.MouseEvent;
 import java.util.function.Consumer;
+import java.util.logging.Logger;
 
 import javax.swing.JViewport;
 import javax.swing.SwingUtilities;
@@ -67,6 +68,7 @@ import com.microproject.util.DateTime;
  *
  */
 public class GanttInteractor extends GraphInteractor{
+	private static final Logger LOGGER = Logger.getLogger(GanttInteractor.class.getName());
 	private boolean calendarRangeSelecting;
 	private GraphicNode lastCalendarRangeNode;
 	private static final long serialVersionUID = -555882007216388246L;
@@ -386,6 +388,9 @@ public class GanttInteractor extends GraphInteractor{
     }
 
     public boolean executeAction(double x,double y){
+		if (state == SPLIT)
+			LOGGER.info(() -> "Gantt split point dispatched: selected=" + selected + " x=" + x + " x0=" + x0
+				+ " interval=" + selectedInterval);
 		if (selected==null || !hasMeaningfulAction(state == LINK_CREATION, state == SPLIT, x0, x)) return false;
     	if (state==BAR_MOVE||state==BAR_MOVE_START||state==BAR_MOVE_END||state==PROGRESS_BAR_MOVE||state==SPLIT){
     		if (!(selected instanceof GraphicNode)) return false;
@@ -476,6 +481,8 @@ public class GanttInteractor extends GraphInteractor{
 				return false;
 			}
 		});
+		if (operation == TaskScheduleEditIntent.Operation.SPLIT)
+			LOGGER.info(() -> "Gantt split command result: " + result.status() + " reason=" + result.reason());
 		return result.status() == TaskCommandResult.Status.CHANGED;
 	}
 
