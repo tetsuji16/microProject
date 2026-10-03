@@ -235,26 +235,6 @@ class GanttBarDateDragGuiAcceptanceTest {
 			fixture.predecessor.setPercentComplete(0.4d);
 			fixture.project.recalculate();
 		});
-		long originalProgress = fixture.predecessor.getCompletedThrough();
-		Point progressHandle = screenPointForTaskDate(fixture, originalProgress);
-		assertProgressBarHit(fixture, progressHandle);
-		long progressTarget = originalProgress + (fixture.predecessor.getEnd() - originalProgress) * 3L / 4L;
-		assertTrue(progressTarget > originalProgress && progressTarget < fixture.predecessor.getEnd(),
-			"progress target must remain inside the scheduled interval: progress=" + originalProgress
-				+ " end=" + fixture.predecessor.getEnd() + " target=" + progressTarget);
-		Point laterProgress = screenPointForTaskDate(fixture, progressTarget);
-		drag(robot, progressHandle, laterProgress);
-		GuiAcceptanceSupport.await(() -> fixture.predecessor.getCompletedThrough() > originalProgress,
-			"dragging the progress handle did not update task progress: before=" + originalProgress
-				+ " requested=" + progressTarget + " actual=" + fixture.predecessor.getCompletedThrough()
-				+ " end=" + fixture.predecessor.getEnd() + " origin=" + progressHandle + " target=" + laterProgress);
-		long updatedProgress = fixture.predecessor.getCompletedThrough();
-		assertTrue(barBounds(fixture).width > 0, "the updated progress bar must be visible after redraw");
-		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().undo());
-		assertEquals(originalProgress, fixture.predecessor.getCompletedThrough(), "one Undo must restore task progress");
-		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().redo());
-		assertEquals(updatedProgress, fixture.predecessor.getCompletedThrough(), "one Redo must restore updated progress");
-
 		long originalResume = fixture.predecessor.getResume();
 		long originalStop = fixture.predecessor.getStop();
 		long currentProgress = fixture.predecessor.getCompletedThrough();
@@ -280,6 +260,28 @@ class GanttBarDateDragGuiAcceptanceTest {
 		assertEquals(splitResume, fixture.predecessor.getResume(), "one Redo must restore the split resume date");
 		assertEquals(splitStop, fixture.predecessor.getStop(), "one Redo must restore the split stop date");
 
+		long originalProgress = fixture.predecessor.getCompletedThrough();
+		Point progressHandle = screenPointForTaskDate(fixture, originalProgress);
+		assertProgressBarHit(fixture, progressHandle);
+		long progressTarget = originalProgress + (fixture.predecessor.getEnd() - originalProgress) * 3L / 4L;
+		assertTrue(progressTarget > originalProgress && progressTarget < fixture.predecessor.getEnd(),
+			"progress target must remain inside the scheduled interval: progress=" + originalProgress
+				+ " end=" + fixture.predecessor.getEnd() + " target=" + progressTarget);
+		Point laterProgress = screenPointForTaskDate(fixture, progressTarget);
+		drag(robot, progressHandle, laterProgress);
+		GuiAcceptanceSupport.await(() -> fixture.predecessor.getCompletedThrough() > originalProgress,
+			"dragging the progress handle did not update task progress: before=" + originalProgress
+				+ " requested=" + progressTarget + " actual=" + fixture.predecessor.getCompletedThrough()
+				+ " end=" + fixture.predecessor.getEnd() + " origin=" + progressHandle + " target=" + laterProgress);
+		long updatedProgress = fixture.predecessor.getCompletedThrough();
+		assertTrue(barBounds(fixture).width > 0, "the updated progress bar must be visible after redraw");
+		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().undo());
+		assertEquals(originalProgress, fixture.predecessor.getCompletedThrough(), "one Undo must restore task progress");
+		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().redo());
+		assertEquals(updatedProgress, fixture.predecessor.getCompletedThrough(), "one Redo must restore updated progress");
+		long persistedResume = fixture.predecessor.getResume();
+		long persistedStop = fixture.predecessor.getStop();
+
 		ByteArrayOutputStream saved = new ByteArrayOutputStream();
 		MpoFileImporter importer = new MpoFileImporter();
 		assertTrue(importer.saveProject(fixture.project, saved), "edited schedule must be serializable");
@@ -289,8 +291,8 @@ class GanttBarDateDragGuiAcceptanceTest {
 		assertEquals(resizedStart, reopenedTask.getStart(), "resized start must survive MPO reload");
 		assertEquals(resizedEnd, reopenedTask.getEnd(), "resized finish must survive MPO reload");
 		assertEquals(updatedProgress, reopenedTask.getCompletedThrough(), "progress must survive MPO reload");
-		assertEquals(splitResume, reopenedTask.getResume(), "split resume must survive MPO reload");
-		assertEquals(splitStop, reopenedTask.getStop(), "split stop must survive MPO reload");
+		assertEquals(persistedResume, reopenedTask.getResume(), "edited resume must survive MPO reload");
+		assertEquals(persistedStop, reopenedTask.getStop(), "edited stop must survive MPO reload");
 		capture(robot, "gantt-schedule-gestures-final.png");
 	}
 
