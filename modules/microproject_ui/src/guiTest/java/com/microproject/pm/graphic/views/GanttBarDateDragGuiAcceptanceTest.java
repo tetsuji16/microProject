@@ -37,7 +37,6 @@ import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.exchange.MpoFileImporter;
 import com.microproject.pm.graphic.gantt.Gantt;
-import com.microproject.pm.graphic.gantt.GanttInteractor;
 import com.microproject.pm.graphic.gantt.GanttUI;
 import com.microproject.pm.graphic.graph.GraphZone;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
