@@ -141,6 +141,7 @@ class ScheduleServiceConstraintTest {
 		ScheduleService.getInstance().setInterval(this, task, task.getStart(), resizedEnd,
 			new ScheduleInterval(task.getStart(), task.getEnd()), undoController.getEditSupport());
 		undoController.endUpdate();
+		assertEquals(movedStart, task.getStart(), "finish resize must preserve the task start");
 		assertEquals(resizedEnd, task.getEnd());
 
 		undoController.undo();

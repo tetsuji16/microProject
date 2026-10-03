@@ -424,6 +424,7 @@ public class GanttInteractor extends GraphInteractor{
 		if (row < 0 || !(projection.keyAt(row) instanceof ProjectionRowKey.TaskRow taskRow))
 			return false;
 		TaskScheduleEditIntent.Operation operation;
+		Schedule schedule = getSourceSchedule();
 		long requestedStart = selectedInterval.getStart();
 		long requestedEnd = selectedInterval.getEnd();
 		long requestedValue = 0L;
@@ -439,6 +440,10 @@ public class GanttInteractor extends GraphInteractor{
 			break;
 		case BAR_MOVE_END:
 			operation = TaskScheduleEditIntent.Operation.RESIZE_END;
+			// The rendered first interval can be normalized to working time and
+			// differ from the task's persisted start. A finish-only resize must
+			// anchor to the schedule start or it silently shifts the task start.
+			requestedStart = schedule.getStart();
 			requestedEnd += (long)getCoord().toDuration(x - x0);
 			break;
 		case PROGRESS_BAR_MOVE:
@@ -452,7 +457,6 @@ public class GanttInteractor extends GraphInteractor{
 		default:
 			return false;
 		}
-		Schedule schedule = getSourceSchedule();
 		TaskScheduleEditIntent intent = new TaskScheduleEditIntent(taskRow, projection.topologyRevision(), operation,
 			schedule.getStart(), schedule.getEnd(), schedule.getCompletedThrough(), selectedInterval.getStart(),
 			selectedInterval.getEnd(), task.getConstraintType(), task.getConstraintDate(), requestedStart,
