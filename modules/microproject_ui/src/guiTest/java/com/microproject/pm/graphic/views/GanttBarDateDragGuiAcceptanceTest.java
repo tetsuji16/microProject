@@ -8,6 +8,7 @@ package com.microproject.pm.graphic.views;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.GraphicsEnvironment;
 import java.awt.Point;
@@ -168,8 +169,9 @@ class GanttBarDateDragGuiAcceptanceTest {
 		int originalConstraintType = fixture.predecessor.getConstraintType();
 		long originalConstraintDate = fixture.predecessor.getConstraintDate();
 		Point startHandle = screenPointForTaskDate(fixture, originalStart);
-		startHandle.translate(1, 0);
+		startHandle.translate(2, 0);
 		assertTaskBarHit(fixture, startHandle);
+		assertResizeCursor(robot, startHandle, Cursor.W_RESIZE_CURSOR, "start resize");
 		java.util.Calendar earlierStartCalendar = java.util.Calendar.getInstance();
 		earlierStartCalendar.setTimeInMillis(originalStart);
 		earlierStartCalendar.add(java.util.Calendar.DAY_OF_MONTH, -3);
@@ -207,8 +209,9 @@ class GanttBarDateDragGuiAcceptanceTest {
 		int startConstraintType = fixture.predecessor.getConstraintType();
 		long startConstraintDate = fixture.predecessor.getConstraintDate();
 		Point endHandle = screenPointForTaskDate(fixture, originalEnd);
-		endHandle.translate(-1, 0);
+		endHandle.translate(-2, 0);
 		assertTaskBarHit(fixture, endHandle);
+		assertResizeCursor(robot, endHandle, Cursor.E_RESIZE_CURSOR, "finish resize");
 		Point laterDate = screenPointForTaskDate(fixture,
 			originalEnd + com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
 		drag(robot, endHandle, laterDate);
@@ -455,6 +458,20 @@ class GanttBarDateDragGuiAcceptanceTest {
 				&& hitNode.getNode().getImpl() == fixture.predecessor,
 				"gesture origin must hit the task's rendered Gantt bar: " + screenPoint);
 		});
+	}
+
+	private void assertResizeCursor(Robot robot, Point screenPoint, int cursorType, String gesture) throws Exception {
+		robot.mouseMove(screenPoint.x, screenPoint.y);
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(() -> {
+			int[] actualCursor = new int[1];
+			try {
+				SwingUtilities.invokeAndWait(() -> actualCursor[0] = gantt.getCursor().getType());
+			} catch (Exception exception) {
+				throw new AssertionError("Could not inspect Gantt resize cursor", exception);
+			}
+			return actualCursor[0] == cursorType;
+		}, gesture + " handle did not expose the resize cursor at " + screenPoint);
 	}
 
 	private Rectangle barBounds(Fixture fixture, NormalTask task) throws Exception {
