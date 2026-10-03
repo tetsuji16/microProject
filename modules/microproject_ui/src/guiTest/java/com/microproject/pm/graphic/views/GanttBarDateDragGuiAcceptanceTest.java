@@ -249,6 +249,8 @@ class GanttBarDateDragGuiAcceptanceTest {
 				+ " completedThrough=" + currentProgress
 				+ " splitAt=" + splitAt + " end=" + fixture.predecessor.getEnd());
 		Point splitStart = screenPointForTaskDate(fixture, splitAt);
+		long clickedSplitAt = taskDateAt(splitStart);
+		List<String> originalAssignmentState = assignmentScheduleStates(fixture.predecessor);
 		assertTaskBarHit(fixture, splitStart);
 		openPopupAndChoose(robot, splitStart, Messages.getString("Gantt.Popup.splitMode"));
 		click(robot, splitStart);
@@ -259,7 +261,11 @@ class GanttBarDateDragGuiAcceptanceTest {
 			throw new AssertionError(failure.getMessage() + ": intervals before=" + originalIntervals
 				+ " after=" + assignmentIntervals(fixture.predecessor)
 				+ " contours before=" + originalContours
-				+ " after=" + assignmentContours(fixture.predecessor), failure);
+				+ " after=" + assignmentContours(fixture.predecessor)
+				+ " requested=" + splitAt + " clicked=" + clickedSplitAt
+				+ " expectedTaskProgress=" + currentProgress
+				+ " assignments before=" + originalAssignmentState
+				+ " after=" + assignmentScheduleStates(fixture.predecessor), failure);
 		}
 		List<String> splitIntervals = assignmentIntervals(fixture.predecessor);
 		assertTrue(splitIntervals.size() > originalIntervals.size(),
@@ -415,6 +421,40 @@ class GanttBarDateDragGuiAcceptanceTest {
 			throw new AssertionError("Could not snapshot assignment work contours on the EDT", exception);
 		}
 		return snapshot.get();
+	}
+
+	private List<String> assignmentScheduleStates(NormalTask task) {
+		AtomicReference<List<String>> snapshot = new AtomicReference<>();
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				List<String> states = new ArrayList<>();
+				states.add("task start=" + task.getStart() + ",progress=" + task.getCompletedThrough()
+					+ ",resume=" + task.getResume() + ",end=" + task.getEnd());
+				for (var association : task.getAssignments()) {
+					Assignment assignment = (Assignment) association;
+					states.add("start=" + assignment.getStart() + ",resume=" + assignment.getResume()
+						+ ",stop=" + assignment.getStop() + ",end=" + assignment.getEnd()
+						+ ",completed=" + assignment.getCompletedThrough());
+				}
+				snapshot.set(List.copyOf(states));
+			});
+		} catch (Exception exception) {
+			throw new AssertionError("Could not snapshot assignment schedule state on the EDT", exception);
+		}
+		return snapshot.get();
+	}
+
+	private long taskDateAt(Point screenPoint) {
+		AtomicReference<Long> date = new AtomicReference<>();
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				int localX = screenPoint.x - gantt.getLocationOnScreen().x;
+				date.set((long)gantt.getCoord().toTime(localX));
+			});
+		} catch (Exception exception) {
+			throw new AssertionError("Could not resolve the Gantt split point on the EDT", exception);
+		}
+		return date.get();
 	}
 
 	private void activateGantt(Robot robot) throws Exception {
