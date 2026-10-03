@@ -1778,11 +1778,8 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 				return;
 			}
 
-			setDuration(Duration.setAsEstimated(cal.compare(newEnd, newStart, false), estimated));
-			// Duration changes may anchor the schedule from its finish. Reapply
-			// both requested endpoints afterwards so resizing either edge cannot
-			// move the opposite edge as a side effect.
 			setCurrentScheduleStart(newStart);
+			setDuration(Duration.setAsEstimated(cal.compare(newEnd, newStart, false), estimated));
 			setCurrentScheduleFinish(newEnd);
 			// A direct Gantt move changes the predecessor without going through
 			// the field-edit path. Invalidate every dependent task so FF/SF

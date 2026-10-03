@@ -158,10 +158,6 @@ class GanttBarDateDragGuiAcceptanceTest {
 	void robotResizeProgressAndSplitUseTypedScheduleGatewayWithUndoAndPersistence() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Fixture fixture = createFixture(DependencyType.FS, false);
-		SwingUtilities.invokeAndWait(() -> {
-			fixture.predecessor.setPercentComplete(0.4d);
-			fixture.project.recalculate();
-		});
 		showFixture(fixture);
 		Robot robot = new Robot();
 		robot.setAutoDelay(45);
@@ -234,6 +230,10 @@ class GanttBarDateDragGuiAcceptanceTest {
 		assertEquals(startConstraintType, fixture.predecessor.getConstraintType(),
 			"one Redo must preserve the start constraint after finish resize");
 
+		SwingUtilities.invokeAndWait(() -> {
+			fixture.predecessor.setPercentComplete(0.4d);
+			fixture.project.recalculate();
+		});
 		long originalProgress = fixture.predecessor.getCompletedThrough();
 		Point progressHandle = screenPointForTaskDate(fixture, originalProgress);
 		assertTaskBarHit(fixture, progressHandle);
