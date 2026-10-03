@@ -413,7 +413,8 @@ class GanttBarDateDragGuiAcceptanceTest {
 				List<String> contours = new ArrayList<>();
 				for (var association : task.getAssignments()) {
 					Assignment assignment = (Assignment) association;
-					contours.add(assignment.getWorkContour().toString(assignment.getDuration()));
+					contours.add(assignment.getWorkContour().getTypeKind() + ":"
+						+ assignment.getWorkContour().toString(assignment.getDuration()));
 				}
 				snapshot.set(List.copyOf(contours));
 			});
