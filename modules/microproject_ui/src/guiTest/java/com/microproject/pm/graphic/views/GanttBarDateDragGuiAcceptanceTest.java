@@ -168,8 +168,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 		long originalStart = fixture.predecessor.getStart();
 		int originalConstraintType = fixture.predecessor.getConstraintType();
 		long originalConstraintDate = fixture.predecessor.getConstraintDate();
-		Point startHandle = screenPointForTaskDateAtBarEdge(fixture, originalStart);
-		startHandle.translate(2, 0);
+		Point startHandle = findResizeHandle(robot, fixture, true, Cursor.W_RESIZE_CURSOR, "start resize");
 		assertTaskBarHit(fixture, startHandle);
 		assertResizeCursor(robot, startHandle, Cursor.W_RESIZE_CURSOR, "start resize");
 		java.util.Calendar earlierStartCalendar = java.util.Calendar.getInstance();
@@ -208,8 +207,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 		long originalEnd = fixture.predecessor.getEnd();
 		int startConstraintType = fixture.predecessor.getConstraintType();
 		long startConstraintDate = fixture.predecessor.getConstraintDate();
-		Point endHandle = screenPointForTaskDateAtBarEdge(fixture, originalEnd);
-		endHandle.translate(-2, 0);
+		Point endHandle = findResizeHandle(robot, fixture, false, Cursor.E_RESIZE_CURSOR, "finish resize");
 		assertTaskBarHit(fixture, endHandle);
 		assertResizeCursor(robot, endHandle, Cursor.E_RESIZE_CURSOR, "finish resize");
 		Point laterDate = screenPointForTaskDate(fixture,
@@ -426,14 +424,6 @@ class GanttBarDateDragGuiAcceptanceTest {
 	}
 
 	private Point screenPointForTaskDate(Fixture fixture, long date) throws Exception {
-		return screenPointForTaskDate(fixture, date, false);
-	}
-
-	private Point screenPointForTaskDateAtBarEdge(Fixture fixture, long date) throws Exception {
-		return screenPointForTaskDate(fixture, date, true);
-	}
-
-	private Point screenPointForTaskDate(Fixture fixture, long date, boolean barEdge) throws Exception {
 		Point[] result = new Point[1];
 		SwingUtilities.invokeAndWait(() -> {
 			var projection = fixture.cache.getVisibleNodes().getProjectionIndex();
@@ -450,13 +440,53 @@ class GanttBarDateDragGuiAcceptanceTest {
 			if (node == null)
 				throw new AssertionError("Gantt task is absent from its projection");
 			int x = (int)Math.round(gantt.getCoord().toX(date));
-			double barTop = ((GanttUI)gantt.getUI()).getBarY(row) + node.getGanttShapeOffset();
-			int y = (int)Math.round(barEdge ? barTop + 1
-				: barTop + node.getGanttShapeHeight() / 2.0d);
+			int y = (int)Math.round(((GanttUI)gantt.getUI()).getBarY(row)
+				+ node.getGanttShapeOffset() + node.getGanttShapeHeight() / 2.0d);
 			Point location = gantt.getLocationOnScreen();
 			result[0] = new Point(location.x + x, location.y + y);
 		});
 		return result[0];
+	}
+
+	private Point findResizeHandle(Robot robot, Fixture fixture, boolean leading, int expectedCursor, String gesture)
+			throws Exception {
+		int[] barRowAndY = new int[2];
+		Point[] location = new Point[1];
+		int[] range = new int[] {Integer.MAX_VALUE, Integer.MIN_VALUE};
+		SwingUtilities.invokeAndWait(() -> {
+			var projection = fixture.cache.getVisibleNodes().getProjectionIndex();
+			for (int row = 0; row < projection.size(); row++) {
+				GraphicNode node = projection.nodeAt(row);
+				if (node.getNode().getImpl() == fixture.predecessor) {
+					barRowAndY[0] = row;
+					barRowAndY[1] = (int)Math.round(((GanttUI)gantt.getUI()).getBarY(row)
+						+ node.getGanttShapeOffset() + 1);
+					location[0] = gantt.getLocationOnScreen();
+					for (int x = 0; x < gantt.getWidth(); x++) {
+						GraphZone zone = gantt.getUI().getNodeAt(x, barRowAndY[1]);
+						if (zone != null && zone.getObject() instanceof GraphicNode hitNode
+								&& hitNode.getNode().getImpl() == fixture.predecessor) {
+							range[0] = Math.min(range[0], x);
+							range[1] = Math.max(range[1], x);
+						}
+					}
+					return;
+				}
+			}
+			throw new AssertionError("Gantt task is absent from its projection");
+		});
+		if (range[0] > range[1])
+			throw new AssertionError("No rendered Gantt bar hit region for " + gesture);
+
+		int step = leading ? 1 : -1;
+		for (int x = leading ? range[0] : range[1]; leading ? x <= range[1] : x >= range[0]; x += step) {
+			robot.mouseMove(location[0].x + x, location[0].y + barRowAndY[1]);
+			robot.waitForIdle();
+			if (cursorTypeAt() == expectedCursor)
+				return new Point(location[0].x + x, location[0].y + barRowAndY[1]);
+		}
+		throw new AssertionError(gesture + " did not expose cursor " + expectedCursor
+			+ " in the rendered task hit range " + range[0] + ".." + range[1]);
 	}
 
 	private void assertTaskBarHit(Fixture fixture, Point screenPoint) throws Exception {
