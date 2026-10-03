@@ -258,8 +258,12 @@ public class GanttInteractor extends GraphInteractor{
 			openTaskInformationAt(e.getX(), e.getY());
 			return;
 		}
-    	super.mousePressed(e);
-    	notifyMode();
+     super.mousePressed(e);
+		if (state == PROGRESS_BAR_MOVE)
+			LOGGER.info(() -> "Gantt progress drag armed: selected=" + selected + " x=" + e.getX()
+				+ " zone=" + (selectedZone == null ? null : selectedZone.getZoneId())
+				+ " interval=" + selectedInterval);
+     notifyMode();
     }
 
     public void mouseDragged(MouseEvent e) {
@@ -483,6 +487,10 @@ public class GanttInteractor extends GraphInteractor{
 		});
 		if (operation == TaskScheduleEditIntent.Operation.SPLIT)
 			LOGGER.info(() -> "Gantt split command result: " + result.status() + " reason=" + result.reason());
+		if (operation == TaskScheduleEditIntent.Operation.PROGRESS)
+			LOGGER.info(() -> "Gantt progress command result: requested=" + committedRequestedValue
+				+ " expectedCompleted=" + intent.expectedCompletedThrough() + " status=" + result.status()
+				+ " reason=" + result.reason());
 		return result.status() == TaskCommandResult.Status.CHANGED;
 	}
 
