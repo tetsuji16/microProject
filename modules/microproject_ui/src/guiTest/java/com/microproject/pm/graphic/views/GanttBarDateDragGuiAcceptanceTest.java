@@ -263,6 +263,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 
 		long currentProgress = fixture.predecessor.getCompletedThrough();
 		List<String> originalIntervals = assignmentIntervals(fixture.predecessor);
+		List<String> originalTaskIntervals = taskIntervals(fixture.predecessor);
 		List<String> originalContours = assignmentContours(fixture.predecessor);
 		long remainingWorkStart = Math.max(currentProgress, fixture.predecessor.getResume());
 		long splitAt = originalIntervals.stream().mapToLong(interval -> {
@@ -282,13 +283,6 @@ class GanttBarDateDragGuiAcceptanceTest {
 				+ " intervals=" + originalIntervals + " end=" + fixture.predecessor.getEnd());
 		Point splitStart = screenPointForTaskDate(fixture, splitAt);
 		long clickedSplitAt = taskDateAt(splitStart);
-		Assignment splitAssignment = (Assignment) fixture.predecessor.getAssignments().get(0);
-		long committedSplitAt = splitAssignment.getEffectiveWorkCalendar()
-			.adjustInsideCalendar(DateTime.hourFloor(clickedSplitAt), false);
-		Point committedSplitPoint = screenPointForTaskDate(fixture, committedSplitAt);
-		assertEquals(splitStart.x, committedSplitPoint.x,
-			"calendar-normalized split boundary must remain on the physical click pixel: clicked="
-				+ clickedSplitAt + " committed=" + committedSplitAt);
 		List<String> originalAssignmentState = assignmentScheduleStates(fixture.predecessor);
 		assertTaskBarHit(fixture, splitStart);
 		openPopupAndChoose(robot, splitStart, Messages.getString("Gantt.Popup.splitMode"));
@@ -307,28 +301,28 @@ class GanttBarDateDragGuiAcceptanceTest {
 				+ " after=" + assignmentScheduleStates(fixture.predecessor), failure);
 		}
 		List<String> splitIntervals = assignmentIntervals(fixture.predecessor);
-		assertTrue(containsGapAt(splitIntervals, committedSplitAt),
+		assertTrue(gapStartsAtPixel(fixture, splitIntervals, splitStart.x),
 			"the split must leave a nonworking gap at the physical click point: before=" + originalIntervals
 				+ " after=" + splitIntervals + " clicked=" + clickedSplitAt
-				+ " calendarBoundary=" + committedSplitAt);
-		List<String> renderedTaskIntervals = taskIntervals(fixture.predecessor);
-		assertTrue(containsGapAt(renderedTaskIntervals, committedSplitAt),
+				+ " clickPixel=" + splitStart.x);
+		List<String> splitTaskIntervals = taskIntervals(fixture.predecessor);
+		assertTrue(gapStartsAtPixel(fixture, splitTaskIntervals, splitStart.x),
 			"the task intervals consumed by the Gantt renderer must expose the visible split gap: "
-				+ renderedTaskIntervals + " clicked=" + clickedSplitAt
-				+ " calendarBoundary=" + committedSplitAt);
+				+ splitTaskIntervals + " clicked=" + clickedSplitAt + " clickPixel=" + splitStart.x);
 		assertTrue(barBounds(fixture).width > 0, "the split task must remain visible after redraw");
 		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().undo());
 		assertEquals(originalIntervals, assignmentIntervals(fixture.predecessor),
 			"one Undo must restore the original assignment work intervals");
-		assertFalse(containsGapAt(taskIntervals(fixture.predecessor), committedSplitAt),
-			"one Undo must remove the split gap from the intervals consumed by Gantt");
+		assertEquals(originalTaskIntervals, taskIntervals(fixture.predecessor),
+			"one Undo must restore the original intervals consumed by Gantt");
 		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().redo());
 		assertEquals(splitIntervals, assignmentIntervals(fixture.predecessor),
 			"one Redo must restore the split assignment work intervals");
-		assertTrue(containsGapAt(taskIntervals(fixture.predecessor), committedSplitAt),
+		assertEquals(splitTaskIntervals, taskIntervals(fixture.predecessor),
 			"one Redo must restore the split gap consumed by Gantt");
 
 		List<String> persistedIntervals = assignmentIntervals(fixture.predecessor);
+		List<String> persistedTaskIntervals = taskIntervals(fixture.predecessor);
 
 		ByteArrayOutputStream saved = new ByteArrayOutputStream();
 		MpoFileImporter importer = new MpoFileImporter();
@@ -340,7 +334,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 		assertEquals(resizedEnd, reopenedTask.getEnd(), "resized finish must survive MPO reload");
 		assertEquals(updatedProgress, reopenedTask.getCompletedThrough(), "progress must survive MPO reload");
 		assertEquals(persistedIntervals, assignmentIntervals(reopenedTask), "split intervals must survive MPO reload");
-		assertTrue(containsGapAt(taskIntervals(reopenedTask), committedSplitAt),
+		assertEquals(persistedTaskIntervals, taskIntervals(reopenedTask),
 			"the split gap rendered by Gantt must survive MPO reload");
 		capture(robot, "gantt-schedule-gestures-final.png");
 	}
@@ -453,13 +447,14 @@ class GanttBarDateDragGuiAcceptanceTest {
 		return snapshot.get();
 	}
 
-	private boolean containsGapAt(List<String> intervals, long instant) {
+	private boolean gapStartsAtPixel(Fixture fixture, List<String> intervals, int screenX) throws Exception {
 		Long previousEnd = null;
 		for (String interval : intervals) {
 			String[] boundaries = interval.split(":", -1);
 			long start = Long.parseLong(boundaries[0]);
 			long end = Long.parseLong(boundaries[1]);
-			if (previousEnd != null && previousEnd < start && instant >= previousEnd && instant < start)
+			if (previousEnd != null && previousEnd < start
+				&& screenPointForTaskDate(fixture, previousEnd).x == screenX)
 				return true;
 			previousEnd = end;
 		}
