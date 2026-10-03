@@ -168,7 +168,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 		long originalStart = fixture.predecessor.getStart();
 		int originalConstraintType = fixture.predecessor.getConstraintType();
 		long originalConstraintDate = fixture.predecessor.getConstraintDate();
-		Point startHandle = screenPointForTaskDate(fixture, originalStart);
+		Point startHandle = screenPointForTaskDateAtBarEdge(fixture, originalStart);
 		startHandle.translate(2, 0);
 		assertTaskBarHit(fixture, startHandle);
 		assertResizeCursor(robot, startHandle, Cursor.W_RESIZE_CURSOR, "start resize");
@@ -208,7 +208,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 		long originalEnd = fixture.predecessor.getEnd();
 		int startConstraintType = fixture.predecessor.getConstraintType();
 		long startConstraintDate = fixture.predecessor.getConstraintDate();
-		Point endHandle = screenPointForTaskDate(fixture, originalEnd);
+		Point endHandle = screenPointForTaskDateAtBarEdge(fixture, originalEnd);
 		endHandle.translate(-2, 0);
 		assertTaskBarHit(fixture, endHandle);
 		assertResizeCursor(robot, endHandle, Cursor.E_RESIZE_CURSOR, "finish resize");
@@ -426,6 +426,14 @@ class GanttBarDateDragGuiAcceptanceTest {
 	}
 
 	private Point screenPointForTaskDate(Fixture fixture, long date) throws Exception {
+		return screenPointForTaskDate(fixture, date, false);
+	}
+
+	private Point screenPointForTaskDateAtBarEdge(Fixture fixture, long date) throws Exception {
+		return screenPointForTaskDate(fixture, date, true);
+	}
+
+	private Point screenPointForTaskDate(Fixture fixture, long date, boolean barEdge) throws Exception {
 		Point[] result = new Point[1];
 		SwingUtilities.invokeAndWait(() -> {
 			var projection = fixture.cache.getVisibleNodes().getProjectionIndex();
@@ -442,8 +450,9 @@ class GanttBarDateDragGuiAcceptanceTest {
 			if (node == null)
 				throw new AssertionError("Gantt task is absent from its projection");
 			int x = (int)Math.round(gantt.getCoord().toX(date));
-			int y = (int)Math.round(((GanttUI)gantt.getUI()).getBarY(row)
-				+ node.getGanttShapeOffset() + node.getGanttShapeHeight() / 2.0d);
+			double barTop = ((GanttUI)gantt.getUI()).getBarY(row) + node.getGanttShapeOffset();
+			int y = (int)Math.round(barEdge ? barTop + 1
+				: barTop + node.getGanttShapeHeight() / 2.0d);
 			Point location = gantt.getLocationOnScreen();
 			result[0] = new Point(location.x + x, location.y + y);
 		});
