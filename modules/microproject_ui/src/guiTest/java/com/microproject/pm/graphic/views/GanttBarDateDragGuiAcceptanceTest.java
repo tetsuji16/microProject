@@ -238,14 +238,16 @@ class GanttBarDateDragGuiAcceptanceTest {
 		long originalProgress = fixture.predecessor.getCompletedThrough();
 		Point progressHandle = screenPointForTaskDate(fixture, originalProgress);
 		assertProgressBarHit(fixture, progressHandle);
-		long progressTarget = originalProgress + (fixture.predecessor.getEnd() - originalProgress) / 2L;
+		long progressTarget = originalProgress + (fixture.predecessor.getEnd() - originalProgress) * 3L / 4L;
 		assertTrue(progressTarget > originalProgress && progressTarget < fixture.predecessor.getEnd(),
 			"progress target must remain inside the scheduled interval: progress=" + originalProgress
 				+ " end=" + fixture.predecessor.getEnd() + " target=" + progressTarget);
 		Point laterProgress = screenPointForTaskDate(fixture, progressTarget);
 		drag(robot, progressHandle, laterProgress);
 		GuiAcceptanceSupport.await(() -> fixture.predecessor.getCompletedThrough() > originalProgress,
-			"dragging the progress handle did not update task progress");
+			"dragging the progress handle did not update task progress: before=" + originalProgress
+				+ " requested=" + progressTarget + " actual=" + fixture.predecessor.getCompletedThrough()
+				+ " end=" + fixture.predecessor.getEnd() + " origin=" + progressHandle + " target=" + laterProgress);
 		long updatedProgress = fixture.predecessor.getCompletedThrough();
 		assertTrue(barBounds(fixture).width > 0, "the updated progress bar must be visible after redraw");
 		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().undo());
