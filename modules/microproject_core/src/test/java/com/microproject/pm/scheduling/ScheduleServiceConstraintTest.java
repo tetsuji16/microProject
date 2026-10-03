@@ -114,6 +114,7 @@ class ScheduleServiceConstraintTest {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
 		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
 		Project project = Project.createProject(resourcePool, undoController);
+		project.initialize(false, false);
 		NormalTask task = new NormalTask(project);
 		project.connectTask(task);
 		long day = CalendarOption.getInstance().getMillisPerDay();
