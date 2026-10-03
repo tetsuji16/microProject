@@ -191,7 +191,8 @@ public final class TaskCommandGateway {
 			return new TaskCommandResult(TaskCommandResult.Status.STALE_VALUE, "schedule-value-changed");
 		if ((intent.operation() == TaskScheduleEditIntent.Operation.MOVE
 				|| intent.operation() == TaskScheduleEditIntent.Operation.RESIZE_START
-				|| intent.operation() == TaskScheduleEditIntent.Operation.RESIZE_END)
+				|| intent.operation() == TaskScheduleEditIntent.Operation.RESIZE_END
+				|| intent.operation() == TaskScheduleEditIntent.Operation.SPLIT)
 				&& !containsScheduleInterval(schedule, intent.expectedIntervalStart(), intent.expectedIntervalEnd(),
 					intent.expectedScheduleStart(), intent.expectedScheduleEnd()))
 			return new TaskCommandResult(TaskCommandResult.Status.STALE_VALUE, "schedule-interval-changed");
