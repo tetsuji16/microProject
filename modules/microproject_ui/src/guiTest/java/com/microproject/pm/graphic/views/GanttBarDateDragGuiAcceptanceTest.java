@@ -36,6 +36,7 @@ import org.junit.jupiter.api.Test;
 import com.microproject.graphic.configuration.SpreadSheetCategories;
 import com.microproject.configuration.Dictionary;
 import com.microproject.graphic.configuration.BarStyles;
+import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
@@ -158,7 +159,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 	@Test
 	void robotResizeProgressAndSplitUseTypedScheduleGatewayWithUndoAndPersistence() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
-		Fixture fixture = createFixture(DependencyType.FS, false);
+		Fixture fixture = createFixture(DependencyType.FS, false, true);
 		showFixture(fixture);
 		Robot robot = new Robot();
 		robot.setAutoDelay(45);
@@ -596,6 +597,11 @@ class GanttBarDateDragGuiAcceptanceTest {
 	}
 
 	private Fixture createFixture(int dependencyType, boolean includeDependency) throws Exception {
+		return createFixture(dependencyType, includeDependency, false);
+	}
+
+	private Fixture createFixture(int dependencyType, boolean includeDependency, boolean assignPredecessor)
+			throws Exception {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		ResourcePool pool = ResourcePool.createRourcePool("gui-gantt-date-drag", undo);
 		Project project = Project.createProject(pool, undo);
@@ -605,6 +611,10 @@ class GanttBarDateDragGuiAcceptanceTest {
 		long predecessorStart = DateTime.calendarInstance(2026, java.util.Calendar.JUNE, 8).getTimeInMillis();
 		predecessor.getCurrentSchedule().setStart(predecessorStart);
 		predecessor.setDuration(3L * com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
+		if (assignPredecessor) {
+			var resource = project.getResourcePool().newResourceInstance();
+			AssignmentService.getInstance().newAssignment(predecessor, resource, 1.0D, 0L, this);
+		}
 		Dependency dependency = includeDependency
 			? DependencyService.getInstance().newDependency(predecessor, successor, dependencyType, 0L, project) : null;
 		project.recalculate();
