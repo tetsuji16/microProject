@@ -282,7 +282,8 @@ class GanttBarDateDragGuiAcceptanceTest {
 				+ " intervals=" + originalIntervals + " end=" + fixture.predecessor.getEnd());
 		Point splitStart = screenPointForTaskDate(fixture, splitAt);
 		long clickedSplitAt = taskDateAt(splitStart);
-		long committedSplitAt = fixture.predecessor.getEffectiveWorkCalendar()
+		Assignment splitAssignment = (Assignment) fixture.predecessor.getAssignments().get(0);
+		long committedSplitAt = splitAssignment.getEffectiveWorkCalendar()
 			.adjustInsideCalendar(DateTime.hourFloor(clickedSplitAt), false);
 		Point committedSplitPoint = screenPointForTaskDate(fixture, committedSplitAt);
 		assertEquals(splitStart.x, committedSplitPoint.x,
