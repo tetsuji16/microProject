@@ -259,8 +259,8 @@ public class GanttInteractor extends GraphInteractor{
 			return;
 		}
      super.mousePressed(e);
-		if (state == PROGRESS_BAR_MOVE)
-			LOGGER.info(() -> "Gantt progress drag armed: selected=" + selected + " x=" + e.getX()
+		if (selectedZone != null && selectedZone.getZoneId() == GanttUI.PROGRESS_BAR_ZONE_ID)
+			LOGGER.info(() -> "Gantt progress press: state=" + state + " selected=" + selected + " x=" + e.getX()
 				+ " zone=" + (selectedZone == null ? null : selectedZone.getZoneId())
 				+ " interval=" + selectedInterval);
      notifyMode();
