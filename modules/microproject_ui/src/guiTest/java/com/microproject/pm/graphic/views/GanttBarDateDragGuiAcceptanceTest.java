@@ -170,12 +170,19 @@ class GanttBarDateDragGuiAcceptanceTest {
 
 		long originalStart = fixture.predecessor.getStart();
 		Point startHandle = screenPointForTaskDate(fixture, originalStart);
+		startHandle.translate(1, 0);
 		assertTaskBarHit(fixture, startHandle);
 		Point earlierDate = screenPointForTaskDate(fixture,
 			originalStart - com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
 		drag(robot, startHandle, earlierDate);
-		GuiAcceptanceSupport.await(() -> fixture.predecessor.getStart() < originalStart,
-			"dragging the leading bar handle did not resize the task start");
+		try {
+			GuiAcceptanceSupport.await(() -> fixture.predecessor.getStart() < originalStart,
+				"dragging the leading bar handle did not resize the task start");
+		} catch (AssertionError failure) {
+			throw new AssertionError("Gantt start resize did not commit: expectedBefore=" + originalStart
+				+ " actualAfter=" + fixture.predecessor.getStart() + " pressPoint=" + startHandle
+				+ " dragPoint=" + earlierDate, failure);
+		}
 		assertTrue(barBounds(fixture).width > 0, "the resized bar must remain visible after redraw");
 		long resizedStart = fixture.predecessor.getStart();
 		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().undo());
