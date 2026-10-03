@@ -323,11 +323,19 @@ class TaskCommandGatewayTest {
 			TaskScheduleEditIntent.Operation.SPLIT, current.expectedScheduleStart(), current.expectedScheduleEnd(),
 			current.expectedCompletedThrough(), Long.MIN_VALUE, Long.MAX_VALUE, current.expectedConstraintType(),
 			current.expectedConstraintDate(), Long.MIN_VALUE, Long.MAX_VALUE, 1L);
+		long splitPoint = current.expectedScheduleStart()
+			+ (current.expectedScheduleEnd() - current.expectedScheduleStart()) / 2L;
+		TaskScheduleEditIntent splitPointWithinWork = new TaskScheduleEditIntent(row, projection.topologyRevision(),
+			TaskScheduleEditIntent.Operation.SPLIT, current.expectedScheduleStart(), current.expectedScheduleEnd(),
+			current.expectedCompletedThrough(), Long.MIN_VALUE, Long.MAX_VALUE, current.expectedConstraintType(),
+			current.expectedConstraintDate(), Long.MIN_VALUE, Long.MAX_VALUE, splitPoint);
 		AtomicReference<TaskCommandResult> staleProjectionResult = new AtomicReference<>();
 		AtomicReference<TaskCommandResult> staleScheduleResult = new AtomicReference<>();
 		AtomicReference<TaskCommandResult> noOpResult = new AtomicReference<>();
 		AtomicReference<TaskCommandResult> staleSplitResult = new AtomicReference<>();
+		AtomicReference<TaskCommandResult> splitPointResult = new AtomicReference<>();
 		AtomicReference<Boolean> mutationCalled = new AtomicReference<>(false);
+		AtomicReference<Boolean> splitMutationCalled = new AtomicReference<>(false);
 		SwingUtilities.invokeAndWait(() -> {
 			staleProjectionResult.set(TaskCommandGateway.executeScheduleEdit(fixture.cache(), staleProjection,
 				fixture.sheet(), () -> { mutationCalled.set(true); return true; }));
@@ -337,12 +345,17 @@ class TaskCommandGatewayTest {
 				fixture.sheet(), () -> { mutationCalled.set(true); return true; }));
 			staleSplitResult.set(TaskCommandGateway.executeScheduleEdit(fixture.cache(), staleSplitInterval,
 				fixture.sheet(), () -> { mutationCalled.set(true); return true; }));
+			splitPointResult.set(TaskCommandGateway.executeScheduleEdit(fixture.cache(), splitPointWithinWork,
+				fixture.sheet(), () -> { splitMutationCalled.set(true); return true; }));
 		});
 		assertEquals(TaskCommandResult.Status.STALE_PROJECTION, staleProjectionResult.get().status());
 		assertEquals(TaskCommandResult.Status.STALE_VALUE, staleScheduleResult.get().status());
 		assertEquals(TaskCommandResult.Status.NO_CHANGE, noOpResult.get().status());
 		assertEquals(TaskCommandResult.Status.STALE_VALUE, staleSplitResult.get().status(),
-			"split must reject a captured interval that no longer exists");
+			"split must reject a point outside the current work interval");
+		assertEquals(TaskCommandResult.Status.CHANGED, splitPointResult.get().status(),
+			"split must validate its actual point even when the rendered interval is visually expanded");
+		assertTrue(splitMutationCalled.get(), "a current split point must reach the shared mutation callback");
 		assertFalse(mutationCalled.get(), "a stale gesture must not enter the scheduling mutation");
 
 		AtomicReference<TaskCommandResult> currentResult = new AtomicReference<>();
