@@ -264,11 +264,22 @@ class GanttBarDateDragGuiAcceptanceTest {
 		long currentProgress = fixture.predecessor.getCompletedThrough();
 		List<String> originalIntervals = assignmentIntervals(fixture.predecessor);
 		List<String> originalContours = assignmentContours(fixture.predecessor);
-		long splitAt = currentProgress + (fixture.predecessor.getEnd() - currentProgress) / 4L;
-		assertTrue(splitAt > fixture.predecessor.getResume() && splitAt < fixture.predecessor.getEnd(),
-			"split point must be inside remaining work: resume=" + fixture.predecessor.getResume()
-				+ " completedThrough=" + currentProgress
-				+ " splitAt=" + splitAt + " end=" + fixture.predecessor.getEnd());
+		long remainingWorkStart = Math.max(currentProgress, fixture.predecessor.getResume());
+		long splitAt = originalIntervals.stream().mapToLong(interval -> {
+			String[] bounds = interval.split(":");
+			long intervalStart = Math.max(Long.parseLong(bounds[0]), remainingWorkStart);
+			long intervalEnd = Long.parseLong(bounds[1]);
+			return intervalEnd - intervalStart > 1L
+				? intervalStart + (intervalEnd - intervalStart) / 2L
+				: Long.MIN_VALUE;
+		}).filter(candidate -> candidate != Long.MIN_VALUE).findFirst().orElseThrow(() ->
+			new AssertionError("progress drag must leave a schedulable assignment interval for splitting: resume="
+				+ fixture.predecessor.getResume() + " completedThrough=" + currentProgress
+				+ " intervals=" + originalIntervals));
+		assertTrue(splitAt > remainingWorkStart && splitAt < fixture.predecessor.getEnd(),
+			"split point must be inside remaining scheduled work: resume=" + fixture.predecessor.getResume()
+				+ " completedThrough=" + currentProgress + " splitAt=" + splitAt
+				+ " intervals=" + originalIntervals + " end=" + fixture.predecessor.getEnd());
 		Point splitStart = screenPointForTaskDate(fixture, splitAt);
 		long clickedSplitAt = taskDateAt(splitStart);
 		List<String> originalAssignmentState = assignmentScheduleStates(fixture.predecessor);
