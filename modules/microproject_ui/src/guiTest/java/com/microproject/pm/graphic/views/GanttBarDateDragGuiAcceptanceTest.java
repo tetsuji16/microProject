@@ -172,8 +172,10 @@ class GanttBarDateDragGuiAcceptanceTest {
 		Point startHandle = screenPointForTaskDate(fixture, originalStart);
 		startHandle.translate(1, 0);
 		assertTaskBarHit(fixture, startHandle);
-		long earlierRequestedStart = originalStart
-			- 3L * com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		java.util.Calendar earlierStartCalendar = java.util.Calendar.getInstance();
+		earlierStartCalendar.setTimeInMillis(originalStart);
+		earlierStartCalendar.add(java.util.Calendar.DAY_OF_MONTH, -3);
+		long earlierRequestedStart = earlierStartCalendar.getTimeInMillis();
 		Point earlierDate = screenPointForTaskDate(fixture, earlierRequestedStart);
 		long normalizedEarlierStart = fixture.predecessor.getEffectiveWorkCalendar()
 			.adjustInsideCalendar(earlierRequestedStart, false);
