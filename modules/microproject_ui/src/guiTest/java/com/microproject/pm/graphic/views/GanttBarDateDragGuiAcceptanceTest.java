@@ -211,6 +211,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 		int startConstraintType = fixture.predecessor.getConstraintType();
 		long startConstraintDate = fixture.predecessor.getConstraintDate();
 		Point endHandle = screenPointForTaskDate(fixture, originalEnd);
+		endHandle.translate(-1, 0);
 		assertTaskBarHit(fixture, endHandle);
 		Point laterDate = screenPointForTaskDate(fixture,
 			originalEnd + com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
@@ -218,6 +219,8 @@ class GanttBarDateDragGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> fixture.predecessor.getEnd() > originalEnd,
 			"dragging the trailing bar handle did not resize the task finish");
 		long resizedEnd = fixture.predecessor.getEnd();
+		assertEquals(resizedStart, fixture.predecessor.getStart(),
+			"finish resize must retain the task start");
 		assertEquals(startConstraintType, fixture.predecessor.getConstraintType(),
 			"finish resize must preserve the existing start constraint");
 		assertEquals(startConstraintDate, fixture.predecessor.getConstraintDate(),
