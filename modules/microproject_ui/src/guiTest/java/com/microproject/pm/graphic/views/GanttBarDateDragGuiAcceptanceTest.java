@@ -268,8 +268,13 @@ class GanttBarDateDragGuiAcceptanceTest {
 				+ " after=" + assignmentScheduleStates(fixture.predecessor), failure);
 		}
 		List<String> splitIntervals = assignmentIntervals(fixture.predecessor);
-		assertTrue(splitIntervals.size() > originalIntervals.size(),
-			"a split must add a distinct scheduled interval: before=" + originalIntervals + " after=" + splitIntervals);
+		assertTrue(containsGapAt(splitIntervals, clickedSplitAt),
+			"the split must leave a nonworking gap at the physical click point: before=" + originalIntervals
+				+ " after=" + splitIntervals + " clicked=" + clickedSplitAt);
+		List<String> renderedTaskIntervals = taskIntervals(fixture.predecessor);
+		assertTrue(containsGapAt(renderedTaskIntervals, clickedSplitAt),
+			"the task intervals consumed by the Gantt renderer must expose the visible split gap: "
+				+ renderedTaskIntervals + " clicked=" + clickedSplitAt);
 		assertTrue(barBounds(fixture).width > 0, "the split task must remain visible after redraw");
 		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().undo());
 		assertEquals(originalIntervals, assignmentIntervals(fixture.predecessor),
@@ -404,6 +409,33 @@ class GanttBarDateDragGuiAcceptanceTest {
 			throw new AssertionError("Could not snapshot task intervals on the EDT", exception);
 		}
 		return snapshot.get();
+	}
+
+	private List<String> taskIntervals(NormalTask task) {
+		AtomicReference<List<String>> snapshot = new AtomicReference<>();
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				List<String> intervals = new ArrayList<>();
+				task.consumeIntervals(interval -> intervals.add(interval.getStart() + ":" + interval.getEnd()));
+				snapshot.set(List.copyOf(intervals));
+			});
+		} catch (Exception exception) {
+			throw new AssertionError("Could not snapshot rendered task intervals on the EDT", exception);
+		}
+		return snapshot.get();
+	}
+
+	private boolean containsGapAt(List<String> intervals, long instant) {
+		Long previousEnd = null;
+		for (String interval : intervals) {
+			String[] boundaries = interval.split(":", -1);
+			long start = Long.parseLong(boundaries[0]);
+			long end = Long.parseLong(boundaries[1]);
+			if (previousEnd != null && previousEnd < start && instant >= previousEnd && instant < start)
+				return true;
+			previousEnd = end;
+		}
+		return false;
 	}
 
 	private List<String> assignmentContours(NormalTask task) {
