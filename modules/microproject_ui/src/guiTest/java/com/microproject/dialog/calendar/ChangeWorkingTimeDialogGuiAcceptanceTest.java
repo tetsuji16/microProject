@@ -24,6 +24,8 @@ import java.awt.Graphics2D;
 import java.nio.file.Path;
 import java.nio.file.Files;
 import java.lang.reflect.Field;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.TimeZone;
@@ -143,6 +145,13 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> fileChooser.setSelectedFile(importFixture.toFile()));
 		click(robot, findChooserApprove(approvedChooser));
 		GuiAcceptanceSupport.await(() -> visibleFileChooser() == null, "calendar import approval did not close the chooser");
+		long importedDate = LocalDate.of(2026, 10, 5).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli();
+		GuiAcceptanceSupport.await(() -> {
+			for (var exception : dialog.getScratchCalendar().getExceptionDays())
+				if (exception.getStart() == importedDate && exception.getEnd() == importedDate && !exception.isWorking())
+					return true;
+			return false;
+			}, "approved CSV import did not add October 5 as a non-working exception");
 		assertEquals(exceptionsBefore + 1, dialog.getScratchCalendar().getExceptionDays().length,
 			"approved CSV import must apply its date to the scratch calendar");
 	}
