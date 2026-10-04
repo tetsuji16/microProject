@@ -94,7 +94,7 @@ class OfficeChromePanelVisualSmokeTest {
 		} finally {
 			graphics.dispose();
 		}
-		assertRibbonColorsArePresentInRenderedPixels(image);
+		assertRibbonColorsArePresentInRenderedPixels(image, panel);
 		assertSearchBoxHasNoOutline(image, panel, searchBox);
 
 		Path output = Path.of("build", "reports", "ribbon", "office-chrome-ribbon-smoke.png");
@@ -235,11 +235,22 @@ class OfficeChromePanelVisualSmokeTest {
 			"the search accessory should remain visually open against the tab strip");
 	}
 
-	private static void assertRibbonColorsArePresentInRenderedPixels(BufferedImage image) {
+	private static void assertRibbonColorsArePresentInRenderedPixels(BufferedImage image, JPanel panel) {
 		assertEquals(MicroProjectTheme.tokens().ribbonChromeBackground().getRGB(), image.getRGB(512, 10),
 			"the rendered Office title/tab chrome must use the reference gray");
-		assertEquals(MicroProjectTheme.tokens().ribbonSurfaceBackground().getRGB(), image.getRGB(1010, 120),
-			"the expanded ribbon command area must render white rather than inherit chrome gray");
+		JComponent surface = findNamedComponent(panel, "projectLibreRibbonSurface");
+		assertTrue(surface.isOpaque(), "the ribbon command surface must paint its own background");
+		assertEquals(MicroProjectTheme.tokens().ribbonSurfaceBackground(), surface.getBackground(),
+			"the expanded ribbon command surface must use the white theme token");
+		int white = MicroProjectTheme.tokens().ribbonSurfaceBackground().getRGB();
+		int whitePixels = 0;
+		for (int y = 40; y < image.getHeight(); y++) {
+			for (int x = 0; x < image.getWidth(); x++) {
+				if (image.getRGB(x, y) == white) whitePixels++;
+			}
+		}
+		assertTrue(whitePixels > 10_000,
+			"the expanded ribbon command area must render a substantial white surface");
 	}
 
 	private static JComponent findNamedComponent(JPanel panel, String name) {
