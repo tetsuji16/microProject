@@ -92,7 +92,7 @@ class MicroProjectThemeTest {
 	@Test
 	void ribbonUsesTheReferenceOfficeSurfaceColor() {
 		assertEquals(new Color(0xF3F2F1), MicroProjectThemeTokens.light().ribbonChromeBackground());
-		assertEquals(new Color(0xF3F2F1), MicroProjectThemeTokens.light().ribbonSurfaceBackground());
+		assertEquals(Color.WHITE, MicroProjectThemeTokens.light().ribbonSurfaceBackground());
 	}
 
 	@Test
