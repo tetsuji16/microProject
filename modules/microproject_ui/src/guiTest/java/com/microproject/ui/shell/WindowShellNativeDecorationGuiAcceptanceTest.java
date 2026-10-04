@@ -79,7 +79,8 @@ class WindowShellNativeDecorationGuiAcceptanceTest {
 		assertTrue(FlatLaf.isUseNativeWindowDecorations(),
 			"Windows must enable FlatLaf native decorations before creating the shell frame");
 		assertEquals(Boolean.TRUE, frame.getRootPane().getClientProperty(WindowShellInstaller.USE_WINDOW_DECORATIONS));
-		assertEquals(FlatUiSupport.ribbonChromeHeight(), frame.getRootPane().getClientProperty(WindowShellInstaller.TITLE_BAR_HEIGHT),
+		assertEquals(FlatUiSupport.ribbonChromeHeight(),
+			frame.getRootPane().getClientProperty(WindowShellInstaller.TITLE_BAR_HEIGHT),
 			"FlatLaf's native caption hit-test band must cover the Office chrome row");
 		assertEquals(18, brand[0].getPreferredSize().width);
 		assertTrue(brand[0] instanceof JLabel label && label.getIcon() != null,
