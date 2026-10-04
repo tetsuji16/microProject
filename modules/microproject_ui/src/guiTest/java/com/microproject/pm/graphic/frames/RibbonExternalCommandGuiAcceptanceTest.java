@@ -234,6 +234,10 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		robot.setAutoDelay(45);
 		clickAndClose(robot, "RibbonNewProject", ProjectDialog.class);
 		clickAndClose(robot, "RibbonLocale", LocaleDialog.class);
+		AbstractButton helpTab = findRibbonTab(window.getRibbonPanel(), "Help", "ヘルプ");
+		click(robot, helpTab);
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(helpTab::isSelected, "Help ribbon tab did not become selected");
 		clickAndClose(robot, "RibbonProjectLibreDocumentation", HelpDialog.class);
 		clickAndClose(robot, "RibbonAboutProjectLibre", AboutDialog.class);
 	}
