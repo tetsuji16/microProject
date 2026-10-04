@@ -26,6 +26,7 @@ package com.microproject.ui.shell;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.awt.Component;
 import java.awt.Graphics2D;
@@ -45,6 +46,7 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.ui.ribbon.SwingRibbonFactory;
 import com.microproject.ui.ribbon.ModernRibbonPanel;
+import com.microproject.ui.ribbon.RibbonController;
 import com.microproject.ui.theme.MicroProjectTheme;
 import com.microproject.menu.ExtToolBarFactory;
 import com.microproject.menu.MenuActionMapSupport;
@@ -72,6 +74,13 @@ class OfficeChromePanelVisualSmokeTest {
 		panel.setSize(1024, 192);
 		panel.doLayout();
 		layoutRecursively(panel);
+		assertSearchIsAttachedToTabRow(panel);
+		JComponent searchBox = findNamedComponent(panel, OfficeChromePanel.SEARCH_BOX_NAME);
+		RibbonController ribbonController = (RibbonController) ribbonPanel.getClientProperty(
+			RibbonController.CONTEXTUAL_TABS_PROPERTY);
+		ribbonController.setTabRowAccessory(null);
+		assertNull(searchBox.getParent(), "removing the optional tab-row accessory should detach it");
+		ribbonController.setTabRowAccessory(searchBox);
 		assertSearchIsAttachedToTabRow(panel);
 		assertTrue(ribbonPanel.getHeight() >= ribbonPanel.getPreferredSize().height,
 			"the screenshot viewport must contain the full ribbon, including group captions");

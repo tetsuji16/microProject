@@ -279,8 +279,8 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	public void setTabRowAccessory(JComponent accessory) {
 		if (tabRowAccessory != null && tabRowAccessory.getParent() == tabRow) tabRow.remove(tabRowAccessory);
 		tabRowAccessory = accessory;
-		if (tabRow != null && accessory != null) {
-			addTabRowAccessory(tabRow, accessory);
+		if (tabRow != null) {
+			if (accessory != null) addTabRowAccessory(tabRow, accessory);
 			updateTabRowAccessoryVisibility();
 			tabRow.revalidate();
 			tabRow.repaint();
