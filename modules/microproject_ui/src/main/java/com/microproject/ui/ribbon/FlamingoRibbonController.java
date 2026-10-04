@@ -12,7 +12,12 @@ import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
+import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.beans.PropertyChangeListener;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -186,6 +191,35 @@ final class FlamingoRibbonController extends JPanel implements RibbonController 
 			tab.setBackground(FlatUiSupport.ribbonChromeBackground());
 			tab.setUI(new OfficeRibbonTaskTabUI());
 			tab.setBorder(BorderFactory.createEmptyBorder(4, 10, 7, 10));
+			if (!Boolean.TRUE.equals(tab.getClientProperty(OfficeRibbonTaskTabUI.FOCUS_LISTENER_INSTALLED_PROPERTY))) {
+				tab.putClientProperty(OfficeRibbonTaskTabUI.FOCUS_LISTENER_INSTALLED_PROPERTY, Boolean.TRUE);
+				tab.putClientProperty(OfficeRibbonTaskTabUI.FOCUS_VISIBLE_PROPERTY, Boolean.FALSE);
+				tab.putClientProperty(OfficeRibbonTaskTabUI.MOUSE_INTERACTION_PROPERTY, Boolean.FALSE);
+				tab.addFocusListener(new FocusAdapter() {
+					@Override public void focusGained(FocusEvent event) {
+						tab.putClientProperty(OfficeRibbonTaskTabUI.FOCUS_VISIBLE_PROPERTY,
+							!Boolean.TRUE.equals(tab.getClientProperty(OfficeRibbonTaskTabUI.MOUSE_INTERACTION_PROPERTY))
+								&& event.getCause() != FocusEvent.Cause.MOUSE_EVENT);
+					}
+
+					@Override public void focusLost(FocusEvent event) {
+						tab.putClientProperty(OfficeRibbonTaskTabUI.FOCUS_VISIBLE_PROPERTY, Boolean.FALSE);
+						tab.putClientProperty(OfficeRibbonTaskTabUI.MOUSE_INTERACTION_PROPERTY, Boolean.FALSE);
+					}
+				});
+				tab.addMouseListener(new MouseAdapter() {
+					@Override public void mousePressed(MouseEvent event) {
+						tab.putClientProperty(OfficeRibbonTaskTabUI.MOUSE_INTERACTION_PROPERTY, Boolean.TRUE);
+						tab.putClientProperty(OfficeRibbonTaskTabUI.FOCUS_VISIBLE_PROPERTY, Boolean.FALSE);
+					}
+				});
+				tab.addKeyListener(new KeyAdapter() {
+					@Override public void keyPressed(KeyEvent event) {
+						tab.putClientProperty(OfficeRibbonTaskTabUI.MOUSE_INTERACTION_PROPERTY, Boolean.FALSE);
+						tab.putClientProperty(OfficeRibbonTaskTabUI.FOCUS_VISIBLE_PROPERTY, Boolean.TRUE);
+					}
+				});
+			}
 		}
 	}
 

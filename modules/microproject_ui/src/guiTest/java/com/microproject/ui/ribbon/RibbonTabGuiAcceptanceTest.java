@@ -147,6 +147,10 @@ class RibbonTabGuiAcceptanceTest {
 				+ ", screen=" + taskTab.getLocationOnScreen()
 				+ ", receivedMousePresses=" + physicalPresses.get());
 		assertTrue(physicalPresses.get() > 0, "Robot must physically reach the native Flamingo task tab");
+		Object[] focusVisible = new Object[1];
+		SwingUtilities.invokeAndWait(() -> focusVisible[0] = taskTab.getClientProperty(OfficeRibbonTaskTabUI.FOCUS_VISIBLE_PROPERTY));
+		assertTrue(Boolean.FALSE.equals(focusVisible[0]),
+			"a mouse-selected Office task tab must not show a keyboard-only focus outline");
 		assertTrue(taskTab.getUI() instanceof OfficeRibbonTaskTabUI,
 			"Flamingo task tabs must use the shared flat Office tab-strip delegate");
 		assertTrue(taskTab.getBorder() instanceof EmptyBorder,
@@ -156,10 +160,28 @@ class RibbonTabGuiAcceptanceTest {
 		robot.mouseMove(tabBounds.x - 8, tabBounds.y - 8);
 		robot.delay(100);
 		var tabImage = robot.createScreenCapture(tabBounds);
-		Color underlinePixel = new Color(tabImage.getRGB(tabImage.getWidth() / 2, tabImage.getHeight() - 2), true);
-		assertTrue(FlatUiSupport.ribbonTabUnderlineColor().equals(underlinePixel),
-			"selected Office task tab must render the reference underline color at the bottom; actual=" + underlinePixel
+		Color underlinePixel = new Color(tabImage.getRGB(tabImage.getWidth() / 2, tabImage.getHeight() - 5), true);
+		Color secondUnderlinePixel = new Color(tabImage.getRGB(tabImage.getWidth() / 2, tabImage.getHeight() - 4), true);
+		assertTrue(FlatUiSupport.ribbonTabUnderlineColor().equals(underlinePixel)
+			&& FlatUiSupport.ribbonTabUnderlineColor().equals(secondUnderlinePixel),
+			"selected Office task tab must render the 2 px inset reference underline; actual=" + underlinePixel
 				+ ", expected=" + FlatUiSupport.ribbonTabUnderlineColor());
+		Color surfaceGapPixel = new Color(tabImage.getRGB(tabImage.getWidth() / 2, tabImage.getHeight() - 2), true);
+		assertTrue(FlatUiSupport.ribbonChromeBackground().equals(surfaceGapPixel),
+			"selected Office task tab must retain the ribbon surface gap below its underline; actual=" + surfaceGapPixel);
+		captureRibbon(robot, frame, "ribbon-task-visual-audit.png");
+		robot.keyPress(java.awt.event.KeyEvent.VK_SPACE);
+		robot.keyRelease(java.awt.event.KeyEvent.VK_SPACE);
+		robot.waitForIdle();
+		Object[] keyboardFocusVisible = new Object[1];
+		SwingUtilities.invokeAndWait(() -> keyboardFocusVisible[0]
+			= taskTab.getClientProperty(OfficeRibbonTaskTabUI.FOCUS_VISIBLE_PROPERTY));
+		assertTrue(Boolean.TRUE.equals(keyboardFocusVisible[0]),
+			"keyboard interaction with the selected Office task tab must expose its focus indicator");
+		var focusedTabImage = robot.createScreenCapture(tabBounds);
+		Color focusIndicatorPixel = new Color(focusedTabImage.getRGB(focusedTabImage.getWidth() / 2, 2), true);
+		assertTrue(FlatUiSupport.ribbonAccentColor().equals(focusIndicatorPixel),
+			"keyboard-focused Office task tab must visibly paint its focus indicator; actual=" + focusIndicatorPixel);
 
 		AbstractCommandButton information = findCommand(host, "RibbonTaskInformation");
 		String actionId = manager.getToolBarFactory().getActionStringFromId("RibbonTaskInformation");
@@ -169,7 +191,6 @@ class RibbonTabGuiAcceptanceTest {
 		click(robot, information);
 		GuiAcceptanceSupport.await(() -> actions.count(actionId) == before + 1,
 			"physical JRibbon command click did not dispatch exactly once: " + actionId);
-		captureRibbon(robot, frame, "ribbon-task-visual-audit.png");
 		for (String tabId : List.of("ResourceRibbonTask", "ReportRibbonTask", "ProjectRibbonTask", "ViewRibbonTask")) {
 			AbstractCommandButton tab = findTab(host, bundle.getString(tabId + ".title"));
 			GuiAcceptanceSupport.await(tab::isShowing, "standard ribbon tab is outside the visible tab strip: " + tab.getText());
@@ -179,6 +200,20 @@ class RibbonTabGuiAcceptanceTest {
 			captureRibbon(robot, frame, "ribbon-" + tabId.replace("RibbonTask", "").toLowerCase(Locale.ROOT)
 				+ "-visual-audit.png");
 		}
+		SwingUtilities.invokeAndWait(() -> {
+			frame.setSize(700, 182);
+			frame.setLocation(40, 40);
+			frame.revalidate();
+		});
+		GuiAcceptanceSupport.await(() -> frame.getWidth() == 700 && frame.getHeight() == 182,
+			"reference-sized ribbon window did not apply its 700 by 182 capture bounds");
+		AbstractCommandButton referenceTask = findTab(host, bundle.getString("TaskRibbonTask.title"));
+		GuiAcceptanceSupport.await(referenceTask::isShowing, "Task tab must stay discoverable at the reference window size");
+		click(robot, referenceTask);
+		GuiAcceptanceSupport.await(() -> isTaskSelected(ribbon, referenceTask.getText()),
+			"Task tab must remain selectable at the reference window size");
+		robot.mouseMove(referenceTask.getLocationOnScreen().x - 8, referenceTask.getLocationOnScreen().y - 8);
+		captureRibbon(robot, frame, "ribbon-task-reference-size-visual-audit.png");
 	}
 
 	@Test
