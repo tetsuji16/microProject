@@ -708,15 +708,14 @@ class RibbonButtonBehaviorTest {
 		Harness harness = newHarness();
 		harness.manager.getMenuManager().createRibbonPanel(MenuManager.STANDARD_RIBBON, () -> { });
 		harness.manager.setButtonState(null, harness.project);
-		org.pushingpixels.flamingo.api.common.AbstractCommandButton button = harness.manager.getMenuManager()
-			.getToolButtonsFromId("RibbonSaveBaseline").stream()
-			.filter(org.pushingpixels.flamingo.api.common.AbstractCommandButton.class::isInstance)
-			.map(org.pushingpixels.flamingo.api.common.AbstractCommandButton.class::cast)
+		AbstractButton button = harness.manager.getMenuManager().getToolButtonsFromId("RibbonSaveBaseline").stream()
+			.filter(AbstractButton.class::isInstance)
+			.map(AbstractButton.class::cast)
 			.findFirst()
 			.orElseThrow(() -> new AssertionError("RibbonSaveBaseline button was not created"));
 
 		assertTrue(button.isEnabled(), "Baseline save must be enabled for a writable project");
-		SwingUtilities.invokeAndWait(button::doActionClick);
+		SwingUtilities.invokeAndWait(button::doClick);
 
 		assertEquals(1, harness.frame.baselineDialogCallCount(true));
 		assertNotNull(harness.task.getSnapshot(Snapshottable.BASELINE),

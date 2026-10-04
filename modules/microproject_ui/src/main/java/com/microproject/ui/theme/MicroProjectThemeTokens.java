@@ -227,7 +227,7 @@ public final class MicroProjectThemeTokens {
 			14,
 			30,
 			6,
-			32,
+			48,
 			3,
 			8,
 			36,

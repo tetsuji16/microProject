@@ -5,329 +5,703 @@
  ******************************************************************************/
 package com.microproject.ui.ribbon;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Color;
+import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.Container;
+import java.awt.Dimension;
 import java.awt.GraphicsEnvironment;
+import java.awt.IllegalComponentStateException;
+import java.awt.Insets;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.event.InputEvent;
+import java.awt.image.BufferedImage;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
+import javax.imageio.ImageIO;
+import javax.swing.AbstractButton;
 import javax.swing.AbstractAction;
 import javax.swing.Action;
+import javax.swing.JFrame;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
+import javax.swing.MenuSelectionManager;
 import javax.swing.SwingUtilities;
-import javax.swing.border.EmptyBorder;
-import javax.imageio.ImageIO;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.pushingpixels.flamingo.api.common.AbstractCommandButton;
-import org.pushingpixels.flamingo.api.ribbon.JRibbon;
-import org.pushingpixels.flamingo.api.ribbon.JRibbonBand;
 
+import com.microproject.menu.MenuActionMapSupport;
 import com.microproject.menu.MenuManager;
 import com.microproject.menu.ProjectMenuActionMap;
 import com.microproject.menu.testsupport.MenuDefinitionSupport;
 import com.microproject.menu.testsupport.UiComponentWalker;
-import com.microproject.pm.graphic.frames.MainRibbonFrame;
+import com.microproject.ribbon.CommandId;
 import com.microproject.testsupport.GuiAcceptanceSupport;
-import com.microproject.ui.shell.ProjectLibreShell;
+import com.microproject.testsupport.GuiPhysicalRouteAdapter;
 import com.microproject.util.Environment;
 import com.microproject.util.FlatLafSupport;
 import com.microproject.util.FlatUiSupport;
 
-/** Physical GUI checks for the live Flamingo JRibbon path. */
+/** Non-headless coverage for a real mouse click on a responsive ribbon tab. */
 class RibbonTabGuiAcceptanceTest {
-	private MainRibbonFrame frame;
+	private JFrame frame;
 	private boolean previousRibbonUi;
 	private boolean previousNewLook;
-	private RibbonDisplayMode previousDisplayMode;
 
-	@BeforeEach void configureRibbonEnvironment() {
+	@BeforeEach
+	void configureRibbonEnvironment() {
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
-		previousDisplayMode = RibbonDisplayPreferences.load();
-		FlatLafSupport.ensureInitialized();
+		FlatLafSupport.initialize();
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
 	}
 
-	@AfterEach void closeWindow() throws Exception {
-		if (frame != null) SwingUtilities.invokeAndWait(() -> frame.dispose());
+	@AfterEach
+	void closeWindow() throws Exception {
+		if (frame != null) {
+			SwingUtilities.invokeAndWait(() -> {
+				frame.dispose();
+				frame = null;
+			});
+		}
 		Environment.setRibbonUI(previousRibbonUi);
 		Environment.setNewLook(previousNewLook);
-		RibbonDisplayPreferences.save(previousDisplayMode);
 	}
 
 	@Test
-	void robotSelectsNativeTaskAndClicksCanonicalFlamingoCommandOnce() throws Exception {
+	void rightClickTabCollapsesAndRestoresRibbonCommands() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
+		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+		ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+		show(host, 1200, false);
+		AbstractButton taskTab = findButton(host,
+			MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString("TaskRibbonTask.title"));
+		Robot robot = new Robot();
+		robot.setAutoDelay(40);
+		rightClick(robot, taskTab);
+		JPopupMenu firstPopup = awaitDisplayModePopup();
+		clickCommand(robot, firstPopupMenuItem(firstPopup));
+		GuiAcceptanceSupport.await(() -> ribbon.getRibbonDisplayMode() == RibbonDisplayMode.TABS_ONLY,
+			"physical tab popup did not collapse the ribbon");
+		assertTrue(taskTab.isShowing(), "tabs-only mode must leave the tab row reachable");
+		assertTrue(!ribbon.isCommandSurfaceVisible(), "tabs-only mode left command bands visible");
+
+		rightClick(robot, taskTab);
+		JPopupMenu secondPopup = awaitDisplayModePopup();
+		clickCommand(robot, firstPopupMenuItem(secondPopup));
+		GuiAcceptanceSupport.await(() -> ribbon.getRibbonDisplayMode() == RibbonDisplayMode.ALWAYS_SHOW,
+			"physical tab popup did not restore the ribbon");
+		assertTrue(ribbon.isCommandSurfaceVisible());
+	}
+
+	@Test
+	void mouseClickSelectsEveryRibbonTabExactlyOnceAndKeepsTheCommandSurfaceVisible() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
+		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+		ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask", "NetworkFormatRibbonTask", "CalendarFormatRibbonTask"));
+		show(host);
+		List<AbstractButton> tabs = new ArrayList<>();
+		for (String tabId : MenuDefinitionSupport.ribbonTaskIds()) {
+			String title = MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString(tabId + ".title");
+			tabs.add(findButton(host, title));
+		}
+		Robot robot = new Robot();
+		robot.setAutoDelay(40);
+		for (int index = 0; index < tabs.size(); index++) {
+			AbstractButton tab = tabs.get(index);
+			click(robot, tab);
+			GuiAcceptanceSupport.await(tab::isSelected, "Robot click did not select ribbon tab " + tab.getText());
+			captureVisibleRibbon(robot, "ribbon-tab-" + index + ".png");
+
+			SwingUtilities.invokeAndWait(() -> {
+				assertEquals(1, tabs.stream().filter(AbstractButton::isSelected).count(), "exactly one ribbon tab must be selected");
+				assertTrue(tab.isSelected());
+				assertEquals(FlatUiSupport.tabSelectedForeground(), tab.getForeground());
+				assertTrue(host.isShowing() && host.getWidth() > 900 && host.getHeight() > 100 && host.getHeight() < 250,
+					"ribbon command surface height is invalid after selecting " + tab.getText());
+			});
+		}
+	}
+
+	/**
+	 * Wiring-only sweep.  Production command semantics are covered separately by
+	 * RibbonExternalCommandGuiAcceptanceTest, which uses a real GraphicManager
+	 * instead of this recording ActionMap.
+	 */
+	@Test
+	void robotClicksEveryStandardRibbonCommandOnce() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Assumptions.assumeTrue(uiScale() <= 1.0d,
+			"Direct command sweep requires a full-width desktop; high-DPI layout is covered by the dedicated visual matrix.");
+		RecordingActionMap actions = new RecordingActionMap();
+		MenuManager manager = MenuManager.getInstance(actions);
+		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+		ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
+		// Keep the fixture above the compact breakpoint so every command is a
+		// direct hit target; the overflow path is covered separately by the
+		// responsive ribbon tests.
+		show(host, 1600, true);
+
+		Robot robot = new Robot();
+		robot.setAutoDelay(35);
+		EnumSet<CommandId> physicalTaskCommands = EnumSet.noneOf(CommandId.class);
+		for (String tabId : MenuDefinitionSupport.ribbonTaskIds().stream()
+				.filter(tabId -> !Set.of("NetworkFormatRibbonTask", "CalendarFormatRibbonTask").contains(tabId))
+				.toList()) {
+			String title = MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString(tabId + ".title");
+			AbstractButton tab = findButton(host, title);
+			click(robot, tab);
+			GuiAcceptanceSupport.await(tab::isSelected, "Robot click did not select ribbon tab " + title);
+			// The selection model and the command-panel replacement are separate EDT
+			// listeners; drain the queue before looking up the newly attached buttons.
+			SwingUtilities.invokeAndWait(() -> { });
+			for (String bandId : MenuDefinitionSupport.ribbonBandIds(tabId)) {
+				for (String buttonId : MenuDefinitionSupport.ribbonButtonIds(bandId)) {
+					AbstractButton button = findAttachedButtonByCommand(host, buttonId);
+					assertTrue(button.isShowing(), () -> buttonId + " is not visible in " + tabId);
+					assertTrue(button.isEnabled(), () -> buttonId + " is disabled in " + bandId);
+					String actionId = manager.getToolBarFactory().getActionStringFromId(buttonId);
+					try {
+						physicalTaskCommands.add(CommandId.fromActionId(actionId));
+					} catch (RuntimeException ignoredAction) {
+						try {
+							// Ribbon definitions may expose a legacy action alias. If
+							// it is not one of the stable command ids, use the button
+							// id (RibbonInsert -> Insert) as the route identifier.
+							String buttonRoute = buttonId.replaceFirst("^Ribbon", "");
+							// The ribbon calls the task insertion command Insert,
+							// while the legacy menu contract calls it InsertTask.
+							physicalTaskCommands.add(CommandId.fromActionId(
+								"Insert".equals(buttonRoute) ? "InsertTask" : buttonRoute));
+						} catch (RuntimeException ignoredButton) {
+							// The standard ribbon also contains view/file/resource commands.
+						}
+					}
+					int before = actions.count(actionId);
+					Point clickPoint = clickCommand(robot, button);
+					GuiAcceptanceSupport.await(() -> actions.count(actionId) == before + 1,
+						"Robot click did not dispatch " + buttonId + " (" + actionId + ") at " + clickPoint
+							+ " bounds=" + button.getBounds() + " screen=" + safeScreenBounds(button));
+				}
+			}
+		}
+		EnumSet<CommandId> expectedRibbonCommands = EnumSet.allOf(CommandId.class);
+		expectedRibbonCommands.remove(CommandId.PASTE_INSERT);
+		assertTrue(physicalTaskCommands.containsAll(expectedRibbonCommands),
+				"every routed CommandId except popup-only PasteInsert must have a physical ribbon click: "
+						+ physicalTaskCommands);
+	}
+
+	@Test
+	void highDpiRibbonCommandFamiliesRemainContainedAndNonOverlapping() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for visual matrix coverage.");
+		Assumptions.assumeTrue(uiScale() > 1.0d,
+			"This visual-matrix case is the high-DPI counterpart of the 100% command sweep.");
+		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
+		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+		ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask", "NetworkFormatRibbonTask", "CalendarFormatRibbonTask"));
+		// Keep the window within a normal desktop at 125/150%; commands that do
+		// not fit are intentionally represented by the responsive popup route.
+		show(host, 1000, false);
+		Robot robot = new Robot();
+		robot.setAutoDelay(35);
+		for (String tabId : MenuDefinitionSupport.ribbonTaskIds()) {
+			AbstractButton tab = findButton(host,
+				MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString(tabId + ".title"));
+			click(robot, tab);
+			GuiAcceptanceSupport.await(tab::isSelected, "high-DPI tab was not selected: " + tabId);
+			SwingUtilities.invokeAndWait(() -> assertVisibleRibbonControlsFit(host, tab));
+			captureVisibleRibbon(robot, "ribbon-high-dpi-" + tabId + ".png", 600);
+		}
+	}
+
+	/**
+	 * #561: Network and Calendar are view-contextual surfaces, not separate
+	 * mutation command families.  The contextual tabs must be physically
+	 * reachable after the view transition, while their unprovided popup and
+	 * shortcut routes must remain absent (rather than silently dispatching a
+	 * similarly named legacy action).
+	 */
+	@Test
+	void networkAndCalendarContextualTabsHaveExplicitRouteMatrix() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(),
+			"A desktop session is required for contextual route coverage.");
+		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
+		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+		ModernRibbonPanel ribbon = (ModernRibbonPanel) host
+			.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+		show(host, 1200, false);
+		Robot robot = new Robot();
+		robot.setAutoDelay(40);
+
+		List<String> contextualTabs = List.of("NetworkFormatRibbonTask", "CalendarFormatRibbonTask");
+		for (String tabId : contextualTabs) {
+			// Simulate the active-view transition: a contextual tab is hidden until
+			// the corresponding view publishes its descriptor, then becomes visible.
+			SwingUtilities.invokeAndWait(() -> ribbon.setVisibleContextualTabs(Set.of()));
+			AbstractButton tab = findButton(host,
+				MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString(tabId + ".title"));
+			assertTrue(!tab.isShowing(), () -> tabId + " must be absent outside its active view");
+
+			SwingUtilities.invokeAndWait(() -> ribbon.setVisibleContextualTabs(Set.of(tabId)));
+			GuiPhysicalRouteAdapter.awaitVisible(tab::isShowing,
+				"contextual tab did not become visible after view transition: " + tabId);
+			click(robot, tab);
+			GuiAcceptanceSupport.await(tab::isSelected,
+				"Robot click did not select contextual tab " + tabId);
+			SwingUtilities.invokeAndWait(() -> {
+				assertTrue(ribbon.isContextualTabVisible(tabId));
+				assertTrue(host.isShowing());
+			});
+
+			Set<String> contextualButtons = MenuDefinitionSupport.ribbonButtonIdsForTask(tabId);
+			assertTrue(!contextualButtons.isEmpty(), tabId + " must expose a non-empty format surface");
+			for (String buttonId : contextualButtons) {
+				AbstractButton button = GuiPhysicalRouteAdapter.visibleButton(host, buttonId);
+				assertTrue(button.isEnabled(), () -> tabId + " command is unexpectedly disabled: " + buttonId);
+				String actionId = manager.getToolBarFactory().getActionStringFromId(buttonId);
+				assertTrue(actionId != null && !actionId.isBlank(),
+					() -> tabId + " command has no legacy action mapping: " + buttonId);
+				// NetworkAction and CalendarViewAction are view selectors on the
+				// standard View tab.  They must not leak into contextual format tabs.
+				assertTrue(!Set.of("NetworkAction", "CalendarViewAction").contains(actionId),
+					() -> tabId + " contextual command leaked a view selector: " + actionId);
+			}
+			captureVisibleRibbon(robot, "ribbon-contextual-" + tabId + ".png");
+		}
+
+		// Explicit absence contract: no contextual tab registers a popup or
+		// root-pane shortcut for the view selectors; the standard View route owns
+		// those actions.  This prevents duplicate/ambiguous command ownership.
+		SwingUtilities.invokeAndWait(() -> ribbon.setVisibleContextualTabs(Set.of()));
+		for (String tabId : contextualTabs) {
+			AbstractButton tab = findButton(host,
+				MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString(tabId + ".title"));
+			assertTrue(!tab.isShowing(), () -> tabId + " remained visible after leaving its view");
+		}
+	}
+
+	@Test
+	void narrowRibbonExposesCollapsedCommandsThroughMousePopup() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		RecordingActionMap actions = new RecordingActionMap();
 		MenuManager manager = MenuManager.getInstance(actions);
-		SwingUtilities.invokeAndWait(() -> {
-			frame = new MainRibbonFrame("Flamingo ribbon acceptance", null, null);
-			installExpandedRibbonShell(frame, manager);
-			frame.setSize(1440, 420);
-			frame.setLocation(40, 40);
-			frame.setAlwaysOnTop(true);
-			frame.setVisible(true);
-			frame.toFront();
-			frame.requestFocus();
-		});
-		GuiAcceptanceSupport.await(frame::isActive, "ribbon test window did not become active");
-		JPanel host = frame.getRibbonPanel();
-		JRibbon ribbon = findRibbon(host);
-		SwingUtilities.invokeAndWait(ribbon::updateUI);
-		assertTrue("com.microproject.ui.ribbon.CompactRibbonUI".equals(ribbon.getUI().getClass().getName()),
-			"the active JRibbon must keep the compact Flamingo adapter after a theme UI refresh, actual="
-				+ ribbon.getUI().getClass().getName());
-		assertTrue(new Color(0x116EBE).equals(host.getBackground()),
-			"the live Office chrome must use the reference title-bar blue, actual=" + host.getBackground());
-		assertTrue(host.getHeight() <= host.getPreferredSize().height + 4,
-			"the live ribbon shell must keep its natural compact height instead of stretching into the document workspace; "
-				+ "actual=" + host.getHeight() + ", preferred=" + host.getPreferredSize().height);
-		assertTrue(UiComponentWalker.flatten(host).stream()
-			.noneMatch(component -> "officeChromeRibbonDisplayOptionsFooter".equals(component.getName())),
-			"the ribbon surface must not add a separate display-options footer row");
+		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+		ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
+		show(host, 320, true);
 
-		Robot robot = new Robot(frame.getGraphicsConfiguration().getDevice());
+		Robot robot = new Robot();
 		robot.setAutoDelay(35);
-		var bundle = MenuDefinitionSupport.menuBundle(Locale.getDefault());
-		AbstractCommandButton newProject = findCommand(host, "RibbonNewProject");
-		assertTrue(new Color(0xF3F2F1).equals(ribbon.getBackground()),
-			"the rendered ribbon must use the Office reference surface color, actual=" + ribbon.getBackground());
-		var bands = UiComponentWalker.flatten(host).stream()
-			.filter(JRibbonBand.class::isInstance).map(JRibbonBand.class::cast).toList();
-		assertTrue(!bands.isEmpty() && bands.stream().allMatch(band -> band.isOpaque()
-			&& new Color(0xF3F2F1).equals(band.getBackground())),
-			"all visible command groups must paint the Office reference surface color");
-		var defaultPanelBackground = javax.swing.UIManager.getColor("Panel.background");
-		var unstyledPanels = UiComponentWalker.flatten(ribbon).stream()
-			.filter(JComponent.class::isInstance).map(JComponent.class::cast)
-			.filter(JComponent::isOpaque)
-			.filter(component -> java.util.Objects.equals(defaultPanelBackground, component.getBackground()))
-			.toList();
-		assertTrue(unstyledPanels.isEmpty(),
-			"opaque Flamingo panels must not fall back to the unrelated global panel background");
-		assertTrue(bundle.getString("RibbonNewProject.text").equals(newProject.getText()),
-			"visible ribbon text must come from the active locale bundle, expected="
-				+ bundle.getString("RibbonNewProject.text") + ", actual=" + newProject.getText());
-		captureRibbon(robot, frame, "ribbon-file-visual-audit.png");
-		AbstractCommandButton taskTab = findTab(host, bundle.getString("TaskRibbonTask.title"));
-		java.util.concurrent.atomic.AtomicInteger physicalPresses = new java.util.concurrent.atomic.AtomicInteger();
-		taskTab.addMouseListener(new java.awt.event.MouseAdapter() {
-			@Override public void mousePressed(java.awt.event.MouseEvent event) { physicalPresses.incrementAndGet(); }
-		});
-		int tabClickAttempts = 0;
-		while (tabClickAttempts < 3 && !isTaskSelected(ribbon, taskTab.getText())) {
-			if (tabClickAttempts > 0) frame.toFront();
-			click(robot, taskTab);
-			tabClickAttempts++;
-			robot.delay(200);
-		}
-		GuiAcceptanceSupport.await(() -> ribbon.getSelectedTask() != null
-			&& ribbon.getSelectedTask().getTitle().equals(taskTab.getText()),
-			"physical task tab click did not select the Flamingo task after " + tabClickAttempts + " attempt(s); selected="
-				+ (ribbon.getSelectedTask() == null ? "<none>" : ribbon.getSelectedTask().getTitle())
-				+ ", clicked=" + taskTab.getText() + ", showing=" + taskTab.isShowing()
-				+ ", enabled=" + taskTab.isEnabled() + ", bounds=" + taskTab.getBounds()
-				+ ", screen=" + taskTab.getLocationOnScreen()
-				+ ", receivedMousePresses=" + physicalPresses.get());
-		assertTrue(physicalPresses.get() > 0, "Robot must physically reach the native Flamingo task tab");
-		assertTrue(taskTab.getUI() instanceof OfficeRibbonTaskTabUI,
-			"Flamingo task tabs must use the shared flat Office tab-strip delegate");
-		assertTrue(taskTab.getBorder() instanceof EmptyBorder,
-			"Office task tabs must not retain Flamingo's full rectangular selection border");
-		Point tabLocation = taskTab.getLocationOnScreen();
-		Rectangle tabBounds = new Rectangle(tabLocation.x, tabLocation.y, taskTab.getWidth(), taskTab.getHeight());
-		robot.mouseMove(tabBounds.x - 8, tabBounds.y - 8);
-		robot.delay(100);
-		var tabImage = robot.createScreenCapture(tabBounds);
-		Color underlinePixel = new Color(tabImage.getRGB(tabImage.getWidth() / 2, tabImage.getHeight() - 5), true);
-		Color secondUnderlinePixel = new Color(tabImage.getRGB(tabImage.getWidth() / 2, tabImage.getHeight() - 4), true);
-		assertTrue(withinRgbTolerance(FlatUiSupport.ribbonTabUnderlineColor(), underlinePixel, 50)
-			&& withinRgbTolerance(FlatUiSupport.ribbonTabUnderlineColor(), secondUnderlinePixel, 50),
-			"selected Office task tab must render the 2 px inset reference underline; DPI-scaled capture pixels="
-				+ underlinePixel + ", " + secondUnderlinePixel + ", expected=" + FlatUiSupport.ribbonTabUnderlineColor());
-		Color surfaceGapPixel = new Color(tabImage.getRGB(tabImage.getWidth() / 2, tabImage.getHeight() - 2), true);
-		assertTrue(withinRgbTolerance(FlatUiSupport.ribbonChromeBackground(), surfaceGapPixel, 50),
-			"selected Office task tab must retain the ribbon surface gap below its underline; actual=" + surfaceGapPixel);
-		captureRibbon(robot, frame, "ribbon-task-visual-audit.png");
-		robot.keyPress(java.awt.event.KeyEvent.VK_SPACE);
-		robot.keyRelease(java.awt.event.KeyEvent.VK_SPACE);
-		robot.waitForIdle();
-		var keyboardTabImage = robot.createScreenCapture(tabBounds);
-		Color keyboardTopPixel = new Color(keyboardTabImage.getRGB(keyboardTabImage.getWidth() / 2, 2), true);
-		assertTrue(withinRgbTolerance(FlatUiSupport.ribbonChromeBackground(), keyboardTopPixel, 50),
-			"keyboard-focused Office task tab must not draw a rectangular outline absent from the reference; actual="
-				+ keyboardTopPixel);
-		Color keyboardUnderlinePixel = new Color(
-			keyboardTabImage.getRGB(keyboardTabImage.getWidth() / 2, keyboardTabImage.getHeight() - 5), true);
-		assertTrue(withinRgbTolerance(FlatUiSupport.ribbonTabUnderlineColor(), keyboardUnderlinePixel, 50),
-			"keyboard navigation must retain the Office selected-tab underline");
+		AbstractButton tab = findButton(host, MenuDefinitionSupport.menuBundle(Locale.getDefault())
+				.getString("TaskRibbonTask.title"));
+		click(robot, tab);
+		GuiAcceptanceSupport.await(tab::isSelected, "Task ribbon tab was not selected at narrow width");
+		SwingUtilities.invokeAndWait(() -> { });
 
-		AbstractCommandButton information = findCommand(host, "RibbonTaskInformation");
-		String actionId = manager.getToolBarFactory().getActionStringFromId("RibbonTaskInformation");
-		assertNotNull(actionId);
-		GuiAcceptanceSupport.await(information::isShowing, "native Information command is not visible in the selected task");
-		int before = actions.count(actionId);
-		click(robot, information);
-		GuiAcceptanceSupport.await(() -> actions.count(actionId) == before + 1,
-			"physical JRibbon command click did not dispatch exactly once: " + actionId);
-		for (String tabId : List.of("ResourceRibbonTask", "ReportRibbonTask", "ProjectRibbonTask", "ViewRibbonTask")) {
-			AbstractCommandButton tab = findTab(host, bundle.getString(tabId + ".title"));
-			GuiAcceptanceSupport.await(tab::isShowing, "standard ribbon tab is outside the visible tab strip: " + tab.getText());
-			click(robot, tab);
-			GuiAcceptanceSupport.await(() -> isTaskSelected(ribbon, tab.getText()),
-				"physical standard ribbon tab did not become selected: " + tab.getText());
-			captureRibbon(robot, frame, "ribbon-" + tabId.replace("RibbonTask", "").toLowerCase(Locale.ROOT)
-				+ "-visual-audit.png");
-		}
+		AbstractButton overflow = UiComponentWalker.flatten(host).stream()
+			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+			.filter(this::isInsideTestWindow)
+			.filter(button -> button.getClientProperty(ModernRibbonPanel.COLLAPSED_POPUP_PROPERTY) instanceof JPopupMenu popup
+					&& popup.getComponentCount() > 0
+					&& Boolean.TRUE.equals(button.getClientProperty(ModernRibbonPanel.BAND_PROXY_PROPERTY))
+					&& UiComponentWalker.flatten(popup).stream()
+						.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+						.anyMatch(command -> "RibbonPaste".equals(command.getActionCommand())))
+			.findFirst()
+			.orElseThrow(() -> new AssertionError("narrow ribbon did not expose an overflow popup"));
+		JPopupMenu popup = (JPopupMenu) overflow.getClientProperty(ModernRibbonPanel.COLLAPSED_POPUP_PROPERTY);
 		SwingUtilities.invokeAndWait(() -> {
-			frame.setSize(700, 182);
-			frame.setLocation(40, 40);
-			frame.revalidate();
+			frame.toFront();
+			frame.requestFocusInWindow();
 		});
-		GuiAcceptanceSupport.await(() -> frame.getWidth() == 700 && frame.getHeight() == 182,
-			"reference-sized ribbon window did not apply its 700 by 182 capture bounds");
-		AbstractCommandButton referenceTask = findTab(host, bundle.getString("TaskRibbonTask.title"));
-		GuiAcceptanceSupport.await(referenceTask::isShowing, "Task tab must stay discoverable at the reference window size");
-		click(robot, referenceTask);
-		GuiAcceptanceSupport.await(() -> isTaskSelected(ribbon, referenceTask.getText()),
-			"Task tab must remain selectable at the reference window size");
-		robot.mouseMove(referenceTask.getLocationOnScreen().x - 8, referenceTask.getLocationOnScreen().y - 8);
-		captureRibbon(robot, frame, "ribbon-task-reference-size-visual-audit.png");
+		robot.delay(150);
+		Point overflowScreen = overflow.getLocationOnScreen();
+		Rectangle frameBounds = frame.getBounds();
+		assertTrue(new Rectangle(frameBounds.x, frameBounds.y, frameBounds.width, frameBounds.height)
+				.contains(overflowScreen.x + overflow.getWidth() / 2, overflowScreen.y + overflow.getHeight() / 2),
+			"responsive overflow trigger must remain inside the host window");
+		clickCommand(robot, overflow);
+		GuiAcceptanceSupport.await(popup::isVisible, "overflow popup did not open by mouse click");
+		AbstractButton hiddenCommand = UiComponentWalker.flatten(popup).stream()
+			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+			.filter(button -> "RibbonPaste".equals(button.getActionCommand()))
+			.findFirst()
+			.orElseThrow(() -> new AssertionError("collapsed band popup did not retain RibbonPaste"));
+		String actionId = manager.getToolBarFactory().getActionStringFromId(hiddenCommand.getActionCommand());
+		int before = actions.count(actionId);
+		clickCommand(robot, hiddenCommand);
+		GuiAcceptanceSupport.await(() -> actions.count(actionId) == before + 1,
+			"collapsed RibbonPaste did not dispatch");
 	}
 
 	@Test
-	void contextualTaskVisibilityAndTitlesAreOwnedByJRibbon() throws Exception {
-		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
-		MenuManager manager = MenuManager.getInstance(new RecordingActionMap());
+	void fileTabUsesTheSameRibbonSurfaceAsDocumentTabs() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for GUI coverage.");
+		RecordingActionMap actions = new RecordingActionMap();
+		MenuManager manager = MenuManager.getInstance(actions);
+		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
 		SwingUtilities.invokeAndWait(() -> {
-			frame = new MainRibbonFrame("Flamingo contextual ribbon acceptance", null, null);
-			installExpandedRibbonShell(frame, manager);
-			frame.setSize(1200, 420);
+			frame = new JFrame("Ribbon startup");
+			frame.add(host, BorderLayout.CENTER);
+			frame.setSize(1200, 240);
+			frame.setLocation(0, 0);
+			frame.setVisible(true);
+		});
+		String fileTitle = MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString("FileRibbonTask.title");
+		AbstractButton fileTab = findButton(host, fileTitle);
+		Robot robot = new Robot();
+		robot.setAutoDelay(40);
+		click(robot, fileTab);
+		GuiAcceptanceSupport.await(fileTab::isSelected, "Robot click did not select the File ribbon tab");
+		SwingUtilities.invokeAndWait(() -> {
+			AbstractButton newProject = findAttachedButtonByCommand(host, "RibbonNewProject");
+			assertTrue(newProject.isShowing(), "File commands must remain in the shared ribbon surface");
+			assertTrue(newProject.isEnabled(), "New must be enabled on the File ribbon without a document");
+			assertTrue(host.getHeight() < 250, "File must not replace the document area with a full-window Backstage");
+		});
+		String actionId = manager.getToolBarFactory().getActionStringFromId("RibbonNewProject");
+		int before = actions.count(actionId);
+		clickCommand(robot, findAttachedButtonByCommand(host, "RibbonNewProject"));
+		GuiAcceptanceSupport.await(() -> actions.count(actionId) == before + 1,
+			"Robot click did not dispatch RibbonNewProject from the File ribbon");
+	}
+
+	@Test
+	void viewRibbonKeepsTheLargeGanttButtonVisibleAndDispatchesItOnce() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		RecordingActionMap actions = new RecordingActionMap();
+		MenuManager manager = MenuManager.getInstance(actions);
+		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+		ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
+		show(host, 1200, true);
+
+		Robot robot = new Robot();
+		robot.setAutoDelay(40);
+		String viewTitle = MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString("ViewRibbonTask.title");
+		AbstractButton viewTab = findButton(host, viewTitle);
+		click(robot, viewTab);
+		GuiAcceptanceSupport.await(viewTab::isSelected, "Robot click did not select the View ribbon tab");
+		SwingUtilities.invokeAndWait(() -> { });
+
+		AbstractButton gantt = findAttachedButtonByCommand(host, "RibbonGantt");
+		SwingUtilities.invokeAndWait(() -> assertContainedInRibbonBand(gantt));
+		Rectangle ganttScreenBounds = safeScreenBounds(gantt);
+		Rectangle windowBounds = frame.getBounds();
+		assertTrue(windowBounds.contains(ganttScreenBounds),
+			() -> "RibbonGantt must be fully visible in the Robot window: button=" + ganttScreenBounds + " window=" + windowBounds);
+		captureVisibleRibbon(robot, "ribbon-view-gantt-layout.png");
+
+		String actionId = manager.getToolBarFactory().getActionStringFromId("RibbonGantt");
+		int before = actions.count(actionId);
+		click(robot, gantt);
+		GuiAcceptanceSupport.await(() -> actions.count(actionId) == before + 1,
+			"Robot click did not dispatch RibbonGantt exactly once");
+	}
+
+	@Test
+	void narrowRibbonUsesReachableGroupProxiesInsteadOfATabLauncher() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
+		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+		ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
+		show(host, 320, true);
+
+		Robot robot = new Robot();
+		robot.setAutoDelay(35);
+		AbstractButton tab = findButton(host, MenuDefinitionSupport.menuBundle(Locale.getDefault())
+			.getString("TaskRibbonTask.title"));
+		click(robot, tab);
+		GuiAcceptanceSupport.await(tab::isSelected, "Task ribbon tab was not selected at narrow width");
+		assertTrue(UiComponentWalker.flatten(host).stream()
+			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+			.noneMatch(button -> button.isShowing()
+				&& Boolean.TRUE.equals(button.getClientProperty(ModernRibbonPanel.COLLAPSED_TAB_LAUNCHER_PROPERTY))),
+			"narrow ribbon must not replace the selected tab with one launcher");
+		AbstractButton proxy = UiComponentWalker.flatten(host).stream()
+			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+			.filter(this::isInsideTestWindow)
+			.filter(button -> Boolean.TRUE.equals(button.getClientProperty(ModernRibbonPanel.BAND_PROXY_PROPERTY)))
+			.findFirst().orElseThrow(() -> new AssertionError("narrow ribbon group proxy is missing"));
+		JPopupMenu popup = (JPopupMenu)proxy.getClientProperty(ModernRibbonPanel.COLLAPSED_POPUP_PROPERTY);
+		assertTrue(popup.getComponentCount() > 0, "group proxy has no commands");
+	}
+
+	@Test
+	void fileRibbonKeepsItsCommandsLeftAlignedBeforeCollapsingTrailingBands() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
+		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+		ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
+		// 672 logical px is approximately a 1008px physical client area at 150%
+		// Windows scaling, matching the reported production screenshot.
+		show(host, 672, true);
+
+		Robot robot = new Robot();
+		robot.setAutoDelay(35);
+		AbstractButton tab = findButton(host, MenuDefinitionSupport.menuBundle(Locale.getDefault())
+			.getString("FileRibbonTask.title"));
+		click(robot, tab);
+		GuiAcceptanceSupport.await(tab::isSelected, "File ribbon tab was not selected at the default narrow desktop width");
+		SwingUtilities.invokeAndWait(() -> { });
+		assertTrue(UiComponentWalker.flatten(host).stream()
+			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+			.noneMatch(button -> button.isShowing()
+				&& Boolean.TRUE.equals(button.getClientProperty(ModernRibbonPanel.COLLAPSED_TAB_LAUNCHER_PROPERTY))),
+			"default narrow desktop must show direct ribbon commands, not a single launcher popup");
+		captureVisibleRibbon(robot, "ribbon-default-high-dpi-primary-commands.png", 600);
+
+		for (String commandId : List.of("RibbonNewProject", "RibbonOpenProject", "RibbonRecentProjects")) {
+			AbstractButton command = findAttachedButtonByCommand(host, commandId);
+			assertTrue(command.isShowing(), () -> commandId + " must remain a visible primary File command at 672 logical px");
+			assertTrue(command.getIcon() != null && command.getIcon().getIconWidth() > 0,
+				() -> commandId + " must retain a visible icon at 672 logical px");
+			assertEquals(MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString(commandId + ".text"), command.getText(),
+				() -> commandId + " must retain its command label instead of becoming an icon-and-ellipsis proxy");
+		}
+		List<Component> visibleBands = UiComponentWalker.flatten(host).stream()
+			.filter(component -> ModernRibbonPanel.RIBBON_BAND_COMPONENT_NAME.equals(component.getName()) && component.isShowing())
+			.toList();
+		assertTrue(!visibleBands.isEmpty(), "File ribbon has no visible command bands");
+		assertTrue(visibleBands.getFirst().getX() <= 16,
+			"unused ribbon width must remain on the right; the first band may not be centred");
+	}
+
+	private void show(JPanel host) throws Exception {
+		show(host, 1200, false);
+	}
+
+	private void show(JPanel host, int width, boolean center) throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			frame = new JFrame("Ribbon tab GUI acceptance");
+			// MainRibbonFrame docks the production shell in BorderLayout.NORTH.  Keep
+			// the acceptance fixture identical so the capture reflects the actual
+			// ribbon height rather than stretching it through the whole test window.
+			frame.add(host, center ? BorderLayout.CENTER : BorderLayout.NORTH);
+			if (!center) {
+				frame.add(new JPanel(), BorderLayout.CENTER);
+			}
+			frame.setPreferredSize(new Dimension(width, 360));
+			frame.pack();
 			frame.setLocationByPlatform(true);
 			frame.setAlwaysOnTop(true);
 			frame.setVisible(true);
 			frame.toFront();
 			frame.requestFocus();
 		});
-		GuiAcceptanceSupport.await(frame::isActive, "contextual ribbon frame did not become active");
-		JPanel host = frame.getRibbonPanel();
-		JRibbon ribbon = findRibbon(host);
-		String contextualTitle = MenuDefinitionSupport.menuBundle(Locale.getDefault())
-			.getString("GanttChartFormat.contextualTitle");
-		RibbonController controller = (RibbonController) host.getClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY);
+	}
+
+	private static AbstractButton findButton(JPanel host, String text) {
+		return UiComponentWalker.flatten(host).stream()
+			.filter(AbstractButton.class::isInstance)
+			.map(AbstractButton.class::cast)
+			.filter(button -> text.equals(button.getText()))
+			.findFirst()
+			.orElseThrow(() -> new AssertionError("Ribbon tab not found: " + text));
+	}
+
+	private static AbstractButton findAttachedButtonByCommand(JPanel host, String command) {
+		return UiComponentWalker.flatten(host).stream()
+			.filter(AbstractButton.class::isInstance)
+			.map(AbstractButton.class::cast)
+			.filter(button -> command.equals(button.getActionCommand()))
+			.findFirst()
+			.orElseThrow(() -> new AssertionError("Ribbon command not found: " + command));
+	}
+
+	private static void click(Robot robot, AbstractButton button) throws Exception {
+		Point[] center = new Point[1];
 		SwingUtilities.invokeAndWait(() -> {
-			controller.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
-			controller.setContextualTabTitles(Map.of("FormatRibbonTask", contextualTitle));
+			Point location = button.getLocationOnScreen();
+			center[0] = new Point(location.x + button.getWidth() / 2, location.y + button.getHeight() / 2);
 		});
-		GuiAcceptanceSupport.await(() -> contextualGroupVisible(ribbon, contextualTitle),
-			"Flamingo contextual task group did not become visible");
-		assertTrue(contextualGroupHasTitle(ribbon, contextualTitle));
-		var contextualTask = ribbon.getContextualTaskGroup(0).getTask(0);
-		SwingUtilities.invokeAndWait(() -> ribbon.setSelectedTask(contextualTask));
-		GuiAcceptanceSupport.await(() -> isTaskSelected(ribbon, contextualTask.getTitle()),
-			"Flamingo did not render its selected contextual task");
-		Robot robot = new Robot(frame.getGraphicsConfiguration().getDevice());
-		captureRibbon(robot, frame, "ribbon-contextual-format-visual-audit.png");
+		robot.mouseMove(center[0].x, center[0].y);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 	}
 
-	private static boolean contextualGroupHasTitle(JRibbon ribbon, String title) {
-		for (int index = 0; index < ribbon.getContextualTaskGroupCount(); index++)
-			if (title.equals(ribbon.getContextualTaskGroup(index).getTitle())) return true;
-		return false;
-	}
-
-	private static boolean contextualGroupVisible(JRibbon ribbon, String title) {
-		for (int index = 0; index < ribbon.getContextualTaskGroupCount(); index++)
-			if (ribbon.getContextualTaskGroup(index).getTitle().equals(title)
-				&& ribbon.isVisible(ribbon.getContextualTaskGroup(index))) return true;
-		return false;
-	}
-
-	private static boolean isTaskSelected(JRibbon ribbon, String title) {
-		return ribbon.getSelectedTask() != null && title.equals(ribbon.getSelectedTask().getTitle());
-	}
-
-	private static JRibbon findRibbon(JComponent root) {
-		return UiComponentWalker.flatten(root).stream().filter(JRibbon.class::isInstance)
-			.map(JRibbon.class::cast).findFirst().orElseThrow();
-	}
-
-	private static AbstractCommandButton findTab(JComponent root, String title) {
-		List<AbstractCommandButton> matches = UiComponentWalker.flatten(root).stream()
-			.filter(AbstractCommandButton.class::isInstance).map(AbstractCommandButton.class::cast)
-			.filter(button -> title.equals(button.getText())).toList();
-		return matches.stream().filter(AbstractCommandButton::isShowing).findFirst()
-			.orElseGet(() -> matches.stream().findFirst().orElseThrow());
-	}
-
-	private static AbstractCommandButton findCommand(JComponent root, String name) {
-		return UiComponentWalker.flatten(root).stream().filter(AbstractCommandButton.class::isInstance)
-			.map(AbstractCommandButton.class::cast).filter(button -> name.equals(button.getName())).findFirst().orElseThrow();
-	}
-
-	private static void click(Robot robot, java.awt.Component component) throws Exception {
-		robot.waitForIdle();
-		Point point = component.getLocationOnScreen();
-		int x = point.x + component.getWidth() / 2;
-		int y = point.y + component.getHeight() / 2;
-		robot.mouseMove(x, y);
+	private static Point clickCommand(Robot robot, AbstractButton button) throws Exception {
+		Point[] location = new Point[1];
+		SwingUtilities.invokeAndWait(() -> {
+			Point topLeft = button.getLocationOnScreen();
+			// Split/dropdown buttons reserve their right edge for the arrow; the
+			// left third is the command surface used by a normal mouse click.
+			location[0] = new Point(topLeft.x + Math.max(2, button.getWidth() / 3),
+				topLeft.y + button.getHeight() / 2);
+		});
+		robot.mouseMove(location[0].x, location[0].y);
 		robot.waitForIdle();
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 		robot.waitForIdle();
+		return location[0];
 	}
 
-	private static JPanel installExpandedRibbonShell(MainRibbonFrame frame, MenuManager manager) {
-		ProjectLibreShell.installRibbonShell(frame, manager, null);
-		JPanel host = frame.getRibbonPanel();
-		Object value = host.getClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY);
-		if (value instanceof RibbonController controller)
-			controller.setRibbonDisplayMode(RibbonDisplayMode.ALWAYS_SHOW);
-		return host;
+	private boolean isInsideTestWindow(AbstractButton button) {
+		if (!button.isShowing()) return false;
+		try {
+			Point location = button.getLocationOnScreen();
+			return frame != null && frame.getBounds().contains(
+				location.x + button.getWidth() / 2,
+				location.y + button.getHeight() / 2);
+		} catch (IllegalComponentStateException ignored) {
+			return false;
+		}
 	}
 
-	private static boolean withinRgbTolerance(Color expected, Color actual, int tolerance) {
-		return Math.abs(expected.getRed() - actual.getRed()) <= tolerance
-			&& Math.abs(expected.getGreen() - actual.getGreen()) <= tolerance
-			&& Math.abs(expected.getBlue() - actual.getBlue()) <= tolerance;
+	private static double uiScale() {
+		try {
+			String configured = System.getProperty("sun.java2d.uiScale");
+			if (configured != null)
+				return Double.parseDouble(configured);
+		} catch (NumberFormatException ignored) {
+			// Fall through to the active device transform.
+		}
+		return GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice()
+			.getDefaultConfiguration().getDefaultTransform().getScaleX();
 	}
 
-	private static void captureRibbon(Robot robot, MainRibbonFrame frame, String fileName) throws Exception {
-		Rectangle bounds = frame.getBounds();
-		Path directory = Path.of(System.getProperty("microproject.gui.artifacts.dir", "build/reports/guiTest-artifacts"));
+	private static Rectangle safeScreenBounds(AbstractButton button) {
+		try {
+			Point point = button.getLocationOnScreen();
+			return new Rectangle(point.x, point.y, button.getWidth(), button.getHeight());
+		} catch (IllegalComponentStateException e) {
+			return new Rectangle();
+		}
+	}
+
+	private static void assertContainedInRibbonBand(AbstractButton button) {
+		Component band = findRibbonBand(button);
+		Rectangle buttonBounds = SwingUtilities.convertRectangle(button.getParent(), button.getBounds(), band);
+		Insets insets = ((JComponent) band).getInsets();
+		Rectangle contentBounds = new Rectangle(
+			insets.left,
+			insets.top,
+			band.getWidth() - insets.left - insets.right,
+			band.getHeight() - insets.top - insets.bottom);
+		assertTrue(contentBounds.contains(buttonBounds),
+			() -> "Ribbon button is clipped by its band: button=" + buttonBounds + " content=" + contentBounds);
+	}
+
+	private static void rightClick(Robot robot, AbstractButton button) throws Exception {
+		Point point = button.getLocationOnScreen();
+		robot.mouseMove(point.x + button.getWidth() / 2, point.y + button.getHeight() / 2);
+		robot.mousePress(InputEvent.BUTTON3_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
+	}
+
+	private static JPopupMenu awaitDisplayModePopup() throws Exception {
+		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(MenuSelectionManager.defaultManager().getSelectedPath())
+			.anyMatch(JPopupMenu.class::isInstance), "ribbon display-mode popup did not open");
+		return java.util.Arrays.stream(MenuSelectionManager.defaultManager().getSelectedPath())
+			.filter(JPopupMenu.class::isInstance).map(JPopupMenu.class::cast)
+			.filter(popup -> ModernRibbonPanel.DISPLAY_MODE_POPUP_NAME.equals(popup.getName()))
+			.findFirst().orElseThrow(() -> new AssertionError("unexpected popup opened from ribbon tab"));
+	}
+
+	private static AbstractButton firstPopupMenuItem(JPopupMenu popup) {
+		return UiComponentWalker.flatten(popup).stream().filter(AbstractButton.class::isInstance)
+			.map(AbstractButton.class::cast).findFirst().orElseThrow();
+	}
+
+	private static void assertVisibleRibbonControlsFit(JPanel host, AbstractButton selectedTab) {
+		for (Component component : UiComponentWalker.flatten(host)) {
+			if (!(component instanceof AbstractButton button) || !button.isShowing() || button == selectedTab)
+				continue;
+			if (button.getParent() != null && button.getParent().getName() != null
+					&& button.getParent().getName().equals(ModernRibbonPanel.RIBBON_BAND_COMPONENT_NAME))
+				assertContainedInRibbonBand(button);
+		}
+		for (Component parent : UiComponentWalker.flatten(host)) {
+			if (!(parent instanceof Container container))
+				continue;
+			List<Component> children = java.util.Arrays.stream(container.getComponents())
+				.filter(Component::isShowing).toList();
+			for (int first = 0; first < children.size(); first++) {
+				for (int second = first + 1; second < children.size(); second++) {
+					Component a = children.get(first);
+					Component b = children.get(second);
+					if (!(a instanceof AbstractButton) || !(b instanceof AbstractButton))
+						continue;
+					assertTrue(!a.getBounds().intersects(b.getBounds()),
+						() -> "high-DPI ribbon controls overlap in " + container.getClass().getSimpleName()
+							+ ": " + a.getBounds() + " and " + b.getBounds());
+				}
+			}
+		}
+	}
+
+	private static Component findRibbonBand(Component component) {
+		for (Component current = component; current != null; current = current.getParent()) {
+			if ("projectLibreRibbonBand".equals(current.getName())) {
+				return current;
+			}
+		}
+		throw new AssertionError("Ribbon band not found for " + component);
+	}
+
+	private void captureVisibleRibbon(Robot robot, String fileName) throws Exception {
+		captureVisibleRibbon(robot, fileName, 900);
+	}
+
+	private void captureVisibleRibbon(Robot robot, String fileName, int minimumWidth) throws Exception {
+		Rectangle[] bounds = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> bounds[0] = new Rectangle(frame.getRootPane().getLocationOnScreen(), frame.getRootPane().getSize()));
+		BufferedImage screenshot = robot.createScreenCapture(bounds[0]);
+		Path directory = Path.of(System.getProperty("microproject.gui.artifacts.dir", "build/guiTest-artifacts"));
 		Files.createDirectories(directory);
-		ImageIO.write(robot.createScreenCapture(bounds), "png", directory.resolve(fileName).toFile());
+		ImageIO.write(screenshot, "png", directory.resolve(fileName).toFile());
+		assertTrue(screenshot.getWidth() >= minimumWidth && screenshot.getHeight() > 120,
+			"captured ribbon is unexpectedly small: " + screenshot.getWidth() + "x" + screenshot.getHeight());
 	}
 
 	private static final class RecordingActionMap implements ProjectMenuActionMap {
-		private final Map<String, Action> actions = new HashMap<>();
 		private final Map<String, Integer> counts = new HashMap<>();
-		@Override public Action getAction(String key) {
-			return actions.computeIfAbsent(key, id -> new AbstractAction(id) {
-				@Override public void actionPerformed(java.awt.event.ActionEvent event) { counts.merge(id, 1, Integer::sum); }
+		private final Map<String, Action> actions = new HashMap<>();
+
+		@Override
+		public Action getAction(String key) {
+			return actions.computeIfAbsent(key, actionId -> new AbstractAction(actionId) {
+				@Override
+				public void actionPerformed(java.awt.event.ActionEvent event) {
+					counts.merge(actionId, 1, Integer::sum);
+				}
 			});
 		}
-		@Override public String getStringFromAction(Action action) {
-			Object name = action.getValue(Action.NAME);
-			return name == null ? "" : name.toString();
+
+		@Override
+		public String getStringFromAction(Action action) {
+			Object value = action.getValue(Action.NAME);
+			return value == null ? "" : value.toString();
 		}
-		int count(String actionId) { return counts.getOrDefault(actionId, 0); }
+
+		int count(String actionId) {
+			return counts.getOrDefault(actionId, 0);
+		}
 	}
 }

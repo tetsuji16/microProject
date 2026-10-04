@@ -30,10 +30,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 
+import javax.swing.AbstractButton;
 import javax.swing.JPanel;
 
 import org.junit.jupiter.api.Test;
-import org.pushingpixels.flamingo.api.common.AbstractCommandButton;
 
 import com.microproject.menu.MenuManager;
 
@@ -68,9 +68,9 @@ class StartupFactoryCommandStateTest {
 		graphicManager.setConnected(true);
 		for (String id : List.of("RibbonNewProject", "RibbonLocale", "RibbonProjectLibreDocumentation",
 				"RibbonAboutProjectLibre")) {
-			AbstractCommandButton button = menuManager.getToolButtonsFromId(id).stream()
-				.filter(AbstractCommandButton.class::isInstance).map(AbstractCommandButton.class::cast)
-				.filter(candidate -> id.equals(candidate.getName()))
+			AbstractButton button = menuManager.getToolButtonsFromId(id).stream()
+				.map(AbstractButton.class::cast)
+				.filter(candidate -> id.equals(candidate.getActionCommand()))
 				.findFirst()
 				.orElseThrow(() -> new AssertionError(id + " was not created"));
 			assertTrue(button.isEnabled(), () -> id + " must remain enabled without a document");
@@ -79,9 +79,9 @@ class StartupFactoryCommandStateTest {
 
 	private static void assertCommandsEnabled(MenuManager menuManager, boolean expected) {
 		for (String id : List.of("RibbonNewProject", "RibbonOpenProject", "RibbonRecentProjects", "RibbonImportProject")) {
-			AbstractCommandButton button = menuManager.getToolButtonsFromId(id).stream()
-				.filter(AbstractCommandButton.class::isInstance).map(AbstractCommandButton.class::cast)
-				.filter(candidate -> id.equals(candidate.getName()))
+			AbstractButton button = menuManager.getToolButtonsFromId(id).stream()
+				.map(AbstractButton.class::cast)
+				.filter(candidate -> id.equals(candidate.getActionCommand()))
 				.findFirst()
 				.orElseThrow(() -> new AssertionError(id + " was not created"));
 			if (expected) {

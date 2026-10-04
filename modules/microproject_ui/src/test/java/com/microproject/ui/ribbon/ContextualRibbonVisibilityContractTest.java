@@ -25,19 +25,18 @@ class ContextualRibbonVisibilityContractTest {
 		SwingUtilities.invokeAndWait(() -> {
 			MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
 			JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
-			RibbonController panel = (RibbonController) host.getClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY);
-			FlamingoRibbonController nativeRibbon = (FlamingoRibbonController) panel;
+			ModernRibbonPanel panel = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
 
-			assertFalse(nativeRibbon.isContextualTabVisible("FormatRibbonTask"));
+			assertFalse(panel.isContextualTabVisible("FormatRibbonTask"));
 			panel.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
 			panel.setContextualTabTitles(Map.of("FormatRibbonTask", "Gantt Chart Format"));
-			assertTrue(nativeRibbon.isContextualTabVisible("FormatRibbonTask"));
+			assertTrue(panel.isContextualTabVisible("FormatRibbonTask"));
 			assertTrue(host.getComponentCount() > 0);
 
 			// A non-Gantt view clears the contextual selection rather than leaving a
 			// stale Format tab advertised after the view transition.
 			panel.setVisibleContextualTabs(Set.of());
-			assertFalse(nativeRibbon.isContextualTabVisible("FormatRibbonTask"));
+			assertFalse(panel.isContextualTabVisible("FormatRibbonTask"));
 		});
 	}
 }

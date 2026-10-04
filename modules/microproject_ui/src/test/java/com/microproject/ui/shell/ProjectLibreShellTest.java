@@ -103,7 +103,7 @@ class ProjectLibreShellTest {
 		JComponent search = findComponent(panel, OfficeChromePanel.SEARCH_BOX_NAME);
 		JComponent autoSave = findComponent(panel, OfficeChromePanel.AUTO_SAVE_NAME);
 
-		assertEquals(32, header.getPreferredSize().height);
+		assertEquals(48, header.getPreferredSize().height);
 		assertEquals(24, search.getPreferredSize().height);
 		assertEquals(18, autoSave.getPreferredSize().height);
 	}

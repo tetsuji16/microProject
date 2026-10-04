@@ -27,7 +27,6 @@ package com.microproject.util;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
-import java.awt.event.KeyEvent;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics;
@@ -35,11 +34,12 @@ import java.awt.Graphics2D;
 import java.awt.Insets;
 import java.awt.RenderingHints;
 import java.awt.Window;
+import java.awt.event.KeyEvent;
 import java.util.Objects;
 
-import javax.swing.AbstractButton;
 import javax.swing.Action;
 import javax.swing.ActionMap;
+import javax.swing.AbstractButton;
 import javax.swing.ButtonModel;
 import javax.swing.BorderFactory;
 import javax.swing.JComboBox;
@@ -74,6 +74,9 @@ import javax.swing.plaf.FontUIResource;
 public final class FlatUiSupport {
 	public static final String BUTTON_STYLE_ROLE_PROPERTY = "MicroProject.buttonStyleRole";
 	public static final String BUTTON_STYLE_ROLE_TOOLBAR = "toolbar";
+	public static final String BUTTON_STYLE_ROLE_RIBBON_LARGE = "ribbonLarge";
+	public static final String BUTTON_STYLE_ROLE_RIBBON_SMALL = "ribbonSmall";
+	public static final String BUTTON_STYLE_ROLE_RIBBON_TAB = "ribbonTab";
 	private static final String THEME_KEY_PREFIX = "MicroProject.";
 	private static final String RIBBON_CHROME_BACKGROUND_KEY = THEME_KEY_PREFIX + "ribbonChromeBackground";
 	private static final String RIBBON_SURFACE_BACKGROUND_KEY = THEME_KEY_PREFIX + "ribbonSurfaceBackground";
@@ -166,11 +169,6 @@ public final class FlatUiSupport {
 		return color("Panel.background", FlatUiTheme.appBackground());
 	}
 
-	public static boolean isDarkTheme() {
-		Color background = panelBackground();
-		return background.getRed() + background.getGreen() + background.getBlue() < 384;
-	}
-
 	public static Color workspaceBackground() {
 		return color(THEME_KEY_PREFIX + "workspaceBackground", FlatUiTheme.appBackground());
 	}
@@ -209,7 +207,12 @@ public final class FlatUiSupport {
 	}
 
 	public static Color officeTitleBarForeground() {
-		return color(THEME_KEY_PREFIX + "officeTitleBarForeground", Color.WHITE);
+		return color(THEME_KEY_PREFIX + "officeTitleBarForeground", labelForeground());
+	}
+
+	public static boolean isDarkTheme() {
+		Color background = panelBackground();
+		return background.getRed() + background.getGreen() + background.getBlue() < 384;
 	}
 
 	public static Color tableBackground() {
@@ -298,7 +301,7 @@ public final class FlatUiSupport {
 	}
 
 	public static Color ribbonTabUnderlineColor() {
-		return color(THEME_KEY_PREFIX + "ribbonTabUnderlineColor", new Color(0x0064BB));
+		return ribbonAccentColor();
 	}
 
 	public static Color tabSelectedForeground() {
@@ -412,38 +415,88 @@ public final class FlatUiSupport {
 		Object role = button == null ? null : button.getClientProperty(BUTTON_STYLE_ROLE_PROPERTY);
 		if (BUTTON_STYLE_ROLE_TOOLBAR.equals(role))
 			return panelBackground();
+		if (BUTTON_STYLE_ROLE_RIBBON_TAB.equals(role))
+			return ribbonChromeBackground();
 		return ribbonSurfaceColor();
 	}
 
 	private static Color buttonAccentColor(AbstractButton button) {
-		return accentColor();
+		Object role = button == null ? null : button.getClientProperty(BUTTON_STYLE_ROLE_PROPERTY);
+		return BUTTON_STYLE_ROLE_RIBBON_LARGE.equals(role) || BUTTON_STYLE_ROLE_RIBBON_SMALL.equals(role)
+			? ribbonAccentColor()
+			: accentColor();
+	}
+
+	private static boolean isRibbonCommandButton(AbstractButton button) {
+		Object role = button == null ? null : button.getClientProperty(BUTTON_STYLE_ROLE_PROPERTY);
+		return BUTTON_STYLE_ROLE_RIBBON_LARGE.equals(role) || BUTTON_STYLE_ROLE_RIBBON_SMALL.equals(role);
+	}
+
+	/**
+	 * Installs state-aware background painting for ribbon commands. Swing paints
+	 * a button's border after its content (including the icon), so a filled
+	 * border would cover the icon in pressed/selected states. Let the button UI
+	 * paint the background first, then let the icon and label paint normally.
+	 */
+	private static void installRibbonCommandStatePainting(AbstractButton button) {
+		if (button.getClientProperty("MicroProject.ribbonStateChangeListener") != null) {
+			updateRibbonCommandStatePainting(button);
+			return;
+		}
+		ChangeListener listener = event -> updateRibbonCommandStatePainting(button);
+		button.getModel().addChangeListener(listener);
+		button.putClientProperty("MicroProject.ribbonStateChangeListener", listener);
+		button.addPropertyChangeListener("enabled", event -> updateRibbonCommandStatePainting(button));
+		updateRibbonCommandStatePainting(button);
+	}
+
+	private static void updateRibbonCommandStatePainting(AbstractButton button) {
+		if (button == null) {
+			return;
+		}
+		Color fill = resolveCommandButtonBackground(button);
+		button.setBackground(fill == null ? ribbonSurfaceColor() : fill);
+		button.setContentAreaFilled(fill != null);
+		button.setOpaque(fill != null);
 	}
 
 	private static boolean supportsPersistentSelectedState(AbstractButton button) {
-		return button instanceof JToggleButton;
+		return button instanceof JToggleButton && !BUTTON_STYLE_ROLE_RIBBON_TAB.equals(button.getClientProperty(BUTTON_STYLE_ROLE_PROPERTY));
 	}
 
 	public static Color commandButtonHoverBackground(AbstractButton button) {
+		if (isRibbonCommandButton(button))
+			return color(THEME_KEY_PREFIX + "ribbonCommandHoverBackground", new Color(0xEAF3FF));
 		return blend(buttonAccentColor(button), buttonStyleBaseBackground(button), 0.08f);
 	}
 
 	public static Color commandButtonPressedBackground(AbstractButton button) {
+		if (isRibbonCommandButton(button))
+			return color(THEME_KEY_PREFIX + "ribbonCommandPressedBackground", new Color(0xCFE8FF));
 		return blend(buttonAccentColor(button), buttonStyleBaseBackground(button), 0.16f);
 	}
 
 	public static Color commandButtonSelectedBackground(AbstractButton button) {
+		if (isRibbonCommandButton(button))
+			return color(THEME_KEY_PREFIX + "ribbonCommandSelectedBackground", new Color(0xDCEEFF));
 		return blend(buttonAccentColor(button), buttonStyleBaseBackground(button), 0.14f);
 	}
 
 	public static Color commandButtonHoverBorderColor(AbstractButton button) {
+		if (isRibbonCommandButton(button))
+			return null;
 		return blend(buttonAccentColor(button), buttonStyleBaseBackground(button), 0.38f);
 	}
 
 	public static Color commandButtonPressedBorderColor(AbstractButton button) {
+		if (isRibbonCommandButton(button))
+			return null;
 		return blend(buttonAccentColor(button), buttonStyleBaseBackground(button), 0.50f);
 	}
 
 	public static Color commandButtonSelectedBorderColor(AbstractButton button) {
+		if (isRibbonCommandButton(button))
+			return ribbonAccentColor();
 		return blend(buttonAccentColor(button), buttonStyleBaseBackground(button), 0.46f);
 	}
 
@@ -477,6 +530,32 @@ public final class FlatUiSupport {
 		return null;
 	}
 
+	public static Color resolveRibbonTabBackground(AbstractButton button) {
+		if (button == null || !button.isEnabled())
+			return null;
+		ButtonModel model = button.getModel();
+		if (model == null || model.isSelected())
+			return null;
+		if (model.isPressed() || model.isArmed())
+			return color(THEME_KEY_PREFIX + "ribbonTabPressedBackground", new Color(0xE5F1FB));
+		if (model.isRollover())
+			return ribbonTabHoverColor();
+		return null;
+	}
+
+	public static Color resolveRibbonTabBorderColor(AbstractButton button) {
+		if (button == null || !button.isEnabled())
+			return null;
+		ButtonModel model = button.getModel();
+		if (model == null || model.isSelected())
+			return null;
+		return null;
+	}
+
+	public static Color resolveRibbonTabUnderlineColor(AbstractButton button) {
+		return button != null && button.isSelected() ? ribbonTabUnderlineColor() : null;
+	}
+
 	private static int intValue(String key, int fallback) {
 		Object value = UIManager.get(key);
 		return value instanceof Integer integer ? integer.intValue() : fallback;
@@ -492,6 +571,30 @@ public final class FlatUiSupport {
 
 	public static int ribbonHorizontalInset() {
 		return intValue(RIBBON_HORIZONTAL_INSET_KEY, 10);
+	}
+
+	public static int ribbonTabHeight() {
+		return intValue(RIBBON_TAB_HEIGHT_KEY, 28);
+	}
+
+	public static int ribbonTabHorizontalPadding() {
+		return intValue(RIBBON_TAB_HORIZONTAL_PADDING_KEY, 10);
+	}
+
+	public static int ribbonTabVerticalPadding() {
+		return intValue(RIBBON_TAB_VERTICAL_PADDING_KEY, 4);
+	}
+
+	public static int ribbonSurfaceHeight() {
+		return intValue(RIBBON_SURFACE_HEIGHT_KEY, 96);
+	}
+
+	public static int ribbonBandVerticalInset() {
+		return intValue(RIBBON_BAND_VERTICAL_INSET_KEY, 1);
+	}
+
+	public static int ribbonButtonVerticalInset() {
+		return intValue(RIBBON_BUTTON_VERTICAL_INSET_KEY, 4);
 	}
 
 	public static int ribbonSearchHeight() {
@@ -521,6 +624,14 @@ public final class FlatUiSupport {
 	/** Icon size inside a quick-access button (MS Project QAT uses ~16px icons). */
 	public static int ribbonQuickAccessIconSize() {
 		return 16;
+	}
+
+	public static int ribbonLargeButtonHeight() {
+		return intValue(RIBBON_LARGE_BUTTON_HEIGHT_KEY, 90);
+	}
+
+	public static int ribbonLargeButtonMinWidth() {
+		return intValue(RIBBON_LARGE_BUTTON_MIN_WIDTH_KEY, 64);
 	}
 
 	public static int ribbonInlineButtonHeight() {
@@ -617,6 +728,82 @@ public final class FlatUiSupport {
 		button.setRolloverEnabled(true);
 		button.setMargin(new Insets(3, 5, 3, 5));
 		button.setForeground(labelForeground());
+	}
+
+	public static void styleRibbonTabButton(AbstractButton button) {
+		if (button == null)
+			return;
+		button.setFocusable(false);
+		button.putClientProperty(BUTTON_STYLE_ROLE_PROPERTY, BUTTON_STYLE_ROLE_RIBBON_TAB);
+		button.setOpaque(false);
+		button.setHorizontalAlignment(javax.swing.SwingConstants.LEFT);
+		button.setHorizontalTextPosition(javax.swing.SwingConstants.LEFT);
+		button.setBorder(new RibbonTabBorder());
+		button.setBackground(ribbonChromeBackground());
+		button.setForeground(tabUnselectedForeground());
+		button.setContentAreaFilled(false);
+		button.setBorderPainted(true);
+		button.setFocusPainted(false);
+		button.setRolloverEnabled(true);
+		installRibbonTabStatePainting(button);
+	}
+
+	/**
+	 * Paint a tab's rollover fill as button content rather than as part of its
+	 * border. Swing paints borders after the label, so painting the fill from
+	 * {@link RibbonTabBorder} would cover the label while the tab is hovered.
+	 */
+	private static void installRibbonTabStatePainting(AbstractButton button) {
+		if (button.getClientProperty("MicroProject.ribbonTabStateChangeListener") != null) {
+			updateRibbonTabStatePainting(button);
+			return;
+		}
+		ChangeListener listener = event -> updateRibbonTabStatePainting(button);
+		button.getModel().addChangeListener(listener);
+		button.putClientProperty("MicroProject.ribbonTabStateChangeListener", listener);
+		button.addPropertyChangeListener("enabled", event -> updateRibbonTabStatePainting(button));
+		updateRibbonTabStatePainting(button);
+	}
+
+	private static void updateRibbonTabStatePainting(AbstractButton button) {
+		Color fill = resolveRibbonTabBackground(button);
+		button.setBackground(fill == null ? ribbonChromeBackground() : fill);
+		button.setContentAreaFilled(fill != null);
+		button.setOpaque(fill != null);
+	}
+
+	public static void styleRibbonLargeButton(AbstractButton button) {
+		if (button == null)
+			return;
+		button.setFocusable(false);
+		button.putClientProperty(BUTTON_STYLE_ROLE_PROPERTY, BUTTON_STYLE_ROLE_RIBBON_LARGE);
+		button.setOpaque(false);
+		button.setBackground(ribbonSurfaceColor());
+		button.setForeground(labelForeground());
+		button.setBorder(new CommandButtonBorder(new Insets(2, 5, 2, 5), ribbonButtonArc()));
+		button.setContentAreaFilled(false);
+		button.setBorderPainted(true);
+		button.setFocusPainted(false);
+		button.setRolloverEnabled(true);
+		button.setMargin(new Insets(2, 2, 2, 2));
+		installRibbonCommandStatePainting(button);
+	}
+
+	public static void styleRibbonSmallButton(AbstractButton button) {
+		if (button == null)
+			return;
+		button.setFocusable(false);
+		button.putClientProperty(BUTTON_STYLE_ROLE_PROPERTY, BUTTON_STYLE_ROLE_RIBBON_SMALL);
+		button.setOpaque(false);
+		button.setBackground(ribbonSurfaceColor());
+		button.setForeground(labelForeground());
+		button.setBorder(new CommandButtonBorder(new Insets(1, 3, 1, 3), ribbonButtonArc()));
+		button.setContentAreaFilled(false);
+		button.setBorderPainted(true);
+		button.setFocusPainted(false);
+		button.setRolloverEnabled(true);
+		button.setMargin(new Insets(1, 2, 1, 2));
+		installRibbonCommandStatePainting(button);
 	}
 
 	public static void styleTabbedPane(JTabbedPane tabbedPane) {
@@ -773,12 +960,7 @@ public final class FlatUiSupport {
 		rootPane.setBorder(BorderFactory.createLineBorder(borderColor()));
 	}
 
-	/**
-	 * Refreshes a Swing subtree after a look-and-feel or font change and reapplies
-	 * shared styling to every owned Swing dialog. Dialogs are separate windows,
-	 * so refreshing only the document frame otherwise leaves their old colors and
-	 * component fonts in place.
-	 */
+	/** Refreshes a Swing tree and its owned dialogs after a look-and-feel change. */
 	public static void updateComponentTreeUI(Component component) {
 		if (component == null)
 			return;
@@ -790,12 +972,12 @@ public final class FlatUiSupport {
 
 	private static void updateOwnedWindowTrees(Window owner) {
 		for (Window child : owner.getOwnedWindows()) {
-			JRootPane dialogRoot = child instanceof JDialog dialog ? dialog.getRootPane() : null;
+			JRootPane root = child instanceof JDialog dialog ? dialog.getRootPane() : null;
 			KeyStroke escape = KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0);
-			InputMap dialogInputMap = dialogRoot == null ? null : dialogRoot.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
-			Object escapeKey = dialogInputMap == null ? null : dialogInputMap.get(escape);
-			ActionMap dialogActionMap = dialogRoot == null ? null : dialogRoot.getActionMap();
-			Action escapeAction = dialogActionMap == null || escapeKey == null ? null : dialogActionMap.get(escapeKey);
+			InputMap inputMap = root == null ? null : root.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+			Object escapeKey = inputMap == null ? null : inputMap.get(escape);
+			ActionMap actionMap = root == null ? null : root.getActionMap();
+			Action escapeAction = actionMap == null || escapeKey == null ? null : actionMap.get(escapeKey);
 			SwingUtilities.updateComponentTreeUI(child);
 			if (child instanceof JDialog dialog) {
 				if (escapeKey != null && escapeAction != null) {
@@ -1003,4 +1185,42 @@ public final class FlatUiSupport {
 		}
 	}
 
+	private static final class RibbonTabBorder extends AbstractBorder {
+		@Override
+		public Insets getBorderInsets(Component component) {
+			return new Insets(
+				ribbonTabVerticalPadding(),
+				ribbonTabHorizontalPadding(),
+				Math.max(1, ribbonTabVerticalPadding() - 1) + 2,
+				ribbonTabHorizontalPadding());
+		}
+
+		@Override
+		public Insets getBorderInsets(Component component, Insets insetsTarget) {
+			Insets computed = getBorderInsets(component);
+			insetsTarget.top = computed.top;
+			insetsTarget.left = computed.left;
+			insetsTarget.bottom = computed.bottom;
+			insetsTarget.right = computed.right;
+			return insetsTarget;
+		}
+
+		@Override
+		public void paintBorder(Component component, Graphics graphics, int x, int y, int width, int height) {
+			if (!(component instanceof AbstractButton button) || width <= 0 || height <= 0)
+				return;
+			Graphics2D g2 = (Graphics2D) graphics.create();
+			try {
+				enableAntialiasing(g2);
+				Color border = resolveRibbonTabBorderColor(button);
+				Color underline = resolveRibbonTabUnderlineColor(button);
+				if (underline != null) {
+					g2.setColor(underline);
+					g2.fillRect(x, y + height - 3, width, 3);
+				}
+			} finally {
+				g2.dispose();
+			}
+		}
+	}
 }

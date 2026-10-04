@@ -78,9 +78,14 @@ public final class SwingRibbonFactory {
 
 	public JPanel createPanel(SwingRibbonModel model, Runnable helpAction) {
 		Objects.requireNonNull(model);
-		FlamingoRibbonController panel = new FlamingoRibbonController(model, commandSource);
-		panel.putClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY, panel);
-		return panel;
+		ModernRibbonPanel panel = new ModernRibbonPanel(model, commandSource, bundles, helpAction);
+		panel.build();
+		JPanel host = new JPanel(new BorderLayout());
+		host.setOpaque(true);
+		host.setBackground(new FlatLafRibbonTheme().chromeBackground());
+		host.add(panel, BorderLayout.CENTER);
+		host.putClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY, panel);
+		return host;
 	}
 
 	public String getActionStringFromId(String id) {

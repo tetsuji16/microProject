@@ -42,9 +42,7 @@ import javax.swing.JPanel;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.ui.ribbon.SwingRibbonFactory;
-import org.pushingpixels.flamingo.api.common.AbstractCommandButton;
-import org.pushingpixels.flamingo.api.ribbon.JRibbon;
-import org.pushingpixels.flamingo.api.ribbon.RibbonTask;
+import com.microproject.ui.ribbon.ModernRibbonPanel;
 import com.microproject.ui.theme.MicroProjectTheme;
 import com.microproject.menu.ExtToolBarFactory;
 import com.microproject.menu.MenuActionMapSupport;
@@ -65,12 +63,15 @@ class OfficeChromePanelVisualSmokeTest {
 			MenuDefinitionSupport.ribbonBundles(Locale.JAPAN));
 		JPanel ribbonPanel = ribbonFactory.createPanel(MenuManager.STANDARD_RIBBON, () -> {});
 		OfficeChromePanel panel = new OfficeChromePanel(menuManager, ribbonPanel, () -> {});
-		panel.setSize(1024, 160);
+		panel.setSize(1024, 192);
 		panel.doLayout();
 		layoutRecursively(panel);
-		assertNativeRibbonIsBuilt(panel);
+		assertTrue(ribbonPanel.getHeight() >= ribbonPanel.getPreferredSize().height,
+			"the screenshot viewport must contain the full ribbon, including group captions");
+		assertRibbonBandsUseTheAvailableWidth(panel);
+		assertRibbonCommandsAreLeftAligned(panel);
 
-		BufferedImage image = new BufferedImage(1024, 160, BufferedImage.TYPE_INT_ARGB);
+		BufferedImage image = new BufferedImage(1024, 192, BufferedImage.TYPE_INT_ARGB);
 		Graphics2D graphics = image.createGraphics();
 		try {
 			panel.printAll(graphics);
@@ -86,24 +87,57 @@ class OfficeChromePanelVisualSmokeTest {
 		assertTrue(hasVisibleInk(image));
 	}
 
-	private static void assertNativeRibbonIsBuilt(JPanel panel) {
-		JRibbon ribbon = findRibbon(panel);
-		assertTrue(ribbon.getTaskCount() > 0, "Flamingo must own the regular ribbon tabs");
-		assertTrue(ribbon.getSelectedTask() != null, "Flamingo must select a task after construction");
-		assertTrue(UiComponentWalker.flatten(ribbon).stream().anyMatch(AbstractCommandButton.class::isInstance),
-			"Flamingo JRibbon must render native command buttons");
+	private static void assertRibbonBandsUseTheAvailableWidth(JPanel panel) {
+		JComponent surface = UiComponentWalker.flatten(panel).stream()
+			.filter(JComponent.class::isInstance)
+			.map(JComponent.class::cast)
+			.filter(component -> "projectLibreRibbonSurface".equals(component.getName()))
+			.findFirst()
+			.orElseThrow(() -> new AssertionError("ribbon surface was not created"));
+		int rightEdge = UiComponentWalker.flatten(surface).stream()
+			.filter(JComponent.class::isInstance)
+			.map(JComponent.class::cast)
+			.filter(component -> "projectLibreRibbonBand".equals(component.getName()))
+			.mapToInt(component -> component.getX() + component.getWidth())
+			.max()
+			.orElse(0);
+		assertTrue(rightEdge >= Math.ceil(surface.getWidth() * 0.70d),
+			() -> "ribbon leaves more than 30% unused on the right: surface=" + surface.getWidth()
+				+ " rightEdge=" + rightEdge);
+	}
+
+	private static void assertRibbonCommandsAreLeftAligned(JPanel panel) {
+		UiComponentWalker.flatten(panel).stream()
+			.filter(JComponent.class::isInstance)
+			.map(JComponent.class::cast)
+			.filter(component -> "projectLibreRibbonBand".equals(component.getName()))
+			.forEach(band -> {
+				int leftmostCommand = UiComponentWalker.flatten(band).stream()
+					.filter(AbstractButton.class::isInstance)
+					.map(AbstractButton.class::cast)
+					.mapToInt(button -> javax.swing.SwingUtilities.convertPoint(button, 0, 0, band).x)
+					.min()
+					.orElse(-1);
+				if (leftmostCommand >= 0) {
+					assertTrue(leftmostCommand <= 16,
+						() -> "ribbon commands are centered inside their band: band=" + band.getWidth()
+							+ " leftmostCommand=" + leftmostCommand);
+				}
+			});
 	}
 
 	@Test
-	void buildsNativeTabsAtOfficeReferenceWidthsInEnglishAndJapanese() throws IOException {
+	void rendersEveryTabAtOfficeReferenceWidthsInEnglishAndJapanese() throws IOException {
 		for (Locale locale : List.of(Locale.ROOT, Locale.JAPAN)) {
 			for (int width : List.of(320, 480, 720, 760, 1024, 1200, 1440)) {
-				assertRibbonStructure(locale, width);
+				renderTabContactSheet(locale, width);
 			}
 		}
 	}
 
-	private static void assertRibbonStructure(Locale locale, int width) {
+	private static void renderTabContactSheet(Locale locale, int width) throws IOException {
+		// Keep screenshots independent of JUnit test ordering and other LAF tests.
+		MicroProjectTheme.installLight();
 		MenuManager menuManager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
 		ExtToolBarFactory buttonFactory = new ExtToolBarFactory(
 			MenuActionMapSupport.noopActionMap(),
@@ -114,30 +148,79 @@ class OfficeChromePanelVisualSmokeTest {
 		var model = ribbonFactory.createModel(MenuManager.STANDARD_RIBBON);
 		JPanel ribbonPanel = ribbonFactory.createPanel(model, () -> {});
 		OfficeChromePanel panel = new OfficeChromePanel(menuManager, ribbonPanel, () -> {});
-		panel.setSize(width, 160);
-		panel.doLayout();
-		layoutRecursively(panel);
-		JRibbon ribbon = findRibbon(ribbonPanel);
-		assertTrue(ribbon.getTaskCount() > 0, "native ribbon tabs must remain available at " + width + "px");
-		for (var tab : model.getTabs()) {
-			if (tab.isContextual()) continue;
-			RibbonTask task = findTask(ribbonPanel, tab.getTitle());
-			assertTrue(task.getBandCount() > 0, tab.getId() + " must retain its native Flamingo bands");
+		int rowHeight = 192;
+		BufferedImage sheet = new BufferedImage(width, rowHeight * model.getTabs().size(), BufferedImage.TYPE_INT_ARGB);
+		Graphics2D sheetGraphics = sheet.createGraphics();
+		try {
+			for (int index = 0; index < model.getTabs().size(); index++) {
+				var tab = model.getTabs().get(index);
+				findButton(panel, tab.getTitle()).doClick();
+				panel.setSize(width, rowHeight);
+				panel.doLayout();
+				layoutRecursively(panel);
+				assertNoVisibleCollapsedTabLauncher(panel);
+				assertResponsiveGroupsRemainReachable(panel, tab.getId(), width);
+				Graphics2D rowGraphics = (Graphics2D) sheetGraphics.create(0, index * rowHeight, width, rowHeight);
+				try {
+					panel.printAll(rowGraphics);
+				} finally {
+					rowGraphics.dispose();
+				}
+			}
+		} finally {
+			sheetGraphics.dispose();
+		}
+
+		String localeName = Locale.JAPAN.equals(locale) ? "ja" : "en";
+		Path output = Path.of("build", "reports", "ribbon", "office-ribbon-" + localeName + "-" + width + ".png");
+		Files.createDirectories(output.getParent());
+		ImageIO.write(sheet, "png", output.toFile());
+		assertTrue(hasVisibleInk(sheet));
+	}
+
+	private static void assertNoVisibleCollapsedTabLauncher(JPanel panel) {
+		boolean launcherVisible = UiComponentWalker.flatten(panel).stream()
+			.filter(AbstractButton.class::isInstance)
+			.map(AbstractButton.class::cast)
+			.anyMatch(button -> Boolean.TRUE.equals(
+				button.getClientProperty(ModernRibbonPanel.COLLAPSED_TAB_LAUNCHER_PROPERTY))
+				&& isVisibleInHierarchy(button));
+		assertTrue(!launcherVisible,
+			"a standard ribbon tab must not hide its entire command surface behind one launcher");
+	}
+
+	private static void assertResponsiveGroupsRemainReachable(JPanel panel, String tabId, int width) {
+		if (width > 320 || !"TaskRibbonTask".equals(tabId)) return;
+		long proxies = UiComponentWalker.flatten(panel).stream()
+			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+			.filter(button -> Boolean.TRUE.equals(button.getClientProperty(ModernRibbonPanel.BAND_PROXY_PROPERTY)))
+			.count();
+		assertTrue(proxies >= 2,
+			"narrow ribbon must expose multiple group proxies rather than a tab-level launcher");
+		if (width <= 320) {
+			boolean canScroll = UiComponentWalker.flatten(panel).stream()
+				.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+				.anyMatch(button -> Boolean.TRUE.equals(button.getClientProperty(ModernRibbonPanel.SCROLL_NEXT_PROPERTY)));
+			assertTrue(canScroll, "group proxies wider than the client area must have a horizontal scroll control");
 		}
 	}
 
-	private static JRibbon findRibbon(JComponent root) {
-		return UiComponentWalker.flatten(root).stream().filter(JRibbon.class::isInstance)
-			.map(JRibbon.class::cast).findFirst().orElseThrow(() -> new AssertionError("JRibbon was not created"));
+	private static boolean isVisibleInHierarchy(java.awt.Component component) {
+		for (java.awt.Component current = component; current != null; current = current.getParent()) {
+			if (!current.isVisible()) {
+				return false;
+			}
+		}
+		return true;
 	}
 
-	private static RibbonTask findTask(JComponent root, String title) {
-		JRibbon ribbon = findRibbon(root);
-		for (int index = 0; index < ribbon.getTaskCount(); index++) {
-			RibbonTask task = ribbon.getTask(index);
-			if (title.equals(task.getTitle())) return task;
-		}
-		throw new AssertionError("Ribbon task not found: " + title);
+	private static AbstractButton findButton(java.awt.Component root, String text) {
+		return UiComponentWalker.flatten(root).stream()
+			.filter(AbstractButton.class::isInstance)
+			.map(AbstractButton.class::cast)
+			.filter(button -> text.equals(button.getText()))
+			.findFirst()
+			.orElseThrow(() -> new AssertionError("Button not found: " + text));
 	}
 
 	private static void layoutRecursively(java.awt.Component component) {
