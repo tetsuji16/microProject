@@ -506,12 +506,10 @@ final class OfficeChromePanel extends JPanel {
 			Graphics2D g2 = (Graphics2D) g.create();
 			try {
 				FlatUiSupport.enableAntialiasing(g2);
-				int width = getWidth() - 1;
-				int height = getHeight() - 1;
-				g2.setColor(FlatUiSupport.ribbonSurfaceColor());
-				g2.fillRoundRect(0, 0, width, height, FlatUiSupport.ribbonCornerRadius(), FlatUiSupport.ribbonCornerRadius());
-				g2.setColor(searchField.isFocusOwner() ? ACCENT_COLOR : BORDER_COLOR);
-				g2.drawRoundRect(0, 0, width, height, FlatUiSupport.ribbonCornerRadius(), FlatUiSupport.ribbonCornerRadius());
+				if (searchField.isFocusOwner()) {
+					g2.setColor(ACCENT_COLOR);
+					g2.drawLine(0, getHeight() - 1, getWidth(), getHeight() - 1);
+				}
 			} finally {
 				g2.dispose();
 			}

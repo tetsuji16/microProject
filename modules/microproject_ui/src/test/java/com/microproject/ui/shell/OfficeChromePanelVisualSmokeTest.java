@@ -94,6 +94,7 @@ class OfficeChromePanelVisualSmokeTest {
 		} finally {
 			graphics.dispose();
 		}
+		assertSearchBoxHasNoOutline(image, panel, searchBox);
 
 		Path output = Path.of("build", "reports", "ribbon", "office-chrome-ribbon-smoke.png");
 		Files.createDirectories(output.getParent());
@@ -219,6 +220,18 @@ class OfficeChromePanelVisualSmokeTest {
 			assertTrue(searchBox.getX() >= tabs.getX() + tabs.getWidth(),
 				"the search field must remain to the right of the ribbon tabs");
 		}
+	}
+
+	private static void assertSearchBoxHasNoOutline(BufferedImage image, JPanel panel, JComponent searchBox) {
+		java.awt.Point topCenter = javax.swing.SwingUtilities.convertPoint(searchBox,
+			searchBox.getWidth() / 2, 0, panel);
+		java.awt.Point bottomCenter = javax.swing.SwingUtilities.convertPoint(searchBox,
+			searchBox.getWidth() / 2, searchBox.getHeight() - 1, panel);
+		int chromeRgb = MicroProjectTheme.tokens().ribbonChromeBackground().getRGB();
+		assertEquals(chromeRgb, image.getRGB(topCenter.x, topCenter.y),
+			"the search accessory should not draw an Office-absent rounded outline");
+		assertEquals(chromeRgb, image.getRGB(bottomCenter.x, bottomCenter.y),
+			"the search accessory should remain visually open against the tab strip");
 	}
 
 	private static JComponent findNamedComponent(JPanel panel, String name) {
