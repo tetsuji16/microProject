@@ -81,6 +81,23 @@ class IconManagerRibbonIconTest {
 		assertEquals(2, accentColorCount(chartImage), "chart view icon should use the Office blue and orange accents");
 	}
 
+	@Test
+	void informationRibbonIconUsesTheSharedFluentMonochromeGlyph() {
+		assertEquals("fluent-info.svg", IconManager.getConfiguredIconName("ribbon.information"));
+		BufferedImage image = paint(IconManager.getRibbonIcon("ribbon.information", 32, 32), 32, 32);
+		for (int y = 0; y < image.getHeight(); y++) {
+			for (int x = 0; x < image.getWidth(); x++) {
+				int pixel = image.getRGB(x, y);
+				if ((pixel >>> 24) == 0) continue;
+				int red = (pixel >>> 16) & 0xff;
+				int green = (pixel >>> 8) & 0xff;
+				int blue = pixel & 0xff;
+				assertTrue(Math.abs(red - green) <= 1 && Math.abs(green - blue) <= 1,
+					"information glyph must not reintroduce the old green outlined icon frame");
+			}
+		}
+	}
+
 	/**
 	 * Microsoft Project documents distinct manual and automatic task modes and
 	 * mode indicators, but does not specify the ribbon pictograms' artwork or
