@@ -77,9 +77,9 @@ final class OfficeChromePanel extends JPanel {
 	static final String WINDOW_BUTTONS_PLACEHOLDER_NAME = "officeChromeWindowButtonsPlaceholder";
 	static final String BRAND_ICON_NAME = "officeChromeBrandIcon";
 
-	private static final Color CHROME_BACKGROUND = FlatUiSupport.ribbonChromeBackground();
+	private static final Color CHROME_BACKGROUND = FlatUiSupport.officeTitleBarBackground();
 	private static final Color BORDER_COLOR = FlatUiSupport.ribbonSurfaceBorderColor();
-	private static final Color TEXT_COLOR = FlatUiSupport.labelForeground();
+	private static final Color TEXT_COLOR = FlatUiSupport.officeTitleBarForeground();
 	private static final Color ACCENT_COLOR = FlatUiSupport.accentColor();
 	private static final Dimension ICON_BUTTON_SIZE = new Dimension(
 		FlatUiSupport.ribbonQuickAccessButtonSize(),
@@ -138,7 +138,8 @@ final class OfficeChromePanel extends JPanel {
 
 		JPanel footer = new JPanel(new BorderLayout());
 		footer.setName(RIBBON_DISPLAY_OPTIONS_FOOTER_NAME);
-		footer.setOpaque(false);
+		footer.setOpaque(true);
+		footer.setBackground(FlatUiSupport.ribbonSurfaceColor());
 		footer.setBorder(new EmptyBorder(0, 0, 2, FlatUiSupport.ribbonHorizontalInset()));
 		footer.add(createRibbonDisplayOptionsButton(), BorderLayout.EAST);
 		surface.add(footer, BorderLayout.SOUTH);
@@ -477,7 +478,10 @@ final class OfficeChromePanel extends JPanel {
 		if (menuManager != null) {
 			String iconName = menuManager.getStringOrNull(actionId + ".icon");
 			if (iconName != null) {
-				Icon icon = IconManager.getRibbonIcon(iconName, iconSize, iconSize);
+				Icon icon = IconManager.getRibbonIconTinted(iconName, iconSize, iconSize,
+					FlatUiSupport.officeTitleBarForeground());
+				if (icon == null)
+					icon = IconManager.getRibbonIcon(iconName, iconSize, iconSize);
 				if (icon != null) {
 					return icon;
 				}

@@ -17,13 +17,13 @@ import java.awt.event.InputEvent;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
-import javax.swing.JFrame;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
@@ -41,19 +41,23 @@ import com.microproject.menu.MenuManager;
 import com.microproject.menu.ProjectMenuActionMap;
 import com.microproject.menu.testsupport.MenuDefinitionSupport;
 import com.microproject.menu.testsupport.UiComponentWalker;
+import com.microproject.pm.graphic.frames.MainRibbonFrame;
 import com.microproject.testsupport.GuiAcceptanceSupport;
+import com.microproject.ui.shell.ProjectLibreShell;
 import com.microproject.util.Environment;
 import com.microproject.util.FlatLafSupport;
 
 /** Physical GUI checks for the live Flamingo JRibbon path. */
 class RibbonTabGuiAcceptanceTest {
-	private JFrame frame;
+	private MainRibbonFrame frame;
 	private boolean previousRibbonUi;
 	private boolean previousNewLook;
+	private RibbonDisplayMode previousDisplayMode;
 
 	@BeforeEach void configureRibbonEnvironment() {
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
+		previousDisplayMode = RibbonDisplayPreferences.load();
 		FlatLafSupport.ensureInitialized();
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
@@ -63,6 +67,7 @@ class RibbonTabGuiAcceptanceTest {
 		if (frame != null) SwingUtilities.invokeAndWait(() -> frame.dispose());
 		Environment.setRibbonUI(previousRibbonUi);
 		Environment.setNewLook(previousNewLook);
+		RibbonDisplayPreferences.save(previousDisplayMode);
 	}
 
 	@Test
@@ -70,11 +75,9 @@ class RibbonTabGuiAcceptanceTest {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		RecordingActionMap actions = new RecordingActionMap();
 		MenuManager manager = MenuManager.getInstance(actions);
-		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
-		JRibbon ribbon = findRibbon(host);
 		SwingUtilities.invokeAndWait(() -> {
-			frame = new JFrame("Flamingo ribbon acceptance");
-			frame.add(host);
+			frame = new MainRibbonFrame("Flamingo ribbon acceptance", null, null);
+			installExpandedRibbonShell(frame, manager);
 			frame.setSize(1440, 420);
 			frame.setLocation(40, 40);
 			frame.setAlwaysOnTop(true);
@@ -83,6 +86,19 @@ class RibbonTabGuiAcceptanceTest {
 			frame.requestFocus();
 		});
 		GuiAcceptanceSupport.await(frame::isActive, "ribbon test window did not become active");
+		JPanel host = frame.getRibbonPanel();
+		JRibbon ribbon = findRibbon(host);
+		assertTrue(new Color(0x116EBE).equals(host.getBackground()),
+			"the live Office chrome must use the reference title-bar blue, actual=" + host.getBackground());
+		assertTrue(host.getHeight() <= host.getPreferredSize().height + 4,
+			"the live ribbon shell must keep its natural compact height instead of stretching into the document workspace; "
+				+ "actual=" + host.getHeight() + ", preferred=" + host.getPreferredSize().height);
+		JComponent displayOptionsFooter = UiComponentWalker.flatten(host).stream()
+			.filter(JComponent.class::isInstance).map(JComponent.class::cast)
+			.filter(component -> "officeChromeRibbonDisplayOptionsFooter".equals(component.getName()))
+			.findFirst().orElseThrow();
+		assertTrue(displayOptionsFooter.isOpaque() && new Color(0xF3F2F1).equals(displayOptionsFooter.getBackground()),
+			"the ribbon display-options footer must continue the Office ribbon surface instead of showing a blue gap");
 
 		Robot robot = new Robot(frame.getGraphicsConfiguration().getDevice());
 		robot.setAutoDelay(35);
@@ -106,7 +122,7 @@ class RibbonTabGuiAcceptanceTest {
 		assertTrue(bundle.getString("RibbonNewProject.text").equals(newProject.getText()),
 			"visible ribbon text must come from the active locale bundle, expected="
 				+ bundle.getString("RibbonNewProject.text") + ", actual=" + newProject.getText());
-		captureRibbon(robot, frame, "ribbon-home-visual-audit.png");
+		captureRibbon(robot, frame, "ribbon-file-visual-audit.png");
 		AbstractCommandButton taskTab = findTab(host, bundle.getString("TaskRibbonTask.title"));
 		java.util.concurrent.atomic.AtomicInteger physicalPresses = new java.util.concurrent.atomic.AtomicInteger();
 		taskTab.addMouseListener(new java.awt.event.MouseAdapter() {
@@ -137,28 +153,51 @@ class RibbonTabGuiAcceptanceTest {
 		click(robot, information);
 		GuiAcceptanceSupport.await(() -> actions.count(actionId) == before + 1,
 			"physical JRibbon command click did not dispatch exactly once: " + actionId);
+		captureRibbon(robot, frame, "ribbon-task-visual-audit.png");
+		for (String tabId : List.of("ResourceRibbonTask", "ReportRibbonTask", "ProjectRibbonTask", "ViewRibbonTask")) {
+			AbstractCommandButton tab = findTab(host, bundle.getString(tabId + ".title"));
+			GuiAcceptanceSupport.await(tab::isShowing, "standard ribbon tab is outside the visible tab strip: " + tab.getText());
+			click(robot, tab);
+			GuiAcceptanceSupport.await(() -> isTaskSelected(ribbon, tab.getText()),
+				"physical standard ribbon tab did not become selected: " + tab.getText());
+			captureRibbon(robot, frame, "ribbon-" + tabId.replace("RibbonTask", "").toLowerCase(Locale.ROOT)
+				+ "-visual-audit.png");
+		}
 	}
 
 	@Test
 	void contextualTaskVisibilityAndTitlesAreOwnedByJRibbon() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		MenuManager manager = MenuManager.getInstance(new RecordingActionMap());
-		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
-		JRibbon ribbon = findRibbon(host);
 		SwingUtilities.invokeAndWait(() -> {
-			frame = new JFrame("Flamingo contextual ribbon acceptance");
-			frame.add(host);
+			frame = new MainRibbonFrame("Flamingo contextual ribbon acceptance", null, null);
+			installExpandedRibbonShell(frame, manager);
 			frame.setSize(1200, 420);
 			frame.setLocationByPlatform(true);
+			frame.setAlwaysOnTop(true);
 			frame.setVisible(true);
+			frame.toFront();
+			frame.requestFocus();
 		});
+		GuiAcceptanceSupport.await(frame::isActive, "contextual ribbon frame did not become active");
+		JPanel host = frame.getRibbonPanel();
+		JRibbon ribbon = findRibbon(host);
+		String contextualTitle = MenuDefinitionSupport.menuBundle(Locale.getDefault())
+			.getString("GanttChartFormat.contextualTitle");
 		RibbonController controller = (RibbonController) host.getClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY);
 		SwingUtilities.invokeAndWait(() -> {
 			controller.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
-			controller.setContextualTabTitles(Map.of("FormatRibbonTask", "Gantt Chart Format"));
+			controller.setContextualTabTitles(Map.of("FormatRibbonTask", contextualTitle));
 		});
-		GuiAcceptanceSupport.await(() -> contextualGroupVisible(ribbon), "Flamingo contextual task group did not become visible");
-		assertTrue(contextualGroupHasTitle(ribbon, "Gantt Chart Format"));
+		GuiAcceptanceSupport.await(() -> contextualGroupVisible(ribbon, contextualTitle),
+			"Flamingo contextual task group did not become visible");
+		assertTrue(contextualGroupHasTitle(ribbon, contextualTitle));
+		var contextualTask = ribbon.getContextualTaskGroup(0).getTask(0);
+		SwingUtilities.invokeAndWait(() -> ribbon.setSelectedTask(contextualTask));
+		GuiAcceptanceSupport.await(() -> isTaskSelected(ribbon, contextualTask.getTitle()),
+			"Flamingo did not render its selected contextual task");
+		Robot robot = new Robot(frame.getGraphicsConfiguration().getDevice());
+		captureRibbon(robot, frame, "ribbon-contextual-format-visual-audit.png");
 	}
 
 	private static boolean contextualGroupHasTitle(JRibbon ribbon, String title) {
@@ -167,9 +206,9 @@ class RibbonTabGuiAcceptanceTest {
 		return false;
 	}
 
-	private static boolean contextualGroupVisible(JRibbon ribbon) {
+	private static boolean contextualGroupVisible(JRibbon ribbon, String title) {
 		for (int index = 0; index < ribbon.getContextualTaskGroupCount(); index++)
-			if (ribbon.getContextualTaskGroup(index).getTitle().equals("Gantt Chart Format")
+			if (ribbon.getContextualTaskGroup(index).getTitle().equals(title)
 				&& ribbon.isVisible(ribbon.getContextualTaskGroup(index))) return true;
 		return false;
 	}
@@ -184,8 +223,11 @@ class RibbonTabGuiAcceptanceTest {
 	}
 
 	private static AbstractCommandButton findTab(JComponent root, String title) {
-		return UiComponentWalker.flatten(root).stream().filter(AbstractCommandButton.class::isInstance)
-			.map(AbstractCommandButton.class::cast).filter(button -> title.equals(button.getText())).findFirst().orElseThrow();
+		List<AbstractCommandButton> matches = UiComponentWalker.flatten(root).stream()
+			.filter(AbstractCommandButton.class::isInstance).map(AbstractCommandButton.class::cast)
+			.filter(button -> title.equals(button.getText())).toList();
+		return matches.stream().filter(AbstractCommandButton::isShowing).findFirst()
+			.orElseGet(() -> matches.stream().findFirst().orElseThrow());
 	}
 
 	private static AbstractCommandButton findCommand(JComponent root, String name) {
@@ -205,7 +247,16 @@ class RibbonTabGuiAcceptanceTest {
 		robot.waitForIdle();
 	}
 
-	private static void captureRibbon(Robot robot, JFrame frame, String fileName) throws Exception {
+	private static JPanel installExpandedRibbonShell(MainRibbonFrame frame, MenuManager manager) {
+		ProjectLibreShell.installRibbonShell(frame, manager, null);
+		JPanel host = frame.getRibbonPanel();
+		Object value = host.getClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY);
+		if (value instanceof RibbonController controller)
+			controller.setRibbonDisplayMode(RibbonDisplayMode.ALWAYS_SHOW);
+		return host;
+	}
+
+	private static void captureRibbon(Robot robot, MainRibbonFrame frame, String fileName) throws Exception {
 		Rectangle bounds = frame.getBounds();
 		Path directory = Path.of(System.getProperty("microproject.gui.artifacts.dir", "build/reports/guiTest-artifacts"));
 		Files.createDirectories(directory);

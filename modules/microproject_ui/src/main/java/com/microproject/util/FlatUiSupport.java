@@ -191,6 +191,14 @@ public final class FlatUiSupport {
 		return color(RIBBON_CHROME_BACKGROUND_KEY, FlatUiTheme.ribbonChromeBackground());
 	}
 
+	public static Color officeTitleBarBackground() {
+		return color(THEME_KEY_PREFIX + "officeTitleBarBackground", ribbonChromeBackground());
+	}
+
+	public static Color officeTitleBarForeground() {
+		return color(THEME_KEY_PREFIX + "officeTitleBarForeground", Color.WHITE);
+	}
+
 	public static Color tableBackground() {
 		return FlatUiTheme.tableBackground();
 	}
