@@ -131,6 +131,17 @@ class RibbonStructureTest {
 	}
 
 	@Test
+	void japaneseRibbonLabelsDoNotFallBackToEnglishForTaskVisibilityAndProjectScheduling() {
+		var japanese = menuBundle(Locale.JAPANESE);
+		assertEquals("選択したタスクを非表示", japanese.getString("RibbonHideSelectedTasks.text"));
+		assertEquals("すべてのタスクを表示", japanese.getString("RibbonShowAllTasks.text"));
+		assertEquals("プロジェクトの移動", japanese.getString("RibbonMoveProject.text"));
+		assertTrue(japanese.getString("RibbonHideSelectedTasks.tooltip").contains("非表示"));
+		assertTrue(japanese.getString("RibbonShowAllTasks.tooltip").contains("表示"));
+		assertTrue(japanese.getString("RibbonMoveProject.tooltip").contains("開始日"));
+	}
+
+	@Test
 	void commandsHaveOnePrimaryTabExceptClipboard() {
 		Map<String, Set<String>> tabsByButton = new LinkedHashMap<>();
 		for (String task : ribbonTaskIds()) {

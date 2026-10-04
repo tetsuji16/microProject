@@ -808,7 +808,11 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	 * never for the selected tab.  All commands remain reachable from its popup.
 	 */
 	private RibbonBandPanel buildBandProxy(RibbonBandPanel panel, SwingRibbonModel.RibbonBand band) {
-		JButton trigger = new JButton(band.getTitle() + " …");
+		// Match Office's collapsed-group affordance: show a compact command icon
+		// and dropdown chevron, while keeping the complete group name in the band
+		// caption below. Repeating the full group title in this trigger overflowed
+		// and was visibly ellipsized at the default 1024px window width.
+		JButton trigger = new JButton("▾");
 		trigger.setFocusable(false);
 		trigger.setToolTipText(band.getTitle());
 		trigger.getAccessibleContext().setAccessibleName(band.getTitle());
@@ -985,7 +989,12 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		}
 		String text = getStringOrNull(buttonId + ".text");
 		Object dynamicName = button.getAction() == null ? null : button.getAction().getValue(javax.swing.Action.NAME);
-		if ("RibbonStatusDate".equals(buttonId) && dynamicName instanceof String name && !name.isBlank())
+		// Before a document supplies its live date, legacy actions expose their
+		// identifier as Action.NAME ("StatusDate"). Keep the localized caption in
+		// that case; only use Action.NAME after the updater has supplied a real
+		// value such as "NA 状況報告日:".
+		if ("RibbonStatusDate".equals(buttonId) && dynamicName instanceof String name && !name.isBlank()
+			&& !com.microproject.menu.MenuActionConstants.ACTION_STATUS_DATE.equals(name))
 			text = name;
 		if (text != null) {
 			button.setText(text);

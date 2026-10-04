@@ -25,6 +25,7 @@
 package com.microproject.ui.shell;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
@@ -158,6 +159,10 @@ class OfficeChromePanelVisualSmokeTest {
 				panel.setSize(width, rowHeight);
 				panel.doLayout();
 				layoutRecursively(panel);
+				if (Locale.JAPAN.equals(locale) && "ProjectRibbonTask".equals(tab.getId()) && width >= 1024) {
+					assertJapaneseStatusDateCaption(panel);
+				}
+				assertCollapsedGroupsUseIconTriggers(panel);
 				assertNoVisibleCollapsedTabLauncher(panel);
 				assertResponsiveGroupsRemainReachable(panel, tab.getId(), width);
 				Graphics2D rowGraphics = (Graphics2D) sheetGraphics.create(0, index * rowHeight, width, rowHeight);
@@ -176,6 +181,30 @@ class OfficeChromePanelVisualSmokeTest {
 		Files.createDirectories(output.getParent());
 		ImageIO.write(sheet, "png", output.toFile());
 		assertTrue(hasVisibleInk(sheet));
+	}
+
+	private static void assertJapaneseStatusDateCaption(JPanel panel) {
+		var statusDateLabels = UiComponentWalker.flatten(panel).stream()
+			.filter(AbstractButton.class::isInstance)
+			.map(AbstractButton.class::cast)
+			.filter(button -> button.getText() != null && button.getText().contains("StatusDate"))
+			.toList();
+		assertTrue(statusDateLabels.isEmpty(),
+			() -> "Japanese ribbon fell back to a raw action name: "
+				+ statusDateLabels.stream().map(AbstractButton::getText).toList());
+	}
+
+	private static void assertCollapsedGroupsUseIconTriggers(JPanel panel) {
+		UiComponentWalker.flatten(panel).stream()
+			.filter(AbstractButton.class::isInstance)
+			.map(AbstractButton.class::cast)
+			.filter(button -> Boolean.TRUE.equals(
+				button.getClientProperty(ModernRibbonPanel.BAND_PROXY_PROPERTY)))
+			.forEach(button -> {
+				assertEquals("▾", button.getText(), "collapsed group button should not repeat a truncating group name");
+				assertTrue(button.getToolTipText() != null && !button.getToolTipText().isBlank(),
+					"collapsed group must retain its full name as a tooltip");
+			});
 	}
 
 	private static void assertNoVisibleCollapsedTabLauncher(JPanel panel) {
