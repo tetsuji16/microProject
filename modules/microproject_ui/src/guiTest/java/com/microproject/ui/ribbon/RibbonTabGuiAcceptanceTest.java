@@ -88,6 +88,10 @@ class RibbonTabGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(frame::isActive, "ribbon test window did not become active");
 		JPanel host = frame.getRibbonPanel();
 		JRibbon ribbon = findRibbon(host);
+		SwingUtilities.invokeAndWait(ribbon::updateUI);
+		assertTrue("com.microproject.ui.ribbon.CompactRibbonUI".equals(ribbon.getUI().getClass().getName()),
+			"the active JRibbon must keep the compact Flamingo adapter after a theme UI refresh, actual="
+				+ ribbon.getUI().getClass().getName());
 		assertTrue(new Color(0x116EBE).equals(host.getBackground()),
 			"the live Office chrome must use the reference title-bar blue, actual=" + host.getBackground());
 		assertTrue(host.getHeight() <= host.getPreferredSize().height + 4,

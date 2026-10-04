@@ -62,7 +62,7 @@ import com.microproject.util.FlatUiSupport;
 final class FlamingoRibbonController extends JPanel implements RibbonController {
 	static final KeyStroke AUTO_HIDE_REVEAL_KEY = KeyStroke.getKeyStroke(KeyEvent.VK_ALT, 0);
 	static final String AUTO_HIDE_REVEAL_ACTION = "microproject.ribbon.revealAutoHidden";
-	private final JRibbon ribbon = new JRibbon();
+	private final JRibbon ribbon = new CompactJRibbon();
 	private final RibbonCommandSource commands;
 	private final List<Consumer<RibbonDisplayMode>> displayModeListeners = new ArrayList<>();
 	private final Map<String, RibbonTask> tasksById = new LinkedHashMap<>();
@@ -168,7 +168,7 @@ final class FlamingoRibbonController extends JPanel implements RibbonController 
 			BorderFactory.createEmptyBorder(2, 2, 2, 2)));
 	}
 
-	private static void styleRibbonSurface(Container root) {
+	static void styleRibbonSurface(Container root) {
 		Color panelBackground = UIManager.getColor("Panel.background");
 		Color surface = FlatUiSupport.ribbonChromeBackground();
 		if (root instanceof JComponent component && component.isOpaque()
