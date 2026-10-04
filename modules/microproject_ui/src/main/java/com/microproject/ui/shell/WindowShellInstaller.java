@@ -8,6 +8,7 @@ package com.microproject.ui.shell;
 import javax.swing.JFrame;
 import javax.swing.JRootPane;
 
+import com.microproject.util.FlatUiSupport;
 import com.microproject.util.Environment;
 import com.microproject.util.FlatLafSupport;
 
@@ -24,6 +25,7 @@ public final class WindowShellInstaller {
 	static final String FULL_WINDOW_CONTENT = "FlatLaf.fullWindowContent";
 	static final String TITLE_BAR_SHOW_ICON = "JRootPane.titleBarShowIcon";
 	static final String TITLE_BAR_SHOW_TITLE = "JRootPane.titleBarShowTitle";
+	static final String TITLE_BAR_HEIGHT = "JRootPane.titleBarHeight";
 
 	private WindowShellInstaller() {
 	}
@@ -42,6 +44,9 @@ public final class WindowShellInstaller {
 		if (nativeWindowShellAvailable) {
 			rootPane.putClientProperty(USE_WINDOW_DECORATIONS, Boolean.TRUE);
 			rootPane.putClientProperty(FULL_WINDOW_CONTENT, Boolean.TRUE);
+			// Keep the OS caption hit-test band as tall as the Office header so
+			// title-area context clicks work across the whole visible chrome row.
+			rootPane.putClientProperty(TITLE_BAR_HEIGHT, FlatUiSupport.ribbonChromeHeight());
 			// The brand icon is rendered in the Office header in this mode.
 			rootPane.putClientProperty(TITLE_BAR_SHOW_TITLE, Boolean.FALSE);
 			rootPane.putClientProperty(TITLE_BAR_SHOW_ICON, Boolean.FALSE);

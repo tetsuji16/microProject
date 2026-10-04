@@ -5,11 +5,12 @@
  *******************************************************************************/
 package com.microproject.ui.shell;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.awt.Component;
 import java.awt.Frame;
 import java.awt.GraphicsEnvironment;
 import java.awt.Point;
@@ -18,10 +19,10 @@ import java.awt.Robot;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 
+import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
-import javax.swing.JComponent;
 import javax.swing.UIManager;
 
 import org.junit.jupiter.api.AfterEach;
@@ -35,6 +36,7 @@ import com.microproject.pm.graphic.frames.MainRibbonFrame;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.testsupport.WindowAcceptanceAssertions;
 import com.microproject.util.Environment;
+import com.microproject.util.FlatUiSupport;
 
 /** Verifies that Windows caption movement is supplied by FlatLaf/Windows. */
 class WindowShellNativeDecorationGuiAcceptanceTest {
@@ -77,6 +79,8 @@ class WindowShellNativeDecorationGuiAcceptanceTest {
 		assertTrue(FlatLaf.isUseNativeWindowDecorations(),
 			"Windows must enable FlatLaf native decorations before creating the shell frame");
 		assertEquals(Boolean.TRUE, frame.getRootPane().getClientProperty(WindowShellInstaller.USE_WINDOW_DECORATIONS));
+		assertEquals(FlatUiSupport.ribbonChromeHeight(), frame.getRootPane().getClientProperty(WindowShellInstaller.TITLE_BAR_HEIGHT),
+			"FlatLaf's native caption hit-test band must cover the Office chrome row");
 		assertEquals(18, brand[0].getPreferredSize().width);
 		assertTrue(brand[0] instanceof JLabel label && label.getIcon() != null,
 			"Windows full-content header must show the application icon");
@@ -169,14 +173,15 @@ class WindowShellNativeDecorationGuiAcceptanceTest {
 		robot.waitForIdle();
 	}
 
-	private static void rightClick(Robot robot, java.awt.Component component) throws Exception {
-		Point[] point = new Point[1];
-		SwingUtilities.invokeAndWait(() -> point[0] = component.getLocationOnScreen());
-		point[0].translate(Math.max(4, component.getWidth() / 2), Math.max(4, component.getHeight() / 2));
+	private static void rightClick(Robot robot, Component component) throws Exception {
+		Rectangle bounds = WindowAcceptanceAssertions.boundsOnScreen(component);
+		Point point = WindowAcceptanceAssertions.robotPointFor(bounds);
 		robot.waitForIdle();
-		robot.mouseMove(point[0].x, point[0].y);
+		robot.mouseMove(point.x, point.y);
 		robot.mousePress(InputEvent.BUTTON3_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
+		robot.waitForIdle();
+		robot.delay(500);
 		robot.waitForIdle();
 	}
 

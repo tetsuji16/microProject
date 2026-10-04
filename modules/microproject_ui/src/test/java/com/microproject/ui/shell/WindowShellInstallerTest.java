@@ -6,11 +6,14 @@
 package com.microproject.ui.shell;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import javax.swing.JRootPane;
-import com.microproject.util.Environment;
 
 import org.junit.jupiter.api.Test;
+
+import com.microproject.util.Environment;
+import com.microproject.util.FlatUiSupport;
 
 class WindowShellInstallerTest {
 	@Test
@@ -20,6 +23,8 @@ class WindowShellInstallerTest {
 
 		assertEquals(Boolean.TRUE, rootPane.getClientProperty(WindowShellInstaller.USE_WINDOW_DECORATIONS));
 		assertEquals(Boolean.TRUE, rootPane.getClientProperty(WindowShellInstaller.FULL_WINDOW_CONTENT));
+		assertEquals(FlatUiSupport.ribbonChromeHeight(),
+			rootPane.getClientProperty(WindowShellInstaller.TITLE_BAR_HEIGHT));
 		assertEquals(Boolean.FALSE, rootPane.getClientProperty(WindowShellInstaller.TITLE_BAR_SHOW_ICON));
 		assertEquals(Boolean.FALSE, rootPane.getClientProperty(WindowShellInstaller.TITLE_BAR_SHOW_TITLE));
 	}
@@ -35,6 +40,7 @@ class WindowShellInstallerTest {
 			assertEquals(null, rootPane.getClientProperty(WindowShellInstaller.USE_WINDOW_DECORATIONS));
 		}
 		assertEquals(Boolean.FALSE, rootPane.getClientProperty(WindowShellInstaller.FULL_WINDOW_CONTENT));
+		assertNull(rootPane.getClientProperty(WindowShellInstaller.TITLE_BAR_HEIGHT));
 		assertEquals(Boolean.TRUE, rootPane.getClientProperty(WindowShellInstaller.TITLE_BAR_SHOW_ICON));
 		assertEquals(Boolean.TRUE, rootPane.getClientProperty(WindowShellInstaller.TITLE_BAR_SHOW_TITLE));
 	}
