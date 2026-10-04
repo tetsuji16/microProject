@@ -84,7 +84,17 @@ class IconManagerRibbonIconTest {
 	@Test
 	void informationRibbonIconUsesTheSharedFluentMonochromeGlyph() {
 		assertEquals("fluent-info.svg", IconManager.getConfiguredIconName("ribbon.information"));
-		BufferedImage image = paint(IconManager.getRibbonIcon("ribbon.information", 32, 32), 32, 32);
+		assertMonochromeGlyph("ribbon.information");
+	}
+
+	@Test
+	void customFieldsRibbonIconUsesTheSharedFluentMonochromeGlyph() {
+		assertEquals("fluent-grid-dots.svg", IconManager.getConfiguredIconName("ribbon.customFields"));
+		assertMonochromeGlyph("ribbon.customFields");
+	}
+
+	private static void assertMonochromeGlyph(String key) {
+		BufferedImage image = paint(IconManager.getRibbonIcon(key, 32, 32), 32, 32);
 		for (int y = 0; y < image.getHeight(); y++) {
 			for (int x = 0; x < image.getWidth(); x++) {
 				int pixel = image.getRGB(x, y);
@@ -93,7 +103,7 @@ class IconManagerRibbonIconTest {
 				int green = (pixel >>> 8) & 0xff;
 				int blue = pixel & 0xff;
 				assertTrue(Math.abs(red - green) <= 1 && Math.abs(green - blue) <= 1,
-					"information glyph must not reintroduce the old green outlined icon frame");
+					key + " must remain monochrome and not reintroduce the old green outlined icon frame");
 			}
 		}
 	}
