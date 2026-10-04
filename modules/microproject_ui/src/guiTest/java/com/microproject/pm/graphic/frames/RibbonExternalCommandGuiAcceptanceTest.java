@@ -836,6 +836,13 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			assertFalse(chooserCallReturned.get(), route + " native chooser returned before physical Cancel");
 			captureNativeChooserScreen(robot, "issue-398-native-ribbon-open-before-cancel.png");
 			Rectangle bounds = chooserBounds[0];
+			// The native dialog can be visible while another always-on-top test
+			// window still owns foreground activation. Activate the chooser through
+			// its title bar first so the following click reaches its Cancel control.
+			robot.mouseMove(bounds.x + bounds.width / 2, bounds.y + Math.max(12, bounds.height / 30));
+			robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+			robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+			robot.delay(150);
 			int cancelX = bounds.x + bounds.width - Math.round(bounds.width * 0.06f);
 			int cancelY = bounds.y + bounds.height - Math.round(bounds.height * 0.055f);
 			robot.mouseMove(cancelX, cancelY);
