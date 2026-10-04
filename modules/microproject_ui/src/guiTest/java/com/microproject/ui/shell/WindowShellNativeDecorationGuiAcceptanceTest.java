@@ -135,6 +135,7 @@ class WindowShellNativeDecorationGuiAcceptanceTest {
 				+ ", actual=" + frame.getBounds());
 		WindowAcceptanceAssertions.assertWithinUsableWorkArea(frame, "caption-button-restored primary native window");
 
+		assertTrue(frame.isActive(), "the restored native window must remain active for the physical Alt+Space route");
 		pressAltSpace(robot);
 		pressKey(robot, KeyEvent.VK_X); // Windows system-menu accelerator for Maximize.
 		GuiAcceptanceSupport.await(() -> isMaximized(frame),
