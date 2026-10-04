@@ -75,6 +75,23 @@ Use `rg` / `rg --files` for discovery. Search by symbol and behavior before intr
 
 Respect the dependency direction expressed in the Gradle files. Put workflow coordination in `microproject_application`, reusable domain behavior in `microproject_core`, format conversion in `microproject_exchange`, and view-only behavior in `microproject_ui`.
 
+## Ribbon renderer decision
+
+- The application ribbon renderer is Swing-based (`ModernRibbonPanel`). Do not
+  replace it with Flamingo `JRibbon` or build a second parallel renderer. This
+  is a deliberate decision recorded in
+  [`docs/architecture/ADR-0002-swing-ribbon-renderer.md`](docs/architecture/ADR-0002-swing-ribbon-renderer.md).
+- Flamingo may remain for unrelated menu, icon, or shared UI APIs that still
+  use it; that is not permission to use its ribbon renderer. Do not add new
+  Flamingo dependencies or ribbon-specific adapters without first revisiting
+  the ADR with a rendered screenshot comparison against the current Microsoft
+  Office reference and a demonstrated benefit over the Swing implementation.
+- The decision follows the rollback in commit `e5ebc5631`: Flamingo's default
+  ribbon structure and styling did not match the requested current Office
+  appearance, and adapting it added styling/UI complexity without improving
+  fidelity. Reusing an established library is not automatically the lower-cost
+  choice when its component model conflicts with the target design.
+
 ## Dependency and namespace hygiene (eliminate ProjectLibre coupling)
 
 The fork's canonical namespace is `com.microproject` (and the legacy serialization
