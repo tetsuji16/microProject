@@ -186,6 +186,8 @@ if ($Suite -eq 'full') {
     'com.microproject.dialog.ProjectDialogGuiAcceptanceTest',
     'com.microproject.dialog.ChangeWorkingTimeDialogGuiAcceptanceTest',
     'com.microproject.dialog.ProjectInformationDialogGuiAcceptanceTest',
+    'com.microproject.dialog.ResourceMappingDialogGuiAcceptanceTest',
+    'com.microproject.pm.graphic.spreadsheet.TaskInformationGuiAcceptanceTest',
     'com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest',
     'com.microproject.pm.graphic.frames.workspace.DefaultFrameManagerGuiAcceptanceTest',
     'com.microproject.ui.shell.WindowShellNativeDecorationGuiAcceptanceTest',

@@ -384,3 +384,4 @@
 
 - #724 Resource Mapping dialog: no GUI acceptance test existed for ResourceMappingDialog. Added a real modal-display fixture from ResourceMappingForm, checks the shared preferred-text, usable-screen, and resize assertions, saves resource-mapping-dialog.png, and closes with a physical Robot click. Focused local GUI test passed; exact-head matrix remains pending after push.
 esource-mapping-dialog.png, and closes with a physical Robot click. Focused local GUI test passed; exact-head matrix remains pending after push.
+- #724 locale/DPI screenshot coverage: the full visual matrix now includes ResourceMappingDialogGuiAcceptanceTest and TaskInformationGuiAcceptanceTest in every ja/en × 100/125/150 leg. This makes the Resource Mapping popup and all eight Task Information tabs available in each uploaded screenshot set; the PowerShell workflow script parsed successfully. Exact-head result is pending.
