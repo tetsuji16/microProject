@@ -15,8 +15,6 @@ import org.pushingpixels.flamingo.api.common.AbstractCommandButton;
 import org.pushingpixels.flamingo.api.common.JCommandToggleButton;
 import org.pushingpixels.flamingo.api.ribbon.JRibbon;
 
-import com.microproject.menu.testsupport.UiComponentWalker;
-
 /** Adapts native Flamingo controls to the existing Robot test vocabulary. */
 public final class RibbonGuiButton {
 	private RibbonGuiButton() { }
@@ -33,15 +31,7 @@ public final class RibbonGuiButton {
 	}
 
 	public static Component findCommand(Component root, String commandId) {
-		for (Component component : UiComponentWalker.flatten(root))
-			if (component instanceof AbstractCommandButton button && commandId.equals(button.getName())) return button;
-		for (Component component : UiComponentWalker.flatten(root)) {
-			if (component instanceof org.pushingpixels.flamingo.api.ribbon.JRibbonBand band
-				&& band.getPopupRibbonBand() != null)
-				for (Component popupChild : UiComponentWalker.flatten(band.getPopupRibbonBand()))
-					if (popupChild instanceof AbstractCommandButton button && commandId.equals(button.getName())) return button;
-		}
-		return null;
+		return RibbonGuiSupport.findCommand(root, commandId);
 	}
 
 	private static final class RibbonButton extends JToggleButton {

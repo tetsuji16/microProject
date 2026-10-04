@@ -81,7 +81,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	public static final String DISPLAY_MODE_POPUP_NAME = "microproject.ribbon.displayModePopup";
 	static final String RIBBON_SURFACE_COMPONENT_NAME = "projectLibreRibbonSurface";
 	static final String RIBBON_BAND_COMPONENT_NAME = "projectLibreRibbonBand";
-	static final String COLLAPSED_POPUP_PROPERTY = "MicroProject.ribbonCollapsedPopup";
+	public static final String COLLAPSED_POPUP_PROPERTY = "MicroProject.ribbonCollapsedPopup";
 	public static final String COLLAPSED_TAB_LAUNCHER_PROPERTY = "MicroProject.ribbonCollapsedTabLauncher";
 	public static final String BAND_PROXY_PROPERTY = "MicroProject.ribbonBandProxy";
 	public static final String SCROLL_PREVIOUS_PROPERTY = "MicroProject.ribbonScrollPrevious";

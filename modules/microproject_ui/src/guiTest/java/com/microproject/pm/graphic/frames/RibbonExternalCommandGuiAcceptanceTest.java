@@ -41,7 +41,6 @@ import javax.swing.SwingUtilities;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
-import org.pushingpixels.flamingo.api.ribbon.JRibbon;
 
 import com.formdev.flatlaf.ui.FlatNativeWindowsLibrary;
 import com.microproject.dialog.AbstractDialog;
@@ -651,25 +650,20 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		String taskTabTitle = java.util.ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("TaskRibbonTask.title");
 		GuiAcceptanceSupport.await(() -> {
-			for (Component component : flatten(window.getRibbonPanel())) {
-				if (component instanceof JRibbon ribbon && ribbon.isShowing() && ribbon.getTaskCount() > 1) {
-					try {
-						restoredTaskTab[0] = findRibbonTab(window.getRibbonPanel(), taskTabTitle);
-						return true;
-					} catch (AssertionError notLaidOutYet) {
-						// A visible wrapper can precede installation of its native tab controls.
-					}
-				}
+			try {
+				restoredTaskTab[0] = findRibbonTab(window.getRibbonPanel(), taskTabTitle);
+				return restoredTaskTab[0].isShowing();
+			} catch (AssertionError notLaidOutYet) {
+				return false;
 			}
-			return false;
-		}, "Restarted JRibbon did not lay out its native Task tab");
+		}, "Restarted Swing ribbon did not expose its Task tab");
 		AbstractButton taskTab = restoredTaskTab[0];
 		activateWindowForRobot(robot);
 		click(robot, taskTab);
 		GuiAcceptanceSupport.await(taskTab::isSelected, "Restarted application did not restore the Task ribbon tab");
 		AbstractButton restoredTaskInformation = RibbonGuiSupport.findVisibleOrExpand(robot, window.getRibbonPanel(), "RibbonTaskInformation");
 		assertTrue(window.isShowing() && manager.getFrameManager() != null && restoredTaskInformation.isShowing(),
-			"Restarted application did not restore an interactive JRibbon in the existing visible window");
+			"Restarted application did not restore an interactive ribbon in the existing visible window");
 		assertEquals("de_DE", localePreferences.get("locale", "missing"),
 			"Locale restart did not preserve the selected preference");
 		assertTrue(manager.getContainer() == window,

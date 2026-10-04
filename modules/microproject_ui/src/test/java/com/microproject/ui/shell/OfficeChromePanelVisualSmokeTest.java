@@ -94,6 +94,7 @@ class OfficeChromePanelVisualSmokeTest {
 		} finally {
 			graphics.dispose();
 		}
+		assertRibbonColorsArePresentInRenderedPixels(image);
 		assertSearchBoxHasNoOutline(image, panel, searchBox);
 
 		Path output = Path.of("build", "reports", "ribbon", "office-chrome-ribbon-smoke.png");
@@ -232,6 +233,13 @@ class OfficeChromePanelVisualSmokeTest {
 			"the search accessory should not draw an Office-absent rounded outline");
 		assertEquals(chromeRgb, image.getRGB(bottomCenter.x, bottomCenter.y),
 			"the search accessory should remain visually open against the tab strip");
+	}
+
+	private static void assertRibbonColorsArePresentInRenderedPixels(BufferedImage image) {
+		assertEquals(MicroProjectTheme.tokens().ribbonChromeBackground().getRGB(), image.getRGB(512, 10),
+			"the rendered Office title/tab chrome must use the reference gray");
+		assertEquals(MicroProjectTheme.tokens().ribbonSurfaceBackground().getRGB(), image.getRGB(1010, 120),
+			"the expanded ribbon command area must render white rather than inherit chrome gray");
 	}
 
 	private static JComponent findNamedComponent(JPanel panel, String name) {
