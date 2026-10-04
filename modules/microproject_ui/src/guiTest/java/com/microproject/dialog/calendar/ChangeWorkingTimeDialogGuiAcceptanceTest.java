@@ -120,7 +120,8 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 			SwingUtilities.invokeLater(dialog::doModal);
 		});
 		GuiAcceptanceSupport.await(() -> dialog != null && dialog.isVisible(), "working-time dialog did not open");
-		int exceptionsBefore = dialog.getScratchCalendar().getExceptionDays().length;
+		int[] exceptionsBefore = new int[1];
+		SwingUtilities.invokeAndWait(() -> exceptionsBefore[0] = dialog.getScratchCalendar().getExceptionDays().length);
 		Robot robot = new Robot();
 		robot.setAutoDelay(45);
 		click(robot, dialog.importNonWorkingDays);
@@ -131,7 +132,7 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 			"calendar import chooser must expose Cancel");
 		click(robot, cancel);
 		GuiAcceptanceSupport.await(() -> visibleFileChooser() == null, "calendar import Cancel did not close the chooser");
-		assertEquals(exceptionsBefore, dialog.getScratchCalendar().getExceptionDays().length,
+		assertEquals(exceptionsBefore[0], exceptionCount(),
 			"cancel must not mutate calendar exceptions");
 
 		importFixture = Files.createTempFile("calendar-exceptions-", ".csv");
@@ -146,14 +147,32 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 		click(robot, findChooserApprove(approvedChooser));
 		GuiAcceptanceSupport.await(() -> visibleFileChooser() == null, "calendar import approval did not close the chooser");
 		long importedDate = LocalDate.of(2026, 10, 5).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli();
-		GuiAcceptanceSupport.await(() -> {
-			for (var exception : dialog.getScratchCalendar().getExceptionDays())
-				if (exception.getStart() == importedDate && exception.getEnd() == importedDate && !exception.isWorking())
-					return true;
-			return false;
-		}, "approved CSV import did not add October 5 as a non-working exception");
-		assertEquals(exceptionsBefore + 1, dialog.getScratchCalendar().getExceptionDays().length,
+		GuiAcceptanceSupport.await(() -> containsNonWorkingException(importedDate),
+			"approved CSV import did not add October 5 as a non-working exception");
+		assertEquals(exceptionsBefore[0] + 1, exceptionCount(),
 			"approved CSV import must apply its date to the scratch calendar");
+	}
+
+	private int exceptionCount() throws Exception {
+		int[] count = new int[1];
+		SwingUtilities.invokeAndWait(() -> count[0] = dialog.getScratchCalendar().getExceptionDays().length);
+		return count[0];
+	}
+
+	private boolean containsNonWorkingException(long date) {
+		boolean[] found = new boolean[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				for (var exception : dialog.getScratchCalendar().getExceptionDays())
+					if (exception.getStart() == date && exception.getEnd() == date && !exception.isWorking()) {
+						found[0] = true;
+						break;
+					}
+			});
+		} catch (Exception exception) {
+			throw new AssertionError("could not inspect the imported calendar date on the EDT", exception);
+		}
+		return found[0];
 	}
 
 	@Test
