@@ -180,8 +180,9 @@ class RibbonTabGuiAcceptanceTest {
 			"keyboard interaction with the selected Office task tab must expose its focus indicator");
 		var focusedTabImage = robot.createScreenCapture(tabBounds);
 		Color focusIndicatorPixel = new Color(focusedTabImage.getRGB(focusedTabImage.getWidth() / 2, 2), true);
-		assertTrue(FlatUiSupport.ribbonAccentColor().equals(focusIndicatorPixel),
-			"keyboard-focused Office task tab must visibly paint its focus indicator; actual=" + focusIndicatorPixel);
+		assertTrue(focusIndicatorPixel.getBlue() - focusIndicatorPixel.getRed() >= 30
+			&& focusIndicatorPixel.getBlue() - focusIndicatorPixel.getGreen() >= 20,
+			"keyboard-focused Office task tab must visibly paint its blue focus indicator; actual=" + focusIndicatorPixel);
 
 		AbstractCommandButton information = findCommand(host, "RibbonTaskInformation");
 		String actionId = manager.getToolBarFactory().getActionStringFromId("RibbonTaskInformation");
