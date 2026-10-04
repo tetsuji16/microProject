@@ -293,7 +293,7 @@ public final class FlatUiSupport {
 	}
 
 	public static Color ribbonTabUnderlineColor() {
-		return ribbonAccentColor();
+		return color(THEME_KEY_PREFIX + "ribbonTabUnderlineColor", new Color(0x0064BB));
 	}
 
 	public static Color tabSelectedForeground() {

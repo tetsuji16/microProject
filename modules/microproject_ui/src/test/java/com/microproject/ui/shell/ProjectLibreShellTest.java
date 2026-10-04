@@ -82,7 +82,8 @@ class ProjectLibreShellTest {
 		assertTrue(hasComponent(panel, OfficeChromePanel.DOCUMENT_TITLE_NAME));
 		assertFalse(hasComponent(panel, OfficeChromePanel.WINDOW_BUTTONS_PLACEHOLDER_NAME),
 			"the shared header fixture has no native window button area to reserve");
-		assertTrue(hasComponent(panel, OfficeChromePanel.RIBBON_DISPLAY_OPTIONS_FOOTER_NAME));
+		assertFalse(hasComponent(panel, "officeChromeRibbonDisplayOptionsFooter"),
+			"the ribbon chrome must not reserve a separate display-options footer row");
 		assertTrue(hasComponent(panel, OfficeChromePanel.RIBBON_DISPLAY_OPTIONS_NAME));
 	}
 

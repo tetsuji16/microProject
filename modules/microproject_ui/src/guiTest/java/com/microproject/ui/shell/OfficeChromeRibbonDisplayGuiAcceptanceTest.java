@@ -43,7 +43,7 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 	}
 
 	@Test
-	void bottomRightDisplayOptionsPhysicallySwitchBetweenTabsOnlyAndAlwaysShow() throws Exception {
+	void titleBarDisplayOptionsPhysicallySwitchBetweenTabsOnlyAndAlwaysShow() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
 		JPanel ribbonHost = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
@@ -66,30 +66,30 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(frame::isActive, "office chrome test window did not become active");
 		GuiAcceptanceSupport.await(() -> options.isShowing()
 			&& options.getWidth() > 0 && options.getHeight() > 0,
-			"bottom-right display options button did not become laid out");
-		assertTrue(OfficeChromePanel.RIBBON_DISPLAY_OPTIONS_FOOTER_NAME.equals(options.getParent().getName()),
-			"ribbon display options must be in the ribbon footer, not the window title bar");
+			"title-bar display options button did not become laid out");
+		assertTrue(OfficeChromePanel.RIGHT_ACTIONS_NAME.equals(options.getParent().getName()),
+			"ribbon display options should share the title bar's right-side command cluster");
 		Rectangle surfaceBounds = bounds(chrome, OfficeChromePanel.RIBBON_SURFACE_NAME);
 		Rectangle buttonBounds = bounds(chrome, OfficeChromePanel.RIBBON_DISPLAY_OPTIONS_NAME);
-		assertTrue(buttonBounds.getMaxX() >= surfaceBounds.getMaxX() - 40,
-			"ribbon display options are not aligned with the lower-right ribbon edge: surface="
+		assertTrue(buttonBounds.getMaxX() >= surfaceBounds.getMaxX() - 80,
+			"ribbon display options are not aligned with the window's right edge: surface="
 				+ surfaceBounds + ", button=" + buttonBounds);
-		assertTrue(buttonBounds.getMaxY() >= surfaceBounds.getMaxY() - 40,
-			"ribbon display options are not at the bottom of the ribbon surface: surface="
+		assertTrue(buttonBounds.getY() < surfaceBounds.getY(),
+			"ribbon display options must remain outside the ribbon surface: surface="
 				+ surfaceBounds + ", button=" + buttonBounds);
 		robot.waitForIdle();
 		click(robot, options);
 		click(robot, popupItem(UsabilityStrings.text("chrome.ribbonTabsOnly")));
 		GuiAcceptanceSupport.await(() -> ribbon.getRibbonDisplayMode() == RibbonDisplayMode.TABS_ONLY,
-			"bottom-right display options did not switch to tabs-only mode");
+			"title-bar display options did not switch to tabs-only mode");
 		assertTrue(!ribbon.isCommandSurfaceVisible());
 
 		GuiAcceptanceSupport.await(options::isShowing,
-			"bottom-right display options became unreachable after collapsing the command bands");
+			"title-bar display options became unreachable after collapsing the command bands");
 		click(robot, options);
 		click(robot, popupItem(UsabilityStrings.text("chrome.ribbonAlwaysShow")));
 		GuiAcceptanceSupport.await(() -> ribbon.getRibbonDisplayMode() == RibbonDisplayMode.ALWAYS_SHOW,
-			"bottom-right display options did not restore the command surface");
+			"title-bar display options did not restore the command surface");
 		assertTrue(ribbon.isCommandSurfaceVisible());
 	}
 

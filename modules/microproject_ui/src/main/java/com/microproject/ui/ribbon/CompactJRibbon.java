@@ -21,6 +21,7 @@ final class CompactJRibbon extends JRibbon {
 		if (compactUiInstalled) {
 			setUI(new CompactRibbonUI());
 			FlamingoRibbonController.styleRibbonSurface(this);
+			FlamingoRibbonController.styleRibbonTaskTabs(this);
 		} else {
 			super.updateUI();
 		}

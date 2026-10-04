@@ -17,4 +17,9 @@ final class CompactRibbonUI extends BasicRibbonUI {
 	public int getTaskbarHeight() {
 		return 0;
 	}
+
+	@Override
+	public int getTaskToggleButtonHeight() {
+		return 30;
+	}
 }

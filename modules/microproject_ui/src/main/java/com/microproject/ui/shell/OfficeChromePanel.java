@@ -73,7 +73,6 @@ final class OfficeChromePanel extends JPanel {
 	static final String RIBBON_DISPLAY_OPTIONS_NAME = "officeChromeRibbonDisplayOptions";
 	static final String RIBBON_DISPLAY_OPTIONS_POPUP_NAME = "officeChromeRibbonDisplayOptionsPopup";
 	static final String RIBBON_SURFACE_NAME = "officeChromeRibbonSurface";
-	static final String RIBBON_DISPLAY_OPTIONS_FOOTER_NAME = "officeChromeRibbonDisplayOptionsFooter";
 	static final String WINDOW_BUTTONS_PLACEHOLDER_NAME = "officeChromeWindowButtonsPlaceholder";
 	static final String BRAND_ICON_NAME = "officeChromeBrandIcon";
 
@@ -135,14 +134,6 @@ final class OfficeChromePanel extends JPanel {
 		surface.setName(RIBBON_SURFACE_NAME);
 		surface.setOpaque(false);
 		surface.add(ribbonPanel, BorderLayout.CENTER);
-
-		JPanel footer = new JPanel(new BorderLayout());
-		footer.setName(RIBBON_DISPLAY_OPTIONS_FOOTER_NAME);
-		footer.setOpaque(true);
-		footer.setBackground(FlatUiSupport.ribbonSurfaceColor());
-		footer.setBorder(new EmptyBorder(0, 0, 2, FlatUiSupport.ribbonHorizontalInset()));
-		footer.add(createRibbonDisplayOptionsButton(), BorderLayout.EAST);
-		surface.add(footer, BorderLayout.SOUTH);
 		return surface;
 	}
 
@@ -291,6 +282,9 @@ final class OfficeChromePanel extends JPanel {
 		cluster.putClientProperty("JComponent.titleBarCaption", Boolean.FALSE);
 		GridBagConstraints constraints = new GridBagConstraints();
 		constraints.gridx = 0;
+		constraints.insets = new Insets(0, 0, 0, 4);
+		cluster.add(createRibbonDisplayOptionsButton(), constraints);
+		constraints.gridx++;
 		constraints.insets = new Insets(0, 0, 0, 4);
 		cluster.add(createHelpButton(), constraints);
 		if (officeWindow) {

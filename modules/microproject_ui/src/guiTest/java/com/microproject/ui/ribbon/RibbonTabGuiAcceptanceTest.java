@@ -27,6 +27,7 @@ import javax.swing.Action;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
+import javax.swing.border.EmptyBorder;
 import javax.imageio.ImageIO;
 
 import org.junit.jupiter.api.AfterEach;
@@ -46,6 +47,7 @@ import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.ui.shell.ProjectLibreShell;
 import com.microproject.util.Environment;
 import com.microproject.util.FlatLafSupport;
+import com.microproject.util.FlatUiSupport;
 
 /** Physical GUI checks for the live Flamingo JRibbon path. */
 class RibbonTabGuiAcceptanceTest {
@@ -97,12 +99,9 @@ class RibbonTabGuiAcceptanceTest {
 		assertTrue(host.getHeight() <= host.getPreferredSize().height + 4,
 			"the live ribbon shell must keep its natural compact height instead of stretching into the document workspace; "
 				+ "actual=" + host.getHeight() + ", preferred=" + host.getPreferredSize().height);
-		JComponent displayOptionsFooter = UiComponentWalker.flatten(host).stream()
-			.filter(JComponent.class::isInstance).map(JComponent.class::cast)
-			.filter(component -> "officeChromeRibbonDisplayOptionsFooter".equals(component.getName()))
-			.findFirst().orElseThrow();
-		assertTrue(displayOptionsFooter.isOpaque() && new Color(0xF3F2F1).equals(displayOptionsFooter.getBackground()),
-			"the ribbon display-options footer must continue the Office ribbon surface instead of showing a blue gap");
+		assertTrue(UiComponentWalker.flatten(host).stream()
+			.noneMatch(component -> "officeChromeRibbonDisplayOptionsFooter".equals(component.getName())),
+			"the ribbon surface must not add a separate display-options footer row");
 
 		Robot robot = new Robot(frame.getGraphicsConfiguration().getDevice());
 		robot.setAutoDelay(35);
@@ -148,6 +147,19 @@ class RibbonTabGuiAcceptanceTest {
 				+ ", screen=" + taskTab.getLocationOnScreen()
 				+ ", receivedMousePresses=" + physicalPresses.get());
 		assertTrue(physicalPresses.get() > 0, "Robot must physically reach the native Flamingo task tab");
+		assertTrue(taskTab.getUI() instanceof OfficeRibbonTaskTabUI,
+			"Flamingo task tabs must use the shared flat Office tab-strip delegate");
+		assertTrue(taskTab.getBorder() instanceof EmptyBorder,
+			"Office task tabs must not retain Flamingo's full rectangular selection border");
+		Point tabLocation = taskTab.getLocationOnScreen();
+		Rectangle tabBounds = new Rectangle(tabLocation.x, tabLocation.y, taskTab.getWidth(), taskTab.getHeight());
+		robot.mouseMove(tabBounds.x - 8, tabBounds.y - 8);
+		robot.delay(100);
+		var tabImage = robot.createScreenCapture(tabBounds);
+		Color underlinePixel = new Color(tabImage.getRGB(tabImage.getWidth() / 2, tabImage.getHeight() - 2), true);
+		assertTrue(FlatUiSupport.ribbonTabUnderlineColor().equals(underlinePixel),
+			"selected Office task tab must render the reference underline color at the bottom; actual=" + underlinePixel
+				+ ", expected=" + FlatUiSupport.ribbonTabUnderlineColor());
 
 		AbstractCommandButton information = findCommand(host, "RibbonTaskInformation");
 		String actionId = manager.getToolBarFactory().getActionStringFromId("RibbonTaskInformation");

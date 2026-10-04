@@ -144,6 +144,7 @@ public final class MicroProjectTheme {
 		UIManager.put("MicroProject.ribbonSurfaceBorderColor", color(dark, 0xD1D1D1, 0x42464D));
 		UIManager.put("MicroProject.ribbonTabHoverColor", color(dark, 0xEAF3FF, 0x353B44));
 		UIManager.put("MicroProject.ribbonTabBorderHoverColor", color(dark, 0xB9D7F5, 0x4D5968));
+		UIManager.put("MicroProject.ribbonTabUnderlineColor", color(dark, 0x0064BB, 0x73B5FF));
 		UIManager.put("MicroProject.ribbonBandSeparatorColor", color(dark, 0xD8E0EA, 0x41464D));
 		UIManager.put("MicroProject.ribbonBandTitleForeground", color(dark, 0x616161, 0xC2C6CC));
 		UIManager.put("MicroProject.ribbonIconColor", color(dark, 0x323130, 0xD5D8DD));

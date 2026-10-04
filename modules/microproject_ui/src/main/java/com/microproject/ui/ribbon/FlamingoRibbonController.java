@@ -86,6 +86,7 @@ final class FlamingoRibbonController extends JPanel implements RibbonController 
 		add(ribbon, BorderLayout.CENTER);
 		build(model);
 		styleRibbonSurface(ribbon);
+		styleRibbonTaskTabs(ribbon);
 	}
 
 	private void build(SwingRibbonModel model) {
@@ -175,6 +176,17 @@ final class FlamingoRibbonController extends JPanel implements RibbonController 
 			&& Objects.equals(component.getBackground(), panelBackground)) component.setBackground(surface);
 		for (Component child : root.getComponents())
 			if (child instanceof Container container) styleRibbonSurface(container);
+	}
+
+	static void styleRibbonTaskTabs(JRibbon ribbon) {
+		if (!(ribbon.getUI() instanceof org.pushingpixels.flamingo.internal.ui.ribbon.BasicRibbonUI ui))
+			return;
+		for (org.pushingpixels.flamingo.internal.ui.ribbon.JRibbonTaskToggleButton tab : ui.getTaskToggleButtons().values()) {
+			tab.setOpaque(false);
+			tab.setBackground(FlatUiSupport.ribbonChromeBackground());
+			tab.setUI(new OfficeRibbonTaskTabUI());
+			tab.setBorder(BorderFactory.createEmptyBorder(4, 10, 7, 10));
+		}
 	}
 
 	private static List<RibbonBandResizePolicy> resizePolicies(JRibbonBand band) {
