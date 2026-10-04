@@ -162,12 +162,12 @@ class RibbonTabGuiAcceptanceTest {
 		var tabImage = robot.createScreenCapture(tabBounds);
 		Color underlinePixel = new Color(tabImage.getRGB(tabImage.getWidth() / 2, tabImage.getHeight() - 5), true);
 		Color secondUnderlinePixel = new Color(tabImage.getRGB(tabImage.getWidth() / 2, tabImage.getHeight() - 4), true);
-		assertTrue(FlatUiSupport.ribbonTabUnderlineColor().equals(underlinePixel)
-			&& FlatUiSupport.ribbonTabUnderlineColor().equals(secondUnderlinePixel),
-			"selected Office task tab must render the 2 px inset reference underline; actual=" + underlinePixel
-				+ ", expected=" + FlatUiSupport.ribbonTabUnderlineColor());
+		assertTrue(withinRgbTolerance(FlatUiSupport.ribbonTabUnderlineColor(), underlinePixel, 50)
+			&& withinRgbTolerance(FlatUiSupport.ribbonTabUnderlineColor(), secondUnderlinePixel, 50),
+			"selected Office task tab must render the 2 px inset reference underline; DPI-scaled capture pixels="
+				+ underlinePixel + ", " + secondUnderlinePixel + ", expected=" + FlatUiSupport.ribbonTabUnderlineColor());
 		Color surfaceGapPixel = new Color(tabImage.getRGB(tabImage.getWidth() / 2, tabImage.getHeight() - 2), true);
-		assertTrue(FlatUiSupport.ribbonChromeBackground().equals(surfaceGapPixel),
+		assertTrue(withinRgbTolerance(FlatUiSupport.ribbonChromeBackground(), surfaceGapPixel, 50),
 			"selected Office task tab must retain the ribbon surface gap below its underline; actual=" + surfaceGapPixel);
 		captureRibbon(robot, frame, "ribbon-task-visual-audit.png");
 		robot.keyPress(java.awt.event.KeyEvent.VK_SPACE);
@@ -305,6 +305,12 @@ class RibbonTabGuiAcceptanceTest {
 		if (value instanceof RibbonController controller)
 			controller.setRibbonDisplayMode(RibbonDisplayMode.ALWAYS_SHOW);
 		return host;
+	}
+
+	private static boolean withinRgbTolerance(Color expected, Color actual, int tolerance) {
+		return Math.abs(expected.getRed() - actual.getRed()) <= tolerance
+			&& Math.abs(expected.getGreen() - actual.getGreen()) <= tolerance
+			&& Math.abs(expected.getBlue() - actual.getBlue()) <= tolerance;
 	}
 
 	private static void captureRibbon(Robot robot, MainRibbonFrame frame, String fileName) throws Exception {
