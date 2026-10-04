@@ -32,6 +32,7 @@ import java.util.Iterator;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import com.microproject.core.time.TimeUtil;
 import com.microproject.exchange.MicrosoftImporter;
 import com.microproject.job.Job;
 import com.microproject.job.JobQueue;
@@ -43,6 +44,7 @@ import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.scheduling.ConstraintType;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
@@ -229,6 +231,46 @@ public class MpxExportTrackingTest extends TestCase {
 		assertTrue(((Task) incoming.getPredecessor()).isExternal());
 		assertEquals(external.getUniqueId(), ((Task) incoming.getPredecessor()).getProjectId());
 		assertEquals(DependencyType.Kind.SS.code(), incoming.getDependencyType());
+	}
+
+	public void testMicrosoftXmlRoundTripKeepsTaskBeforeProjectHeaderStart() throws Exception {
+		Project project = createProject();
+		NormalTask task = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		task.setName("Earlier than project header");
+		java.util.Calendar projectStartCalendar = java.util.Calendar.getInstance();
+		projectStartCalendar.clear();
+		projectStartCalendar.set(2026, java.util.Calendar.OCTOBER, 5, 8, 0, 0);
+		long projectStart = projectStartCalendar.getTimeInMillis();
+		java.util.Calendar taskStartCalendar = (java.util.Calendar) projectStartCalendar.clone();
+		// Keep both boundaries on working days so the test isolates project-boundary
+		// import ordering from normal calendar adjustment.
+		taskStartCalendar.add(java.util.Calendar.DAY_OF_MONTH, -3);
+		long taskStart = taskStartCalendar.getTimeInMillis();
+		project.setStartDate(projectStart);
+		task.setDuration(com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
+		// Gantt interval edits can legitimately move a scheduled task earlier than
+		// the project header boundary. Preserve the canonical date and SNET rule as
+		// the MSPDI snapshot input, just as a completed Gantt drag does.
+		task.getCurrentSchedule().setStart(taskStart);
+		task.setScheduleConstraint(ConstraintType.Kind.SNET, taskStart);
+
+		ByteArrayOutputStream output = new ByteArrayOutputStream();
+		MicrosoftImporter exporter = new MicrosoftImporter();
+		exporter.setFileName("task-before-project-start.xml");
+		assertTrue(exporter.saveProject(project, output));
+		net.sf.mpxj.ProjectFile snapshot = new net.sf.mpxj.mspdi.MSPDIReader()
+			.read(new ByteArrayInputStream(output.toByteArray()));
+		net.sf.mpxj.Task snapshotTask = snapshot.getTasks().stream()
+			.filter(candidate -> "Earlier than project header".equals(candidate.getName())).findFirst().orElseThrow();
+		assertTrue("fixture must contain a task start before the project header start",
+			snapshotTask.getStart().before(snapshot.getProjectProperties().getStartDate()));
+
+		Project reloaded = new com.microproject.core.pm.exchange.MspImporter().importProject(
+			new ByteArrayInputStream(output.toByteArray()), "xml", (progress, label) -> {});
+		NormalTask reloadedTask = taskNamed(reloaded, "Earlier than project header");
+		long normalizedTaskStart = TimeUtil.addTimeZoneOffset(snapshotTask.getStart().getTime());
+		assertEquals("earlier scheduled task start must survive MSPDI reload", normalizedTaskStart, reloadedTask.getStart());
+		assertEquals("project boundary must follow its earliest imported task", reloadedTask.getStart(), reloaded.getStart());
 	}
 
 	public void testMicrosoftXmlPreservesExternalProjectFileWhenUidIsAlsoPresent() throws Exception {

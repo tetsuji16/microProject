@@ -382,7 +382,7 @@ public class MspImporter {
 			task.setExternalProjectFile(externalProjectFile(mpxTask));
 			project.addExternalTask(task);
 		}
-		updateEarliestTaskStart(task);
+		updateEarliestTaskStart(task, mpxTask.getStart());
 		state.mapTask(mpxTask, task);
 		importTaskSnapshots(mpxTask, task);
 		importAssignments(mpxTask, task);
@@ -448,8 +448,14 @@ public class MspImporter {
 		return task;
 	}
 
-	private void updateEarliestTaskStart(Task task) {
-		final long taskStart = task.getStart();
+	private void updateEarliestTaskStart(Task task, Date importedStart) {
+		// Task.setStart() records a scheduling constraint while importing instead
+		// of directly setting the calculated schedule. Read MPXJ's source date here
+		// so a task before the project header start can move the project boundary
+		// before the final recalculation. Reading task.getStart() at this point
+		// only sees the default project start and loses the imported earlier date.
+		final long taskStart = importedStart == null ? task.getStart()
+			: com.microproject.core.time.TimeUtil.addTimeZoneOffset(importedStart.getTime());
 		if (taskStart == 0L) {
 			return;
 		}
