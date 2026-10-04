@@ -446,6 +446,15 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertNotNull(assignments, "Task Information Resources tab must contain its assignment spreadsheet");
 		assertEquals(UsageDetailView.resourceAssignmentSpreadsheetCategory, assignments.getSpreadSheetCategory());
 		assertTrue(assignments.getRowCount() > 0, "Task Information must show the task's resource assignment");
+		JScrollPane assignmentViewport = enclosingScrollPane(assignments);
+		assertNotNull(assignmentViewport, "Task Information assignment spreadsheet must have a scroll viewport");
+		JComponent resourcesView = (JComponent) ((JScrollPane) tabs.getComponentAt(resourcesTab))
+			.getViewport().getView();
+		Rectangle assignmentBounds = SwingUtilities.convertRectangle(assignmentViewport.getParent(),
+			assignmentViewport.getBounds(), resourcesView);
+		assertTrue(assignmentBounds.height * 2 >= resourcesView.getHeight(),
+			"Task Information Resources tab must give its growable assignment table most of the viewport; table="
+				+ assignmentBounds + ", tabContent=" + resourcesView.getBounds());
 		SpreadSheetModel model = (SpreadSheetModel) assignments.getModel();
 		String displayedResourceName = null;
 		for (int viewColumn = 0; viewColumn < assignments.getColumnModel().getColumnCount(); viewColumn++) {
@@ -469,6 +478,13 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				if (sheet != null)
 					return sheet;
 			}
+		return null;
+	}
+
+	private static JScrollPane enclosingScrollPane(Component component) {
+		for (java.awt.Container parent = component.getParent(); parent != null; parent = parent.getParent())
+			if (parent instanceof JScrollPane scrollPane)
+				return scrollPane;
 		return null;
 	}
 

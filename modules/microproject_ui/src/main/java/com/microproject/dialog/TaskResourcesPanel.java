@@ -23,6 +23,7 @@
  *******************************************************************************/
 package com.microproject.dialog;
 
+import java.awt.BorderLayout;
 import java.awt.Component;
 
 import javax.swing.JButton;
@@ -47,6 +48,7 @@ final class TaskResourcesPanel extends JPanel {
 	private final SpreadSheet assignmentSpreadsheet;
 
 	TaskResourcesPanel(Component owner, JComponent header, JButton assignResourceButton, Task task) {
+		super(new BorderLayout());
 		FormLayout layout = new FormLayout("p:grow,0dlu,right:p", "p,p,p,p,fill:150dlu:grow"); //$NON-NLS-1$ //$NON-NLS-2$
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		builder.setDefaultDialogBorder();
@@ -60,7 +62,7 @@ final class TaskResourcesPanel extends JPanel {
 				AssignmentSpreadsheetSupport.Perspective.TASK_ASSIGNMENTS);
 		builder.add(AssignmentSpreadsheetSupport.scrollPane(assignmentSpreadsheet),
 				constraints.xyw(builder.getColumn(), builder.getRow(), 3));
-		add(builder.getPanel());
+		add(builder.getPanel(), BorderLayout.CENTER);
 		HelpUtil.addDocHelp(this, "Assign_Resources"); //$NON-NLS-1$
 		update(task);
 	}
