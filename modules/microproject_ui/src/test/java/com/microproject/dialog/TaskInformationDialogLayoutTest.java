@@ -27,6 +27,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.awt.Rectangle;
 
+import com.microproject.ui.shell.WindowBoundsSupport;
+
 import org.junit.jupiter.api.Test;
 
 class TaskInformationDialogLayoutTest {
@@ -42,8 +44,8 @@ class TaskInformationDialogLayoutTest {
 	void dialogLocationIsConstrainedWithinSecondaryMonitorWithNegativeOrigin() {
 		Rectangle usable = new Rectangle(-1920, 40, 1920, 1040);
 		assertEquals(new Rectangle(-1920, 40, 700, 700),
-				TaskInformationDialog.constrainToUsableBounds(new Rectangle(-2500, -100, 700, 700), usable));
+				WindowBoundsSupport.fittedBounds(new Rectangle(-2500, -100, 700, 700), usable));
 		assertEquals(new Rectangle(-1000, 380, 700, 700),
-				TaskInformationDialog.constrainToUsableBounds(new Rectangle(-1000, 900, 700, 700), usable));
+				WindowBoundsSupport.fittedBounds(new Rectangle(-1000, 900, 700, 700), usable));
 	}
 }

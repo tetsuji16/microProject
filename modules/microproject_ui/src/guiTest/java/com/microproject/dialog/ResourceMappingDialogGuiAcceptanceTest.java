@@ -48,7 +48,7 @@ class ResourceMappingDialogGuiAcceptanceTest {
 			dialog = ResourceMappingDialog.getInstance(form);
 			dialog.pack();
 			dialog.bind(true);
-			dialog.setLocationByPlatform(true);
+			dialog.setLocationRelativeTo(null);
 		});
 		SwingUtilities.invokeLater(() -> dialog.setVisible(true));
 		GuiAcceptanceSupport.await(() -> dialog.isShowing(), "Resource Mapping dialog did not render");

@@ -7,6 +7,8 @@ package com.microproject.ui.ribbon;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Component;
+import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
@@ -32,6 +34,7 @@ import javax.swing.InputMap;
 import javax.swing.ActionMap;
 import javax.swing.BorderFactory;
 import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
 
 import org.pushingpixels.flamingo.api.common.AbstractCommandButton;
 import org.pushingpixels.flamingo.api.common.CommandButtonDisplayState;
@@ -78,8 +81,11 @@ final class FlamingoRibbonController extends JPanel implements RibbonController 
 		this.commands = Objects.requireNonNull(commands);
 		setOpaque(true);
 		setBackground(FlatUiSupport.ribbonChromeBackground());
+		ribbon.setOpaque(true);
+		ribbon.setBackground(FlatUiSupport.ribbonChromeBackground());
 		add(ribbon, BorderLayout.CENTER);
 		build(model);
+		styleRibbonSurface(ribbon);
 	}
 
 	private void build(SwingRibbonModel model) {
@@ -155,9 +161,20 @@ final class FlamingoRibbonController extends JPanel implements RibbonController 
 	}
 
 	private static void styleBandBoundary(JRibbonBand band) {
+		band.setOpaque(true);
+		band.setBackground(FlatUiSupport.ribbonChromeBackground());
 		band.setBorder(BorderFactory.createCompoundBorder(
 			BorderFactory.createMatteBorder(0, 0, 0, 1, FlatUiSupport.ribbonBandSeparatorColor()),
 			BorderFactory.createEmptyBorder(2, 2, 2, 2)));
+	}
+
+	private static void styleRibbonSurface(Container root) {
+		Color panelBackground = UIManager.getColor("Panel.background");
+		Color surface = FlatUiSupport.ribbonChromeBackground();
+		if (root instanceof JComponent component && component.isOpaque()
+			&& Objects.equals(component.getBackground(), panelBackground)) component.setBackground(surface);
+		for (Component child : root.getComponents())
+			if (child instanceof Container container) styleRibbonSurface(container);
 	}
 
 	private static List<RibbonBandResizePolicy> resizePolicies(JRibbonBand band) {

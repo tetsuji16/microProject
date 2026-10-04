@@ -8,6 +8,7 @@ package com.microproject.ui.ribbon;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.awt.Color;
 import java.awt.GraphicsEnvironment;
 import java.awt.Point;
 import java.awt.Rectangle;
@@ -34,6 +35,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.pushingpixels.flamingo.api.common.AbstractCommandButton;
 import org.pushingpixels.flamingo.api.ribbon.JRibbon;
+import org.pushingpixels.flamingo.api.ribbon.JRibbonBand;
 
 import com.microproject.menu.MenuManager;
 import com.microproject.menu.ProjectMenuActionMap;
@@ -86,6 +88,21 @@ class RibbonTabGuiAcceptanceTest {
 		robot.setAutoDelay(35);
 		var bundle = MenuDefinitionSupport.menuBundle(Locale.getDefault());
 		AbstractCommandButton newProject = findCommand(host, "RibbonNewProject");
+		assertTrue(new Color(0xF3F2F1).equals(ribbon.getBackground()),
+			"the rendered ribbon must use the Office reference surface color, actual=" + ribbon.getBackground());
+		var bands = UiComponentWalker.flatten(host).stream()
+			.filter(JRibbonBand.class::isInstance).map(JRibbonBand.class::cast).toList();
+		assertTrue(!bands.isEmpty() && bands.stream().allMatch(band -> band.isOpaque()
+			&& new Color(0xF3F2F1).equals(band.getBackground())),
+			"all visible command groups must paint the Office reference surface color");
+		var defaultPanelBackground = javax.swing.UIManager.getColor("Panel.background");
+		var unstyledPanels = UiComponentWalker.flatten(ribbon).stream()
+			.filter(JComponent.class::isInstance).map(JComponent.class::cast)
+			.filter(JComponent::isOpaque)
+			.filter(component -> java.util.Objects.equals(defaultPanelBackground, component.getBackground()))
+			.toList();
+		assertTrue(unstyledPanels.isEmpty(),
+			"opaque Flamingo panels must not fall back to the unrelated global panel background");
 		assertTrue(bundle.getString("RibbonNewProject.text").equals(newProject.getText()),
 			"visible ribbon text must come from the active locale bundle, expected="
 				+ bundle.getString("RibbonNewProject.text") + ", actual=" + newProject.getText());

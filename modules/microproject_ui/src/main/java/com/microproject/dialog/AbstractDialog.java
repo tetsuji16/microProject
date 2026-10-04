@@ -71,6 +71,7 @@ import com.microproject.strings.Messages;
 import com.microproject.util.BrowserControl;
 import com.microproject.util.FlatUiSupport;
 import com.microproject.util.FlatLafDialog;
+import com.microproject.ui.shell.WindowBoundsSupport;
 
 /**
  *
@@ -168,6 +169,12 @@ public abstract class AbstractDialog extends FlatLafDialog {
 	}
 
 	public abstract JComponent createContentPanel();
+
+	@Override
+	public void setLocationRelativeTo(Component reference) {
+		super.setLocationRelativeTo(reference);
+		WindowBoundsSupport.fitWithinUsableScreen(this);
+	}
 
 	public void setVisible(boolean b) {
 		if (b && !listenersActivated)

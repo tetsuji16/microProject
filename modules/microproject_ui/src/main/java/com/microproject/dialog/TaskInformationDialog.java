@@ -73,6 +73,7 @@ import com.microproject.pm.task.Task;
 import com.microproject.strings.Messages;
 import com.microproject.util.Alert;
 import com.microproject.util.FlatUiSupport;
+import com.microproject.ui.shell.WindowBoundsSupport;
 /**
  *
  */
@@ -97,26 +98,7 @@ public class TaskInformationDialog extends InformationDialog {
 	@Override
 	public void setLocationRelativeTo(Component reference) {
 		super.setLocationRelativeTo(reference);
-		GraphicsConfiguration configuration = getGraphicsConfiguration();
-		if (configuration == null || GraphicsEnvironment.isHeadless())
-			return;
-		Rectangle monitor = configuration.getBounds();
-		Insets insets = Toolkit.getDefaultToolkit().getScreenInsets(configuration);
-		int left = monitor.x + insets.left;
-		int top = monitor.y + insets.top;
-		int right = monitor.x + monitor.width - insets.right;
-		int bottom = monitor.y + monitor.height - insets.bottom;
-		Rectangle constrained = constrainToUsableBounds(getBounds(),
-				new Rectangle(left, top, right - left, bottom - top));
-		setLocation(constrained.x, constrained.y);
-	}
-
-	static Rectangle constrainToUsableBounds(Rectangle dialog, Rectangle usable) {
-		int maxX = Math.max(usable.x, usable.x + usable.width - dialog.width);
-		int maxY = Math.max(usable.y, usable.y + usable.height - dialog.height);
-		int x = Math.max(usable.x, Math.min(dialog.x, maxX));
-		int y = Math.max(usable.y, Math.min(dialog.y, maxY));
-		return new Rectangle(x, y, dialog.width, dialog.height);
+		WindowBoundsSupport.fitWithinUsableScreen(this);
 	}
 
 	// Bar color fields shown in the General tab (issue #16)

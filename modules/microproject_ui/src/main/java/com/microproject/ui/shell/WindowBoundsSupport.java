@@ -7,12 +7,13 @@ package com.microproject.ui.shell;
 
 import java.awt.Frame;
 import java.awt.GraphicsConfiguration;
+import java.awt.GraphicsEnvironment;
 import java.awt.Insets;
 import java.awt.Rectangle;
 import java.awt.Toolkit;
 import java.awt.Window;
 
-/** Keeps newly shown document windows reachable inside their monitor's work area. */
+/** Keeps windows reachable inside their monitor's usable work area. */
 public final class WindowBoundsSupport {
 	private WindowBoundsSupport() {
 	}
@@ -23,7 +24,7 @@ public final class WindowBoundsSupport {
 	 * the native window manager.
 	 */
 	public static void fitWithinUsableScreen(Window window) {
-		if (window == null || !window.isShowing() || isMaximized(window)) {
+		if (window == null || GraphicsEnvironment.isHeadless() || isMaximized(window)) {
 			return;
 		}
 		GraphicsConfiguration configuration = window.getGraphicsConfiguration();
@@ -47,7 +48,7 @@ public final class WindowBoundsSupport {
 		}
 	}
 
-	static Rectangle fittedBounds(Rectangle bounds, Rectangle usable) {
+	public static Rectangle fittedBounds(Rectangle bounds, Rectangle usable) {
 		Rectangle fitted = new Rectangle(bounds);
 		fitted.width = Math.min(fitted.width, usable.width);
 		fitted.height = Math.min(fitted.height, usable.height);
