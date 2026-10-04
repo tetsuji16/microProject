@@ -500,7 +500,35 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			}
 			tabs.setSelectedIndex(0);
 			layoutTree(dialog);
+			JScrollPane generalTab = (JScrollPane) tabs.getComponentAt(0);
+			Component generalContent = generalTab.getViewport().getView();
+			Rectangle nameLabelBounds = componentBounds(generalContent,
+				Messages.getString("Field.name") + ":"); //$NON-NLS-1$
+			assertNotNull(nameLabelBounds, "Task Information General tab must expose its task name label");
+			int expectedTopAllowance = ((JComponent) generalContent).getInsets().top
+				+ nameLabelBounds.height;
+			assertTrue(nameLabelBounds.y <= expectedTopAllowance,
+				"Task Information General tab must keep its first form row near the viewport top; top gap="
+					+ nameLabelBounds.y + "px, content=" + generalContent.getBounds() + ", viewport="
+					+ generalTab.getViewport().getExtentSize() + ", allowed=" + expectedTopAllowance);
 		});
+	}
+
+	private static Rectangle componentBounds(Component root, String labelText) {
+		if (root instanceof JLabel label && labelText.equals(label.getText()))
+			return new Rectangle(0, 0, label.getWidth(), label.getHeight());
+		if (!(root instanceof java.awt.Container container))
+			return null;
+		for (Component child : container.getComponents()) {
+			if (!child.isVisible())
+				continue;
+			Rectangle bounds = componentBounds(child, labelText);
+			if (bounds != null) {
+				bounds.translate(child.getX(), child.getY());
+				return bounds;
+			}
+		}
+		return null;
 	}
 
 	private static void assertTextStyleTabComponentsFit(TaskInformationDialog dialog) throws Exception {

@@ -74,6 +74,11 @@ final class TaskGeneralPanel {
 		GridBagConstraints constraints = constraints(0, row);
 		constraints.gridwidth = 4;
 		constraints.weightx = 1.0;
+		// The scroll viewport can be taller than this form when another tab sets
+		// the shared dialog height. Give surplus height to the final row and keep
+		// its contents at the top; GridBagLayout otherwise centers the whole form.
+		constraints.weighty = 1.0;
+		constraints.anchor = GridBagConstraints.NORTHWEST;
 		constraints.fill = GridBagConstraints.HORIZONTAL;
 		component.add(barColorEditor, constraints);
 		barColorEditor.setEnabled(!task.isReadOnly());
