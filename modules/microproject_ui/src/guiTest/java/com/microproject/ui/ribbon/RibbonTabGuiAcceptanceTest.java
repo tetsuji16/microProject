@@ -147,10 +147,6 @@ class RibbonTabGuiAcceptanceTest {
 				+ ", screen=" + taskTab.getLocationOnScreen()
 				+ ", receivedMousePresses=" + physicalPresses.get());
 		assertTrue(physicalPresses.get() > 0, "Robot must physically reach the native Flamingo task tab");
-		Object[] focusVisible = new Object[1];
-		SwingUtilities.invokeAndWait(() -> focusVisible[0] = taskTab.getClientProperty(OfficeRibbonTaskTabUI.FOCUS_VISIBLE_PROPERTY));
-		assertTrue(Boolean.FALSE.equals(focusVisible[0]),
-			"a mouse-selected Office task tab must not show a keyboard-only focus outline");
 		assertTrue(taskTab.getUI() instanceof OfficeRibbonTaskTabUI,
 			"Flamingo task tabs must use the shared flat Office tab-strip delegate");
 		assertTrue(taskTab.getBorder() instanceof EmptyBorder,
@@ -173,16 +169,15 @@ class RibbonTabGuiAcceptanceTest {
 		robot.keyPress(java.awt.event.KeyEvent.VK_SPACE);
 		robot.keyRelease(java.awt.event.KeyEvent.VK_SPACE);
 		robot.waitForIdle();
-		Object[] keyboardFocusVisible = new Object[1];
-		SwingUtilities.invokeAndWait(() -> keyboardFocusVisible[0]
-			= taskTab.getClientProperty(OfficeRibbonTaskTabUI.FOCUS_VISIBLE_PROPERTY));
-		assertTrue(Boolean.TRUE.equals(keyboardFocusVisible[0]),
-			"keyboard interaction with the selected Office task tab must expose its focus indicator");
-		var focusedTabImage = robot.createScreenCapture(tabBounds);
-		Color focusIndicatorPixel = new Color(focusedTabImage.getRGB(focusedTabImage.getWidth() / 2, 2), true);
-		assertTrue(focusIndicatorPixel.getBlue() - focusIndicatorPixel.getRed() >= 30
-			&& focusIndicatorPixel.getBlue() - focusIndicatorPixel.getGreen() >= 20,
-			"keyboard-focused Office task tab must visibly paint its blue focus indicator; actual=" + focusIndicatorPixel);
+		var keyboardTabImage = robot.createScreenCapture(tabBounds);
+		Color keyboardTopPixel = new Color(keyboardTabImage.getRGB(keyboardTabImage.getWidth() / 2, 2), true);
+		assertTrue(withinRgbTolerance(FlatUiSupport.ribbonChromeBackground(), keyboardTopPixel, 50),
+			"keyboard-focused Office task tab must not draw a rectangular outline absent from the reference; actual="
+				+ keyboardTopPixel);
+		Color keyboardUnderlinePixel = new Color(
+			keyboardTabImage.getRGB(keyboardTabImage.getWidth() / 2, keyboardTabImage.getHeight() - 5), true);
+		assertTrue(withinRgbTolerance(FlatUiSupport.ribbonTabUnderlineColor(), keyboardUnderlinePixel, 50),
+			"keyboard navigation must retain the Office selected-tab underline");
 
 		AbstractCommandButton information = findCommand(host, "RibbonTaskInformation");
 		String actionId = manager.getToolBarFactory().getActionStringFromId("RibbonTaskInformation");

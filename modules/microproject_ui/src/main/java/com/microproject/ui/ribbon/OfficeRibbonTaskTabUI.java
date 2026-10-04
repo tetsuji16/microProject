@@ -22,10 +22,6 @@ import com.microproject.util.FlatUiSupport;
 
 /** Flamingo task tab presentation following the flat Office tab strip. */
 final class OfficeRibbonTaskTabUI extends BasicCommandToggleButtonUI {
-	static final String FOCUS_VISIBLE_PROPERTY = "microproject.officeRibbon.focusVisible";
-	static final String FOCUS_LISTENER_INSTALLED_PROPERTY = "microproject.officeRibbon.focusListenerInstalled";
-	static final String MOUSE_INTERACTION_PROPERTY = "microproject.officeRibbon.mouseInteraction";
-
 	public static ComponentUI createUI(JComponent component) {
 		return new OfficeRibbonTaskTabUI();
 	}
@@ -63,16 +59,6 @@ final class OfficeRibbonTaskTabUI extends BasicCommandToggleButtonUI {
 				// indicator; pinning the line to the component edge makes it read
 				// like a selected button instead of the reference tab treatment.
 				g2.fillRect(bounds.x, bounds.y + bounds.height - 5, bounds.width, 2);
-			} finally {
-				g2.dispose();
-			}
-		}
-
-		if (Boolean.TRUE.equals(commandButton.getClientProperty(FOCUS_VISIBLE_PROPERTY))) {
-			Graphics2D g2 = (Graphics2D) graphics.create();
-			try {
-				g2.setColor(FlatUiSupport.ribbonAccentColor());
-				g2.drawRect(bounds.x + 2, bounds.y + 2, Math.max(0, bounds.width - 5), Math.max(0, bounds.height - 6));
 			} finally {
 				g2.dispose();
 			}
