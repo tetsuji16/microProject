@@ -181,11 +181,11 @@ class GanttBarDateDragGuiAcceptanceTest {
 		earlierStartCalendar.setTimeInMillis(originalStart);
 		earlierStartCalendar.add(java.util.Calendar.DAY_OF_MONTH, -3);
 		long earlierRequestedStart = earlierStartCalendar.getTimeInMillis();
-		Point earlierDate = screenPointForTaskDate(fixture, earlierRequestedStart);
 		long normalizedEarlierStart = fixture.predecessor.getEffectiveWorkCalendar()
 			.adjustInsideCalendar(earlierRequestedStart, false);
 		assertTrue(normalizedEarlierStart < originalStart,
 			"the resize destination must normalize to a working time before the original start");
+		Point earlierDate = screenPointForTaskDate(fixture, normalizedEarlierStart);
 		drag(robot, startHandle, earlierDate);
 		try {
 			GuiAcceptanceSupport.await(() -> fixture.predecessor.getStart() < originalStart,
