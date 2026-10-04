@@ -61,6 +61,7 @@ final class RibbonCommandCatalog {
 	private static final String REPORT = "ReportRibbonTask";
 	private static final String PROJECT = "ProjectRibbonTask";
 	private static final String VIEW = "ViewRibbonTask";
+	private static final String HELP = "HelpRibbonTask";
 	private static final String FORMAT = "FormatRibbonTask";
 	private static final String QUICK_ACCESS = "QuickAccessToolbar";
 	private static final Map<String, Placement> PLACEMENTS = placements();
@@ -133,7 +134,9 @@ final class RibbonCommandCatalog {
 		Map<String, Placement> result = new LinkedHashMap<>();
 		register(result, CommandScope.GLOBAL, FILE,
 			"RibbonNewProject", "RibbonNewMasterProject", "RibbonOpenProject", "RibbonRecentProjects", "RibbonImportProject",
-			"RibbonLocale", "RibbonProjectLibreDocumentation", "RibbonAboutProjectLibre");
+			"RibbonLocale");
+		register(result, CommandScope.GLOBAL, HELP,
+			"RibbonProjectLibreDocumentation", "RibbonAboutProjectLibre");
 		register(result, CommandScope.DOCUMENT, FILE,
 			"RibbonSaveProject", "RibbonSaveProjectAs", "RibbonSaveMpoAs", "RibbonCloseProject", "RibbonExportProject",
 			"RibbonPrint", "RibbonPrintPreview", "RibbonPDF");

@@ -48,7 +48,21 @@ class RibbonStructureTest {
 	void standardRibbonUsesTheDesktopProjectTabOrder() {
 		assertEquals(List.of(
 			"FileRibbonTask", "TaskRibbonTask", "ResourceRibbonTask", "ReportRibbonTask",
-			"ProjectRibbonTask", "ViewRibbonTask", "FormatRibbonTask", "NetworkFormatRibbonTask", "CalendarFormatRibbonTask"), ribbonTaskIds());
+			"ProjectRibbonTask", "ViewRibbonTask", "HelpRibbonTask", "FormatRibbonTask",
+			"NetworkFormatRibbonTask", "CalendarFormatRibbonTask"), ribbonTaskIds());
+	}
+
+	@Test
+	void helpCommandsLiveOnTheStandardHelpTabAndShareTheirCanonicalActions() {
+		assertEquals(List.of("HelpRibbonBand"), ribbonBandIds("HelpRibbonTask"));
+		assertTrue(!ribbonBandIds("FileRibbonTask").contains("HelpRibbonBand"));
+		assertEquals(List.of("RibbonProjectLibreDocumentation", "RibbonAboutProjectLibre"),
+			ribbonButtonIds("HelpRibbonBand"));
+		assertEquals("ProjectLibreDocumentationAction",
+			menuInternalBundle().getString("RibbonProjectLibreDocumentation.action"));
+		assertEquals("AboutProjectLibreAction", menuInternalBundle().getString("RibbonAboutProjectLibre.action"));
+		assertEquals("Help", menuBundle(Locale.ROOT).getString("HelpRibbonTask.title"));
+		assertEquals("ヘルプ", menuBundle(Locale.JAPANESE).getString("HelpRibbonTask.title"));
 	}
 
 	@Test

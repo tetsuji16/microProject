@@ -366,6 +366,7 @@ class RibbonAndToolbarButtonTest {
 				"ReportRibbonTask",
 				"ProjectRibbonTask",
 				"ViewRibbonTask",
+				"HelpRibbonTask",
 				"FormatRibbonTask",
 				"NetworkFormatRibbonTask",
 				"CalendarFormatRibbonTask"),
