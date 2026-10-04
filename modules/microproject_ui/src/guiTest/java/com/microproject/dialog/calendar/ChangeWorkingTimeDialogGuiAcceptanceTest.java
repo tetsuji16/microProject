@@ -151,7 +151,7 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 				if (exception.getStart() == importedDate && exception.getEnd() == importedDate && !exception.isWorking())
 					return true;
 			return false;
-			}, "approved CSV import did not add October 5 as a non-working exception");
+		}, "approved CSV import did not add October 5 as a non-working exception");
 		assertEquals(exceptionsBefore + 1, dialog.getScratchCalendar().getExceptionDays().length,
 			"approved CSV import must apply its date to the scratch calendar");
 	}
