@@ -60,13 +60,9 @@ public class MpxTaskConverter {
 			task.setId(mpxTask.getID().longValue());
 		if (mpxTask.getUniqueID() != null)
 			task.setUniqueId(mpxTask.getUniqueID().longValue());
-		if (mpxTask.getConstraintType() != null) {
-			try {
-				task.setConstraintType(mpxTask.getConstraintType().getValue());
-			} catch (com.microproject.field.FieldParseException e) {
-				// leave default constraint type
-			}
-		}
+		// Apply the imported dates before the source constraint. Task.setStart may
+		// infer a product constraint when a date precedes the project's current
+		// start; the source file's explicit constraint must remain authoritative.
 		if (mpxTask.getEarnedValueMethod() != null)
 			task.setEarnedValueMethod(mpxTask.getEarnedValueMethod().getValue());
 		if (mpxTask.getMilestone())
@@ -74,11 +70,18 @@ public class MpxTaskConverter {
 
 		task.setCreated(mpxTask.getCreateDate());
 		task.setDeadline(toLong(mpxTask.getDeadline()));
-		task.setConstraintDate(toLong(mpxTask.getConstraintDate()));
 		task.setLevelingDelay(toLong(mpxTask.getLevelingDelay()));
 
 		task.setStart(toLong(mpxTask.getStart()));
 		task.setEnd(toLong(mpxTask.getFinish()));
+		if (mpxTask.getConstraintType() != null) {
+			try {
+				task.setConstraintType(mpxTask.getConstraintType().getValue());
+			} catch (com.microproject.field.FieldParseException e) {
+				// leave default constraint type
+			}
+		}
+		task.setConstraintDate(toLong(mpxTask.getConstraintDate()));
 		task.setActualStart(toLong(mpxTask.getActualStart()));
 		task.setActualFinish(toLong(mpxTask.getActualFinish()));
 		task.setActualDuration(toLong(mpxTask.getActualDuration()));

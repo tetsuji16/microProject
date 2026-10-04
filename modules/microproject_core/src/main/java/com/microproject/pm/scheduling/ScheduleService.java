@@ -178,8 +178,6 @@ public class ScheduleService {
 	public boolean split(Object eventSource, Schedule schedule, long from, long to,UndoableEditSupport undoableEditSupport) {
 		if (isReadOnly(schedule))
 			return false;
-		if (schedule instanceof NormalTask task && !task.hasRealAssignments())
-			return false;
 		boolean recordUndo = undoableEditSupport != null && !(eventSource instanceof UndoableEdit);
 		Object detailBackup = schedule instanceof NormalTask || schedule instanceof Assignment
 			|| recordUndo ? schedule.backupDetail() : null;

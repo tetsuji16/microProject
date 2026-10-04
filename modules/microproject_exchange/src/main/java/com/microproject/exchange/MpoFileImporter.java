@@ -56,6 +56,7 @@ import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.task.DefaultSubProj;
 import com.microproject.pm.task.SubProj;
 import com.microproject.pm.task.NormalTask;
+import com.microproject.pm.task.TaskSplitInterval;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.assignment.Assignment;
@@ -84,6 +85,10 @@ public class MpoFileImporter extends FileImporter {
 	static final String LAYOUT_ENTRY = "layout.json";
 	/** Native task-view state that MSPDI does not represent. */
 	static final String VISIBILITY_ENTRY = "microproject/visibility.json";
+	/** Task-owned Gantt split intervals not represented by the MSPDI schema. */
+	static final String TASK_SPLITS_ENTRY = "microproject/task-splits.json";
+	/** Exact native schedule values needed when MSPDI import recalculates assignments. */
+	static final String TASK_SCHEDULES_ENTRY = "microproject/task-schedules.json";
 	/** MPOF v1.0 container layout (ODF conventions). */
 	static final String FORMAT_ID = "mpof";
 	/** Container version this build writes; every save rewrites the file at this version. */
@@ -290,6 +295,10 @@ public class MpoFileImporter extends FileImporter {
 		}
 		if (!extensions.entries.isEmpty()) project.getOrCreateTransientDocumentState(MpoExtensions.class, MpoExtensions::new).entries.putAll(extensions.entries);
 		restoreEmbeddedProjectReferences(project, manifestData, extensions.entries, embeddedProjectFailures);
+		if (extensions.entries.containsKey(TASK_SPLITS_ENTRY))
+			restoreTaskSplits(project, extensions.entries.get(TASK_SPLITS_ENTRY));
+		if (extensions.entries.containsKey(TASK_SCHEDULES_ENTRY))
+			restoreTaskSchedules(project, extensions.entries.get(TASK_SCHEDULES_ENTRY));
 		return project;
 	}
 
@@ -497,10 +506,12 @@ public class MpoFileImporter extends FileImporter {
 		String taskIdentities = taskIdentitiesFor(project, projectXml);
 		archiveEntries.put(TASK_IDENTITIES_ENTRY, taskIdentities.getBytes(StandardCharsets.UTF_8));
 		archiveEntries.put(VISIBILITY_ENTRY, visibilityJson(project, taskIdentities));
+		archiveEntries.put(TASK_SPLITS_ENTRY, taskSplitsJson(project, taskIdentities));
+		archiveEntries.put(TASK_SCHEDULES_ENTRY, taskSchedulesJson(project, taskIdentities));
 		archiveEntries.put(CCPM_HISTORY_ENTRY, ccpmHistoryJson(project));
 		MpoExtensions extensions = project.findTransientDocumentState(MpoExtensions.class);
 		if (extensions != null) for (java.util.Map.Entry<String, byte[]> extension : extensions.entries.entrySet()) {
-			if (MIMETYPE_ENTRY.equals(extension.getKey()) || MANIFEST_ENTRY.equals(extension.getKey()) || META_ENTRY.equals(extension.getKey()) || SETTINGS_ENTRY.equals(extension.getKey()) || CCPM_HISTORY_ENTRY.equals(extension.getKey()) || LAYOUT_ENTRY.equals(extension.getKey()) || VISIBILITY_ENTRY.equals(extension.getKey()) || PROJECT_ENTRY.equals(extension.getKey()) || OPERATIONS_ENTRY.equals(extension.getKey()) || TASK_IDENTITIES_ENTRY.equals(extension.getKey()) || extension.getKey().startsWith(EMBEDDED_PROJECT_PREFIX)) continue;
+			if (MIMETYPE_ENTRY.equals(extension.getKey()) || MANIFEST_ENTRY.equals(extension.getKey()) || META_ENTRY.equals(extension.getKey()) || SETTINGS_ENTRY.equals(extension.getKey()) || CCPM_HISTORY_ENTRY.equals(extension.getKey()) || LAYOUT_ENTRY.equals(extension.getKey()) || VISIBILITY_ENTRY.equals(extension.getKey()) || TASK_SPLITS_ENTRY.equals(extension.getKey()) || TASK_SCHEDULES_ENTRY.equals(extension.getKey()) || PROJECT_ENTRY.equals(extension.getKey()) || OPERATIONS_ENTRY.equals(extension.getKey()) || TASK_IDENTITIES_ENTRY.equals(extension.getKey()) || extension.getKey().startsWith(EMBEDDED_PROJECT_PREFIX)) continue;
 			archiveEntries.put(extension.getKey(), extension.getValue());
 		}
 		MpoArchiveSnapshot snapshot = snapshotForWrite(project, projectXml, archiveEntries, embeddedProjects);
@@ -700,6 +711,143 @@ public class MpoFileImporter extends FileImporter {
 			throw new IOException("Invalid mpo task identity", exception);
 		}
 	}
+
+	private static byte[] taskSplitsJson(Project project, String taskIdentities) throws IOException {
+		try {
+			JsonNode identities = JSON.readTree(taskIdentities);
+			ObjectNode root = JSON.createObjectNode();
+			root.put("version", 1);
+			com.fasterxml.jackson.databind.node.ArrayNode tasks = root.putArray("tasks");
+			for (java.util.Iterator<?> it = project.getTaskOutlineIterator(); it.hasNext();) {
+				Task task = (Task) it.next();
+				if (!(task instanceof NormalTask normalTask) || normalTask.getTaskSplitIntervals().isEmpty()) continue;
+				JsonNode serializedUid = identities.path(String.valueOf(task.getUniqueId()));
+				if (!serializedUid.canConvertToLong()) throw new IOException("Missing serialized task identity for task split");
+				ObjectNode taskNode = tasks.addObject();
+				taskNode.put("taskUid", serializedUid.longValue());
+				com.fasterxml.jackson.databind.node.ArrayNode intervals = taskNode.putArray("intervals");
+				for (TaskSplitInterval interval : normalTask.getTaskSplitIntervals()) {
+					ObjectNode intervalNode = intervals.addObject();
+					intervalNode.put("startOffset", interval.startOffset());
+					intervalNode.put("endOffset", interval.endOffset());
+				}
+			}
+			return JSON.writeValueAsBytes(root);
+		} catch (IOException exception) {
+			throw exception;
+		} catch (Exception exception) {
+			throw new IOException("Unable to serialize mpo task splits", exception);
+		}
+	}
+
+	private static void restoreTaskSplits(Project project, byte[] bytes) throws IOException {
+		JsonNode root = JSON.readTree(bytes);
+		JsonNode tasks = root.path("tasks");
+		if (root.path("version").asInt(-1) != 1 || !tasks.isArray()) throw new IOException("Invalid mpo task split data");
+		int intervalCount = 0;
+		for (JsonNode taskNode : tasks) {
+			JsonNode uidNode = taskNode.path("taskUid");
+			JsonNode intervalsNode = taskNode.path("intervals");
+			if (!uidNode.canConvertToLong() || !intervalsNode.isArray()) throw new IOException("Invalid mpo task split record");
+			long serializedId = uidNode.longValue();
+			Task task = project.findByUniqueId(serializedId);
+			if (!(task instanceof NormalTask normalTask)) throw new IOException("MPO task split references an unknown task");
+			java.util.ArrayList<TaskSplitInterval> intervals = new java.util.ArrayList<>();
+			long previousEnd = Long.MIN_VALUE;
+			for (JsonNode intervalNode : intervalsNode) {
+				if (++intervalCount > MAX_OPERATION_COUNT) throw new IOException("MPO contains too many task split intervals");
+				JsonNode startNode = intervalNode.path("startOffset");
+				JsonNode endNode = intervalNode.path("endOffset");
+				if (!startNode.canConvertToLong() || !endNode.canConvertToLong()) throw new IOException("Invalid mpo task split interval");
+				TaskSplitInterval interval;
+				try {
+					interval = new TaskSplitInterval(startNode.longValue(), endNode.longValue());
+				} catch (IllegalArgumentException exception) {
+					throw new IOException("Invalid mpo task split interval", exception);
+				} catch (ArithmeticException exception) {
+					throw new IOException("Invalid mpo task split interval", exception);
+				}
+				if (interval.startOffset() < previousEnd) throw new IOException("MPO task split intervals overlap or are unsorted");
+				previousEnd = interval.endOffset();
+				intervals.add(interval);
+			}
+			normalTask.restoreTaskSplitIntervals(MpoFileImporter.class, intervals);
+		}
+	}
+
+	private static byte[] taskSchedulesJson(Project project, String taskIdentities) throws IOException {
+		try {
+			JsonNode identities = JSON.readTree(taskIdentities);
+			ObjectNode root = JSON.createObjectNode();
+			root.put("version", 1);
+			com.fasterxml.jackson.databind.node.ArrayNode tasks = root.putArray("tasks");
+			java.util.Set<Long> seenSerializedIds = new java.util.HashSet<>();
+			java.util.Iterator<java.util.Map.Entry<String, JsonNode>> identityIterator = identities.fields();
+			while (identityIterator.hasNext()) {
+				java.util.Map.Entry<String, JsonNode> identity = identityIterator.next();
+				long sourceId = Long.parseLong(identity.getKey());
+				JsonNode serializedUid = identity.getValue();
+				if (!serializedUid.canConvertToLong()) throw new IOException("Invalid serialized task identity for schedule snapshot");
+				if (!seenSerializedIds.add(serializedUid.longValue())) continue;
+				if (!(project.findByUniqueId(sourceId) instanceof NormalTask normalTask)) continue;
+				ObjectNode taskNode = tasks.addObject();
+				taskNode.put("taskUid", serializedUid.longValue());
+				taskNode.put("constraintType", normalTask.getConstraintType());
+				taskNode.put("constraintDate", normalTask.getConstraintDate());
+				taskNode.put("start", normalTask.getStart());
+				taskNode.put("finish", normalTask.getEnd());
+				taskNode.put("actualStart", normalTask.getActualStart());
+			}
+			return JSON.writeValueAsBytes(root);
+		} catch (IOException exception) {
+			throw exception;
+		} catch (Exception exception) {
+			throw new IOException("Unable to serialize mpo task schedules", exception);
+		}
+	}
+
+	private static void restoreTaskSchedules(Project project, byte[] bytes) throws IOException {
+		JsonNode root = JSON.readTree(bytes);
+		JsonNode tasks = root.path("tasks");
+		if (root.path("version").asInt(-1) != 1 || !tasks.isArray())
+			throw new IOException("Invalid mpo task schedule data");
+		java.util.Set<Long> seen = new java.util.HashSet<>();
+		java.util.ArrayList<TaskScheduleSnapshot> snapshots = new java.util.ArrayList<>();
+		for (JsonNode taskNode : tasks) {
+			if (snapshots.size() >= MAX_OPERATION_COUNT) throw new IOException("MPO contains too many task schedule records");
+			JsonNode uidNode = taskNode.path("taskUid");
+			JsonNode constraintTypeNode = taskNode.path("constraintType");
+			JsonNode constraintDateNode = taskNode.path("constraintDate");
+			JsonNode startNode = taskNode.path("start");
+			JsonNode finishNode = taskNode.path("finish");
+			JsonNode actualStartNode = taskNode.path("actualStart");
+			if (!uidNode.canConvertToLong() || !constraintTypeNode.canConvertToInt()
+					|| !constraintDateNode.canConvertToLong() || !startNode.canConvertToLong()
+					|| !finishNode.canConvertToLong() || !actualStartNode.canConvertToLong())
+				throw new IOException("Invalid mpo task schedule record");
+			long serializedId = uidNode.longValue();
+			if (!seen.add(serializedId)) throw new IOException("Duplicate task schedule record in MPO");
+			Task task = project.findByUniqueId(serializedId);
+			if (!(task instanceof NormalTask normalTask))
+				throw new IOException("MPO task schedule references an unknown task uid=" + serializedId
+					+ " found=" + (task == null ? "null" : task.getClass().getName()));
+			int constraintType = constraintTypeNode.intValue();
+			if (com.microproject.pm.scheduling.ConstraintType.Kind.fromCodeOrNull(constraintType) == null)
+				throw new IOException("Invalid mpo task schedule constraint type");
+			long start = startNode.longValue();
+			long finish = finishNode.longValue();
+			if (finish < start) throw new IOException("Invalid mpo task schedule boundaries");
+			snapshots.add(new TaskScheduleSnapshot(normalTask, constraintType, constraintDateNode.longValue(), start,
+				finish, actualStartNode.longValue()));
+		}
+		for (TaskScheduleSnapshot snapshot : snapshots) {
+			snapshot.task().restoreMpoScheduleSnapshot(snapshot.constraintType(), snapshot.constraintDate(),
+				snapshot.start(), snapshot.finish(), snapshot.actualStart());
+		}
+	}
+
+	private record TaskScheduleSnapshot(NormalTask task, int constraintType, long constraintDate, long start,
+		long finish, long actualStart) { }
 
 	private static void restoreVisibility(Project project, byte[] bytes) throws IOException {
 		JsonNode root = JSON.readTree(bytes);

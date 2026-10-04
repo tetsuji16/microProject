@@ -296,6 +296,7 @@ class TaskCommandGatewayTest {
 	@Test
 	void ganttScheduleIntentRejectsStaleProjectionAndScheduleBeforeInvokingMutation() throws Exception {
 		Fixture fixture = createFixture();
+		fixture.task().setDuration(com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
 		RevisionedProjectionIndex projection = fixture.cache().getVisibleNodes().getProjectionIndex();
 		Schedule schedule = (Schedule)fixture.task();
 		ProjectionRowKey.TaskRow row = taskRowFor(projection, fixture.task());
@@ -323,8 +324,14 @@ class TaskCommandGatewayTest {
 			TaskScheduleEditIntent.Operation.SPLIT, current.expectedScheduleStart(), current.expectedScheduleEnd(),
 			current.expectedCompletedThrough(), Long.MIN_VALUE, Long.MAX_VALUE, current.expectedConstraintType(),
 			current.expectedConstraintDate(), Long.MIN_VALUE, Long.MAX_VALUE, 1L);
-		long splitPoint = current.expectedScheduleStart()
-			+ (current.expectedScheduleEnd() - current.expectedScheduleStart()) / 2L;
+		long[] splitPointHolder = { Long.MIN_VALUE };
+		schedule.consumeIntervals(interval -> {
+			long candidate = Math.max(interval.getStart() + (interval.getEnd() - interval.getStart()) / 2L,
+				current.expectedCompletedThrough());
+			if (splitPointHolder[0] == Long.MIN_VALUE && candidate < interval.getEnd()) splitPointHolder[0] = candidate;
+		});
+		long splitPoint = splitPointHolder[0];
+		assertTrue(splitPoint != Long.MIN_VALUE, "test fixture must expose a current work interval");
 		TaskScheduleEditIntent splitPointWithinWork = new TaskScheduleEditIntent(row, projection.topologyRevision(),
 			TaskScheduleEditIntent.Operation.SPLIT, current.expectedScheduleStart(), current.expectedScheduleEnd(),
 			current.expectedCompletedThrough(), Long.MIN_VALUE, Long.MAX_VALUE, current.expectedConstraintType(),

@@ -38,6 +38,7 @@ import com.microproject.collaboration.CollaborationSession;
 import com.microproject.collaboration.OperationLog;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Task;
+import com.microproject.pm.task.TaskSplitInterval;
 import com.microproject.pm.task.DefaultSubProj;
 import com.microproject.pm.task.ScheduleDiagnosticsService;
 import com.microproject.pm.task.UpdateProjectRequest;
@@ -222,6 +223,57 @@ class MpoFileImporterTest {
 		new MpoFileImporter().saveProject(reopened, resaved);
 
 		assertArrayEquals(extension, readEntries(resaved.toByteArray()).get(extensionPath));
+	}
+
+	@Test
+	void taskOwnedSplitIntervalsSurviveMpoSaveAndReload() throws Exception {
+		Project original = projectForRoundTrip();
+		NormalTask task = (NormalTask) firstTask(original);
+		long day = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		task.setDuration(3L * day);
+		long splitFrom = task.getStart() + 4L * 60L * 60L * 1000L;
+		long splitTo = splitFrom + 60L * 60L * 1000L;
+		List<TaskSplitInterval> expected = List.of(new TaskSplitInterval(
+			splitFrom - task.getStart(), splitTo - task.getStart()));
+		task.restoreTaskSplitIntervals(this, expected);
+
+		ByteArrayOutputStream archive = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(original, archive));
+		Project reopened = loadFromBytes(archive.toByteArray());
+		NormalTask restored = (NormalTask) firstTask(reopened);
+
+		assertEquals(expected, restored.getTaskSplitIntervals());
+		List<String> projected = new ArrayList<>();
+		restored.consumeIntervals(interval -> projected.add(interval.getStart() + ":" + interval.getEnd()));
+		assertTrue(projected.size() > 1, "reloaded task projection must render the split gap: " + projected
+			+ " / " + restored.getStart() + ".." + restored.getEnd() + " / " + expected);
+	}
+
+	@Test
+	void nativeMpoPreservesExactTaskScheduleSnapshot() throws Exception {
+		Project original = projectForRoundTrip();
+		NormalTask task = (NormalTask) firstTask(original);
+		long day = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		task.setDuration(3L * day);
+		Resource resource = original.getResourcePool().newResourceInstance();
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L,
+			MpoFileImporterTest.class);
+		assignment.setWork(3L * day, null);
+		long start = task.getStart() - day;
+		long finish = start + 4L * day;
+		long constraintDate = start + 30L * 60L * 1000L;
+		task.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, constraintDate);
+		task.getCurrentSchedule().setStart(start);
+		task.getCurrentSchedule().setFinish(finish);
+		task.setActualStartNoEvent(start);
+
+		Project reopened = loadFromBytes(saveProjectBytes(original));
+		NormalTask restored = (NormalTask) firstTask(reopened);
+		assertEquals(start, restored.getStart());
+		assertEquals(finish, restored.getEnd());
+		assertEquals(start, restored.getActualStart());
+		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, restored.getConstraintTypeKind());
+		assertEquals(constraintDate, restored.getConstraintDate());
 	}
 
 	@Test

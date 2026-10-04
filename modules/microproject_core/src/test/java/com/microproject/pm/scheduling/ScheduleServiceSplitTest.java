@@ -101,7 +101,7 @@ class ScheduleServiceSplitTest {
 	}
 
 	@Test
-	void splittingUnassignedTaskIsRejectedWithoutMutationOrUndo() {
+	void splittingUnassignedTaskAddsTaskOwnedGapAndUndoRedoRestoreIt() {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
 		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
 		Project project = Project.createProject(resourcePool, undoController);
@@ -114,18 +114,28 @@ class ScheduleServiceSplitTest {
 		task.setDirty(false);
 		long originalStart = task.getStart();
 		long originalEnd = task.getEnd();
-		long splitEnd = task.getEffectiveWorkCalendar().add(originalStart,
+		long splitFrom = task.getEffectiveWorkCalendar().add(originalStart,
+			CalendarOption.getInstance().getMillisPerDay(), false);
+		long splitEnd = task.getEffectiveWorkCalendar().add(splitFrom,
 			CalendarOption.getInstance().getMillisPerDay(), false);
 
-		boolean changed = ScheduleService.getInstance().split(this, task, originalStart, splitEnd,
+		boolean changed = ScheduleService.getInstance().split(this, task, splitFrom, splitEnd,
 			undoController.getEditSupport());
 
-		assertFalse(changed);
+		assertTrue(changed);
 		assertEquals(originalStart, task.getStart());
-		assertEquals(originalEnd, task.getEnd());
-		assertFalse(project.isDirty());
-		assertFalse(task.isDirty());
-		assertFalse(undoController.canUndo());
+		assertTrue(task.getEnd() > originalEnd, "task finish must move to retain work after the nonworking gap");
+		assertEquals(List.of(originalStart + ":" + splitFrom, splitEnd + ":" + task.getEnd()), taskIntervals(task));
+		assertTrue(undoController.canUndo());
+		undoController.undo();
+		assertTrue(task.getTaskSplitIntervals().isEmpty());
+		assertEquals(List.of(originalStart + ":" + originalEnd), taskIntervals(task));
+		undoController.redo();
+		assertEquals(List.of(originalStart + ":" + splitFrom, splitEnd + ":" + task.getEnd()), taskIntervals(task));
+		long splitFinish = task.getEnd();
+		project.recalculate();
+		assertEquals(splitFinish, task.getEnd(), "ordinary schedule recalculation must not erase a task-owned gap");
+		assertEquals(List.of(originalStart + ":" + splitFrom, splitEnd + ":" + task.getEnd()), taskIntervals(task));
 	}
 
 	@Test
@@ -140,9 +150,13 @@ class ScheduleServiceSplitTest {
 		task.setDuration(3L * day);
 		Assignment assignment = AssignmentService.getInstance().newAssignment(task,
 			resourcePool.newResourceInstance(), 1.0D, 0L, this);
+		Assignment secondAssignment = AssignmentService.getInstance().newAssignment(task,
+			resourcePool.newResourceInstance(), 1.0D, 0L, this);
 		long splitFrom = assignment.getEffectiveWorkCalendar().add(task.getStart(), day, false);
 		long splitTo = assignment.getEffectiveWorkCalendar().add(splitFrom, day, false);
 		List<String> originalIntervals = assignmentIntervals(assignment);
+		List<String> originalSecondIntervals = assignmentIntervals(secondAssignment);
+		List<String> originalTaskIntervals = taskIntervals(task);
 		undoController.discardAllEdits();
 
 		boolean changed = ScheduleService.getInstance().split(this, task, splitFrom, splitTo,
@@ -150,12 +164,82 @@ class ScheduleServiceSplitTest {
 
 		assertTrue(changed);
 		List<String> splitIntervals = assignmentIntervals(assignment);
-		assertTrue(splitIntervals.size() > originalIntervals.size());
+		List<String> splitTaskIntervals = taskIntervals(task);
+		assertEquals(originalIntervals, splitIntervals, "task-owned split must preserve assignment contours");
+		assertEquals(originalSecondIntervals, assignmentIntervals(secondAssignment),
+			"task-owned split must preserve every assigned resource contour");
+		assertTrue(splitTaskIntervals.size() > originalTaskIntervals.size());
 		assertTrue(undoController.canUndo());
 		undoController.undo();
 		assertEquals(originalIntervals, assignmentIntervals(assignment));
+		assertEquals(originalSecondIntervals, assignmentIntervals(secondAssignment));
+		assertEquals(originalTaskIntervals, taskIntervals(task));
 		undoController.redo();
 		assertEquals(splitIntervals, assignmentIntervals(assignment));
+		assertEquals(originalSecondIntervals, assignmentIntervals(secondAssignment));
+		assertEquals(splitTaskIntervals, taskIntervals(task));
+		long splitFinish = task.getEnd();
+		project.recalculate();
+		assertEquals(splitFinish, task.getEnd(), "ordinary schedule recalculation must preserve task-owned gaps with assignments");
+		assertEquals(splitTaskIntervals, taskIntervals(task));
+	}
+
+	@Test
+	void overlappingSplitExtendsTheGapOnlyByNewlyAddedTime() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		project.initialize(false, false);
+		NormalTask task = new NormalTask(project);
+		project.connectTask(task);
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		long halfDay = day / 2L;
+		task.setDuration(4L * day);
+		long originalStart = task.getStart();
+		long originalEnd = task.getEnd();
+		long splitFrom = task.getEffectiveWorkCalendar().add(originalStart, day, false);
+		long splitTo = task.getEffectiveWorkCalendar().add(splitFrom, day, false);
+
+		assertTrue(ScheduleService.getInstance().split(this, task, splitFrom, splitTo, undoController.getEditSupport()));
+		long finishAfterFirstSplit = task.getEnd();
+		long overlapFrom = task.getEffectiveWorkCalendar().add(splitFrom, halfDay, false);
+		long extendedTo = task.getEffectiveWorkCalendar().add(splitTo, halfDay, false);
+
+		assertTrue(ScheduleService.getInstance().split(this, task, overlapFrom, extendedTo, undoController.getEditSupport()));
+		assertEquals(finishAfterFirstSplit + halfDay, task.getEnd(),
+			"overlapping a prior gap must extend the schedule only by its newly added portion");
+		assertEquals(1, task.getTaskSplitIntervals().size(), "overlapping split intervals must have one canonical union");
+		assertTrue(task.getEnd() > originalEnd);
+	}
+
+	@Test
+	void repeatingAnExistingSplitIsANoOpWithoutUndoOrDirtyState() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		project.initialize(false, false);
+		NormalTask task = new NormalTask(project);
+		project.connectTask(task);
+		task.setDuration(3L * CalendarOption.getInstance().getMillisPerDay());
+		long splitFrom = task.getEffectiveWorkCalendar().add(task.getStart(),
+			CalendarOption.getInstance().getMillisPerDay(), false);
+		long splitTo = task.getEffectiveWorkCalendar().add(splitFrom,
+			CalendarOption.getInstance().getMillisPerDay(), false);
+		assertTrue(ScheduleService.getInstance().split(this, task, splitFrom, splitTo, undoController.getEditSupport()));
+		undoController.discardAllEdits();
+		project.setDirty(false);
+		task.setDirty(false);
+
+		assertFalse(ScheduleService.getInstance().split(this, task, splitFrom, splitTo, undoController.getEditSupport()));
+		assertFalse(undoController.canUndo(), "a repeated split must not create phantom Undo history");
+		assertFalse(project.isDirty(), "a repeated split must not dirty the project");
+		assertFalse(task.isDirty(), "a repeated split must not dirty the task");
+	}
+
+	private List<String> taskIntervals(NormalTask task) {
+		List<String> intervals = new ArrayList<>();
+		task.consumeIntervals(interval -> intervals.add(interval.getStart() + ":" + interval.getEnd()));
+		return List.copyOf(intervals);
 	}
 
 	private List<String> assignmentIntervals(Assignment assignment) {

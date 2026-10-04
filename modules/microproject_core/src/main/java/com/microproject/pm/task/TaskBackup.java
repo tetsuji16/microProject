@@ -24,9 +24,11 @@
  *******************************************************************************/
 package com.microproject.pm.task;
 
+import java.util.ArrayList;
 
 public class TaskBackup {
 	TaskSnapshotBackup snapshot;
+	ArrayList<TaskSplitInterval> taskSplitIntervals;
 	long windowEarlyStart,windowEarlyFinish,windowLateStart,windowLateFinish,actualStart;
 	
 }

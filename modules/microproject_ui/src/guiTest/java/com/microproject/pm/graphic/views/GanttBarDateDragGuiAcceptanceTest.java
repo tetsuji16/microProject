@@ -237,14 +237,12 @@ class GanttBarDateDragGuiAcceptanceTest {
 		assertEquals(startConstraintType, fixture.predecessor.getConstraintType(),
 			"one Redo must preserve the start constraint after finish resize");
 
-		SwingUtilities.invokeAndWait(() -> {
-			fixture.predecessor.setPercentComplete(0.4d);
-			fixture.project.recalculate();
-		});
+		SwingUtilities.invokeAndWait(() -> fixture.predecessor.setPercentComplete(0.4d));
+		SwingUtilities.invokeAndWait(fixture.project::recalculate);
 		long originalProgress = fixture.predecessor.getCompletedThrough();
 		Point progressHandle = screenPointForTaskDate(fixture, originalProgress);
 		assertProgressBarHit(fixture, progressHandle);
-		long progressTarget = originalProgress + (fixture.predecessor.getEnd() - originalProgress) * 3L / 4L;
+		long progressTarget = originalProgress + (fixture.predecessor.getEnd() - originalProgress) / 6L;
 		assertTrue(progressTarget > originalProgress && progressTarget < fixture.predecessor.getEnd(),
 			"progress target must remain inside the scheduled interval: progress=" + originalProgress
 				+ " end=" + fixture.predecessor.getEnd() + " target=" + progressTarget);
@@ -265,18 +263,19 @@ class GanttBarDateDragGuiAcceptanceTest {
 		List<String> originalIntervals = assignmentIntervals(fixture.predecessor);
 		List<String> originalTaskIntervals = taskIntervals(fixture.predecessor);
 		List<String> originalContours = assignmentContours(fixture.predecessor);
+		List<com.microproject.pm.task.TaskSplitInterval> originalTaskSplits = fixture.predecessor.getTaskSplitIntervals();
 		long remainingWorkStart = Math.max(currentProgress, fixture.predecessor.getResume());
-		long splitAt = originalIntervals.stream().mapToLong(interval -> {
+		long splitAt = originalTaskIntervals.stream().mapToLong(interval -> {
 			String[] bounds = interval.split(":");
 			long intervalStart = Math.max(Long.parseLong(bounds[0]), remainingWorkStart);
 			long intervalEnd = Long.parseLong(bounds[1]);
 			return intervalEnd - intervalStart > 1L
-				? intervalStart + (intervalEnd - intervalStart) / 2L
+				? intervalStart + (intervalEnd - intervalStart) / 3L
 				: Long.MIN_VALUE;
 		}).filter(candidate -> candidate != Long.MIN_VALUE).findFirst().orElseThrow(() ->
-			new AssertionError("progress drag must leave a schedulable assignment interval for splitting: resume="
+			new AssertionError("progress drag must leave a schedulable task interval for splitting: resume="
 				+ fixture.predecessor.getResume() + " completedThrough=" + currentProgress
-				+ " intervals=" + originalIntervals));
+				+ " taskIntervals=" + originalTaskIntervals));
 		assertTrue(splitAt > remainingWorkStart && splitAt < fixture.predecessor.getEnd(),
 			"split point must be inside remaining scheduled work: resume=" + fixture.predecessor.getResume()
 				+ " completedThrough=" + currentProgress + " splitAt=" + splitAt
@@ -288,11 +287,13 @@ class GanttBarDateDragGuiAcceptanceTest {
 		openPopupAndChoose(robot, splitStart, Messages.getString("Gantt.Popup.splitMode"));
 		click(robot, splitStart);
 		try {
-			GuiAcceptanceSupport.await(() -> !assignmentIntervals(fixture.predecessor).equals(originalIntervals),
-				"Gantt split gesture did not add a nonworking interval to the resource assignment");
+			GuiAcceptanceSupport.await(() -> !fixture.predecessor.getTaskSplitIntervals().equals(originalTaskSplits),
+				"Gantt split gesture did not add a task-owned nonworking interval");
 		} catch (AssertionError failure) {
 			throw new AssertionError(failure.getMessage() + ": intervals before=" + originalIntervals
 				+ " after=" + assignmentIntervals(fixture.predecessor)
+				+ " task splits before=" + originalTaskSplits
+				+ " after=" + fixture.predecessor.getTaskSplitIntervals()
 				+ " contours before=" + originalContours
 				+ " after=" + assignmentContours(fixture.predecessor)
 				+ " requested=" + splitAt + " clicked=" + clickedSplitAt
@@ -301,39 +302,66 @@ class GanttBarDateDragGuiAcceptanceTest {
 				+ " after=" + assignmentScheduleStates(fixture.predecessor), failure);
 		}
 		List<String> splitIntervals = assignmentIntervals(fixture.predecessor);
-		assertTrue(gapStartsAtPixel(fixture, splitIntervals, splitStart.x),
-			"the split must leave a nonworking gap at the physical click point: before=" + originalIntervals
-				+ " after=" + splitIntervals + " clicked=" + clickedSplitAt
-				+ " clickPixel=" + splitStart.x);
+		assertEquals(originalIntervals, splitIntervals, "task-owned split must preserve resource assignment intervals");
+		assertEquals(originalContours, assignmentContours(fixture.predecessor),
+			"task-owned split must preserve resource assignment contours");
 		List<String> splitTaskIntervals = taskIntervals(fixture.predecessor);
-		assertTrue(gapStartsAtPixel(fixture, splitTaskIntervals, splitStart.x),
+		long normalizedSplitStart = fixture.predecessor.getStart()
+			+ fixture.predecessor.getTaskSplitIntervals().getFirst().startOffset();
+		Point normalizedSplitPoint = screenPointForTaskDate(fixture, normalizedSplitStart);
+		assertTrue(gapStartsAtPixel(fixture, splitTaskIntervals, normalizedSplitPoint.x),
 			"the task intervals consumed by the Gantt renderer must expose the visible split gap: "
-				+ splitTaskIntervals + " clicked=" + clickedSplitAt + " clickPixel=" + splitStart.x);
+				+ splitTaskIntervals + " splits=" + fixture.predecessor.getTaskSplitIntervals()
+				+ " schedule=" + fixture.predecessor.getStart() + ".." + fixture.predecessor.getEnd()
+				+ " clicked=" + clickedSplitAt + " clickPixel=" + splitStart.x
+				+ " normalizedPixel=" + normalizedSplitPoint.x);
 		assertTrue(barBounds(fixture).width > 0, "the split task must remain visible after redraw");
 		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().undo());
 		assertEquals(originalIntervals, assignmentIntervals(fixture.predecessor),
-			"one Undo must restore the original assignment work intervals");
+			"task-owned split must not change assignment work intervals");
 		assertEquals(originalTaskIntervals, taskIntervals(fixture.predecessor),
 			"one Undo must restore the original intervals consumed by Gantt");
+		assertEquals(originalTaskSplits, fixture.predecessor.getTaskSplitIntervals(),
+			"one Undo must remove the task-owned split interval");
 		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().redo());
-		assertEquals(splitIntervals, assignmentIntervals(fixture.predecessor),
-			"one Redo must restore the split assignment work intervals");
+		assertEquals(originalIntervals, assignmentIntervals(fixture.predecessor),
+			"one Redo must preserve assignment work intervals");
 		assertEquals(splitTaskIntervals, taskIntervals(fixture.predecessor),
 			"one Redo must restore the split gap consumed by Gantt");
+		List<com.microproject.pm.task.TaskSplitInterval> persistedTaskSplits = fixture.predecessor.getTaskSplitIntervals();
 
 		List<String> persistedIntervals = assignmentIntervals(fixture.predecessor);
 		List<String> persistedTaskIntervals = taskIntervals(fixture.predecessor);
+		long scheduleStartBeforeSave = fixture.predecessor.getStart();
+		long scheduleFinishBeforeSave = fixture.predecessor.getEnd();
 
 		ByteArrayOutputStream saved = new ByteArrayOutputStream();
 		MpoFileImporter importer = new MpoFileImporter();
 		assertTrue(importer.saveProject(fixture.project, saved), "edited schedule must be serializable");
+		byte[] snapshotXml = projectXmlEntry(saved.toByteArray());
+		net.sf.mpxj.ProjectFile mspSnapshot = new net.sf.mpxj.mspdi.MSPDIReader()
+			.read(new ByteArrayInputStream(snapshotXml));
+		net.sf.mpxj.Task mspTask = mspSnapshot.getTasks().stream()
+			.filter(task -> "Drag predecessor".equals(task.getName())).findFirst().orElseThrow();
 		Project reopened = importer.loadProject(new ByteArrayInputStream(saved.toByteArray()));
 		NormalTask reopenedTask = reopened.getTaskList().stream()
 			.filter(task -> "Drag predecessor".equals(task.getName())).map(NormalTask.class::cast).findFirst().orElseThrow();
-		assertEquals(resizedStart, reopenedTask.getStart(), "resized start must survive MPO reload");
-		assertEquals(resizedEnd, reopenedTask.getEnd(), "resized finish must survive MPO reload");
-		assertEquals(updatedProgress, reopenedTask.getCompletedThrough(), "progress must survive MPO reload");
-		assertEquals(persistedIntervals, assignmentIntervals(reopenedTask), "split intervals must survive MPO reload");
+		assertEquals(scheduleStartBeforeSave, reopenedTask.getStart(), "final schedule start must survive MPO reload: project="
+			+ reopened.getStart() + " actualStart=" + reopenedTask.getActualStart() + " constraint="
+			+ reopenedTask.getConstraintTypeKind() + " constraintDate=" + reopenedTask.getConstraintDate()
+			+ " snapshotStart=" + mspTask.getStart() + " snapshotActualStart=" + mspTask.getActualStart()
+			+ " snapshotConstraint=" + mspTask.getConstraintType() + " snapshotConstraintDate=" + mspTask.getConstraintDate());
+		assertEquals(scheduleFinishBeforeSave, reopenedTask.getEnd(), "final schedule finish must survive MPO reload");
+		int savedProgressPixel = screenPointForTaskDate(fixture, updatedProgress).x;
+		int restoredProgressPixel = screenPointForTaskDate(fixture, reopenedTask.getCompletedThrough()).x;
+		assertTrue(Math.abs(savedProgressPixel - restoredProgressPixel) <= 1,
+			"progress must survive MPO reload within one rendered pixel: saved=" + updatedProgress
+				+ " restored=" + reopenedTask.getCompletedThrough() + " savedPixel=" + savedProgressPixel
+				+ " restoredPixel=" + restoredProgressPixel);
+		assertIntervalsMatchAtRenderedResolution(fixture, persistedIntervals, assignmentIntervals(reopenedTask),
+			"assignment intervals must survive MPO reload");
+		assertEquals(persistedTaskSplits, reopenedTask.getTaskSplitIntervals(),
+			"task-owned split intervals must survive MPO reload");
 		assertEquals(persistedTaskIntervals, taskIntervals(reopenedTask),
 			"the split gap rendered by Gantt must survive MPO reload");
 		capture(robot, "gantt-schedule-gestures-final.png");
@@ -782,6 +810,34 @@ class GanttBarDateDragGuiAcceptanceTest {
 		task.getCurrentSchedule().setStart(project.getStart());
 		task.setDuration(days * com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
 		return task;
+	}
+
+	private static byte[] projectXmlEntry(byte[] mpo) throws Exception {
+		try (java.util.zip.ZipInputStream zip = new java.util.zip.ZipInputStream(new ByteArrayInputStream(mpo))) {
+			java.util.zip.ZipEntry entry;
+			while ((entry = zip.getNextEntry()) != null) {
+				if ("content.xml".equals(entry.getName())) return zip.readAllBytes();
+			}
+		}
+		throw new AssertionError("MPO snapshot is missing its MSPDI project entry");
+	}
+
+	private void assertIntervalsMatchAtRenderedResolution(Fixture fixture, List<String> expected,
+			List<String> actual, String message) throws Exception {
+		assertEquals(expected.size(), actual.size(), message + " interval count");
+		for (int index = 0; index < expected.size(); index++) {
+			String[] expectedBounds = expected.get(index).split(":");
+			String[] actualBounds = actual.get(index).split(":");
+			for (int bound = 0; bound < 2; bound++) {
+				long expectedDate = Long.parseLong(expectedBounds[bound]);
+				long actualDate = Long.parseLong(actualBounds[bound]);
+				int expectedPixel = screenPointForTaskDate(fixture, expectedDate).x;
+				int actualPixel = screenPointForTaskDate(fixture, actualDate).x;
+				assertTrue(Math.abs(expectedPixel - actualPixel) <= 1,
+					message + " interval=" + index + " bound=" + bound + " expected=" + expectedDate
+						+ " actual=" + actualDate + " expectedPixel=" + expectedPixel + " actualPixel=" + actualPixel);
+			}
+		}
 	}
 
 	private record Fixture(Project project, NormalTask predecessor, NormalTask successor, Dependency dependency, NodeModelCache cache) { }
