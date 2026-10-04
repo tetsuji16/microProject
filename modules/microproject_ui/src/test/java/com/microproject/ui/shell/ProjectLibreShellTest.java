@@ -56,7 +56,7 @@ class ProjectLibreShellTest {
 		JToolBar toolBar = new JToolBar();
 		JPanel tabs = new JPanel();
 		JPanel bottom = new JPanel();
-		Color background = new Color(0xF0F0F0);
+		Color background = new Color(0xF3F2F1);
 
 		ProjectLibreShell.attachNewLookChrome(container, toolBar, tabs, bottom, background);
 
