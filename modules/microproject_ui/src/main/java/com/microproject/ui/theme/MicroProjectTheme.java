@@ -98,19 +98,23 @@ public final class MicroProjectTheme {
 		UIManager.put("MicroProject.ribbonInlineButtonMediumMinWidth", Integer.valueOf(tokens.ribbonInlineButtonMediumMinWidth()));
 		UIManager.put("MicroProject.ribbonInlineButtonSmallMinWidth", Integer.valueOf(tokens.ribbonInlineButtonSmallMinWidth()));
 		UIManager.put("MicroProject.ribbonBandTitleHeight", Integer.valueOf(tokens.ribbonBandTitleHeight()));
-		UIManager.put("TitlePane.background", tokens.ribbonChromeBackground());
-		UIManager.put("TitlePane.inactiveBackground", tokens.ribbonChromeBackground());
-		UIManager.put("TitlePane.foreground", tokens.tableForeground());
-		UIManager.put("TitlePane.inactiveForeground", tokens.tableForeground());
+		// The Office-style title strip uses the blue shown in the supplied
+		// current-ribbon reference; keep the application accent green separate.
+		UIManager.put("MicroProject.officeTitleBarBackground", color(dark, 0x116EBE, 0x174A75));
+		UIManager.put("MicroProject.officeTitleBarForeground", java.awt.Color.WHITE);
+		UIManager.put("TitlePane.background", color(dark, 0x116EBE, 0x174A75));
+		UIManager.put("TitlePane.inactiveBackground", color(dark, 0x116EBE, 0x174A75));
+		UIManager.put("TitlePane.foreground", java.awt.Color.WHITE);
+		UIManager.put("TitlePane.inactiveForeground", java.awt.Color.WHITE);
 		// Keep the custom Office chrome's iconify/maximize buttons visibly
 		// interactive.  FlatLaf gives the close button a dedicated red hover
 		// state, while the other title-pane buttons otherwise inherit a
 		// look-and-feel default that is not guaranteed to be present after the
 		// title-bar background is replaced by the MSP-style ribbon chrome.
-		UIManager.put("TitlePane.buttonHoverBackground", color(dark, 0xE5F1FB, 0x373C44));
-		UIManager.put("TitlePane.buttonPressedBackground", color(dark, 0xCCE4F7, 0x434B55));
-		UIManager.put("TitlePane.buttonHoverForeground", tokens.tableForeground());
-		UIManager.put("TitlePane.buttonPressedForeground", tokens.tableForeground());
+		UIManager.put("TitlePane.buttonHoverBackground", color(dark, 0x2D83C8, 0x245D86));
+		UIManager.put("TitlePane.buttonPressedBackground", color(dark, 0x0D5FA8, 0x0F3E64));
+		UIManager.put("TitlePane.buttonHoverForeground", java.awt.Color.WHITE);
+		UIManager.put("TitlePane.buttonPressedForeground", java.awt.Color.WHITE);
 		UIManager.put("TitlePane.unifiedBackground", Boolean.TRUE);
 		UIManager.put("MenuBar.background", tokens.ribbonChromeBackground());
 		UIManager.put("MenuBar.borderColor", tokens.ribbonChromeBackground());

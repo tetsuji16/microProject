@@ -41,6 +41,7 @@ import com.microproject.menu.testsupport.MenuDefinitionSupport;
 import com.microproject.menu.testsupport.UiComponentWalker;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.util.Environment;
+import com.microproject.util.FlatLafSupport;
 
 /** Physical GUI checks for the live Flamingo JRibbon path. */
 class RibbonTabGuiAcceptanceTest {
@@ -51,6 +52,7 @@ class RibbonTabGuiAcceptanceTest {
 	@BeforeEach void configureRibbonEnvironment() {
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
+		FlatLafSupport.ensureInitialized();
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
 	}

@@ -24,6 +24,7 @@ import java.util.function.Consumer;
 import javax.swing.Action;
 import javax.swing.AbstractAction;
 import javax.swing.JComponent;
+import javax.swing.ImageIcon;
 import javax.swing.JPanel;
 import javax.swing.JRootPane;
 import javax.swing.KeyStroke;
@@ -37,6 +38,7 @@ import org.pushingpixels.flamingo.api.common.CommandButtonDisplayState;
 import org.pushingpixels.flamingo.api.common.JCommandButton;
 import org.pushingpixels.flamingo.api.common.JCommandToggleButton;
 import org.pushingpixels.flamingo.api.common.RichTooltip;
+import org.pushingpixels.flamingo.api.common.icon.ImageWrapperResizableIcon;
 import org.pushingpixels.flamingo.api.common.icon.ResizableIcon;
 import org.pushingpixels.flamingo.api.ribbon.JRibbon;
 import org.pushingpixels.flamingo.api.ribbon.JRibbonBand;
@@ -208,7 +210,9 @@ final class FlamingoRibbonController extends JPanel implements RibbonController 
 	private static ResizableIcon icon(String key, int size) {
 		ResizableIcon resolved;
 		try {
-			resolved = IconManager.getRibbonIcon(key, size, size);
+			ImageIcon tinted = IconManager.getRibbonIconTinted(key, size, size, FlatUiSupport.ribbonIconColor());
+			resolved = tinted == null ? IconManager.getRibbonIcon(key, size, size)
+				: ImageWrapperResizableIcon.getIcon(tinted.getImage(), new Dimension(size, size));
 		} catch (MissingResourceException ignored) {
 			resolved = null;
 		}

@@ -51,11 +51,13 @@ import com.microproject.ui.theme.MicroProjectThemeTokens;
 
 class FlatLafSupportTest {
 	@Test
-	void initializeUsesRibbonChromeForWindowAndMenuBar() {
+	void initializeUsesOfficeBlueTitleBarAndRibbonMenuColors() {
 		FlatLafSupport.initialize();
 
-		assertEquals(FlatUiTheme.ribbonChromeBackground(), UIManager.getColor("TitlePane.background"));
-		assertEquals(FlatUiTheme.ribbonChromeBackground(), UIManager.getColor("TitlePane.inactiveBackground"));
+		boolean dark = new GlobalPreferences().isDarkTheme();
+		java.awt.Color titleBar = new java.awt.Color(dark ? 0x174A75 : 0x116EBE);
+		assertEquals(titleBar, UIManager.getColor("TitlePane.background"));
+		assertEquals(titleBar, UIManager.getColor("TitlePane.inactiveBackground"));
 		assertEquals(FlatUiTheme.ribbonChromeBackground(), UIManager.getColor("MenuBar.background"));
 		assertEquals(FlatUiTheme.ribbonChromeBackground(), UIManager.getColor("Menu.background"));
 		if (Environment.isWindows() && FlatLaf.supportsNativeWindowDecorations()) {
@@ -69,8 +71,8 @@ class FlatLafSupportTest {
 		FlatLafSupport.initialize();
 
 		boolean dark = new GlobalPreferences().isDarkTheme();
-		assertEquals(new java.awt.Color(dark ? 0x373C44 : 0xE5F1FB), UIManager.getColor("TitlePane.buttonHoverBackground"));
-		assertEquals(new java.awt.Color(dark ? 0x434B55 : 0xCCE4F7), UIManager.getColor("TitlePane.buttonPressedBackground"));
+		assertEquals(new java.awt.Color(dark ? 0x245D86 : 0x2D83C8), UIManager.getColor("TitlePane.buttonHoverBackground"));
+		assertEquals(new java.awt.Color(dark ? 0x0F3E64 : 0x0D5FA8), UIManager.getColor("TitlePane.buttonPressedBackground"));
 		assertEquals(UIManager.getColor("TitlePane.foreground"), UIManager.getColor("TitlePane.buttonHoverForeground"));
 		assertEquals(UIManager.getColor("TitlePane.foreground"), UIManager.getColor("TitlePane.buttonPressedForeground"));
 	}

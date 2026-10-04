@@ -40,6 +40,8 @@ class MicroProjectThemeTest {
 
 		assertEquals(MicroProjectTheme.tokens().ribbonChromeBackground(), UIManager.getColor("MicroProject.ribbonChromeBackground"));
 		assertEquals(MicroProjectTheme.tokens().ribbonSurfaceBackground(), UIManager.getColor("MicroProject.ribbonSurfaceBackground"));
+		assertEquals(new Color(0x116EBE), UIManager.getColor("TitlePane.background"));
+		assertEquals(Color.WHITE, UIManager.getColor("TitlePane.foreground"));
 		assertEquals(MicroProjectTheme.tokens().headerBackground(), UIManager.getColor("TableHeader.background"));
 		assertEquals(MicroProjectTheme.tokens().spreadsheetHeaderSelectedBackground(), UIManager.getColor("MicroProject.spreadsheetHeaderSelectedBackground"));
 		assertEquals(MicroProjectTheme.tokens().spreadsheetGridColor(), UIManager.getColor("MicroProject.spreadsheetGridColor"));
@@ -85,8 +87,9 @@ class MicroProjectThemeTest {
 	}
 
 	@Test
-	void ribbonChromeMatchesTheWindowsTitleBarGray() {
-		assertEquals(new Color(0xF2F2F2), MicroProjectThemeTokens.light().ribbonChromeBackground());
+	void ribbonUsesTheReferenceOfficeSurfaceColor() {
+		assertEquals(new Color(0xF3F2F1), MicroProjectThemeTokens.light().ribbonChromeBackground());
+		assertEquals(new Color(0xF3F2F1), MicroProjectThemeTokens.light().ribbonSurfaceBackground());
 	}
 
 	@Test
