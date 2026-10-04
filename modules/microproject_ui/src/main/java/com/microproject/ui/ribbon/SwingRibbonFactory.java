@@ -142,8 +142,10 @@ public final class SwingRibbonFactory {
 				: SwingRibbonModel.ButtonPresentation.COMMAND;
 			SwingRibbonModel.ButtonSize size = resolveButtonSize(buttonId, priority);
 			int collapsePriority = resolveCollapsePriority(buttonId, priority);
+			String text = resolveStringOrNull(buttonId + ".text");
 			buttons.add(new SwingRibbonModel.RibbonButton(
 				buttonId,
+				text == null ? buttonId : text,
 				priority,
 				size,
 				iconRegistry.resolve(buttonId),

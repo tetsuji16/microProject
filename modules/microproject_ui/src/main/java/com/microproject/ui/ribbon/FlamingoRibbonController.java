@@ -29,6 +29,7 @@ import javax.swing.JRootPane;
 import javax.swing.KeyStroke;
 import javax.swing.InputMap;
 import javax.swing.ActionMap;
+import javax.swing.BorderFactory;
 import javax.swing.SwingUtilities;
 
 import org.pushingpixels.flamingo.api.common.AbstractCommandButton;
@@ -106,18 +107,22 @@ final class FlamingoRibbonController extends JPanel implements RibbonController 
 	private JRibbonBand createBand(SwingRibbonModel.RibbonBand specification) {
 		if (specification.isCustomBand()) {
 			JRibbonBand band = new JRibbonBand(specification.getTitle(), icon(specification.getId(), 16));
+			styleBandBoundary(band);
 			JComponent component = specification.getCustomBandProvider().createComponent();
 			if (component != null) band.addRibbonComponent(new JRibbonComponent(component));
 			band.setResizePolicies(resizePolicies(band));
 			return band;
 		}
 		JRibbonBand band = new JRibbonBand(specification.getTitle(), icon(specification.getId(), 16));
+		styleBandBoundary(band);
 		for (SwingRibbonModel.RibbonButton spec : specification.getButtons()) {
 			Action action = commands.createAction(spec.getId());
 			ResizableIcon icon = spec.getIconKey() == null ? null : icon(spec.getIconKey(), spec.getButtonSize() == SwingRibbonModel.ButtonSize.LARGE ? 32 : 16);
+			String initialActionName = actionName(action, spec.getId());
+			String buttonText = spec.getText();
 			AbstractCommandButton button = spec.isToggle()
-				? new JCommandToggleButton(actionName(action, spec.getId()), icon)
-				: new JCommandButton(actionName(action, spec.getId()), icon);
+				? new JCommandToggleButton(buttonText, icon)
+				: new JCommandButton(buttonText, icon);
 			button.setName(spec.getId());
 			button.setDisplayState(displayState(spec.getButtonSize()));
 			setRichTooltip(button, Objects.toString(action.getValue(Action.SHORT_DESCRIPTION), actionName(action, spec.getId())));
@@ -129,7 +134,10 @@ final class FlamingoRibbonController extends JPanel implements RibbonController 
 			if (!keyTip.isBlank()) button.setActionKeyTip(keyTip);
 			PropertyChangeListener stateSync = event -> {
 				if ("enabled".equals(event.getPropertyName())) button.setEnabled(action.isEnabled());
-				if (Action.NAME.equals(event.getPropertyName())) button.setText(Objects.toString(event.getNewValue(), spec.getId()));
+				if (Action.NAME.equals(event.getPropertyName())) {
+					String nextName = Objects.toString(event.getNewValue(), spec.getId());
+					button.setText(nextName.equals(initialActionName) ? spec.getText() : nextName);
+				}
 				if (Action.SELECTED_KEY.equals(event.getPropertyName()))
 					button.getActionModel().setSelected(Boolean.TRUE.equals(event.getNewValue()));
 				if (Action.SHORT_DESCRIPTION.equals(event.getPropertyName())) setRichTooltip(button, Objects.toString(event.getNewValue(), ""));
@@ -142,6 +150,12 @@ final class FlamingoRibbonController extends JPanel implements RibbonController 
 		}
 		band.setResizePolicies(resizePolicies(band));
 		return band;
+	}
+
+	private static void styleBandBoundary(JRibbonBand band) {
+		band.setBorder(BorderFactory.createCompoundBorder(
+			BorderFactory.createMatteBorder(0, 0, 0, 1, FlatUiSupport.ribbonBandSeparatorColor()),
+			BorderFactory.createEmptyBorder(2, 2, 2, 2)));
 	}
 
 	private static List<RibbonBandResizePolicy> resizePolicies(JRibbonBand band) {

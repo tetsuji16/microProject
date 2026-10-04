@@ -40,6 +40,8 @@ class FlamingoRibbonControllerTest {
 			JPanel host = factory.createPanel(MenuManager.STANDARD_RIBBON, () -> { });
 			AbstractCommandButton button = findCommand(host, "RibbonTaskInformation");
 			assertNotNull(button);
+			assertFalse(button.getText().equals(button.getName()),
+				"ribbon labels must use the resource text instead of leaking internal command IDs");
 			Action action = commands.createAction("RibbonTaskInformation");
 			action.putValue(Action.NAME, "Updated command name");
 			assertEquals("Updated command name", button.getText());

@@ -10,8 +10,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.GraphicsEnvironment;
 import java.awt.Point;
+import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.event.InputEvent;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -23,6 +26,7 @@ import javax.swing.JFrame;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
+import javax.imageio.ImageIO;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
@@ -69,6 +73,7 @@ class RibbonTabGuiAcceptanceTest {
 			frame.add(host);
 			frame.setSize(1440, 420);
 			frame.setLocation(40, 40);
+			frame.setAlwaysOnTop(true);
 			frame.setVisible(true);
 			frame.toFront();
 			frame.requestFocus();
@@ -78,6 +83,11 @@ class RibbonTabGuiAcceptanceTest {
 		Robot robot = new Robot(frame.getGraphicsConfiguration().getDevice());
 		robot.setAutoDelay(35);
 		var bundle = MenuDefinitionSupport.menuBundle(Locale.getDefault());
+		AbstractCommandButton newProject = findCommand(host, "RibbonNewProject");
+		assertTrue(bundle.getString("RibbonNewProject.text").equals(newProject.getText()),
+			"visible ribbon text must come from the active locale bundle, expected="
+				+ bundle.getString("RibbonNewProject.text") + ", actual=" + newProject.getText());
+		captureRibbon(robot, frame, "ribbon-home-visual-audit.png");
 		AbstractCommandButton taskTab = findTab(host, bundle.getString("TaskRibbonTask.title"));
 		java.util.concurrent.atomic.AtomicInteger physicalPresses = new java.util.concurrent.atomic.AtomicInteger();
 		taskTab.addMouseListener(new java.awt.event.MouseAdapter() {
@@ -174,6 +184,13 @@ class RibbonTabGuiAcceptanceTest {
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 		robot.waitForIdle();
+	}
+
+	private static void captureRibbon(Robot robot, JFrame frame, String fileName) throws Exception {
+		Rectangle bounds = frame.getBounds();
+		Path directory = Path.of(System.getProperty("microproject.gui.artifacts.dir", "build/reports/guiTest-artifacts"));
+		Files.createDirectories(directory);
+		ImageIO.write(robot.createScreenCapture(bounds), "png", directory.resolve(fileName).toFile());
 	}
 
 	private static final class RecordingActionMap implements ProjectMenuActionMap {

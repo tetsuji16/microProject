@@ -69,6 +69,7 @@ public final class SwingRibbonModel {
 
 	public static final class RibbonButton {
 		private final String id;
+		private final String text;
 		private final ButtonPriority priority;
 		private final ButtonSize size;
 		private final String iconKey;
@@ -90,7 +91,13 @@ public final class SwingRibbonModel {
 
 		public RibbonButton(String id, ButtonPriority priority, ButtonSize size, String iconKey, boolean toggle,
 			ButtonPresentation presentation, int collapsePriority) {
+			this(id, id, priority, size, iconKey, toggle, presentation, collapsePriority);
+		}
+
+		public RibbonButton(String id, String text, ButtonPriority priority, ButtonSize size, String iconKey, boolean toggle,
+			ButtonPresentation presentation, int collapsePriority) {
 			this.id = Objects.requireNonNull(id);
+			this.text = Objects.requireNonNull(text);
 			this.priority = Objects.requireNonNull(priority);
 			this.size = Objects.requireNonNull(size);
 			this.iconKey = iconKey;
@@ -102,6 +109,8 @@ public final class SwingRibbonModel {
 		public String getId() {
 			return id;
 		}
+
+		public String getText() { return text; }
 
 		public ButtonPriority getPriority() {
 			return priority;
