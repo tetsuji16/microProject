@@ -455,7 +455,7 @@ public class MspImporter {
 		// before the final recalculation. Reading task.getStart() at this point
 		// only sees the default project start and loses the imported earlier date.
 		final long taskStart = importedStart == null ? task.getStart()
-			: com.microproject.core.time.TimeUtil.addTimeZoneOffset(importedStart.getTime());
+			: DateUTCConverter.toModelTime(importedStart);
 		if (taskStart == 0L) {
 			return;
 		}

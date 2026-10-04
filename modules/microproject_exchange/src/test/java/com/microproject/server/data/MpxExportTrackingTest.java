@@ -32,7 +32,7 @@ import java.util.Iterator;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import com.microproject.core.time.TimeUtil;
+import com.microproject.core.pm.exchange.converters.type.DateUTCConverter;
 import com.microproject.exchange.MicrosoftImporter;
 import com.microproject.job.Job;
 import com.microproject.job.JobQueue;
@@ -268,7 +268,7 @@ public class MpxExportTrackingTest extends TestCase {
 		Project reloaded = new com.microproject.core.pm.exchange.MspImporter().importProject(
 			new ByteArrayInputStream(output.toByteArray()), "xml", (progress, label) -> {});
 		NormalTask reloadedTask = taskNamed(reloaded, "Earlier than project header");
-		long normalizedTaskStart = TimeUtil.addTimeZoneOffset(snapshotTask.getStart().getTime());
+		long normalizedTaskStart = DateUTCConverter.toModelTime(snapshotTask.getStart());
 		assertEquals("earlier scheduled task start must survive MSPDI reload", normalizedTaskStart, reloadedTask.getStart());
 		assertEquals("project boundary must follow its earliest imported task", reloadedTask.getStart(), reloaded.getStart());
 	}

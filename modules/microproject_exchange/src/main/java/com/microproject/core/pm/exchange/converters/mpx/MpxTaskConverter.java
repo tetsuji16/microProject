@@ -26,10 +26,10 @@ package com.microproject.core.pm.exchange.converters.mpx;
 
 import java.util.Date;
 
-import com.microproject.core.time.TimeUtil;
 import com.microproject.core.pm.exchange.converters.mpx.type.MpxAccrueTypeConverter;
 import com.microproject.core.pm.exchange.converters.mpx.type.MpxPriorityConverter;
 import com.microproject.core.pm.exchange.converters.mpx.type.MpxSchedulingTypeConverter;
+import com.microproject.core.pm.exchange.converters.type.DateUTCConverter;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.task.NormalTask;
@@ -120,9 +120,7 @@ public class MpxTaskConverter {
 	}
 
 	private static long toLong(Date d) {
-		if (d == null)
-			return 0L;
-		return TimeUtil.addTimeZoneOffset(d.getTime());
+		return DateUTCConverter.toModelTime(d);
 	}
 
 	private static double toRatio(Number percentage) {

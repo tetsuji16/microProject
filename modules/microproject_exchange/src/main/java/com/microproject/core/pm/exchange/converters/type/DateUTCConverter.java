@@ -35,12 +35,15 @@ import com.microproject.core.time.TimeUtil;
  *
  */
 public class DateUTCConverter extends FieldTypeConverter {
+	/** Converts an MPXJ date into the model's local-time epoch representation. */
+	public static long toModelTime(Date date) {
+		return date == null ? 0L : TimeUtil.addTimeZoneOffset(date.getTime());
+	}
 
 	@Override
 	public Object from(Object o) {
 		if (o==null) return null;
-		Date d=(Date)o;
-		return new Date(TimeUtil.addTimeZoneOffset(d.getTime()));
+		return new Date(toModelTime((Date)o));
 	}
 
 	@Override
