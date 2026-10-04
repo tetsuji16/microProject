@@ -147,20 +147,30 @@ class TaskInformationGuiAcceptanceTest {
 	}
 
 	private static void captureDialog(Robot robot, TaskInformationDialog dialog) throws Exception {
-		Rectangle[] bounds = new Rectangle[1];
-		SwingUtilities.invokeAndWait(() -> {
-			JTabbedPane tabs = findTabbedPane(dialog.getContentPane());
-			tabs.setSelectedIndex(0);
-			((JScrollPane)tabs.getComponentAt(0)).getVerticalScrollBar().setValue(0);
-			bounds[0] = new Rectangle(dialog.getRootPane().getLocationOnScreen(), dialog.getRootPane().getSize());
-		});
-		// Let the tab selection and scrollbar update paint before capturing; an
-		// immediate capture can otherwise retain the previously selected tab.
-		robot.waitForIdle();
-		BufferedImage screenshot = robot.createScreenCapture(bounds[0]);
 		Path directory = Path.of(System.getProperty("microproject.gui.artifacts.dir", "build/guiTest-artifacts"));
 		Files.createDirectories(directory);
-		ImageIO.write(screenshot, "png", directory.resolve("task-information-all-tabs.png").toFile());
+		JTabbedPane tabs = findTabbedPane(dialog.getContentPane());
+		for (int index = 0; index < tabs.getTabCount(); index++) {
+			Rectangle[] bounds = new Rectangle[1];
+			int selectedTab = index;
+			SwingUtilities.invokeAndWait(() -> {
+				tabs.setSelectedIndex(selectedTab);
+				if (tabs.getComponentAt(selectedTab) instanceof JScrollPane scrollPane) {
+					scrollPane.getVerticalScrollBar().setValue(0);
+					scrollPane.getHorizontalScrollBar().setValue(0);
+				}
+				tabs.revalidate();
+				tabs.doLayout();
+				bounds[0] = new Rectangle(dialog.getRootPane().getLocationOnScreen(), dialog.getRootPane().getSize());
+			});
+			// Let the selected tab and scroll position paint before capturing; an
+			// immediate capture can otherwise retain the previously selected tab.
+			robot.waitForIdle();
+			robot.delay(150);
+			BufferedImage screenshot = robot.createScreenCapture(bounds[0]);
+			ImageIO.write(screenshot, "png",
+				directory.resolve("task-information-tab-" + String.format("%02d", index) + ".png").toFile());
+		}
 	}
 
 	private void showFixture(Fixture fixture) throws Exception {
