@@ -5,6 +5,7 @@
  *******************************************************************************/
 package com.microproject.ui.shell;
 
+import java.awt.Dimension;
 import java.awt.Frame;
 import java.awt.GraphicsConfiguration;
 import java.awt.GraphicsEnvironment;
@@ -12,6 +13,8 @@ import java.awt.Insets;
 import java.awt.Rectangle;
 import java.awt.Toolkit;
 import java.awt.Window;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 
 /** Keeps windows reachable inside their monitor's usable work area. */
 public final class WindowBoundsSupport {
@@ -27,6 +30,7 @@ public final class WindowBoundsSupport {
 		if (window == null || GraphicsEnvironment.isHeadless() || isMaximized(window)) {
 			return;
 		}
+		installResizeGuard(window);
 		GraphicsConfiguration configuration = window.getGraphicsConfiguration();
 		if (configuration == null) {
 			return;
@@ -44,7 +48,35 @@ public final class WindowBoundsSupport {
 
 		Rectangle fitted = fittedBounds(window.getBounds(), usable);
 		if (!fitted.equals(window.getBounds())) {
+			// AbstractDialog locks its packed size as a minimum. Lower that floor
+			// when the monitor cannot fit the packed dialog, otherwise AWT ignores
+			// the smaller bounds and leaves scrollable content clipped off-screen.
+			Dimension minimum = window.getMinimumSize();
+			if (minimum.width > fitted.width || minimum.height > fitted.height) {
+				window.setMinimumSize(new Dimension(Math.min(minimum.width, fitted.width),
+					Math.min(minimum.height, fitted.height)));
+			}
 			window.setBounds(fitted);
+		}
+	}
+
+	private static void installResizeGuard(Window window) {
+		for (var listener : window.getComponentListeners()) {
+			if (listener instanceof UsableBoundsGuard)
+				return;
+		}
+		window.addComponentListener(new UsableBoundsGuard());
+	}
+
+	private static final class UsableBoundsGuard extends ComponentAdapter {
+		@Override
+		public void componentResized(ComponentEvent event) {
+			fitWithinUsableScreen((Window) event.getComponent());
+		}
+
+		@Override
+		public void componentMoved(ComponentEvent event) {
+			fitWithinUsableScreen((Window) event.getComponent());
 		}
 	}
 
