@@ -116,7 +116,13 @@ class WindowShellNativeDecorationGuiAcceptanceTest {
 		WindowAcceptanceAssertions.hoverNativeTitleButton(robot, frame, "Maximize", 1_200);
 		robot.keyPress(KeyEvent.VK_ESCAPE);
 		robot.keyRelease(KeyEvent.VK_ESCAPE);
-		robot.mouseMove(start.x, start.y);
+		// Snap Layouts is a native hover popup; Escape alone does not dismiss it reliably.
+		// Move into the current window's content and allow the popup to close before testing the button.
+		Rectangle movedWindow = frame.getBounds();
+		Point popupDismiss = WindowAcceptanceAssertions.robotPointFor(
+			new Rectangle(movedWindow.x + movedWindow.width / 2, movedWindow.y + movedWindow.height / 2, 2, 2));
+		robot.mouseMove(popupDismiss.x, popupDismiss.y);
+		robot.delay(500);
 		robot.waitForIdle();
 		WindowAcceptanceAssertions.clickNativeTitleButton(robot, frame, "Maximize");
 		GuiAcceptanceSupport.await(() -> isMaximized(frame),
