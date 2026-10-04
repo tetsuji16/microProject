@@ -191,7 +191,8 @@ if ($Suite -eq 'full') {
     'com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest',
     'com.microproject.pm.graphic.frames.workspace.DefaultFrameManagerGuiAcceptanceTest',
     'com.microproject.ui.shell.WindowShellNativeDecorationGuiAcceptanceTest',
-    'com.microproject.ui.ribbon.RibbonTabGuiAcceptanceTest'
+    'com.microproject.ui.ribbon.RibbonTabGuiAcceptanceTest',
+    'com.microproject.dialog.FlatLafLegacyDialogRefreshGuiAcceptanceTest'
   )
   foreach ($locale in @('ja', 'en')) {
     foreach ($scale in @('1.0', '1.25', '1.5')) {

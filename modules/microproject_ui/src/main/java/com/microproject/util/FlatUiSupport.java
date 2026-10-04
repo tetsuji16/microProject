@@ -27,14 +27,19 @@ package com.microproject.util;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
+import java.awt.event.KeyEvent;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Insets;
 import java.awt.RenderingHints;
+import java.awt.Window;
+import java.util.Objects;
 
 import javax.swing.AbstractButton;
+import javax.swing.Action;
+import javax.swing.ActionMap;
 import javax.swing.ButtonModel;
 import javax.swing.BorderFactory;
 import javax.swing.JComboBox;
@@ -54,6 +59,9 @@ import javax.swing.JTable;
 import javax.swing.JTabbedPane;
 import javax.swing.JToolBar;
 import javax.swing.JViewport;
+import javax.swing.InputMap;
+import javax.swing.KeyStroke;
+import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.border.AbstractBorder;
 import javax.swing.border.Border;
@@ -760,6 +768,42 @@ public final class FlatUiSupport {
 		rootPane.setBorder(BorderFactory.createLineBorder(borderColor()));
 	}
 
+	/**
+	 * Refreshes a Swing subtree after a look-and-feel or font change and reapplies
+	 * shared styling to every owned Swing dialog. Dialogs are separate windows,
+	 * so refreshing only the document frame otherwise leaves their old colors and
+	 * component fonts in place.
+	 */
+	public static void updateComponentTreeUI(Component component) {
+		if (component == null)
+			return;
+		SwingUtilities.updateComponentTreeUI(component);
+		Window owner = component instanceof Window window ? window : SwingUtilities.getWindowAncestor(component);
+		if (owner != null)
+			updateOwnedWindowTrees(owner);
+	}
+
+	private static void updateOwnedWindowTrees(Window owner) {
+		for (Window child : owner.getOwnedWindows()) {
+			JRootPane dialogRoot = child instanceof JDialog dialog ? dialog.getRootPane() : null;
+			KeyStroke escape = KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0);
+			InputMap dialogInputMap = dialogRoot == null ? null : dialogRoot.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+			Object escapeKey = dialogInputMap == null ? null : dialogInputMap.get(escape);
+			ActionMap dialogActionMap = dialogRoot == null ? null : dialogRoot.getActionMap();
+			Action escapeAction = dialogActionMap == null || escapeKey == null ? null : dialogActionMap.get(escapeKey);
+			SwingUtilities.updateComponentTreeUI(child);
+			if (child instanceof JDialog dialog) {
+				if (escapeKey != null && escapeAction != null) {
+					dialog.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(escape, escapeKey);
+					dialog.getRootPane().getActionMap().put(escapeKey, escapeAction);
+				}
+				styleDialogRoot(dialog.getRootPane());
+				styleDialogComponents(dialog.getContentPane());
+			}
+			updateOwnedWindowTrees(child);
+		}
+	}
+
 	public static void styleDialogContent(JComponent component) {
 		if (component == null)
 			return;
@@ -803,8 +847,13 @@ public final class FlatUiSupport {
 			styleDialogControl(textComponent);
 		else if (component instanceof JLabel label)
 			label.setForeground(labelForeground());
-		else if (component instanceof JPanel panel)
-			applyPanelSurface(panel);
+		else if (component instanceof JPanel panel) {
+			Color lookAndFeelPanel = UIManager.getColor("Panel.background");
+			if (Objects.equals(panel.getBackground(), lookAndFeelPanel))
+				applyPanelSurface(panel);
+			else
+				panel.setForeground(labelForeground());
+		}
 
 		if (component instanceof Container container) {
 			for (Component child : container.getComponents()) {

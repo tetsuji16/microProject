@@ -96,7 +96,7 @@ public class LafManagerImpl implements LafManager {
 			} catch (Exception e) {
 				logger.log(Level.WARNING, "Failed to initialize look and feel", e);
 			}
-			if (graphicManager!=null) SwingUtilities.updateComponentTreeUI(graphicManager.getContainer());
+			if (graphicManager!=null) FlatUiSupport.updateComponentTreeUI(graphicManager.getContainer());
     	}
     	return plaf;
     }

@@ -5002,7 +5002,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	public void applyPreferenceFont(GlobalPreferences value) {
 		if (value == null) return;
 		FlatLafSupport.applyUserFontPreference(value.getFontFamily(), value.getFontSize());
-		if (getFrame() != null) SwingUtilities.updateComponentTreeUI(getFrame());
+		if (getFrame() != null) FlatUiSupport.updateComponentTreeUI(getFrame());
 	}
 
 
