@@ -9,6 +9,8 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.function.Consumer;
 
+import javax.swing.JComponent;
+
 /**
  * Host-facing operations required by the application shell to control a ribbon.
  *
@@ -34,4 +36,7 @@ public interface RibbonController {
 	void setVisibleContextualTabs(Collection<String> tabIds);
 
 	void setContextualTabTitles(Map<String, String> titles);
+
+	/** Adds an optional trailing control to the ribbon's tab row. */
+	void setTabRowAccessory(JComponent accessory);
 }

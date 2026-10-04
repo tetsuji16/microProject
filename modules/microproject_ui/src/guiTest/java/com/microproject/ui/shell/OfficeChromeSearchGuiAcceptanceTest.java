@@ -14,6 +14,7 @@ import java.awt.Robot;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.ActionEvent;
+import java.util.Locale;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.swing.AbstractAction;
@@ -28,10 +29,14 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.menu.MenuManager;
 import com.microproject.menu.ProjectMenuActionMap;
+import com.microproject.menu.ExtToolBarFactory;
+import com.microproject.menu.MenuRibbonCommandSource;
+import com.microproject.menu.testsupport.MenuDefinitionSupport;
 import com.microproject.pm.graphic.frames.MainRibbonFrame;
 import com.microproject.testsupport.GuiAcceptanceSupport;
+import com.microproject.ui.ribbon.SwingRibbonFactory;
 
-/** Verifies the title-bar search hit area using a realized Swing window. */
+/** Verifies the tab-row search hit area using the real ribbon inside a realized Swing window. */
 class OfficeChromeSearchGuiAcceptanceTest {
 	private MainRibbonFrame frame;
 
@@ -46,7 +51,7 @@ class OfficeChromeSearchGuiAcceptanceTest {
 	}
 
 	@Test
-	void physicalHeaderControlsRemainInteractiveAndRunOnce() throws Exception {
+	void physicalTabRowSearchAndHeaderControlsRemainInteractiveAndRunOnce() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for this acceptance test.");
 		Assumptions.assumeTrue(com.microproject.util.Environment.isWindows(), "The full-window-content caption integration is Windows-specific.");
 		final OfficeChromePanel[] panel = new OfficeChromePanel[1];
@@ -72,14 +77,19 @@ class OfficeChromeSearchGuiAcceptanceTest {
 				Object name = action.getValue(Action.NAME);
 				return name == null ? "" : name.toString();
 			}
-		};
+			};
 		SwingUtilities.invokeAndWait(() -> {
 			MenuManager manager = MenuManager.getInstance(actionMap);
+			var bundles = MenuDefinitionSupport.ribbonBundles(Locale.ROOT);
+			ExtToolBarFactory buttonFactory = new ExtToolBarFactory(actionMap, bundles);
+			JPanel ribbonPanel = new SwingRibbonFactory(
+				new MenuRibbonCommandSource(buttonFactory), bundles).createPanel(MenuManager.STANDARD_RIBBON, () -> {});
 			frame = new MainRibbonFrame("Office chrome search acceptance", "", "");
-			panel[0] = new OfficeChromePanel(frame, manager, new JPanel(), helpCalls::incrementAndGet,
+			panel[0] = new OfficeChromePanel(frame, manager, ribbonPanel, helpCalls::incrementAndGet,
 				AutoSaveControl.DISABLED);
 			field[0] = find(panel[0], OfficeChromePanel.SEARCH_FIELD_NAME, JTextField.class);
 			box[0] = find(panel[0], OfficeChromePanel.SEARCH_BOX_NAME, Component.class);
+			assertEquals("projectLibreRibbonTabRow", box[0].getParent().getName());
 			save[0] = find(panel[0], "RibbonTopBarSaveProject", Component.class);
 			help[0] = find(panel[0], OfficeChromePanel.HELP_BUTTON_NAME, Component.class);
 			frame.setRibbonPanel(panel[0]);

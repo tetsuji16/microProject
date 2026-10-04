@@ -91,6 +91,7 @@ final class OfficeChromePanel extends JPanel {
 	private final boolean officeWindow;
 	private final Runnable helpAction;
 	private final JTextField searchField;
+	private final JComponent searchBox;
 	private final JLabel documentTitleLabel;
 	private final AutoSaveControl autoSaveControl;
 	private final OfficeChromeTitleBinding titleBinding;
@@ -116,6 +117,8 @@ final class OfficeChromePanel extends JPanel {
 			: ribbonPanel.getClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY);
 		this.ribbonController = ribbonValue instanceof RibbonController ribbon ? ribbon : null;
 		this.searchField = new JTextField(28);
+		this.searchBox = buildSearchBox();
+		if (ribbonController != null) ribbonController.setTabRowAccessory(searchBox);
 		this.documentTitleLabel = createDocumentTitleLabel(frame == null ? "" : frame.getTitle());
 		this.titleBinding = frame == null ? null : OfficeChromeTitleBinding.attach(frame, this::updateDocumentTitle);
 		setName(NAME);
@@ -270,8 +273,9 @@ final class OfficeChromePanel extends JPanel {
 		constraints.gridx = 0;
 		constraints.gridy = 0;
 		constraints.weightx = 1.0;
+		constraints.fill = GridBagConstraints.HORIZONTAL;
 		constraints.anchor = GridBagConstraints.CENTER;
-		cluster.add(buildSearchBox(), constraints);
+		if (ribbonController == null) cluster.add(searchBox, constraints);
 		return cluster;
 	}
 

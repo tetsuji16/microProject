@@ -27,6 +27,7 @@ package com.microproject.ui.shell;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.awt.Component;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -71,6 +72,7 @@ class OfficeChromePanelVisualSmokeTest {
 		panel.setSize(1024, 192);
 		panel.doLayout();
 		layoutRecursively(panel);
+		assertSearchIsAttachedToTabRow(panel);
 		assertTrue(ribbonPanel.getHeight() >= ribbonPanel.getPreferredSize().height,
 			"the screenshot viewport must contain the full ribbon, including group captions");
 		assertRibbonBandsUseTheAvailableWidth(panel);
@@ -163,6 +165,15 @@ class OfficeChromePanelVisualSmokeTest {
 				panel.setSize(width, rowHeight);
 				panel.doLayout();
 				layoutRecursively(panel);
+				assertSearchIsAttachedToTabRow(panel);
+				if (width == 320) {
+					assertTrue(!findNamedComponent(panel, OfficeChromePanel.SEARCH_BOX_NAME).isVisible(),
+						"the search accessory should yield to tabs at narrow widths");
+				}
+				if (width >= 1024) {
+					assertTrue(findNamedComponent(panel, OfficeChromePanel.SEARCH_BOX_NAME).isVisible(),
+						"the search accessory should be visible when the tab row has room");
+				}
 				if (Locale.JAPAN.equals(locale) && "ProjectRibbonTask".equals(tab.getId()) && width >= 1024) {
 					assertJapaneseStatusDateCaption(panel);
 				}
@@ -185,6 +196,29 @@ class OfficeChromePanelVisualSmokeTest {
 		Files.createDirectories(output.getParent());
 		ImageIO.write(sheet, "png", output.toFile());
 		assertTrue(hasVisibleInk(sheet));
+	}
+
+	private static void assertSearchIsAttachedToTabRow(JPanel panel) {
+		JComponent searchBox = findNamedComponent(panel, OfficeChromePanel.SEARCH_BOX_NAME);
+		JComponent tabRow = (JComponent) searchBox.getParent();
+		assertEquals("projectLibreRibbonTabRow", tabRow.getName(),
+			"the search field belongs at the right side of the ribbon tab row");
+		if (searchBox.isVisible()) {
+			assertTrue(searchBox.getWidth() <= searchBox.getMaximumSize().width,
+				"the search field must not stretch beyond its intended Office-style width");
+			Component tabs = tabRow.getComponent(0);
+			assertTrue(searchBox.getX() >= tabs.getX() + tabs.getWidth(),
+				"the search field must remain to the right of the ribbon tabs");
+		}
+	}
+
+	private static JComponent findNamedComponent(JPanel panel, String name) {
+		return UiComponentWalker.flatten(panel).stream()
+			.filter(JComponent.class::isInstance)
+			.map(JComponent.class::cast)
+			.filter(component -> name.equals(component.getName()))
+			.findFirst()
+			.orElseThrow(() -> new AssertionError("component not found: " + name));
 	}
 
 	private static void assertJapaneseStatusDateCaption(JPanel panel) {
