@@ -347,17 +347,19 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		Robot robot = new Robot();
 		robot.setAutoDelay(45);
 		activateWindowForRobot(robot);
-		AbstractButton open = findCommandButton(window.getRibbonPanel(), "RibbonOpenProject");
 		int documentsBefore = manager.getFrameManager().getAllFrames().size();
 		verifyNativeChooserEscape(robot, () -> pressCtrlO(robot), chooserCallStarted, chooserCallReturned,
 			chooserCancelled, "Ctrl+O");
 		assertEquals(documentsBefore, manager.getFrameManager().getAllFrames().size(),
 			"native Ctrl+O cancellation must not open a project");
-		verifyNativeChooserEscape(robot, () -> click(robot, open), chooserCallStarted, chooserCallReturned,
+		verifyNativeChooserEscape(robot,
+			() -> click(robot, findCommandButton(window.getRibbonPanel(), "RibbonOpenProject")),
+			chooserCallStarted, chooserCallReturned,
 			chooserCancelled, "Ribbon Open");
 		assertEquals(documentsBefore, manager.getFrameManager().getAllFrames().size(),
 			"native Ribbon Open cancellation must not open a project");
-		verifyNativeChooserCancelButton(robot, () -> click(robot, open), chooserCallStarted,
+		verifyNativeChooserCancelButton(robot,
+			() -> click(robot, findCommandButton(window.getRibbonPanel(), "RibbonOpenProject")), chooserCallStarted,
 			chooserCallReturned, chooserCancelled, "Ribbon Open");
 		assertEquals(documentsBefore, manager.getFrameManager().getAllFrames().size(),
 			"native Ribbon Open Cancel must not open a project");
