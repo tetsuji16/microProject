@@ -201,7 +201,7 @@ public final class MicroProjectThemeTokens {
 			new Color(0xF8FAFC),
 			Color.WHITE,
 			new Color(0xF3F2F1),
-			new Color(0xF3F2F1),
+			Color.WHITE,
 			Color.WHITE,
 			new Color(0x1F2937),
 			new Color(0xCCE4F7),

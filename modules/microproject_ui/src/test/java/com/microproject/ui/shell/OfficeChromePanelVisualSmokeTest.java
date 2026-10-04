@@ -55,6 +55,10 @@ class OfficeChromePanelVisualSmokeTest {
 	@Test
 	void rendersOfficeChromeRibbonSnapshot() throws IOException {
 		MicroProjectTheme.installLight();
+		assertEquals(new java.awt.Color(0xF3F2F1), MicroProjectTheme.tokens().ribbonChromeBackground(),
+			"Office chrome should retain its light neutral gray");
+		assertEquals(java.awt.Color.WHITE, MicroProjectTheme.tokens().ribbonSurfaceBackground(),
+			"the expanded Office ribbon command surface should be white");
 		MenuManager menuManager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
 		ExtToolBarFactory buttonFactory = new ExtToolBarFactory(
 			MenuActionMapSupport.noopActionMap(),
