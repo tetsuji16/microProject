@@ -166,6 +166,11 @@ public final class FlatUiSupport {
 		return color("Panel.background", FlatUiTheme.appBackground());
 	}
 
+	public static boolean isDarkTheme() {
+		Color background = panelBackground();
+		return background.getRed() + background.getGreen() + background.getBlue() < 384;
+	}
+
 	public static Color workspaceBackground() {
 		return color(THEME_KEY_PREFIX + "workspaceBackground", FlatUiTheme.appBackground());
 	}

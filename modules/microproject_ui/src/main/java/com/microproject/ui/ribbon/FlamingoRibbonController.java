@@ -239,9 +239,13 @@ final class FlamingoRibbonController extends JPanel implements RibbonController 
 	private static ResizableIcon icon(String key, int size) {
 		ResizableIcon resolved;
 		try {
-			ImageIcon tinted = IconManager.getRibbonIconTinted(key, size, size, FlatUiSupport.ribbonIconColor());
-			resolved = tinted == null ? IconManager.getRibbonIcon(key, size, size)
-				: ImageWrapperResizableIcon.getIcon(tinted.getImage(), new Dimension(size, size));
+			if (FlatUiSupport.isDarkTheme()) {
+				ImageIcon tinted = IconManager.getRibbonIconTinted(key, size, size, FlatUiSupport.ribbonIconColor());
+				resolved = tinted == null ? IconManager.getRibbonIcon(key, size, size)
+					: ImageWrapperResizableIcon.getIcon(tinted.getImage(), new Dimension(size, size));
+			} else {
+				resolved = IconManager.getRibbonIcon(key, size, size);
+			}
 		} catch (MissingResourceException ignored) {
 			resolved = null;
 		}
