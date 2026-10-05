@@ -5,6 +5,7 @@
  ******************************************************************************/
 package com.microproject.ui.shell;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.BorderLayout;
@@ -41,18 +42,23 @@ import com.microproject.ui.ribbon.RibbonDisplayMode;
 
 class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 	private JFrame frame;
+	private boolean originalQuickAccessVisible;
 
 	@AfterEach
 	void closeWindow() throws Exception {
 		if (frame != null) SwingUtilities.invokeAndWait(() -> frame.dispose());
+		com.microproject.ui.ribbon.RibbonDisplayPreferences.saveQuickAccessVisible(originalQuickAccessVisible);
 	}
 
 	@Test
 	void titleBarDisplayOptionsPhysicallySwitchBetweenAllRibbonModes() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
+		originalQuickAccessVisible = com.microproject.ui.ribbon.RibbonDisplayPreferences.loadQuickAccessVisible();
+		com.microproject.ui.ribbon.RibbonDisplayPreferences.saveQuickAccessVisible(true);
 		JPanel ribbonHost = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
 		RibbonController ribbon = (RibbonController) ribbonHost.getClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY);
+		ribbon.setRibbonDisplayMode(RibbonDisplayMode.ALWAYS_SHOW);
 		OfficeChromePanel chrome = new OfficeChromePanel(manager, ribbonHost, () -> { });
 		SwingUtilities.invokeAndWait(() -> {
 			frame = new JFrame("Office chrome ribbon display acceptance");
@@ -65,26 +71,36 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 			frame.toFront();
 			frame.requestFocus();
 		});
-		AbstractButton options = findButton(chrome, OfficeChromePanel.RIBBON_DISPLAY_OPTIONS_NAME);
+		AbstractButton options = findShowingButton(chrome, OfficeChromePanel.RIBBON_DISPLAY_OPTIONS_NAME);
 		Robot robot = new Robot();
 		robot.setAutoDelay(40);
 		GuiAcceptanceSupport.await(frame::isActive, "office chrome test window did not become active");
 		GuiAcceptanceSupport.await(() -> options.isShowing()
 			&& options.getWidth() > 0 && options.getHeight() > 0,
 			"title-bar display options button did not become laid out");
-		assertTrue(OfficeChromePanel.RIGHT_ACTIONS_NAME.equals(options.getParent().getName()),
-			"ribbon display options should share the title bar's right-side command cluster");
+		assertTrue(OfficeChromePanel.RIBBON_SURFACE_NAME.equals(options.getParent().getParent().getName()),
+			"ribbon display options should be placed at the ribbon surface's lower-right edge");
 		Rectangle surfaceBounds = bounds(chrome, OfficeChromePanel.RIBBON_SURFACE_NAME);
 		Rectangle buttonBounds = bounds(chrome, OfficeChromePanel.RIBBON_DISPLAY_OPTIONS_NAME);
 		assertTrue(buttonBounds.getMaxX() >= surfaceBounds.getMaxX() - 80,
 			"ribbon display options are not aligned with the window's right edge: surface="
 				+ surfaceBounds + ", button=" + buttonBounds);
-		assertTrue(buttonBounds.getY() < surfaceBounds.getY(),
-			"ribbon display options must remain outside the ribbon surface: surface="
+		assertTrue(buttonBounds.getY() >= surfaceBounds.getY(),
+			"ribbon display options should appear at the lower-right of the ribbon surface: surface="
 				+ surfaceBounds + ", button=" + buttonBounds);
 		robot.waitForIdle();
 		click(robot, options);
 		JPopupMenu optionsPopup = displayOptionsPopup();
+		assertEquals(6, optionsPopup.getComponentCount(),
+			"display options should contain heading, three modes, separator, and QAT visibility command");
+		assertEquals(UsabilityStrings.text("chrome.ribbonShow"), ((javax.swing.JLabel) optionsPopup.getComponent(0)).getText());
+		assertEquals(UsabilityStrings.text("chrome.ribbonAutoHide"), ((AbstractButton) optionsPopup.getComponent(1)).getText());
+		assertEquals(UsabilityStrings.text("chrome.ribbonTabsOnly"), ((AbstractButton) optionsPopup.getComponent(2)).getText());
+		assertEquals(UsabilityStrings.text("chrome.ribbonAlwaysShow"), ((AbstractButton) optionsPopup.getComponent(3)).getText());
+		assertTrue(((AbstractButton) optionsPopup.getComponent(3)).isSelected(),
+			"Always show Ribbon should be selected in the default display state");
+		assertTrue(optionsPopup.getComponent(4) instanceof JPopupMenu.Separator);
+		assertEquals(UsabilityStrings.text("chrome.ribbonHideQuickAccess"), ((AbstractButton) optionsPopup.getComponent(5)).getText());
 		assertPopupFitsWindow(optionsPopup, frame);
 		capture(robot, "ribbon-display-options-popup");
 		click(robot, popupItem(UsabilityStrings.text("chrome.ribbonTabsOnly")));
@@ -101,7 +117,7 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 			"title-bar display options did not restore the command surface");
 		assertTrue(ribbon.isCommandSurfaceVisible());
 
-		click(robot, options);
+		click(robot, findShowingButton(chrome, OfficeChromePanel.RIBBON_DISPLAY_OPTIONS_NAME));
 		AbstractButton autoHide = popupItem(UsabilityStrings.text("chrome.ribbonAutoHide"));
 		assertTrue(!autoHide.isSelected(), "auto-hide should not be selected before the user chooses it");
 		click(robot, autoHide);
@@ -111,7 +127,7 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 			"auto-hide must hide the ribbon surface while leaving window chrome available");
 		capture(robot, "ribbon-display-auto-hide");
 
-		click(robot, options);
+		click(robot, findShowingButton(chrome, OfficeChromePanel.RIBBON_DISPLAY_OPTIONS_NAME));
 		AbstractButton selectedAutoHide = popupItem(UsabilityStrings.text("chrome.ribbonAutoHide"));
 		assertTrue(selectedAutoHide.isSelected(), "display options must identify the active auto-hide mode");
 		capture(robot, "ribbon-display-options-auto-hide-selected");
@@ -120,11 +136,17 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 			&& ((javax.swing.JComponent) ribbon).isVisible() && ribbon.isCommandSurfaceVisible(),
 			"display options did not restore the auto-hidden ribbon");
 		capture(robot, "ribbon-display-always-show-restored");
-	}
 
-	private static AbstractButton findButton(JPanel root, String name) {
-		return UiComponentWalker.flatten(root).stream().filter(AbstractButton.class::isInstance)
-			.map(AbstractButton.class::cast).filter(button -> name.equals(button.getName())).findFirst().orElseThrow();
+		click(robot, findShowingButton(chrome, OfficeChromePanel.RIBBON_DISPLAY_OPTIONS_NAME));
+		click(robot, popupItem(UsabilityStrings.text("chrome.ribbonHideQuickAccess")));
+		GuiAcceptanceSupport.await(() -> !findComponent(chrome, OfficeChromePanel.QUICK_ACCESS_COMMANDS_NAME)
+			.isVisible(), "Quick Access Toolbar commands did not hide");
+		assertTrue(!com.microproject.ui.ribbon.RibbonDisplayPreferences.loadQuickAccessVisible(),
+			"Quick Access Toolbar visibility should persist as a user preference");
+		click(robot, findShowingButton(chrome, OfficeChromePanel.RIBBON_DISPLAY_OPTIONS_NAME));
+		click(robot, popupItem(UsabilityStrings.text("chrome.ribbonShowQuickAccess")));
+		assertTrue(com.microproject.ui.ribbon.RibbonDisplayPreferences.loadQuickAccessVisible(),
+			"Quick Access Toolbar should be restorable from display options");
 	}
 
 	private static AbstractButton popupItem(String text) throws Exception {
@@ -133,6 +155,17 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 			.map(AbstractButton.class::cast).filter(button -> text.equals(button.getText())).findFirst().orElseThrow();
 		GuiAcceptanceSupport.await(item::isShowing, "ribbon display menu item did not become visible: " + text);
 		return item;
+	}
+
+	private static AbstractButton findShowingButton(JPanel root, String name) {
+		return UiComponentWalker.flatten(root).stream().filter(AbstractButton.class::isInstance)
+			.map(AbstractButton.class::cast).filter(button -> name.equals(button.getName()) && button.isShowing())
+			.findFirst().orElseThrow();
+	}
+
+	private static java.awt.Component findComponent(JPanel root, String name) {
+		return UiComponentWalker.flatten(root).stream().filter(candidate -> name.equals(candidate.getName()))
+			.findFirst().orElseThrow();
 	}
 
 	private static JPopupMenu displayOptionsPopup() throws Exception {
@@ -159,7 +192,7 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 
 	private static Rectangle bounds(JPanel root, String name) throws Exception {
 		java.awt.Component component = UiComponentWalker.flatten(root).stream()
-			.filter(candidate -> name.equals(candidate.getName())).findFirst().orElseThrow();
+			.filter(candidate -> name.equals(candidate.getName()) && candidate.isShowing()).findFirst().orElseThrow();
 		Rectangle[] result = new Rectangle[1];
 		SwingUtilities.invokeAndWait(() -> result[0] = new Rectangle(component.getLocationOnScreen(), component.getSize()));
 		return result[0];

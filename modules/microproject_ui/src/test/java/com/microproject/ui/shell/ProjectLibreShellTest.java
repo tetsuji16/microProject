@@ -82,8 +82,8 @@ class ProjectLibreShellTest {
 		assertTrue(hasComponent(panel, OfficeChromePanel.DOCUMENT_TITLE_NAME));
 		assertFalse(hasComponent(panel, OfficeChromePanel.WINDOW_BUTTONS_PLACEHOLDER_NAME),
 			"the shared header fixture has no native window button area to reserve");
-		assertFalse(hasComponent(panel, "officeChromeRibbonDisplayOptionsFooter"),
-			"the ribbon chrome must not reserve a separate display-options footer row");
+		assertTrue(hasComponent(panel, OfficeChromePanel.RIBBON_OPTIONS_ROW_NAME),
+			"the ribbon display-options trigger belongs at the lower-right of the ribbon surface");
 		assertTrue(hasComponent(panel, OfficeChromePanel.RIBBON_DISPLAY_OPTIONS_NAME));
 	}
 
@@ -121,7 +121,7 @@ class ProjectLibreShellTest {
 		panel.setSize(900, 160);
 		layoutRecursively(panel);
 
-		JComponent quickAccess = findComponent(panel, OfficeChromePanel.QUICK_ACCESS_NAME);
+		JComponent quickAccess = findComponent(panel, OfficeChromePanel.QUICK_ACCESS_COMMANDS_NAME);
 		java.util.List<String> actionIds = new java.util.ArrayList<>();
 		for (java.awt.Component component : quickAccess.getComponents()) {
 			if (component instanceof JComponent child && child.getName() != null
@@ -138,9 +138,9 @@ class ProjectLibreShellTest {
 		panel.setSize(900, 160);
 		layoutRecursively(panel);
 
-		JComponent quickAccess = findComponent(panel, OfficeChromePanel.QUICK_ACCESS_NAME);
+		JComponent quickAccessCommands = findComponent(panel, OfficeChromePanel.QUICK_ACCESS_COMMANDS_NAME);
 		int previousX = -1;
-		for (java.awt.Component component : quickAccess.getComponents()) {
+		for (java.awt.Component component : quickAccessCommands.getComponents()) {
 			if (component instanceof javax.swing.AbstractButton button
 				&& button.getName() != null && button.getName().startsWith("RibbonTopBar")) {
 				assertTrue(button.isVisible());

@@ -32,6 +32,7 @@ import java.awt.Graphics2D;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.geom.Path2D;
 import java.awt.geom.RoundRectangle2D;
@@ -45,6 +46,7 @@ import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.ImageIcon;
 import javax.swing.JLabel;
+import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JTextField;
@@ -60,6 +62,7 @@ import com.microproject.util.Environment;
 import com.microproject.util.FlatLafSupport;
 import com.microproject.ui.ribbon.RibbonController;
 import com.microproject.ui.ribbon.RibbonDisplayMode;
+import com.microproject.ui.ribbon.RibbonDisplayPreferences;
 
 final class OfficeChromePanel extends JPanel {
 	static final String NAME = "officeChromePanel";
@@ -68,11 +71,13 @@ final class OfficeChromePanel extends JPanel {
 	static final String SEARCH_FIELD_NAME = "officeChromeSearchField";
 	static final String DOCUMENT_TITLE_NAME = "officeChromeDocumentTitle";
 	static final String QUICK_ACCESS_NAME = "officeChromeQuickAccess";
+	static final String QUICK_ACCESS_COMMANDS_NAME = "officeChromeQuickAccessCommands";
 	static final String RIGHT_ACTIONS_NAME = "officeChromeRightActions";
 	static final String HELP_BUTTON_NAME = "officeChromeHelpButton";
 	static final String RIBBON_DISPLAY_OPTIONS_NAME = "officeChromeRibbonDisplayOptions";
 	static final String RIBBON_DISPLAY_OPTIONS_POPUP_NAME = "officeChromeRibbonDisplayOptionsPopup";
 	static final String RIBBON_SURFACE_NAME = "officeChromeRibbonSurface";
+	static final String RIBBON_OPTIONS_ROW_NAME = "officeChromeRibbonOptionsRow";
 	static final String WINDOW_BUTTONS_PLACEHOLDER_NAME = "officeChromeWindowButtonsPlaceholder";
 	static final String BRAND_ICON_NAME = "officeChromeBrandIcon";
 
@@ -96,6 +101,9 @@ final class OfficeChromePanel extends JPanel {
 	private final AutoSaveControl autoSaveControl;
 	private final OfficeChromeTitleBinding titleBinding;
 	private final RibbonController ribbonController;
+	private final JPanel quickAccessCommands;
+	private final JPanel ribbonOptionsRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 8, 0));
+	private AbstractButton autoHideOptionsButton;
 
 	OfficeChromePanel(MenuManager menuManager, JComponent ribbonPanel, Runnable helpAction) {
 		this(null, menuManager, ribbonPanel, helpAction, AutoSaveControl.DISABLED);
@@ -116,6 +124,9 @@ final class OfficeChromePanel extends JPanel {
 		Object ribbonValue = ribbonPanel == null ? null
 			: ribbonPanel.getClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY);
 		this.ribbonController = ribbonValue instanceof RibbonController ribbon ? ribbon : null;
+		this.quickAccessCommands = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 2, 0));
+		this.quickAccessCommands.setName(QUICK_ACCESS_COMMANDS_NAME);
+		this.quickAccessCommands.setOpaque(false);
 		this.searchField = new JTextField(28);
 		this.searchBox = buildSearchBox();
 		if (ribbonController != null) ribbonController.setTabRowAccessory(searchBox);
@@ -130,6 +141,13 @@ final class OfficeChromePanel extends JPanel {
 		ribbonPanel.putClientProperty("JComponent.titleBarCaption", Boolean.FALSE);
 		add(buildHeader(), BorderLayout.NORTH);
 		add(buildRibbonSurface(ribbonPanel), BorderLayout.CENTER);
+		if (ribbonController != null) {
+			ribbonController.addRibbonDisplayModeListener(mode -> {
+				ribbonOptionsRow.setVisible(mode != RibbonDisplayMode.AUTO_HIDE);
+				autoHideOptionsButton.setVisible(mode == RibbonDisplayMode.AUTO_HIDE);
+			});
+			ribbonOptionsRow.setVisible(ribbonController.getRibbonDisplayMode() != RibbonDisplayMode.AUTO_HIDE);
+		}
 	}
 
 	private JComponent buildRibbonSurface(JComponent ribbonPanel) {
@@ -137,6 +155,11 @@ final class OfficeChromePanel extends JPanel {
 		surface.setName(RIBBON_SURFACE_NAME);
 		surface.setOpaque(false);
 		surface.add(ribbonPanel, BorderLayout.CENTER);
+		ribbonOptionsRow.setOpaque(false);
+		ribbonOptionsRow.setName(RIBBON_OPTIONS_ROW_NAME);
+		ribbonOptionsRow.setBorder(new EmptyBorder(0, 0, 2, FlatUiSupport.ribbonHorizontalInset()));
+		ribbonOptionsRow.add(createRibbonDisplayOptionsButton());
+		surface.add(ribbonOptionsRow, BorderLayout.SOUTH);
 		return surface;
 	}
 
@@ -223,11 +246,11 @@ final class OfficeChromePanel extends JPanel {
 		cluster.add(new VerticalDivider(), constraints);
 		constraints.gridx++;
 		constraints.insets = new Insets(0, 0, 0, 2);
-		cluster.add(createActionButton("RibbonTopBarSaveProject"), constraints);
-		constraints.gridx++;
-		cluster.add(createActionButton("RibbonTopBarUndo"), constraints);
-		constraints.gridx++;
-		cluster.add(createActionButton("RibbonTopBarRedo"), constraints);
+		quickAccessCommands.add(createActionButton("RibbonTopBarSaveProject"));
+		quickAccessCommands.add(createActionButton("RibbonTopBarUndo"));
+		quickAccessCommands.add(createActionButton("RibbonTopBarRedo"));
+		quickAccessCommands.setVisible(RibbonDisplayPreferences.loadQuickAccessVisible());
+		cluster.add(quickAccessCommands, constraints);
 		constraints.gridx++;
 		constraints.insets = new Insets(0, 12, 0, 0);
 		cluster.add(documentTitleLabel, constraints);
@@ -287,7 +310,11 @@ final class OfficeChromePanel extends JPanel {
 		GridBagConstraints constraints = new GridBagConstraints();
 		constraints.gridx = 0;
 		constraints.insets = new Insets(0, 0, 0, 4);
-		cluster.add(createRibbonDisplayOptionsButton(), constraints);
+		// Keep a second access point while full-screen mode hides the ribbon surface.
+		autoHideOptionsButton = createRibbonDisplayOptionsButton();
+		autoHideOptionsButton.setVisible(ribbonController != null
+			&& ribbonController.getRibbonDisplayMode() == RibbonDisplayMode.AUTO_HIDE);
+		cluster.add(autoHideOptionsButton, constraints);
 		constraints.gridx++;
 		constraints.insets = new Insets(0, 0, 0, 4);
 		cluster.add(createHelpButton(), constraints);
@@ -324,9 +351,24 @@ final class OfficeChromePanel extends JPanel {
 		if (ribbon == null) return;
 		JPopupMenu popup = new JPopupMenu();
 		popup.setName(RIBBON_DISPLAY_OPTIONS_POPUP_NAME);
+		JLabel heading = new JLabel(UsabilityStrings.text("chrome.ribbonShow"));
+		heading.setFont(heading.getFont().deriveFont(Font.BOLD));
+		heading.setForeground(TEXT_COLOR);
+		heading.setBorder(new EmptyBorder(5, 12, 5, 12));
+		popup.add(heading);
 		addRibbonDisplayItem(popup, ribbon, RibbonDisplayMode.AUTO_HIDE, "chrome.ribbonAutoHide");
 		addRibbonDisplayItem(popup, ribbon, RibbonDisplayMode.TABS_ONLY, "chrome.ribbonTabsOnly");
 		addRibbonDisplayItem(popup, ribbon, RibbonDisplayMode.ALWAYS_SHOW, "chrome.ribbonAlwaysShow");
+		popup.addSeparator();
+		boolean quickAccessVisible = RibbonDisplayPreferences.loadQuickAccessVisible();
+		JMenuItem quickAccessItem = new JMenuItem(UsabilityStrings.text(quickAccessVisible
+			? "chrome.ribbonHideQuickAccess" : "chrome.ribbonShowQuickAccess"));
+		quickAccessItem.addActionListener(event -> {
+			boolean visible = !quickAccessCommands.isVisible();
+			quickAccessCommands.setVisible(visible);
+			RibbonDisplayPreferences.saveQuickAccessVisible(visible);
+		});
+		popup.add(quickAccessItem);
 		popup.show(button, button.getWidth() - popup.getPreferredSize().width, button.getHeight());
 	}
 
@@ -338,7 +380,7 @@ final class OfficeChromePanel extends JPanel {
 	}
 
 	private void addRibbonDisplayItem(JPopupMenu popup, RibbonController ribbon, RibbonDisplayMode mode, String textKey) {
-		javax.swing.JRadioButtonMenuItem item = new javax.swing.JRadioButtonMenuItem(UsabilityStrings.text(textKey),
+		javax.swing.JCheckBoxMenuItem item = new javax.swing.JCheckBoxMenuItem(UsabilityStrings.text(textKey),
 			ribbon.getRibbonDisplayMode() == mode);
 		item.addActionListener(event -> ribbon.setRibbonDisplayMode(mode));
 		popup.add(item);
