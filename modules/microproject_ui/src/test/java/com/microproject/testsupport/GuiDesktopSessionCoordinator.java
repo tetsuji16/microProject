@@ -109,20 +109,24 @@ public final class GuiDesktopSessionCoordinator {
 		String sessionId = processId + "-" + UUID.randomUUID();
 		Path eventLog = artifactDirectory.resolve("desktop-overlap-" + sessionId + ".log");
 		Path processLog = artifactDirectory.resolve("desktop-monitor-process-" + sessionId + ".log");
+		long startupStarted = System.nanoTime();
 		Process monitor = new ProcessBuilder("powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden",
 			"-ExecutionPolicy", "Bypass", "-File", script.toString(), "-TargetPid", processId,
 			"-Watch", "-LogFile", eventLog.toString()).redirectErrorStream(true)
 			.redirectOutput(processLog.toFile()).start();
-		long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+		long deadline = startupStarted + TimeUnit.SECONDS.toNanos(30);
 		while (System.nanoTime() < deadline && monitor.isAlive()) {
 			if (Files.exists(eventLog) && Files.readString(eventLog, StandardCharsets.UTF_8).contains("monitorStarted=")) {
 				return new ForegroundMonitor(monitor, eventLog, processLog);
 			}
 			Thread.sleep(50);
 		}
+		long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startupStarted);
+		String processState = monitor.isAlive() ? "still running" : "exited with code " + monitor.exitValue();
 		monitor.destroyForcibly();
 		String failureOutput = Files.exists(processLog) ? Files.readString(processLog, StandardCharsets.UTF_8) : "no process output";
-		throw new IOException("GUI environment monitor failed to start: " + failureOutput.trim());
+		throw new IOException("GUI environment monitor did not report ready within " + elapsedMillis + " ms (process "
+			+ processState + "; log=" + processLog + "): " + failureOutput.trim());
 	}
 
 	static Lease acquire(Path lockFile, Duration maximumWait) throws IOException, InterruptedException {
