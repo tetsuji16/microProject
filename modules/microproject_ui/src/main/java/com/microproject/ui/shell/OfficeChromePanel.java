@@ -105,6 +105,8 @@ final class OfficeChromePanel extends JPanel {
 	private final JPanel quickAccessCommands;
 	private final JPanel ribbonOptionsRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 8, 0));
 	private AbstractButton autoHideOptionsButton;
+	private boolean autoHideRevealClick;
+	private boolean autoHideRevealActionSeen;
 
 	OfficeChromePanel(MenuManager menuManager, JComponent ribbonPanel, Runnable helpAction) {
 		this(null, menuManager, ribbonPanel, helpAction, AutoSaveControl.DISABLED);
@@ -342,14 +344,40 @@ final class OfficeChromePanel extends JPanel {
 
 	private AbstractButton createRibbonDisplayOptionsButton() {
 		OfficeIconButton button = new OfficeIconButton(GlyphIcon.ribbonDisplayOptions(), RIBBON_DISPLAY_OPTIONS_NAME, false);
+		button.putClientProperty(RibbonController.AUTO_HIDE_REVEAL_CONTROL_PROPERTY, Boolean.TRUE);
 		button.setToolTipText(UsabilityStrings.text("chrome.ribbonDisplayOptions"));
-		button.addActionListener(event -> showRibbonDisplayOptions(button));
+		button.addActionListener(event -> {
+			if (autoHideRevealClick) {
+				revealAutoHiddenRibbon();
+				autoHideRevealActionSeen = true;
+			} else if (isAutoHideCollapsed()) {
+				revealAutoHiddenRibbon();
+			} else {
+				showRibbonDisplayOptions(button);
+			}
+		});
 		// FlatLaf's full-window-content caption hit testing can consume the
 		// release that would normally drive JButton's action listener.  Keep the
 		// command on the same canonical popup method and recover only when the
 		// physical release did not already open it.
 		button.addMouseListener(new java.awt.event.MouseAdapter() {
+			@Override public void mousePressed(java.awt.event.MouseEvent event) {
+				autoHideRevealClick = javax.swing.SwingUtilities.isLeftMouseButton(event) && isAutoHideCollapsed();
+				autoHideRevealActionSeen = false;
+			}
+
 			@Override public void mouseReleased(java.awt.event.MouseEvent event) {
+				if (autoHideRevealClick) {
+					if (!autoHideRevealActionSeen) revealAutoHiddenRibbon();
+					clearAutoHideRevealClickAfterDispatch();
+					return;
+				}
+				if (javax.swing.SwingUtilities.isLeftMouseButton(event) && isAutoHideCollapsed()) {
+					autoHideRevealClick = true;
+					revealAutoHiddenRibbon();
+					clearAutoHideRevealClickAfterDispatch();
+					return;
+				}
 				if (javax.swing.SwingUtilities.isLeftMouseButton(event)
 					&& !isRibbonDisplayOptionsPopupVisible()) {
 					showRibbonDisplayOptions(button);
@@ -357,6 +385,22 @@ final class OfficeChromePanel extends JPanel {
 			}
 		});
 		return button;
+	}
+
+	private boolean isAutoHideCollapsed() {
+		return ribbonController != null && ribbonController.getRibbonDisplayMode() == RibbonDisplayMode.AUTO_HIDE
+			&& !ribbonController.isCommandSurfaceVisible();
+	}
+
+	private void clearAutoHideRevealClickAfterDispatch() {
+		javax.swing.SwingUtilities.invokeLater(() -> {
+			autoHideRevealClick = false;
+			autoHideRevealActionSeen = false;
+		});
+	}
+
+	private void revealAutoHiddenRibbon() {
+		if (ribbonController != null) ribbonController.revealAutoHiddenRibbon();
 	}
 
 	private void showRibbonDisplayOptions(AbstractButton button) {

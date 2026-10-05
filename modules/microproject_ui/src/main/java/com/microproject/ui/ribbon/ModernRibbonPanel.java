@@ -25,6 +25,7 @@
 package com.microproject.ui.ribbon;
 
 import java.awt.BorderLayout;
+import java.awt.AWTEvent;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
@@ -35,8 +36,11 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.Point;
+import java.awt.Toolkit;
+import java.awt.event.AWTEventListener;
 import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
+import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -163,6 +167,9 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	private boolean rebuildingDensity;
 	private JRootPane shortcutRoot;
 	private boolean ownsAutoHideRevealShortcut;
+	private AWTEventListener autoHideDismissalListener;
+	private java.beans.PropertyChangeListener autoHideFocusListener;
+	private boolean autoHideDismissalRegistered;
 	private JComponent tabRow;
 	private JComponent tabRowAccessory;
 	private JPanel tabStrip;
@@ -218,7 +225,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		RibbonDisplayMode next = Objects.requireNonNull(mode);
 		boolean changed = displayMode != next;
 		displayMode = next;
-		autoHideRevealed = false;
+		stopAutoHideReveal();
 		applyDisplayMode();
 		if (changed) displayModeListeners.forEach(listener -> listener.accept(next));
 	}
@@ -238,10 +245,18 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		return cards.isVisible();
 	}
 
-	/** Restores an auto-hidden ribbon for the keyboard route documented by Office. */
+	/** Temporarily restores an auto-hidden ribbon without changing its saved mode. */
 	public void revealAutoHiddenRibbon() {
 		if (displayMode != RibbonDisplayMode.AUTO_HIDE) return;
+		if (autoHideRevealed) return;
 		autoHideRevealed = true;
+		startAutoHideDismissal();
+		applyDisplayMode();
+	}
+
+	void dismissAutoHiddenRibbon() {
+		if (displayMode != RibbonDisplayMode.AUTO_HIDE || !autoHideRevealed) return;
+		stopAutoHideReveal();
 		applyDisplayMode();
 	}
 
@@ -331,13 +346,75 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	public void addNotify() {
 		super.addNotify();
 		installTabAccessKeys();
+		applyDisplayMode();
+		if (autoHideRevealed) startAutoHideDismissal();
 		updateResponsiveMode();
 	}
 
 	@Override
 	public void removeNotify() {
+		stopAutoHideReveal();
+		applyDisplayMode();
 		uninstallTabAccessKeys();
 		super.removeNotify();
+	}
+
+	private void startAutoHideDismissal() {
+		if (!isDisplayable() || SwingUtilities.getWindowAncestor(this) == null || autoHideDismissalRegistered) return;
+		if (autoHideDismissalListener == null) {
+			autoHideDismissalListener = event -> {
+				if (!(event instanceof MouseEvent mouseEvent) || mouseEvent.getID() != MouseEvent.MOUSE_PRESSED) return;
+				if (!(mouseEvent.getSource() instanceof Component target)) return;
+				runOnEdt(() -> dismissOnAutoHideOutsideInteraction(target));
+			};
+			autoHideFocusListener = event -> {
+				Component focusOwner = event.getNewValue() instanceof Component target ? target : null;
+				runOnEdt(() -> dismissOnAutoHideOutsideInteraction(focusOwner));
+			};
+		}
+		Toolkit.getDefaultToolkit().addAWTEventListener(autoHideDismissalListener, AWTEvent.MOUSE_EVENT_MASK);
+		java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager()
+			.addPropertyChangeListener("focusOwner", autoHideFocusListener);
+		autoHideDismissalRegistered = true;
+	}
+
+	private void dismissOnAutoHideOutsideInteraction(Component target) {
+		if (!autoHideDismissalRegistered || displayMode != RibbonDisplayMode.AUTO_HIDE || !autoHideRevealed) return;
+		if (target != null && isRibbonInteraction(target)) return;
+		dismissAutoHiddenRibbon();
+	}
+
+	private static void runOnEdt(Runnable action) {
+		if (SwingUtilities.isEventDispatchThread()) action.run();
+		else SwingUtilities.invokeLater(action);
+	}
+
+	private void stopAutoHideReveal() {
+		if (autoHideDismissalRegistered) {
+			Toolkit.getDefaultToolkit().removeAWTEventListener(autoHideDismissalListener);
+			java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager()
+				.removePropertyChangeListener("focusOwner", autoHideFocusListener);
+			autoHideDismissalRegistered = false;
+		}
+		autoHideRevealed = false;
+	}
+
+	private boolean isRibbonInteraction(Component target) {
+		if (SwingUtilities.isDescendingFrom(target, this)) return true;
+		JPopupMenu popup = (JPopupMenu) SwingUtilities.getAncestorOfClass(JPopupMenu.class, target);
+		if (popup != null && popup.getInvoker() != null) {
+			Component invoker = popup.getInvoker();
+			if (SwingUtilities.isDescendingFrom(invoker, this) || isAutoHideRevealControl(invoker)) return true;
+		}
+		return isAutoHideRevealControl(target);
+	}
+
+	private static boolean isAutoHideRevealControl(Component component) {
+		for (Component current = component; current != null; current = current.getParent()) {
+			if (current instanceof JComponent swingComponent
+				&& Boolean.TRUE.equals(swingComponent.getClientProperty(RibbonController.AUTO_HIDE_REVEAL_CONTROL_PROPERTY))) return true;
+		}
+		return false;
 	}
 
 	private void installTabAccessKeys() {

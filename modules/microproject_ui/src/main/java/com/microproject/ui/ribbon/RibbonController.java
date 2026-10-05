@@ -20,12 +20,16 @@ import javax.swing.JComponent;
  */
 public interface RibbonController {
 	String CONTEXTUAL_TABS_PROPERTY = "microproject.ribbon.contextualTabs";
+	String AUTO_HIDE_REVEAL_CONTROL_PROPERTY = "microproject.ribbon.autoHideRevealControl";
 
 	void setRibbonDisplayMode(RibbonDisplayMode mode);
 
 	RibbonDisplayMode getRibbonDisplayMode();
 
 	boolean isCommandSurfaceVisible();
+
+	/** Temporarily reveals the command surface without changing the saved display mode. */
+	void revealAutoHiddenRibbon();
 
 	void toggleRibbonCollapseMode();
 

@@ -71,12 +71,13 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 		com.microproject.ui.ribbon.RibbonDisplayPreferences.saveQuickAccessVisible(true);
 		JPanel ribbonHost = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
 		RibbonController ribbon = (RibbonController) ribbonHost.getClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY);
+		JPanel documentSurface = new JPanel();
 		ribbon.setRibbonDisplayMode(RibbonDisplayMode.ALWAYS_SHOW);
 		OfficeChromePanel chrome = new OfficeChromePanel(manager, ribbonHost, () -> { });
 		SwingUtilities.invokeAndWait(() -> {
 			frame = new JFrame("Office chrome ribbon display acceptance");
 			frame.add(chrome, BorderLayout.NORTH);
-			frame.add(new JPanel(), BorderLayout.CENTER);
+			frame.add(documentSurface, BorderLayout.CENTER);
 			frame.setSize(1200, 500);
 			frame.setLocationByPlatform(true);
 			frame.setAlwaysOnTop(true);
@@ -140,6 +141,20 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 			"auto-hide must hide the ribbon surface while leaving window chrome available");
 		capture(robot, "ribbon-display-auto-hide");
 
+		click(robot, findShowingButton(chrome, OfficeChromePanel.RIBBON_DISPLAY_OPTIONS_NAME));
+		GuiAcceptanceSupport.await(() -> ((javax.swing.JComponent) ribbon).isVisible()
+			&& ribbon.isCommandSurfaceVisible() && ribbon.getRibbonDisplayMode() == RibbonDisplayMode.AUTO_HIDE,
+			"the Office More control must temporarily reveal the auto-hidden ribbon without changing its saved mode");
+		capture(robot, "ribbon-display-auto-hide-temporary-reveal");
+		click(robot, documentSurface);
+		GuiAcceptanceSupport.await(() -> !((javax.swing.JComponent) ribbon).isVisible()
+			&& ribbon.getRibbonDisplayMode() == RibbonDisplayMode.AUTO_HIDE,
+			"returning to the document must dismiss the temporary reveal and preserve Auto-hide");
+		capture(robot, "ribbon-display-auto-hide-return-to-document");
+
+		click(robot, findShowingButton(chrome, OfficeChromePanel.RIBBON_DISPLAY_OPTIONS_NAME));
+		GuiAcceptanceSupport.await(() -> ((javax.swing.JComponent) ribbon).isVisible()
+			&& ribbon.isCommandSurfaceVisible(), "the Office More control did not reveal the ribbon again");
 		click(robot, findShowingButton(chrome, OfficeChromePanel.RIBBON_DISPLAY_OPTIONS_NAME));
 		AbstractButton selectedAutoHide = popupItem(UsabilityStrings.text("chrome.ribbonAutoHide"));
 		assertTrue(selectedAutoHide.isSelected(), "display options must identify the active auto-hide mode");
@@ -211,7 +226,7 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 		return result[0];
 	}
 
-	private static void click(Robot robot, AbstractButton button) {
+	private static void click(Robot robot, java.awt.Component button) {
 		robot.waitForIdle();
 		Point point = button.getLocationOnScreen();
 		robot.mouseMove(point.x + button.getWidth() / 2, point.y + button.getHeight() / 2);

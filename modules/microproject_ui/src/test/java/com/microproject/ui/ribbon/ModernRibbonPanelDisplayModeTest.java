@@ -66,6 +66,10 @@ class ModernRibbonPanelDisplayModeTest {
 			ribbon.revealAutoHiddenRibbon();
 			assertTrue(ribbon.isVisible());
 			assertTrue(ribbon.isCommandSurfaceVisible(), "Alt-style reveal must restore command bands");
+			ribbon.dismissAutoHiddenRibbon();
+			assertEquals(RibbonDisplayMode.AUTO_HIDE, ribbon.getRibbonDisplayMode(),
+				"temporary dismissal must preserve the user's selected display mode");
+			assertFalse(ribbon.isVisible(), "dismissing a temporary reveal must hide the ribbon surface again");
 		});
 	}
 
