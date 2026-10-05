@@ -43,3 +43,13 @@ jobs:
 
       - name: Build and test with Gradle
         run: bash ./gradlew clean build installDist --console=plain
+
+      - name: Upload Gradle test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-test-evidence-${{ github.run_id }}
+          if-no-files-found: warn
+          path: |
+            modules/**/build/reports/tests/test
+            modules/**/build/test-results/test
