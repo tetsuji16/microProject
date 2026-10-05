@@ -740,11 +740,13 @@ final class OfficeChromePanel extends JPanel {
 			Graphics2D g2 = (Graphics2D) g.create();
 			try {
 				FlatUiSupport.enableAntialiasing(g2);
+				boolean selected = isSelected() || getAction() != null
+					&& Boolean.TRUE.equals(getAction().getValue(Action.SELECTED_KEY));
 				if (getModel().isPressed()) {
 					g2.setColor(FlatUiSupport.chromeButtonPressedBackground());
 					g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, FlatUiSupport.ribbonButtonArc(), FlatUiSupport.ribbonButtonArc());
-				} else if (getModel().isRollover() || active) {
-					g2.setColor(active ? FlatUiSupport.chromeButtonActiveBackground() : FlatUiSupport.chromeButtonHoverBackground());
+				} else if (getModel().isRollover() || active || selected) {
+					g2.setColor(active || selected ? FlatUiSupport.chromeButtonActiveBackground() : FlatUiSupport.chromeButtonHoverBackground());
 					g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, FlatUiSupport.ribbonButtonArc(), FlatUiSupport.ribbonButtonArc());
 				}
 			} finally {

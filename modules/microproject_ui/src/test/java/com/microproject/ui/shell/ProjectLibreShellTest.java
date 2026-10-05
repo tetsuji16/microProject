@@ -34,8 +34,10 @@ import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.prefs.Preferences;
 
 import javax.swing.AbstractButton;
+import javax.swing.Action;
 import javax.swing.Box;
 import javax.swing.ImageIcon;
 import javax.swing.JComponent;
@@ -48,6 +50,7 @@ import org.junit.jupiter.api.Test;
 import com.microproject.ui.theme.MicroProjectTheme;
 import com.microproject.menu.MenuActionMapSupport;
 import com.microproject.menu.MenuManager;
+import com.microproject.ui.ribbon.RibbonDisplayPreferences;
 
 class ProjectLibreShellTest {
 	@BeforeAll
@@ -158,6 +161,35 @@ class ProjectLibreShellTest {
 	}
 
 	@Test
+	void officeChromeQuickAccessReflectsSelectedStateFromItsCommandAction() {
+		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
+		Action gridlines = manager.getActionFromId("RibbonGridlines");
+		assertTrue(gridlines != null);
+		Object previousSelected = gridlines.getValue(Action.SELECTED_KEY);
+		Preferences preferences = Preferences.userNodeForPackage(RibbonDisplayPreferences.class);
+		String previousCommands = preferences.get("ribbonQuickAccessCommands", null);
+		Action[] buttonAction = new Action[1];
+		Object[] previousButtonSelected = new Object[1];
+		try {
+			RibbonDisplayPreferences.saveQuickAccessCommands(java.util.List.of("RibbonGridlines"));
+			OfficeChromePanel panel = new OfficeChromePanel(manager, new JPanel(), () -> {});
+			AbstractButton button = (AbstractButton) findComponent(panel, "RibbonGridlines");
+			buttonAction[0] = button.getAction();
+			previousButtonSelected[0] = buttonAction[0].getValue(Action.SELECTED_KEY);
+			buttonAction[0].putValue(Action.SELECTED_KEY, Boolean.TRUE);
+			BufferedImage selectedImage = paint(button);
+			buttonAction[0].putValue(Action.SELECTED_KEY, Boolean.FALSE);
+			assertFalse(imagesEqual(selectedImage, paint(button)),
+				"the visible QAT button treatment must follow its command action's selected state");
+		} finally {
+			gridlines.putValue(Action.SELECTED_KEY, previousSelected);
+			if (buttonAction[0] != null) buttonAction[0].putValue(Action.SELECTED_KEY, previousButtonSelected[0]);
+			if (previousCommands == null) preferences.remove("ribbonQuickAccessCommands");
+			else preferences.put("ribbonQuickAccessCommands", previousCommands);
+		}
+	}
+
+	@Test
 	void officeChromeHelpButtonPreservesItsMulticolorQuestionMarkIcon() {
 		OfficeChromePanel panel = new OfficeChromePanel(MenuManager.getInstance(MenuActionMapSupport.noopActionMap()), new JPanel(), () -> {});
 		AbstractButton help = (AbstractButton) findComponent(panel, OfficeChromePanel.HELP_BUTTON_NAME);
@@ -206,6 +238,28 @@ class ProjectLibreShellTest {
 		if (component instanceof java.awt.Container container) {
 			for (java.awt.Component child : container.getComponents()) layoutRecursively(child);
 		}
+	}
+
+	private static BufferedImage paint(AbstractButton button) {
+		button.setSize(button.getPreferredSize());
+		BufferedImage image = new BufferedImage(button.getWidth(), button.getHeight(), BufferedImage.TYPE_INT_ARGB);
+		java.awt.Graphics graphics = image.getGraphics();
+		try {
+			button.paint(graphics);
+		} finally {
+			graphics.dispose();
+		}
+		return image;
+	}
+
+	private static boolean imagesEqual(BufferedImage first, BufferedImage second) {
+		if (first.getWidth() != second.getWidth() || first.getHeight() != second.getHeight()) return false;
+		for (int y = 0; y < first.getHeight(); y++) {
+			for (int x = 0; x < first.getWidth(); x++) {
+				if (first.getRGB(x, y) != second.getRGB(x, y)) return false;
+			}
+		}
+		return true;
 	}
 
 	private static JComponent findComponent(JComponent root, String name) {
