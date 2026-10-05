@@ -2660,6 +2660,71 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	@Test
+	void selectedTaskLevelingUsesTheResourceRibbonAndSupportsUndoRedoAndPersistence() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("ribbon-level-selection", undo);
+		pool.setLocal(true);
+		Project project = Project.createProject(pool, undo);
+		project.initialize(false, false);
+		NormalTask fixed = project.createScriptedTask();
+		fixed.setName("Unselected capacity anchor");
+		NormalTask selected = project.createScriptedTask();
+		selected.setName("Selected leveling target");
+		Resource shared = pool.newResourceInstance();
+		shared.setName("Leveling resource");
+		AssignmentService.getInstance().newAssignment(fixed, shared, 1.0, 0L, getClass());
+		AssignmentService.getInstance().newAssignment(selected, shared, 1.0, 0L, getClass());
+		project.recalculate();
+		long originalStart = selected.getStart();
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"resource leveling task sheet did not become visible");
+		Robot robot = new Robot();
+		robot.setAutoDelay(45);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, selected), nameColumn(sheet)));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(selected),
+			"physical task click did not select the intended leveling target");
+		AbstractButton resourceTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+				.getString("ResourceRibbonTask.title"));
+		click(robot, boundsOnScreen(resourceTab));
+		AbstractButton levelSelection = findShowingButtonByCommand("RibbonLevelSelection");
+		GuiAcceptanceSupport.await(levelSelection::isEnabled,
+			"Level Selection must be enabled for one selected editable task");
+		RibbonCommandResult before = manager.getLastRibbonCommandResult();
+		click(robot, boundsOnScreen(levelSelection));
+		GuiAcceptanceSupport.await(() -> selected.getLevelingDelay() > 0,
+			"Resource > Level Selection did not apply leveling delay to the selected task");
+		assertEquals(0L, fixed.getLevelingDelay(), "unselected task must remain a fixed leveling anchor");
+		GuiAcceptanceSupport.await(() -> manager.getLastRibbonCommandResult() != before
+				&& manager.getLastRibbonCommandResult().status() == RibbonCommandResult.Status.CHANGED,
+			"Level Selection did not publish its changed result");
+		GuiAcceptanceSupport.await(() -> selected.getStart() > originalStart,
+			"the selected task's visible schedule start did not reflect the leveling change");
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(selected),
+			"Level Selection did not preserve the task selection after ribbon focus transfer");
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, saved), "MPO save rejected the leveled project");
+		Project reloaded = new MpoFileImporter().loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		assertTrue(taskNamed(reloaded, "Selected leveling target").getLevelingDelay() > 0,
+			"MPO reload lost selected-task leveling delay");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> selected.getLevelingDelay() == 0L,
+			"one Ctrl+Z did not restore the selected task's leveling delay");
+		assertEquals(0L, fixed.getLevelingDelay(), "Undo must not mutate the unselected anchor");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> selected.getLevelingDelay() > 0,
+			"one Ctrl+Y did not restore selected-task leveling");
+	}
+
+	@Test
 	void unlinkingOneTaskWithMultipleLinksPromptsAndRemovesOnlyTheChosenLink() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		previousRibbonUi = Environment.isRibbonUI();

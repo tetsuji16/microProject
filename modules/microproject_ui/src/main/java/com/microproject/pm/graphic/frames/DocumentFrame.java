@@ -120,6 +120,7 @@ import com.microproject.pm.dependency.HasDependencies;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.graphic.undo.SwingUndoAdapter;
 import com.microproject.pm.resource.ResourceImpl;
+import com.microproject.pm.resource.ResourceLevelingService;
 import com.microproject.pm.task.Portfolio;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectEvent;
@@ -558,6 +559,7 @@ public class DocumentFrame extends NamedFrame implements
 		case SHOW_ALL -> lastTaskCommandResult = applyTaskVisibility(command, false);
 		case TASK_MODE_MANUAL -> lastTaskCommandResult = applyTaskMode(command, com.microproject.pm.task.TaskModeService.Mode.MANUAL);
 		case TASK_MODE_AUTOMATIC -> lastTaskCommandResult = applyTaskMode(command, com.microproject.pm.task.TaskModeService.Mode.AUTOMATIC);
+		case RESOURCE_LEVEL_SELECTION -> lastTaskCommandResult = applyResourceLevelSelection(command);
 		case STATUS_DATE -> lastTaskCommandResult = applyStatusDate(command);
 		case MARK_ON_TRACK -> lastTaskCommandResult = applyMarkOnTrack(command);
 		case UPDATE_PROJECT -> lastTaskCommandResult = openUpdateProject(command);
@@ -650,6 +652,75 @@ public class DocumentFrame extends NamedFrame implements
 		if (!result.change().hasChanged())
 			return RibbonCommandResult.noChange(command.actionId(), taskIds(selection)).withActiveView("task");
 		return RibbonCommandResult.changed(command.actionId(), taskIds(selection)).withActiveView("task");
+	}
+
+	private RibbonCommandResult applyResourceLevelSelection(CommandId command) {
+		ActiveTaskSelectionResolver.Selection snapshot = resolveTaskSelection(true, false);
+		List<Node> selectedNodes = new ArrayList<>(snapshot.nodes());
+		List<Long> selectedIds = snapshot.stableTaskIds();
+		if (project == null)
+			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.REJECTED,
+				"no-active-document", selectedIds, List.of(), getTopViewId());
+		if (project.isReadOnly())
+			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.REJECTED,
+				"document-read-only", selectedIds, List.of(), getTopViewId());
+		if (!snapshot.isEligible(1))
+			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.REJECTED,
+				snapshot.rejectionReason(), selectedIds, List.of(), getTopViewId());
+
+		List<Task> selectedTasks = selectedNodes.stream().map(Node::getImpl)
+			.filter(Task.class::isInstance).map(Task.class::cast).toList();
+		finishAnyOperations();
+		ResourceLevelingService.Plan plan;
+		try {
+			plan = new ResourceLevelingService().previewSelectedTasks(project, null,
+				ResourceLevelingService.Options.defaults(), selectedTasks);
+		} catch (RuntimeException failure) {
+			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.FAILED,
+				failure.getClass().getSimpleName(), selectedIds, List.of(), getTopViewId());
+		}
+		List<Long> affectedIds = plan.changes().stream().map(ResourceLevelingService.Change::task)
+			.map(Task::getUniqueId).filter(java.util.Objects::nonNull).toList();
+		if (plan.changes().isEmpty()) {
+			if (plan.unresolved().isEmpty()) {
+				statusBar.setMessage(com.microproject.dialog.UsabilityStrings.text("leveling.noChanges"));
+				return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.NO_CHANGE,
+					"no-leveling-changes", selectedIds, List.of(), getTopViewId());
+			}
+			statusBar.setMessage(com.microproject.dialog.UsabilityStrings.text("leveling.unresolved"));
+			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.REJECTED,
+				"unresolved-overallocation", selectedIds, List.of(), getTopViewId());
+		}
+		if (!plan.isComplete()) {
+			int answer = JOptionPane.showConfirmDialog(this,
+				com.microproject.dialog.UsabilityStrings.text("leveling.partial"),
+				com.microproject.dialog.UsabilityStrings.text("leveling.title"),
+				JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+			if (answer != JOptionPane.YES_OPTION)
+				return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.REJECTED,
+					"partial-leveling-cancelled", selectedIds, List.of(), getTopViewId());
+		}
+		List<Task> affectedTasks = plan.changes().stream().map(ResourceLevelingService.Change::task).distinct().toList();
+		if (!CollaborationHelper.tryLockNodes(project, affectedTasks, this, "level selected tasks"))
+			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.REJECTED,
+				"collaboration-lock-denied", selectedIds, List.of(), getTopViewId());
+		javax.swing.undo.UndoableEditSupport edits = project.getUndoController().getEditSupport();
+		if (edits == null)
+			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.REJECTED,
+				"undo-unavailable", selectedIds, List.of(), getTopViewId());
+		try {
+			plan.apply(edits);
+			SpreadSheet sheet = getActiveSpreadSheet();
+			if (sheet != null) sheet.restoreTaskRowSelection(selectedNodes);
+			refreshUndoButtonsSafely();
+			statusBar.setMessage(java.text.MessageFormat.format(
+				com.microproject.dialog.UsabilityStrings.text("leveling.applied"), affectedIds.size(), plan.splits().size()));
+			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.CHANGED,
+				"", selectedIds, affectedIds, getTopViewId());
+		} catch (RuntimeException failure) {
+			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.FAILED,
+				failure.getClass().getSimpleName(), selectedIds, List.of(), getTopViewId());
+		}
 	}
 
 	private RibbonCommandResult applyStatusDate(CommandId command) {
