@@ -91,6 +91,7 @@ function Invoke-GuiGate([string]$label, [string[]]$arguments, [int]$timeoutSecon
   Start-HostedWarningWatcher
   Minimize-HostedRunnerConsole
   $safe = ($label -replace '[^A-Za-z0-9_.-]', '_')
+  $guiArtifacts = Join-Path $PWD "modules/microproject_ui/build/reports/guiTest-artifacts/$safe"
   $stdout = Join-Path $gateLogs "$safe.stdout.log"
   $stderr = Join-Path $gateLogs "$safe.stderr.log"
   $testResults = Join-Path $PWD 'modules/microproject_ui/build/test-results/guiTest'
@@ -98,7 +99,7 @@ function Invoke-GuiGate([string]$label, [string[]]$arguments, [int]$timeoutSecon
   Get-ChildItem -LiteralPath $testResults -Filter '*.xml' -File -ErrorAction SilentlyContinue |
     Remove-Item -Force
   $process = Start-Process -FilePath (Join-Path $PWD 'gradlew.bat') `
-    -ArgumentList $arguments -PassThru -RedirectStandardOutput $stdout `
+    -ArgumentList ($arguments + "-PguiTestArtifactsDir=$guiArtifacts") -PassThru -RedirectStandardOutput $stdout `
     -RedirectStandardError $stderr -WindowStyle Hidden
   $timer = [System.Diagnostics.Stopwatch]::StartNew()
   if (-not $process.WaitForExit($timeoutSeconds * 1000)) {

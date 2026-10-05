@@ -173,13 +173,16 @@ tasks.register<Test>("guiTest") {
 	}
     val guiTestLocale = providers.gradleProperty("guiTestLocale").orElse("ja").get()
     val guiTestUiScale = providers.gradleProperty("guiTestUiScale").orNull
+    val guiTestArtifactsDir = providers.gradleProperty("guiTestArtifactsDir")
+        .orElse(layout.buildDirectory.dir("reports/guiTest-artifacts").map { it.asFile.absolutePath }).get()
     inputs.property("guiTestLocale", guiTestLocale)
     inputs.property("guiTestUiScale", guiTestUiScale ?: "default")
+    inputs.property("guiTestArtifactsDir", guiTestArtifactsDir)
     systemProperty("user.language", guiTestLocale)
     systemProperty("user.country", if (guiTestLocale == "ja") "JP" else "US")
     if (guiTestUiScale != null)
         systemProperty("sun.java2d.uiScale", guiTestUiScale)
-    systemProperty("microproject.gui.artifacts.dir", layout.buildDirectory.dir("reports/guiTest-artifacts").get().asFile.absolutePath)
+    systemProperty("microproject.gui.artifacts.dir", guiTestArtifactsDir)
 	// GUI tests run from the generated install layout, not the repository root.
 	// Expose the fixture root explicitly so sample-file acceptance routes test
 	// the same release classpath without relying on a process working directory.
