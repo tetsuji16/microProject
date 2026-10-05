@@ -25,7 +25,6 @@
 package com.microproject.pm.graphic;
 
 import java.awt.Graphics2D;
-import java.awt.Dimension;
 import java.awt.Image;
 import java.awt.RenderingHints;
 import java.awt.Color;
@@ -35,14 +34,15 @@ import java.io.InputStream;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.ResourceBundle;
+import java.util.concurrent.ConcurrentHashMap;
 
 import javax.imageio.ImageIO;
 import javax.swing.ImageIcon;
 
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 import org.imgscalr.Scalr;
-import org.pushingpixels.flamingo.api.common.icon.ResizableIcon;
 
 import com.microproject.util.ClassLoaderUtils;
 
@@ -52,7 +52,8 @@ import com.microproject.util.ClassLoaderUtils;
 public class IconManager {
 	protected static ClassLoader classLoader=ClassLoaderUtils.getLocalClassLoader();
 	protected static final HashMap<String, ImageIcon> icons = new HashMap<>(128);
-	protected static final HashMap<String, ResizableIcon> ribbonIcons = new HashMap<>(64);
+	private static final Map<RibbonIconKey, ImageIcon> ribbonIcons = new ConcurrentHashMap<>(64);
+	private record RibbonIconKey(String name, int width, int height) { }
 	private final static String[] iconPackages = new String[] {
 			"com/microproject/pm/graphic/images/"
 			,"com/microproject/pm/graphic/images/big/"
@@ -201,44 +202,6 @@ public class IconManager {
 		return canvas;
 	}
 
-	private static final class BufferedImageResizableIcon implements ResizableIcon {
-		private final BufferedImage originalImage;
-		private int width;
-		private int height;
-		private BufferedImage renderedImage;
-
-		private BufferedImageResizableIcon(BufferedImage image, int width, int height) {
-			this.originalImage = image;
-			this.width = width;
-			this.height = height;
-			this.renderedImage = scaleToCanvas(image, width, height);
-		}
-
-		@Override
-		public synchronized void setDimension(Dimension newDimension) {
-			this.width = newDimension.width;
-			this.height = newDimension.height;
-			this.renderedImage = scaleToCanvas(this.originalImage, this.width, this.height);
-		}
-
-		@Override
-		public synchronized int getIconWidth() {
-			return this.width;
-		}
-
-		@Override
-		public synchronized int getIconHeight() {
-			return this.height;
-		}
-
-		@Override
-		public synchronized void paintIcon(java.awt.Component c, java.awt.Graphics g, int x, int y) {
-			if (this.renderedImage != null) {
-				g.drawImage(this.renderedImage, x, y, null);
-			}
-		}
-	}
-
 	private static String getIconName(String key) {
 		ResourceBundle bundle = ResourceBundle
 				.getBundle("com/microproject/pm/graphic/images",Locale.getDefault(),classLoader);
@@ -290,25 +253,26 @@ public class IconManager {
 		}
 		return icon;
 	}
-	public static ResizableIcon getRibbonIcon(String key) {
+	public static ImageIcon getRibbonIcon(String key) {
 		return getRibbonIcon(key,48,48);
 	}
-	public static ResizableIcon getRibbonIcon(String name, int width , int height) {
+	public static ImageIcon getRibbonIcon(String name, int width , int height) {
+		if (name == null || width <= 0 || height <= 0)
+			return null;
 		String iconName = getConfiguredIconName(name);
 		if (iconName == null)
 			return null;
-		URL preferredUrl = width == height ? getSizeSpecificRibbonResource(iconName, width) : null;
-		if (preferredUrl == null)
-			preferredUrl = getIconResourceWithExtension(iconName, ".svg");
-		URL fallbackUrl = getIconResourceWithExtension(iconName, null);
-		BufferedImage image = createRibbonImage(preferredUrl, width, height);
-		if (image == null && fallbackUrl != null && !fallbackUrl.equals(preferredUrl))
-			image = createRibbonImage(fallbackUrl, width, height);
-		if (image == null)
-			image = createRibbonImage(fallbackUrl, width, height);
-		if (image == null)
-			return null;
-		return new BufferedImageResizableIcon(image, width, height);
+		RibbonIconKey cacheKey = new RibbonIconKey(iconName, width, height);
+		return ribbonIcons.computeIfAbsent(cacheKey, key -> {
+			URL preferredUrl = width == height ? getSizeSpecificRibbonResource(iconName, width) : null;
+			if (preferredUrl == null)
+				preferredUrl = getIconResourceWithExtension(iconName, ".svg");
+			URL fallbackUrl = getIconResourceWithExtension(iconName, null);
+			BufferedImage image = createRibbonImage(preferredUrl, width, height);
+			if (image == null)
+				image = createRibbonImage(fallbackUrl, width, height);
+			return image == null ? null : new ImageIcon(image);
+		});
 	}
 
 	/** Creates a themed state variant while preserving the source alpha. */

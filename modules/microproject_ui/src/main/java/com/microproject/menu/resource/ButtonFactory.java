@@ -90,12 +90,6 @@ import javax.swing.JRadioButton;
 import javax.swing.JToolTip;
 import javax.swing.ToolTipManager;
 
-import org.pushingpixels.flamingo.api.common.AbstractCommandButton;
-import org.pushingpixels.flamingo.api.common.JCommandButton;
-import org.pushingpixels.flamingo.api.common.JCommandToggleButton;
-import org.pushingpixels.flamingo.api.common.RichTooltip;
-import org.pushingpixels.flamingo.api.common.icon.ImageWrapperResizableIcon;
-import org.pushingpixels.flamingo.api.common.icon.ResizableIcon;
 
 import com.microproject.menu.HyperLinkToolTip;
 import com.microproject.pm.graphic.IconManager;
@@ -228,122 +222,6 @@ public class ButtonFactory extends ResourceManager {
 			return result;
 	}
 	
-	/**
-	 * Creates and returns a new swing button initialised to be used as a
-	 * ribbon button
-	 * 
-	 * @param name
-	 *            the name of the button in the resource bundle
-	 * @throws MissingResourceException
-	 *             if key is not the name of a button. It is not thrown if the
-	 *             mnemonic and the action keys are missing
-	 * @throws ResourceFormatException
-	 *             if the mnemonic is not a single character
-	 * @throws MissingListenerException
-	 *             if the button action is not found in the action map
-	 */
-	public AbstractCommandButton createRibbonButton(final String name)
-			throws MissingResourceException, ResourceFormatException,
-			MissingListenerException {
-		// Icon
-		ResizableIcon icon=null;
-		try {
-			String s = getString(name + ICON_SUFFIX);
-			icon =  IconManager.getRibbonIcon(s);
-		} catch (MissingResourceException e) {
-		}
-
-		// Title
-		String title=null;
-		try {
-			title = getString(name + TEXT_SUFFIX);
-		} catch (MissingResourceException e) {
-		}
-		
-		AbstractCommandButton b=null;
-		String type = null;
-		try {
-			type = getString(name + ".type");
-		} catch (MissingResourceException e) {
-		}
-		if (type != null && type.equals("TOGGLE")) {
-			if (icon!=null&&title!=null)
-				b = new JCommandToggleButton(title,icon);
-			else if (icon!=null)
-				b = new JCommandToggleButton(icon);
-			else if (title!=null)
-				b = new JCommandToggleButton(title);
-			else
-				b = new JCommandToggleButton("");
-		} else {
-			if (icon!=null&&title!=null)
-				b = new JCommandButton(title,icon);
-			else if (icon!=null)
-				b = new JCommandButton(icon);
-			else if (title!=null)
-				b = new JCommandButton(title);
-			else
-				b = new JCommandButton("");
-		}
-			
-			
-			try {
-				Action a = actions.getAction(getString(name + ACTION_SUFFIX));
-				if (a == null) {
-					throw new MissingListenerException("", "Action", name
-							+ ACTION_SUFFIX);
-				}
-				Action tracedAction = UiButtonDiagnostics.wrapAction(name, a);
-				AbstractCommandButton commandButton = b;
-				b.addActionListener(tracedAction);
-				b.setEnabled(tracedAction.isEnabled());
-				tracedAction.addPropertyChangeListener(event -> {
-					if ("enabled".equals(event.getPropertyName()))
-						commandButton.setEnabled(tracedAction.isEnabled());
-				});
-				b.setText(getString(name + TEXT_SUFFIX));
-				if (a instanceof JComponentModifier) {
-					((JComponentModifier) a).addJComponent(b);
-				}
-			} catch (MissingResourceException e) {
-			}
-
-
-			// Mnemonic
-//			try {
-//				String str = getString(name + MNEMONIC_SUFFIX);
-//				if (str.length() == 1) {
-//					b.setMnemonic(str.charAt(0));
-//				} else {
-//					throw new ResourceFormatException("Malformed mnemonic", bundle
-//							.getClass().getName(), name + MNEMONIC_SUFFIX);
-//				}
-//			} catch (MissingResourceException e) {
-//			}
-
-			// ToolTip
-			try {
-				String s = getStringOrNull(name + TOOLTIP_SUFFIX);
-				if (s != null) {
-					String help = getStringOrNull(name+HELP_SUFFIX);
-					String demo = getStringOrNull(name+DEMO_SUFFIX);
-					String doc = getStringOrNull(name+DOC_SUFFIX);
-					
-					if (doc != null)
-						s = HyperLinkToolTip.helpTipText(s,help,demo, doc);
-					b.setActionRichTooltip(new RichTooltip(" ", s));
-				}
-			} catch (MissingResourceException e) {
-			}
-
-			
-			
-			
-			
-			return b;
-	}
-
-
 	/**
 	 * Creates and returns a new swing radio button
 	 * 

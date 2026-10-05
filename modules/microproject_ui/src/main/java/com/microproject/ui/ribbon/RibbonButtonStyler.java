@@ -127,10 +127,6 @@ final class RibbonButtonStyler {
 		} catch (MissingResourceException ex) {
 			ribbonIcon = null;
 		}
-		if (ribbonIcon == null && button.getIcon() instanceof org.pushingpixels.flamingo.api.common.icon.ResizableIcon resizableIcon) {
-			resizableIcon.setDimension(new Dimension(iconSize, iconSize));
-			ribbonIcon = resizableIcon;
-		}
 		if (ribbonIcon == null) {
 			ribbonIcon = button.getIcon();
 		}

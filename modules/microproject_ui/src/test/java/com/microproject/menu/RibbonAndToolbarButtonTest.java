@@ -563,27 +563,6 @@ class RibbonAndToolbarButtonTest {
 	}
 
 	@Test
-	void ribbonButtonMirrorsLiveActionEnablement() throws Exception {
-		SwingUtilities.invokeAndWait(() -> {
-			AbstractAction liveAction = new AbstractAction() {
-				@Override public void actionPerformed(java.awt.event.ActionEvent event) { }
-			};
-			com.microproject.menu.resource.ActionMap actionMap = new com.microproject.menu.resource.ActionMap() {
-				@Override public Action getAction(String key) { return liveAction; }
-				@Override public String getStringFromAction(Action action) { return "LinkAction"; }
-			};
-			com.microproject.menu.resource.ButtonFactory factory =
-				new com.microproject.menu.resource.ButtonFactory(actionMap, ribbonBundles(Locale.ROOT));
-			var button = factory.createRibbonButton("RibbonLink");
-			assertTrue(button.isEnabled());
-			liveAction.setEnabled(false);
-			assertFalse(button.isEnabled());
-			liveAction.setEnabled(true);
-			assertTrue(button.isEnabled());
-		});
-	}
-
-	@Test
 	void menuItemUsesTheSameDebugActionContract() throws Exception {
 		String previous = System.getProperty("microproject.ui.debug");
 		System.setProperty("microproject.ui.debug", "true");

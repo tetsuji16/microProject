@@ -1013,11 +1013,11 @@ class RibbonExternalCommandGuiAcceptanceTest {
 	private static AbstractButton findCommandButton(Component root, String commandId) {
 		AbstractButton match = null;
 		for (Component component : flatten(root)) {
-			if ((component instanceof AbstractButton || component instanceof org.pushingpixels.flamingo.api.common.AbstractCommandButton)
-				&& commandId.equals(RibbonGuiButton.adapt(component).getActionCommand()) && RibbonGuiButton.adapt(component).isShowing()
+			if (component instanceof AbstractButton button
+				&& commandId.equals(button.getActionCommand()) && button.isShowing()
 				&& isInsideTopLevelContent(component)
 				&& (match == null || component.getWidth() * component.getHeight() > match.getWidth() * match.getHeight())) {
-				match = RibbonGuiButton.adapt(component);
+				match = button;
 			}
 		}
 		if (match != null) return match;
@@ -1040,9 +1040,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 
 	private static AbstractButton findRibbonTab(Component root, String... titles) {
 		for (Component component : flatten(root)) {
-			if ((component instanceof AbstractButton || component instanceof org.pushingpixels.flamingo.api.common.AbstractCommandButton)
-				&& RibbonGuiButton.adapt(component).isShowing()) {
-				AbstractButton button = RibbonGuiButton.adapt(component);
+			if (component instanceof AbstractButton button && button.isShowing()) {
 				for (String title : titles) {
 					if (title.equals(button.getText())) return button;
 				}

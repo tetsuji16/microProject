@@ -25,11 +25,11 @@
 package com.microproject.pm.graphic;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Dimension;
 import java.awt.image.BufferedImage;
 import java.util.LinkedHashSet;
 import java.util.ArrayList;
@@ -40,11 +40,20 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.pushingpixels.flamingo.api.common.AsynchronousLoading;
 
 import com.microproject.menu.testsupport.RibbonInventory;
 
 class IconManagerRibbonIconTest {
+	@Test
+	void rasterizedRibbonIconsAreCachedByNameAndSize() {
+		var first = IconManager.getRibbonIcon("ribbon.open", 20, 20);
+		var repeated = IconManager.getRibbonIcon("ribbon.open", 20, 20);
+		var otherSize = IconManager.getRibbonIcon("ribbon.open", 32, 32);
+
+		assertSame(first, repeated, "rebuilding the same ribbon group should reuse its rasterized icon");
+		assertNotSame(first, otherSize, "each optical size needs its own cached raster");
+	}
+
 	@Test
 	void officeRibbonIconsKeepColourAndUseTranslucentDisabledVariants() {
 		var normal = IconManager.getRibbonIcon("ribbon.open", 32, 32);
@@ -143,9 +152,8 @@ class IconManagerRibbonIconTest {
 	void ribbonIconsLoadSynchronouslyAndPaintVisiblePixels(String key) {
 		var icon = IconManager.getRibbonIcon(key, 32, 32);
 		assertNotNull(icon, () -> key + " did not resolve to a ribbon icon");
-		assertFalse(icon instanceof AsynchronousLoading, () -> key + " should not use asynchronous icon loading");
-
-		icon.setDimension(new Dimension(32, 32));
+		assertEquals(32, icon.getIconWidth());
+		assertEquals(32, icon.getIconHeight());
 		BufferedImage canvas = new BufferedImage(32, 32, BufferedImage.TYPE_INT_ARGB);
 		var g2 = canvas.createGraphics();
 		try {
@@ -172,9 +180,8 @@ class IconManagerRibbonIconTest {
 	void standardRibbonIconsLoadSynchronouslyAndPaintVisiblePixels(String key) {
 		var icon = IconManager.getRibbonIcon(key, 32, 32);
 		assertNotNull(icon, () -> key + " did not resolve to a ribbon icon");
-		assertFalse(icon instanceof AsynchronousLoading, () -> key + " should not use asynchronous icon loading");
-
-		icon.setDimension(new Dimension(32, 32));
+		assertEquals(32, icon.getIconWidth());
+		assertEquals(32, icon.getIconHeight());
 		BufferedImage canvas = new BufferedImage(32, 32, BufferedImage.TYPE_INT_ARGB);
 		var g2 = canvas.createGraphics();
 		try {

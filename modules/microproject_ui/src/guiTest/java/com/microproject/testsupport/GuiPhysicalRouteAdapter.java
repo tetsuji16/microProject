@@ -21,7 +21,6 @@ import javax.swing.JPopupMenu;
 import javax.swing.KeyStroke;
 import javax.swing.MenuElement;
 import javax.swing.MenuSelectionManager;
-import org.pushingpixels.flamingo.api.common.AbstractCommandButton;
 
 /** Locates physical Swing routes without dispatching actions directly. */
 public final class GuiPhysicalRouteAdapter {
@@ -52,8 +51,6 @@ public final class GuiPhysicalRouteAdapter {
 			if (component instanceof AbstractButton button && button.isShowing()
 				&& (Objects.equals(actionCommand, button.getActionCommand()) || Objects.equals(actionCommand, button.getName())))
 				return button;
-			if (component instanceof AbstractCommandButton button && button.isShowing()
-				&& Objects.equals(actionCommand, button.getName())) return RibbonGuiButton.adapt(button);
 		}
 		throw new AssertionError("Visible physical route is absent: " + actionCommand);
 	}
