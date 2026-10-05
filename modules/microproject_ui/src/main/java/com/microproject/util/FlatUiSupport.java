@@ -1228,6 +1228,10 @@ public final class FlatUiSupport {
 					g2.setColor(underline);
 					g2.fillRect(x, y + height - 3, width, 3);
 				}
+				if (button.isFocusOwner()) {
+					g2.setColor(ribbonAccentColor());
+					g2.drawRoundRect(x + 2, y + 2, Math.max(0, width - 5), Math.max(0, height - 8), 5, 5);
+				}
 			} finally {
 				g2.dispose();
 			}

@@ -555,6 +555,88 @@ class RibbonTabGuiAcceptanceTest {
 	}
 
 	@Test
+	void narrowTabStripKeepsFileAndSelectedTabVisibleAndExposesHiddenTabs() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
+		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+		ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
+		show(host, 320, true);
+
+		Robot robot = new Robot();
+		robot.setAutoDelay(35);
+		AbstractButton taskTab = findTab(host, "TaskRibbonTask");
+		AbstractButton fileTab = findTab(host, "FileRibbonTask");
+		click(robot, taskTab);
+		GuiAcceptanceSupport.await(taskTab::isSelected, "Task tab did not become active at narrow width");
+		assertTrue(taskTab.isShowing(), "the selected tab must remain visible when other tabs overflow");
+		assertTrue(fileTab.isShowing(), "the fixed File tab must remain directly available");
+		for (Component component : UiComponentWalker.flatten(host)) {
+			if (!(component instanceof AbstractButton button)
+				|| !(button.getClientProperty(ModernRibbonPanel.TAB_ID_PROPERTY) instanceof String)
+				|| !button.isShowing()) continue;
+			assertTrue(button.getWidth() >= button.getPreferredSize().width,
+				() -> "visible ribbon tab label is clipped: " + button.getName());
+			assertTrue(button.getX() >= 0 && button.getX() + button.getWidth() <= button.getParent().getWidth(),
+				() -> "visible ribbon tab escaped the tab strip: " + button.getName());
+		}
+
+		AbstractButton overflow = UiComponentWalker.flatten(host).stream()
+			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+			.filter(button -> Boolean.TRUE.equals(button.getClientProperty(ModernRibbonPanel.TAB_OVERFLOW_PROPERTY)))
+			.filter(AbstractButton::isShowing).findFirst()
+			.orElseThrow(() -> new AssertionError("narrow tab strip clipped tabs instead of exposing an overflow menu"));
+		assertTrue(overflow.getAccessibleContext().getAccessibleDescription() != null
+			&& !overflow.getAccessibleContext().getAccessibleDescription().isBlank(),
+			"tab overflow must explain its purpose to assistive technology");
+		captureVisibleRibbon(robot, "ribbon-tabs-narrow-320.png", 0);
+		assertTrue(overflow.isFocusable() && overflow.isFocusPainted(),
+			"tab overflow must support keyboard access with a visible focus indication");
+		SwingUtilities.invokeAndWait(() -> {
+			frame.toFront();
+			frame.requestFocusInWindow();
+			overflow.requestFocusInWindow();
+		});
+		GuiAcceptanceSupport.await(overflow::isFocusOwner, "tab overflow did not receive keyboard focus");
+		captureVisibleRibbon(robot, "ribbon-tabs-overflow-focused-320.png", 0);
+		robot.keyPress(KeyEvent.VK_SPACE);
+		robot.keyRelease(KeyEvent.VK_SPACE);
+		JPopupMenu keyboardPopup = (JPopupMenu) overflow.getClientProperty(ModernRibbonPanel.TAB_OVERFLOW_POPUP_PROPERTY);
+		GuiAcceptanceSupport.await(() -> keyboardPopup != null && keyboardPopup.isVisible(),
+			"Space did not open the tab overflow menu");
+		robot.keyPress(KeyEvent.VK_ESCAPE);
+		robot.keyRelease(KeyEvent.VK_ESCAPE);
+		GuiAcceptanceSupport.await(() -> !keyboardPopup.isVisible(), "Escape did not close the tab overflow menu");
+		clickCommand(robot, overflow);
+		JPopupMenu popup = (JPopupMenu) overflow.getClientProperty(ModernRibbonPanel.TAB_OVERFLOW_POPUP_PROPERTY);
+		GuiAcceptanceSupport.await(popup::isVisible, "tab overflow menu did not open from its physical control");
+		Rectangle[] popupBounds = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> popupBounds[0] = new Rectangle(popup.getLocationOnScreen(), popup.getSize()));
+		assertTrue(new Rectangle(frame.getLocationOnScreen(), frame.getSize()).contains(popupBounds[0]),
+			() -> "tab overflow popup escaped the application window: popup=" + popupBounds[0] + " frame=" + frame.getBounds());
+		captureVisibleRibbon(robot, "ribbon-tabs-overflow-popup-320.png", 0);
+		AbstractButton hiddenTab = UiComponentWalker.flatten(popup).stream()
+			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+			.filter(button -> button.getClientProperty(ModernRibbonPanel.TAB_ID_PROPERTY) instanceof String)
+			.findFirst().orElseThrow(() -> new AssertionError("tab overflow menu contains no hidden tabs"));
+		String hiddenTabId = (String) hiddenTab.getClientProperty(ModernRibbonPanel.TAB_ID_PROPERTY);
+		clickCommand(robot, hiddenTab);
+		AbstractButton selectedTab = findTab(host, hiddenTabId);
+		GuiAcceptanceSupport.await(() -> selectedTab.isSelected() && selectedTab.isShowing(),
+			"choosing an overflow tab did not select and reveal it: " + hiddenTabId);
+		assertTrue(fileTab.isShowing(), "selecting an overflow tab hid the fixed File tab");
+
+		resizeWindow(1200);
+		GuiAcceptanceSupport.await(() -> UiComponentWalker.flatten(host).stream()
+			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+			.filter(button -> button.getClientProperty(ModernRibbonPanel.TAB_ID_PROPERTY) instanceof String)
+			.filter(button -> ribbon.isContextualTabVisible((String) button.getClientProperty(ModernRibbonPanel.TAB_ID_PROPERTY))
+				|| !((String) button.getClientProperty(ModernRibbonPanel.TAB_ID_PROPERTY)).contains("Format"))
+			.allMatch(AbstractButton::isShowing), "wide tab strip did not restore direct tab navigation");
+		assertTrue(!overflow.isShowing(), "wide tab strip kept an unnecessary overflow control visible");
+	}
+
+	@Test
 	void fileRibbonKeepsItsCommandsLeftAlignedBeforeCollapsingTrailingBands() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
@@ -626,6 +708,14 @@ class RibbonTabGuiAcceptanceTest {
 			.filter(button -> text.equals(button.getText()))
 			.findFirst()
 			.orElseThrow(() -> new AssertionError("Ribbon tab not found: " + text));
+	}
+
+	private static AbstractButton findTab(JPanel host, String tabId) {
+		return UiComponentWalker.flatten(host).stream()
+			.filter(AbstractButton.class::isInstance)
+			.map(AbstractButton.class::cast)
+			.filter(button -> tabId.equals(button.getClientProperty(ModernRibbonPanel.TAB_ID_PROPERTY)))
+			.findFirst().orElseThrow(() -> new AssertionError("Ribbon tab not found: " + tabId));
 	}
 
 	private static AbstractButton findAttachedButtonByCommand(JPanel host, String command) {

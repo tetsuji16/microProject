@@ -34,6 +34,7 @@ import java.awt.Graphics2D;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.awt.Point;
 import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.util.ArrayList;
@@ -59,6 +60,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JRootPane;
+import javax.swing.JRadioButtonMenuItem;
 import javax.swing.JScrollPane;
 import javax.swing.JToggleButton;
 import javax.swing.InputMap;
@@ -83,10 +85,13 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	static final String RIBBON_SURFACE_COMPONENT_NAME = "projectLibreRibbonSurface";
 	static final String RIBBON_BAND_COMPONENT_NAME = "projectLibreRibbonBand";
 	public static final String COLLAPSED_POPUP_PROPERTY = "MicroProject.ribbonCollapsedPopup";
+	public static final String TAB_OVERFLOW_POPUP_PROPERTY = "MicroProject.ribbonTabOverflowPopup";
 	public static final String COLLAPSED_TAB_LAUNCHER_PROPERTY = "MicroProject.ribbonCollapsedTabLauncher";
 	public static final String BAND_PROXY_PROPERTY = "MicroProject.ribbonBandProxy";
+	public static final String TAB_ID_PROPERTY = "MicroProject.ribbonTabId";
 	public static final String SCROLL_PREVIOUS_PROPERTY = "MicroProject.ribbonScrollPrevious";
 	public static final String SCROLL_NEXT_PROPERTY = "MicroProject.ribbonScrollNext";
+	public static final String TAB_OVERFLOW_PROPERTY = "MicroProject.ribbonTabOverflow";
 	private static final int BAND_MIN_WIDTH = 72;
 	private static final int BAND_INNER_GAP = 4;
 	private static final int BAND_SIDE_PADDING = 4;
@@ -160,6 +165,9 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	private boolean ownsAutoHideRevealShortcut;
 	private JComponent tabRow;
 	private JComponent tabRowAccessory;
+	private JPanel tabStrip;
+	private AbstractButton tabOverflowButton;
+	private boolean updatingTabOverflow;
 	private RibbonDisplayMode displayMode = RibbonDisplayMode.ALWAYS_SHOW;
 	private boolean autoHideRevealed;
 
@@ -272,6 +280,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 			if (button != null) button.setVisible(visibleContextualTabs.contains(tab.getId()));
 		}
 		if (activeTabId != null && !isTabVisible(activeTabId)) firstVisibleTabId().ifPresent(this::showTab);
+		updateTabOverflow();
 		revalidate();
 		repaint();
 	}
@@ -287,6 +296,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		if (tabRow != null) {
 			if (accessory != null) addTabRowAccessory(tabRow, accessory);
 			updateTabRowAccessoryVisibility();
+			updateTabOverflow();
 			tabRow.revalidate();
 			tabRow.repaint();
 		}
@@ -312,6 +322,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 			JToggleButton button = tabButtons.get(tab.getId());
 			if (button != null) button.setText(tabTitle(tab));
 		}
+		updateTabOverflow();
 		revalidate();
 		repaint();
 	}
@@ -381,7 +392,9 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	@Override
 	public void doLayout() {
 		super.doLayout();
+		updateTabOverflow();
 		updateTabRowAccessoryVisibility();
+		updateTabOverflow();
 		// Off-screen rendering and first layout do not necessarily dispatch a
 		// component-resized event.  Re-evaluate here so the visible density never
 		// depends on the component having been realized first.
@@ -452,6 +465,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 
 	private JPanel buildTabsStrip() {
 		JPanel tabs = new JPanel(new GridBagLayout());
+		tabStrip = tabs;
 		tabs.setOpaque(false);
 
 		GridBagConstraints tabConstraints = new GridBagConstraints();
@@ -463,9 +477,118 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 			tabs.add(createTabButton(tab), tabConstraints);
 			tabConstraints.gridx++;
 		}
+		tabOverflowButton = createTabOverflowButton();
+		tabs.add(tabOverflowButton, tabConstraints);
+		tabConstraints.gridx++;
 
 		tabs.add(createTabTrailingGlue(), createTrailingGlueConstraints(tabConstraints.gridx));
 		return tabs;
+	}
+
+	private AbstractButton createTabOverflowButton() {
+		JButton button = new JButton("…");
+		button.setName("projectLibreRibbonTabOverflow");
+		button.putClientProperty(TAB_OVERFLOW_PROPERTY, Boolean.TRUE);
+		button.setFont(theme.tabFont());
+		button.setToolTipText(UsabilityStrings.text("chrome.ribbonMoreTabs"));
+		button.getAccessibleContext().setAccessibleName(UsabilityStrings.text("chrome.ribbonMoreTabs"));
+		button.getAccessibleContext().setAccessibleDescription(UsabilityStrings.text("chrome.ribbonMoreTabsDescription"));
+		theme.styleTabButton(button);
+		button.setFont(theme.tabFont());
+		button.setFocusable(true);
+		button.setFocusPainted(true);
+		button.addActionListener(event -> showTabOverflow(button));
+		// Keep the control attached until the first allocated-width layout pass.
+		// This also preserves the ribbon's construction-time component contract.
+		button.setVisible(true);
+		return button;
+	}
+
+	private void updateTabOverflow() {
+		if (updatingTabOverflow || tabStrip == null || tabOverflowButton == null || getWidth() <= 0) return;
+		updatingTabOverflow = true;
+		try {
+			boolean changed = false;
+			List<SwingRibbonModel.RibbonTab> visibleTabs = model.getTabs().stream()
+				.filter(tab -> !tab.isContextual() || visibleContextualTabs.contains(tab.getId()))
+				.toList();
+			int availableWidth = Math.max(0, getWidth() - theme.horizontalInset() * 2);
+			if (tabRowAccessory != null && tabRowAccessory.isVisible()) {
+				availableWidth = Math.max(0, availableWidth - tabRowAccessory.getPreferredSize().width - 8);
+			}
+			int fullWidth = visibleTabs.stream()
+				.mapToInt(tab -> tabButtons.get(tab.getId()).getPreferredSize().width).sum();
+			boolean overflowNeeded = fullWidth > availableWidth;
+			java.util.Set<String> shownIds = new LinkedHashSet<>();
+			if (!overflowNeeded) {
+				visibleTabs.forEach(tab -> shownIds.add(tab.getId()));
+			} else {
+				if (!tabOverflowButton.isVisible()) {
+					tabOverflowButton.setVisible(true);
+					changed = true;
+				}
+				int remainingWidth = Math.max(0, availableWidth - tabOverflowButton.getPreferredSize().width);
+				SwingRibbonModel.RibbonTab fileTab = visibleTabs.stream()
+					.filter(tab -> "FileRibbonTask".equals(tab.getId())).findFirst().orElse(null);
+				SwingRibbonModel.RibbonTab activeTab = visibleTabs.stream()
+					.filter(tab -> Objects.equals(activeTabId, tab.getId())).findFirst().orElse(null);
+				for (SwingRibbonModel.RibbonTab pinned : new SwingRibbonModel.RibbonTab[] { fileTab, activeTab }) {
+					if (pinned != null && shownIds.add(pinned.getId())) {
+						remainingWidth -= tabButtons.get(pinned.getId()).getPreferredSize().width;
+					}
+				}
+				for (SwingRibbonModel.RibbonTab tab : visibleTabs) {
+					if (shownIds.contains(tab.getId())) continue;
+					int width = tabButtons.get(tab.getId()).getPreferredSize().width;
+					if (width <= remainingWidth) {
+						shownIds.add(tab.getId());
+						remainingWidth -= width;
+					}
+				}
+			}
+			if (!overflowNeeded && tabOverflowButton.isVisible()) {
+				tabOverflowButton.setVisible(false);
+				changed = true;
+			}
+			for (SwingRibbonModel.RibbonTab tab : model.getTabs()) {
+				JToggleButton button = tabButtons.get(tab.getId());
+				boolean visible = (!tab.isContextual() || visibleContextualTabs.contains(tab.getId()))
+					&& shownIds.contains(tab.getId());
+				if (button.isVisible() != visible) {
+					button.setVisible(visible);
+					changed = true;
+				}
+			}
+			if (changed) {
+				tabStrip.revalidate();
+				tabStrip.repaint();
+			}
+		} finally {
+			updatingTabOverflow = false;
+		}
+	}
+
+	private void showTabOverflow(AbstractButton anchor) {
+		JPopupMenu popup = new JPopupMenu();
+		ButtonGroup hiddenTabs = new ButtonGroup();
+		for (SwingRibbonModel.RibbonTab tab : model.getTabs()) {
+			JToggleButton tabButton = tabButtons.get(tab.getId());
+			if (isTabVisible(tab.getId()) && !tabButton.isVisible()) {
+				JRadioButtonMenuItem item = new JRadioButtonMenuItem(tabTitle(tab), Objects.equals(activeTabId, tab.getId()));
+				item.putClientProperty(TAB_ID_PROPERTY, tab.getId());
+				item.addActionListener(event -> showTab(tab.getId()));
+				hiddenTabs.add(item);
+				popup.add(item);
+			}
+		}
+		if (popup.getComponentCount() == 0) return;
+		anchor.putClientProperty(TAB_OVERFLOW_POPUP_PROPERTY, popup);
+		Dimension popupSize = popup.getPreferredSize();
+		Point anchorInRibbon = SwingUtilities.convertPoint(anchor, 0, 0, this);
+		int popupRight = Math.min(getWidth(), anchorInRibbon.x + anchor.getWidth());
+		int popupLeft = Math.max(0, popupRight - popupSize.width);
+		int popupX = popupLeft - anchorInRibbon.x;
+		popup.show(anchor, popupX, anchor.getHeight());
 	}
 
 	private Component createTabTrailingGlue() {
@@ -483,6 +606,8 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 
 	private AbstractButton createTabButton(SwingRibbonModel.RibbonTab tab) {
 		JToggleButton button = new JToggleButton(tabTitle(tab));
+		button.setName("projectLibreRibbonTab-" + tab.getId());
+		button.putClientProperty(TAB_ID_PROPERTY, tab.getId());
 		button.putClientProperty("JComponent.titleBarCaption", Boolean.FALSE);
 		tabButtons.put(tab.getId(), button);
 		tabGroup.add(button);
@@ -534,6 +659,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		cards.revalidate();
 		cards.repaint();
 		updatePreferredHeight();
+		updateTabOverflow();
 	}
 
 	private boolean isTabVisible(String tabId) {
