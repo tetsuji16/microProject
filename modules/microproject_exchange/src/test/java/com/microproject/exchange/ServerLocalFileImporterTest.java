@@ -24,32 +24,27 @@
  *******************************************************************************/
 package com.microproject.exchange;
 
-import junit.framework.TestCase;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class ServerLocalFileImporterTest extends TestCase {
-	public void testDirectImportIsExplicitlyUnsupported() {
+import org.junit.jupiter.api.Test;
+
+class ServerLocalFileImporterTest {
+	@Test
+	void directImportIsExplicitlyUnsupported() {
 		ServerLocalFileImporter importer = new ServerLocalFileImporter();
 
-		try {
-			importer.importFile();
-			fail("Expected UnsupportedOperationException");
-		} catch (UnsupportedOperationException expected) {
-			assertTrue(expected.getMessage().contains("local file imports"));
-		} catch (Exception e) {
-			fail("Unexpected exception: " + e);
-		}
+		UnsupportedOperationException failure = assertThrows(UnsupportedOperationException.class,
+			importer::importFile);
+		assertTrue(failure.getMessage().contains("local file imports"));
 	}
 
-	public void testDirectExportIsExplicitlyUnsupported() {
+	@Test
+	void directExportIsExplicitlyUnsupported() {
 		ServerLocalFileImporter importer = new ServerLocalFileImporter();
 
-		try {
-			importer.exportFile();
-			fail("Expected UnsupportedOperationException");
-		} catch (UnsupportedOperationException expected) {
-			assertTrue(expected.getMessage().contains("not implemented"));
-		} catch (Exception e) {
-			fail("Unexpected exception: " + e);
-		}
+		UnsupportedOperationException failure = assertThrows(UnsupportedOperationException.class,
+			importer::exportFile);
+		assertTrue(failure.getMessage().contains("not implemented"));
 	}
 }

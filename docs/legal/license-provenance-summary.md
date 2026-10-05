@@ -16,7 +16,7 @@
 | microproject_bootstrap | 7 | 0 | 0 | 0 | 0 | 0 | 7 |
 | microproject_contrib | 20 | 13 | 2 | 0 | 0 | 0 | 5 |
 | microproject_core | 924 | 154 | 0 | 0 | 0 | 0 | 770 |
-| microproject_exchange | 119 | 9 | 0 | 0 | 0 | 0 | 110 |
+| microproject_exchange | 118 | 9 | 0 | 0 | 0 | 0 | 109 |
 | microproject_reports | 15 | 0 | 9 | 0 | 0 | 0 | 6 |
 | microproject_ribbon | 11 | 0 | 0 | 0 | 0 | 0 | 11 |
 | microproject_ui | 1204 | 153 | 40 | 0 | 0 | 0 | 1011 |
