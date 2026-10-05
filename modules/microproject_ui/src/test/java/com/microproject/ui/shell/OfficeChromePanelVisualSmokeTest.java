@@ -36,6 +36,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 
 import javax.swing.AbstractButton;
 import javax.swing.JComponent;
@@ -165,6 +167,9 @@ class OfficeChromePanelVisualSmokeTest {
 			MenuDefinitionSupport.ribbonBundles(locale));
 		var model = ribbonFactory.createModel(MenuManager.STANDARD_RIBBON);
 		JPanel ribbonPanel = ribbonFactory.createPanel(model, () -> {});
+		RibbonController ribbonController = (RibbonController) ribbonPanel.getClientProperty(
+			RibbonController.CONTEXTUAL_TABS_PROPERTY);
+		assertNotNull(ribbonController, "ribbon panel must expose its host controller");
 		OfficeChromePanel panel = new OfficeChromePanel(menuManager, ribbonPanel, () -> {});
 		int rowHeight = 192;
 		BufferedImage sheet = new BufferedImage(width, rowHeight * model.getTabs().size(), BufferedImage.TYPE_INT_ARGB);
@@ -172,7 +177,16 @@ class OfficeChromePanelVisualSmokeTest {
 		try {
 			for (int index = 0; index < model.getTabs().size(); index++) {
 				var tab = model.getTabs().get(index);
-				findButton(panel, tab.getTitle()).doClick();
+				// Context tabs are intentionally hidden until the active view exposes them.
+				// Reveal each one explicitly so the contact sheet captures its real content
+				// instead of repeatedly selecting the first visible tab with the same title.
+				ribbonController.setVisibleContextualTabs(tab.isContextual() ? Set.of(tab.getId()) : Set.of());
+				if (tab.isContextual()) {
+					ribbonController.setContextualTabTitles(Map.of(tab.getId(), tab.getTitle()));
+				}
+				var tabButton = findButton(panel, tab.getTitle());
+				tabButton.doClick();
+				assertTrue(tabButton.isSelected(), "contact sheet did not select " + tab.getId());
 				panel.setSize(width, rowHeight);
 				panel.doLayout();
 				layoutRecursively(panel);
