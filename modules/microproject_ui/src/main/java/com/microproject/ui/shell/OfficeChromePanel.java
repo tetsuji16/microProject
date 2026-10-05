@@ -258,10 +258,8 @@ final class OfficeChromePanel extends JPanel {
 		constraints.gridx++;
 		cluster.add(new OfficeSwitchButton(autoSaveControl), constraints);
 		constraints.gridx++;
-		constraints.insets = new Insets(0, CLUSTER_GAP, 0, 6);
-		cluster.add(new VerticalDivider(), constraints);
-		constraints.gridx++;
-		constraints.insets = new Insets(0, 0, 0, 2);
+		constraints.insets = new Insets(0, CLUSTER_GAP, 0, 0);
+		quickAccessCommands.add(new VerticalDivider());
 		quickAccessCommands.add(createActionButton("RibbonTopBarSaveProject"));
 		quickAccessCommands.add(createActionButton("RibbonTopBarUndo"));
 		quickAccessCommands.add(createActionButton("RibbonTopBarRedo"));
