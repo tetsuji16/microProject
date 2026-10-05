@@ -20,7 +20,7 @@
 | 面 | MSP 2024 基準 | 現行 microProject | 判定と次の確認 |
 |---|---|---|---|
 | File | Backstage の左ナビゲーションと詳細面: New/Open/Info/Save/Save As/Print/Export/Close/Account/Options。非対応の Share は出さない | `FileRibbonTask` の通常タブに File/Exchange/Print/Preferences のバンドを表示 | **不足**。Backstage 専用の表示・戻り操作・File選択時のタブ選択状態を実装。既存ファイル操作は同じActionを再利用 |
-| Task — グループ | View, Clipboard, Font, Schedule, Tasks, Insert, Properties, Link/Planner, Editing | Clipboard, Insert, Outline, Dependencies, Properties, Tracking, Editing | **部分実装**。現行列挙に Font/Format Painter/Respect Links/Inactivate/Inspect/Select/Clear/Add to Timeline 等が不足。MSP標準と製品固有コマンドの配置を照合 |
+| Task — グループ | Microsoft Support は Task > Schedule に Link/Unlink を明記し、Task Mode と Indent も Task > Schedule と案内する。 | Clipboard, Schedule, Insert, Outline, Dependencies, Properties, Editing。Schedule は Mark on Track/Update Tasks/Link/Unlink/Indent/Outdent/Manual/Auto を含む | **部分実装**。2026-10-05に明示的な公式配置に合わせ Link/Unlink/Indent/Outdent/Task Mode を Schedule に移し、Task内の順番をClipboardの次、Insertの前にした。Robot画像と構造回帰を更新する。View/Font/Tasks等のグループと他の標準コマンドは不足。Microsoftが資料で個別配置を明示していないMove/Outline等の placement は文書由来の互換判断として扱う |
 | Task — 既存コマンド | Schedule系にIndent/Outdent/Link/Unlink/Move Up/Down。Task Mode、進捗、挿入、編集の選択条件を適用 | 対応する既存Actionが複数ある。Task Mode、Mark on Track等は現在のリボンに存在 | **未検証**。各Actionを選択なし/複数選択/読取専用/Undo/Redo/保存再読込で監査。ボタンの押下後に選択状態を残すかも明記 |
 | Resource — Level | Level Selection, Level Resource, Level All, Leveling Options, Clear Leveling, Next Overallocation | `ResourceLevelRibbonBand` は `RibbonLevelSelection` と `RibbonLevelResources`。前者は選択タスクを平準化し、後者は既存のプレビューdialogを開く | **部分実装**。Level SelectionはCommandId、正規Action、Undo/Redo、MPO再読込をRobotで確認済み。Level Resource/All/Options/Clear/Next Overallocationは未実装または意味の区別が未確認 |
 | Resource — その他 | View, Assignments, Insert, Properties, Level。共有poolは条件付き | Resource Sheet/Usage等のView経路、Insert Resource/Information/Timesheet/Team Filter/Pool経路 | **部分実装**。発見順、Team Planner/Other Views、Resource Information/Notes/Details、Material/Cost追加を照合。Pool機能は接続条件を確認 |
@@ -41,7 +41,7 @@
 | Report object | Report Tools — Designおよび選択object固有のChart/Table/Picture/Drawing tools | Report tabはあるがReport object contextual tabsは未確認 | **不足または未実装**。選択object種類別の発見場所と無効状態を確定 |
 | 独自機能 | 標準MSPタブと区別した製品固有領域 | 現行標準面にCCPM等のmicroProject独自機能が混在 | **要整理**。CCPM等は `microProject` 面に分離し、MSP標準の意味を変更しない |
 | キーボード/支援技術 | KeyTips、Tab/矢印/Space/Enter、Accessible name、selected/disabled | root-paneに一元化したshortcut層はある。全コマンドのKeyTip/accessible state matrixは未確認 | **未検証**。全標準/文脈コマンドのキーボード・支援技術・selection state一覧を生成し、欠落を検出 |
-| 狭幅/折りたたみ | 画面幅に応じてコマンド群を再配置し、コマンドへ到達できる | `ModernRibbonPanel` が実幅に合わせて直接コマンド、縮小コマンド、代表アイコン付きグループメニューへ遷移 | **部分実装**。同一Robotウィンドウで1200/672/320pxを通り、Task > Pasteを狭幅メニューから実行。全タブ・ja/en・100/125/150%の幅境界matrixは未検証。記録画像 `ribbon-task-wide-1200.png` / `ribbon-task-medium-672.png` / `ribbon-task-narrow-320.png` |
+| 狭幅/折りたたみ | Microsoft Support はコマンドの表示/非表示、リボンの表示状態とカスタマイズを記載するが、Project desktop の各幅境界や具体的なgroup reflowを数値規定しない | `ModernRibbonPanel` が実幅に合わせて直接コマンド、縮小コマンド、代表アイコン付きグループメニューへ遷移 | **部分実装**。同一Robotウィンドウで1200/672/320pxを通り、Task > Pasteを狭幅メニューから実行。全タブ・ja/en・100/125/150%の幅境界matrixは未検証。記録画像 `ribbon-task-wide-1200.png` / `ribbon-task-medium-672.png` / `ribbon-task-narrow-320.png`。Microsoftの「リボンサイズを縮小できない」はユーザーによる固定サイズ変更についての記載で、レスポンシブ遷移の完全な実装仕様ではないため、縮小表示との同一性は断定しない |
 | 白いcommand surface | タブ直下の白い面、丸みと余白は画像基準 | FlatLaf `JPanel` の `arc: 18` と左右16px insetで白い面を丸角表示。グループを同じ白い面に配置 | **部分実装**。U-40のpixel assertionで外角がchrome色、内側が白であることを確認。提供されたPowerPoint for Macの画像と外形は近づけたが、影とOS別の差まで完全一致したとは判定していない。Microsoft Supportは丸みや余白を規定していない |
 | Visual system | Officeテーマ、選択/hover/pressed/disabled/focus状態とgeometry | 単一Swing renderer。ライト面はchrome `#F3F2F1`、command surface白。Flamingo ribbon rendererは使わない | **部分実装**。値は参照画像からの観測でMicrosoftのRGB normative specではない。#765の画像比較・状態matrixが完了条件 |
 
@@ -83,5 +83,7 @@ Diagnostic result: changed/rejected/failed、selected stable task IDs、変更ta
 - 一般ボタンの physical-route一覧: `docs/RIBBON_COMMAND_GUI_TEST_CASES_JA.md`。dispatch成功は結果成功の証明ではない。
 - レイアウト/色の検証契約: `TEST_PLAN.md` U-40 と `OfficeChromePanelVisualSmokeTest`。
 - 互換根拠・未完了機能: issue #453、実装受入: issue #769、視覚受入: issue #765。
+
+2026-10-05 Task group order review: Microsoft Support [Link tasks in a project](https://support.microsoft.com/en-us/project/link-tasks-in-a-project), [Task Mode (task field)](https://support.microsoft.com/en-us/project/task-mode-task-field), and [Top-down planning](https://support.microsoft.com/en-us/project/top-down-planning) explicitly place Link/Unlink, task mode, and Indent under Task > Schedule. The ribbon had placed Link/Unlink under Dependencies, Indent under Outline, and Manual/Auto under Editing. These controls now reside in the Schedule band, which appears immediately after Clipboard; command IDs and canonical Actions are unchanged. This is a document-derived compatibility correction, not an empirical MSP run. The rest of the Task tab still differs and this does not establish complete parity.
 
 この表は現時点の敵対的監査であり、合格証明ではない。**不足**/**部分実装**/**未検証**の行を実装・試験証跡で解決するまで、#453/#765/#769を閉じない。

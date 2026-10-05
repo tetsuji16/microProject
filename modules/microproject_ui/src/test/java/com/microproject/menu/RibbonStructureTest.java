@@ -83,22 +83,24 @@ class RibbonStructureTest {
 	}
 
 	@Test
-	void taskAndResourceTabsSeparateOutlineAssignmentsAndTrackingWork() {
+	void taskTabPlacesMicrosoftScheduleCommandsInScheduleGroup() {
 		assertEquals(List.of("RibbonImportProject", "RibbonExportProject"),
 			ribbonButtonIds("FileExchangeRibbonBand"));
 		assertEquals(List.of(
-			"ClipboardRibbonBand", "TaskInsertRibbonBand", "TaskOutlineRibbonBand", "TaskDependenciesRibbonBand",
-			"TaskPropertiesRibbonBand", "TaskTrackingRibbonBand", "TaskEditingRibbonBand"),
+			"ClipboardRibbonBand", "TaskTrackingRibbonBand", "TaskInsertRibbonBand", "TaskOutlineRibbonBand",
+			"TaskDependenciesRibbonBand", "TaskPropertiesRibbonBand", "TaskEditingRibbonBand"),
 			ribbonBandIds("TaskRibbonTask"));
-		assertEquals(List.of("RibbonIndent", "RibbonOutdent", "RibbonMoveTaskUp", "RibbonMoveTaskDown", "RibbonExpand", "RibbonCollapse"),
+		assertEquals(List.of("RibbonMoveTaskUp", "RibbonMoveTaskDown", "RibbonExpand", "RibbonCollapse"),
 			ribbonButtonIds("TaskOutlineRibbonBand"));
 		assertEquals("MoveTaskUpAction",menuInternalBundle().getString("RibbonMoveTaskUp.action"));
 		assertEquals("MoveTaskDownAction",menuInternalBundle().getString("RibbonMoveTaskDown.action"));
 		assertTrue(menuBundle(Locale.ROOT).getString("RibbonMoveTaskUp.tooltip").contains("Alt+Shift+Up"));
 		assertTrue(menuBundle(Locale.ROOT).getString("RibbonMoveTaskDown.tooltip").contains("Alt+Shift+Down"));
-		assertEquals(List.of("RibbonLink", "RibbonUnlink", "RibbonAssignResources", "RibbonDelegateTasks"),
+		assertEquals(List.of("RibbonAssignResources", "RibbonDelegateTasks"),
 			ribbonButtonIds("TaskDependenciesRibbonBand"));
-		assertEquals(List.of("RibbonMarkOnTrack", "RibbonUpdateTasks"), ribbonButtonIds("TaskTrackingRibbonBand"));
+		assertEquals(List.of("RibbonMarkOnTrack", "RibbonUpdateTasks", "RibbonLink", "RibbonUnlink",
+			"RibbonIndent", "RibbonOutdent", "RibbonTaskModeManual", "RibbonTaskModeAutomatic"),
+			ribbonButtonIds("TaskTrackingRibbonBand"));
 		assertEquals(List.of("RibbonProjectInformation", "RibbonChangeWorkingTime", "RibbonCalendarOptions", "RibbonProjectsDialog"),
 			ribbonButtonIds("ProjectInfoRibbonBand"));
 		assertEquals(List.of("RibbonStatusDate", "RibbonUpdateProject"),
