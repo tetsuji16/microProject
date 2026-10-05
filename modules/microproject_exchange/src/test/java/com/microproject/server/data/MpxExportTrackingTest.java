@@ -32,6 +32,10 @@ import java.util.Iterator;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import static org.junit.jupiter.api.Assertions.*;
+
+import org.junit.jupiter.api.Test;
+
 import com.microproject.core.pm.exchange.converters.type.DateUTCConverter;
 import com.microproject.exchange.MicrosoftImporter;
 import com.microproject.job.Job;
@@ -52,34 +56,39 @@ import com.microproject.pm.scheduling.SchedulingType;
 import com.microproject.session.SessionFactory;
 import com.microproject.undo.DataFactoryUndoController;
 
-import junit.framework.TestCase;
 import net.sf.mpxj.ProjectFile;
 import net.sf.mpxj.ResourceAssignment;
 import net.sf.mpxj.TaskMode;
 
-public class MpxExportTrackingTest extends TestCase {
-	public void testMicrosoftExportJobReportsCompletionForEmptyProject() throws Exception {
+class MpxExportTrackingTest {
+	@Test
+	void microsoftExportJobReportsCompletionForEmptyProject() throws Exception {
 		JobQueue queue = new JobQueue("microsoft-export-progress", false);
-		SessionFactory.getInstance().setJobQueue(queue);
-		Project project = createProject();
+		JobQueue previousQueue = SessionFactory.getInstance().getJobQueue();
 		Path output = Files.createTempFile("microproject-empty-export-", ".xml");
 		Files.deleteIfExists(output);
 
-		MicrosoftImporter exporter = new MicrosoftImporter();
-		exporter.setFileName(output.toString());
-		exporter.setProject(project);
-		Job job = exporter.getExportFileJob();
-		CountDownLatch completed = new CountDownLatch(1);
-		job.addCompletionRunnable(completed::countDown);
-		job.execute();
+		try {
+			SessionFactory.getInstance().setJobQueue(queue);
+			MicrosoftImporter exporter = new MicrosoftImporter();
+			exporter.setFileName(output.toString());
+			exporter.setProject(createProject());
+			Job job = exporter.getExportFileJob();
+			CountDownLatch completed = new CountDownLatch(1);
+			job.addCompletionRunnable(completed::countDown);
+			job.execute();
 
-		assertTrue("empty-project export job did not complete", completed.await(15, TimeUnit.SECONDS));
-		assertEquals(1.0f, job.getProgress(), 0.00001f);
-		assertTrue("empty-project export did not create a file", Files.size(output) > 0L);
-		Files.deleteIfExists(output);
+			assertTrue(completed.await(15, TimeUnit.SECONDS), "empty-project export job did not complete");
+			assertEquals(1.0f, job.getProgress(), 0.00001f);
+			assertTrue(Files.size(output) > 0L, "empty-project export did not create a file");
+		} finally {
+			SessionFactory.getInstance().setJobQueue(previousQueue);
+			Files.deleteIfExists(output);
+		}
 	}
 
-	public void testTaskTrackingModesAndActualsAreExported() {
+	@Test
+	void taskTrackingModesAndActualsAreExported() {
 		NormalTask source = createTask();
 		source.setManuallyScheduled(true);
 		source.setPercentWorkComplete(0.40d);
@@ -98,7 +107,8 @@ public class MpxExportTrackingTest extends TestCase {
 		assertFalse(target.getActive());
 	}
 
-	public void testAssignmentTrackingValuesAreExported() {
+	@Test
+	void assignmentTrackingValuesAreExported() {
 		NormalTask task = createTask();
 		task.setPercentWorkComplete(0.50d);
 		Iterator<?> assignments = task.getAssignments().iterator();
@@ -116,7 +126,8 @@ public class MpxExportTrackingTest extends TestCase {
 		assertEquals(net.sf.mpxj.TimeUnit.MINUTES, target.getLevelingDelay().getUnits());
 	}
 
-	public void testLevelingDelayRoundTripsInMspdiMinutes() throws Exception {
+	@Test
+	void levelingDelayRoundTripsInMspdiMinutes() throws Exception {
 		NormalTask source = createTask();
 		long delay = 3L * 60L * 60L * 1000L;
 		source.setLevelingDelay(delay);
@@ -146,7 +157,8 @@ public class MpxExportTrackingTest extends TestCase {
 		assertEquals(delay, reloadedTask.getLevelingDelay());
 	}
 
-	public void testMicrosoftXmlRoundTripPreservesTrackingAndTaskModes() throws Exception {
+	@Test
+	void microsoftXmlRoundTripPreservesTrackingAndTaskModes() throws Exception {
 		NormalTask sourceTask = createTask();
 		Project sourceProject = sourceTask.getProject();
 		sourceTask.setName("Tracking task");
@@ -199,7 +211,8 @@ public class MpxExportTrackingTest extends TestCase {
 		assertEquals(Accrual.Kind.START.code(), reloadedTask.getFixedCostAccrual());
 	}
 
-	public void testMicrosoftXmlRoundTripPreservesCrossProjectDependencies() throws Exception {
+	@Test
+	void microsoftXmlRoundTripPreservesCrossProjectDependencies() throws Exception {
 		Project local = createProject();
 		Project external = createProject();
 		NormalTask localSuccessor = (NormalTask) local.createLocalTaskNode(null).getImpl();
@@ -233,7 +246,8 @@ public class MpxExportTrackingTest extends TestCase {
 		assertEquals(DependencyType.Kind.SS.code(), incoming.getDependencyType());
 	}
 
-	public void testMicrosoftXmlRoundTripKeepsTaskBeforeProjectHeaderStart() throws Exception {
+	@Test
+	void microsoftXmlRoundTripKeepsTaskBeforeProjectHeaderStart() throws Exception {
 		Project project = createProject();
 		NormalTask task = (NormalTask) project.createLocalTaskNode(null).getImpl();
 		task.setName("Earlier than project header");
@@ -262,18 +276,21 @@ public class MpxExportTrackingTest extends TestCase {
 			.read(new ByteArrayInputStream(output.toByteArray()));
 		net.sf.mpxj.Task snapshotTask = snapshot.getTasks().stream()
 			.filter(candidate -> "Earlier than project header".equals(candidate.getName())).findFirst().orElseThrow();
-		assertTrue("fixture must contain a task start before the project header start",
-			snapshotTask.getStart().before(snapshot.getProjectProperties().getStartDate()));
+		assertTrue(snapshotTask.getStart().before(snapshot.getProjectProperties().getStartDate()),
+			"fixture must contain a task start before the project header start");
 
 		Project reloaded = new com.microproject.core.pm.exchange.MspImporter().importProject(
 			new ByteArrayInputStream(output.toByteArray()), "xml", (progress, label) -> {});
 		NormalTask reloadedTask = taskNamed(reloaded, "Earlier than project header");
 		long normalizedTaskStart = DateUTCConverter.toModelTime(snapshotTask.getStart());
-		assertEquals("earlier scheduled task start must survive MSPDI reload", normalizedTaskStart, reloadedTask.getStart());
-		assertEquals("project boundary must follow its earliest imported task", reloadedTask.getStart(), reloaded.getStart());
+		assertEquals(normalizedTaskStart, reloadedTask.getStart(),
+			"earlier scheduled task start must survive MSPDI reload");
+		assertEquals(reloadedTask.getStart(), reloaded.getStart(),
+			"project boundary must follow its earliest imported task");
 	}
 
-	public void testMicrosoftXmlPreservesExternalProjectFileWhenUidIsAlsoPresent() throws Exception {
+	@Test
+	void microsoftXmlPreservesExternalProjectFileWhenUidIsAlsoPresent() throws Exception {
 		Project local = createProject();
 		Project external = createProject();
 		NormalTask localSuccessor = (NormalTask) local.createLocalTaskNode(null).getImpl();
