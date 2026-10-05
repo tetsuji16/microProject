@@ -40,7 +40,8 @@ import junit.framework.TestCase;
  * Note: the legacy two-model tracking-merge step (applyImportedTrackingFields) and
  * the obsolete OpenProj-era converters (converters.op, see issues #154/#189) were
  * removed; these tests assert the model behavior that remains. The .mpp/.mpx live
- * import path is exercised separately by XlsxSupportTest.
+ * MPP import is exercised by XlsxSupportTest; the MPX extension route has its
+ * own stream-level integration test in MpxStreamImportTest.
  */
 public class MicrosoftTrackingImportTest extends TestCase {
 	public void testActualFinishIsPreservedForCompletedTasks() {
