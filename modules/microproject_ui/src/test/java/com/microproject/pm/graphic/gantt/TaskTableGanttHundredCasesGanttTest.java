@@ -120,11 +120,9 @@ class TaskTableGanttHundredCasesGanttTest {
 			new ClipCase("Task", 0, "null"),
 			new ClipCase(" Task ", 200, "Task"),
 			new ClipCase("A", 1, "A"),
-			new ClipCase("Milestone alpha", 30, "fits"),
-			new ClipCase("Long task annotation", 45, "fits"),
-			new ClipCase("日本語の工程注釈", 35, "fits"),
-			new ClipCase("12345678901234567890", 60, "fits"),
-			new ClipCase("Finish-to-start dependency", 90, "fits"));
+			new ClipCase("Milestone alpha", 200, "fits"),
+			new ClipCase("Long task annotation", 40, "clipped"),
+			new ClipCase("日本語の工程注釈", 40, "clipped"));
 		FontMetrics metrics = createMetrics();
 		return IntStream.range(0, cases.size()).mapToObj(index -> DynamicTest.dynamicTest(
 			id("C", index + 41), () -> {
@@ -135,11 +133,14 @@ class TaskTableGanttHundredCasesGanttTest {
 					case "empty" -> assertEquals("", actual);
 					case "Task" -> assertEquals("Task", actual);
 					case "A" -> assertEquals("A", actual);
+					case "fits" -> assertEquals(c.text.trim(), actual);
 					default -> {
 						assertNotNull(actual);
-						assertTrue(actual.length() <= c.text.trim().length());
-						if (actual.length() > 1)
-							assertTrue(metrics.stringWidth(actual) <= c.width);
+						String prefix = actual.substring(0, actual.length() - 3);
+						assertTrue(actual.endsWith("..."), "clipped text must have an ellipsis: " + actual);
+						assertTrue(c.text.trim().startsWith(prefix), "clipped text must retain a source prefix");
+						assertTrue(actual.length() < c.text.trim().length(), "clipping must shorten the text");
+						assertTrue(metrics.stringWidth(actual) <= c.width, "clipped text must fit the available width");
 					}
 				}
 			}));
