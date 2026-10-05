@@ -199,7 +199,11 @@ try {
       'com.microproject.dialog.FlatLafLegacyDialogRefreshGuiAcceptanceTest'
     )
     foreach ($locale in @('ja', 'en')) {
-      foreach ($scale in @('1.0', '1.25', '1.5')) {
+      # Step 1 already ran the entire Japanese suite at 100%, including these
+      # visual cases. Keep English 100% as a locale check, then test both
+      # locales at higher scales without repeating the Japanese baseline.
+      $scales = if ($locale -eq 'ja') { @('1.25', '1.5') } else { @('1.0', '1.25', '1.5') }
+      foreach ($scale in $scales) {
         Write-Host "GUI visual gate: locale=$locale scale=$scale"
         $gradleArgs = @(
           ':microproject_ui:guiTest', '--max-workers=1', '--rerun-tasks', '--console=plain',
