@@ -740,6 +740,10 @@ class RibbonTabGuiAcceptanceTest {
 	}
 
 	private static void doubleClick(Robot robot, AbstractButton button) throws Exception {
+		// Separate successive double-click gestures by the operating system's
+		// multi-click window so the final click from one gesture cannot combine
+		// with the first click of the next gesture.
+		robot.delay(600);
 		Point point = button.getLocationOnScreen();
 		robot.mouseMove(point.x + button.getWidth() / 2, point.y + button.getHeight() / 2);
 		for (int click = 0; click < 2; click++) {
