@@ -74,7 +74,7 @@ class ProjectLibreShellTest {
 
 		JComponent surface = (JComponent) ((BorderLayout) panel.getLayout()).getLayoutComponent(BorderLayout.CENTER);
 		assertEquals(OfficeChromePanel.RIBBON_SURFACE_NAME, surface.getName());
-		assertSame(ribbonBody, ((BorderLayout) surface.getLayout()).getLayoutComponent(BorderLayout.CENTER));
+		assertTrue(java.util.Arrays.asList(((java.awt.Container) surface).getComponents()).contains(ribbonBody));
 		assertTrue(hasComponent(panel, OfficeChromePanel.SEARCH_BOX_NAME));
 		assertTrue(hasComponent(panel, OfficeChromePanel.SEARCH_FIELD_NAME));
 		assertTrue(hasComponent(panel, OfficeChromePanel.HELP_BUTTON_NAME));

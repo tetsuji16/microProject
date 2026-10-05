@@ -47,6 +47,7 @@ import javax.swing.JFrame;
 import javax.swing.ImageIcon;
 import javax.swing.JLabel;
 import javax.swing.JMenuItem;
+import javax.swing.JLayeredPane;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JTextField;
@@ -151,15 +152,30 @@ final class OfficeChromePanel extends JPanel {
 	}
 
 	private JComponent buildRibbonSurface(JComponent ribbonPanel) {
-		JPanel surface = new JPanel(new BorderLayout());
+		JLayeredPane surface = new JLayeredPane() {
+			@Override public Dimension getPreferredSize() {
+				Dimension ribbonSize = ribbonPanel.isVisible() ? ribbonPanel.getPreferredSize() : new Dimension();
+				Dimension optionsSize = ribbonOptionsRow.isVisible() ? ribbonOptionsRow.getPreferredSize() : new Dimension();
+				return new Dimension(Math.max(ribbonSize.width, optionsSize.width),
+					Math.max(ribbonSize.height, optionsSize.height));
+			}
+
+			@Override public void doLayout() {
+				ribbonPanel.setBounds(0, 0, getWidth(), getHeight());
+				Dimension optionsSize = ribbonOptionsRow.getPreferredSize();
+				ribbonOptionsRow.setBounds(Math.max(0, getWidth() - optionsSize.width),
+					Math.max(0, getHeight() - optionsSize.height), Math.min(getWidth(), optionsSize.width),
+					Math.min(getHeight(), optionsSize.height));
+			}
+		};
 		surface.setName(RIBBON_SURFACE_NAME);
 		surface.setOpaque(false);
-		surface.add(ribbonPanel, BorderLayout.CENTER);
+		surface.add(ribbonPanel, JLayeredPane.DEFAULT_LAYER);
 		ribbonOptionsRow.setOpaque(false);
 		ribbonOptionsRow.setName(RIBBON_OPTIONS_ROW_NAME);
 		ribbonOptionsRow.setBorder(new EmptyBorder(0, 0, 2, FlatUiSupport.ribbonHorizontalInset()));
 		ribbonOptionsRow.add(createRibbonDisplayOptionsButton());
-		surface.add(ribbonOptionsRow, BorderLayout.SOUTH);
+		surface.add(ribbonOptionsRow, JLayeredPane.PALETTE_LAYER);
 		return surface;
 	}
 
