@@ -55,8 +55,8 @@ import com.microproject.menu.testsupport.UiComponentWalker;
 import com.microproject.ribbon.CommandId;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.testsupport.GuiPhysicalRouteAdapter;
+import com.microproject.testsupport.RibbonGuiEnvironment;
 import com.microproject.util.Environment;
-import com.microproject.util.FlatLafSupport;
 import com.microproject.util.FlatUiSupport;
 
 /** Non-headless coverage for a real mouse click on a responsive ribbon tab. */
@@ -69,9 +69,7 @@ class RibbonTabGuiAcceptanceTest {
 	void configureRibbonEnvironment() {
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
-		FlatLafSupport.initialize();
-		Environment.setRibbonUI(true);
-		Environment.setNewLook(true);
+		RibbonGuiEnvironment.initialize();
 	}
 
 	@AfterEach

@@ -37,17 +37,30 @@ import com.microproject.menu.MenuActionMapSupport;
 import com.microproject.menu.MenuManager;
 import com.microproject.menu.testsupport.UiComponentWalker;
 import com.microproject.testsupport.GuiAcceptanceSupport;
+import com.microproject.testsupport.RibbonGuiEnvironment;
+import com.microproject.util.Environment;
 import com.microproject.ui.ribbon.RibbonController;
 import com.microproject.ui.ribbon.RibbonDisplayMode;
 
 class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 	private JFrame frame;
 	private boolean originalQuickAccessVisible;
+	private boolean previousRibbonUi;
+	private boolean previousNewLook;
+
+	@org.junit.jupiter.api.BeforeEach
+	void configureRibbonEnvironment() {
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		RibbonGuiEnvironment.initialize();
+	}
 
 	@AfterEach
 	void closeWindow() throws Exception {
 		if (frame != null) SwingUtilities.invokeAndWait(() -> frame.dispose());
 		com.microproject.ui.ribbon.RibbonDisplayPreferences.saveQuickAccessVisible(originalQuickAccessVisible);
+		Environment.setRibbonUI(previousRibbonUi);
+		Environment.setNewLook(previousNewLook);
 	}
 
 	@Test
