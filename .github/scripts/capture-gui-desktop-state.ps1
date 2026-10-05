@@ -132,7 +132,9 @@ public static class GuiDesktopWindowProbe {
     private static bool IsDesktopShellWindow(string processName, string className) {
         return String.Equals(processName, "explorer", StringComparison.OrdinalIgnoreCase)
             && (String.Equals(className, "Progman", StringComparison.OrdinalIgnoreCase)
-                || String.Equals(className, "WorkerW", StringComparison.OrdinalIgnoreCase));
+                || String.Equals(className, "WorkerW", StringComparison.OrdinalIgnoreCase)
+                || String.Equals(className, "Shell_TrayWnd", StringComparison.OrdinalIgnoreCase)
+                || String.Equals(className, "Shell_SecondaryTrayWnd", StringComparison.OrdinalIgnoreCase));
     }
 
     private static string ReadTitle(IntPtr handle, int length) {
