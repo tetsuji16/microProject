@@ -92,6 +92,10 @@ final class OfficeChromePanel extends JPanel {
 	private static final int CLUSTER_GAP = 8;
 	private static final Dimension AUTOSAVE_SIZE = new Dimension(36, 18);
 	private static final int QUICK_ACCESS_ICON_SIZE = 16;
+	private enum ActionIconPresentation {
+		TITLE_BAR_MONOCHROME,
+		PRESERVE_SOURCE_COLORS
+	}
 
 	private final MenuManager menuManager;
 	private final boolean officeWindow;
@@ -551,7 +555,8 @@ final class OfficeChromePanel extends JPanel {
 
 	private AbstractButton createHelpButton() {
 		String help = UsabilityStrings.text("chrome.help");
-		OfficeIconButton button = new OfficeIconButton(resolveActionIcon("RibbonProjectLibreDocumentation", QUICK_ACCESS_ICON_SIZE), help, false);
+		OfficeIconButton button = new OfficeIconButton(resolveActionIcon(
+			"RibbonProjectLibreDocumentation", QUICK_ACCESS_ICON_SIZE, ActionIconPresentation.PRESERVE_SOURCE_COLORS), help, false);
 		button.setName(HELP_BUTTON_NAME);
 		button.setToolTipText(help);
 		button.addActionListener(event -> {
@@ -573,11 +578,17 @@ final class OfficeChromePanel extends JPanel {
 	}
 
 	private Icon resolveActionIcon(String actionId, int iconSize) {
+		return resolveActionIcon(actionId, iconSize, ActionIconPresentation.TITLE_BAR_MONOCHROME);
+	}
+
+	private Icon resolveActionIcon(String actionId, int iconSize, ActionIconPresentation presentation) {
 		if (menuManager != null) {
 			String iconName = menuManager.getStringOrNull(actionId + ".icon");
 			if (iconName != null) {
-				Icon icon = IconManager.getRibbonIconTinted(iconName, iconSize, iconSize,
-					FlatUiSupport.officeTitleBarForeground());
+				Icon icon = presentation == ActionIconPresentation.PRESERVE_SOURCE_COLORS
+					? IconManager.getRibbonIcon(iconName, iconSize, iconSize)
+					: IconManager.getRibbonIconTinted(iconName, iconSize, iconSize,
+						FlatUiSupport.officeTitleBarForeground());
 				if (icon == null)
 					icon = IconManager.getRibbonIcon(iconName, iconSize, iconSize);
 				if (icon != null) {

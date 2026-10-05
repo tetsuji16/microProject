@@ -31,8 +31,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.image.BufferedImage;
+import java.util.HashSet;
+import java.util.Set;
 
+import javax.swing.AbstractButton;
 import javax.swing.Box;
+import javax.swing.ImageIcon;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.JToolBar;
@@ -150,6 +155,26 @@ class ProjectLibreShellTest {
 				previousX = button.getX();
 			}
 		}
+	}
+
+	@Test
+	void officeChromeHelpButtonPreservesItsMulticolorQuestionMarkIcon() {
+		OfficeChromePanel panel = new OfficeChromePanel(MenuManager.getInstance(MenuActionMapSupport.noopActionMap()), new JPanel(), () -> {});
+		AbstractButton help = (AbstractButton) findComponent(panel, OfficeChromePanel.HELP_BUTTON_NAME);
+
+		assertTrue(help.getIcon() instanceof ImageIcon, "help uses the mapped scalable ribbon icon");
+		ImageIcon icon = (ImageIcon) help.getIcon();
+		BufferedImage image = (BufferedImage) icon.getImage();
+		Set<Integer> visibleColors = new HashSet<>();
+		for (int y = 0; y < image.getHeight(); y++) {
+			for (int x = 0; x < image.getWidth(); x++) {
+				int pixel = image.getRGB(x, y);
+				if ((pixel >>> 24) != 0) visibleColors.add(pixel & 0x00ffffff);
+			}
+		}
+
+		assertTrue(visibleColors.size() > 1,
+			"the help glyph must preserve the source icon's contrasting fill, outline, and question mark instead of becoming a solid black blob");
 	}
 
 	@Test
