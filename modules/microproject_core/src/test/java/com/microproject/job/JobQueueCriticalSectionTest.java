@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.LockSupport;
 
 import org.junit.jupiter.api.Test;
 
@@ -71,8 +72,7 @@ class JobQueueCriticalSectionTest {
 		}, "critical-section-waiter");
 		thread.start();
 		assertTrue(waiting.await(5, TimeUnit.SECONDS));
-		// Ensure the waiter has entered the wait before interrupting it.
-		Thread.sleep(50L);
+		awaitCriticalSectionWait(thread);
 		thread.interrupt();
 		thread.join(5_000L);
 
@@ -98,7 +98,7 @@ class JobQueueCriticalSectionTest {
 		}, "critical-section-cancelled-waiter");
 		thread.start();
 		assertTrue(waiting.await(5, TimeUnit.SECONDS));
-		Thread.sleep(50L);
+		awaitCriticalSectionWait(thread);
 		cancelled.cancel();
 		thread.join(5_000L);
 
@@ -107,5 +107,15 @@ class JobQueueCriticalSectionTest {
 		queue.endCriticalSection(owner);
 		assertTrue(queue.tryBeginCriticalSection(next));
 		queue.endCriticalSection(next);
+	}
+
+	private static void awaitCriticalSectionWait(Thread thread) throws InterruptedException {
+		long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+		while (thread.isAlive() && thread.getState() != Thread.State.TIMED_WAITING
+				&& System.nanoTime() < deadline) {
+			LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(1));
+		}
+		assertTrue(thread.getState() == Thread.State.TIMED_WAITING,
+			"waiter must reach the queue's timed critical-section wait");
 	}
 }
