@@ -170,50 +170,55 @@ function Invoke-GuiGate([string]$label, [string[]]$arguments) {
 }
 
 # Release runs the efficient shared-cause smoke gate. The scheduled/manual
-# audit selects full and adds locale × scale visual checks without publishing.
+# audit selects full and runs acceptance in two strict steps: first every test
+# at 100%, then (only after Step 1 passes) the locale × scale visual matrix.
 try {
-  Invoke-GuiGate "functional-$Suite-ja-100" @(
-    ':microproject_ui:guiTest', '--max-workers=1', '--console=plain',
-    "-PguiTestSuite=$Suite", '-PguiTestLocale=ja', '-PguiTestUiScale=1.0'
-  )
-} catch {
-  $gateFailures.Add($_.Exception.Message)
-  Write-Warning "Continuing GUI audit after functional gate failure: $($_.Exception.Message)"
-}
+  Write-Host "GUI acceptance Step 1/2: run the complete '$Suite' suite at 100% (ja)."
+  try {
+    Invoke-GuiGate "functional-$Suite-ja-100" @(
+      ':microproject_ui:guiTest', '--max-workers=1', '--console=plain',
+      "-PguiTestSuite=$Suite", '-PguiTestLocale=ja', '-PguiTestUiScale=1.0'
+    )
+  } catch {
+    $gateFailures.Add($_.Exception.Message)
+    throw "GUI acceptance Step 1/2 failed at 100%; Step 2 (locale/scale matrix) was not run: $($_.Exception.Message)"
+  }
 
-if ($Suite -eq 'full') {
-  $visualTests = @(
-    'com.microproject.dialog.ProjectDialogGuiAcceptanceTest',
-    'com.microproject.dialog.ChangeWorkingTimeDialogGuiAcceptanceTest',
-    'com.microproject.dialog.ProjectInformationDialogGuiAcceptanceTest',
-    'com.microproject.dialog.ResourceMappingDialogGuiAcceptanceTest',
-    'com.microproject.pm.graphic.spreadsheet.TaskInformationGuiAcceptanceTest',
-    'com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest',
-    'com.microproject.pm.graphic.frames.workspace.DefaultFrameManagerGuiAcceptanceTest',
-    'com.microproject.ui.shell.WindowShellNativeDecorationGuiAcceptanceTest',
-    'com.microproject.ui.ribbon.RibbonTabGuiAcceptanceTest',
-    'com.microproject.dialog.FlatLafLegacyDialogRefreshGuiAcceptanceTest'
-  )
-  foreach ($locale in @('ja', 'en')) {
-    foreach ($scale in @('1.0', '1.25', '1.5')) {
-      Write-Host "GUI visual gate: locale=$locale scale=$scale"
-      $gradleArgs = @(
-        ':microproject_ui:guiTest', '--max-workers=1', '--rerun-tasks', '--console=plain',
-        "-PguiTestLocale=$locale", "-PguiTestUiScale=$scale"
-      )
-      foreach ($testClass in $visualTests) { $gradleArgs += @('--tests', $testClass) }
-      try {
-        Invoke-GuiGate "visual-$locale-$scale" $gradleArgs
-      } catch {
-        $gateFailures.Add($_.Exception.Message)
-        Write-Warning "Continuing GUI audit after visual gate failure: $($_.Exception.Message)"
+  if ($Suite -eq 'full') {
+    Write-Host 'GUI acceptance Step 2/2: run the visual matrix after the full 100% suite passed.'
+    $visualTests = @(
+      'com.microproject.dialog.ProjectDialogGuiAcceptanceTest',
+      'com.microproject.dialog.ChangeWorkingTimeDialogGuiAcceptanceTest',
+      'com.microproject.dialog.ProjectInformationDialogGuiAcceptanceTest',
+      'com.microproject.dialog.ResourceMappingDialogGuiAcceptanceTest',
+      'com.microproject.pm.graphic.spreadsheet.TaskInformationGuiAcceptanceTest',
+      'com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest',
+      'com.microproject.pm.graphic.frames.workspace.DefaultFrameManagerGuiAcceptanceTest',
+      'com.microproject.ui.shell.WindowShellNativeDecorationGuiAcceptanceTest',
+      'com.microproject.ui.ribbon.RibbonTabGuiAcceptanceTest',
+      'com.microproject.dialog.FlatLafLegacyDialogRefreshGuiAcceptanceTest'
+    )
+    foreach ($locale in @('ja', 'en')) {
+      foreach ($scale in @('1.0', '1.25', '1.5')) {
+        Write-Host "GUI visual gate: locale=$locale scale=$scale"
+        $gradleArgs = @(
+          ':microproject_ui:guiTest', '--max-workers=1', '--rerun-tasks', '--console=plain',
+          "-PguiTestLocale=$locale", "-PguiTestUiScale=$scale"
+        )
+        foreach ($testClass in $visualTests) { $gradleArgs += @('--tests', $testClass) }
+        try {
+          Invoke-GuiGate "visual-$locale-$scale" $gradleArgs
+        } catch {
+          $gateFailures.Add($_.Exception.Message)
+          Write-Warning "Continuing GUI audit after visual gate failure: $($_.Exception.Message)"
+        }
       }
     }
   }
+} finally {
+  Stop-HostedWarningWatcher
 }
 
-Stop-HostedWarningWatcher
-
 if ($gateFailures.Count -gt 0) {
-  throw "GUI audit completed all requested gates with $($gateFailures.Count) failure(s): $($gateFailures -join ' | ')"
+  throw "GUI acceptance Step 2/2 completed with $($gateFailures.Count) failure(s): $($gateFailures -join ' | ')"
 }
