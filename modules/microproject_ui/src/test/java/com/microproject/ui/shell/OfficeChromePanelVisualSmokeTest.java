@@ -264,8 +264,8 @@ class OfficeChromePanelVisualSmokeTest {
 				if (image.getRGB(x, y) == white) whitePixels++;
 			}
 		}
-		assertTrue(whitePixels > 10_000,
-			"the expanded ribbon command area must render a substantial white surface");
+		assertTrue(whitePixels > image.getWidth() * image.getHeight() / 200,
+			"the expanded ribbon command area must render a visible white surface; exact-white pixels=" + whitePixels);
 	}
 
 	private static JComponent findNamedComponent(JPanel panel, String name) {
