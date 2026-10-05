@@ -123,8 +123,8 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 		robot.waitForIdle();
 		click(robot, options);
 		JPopupMenu optionsPopup = displayOptionsPopup();
-		assertEquals(7, optionsPopup.getComponentCount(),
-			"display options should contain heading, three modes, separator, QAT visibility, and customization commands");
+		assertEquals(8, optionsPopup.getComponentCount(),
+			"display options should contain heading, three modes, separator, QAT visibility, customization, and reset commands");
 		assertEquals(UsabilityStrings.text("chrome.ribbonShow"), ((javax.swing.JLabel) optionsPopup.getComponent(0)).getText());
 		assertEquals(UsabilityStrings.text("chrome.ribbonAutoHide"), ((AbstractButton) optionsPopup.getComponent(1)).getText());
 		assertEquals(UsabilityStrings.text("chrome.ribbonTabsOnly"), ((AbstractButton) optionsPopup.getComponent(2)).getText());
@@ -134,6 +134,7 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 		assertTrue(optionsPopup.getComponent(4) instanceof JPopupMenu.Separator);
 		assertEquals(UsabilityStrings.text("chrome.ribbonHideQuickAccess"), ((AbstractButton) optionsPopup.getComponent(5)).getText());
 		assertEquals(UsabilityStrings.text("chrome.customizeQuickAccess"), ((AbstractButton) optionsPopup.getComponent(6)).getText());
+		assertEquals(UsabilityStrings.text("chrome.resetQuickAccess"), ((AbstractButton) optionsPopup.getComponent(7)).getText());
 		assertPopupFitsWindow(optionsPopup, frame);
 		capture(robot, "ribbon-display-options-popup");
 		click(robot, popupItem(UsabilityStrings.text("chrome.ribbonTabsOnly")));
@@ -241,6 +242,17 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 		AbstractButton findButton = findShowingButton(chrome, "RibbonFind");
 		assertEquals(manager.getActionFromId("RibbonFind"), findButton.getAction(),
 			"customized QAT command must use the existing canonical action");
+		click(robot, findShowingButton(chrome, OfficeChromePanel.RIBBON_DISPLAY_OPTIONS_NAME));
+		click(robot, popupItem(UsabilityStrings.text("chrome.resetQuickAccess")));
+		robot.keyPress(KeyEvent.VK_ENTER);
+		robot.keyRelease(KeyEvent.VK_ENTER);
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(() -> RibbonDisplayPreferences.loadQuickAccessCommands().equals(
+			java.util.List.of("RibbonTopBarSaveProject", "RibbonTopBarUndo", "RibbonTopBarRedo")),
+			"confirmed reset did not restore the default Quick Access commands");
+		assertFalse(UiComponentWalker.flatten(findComponent(chrome, OfficeChromePanel.QUICK_ACCESS_COMMANDS_NAME))
+			.stream().anyMatch(component -> "RibbonFind".equals(component.getName())),
+			"reset must remove customized controls from the live QAT");
 	}
 
 	@Test

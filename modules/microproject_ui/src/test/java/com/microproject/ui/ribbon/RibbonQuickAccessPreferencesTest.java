@@ -50,4 +50,14 @@ class RibbonQuickAccessPreferencesTest {
 		RibbonDisplayPreferences.saveQuickAccessCommands(List.of());
 		assertTrue(RibbonDisplayPreferences.loadQuickAccessCommands().isEmpty());
 	}
+
+	@Test
+	void resetRestoresTheOriginalSaveUndoRedoConfiguration() {
+		RibbonDisplayPreferences.saveQuickAccessCommands(List.of("RibbonFind"));
+
+		RibbonDisplayPreferences.resetQuickAccessCommands();
+
+		assertEquals(List.of("RibbonTopBarSaveProject", "RibbonTopBarUndo", "RibbonTopBarRedo"),
+			RibbonDisplayPreferences.loadQuickAccessCommands());
+	}
 }

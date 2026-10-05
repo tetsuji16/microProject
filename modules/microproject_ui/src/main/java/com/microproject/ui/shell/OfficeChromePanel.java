@@ -434,7 +434,20 @@ final class OfficeChromePanel extends JPanel {
 		JMenuItem customizeQuickAccessItem = new JMenuItem(UsabilityStrings.text("chrome.customizeQuickAccess"));
 		customizeQuickAccessItem.addActionListener(event -> customizeQuickAccess());
 		popup.add(customizeQuickAccessItem);
+		JMenuItem resetQuickAccessItem = new JMenuItem(UsabilityStrings.text("chrome.resetQuickAccess"));
+		resetQuickAccessItem.addActionListener(event -> resetQuickAccess());
+		popup.add(resetQuickAccessItem);
 		popup.show(button, button.getWidth() - popup.getPreferredSize().width, button.getHeight());
+	}
+
+	private void resetQuickAccess() {
+		int result = JOptionPane.showConfirmDialog(this,
+			UsabilityStrings.text("chrome.confirmResetQuickAccess"),
+			UsabilityStrings.text("chrome.resetQuickAccess"), JOptionPane.OK_CANCEL_OPTION,
+			JOptionPane.WARNING_MESSAGE);
+		if (result != JOptionPane.OK_OPTION) return;
+		RibbonDisplayPreferences.resetQuickAccessCommands();
+		refreshQuickAccessCommands();
 	}
 
 	private void customizeQuickAccess() {

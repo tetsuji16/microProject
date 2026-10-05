@@ -70,4 +70,8 @@ public final class RibbonDisplayPreferences {
 		Preferences.userNodeForPackage(RibbonDisplayPreferences.class)
 			.put(QUICK_ACCESS_COMMANDS_KEY, String.join(",", commands));
 	}
+
+	public static void resetQuickAccessCommands() {
+		saveQuickAccessCommands(DEFAULT_QUICK_ACCESS_COMMANDS);
+	}
 }
