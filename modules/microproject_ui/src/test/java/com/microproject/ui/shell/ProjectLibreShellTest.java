@@ -166,15 +166,26 @@ class ProjectLibreShellTest {
 		ImageIcon icon = (ImageIcon) help.getIcon();
 		BufferedImage image = (BufferedImage) icon.getImage();
 		Set<Integer> visibleColors = new HashSet<>();
+		int whitePixels = 0;
+		int greenPixels = 0;
 		for (int y = 0; y < image.getHeight(); y++) {
 			for (int x = 0; x < image.getWidth(); x++) {
 				int pixel = image.getRGB(x, y);
-				if ((pixel >>> 24) != 0) visibleColors.add(pixel & 0x00ffffff);
+				if ((pixel >>> 24) == 0) continue;
+				int red = (pixel >>> 16) & 0xff;
+				int green = (pixel >>> 8) & 0xff;
+				int blue = pixel & 0xff;
+				visibleColors.add(pixel & 0x00ffffff);
+				if (red > 225 && green > 225 && blue > 225) whitePixels++;
+				if (green > 90 && green > red * 1.5 && green > blue * 1.2) greenPixels++;
 			}
 		}
 
-		assertTrue(visibleColors.size() > 1,
-			"the help glyph must preserve the source icon's contrasting fill, outline, and question mark instead of becoming a solid black blob");
+		assertEquals(16, image.getWidth());
+		assertEquals(16, image.getHeight());
+		assertTrue(whitePixels > 0, "the question-mark icon must retain its white circular fill");
+		assertTrue(greenPixels > 0, "the question mark must retain its MSP-green strokes");
+		assertTrue(visibleColors.size() > 1, "the icon must retain multiple source colors rather than becoming a solid monochrome silhouette");
 	}
 
 	@Test
