@@ -60,4 +60,13 @@ class RibbonQuickAccessPreferencesTest {
 		assertEquals(List.of("RibbonTopBarSaveProject", "RibbonTopBarUndo", "RibbonTopBarRedo"),
 			RibbonDisplayPreferences.loadQuickAccessCommands());
 	}
+
+	@Test
+	void newlySelectedCommandsAreAppendedWithoutReorderingExistingCommands() {
+		assertEquals(List.of("RibbonTopBarRedo", "RibbonTopBarSaveProject", "RibbonFind"),
+			RibbonDisplayPreferences.orderQuickAccessSelection(
+				List.of("RibbonTopBarRedo", "RibbonTopBarSaveProject", "RibbonTopBarUndo"),
+				List.of("RibbonFind", "RibbonTopBarRedo", "RibbonTopBarSaveProject", "RibbonTopBarUndo"),
+				java.util.Set.of("RibbonTopBarRedo", "RibbonTopBarSaveProject", "RibbonFind")));
+	}
 }

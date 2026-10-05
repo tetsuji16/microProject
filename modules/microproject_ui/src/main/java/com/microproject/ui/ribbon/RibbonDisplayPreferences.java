@@ -60,6 +60,19 @@ public final class RibbonDisplayPreferences {
 		return RibbonCommandCatalog.quickAccessCandidates();
 	}
 
+	public static List<String> orderQuickAccessSelection(List<String> currentCommands,
+		List<String> candidateCommands, Set<String> selectedCommands) {
+		LinkedHashSet<String> selected = new LinkedHashSet<>(selectedCommands);
+		LinkedHashSet<String> ordered = new LinkedHashSet<>();
+		for (String id : currentCommands) {
+			if (selected.contains(id)) ordered.add(id);
+		}
+		for (String id : candidateCommands) {
+			if (selected.contains(id)) ordered.add(id);
+		}
+		return List.copyOf(ordered);
+	}
+
 	public static void saveQuickAccessCommands(List<String> commandIds) {
 		Set<String> allowed = new LinkedHashSet<>(RibbonCommandCatalog.quickAccessCandidates());
 		allowed.addAll(DEFAULT_QUICK_ACCESS_COMMANDS);

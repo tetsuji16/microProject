@@ -239,6 +239,9 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 		robot.waitForIdle();
 		GuiAcceptanceSupport.await(() -> RibbonDisplayPreferences.loadQuickAccessCommands().contains("RibbonFind"),
 			"accepted Quick Access customization was not persisted");
+		assertEquals(java.util.List.of("RibbonTopBarSaveProject", "RibbonFind"),
+			RibbonDisplayPreferences.loadQuickAccessCommands(),
+			"newly selected command must be appended after the existing QAT command");
 		AbstractButton findButton = findShowingButton(chrome, "RibbonFind");
 		assertEquals(manager.getActionFromId("RibbonFind"), findButton.getAction(),
 			"customized QAT command must use the existing canonical action");

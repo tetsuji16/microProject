@@ -475,10 +475,12 @@ final class OfficeChromePanel extends JPanel {
 			UsabilityStrings.text("chrome.customizeQuickAccess"), JOptionPane.OK_CANCEL_OPTION,
 			JOptionPane.PLAIN_MESSAGE);
 		if (result != JOptionPane.OK_OPTION) return;
-		java.util.List<String> commands = new java.util.ArrayList<>();
+		java.util.Set<String> selectedCommands = new java.util.LinkedHashSet<>();
 		for (int index = 0; index < checks.size(); index++) {
-			if (checks.get(index).isSelected()) commands.add(supported.get(index));
+			if (checks.get(index).isSelected()) selectedCommands.add(supported.get(index));
 		}
+		java.util.List<String> commands = RibbonDisplayPreferences.orderQuickAccessSelection(
+			RibbonDisplayPreferences.loadQuickAccessCommands(), supported, selectedCommands);
 		RibbonDisplayPreferences.saveQuickAccessCommands(commands);
 		refreshQuickAccessCommands();
 	}
