@@ -368,6 +368,14 @@ class RibbonTabGuiAcceptanceTest {
 		robot.keyRelease(KeyEvent.VK_ESCAPE);
 		GuiAcceptanceSupport.await(() -> !popup.isVisible(), "Escape did not close the collapsed group menu");
 		SwingUtilities.invokeAndWait(() -> overflow.requestFocusInWindow());
+		GuiAcceptanceSupport.await(overflow::isFocusOwner, "collapsed group did not regain keyboard focus");
+		robot.keyPress(KeyEvent.VK_ENTER);
+		robot.keyRelease(KeyEvent.VK_ENTER);
+		GuiAcceptanceSupport.await(popup::isVisible, "Enter did not open the collapsed group menu");
+		robot.keyPress(KeyEvent.VK_ESCAPE);
+		robot.keyRelease(KeyEvent.VK_ESCAPE);
+		GuiAcceptanceSupport.await(() -> !popup.isVisible(), "Escape did not close the group menu opened by Enter");
+		SwingUtilities.invokeAndWait(() -> overflow.requestFocusInWindow());
 		Point overflowScreen = overflow.getLocationOnScreen();
 		Rectangle frameBounds = frame.getBounds();
 		assertTrue(new Rectangle(frameBounds.x, frameBounds.y, frameBounds.width, frameBounds.height)
