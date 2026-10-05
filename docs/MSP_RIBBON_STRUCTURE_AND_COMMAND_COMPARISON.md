@@ -1,9 +1,11 @@
 # MSP Ribbon and structural-command comparison
 
-This document is the evidence register for issues #548 and #549.  The
-comparison is against Microsoft-published Project documentation; an installed
-Microsoft Project Desktop application is not available in this environment, so
-the rows marked `manual` remain open until a physical MSP run is recorded.
+This document is the evidence register for issues #548 and #549 and the current
+ribbon review. The normative compatibility source is Microsoft-published
+Project documentation. A physical Microsoft Project Desktop run is useful
+supplemental evidence, but a documented contract does not remain open solely
+because MSP is not installed. Mark inferred behavior as document-derived rather
+than presenting it as a measured MSP result.
 
 ## Sources
 
@@ -15,7 +17,7 @@ the rows marked `manual` remain open until a physical MSP run is recorded.
 
 ## Standard Ribbon tabs (#548)
 
-| MSP standard tab (official source) | microProject tab | Implementation/test evidence | Status |
+| MSP standard tab surface | microProject tab | Implementation/test evidence | Status |
 |---|---|---|---|
 | File | `FileRibbonTask` | `RibbonStructureTest.standardRibbonUsesTheDesktopProjectTabOrder`; `RibbonCommandCatalogTest` | automated |
 | Task | `TaskRibbonTask` | `RibbonStructureTest.taskAndResourceTabsSeparateOutlineAssignmentsAndTrackingWork` | automated |
@@ -23,15 +25,24 @@ the rows marked `manual` remain open until a physical MSP run is recorded.
 | Report | `ReportRibbonTask` | `RibbonStructureTest.standardRibbonUsesTheDesktopProjectTabOrder`; catalog metadata validation | automated |
 | Project | `ProjectRibbonTask` | `RibbonStructureTest.taskAndResourceTabsSeparateOutlineAssignmentsAndTrackingWork` | automated |
 | View | `ViewRibbonTask` | `RibbonStructureTest.standardRibbonUsesTheDesktopProjectTabOrder`; catalog metadata validation | automated |
-| Format | `FormatRibbonTask` | `RibbonStructureTest.standardRibbonUsesTheDesktopProjectTabOrder` | automated |
+| Help | `HelpRibbonTask` | `RibbonStructureTest.helpCommandsLiveOnTheStandardHelpTabAndShareTheirCanonicalActions` | automated |
+
+The current implementation has seven normal tabs in this order: File, Task,
+Resource, Report, Project, View, Help. `FormatRibbonTask`,
+`NetworkFormatRibbonTask`, and `CalendarFormatRibbonTask` are contextual
+surfaces, not normal tabs. Their view-specific visibility is covered by
+`ContextualRibbonVisibilityContractTest` and the GUI acceptance routes. This
+is the current microProject structure; it is not evidence that every MSP
+command or group is implemented.
 
 ### Window-limited screenshot evidence
 
 `RibbonTabGuiAcceptanceTest.mouseClickSelectsEveryRibbonTabExactlyOnceAndKeepsTheCommandSurfaceVisible`
-uses a real visible `JFrame`, `Robot`, and the frame root-pane bounds.  For each
-of the seven tabs it physically clicks the tab, asserts that exactly one tab is
-selected and that the command surface remains visible, then captures only that
-microProject window (not the desktop) with `Robot.createScreenCapture`.
+uses a real visible `JFrame`, `Robot`, and the frame root-pane bounds. It
+physically selects every configured standard and contextual surface, asserts
+that exactly one tab is selected and that the command surface remains visible,
+then captures only that microProject window (not the desktop) with
+`Robot.createScreenCapture`.
 
 Reproduction (Windows desktop session; do not run headless):
 
@@ -40,17 +51,18 @@ Reproduction (Windows desktop session; do not run headless):
 ```
 
 The test writes temporary evidence to
-`modules/microproject_ui/build/reports/guiTest-artifacts/ribbon-tab-{0..6}.png`
+`modules/microproject_ui/build/reports/guiTest-artifacts/ribbon-tab-{0..9}.png`
 (`microproject.gui.artifacts.dir` is configured by the Gradle `guiTest` task).
 These PNGs are disposable build output and must not be copied into `docs/` or
 committed.  The test also verifies the captured window is at least 900 pixels
-wide and over 120 pixels high.  In the present source, all seven standard tabs
-are implemented; no tab is recorded as unsupported.
+wide and over 120 pixels high. The evidence contains seven normal tabs and
+three contextual surfaces; it checks local selection/layout behavior, not MSP
+command completeness.
 
-The canonical order is asserted as File, Task, Resource, Report, Project,
-View, Format.  Save, Undo, and Redo are intentionally limited to the quick
-access toolbar, as required by the desktop information architecture.  This
-proves the local structure and labels; it does not claim pixel-level or
+The normal-tab order is asserted as File, Task, Resource, Report, Project,
+View, Help; the three contextual surfaces are checked separately. Save, Undo,
+and Redo are intentionally limited to the quick access toolbar. This proves
+the local structure and labels; it does not claim pixel-level or
 version-specific equivalence with MSP.
 
 ## Structural commands (#549)
@@ -79,9 +91,9 @@ Focused local verification:
 .\gradlew.bat :microproject_ui:test --console=plain
 ```
 
-Both commands are expected to pass in a clean checkout.  The full physical
-`guiTest` gate still has an unrelated pre-existing failure in
-`CriticalChainStatusDialogGuiAcceptanceTest.unconfiguredNetworkOffersPhysicalRouteToCcpmSettings`; that failure is not used as evidence for these issues.
+The two commands above cover headless structure and command-route contracts;
+they do not run the physical GUI matrix. A visual or physical-interaction claim
+requires a fresh exact-head `guiTest` result with its screenshot artifacts.
 
 ## Closure decision
 
