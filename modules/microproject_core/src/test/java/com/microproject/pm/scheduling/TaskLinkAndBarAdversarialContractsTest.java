@@ -50,7 +50,8 @@ import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.undo.DataFactoryUndoController;
 
-class TaskLinkAndBarAdversarialThirtyCasesTest {
+/** Adversarial and boundary contracts for dependency links and task-bar edits. */
+class TaskLinkAndBarAdversarialContractsTest {
 	private record Fixture(Project project, DataFactoryUndoController undo) {}
 
 	@TestFactory

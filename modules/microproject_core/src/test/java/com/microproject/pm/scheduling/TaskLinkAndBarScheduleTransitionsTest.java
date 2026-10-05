@@ -46,7 +46,8 @@ import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.undo.DataFactoryUndoController;
 
-class TaskLinkAndBarMovementThirtyCasesTest {
+/** Named schedule transitions for task links, bar edits, and task-sheet dates. */
+class TaskLinkAndBarScheduleTransitionsTest {
 	private record LinkCase(int type, int lagDays) {}
 	private record MoveCase(int offsetDays) {}
 	private record ResizeCase(int durationDays) {}
