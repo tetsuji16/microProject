@@ -257,6 +257,9 @@ class OfficeChromePanelVisualSmokeTest {
 		assertTrue(surface.isOpaque(), "the ribbon command surface must paint its own background");
 		assertEquals(MicroProjectTheme.tokens().ribbonSurfaceBackground(), surface.getBackground(),
 			"the expanded ribbon command surface must use the white theme token");
+		JComponent tabBody = findNamedComponent(panel, "projectLibreRibbonTabBody");
+		assertEquals(MicroProjectTheme.tokens().ribbonSurfaceBackground(), tabBody.getBackground(),
+			"the expanded tab body around command groups must not introduce a second gray tone");
 		assertEquals(MicroProjectTheme.tokens().ribbonSurfaceBackground().getRGB(),
 			image.getRGB(image.getWidth() - 24, 120),
 			"an unobstructed ribbon-surface pixel must render the theme white");

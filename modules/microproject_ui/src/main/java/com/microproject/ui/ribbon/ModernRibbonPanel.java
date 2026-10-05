@@ -603,7 +603,8 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 
 		JPanel shell = new JPanel(new BorderLayout());
 		shell.setOpaque(true);
-		shell.setBackground(theme.panelBackground());
+		shell.setName("projectLibreRibbonTabBody");
+		shell.setBackground(theme.surfaceColor());
 		// Keep the command surface visually compact.  The former asymmetric shell
 		// padding made the ribbon look tall even when every band contained only
 		// inline commands.
