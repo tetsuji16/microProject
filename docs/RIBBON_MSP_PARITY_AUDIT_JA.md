@@ -41,7 +41,8 @@
 | Report object | Report Tools — Designおよび選択object固有のChart/Table/Picture/Drawing tools | Report tabはあるがReport object contextual tabsは未確認 | **不足または未実装**。選択object種類別の発見場所と無効状態を確定 |
 | 独自機能 | 標準MSPタブと区別した製品固有領域 | 現行標準面にCCPM等のmicroProject独自機能が混在 | **要整理**。CCPM等は `microProject` 面に分離し、MSP標準の意味を変更しない |
 | キーボード/支援技術 | KeyTips、Tab/矢印/Space/Enter、Accessible name、selected/disabled | root-paneに一元化したshortcut層はある。全コマンドのKeyTip/accessible state matrixは未確認 | **未検証**。全標準/文脈コマンドのキーボード・支援技術・selection state一覧を生成し、欠落を検出 |
-| 狭幅/折りたたみ | コマンドを黙って隠さず、group overflowで到達可能 | Swing `ModernRibbonPanel` が折りたたみとgroup overflowを提供 | **未検証**。標準/文脈tabを ja/en、100/125/150%、幅境界で全コマンド到達確認 |
+| 狭幅/折りたたみ | 画面幅に応じてコマンド群を再配置し、コマンドへ到達できる | `ModernRibbonPanel` が実幅に合わせて直接コマンド、縮小コマンド、代表アイコン付きグループメニューへ遷移 | **部分実装**。同一Robotウィンドウで1200/672/320pxを通り、Task > Pasteを狭幅メニューから実行。全タブ・ja/en・100/125/150%の幅境界matrixは未検証。記録画像 `ribbon-task-wide-1200.png` / `ribbon-task-medium-672.png` / `ribbon-task-narrow-320.png` |
+| 白いcommand surface | タブ直下の白い面、丸みと余白は画像基準 | FlatLaf `JPanel` の `arc: 18` と左右16px insetで白い面を丸角表示。グループを同じ白い面に配置 | **部分実装**。U-40のpixel assertionで外角がchrome色、内側が白であることを確認。提供されたPowerPoint for Macの画像と外形は近づけたが、影とOS別の差まで完全一致したとは判定していない。Microsoft Supportは丸みや余白を規定していない |
 | Visual system | Officeテーマ、選択/hover/pressed/disabled/focus状態とgeometry | 単一Swing renderer。ライト面はchrome `#F3F2F1`、command surface白。Flamingo ribbon rendererは使わない | **部分実装**。値は参照画像からの観測でMicrosoftのRGB normative specではない。#765の画像比較・状態matrixが完了条件 |
 
 ## Microsoft Support の Ribbon Display Options / customization 監査

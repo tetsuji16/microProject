@@ -67,6 +67,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.SwingConstants;
 import javax.swing.border.Border;
 
+import com.formdev.flatlaf.FlatClientProperties;
 import com.microproject.ribbon.RibbonCommandSource;
 import com.microproject.ribbon.RibbonCommandInvocation;
 import com.microproject.ribbon.RibbonCommandResult;
@@ -98,6 +99,10 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	private static final int INLINE_COLUMN_GAP = 4;
 	private static final int LARGE_BUTTON_GAP = 2;
 	private static final int BAND_GAP = 8;
+	private static final int SURFACE_HORIZONTAL_INSET = 16;
+	private static final int SURFACE_TOP_INSET = 0;
+	private static final int SURFACE_BOTTOM_INSET = 6;
+	private static final int BAND_ROW_HORIZONTAL_INSET = 8;
 	// The standard desktop window is typically 1024-1200 px wide.  Treating
 	// every width below 1200 as compact hides too many commands even when the
 	// full band set still fits.  Reserve compact density for genuinely narrow
@@ -610,19 +615,33 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		shell.setOpaque(true);
 		shell.setName("projectLibreRibbonTabBody");
 		shell.setBackground(theme.surfaceColor());
+		// Use FlatLaf's rounded panel painter for the white Office ribbon surface.
+		// Its gray chrome remains visible around the corners; commands stay in the
+		// same single surface instead of acquiring individual card backgrounds.
+		shell.putClientProperty(FlatClientProperties.STYLE, "arc: 18");
 		// Keep the command surface visually compact.  The former asymmetric shell
 		// padding made the ribbon look tall even when every band contained only
 		// inline commands.
-		shell.setBorder(BorderFactory.createEmptyBorder(1, 8, 2, 8));
+		shell.setBorder(BorderFactory.createEmptyBorder(1, BAND_ROW_HORIZONTAL_INSET, 2, BAND_ROW_HORIZONTAL_INSET));
+		JPanel surfaceInset = new JPanel(new BorderLayout());
+		surfaceInset.setOpaque(false);
+		surfaceInset.setBorder(BorderFactory.createEmptyBorder(
+			SURFACE_TOP_INSET,
+			SURFACE_HORIZONTAL_INSET,
+			SURFACE_BOTTOM_INSET,
+			SURFACE_HORIZONTAL_INSET));
 
 		JPanel bandRow = new OfficeRibbonSurfacePanel();
 		bandRow.setLayout(new GridBagLayout());
 		bandRow.setBackground(theme.surfaceColor());
 		bandRow.setBorder(BorderFactory.createEmptyBorder(
 			3,
-			8,
+			BAND_ROW_HORIZONTAL_INSET,
 			3,
-			8));
+			BAND_ROW_HORIZONTAL_INSET));
+		int availableBandWidth = getWidth() > 0
+			? Math.max(0, getWidth() - 2 * SURFACE_HORIZONTAL_INSET - 2 * BAND_ROW_HORIZONTAL_INSET)
+			: 0;
 
 		int tallestContent = 0;
 		int tallestBand = 0;
@@ -638,7 +657,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		List<RibbonDensity> presentations = uniformPresentation(tab.getBands().size(), RibbonDensity.FULL);
 		List<RibbonBandPanel> bandPanels = addBands(bandRow, bandConstraints, tab.getBands(), presentations);
 		for (RibbonDensity candidate : List.of(RibbonDensity.COMPACT)) {
-			if (getWidth() <= 0 || fitsInWidth(bandPanels, getWidth(), bandRow)) break;
+			if (availableBandWidth <= 0 || fitsInWidth(bandPanels, availableBandWidth, bandRow)) break;
 			presentations = uniformPresentation(tab.getBands().size(), candidate);
 			bandPanels = rebuildBands(bandRow, bandConstraints, tab.getBands(), presentations, bandPanels);
 		}
@@ -647,7 +666,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		// a single lonely button visible.  Preserve the left-hand groups and replace
 		// trailing groups one at a time until the row fits.
 		for (int index = tab.getBands().size() - 1;
-			index > 0 && getWidth() > 0 && !fitsInWidth(bandPanels, getWidth(), bandRow);
+			index > 0 && availableBandWidth > 0 && !fitsInWidth(bandPanels, availableBandWidth, bandRow);
 			index--) {
 			presentations.set(index, RibbonDensity.COLLAPSED);
 			bandPanels = rebuildBands(bandRow, bandConstraints, tab.getBands(), presentations, bandPanels);
@@ -656,7 +675,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		// secondary commands.  Never apply this to every group at once: that was
 		// the source of the row of icon-and-ellipsis placeholders.
 		for (int index = tab.getBands().size() - 1;
-			index >= 0 && getWidth() > 0 && !fitsInWidth(bandPanels, getWidth(), bandRow);
+			index >= 0 && availableBandWidth > 0 && !fitsInWidth(bandPanels, availableBandWidth, bandRow);
 			index--) {
 			if (presentations.get(index) == RibbonDensity.COLLAPSED) continue;
 			presentations.set(index, RibbonDensity.PRIORITY_COMPACT);
@@ -665,7 +684,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		// At an extremely narrow width no direct group can remain usable.  Collapse
 		// the left-most group only as the final fallback; RibbonBandViewport keeps
 		// the resulting group menus reachable from the visible left edge.
-		if (!tab.getBands().isEmpty() && getWidth() > 0 && !fitsInWidth(bandPanels, getWidth(), bandRow)) {
+		if (!tab.getBands().isEmpty() && availableBandWidth > 0 && !fitsInWidth(bandPanels, availableBandWidth, bandRow)) {
 			presentations.set(0, RibbonDensity.COLLAPSED);
 			bandPanels = rebuildBands(bandRow, bandConstraints, tab.getBands(), presentations, bandPanels);
 		}
@@ -684,15 +703,17 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 			theme.surfaceHeight(),
 			tallestBand + 6);
 		int shellHeight = bandRowHeight + 3;
-		bandHeights.put(tabId, shellHeight);
+		bandHeights.put(tabId, shellHeight + SURFACE_TOP_INSET + SURFACE_BOTTOM_INSET);
 		int requiredWidth = requiredWidth(bandPanels, bandRow);
 		bandRow.setPreferredSize(new Dimension(requiredWidth, bandRowHeight));
-		JComponent commandSurface = getWidth() > 0 && requiredWidth > getWidth()
+		JComponent commandSurface = availableBandWidth > 0 && requiredWidth > availableBandWidth
 			? new RibbonBandViewport(bandRow)
 			: bandRow;
 		shell.add(commandSurface, BorderLayout.CENTER);
 		shell.setPreferredSize(new Dimension(0, shellHeight));
-		return shell;
+		surfaceInset.add(shell, BorderLayout.CENTER);
+		surfaceInset.setPreferredSize(new Dimension(0, shellHeight + SURFACE_TOP_INSET + SURFACE_BOTTOM_INSET));
+		return surfaceInset;
 	}
 
 	private JPanel createTabBody(String tabId) {
@@ -862,11 +883,10 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	 * never for the selected tab.  All commands remain reachable from its popup.
 	 */
 	private RibbonBandPanel buildBandProxy(RibbonBandPanel panel, SwingRibbonModel.RibbonBand band) {
-		// Match Office's collapsed-group affordance: show a compact command icon
-		// and dropdown chevron, while keeping the complete group name in the band
-		// caption below. Repeating the full group title in this trigger overflowed
-		// and was visibly ellipsized at the default 1024px window width.
-		JButton trigger = new JButton("▾");
+		// Represent a collapsed group with its leading command icon and the full
+		// group caption below. Keep the whole target clickable and expose its full
+		// group name as its tooltip and accessible name.
+		JButton trigger = new JButton();
 		trigger.setFocusable(false);
 		trigger.setToolTipText(band.getTitle());
 		trigger.getAccessibleContext().setAccessibleName(band.getTitle());
@@ -874,7 +894,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 			.map(SwingRibbonModel.RibbonButton::getIconKey)
 			.filter(iconKey -> iconKey != null && !iconKey.isBlank())
 			.findFirst().ifPresent(iconKey -> trigger.putClientProperty(RibbonButtonStyler.ICON_KEY_PROPERTY, iconKey));
-		buttonStyler.styleActionButton(trigger, "small");
+		buttonStyler.styleActionButton(trigger, "large");
 		JPopupMenu popup = new JPopupMenu();
 		if (band.isCustomBand()) {
 			JComponent custom = band.getCustomBandProvider() == null ? null : band.getCustomBandProvider().createComponent();

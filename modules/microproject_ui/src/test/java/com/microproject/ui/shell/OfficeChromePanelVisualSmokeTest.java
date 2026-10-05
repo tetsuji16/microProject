@@ -51,6 +51,7 @@ import com.microproject.ui.ribbon.SwingRibbonFactory;
 import com.microproject.ui.ribbon.ModernRibbonPanel;
 import com.microproject.ui.ribbon.RibbonController;
 import com.microproject.ui.theme.MicroProjectTheme;
+import com.microproject.util.FlatLafSupport;
 import com.microproject.menu.ExtToolBarFactory;
 import com.microproject.menu.MenuActionMapSupport;
 import com.microproject.menu.MenuManager;
@@ -60,6 +61,7 @@ import com.microproject.menu.testsupport.UiComponentWalker;
 class OfficeChromePanelVisualSmokeTest {
 	@Test
 	void rendersOfficeChromeRibbonSnapshot() throws IOException {
+		FlatLafSupport.initialize();
 		MicroProjectTheme.installLight();
 		assertEquals(new java.awt.Color(0xF3F2F1), MicroProjectTheme.tokens().ribbonChromeBackground(),
 			"Office chrome should retain its light neutral gray");
@@ -74,7 +76,7 @@ class OfficeChromePanelVisualSmokeTest {
 			MenuDefinitionSupport.ribbonBundles(Locale.JAPAN));
 		JPanel ribbonPanel = ribbonFactory.createPanel(MenuManager.STANDARD_RIBBON, () -> {});
 		OfficeChromePanel panel = new OfficeChromePanel(menuManager, ribbonPanel, () -> {});
-		panel.setSize(1024, 192);
+		panel.setSize(1024, 208);
 		panel.doLayout();
 		layoutRecursively(panel);
 		assertSearchIsAttachedToTabRow(panel);
@@ -90,7 +92,7 @@ class OfficeChromePanelVisualSmokeTest {
 		assertRibbonBandsUseTheAvailableWidth(panel);
 		assertRibbonCommandsAreLeftAligned(panel);
 
-		BufferedImage image = new BufferedImage(1024, 192, BufferedImage.TYPE_INT_ARGB);
+		BufferedImage image = new BufferedImage(1024, 208, BufferedImage.TYPE_INT_ARGB);
 		Graphics2D graphics = image.createGraphics();
 		try {
 			panel.printAll(graphics);
@@ -260,6 +262,15 @@ class OfficeChromePanelVisualSmokeTest {
 		JComponent tabBody = findNamedComponent(panel, "projectLibreRibbonTabBody");
 		assertEquals(MicroProjectTheme.tokens().ribbonSurfaceBackground(), tabBody.getBackground(),
 			"the expanded tab body around command groups must not introduce a second gray tone");
+		assertEquals("arc: 18", tabBody.getClientProperty(com.formdev.flatlaf.FlatClientProperties.STYLE),
+			"the Office ribbon command surface must use FlatLaf's rounded-panel painter");
+		java.awt.Point surfaceLocation = javax.swing.SwingUtilities.convertPoint(tabBody, 0, 0, panel);
+		assertEquals(MicroProjectTheme.tokens().ribbonChromeBackground().getRGB(),
+			image.getRGB(surfaceLocation.x + 1, surfaceLocation.y + 1),
+			"the rounded white surface must leave the gray chrome visible at its outside corner");
+		assertEquals(MicroProjectTheme.tokens().ribbonSurfaceBackground().getRGB(),
+			image.getRGB(surfaceLocation.x + 24, surfaceLocation.y + 24),
+			"the rounded white surface must fill its interior");
 		assertEquals(MicroProjectTheme.tokens().ribbonSurfaceBackground().getRGB(),
 			image.getRGB(image.getWidth() - 24, 120),
 			"an unobstructed ribbon-surface pixel must render the theme white");
@@ -292,7 +303,8 @@ class OfficeChromePanelVisualSmokeTest {
 			.filter(button -> Boolean.TRUE.equals(
 				button.getClientProperty(ModernRibbonPanel.BAND_PROXY_PROPERTY)))
 			.forEach(button -> {
-				assertEquals("▾", button.getText(), "collapsed group button should not repeat a truncating group name");
+				assertEquals("", button.getText(), "collapsed group triggers should not render a font-dependent arrow glyph");
+				assertNotNull(button.getIcon(), "collapsed group trigger should use its representative command icon");
 				assertTrue(button.getToolTipText() != null && !button.getToolTipText().isBlank(),
 					"collapsed group must retain its full name as a tooltip");
 			});

@@ -370,6 +370,71 @@ class RibbonTabGuiAcceptanceTest {
 	}
 
 	@Test
+	void resizingWindowCollapsesOnlyNecessaryCommandsAndKeepsThemReachable() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		RecordingActionMap actions = new RecordingActionMap();
+		MenuManager manager = MenuManager.getInstance(actions);
+		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+		ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
+		show(host, 1200, true);
+
+		Robot robot = new Robot();
+		robot.setAutoDelay(35);
+		AbstractButton tab = findButton(host, MenuDefinitionSupport.menuBundle(Locale.getDefault())
+			.getString("TaskRibbonTask.title"));
+		click(robot, tab);
+		GuiAcceptanceSupport.await(tab::isSelected, "Task ribbon tab was not selected at wide window width");
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(() -> containsCommand(host, "RibbonPaste"),
+			"Task commands did not replace the previous tab after physical selection");
+		AbstractButton widePaste = findAttachedButtonByCommand(host, "RibbonPaste");
+		assertTrue(widePaste.isShowing(), "Paste should be directly visible when the ribbon has enough width");
+		int wideProxyCount = visibleGroupProxyCount(host);
+		captureVisibleRibbon(robot, "ribbon-task-wide-1200.png", 0);
+
+		resizeWindow(672);
+		GuiAcceptanceSupport.await(() -> ribbon.getWidth() < 1000,
+			"ribbon did not receive the medium window resize");
+		int mediumProxyCount = visibleGroupProxyCount(host);
+		assertTrue(mediumProxyCount >= wideProxyCount,
+			"reducing window width must not expand command groups: wide=" + wideProxyCount
+				+ " medium=" + mediumProxyCount);
+		captureVisibleRibbon(robot, "ribbon-task-medium-672.png", 0);
+
+		resizeWindow(320);
+		GuiAcceptanceSupport.await(() -> ribbon.getWidth() < 400,
+			"ribbon did not receive the narrow window resize");
+		int narrowProxyCount = visibleGroupProxyCount(host);
+		assertTrue(narrowProxyCount > wideProxyCount,
+			"narrowing the window must collapse some command groups: wide=" + wideProxyCount
+				+ " narrow=" + narrowProxyCount);
+		captureVisibleRibbon(robot, "ribbon-task-narrow-320.png", 0);
+
+		AbstractButton pasteOverflow = UiComponentWalker.flatten(host).stream()
+			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+			.filter(button -> button.isShowing()
+				&& Boolean.TRUE.equals(button.getClientProperty(ModernRibbonPanel.BAND_PROXY_PROPERTY))
+				&& button.getClientProperty(ModernRibbonPanel.COLLAPSED_POPUP_PROPERTY) instanceof JPopupMenu popup
+				&& UiComponentWalker.flatten(popup).stream().filter(AbstractButton.class::isInstance)
+					.map(AbstractButton.class::cast).anyMatch(command -> "RibbonPaste".equals(command.getActionCommand())))
+			.findFirst().orElseThrow(() -> new AssertionError(
+				"Paste must remain reachable through its collapsed group at narrow width"));
+		JPopupMenu popup = (JPopupMenu) pasteOverflow.getClientProperty(ModernRibbonPanel.COLLAPSED_POPUP_PROPERTY);
+		clickCommand(robot, pasteOverflow);
+		GuiAcceptanceSupport.await(popup::isVisible, "narrow group overflow popup did not open");
+		AbstractButton paste = UiComponentWalker.flatten(popup).stream()
+			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+			.filter(button -> "RibbonPaste".equals(button.getActionCommand()))
+			.findFirst().orElseThrow(() -> new AssertionError("Paste was lost during responsive collapse"));
+		String actionId = manager.getToolBarFactory().getActionStringFromId("RibbonPaste");
+		int before = actions.count(actionId);
+		clickCommand(robot, paste);
+		GuiAcceptanceSupport.await(() -> actions.count(actionId) == before + 1,
+			"Paste did not dispatch after resizing into the collapsed layout");
+	}
+
+	@Test
 	void fileTabUsesTheSameRibbonSurfaceAsDocumentTabs() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for GUI coverage.");
 		RecordingActionMap actions = new RecordingActionMap();
@@ -625,6 +690,27 @@ class RibbonTabGuiAcceptanceTest {
 		robot.mouseMove(point.x + button.getWidth() / 2, point.y + button.getHeight() / 2);
 		robot.mousePress(InputEvent.BUTTON3_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
+	}
+
+	private void resizeWindow(int width) throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			frame.setSize(width, frame.getHeight());
+			frame.validate();
+		});
+	}
+
+	private static int visibleGroupProxyCount(JPanel host) {
+		return (int) UiComponentWalker.flatten(host).stream()
+			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+			.filter(button -> button.isShowing()
+				&& Boolean.TRUE.equals(button.getClientProperty(ModernRibbonPanel.BAND_PROXY_PROPERTY)))
+			.count();
+	}
+
+	private static boolean containsCommand(JPanel host, String commandId) {
+		return UiComponentWalker.flatten(host).stream()
+			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+			.anyMatch(button -> commandId.equals(button.getActionCommand()));
 	}
 
 	private static void doubleClick(Robot robot, AbstractButton button) throws Exception {
