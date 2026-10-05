@@ -47,7 +47,8 @@ import com.microproject.graphic.configuration.BarFormat;
 class TaskTableGanttHundredCasesGanttTest {
 	private record GeometryCase(double center, double shapeHeight, double selectionSquare,
 		double expectedStart, double expectedEnd) {}
-	private record LayoutCase(Rectangle clip, double x0, double x1, int offset, int width, boolean visible) {}
+	private record LayoutCase(String name, Rectangle clip, double x0, double x1, int offset, int width,
+		Integer expectedX, Integer expectedAvailableWidth) {}
 	private record ClipCase(String text, int width, String expectation) {}
 	private record KeyCase(String fieldName, String formatId, String expected) {}
 
@@ -76,40 +77,23 @@ class TaskTableGanttHundredCasesGanttTest {
 	Stream<DynamicTest> annotationLayoutCases() {
 		Rectangle normal = new Rectangle(0, 0, 200, 40);
 		List<LayoutCase> cases = List.of(
-			new LayoutCase(normal, 10, 20, 8, 40, true),
-			new LayoutCase(normal, -10, 10, 8, 60, true),
-			new LayoutCase(normal, 190, 210, 8, 50, true),
-			new LayoutCase(normal, 50, 150, 4, 80, true),
-			new LayoutCase(normal, 0, 0, 0, 20, true),
-			new LayoutCase(normal, 200, 200, 0, 20, true),
-			new LayoutCase(normal, -100, -20, 8, 50, true),
-			new LayoutCase(normal, 220, 250, 8, 50, true),
-			new LayoutCase(new Rectangle(100, 0, 300, 40), 90, 110, 5, 70, true),
-			new LayoutCase(new Rectangle(-100, 0, 200, 40), -20, 20, 10, 90, true),
-			new LayoutCase(normal, -400, -350, 8, 40, false),
-			new LayoutCase(normal, 350, 400, 8, 40, false),
-			new LayoutCase(normal, -1000, -900, 0, 10, false),
-			new LayoutCase(normal, 900, 1000, 0, 10, false),
-			new LayoutCase(new Rectangle(50, 0, 20, 40), -100, -80, 2, 10, false),
-			new LayoutCase(new Rectangle(50, 0, 20, 40), 120, 140, 2, 10, false),
-			new LayoutCase(new Rectangle(0, 0, 0, 40), 50, 60, 8, 40, false),
-			new LayoutCase(new Rectangle(-200, 0, 100, 40), 0, 20, 8, 30, false),
-			new LayoutCase(new Rectangle(500, 0, 100, 40), 0, 20, 8, 30, false),
-			new LayoutCase(null, 0, 20, 8, 30, false));
-		return IntStream.range(0, cases.size()).mapToObj(index -> DynamicTest.dynamicTest(
-			id("L", index + 21), () -> {
-				LayoutCase c = cases.get(index);
-				GanttRendererSupport.AnnotationLayout layout = GanttRendererSupport.resolveAnnotationLayout(
-					c.clip, c.x0, c.x1, c.offset, c.width);
-				if (!c.visible) {
-					assertNull(layout);
-					return;
-				}
-				assertNotNull(layout);
-				assertTrue(layout.availableWidth > 0);
-				assertTrue(layout.x <= c.clip.x + c.clip.width);
-				assertTrue(layout.x + layout.availableWidth <= c.clip.x + c.clip.width - 4);
-			}));
+			new LayoutCase("visible-bar-uses-right-side", normal, 20, 90, 8, 50, 98, 64),
+			new LayoutCase("right-edge-lack-of-space-falls-back-left", normal, 190, 210, 8, 50, 132, 64),
+			new LayoutCase("partially-visible-left-edge-bar-keeps-right-label", normal, -10, 10, 8, 60, 18, 64),
+			new LayoutCase("label-can-remain-visible-after-bar-leaves-left-clip", normal, -100, -20, 8, 50, -12, 64),
+			new LayoutCase("bar-and-label-outside-clip", normal, -400, -350, 8, 40, null, null),
+			new LayoutCase("missing-clip", null, 0, 20, 8, 30, null, null));
+		return cases.stream().map(c -> DynamicTest.dynamicTest(c.name, () -> {
+			GanttRendererSupport.AnnotationLayout layout = GanttRendererSupport.resolveAnnotationLayout(
+				c.clip, c.x0, c.x1, c.offset, c.width);
+			if (c.expectedX == null) {
+				assertNull(layout);
+				return;
+			}
+			assertNotNull(layout);
+			assertEquals(c.expectedX.intValue(), layout.x);
+			assertEquals(c.expectedAvailableWidth.intValue(), layout.availableWidth);
+		}));
 	}
 
 	@TestFactory

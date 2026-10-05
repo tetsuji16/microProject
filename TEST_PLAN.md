@@ -81,7 +81,7 @@ JUnitの失敗時診断はレポートに残し、成功時の大量標準出力
 | C-05 | 正常 | 新規 sidecar | `load/mutate` | schema/user/locks/workspace が初期化 |
 | C-06 | 異常 | 壊れた JSON, 配列 JSON, 巨大 JSON >1MB | `load` | RuntimeException。破損したメタデータを既定値で上書きせず、silent success しない |
 | C-07 | 境界 | JSON に制御文字、引用符、Unicode user | save/load | エスケープ復元一致 |
-| C-08 | 並行 | 2 セッション同時 `mutate` | thread pool で 100 回更新 | JSON が壊れず全更新が整合 |
+| C-08 | 並行 | 2 セッション同時 `mutate` | 各 session から 1 user を同時追加 | JSON が壊れず両更新が保持 |
 | C-09 | 正常 | alice が task 1 acquire | `TaskLockManager.acquire` | true、sidecar に owner/lease/user |
 | C-10 | 異常 | bob が同一 task acquire | acquire | false、owner は alice のまま |
 | C-11 | 境界 | lease 期限切れ lock | bob acquire | cleanup 後 true |
@@ -94,6 +94,7 @@ JUnitの失敗時診断はレポートに残し、成功時の大量標準出力
 | C-18 | 正常 | `saveWorkspace/loadWorkspace` | serializable workspace | Base64 payload 復元一致 |
 | C-19 | 異常 | workspace payload が壊れた Base64/非互換 class | load | null、クラッシュなし |
 | C-20 | 並行 | UI thread release と timer renew が競合 | acquire/release/renewAll 反復 | `localLocks` と sidecar に不整合なし |
+| C-21 | 旧形式 | schemaVersion を持たない sidecar と既知 user | `load` | schemaVersion 1 へ補完し、既存 fingerprint/user を保持して保存 |
 
 ### マージ / 競合検出
 

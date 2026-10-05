@@ -46,29 +46,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GanttRendererSupportTest {
 	@Test
-	void annotationLayoutPrefersRightSideWhenSpaceExists() {
-		GanttRendererSupport.AnnotationLayout layout = GanttRendererSupport.resolveAnnotationLayout(
-				new Rectangle(0, 0, 200, 40),
-				20.0d,
-				90.0d,
-				8,
-				50);
-
-		assertEquals(98, layout.x);
-		assertEquals(64, layout.availableWidth);
-	}
-
-	@Test
-	void annotationLayoutReturnsNullWhenNothingIsVisible() {
-		assertNull(GanttRendererSupport.resolveAnnotationLayout(
-				new Rectangle(0, 0, 80, 40),
-				200.0d,
-				260.0d,
-				8,
-				40));
-	}
-
-	@Test
 	void annotationLayoutHonorsRequestedSideWhenItFits() {
 		Rectangle clip = new Rectangle(0, 0, 400, 80);
 		GanttRendererSupport.AnnotationLayout left = GanttRendererSupport.resolveAnnotationLayout(
