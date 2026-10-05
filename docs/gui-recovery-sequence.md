@@ -83,6 +83,9 @@ global shortcuts follow one explicit policy.
 - For #479, enable FlatLaf native window decorations during bootstrap when the
   Windows runtime supports them; verify the physical OS caption, system-menu,
   resize, snap/maximize/restore, and secondary-window routes through U-25-W.
+- Coalesce `WindowBoundsSupport` move/resize corrections until native geometry
+  settles. Immediate clamping can observe a transient maximized rectangle as a
+  normal window during Restore and overwrite the OS-managed restore bounds.
 
 **Exit gate:** open two projects and a resource pool, switch between them,
 invoke commands, and close each through the actual title-bar close route.

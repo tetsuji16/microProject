@@ -16,6 +16,8 @@ import java.awt.Window;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 
+import javax.swing.Timer;
+
 /** Keeps windows reachable inside their monitor's usable work area. */
 public final class WindowBoundsSupport {
 	private WindowBoundsSupport() {
@@ -65,18 +67,31 @@ public final class WindowBoundsSupport {
 			if (listener instanceof UsableBoundsGuard)
 				return;
 		}
-		window.addComponentListener(new UsableBoundsGuard());
+		window.addComponentListener(new UsableBoundsGuard(window));
 	}
 
 	private static final class UsableBoundsGuard extends ComponentAdapter {
+		private static final int SETTLE_DELAY_MILLIS = 160;
+		private final Window window;
+		private final Timer settleTimer;
+
+		private UsableBoundsGuard(Window window) {
+			this.window = window;
+			settleTimer = new Timer(SETTLE_DELAY_MILLIS,
+				ignored -> WindowBoundsSupport.fitWithinUsableScreen(this.window));
+			settleTimer.setRepeats(false);
+		}
+
 		@Override
 		public void componentResized(ComponentEvent event) {
-			fitWithinUsableScreen((Window) event.getComponent());
+			// Native maximize/restore transitions may publish temporary full-work-area
+			// bounds; clamp only after the window manager's geometry has settled.
+			settleTimer.restart();
 		}
 
 		@Override
 		public void componentMoved(ComponentEvent event) {
-			fitWithinUsableScreen((Window) event.getComponent());
+			settleTimer.restart();
 		}
 	}
 
