@@ -35,7 +35,6 @@ import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.util.List;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.DynamicTest;
@@ -44,33 +43,31 @@ import org.junit.jupiter.api.TestFactory;
 import com.microproject.field.Field;
 import com.microproject.graphic.configuration.BarFormat;
 
-class TaskTableGanttHundredCasesGanttTest {
-	private record GeometryCase(double center, double shapeHeight, double selectionSquare,
+class GanttAnnotationAndMilestoneGeometryTest {
+	private record GeometryCase(String name, double center, double shapeHeight, double selectionSquare,
 		double expectedStart, double expectedEnd) {}
 	private record LayoutCase(String name, Rectangle clip, double x0, double x1, int offset, int width,
 		Integer expectedX, Integer expectedAvailableWidth) {}
-	private record ClipCase(String text, int width, String expectation) {}
-	private record KeyCase(String fieldName, String formatId, String expected) {}
+	private record ClipCase(String name, String text, int width, String expectation) {}
+	private record KeyCase(String name, String fieldName, String formatId, String expected) {}
 
 	@TestFactory
 	Stream<DynamicTest> milestoneSelectionGeometryCases() {
 		List<GeometryCase> cases = List.of(
-			new GeometryCase(100, 8, 12, 94, 106),
-			new GeometryCase(100, 20, 12, 90, 110),
-			new GeometryCase(100, 12, 12, 94, 106),
-			new GeometryCase(100, 0, 0, 100, 100),
-			new GeometryCase(99.25, 11.5, 4.5, 93.5, 105),
-			new GeometryCase(-10, 6, 14, -17, -3));
-		return IntStream.range(0, cases.size()).mapToObj(index -> DynamicTest.dynamicTest(
-			id("G", index + 1), () -> {
-				GeometryCase c = cases.get(index);
-				double start = GanttSelectionGeometrySupport.milestoneSelectionStart(
-					c.center, c.shapeHeight, c.selectionSquare);
-				double end = GanttSelectionGeometrySupport.milestoneSelectionEnd(
-					c.center, c.shapeHeight, c.selectionSquare);
-				assertEquals(c.expectedStart, start, 0.000001d);
-				assertEquals(c.expectedEnd, end, 0.000001d);
-			}));
+			new GeometryCase("selection-square-wider-than-shape", 100, 8, 12, 94, 106),
+			new GeometryCase("shape-wider-than-selection-square", 100, 20, 12, 90, 110),
+			new GeometryCase("equal-extents", 100, 12, 12, 94, 106),
+			new GeometryCase("zero-extents", 100, 0, 0, 100, 100),
+			new GeometryCase("fractional-extents", 99.25, 11.5, 4.5, 93.5, 105),
+			new GeometryCase("negative-center", -10, 6, 14, -17, -3));
+		return cases.stream().map(c -> DynamicTest.dynamicTest(c.name, () -> {
+			double start = GanttSelectionGeometrySupport.milestoneSelectionStart(
+				c.center, c.shapeHeight, c.selectionSquare);
+			double end = GanttSelectionGeometrySupport.milestoneSelectionEnd(
+				c.center, c.shapeHeight, c.selectionSquare);
+			assertEquals(c.expectedStart, start, 0.000001d);
+			assertEquals(c.expectedEnd, end, 0.000001d);
+		}));
 	}
 
 	@TestFactory
@@ -99,59 +96,55 @@ class TaskTableGanttHundredCasesGanttTest {
 	@TestFactory
 	Stream<DynamicTest> annotationClippingCases() {
 		List<ClipCase> cases = List.of(
-			new ClipCase(null, 40, "null"),
-			new ClipCase("   ", 40, "empty"),
-			new ClipCase("Task", 0, "null"),
-			new ClipCase(" Task ", 200, "Task"),
-			new ClipCase("A", 1, "A"),
-			new ClipCase("Milestone alpha", 200, "fits"),
-			new ClipCase("Long task annotation", 40, "clipped"),
-			new ClipCase("日本語の工程注釈", 40, "clipped"));
+			new ClipCase("null-text", null, 40, "null"),
+			new ClipCase("blank-text", "   ", 40, "empty"),
+			new ClipCase("nonpositive-width", "Task", 0, "null"),
+			new ClipCase("trimmed-text-fits", " Task ", 200, "Task"),
+			new ClipCase("ellipsis-too-wide", "A", 1, "A"),
+			new ClipCase("text-fits-unmodified", "Milestone alpha", 200, "fits"),
+			new ClipCase("ascii-text-clips", "Long task annotation", 40, "clipped"),
+			new ClipCase("multibyte-text-clips", "日本語の工程注釈", 40, "clipped"));
 		FontMetrics metrics = createMetrics();
-		return IntStream.range(0, cases.size()).mapToObj(index -> DynamicTest.dynamicTest(
-			id("C", index + 41), () -> {
-				ClipCase c = cases.get(index);
-				String actual = GanttRendererSupport.clipAnnotationText(metrics, c.text, c.width);
-				switch (c.expectation) {
-					case "null" -> assertNull(actual);
-					case "empty" -> assertEquals("", actual);
-					case "Task" -> assertEquals("Task", actual);
-					case "A" -> assertEquals("A", actual);
-					case "fits" -> assertEquals(c.text.trim(), actual);
-					default -> {
-						assertNotNull(actual);
-						String prefix = actual.substring(0, actual.length() - 3);
-						assertTrue(actual.endsWith("..."), "clipped text must have an ellipsis: " + actual);
-						assertTrue(c.text.trim().startsWith(prefix), "clipped text must retain a source prefix");
-						assertTrue(actual.length() < c.text.trim().length(), "clipping must shorten the text");
-						assertTrue(metrics.stringWidth(actual) <= c.width, "clipped text must fit the available width");
-					}
+		return cases.stream().map(c -> DynamicTest.dynamicTest(c.name, () -> {
+			String actual = GanttRendererSupport.clipAnnotationText(metrics, c.text, c.width);
+			switch (c.expectation) {
+				case "null" -> assertNull(actual);
+				case "empty" -> assertEquals("", actual);
+				case "Task" -> assertEquals("Task", actual);
+				case "A" -> assertEquals("A", actual);
+				case "fits" -> assertEquals(c.text.trim(), actual);
+				default -> {
+					assertNotNull(actual);
+					String prefix = actual.substring(0, actual.length() - 3);
+					assertTrue(actual.endsWith("..."), "clipped text must have an ellipsis: " + actual);
+					assertTrue(c.text.trim().startsWith(prefix), "clipped text must retain a source prefix");
+					assertTrue(actual.length() < c.text.trim().length(), "clipping must shorten the text");
+					assertTrue(metrics.stringWidth(actual) <= c.width, "clipped text must fit the available width");
 				}
-			}));
+			}
+		}));
 	}
 
 	@TestFactory
 	Stream<DynamicTest> annotationKeyCases() {
 		List<KeyCase> cases = List.of(
-			new KeyCase(null, null, "|"), new KeyCase("name", null, "name|"),
-			new KeyCase(null, "Bar.task", "|Bar.task"), new KeyCase("name", "Bar.task", "name|Bar.task"),
-			new KeyCase("start", "Bar.critical", "start|Bar.critical"),
-			new KeyCase("finish", "", "finish|"), new KeyCase("", "Bar.summary", "|Bar.summary"),
-			new KeyCase("Field.進捗", "Bar.progress", "Field.進捗|Bar.progress"),
-			new KeyCase("a|b", "c|d", "a|b|c|d"), new KeyCase(" notes ", " custom ", " notes | custom "));
-		return IntStream.range(0, cases.size()).mapToObj(index -> DynamicTest.dynamicTest(
-			id("K", index + 51), () -> {
-				KeyCase c = cases.get(index);
-				Field field = c.fieldName == null ? null : new Field();
-				if (field != null) field.setName(c.fieldName);
-				BarFormat format = c.formatId == null ? null : new BarFormat();
-				if (format != null) format.setId(c.formatId);
-				assertEquals(c.expected, GanttRendererSupport.annotationKey(field, format));
-			}));
-	}
-
-	private static String id(String group, int number) {
-		return "TC100-" + group + String.format("%03d", number);
+			new KeyCase("null-field-and-format", null, null, "|"),
+			new KeyCase("null-format", "name", null, "name|"),
+			new KeyCase("null-field", null, "Bar.task", "|Bar.task"),
+			new KeyCase("ordinary-pair", "name", "Bar.task", "name|Bar.task"),
+			new KeyCase("alternate-format", "start", "Bar.critical", "start|Bar.critical"),
+			new KeyCase("empty-format-id", "finish", "", "finish|"),
+			new KeyCase("empty-field-name", "", "Bar.summary", "|Bar.summary"),
+			new KeyCase("unicode-field-name", "Field.進捗", "Bar.progress", "Field.進捗|Bar.progress"),
+			new KeyCase("delimiter-in-values", "a|b", "c|d", "a|b|c|d"),
+			new KeyCase("preserves-whitespace", " notes ", " custom ", " notes | custom "));
+		return cases.stream().map(c -> DynamicTest.dynamicTest(c.name, () -> {
+			Field field = c.fieldName == null ? null : new Field();
+			if (field != null) field.setName(c.fieldName);
+			BarFormat format = c.formatId == null ? null : new BarFormat();
+			if (format != null) format.setId(c.formatId);
+			assertEquals(c.expected, GanttRendererSupport.annotationKey(field, format));
+		}));
 	}
 
 	private static FontMetrics createMetrics() {

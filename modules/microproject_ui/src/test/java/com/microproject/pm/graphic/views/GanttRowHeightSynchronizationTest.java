@@ -35,7 +35,7 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
 
-class TaskTableGanttHundredCasesSyncTest {
+class GanttRowHeightSynchronizationTest {
 	private record RowHeightCase(String name, Integer[] baselines, int defaultHeight,
 		int baselineHeight, int expected) {}
 

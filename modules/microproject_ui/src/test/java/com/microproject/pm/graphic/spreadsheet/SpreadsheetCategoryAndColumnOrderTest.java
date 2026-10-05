@@ -42,7 +42,7 @@ import com.microproject.field.Field;
 import com.microproject.graphic.configuration.SpreadSheetCategories;
 import com.microproject.graphic.configuration.SpreadSheetFieldArray;
 
-class TaskTableGanttHundredCasesSpreadsheetTest {
+class SpreadsheetCategoryAndColumnOrderTest {
 	private record CategoryCase(String name, String category, Supplier<List> expected) {}
 	private record ColumnCase(String name, int count, int from, int to) {}
 

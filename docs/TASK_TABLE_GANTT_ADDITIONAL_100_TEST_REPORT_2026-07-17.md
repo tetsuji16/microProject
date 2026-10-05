@@ -1,5 +1,20 @@
 # タスク表・ガントチャート追加100ケース実行報告（2026-07-17）
 
+> これは当時の実行履歴です。以下に記載する100件・733件の結果は2026-07-17時点の値で、現在のsuite件数ではありません。2026-10-06に重複・弱いケースを統合しました。
+
+## 現行のテスト設計（2026-10-06）
+
+元の100例は件数を増やすこと自体が目的になり、同じ最大baseline index、列入替の対称ケース、同じannotation配置を別の任意値で繰り返す問題がありました。意味の異なる状態と境界を残し、生成番号をテスト条件が読める名前に置き換えました。
+
+| 現在のテストクラス | 現在のケース数 | 保持した契約 |
+|---|---:|---|
+| `GanttAnnotationAndMilestoneGeometryTest` | 30 | geometry 6、annotation layout 6、text clipping 8、cache key 10。layoutは期待x/幅を固定し、clippingはellipsis/prefix/実測幅を確認 |
+| `SpreadsheetCategoryAndColumnOrderTest` | 15 | category 10（legacy alias・unknown・nullを含む）、column reorder 5（adjacent、両端・中間の双方向移動） |
+| `GanttRowHeightSynchronizationTest` | 6 | null/empty baseline、index 0、疎な最大index、default height 0、baseline height 0 |
+| **合計** | **51** | 100個の番号付き例を51個の異なる／境界契約へ統合 |
+
+この51件のfocused UI実行は成功済みです。元の障害履歴・100件実行結果は下記に履歴として保持します。現行のsuite count／全体結果は [テスト実行履歴](testing/test-execution-history.md) を参照してください。
+
 ## 結論
 
 前回の18ケースとは別に、IDが重複しない100ケースをJUnit動的テストとして追加した。JUnit XMLで `tests=100`、IDの総数100、ユニーク数100を確認した。初回は89件成功・11件失敗、原因を分類・修正した後は100件すべて成功した。
@@ -53,13 +68,14 @@
 - 合計: **733 tests, failures 0, errors 0, skipped 0**
 - 全40 Gradleタスクを再実行し、`BUILD SUCCESSFUL`
 
-## 実行コマンド
+## 現行のfocused実行コマンド
 
 ```powershell
-.\gradlew.bat :projectlibre_ui:test --no-daemon --console=plain `
-  --tests "com.projectlibre1.pm.graphic.gantt.TaskTableGanttHundredCasesGanttTest" `
-  --tests "com.projectlibre1.pm.graphic.spreadsheet.TaskTableGanttHundredCasesSpreadsheetTest" `
-  --tests "com.projectlibre1.pm.graphic.views.TaskTableGanttHundredCasesSyncTest"
+.\gradlew.bat :microproject_ui:test --no-daemon --console=plain `
+  --tests "com.microproject.pm.graphic.gantt.GanttAnnotationAndMilestoneGeometryTest" `
+  --tests "com.microproject.pm.graphic.gantt.GanttRendererSupportTest" `
+  --tests "com.microproject.pm.graphic.spreadsheet.SpreadsheetCategoryAndColumnOrderTest" `
+  --tests "com.microproject.pm.graphic.views.GanttRowHeightSynchronizationTest"
 
 .\gradlew.bat build --rerun-tasks --no-daemon --console=plain
 ```
