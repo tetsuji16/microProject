@@ -25,13 +25,24 @@
 package com.microproject.core.configuration;
 
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
+import com.microproject.core.fields.Field;
+
 class LegacyJaxbConfigurationTest {
 	@Test
-	void missingClasspathResourceReturnsNull() {
+	void loadsLegacyFieldXmlAndReturnsNullForMissingResource() {
 		LegacyJaxbConfiguration configuration = new LegacyJaxbConfiguration();
+
+		Field field = (Field) configuration.load(
+			"com/microproject/core/configuration/legacy-field.xml", Field.class);
+		assertEquals("legacy.name", field.getId());
+		assertEquals("name", field.getProperty());
+		assertEquals(Set.of("task"), field.getCategories());
 
 		assertNull(configuration.load("missing/projectlibre-configuration.xml", LegacyJaxbConfigurationFile.class));
 	}
