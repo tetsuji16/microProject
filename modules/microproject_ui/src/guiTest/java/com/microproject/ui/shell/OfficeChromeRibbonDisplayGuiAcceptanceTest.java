@@ -6,6 +6,7 @@
 package com.microproject.ui.shell;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.BorderLayout;
@@ -37,15 +38,19 @@ import com.microproject.dialog.UsabilityStrings;
 import com.microproject.menu.MenuActionMapSupport;
 import com.microproject.menu.MenuManager;
 import com.microproject.menu.testsupport.UiComponentWalker;
+import com.microproject.pm.graphic.frames.MainRibbonFrame;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.testsupport.RibbonGuiEnvironment;
-import com.microproject.util.Environment;
 import com.microproject.ui.ribbon.RibbonController;
 import com.microproject.ui.ribbon.RibbonDisplayMode;
+import com.microproject.ui.ribbon.RibbonDisplayPreferences;
+import com.microproject.util.Environment;
 
 class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 	private JFrame frame;
+	private MainRibbonFrame persistedFrame;
 	private boolean originalQuickAccessVisible;
+	private RibbonDisplayMode originalRibbonDisplayMode;
 	private boolean previousRibbonUi;
 	private boolean previousNewLook;
 
@@ -53,13 +58,17 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 	void configureRibbonEnvironment() {
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
+		originalRibbonDisplayMode = RibbonDisplayPreferences.load();
+		originalQuickAccessVisible = RibbonDisplayPreferences.loadQuickAccessVisible();
 		RibbonGuiEnvironment.initialize();
 	}
 
 	@AfterEach
 	void closeWindow() throws Exception {
 		if (frame != null) SwingUtilities.invokeAndWait(() -> frame.dispose());
+		if (persistedFrame != null) SwingUtilities.invokeAndWait(() -> persistedFrame.dispose());
 		com.microproject.ui.ribbon.RibbonDisplayPreferences.saveQuickAccessVisible(originalQuickAccessVisible);
+		if (originalRibbonDisplayMode != null) RibbonDisplayPreferences.save(originalRibbonDisplayMode);
 		Environment.setRibbonUI(previousRibbonUi);
 		Environment.setNewLook(previousNewLook);
 	}
@@ -191,6 +200,61 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 			"Quick Access Toolbar should be restorable from display options");
 	}
 
+	@Test
+	void productionShellRestoresTheSavedRibbonModeWhenCreatedAgain() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
+		RibbonDisplayPreferences.save(RibbonDisplayMode.ALWAYS_SHOW);
+		persistedFrame = createProductionRibbonFrame(manager, "Ribbon preference first shell");
+		JPanel firstShell = persistedFrame.getRibbonPanel();
+		AbstractButton options = findShowingButton(firstShell, OfficeChromePanel.RIBBON_DISPLAY_OPTIONS_NAME);
+		Robot robot = new Robot();
+		robot.setAutoDelay(40);
+		GuiAcceptanceSupport.await(persistedFrame::isActive, "first production ribbon window did not become active");
+		click(robot, options);
+		click(robot, popupItem(UsabilityStrings.text("chrome.ribbonTabsOnly")));
+		GuiAcceptanceSupport.await(() -> RibbonDisplayPreferences.load() == RibbonDisplayMode.TABS_ONLY,
+			"production shell did not persist the selected Tabs Only mode");
+		RibbonController firstRibbon = ribbonController(firstShell);
+		assertEquals(RibbonDisplayMode.TABS_ONLY, firstRibbon.getRibbonDisplayMode());
+		assertFalse(firstRibbon.isCommandSurfaceVisible(), "Tabs Only must hide command bands in the first shell");
+
+		SwingUtilities.invokeAndWait(() -> {
+			persistedFrame.dispose();
+			persistedFrame = null;
+		});
+		persistedFrame = createProductionRibbonFrame(manager, "Ribbon preference recreated shell");
+		RibbonController restoredRibbon = ribbonController(persistedFrame.getRibbonPanel());
+		GuiAcceptanceSupport.await(() -> restoredRibbon.getRibbonDisplayMode() == RibbonDisplayMode.TABS_ONLY,
+			"new production shell did not load the saved ribbon display mode");
+		assertFalse(restoredRibbon.isCommandSurfaceVisible(),
+			"the recreated shell must render Tabs Only, not merely retain the preference value");
+	}
+
+	private MainRibbonFrame createProductionRibbonFrame(MenuManager manager, String title) throws Exception {
+		MainRibbonFrame[] created = new MainRibbonFrame[1];
+		SwingUtilities.invokeAndWait(() -> {
+			MainRibbonFrame next = new MainRibbonFrame(title, "", "");
+			persistedFrame = next;
+			ProjectLibreShell.installRibbonShell(next, manager, () -> { });
+			next.getContentPane().add(new JPanel(), java.awt.BorderLayout.CENTER);
+			next.setSize(1200, 500);
+			next.setLocationByPlatform(true);
+			next.setAlwaysOnTop(true);
+			next.setVisible(true);
+			next.toFront();
+			created[0] = next;
+		});
+		GuiAcceptanceSupport.await(created[0]::isShowing, "production ribbon shell did not become visible");
+		return created[0];
+	}
+
+	private static RibbonController ribbonController(JPanel shell) {
+		Object controller = shell.getClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY);
+		if (controller instanceof RibbonController ribbon) return ribbon;
+		throw new AssertionError("production shell does not expose its ribbon controller");
+	}
+
 	private static AbstractButton popupItem(String text) throws Exception {
 		JPopupMenu popup = displayOptionsPopup();
 		AbstractButton item = UiComponentWalker.flatten(popup).stream().filter(AbstractButton.class::isInstance)
@@ -263,6 +327,8 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 	}
 
 	private void capture(Robot robot, String name) throws Exception {
+		robot.waitForIdle();
+		robot.delay(250);
 		Rectangle[] bounds = new Rectangle[1];
 		SwingUtilities.invokeAndWait(() -> bounds[0] = new Rectangle(frame.getLocationOnScreen(), frame.getSize()));
 		BufferedImage image = robot.createScreenCapture(bounds[0]);
