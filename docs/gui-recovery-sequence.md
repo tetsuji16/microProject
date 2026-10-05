@@ -150,7 +150,9 @@ keyboard event it checks the probe's event log and blocks further input after
 contention is observed. Such a test fails as `GUI_ENVIRONMENT_CONTENDED`; an
 existing product assertion remains present, without retries or suppression.
 The failure bundle also records the native foreground/overlap snapshot and
-lock owner. The probe samples every 50 ms, so an external window can take focus
+lock owner. The Windows desktop shell windows (`Progman`/`WorkerW`) are
+excluded because they span the desktop behind application windows and are not
+foreground obstructions. The probe samples every 50 ms, so an external window can take focus
 between samples and the next Robot call; the affected test is still invalidated
 and no subsequent Robot input is sent once that overlap is observed.
 

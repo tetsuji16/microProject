@@ -23,6 +23,7 @@ public static class GuiDesktopWindowProbe {
         public int Pid;
         public int Order;
         public string ProcessName;
+        public string ClassName;
         public string Title;
         public Rect Bounds;
     }
@@ -32,6 +33,7 @@ public static class GuiDesktopWindowProbe {
     [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr handle, out uint processId);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowText(IntPtr handle, StringBuilder text, int capacity);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowTextLength(IntPtr handle);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetClassName(IntPtr handle, StringBuilder className, int capacity);
     [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr handle, out Rect bounds);
     [DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr handle);
     [DllImport("user32.dll")] private static extern bool IsIconic(IntPtr handle);
@@ -51,10 +53,11 @@ public static class GuiDesktopWindowProbe {
             Rect bounds;
             if (!GetWindowRect(handle, out bounds)) return true;
             string title = ReadTitle(handle, titleLength).Replace('\r', ' ').Replace('\n', ' ').Replace('|', '/');
+            string className = ReadClassName(handle);
             string processName = "unavailable";
             try { processName = Process.GetProcessById((int)pid).ProcessName; } catch { }
             windows.Add(new WindowInfo { Handle = handle, Pid = (int)pid, Order = currentOrder,
-                ProcessName = processName, Title = title, Bounds = bounds });
+                ProcessName = processName, ClassName = className, Title = title, Bounds = bounds });
             return true;
         }, IntPtr.Zero);
 
@@ -62,7 +65,8 @@ public static class GuiDesktopWindowProbe {
         WindowInfo foregroundInfo = windows.Find(window => window.Handle == foreground);
         if (foregroundInfo == null) result.AppendLine("foreground=unavailable");
         else result.Append("foreground pid=").Append(foregroundInfo.Pid).Append(" process=").Append(foregroundInfo.ProcessName)
-            .Append(" title=").Append(foregroundInfo.Title).Append(" bounds=").Append(Format(foregroundInfo.Bounds)).AppendLine();
+            .Append(" class=").Append(foregroundInfo.ClassName).Append(" title=").Append(foregroundInfo.Title)
+            .Append(" bounds=").Append(Format(foregroundInfo.Bounds)).AppendLine();
 
         var targetWindows = windows.FindAll(window => window.Pid == targetPid);
         foreach (WindowInfo target in targetWindows)
@@ -97,8 +101,10 @@ public static class GuiDesktopWindowProbe {
         int foregroundLength = GetWindowTextLength(foreground);
         string foregroundTitle = ReadTitle(foreground, Math.Max(1, foregroundLength))
             .Replace('\r', ' ').Replace('\n', ' ').Replace('|', '/');
+        string foregroundClass = ReadClassName(foreground);
         string foregroundProcess = "unavailable";
         try { foregroundProcess = Process.GetProcessById((int)foregroundPid).ProcessName; } catch { }
+        if (IsDesktopShellWindow(foregroundProcess, foregroundClass)) return "";
 
         var overlaps = new List<string>();
         EnumWindows((handle, parameter) => {
@@ -114,8 +120,19 @@ public static class GuiDesktopWindowProbe {
             return true;
         }, IntPtr.Zero);
         if (overlaps.Count == 0) return "";
-        return "foreground pid=" + foregroundPid + " process=" + foregroundProcess + " title=" + foregroundTitle
+        return "foreground pid=" + foregroundPid + " process=" + foregroundProcess + " class=" + foregroundClass + " title=" + foregroundTitle
             + " bounds=" + Format(foregroundBounds) + " overlaps=" + String.Join(";", overlaps);
+    }
+
+    private static string ReadClassName(IntPtr handle) {
+        var className = new StringBuilder(256);
+        GetClassName(handle, className, className.Capacity);
+        return className.ToString();
+    }
+    private static bool IsDesktopShellWindow(string processName, string className) {
+        return String.Equals(processName, "explorer", StringComparison.OrdinalIgnoreCase)
+            && (String.Equals(className, "Progman", StringComparison.OrdinalIgnoreCase)
+                || String.Equals(className, "WorkerW", StringComparison.OrdinalIgnoreCase));
     }
 
     private static string ReadTitle(IntPtr handle, int length) {
