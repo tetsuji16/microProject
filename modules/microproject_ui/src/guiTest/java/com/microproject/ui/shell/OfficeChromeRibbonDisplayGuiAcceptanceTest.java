@@ -14,6 +14,7 @@ import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -155,6 +156,15 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 			&& ribbon.getRibbonDisplayMode() == RibbonDisplayMode.AUTO_HIDE,
 			"returning to the document must dismiss the temporary reveal and preserve Auto-hide");
 		capture(robot, "ribbon-display-auto-hide-return-to-document");
+		pressAlt(robot);
+		GuiAcceptanceSupport.await(() -> ((javax.swing.JComponent) ribbon).isVisible()
+			&& ribbon.isCommandSurfaceVisible() && ribbon.getRibbonDisplayMode() == RibbonDisplayMode.AUTO_HIDE,
+			"physical Alt key did not temporarily reveal the Auto-hide ribbon");
+		capture(robot, "ribbon-display-auto-hide-alt-reveal");
+		click(robot, documentSurface);
+		GuiAcceptanceSupport.await(() -> !((javax.swing.JComponent) ribbon).isVisible()
+			&& ribbon.getRibbonDisplayMode() == RibbonDisplayMode.AUTO_HIDE,
+			"returning to the document after Alt reveal must restore Auto-hide");
 
 		click(robot, findShowingButton(chrome, OfficeChromePanel.RIBBON_DISPLAY_OPTIONS_NAME));
 		GuiAcceptanceSupport.await(() -> ((javax.swing.JComponent) ribbon).isVisible()
@@ -244,6 +254,12 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 		robot.mouseMove(point.x + button.getWidth() / 2, point.y + button.getHeight() / 2);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+	}
+
+	private static void pressAlt(Robot robot) {
+		robot.keyPress(KeyEvent.VK_ALT);
+		robot.keyRelease(KeyEvent.VK_ALT);
+		robot.waitForIdle();
 	}
 
 	private void capture(Robot robot, String name) throws Exception {
