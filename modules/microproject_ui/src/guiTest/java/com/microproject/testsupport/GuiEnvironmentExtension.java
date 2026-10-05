@@ -130,9 +130,9 @@ public final class GuiEnvironmentExtension implements BeforeAllCallback, AfterAl
 		DesktopSession session = context.getParent().map(parent -> parent.getStore(SESSION_NAMESPACE)
 			.get(SESSION_LEASE, DesktopSession.class)).orElse(null);
 		if (session != null && session.monitor() != null) {
-			GuiDesktopSessionCoordinator.beginRobotTest(session.monitor());
+			long overlapMark = GuiDesktopSessionCoordinator.beginRobotTest(session.monitor());
 			context.getStore(ExtensionContext.Namespace.create(GuiEnvironmentExtension.class, context.getUniqueId()))
-				.put(OVERLAP_MARK, session.monitor().mark());
+				.put(OVERLAP_MARK, overlapMark);
 		}
 	}
 

@@ -15,14 +15,17 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 /** Serializes Robot acceptance sessions across Gradle forks and worktrees for this user. */
 public final class GuiDesktopSessionCoordinator {
 	private static final Duration DEFAULT_WAIT = Duration.ofMinutes(10);
 	private static final long RETRY_MILLIS = 100;
-	private static volatile ForegroundMonitor activeMonitor;
-	private static volatile long activeTestMark;
+	private static volatile RobotTest activeRobotTest;
+
+	private record RobotTest(ForegroundMonitor monitor, long eventMark) {
+	}
 
 	private GuiDesktopSessionCoordinator() {
 	}
@@ -49,20 +52,22 @@ public final class GuiDesktopSessionCoordinator {
 		markEnvironmentContended(contentionMarker(), evidence);
 	}
 
-	public static void beginRobotTest(ForegroundMonitor monitor) throws IOException {
-		activeTestMark = monitor == null ? 0 : monitor.mark();
-		activeMonitor = monitor;
+	public static long beginRobotTest(ForegroundMonitor monitor) throws IOException {
+		long eventMark = monitor == null ? 0 : monitor.mark();
+		activeRobotTest = monitor == null ? null : new RobotTest(monitor, eventMark);
+		return eventMark;
 	}
 
 	public static void endRobotTest(ForegroundMonitor monitor) {
-		if (activeMonitor == monitor) activeMonitor = null;
+		RobotTest active = activeRobotTest;
+		if (active != null && active.monitor() == monitor) activeRobotTest = null;
 	}
 
 	public static void verifyDesktopBeforeRobotInput() {
-		ForegroundMonitor monitor = activeMonitor;
-		if (monitor == null) return;
+		RobotTest active = activeRobotTest;
+		if (active == null) return;
 		try {
-			String overlap = monitor.eventsSince(activeTestMark);
+			String overlap = active.monitor().eventsSince(active.eventMark());
 			if (!overlap.isBlank()) {
 				markEnvironmentContended("GUI_ENVIRONMENT_CONTENDED: Robot input blocked because a foreign foreground window overlaps the test window. "
 					+ overlap);
@@ -101,8 +106,9 @@ public final class GuiDesktopSessionCoordinator {
 		}
 		Files.createDirectories(artifactDirectory);
 		String processId = Long.toString(ProcessHandle.current().pid());
-		Path eventLog = artifactDirectory.resolve("desktop-overlap-" + processId + ".log");
-		Path processLog = artifactDirectory.resolve("desktop-monitor-process-" + processId + ".log");
+		String sessionId = processId + "-" + UUID.randomUUID();
+		Path eventLog = artifactDirectory.resolve("desktop-overlap-" + sessionId + ".log");
+		Path processLog = artifactDirectory.resolve("desktop-monitor-process-" + sessionId + ".log");
 		Process monitor = new ProcessBuilder("powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden",
 			"-ExecutionPolicy", "Bypass", "-File", script.toString(), "-TargetPid", processId,
 			"-Watch", "-LogFile", eventLog.toString()).redirectErrorStream(true)
