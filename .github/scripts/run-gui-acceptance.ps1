@@ -87,7 +87,7 @@ namespace MicroProject {
   }
 }
 
-function Invoke-GuiGate([string]$label, [string[]]$arguments) {
+function Invoke-GuiGate([string]$label, [string[]]$arguments, [int]$timeoutSeconds) {
   Start-HostedWarningWatcher
   Minimize-HostedRunnerConsole
   $safe = ($label -replace '[^A-Za-z0-9_.-]', '_')
@@ -100,11 +100,15 @@ function Invoke-GuiGate([string]$label, [string[]]$arguments) {
   $process = Start-Process -FilePath (Join-Path $PWD 'gradlew.bat') `
     -ArgumentList $arguments -PassThru -RedirectStandardOutput $stdout `
     -RedirectStandardError $stderr -WindowStyle Hidden
-  if (-not $process.WaitForExit(900000)) {
+  $timer = [System.Diagnostics.Stopwatch]::StartNew()
+  if (-not $process.WaitForExit($timeoutSeconds * 1000)) {
+    $timer.Stop()
     taskkill.exe /PID $process.Id /T /F | Out-Null
     Save-GuiFailureScreenshot $label
-    throw "GUI gate watchdog timed out: $label"
+    throw "GUI gate watchdog timed out: $label after $($timer.Elapsed.ToString('hh\:mm\:ss')) (limit $([TimeSpan]::FromSeconds($timeoutSeconds).ToString('hh\:mm\:ss'))); this is a gate timeout, not an assertion result."
   }
+  $timer.Stop()
+  Write-Host "GUI gate elapsed: $label $($timer.Elapsed.ToString('hh\:mm\:ss')) (limit $([TimeSpan]::FromSeconds($timeoutSeconds).ToString('hh\:mm\:ss')))"
   $stdoutText = Get-Content -LiteralPath $stdout -Raw
   $stderrText = Get-Content -LiteralPath $stderr -Raw
   $stdoutText
@@ -175,10 +179,11 @@ function Invoke-GuiGate([string]$label, [string[]]$arguments) {
 try {
   Write-Host "GUI acceptance Step 1/2: run the complete '$Suite' suite at 100% (ja)."
   try {
+    $functionalTimeoutSeconds = if ($Suite -eq 'full') { 2700 } else { 1200 }
     Invoke-GuiGate "functional-$Suite-ja-100" @(
       ':microproject_ui:guiTest', '--max-workers=1', '--console=plain',
       "-PguiTestSuite=$Suite", '-PguiTestLocale=ja', '-PguiTestUiScale=1.0'
-    )
+    ) $functionalTimeoutSeconds
   } catch {
     $gateFailures.Add($_.Exception.Message)
     throw "GUI acceptance Step 1/2 failed at 100%; Step 2 (locale/scale matrix) was not run: $($_.Exception.Message)"
@@ -211,7 +216,7 @@ try {
         )
         foreach ($testClass in $visualTests) { $gradleArgs += @('--tests', $testClass) }
         try {
-          Invoke-GuiGate "visual-$locale-$scale" $gradleArgs
+          Invoke-GuiGate "visual-$locale-$scale" $gradleArgs 1200
         } catch {
           $gateFailures.Add($_.Exception.Message)
           Write-Warning "Continuing GUI audit after visual gate failure: $($_.Exception.Message)"
