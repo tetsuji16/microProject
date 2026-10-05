@@ -24,6 +24,7 @@
  *******************************************************************************/
 package com.microproject.util;
 
+import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
@@ -518,6 +519,8 @@ public final class FlatUiSupport {
 	public static Color resolveCommandButtonBorderColor(AbstractButton button) {
 		if (button == null)
 			return null;
+		if (button.isFocusOwner() && isRibbonCommandButton(button))
+			return ribbonAccentColor();
 		ButtonModel model = button.getModel();
 		if (model == null || !button.isEnabled())
 			return blend(borderColor(), buttonStyleBaseBackground(button), 0.20f);
@@ -1160,6 +1163,8 @@ public final class FlatUiSupport {
 			Graphics2D g2 = (Graphics2D) graphics.create();
 			try {
 				enableAntialiasing(g2);
+				if (button.isFocusOwner() && isRibbonCommandButton(button))
+					g2.setStroke(new BasicStroke(2.0f));
 				int right = x + width - 1;
 				int bottom = y + height - 1;
 				g2.setColor(border);

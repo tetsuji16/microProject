@@ -901,6 +901,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		// The shared large-button styler defaults ribbon commands to mouse-first
 		// focus behavior; this proxy is a navigation control and must be tabbable.
 		trigger.setFocusable(true);
+		trigger.setFocusPainted(true);
 		// A collapsed group previously looked exactly like its first command (for
 		// example, Delete in Editing), so users had no visible clue that it opened
 		// a menu. Keep the representative icon and add a standard disclosure mark.

@@ -294,14 +294,16 @@ class OfficeChromePanelVisualSmokeTest {
 		UiComponentWalker.flatten(panel).stream()
 			.filter(AbstractButton.class::isInstance)
 			.map(AbstractButton.class::cast)
-			.filter(button -> Boolean.TRUE.equals(
-				button.getClientProperty(ModernRibbonPanel.BAND_PROXY_PROPERTY)))
-			.forEach(button -> {
-				assertEquals("", button.getText(), "collapsed group triggers should not render a font-dependent arrow glyph");
-				assertNotNull(button.getIcon(), "collapsed group trigger should use its representative command icon");
-				assertTrue(button.getToolTipText() != null && !button.getToolTipText().isBlank(),
-					"collapsed group must retain its full name as a tooltip");
-			});
+				.filter(button -> Boolean.TRUE.equals(
+					button.getClientProperty(ModernRibbonPanel.BAND_PROXY_PROPERTY)))
+				.forEach(button -> {
+					assertEquals("\u25BC", button.getText(), "collapsed group triggers must show a disclosure arrow");
+					assertNotNull(button.getIcon(), "collapsed group trigger should use its representative command icon");
+					assertEquals(button.getToolTipText(), button.getAccessibleContext().getAccessibleDescription(),
+						"collapsed group instruction must be available to assistive technology");
+					assertTrue(button.isFocusable(), "collapsed group must be keyboard focusable");
+					assertTrue(button.isFocusPainted(), "collapsed group must show keyboard focus");
+				});
 	}
 
 	private static void assertNoVisibleCollapsedTabLauncher(JPanel panel) {

@@ -352,6 +352,7 @@ class RibbonTabGuiAcceptanceTest {
 		assertEquals(overflow.getToolTipText(), overflow.getAccessibleContext().getAccessibleDescription(),
 			"screen readers must receive the same group-menu instruction");
 		assertTrue(overflow.isFocusable(), "collapsed group must be reachable by keyboard focus");
+		assertTrue(overflow.isFocusPainted(), "keyboard focus must have a visible indication");
 		SwingUtilities.invokeAndWait(() -> {
 			frame.toFront();
 			frame.requestFocusInWindow();
@@ -359,6 +360,7 @@ class RibbonTabGuiAcceptanceTest {
 		});
 		robot.delay(150);
 		GuiAcceptanceSupport.await(overflow::isFocusOwner, "collapsed group did not receive keyboard focus");
+		captureVisibleRibbon(robot, "ribbon-task-narrow-focused-proxy.png", 0);
 		robot.keyPress(KeyEvent.VK_SPACE);
 		robot.keyRelease(KeyEvent.VK_SPACE);
 		GuiAcceptanceSupport.await(popup::isVisible, "Space did not open the collapsed group menu");
