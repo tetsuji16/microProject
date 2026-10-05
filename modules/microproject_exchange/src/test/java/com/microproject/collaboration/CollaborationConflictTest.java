@@ -22,12 +22,13 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *******************************************************************************/
-package test.com.microproject.collaboration;
+package com.microproject.collaboration;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.File;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -35,41 +36,59 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import javax.swing.SwingUtilities;
-
-import junit.framework.TestCase;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.io.TempDir;
 import net.sf.mpxj.ProjectFile;
 import net.sf.mpxj.Task;
 import net.sf.mpxj.writer.ProjectWriter;
 import com.microproject.exchange.mpxj.ProjectWriterFactory;
 
-import com.microproject.collaboration.CollaborationMetadataStore;
-import com.microproject.collaboration.CollaborationSession;
-import com.microproject.collaboration.ProjectMergeService;
-import com.microproject.collaboration.TaskLockManager;
 import com.microproject.exchange.LocalFileImporter;
+import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.Project;
+import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.workspace.WorkspaceSetting;
 
-public class CollaborationConflictTest extends TestCase {
-	public void testOwnHeartbeatDoesNotTriggerExternalWarning() throws Exception {
-		File projectFile = File.createTempFile("projectlibre-collaboration", ".xlsx");
-		projectFile.deleteOnExit();
+class CollaborationConflictTest {
+	@TempDir
+	Path tempDir;
+	private Project previousLastDeserialized;
 
-		CollaborationSession session = new CollaborationSession(null, projectFile.getAbsolutePath(), "alice");
-		invokePrivate(session, "registerUser");
-		invokePrivate(session, "poll");
-
-		assertFalse(readBoolean(session, "externalChangePending"));
-		assertFalse(readBoolean(session, "externalChangeWarned"));
+	@BeforeEach
+	void captureGlobalProjectState() {
+		previousLastDeserialized = Project.lastDeserialized;
 	}
 
-	public void testOtherUserMetadataChangeTriggersExternalWarning() throws Exception {
-		File projectFile = File.createTempFile("projectlibre-collaboration", ".xlsx");
-		projectFile.deleteOnExit();
+	@AfterEach
+	void restoreGlobalProjectState() {
+		Project.lastDeserialized = previousLastDeserialized;
+	}
 
+	@Test
+	void ownHeartbeatDoesNotTriggerExternalWarning() throws Exception {
+		File projectFile = createTempFile("collaboration", ".xlsx");
+		AtomicInteger notices = new AtomicInteger();
 		CollaborationSession session = new CollaborationSession(null, projectFile.getAbsolutePath(), "alice");
-		invokePrivate(session, "registerUser");
+		session.setExternalChangeNoticeHandler(message -> notices.incrementAndGet());
+		long now = System.currentTimeMillis();
+
+		session.pollAt(now);
+		session.pollAt(now + 6000L);
+
+		assertFalse(session.requiresSaveConfirmation());
+		assertEquals(0, notices.get());
+	}
+
+	@Test
+	void otherUserMetadataChangeTriggersExternalWarning() throws Exception {
+		File projectFile = createTempFile("collaboration", ".xlsx");
+		AtomicInteger notices = new AtomicInteger();
+		CollaborationSession session = new CollaborationSession(null, projectFile.getAbsolutePath(), "alice");
+		session.setExternalChangeNoticeHandler(message -> notices.incrementAndGet());
+		long now = System.currentTimeMillis();
+		session.pollAt(now);
 
 		CollaborationMetadataStore store = new CollaborationMetadataStore(projectFile);
 		store.mutate(metadata -> {
@@ -81,15 +100,15 @@ public class CollaborationConflictTest extends TestCase {
 			metadata.getUsers().put("bob", other);
 		});
 
-		invokePrivate(session, "poll");
+		session.pollAt(now + 1L);
 
-		assertTrue(readBoolean(session, "externalChangePending"));
-		assertTrue(readBoolean(session, "externalChangeWarned"));
+		assertTrue(session.requiresSaveConfirmation());
+		assertEquals(1, notices.get());
 	}
 
-	public void testSameUserStaleLockDoesNotTriggerExternalWarning() throws Exception {
-		File projectFile = File.createTempFile("projectlibre-collaboration", ".xlsx");
-		projectFile.deleteOnExit();
+	@Test
+	void sameUserStaleLockDoesNotTriggerExternalWarning() throws Exception {
+		File projectFile = createTempFile("collaboration", ".xlsx");
 
 		CollaborationMetadataStore store = new CollaborationMetadataStore(projectFile);
 		store.mutate(metadata -> {
@@ -105,29 +124,34 @@ public class CollaborationConflictTest extends TestCase {
 		});
 
 		CollaborationSession session = new CollaborationSession(null, projectFile.getAbsolutePath(), "alice");
-		invokePrivate(session, "registerUser");
-		invokePrivate(session, "poll");
+		AtomicInteger notices = new AtomicInteger();
+		session.setExternalChangeNoticeHandler(message -> notices.incrementAndGet());
+		session.pollAt(System.currentTimeMillis());
 
-		assertFalse(readBoolean(session, "externalChangePending"));
-		assertFalse(readBoolean(session, "externalChangeWarned"));
+		assertFalse(session.requiresSaveConfirmation());
+		assertEquals(0, notices.get());
 	}
 
-	public void testProjectFileChangeWithoutMetadataChangeDoesNotWarnImmediately() throws Exception {
-		File projectFile = File.createTempFile("projectlibre-collaboration", ".xlsx");
-		projectFile.deleteOnExit();
+	@Test
+	void projectFileChangeWithoutMetadataChangeDoesNotWarnImmediately() throws Exception {
+		File projectFile = createTempFile("collaboration", ".xlsx");
 
 		CollaborationSession session = new CollaborationSession(null, projectFile.getAbsolutePath(), "alice");
-		invokePrivate(session, "registerUser");
+		AtomicInteger notices = new AtomicInteger();
+		session.setExternalChangeNoticeHandler(message -> notices.incrementAndGet());
+		long now = System.currentTimeMillis();
+		session.pollAt(now);
 		assertTrue(projectFile.setLastModified(System.currentTimeMillis() + 2000L));
-		invokePrivate(session, "poll");
+		session.pollAt(now + 1L);
 
-		assertTrue(readBoolean(session, "externalChangePending"));
-		assertFalse(readBoolean(session, "externalChangeWarned"));
+		assertTrue(session.requiresSaveConfirmation());
+		assertEquals(0, notices.get());
 	}
 
-	public void testProjectFileChangeRequestsReloadWhenProjectIsClean() throws Exception {
+	@Test
+	void projectFileChangeRequestsReloadWhenProjectIsClean() throws Exception {
 		File projectFile = createWorkbook("Baseline Task", "Unchanged Task");
-		Project project = Project.getDummy();
+		Project project = newProject();
 		project.setGroupDirty(false);
 		assertNotNull(project);
 		assertFalse(project.needsSaving());
@@ -139,25 +163,22 @@ public class CollaborationConflictTest extends TestCase {
 				reloads.incrementAndGet();
 			}
 		});
-		invokePrivate(session, "registerUser");
+		long now = System.currentTimeMillis();
+		session.pollAt(now);
 
 		assertTrue(projectFile.setLastModified(System.currentTimeMillis() + 2000L));
-		invokePrivate(session, "poll");
+		session.pollAt(now + 1L);
 		assertEquals(0, reloads.get());
-		writeLong(session, "pendingExternalReloadDetectedAt", System.currentTimeMillis() - 2000L);
-		invokePrivate(session, "poll");
-		SwingUtilities.invokeAndWait(new Runnable() {
-			public void run() {
-			}
-		});
+		session.pollAt(now + 1L + 1500L);
 
 		assertEquals(1, reloads.get());
-		assertFalse(readBoolean(session, "externalChangePending"));
+		assertFalse(session.requiresSaveConfirmation());
 	}
 
-	public void testProjectFileChangeRequestsReloadWhenOnlyLocalLockExists() throws Exception {
+	@Test
+	void projectFileChangeRequestsReloadWhenOnlyLocalLockExists() throws Exception {
 		File projectFile = createWorkbook("Baseline Task", "Unchanged Task");
-		Project project = Project.getDummy();
+		Project project = new ProjectMergeService().loadExternalProject(projectFile.getAbsolutePath());
 		project.setGroupDirty(false);
 
 		AtomicInteger reloads = new AtomicInteger();
@@ -167,28 +188,26 @@ public class CollaborationConflictTest extends TestCase {
 				reloads.incrementAndGet();
 			}
 		});
-		invokePrivate(session, "registerUser");
-
-		TaskLockManager lockManager = (TaskLockManager) readField(session, "lockManager");
-		assertTrue(lockManager.acquire(1L));
+		long now = System.currentTimeMillis();
+		session.pollAt(now);
+		com.microproject.pm.task.Task localTask =
+			(com.microproject.pm.task.Task) project.getTasks().get(0);
+		assertTrue(session.tryAcquireTaskLock(localTask));
+		assertTrue(session.getLocalLocks().contains(Long.valueOf(localTask.getUniqueId())));
 
 		assertTrue(projectFile.setLastModified(System.currentTimeMillis() + 2000L));
-		invokePrivate(session, "poll");
+		session.pollAt(now + 1L);
 		assertEquals(0, reloads.get());
-		writeLong(session, "pendingExternalReloadDetectedAt", System.currentTimeMillis() - 2000L);
-		invokePrivate(session, "poll");
-		SwingUtilities.invokeAndWait(new Runnable() {
-			public void run() {
-			}
-		});
+		session.pollAt(now + 1L + 1500L);
 
 		assertEquals(1, reloads.get());
-		assertFalse(readBoolean(session, "externalChangePending"));
+		assertFalse(session.requiresSaveConfirmation());
 	}
 
-	public void testProjectFileChangeReloadsEvenWhenProjectIsLocallyDirty() throws Exception {
+	@Test
+	void projectFileChangeReloadsEvenWhenProjectIsLocallyDirty() throws Exception {
 		File projectFile = createWorkbook("Baseline Task", "Unchanged Task");
-		Project project = Project.getDummy();
+		Project project = newProject();
 		project.setGroupDirty(true);
 
 		AtomicInteger reloads = new AtomicInteger();
@@ -198,26 +217,24 @@ public class CollaborationConflictTest extends TestCase {
 				reloads.incrementAndGet();
 			}
 		});
-		invokePrivate(session, "registerUser");
+		long now = System.currentTimeMillis();
+		session.pollAt(now);
 
 		assertTrue(projectFile.setLastModified(System.currentTimeMillis() + 2000L));
-		invokePrivate(session, "poll");
-		writeLong(session, "pendingExternalReloadDetectedAt", System.currentTimeMillis() - 2000L);
-		invokePrivate(session, "poll");
-		SwingUtilities.invokeAndWait(new Runnable() {
-			public void run() {
-			}
-		});
+		session.pollAt(now + 1L);
+		session.pollAt(now + 1L + 1500L);
 
 		assertEquals(1, reloads.get());
-		assertFalse(readBoolean(session, "externalChangePending"));
+		assertFalse(session.requiresSaveConfirmation());
 	}
 
-	public void testXlsxConflictDetectionOnlyFlagsChangedLockedTasks() throws Exception {
+	@Test
+	void xlsxConflictDetectionOnlyFlagsChangedLockedTasks() throws Exception {
 		assertConflictDetectionOnlyFlagsChangedLockedTasks("xlsx");
 	}
 
-	public void testPodConflictDetectionOnlyFlagsChangedLockedTasks() throws Exception {
+	@Test
+	void podConflictDetectionOnlyFlagsChangedLockedTasks() throws Exception {
 		assertConflictDetectionOnlyFlagsChangedLockedTasks("pod");
 	}
 
@@ -247,15 +264,18 @@ public class CollaborationConflictTest extends TestCase {
 		assertFalse(unchangedConflict.hasConflicts());
 	}
 
-	public void testXlsxBackgroundRefreshUpdatesOnlyUnlockedExistingTasks() throws Exception {
+	@Test
+	void xlsxBackgroundRefreshUpdatesOnlyUnlockedExistingTasks() throws Exception {
 		assertBackgroundRefreshUpdatesOnlyUnlockedExistingTasks("xlsx");
 	}
 
-	public void testPodBackgroundRefreshUpdatesOnlyUnlockedExistingTasks() throws Exception {
+	@Test
+	void podBackgroundRefreshUpdatesOnlyUnlockedExistingTasks() throws Exception {
 		assertBackgroundRefreshUpdatesOnlyUnlockedExistingTasks("pod");
 	}
 
-	public void testPodCollaborationMetadataNeverChangesPodBytes() throws Exception {
+	@Test
+	void podCollaborationMetadataNeverChangesPodBytes() throws Exception {
 		File podFile = createPodFile("Baseline Task", "Unchanged Task");
 		byte[] before = Files.readAllBytes(podFile.toPath());
 		long lastModified = podFile.lastModified();
@@ -265,20 +285,27 @@ public class CollaborationConflictTest extends TestCase {
 		}
 
 		CollaborationSession session = new CollaborationSession(null, podFile.getAbsolutePath(), "alice");
-		invokePrivate(session, "registerUser");
-		TaskLockManager lockManager = (TaskLockManager) readField(session, "lockManager");
-		assertTrue(lockManager.acquire(1L));
-		lockManager.release(1L);
-		session.saveWorkspace(new TestWorkspaceSetting("gantt"));
+		session.pollAt(System.currentTimeMillis());
+		Project lockProject = new ProjectMergeService().loadExternalProject(podFile.getAbsolutePath());
+		com.microproject.pm.task.Task podTask =
+			(com.microproject.pm.task.Task) lockProject.getTasks().get(0);
+		assertTrue(session.tryAcquireTaskLock(podTask));
+		try {
+			session.saveWorkspace(new TestWorkspaceSetting("gantt"));
+		} finally {
+			session.stop();
+		}
 
 		byte[] after = Files.readAllBytes(podFile.toPath());
-		assertTrue("Collaboration must store metadata in the sidecar, not mutate the POD file.", Arrays.equals(before, after));
+		assertTrue(Arrays.equals(before, after),
+			"Collaboration must store metadata in the sidecar, not mutate the POD file.");
 		assertEquals(lastModified, podFile.lastModified());
 		assertTrue(sidecar.exists());
 		assertTrue(sidecar.length() > 0L);
 	}
 
-	public void testPodMergeUsesTheSameNativePayloadAsLocalLoad() throws Exception {
+	@Test
+	void podMergeUsesTheSameNativePayloadAsLocalLoad() throws Exception {
 		File podFile = createPodFile("Native identity task", "Native second task");
 
 		LocalFileImporter localImporter = new LocalFileImporter();
@@ -289,8 +316,8 @@ public class CollaborationConflictTest extends TestCase {
 
 		Project mergeProject = new ProjectMergeService().loadExternalProject(podFile.getAbsolutePath());
 		assertNotNull(mergeProject);
-		assertEquals("POD merge must use the native document identity", localProject.getDocumentId(),
-			mergeProject.getDocumentId());
+		assertEquals(localProject.getDocumentId(), mergeProject.getDocumentId(),
+			"POD merge must use the native document identity");
 		assertEquals(localProject.getTasks().size(), mergeProject.getTasks().size());
 		for (int i = 0; i < localProject.getTasks().size(); i++) {
 			com.microproject.pm.task.Task localTask =
@@ -323,21 +350,20 @@ public class CollaborationConflictTest extends TestCase {
 		assertTrue(result.getSkippedLockedTaskIds().contains(Long.valueOf(first.getUniqueId())));
 	}
 
-	private static File createProjectFile(String extension, String firstTaskName, String secondTaskName) throws Exception {
+	private File createProjectFile(String extension, String firstTaskName, String secondTaskName) throws Exception {
 		if ("pod".equals(extension)) {
 			return createPodFile(firstTaskName, secondTaskName);
 		}
 		return createWorkbook(firstTaskName, secondTaskName);
 	}
 
-	private static File createPodFile(String firstTaskName, String secondTaskName) throws Exception {
+	private File createPodFile(String firstTaskName, String secondTaskName) throws Exception {
 		File seed = createWorkbook(firstTaskName, secondTaskName);
 		ProjectMergeService mergeService = new ProjectMergeService();
 		com.microproject.pm.task.Project project = mergeService.loadExternalProject(seed.getAbsolutePath());
 		assertNotNull(project);
 
-		File file = File.createTempFile("projectlibre-conflict", ".pod");
-		file.deleteOnExit();
+		File file = Files.createTempFile(tempDir, "collaboration", ".pod").toFile();
 		LocalFileImporter exporter = new LocalFileImporter();
 		exporter.setFileName(file.getAbsolutePath());
 		exporter.setProject(project);
@@ -345,9 +371,8 @@ public class CollaborationConflictTest extends TestCase {
 		return file;
 	}
 
-	private static File createWorkbook(String firstTaskName, String secondTaskName) throws Exception {
-		File file = File.createTempFile("projectlibre-conflict", ".xlsx");
-		file.deleteOnExit();
+	private File createWorkbook(String firstTaskName, String secondTaskName) throws Exception {
+		File file = Files.createTempFile(tempDir, "collaboration", ".xlsx").toFile();
 
 		ProjectFile project = new ProjectFile();
 		project.addDefaultBaseCalendar();
@@ -365,28 +390,13 @@ public class CollaborationConflictTest extends TestCase {
 		return file;
 	}
 
-	private static void invokePrivate(Object target, String methodName) throws Exception {
-		Method method = target.getClass().getDeclaredMethod(methodName);
-		method.setAccessible(true);
-		method.invoke(target);
+	private File createTempFile(String prefix, String suffix) throws Exception {
+		return Files.createTempFile(tempDir, prefix, suffix).toFile();
 	}
 
-	private static boolean readBoolean(Object target, String fieldName) throws Exception {
-		Field field = target.getClass().getDeclaredField(fieldName);
-		field.setAccessible(true);
-		return field.getBoolean(target);
-	}
-
-	private static Object readField(Object target, String fieldName) throws Exception {
-		Field field = target.getClass().getDeclaredField(fieldName);
-		field.setAccessible(true);
-		return field.get(target);
-	}
-
-	private static void writeLong(Object target, String fieldName, long value) throws Exception {
-		Field field = target.getClass().getDeclaredField(fieldName);
-		field.setAccessible(true);
-		field.setLong(target, value);
+	private static Project newProject() {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		return Project.createProject(ResourcePool.createRourcePool("collaboration-test", undo), undo);
 	}
 
 	private static final class TestWorkspaceSetting implements WorkspaceSetting {

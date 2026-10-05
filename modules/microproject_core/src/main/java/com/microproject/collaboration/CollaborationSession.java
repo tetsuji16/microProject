@@ -166,10 +166,14 @@ public class CollaborationSession {
 	}
 
 	private void poll() {
+		pollAt(System.currentTimeMillis());
+	}
+
+	/** Runs one change-detection cycle at the supplied time for deterministic package tests. */
+	void pollAt(long now) {
 		if (projectFile == null) {
 			return;
 		}
-		long now = System.currentTimeMillis();
 		if (now - lastHeartbeatAt >= HEARTBEAT_INTERVAL_MS) {
 			lockManager.renewAll();
 			lastHeartbeatAt = now;
