@@ -104,6 +104,10 @@ public final class SwingRibbonFactory {
 		commandSource.registerCommandControl(id, component);
 	}
 
+	public void unregisterRibbonControls(List<? extends JComponent> controls) {
+		commandSource.unregisterCommandControls(controls);
+	}
+
 	private SwingRibbonModel.RibbonTab createTab(String tabId, CustomRibbonBandGenerator customBandsGenerator) {
 		List<String> bandIds = resolveList(tabId);
 		List<SwingRibbonModel.RibbonBand> bands = new ArrayList<>(bandIds.size());

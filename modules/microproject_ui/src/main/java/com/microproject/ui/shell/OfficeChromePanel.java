@@ -50,8 +50,11 @@ import javax.swing.JMenuItem;
 import javax.swing.JLayeredPane;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
+import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.JToggleButton;
+import javax.swing.JCheckBox;
+import javax.swing.JOptionPane;
 import javax.swing.SwingConstants;
 import javax.swing.border.EmptyBorder;
 
@@ -265,10 +268,7 @@ final class OfficeChromePanel extends JPanel {
 		cluster.add(new OfficeSwitchButton(autoSaveControl), constraints);
 		constraints.gridx++;
 		constraints.insets = new Insets(0, CLUSTER_GAP, 0, 0);
-		quickAccessCommands.add(new VerticalDivider());
-		quickAccessCommands.add(createActionButton("RibbonTopBarSaveProject"));
-		quickAccessCommands.add(createActionButton("RibbonTopBarUndo"));
-		quickAccessCommands.add(createActionButton("RibbonTopBarRedo"));
+		refreshQuickAccessCommands();
 		quickAccessCommands.setVisible(RibbonDisplayPreferences.loadQuickAccessVisible());
 		cluster.add(quickAccessCommands, constraints);
 		constraints.gridx++;
@@ -431,7 +431,61 @@ final class OfficeChromePanel extends JPanel {
 			RibbonDisplayPreferences.saveQuickAccessVisible(visible);
 		});
 		popup.add(quickAccessItem);
+		JMenuItem customizeQuickAccessItem = new JMenuItem(UsabilityStrings.text("chrome.customizeQuickAccess"));
+		customizeQuickAccessItem.addActionListener(event -> customizeQuickAccess());
+		popup.add(customizeQuickAccessItem);
 		popup.show(button, button.getWidth() - popup.getPreferredSize().width, button.getHeight());
+	}
+
+	private void customizeQuickAccess() {
+		if (menuManager == null) return;
+		java.util.List<String> supported = new java.util.ArrayList<>();
+		for (String id : RibbonDisplayPreferences.quickAccessCandidateCommands()) {
+			if (menuManager.getActionFromId(id) != null) supported.add(id);
+		}
+		for (String id : RibbonDisplayPreferences.loadQuickAccessCommands()) {
+			if (menuManager.getActionFromId(id) != null && !supported.contains(id)) supported.add(id);
+		}
+		java.util.List<JCheckBox> checks = new java.util.ArrayList<>(supported.size());
+		java.util.Set<String> selected = new java.util.LinkedHashSet<>(RibbonDisplayPreferences.loadQuickAccessCommands());
+		JPanel choices = new JPanel(new java.awt.GridLayout(0, 1, 0, 2));
+		choices.setBorder(new EmptyBorder(6, 8, 6, 8));
+		for (String id : supported) {
+			JCheckBox check = new JCheckBox(resolveTooltip(id), selected.contains(id));
+			check.setName("quickAccessChoice." + id);
+			checks.add(check);
+			choices.add(check);
+		}
+		JScrollPane scroll = new JScrollPane(choices);
+		scroll.setPreferredSize(new Dimension(380, Math.min(440, Math.max(180, supported.size() * 29))));
+		int result = JOptionPane.showConfirmDialog(this, scroll,
+			UsabilityStrings.text("chrome.customizeQuickAccess"), JOptionPane.OK_CANCEL_OPTION,
+			JOptionPane.PLAIN_MESSAGE);
+		if (result != JOptionPane.OK_OPTION) return;
+		java.util.List<String> commands = new java.util.ArrayList<>();
+		for (int index = 0; index < checks.size(); index++) {
+			if (checks.get(index).isSelected()) commands.add(supported.get(index));
+		}
+		RibbonDisplayPreferences.saveQuickAccessCommands(commands);
+		refreshQuickAccessCommands();
+	}
+
+	private void refreshQuickAccessCommands() {
+		java.util.List<JComponent> previousControls = java.util.Arrays.stream(quickAccessCommands.getComponents())
+			.filter(JComponent.class::isInstance).map(JComponent.class::cast).toList();
+		if (menuManager != null && menuManager.getRibbonFactory() != null) {
+			menuManager.getRibbonFactory().unregisterRibbonControls(previousControls);
+		}
+		previousControls.stream().filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+			.forEach(button -> button.setAction(null));
+		quickAccessCommands.removeAll();
+		java.util.List<String> visibleCommands = RibbonDisplayPreferences.loadQuickAccessCommands().stream()
+			.filter(id -> menuManager != null && menuManager.getActionFromId(id) != null).toList();
+		if (!visibleCommands.isEmpty()) quickAccessCommands.add(new VerticalDivider());
+		for (String id : visibleCommands) quickAccessCommands.add(createActionButton(id));
+		quickAccessCommands.setVisible(RibbonDisplayPreferences.loadQuickAccessVisible());
+		quickAccessCommands.revalidate();
+		quickAccessCommands.repaint();
 	}
 
 	private boolean isRibbonDisplayOptionsPopupVisible() {

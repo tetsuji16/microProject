@@ -25,6 +25,7 @@ import javax.imageio.ImageIO;
 
 import javax.swing.AbstractButton;
 import javax.swing.JFrame;
+import javax.swing.JCheckBox;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.MenuSelectionManager;
@@ -50,6 +51,7 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 	private JFrame frame;
 	private MainRibbonFrame persistedFrame;
 	private boolean originalQuickAccessVisible;
+	private String originalQuickAccessCommandsSetting;
 	private RibbonDisplayMode originalRibbonDisplayMode;
 	private boolean previousRibbonUi;
 	private boolean previousNewLook;
@@ -60,6 +62,8 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 		previousNewLook = Environment.isNewLook();
 		originalRibbonDisplayMode = RibbonDisplayPreferences.load();
 		originalQuickAccessVisible = RibbonDisplayPreferences.loadQuickAccessVisible();
+		originalQuickAccessCommandsSetting = java.util.prefs.Preferences
+			.userNodeForPackage(RibbonDisplayPreferences.class).get("ribbonQuickAccessCommands", null);
 		RibbonGuiEnvironment.initialize();
 	}
 
@@ -68,6 +72,10 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 		if (frame != null) SwingUtilities.invokeAndWait(() -> frame.dispose());
 		if (persistedFrame != null) SwingUtilities.invokeAndWait(() -> persistedFrame.dispose());
 		com.microproject.ui.ribbon.RibbonDisplayPreferences.saveQuickAccessVisible(originalQuickAccessVisible);
+		java.util.prefs.Preferences quickAccessPreferences = java.util.prefs.Preferences
+			.userNodeForPackage(RibbonDisplayPreferences.class);
+		if (originalQuickAccessCommandsSetting == null) quickAccessPreferences.remove("ribbonQuickAccessCommands");
+		else quickAccessPreferences.put("ribbonQuickAccessCommands", originalQuickAccessCommandsSetting);
 		if (originalRibbonDisplayMode != null) RibbonDisplayPreferences.save(originalRibbonDisplayMode);
 		Environment.setRibbonUI(previousRibbonUi);
 		Environment.setNewLook(previousNewLook);
@@ -115,8 +123,8 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 		robot.waitForIdle();
 		click(robot, options);
 		JPopupMenu optionsPopup = displayOptionsPopup();
-		assertEquals(6, optionsPopup.getComponentCount(),
-			"display options should contain heading, three modes, separator, and QAT visibility command");
+		assertEquals(7, optionsPopup.getComponentCount(),
+			"display options should contain heading, three modes, separator, QAT visibility, and customization commands");
 		assertEquals(UsabilityStrings.text("chrome.ribbonShow"), ((javax.swing.JLabel) optionsPopup.getComponent(0)).getText());
 		assertEquals(UsabilityStrings.text("chrome.ribbonAutoHide"), ((AbstractButton) optionsPopup.getComponent(1)).getText());
 		assertEquals(UsabilityStrings.text("chrome.ribbonTabsOnly"), ((AbstractButton) optionsPopup.getComponent(2)).getText());
@@ -125,6 +133,7 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 			"Always show Ribbon should be selected in the default display state");
 		assertTrue(optionsPopup.getComponent(4) instanceof JPopupMenu.Separator);
 		assertEquals(UsabilityStrings.text("chrome.ribbonHideQuickAccess"), ((AbstractButton) optionsPopup.getComponent(5)).getText());
+		assertEquals(UsabilityStrings.text("chrome.customizeQuickAccess"), ((AbstractButton) optionsPopup.getComponent(6)).getText());
 		assertPopupFitsWindow(optionsPopup, frame);
 		capture(robot, "ribbon-display-options-popup");
 		click(robot, popupItem(UsabilityStrings.text("chrome.ribbonTabsOnly")));
@@ -198,6 +207,40 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 		click(robot, popupItem(UsabilityStrings.text("chrome.ribbonShowQuickAccess")));
 		assertTrue(com.microproject.ui.ribbon.RibbonDisplayPreferences.loadQuickAccessVisible(),
 			"Quick Access Toolbar should be restorable from display options");
+	}
+
+	@Test
+	void quickAccessCustomizationAddsAndPersistsCanonicalRibbonAction() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
+		RibbonDisplayPreferences.saveQuickAccessCommands(java.util.List.of("RibbonTopBarSaveProject"));
+		JPanel ribbonHost = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+		OfficeChromePanel chrome = new OfficeChromePanel(manager, ribbonHost, () -> { });
+		SwingUtilities.invokeAndWait(() -> {
+			frame = new JFrame("Quick Access customization acceptance");
+			frame.add(chrome, BorderLayout.NORTH);
+			frame.setSize(1200, 500);
+			frame.setLocationByPlatform(true);
+			frame.setAlwaysOnTop(true);
+			frame.setVisible(true);
+			frame.toFront();
+		});
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(40);
+		GuiAcceptanceSupport.await(frame::isActive, "Quick Access acceptance window did not become active");
+		click(robot, findShowingButton(chrome, OfficeChromePanel.RIBBON_DISPLAY_OPTIONS_NAME));
+		click(robot, popupItem(UsabilityStrings.text("chrome.customizeQuickAccess")));
+		JCheckBox findChoice = findVisibleComponent("quickAccessChoice.RibbonFind", JCheckBox.class);
+		GuiAcceptanceSupport.await(findChoice::isShowing, "Ribbon Find choice did not appear in the customization dialog");
+		click(robot, findChoice);
+		robot.keyPress(KeyEvent.VK_ENTER);
+		robot.keyRelease(KeyEvent.VK_ENTER);
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(() -> RibbonDisplayPreferences.loadQuickAccessCommands().contains("RibbonFind"),
+			"accepted Quick Access customization was not persisted");
+		AbstractButton findButton = findShowingButton(chrome, "RibbonFind");
+		assertEquals(manager.getActionFromId("RibbonFind"), findButton.getAction(),
+			"customized QAT command must use the existing canonical action");
 	}
 
 	@Test
@@ -280,6 +323,14 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 	private static java.awt.Component findComponent(JPanel root, String name) {
 		return UiComponentWalker.flatten(root).stream().filter(candidate -> name.equals(candidate.getName()))
 			.findFirst().orElseThrow();
+	}
+
+	private static <T extends java.awt.Component> T findVisibleComponent(String name, Class<T> type) {
+		return java.util.Arrays.stream(java.awt.Window.getWindows())
+			.filter(java.awt.Window::isShowing)
+			.flatMap(window -> UiComponentWalker.flatten(window).stream())
+			.filter(type::isInstance).map(type::cast)
+			.filter(component -> name.equals(component.getName())).findFirst().orElseThrow();
 	}
 
 	private static JPopupMenu displayOptionsPopup() throws Exception {

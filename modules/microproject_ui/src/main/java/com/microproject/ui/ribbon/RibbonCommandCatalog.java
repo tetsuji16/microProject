@@ -179,6 +179,10 @@ final class RibbonCommandCatalog {
 		return Map.copyOf(result);
 	}
 
+	static List<String> quickAccessCandidates() {
+		return PLACEMENTS.keySet().stream().sorted().toList();
+	}
+
 	private static void register(Map<String, Placement> placements, CommandScope scope, String tab, String... ids) {
 		register(placements, scope, tab, Set.of(tab), ids);
 	}
