@@ -130,20 +130,25 @@ public final class FlatUiSupport {
 		return uiFont().deriveFont(Font.PLAIN, Math.max(11f, uiFont().getSize2D() - 1f));
 	}
 
-	public static Font ribbonTabFont() {
+	/** The single typeface and size used by the ribbon's text-bearing controls. */
+	public static Font ribbonFont() {
 		return mediumFont();
+	}
+
+	public static Font ribbonTabFont() {
+		return ribbonFont();
 	}
 
 	public static Font ribbonButtonFont() {
-		return mediumFont();
+		return ribbonFont();
 	}
 
 	public static Font ribbonBandTitleFont() {
-		return compactFont();
+		return ribbonFont();
 	}
 
 	public static Font ribbonChromeLabelFont() {
-		return mediumFont();
+		return ribbonFont();
 	}
 
 	public static Font ganttHeaderFont() {

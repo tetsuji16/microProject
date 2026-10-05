@@ -136,8 +136,11 @@ class RibbonButtonStylerTest {
 		styler.styleActionButton(large, true);
 		styler.styleActionButton(medium, "medium");
 
-		assertEquals(FlatUiSupport.ribbonButtonFont().getSize2D(), large.getFont().getSize2D());
-		assertEquals(FlatUiSupport.ribbonButtonFont().getSize2D(), medium.getFont().getSize2D());
+		assertEquals(FlatUiSupport.ribbonFont(), large.getFont());
+		assertEquals(FlatUiSupport.ribbonFont(), medium.getFont());
+		assertEquals(FlatUiSupport.ribbonFont(), FlatUiSupport.ribbonTabFont());
+		assertEquals(FlatUiSupport.ribbonFont(), FlatUiSupport.ribbonBandTitleFont());
+		assertEquals(FlatUiSupport.ribbonFont(), FlatUiSupport.ribbonChromeLabelFont());
 	}
 
 	@Test
