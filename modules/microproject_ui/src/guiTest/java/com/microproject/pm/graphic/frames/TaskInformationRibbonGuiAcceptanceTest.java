@@ -1803,13 +1803,13 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				.getString("TaskRibbonTask.title"));
 		click(robot, boundsOnScreen(taskTab));
 		GuiAcceptanceSupport.await(taskTab::isSelected, "Robot click did not select the Task ribbon tab");
-		assertFalse(findShowingButtonByCommand("RibbonLink").isEnabled(),
+		assertFalse(findVisibleOrOverflowButton(robot, "RibbonLink").isEnabled(),
 			"Link must be disabled without two selected tasks");
-		assertFalse(findShowingButtonByCommand("RibbonUnlink").isEnabled(),
+		assertFalse(findVisibleOrOverflowButton(robot, "RibbonUnlink").isEnabled(),
 			"Unlink must be disabled without a selected task");
-		assertFalse(findShowingButtonByCommand("RibbonIndent").isEnabled(),
+		assertFalse(findVisibleOrOverflowButton(robot, "RibbonIndent").isEnabled(),
 			"Indent must be disabled without a selected task");
-		assertFalse(findShowingButtonByCommand("RibbonOutdent").isEnabled(),
+		assertFalse(findVisibleOrOverflowButton(robot, "RibbonOutdent").isEnabled(),
 			"Outdent must be disabled without a selected task");
 		assertFalse(findShowingButtonByCommand("RibbonCollapse").isEnabled(),
 			"Collapse must be disabled without a selected task");
@@ -1916,7 +1916,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("TaskRibbonTask.title"));
 		click(robot, boundsOnScreen(taskTab));
-		AbstractButton indent = findShowingButtonByCommand("RibbonIndent");
+		AbstractButton indent = findVisibleOrOverflowButton(robot, "RibbonIndent");
 		GuiAcceptanceSupport.await(indent::isEnabled, "Indent remained disabled for the selected task");
 		RibbonCommandResult previousIndentOutcome = manager.getLastRibbonCommandResult();
 		click(robot, boundsOnScreen(indent));
@@ -1934,7 +1934,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> second.getWbsParentTask() == first,
 				"Ctrl+Y did not reapply the selected task hierarchy after Indent");
 
-		AbstractButton outdent = findShowingButtonByCommand("RibbonOutdent");
+		AbstractButton outdent = findVisibleOrOverflowButton(robot, "RibbonOutdent");
 		GuiAcceptanceSupport.await(outdent::isEnabled, "Outdent became disabled after Indent: readOnly="
 				+ project.isReadOnly() + " parent=" + (second.getWbsParentTask() == null ? "null" : second.getWbsParentTask().getName()));
 		RibbonCommandResult previousOutdentOutcome = manager.getLastRibbonCommandResult();
@@ -1971,7 +1971,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(second),
 				"read-only outline test did not select the target task");
 		manager.setButtonState(second, project);
-		AbstractButton readOnlyIndent = findShowingButtonByCommand("RibbonIndent");
+		AbstractButton readOnlyIndent = findVisibleOrOverflowButton(robot, "RibbonIndent");
 		assertFalse(readOnlyIndent.isEnabled(), "Ribbon Indent must be disabled for a read-only project");
 		press(robot, KeyEvent.VK_ALT, KeyEvent.VK_SHIFT, KeyEvent.VK_RIGHT);
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getLastTaskCommandResult() != null
@@ -2561,7 +2561,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, boundsOnScreen(taskTab));
 		assertFalse(findShowingButtonByCommand("RibbonTaskInformation").isEnabled(),
 			"Task Information must not stay enabled for a multi-task selection");
-		AbstractButton link = findShowingButtonByCommand("RibbonLink");
+		AbstractButton link = findVisibleOrOverflowButton(robot, "RibbonLink");
 		GuiAcceptanceSupport.await(link::isEnabled, "Link remained disabled for two selected tasks");
 		Environment.setClientSide(true);
 		Environment.setBatchMode(false);
@@ -2632,7 +2632,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> successor.getPredecessorList().size() == 1
 				&& gantt.getModel().getCache().getEdgesSize() == 1, "Ctrl+Y did not redo the link");
 
-		AbstractButton unlink = findShowingButtonByCommand("RibbonUnlink");
+		AbstractButton unlink = findVisibleOrOverflowButton(robot, "RibbonUnlink");
 		GuiAcceptanceSupport.await(unlink::isEnabled, "Unlink became disabled after link creation");
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(predecessor)
 				&& manager.getCurrentFrame().getSelectedImpls(false).contains(successor),
