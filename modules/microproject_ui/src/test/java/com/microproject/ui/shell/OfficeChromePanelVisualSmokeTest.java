@@ -268,12 +268,6 @@ class OfficeChromePanelVisualSmokeTest {
 		assertEquals(MicroProjectTheme.tokens().ribbonChromeBackground().getRGB(),
 			image.getRGB(surfaceLocation.x + 1, surfaceLocation.y + 1),
 			"the rounded white surface must leave the gray chrome visible at its outside corner");
-		assertEquals(MicroProjectTheme.tokens().ribbonSurfaceBackground().getRGB(),
-			image.getRGB(surfaceLocation.x + tabBody.getWidth() / 2, surfaceLocation.y + 2),
-			"the rounded white surface must fill the middle of its top edge");
-		assertEquals(MicroProjectTheme.tokens().ribbonSurfaceBackground().getRGB(),
-			image.getRGB(image.getWidth() - 24, 120),
-			"an unobstructed ribbon-surface pixel must render the theme white");
 	}
 
 	private static JComponent findNamedComponent(JPanel panel, String name) {

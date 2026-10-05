@@ -87,8 +87,8 @@ class RibbonStructureTest {
 		assertEquals(List.of("RibbonImportProject", "RibbonExportProject"),
 			ribbonButtonIds("FileExchangeRibbonBand"));
 		assertEquals(List.of(
-			"ClipboardRibbonBand", "TaskTrackingRibbonBand", "TaskInsertRibbonBand", "TaskOutlineRibbonBand",
-			"TaskDependenciesRibbonBand", "TaskPropertiesRibbonBand", "TaskEditingRibbonBand"),
+			"ClipboardRibbonBand", "TaskInsertRibbonBand", "TaskOutlineRibbonBand", "TaskDependenciesRibbonBand",
+			"TaskPropertiesRibbonBand", "TaskTrackingRibbonBand", "TaskEditingRibbonBand"),
 			ribbonBandIds("TaskRibbonTask"));
 		assertEquals(List.of("RibbonMoveTaskUp", "RibbonMoveTaskDown", "RibbonExpand", "RibbonCollapse"),
 			ribbonButtonIds("TaskOutlineRibbonBand"));
