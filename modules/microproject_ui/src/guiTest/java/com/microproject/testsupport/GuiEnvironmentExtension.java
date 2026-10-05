@@ -23,6 +23,7 @@ import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.TestExecutionExceptionHandler;
+import org.opentest4j.TestAbortedException;
 
 /** Shared last-resort desktop cleanup for every GUI acceptance fixture. */
 public final class GuiEnvironmentExtension implements BeforeEachCallback, AfterEachCallback, TestExecutionExceptionHandler {
@@ -38,6 +39,7 @@ public final class GuiEnvironmentExtension implements BeforeEachCallback, AfterE
 
 	@Override
 	public void handleTestExecutionException(ExtensionContext context, Throwable failure) throws Throwable {
+		if (failure instanceof TestAbortedException) throw failure;
 		try {
 			captureFailure(context);
 		} catch (Throwable captureFailure) {
