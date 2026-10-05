@@ -146,6 +146,10 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 			&& ribbon.isCommandSurfaceVisible() && ribbon.getRibbonDisplayMode() == RibbonDisplayMode.AUTO_HIDE,
 			"the Office More control must temporarily reveal the auto-hidden ribbon without changing its saved mode");
 		capture(robot, "ribbon-display-auto-hide-temporary-reveal");
+		AbstractButton taskTab = ribbonTab(ribbonHost, "TaskRibbonTask");
+		click(robot, taskTab);
+		GuiAcceptanceSupport.await(() -> taskTab.isSelected() && ribbon.isCommandSurfaceVisible(),
+			"interacting with a ribbon tab must keep a temporary Auto-hide reveal open");
 		click(robot, documentSurface);
 		GuiAcceptanceSupport.await(() -> !((javax.swing.JComponent) ribbon).isVisible()
 			&& ribbon.getRibbonDisplayMode() == RibbonDisplayMode.AUTO_HIDE,
@@ -188,6 +192,14 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 	private static AbstractButton findShowingButton(JPanel root, String name) {
 		return UiComponentWalker.flatten(root).stream().filter(AbstractButton.class::isInstance)
 			.map(AbstractButton.class::cast).filter(button -> name.equals(button.getName()) && button.isShowing())
+			.findFirst().orElseThrow();
+	}
+
+	private static AbstractButton ribbonTab(JPanel root, String tabId) {
+		return UiComponentWalker.flatten(root).stream().filter(AbstractButton.class::isInstance)
+			.map(AbstractButton.class::cast)
+			.filter(button -> tabId.equals(((javax.swing.JComponent) button)
+				.getClientProperty(com.microproject.ui.ribbon.ModernRibbonPanel.TAB_ID_PROPERTY)))
 			.findFirst().orElseThrow();
 	}
 
