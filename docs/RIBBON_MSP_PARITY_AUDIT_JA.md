@@ -53,10 +53,10 @@ Command: ResourceLevelSelection (ID未採番; 現行標準Actionに追加前)
 User routes: Resource > Level > Level Selection。メニュー/shortcut等は同じcanonical commandへ委譲。
 Selection: active documentのTask selection snapshot。空選択はdisabled/rejected。selected task setは実行開始時に一度だけ解決。
 Allowed state: writable project、計算/編集transactionが進行中でない。completed/inactive/read-only/summary等の個別対象可否をservice契約に合わせる。
-Model before → after: 選択タスクのみleveling delay/splitを変更。未選択のassignment/task stateは保持し、固定負荷として候補判定に含める。
+Model before → after: 選択タスクのみresource-leveling由来のdelay/splitを変更。計画時は未選択assignmentを固定負荷として含める。Apply後のschedule再計算に伴う依存先の派生日付変更は許容し、LevelingDelay/splitを未選択タスクへ直接付与しない。
 Visible before → after: active schedule/resource viewで変更を反映し、選択を保持。実結果の変更行と unresolved conflictsを示す。
 Undo/Redo: 一つのresource-leveling transactionをCtrl+Z/Ctrl+Y各1回で正確に復元/再適用。
-Persistence: native project save/reload後、対象タスクのdelay/splitと未選択タスク不変を確認。
+Persistence: native project save/reload後、対象タスクのdelay/split、未選択タスクのdelay/split不変、依存関係による派生日付を確認。
 Invalid state: empty selection/read-only projectはdisabledまたはreason付きrejected。silent no-op禁止。
 Diagnostic result: changed/rejected/failed、selected stable task IDs、変更task IDs、conflict数、active view。
 ```

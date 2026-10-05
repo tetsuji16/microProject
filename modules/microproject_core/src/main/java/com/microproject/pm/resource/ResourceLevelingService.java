@@ -185,8 +185,9 @@ public final class ResourceLevelingService {
 
 	/**
 	 * Previews MSP-style Level Selection. Selected tasks are the only tasks that
-	 * may move or split; assignments on other tasks remain fixed and still count
-	 * against each resource's capacity.
+	 * receive leveling delays or splits; assignments on other tasks are fixed
+	 * capacity constraints while the leveling plan is calculated. Recalculation
+	 * may still move dependent tasks through ordinary schedule logic.
 	 */
 	public Plan previewSelectedTasks(Project project, Collection<? extends Resource> selectedResources,
 		Options options, Collection<? extends Task> selectedTasks) {
