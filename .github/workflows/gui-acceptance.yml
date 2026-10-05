@@ -29,7 +29,7 @@ concurrency:
 
 jobs:
   full-gui-matrix:
-    name: GUI acceptance and visual audit
+    name: Full GUI locale and DPI matrix
     runs-on: windows-latest
     timeout-minutes: 120
     steps:
