@@ -8,6 +8,15 @@ on:
     branches:
       - master
   workflow_dispatch:
+    inputs:
+      gui_suite:
+        description: 'GUI suite (scheduled audits always use full)'
+        required: false
+        default: full
+        type: choice
+        options:
+          - smoke
+          - full
   schedule:
     - cron: '17 2 * * 1'
 
@@ -20,7 +29,7 @@ concurrency:
 
 jobs:
   full-gui-matrix:
-    name: Full GUI locale and DPI matrix
+    name: GUI acceptance and visual audit
     runs-on: windows-latest
     timeout-minutes: 120
     steps:
@@ -41,10 +50,17 @@ jobs:
         shell: pwsh
         run: .\gradlew.bat clean installDist --console=plain
 
-      - name: Run complete GUI acceptance and visual matrix
+      - name: Run selected GUI acceptance suite and visual matrix
         shell: pwsh
         timeout-minutes: 110
-        run: .\.github\scripts\run-gui-acceptance.ps1 -Suite full
+        run: |
+          $requestedSuite = '${{ inputs.gui_suite }}'
+          if ([string]::IsNullOrWhiteSpace($requestedSuite)) {
+            if ($env:GITHUB_EVENT_NAME -eq 'schedule') { $requestedSuite = 'full' }
+            else { $requestedSuite = 'smoke' }
+          }
+          Write-Host "Selected GUI suite: $requestedSuite (event=$env:GITHUB_EVENT_NAME)"
+          .\.github\scripts\run-gui-acceptance.ps1 -Suite $requestedSuite
 
       - name: Capture GUI failure diagnostics
         if: failure()
