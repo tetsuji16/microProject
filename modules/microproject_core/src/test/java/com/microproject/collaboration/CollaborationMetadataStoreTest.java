@@ -72,6 +72,24 @@ class CollaborationMetadataStoreTest {
 	}
 
 	@Test
+	void unversionedLegacySidecarLoadsAndIsUpgradedWithoutLosingUsers() throws Exception {
+		Path project = Files.createTempFile("mpo-collaboration-legacy", ".mpo");
+		Path sidecar = CollaborationMetadataStore.buildSidecarFile(project.toFile()).toPath();
+		Files.writeString(sidecar,
+			"{\"projectFingerprint\":\"legacy-fingerprint\",\"users\":{\"alice\":{\"userKey\":\"alice\"}}}",
+			StandardCharsets.UTF_8);
+
+		CollaborationMetadataStore store = new CollaborationMetadataStore(project.toFile());
+		CollaborationMetadataStore.Metadata metadata = store.load();
+
+		assertEquals(CollaborationMetadataStore.SCHEMA_VERSION, metadata.getSchemaVersion());
+		assertEquals("legacy-fingerprint", metadata.getProjectFingerprint());
+		assertEquals("alice", metadata.getUsers().get("alice").getUserKey());
+		String upgraded = Files.readString(sidecar);
+		assertTrue(upgraded.contains("\"schemaVersion\":1"));
+	}
+
+	@Test
 	void malformedSidecarIsNeverReplacedDuringCloudSync() throws Exception {
 		Path project = Files.createTempFile("mpo-collaboration", ".mpo");
 		Path sidecar = CollaborationMetadataStore.buildSidecarFile(project.toFile()).toPath();
