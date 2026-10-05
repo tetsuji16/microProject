@@ -4,19 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.GraphicsEnvironment;
-
-import javax.swing.SwingUtilities;
-
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
-import com.microproject.pm.calendar.CalendarService;
-import com.microproject.pm.calendar.WorkingCalendar;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.Project;
 import com.microproject.strings.Messages;
-import com.microproject.undo.DataFactoryUndoController;
 
 /**
  * Regression test for issue #353: in the "Change Working Time" dialog the
@@ -26,15 +16,9 @@ import com.microproject.undo.DataFactoryUndoController;
  * Per the MS Project spec adopted in #353: OK commits every edit made inside
  * the dialog; Cancel discards them all.
  *
- * Two layers:
- * <ul>
- * <li>{@code sourceContractHolds} — runs headless; asserts the wiring contract:
- * every radio handler marks the dialog edited and OK's commit path consults
- * that flag.</li>
- * <li>{@code radioEditMarksCalendarEditedAndOkCommitsIt} — builds a real dialog
- * on the EDT and drives the flag → commit path end to end (skipped headless,
- * same as other dialog tests in this module).</li>
- * </ul>
+ * The source-level wiring check covers all three radio handlers. The physical
+ * date-selection, radio-button, and parent-OK path is exercised by
+ * {@code ChangeWorkingTimeDialogGuiAcceptanceTest}.
  */
 class ChangeWorkingTimeDialogBoxSaveTest {
 
@@ -109,32 +93,4 @@ class ChangeWorkingTimeDialogBoxSaveTest {
 		}
 	}
 
-	@Test
-	void radioEditMarksCalendarEditedAndOkCommitsIt() throws Exception {
-		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(),
-				"dialog construction needs a real graphics environment; skipped on headless CI");
-
-		DataFactoryUndoController undoController = new DataFactoryUndoController();
-		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
-		Project project = Project.createProject(resourcePool, undoController);
-		WorkingCalendar base = CalendarService.getInstance().getStandardInstance();
-
-		SwingUtilities.invokeAndWait(() -> {
-			ChangeWorkingTimeDialogBox dlg = ChangeWorkingTimeDialogBox.getInstance(null,
-					project, base, null, false, undoController);
-
-			// untouched dialog: OK must not push anything back
-			dlg.saveIfNeeded();
-			assertFalse(dlg.isCalendarCommitted());
-
-			// simulate the radio handlers' postcondition: scratch modified + marked edited
-			dlg.markCalendarEdited();
-			dlg.saveIfNeeded();
-
-			assertTrue(dlg.isCalendarCommitted(),
-					"OK must commit a radio-button edit (issue #353: it was silently discarded)");
-			assertEquals(base.getName(), dlg.getFormCalendarName(),
-					"scratch copy content must be assigned back onto the edited calendar");
-		});
-	}
 }

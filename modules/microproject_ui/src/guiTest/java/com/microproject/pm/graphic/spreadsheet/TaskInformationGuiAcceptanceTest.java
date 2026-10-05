@@ -6,6 +6,7 @@
 package com.microproject.pm.graphic.spreadsheet;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
@@ -23,6 +24,7 @@ import java.nio.file.Path;
 import javax.imageio.ImageIO;
 import javax.swing.JFrame;
 import javax.swing.JComponent;
+import javax.swing.JComboBox;
 import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
 import javax.swing.JTabbedPane;
@@ -92,6 +94,7 @@ class TaskInformationGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> {
 			JTabbedPane tabs = findTabbedPane(dialog.getContentPane());
 			assertTrue(tabs != null, "Task Information must expose its tabbed form");
+			int[] comboBoxCount = { 0 };
 			for (int index = 0; index < tabs.getTabCount(); index++) {
 				tabs.setSelectedIndex(index);
 				JComponent tab = (JComponent)tabs.getComponentAt(index);
@@ -105,9 +108,27 @@ class TaskInformationGuiAcceptanceTest {
 					java.awt.Component view = scroll.getViewport().getView();
 					assertVisibleChildrenFit(view, tabs.getTitleAt(index),
 						scroll.getHorizontalScrollBarPolicy() == JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+					assertComboBoxContents(view, tabs.getTitleAt(index), comboBoxCount);
+				} else {
+					assertComboBoxContents(tab, tabs.getTitleAt(index), comboBoxCount);
 				}
 			}
+			assertTrue(comboBoxCount[0] > 0, "Task Information should contain option selectors");
 		});
+	}
+
+	private static void assertComboBoxContents(java.awt.Component component, String tabTitle, int[] count) {
+		if (component instanceof JComboBox<?> comboBox) {
+			count[0]++;
+			assertTrue(comboBox.getItemCount() > 0,
+				"tab " + tabTitle + " contains an empty option selector: " + comboBox.getName());
+			for (int index = 0; index < comboBox.getItemCount(); index++)
+				assertFalse("name".equals(String.valueOf(comboBox.getItemAt(index))),
+					"tab " + tabTitle + " contains the spurious 'name' choice in " + comboBox.getName());
+		}
+		if (component instanceof java.awt.Container container)
+			for (java.awt.Component child : container.getComponents())
+				assertComboBoxContents(child, tabTitle, count);
 	}
 
 	private static void assertVisibleChildrenFit(java.awt.Component component, String tabTitle,
