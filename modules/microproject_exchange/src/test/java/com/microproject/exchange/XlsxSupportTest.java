@@ -28,6 +28,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FilterInputStream;
 import java.io.InputStream;
 
 import java.nio.charset.StandardCharsets;
@@ -552,5 +553,27 @@ public class XlsxSupportTest extends TestCase {
 		assertNotNull(imported);
 		assertEquals(1, imported.getTasks().size());
 		assertEquals("Child Task", imported.getTasks().get(0).getName());
+	}
+
+	public void testMspImporterAcceptsInputStreamWithoutMarkSupport() throws Exception {
+		String xml = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n"
+			+ "<Project xmlns=\"http://schemas.microsoft.com/project\">"
+			+ "<Name>Unmarked input</Name>"
+			+ "<Tasks><Task><UID>1</UID><ID>1</ID><Name>Stream task</Name></Task></Tasks>"
+			+ "</Project>";
+		InputStream unmarked = new FilterInputStream(
+			new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8))) {
+			@Override
+			public boolean markSupported() {
+				return false;
+			}
+		};
+
+		com.microproject.pm.task.Project imported = new MspImporter().importProject(unmarked, "xml",
+			(progress, label) -> {});
+
+		assertNotNull(imported);
+		assertEquals(1, imported.getTasks().size());
+		assertEquals("Stream task", imported.getTasks().get(0).getName());
 	}
 }
