@@ -884,17 +884,33 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	 */
 	private RibbonBandPanel buildBandProxy(RibbonBandPanel panel, SwingRibbonModel.RibbonBand band) {
 		// Represent a collapsed group with its leading command icon and the full
-		// group caption below. Keep the whole target clickable and expose its full
-		// group name as its tooltip and accessible name.
+		// group caption below. Keep the disclosure target mouse and keyboard
+		// accessible and identify the complete group to assistive technology.
 		JButton trigger = new JButton();
-		trigger.setFocusable(false);
-		trigger.setToolTipText(band.getTitle());
+		trigger.setText("\u25BC");
+		String showGroupCommands = java.text.MessageFormat.format(
+			UsabilityStrings.text("chrome.ribbonShowGroupCommands"), band.getTitle());
+		trigger.setToolTipText(showGroupCommands);
 		trigger.getAccessibleContext().setAccessibleName(band.getTitle());
+		trigger.getAccessibleContext().setAccessibleDescription(showGroupCommands);
 		band.getButtons().stream()
 			.map(SwingRibbonModel.RibbonButton::getIconKey)
 			.filter(iconKey -> iconKey != null && !iconKey.isBlank())
 			.findFirst().ifPresent(iconKey -> trigger.putClientProperty(RibbonButtonStyler.ICON_KEY_PROPERTY, iconKey));
 		buttonStyler.styleActionButton(trigger, "large");
+		// The shared large-button styler defaults ribbon commands to mouse-first
+		// focus behavior; this proxy is a navigation control and must be tabbable.
+		trigger.setFocusable(true);
+		// A collapsed group previously looked exactly like its first command (for
+		// example, Delete in Editing), so users had no visible clue that it opened
+		// a menu. Keep the representative icon and add a standard disclosure mark.
+		trigger.setHorizontalTextPosition(SwingConstants.RIGHT);
+		trigger.setVerticalTextPosition(SwingConstants.CENTER);
+		trigger.setIconTextGap(2);
+		Dimension proxySize = trigger.getPreferredSize();
+		Dimension disclosedProxySize = new Dimension(proxySize.width + 12, proxySize.height);
+		trigger.setPreferredSize(disclosedProxySize);
+		trigger.setMinimumSize(disclosedProxySize);
 		JPopupMenu popup = new JPopupMenu();
 		if (band.isCustomBand()) {
 			JComponent custom = band.getCustomBandProvider() == null ? null : band.getCustomBandProvider().createComponent();

@@ -19,6 +19,7 @@ import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -345,11 +346,26 @@ class RibbonTabGuiAcceptanceTest {
 			.findFirst()
 			.orElseThrow(() -> new AssertionError("narrow ribbon did not expose an overflow popup"));
 		JPopupMenu popup = (JPopupMenu) overflow.getClientProperty(ModernRibbonPanel.COLLAPSED_POPUP_PROPERTY);
+		assertEquals("\u25BC", overflow.getText(), "collapsed group must visibly advertise its disclosure menu");
+		assertTrue(overflow.getToolTipText() != null && !overflow.getToolTipText().isBlank(),
+			"collapsed group must explain that it contains commands");
+		assertEquals(overflow.getToolTipText(), overflow.getAccessibleContext().getAccessibleDescription(),
+			"screen readers must receive the same group-menu instruction");
+		assertTrue(overflow.isFocusable(), "collapsed group must be reachable by keyboard focus");
 		SwingUtilities.invokeAndWait(() -> {
 			frame.toFront();
 			frame.requestFocusInWindow();
+			overflow.requestFocusInWindow();
 		});
 		robot.delay(150);
+		GuiAcceptanceSupport.await(overflow::isFocusOwner, "collapsed group did not receive keyboard focus");
+		robot.keyPress(KeyEvent.VK_SPACE);
+		robot.keyRelease(KeyEvent.VK_SPACE);
+		GuiAcceptanceSupport.await(popup::isVisible, "Space did not open the collapsed group menu");
+		robot.keyPress(KeyEvent.VK_ESCAPE);
+		robot.keyRelease(KeyEvent.VK_ESCAPE);
+		GuiAcceptanceSupport.await(() -> !popup.isVisible(), "Escape did not close the collapsed group menu");
+		SwingUtilities.invokeAndWait(() -> overflow.requestFocusInWindow());
 		Point overflowScreen = overflow.getLocationOnScreen();
 		Rectangle frameBounds = frame.getBounds();
 		assertTrue(new Rectangle(frameBounds.x, frameBounds.y, frameBounds.width, frameBounds.height)
