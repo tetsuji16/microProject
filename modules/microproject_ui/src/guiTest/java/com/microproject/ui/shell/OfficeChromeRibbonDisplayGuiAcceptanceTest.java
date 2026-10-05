@@ -232,7 +232,6 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 		click(robot, findShowingButton(chrome, OfficeChromePanel.RIBBON_DISPLAY_OPTIONS_NAME));
 		click(robot, popupItem(UsabilityStrings.text("chrome.customizeQuickAccess")));
 		JCheckBox findChoice = findVisibleComponent("quickAccessChoice.RibbonFind", JCheckBox.class);
-		GuiAcceptanceSupport.await(findChoice::isShowing, "Ribbon Find choice did not appear in the customization dialog");
 		click(robot, findChoice);
 		robot.keyPress(KeyEvent.VK_ENTER);
 		robot.keyRelease(KeyEvent.VK_ENTER);
@@ -340,12 +339,25 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 			.findFirst().orElseThrow();
 	}
 
-	private static <T extends java.awt.Component> T findVisibleComponent(String name, Class<T> type) {
-		return java.util.Arrays.stream(java.awt.Window.getWindows())
-			.filter(java.awt.Window::isShowing)
-			.flatMap(window -> UiComponentWalker.flatten(window).stream())
-			.filter(type::isInstance).map(type::cast)
-			.filter(component -> name.equals(component.getName())).findFirst().orElseThrow();
+	private static <T extends java.awt.Component> T findVisibleComponent(String name, Class<T> type) throws Exception {
+		java.util.concurrent.atomic.AtomicReference<T> found = new java.util.concurrent.atomic.AtomicReference<>();
+		GuiAcceptanceSupport.await(() -> {
+			try {
+				SwingUtilities.invokeAndWait(() -> found.set(java.util.Arrays.stream(java.awt.Window.getWindows())
+					.filter(java.awt.Window::isShowing)
+					.flatMap(window -> UiComponentWalker.flatten(window).stream())
+					.filter(type::isInstance).map(type::cast)
+					.filter(component -> name.equals(component.getName()) && component.isShowing())
+					.findFirst().orElse(null)));
+			} catch (InterruptedException interrupted) {
+				Thread.currentThread().interrupt();
+				throw new IllegalStateException("Interrupted while querying the Swing component tree", interrupted);
+			} catch (java.lang.reflect.InvocationTargetException failure) {
+				throw new IllegalStateException("Swing component lookup failed", failure.getCause());
+			}
+			return found.get() != null;
+		}, "Visible GUI component did not appear: " + name);
+		return found.get();
 	}
 
 	private static JPopupMenu displayOptionsPopup() throws Exception {
