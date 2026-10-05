@@ -1981,6 +1981,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 //		actionsMap.addHandler(ACTION_ENTERPRISE_RESOURCES, new EnterpriseResourcesAction());
 		actionsMap.addHandler(ACTION_CHANGE_WORKING_TIME, new ChangeWorkingTimeAction());
 		actionsMap.addHandler(ACTION_LEVEL_RESOURCES, new LevelResourcesAction());
+		actionsMap.addHandler(ACTION_LEVEL_ALL, new LevelAllAction());
 		actionsMap.addHandler(ACTION_LEVEL_SELECTION, new LevelSelectionAction());
 		actionsMap.addHandler(ACTION_USE_RESOURCE_POOL, new UseResourcePoolAction());
 		actionsMap.addHandler(ACTION_CREATE_RESOURCE_POOL, new CreateResourcePoolAction());
@@ -2607,6 +2608,14 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			setMeAsLastGraphicManager();
 			if (isDocumentActive())
 				getCurrentFrame().doLevelResourcesDialog();
+		}
+	}
+
+	private final class LevelAllAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.RESOURCE_LEVEL_ALL));
 		}
 	}
 
@@ -4270,6 +4279,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled(ACTION_ASSIGN_RESOURCES, !readOnly && hasEditableTaskSelection);
 		getMenuManager().setActionEnabled(ACTION_TIMESHEET,!readOnly && project != null);
 		getMenuManager().setActionEnabled(ACTION_LEVEL_RESOURCES,!readOnly && project != null);
+		getMenuManager().setActionEnabled(ACTION_LEVEL_ALL,!readOnly && project != null);
 		getMenuManager().setActionEnabled(ACTION_LEVEL_SELECTION,
 			!readOnly && getCurrentFrame() != null && getCurrentFrame().hasTaskSelection(true, 1, false));
 		boolean hasCcpmPlan = project != null && new com.microproject.pm.ccpm.CriticalChainService().findBaseline(project) != null;

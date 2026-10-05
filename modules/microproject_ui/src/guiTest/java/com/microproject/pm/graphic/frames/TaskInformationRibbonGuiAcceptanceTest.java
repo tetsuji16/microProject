@@ -2725,6 +2725,82 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	@Test
+	void levelAllUsesEveryProjectResourceWithoutChangingTaskSelectionAndSupportsUndoRedoAndMpo() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("ribbon-level-all", undo);
+		pool.setLocal(true);
+		Project project = Project.createProject(pool, undo);
+		project.initialize(false, false);
+		NormalTask anchorOne = project.createScriptedTask();
+		anchorOne.setName("Level All resource one anchor");
+		NormalTask targetOne = project.createScriptedTask();
+		targetOne.setName("Level All resource one target");
+		NormalTask anchorTwo = project.createScriptedTask();
+		anchorTwo.setName("Level All resource two anchor");
+		NormalTask targetTwo = project.createScriptedTask();
+		targetTwo.setName("Level All resource two target");
+		Resource resourceOne = pool.newResourceInstance();
+		resourceOne.setName("Level All resource one");
+		Resource resourceTwo = pool.newResourceInstance();
+		resourceTwo.setName("Level All resource two");
+		AssignmentService.getInstance().newAssignment(anchorOne, resourceOne, 1.0, 0L, getClass());
+		AssignmentService.getInstance().newAssignment(targetOne, resourceOne, 1.0, 0L, getClass());
+		AssignmentService.getInstance().newAssignment(anchorTwo, resourceTwo, 1.0, 0L, getClass());
+		AssignmentService.getInstance().newAssignment(targetTwo, resourceTwo, 1.0, 0L, getClass());
+		project.recalculate();
+		assertEquals(0L, targetOne.getLevelingDelay());
+		assertEquals(0L, targetTwo.getLevelingDelay());
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"resource leveling task sheet did not become visible");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, anchorOne), nameColumn(sheet)));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(anchorOne),
+			"physical task click did not select the intended Level All anchor");
+		AbstractButton resourceTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+				.getString("ResourceRibbonTask.title"));
+		click(robot, boundsOnScreen(resourceTab));
+		AbstractButton levelAll = findShowingButtonByCommand("RibbonLevelAll");
+		GuiAcceptanceSupport.await(levelAll::isEnabled,
+			"Level All must be enabled for a writable project with a selected task");
+		RibbonCommandResult before = manager.getLastRibbonCommandResult();
+		click(robot, boundsOnScreen(levelAll));
+		GuiAcceptanceSupport.await(() -> targetOne.getLevelingDelay() > 0L && targetTwo.getLevelingDelay() > 0L,
+			"Resource > Level All did not level eligible tasks on both project resources");
+		assertEquals(0L, anchorOne.getLevelingDelay(), "Level All must retain the first resource's anchor");
+		assertEquals(0L, anchorTwo.getLevelingDelay(), "Level All must retain the second resource's anchor");
+		GuiAcceptanceSupport.await(() -> manager.getLastRibbonCommandResult() != before
+				&& manager.getLastRibbonCommandResult().status() == RibbonCommandResult.Status.CHANGED,
+			"Level All did not publish its changed result");
+		assertTrue(manager.getCurrentFrame().getSelectedImpls(false).contains(anchorOne),
+			"Level All must preserve the user's task selection");
+		assertFalse(levelAll.isSelected(), "Level All is a momentary command and must not latch");
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		MpoFileImporter importer = new MpoFileImporter();
+		assertTrue(importer.saveProject(project, saved), "MPO save rejected the Level All project");
+		Project reloaded = importer.loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		assertTrue(taskNamed(reloaded, "Level All resource one target").getLevelingDelay() > 0L,
+			"MPO reload lost Level All's first resource delay");
+		assertTrue(taskNamed(reloaded, "Level All resource two target").getLevelingDelay() > 0L,
+			"MPO reload lost Level All's second resource delay");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> targetOne.getLevelingDelay() == 0L && targetTwo.getLevelingDelay() == 0L,
+			"one Ctrl+Z did not undo Level All across every resource");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> targetOne.getLevelingDelay() > 0L && targetTwo.getLevelingDelay() > 0L,
+			"one Ctrl+Y did not redo Level All across every resource");
+	}
+
+	@Test
 	void unlinkingOneTaskWithMultipleLinksPromptsAndRemovesOnlyTheChosenLink() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		previousRibbonUi = Environment.isRibbonUI();

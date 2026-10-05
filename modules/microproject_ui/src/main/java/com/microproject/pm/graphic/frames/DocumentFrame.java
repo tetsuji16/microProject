@@ -559,6 +559,7 @@ public class DocumentFrame extends NamedFrame implements
 		case SHOW_ALL -> lastTaskCommandResult = applyTaskVisibility(command, false);
 		case TASK_MODE_MANUAL -> lastTaskCommandResult = applyTaskMode(command, com.microproject.pm.task.TaskModeService.Mode.MANUAL);
 		case TASK_MODE_AUTOMATIC -> lastTaskCommandResult = applyTaskMode(command, com.microproject.pm.task.TaskModeService.Mode.AUTOMATIC);
+		case RESOURCE_LEVEL_ALL -> lastTaskCommandResult = applyResourceLevelAll(command);
 		case RESOURCE_LEVEL_SELECTION -> lastTaskCommandResult = applyResourceLevelSelection(command);
 		case STATUS_DATE -> lastTaskCommandResult = applyStatusDate(command);
 		case MARK_ON_TRACK -> lastTaskCommandResult = applyMarkOnTrack(command);
@@ -679,6 +680,32 @@ public class DocumentFrame extends NamedFrame implements
 			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.FAILED,
 				failure.getClass().getSimpleName(), selectedIds, List.of(), getTopViewId());
 		}
+		return applyResourceLevelingPlan(command, plan, selectedIds, selectedNodes, null);
+	}
+
+	private RibbonCommandResult applyResourceLevelAll(CommandId command) {
+		List<Long> selectedIds = getSelectedTaskIds();
+		if (project == null)
+			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.REJECTED,
+				"no-active-document", selectedIds, List.of(), getTopViewId());
+		if (project.isReadOnly())
+			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.REJECTED,
+				"document-read-only", selectedIds, List.of(), getTopViewId());
+
+		finishAnyOperations();
+		SelectionSnapshot selectionSnapshot = SelectionSnapshot.capture(getActiveSpreadSheet(), List.of());
+		ResourceLevelingService.Plan plan;
+		try {
+			plan = new ResourceLevelingService().preview(project, null, ResourceLevelingService.Options.defaults());
+		} catch (RuntimeException failure) {
+			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.FAILED,
+				failure.getClass().getSimpleName(), selectedIds, List.of(), getTopViewId());
+		}
+		return applyResourceLevelingPlan(command, plan, selectedIds, selectionSnapshot.selectedNodes, selectionSnapshot);
+	}
+
+	private RibbonCommandResult applyResourceLevelingPlan(CommandId command, ResourceLevelingService.Plan plan,
+		List<Long> selectedIds, List<Node> selectedNodes, SelectionSnapshot selectionSnapshot) {
 		List<Long> affectedIds = plan.changes().stream().map(ResourceLevelingService.Change::task)
 			.map(Task::getUniqueId).filter(java.util.Objects::nonNull).toList();
 		if (plan.changes().isEmpty()) {
@@ -701,7 +728,8 @@ public class DocumentFrame extends NamedFrame implements
 					"partial-leveling-cancelled", selectedIds, List.of(), getTopViewId());
 		}
 		List<Task> affectedTasks = plan.changes().stream().map(ResourceLevelingService.Change::task).distinct().toList();
-		if (!CollaborationHelper.tryLockNodes(project, affectedTasks, this, "level selected tasks"))
+		if (!CollaborationHelper.tryLockNodes(project, affectedTasks, this,
+			CommandId.RESOURCE_LEVEL_ALL == command ? "level all tasks" : "level selected tasks"))
 			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.REJECTED,
 				"collaboration-lock-denied", selectedIds, List.of(), getTopViewId());
 		javax.swing.undo.UndoableEditSupport edits = project.getUndoController().getEditSupport();
@@ -710,8 +738,14 @@ public class DocumentFrame extends NamedFrame implements
 				"undo-unavailable", selectedIds, List.of(), getTopViewId());
 		try {
 			plan.apply(edits);
-			SpreadSheet sheet = getActiveSpreadSheet();
-			if (sheet != null) sheet.restoreTaskRowSelection(selectedNodes);
+			if (selectionSnapshot != null) {
+				// Level All is a momentary command; restore the user's current row/cell
+				// selection after schedule recalculation changes the view projection.
+				selectionSnapshot.restore();
+			} else {
+				SpreadSheet sheet = getActiveSpreadSheet();
+				if (sheet != null) sheet.restoreTaskRowSelection(selectedNodes);
+			}
 			refreshUndoButtonsSafely();
 			statusBar.setMessage(java.text.MessageFormat.format(
 				com.microproject.dialog.UsabilityStrings.text("leveling.applied"), affectedIds.size(), plan.splits().size()));

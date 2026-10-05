@@ -806,6 +806,26 @@ class RibbonButtonBehaviorTest {
 	}
 
 	@Test
+	void levelAllIsEnabledWithoutSelectionAndDoesNotLatchAfterNoChange() throws Exception {
+		// Microsoft Project Standard 2024's Resource > Level All applies to all
+		// resources/tasks in the plan (document-derived momentary command contract):
+		// https://support.microsoft.com/en-us/project/distribute-project-work-evenly-level-resource-assignments
+		Harness harness = newHarness();
+		harness.selectNone();
+
+		AbstractButton button = harness.manager.getMenuManager().getToolButtonsFromId("RibbonLevelAll")
+			.stream().filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast).findFirst().orElseThrow();
+		assertTrue(button.isEnabled(), "Level All requires a writable document but no selected task");
+		harness.invoke("RibbonLevelAll");
+
+		var result = harness.frame.getLastTaskCommandResult();
+		assertNotNull(result);
+		assertEquals(RibbonCommandResult.Status.NO_CHANGE, result.status());
+		assertTrue(result.selectedTaskIds().isEmpty(), "Level All must accept an empty task selection");
+		assertFalse(button.isSelected(), "Level All is a momentary command and must never latch");
+	}
+
+	@Test
 	void legacyTransformIdsShareCanonicalActionsAndChooserRoutes() throws Exception {
 		Harness harness = newHarness();
 		assertSame(harness.manager.getAction(MenuActionConstants.ACTION_CHOOSE_FILTER),
@@ -1164,6 +1184,7 @@ class RibbonButtonBehaviorTest {
 			"RibbonInsertRecurring",
 			"RibbonArrangeAll",
 			"RibbonLevelSelection",
+			"RibbonLevelAll",
 			"RibbonLevelResources",
 			"RibbonUseResourcePool",
 			"RibbonCreateResourcePool",

@@ -80,6 +80,21 @@ Invalid state: empty selection/read-only projectはdisabledまたはreason付き
 Diagnostic result: changed/rejected/failed、selected stable task IDs、変更task IDs、conflict数、active view。Robot: `TaskInformationRibbonGuiAcceptanceTest.selectedTaskLevelingUsesTheResourceRibbonAndSupportsUndoRedoAndPersistence`。
 ```
 
+## Resource Level All command contract (全体平準化)
+
+Microsoft Project Standard 2024の [Distribute project work evenly (level resource assignments)](https://support.microsoft.com/en-us/project/distribute-project-work-evenly-level-resource-assignments) は、Resource > Level > Level Allを計画内の全リソース/全タスクへ適用し、Level Selectionを選択タスクだけへの適用と区別する。UI文書はUndo単位、押下ラッチ、選択保持、MPO永続化の細部を規定しないため、ここはOfficeの一時実行コマンドとして定義した**document-derived compatibility decision**であり、MSP実測ではない。
+
+```text
+Command: CommandId.RESOURCE_LEVEL_ALL (`LevelAllAction` -> canonical task command)
+Scope: active writable project全体。タスク選択を要求せず、選択中でも選択集合にscopeを限定しない。serviceのeligible判定に従う。
+State: momentary command。処理後にpressed/selected状態を保持しない。
+Model/view: ResourceLevelingService.preview(project, null, Options.defaults())のPlanを一度適用。タスク/セル選択を保持し、スケジュール表示を更新する。
+Undo/Redo: 一つのPlan.applyとUndoableEditで全変更をUndo/Redoする。
+Persistence: MPO保存/再読込後もLevelingDelay/splitsを保持する。
+Evidence: `TaskInformationRibbonGuiAcceptanceTest.levelAllUsesEveryProjectResourceWithoutChangingTaskSelectionAndSupportsUndoRedoAndMpo` は2リソースの競合、物理的なResource > Level Allクリック、selection保持、単一Undo/Redo、MPO roundtripを検証する。`RibbonButtonBehaviorTest.levelAllIsEnabledWithoutSelectionAndDoesNotLatchAfterNoChange` は空selection時の有効性と非ラッチを検証する。
+Limit: 本sliceは既定Optionsを用いる。リソース稼働率/タスク状態等の対象資格は現在のResourceLevelingService実装に委ね、MSPのLeveling Options全機能を主張しない。
+```
+
 ## 証拠と追跡
 
 - Ribbon構成の実装: `modules/microproject_ui/src/main/resources/com/microproject/menu/menuInternal.properties`

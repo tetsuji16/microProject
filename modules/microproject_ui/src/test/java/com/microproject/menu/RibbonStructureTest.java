@@ -124,7 +124,8 @@ class RibbonStructureTest {
 				.toList());
 		assertEquals(List.of("RibbonTimesheet", "RibbonTeamFilter"),
 			ribbonButtonIds("ResourceAssignmentsRibbonBand"));
-		assertEquals(List.of("RibbonLevelSelection", "RibbonLevelResources"), ribbonButtonIds("ResourceLevelRibbonBand"));
+		assertEquals(List.of("RibbonLevelSelection", "RibbonLevelAll", "RibbonLevelResources"),
+			ribbonButtonIds("ResourceLevelRibbonBand"));
 		assertEquals("TOGGLE", menuInternalBundle().getString("RibbonTeamFilter.type"));
 	}
 

@@ -35,6 +35,7 @@ public enum CommandId {
 	SHOW_ALL("ShowAllTasks"),
 	TASK_MODE_MANUAL("TaskModeManual"),
 	TASK_MODE_AUTOMATIC("TaskModeAutomatic"),
+	RESOURCE_LEVEL_ALL("LevelAll"),
 	RESOURCE_LEVEL_SELECTION("LevelSelection"),
 	STATUS_DATE("StatusDate"),
 	MARK_ON_TRACK("MarkOnTrack"),
