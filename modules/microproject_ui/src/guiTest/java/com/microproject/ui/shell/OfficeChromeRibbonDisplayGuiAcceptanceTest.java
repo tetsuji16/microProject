@@ -364,15 +364,31 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 	}
 
 	private static void scrollIntoView(Robot robot, java.awt.Component component) throws Exception {
-		JScrollPane scrollPane = (JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class, component);
+		JScrollPane[] scrollPanes = new JScrollPane[1];
+		int[] rowHeight = new int[1];
+		int[] unitIncrement = new int[1];
+		SwingUtilities.invokeAndWait(() -> {
+			scrollPanes[0] = (JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class, component);
+			rowHeight[0] = component.getPreferredSize().height;
+			if (scrollPanes[0] != null)
+				unitIncrement[0] = scrollPanes[0].getVerticalScrollBar().getUnitIncrement();
+		});
+		JScrollPane scrollPane = scrollPanes[0];
 		assertTrue(scrollPane != null, "the Quick Access choices must be in a scrollable list");
+		assertTrue(unitIncrement[0] >= rowHeight[0],
+			"mouse-wheel scrolling must advance at least one Quick Access row: unit="
+				+ unitIncrement[0] + ", row=" + rowHeight[0]);
 		JViewport viewport = scrollPane.getViewport();
+		int[] lastScrollValue = new int[1];
+		int[] lastScrollMaximum = new int[1];
 		for (int attempt = 0; attempt < 80; attempt++) {
 			Rectangle[] viewportBounds = new Rectangle[1];
 			Rectangle[] componentBounds = new Rectangle[1];
 			SwingUtilities.invokeAndWait(() -> {
 				viewportBounds[0] = new Rectangle(viewport.getLocationOnScreen(), viewport.getSize());
 				componentBounds[0] = new Rectangle(component.getLocationOnScreen(), component.getSize());
+				lastScrollValue[0] = scrollPane.getVerticalScrollBar().getValue();
+				lastScrollMaximum[0] = scrollPane.getVerticalScrollBar().getMaximum();
 			});
 			if (viewportBounds[0].contains(componentBounds[0])) return;
 			Point scrollPoint = new Point(viewportBounds[0].x + viewportBounds[0].width / 2,
@@ -381,7 +397,8 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 			robot.mouseWheel(componentBounds[0].y > viewportBounds[0].getMaxY() ? 1 : -1);
 			robot.waitForIdle();
 		}
-		throw new AssertionError("Quick Access choice did not enter the visible scroll viewport: " + component.getName());
+		throw new AssertionError("Quick Access choice did not enter the visible scroll viewport: "
+			+ component.getName() + " (scroll=" + lastScrollValue[0] + "/" + lastScrollMaximum[0] + ")");
 	}
 
 	private static JPopupMenu displayOptionsPopup() throws Exception {

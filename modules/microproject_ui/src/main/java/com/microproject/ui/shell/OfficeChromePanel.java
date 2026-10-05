@@ -461,7 +461,8 @@ final class OfficeChromePanel extends JPanel {
 		}
 		java.util.List<JCheckBox> checks = new java.util.ArrayList<>(supported.size());
 		java.util.Set<String> selected = new java.util.LinkedHashSet<>(RibbonDisplayPreferences.loadQuickAccessCommands());
-		JPanel choices = new JPanel(new java.awt.GridLayout(0, 1, 0, 2));
+		java.awt.GridLayout choiceLayout = new java.awt.GridLayout(0, 1, 0, 2);
+		JPanel choices = new JPanel(choiceLayout);
 		choices.setBorder(new EmptyBorder(6, 8, 6, 8));
 		for (String id : supported) {
 			JCheckBox check = new JCheckBox(resolveTooltip(id), selected.contains(id));
@@ -470,6 +471,8 @@ final class OfficeChromePanel extends JPanel {
 			choices.add(check);
 		}
 		JScrollPane scroll = new JScrollPane(choices);
+		int rowHeight = checks.stream().mapToInt(check -> check.getPreferredSize().height).max().orElse(16);
+		scroll.getVerticalScrollBar().setUnitIncrement(Math.max(1, rowHeight + choiceLayout.getVgap()));
 		scroll.setPreferredSize(new Dimension(380, Math.min(440, Math.max(180, supported.size() * 29))));
 		int result = JOptionPane.showConfirmDialog(this, scroll,
 			UsabilityStrings.text("chrome.customizeQuickAccess"), JOptionPane.OK_CANCEL_OPTION,
