@@ -74,6 +74,19 @@ class IconManagerRibbonIconTest {
 	}
 
 	@Test
+	void quickAccessSaveIconPreservesItsInteriorWhenTheChromeAppliesItsSharedTint() {
+		assertEquals("document-save-outline.svg", IconManager.getConfiguredIconName("ribbon.saveToolbar"));
+		var menu = java.util.ResourceBundle.getBundle("com/microproject/menu/menuInternal");
+		assertEquals("ribbon.saveToolbar", menu.getString("RibbonTopBarSaveProject.icon"),
+			"the shared title-bar icon tint requires an outline glyph with transparent interior");
+		BufferedImage image = paint(IconManager.getRibbonIconTinted("ribbon.saveToolbar", 32, 32,
+			new java.awt.Color(0x243247)), 32, 32);
+		assertTrue((image.getRGB(17, 20) >>> 24) == 0,
+			"the center of the save-label outline must remain transparent after tinting");
+		assertTrue(hasVisiblePixel(image), "the tinted quick-access save glyph must remain visible");
+	}
+
+	@Test
 	void chartAndHistogramIconsUseTheOfficeSeriesPalette() {
 		assertEquals("histogram.svg", IconManager.getConfiguredIconName("view.histogram"));
 		var icon = IconManager.getIcon("view.histogram");
