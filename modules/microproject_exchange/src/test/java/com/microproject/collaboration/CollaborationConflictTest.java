@@ -27,11 +27,14 @@ package com.microproject.collaboration;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.File;
+import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -47,6 +50,7 @@ import com.microproject.exchange.mpxj.ProjectWriterFactory;
 
 import com.microproject.exchange.LocalFileImporter;
 import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.resource.ResourcePoolFactory;
 import com.microproject.pm.task.Project;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.workspace.WorkspaceSetting;
@@ -55,15 +59,23 @@ class CollaborationConflictTest {
 	@TempDir
 	Path tempDir;
 	private Project previousLastDeserialized;
+	private List<ResourcePool> previousRegisteredResourcePools;
+	private ResourcePool previousGlobalResourcePool;
 
 	@BeforeEach
 	void captureGlobalProjectState() {
 		previousLastDeserialized = Project.lastDeserialized;
+		previousRegisteredResourcePools = new ArrayList<>(ResourcePoolFactory.getInstance().getResourcePools());
+		previousGlobalResourcePool = readGlobalResourcePool();
 	}
 
 	@AfterEach
 	void restoreGlobalProjectState() {
 		Project.lastDeserialized = previousLastDeserialized;
+		List<ResourcePool> registeredPools = ResourcePoolFactory.getInstance().getResourcePools();
+		registeredPools.clear();
+		registeredPools.addAll(previousRegisteredResourcePools);
+		writeGlobalResourcePool(previousGlobalResourcePool);
 	}
 
 	@Test
@@ -397,6 +409,26 @@ class CollaborationConflictTest {
 	private static Project newProject() {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		return Project.createProject(ResourcePool.createRourcePool("collaboration-test", undo), undo);
+	}
+
+	private static ResourcePool readGlobalResourcePool() {
+		return updateGlobalResourcePool(null, false);
+	}
+
+	private static void writeGlobalResourcePool(ResourcePool pool) {
+		updateGlobalResourcePool(pool, true);
+	}
+
+	private static ResourcePool updateGlobalResourcePool(ResourcePool value, boolean write) {
+		try {
+			Field field = ResourcePool.class.getDeclaredField("globalPool");
+			field.setAccessible(true);
+			ResourcePool previous = (ResourcePool) field.get(null);
+			if (write) field.set(null, value);
+			return previous;
+		} catch (ReflectiveOperationException exception) {
+			throw new AssertionError("Unable to isolate legacy global resource pool state", exception);
+		}
 	}
 
 	private static final class TestWorkspaceSetting implements WorkspaceSetting {
