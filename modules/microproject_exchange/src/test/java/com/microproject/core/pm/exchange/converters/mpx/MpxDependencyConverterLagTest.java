@@ -22,11 +22,13 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *******************************************************************************/
-package com.microproject.core.pm.exchange.converters.mpx;	import static org.junit.Assert.assertEquals;
-	import static org.junit.Assert.assertNotNull;
-	import static org.junit.Assert.assertTrue;
+package com.microproject.core.pm.exchange.converters.mpx;
 
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
+import org.junit.jupiter.api.Test;
 
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.resource.ResourcePool;

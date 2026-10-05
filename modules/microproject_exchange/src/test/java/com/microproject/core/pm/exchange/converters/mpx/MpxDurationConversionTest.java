@@ -26,7 +26,7 @@ package com.microproject.core.pm.exchange.converters.mpx;
 
 import static org.junit.Assert.assertEquals;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import net.sf.mpxj.Duration;
 import net.sf.mpxj.TimeUnit;

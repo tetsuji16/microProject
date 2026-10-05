@@ -27,7 +27,7 @@ package com.microproject.server.data;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * Issue #177: AssignmentData, LinkData and DataObjectImpl override equals() and
