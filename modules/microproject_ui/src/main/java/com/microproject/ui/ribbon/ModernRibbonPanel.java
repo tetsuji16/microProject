@@ -488,6 +488,11 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		button.addMouseListener(new java.awt.event.MouseAdapter() {
 			@Override public void mousePressed(java.awt.event.MouseEvent event) { showDisplayModePopup(event); }
 			@Override public void mouseReleased(java.awt.event.MouseEvent event) { showDisplayModePopup(event); }
+			@Override public void mouseClicked(java.awt.event.MouseEvent event) {
+				if (event.getClickCount() == 2 && javax.swing.SwingUtilities.isLeftMouseButton(event)) {
+					toggleRibbonCollapseMode();
+				}
+			}
 		});
 		button.setVisible(!tab.isContextual() || visibleContextualTabs.contains(tab.getId()));
 		if (tabBodies.isEmpty()) {

@@ -22,7 +22,7 @@
 | File | Backstage の左ナビゲーションと詳細面: New/Open/Info/Save/Save As/Print/Export/Close/Account/Options。非対応の Share は出さない | `FileRibbonTask` の通常タブに File/Exchange/Print/Preferences のバンドを表示 | **不足**。Backstage 専用の表示・戻り操作・File選択時のタブ選択状態を実装。既存ファイル操作は同じActionを再利用 |
 | Task — グループ | View, Clipboard, Font, Schedule, Tasks, Insert, Properties, Link/Planner, Editing | Clipboard, Insert, Outline, Dependencies, Properties, Tracking, Editing | **部分実装**。現行列挙に Font/Format Painter/Respect Links/Inactivate/Inspect/Select/Clear/Add to Timeline 等が不足。MSP標準と製品固有コマンドの配置を照合 |
 | Task — 既存コマンド | Schedule系にIndent/Outdent/Link/Unlink/Move Up/Down。Task Mode、進捗、挿入、編集の選択条件を適用 | 対応する既存Actionが複数ある。Task Mode、Mark on Track等は現在のリボンに存在 | **未検証**。各Actionを選択なし/複数選択/読取専用/Undo/Redo/保存再読込で監査。ボタンの押下後に選択状態を残すかも明記 |
-| Resource — Level | Level Selection, Level Resource, Level All, Leveling Options, Clear Leveling, Next Overallocation | `ResourceLevelRibbonBand` は `RibbonLevelResources` のみ。押すと平準化設定/プレビューdialogを開く | **不足**。Level Selectionの固定タスク契約、Resource/All実行、Options、Clear、Next Overallocationを独立した正規コマンドへ接続。Resource Leveling ServiceのUndoと既存dialogを再利用 |
+| Resource — Level | Level Selection, Level Resource, Level All, Leveling Options, Clear Leveling, Next Overallocation | `ResourceLevelRibbonBand` は `RibbonLevelSelection` と `RibbonLevelResources`。前者は選択タスクを平準化し、後者は既存のプレビューdialogを開く | **部分実装**。Level SelectionはCommandId、正規Action、Undo/Redo、MPO再読込をRobotで確認済み。Level Resource/All/Options/Clear/Next Overallocationは未実装または意味の区別が未確認 |
 | Resource — その他 | View, Assignments, Insert, Properties, Level。共有poolは条件付き | Resource Sheet/Usage等のView経路、Insert Resource/Information/Timesheet/Team Filter/Pool経路 | **部分実装**。発見順、Team Planner/Other Views、Resource Information/Notes/Details、Material/Cost追加を照合。Pool機能は接続条件を確認 |
 | Report | 組込みレポートギャラリーと Custom/Recent/Visual Reports。Excel/Visio依存機能は条件付き | Custom Report, Histogram, Charts, Task/Resource Usage, CCPM Buffer Status | **部分実装**。標準組込みレポートの種類・カテゴリ・Recent/Visual Reportsの対応条件を照合 |
 | Project | Properties, Schedule, Status, Reports, Proofing。Baselineの複数slot/範囲選択を含む | Information/Calendar/Projects、Schedule/Subproject、Status、Baseline、CCPM各band | **部分実装**。Custom Fields/Links/WBS/Visual Reports/Proofing、複数baseline操作、および進捗変更の一括Undoを照合 |
@@ -44,13 +44,27 @@
 | 狭幅/折りたたみ | コマンドを黙って隠さず、group overflowで到達可能 | Swing `ModernRibbonPanel` が折りたたみとgroup overflowを提供 | **未検証**。標準/文脈tabを ja/en、100/125/150%、幅境界で全コマンド到達確認 |
 | Visual system | Officeテーマ、選択/hover/pressed/disabled/focus状態とgeometry | 単一Swing renderer。ライト面はchrome `#F3F2F1`、command surface白。Flamingo ribbon rendererは使わない | **部分実装**。値は参照画像からの観測でMicrosoftのRGB normative specではない。#765の画像比較・状態matrixが完了条件 |
 
+## Microsoft Support の Ribbon Display Options / customization 監査
+
+基準: Microsoft Support [Office でリボンをカスタマイズする](https://support.microsoft.com/ja-jp/office/foundations-experiences/customize-the-ribbon-in-office)。適用先に Project Standard / Professional 2024 が含まれる。色の個別変更は同ページで不可とされるため、リボン個別色設定は実装漏れに数えない。
+
+| 機能 | 現行状態 | 判定 |
+|---|---|---|
+| Ribbon Display Options: Auto-hide / Show Tabs Only / Always Show | `OfficeChromePanel` の3項目ラジオメニュー、`ModernRibbonPanel` の状態、`RibbonDisplayPreferences` によるユーザー設定保存あり。更新したRobotは3項目すべてを選び、非表示から復帰することを確認 | **機能は部分実装**。メニュー配置の切れを修正済み。ボタンは現在タイトルバー右側にあり、#575 の完了記録が要求したリボン右下配置と一致するかは未解決。Auto-hide 後のAltによる一時表示と自動復帰は物理検証なし |
+| 表示切替入力 | Ctrl+F1 とタブ右クリックの折りたたみ/復帰に物理テストあり。タブのダブルクリックも Microsoft が明記 | **実装あり**。タブのダブルクリック物理Robotを追加し、折りたたみ/復帰を確認 |
+| ユーザー定義タブ | 追加、並べ替え、名前変更、表示/非表示、カスタムタブ削除。Fileは固定かつ非表示不可 | **不足**。現行メニュー／設定に編集UIなし。#770 |
+| グループとコマンド | カスタムグループ追加/削除/改名/順序変更、コマンド追加/削除/改名/順序変更。既定コマンドの名前・アイコン・順序は固定 | **不足**。現行設定に編集UIなし。#770 |
+| 初期化と共有 | 全設定/選択タブのリセット、RibbonとQAT設定のexport/import | **不足**。現行設定に機能なし。#770 |
+
+2026-10-05 の Robot で、表示オプションメニューが画面外へ切れる回帰を発見した。原因はメニューをボタンの上に配置したまま、ボタンをタイトル領域へ移したこと。メニューをボタンの下に右揃えし、ウィンドウ内に収まる境界assertionと4状態のスクリーンショットを追加した。Ctrl+F1 の初回失敗はRobotの前面ウィンドウ条件が不安定だったためで、テストウィンドウを前面固定すると単独GUIテストは成功した。これは製品のキー入力不具合ではなく、GUI fixture の問題だった。
+
 ## Resource Level Selection command contract (基礎仕様)
 
 Microsoft Supportの [Distribute project work evenly (level resource assignments)](https://support.microsoft.com/en-us/project/distribute-project-work-evenly-level-resource-assignments) はLevel Selectionを「選択タスクだけを平準化」と定義する。未選択タスクを移動しないという扱いはその仕様から導く互換判断であり、MSP実測ではない。
 
 ```text
-Command: ResourceLevelSelection (ID未採番; 現行標準Actionに追加前)
-User routes: Resource > Level > Level Selection。メニュー/shortcut等は同じcanonical commandへ委譲。
+Command: CommandId.RESOURCE_LEVEL_SELECTION (`LevelSelectionAction` -> canonical task command)
+User routes: Resource > Level > Level Selection。既存 `LevelResourcesAction` は設定/preview dialog を開く別コマンドとして維持。
 Selection: active documentのTask selection snapshot。空選択はdisabled/rejected。selected task setは実行開始時に一度だけ解決。
 Allowed state: writable project、計算/編集transactionが進行中でない。completed/inactive/read-only/summary等の個別対象可否をservice契約に合わせる。
 Model before → after: 選択タスクのみresource-leveling由来のdelay/splitを変更。計画時は未選択assignmentを固定負荷として含める。Apply後のschedule再計算に伴う依存先の派生日付変更は許容し、LevelingDelay/splitを未選択タスクへ直接付与しない。
@@ -58,7 +72,7 @@ Visible before → after: active schedule/resource viewで変更を反映し、�
 Undo/Redo: 一つのresource-leveling transactionをCtrl+Z/Ctrl+Y各1回で正確に復元/再適用。
 Persistence: native project save/reload後、対象タスクのdelay/split、未選択タスクのdelay/split不変、依存関係による派生日付を確認。
 Invalid state: empty selection/read-only projectはdisabledまたはreason付きrejected。silent no-op禁止。
-Diagnostic result: changed/rejected/failed、selected stable task IDs、変更task IDs、conflict数、active view。
+Diagnostic result: changed/rejected/failed、selected stable task IDs、変更task IDs、conflict数、active view。Robot: `TaskInformationRibbonGuiAcceptanceTest.selectedTaskLevelingUsesTheResourceRibbonAndSupportsUndoRedoAndPersistence`。
 ```
 
 ## 証拠と追跡

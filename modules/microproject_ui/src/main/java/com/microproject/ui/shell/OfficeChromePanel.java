@@ -327,7 +327,7 @@ final class OfficeChromePanel extends JPanel {
 		addRibbonDisplayItem(popup, ribbon, RibbonDisplayMode.AUTO_HIDE, "chrome.ribbonAutoHide");
 		addRibbonDisplayItem(popup, ribbon, RibbonDisplayMode.TABS_ONLY, "chrome.ribbonTabsOnly");
 		addRibbonDisplayItem(popup, ribbon, RibbonDisplayMode.ALWAYS_SHOW, "chrome.ribbonAlwaysShow");
-		popup.show(button, 0, -popup.getPreferredSize().height);
+		popup.show(button, button.getWidth() - popup.getPreferredSize().width, button.getHeight());
 	}
 
 	private boolean isRibbonDisplayOptionsPopupVisible() {

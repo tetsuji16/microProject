@@ -13,7 +13,12 @@ import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.event.InputEvent;
+import java.awt.image.BufferedImage;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
+
+import javax.imageio.ImageIO;
 
 import javax.swing.AbstractButton;
 import javax.swing.JFrame;
@@ -43,7 +48,7 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 	}
 
 	@Test
-	void titleBarDisplayOptionsPhysicallySwitchBetweenTabsOnlyAndAlwaysShow() throws Exception {
+	void titleBarDisplayOptionsPhysicallySwitchBetweenAllRibbonModes() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
 		JPanel ribbonHost = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
@@ -79,10 +84,14 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 				+ surfaceBounds + ", button=" + buttonBounds);
 		robot.waitForIdle();
 		click(robot, options);
+		JPopupMenu optionsPopup = displayOptionsPopup();
+		assertPopupFitsWindow(optionsPopup, frame);
+		capture(robot, "ribbon-display-options-popup");
 		click(robot, popupItem(UsabilityStrings.text("chrome.ribbonTabsOnly")));
 		GuiAcceptanceSupport.await(() -> ribbon.getRibbonDisplayMode() == RibbonDisplayMode.TABS_ONLY,
 			"title-bar display options did not switch to tabs-only mode");
 		assertTrue(!ribbon.isCommandSurfaceVisible());
+		capture(robot, "ribbon-display-tabs-only");
 
 		GuiAcceptanceSupport.await(options::isShowing,
 			"title-bar display options became unreachable after collapsing the command bands");
@@ -91,6 +100,26 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> ribbon.getRibbonDisplayMode() == RibbonDisplayMode.ALWAYS_SHOW,
 			"title-bar display options did not restore the command surface");
 		assertTrue(ribbon.isCommandSurfaceVisible());
+
+		click(robot, options);
+		AbstractButton autoHide = popupItem(UsabilityStrings.text("chrome.ribbonAutoHide"));
+		assertTrue(!autoHide.isSelected(), "auto-hide should not be selected before the user chooses it");
+		click(robot, autoHide);
+		GuiAcceptanceSupport.await(() -> ribbon.getRibbonDisplayMode() == RibbonDisplayMode.AUTO_HIDE,
+			"title-bar display options did not select auto-hide");
+		GuiAcceptanceSupport.await(() -> !((javax.swing.JComponent) ribbon).isVisible(),
+			"auto-hide must hide the ribbon surface while leaving window chrome available");
+		capture(robot, "ribbon-display-auto-hide");
+
+		click(robot, options);
+		AbstractButton selectedAutoHide = popupItem(UsabilityStrings.text("chrome.ribbonAutoHide"));
+		assertTrue(selectedAutoHide.isSelected(), "display options must identify the active auto-hide mode");
+		capture(robot, "ribbon-display-options-auto-hide-selected");
+		click(robot, popupItem(UsabilityStrings.text("chrome.ribbonAlwaysShow")));
+		GuiAcceptanceSupport.await(() -> ribbon.getRibbonDisplayMode() == RibbonDisplayMode.ALWAYS_SHOW
+			&& ((javax.swing.JComponent) ribbon).isVisible() && ribbon.isCommandSurfaceVisible(),
+			"display options did not restore the auto-hidden ribbon");
+		capture(robot, "ribbon-display-always-show-restored");
 	}
 
 	private static AbstractButton findButton(JPanel root, String name) {
@@ -99,16 +128,33 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 	}
 
 	private static AbstractButton popupItem(String text) throws Exception {
+		JPopupMenu popup = displayOptionsPopup();
+		AbstractButton item = UiComponentWalker.flatten(popup).stream().filter(AbstractButton.class::isInstance)
+			.map(AbstractButton.class::cast).filter(button -> text.equals(button.getText())).findFirst().orElseThrow();
+		GuiAcceptanceSupport.await(item::isShowing, "ribbon display menu item did not become visible: " + text);
+		return item;
+	}
+
+	private static JPopupMenu displayOptionsPopup() throws Exception {
 		GuiAcceptanceSupport.await(() -> Arrays.stream(MenuSelectionManager.defaultManager().getSelectedPath())
 			.anyMatch(JPopupMenu.class::isInstance), "ribbon display options popup did not open");
 		JPopupMenu popup = Arrays.stream(MenuSelectionManager.defaultManager().getSelectedPath())
 			.filter(JPopupMenu.class::isInstance).map(JPopupMenu.class::cast)
 			.filter(candidate -> OfficeChromePanel.RIBBON_DISPLAY_OPTIONS_POPUP_NAME.equals(candidate.getName()))
 			.findFirst().orElseThrow();
-		AbstractButton item = UiComponentWalker.flatten(popup).stream().filter(AbstractButton.class::isInstance)
-			.map(AbstractButton.class::cast).filter(button -> text.equals(button.getText())).findFirst().orElseThrow();
-		GuiAcceptanceSupport.await(item::isShowing, "ribbon display menu item did not become visible: " + text);
-		return item;
+		return popup;
+	}
+
+	private static void assertPopupFitsWindow(JPopupMenu popup, JFrame frame) throws Exception {
+		Rectangle[] popupBounds = new Rectangle[1];
+		Rectangle[] frameBounds = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> {
+			popupBounds[0] = new Rectangle(popup.getLocationOnScreen(), popup.getSize());
+			frameBounds[0] = new Rectangle(frame.getLocationOnScreen(), frame.getSize());
+		});
+		assertTrue(frameBounds[0].contains(popupBounds[0]),
+			() -> "ribbon display options popup is clipped by its window: popup=" + popupBounds[0]
+				+ " window=" + frameBounds[0]);
 	}
 
 	private static Rectangle bounds(JPanel root, String name) throws Exception {
@@ -125,5 +171,16 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 		robot.mouseMove(point.x + button.getWidth() / 2, point.y + button.getHeight() / 2);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+	}
+
+	private void capture(Robot robot, String name) throws Exception {
+		Rectangle[] bounds = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> bounds[0] = new Rectangle(frame.getLocationOnScreen(), frame.getSize()));
+		BufferedImage image = robot.createScreenCapture(bounds[0]);
+		Path directory = Path.of(System.getProperty("microproject.gui.artifacts.dir", "build/guiTest-artifacts"));
+		Files.createDirectories(directory);
+		String environment = (System.getProperty("user.language", "unknown") + "-"
+			+ System.getProperty("sun.java2d.uiScale", "default")).replaceAll("[^A-Za-z0-9_.-]", "_");
+		ImageIO.write(image, "png", directory.resolve(name + "-" + environment + ".png").toFile());
 	}
 }

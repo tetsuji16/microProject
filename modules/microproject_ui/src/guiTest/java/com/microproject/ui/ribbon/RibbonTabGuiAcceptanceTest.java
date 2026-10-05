@@ -110,6 +110,18 @@ class RibbonTabGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> ribbon.getRibbonDisplayMode() == RibbonDisplayMode.ALWAYS_SHOW,
 			"physical tab popup did not restore the ribbon");
 		assertTrue(ribbon.isCommandSurfaceVisible());
+
+		doubleClick(robot, taskTab);
+		GuiAcceptanceSupport.await(() -> ribbon.getRibbonDisplayMode() == RibbonDisplayMode.TABS_ONLY,
+			"physical double-click on a tab did not collapse the ribbon");
+		assertTrue(taskTab.isShowing());
+		assertTrue(!ribbon.isCommandSurfaceVisible());
+		captureVisibleRibbon(robot, "ribbon-double-click-collapsed.png");
+
+		doubleClick(robot, taskTab);
+		GuiAcceptanceSupport.await(() -> ribbon.getRibbonDisplayMode() == RibbonDisplayMode.ALWAYS_SHOW,
+			"physical double-click on a tab did not restore the ribbon");
+		assertTrue(ribbon.isCommandSurfaceVisible());
 	}
 
 	@Test
@@ -613,6 +625,16 @@ class RibbonTabGuiAcceptanceTest {
 		robot.mouseMove(point.x + button.getWidth() / 2, point.y + button.getHeight() / 2);
 		robot.mousePress(InputEvent.BUTTON3_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
+	}
+
+	private static void doubleClick(Robot robot, AbstractButton button) throws Exception {
+		Point point = button.getLocationOnScreen();
+		robot.mouseMove(point.x + button.getWidth() / 2, point.y + button.getHeight() / 2);
+		for (int click = 0; click < 2; click++) {
+			robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+			robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		}
+		robot.waitForIdle();
 	}
 
 	private static JPopupMenu awaitDisplayModePopup() throws Exception {

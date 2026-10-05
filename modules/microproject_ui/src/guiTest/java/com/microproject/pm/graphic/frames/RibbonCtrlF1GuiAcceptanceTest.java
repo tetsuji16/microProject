@@ -50,6 +50,7 @@ class RibbonCtrlF1GuiAcceptanceTest {
 			manager.initView();
 			window.setSize(920, 560);
 			window.setLocationByPlatform(true);
+			window.setAlwaysOnTop(true);
 			window.setVisible(true);
 		});
 		GuiAcceptanceSupport.await(() -> window.isShowing() && window.getRibbonPanel() != null,
