@@ -65,6 +65,7 @@ microProjectの標準リボンに表示される全コマンドボタンを、�
 | RibbonResourceInformation | リソース情報を開く | リソース情報ダイアログが表示される |
 | RibbonTimesheet | タイムシートを表示 | タイムシート画面が表示される |
 | RibbonTeamFilter | チームリソース表示を切り替える | 選択状態と一覧が切り替わる |
+| RibbonLevelSelection | 選択したタスクを平準化 | 選択行だけに平準化を適用し、非選択行を固定条件として保ち、Undo/Redo とMPO再読込で状態を確認する |
 | RibbonLevelResources | リソースを平準化 | 平準化候補が表示され、プレビュー／取消が可能 |
 | RibbonUseResourcePool | 共有リソースプールを使用 | 保存済みで開いているプールを選択し、競合時の優先元を選択して共有できる |
 | RibbonCreateResourcePool | リソースプールを作成 | 独立したリソースプール文書が作成され、保存後に共有元として選択できる |

@@ -257,15 +257,9 @@ class OfficeChromePanelVisualSmokeTest {
 		assertTrue(surface.isOpaque(), "the ribbon command surface must paint its own background");
 		assertEquals(MicroProjectTheme.tokens().ribbonSurfaceBackground(), surface.getBackground(),
 			"the expanded ribbon command surface must use the white theme token");
-		int white = MicroProjectTheme.tokens().ribbonSurfaceBackground().getRGB();
-		int whitePixels = 0;
-		for (int y = 40; y < image.getHeight(); y++) {
-			for (int x = 0; x < image.getWidth(); x++) {
-				if (image.getRGB(x, y) == white) whitePixels++;
-			}
-		}
-		assertTrue(whitePixels > image.getWidth() * image.getHeight() / 200,
-			"the expanded ribbon command area must render a visible white surface; exact-white pixels=" + whitePixels);
+		assertEquals(MicroProjectTheme.tokens().ribbonSurfaceBackground().getRGB(),
+			image.getRGB(image.getWidth() - 24, 120),
+			"an unobstructed ribbon-surface pixel must render the theme white");
 	}
 
 	private static JComponent findNamedComponent(JPanel panel, String name) {
