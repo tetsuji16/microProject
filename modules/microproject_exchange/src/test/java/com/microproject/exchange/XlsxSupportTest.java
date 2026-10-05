@@ -24,6 +24,12 @@
  *******************************************************************************/
 package test.com.microproject.exchange;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -37,8 +43,8 @@ import java.util.Map;
 
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.junit.jupiter.api.Test;
 
-import junit.framework.TestCase;
 import net.sf.mpxj.ProjectFile;
 import net.sf.mpxj.ProjectCalendar;
 import net.sf.mpxj.Task;
@@ -61,8 +67,9 @@ import com.microproject.server.data.MSPDISerializer;
 import com.microproject.session.FileHelper;
 import com.microproject.undo.DataFactoryUndoController;
 
-public class XlsxSupportTest extends TestCase {
-	public void testXlsxInputReaderAcceptsExactLimitAndRejectsTheNextByte() throws Exception {
+public class XlsxSupportTest {
+	@Test
+	void xlsxInputReaderAcceptsExactLimitAndRejectsTheNextByte() throws Exception {
 		String property = BoundedInput.XLSX_MAX_IMPORT_BYTES_PROPERTY;
 		String previous = System.getProperty(property);
 		try {
@@ -83,7 +90,8 @@ public class XlsxSupportTest extends TestCase {
 		}
 	}
 
-	public void testBothXlsxImportersRejectOverLimitBeforeParsing() throws Exception {
+	@Test
+	void bothXlsxImportersRejectOverLimitBeforeParsing() throws Exception {
 		String property = BoundedInput.XLSX_MAX_IMPORT_BYTES_PROPERTY;
 		String previous = System.getProperty(property);
 		try {
@@ -155,7 +163,8 @@ public class XlsxSupportTest extends TestCase {
 		}
 	}
 
-	public void testMalformedXlsxResetsImportingStateAndClosesInput() throws Exception {
+	@Test
+	void malformedXlsxResetsImportingStateAndClosesInput() throws Exception {
 		String property = BoundedInput.XLSX_MAX_IMPORT_BYTES_PROPERTY;
 		String previous = System.getProperty(property);
 		try {
@@ -187,17 +196,20 @@ public class XlsxSupportTest extends TestCase {
 		}
 	}
 
-	public void testFileHelperAcceptsMppForReadOnlyImport() {
+	@Test
+	void fileHelperAcceptsMppForReadOnlyImport() {
 		assertTrue(FileHelper.isFileNameAllowed("plan.mpp", false));
 		assertFalse(FileHelper.isFileNameAllowed("plan.mpp", true));
 		assertEquals(FileHelper.MSP_FILE_TYPE, FileHelper.getFileType("plan.mpp"));
 	}
 
-	public void testCollaborationDoesNotRecognizeMpp() {
+	@Test
+	void collaborationDoesNotRecognizeMpp() {
 		assertFalse(CollaborationMetadataStore.isMpoCollaborationCandidate("plan.mpp"));
 	}
 
-	public void testMspImporterCanReadMpp() throws Exception {
+	@Test
+	void mspImporterCanReadMpp() throws Exception {
 		File sample = new File("modules/microproject_exchange/testdata/New Product.mpp");
 		if (!sample.exists()) {
 			sample = new File("testdata/New Product.mpp");
@@ -215,22 +227,26 @@ public class XlsxSupportTest extends TestCase {
 		assertTrue(imported.getTasks().size() > 0);
 	}
 
-	public void testFileHelperAcceptsXlsx() {
+	@Test
+	void fileHelperAcceptsXlsx() {
 		assertTrue(FileHelper.isFileNameAllowed("plan.xlsx", true));
 		assertTrue(FileHelper.isFileNameAllowed("plan.xlsx", false));
 		assertEquals(FileHelper.MSP_FILE_TYPE, FileHelper.getFileType("plan.xlsx"));
 	}
 
-	public void testCollaborationDoesNotRecognizeXlsx() {
+	@Test
+	void collaborationDoesNotRecognizeXlsx() {
 		assertFalse(CollaborationMetadataStore.isMpoCollaborationCandidate("plan.xlsx"));
 	}
 
-	public void testProjectWriterFactorySupportsXlsx() throws Exception {
+	@Test
+	void projectWriterFactorySupportsXlsx() throws Exception {
 		ProjectWriter writer = ProjectWriterFactory.forFile("plan.xlsx");
 		assertNotNull(writer);
 	}
 
-	public void testXlsxDependencyLagRoundTrip() throws Exception {
+	@Test
+	void xlsxDependencyLagRoundTrip() throws Exception {
 		// Issue #162: the Dependencies sheet Lag column was written but never read,
 		// silently dropping every dependency lag on the summary-sheet fallback path.
 		// Build a workbook containing only the summary sheets (no _PL_DATA payload)
@@ -290,7 +306,8 @@ public class XlsxSupportTest extends TestCase {
 		}
 	}
 
-	public void testMspImporterCanReadGeneratedXlsx() throws Exception {
+	@Test
+	void mspImporterCanReadGeneratedXlsx() throws Exception {
 		File tempFile = File.createTempFile("projectlibre-xlsx-import", ".xlsx");
 		tempFile.deleteOnExit();
 
@@ -312,7 +329,8 @@ public class XlsxSupportTest extends TestCase {
 		assertNotNull(imported);
 	}
 
-	public void testMicrosoftAndDirectMspImportUseTheSameNativeXlsxPayload() throws Exception {
+	@Test
+	void microsoftAndDirectMspImportUseTheSameNativeXlsxPayload() throws Exception {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		com.microproject.pm.task.Project source = com.microproject.pm.task.Project.createProject(
 			ResourcePool.createRourcePool("native-xlsx", undo), undo);
@@ -364,7 +382,8 @@ public class XlsxSupportTest extends TestCase {
 		}
 	}
 
-	public void testMspImporterUsesMspdiProjectDefaultCalendar() throws Exception {
+	@Test
+	void mspImporterUsesMspdiProjectDefaultCalendar() throws Exception {
 		ProjectFile file = new ProjectFile();
 		file.addDefaultBaseCalendar();
 		ProjectCalendar nightShift = file.addCalendar();
@@ -388,7 +407,8 @@ public class XlsxSupportTest extends TestCase {
 		assertEquals("Night Shift", imported.getBaseCalendar().getName());
 	}
 
-	public void testMspdiRoundTripPreservesProjectDefaultCalendar() throws Exception {
+	@Test
+	void mspdiRoundTripPreservesProjectDefaultCalendar() throws Exception {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		com.microproject.pm.task.Project source = com.microproject.pm.task.Project.createProject(
 				ResourcePool.createRourcePool("calendar-round-trip", undo), undo);
@@ -412,7 +432,8 @@ public class XlsxSupportTest extends TestCase {
 		assertEquals("MSP custom project calendar", imported.getBaseCalendar().getName());
 	}
 
-	public void testCommercialConstructionPodExportsAndReloadsAsXlsx() throws Exception {
+	@Test
+	void commercialConstructionPodExportsAndReloadsAsXlsx() throws Exception {
 		File sample = findSample("Commercial construction project plan.pod");
 
 		LocalFileImporter sourceImporter = new LocalFileImporter();
@@ -454,7 +475,7 @@ public class XlsxSupportTest extends TestCase {
 			assertEquals(original.name, imported.name);
 			if (!original.summary) {
 				assertEquals(original.duration, imported.duration);
-				assertEquals(original.work, imported.work);
+				assertEquals(original.work, imported.work, 0.0001);
 				assertEquals(original.actualWork, imported.actualWork);
 				assertEquals(original.remainingWork, imported.remainingWork);
 				assertEquals(original.percentComplete, imported.percentComplete, 0.0001);
@@ -470,7 +491,8 @@ public class XlsxSupportTest extends TestCase {
 		assertTrue(checkedMultiDayDuration);
 	}
 
-	public void testXlsxSummaryImportSkipsNonNumericTextInNumericColumns() throws Exception {
+	@Test
+	void xlsxSummaryImportSkipsNonNumericTextInNumericColumns() throws Exception {
 		// Issue #186: a non-numeric text cell in a numeric column (e.g. "50%" typed
 		// into % Complete, or a hand-edited UID) used to abort the entire import
 		// with NumberFormatException instead of being skipped.
@@ -532,7 +554,8 @@ public class XlsxSupportTest extends TestCase {
 		}
 	}
 
-	public void testMspImporterSkipsRootSummaryTaskFromXml() throws Exception {
+	@Test
+	void mspImporterSkipsRootSummaryTaskFromXml() throws Exception {
 		String xml = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n"
 			+ "<Project xmlns=\"http://schemas.microsoft.com/project\">"
 			+ "<Name>Hierarchy</Name>"
@@ -555,7 +578,8 @@ public class XlsxSupportTest extends TestCase {
 		assertEquals("Child Task", imported.getTasks().get(0).getName());
 	}
 
-	public void testMspImporterAcceptsInputStreamWithoutMarkSupport() throws Exception {
+	@Test
+	void mspImporterAcceptsInputStreamWithoutMarkSupport() throws Exception {
 		String xml = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n"
 			+ "<Project xmlns=\"http://schemas.microsoft.com/project\">"
 			+ "<Name>Unmarked input</Name>"
