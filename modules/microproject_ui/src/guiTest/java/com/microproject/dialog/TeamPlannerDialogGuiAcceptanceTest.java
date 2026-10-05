@@ -8,6 +8,7 @@ package com.microproject.dialog;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.GraphicsEnvironment;
+import java.awt.Container;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Robot;
@@ -20,6 +21,7 @@ import java.nio.file.Path;
 
 import javax.imageio.ImageIO;
 import javax.swing.SwingUtilities;
+import javax.swing.JToolTip;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
@@ -86,8 +88,39 @@ class TeamPlannerDialogGuiAcceptanceTest {
 			Point location = canvas.getLocationOnScreen();
 			robot.mouseMove(location.x + sourceSlot.x, location.y + sourceSlot.y);
 		});
-		Thread.sleep(900L);
+		GuiAcceptanceSupport.await(() -> hasVisibleTooltip("Project: shared-sharer"),
+			"Physical hover did not show the expected source-project tooltip");
 		ImageIO.write(robot.createScreenCapture(bounds), "png", directory.resolve("team-planner-shared-overload-source-project.png").toFile());
+	}
+
+	private static boolean hasVisibleTooltip(String expectedText) {
+		boolean[] visible = {false};
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				for (Window window : Window.getWindows()) {
+					if (window.isVisible() && containsTooltip(window, expectedText)) {
+						visible[0] = true;
+						return;
+					}
+				}
+			});
+		} catch (Exception failure) {
+			throw new AssertionError("Could not inspect the visible Team Planner tooltip", failure);
+		}
+		return visible[0];
+	}
+
+	private static boolean containsTooltip(Component component, String expectedText) {
+		if (component instanceof JToolTip tooltip && tooltip.getTipText() != null
+				&& tooltip.getTipText().contains(expectedText)) {
+			return true;
+		}
+		if (component instanceof Container container) {
+			for (Component child : container.getComponents()) {
+				if (containsTooltip(child, expectedText)) return true;
+			}
+		}
+		return false;
 	}
 
 	private static Point findSlot(TeamPlannerDialogBox.TeamPlannerCanvas canvas, String expected) throws Exception {
