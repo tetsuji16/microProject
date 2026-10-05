@@ -30,6 +30,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
@@ -61,32 +63,41 @@ class ResourceLevelingServiceTest {
 	@Test
 	void selectedTaskLevelingMovesOnlySelectedTasksAgainstFixedUnselectedAssignments() {
 		Fixture fixture = fixture();
-		NormalTask selected = task(fixture.project, "Selected", 1L);
 		NormalTask fixed = task(fixture.project, "Unselected", 1L);
+		NormalTask selected = task(fixture.project, "Selected", 1L);
+		NormalTask selectedSecond = task(fixture.project, "Selected second", 1L);
 		AssignmentService.getInstance().newAssignment(selected, fixture.resource, 1D, 0L, this);
 		AssignmentService.getInstance().newAssignment(fixed, fixture.resource, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(selectedSecond, fixture.resource, 1D, 0L, this);
 
 		ResourceLevelingService.Plan plan = new ResourceLevelingService().previewSelectedTasks(
 			fixture.project, null,
 			new ResourceLevelingService.Options(ResourceLevelingService.Order.ID_ONLY, false,
 				Long.MIN_VALUE, Long.MAX_VALUE),
-			List.of(selected));
+			List.of(selected, selectedSecond));
 
-		assertEquals(List.of(selected), plan.changes().stream().map(ResourceLevelingService.Change::task).toList());
+		assertEquals(Set.of(selected, selectedSecond), plan.changes().stream()
+			.map(ResourceLevelingService.Change::task).collect(Collectors.toSet()));
 		assertTrue(selected.getLevelingDelay() == 0L, "preview must not mutate the selected task");
+		assertEquals(0L, selectedSecond.getLevelingDelay(), "preview must not mutate the second selected task");
 		assertTrue(plan.changes().getFirst().addedDelayMillis() > 0L,
-			"the selected task must move around the fixed unselected assignment");
+			"selected tasks must move around fixed unselected assignments");
+		assertTrue(plan.changes().stream().anyMatch(change -> change.task() == selectedSecond
+			&& change.addedDelayMillis() > 0L), "every selected task that conflicts must be leveled");
 		assertEquals(0L, fixed.getLevelingDelay(), "unselected tasks must remain unchanged");
 		assertTrue(plan.isComplete());
 
 		plan.apply(fixture.project.getUndoController().getEditSupport());
 		assertTrue(selected.getLevelingDelay() > 0L);
+		assertTrue(selectedSecond.getLevelingDelay() > 0L);
 		assertEquals(0L, fixed.getLevelingDelay());
 		fixture.project.getUndoController().undo();
 		assertEquals(0L, selected.getLevelingDelay());
+		assertEquals(0L, selectedSecond.getLevelingDelay());
 		assertEquals(0L, fixed.getLevelingDelay());
 		fixture.project.getUndoController().redo();
 		assertTrue(selected.getLevelingDelay() > 0L);
+		assertTrue(selectedSecond.getLevelingDelay() > 0L);
 		assertEquals(0L, fixed.getLevelingDelay());
 	}
 
