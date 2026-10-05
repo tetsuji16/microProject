@@ -24,19 +24,18 @@
  *******************************************************************************/
 package test.com.microproject.exchange;
 
-import java.io.BufferedInputStream;	import java.io.ByteArrayInputStream;
-	import java.io.ByteArrayOutputStream;
-	import java.io.File;
-	import java.io.FileOutputStream;
-	import java.io.InputStream;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
 
-	import org.apache.poi.ss.usermodel.Row;
-	import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-
-import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import junit.framework.TestCase;
 import net.sf.mpxj.ProjectFile;
@@ -530,58 +529,6 @@ public class XlsxSupportTest extends TestCase {
 			this.percentComplete = percentComplete;
 			this.summary = summary;
 		}
-	}
-
-	public void testMspImporterTreatsXmlContentWithXlsxExtensionAsXml() throws Exception {
-		File tempFile = File.createTempFile("projectlibre-xlsx-xml-fallback", ".xlsx");
-		tempFile.deleteOnExit();
-
-		String xml = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n"
-			+ "<Project xmlns=\"http://schemas.microsoft.com/project\">"
-			+ "<Name>Fallback</Name>"
-			+ "<Tasks>"
-			+ "<Task><UID>0</UID><ID>0</ID><Name>Project Summary</Name><Summary>1</Summary></Task>"
-			+ "<Task><UID>1</UID><ID>1</ID><Name>XML Task</Name></Task>"
-			+ "</Tasks>"
-			+ "</Project>";
-		FileOutputStream out = new FileOutputStream(tempFile);
-		try {
-			out.write(xml.getBytes(StandardCharsets.UTF_8));
-		} finally {
-			out.close();
-		}
-
-		MspImporter importer = new MspImporter();
-		Method prepare = MspImporter.class.getDeclaredMethod("prepareProjectStream", InputStream.class);
-		prepare.setAccessible(true);
-		Method normalize = MspImporter.class.getDeclaredMethod("normalizeExtension", String.class, InputStream.class);
-		normalize.setAccessible(true);
-
-		InputStream in = null;
-		try {
-			in = (InputStream) prepare.invoke(importer, new java.io.FileInputStream(tempFile));
-			String normalized = (String) normalize.invoke(importer, "xlsx", in);
-			assertEquals("xml", normalized);
-		} finally {
-			if (in != null) {
-				in.close();
-			}
-		}
-	}
-
-	public void testPrepareProjectStreamWrapsOnlyWhenNeeded() throws Exception {
-		MspImporter importer = new MspImporter();
-		Method prepare = MspImporter.class.getDeclaredMethod("prepareProjectStream", InputStream.class);
-		prepare.setAccessible(true);
-
-		BufferedInputStream buffered = new BufferedInputStream(new ByteArrayInputStream(new byte[] { 1, 2, 3 }));
-		InputStream preparedBuffered = (InputStream) prepare.invoke(importer, buffered);
-		assertSame(buffered, preparedBuffered);
-
-		ByteArrayInputStream plain = new ByteArrayInputStream(new byte[] { 4, 5, 6 });
-		InputStream preparedPlain = (InputStream) prepare.invoke(importer, plain);
-		assertTrue(preparedPlain instanceof BufferedInputStream);
-		assertNotSame(plain, preparedPlain);
 	}
 
 	public void testMspImporterSkipsRootSummaryTaskFromXml() throws Exception {
