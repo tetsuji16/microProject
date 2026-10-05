@@ -87,6 +87,18 @@ class TaskInformationCrossProjectGuiAcceptanceTest {
 			dialog.updateAll();
 		});
 		GuiAcceptanceSupport.await(() -> dialog != null && dialog.isVisible(), "Task Information dialog did not open");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(40);
+		Rectangle dialogBounds = new Rectangle();
+		SwingUtilities.invokeAndWait(() -> dialogBounds.setBounds(dialog.getBounds()));
+		robot.mouseMove(dialogBounds.x + dialogBounds.width / 2, dialogBounds.y + 12);
+		robot.waitForIdle();
+		robot.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+		robot.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(() -> dialog.isActive() && dialog.isFocused(),
+			"Task Information dialog did not acquire foreground focus before the physical dependency command");
 
 		JTabbedPane tabs = findTabbedPane(dialog.getContentPane());
 		assertTrue(tabs != null, "Task Information tabs are missing");
@@ -98,8 +110,6 @@ class TaskInformationCrossProjectGuiAcceptanceTest {
 		}
 		assertTrue(newPredecessor != null && newPredecessor.isShowing(), "predecessor link button must be visible");
 
-		Robot robot = new com.microproject.testsupport.GuiRobot();
-		robot.setAutoDelay(40);
 		click(robot, newPredecessor);
 		JComboBox<?> taskChoices = awaitComboContaining("Second project");
 		selectComboItem(robot, taskChoices, "Second project");
@@ -148,7 +158,9 @@ class TaskInformationCrossProjectGuiAcceptanceTest {
 			bounds.setBounds(location.x, location.y, component.getWidth(), component.getHeight());
 		});
 		robot.mouseMove(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+		robot.waitForIdle();
 		robot.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
 		robot.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
 	}
 
