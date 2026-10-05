@@ -58,6 +58,7 @@ JUnitの失敗時診断はレポートに残し、成功時の大量標準出力
 | F-04 | 異常 | `null`, 空文字, `file.`, `.pod`, 拡張子なし | 各 FileHelper API 呼出 | NPE なし。仕様上未許可または既定拡張子付与 |
 | F-05 | 異常 | 未対応拡張子 `.csv`, `.txt`, `.xls` | import/export | 明示的失敗、または file type `0` |
 | F-06 | 正常 | 実 `samples/sampledata.mpp` | `MspImporter.importProject` | task/resource/calendar が 0 件でない |
+| F-06a | 経路 | MPXJ が生成する MPX stream、extension=`mpx` | `MspImporter.importProject(stream, "mpx", ...)` (`MpxStreamImportTest`) | MPX reader 経路から名前付き task を取り込む。実在する旧版 MPX fixture による製品間互換性は別途監査する |
 | F-07 | 正常 | MPXJ 生成 XLSX | import | project 非 null、root summary 除外、子タスク保持 |
 | F-08 | 境界 | `.xlsx` 拡張子だが中身は XML | `normalizeExtension` | `xml` として読込 |
 | F-09 | 異常 | 空 XLSX, 壊れた ZIP, 途中切断 stream | import | 例外が握り潰されず、UI/job に失敗が伝播 |
