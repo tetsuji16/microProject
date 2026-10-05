@@ -153,15 +153,23 @@ public static class GuiDesktopWindowProbe {
 
 if ($Watch) {
   if ([string]::IsNullOrWhiteSpace($LogFile)) { throw 'LogFile is required with Watch.' }
-  Add-Content -LiteralPath $LogFile -Encoding utf8 -Value ("monitorStarted=" + [DateTime]::UtcNow.ToString('o'))
-  $lastOverlap = ''
-  while ($true) {
-    $overlap = [GuiDesktopWindowProbe]::CaptureForegroundOverlap($TargetPid)
-    if ($overlap -ne $lastOverlap -and -not [string]::IsNullOrEmpty($overlap)) {
-      Add-Content -LiteralPath $LogFile -Encoding utf8 -Value ("GUI_ENVIRONMENT_CONTENDED observed=" + [DateTime]::UtcNow.ToString('o') + " " + $overlap)
+  $logStream = [System.IO.FileStream]::new($LogFile, [System.IO.FileMode]::Append,
+    [System.IO.FileAccess]::Write, [System.IO.FileShare]::ReadWrite)
+  $logWriter = [System.IO.StreamWriter]::new($logStream, [System.Text.UTF8Encoding]::new($false))
+  $logWriter.AutoFlush = $true
+  try {
+    $logWriter.WriteLine("monitorStarted=" + [DateTime]::UtcNow.ToString('o'))
+    $lastOverlap = ''
+    while ($true) {
+      $overlap = [GuiDesktopWindowProbe]::CaptureForegroundOverlap($TargetPid)
+      if ($overlap -ne $lastOverlap -and -not [string]::IsNullOrEmpty($overlap)) {
+        $logWriter.WriteLine("GUI_ENVIRONMENT_CONTENDED observed=" + [DateTime]::UtcNow.ToString('o') + " " + $overlap)
+      }
+      $lastOverlap = $overlap
+      Start-Sleep -Milliseconds 50
     }
-    $lastOverlap = $overlap
-    Start-Sleep -Milliseconds 50
+  } finally {
+    $logWriter.Dispose()
   }
 } else {
   [GuiDesktopWindowProbe]::Capture($TargetPid)
