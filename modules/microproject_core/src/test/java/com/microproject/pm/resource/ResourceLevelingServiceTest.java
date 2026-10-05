@@ -27,6 +27,7 @@ package com.microproject.pm.resource;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.List;
 
@@ -55,6 +56,63 @@ class ResourceLevelingServiceTest {
 		assertTrue(plan.changes().getFirst().addedDelayMillis() > 0L);
 		assertEquals(0L, second.getLevelingDelay(), "preview must not mutate the task");
 		assertTrue(plan.isComplete());
+	}
+
+	@Test
+	void selectedTaskLevelingMovesOnlySelectedTasksAgainstFixedUnselectedAssignments() {
+		Fixture fixture = fixture();
+		NormalTask selected = task(fixture.project, "Selected", 1L);
+		NormalTask fixed = task(fixture.project, "Unselected", 1L);
+		AssignmentService.getInstance().newAssignment(selected, fixture.resource, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(fixed, fixture.resource, 1D, 0L, this);
+
+		ResourceLevelingService.Plan plan = new ResourceLevelingService().previewSelectedTasks(
+			fixture.project, null,
+			new ResourceLevelingService.Options(ResourceLevelingService.Order.ID_ONLY, false,
+				Long.MIN_VALUE, Long.MAX_VALUE),
+			List.of(selected));
+
+		assertEquals(List.of(selected), plan.changes().stream().map(ResourceLevelingService.Change::task).toList());
+		assertTrue(selected.getLevelingDelay() == 0L, "preview must not mutate the selected task");
+		assertTrue(plan.changes().getFirst().addedDelayMillis() > 0L,
+			"the selected task must move around the fixed unselected assignment");
+		assertEquals(0L, fixed.getLevelingDelay(), "unselected tasks must remain unchanged");
+		assertTrue(plan.isComplete());
+
+		plan.apply(fixture.project.getUndoController().getEditSupport());
+		assertTrue(selected.getLevelingDelay() > 0L);
+		assertEquals(0L, fixed.getLevelingDelay());
+		fixture.project.getUndoController().undo();
+		assertEquals(0L, selected.getLevelingDelay());
+		assertEquals(0L, fixed.getLevelingDelay());
+		fixture.project.getUndoController().redo();
+		assertTrue(selected.getLevelingDelay() > 0L);
+		assertEquals(0L, fixed.getLevelingDelay());
+	}
+
+	@Test
+	void selectedTaskLevelingWithNoSelectionProducesNoChanges() {
+		Fixture fixture = fixture();
+		NormalTask task = task(fixture.project, "Task", 1L);
+		AssignmentService.getInstance().newAssignment(task, fixture.resource, 1D, 0L, this);
+
+		ResourceLevelingService.Plan plan = new ResourceLevelingService().previewSelectedTasks(
+			fixture.project, null, ResourceLevelingService.Options.defaults(), List.of());
+
+		assertTrue(plan.changes().isEmpty());
+		assertTrue(plan.splits().isEmpty());
+		assertTrue(plan.unresolved().isEmpty());
+		assertEquals(0L, task.getLevelingDelay());
+	}
+
+	@Test
+	void selectedTaskLevelingRejectsTasksFromAnotherProject() {
+		Fixture fixture = fixture();
+		Fixture other = fixture();
+		NormalTask foreignTask = task(other.project, "Foreign", 1L);
+
+		assertThrows(IllegalArgumentException.class, () -> new ResourceLevelingService().previewSelectedTasks(
+			fixture.project, null, ResourceLevelingService.Options.defaults(), List.of(foreignTask)));
 	}
 
 	@Test

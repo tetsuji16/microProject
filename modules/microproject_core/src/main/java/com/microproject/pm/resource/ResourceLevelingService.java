@@ -26,6 +26,7 @@ package com.microproject.pm.resource;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
@@ -182,7 +183,36 @@ public final class ResourceLevelingService {
 		return preview(resources, options);
 	}
 
+	/**
+	 * Previews MSP-style Level Selection. Selected tasks are the only tasks that
+	 * may move or split; assignments on other tasks remain fixed and still count
+	 * against each resource's capacity.
+	 */
+	public Plan previewSelectedTasks(Project project, Collection<? extends Resource> selectedResources,
+		Options options, Collection<? extends Task> selectedTasks) {
+		Objects.requireNonNull(project, "project");
+		Objects.requireNonNull(options, "options");
+		Objects.requireNonNull(selectedTasks, "selectedTasks");
+		if (selectedTasks.isEmpty()) {
+			return new Plan(List.of(), List.of(), List.of());
+		}
+		Set<Task> selected = Collections.newSetFromMap(new IdentityHashMap<>());
+		for (Task task : selectedTasks) {
+			if (task == null || task.getOwningProject() != project) {
+				throw new IllegalArgumentException("selectedTasks must belong to the supplied project");
+			}
+			selected.add(task);
+		}
+		Collection<? extends Resource> resources = selectedResources == null
+			? project.getResourcePool().getResourceList() : selectedResources;
+		return preview(resources, options, selected);
+	}
+
 	public Plan preview(Collection<? extends Resource> resources, Options options) {
+		return preview(resources, options, null);
+	}
+
+	private Plan preview(Collection<? extends Resource> resources, Options options, Set<Task> selectedTasks) {
 		Objects.requireNonNull(resources, "resources");
 		Objects.requireNonNull(options, "options");
 		Map<Task, Long> addedDelay = new IdentityHashMap<>();
@@ -196,7 +226,7 @@ public final class ResourceLevelingService {
 		do {
 			changed = false;
 			for (Resource resource : resources) {
-				changed |= levelResource(resource, options, addedDelay, limitingResource, splits, unresolved, scratch);
+				changed |= levelResource(resource, options, selectedTasks, addedDelay, limitingResource, splits, unresolved, scratch);
 			}
 		} while (changed && ++pass < Math.max(8, resources.size() * 4));
 
@@ -235,7 +265,7 @@ public final class ResourceLevelingService {
 		new Plan(changes, List.of(), List.of()).apply(editSupport);
 	}
 
-	private boolean levelResource(Resource resource, Options options, Map<Task, Long> addedDelay,
+	private boolean levelResource(Resource resource, Options options, Set<Task> selectedTasks, Map<Task, Long> addedDelay,
 		Map<Task, String> limitingResource, Map<Task, Split> splits, List<Conflict> unresolved,
 		LevelingScratch scratch) {
 		if (resource == null || !resource.isLabor() || resource.getMaximumUnits() <= 0D) {
@@ -250,11 +280,23 @@ public final class ResourceLevelingService {
 				assignments.add(assignment);
 			}
 		}
-		assignments.sort(assignmentComparator(options.order()));
+		Comparator<Assignment> assignmentOrder = assignmentComparator(options.order());
+		if (selectedTasks != null) {
+			assignments.sort(Comparator
+				.comparing((Assignment assignment) -> selectedTasks.contains(assignment.getTask()))
+				.thenComparing(assignmentOrder));
+		} else {
+			assignments.sort(assignmentOrder);
+		}
 		List<Scheduled> accepted = scratch.accepted;
 		boolean changed = false;
 		for (Assignment assignment : assignments) {
 			Task task = assignment.getTask();
+			if (selectedTasks != null && !selectedTasks.contains(task)) {
+				accepted.add(new Scheduled(assignment, task, assignment.getStart(), assignment.getEnd(),
+					Math.max(0D, assignment.getUnits())));
+				continue;
+			}
 			long existingAdded = addedDelay.getOrDefault(task, 0L);
 			long duration = Math.max(0L, assignment.getEnd() - assignment.getStart());
 			long start = shiftedStart(task, assignment.getStart(), existingAdded);
