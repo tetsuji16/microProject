@@ -4503,35 +4503,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		//return container instanceof Applet;
     }
     
-//    public void addProjectTab(String projectName){
-//    	if (!(container instanceof JRibbonFrame))
-//    		return;
-//    	JRibbonFrame frame=(JRibbonFrame)container;
-//    	JRibbon ribbon=frame.getRibbon();
-//    	
-//    	ribbon.getFileSelector().addTab("projectName", new JLabel());
-//    }
-//
-//    public void removeProjectTab(String projectName){
-//    	if (!(container instanceof JRibbonFrame))
-//    		return;
-//    	JRibbonFrame frame=(JRibbonFrame)container;
-//    	JRibbon ribbon=frame.getRibbon();
-//    	
-//    	ribbon.getFileSelector().removeTabAt(index)("projectName", new JLabel());
-//    }
-//
-//    public void selectProjectTab(String projectName){
-//    	if (!(container instanceof JRibbonFrame))
-//    		return;
-//    	JRibbonFrame frame=(JRibbonFrame)container;
-//    	JRibbon ribbon=frame.getRibbon();
-//    	
-//    	ribbon.getFileSelector().addTab("projectName", new JLabel());
-//    }
-
-    
-    
     public void setToolBarAndMenus(final Container contentPane) {
     	if (Environment.isRibbonUI()){
 			ProjectLibreShell.installRibbonShell((MainRibbonFrame) container, getMenuManager(), this::showHelpDialog,
