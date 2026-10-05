@@ -141,6 +141,19 @@ diagnostics on failure or timeout, and fail closed when any matrix leg is
 skipped or cannot be started.  The current commit and freshly generated
 `installDist` are the only evidence eligible for release.
 
+Each GUI test class holds one OS file lock across its forked JVM lifetime, so
+concurrent Gradle invocations in separate worktrees cannot inject Robot input
+into the same user desktop at once. On Windows, a bounded background probe
+records the foreground process and bounds whenever it overlaps a showing test
+window. GUI acceptance uses one `GuiRobot` input boundary; before each mouse or
+keyboard event it checks the probe's event log and blocks further input after
+contention is observed. Such a test fails as `GUI_ENVIRONMENT_CONTENDED`; an
+existing product assertion remains present, without retries or suppression.
+The failure bundle also records the native foreground/overlap snapshot and
+lock owner. The probe samples every 50 ms, so an external window can take focus
+between samples and the next Robot call; the affected test is still invalidated
+and no subsequent Robot input is sent once that overlap is observed.
+
 **Exit gate:** every issue closed in these phases has a command contract,
 focused invariant test, physical Robot evidence, and required visual or
 persistence evidence.  MSP compatibility closures additionally link the

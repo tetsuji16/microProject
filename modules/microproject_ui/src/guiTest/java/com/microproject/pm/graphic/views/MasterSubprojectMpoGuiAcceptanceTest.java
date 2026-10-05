@@ -171,7 +171,7 @@ class MasterSubprojectMpoGuiAcceptanceTest {
 		assertNotNull(reloadedChild, "the explicitly saved MPO did not retain the child reference");
 		assertTrue(reloadedChild.getSubprojectFile() != null && new File(reloadedChild.getSubprojectFile()).isFile(),
 				"the explicitly saved MPO did not restore the embedded child archive");
-		capture(new Robot(), "master-explicit-save-as-mpo.png");
+		capture(new com.microproject.testsupport.GuiRobot(), "master-explicit-save-as-mpo.png");
 	}
 
 	@Test
@@ -232,7 +232,7 @@ class MasterSubprojectMpoGuiAcceptanceTest {
 		assertTrue(master.getTasks().containsAll(child.getTasks()), "master must contain child tasks for consolidated scheduling");
 
 		showRuntimeMaster(masterFile);
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		GuiAcceptanceSupport.await(() -> graphicManager.findFrameForProjectFile(masterFile.getAbsolutePath()) != null,
 				"the normal local-file route did not open the master document");
 		Project runtimeMaster = graphicManager.findFrameForProjectFile(masterFile.getAbsolutePath()).getProject();
@@ -378,7 +378,7 @@ class MasterSubprojectMpoGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> graphicManager.getFrameManager().arrangeAll(
 				com.microproject.pm.graphic.frames.workspace.FrameManager.WindowArrangement.TILE));
 		assertDesktopWindowsAreTiled(4);
-		captureDesktop(new Robot(), "msp-master-four-window-navigation.png");
+		captureDesktop(new com.microproject.testsupport.GuiRobot(), "msp-master-four-window-navigation.png");
 	}
 
 	/** GUI-MSP-SAVE-01: saving a clean master persists a dirty linked child. */
@@ -450,7 +450,7 @@ class MasterSubprojectMpoGuiAcceptanceTest {
 				"the linked child file did not contain the edit made before master Save");
 		assertFalse(hasTaskNamed(savedChild, "Sibling-only task"),
 				"saving an opened child must not serialize a sibling from the consolidated master outline");
-		capture(new Robot(), "master-save-dirty-child.png");
+		capture(new com.microproject.testsupport.GuiRobot(), "master-save-dirty-child.png");
 	}
 
 	private void showRuntimeMaster(File masterFile) throws Exception {
@@ -517,7 +517,7 @@ class MasterSubprojectMpoGuiAcceptanceTest {
 		warning[0].toFront();
 		JButton button = findButton(warning[0]);
 		assertNotNull(button, "read-only child warning must provide a close button");
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(50);
 		java.awt.Point buttonLocation = button.getLocationOnScreen();
 		robot.mouseMove(buttonLocation.x + button.getWidth() / 2, buttonLocation.y + button.getHeight() / 2);

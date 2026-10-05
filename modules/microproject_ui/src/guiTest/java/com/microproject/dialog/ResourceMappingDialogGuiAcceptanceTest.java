@@ -58,7 +58,7 @@ class ResourceMappingDialogGuiAcceptanceTest {
 		DialogLayoutAssertions.assertResizeKeepsTextControls(dialog, dialog.getContentPane(), 100, 40,
 			"Resource Mapping dialog (#724)");
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.waitForIdle();
 		activateDialog(robot);
 		Rectangle bounds = dialog.getBounds();

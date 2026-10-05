@@ -96,7 +96,7 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 			frame.requestFocus();
 		});
 		AbstractButton options = findShowingButton(chrome, OfficeChromePanel.RIBBON_DISPLAY_OPTIONS_NAME);
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		GuiAcceptanceSupport.await(frame::isActive, "office chrome test window did not become active");
 		GuiAcceptanceSupport.await(() -> options.isShowing()
@@ -208,7 +208,7 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 		persistedFrame = createProductionRibbonFrame(manager, "Ribbon preference first shell");
 		JPanel firstShell = persistedFrame.getRibbonPanel();
 		AbstractButton options = findShowingButton(firstShell, OfficeChromePanel.RIBBON_DISPLAY_OPTIONS_NAME);
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		GuiAcceptanceSupport.await(persistedFrame::isActive, "first production ribbon window did not become active");
 		click(robot, options);

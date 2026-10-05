@@ -92,7 +92,7 @@ class DefaultFrameManagerGuiAcceptanceTest {
 			assertTrue(secondary.getWidth() > 0 && secondary.getHeight() > 0,
 				"secondary window must have a real restore bounds before it is shown");
 		});
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		Point location = secondary.getLocationOnScreen();
 		robot.mouseMove(location.x + secondary.getWidth() / 2, location.y + secondary.getHeight() / 2);
@@ -206,7 +206,7 @@ class DefaultFrameManagerGuiAcceptanceTest {
 			window.setVisible(true);
 		});
 		GuiAcceptanceSupport.await(() -> window.isShowing() && selector[0].isShowing(), "project selector was not visible");
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		click(robot, selector[0]);
 		robot.keyPress(KeyEvent.VK_HOME);

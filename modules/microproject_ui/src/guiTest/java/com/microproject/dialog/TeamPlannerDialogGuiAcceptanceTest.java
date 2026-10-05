@@ -57,7 +57,7 @@ class TeamPlannerDialogGuiAcceptanceTest {
 		SwingUtilities.invokeLater(() -> TeamPlannerDialogBox.getInstance(null, fixture.owner).setVisible(true));
 		GuiAcceptanceSupport.await(() -> findDialog() != null, "Team Planner dialog did not open");
 		TeamPlannerDialogBox dialog = findDialog();
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		Rectangle bounds = new Rectangle();
 		SwingUtilities.invokeAndWait(() -> {
 			dialog.setAlwaysOnTop(true);

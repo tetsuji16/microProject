@@ -87,7 +87,7 @@ class UnresolvedCrossProjectDependencyGuiAcceptanceTest {
 			externalPredecessorShown[0] = renderedPredecessorContains(dialog, "Offline project: Unavailable predecessor");
 		});
 		assertTrue(externalPredecessorShown[0], "unresolved external predecessor was not shown with its project identity");
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		capture(robot);
 	}

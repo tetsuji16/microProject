@@ -80,7 +80,7 @@ class CustomReportDialogBoxChooserGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> dialog.isActive(), "Custom Report dialog did not become active");
 		SwingUtilities.invokeAndWait(() -> { dialog.setAlwaysOnTop(true); dialog.toFront(); dialog.requestFocus(); });
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		clickExport(robot);
 		GuiAcceptanceSupport.await(() -> Files.exists(csv), "Custom Report chooser approval did not write the CSV");

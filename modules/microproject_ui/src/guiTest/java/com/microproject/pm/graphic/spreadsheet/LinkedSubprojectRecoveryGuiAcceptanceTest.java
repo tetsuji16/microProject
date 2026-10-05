@@ -82,7 +82,7 @@ class LinkedSubprojectRecoveryGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> frame.isShowing() && sheet.isShowing(), "missing linked-project spreadsheet did not become visible");
 		int row = findRow(reference);
 		Rectangle cell = cellBounds(row);
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		// Deliver the platform-independent popup gesture through the same public
 		// table route used by both the cell and row-header mouse handlers.  Robot

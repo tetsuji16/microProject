@@ -57,7 +57,7 @@ class RibbonCtrlF1GuiAcceptanceTest {
 			"document window and ribbon did not become visible");
 		RibbonController ribbon = (RibbonController) window.getRibbonPanel()
 			.getClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY);
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		java.awt.Rectangle[] windowBounds = new java.awt.Rectangle[1];
 		SwingUtilities.invokeAndWait(() -> windowBounds[0] = new java.awt.Rectangle(window.getLocationOnScreen(), window.getSize()));

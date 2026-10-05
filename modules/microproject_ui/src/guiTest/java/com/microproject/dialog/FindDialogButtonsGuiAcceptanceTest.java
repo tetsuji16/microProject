@@ -91,7 +91,7 @@ class FindDialogButtonsGuiAcceptanceTest {
 		DialogLayoutAssertions.assertResizeKeepsTextControls(dialog, dialog.getContentPane(), 80, 30,
 			"Find dialog (#724)");
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(35);
 		click(robot, dialog.search);
 		robot.keyPress(KeyEvent.VK_X);

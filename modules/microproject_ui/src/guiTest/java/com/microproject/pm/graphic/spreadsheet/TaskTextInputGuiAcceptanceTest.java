@@ -67,7 +67,7 @@ class TaskTextInputGuiAcceptanceTest {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Fixture fixture = createFixture();
 		showFixture(fixture);
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		activateWindow(fixture);
 		clickCell(robot, fixture);
@@ -93,7 +93,7 @@ class TaskTextInputGuiAcceptanceTest {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Fixture fixture = createFixture();
 		showFixture(fixture);
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		activateWindow(fixture);
 		int resourceNamesColumn = findResourceNamesColumn(fixture.sheet);

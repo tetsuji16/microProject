@@ -91,7 +91,9 @@ function Invoke-GuiGate([string]$label, [string[]]$arguments, [int]$timeoutSecon
   Start-HostedWarningWatcher
   Minimize-HostedRunnerConsole
   $safe = ($label -replace '[^A-Za-z0-9_.-]', '_')
-  $guiArtifacts = Join-Path $PWD "modules/microproject_ui/build/reports/guiTest-artifacts/$safe"
+  $attempt = [Guid]::NewGuid().ToString('N')
+  $guiArtifacts = Join-Path $PWD "modules/microproject_ui/build/reports/guiTest-artifacts/$safe-$attempt"
+  $contentionMarker = Join-Path $guiArtifacts 'environment-contended.marker'
   $stdout = Join-Path $gateLogs "$safe.stdout.log"
   $stderr = Join-Path $gateLogs "$safe.stderr.log"
   $testResults = Join-Path $PWD 'modules/microproject_ui/build/test-results/guiTest'
@@ -99,13 +101,18 @@ function Invoke-GuiGate([string]$label, [string[]]$arguments, [int]$timeoutSecon
   Get-ChildItem -LiteralPath $testResults -Filter '*.xml' -File -ErrorAction SilentlyContinue |
     Remove-Item -Force
   $process = Start-Process -FilePath (Join-Path $PWD 'gradlew.bat') `
-    -ArgumentList ($arguments + "-PguiTestArtifactsDir=$guiArtifacts") -PassThru -RedirectStandardOutput $stdout `
+    -ArgumentList ($arguments + "-PguiTestArtifactsDir=$guiArtifacts" + "-PguiTestContentionMarker=$contentionMarker") `
+    -PassThru -RedirectStandardOutput $stdout `
     -RedirectStandardError $stderr -WindowStyle Hidden
   $timer = [System.Diagnostics.Stopwatch]::StartNew()
   if (-not $process.WaitForExit($timeoutSeconds * 1000)) {
     $timer.Stop()
     taskkill.exe /PID $process.Id /T /F | Out-Null
     Save-GuiFailureScreenshot $label
+    if (Test-Path -LiteralPath $contentionMarker) {
+      $markerText = Get-Content -LiteralPath $contentionMarker -Raw
+      throw "GUI_ENVIRONMENT_CONTENDED: desktop interference was recorded and the GUI gate also timed out: $label marker=$markerText"
+    }
     throw "GUI gate watchdog timed out: $label after $($timer.Elapsed.ToString('hh\:mm\:ss')) (limit $([TimeSpan]::FromSeconds($timeoutSeconds).ToString('hh\:mm\:ss'))); this is a gate timeout, not an assertion result."
   }
   $timer.Stop()
@@ -126,6 +133,14 @@ function Invoke-GuiGate([string]$label, [string[]]$arguments, [int]$timeoutSecon
   if (($stdoutText + "`n" + $stderrText) -match $unexpectedError) {
     Save-GuiFailureScreenshot $label
     throw "GUI gate emitted an unexpected exception/error diagnostic: $label"
+  }
+  $contentionEvidence = @(Get-ChildItem -LiteralPath $guiArtifacts -Filter '*.foreground-overlap.txt' -File -ErrorAction SilentlyContinue |
+    Where-Object { Select-String -LiteralPath $_.FullName -SimpleMatch 'GUI_ENVIRONMENT_CONTENDED_CANDIDATE' -Quiet })
+  if ((Test-Path -LiteralPath $contentionMarker) -or $contentionEvidence.Count -gt 0) {
+    Save-GuiFailureScreenshot $label
+    $files = ($contentionEvidence | ForEach-Object FullName) -join ', '
+    $markerText = if (Test-Path -LiteralPath $contentionMarker) { Get-Content -LiteralPath $contentionMarker -Raw } else { '' }
+    throw "GUI_ENVIRONMENT_CONTENDED: desktop interference stopped $label. The original JUnit results remain failed and were not retried or suppressed. Marker=$markerText Evidence=$files"
   }
   if ($process.ExitCode -ne 0) {
     Save-GuiFailureScreenshot $label
@@ -219,6 +234,9 @@ try {
         try {
           Invoke-GuiGate "visual-$locale-$scale" $gradleArgs 1200
         } catch {
+          if ($_.Exception.Message -match 'GUI_ENVIRONMENT_CONTENDED|GUI_ENVIRONMENT_MONITOR_UNAVAILABLE') {
+            throw "Full GUI matrix stopped at $locale/$scale because the desktop session became unusable: $($_.Exception.Message)"
+          }
           $gateFailures.Add($_.Exception.Message)
           Write-Warning "Continuing GUI audit after visual gate failure: $($_.Exception.Message)"
         }

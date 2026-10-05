@@ -60,7 +60,7 @@ class WelcomeDialogGuiAcceptanceTest {
 			dialog.setVisible(true);
 		});
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(30);
 		SwingUtilities.invokeAndWait(() -> {
 			int entryIndex = findEntryIndex();

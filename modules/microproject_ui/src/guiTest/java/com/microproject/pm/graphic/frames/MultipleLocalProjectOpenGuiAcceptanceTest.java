@@ -116,7 +116,7 @@ class MultipleLocalProjectOpenGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> usesSeparateDesktopWindows(),
 				"two selected projects were not presented as separate desktop windows");
 		SwingUtilities.invokeAndWait(() -> frames.arrangeAll(WindowArrangement.TILE));
-		capture(new Robot(), "msp-multiple-local-project-open.png");
+		capture(new com.microproject.testsupport.GuiRobot(), "msp-multiple-local-project-open.png");
 	}
 
 	/** GUI-MSP-OPEN-02: command-line startup must register every supplied project, not just argv[0]. */
@@ -159,7 +159,7 @@ class MultipleLocalProjectOpenGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> usesSeparateDesktopWindows(),
 				"command-line projects were not presented as separate desktop windows");
 		SwingUtilities.invokeAndWait(() -> frames.arrangeAll(WindowArrangement.TILE));
-		capture(new Robot(), "msp-command-line-multiple-project-open.png");
+		capture(new com.microproject.testsupport.GuiRobot(), "msp-command-line-multiple-project-open.png");
 	}
 
 	/** GUI-MSP-OPEN-04: selecting a recent project adds it without replacing a dirty document. */
@@ -218,7 +218,7 @@ class MultipleLocalProjectOpenGuiAcceptanceTest {
 		assertTrue(existingProject.needsSaving(), "Recent selection must preserve the existing dirty state");
 		assertEquals(2, frames.getAllFrames().size(), "Recent selection must add a document frame");
 		SwingUtilities.invokeAndWait(() -> frames.arrangeAll(WindowArrangement.TILE));
-		capture(new Robot(), "msp-recent-project-keeps-existing-document.png");
+		capture(new com.microproject.testsupport.GuiRobot(), "msp-recent-project-keeps-existing-document.png");
 	}
 
 	private static JList<?> findVisibleListForPath(Path path) {
@@ -283,7 +283,7 @@ class MultipleLocalProjectOpenGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> usesSeparateDesktopWindows(),
 				"file-drop projects were not presented as separate desktop windows");
 		SwingUtilities.invokeAndWait(() -> frames.arrangeAll(WindowArrangement.TILE));
-		capture(new Robot(), "msp-file-drop-multiple-project-open.png");
+		capture(new com.microproject.testsupport.GuiRobot(), "msp-file-drop-multiple-project-open.png");
 	}
 
 	private static List<String> openedFileNames(FrameManager frames) {

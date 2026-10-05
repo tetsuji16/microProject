@@ -103,7 +103,7 @@ class OfficeChromeSearchGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(frame::isActive, "native Office header frame did not receive focus");
 		GuiAcceptanceSupport.await(() -> box[0].isShowing() && save[0].isShowing() && help[0].isShowing(),
 			"native Office header controls did not become visible");
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(35);
 		click(robot, field[0]);
 		GuiAcceptanceSupport.await(field[0]::isFocusOwner, "physical click in the search field did not focus the text field");

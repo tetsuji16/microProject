@@ -77,7 +77,7 @@ class ProjectInformationDialogGuiAcceptanceTest {
 		if (move == null) move = findButton(dialog, "プロジェクトの移動...");
 		assertTrue(move != null, "Project information must expose the MSP Move Project route");
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(30);
 		robot.waitForIdle();
 		java.awt.Point location = move.getLocationOnScreen();

@@ -64,7 +64,7 @@ class ReadOnlySubprojectGuiAcceptanceTest {
 		show(fixture.sheet);
 		GuiAcceptanceSupport.await(() -> frame.isShowing() && fixture.sheet.isShowing(), "master spreadsheet was not visible");
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		clickCell(robot, fixture.sheet, fixture.childRow, fixture.nameColumn);
 		GuiAcceptanceSupport.await(() -> fixture.sheet.isFocusOwner(), "read-only child row did not receive focus");

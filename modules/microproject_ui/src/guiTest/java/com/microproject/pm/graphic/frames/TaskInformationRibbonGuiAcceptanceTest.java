@@ -211,7 +211,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
 				&& manager.getCurrentFrame().getProject() == openedProject, "the MPO project did not open");
 
-			Robot robot = new Robot();
+			Robot robot = new com.microproject.testsupport.GuiRobot();
 			robot.setAutoDelay(45);
 			activateWindow(robot, window);
 			AbstractButton fileTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
@@ -292,7 +292,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
 			"full ribbon task window did not become visible");
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
@@ -402,7 +402,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
 			"full ribbon task window did not become visible");
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
@@ -610,7 +610,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
 		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null,
 			"usage-detail window did not become visible");
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
 		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
@@ -651,7 +651,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null,
 			"bottom-view test window did not become visible");
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
 		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
@@ -700,7 +700,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null,
 			"calendar options project window did not become visible");
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
 		AbstractButton projectTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
@@ -735,7 +735,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
 		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null,
 			"working-time project window did not become visible");
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
 		AbstractButton projectTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
@@ -779,7 +779,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
 		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null,
 			"Issue #592 project window did not become visible");
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
 		AbstractButton projectTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
@@ -852,7 +852,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertTrue(selected instanceof Resource && "Selected resource calendar".equals(((Resource) selected).getName()),
 			"resource selection must resolve to the selected resource, got " + selected);
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
 		// ResourceView presents a one-time product notice for ordinary projects.
@@ -923,7 +923,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null,
 			"calendar test window did not become visible");
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
 		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
@@ -975,7 +975,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
 		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null,
 			"network/WBS test window did not become visible");
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
 		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
@@ -1019,7 +1019,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		showProject(project);
 		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null, "calendar link project did not become visible");
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
 		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
@@ -1070,7 +1070,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
 				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
 			"timesheet test project did not become active");
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
 		AbstractButton resourceTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
@@ -1108,7 +1108,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null
 				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
 			"hide/show test project did not become visible");
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
@@ -1203,7 +1203,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
 				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
 			"task-mode project did not become visible");
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
@@ -1411,7 +1411,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
 		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null,
 				"Update Project project did not become visible");
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
@@ -1450,7 +1450,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		long statusDateBeforeUpdate = project.getStatusDate();
 		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
 		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null, "Update Project menu project did not become visible");
-		Robot robot = new Robot(); robot.setAutoDelay(45); activateWindow(robot, window);
+		Robot robot = new com.microproject.testsupport.GuiRobot(); robot.setAutoDelay(45); activateWindow(robot, window);
 		JMenuBar bar = new JMenuBar(); JMenu root = new JMenu("Project");
 		JMenuItem item = new JMenuItem(manager.getMenuManager().getActionFromId("UpdateProject"));
 		item.setActionCommand("UpdateProject"); root.add(item); bar.add(root); window.setJMenuBar(bar); window.validate();
@@ -1519,7 +1519,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null
 				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
 			"Baseline project did not become visible");
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
@@ -1571,7 +1571,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
 		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null
 				&& manager.getCurrentFrame().getActiveSpreadSheet() != null, routeName + " project did not become visible");
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
@@ -1638,7 +1638,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null
 				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
 				routeName + " Task Mode project did not become visible");
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
@@ -1671,7 +1671,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null
 				&& manager.getCurrentFrame().getActiveSpreadSheet() != null, "delete test project did not become visible");
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, task), nameColumn(sheet)));
@@ -1720,7 +1720,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null
 				&& manager.getCurrentFrame().getActiveSpreadSheet() != null, "edit test project did not become visible");
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, source), nameColumn(sheet)));
@@ -1796,7 +1796,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).isEmpty(),
 			"test fixture did not reach the no-selection state");
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
 		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
@@ -1841,7 +1841,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
 				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
 			"outline test project did not become visible");
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
 		Gantt gantt = manager.getCurrentFrame().getGanttView().getGantt();
@@ -1907,7 +1907,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
 				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
 			"indent test project did not become visible");
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
 		Gantt gantt = manager.getCurrentFrame().getGanttView().getGantt();
@@ -2005,7 +2005,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
 			"popup indent project did not become visible");
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
@@ -2066,7 +2066,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
 			"multi insert project did not become visible");
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
@@ -2150,7 +2150,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
 			"popup visibility project did not become visible");
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
@@ -2257,7 +2257,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
 			"move-shortcut test project did not become visible");
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
@@ -2305,7 +2305,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
 			"row-drag test project did not become visible");
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		activateWindow(robot, window);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
@@ -2410,7 +2410,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
 			"popup delete project did not become visible");
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
@@ -2467,7 +2467,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
 			"shortcut test project did not become visible");
 		Gantt gantt = manager.getCurrentFrame().getGanttView().getGantt();
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
@@ -2544,7 +2544,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
 				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
 			"link test project did not become visible");
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		Gantt gantt = manager.getCurrentFrame().getGanttView().getGantt();
 		assertEquals(0, gantt.getModel().getCache().getEdgesSize(), "fixture must start without Gantt dependencies");
@@ -2686,7 +2686,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
 				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
 			"resource leveling task sheet did not become visible");
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, selected), nameColumn(sheet)));
@@ -2744,7 +2744,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null && manager.getCurrentFrame().getActiveSpreadSheet() != null,
 			"unlink-choice project did not become visible");
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, selected), nameColumn(sheet)));
@@ -2837,7 +2837,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		DocumentFrame secondaryDocument = manager.getFrameForProject(second.getOwningProject());
 		assertNotNull(secondaryDocument, "secondary project must remain registered before close");
 		assertEquals(2, manager.getFrameManager().getAllFrames().size());
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(35);
 		activateWindow(robot, secondary);
 		GuiAcceptanceSupport.await(secondary::isFocused,

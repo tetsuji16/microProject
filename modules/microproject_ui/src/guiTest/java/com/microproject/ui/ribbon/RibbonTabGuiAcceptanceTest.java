@@ -93,7 +93,7 @@ class RibbonTabGuiAcceptanceTest {
 		show(host, 1200, false);
 		AbstractButton taskTab = findButton(host,
 			MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString("TaskRibbonTask.title"));
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		rightClick(robot, taskTab);
 		JPopupMenu firstPopup = awaitDisplayModePopup();
@@ -136,7 +136,7 @@ class RibbonTabGuiAcceptanceTest {
 			String title = MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString(tabId + ".title");
 			tabs.add(findButton(host, title));
 		}
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		for (int index = 0; index < tabs.size(); index++) {
 			AbstractButton tab = tabs.get(index);
@@ -174,7 +174,7 @@ class RibbonTabGuiAcceptanceTest {
 		// responsive ribbon tests.
 		show(host, 1600, true);
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(35);
 		EnumSet<CommandId> physicalTaskCommands = EnumSet.noneOf(CommandId.class);
 		for (String tabId : MenuDefinitionSupport.ribbonTaskIds().stream()
@@ -236,7 +236,7 @@ class RibbonTabGuiAcceptanceTest {
 		// Keep the window within a normal desktop at 125/150%; commands that do
 		// not fit are intentionally represented by the responsive popup route.
 		show(host, 1000, false);
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(35);
 		for (String tabId : MenuDefinitionSupport.ribbonTaskIds()) {
 			AbstractButton tab = findButton(host,
@@ -264,7 +264,7 @@ class RibbonTabGuiAcceptanceTest {
 		ModernRibbonPanel ribbon = (ModernRibbonPanel) host
 			.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
 		show(host, 1200, false);
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 
 		List<String> contextualTabs = List.of("NetworkFormatRibbonTask", "CalendarFormatRibbonTask");
@@ -324,7 +324,7 @@ class RibbonTabGuiAcceptanceTest {
 		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
 		show(host, 320, true);
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(35);
 		AbstractButton tab = findButton(host, MenuDefinitionSupport.menuBundle(Locale.getDefault())
 				.getString("TaskRibbonTask.title"));
@@ -403,7 +403,7 @@ class RibbonTabGuiAcceptanceTest {
 		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
 		show(host, 1200, true);
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(35);
 		AbstractButton tab = findButton(host, MenuDefinitionSupport.menuBundle(Locale.getDefault())
 			.getString("TaskRibbonTask.title"));
@@ -473,7 +473,7 @@ class RibbonTabGuiAcceptanceTest {
 		});
 		String fileTitle = MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString("FileRibbonTask.title");
 		AbstractButton fileTab = findButton(host, fileTitle);
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		click(robot, fileTab);
 		GuiAcceptanceSupport.await(fileTab::isSelected, "Robot click did not select the File ribbon tab");
@@ -500,7 +500,7 @@ class RibbonTabGuiAcceptanceTest {
 		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
 		show(host, 1200, true);
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		String viewTitle = MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString("ViewRibbonTask.title");
 		AbstractButton viewTab = findButton(host, viewTitle);
@@ -532,7 +532,7 @@ class RibbonTabGuiAcceptanceTest {
 		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
 		show(host, 320, true);
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(35);
 		AbstractButton tab = findButton(host, MenuDefinitionSupport.menuBundle(Locale.getDefault())
 			.getString("TaskRibbonTask.title"));
@@ -561,7 +561,7 @@ class RibbonTabGuiAcceptanceTest {
 		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
 		show(host, 320, true);
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(35);
 		AbstractButton taskTab = findTab(host, "TaskRibbonTask");
 		AbstractButton fileTab = findTab(host, "FileRibbonTask");
@@ -645,7 +645,7 @@ class RibbonTabGuiAcceptanceTest {
 		// Windows scaling, matching the reported production screenshot.
 		show(host, 672, true);
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(35);
 		AbstractButton tab = findButton(host, MenuDefinitionSupport.menuBundle(Locale.getDefault())
 			.getString("FileRibbonTask.title"));

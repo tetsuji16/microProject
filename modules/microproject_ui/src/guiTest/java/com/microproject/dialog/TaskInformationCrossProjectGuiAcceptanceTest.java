@@ -98,7 +98,7 @@ class TaskInformationCrossProjectGuiAcceptanceTest {
 		}
 		assertTrue(newPredecessor != null && newPredecessor.isShowing(), "predecessor link button must be visible");
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		click(robot, newPredecessor);
 		JComboBox<?> taskChoices = awaitComboContaining("Second project");

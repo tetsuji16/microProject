@@ -77,7 +77,7 @@ class RevisionedProjectionIndexGuiAcceptanceTest {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Fixture fixture = createFixture();
 		showFixture();
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		SwingUtilities.invokeAndWait(() -> {
 			frame.toFront();

@@ -55,7 +55,7 @@ class RecurringTaskDialogGuiAcceptanceTest {
 		assertTrue(findScrollPane(dialog) != null, "recurring-task form must use a scrollable content viewport");
 		assertTrue(dialog.getButtonPanel().getHeight() > 0, "recurring-task buttons must remain laid out");
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		Rectangle dialogBounds = new Rectangle(dialog.getLocationOnScreen(), dialog.getSize());
 		robot.mouseMove(dialogBounds.x + Math.min(40, dialogBounds.width / 2), dialogBounds.y + 12);

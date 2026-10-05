@@ -175,14 +175,20 @@ tasks.register<Test>("guiTest") {
     val guiTestUiScale = providers.gradleProperty("guiTestUiScale").orNull
     val guiTestArtifactsDir = providers.gradleProperty("guiTestArtifactsDir")
         .orElse(layout.buildDirectory.dir("reports/guiTest-artifacts").map { it.asFile.absolutePath }).get()
+    val guiTestInvocationId = "${System.currentTimeMillis()}-${ProcessHandle.current().pid()}"
+    val guiTestContentionMarker = providers.gradleProperty("guiTestContentionMarker")
+        .orElse(layout.buildDirectory.file("reports/guiTest-artifacts/gui-test-contended-$guiTestInvocationId.txt")
+            .map { it.asFile.absolutePath }).get()
     inputs.property("guiTestLocale", guiTestLocale)
     inputs.property("guiTestUiScale", guiTestUiScale ?: "default")
     inputs.property("guiTestArtifactsDir", guiTestArtifactsDir)
+    inputs.property("guiTestContentionMarker", guiTestContentionMarker)
     systemProperty("user.language", guiTestLocale)
     systemProperty("user.country", if (guiTestLocale == "ja") "JP" else "US")
     if (guiTestUiScale != null)
         systemProperty("sun.java2d.uiScale", guiTestUiScale)
     systemProperty("microproject.gui.artifacts.dir", guiTestArtifactsDir)
+	systemProperty("microproject.gui.contentionMarker", guiTestContentionMarker)
 	// GUI tests run from the generated install layout, not the repository root.
 	// Expose the fixture root explicitly so sample-file acceptance routes test
 	// the same release classpath without relying on a process working directory.

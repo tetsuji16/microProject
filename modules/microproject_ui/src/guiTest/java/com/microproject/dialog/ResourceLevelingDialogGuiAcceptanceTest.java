@@ -58,7 +58,7 @@ class ResourceLevelingDialogGuiAcceptanceTest {
 			java.awt.Point location = preview.getLocationOnScreen();
 			bounds.setBounds(location.x, location.y, preview.getWidth(), preview.getHeight());
 		});
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		robot.mouseMove(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
 		robot.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);

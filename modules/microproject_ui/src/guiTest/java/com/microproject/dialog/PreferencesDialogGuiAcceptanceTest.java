@@ -94,7 +94,7 @@ class PreferencesDialogGuiAcceptanceTest {
 			dialog.toFront();
 			dialog.requestFocus();
 		});
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.delay(300);
 		robot.waitForIdle();
 		assertTrue(hasButton(dialog, UsabilityStrings.text("preferences.gridColorAutomatic")));
@@ -176,7 +176,7 @@ class PreferencesDialogGuiAcceptanceTest {
 			dialog.toFront();
 			dialog.requestFocus();
 		});
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.delay(300);
 		robot.waitForIdle();
 		assertEquals("com.formdev.flatlaf.FlatDarkLaf", javax.swing.UIManager.getLookAndFeel().getClass().getName());

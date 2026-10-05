@@ -74,7 +74,7 @@ class TaskInformationGuiAcceptanceTest {
 		Fixture fixture = createFixture();
 		showFixture(fixture);
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(60);
 		activateFixtureWindow(fixture);
 		doubleClickTaskName(robot, fixture);

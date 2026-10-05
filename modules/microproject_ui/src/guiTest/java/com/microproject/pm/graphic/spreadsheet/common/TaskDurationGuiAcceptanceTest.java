@@ -88,7 +88,7 @@ class TaskDurationGuiAcceptanceTest {
 		dialogs.open();
 		showFixture(fixture);
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		try {
 			activateFixtureWindow(fixture);
@@ -138,7 +138,7 @@ class TaskDurationGuiAcceptanceTest {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		NewTaskFixture fixture = createEmptyFixture();
 		showSheet(fixture.sheet);
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		try {
 			activateFixtureWindow(fixture.sheet);

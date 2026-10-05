@@ -113,7 +113,7 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 			assertTrue(header.isShowing(), "resource table header is not on screen: " + componentPath(header));
 			headerLocation[0] = header.getLocationOnScreen();
 		});
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(50);
 		AtomicInteger physicalClicks = new AtomicInteger();
 		header.addMouseListener(new MouseAdapter() {

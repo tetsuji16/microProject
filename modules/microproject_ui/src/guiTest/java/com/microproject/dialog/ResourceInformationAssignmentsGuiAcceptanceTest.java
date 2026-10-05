@@ -102,7 +102,7 @@ class ResourceInformationAssignmentsGuiAcceptanceTest {
 		SwingUtilities.invokeLater(() -> dialog.setVisible(true));
 		GuiAcceptanceSupport.await(() -> dialog != null && dialog.isShowing(), "Resource Information dialog did not open");
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		JTabbedPane tabs = findTabs(dialog);
 		assertTrue(tabs != null, "Resource Information must expose its tabs");

@@ -111,7 +111,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Fixture fixture = createFixture(DependencyType.FS, false);
 		showFixture(fixture);
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		SwingUtilities.invokeAndWait(() -> {
 			frame.toFront();
@@ -166,7 +166,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Fixture fixture = createFixture(DependencyType.FS, false, true);
 		showFixture(fixture);
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateGantt(robot);
 		capture(robot, "gantt-schedule-gestures-initial.png");
@@ -370,7 +370,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 	private void dragBarAndAssertSuccessor(Fixture fixture) throws Exception {
 		long oldStart = fixture.predecessor.getStart();
 		showFixture(fixture);
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		SwingUtilities.invokeAndWait(() -> {
 			frame.toFront();

@@ -85,7 +85,7 @@ class UnsavedSubprojectRefreshGuiAcceptanceTest {
 				+ ", active=" + fixture.manager.getCurrentFrame() + ", child=" + fixture.reference.getSubproject());
 		Dialog dialog = findRefreshDialog();
 		assertTrue(dialog.isShowing());
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		capture(robot, dialog);
 		clickRefreshChoice("Cancel");
@@ -174,7 +174,7 @@ class UnsavedSubprojectRefreshGuiAcceptanceTest {
 		double expectedWorkWeightedProgress = (2D * first.getPercentWorkComplete()
 			+ 3D * second.getPercentWorkComplete()) / 5D;
 		assertEquals(0.7D, expectedWorkWeightedProgress, 0.001D);
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		captureSummary(robot, "msp-master-summary-values-after-mpo-reload.png");
 	}
 

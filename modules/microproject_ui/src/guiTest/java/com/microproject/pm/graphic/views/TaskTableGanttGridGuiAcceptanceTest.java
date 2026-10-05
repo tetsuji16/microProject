@@ -119,7 +119,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		Fixture fixture = createFixture();
 		showFixture(fixture);
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		SwingUtilities.invokeAndWait(() -> {
 			frame.toFront();
@@ -176,7 +176,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		Fixture fixture = createFixture(20);
 		showFixture(fixture);
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		SwingUtilities.invokeAndWait(() -> {
 			frame.toFront();
@@ -218,7 +218,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			frame.setLocation(20, 20);
 		});
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		SwingUtilities.invokeAndWait(() -> {
 			frame.toFront();
@@ -261,7 +261,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Fixture fixture = createFixture(3);
 		showFixture(fixture);
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		GraphicNode node = (GraphicNode) fixture.gantt.getModel().getCache().getElementAt(0);
 		NormalTask task = (NormalTask) node.getNode().getImpl();
@@ -310,7 +310,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		Fixture fixture = createFixtureWithEmptyMiddle();
 		showFixture(fixture);
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		SwingUtilities.invokeAndWait(() -> {
 			frame.toFront();
@@ -327,7 +327,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		Fixture fixture = createFixture(3);
 		showFixture(fixture);
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		SwingUtilities.invokeAndWait(() -> {
 			selectionController = new TaskSelectionController(fixture.gantt, fixture.sheet);
@@ -429,7 +429,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		Fixture fixture = createFixture(30);
 		showFixture(fixture);
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		JScrollPane tableScroll = (JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class, fixture.sheet);
 		assertTrue(tableScroll != null, "task table must be hosted by a scroll pane");
@@ -553,7 +553,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Fixture fixture = createFixture(3);
 		showFixture(fixture);
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		SwingUtilities.invokeAndWait(() -> {
 			frame.toFront();
@@ -614,7 +614,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Fixture fixture = createFixture(3);
 		showFixture(fixture);
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		SwingUtilities.invokeAndWait(() -> {
 			frame.toFront();
@@ -678,7 +678,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Fixture fixture = createFixture(3);
 		showFixture(fixture);
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		SwingUtilities.invokeAndWait(() -> {
 			frame.toFront();
@@ -742,7 +742,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> fixture.sheet.setFieldArray(
 			((SpreadSheetFieldArray) fixture.sheet.getFieldArray()).insertField(fixture.sheet.getFieldArray().size(), customField)));
 		showFixture(fixture);
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		SwingUtilities.invokeAndWait(() -> {
 			frame.toFront();
@@ -803,7 +803,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Fixture fixture = createFixture(3);
 		showFixture(fixture);
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		SwingUtilities.invokeAndWait(() -> {
 			frame.toFront();
@@ -927,7 +927,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Fixture fixture = createFixture(3);
 		showFixture(fixture);
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		SwingUtilities.invokeAndWait(() -> {
 			selectionController = new TaskSelectionController(fixture.gantt, fixture.sheet);
@@ -967,7 +967,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Fixture fixture = createFixture(1);
 		showFixture(fixture);
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		AtomicReference<Gantt.BarClick> click = new AtomicReference<>();
 		GraphicNode node = (GraphicNode) fixture.gantt.getModel().getCache().getElementAt(0);
@@ -1009,7 +1009,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		Fixture fixture = createFixture(3);
 		showFixture(fixture);
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		SwingUtilities.invokeAndWait(() -> {
 			selectionController = new TaskSelectionController(fixture.gantt, fixture.sheet);
@@ -1068,7 +1068,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		Fixture fixture = createFixture(3);
 		showFixture(fixture);
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(50);
 		SwingUtilities.invokeAndWait(() -> {
 			selectionController = new TaskSelectionController(fixture.gantt, fixture.sheet);
@@ -1274,7 +1274,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Fixture fixture = createFixture(1);
 		showFixture(fixture);
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(35);
 		GraphicNode node = (GraphicNode) fixture.gantt.getModel().getCache().getElementAt(0);
 		NormalTask task = (NormalTask) node.getNode().getImpl();
@@ -1311,7 +1311,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Fixture fixture = createFixture(1);
 		showFixture(fixture);
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(35);
 		GraphicNode node = (GraphicNode) fixture.gantt.getModel().getCache().getElementAt(0);
 		NormalTask task = (NormalTask) node.getNode().getImpl();
@@ -1353,7 +1353,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Fixture fixture = createFixture(1);
 		showFixture(fixture);
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(35);
 		GraphicNode node = (GraphicNode) fixture.gantt.getModel().getCache().getElementAt(0);
 		editCellPhysically(robot, fixture.sheet, fixture.sheet.getCache().getRowAt(node),

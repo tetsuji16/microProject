@@ -90,7 +90,7 @@ class AssignmentDialogGuiAcceptanceTest {
 				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
 			"assignment acceptance project did not become visible");
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		SpreadSheet taskSheet = manager.getCurrentFrame().getActiveSpreadSheet();
 		click(robot, cellBounds(taskSheet, rowForTask(taskSheet, task), nameColumn(taskSheet)));
@@ -169,7 +169,7 @@ class AssignmentDialogGuiAcceptanceTest {
 				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
 			"replacement acceptance project did not become visible");
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		SpreadSheet taskSheet = manager.getCurrentFrame().getActiveSpreadSheet();
 		click(robot, cellBounds(taskSheet, rowForTask(taskSheet, task), nameColumn(taskSheet)));

@@ -101,7 +101,7 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 		settings.setEnabled(true);
 		service.apply(project, null, settings);
 		CriticalChainStatusDialogBox dialog = openStatusDialog(project);
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		click(robot, findButton(dialog, "CSV"));
 		GuiAcceptanceSupport.await(() -> visibleFileChooser() != null, "CCPM CSV export did not open the shared chooser");
@@ -206,7 +206,7 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 			if (SwingUtilities.getDeepestComponentAt(dialog, local.x + configure.getWidth() / 2, local.y + configure.getHeight() / 2) != configure)
 				throw new AssertionError("CCPM configure button must be the physical hit target");
 		});
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		robot.waitForIdle();
 		robot.mouseMove(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);

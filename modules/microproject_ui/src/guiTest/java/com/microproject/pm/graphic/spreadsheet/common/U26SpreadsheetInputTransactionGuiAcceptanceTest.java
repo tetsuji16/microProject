@@ -77,7 +77,7 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 			"A desktop session is required for U-26 physical input coverage.");
 		Fixture fixture = createFixture();
 		showFixture(fixture);
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(35);
 		activate(fixture.entrySheet);
 

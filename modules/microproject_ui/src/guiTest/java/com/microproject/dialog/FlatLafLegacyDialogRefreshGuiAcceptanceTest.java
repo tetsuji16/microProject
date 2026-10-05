@@ -66,7 +66,7 @@ class FlatLafLegacyDialogRefreshGuiAcceptanceTest {
 		project = project();
 		NormalTask task = project.createScriptedTask();
 		task.setName("Dialog style fixture task");
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(25);
 		SwingUtilities.invokeAndWait(() -> {
 			owner = new JFrame("FlatLaf dialog visual fixture");

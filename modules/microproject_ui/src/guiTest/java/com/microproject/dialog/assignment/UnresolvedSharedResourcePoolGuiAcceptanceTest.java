@@ -67,7 +67,7 @@ class UnresolvedSharedResourcePoolGuiAcceptanceTest {
 			assertTrue(Messages.getString("SharedResourcePool.poolNotOpen").equals(button.getToolTipText()),
 				"button must explain pool recovery in the active locale");
 		}
-		capture(new Robot());
+		capture(new com.microproject.testsupport.GuiRobot());
 	}
 
 	private static Project project() {

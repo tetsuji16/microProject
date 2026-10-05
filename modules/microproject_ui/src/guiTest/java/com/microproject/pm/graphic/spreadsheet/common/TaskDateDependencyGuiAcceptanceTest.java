@@ -98,7 +98,7 @@ class TaskDateDependencyGuiAcceptanceTest {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Fixture fixture = createFixture(DependencyType.FS, 0L);
 		showFixture(fixture);
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activate(fixture);
 		clickCell(robot, fixture.sheet, fixture.predecessorRow, fixture.startColumn);
@@ -131,7 +131,7 @@ class TaskDateDependencyGuiAcceptanceTest {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Fixture fixture = createFixture(DependencyType.FS, 0L);
 		showFixture(fixture);
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activate(fixture);
 		clickCell(robot, fixture.sheet, fixture.successorRow, fixture.predecessorsColumn);
@@ -190,7 +190,7 @@ class TaskDateDependencyGuiAcceptanceTest {
 			? createFixture(type, lagDays, Calendar.JUNE, 8)
 			: createFixture(type, lagDays);
 		showFixture(fixture);
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activate(fixture);
 		clickCell(robot, fixture.sheet, fixture.predecessorRow, fixture.startColumn);

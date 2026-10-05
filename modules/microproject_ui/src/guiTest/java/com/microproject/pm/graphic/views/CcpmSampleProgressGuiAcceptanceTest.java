@@ -103,7 +103,7 @@ class CcpmSampleProgressGuiAcceptanceTest {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Project project = loadSample();
 		showGantt(project);
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		GuiAcceptanceSupport.await(() -> frame.isShowing() && gantt.isShowing(), "sample Gantt window did not become visible");
 		assertTrue(hasRenderedGanttNode(), "the sample Gantt must render task bars");
@@ -152,7 +152,7 @@ class CcpmSampleProgressGuiAcceptanceTest {
 			if (center == null) throw new AssertionError("observation marker is not physically visible");
 			marker.setBounds(center.x - 5, center.y - 5, 10, 10);
 		});
-		Robot robot = new Robot(); robot.setAutoDelay(35);
+		Robot robot = new com.microproject.testsupport.GuiRobot(); robot.setAutoDelay(35);
 		SwingUtilities.invokeAndWait(() -> { chart.requestFocusInWindow(); chart.revalidate(); chart.repaint(); });
 		robot.waitForIdle();
 		robot.mouseMove(marker.x + 5, marker.y + 5); robot.mousePress(InputEvent.BUTTON1_DOWN_MASK); robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);

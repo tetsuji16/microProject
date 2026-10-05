@@ -154,7 +154,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		});
 
 		createWindow("microProject — Legacy sample File/Open acceptance");
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		AbstractButton openButton = findCommandButton(window.getRibbonPanel(), "RibbonOpenProject");
 		click(robot, openButton);
@@ -189,7 +189,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		});
 
 		createWindow("microProject — CCPM history File/Open acceptance");
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		click(robot, findCommandButton(window.getRibbonPanel(), "RibbonOpenProject"));
 		GuiAcceptanceSupport.await(() -> manager.findFrameForProjectFile(historySample.toString()) != null,
@@ -229,7 +229,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		});
 		GuiAcceptanceSupport.await(() -> window.isShowing(), "real ribbon window did not become visible");
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		clickAndClose(robot, "RibbonNewProject", ProjectDialog.class);
 		clickAndClose(robot, "RibbonLocale", LocaleDialog.class);
@@ -260,7 +260,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		UiServices.setFileChooserProvider(new SwingFileChooserProvider());
 
 		createWindow("microProject — File/Open cancellation acceptance (#398)");
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindowForRobot(robot);
 		AbstractButton open = findCommandButton(window.getRibbonPanel(), "RibbonOpenProject");
@@ -344,7 +344,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			}
 		});
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindowForRobot(robot);
 		int documentsBefore = manager.getFrameManager().getAllFrames().size();
@@ -417,7 +417,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		SwingUtilities.invokeLater(dialog::doModal);
 		GuiAcceptanceSupport.await(dialog::isShowing, "Locale dialog did not open");
 		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(dialog, "Locale Settings dialog");
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		JComboBox<?>[] selectors = new JComboBox<?>[2];
 		SwingUtilities.invokeAndWait(() -> {
@@ -469,7 +469,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
 			&& manager.getCurrentFrame().getProject() == project, "report navigation project did not open");
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindowForRobot(robot);
 		AbstractButton reportTab = findRibbonTab(window.getRibbonPanel(), "Report", "レポート");
@@ -518,7 +518,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		Environment.setNewLook(true);
 
 		createStartedWindow("microProject — New project creation acceptance");
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindowForRobot(robot);
 		robot.delay(500);
@@ -618,7 +618,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 
 		createStartedWindow("microProject — locale restart acceptance");
 		GraphicManager initialManager = manager;
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		click(robot, findCommandButton(window.getRibbonPanel(), "RibbonLocale"));
 		GuiAcceptanceSupport.await(() -> visibleDialog(LocaleDialog.class) != null,

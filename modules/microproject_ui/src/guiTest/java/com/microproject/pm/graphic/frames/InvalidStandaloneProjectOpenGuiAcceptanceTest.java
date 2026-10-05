@@ -104,7 +104,7 @@ class InvalidStandaloneProjectOpenGuiAcceptanceTest {
 		assertSame(original[0], graphicManager.getCurrentFrame());
 		assertEquals(1, frameManager[0].getAllFrames().size());
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		capture(robot, dialog);
 		clickDismissButton(robot, dialog);
@@ -150,7 +150,7 @@ class InvalidStandaloneProjectOpenGuiAcceptanceTest {
 		assertTrue(dialogText(dialog).contains(invalidFile.toString()), dialogText(dialog));
 		assertSame(original[0], graphicManager.getCurrentFrame());
 		assertEquals(1, frameManager[0].getAllFrames().size());
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		capture(robot, dialog, "missing-standalone-project-open-error.png");
 		clickDismissButton(robot, dialog);
 		GuiAcceptanceSupport.await(() -> !dialog.isShowing(), "OK did not dismiss the missing-file error");
@@ -201,7 +201,7 @@ class InvalidStandaloneProjectOpenGuiAcceptanceTest {
 			assertTrue(text.contains(invalidFile.toString()), text);
 			assertSame(original[0], graphicManager.getCurrentFrame());
 			assertEquals(1, frameManager[0].getAllFrames().size());
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		capture(robot, dialog, "access-denied-standalone-project-open-error.png");
 		clickDismissButton(robot, dialog);
 			GuiAcceptanceSupport.await(() -> !dialog.isShowing(), "OK did not dismiss the access-denied error");

@@ -88,7 +88,7 @@ class CanonicalProjectWindowGuiAcceptanceTest {
 				+ frames[0].getProject().getFileName() + ", alias=" + alias.getFileName());
 		assertSame(frames[0], managers[0].getCurrentFrame());
 		assertEquals(existingFrameCount[0] + 1, frameManager.getAllFrames().size());
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		capture(robot);
 	}
@@ -155,7 +155,7 @@ class CanonicalProjectWindowGuiAcceptanceTest {
 				frame.getActiveSpreadSheet().getColumnModel().getColumn(lastColumn).setWidth(75);
 			}
 		});
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		robot.delay(700);
 		capture(robot, "issue451-matched-dependencies-v2.png");
@@ -193,7 +193,7 @@ class CanonicalProjectWindowGuiAcceptanceTest {
 		});
 		GuiAcceptanceSupport.await(() -> sheets[0] != null && sheets[0].isShowing(), "task spreadsheet did not become visible");
 		assertTrue(taskCell[0] >= 0 && taskCell[1] >= 0, "fixture task Name cell was not visible");
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		Rectangle[] bounds = new Rectangle[1];
 		SwingUtilities.invokeAndWait(() -> bounds[0] = sheets[0].getCellRect(taskCell[0], taskCell[1], true));

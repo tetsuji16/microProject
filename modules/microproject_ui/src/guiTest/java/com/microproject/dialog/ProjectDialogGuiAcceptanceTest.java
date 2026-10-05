@@ -70,7 +70,7 @@ class ProjectDialogGuiAcceptanceTest {
 			}
 		});
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		Field cancelField = AbstractDialog.class.getDeclaredField("cancel");
 		cancelField.setAccessible(true);

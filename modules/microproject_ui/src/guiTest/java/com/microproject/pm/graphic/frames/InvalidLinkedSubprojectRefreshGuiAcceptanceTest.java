@@ -89,7 +89,7 @@ class InvalidLinkedSubprojectRefreshGuiAcceptanceTest {
 			+ dialog.getTitle() + ", text=" + warningText + ", tree=" + dialogTree(dialog));
 		assertTrue(warningText.contains("Details:"), () -> "warning did not include importer details: " + warningText);
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		capture(robot, dialog);
 		clickDismissButton(robot, dialog);
@@ -118,7 +118,7 @@ class InvalidLinkedSubprojectRefreshGuiAcceptanceTest {
 		Dialog dialog = findWarningDialog();
 		String warningText = dialogText(dialog);
 		assertTrue(warningText.contains("ACCESS_DENIED"), warningText);
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		capture(robot, dialog, "access-denied-linked-subproject-refresh-warning.png");
 		clickDismissButton(robot, dialog);

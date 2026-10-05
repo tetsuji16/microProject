@@ -72,7 +72,7 @@ class CircularSubprojectGuiAcceptanceTest {
 		assertTrue(message.contains("circular master/subproject reference"), message);
 		assertTrue(message.contains("Cycle master -> Cycle candidate -> Cycle master"), message);
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		SwingUtilities.invokeAndWait(() -> { dialog.toFront(); dialog.requestFocus(); });
 		capture(robot, dialog);

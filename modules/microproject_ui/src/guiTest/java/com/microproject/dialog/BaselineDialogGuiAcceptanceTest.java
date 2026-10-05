@@ -87,7 +87,7 @@ class BaselineDialogGuiAcceptanceTest {
 		assertControlInsideDialog(dialog, cancel, "resized Cancel button");
 		assertControlInsideDialog(dialog, ok, "resized OK button");
 
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(35);
 		click(robot, selected);
 		assertTrue(selected.isSelected(), "Selected Tasks must respond to a physical click");

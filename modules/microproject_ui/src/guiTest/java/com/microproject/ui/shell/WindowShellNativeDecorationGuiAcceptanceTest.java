@@ -99,7 +99,7 @@ class WindowShellNativeDecorationGuiAcceptanceTest {
 		Point start = title[0].getLocationOnScreen();
 		start.translate(Math.max(4, title[0].getWidth() / 2), Math.max(4, title[0].getHeight() / 2));
 		Point before = frame.getLocation();
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(25);
 		robot.waitForIdle();
 		robot.mouseMove(start.x, start.y);

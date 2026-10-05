@@ -122,7 +122,7 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> dialog != null && dialog.isVisible(), "working-time dialog did not open");
 		int[] exceptionsBefore = new int[1];
 		SwingUtilities.invokeAndWait(() -> exceptionsBefore[0] = dialog.getScratchCalendar().getExceptionDays().length);
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		click(robot, dialog.importNonWorkingDays);
 		GuiAcceptanceSupport.await(() -> visibleFileChooser() != null, "calendar import did not open the shared chooser");
@@ -194,7 +194,7 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 		assertTrue(newBaseDialog.makeACopy.getWidth() >= newBaseDialog.makeACopy.getPreferredSize().width,
 				() -> "copy-calendar radio label must not be clipped: actual=" + newBaseDialog.makeACopy.getWidth()
 						+ " preferred=" + newBaseDialog.makeACopy.getPreferredSize().width);
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		click(robot, cancelButton(newBaseDialog));
 		GuiAcceptanceSupport.await(() -> !newBaseDialog.isVisible(), "Cancel did not close new base calendar dialog");
@@ -233,7 +233,7 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 		assertSingleReadableCalendarMonth();
 		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(dialog, "Change Working Time dialog (#590 body image 1)");
 		assertVisibleComponentsFit(dialog, "Change Working Time Calendar tab");
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(50);
 		clickTab(robot, dialog.calendarTabs, 1);
 		assertVisibleComponentsFit(dialog, "Change Working Time Work Weeks tab");
@@ -354,7 +354,7 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 			SwingUtilities.invokeLater(dialog::doModal);
 		});
 		GuiAcceptanceSupport.await(() -> dialog != null && dialog.isVisible(), "working-time dialog did not open");
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		JTabbedPane tabs = dialog.calendarTabs;
 		clickTab(robot, tabs, 1);
@@ -460,7 +460,7 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 			SwingUtilities.invokeLater(dialog::doModal);
 		});
 		GuiAcceptanceSupport.await(() -> dialog != null && dialog.isVisible(), "working-time dialog did not open");
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		long selectedDate = selectDisplayedWorkingDate(robot, calendar);
 		clickTab(robot, dialog.calendarTabs, 2);
@@ -664,7 +664,7 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 			SwingUtilities.invokeLater(dialog::doModal);
 		});
 		GuiAcceptanceSupport.await(() -> dialog != null && dialog.isVisible(), "working-time dialog did not open");
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(50);
 		long selectedDate = selectDisplayedWorkingDate(robot, calendar);
 		assertTrue(dialog.nonWorking.isEnabled(), "Non-working radio button must be enabled for an editable project calendar");
@@ -705,7 +705,7 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 			SwingUtilities.invokeLater(dialog::doModal);
 		});
 		GuiAcceptanceSupport.await(() -> dialog != null && dialog.isVisible(), "working-time dialog did not open");
-		Robot robot = new Robot();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		editedDate[0] = selectDisplayedWorkingDate(robot, first);
 		original[0] = service.getDay(first, editedDate[0]);
