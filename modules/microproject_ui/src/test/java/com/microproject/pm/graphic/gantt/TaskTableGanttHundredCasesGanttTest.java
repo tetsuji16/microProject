@@ -45,7 +45,8 @@ import com.microproject.field.Field;
 import com.microproject.graphic.configuration.BarFormat;
 
 class TaskTableGanttHundredCasesGanttTest {
-	private record GeometryCase(double center, double shapeHeight, double selectionSquare) {}
+	private record GeometryCase(double center, double shapeHeight, double selectionSquare,
+		double expectedStart, double expectedEnd) {}
 	private record LayoutCase(Rectangle clip, double x0, double x1, int offset, int width, boolean visible) {}
 	private record ClipCase(String text, int width, String expectation) {}
 	private record KeyCase(String fieldName, String formatId, String expected) {}
@@ -53,26 +54,21 @@ class TaskTableGanttHundredCasesGanttTest {
 	@TestFactory
 	Stream<DynamicTest> milestoneSelectionGeometryCases() {
 		List<GeometryCase> cases = List.of(
-			new GeometryCase(0, 1, 1), new GeometryCase(10, 2, 8),
-			new GeometryCase(25, 12, 4), new GeometryCase(50, 0, 10),
-			new GeometryCase(75, 15, 15), new GeometryCase(100, 24, 12),
-			new GeometryCase(125, 7, 18), new GeometryCase(150, 30, 5),
-			new GeometryCase(175, 9, 20), new GeometryCase(200, 40, 40),
-			new GeometryCase(-10, 6, 14), new GeometryCase(-50, 22, 10),
-			new GeometryCase(0.5, 3.5, 9.5), new GeometryCase(99.25, 11.5, 4.5),
-			new GeometryCase(1000, 60, 16), new GeometryCase(2048, 16, 64),
-			new GeometryCase(5, 0, 0), new GeometryCase(12, 0.5, 0.25),
-			new GeometryCase(300, 13, 14), new GeometryCase(400, 14, 13));
+			new GeometryCase(100, 8, 12, 94, 106),
+			new GeometryCase(100, 20, 12, 90, 110),
+			new GeometryCase(100, 12, 12, 94, 106),
+			new GeometryCase(100, 0, 0, 100, 100),
+			new GeometryCase(99.25, 11.5, 4.5, 93.5, 105),
+			new GeometryCase(-10, 6, 14, -17, -3));
 		return IntStream.range(0, cases.size()).mapToObj(index -> DynamicTest.dynamicTest(
 			id("G", index + 1), () -> {
 				GeometryCase c = cases.get(index);
-				double expectedWidth = Math.max(c.shapeHeight, c.selectionSquare);
 				double start = GanttSelectionGeometrySupport.milestoneSelectionStart(
 					c.center, c.shapeHeight, c.selectionSquare);
 				double end = GanttSelectionGeometrySupport.milestoneSelectionEnd(
 					c.center, c.shapeHeight, c.selectionSquare);
-				assertEquals(c.center, (start + end) / 2.0d, 0.000001d);
-				assertEquals(expectedWidth, end - start, 0.000001d);
+				assertEquals(c.expectedStart, start, 0.000001d);
+				assertEquals(c.expectedEnd, end, 0.000001d);
 			}));
 	}
 

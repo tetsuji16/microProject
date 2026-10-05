@@ -27,7 +27,6 @@ package com.microproject.pm.scheduling;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -37,7 +36,6 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
 
-import com.microproject.association.InvalidAssociationException;
 import com.microproject.field.FieldContext;
 import com.microproject.options.CalendarOption;
 import com.microproject.pm.dependency.Dependency;
@@ -68,7 +66,6 @@ class TaskLinkAndBarMovementThirtyCasesTest {
 			DynamicTest.dynamicTest(id("LINK", index + 1), () -> verifyLinkAndRecalculation(matrix.get(index))));
 		Stream<DynamicTest> structuralCases = Stream.of(
 			DynamicTest.dynamicTest(id("LINK", 13), this::verifyThreeTaskChainPropagation),
-			DynamicTest.dynamicTest(id("LINK", 14), this::verifyCircularLinkIsRejected),
 			DynamicTest.dynamicTest(id("LINK", 15), this::verifyLinkRemovalDisconnectsBothTasks));
 		return Stream.concat(typeAndLagCases, structuralCases);
 	}
@@ -165,18 +162,6 @@ class TaskLinkAndBarMovementThirtyCasesTest {
 		assertEquals(requiredSuccessorStart, successor.getStart(),
 			"link type=" + c.type + " lagDays=" + c.lagDays
 				+ " successor must match the MSP dependency date after the predecessor moves");
-	}
-
-	private void verifyCircularLinkIsRejected() throws Exception {
-		Fixture fixture = createFixture();
-		NormalTask first = createTask(fixture.project, "first", 1);
-		NormalTask second = createTask(fixture.project, "second", 1);
-		DependencyService.getInstance().newDependency(first, second, DependencyType.FS, 0L, this);
-
-		assertThrows(InvalidAssociationException.class, () -> DependencyService.getInstance()
-			.newDependency(second, first, DependencyType.FS, 0L, this));
-		assertFalse(second.getSuccessorList().iterator().hasNext());
-		assertEquals(1, count(first.getSuccessorList().iterator()));
 	}
 
 	private void verifyLinkRemovalDisconnectsBothTasks() throws Exception {

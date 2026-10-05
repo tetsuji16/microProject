@@ -35,11 +35,13 @@ import java.util.LinkedHashSet;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.jupiter.params.provider.ValueSource;
 
 import com.microproject.menu.testsupport.RibbonInventory;
 
@@ -159,9 +161,20 @@ class IconManagerRibbonIconTest {
 		return keys;
 	}
 
+	static Stream<String> auxiliaryRibbonIconKeys() {
+		Set<String> standardKeys = standardRibbonKeys();
+		return Stream.of("ribbon.save", "ribbon.open", "ribbon.print", "ribbon.pdf", "ribbon.insertRecurring",
+			"application.icon", "application.icon.small", "logo.microProject", "logo.ProjectLibre.ribbon")
+			.filter(key -> !standardKeys.contains(key));
+	}
+
+	static Stream<Arguments> standardRibbonIconCases() {
+		return standardRibbonKeys().stream()
+			.flatMap(key -> IntStream.of(16, 20, 32).mapToObj(size -> Arguments.of(key, size)));
+	}
+
 	@ParameterizedTest
-	@ValueSource(strings = {"ribbon.save", "ribbon.open", "ribbon.print", "ribbon.pdf", "ribbon.insertRecurring",
-		"application.icon", "application.icon.small", "logo.microProject", "logo.ProjectLibre.ribbon"})
+	@MethodSource("auxiliaryRibbonIconKeys")
 	void ribbonIconsLoadSynchronouslyAndPaintVisiblePixels(String key) {
 		var icon = IconManager.getRibbonIcon(key, 32, 32);
 		assertNotNull(icon, () -> key + " did not resolve to a ribbon icon");
@@ -179,44 +192,17 @@ class IconManagerRibbonIconTest {
 	}
 
 	@ParameterizedTest
-	@MethodSource("standardRibbonKeys")
-	void standardRibbonIconsKeepRequestedDimensions(String key) {
+	@MethodSource("standardRibbonIconCases")
+	void standardRibbonIconsResolveAtRequestedSizeAndPaintVisiblePixels(String key, int size) {
 		assertTrue(IconManager.hasSvgResource(key), () -> key + " must resolve to an SVG ribbon asset");
-		var icon = IconManager.getRibbonIcon(key, 20, 20);
+		assertTrue(IconManager.hasSizeSpecificRibbonResource(key, size),
+			() -> key + " is missing its optically sized " + size + "px SVG");
+		var icon = IconManager.getRibbonIcon(key, size, size);
 		assertNotNull(icon);
-		assertEquals(20, icon.getIconWidth());
-		assertEquals(20, icon.getIconHeight());
-	}
-
-	@ParameterizedTest
-	@MethodSource("standardRibbonKeys")
-	void standardRibbonIconsLoadSynchronouslyAndPaintVisiblePixels(String key) {
-		var icon = IconManager.getRibbonIcon(key, 32, 32);
-		assertNotNull(icon, () -> key + " did not resolve to a ribbon icon");
-		assertEquals(32, icon.getIconWidth());
-		assertEquals(32, icon.getIconHeight());
-		BufferedImage canvas = new BufferedImage(32, 32, BufferedImage.TYPE_INT_ARGB);
-		var g2 = canvas.createGraphics();
-		try {
-			icon.paintIcon(null, g2, 0, 0);
-		} finally {
-			g2.dispose();
-		}
-
-		assertTrue(hasVisiblePixel(canvas), () -> key + " rendered only transparent pixels");
-	}
-
-	@ParameterizedTest
-	@ValueSource(ints = {16, 20, 32})
-	void everyStandardRibbonIconRendersAtEveryRibbonSize(int size) {
-		for (String key : standardRibbonKeys()) {
-			assertTrue(IconManager.hasSizeSpecificRibbonResource(key, size),
-				() -> key + " is missing its optically sized " + size + "px SVG");
-			var icon = IconManager.getRibbonIcon(key, size, size);
-			assertNotNull(icon, () -> key + " did not resolve at " + size + "px");
-			BufferedImage canvas = paint(icon, size, size);
-			assertTrue(hasVisiblePixel(canvas), () -> key + " rendered only transparent pixels at " + size + "px");
-		}
+		assertEquals(size, icon.getIconWidth());
+		assertEquals(size, icon.getIconHeight());
+		assertTrue(hasVisiblePixel(paint(icon, size, size)),
+			() -> key + " rendered only transparent pixels at " + size + "px");
 	}
 
 	@Test

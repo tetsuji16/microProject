@@ -9,11 +9,13 @@ import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
+import java.lang.reflect.InvocationTargetException;
 import java.time.Instant;
 
 import javax.swing.JPanel;
 import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
+import javax.swing.SwingUtilities;
 import javax.swing.KeyStroke;
 
 import org.junit.jupiter.api.Test;
@@ -33,6 +35,7 @@ class GanttWheelZoomTest {
 
 	@Test
 	void microsoftProjectKeypadShortcutsZoomTheTimescale() {
+		onEdt(() -> {
 		Gantt gantt = newGantt();
 		try {
 			CoordinatesConverter coord = new CoordinatesConverter(gantt.getProject());
@@ -64,10 +67,12 @@ class GanttWheelZoomTest {
 		} finally {
 			gantt.cleanUp();
 		}
+		});
 	}
 
 	@Test
 	void undoRedoShortcutsAreLeftToTheDocumentRootPane() {
+		onEdt(() -> {
 		Gantt gantt = newGantt();
 		try {
 			var inputMap = gantt.getInputMap(Gantt.WHEN_IN_FOCUSED_WINDOW);
@@ -76,10 +81,12 @@ class GanttWheelZoomTest {
 		} finally {
 			gantt.cleanUp();
 		}
+		});
 	}
 
 	@Test
 	void ctrlWheelDownZoomsOutTheTimescale() {
+		onEdt(() -> {
 		Gantt gantt = newGantt();
 		try {
 			CoordinatesConverter coord = new CoordinatesConverter(gantt.getProject());
@@ -99,10 +106,12 @@ class GanttWheelZoomTest {
 		} finally {
 			gantt.cleanUp();
 		}
+		});
 	}
 
 	@Test
 	void ctrlWheelKeepsTheCursorDateAnchored() {
+		onEdt(() -> {
 		Gantt gantt = newGantt();
 		try {
 			CoordinatesConverter coord = new CoordinatesConverter(gantt.getProject());
@@ -133,10 +142,12 @@ class GanttWheelZoomTest {
 		} finally {
 			gantt.cleanUp();
 		}
+		});
 	}
 
 	@Test
 	void plainWheelDoesNotZoomTheTimescale() {
+		onEdt(() -> {
 		Gantt gantt = newGantt();
 		try {
 			CoordinatesConverter coord = new CoordinatesConverter(gantt.getProject());
@@ -159,10 +170,12 @@ class GanttWheelZoomTest {
 		} finally {
 			gantt.cleanUp();
 		}
+		});
 	}
 
 	@Test
 	void plainWheelOnSynchronizedGanttAdvancesOnlyOneOwnerStep() {
+		onEdt(() -> {
 		Gantt gantt = newGantt();
 		try {
 			JScrollPane chartPane = chartPaneForTest(gantt);
@@ -189,6 +202,27 @@ class GanttWheelZoomTest {
 			assertTrue(wheel.isConsumed(), "the owning Gantt wheel route must consume the event");
 		} finally {
 			gantt.cleanUp();
+		}
+		});
+	}
+
+	private static void onEdt(Runnable action) {
+		if (SwingUtilities.isEventDispatchThread()) {
+			action.run();
+			return;
+		}
+		try {
+			SwingUtilities.invokeAndWait(action);
+		} catch (InterruptedException interrupted) {
+			Thread.currentThread().interrupt();
+			throw new AssertionError("interrupted while running the Swing test on the EDT", interrupted);
+		} catch (InvocationTargetException failure) {
+			Throwable cause = failure.getCause();
+			if (cause instanceof Error error)
+				throw error;
+			if (cause instanceof RuntimeException runtimeFailure)
+				throw runtimeFailure;
+			throw new AssertionError("Swing test failed on the EDT", cause);
 		}
 	}
 

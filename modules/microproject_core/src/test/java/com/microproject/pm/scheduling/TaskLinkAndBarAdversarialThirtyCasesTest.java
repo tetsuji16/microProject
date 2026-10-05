@@ -26,6 +26,7 @@ package com.microproject.pm.scheduling;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -61,8 +62,8 @@ class TaskLinkAndBarAdversarialThirtyCasesTest {
 			tests.add(DynamicTest.dynamicTest(id("LINK", index + 1), () -> rejectSelfLink(type)));
 			tests.add(DynamicTest.dynamicTest(id("LINK", index + 5), () -> rejectDuplicateLink(type)));
 		}
-		tests.add(DynamicTest.dynamicTest(id("LINK", 9), () -> rejectCycle(3)));
-		tests.add(DynamicTest.dynamicTest(id("LINK", 10), () -> rejectCycle(4)));
+		for (int taskCount : new int[] { 2, 3, 4 })
+			tests.add(DynamicTest.dynamicTest(id("LINK-CYCLE", taskCount), () -> rejectCycle(taskCount)));
 		tests.add(DynamicTest.dynamicTest(id("LINK", 11), () -> rejectExternal(true)));
 		tests.add(DynamicTest.dynamicTest(id("LINK", 12), () -> rejectExternal(false)));
 		tests.add(DynamicTest.dynamicTest(id("LINK", 13), this::rejectReadOnlyProjectLink));
@@ -115,11 +116,22 @@ class TaskLinkAndBarAdversarialThirtyCasesTest {
 		Fixture f = fixture();
 		List<NormalTask> tasks = IntStream.range(0, taskCount)
 			.mapToObj(i -> task(f, "cycle-" + i, 1)).toList();
+		List<Dependency> existing = new ArrayList<>();
 		for (int i = 0; i < taskCount - 1; i++)
-			DependencyService.getInstance().newDependency(tasks.get(i), tasks.get(i + 1), DependencyType.FS, 0L, this);
+			existing.add(DependencyService.getInstance().newDependency(
+				tasks.get(i), tasks.get(i + 1), DependencyType.FS, 0L, this));
 		assertThrows(InvalidAssociationException.class, () -> DependencyService.getInstance()
 			.newDependency(tasks.get(taskCount - 1), tasks.get(0), DependencyType.FS, 0L, this));
-		assertFalse(tasks.get(taskCount - 1).getSuccessorList().iterator().hasNext());
+		for (int i = 0; i < existing.size(); i++) {
+			assertSame(existing.get(i), tasks.get(i).getSuccessorList().findRight(tasks.get(i + 1)),
+				"rejecting a cycle must preserve each original successor edge");
+			assertSame(existing.get(i), tasks.get(i + 1).getPredecessorList().findLeft(tasks.get(i)),
+				"rejecting a cycle must preserve each reciprocal predecessor edge");
+		}
+		assertNull(tasks.get(taskCount - 1).getSuccessorList().findRight(tasks.get(0)),
+			"the rejected closing edge must not be inserted");
+		assertNull(tasks.get(0).getPredecessorList().findLeft(tasks.get(taskCount - 1)),
+			"the rejected closing edge must not be inserted in reverse adjacency either");
 	}
 
 	private void rejectExternal(boolean predecessorExternal) {

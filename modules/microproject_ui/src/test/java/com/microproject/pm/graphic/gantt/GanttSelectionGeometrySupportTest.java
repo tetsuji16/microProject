@@ -35,18 +35,6 @@ import com.microproject.pm.graphic.link_routing.DefaultGanttLinkRouting;
 
 class GanttSelectionGeometrySupportTest {
 	@Test
-	void milestoneSelectionUsesTheLargerOfShapeHeightAndSelectionSquare() {
-		assertEquals(94.0d, GanttSelectionGeometrySupport.milestoneSelectionStart(100.0d, 8.0d, 12.0d), 0.00001d);
-		assertEquals(106.0d, GanttSelectionGeometrySupport.milestoneSelectionEnd(100.0d, 8.0d, 12.0d), 0.00001d);
-	}
-
-	@Test
-	void milestoneSelectionUsesShapeHeightWhenItExceedsSelectionSquare() {
-		assertEquals(90.0d, GanttSelectionGeometrySupport.milestoneSelectionStart(100.0d, 20.0d, 12.0d), 0.00001d);
-		assertEquals(110.0d, GanttSelectionGeometrySupport.milestoneSelectionEnd(100.0d, 20.0d, 12.0d), 0.00001d);
-	}
-
-	@Test
 	void finishToStartLinkStartsAtTheVisibleMilestoneEdge() {
 		// Simulates a renderer routing an FS dependency from a zero-duration
 		// milestone centered at x=100 to a later task. Starting at the center

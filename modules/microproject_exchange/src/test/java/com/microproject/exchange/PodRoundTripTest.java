@@ -456,6 +456,24 @@ public class PodRoundTripTest {
 		assertRoundTrip("June_1_sample.pod");
 		assertRoundTrip("Commercial construction project plan.pod");
 	}
+
+	@Test
+	public void legacyPackagePodFixtureExercisesClassNameRemapping() throws Exception {
+		File sample = findSample("June_1_sample.pod");
+		try (java.util.zip.ZipFile pod = new java.util.zip.ZipFile(sample)) {
+			java.util.zip.ZipEntry serializedEntry = pod.getEntry("Serialized");
+			assertNotNull("legacy POD must contain its serialized project payload", serializedEntry);
+			try (var serialized = pod.getInputStream(serializedEntry)) {
+				String classDescriptors = new String(serialized.readAllBytes(), java.nio.charset.StandardCharsets.ISO_8859_1);
+				assertTrue("fixture must retain old package names so SafeObjectInput's compatibility remap is exercised",
+					classDescriptors.contains("com.projectlibre1."));
+			}
+		}
+
+		Project loaded = load(sample);
+		assertTrue("legacy POD must deserialize tasks through LocalFileImporter", loaded.getTaskList().size() > 0);
+	}
+
 	@Test
 	public void movedTaskOrderSurvivesPodRoundTrip() throws Exception {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
