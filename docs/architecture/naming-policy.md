@@ -10,9 +10,9 @@ new code and release work.
 | Gradle modules and JAR artifacts | `microproject_*` | Use the corrected identifier for all eight active modules. The module name is not product branding. |
 | Java source packages | `com.microproject` | New code uses this namespace. `com.projectlibre1` is read-only deserialization compatibility in `SafeObjectInput`; do not add other legacy packages. |
 | User-visible product and Windows packaging | `microProject` | Use this casing in application metadata, launchers, jpackage output, installer names, and UI text. |
-| Native project files | `.mpo` (MPOF) | This is the fork's custom format and must not be renamed as part of branding cleanup. |
-| Legacy project files | `.pod` | Preserve reads and writes required by existing ProjectLibre/OpenProj-compatible files. |
-| Collaboration/recovery sidecars | `.projectlibre-sync.*`, legacy recovery roots | Preserve these paths and suffixes so existing locks, recovery files, and concurrent sessions remain discoverable. |
+| Native project files | `.mpo` (MPOF) | Preserve reads of files produced by earlier supported microProject releases. New writes may evolve only with an explicit versioned format contract; old application/API compatibility is not required. |
+| POD project files | `.pod` | The serialized format is immutable. Preserve its exact wire structure while refactoring the implementation; verify reads/writes against fixed fixtures. |
+| Collaboration/recovery sidecars | Current sidecar/recovery contract | Preserve current runtime behavior; backward compatibility with old application versions is not a requirement unless that data is embedded in MPO. |
 | Repository and attribution identifiers | `ProjectLibre` | GitHub/repository identity, license/attribution material, and established internal compatibility identifiers may retain the historical name. |
 
 ## Enforcement
@@ -28,8 +28,10 @@ The check intentionally inspects package declarations rather than every text
 occurrence. A string in a file-format discriminator, an old recovery directory,
 or a deserialization alias is data compatibility, not a Java namespace leak.
 Changing those names would make existing files, locks, recovery data, or update
-artifacts impossible to find. Any proposed change to one of those boundaries
-requires a versioned migration and a compatibility test instead of a rename.
+artifacts impossible to find. MPO read compatibility and the immutable POD wire
+format are data boundaries; unrelated internal implementation compatibility is
+not required. Any permitted MPO format evolution requires a versioned contract
+and fixtures proving that previously supported MPO files still load.
 
 The naming gate also compares every configured project directory with the
 canonical `modules/<microproject_*>` path and confirms that the directory exists.

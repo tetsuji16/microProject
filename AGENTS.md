@@ -180,7 +180,7 @@ layer may bind the same key:
 
 If a new shortcut is needed, add it in `applyMicrosoftShortcuts` only — never re-open a
 component-level `InputMap` for it.
-- Treat file formats and serialized data as compatibility boundaries. Prefer backward-compatible reads, deterministic writes, clear failure behavior, and tests that cover save/reload or import/export round trips.
+- Do not require backward compatibility for internal APIs, implementation details, or formats other than MPO. MPO must keep reading files produced by earlier supported microProject releases. POD's serialized format is immutable: do not change its field layout/order, identifiers, version markers, or other wire details; refactor implementation behind that unchanged format and verify it against fixed POD fixtures. Keep external-format interoperability tests (MPP/MPX/XML/XLSX, etc.) focused on their current supported contracts, not compatibility with old microProject releases. Use deterministic writes, clear failure behavior, and relevant round-trip tests.
 - Do not hand-edit generated output under `**/build/`, `build/releases/`, `docs/downloads/`, or `isolated-build/`.
 
 ## Efficient verification

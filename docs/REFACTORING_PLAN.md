@@ -57,7 +57,7 @@
 ## 次回の安全な進め方
 
 1. 上記の仕様項目ごとに、現行挙動を固定する characterization test を追加する。
-2. 保存・import/export を変える場合は旧形式読込と round trip test を先に用意する。
+2. 永続化を変える場合は境界を区別する。MPOでは過去のサポート対象版が書いたファイルを読み込めること、PODでは固定fixtureに対してシリアライズ形式を一切変えないことを先に確認する。その他の内部形式/APIには旧版互換を要求しない。外部交換形式は現行サポート契約の round trip を検証する。
 3. Swing の責務分割では EDT、model/view index、selection、再描画後の状態をテストする。
 4. 依存バージョンを上げる場合は MPXJ import/export と ribbon/icon の互換 adapter を境界にして段階移行する。
 5. 最後に `clean build installDist` と配布 classpath/import smoke test を実行する。
