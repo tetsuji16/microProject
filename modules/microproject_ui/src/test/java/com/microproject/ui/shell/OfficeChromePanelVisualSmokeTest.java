@@ -27,10 +27,10 @@ package com.microproject.ui.shell;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.awt.Component;
 import java.awt.Graphics2D;
+import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -79,14 +79,10 @@ class OfficeChromePanelVisualSmokeTest {
 		panel.setSize(1024, 208);
 		panel.doLayout();
 		layoutRecursively(panel);
-		assertSearchIsAttachedToTabRow(panel);
+		assertSearchIsAttachedToChromeHeader(panel);
 		JComponent searchBox = findNamedComponent(panel, OfficeChromePanel.SEARCH_BOX_NAME);
 		RibbonController ribbonController = (RibbonController) ribbonPanel.getClientProperty(
 			RibbonController.CONTEXTUAL_TABS_PROPERTY);
-		ribbonController.setTabRowAccessory(null);
-		assertNull(searchBox.getParent(), "removing the optional tab-row accessory should detach it");
-		ribbonController.setTabRowAccessory(searchBox);
-		assertSearchIsAttachedToTabRow(panel);
 		assertTrue(ribbonPanel.getHeight() >= ribbonPanel.getPreferredSize().height,
 			"the screenshot viewport must contain the full ribbon, including group captions");
 		assertRibbonBandsUseTheAvailableWidth(panel);
@@ -100,7 +96,7 @@ class OfficeChromePanelVisualSmokeTest {
 			graphics.dispose();
 		}
 		assertRibbonColorsArePresentInRenderedPixels(image, panel);
-		assertSearchBoxHasNoOutline(image, panel, searchBox);
+		assertSearchBoxUsesOfficeOutline(image, panel, searchBox);
 
 		Path output = Path.of("build", "reports", "ribbon", "office-chrome-ribbon-smoke.png");
 		Files.createDirectories(output.getParent());
@@ -193,14 +189,14 @@ class OfficeChromePanelVisualSmokeTest {
 				panel.setSize(width, rowHeight);
 				panel.doLayout();
 				layoutRecursively(panel);
-				assertSearchIsAttachedToTabRow(panel);
+				assertSearchIsAttachedToChromeHeader(panel);
 				if (width == 320) {
-					assertTrue(!findNamedComponent(panel, OfficeChromePanel.SEARCH_BOX_NAME).isVisible(),
-						"the search accessory should yield to tabs at narrow widths");
+					assertTrue(!isVisibleInHierarchy(findNamedComponent(panel, OfficeChromePanel.SEARCH_BOX_NAME)),
+						"the title-bar search field should yield to the window controls at narrow widths");
 				}
 				if (width >= 1024) {
 					assertTrue(findNamedComponent(panel, OfficeChromePanel.SEARCH_BOX_NAME).isVisible(),
-						"the search accessory should be visible when the tab row has room");
+						"the title-bar search field should be visible when the header has room");
 				}
 				if (Locale.JAPAN.equals(locale) && "ProjectRibbonTask".equals(tab.getId()) && width >= 1024) {
 					assertJapaneseStatusDateCaption(panel);
@@ -226,30 +222,37 @@ class OfficeChromePanelVisualSmokeTest {
 		assertTrue(hasVisibleInk(sheet));
 	}
 
-	private static void assertSearchIsAttachedToTabRow(JPanel panel) {
+	private static void assertSearchIsAttachedToChromeHeader(JPanel panel) {
 		JComponent searchBox = findNamedComponent(panel, OfficeChromePanel.SEARCH_BOX_NAME);
-		JComponent tabRow = (JComponent) searchBox.getParent();
-		assertEquals("projectLibreRibbonTabRow", tabRow.getName(),
-			"the search field belongs at the right side of the ribbon tab row");
-		if (searchBox.isVisible()) {
+		JComponent header = findNamedComponent(panel, "officeChromeHeader");
+		JComponent tabRow = findNamedComponent(panel, "projectLibreRibbonTabRow");
+		assertTrue(javax.swing.SwingUtilities.isDescendingFrom(searchBox, header),
+			"the search field belongs in the top title-bar row");
+		assertTrue(!javax.swing.SwingUtilities.isDescendingFrom(searchBox, tabRow),
+			"the search field must not add a second control to the ribbon tab row");
+		if (isVisibleInHierarchy(searchBox)) {
 			assertTrue(searchBox.getWidth() <= searchBox.getMaximumSize().width,
 				"the search field must not stretch beyond its intended Office-style width");
-			Component tabs = tabRow.getComponent(0);
-			assertTrue(searchBox.getX() >= tabs.getX() + tabs.getWidth(),
-				"the search field must remain to the right of the ribbon tabs");
+			Rectangle searchBounds = javax.swing.SwingUtilities.convertRectangle(searchBox.getParent(),
+				searchBox.getBounds(), panel);
+			Rectangle leftBounds = javax.swing.SwingUtilities.convertRectangle(
+				findNamedComponent(panel, OfficeChromePanel.QUICK_ACCESS_NAME).getParent(),
+				findNamedComponent(panel, OfficeChromePanel.QUICK_ACCESS_NAME).getBounds(), panel);
+			Rectangle rightBounds = javax.swing.SwingUtilities.convertRectangle(
+				findNamedComponent(panel, OfficeChromePanel.RIGHT_ACTIONS_NAME).getParent(),
+				findNamedComponent(panel, OfficeChromePanel.RIGHT_ACTIONS_NAME).getBounds(), panel);
+			assertTrue(searchBounds.x >= leftBounds.getMaxX() && searchBounds.getMaxX() <= rightBounds.x,
+				() -> "the title-bar search field must remain between the QAT and right-side commands: panel="
+					+ panel.getSize() + ", search=" + searchBounds + ", left=" + leftBounds + ", right=" + rightBounds);
 		}
 	}
 
-	private static void assertSearchBoxHasNoOutline(BufferedImage image, JPanel panel, JComponent searchBox) {
+	private static void assertSearchBoxUsesOfficeOutline(BufferedImage image, JPanel panel, JComponent searchBox) {
 		java.awt.Point topCenter = javax.swing.SwingUtilities.convertPoint(searchBox,
 			searchBox.getWidth() / 2, 0, panel);
-		java.awt.Point bottomCenter = javax.swing.SwingUtilities.convertPoint(searchBox,
-			searchBox.getWidth() / 2, searchBox.getHeight() - 1, panel);
 		int chromeRgb = MicroProjectTheme.tokens().ribbonChromeBackground().getRGB();
-		assertEquals(chromeRgb, image.getRGB(topCenter.x, topCenter.y),
-			"the search accessory should not draw an Office-absent rounded outline");
-		assertEquals(chromeRgb, image.getRGB(bottomCenter.x, bottomCenter.y),
-			"the search accessory should remain visually open against the tab strip");
+		assertTrue(image.getRGB(topCenter.x, topCenter.y) != chromeRgb,
+			"the title-bar search field should have a visible, light rounded outline like current Office search");
 	}
 
 	private static void assertRibbonColorsArePresentInRenderedPixels(BufferedImage image, JPanel panel) {

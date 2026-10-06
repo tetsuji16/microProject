@@ -24,8 +24,8 @@ import java.util.Arrays;
 import javax.imageio.ImageIO;
 
 import javax.swing.AbstractButton;
-import javax.swing.JFrame;
 import javax.swing.JCheckBox;
+import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
@@ -93,11 +93,12 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 		RibbonController ribbon = (RibbonController) ribbonHost.getClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY);
 		JPanel documentSurface = new JPanel();
 		ribbon.setRibbonDisplayMode(RibbonDisplayMode.ALWAYS_SHOW);
-		OfficeChromePanel chrome = new OfficeChromePanel(manager, ribbonHost, () -> { });
 		SwingUtilities.invokeAndWait(() -> {
-			frame = new JFrame("Office chrome ribbon display acceptance");
-			frame.add(chrome, BorderLayout.NORTH);
-			frame.add(documentSurface, BorderLayout.CENTER);
+			frame = new MainRibbonFrame("Office chrome ribbon display acceptance", "", "");
+			frame.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
+			OfficeChromePanel chrome = new OfficeChromePanel(frame, manager, ribbonHost, () -> { }, AutoSaveControl.DISABLED);
+			((MainRibbonFrame) frame).setRibbonPanel(chrome);
+			frame.getContentPane().add(documentSurface, BorderLayout.CENTER);
 			frame.setSize(1200, 500);
 			frame.setLocationByPlatform(true);
 			frame.setAlwaysOnTop(true);
@@ -105,6 +106,7 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 			frame.toFront();
 			frame.requestFocus();
 		});
+		OfficeChromePanel chrome = (OfficeChromePanel) ((MainRibbonFrame) frame).getRibbonPanel();
 		AbstractButton options = findShowingButton(chrome, OfficeChromePanel.RIBBON_DISPLAY_OPTIONS_NAME);
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
@@ -112,6 +114,16 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> options.isShowing()
 			&& options.getWidth() > 0 && options.getHeight() > 0,
 			"title-bar display options button did not become laid out");
+		java.awt.Component searchBox = findComponent(chrome, OfficeChromePanel.SEARCH_BOX_NAME);
+		assertTrue(searchBox.isShowing(), "the centered title-bar search field should be visible at the production test width");
+		assertTrue(SwingUtilities.isDescendingFrom(searchBox, chrome.getHeaderComponent()),
+			"the search field should share the title-bar row with QAT and window controls");
+		assertFalse(SwingUtilities.isDescendingFrom(searchBox, ribbonHost),
+			"the search field must not occupy the ribbon tab row");
+		AbstractButton initialTaskTab = ribbonTab(ribbonHost, "TaskRibbonTask");
+		click(robot, initialTaskTab);
+		assertTrue(initialTaskTab.isSelected(), "the production ribbon screenshot should show its active Task tab");
+		capture(robot, "ribbon-display-initial");
 		assertTrue(OfficeChromePanel.RIBBON_SURFACE_NAME.equals(options.getParent().getParent().getName()),
 			"ribbon display options should be placed at the ribbon surface's lower-right edge");
 		Rectangle surfaceBounds = bounds(chrome, OfficeChromePanel.RIBBON_SURFACE_NAME);
@@ -245,8 +257,11 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 			RibbonDisplayPreferences.loadQuickAccessCommands(),
 			"newly selected command must be appended after the existing QAT command");
 		AbstractButton findButton = findShowingButton(chrome, "RibbonFind");
-		assertEquals(manager.getActionFromId("RibbonFind"), findButton.getAction(),
-			"customized QAT command must use the existing canonical action");
+		assertEquals("RibbonFind", findButton.getActionCommand(),
+			"customized QAT controls must dispatch through the canonical RibbonFind command id");
+		assertEquals(manager.getActionFromId("RibbonFind").getValue(javax.swing.Action.NAME),
+			findButton.getAction().getValue(javax.swing.Action.NAME),
+			"customized QAT command must use the action registered for the canonical RibbonFind id");
 		click(robot, findShowingButton(chrome, OfficeChromePanel.RIBBON_DISPLAY_OPTIONS_NAME));
 		click(robot, popupItem(UsabilityStrings.text("chrome.resetQuickAccess")));
 		robot.keyPress(KeyEvent.VK_ENTER);
@@ -390,11 +405,12 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 				lastScrollValue[0] = scrollPane.getVerticalScrollBar().getValue();
 				lastScrollMaximum[0] = scrollPane.getVerticalScrollBar().getMaximum();
 			});
-			if (viewportBounds[0].contains(componentBounds[0])) return;
+			if (componentBounds[0].y >= viewportBounds[0].y
+					&& componentBounds[0].getMaxY() <= viewportBounds[0].getMaxY()) return;
 			Point scrollPoint = new Point(viewportBounds[0].x + viewportBounds[0].width / 2,
 				viewportBounds[0].y + viewportBounds[0].height / 2);
 			robot.mouseMove(scrollPoint.x, scrollPoint.y);
-			robot.mouseWheel(componentBounds[0].y > viewportBounds[0].getMaxY() ? 1 : -1);
+			robot.mouseWheel(componentBounds[0].getMaxY() > viewportBounds[0].getMaxY() ? 1 : -1);
 			robot.waitForIdle();
 		}
 		throw new AssertionError("Quick Access choice did not enter the visible scroll viewport: "

@@ -176,7 +176,6 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	private String tabBeforeBackstage;
 	private boolean backstageOpen;
 	private JComponent tabRow;
-	private JComponent tabRowAccessory;
 	private JPanel tabStrip;
 	private AbstractButton tabOverflowButton;
 	private boolean updatingTabOverflow;
@@ -309,30 +308,6 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 
 	public boolean isContextualTabVisible(String tabId) {
 		return visibleContextualTabs.contains(tabId);
-	}
-
-	@Override
-	public void setTabRowAccessory(JComponent accessory) {
-		if (tabRowAccessory != null && tabRowAccessory.getParent() == tabRow) tabRow.remove(tabRowAccessory);
-		tabRowAccessory = accessory;
-		if (tabRow != null) {
-			if (accessory != null) addTabRowAccessory(tabRow, accessory);
-			updateTabRowAccessoryVisibility();
-			updateTabOverflow();
-			tabRow.revalidate();
-			tabRow.repaint();
-		}
-	}
-
-	private void addTabRowAccessory(JComponent row, JComponent accessory) {
-		GridBagConstraints constraints = new GridBagConstraints();
-		constraints.gridx = 2;
-		constraints.gridy = 0;
-		constraints.weightx = 0.0;
-		constraints.fill = GridBagConstraints.NONE;
-		constraints.anchor = GridBagConstraints.EAST;
-		constraints.insets = new Insets(0, 8, 0, 0);
-		row.add(accessory, constraints);
 	}
 
 	/** Labels contextual tabs with the active view, for example Gantt Chart Format. */
@@ -597,6 +572,14 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 			};
 			autoHideFocusListener = event -> {
 				Component focusOwner = event.getNewValue() instanceof Component target ? target : null;
+				if (focusOwner == null) {
+					// Swing can briefly publish a null focus owner between two ribbon
+					// controls. Defer until the focus transition settles so an internal
+					// tab click does not dismiss the temporary reveal.
+					SwingUtilities.invokeLater(() -> dismissOnAutoHideOutsideInteraction(
+						java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner()));
+					return;
+				}
 				runOnEdt(() -> dismissOnAutoHideOutsideInteraction(focusOwner));
 			};
 		}
@@ -698,8 +681,6 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	public void doLayout() {
 		super.doLayout();
 		updateTabOverflow();
-		updateTabRowAccessoryVisibility();
-		updateTabOverflow();
 		// Off-screen rendering and first layout do not necessarily dispatch a
 		// component-resized event.  Re-evaluate here so the visible density never
 		// depends on the component having been realized first.
@@ -732,9 +713,6 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		glueConstraints.weightx = 1.0;
 		glueConstraints.fill = GridBagConstraints.HORIZONTAL;
 		row.add(Box.createHorizontalGlue(), glueConstraints);
-		if (tabRowAccessory != null) {
-			addTabRowAccessory(row, tabRowAccessory);
-		}
 		// Keep the command registrations owned by the ribbon factory for legacy
 		// action-map consumers, but do not render a second QAT here.  The visible
 		// QAT is owned by OfficeChromePanel, matching the MSP/Office title-bar
@@ -742,19 +720,6 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		registerQuickAccessActions();
 
 		return row;
-	}
-
-	private void updateTabRowAccessoryVisibility() {
-		if (tabRow == null || tabRowAccessory == null) return;
-		Component tabs = tabRow.getComponentCount() == 0 ? null : tabRow.getComponent(0);
-		int requiredWidth = (tabs == null ? 0 : tabs.getPreferredSize().width)
-			+ tabRowAccessory.getPreferredSize().width
-			+ theme.horizontalInset() * 2 + 8;
-		boolean visible = getWidth() >= requiredWidth;
-		if (tabRowAccessory.isVisible() != visible) {
-			tabRowAccessory.setVisible(visible);
-			tabRow.revalidate();
-		}
 	}
 
 	private void registerQuickAccessActions() {
@@ -818,9 +783,6 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 				.filter(tab -> !tab.isContextual() || visibleContextualTabs.contains(tab.getId()))
 				.toList();
 			int availableWidth = Math.max(0, getWidth() - theme.horizontalInset() * 2);
-			if (tabRowAccessory != null && tabRowAccessory.isVisible()) {
-				availableWidth = Math.max(0, availableWidth - tabRowAccessory.getPreferredSize().width - 8);
-			}
 			int fullWidth = visibleTabs.stream()
 				.mapToInt(tab -> tabButtons.get(tab.getId()).getPreferredSize().width).sum();
 			boolean overflowNeeded = fullWidth > availableWidth;

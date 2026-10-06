@@ -140,7 +140,6 @@ final class OfficeChromePanel extends JPanel {
 		this.quickAccessCommands.setOpaque(false);
 		this.searchField = new JTextField(28);
 		this.searchBox = buildSearchBox();
-		if (ribbonController != null) ribbonController.setTabRowAccessory(searchBox);
 		this.documentTitleLabel = createDocumentTitleLabel(frame == null ? "" : frame.getTitle());
 		this.titleBinding = frame == null ? null : OfficeChromeTitleBinding.attach(frame, this::updateDocumentTitle);
 		setName(NAME);
@@ -212,13 +211,14 @@ final class OfficeChromePanel extends JPanel {
 	private JComponent buildHeaderContent() {
 		JPanel content = new JPanel(new GridBagLayout()) {
 			@Override public void doLayout() {
-				// At narrow window widths the search field and document title must
-				// yield space to the native help/minimize/maximize/close controls.
-				// Leaving their preferred widths active pushes that cluster outside
-				// the window, making the right buttons unreachable.
-				boolean compact = getWidth() < 640;
-				if (getComponentCount() > 1) getComponent(1).setVisible(!compact);
-				documentTitleLabel.setVisible(!compact);
+				// Keep the title/search controls only while the measured preferred
+				// widths of all three header clusters fit. This protects native
+				// window buttons without a locale- or DPI-specific width threshold.
+				JComponent center = (JComponent) getComponent(1);
+				documentTitleLabel.setVisible(true);
+				center.setVisible(true);
+				if (!headerClustersFit(this)) documentTitleLabel.setVisible(false);
+				if (!headerClustersFit(this)) center.setVisible(false);
 				super.doLayout();
 			}
 		};
@@ -253,6 +253,13 @@ final class OfficeChromePanel extends JPanel {
 		constraints.insets = new Insets(0, 0, 0, 0);
 		content.add(buildRightCluster(), constraints);
 		return content;
+	}
+
+	private static boolean headerClustersFit(JPanel content) {
+		int requiredWidth = content.getInsets().left + content.getInsets().right + 16;
+		for (java.awt.Component component : content.getComponents())
+			if (component.isVisible()) requiredWidth += component.getPreferredSize().width;
+		return content.getWidth() >= requiredWidth;
 	}
 
 	private JComponent buildLeftCluster() {
@@ -323,9 +330,9 @@ final class OfficeChromePanel extends JPanel {
 		constraints.gridx = 0;
 		constraints.gridy = 0;
 		constraints.weightx = 1.0;
-		constraints.fill = GridBagConstraints.HORIZONTAL;
+		constraints.fill = GridBagConstraints.NONE;
 		constraints.anchor = GridBagConstraints.CENTER;
-		if (ribbonController == null) cluster.add(searchBox, constraints);
+		cluster.add(searchBox, constraints);
 		return cluster;
 	}
 
@@ -559,6 +566,7 @@ final class OfficeChromePanel extends JPanel {
 		box.setMaximumSize(new Dimension(
 			FlatUiSupport.ribbonSearchMaxWidth(),
 			FlatUiSupport.ribbonSearchHeight()));
+		box.setBorder(new EmptyBorder(0, 4, 0, 4));
 
 		AbstractButton searchButton = createGlyphButton("Search", GlyphIcon.search(), false, SEARCH_BOX_NAME + "Button");
 		searchButton.addActionListener(event -> triggerFindAction());
@@ -619,6 +627,7 @@ final class OfficeChromePanel extends JPanel {
 		}
 		button.setText("");
 		button.setName(actionId);
+		button.setActionCommand(actionId);
 		button.setToolTipText(resolveTooltip(actionId));
 		if (menuManager != null && menuManager.getRibbonFactory() != null)
 			menuManager.getRibbonFactory().registerRibbonControl(actionId, button);
@@ -696,10 +705,14 @@ final class OfficeChromePanel extends JPanel {
 			Graphics2D g2 = (Graphics2D) g.create();
 			try {
 				FlatUiSupport.enableAntialiasing(g2);
-				if (searchField.isFocusOwner()) {
-					g2.setColor(ACCENT_COLOR);
-					g2.drawLine(0, getHeight() - 1, getWidth(), getHeight() - 1);
-				}
+				int inset = 0;
+				int arc = FlatUiSupport.ribbonCornerRadius();
+				RoundRectangle2D.Double outline = new RoundRectangle2D.Double(
+					inset + 0.5d, inset + 0.5d, getWidth() - 1d, getHeight() - 1d, arc, arc);
+				g2.setColor(FlatUiSupport.ribbonSurfaceColor());
+				g2.fill(outline);
+				g2.setColor(searchField.isFocusOwner() ? ACCENT_COLOR : BORDER_COLOR);
+				g2.draw(outline);
 			} finally {
 				g2.dispose();
 			}
