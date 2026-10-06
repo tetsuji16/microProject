@@ -80,8 +80,21 @@ customizations.
 
 Do not implement these with a second ribbon renderer or a second Action layer.
 User configuration is user-scoped, separate from project data. Old application
-and internal-API compatibility is not required. MPO must continue reading
-existing files; POD serialization format must not change.
+and internal-API compatibility is not required.
+
+## Project-file persistence boundary
+
+MPO is the primary native project format and the required save/reload target for
+new project features and MSP command acceptance. MPO must continue reading
+existing files; new optional, versioned MPO metadata may carry new feature
+state.
+
+POD's serialized schema is frozen. Do not add serialized fields, record
+components, alter class descriptors, or otherwise change its format. New
+features do not need full POD persistence or behavioral parity when POD cannot
+represent them. Keep existing POD open/save behavior where it already applies,
+but test new feature persistence through MPO and document any POD limitation
+instead of extending the POD schema.
 
 ## Review and closure rule
 
