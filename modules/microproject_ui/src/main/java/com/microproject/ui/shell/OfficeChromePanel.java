@@ -109,6 +109,7 @@ final class OfficeChromePanel extends JPanel {
 	private final AutoSaveControl autoSaveControl;
 	private final OfficeChromeTitleBinding titleBinding;
 	private final RibbonController ribbonController;
+	private final JComponent header;
 	private final JPanel quickAccessCommands;
 	private final JPanel ribbonOptionsRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 8, 0));
 	private AbstractButton autoHideOptionsButton;
@@ -149,7 +150,9 @@ final class OfficeChromePanel extends JPanel {
 		// the ribbon from FlatLaf's native caption hit testing so physical clicks
 		// reach Swing command buttons on the full-window-content shell.
 		ribbonPanel.putClientProperty("JComponent.titleBarCaption", Boolean.FALSE);
-		add(buildHeader(), BorderLayout.NORTH);
+		header = buildHeader();
+		header.setName("officeChromeHeader");
+		add(header, BorderLayout.NORTH);
 		add(buildRibbonSurface(ribbonPanel), BorderLayout.CENTER);
 		if (ribbonController != null) {
 			ribbonController.addRibbonDisplayModeListener(mode -> {
@@ -158,6 +161,10 @@ final class OfficeChromePanel extends JPanel {
 			});
 			ribbonOptionsRow.setVisible(ribbonController.getRibbonDisplayMode() != RibbonDisplayMode.AUTO_HIDE);
 		}
+	}
+
+	JComponent getHeaderComponent() {
+		return header;
 	}
 
 	private JComponent buildRibbonSurface(JComponent ribbonPanel) {

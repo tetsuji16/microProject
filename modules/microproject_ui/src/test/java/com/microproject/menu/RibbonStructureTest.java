@@ -73,18 +73,23 @@ class RibbonStructureTest {
 	}
 
 	@Test
-	void issue37FileTabExposesRecentProjectsBesideOpen() {
+	void fileBackstageExposesRecentProjectsBesideOpen() {
 		assertEquals(List.of(
 			"RibbonNewProject", "RibbonNewMasterProject", "RibbonOpenProject", "RibbonRecentProjects",
 			"RibbonSaveProject", "RibbonSaveProjectAs", "RibbonSaveMpoAs", "RibbonCloseProject"),
 			ribbonButtonIds("FileRibbonBand"));
 		assertEquals("RecentProjectsAction",
 			menuInternalBundle().getString("RibbonRecentProjects.action"));
+		assertEquals(List.of("new", "open", "save", "saveAs", "print", "export", "locale", "close"),
+			List.of(menuInternalBundle().getString("FileBackstagePages").split("\\s+")));
+		assertEquals("open", menuInternalBundle().getString("RibbonOpenProject.backstagePage"));
+		assertEquals("save", menuInternalBundle().getString("RibbonSaveProject.backstagePage"));
+		assertEquals("true", menuInternalBundle().getString("RibbonSaveProject.backstageImmediate"));
 	}
 
 	@Test
 	void taskTabPlacesMicrosoftScheduleCommandsInScheduleGroup() {
-		assertEquals(List.of("RibbonImportProject", "RibbonExportProject"),
+		assertEquals(List.of("RibbonExportProject", "RibbonImportProject"),
 			ribbonButtonIds("FileExchangeRibbonBand"));
 		assertEquals(List.of(
 			"ClipboardRibbonBand", "TaskInsertRibbonBand", "TaskOutlineRibbonBand", "TaskDependenciesRibbonBand",

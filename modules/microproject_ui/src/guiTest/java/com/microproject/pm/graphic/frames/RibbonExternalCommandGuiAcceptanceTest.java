@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.prefs.Preferences;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -146,17 +147,16 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		legacyPod = Files.createTempFile("ribbon-legacy-sample-", ".pod");
 		Files.copy(Path.of(System.getProperty("microproject.project.dir"), "samples", "June_1_sample.pod"), legacyPod,
 			java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+		createWindow("microProject — Legacy sample File/Open acceptance");
 		UiServices.setFileChooserProvider(new UiServices.FileChooserProvider() {
 			@Override public String chooseFileName(boolean save, String selectedFileName, Object parent) { return null; }
 			@Override public List<String> chooseFileNames(boolean save, String selectedFileName, Object parent) {
 				return save ? List.of() : List.of(legacyPod.toString());
 			}
 		});
-
-		createWindow("microProject — Legacy sample File/Open acceptance");
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
-		AbstractButton openButton = findCommandButton(window.getRibbonPanel(), "RibbonOpenProject");
+		AbstractButton openButton = findCommandButton(window.getRibbonPanel(), "RibbonOpenProject", robot);
 		click(robot, openButton);
 		GuiAcceptanceSupport.await(() -> manager.findFrameForProjectFile(legacyPod.toString()) != null,
 			"File/Open rejected the selected legacy POD before its importer ran");
@@ -181,17 +181,16 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		Path historySample = Path.of(System.getProperty("microproject.project.dir"), "samples",
 			"CCPM 標準システム導入 20タスク（履歴付き）.mpo");
 		assertTrue(Files.isRegularFile(historySample), "checked-in CCPM history sample is missing");
+		createWindow("microProject — CCPM history File/Open acceptance");
 		UiServices.setFileChooserProvider(new UiServices.FileChooserProvider() {
 			@Override public String chooseFileName(boolean save, String selectedFileName, Object parent) { return null; }
 			@Override public List<String> chooseFileNames(boolean save, String selectedFileName, Object parent) {
 				return save ? List.of() : List.of(historySample.toString());
 			}
 		});
-
-		createWindow("microProject — CCPM history File/Open acceptance");
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
-		click(robot, findCommandButton(window.getRibbonPanel(), "RibbonOpenProject"));
+		click(robot, findCommandButton(window.getRibbonPanel(), "RibbonOpenProject", robot));
 		GuiAcceptanceSupport.await(() -> manager.findFrameForProjectFile(historySample.toString()) != null,
 			"File/Open did not register the selected CCPM history sample");
 		Project loaded = manager.findFrameForProjectFile(historySample.toString()).getProject();
@@ -263,7 +262,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindowForRobot(robot);
-		AbstractButton open = findCommandButton(window.getRibbonPanel(), "RibbonOpenProject");
+		AbstractButton open = findCommandButton(window.getRibbonPanel(), "RibbonOpenProject", robot);
 		int documentsBefore = manager.getFrameManager().getAllFrames().size();
 
 		click(robot, open);
@@ -353,13 +352,13 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		assertEquals(documentsBefore, manager.getFrameManager().getAllFrames().size(),
 			"native Ctrl+O cancellation must not open a project");
 		verifyNativeChooserEscape(robot,
-			() -> click(robot, findCommandButton(window.getRibbonPanel(), "RibbonOpenProject")),
+			() -> click(robot, findCommandButton(window.getRibbonPanel(), "RibbonOpenProject", robot)),
 			chooserCallStarted, chooserCallReturned,
 			chooserCancelled, "Ribbon Open");
 		assertEquals(documentsBefore, manager.getFrameManager().getAllFrames().size(),
 			"native Ribbon Open cancellation must not open a project");
 		verifyNativeChooserCancelButton(robot,
-			() -> click(robot, findCommandButton(window.getRibbonPanel(), "RibbonOpenProject")), chooserCallStarted,
+			() -> click(robot, findCommandButton(window.getRibbonPanel(), "RibbonOpenProject", robot)), chooserCallStarted,
 			chooserCallReturned, chooserCancelled, "Ribbon Open");
 		assertEquals(documentsBefore, manager.getFrameManager().getAllFrames().size(),
 			"native Ribbon Open Cancel must not open a project");
@@ -527,14 +526,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		// every attempt still requires the real dialog and document registration.
 		for (int attempt = 0; attempt < 3 && visibleDialog(ProjectDialog.class) == null; attempt++) {
 			if (attempt > 0) activateWindowForRobot(robot);
-			AbstractButton fileTab = findRibbonTab(window.getRibbonPanel(), "File", "ファイル");
-			if (!fileTab.isSelected()) {
-				click(robot, fileTab);
-				robot.waitForIdle();
-			}
-			// Ribbon content can be rebuilt when the tab is restored. Always use
-			// the component currently attached to the visible ribbon tree.
-			AbstractButton newButton = findCommandButton(window.getRibbonPanel(), "RibbonNewProject");
+			AbstractButton newButton = findCommandButton(window.getRibbonPanel(), "RibbonNewProject", robot);
 			assertTrue(newButton.isShowing(), "RibbonNewProject must be physically showing on attempt " + (attempt + 1));
 			assertTrue(newButton.isEnabled(), "RibbonNewProject must be enabled on attempt " + (attempt + 1));
 			click(robot, newButton);
@@ -620,7 +612,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		GraphicManager initialManager = manager;
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
-		click(robot, findCommandButton(window.getRibbonPanel(), "RibbonLocale"));
+		click(robot, findCommandButton(window.getRibbonPanel(), "RibbonLocale", robot));
 		GuiAcceptanceSupport.await(() -> visibleDialog(LocaleDialog.class) != null,
 			"Locale dialog did not open from the ribbon");
 		LocaleDialog dialog = (LocaleDialog) visibleDialog(LocaleDialog.class);
@@ -911,7 +903,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 	}
 
 	private void clickAndClose(Robot robot, String commandId, Class<? extends Window> dialogType) throws Exception {
-		AbstractButton button = RibbonGuiSupport.findVisibleOrExpand(robot, window.getRibbonPanel(), commandId);
+		AbstractButton button = findCommandButton(window.getRibbonPanel(), commandId, robot);
 		assertTrue(button.isShowing(), commandId + " is not physically visible");
 		assertTrue(button.isEnabled(), commandId + " is disabled in the real application state");
 		click(robot, button);
@@ -1022,6 +1014,90 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		}
 		if (match != null) return match;
 		throw new AssertionError("Ribbon command is not present: " + commandId);
+	}
+
+	private AbstractButton findCommandButton(Component root, String commandId, Robot robot) throws Exception {
+		if (!Set.of("RibbonNewProject", "RibbonNewMasterProject", "RibbonOpenProject", "RibbonRecentProjects",
+			"RibbonSaveProject", "RibbonSaveProjectAs", "RibbonSaveMpoAs", "RibbonCloseProject",
+			"RibbonImportProject", "RibbonExportProject", "RibbonPrint", "RibbonPrintPreview", "RibbonPDF",
+			"RibbonLocale").contains(commandId)) {
+			return findCommandButton(root, commandId);
+		}
+		Window owner = SwingUtilities.getWindowAncestor(root);
+		if (!(owner instanceof javax.swing.JFrame frame))
+			throw new AssertionError("File command route has no application frame: " + commandId);
+		String targetName = switch (commandId) {
+			case "RibbonSaveProject" -> "officeBackstageNav-save";
+			case "RibbonCloseProject" -> "officeBackstageNav-close";
+			case "RibbonLocale" -> "officeBackstageNav-locale";
+			default -> "officeBackstageCommand-" + commandId;
+		};
+		if (findNamedOnEdt(frame, "officeBackstageOverlay") == null) {
+			click(robot, findRibbonTab(root, "File", "ファイル"));
+			GuiAcceptanceSupport.await(() -> findNamedOnEdt(frame, "officeBackstageView") != null,
+				"File tab did not open Backstage for command " + commandId);
+		}
+		String pageId = backstagePageFor(commandId);
+		if (pageId != null) {
+			Component pageButton = findNamedOnEdt(frame, "officeBackstageNav-" + pageId);
+			if (!(pageButton instanceof AbstractButton button))
+				throw new AssertionError("Backstage navigation is missing destination " + pageId);
+			click(robot, button);
+			robot.waitForIdle();
+		}
+		GuiAcceptanceSupport.await(() -> {
+			Component target = findNamedOnEdt(frame, targetName);
+			return target != null;
+		}, "Backstage destination did not expose command " + commandId);
+		Component target = findNamedOnEdt(frame, targetName);
+		if (!(target instanceof AbstractButton button) || !isShowingOnEdt(button)) {
+			throw new AssertionError("Backstage command is not physically visible: " + commandId);
+		}
+		return button;
+	}
+
+	private static String backstagePageFor(String commandId) {
+		return switch (commandId) {
+			case "RibbonNewProject", "RibbonNewMasterProject" -> "new";
+			case "RibbonOpenProject", "RibbonRecentProjects" -> "open";
+			case "RibbonSaveProject" -> null;
+			case "RibbonSaveProjectAs", "RibbonSaveMpoAs" -> "saveAs";
+			case "RibbonPrint", "RibbonPrintPreview", "RibbonPDF" -> "print";
+			case "RibbonImportProject", "RibbonExportProject" -> "export";
+			case "RibbonCloseProject", "RibbonLocale" -> null;
+			default -> throw new IllegalArgumentException("Not a Backstage command: " + commandId);
+		};
+	}
+
+	private static Component findNamed(Component root, String name) {
+		if (name.equals(root.getName())) return root;
+		if (root instanceof Container container) {
+			for (Component child : container.getComponents()) {
+				Component found = findNamed(child, name);
+				if (found != null) return found;
+			}
+		}
+		return null;
+	}
+
+	private static Component findNamedOnEdt(Window window, String name) {
+		Component[] match = new Component[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> match[0] = findNamed(SwingUtilities.getRootPane(window), name));
+		} catch (Exception exception) {
+			throw new AssertionError("Could not inspect Backstage component " + name + " on the EDT", exception);
+		}
+		return match[0];
+	}
+
+	private static boolean isShowingOnEdt(Component component) {
+		boolean[] showing = new boolean[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> showing[0] = component.isShowing());
+		} catch (Exception exception) {
+			throw new AssertionError("Could not inspect Backstage visibility on the EDT", exception);
+		}
+		return showing[0];
 	}
 
 	private static boolean isInsideTopLevelContent(Component component) {

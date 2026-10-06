@@ -76,6 +76,8 @@ public final class SwingRibbonModel {
 		private final boolean toggle;
 		private final ButtonPresentation presentation;
 		private final int collapsePriority;
+		private final String backstagePage;
+		private final boolean backstageImmediate;
 
 		public RibbonButton(String id, ButtonPriority priority) {
 			this(id, priority, null, false);
@@ -96,6 +98,11 @@ public final class SwingRibbonModel {
 
 		public RibbonButton(String id, String text, ButtonPriority priority, ButtonSize size, String iconKey, boolean toggle,
 			ButtonPresentation presentation, int collapsePriority) {
+			this(id, text, priority, size, iconKey, toggle, presentation, collapsePriority, null, false);
+		}
+
+		public RibbonButton(String id, String text, ButtonPriority priority, ButtonSize size, String iconKey, boolean toggle,
+			ButtonPresentation presentation, int collapsePriority, String backstagePage, boolean backstageImmediate) {
 			this.id = Objects.requireNonNull(id);
 			this.text = Objects.requireNonNull(text);
 			this.priority = Objects.requireNonNull(priority);
@@ -104,6 +111,8 @@ public final class SwingRibbonModel {
 			this.toggle = toggle;
 			this.presentation = Objects.requireNonNull(presentation);
 			this.collapsePriority = collapsePriority;
+			this.backstagePage = backstagePage;
+			this.backstageImmediate = backstageImmediate;
 		}
 
 		public String getId() {
@@ -155,6 +164,10 @@ public final class SwingRibbonModel {
 		public int getCollapsePriority() {
 			return collapsePriority;
 		}
+
+		public String getBackstagePage() { return backstagePage; }
+
+		public boolean isBackstageImmediate() { return backstageImmediate; }
 	}
 
 	public static final class RibbonBand {

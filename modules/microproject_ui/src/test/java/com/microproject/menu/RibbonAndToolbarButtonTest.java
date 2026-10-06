@@ -388,7 +388,7 @@ class RibbonAndToolbarButtonTest {
 	}
 
 	@Test
-	void preferencesRibbonBandAppearsOnlyInFileRibbonTask() {
+	void preferencesRibbonBandIsOwnedByTheFileBackstageDefinition() {
 		var owners = new ArrayList<String>();
 		for (Map.Entry<String, java.util.List<String>> entry : ribbonBandsByTask().entrySet()) {
 			if (entry.getValue().contains("PreferencesRibbonBand")) {
@@ -620,8 +620,9 @@ class RibbonAndToolbarButtonTest {
 			AbstractButton fileTab = findButtonByText(host, labels.getString("FileRibbonTask.title"));
 			AbstractButton taskTab = findButtonByText(host, labels.getString("TaskRibbonTask.title"));
 
-			assertTrue(fileTab.isSelected());
-			taskTab.doClick();
+		assertFalse(fileTab.isSelected());
+		assertTrue(taskTab.isSelected());
+		taskTab.doClick();
 
 			assertTrue(taskTab.isSelected());
 			assertFalse(fileTab.isSelected());

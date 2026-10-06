@@ -106,6 +106,8 @@ public final class ProjectLibreShell {
 		shell.putClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY,
 			ribbonPanel.getClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY));
 		frame.setRibbonPanel(shell);
+		frame.setRibbonBackstageHost(new OfficeBackstageHost(frame,
+			((OfficeChromePanel)shell).getHeaderComponent()));
 		return new ShellHandles(null, null, null);
 	}
 

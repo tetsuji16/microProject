@@ -43,4 +43,7 @@ public interface RibbonController {
 
 	/** Adds an optional trailing control to the ribbon's tab row. */
 	void setTabRowAccessory(JComponent accessory);
+
+	/** Connects File-tab navigation to the window-level Backstage surface. */
+	void setBackstageHost(RibbonBackstageHost host);
 }

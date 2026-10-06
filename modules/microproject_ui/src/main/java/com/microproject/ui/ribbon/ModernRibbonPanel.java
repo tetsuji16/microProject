@@ -170,6 +170,11 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	private AWTEventListener autoHideDismissalListener;
 	private java.beans.PropertyChangeListener autoHideFocusListener;
 	private boolean autoHideDismissalRegistered;
+	private RibbonBackstageHost backstageHost;
+	private JComponent backstageView;
+	private final Map<String, JComponent> backstageDetailPages = new LinkedHashMap<>();
+	private String tabBeforeBackstage;
+	private boolean backstageOpen;
 	private JComponent tabRow;
 	private JComponent tabRowAccessory;
 	private JPanel tabStrip;
@@ -206,11 +211,13 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		add(tabRow, BorderLayout.NORTH);
 		add(cards, BorderLayout.CENTER);
 		for (SwingRibbonModel.RibbonTab tab : model.getTabs()) {
+			// File remains in the model as the canonical command catalog, but its
+			// buttons are rendered only by the window-level Backstage view.
+			if (isBackstageTab(tab.getId())) continue;
 			tabBodies.computeIfAbsent(tab.getId(), this::createTabBody);
 		}
-		if (!model.getTabs().isEmpty()) {
-			showTab(model.getTabs().get(0).getId());
-		}
+		model.getTabs().stream().map(SwingRibbonModel.RibbonTab::getId)
+			.filter(tabId -> !isBackstageTab(tabId)).findFirst().ifPresent(this::showTab);
 		addComponentListener(new java.awt.event.ComponentAdapter() {
 			@Override
 			public void componentResized(java.awt.event.ComponentEvent event) {
@@ -358,6 +365,227 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		uninstallTabAccessKeys();
 		super.removeNotify();
 	}
+
+	@Override
+	public void setBackstageHost(RibbonBackstageHost host) {
+		backstageHost = host;
+	}
+
+	private void openBackstage() {
+		if (backstageHost == null) return;
+		if (backstageOpen) {
+			closeBackstage();
+			return;
+		}
+		tabBeforeBackstage = activeTabId;
+		backstageOpen = true;
+		backstageHost.show(backstageView(), this::closeBackstage);
+	}
+
+	private void closeBackstage() {
+		if (!backstageOpen) return;
+		backstageOpen = false;
+		if (backstageHost != null) backstageHost.hide();
+		String restore = tabBeforeBackstage;
+		tabBeforeBackstage = null;
+		if (restore != null && isTabVisible(restore)) {
+			showTab(restore);
+			JToggleButton tab = tabButtons.get(restore);
+			if (tab != null) SwingUtilities.invokeLater(() ->
+				SwingUtilities.invokeLater(tab::requestFocusInWindow));
+		}
+	}
+
+	private JComponent backstageView() {
+		if (backstageView != null) return backstageView;
+		backstageView = new JPanel(new BorderLayout());
+		backstageView.setName("officeBackstageView");
+		backstageView.setOpaque(true);
+		backstageView.setBackground(theme.surfaceColor());
+		JPanel navigation = new JPanel();
+		navigation.setName("officeBackstageNavigation");
+		navigation.setLayout(new javax.swing.BoxLayout(navigation, javax.swing.BoxLayout.Y_AXIS));
+		navigation.setBorder(BorderFactory.createEmptyBorder(18, 12, 18, 12));
+		navigation.setOpaque(true);
+		navigation.setBackground(theme.chromeBackground());
+		navigation.setPreferredSize(new Dimension(220, 0));
+		JButton back = new JButton("‹  " + localized("FileRibbonTask.title"));
+		back.setName("officeBackstageBack");
+		back.setHorizontalAlignment(SwingConstants.LEFT);
+		back.setFocusable(true);
+		back.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
+		back.setBackground(navigation.getBackground());
+		back.setFont(theme.tabFont());
+		back.addActionListener(event -> closeBackstage());
+		navigation.add(back);
+		navigation.add(Box.createVerticalStrut(14));
+		java.util.List<BackstagePage> pages = backstagePages();
+		ButtonGroup group = new ButtonGroup();
+		JPanel details = new JPanel(new BorderLayout(0, 18));
+		details.setName("officeBackstageDetails");
+		details.setOpaque(false);
+		details.setBorder(BorderFactory.createEmptyBorder(30, 42, 30, 42));
+		backstageView.putClientProperty("microproject.backstage.initialFocus", back);
+		for (BackstagePage page : pages) {
+			JToggleButton nav = new JToggleButton(localized(page.labelKey()));
+			nav.setName("officeBackstageNav-" + page.id());
+			nav.setHorizontalAlignment(SwingConstants.LEFT);
+			nav.setFocusable(true);
+			nav.setBorder(BorderFactory.createEmptyBorder(9, 12, 9, 12));
+			nav.setBackground(navigation.getBackground());
+			nav.setOpaque(true);
+			nav.setContentAreaFilled(false);
+			nav.setForeground(theme.tabUnselectedForeground());
+			nav.setFont(theme.buttonFont());
+			if (page.immediateCommand() != null) {
+				nav.setAction(commandSource.createAction(page.immediateCommand()));
+				nav.setText(localized(page.labelKey()));
+				nav.setName("officeBackstageNav-" + page.id());
+			}
+			nav.getModel().addChangeListener(event -> {
+				nav.setBackground(nav.isSelected() ? theme.surfaceColor() : navigation.getBackground());
+				nav.setContentAreaFilled(nav.isSelected());
+				nav.setBorder(BorderFactory.createCompoundBorder(
+					BorderFactory.createMatteBorder(0, nav.isSelected() ? 4 : 0, 0, 0,
+						com.microproject.util.FlatUiSupport.accentColor()),
+					BorderFactory.createEmptyBorder(9, nav.isSelected() ? 8 : 12, 9, 12)));
+			});
+			group.add(nav);
+			navigation.add(nav);
+			nav.addActionListener(event -> {
+				if (page.immediateCommand() != null) {
+					SwingUtilities.invokeLater(this::closeBackstage);
+					return;
+				}
+				showBackstagePage(details, page);
+			});
+			if (page == pages.get(0)) nav.doClick(0);
+		}
+		backstageView.add(navigation, BorderLayout.WEST);
+		backstageView.add(details, BorderLayout.CENTER);
+		return backstageView;
+	}
+
+	private java.util.List<BackstagePage> backstagePages() {
+		SwingRibbonModel.RibbonTab fileTab = model.getTabs().stream()
+			.filter(tab -> isBackstageTab(tab.getId())).findFirst()
+			.orElseThrow(() -> new IllegalStateException("The ribbon model has no File/Backstage tab"));
+		Map<String, List<SwingRibbonModel.RibbonButton>> buttonsByPage = new LinkedHashMap<>();
+		int declaredCommandCount = 0;
+		for (SwingRibbonModel.RibbonBand band : fileTab.getBands()) {
+			for (SwingRibbonModel.RibbonButton button : band.getButtons()) {
+				declaredCommandCount++;
+				if (button.getBackstagePage() != null && !button.getBackstagePage().isBlank()) {
+					buttonsByPage.computeIfAbsent(button.getBackstagePage(), ignored -> new ArrayList<>()).add(button);
+				}
+			}
+		}
+		List<BackstagePage> pages = new ArrayList<>();
+		for (String pageId : resolveList("FileBackstagePages")) {
+			List<SwingRibbonModel.RibbonButton> commands = buttonsByPage.getOrDefault(pageId, List.of());
+			if (commands.isEmpty()) throw new IllegalStateException("Backstage page has no commands: " + pageId);
+			List<SwingRibbonModel.RibbonButton> immediate = commands.stream()
+				.filter(SwingRibbonModel.RibbonButton::isBackstageImmediate).toList();
+			if (immediate.size() > 1 || (!immediate.isEmpty() && commands.size() != 1)) {
+				throw new IllegalStateException("A direct Backstage destination must contain exactly one immediate command: " + pageId);
+			}
+			pages.add(new BackstagePage(pageId, commands.getFirst().getId() + ".text",
+				immediate.isEmpty() ? null : immediate.getFirst().getId(), commands));
+		}
+		int backstageCommandCount = buttonsByPage.values().stream().mapToInt(List::size).sum();
+		if (backstageCommandCount != declaredCommandCount || pages.size() != buttonsByPage.size()) {
+			throw new IllegalStateException("File/Backstage command metadata has pages outside FileBackstagePages order");
+		}
+		return List.copyOf(pages);
+	}
+
+	private void showBackstagePage(JPanel details, BackstagePage page) {
+		JComponent content = backstageDetailPages.computeIfAbsent(page.id(), ignored -> createBackstageDetailPage(page));
+		details.removeAll();
+		details.add(content, BorderLayout.CENTER);
+		details.revalidate();
+		details.repaint();
+	}
+
+	private JComponent createBackstageDetailPage(BackstagePage page) {
+		JPanel content = new JPanel(new BorderLayout());
+		content.setName("officeBackstagePage-" + page.id());
+		content.setOpaque(false);
+		JLabel title = new JLabel(localized(page.labelKey()));
+		title.setFont(theme.tabFont().deriveFont(java.awt.Font.PLAIN, 30f));
+		content.add(title, BorderLayout.NORTH);
+		JPanel commands = new JPanel(new java.awt.GridBagLayout());
+		commands.setOpaque(false);
+		java.awt.GridBagConstraints constraints = new java.awt.GridBagConstraints();
+		constraints.gridx = 0;
+		constraints.gridy = 0;
+		constraints.weightx = 0;
+		constraints.anchor = java.awt.GridBagConstraints.NORTHWEST;
+		constraints.fill = java.awt.GridBagConstraints.HORIZONTAL;
+		constraints.insets = new Insets(0, 0, 12, 16);
+		for (SwingRibbonModel.RibbonButton specification : page.commands()) {
+			AbstractButton button = createButton(specification, false);
+			button.setName("officeBackstageCommand-" + specification.getId());
+			buttonStyler.styleActionButton(button, "large");
+			button.setHorizontalTextPosition(SwingConstants.CENTER);
+			button.setVerticalTextPosition(SwingConstants.BOTTOM);
+			button.setFont(theme.buttonFont().deriveFont(14f));
+			button.setOpaque(true);
+			button.setContentAreaFilled(true);
+			button.setBackground(theme.chromeBackground());
+			button.setBorder(new com.formdev.flatlaf.ui.FlatLineBorder(
+				new Insets(12, 12, 12, 12), theme.surfaceBorderColor(), 1f, 8));
+			button.setPreferredSize(new Dimension(220, 132));
+			button.setMinimumSize(new Dimension(220, 132));
+			button.putClientProperty(FlatClientProperties.STYLE,
+				"arc: 8; borderWidth: 1; borderColor: " + colorHex(theme.surfaceBorderColor())
+					+ "; background: #ffffff; hoverBackground: " + colorHex(theme.chromeBackground()));
+			button.addActionListener(event -> SwingUtilities.invokeLater(this::closeBackstage));
+			commands.add(button, constraints);
+			constraints.gridx++;
+			if (constraints.gridx == 2) {
+				constraints.gridx = 0;
+				constraints.gridy++;
+			}
+		}
+		constraints.gridx = 2;
+		constraints.gridy = 0;
+		constraints.gridheight = Math.max(1, (page.commands().size() + 1) / 2);
+		constraints.weightx = 1;
+		constraints.fill = java.awt.GridBagConstraints.HORIZONTAL;
+		commands.add(Box.createHorizontalGlue(), constraints);
+		constraints.gridx = 0;
+		constraints.gridy = Math.max(1, (page.commands().size() + 1) / 2);
+		constraints.gridheight = 1;
+		constraints.gridwidth = 2;
+		constraints.weighty = 1;
+		constraints.fill = java.awt.GridBagConstraints.VERTICAL;
+		commands.add(Box.createVerticalGlue(), constraints);
+		content.add(commands, BorderLayout.CENTER);
+		return content;
+	}
+
+	private String localized(String key) {
+		for (int index = bundles.length - 1; index >= 0; index--) {
+			try { return bundles[index].getString(key); }
+			catch (MissingResourceException ignored) { }
+		}
+		return key;
+	}
+
+	private static String colorHex(java.awt.Color color) {
+		return String.format("#%02x%02x%02x", color.getRed(), color.getGreen(), color.getBlue());
+	}
+
+	private List<String> resolveList(String key) {
+		String value = localized(key);
+		if (value == null || value.isBlank() || value.equals(key)) return List.of();
+		return java.util.Arrays.stream(value.trim().split("\\s+"))
+			.filter(token -> !token.isBlank()).toList();
+	}
+
+	private record BackstagePage(String id, String labelKey, String immediateCommand,
+		List<SwingRibbonModel.RibbonButton> commands) { }
 
 	private void startAutoHideDismissal() {
 		if (!isDisplayable() || SwingUtilities.getWindowAncestor(this) == null || autoHideDismissalRegistered) return;
@@ -689,9 +917,14 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		tabButtons.put(tab.getId(), button);
 		tabGroup.add(button);
 		theme.styleTabButton(button);
+		button.setFocusable(true);
+		button.setFocusPainted(true);
 		button.setHorizontalAlignment(SwingConstants.LEFT);
 		button.getModel().addChangeListener(event -> updateTabButtonAppearance(button, button.isSelected()));
-		button.addActionListener(e -> showTab(tab.getId()));
+		button.addActionListener(e -> {
+			if (isBackstageTab(tab.getId())) openBackstage();
+			else showTab(tab.getId());
+		});
 		button.addMouseListener(new java.awt.event.MouseAdapter() {
 			@Override public void mousePressed(java.awt.event.MouseEvent event) { showDisplayModePopup(event); }
 			@Override public void mouseReleased(java.awt.event.MouseEvent event) { showDisplayModePopup(event); }
@@ -717,6 +950,10 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	}
 
 	private void showTab(String tabId) {
+		if (isBackstageTab(tabId)) {
+			openBackstage();
+			return;
+		}
 		if (!isTabVisible(tabId)) return;
 		activeTabId = tabId;
 		JPanel tabBody = tabBodies.get(tabId);
@@ -737,6 +974,10 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		cards.repaint();
 		updatePreferredHeight();
 		updateTabOverflow();
+	}
+
+	private static boolean isBackstageTab(String tabId) {
+		return "FileRibbonTask".equals(tabId);
 	}
 
 	private boolean isTabVisible(String tabId) {

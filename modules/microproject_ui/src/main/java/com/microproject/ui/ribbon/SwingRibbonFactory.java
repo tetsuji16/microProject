@@ -160,7 +160,9 @@ public final class SwingRibbonFactory {
 				iconRegistry.resolve(buttonId),
 				"TOGGLE".equalsIgnoreCase(type),
 				presentation,
-				collapsePriority));
+				collapsePriority,
+				resolveStringOrNull(buttonId + ".backstagePage"),
+				Boolean.parseBoolean(resolveStringOrNull(buttonId + ".backstageImmediate"))));
 		}
 		return new SwingRibbonModel.RibbonBand(bandId, resolveString(bandId + ".title"), buttons);
 	}

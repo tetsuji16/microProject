@@ -50,12 +50,14 @@ import org.junit.jupiter.api.Test;
 import com.microproject.menu.MenuActionMapSupport;
 import com.microproject.menu.MenuManager;
 import com.microproject.menu.ProjectMenuActionMap;
+import com.microproject.pm.graphic.frames.MainRibbonFrame;
 import com.microproject.menu.testsupport.MenuDefinitionSupport;
 import com.microproject.menu.testsupport.UiComponentWalker;
 import com.microproject.ribbon.CommandId;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.testsupport.GuiPhysicalRouteAdapter;
 import com.microproject.testsupport.RibbonGuiEnvironment;
+import com.microproject.ui.shell.ProjectLibreShell;
 import com.microproject.util.Environment;
 import com.microproject.util.FlatUiSupport;
 
@@ -459,35 +461,80 @@ class RibbonTabGuiAcceptanceTest {
 	}
 
 	@Test
-	void fileTabUsesTheSameRibbonSurfaceAsDocumentTabs() throws Exception {
+	void fileTabOpensBackstageAboveTheWorkspaceAndRestoresTheRibbon() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for GUI coverage.");
 		RecordingActionMap actions = new RecordingActionMap();
 		MenuManager manager = MenuManager.getInstance(actions);
-		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+		MainRibbonFrame mainFrame = new MainRibbonFrame("Ribbon startup", null, null);
+		frame = mainFrame;
+		ProjectLibreShell.installRibbonShell(mainFrame, manager, null);
+		JPanel host = mainFrame.getRibbonPanel();
 		SwingUtilities.invokeAndWait(() -> {
-			frame = new JFrame("Ribbon startup");
-			frame.add(host, BorderLayout.CENTER);
-			frame.setSize(1200, 240);
+			frame.setSize(1100, 700);
 			frame.setLocation(0, 0);
 			frame.setVisible(true);
 		});
+		String taskTitle = MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString("TaskRibbonTask.title");
+		click(new com.microproject.testsupport.GuiRobot(), findButton(host, taskTitle));
 		String fileTitle = MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString("FileRibbonTask.title");
 		AbstractButton fileTab = findButton(host, fileTitle);
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		click(robot, fileTab);
-		GuiAcceptanceSupport.await(fileTab::isSelected, "Robot click did not select the File ribbon tab");
+		GuiAcceptanceSupport.await(() -> namedComponent(frame.getRootPane(), "officeBackstageOverlay") != null,
+			"File tab did not open the full-window Backstage surface");
 		SwingUtilities.invokeAndWait(() -> {
-			AbstractButton newProject = findAttachedButtonByCommand(host, "RibbonNewProject");
-			assertTrue(newProject.isShowing(), "File commands must remain in the shared ribbon surface");
+			JComponent backstage = (JComponent)namedComponent(frame.getRootPane(), "officeBackstageView");
+			assertTrue(backstage != null && backstage.isShowing(), "Backstage view is not visible over the workspace");
+			assertTrue(namedComponent(backstage, "officeBackstageNavigation") != null, "Backstage navigation pane is missing");
+			assertTrue(namedComponent(backstage, "officeBackstageDetails") != null, "Backstage detail pane is missing");
+			assertTrue(namedComponent(backstage, "officeBackstageNav-share") == null, "Unsupported Share destination must not be exposed");
+			AbstractButton newProject = (AbstractButton)namedComponent(backstage, "officeBackstageCommand-RibbonNewProject");
+			assertTrue(newProject != null && newProject.isShowing(), "New must be available in Backstage details");
 			assertTrue(newProject.isEnabled(), "New must be enabled on the File ribbon without a document");
-			assertTrue(host.getHeight() < 250, "File must not replace the document area with a full-window Backstage");
 		});
+		captureVisibleRibbon(robot, "ribbon-file-backstage-open.png");
+		robot.keyPress(KeyEvent.VK_ESCAPE);
+		robot.keyRelease(KeyEvent.VK_ESCAPE);
+		GuiAcceptanceSupport.await(() -> namedComponent(frame.getRootPane(), "officeBackstageOverlay") == null,
+			"Escape did not dismiss Backstage");
+		AbstractButton restoredTaskAfterEscape = findButton(host, taskTitle);
+		assertTrue(restoredTaskAfterEscape.isSelected(), "Escape did not restore the previous ribbon tab");
+		GuiAcceptanceSupport.await(restoredTaskAfterEscape::isFocusOwner,
+			"Escape did not return keyboard focus to the previously active ribbon tab; focus owner="
+				+ java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner());
+		click(robot, findButton(host, fileTitle));
+		GuiAcceptanceSupport.await(() -> namedComponent(frame.getRootPane(), "officeBackstageOverlay") != null,
+			"File tab did not reopen Backstage after Escape");
+		clickCommand(robot, (AbstractButton)namedComponent(frame.getRootPane(), "officeBackstageNav-open"));
+		SwingUtilities.invokeAndWait(() -> {
+			assertTrue(namedComponent(frame.getRootPane(), "officeBackstageCommand-RibbonOpenProject") != null,
+				"Open destination omitted the existing Open command");
+			assertTrue(namedComponent(frame.getRootPane(), "officeBackstageCommand-RibbonRecentProjects") != null,
+				"Open destination omitted Recent Projects");
+		});
+		clickCommand(robot, (AbstractButton)namedComponent(frame.getRootPane(), "officeBackstageNav-new"));
 		String actionId = manager.getToolBarFactory().getActionStringFromId("RibbonNewProject");
 		int before = actions.count(actionId);
-		clickCommand(robot, findAttachedButtonByCommand(host, "RibbonNewProject"));
+		clickCommand(robot, (AbstractButton)namedComponent(frame.getRootPane(), "officeBackstageCommand-RibbonNewProject"));
 		GuiAcceptanceSupport.await(() -> actions.count(actionId) == before + 1,
-			"Robot click did not dispatch RibbonNewProject from the File ribbon");
+			"Robot click did not dispatch RibbonNewProject from Backstage");
+		GuiAcceptanceSupport.await(() -> namedComponent(frame.getRootPane(), "officeBackstageOverlay") == null,
+			"Backstage remained open after invoking a command");
+		AbstractButton restoredTask = findButton(host, taskTitle);
+		assertTrue(restoredTask.isSelected(), "Closing Backstage did not restore the previously selected ribbon tab");
+		captureVisibleRibbon(robot, "ribbon-file-backstage.png");
+	}
+
+	private static Component namedComponent(Component root, String name) {
+		if (name.equals(root.getName())) return root;
+		if (root instanceof Container container) {
+			for (Component child : container.getComponents()) {
+				Component found = namedComponent(child, name);
+				if (found != null) return found;
+			}
+		}
+		return null;
 	}
 
 	@Test
@@ -635,44 +682,15 @@ class RibbonTabGuiAcceptanceTest {
 	}
 
 	@Test
-	void fileRibbonKeepsItsCommandsLeftAlignedBeforeCollapsingTrailingBands() throws Exception {
-		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+	void fileCommandsAreNotDuplicatedInTheDocumentRibbon() throws Exception {
 		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
 		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
-		ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
-		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
-		// 672 logical px is approximately a 1008px physical client area at 150%
-		// Windows scaling, matching the reported production screenshot.
-		show(host, 672, true);
-
-		Robot robot = new com.microproject.testsupport.GuiRobot();
-		robot.setAutoDelay(35);
-		AbstractButton tab = findButton(host, MenuDefinitionSupport.menuBundle(Locale.getDefault())
-			.getString("FileRibbonTask.title"));
-		click(robot, tab);
-		GuiAcceptanceSupport.await(tab::isSelected, "File ribbon tab was not selected at the default narrow desktop width");
-		SwingUtilities.invokeAndWait(() -> { });
+		Set<String> fileCommands = Set.of("RibbonNewProject", "RibbonOpenProject", "RibbonSaveProject",
+			"RibbonPrint", "RibbonExportProject", "RibbonLocale");
 		assertTrue(UiComponentWalker.flatten(host).stream()
 			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
-			.noneMatch(button -> button.isShowing()
-				&& Boolean.TRUE.equals(button.getClientProperty(ModernRibbonPanel.COLLAPSED_TAB_LAUNCHER_PROPERTY))),
-			"default narrow desktop must show direct ribbon commands, not a single launcher popup");
-		captureVisibleRibbon(robot, "ribbon-default-high-dpi-primary-commands.png", 600);
-
-		for (String commandId : List.of("RibbonNewProject", "RibbonOpenProject", "RibbonRecentProjects")) {
-			AbstractButton command = findAttachedButtonByCommand(host, commandId);
-			assertTrue(command.isShowing(), () -> commandId + " must remain a visible primary File command at 672 logical px");
-			assertTrue(command.getIcon() != null && command.getIcon().getIconWidth() > 0,
-				() -> commandId + " must retain a visible icon at 672 logical px");
-			assertEquals(MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString(commandId + ".text"), command.getText(),
-				() -> commandId + " must retain its command label instead of becoming an icon-and-ellipsis proxy");
-		}
-		List<Component> visibleBands = UiComponentWalker.flatten(host).stream()
-			.filter(component -> ModernRibbonPanel.RIBBON_BAND_COMPONENT_NAME.equals(component.getName()) && component.isShowing())
-			.toList();
-		assertTrue(!visibleBands.isEmpty(), "File ribbon has no visible command bands");
-		assertTrue(visibleBands.getFirst().getX() <= 16,
-			"unused ribbon width must remain on the right; the first band may not be centred");
+			.noneMatch(button -> button.getActionCommand() != null && fileCommands.contains(button.getActionCommand())),
+			"File commands must not register a duplicate command surface in the document ribbon");
 	}
 
 	private void show(JPanel host) throws Exception {

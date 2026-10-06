@@ -36,6 +36,7 @@ import com.microproject.pm.graphic.IconManager;
 import com.microproject.pm.graphic.frames.workspace.FrameHolder;
 import com.microproject.pm.graphic.frames.workspace.FrameManager;
 import com.microproject.ui.ribbon.RibbonController;
+import com.microproject.ui.ribbon.RibbonBackstageHost;
 import com.microproject.ui.shell.WindowBoundsSupport;
 import com.microproject.ui.shell.WindowShellInstaller;
 import com.microproject.util.Environment;
@@ -99,6 +100,12 @@ public class MainRibbonFrame extends FlatLafFrame implements FrameHolder{
 		getContentPane().revalidate();
 		getContentPane().repaint();
 		if (graphicManager != null) graphicManager.updateRibbonContext(graphicManager.getTopViewId());
+	}
+
+	public void setRibbonBackstageHost(RibbonBackstageHost host) {
+		if (ribbonPanel == null) return;
+		Object value = ribbonPanel.getClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY);
+		if (value instanceof RibbonController ribbon) ribbon.setBackstageHost(host);
 	}
 
 	/** Updates view-specific tabs without rebuilding or re-registering commands. */
