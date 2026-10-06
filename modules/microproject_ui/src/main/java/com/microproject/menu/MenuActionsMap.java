@@ -71,10 +71,8 @@ public class MenuActionsMap {
 	}
 
 	public void addHandler(String menuId, AbstractAction action) {
-		String actionKey = menuManager.getActionStringFromId(menuId);
-		if (actionKey == null) {
-			actionKey = menuId;
-		}
+		String actionKey = MenuLookupSupport.getActionStringOrId(
+			menuManager::getStringOrNull, menuId, ExtMenuFactory.ACTION_SUFFIX);
 		if (actionKey != null) {
 			actionById.put(actionKey, action);
 			actionById.put(menuId, action);

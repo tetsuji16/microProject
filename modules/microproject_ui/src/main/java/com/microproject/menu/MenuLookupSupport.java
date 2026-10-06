@@ -46,4 +46,9 @@ final class MenuLookupSupport {
 	static String getActionStringFromId(StringLookup lookup, String id, String suffix) {
 		return getOrNull(lookup, id + suffix);
 	}
+
+	static String getActionStringOrId(StringLookup lookup, String id, String suffix) {
+		String actionKey = getActionStringFromId(lookup, id, suffix);
+		return actionKey == null ? id : actionKey;
+	}
 }
