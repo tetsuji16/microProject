@@ -28,6 +28,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 
 import com.microproject.options.CalendarOption;
@@ -44,8 +46,12 @@ class TeamPlannerServiceTest {
 		AssignmentService.getInstance().newAssignment(second, fixture.first, 1D, 0L, this);
 		TeamPlannerService service = new TeamPlannerService();
 		assertTrue(service.slots(fixture.project).stream().anyMatch(TeamPlannerService.Slot::overallocated));
+		assertEquals(List.of(first, second), service.overallocatedTasks(fixture.project),
+			"navigation candidates must follow the active project's outline order");
 		second.setInactiveTask(true);
 		assertFalse(service.slots(fixture.project).stream().anyMatch(TeamPlannerService.Slot::overallocated));
+		assertTrue(service.overallocatedTasks(fixture.project).isEmpty(),
+			"inactive work must not remain a Next Overallocation target");
 	}
 
 	@Test void reschedulesAndReassignsThroughUndoAwareServices() {

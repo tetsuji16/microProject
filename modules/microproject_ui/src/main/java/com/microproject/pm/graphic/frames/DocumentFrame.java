@@ -121,6 +121,7 @@ import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.graphic.undo.SwingUndoAdapter;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourceLevelingService;
+import com.microproject.pm.resource.TeamPlannerService;
 import com.microproject.pm.task.Portfolio;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectEvent;
@@ -561,6 +562,7 @@ public class DocumentFrame extends NamedFrame implements
 		case TASK_MODE_AUTOMATIC -> lastTaskCommandResult = applyTaskMode(command, com.microproject.pm.task.TaskModeService.Mode.AUTOMATIC);
 		case RESOURCE_LEVEL_ALL -> lastTaskCommandResult = applyResourceLevelAll(command);
 		case RESOURCE_LEVEL_SELECTION -> lastTaskCommandResult = applyResourceLevelSelection(command);
+		case NEXT_OVERALLOCATION -> lastTaskCommandResult = selectNextOverallocatedTask(command);
 		case STATUS_DATE -> lastTaskCommandResult = applyStatusDate(command);
 		case MARK_ON_TRACK -> lastTaskCommandResult = applyMarkOnTrack(command);
 		case UPDATE_PROJECT -> lastTaskCommandResult = openUpdateProject(command);
@@ -653,6 +655,64 @@ public class DocumentFrame extends NamedFrame implements
 		if (!result.change().hasChanged())
 			return RibbonCommandResult.noChange(command.actionId(), taskIds(selection)).withActiveView("task");
 		return RibbonCommandResult.changed(command.actionId(), taskIds(selection)).withActiveView("task");
+	}
+
+	private RibbonCommandResult selectNextOverallocatedTask(CommandId command) {
+		List<Long> selectedIds = getSelectedTaskIds();
+		if (project == null)
+			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.REJECTED,
+				"no-active-document", selectedIds, List.of(), getTopViewId());
+		SpreadSheet sheet = getActiveSpreadSheet();
+		if (!canNavigateToNextOverallocatedTask() || sheet == null)
+			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.REJECTED,
+				"task-view-required", selectedIds, List.of(), getTopViewId());
+
+		java.util.Set<Task> overallocatedTasks = java.util.Collections.newSetFromMap(
+			new java.util.IdentityHashMap<>());
+		overallocatedTasks.addAll(new TeamPlannerService().overallocatedTasks(project));
+		List<OverallocatedTaskRow> visibleCandidates = new ArrayList<>();
+		for (int viewRow = 0; viewRow < sheet.getRowCount(); viewRow++) {
+			int modelRow = sheet.convertRowIndexToModel(viewRow);
+			Node node = sheet.getNodeAtRow(modelRow);
+			if (node != null && node.getImpl() instanceof Task task && overallocatedTasks.contains(task))
+				visibleCandidates.add(new OverallocatedTaskRow(viewRow, task));
+		}
+		if (visibleCandidates.isEmpty()) {
+			JOptionPane.showMessageDialog(getGraphicManager().getFrame(),
+				com.microproject.dialog.UsabilityStrings.text("resource.nextOverallocation.noneVisible"),
+				com.microproject.dialog.UsabilityStrings.text("resource.nextOverallocation.title"),
+				JOptionPane.INFORMATION_MESSAGE);
+			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.NO_CHANGE,
+				"no-visible-overallocation", selectedIds, List.of(), getTopViewId());
+		}
+
+		int[] selectedRows = sheet.getSelectedRows();
+		int currentViewRow = selectedRows.length == 0 ? -1
+			: java.util.Arrays.stream(selectedRows).max().orElse(-1);
+		OverallocatedTaskRow target = visibleCandidates.stream()
+			.filter(candidate -> candidate.viewRow() > currentViewRow).findFirst()
+			.orElse(visibleCandidates.get(0));
+		if (selectedRows.length == 1 && selectedRows[0] == target.viewRow()) {
+			sheet.scrollRectToVisible(sheet.getCellRect(target.viewRow(), 0, true));
+			return RibbonCommandResult.noChange(command.actionId(), List.of(target.task().getUniqueId()))
+				.withActiveView(getTopViewId());
+		}
+		sheet.selectRowAndAllColumns(target.viewRow());
+		sheet.scrollRectToVisible(sheet.getCellRect(target.viewRow(), 0, true));
+		doScrollToTask();
+		return RibbonCommandResult.changed(command.actionId(), List.of(target.task().getUniqueId()))
+			.withActiveView(getTopViewId());
+	}
+
+	private record OverallocatedTaskRow(int viewRow, Task task) { }
+
+	public boolean canNavigateToNextOverallocatedTask() {
+		if (project == null || getActiveSpreadSheet() == null) return false;
+		return switch (getTopViewId()) {
+			case ACTION_GANTT, ACTION_TRACKING_GANTT, ACTION_NETWORK, ACTION_WBS,
+				ACTION_TASK_USAGE, ACTION_TASK_USAGE_DETAIL -> true;
+			default -> false;
+		};
 	}
 
 	private RibbonCommandResult applyResourceLevelSelection(CommandId command) {

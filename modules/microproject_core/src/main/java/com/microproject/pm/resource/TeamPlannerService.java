@@ -47,6 +47,24 @@ public final class TeamPlannerService {
 	}
 
 	public List<Slot> slots(Project project) {
+		List<Slot> slots = collectSlots(project);
+		slots.sort(Comparator.comparing((Slot value) -> displayName(value.resource()))
+			.thenComparingLong(Slot::start).thenComparingLong(value -> value.task().getId()));
+		return List.copyOf(slots);
+	}
+
+	/** Returns overallocated tasks in the active project's outline order. */
+	public List<Task> overallocatedTasks(Project project) {
+		Objects.requireNonNull(project, "project");
+		Set<Task> overallocated = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
+		for (Slot slot : collectSlots(project)) {
+			if (slot.overallocated() && slot.task().getOwningProject() == project)
+				overallocated.add(slot.task());
+		}
+		return ProjectHierarchyQueries.outline(project).stream().filter(overallocated::contains).toList();
+	}
+
+	private List<Slot> collectSlots(Project project) {
 		Objects.requireNonNull(project, "project");
 		List<Project> sourceProjects = projectsFor(project);
 		long expectedTaskCount = 0L;
@@ -70,9 +88,7 @@ public final class TeamPlannerService {
 				}
 			}
 		}
-		slots.sort(Comparator.comparing((Slot value) -> displayName(value.resource()))
-			.thenComparingLong(Slot::start).thenComparingLong(value -> value.task().getId()));
-		return List.copyOf(slots);
+		return slots;
 	}
 
 	/** Returns the current project plus every document connected to its resource pool. */

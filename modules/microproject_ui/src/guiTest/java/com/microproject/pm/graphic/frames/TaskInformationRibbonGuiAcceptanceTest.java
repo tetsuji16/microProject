@@ -2801,6 +2801,64 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	@Test
+	void nextOverallocationSelectsNextVisibleTaskAndWrapsWithoutMutatingSchedule() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("ribbon-next-overallocation", undo);
+		pool.setLocal(true);
+		Project project = Project.createProject(pool, undo);
+		project.initialize(false, false);
+		NormalTask first = project.createScriptedTask();
+		first.setName("Next Overallocation first task");
+		NormalTask second = project.createScriptedTask();
+		second.setName("Next Overallocation second task");
+		Resource resource = pool.newResourceInstance();
+		resource.setName("Next Overallocation resource");
+		AssignmentService.getInstance().newAssignment(first, resource, 1.0, 0L, getClass());
+		AssignmentService.getInstance().newAssignment(second, resource, 1.0, 0L, getClass());
+		project.recalculate();
+		assertTrue(new com.microproject.pm.resource.TeamPlannerService().overallocatedTasks(project).containsAll(List.of(first, second)),
+			"the acceptance fixture must contain two genuinely overallocated tasks");
+		long firstStart = first.getStart();
+		long firstFinish = first.getEnd();
+		long secondStart = second.getStart();
+		long secondFinish = second.getEnd();
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"Next Overallocation task sheet did not become visible");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, first), nameColumn(sheet)));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(first),
+			"physical task click did not select the first overallocated task");
+		AbstractButton resourceTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+			.getString("ResourceRibbonTask.title"));
+		click(robot, boundsOnScreen(resourceTab));
+		AbstractButton next = findShowingButtonByCommand("RibbonNextOverallocation");
+		GuiAcceptanceSupport.await(next::isEnabled, "Next Overallocation must be enabled in a task view");
+		click(robot, boundsOnScreen(next));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(second),
+			"Next Overallocation did not select the next overallocated task in visible row order");
+		assertFalse(next.isSelected(), "Next Overallocation is a momentary navigation command");
+		assertTrue(sheet.getVisibleRect().contains(sheet.getCellRect(rowForTask(sheet, second), 0, true)),
+			"the destination task row must be visible after navigation");
+		click(robot, boundsOnScreen(next));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(first),
+			"Next Overallocation must wrap to the first visible candidate at the end of the list");
+		assertEquals(firstStart, first.getStart());
+		assertEquals(firstFinish, first.getEnd());
+		assertEquals(secondStart, second.getStart());
+		assertEquals(secondFinish, second.getEnd());
+	}
+
+	@Test
 	void unlinkingOneTaskWithMultipleLinksPromptsAndRemovesOnlyTheChosenLink() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		previousRibbonUi = Environment.isRibbonUI();

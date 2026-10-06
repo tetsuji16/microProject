@@ -1186,6 +1186,7 @@ class RibbonButtonBehaviorTest {
 			"RibbonLevelSelection",
 			"RibbonLevelAll",
 			"RibbonLevelResources",
+			"RibbonNextOverallocation",
 			"RibbonUseResourcePool",
 			"RibbonCreateResourcePool",
 			"RibbonRefreshResourcePool",
