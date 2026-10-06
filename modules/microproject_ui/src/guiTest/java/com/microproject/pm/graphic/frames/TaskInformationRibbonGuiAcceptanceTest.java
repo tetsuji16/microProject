@@ -2856,6 +2856,20 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertEquals(firstFinish, first.getEnd());
 		assertEquals(secondStart, second.getStart());
 		assertEquals(secondFinish, second.getEnd());
+		SwingUtilities.invokeAndWait(() -> {
+			((com.microproject.pm.resource.ResourceImpl) resource).setMaximumUnits(2.0);
+			project.recalculate();
+		});
+		assertTrue(new com.microproject.pm.resource.TeamPlannerService().overallocatedTasks(project).isEmpty(),
+			"the empty-result state must have no remaining overallocated task");
+		click(robot, boundsOnScreen(next));
+		String noCandidateMessage = com.microproject.dialog.UsabilityStrings.text("resource.nextOverallocation.noneVisible");
+		GuiAcceptanceSupport.await(() -> findDialogContainingText(noCandidateMessage) != null,
+			"an empty result must explain that no visible overallocation remains");
+		Dialog noCandidateDialog = findDialogContainingText(noCandidateMessage);
+		click(robot, boundsOnScreen(findShowingButtonByText(noCandidateDialog, Messages.getString("ButtonText.OK"))));
+		assertEquals(firstStart, first.getStart(), "navigation and empty-result feedback must not change schedules");
+		assertEquals(secondStart, second.getStart(), "navigation and empty-result feedback must not change schedules");
 	}
 
 	@Test
