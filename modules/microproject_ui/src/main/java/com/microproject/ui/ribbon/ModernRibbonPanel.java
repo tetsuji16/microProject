@@ -489,7 +489,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 			if (immediate.size() > 1 || (!immediate.isEmpty() && commands.size() != 1)) {
 				throw new IllegalStateException("A direct Backstage destination must contain exactly one immediate command: " + pageId);
 			}
-			pages.add(new BackstagePage(pageId, commands.getFirst().getId() + ".text",
+			pages.add(new BackstagePage(pageId, "FileBackstage." + pageId,
 				immediate.isEmpty() ? null : immediate.getFirst().getId(), commands));
 		}
 		int backstageCommandCount = buttonsByPage.values().stream().mapToInt(List::size).sum();

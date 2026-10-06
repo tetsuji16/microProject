@@ -489,6 +489,10 @@ class RibbonTabGuiAcceptanceTest {
 			assertTrue(namedComponent(backstage, "officeBackstageNavigation") != null, "Backstage navigation pane is missing");
 			assertTrue(namedComponent(backstage, "officeBackstageDetails") != null, "Backstage detail pane is missing");
 			assertTrue(namedComponent(backstage, "officeBackstageNav-share") == null, "Unsupported Share destination must not be exposed");
+			assertTrue(namedComponent(backstage, "officeBackstageNav-info") != null, "Project Info destination is missing");
+			assertTrue(namedComponent(backstage, "officeBackstageNav-options") != null, "Options destination is missing");
+			assertTrue(namedComponent(backstage, "officeBackstageNav-account") == null,
+				"Account destination must be absent without an account/licensing service");
 			AbstractButton newProject = (AbstractButton)namedComponent(backstage, "officeBackstageCommand-RibbonNewProject");
 			assertTrue(newProject != null && newProject.isShowing(), "New must be available in Backstage details");
 			assertTrue(newProject.isEnabled(), "New must be enabled on the File ribbon without a document");
@@ -513,6 +517,14 @@ class RibbonTabGuiAcceptanceTest {
 			assertTrue(namedComponent(frame.getRootPane(), "officeBackstageCommand-RibbonRecentProjects") != null,
 				"Open destination omitted Recent Projects");
 		});
+		clickCommand(robot, (AbstractButton)namedComponent(frame.getRootPane(), "officeBackstageNav-info"));
+		assertTrue(namedComponent(frame.getRootPane(), "officeBackstageCommand-RibbonBackstageProjectInformation") != null,
+			"Info destination omitted the existing Project Information action");
+		captureVisibleRibbon(robot, "ribbon-file-backstage-info.png");
+		clickCommand(robot, (AbstractButton)namedComponent(frame.getRootPane(), "officeBackstageNav-options"));
+		assertTrue(namedComponent(frame.getRootPane(), "officeBackstageCommand-RibbonBackstageOptions") != null,
+			"Options destination omitted the existing General Options action");
+		captureVisibleRibbon(robot, "ribbon-file-backstage-options.png");
 		clickCommand(robot, (AbstractButton)namedComponent(frame.getRootPane(), "officeBackstageNav-new"));
 		String actionId = manager.getToolBarFactory().getActionStringFromId("RibbonNewProject");
 		int before = actions.count(actionId);

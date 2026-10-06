@@ -19,6 +19,8 @@ microProjectの標準リボンに表示される全コマンドボタンを、�
 | RibbonNewMasterProject | 新規マスタープロジェクトを作成 | ローカルのマスター文書が作成され、サブプロジェクトを挿入できる |
 | RibbonOpenProject | 保存済みプロジェクトを開く | 選択したプロジェクト名・タスクが表示される |
 | RibbonRecentProjects | 最近使ったプロジェクトを開く | 最近使った一覧から選択したプロジェクトへ切り替わる |
+| RibbonBackstageProjectInformation | File > Info からプロジェクト情報を開く | 情報・統計ダイアログが表示され、戻ると同じプロジェクト画面が残る |
+| RibbonBackstageOptions | File > Options を開く | アプリケーション設定が表示され、既存の設定保存経路を使える |
 | RibbonImportProject | MSP等の外部プロジェクトをインポート | インポート結果が表示され、エラー時は説明が出る |
 | RibbonLocale | 表示言語を切り替える | 選択した言語が反映される |
 | RibbonProjectLibreDocumentation | ドキュメントを開く | ヘルプ操作が開始される（外部画面は証跡外） |

@@ -49,6 +49,8 @@ import com.microproject.dialog.AboutDialog;
 import com.microproject.dialog.HelpDialog;
 import com.microproject.dialog.LocaleDialog;
 import com.microproject.dialog.ProjectDialog;
+import com.microproject.dialog.ProjectInformationDialog;
+import com.microproject.dialog.PreferencesDialogBox;
 import com.microproject.job.JobQueue;
 import com.microproject.exchange.MpoFileImporter;
 import com.microproject.init.Init;
@@ -231,6 +233,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		clickAndClose(robot, "RibbonNewProject", ProjectDialog.class);
+		clickAndDispose(robot, "RibbonBackstageOptions", PreferencesDialogBox.class);
 		clickAndClose(robot, "RibbonLocale", LocaleDialog.class);
 		AbstractButton helpTab = findRibbonTab(window.getRibbonPanel(), "Help", "ヘルプ");
 		click(robot, helpTab);
@@ -238,6 +241,39 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(helpTab::isSelected, "Help ribbon tab did not become selected");
 		clickAndClose(robot, "RibbonProjectLibreDocumentation", HelpDialog.class);
 		clickAndClose(robot, "RibbonAboutProjectLibre", AboutDialog.class);
+	}
+
+	@Test
+	void robotOpensBackstageInfoForAnActiveProject() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(),
+			"A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		previousStandalone = Environment.getStandAlone();
+		previousClientSide = Environment.isClientSide();
+		Environment.setStandAlone(true);
+		Environment.setClientSide(true);
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		createStartedWindow("microProject — Backstage Info acceptance");
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("backstage-info-gui", undo);
+		pool.setLocal(true);
+		Project project = Project.createProject(pool, undo);
+		project.setName("Backstage Info GUI");
+		SwingUtilities.invokeAndWait(() -> manager.addProjectFrame(project));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
+			&& manager.getCurrentFrame().getProject() == project,
+			"Backstage Info project was not registered as the active document");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		activateWindowForRobot(robot);
+		click(robot, findCommandButton(window.getRibbonPanel(), "RibbonBackstageProjectInformation", robot));
+		GuiAcceptanceSupport.await(() -> visibleDialog(ProjectInformationDialog.class) != null,
+			"File > Info did not open Project Information for the active project");
+		Window dialog = visibleDialog(ProjectInformationDialog.class);
+		assertDialogBodyIsRendered(dialog, "RibbonBackstageProjectInformation");
+		SwingUtilities.invokeAndWait(dialog::dispose);
 	}
 
 	/** #398: physical File/Open Escape and Cancel both cancel the real chooser without changing documents. */
@@ -1019,6 +1055,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 	private AbstractButton findCommandButton(Component root, String commandId, Robot robot) throws Exception {
 		if (!Set.of("RibbonNewProject", "RibbonNewMasterProject", "RibbonOpenProject", "RibbonRecentProjects",
 			"RibbonSaveProject", "RibbonSaveProjectAs", "RibbonSaveMpoAs", "RibbonCloseProject",
+			"RibbonBackstageProjectInformation", "RibbonBackstageOptions",
 			"RibbonImportProject", "RibbonExportProject", "RibbonPrint", "RibbonPrintPreview", "RibbonPDF",
 			"RibbonLocale").contains(commandId)) {
 			return findCommandButton(root, commandId);
@@ -1056,10 +1093,26 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		return button;
 	}
 
+	private void clickAndDispose(Robot robot, String commandId, Class<? extends Window> dialogType) throws Exception {
+		AbstractButton button = findCommandButton(window.getRibbonPanel(), commandId, robot);
+		assertTrue(isShowingOnEdt(button), commandId + " is not physically visible");
+		assertTrue(button.isEnabled(), commandId + " is disabled in the real application state");
+		click(robot, button);
+		GuiAcceptanceSupport.await(() -> visibleDialog(dialogType) != null,
+			commandId + " did not open " + dialogType.getSimpleName());
+		Window dialog = visibleDialog(dialogType);
+		assertDialogBodyIsRendered(dialog, commandId);
+		SwingUtilities.invokeAndWait(dialog::dispose);
+		GuiAcceptanceSupport.await(() -> visibleDialog(dialogType) == null,
+			commandId + " dialog did not close after the acceptance action");
+	}
+
 	private static String backstagePageFor(String commandId) {
 		return switch (commandId) {
 			case "RibbonNewProject", "RibbonNewMasterProject" -> "new";
 			case "RibbonOpenProject", "RibbonRecentProjects" -> "open";
+			case "RibbonBackstageProjectInformation" -> "info";
+			case "RibbonBackstageOptions" -> "options";
 			case "RibbonSaveProject" -> null;
 			case "RibbonSaveProjectAs", "RibbonSaveMpoAs" -> "saveAs";
 			case "RibbonPrint", "RibbonPrintPreview", "RibbonPDF" -> "print";

@@ -76,13 +76,16 @@ class RibbonStructureTest {
 	void fileBackstageExposesRecentProjectsBesideOpen() {
 		assertEquals(List.of(
 			"RibbonNewProject", "RibbonNewMasterProject", "RibbonOpenProject", "RibbonRecentProjects",
-			"RibbonSaveProject", "RibbonSaveProjectAs", "RibbonSaveMpoAs", "RibbonCloseProject"),
+			"RibbonSaveProject", "RibbonBackstageProjectInformation", "RibbonBackstageOptions",
+			"RibbonSaveProjectAs", "RibbonSaveMpoAs", "RibbonCloseProject"),
 			ribbonButtonIds("FileRibbonBand"));
 		assertEquals("RecentProjectsAction",
 			menuInternalBundle().getString("RibbonRecentProjects.action"));
-		assertEquals(List.of("new", "open", "save", "saveAs", "print", "export", "locale", "close"),
+		assertEquals(List.of("new", "open", "info", "save", "saveAs", "print", "export", "options", "locale", "close"),
 			List.of(menuInternalBundle().getString("FileBackstagePages").split("\\s+")));
 		assertEquals("open", menuInternalBundle().getString("RibbonOpenProject.backstagePage"));
+		assertEquals("info", menuInternalBundle().getString("RibbonBackstageProjectInformation.backstagePage"));
+		assertEquals("options", menuInternalBundle().getString("RibbonBackstageOptions.backstagePage"));
 		assertEquals("save", menuInternalBundle().getString("RibbonSaveProject.backstagePage"));
 		assertEquals("true", menuInternalBundle().getString("RibbonSaveProject.backstageImmediate"));
 	}

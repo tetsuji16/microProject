@@ -134,12 +134,12 @@ final class RibbonCommandCatalog {
 		Map<String, Placement> result = new LinkedHashMap<>();
 		register(result, CommandScope.GLOBAL, FILE,
 			"RibbonNewProject", "RibbonNewMasterProject", "RibbonOpenProject", "RibbonRecentProjects", "RibbonImportProject",
-			"RibbonLocale");
+			"RibbonBackstageOptions", "RibbonLocale");
 		register(result, CommandScope.GLOBAL, HELP,
 			"RibbonProjectLibreDocumentation", "RibbonAboutProjectLibre");
 		register(result, CommandScope.DOCUMENT, FILE,
 			"RibbonSaveProject", "RibbonSaveProjectAs", "RibbonSaveMpoAs", "RibbonCloseProject", "RibbonExportProject",
-			"RibbonPrint", "RibbonPrintPreview", "RibbonPDF");
+			"RibbonBackstageProjectInformation", "RibbonPrint", "RibbonPrintPreview", "RibbonPDF");
 		register(result, CommandScope.TASK, TASK,
 			"RibbonInsert", "RibbonInsertRecurring", "RibbonInsertProject", "RibbonIndent", "RibbonOutdent",
 			"RibbonMoveTaskUp", "RibbonMoveTaskDown",

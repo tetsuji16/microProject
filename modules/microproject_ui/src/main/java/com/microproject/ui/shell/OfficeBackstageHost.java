@@ -20,14 +20,12 @@ import com.microproject.ui.ribbon.RibbonBackstageHost;
 
 /** Places Backstage over the ribbon and workspace while leaving Office title chrome interactive. */
 final class OfficeBackstageHost implements RibbonBackstageHost {
-	private final JFrame frame;
 	private final JComponent header;
 	private final JLayeredPane layeredPane;
 	private JPanel overlay;
 	private ComponentAdapter resizeListener;
 
 	OfficeBackstageHost(JFrame frame, JComponent header) {
-		this.frame = frame;
 		this.header = header;
 		this.layeredPane = frame.getRootPane().getLayeredPane();
 	}
