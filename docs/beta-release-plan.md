@@ -15,7 +15,7 @@
 
 ## 前段階からの品質改善
 
-既存コードをベータ版と呼び替えるのではなく、代表操作を実行して障害を特定し、原因を修正してから公開する。起動・MPP/MPO 読込・ID 保持の修正に続き、CCPM Clear の Undo で失われる監視履歴と撤回記録を復元対象へ追加した。リソース置換の modal owner がメイン画面になっていた問題は、呼び出した割当ダイアログへ所有者を修正して解消する。新規行の物理入力→MPO 再読込の検証で、空行を含む XML と通常タスクの対応付けがずれる保存側の不具合を発見し、空行では通常タスク iterator を進めないよう修正する。既存の高 UID と予定 snapshot の回帰に空行を組み込む。GUI の失敗は製品の状態遷移とテストのフォーカス／描画判定を分けて調査し、待機や許容値で製品の欠陥を隠さない。
+既存コードをベータ版と呼び替えるのではなく、代表操作を実行して障害を特定し、原因を修正してから公開する。起動・MPP/MPO 読込・ID 保持の修正に続き、CCPM Clear の Undo で失われる監視履歴と撤回記録を復元対象へ追加した。リソース置換の modal owner がメイン画面になっていた問題は、呼び出した割当ダイアログへ所有者を修正して解消した。新規行の物理入力→MPO 再読込の検証で、空行を含む XML と通常タスクの対応付けがずれる保存側の不具合を発見し、空行では通常タスク iterator を進めないよう修正した。既存の高 UID と予定 snapshot の回帰に空行を組み込んだ。GUI の失敗は製品の状態遷移とテストのフォーカス／描画判定を分けて調査し、待機や許容値で製品の欠陥を隠さない。
 
 ## 操作契約と所有者
 
@@ -43,7 +43,7 @@ Windows リリース workflow は同じ source commit に対して clean build�
 
 タグ（または管理用ブランチ `release/beta-0.0.24-1` の push）で出荷を開始する。タグは `v0.0.24-beta.1`、jpackage 数値版は `0.0.24.1`。beta は latest／安定版 update manifest を変更しない。`releaseChannel=beta` により MSI/ZIP の bootstrap launcher に自動更新禁止を固定し、stable feed が beta JAR を置き換える経路を防ぐ（共有 preferences は変更しない）。ゲート失敗時は公開せず、ログを保存して原因を修正し、同じ候補の検証をやり直す。公開後の blocker は次の beta 番号で修正し、既配布版のバイナリを差し替えない。
 
-テスト方針は [beta-test-strategy](testing/beta-test-strategy.md)、配布ノートは [beta-0.0.24](releases/beta-0.0.24.md)。Windows の出荷結果は公開ゲート通過後に追記する。
+テスト方針は [beta-test-strategy](testing/beta-test-strategy.md)、配布ノートは [beta-0.0.24](releases/beta-0.0.24.md)。Windows の出荷結果を以下に記録する。
 
 ## 候補版の検証結果（2026-10-10）
 
@@ -56,6 +56,16 @@ Windows リリース workflow は同じ source commit に対して clean build�
 | 配布用限定 module の MPP/POD 読込 | 両 fixture 145 tasks、成功 |
 | GUI smoke | 21 件、失敗・skip 0、1 分 9 秒 |
 | scripts 回帰 | 8 件、成功 |
-| Windows MSI/ZIP・launcher・GUI | 同一 source commit の release workflow で実施。合格前には公開しない |
+| Windows MSI/ZIP・launcher・GUI | source `d1ae83559975018a8d836de84fe6ce6633e44c68`、すべて成功。GUI 21 件、失敗・skip 0、1 分 41 秒 |
 
 発見した CCPM Clear の履歴欠落、置換 modal の owner、空行による MPO task identity のずれ、beta が stable feed を適用する経路を修正した。新規行→物理名前入力→MPO reload、削除→Undo/Redo、Gantt 依存／期間／進捗／split、CCPM 適用→Undo/Redo→MPO→両表示を代表ゲートに含めた。全画面・locale・DPI の課題をこの限定合格で閉じない。
+
+## 公開結果（2026-10-10）
+
+段階 0〜5 の出荷ゲートを完了し、[v0.0.24-beta.1](https://github.com/tetsuji16/ProjectLibre/releases/tag/v0.0.24-beta.1) を prerelease として公開した。タグは検証した source commit `d1ae83559975018a8d836de84fe6ce6633e44c68` を指す。
+
+[Windows 出荷ジョブ](https://github.com/tetsuji16/ProjectLibre/actions/runs/38013978155/job/114100094698) は clean build、unit/headless、MSI/ZIP、MPP/POD 各145 tasks、GUI smoke 21 件、配布 UI JAR の SHA256 一致、配布 EXE の実ウィンドウ起動、SHA256SUMS、公開まで成功した。MSI、ZIP、リリースノート、SHA256SUMS の4 assetsを確認済み。draft=false / prerelease=true。stable latest は `v0.0.23.1219` のままで、beta に latest alias や update manifest は含まれない。
+
+ベータの更新禁止は bootstrap による無人の JAR 置換を防ぐ。About 画面で将来の新しい stable MSI を選び、確認後に切り替える明示的な操作は別の経路として残る。
+
+同 run の付随 Pages ジョブは runner 起動前に失敗した（配布ジョブは成功）。管理用 beta ブランチでは Pages を要求しないよう修正し、公開済み beta の案内とこの結果を master の既存 Pages 更新経路で反映する。配布済みバイナリの差替えは行わない。

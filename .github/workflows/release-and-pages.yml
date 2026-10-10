@@ -293,6 +293,9 @@ jobs:
   pages:
     name: Deploy documentation to GitHub Pages
     needs: release
+    # Pages uses the default-branch deployment path. A beta management branch
+    # must not request a deployment from the protected github-pages environment.
+    if: ${{ github.ref == 'refs/heads/master' }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages
