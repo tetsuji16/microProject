@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>microProject 使い方</title>
+<link rel="canonical" href="https://o-server.main.jp/micro-project/usage-guide-ja.html">
+<style>body{font-family:system-ui,"Meiryo",sans-serif;color:#17212b;background:#f5f7fa;line-height:1.8;margin:0}main{max-width:960px;margin:auto;padding:24px}nav{display:flex;gap:20px;flex-wrap:wrap}a{color:#1754bc}section{background:white;border:1px solid #dde3eb;border-radius:12px;padding:24px;margin:24px 0}h1,h2,h3{line-height:1.4}table{border-collapse:collapse;width:100%}td,th{border:1px solid #dde3eb;padding:10px;text-align:left}img{max-width:100%;height:auto}figure{margin:20px 0}.warn,.tip{padding:14px;background:#eef4ff;margin:16px 0}code,kbd{background:#edf0f5;padding:2px 5px}footer{padding:24px 0} @media(max-width:600px){main{padding:14px}section{padding:16px}table{font-size:14px}}</style>
+</head>
+<body>
+<main>
+<nav>
+<a href="index.html">microProject・ダウンロード</a>
+<a href="ccpm-sample-guide-ja.html">CCPM実習サンプル</a>
+</nav>
+<h1>microProject 使い方</h1>
+<p>対象：0.0.24-beta.1 と現在の実装（2026年10月10日）。Windowsのタスク表・ガント・CCPMの基本操作を説明します。Microsoft Projectとの完全互換は開発目標であり、すべての操作・形式の互換を保証するものではありません。</p>
+<nav>
+<a href="#start">起動・保存</a>
+<a href="#tasks">タスク表</a>
+<a href="#gantt">ガント</a>
+<a href="#ccpm">CCPM</a>
+<a href="#shortcuts">ショートカット</a>
+<a href="#troubleshooting">困ったとき</a>
+</nav>
+<section id="start">
+<h2>1. ダウンロード・起動・保存</h2>
+<ol>
+<li>
+<a href="index.html#download">ダウンロードページ</a>でベータ版または安定版を選びます。MSIはインストーラーを実行、Portable ZIPは全ファイルを展開してmicroProject.cmd（またはmicroProject.exe）を実行します。配布物にはJava実行環境を同梱しています。</li>
+<li>Ctrl+Nで新規プロジェクトを作成し、名前・開始日を設定します。既存ファイルはCtrl+Oで開きます。</li>
+<li>Ctrl+Sで保存します。CCPM設定・履歴を保持するには保存形式に.mpo（MPOF）を選びます。.podにはCCPM拡張状態を保存しません。</li>
+<li>初回はコピーまたはサンプルで試し、保存したファイルを開き直して内容を確認します。</li>
+</ol>
+<p>既存のMPP/XML/POD等は「開く」から読み込みます。読込・書出しの対応は形式ごとに異なります。更新用の元ファイルを別途保管してください。</p>
+</section>
+<section id="tasks">
+<h2>2. タスク表で計画を作る</h2>
+<ol>
+<li>ガントビュー左側のタスク表で空行の名前セルを編集してタスクを作成します。選択行への挿入はInsert、セル編集はF2を使います。</li>
+<li>期間を入力します（例：2d）。開始日・終了日は依存関係、稼働カレンダー、制約を考慮して計算されます。期間0のタスクはマイルストーンになります。</li>
+<li>子にする行を選択してAlt+Shift+→でインデントします。Alt+Shift+←で戻します。サマリー行の展開・折りたたみで階層を整理できます。</li>
+<li>工程順にタスクを選択しCtrl+F2でリンクします。解除はCtrl+Shift+F2です。先行タスク列でも関係を編集できます。循環するリンクは作らないでください。</li>
+<li>Shift+F2でタスク情報を開き、日付、制約、先行関係、リソース等を確認します。</li>
+</ol>
+<h3>選択・編集・削除</h3>
+<p>行番号で行を選択します。Ctrl+Spaceは行、Shift+Spaceは列の選択です。コピー／貼り付けはCtrl+C／V、下へのコピーはCtrl+Dです。Deleteは削除、Ctrl+Deleteは内容のクリアなので、選択範囲と確認内容を見て実行します。間違えた操作はCtrl+Z、やり直しはCtrl+Yです。</p>
+<h3>担当者・進捗</h3>
+<p>リソースシートに担当者を登録し、タスクに割り当てます。達成率を0〜100%で更新します。遅延を表す場合は達成率だけでなく実績開始と残存期間／残作業を更新します。完了したタスクには実績終了も記録します。</p>
+</section>
+<section id="gantt">
+<h2>3. ガントチャートで日程を確認する</h2>
+<p>左の表と右のバーは同じタスクを表示します。表を更新したらバーの位置・長さ・依存線も確認します。Ctrl+Rで再計算できます。</p>
+<ol>
+<li>Ctrl+マウスホイールで表示倍率を変えます。見失ったタスクは表で選択してCtrl+Shift+F5でスクロールします。</li>
+<li>バー本体のドラッグで予定を移動し、端のドラッグで期間を調整します。進捗部分の操作で達成率を調整します。結果は表の日付・期間・達成率で確認してください。</li>
+<li>依存関係や期間を変更したときは後続工程も確認します。休日、制約、担当者の稼働条件により、操作後の日付が補正される場合があります。</li>
+<li>バーの色だけで状態を断定せず、達成率・総余裕時間・実績日付を合わせて確認します。クリティカルパスは依存関係と余裕時間、CCPMのクリティカルチェーンはリソース制約も考慮します。</li>
+</ol>
+<p>予定の変更後はCtrl+Z／Yで戻せることと、.mpoで保存・再読込した結果を確認してください。</p>
+<figure>
+<img src="images/demo_gannt.png" alt="タスク表とガントチャートの表示例">
+<figcaption>タスクの階層と工程のつながりを並べて確認します。</figcaption>
+</figure>
+</section>
+<section id="ccpm">
+    <h2>5.1 CCPM（クリティカルチェーン・プロジェクト管理）入門</h2>
+    <p>
+        CCPMは、タスク間の依存関係だけでなく、限られたリソースの競合も考慮して、実行順序とバッファを管理する方法です。
+        個々のタスクに余裕を分散する代わりに、プロジェクトの終端と経路の合流点にバッファを置いて管理します。
+    </p>
+
+    <figure class="app-example">
+        <img src="images/ccpm-workflow.svg" alt="CCPMの操作フロー。プロジェクト準備、リソース平準化ダイアログでのCCPM設定、プレビュー、適用とCCPM Network確認、MPOF保存の5段階を矢印で示している。">
+        <figcaption>CCPMの基本フロー。プレビューで変更件数・未解決競合・バッファを確認してから適用します。</figcaption>
+    </figure>
+
+    <h3>実習用サンプルとタスク表</h3>
+    <p>
+        <a href="ccpm-sample-guide-ja.html">20タスクCCPMサンプルの使い方</a>では、完了済み・進行中・未着手のタスクが混在する一般的なシステム導入プロジェクトを使い、CCPMの適用からネットワーク・バッファ表示までを確認できます。
+        サンプルファイルは説明ページからダウンロードできます。
+        先行関係に従って後続タスクが開始し、CCPMの表示を安全に試せます。配布時点ではタスクへのリソース割り当てはないため、
+        まず依存関係を確認し、共有リソースの実習は下記の手順で追加してください。
+    </p>
+    <figure class="app-example">
+        <img src="images/ccpm-scenario-gantt.png" alt="CCPMサンプルのタスク表とMS Project形式のガント。達成率、残存期間、実際の開始日、先行、リソース名の列と、依存関係でつながるバーを表示している。">
+        <figcaption>CCPM入門用の表。達成率と残存期間を分けて記録し、開始・終了・先行関係への影響を確認します。</figcaption>
+    </figure>
+    <table>
+        <tr>
+<th>列</th>
+<th>CCPMでの用途</th>
+</tr>
+        <tr>
+<td>達成率</td>
+<td>実際に完了した割合。ガントの完了部分とバッファグラフの横軸に反映されます。</td>
+</tr>
+        <tr>
+<td>作業時間の達成率</td>
+<td>消化した工数の割合です。成果の完成割合である「達成率」とは別に記録します。</td>
+</tr>
+        <tr>
+<td>残存期間</td>
+<td>現実的な残りの見積り。後続タスク、終了日、バッファ消費に反映されます。</td>
+</tr>
+        <tr>
+<td>実際の開始日</td>
+<td>実際に着手した日を記録します。</td>
+</tr>
+        <tr>
+<td>先行 / リソース名</td>
+<td>日程の順序と、共有リソースの競合を確認します。</td>
+</tr>
+    </table>
+    <p>
+        共有リソースを試すには、リソースシートで「開発者」を 1 名作成し、並行する「実装」と「環境構築」へ各 100% で割り当てます。
+        <strong>プレビュー</strong>で競合を確認し、適用後に開始日が平準化されることを確認してください。<strong>.mpo</strong>で保存して再度開き、
+        リソース名と割り当てが保持されていることも確認します。
+    </p>
+
+    <h3>CCPMを適用する</h3>
+    <ol>
+        <li>プロジェクトを開き、タスクの依存関係、担当リソース、稼働カレンダーを確認します。</li>
+        <li>
+<strong>プロジェクト</strong> → <strong>CCPM 設定</strong>を開きます。</li>
+        <li>
+<strong>クリティカルチェーン・プロジェクト管理（CCPM）を使用する</strong>にチェックを入れ、プロジェクトバッファの割合を設定します。必要に応じて対象リソースを選択します。</li>
+        <li>
+<strong>プレビュー</strong>を押し、変更件数、分割件数、未解決の競合、推奨プロジェクトバッファを確認します。競合が残る場合は、割り当てや平準化条件を見直して再度プレビューします。</li>
+        <li>内容が妥当なら<strong>平準化を適用</strong>を押します。これがCCPMの基準終了日とバッファ量を記録する操作です。</li>
+        <li>CCPMの設定と共同編集用の状態を保持する場合は、<strong>.mpo</strong>(MPOF)で保存し、再読込してベースライン・リソース割り当て・平準化遅延が保持されていることを確認します。</li>
+    </ol>
+
+    <figure class="app-example">
+        <img src="images/ccpm-scenario-settings.png" alt="CCPM設定ダイアログ。CCPMを有効にし、プロジェクトバッファを25%にしてプレビューできる。">
+        <figcaption>最初にプレビューで競合と推奨バッファを確認し、承認するときだけ平準化を適用します。</figcaption>
+    </figure>
+
+    <h3>ネットワークとバッファの読み方</h3>
+    <figure class="app-example">
+        <img src="images/ccpm-scenario-network.png" alt="CCPMネットワーク。青い依存関係、緑のフィーディングバッファ接続、タスクノードを表示している。">
+        <figcaption>青い実線は先行関係、緑の破線はチェーンへ合流する位置です。共有リソースの競合を解消した接続は橙色で表示されます。</figcaption>
+    </figure>
+    <table>
+        <tr>
+<th>表示</th>
+<th>意味</th>
+<th>確認ポイント</th>
+</tr>
+        <tr>
+<td>クリティカルチェーン</td>
+<td>リソース制約を含めた終了日に直結するタスク列</td>
+<td>遅延がプロジェクト完了日に波及しやすいため、進捗と担当者を優先確認します。</td>
+</tr>
+        <tr>
+<td>プロジェクトバッファ</td>
+<td>チェーン全体の遅延を吸収する共通の余裕</td>
+<td>残り時間と計画時間を比較し、消費が大きい場合は回復策を検討します。</td>
+</tr>
+        <tr>
+<td>フィーディングバッファ</td>
+<td>非クリティカルな経路からチェーンへ入る遅延を吸収する余裕</td>
+<td>流入元のタスクの遅れとバッファ残量を合わせて見ます。</td>
+</tr>
+    </table>
+
+    <h3>遅れを入力してバッファで判断する</h3>
+    <p>
+        遅れは<strong>達成率</strong>だけでは表せません。実際の開始日と達成率を更新し、残りに必要な見積りを<strong>残存期間</strong>または残作業へ入力します。
+        達成率はガントの濃青部分とグラフの横軸、残存期間は後続タスク・終了日・グラフの縦軸へ反映されます。実績開始・終了は履歴なので、
+        CCPMの適用や再計算で自動的に動かしません。
+    </p>
+    <figure class="app-example">
+        <img src="images/ccpm-scenario-buffer.png" alt="CCPMバッファ消費状況。横軸がプロジェクト進捗、縦軸がバッファ消費率で、緑、黄、赤のゾーンを示している。">
+        <figcaption>横軸はプロジェクト進捗、縦軸はバッファ消費率です。終了日がCCPM基準終了日を超えた分だけ点が上へ移動します。</figcaption>
+    </figure>
+    <p>
+        日常の確認では、遅れを入力した後にまず<strong>プレビュー</strong>を実行します。
+        すぐに平準化を適用すると遅れを含む計画が新しい基準になり、バッファ消費を比較しにくくなります。正式な再基準化を決めたときだけ適用してください。
+        緑・黄・赤の境界は固定比率ではなく、プロジェクト進捗に応じて変わります。初期ほど小さなバッファ消費を慎重に扱います。
+    </p>
+
+    <h3>バッファ履歴の観測点を訂正する</h3>
+    <p>
+        バッファ状況のグラフを開くたびに現在の分析結果が観測点として履歴に追加されます。誤って追加された点は、グラフ上で点を選択し、<strong>この観測を破棄…</strong>を押して理由を入力すると通常のグラフとCSV／HTMLレポートから除外できます。
+        これは物理削除ではなく、観測ID、理由、実行者、時刻をMPOFの監査記録に残す論理破棄です。最新点を破棄する場合は追加の確認が表示されます。
+    </p>
+    <ol>
+        <li>グラフ上の対象点をクリックし、オレンジ色の選択枠と破棄ボタンを確認します。</li>
+        <li>観測時刻と進捗／バッファ消費を確認し、必須の理由を入力して確定します。タスク日付、依存関係、CCPMベースラインは変わりません。</li>
+        <li>
+<code>Ctrl+Z</code>で観測点と監査記録を復元し、<code>Ctrl+Y</code>で再度破棄します。保存・再読込後も破棄状態が保持されます。</li>
+    </ol>
+
+    <div class="tip">
+        CCPMの分析は現在の依存関係、カレンダー、リソース割り当てを基に計算されます。タスク期間、残存期間、担当者、平準化条件を変更した後は、必ず<strong>プレビュー</strong>を実行してグラフを更新してください。
+    </div>
+    <div class="warn">
+        <code>.pod</code>は従来のProjectLibre形式のまま保存され、CCPMの拡張状態は追加されません。CCPM設定を再読込後も保持したい場合や、OneDriveなどの共有フォルダーで同時編集する場合は<code>.mpo</code>(MPOF)を使用してください。
+    </div>
+    <div class="tip">
+        <strong>CCPMのショートカット:</strong>
+        <code>Ctrl+Alt+C</code>でCCPM設定、<code>Ctrl+Shift+N</code>でリボンの「クリティカル チェーン」（CCPMネットワーク）、
+        <code>Ctrl+Shift+K</code>でCCPMバッファ状況、<code>Ctrl+Shift+J</code>でアクティブなガントビューのCCPM表示を切り替えます。
+        CCPM設定の変更や適用解除は、書き込み可能なプロジェクトでのみ実行できます。
+    </div>
+</section>
+<section id="shortcuts">
+<h2>5. よく使うショートカット</h2>
+<table>
+<tr>
+<th>キー</th>
+<th>操作</th>
+</tr>
+<tr>
+<td>
+<kbd>Ctrl+N / O / S</kbd>
+</td>
+<td>新規 / 開く / 保存</td>
+</tr>
+<tr>
+<td>
+<kbd>F2 / Shift+F2</kbd>
+</td>
+<td>セル編集 / タスク・リソース情報</td>
+</tr>
+<tr>
+<td>
+<kbd>Insert</kbd>
+</td>
+<td>新しい行の挿入</td>
+</tr>
+<tr>
+<td>
+<kbd>Ctrl+Z / Y</kbd>
+</td>
+<td>元に戻す / やり直し</td>
+</tr>
+<tr>
+<td>
+<kbd>Alt+Shift+→ / ←</kbd>
+</td>
+<td>インデント / アウトデント</td>
+</tr>
+<tr>
+<td>
+<kbd>Ctrl+F2 / Ctrl+Shift+F2</kbd>
+</td>
+<td>リンク / リンク解除</td>
+</tr>
+<tr>
+<td>
+<kbd>Ctrl+R</kbd>
+</td>
+<td>再計算</td>
+</tr>
+<tr>
+<td>
+<kbd>Ctrl+Shift+F5</kbd>
+</td>
+<td>選択タスクへスクロール</td>
+</tr>
+<tr>
+<td>
+<kbd>Ctrl+Alt+C</kbd>
+</td>
+<td>CCPM設定</td>
+</tr>
+<tr>
+<td>
+<kbd>Ctrl+Shift+N / K</kbd>
+</td>
+<td>CCPMネットワーク / バッファ状況</td>
+</tr>
+<tr>
+<td>
+<kbd>Ctrl+Shift+J</kbd>
+</td>
+<td>ガントのCCPM表示切替</td>
+</tr>
+<tr>
+<td>
+<kbd>Ctrl+P</kbd>
+</td>
+<td>印刷</td>
+</tr>
+<tr>
+<td>
+<kbd>F1</kbd>
+</td>
+<td>オンラインヘルプ</td>
+</tr>
+</table>
+</section>
+<section id="troubleshooting">
+<h2>6. 困ったとき</h2>
+<h3>日程が想定と違う</h3>
+<p>先行関係、制約、稼働カレンダー、残存期間、リソース割り当てを確認し、Ctrl+Rで再計算します。CCPMではプレビューで競合を確認します。</p>
+<h3>CCPM設定が保存されない</h3>
+<p>.mpo形式で保存してください。.podにはCCPM拡張状態が入りません。読み取り専用のプロジェクトでは設定・適用を変更できません。</p>
+<h3>ベータ版の問題を報告する</h3>
+<p>
+<a href="https://github.com/tetsuji16/ProjectLibre/issues">GitHub Issues</a>にバージョン、再現手順、期待した結果、実際の結果を記載します。機密情報を除いたサンプルがあると原因を調べやすくなります。</p>
+</section>
+<footer>
+<a href="index.html">ダウンロードへ戻る</a>
+</footer>
+</main>
+</body>
+</html>

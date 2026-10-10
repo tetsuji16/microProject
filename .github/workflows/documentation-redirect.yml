@@ -2,7 +2,7 @@ name: Deploy documentation redirects
 on:
   push:
     branches: [master]
-    paths: ['docs/**', 'pages-redirect/**', '.github/workflows/documentation-redirect.yml']
+    paths: ['docs/**', 'website/**', 'pages-redirect/**', '.github/workflows/documentation-redirect.yml']
   workflow_dispatch:
 permissions:
   contents: read

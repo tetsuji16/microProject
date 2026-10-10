@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>20タスクCCPMサンプルの使い方 | microProject</title>
+  <style>
+    :root { --ink:#17212b; --muted:#556575; --line:#dce3eb; --paper:#fff; --bg:#f4f7fa; --blue:#1f5eff; --soft:#eaf0ff; --green:#0f766e; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font-family:Aptos,"Segoe UI","Yu Gothic UI",sans-serif; line-height:1.7; }
+    main { width:min(960px,calc(100% - 32px)); margin:0 auto; padding:28px 0 72px; }
+    header, section { background:var(--paper); border:1px solid var(--line); border-radius:18px; padding:28px; box-shadow:0 12px 28px rgba(20,32,54,.05); }
+    section { margin-top:18px; }
+    .crumb { color:var(--muted); font-size:14px; }
+    .crumb a { color:inherit; }
+    h1 { margin:12px 0 10px; font-size:clamp(30px,6vw,48px); line-height:1.15; letter-spacing:-.04em; }
+    h2 { margin:0 0 14px; font-size:24px; letter-spacing:-.02em; }
+    h3 { margin:20px 0 8px; font-size:18px; }
+    p { margin:0; color:var(--muted); }
+    p + p { margin-top:10px; }
+    .actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:22px; }
+    .button { display:inline-flex; align-items:center; min-height:44px; padding:10px 16px; border-radius:10px; background:var(--blue); color:#fff; font-weight:700; text-decoration:none; }
+    .button.secondary { background:var(--paper); color:var(--ink); border:1px solid var(--line); }
+    .notice { margin-top:18px; padding:14px 16px; border-left:4px solid var(--green); background:#ecfdf5; color:#14532d; border-radius:8px; }
+    ol { margin:12px 0 0; padding-left:24px; }
+    li + li { margin-top:10px; }
+    code { padding:2px 5px; border-radius:5px; background:#edf2f7; color:#243447; }
+    table { width:100%; border-collapse:collapse; margin-top:14px; font-size:14px; }
+    th, td { padding:10px; border:1px solid var(--line); text-align:left; vertical-align:top; }
+    th { background:#f7f9fc; }
+    .route { margin-top:14px; padding:15px; border-radius:10px; background:var(--soft); color:#173a92; font-weight:600; }
+    .check { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:14px; }
+    .check div { padding:14px; border:1px solid var(--line); border-radius:10px; color:var(--muted); }
+    @media (max-width:680px) { main { width:min(100% - 20px,960px); padding-top:10px; } header,section { padding:20px; } .check { grid-template-columns:1fr; } table { font-size:13px; } th,td { padding:8px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div class="crumb"><a href="index.html">microProject</a> / <a href="usage-guide-ja.html">オンライン ヘルプ</a> / CCPMサンプル</div>
+      <h1>20タスクCCPMサンプルの使い方</h1>
+      <p>一般的なシステム導入プロジェクトを題材に、依存関係、クリティカルチェーン、プロジェクト・バッファを確認するための短い実習です。2026年8月末時点を想定し、完了済み・進行中・未着手の作業を混在させています。CCPM設定は有効ですが、ベースラインは未作成です。</p>
+      <div class="actions">
+        <a class="button" href="https://github.com/tetsuji16/ProjectLibre/raw/master/samples/CCPM%20%E6%A8%99%E6%BA%96%E3%82%B7%E3%82%B9%E3%83%86%E3%83%A0%E5%B0%8E%E5%85%A5%2020%E3%82%BF%E3%82%B9%E3%82%AF.mpo">サンプル（.mpo）をダウンロード</a>
+        <a class="button secondary" href="https://github.com/tetsuji16/ProjectLibre/raw/master/samples/CCPM%20%E6%A8%99%E6%BA%96%E3%82%B7%E3%82%B9%E3%83%86%E3%83%A0%E5%B0%8E%E5%85%A5%2020%E3%82%BF%E3%82%B9%E3%82%AF%EF%BC%88%E5%B1%A5%E6%AD%B4%E4%BB%98%E3%81%8D%EF%BC%89.mpo">履歴付きサンプル</a>
+        <a class="button secondary" href="https://github.com/tetsuji16/ProjectLibre/raw/master/samples/CCPM-history-sample.zip">履歴付きサンプル（ZIP）</a>
+        <a class="button secondary" href="usage-guide-ja.html#ccpm">CCPMの基本説明へ戻る</a>
+      </div>
+      <div class="notice">このページはスクリーンショットを使用していません。したがって、デスクトップ、スタートバー、またはmicroProject以外のアプリケーション画面は掲載していません。</div>
+    </header>
+
+    <section>
+      <h2>サンプルに含まれる構成</h2>
+      <p>タスク数は20件です。単純な一本道ではなく、設計・実装・テスト・運用準備が合流する、日常的なプロジェクト構成にしています。進捗は完了11件、進行中4件、未着手5件で、達成率は0%、20%、40%、65%、75%、100%を含みます。</p>
+      <div class="route">主経路: プロジェクト開始 → 現状ヒアリング → 要件定義 → 要件レビュー → 基本設計 → アーキテクチャレビュー → 基幹機能の実装 → 単体テスト → 結合テスト → システムテスト → 利用部門受入テスト → 本番リリース → プロジェクト完了</div>
+      <table>
+        <thead><tr><th>工程</th><th>タスク</th><th>確認できる点</th></tr></thead>
+        <tbody>
+          <tr><td>立上げ・要件</td><td>プロジェクト開始、現状ヒアリング、要件定義、要件レビュー</td><td>主経路の開始とFS依存</td></tr>
+          <tr><td>設計・準備</td><td>基本設計、アーキテクチャレビュー、画面設計、開発環境準備</td><td>設計後に複数の作業が分岐する構造</td></tr>
+          <tr><td>開発・テスト</td><td>基幹機能の実装、画面機能の実装、単体テスト、結合テスト、テストデータ準備、システムテスト</td><td>並行実装とテストデータ準備の合流</td></tr>
+          <tr><td>展開</td><td>操作マニュアル作成、利用部門受入テスト、リリース準備、利用者トレーニング準備、本番リリース、プロジェクト完了</td><td>テスト、運用準備、教育準備がリリースへ合流</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>CCPMを適用して確認する</h2>
+      <ol>
+        <li>ダウンロードした <code>CCPM 標準システム導入 20タスク.mpo</code> をmicroProjectの<strong>ファイル → 開く</strong>で開きます。</li>
+        <li>タスク表の<strong>先行</strong>列と<strong>達成率</strong>列を確認します。開始時点なので、全20タスクの達成率は <strong>0%</strong> です。</li>
+        <li><strong>プロジェクト → CCPM 設定</strong>を開き、CCPMが有効になっていることを確認します。必要ならプロジェクトバッファの割合を調整します。</li>
+        <li><strong>プレビュー</strong>を実行します。候補のクリティカルチェーン、競合、プロジェクト・バッファ、フィーディングバッファを確認します。プレビューだけでは予定は変更されません。</li>
+        <li>内容を確認して<strong>平準化を適用</strong>します。これでCCPMのベースラインが作成されます。</li>
+        <li><code>Ctrl+Shift+N</code>で<strong>CCPM ネットワーク</strong>、<code>Ctrl+Shift+K</code>で<strong>CCPM バッファ状況</strong>を開きます。</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>確認チェックリスト</h2>
+      <div class="check">
+        <div>ネットワーク図で、主経路と画面設計・テストデータ・操作マニュアルの分岐／合流が表示される。</div>
+        <div>バッファ状況で、プロジェクト・バッファとフィーディングバッファの候補を確認できる。</div>
+        <div>CCPM適用後も、タスク表とGanttの開始日・終了日・先行関係・達成率が整合している。</div>
+        <div><strong>名前を付けて保存</strong>で <code>.mpo</code> を選び、再読込後もCCPMベースラインと平準化対象のリソース範囲が残る。</div>
+      </div>
+      <h3>リソース競合も試す場合</h3>
+      <p>このサンプルは依存関係の確認を優先し、初期状態ではリソースを割り当てていません。CCPMのリソース平準化も試すには、同じ担当者を「基幹機能の実装」と「画面機能の実装」に100%で割り当て、対象リソースを選んでプレビューしてから適用してください。適用時の対象範囲は <code>.mpo</code> に保存され、再読込後のネットワーク図・バッファ状況も同じ範囲で再分析されます。</p>
+    </section>
+
+    <section>
+      <h2>困ったとき</h2>
+      <p>ネットワーク図が表示されない場合は、先にCCPM設定で<strong>平準化を適用</strong>してベースラインを作成してください。CCPMを<strong>クリア</strong>した場合は、ベースラインと画面上のバッファ履歴の両方が消去されます。CCPMの設定やベースラインを保持する用途では、従来形式の <code>.pod</code> ではなく <code>.mpo</code> で保存します。</p>
+    </section>
+
+    <section>
+      <h2>バッファ遷移を試す実習</h2>
+      <p>同じmicroProjectセッション内では、バッファ状況を開くたびに観測点が保持されます。次の手順で、<strong>0% / 0%</strong> からプロジェクトを右方向へ進め、週次の見積り更新に応じてバッファが小さく変動する、通常の導入プロジェクトらしい軌跡を確認できます。</p>
+      <ol>
+        <li>サンプルは新規プロジェクト時点の <code>0%</code> で始まります。CCPMを適用して <code>Ctrl+Shift+K</code> を開くと、最初の観測点は<strong>0% / 0%</strong>です。</li>
+        <li>最初の週次更新として、完了済み・進行中の作業を反映してプロジェクト達成率を約<strong>25%</strong>に更新します。「プロジェクト完了」の<strong>期間</strong>を <code>1d</code> から <code>2d</code> に変更し、結合確認に1日余分にかかる見込みを記録します。グラフに約<strong>22% / 27%</strong>の点が追加されます。</li>
+        <li>中間レビューで達成率を約<strong>50%</strong>に更新します。関係者確認がさらに1日必要と判明した想定で、同タスクの期間を <code>3d</code> に変更します。約<strong>45% / 55%</strong>まで上がり、注意領域へ入ります。</li>
+        <li>対策後の週次更新では達成率を約<strong>75%</strong>に進め、確認方法の見直しで期間見積りを <code>2d</code> に戻します。約<strong>69% / 27%</strong>へ下がり、進捗は右へ進みながら安全領域へ回復します。</li>
+      </ol>
+      <p>観測点の履歴は現行MPOFの <code>ccpm/history.jsonl</code> に保存されます。保存後にファイルを閉じて再度開くと、保存前のグラフを復元できます。</p>
+      <h3>誤った観測点を破棄する</h3>
+      <p>バッファ状況のグラフでは、誤って追加された観測点を通常のグラフから除外できます。破棄は物理削除ではなく、観測ID・理由・実行者・時刻を監査記録として残す論理操作です。</p>
+      <ol>
+        <li>グラフ上の破棄したい観測点をクリックします。選択点にはオレンジ色の枠が付き、「この観測を破棄…」ボタンが有効になります。</li>
+        <li>ボタンを押し、観測時刻と「進捗 / バッファ消費」を確認して、必ず理由を入力します。最新の観測点を選んだ場合は追加の確認が表示されます。</li>
+        <li>確定すると点と接続線が通常表示から消え、監査記録が保持されます。タスクの日付、依存関係、CCPMベースラインはこの操作では変更されません。</li>
+        <li><code>Ctrl+Z</code>で点と監査記録を復元し、<code>Ctrl+Y</code>で再度破棄できます。保存して再読込した後も、破棄済みの点は通常グラフに表示されません。</li>
+      </ol>
+      <h3>保存・再読込と週次レポート</h3>
+      <ol>
+        <li>各更新後に<strong>名前を付けて保存</strong>で`.mpo`へ保存します。保存時点の日時、担当者、進捗率、バッファ消費率、ゾーンが履歴に追加されます。</li>
+        <li>ファイルを閉じて再度開き、<code>Ctrl+Shift+K</code>でバッファ状況を表示します。保存前の観測点が時系列で復元されます。</li>
+        <li>週次レポートでは、週初・週末の進捗と消費率、GREEN／AMBER／REDの遷移、最終更新者を確認します。CSV／HTML出力を会議資料に利用できます。破棄済みの観測点は通常レポートに含まれません。</li>
+      </ol>
+    </section>
+  </main>
+</body>
+</html>

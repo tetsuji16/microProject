@@ -2,7 +2,9 @@
 
 Canonical site: https://o-server.main.jp/micro-project/
 
-`docs/` remains the documentation source. The `tetsuji16/o-server` workflow
+`website/` contains the public HTML source; `docs/images/` contains the shared images.
+`docs/*.html` are redirects too, preventing the legacy branch-based Pages
+publisher from restoring old content. The `tetsuji16/o-server` workflow
 `micro-project.yml` checks out this repository's master, stages public HTML and
 images only, and deploys them with the existing WebDAV secrets. It runs on push,
 manual dispatch, and hourly so documentation changes propagate without cross-repo

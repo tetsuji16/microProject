@@ -246,7 +246,7 @@ Never validate against an older `build/install` copy. For UI changes, record the
 - Run packaging only when the change touches distribution, runtime modules, dependencies, icons, licenses, file associations, or release behavior.
 - Useful tasks are `stageAppDist`, `verifyPackagedFileImports`, `packageWindowsAppImage`, `packageWindowsMsi`, and `packageWindowsExe`.
 - `jpackage` requires a full JDK; MSI/EXE creation also requires WiX. Outputs belong under `build/releases/v<version>/`.
-- `docs/index.html` is the canonical o-server documentation entry point. GitHub Pages publishes redirect stubs from `pages-redirect/`. Publish binaries as GitHub Release assets; `docs/downloads/` is scratch space and must not be committed.
+- `website/index.html` is the canonical o-server documentation entry point. `docs/*.html` are legacy redirects. GitHub Pages publishes redirect stubs from `pages-redirect/`. Publish binaries as GitHub Release assets; `docs/downloads/` is scratch space and must not be committed.
 
 ## Completion checklist
 
