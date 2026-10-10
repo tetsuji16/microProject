@@ -41,7 +41,7 @@ public final class ProjectLoadWorkflow {
 	private ProjectLoadWorkflow() {
 	}
 
-	public static LoadOptions prepareLoadOptions(String fileName, boolean localOnlySession, String collaborationUserKey) {
+	public static LoadOptions prepareLoadOptions(String fileName, String collaborationUserKey) {
 		LoadOptions options = new LoadOptions();
 		options.setFileName(fileName);
 		options.setLocal(true);
@@ -51,8 +51,16 @@ public final class ProjectLoadWorkflow {
 		if (options.isCollaborationEnabled()) {
 			options.setSidecarFileName(CollaborationMetadataStore.buildSidecarFile(new File(fileName)).getAbsolutePath());
 		}
-		ProjectFilePolicies.configureLoadOptions(options, fileName, localOnlySession);
+		ProjectFilePolicies.configureLoadOptions(options, fileName);
 		return options;
+	}
+
+	/**
+	 * Compatibility overload for callers that still report the retired server mode.
+	 * File-format routing is local and no longer depends on that mode flag.
+	 */
+	public static LoadOptions prepareLoadOptions(String fileName, boolean localOnlySession, String collaborationUserKey) {
+		return prepareLoadOptions(fileName, collaborationUserKey);
 	}
 
 	/** Validates the MPO archive container before a standalone project load. */

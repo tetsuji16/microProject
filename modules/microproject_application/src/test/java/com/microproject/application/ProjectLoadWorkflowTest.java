@@ -50,7 +50,7 @@ class ProjectLoadWorkflowTest {
 
 	@Test
 	void preparesLoadOptionsForMpoCollaborationFile() {
-		LoadOptions options = ProjectLoadWorkflow.prepareLoadOptions("sample.MPO", true, "alice");
+		LoadOptions options = ProjectLoadWorkflow.prepareLoadOptions("sample.MPO", "alice");
 
 		assertEquals("sample.MPO", options.getFileName());
 		assertEquals(LocalSession.MPO_PROJECT_IMPORTER, options.getImporter());
@@ -62,15 +62,26 @@ class ProjectLoadWorkflowTest {
 	@Test
 	void legacyAndExchangeFormatsDoNotEnableCollaboration() {
 		for (String fileName : new String[] { "sample.pod", "sample.POD", "sample.xml", "sample.xlsx" }) {
-			LoadOptions options = ProjectLoadWorkflow.prepareLoadOptions(fileName, true, "alice");
+			LoadOptions options = ProjectLoadWorkflow.prepareLoadOptions(fileName, "alice");
 			assertFalse(options.isCollaborationEnabled(), fileName);
 			assertEquals(null, options.getSidecarFileName(), fileName);
+			if (fileName.toLowerCase(java.util.Locale.ROOT).endsWith(".pod")) {
+				assertEquals(LocalSession.LOCAL_PROJECT_IMPORTER, options.getImporter(), fileName);
+			}
+		}
+	}
+
+	@Test
+	void retiredServerModeFlagDoesNotSelectServerImporter() {
+		for (boolean localOnlySession : new boolean[] { true, false }) {
+			LoadOptions options = ProjectLoadWorkflow.prepareLoadOptions("sample.pod", localOnlySession, "alice");
+			assertEquals(LocalSession.LOCAL_PROJECT_IMPORTER, options.getImporter());
 		}
 	}
 
 	@Test
 	void preparesLoadOptionsForMicrosoftFile() {
-		LoadOptions options = ProjectLoadWorkflow.prepareLoadOptions("sample.mpp", false, "alice");
+		LoadOptions options = ProjectLoadWorkflow.prepareLoadOptions("sample.mpp", "alice");
 
 		assertEquals("sample.mpp", options.getFileName());
 		assertEquals(LocalSession.MICROSOFT_PROJECT_IMPORTER, options.getImporter());

@@ -18,6 +18,7 @@ public final class DefaultFileImporterProvider implements SessionImporterProvide
 	private static final List<FormatDefinition> FORMATS = List.of(
 			new FormatDefinition(LocalSession.LOCAL_PROJECT_IMPORTER, LocalFileImporter::new),
 			new FormatDefinition(LocalSession.MPO_PROJECT_IMPORTER, MpoFileImporter::new),
+			// Legacy importer identifier; ordinary desktop Open Project never selects this route.
 			new FormatDefinition(LocalSession.SERVER_LOCAL_PROJECT_IMPORTER, ServerLocalFileImporter::new),
 			new FormatDefinition(LocalSession.MICROSOFT_PROJECT_IMPORTER, MicrosoftImporter::new));
 

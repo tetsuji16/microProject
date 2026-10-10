@@ -37,12 +37,12 @@ public final class ProjectFilePolicies {
 		return FileHelper.isPodFile(fileName);
 	}
 
-	public static String resolveLoadImporter(String fileName, boolean localOnlySession) {
+	public static String resolveLoadImporter(String fileName) {
 		if (FileHelper.isMpoFile(fileName)) {
 			return LocalSession.MPO_PROJECT_IMPORTER;
 		}
 		if (isPodFile(fileName)) {
-			return localOnlySession ? LocalSession.LOCAL_PROJECT_IMPORTER : LocalSession.SERVER_LOCAL_PROJECT_IMPORTER;
+			return LocalSession.LOCAL_PROJECT_IMPORTER;
 		}
 		return LocalSession.MICROSOFT_PROJECT_IMPORTER;
 	}
@@ -54,12 +54,12 @@ public final class ProjectFilePolicies {
 		return isPodFile(fileName) ? LocalSession.LOCAL_PROJECT_IMPORTER : LocalSession.MICROSOFT_PROJECT_IMPORTER;
 	}
 
-	public static void configureLoadOptions(LoadOptions options, String fileName, boolean localOnlySession) {
+	public static void configureLoadOptions(LoadOptions options, String fileName) {
 		if (options == null) {
 			return;
 		}
 		options.setFileName(fileName);
-		options.setImporter(resolveLoadImporter(fileName, localOnlySession));
+		options.setImporter(resolveLoadImporter(fileName));
 	}
 
 	public static void configureSaveOptions(SaveOptions options, String fileName) {
