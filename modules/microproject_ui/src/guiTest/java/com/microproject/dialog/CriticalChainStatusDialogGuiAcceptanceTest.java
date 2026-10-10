@@ -188,8 +188,7 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 		Project project = newProjectWithTasks();
 		observer = new DialogObserver();
 		observer.open();
-		SwingUtilities.invokeLater(() -> CriticalChainStatusDialogBox.show(null, project,
-			CriticalChainStatusDialogBox.Surface.NETWORK));
+		observer.show(project, CriticalChainStatusDialogBox.Surface.NETWORK);
 		CriticalChainStatusDialogBox dialog = observer.awaitDialog();
 		GuiAcceptanceSupport.await(dialog::isActive, "CCPM result dialog did not become active");
 		SwingUtilities.invokeAndWait(() -> { dialog.setAlwaysOnTop(true); dialog.toFront(); dialog.requestFocus(); });
@@ -237,8 +236,7 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 		CriticalChainService service = new CriticalChainService();
 		observer = new DialogObserver();
 		observer.open();
-		SwingUtilities.invokeLater(() -> CriticalChainStatusDialogBox.show(null, project,
-			CriticalChainStatusDialogBox.Surface.NETWORK));
+		observer.show(project, CriticalChainStatusDialogBox.Surface.NETWORK);
 		CriticalChainStatusDialogBox network = observer.awaitDialog();
 		GuiAcceptanceSupport.await(() -> findButton(network, UsabilityStrings.text("ccpm.configure")) != null,
 			"unconfigured network did not expose CCPM setup");
@@ -297,17 +295,13 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 		Class<? extends Component> expectedComponent) throws Exception {
 		observer = new DialogObserver();
 		observer.open();
-		CountDownLatch closed = new CountDownLatch(1);
-		SwingUtilities.invokeLater(() -> {
-			CriticalChainStatusDialogBox.show(null, project, surface);
-			closed.countDown();
-		});
+		observer.show(project, surface);
 		CriticalChainStatusDialogBox dialog = observer.awaitDialog();
 		GuiAcceptanceSupport.await(() -> visibleComponentExists(dialog, expectedComponent),
 			"CCPM " + surface + " dialog did not render " + expectedComponent.getSimpleName());
 		assertTrue(isShowing(dialog), "CCPM result dialog must remain visibly open while its graph is rendered");
 		SwingUtilities.invokeAndWait(dialog::dispose);
-		assertTrue(closed.await(5, TimeUnit.SECONDS), "modal CCPM dialog did not close");
+		assertTrue(observer.showReturned.await(5, TimeUnit.SECONDS), "modal CCPM dialog did not close");
 		observer.close();
 		observer = null;
 	}
@@ -373,8 +367,7 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 	private CriticalChainStatusDialogBox openStatusDialog(Project project) throws Exception {
 		observer = new DialogObserver();
 		observer.open();
-		SwingUtilities.invokeLater(() -> CriticalChainStatusDialogBox.show(null, project,
-			CriticalChainStatusDialogBox.Surface.BUFFER_STATUS));
+		observer.show(project, CriticalChainStatusDialogBox.Surface.BUFFER_STATUS);
 		CriticalChainStatusDialogBox dialog = observer.awaitDialog();
 		GuiAcceptanceSupport.await(dialog::isActive, "CCPM result dialog did not become active");
 		SwingUtilities.invokeAndWait(() -> { dialog.setAlwaysOnTop(true); dialog.toFront(); dialog.requestFocus(); });
@@ -460,9 +453,27 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 
 	private static final class DialogObserver implements AWTEventListener {
 		private final AtomicReference<CriticalChainStatusDialogBox> dialog = new AtomicReference<>();
+		private final AtomicReference<Throwable> showFailure = new AtomicReference<>();
+		private final CountDownLatch showReturned = new CountDownLatch(1);
+		private final java.util.Set<Window> existingWindows = java.util.Collections.newSetFromMap(
+			new java.util.IdentityHashMap<>());
 
 		void open() {
+			java.util.Collections.addAll(existingWindows, Window.getWindows());
 			Toolkit.getDefaultToolkit().addAWTEventListener(this, AWTEvent.WINDOW_EVENT_MASK);
+		}
+
+		void show(Project project, CriticalChainStatusDialogBox.Surface surface) {
+			SwingUtilities.invokeLater(() -> {
+				try {
+					CriticalChainStatusDialogBox.show(null, project, surface);
+				} catch (Throwable failure) {
+					showFailure.compareAndSet(null, failure);
+					throw new AssertionError("CCPM result dialog show failed on the EDT", failure);
+				} finally {
+					showReturned.countDown();
+				}
+			});
 		}
 
 		void close() {
@@ -470,8 +481,43 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 		}
 
 		CriticalChainStatusDialogBox awaitDialog() throws Exception {
-			GuiAcceptanceSupport.await(() -> dialog.get() != null, "CCPM result dialog did not open");
+			try {
+				GuiAcceptanceSupport.await(() -> {
+					Throwable failure = showFailure.get();
+					if (failure != null) throw new AssertionError("CCPM result dialog show failed on the EDT", failure);
+					if (dialog.get() != null && dialog.get().isShowing()) return true;
+					for (Window window : Window.getWindows()) {
+						if (!existingWindows.contains(window) && window instanceof CriticalChainStatusDialogBox statusDialog
+							&& statusDialog.isShowing()) {
+							dialog.compareAndSet(null, statusDialog);
+							return true;
+						}
+					}
+					return false;
+				}, "CCPM result dialog did not open");
+			} catch (AssertionError failure) {
+				if (showFailure.get() != null) throw failure;
+				throw new AssertionError(failure.getMessage() + "\n" + diagnostics(), failure);
+			}
 			return dialog.get();
+		}
+
+		private static String diagnostics() {
+			StringBuilder details = new StringBuilder("Window inventory:");
+			for (Window window : Window.getWindows()) {
+				details.append("\n  ").append(window.getClass().getName())
+					.append(" visible=").append(window.isVisible())
+					.append(" displayable=").append(window.isDisplayable())
+					.append(" bounds=").append(window.getBounds());
+			}
+			details.append("\nEDT thread stacks:");
+			Thread.getAllStackTraces().forEach((thread, stack) -> {
+				if (thread.getName().startsWith("AWT-EventQueue")) {
+					details.append("\n  ").append(thread.getName()).append(" state=").append(thread.getState());
+					for (StackTraceElement element : stack) details.append("\n    at ").append(element);
+				}
+			});
+			return details.toString();
 		}
 
 		@Override
