@@ -67,6 +67,7 @@ public class LocalSession extends AbstractSession{
 	/** Stable format keys; legacy class-name aliases are registered by exchange. */
 	public static final String LOCAL_PROJECT_IMPORTER = "pod";
 	public static final String MPO_PROJECT_IMPORTER = "mpo";
+	/** Legacy server-mode POD importer key retained for old serialized options. */
 	public static final String SERVER_LOCAL_PROJECT_IMPORTER = "server-local";
 	public static final String MICROSOFT_PROJECT_IMPORTER = "mspdi";
 	private static final SessionImporterRegistry IMPORTER_REGISTRY = createImporterRegistry();

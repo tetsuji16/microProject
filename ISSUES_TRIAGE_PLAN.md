@@ -1,5 +1,10 @@
 # ProjectLibre (microProject) — Issue Triage & Action Plan
 
+> Historical audit: this inventory was prepared in August 2026 and is not the
+> current open-issue list. The six-month Beta 3 roadmap and its 2026-10-11
+> issue re-audit are maintained in
+> [docs/releases/beta3-release-plan.md](docs/releases/beta3-release-plan.md).
+
 Generated: 2026-08-19 (re-audited 2026-08-21). Scope: all 31 currently open issues on
 `tetsuji16/ProjectLibre` (the earlier 38-count included issues subsequently
 closed or superseded).
