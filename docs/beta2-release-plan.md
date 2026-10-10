@@ -51,12 +51,12 @@ JDK 25 / `releaseVersion=0.0.24.2` / `releaseChannel=beta`。
 - `bash ./gradlew :microproject_ui:test :microproject_application:test verifyNamingConventions installDist verifyPackagedFileImports -PreleaseVersion=0.0.24.2 -PreleaseChannel=beta --console=plain --no-daemon`: 成功。最終 UI 1,049件 / application 35件、失敗0。MPP/POD 各145 tasks。
 - `python -m unittest discover -s scripts/tests -v`: 8件成功。
 - `git diff --check`: 成功。
-- Windows GUI / MSI / ZIP / launcher: release workflow の結果を後記。ローカル Linux に window manager がないため物理 GUI は未実行。
+- Windows GUI / MSI / ZIP / launcher: 出荷 run 38017915874 の全 gate が成功。ローカル Linux の物理GUIは未実行。
 
 
 ## GitHub 反映状況
 
-2026-10-10、ユーザーから commit / push / PR / merge の許可を取得。レビュー用ブランチ `beta2/product-independence` から検証後に統合する。#774 / #595 / #737 / #740 の親Issueは部分実施として維持する。
+2026-10-10、ユーザーから commit / push / PR / merge の許可を取得。[PR #775](https://github.com/tetsuji16/ProjectLibre/pull/775) は Build と Windows GUI CI 成功後、`f6f6be2d9ee286638ed19681c620520e73227afa` として squash merge 済み。#774 / #595 / #737 / #740 の親Issueは部分実施として維持する。
 
 
 ## 追加検討と検証（2026-10-10）
@@ -65,10 +65,17 @@ JDK 25 / `releaseVersion=0.0.24.2` / `releaseChannel=beta`。
 
 追加後の `clean build installDist verifyArchitectureBoundaries verifyPackagedFileImports` (`releaseVersion=0.0.24.2`, `releaseChannel=beta`) は成功。全8 module 2,224件、失敗0・error0、Windows専用1件skip。MPP/POD 各145 tasks。旧名テストclassの残存によるincremental test失敗をcleanで除去し、古い結果を出荷根拠に使わない。
 
-初期commit `4a3d487a06d9f4ebcc01451eefb281b70ed84374` は [PR #775](https://github.com/tetsuji16/ProjectLibre/pull/775) に反映済み。Windows GUI smoke は [run 38017108250](https://github.com/tetsuji16/ProjectLibre/actions/runs/38017108250) が成功。追加commitは同PRで再検証してから統合する。
+初期commit `4a3d487a06d9f4ebcc01451eefb281b70ed84374` は [PR #775](https://github.com/tetsuji16/ProjectLibre/pull/775) に反映済み。Windows GUI smoke は [run 38017108250](https://github.com/tetsuji16/ProjectLibre/actions/runs/38017108250) が成功。最終source commit `6c8186dfe5ec05695bf290153c1af3a7bbd1fa52` は [Build run 38017654578](https://github.com/tetsuji16/ProjectLibre/actions/runs/38017654578) と [Windows GUI run 38017654612](https://github.com/tetsuji16/ProjectLibre/actions/runs/38017654612) が成功してから統合済み。
 
 
 追加追跡で `MicrosoftImporter` は server base の `prepareResources` を呼んでいないことを確認し、`FileImporter` の直接継承へ切り替えた。private な旧二段階変換メソッド名は実際の責務に合わせて `adoptImportedProject` へ整理。MPP/XML/MPX/XLSX の標準読込が旧server mapperを継承する依存を除去し、非local POD用のadapterは別経路として保持する。インポータはserializableではなく、POD/MPO descriptor変更を伴わない。
 
 
 最終 importer 変更後の `:microproject_exchange:test installDist verifyPackagedFileImports verifyArchitectureBoundaries` は成功（42秒、exchange 216件、失敗0）。MPP/POD 各145 tasks。残る優先順は、(1) 旧login/server branchの利用判定と廃止、(2) ProjectのUI表示設定・Swing Undo/Eventをport境界へ分離、(3) applicationのopen/save/report調整の集約。いずれもPOD wire固定と旧MPO fixtureを前提に小さな出荷単位で進める。
+
+
+## 出荷結果（2026-10-10）
+
+統合commit `f6f6be2d9ee286638ed19681c620520e73227afa` から `release/beta-0.0.24-2` を作成。[Windows出荷 run 38017915874](https://github.com/tetsuji16/ProjectLibre/actions/runs/38017915874) は全 gate が成功した。clean build・全module tests・MSI/ZIP生成・MPP/POD読込に加え、1920×1080 の Windows GUI acceptance、installDist と packaged JAR の SHA256一致、配布EXEが実ウィンドウを生成することを確認した。
+
+[公開版 v0.0.24-beta.2](https://github.com/tetsuji16/ProjectLibre/releases/tag/v0.0.24-beta.2) は draft=false / prerelease=true。MSI `microProject-0.0.24.2.msi`、portable `microProject-0.0.24.2-app-image.zip`、本版release notes、`SHA256SUMS` の4 assetsを公開済み。公開後も stable latest は `v0.0.23.1219`。ベータ1assetと無人update feedは変更していない。

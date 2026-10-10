@@ -5,7 +5,7 @@ microProject is a Windows desktop planning application aiming for compatibility 
 Current release in this fork:
 
 - [Stable: `v0.0.23.1219`](https://github.com/tetsuji16/ProjectLibre/releases/latest)
-- [Beta: `v0.0.24-beta.1`](https://github.com/tetsuji16/ProjectLibre/releases/tag/v0.0.24-beta.1) — Windows MSI and portable ZIP, verified before publication.
+- [Beta: `v0.0.24-beta.2`](https://github.com/tetsuji16/ProjectLibre/releases/tag/v0.0.24-beta.2) — Windows MSI and portable ZIP, verified before publication.
 - [Beta scope and release plan](docs/beta-release-plan.md)
 - [Beta.2 independence plan and legacy inventory](docs/beta2-release-plan.md)
 
@@ -194,17 +194,13 @@ If you need the portable app-image ZIP or split EXE staging flow, use:
 .\gradlew.bat publishReleaseToDocs
 ```
 
-Files under `docs/downloads/` are treated as scratch space only and should not be committed. Public downloads should be published as GitHub Release assets for `v0.0.23`, and the GitHub Pages site should link to that release page instead of serving binaries from the repository itself.
+Files under `docs/downloads/` are scratch space and must not be committed. Public binaries are GitHub Release assets.
 
-## Automated Release and Pages Deployment
+## Automated Release and Documentation Deployment
 
-Every push to `main` (and `master` during the branch-name transition) runs the release workflow. It builds the Windows MSI and portable ZIP, creates a uniquely versioned GitHub Release, and deploys `docs/` to GitHub Pages. The site links to the release's stable `latest` assets, so no release-specific HTML edit is needed.
+The release workflow packages Windows MSI and portable ZIP artifacts, runs the Windows GUI and packaged-launch gates, and publishes only after all gates pass. A `release/beta-0.0.24-2` branch publishes `v0.0.24-beta.2` as a prerelease; beta releases do not replace stable `latest` assets or the unattended update feed.
 
-Before the first automated deployment, set **Settings → Pages → Build and deployment → Source** to **GitHub Actions**. The workflow needs repository Actions permissions to create releases and deploy Pages.
-
-The GitHub Pages landing page for this release is:
-
-- `docs/index.html`
+The canonical documentation and download entry point is [o-server.main.jp/micro-project/](https://o-server.main.jp/micro-project/), built from `website/` by the o-server documentation workflow. GitHub Pages publishes redirect stubs from `pages-redirect/`; `docs/*.html` are legacy redirects.
 
 If WiX was installed per-user rather than system-wide, keep its `bin` directory available on `PATH`. The Gradle MSI task also prepends the common per-user install path automatically:
 
