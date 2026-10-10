@@ -26,46 +26,49 @@ package com.microproject.preference;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Locale;
 import java.util.Properties;
-import java.util.PropertyResourceBundle;
 import java.util.ResourceBundle;
 import java.util.StringTokenizer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.prefs.Preferences;
 
-import com.microproject.session.FileHelper;
 
 public class ConfigurationFile {
 	private static final Logger logger = Logger.getLogger(ConfigurationFile.class.getName());
 	   
-	private static final String[] OPENPROJ_CONF_DIRS={".projectlibre","ProjectLibre"};
-	private static File confFile;
-	public static File getConfDir(){
-		if (confFile==null){
-	    	String home=System.getProperty("user.home");
-	    	if (home!=null){
-	    		File f;
-	    		for (int i=0;i<OPENPROJ_CONF_DIRS.length;i++){
-	    			f=new File(home+File.separator+OPENPROJ_CONF_DIRS[i]);
-	        		if (f.isDirectory()){
-	        			logger.log(Level.FINE, "Configuration directory found: {0}", f.getPath());
-	        			confFile=f;
-	        			return f;
-	        		}
-	    		}
-	     	}
+	private static final String[] CONFIGURATION_DIRECTORIES = {".microproject", "microProject", ".projectlibre", "ProjectLibre"};
+
+	public static File getConfDir() {
+		String home = System.getProperty("user.home");
+		if (home == null) return null;
+		for (String name : CONFIGURATION_DIRECTORIES) {
+			File directory = new File(home, name);
+			if (directory.isDirectory()) return directory;
 		}
-    	return confFile;
+		return null;
 	}
-	
-	private static final String OPENPROJ_CONF_FILE="projectlibre.conf";
+
+	/** Canonical settings take precedence; legacy configuration is a read-only fallback. */
+	static File findConfigurationFile(File home, String name) {
+		for (String directory : CONFIGURATION_DIRECTORIES) {
+			File file = new File(new File(home, directory), name);
+			if (file.isFile()) return file;
+		}
+		if ("microproject.conf".equals(name)) {
+			for (String directory : CONFIGURATION_DIRECTORIES) {
+				File file = new File(new File(home, directory), "projectlibre.conf");
+				if (file.isFile()) return file;
+			}
+		}
+		return null;
+	}
+
 	private static Properties confProps;
 	public static String getProperty(String key){
 		if ("locale".equals(key)) {
@@ -75,10 +78,10 @@ public class ConfigurationFile {
 			}
 		}
 		if (confProps==null){
-			File confDir=getConfDir();
-			if (confDir==null) return null;
-			File f=new File(confDir,OPENPROJ_CONF_FILE);
-			if (!f.exists()) return null;
+			String home = System.getProperty("user.home");
+			if (home == null) return null;
+			File f = findConfigurationFile(new File(home), "microproject.conf");
+			if (f == null) return null;
 			confProps=new Properties();
 			try (FileInputStream in = new FileInputStream(f)) {
 				confProps.load(in);
@@ -144,14 +147,13 @@ public class ConfigurationFile {
 		return new String[] {language, country, variant};
 	}
 	
-	private static final String OPENPROJ_RUN_CONF_FILE="run.conf";
 	private static Properties runProps;
 	public static String getRunProperty(String key){
 		if (runProps==null){
-			File confDir=getConfDir();
-			if (confDir==null) return null;
-			File f=new File(confDir,OPENPROJ_RUN_CONF_FILE);
-			if (!f.exists()) return null;
+			String home = System.getProperty("user.home");
+			if (home == null) return null;
+			File f = findConfigurationFile(new File(home), "run.conf");
+			if (f == null) return null;
 			runProps=new Properties();
 			try (FileInputStream in = new FileInputStream(f)) {
 				runProps.load(in);

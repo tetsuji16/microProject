@@ -27,6 +27,7 @@ package com.microproject.application;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.DirectoryIteratorException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -116,9 +117,26 @@ public final class AutoRecoveryStore {
 
 	public static AutoRecoveryStore forCurrentUser() {
 		String localAppData = System.getenv("LOCALAPPDATA");
-		Path base = localAppData == null || localAppData.isBlank()
-			? Path.of(System.getProperty("user.home"), ".projectlibre")
-			: Path.of(localAppData, "ProjectLibre");
+		return forUserDirectories(Path.of(System.getProperty("user.home")),
+			localAppData == null || localAppData.isBlank() ? null : Path.of(localAppData));
+	}
+
+	/** New installations own their recovery data; existing snapshots retain their location. */
+	static AutoRecoveryStore forUserDirectories(Path home, Path localAppData) {
+		Path base = localAppData == null ? home.resolve(".microproject") : localAppData.resolve("microProject");
+		Path legacy = (localAppData == null ? home.resolve(".projectlibre")
+			: localAppData.resolve("ProjectLibre")).resolve("recovery");
+		// Never abandon an interrupted beta.1 save. Keep its complete directory
+		// until recovery/normal shutdown has removed the metadata. No files are moved
+		// or overwritten, and concurrent old processes still share the same path.
+		if (Files.isDirectory(legacy)) {
+			try (DirectoryStream<Path> metadata = Files.newDirectoryStream(legacy, "*" + METADATA_SUFFIX)) {
+				if (metadata.iterator().hasNext()) return new AutoRecoveryStore(legacy);
+			} catch (IOException | DirectoryIteratorException error) {
+				LOGGER.log(Level.WARNING, "Unable to inspect legacy recovery; retaining its location", error);
+				return new AutoRecoveryStore(legacy);
+			}
+		}
 		return new AutoRecoveryStore(base.resolve("recovery"));
 	}
 

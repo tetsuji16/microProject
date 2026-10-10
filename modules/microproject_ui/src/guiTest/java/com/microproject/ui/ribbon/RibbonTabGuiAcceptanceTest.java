@@ -57,7 +57,7 @@ import com.microproject.ribbon.CommandId;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.testsupport.GuiPhysicalRouteAdapter;
 import com.microproject.testsupport.RibbonGuiEnvironment;
-import com.microproject.ui.shell.ProjectLibreShell;
+import com.microproject.ui.shell.MicroProjectShell;
 import com.microproject.util.Environment;
 import com.microproject.util.FlatUiSupport;
 
@@ -467,7 +467,7 @@ class RibbonTabGuiAcceptanceTest {
 		MenuManager manager = MenuManager.getInstance(actions);
 		MainRibbonFrame mainFrame = new MainRibbonFrame("Ribbon startup", null, null);
 		frame = mainFrame;
-		ProjectLibreShell.installRibbonShell(mainFrame, manager, null);
+		MicroProjectShell.installRibbonShell(mainFrame, manager, null);
 		JPanel host = mainFrame.getRibbonPanel();
 		SwingUtilities.invokeAndWait(() -> {
 			frame.setSize(1100, 700);

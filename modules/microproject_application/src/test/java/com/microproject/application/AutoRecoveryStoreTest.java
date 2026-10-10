@@ -42,6 +42,25 @@ class AutoRecoveryStoreTest {
 	Path temporaryDirectory;
 
 	@Test
+	void usesProductRecoveryDirectoryAndRetainsUnresolvedLegacySnapshots() throws Exception {
+		Path home = temporaryDirectory.resolve("home");
+		Path appData = temporaryDirectory.resolve("appData");
+		assertEquals(appData.resolve("microProject/recovery/1.recovery.pod").toAbsolutePath(),
+			AutoRecoveryStore.forUserDirectories(home, appData).snapshotPath(1));
+		assertEquals(home.resolve(".microproject/recovery/1.recovery.pod").toAbsolutePath(),
+			AutoRecoveryStore.forUserDirectories(home, null).snapshotPath(1));
+		Path legacyDirectory = appData.resolve("ProjectLibre/recovery");
+		AutoRecoveryStore legacy = new AutoRecoveryStore(legacyDirectory);
+		Files.writeString(legacy.snapshotPath(2), "legacy project");
+		legacy.recordCompletedSnapshot(2, "Old plan", null, Instant.now());
+		AutoRecoveryStore selected = AutoRecoveryStore.forUserDirectories(home, appData);
+		assertEquals(legacyDirectory.resolve("2.recovery.pod").toAbsolutePath(), selected.listRecoverable().getFirst().snapshot());
+		selected.discardAll();
+		assertEquals(appData.resolve("microProject/recovery/3.recovery.pod").toAbsolutePath(),
+			AutoRecoveryStore.forUserDirectories(home, appData).snapshotPath(3));
+	}
+
+	@Test
 	void recordsListsAndDiscardsCompletedSnapshot() throws Exception {
 		AutoRecoveryStore store = new AutoRecoveryStore(temporaryDirectory.resolve("recovery"));
 		Path snapshot = store.snapshotPath(42L);

@@ -97,7 +97,7 @@ import javax.swing.undo.CannotRedoException;
 import javax.swing.undo.CannotUndoException;
 
 import com.microproject.menu.resource.MissingListenerException;
-import com.microproject.ui.shell.ProjectLibreShell;
+import com.microproject.ui.shell.MicroProjectShell;
 import com.microproject.ui.ribbon.RibbonController;
 import com.microproject.configuration.Configuration;
 import com.microproject.configuration.FieldDictionary;
@@ -4526,10 +4526,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
     
     public void setToolBarAndMenus(final Container contentPane) {
     	if (Environment.isRibbonUI()){
-			ProjectLibreShell.installRibbonShell((MainRibbonFrame) container, getMenuManager(), this::showHelpDialog,
+			MicroProjectShell.installRibbonShell((MainRibbonFrame) container, getMenuManager(), this::showHelpDialog,
 				autoRecoveryManager);
     	} else if (Environment.isNewLook()) {
-			ProjectLibreShell.ShellHandles handles = ProjectLibreShell.installNewLookShell(
+			MicroProjectShell.ShellHandles handles = MicroProjectShell.installNewLookShell(
 				contentPane,
 				getMenuManager(),
 				getLafManager(),
@@ -4542,7 +4542,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			topTabs = handles.getTopTabs();
 			projectListMenu = handles.getProjectListMenu();
 		} else {
-			ProjectLibreShell.ShellHandles handles = ProjectLibreShell.installClassicShell(
+			MicroProjectShell.ShellHandles handles = MicroProjectShell.installClassicShell(
 				contentPane,
 				getMenuManager(),
 				Environment.getStandAlone(),

@@ -30,15 +30,12 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.StringTokenizer;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.microproject.job.Job;
 import com.microproject.job.JobQueue;
-import com.microproject.strings.Messages;
-import com.microproject.util.ClassUtils;
 
 /**
  *
@@ -50,52 +47,30 @@ public class SessionFactory {
     protected static SessionFactory instance=null;
     protected SessionFactory() {
     }
-    public static SessionFactory getInstance(){
+    public static synchronized SessionFactory getInstance(){
         if (instance==null) instance=new SessionFactory();
         return instance;
     }
     
-    protected Map<String,Session> sessionImpls=null;
-    protected void initSessions(){
-    	if (sessionImpls==null){
-			sessionImpls=new HashMap<>();
-    		String impls=Messages.getMetaString("SessionImpls");
-    		if (impls!=null){
-    			StringTokenizer st=new StringTokenizer(impls,";");
-    			while (st.hasMoreTokens()) {
-					String key = st.nextToken();
-					String implClass=Messages.getMetaString(key);
-					if (implClass!=null){
-						try {
-							Session session = ClassUtils.forName(implClass).asSubclass(Session.class)
-								.getDeclaredConstructor().newInstance();
-			            	//session.init(credentials);
-							if (session.getJobQueue()==null) session.setJobQueue(getJobQueue()); //because this method is called before jobQueue is set
-			            	sessionImpls.put(key.substring(key.lastIndexOf('.')+1), session);
-						} catch (ReflectiveOperationException | ClassCastException e) {
-							logger.log(Level.WARNING, "Failed to create session implementation " + implClass, e);
-						}
-					}
-				}
-    		}
-    	}
-    }  	
-    protected Session getSession(String name){
-    	initSessions();
-    	Session session=sessionImpls.get(name);
-    	if (session == null && !"local".equals(name)) {
-    		session = sessionImpls.get("local");
-    	}
-    	if (session == null) {
-    		throw new IllegalStateException("No session implementation configured for " + name);
-    	}
-    	if (!session.isInitialized()) session.init(credentials);
-    	return session;
-    }
-    public Session getSession(boolean local){
-    	return local?getSession("local"):getSession("server");
-    }
-    
+	private LocalSession localSession;
+
+	/**
+	 * microProject is a local desktop application. The local flag describes
+	 * legacy model/ID scope, not a separate server implementation. Both scopes
+	 * already resolved to LocalSession in the supported desktop configuration.
+	 */
+	public synchronized Session getSession(boolean local) {
+		return getLocalSession();
+	}
+
+	private LocalSession ensureLocalSession() {
+		if (localSession == null) {
+			localSession = new LocalSession();
+			localSession.setJobQueue(jobQueue);
+		}
+		return localSession;
+	}
+
     public static Object call(Object object,String method,Class<?>[] argsDesc, Object[] args) throws Exception{
 	    	try {
 			return resolveMethod(object, method, argsDesc).invoke(object, args);
@@ -142,12 +117,12 @@ public class SessionFactory {
         return previous == null ? resolved : previous;
     }
 
-    public void clearSessions() {
-    	sessionImpls = null;
-    }
+	public synchronized void clearSessions() {
+		localSession = null;
+	}
     
     private final Map<String, String> credentials = new HashMap<>();
-    public void setCredentials(Map<String, String> credentials){
+    public synchronized void setCredentials(Map<String, String> credentials){
     	if (credentials!=null){
     		this.credentials.clear();
     		this.credentials.putAll(credentials);
@@ -161,19 +136,19 @@ public class SessionFactory {
 		return credentials.get("serverUrl");
     }
 
-    public LocalSession getLocalSession(){
-    	return (LocalSession)getSession("local");
-    }
+	public synchronized LocalSession getLocalSession() {
+		LocalSession session = ensureLocalSession();
+		if (!session.isInitialized()) session.init(credentials);
+		return session;
+	}
     
 	protected JobQueue jobQueue=null;
 	public JobQueue getJobQueue() {
 		return jobQueue;
 	}
-	public void setJobQueue(JobQueue jobQueue) {
+	public synchronized void setJobQueue(JobQueue jobQueue) {
 		this.jobQueue = jobQueue;
-		if (sessionImpls==null) initSessions();
-		for (Session session : sessionImpls.values())
-			session.setJobQueue(jobQueue);
+		ensureLocalSession().setJobQueue(jobQueue);
 	}
 	
 	public void schedule(Job job){

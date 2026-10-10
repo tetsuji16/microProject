@@ -57,7 +57,7 @@ import com.microproject.util.FlatUiSupport;
 /**
  * Builds shell chrome while leaving action orchestration in GraphicManager.
  */
-public final class ProjectLibreShell {
+public final class MicroProjectShell {
 	public static final class ShellHandles {
 		private final TabbedNavigation topTabs;
 		private final FilterToolBarManager filterToolBarManager;
@@ -82,7 +82,7 @@ public final class ProjectLibreShell {
 		}
 	}
 
-	private ProjectLibreShell() {
+	private MicroProjectShell() {
 	}
 
 	public static ShellHandles installRibbonShell(MainRibbonFrame frame, MenuManager menuManager, Runnable helpAction) {

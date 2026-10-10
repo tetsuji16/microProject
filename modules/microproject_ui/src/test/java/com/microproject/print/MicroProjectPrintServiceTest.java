@@ -13,19 +13,19 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.pm.graphic.graph.GraphParams;
 
-class ProjectLibrePrintServiceImplTest {
+class MicroProjectPrintServiceTest {
 	@Test
 	void nonSpreadsheetWidthUsesDrawingBounds() {
 		GraphParams params = graphParams(new Rectangle(0, 0, 80, 20));
 
-		double ratio = new ProjectLibrePrintServiceImpl().getWRatio(1, 80, params);
+		double ratio = ExtendedPrintServiceFactory.getExtendedPrintService().getWRatio(1, 80, params);
 
 		assertEquals(1.0, ratio);
 	}
 
 	@Test
 	void horizontalRatioRejectsNullAndNonSpreadsheetParams() {
-		ProjectLibrePrintServiceImpl service = new ProjectLibrePrintServiceImpl();
+		ExtendedPrintService service = ExtendedPrintServiceFactory.getExtendedPrintService();
 
 		assertEquals(-1.0, service.getHRatio(1, 80, null));
 		assertEquals(-1.0, service.getHRatio(1, 80, graphParams(new Rectangle())));

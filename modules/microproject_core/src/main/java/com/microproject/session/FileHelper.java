@@ -30,7 +30,7 @@ public class FileHelper {
 	public static final String POD_FILE_EXTENSION = "pod";
 	public static final String MPO_FILE_EXTENSION = "mpo";
 	public static final String DEFAULT_FILE_EXTENSION = MPO_FILE_EXTENSION;
-	public static final int PROJECTLIBRE_FILE_TYPE=1;
+	public static final int POD_FILE_TYPE=1;
 	public static final int MPO_FILE_TYPE=2;
 	public static final int MSP_FILE_TYPE=101;
 
@@ -51,15 +51,6 @@ public class FileHelper {
 	 */
 	public static boolean isPodFile(String fileName) {
 		return hasExtension(fileName, POD_FILE_EXTENSION);
-	}
-
-	/**
-	 * @deprecated use {@link #isPodFile(String)}.  This name is retained for
-	 *             binary/source compatibility with older integrations.
-	 */
-	@Deprecated(forRemoval = false)
-	public static boolean isProjectLibreFile(String fileName) {
-		return isPodFile(fileName);
 	}
 
 	/**
@@ -107,7 +98,7 @@ public class FileHelper {
     public static String getFileExtension(int fileType){
     	switch (fileType) {
 		//case FileHelper.SERVER_FILE_TYPE: return null;
-		case FileHelper.PROJECTLIBRE_FILE_TYPE: return POD_FILE_EXTENSION;
+		case FileHelper.POD_FILE_TYPE: return POD_FILE_EXTENSION;
 		case FileHelper.MPO_FILE_TYPE: return MPO_FILE_EXTENSION;
 		case FileHelper.MSP_FILE_TYPE: return "xml";
 		default:
@@ -118,7 +109,7 @@ public class FileHelper {
     public static int getFileType(String fileName){
     	if (fileName==null) return 0;
 		if (isPodFile(fileName))
-			return PROJECTLIBRE_FILE_TYPE;
+			return POD_FILE_TYPE;
 		if (isMpoFile(fileName))
 			return MPO_FILE_TYPE;
     	if (isMicrosoftProjectFile(fileName))

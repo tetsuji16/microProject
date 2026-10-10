@@ -7,6 +7,7 @@ Current release in this fork:
 - [Stable: `v0.0.23.1219`](https://github.com/tetsuji16/ProjectLibre/releases/latest)
 - [Beta: `v0.0.24-beta.1`](https://github.com/tetsuji16/ProjectLibre/releases/tag/v0.0.24-beta.1) — Windows MSI and portable ZIP, verified before publication.
 - [Beta scope and release plan](docs/beta-release-plan.md)
+- [Beta.2 independence plan and legacy inventory](docs/beta2-release-plan.md)
 
 Quick links:
 

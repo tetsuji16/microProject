@@ -12,7 +12,9 @@ new code and release work.
 | User-visible product and Windows packaging | `microProject` | Use this casing in application metadata, launchers, jpackage output, installer names, and UI text. |
 | Native project files | `.mpo` (MPOF) | Preserve reads of files produced by earlier supported microProject releases. New writes may evolve only with an explicit versioned format contract; old application/API compatibility is not required. |
 | POD project files | `.pod` | The serialized format is immutable. Preserve its exact wire structure while refactoring the implementation; verify reads/writes against fixed fixtures. |
-| Collaboration/recovery sidecars | Current sidecar/recovery contract | Preserve current runtime behavior; backward compatibility with old application versions is not a requirement unless that data is embedded in MPO. |
+| Collaboration sidecars | Existing lease/lock path | Preserve the process-lock identity until an explicit migration protocol is implemented. |
+| User configuration | `.microproject/microproject.conf` or `microProject/microproject.conf` | Canonical configuration first; legacy directories and `projectlibre.conf` are read-only fallback. |
+| Crash recovery | `%LOCALAPPDATA%/microProject/recovery` or `~/.microproject/recovery` | New installation data uses product-owned paths. If unresolved legacy metadata exists, use that store until it has been cleared, then switch on a later launch. |
 | Repository and attribution identifiers | `ProjectLibre` | GitHub/repository identity, license/attribution material, and established internal compatibility identifiers may retain the historical name. |
 
 ## Enforcement
@@ -69,3 +71,8 @@ deserialization aliases, `.pod`/recovery/sidecar identifiers, repository
 attribution, and established file-format keys remain compatibility data. These
 exceptions are checked by `verifyArchitectureBoundaries` and are not permission
 to introduce new legacy APIs or packages.
+
+
+## Desktop construction boundary (beta.2)
+
+`SessionFactory` constructs the supported `LocalSession` directly. The legacy model-scope boolean resolves to the same desktop backend for both values, matching the previous local-only configuration. Core metadata no longer owns session class names or UI print-service class names. `ExtendedPrintServiceFactory` constructs `MicroProjectPrintService` in the UI module. These runtime factories are not persisted POD descriptors or MPO schema fields. Model/exchange aliases required by existing files remain separate.

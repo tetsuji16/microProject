@@ -80,7 +80,7 @@ import java.util.logging.Logger;
  * However, if the projectlibre enumerations change, it will be necessary to map them to mpx types.
  *
  */
-public class MicrosoftImporter extends ServerFileImporter{
+public class MicrosoftImporter extends FileImporter {
 	private static final Logger logger = Logger.getLogger(MicrosoftImporter.class.getName());
 	protected com.microproject.pm.task.Project plProject= null;
 	protected Map<Object, Object> taskMap = new HashMap<>(); // keeps track of mapping mpx tasks to projectlibre1 tasks
@@ -104,7 +104,7 @@ public class MicrosoftImporter extends ServerFileImporter{
 		logger.info("END: MicrosoftImporter.PrepareResources");
 		Environment.setImporting(false);
 		logger.info("BEGIN: Finish import");
-		convertToProjectLibre1();
+		adoptImportedProject();
 		logger.info("END: Finish import");
 	}
 
@@ -115,7 +115,7 @@ public class MicrosoftImporter extends ServerFileImporter{
 		logger.info("END: MicrosoftImporter.PrepareResources");
 		Environment.setImporting(false);
 		logger.info("BEGIN: Finish import");
-		convertToProjectLibre1();
+		adoptImportedProject();
 		logger.info("END: Finish import");
     	return project;
 	}
@@ -169,7 +169,7 @@ public class MicrosoftImporter extends ServerFileImporter{
 
 		this.project = p;
 		parse();
-		convertToProjectLibre1();
+		adoptImportedProject();
 	}
 	public void parse(InputStream in, String extension) throws Exception {
 		try {
@@ -314,7 +314,7 @@ public class MicrosoftImporter extends ServerFileImporter{
 						throw new Exception(ABORT);
 					}
 
-// claur - Moved to convertToProjectLibre1 after import Calendar because base calendar must be imported before resources
+// claur - Moved to adoptImportedProject after import Calendar because base calendar must be imported before resources
 
 				setProgress(1f);
 				logger.info("END: Import resources");
@@ -324,7 +324,7 @@ public class MicrosoftImporter extends ServerFileImporter{
     	job.addRunnable(new JobRunnable("Finish import",1.0f){ //$NON-NLS-1$
 			public Object run() throws Exception{
 				logger.info("BEGIN: Finish import");
-				Object r=convertToProjectLibre1();
+				Object r=adoptImportedProject();
 				logger.info("END: Finish import");
 				return r;
     		}
@@ -332,7 +332,7 @@ public class MicrosoftImporter extends ServerFileImporter{
     	return job;
     }
 
-    private Project convertToProjectLibre1() throws Exception {
+    private Project adoptImportedProject() throws Exception {
 		if (plProject == null && project != null) {
 			Environment.setImporting(false);
 			return project;

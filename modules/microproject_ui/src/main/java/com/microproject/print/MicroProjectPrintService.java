@@ -34,7 +34,7 @@ import com.microproject.pm.graphic.spreadsheet.SpreadSheetParamsImpl;
 import com.microproject.print.ExtendedPrintService;
 import com.microproject.graphic.configuration.GraphicConfiguration;
 
-public class ProjectLibrePrintServiceImpl implements ExtendedPrintService {
+public class MicroProjectPrintService implements ExtendedPrintService {
 
 	public double getWRatio(int pageCount, double pageWidth,GraphParams params) {
 		double newPageWidth;

@@ -37,15 +37,6 @@ public final class ProjectFilePolicies {
 		return FileHelper.isPodFile(fileName);
 	}
 
-	/**
-	 * @deprecated use {@link #isPodFile(String)}.  Retained for callers of the
-	 *             pre-rename API.
-	 */
-	@Deprecated(forRemoval = false)
-	public static boolean isProjectLibreFile(String fileName) {
-		return isPodFile(fileName);
-	}
-
 	public static String resolveLoadImporter(String fileName, boolean localOnlySession) {
 		if (FileHelper.isMpoFile(fileName)) {
 			return LocalSession.MPO_PROJECT_IMPORTER;

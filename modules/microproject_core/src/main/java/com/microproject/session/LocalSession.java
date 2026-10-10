@@ -565,7 +565,7 @@ public class LocalSession extends AbstractSession{
     
     public static String getImporter(int fileType){
     	switch (fileType) {
-		case FileHelper.PROJECTLIBRE_FILE_TYPE: return LOCAL_PROJECT_IMPORTER;
+		case FileHelper.POD_FILE_TYPE: return LOCAL_PROJECT_IMPORTER;
 		case FileHelper.MPO_FILE_TYPE: return MPO_PROJECT_IMPORTER;
 		case FileHelper.MSP_FILE_TYPE: return MICROSOFT_PROJECT_IMPORTER;
 		default:
