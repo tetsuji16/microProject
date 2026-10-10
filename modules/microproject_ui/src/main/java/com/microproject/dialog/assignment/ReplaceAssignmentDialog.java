@@ -24,6 +24,7 @@
  *******************************************************************************/
 package com.microproject.dialog.assignment;
 
+import java.awt.Dialog;
 import java.util.List;
 
 import javax.swing.JComponent;
@@ -44,14 +45,14 @@ public final class ReplaceAssignmentDialog extends AbstractDialog implements Com
 	AssignmentEntryPane spreadSheetPane;
 	JLabel resourceName;
 
-	public static List<Resource> getReplacementFromDialog(DocumentFrame documentFrame, Resource resource) {
-		ReplaceAssignmentDialog dialog = new ReplaceAssignmentDialog(documentFrame,resource);
+	public static List<Resource> getReplacementFromDialog(DocumentFrame documentFrame, Dialog owner, Resource resource) {
+		ReplaceAssignmentDialog dialog = new ReplaceAssignmentDialog(documentFrame, owner, resource);
 		if (!dialog.doModal())
 			return null;
 		return dialog.getSelectedResources();
 	}
-	private ReplaceAssignmentDialog(DocumentFrame documentFrame, Resource resource) {
-		super(documentFrame.getGraphicManager().getFrame(), Messages.getString("Text.ReplaceResource"), true);
+	private ReplaceAssignmentDialog(DocumentFrame documentFrame, Dialog owner, Resource resource) {
+		super(owner, Messages.getString("Text.ReplaceResource"), Dialog.ModalityType.APPLICATION_MODAL);
 		this.documentFrame= documentFrame;
 		this.resource = resource;
 		createContentPanel();

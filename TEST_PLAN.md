@@ -29,6 +29,21 @@ JUnitの失敗時診断はレポートに残し、成功時の大量標準出力
 
 旧アプリ内部実装との後方互換は原則として要件にしません。MPOは既存ユーザーファイルを読み込めることを後方互換要件として維持し、バージョン付きfixtureで検証します。PODは独立した固定フォーマット境界であり、フィールド、順序、識別子、バージョンその他のシリアライズ構造を変更してはいけません。既存POD fixtureはこの形式不変と読込・round-tripの回帰確認に使い、旧アプリ内部APIの互換性を広げる目的には使いません。MPP/MPX/XML/XLSXは対応する外部形式との現行交換契約をテストし、旧microProjectアプリの内部動作との互換性とは区別します。sidecarや永続化enumは現行のサポート範囲を個別に定義し、MPO/PODの要件から自動的に後方互換対象へ広げません。
 
+## 1.2 ベータ出荷に必要な代表契約
+
+詳細な実行範囲は [beta-test-strategy](docs/testing/beta-test-strategy.md)、出荷条件は [beta-release-plan](docs/beta-release-plan.md) に記載する。全 unit/headless の境界回帰は保持し、GUI は共有旅程を選ぶ。
+
+| 契約 | 回帰の配置 |
+| --- | --- |
+| タスク追加→物理名前入力→MPO reload、削除→Undo/Redo | TaskInformationRibbonGuiAcceptanceTest の既存 Insert/Delete 旅程 |
+| 表の期間・進捗・日付、階層・依存、バー変更 | U26、TaskTableGanttGrid、TaskInformationRibbon、GanttBarDateDrag の smoke |
+| CCPM Configure/Apply→Undo/Redo→MPO→network/buffer | CriticalChainStatusDialogGuiAcceptanceTest の統合旅程 |
+| 空行を挟むタスクの ID と予定を MPO 保存・再読込で保持 | MpoFileImporterTest の既存 native schedule snapshot 契約を強化 |
+| CCPM Clear の Undo が監視履歴と撤回記録を完全復元 | CriticalChainServiceTest の既存 clearUndoRedo 契約 |
+| 子 modal を閉じた後のモデルレス親への Escape | AssignmentDialogGuiAcceptanceTest。active window と focus owner の復帰を先に検証 |
+| ベータ起動が安定版 feed を取得せず、ファイル引数を保持 | BootstrapUpdateTest の loopback feed hit=0 契約、AppImage launcher config 検査 |
+| ダイアログの実際の重なり・文字欠け | 既存共有 assertion。FlatLaf JSpinner の縦 stepper 同士が共有する1px境界だけ除外 |
+
 ## 2. 対象コンポーネント / 関数一覧
 
 | 領域 | 主な対象 |

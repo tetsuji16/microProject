@@ -17,6 +17,7 @@ import java.awt.Window;
 
 import javax.swing.AbstractButton;
 import javax.swing.JComboBox;
+import javax.swing.JSpinner;
 import javax.swing.JLabel;
 import javax.swing.SwingUtilities;
 import javax.swing.text.JTextComponent;
@@ -38,6 +39,31 @@ public final class DialogLayoutAssertions {
 		else
 			SwingUtilities.invokeAndWait(inspect);
 		assertTrue(clipping[0] == null, () -> context + " clips a text control: " + clipping[0]);
+	}
+
+	/**
+	 * FlatLaf's two vertically stacked spinner step buttons share one border
+	 * pixel so their adjoining outlines render as a single control. This is the
+	 * only button overlap exempted by dialog layout probes; glyph and other
+	 * control overlaps remain failures.
+	 */
+	public static boolean isExpectedSpinnerStepperBorderSeam(Container parent, Component first, Component second) {
+		if (!(parent instanceof JSpinner spinner)
+				|| !spinner.getUI().getClass().getName().equals("com.formdev.flatlaf.ui.FlatSpinnerUI")
+				|| !(first instanceof AbstractButton) || !(second instanceof AbstractButton))
+			return false;
+		boolean stepperPair = "Spinner.nextButton".equals(first.getName())
+				&& "Spinner.previousButton".equals(second.getName())
+			|| "Spinner.previousButton".equals(first.getName())
+				&& "Spinner.nextButton".equals(second.getName());
+		if (!stepperPair)
+			return false;
+		Rectangle a = first.getBounds();
+		Rectangle b = second.getBounds();
+		Rectangle intersection = a.intersection(b);
+		return a.x == b.x && a.width == b.width && intersection.width == a.width
+				&& intersection.height == 1
+				&& (a.y + a.height == b.y + 1 || b.y + b.height == a.y + 1);
 	}
 
 	/** Grows a visible top-level dialog/window and checks its content and usable-screen bounds. */

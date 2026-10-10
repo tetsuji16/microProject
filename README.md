@@ -4,7 +4,9 @@ microProject is a Windows desktop planning application aiming for compatibility 
 
 Current release in this fork:
 
-- `v0.0.23`
+- Stable: `v0.0.23`
+- Next beta: `v0.0.24-beta.1` (publish only after the Windows release gate passes)
+- [Beta scope and release plan](docs/beta-release-plan.md)
 
 Quick links:
 

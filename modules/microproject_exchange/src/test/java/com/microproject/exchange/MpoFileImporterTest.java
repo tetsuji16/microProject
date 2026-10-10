@@ -254,27 +254,53 @@ class MpoFileImporterTest {
 	void nativeMpoPreservesExactTaskScheduleSnapshot() throws Exception {
 		Project original = projectForRoundTrip();
 		NormalTask task = (NormalTask) firstTask(original);
+		NormalTask secondTask = (NormalTask) original.createLocalTaskNode(null).getImpl();
+		secondTask.setName("Materialized after blank row");
+		secondTask.setUniqueId(9_823_471L);
+		com.microproject.grouping.core.model.NodeModel taskModel = original.getTaskModel();
+		com.microproject.grouping.core.Node secondNode = taskModel.search(secondTask);
+		com.microproject.grouping.core.Node blankRow = NodeFactory.getInstance().createVoidNode();
+		Object outlineRoot = taskModel.getHierarchy().getRoot();
+		taskModel.add((com.microproject.grouping.core.Node) outlineRoot, blankRow,
+			taskModel.getIndexOfChild(outlineRoot, secondNode),
+			com.microproject.grouping.core.model.NodeModel.SILENT);
 		long day = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
 		task.setDuration(3L * day);
+		secondTask.setDuration(2L * day);
 		Resource resource = original.getResourcePool().newResourceInstance();
 		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L,
 			MpoFileImporterTest.class);
 		assignment.setWork(3L * day, null);
 		long start = task.getStart() - day;
 		long finish = start + 4L * day;
+		long secondStart = secondTask.getStart() - 2L * day;
+		long secondFinish = secondStart + 5L * day;
 		long constraintDate = start + 30L * 60L * 1000L;
 		task.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, constraintDate);
 		task.getCurrentSchedule().setStart(start);
 		task.getCurrentSchedule().setFinish(finish);
 		task.setActualStartNoEvent(start);
+		secondTask.getCurrentSchedule().setStart(secondStart);
+		secondTask.getCurrentSchedule().setFinish(secondFinish);
 
-		Project reopened = loadFromBytes(saveProjectBytes(original));
+		byte[] archive = saveProjectBytes(original);
+		String projectXml = new String(readEntries(archive).get(MpoFileImporter.PROJECT_ENTRY), StandardCharsets.UTF_8);
+		assertTrue(projectXml.contains("<IsNull>1</IsNull>"), "the test fixture must export its interleaved blank row");
+		Project reopened = loadFromBytes(archive);
 		NormalTask restored = (NormalTask) firstTask(reopened);
+		NormalTask restoredSecond = null;
+		for (java.util.Iterator<?> tasks = reopened.getTaskOutlineIterator(); tasks.hasNext();) {
+			Task candidate = (Task) tasks.next();
+			if ("Materialized after blank row".equals(candidate.getName())) restoredSecond = (NormalTask) candidate;
+		}
 		assertEquals(start, restored.getStart());
 		assertEquals(finish, restored.getEnd());
 		assertEquals(start, restored.getActualStart());
 		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, restored.getConstraintTypeKind());
 		assertEquals(constraintDate, restored.getConstraintDate());
+		assertNotNull(restoredSecond, "the high-runtime-UID task after a blank row must be restored");
+		assertEquals(secondStart, restoredSecond.getStart());
+		assertEquals(secondFinish, restoredSecond.getEnd());
 	}
 
 	@Test

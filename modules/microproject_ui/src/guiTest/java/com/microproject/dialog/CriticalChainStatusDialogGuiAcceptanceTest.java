@@ -227,6 +227,72 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 		});
 	}
 
+	@Test
+	void robotAppliesCcpmAndUndoRedoSurvivesMpoReload() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for CCPM acceptance coverage.");
+		Project project = newProjectWithTasks();
+		// Keep the CCPM apply as the first history entry so one physical Ctrl+Z
+		// proves that the user-facing Apply action is reversible.
+		project.getUndoController().discardAllEdits();
+		CriticalChainService service = new CriticalChainService();
+		observer = new DialogObserver();
+		observer.open();
+		SwingUtilities.invokeLater(() -> CriticalChainStatusDialogBox.show(null, project,
+			CriticalChainStatusDialogBox.Surface.NETWORK));
+		CriticalChainStatusDialogBox network = observer.awaitDialog();
+		GuiAcceptanceSupport.await(() -> findButton(network, UsabilityStrings.text("ccpm.configure")) != null,
+			"unconfigured network did not expose CCPM setup");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(40);
+		click(robot, findButton(network, UsabilityStrings.text("ccpm.configure")));
+		GuiAcceptanceSupport.await(() -> findResourceLevelingDialog() != null,
+			"physical configure route did not open CCPM settings");
+		ResourceLevelingDialogBox settings = findResourceLevelingDialog();
+		assertTrue(findButton(settings, UsabilityStrings.text("leveling.apply")) != null,
+			"CCPM settings must expose Apply");
+		click(robot, findButton(settings, UsabilityStrings.text("leveling.apply")));
+		GuiAcceptanceSupport.await(() -> service.findBaseline(project) != null,
+			"physical Apply did not generate and persist the CCPM baseline");
+		assertFalse(service.analysis(project).criticalTaskIds().isEmpty(),
+			"applied fixture must produce a non-empty critical chain");
+		click(robot, findButton(settings, UsabilityStrings.text("common.close")));
+		GuiAcceptanceSupport.await(() -> !settings.isShowing(), "CCPM settings did not close");
+		GuiAcceptanceSupport.await(() -> findVisibleStatusDialogCount() > 0,
+			"the network result view did not return after CCPM settings closed");
+		SwingUtilities.invokeAndWait(() -> {
+			for (Window window : Window.getWindows())
+				if (window instanceof CriticalChainStatusDialogBox && window.isDisplayable()) window.dispose();
+		});
+		observer.close();
+		observer = null;
+		CriticalChainStatusDialogBox buffer = openStatusDialog(project);
+		assertTrue(visibleComponentExists(buffer, CriticalChainBufferChartPanel.class),
+			"applied plan must render the buffer view");
+		robot.keyPress(java.awt.event.KeyEvent.VK_CONTROL);
+		robot.keyPress(java.awt.event.KeyEvent.VK_Z);
+		robot.keyRelease(java.awt.event.KeyEvent.VK_Z);
+		robot.keyRelease(java.awt.event.KeyEvent.VK_CONTROL);
+		GuiAcceptanceSupport.await(() -> service.findBaseline(project) == null,
+			"Ctrl+Z did not undo the CCPM apply");
+		robot.keyPress(java.awt.event.KeyEvent.VK_CONTROL);
+		robot.keyPress(java.awt.event.KeyEvent.VK_Y);
+		robot.keyRelease(java.awt.event.KeyEvent.VK_Y);
+		robot.keyRelease(java.awt.event.KeyEvent.VK_CONTROL);
+		GuiAcceptanceSupport.await(() -> service.findBaseline(project) != null,
+			"Ctrl+Y did not restore the CCPM apply");
+		SwingUtilities.invokeAndWait(buffer::dispose);
+		observer.close();
+		observer = null;
+
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, saved), "MPO save rejected the applied CCPM project");
+		Project restored = new MpoFileImporter().loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		assertTrue(service.findBaseline(restored) != null, "MPO reload lost the applied CCPM baseline");
+		assertFalse(service.analysis(restored).criticalTaskIds().isEmpty(), "MPO reload lost the generated critical chain");
+		assertDialogShows(restored, CriticalChainStatusDialogBox.Surface.NETWORK, CriticalChainGraphPanel.class);
+		assertDialogShows(restored, CriticalChainStatusDialogBox.Surface.BUFFER_STATUS, CriticalChainBufferChartPanel.class);
+	}
+
 	private void assertDialogShows(Project project, CriticalChainStatusDialogBox.Surface surface,
 		Class<? extends Component> expectedComponent) throws Exception {
 		observer = new DialogObserver();

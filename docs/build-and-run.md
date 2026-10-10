@@ -79,6 +79,8 @@ selection changes, the Information ribbon command, action enablement, and task-d
 creation/visibility. Use it to determine whether a reported click failed to dispatch,
 lost its selection, was rejected by routing, or reached the dialog.
 
+Linux の Robot 検証にも実際のウィンドウ管理機能が必要です。Xvfb だけでは、子 modal を閉じた後の親 window へのフォーカス復帰を検証できません。1920×1080 の Xvfb と Openbox 等の window manager を同じ DISPLAY で起動し、manager の生存を確認してから実行します。Windows の出荷ゲートは通常の Windows desktop 上で実施します。
+
 GUI受入は同じRobotケースをlocale／DPI軸でも実行できる。標準は日本語・100%で、
 U-21の視覚検査では次のように別プロセスで実行する。
 

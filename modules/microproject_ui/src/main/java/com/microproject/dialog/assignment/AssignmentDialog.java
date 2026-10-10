@@ -248,7 +248,7 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
 			return;
 		}
 		Resource resource = list.get(0);
-		List<Resource> replacementList = ReplaceAssignmentDialog.getReplacementFromDialog(documentFrame,resource);
+		List<Resource> replacementList = ReplaceAssignmentDialog.getReplacementFromDialog(documentFrame, this, resource);
 		if (replacementList == null || replacementList.isEmpty()) // cancelled or nothing chosen
 			return;
 		List<Resource> replacements = resourceSnapshot(replacementList);

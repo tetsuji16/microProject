@@ -16,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.awt.GraphicsEnvironment;
 import java.awt.GraphicsConfiguration;
 import java.awt.Insets;
+import java.awt.KeyboardFocusManager;
 import java.awt.Toolkit;
 import java.awt.Dialog;
 import java.awt.Component;
@@ -2118,6 +2119,42 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"one Ctrl+Y did not restore the complete two-row insertion");
 		GuiAcceptanceSupport.await(() -> rowForTask(sheet, third) - rowForTask(sheet, second) == 3,
 			"the task table did not restore the inserted row positions after Redo");
+		Node insertedNode = (Node) project.getTaskModel().getChild(root, secondIndex + 1);
+		int insertedRow = rowForTask(sheet, second) + 1;
+		assertSame(insertedNode, sheet.getNodeAtRow(insertedRow),
+			"the visible row immediately after the selected range must be the inserted placeholder Node");
+		assertTrue(insertedNode.getImpl() instanceof com.microproject.grouping.core.VoidNodeImpl,
+			"the first newly inserted task row must start blank");
+		click(robot, cellOnScreen(sheet, insertedRow, nameColumn(sheet)));
+		GuiAcceptanceSupport.await(sheet::isFocusOwner, "the new task name cell did not receive focus");
+		press(robot, KeyEvent.VK_F2);
+		GuiAcceptanceSupport.await(sheet::isEditing, "F2 did not start editing the inserted task name");
+		Component editor = sheet.getEditorComponent();
+		GuiAcceptanceSupport.await(() -> editor != null
+			&& KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner() != null
+			&& (KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner() == editor
+				|| (editor instanceof java.awt.Container container
+					&& SwingUtilities.isDescendingFrom(KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner(), container))),
+			"the inserted task editor did not receive keyboard focus");
+		for (char character : "new beta task".toCharArray()) {
+			int keyCode = character == ' ' ? KeyEvent.VK_SPACE : KeyEvent.getExtendedKeyCodeForChar(character);
+			if (keyCode == KeyEvent.VK_UNDEFINED) throw new AssertionError("No key code for " + character);
+			robot.keyPress(keyCode);
+			robot.keyRelease(keyCode);
+		}
+		robot.waitForIdle();
+		press(robot, KeyEvent.VK_ENTER);
+		GuiAcceptanceSupport.await(() -> !sheet.isEditing()
+			&& sheet.getNodeAtRow(insertedRow) != null
+			&& sheet.getNodeAtRow(insertedRow).getImpl() instanceof NormalTask
+			&& "new beta task".equals(((NormalTask) sheet.getNodeAtRow(insertedRow).getImpl()).getName()),
+			"physical keyboard input did not commit the inserted task name");
+		ByteArrayOutputStream insertedSnapshot = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, insertedSnapshot),
+			"MPO save rejected the newly inserted and named task");
+		Project insertedReload = new MpoFileImporter().loadProject(new ByteArrayInputStream(insertedSnapshot.toByteArray()));
+		assertEquals("new beta task", taskNamed(insertedReload, "new beta task").getName(),
+			"MPO reload lost the task created by physical Insert and keyboard input");
 		SwingUtilities.invokeAndWait(sheet::clearSelection);
 		int beforeUnselectedInsert = project.getTaskModel().getChildCount(root);
 		press(robot, KeyEvent.VK_INSERT);

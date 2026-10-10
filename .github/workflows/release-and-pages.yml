@@ -2,9 +2,18 @@ name: Release
 
 on:
   push:
-    branches: [main, master]
+    tags: ['v*']
+    branches: ['release/beta-*']
   workflow_dispatch:
     inputs:
+      release_channel:
+        description: 'Release channel (beta is the default for manual runs)'
+        required: true
+        default: beta
+        type: choice
+        options:
+          - beta
+          - stable
       gui_suite:
         description: 'GUI suite for the release gate (smoke is the efficient default)'
         required: false
@@ -29,6 +38,8 @@ jobs:
     runs-on: windows-latest
     outputs:
       release_version: ${{ steps.version.outputs.release_version }}
+      release_tag: ${{ steps.version.outputs.release_tag }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
     steps:
       - uses: actions/checkout@v5
 
@@ -54,12 +65,43 @@ jobs:
         id: version
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
           $baseVersion = (Select-String -Path build.gradle.kts -Pattern 'version = .*"([0-9]+\.[0-9]+\.[0-9]+)"').Matches[0].Groups[1].Value
-          $releaseVersion = "$baseVersion.$env:GITHUB_RUN_NUMBER"
+          if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') {
+            $channel = '${{ inputs.release_channel }}'
+            if ($channel -notin @('beta', 'stable')) { throw "Unsupported release channel: $channel" }
+            if ($channel -eq 'beta') {
+              $releaseTag = "v$baseVersion-beta.$env:GITHUB_RUN_NUMBER"
+              $releaseVersion = "$baseVersion.$env:GITHUB_RUN_NUMBER"
+              $prerelease = 'true'
+            } else {
+              $releaseTag = "v$baseVersion.$env:GITHUB_RUN_NUMBER"
+              $releaseVersion = "$baseVersion.$env:GITHUB_RUN_NUMBER"
+              $prerelease = 'false'
+            }
+          } else {
+            $releaseTag = $env:GITHUB_REF_NAME
+            if ($env:GITHUB_REF_TYPE -eq 'branch') {
+              if ($releaseTag -notmatch '^release/beta-(\d+\.\d+\.\d+)-([1-9][0-9]*)$') { throw "Invalid beta release branch: $releaseTag" }
+              $releaseTag = "v$($Matches[1])-beta.$($Matches[2])"
+            }
+            if ($releaseTag -match '^v(?<major>0|[1-9][0-9]*)\.(?<minor>0|[1-9][0-9]*)\.(?<patch>0|[1-9][0-9]*)-beta\.(?<sequence>0|[1-9][0-9]*)$') {
+              $releaseVersion = "$($Matches.major).$($Matches.minor).$($Matches.patch).$($Matches.sequence)"
+              $prerelease = 'true'
+            } elseif ($releaseTag -match '^v(?<numeric>0|[1-9][0-9]*)(\.(0|[1-9][0-9]*)){2,3}$') {
+              $releaseVersion = $releaseTag.Substring(1)
+              $prerelease = 'false'
+            } else {
+              throw "Invalid release tag '$releaseTag'. Use vMAJOR.MINOR.PATCH-beta.N or a three/four-part numeric stable tag."
+            }
+          }
           "release_version=$releaseVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "release_tag=$releaseTag" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "prerelease=$prerelease" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
       - name: Prepare update signing key
         id: signing
+        if: ${{ steps.version.outputs.prerelease != 'true' }}
         shell: pwsh
         env:
           UPDATE4J_PRIVATE_KEY: ${{ secrets.UPDATE4J_PRIVATE_KEY }}
@@ -81,8 +123,12 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          .\gradlew.bat clean build packageWindowsAppImage packageWindowsMsi packageWindowsZip verifyPackagedFileImports "-PreleaseVersion=${{ steps.version.outputs.release_version }}" --console=plain
+          .\gradlew.bat clean build packageWindowsAppImage packageWindowsMsi packageWindowsZip verifyPackagedFileImports "-PreleaseVersion=${{ steps.version.outputs.release_version }}" "-PreleaseChannel=${{ steps.version.outputs.prerelease == 'true' && 'beta' || 'stable' }}" --console=plain
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Configure a full-size desktop
+        shell: pwsh
+        run: .\.github\scripts\set-gui-display-resolution.ps1 -Width 1920 -Height 1080
 
       - name: Run Windows GUI acceptance gate
         shell: pwsh
@@ -160,6 +206,7 @@ jobs:
           }
 
       - name: Stage release assets
+        id: assets
         if: ${{ success() }}
         shell: pwsh
         run: |
@@ -173,8 +220,17 @@ jobs:
           if ($null -eq $zip) { throw "The Windows app-image ZIP was not produced for v$version." }
           Copy-Item $msi.FullName "release-assets/microProject-$version.msi"
           Copy-Item $zip.FullName "release-assets/microProject-$version-app-image.zip"
-          Copy-Item "release-assets/microProject-$version.msi" "release-assets/microProject-latest.msi"
-          Copy-Item "release-assets/microProject-$version-app-image.zip" "release-assets/microProject-latest-app-image.zip"
+          if ('${{ steps.version.outputs.prerelease }}' -ne 'true') {
+            Copy-Item "release-assets/microProject-$version.msi" "release-assets/microProject-latest.msi"
+            Copy-Item "release-assets/microProject-$version-app-image.zip" "release-assets/microProject-latest-app-image.zip"
+          } else {
+            $tag = '${{ steps.version.outputs.release_tag }}'
+            $base = [regex]::Match($tag, '^v(\d+\.\d+\.\d+)-beta\.\d+$').Groups[1].Value
+            $notes = "docs/releases/beta-$base.md"
+            if (-not (Test-Path -LiteralPath $notes)) { throw "Beta release notes are required: $notes" }
+            Copy-Item $notes "release-assets/beta-$base.md"
+            "notes_path=$notes" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          }
 
           if ('${{ steps.signing.outputs.configured }}' -eq 'true') {
             # update4j fetches and verifies each application JAR individually.
@@ -187,7 +243,7 @@ jobs:
           }
 
       - name: Generate signed update configuration
-        if: ${{ steps.signing.outputs.configured == 'true' }}
+        if: ${{ steps.version.outputs.prerelease != 'true' && steps.signing.outputs.configured == 'true' }}
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -206,17 +262,32 @@ jobs:
           Copy-Item $manifest.FullName 'release-assets/configuration.xml'
 
       - name: Report update signing configuration
-        if: ${{ steps.signing.outputs.configured != 'true' }}
+        if: ${{ steps.version.outputs.prerelease != 'true' && steps.signing.outputs.configured != 'true' }}
         shell: pwsh
         run: Write-Host 'UPDATE4J_PRIVATE_KEY and UPDATE4J_PUBLIC_KEY are not configured; publishing without auto-update manifest. Bootstrap will safely fall back.'
+
+      - name: Generate release checksums
+        if: ${{ success() }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $lines = Get-ChildItem -LiteralPath release-assets -File | Sort-Object Name | ForEach-Object {
+            $hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $($_.Name)"
+          }
+          [IO.File]::WriteAllLines((Join-Path $PWD 'release-assets/SHA256SUMS'), [string[]]$lines, [Text.UTF8Encoding]::new($false))
 
       - name: Create GitHub release
         if: ${{ success() }}
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.version.outputs.release_version }}
-          name: microProject v${{ steps.version.outputs.release_version }}
-          generate_release_notes: true
+          tag_name: ${{ steps.version.outputs.release_tag }}
+          name: microProject ${{ steps.version.outputs.release_tag }}
+          prerelease: ${{ steps.version.outputs.prerelease }}
+          make_latest: ${{ steps.version.outputs.prerelease == 'true' && 'false' || 'true' }}
+          generate_release_notes: ${{ steps.version.outputs.prerelease != 'true' }}
+          target_commitish: ${{ github.sha }}
+          body_path: ${{ steps.version.outputs.prerelease == 'true' && steps.assets.outputs.notes_path || '' }}
           files: release-assets/*
 
   pages:

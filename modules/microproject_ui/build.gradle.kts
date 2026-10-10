@@ -134,19 +134,32 @@ tasks.register<Test>("guiTest") {
 		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.physicalTaskRowHeaderDragReordersStableTasksAndSurvivesUndoAndReload",
 		"com.microproject.pm.graphic.views.TaskTableGanttGridGuiAcceptanceTest.physicalTaskTableDurationEditDoesNotPanGanttViewport",
 		"com.microproject.pm.graphic.views.TaskTableGanttGridGuiAcceptanceTest.physicalTaskTableDateEditRepositionsBarWithoutPanningGanttViewport",
+		"com.microproject.pm.graphic.views.TaskTableGanttGridGuiAcceptanceTest.physicalGanttWheelScrollsByOneOwnerStep",
+		"com.microproject.pm.graphic.views.GanttBarDateDragGuiAcceptanceTest.robotDragBetweenBarsCreatesDependencyAndUndoRestoresModel",
+		"com.microproject.pm.graphic.views.GanttBarDateDragGuiAcceptanceTest.robotResizeProgressAndSplitUseTypedScheduleGatewayWithUndoAndPersistence",
 		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.robotClickOnTaskPropertiesInformationOpensTaskInformation",
 		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.robotOpensIssue590DialogsWithoutClippedText",
 		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.robotCalendarOptionsRibbonRouteOpensUsableDialog",
 		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.robotCalendarCommandOpensUsableCalendarDialog",
+		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.linkAndUnlinkSelectedTasksThroughRibbonRoundTripsDependency",
 		"com.microproject.dialog.calendar.ChangeWorkingTimeDialogGuiAcceptanceTest.robotOpensWorkingTimeDialogAndCancelsWithoutCommit",
 		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.robotNetworkAndWbsRibbonRoutesRenderTheirDedicatedViews",
 		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.indentAndOutdentSelectedTaskThroughRibbonRoundTripsHierarchy",
+		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.robotTaskPopupInsertAddsSelectedRowCountBelowSelectionAndOneUndoRevertsBatch",
+		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.deleteThroughRibbonUsesTheSharedEditPipelineAndUndoRestoresTheRow",
 		"com.microproject.pm.graphic.frames.RibbonExternalCommandGuiAcceptanceTest.robotInvokesRealFileRibbonCommandsAndOpensTheirDialogs",
 		"com.microproject.dialog.ProjectInformationDialogGuiAcceptanceTest.projectInformationShowsAllTabsAndButtonsAfterResize",
-		"com.microproject.dialog.assignment.AssignmentDialogGuiAcceptanceTest.robotReplaceWithActualWorkPreservesActualsAndSupportsUndoRedo"
+		"com.microproject.dialog.assignment.AssignmentDialogGuiAcceptanceTest.robotReplaceWithActualWorkPreservesActualsAndSupportsUndoRedo",
+		"com.microproject.dialog.CriticalChainStatusDialogGuiAcceptanceTest.robotAppliesCcpmAndUndoRedoSurvivesMpoReload"
 	)
 	inputs.property("guiTestSuite", guiTestSuite)
 	if (guiTestSuite == "smoke") {
+		// Keep Gradle's test discovery (and forkEvery=1 worker creation) scoped to
+		// the physical acceptance classes in the smoke suite. The JUnit filter
+		// below still narrows these classes to the named methods. In full mode we
+		// leave Test.include unset so normal --tests filtering remains unrestricted.
+		val smokeClasses = guiSmokeTestPatterns.map { it.substringBeforeLast('.') }.toSet()
+		include(smokeClasses.map { "${it.replace('.', '/')}.class" })
 		filter {
 			guiSmokeTestPatterns.forEach(::includeTestsMatching)
 		}

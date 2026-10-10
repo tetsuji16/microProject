@@ -48,7 +48,7 @@ jobs:
 
       - name: Build fresh desktop install
         shell: pwsh
-        run: .\gradlew.bat clean installDist --console=plain
+        run: .\gradlew.bat installDist --console=plain
 
       - name: Run selected GUI acceptance suite and visual matrix
         shell: pwsh

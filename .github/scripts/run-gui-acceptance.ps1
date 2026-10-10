@@ -227,7 +227,7 @@ try {
       foreach ($scale in $scales) {
         Write-Host "GUI visual gate: locale=$locale scale=$scale"
         $gradleArgs = @(
-          ':microproject_ui:guiTest', '--max-workers=1', '--rerun-tasks', '--console=plain',
+          ':microproject_ui:guiTest', '--max-workers=1', '--console=plain',
           "-PguiTestLocale=$locale", "-PguiTestUiScale=$scale"
         )
         foreach ($testClass in $visualTests) { $gradleArgs += @('--tests', $testClass) }

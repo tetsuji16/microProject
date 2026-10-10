@@ -42,7 +42,7 @@ jobs:
         run: python -m unittest discover -s scripts/tests -v
 
       - name: Build and test with Gradle
-        run: bash ./gradlew clean build installDist --console=plain
+        run: bash ./gradlew build installDist --console=plain
 
       - name: Upload Gradle test reports
         if: always()

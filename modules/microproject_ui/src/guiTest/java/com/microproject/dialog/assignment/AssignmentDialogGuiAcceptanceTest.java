@@ -12,9 +12,13 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 
 import java.awt.GraphicsEnvironment;
 import java.awt.Color;
+import java.awt.Component;
+import java.awt.KeyboardFocusManager;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Robot;
+import java.awt.Component;
+import java.awt.KeyboardFocusManager;
 import java.awt.Window;
 import java.awt.event.KeyEvent;
 import java.io.File;
@@ -188,6 +192,7 @@ class AssignmentDialogGuiAcceptanceTest {
 			"Robot click did not select the original assignment resource");
 		click(robot, bounds(assignmentDialog.replaceButton));
 		ReplaceAssignmentDialog replaceDialog = awaitReplaceDialog();
+		assertSame(assignmentDialog, replaceDialog.getOwner(), "Replace must return keyboard focus to its calling assignment dialog");
 		SpreadSheet replacementSheet = replaceDialog.spreadSheetPane.getSpreadSheet();
 		click(robot, cellBounds(replacementSheet, rowForResource(replacementSheet, replacement), nameColumn(replacementSheet)));
 		GuiAcceptanceSupport.await(() -> replaceDialog.getSelectedResources().contains(replacement),
@@ -206,6 +211,24 @@ class AssignmentDialogGuiAcceptanceTest {
 		assertEquals(0L, replacementAssignment.getActualWork(null));
 		assertEquals(remainingWork, replacementAssignment.getRemainingWork());
 
+		try {
+			GuiAcceptanceSupport.await(() -> hasKeyboardFocusWithin(assignmentDialog),
+				"the modeless Assign Resources dialog did not regain active keyboard focus after Replace closed");
+		} catch (AssertionError failure) {
+			KeyboardFocusManager focusManager = KeyboardFocusManager.getCurrentKeyboardFocusManager();
+			failure.addSuppressed(new AssertionError("Focus diagnostics after Replace closed: "
+				+ "activeWindow=" + describeWindow(focusManager.getActiveWindow())
+				+ ", focusedWindow=" + describeWindow(focusManager.getFocusedWindow())
+				+ ", focusOwner=" + describeComponent(focusManager.getFocusOwner())
+				+ ", assignmentDialog=" + describeWindow(assignmentDialog)
+				+ ", assignmentIsActive=" + assignmentDialog.isActive()
+				+ ", assignmentIsFocused=" + assignmentDialog.isFocused()
+				+ ", assignmentFocusOwner=" + describeComponent(assignmentDialog.getFocusOwner())
+				+ ", replaceDialog=" + describeWindow(replaceDialog)
+				+ ", replaceIsVisible=" + replaceDialog.isVisible()
+				+ ", replaceOwner=" + describeWindow(replaceDialog.getOwner())));
+			throw failure;
+		}
 		press(robot, KeyEvent.VK_ESCAPE);
 		GuiAcceptanceSupport.await(() -> !assignmentDialog.isShowing(),
 			"Escape did not close the modeless Assign Resources dialog before undo");
@@ -351,6 +374,27 @@ class AssignmentDialogGuiAcceptanceTest {
 	private void activateWindow(Robot robot) throws Exception {
 		click(robot, bounds(window));
 		GuiAcceptanceSupport.await(window::isActive, "main window did not become active for undo");
+	}
+
+	private static boolean hasKeyboardFocusWithin(Window dialog) {
+		if (!dialog.isActive() || KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow() != dialog)
+			return false;
+		Component focusOwner = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
+		return focusOwner != null && (focusOwner == dialog || SwingUtilities.isDescendingFrom(focusOwner, dialog));
+	}
+
+	private static String describeWindow(Window window) {
+		if (window == null) return "null";
+		return window.getClass().getName() + "[showing=" + window.isShowing()
+			+ ",active=" + window.isActive() + ",focused=" + window.isFocused()
+			+ ",owner=" + (window.getOwner() == null ? "null" : window.getOwner().getClass().getName()) + "]";
+	}
+
+	private static String describeComponent(Component component) {
+		if (component == null) return "null";
+		return component.getClass().getName() + "[name=" + component.getName()
+			+ ",focusOwner=" + component.isFocusOwner()
+			+ ",window=" + describeWindow(javax.swing.SwingUtilities.getWindowAncestor(component)) + "]";
 	}
 
 	private static void press(Robot robot, int... keys) {

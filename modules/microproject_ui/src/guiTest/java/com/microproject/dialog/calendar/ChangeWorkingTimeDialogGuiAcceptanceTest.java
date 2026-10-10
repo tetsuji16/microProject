@@ -613,7 +613,8 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 					for (int second = first + 1; second < probes.size(); second++) {
 						Rectangle a = probes.get(first).getBounds();
 						Rectangle b = probes.get(second).getBounds();
-						if (a.intersects(b)) {
+						if (a.intersects(b) && !DialogLayoutAssertions.isExpectedSpinnerStepperBorderSeam(
+								parent, probes.get(first), probes.get(second))) {
 							violation[0] = parent.getClass().getSimpleName() + " children overlap: "
 									+ probes.get(first).getClass().getSimpleName() + "=" + a + " and "
 									+ probes.get(second).getClass().getSimpleName() + "=" + b;

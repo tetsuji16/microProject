@@ -59,6 +59,7 @@ public final class MicroProjectUpdater {
 
     /** Preferences node holding the auto-update settings (mirrors the plan A key table). */
     private static final String PREFS_NODE = "com/microproject/bootstrap";
+    private static final String UPDATE_ENABLED_PROPERTY = "microproject.updates.enabled";
     private static final String KEY_CHECK_ENABLED = "checkEnabled";
     private static final String KEY_LAST_CHECK_MILLIS = "lastCheckMillis";
     private static final long CHECK_INTERVAL_MILLIS = 24L * 60 * 60 * 1000; // 24h
@@ -106,6 +107,15 @@ public final class MicroProjectUpdater {
             return;
         }
 
+        // Beta packages have no beta-specific signed feed. Their launchers set
+        // this property to false so the stable /releases/latest manifest cannot
+        // replace beta application JARs. This gate intentionally leaves user
+        // preferences untouched and runs before any network/configuration work.
+        if (!updatesEnabled()) {
+            launchInstalledApp(applicationArguments(args));
+            return;
+        }
+
         if (!shouldCheckNow(forceCheck)) {
             launchInstalledApp(applicationArguments(args));
             return;
@@ -137,6 +147,10 @@ public final class MicroProjectUpdater {
         // the jpackage layout are preserved independently of update4j's
         // optional Launcher service.
         launchInstalledApp(applicationArguments(args));
+    }
+
+    static boolean updatesEnabled() {
+        return Boolean.parseBoolean(System.getProperty(UPDATE_ENABLED_PROPERTY, "true"));
     }
 
     /**

@@ -56,7 +56,7 @@ plugins {
 }
 
 group = "com.microproject"
-version = providers.gradleProperty("releaseVersion").getOrElse("0.0.23")
+version = providers.gradleProperty("releaseVersion").getOrElse("0.0.24")
 val minimumJavaRelease = 25
 val activeToolchainVersion = maxOf(minimumJavaRelease, JavaVersion.current().majorVersion.toInt())
 
@@ -524,6 +524,12 @@ tasks.register<Delete>("cleanLegacyPackagingArtifacts") {
 
 val releaseVersion = project.version.toString()
 val releaseLabel = "v$releaseVersion"
+val releaseChannel = providers.gradleProperty("releaseChannel").orElse("stable").get()
+require(releaseChannel == "stable" || releaseChannel == "beta") {
+    "releaseChannel must be 'stable' or 'beta', got '$releaseChannel'"
+}
+val updaterEnabledForRelease = releaseChannel != "beta"
+val updaterEnabledJavaOption = "-Dmicroproject.updates.enabled=$updaterEnabledForRelease"
 val applicationVendor = "microProject contributors"
 val applicationDescription = "microProject desktop project management software"
 val applicationCopyright = "Copyright © 2026 microProject contributors"
@@ -618,6 +624,7 @@ tasks.register<Exec>("packageWindowsAppImage") {
             "--input", inputDir.absolutePath,
             "--main-jar", "microproject_bootstrap.jar",
             "--main-class", "com.microproject.bootstrap.MicroProjectUpdater",
+            "--java-options", updaterEnabledJavaOption,
             "--icon", File(inputDir, "microproject.ico").absolutePath,
             "--add-modules", windowsRuntimeModules.joinToString(","),
             "--dest", windowsAppImageDir.get().asFile.absolutePath,
@@ -630,6 +637,9 @@ tasks.register<Exec>("packageWindowsAppImage") {
             .file("microProject/app/microProject.cfg").asFile
         check(launcherConfig.isFile) {
             "jpackage did not generate the expected launcher config: $launcherConfig"
+        }
+        check(launcherConfig.readText(Charsets.UTF_8).contains(updaterEnabledJavaOption)) {
+            "Packaged launcher is missing the $releaseChannel update policy: $updaterEnabledJavaOption"
         }
         val classpathEntries = launcherConfig.readLines(Charsets.UTF_8)
             .filter { it.startsWith("app.classpath=") }
@@ -679,6 +689,7 @@ tasks.register<Exec>("packageWindowsMsi") {
             "--input", inputDir.absolutePath,
             "--main-jar", "microproject_bootstrap.jar",
             "--main-class", "com.microproject.bootstrap.MicroProjectUpdater",
+            "--java-options", updaterEnabledJavaOption,
             "--icon", File(inputDir, "microproject.ico").absolutePath,
             "--license-file", File(inputDir, "license.txt").absolutePath,
             "--resource-dir", windowsInstallerResourcesDir.asFile.absolutePath,

@@ -28,6 +28,7 @@ import java.security.KeyPairGenerator;
 import java.security.PublicKey;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -257,6 +258,49 @@ class BootstrapUpdateTest {
     }
 
     @Test
+    void updatesRemainEnabledByDefaultForStablePackages() {
+        String previous = System.getProperty("microproject.updates.enabled");
+        try {
+            System.clearProperty("microproject.updates.enabled");
+            assertTrue(MicroProjectUpdater.updatesEnabled(),
+                    "stable and development launches retain the existing updater default");
+        } finally {
+            restoreProperty("microproject.updates.enabled", previous);
+        }
+    }
+
+    @Test
+    void betaUpdaterGateSkipsFeedAndLaunchesInstalledApplication() throws Exception {
+        AtomicInteger feedRequests = new AtomicInteger();
+        server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/configuration.xml", exchange -> {
+            feedRequests.incrementAndGet();
+            exchange.sendResponseHeaders(404, -1);
+            exchange.close();
+        });
+        server.start();
+
+        String previousUpdateSetting = System.getProperty("microproject.updates.enabled");
+        String previousMainClass = System.getProperty("microproject.mainClass");
+        try {
+            System.setProperty("microproject.updates.enabled", "false");
+            System.setProperty("microproject.mainClass", LaunchProbeApplication.class.getName());
+            LaunchProbeApplication.receivedArguments = null;
+
+            String feedUri = "http://127.0.0.1:" + server.getAddress().getPort() + "/configuration.xml";
+            MicroProjectUpdater.main(new String[] {feedUri, "--force-check", "sample.mpp"});
+
+            assertEquals(0, feedRequests.get(),
+                    "a beta launcher must skip network/configuration checks even when force-check is supplied");
+            assertArrayEquals(new String[] {"sample.mpp"}, LaunchProbeApplication.receivedArguments,
+                    "the beta gate must still launch the app and preserve its project-file arguments");
+        } finally {
+            restoreProperty("microproject.updates.enabled", previousUpdateSetting);
+            restoreProperty("microproject.mainClass", previousMainClass);
+        }
+    }
+
+    @Test
     void windowsProjectPathsAreNotMisclassifiedAsUpdateUris() {
         assertFalse(MicroProjectUpdater.isConfigurationUriArgument("C:\\Projects\\sample.mpo"),
                 "a file-association path must reach the application without URI parsing");
@@ -296,5 +340,18 @@ class BootstrapUpdateTest {
         config.launch(recorder);
         assertTrue(RecordingLauncher.RAN.get(),
                 "the launch path must execute the supplied launcher");
+    }
+
+    private static void restoreProperty(String name, String value) {
+        if (value == null) System.clearProperty(name);
+        else System.setProperty(name, value);
+    }
+
+    public static final class LaunchProbeApplication {
+        private static volatile String[] receivedArguments;
+
+        public static void main(String[] args) {
+            receivedArguments = args == null ? new String[0] : args.clone();
+        }
     }
 }

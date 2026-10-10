@@ -164,7 +164,19 @@ public final class CriticalChainService {
 		private AnalysisSnapshot(Analysis analysis, long fingerprint) { this.analysis = analysis; this.fingerprint = fingerprint; }
 	}
 
-	private record State(Settings settings, Baseline baseline, Analysis analysis) { }
+	private record BufferHistoryState(List<CriticalChainBufferHistory.Point> points,
+		List<CriticalChainBufferHistory.Retraction> retractions) {
+		static BufferHistoryState capture(CriticalChainBufferHistory history) {
+			return history == null ? null : new BufferHistoryState(history.points(), history.retractions());
+		}
+		void restore(Project project) {
+			CriticalChainBufferHistory history = project.getOrCreateTransientDocumentState(
+				CriticalChainBufferHistory.class, CriticalChainBufferHistory::new);
+			history.replace(points, retractions);
+		}
+	}
+
+	private record State(Settings settings, Baseline baseline, Analysis analysis, BufferHistoryState history) { }
 
 	public Settings settings(Project project) {
 		Objects.requireNonNull(project, "project");
@@ -316,17 +328,20 @@ public final class CriticalChainService {
 		AnalysisSnapshot snapshot = project.findTransientDocumentState(AnalysisSnapshot.class);
 		Analysis analysis = snapshot == null ? null : snapshot.analysis;
 		return new State(settings == null ? null : settings.copy(),
-			project.findTransientDocumentState(Baseline.class), analysis);
+			project.findTransientDocumentState(Baseline.class), analysis,
+			BufferHistoryState.capture(project.findTransientDocumentState(CriticalChainBufferHistory.class)));
 	}
 
 	private static void restoreState(Project project, State state) {
 		project.removeTransientDocumentState(Settings.class);
 		project.removeTransientDocumentState(Baseline.class);
 		project.removeTransientDocumentState(AnalysisSnapshot.class);
+		project.removeTransientDocumentState(CriticalChainBufferHistory.class);
 		if (state.settings != null) project.getOrCreateTransientDocumentState(Settings.class, state.settings::copy);
 		if (state.baseline != null) project.getOrCreateTransientDocumentState(Baseline.class, () -> state.baseline);
 		if (state.analysis != null) project.getOrCreateTransientDocumentState(AnalysisSnapshot.class,
 			() -> new AnalysisSnapshot(state.analysis, analysisFingerprint(project, project.findTransientDocumentState(Settings.class))));
+		if (state.history != null) state.history.restore(project);
 	}
 
 	private static void rememberAnalysis(Project project, Analysis analysis) {

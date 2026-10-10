@@ -13,7 +13,9 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectOutputStream;
 
@@ -132,10 +134,18 @@ class CriticalChainServiceTest {
 		assertTrue(service.analysis(fixture.project) != null,
 			"status surfaces must rebuild analysis so assignment and dependency edits cannot leave a stale chain");
 		assertTrue(second.getLevelingDelay() > 0L);
+		CriticalChainBufferHistory history = fixture.project.getOrCreateTransientDocumentState(
+			CriticalChainBufferHistory.class, CriticalChainBufferHistory::new);
+		history.add(new CriticalChainBufferHistory.Point(Instant.parse("2026-10-10T09:00:00Z"),
+			"planner", "Planner", 25D, 30D, "GREEN", "baseline-a"));
+		history.recordRetraction(new CriticalChainBufferHistory.Retraction(UUID.randomUUID(),
+			Instant.parse("2026-10-10T08:00:00Z"), "planner", "Planner", "duplicate checkpoint"));
 
 		service.clear(fixture.project);
 		assertNull(service.findSettings(fixture.project));
 		assertNull(service.findBaseline(fixture.project));
+		assertNull(fixture.project.findTransientDocumentState(CriticalChainBufferHistory.class),
+			"clear must remove active and retracted buffer history");
 		assertEquals(0L, second.getLevelingDelay());
 
 		fixture.project.getUndoController().undo();
@@ -143,10 +153,16 @@ class CriticalChainServiceTest {
 		assertTrue(service.findBaseline(fixture.project) != null);
 		assertTrue(service.findAnalysis(fixture.project) != null);
 		assertTrue(second.getLevelingDelay() > 0L);
+		CriticalChainBufferHistory restoredHistory = fixture.project.findTransientDocumentState(CriticalChainBufferHistory.class);
+		assertNotNull(restoredHistory, "Undo must restore the buffer history container");
+		assertEquals(history.points(), restoredHistory.points(), "Undo must restore active buffer observations unchanged");
+		assertEquals(history.retractions(), restoredHistory.retractions(), "Undo must restore the retraction audit trail unchanged");
 
 		fixture.project.getUndoController().redo();
 		assertNull(service.findSettings(fixture.project));
 		assertNull(service.findBaseline(fixture.project));
+		assertNull(fixture.project.findTransientDocumentState(CriticalChainBufferHistory.class),
+			"Redo must clear active and retracted buffer history again");
 		assertEquals(0L, second.getLevelingDelay());
 	}
 

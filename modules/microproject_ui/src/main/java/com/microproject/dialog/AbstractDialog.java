@@ -28,6 +28,7 @@ import java.util.function.Consumer;
 
 import java.awt.BorderLayout;
 import java.awt.Component;
+import java.awt.Dialog;
 import java.awt.Dimension;
 import java.awt.Frame;
 import java.awt.Point;
@@ -99,6 +100,13 @@ public abstract class AbstractDialog extends FlatLafDialog {
 		super(owner, title, modal);
 		createRootPane();
 		this.owner = owner;
+		FlatUiSupport.styleDialogRoot(getRootPane());
+	}
+
+	public AbstractDialog(Dialog owner, String title, Dialog.ModalityType modalityType) {
+		super(owner, title, modalityType);
+		createRootPane();
+		this.owner = owner != null && owner.getOwner() instanceof Frame frame ? frame : null;
 		FlatUiSupport.styleDialogRoot(getRootPane());
 	}
 
@@ -231,7 +239,7 @@ public abstract class AbstractDialog extends FlatLafDialog {
 			// Center only after the preferred dimensions are known. Centering the
 			// zero-sized window in the constructor leaves its top-left at the
 			// monitor center and pushes the packed dialog below the usable screen.
-			setLocationRelativeTo(owner);
+			setLocationRelativeTo(getOwner());
 			packedOnce = true;
 		}
 		lockMinimumSizeToCurrentPack();

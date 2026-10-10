@@ -682,9 +682,15 @@ public class MpoFileImporter extends FileImporter {
 			org.w3c.dom.NodeList xmlTasks = document.getElementsByTagName("Task");
 			java.util.Iterator<?> modelTasks = project.getTaskOutlineIterator();
 			for (int i = 0; i < xmlTasks.getLength() && modelTasks.hasNext(); i++) {
-				Task task = (Task) modelTasks.next();
-				org.w3c.dom.NodeList uids = ((org.w3c.dom.Element) xmlTasks.item(i)).getElementsByTagName("UID");
-				if (uids.getLength() > 0) root.put(String.valueOf(task.getUniqueId()), Long.parseLong(uids.item(0).getTextContent()));
+				org.w3c.dom.Element xmlTask = (org.w3c.dom.Element) xmlTasks.item(i);
+				org.w3c.dom.NodeList nullValues = xmlTask.getElementsByTagName("IsNull");
+				if (nullValues.getLength() == 0) nullValues = xmlTask.getElementsByTagName("Null");
+				if (nullValues.getLength() > 0 && "1".equals(nullValues.item(0).getTextContent().trim())) continue;
+				org.w3c.dom.NodeList uids = xmlTask.getElementsByTagName("UID");
+				if (uids.getLength() > 0) {
+					Task task = (Task) modelTasks.next();
+					root.put(String.valueOf(task.getUniqueId()), Long.parseLong(uids.item(0).getTextContent()));
+				}
 			}
 			return JSON.writeValueAsString(root);
 		} catch (Exception exception) {
