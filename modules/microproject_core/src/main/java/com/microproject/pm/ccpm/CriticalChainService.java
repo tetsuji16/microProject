@@ -16,7 +16,7 @@ import java.util.PriorityQueue;
 import java.util.concurrent.atomic.AtomicLong;
 
 import javax.swing.undo.AbstractUndoableEdit;
-import javax.swing.undo.UndoableEditSupport;
+import com.microproject.undo.EditSupport;
 
 import com.microproject.datatype.Duration;
 import com.microproject.pm.dependency.Dependency;
@@ -204,7 +204,7 @@ public final class CriticalChainService {
 	}
 
 	/** Removes CCPM state while participating in a caller-owned undo transaction. */
-	public void forget(Project project, UndoableEditSupport editSupport) {
+	public void forget(Project project, EditSupport editSupport) {
 		if (project == null) return;
 		State before = captureState(project);
 		forget(project);
@@ -268,7 +268,7 @@ public final class CriticalChainService {
 	}
 
 	public Analysis apply(Project project, Collection<? extends Resource> resources, Settings requestedSettings) {
-		UndoableEditSupport editSupport = project.getUndoController().getEditSupport();
+		EditSupport editSupport = project.getUndoController().getEditSupport();
 		State before = captureState(project);
 		if (editSupport != null) editSupport.beginUpdate();
 		try {
@@ -308,7 +308,7 @@ public final class CriticalChainService {
 
 	public ClearResult clearWithReport(Project project) {
 		if (project == null) return new ClearResult(false, false, null);
-		UndoableEditSupport editSupport = project.getUndoController().getEditSupport();
+		EditSupport editSupport = project.getUndoController().getEditSupport();
 		State before = captureState(project);
 		Baseline baseline = before.baseline();
 		boolean baselineEdited = baseline != null && project.getEnd() != baseline.projectFinishMillis();
@@ -392,7 +392,7 @@ public final class CriticalChainService {
 		return result;
 	}
 
-	private static void postStateEdit(Project project, UndoableEditSupport editSupport, State before, State after) {
+	private static void postStateEdit(Project project, EditSupport editSupport, State before, State after) {
 		if (editSupport == null) return;
 		editSupport.postEdit(new AbstractUndoableEdit() {
 			private static final long serialVersionUID = 1L;

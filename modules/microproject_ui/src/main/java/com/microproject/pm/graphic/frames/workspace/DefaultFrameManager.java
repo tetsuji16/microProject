@@ -468,7 +468,7 @@ public class DefaultFrameManager implements FrameManager {
 	}
 
 	private void createDocumentWindow(NamedFrame frame) {
-		MainRibbonFrame window = new MainRibbonFrame(describeWindow(frame), null, null);
+		MainRibbonFrame window = new MainRibbonFrame(describeWindow(frame), null);
 		window.setGraphicManager(graphicManager);
 		window.setWindowCloseAction(() -> graphicManager.closeDocumentWindow((DocumentFrame) frame));
 		MicroProjectShell.installRibbonShell(window, graphicManager.getMenuManager(), graphicManager::showHelpDialog);

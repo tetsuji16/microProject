@@ -38,8 +38,8 @@ public class MainFrameFactory {
 	public static Frame getMainFrame(){
 		return mainFrame;
 	}
-	public static Frame creareMainFrame(String name, String projectUrl, String server) throws HeadlessException {
-			mainFrame=Environment.isRibbonUI()? new MainRibbonFrame(name, projectUrl, server): new MainFrame(name, projectUrl, server);
+	public static Frame creareMainFrame(String name, String projectUrl) throws HeadlessException {
+			mainFrame=Environment.isRibbonUI()? new MainRibbonFrame(name, projectUrl): new MainFrame(name, projectUrl);
 			return mainFrame;
 	}
 }

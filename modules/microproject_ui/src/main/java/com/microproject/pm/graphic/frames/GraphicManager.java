@@ -113,7 +113,6 @@ import com.microproject.collaboration.ProjectMergeService;
 import com.microproject.util.ClassLoaderUtils;
 import com.microproject.dialog.AbstractDialog;
 import com.microproject.dialog.LocaleDialog;
-import com.microproject.dialog.OpenProjectDialog;
 import com.microproject.dialog.ProjectDialog;
 import com.microproject.dialog.PreferencesDialogBox;
 import com.microproject.dialog.RenameProjectDialog;
@@ -176,14 +175,11 @@ import com.microproject.preference.ConfigurationFile;
 import com.microproject.preference.GlobalPreferences;
 import com.microproject.print.GraphPageable;
 import com.microproject.print.PrintDocumentFactory;
-import com.microproject.server.data.DocumentData;
-import com.microproject.server.data.ProjectData;
 import com.microproject.session.CreateOptions;
 import com.microproject.session.LoadOptions;
 import com.microproject.session.LocalSession;
 import com.microproject.session.FileHelper;
 import com.microproject.session.SaveOptions;
-import com.microproject.session.Session;
 import com.microproject.session.SessionFactory;
 import com.microproject.strings.Messages;
 import com.microproject.toolbar.FilterToolBarManager;
@@ -234,7 +230,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	private MenuManager menuManager;
 	MenuActionsMap actionsMap = null;
 	//private String[] projectUrl;
-	private static String server = null;
 
     private final AssignmentDialogCoordinator assignmentDialogCoordinator = new AssignmentDialogCoordinator();
 	private final InformationDialogCoordinator informationDialogCoordinator = new InformationDialogCoordinator();
@@ -311,12 +306,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		return new LinkedList<>(MANAGER_REGISTRY.snapshot());
 	}
 
-	/**
-	 * @param projectUrl project URL
-	 * @param server server name
-	 * @throws java.awt.HeadlessException
-	 */
-	public GraphicManager(/*String[] projectUrl,*/ String server,Container container) throws HeadlessException {
+	public GraphicManager(Container container) throws HeadlessException {
 		AssignmentCalendarWarningPresenter.install();
 		DependencyWarningPresenter.install();
 		MANAGER_REGISTRY.register(this);
@@ -341,8 +331,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		autoRecoveryManager = new AutoRecoveryManager(projectFactory, this);
 		projectFactory.getPortfolio().addObjectListener(this);
 
-		//this.projectUrl = projectUrl;
-		GraphicManager.server = server;
 		this.container=container;
 		if (container instanceof Frame ownerFrame)
 			frame=ownerFrame;
@@ -360,10 +348,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		}
 		registerForMacOSXEvents();
 	}
-	public GraphicManager(Container container) {
-		this(/*null,*/ server,container);
-	}
-
 	public void cleanUp() {
 		// Discard any document-load completions already queued on the EDT before
 		// tearing down the frame manager they would otherwise target.
@@ -1091,10 +1075,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			if (instance.getForm().isCreateProject())
 				doNewProjectDialog();
 			else if (instance.getForm().isOpenProject()){
-				if(Environment.getStandAlone()) openLocalProject();
-				else doOpenProjectDialog();
-			}else if (instance.getForm().isManageResources()) {
-				loadMasterProject();
+				openLocalProject();
 			}else if (instance.getForm().getRecentPath() != null) {
 				loadLocalDocument(instance.getForm().getRecentPath(), false);
 			}else if (instance.getForm().getTemplateId() != null) {
@@ -1222,8 +1203,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		addHistory("doNewProjectDialog");
 		finishAnyOperations();
 		ProjectDialog projectDialog = ProjectDialog.getInstance(getFrame(),null);
-		// Local ribbon commands are valid before a server session has installed a
-		// user (and plugin/embedded hosts may intentionally have no user).  The
+		// Plugin and embedded hosts may intentionally have no user. The
 		// old unconditional dereference made the physical New button appear to do
 		// nothing because the EDT exception happened before the dialog was shown.
 		var user = Environment.getUser();
@@ -1324,137 +1304,20 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		if (project != null) addProjectFrame(project);
 	}
 
-	boolean doingOpenDialog = false;
-	private void doOpenProjectDialog() {
-		if (doingOpenDialog)
-			return;
+	private boolean doingOpenDialog = false;
+	private void doInsertProjectDialog() {
+		if (doingOpenDialog) return;
+		DocumentFrame frame = getCurrentFrame();
+		Project project = frame == null ? null : frame.getProject();
+		if (project == null) return;
 		doingOpenDialog = true;
-		finishAnyOperations();
-
-		final ArrayList<ProjectData> descriptors = new ArrayList<>();
-		final boolean localDescriptorSession = Environment.getStandAlone() || Environment.getUser() == null;
-		final boolean allowMasterProjects = localDescriptorSession || (getCurrentFrame() == null && Environment.isAdministrator());
-		final OpenProjectDialog dialog = OpenProjectDialog.getInstance(getFrame(),descriptors,Messages.getString("Text.openProject"),allowMasterProjects,true,null); //$NON-NLS-1$
-
-    	Session session=SessionFactory.getInstance().getSession(localDescriptorSession);
-		Job job=(Job)SessionFactory.callNoEx(session,"getLoadProjectDescriptorsJob",new Class<?>[]{boolean.class,java.util.List.class,boolean.class},new Object[]{true,descriptors,Environment.getUser() != null && !Environment.isAdministrator()});
-		if (job == null) {
-			dialog.refreshProjects();
-			doingOpenDialog = false;
-			return;
-		}
-    	job.addSwingRunnable(new JobRunnable("Local: loadDocument"){ //$NON-NLS-1$
-    		public Object run() throws Exception{
-			   		dialog.refreshProjects();
-	    		    	return null;
-    		}
-    	});
-    	session.schedule(job);
-		final Consumer<Object> setter=new Consumer<Object>() { public void accept(Object obj) {
-
-		    }
-		};
-		final Consumer<Object> getter=new Consumer<Object>() { public void accept(Object obj) {
-		    	final Object[] r=(Object[])obj;
-		    	if (r!=null){
-		    		DocumentData data=(DocumentData)r[0];
-		    		boolean openAs=(Boolean)r[1];
-		    		loadDocument(data.getUniqueId(),false,openAs,data.isLocal());
-		    	}
-
-		    }
-		};
 		try {
-			dialog.execute(setter,getter); //$NON-NLS-1$
+			finishAnyOperations();
+			insertLocalSubprojects(project);
 		} finally {
 			doingOpenDialog = false;
 		}
 	}
-	private void doInsertProjectDialog() {
-		if (doingOpenDialog)
-			return;
-		doingOpenDialog = true;
-
-		finishAnyOperations();
-
-		final Project project;
-		project= getCurrentFrame().getProject();
-		if (project.isLocal()) {
-			insertLocalSubprojects(project);
-			doingOpenDialog = false;
-			return;
-		}
-
-//		List nodes=getCurrentFrame().getSelectedNodes();
-//		if (nodes==null||nodes.size()==0) return;
-//		Node node=(Node)nodes.get(0);
-//		if (!node.isInSubproject()) project= getCurrentFrame().getProject();
-//		else{
-//			while (!(node==null) && !(node.getImpl().getClass().getName().equals("com.microproject.pm.task.Subproject"))){
-//				node=(Node)node.getParent();
-//			}
-//			if (node==null) return; //shouldn't happen
-//			try {
-//				project=(Project)node.getImpl().getClass().getMethod("getSubproject", null).invoke(node.getImpl(), null);
-//			} catch (Exception e) {
-//				return;
-//			}
-//		}
-
-		final ArrayList<ProjectData> descriptors = new ArrayList<>();
-		final boolean localDescriptorSession = Environment.getStandAlone() || Environment.getUser() == null;
-    	Session session=SessionFactory.getInstance().getSession(localDescriptorSession);
-		Job job=(Job)SessionFactory.callNoEx(session,"getLoadProjectDescriptorsJob",new Class<?>[]{boolean.class,java.util.List.class,boolean.class},new Object[]{true,descriptors,true});
-		if (job == null) {
-			doingOpenDialog = false;
-			return;
-		}
-    	job.addSwingRunnable(new JobRunnable("Local: add"){ //$NON-NLS-1$
-    		public Object run() throws Exception{
-	    	    Consumer<Object> setter=new Consumer<Object>() { public void accept(Object obj) {
-
-	    	        }
-	    	    };
-	    	    Consumer<Object> getter=new Consumer<Object>() { public void accept(Object obj) {
-	    		        final Object[] r=(Object[])obj;
-	    		        if (r!=null){
-   		        			final DocumentData data=(DocumentData)r[0];
-	    	        		if (data.isMaster())
-	    	        			return;
-	    	        		insertSubproject(project, data.getUniqueId(), true);
-//	    	        		Project openedAlready = ProjectFactory.getInstance().findFromId(data.getUniqueId());
-//
-//							if (!project.canInsertProject(data.getUniqueId())) {
-//								Alert.error("The selected project is already a subproject in this consolidated project.");
-//								return;
-//							}
-//							if (openedAlready != null && openedAlready.isOpenedAsSubproject()) {
-//								Alert.error("The selected project is already opened as a subproject in another consolidated project.");
-//								return;
-//							}
-//							Subproject subprojectTask = new Subproject(project,data.getUniqueId());
-//							Node subprojectNode = getCurrentFrame().addNodeForImpl(subprojectTask,NodeModel.EVENT);
-//							ProjectFactory.getInstance().openSubproject(project, subprojectNode, true);
-	    	        	}
-	    	        }
-	    	    };
-
-	    		try {
-	    		    OpenProjectDialog dlg = OpenProjectDialog.getInstance(getFrame(),descriptors,Messages.getString("Text.insertProject"),false, false, project); //$NON-NLS-1$
-	    		    dlg.execute(setter,getter);
-	    		} catch (Exception e) {
-	    			Alert.error(Messages.getString("Message.serverUnreachable"),getContainer()); //$NON-NLS-1$
-	    			logger.log(Level.WARNING, "Failed to open project dialog", e);
-	    		} finally {
-		    		doingOpenDialog = false;
-	    		}
-	    		return null;
-    		}
-		});
-		session.schedule(job);
-	}
-
-
 
 	public void insertSubproject(final Project project, final long subprojectUniqueId,final boolean undo) {
 		insertSubproject(project, subprojectUniqueId, undo, false, null);
@@ -2126,8 +1989,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 			setMeAsLastGraphicManager();
 			executeExternalRibbonCommand("openProject", () -> {
-				if (Environment.getStandAlone()) openLocalProject();
-				else doOpenProjectDialog();
+				openLocalProject();
 			});
 		}
 		protected boolean allowed(boolean enable){
@@ -3317,37 +3179,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		syncGanttViewRibbonState();
 	}
 
-	protected Document loadMasterProject() {
-		return loadDocument(Session.MASTER,false,false);
-	}
-	public Document loadDocument(long id,boolean sync,boolean openAs){
-		return loadDocument(id, sync, openAs, false, null);
-	}
-	protected Document loadDocument(long id,boolean sync,boolean openAs,boolean local){
-		return loadDocument(id, sync, openAs, local, null);
-	}
-	protected Document loadDocument(long id,boolean sync,boolean openAs,Consumer<Object> endSwingClosure){
-		return loadDocument(id, sync, openAs, false, endSwingClosure);
-	}
-	protected Document loadDocument(long id,boolean sync,boolean openAs,boolean local,Consumer<Object> endSwingClosure){
-		addHistory("loadDocument", new Object[]{id,sync,openAs,endSwingClosure==null});
-		//showWaitCursor(true);
-		if (id==-1L)
-			return null;
-		ProjectFactory factory = projectFactory;
-		factory.setServer(server);
-		LoadOptions opt=new LoadOptions();
-		opt.setId(id);
-		opt.setLocal(local);
-		opt.setSync(sync);
-		opt.setOpenAs(openAs);
-		opt.setEndSwingClosure(endSwingClosure);
-
-		Document result = factory.openProject(opt);
-		//showWaitCursor(false);
-		return result;
-	}
-	protected boolean loadLocalDocument(String fileName,boolean merge){ //uses server to merge
+	protected boolean loadLocalDocument(String fileName,boolean merge){
 		return loadLocalDocument(fileName, merge, null);
 	}
 	/** Clears the active view's user filter without changing project data. */

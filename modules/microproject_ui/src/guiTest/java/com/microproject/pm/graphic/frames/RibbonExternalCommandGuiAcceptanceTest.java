@@ -217,7 +217,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		Environment.setNewLook(true);
 
 		SwingUtilities.invokeAndWait(() -> {
-			window = new MainRibbonFrame("microProject — real ribbon command acceptance", null, null);
+			window = new MainRibbonFrame("microProject — real ribbon command acceptance", null);
 			manager = new GraphicManager(window);
 			window.setGraphicManager(manager);
 			manager.initView();
@@ -762,7 +762,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 	private void createWindow(String title) throws Exception {
 		previousJobQueue = SessionFactory.getInstance().getJobQueue();
 		SwingUtilities.invokeAndWait(() -> {
-			window = new MainRibbonFrame(title, null, null);
+			window = new MainRibbonFrame(title, null);
 			manager = new GraphicManager(window);
 			window.setGraphicManager(manager);
 			manager.initView();
@@ -924,7 +924,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 	private void createStartedWindow(String title) throws Exception {
 		previousJobQueue = SessionFactory.getInstance().getJobQueue();
 		SwingUtilities.invokeAndWait(() -> {
-			window = new MainRibbonFrame(title, null, null);
+			window = new MainRibbonFrame(title, null);
 			manager = new ApplicationStartupFactory(new HashMap<>()).instanceFromNewSession(window, false);
 			window.setGraphicManager(manager);
 			window.setAlwaysOnTop(true);

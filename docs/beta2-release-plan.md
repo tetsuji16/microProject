@@ -79,3 +79,8 @@ JDK 25 / `releaseVersion=0.0.24.2` / `releaseChannel=beta`。
 統合commit `f6f6be2d9ee286638ed19681c620520e73227afa` から `release/beta-0.0.24-2` を作成。[Windows出荷 run 38017915874](https://github.com/tetsuji16/ProjectLibre/actions/runs/38017915874) は全 gate が成功した。clean build・全module tests・MSI/ZIP生成・MPP/POD読込に加え、1920×1080 の Windows GUI acceptance、installDist と packaged JAR の SHA256一致、配布EXEが実ウィンドウを生成することを確認した。
 
 [公開版 v0.0.24-beta.2](https://github.com/tetsuji16/ProjectLibre/releases/tag/v0.0.24-beta.2) は draft=false / prerelease=true。MSI `microProject-0.0.24.2.msi`、portable `microProject-0.0.24.2-app-image.zip`、本版release notes、`SHA256SUMS` の4 assetsを公開済み。公開後も stable latest は `v0.0.23.1219`。ベータ1assetと無人update feedは変更していない。
+
+
+## 次版ソースの独立化進捗（2026-10-10）
+
+ベータ2公開後、旧ログイン・サーバープロジェクト一覧・ID指定起動を削除し、Open/Insertを既存ローカルファイル経路へ統合した。coreのUndoイベント通知も製品所有の契約へ移行。coreの編集型・履歴・ツリーモデルのSwing依存は継続課題。[境界と検証記録](architecture/desktop-mode-boundary.md)を参照。この変更は次版ソースに反映し、公開済みベータ2のタグ・assetは変更しない。

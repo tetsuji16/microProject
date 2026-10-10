@@ -83,8 +83,8 @@ public class Main {
 //			} catch (Exception e) {
 //			}
 //		}
-		ApplicationStartupFactory startupFactory=new ApplicationStartupFactory(opts); //put before to initialize standalone flag
-		Frame frame = MainFrameFactory.creareMainFrame(Messages.getContextString("Text.ApplicationTitle"), null, null);
+		ApplicationStartupFactory startupFactory=new ApplicationStartupFactory(opts);
+		Frame frame = MainFrameFactory.creareMainFrame(Messages.getContextString("Text.ApplicationTitle"), null);
 		boolean doWelcome = true; // to do see if project param exists in args
 		startupFactory.instanceFromNewSession(frame,doWelcome);
 	}

@@ -33,7 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import javax.swing.undo.UndoableEditSupport;
+import com.microproject.undo.EditSupport;
 
 import com.microproject.association.AssociationList;
 import com.microproject.configuration.Settings;
@@ -365,7 +365,7 @@ public class AssignmentService {
 	public boolean connect(Assignment assignment, Object eventSource,boolean undo) {
 		if (!connect(assignment,eventSource,new NodeUndoInfo(undo)))
 			return false;
-//		UndoableEditSupport undoableEditSupport=getUndoableEditSupport(assignment);
+//		EditSupport undoableEditSupport=getEditSupport(assignment);
 //		if (undoableEditSupport!=null&&undo){
 //			undoableEditSupport.postEdit(new AssignmentCreationEdit(assignment,eventSource));
 //		}
@@ -438,7 +438,7 @@ public class AssignmentService {
 	
 	
 	//undo
-	public UndoableEditSupport getUndoableEditSupport(Assignment assignment) {
+	public EditSupport getEditSupport(Assignment assignment) {
 		if (assignment.getTask()==null) return null;
 		else return assignment.getTask().getProject().getUndoController().getEditSupport();
 	}

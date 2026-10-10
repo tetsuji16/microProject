@@ -31,7 +31,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 import javax.swing.tree.TreeModel;
-import javax.swing.undo.UndoableEditSupport;
+import com.microproject.undo.EditSupport;
 
 import com.microproject.field.Field;
 import com.microproject.field.FieldContext;
@@ -115,7 +115,7 @@ public interface NodeModel extends TreeModel, WalkersNodeModel{
 
 	public void setUndoController(UndoController undoController);
 	public UndoController getUndoController();
-	public UndoableEditSupport getUndoableEditSupport();
+	public EditSupport getUndoableEditSupport();
 
 	public boolean isLocal();
 	public void setLocal(boolean local);

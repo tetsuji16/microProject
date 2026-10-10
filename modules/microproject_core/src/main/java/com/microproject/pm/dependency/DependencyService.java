@@ -31,7 +31,7 @@ import java.util.Collection;
 import java.util.List;
 
 import javax.swing.undo.UndoableEdit;
-import javax.swing.undo.UndoableEditSupport;
+import com.microproject.undo.EditSupport;
 
 import com.microproject.association.InvalidAssociationException;
 import com.microproject.pm.task.SubProj;
@@ -130,7 +130,7 @@ public class DependencyService {
 		}
 		dependency.setDirty(true);
 
-		UndoableEditSupport undoableEditSupport=getUndoableEditSupport(dependency);
+		EditSupport undoableEditSupport=getEditSupport(dependency);
 		if (undoableEditSupport!=null&&eventSource!=null&&!(eventSource instanceof UndoableEdit)){
 			undoableEditSupport.postEdit(new DependencyCreationEdit(dependency,eventSource));
 		}
@@ -154,7 +154,7 @@ public class DependencyService {
 		if (eventSource != null)
 			dependency.fireDeleteEvent(eventSource);
 
-		UndoableEditSupport undoableEditSupport=getUndoableEditSupport(dependency);
+		EditSupport undoableEditSupport=getEditSupport(dependency);
 		if (undo && undoableEditSupport!=null&&!(eventSource instanceof UndoableEdit)){
 			undoableEditSupport.postEdit(new DependencyDeletionEdit(dependency,eventSource));
 		}
@@ -181,7 +181,7 @@ public class DependencyService {
 		}
 		dependency.setDirty(true);
 
-		UndoableEditSupport undoableEditSupport=getUndoableEditSupport(dependency);
+		EditSupport undoableEditSupport=getEditSupport(dependency);
 		if (undoableEditSupport!=null&&!(eventSource instanceof UndoableEdit)){
 			undoableEditSupport.postEdit(new DependencySetFieldsEdit(dependency,oldLag,oldType,eventSource));
 		}
@@ -319,7 +319,7 @@ public class DependencyService {
 
 
 	//undo
-	public UndoableEditSupport getUndoableEditSupport(Dependency dependency) {
+	public EditSupport getEditSupport(Dependency dependency) {
 		if (dependency.getPredecessor()==null)
 			return null;
 		else {

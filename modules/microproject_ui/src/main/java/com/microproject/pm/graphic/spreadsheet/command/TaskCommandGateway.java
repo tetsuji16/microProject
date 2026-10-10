@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.BooleanSupplier;
 
-import javax.swing.undo.UndoableEditSupport;
+import com.microproject.undo.EditSupport;
 
 import com.microproject.pm.graphic.collaboration.CollaborationHelper;
 import com.microproject.grouping.core.Node;
@@ -295,7 +295,7 @@ public final class TaskCommandGateway {
 		int before = dependencyCount(tasks);
 		int anticipatedEdits = intent.operation() == TaskDependencyIntent.Operation.LINK
 			? adjacentLinksToCreate(tasks) : intent.dependency() == null ? before : 1;
-		UndoableEditSupport undoSupport = beginCompoundUndo(project, anticipatedEdits);
+		EditSupport undoSupport = beginCompoundUndo(project, anticipatedEdits);
 		try {
 			if (intent.operation() == TaskDependencyIntent.Operation.LINK) {
 				service.connect(tasks, eventSource, null);
@@ -332,10 +332,10 @@ public final class TaskCommandGateway {
 		return count;
 	}
 
-	private static UndoableEditSupport beginCompoundUndo(Project project, int editCount) {
+	private static EditSupport beginCompoundUndo(Project project, int editCount) {
 		if (editCount <= 1 || project.getUndoController() == null)
 			return null;
-		UndoableEditSupport undoSupport = project.getUndoController().getEditSupport();
+		EditSupport undoSupport = project.getUndoController().getEditSupport();
 		if (undoSupport != null)
 			undoSupport.beginUpdate();
 		return undoSupport;

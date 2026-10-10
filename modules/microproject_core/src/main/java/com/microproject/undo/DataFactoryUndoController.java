@@ -24,7 +24,7 @@
  *******************************************************************************/
 package com.microproject.undo;
 
-import javax.swing.event.UndoableEditEvent;
+import javax.swing.undo.UndoableEdit;
 
 import com.microproject.grouping.core.model.NodeModelDataFactory;
 
@@ -41,8 +41,8 @@ public class DataFactoryUndoController extends UndoController {
 		this.dataFactory=dataFactory;
 	}
 	
-	public void undoableEditHappened(UndoableEditEvent e){
-		super.undoableEditHappened(e);
+	public void editPosted(UndoableEdit edit){
+		super.editPosted(edit);
 		dataFactory.setGroupDirty(true);
 	}
 	public NodeModelDataFactory getDataFactory() {

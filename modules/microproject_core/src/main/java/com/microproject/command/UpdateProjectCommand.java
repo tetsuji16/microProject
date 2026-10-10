@@ -32,7 +32,7 @@ import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import javax.swing.undo.AbstractUndoableEdit;
-import javax.swing.undo.UndoableEditSupport;
+import com.microproject.undo.EditSupport;
 import com.microproject.strings.Messages;
 import com.microproject.util.DateTime;
 
@@ -60,7 +60,7 @@ public class UpdateProjectCommand extends Command {
 	}
 
 	/** Applies one Update Project transaction and posts exactly one undoable edit. */
-	public List<Long> execute(List<? extends Task> targets, UndoableEditSupport edits) {
+	public List<Long> execute(List<? extends Task> targets, EditSupport edits) {
 		Map<Task, TaskState> before = backupProjectTasks();
 		affectedTaskIds.clear();
 		for (Task task : targets) accept(task);

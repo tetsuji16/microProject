@@ -34,7 +34,7 @@ import javax.swing.InputVerifier;
 import javax.swing.JComponent;
 import javax.swing.JSpinner;
 import javax.swing.JTextField;
-import javax.swing.undo.UndoableEditSupport;
+import com.microproject.undo.EditSupport;
 
 import com.microproject.dialog.FieldDialog;
 import com.microproject.field.Field;
@@ -61,12 +61,12 @@ public class FieldVerifier extends InputVerifier {
 	protected Exception exception = null;
 	protected boolean updating = false;
 	boolean testing = false;
-//	private UndoableEditSupport undoableEditSupport;
+//	private EditSupport undoableEditSupport;
 	/**
 	 * @param value the value that should be compared against the current field state
 	 * 
 	 */
-	public FieldVerifier(Field field, ObjectRef objectRef, Object value/*,UndoableEditSupport undoableEditSupport*/) {
+	public FieldVerifier(Field field, ObjectRef objectRef, Object value/*,EditSupport undoableEditSupport*/) {
 		super();
 		this.field = field;
 		this.objectRef = objectRef;
@@ -167,7 +167,7 @@ public class FieldVerifier extends InputVerifier {
 						field.setText(objectRef,""+newValue,context);
 					else		
 						field.setValue(objectRef,source,newValue,context);
-					UndoableEditSupport undoableEditSupport=objectRef.getDataFactory().getUndoController().getEditSupport();
+					EditSupport undoableEditSupport=objectRef.getDataFactory().getUndoController().getEditSupport();
 					if (undoableEditSupport!=null){
 						undoableEditSupport.postEdit(new FieldEdit(field,objectRef,value,oldValue,this,context));
 					}

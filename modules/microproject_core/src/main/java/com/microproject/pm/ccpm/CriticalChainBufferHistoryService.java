@@ -11,7 +11,7 @@ import java.util.UUID;
 import java.util.logging.Logger;
 
 import javax.swing.undo.AbstractUndoableEdit;
-import javax.swing.undo.UndoableEditSupport;
+import com.microproject.undo.EditSupport;
 
 import com.microproject.pm.task.Project;
 
@@ -54,7 +54,7 @@ public final class CriticalChainBufferHistoryService {
 	}
 
 	private static void postUndo(Project project, HistoryState before, HistoryState after) {
-		UndoableEditSupport edits = project.getUndoController().getEditSupport();
+		EditSupport edits = project.getUndoController().getEditSupport();
 		if (edits == null) return;
 		edits.postEdit(new AbstractUndoableEdit() {
 			private static final long serialVersionUID = 1L;

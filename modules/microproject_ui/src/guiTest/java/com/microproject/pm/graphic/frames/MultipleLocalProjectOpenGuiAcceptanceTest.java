@@ -88,7 +88,7 @@ class MultipleLocalProjectOpenGuiAcceptanceTest {
 		writeProject(firstFile, "Multiple Open Alpha");
 		writeProject(secondFile, "Multiple Open Beta");
 		SwingUtilities.invokeAndWait(() -> {
-			window = new MainRibbonFrame("microProject — Multiple local project Open GUI acceptance", null, null);
+			window = new MainRibbonFrame("microProject — Multiple local project Open GUI acceptance", null);
 			manager = new GraphicManager(window);
 			window.setGraphicManager(manager);
 			manager.initView();
@@ -138,7 +138,7 @@ class MultipleLocalProjectOpenGuiAcceptanceTest {
 		writeProject(secondFile, "Command line Beta");
 
 		SwingUtilities.invokeAndWait(() -> {
-			window = new MainRibbonFrame("microProject — command-line project Open GUI acceptance", null, null);
+			window = new MainRibbonFrame("microProject — command-line project Open GUI acceptance", null);
 			manager = new GraphicManager(window);
 			window.setGraphicManager(manager);
 			manager.initView();
@@ -149,7 +149,7 @@ class MultipleLocalProjectOpenGuiAcceptanceTest {
 			window.setVisible(true);
 			ApplicationStartupFactory startup = new ApplicationStartupFactory(new String[] {
 				"--fileNames", firstFile.toString(), secondFile.toString() });
-			startup.doStartupAction(manager, 0L, startup.projectUrls, false, false);
+			startup.doStartupAction(manager, startup.projectUrls, false);
 		});
 		FrameManager frames = manager.getFrameManager();
 		GuiAcceptanceSupport.await(() -> frames.getAllFrames().size() == 2,
@@ -182,7 +182,7 @@ class MultipleLocalProjectOpenGuiAcceptanceTest {
 		new RecentProjectStore().recordOpened(secondFile.toString());
 
 		SwingUtilities.invokeAndWait(() -> {
-			window = new MainRibbonFrame("microProject — Recent project GUI acceptance", null, null);
+			window = new MainRibbonFrame("microProject — Recent project GUI acceptance", null);
 			manager = new GraphicManager(window);
 			window.setGraphicManager(manager);
 			manager.initView();
@@ -262,7 +262,7 @@ class MultipleLocalProjectOpenGuiAcceptanceTest {
 		boolean[] accepted = new boolean[1];
 
 		SwingUtilities.invokeAndWait(() -> {
-			window = new MainRibbonFrame("microProject — file-drop project Open GUI acceptance", null, null);
+			window = new MainRibbonFrame("microProject — file-drop project Open GUI acceptance", null);
 			manager = new GraphicManager(window);
 			window.setGraphicManager(manager);
 			manager.initView();

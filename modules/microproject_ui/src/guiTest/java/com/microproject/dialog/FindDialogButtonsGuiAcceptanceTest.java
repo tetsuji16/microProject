@@ -61,7 +61,7 @@ class FindDialogButtonsGuiAcceptanceTest {
 			@Override public List<Field> getAvailableFields() { return List.of(nameField); }
 		};
 		SwingUtilities.invokeAndWait(() -> {
-			owner = new MainRibbonFrame("Find dialog button acceptance", null, null);
+			owner = new MainRibbonFrame("Find dialog button acceptance", null);
 			manager = new GraphicManager(owner);
 			owner.setGraphicManager(manager);
 			owner.setSize(900, 600);

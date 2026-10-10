@@ -30,11 +30,8 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 
-import javax.swing.event.UndoableEditEvent;
-import javax.swing.event.UndoableEditListener;
 import javax.swing.undo.UndoManager;
 import javax.swing.undo.UndoableEdit;
-import javax.swing.undo.UndoableEditSupport;
 
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.model.NodeModel;
@@ -43,18 +40,17 @@ import com.microproject.util.Environment;
 /**
  *
  */
-public class UndoController extends UndoManager implements UndoableEditListener{
+public class UndoController extends UndoManager implements EditListener{
 
-	protected transient UndoableEditSupport editSupport;
+	protected transient EditSupport editSupport;
 	/**
 	 *
 	 */
 	public UndoController() {
-		editSupport=new UndoableEditSupport();
-		editSupport.addUndoableEditListener(this);
+		editSupport=new EditSupport();
+		editSupport.addEditListener(this);
 	}
-	public void undoableEditHappened(UndoableEditEvent e){
-		UndoableEdit edit=e.getEdit();
+	public void editPosted(UndoableEdit edit){
 		super.addEdit(edit);
 	}
 
@@ -63,7 +59,7 @@ public class UndoController extends UndoManager implements UndoableEditListener{
 		nodeMapping.clear();
 	}
 
-	public UndoableEditSupport getEditSupport() {
+	public EditSupport getEditSupport() {
 		return editSupport;
 	}
 

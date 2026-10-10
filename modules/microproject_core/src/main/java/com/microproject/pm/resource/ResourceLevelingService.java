@@ -37,7 +37,7 @@ import java.util.Objects;
 import java.util.Set;
 
 import javax.swing.undo.AbstractUndoableEdit;
-import javax.swing.undo.UndoableEditSupport;
+import com.microproject.undo.EditSupport;
 
 import com.microproject.datatype.Duration;
 import com.microproject.pm.assignment.Assignment;
@@ -117,7 +117,7 @@ public final class ResourceLevelingService {
 			applyChanges(true);
 		}
 
-		public void apply(UndoableEditSupport editSupport) {
+		public void apply(EditSupport editSupport) {
 			applyChanges(true);
 			if (editSupport != null && !changes.isEmpty()) {
 				editSupport.postEdit(new AbstractUndoableEdit() {
@@ -252,7 +252,7 @@ public final class ResourceLevelingService {
 		clear(project, null);
 	}
 
-	public void clear(Project project, UndoableEditSupport editSupport) {
+	public void clear(Project project, EditSupport editSupport) {
 		List<Change> changes = new ArrayList<>(project.getTaskList().size());
 		// The outline iterator omits detached/unparented tasks while a project is
 		// being edited.  Leveling applies to every schedulable task, so clear must

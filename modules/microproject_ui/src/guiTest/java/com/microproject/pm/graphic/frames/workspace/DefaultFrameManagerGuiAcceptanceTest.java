@@ -63,7 +63,7 @@ class DefaultFrameManagerGuiAcceptanceTest {
 		DocumentFrame[] frames = new DocumentFrame[2];
 		DesktopWindowGraphicManager[] graphicManagers = new DesktopWindowGraphicManager[1];
 		SwingUtilities.invokeAndWait(() -> {
-			MainRibbonFrame mainWindow = new MainRibbonFrame("Multiple-project desktop acceptance", null, null);
+			MainRibbonFrame mainWindow = new MainRibbonFrame("Multiple-project desktop acceptance", null);
 			window = mainWindow;
 			DesktopWindowGraphicManager graphicManager = new DesktopWindowGraphicManager(mainWindow);
 			graphicManagers[0] = graphicManager;

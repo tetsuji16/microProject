@@ -108,7 +108,7 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 		calendar.setName("Calendar import chooser acceptance");
 		project.setWorkCalendar(calendar);
 		SwingUtilities.invokeAndWait(() -> {
-			frame = new MainRibbonFrame("Calendar import chooser acceptance", null, null);
+			frame = new MainRibbonFrame("Calendar import chooser acceptance", null);
 			frame.setSize(1000, 650);
 			GraphicManager manager = new GraphicManager(frame);
 			((MainRibbonFrame) frame).setGraphicManager(manager);
@@ -213,7 +213,7 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 		calendar.setName("Visual Exception Calendar");
 		project.setWorkCalendar(calendar);
 		SwingUtilities.invokeAndWait(() -> {
-			frame = new MainRibbonFrame("Working time GUI acceptance", null, null);
+			frame = new MainRibbonFrame("Working time GUI acceptance", null);
 			frame.setPreferredSize(new Dimension(1000, 650));
 			GraphicManager manager = new GraphicManager(frame);
 			((MainRibbonFrame) frame).setGraphicManager(manager);
@@ -339,7 +339,7 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 		calendar.setName("GUI Work Week Calendar");
 		project.setWorkCalendar(calendar);
 		SwingUtilities.invokeAndWait(() -> {
-			frame = new MainRibbonFrame("Work week editor acceptance", null, null);
+			frame = new MainRibbonFrame("Work week editor acceptance", null);
 			GraphicManager manager = new GraphicManager(frame);
 			((MainRibbonFrame) frame).setGraphicManager(manager);
 			manager.initView();
@@ -444,7 +444,7 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 		calendar.setName("GUI Resource Exception Calendar");
 		resource.setWorkCalendar(calendar);
 		SwingUtilities.invokeAndWait(() -> {
-			frame = new MainRibbonFrame("Calendar exception acceptance", null, null);
+			frame = new MainRibbonFrame("Calendar exception acceptance", null);
 			GraphicManager manager = new GraphicManager(frame);
 			((MainRibbonFrame) frame).setGraphicManager(manager);
 			manager.initView();

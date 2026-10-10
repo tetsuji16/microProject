@@ -18,7 +18,7 @@ import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.grouping.core.Node;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
-import javax.swing.undo.UndoableEditSupport;
+import com.microproject.undo.EditSupport;
 import javax.swing.undo.UndoManager;
 
 class UpdateProjectRequestTest {
@@ -41,9 +41,9 @@ class UpdateProjectRequestTest {
 		long originalStatusDate = project.getStatusDate();
 		UpdateProjectCommand command = new UpdateProjectCommand(project, request);
 		assertSame(project, command.getDocument());
-		UndoableEditSupport editSupport = new UndoableEditSupport();
+		EditSupport editSupport = new EditSupport();
 		UndoManager undoManager = new UndoManager();
-		editSupport.addUndoableEditListener(undoManager);
+		editSupport.addEditListener(undoManager::addEdit);
 		command.execute(java.util.List.of(task), editSupport);
 		assertTrue(command.affectedTaskIds().contains(task.getUniqueId()));
 		assertEquals(originalStatusDate, project.getStatusDate(), "the command date must not overwrite Status Date");
@@ -71,9 +71,9 @@ class UpdateProjectRequestTest {
 		long updateDate = successor.getEnd() + 2L * 86_400_000L;
 		UpdateProjectCommand selected = new UpdateProjectCommand(project,
 			new UpdateProjectRequest(updateDate, true, false, false));
-		UndoableEditSupport edits = new UndoableEditSupport();
+		EditSupport edits = new EditSupport();
 		UndoManager manager = new UndoManager();
-		edits.addUndoableEditListener(manager);
+		edits.addEditListener(manager::addEdit);
 
 		selected.execute(java.util.List.of(predecessor), edits);
 		assertEquals(java.util.List.of(predecessor.getUniqueId()), selected.affectedTaskIds(),

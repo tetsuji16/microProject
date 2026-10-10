@@ -65,7 +65,7 @@ import javax.swing.JTabbedPane;
 import javax.swing.JTextField;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
-import javax.swing.undo.UndoableEditSupport;
+import com.microproject.undo.EditSupport;
 import javax.swing.undo.CompoundEdit;
 
 import com.jgoodies.forms.builder.DefaultFormBuilder;
@@ -451,7 +451,7 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 			service.saveAndUpdate(original);
 		}
 		transaction.end();
-		UndoableEditSupport editSupport = undoController == null ? null : undoController.getEditSupport();
+		EditSupport editSupport = undoController == null ? null : undoController.getEditSupport();
 		if (editSupport != null) editSupport.postEdit(transaction);
 		stagedCalendars.clear();
 		committed = true;

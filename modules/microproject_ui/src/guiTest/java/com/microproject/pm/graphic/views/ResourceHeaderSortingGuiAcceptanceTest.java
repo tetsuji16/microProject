@@ -78,7 +78,7 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 		List<Resource> originalOrder = new ArrayList<>(pool.getResourceList());
 
 		SwingUtilities.invokeAndWait(() -> {
-			window = new MainRibbonFrame("resource-header-sort", null, null);
+			window = new MainRibbonFrame("resource-header-sort", null);
 			manager = new GraphicManager(window);
 			window.setGraphicManager(manager);
 			manager.initView();

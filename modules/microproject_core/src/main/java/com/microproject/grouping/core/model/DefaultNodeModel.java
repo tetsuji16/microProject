@@ -42,7 +42,7 @@ import javax.swing.event.TreeModelListener;
 import javax.swing.tree.TreePath;
 import javax.swing.tree.TreeNode;
 import javax.swing.undo.UndoableEdit;
-import javax.swing.undo.UndoableEditSupport;
+import com.microproject.undo.EditSupport;
 
 import com.microproject.association.Association;
 import com.microproject.association.AssociationList;
@@ -1043,7 +1043,7 @@ public class DefaultNodeModel implements NodeModel {
 		this.undoController = undoController;
 	}
 
-	public UndoableEditSupport getUndoableEditSupport() {
+	public EditSupport getUndoableEditSupport() {
 		if (undoController==null) return null;
 		return undoController.getEditSupport();
 	}

@@ -458,7 +458,7 @@ class MasterSubprojectMpoGuiAcceptanceTest {
 		Alert.setPresenter(new SwingAlertPresenter());
 		UiDispatch.setDispatcher(new SwingUiDispatcher());
 		SwingUtilities.invokeAndWait(() -> {
-			applicationWindow = new MainRibbonFrame("microProject — MPO Master/Sub-project GUI acceptance", null, null);
+			applicationWindow = new MainRibbonFrame("microProject — MPO Master/Sub-project GUI acceptance", null);
 			RuntimeGraphicManager manager = new RuntimeGraphicManager(applicationWindow);
 			graphicManager = manager;
 			applicationWindow.setGraphicManager(manager);

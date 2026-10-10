@@ -468,7 +468,7 @@ tasks.register("verifyNamingConventions") {
                 retiredTypoReferences.joinToString("\n")
         }
 
-        val retiredProductApis = listOf("ProjectLibreShell", "ProjectLibrePrintServiceImpl", "isProjectLibreFile", "PROJECTLIBRE_FILE_TYPE")
+        val retiredProductApis = listOf("ProjectLibreShell", "ProjectLibrePrintServiceImpl", "isProjectLibreFile", "PROJECTLIBRE_FILE_TYPE", "LoginDialog", "OpenProjectDialog")
         val retiredApiReferences = expectedModules.flatMap { module ->
             fileTree("modules/$module/src").matching { include("**/*.java", "**/*.kt") }.files
                 .filter { source ->

@@ -24,7 +24,7 @@
 package com.microproject.pm.graphic.undo;
 
 import javax.swing.undo.AbstractUndoableEdit;
-import javax.swing.undo.UndoableEditSupport;
+import com.microproject.undo.EditSupport;
 
 import com.microproject.pm.task.ReversibleModelChange;
 
@@ -33,11 +33,11 @@ public final class SwingUndoAdapter {
 	private SwingUndoAdapter() {
 	}
 
-	public static void post(UndoableEditSupport edits, ReversibleModelChange change) {
+	public static void post(EditSupport edits, ReversibleModelChange change) {
 		post(edits, change, null);
 	}
 
-	public static void post(UndoableEditSupport edits, ReversibleModelChange change, String presentationName) {
+	public static void post(EditSupport edits, ReversibleModelChange change, String presentationName) {
 		if (edits == null || change == null || !change.hasChanged())
 			return;
 		edits.postEdit(new AbstractUndoableEdit() {
