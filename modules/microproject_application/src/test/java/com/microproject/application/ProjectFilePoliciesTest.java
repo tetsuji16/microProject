@@ -52,12 +52,11 @@ class ProjectFilePoliciesTest {
 	}
 
 	@Test
-	void resolvesMicrosoftImporterForNonProjectLibreFiles() {
+	void resolvesMicrosoftImporterForExternalFiles() {
 		assertEquals(LocalSession.MICROSOFT_PROJECT_IMPORTER, ProjectFilePolicies.resolveLoadImporter("plan.mpp", true));
 		assertEquals(LocalSession.MICROSOFT_PROJECT_IMPORTER, ProjectFilePolicies.resolveLoadImporter("plan.mpp", false));
 		assertFalse(ProjectFilePolicies.isPodFile("plan.mpp"));
 		assertTrue(ProjectFilePolicies.isPodFile("plan.pod"));
-		assertTrue(ProjectFilePolicies.isProjectLibreFile("plan.pod"));
 		assertEquals(LocalSession.MPO_PROJECT_IMPORTER, ProjectFilePolicies.resolveSaveImporter("plan.mpo"));
 	}
 

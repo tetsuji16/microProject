@@ -52,7 +52,7 @@ import com.microproject.menu.MenuActionMapSupport;
 import com.microproject.menu.MenuManager;
 import com.microproject.ui.ribbon.RibbonDisplayPreferences;
 
-class ProjectLibreShellTest {
+class MicroProjectShellTest {
 	@BeforeAll
 	static void installMicroProjectTheme() {
 		MicroProjectTheme.installLight();
@@ -66,7 +66,7 @@ class ProjectLibreShellTest {
 		JPanel bottom = new JPanel();
 		Color background = new Color(0xF3F2F1);
 
-		ProjectLibreShell.attachNewLookChrome(container, toolBar, tabs, bottom, background);
+		MicroProjectShell.attachNewLookChrome(container, toolBar, tabs, bottom, background);
 
 		assertEquals(background, container.getBackground());
 		assertSame(bottom, ((BorderLayout) container.getLayout()).getLayoutComponent(BorderLayout.AFTER_LAST_LINE));

@@ -311,7 +311,7 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> {
 			MainRibbonFrame next = new MainRibbonFrame(title, "", "");
 			persistedFrame = next;
-			ProjectLibreShell.installRibbonShell(next, manager, () -> { });
+			MicroProjectShell.installRibbonShell(next, manager, () -> { });
 			next.getContentPane().add(new JPanel(), java.awt.BorderLayout.CENTER);
 			next.setSize(1200, 500);
 			next.setLocationByPlatform(true);

@@ -468,6 +468,19 @@ tasks.register("verifyNamingConventions") {
                 retiredTypoReferences.joinToString("\n")
         }
 
+        val retiredProductApis = listOf("ProjectLibreShell", "isProjectLibreFile", "PROJECTLIBRE_FILE_TYPE")
+        val retiredApiReferences = expectedModules.flatMap { module ->
+            fileTree("modules/$module/src").matching { include("**/*.java", "**/*.kt") }.files
+                .filter { source ->
+                    val text = source.readText()
+                    retiredProductApis.any { text.contains(it) }
+                }
+        }
+        require(retiredApiReferences.isEmpty()) {
+            "Retired product APIs must not return; use MicroProjectShell, isPodFile and POD_FILE_TYPE:\n" +
+                retiredApiReferences.joinToString("\n")
+        }
+
         // Package declarations are the source-namespace boundary. Legacy
         // ProjectLibre, the retired micrproject typo, and casing-variant
         // microProject declarations
