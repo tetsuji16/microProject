@@ -24,22 +24,11 @@
  *******************************************************************************/
 package com.microproject.print;
 
-import java.util.logging.Level;
-import java.util.logging.Logger;
+/** Owns the desktop print implementation without core metadata or reflection. */
+public final class ExtendedPrintServiceFactory {
+	private ExtendedPrintServiceFactory() { }
 
-import com.microproject.strings.Messages;
-
-public class ExtendedPrintServiceFactory {
-	private static final Logger logger = Logger.getLogger(ExtendedPrintServiceFactory.class.getName());
-	public static ExtendedPrintService getExtendedPrintService(){
-		try {
-			String className = Messages.getMetaString("ExtendedPrintService");
-			return Class.forName(className).asSubclass(ExtendedPrintService.class)
-				.getDeclaredConstructor().newInstance();
-		} catch (Exception e) {
-			logger.log(Level.WARNING, "Failed to create extended print service", e);
-			return null;
-		}
+	public static ExtendedPrintService getExtendedPrintService() {
+		return new MicroProjectPrintService();
 	}
 }
-

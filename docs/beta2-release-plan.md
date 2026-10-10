@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | P0 | [#774](https://github.com/tetsuji16/ProjectLibre/issues/774) | 独自 shell 名、POD API、設定、recovery 所有ディレクトリを移行。通常 Open / MPP / MPO / POD は維持。下記の棚卸しを実施 |
 | P0 | [#595](https://github.com/tetsuji16/ProjectLibre/issues/595) | 触る責務だけ整理。内部 API の旧版互換ブリッジを削除し、再導入を naming gate で防止 |
-| P1 | [#737](https://github.com/tetsuji16/ProjectLibre/issues/737)、[#738](https://github.com/tetsuji16/ProjectLibre/issues/738)、[#740](https://github.com/tetsuji16/ProjectLibre/issues/740) | 次段階: core の Swing/Undo/Project 表示設定を port に分離し application へ調整を集約。POD の serialized fields を動かす大規模変更は beta.2 に混ぜない |
+| P1 | [#737](https://github.com/tetsuji16/ProjectLibre/issues/737)、[#738](https://github.com/tetsuji16/ProjectLibre/issues/738)、[#740](https://github.com/tetsuji16/ProjectLibre/issues/740) | core metadata の UI 印刷クラス指定を除去、local session を型付き生成へ統合。次段階は Swing/Undo/Project 表示設定の port 分離と application への調整集約。POD の serialized fields を動かす大規模変更は beta.2 に混ぜない |
 | P1 | [#729](https://github.com/tetsuji16/ProjectLibre/issues/729)、[#773](https://github.com/tetsuji16/ProjectLibre/issues/773) | 既存統合を再実装しない。追加は設定優先順位と recovery 継続の境界だけ。全 suite を削減したとは扱わない |
 | P2 | #770 / #765 / #453 | リボン機能拡張と外観完全互換は独立課題。依存脱却より先にしない |
 
@@ -21,7 +21,8 @@ beta.2 は独立化の最初の出荷単位。コード起源の完全除去、c
 3. 設定は `.microproject/microproject.conf` / `microProject/microproject.conf` を優先。旧配置は読取のみの fallback。空の新ディレクトリが旧 `run.conf` を隠さない。
 4. 新規 recovery は `%LOCALAPPDATA%/microProject/recovery` (その他 OS: `~/.microproject/recovery`) を使用。旧 recovery metadata が残る間は旧 store 全体を使い、消去済みの次回起動から新配置へ移行。無断移動・上書きはしない。
 5. 全 module tests、architecture/naming、再生成 installDist、限定 runtime の MPP/POD 読込を実行。Windows release は clean build、GUI smoke、MSI/ZIP、配布EXE実起動、hash の各 gate がすべて成功してから公開する。
-6. `v0.0.24-beta.2` / jpackage `0.0.24.2` / channel `beta`。stable latest と無人update feed は更新しない。出荷済み beta.1 asset は変更しない。
+6. session は `LocalSession` を直接構築し、core の `SessionImpls` / `Session.local` メタ登録を削除。model scope flag の true/false は同じ local backend に解決する現行契約を保持。初回アクセスを同期して別々の ID allocator 生成を防止。印刷実装は UI が `MicroProjectPrintService` を直接構築し、core にある UI クラス名・reflection を削除。
+7. `v0.0.24-beta.2` / jpackage `0.0.24.2` / channel `beta`。stable latest と無人update feed は更新しない。出荷済み beta.1 asset は変更しない。
 
 ## #774 候補の調査結果
 
@@ -35,6 +36,8 @@ beta.2 は独立化の最初の出荷単位。コード起源の完全除去、c
 | `CollaborationMetadataStore` suffix | active lease / process lock path。MPO artifact lifecycle が参照。名前だけ変えると二重lockになる | 保持。lock移行protocolと同時に別出荷単位で変更 |
 | `ServerFileImporter`, `ServerLocalFileImporter` | `MicrosoftImporter` も前者を継承。後者は provider 登録と POD 非local load policy の caller あり | 未使用とは判定できず維持。型名だけで削除しない |
 | `OpenProjectDialog`, `LoginDialog` | `GraphicManager` の非local Open/Insert と `StartupFactory` の非standalone login が参照。meta session 登録は local のみだが条件分岐が残る | caller と動的構成の整理が必要。通常Openとは別の次段階対象 |
+| `SessionFactory` / `SessionImpls` | active meta 登録は LocalSession のみ。server scope は既に同じ local へfallback。session registry はserializedではない | 型付き生成へ統合、resetとqueue継承を保持、共有sessionの競合を同期 |
+| `ExtendedPrintServiceFactory` / core meta | UIだけが使う印刷実装のクラス名をcore metadataが指定。POD descriptorではない | UIへ構築責務を移しreflectionとcore側指定を削除 |
 | `SafeObjectInput`, provider class-name aliases | 既存 POD descriptor / saved options の互換境界 | 保持。POD wire不変、MPO旧版読込維持 |
 | copyright / provenance / repository URL | 起源・ライセンス根拠。実行時依存ではない | 保持。改名で法的整理済みとは扱わない |
 
@@ -54,3 +57,12 @@ JDK 25 / `releaseVersion=0.0.24.2` / `releaseChannel=beta`。
 ## GitHub 反映状況
 
 2026-10-10、ユーザーから commit / push / PR / merge の許可を取得。レビュー用ブランチ `beta2/product-independence` から検証後に統合する。#774 / #595 / #737 / #740 の親Issueは部分実施として維持する。
+
+
+## 追加検討と検証（2026-10-10）
+
+独立化をAPI名の整理だけで終わらせず、旧 session のクラス名登録と core metadata からUI印刷クラスを構築する責務を取り除いた。SessionFactory の同時初回取得、queue 差替え、clear後の再生成を3つの境界テストで確認する。印刷は既存の比率計算テストを直接生成ではなく factory 経由にして構築経路も検証する。POD/MPO のフィールド・descriptor・schema は変更していない。
+
+追加後の `clean build installDist verifyArchitectureBoundaries verifyPackagedFileImports` (`releaseVersion=0.0.24.2`, `releaseChannel=beta`) は成功。全8 module 2,224件、失敗0・error0、Windows専用1件skip。MPP/POD 各145 tasks。旧名テストclassの残存によるincremental test失敗をcleanで除去し、古い結果を出荷根拠に使わない。
+
+初期commit `4a3d487a06d9f4ebcc01451eefb281b70ed84374` は [PR #775](https://github.com/tetsuji16/ProjectLibre/pull/775) に反映済み。Windows GUI smoke は [run 38017108250](https://github.com/tetsuji16/ProjectLibre/actions/runs/38017108250) が成功。追加commitは同PRで再検証してから統合する。
