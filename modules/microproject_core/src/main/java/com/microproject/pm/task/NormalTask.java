@@ -491,9 +491,11 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		if (!assignment.isDefault()) {
 			// get rid of any default
 			if (defaultAssignment != null ) { //Remove any default assignment
- 				assignment.usePropertiesOf(defaultAssignment); // the new assignment must take on properties of the default assignment
+				if (assignment.isInitialized())
+					assignment.usePropertiesOf(defaultAssignment); // interactive replacement inherits task properties
 				AssignmentService.getInstance().remove(defaultAssignment, null,true);
-			} else {
+			} else if (assignment.isInitialized()) {
+				// Imported assignments already carry their saved work and dates.
 				// if the task is started already, then only apply to remaining duration.  This means added delay to new assignment
 				if (getActualStart() != 0L)
 					assignment.setDelay(Duration.millis(getActualDuration()));

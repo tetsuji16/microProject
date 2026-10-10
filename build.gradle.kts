@@ -545,6 +545,7 @@ val windowsRuntimeModules = listOf(
     "java.datatransfer",
     "java.desktop",
     "java.logging",
+    "java.management",
     "java.naming",
     "java.prefs",
     "java.scripting",

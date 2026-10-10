@@ -62,6 +62,68 @@ import net.sf.mpxj.TaskMode;
 
 class MpxExportTrackingTest {
 	@Test
+	void historicalAssignmentImportUsesTheTaskStartAsItsOffsetOrigin() throws Exception {
+		ProjectFile source = new ProjectFile();
+		source.addDefaultBaseCalendar();
+		java.util.Date start = java.util.Date.from(java.time.Instant.parse("2000-01-03T08:00:00Z"));
+		java.util.Date finish = java.util.Date.from(java.time.Instant.parse("2000-01-04T17:00:00Z"));
+		source.getProjectProperties().setStartDate(start);
+		net.sf.mpxj.Task task = source.addTask();
+		task.setName("Historical assignment");
+		task.setUniqueID(1);
+		task.setStart(start);
+		task.setFinish(finish);
+		task.setDuration(net.sf.mpxj.Duration.getInstance(2, net.sf.mpxj.TimeUnit.DAYS));
+		net.sf.mpxj.Resource resource = source.addResource();
+		resource.setName("Worker");
+		resource.setUniqueID(1);
+		ResourceAssignment assignment = task.addResourceAssignment(resource);
+		assignment.setUnits(100d);
+		assignment.setStart(start);
+		assignment.setFinish(finish);
+		assignment.setWork(net.sf.mpxj.Duration.getInstance(16, net.sf.mpxj.TimeUnit.HOURS));
+		assignment.setRemainingWork(net.sf.mpxj.Duration.getInstance(16, net.sf.mpxj.TimeUnit.HOURS));
+		ByteArrayOutputStream xml = new ByteArrayOutputStream();
+		new net.sf.mpxj.mspdi.MSPDIWriter().write(source, xml);
+
+		Project imported = new com.microproject.core.pm.exchange.MspImporter().importProject(
+			new ByteArrayInputStream(xml.toByteArray()), "xml", (progress, label) -> {});
+		NormalTask importedTask = taskNamed(imported, "Historical assignment");
+		Assignment importedAssignment = (Assignment) importedTask.getAssignments().iterator().next();
+		assertEquals(0L, importedAssignment.getDelay());
+		assertEquals(16L * 60L * 60L * 1000L, importedAssignment.getWork(null));
+		assertEquals(importedTask.getStart(), importedAssignment.getStart());
+		assertTrue(importedTask.getEnd() < java.util.Date.from(
+			java.time.Instant.parse("2001-01-01T00:00:00Z")).getTime());
+	}
+
+	@Test
+	void exportKeepsPersistedTaskUidWhenNewParentPrecedesIt() throws Exception {
+		Project project = createProject();
+		NormalTask child = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		child.setName("Persisted child");
+		child.setUniqueId(2L);
+		NormalTask parent = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		parent.setName("New parent");
+		parent.setUniqueId(-42L);
+		project.setLocalParent(child, parent);
+
+		ByteArrayOutputStream output = new ByteArrayOutputStream();
+		MicrosoftImporter exporter = new MicrosoftImporter();
+		exporter.setFileName("identity.xml");
+		assertTrue(exporter.saveProject(project, output));
+		ProjectFile snapshot = new net.sf.mpxj.mspdi.MSPDIReader()
+			.read(new ByteArrayInputStream(output.toByteArray()));
+		net.sf.mpxj.Task exportedChild = snapshot.getTasks().stream()
+			.filter(task -> "Persisted child".equals(task.getName())).findFirst().orElseThrow();
+		net.sf.mpxj.Task exportedParent = snapshot.getTasks().stream()
+			.filter(task -> "New parent".equals(task.getName())).findFirst().orElseThrow();
+		assertEquals(2, exportedChild.getUniqueID().intValue());
+		assertNotEquals(exportedChild.getUniqueID(), exportedParent.getUniqueID());
+		assertSame(exportedParent, exportedChild.getParentTask());
+	}
+
+	@Test
 	void microsoftExportJobReportsCompletionForEmptyProject() throws Exception {
 		JobQueue queue = new JobQueue("microsoft-export-progress", false);
 		JobQueue previousQueue = SessionFactory.getInstance().getJobQueue();

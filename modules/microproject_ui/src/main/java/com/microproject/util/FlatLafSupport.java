@@ -65,7 +65,7 @@ public final class FlatLafSupport {
 			// Use FlatLaf decorations only when Windows native support is available.
 			// Otherwise retain OS-owned frames instead of creating a Java-painted
 			// title bar that cannot provide the required Windows shell behavior.
-			boolean useLookAndFeelDecorations = !isWindows() || nativeWindowDecorationsEnabled;
+			boolean useLookAndFeelDecorations = nativeWindowDecorationsEnabled;
 			JFrame.setDefaultLookAndFeelDecorated(useLookAndFeelDecorations);
 			JDialog.setDefaultLookAndFeelDecorated(useLookAndFeelDecorations);
 

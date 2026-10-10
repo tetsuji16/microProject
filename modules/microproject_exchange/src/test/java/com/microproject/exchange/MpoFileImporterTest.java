@@ -8,6 +8,7 @@ package com.microproject.exchange;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -1083,13 +1084,17 @@ class MpoFileImporterTest {
 		NormalTask child = (NormalTask) firstTask(editor);
 		NormalTask parent = (NormalTask) editor.createLocalTaskNode(null).getImpl();
 		parent.setName("New parent");
+		parent.setUniqueId(-91001L);
 		editor.setLocalParent(child, parent);
 		MpoFileImporter writer = new MpoFileImporter();
 		writer.setFileName(shared.getAbsolutePath());
 		writer.setProject(editor);
 
 		assertDoesNotThrow(writer::exportFile);
-		assertEquals(parent.getUniqueId(), load(shared).findByUniqueId(child.getUniqueId()).getWbsParentTask().getUniqueId());
+		Project reloaded = load(shared);
+		Task reloadedChild = reloaded.findByUniqueId(child.getUniqueId());
+		assertNotNull(reloadedChild, "persisted child UID must survive a hierarchy change");
+		assertEquals("New parent", reloadedChild.getWbsParentTask().getName());
 	}
 
 	@Test
@@ -1337,6 +1342,7 @@ class MpoFileImporterTest {
 	@Test
 	void mpoTaskCreateOperationRetainsItsParentWhenReplayed() throws Exception {
 		Project project = projectForRoundTrip();
+		assignPositiveUniqueIds(project);
 		MpoFileImporter writer = new MpoFileImporter();
 		ByteArrayOutputStream initial = new ByteArrayOutputStream();
 		writer.saveProject(project, initial);
@@ -1344,8 +1350,10 @@ class MpoFileImporterTest {
 
 		NormalTask parent = (NormalTask) project.createLocalTaskNode(null).getImpl();
 		parent.setName("Created parent");
+		parent.setUniqueId(-91002L);
 		NormalTask child = (NormalTask) project.createLocalTaskNode(null).getImpl();
 		child.setName("Created child");
+		child.setUniqueId(-91003L);
 		project.setLocalParent(child, parent);
 		ByteArrayOutputStream changed = new ByteArrayOutputStream();
 		writer.saveProject(project, changed);
@@ -1353,7 +1361,10 @@ class MpoFileImporterTest {
 		java.util.List<OperationLog.Operation> operations = new OperationLog().readJsonl(
 				readEntries(changed.toByteArray()).get(MpoFileImporter.OPERATIONS_ENTRY)).operations();
 		new com.microproject.collaboration.MpoTaskOperationService().apply(base, operations);
-		assertEquals(parent.getUniqueId(), base.findByUniqueId(child.getUniqueId()).getWbsParentTask().getUniqueId());
+		Task replayedChild = base.getTaskList().stream()
+			.filter(task -> "Created child".equals(task.getName())).findFirst().orElseThrow();
+		assertEquals("Created parent", replayedChild.getWbsParentTask().getName());
+		assertEquals(3, base.getTaskList().size(), "replay must retain the original task and both new tasks");
 	}
 
 	@Test

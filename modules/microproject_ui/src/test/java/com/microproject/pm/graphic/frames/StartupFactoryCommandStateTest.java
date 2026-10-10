@@ -49,7 +49,7 @@ class StartupFactoryCommandStateTest {
 	void successfulLoginRestoresGlobalFileCommandsAfterStartupGate() {
 		GraphicManager graphicManager = new GraphicManager(new JPanel());
 		MenuManager menuManager = graphicManager.getMenuManager();
-		menuManager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+		createFileCommands(menuManager);
 
 		graphicManager.setConnected(false);
 		assertCommandsEnabled(menuManager, false);
@@ -63,7 +63,7 @@ class StartupFactoryCommandStateTest {
 	void externalFileTabCommandsRemainEnabledWithoutAnOpenDocument() {
 		GraphicManager graphicManager = new GraphicManager(new JPanel());
 		MenuManager menuManager = graphicManager.getMenuManager();
-		menuManager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+		createFileCommands(menuManager);
 
 		graphicManager.setConnected(true);
 		for (String id : List.of("RibbonNewProject", "RibbonLocale", "RibbonProjectLibreDocumentation",
@@ -74,6 +74,17 @@ class StartupFactoryCommandStateTest {
 				.findFirst()
 				.orElseThrow(() -> new AssertionError(id + " was not created"));
 			assertTrue(button.isEnabled(), () -> id + " must remain enabled without a document");
+		}
+	}
+
+	private static void createFileCommands(MenuManager menuManager) {
+		try {
+			javax.swing.SwingUtilities.invokeAndWait(() -> {
+				JPanel host = menuManager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+				com.microproject.menu.testsupport.MenuDefinitionSupport.visitBackstagePages(host, page -> { });
+			});
+		} catch (Exception exception) {
+			throw new AssertionError("Unable to construct File commands", exception);
 		}
 	}
 

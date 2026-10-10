@@ -50,11 +50,14 @@ class GuiDesktopSessionCoordinatorTest {
 			System.getProperty("os.name", "").toLowerCase().contains("windows") ? "java.exe" : "java").toString();
 		Process child = new ProcessBuilder(javaExecutable, "-cp", classes.toString(),
 			GuiDesktopSessionLockProbe.class.getName(), lockFile.toString(), waitMillis)
-			.redirectErrorStream(true).start();
+			.start();
 		if (!child.waitFor(5, TimeUnit.SECONDS)) {
 			child.destroyForcibly();
 			throw new AssertionError("desktop-lock child process did not finish within 5 seconds");
 		}
-		return new String(child.getInputStream().readAllBytes(), StandardCharsets.UTF_8).trim();
+		String output = new String(child.getInputStream().readAllBytes(), StandardCharsets.UTF_8).trim();
+		String errors = new String(child.getErrorStream().readAllBytes(), StandardCharsets.UTF_8).trim();
+		org.junit.jupiter.api.Assertions.assertEquals(0, child.exitValue(), errors);
+		return output;
 	}
 }

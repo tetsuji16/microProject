@@ -75,7 +75,7 @@ public final class SharedResourcePoolService {
 		}
 		for (Project project : openProjects) {
 			if (project != null && project != candidate && (expected.equals(canonicalFileName(project.getFileName()))
-					|| candidate.getSharedResourcePoolProjectId() > 0L
+					|| candidate.getSharedResourcePoolProjectId() != 0L
 							&& candidate.getSharedResourcePoolProjectId() == project.getUniqueId())) {
 				share(candidate, project, candidate.isResourcePoolTakesPrecedence()
 						? ConflictPolicy.POOL_TAKES_PRECEDENCE : ConflictPolicy.SHARER_TAKES_PRECEDENCE);

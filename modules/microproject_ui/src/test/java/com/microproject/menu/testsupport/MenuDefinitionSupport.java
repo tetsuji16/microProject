@@ -44,6 +44,35 @@ public final class MenuDefinitionSupport {
 	private MenuDefinitionSupport() {
 	}
 
+	/** Visits the lazy File surface without executing its project commands. Call on the EDT. */
+	public static void visitBackstagePages(javax.swing.JPanel ribbonHost,
+			java.util.function.Consumer<javax.swing.JComponent> assertion) {
+		com.microproject.ui.ribbon.ModernRibbonPanel ribbon =
+			(com.microproject.ui.ribbon.ModernRibbonPanel) ribbonHost.getClientProperty(
+				com.microproject.ui.ribbon.ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+		javax.swing.JComponent[] surface = new javax.swing.JComponent[1];
+		ribbon.setBackstageHost(new com.microproject.ui.ribbon.RibbonBackstageHost() {
+			@Override public void show(javax.swing.JComponent view, Runnable dismiss) { surface[0] = view; }
+			@Override public void hide() { }
+		});
+		String fileTitle = menuBundle(Locale.getDefault()).getString("FileRibbonTask.title");
+		javax.swing.AbstractButton fileTab = UiComponentWalker.flatten(ribbonHost).stream()
+			.filter(javax.swing.AbstractButton.class::isInstance).map(javax.swing.AbstractButton.class::cast)
+			.filter(button -> fileTitle.equals(button.getText())).findFirst().orElseThrow();
+		fileTab.doClick(0);
+		for (java.awt.Component component : UiComponentWalker.flatten(surface[0])) {
+			if (component instanceof javax.swing.AbstractButton navigation
+					&& navigation.getName() != null && navigation.getName().startsWith("officeBackstageNav-")
+					&& navigation.getAction() == null) {
+				navigation.doClick(0);
+				assertion.accept(surface[0]);
+			}
+		}
+		UiComponentWalker.flatten(surface[0]).stream()
+			.filter(javax.swing.AbstractButton.class::isInstance).map(javax.swing.AbstractButton.class::cast)
+			.filter(button -> "officeBackstageBack".equals(button.getName())).findFirst().orElseThrow().doClick(0);
+	}
+
 	public static ResourceBundle menuBundle(Locale locale) {
 		return ResourceBundle.getBundle(MENU_BUNDLE, locale);
 	}

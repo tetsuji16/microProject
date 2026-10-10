@@ -216,3 +216,14 @@ JUnitの失敗時診断はレポートに残し、成功時の大量標準出力
 - 回帰: 既存テストに加え、上記 ID を unit/integration/manual に分類して CI で少なくとも unit + packaged import を必須化する。PR CI で `-x test` を使わず、保存・Save As の回帰テストを必ず実行する。
 
 実行履歴は [docs/testing/test-execution-history.md](docs/testing/test-execution-history.md) に分離しています。履歴にあるテスト件数や成功記録は、その後のソース変更を含む現在の状態を保証しません。
+
+## 2026-10-10 bootstrap and MPO regression contract
+
+| Surface | Preconditions and route | Required outcome | Regression fixture |
+|---|---|---|---|
+| Desktop bootstrap | Full JDK 25; native window decoration capability may be absent; launch the regenerated installDist | OS decorations on unsupported platforms; no Java-painted title pane initialized before its Window; project dialogs open, render, and close without an uncaught EDT error | FlatLafSupportTest; RibbonExternalCommandGuiAcceptanceTest.robotInvokesRealFileRibbonCommandsAndOpensTheirDialogs |
+| File / Backstage | File surface and its pages are created lazily; shared action state may change before or after creation | Persistent page buttons and direct navigation commands use the canonical dispatcher and registry; connection-state enablement propagates; File stays outside ribbon bands | RibbonAndToolbarButtonTest; StartupFactoryCommandStateTest; shared visitBackstagePages fixture; existing physical File journey |
+| MSP assignment import | Attach saved resource assignments before the project is initialized, with or without a default assignment | Saved work, actual work and relative delay remain intact; source start initializes the offset origin; missing actual dates do not edit completion or duration; interactive replacement/recalculation applies only to initialized projects | NormalTaskDurationTest.attachingImportedAssignmentPreservesItsWorkAndDelay; MpxExportTrackingTest.historicalAssignmentImportUsesTheTaskStartAsItsOffsetOrigin; packaged MPP import |
+| MPO identity and extraction | Save/reload a project with a signed nonzero project ID and shared resource pool; restricted OS may omit ProcessHandle start time | Project/pool IDs and task hierarchy survive save/reload and operation replay; extraction manifests always carry stable process ownership; cleanup retains the current process's open extraction | MpoFileImporterTest; MpoExtractionSessionTest; TemporaryWorkspaceTest |
+
+These fixes do not change task command semantics or Undo/Redo. The existing MPO round-trip/replay fixtures verify persisted model state. MpxExportTrackingTest.exportKeepsPersistedTaskUidWhenNewParentPrecedesIt verifies that row IDs cannot consume persisted task UIDs. Linux GUI evidence does not replace the Windows-native caption or installer gates in U-25-W.

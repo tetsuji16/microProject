@@ -44,6 +44,17 @@ class SharedResourcePoolServiceTest {
 	}
 
 	@Test
+	void resolvesNegativePoolIdentityAfterItsFileHasMoved() {
+		Project pool = newProject("pool", "C:/moved/resources.pod");
+		pool.setUniqueId(-1001L);
+		Project sharer = newProject("sharer", "C:/plans/sharer.pod");
+		sharer.setSharedResourcePoolFile("C:/plans/resources.pod");
+		sharer.setSharedResourcePoolProjectId(-1001L);
+		assertTrue(SharedResourcePoolService.getInstance().resolve(sharer, java.util.List.of(pool)));
+		assertSame(pool.getResourcePool(), sharer.getResourcePool());
+	}
+
+	@Test
 	void resolvesAStoredPoolReferenceWhenThePoolProjectIsOpenedLater() {
 		Project poolProject = newProject("pool", "C:/plans/resources.pod");
 		Project sharer = newProject("sharer", "C:/plans/sharer.pod");

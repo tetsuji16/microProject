@@ -301,7 +301,7 @@ public class MSPDISerializer implements ProjectSerializer {
 	public ProjectFile serializeProject(Project project,boolean globalIdsOnly) throws Exception{
         if (globalIdsOnly) 
         	makeGLobal(project);
-        MPXConverter.beginExport();
+        MPXConverter.beginExport(project);
         try {
 	        ProjectFile projectFile = new ProjectFile();
 	//this doesn't appear in 2007 version of mpxj        projectData.setMicrosoftProjectCompatibleOutput(true);

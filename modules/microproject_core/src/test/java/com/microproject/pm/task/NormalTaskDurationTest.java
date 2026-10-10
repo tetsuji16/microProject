@@ -60,6 +60,32 @@ import com.microproject.undo.DataFactoryUndoController;
 
 class NormalTaskDurationTest {
 	@Test
+	void attachingImportedAssignmentPreservesItsWorkAndDelay() {
+		for (boolean withDefault : new boolean[] {false, true}) {
+			Project project = createProject();
+			NormalTask task = createTask(project);
+			task.setDuration(8L * 60L * 60L * 1000L);
+			if (withDefault) task.addDefaultAssignment();
+			project.setInitialized(false);
+			ResourceImpl resource = project.getResourcePool().newResourceInstance();
+			Assignment imported = Assignment.getInstance(task, resource, 1.0d, 0L);
+			imported.setWork(16L * 60L * 60L * 1000L, null);
+			imported.setActualWork(4L * 60L * 60L * 1000L, null);
+			imported.setDelay(2L * 60L * 60L * 1000L);
+			long work = imported.getWork(null);
+			long actualWork = imported.getActualWork(null);
+			long delay = imported.getDelay();
+
+			task.addAssignment(imported);
+
+			assertSame(imported, task.findAssignment(resource));
+			assertEquals(work, imported.getWork(null));
+			assertEquals(actualWork, imported.getActualWork(null));
+			assertEquals(delay, imported.getDelay());
+		}
+	}
+
+	@Test
 	void constraintKindApiKeepsPersistedCodesAndUnknownValues() throws Exception {
 		Project project = createProject();
 		NormalTask task = createTask(project);

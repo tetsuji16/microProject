@@ -54,6 +54,12 @@ class FlatLafSupportTest {
 	void initializeUsesNeutralOfficeTitleBarAndProjectGreenRibbonAccent() {
 		FlatLafSupport.initialize();
 
+		assertEquals(FlatLafSupport.isNativeWindowDecorationsEnabled(),
+			javax.swing.JFrame.isDefaultLookAndFeelDecorated(),
+			"unsupported platforms must retain OS decorations instead of a Java-painted title pane");
+		assertEquals(FlatLafSupport.isNativeWindowDecorationsEnabled(),
+			javax.swing.JDialog.isDefaultLookAndFeelDecorated());
+
 		boolean dark = new GlobalPreferences().isDarkTheme();
 		java.awt.Color titleBar = MicroProjectThemeTokens.dark().ribbonChromeBackground();
 		if (!dark) titleBar = MicroProjectThemeTokens.light().ribbonChromeBackground();

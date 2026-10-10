@@ -14,6 +14,8 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Stream;
 
+import com.microproject.temporary.ProcessIdentity;
+
 /**
  * Owns one MPO embedded-project extraction lifetime.
  *
@@ -129,9 +131,9 @@ public final class MpoExtractionSession implements AutoCloseable {
 		contents.append("createdAt=").append(createdAt).append('\n');
 		contents.append("purpose=mpof-extraction\n");
 		contents.append("instanceId=").append(instanceId).append('\n');
-		contents.append("processId=").append(ProcessHandle.current().pid()).append('\n');
-		ProcessHandle.current().info().startInstant()
-				.ifPresent(start -> contents.append("processStart=").append(start).append('\n'));
+		ProcessIdentity process = ProcessIdentity.current();
+		contents.append("processId=").append(process.pid()).append('\n');
+		contents.append("processStart=").append(process.startedAt()).append('\n');
 		contents.append("state=").append(state).append('\n');
 		return contents.toString();
 	}

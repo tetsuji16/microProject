@@ -189,6 +189,7 @@ class RibbonAndToolbarButtonTest {
 		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
 		SwingUtilities.invokeAndWait(() -> {
 			JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+			com.microproject.menu.testsupport.MenuDefinitionSupport.visitBackstagePages(host, page -> { });
 			AbstractButton saveButton = manager.getToolButtonsFromId("RibbonSaveProject").stream()
 				.map(AbstractButton.class::cast)
 				.filter(button -> "RibbonSaveProject".equals(button.getActionCommand()))
@@ -198,7 +199,8 @@ class RibbonAndToolbarButtonTest {
 			assertNotNull(openButton);
 			assertEquals("RibbonSaveProject", saveButton.getActionCommand());
 			assertEquals("RibbonOpenProject", openButton.getActionCommand());
-			assertTrue(hasRibbonCommandRole(saveButton));
+			assertEquals("officeBackstageNav-save", saveButton.getName(),
+				"Save is a direct Backstage navigation command, not a ribbon-band button");
 		});
 	}
 
@@ -242,7 +244,8 @@ class RibbonAndToolbarButtonTest {
 		SwingUtilities.invokeAndWait(() -> {
 			GraphicManager graphicManager = new GraphicManager(new JPanel());
 			MenuManager menuManager = graphicManager.getMenuManager();
-			menuManager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+			JPanel host = menuManager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+			com.microproject.menu.testsupport.MenuDefinitionSupport.visitBackstagePages(host, page -> { });
 
 			assertButtonsResolveAgainstLiveActionWiring(graphicManager, menuManager, ribbonUiButtonIds(), "ribbon");
 		});
@@ -596,6 +599,18 @@ class RibbonAndToolbarButtonTest {
 			ResourceBundle labels = menuBundle(Locale.getDefault());
 
 			for (String tabId : ribbonTaskIds()) {
+				if ("FileRibbonTask".equals(tabId)) {
+					com.microproject.menu.testsupport.MenuDefinitionSupport.visitBackstagePages(host, page -> {
+						for (java.awt.Component component : UiComponentWalker.flatten(page)) {
+							if (component instanceof AbstractButton button && button.getAction() != null) {
+								String actionId = manager.getToolBarFactory().getActionStringFromId(button.getActionCommand());
+								assertTrue(button.getAction() != graphicManager.getAction(actionId),
+									"Backstage must use the same canonical dispatch route as the ribbon");
+							}
+						}
+					});
+					continue;
+				}
 				findButtonByText(host, labels.getString(tabId + ".title")).doClick();
 				for (String bandId : ribbonBandIds(tabId)) {
 					for (String buttonId : ribbonButtonIds(bandId)) {

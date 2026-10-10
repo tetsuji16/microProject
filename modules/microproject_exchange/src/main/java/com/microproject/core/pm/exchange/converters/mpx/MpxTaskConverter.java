@@ -73,6 +73,10 @@ public class MpxTaskConverter {
 		task.setLevelingDelay(toLong(mpxTask.getLevelingDelay()));
 
 		task.setStart(toLong(mpxTask.getStart()));
+		// While importing, setStart records a constraint instead of initializing
+		// the schedule. Assignment dates need this source start as their offset origin.
+		if (mpxTask.getStart() != null)
+			task.getCurrentSchedule().setStart(toLong(mpxTask.getStart()));
 		task.setEnd(toLong(mpxTask.getFinish()));
 		if (mpxTask.getConstraintType() != null) {
 			try {

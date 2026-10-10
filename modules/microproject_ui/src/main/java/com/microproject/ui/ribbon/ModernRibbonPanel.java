@@ -414,6 +414,8 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 			nav.setFont(theme.buttonFont());
 			if (page.immediateCommand() != null) {
 				nav.setAction(commandSource.createAction(page.immediateCommand()));
+				nav.setActionCommand(page.immediateCommand());
+				commandSource.registerCommandControl(page.immediateCommand(), nav);
 				nav.setText(localized(page.labelKey()));
 				nav.setName("officeBackstageNav-" + page.id());
 			}
@@ -499,7 +501,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		constraints.fill = java.awt.GridBagConstraints.HORIZONTAL;
 		constraints.insets = new Insets(0, 0, 12, 16);
 		for (SwingRibbonModel.RibbonButton specification : page.commands()) {
-			AbstractButton button = createButton(specification, false);
+			AbstractButton button = createButton(specification, true);
 			button.setName("officeBackstageCommand-" + specification.getId());
 			buttonStyler.styleActionButton(button, "large");
 			button.setHorizontalTextPosition(SwingConstants.CENTER);

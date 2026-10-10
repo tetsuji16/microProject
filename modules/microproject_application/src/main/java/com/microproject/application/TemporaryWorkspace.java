@@ -23,6 +23,7 @@ import java.util.logging.Logger;
 import java.util.stream.Stream;
 
 import com.microproject.temporary.TemporaryCleanupQueue;
+import com.microproject.temporary.ProcessIdentity;
 
 /**
  * Owns process-scoped temporary artifacts outside the project directory.
@@ -340,10 +341,9 @@ public final class TemporaryWorkspace implements AutoCloseable {
 
 	private static boolean isCurrentProcessOpen(MpofManifest manifest) {
 		if (!"open".equals(manifest.state())) return false;
-		ProcessHandle process = ProcessHandle.current();
-		Optional<Instant> processStart = process.info().startInstant();
+		ProcessIdentity process = ProcessIdentity.current();
 		return manifest.processId() == process.pid()
-				&& processStart.isPresent() && processStart.get().equals(manifest.processStart());
+				&& process.startedAt().equals(manifest.processStart());
 	}
 
 	private record MpofManifest(Instant createdAt, String instanceId, long processId,

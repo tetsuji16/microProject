@@ -1122,6 +1122,8 @@ class RibbonButtonBehaviorTest {
 			"RibbonTaskInformation",
 			"RibbonResourceInformation",
 			"RibbonProjectInformation",
+			"RibbonBackstageProjectInformation",
+			"RibbonBackstageOptions",
 			"RibbonNotes",
 			"RibbonChangeWorkingTime",
 			"RibbonAssignResources",

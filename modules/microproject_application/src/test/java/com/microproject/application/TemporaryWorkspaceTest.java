@@ -219,7 +219,7 @@ class TemporaryWorkspaceTest {
 	}
 
 	private static String mpofManifest(Instant createdAt, String state, long processId) {
-		Instant processStart = ProcessHandle.current().info().startInstant().orElseThrow();
+		Instant processStart = com.microproject.temporary.ProcessIdentity.current().startedAt();
 		return "createdAt=" + createdAt + "\n"
 				+ "purpose=mpof-extraction\n"
 				+ "instanceId=4f5d2af5-6d5d-4b26-8f7b-7e4f4f9f9f30\n"

@@ -94,8 +94,15 @@ public class MPXConverter {
 	public static int nameFieldWidth = Configuration.getFieldFromId("Field.name").getTextWidth();
 	private static final ThreadLocal<ExportIdAllocator> EXPORT_IDS = new ThreadLocal<ExportIdAllocator>();
 
-	public static void beginExport() {
-		EXPORT_IDS.set(new ExportIdAllocator());
+	public static void beginExport(com.microproject.pm.task.Project project) {
+		ExportIdAllocator allocator = new ExportIdAllocator();
+		// Reserve persisted UIDs before assigning IDs to new, negative-ID tasks.
+		for (com.microproject.pm.task.Task task : project.getTaskList()) {
+			if (task.getUniqueId() > 0 && task.getUniqueId() <= Integer.MAX_VALUE) {
+				allocator.get(IdNamespace.TASK, task.getUniqueId());
+			}
+		}
+		EXPORT_IDS.set(allocator);
 	}
 
 	public static void endExport() {
@@ -246,7 +253,7 @@ public class MPXConverter {
 		mpxResource.setGeneric(projectlibreResource.isGeneric()); // fix for 2024492
 
 		mpxResource.setInitials(projectlibreResource.getInitials());
-		int resourceId = exportId(IdNamespace.RESOURCE, projectlibreResource.getId());
+		int resourceId = exportId(IdNamespace.RESOURCE_ROW, projectlibreResource.getId());
 		mpxResource.setID(resourceId);
 		long uid = projectlibreResource.getExternalId(); // try using external id of one set
 		if (uid <= 0)
@@ -377,7 +384,7 @@ private static int autoId = 0;
 		if (projectlibreTask.getWbs() != null)
 			mpxTask.setWBS(removeInvalidChars(projectlibreTask.getWbs()));
 		mpxTask.setNotes(removeInvalidChars(projectlibreTask.getNotes()));
-		int taskId = exportId(IdNamespace.TASK, projectlibreTask.getId());
+		int taskId = exportId(IdNamespace.TASK_ROW, projectlibreTask.getId());
 		mpxTask.setID(taskId);
 		mpxTask.setUniqueID(exportId(IdNamespace.TASK, projectlibreTask.getUniqueId()));
 		mpxTask.setCreateDate(projectlibreTask.getCreated());
@@ -454,9 +461,9 @@ private static int autoId = 0;
 	}
 
 	public static void toMPXVoid(VoidNodeImpl projectlibreVoid, Task mpxTask) {
-		int taskId = exportId(IdNamespace.TASK, projectlibreVoid.getId());
+		int taskId = exportId(IdNamespace.TASK_ROW, projectlibreVoid.getId());
 		mpxTask.setID(taskId);
-		mpxTask.setUniqueID(taskId);
+		mpxTask.setUniqueID(exportId(IdNamespace.TASK, Long.MIN_VALUE + projectlibreVoid.getId()));
 		mpxTask.setNull(true);
 		// below is for mpxj 2007. These values need to be set
 		mpxTask.setCritical(false);
@@ -553,6 +560,8 @@ private static int autoId = 0;
 	private enum IdNamespace {
 		CALENDAR,
 		RESOURCE,
+		RESOURCE_ROW,
+		TASK_ROW,
 		TASK
 	}
 

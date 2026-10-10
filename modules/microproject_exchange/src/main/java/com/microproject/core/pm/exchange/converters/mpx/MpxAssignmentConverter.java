@@ -62,12 +62,17 @@ public class MpxAssignmentConverter {
 		// identical task date through setStart turns it into an epoch-sized delay.
 		if (assignmentStart != 0L && assignmentStart != task.getStart())
 			assignment.setStart(assignmentStart);
-		assignment.setEnd(toLong(mpxAssignment.getFinish()));
+		if (mpxAssignment.getFinish() != null)
+			assignment.setEnd(toLong(mpxAssignment.getFinish()));
 		assignment.setWork(toLong(mpxAssignment.getWork()), null);
 		assignment.setPercentComplete(mpxAssignment.getPercentageWorkComplete() == null
 				? 0.0 : mpxAssignment.getPercentageWorkComplete().doubleValue() / 100.0);
-		assignment.setActualStart(toLong(mpxAssignment.getActualStart()));
-		assignment.setActualFinish(toLong(mpxAssignment.getActualFinish()));
+		// These setters edit the schedule and completion state; an absent date
+		// must not be imported as an actual finish at the Unix epoch.
+		if (mpxAssignment.getActualStart() != null)
+			assignment.setActualStart(toLong(mpxAssignment.getActualStart()));
+		if (mpxAssignment.getActualFinish() != null)
+			assignment.setActualFinish(toLong(mpxAssignment.getActualFinish()));
 		assignment.setActualWork(toLong(mpxAssignment.getActualWork()), null);
 		assignment.setRemainingWork(toLong(mpxAssignment.getRemainingWork()), null);
 		restoreLevelingDelay(mpxAssignment, assignment);

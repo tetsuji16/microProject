@@ -258,7 +258,7 @@ public class MpoFileImporter extends FileImporter {
 		} catch (IllegalArgumentException exception) {
 			throw new IOException("Invalid MPOF document identity", exception);
 		}
-		if (manifestData.projectUniqueId() != null && manifestData.projectUniqueId().longValue() > 0L)
+		if (manifestData.projectUniqueId() != null && manifestData.projectUniqueId().longValue() != 0L)
 			project.setUniqueId(manifestData.projectUniqueId().longValue());
 		// The MPO manifest is authoritative for the explicit/NA distinction.
 		// The embedded MSP project XML may contain an effective date even when the
@@ -268,7 +268,7 @@ public class MpoFileImporter extends FileImporter {
 			project.setStatusDate(manifestData.statusDate().longValue());
 		if (manifestData.sharedResourcePoolPath() != null && !manifestData.sharedResourcePoolPath().isBlank())
 			project.setSharedResourcePoolFile(manifestData.sharedResourcePoolPath());
-		if (manifestData.sharedResourcePoolProjectId() != null && manifestData.sharedResourcePoolProjectId().longValue() > 0L)
+		if (manifestData.sharedResourcePoolProjectId() != null && manifestData.sharedResourcePoolProjectId().longValue() != 0L)
 			project.setSharedResourcePoolProjectId(manifestData.sharedResourcePoolProjectId().longValue());
 		if (settings != null) {
 			restoreSettings(project, settings);
@@ -1348,7 +1348,7 @@ public class MpoFileImporter extends FileImporter {
 		if (documentId != null && projectUniqueId != null) manifest.append(" projectUniqueId=\"").append(projectUniqueId.longValue()).append("\"");
 		if (sharedResourcePoolPath != null && !sharedResourcePoolPath.isBlank())
 			manifest.append(" sharedResourcePoolPath=\"").append(xmlEscape(sharedResourcePoolPath)).append("\"");
-		if (sharedResourcePoolProjectId > 0L)
+		if (sharedResourcePoolProjectId != 0L)
 			manifest.append(" sharedResourcePoolProjectId=\"").append(sharedResourcePoolProjectId).append("\"");
 		if (statusDate > 0L)
 			manifest.append(" statusDate=\"").append(statusDate).append("\"");
