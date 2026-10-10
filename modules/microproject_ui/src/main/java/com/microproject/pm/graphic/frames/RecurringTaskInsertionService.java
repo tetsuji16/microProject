@@ -26,7 +26,7 @@ package com.microproject.pm.graphic.frames;
 
 import java.util.List;
 
-import javax.swing.undo.UndoableEditSupport;
+import com.microproject.undo.EditSupport;
 
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeFactory;
@@ -48,7 +48,7 @@ final class RecurringTaskInsertionService {
 			spec);
 	}
 
-	Node insertRecurringTasks(Project project, NodeModel nodeModel, Node anchor, UndoableEditSupport editSupport, RecurringTaskSpec spec) {
+	Node insertRecurringTasks(Project project, NodeModel nodeModel, Node anchor, EditSupport editSupport, RecurringTaskSpec spec) {
 		SelectionAnchor selectionAnchor = SelectionAnchor.from(anchor);
 		if (editSupport != null)
 			editSupport.beginUpdate();

@@ -86,7 +86,7 @@ class ResourceInformationAssignmentsGuiAcceptanceTest {
 		AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, this);
 
 		SwingUtilities.invokeAndWait(() -> {
-			frame = new MainRibbonFrame("Resource Information assignment acceptance", null, null);
+			frame = new MainRibbonFrame("Resource Information assignment acceptance", null);
 			GraphicManager manager = new GraphicManager(frame);
 			frame.setGraphicManager(manager);
 			manager.initView();

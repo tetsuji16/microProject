@@ -254,7 +254,7 @@ class AssignmentDialogGuiAcceptanceTest {
 
 	private void showProject(Project project) throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
-			window = new MainRibbonFrame("microProject — Assignment Resources acceptance", null, null);
+			window = new MainRibbonFrame("microProject — Assignment Resources acceptance", null);
 			manager = new GraphicManager(window);
 			window.setGraphicManager(manager);
 			manager.initView();

@@ -28,7 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import javax.swing.undo.UndoableEdit;
-import javax.swing.undo.UndoableEditSupport;
+import com.microproject.undo.EditSupport;
 
 import com.microproject.pm.scheduling.IntervalConsumer;
 import com.microproject.association.Association;
@@ -72,7 +72,7 @@ public class ScheduleService {
 		return schedule.getCompletedThrough();
 	}
 	
-	public boolean setCompleted(Object eventSource, Schedule schedule, long completed,UndoableEditSupport undoableEditSupport) {
+	public boolean setCompleted(Object eventSource, Schedule schedule, long completed,EditSupport undoableEditSupport) {
 		if (isReadOnly(schedule))
 			return false;
 		// The Gantt progress handle can be dragged beyond either end of the bar.
@@ -98,7 +98,7 @@ public class ScheduleService {
 		return true;
 	}
 
-	public boolean setConstraint(Object eventSource, Task task, int constraintType, long constraintDate, UndoableEditSupport undoableEditSupport) {
+	public boolean setConstraint(Object eventSource, Task task, int constraintType, long constraintDate, EditSupport undoableEditSupport) {
 		if (task == null || isReadOnly(task)) {
 			return false;
 		}
@@ -117,7 +117,7 @@ public class ScheduleService {
 	}
 
 	public boolean setConstraint(Object eventSource, Task task, ConstraintType.Kind constraintType, long constraintDate,
-			UndoableEditSupport undoableEditSupport) {
+			EditSupport undoableEditSupport) {
 		return setConstraint(eventSource, task, java.util.Objects.requireNonNull(constraintType, "constraintType").code(),
 			constraintDate, undoableEditSupport);
 	}
@@ -135,7 +135,7 @@ public class ScheduleService {
 	 * @param end - end date millis	 * 
 	 * @param oldStart is the prior start for the bar.  It will be used to identify what bar changed
 	 */
-	public boolean setInterval(Object eventSource, Schedule schedule, long start, long end, ScheduleInterval interval,UndoableEditSupport undoableEditSupport) {
+	public boolean setInterval(Object eventSource, Schedule schedule, long start, long end, ScheduleInterval interval,EditSupport undoableEditSupport) {
 		return setInterval(eventSource, schedule, start, end, interval, undoableEditSupport, null);
 	}
 
@@ -146,7 +146,7 @@ public class ScheduleService {
 	 * mutations.
 	 */
 	public boolean setInterval(Object eventSource, Schedule schedule, long start, long end, ScheduleInterval interval,
-			UndoableEditSupport undoableEditSupport, Object beforeEditDetailBackup) {
+			EditSupport undoableEditSupport, Object beforeEditDetailBackup) {
 		if (isReadOnly(schedule))
 			return false;
 		Object detailBackup=beforeEditDetailBackup;
@@ -175,7 +175,7 @@ public class ScheduleService {
 	 * @param from - beginning of nonwork interval
 	 * @param to - end of nonwork interval
 	 */
-	public boolean split(Object eventSource, Schedule schedule, long from, long to,UndoableEditSupport undoableEditSupport) {
+	public boolean split(Object eventSource, Schedule schedule, long from, long to,EditSupport undoableEditSupport) {
 		if (isReadOnly(schedule))
 			return false;
 		boolean recordUndo = undoableEditSupport != null && !(eventSource instanceof UndoableEdit);

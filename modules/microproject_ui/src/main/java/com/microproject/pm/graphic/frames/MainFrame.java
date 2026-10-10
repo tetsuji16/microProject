@@ -41,7 +41,7 @@ public class MainFrame extends FlatLafFrame implements FrameHolder{
 	private static final long serialVersionUID = -5161903673269959353L;
 	protected GraphicManager graphicManager;
 
-	MainFrame(String name, String projectUrl, String server) throws HeadlessException {
+	MainFrame(String name, String projectUrl) throws HeadlessException {
 		super(name);
 		setIconImage(IconManager.getImage("application.icon"));
 		init();

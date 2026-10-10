@@ -33,7 +33,7 @@ import java.util.logging.Logger;
 import javax.swing.InputVerifier;
 import javax.swing.JComponent;
 import javax.swing.SwingUtilities;
-import javax.swing.undo.UndoableEditSupport;
+import com.microproject.undo.EditSupport;
 
 import org.apache.commons.lang.StringUtils;
 
@@ -66,8 +66,8 @@ public abstract class FieldDialog extends AbstractDialog  implements ObjectEvent
 	private static final Logger logger = Logger.getLogger(FieldDialog.class.getName());
 	private boolean multipleObjects;
 	private Class objectClass;
-	private UndoableEditSupport undoableEditSupport;
-	protected FieldDialog(Frame owner, String title, boolean modal, boolean multipleObjects/*,UndoableEditSupport undoableEditSupport*/) {
+	private EditSupport undoableEditSupport;
+	protected FieldDialog(Frame owner, String title, boolean modal, boolean multipleObjects/*,EditSupport undoableEditSupport*/) {
 		super(owner,title,modal);
 		this.multipleObjects = multipleObjects;
 		SwingUtilities.invokeLater(this::updateAll);

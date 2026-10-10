@@ -46,7 +46,7 @@ class StartupFactoryCommandStateTest {
 	}
 
 	@Test
-	void successfulLoginRestoresGlobalFileCommandsAfterStartupGate() {
+	void localDesktopInitializationRestoresGlobalFileCommandsAfterStartupGate() {
 		GraphicManager graphicManager = new GraphicManager(new JPanel());
 		MenuManager menuManager = graphicManager.getMenuManager();
 		createFileCommands(menuManager);
@@ -54,7 +54,7 @@ class StartupFactoryCommandStateTest {
 		graphicManager.setConnected(false);
 		assertCommandsEnabled(menuManager, false);
 
-		StartupFactory.markLoginSuccessful(graphicManager);
+		graphicManager.setConnected(true);
 
 		assertCommandsEnabled(menuManager, true);
 	}
@@ -96,9 +96,9 @@ class StartupFactoryCommandStateTest {
 				.findFirst()
 				.orElseThrow(() -> new AssertionError(id + " was not created"));
 			if (expected) {
-				assertTrue(button.isEnabled(), () -> id + " must be enabled after a successful login");
+				assertTrue(button.isEnabled(), () -> id + " must be enabled after desktop initialization");
 			} else {
-				assertFalse(button.isEnabled(), () -> id + " must be disabled while startup is gated");
+				assertFalse(button.isEnabled(), () -> id + " must be disabled before desktop initialization");
 			}
 		}
 	}

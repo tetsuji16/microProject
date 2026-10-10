@@ -31,7 +31,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.swing.undo.UndoManager;
 import javax.swing.undo.UndoableEdit;
-import javax.swing.undo.UndoableEditSupport;
+import com.microproject.undo.EditSupport;
 
 import org.junit.jupiter.api.Test;
 
@@ -40,11 +40,11 @@ import com.microproject.pm.task.ReversibleModelChange;
 class SwingUndoAdapterTest {
 	@Test
 	void postsModelChangeIntoSwingUndoHistoryAndIgnoresNoopChanges() {
-		UndoableEditSupport edits = new UndoableEditSupport();
+		EditSupport edits = new EditSupport();
 		UndoManager undoManager = new UndoManager();
-		edits.addUndoableEditListener(undoManager);
+		edits.addEditListener(undoManager::addEdit);
 		UndoableEdit[] posted = new UndoableEdit[1];
-		edits.addUndoableEditListener(event -> posted[0] = event.getEdit());
+		edits.addEditListener(edit -> posted[0] = edit);
 		AtomicInteger value = new AtomicInteger(1);
 
 		SwingUndoAdapter.post(edits, ReversibleModelChange.changed(() -> value.set(0), () -> value.set(1)),

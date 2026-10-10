@@ -29,11 +29,7 @@ import java.awt.HeadlessException;
 import java.awt.Window;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.HashMap;
-import java.util.function.Consumer;
-import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -41,27 +37,13 @@ import javax.swing.RootPaneContainer;
 import javax.swing.SwingUtilities;
 
 
-import com.microproject.company.DefaultUser;
-import com.microproject.configuration.Configuration;
-import com.microproject.configuration.ConfigurationReader;
-import com.microproject.configuration.Dictionary;
-import com.microproject.configuration.Settings;
-import com.microproject.util.ClassLoaderUtils;
-import com.microproject.dialog.LoginDialog;
-import com.microproject.dialog.LoginForm;
 import com.microproject.dialog.UpdateChecker;
 import com.microproject.ui.util.DesktopBrowserLauncher;
 import com.microproject.ui.util.SwingAlertPresenter;
 import com.microproject.ui.util.SwingUiDispatcher;
 import com.microproject.ui.util.SwingJobQueueUiProvider;
 import com.microproject.pm.graphic.laf.LafManagerImpl;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.ProjectFactory;
-import com.microproject.server.access.PartnerInfo;
-import com.microproject.server.data.ProjectData;
-import com.microproject.session.Session;
 import com.microproject.session.SessionFactory;
-import com.microproject.strings.Messages;
 import com.microproject.util.Alert;
 import com.microproject.util.BrowserControl;
 import com.microproject.util.UiDispatch;
@@ -70,7 +52,6 @@ import com.microproject.grouping.core.transform.TransformParameterDialogServices
 import com.microproject.dialog.TransformParameterDialog;
 import com.microproject.util.DebugUtils;
 import com.microproject.util.Environment;
-import com.microproject.util.VersionUtils;
 
 @SuppressWarnings("deprecation")
 public abstract class StartupFactory {
@@ -85,16 +66,7 @@ public abstract class StartupFactory {
 			return dialog::accept;
 		});
 	}
-	public static final String defaultServerUrl = Settings.SITE_HOME;
-	private static final int NUM_INVALID_LOGINS = 3;
-
-
-	protected String serverUrl=null;
 	protected String[] projectUrls=null;
-	protected String login=null;
-	protected String password=null;
-	protected Map<String, String> credentials = new HashMap<>();
-	protected long projectId;
 	protected HashMap<String, Object> opts = null;
 
 	protected StartupFactory() {
@@ -169,30 +141,19 @@ public abstract class StartupFactory {
 		GraphicManager graphicManager = null;
 		//String projectUrl[]=null;
 		try {
-			GraphicManager newGraphicManager = new GraphicManager(/*projectUrl,*/serverUrl,container);
+			GraphicManager newGraphicManager = new GraphicManager(container);
 			newGraphicManager.setRestartAction(() -> restart(newGraphicManager));
 			graphicManager = newGraphicManager;
 		} catch (HeadlessException e) {
 			logger.log(Level.SEVERE, "Failed to create GraphicManager", e);
 		}
-		graphicManager.setConnected(false);
-
-		if (!doLogin(graphicManager)) return null;
-		markLoginSuccessful(graphicManager);
+		Environment.setUser(new com.microproject.company.DefaultUser());
+		Environment.setStandAlone(true);
+		graphicManager.setConnected(true);
 		//if (Environment.isNewLook())
 			graphicManager.initLookAndFeel();
 
 		SessionFactory.getInstance().setJobQueue(graphicManager.getJobQueue());
-
-		PartnerInfo partnerInfo=null;
-		if (!Environment.getStandAlone()) {
-			Session session = SessionFactory.getInstance().getSession(false);
-			try {
-				partnerInfo=(PartnerInfo)SessionFactory.call(session,"retrievePartnerInfo",null,null);
-			} catch (Exception e) {
-				logger.log(Level.WARNING, "Failed to retrieve partner info", e);
-			}
-		}
 
 		try {
 			loadConfigThread.join();
@@ -203,23 +164,12 @@ public abstract class StartupFactory {
 
 		t=System.currentTimeMillis();
 
-		if (partnerInfo!=null){
-
-			if (partnerInfo.getConfigurationXML() != null) {
-				ConfigurationReader.readString(partnerInfo.getConfigurationXML(),Configuration.getInstance());
-				Configuration.getInstance().setDonePopulating();
-			}
-			if (partnerInfo.getViewXML() != null) {
-				ConfigurationReader.readString(partnerInfo.getViewXML(),Dictionary.getInstance());
-			}
-		}
-
 		final GraphicManager gm = graphicManager;
 		graphicManager.beginInitialization();
 		try{
 
 			graphicManager.initView();
-			doStartupAction(gm,projectId,(projectUrls==null&&gm.getLastFileName()!=null)?new String[]{gm.getLastFileName()}:projectUrls,doWelcome,false);
+			doStartupAction(gm,(projectUrls==null&&gm.getLastFileName()!=null)?new String[]{gm.getLastFileName()}:projectUrls,doWelcome);
 
 			doPostInitView(gm.getContainer());
 			UpdateChecker.checkInBackground(gm.getPreferences());
@@ -232,14 +182,6 @@ public abstract class StartupFactory {
 //			    @Override
 //			    public void run() {
 //					//cc.setVisible(true);
-//					gm.initView();
-//					doStartupAction(gm,projectId,(projectUrls==null&&gm.getLastFileName()!=null)?new String[]{gm.getLastFileName()}:projectUrls,doWelcome,false);
-//
-//					doPostInitView(gm.getContainer());
-//			    }
-//			});
-
-
 		}finally{
 			graphicManager.finishInitialization();
 			activateStartupWindow(gm.getContainer());
@@ -291,185 +233,9 @@ public abstract class StartupFactory {
 	public void doPostInitView(Container container) {
 	}
 
-	/**
-	 * Completes the command-state transition shared by standalone and server
-	 * startup. A successful standalone login used to return before restoring this
-	 * state, leaving New, Open and Import permanently disabled.
-	 */
-	static void markLoginSuccessful(GraphicManager graphicManager) {
-		if (graphicManager != null)
-			graphicManager.setConnected(true);
-	}
-
-	public boolean doLogin(GraphicManager graphicManager) {
-		if (Environment.getStandAlone()){
-//			graphicManager.getFrame().setVisible(true);
-			Environment.setUser(new DefaultUser());
-			return true;
-		}
-		credentials.put("serverUrl",serverUrl);
-		getCredentials();
-		Environment.setNewLook(true);
-
-		int badLoginCount = 0;
-		while (true) { // until a good login or exit because of too many bad
-//			graphicManager.getFrame().setVisible(true);
-			if (login==null||password==null || badLoginCount > 0){
-				URL loginUrl=null;
-				if (login==null||password==null){
-					try {
-						loginUrl=new URL(serverUrl+"/login");
-					} catch (MalformedURLException e) {
-						logger.log(Level.WARNING, "Invalid login server URL: " + serverUrl, e);
-					}
-				}
-				LoginForm form = LoginDialog.doLogin(graphicManager.getFrame(),loginUrl); // it's actually a singleton
-				if (form.isCancelled())
-					System.exit(-1);
-				if (form.isUseMenus())
-					Environment.setNewLook(true);
-
-				login=form.getLogin();
-				password=form.getPassword();
-			}
-
-			if ("_SA".equals(login)||Environment.getStandAlone()) {// for testing purposes!
-				Environment.setStandAlone(true);
-				Environment.setUser(new DefaultUser());
-				break;
-			} else {
-				credentials.put("login",login);
-				credentials.put("password",password);
-
-
-				SessionFactory.getInstance().setCredentials(credentials);
-				try {
-					Session session = SessionFactory.getInstance().getSession(false);
-					logger.fine("logging in");
-					SessionFactory.callNoEx(session,"login",new Class<?>[]{Consumer.class},new Object[]{new Consumer<Object>() { public void accept(Object arg0) {
-							Map<String,String> env=(Map<String,String>)arg0;
-							if (env!=null){
-								String serverVersion=env.get("serverVersion");
-								checkServerVersion(serverVersion);
-							}
-						}
-					}});
-					if (!((Boolean)SessionFactory.callNoEx(session,"isLicensedToRunClient",null,null)).booleanValue()) {
-						Alert.error(Messages.getString("Error.roleCantRunClient"));
-						abort();
-						return false;
-					}
-
-					break;
-				} catch (Exception e) {
-					if (Session.EXPIRED.equals(e.getMessage())) {
-						Alert.error(Messages.getString("Error.accountExpired"));
-						abort();
-						return false;
-
-					}
-					logger.log(Level.WARNING, "Login failed", e);
-					badLoginCount++;
-					SessionFactory.getInstance().clearSessions();
-
-					if (badLoginCount == NUM_INVALID_LOGINS) {
-						Alert.error(Messages.getString("Login.tooManyBad"));
-						abort();
-						return false;
-					} else {
-						Alert.error(Messages.getString("Login.error"));
-					}
-				}
-			}
-		}
-		return true;
-	}
-
-	protected void checkServerVersion(String serverVersion){
-		String thisVersion=null;
-		if (serverVersion!=null){
-			thisVersion=VersionUtils.getVersion();
-			if (thisVersion!=null) thisVersion=VersionUtils.toAppletVersion(thisVersion);
-			if(thisVersion==null||serverVersion.equals(thisVersion)) return; //ok
-		}
-		String jnlpUrl="";//https://www.projectlibre.com/web/jnlp/projectlibre.jnlp";
-		if (Alert.okCancel(Messages.getString("Text.newPODVersion"))){
-			try {
-				Object basicService = ClassLoaderUtils.forName("javax.jnlp.ServiceManager").getMethod("lookup", String.class)
-				.invoke(null, "javax.jnlp.BasicService");
-				ClassLoaderUtils.forName("javax.jnlp.BasicService").getMethod("showDocument", URL.class)
-				.invoke(basicService, new URL(jnlpUrl));
-			} catch(Exception e) {
-				// Not running in JavaWebStart or service is not supported.
-				return;
-			}
-			System.exit(0);
-		}
-	}
-
-
-
-
-/*
- * Returns null if shouldn't open, returns false if open read only, true if open writable
- *
- */	public static Boolean verifyOpenWritable(Long projectId) {
-		if (projectId == null || projectId == 0)
-			return null;
-		if (ProjectFactory.getInstance().isResourcePoolOpenAndWritable()) {
-			Alert.warn(Messages.getString("Warn.resourcePoolOpen"));
-			return null;
-		}
-
-		String locker = getLockerName(projectId);
-		boolean openAs = false;
-		if (locker != null) {
-			openAs = (Alert.YES_OPTION == Alert.confirmYesNo(Messages.getStringWithParam("Warn.lockMessage",locker)));
-			if (openAs == false)
-				return null;
-		}
-		return !openAs;
-	}
-	public static String getLockerName(long projectId) {
-		ProjectData projectData = (ProjectData)ProjectFactory.getProjectData(projectId);
-		if (projectData == null) {
-			return null;
-		}
-		logger.fine("Locked is " + projectData.isLocked() + "  Lock info: User is " + Environment.getUser().getUniqueId() + "  locker id is " + projectData.getLockedById() + " locker is " + projectData.getLockedByName());
-
-		if (projectData != null && projectData.isLocked()) {
-
-			if (Environment.getUser().getUniqueId() != projectData.getLockedById())
-				return projectData.getLockedByName();
-		}
-		return null;
-	}
-
-
-
-	protected abstract void abort();
-	protected void getCredentials() {
-	}
-	public void doStartupAction(final GraphicManager gm, final long projectId, final String[] projectUrls, final boolean welcome, boolean readOnly) {
+	public void doStartupAction(final GraphicManager gm, final String[] projectUrls, final boolean welcome) {
 		if (Environment.isClientSide()) {
-			if (projectId > 0) {
-
-				Boolean writable = null;
-				if (readOnly)
-					writable = Boolean.FALSE;
-				else
-					writable = verifyOpenWritable(projectId);
-				if (writable == null)
-					return;
-				gm.loadDocument(projectId, true,!writable,arg0 -> {
-					Project project=(Project)arg0;
-					DocumentFrame frame=gm.getCurrentFrame();
-					if (frame!=null&&frame.getProject().getUniqueId() != projectId) {
-						gm.switchToProject(projectId);
-					}
-				});
-			}
-			else if (projectUrls!=null && projectUrls.length > 0) {
+			if (projectUrls!=null && projectUrls.length > 0) {
 				// A desktop invocation may contain several file names.  Route all of
 				// them through the same serial local-file flow as File/Open so every
 				// requested project obtains its own registered document window.

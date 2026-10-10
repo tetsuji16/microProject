@@ -94,7 +94,7 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 		JPanel documentSurface = new JPanel();
 		ribbon.setRibbonDisplayMode(RibbonDisplayMode.ALWAYS_SHOW);
 		SwingUtilities.invokeAndWait(() -> {
-			frame = new MainRibbonFrame("Office chrome ribbon display acceptance", "", "");
+			frame = new MainRibbonFrame("Office chrome ribbon display acceptance", "");
 			frame.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
 			OfficeChromePanel chrome = new OfficeChromePanel(frame, manager, ribbonHost, () -> { }, AutoSaveControl.DISABLED);
 			((MainRibbonFrame) frame).setRibbonPanel(chrome);
@@ -309,7 +309,7 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 	private MainRibbonFrame createProductionRibbonFrame(MenuManager manager, String title) throws Exception {
 		MainRibbonFrame[] created = new MainRibbonFrame[1];
 		SwingUtilities.invokeAndWait(() -> {
-			MainRibbonFrame next = new MainRibbonFrame(title, "", "");
+			MainRibbonFrame next = new MainRibbonFrame(title, "");
 			persistedFrame = next;
 			MicroProjectShell.installRibbonShell(next, manager, () -> { });
 			next.getContentPane().add(new JPanel(), java.awt.BorderLayout.CENTER);

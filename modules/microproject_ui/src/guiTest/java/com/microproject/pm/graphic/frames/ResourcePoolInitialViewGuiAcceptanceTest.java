@@ -60,7 +60,7 @@ class ResourcePoolInitialViewGuiAcceptanceTest {
 		project.initialize(false, false);
 
 		SwingUtilities.invokeAndWait(() -> {
-			window = new MainRibbonFrame("issue-461-resource-pool", null, null);
+			window = new MainRibbonFrame("issue-461-resource-pool", null);
 			manager = new GraphicManager(window);
 			window.setGraphicManager(manager);
 			manager.initView();

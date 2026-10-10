@@ -25,20 +25,14 @@
 package com.microproject.pm.graphic.frames;
 
 import java.awt.Container;
-import java.net.CookieHandler;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Properties;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.swing.JFrame;
 
-import com.microproject.configuration.Settings;
 import com.microproject.ui.util.SwingFontUtil;
 import com.microproject.util.Environment;
 
@@ -50,27 +44,10 @@ public class ApplicationStartupFactory extends StartupFactory {
 		this(ApplicationStartupFactory.extractOpts(args));
 	}
 	public ApplicationStartupFactory(HashMap<String, Object> opts) {
-		try{
-			CookieHandler.setDefault(null);
-		}catch(Exception e){
-			logger.log(Level.FINE, "Failed to reset CookieHandler", e);
-		}
-
 		this.opts=opts;
+		ensureSupportedOptions(opts);
+		Environment.setStandAlone(true);
 		dumpOpts();
-
-		serverUrl=getOpt("serverUrl");
-		if (serverUrl==null)
-			serverUrl=defaultServerUrl;
-
-		String projectIdS=getOpt("projectId");
-		if (projectIdS!=null) {
-			try {
-				projectId=Long.parseLong(projectIdS);
-			} catch (NumberFormatException e) {
-				logger.log(Level.WARNING, "Ignoring malformed --projectId ''{0}''", projectIdS);
-			}
-		}
 
 		String font=(String)getOpt("font");
 		if (font==null){
@@ -101,51 +78,11 @@ public class ApplicationStartupFactory extends StartupFactory {
 
 		if (fileNames!=null) projectUrls=(String[])fileNames.toArray(new String[]{});
 
-
-		if (Settings.VERSION_TYPE_STANDALONE.equals(getOpt("versionType"))) Environment.setStandAlone(true);
-
 	}
 
-	protected void abort() {
-		System.exit(-1);
-	}
-
-	protected void getCredentials() {
-		String authType=getOpt("credentials",0);
-		if (authType!=null){
-			if ("login".equals(authType)){
-				login=getOpt("credentials",1);
-				password=getOpt("credentials",2);
-			} else if ("session".equals(authType)){
-				String partnerConnectionString =getOpt("credentials",2);
-				String sessionId=getOpt("credentials",1);
-				if (sessionId!=null||partnerConnectionString!=null)
-				try{
-					Properties props=new Properties();
-					String urlString = serverUrl + "/" + Settings.WEB_APP + ((partnerConnectionString==null)?"":"/partner")+"/jnlp/microproject_credentials.jnlp";
-					if (partnerConnectionString != null)
-						urlString += "?"+ partnerConnectionString;
-					URL url = new URL(urlString);
-					HttpURLConnection http = (HttpURLConnection) url.openConnection();
-					if (sessionId!=null) http.setRequestProperty("Cookie", "JSESSIONID=" + sessionId);
-	//				if (partnerConnectionString == null) {
-	//					http.setRequestMethod("POST");
-	//				} else {
-						http.setRequestMethod("GET");
-	//				}
-					http.connect();
-
-
-					props.load(http.getInputStream());
-					http.disconnect();
-
-					login=props.getProperty("login");
-					password=props.getProperty("password");
-				} catch (Exception e1) {
-					logger.log(Level.WARNING, "Failed to retrieve partner credentials", e1);
-				}
-			}
-		}
+	private static void ensureSupportedOptions(HashMap<String, Object> options) {
+		if (options.containsKey("serverUrl") || options.containsKey("projectId") || options.containsKey("credentials"))
+			throw new IllegalArgumentException("Server login and projectId startup options are no longer supported; open a local project file instead.");
 	}
 
 	private String getOpt(String name){
@@ -172,18 +109,13 @@ public class ApplicationStartupFactory extends StartupFactory {
 		HashMap<String, Object> opts = new HashMap<>();
 		if (args.length==0) return opts;
 		String arg=args[0];
-		if (arg!=null&&arg.length()>1&&(!arg.startsWith("--"))){
-			//assume old format
-			if (args.length<4) return opts;
-			opts.put("serverUrl",args[0]);
-			if ("login".equals(args[1])){
-				List<String> lopt=new LinkedList<>();
-				lopt.add(args[1]);
-				lopt.add(args[2]);
-				lopt.add(args[3]);
-				opts.put("credentials",lopt);
-			}
-		}else{
+		if (arg!=null&&arg.length()>1&&(!arg.startsWith("--"))) {
+			if (arg.startsWith("http://") || arg.startsWith("https://"))
+				throw new IllegalArgumentException("Legacy server startup arguments are no longer supported; open a local project file instead.");
+			List<String> fileNames=new ArrayList<>();
+			for (String fileName : args) fileNames.add(fileName);
+			opts.put("fileNames", fileNames);
+		} else {
 			String opt=null,label=null;
 			List<String> lopt=null;
 			for (int i=0;i<args.length;i++){
@@ -194,6 +126,8 @@ public class ApplicationStartupFactory extends StartupFactory {
 						else if (opt!=null) opts.put(label,opt);
 					}
 					label=arg.substring(2);
+					if ("serverUrl".equals(label) || "projectId".equals(label) || "credentials".equals(label))
+						throw new IllegalArgumentException("Server login and projectId startup options are no longer supported; open a local project file instead.");
 					opt=null;
 					lopt=null;
 				}else{

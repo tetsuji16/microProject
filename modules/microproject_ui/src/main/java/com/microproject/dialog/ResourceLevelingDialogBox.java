@@ -236,7 +236,7 @@ public final class ResourceLevelingDialogBox extends FlatLafDialog {
 		if (ccpm.isSelected()) {
 			criticalChainService.apply(project, resources.getSelectedValuesList(), workingSettings);
 		} else {
-			javax.swing.undo.UndoableEditSupport edits = project.getUndoController().getEditSupport();
+			com.microproject.undo.EditSupport edits = project.getUndoController().getEditSupport();
 			if (edits != null) edits.beginUpdate();
 			try {
 				criticalChainService.forget(project, edits);

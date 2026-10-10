@@ -80,7 +80,7 @@ class InvalidStandaloneProjectOpenGuiAcceptanceTest {
 		DocumentFrame[] original = new DocumentFrame[1];
 		FrameManager[] frameManager = new FrameManager[1];
 		SwingUtilities.invokeAndWait(() -> {
-			window = new MainRibbonFrame("microProject — Invalid standalone-file GUI acceptance", null, null);
+			window = new MainRibbonFrame("microProject — Invalid standalone-file GUI acceptance", null);
 			InvalidStandaloneGraphicManager manager = new InvalidStandaloneGraphicManager(window);
 			graphicManager = manager;
 			window.setGraphicManager(manager);
@@ -131,7 +131,7 @@ class InvalidStandaloneProjectOpenGuiAcceptanceTest {
 		DocumentFrame[] original = new DocumentFrame[1];
 		FrameManager[] frameManager = new FrameManager[1];
 		SwingUtilities.invokeAndWait(() -> {
-			window = new MainRibbonFrame("microProject — Missing standalone-file GUI acceptance", null, null);
+			window = new MainRibbonFrame("microProject — Missing standalone-file GUI acceptance", null);
 			InvalidStandaloneGraphicManager manager = new InvalidStandaloneGraphicManager(window);
 			graphicManager = manager;
 			window.setGraphicManager(manager);
@@ -181,7 +181,7 @@ class InvalidStandaloneProjectOpenGuiAcceptanceTest {
 			DocumentFrame[] original = new DocumentFrame[1];
 			FrameManager[] frameManager = new FrameManager[1];
 			SwingUtilities.invokeAndWait(() -> {
-				window = new MainRibbonFrame("microProject — Access-denied standalone-file GUI acceptance", null, null);
+				window = new MainRibbonFrame("microProject — Access-denied standalone-file GUI acceptance", null);
 				InvalidStandaloneGraphicManager manager = new InvalidStandaloneGraphicManager(window);
 				graphicManager = manager;
 				window.setGraphicManager(manager);

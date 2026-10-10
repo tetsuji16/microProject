@@ -76,7 +76,6 @@ import com.microproject.util.UiDispatch;
 public class ProjectFactory {
 	private static final Logger logger = Logger.getLogger(ProjectFactory.class.getName());
 	private static int untitledCount = 0;
-	private String server = null;
 	Portfolio portfolio; // for now just one portfolio.  Perhaps portfolio should reference project factory and not like this
 	private static ProjectFactory projectFactory;
 	public static ProjectFactory getInstance() {
@@ -855,18 +854,6 @@ public class ProjectFactory {
 	 */
 	public Portfolio getPortfolio() {
 		return portfolio;
-	}
-	/**
-	 * @return Returns the server.
-	 */
-	public final String getServer() {
-		return server;
-	}
-	/**
-	 * @param server The server to set.
-	 */
-	public final void setServer(String server) {
-		this.server = server;
 	}
 
 	public Collection<Project> getDirtyProjectList() {

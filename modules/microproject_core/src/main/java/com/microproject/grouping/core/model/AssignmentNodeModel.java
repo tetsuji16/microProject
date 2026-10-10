@@ -32,7 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
-import javax.swing.undo.UndoableEditSupport;
+import com.microproject.undo.EditSupport;
 
 
 import com.microproject.document.Document;
@@ -120,7 +120,7 @@ public class AssignmentNodeModel extends DefaultNodeModel implements ObjectEvent
 						}
 
 						if (added && (objectEvent.getInfo()==null||(objectEvent.getInfo()!=null&&objectEvent.getInfo().isUndo()))&& dataFactory instanceof Project){
-							UndoableEditSupport undoableEditSupport=getUndoableEditSupport();
+							EditSupport undoableEditSupport=getUndoableEditSupport();
 							if (undoableEditSupport!=null){
 								undoableEditSupport.postEdit(new AssignmentCreationEdit(child));
 							}
@@ -135,7 +135,7 @@ public class AssignmentNodeModel extends DefaultNodeModel implements ObjectEvent
 					if (node != null){
 						remove(node,EVENT,false,false);
 						if ((objectEvent.getInfo()==null||(objectEvent.getInfo()!=null&&objectEvent.getInfo().isUndo()))&& dataFactory instanceof Project){
-							UndoableEditSupport undoableEditSupport=getUndoableEditSupport();
+							EditSupport undoableEditSupport=getUndoableEditSupport();
 							if (undoableEditSupport!=null){
 								undoableEditSupport.postEdit(new AssignmentDeletionEdit(node));
 							}

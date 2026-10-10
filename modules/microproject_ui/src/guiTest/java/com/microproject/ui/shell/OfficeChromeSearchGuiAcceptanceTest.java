@@ -84,7 +84,7 @@ class OfficeChromeSearchGuiAcceptanceTest {
 			ExtToolBarFactory buttonFactory = new ExtToolBarFactory(actionMap, bundles);
 			JPanel ribbonPanel = new SwingRibbonFactory(
 				new MenuRibbonCommandSource(buttonFactory), bundles).createPanel(MenuManager.STANDARD_RIBBON, () -> {});
-			frame = new MainRibbonFrame("Office chrome search acceptance", "", "");
+			frame = new MainRibbonFrame("Office chrome search acceptance", "");
 			panel[0] = new OfficeChromePanel(frame, manager, ribbonPanel, helpCalls::incrementAndGet,
 				AutoSaveControl.DISABLED);
 			field[0] = find(panel[0], OfficeChromePanel.SEARCH_FIELD_NAME, JTextField.class);

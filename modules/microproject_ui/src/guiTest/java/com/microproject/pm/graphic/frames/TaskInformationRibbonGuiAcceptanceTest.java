@@ -3072,7 +3072,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				if (candidate instanceof MainRibbonFrame)
 					candidate.dispose();
 			}
-			window = new MainRibbonFrame("microProject — Task Information ribbon acceptance", null, null);
+			window = new MainRibbonFrame("microProject — Task Information ribbon acceptance", null);
 			manager = new GraphicManager(window);
 			window.setGraphicManager(manager);
 			manager.initView();

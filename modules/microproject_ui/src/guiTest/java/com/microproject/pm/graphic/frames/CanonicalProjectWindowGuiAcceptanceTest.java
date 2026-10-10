@@ -68,7 +68,7 @@ class CanonicalProjectWindowGuiAcceptanceTest {
 		GraphicManager[] managers = new GraphicManager[1];
 		int[] existingFrameCount = new int[1];
 		SwingUtilities.invokeAndWait(() -> {
-			window = new MainRibbonFrame("microProject — Canonical project-window GUI acceptance", null, null);
+			window = new MainRibbonFrame("microProject — Canonical project-window GUI acceptance", null);
 			GraphicManager manager = new GraphicManager(window);
 			graphicManager = manager;
 			managers[0] = manager;
@@ -132,7 +132,7 @@ class CanonicalProjectWindowGuiAcceptanceTest {
 		assertEquals(0, tasks[9].getPredecessorList().size(), "the inserted empty row must not own a dependency");
 		assertEquals(1, tasks[10].getPredecessorList().size());
 		SwingUtilities.invokeAndWait(() -> {
-			window = new MainRibbonFrame("microProject — empty middle task GUI acceptance", null, null);
+			window = new MainRibbonFrame("microProject — empty middle task GUI acceptance", null);
 			graphicManager = new GraphicManager(window);
 			window.setGraphicManager(graphicManager);
 			graphicManager.initView();
@@ -175,7 +175,7 @@ class CanonicalProjectWindowGuiAcceptanceTest {
 		SpreadSheet[] sheets = new SpreadSheet[1];
 		int[] taskCell = new int[2];
 		SwingUtilities.invokeAndWait(() -> {
-			window = new MainRibbonFrame("microProject — Ctrl Delete GUI acceptance", null, null);
+			window = new MainRibbonFrame("microProject — Ctrl Delete GUI acceptance", null);
 			graphicManager = new GraphicManager(window);
 			window.setGraphicManager(graphicManager);
 			graphicManager.initView();

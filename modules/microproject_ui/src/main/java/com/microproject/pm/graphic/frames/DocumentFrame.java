@@ -44,8 +44,7 @@ import javax.swing.JOptionPane;
 
 import javax.swing.JRadioButtonMenuItem;
 import javax.swing.SwingUtilities;
-import javax.swing.event.UndoableEditEvent;
-import javax.swing.event.UndoableEditListener;
+import javax.swing.undo.UndoableEdit;
 
 
 import com.microproject.dialog.BaselineDialog;
@@ -134,6 +133,7 @@ import com.microproject.timescale.TimeScale;
 import com.microproject.preference.GlobalPreferences;
 import com.microproject.session.LoadOptions;
 import com.microproject.undo.UndoController;
+import com.microproject.undo.EditListener;
 import com.microproject.undo.ProjectStartDateEdit;
 import com.microproject.util.Alert;
 import com.microproject.util.ArrayUtils;
@@ -150,7 +150,7 @@ import com.microproject.ribbon.RibbonCommandResult;
  */
 @SuppressWarnings("unchecked")
 public class DocumentFrame extends NamedFrame implements
-		SelectionNodeListener, UndoableEditListener, MenuActionConstants, ObjectEvent.Listener, ProjectListener, SavableToWorkspace, ObjectSelectionListener {
+		SelectionNodeListener, EditListener, MenuActionConstants, ObjectEvent.Listener, ProjectListener, SavableToWorkspace, ObjectSelectionListener {
 	private static final long serialVersionUID = 2075764134837908178L;
 	private static final java.util.logging.Logger logger = java.util.logging.Logger.getLogger(DocumentFrame.class.getName());
 	protected MainView mainView;
@@ -792,7 +792,7 @@ public class DocumentFrame extends NamedFrame implements
 			CommandId.RESOURCE_LEVEL_ALL == command ? "level all tasks" : "level selected tasks"))
 			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.REJECTED,
 				"collaboration-lock-denied", selectedIds, List.of(), getTopViewId());
-		javax.swing.undo.UndoableEditSupport edits = project.getUndoController().getEditSupport();
+		com.microproject.undo.EditSupport edits = project.getUndoController().getEditSupport();
 		if (edits == null)
 			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.REJECTED,
 				"undo-unavailable", selectedIds, List.of(), getTopViewId());
@@ -1974,7 +1974,7 @@ public class DocumentFrame extends NamedFrame implements
 			spreadSheet.getColumnModel().getSelectionModel().setSelectionInterval(column, column);
 		}
 	}
-	public void undoableEditHappened(UndoableEditEvent e) {
+	public void editPosted(UndoableEdit edit) {
 		refreshUndoButtons();
 	}
 
@@ -2000,9 +2000,9 @@ public class DocumentFrame extends NamedFrame implements
 
 		if (undoController!=currentUndoController){
 			if (currentUndoController!=null)
-				currentUndoController.getEditSupport().removeUndoableEditListener(this);
+				currentUndoController.getEditSupport().removeEditListener(this);
 			if (undoController!=null)
-				undoController.getEditSupport().addUndoableEditListener(this);
+				undoController.getEditSupport().addEditListener(this);
 			currentUndoController=undoController;
 		}
 
@@ -2185,7 +2185,7 @@ public class DocumentFrame extends NamedFrame implements
 			project.removeScheduleListener(coord);
 		}
 		if (getUndoController() != null &&  getUndoController().getEditSupport() != null)
-			getUndoController().getEditSupport().removeUndoableEditListener(this);
+			getUndoController().getEditSupport().removeEditListener(this);
 		if (coord != null)
 			coord.removeTimeScaleListener(mainView);
 		forAllViews(v -> {

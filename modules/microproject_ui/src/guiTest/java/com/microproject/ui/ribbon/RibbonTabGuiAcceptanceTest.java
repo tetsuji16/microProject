@@ -465,7 +465,7 @@ class RibbonTabGuiAcceptanceTest {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for GUI coverage.");
 		RecordingActionMap actions = new RecordingActionMap();
 		MenuManager manager = MenuManager.getInstance(actions);
-		MainRibbonFrame mainFrame = new MainRibbonFrame("Ribbon startup", null, null);
+		MainRibbonFrame mainFrame = new MainRibbonFrame("Ribbon startup", null);
 		frame = mainFrame;
 		MicroProjectShell.installRibbonShell(mainFrame, manager, null);
 		JPanel host = mainFrame.getRibbonPanel();

@@ -1,7 +1,6 @@
 /*******************************************************************************
  * MIT License
  *
- * Copyright (c) 2012-2019 ProjectLibre, Inc.  (Previous Copyright Holder)
  * Copyright (c) 2026 microProject
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -22,47 +21,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *******************************************************************************/
-package com.microproject.dialog;
+package com.microproject.undo;
 
-import java.io.Serializable;
+import javax.swing.undo.UndoableEdit;
 
-public class LoginForm implements Serializable{
-	static final long serialVersionUID = 893920204932L;
-		String login;
-		String password;
-		boolean storeCredentials;
-		boolean useMenus = false;
-		transient boolean cancelled = false;
-		public final String getLogin() {
-			return login;
-		}
-		public final void setLogin(String login) {
-			this.login = login;
-		}
-		public final String getPassword() {
-			return password;
-		}
-		public final void setPassword(String password) {
-			this.password = password;
-		}
-		public boolean isStoreCredentials() {
-			return storeCredentials;
-		}
-		public void setStoreCredentials(boolean storeCredentials) {
-			this.storeCredentials = storeCredentials;
-		}
-		public final boolean isCancelled() {
-			return cancelled;
-		}
-		public final void setCancelled(boolean cancelled) {
-			this.cancelled = cancelled;
-		}
-		public boolean isUseMenus() {
-			return useMenus;
-		}
-		public void setUseMenus(boolean useMenus) {
-			this.useMenus = useMenus;
-		}
-		
-	}
-
+/** Receives an undo edit posted to an {@link EditSupport}. */
+@FunctionalInterface
+public interface EditListener {
+	void editPosted(UndoableEdit edit);
+}

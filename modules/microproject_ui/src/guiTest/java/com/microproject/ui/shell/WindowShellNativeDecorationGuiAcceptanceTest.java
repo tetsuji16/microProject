@@ -55,7 +55,7 @@ class WindowShellNativeDecorationGuiAcceptanceTest {
 		final JComponent[] brand = new JComponent[1];
 		final JComponent[] content = new JComponent[1];
 		SwingUtilities.invokeAndWait(() -> {
-			frame = new MainRibbonFrame("Native window shell acceptance", "", "");
+			frame = new MainRibbonFrame("Native window shell acceptance", "");
 			OfficeChromePanel panel = new OfficeChromePanel(frame,
 				MenuManager.getInstance(MenuActionMapSupport.noopActionMap()), new JPanel(), () -> { },
 				AutoSaveControl.DISABLED);

@@ -44,7 +44,7 @@ class RibbonCtrlF1GuiAcceptanceTest {
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
 		SwingUtilities.invokeAndWait(() -> {
-			window = new MainRibbonFrame("Ctrl+F1 ribbon acceptance", null, null);
+			window = new MainRibbonFrame("Ctrl+F1 ribbon acceptance", null);
 			manager = new GraphicManager(window);
 			window.setGraphicManager(manager);
 			manager.initView();

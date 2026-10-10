@@ -35,7 +35,7 @@ import java.util.logging.Logger;
 
 import javax.swing.JViewport;
 import javax.swing.SwingUtilities;
-import javax.swing.undo.UndoableEditSupport;
+import com.microproject.undo.EditSupport;
 
 import com.microproject.pm.graphic.graph.GraphInteractor;
 import com.microproject.pm.graphic.graph.GraphUI;
@@ -401,7 +401,7 @@ public class GanttInteractor extends GraphInteractor{
     		if (!(selected instanceof GraphicNode)) return false;
     		sourceNode=(GraphicNode)selected;
     	}
-    	UndoableEditSupport undoSupport = getUndoableEditSupport();
+	EditSupport undoSupport = getEditSupport();
 		boolean actionPerformed;
 		switch (state) {
 		case BAR_MOVE:
@@ -425,7 +425,7 @@ public class GanttInteractor extends GraphInteractor{
 		return refreshUndoState(actionPerformed);
     }
 
-	private boolean executeScheduleEdit(double x, UndoableEditSupport undoSupport) {
+	private boolean executeScheduleEdit(double x, EditSupport undoSupport) {
 		if (sourceNode == null || selectedInterval == null || !(getGraph() instanceof Gantt gantt)
 				|| gantt.getCache() == null || !(sourceNode.getNode().getImpl() instanceof Task task))
 			return false;
@@ -539,7 +539,7 @@ public class GanttInteractor extends GraphInteractor{
 		return new DependencyLinkEndpoints(sourceNode, destinationNode);
 	}
 
-    private boolean applyIntervalDrag(long start, long end, UndoableEditSupport undoSupport) {
+    private boolean applyIntervalDrag(long start, long end, EditSupport undoSupport) {
 		Schedule schedule = getSourceSchedule();
 		Task task = getSourceTask();
 		long originalScheduleStart = schedule.getStart();
@@ -596,7 +596,7 @@ public class GanttInteractor extends GraphInteractor{
 						|| original.getEnd() != DateTime.hourFloor(end));
 	}
 
-	private boolean applyProgressDrag(long completed, UndoableEditSupport undoSupport) {
+	private boolean applyProgressDrag(long completed, EditSupport undoSupport) {
 		return ScheduleService.getInstance().setCompleted(this,getSourceSchedule(),completed,undoSupport);
 	}
 
@@ -639,7 +639,7 @@ public class GanttInteractor extends GraphInteractor{
     	return true;
     }
 
-    private void applyConstraintAfterDrag(Task task, ConstraintType.Kind constraintType, long constraintDate, ConstraintType.Kind originalConstraintType, int originalConstraintTypeCode, long originalConstraintDate, UndoableEditSupport undoSupport) {
+    private void applyConstraintAfterDrag(Task task, ConstraintType.Kind constraintType, long constraintDate, ConstraintType.Kind originalConstraintType, int originalConstraintTypeCode, long originalConstraintDate, EditSupport undoSupport) {
     	if (task == null) {
     		return;
     	}
@@ -685,7 +685,7 @@ public class GanttInteractor extends GraphInteractor{
     	return impl instanceof Task && ((Task) impl).isMilestone() && interval.getStart() == interval.getEnd();
     }
 
-    private UndoableEditSupport getUndoableEditSupport() {
+    private EditSupport getEditSupport() {
     	if (ui.getGraph().getProject().getUndoController() == null) {
     		return null;
     	}

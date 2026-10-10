@@ -48,7 +48,7 @@ public class MainRibbonFrame extends FlatLafFrame implements FrameHolder{
 	private JPanel ribbonPanel;
 	private Runnable windowCloseAction;
 
-	public MainRibbonFrame(String name, String projectUrl, String server) throws HeadlessException {
+	public MainRibbonFrame(String name, String projectUrl) throws HeadlessException {
 		super(name);
 		setIconImage(IconManager.getImage("application.icon"));
 		init();
