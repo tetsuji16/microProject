@@ -112,7 +112,7 @@ class RibbonUiAuditTest {
 
 	@Test
 	void helpUrlsAreNormalizedToCurrentDocumentationTargets() {
-		assertEquals("https://tetsuji16.github.io/ProjectLibre/", UiLinkTargets.DOCUMENTATION_HOME);
+		assertEquals("https://o-server.main.jp/micro-project/", UiLinkTargets.DOCUMENTATION_HOME);
 		assertEquals(UiLinkTargets.DOCUMENTATION_HOME, HelpUtil.getHelpURL(null));
 		assertEquals(UiLinkTargets.DOCUMENTATION_HOME, HelpUtil.getHelpURL(""));
 		assertEquals("https://example.com/help", HelpUtil.getHelpURL("https://example.com/help"));
@@ -133,7 +133,7 @@ class RibbonUiAuditTest {
 			assertEquals("https", target.getScheme(), () -> entry.getKey() + " must use HTTPS");
 			assertNotNull(target.getHost(), () -> entry.getKey() + " must have a valid host");
 			assertNull(target.getUserInfo(), () -> entry.getKey() + " must not embed credentials");
-			assertTrue(target.getHost().equals("github.com") || target.getHost().equals("tetsuji16.github.io"),
+			assertTrue(target.getHost().equals("github.com") || target.getHost().equals("o-server.main.jp"),
 				() -> entry.getKey() + " uses an unexpected host: " + target.getHost());
 		}
 	}
