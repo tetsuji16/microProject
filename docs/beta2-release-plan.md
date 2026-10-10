@@ -34,7 +34,7 @@ beta.2 は独立化の最初の出荷単位。コード起源の完全除去、c
 | `ConfigurationFile` | 旧配置だけ探索する active 設定読込。user config は外部入力 | 新配置優先、旧配置読取fallback |
 | `AutoRecoveryStore` | application が所有する runtime ファイル。beta.1 crash snapshot の発見が必要 | 新規保存の配置独立化、未解決旧snapshot は保持 |
 | `CollaborationMetadataStore` suffix | active lease / process lock path。MPO artifact lifecycle が参照。名前だけ変えると二重lockになる | 保持。lock移行protocolと同時に別出荷単位で変更 |
-| `ServerFileImporter`, `ServerLocalFileImporter` | `MicrosoftImporter` も前者を継承。後者は provider 登録と POD 非local load policy の caller あり | 未使用とは判定できず維持。型名だけで削除しない |
+| `ServerFileImporter`, `ServerLocalFileImporter` | MicrosoftImporter は server base のメソッドを呼んでいない。ServerLocalFileImporter は provider と POD 非local policy の caller あり | MicrosoftImporter の不要な server 継承を除去。非local POD経路の server adapter は維持 |
 | `OpenProjectDialog`, `LoginDialog` | `GraphicManager` の非local Open/Insert と `StartupFactory` の非standalone login が参照。meta session 登録は local のみだが条件分岐が残る | caller と動的構成の整理が必要。通常Openとは別の次段階対象 |
 | `SessionFactory` / `SessionImpls` | active meta 登録は LocalSession のみ。server scope は既に同じ local へfallback。session registry はserializedではない | 型付き生成へ統合、resetとqueue継承を保持、共有sessionの競合を同期 |
 | `ExtendedPrintServiceFactory` / core meta | UIだけが使う印刷実装のクラス名をcore metadataが指定。POD descriptorではない | UIへ構築責務を移しreflectionとcore側指定を削除 |
@@ -66,3 +66,9 @@ JDK 25 / `releaseVersion=0.0.24.2` / `releaseChannel=beta`。
 追加後の `clean build installDist verifyArchitectureBoundaries verifyPackagedFileImports` (`releaseVersion=0.0.24.2`, `releaseChannel=beta`) は成功。全8 module 2,224件、失敗0・error0、Windows専用1件skip。MPP/POD 各145 tasks。旧名テストclassの残存によるincremental test失敗をcleanで除去し、古い結果を出荷根拠に使わない。
 
 初期commit `4a3d487a06d9f4ebcc01451eefb281b70ed84374` は [PR #775](https://github.com/tetsuji16/ProjectLibre/pull/775) に反映済み。Windows GUI smoke は [run 38017108250](https://github.com/tetsuji16/ProjectLibre/actions/runs/38017108250) が成功。追加commitは同PRで再検証してから統合する。
+
+
+追加追跡で `MicrosoftImporter` は server base の `prepareResources` を呼んでいないことを確認し、`FileImporter` の直接継承へ切り替えた。private な旧二段階変換メソッド名は実際の責務に合わせて `adoptImportedProject` へ整理。MPP/XML/MPX/XLSX の標準読込が旧server mapperを継承する依存を除去し、非local POD用のadapterは別経路として保持する。インポータはserializableではなく、POD/MPO descriptor変更を伴わない。
+
+
+最終 importer 変更後の `:microproject_exchange:test installDist verifyPackagedFileImports verifyArchitectureBoundaries` は成功（42秒、exchange 216件、失敗0）。MPP/POD 各145 tasks。残る優先順は、(1) 旧login/server branchの利用判定と廃止、(2) ProjectのUI表示設定・Swing Undo/Eventをport境界へ分離、(3) applicationのopen/save/report調整の集約。いずれもPOD wire固定と旧MPO fixtureを前提に小さな出荷単位で進める。
