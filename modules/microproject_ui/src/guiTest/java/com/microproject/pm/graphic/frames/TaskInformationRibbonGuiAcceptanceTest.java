@@ -1395,7 +1395,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		runProgressPhysicalRoute("mark-on-track-no-selection", c -> {
 			AbstractButton markOnTrack = GuiPhysicalRouteAdapter.visibleButton(c.robot(), window, "RibbonMarkOnTrack");
 			assertFalse(markOnTrack.isEnabled(), "MSP Mark on Track requires selected tasks");
-			click(c.robot(), markOnTrack);
+			clickDisabled(c.robot(), markOnTrack);
 			assertEquals(initialPercentComplete, contextTask().getPercentComplete(),
 					"A disabled command must leave the task unchanged");
 			return null;
@@ -3444,6 +3444,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 
 	private static void click(Robot robot, Component component) throws Exception {
 		WindowAcceptanceAssertions.clickComponent(robot, component);
+	}
+
+	private static void clickDisabled(Robot robot, Component component) throws Exception {
+		WindowAcceptanceAssertions.clickDisabledComponent(robot, component);
 	}
 
 	private static void click(Robot robot, Rectangle bounds) {

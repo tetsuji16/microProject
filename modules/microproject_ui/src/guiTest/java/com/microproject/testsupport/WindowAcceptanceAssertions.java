@@ -65,28 +65,38 @@ public final class WindowAcceptanceAssertions {
 	 * every move because native window geometry can still settle between snapshots.
 	 */
 	public static void clickComponent(Robot robot, Component component) throws Exception {
+		clickComponent(robot, component, true);
+	}
+
+	/** Physically verifies that a disabled component remains inert when clicked. */
+	public static void clickDisabledComponent(Robot robot, Component component) throws Exception {
+		clickComponent(robot, component, false);
+	}
+
+	private static void clickComponent(Robot robot, Component component, boolean expectedEnabled) throws Exception {
 		long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(8);
 		PointerSnapshot last = pointerSnapshot(component);
 		while (System.nanoTime() < deadline) {
-			if (last.showing() && last.enabled() && last.bounds() != null && !last.bounds().isEmpty()) {
+			if (last.showing() && last.enabled() == expectedEnabled && last.bounds() != null && !last.bounds().isEmpty()) {
 				Point target = new Point(last.bounds().x + last.bounds().width / 2,
 					last.bounds().y + last.bounds().height / 2);
 				robot.mouseMove(target.x, target.y);
 				robot.waitForIdle();
 				last = pointerSnapshot(component);
-				if (last.showing() && last.enabled() && isInside(last.localMouse(), last.size()))
+				if (last.showing() && last.enabled() == expectedEnabled && isInside(last.localMouse(), last.size()))
 					break;
 			}
 			Thread.sleep(25);
 			last = pointerSnapshot(component);
 		}
-		if (last == null || !last.showing() || !last.enabled() || last.bounds() == null || last.bounds().isEmpty()
+		if (last == null || !last.showing() || last.enabled() != expectedEnabled || last.bounds() == null || last.bounds().isEmpty()
 			|| !isInside(last.localMouse(), last.size())) {
 			throw new AssertionError("Robot pointer did not enter the current component before click dispatch; target={"
 				+ (last == null ? "unavailable" : last.identity()) + "}; bounds="
 				+ (last == null ? null : last.bounds()) + "; size=" + (last == null ? null : last.size())
 				+ "; localMouse=" + (last == null ? null : last.localMouse()) + "; showing="
 				+ (last != null && last.showing()) + "; enabled=" + (last != null && last.enabled())
+				+ "; expectedEnabled=" + expectedEnabled
 				+ "; test=" + currentTestCaller() + "; windows={" + showingWindows() + "}");
 		}
 		System.out.println("[GUI_PHYSICAL_CLICK] test=" + currentTestCaller() + " target=" + last.identity()
