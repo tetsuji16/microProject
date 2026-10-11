@@ -75,6 +75,8 @@ import com.microproject.dialog.DependencyDialog;
 import com.microproject.dialog.assignment.TimesheetDialog;
 import com.microproject.dialog.assignment.TimesheetEntryPane;
 import com.microproject.menu.MenuManager;
+import com.microproject.ui.ribbon.RibbonDisplayMode;
+import com.microproject.ui.ribbon.RibbonDisplayPreferences;
 import com.microproject.ribbon.RibbonCommandResult;
 import com.microproject.exchange.MpoFileImporter;
 import com.microproject.collaboration.CollaborationSession;
@@ -138,11 +140,14 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	private String previousUiDebug;
 	private JobQueue previousJobQueue;
 	private Locale previousFormatLocale;
+	private RibbonDisplayMode previousShellDisplayMode;
 
 	@BeforeEach
 	void captureClientSide() {
 		previousClientSide = Environment.isClientSide();
 		previousBatchMode = Environment.isBatchMode();
+		previousShellDisplayMode = RibbonDisplayPreferences.load();
+		RibbonDisplayPreferences.save(RibbonDisplayMode.ALWAYS_SHOW);
 	}
 
 	@AfterEach
@@ -160,6 +165,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 					candidate.dispose();
 			}
 		});
+		if (previousShellDisplayMode != null)
+			RibbonDisplayPreferences.save(previousShellDisplayMode);
 		Environment.setRibbonUI(previousRibbonUi);
 		Environment.setNewLook(previousNewLook);
 		Environment.setClientSide(previousClientSide);
@@ -217,7 +224,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			activateWindow(robot, window);
 			AbstractButton fileTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("FileRibbonTask.title"));
-			click(robot, boundsOnScreen(fileTab));
+			clickAndAwaitSelected(robot, fileTab, "Robot click did not select the File ribbon tab");
 			GuiAcceptanceSupport.await(fileTab::isSelected, "Robot click did not select the File ribbon tab");
 			AbstractButton save = findShowingButtonByCommand("RibbonSaveProject");
 			assertTrue(save.isEnabled(), "Save must be enabled for the edited MPO project");
@@ -300,7 +307,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		clickUntilSelected(robot, window, sheet, rowForTask(sheet, task), nameColumn(sheet));
 		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("TaskRibbonTask.title"));
-		click(robot, boundsOnScreen(taskTab));
+		clickAndAwaitSelected(robot, taskTab, "Robot click did not select the Task ribbon tab");
 		GuiAcceptanceSupport.await(taskTab::isSelected, "Robot click did not select the Task ribbon tab");
 		AbstractButton update = RibbonGuiSupport.findVisibleOrExpand(robot, window, "RibbonUpdateTasks");
 		GuiAcceptanceSupport.await(update::isEnabled, "Update Tasks remained disabled after selecting a task");
@@ -413,7 +420,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 
 		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("TaskRibbonTask.title"));
-		click(robot, boundsOnScreen(taskTab));
+		clickAndAwaitSelected(robot, taskTab, "Robot click did not select the Task ribbon tab");
 		GuiAcceptanceSupport.await(taskTab::isSelected, "Robot click did not select the Task ribbon tab");
 		AbstractButton information = findShowingButtonByCommand("RibbonTaskInformation");
 		GuiAcceptanceSupport.await(information::isEnabled,
@@ -616,8 +623,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		activateWindow(robot, window);
 		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("ViewRibbonTask.title"));
-		click(robot, boundsOnScreen(viewTab));
-		GuiAcceptanceSupport.await(viewTab::isSelected, "Robot click did not select the View ribbon tab");
+		clickAndAwaitSelected(robot, viewTab, "Robot click did not select the View ribbon tab");
 		AbstractButton taskUsageButton = findShowingButtonByCommand("RibbonTaskUsageDetail");
 		click(robot, boundsOnScreen(taskUsageButton));
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getActiveTopView() instanceof UsageDetailView,
@@ -657,8 +663,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		activateWindow(robot, window);
 		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("ViewRibbonTask.title"));
-		click(robot, boundsOnScreen(viewTab));
-		GuiAcceptanceSupport.await(viewTab::isSelected, "Robot click did not select the View ribbon tab");
+		clickAndAwaitSelected(robot, viewTab, "Robot click did not select the View ribbon tab");
 
 		SwingUtilities.invokeAndWait(() -> manager.getCurrentFrame().activateView(com.microproject.menu.MenuActionConstants.ACTION_HISTOGRAM));
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getActiveBottomView() != null
@@ -706,8 +711,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		activateWindow(robot, window);
 		AbstractButton projectTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("ProjectRibbonTask.title"));
-		click(robot, boundsOnScreen(projectTab));
-		GuiAcceptanceSupport.await(projectTab::isSelected, "Project ribbon tab did not become selected");
+		clickAndAwaitSelected(robot, projectTab, "Robot click did not select the Project ribbon tab");
 		AbstractButton calendarOptions = findShowingButtonByCommand("RibbonCalendarOptions");
 		GuiAcceptanceSupport.await(calendarOptions::isEnabled, "Calendar Options remained disabled");
 		click(robot, boundsOnScreen(calendarOptions));
@@ -741,7 +745,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		activateWindow(robot, window);
 		AbstractButton projectTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("ProjectRibbonTask.title"));
-		click(robot, boundsOnScreen(projectTab));
+		clickAndAwaitSelected(robot, projectTab, "Robot click did not select the Project ribbon tab");
 		GuiAcceptanceSupport.await(projectTab::isSelected, "Project ribbon tab did not become selected");
 		AbstractButton changeWorkingTime = findShowingButtonByCommand("RibbonChangeWorkingTime");
 		assertTrue(changeWorkingTime.isEnabled(), "Change Working Time requires the active project calendar to be editable");
@@ -785,8 +789,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		activateWindow(robot, window);
 		AbstractButton projectTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("ProjectRibbonTask.title"));
-		click(robot, boundsOnScreen(projectTab));
-		GuiAcceptanceSupport.await(projectTab::isSelected, "Project ribbon tab did not become selected");
+		clickAndAwaitSelected(robot, projectTab, "Project ribbon tab did not become selected");
 
 		AbstractButton statusDate = RibbonGuiSupport.findVisibleOrExpand(robot, window, "RibbonStatusDate");
 		String renderedStatusDate = statusDate.getText().replaceAll("(?i)<br\\s*/?>", " ").replaceAll("<[^>]*>", "");
@@ -868,7 +871,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			.getString("ProjectRibbonTask.title"));
 		for (int attempt = 0; attempt < 3 && !projectTab.isSelected(); attempt++) {
 			if (attempt > 0) activateWindow(robot, window);
-			click(robot, boundsOnScreen(projectTab));
+			clickAndAwaitSelected(robot, projectTab, "Robot click did not select the Project ribbon tab");
 		}
 		GuiAcceptanceSupport.await(projectTab::isSelected, "Project ribbon tab was not selected after bounded physical clicks");
 		AbstractButton changeWorkingTime = findShowingButtonByCommand("RibbonChangeWorkingTime");
@@ -929,7 +932,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		activateWindow(robot, window);
 		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("ViewRibbonTask.title"));
-		click(robot, boundsOnScreen(viewTab));
+		clickAndAwaitSelected(robot, viewTab, "Robot click did not select the View ribbon tab");
 		GuiAcceptanceSupport.await(viewTab::isSelected, "Robot click did not select the View ribbon tab");
 		AbstractButton calendarButton = findShowingButtonByCommand("RibbonCalendarView");
 		click(robot, boundsOnScreen(calendarButton));
@@ -981,7 +984,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		activateWindow(robot, window);
 		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("ViewRibbonTask.title"));
-		click(robot, boundsOnScreen(viewTab));
+		clickAndAwaitSelected(robot, viewTab, "Robot click did not select the View ribbon tab");
 		GuiAcceptanceSupport.await(viewTab::isSelected, "View ribbon tab was not selected");
 
 		AbstractButton network = findShowingButtonByCommand("RibbonNetwork");
@@ -1025,7 +1028,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		activateWindow(robot, window);
 		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("ViewRibbonTask.title"));
-		click(robot, boundsOnScreen(viewTab));
+		clickAndAwaitSelected(robot, viewTab, "Robot click did not select the View ribbon tab for Calendar");
+		GuiAcceptanceSupport.await(() -> hasShowingCommand("RibbonCalendarView"),
+			"View ribbon did not expose RibbonCalendarView after selecting its tab; " + componentInputDiagnostics(viewTab));
 		click(robot, boundsOnScreen(findShowingButtonByCommand("RibbonCalendarView")));
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getCalendarViewDialog() != null
 			&& manager.getCurrentFrame().getCalendarViewDialog().isShowing(), "calendar link dialog did not open");
@@ -1076,8 +1081,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		activateWindow(robot, window);
 		AbstractButton resourceTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("ResourceRibbonTask.title"));
-		click(robot, boundsOnScreen(resourceTab));
-		GuiAcceptanceSupport.await(resourceTab::isSelected, "Robot click did not select the Resource ribbon tab");
+		clickAndAwaitSelected(robot, resourceTab, "Robot click did not select the Resource ribbon tab");
 		AbstractButton timesheet = findShowingButtonByCommand("RibbonTimesheet");
 		GuiAcceptanceSupport.await(timesheet::isEnabled, "Timesheet remained disabled on the Resource ribbon");
 		click(robot, boundsOnScreen(timesheet));
@@ -1119,7 +1123,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		clickUntilSelected(robot, window, sheet, row, nameColumn(sheet));
 		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("TaskRibbonTask.title"));
-		click(robot, boundsOnScreen(taskTab));
+		clickAndAwaitSelected(robot, taskTab, "Robot click did not select the Task ribbon tab");
 		AbstractButton hide = findVisibleOrOverflowButton(robot, "RibbonHideSelectedTasks");
 		GuiAcceptanceSupport.await(hide::isEnabled, "Hide Selected Tasks remained disabled after selection");
 		RibbonCommandResult previousHideOutcome = manager.getLastRibbonCommandResult();
@@ -1578,8 +1582,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
 		if (selectTask) click(robot, cellOnScreen(sheet, rowForTask(sheet, progressTask), nameColumn(sheet)));
 		else SwingUtilities.invokeAndWait(sheet::clearSelection);
-		click(robot, boundsOnScreen(findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
-				.getString(commandId.equals("MarkOnTrack") ? "TaskRibbonTask.title" : "ProjectRibbonTask.title"))));
+		AbstractButton progressTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+				.getString(commandId.equals("MarkOnTrack") ? "TaskRibbonTask.title" : "ProjectRibbonTask.title"));
+		clickAndAwaitSelected(robot, progressTab, routeName + " ribbon tab did not become selected");
+		SwingUtilities.invokeAndWait(() -> { });
 		AbstractButton progressCommand = GuiPhysicalRouteAdapter.visibleButton(robot, window,
 			commandId.equals("StatusDate") ? "RibbonStatusDate" : "RibbonMarkOnTrack");
 		GuiAcceptanceSupport.await(progressCommand::isShowing, "progress command did not become visible");
@@ -1802,7 +1808,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		activateWindow(robot, window);
 		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("TaskRibbonTask.title"));
-		click(robot, boundsOnScreen(taskTab));
+		clickAndAwaitSelected(robot, taskTab, "Robot click did not select the Task ribbon tab");
 		GuiAcceptanceSupport.await(taskTab::isSelected, "Robot click did not select the Task ribbon tab");
 		assertFalse(findVisibleOrOverflowButton(robot, "RibbonLink").isEnabled(),
 			"Link must be disabled without two selected tasks");
@@ -1853,7 +1859,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, parent), nameColumn(sheet)));
 		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("TaskRibbonTask.title"));
-		click(robot, boundsOnScreen(taskTab));
+		clickAndAwaitSelected(robot, taskTab, "Robot click did not select the Task ribbon tab");
 		AbstractButton collapse = findShowingButtonByCommand("RibbonCollapse");
 		GuiAcceptanceSupport.await(collapse::isEnabled, "Collapse remained disabled for a selected summary");
 		RibbonCommandResult previousCollapseOutcome = manager.getLastRibbonCommandResult();
@@ -1916,7 +1922,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		clickUntilSelected(robot, window, sheet, rowForTask(sheet, second), nameColumn(sheet));
 		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("TaskRibbonTask.title"));
-		click(robot, boundsOnScreen(taskTab));
+		clickAndAwaitSelected(robot, taskTab, "Robot click did not select the Task ribbon tab");
 		AbstractButton indent = findVisibleOrOverflowButton(robot, "RibbonIndent");
 		GuiAcceptanceSupport.await(indent::isEnabled, "Indent remained disabled for the selected task");
 		RibbonCommandResult previousIndentOutcome = manager.getLastRibbonCommandResult();
@@ -2354,12 +2360,6 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> {
 			rowHeaderBox[0] = sheet.getRowHeader();
 			JTable rowHeader = rowHeaderBox[0];
-			java.awt.Rectangle source = rowHeader.getCellRect(sourceRow, 0, true);
-			java.awt.Rectangle target = rowHeader.getCellRect(targetRow, 0, true);
-			Point location = rowHeader.getLocationOnScreen();
-			points[0] = new Point(location.x + source.x + source.width / 2,
-				location.y + source.y + source.height / 2);
-			points[1] = new Point(location.x + target.x + target.width / 2, location.y + target.y + 3);
 			rowHeader.addMouseMotionListener(new java.awt.event.MouseMotionAdapter() {
 				@Override
 				public void mouseDragged(java.awt.event.MouseEvent event) {
@@ -2370,33 +2370,64 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		});
 		JTable rowHeader = rowHeaderBox[0];
 		GuiAcceptanceSupport.await(() -> sheet.isShowing() && rowHeader.isShowing(),
-			"task row header was not visible for the physical move gesture");
-		robot.mouseMove(points[0].x, points[0].y);
+			"task row header was not visible for the physical move gesture; " + componentInputDiagnostics(rowHeader));
+		points[0] = moveToRowHeaderTarget(robot, rowHeader, sourceRow, false,
+			"Robot source move did not hit the visible source row");
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-		robot.delay(100);
-		GuiAcceptanceSupport.await(() -> {
-			boolean[] selected = new boolean[1];
-			try {
-				SwingUtilities.invokeAndWait(() -> selected[0] = sheet.isRowFullySelected(sourceRow));
-			} catch (Exception exception) {
-				throw new AssertionError("could not inspect row selection on the EDT", exception);
-			}
-			return selected[0];
-		}, "physical row-header press must select the complete source task row before dragging");
-		robot.mouseMove((points[0].x + points[1].x) / 2, (points[0].y + points[1].y) / 2);
-		robot.delay(100);
-		robot.mouseMove(points[1].x, points[1].y);
-		robot.delay(150);
-		int[] observedDrag = new int[3];
-		SwingUtilities.invokeAndWait(() -> {
-			observedDrag[0] = dragState[0];
-			observedDrag[1] = dragState[1];
-			observedDrag[2] = rowHeader.getCursor().getType();
-		});
-		assertTrue(observedDrag[0] > 0, "physical row-header drag must deliver MOUSE_DRAGGED");
-		assertEquals(targetRow, observedDrag[1], "physical drag must reach the intended target task row");
-		assertEquals(Cursor.MOVE_CURSOR, observedDrag[2], "valid row-header target must show move cursor before release");
-		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		try {
+			robot.delay(100);
+			GuiAcceptanceSupport.await(() -> {
+				boolean[] selected = new boolean[1];
+				try {
+					SwingUtilities.invokeAndWait(() -> selected[0] = sheet.isRowFullySelected(sourceRow));
+				} catch (Exception exception) {
+					throw new AssertionError("could not inspect row selection on the EDT", exception);
+				}
+				return selected[0];
+			}, "physical row-header press must select the complete source task row before dragging");
+			RowHeaderTarget initialTarget = rowHeaderTargetOnScreen(rowHeader, targetRow, true);
+			robot.mouseMove((points[0].x + initialTarget.screenPoint().x) / 2,
+				(points[0].y + initialTarget.screenPoint().y) / 2);
+			int[] observedDrag = new int[3];
+			Point[] targetHover = new Point[1];
+			RowHeaderTarget[] currentTarget = new RowHeaderTarget[1];
+			long cursorDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+			do {
+				currentTarget[0] = rowHeaderTargetOnScreen(rowHeader, targetRow, true);
+				points[1] = currentTarget[0].screenPoint();
+				robot.mouseMove(points[1].x, points[1].y);
+				robot.waitForIdle();
+				SwingUtilities.invokeAndWait(() -> {
+					observedDrag[0] = dragState[0];
+					observedDrag[1] = dragState[1];
+					observedDrag[2] = rowHeader.getCursor().getType();
+					Point hover = rowHeader.getMousePosition();
+					targetHover[0] = hover;
+				});
+				if (rowHeaderHoverRow(rowHeader) == targetRow && observedDrag[0] > 0
+						&& observedDrag[1] == targetRow && observedDrag[2] == Cursor.MOVE_CURSOR)
+					break;
+				if (System.nanoTime() >= cursorDeadline)
+					break;
+				Thread.sleep(25);
+			} while (true);
+			assertTrue(observedDrag[0] > 0, "physical row-header drag must deliver MOUSE_DRAGGED; events="
+				+ observedDrag[0] + " source=" + points[0] + " target=" + points[1]
+				+ " targetHover=" + targetHover[0] + " " + componentInputDiagnostics(rowHeader));
+			assertEquals(targetRow, observedDrag[1], "physical drag must reach the intended target task row; source="
+				+ sourceRow + " target=" + targetRow + " lastDragRow=" + observedDrag[1]
+				+ " target=" + currentTarget[0]);
+			assertEquals(Cursor.MOVE_CURSOR, observedDrag[2], "valid row-header target must show move cursor before release; "
+				+ "cursor=" + observedDrag[2] + " dragEvents=" + observedDrag[0] + " dragRow=" + observedDrag[1]
+				+ " sourcePoint=" + points[0] + " targetPoint=" + points[1] + " pointer="
+				+ java.awt.MouseInfo.getPointerInfo().getLocation() + " target=" + currentTarget[0]);
+
+			assertEquals(targetRow, rowHeaderHoverRow(rowHeader),
+				"physical pointer must remain over the target task row before release");
+		} finally {
+			robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+			robot.waitForIdle();
+		}
 
 		GuiAcceptanceSupport.await(() -> visibleMoveConfirmation() != null,
 			"physical row-header drag did not ask for its documented move confirmation");
@@ -2595,7 +2626,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"Shift-click did not preserve both selected tasks");
 		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("TaskRibbonTask.title"));
-		click(robot, boundsOnScreen(taskTab));
+		clickAndAwaitSelected(robot, taskTab, "Robot click did not select the Task ribbon tab");
 		assertFalse(findShowingButtonByCommand("RibbonTaskInformation").isEnabled(),
 			"Task Information must not stay enabled for a multi-task selection");
 		AbstractButton link = findVisibleOrOverflowButton(robot, "RibbonLink");
@@ -2731,7 +2762,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"physical task click did not select the intended leveling target");
 		AbstractButton resourceTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("ResourceRibbonTask.title"));
-		click(robot, boundsOnScreen(resourceTab));
+		clickAndAwaitSelected(robot, resourceTab, "Robot click did not select the Resource ribbon tab");
 		AbstractButton levelSelection = findShowingButtonByCommand("RibbonLevelSelection");
 		GuiAcceptanceSupport.await(levelSelection::isEnabled,
 			"Level Selection must be enabled for one selected editable task");
@@ -2805,7 +2836,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"physical task click did not select the intended Level All anchor");
 		AbstractButton resourceTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("ResourceRibbonTask.title"));
-		click(robot, boundsOnScreen(resourceTab));
+		clickAndAwaitSelected(robot, resourceTab, "Robot click did not select the Resource ribbon tab");
 		AbstractButton levelAll = findShowingButtonByCommand("RibbonLevelAll");
 		GuiAcceptanceSupport.await(levelAll::isEnabled,
 			"Level All must be enabled for a writable project with a selected task");
@@ -2877,7 +2908,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"physical task click did not select the first overallocated task");
 		AbstractButton resourceTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("ResourceRibbonTask.title"));
-		click(robot, boundsOnScreen(resourceTab));
+		clickAndAwaitSelected(robot, resourceTab, "Robot click did not select the Resource ribbon tab");
 		AbstractButton next = findShowingButtonByCommand("RibbonNextOverallocation");
 		GuiAcceptanceSupport.await(next::isEnabled, "Next Overallocation must be enabled in a task view");
 		click(robot, boundsOnScreen(next));
@@ -3271,6 +3302,162 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		usable.height -= insets.top + insets.bottom;
 		assertTrue(usable.contains(frame.getBounds()), description + " must remain fully visible in the monitor work area; frame="
 			+ frame.getBounds() + ", usable=" + usable + ", scale=" + configuration.getDefaultTransform());
+	}
+
+
+
+	private static void clickAndAwaitSelected(Robot robot, AbstractButton button, String failureMessage) throws Exception {
+		if (buttonSelectedOnEdt(button))
+			return;
+		long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(8);
+		Point target = null;
+		while (System.nanoTime() < deadline) {
+			Rectangle bounds = boundsOnScreen(button);
+			target = new Point(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+			robot.mouseMove(target.x, target.y);
+			robot.waitForIdle();
+			if (componentMousePosition(button) != null)
+				break;
+			Thread.sleep(25);
+		}
+		if (componentMousePosition(button) == null)
+			throw new AssertionError("Robot pointer did not enter the current ribbon tab bounds before click; requested="
+				+ target + "; component={" + componentInputDiagnostics(button) + "}; windows={"
+				+ visibleWindowInputDiagnostics() + "}");
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+		try {
+			GuiAcceptanceSupport.await(() -> buttonSelectedOnEdt(button), failureMessage);
+		} catch (AssertionError failure) {
+			throw new AssertionError(failure.getMessage() + "; requestedRobotPoint=" + target
+				+ "; afterClick={" + componentInputDiagnostics(button) + "}; windows={"
+				+ visibleWindowInputDiagnostics() + "}", failure);
+		}
+	}
+
+	private static boolean buttonSelectedOnEdt(AbstractButton button) {
+		boolean[] selected = new boolean[1];
+		try { SwingUtilities.invokeAndWait(() -> selected[0] = button.isSelected()); }
+		catch (Exception exception) { throw new AssertionError("could not inspect ribbon tab on EDT", exception); }
+		return selected[0];
+	}
+
+	private record RowHeaderTarget(Point screenPoint, Rectangle cell, Rectangle visible) {}
+
+	private static RowHeaderTarget rowHeaderTargetOnScreen(JTable rowHeader, int row, boolean beforeHalf)
+			throws Exception {
+		RowHeaderTarget[] target = new RowHeaderTarget[1];
+		SwingUtilities.invokeAndWait(() -> {
+			Rectangle cell = rowHeader.getCellRect(row, 0, true);
+			Rectangle visible = cell.intersection(rowHeader.getVisibleRect());
+			assertFalse(visible.isEmpty(), "task row cell must intersect the visible row header; cell="
+				+ cell + ", visibleRect=" + rowHeader.getVisibleRect() + ", row=" + row);
+			int x = visible.x + visible.width / 2;
+			int y = beforeHalf
+				? visible.y + Math.max(1, visible.height / 4)
+				: visible.y + visible.height / 2;
+			if (beforeHalf)
+				assertTrue(y < cell.y + cell.height / 2, "target must remain in the before half of the task row");
+			Point location = rowHeader.getLocationOnScreen();
+			target[0] = new RowHeaderTarget(new Point(location.x + x, location.y + y), cell, visible);
+		});
+		return target[0];
+	}
+
+	private static Point moveToRowHeaderTarget(Robot robot, JTable rowHeader, int row, boolean beforeHalf,
+			String failureMessage) throws Exception {
+		long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(8);
+		RowHeaderTarget[] target = new RowHeaderTarget[1];
+		while (System.nanoTime() < deadline) {
+			target[0] = rowHeaderTargetOnScreen(rowHeader, row, beforeHalf);
+			robot.mouseMove(target[0].screenPoint().x, target[0].screenPoint().y);
+			robot.waitForIdle();
+			if (rowHeaderHoverRow(rowHeader) == row)
+				return target[0].screenPoint();
+			Thread.sleep(25);
+		}
+		throw new AssertionError(failureMessage + "; target=" + target[0] + "; "
+			+ componentInputDiagnostics(rowHeader) + "; windows={" + visibleWindowInputDiagnostics() + "}");
+	}
+
+	private static Point componentMousePosition(Component component) {
+		Point[] local = new Point[1];
+		try { SwingUtilities.invokeAndWait(() -> local[0] = component.getMousePosition()); }
+		catch (Exception exception) { throw new AssertionError("could not inspect component pointer position on EDT", exception); }
+		return local[0];
+	}
+
+	private static int rowHeaderHoverRow(JTable rowHeader) {
+		int[] row = { -1 };
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				Point point = rowHeader.getMousePosition();
+				if (point != null) row[0] = rowHeader.rowAtPoint(point);
+			});
+		} catch (Exception exception) {
+			throw new AssertionError("could not inspect row header hover on EDT", exception);
+		}
+		return row[0];
+	}
+
+	private static String visibleWindowInputDiagnostics() {
+		String[] value = new String[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> value[0] = java.util.Arrays.stream(Window.getWindows())
+				.filter(Window::isShowing)
+				.map(candidate -> candidate.getClass().getSimpleName() + "[active=" + candidate.isActive()
+					+ ",focused=" + candidate.isFocused() + ",modal=" + (candidate instanceof Dialog dialog
+						&& dialog.isModal()) + ",bounds=" + candidate.getBounds() + "]")
+				.collect(Collectors.joining("; ")));
+		} catch (Exception exception) {
+			return "windowSnapshotError=" + exception;
+		}
+		return value[0];
+	}
+
+	private static boolean hasShowingCommand(String command) {
+		boolean[] found = new boolean[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				for (Window candidate : Window.getWindows()) {
+					if (!(candidate instanceof MainRibbonFrame frame) || !frame.isShowing()) continue;
+					found[0] = UiComponentWalker.flatten(frame).stream().filter(AbstractButton.class::isInstance)
+						.map(RibbonGuiButton::adapt).anyMatch(button -> button.isShowing()
+							&& command.equals(button.getActionCommand()));
+					if (found[0]) break;
+				}
+			});
+		} catch (Exception exception) {
+			throw new AssertionError("could not inspect visible ribbon commands", exception);
+		}
+		return found[0];
+	}
+
+	private static String componentInputDiagnostics(Component component) {
+		Point[] local = new Point[1];
+		Point[] screen = new Point[1];
+		java.awt.Dimension[] size = new java.awt.Dimension[1];
+		java.awt.Rectangle[] visible = new java.awt.Rectangle[1];
+		GraphicsConfiguration[] configuration = new GraphicsConfiguration[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				local[0] = component.getMousePosition();
+				try { screen[0] = component.getLocationOnScreen(); } catch (java.awt.IllegalComponentStateException ignored) { }
+				size[0] = component.getSize();
+				visible[0] = component instanceof JComponent swing ? swing.getVisibleRect() : null;
+				configuration[0] = component.getGraphicsConfiguration();
+			});
+		} catch (Exception exception) {
+			return "componentSnapshotError=" + exception;
+		}
+		return "component=" + component.getClass().getSimpleName() + ", showing=" + component.isShowing()
+			+ ", enabled=" + component.isEnabled() + ", size=" + size[0] + ", visibleRect=" + visible[0]
+			+ ", localMouse=" + local[0] + ", locationOnScreen=" + screen[0]
+			+ ", pointer=" + java.awt.MouseInfo.getPointerInfo().getLocation()
+			+ ", toolkitDpi=" + Toolkit.getDefaultToolkit().getScreenResolution()
+			+ ", uiScale=" + System.getProperty("sun.java2d.uiScale", "default")
+			+ ", graphicsTransform=" + (configuration[0] == null ? null : configuration[0].getDefaultTransform());
 	}
 
 	private static void click(Robot robot, Rectangle bounds) {

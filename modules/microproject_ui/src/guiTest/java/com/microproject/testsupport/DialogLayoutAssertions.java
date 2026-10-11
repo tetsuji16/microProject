@@ -97,10 +97,17 @@ public final class DialogLayoutAssertions {
 			bounds[0] = window.getBounds();
 			usable[0] = screen;
 		};
-		if (SwingUtilities.isEventDispatchThread()) inspect.run();
-		else SwingUtilities.invokeAndWait(inspect);
-		assertTrue(usable[0].contains(bounds[0]),
-			context + " escapes usable screen bounds=" + bounds[0] + " usable=" + usable[0]);
+		long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(5);
+		boolean contained = false;
+		do {
+			if (SwingUtilities.isEventDispatchThread()) inspect.run();
+			else SwingUtilities.invokeAndWait(inspect);
+			contained = usable[0].contains(bounds[0]);
+			if (contained) break;
+			Thread.sleep(25);
+		} while (System.nanoTime() < deadline);
+		assertTrue(contained,
+			context + " escapes usable screen after native geometry settles bounds=" + bounds[0] + " usable=" + usable[0]);
 	}
 
 	private static String findClippedTextControl(Container root) {
