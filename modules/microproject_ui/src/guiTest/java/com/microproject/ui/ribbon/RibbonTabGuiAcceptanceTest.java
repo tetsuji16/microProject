@@ -206,6 +206,13 @@ class RibbonTabGuiAcceptanceTest {
 				for (String buttonId : MenuDefinitionSupport.ribbonButtonIds(bandId)) {
 					if ("FileRibbonTask".equals(tabId))
 						openFileCommandDestination(robot, frame, tab, buttonId);
+					try {
+						GuiAcceptanceSupport.await(() -> hasAttachedButtonByCommand(frame, buttonId),
+							"Selected ribbon tab " + tabId + " did not expose visible command " + buttonId);
+					} catch (AssertionError failure) {
+						throw new AssertionError(failure.getMessage() + "; "
+							+ ribbonCommandDiagnostic(frame, buttonId), failure);
+					}
 					AbstractButton button = findAttachedButtonByCommand(frame, buttonId);
 					assertTrue(button.isShowing(), () -> buttonId + " is not visible in " + tabId);
 					assertTrue(button.isEnabled(), () -> buttonId + " is disabled in " + bandId);
@@ -805,6 +812,36 @@ class RibbonTabGuiAcceptanceTest {
 				|| ("officeBackstageCommand-" + command).equals(button.getName()))
 			.findFirst()
 			.orElseThrow(() -> new AssertionError("Ribbon command not found: " + command));
+	}
+
+	private static boolean hasAttachedButtonByCommand(Component root, String command) {
+		return UiComponentWalker.flatten(root).stream()
+			.filter(AbstractButton.class::isInstance)
+			.map(AbstractButton.class::cast)
+			.filter(AbstractButton::isShowing)
+			.anyMatch(button -> command.equals(button.getActionCommand())
+				|| ("officeBackstageCommand-" + command).equals(button.getName()));
+	}
+
+	private static String ribbonCommandDiagnostic(Component root, String command) {
+		List<String> selectedTabs = new ArrayList<>();
+		List<String> matchingButtons = new ArrayList<>();
+		List<String> visibleCommands = new ArrayList<>();
+		for (Component component : UiComponentWalker.flatten(root)) {
+			if (!(component instanceof AbstractButton button)) continue;
+			String name = String.valueOf(button.getName());
+			String actionCommand = String.valueOf(button.getActionCommand());
+			if (button instanceof javax.swing.JToggleButton && button.isSelected())
+				selectedTabs.add(name + "[" + button.getText() + "]");
+			if (command.equals(button.getActionCommand())
+				|| ("officeBackstageCommand-" + command).equals(button.getName()))
+				matchingButtons.add(name + "[action=" + actionCommand + ",visible=" + button.isVisible()
+					+ ",showing=" + button.isShowing() + ",bounds=" + button.getBounds() + "]");
+			if (button.isShowing() && actionCommand.startsWith("Ribbon"))
+				visibleCommands.add(name + "[action=" + actionCommand + "]");
+		}
+		return "selectedTabs=" + selectedTabs + "; matchingButtons=" + matchingButtons
+			+ "; visibleRibbonCommands=" + visibleCommands;
 	}
 
 	private static void click(Robot robot, AbstractButton button) throws Exception {
