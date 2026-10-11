@@ -768,11 +768,16 @@ class RibbonTabGuiAcceptanceTest {
 			GuiAcceptanceSupport.await(() -> findShowingComponent(frame, "officeBackstageOverlay") != null,
 				"File tab did not open Backstage before command " + commandId);
 		}
-		String pageId = java.util.ResourceBundle.getBundle(
-			"com.microproject.menu.menuInternal", Locale.ROOT).getString(commandId + ".backstagePage");
+		java.util.ResourceBundle metadata = java.util.ResourceBundle.getBundle(
+			"com.microproject.menu.menuInternal", Locale.ROOT);
+		String pageId = metadata.getString(commandId + ".backstagePage");
 		Component destination = findShowingComponent(frame, "officeBackstageNav-" + pageId);
 		if (!(destination instanceof AbstractButton pageButton))
 			throw new AssertionError("Backstage page is not physically available for " + commandId + ": " + pageId);
+		// Immediate Backstage destinations are themselves the command button.
+		// Leave them for the shared physical click/count assertion below.
+		if (metadata.containsKey(commandId + ".backstageImmediate")
+			&& Boolean.parseBoolean(metadata.getString(commandId + ".backstageImmediate"))) return;
 		if (pageButton instanceof javax.swing.JToggleButton toggle && !toggle.isSelected()) {
 			click(robot, pageButton);
 			GuiAcceptanceSupport.await(() -> {
