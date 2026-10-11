@@ -161,7 +161,10 @@ tasks.register<Test>("guiTest") {
 		// selected methods; the ribbon class runs in full to catch interactions
 		// between its Backstage and document-tab routes. In full mode we leave
 		// Test.include unset so normal --tests filtering remains unrestricted.
-		val smokeTestClasses = setOf("com.microproject.ui.ribbon.RibbonTabGuiAcceptanceTest")
+		val smokeTestClasses = setOf(
+			"com.microproject.ui.ribbon.RibbonTabGuiAcceptanceTest",
+			"com.microproject.pm.graphic.frames.RibbonExternalCommandGuiAcceptanceTest"
+		)
 		val smokeClasses = guiSmokeTestPatterns.map { it.substringBeforeLast('.') }.toSet() + smokeTestClasses
 		include(smokeClasses.map { "${it.replace('.', '/')}.class" })
 		filter {
