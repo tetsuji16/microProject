@@ -66,6 +66,7 @@ class RibbonTabGuiAcceptanceTest {
 	private JFrame frame;
 	private boolean previousRibbonUi;
 	private boolean previousNewLook;
+	private RibbonDisplayMode previousShellDisplayMode;
 
 	@BeforeEach
 	void configureRibbonEnvironment() {
@@ -81,6 +82,10 @@ class RibbonTabGuiAcceptanceTest {
 				frame.dispose();
 				frame = null;
 			});
+		}
+		if (previousShellDisplayMode != null) {
+			RibbonDisplayPreferences.save(previousShellDisplayMode);
+			previousShellDisplayMode = null;
 		}
 		Environment.setRibbonUI(previousRibbonUi);
 		Environment.setNewLook(previousNewLook);
@@ -173,6 +178,10 @@ class RibbonTabGuiAcceptanceTest {
 		frame = applicationFrame;
 		JPanel host = applicationFrame.getRibbonPanel();
 		ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+		previousShellDisplayMode = ribbon.getRibbonDisplayMode();
+		ribbon.setRibbonDisplayMode(RibbonDisplayMode.ALWAYS_SHOW);
+		assertTrue(ribbon.isCommandSurfaceVisible(),
+			"the production shell fixture must expose command bands for direct physical routing");
 		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
 		// Use the production Office shell so File commands are exercised in their
 		// Backstage host, while document commands remain attached to the ribbon.
@@ -840,8 +849,17 @@ class RibbonTabGuiAcceptanceTest {
 			if (button.isShowing() && actionCommand.startsWith("Ribbon"))
 				visibleCommands.add(name + "[action=" + actionCommand + "]");
 		}
+		List<String> ribbonSurfaces = UiComponentWalker.flatten(root).stream()
+			.filter(JComponent.class::isInstance)
+			.map(JComponent.class::cast)
+			.map(component -> component.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY))
+			.filter(ModernRibbonPanel.class::isInstance)
+			.map(ModernRibbonPanel.class::cast)
+			.map(ribbon -> ribbon.getRibbonDisplayMode() + "/commandSurfaceVisible="
+				+ ribbon.isCommandSurfaceVisible())
+			.toList();
 		return "selectedTabs=" + selectedTabs + "; matchingButtons=" + matchingButtons
-			+ "; visibleRibbonCommands=" + visibleCommands;
+			+ "; visibleRibbonCommands=" + visibleCommands + "; ribbonSurfaces=" + ribbonSurfaces;
 	}
 
 	private static void click(Robot robot, AbstractButton button) throws Exception {
