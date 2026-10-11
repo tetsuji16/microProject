@@ -27,9 +27,12 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.Set;
 import java.util.prefs.Preferences;
+import java.time.Duration;
+import java.time.Instant;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
@@ -799,67 +802,243 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		chooserFailure.set(null);
 		BufferedImage beforeOpen = captureScreen(robot);
 		String windowsBeforeOpen = snapshotNativeChooserWindows();
+		Instant chooserInvokedAt = Instant.now();
 		captureNativeChooserScreen(beforeOpen, "issue-398-native-" + route.toLowerCase(Locale.ROOT).replace(' ', '-')
 			+ "-before-open.png");
-		openCommand.run();
 		try {
+			openCommand.run();
 			GuiAcceptanceSupport.await(chooserCallStarted::get,
 				route + " did not enter the default Windows native chooser provider");
-			try {
-				GuiAcceptanceSupport.await(() -> !visibleDialogOverlayBounds(beforeOpen, captureScreen(robot)).isEmpty(),
-					route + " called the native provider but no visible chooser appeared on the desktop");
-			} catch (AssertionError failure) {
-				BufferedImage observed = captureScreen(robot);
-				String diagnostic = describeDialogOverlay(beforeOpen, observed) + "; "
-					+ describeNativeChooserState(chooserCallStarted, chooserCallReturned, chooserCancelled, chooserFailure,
-						windowsBeforeOpen);
-				try {
-					diagnostic += "; javaThreadDump=" + captureNativeChooserThreadDump(route);
-				} catch (Exception captureFailure) {
-					failure.addSuppressed(captureFailure);
-				}
-				try {
-					captureNativeChooserScreen(robot, "issue-398-native-"
-						+ route.toLowerCase(Locale.ROOT).replace(' ', '-') + "-visibility-failure.png");
-				} catch (Exception captureFailure) {
-					failure.addSuppressed(captureFailure);
-				}
-				try {
-					diagnostic += "; nativeWindows=" + captureNativeWindowState();
-				} catch (Exception captureFailure) {
-					failure.addSuppressed(captureFailure);
-				}
-				throw new AssertionError(failure.getMessage() + "; " + diagnostic, failure);
-			}
+			GuiAcceptanceSupport.await(() -> !visibleDialogOverlayBounds(beforeOpen, captureScreen(robot)).isEmpty(),
+				route + " called the native provider but no visible chooser appeared on the desktop");
 			assertFalse(chooserCallReturned.get(), route + " chooser must remain modal until physical Escape");
 			String artifactName = "issue-398-native-" + route.toLowerCase(Locale.ROOT).replace(' ', '-')
 				+ "-before-escape.png";
 			captureNativeChooserScreen(robot, artifactName);
 			robot.keyPress(java.awt.event.KeyEvent.VK_ESCAPE);
-			robot.keyRelease(java.awt.event.KeyEvent.VK_ESCAPE);
+			try {
+				robot.keyRelease(java.awt.event.KeyEvent.VK_ESCAPE);
+			} finally {
+				robot.waitForIdle();
+			}
+			GuiAcceptanceSupport.await(chooserCallReturned::get,
+				route + " Escape did not return from the default Windows file chooser");
+			assertTrue(chooserCancelled.get(), route + " Escape must cancel the default Windows file chooser");
+		} catch (Exception | Error failure) {
+			captureNativeChooserFailureDiagnostics(route, robot, beforeOpen, chooserCallStarted, chooserCallReturned,
+				chooserCancelled, chooserFailure, windowsBeforeOpen, chooserInvokedAt, failure);
+			throw failure;
 		} finally {
 			if (chooserCallStarted.get() && !chooserCallReturned.get()) {
 				robot.keyPress(java.awt.event.KeyEvent.VK_ESCAPE);
-				robot.keyRelease(java.awt.event.KeyEvent.VK_ESCAPE);
+				try {
+					robot.keyRelease(java.awt.event.KeyEvent.VK_ESCAPE);
+				} finally {
+					robot.waitForIdle();
+				}
 			}
 		}
-		GuiAcceptanceSupport.await(chooserCallReturned::get,
-			route + " Escape did not return from the default Windows file chooser");
-		assertTrue(chooserCancelled.get(), route + " Escape must cancel the default Windows file chooser");
+	}
+
+	private void verifyNativeChooserCancelButton(Robot robot, GuiCommand openCommand,
+			AtomicBoolean chooserCallStarted, AtomicBoolean chooserCallReturned,
+			AtomicBoolean chooserCancelled, AtomicReference<Throwable> chooserFailure, String route) throws Exception {
+		activateWindowForRobot(robot, false);
+		chooserCallStarted.set(false);
+		chooserCallReturned.set(false);
+		chooserCancelled.set(false);
+		chooserFailure.set(null);
+		BufferedImage beforeOpen = captureScreen(robot);
+		String windowsBeforeOpen = snapshotNativeChooserWindows();
+		Instant chooserInvokedAt = Instant.now();
+		captureNativeChooserScreen(beforeOpen, "issue-398-native-" + route.toLowerCase(Locale.ROOT).replace(' ', '-')
+			+ "-before-open.png");
+		try {
+			openCommand.run();
+			GuiAcceptanceSupport.await(chooserCallStarted::get,
+				route + " did not enter the default Windows native chooser provider for Cancel acceptance");
+			awaitVisibleNativeChooserBounds(beforeOpen, robot, route);
+			assertFalse(chooserCallReturned.get(), route + " native chooser returned before physical Cancel");
+
+			NativeCancelControl initialCancel = requireNativeCancelControl(
+				captureNativeWindowState(route + "-cancel-initial"), route);
+			clickNativePoint(robot, centerX(initialCancel.dialogBounds),
+				initialCancel.dialogBounds.y + Math.max(12, Math.min(18, initialCancel.dialogBounds.height / 12)));
+			robot.delay(150); // allow foreground activation and native window geometry to settle
+
+			// Re-query the Win32 child control after activation; the overlay-derived
+			// bounds may have been stale if activating the title bar moved the dialog.
+			NativeCancelControl activeCancel = requireNativeCancelControl(
+				captureNativeWindowState(route + "-cancel-activated"), route);
+			assertEquals(initialCancel.dialogHandle, activeCancel.dialogHandle,
+				route + " native chooser dialog identity must remain stable through activation");
+			captureNativeChooserScreen(robot, "issue-398-native-ribbon-open-before-cancel.png");
+			clickNativePoint(robot, centerX(activeCancel.cancelBounds), centerY(activeCancel.cancelBounds));
+			GuiAcceptanceSupport.await(chooserCallReturned::get,
+				route + " physical click on Win32 IDCANCEL did not return from the provider");
+			assertTrue(chooserCancelled.get(), route + " native chooser Cancel must report cancellation");
+			captureNativeChooserScreen(robot, "issue-398-native-ribbon-after-cancel.png");
+		} catch (Exception | Error failure) {
+			captureNativeChooserFailureDiagnostics(route + "-cancel", robot, beforeOpen, chooserCallStarted,
+				chooserCallReturned, chooserCancelled, chooserFailure, windowsBeforeOpen, chooserInvokedAt, failure);
+			throw failure;
+		} finally {
+			if (chooserCallStarted.get() && !chooserCallReturned.get()) {
+				robot.keyPress(java.awt.event.KeyEvent.VK_ESCAPE);
+				try {
+					robot.keyRelease(java.awt.event.KeyEvent.VK_ESCAPE);
+				} finally {
+					robot.waitForIdle();
+				}
+			}
+		}
+	}
+
+	private static Rectangle awaitVisibleNativeChooserBounds(BufferedImage beforeOpen, Robot robot, String route) throws Exception {
+		Rectangle[] bounds = new Rectangle[1];
+		GuiAcceptanceSupport.await(() -> {
+			bounds[0] = visibleDialogOverlayBounds(beforeOpen, captureScreen(robot));
+			return !bounds[0].isEmpty();
+		}, route + " did not show a visible Windows chooser before physical Cancel");
+		return bounds[0];
+	}
+
+	private static void clickNativePoint(Robot robot, int x, int y) {
+		robot.mouseMove(x, y);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		try {
+			robot.waitForIdle();
+		} finally {
+			robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		}
+		robot.waitForIdle();
+	}
+
+	private static int centerX(Rectangle bounds) {
+		return bounds.x + bounds.width / 2;
+	}
+
+	private static int centerY(Rectangle bounds) {
+		return bounds.y + bounds.height / 2;
+	}
+
+	private static NativeCancelControl requireNativeCancelControl(String snapshot, String route) {
+		List<String> ownedVisibleDialogs = new ArrayList<>();
+		List<NativeCancelControl> matching = new ArrayList<>();
+		for (String line : snapshot.split("\\R")) {
+			if (line.startsWith("ownedDialog ")) {
+				Map<String, String> dialog = new HashMap<>();
+				for (String field : line.split(" ")) {
+					int equals = field.indexOf('=');
+					if (equals > 0) dialog.put(field.substring(0, equals), field.substring(equals + 1));
+				}
+				if (Long.toString(ProcessHandle.current().pid()).equals(dialog.get("pid"))
+						&& "#32770".equals(dialog.get("class"))
+						&& Boolean.parseBoolean(dialog.get("visible")) && Boolean.parseBoolean(dialog.get("enabled"))
+						&& Long.toString(ProcessHandle.current().pid()).equals(dialog.get("ownerPid"))
+						&& parseBounds(dialog.get("bounds")) != null) ownedVisibleDialogs.add(line);
+				continue;
+			}
+			if (!line.startsWith("cancelControl ")) continue;
+			Map<String, String> fields = new HashMap<>();
+			for (String field : line.split(" ")) {
+				int equals = field.indexOf('=');
+				if (equals > 0) fields.put(field.substring(0, equals), field.substring(equals + 1));
+			}
+			if (!Long.toString(ProcessHandle.current().pid()).equals(fields.get("pid"))) continue;
+			if (!"#32770".equals(fields.get("dialogClass")) || !Boolean.parseBoolean(fields.get("dialogOwnedByTarget"))
+					|| !"2".equals(fields.get("controlId")) || !"Button".equals(fields.get("class"))
+					|| !Boolean.parseBoolean(fields.get("dialogVisible")) || !Boolean.parseBoolean(fields.get("dialogEnabled"))
+					|| !Boolean.parseBoolean(fields.get("visible")) || !Boolean.parseBoolean(fields.get("enabled"))) continue;
+			Rectangle controlBounds = parseBounds(fields.get("bounds"));
+			Rectangle dialogBounds = parseBounds(fields.get("dialogBounds"));
+			if (controlBounds == null || dialogBounds == null || !dialogBounds.contains(controlBounds)) continue;
+			matching.add(new NativeCancelControl(fields.get("dialog"), dialogBounds, controlBounds));
+		}
+		assertEquals(1, ownedVisibleDialogs.size(),
+			route + " must expose exactly one visible, enabled, directly owned #32770 file dialog; snapshot=" + snapshot);
+		assertEquals(1, matching.size(),
+			route + " must expose exactly one visible, enabled direct IDCANCEL (2) Button in the owned #32770 dialog; snapshot="
+				+ snapshot);
+		return matching.get(0);
+	}
+
+	private static Rectangle parseBounds(String value) {
+		if (value == null || "unavailable".equals(value)) return null;
+		String[] coordinates = value.split(",");
+		if (coordinates.length != 4) return null;
+		try {
+			int x = Integer.parseInt(coordinates[0]);
+			int y = Integer.parseInt(coordinates[1]);
+			int width = Integer.parseInt(coordinates[2]);
+			int height = Integer.parseInt(coordinates[3]);
+			if (width <= 0 || height <= 0) return null;
+			return new Rectangle(x, y, width, height);
+		} catch (NumberFormatException invalidBounds) {
+			return null;
+		}
+	}
+
+	private static final class NativeCancelControl {
+		private final String dialogHandle;
+		private final Rectangle dialogBounds;
+		private final Rectangle cancelBounds;
+
+		private NativeCancelControl(String dialogHandle, Rectangle dialogBounds, Rectangle cancelBounds) {
+			this.dialogHandle = dialogHandle;
+			this.dialogBounds = dialogBounds;
+			this.cancelBounds = cancelBounds;
+		}
 	}
 
 	private static Path guiArtifactDirectory() {
 		return Path.of(System.getProperty("microproject.gui.artifacts.dir", "build/reports/guiTest-artifacts"));
 	}
 
-	private static String captureNativeChooserThreadDump(String route) throws IOException {
+	private static void captureNativeChooserFailureDiagnostics(String route, Robot robot, BufferedImage beforeOpen,
+			AtomicBoolean chooserCallStarted, AtomicBoolean chooserCallReturned, AtomicBoolean chooserCancelled,
+			AtomicReference<Throwable> chooserFailure, String windowsBeforeOpen, Instant chooserInvokedAt,
+			Throwable originalFailure) {
+		Instant capturedAt = Instant.now();
+		String diagnostic = "Native chooser failure snapshot route=" + route + " capturedUtc=" + capturedAt
+			+ " chooserInvokedUtc=" + chooserInvokedAt
+			+ " elapsedMs=" + Duration.between(chooserInvokedAt, capturedAt).toMillis()
+			+ " state=" + describeNativeChooserState(chooserCallStarted, chooserCallReturned, chooserCancelled,
+				chooserFailure, windowsBeforeOpen);
+		System.err.println(diagnostic);
+		originalFailure.addSuppressed(new AssertionError(diagnostic));
+		try {
+			String dump = captureNativeChooserThreadDump(route, chooserInvokedAt);
+			originalFailure.addSuppressed(new AssertionError("Full JVM thread dump saved and printed: " + dump));
+		} catch (Exception captureFailure) {
+			originalFailure.addSuppressed(captureFailure);
+		}
+		try {
+			String routeName = route.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9-]", "-");
+			captureNativeChooserScreen(captureScreen(robot), "issue-398-native-" + routeName + "-failure.png");
+		} catch (Exception captureFailure) {
+			originalFailure.addSuppressed(captureFailure);
+		}
+		try {
+			String nativeWindows = captureNativeWindowState(route + "-failure");
+			originalFailure.addSuppressed(new AssertionError("Native Win32 desktop snapshot:\n" + nativeWindows));
+		} catch (Exception captureFailure) {
+			originalFailure.addSuppressed(captureFailure);
+		}
+	}
+
+	private static String captureNativeChooserThreadDump(String route, Instant chooserInvokedAt) throws IOException {
 		String routeName = route.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9-]", "-");
 		Path output = guiArtifactDirectory().resolve("issue-398-native-" + routeName + "-threads.txt");
 		Files.createDirectories(output.getParent());
 		ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
 		ThreadInfo[] threads = threadBean.dumpAllThreads(true, true);
+		Instant capturedAt = Instant.now();
 		StringBuilder dump = new StringBuilder("Native chooser failure thread dump; route=")
-			.append(route).append("; threadCount=").append(threads.length).append(System.lineSeparator());
+			.append(route).append("; chooserInvokedUtc=").append(chooserInvokedAt)
+			.append("; capturedUtc=").append(capturedAt)
+			.append("; elapsedMs=").append(Duration.between(chooserInvokedAt, capturedAt).toMillis())
+			.append("; threadCount=").append(threads.length).append(System.lineSeparator());
 		for (ThreadInfo thread : threads) {
 			dump.append('"').append(thread.getThreadName()).append("\" id=").append(thread.getThreadId())
 				.append(" state=").append(thread.getThreadState()).append(" lock=").append(thread.getLockInfo())
@@ -877,30 +1056,35 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		return output + " (" + threads.length + " threads)";
 	}
 
-	private static String captureNativeWindowState() throws IOException {
+	private static String captureNativeWindowState(String route) throws IOException {
+		String routeName = route.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9-]", "-");
 		Path projectDirectory = Path.of(System.getProperty("microproject.project.dir", ".")).toAbsolutePath();
 		Path script = projectDirectory.resolve(".github").resolve("scripts").resolve("capture-gui-desktop-state.ps1");
-		Path output = guiArtifactDirectory().resolve("issue-398-native-windows.txt");
+		Path output = guiArtifactDirectory().resolve("issue-398-native-" + routeName + "-windows.txt");
 		Files.createDirectories(output.getParent());
-		Process process = new ProcessBuilder("powershell.exe", "-NoLogo", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass",
-			"-File", script.toString(), "-TargetPid", Long.toString(ProcessHandle.current().pid()))
+		Process process = new ProcessBuilder("powershell.exe", "-NoLogo", "-NoProfile", "-NonInteractive", "-WindowStyle",
+			"Hidden", "-ExecutionPolicy", "Bypass", "-File", script.toString(), "-TargetPid",
+			Long.toString(ProcessHandle.current().pid()))
 			.redirectErrorStream(true).redirectOutput(output.toFile()).start();
 		try {
 			if (!process.waitFor(8, java.util.concurrent.TimeUnit.SECONDS)) {
 				process.destroyForcibly();
 				process.waitFor(1, java.util.concurrent.TimeUnit.SECONDS);
-				System.err.println("Native desktop HWND capture timed out; output=" + output);
-				return output + " (timed out)";
+				String partial = Files.exists(output) ? Files.readString(output) : "(no output)";
+				System.err.println("Native desktop HWND capture timed out after 8s; output=" + output + "\n" + partial);
+				throw new IOException("Native desktop HWND capture timed out after 8s; output=" + output);
 			}
 			String captured = Files.readString(output);
-			System.err.println("=== Native desktop HWND capture: " + output + " ===");
+			System.err.println("=== Native desktop HWND capture: " + output + " (exit=" + process.exitValue() + ") ===");
 			System.err.print(captured);
-			return output + " (exit=" + process.exitValue() + ")";
+			if (process.exitValue() != 0)
+				throw new IOException("Native desktop HWND capture exited " + process.exitValue() + "; output=" + output);
+			return captured;
 		} catch (InterruptedException interrupted) {
 			Thread.currentThread().interrupt();
 			process.destroyForcibly();
 			System.err.println("Native desktop HWND capture interrupted; output=" + output);
-			return output + " (interrupted)";
+			throw new IOException("Native desktop HWND capture interrupted; output=" + output, interrupted);
 		}
 	}
 
@@ -1010,66 +1194,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		return state.toString();
 	}
 
-	private void verifyNativeChooserCancelButton(Robot robot, GuiCommand openCommand,
-			AtomicBoolean chooserCallStarted, AtomicBoolean chooserCallReturned,
-			AtomicBoolean chooserCancelled, AtomicReference<Throwable> chooserFailure, String route) throws Exception {
-		activateWindowForRobot(robot, false);
-		chooserCallStarted.set(false);
-		chooserCallReturned.set(false);
-		chooserCancelled.set(false);
-		chooserFailure.set(null);
-		BufferedImage beforeOpen = captureScreen(robot);
-		String windowsBeforeOpen = snapshotNativeChooserWindows();
-		captureNativeChooserScreen(beforeOpen, "issue-398-native-" + route.toLowerCase(Locale.ROOT).replace(' ', '-')
-			+ "-before-open.png");
-		openCommand.run();
-		try {
-			GuiAcceptanceSupport.await(chooserCallStarted::get,
-				route + " did not enter the default Windows native chooser provider for Cancel acceptance");
-			Rectangle[] chooserBounds = new Rectangle[1];
-			try {
-				GuiAcceptanceSupport.await(() -> {
-					chooserBounds[0] = visibleDialogOverlayBounds(beforeOpen, captureScreen(robot));
-					return !chooserBounds[0].isEmpty();
-				}, route + " did not show a visible Windows chooser before physical Cancel");
-			} catch (AssertionError failure) {
-				throw new AssertionError(failure.getMessage() + "; "
-					+ describeNativeChooserState(chooserCallStarted, chooserCallReturned, chooserCancelled,
-						chooserFailure, windowsBeforeOpen), failure);
-			}
-			assertFalse(chooserCallReturned.get(), route + " native chooser returned before physical Cancel");
-			captureNativeChooserScreen(robot, "issue-398-native-ribbon-open-before-cancel.png");
-			Rectangle bounds = chooserBounds[0];
-			// The native dialog can be visible while another always-on-top test
-			// window still owns foreground activation. Activate the chooser through
-			// its title bar first so the following click reaches its Cancel control.
-			robot.mouseMove(bounds.x + bounds.width / 2, bounds.y + Math.max(12, bounds.height / 30));
-			robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-			robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-			robot.delay(150);
-			int cancelX = bounds.x + bounds.width - Math.round(bounds.width * 0.06f);
-			int cancelY = bounds.y + bounds.height - Math.round(bounds.height * 0.055f);
-			robot.mouseMove(cancelX, cancelY);
-			robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-			robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-			robot.waitForIdle();
-			GuiAcceptanceSupport.await(chooserCallReturned::get,
-				route + " physical click on native chooser Cancel did not return from the provider");
-		} finally {
-			if (chooserCallStarted.get() && !chooserCallReturned.get()) {
-				robot.keyPress(java.awt.event.KeyEvent.VK_ESCAPE);
-				robot.keyRelease(java.awt.event.KeyEvent.VK_ESCAPE);
-				robot.waitForIdle();
-			}
-		}
-		assertTrue(chooserCancelled.get(), route + " native chooser Cancel must report cancellation");
-		// The native provider returning with an empty selection is the reliable
-		// close signal. A desktop before/after pixel diff also includes unrelated
-		// repaint/focus changes and can falsely report a full-screen chooser.
-		captureNativeChooserScreen(robot, "issue-398-native-ribbon-after-cancel.png");
-	}
-
-	private static boolean hasPixelDifferenceInSampleBlock(BufferedImage before, BufferedImage after,
+			private static boolean hasPixelDifferenceInSampleBlock(BufferedImage before, BufferedImage after,
 			int x, int y, int blockSize) {
 		for (int sampleY = y; sampleY < Math.min(y + blockSize, before.getHeight()); sampleY++) {
 			for (int sampleX = x; sampleX < Math.min(x + blockSize, before.getWidth()); sampleX++) {
