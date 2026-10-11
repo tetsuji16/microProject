@@ -224,7 +224,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			activateWindow(robot, window);
 			AbstractButton fileTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("FileRibbonTask.title"));
-			click(robot, boundsOnScreen(fileTab));
+			clickAndAwaitSelected(robot, fileTab, "Robot click did not select the File ribbon tab");
 			GuiAcceptanceSupport.await(fileTab::isSelected, "Robot click did not select the File ribbon tab");
 			AbstractButton save = findShowingButtonByCommand("RibbonSaveProject");
 			assertTrue(save.isEnabled(), "Save must be enabled for the edited MPO project");
@@ -307,7 +307,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		clickUntilSelected(robot, window, sheet, rowForTask(sheet, task), nameColumn(sheet));
 		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("TaskRibbonTask.title"));
-		click(robot, boundsOnScreen(taskTab));
+		clickAndAwaitSelected(robot, taskTab, "Robot click did not select the Task ribbon tab");
 		GuiAcceptanceSupport.await(taskTab::isSelected, "Robot click did not select the Task ribbon tab");
 		AbstractButton update = RibbonGuiSupport.findVisibleOrExpand(robot, window, "RibbonUpdateTasks");
 		GuiAcceptanceSupport.await(update::isEnabled, "Update Tasks remained disabled after selecting a task");
@@ -420,7 +420,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 
 		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("TaskRibbonTask.title"));
-		click(robot, boundsOnScreen(taskTab));
+		clickAndAwaitSelected(robot, taskTab, "Robot click did not select the Task ribbon tab");
 		GuiAcceptanceSupport.await(taskTab::isSelected, "Robot click did not select the Task ribbon tab");
 		AbstractButton information = findShowingButtonByCommand("RibbonTaskInformation");
 		GuiAcceptanceSupport.await(information::isEnabled,
@@ -745,7 +745,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		activateWindow(robot, window);
 		AbstractButton projectTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("ProjectRibbonTask.title"));
-		click(robot, boundsOnScreen(projectTab));
+		clickAndAwaitSelected(robot, projectTab, "Robot click did not select the Project ribbon tab");
 		GuiAcceptanceSupport.await(projectTab::isSelected, "Project ribbon tab did not become selected");
 		AbstractButton changeWorkingTime = findShowingButtonByCommand("RibbonChangeWorkingTime");
 		assertTrue(changeWorkingTime.isEnabled(), "Change Working Time requires the active project calendar to be editable");
@@ -871,7 +871,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			.getString("ProjectRibbonTask.title"));
 		for (int attempt = 0; attempt < 3 && !projectTab.isSelected(); attempt++) {
 			if (attempt > 0) activateWindow(robot, window);
-			click(robot, boundsOnScreen(projectTab));
+			clickAndAwaitSelected(robot, projectTab, "Robot click did not select the Project ribbon tab");
 		}
 		GuiAcceptanceSupport.await(projectTab::isSelected, "Project ribbon tab was not selected after bounded physical clicks");
 		AbstractButton changeWorkingTime = findShowingButtonByCommand("RibbonChangeWorkingTime");
@@ -932,7 +932,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		activateWindow(robot, window);
 		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("ViewRibbonTask.title"));
-		click(robot, boundsOnScreen(viewTab));
+		clickAndAwaitSelected(robot, viewTab, "Robot click did not select the View ribbon tab");
 		GuiAcceptanceSupport.await(viewTab::isSelected, "Robot click did not select the View ribbon tab");
 		AbstractButton calendarButton = findShowingButtonByCommand("RibbonCalendarView");
 		click(robot, boundsOnScreen(calendarButton));
@@ -984,7 +984,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		activateWindow(robot, window);
 		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("ViewRibbonTask.title"));
-		click(robot, boundsOnScreen(viewTab));
+		clickAndAwaitSelected(robot, viewTab, "Robot click did not select the View ribbon tab");
 		GuiAcceptanceSupport.await(viewTab::isSelected, "View ribbon tab was not selected");
 
 		AbstractButton network = findShowingButtonByCommand("RibbonNetwork");
@@ -1123,7 +1123,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		clickUntilSelected(robot, window, sheet, row, nameColumn(sheet));
 		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("TaskRibbonTask.title"));
-		click(robot, boundsOnScreen(taskTab));
+		clickAndAwaitSelected(robot, taskTab, "Robot click did not select the Task ribbon tab");
 		AbstractButton hide = findVisibleOrOverflowButton(robot, "RibbonHideSelectedTasks");
 		GuiAcceptanceSupport.await(hide::isEnabled, "Hide Selected Tasks remained disabled after selection");
 		RibbonCommandResult previousHideOutcome = manager.getLastRibbonCommandResult();
@@ -1808,7 +1808,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		activateWindow(robot, window);
 		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("TaskRibbonTask.title"));
-		click(robot, boundsOnScreen(taskTab));
+		clickAndAwaitSelected(robot, taskTab, "Robot click did not select the Task ribbon tab");
 		GuiAcceptanceSupport.await(taskTab::isSelected, "Robot click did not select the Task ribbon tab");
 		assertFalse(findVisibleOrOverflowButton(robot, "RibbonLink").isEnabled(),
 			"Link must be disabled without two selected tasks");
@@ -1859,7 +1859,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, parent), nameColumn(sheet)));
 		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("TaskRibbonTask.title"));
-		click(robot, boundsOnScreen(taskTab));
+		clickAndAwaitSelected(robot, taskTab, "Robot click did not select the Task ribbon tab");
 		AbstractButton collapse = findShowingButtonByCommand("RibbonCollapse");
 		GuiAcceptanceSupport.await(collapse::isEnabled, "Collapse remained disabled for a selected summary");
 		RibbonCommandResult previousCollapseOutcome = manager.getLastRibbonCommandResult();
@@ -1922,7 +1922,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		clickUntilSelected(robot, window, sheet, rowForTask(sheet, second), nameColumn(sheet));
 		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("TaskRibbonTask.title"));
-		click(robot, boundsOnScreen(taskTab));
+		clickAndAwaitSelected(robot, taskTab, "Robot click did not select the Task ribbon tab");
 		AbstractButton indent = findVisibleOrOverflowButton(robot, "RibbonIndent");
 		GuiAcceptanceSupport.await(indent::isEnabled, "Indent remained disabled for the selected task");
 		RibbonCommandResult previousIndentOutcome = manager.getLastRibbonCommandResult();
@@ -2626,7 +2626,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"Shift-click did not preserve both selected tasks");
 		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("TaskRibbonTask.title"));
-		click(robot, boundsOnScreen(taskTab));
+		clickAndAwaitSelected(robot, taskTab, "Robot click did not select the Task ribbon tab");
 		assertFalse(findShowingButtonByCommand("RibbonTaskInformation").isEnabled(),
 			"Task Information must not stay enabled for a multi-task selection");
 		AbstractButton link = findVisibleOrOverflowButton(robot, "RibbonLink");
@@ -2762,7 +2762,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"physical task click did not select the intended leveling target");
 		AbstractButton resourceTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("ResourceRibbonTask.title"));
-		click(robot, boundsOnScreen(resourceTab));
+		clickAndAwaitSelected(robot, resourceTab, "Robot click did not select the Resource ribbon tab");
 		AbstractButton levelSelection = findShowingButtonByCommand("RibbonLevelSelection");
 		GuiAcceptanceSupport.await(levelSelection::isEnabled,
 			"Level Selection must be enabled for one selected editable task");
@@ -2836,7 +2836,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"physical task click did not select the intended Level All anchor");
 		AbstractButton resourceTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("ResourceRibbonTask.title"));
-		click(robot, boundsOnScreen(resourceTab));
+		clickAndAwaitSelected(robot, resourceTab, "Robot click did not select the Resource ribbon tab");
 		AbstractButton levelAll = findShowingButtonByCommand("RibbonLevelAll");
 		GuiAcceptanceSupport.await(levelAll::isEnabled,
 			"Level All must be enabled for a writable project with a selected task");
@@ -2908,7 +2908,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"physical task click did not select the first overallocated task");
 		AbstractButton resourceTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("ResourceRibbonTask.title"));
-		click(robot, boundsOnScreen(resourceTab));
+		clickAndAwaitSelected(robot, resourceTab, "Robot click did not select the Resource ribbon tab");
 		AbstractButton next = findShowingButtonByCommand("RibbonNextOverallocation");
 		GuiAcceptanceSupport.await(next::isEnabled, "Next Overallocation must be enabled in a task view");
 		click(robot, boundsOnScreen(next));
