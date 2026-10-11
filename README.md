@@ -6,6 +6,7 @@ Current release in this fork:
 
 - [Stable: `v0.0.23.1219`](https://github.com/tetsuji16/ProjectLibre/releases/latest)
 - [Beta: `v0.0.24-beta.2`](https://github.com/tetsuji16/ProjectLibre/releases/tag/v0.0.24-beta.2) — Windows MSI and portable ZIP, verified before publication.
+- 今後のリリースでは Linux x64 と macOS Apple Silicon (aarch64) のアプリイメージ ZIP も公開します。
 - [Beta scope and release plan](docs/beta-release-plan.md)
 - [Beta.2 independence plan and legacy inventory](docs/beta2-release-plan.md)
 
@@ -106,7 +107,7 @@ to check this rule.
 
 ## Requirements
 
-- Windows with a full JDK that includes `jpackage`
+- Windows, Linux, or macOS with a full JDK that includes `jpackage` (platform packages must be built on their target OS)
 - Java 25 or newer is required. Gradle compiles every Java source with
   `--release 25`; a newer installed JDK may be used as the toolchain runtime.
 - Gradle Wrapper support files are included in this repository
@@ -198,7 +199,7 @@ Files under `docs/downloads/` are scratch space and must not be committed. Publi
 
 ## Automated Release and Documentation Deployment
 
-The release workflow packages Windows MSI and portable ZIP artifacts, runs the Windows GUI and packaged-launch gates, and publishes only after all gates pass. A `release/beta-0.0.24-2` branch publishes `v0.0.24-beta.2` as a prerelease; beta releases do not replace stable `latest` assets or the unattended update feed.
+The release workflow packages Windows MSI and portable ZIP artifacts and also builds Linux x64 and macOS Apple Silicon app-image ZIPs on their native GitHub Actions runners. The Windows GUI and packaged-launch gates remain required; release publication waits for every platform package job. A `release/beta-0.0.24-2` branch publishes `v0.0.24-beta.2` as a prerelease; beta releases do not replace stable `latest` assets or the unattended update feed.
 
 The canonical documentation and download entry point is [o-server.main.jp/micro-project/](https://o-server.main.jp/micro-project/), built from `website/` by the o-server documentation workflow. GitHub Pages publishes redirect stubs from `pages-redirect/`; `docs/*.html` are legacy redirects.
 
