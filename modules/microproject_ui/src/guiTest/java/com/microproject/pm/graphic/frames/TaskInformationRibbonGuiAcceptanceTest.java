@@ -663,8 +663,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		activateWindow(robot, window);
 		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("ViewRibbonTask.title"));
-		click(robot, boundsOnScreen(viewTab));
-		GuiAcceptanceSupport.await(viewTab::isSelected, "Robot click did not select the View ribbon tab");
+		clickAndAwaitSelected(robot, viewTab, "Robot click did not select the View ribbon tab");
 
 		SwingUtilities.invokeAndWait(() -> manager.getCurrentFrame().activateView(com.microproject.menu.MenuActionConstants.ACTION_HISTOGRAM));
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getActiveBottomView() != null
@@ -790,7 +789,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		activateWindow(robot, window);
 		AbstractButton projectTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("ProjectRibbonTask.title"));
-		clickTransformedAndAwaitSelected(robot, projectTab, "Project ribbon tab did not become selected");
+		clickAndAwaitSelected(robot, projectTab, "Project ribbon tab did not become selected");
 
 		AbstractButton statusDate = RibbonGuiSupport.findVisibleOrExpand(robot, window, "RibbonStatusDate");
 		String renderedStatusDate = statusDate.getText().replaceAll("(?i)<br\\s*/?>", " ").replaceAll("<[^>]*>", "");
@@ -1082,8 +1081,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		activateWindow(robot, window);
 		AbstractButton resourceTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("ResourceRibbonTask.title"));
-		click(robot, boundsOnScreen(resourceTab));
-		GuiAcceptanceSupport.await(resourceTab::isSelected, "Robot click did not select the Resource ribbon tab");
+		clickAndAwaitSelected(robot, resourceTab, "Robot click did not select the Resource ribbon tab");
 		AbstractButton timesheet = findShowingButtonByCommand("RibbonTimesheet");
 		GuiAcceptanceSupport.await(timesheet::isEnabled, "Timesheet remained disabled on the Resource ribbon");
 		click(robot, boundsOnScreen(timesheet));
@@ -1586,8 +1584,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		else SwingUtilities.invokeAndWait(sheet::clearSelection);
 		AbstractButton progressTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString(commandId.equals("MarkOnTrack") ? "TaskRibbonTask.title" : "ProjectRibbonTask.title"));
-		click(robot, boundsOnScreen(progressTab));
-		GuiAcceptanceSupport.await(progressTab::isSelected, routeName + " ribbon tab did not become selected");
+		clickAndAwaitSelected(robot, progressTab, routeName + " ribbon tab did not become selected");
 		SwingUtilities.invokeAndWait(() -> { });
 		AbstractButton progressCommand = GuiPhysicalRouteAdapter.visibleButton(robot, window,
 			commandId.equals("StatusDate") ? "RibbonStatusDate" : "RibbonMarkOnTrack");
@@ -2364,15 +2361,6 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> {
 			rowHeaderBox[0] = sheet.getRowHeader();
 			JTable rowHeader = rowHeaderBox[0];
-			java.awt.Rectangle source = rowHeader.getCellRect(sourceRow, 0, true);
-			java.awt.Rectangle target = rowHeader.getCellRect(targetRow, 0, true);
-			Point location = rowHeader.getLocationOnScreen();
-			logicalPoints[0] = new Point(location.x + source.x + source.width / 2,
-				location.y + source.y + source.height / 2);
-			// The production drop contract splits a row at its vertical midpoint.
-			// This fixture moves the selected second task before the first task.
-			logicalPoints[1] = new Point(location.x + target.x + target.width / 2,
-				location.y + target.y + Math.max(1, target.height / 4));
 			rowHeader.addMouseMotionListener(new java.awt.event.MouseMotionAdapter() {
 				@Override
 				public void mouseDragged(java.awt.event.MouseEvent event) {
@@ -2383,22 +2371,49 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		});
 		JTable rowHeader = rowHeaderBox[0];
 		GuiAcceptanceSupport.await(() -> sheet.isShowing() && rowHeader.isShowing(),
-			"task row header was not visible for the physical move gesture");
-		points[0] = robotPointFor(rowHeader, logicalPoints[0]);
-		points[1] = robotPointFor(rowHeader, logicalPoints[1]);
+			"task row header was not visible for the physical move gesture; " + componentInputDiagnostics(rowHeader));
+		java.awt.Rectangle[] sourceCell = new java.awt.Rectangle[1];
+		java.awt.Rectangle[] targetCell = new java.awt.Rectangle[1];
+		java.awt.Rectangle[] visibleRows = new java.awt.Rectangle[2];
+		SwingUtilities.invokeAndWait(() -> {
+			java.awt.Rectangle visible = rowHeader.getVisibleRect();
+			sourceCell[0] = rowHeader.getCellRect(sourceRow, 0, true);
+			targetCell[0] = rowHeader.getCellRect(targetRow, 0, true);
+			visibleRows[0] = sourceCell[0].intersection(visible);
+			visibleRows[1] = targetCell[0].intersection(visible);
+			assertFalse(visibleRows[0].isEmpty(), "source row cell must intersect the visible row header; cell="
+				+ sourceCell[0] + ", visible=" + visible);
+			assertFalse(visibleRows[1].isEmpty(), "target row cell must intersect the visible row header; cell="
+				+ targetCell[0] + ", visible=" + visible);
+			Point location = rowHeader.getLocationOnScreen();
+			int x = visible.x + visible.width / 2;
+			int sourceY = visibleRows[0].y + visibleRows[0].height / 2;
+			// The production drop contract splits a row at its vertical midpoint.
+			// This fixture moves the selected second task before the first task.
+			int targetY = visibleRows[1].y + Math.max(1, visibleRows[1].height / 4);
+			assertTrue(targetY < targetCell[1].y + targetCell[1].height / 2,
+				"target must remain in the before half of the task row");
+			logicalPoints[0] = new Point(location.x + x, location.y + sourceY);
+			logicalPoints[1] = new Point(location.x + x, location.y + targetY);
+		});
+		points[0] = logicalPoints[0];
+		points[1] = logicalPoints[1];
 		robot.mouseMove(points[0].x, points[0].y);
 		robot.waitForIdle();
+		try {
+			GuiAcceptanceSupport.await(() -> rowHeaderHoverRow(rowHeader) == sourceRow,
+				"Robot source move did not hit the visible source row; sourceCell=" + sourceCell[0]
+					+ ", sourceVisible=" + visibleRows[0] + ", point=" + points[0]
+					+ ", " + componentInputDiagnostics(rowHeader));
+		} catch (AssertionError failure) {
+			throw new AssertionError(failure.getMessage() + "; windows={" + visibleWindowInputDiagnostics() + "}", failure);
+		}
 		Point[] sourceHover = new Point[1];
-		int[] sourceHoverRow = { -1 };
-		SwingUtilities.invokeAndWait(() -> {
-			sourceHover[0] = rowHeader.getMousePosition();
-			if (sourceHover[0] != null) sourceHoverRow[0] = rowHeader.rowAtPoint(sourceHover[0]);
-		});
+		SwingUtilities.invokeAndWait(() -> sourceHover[0] = rowHeader.getMousePosition());
 		String sourceInput = componentInputDiagnostics(rowHeader) + ", sourceHover=" + sourceHover[0]
-			+ ", sourceHoverRow=" + sourceHoverRow[0] + ", logicalSource=" + logicalPoints[0]
-			+ ", transformedRobotSource=" + points[0];
-		assertEquals(sourceRow, sourceHoverRow[0],
-			"Robot source move must land on the intended row header before pressing; " + sourceInput);
+			+ ", sourceHoverRow=" + rowHeaderHoverRow(rowHeader) + ", sourceCell=" + sourceCell[0]
+			+ ", sourceVisible=" + visibleRows[0] + ", logicalSource=" + logicalPoints[0]
+			+ ", robotSource=" + points[0];
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		try {
 		robot.delay(100);
@@ -3320,43 +3335,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			+ frame.getBounds() + ", usable=" + usable + ", scale=" + configuration.getDefaultTransform());
 	}
 
-	private static void clickTransformedAndAwaitSelected(Robot robot, AbstractButton button, String failureMessage)
-		throws Exception {
-		Rectangle bounds = boundsOnScreen(button);
-		Point logicalTarget = new Point(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
-		Point robotTarget = robotPointFor(button, logicalTarget);
-		robot.mouseMove(robotTarget.x, robotTarget.y);
-		robot.waitForIdle();
-		Point[] local = new Point[1];
-		SwingUtilities.invokeAndWait(() -> local[0] = button.getMousePosition());
-		String before = componentInputDiagnostics(button) + ", logicalTarget=" + logicalTarget
-			+ ", transformedRobotTarget=" + robotTarget;
-		assertNotNull(local[0], "Robot pointer did not physically enter Project ribbon tab before click; " + before);
-		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-		robot.waitForIdle();
-		robot.delay(150);
-		try {
-			GuiAcceptanceSupport.await(() -> {
-				boolean[] selected = new boolean[1];
-				try { SwingUtilities.invokeAndWait(() -> selected[0] = button.isSelected()); }
-				catch (Exception exception) { throw new AssertionError("could not inspect Project ribbon tab on EDT", exception); }
-				return selected[0];
-			}, failureMessage);
-		} catch (AssertionError failure) {
-			throw new AssertionError(failure.getMessage() + "; beforeClick={" + before
-				+ "}; afterClick={" + componentInputDiagnostics(button) + "}", failure);
-		}
-	}
 
-	private static Point robotPointFor(Component component, Point logicalPoint) throws Exception {
-		GraphicsConfiguration[] configuration = new GraphicsConfiguration[1];
-		SwingUtilities.invokeAndWait(() -> configuration[0] = component.getGraphicsConfiguration());
-		assertNotNull(configuration[0], "Robot target must belong to a graphics configuration");
-		java.awt.geom.Point2D transformed = configuration[0].getDefaultTransform()
-			.transform(new java.awt.geom.Point2D.Double(logicalPoint.x, logicalPoint.y), null);
-		return new Point((int) Math.round(transformed.getX()), (int) Math.round(transformed.getY()));
-	}
 
 	private static void clickAndAwaitSelected(Robot robot, AbstractButton button, String failureMessage) throws Exception {
 		Rectangle bounds = boundsOnScreen(button);
@@ -3364,9 +3343,13 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		robot.mouseMove(target.x, target.y);
 		robot.waitForIdle();
 		String before = componentInputDiagnostics(button) + ", requestedRobotPoint=" + target;
-		Point[] local = new Point[1];
-		SwingUtilities.invokeAndWait(() -> local[0] = button.getMousePosition());
-		assertNotNull(local[0], "Robot pointer did not physically enter ribbon tab before click; " + before);
+		try {
+			GuiAcceptanceSupport.await(() -> componentMousePosition(button) != null,
+				"Robot pointer did not physically enter ribbon tab before click; " + before);
+		} catch (AssertionError failure) {
+			throw new AssertionError(failure.getMessage() + "; windows={" + visibleWindowInputDiagnostics()
+				+ "}; afterMove={" + componentInputDiagnostics(button) + "}", failure);
+		}
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 		robot.waitForIdle();
@@ -3380,8 +3363,44 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			}, failureMessage);
 		} catch (AssertionError failure) {
 			throw new AssertionError(failure.getMessage() + "; beforeClick={" + before
-				+ "}; afterClick={" + componentInputDiagnostics(button) + "}", failure);
+				+ "}; afterClick={" + componentInputDiagnostics(button) + "}; windows={"
+				+ visibleWindowInputDiagnostics() + "}", failure);
 		}
+	}
+
+	private static Point componentMousePosition(Component component) {
+		Point[] local = new Point[1];
+		try { SwingUtilities.invokeAndWait(() -> local[0] = component.getMousePosition()); }
+		catch (Exception exception) { throw new AssertionError("could not inspect component pointer position on EDT", exception); }
+		return local[0];
+	}
+
+	private static int rowHeaderHoverRow(JTable rowHeader) {
+		int[] row = { -1 };
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				Point point = rowHeader.getMousePosition();
+				if (point != null) row[0] = rowHeader.rowAtPoint(point);
+			});
+		} catch (Exception exception) {
+			throw new AssertionError("could not inspect row header hover on EDT", exception);
+		}
+		return row[0];
+	}
+
+	private static String visibleWindowInputDiagnostics() {
+		String[] value = new String[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> value[0] = java.util.Arrays.stream(Window.getWindows())
+				.filter(Window::isShowing)
+				.map(candidate -> candidate.getClass().getSimpleName() + "[active=" + candidate.isActive()
+					+ ",focused=" + candidate.isFocused() + ",modal=" + (candidate instanceof Dialog dialog
+						&& dialog.isModal()) + ",bounds=" + candidate.getBounds() + "]")
+				.collect(Collectors.joining("; ")));
+		} catch (Exception exception) {
+			return "windowSnapshotError=" + exception;
+		}
+		return value[0];
 	}
 
 	private static boolean hasShowingCommand(String command) {
@@ -3405,18 +3424,24 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	private static String componentInputDiagnostics(Component component) {
 		Point[] local = new Point[1];
 		Point[] screen = new Point[1];
+		java.awt.Dimension[] size = new java.awt.Dimension[1];
+		java.awt.Rectangle[] visible = new java.awt.Rectangle[1];
 		GraphicsConfiguration[] configuration = new GraphicsConfiguration[1];
 		try {
 			SwingUtilities.invokeAndWait(() -> {
 				local[0] = component.getMousePosition();
 				try { screen[0] = component.getLocationOnScreen(); } catch (java.awt.IllegalComponentStateException ignored) { }
+				size[0] = component.getSize();
+				visible[0] = component instanceof JComponent swing ? swing.getVisibleRect() : null;
 				configuration[0] = component.getGraphicsConfiguration();
 			});
 		} catch (Exception exception) {
 			return "componentSnapshotError=" + exception;
 		}
-		return "component=" + component.getClass().getSimpleName() + ", localMouse=" + local[0]
-			+ ", locationOnScreen=" + screen[0] + ", pointer=" + java.awt.MouseInfo.getPointerInfo().getLocation()
+		return "component=" + component.getClass().getSimpleName() + ", showing=" + component.isShowing()
+			+ ", enabled=" + component.isEnabled() + ", size=" + size[0] + ", visibleRect=" + visible[0]
+			+ ", localMouse=" + local[0] + ", locationOnScreen=" + screen[0]
+			+ ", pointer=" + java.awt.MouseInfo.getPointerInfo().getLocation()
 			+ ", toolkitDpi=" + Toolkit.getDefaultToolkit().getScreenResolution()
 			+ ", uiScale=" + System.getProperty("sun.java2d.uiScale", "default")
 			+ ", graphicsTransform=" + (configuration[0] == null ? null : configuration[0].getDefaultTransform());
