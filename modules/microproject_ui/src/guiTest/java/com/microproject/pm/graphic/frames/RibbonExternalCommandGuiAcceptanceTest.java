@@ -969,20 +969,21 @@ class RibbonExternalCommandGuiAcceptanceTest {
 	private static void click(Robot robot, Component component) throws Exception {
 		Point[] screenLocation = new Point[1];
 		int[] size = new int[2];
-		SwingUtilities.invokeAndWait(() -> {
-			Component target = component;
-			if (!target.isShowing() && target.getName() != null) {
-				Window owner = SwingUtilities.getWindowAncestor(target);
-				if (owner != null) {
-					Component visible = findNamedShowing(owner, target.getName());
-					if (visible != null) target = visible;
-				}
+		GuiAcceptanceSupport.await(() -> {
+			try {
+				SwingUtilities.invokeAndWait(() -> {
+					Component target = component.isShowing() ? component : findShowingComponentByName(component.getName());
+					if (target == null || !target.isShowing()
+						|| (target instanceof AbstractButton button && !button.isEnabled())) return;
+					screenLocation[0] = target.getLocationOnScreen();
+					size[0] = target.getWidth();
+					size[1] = target.getHeight();
+				});
+			} catch (Exception exception) {
+				throw new AssertionError("Could not resolve physical click target on the EDT", exception);
 			}
-			assertTrue(target.isShowing(), "Cannot physically click a component that is no longer showing: " + target);
-			screenLocation[0] = target.getLocationOnScreen();
-			size[0] = target.getWidth();
-			size[1] = target.getHeight();
-		});
+			return screenLocation[0] != null;
+		}, "Physical click target did not become visible and enabled: " + component);
 		Point point = screenLocation[0];
 		robot.mouseMove(point.x + size[0] / 2, point.y + size[1] / 2);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
@@ -1145,6 +1146,16 @@ class RibbonExternalCommandGuiAcceptanceTest {
 				Component found = findNamed(child, name);
 				if (found != null) return found;
 			}
+		}
+		return null;
+	}
+
+	private static Component findShowingComponentByName(String name) {
+		if (name == null) return null;
+		for (Window candidate : Window.getWindows()) {
+			if (!candidate.isShowing()) continue;
+			Component visible = findNamedShowing(candidate, name);
+			if (visible != null) return visible;
 		}
 		return null;
 	}
