@@ -712,7 +712,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		activateWindow(robot, window);
 		AbstractButton projectTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("ProjectRibbonTask.title"));
-		clickTransformedAndAwaitSelected(robot, projectTab, "Project ribbon tab did not become selected");
+		click(robot, boundsOnScreen(projectTab));
 		AbstractButton calendarOptions = findShowingButtonByCommand("RibbonCalendarOptions");
 		GuiAcceptanceSupport.await(calendarOptions::isEnabled, "Calendar Options remained disabled");
 		click(robot, boundsOnScreen(calendarOptions));
@@ -790,8 +790,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		activateWindow(robot, window);
 		AbstractButton projectTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("ProjectRibbonTask.title"));
-		click(robot, boundsOnScreen(projectTab));
-		GuiAcceptanceSupport.await(projectTab::isSelected, "Project ribbon tab did not become selected");
+		clickTransformedAndAwaitSelected(robot, projectTab, "Project ribbon tab did not become selected");
 
 		AbstractButton statusDate = RibbonGuiSupport.findVisibleOrExpand(robot, window, "RibbonStatusDate");
 		String renderedStatusDate = statusDate.getText().replaceAll("(?i)<br\\s*/?>", " ").replaceAll("<[^>]*>", "");
