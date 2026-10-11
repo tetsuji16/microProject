@@ -16,6 +16,7 @@ on:
         type: choice
         options:
           - smoke
+          - visual
           - full
   schedule:
     - cron: '17 2 * * 1'
@@ -57,7 +58,9 @@ jobs:
           $requestedSuite = '${{ inputs.gui_suite }}'
           if ([string]::IsNullOrWhiteSpace($requestedSuite)) {
             if ($env:GITHUB_EVENT_NAME -eq 'schedule') { $requestedSuite = 'full' }
-            else { $requestedSuite = 'smoke' }
+            elseif ($env:GITHUB_EVENT_NAME -eq 'pull_request' -and '${{ github.head_ref }}' -like 'codex/stable-*') {
+              $requestedSuite = 'visual'
+            } else { $requestedSuite = 'smoke' }
           }
           Write-Host "Selected GUI suite: $requestedSuite (event=$env:GITHUB_EVENT_NAME)"
           .\.github\scripts\run-gui-acceptance.ps1 -Suite $requestedSuite

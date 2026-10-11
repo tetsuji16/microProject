@@ -12,10 +12,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Component;
 import java.awt.Frame;
+import java.awt.GraphicsConfiguration;
+import java.awt.Insets;
 import java.awt.GraphicsEnvironment;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Robot;
+import java.awt.Toolkit;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 
@@ -63,10 +66,21 @@ class WindowShellNativeDecorationGuiAcceptanceTest {
 			frame.setRibbonPanel(panel);
 			title[0] = findTitle(panel);
 			brand[0] = findComponent(panel, OfficeChromePanel.BRAND_ICON_NAME);
-			// Give the title and interactive header clusters enough room to remain visible;
-			// narrow-width title suppression is covered by the responsive chrome checks.
-			frame.setSize(1600, 240);
-			frame.setLocation(120, 120);
+			// Keep the physical drag/restore journey inside the logical usable work
+			// area on scaled runners; the native window manager otherwise clamps
+			// the saved restore bounds and invalidates the equality assertion.
+			GraphicsConfiguration configuration = frame.getGraphicsConfiguration();
+			Rectangle usable = new Rectangle(configuration.getBounds());
+			Insets screenInsets = Toolkit.getDefaultToolkit().getScreenInsets(configuration);
+			usable.x += screenInsets.left;
+			usable.y += screenInsets.top;
+			usable.width -= screenInsets.left + screenInsets.right;
+			usable.height -= screenInsets.top + screenInsets.bottom;
+			int width = Math.min(1600, usable.width - 240);
+			if (width < 900 || usable.height < 360)
+				throw new IllegalStateException("Native caption fixture needs a usable desktop of at least 1140x360: " + usable);
+			frame.setSize(width, 240);
+			frame.setLocation(usable.x + 60, usable.y + 120);
 			frame.setAlwaysOnTop(true);
 			frame.setVisible(true);
 			frame.toFront();

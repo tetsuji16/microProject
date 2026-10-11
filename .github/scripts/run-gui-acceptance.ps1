@@ -1,5 +1,5 @@
 param(
-  [ValidateSet('smoke', 'full')]
+  [ValidateSet('smoke', 'full', 'visual')]
   [string]$Suite = 'smoke'
 )
 
@@ -189,40 +189,46 @@ function Invoke-GuiGate([string]$label, [string[]]$arguments, [int]$timeoutSecon
   }
 }
 
-# Release runs the efficient shared-cause smoke gate. The scheduled/manual
-# audit selects full and runs acceptance in two strict steps: first every test
-# at 100%, then (only after Step 1 passes) the locale × scale visual matrix.
+# Stable-candidate PRs use the same ten visual acceptance classes and six
+# locale/scale legs as the release matrix. Normal smoke/full retain their functional suites.
+$visualTests = @(
+  'com.microproject.dialog.ProjectDialogGuiAcceptanceTest',
+  'com.microproject.dialog.ChangeWorkingTimeDialogGuiAcceptanceTest',
+  'com.microproject.dialog.ProjectInformationDialogGuiAcceptanceTest',
+  'com.microproject.dialog.ResourceMappingDialogGuiAcceptanceTest',
+  'com.microproject.pm.graphic.spreadsheet.TaskInformationGuiAcceptanceTest',
+  'com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest',
+  'com.microproject.pm.graphic.frames.workspace.DefaultFrameManagerGuiAcceptanceTest',
+  'com.microproject.ui.shell.WindowShellNativeDecorationGuiAcceptanceTest',
+  'com.microproject.ui.ribbon.RibbonTabGuiAcceptanceTest',
+  'com.microproject.dialog.FlatLafLegacyDialogRefreshGuiAcceptanceTest'
+)
+
 try {
-  Write-Host "GUI acceptance Step 1/2: run the complete '$Suite' suite at 100% (ja)."
+  Write-Host "GUI acceptance Step 1/2: run the '$Suite' suite at 100% (ja)."
   try {
     $functionalTimeoutSeconds = if ($Suite -eq 'full') { 2700 } else { 1200 }
-    Invoke-GuiGate "functional-$Suite-ja-100" @(
+    $functionalArgs = @(
       ':microproject_ui:guiTest', '--max-workers=1', '--console=plain',
-      "-PguiTestSuite=$Suite", '-PguiTestLocale=ja', '-PguiTestUiScale=1.0'
-    ) $functionalTimeoutSeconds
+      '-PguiTestLocale=ja', '-PguiTestUiScale=1.0'
+    )
+    if ($Suite -eq 'visual') {
+      foreach ($testClass in $visualTests) { $functionalArgs += @('--tests', $testClass) }
+    } else {
+      $functionalArgs += "-PguiTestSuite=$Suite"
+    }
+    Invoke-GuiGate "functional-$Suite-ja-100" $functionalArgs $functionalTimeoutSeconds
   } catch {
     $gateFailures.Add($_.Exception.Message)
     throw "GUI acceptance Step 1/2 failed at 100%; Step 2 (locale/scale matrix) was not run: $($_.Exception.Message)"
   }
 
-  if ($Suite -eq 'full') {
-    Write-Host 'GUI acceptance Step 2/2: run the visual matrix after the full 100% suite passed.'
-    $visualTests = @(
-      'com.microproject.dialog.ProjectDialogGuiAcceptanceTest',
-      'com.microproject.dialog.ChangeWorkingTimeDialogGuiAcceptanceTest',
-      'com.microproject.dialog.ProjectInformationDialogGuiAcceptanceTest',
-      'com.microproject.dialog.ResourceMappingDialogGuiAcceptanceTest',
-      'com.microproject.pm.graphic.spreadsheet.TaskInformationGuiAcceptanceTest',
-      'com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest',
-      'com.microproject.pm.graphic.frames.workspace.DefaultFrameManagerGuiAcceptanceTest',
-      'com.microproject.ui.shell.WindowShellNativeDecorationGuiAcceptanceTest',
-      'com.microproject.ui.ribbon.RibbonTabGuiAcceptanceTest',
-      'com.microproject.dialog.FlatLafLegacyDialogRefreshGuiAcceptanceTest'
-    )
+  if ($Suite -in @('full', 'visual')) {
+    Write-Host 'GUI acceptance Step 2/2: run the visual matrix after the 100% suite passed.'
     foreach ($locale in @('ja', 'en')) {
-      # Step 1 already ran the entire Japanese suite at 100%, including these
-      # visual cases. Keep English 100% as a locale check, then test both
-      # locales at higher scales without repeating the Japanese baseline.
+      # Step 1 already ran the Japanese 100% baseline for either the full suite
+      # or these selected visual classes. Test English 100% plus both locales
+      # at higher scales without repeating the Japanese baseline.
       $scales = if ($locale -eq 'ja') { @('1.25', '1.5') } else { @('1.0', '1.25', '1.5') }
       foreach ($scale in $scales) {
         Write-Host "GUI visual gate: locale=$locale scale=$scale"

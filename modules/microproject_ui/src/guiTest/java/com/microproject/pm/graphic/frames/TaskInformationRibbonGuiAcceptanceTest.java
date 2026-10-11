@@ -75,6 +75,8 @@ import com.microproject.dialog.DependencyDialog;
 import com.microproject.dialog.assignment.TimesheetDialog;
 import com.microproject.dialog.assignment.TimesheetEntryPane;
 import com.microproject.menu.MenuManager;
+import com.microproject.ui.ribbon.RibbonDisplayMode;
+import com.microproject.ui.ribbon.RibbonDisplayPreferences;
 import com.microproject.ribbon.RibbonCommandResult;
 import com.microproject.exchange.MpoFileImporter;
 import com.microproject.collaboration.CollaborationSession;
@@ -138,11 +140,14 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	private String previousUiDebug;
 	private JobQueue previousJobQueue;
 	private Locale previousFormatLocale;
+	private RibbonDisplayMode previousShellDisplayMode;
 
 	@BeforeEach
 	void captureClientSide() {
 		previousClientSide = Environment.isClientSide();
 		previousBatchMode = Environment.isBatchMode();
+		previousShellDisplayMode = RibbonDisplayPreferences.load();
+		RibbonDisplayPreferences.save(RibbonDisplayMode.ALWAYS_SHOW);
 	}
 
 	@AfterEach
@@ -160,6 +165,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 					candidate.dispose();
 			}
 		});
+		if (previousShellDisplayMode != null)
+			RibbonDisplayPreferences.save(previousShellDisplayMode);
 		Environment.setRibbonUI(previousRibbonUi);
 		Environment.setNewLook(previousNewLook);
 		Environment.setClientSide(previousClientSide);

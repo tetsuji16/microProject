@@ -83,6 +83,14 @@ public final class WindowBoundsSupport {
 		}
 
 		@Override
+		public void componentShown(ComponentEvent event) {
+			// The native peer and its work-area geometry are authoritative only
+			// after the window is shown. Re-clamp now, before the user can interact
+			// with a dialog whose packed bounds exceeded the usable screen.
+			WindowBoundsSupport.fitWithinUsableScreen(window);
+		}
+
+		@Override
 		public void componentResized(ComponentEvent event) {
 			// Native maximize/restore transitions may publish temporary full-work-area
 			// bounds; clamp only after the window manager's geometry has settled.
