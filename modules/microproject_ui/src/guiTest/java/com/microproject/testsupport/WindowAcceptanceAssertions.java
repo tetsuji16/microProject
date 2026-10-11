@@ -58,6 +58,108 @@ public final class WindowAcceptanceAssertions {
 		return result[0];
 	}
 
+
+	/**
+	 * Physically clicks a current component only after Robot hover confirms the
+	 * pointer is over that same showing component. The bounds are refreshed after
+	 * every move because native window geometry can still settle between snapshots.
+	 */
+	public static void clickComponent(Robot robot, Component component) throws Exception {
+		long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(8);
+		PointerSnapshot last = pointerSnapshot(component);
+		while (System.nanoTime() < deadline) {
+			if (last.showing() && last.enabled() && last.bounds() != null && !last.bounds().isEmpty()) {
+				Point target = new Point(last.bounds().x + last.bounds().width / 2,
+					last.bounds().y + last.bounds().height / 2);
+				robot.mouseMove(target.x, target.y);
+				robot.waitForIdle();
+				last = pointerSnapshot(component);
+				if (last.showing() && last.enabled() && isInside(last.localMouse(), last.size()))
+					break;
+			}
+			Thread.sleep(25);
+			last = pointerSnapshot(component);
+		}
+		if (last == null || !last.showing() || !last.enabled() || last.bounds() == null || last.bounds().isEmpty()
+			|| !isInside(last.localMouse(), last.size())) {
+			throw new AssertionError("Robot pointer did not enter the current component before click dispatch; target={"
+				+ (last == null ? "unavailable" : last.identity()) + "}; bounds="
+				+ (last == null ? null : last.bounds()) + "; size=" + (last == null ? null : last.size())
+				+ "; localMouse=" + (last == null ? null : last.localMouse()) + "; showing="
+				+ (last != null && last.showing()) + "; enabled=" + (last != null && last.enabled())
+				+ "; test=" + currentTestCaller() + "; windows={" + showingWindows() + "}");
+		}
+		System.out.println("[GUI_PHYSICAL_CLICK] test=" + currentTestCaller() + " target=" + last.identity()
+			+ " bounds=" + last.bounds() + " localHover=" + last.localMouse());
+		try {
+			robot.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		} finally {
+			robot.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		}
+		robot.waitForIdle();
+		robot.delay(150);
+	}
+
+	private record PointerSnapshot(boolean showing, boolean enabled, Rectangle bounds,
+		java.awt.Dimension size, Point localMouse, String identity) {
+	}
+
+	private static PointerSnapshot pointerSnapshot(Component component) throws Exception {
+		PointerSnapshot[] result = new PointerSnapshot[1];
+		SwingUtilities.invokeAndWait(() -> {
+			boolean showing = component.isShowing();
+			Rectangle bounds = null;
+			if (showing) {
+				try {
+					bounds = new Rectangle(component.getLocationOnScreen(), component.getSize());
+				} catch (java.awt.IllegalComponentStateException ignored) {
+					showing = false;
+				}
+			}
+			Point localMouse = showing ? component.getMousePosition() : null;
+			String identity = component.getClass().getName() + "[name=" + component.getName() + "]";
+			if (component instanceof AbstractButton button)
+				identity += "[action=" + button.getActionCommand() + ",text=" + button.getText() + "]";
+			result[0] = new PointerSnapshot(showing, component.isEnabled(), bounds,
+				component.getSize(), localMouse, identity);
+		});
+		return result[0];
+	}
+
+	private static boolean isInside(Point point, java.awt.Dimension size) {
+		return point != null && size != null && point.x >= 0 && point.y >= 0
+			&& point.x < size.width && point.y < size.height;
+	}
+
+	private static String currentTestCaller() {
+		for (StackTraceElement frame : Thread.currentThread().getStackTrace()) {
+			String className = frame.getClassName();
+			String methodName = frame.getMethodName();
+			if (className.equals(WindowAcceptanceAssertions.class.getName())
+				|| className.startsWith("com.microproject.testsupport.")
+				|| className.equals("java.lang.Thread")
+				|| methodName.equals("click") || methodName.equals("clickAndAwaitSelected"))
+				continue;
+			return className + "#" + methodName + ":" + frame.getLineNumber();
+		}
+		return "unknown";
+	}
+
+	private static String showingWindows() throws Exception {
+		String[] result = new String[1];
+		SwingUtilities.invokeAndWait(() -> {
+			StringBuilder windows = new StringBuilder();
+			for (java.awt.Window window : java.awt.Window.getWindows()) {
+				if (!window.isShowing()) continue;
+				if (windows.length() > 0) windows.append("; ");
+				windows.append(window.getClass().getSimpleName()).append("[active=").append(window.isActive())
+					.append(",focused=").append(window.isFocused()).append(",bounds=").append(window.getBounds()).append("]");
+			}
+			result[0] = windows.toString();
+		});
+		return result[0];
+	}
+
 	public static Rectangle boundsOnScreen(Component component) throws Exception {
 		Rectangle[] result = new Rectangle[1];
 		SwingUtilities.invokeAndWait(() -> result[0] = new Rectangle(component.getLocationOnScreen(), component.getSize()));
