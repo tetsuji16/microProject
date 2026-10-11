@@ -5,7 +5,6 @@ microProject is a Windows desktop planning application aiming for compatibility 
 Current release in this fork:
 
 - [Stable: `v0.0.23.1219`](https://github.com/tetsuji16/ProjectLibre/releases/latest)
-- [Beta: `v0.0.24-beta.2`](https://github.com/tetsuji16/ProjectLibre/releases/tag/v0.0.24-beta.2) — Windows MSI and portable ZIP, verified before publication.
 - 今後のリリースでは Linux x64 と macOS Apple Silicon (aarch64) のアプリイメージ ZIP も公開します。
 - [Beta scope and release plan](docs/beta-release-plan.md)
 - [Beta.2 independence plan and legacy inventory](docs/beta2-release-plan.md)
