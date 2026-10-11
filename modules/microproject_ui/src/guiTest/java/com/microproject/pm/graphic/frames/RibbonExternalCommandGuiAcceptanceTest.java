@@ -789,8 +789,20 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		try {
 			GuiAcceptanceSupport.await(chooserCallStarted::get,
 				route + " did not enter the default Windows native chooser provider");
-			GuiAcceptanceSupport.await(() -> !visibleDialogOverlayBounds(beforeOpen, captureScreen(robot)).isEmpty(),
-				route + " called the native provider but no visible chooser appeared on the desktop");
+			try {
+				GuiAcceptanceSupport.await(() -> !visibleDialogOverlayBounds(beforeOpen, captureScreen(robot)).isEmpty(),
+					route + " called the native provider but no visible chooser appeared on the desktop");
+			} catch (AssertionError failure) {
+				BufferedImage observed = captureScreen(robot);
+				String diagnostic = describeDialogOverlay(beforeOpen, observed);
+				try {
+					captureNativeChooserScreen(robot, "issue-398-native-"
+						+ route.toLowerCase(Locale.ROOT).replace(' ', '-') + "-visibility-failure.png");
+				} catch (IOException captureFailure) {
+					failure.addSuppressed(captureFailure);
+				}
+				throw new AssertionError(failure.getMessage() + "; " + diagnostic, failure);
+			}
 			assertFalse(chooserCallReturned.get(), route + " chooser must remain modal until physical Escape");
 			String artifactName = "issue-398-native-" + route.toLowerCase(Locale.ROOT).replace(' ', '-')
 				+ "-before-escape.png";
@@ -818,6 +830,31 @@ class RibbonExternalCommandGuiAcceptanceTest {
 	private static BufferedImage captureScreen(Robot robot) {
 		Rectangle bounds = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
 		return robot.createScreenCapture(bounds);
+	}
+
+	private static String describeDialogOverlay(BufferedImage before, BufferedImage after) {
+		if (before.getWidth() != after.getWidth() || before.getHeight() != after.getHeight())
+			return "overlay screenshot dimensions changed from " + before.getWidth() + "x" + before.getHeight()
+				+ " to " + after.getWidth() + "x" + after.getHeight();
+		int changedSamples = 0;
+		int minX = before.getWidth();
+		int minY = before.getHeight();
+		int maxX = -1;
+		int maxY = -1;
+		for (int y = 20; y < before.getHeight(); y += 4) {
+			for (int x = 20; x < before.getWidth(); x += 4) {
+				if (!hasPixelDifferenceInSampleBlock(before, after, x, y, 4)) continue;
+				changedSamples++;
+				minX = Math.min(minX, x);
+				minY = Math.min(minY, y);
+				maxX = Math.max(maxX, x);
+				maxY = Math.max(maxY, y);
+			}
+		}
+		return "overlay samples=" + changedSamples + ", bounds="
+			+ (maxX < 0 ? "none" : minX + "," + minY + " " + (maxX - minX + 1) + "x" + (maxY - minY + 1))
+			+ ", minimum=80 samples and " + (before.getWidth() * 0.30) + "x" + (before.getHeight() * 0.20)
+			+ " span on " + before.getWidth() + "x" + before.getHeight() + " desktop";
 	}
 
 	private static Rectangle visibleDialogOverlayBounds(BufferedImage before, BufferedImage after) {
