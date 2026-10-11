@@ -152,19 +152,21 @@ tasks.register<Test>("guiTest") {
 		"com.microproject.dialog.assignment.AssignmentDialogGuiAcceptanceTest.robotReplaceWithActualWorkPreservesActualsAndSupportsUndoRedo",
 		"com.microproject.dialog.CriticalChainStatusDialogGuiAcceptanceTest.robotAppliesCcpmAndUndoRedoSurvivesMpoReload",
 		"com.microproject.pm.graphic.frames.RibbonExternalCommandGuiAcceptanceTest.robotEscapeAndCancelCloseTheFileOpenChooserWithoutOpeningAProject",
-		"com.microproject.ui.ribbon.RibbonTabGuiAcceptanceTest.robotClicksEveryStandardRibbonCommandOnce",
 		"com.microproject.ui.shell.WindowShellNativeDecorationGuiAcceptanceTest.physicalCaptionDragUsesNativeWindowShell"
 	)
 	inputs.property("guiTestSuite", guiTestSuite)
 	if (guiTestSuite == "smoke") {
 		// Keep Gradle's test discovery (and forkEvery=1 worker creation) scoped to
-		// the physical acceptance classes in the smoke suite. The JUnit filter
-		// below still narrows these classes to the named methods. In full mode we
-		// leave Test.include unset so normal --tests filtering remains unrestricted.
-		val smokeClasses = guiSmokeTestPatterns.map { it.substringBeforeLast('.') }.toSet()
+		// the physical acceptance classes in the smoke suite. Most classes run only
+		// selected methods; the ribbon class runs in full to catch interactions
+		// between its Backstage and document-tab routes. In full mode we leave
+		// Test.include unset so normal --tests filtering remains unrestricted.
+		val smokeTestClasses = setOf("com.microproject.ui.ribbon.RibbonTabGuiAcceptanceTest")
+		val smokeClasses = guiSmokeTestPatterns.map { it.substringBeforeLast('.') }.toSet() + smokeTestClasses
 		include(smokeClasses.map { "${it.replace('.', '/')}.class" })
 		filter {
 			guiSmokeTestPatterns.forEach(::includeTestsMatching)
+			smokeTestClasses.forEach(::includeTestsMatching)
 		}
 	} else require(guiTestSuite == "full") {
 		"guiTestSuite must be 'full' or 'smoke'"
