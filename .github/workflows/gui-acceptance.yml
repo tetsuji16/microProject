@@ -59,7 +59,7 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($requestedSuite)) {
             if ($env:GITHUB_EVENT_NAME -eq 'schedule') { $requestedSuite = 'full' }
             elseif ($env:GITHUB_EVENT_NAME -eq 'pull_request' -and '${{ github.head_ref }}' -like 'codex/stable-*') {
-              $requestedSuite = 'visual'
+              $requestedSuite = 'full'
             } else { $requestedSuite = 'smoke' }
           }
           Write-Host "Selected GUI suite: $requestedSuite (event=$env:GITHUB_EVENT_NAME)"

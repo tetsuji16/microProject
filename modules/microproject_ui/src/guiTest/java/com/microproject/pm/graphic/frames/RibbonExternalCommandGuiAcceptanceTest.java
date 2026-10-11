@@ -31,6 +31,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.prefs.Preferences;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.imageio.ImageIO;
 import javax.swing.AbstractButton;
@@ -353,6 +354,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		AtomicBoolean chooserCallStarted = new AtomicBoolean();
 		AtomicBoolean chooserCallReturned = new AtomicBoolean();
 		AtomicBoolean chooserCancelled = new AtomicBoolean();
+		AtomicReference<Throwable> chooserFailure = new AtomicReference<>();
 		SwingFileChooserProvider nativeProvider = new SwingFileChooserProvider();
 		UiServices.setFileChooserProvider(new UiServices.FileChooserProvider() {
 			@Override
@@ -362,6 +364,9 @@ class RibbonExternalCommandGuiAcceptanceTest {
 					String selected = nativeProvider.chooseFileName(save, selectedFileName, parent);
 					chooserCancelled.set(selected == null);
 					return selected;
+				} catch (RuntimeException | Error failure) {
+					chooserFailure.set(failure);
+					throw failure;
 				} finally {
 					chooserCallReturned.set(true);
 				}
@@ -374,6 +379,9 @@ class RibbonExternalCommandGuiAcceptanceTest {
 					List<String> selected = nativeProvider.chooseFileNames(save, selectedFileName, parent);
 					chooserCancelled.set(selected.isEmpty());
 					return selected;
+				} catch (RuntimeException | Error failure) {
+					chooserFailure.set(failure);
+					throw failure;
 				} finally {
 					chooserCallReturned.set(true);
 				}
@@ -385,18 +393,18 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		activateWindowForRobot(robot);
 		int documentsBefore = manager.getFrameManager().getAllFrames().size();
 		verifyNativeChooserEscape(robot, () -> pressCtrlO(robot), chooserCallStarted, chooserCallReturned,
-			chooserCancelled, "Ctrl+O");
+			chooserCancelled, chooserFailure, "Ctrl+O");
 		assertEquals(documentsBefore, manager.getFrameManager().getAllFrames().size(),
 			"native Ctrl+O cancellation must not open a project");
 		verifyNativeChooserEscape(robot,
 			() -> click(robot, findCommandButton(window.getRibbonPanel(), "RibbonOpenProject", robot)),
 			chooserCallStarted, chooserCallReturned,
-			chooserCancelled, "Ribbon Open");
+			chooserCancelled, chooserFailure, "Ribbon Open");
 		assertEquals(documentsBefore, manager.getFrameManager().getAllFrames().size(),
 			"native Ribbon Open cancellation must not open a project");
 		verifyNativeChooserCancelButton(robot,
 			() -> click(robot, findCommandButton(window.getRibbonPanel(), "RibbonOpenProject", robot)), chooserCallStarted,
-			chooserCallReturned, chooserCancelled, "Ribbon Open");
+			chooserCallReturned, chooserCancelled, chooserFailure, "Ribbon Open");
 		assertEquals(documentsBefore, manager.getFrameManager().getAllFrames().size(),
 			"native Ribbon Open Cancel must not open a project");
 	}
@@ -777,14 +785,19 @@ class RibbonExternalCommandGuiAcceptanceTest {
 	}
 
 	private void verifyNativeChooserEscape(Robot robot, GuiCommand openCommand, AtomicBoolean chooserCallStarted,
-			AtomicBoolean chooserCallReturned, AtomicBoolean chooserCancelled, String route) throws Exception {
+			AtomicBoolean chooserCallReturned, AtomicBoolean chooserCancelled, AtomicReference<Throwable> chooserFailure,
+			String route) throws Exception {
 		// Native Windows choosers are external top-level windows. Do not place the
 		// owner above them in the test window's z-order while exercising this route.
 		activateWindowForRobot(robot, false);
 		chooserCallStarted.set(false);
 		chooserCallReturned.set(false);
 		chooserCancelled.set(false);
+		chooserFailure.set(null);
 		BufferedImage beforeOpen = captureScreen(robot);
+		String windowsBeforeOpen = snapshotNativeChooserWindows();
+		captureNativeChooserScreen(beforeOpen, "issue-398-native-" + route.toLowerCase(Locale.ROOT).replace(' ', '-')
+			+ "-before-open.png");
 		openCommand.run();
 		try {
 			GuiAcceptanceSupport.await(chooserCallStarted::get,
@@ -794,7 +807,9 @@ class RibbonExternalCommandGuiAcceptanceTest {
 					route + " called the native provider but no visible chooser appeared on the desktop");
 			} catch (AssertionError failure) {
 				BufferedImage observed = captureScreen(robot);
-				String diagnostic = describeDialogOverlay(beforeOpen, observed);
+				String diagnostic = describeDialogOverlay(beforeOpen, observed) + "; "
+					+ describeNativeChooserState(chooserCallStarted, chooserCallReturned, chooserCancelled, chooserFailure,
+						windowsBeforeOpen);
 				try {
 					captureNativeChooserScreen(robot, "issue-398-native-"
 						+ route.toLowerCase(Locale.ROOT).replace(' ', '-') + "-visibility-failure.png");
@@ -821,7 +836,10 @@ class RibbonExternalCommandGuiAcceptanceTest {
 	}
 
 	private static void captureNativeChooserScreen(Robot robot, String artifactName) throws IOException {
-		BufferedImage image = captureScreen(robot);
+		captureNativeChooserScreen(captureScreen(robot), artifactName);
+	}
+
+	private static void captureNativeChooserScreen(BufferedImage image, String artifactName) throws IOException {
 		Path output = Path.of("build", "reports", "guiTest-artifacts", artifactName);
 		Files.createDirectories(output.getParent());
 		ImageIO.write(image, "png", output.toFile());
@@ -882,23 +900,74 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		return new Rectangle(minX, minY, maxX - minX + 1, maxY - minY + 1);
 	}
 
+	private static String snapshotNativeChooserWindows() throws Exception {
+		String[] snapshot = new String[1];
+		SwingUtilities.invokeAndWait(() -> snapshot[0] = describeNativeChooserWindows());
+		return snapshot[0];
+	}
+
+	private static String describeNativeChooserState(AtomicBoolean started, AtomicBoolean returned,
+			AtomicBoolean cancelled, AtomicReference<Throwable> failure, String windowsBeforeOpen) {
+		String error = failure.get() == null ? "none"
+			: failure.get().getClass().getName() + ": " + failure.get().getMessage();
+		return "native provider started=" + started.get() + ", returned=" + returned.get()
+			+ ", cancelled=" + cancelled.get() + ", error=" + error + "; windows before open="
+			+ windowsBeforeOpen + "; windows after failure=" + describeNativeChooserWindows();
+	}
+
+	private static String describeNativeChooserWindows() {
+		StringBuilder state = new StringBuilder("AWT windows=[");
+		boolean first = true;
+		// The post-failure snapshot reads AWT window getters directly on the test
+		// thread: the native modal chooser may have entered a secondary loop, so
+		// invokeAndWait here could block the diagnosis.
+		for (Window candidate : Window.getWindows()) {
+			if (!candidate.isShowing() && !candidate.isActive() && !candidate.isFocused()) continue;
+			if (!first) state.append("; ");
+			first = false;
+			state.append(candidate.getClass().getSimpleName())
+				.append("{showing=").append(candidate.isShowing())
+				.append(",active=").append(candidate.isActive())
+				.append(",focused=").append(candidate.isFocused())
+				.append(",modal=").append(candidate instanceof java.awt.Dialog dialog && dialog.isModal())
+				.append(",bounds=").append(candidate.getBounds()).append('}');
+		}
+		Window activeWindow = java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow();
+		Window focusedWindow = java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusedWindow();
+		Component focusOwner = java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
+		state.append("], activeWindow=").append(activeWindow == null ? "none" : activeWindow.getClass().getName())
+			.append(", focusedWindow=").append(focusedWindow == null ? "none" : focusedWindow.getClass().getName())
+			.append(", focusOwner=").append(focusOwner == null ? "none" : focusOwner.getClass().getName());
+		return state.toString();
+	}
+
 	private void verifyNativeChooserCancelButton(Robot robot, GuiCommand openCommand,
 			AtomicBoolean chooserCallStarted, AtomicBoolean chooserCallReturned,
-			AtomicBoolean chooserCancelled, String route) throws Exception {
+			AtomicBoolean chooserCancelled, AtomicReference<Throwable> chooserFailure, String route) throws Exception {
 		activateWindowForRobot(robot, false);
 		chooserCallStarted.set(false);
 		chooserCallReturned.set(false);
 		chooserCancelled.set(false);
+		chooserFailure.set(null);
 		BufferedImage beforeOpen = captureScreen(robot);
+		String windowsBeforeOpen = snapshotNativeChooserWindows();
+		captureNativeChooserScreen(beforeOpen, "issue-398-native-" + route.toLowerCase(Locale.ROOT).replace(' ', '-')
+			+ "-before-open.png");
 		openCommand.run();
 		try {
 			GuiAcceptanceSupport.await(chooserCallStarted::get,
 				route + " did not enter the default Windows native chooser provider for Cancel acceptance");
 			Rectangle[] chooserBounds = new Rectangle[1];
-			GuiAcceptanceSupport.await(() -> {
-				chooserBounds[0] = visibleDialogOverlayBounds(beforeOpen, captureScreen(robot));
-				return !chooserBounds[0].isEmpty();
-			}, route + " did not show a visible Windows chooser before physical Cancel");
+			try {
+				GuiAcceptanceSupport.await(() -> {
+					chooserBounds[0] = visibleDialogOverlayBounds(beforeOpen, captureScreen(robot));
+					return !chooserBounds[0].isEmpty();
+				}, route + " did not show a visible Windows chooser before physical Cancel");
+			} catch (AssertionError failure) {
+				throw new AssertionError(failure.getMessage() + "; "
+					+ describeNativeChooserState(chooserCallStarted, chooserCallReturned, chooserCancelled,
+						chooserFailure, windowsBeforeOpen), failure);
+			}
 			assertFalse(chooserCallReturned.get(), route + " native chooser returned before physical Cancel");
 			captureNativeChooserScreen(robot, "issue-398-native-ribbon-open-before-cancel.png");
 			Rectangle bounds = chooserBounds[0];
