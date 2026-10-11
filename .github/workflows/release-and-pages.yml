@@ -33,7 +33,80 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  unix-packages:
+    name: Build ${{ matrix.os }} release package
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux-x64
+          - os: macos-latest
+            platform: macos-aarch64
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Derive package version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          base_version=$(sed -nE 's/.*version = .*"([0-9]+\.[0-9]+\.[0-9]+)".*/\1/p' build.gradle.kts | head -n 1)
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
+            if [[ '${{ inputs.release_channel }}' == stable ]]; then
+              [[ "$GITHUB_REF_NAME" =~ ^release/stable-([0-9]+\.[0-9]+\.[0-9]+)$ ]] || { echo 'Invalid stable release branch.' >&2; exit 1; }
+              [[ "${BASH_REMATCH[1]}" == "$base_version" ]] || { echo 'Stable branch version mismatch.' >&2; exit 1; }
+              channel=stable
+            else channel=beta; fi
+            release_version="$base_version.$GITHUB_RUN_NUMBER"
+          elif [[ "$GITHUB_REF_TYPE" == branch && "$GITHUB_REF_NAME" =~ ^release/(beta|stable)-([0-9]+\.[0-9]+\.[0-9]+)-([1-9][0-9]*)$ ]]; then
+            [[ "${BASH_REMATCH[2]}" == "$base_version" ]] || { echo 'Release branch version mismatch.' >&2; exit 1; }
+            release_version="$base_version.${BASH_REMATCH[3]}"; channel="${BASH_REMATCH[1]}"
+          elif [[ "$GITHUB_REF_TYPE" == branch && "$GITHUB_REF_NAME" =~ ^release/stable-([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            [[ "${BASH_REMATCH[1]}" == "$base_version" ]] || { echo 'Stable branch version mismatch.' >&2; exit 1; }
+            release_version="$base_version.$GITHUB_RUN_NUMBER"; channel=stable
+          elif [[ "$GITHUB_REF_NAME" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)-beta\.([1-9][0-9]*)$ ]]; then
+            release_version="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}"; channel=beta
+          elif [[ "$GITHUB_REF_NAME" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)(\.[0-9]+)?$ ]]; then
+            release_version="${GITHUB_REF_NAME#v}"; channel=stable
+          else echo "Unsupported release ref: $GITHUB_REF_NAME" >&2; exit 1; fi
+          echo "release_version=$release_version" >> "$GITHUB_OUTPUT"
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
+      - name: Build and package app image
+        run: ./gradlew clean build stageAppDist "-PreleaseVersion=${{ steps.version.outputs.release_version }}" "-PreleaseChannel=${{ steps.version.outputs.channel }}" --console=plain
+      - name: Package Linux app image
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="build/releases/v${{ steps.version.outputs.release_version }}"; mkdir -p "$root"
+          jpackage --type app-image --name microProject --app-version '${{ steps.version.outputs.release_version }}' --vendor 'microProject contributors' --description 'microProject desktop project management software' --input modules/microproject_ui/build/install/microproject_ui/lib --main-jar microproject_bootstrap.jar --main-class com.microproject.bootstrap.MicroProjectUpdater --java-options '-Dmicroproject.updates.enabled=${{ steps.version.outputs.channel == 'stable' }}' --dest "$root" --verbose
+          test -x "$root/microProject/bin/microProject"
+          (cd "$root" && zip -qr "microProject-${{ steps.version.outputs.release_version }}-linux-x64.zip" microProject)
+      - name: Package macOS app image
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="build/releases/v${{ steps.version.outputs.release_version }}"; mkdir -p "$root"
+          jpackage --type app-image --name microProject --app-version '${{ steps.version.outputs.release_version }}' --vendor 'microProject contributors' --description 'microProject desktop project management software' --input modules/microproject_ui/build/install/microproject_ui/lib --main-jar microproject_bootstrap.jar --main-class com.microproject.bootstrap.MicroProjectUpdater --java-options '-Dmicroproject.updates.enabled=${{ steps.version.outputs.channel == 'stable' }}' --dest "$root" --verbose
+          test -d "$root/microProject.app"
+          (cd "$root" && ditto -c -k --sequesterRsrc --keepParent microProject.app "microProject-${{ steps.version.outputs.release_version }}-macos-aarch64.zip")
+      - name: Upload OS package
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-${{ matrix.platform }}
+          path: build/releases/v${{ steps.version.outputs.release_version }}/microProject-*-*.zip
+          if-no-files-found: error
+
   release:
+    needs: unix-packages
     name: Build and publish Windows release
     runs-on: windows-latest
     # Stable candidates run the full GUI locale/DPI matrix, which can take
@@ -231,6 +304,13 @@ jobs:
             Stop-Process -Id $launcher.Id -Force -ErrorAction SilentlyContinue
           }
 
+      - name: Download Linux and macOS packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: package-*
+          path: unix-packages
+          merge-multiple: false
+
       - name: Stage release assets
         id: assets
         if: ${{ success() }}
@@ -239,6 +319,12 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $version = '${{ steps.version.outputs.release_version }}'
           New-Item -ItemType Directory -Path release-assets | Out-Null
+          foreach ($platform in @('linux-x64', 'macos-aarch64')) {
+            $packageDir = Join-Path $PWD "unix-packages/package-$platform"
+            $package = @(Get-ChildItem -LiteralPath $packageDir -File -Filter "microProject-$version-$platform.zip" -ErrorAction SilentlyContinue)
+            if ($package.Count -ne 1) { throw "Expected exactly one $platform package, found $($package.Count)" }
+            Copy-Item $package[0].FullName "release-assets/$($package[0].Name)"
+          }
           $msiCandidates = @(Get-ChildItem -LiteralPath "build/releases/v$version/msi" -File -Filter '*.msi' -ErrorAction SilentlyContinue)
           if ($msiCandidates.Count -ne 1) { throw "Expected exactly one MSI in build/releases/v$version/msi, found $($msiCandidates.Count)" }
           $msi = $msiCandidates[0]
