@@ -785,6 +785,9 @@ class RibbonTabGuiAcceptanceTest {
 				return selected instanceof javax.swing.JToggleButton current && current.isSelected();
 			}, "Backstage did not select page " + pageId + " for " + commandId);
 		}
+		GuiAcceptanceSupport.await(
+			() -> findShowingComponent(frame, "officeBackstageCommand-" + commandId) != null,
+			"Backstage page " + pageId + " did not expose command " + commandId);
 	}
 
 	private static Component findShowingComponent(Component root, String name) {
