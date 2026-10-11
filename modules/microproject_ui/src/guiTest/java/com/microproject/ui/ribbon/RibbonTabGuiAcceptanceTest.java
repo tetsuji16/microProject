@@ -168,13 +168,26 @@ class RibbonTabGuiAcceptanceTest {
 			"Direct command sweep requires a full-width desktop; high-DPI layout is covered by the dedicated visual matrix.");
 		RecordingActionMap actions = new RecordingActionMap();
 		MenuManager manager = MenuManager.getInstance(actions);
-		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+		MainRibbonFrame applicationFrame = new MainRibbonFrame("Ribbon command GUI acceptance", "");
+		MicroProjectShell.installRibbonShell(applicationFrame, manager, null);
+		frame = applicationFrame;
+		JPanel host = applicationFrame.getRibbonPanel();
 		ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
 		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
+		// Use the production Office shell so File commands are exercised in their
+		// Backstage host, while document commands remain attached to the ribbon.
 		// Keep the fixture above the compact breakpoint so every command is a
 		// direct hit target; the overflow path is covered separately by the
 		// responsive ribbon tests.
-		show(host, 1600, true);
+		SwingUtilities.invokeAndWait(() -> {
+			frame.setSize(1600, 700);
+			frame.setLocationByPlatform(true);
+			frame.setAlwaysOnTop(true);
+			frame.setVisible(true);
+			frame.toFront();
+			frame.requestFocus();
+		});
+		GuiAcceptanceSupport.await(frame::isShowing, "production ribbon shell did not become visible");
 
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(35);
@@ -191,7 +204,9 @@ class RibbonTabGuiAcceptanceTest {
 			SwingUtilities.invokeAndWait(() -> { });
 			for (String bandId : MenuDefinitionSupport.ribbonBandIds(tabId)) {
 				for (String buttonId : MenuDefinitionSupport.ribbonButtonIds(bandId)) {
-					AbstractButton button = findAttachedButtonByCommand(host, buttonId);
+					if ("FileRibbonTask".equals(tabId))
+						openFileCommandDestination(robot, frame, tab, buttonId);
+					AbstractButton button = findAttachedButtonByCommand(frame, buttonId);
 					assertTrue(button.isShowing(), () -> buttonId + " is not visible in " + tabId);
 					assertTrue(button.isEnabled(), () -> buttonId + " is disabled in " + bandId);
 					String actionId = manager.getToolBarFactory().getActionStringFromId(buttonId);
@@ -746,10 +761,46 @@ class RibbonTabGuiAcceptanceTest {
 			.findFirst().orElseThrow(() -> new AssertionError("Ribbon tab not found: " + tabId));
 	}
 
-	private static AbstractButton findAttachedButtonByCommand(JPanel host, String command) {
-		return UiComponentWalker.flatten(host).stream()
+	private static void openFileCommandDestination(Robot robot, JFrame frame, AbstractButton fileTab,
+		String commandId) throws Exception {
+		if (findShowingComponent(frame, "officeBackstageOverlay") == null) {
+			click(robot, fileTab);
+			GuiAcceptanceSupport.await(() -> findShowingComponent(frame, "officeBackstageOverlay") != null,
+				"File tab did not open Backstage before command " + commandId);
+		}
+		java.util.ResourceBundle metadata = java.util.ResourceBundle.getBundle(
+			"com.microproject.menu.menuInternal", Locale.ROOT);
+		String pageId = metadata.getString(commandId + ".backstagePage");
+		Component destination = findShowingComponent(frame, "officeBackstageNav-" + pageId);
+		if (!(destination instanceof AbstractButton pageButton))
+			throw new AssertionError("Backstage page is not physically available for " + commandId + ": " + pageId);
+		// Immediate Backstage destinations are themselves the command button.
+		// Leave them for the shared physical click/count assertion below.
+		if (metadata.containsKey(commandId + ".backstageImmediate")
+			&& Boolean.parseBoolean(metadata.getString(commandId + ".backstageImmediate"))) return;
+		if (pageButton instanceof javax.swing.JToggleButton toggle && !toggle.isSelected()) {
+			click(robot, pageButton);
+			GuiAcceptanceSupport.await(() -> {
+				Component selected = findShowingComponent(frame, "officeBackstageNav-" + pageId);
+				return selected instanceof javax.swing.JToggleButton current && current.isSelected();
+			}, "Backstage did not select page " + pageId + " for " + commandId);
+		}
+		GuiAcceptanceSupport.await(
+			() -> findShowingComponent(frame, "officeBackstageCommand-" + commandId) != null,
+			"Backstage page " + pageId + " did not expose command " + commandId);
+	}
+
+	private static Component findShowingComponent(Component root, String name) {
+		return UiComponentWalker.flatten(root).stream()
+			.filter(component -> name.equals(component.getName()) && component.isShowing())
+			.findFirst().orElse(null);
+	}
+
+	private static AbstractButton findAttachedButtonByCommand(Component root, String command) {
+		return UiComponentWalker.flatten(root).stream()
 			.filter(AbstractButton.class::isInstance)
 			.map(AbstractButton.class::cast)
+			.filter(AbstractButton::isShowing)
 			.filter(button -> command.equals(button.getActionCommand())
 				|| ("officeBackstageCommand-" + command).equals(button.getName()))
 			.findFirst()
