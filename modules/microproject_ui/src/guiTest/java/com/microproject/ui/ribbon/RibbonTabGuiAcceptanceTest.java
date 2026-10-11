@@ -168,13 +168,26 @@ class RibbonTabGuiAcceptanceTest {
 			"Direct command sweep requires a full-width desktop; high-DPI layout is covered by the dedicated visual matrix.");
 		RecordingActionMap actions = new RecordingActionMap();
 		MenuManager manager = MenuManager.getInstance(actions);
-		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+		MainRibbonFrame applicationFrame = new MainRibbonFrame("Ribbon command GUI acceptance", "");
+		MicroProjectShell.installRibbonShell(applicationFrame, manager, null);
+		frame = applicationFrame;
+		JPanel host = applicationFrame.getRibbonPanel();
 		ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
 		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
+		// Use the production Office shell so File commands are exercised in their
+		// Backstage host, while document commands remain attached to the ribbon.
 		// Keep the fixture above the compact breakpoint so every command is a
 		// direct hit target; the overflow path is covered separately by the
 		// responsive ribbon tests.
-		show(host, 1600, true);
+		SwingUtilities.invokeAndWait(() -> {
+			frame.setSize(1600, 700);
+			frame.setLocationByPlatform(true);
+			frame.setAlwaysOnTop(true);
+			frame.setVisible(true);
+			frame.toFront();
+			frame.requestFocus();
+		});
+		GuiAcceptanceSupport.await(frame::isShowing, "production ribbon shell did not become visible");
 
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(35);
