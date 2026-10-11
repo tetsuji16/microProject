@@ -206,6 +206,8 @@ class RibbonTabGuiAcceptanceTest {
 				for (String buttonId : MenuDefinitionSupport.ribbonButtonIds(bandId)) {
 					if ("FileRibbonTask".equals(tabId))
 						openFileCommandDestination(robot, frame, tab, buttonId);
+					GuiAcceptanceSupport.await(() -> hasAttachedButtonByCommand(frame, buttonId),
+						"Selected ribbon tab " + tabId + " did not expose visible command " + buttonId);
 					AbstractButton button = findAttachedButtonByCommand(frame, buttonId);
 					assertTrue(button.isShowing(), () -> buttonId + " is not visible in " + tabId);
 					assertTrue(button.isEnabled(), () -> buttonId + " is disabled in " + bandId);
@@ -805,6 +807,15 @@ class RibbonTabGuiAcceptanceTest {
 				|| ("officeBackstageCommand-" + command).equals(button.getName()))
 			.findFirst()
 			.orElseThrow(() -> new AssertionError("Ribbon command not found: " + command));
+	}
+
+	private static boolean hasAttachedButtonByCommand(Component root, String command) {
+		return UiComponentWalker.flatten(root).stream()
+			.filter(AbstractButton.class::isInstance)
+			.map(AbstractButton.class::cast)
+			.filter(AbstractButton::isShowing)
+			.anyMatch(button -> command.equals(button.getActionCommand())
+				|| ("officeBackstageCommand-" + command).equals(button.getName()));
 	}
 
 	private static void click(Robot robot, AbstractButton button) throws Exception {
