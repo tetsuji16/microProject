@@ -967,7 +967,6 @@ class RibbonExternalCommandGuiAcceptanceTest {
 	}
 
 	private static void click(Robot robot, Component component) throws Exception {
-		Component[] clickTarget = new Component[1];
 		Point[] screenLocation = new Point[1];
 		int[] size = new int[2];
 		SwingUtilities.invokeAndWait(() -> {
@@ -980,7 +979,6 @@ class RibbonExternalCommandGuiAcceptanceTest {
 				}
 			}
 			assertTrue(target.isShowing(), "Cannot physically click a component that is no longer showing: " + target);
-			clickTarget[0] = target;
 			screenLocation[0] = target.getLocationOnScreen();
 			size[0] = target.getWidth();
 			size[1] = target.getHeight();
@@ -1102,7 +1100,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		}
 		GuiAcceptanceSupport.await(() -> {
 			Component target = findNamedOnEdt(frame, targetName);
-			return target instanceof AbstractButton button && isShowingOnEdt(button) && button.isEnabled();
+			return target instanceof AbstractButton && isEnabledAndShowingOnEdt(target);
 		}, "Backstage destination did not expose an enabled, visible command " + commandId);
 		Component target = findNamedOnEdt(frame, targetName);
 		if (!(target instanceof AbstractButton button) || !isShowingOnEdt(button)) {
@@ -1174,6 +1172,17 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			throw new AssertionError("Could not inspect Backstage component " + name + " on the EDT", exception);
 		}
 		return match[0];
+	}
+
+	private static boolean isEnabledAndShowingOnEdt(Component component) {
+		boolean[] state = new boolean[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> state[0] = component.isShowing()
+				&& (!(component instanceof AbstractButton button) || button.isEnabled()));
+		} catch (Exception exception) {
+			throw new AssertionError("Could not inspect Backstage command state on the EDT", exception);
+		}
+		return state[0];
 	}
 
 	private static boolean isShowingOnEdt(Component component) {
