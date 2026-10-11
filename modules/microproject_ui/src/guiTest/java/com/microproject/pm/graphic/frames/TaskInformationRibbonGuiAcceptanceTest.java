@@ -711,7 +711,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		activateWindow(robot, window);
 		AbstractButton projectTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("ProjectRibbonTask.title"));
-		click(robot, boundsOnScreen(projectTab));
+		clickAndAwaitSelected(robot, projectTab, "Robot click did not select the Project ribbon tab");
 		AbstractButton calendarOptions = findShowingButtonByCommand("RibbonCalendarOptions");
 		GuiAcceptanceSupport.await(calendarOptions::isEnabled, "Calendar Options remained disabled");
 		click(robot, boundsOnScreen(calendarOptions));
@@ -2355,7 +2355,6 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		int sourceRow = rowForTask(sheet, second);
 		int targetRow = rowForTask(sheet, first);
 		JTable[] rowHeaderBox = new JTable[1];
-		Point[] logicalPoints = new Point[2];
 		Point[] points = new Point[2];
 		int[] dragState = { 0, -1 };
 		SwingUtilities.invokeAndWait(() -> {
@@ -2372,89 +2371,59 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		JTable rowHeader = rowHeaderBox[0];
 		GuiAcceptanceSupport.await(() -> sheet.isShowing() && rowHeader.isShowing(),
 			"task row header was not visible for the physical move gesture; " + componentInputDiagnostics(rowHeader));
-		java.awt.Rectangle[] sourceCell = new java.awt.Rectangle[1];
-		java.awt.Rectangle[] targetCell = new java.awt.Rectangle[1];
-		java.awt.Rectangle[] visibleRows = new java.awt.Rectangle[2];
-		SwingUtilities.invokeAndWait(() -> {
-			java.awt.Rectangle visible = rowHeader.getVisibleRect();
-			sourceCell[0] = rowHeader.getCellRect(sourceRow, 0, true);
-			targetCell[0] = rowHeader.getCellRect(targetRow, 0, true);
-			visibleRows[0] = sourceCell[0].intersection(visible);
-			visibleRows[1] = targetCell[0].intersection(visible);
-			assertFalse(visibleRows[0].isEmpty(), "source row cell must intersect the visible row header; cell="
-				+ sourceCell[0] + ", visible=" + visible);
-			assertFalse(visibleRows[1].isEmpty(), "target row cell must intersect the visible row header; cell="
-				+ targetCell[0] + ", visible=" + visible);
-			Point location = rowHeader.getLocationOnScreen();
-			int x = visible.x + visible.width / 2;
-			int sourceY = visibleRows[0].y + visibleRows[0].height / 2;
-			// The production drop contract splits a row at its vertical midpoint.
-			// This fixture moves the selected second task before the first task.
-			int targetY = visibleRows[1].y + Math.max(1, visibleRows[1].height / 4);
-			assertTrue(targetY < targetCell[0].y + targetCell[0].height / 2,
-				"target must remain in the before half of the task row");
-			logicalPoints[0] = new Point(location.x + x, location.y + sourceY);
-			logicalPoints[1] = new Point(location.x + x, location.y + targetY);
-		});
-		points[0] = logicalPoints[0];
-		points[1] = logicalPoints[1];
-		robot.mouseMove(points[0].x, points[0].y);
-		robot.waitForIdle();
-		try {
-			GuiAcceptanceSupport.await(() -> rowHeaderHoverRow(rowHeader) == sourceRow,
-				"Robot source move did not hit the visible source row; sourceCell=" + sourceCell[0]
-					+ ", sourceVisible=" + visibleRows[0] + ", point=" + points[0]
-					+ ", " + componentInputDiagnostics(rowHeader));
-		} catch (AssertionError failure) {
-			throw new AssertionError(failure.getMessage() + "; windows={" + visibleWindowInputDiagnostics() + "}", failure);
-		}
-		Point[] sourceHover = new Point[1];
-		SwingUtilities.invokeAndWait(() -> sourceHover[0] = rowHeader.getMousePosition());
-		String sourceInput = componentInputDiagnostics(rowHeader) + ", sourceHover=" + sourceHover[0]
-			+ ", sourceHoverRow=" + rowHeaderHoverRow(rowHeader) + ", sourceCell=" + sourceCell[0]
-			+ ", sourceVisible=" + visibleRows[0] + ", logicalSource=" + logicalPoints[0]
-			+ ", robotSource=" + points[0];
+		points[0] = moveToRowHeaderTarget(robot, rowHeader, sourceRow, false,
+			"Robot source move did not hit the visible source row");
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		try {
-		robot.delay(100);
-		GuiAcceptanceSupport.await(() -> {
-			boolean[] selected = new boolean[1];
-			try {
-				SwingUtilities.invokeAndWait(() -> selected[0] = sheet.isRowFullySelected(sourceRow));
-			} catch (Exception exception) {
-				throw new AssertionError("could not inspect row selection on the EDT", exception);
-			}
-			return selected[0];
-		}, "physical row-header press must select the complete source task row before dragging");
-		robot.mouseMove((points[0].x + points[1].x) / 2, (points[0].y + points[1].y) / 2);
-		robot.delay(100);
-		robot.mouseMove(points[1].x, points[1].y);
-		int[] observedDrag = new int[3];
-		Point[] targetHover = new Point[1];
-		long cursorDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
-		do {
-			SwingUtilities.invokeAndWait(() -> {
-				observedDrag[0] = dragState[0];
-				observedDrag[1] = dragState[1];
-				observedDrag[2] = rowHeader.getCursor().getType();
-				targetHover[0] = rowHeader.getMousePosition();
-			});
-			if (observedDrag[0] > 0 && observedDrag[1] == targetRow
-					&& observedDrag[2] == Cursor.MOVE_CURSOR)
-				break;
-			if (System.nanoTime() >= cursorDeadline)
-				break;
-			Thread.sleep(25);
-		} while (true);
-		assertTrue(observedDrag[0] > 0, "physical row-header drag must deliver MOUSE_DRAGGED; events="
-			+ observedDrag[0] + " source=" + points[0] + " target=" + points[1]
-			+ " targetHover=" + targetHover[0] + " " + componentInputDiagnostics(rowHeader));
-		assertEquals(targetRow, observedDrag[1], "physical drag must reach the intended target task row; source="
-			+ sourceRow + " target=" + targetRow + " lastDragRow=" + observedDrag[1]);
-		assertEquals(Cursor.MOVE_CURSOR, observedDrag[2], "valid row-header target must show move cursor before release; "
-			+ "cursor=" + observedDrag[2] + " dragEvents=" + observedDrag[0] + " dragRow=" + observedDrag[1]
-			+ " sourcePoint=" + points[0] + " targetPoint=" + points[1] + " pointer="
-			+ java.awt.MouseInfo.getPointerInfo().getLocation());
+			robot.delay(100);
+			GuiAcceptanceSupport.await(() -> {
+				boolean[] selected = new boolean[1];
+				try {
+					SwingUtilities.invokeAndWait(() -> selected[0] = sheet.isRowFullySelected(sourceRow));
+				} catch (Exception exception) {
+					throw new AssertionError("could not inspect row selection on the EDT", exception);
+				}
+				return selected[0];
+			}, "physical row-header press must select the complete source task row before dragging");
+			RowHeaderTarget initialTarget = rowHeaderTargetOnScreen(rowHeader, targetRow, true);
+			robot.mouseMove((points[0].x + initialTarget.screenPoint().x) / 2,
+				(points[0].y + initialTarget.screenPoint().y) / 2);
+			int[] observedDrag = new int[3];
+			Point[] targetHover = new Point[1];
+			RowHeaderTarget[] currentTarget = new RowHeaderTarget[1];
+			long cursorDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+			do {
+				currentTarget[0] = rowHeaderTargetOnScreen(rowHeader, targetRow, true);
+				points[1] = currentTarget[0].screenPoint();
+				robot.mouseMove(points[1].x, points[1].y);
+				robot.waitForIdle();
+				SwingUtilities.invokeAndWait(() -> {
+					observedDrag[0] = dragState[0];
+					observedDrag[1] = dragState[1];
+					observedDrag[2] = rowHeader.getCursor().getType();
+					Point hover = rowHeader.getMousePosition();
+					targetHover[0] = hover;
+				});
+				if (rowHeaderHoverRow(rowHeader) == targetRow && observedDrag[0] > 0
+						&& observedDrag[1] == targetRow && observedDrag[2] == Cursor.MOVE_CURSOR)
+					break;
+				if (System.nanoTime() >= cursorDeadline)
+					break;
+				Thread.sleep(25);
+			} while (true);
+			assertTrue(observedDrag[0] > 0, "physical row-header drag must deliver MOUSE_DRAGGED; events="
+				+ observedDrag[0] + " source=" + points[0] + " target=" + points[1]
+				+ " targetHover=" + targetHover[0] + " " + componentInputDiagnostics(rowHeader));
+			assertEquals(targetRow, observedDrag[1], "physical drag must reach the intended target task row; source="
+				+ sourceRow + " target=" + targetRow + " lastDragRow=" + observedDrag[1]
+				+ " target=" + currentTarget[0]);
+			assertEquals(Cursor.MOVE_CURSOR, observedDrag[2], "valid row-header target must show move cursor before release; "
+				+ "cursor=" + observedDrag[2] + " dragEvents=" + observedDrag[0] + " dragRow=" + observedDrag[1]
+				+ " sourcePoint=" + points[0] + " targetPoint=" + points[1] + " pointer="
+				+ java.awt.MouseInfo.getPointerInfo().getLocation() + " target=" + currentTarget[0]);
+
+			assertEquals(targetRow, rowHeaderHoverRow(rowHeader),
+				"physical pointer must remain over the target task row before release");
 		} finally {
 			robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 			robot.waitForIdle();
@@ -3338,34 +3307,78 @@ class TaskInformationRibbonGuiAcceptanceTest {
 
 
 	private static void clickAndAwaitSelected(Robot robot, AbstractButton button, String failureMessage) throws Exception {
-		Rectangle bounds = boundsOnScreen(button);
-		Point target = new Point(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
-		robot.mouseMove(target.x, target.y);
-		robot.waitForIdle();
-		String before = componentInputDiagnostics(button) + ", requestedRobotPoint=" + target;
-		try {
-			GuiAcceptanceSupport.await(() -> componentMousePosition(button) != null,
-				"Robot pointer did not physically enter ribbon tab before click; " + before);
-		} catch (AssertionError failure) {
-			throw new AssertionError(failure.getMessage() + "; windows={" + visibleWindowInputDiagnostics()
-				+ "}; afterMove={" + componentInputDiagnostics(button) + "}", failure);
+		if (buttonSelectedOnEdt(button))
+			return;
+		long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(8);
+		Point target = null;
+		while (System.nanoTime() < deadline) {
+			Rectangle bounds = boundsOnScreen(button);
+			target = new Point(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+			robot.mouseMove(target.x, target.y);
+			robot.waitForIdle();
+			if (componentMousePosition(button) != null)
+				break;
+			Thread.sleep(25);
 		}
+		if (componentMousePosition(button) == null)
+			throw new AssertionError("Robot pointer did not enter the current ribbon tab bounds before click; requested="
+				+ target + "; component={" + componentInputDiagnostics(button) + "}; windows={"
+				+ visibleWindowInputDiagnostics() + "}");
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 		robot.waitForIdle();
-		robot.delay(150);
 		try {
-			GuiAcceptanceSupport.await(() -> {
-				boolean[] selected = new boolean[1];
-				try { SwingUtilities.invokeAndWait(() -> selected[0] = button.isSelected()); }
-				catch (Exception exception) { throw new AssertionError("could not inspect ribbon tab on EDT", exception); }
-				return selected[0];
-			}, failureMessage);
+			GuiAcceptanceSupport.await(() -> buttonSelectedOnEdt(button), failureMessage);
 		} catch (AssertionError failure) {
-			throw new AssertionError(failure.getMessage() + "; beforeClick={" + before
-				+ "}; afterClick={" + componentInputDiagnostics(button) + "}; windows={"
+			throw new AssertionError(failure.getMessage() + "; requestedRobotPoint=" + target
+				+ "; afterClick={" + componentInputDiagnostics(button) + "}; windows={"
 				+ visibleWindowInputDiagnostics() + "}", failure);
 		}
+	}
+
+	private static boolean buttonSelectedOnEdt(AbstractButton button) {
+		boolean[] selected = new boolean[1];
+		try { SwingUtilities.invokeAndWait(() -> selected[0] = button.isSelected()); }
+		catch (Exception exception) { throw new AssertionError("could not inspect ribbon tab on EDT", exception); }
+		return selected[0];
+	}
+
+	private record RowHeaderTarget(Point screenPoint, Rectangle cell, Rectangle visible) {}
+
+	private static RowHeaderTarget rowHeaderTargetOnScreen(JTable rowHeader, int row, boolean beforeHalf)
+			throws Exception {
+		RowHeaderTarget[] target = new RowHeaderTarget[1];
+		SwingUtilities.invokeAndWait(() -> {
+			Rectangle cell = rowHeader.getCellRect(row, 0, true);
+			Rectangle visible = cell.intersection(rowHeader.getVisibleRect());
+			assertFalse(visible.isEmpty(), "task row cell must intersect the visible row header; cell="
+				+ cell + ", visibleRect=" + rowHeader.getVisibleRect() + ", row=" + row);
+			int x = visible.x + visible.width / 2;
+			int y = beforeHalf
+				? visible.y + Math.max(1, visible.height / 4)
+				: visible.y + visible.height / 2;
+			if (beforeHalf)
+				assertTrue(y < cell.y + cell.height / 2, "target must remain in the before half of the task row");
+			Point location = rowHeader.getLocationOnScreen();
+			target[0] = new RowHeaderTarget(new Point(location.x + x, location.y + y), cell, visible);
+		});
+		return target[0];
+	}
+
+	private static Point moveToRowHeaderTarget(Robot robot, JTable rowHeader, int row, boolean beforeHalf,
+			String failureMessage) throws Exception {
+		long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(8);
+		RowHeaderTarget[] target = new RowHeaderTarget[1];
+		while (System.nanoTime() < deadline) {
+			target[0] = rowHeaderTargetOnScreen(rowHeader, row, beforeHalf);
+			robot.mouseMove(target[0].screenPoint().x, target[0].screenPoint().y);
+			robot.waitForIdle();
+			if (rowHeaderHoverRow(rowHeader) == row)
+				return target[0].screenPoint();
+			Thread.sleep(25);
+		}
+		throw new AssertionError(failureMessage + "; target=" + target[0] + "; "
+			+ componentInputDiagnostics(rowHeader) + "; windows={" + visibleWindowInputDiagnostics() + "}");
 	}
 
 	private static Point componentMousePosition(Component component) {
