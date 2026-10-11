@@ -7,7 +7,6 @@ package com.microproject.testsupport;
 import java.awt.Component;
 import java.awt.Rectangle;
 import java.awt.Robot;
-import java.awt.event.InputEvent;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.swing.AbstractButton;
@@ -53,15 +52,36 @@ public final class RibbonGuiSupport {
 		if (collapsedTrigger.get() == null)
 			throw new AssertionError("Ribbon command is neither visible nor in a Swing overflow group: " + commandId);
 
-		Rectangle bounds = onScreenBounds(collapsedTrigger.get());
-		robot.mouseMove(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
-		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-		robot.waitForIdle();
-		GuiAcceptanceSupport.await(() -> collapsedPopup.get().isVisible()
-			&& popupCommand.get().isShowing(),
-			"Swing ribbon overflow did not expose " + commandId + " after its physical click");
+		WindowAcceptanceAssertions.clickComponent(robot, collapsedTrigger.get());
+		GuiAcceptanceSupport.await(() -> {
+			AbstractButton current = visiblePopupCommand(collapsedPopup.get(), commandId);
+			if (current == null) return false;
+			popupCommand.set(current);
+			return collapsedPopup.get().isVisible();
+		}, "Swing ribbon overflow did not expose a current visible command after its physical click: " + commandId);
 		return popupCommand.get();
+	}
+
+	private static AbstractButton visiblePopupCommand(JPopupMenu popup, String commandId) {
+		AtomicReference<AbstractButton> current = new AtomicReference<>();
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				if (!popup.isVisible()) return;
+				for (Component component : UiComponentWalker.flatten(popup)) {
+					if (component instanceof AbstractButton button && button.isShowing()
+						&& commandId.equals(buttonId(button))) {
+						current.set(button);
+						return;
+					}
+				}
+			});
+		} catch (InterruptedException interrupted) {
+			Thread.currentThread().interrupt();
+			throw new AssertionError("Interrupted while reacquiring visible ribbon overflow command " + commandId, interrupted);
+		} catch (Exception failure) {
+			throw new AssertionError("Could not reacquire visible ribbon overflow command " + commandId, failure);
+		}
+		return current.get();
 	}
 
 	private static Rectangle onScreenBounds(Component component) throws Exception {
