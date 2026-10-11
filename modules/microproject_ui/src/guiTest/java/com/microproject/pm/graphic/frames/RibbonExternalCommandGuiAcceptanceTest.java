@@ -894,7 +894,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		}
 	}
 
-	private static Rectangle awaitVisibleNativeChooserBounds(BufferedImage beforeOpen, Robot robot, String route) {
+	private static Rectangle awaitVisibleNativeChooserBounds(BufferedImage beforeOpen, Robot robot, String route) throws Exception {
 		Rectangle[] bounds = new Rectangle[1];
 		GuiAcceptanceSupport.await(() -> {
 			bounds[0] = visibleDialogOverlayBounds(beforeOpen, captureScreen(robot));
@@ -934,7 +934,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 				}
 				if (Long.toString(ProcessHandle.current().pid()).equals(dialog.get("pid"))
 						&& "#32770".equals(dialog.get("class"))
-						&& "true".equals(dialog.get("visible")) && "true".equals(dialog.get("enabled"))
+						&& Boolean.parseBoolean(dialog.get("visible")) && Boolean.parseBoolean(dialog.get("enabled"))
 						&& Long.toString(ProcessHandle.current().pid()).equals(dialog.get("ownerPid"))
 						&& parseBounds(dialog.get("bounds")) != null) ownedVisibleDialogs.add(line);
 				continue;
@@ -946,13 +946,13 @@ class RibbonExternalCommandGuiAcceptanceTest {
 				if (equals > 0) fields.put(field.substring(0, equals), field.substring(equals + 1));
 			}
 			if (!Long.toString(ProcessHandle.current().pid()).equals(fields.get("pid"))) continue;
-			if (!"#32770".equals(fields.get("dialogClass")) || !"true".equals(fields.get("dialogOwnedByTarget"))
+			if (!"#32770".equals(fields.get("dialogClass")) || !Boolean.parseBoolean(fields.get("dialogOwnedByTarget"))
 					|| !"2".equals(fields.get("controlId")) || !"Button".equals(fields.get("class"))
-					|| !"true".equals(fields.get("dialogVisible")) || !"true".equals(fields.get("dialogEnabled"))
-					|| !"true".equals(fields.get("visible")) || !"true".equals(fields.get("enabled"))) continue;
+					|| !Boolean.parseBoolean(fields.get("dialogVisible")) || !Boolean.parseBoolean(fields.get("dialogEnabled"))
+					|| !Boolean.parseBoolean(fields.get("visible")) || !Boolean.parseBoolean(fields.get("enabled"))) continue;
 			Rectangle controlBounds = parseBounds(fields.get("bounds"));
 			Rectangle dialogBounds = parseBounds(fields.get("dialogBounds"));
-			if (controlBounds == null || dialogBounds == null) continue;
+			if (controlBounds == null || dialogBounds == null || !dialogBounds.contains(controlBounds)) continue;
 			matching.add(new NativeCancelControl(fields.get("dialog"), dialogBounds, controlBounds));
 		}
 		assertEquals(1, ownedVisibleDialogs.size(),
@@ -1194,7 +1194,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		return state.toString();
 	}
 
-		private static boolean hasPixelDifferenceInSampleBlock(BufferedImage before, BufferedImage after,
+			private static boolean hasPixelDifferenceInSampleBlock(BufferedImage before, BufferedImage after,
 			int x, int y, int blockSize) {
 		for (int sampleY = y; sampleY < Math.min(y + blockSize, before.getHeight()); sampleY++) {
 			for (int sampleX = x; sampleX < Math.min(x + blockSize, before.getWidth()); sampleX++) {
