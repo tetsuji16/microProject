@@ -316,7 +316,8 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		assertEquals(documentsBefore, manager.getFrameManager().getAllFrames().size(),
 			"Escape cancellation must not open a project");
 
-		click(robot, open);
+		AbstractButton reopenedOpen = findCommandButton(window.getRibbonPanel(), "RibbonOpenProject", robot);
+		click(robot, reopenedOpen);
 		GuiAcceptanceSupport.await(() -> visibleFileChooserDialog() != null,
 			"File/Open did not reopen after Escape cancellation");
 		Window cancelChooser = visibleFileChooserDialog();
@@ -969,21 +970,12 @@ class RibbonExternalCommandGuiAcceptanceTest {
 	private static void click(Robot robot, Component component) throws Exception {
 		Point[] screenLocation = new Point[1];
 		int[] size = new int[2];
-		GuiAcceptanceSupport.await(() -> {
-			try {
-				SwingUtilities.invokeAndWait(() -> {
-					Component target = component.isShowing() ? component : findShowingComponentByName(component.getName());
-					if (target == null || !target.isShowing()
-						|| (target instanceof AbstractButton button && !button.isEnabled())) return;
-					screenLocation[0] = target.getLocationOnScreen();
-					size[0] = target.getWidth();
-					size[1] = target.getHeight();
-				});
-			} catch (Exception exception) {
-				throw new AssertionError("Could not resolve physical click target on the EDT", exception);
-			}
-			return screenLocation[0] != null;
-		}, "Physical click target did not become visible and enabled: " + component);
+		SwingUtilities.invokeAndWait(() -> {
+			assertTrue(component.isShowing(), "Cannot physically click a component that is no longer showing: " + component);
+			screenLocation[0] = component.getLocationOnScreen();
+			size[0] = component.getWidth();
+			size[1] = component.getHeight();
+		});
 		Point point = screenLocation[0];
 		robot.mouseMove(point.x + size[0] / 2, point.y + size[1] / 2);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
@@ -1146,16 +1138,6 @@ class RibbonExternalCommandGuiAcceptanceTest {
 				Component found = findNamed(child, name);
 				if (found != null) return found;
 			}
-		}
-		return null;
-	}
-
-	private static Component findShowingComponentByName(String name) {
-		if (name == null) return null;
-		for (Window candidate : Window.getWindows()) {
-			if (!candidate.isShowing()) continue;
-			Component visible = findNamedShowing(candidate, name);
-			if (visible != null) return visible;
 		}
 		return null;
 	}
