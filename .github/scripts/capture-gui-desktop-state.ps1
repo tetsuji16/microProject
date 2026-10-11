@@ -20,8 +20,13 @@ public static class GuiDesktopWindowProbe {
     private struct Rect { public int Left, Top, Right, Bottom; }
     private sealed class WindowInfo {
         public IntPtr Handle;
+        public IntPtr Owner;
+        public uint ThreadId;
         public int Pid;
         public int Order;
+        public bool Visible;
+        public bool EligibleForOverlap;
+        public bool HasBounds;
         public string ProcessName;
         public string ClassName;
         public string Title;
@@ -38,6 +43,7 @@ public static class GuiDesktopWindowProbe {
     [DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr handle);
     [DllImport("user32.dll")] private static extern bool IsIconic(IntPtr handle);
     [DllImport("user32.dll")] private static extern bool EnumWindows(EnumWindowsCallback callback, IntPtr parameter);
+    [DllImport("user32.dll")] private static extern IntPtr GetWindow(IntPtr handle, uint command);
 
     public static string Capture(int targetPid) {
         var windows = new List<WindowInfo>();
@@ -45,18 +51,25 @@ public static class GuiDesktopWindowProbe {
         int order = 0;
         EnumWindows((handle, parameter) => {
             int currentOrder = order++;
-            if (!IsWindowVisible(handle)) return true;
-            int titleLength = GetWindowTextLength(handle);
-            if (titleLength == 0) return true;
             uint pid;
-            GetWindowThreadProcessId(handle, out pid);
+            uint threadId = GetWindowThreadProcessId(handle, out pid);
+            bool visible = IsWindowVisible(handle);
+            int titleLength = GetWindowTextLength(handle);
+            // Keep hidden and untitled windows owned by the GUI test process for
+            // modal native-dialog diagnosis. Preserve the existing visible,
+            // titled-only inventory for other desktop processes.
+            if (pid != targetPid && (!visible || titleLength == 0)) return true;
             Rect bounds;
-            if (!GetWindowRect(handle, out bounds)) return true;
-            string title = ReadTitle(handle, titleLength).Replace('\r', ' ').Replace('\n', ' ').Replace('|', '/');
+            bool hasBounds = GetWindowRect(handle, out bounds);
+            if (!hasBounds && pid != targetPid) return true;
+            string title = titleLength == 0 ? "" : ReadTitle(handle, titleLength)
+                .Replace('\r', ' ').Replace('\n', ' ').Replace('|', '/');
             string className = ReadClassName(handle);
             string processName = "unavailable";
             try { processName = Process.GetProcessById((int)pid).ProcessName; } catch { }
-            windows.Add(new WindowInfo { Handle = handle, Pid = (int)pid, Order = currentOrder,
+            windows.Add(new WindowInfo { Handle = handle, Owner = GetWindow(handle, 4), ThreadId = threadId,
+                Pid = (int)pid, Order = currentOrder, Visible = visible,
+                EligibleForOverlap = visible && titleLength > 0 && hasBounds, HasBounds = hasBounds,
                 ProcessName = processName, ClassName = className, Title = title, Bounds = bounds });
             return true;
         }, IntPtr.Zero);
@@ -70,14 +83,18 @@ public static class GuiDesktopWindowProbe {
 
         var targetWindows = windows.FindAll(window => window.Pid == targetPid);
         foreach (WindowInfo target in targetWindows)
-            result.Append("testWindow pid=").Append(target.Pid).Append(" order=").Append(target.Order)
-                .Append(" title=").Append(target.Title).Append(" bounds=").Append(Format(target.Bounds)).AppendLine();
+            result.Append("testWindow pid=").Append(target.Pid).Append(" thread=").Append(target.ThreadId)
+                .Append(" hwnd=0x").Append(target.Handle.ToInt64().ToString("X"))
+                .Append(" owner=0x").Append(target.Owner.ToInt64().ToString("X"))
+                .Append(" visible=").Append(target.Visible).Append(" class=").Append(target.ClassName)
+                .Append(" order=").Append(target.Order).Append(" title=").Append(target.Title)
+                .Append(" bounds=").Append(target.HasBounds ? Format(target.Bounds) : "unavailable").AppendLine();
 
         bool foundOverlap = false;
         foreach (WindowInfo other in windows) {
             if (other.Pid == targetPid) continue;
             foreach (WindowInfo target in targetWindows) {
-                if (!Intersects(other.Bounds, target.Bounds)) continue;
+                if (!target.EligibleForOverlap || !Intersects(other.Bounds, target.Bounds)) continue;
                 foundOverlap = true;
                 bool obscures = other.Order < target.Order;
                 result.Append("overlapCandidate obscuresTestWindow=").Append(obscures)

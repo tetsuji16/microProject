@@ -30,6 +30,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.prefs.Preferences;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
+import java.lang.management.ThreadMXBean;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -811,9 +814,19 @@ class RibbonExternalCommandGuiAcceptanceTest {
 					+ describeNativeChooserState(chooserCallStarted, chooserCallReturned, chooserCancelled, chooserFailure,
 						windowsBeforeOpen);
 				try {
+					diagnostic += "; javaThreadDump=" + captureNativeChooserThreadDump(route);
+				} catch (Exception captureFailure) {
+					failure.addSuppressed(captureFailure);
+				}
+				try {
 					captureNativeChooserScreen(robot, "issue-398-native-"
 						+ route.toLowerCase(Locale.ROOT).replace(' ', '-') + "-visibility-failure.png");
-				} catch (IOException captureFailure) {
+				} catch (Exception captureFailure) {
+					failure.addSuppressed(captureFailure);
+				}
+				try {
+					diagnostic += "; nativeWindows=" + captureNativeWindowState();
+				} catch (Exception captureFailure) {
 					failure.addSuppressed(captureFailure);
 				}
 				throw new AssertionError(failure.getMessage() + "; " + diagnostic, failure);
@@ -833,6 +846,62 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(chooserCallReturned::get,
 			route + " Escape did not return from the default Windows file chooser");
 		assertTrue(chooserCancelled.get(), route + " Escape must cancel the default Windows file chooser");
+	}
+
+	private static Path guiArtifactDirectory() {
+		return Path.of(System.getProperty("microproject.gui.artifacts.dir", "build/reports/guiTest-artifacts"));
+	}
+
+	private static String captureNativeChooserThreadDump(String route) throws IOException {
+		String routeName = route.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9-]", "-");
+		Path output = guiArtifactDirectory().resolve("issue-398-native-" + routeName + "-threads.txt");
+		Files.createDirectories(output.getParent());
+		ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
+		ThreadInfo[] threads = threadBean.dumpAllThreads(true, true);
+		StringBuilder dump = new StringBuilder("Native chooser failure thread dump; route=")
+			.append(route).append("; threadCount=").append(threads.length).append(System.lineSeparator());
+		for (ThreadInfo thread : threads) {
+			dump.append('"').append(thread.getThreadName()).append("\" id=").append(thread.getThreadId())
+				.append(" state=").append(thread.getThreadState()).append(" lock=").append(thread.getLockInfo())
+				.append(" lockOwner=").append(thread.getLockOwnerName()).append('/')
+				.append(thread.getLockOwnerId()).append(System.lineSeparator());
+			for (StackTraceElement frame : thread.getStackTrace())
+				dump.append("\tat ").append(frame).append(System.lineSeparator());
+			dump.append("lockedMonitors=").append(java.util.Arrays.toString(thread.getLockedMonitors()))
+				.append(System.lineSeparator()).append("lockedSynchronizers=")
+				.append(java.util.Arrays.toString(thread.getLockedSynchronizers())).append(System.lineSeparator());
+		}
+		Files.writeString(output, dump.toString());
+		System.err.println("=== Native chooser thread dump: " + output + " ===");
+		System.err.print(dump);
+		return output + " (" + threads.length + " threads)";
+	}
+
+	private static String captureNativeWindowState() throws IOException {
+		Path projectDirectory = Path.of(System.getProperty("microproject.project.dir", ".")).toAbsolutePath();
+		Path script = projectDirectory.resolve(".github").resolve("scripts").resolve("capture-gui-desktop-state.ps1");
+		Path output = guiArtifactDirectory().resolve("issue-398-native-windows.txt");
+		Files.createDirectories(output.getParent());
+		Process process = new ProcessBuilder("powershell.exe", "-NoLogo", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass",
+			"-File", script.toString(), "-TargetPid", Long.toString(ProcessHandle.current().pid()))
+			.redirectErrorStream(true).redirectOutput(output.toFile()).start();
+		try {
+			if (!process.waitFor(8, java.util.concurrent.TimeUnit.SECONDS)) {
+				process.destroyForcibly();
+				process.waitFor(1, java.util.concurrent.TimeUnit.SECONDS);
+				System.err.println("Native desktop HWND capture timed out; output=" + output);
+				return output + " (timed out)";
+			}
+			String captured = Files.readString(output);
+			System.err.println("=== Native desktop HWND capture: " + output + " ===");
+			System.err.print(captured);
+			return output + " (exit=" + process.exitValue() + ")";
+		} catch (InterruptedException interrupted) {
+			Thread.currentThread().interrupt();
+			process.destroyForcibly();
+			System.err.println("Native desktop HWND capture interrupted; output=" + output);
+			return output + " (interrupted)";
+		}
 	}
 
 	private static void captureNativeChooserScreen(Robot robot, String artifactName) throws IOException {
