@@ -1092,8 +1092,8 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		}
 		GuiAcceptanceSupport.await(() -> {
 			Component target = findNamedOnEdt(frame, targetName);
-			return target != null;
-		}, "Backstage destination did not expose command " + commandId);
+			return target instanceof AbstractButton button && isShowingOnEdt(button) && button.isEnabled();
+		}, "Backstage destination did not expose an enabled, visible command " + commandId);
 		Component target = findNamedOnEdt(frame, targetName);
 		if (!(target instanceof AbstractButton button) || !isShowingOnEdt(button)) {
 			throw new AssertionError("Backstage command is not physically visible: " + commandId);
@@ -1141,10 +1141,25 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		return null;
 	}
 
+	private static Component findNamedShowing(Component root, String name) {
+		if (name.equals(root.getName()) && root.isShowing()) return root;
+		if (root instanceof Container container) {
+			for (Component child : container.getComponents()) {
+				Component found = findNamedShowing(child, name);
+				if (found != null) return found;
+			}
+		}
+		return null;
+	}
+
 	private static Component findNamedOnEdt(Window window, String name) {
 		Component[] match = new Component[1];
 		try {
-			SwingUtilities.invokeAndWait(() -> match[0] = findNamed(SwingUtilities.getRootPane(window), name));
+			SwingUtilities.invokeAndWait(() -> {
+			Component root = SwingUtilities.getRootPane(window);
+			Component visible = findNamedShowing(root, name);
+			match[0] = visible != null ? visible : findNamed(root, name);
+		});
 		} catch (Exception exception) {
 			throw new AssertionError("Could not inspect Backstage component " + name + " on the EDT", exception);
 		}
