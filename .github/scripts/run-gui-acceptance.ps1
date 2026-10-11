@@ -151,14 +151,16 @@ function Invoke-GuiGate([string]$label, [string[]]$arguments, [int]$timeoutSecon
     [xml]$resultXml = Get-Content -LiteralPath $resultFile.FullName -Raw
     foreach ($systemError in @($resultXml.SelectNodes('//system-err'))) {
       if ([string]$systemError.InnerText -match $unexpectedError) {
-        $deferredExceptions += $resultFile.FullName
+        $detail = ([string]$systemError.InnerText).Trim()
+        if ($detail.Length -gt 4000) { $detail = $detail.Substring(0, 4000) + ' … (truncated)' }
+        $deferredExceptions += "$($resultFile.FullName): $detail"
       }
     }
   }
   if ($deferredExceptions.Count -gt 0) {
     Save-GuiFailureScreenshot $label
-    $files = ($deferredExceptions | Select-Object -Unique) -join ', '
-    throw "GUI gate found an unexpected deferred GUI exception in test XML: $label ($files)"
+    $details = ($deferredExceptions | Select-Object -Unique) -join [Environment]::NewLine
+    throw "GUI gate found an unexpected deferred GUI exception in test XML: $label`n$details"
   }
   $allowedSkipReasons = @(
     'Direct command sweep requires a full-width desktop; high-DPI layout is covered by the dedicated visual matrix.',
