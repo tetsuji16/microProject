@@ -814,9 +814,17 @@ class RibbonExternalCommandGuiAcceptanceTest {
 					+ describeNativeChooserState(chooserCallStarted, chooserCallReturned, chooserCancelled, chooserFailure,
 						windowsBeforeOpen);
 				try {
+					diagnostic += "; javaThreadDump=" + captureNativeChooserThreadDump(route);
+				} catch (Exception captureFailure) {
+					failure.addSuppressed(captureFailure);
+				}
+				try {
 					captureNativeChooserScreen(robot, "issue-398-native-"
 						+ route.toLowerCase(Locale.ROOT).replace(' ', '-') + "-visibility-failure.png");
-					diagnostic += "; javaThreadDump=" + captureNativeChooserThreadDump(route);
+				} catch (Exception captureFailure) {
+					failure.addSuppressed(captureFailure);
+				}
+				try {
 					diagnostic += "; nativeWindows=" + captureNativeWindowState();
 				} catch (Exception captureFailure) {
 					failure.addSuppressed(captureFailure);
@@ -874,7 +882,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		Path script = projectDirectory.resolve(".github").resolve("scripts").resolve("capture-gui-desktop-state.ps1");
 		Path output = guiArtifactDirectory().resolve("issue-398-native-windows.txt");
 		Files.createDirectories(output.getParent());
-		Process process = new ProcessBuilder("powershell.exe", "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass",
+		Process process = new ProcessBuilder("powershell.exe", "-NoLogo", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass",
 			"-File", script.toString(), "-TargetPid", Long.toString(ProcessHandle.current().pid()))
 			.redirectErrorStream(true).redirectOutput(output.toFile()).start();
 		try {
