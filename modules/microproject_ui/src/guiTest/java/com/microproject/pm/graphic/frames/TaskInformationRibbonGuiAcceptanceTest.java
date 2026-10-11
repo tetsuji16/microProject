@@ -2369,8 +2369,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			Point location = rowHeader.getLocationOnScreen();
 			points[0] = new Point(location.x + source.x + source.width / 2,
 				location.y + source.y + source.height / 2);
+			// The production drop contract splits a row at its vertical midpoint.
+			// This fixture moves the selected second task before the first task.
 			points[1] = new Point(location.x + target.x + target.width / 2,
-				location.y + target.y + target.height / 2);
+				location.y + target.y + Math.max(1, target.height / 4));
 			rowHeader.addMouseMotionListener(new java.awt.event.MouseMotionAdapter() {
 				@Override
 				public void mouseDragged(java.awt.event.MouseEvent event) {
