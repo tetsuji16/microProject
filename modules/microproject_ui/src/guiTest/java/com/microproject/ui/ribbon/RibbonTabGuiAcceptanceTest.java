@@ -191,7 +191,7 @@ class RibbonTabGuiAcceptanceTest {
 			SwingUtilities.invokeAndWait(() -> { });
 			for (String bandId : MenuDefinitionSupport.ribbonBandIds(tabId)) {
 				for (String buttonId : MenuDefinitionSupport.ribbonButtonIds(bandId)) {
-					AbstractButton button = findAttachedButtonByCommand(host, buttonId);
+					AbstractButton button = findAttachedButtonByCommand(frame, buttonId);
 					assertTrue(button.isShowing(), () -> buttonId + " is not visible in " + tabId);
 					assertTrue(button.isEnabled(), () -> buttonId + " is disabled in " + bandId);
 					String actionId = manager.getToolBarFactory().getActionStringFromId(buttonId);
@@ -746,10 +746,11 @@ class RibbonTabGuiAcceptanceTest {
 			.findFirst().orElseThrow(() -> new AssertionError("Ribbon tab not found: " + tabId));
 	}
 
-	private static AbstractButton findAttachedButtonByCommand(JPanel host, String command) {
-		return UiComponentWalker.flatten(host).stream()
+	private static AbstractButton findAttachedButtonByCommand(Component root, String command) {
+		return UiComponentWalker.flatten(root).stream()
 			.filter(AbstractButton.class::isInstance)
 			.map(AbstractButton.class::cast)
+			.filter(AbstractButton::isShowing)
 			.filter(button -> command.equals(button.getActionCommand())
 				|| ("officeBackstageCommand-" + command).equals(button.getName()))
 			.findFirst()
