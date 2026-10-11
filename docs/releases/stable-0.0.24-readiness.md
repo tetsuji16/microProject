@@ -24,8 +24,6 @@
 
 ## Historical readiness assessment (2026-10-11, before publication)
 
-# microProject 0.0.24 stable release readiness
-
 **Assessment date:** 2026-10-11  
 **Candidate source:** `master` at `a7aefbbea033d874926d914e25e34d7362fa32e1`  
 **Decision:** candidate work may proceed; this assessment does not authorize calling the current beta a stable release. The stable publication gate must pass on the exact merged candidate commit.
