@@ -249,6 +249,12 @@ jobs:
           if ('${{ steps.version.outputs.prerelease }}' -ne 'true') {
             Copy-Item "release-assets/microProject-$version.msi" "release-assets/microProject-latest.msi"
             Copy-Item "release-assets/microProject-$version-app-image.zip" "release-assets/microProject-latest-app-image.zip"
+            $tag = '${{ steps.version.outputs.release_tag }}'
+            if ($tag -notmatch '^v(\d+\.\d+\.\d+)(?:\.\d+)?$') { throw "Invalid stable release tag: $tag" }
+            $notes = "docs/releases/stable-$($Matches[1]).md"
+            if (-not (Test-Path -LiteralPath $notes)) { throw "Stable release notes are required: $notes" }
+            Copy-Item $notes "release-assets/stable-$($Matches[1]).md"
+            "notes_path=$notes" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           } else {
             $tag = '${{ steps.version.outputs.release_tag }}'
             $base = [regex]::Match($tag, '^v(\d+\.\d+\.\d+)-beta\.\d+$').Groups[1].Value
@@ -315,7 +321,7 @@ jobs:
           make_latest: ${{ steps.version.outputs.prerelease == 'true' && 'false' || 'true' }}
           generate_release_notes: ${{ steps.version.outputs.prerelease != 'true' }}
           target_commitish: ${{ github.sha }}
-          body_path: ${{ steps.version.outputs.prerelease == 'true' && steps.assets.outputs.notes_path || '' }}
+          body_path: ${{ steps.assets.outputs.notes_path }}
           files: release-assets/*
 
   pages:
