@@ -2397,16 +2397,29 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		robot.mouseMove((points[0].x + points[1].x) / 2, (points[0].y + points[1].y) / 2);
 		robot.delay(100);
 		robot.mouseMove(points[1].x, points[1].y);
-		robot.delay(150);
 		int[] observedDrag = new int[3];
-		SwingUtilities.invokeAndWait(() -> {
-			observedDrag[0] = dragState[0];
-			observedDrag[1] = dragState[1];
-			observedDrag[2] = rowHeader.getCursor().getType();
-		});
-		assertTrue(observedDrag[0] > 0, "physical row-header drag must deliver MOUSE_DRAGGED");
-		assertEquals(targetRow, observedDrag[1], "physical drag must reach the intended target task row");
-		assertEquals(Cursor.MOVE_CURSOR, observedDrag[2], "valid row-header target must show move cursor before release");
+		long cursorDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+		do {
+			SwingUtilities.invokeAndWait(() -> {
+				observedDrag[0] = dragState[0];
+				observedDrag[1] = dragState[1];
+				observedDrag[2] = rowHeader.getCursor().getType();
+			});
+			if (observedDrag[0] > 0 && observedDrag[1] == targetRow
+					&& observedDrag[2] == Cursor.MOVE_CURSOR)
+				break;
+			if (System.nanoTime() >= cursorDeadline)
+				break;
+			Thread.sleep(25);
+		} while (true);
+		assertTrue(observedDrag[0] > 0, "physical row-header drag must deliver MOUSE_DRAGGED; events="
+			+ observedDrag[0] + " source=" + points[0] + " target=" + points[1]);
+		assertEquals(targetRow, observedDrag[1], "physical drag must reach the intended target task row; source="
+			+ sourceRow + " target=" + targetRow + " lastDragRow=" + observedDrag[1]);
+		assertEquals(Cursor.MOVE_CURSOR, observedDrag[2], "valid row-header target must show move cursor before release; "
+			+ "cursor=" + observedDrag[2] + " dragEvents=" + observedDrag[0] + " dragRow=" + observedDrag[1]
+			+ " sourcePoint=" + points[0] + " targetPoint=" + points[1] + " pointer="
+			+ java.awt.MouseInfo.getPointerInfo().getLocation());
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 
 		GuiAcceptanceSupport.await(() -> visibleMoveConfirmation() != null,
