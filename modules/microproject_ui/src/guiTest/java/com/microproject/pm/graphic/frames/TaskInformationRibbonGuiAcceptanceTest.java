@@ -2391,7 +2391,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			// The production drop contract splits a row at its vertical midpoint.
 			// This fixture moves the selected second task before the first task.
 			int targetY = visibleRows[1].y + Math.max(1, visibleRows[1].height / 4);
-			assertTrue(targetY < targetCell[1].y + targetCell[1].height / 2,
+			assertTrue(targetY < targetCell[0].y + targetCell[0].height / 2,
 				"target must remain in the before half of the task row");
 			logicalPoints[0] = new Point(location.x + x, location.y + sourceY);
 			logicalPoints[1] = new Point(location.x + x, location.y + targetY);
