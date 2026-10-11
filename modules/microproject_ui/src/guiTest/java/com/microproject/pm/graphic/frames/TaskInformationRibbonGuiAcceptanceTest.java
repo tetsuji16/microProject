@@ -1585,8 +1585,11 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
 		if (selectTask) click(robot, cellOnScreen(sheet, rowForTask(sheet, progressTask), nameColumn(sheet)));
 		else SwingUtilities.invokeAndWait(sheet::clearSelection);
-		click(robot, boundsOnScreen(findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
-				.getString(commandId.equals("MarkOnTrack") ? "TaskRibbonTask.title" : "ProjectRibbonTask.title"))));
+		AbstractButton progressTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+				.getString(commandId.equals("MarkOnTrack") ? "TaskRibbonTask.title" : "ProjectRibbonTask.title"));
+		click(robot, boundsOnScreen(progressTab));
+		GuiAcceptanceSupport.await(progressTab::isSelected, routeName + " ribbon tab did not become selected");
+		SwingUtilities.invokeAndWait(() -> { });
 		AbstractButton progressCommand = GuiPhysicalRouteAdapter.visibleButton(robot, window,
 			commandId.equals("StatusDate") ? "RibbonStatusDate" : "RibbonMarkOnTrack");
 		GuiAcceptanceSupport.await(progressCommand::isShowing, "progress command did not become visible");
@@ -2366,7 +2369,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			Point location = rowHeader.getLocationOnScreen();
 			points[0] = new Point(location.x + source.x + source.width / 2,
 				location.y + source.y + source.height / 2);
-			points[1] = new Point(location.x + target.x + target.width / 2, location.y + target.y + 3);
+			points[1] = new Point(location.x + target.x + target.width / 2,
+				location.y + target.y + target.height / 2);
 			rowHeader.addMouseMotionListener(new java.awt.event.MouseMotionAdapter() {
 				@Override
 				public void mouseDragged(java.awt.event.MouseEvent event) {
