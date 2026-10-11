@@ -204,6 +204,8 @@ class RibbonTabGuiAcceptanceTest {
 			SwingUtilities.invokeAndWait(() -> { });
 			for (String bandId : MenuDefinitionSupport.ribbonBandIds(tabId)) {
 				for (String buttonId : MenuDefinitionSupport.ribbonButtonIds(bandId)) {
+					if ("FileRibbonTask".equals(tabId))
+						openFileCommandDestination(robot, frame, tab, buttonId);
 					AbstractButton button = findAttachedButtonByCommand(frame, buttonId);
 					assertTrue(button.isShowing(), () -> buttonId + " is not visible in " + tabId);
 					assertTrue(button.isEnabled(), () -> buttonId + " is disabled in " + bandId);
@@ -757,6 +759,33 @@ class RibbonTabGuiAcceptanceTest {
 			.map(AbstractButton.class::cast)
 			.filter(button -> tabId.equals(button.getClientProperty(ModernRibbonPanel.TAB_ID_PROPERTY)))
 			.findFirst().orElseThrow(() -> new AssertionError("Ribbon tab not found: " + tabId));
+	}
+
+	private static void openFileCommandDestination(Robot robot, JFrame frame, AbstractButton fileTab,
+		String commandId) throws Exception {
+		if (findShowingComponent(frame, "officeBackstageOverlay") == null) {
+			click(robot, fileTab);
+			GuiAcceptanceSupport.await(() -> findShowingComponent(frame, "officeBackstageOverlay") != null,
+				"File tab did not open Backstage before command " + commandId);
+		}
+		String pageId = java.util.ResourceBundle.getBundle(
+			"com.microproject.menu.menuInternal", Locale.ROOT).getString(commandId + ".backstagePage");
+		Component destination = findShowingComponent(frame, "officeBackstageNav-" + pageId);
+		if (!(destination instanceof AbstractButton pageButton))
+			throw new AssertionError("Backstage page is not physically available for " + commandId + ": " + pageId);
+		if (pageButton instanceof javax.swing.JToggleButton toggle && !toggle.isSelected()) {
+			click(robot, pageButton);
+			GuiAcceptanceSupport.await(() -> {
+				Component selected = findShowingComponent(frame, "officeBackstageNav-" + pageId);
+				return selected instanceof javax.swing.JToggleButton current && current.isSelected();
+			}, "Backstage did not select page " + pageId + " for " + commandId);
+		}
+	}
+
+	private static Component findShowingComponent(Component root, String name) {
+		return UiComponentWalker.flatten(root).stream()
+			.filter(component -> name.equals(component.getName()) && component.isShowing())
+			.findFirst().orElse(null);
 	}
 
 	private static AbstractButton findAttachedButtonByCommand(Component root, String command) {
