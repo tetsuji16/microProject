@@ -967,8 +967,16 @@ class RibbonExternalCommandGuiAcceptanceTest {
 	}
 
 	private static void click(Robot robot, Component component) throws Exception {
-		var point = component.getLocationOnScreen();
-		robot.mouseMove(point.x + component.getWidth() / 2, point.y + component.getHeight() / 2);
+		Point[] screenLocation = new Point[1];
+		int[] size = new int[2];
+		SwingUtilities.invokeAndWait(() -> {
+			assertTrue(component.isShowing(), "Cannot physically click a component that is no longer showing: " + component);
+			screenLocation[0] = component.getLocationOnScreen();
+			size[0] = component.getWidth();
+			size[1] = component.getHeight();
+		});
+		Point point = screenLocation[0];
+		robot.mouseMove(point.x + size[0] / 2, point.y + size[1] / 2);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 	}
