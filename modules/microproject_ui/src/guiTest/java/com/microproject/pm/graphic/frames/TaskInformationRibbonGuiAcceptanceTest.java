@@ -623,8 +623,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		activateWindow(robot, window);
 		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("ViewRibbonTask.title"));
-		click(robot, boundsOnScreen(viewTab));
-		GuiAcceptanceSupport.await(viewTab::isSelected, "Robot click did not select the View ribbon tab");
+		clickAndAwaitSelected(robot, viewTab, "Robot click did not select the View ribbon tab");
 		AbstractButton taskUsageButton = findShowingButtonByCommand("RibbonTaskUsageDetail");
 		click(robot, boundsOnScreen(taskUsageButton));
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getActiveTopView() instanceof UsageDetailView,
@@ -1032,7 +1031,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		activateWindow(robot, window);
 		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("ViewRibbonTask.title"));
-		click(robot, boundsOnScreen(viewTab));
+		clickAndAwaitSelected(robot, viewTab, "Robot click did not select the View ribbon tab for Calendar");
+		GuiAcceptanceSupport.await(() -> hasShowingCommand("RibbonCalendarView"),
+			"View ribbon did not expose RibbonCalendarView after selecting its tab; " + componentInputDiagnostics(viewTab));
 		click(robot, boundsOnScreen(findShowingButtonByCommand("RibbonCalendarView")));
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getCalendarViewDialog() != null
 			&& manager.getCurrentFrame().getCalendarViewDialog().isShowing(), "calendar link dialog did not open");
@@ -2385,6 +2386,17 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> sheet.isShowing() && rowHeader.isShowing(),
 			"task row header was not visible for the physical move gesture");
 		robot.mouseMove(points[0].x, points[0].y);
+		robot.waitForIdle();
+		Point[] sourceHover = new Point[1];
+		int[] sourceHoverRow = { -1 };
+		SwingUtilities.invokeAndWait(() -> {
+			sourceHover[0] = rowHeader.getMousePosition();
+			if (sourceHover[0] != null) sourceHoverRow[0] = rowHeader.rowAtPoint(sourceHover[0]);
+		});
+		String sourceInput = componentInputDiagnostics(rowHeader) + ", sourceHover=" + sourceHover[0]
+			+ ", sourceHoverRow=" + sourceHoverRow[0] + ", requestedSource=" + points[0];
+		assertEquals(sourceRow, sourceHoverRow[0],
+			"Robot source move must land on the intended row header before pressing; " + sourceInput);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.delay(100);
 		GuiAcceptanceSupport.await(() -> {
@@ -2400,12 +2412,14 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		robot.delay(100);
 		robot.mouseMove(points[1].x, points[1].y);
 		int[] observedDrag = new int[3];
+		Point[] targetHover = new Point[1];
 		long cursorDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
 		do {
 			SwingUtilities.invokeAndWait(() -> {
 				observedDrag[0] = dragState[0];
 				observedDrag[1] = dragState[1];
 				observedDrag[2] = rowHeader.getCursor().getType();
+				targetHover[0] = rowHeader.getMousePosition();
 			});
 			if (observedDrag[0] > 0 && observedDrag[1] == targetRow
 					&& observedDrag[2] == Cursor.MOVE_CURSOR)
@@ -2415,7 +2429,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			Thread.sleep(25);
 		} while (true);
 		assertTrue(observedDrag[0] > 0, "physical row-header drag must deliver MOUSE_DRAGGED; events="
-			+ observedDrag[0] + " source=" + points[0] + " target=" + points[1]);
+			+ observedDrag[0] + " source=" + points[0] + " target=" + points[1]
+			+ " targetHover=" + targetHover[0] + " " + componentInputDiagnostics(rowHeader));
 		assertEquals(targetRow, observedDrag[1], "physical drag must reach the intended target task row; source="
 			+ sourceRow + " target=" + targetRow + " lastDragRow=" + observedDrag[1]);
 		assertEquals(Cursor.MOVE_CURSOR, observedDrag[2], "valid row-header target must show move cursor before release; "
@@ -3297,6 +3312,70 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		usable.height -= insets.top + insets.bottom;
 		assertTrue(usable.contains(frame.getBounds()), description + " must remain fully visible in the monitor work area; frame="
 			+ frame.getBounds() + ", usable=" + usable + ", scale=" + configuration.getDefaultTransform());
+	}
+
+	private static void clickAndAwaitSelected(Robot robot, AbstractButton button, String failureMessage) throws Exception {
+		Rectangle bounds = boundsOnScreen(button);
+		Point target = new Point(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+		robot.mouseMove(target.x, target.y);
+		robot.waitForIdle();
+		String before = componentInputDiagnostics(button) + ", requestedRobotPoint=" + target;
+		Point[] local = new Point[1];
+		SwingUtilities.invokeAndWait(() -> local[0] = button.getMousePosition());
+		assertNotNull(local[0], "Robot pointer did not physically enter ribbon tab before click; " + before);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+		robot.delay(150);
+		try {
+			GuiAcceptanceSupport.await(() -> {
+				boolean[] selected = new boolean[1];
+				try { SwingUtilities.invokeAndWait(() -> selected[0] = button.isSelected()); }
+				catch (Exception exception) { throw new AssertionError("could not inspect ribbon tab on EDT", exception); }
+				return selected[0];
+			}, failureMessage);
+		} catch (AssertionError failure) {
+			throw new AssertionError(failure.getMessage() + "; beforeClick={" + before
+				+ "}; afterClick={" + componentInputDiagnostics(button) + "}", failure);
+		}
+	}
+
+	private static boolean hasShowingCommand(String command) {
+		boolean[] found = new boolean[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				for (Window candidate : Window.getWindows()) {
+					if (!(candidate instanceof MainRibbonFrame frame) || !frame.isShowing()) continue;
+					found[0] = UiComponentWalker.flatten(frame).stream().filter(AbstractButton.class::isInstance)
+						.map(RibbonGuiButton::adapt).anyMatch(button -> button.isShowing()
+							&& command.equals(button.getActionCommand()));
+					if (found[0]) break;
+				}
+			});
+		} catch (Exception exception) {
+			throw new AssertionError("could not inspect visible ribbon commands", exception);
+		}
+		return found[0];
+	}
+
+	private static String componentInputDiagnostics(Component component) {
+		Point[] local = new Point[1];
+		Point[] screen = new Point[1];
+		GraphicsConfiguration[] configuration = new GraphicsConfiguration[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				local[0] = component.getMousePosition();
+				try { screen[0] = component.getLocationOnScreen(); } catch (java.awt.IllegalComponentStateException ignored) { }
+				configuration[0] = component.getGraphicsConfiguration();
+			});
+		} catch (Exception exception) {
+			return "componentSnapshotError=" + exception;
+		}
+		return "component=" + component.getClass().getSimpleName() + ", localMouse=" + local[0]
+			+ ", locationOnScreen=" + screen[0] + ", pointer=" + java.awt.MouseInfo.getPointerInfo().getLocation()
+			+ ", toolkitDpi=" + Toolkit.getDefaultToolkit().getScreenResolution()
+			+ ", uiScale=" + System.getProperty("sun.java2d.uiScale", "default")
+			+ ", graphicsTransform=" + (configuration[0] == null ? null : configuration[0].getDefaultTransform());
 	}
 
 	private static void click(Robot robot, Rectangle bounds) {
