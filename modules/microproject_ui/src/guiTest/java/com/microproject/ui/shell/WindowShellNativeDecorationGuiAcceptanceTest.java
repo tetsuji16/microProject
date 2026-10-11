@@ -63,7 +63,9 @@ class WindowShellNativeDecorationGuiAcceptanceTest {
 			frame.setRibbonPanel(panel);
 			title[0] = findTitle(panel);
 			brand[0] = findComponent(panel, OfficeChromePanel.BRAND_ICON_NAME);
-			frame.setSize(900, 240);
+			// Give the title and interactive header clusters enough room to remain visible;
+			// narrow-width title suppression is covered by the responsive chrome checks.
+			frame.setSize(1920, 240);
 			frame.setLocation(120, 120);
 			frame.setAlwaysOnTop(true);
 			frame.setVisible(true);

@@ -750,7 +750,8 @@ class RibbonTabGuiAcceptanceTest {
 		return UiComponentWalker.flatten(host).stream()
 			.filter(AbstractButton.class::isInstance)
 			.map(AbstractButton.class::cast)
-			.filter(button -> command.equals(button.getActionCommand()))
+			.filter(button -> command.equals(button.getActionCommand())
+				|| ("officeBackstageCommand-" + command).equals(button.getName()))
 			.findFirst()
 			.orElseThrow(() -> new AssertionError("Ribbon command not found: " + command));
 	}
