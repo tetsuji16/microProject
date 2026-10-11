@@ -17,6 +17,8 @@ import java.awt.Toolkit;
 import java.awt.image.BufferedImage;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.swing.AbstractButton;
 import javax.swing.JFrame;
@@ -76,6 +78,9 @@ public final class WindowAcceptanceAssertions {
 	private static void clickComponent(Robot robot, Component component, boolean expectedEnabled) throws Exception {
 		long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(8);
 		PointerSnapshot last = pointerSnapshot(component);
+		PointerSnapshot initial = last;
+		PointerSnapshot previous = last;
+		List<String> observedTransitions = new ArrayList<>();
 		while (System.nanoTime() < deadline) {
 			if (last.showing() && last.enabled() == expectedEnabled && last.bounds() != null && !last.bounds().isEmpty()) {
 				Point target = new Point(last.bounds().x + last.bounds().width / 2,
@@ -83,11 +88,15 @@ public final class WindowAcceptanceAssertions {
 				robot.mouseMove(target.x, target.y);
 				robot.waitForIdle();
 				last = pointerSnapshot(component);
+				appendPointerTransition(observedTransitions, previous, last);
+				previous = last;
 				if (last.showing() && last.enabled() == expectedEnabled && isInside(last.localMouse(), last.size()))
 					break;
 			}
 			Thread.sleep(25);
 			last = pointerSnapshot(component);
+			appendPointerTransition(observedTransitions, previous, last);
+			previous = last;
 		}
 		if (last == null || !last.showing() || last.enabled() != expectedEnabled || last.bounds() == null || last.bounds().isEmpty()
 			|| !isInside(last.localMouse(), last.size())) {
@@ -96,7 +105,9 @@ public final class WindowAcceptanceAssertions {
 				+ (last == null ? null : last.bounds()) + "; size=" + (last == null ? null : last.size())
 				+ "; localMouse=" + (last == null ? null : last.localMouse()) + "; showing="
 				+ (last != null && last.showing()) + "; enabled=" + (last != null && last.enabled())
-				+ "; expectedEnabled=" + expectedEnabled
+				+ "; expectedEnabled=" + expectedEnabled + "; initial={" + pointerDescription(initial)
+				+ "}; transitions=" + (observedTransitions.isEmpty() ? "none" : String.join(" -> ", observedTransitions)
+					+ (observedTransitions.size() == 20 ? " (first 20 transitions; further transitions omitted)" : ""))
 				+ "; test=" + currentTestCaller() + "; windows={" + showingWindows() + "}");
 		}
 		System.out.println("[GUI_PHYSICAL_CLICK] test=" + currentTestCaller() + " target=" + last.identity()
@@ -108,6 +119,22 @@ public final class WindowAcceptanceAssertions {
 		}
 		robot.waitForIdle();
 		robot.delay(150);
+	}
+
+	private static void appendPointerTransition(List<String> history, PointerSnapshot before, PointerSnapshot after) {
+		if (before == null || after == null) return;
+		boolean visibilityChanged = before.showing() != after.showing();
+		boolean boundsChanged = !java.util.Objects.equals(before.bounds(), after.bounds());
+		if (!visibilityChanged && !boundsChanged) return;
+		if (history.size() >= 20) return;
+		history.add(pointerDescription(before) + " => " + pointerDescription(after));
+	}
+
+	private static String pointerDescription(PointerSnapshot snapshot) {
+		if (snapshot == null) return "unavailable";
+		return "showing=" + snapshot.showing() + ",enabled=" + snapshot.enabled()
+			+ ",bounds=" + snapshot.bounds() + ",size=" + snapshot.size()
+			+ ",mouse=" + snapshot.localMouse() + ",target=" + snapshot.identity();
 	}
 
 	private record PointerSnapshot(boolean showing, boolean enabled, Rectangle bounds,

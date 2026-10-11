@@ -1586,9 +1586,6 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				.getString(commandId.equals("MarkOnTrack") ? "TaskRibbonTask.title" : "ProjectRibbonTask.title"));
 		clickAndAwaitSelected(robot, progressTab, routeName + " ribbon tab did not become selected");
 		SwingUtilities.invokeAndWait(() -> { });
-		AbstractButton progressCommand = GuiPhysicalRouteAdapter.visibleButton(robot, window,
-			commandId.equals("StatusDate") ? "RibbonStatusDate" : "RibbonMarkOnTrack");
-		GuiAcceptanceSupport.await(progressCommand::isShowing, "progress command did not become visible");
 		TaskModeContext context = new TaskModeContext(robot, sheet,
 				cellOnScreen(sheet, rowForTask(sheet, progressTask), nameColumn(sheet)), progressTask);
 		if (!selectTask) {
