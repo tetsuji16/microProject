@@ -25,6 +25,7 @@ public static class GuiDesktopWindowProbe {
         public int Pid;
         public int Order;
         public bool Visible;
+        public bool Enabled;
         public bool EligibleForOverlap;
         public bool HasBounds;
         public string ProcessName;
@@ -41,6 +42,10 @@ public static class GuiDesktopWindowProbe {
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetClassName(IntPtr handle, StringBuilder className, int capacity);
     [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr handle, out Rect bounds);
     [DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr handle);
+    [DllImport("user32.dll")] private static extern bool IsWindowEnabled(IntPtr handle);
+    [DllImport("user32.dll")] private static extern IntPtr GetDlgItem(IntPtr dialog, int controlId);
+    [DllImport("user32.dll")] private static extern int GetDlgCtrlID(IntPtr control);
+    [DllImport("user32.dll")] private static extern bool EnumChildWindows(IntPtr parent, EnumWindowsCallback callback, IntPtr parameter);
     [DllImport("user32.dll")] private static extern bool IsIconic(IntPtr handle);
     [DllImport("user32.dll")] private static extern bool EnumWindows(EnumWindowsCallback callback, IntPtr parameter);
     [DllImport("user32.dll")] private static extern IntPtr GetWindow(IntPtr handle, uint command);
@@ -68,13 +73,13 @@ public static class GuiDesktopWindowProbe {
             string processName = "unavailable";
             try { processName = Process.GetProcessById((int)pid).ProcessName; } catch { }
             windows.Add(new WindowInfo { Handle = handle, Owner = GetWindow(handle, 4), ThreadId = threadId,
-                Pid = (int)pid, Order = currentOrder, Visible = visible,
+                Pid = (int)pid, Order = currentOrder, Visible = visible, Enabled = IsWindowEnabled(handle),
                 EligibleForOverlap = visible && titleLength > 0 && hasBounds, HasBounds = hasBounds,
                 ProcessName = processName, ClassName = className, Title = title, Bounds = bounds });
             return true;
         }, IntPtr.Zero);
 
-        var result = new StringBuilder();
+        var result = new StringBuilder().Append("snapshotUtc=").Append(DateTime.UtcNow.ToString("o")).AppendLine();
         WindowInfo foregroundInfo = windows.Find(window => window.Handle == foreground);
         if (foregroundInfo == null) result.AppendLine("foreground=unavailable");
         else result.Append("foreground pid=").Append(foregroundInfo.Pid).Append(" process=").Append(foregroundInfo.ProcessName)
@@ -86,9 +91,61 @@ public static class GuiDesktopWindowProbe {
             result.Append("testWindow pid=").Append(target.Pid).Append(" thread=").Append(target.ThreadId)
                 .Append(" hwnd=0x").Append(target.Handle.ToInt64().ToString("X"))
                 .Append(" owner=0x").Append(target.Owner.ToInt64().ToString("X"))
-                .Append(" visible=").Append(target.Visible).Append(" class=").Append(target.ClassName)
+                .Append(" visible=").Append(target.Visible).Append(" enabled=").Append(target.Enabled).Append(" class=").Append(target.ClassName)
                 .Append(" order=").Append(target.Order).Append(" title=").Append(target.Title)
                 .Append(" bounds=").Append(target.HasBounds ? Format(target.Bounds) : "unavailable").AppendLine();
+
+        foreach (WindowInfo dialog in targetWindows) {
+            if (!String.Equals(dialog.ClassName, "#32770", StringComparison.Ordinal)) continue;
+            uint dialogOwnerPid = 0;
+            if (dialog.Owner != IntPtr.Zero) GetWindowThreadProcessId(dialog.Owner, out dialogOwnerPid);
+            bool dialogOwnedByTarget = dialog.Owner != IntPtr.Zero && dialogOwnerPid == (uint)targetPid;
+            if (dialogOwnedByTarget && dialog.Visible) {
+                result.Append("ownedDialog pid=").Append(dialog.Pid).Append(" thread=").Append(dialog.ThreadId)
+                    .Append(" hwnd=0x").Append(dialog.Handle.ToInt64().ToString("X"))
+                    .Append(" owner=0x").Append(dialog.Owner.ToInt64().ToString("X"))
+                    .Append(" ownerPid=").Append(dialogOwnerPid).Append(" class=").Append(dialog.ClassName)
+                    .Append(" visible=").Append(dialog.Visible).Append(" enabled=").Append(dialog.Enabled)
+                    .Append(" bounds=").Append(dialog.HasBounds ? Format(dialog.Bounds) : "unavailable").AppendLine();
+            }
+
+            // Query IDCANCEL directly on each top-level native dialog. Do not
+            // infer it from a nested descendant that might reuse control ID 2.
+            IntPtr cancel = GetDlgItem(dialog.Handle, 2); // IDCANCEL
+            if (cancel != IntPtr.Zero) {
+                uint cancelPid;
+                uint cancelThreadId = GetWindowThreadProcessId(cancel, out cancelPid);
+                int controlId = GetDlgCtrlID(cancel);
+                bool visible = IsWindowVisible(cancel);
+                bool enabled = IsWindowEnabled(cancel);
+                Rect cancelBounds;
+                bool hasBounds = GetWindowRect(cancel, out cancelBounds);
+                result.Append("cancelControl pid=").Append(cancelPid).Append(" thread=").Append(cancelThreadId)
+                    .Append(" hwnd=0x").Append(cancel.ToInt64().ToString("X"))
+                    .Append(" dialog=0x").Append(dialog.Handle.ToInt64().ToString("X"))
+                    .Append(" dialogClass=").Append(dialog.ClassName)
+                    .Append(" dialogOwnedByTarget=").Append(dialogOwnedByTarget)
+                    .Append(" dialogVisible=").Append(dialog.Visible).Append(" dialogEnabled=").Append(dialog.Enabled)
+                    .Append(" controlId=").Append(controlId).Append(" class=").Append(ReadClassName(cancel))
+                    .Append(" visible=").Append(visible).Append(" enabled=").Append(enabled)
+                    .Append(" bounds=").Append(hasBounds ? Format(cancelBounds) : "unavailable")
+                    .Append(" dialogBounds=").Append(dialog.HasBounds ? Format(dialog.Bounds) : "unavailable").AppendLine();
+            }
+            EnumChildWindows(dialog.Handle, (child, parameter) => {
+                uint childPid;
+                uint childThreadId = GetWindowThreadProcessId(child, out childPid);
+                Rect childBounds;
+                bool hasChildBounds = GetWindowRect(child, out childBounds);
+                result.Append("nativeChild pid=").Append(childPid).Append(" thread=").Append(childThreadId)
+                    .Append(" hwnd=0x").Append(child.ToInt64().ToString("X"))
+                    .Append(" dialog=0x").Append(dialog.Handle.ToInt64().ToString("X"))
+                    .Append(" controlId=").Append(GetDlgCtrlID(child))
+                    .Append(" class=").Append(ReadClassName(child))
+                    .Append(" visible=").Append(IsWindowVisible(child)).Append(" enabled=").Append(IsWindowEnabled(child))
+                    .Append(" bounds=").Append(hasChildBounds ? Format(childBounds) : "unavailable").AppendLine();
+                return true;
+            }, IntPtr.Zero);
+        }
 
         bool foundOverlap = false;
         foreach (WindowInfo other in windows) {
