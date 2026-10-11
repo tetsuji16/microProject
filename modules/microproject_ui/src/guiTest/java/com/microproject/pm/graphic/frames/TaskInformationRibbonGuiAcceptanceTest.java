@@ -712,8 +712,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		activateWindow(robot, window);
 		AbstractButton projectTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("ProjectRibbonTask.title"));
-		click(robot, boundsOnScreen(projectTab));
-		GuiAcceptanceSupport.await(projectTab::isSelected, "Project ribbon tab did not become selected");
+		clickTransformedAndAwaitSelected(robot, projectTab, "Project ribbon tab did not become selected");
 		AbstractButton calendarOptions = findShowingButtonByCommand("RibbonCalendarOptions");
 		GuiAcceptanceSupport.await(calendarOptions::isEnabled, "Calendar Options remained disabled");
 		click(robot, boundsOnScreen(calendarOptions));
@@ -2360,6 +2359,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		int sourceRow = rowForTask(sheet, second);
 		int targetRow = rowForTask(sheet, first);
 		JTable[] rowHeaderBox = new JTable[1];
+		Point[] logicalPoints = new Point[2];
 		Point[] points = new Point[2];
 		int[] dragState = { 0, -1 };
 		SwingUtilities.invokeAndWait(() -> {
@@ -2368,11 +2368,11 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			java.awt.Rectangle source = rowHeader.getCellRect(sourceRow, 0, true);
 			java.awt.Rectangle target = rowHeader.getCellRect(targetRow, 0, true);
 			Point location = rowHeader.getLocationOnScreen();
-			points[0] = new Point(location.x + source.x + source.width / 2,
+			logicalPoints[0] = new Point(location.x + source.x + source.width / 2,
 				location.y + source.y + source.height / 2);
 			// The production drop contract splits a row at its vertical midpoint.
 			// This fixture moves the selected second task before the first task.
-			points[1] = new Point(location.x + target.x + target.width / 2,
+			logicalPoints[1] = new Point(location.x + target.x + target.width / 2,
 				location.y + target.y + Math.max(1, target.height / 4));
 			rowHeader.addMouseMotionListener(new java.awt.event.MouseMotionAdapter() {
 				@Override
@@ -2385,6 +2385,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		JTable rowHeader = rowHeaderBox[0];
 		GuiAcceptanceSupport.await(() -> sheet.isShowing() && rowHeader.isShowing(),
 			"task row header was not visible for the physical move gesture");
+		points[0] = robotPointFor(rowHeader, logicalPoints[0]);
+		points[1] = robotPointFor(rowHeader, logicalPoints[1]);
 		robot.mouseMove(points[0].x, points[0].y);
 		robot.waitForIdle();
 		Point[] sourceHover = new Point[1];
@@ -2394,10 +2396,12 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			if (sourceHover[0] != null) sourceHoverRow[0] = rowHeader.rowAtPoint(sourceHover[0]);
 		});
 		String sourceInput = componentInputDiagnostics(rowHeader) + ", sourceHover=" + sourceHover[0]
-			+ ", sourceHoverRow=" + sourceHoverRow[0] + ", requestedSource=" + points[0];
+			+ ", sourceHoverRow=" + sourceHoverRow[0] + ", logicalSource=" + logicalPoints[0]
+			+ ", transformedRobotSource=" + points[0];
 		assertEquals(sourceRow, sourceHoverRow[0],
 			"Robot source move must land on the intended row header before pressing; " + sourceInput);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		try {
 		robot.delay(100);
 		GuiAcceptanceSupport.await(() -> {
 			boolean[] selected = new boolean[1];
@@ -2437,7 +2441,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			+ "cursor=" + observedDrag[2] + " dragEvents=" + observedDrag[0] + " dragRow=" + observedDrag[1]
 			+ " sourcePoint=" + points[0] + " targetPoint=" + points[1] + " pointer="
 			+ java.awt.MouseInfo.getPointerInfo().getLocation());
-		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		} finally {
+			robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+			robot.waitForIdle();
+		}
 
 		GuiAcceptanceSupport.await(() -> visibleMoveConfirmation() != null,
 			"physical row-header drag did not ask for its documented move confirmation");
@@ -3312,6 +3319,44 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		usable.height -= insets.top + insets.bottom;
 		assertTrue(usable.contains(frame.getBounds()), description + " must remain fully visible in the monitor work area; frame="
 			+ frame.getBounds() + ", usable=" + usable + ", scale=" + configuration.getDefaultTransform());
+	}
+
+	private static void clickTransformedAndAwaitSelected(Robot robot, AbstractButton button, String failureMessage)
+		throws Exception {
+		Rectangle bounds = boundsOnScreen(button);
+		Point logicalTarget = new Point(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+		Point robotTarget = robotPointFor(button, logicalTarget);
+		robot.mouseMove(robotTarget.x, robotTarget.y);
+		robot.waitForIdle();
+		Point[] local = new Point[1];
+		SwingUtilities.invokeAndWait(() -> local[0] = button.getMousePosition());
+		String before = componentInputDiagnostics(button) + ", logicalTarget=" + logicalTarget
+			+ ", transformedRobotTarget=" + robotTarget;
+		assertNotNull(local[0], "Robot pointer did not physically enter Project ribbon tab before click; " + before);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+		robot.delay(150);
+		try {
+			GuiAcceptanceSupport.await(() -> {
+				boolean[] selected = new boolean[1];
+				try { SwingUtilities.invokeAndWait(() -> selected[0] = button.isSelected()); }
+				catch (Exception exception) { throw new AssertionError("could not inspect Project ribbon tab on EDT", exception); }
+				return selected[0];
+			}, failureMessage);
+		} catch (AssertionError failure) {
+			throw new AssertionError(failure.getMessage() + "; beforeClick={" + before
+				+ "}; afterClick={" + componentInputDiagnostics(button) + "}", failure);
+		}
+	}
+
+	private static Point robotPointFor(Component component, Point logicalPoint) throws Exception {
+		GraphicsConfiguration[] configuration = new GraphicsConfiguration[1];
+		SwingUtilities.invokeAndWait(() -> configuration[0] = component.getGraphicsConfiguration());
+		assertNotNull(configuration[0], "Robot target must belong to a graphics configuration");
+		java.awt.geom.Point2D transformed = configuration[0].getDefaultTransform()
+			.transform(new java.awt.geom.Point2D.Double(logicalPoint.x, logicalPoint.y), null);
+		return new Point((int) Math.round(transformed.getX()), (int) Math.round(transformed.getY()));
 	}
 
 	private static void clickAndAwaitSelected(Robot robot, AbstractButton button, String failureMessage) throws Exception {
