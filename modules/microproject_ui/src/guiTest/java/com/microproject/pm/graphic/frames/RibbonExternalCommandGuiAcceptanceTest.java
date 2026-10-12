@@ -46,6 +46,7 @@ import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
@@ -1691,11 +1692,15 @@ class RibbonExternalCommandGuiAcceptanceTest {
 
 	private static AbstractButton selectFileChooserSaveButton(Window chooserWindow) {
 		JFileChooser chooser = findFileChooser(chooserWindow);
-		String approveText = chooser.getApproveButtonText();
+		Set<String> saveLabels = new java.util.HashSet<>();
+		if (chooser.getApproveButtonText() != null) saveLabels.add(chooser.getApproveButtonText());
+		String swingSaveLabel = UIManager.getString("FileChooser.saveButtonText");
+		if (swingSaveLabel != null) saveLabels.add(swingSaveLabel);
+		saveLabels.add(Messages.getString("Text.Save"));
 		for (Component component : flatten(chooserWindow)) {
 			if (component instanceof AbstractButton button && button.isShowing()
 					&& ("ApproveSelection".equals(button.getActionCommand())
-						|| (approveText != null && approveText.equals(button.getText()))))
+						|| saveLabels.contains(button.getText())))
 				return button;
 		}
 		return null;

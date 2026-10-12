@@ -407,8 +407,12 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	private static RibbonCommandResult ribbonCommandResult(AbstractButton button) {
-		javax.swing.Action action = UiButtonDiagnostics.unwrapAction(button.getAction());
+		javax.swing.Action action = button.getAction();
 		Object result = action == null ? null : action.getValue(RibbonCommandResult.RESULT_ACTION_PROPERTY);
+		if (!(result instanceof RibbonCommandResult) && action != null) {
+			javax.swing.Action delegate = UiButtonDiagnostics.unwrapAction(action);
+			result = delegate == null ? null : delegate.getValue(RibbonCommandResult.RESULT_ACTION_PROPERTY);
+		}
 		return result instanceof RibbonCommandResult commandResult ? commandResult : null;
 	}
 
