@@ -114,6 +114,7 @@ import com.microproject.util.ClassLoaderUtils;
 import com.microproject.dialog.AbstractDialog;
 import com.microproject.dialog.LocaleDialog;
 import com.microproject.dialog.ProjectDialog;
+import com.microproject.dialog.ResourceSortOrderPanel;
 import com.microproject.dialog.PreferencesDialogBox;
 import com.microproject.dialog.RenameProjectDialog;
 import com.microproject.dialog.WelcomeDialog;
@@ -1876,7 +1877,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		// Legacy menu ids remain aliases of the canonical transform commands.  A
 		// single action instance keeps menu, ribbon and toolbar behavior identical.
 		TransformAction filterTransform = new TransformAction(TransformComboBoxModel.FILTER);
-		TransformAction sortTransform = new TransformAction(TransformComboBoxModel.SORTER);
+		TransformAction sortTransform = new SortOrderAction();
 		TransformAction groupTransform = new TransformAction(TransformComboBoxModel.GROUPER);
 		actionsMap.addHandler(ACTION_FILTER, filterTransform);
 		actionsMap.addHandler(ACTION_CHOOSE_FILTER, filterTransform);
@@ -3115,6 +3116,56 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	        	return;
 	        }
 	        showTransformChooser(type);
+		}
+	}
+
+	/** Opens Resource Sort Order through the existing resource-view sort pipeline. */
+	public class SortOrderAction extends TransformAction {
+		private static final long serialVersionUID = 1L;
+		public SortOrderAction() { super(TransformComboBoxModel.SORTER); }
+
+		@Override
+		public void actionPerformed(ActionEvent event) {
+			String commandId = event == null || event.getActionCommand() == null
+					? ACTION_SORT : event.getActionCommand();
+			if (event.getSource() instanceof TransformComboBox) {
+				super.actionPerformed(event);
+				return;
+			}
+			setMeAsLastGraphicManager();
+			if (!isDocumentActive()) {
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(commandId, "no-active-document"));
+				return;
+			}
+			DocumentFrame frame = getCurrentFrame();
+			if (frame == null || !(frame.getActiveTopView() instanceof ResourceView resourceView)) {
+				super.actionPerformed(event);
+				return;
+			}
+			if (!beforeChooserRoute("SortOrder")) {
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(commandId, "route-rejected"));
+				return;
+			}
+			ResourceSortOrderPanel panel = new ResourceSortOrderPanel(resourceView.getResourceSortFields(),
+				resourceView.getSortedFieldId(), resourceView.isSortAscending());
+			int choice = PopupDialogSupport.showConfirmDialog(getFrame(), panel,
+				Messages.getString("ResourceSortOrder.Title"), JOptionPane.OK_CANCEL_OPTION,
+				JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION);
+			if (choice != JOptionPane.OK_OPTION) {
+				publishTaskCommandOutcome(this, new RibbonCommandResult(commandId, RibbonCommandResult.Status.NO_CHANGE,
+					"dialog-cancelled").withActiveView(frame.getTopViewId()));
+				return;
+			}
+			String previousField = resourceView.getSortedFieldId();
+			boolean previousDirection = resourceView.isSortAscending();
+			boolean applied = resourceView.applySortOrder(panel.getFieldId(), panel.isAscending());
+			if (!applied) {
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(commandId, "invalid-sort-field"));
+				return;
+			}
+			boolean changed = !Objects.equals(previousField, panel.getFieldId()) || previousDirection != panel.isAscending();
+			publishTaskCommandOutcome(this, (changed ? RibbonCommandResult.changed(commandId) : RibbonCommandResult.noChange(commandId))
+				.withActiveView(frame.getTopViewId()));
 		}
 	}
 

@@ -233,6 +233,25 @@ public class ResourceView extends JScrollPane implements BaseView {
 		}
 	}
 
+	/** Applies the same stable, view-only single-key sort used by header clicks. */
+	public boolean applySortOrder(String fieldId, boolean ascending) {
+		if (fieldId == null) return false;
+		for (Field field : spreadSheet.getFieldArray()) {
+			if (fieldId.equals(field.getId())) {
+				applySort(field, ascending);
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public List<Field> getResourceSortFields() {
+		return List.copyOf(spreadSheet.getFieldArray());
+	}
+
+	public String getSortedFieldId() { return sortedFieldId; }
+	public boolean isSortAscending() { return sortAscending; }
+
 	private static final class ResourceFieldSorter extends NodeSorter {
 		private final Field field;
 		private final boolean ascending;

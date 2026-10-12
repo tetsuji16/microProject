@@ -2,9 +2,10 @@
 
 ## Final objective
 
-microProject's product objective is complete compatibility with Microsoft
-Project (MSP) desktop. This is a goal, not an achieved capability or a claim
-limited to whichever workflows happen to be implemented today. MSP behavior is
+microProject's product objective is complete compatibility with the standalone
+Microsoft Project (MSP) desktop application. This is a goal, not an achieved
+capability or a claim limited to whichever workflows happen to be implemented
+today. MSP behavior is
 the reference when it differs from legacy OpenProj/ProjectLibre behavior, a
 local convenience, or an earlier reconstruction decision. The staged scope,
 coverage blockers and issue review are tracked in
@@ -16,14 +17,25 @@ coverage blockers and issue review are tracked in
   semantics.
 - Desktop commands, keyboard and mouse interactions, dialogs, views, printing,
   and accessible UI state.
-- Project-file behavior: MPP read and write, Project XML read and write, and
-  microProject's native MPO format must preserve MSP-compatible project data on
-  round trips. MPP is a required compatibility gate; XML or MPO support does
-  not stand in for it. POD retains its frozen serialized wire format and required fixture coverage.
+- Project-file behavior: microProject's native `.mpo` (MPO) is the authoritative
+  project format and default save format; it must preserve project data and read
+  files from earlier supported MPO versions. MPP (`.mpp`) is a separate external
+  Microsoft Project interoperability format with explicit read and write gates;
+  it is not the application's native or default format. Project XML is another
+  external interchange format and does not substitute for MPP coverage. POD is
+  a frozen legacy import format: preserve its wire contract and fixed-fixture
+  reads, and add no new POD write behavior.
 - Multi-project, master-project, shared-resource, reporting, and collaboration
-  workflows supported by MSP desktop, plus explicit coverage decisions for
-  VBA/macros, COM add-ins, Project Server, Project Online workflows, and
-  Planner linking. Unassessed or unsupported areas block a complete claim.
+  workflows supported by MSP desktop, including local linked projects and
+  offline collaboration. Local automation and extensions remain in scope:
+  VBA/macros, COM automation, COM/VSTO add-ins, and local Office add-ins.
+  Unsupported or unassessed local desktop behavior blocks a complete claim.
+- Project Server, Project Web App (PWA), Project Online, Microsoft Planner cloud
+  authentication/synchronization/publishing, and other connected-service APIs
+  are outside this standalone product goal. Do not add connected-service
+  imports, clients, or dependencies. This exclusion does not remove local file
+  interoperability, local master/linked projects, shared resources, offline
+  collaboration, or local automation/extensions from scope.
 
 ## Engineering rules
 
@@ -41,7 +53,8 @@ coverage blockers and issue review are tracked in
    A deliberate deviation requires an explicit user decision and a documented
    migration/compatibility boundary.
 6. The compatibility inventory includes every in-scope command, workflow,
-   file format, and integration. Missing, partial, unsupported, and unassessed
+   file format, and local integration/extension. Missing, partial, unsupported,
+   and unassessed
    rows remain visible; “complete” is not claimed while any such row remains.
 7. Microsoft-published specifications and support documentation are normative
    for behavior and issue closure. Mark inference as a document-derived

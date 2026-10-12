@@ -58,7 +58,7 @@ buttons.
 | Select/Clear and Summary/Milestone insertion | Task | MISSING/PARTIAL | Current ribbon has normal task, recurring task, and subproject insertion. The complete MSP selection/clear command set and Summary/Milestone insertion behavior are not exposed by current Task ribbon definitions. |
 | Entire Project / Selected Tasks zoom | View | PARTIAL | Entire Project is physically verified in Gantt, Task Usage, and Resource Usage. Selected Tasks is verified only in Gantt; current Usage selection does not expose a task snapshot, and microProject has no Resource Graph equivalent. See #769 and its 2026-10-07 updates. |
 | Report/Timeline object-specific formatting | Contextual tabs | PARTIAL | Contextual surfaces exist for Network and Calendar. Report/Timeline object selection surfaces and their supported commands are not complete. |
-| Cloud account, Project Online/Planner linking, VBA/Macros, Microsoft feedback/training services | File/Help | NOT SUPPORTED | This local desktop fork has no account/cloud or macro execution service. Do not add dummy controls. Track automation and connected integration coverage under roadmap M4; unsupported in-scope surfaces block a complete compatibility claim. Local Help/About are product replacements, not MSP parity. |
+| Cloud account, Project Online/Planner linking, VBA/Macros, Microsoft feedback/training services | File/Help | OUT OF SCOPE or OPEN LOCAL EXTENSION GAP | Project Server/PWA/Project Online/Planner cloud accounts and connected services are outside the standalone product goal; do not add clients or dummy controls. VBA/macros remain an unresolved local automation gap under M4. Local Help/About are product replacements, not MSP parity. |
 
 ## File format coverage at current master
 
@@ -82,17 +82,18 @@ The default project open filter accepts MPP read while the save filter rejects
 it. MPP writing therefore must be added as a separate, carefully scoped
 interoperability implementation; do not rename an XML or MPO file to .mpp.
 
-## Automation and connected integrations
+## Local automation/extensions and excluded connected services
 
-No current coverage row should equate a missing implementation with a product
-decision that the feature is permanently out of scope.
+Local desktop automation and extension behavior remains part of the compatibility
+goal. Project Server/PWA/Project Online and Microsoft Planner cloud connections
+are outside the standalone product goal and are not missing-feature blockers.
 
 | Surface | Current source state | Compatibility disposition |
 |---|---|---|
-| VBA / macro execution | No desktop VBA runtime or macro command was found in the current UI/source scan. | MISSING; M4 scope decision and verified coverage required. |
-| COM add-ins / desktop extensibility | No COM automation/add-in bridge found in the current Java desktop implementation. | MISSING; M4 blocker unless the product goal is explicitly revised. |
-| Project Server / Project Online connection | The desktop application has project-file and local collaboration flows; no Microsoft server connection workflow was found in this audit. | MISSING; keep server and retired/current service behavior separate in M4. |
-| Planner linking / cloud account | Backstage omits Share/Account and no cloud linking action is in the standard ribbon catalog. | MISSING; do not render dummy controls; M4 must explicitly resolve this against the complete goal. |
+| VBA / macro execution | No desktop VBA runtime or macro command was found in the current UI/source scan. | OPEN LOCAL AUTOMATION GAP; inventory and implementation/verification decision required in M4. |
+| COM automation/add-ins, VSTO, local Office add-ins | No COM automation/add-in bridge or Office add-in host found in the current Java desktop implementation. | OPEN LOCAL EXTENSION GAP; inventory and implementation/verification decision required in M4. |
+| Project Server / Project Online connection | The desktop application has project-file and local collaboration flows; no Microsoft server connection workflow was found in this audit. | OUT OF SCOPE for the standalone product goal; no client or dependency should be added. |
+| Microsoft Planner linking / cloud account | Backstage omits Share/Account and no cloud linking action is in the standard ribbon catalog. | OUT OF SCOPE for the standalone product goal; do not render dummy controls. GNOME Planner file exchange is tracked separately in the format inventory. |
 
 ## Office customization inventory (#770)
 

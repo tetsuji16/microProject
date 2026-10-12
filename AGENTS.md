@@ -2,24 +2,22 @@
 
 ## Instruction hierarchy
 
-This file is the authoritative repository instruction set. `AGENT.md` is a
-Japanese quick reference only and must not duplicate or weaken rules here.
-
-For microProject GUI implementation work, load the local
-`microproject-gui-implementation` skill and follow `docs/gui-quality-gate.md`.
-The skill supplies the required command-contract card and efficient shared
-fixture workflow. `TEST_PLAN.md` records the regression matrix; it is not a
-license to add copy-pasted cases instead of consolidating duplicate behavior.
-Use `docs/gui-recovery-sequence.md` to choose the next stabilization work; do
-not bypass an earlier shared-cause phase for a later cosmetic symptom.
+This is the authoritative repository instruction set. GUI implementation
+requirements are self-contained in `docs/gui-quality-gate.md` and
+`docs/gui-recovery-sequence.md`; no external or local skill package is required.
+`TEST_PLAN.md` records the regression matrix; it is not a license to add
+copy-pasted cases instead of consolidating duplicate behavior. Use the recovery
+sequence to choose the next stabilization work; do not bypass an earlier
+shared-cause phase for a later cosmetic symptom.
 
 ## Goal and scope
 
-- Maintain this Windows-oriented ProjectLibre desktop fork without regressing existing project files, scheduling behavior, or packaging.
+- Maintain this ProjectLibre desktop fork without regressing existing project files, scheduling behavior, or packaging. Windows is the reference desktop target; Linux x64 and macOS Apple Silicon packages are also produced, with platform-specific behavior verified separately.
+- The compatibility objective is the standalone Microsoft Project desktop application. Project Server, Project Web App (PWA), Project Online, and Microsoft Planner/other cloud-service authentication, synchronization, publishing, and service APIs are outside this product goal; do not add connected-service imports, clients, or dependencies. Local project files, linked/master projects, shared resources, offline collaboration, and local automation/extensions remain distinct desktop coverage. VBA/macros, COM automation/add-ins, and local Office add-ins remain unresolved goal rows unless the user explicitly narrows them later.
+- MPO (`.mpo`) is microProject's authoritative native project format and the default save format. Preserve reading files from earlier supported MPO versions. MPP (`.mpp`) is an external Microsoft Project interoperability format, never the native/default format; keep its read and write interoperability gates explicit. POD is a frozen legacy import format; do not alter its wire contract or add new POD write behavior.
 - The primary agent owns repository-wide planning, specification interpretation,
-  integration, and completion decisions.  It may delegate independent bounded
-  investigation, testing, or implementation work to Luna agents at any time;
-  it remains responsible for reviewing and integrating every result.
+  integration, and completion decisions, and remains responsible for reviewing
+  and integrating repository-wide changes.
 - Judge Microsoft Project Desktop (MSP) compatibility against the applicable
   Microsoft-published specification or support documentation.  An installed
   MSP application is supplementary evidence only and is not required for a
@@ -70,6 +68,8 @@ Use `rg` / `rg --files` for discovery. Search by symbol and behavior before intr
 - `modules/microproject_exchange`: MPP/POD/XML/XLSX import/export and collaboration metadata integration.
 - `modules/microproject_reports`: report code and templates.
 - `modules/microproject_contrib`: bundled compatibility and third-party code; avoid growing packaged dependencies unnecessarily.
+- `modules/microproject_ribbon`: shared ribbon model, command IDs/results, icons, and theme abstractions.
+- `modules/microproject_bootstrap`: startup and update bootstrap.
 - `packaging`: authoritative icons, licenses, file associations, and Windows release inputs.
 - `samples`: manual-verification fixtures. Application runs can modify files here, so inspect changes and do not commit incidental rewrites.
 
@@ -94,20 +94,21 @@ Respect the dependency direction expressed in the Gradle files. Put workflow coo
 
 ## Dependency and namespace hygiene (eliminate ProjectLibre coupling)
 
-The fork's canonical namespace is `com.microproject` (and the legacy serialization
-alias `com.projectlibre1` kept only inside `SafeObjectInput` for reading old `.pod`
-files — see issue #154). Anything that still carries the `projectLibre` / `ProjectLibre`
+The fork's canonical namespace is `com.microproject`. A small set of explicit
+legacy aliases remains at the POD deserialization/importer boundary for files
+written by older releases (see `SafeObjectInput`, `DefaultFileImporterProvider`,
+and issue #154); do not widen those aliases or add old-package production code.
+Anything that still carries the `projectLibre` / `ProjectLibre`
 / `com.projectlibre` name is unfinished rename work and must not be widened.
 
-- **Module names**: every module under `modules/` must be `microproject_*`. The
-  `modules/projectlibre_*` directories are dead legacy modules (not included in
-  `settings.gradle`); do not reference or revive them. Rename or delete before they
-  accrue new code.
+- **Module names**: every production module under `modules/` is `microproject_*`
+  and is explicitly included by `settings.gradle.kts`. Do not introduce or
+  revive `projectlibre_*` module directories.
 - **Packages**: source under `com.projectlibre` / `com.projectlibre1` is a leftover
   from the rename. New code always uses `com.microproject`. Do not add new
-  `com.projectlibre*` packages or imports from `microproject_*` modules. The only
-  tolerated `com.projectlibre1` reference is the deserialization remap in
-  `SafeObjectInput` (backward-compatible `.pod` reads).
+  `com.projectlibre*` packages or imports from `microproject_*` modules. Keep
+  old class names confined to documented compatibility maps used when reading
+  persisted POD options or supported serialized data.
 - **Brand/identifier names**: method/constant names such as `isProjectLibreFile`,
   `LOCAL_PROJECT_IMPORTER`, `ProjectLibreShell` are acceptable only as established
   internal identifiers for the *file format*; do not introduce new `ProjectLibre`-prefixed
@@ -203,7 +204,7 @@ Choose the narrowest command that exercises the change, then widen verification 
 ```
 
 - Add or update a focused regression test for a bug fix when practical. Reproduce the failure before the fix when possible.
-- `build` runs the module tests locally. `.github/workflows/build.yml` currently runs `build installDist` without `-x test`, so its successful build includes the enabled module test tasks; Windows GUI acceptance is a separate workflow gate.
+- `build` runs the module tests locally. `.github/workflows/build.yml` runs maintenance-script checks and `build installDist` without `-x test`, so a successful build includes the enabled module test tasks. `.github/workflows/gui-acceptance.yml` provides Windows desktop Robot evidence; its pull-request/push default is smoke and its scheduled audit is full. The release workflow requires full GUI acceptance for stable releases and defaults other release runs to smoke.
 - For Swing tests, keep them headless-compatible and perform Swing state changes/assertions on the EDT where required.
 - For GUI-observable behavior changes, follow `docs/gui-quality-gate.md`. A dispatched Action, no exception, or visible dialog alone is never a passing result: verify the affected physical route, preconditions, model and rendered view state, Undo/Redo, and persistence where applicable. Add/update one Robot journey for a user-reported command regression or changed physical route, and visual assertions for changed layout constraints. Behavior-preserving source modernization does not require repeated Robot or locale/DPI matrix runs; choose the smallest relevant test set and run the broad GUI suite at release/scheduled gates.
 - Treat spreadsheet editing as an input transaction, never as a parser-only or
@@ -239,7 +240,7 @@ For a faster logged incremental launch, use `scripts\run_projectlibre.ps1`; see 
 modules\microproject_ui\build\install\microproject_ui
 ```
 
-Never validate against an older `build/install` copy. For UI changes, record the scenario and sample file used, and verify state after redraw plus save/reload when applicable.
+Never validate against an older `build/install` copy. For UI changes, record the scenario and sample file used, and verify state after redraw plus save/reload when applicable. If the local machine has no usable desktop session or window manager, continue implementation and headless verification; record physical GUI acceptance as pending and use the Windows GUI workflow for that evidence. A passing build is not physical GUI evidence.
 
 ## Packaging and release work
 

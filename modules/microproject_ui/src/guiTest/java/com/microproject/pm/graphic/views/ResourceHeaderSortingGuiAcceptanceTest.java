@@ -10,11 +10,14 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.GraphicsEnvironment;
+import java.awt.Component;
+import java.awt.Container;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.Window;
 import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
@@ -22,6 +25,10 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.swing.SwingUtilities;
+import javax.swing.AbstractButton;
+import javax.swing.JDialog;
+import javax.swing.JComboBox;
+import javax.swing.UIManager;
 import javax.swing.table.JTableHeader;
 
 import org.junit.jupiter.api.AfterEach;
@@ -31,10 +38,12 @@ import org.junit.jupiter.api.Test;
 import com.microproject.pm.graphic.frames.DocumentFrame;
 import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.pm.graphic.frames.MainRibbonFrame;
+import com.microproject.dialog.ResourceSortOrderPanel;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.Project;
+import com.microproject.ribbon.RibbonCommandResult;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.Environment;
@@ -146,6 +155,97 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 			assertEquals("Field.name", workspace.getSortedFieldId());
 			assertFalse(workspace.isSortAscending());
 		});
+
+		String viewTabText = java.util.ResourceBundle.getBundle("com.microproject.menu.menu").getString("ViewRibbonTask.title");
+		click(robot, findShowingButtonByText(window, viewTabText));
+		GuiAcceptanceSupport.await(() -> findShowingButtonByCommand(window, "RibbonChooseSort") != null,
+			"View ribbon did not expose the Sort command");
+		click(robot, findShowingButtonByCommand(window, "RibbonChooseSort"));
+		GuiAcceptanceSupport.await(() -> findDialogWith(ResourceSortOrderPanel.class) != null,
+			"Resource Sort Order dialog did not open from the View ribbon");
+		JDialog sortDialog = findDialogWith(ResourceSortOrderPanel.class);
+		ResourceSortOrderPanel orderPanel = findComponent(sortDialog, ResourceSortOrderPanel.class);
+		assertEquals("Field.name", orderPanel.getFieldId());
+		click(robot, findShowingButtonByText(sortDialog, UIManager.getString("OptionPane.cancelButtonText")));
+		GuiAcceptanceSupport.await(() -> manager.getLastRibbonCommandResult() != null
+			&& manager.getLastRibbonCommandResult().status() == RibbonCommandResult.Status.NO_CHANGE
+			&& "dialog-cancelled".equals(manager.getLastRibbonCommandResult().reason()),
+			"cancelling Sort Order did not publish a no-change outcome");
+		click(robot, findShowingButtonByCommand(window, "RibbonChooseSort"));
+		GuiAcceptanceSupport.await(() -> findDialogWith(ResourceSortOrderPanel.class) != null,
+			"Resource Sort Order dialog did not reopen after cancel");
+		sortDialog = findDialogWith(ResourceSortOrderPanel.class);
+		orderPanel = findComponent(sortDialog, ResourceSortOrderPanel.class);
+		assertEquals("Field.name", orderPanel.getFieldId());
+		JComboBox<?> direction = flatten(orderPanel).stream().filter(JComboBox.class::isInstance)
+			.map(JComboBox.class::cast).filter(combo -> combo.getItemCount() == 2).findFirst()
+			.orElseThrow(() -> new AssertionError("Sort Order direction control is missing"));
+		click(robot, direction);
+		robot.keyPress(KeyEvent.VK_HOME);
+		robot.keyRelease(KeyEvent.VK_HOME);
+		robot.keyPress(KeyEvent.VK_ENTER);
+		robot.keyRelease(KeyEvent.VK_ENTER);
+		robot.waitForIdle();
+		click(robot, findShowingButtonByText(sortDialog, UIManager.getString("OptionPane.okButtonText")));
+		GuiAcceptanceSupport.await(() -> namedTestResources(sheet).equals(List.of("Alpha", "Zulu")),
+			"Sort Order confirmation did not apply ascending Name order");
+		assertEquals(RibbonCommandResult.Status.CHANGED, manager.getLastRibbonCommandResult().status());
+		assertEquals("RibbonChooseSort", manager.getLastRibbonCommandResult().commandId());
+		ResourceView.Workspace persistedWorkspace = (ResourceView.Workspace) resourceView.createWorkspace(0);
+		SwingUtilities.invokeAndWait(() -> {
+			assertEquals(List.of(zulu), sheet.getSelectedNodes().stream().map(node -> (Resource) node.getImpl()).toList(),
+				"Sort Order must preserve selected resource identity");
+			assertEquals(originalOrder, pool.getResourceList(), "Sort Order must remain view-only");
+			assertEquals("Field.name", persistedWorkspace.getSortedFieldId());
+			assertTrue(persistedWorkspace.isSortAscending());
+		});
+		SwingUtilities.invokeAndWait(() -> resourceView.restoreWorkspace(persistedWorkspace, 0));
+		GuiAcceptanceSupport.await(() -> namedTestResources(sheet).equals(List.of("Alpha", "Zulu")),
+			"restoring the saved Workspace did not restore the resource sort");
+		SwingUtilities.invokeAndWait(() -> {
+			assertEquals(List.of(zulu), sheet.getSelectedNodes().stream().map(node -> (Resource) node.getImpl()).toList(),
+				"Workspace restore should preserve the selected resource identity");
+			assertEquals(originalOrder, pool.getResourceList(), "Workspace sort restore must remain view-only");
+		});
+	}
+
+	private static void click(Robot robot, Component component) throws Exception {
+		Point location = component.getLocationOnScreen();
+		robot.mouseMove(location.x + component.getWidth() / 2, location.y + component.getHeight() / 2);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+	}
+
+	private static AbstractButton findShowingButtonByText(Component root, String text) {
+		for (Component component : flatten(root))
+			if (component instanceof AbstractButton button && button.isShowing() && text.equals(button.getText())) return button;
+		throw new AssertionError("Showing button not found: " + text);
+	}
+
+	private static AbstractButton findShowingButtonByCommand(Component root, String command) {
+		for (Component component : flatten(root))
+			if (component instanceof AbstractButton button && button.isShowing() && command.equals(button.getActionCommand())) return button;
+		return null;
+	}
+
+	private static JDialog findDialogWith(Class<? extends Component> type) {
+		for (Window candidate : Window.getWindows())
+			if (candidate instanceof JDialog dialog && dialog.isShowing() && findComponent(dialog, type) != null) return dialog;
+		return null;
+	}
+
+	private static <T extends Component> T findComponent(Component root, Class<T> type) {
+		for (Component component : flatten(root)) if (type.isInstance(component)) return type.cast(component);
+		return null;
+	}
+
+	private static List<Component> flatten(Component root) {
+		List<Component> components = new ArrayList<>();
+		components.add(root);
+		if (root instanceof Container container)
+			for (Component child : container.getComponents()) components.addAll(flatten(child));
+		return components;
 	}
 
 	private static String componentPath(java.awt.Component component) {

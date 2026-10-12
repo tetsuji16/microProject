@@ -21,6 +21,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 
+import com.microproject.ribbon.RibbonCommandResult;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -141,5 +143,124 @@ class UiButtonDiagnosticsTest {
 		} finally {
 			logger.removeHandler(handler);
 		}
+	}
+
+	@Test
+	void explicitNoChangeOutcomeIsNotReportedAsAHiddenNoOp() throws Exception {
+		System.setProperty("microproject.ui.debug", "true");
+		Logger logger = Logger.getLogger(UiButtonDiagnostics.class.getName());
+		StringBuilder messages = new StringBuilder();
+		Handler handler = capture(messages);
+		logger.addHandler(handler);
+		logger.setLevel(Level.FINE);
+		try {
+			Action noChange = new AbstractAction() {
+				@Override public void actionPerformed(ActionEvent event) {
+					putValue(RibbonCommandResult.RESULT_ACTION_PROPERTY,
+						RibbonCommandResult.noChange("NoChangeButton"));
+				}
+			};
+			UiButtonDiagnostics.wrapAction("NoChangeButton", noChange)
+				.actionPerformed(new ActionEvent(this, ActionEvent.ACTION_PERFORMED, "NoChangeButton"));
+			EventQueue.invokeAndWait(() -> { });
+			assertTrue(messages.toString().contains("UI_COMMAND_RESULT id=NoChangeButton reason=command-no-change"));
+			assertFalse(messages.toString().contains("UI_COMMAND_FAILURE id=NoChangeButton"), messages.toString());
+		} finally {
+			logger.removeHandler(handler);
+		}
+	}
+
+	@Test
+	void explicitFailureOutcomeRemainsADiagnosticFailureWithoutVisibleStateChange() throws Exception {
+		System.setProperty("microproject.ui.debug", "true");
+		Logger logger = Logger.getLogger(UiButtonDiagnostics.class.getName());
+		StringBuilder messages = new StringBuilder();
+		Handler handler = capture(messages);
+		logger.addHandler(handler);
+		logger.setLevel(Level.FINE);
+		try {
+			Action failed = new AbstractAction() {
+				@Override public void actionPerformed(ActionEvent event) {
+					putValue(RibbonCommandResult.RESULT_ACTION_PROPERTY,
+						RibbonCommandResult.failed("FailedOutcomeButton", new IllegalStateException("injected")));
+				}
+			};
+			UiButtonDiagnostics.wrapAction("FailedOutcomeButton", failed)
+				.actionPerformed(new ActionEvent(this, ActionEvent.ACTION_PERFORMED, "FailedOutcomeButton"));
+			EventQueue.invokeAndWait(() -> { });
+			assertTrue(messages.toString().contains(
+				"UI_COMMAND_FAILURE id=FailedOutcomeButton reason=command-failed"), messages.toString());
+			assertFalse(messages.toString().contains(
+				"reason=no-observable-state-change activeView="), messages.toString());
+		} finally {
+			logger.removeHandler(handler);
+		}
+	}
+
+	@Test
+	void staleNoChangeOutcomeDoesNotHideAnUnreportedNoOp() throws Exception {
+		System.setProperty("microproject.ui.debug", "true");
+		Logger logger = Logger.getLogger(UiButtonDiagnostics.class.getName());
+		StringBuilder messages = new StringBuilder();
+		Handler handler = capture(messages);
+		logger.addHandler(handler);
+		logger.setLevel(Level.FINE);
+		try {
+			AbstractAction noOp = new AbstractAction() {
+				@Override public void actionPerformed(ActionEvent event) { }
+			};
+			RibbonCommandResult stale = RibbonCommandResult.noChange("StaleOutcomeButton");
+			noOp.putValue(RibbonCommandResult.RESULT_ACTION_PROPERTY, stale);
+			UiButtonDiagnostics.wrapAction("StaleOutcomeButton", noOp)
+				.actionPerformed(new ActionEvent(this, ActionEvent.ACTION_PERFORMED, "StaleOutcomeButton"));
+			EventQueue.invokeAndWait(() -> { });
+			assertTrue(messages.toString().contains(
+				"UI_COMMAND_FAILURE id=StaleOutcomeButton reason=no-observable-state-change"), messages.toString());
+			assertFalse(messages.toString().contains(
+				"UI_COMMAND_RESULT id=StaleOutcomeButton reason=command-no-change"), messages.toString());
+		} finally {
+			logger.removeHandler(handler);
+		}
+	}
+
+	@Test
+	void capturesEachCanonicalOutcomeBeforeTheNextInvocationRuns() throws Exception {
+		System.setProperty("microproject.ui.debug", "true");
+		Logger logger = Logger.getLogger(UiButtonDiagnostics.class.getName());
+		StringBuilder messages = new StringBuilder();
+		Handler handler = capture(messages);
+		logger.addHandler(handler);
+		logger.setLevel(Level.FINE);
+		try {
+			AtomicBoolean firstInvocation = new AtomicBoolean(true);
+			Action sequential = new AbstractAction() {
+				@Override public void actionPerformed(ActionEvent event) {
+					RibbonCommandResult outcome = firstInvocation.getAndSet(false)
+						? RibbonCommandResult.noChange("SequentialOutcomeButton")
+						: RibbonCommandResult.failed("SequentialOutcomeButton", new IllegalStateException("second"));
+					putValue(RibbonCommandResult.RESULT_ACTION_PROPERTY, outcome);
+				}
+			};
+			Action traced = UiButtonDiagnostics.wrapAction("SequentialOutcomeButton", sequential);
+			EventQueue.invokeAndWait(() -> {
+				traced.actionPerformed(new ActionEvent(this, ActionEvent.ACTION_PERFORMED, "SequentialOutcomeButton"));
+				traced.actionPerformed(new ActionEvent(this, ActionEvent.ACTION_PERFORMED, "SequentialOutcomeButton"));
+			});
+			EventQueue.invokeAndWait(() -> { });
+			assertTrue(messages.toString().contains(
+				"UI_COMMAND_RESULT id=SequentialOutcomeButton reason=command-no-change"), messages.toString());
+			assertTrue(messages.toString().contains(
+				"UI_COMMAND_FAILURE id=SequentialOutcomeButton reason=command-failed"), messages.toString());
+		} finally {
+			logger.removeHandler(handler);
+		}
+	}
+
+	private static Handler capture(StringBuilder messages) {
+		return new Handler() {
+			@Override public void publish(LogRecord record) { messages.append(record.getMessage()).append('\n'); }
+			@Override public void flush() { }
+			@Override public void close() { }
+		};
 	}
 }

@@ -7,6 +7,16 @@ open; an inventory or passing narrow test does not close an entire milestone.
 
 ## Implemented changes
 
+- Standalone scope excludes connected Microsoft server/cloud services. MPO is
+  the native/main save format; MPP remains a separate external exchange gate.
+- Resource Sort Order and header sorting share the existing single-field,
+  view-only projection sorter. Selection identity and model resource order are
+  preserved; Workspace fields and POD wire contracts are unchanged. English
+  and Japanese labels are provided. Multi-key/outline/renumber parity remains open.
+- Shared button diagnostics recognize completed modal cancellation and fresh
+  matching command outcomes. Stale no-change results cannot conceal a silent
+  command failure; actual failed/rejected outcomes remain visible. Robot
+  coverage includes repeated cancellation, injected route failure and recovery.
 - Update Project validates every target before mutation and restores task and
   project state after a pre-commit failure. Linked tasks are restored as a
   batch; Undo/Redo uses the same restoration path. Snapshot schedules are cloned
@@ -36,10 +46,10 @@ open; an inventory or passing narrow test does not close an entire milestone.
 | Gate | Current boundary and next required work |
 |---|---|
 | M0 / #792 | Source/test/format/integration inventories are reconciled. A complete versioned command/field manifest, independent format manifests and exact current Microsoft reference evidence remain incomplete. |
-| M1 / #793 | Current Swing ribbon is retained. GUI implementation is blocked by the missing `microproject-gui-implementation` skill required by AGENTS.md. This container also lacks a Robot desktop. Latest Office appearance and the complete locale/DPI matrix are not verified. |
+| M1 / #793 | Current Swing ribbon is retained and GUI work follows the repo-contained gates in `docs/gui-quality-gate.md` and `docs/gui-recovery-sequence.md`; no separate skill package is required. This container has no physical Robot desktop, so the latest Office appearance and full locale/DPI matrix remain unverified pending the Windows GUI workflow. Continue ordered implementation work while keeping that evidence gate open. |
 | M2 / #794 | One production Update Project transaction is repaired. Other mutation families, revision journal/atomic observer publication, immutable projections and missing commands remain open. Do not mark #408–#411 complete from this slice. |
-| M3 / #796 | Baseline/calendar/native-status preservation is improved. MPP writing is absent: the pinned MPXJ library has no MPP writer. A genuine writer and independent semantic coverage are still required. XML elapsed baseline units, assignment baselines/contours and broad external format semantics remain incomplete. |
-| M4 / #797 | Microsoft automation and service surfaces were inventoried. VBA/COM/Office add-ins/Project Server/Microsoft Planner are not implemented. GNOME Planner file exchange and local Team Planner are distinct features. |
+| M3 / #796 | MPO (`.mpo`) is the authoritative native and default save format; backward-read work remains a gate. MPP (`.mpp`) is a separate external interoperability format: reading exists, writing is absent because pinned MPXJ has no MPP writer. A genuine writer and independent semantic coverage are still required. XML elapsed baseline units, assignment baselines/contours and broad external format semantics remain incomplete. POD is frozen legacy import-only coverage. |
+| M4 / #797 | Local automation and extension surfaces were inventoried. VBA/macros, COM automation/add-ins, VSTO and local Office add-ins remain unsupported or unverified. Project Server/PWA/Project Online/Microsoft Planner cloud services are outside the standalone product goal and are not blockers. GNOME Planner file exchange, local Team Planner, linked/master projects and offline collaboration remain separate in-scope desktop/file behaviors. |
 | M5 / #795 | Local domain/exchange/report/script checks and fresh install validation must be paired with CI and GUI evidence. No complete-compatibility release is justified. |
 
 ## Dependency migration boundary
@@ -54,8 +64,8 @@ broke runtime behavior. Issues #242, #752 and #753 remain open.
 ## Verification results
 
 Local JDK 25 runs cover all eight module test tasks: core 905, exchange 223,
-UI 1,049, reports 12, application 35, bootstrap 14, contrib 2 and ribbon 5
-(2,245 tests total, zero failures/errors, one documented core skip).
+UI 1,053, reports 12, application 35, bootstrap 14, contrib 2 and ribbon 5
+(2,249 tests total, zero failures/errors, one documented core skip).
 The maintenance-script suite passes 10 tests. The calendar XML fixture also
 passes in separate startup-timezone JVMs for UTC, Tokyo and Mexico City.
 Two UI test fixtures originally formatted UTC model dates in the host timezone;

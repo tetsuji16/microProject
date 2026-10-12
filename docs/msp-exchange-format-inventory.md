@@ -1,6 +1,6 @@
 # Exchange format inventory
 
-**Reviewed:** 2026-10-12 at `3ad24f52`. This records implemented code paths and
+**Reviewed:** 2026-10-12 against the current shared working tree. This records implemented code paths and
 their current verification scope; it is not a claim of full Microsoft Project
 interoperability.
 
@@ -11,16 +11,17 @@ interoperability.
 | MPP | MPXJ `MPPReader` via `MspImporter` | None registered or called in the exchange module | Import is supported by the code path. Export is explicitly unsupported; `ProjectWriterFactory` rejects `.mpp`. Do not relabel MSPDI XML as MPP. `New Product.mpp` and sample MPPs are present, but there is no checked-in semantic manifest or MPP export round trip yet. |
 | MPX | MPXJ `MPXReader` via `MspImporter` | MPXJ `MPXWriter` via `ProjectWriterFactory` | Reader and writer exist. Import/export semantic coverage is partial and must be reported by field; no declaration of reverse-round-trip equivalence. |
 | Microsoft Project XML / MSPDI | MPXJ `MSPDIReader` through `MspImporter`; `.xml` also has the established `.pod` fallback path | `MSPDISerializer` → MPXJ `MSPDIWriter` | Primary external exchange path. Task baseline dates and duration (slots 0–10) now transfer in both directions. Assignment baseline/timephased data and work contours remain unsupported/lossy. Existing tests exercise selected task identity, links, scheduling and tracking cases. |
-| POD | `LocalFileImporter`: frozen Java object stream first, then legacy embedded/plain XML recovery | `LocalFileImporter`: frozen POD object serialization and XML recovery payload | POD serialization layout is immutable. `PodRoundTripTest` and fixed `.pod` samples protect legacy reads. This is a distinct format contract from ordinary MSPDI XML despite the fallback reader. |
-| MPO | `MpoFileImporter` archive validation/extraction, with project content decoded through `MicrosoftImporter` | `MpoFileImporter` archive/container writer | Native archive has its own versioned container, merge, checksum, recovery and transaction tests. Do not substitute an XML-only export for MPO. |
+| POD (legacy) | `LocalFileImporter`: frozen Java object stream first, then legacy embedded/plain XML recovery | Existing `LocalFileImporter` implementation can still write frozen POD payloads | Target contract is import-only: preserve wire layout and fixed `.pod` import fixtures, add no new write behavior. Current chooser and writer still expose POD save; this is a source/target-policy discrepancy for follow-up, not a reason to expand POD scope. This remains distinct from ordinary MSPDI XML despite the fallback reader. |
+| MPO (`.mpo`) | `MpoFileImporter` archive validation/extraction, with project content decoded through `MicrosoftImporter` | `MpoFileImporter` archive/container writer | Authoritative native format and default save target (`FileHelper.DEFAULT_FILE_EXTENSION`); backward-read files from earlier supported MPO versions. Its versioned container, merge, checksum, recovery and transaction behavior have dedicated tests. Do not substitute an XML-only export for MPO. |
 | XLSX | `ProjectLibreXlsxReader`; native payload first, MSPDI sheet fallback through MPXJ | `ProjectLibreXlsxWriter`; native project payload plus MSPDI worksheet | ProjectLibre XLSX has a lossless native payload for its own round trip and MSPDI fallback for external workbook interpretation. `XlsxSupportTest` covers malformed/oversized inputs and representative round trips. |
 | GNOME Planner (`.planner`) | MPXJ `PlannerReader` via `MspImporter` | MPXJ `PlannerWriter` via factory | This is GNOME Planner file exchange, not Microsoft Planner. Reader/writer classes are wired. Semantic round-trip manifest not yet established. |
 | PMXML | No reader path found in `MspImporter` | MPXJ `PrimaveraPMFileWriter` via factory | Export-only writer registration; import is not supported by the current importer. |
 | JSON | No reader path found in `MspImporter` | MPXJ `JsonWriter` via factory | Export-only writer registration; this is not the MPO container JSON. |
 | SDEF | No reader path found in `MspImporter` | MPXJ `SDEFWriter` via factory | Export-only writer registration; import is not supported by the current importer. |
 
-The desktop Open chooser advertises native MPO/POD plus MPP, MPX, XML, XLSX and
-GNOME Planner. The Save chooser advertises native MPO/POD plus XML and XLSX. Lower
+The desktop Open chooser advertises native MPO plus legacy POD and external MPP,
+MPX, XML, XLSX and GNOME Planner. The Save chooser currently advertises MPO and
+POD plus XML and XLSX; MPO is selected as the default native save format. Lower
 level writer factory registrations for MPX, PMXML, Planner, JSON and SDEF are
 separate from the desktop Save UI and do not imply that the UI advertises them.
 
@@ -63,6 +64,9 @@ cannot silently select another writer.
   worksheet fallback follows XML/MSPDI limitations.
 - GNOME Planner, PMXML, JSON and SDEF: writer presence is not evidence of semantic
   completeness; reader support is absent for PMXML, JSON and SDEF.
-- MPO and POD: retain their established native archive and frozen serialization
-  contracts, respectively. External-format tests must not replace their fixed
-  compatibility fixtures.
+- MPO: the established native archive/default save format; retain backward-read
+  coverage and its fixed compatibility fixtures.
+- POD: legacy import-only target with frozen serialization; preserve fixed import
+  fixtures. The current POD save chooser/writer is a discrepancy to resolve
+  separately; do not use it to broaden the target contract. External-format tests
+  must not replace native MPO or legacy POD fixtures.

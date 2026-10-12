@@ -38,8 +38,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 
 import javax.imageio.ImageIO;
 import javax.swing.AbstractButton;
@@ -141,6 +146,11 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	private JobQueue previousJobQueue;
 	private Locale previousFormatLocale;
 	private RibbonDisplayMode previousShellDisplayMode;
+	private Logger diagnosticsLogger;
+	private Handler diagnosticsHandler;
+	private Level previousDiagnosticsLevel;
+	private final ConcurrentLinkedQueue<String> diagnosticMessages = new ConcurrentLinkedQueue<>();
+	private volatile boolean failUpdateTasksRoute;
 
 	@BeforeEach
 	void captureClientSide() {
@@ -167,6 +177,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		});
 		if (previousShellDisplayMode != null)
 			RibbonDisplayPreferences.save(previousShellDisplayMode);
+		if (diagnosticsLogger != null && diagnosticsHandler != null)
+			diagnosticsLogger.removeHandler(diagnosticsHandler);
+		if (diagnosticsLogger != null)
+			diagnosticsLogger.setLevel(previousDiagnosticsLevel);
 		Environment.setRibbonUI(previousRibbonUi);
 		Environment.setNewLook(previousNewLook);
 		Environment.setClientSide(previousClientSide);
@@ -290,6 +304,15 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		previousNewLook = Environment.isNewLook();
 		previousUiDebug = System.getProperty("microproject.ui.debug");
 		System.setProperty("microproject.ui.debug", "true");
+		diagnosticsLogger = Logger.getLogger("com.microproject.ui.diagnostics.UiButtonDiagnostics");
+		previousDiagnosticsLevel = diagnosticsLogger.getLevel();
+		diagnosticsLogger.setLevel(Level.FINE);
+		diagnosticsHandler = new Handler() {
+			@Override public void publish(LogRecord record) { diagnosticMessages.add(record.getMessage()); }
+			@Override public void flush() { }
+			@Override public void close() { }
+		};
+		diagnosticsLogger.addHandler(diagnosticsHandler);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
 
@@ -315,6 +338,13 @@ class TaskInformationRibbonGuiAcceptanceTest {
 
 		GuiAcceptanceSupport.await(() -> findUpdateTaskDialog() != null,
 			"Task > Update did not open the Update Tasks dialog after a Robot click");
+		long taskStartBeforeCancel = task.getStart();
+		long taskEndBeforeCancel = task.getEnd();
+		long taskDurationBeforeCancel = task.getDuration();
+		double taskProgressBeforeCancel = task.getPercentComplete();
+		boolean taskDirtyBeforeCancel = task.isDirty();
+		boolean projectDirtyBeforeCancel = task.getOwningProject().needsSaving();
+		boolean canUndoBeforeCancel = task.getOwningProject().getUndoController().canUndo();
 		UpdateTaskDialog dialog = findUpdateTaskDialog();
 		capture(robot, dialog, "issue-590-update-tasks.png");
 		assertUpdateDialogComponentsFit(dialog);
@@ -322,6 +352,50 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		press(robot, KeyEvent.VK_ESCAPE);
 		GuiAcceptanceSupport.await(() -> findUpdateTaskDialog() == null,
 			"Escape did not close Update Tasks after visual assertions");
+		GuiAcceptanceSupport.await(() -> diagnosticContains("UI_COMMAND_RESULT id=RibbonUpdateTasks reason=dialog-cancelled"),
+			"closing the Update Tasks dialog with Escape must be recorded as an intentional cancel outcome");
+		assertFalse(diagnosticContains("UI_COMMAND_FAILURE id=RibbonUpdateTasks reason=no-observable-state-change"),
+			"an observed modal cancel with unchanged project state is not a silent command failure");
+		click(robot, update);
+		GuiAcceptanceSupport.await(() -> findUpdateTaskDialog() != null,
+			"Update Tasks could not be reopened after Cancel");
+		press(robot, KeyEvent.VK_ESCAPE);
+		GuiAcceptanceSupport.await(() -> findUpdateTaskDialog() == null,
+			"the reopened Update Tasks dialog did not close through Cancel");
+		GuiAcceptanceSupport.await(() -> diagnosticCount("UI_COMMAND_RESULT id=RibbonUpdateTasks reason=dialog-cancelled") >= 2,
+			"each completed modal Cancel must be observed, including a reopened dialog");
+		assertEquals(taskStartBeforeCancel, task.getStart());
+		assertEquals(taskEndBeforeCancel, task.getEnd());
+		assertEquals(taskDurationBeforeCancel, task.getDuration());
+		assertEquals(taskProgressBeforeCancel, task.getPercentComplete(), 0.00001D);
+		assertEquals(taskDirtyBeforeCancel, task.isDirty());
+		assertEquals(projectDirtyBeforeCancel, task.getOwningProject().needsSaving());
+		assertEquals(canUndoBeforeCancel, task.getOwningProject().getUndoController().canUndo(),
+			"cancelling both dialog instances must not add Undo work");
+
+		failUpdateTasksRoute = true;
+		click(robot, update);
+		GuiAcceptanceSupport.await(() -> manager.getLastRibbonCommandResult() != null
+				&& manager.getLastRibbonCommandResult().status() == RibbonCommandResult.Status.FAILED
+				&& diagnosticContains("UI_COMMAND_FAILURE id=RibbonUpdateTasks reason=command-failed"),
+			"a real exception from the routed command must remain visible in the semantic result and diagnostics");
+		assertTrue(diagnosticContains("commandReason=IllegalStateException"),
+			"the true command failure cause must remain in the diagnostic outcome");
+		assertEquals(taskStartBeforeCancel, task.getStart());
+		assertEquals(taskEndBeforeCancel, task.getEnd());
+		assertEquals(taskDurationBeforeCancel, task.getDuration());
+		assertEquals(taskProgressBeforeCancel, task.getPercentComplete(), 0.00001D);
+		assertEquals(taskDirtyBeforeCancel, task.isDirty());
+		assertEquals(projectDirtyBeforeCancel, task.getOwningProject().needsSaving());
+		assertEquals(canUndoBeforeCancel, task.getOwningProject().getUndoController().canUndo(),
+			"a rejected route failure must preserve model state and Undo history");
+		click(robot, update);
+		GuiAcceptanceSupport.await(() -> findUpdateTaskDialog() != null,
+			"Update Tasks did not recover after the injected command failure");
+		press(robot, KeyEvent.VK_ESCAPE);
+		GuiAcceptanceSupport.await(() -> findUpdateTaskDialog() == null,
+			"recovered Update Tasks did not close through Cancel");
+
 		AbstractButton recurring = findShowingButtonByCommand("RibbonInsertRecurring");
 		click(robot, recurring);
 		GuiAcceptanceSupport.await(() -> findRecurringTaskDialog() != null,
@@ -329,6 +403,14 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Dialog recurringDialog = findRecurringTaskDialog();
 		capture(robot, recurringDialog, "issue-590-recurring-task.png");
 		assertRecurringDialogComponentsFit(recurringDialog);
+	}
+
+	private boolean diagnosticContains(String fragment) {
+		return diagnosticMessages.stream().anyMatch(message -> message.contains(fragment));
+	}
+
+	private long diagnosticCount(String fragment) {
+		return diagnosticMessages.stream().filter(message -> message.contains(fragment)).count();
 	}
 
 	private static void assertUpdateDialogComponentsFit(UpdateTaskDialog dialog) throws Exception {
@@ -3101,7 +3183,15 @@ class TaskInformationRibbonGuiAcceptanceTest {
 					candidate.dispose();
 			}
 			window = new MainRibbonFrame("microProject — Task Information ribbon acceptance", null);
-			manager = new GraphicManager(window);
+			manager = new GraphicManager(window) {
+				@Override protected boolean beforeUpdateTasksRoute(DocumentFrame frame) {
+					if (failUpdateTasksRoute) {
+						failUpdateTasksRoute = false;
+						throw new IllegalStateException("injected Update Tasks route failure");
+					}
+					return super.beforeUpdateTasksRoute(frame);
+				}
+			};
 			window.setGraphicManager(manager);
 			manager.initView();
 			manager.addProjectFrame(project);
