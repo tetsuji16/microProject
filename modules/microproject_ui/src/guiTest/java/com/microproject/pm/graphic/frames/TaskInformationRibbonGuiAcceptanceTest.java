@@ -1943,10 +1943,14 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
 		Gantt gantt = manager.getCurrentFrame().getGanttView().getGantt();
 		undo.clear();
+		assertTrue(isTaskVisible(sheet, child), "fixture must start with the child visible in the task table");
 		assertTrue(isTaskVisibleInGantt(gantt, parent), "Gantt must show the selected summary before collapse");
 		assertTrue(isTaskVisibleInGantt(gantt, child), "Gantt must show the child before collapse");
 		assertFalse(undo.canUndo(), "view-state fixture must start with an empty project undo history");
-		click(robot, cellOnScreen(sheet, rowForTask(sheet, parent), nameColumn(sheet)));
+		JTable rowHeader = sheet.getRowHeader();
+		RowHeaderTarget parentRowTarget = rowHeaderTargetOnScreen(rowHeader, rowForTask(sheet, parent), false);
+		click(robot, new Rectangle(parentRowTarget.screenPoint().x, parentRowTarget.screenPoint().y, 1, 1));
+		assertTrue(isTaskVisible(sheet, child), "selecting the summary row must not collapse its children");
 		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("TaskRibbonTask.title"));
 		clickAndAwaitSelected(robot, taskTab, "Robot click did not select the Task ribbon tab");
@@ -3375,11 +3379,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			RibbonCommandResult.Status expectedStatus, List<Long> expectedSelectedTaskIds,
 			List<Long> expectedAffectedTaskIds) throws Exception {
 		GuiAcceptanceSupport.await(() -> manager.getLastRibbonCommandResult() != null
-				&& manager.getLastRibbonCommandResult() != previousOutcome
-				&& manager.getLastRibbonCommandResult().status() == expectedStatus,
-			"GraphicManager did not record " + expectedStatus + " command outcome");
+				&& manager.getLastRibbonCommandResult() != previousOutcome,
+			"GraphicManager did not record a new command outcome");
 		RibbonCommandResult result = manager.getLastRibbonCommandResult();
-		assertEquals(expectedStatus, result.status(), "ribbon command status");
+		assertEquals(expectedStatus, result.status(), "ribbon command status: " + result);
 		assertEquals(expectedSelectedTaskIds, result.selectedTaskIds(), "ribbon command selected task IDs");
 		assertEquals(expectedAffectedTaskIds, result.affectedTaskIds(), "ribbon command affected task IDs");
 		assertEquals(manager.getCurrentFrame().getTopViewId(), result.activeViewId(),
