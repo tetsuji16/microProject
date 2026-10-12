@@ -28,6 +28,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Iterator;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -49,6 +50,7 @@ import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.scheduling.ConstraintType;
+import com.microproject.pm.scheduling.ScheduleService;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectFactory;
@@ -628,6 +630,480 @@ class MpxExportTrackingTest {
 			assertEquals(assignment.getEnd(), reopenedAssignment.getEnd(),
 				"MPO finish at " + percentWorkComplete + "% work complete");
 		}
+	}
+
+	@Test
+	void customMspdiContourRoundTripsDailyWorkTotalsThroughMpo() throws Exception {
+		String xml = twoDayCustomContourXml("",
+			"<TimephasedData><Type>1</Type><UID>1</UID><Start>2026-10-12T08:00:00</Start><Finish>2026-10-12T17:00:00</Finish><Unit>2</Unit><Value>PT2H0M0S</Value></TimephasedData>"
+				+ "<TimephasedData><Type>1</Type><UID>2</UID><Start>2026-10-13T08:00:00</Start><Finish>2026-10-13T17:00:00</Finish><Unit>2</Unit><Value>PT6H0M0S</Value></TimephasedData>");
+		net.sf.mpxj.ProjectFile parsed = new net.sf.mpxj.mspdi.MSPDIReader()
+			.read(new ByteArrayInputStream(xml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+		ResourceAssignment assignment = parsed.getResourceAssignments().get(0);
+		assertEquals(8.0d, assignment.getWork().convertUnits(net.sf.mpxj.TimeUnit.HOURS,
+			parsed.getProjectProperties()).getDuration(), 0.00001d);
+		var timephasedWork = assignment.getTimephasedWork();
+		assertEquals(2, timephasedWork.size(), timephasedWork.toString());
+		double[] expectedHours = { 2.0d, 6.0d };
+		String[] expectedDays = { "2026-10-12", "2026-10-13" };
+		for (int index = 0; index < expectedHours.length; index++) {
+			var item = timephasedWork.get(index);
+			assertEquals(expectedHours[index], item.getTotalAmount().getDuration(), 0.00001d, timephasedWork.toString());
+			assertEquals(expectedHours[index], item.getAmountPerDay().getDuration(), 0.00001d, timephasedWork.toString());
+			assertEquals(modelWallTime(expectedDays[index] + "T08:00:00"), DateUTCConverter.toModelTime(item.getStart()));
+			assertEquals(modelWallTime(expectedDays[index] + "T17:00:00"), DateUTCConverter.toModelTime(item.getFinish()));
+		}
+		Project imported = importMspdi(xml);
+		Assignment modelAssignment = (Assignment) taskNamed(imported, "Assignment baseline task").getAssignments().iterator().next();
+		assertEquals(8L * 60L * 60L * 1000L, modelAssignment.getWork(null));
+		assertEquals(com.microproject.pm.assignment.contour.ContourTypes.Kind.CONTOURED.code(),
+			modelAssignment.getWorkContourType());
+		var buckets = modelAssignment.getWorkContour().getContourBuckets();
+		assertEquals(2, buckets.length);
+		assertEquals(8L * 60L * 60L * 1000L, buckets[0].getBucketDuration(modelAssignment.getDuration()));
+		assertEquals(0.25d, buckets[0].getUnits(), 0.00001d);
+		assertEquals(8L * 60L * 60L * 1000L, buckets[1].getBucketDuration(modelAssignment.getDuration()));
+		assertEquals(0.75d, buckets[1].getUnits(), 0.00001d);
+
+		ByteArrayOutputStream mpo = new ByteArrayOutputStream();
+		assertTrue(new com.microproject.exchange.MpoFileImporter().saveProject(imported, mpo));
+		byte[] contentXml = nativeProjectXml(mpo.toByteArray());
+		String savedXml = new String(contentXml, java.nio.charset.StandardCharsets.UTF_8);
+		assertEquals(2, savedXml.split("<TimephasedData>", -1).length - 1, savedXml);
+		assertEquals(2, savedXml.split("<Unit>2</Unit>", -1).length - 1, savedXml);
+		ProjectFile serialized = new net.sf.mpxj.mspdi.MSPDIReader().read(new ByteArrayInputStream(contentXml));
+		var serializedWork = serialized.getResourceAssignments().get(0).getTimephasedWork();
+		assertEquals(2, serializedWork.size(), serializedWork.toString());
+		for (int index = 0; index < expectedHours.length; index++) {
+			assertEquals(expectedHours[index], serializedWork.get(index).getTotalAmount().convertUnits(
+				net.sf.mpxj.TimeUnit.HOURS, serialized.getProjectProperties()).getDuration(), 0.00001d);
+			assertEquals(modelWallTime(expectedDays[index] + "T08:00:00"),
+				DateUTCConverter.toModelTime(serializedWork.get(index).getStart()));
+			assertEquals(modelWallTime(expectedDays[index] + "T17:00:00"),
+				DateUTCConverter.toModelTime(serializedWork.get(index).getFinish()));
+		}
+		Project reopened = new com.microproject.exchange.MpoFileImporter()
+			.loadProject(new ByteArrayInputStream(mpo.toByteArray()));
+		Assignment reopenedAssignment = (Assignment) taskNamed(reopened, "Assignment baseline task").getAssignments().iterator().next();
+		assertEquals(8L * 60L * 60L * 1000L, reopenedAssignment.getWork(null));
+		assertEquals(8L * 60L * 60L * 1000L, reopenedAssignment.getWorkContour().calcTotalWork(reopenedAssignment.getDuration()));
+		assertEquals(0.25d, reopenedAssignment.getWorkContour().getContourBuckets()[0].getUnits(), 0.00001d);
+		assertEquals(0.75d, reopenedAssignment.getWorkContour().getContourBuckets()[1].getUnits(), 0.00001d);
+	}
+
+	@Test
+	void importedMppWithCustomContoursCanBeSavedAndReloadedAsMpo() throws Exception {
+		Path sample = Path.of("modules", "microproject_exchange", "testdata", "New Product.mpp");
+		if (!Files.exists(sample))
+			sample = Path.of("testdata", "New Product.mpp");
+		assertTrue(Files.exists(sample), sample.toString());
+		com.microproject.core.pm.exchange.MspImporter importer = new com.microproject.core.pm.exchange.MspImporter();
+		Project imported = importer.importProject(sample.toAbsolutePath().toString(),
+			new com.microproject.core.pm.exchange.MspImporter.ProgressClosure() {
+				@Override public void updateProgress(float progress, String label) { }
+			});
+		java.util.Iterator<Task> taskIterator = imported.getTaskOutlineIterator();
+		assertTrue(taskIterator.hasNext(), "sample MPP must contain an editable task");
+		Task editedTask = taskIterator.next();
+		editedTask.setName("Edited first imported task");
+		editedTask.setNotes("Saved through the native MPO workflow");
+		List<String> expected = customAssignmentScheduleSemantics(imported);
+		assertFalse(expected.isEmpty(), "sample MPP must exercise custom assignment contours");
+		ByteArrayOutputStream mpo = new ByteArrayOutputStream();
+		assertTrue(new com.microproject.exchange.MpoFileImporter().saveProject(imported, mpo));
+		Project reopened = new com.microproject.exchange.MpoFileImporter()
+			.loadProject(new ByteArrayInputStream(mpo.toByteArray()));
+		assertEquals(expected, customAssignmentScheduleSemantics(reopened),
+			"MPP custom assignment work, bounds, and progress must survive MPO persistence");
+	}
+
+	@Test
+	void switchingImportedMppTaskToManualKeepsItsCurrentScheduleAndAssignments() throws Exception {
+		Path sample = Path.of("modules", "microproject_exchange", "testdata", "New Product.mpp");
+		if (!Files.exists(sample))
+			sample = Path.of("testdata", "New Product.mpp");
+		Project project = new com.microproject.core.pm.exchange.MspImporter().importProject(
+			sample.toAbsolutePath().toString(), new com.microproject.core.pm.exchange.MspImporter.ProgressClosure() {
+				@Override public void updateProgress(float progress, String label) { }
+			});
+		java.util.Iterator<Task> taskIterator = project.getTaskOutlineIterator();
+		assertTrue(taskIterator.hasNext(), "sample MPP must contain a task to change to manual scheduling");
+		Task task = taskIterator.next();
+		assertFalse(task.isManuallyScheduled(), "fixture task must begin in automatic scheduling mode");
+		long start = task.getStart();
+		long finish = task.getEnd();
+		List<String> assignments = customAssignmentScheduleSemantics(project);
+		task.setManuallyScheduled(true);
+		assertEquals(start, task.getManualStart(), "manual scheduling must capture the current start");
+		assertEquals(finish, task.getManualFinish(), "manual scheduling must capture the current finish");
+		assertEquals(start, task.getStart(), "manual scheduling must retain the current start");
+		assertEquals(finish, task.getEnd(), "manual scheduling must retain the current finish");
+		assertEquals(assignments, customAssignmentScheduleSemantics(project),
+			"manual scheduling must preserve imported assignment bounds and work");
+	}
+
+	@Test
+	void manuallyScheduledImportedMppTaskKeepsAssignmentsAfterMpoReload() throws Exception {
+		Path sample = Path.of("modules", "microproject_exchange", "testdata", "New Product.mpp");
+		if (!Files.exists(sample))
+			sample = Path.of("testdata", "New Product.mpp");
+		Project project = new com.microproject.core.pm.exchange.MspImporter().importProject(
+			sample.toAbsolutePath().toString(), new com.microproject.core.pm.exchange.MspImporter.ProgressClosure() {
+				@Override public void updateProgress(float progress, String label) { }
+			});
+		java.util.Iterator<Task> taskIterator = project.getTaskOutlineIterator();
+		assertTrue(taskIterator.hasNext(), "sample MPP must contain a task to change to manual scheduling");
+		Task task = taskIterator.next();
+		assertFalse(task.isManuallyScheduled(), "fixture task must begin in automatic scheduling mode");
+		task.setManuallyScheduled(true);
+		List<String> expected = customAssignmentScheduleSemantics(project);
+		assertFalse(expected.isEmpty(), "manual task must retain its custom assignment work");
+		ByteArrayOutputStream mpo = new ByteArrayOutputStream();
+		assertTrue(new com.microproject.exchange.MpoFileImporter().saveProject(project, mpo));
+		Project reopened = new com.microproject.exchange.MpoFileImporter()
+			.loadProject(new ByteArrayInputStream(mpo.toByteArray()));
+		assertEquals(expected, customAssignmentScheduleSemantics(reopened),
+			"manual scheduling must preserve imported assignment work through MPO reload");
+	}
+
+	@Test
+	void ganttProgressAndTaskSplitPreserveCompletedThroughAcrossMpo() throws Exception {
+		Project project = createProject();
+		NormalTask task = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		task.setName("Gantt progress persistence");
+		task.getCurrentSchedule().setStart(com.microproject.util.DateTime
+			.calendarInstance(2026, java.util.Calendar.JUNE, 8).getTimeInMillis());
+		task.setDuration(3L * com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
+		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		successor.setName("Gantt progress successor");
+		successor.getCurrentSchedule().setStart(project.getStart());
+		successor.setDuration(com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task,
+			project.getResourcePool().newResourceInstance(), 1.0d, 0L, this);
+		project.recalculate();
+		long originalStart = task.getStart();
+		long originalFinish = task.getEnd();
+		var calendar = task.getEffectiveWorkCalendar();
+		long earlierStart = calendar.adjustInsideCalendar(originalStart
+			- 3L * com.microproject.options.CalendarOption.getInstance().getMillisPerDay(), false);
+		ScheduleService.getInstance().setInterval(this, task, earlierStart, originalFinish,
+			new com.microproject.pm.scheduling.ScheduleInterval(originalStart, originalFinish), null);
+		task.setScheduleConstraint(ConstraintType.Kind.SNET, task.getStart());
+		long resizedStart = task.getStart();
+		long laterFinish = originalFinish + com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		ScheduleService.getInstance().setInterval(this, task, resizedStart, laterFinish,
+			new com.microproject.pm.scheduling.ScheduleInterval(resizedStart, originalFinish), null);
+		project.recalculate();
+		task.setPercentComplete(0.4d);
+		project.recalculate();
+		long initialProgress = task.getCompletedThrough();
+		long requested = initialProgress + (task.getEnd() - initialProgress) / 6L;
+		assertTrue(ScheduleService.getInstance().setCompleted(this, task, requested, null));
+		long progressBeforeSplit = task.getCompletedThrough();
+		List<com.microproject.pm.scheduling.ScheduleInterval> taskIntervals = new java.util.ArrayList<>();
+		task.consumeIntervals(taskIntervals::add);
+		long remainingWorkStart = Math.max(progressBeforeSplit, task.getResume());
+		long splitAt = taskIntervals.stream().mapToLong(interval -> {
+			long start = Math.max(interval.getStart(), remainingWorkStart);
+			long end = interval.getEnd();
+			return end - start > 1L ? start + (end - start) / 3L : Long.MIN_VALUE;
+		}).filter(candidate -> candidate != Long.MIN_VALUE).findFirst().orElseThrow();
+		assertTrue(ScheduleService.getInstance().split(this, task, splitAt, splitAt, null));
+		long progressAfterSplit = task.getCompletedThrough();
+
+		ByteArrayOutputStream mpo = new ByteArrayOutputStream();
+		assertTrue(new com.microproject.exchange.MpoFileImporter().saveProject(project, mpo));
+		byte[] contentXml = nativeProjectXml(mpo.toByteArray());
+		net.sf.mpxj.ProjectFile snapshot = new net.sf.mpxj.mspdi.MSPDIReader()
+			.read(new ByteArrayInputStream(contentXml));
+		net.sf.mpxj.Task savedTask = snapshot.getTasks().stream()
+			.filter(candidate -> "Gantt progress persistence".equals(candidate.getName())).findFirst().orElseThrow();
+		Project reopened = new com.microproject.exchange.MpoFileImporter()
+			.loadProject(new ByteArrayInputStream(mpo.toByteArray()));
+		NormalTask reopenedTask = taskNamed(reopened, "Gantt progress persistence");
+		assertEquals(progressBeforeSplit, progressAfterSplit, "inserting a remaining-work split must not move completed-through");
+		assertEquals(task.getPercentComplete(), savedTask.getPercentageComplete().doubleValue() / 100.0d, 0.00001d,
+			"MSPDI must persist the task's elapsed-duration percentage");
+		assertEquals(task.getPercentComplete(), reopenedTask.getPercentComplete(), 0.00001d,
+			"MPO reload must preserve the task's elapsed-duration percentage");
+		assertEquals(progressBeforeSplit, reopenedTask.getCompletedThrough(),
+			"MPO reload must preserve the Gantt completion boundary: saved=" + progressBeforeSplit
+				+ " restored=" + reopenedTask.getCompletedThrough() + " percent=" + savedTask.getPercentageComplete()
+				+ " sourcePercent=" + task.getPercentComplete() + " reopenedPercent=" + reopenedTask.getPercentComplete()
+				+ " actualDuration=" + savedTask.getActualDuration() + " stop=" + savedTask.getStop()
+				+ " start=" + savedTask.getStart() + " finish=" + savedTask.getFinish() + " assignment="
+				+ assignment.getStart() + ".." + assignment.getEnd() + " work=" + assignment.getWork(null)
+				+ "/" + assignment.getActualWork(null) + "/" + assignment.getRemainingWork());
+	}
+
+	private List<String> customAssignmentScheduleSemantics(Project project) {
+		List<String> result = new java.util.ArrayList<>();
+		for (Task task : project.getTaskList()) {
+			if (!(task instanceof NormalTask normalTask))
+				continue;
+			for (Object value : normalTask.getAssignments()) {
+				Assignment assignment = (Assignment) value;
+				if (assignment.getWorkContourType() != 8 || assignment.getWork(null) == 0L)
+					continue;
+				result.add(task.getName() + "|" + assignment.getResource().getName() + "|"
+					+ assignment.getStart() + "|" + assignment.getEnd() + "|"
+					+ assignment.getWork(null) + "|" + assignment.getActualWork(null) + "|"
+					+ assignment.getRemainingWork() + "|" + assignment.getUnits());
+			}
+		}
+		result.sort(String::compareTo);
+		return result;
+	}
+
+	@Test
+	void exportsMultiDayCustomContourAsDailyWorkAmounts() throws Exception {
+		String xml = twoDayCustomContourXml("",
+			"<TimephasedData><Type>1</Type><UID>1</UID><Start>2026-10-12T08:00:00</Start><Finish>2026-10-12T17:00:00</Finish><Unit>2</Unit><Value>PT4H0M0S</Value></TimephasedData>"
+				+ "<TimephasedData><Type>1</Type><UID>2</UID><Start>2026-10-13T08:00:00</Start><Finish>2026-10-13T17:00:00</Finish><Unit>2</Unit><Value>PT4H0M0S</Value></TimephasedData>");
+		Project imported = importMspdi(xml);
+		ByteArrayOutputStream mpo = new ByteArrayOutputStream();
+		assertTrue(new com.microproject.exchange.MpoFileImporter().saveProject(imported, mpo));
+		byte[] contentXml = nativeProjectXml(mpo.toByteArray());
+		String savedXml = new String(contentXml, java.nio.charset.StandardCharsets.UTF_8);
+		assertEquals(2, savedXml.split("<TimephasedData>", -1).length - 1, savedXml);
+		assertEquals(2, savedXml.split("<Unit>2</Unit>", -1).length - 1, savedXml);
+		assertEquals(2, savedXml.split("<Value>PT4H0M0S</Value>", -1).length - 1, savedXml);
+		ProjectFile serialized = new net.sf.mpxj.mspdi.MSPDIReader().read(new ByteArrayInputStream(contentXml));
+		var work = serialized.getResourceAssignments().get(0).getTimephasedWork();
+		assertEquals(1, work.size(), work.toString()); // MPXJ merges adjacent daily entries with equal rates.
+		assertEquals(8.0d, work.get(0).getTotalAmount().convertUnits(net.sf.mpxj.TimeUnit.HOURS,
+			serialized.getProjectProperties()).getDuration(), 0.00001d, work.toString());
+		assertEquals(4.0d, work.get(0).getAmountPerDay().convertUnits(net.sf.mpxj.TimeUnit.HOURS,
+			serialized.getProjectProperties()).getDuration(), 0.00001d, work.toString());
+		assertEquals(modelWallTime("2026-10-12T08:00:00"), DateUTCConverter.toModelTime(work.get(0).getStart()));
+		assertEquals(modelWallTime("2026-10-13T17:00:00"), DateUTCConverter.toModelTime(work.get(0).getFinish()));
+	}
+
+	@Test
+	void exportsFractionalMultiDayWorkWithoutLosingTheIntegerTotal() throws Exception {
+		Project project = createProject();
+		long start = modelWallTime("2026-10-12T08:00:00");
+		long end = modelWallTime("2026-10-13T17:00:00");
+		NormalTask task = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		task.setName("Fractional multi-day contour");
+		task.getCurrentSchedule().setStart(start);
+		task.setDuration(16L * 60L * 60L * 1000L);
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task,
+			project.getResourcePool().newResourceInstance(), 1.0d, 0L, this);
+		long requestedWork = 8L * 60L * 60L * 1000L + 1L;
+		assignment.setInterval(Assignment.WORK, start, end, requestedWork);
+		project.recalculate();
+		long scheduledWork = assignment.getWork(null);
+		assertEquals(requestedWork, scheduledWork);
+
+		ByteArrayOutputStream xml = new ByteArrayOutputStream();
+		MicrosoftImporter exporter = new MicrosoftImporter();
+		exporter.setFileName("fractional-multi-day-contour.xml");
+		assertTrue(exporter.saveProject(project, xml));
+		String exportedXml = xml.toString(java.nio.charset.StandardCharsets.UTF_8);
+		assertTrue(exportedXml.contains("<Value>PT4H0M0.001S</Value>"), exportedXml);
+		assertTrue(exportedXml.contains("<Value>PT4H0M0S</Value>"), exportedXml);
+
+		ByteArrayOutputStream mpo = new ByteArrayOutputStream();
+		assertTrue(new com.microproject.exchange.MpoFileImporter().saveProject(project, mpo));
+		Project reopened = new com.microproject.exchange.MpoFileImporter()
+			.loadProject(new ByteArrayInputStream(mpo.toByteArray()));
+		Assignment restored = (Assignment) taskNamed(reopened, "Fractional multi-day contour")
+			.getAssignments().iterator().next();
+		assertEquals(scheduledWork, restored.getWork(null), "MPO reload must conserve scheduled assignment work");
+
+		List<net.sf.mpxj.TimephasedWork> allocated = new java.util.ArrayList<>();
+		MPXConverter.appendDailyTimephasedWork(allocated, start, end, requestedWork,
+			project.getEffectiveWorkCalendar());
+		assertEquals(2, allocated.size());
+		long[] dailyMillis = allocated.stream().mapToLong(work -> Math.round(work.getTotalAmount()
+			.convertUnits(net.sf.mpxj.TimeUnit.HOURS, null).getDuration() * 60L * 60L * 1000L)).toArray();
+		assertArrayEquals(new long[] {14_400_001L, 14_400_000L}, dailyMillis);
+		assertEquals(requestedWork, java.util.Arrays.stream(dailyMillis).sum());
+	}
+
+	@Test
+	void exportsPositiveSpanZeroWorkPersonalContourAndReloadsIt() throws Exception {
+		String sourceXml = zeroWorkPersonalContourXml();
+		ProjectFile parsedSource = new net.sf.mpxj.mspdi.MSPDIReader().read(
+			new ByteArrayInputStream(sourceXml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+		net.sf.mpxj.Task sourceTask = parsedSource.getTasks().stream()
+			.filter(candidate -> "Zero-work personal contour".equals(candidate.getName())).findFirst().orElseThrow();
+		ResourceAssignment sourceAssignment = parsedSource.getResourceAssignments().get(0);
+		assertEquals(modelWallTime("2026-10-12T08:00:00"), DateUTCConverter.toModelTime(sourceTask.getStart()));
+		assertEquals(modelWallTime("2026-10-12T17:00:00"), DateUTCConverter.toModelTime(sourceTask.getFinish()));
+		assertEquals(8.0d, sourceTask.getDuration().convertUnits(net.sf.mpxj.TimeUnit.HOURS,
+			parsedSource.getProjectProperties()).getDuration(), 0.00001d);
+		assertEquals(modelWallTime("2026-10-12T08:00:00"), DateUTCConverter.toModelTime(sourceAssignment.getStart()));
+		assertEquals(modelWallTime("2026-10-12T17:00:00"), DateUTCConverter.toModelTime(sourceAssignment.getFinish()));
+		assertEquals(0.0d, sourceAssignment.getWork().convertUnits(net.sf.mpxj.TimeUnit.HOURS,
+			parsedSource.getProjectProperties()).getDuration(), 0.00001d);
+		Project project = importMspdi(sourceXml);
+		NormalTask task = taskNamed(project, "Zero-work personal contour");
+		Assignment assignment = (Assignment) task.getAssignments().iterator().next();
+		assertTrue(assignment.getWorkContour().isPersonal());
+		assertEquals(0L, assignment.getWork(null));
+		assertTrue(assignment.getEnd() > assignment.getStart(), "zero work must retain its positive assignment span: "
+			+ assignment.getStart() + ".." + assignment.getEnd() + ", task=" + task.getStart() + ".." + task.getEnd());
+
+		ByteArrayOutputStream xml = new ByteArrayOutputStream();
+		MicrosoftImporter exporter = new MicrosoftImporter();
+		exporter.setFileName("zero-work-contour.xml");
+		assertTrue(exporter.saveProject(project, xml));
+		String savedXml = xml.toString(java.nio.charset.StandardCharsets.UTF_8);
+		assertTrue(savedXml.contains("<Type>1</Type>"), "zero contour requires a remaining-work timephased row");
+		assertTrue(savedXml.contains("<Unit>2</Unit>"), savedXml);
+		assertTrue(savedXml.contains("<Value>PT0H0M0S</Value>"), savedXml);
+		ResourceAssignment xmlAssignment = new net.sf.mpxj.mspdi.MSPDIReader()
+			.read(new ByteArrayInputStream(xml.toByteArray())).getResourceAssignments().get(0);
+		assertEquals(modelWallTime("2026-10-12T08:00:00"), DateUTCConverter.toModelTime(xmlAssignment.getStart()));
+		assertEquals(modelWallTime("2026-10-12T17:00:00"), DateUTCConverter.toModelTime(xmlAssignment.getFinish()));
+		assertEquals(0.0d, xmlAssignment.getTimephasedWork().get(0).getTotalAmount()
+			.convertUnits(net.sf.mpxj.TimeUnit.HOURS, xmlAssignment.getParentFile().getProjectProperties())
+			.getDuration(), 0.00001d);
+
+		ByteArrayOutputStream mpo = new ByteArrayOutputStream();
+		assertTrue(new com.microproject.exchange.MpoFileImporter().saveProject(project, mpo));
+		String contentXml = new String(nativeProjectXml(mpo.toByteArray()), java.nio.charset.StandardCharsets.UTF_8);
+		assertTrue(contentXml.contains("<Type>1</Type>"), "zero contour requires a remaining-work timephased row");
+		assertTrue(contentXml.contains("<Unit>2</Unit>"), contentXml);
+		assertTrue(contentXml.contains("<Value>PT0H0M0S</Value>"), contentXml);
+
+		Project reopened = new com.microproject.exchange.MpoFileImporter()
+			.loadProject(new ByteArrayInputStream(mpo.toByteArray()));
+		Assignment restored = (Assignment) taskNamed(reopened, "Zero-work personal contour")
+			.getAssignments().iterator().next();
+		assertTrue(restored.getWorkContour().isPersonal());
+		assertEquals(0L, restored.getWork(null));
+		assertTrue(restored.getEnd() > restored.getStart());
+	}
+
+	private String zeroWorkPersonalContourXml() throws Exception {
+		Path fixture = Path.of("modules", "microproject_exchange", "testdata", "Assignment Baseline Scalars.xml");
+		if (!Files.isRegularFile(fixture)) fixture = Path.of("testdata", "Assignment Baseline Scalars.xml");
+		String xml = Files.readString(fixture);
+		int taskStart = xml.indexOf("<Task>");
+		int taskEnd = xml.indexOf("</Task>", taskStart);
+		String taskXml = xml.substring(taskStart, taskEnd);
+		taskXml = taskXml.replace("<Name>Assignment baseline task</Name>", "<Name>Zero-work personal contour</Name>")
+			.replace("<Type>0</Type>", "<Type>1</Type>")
+			.replace("<Work>PT8H0M0S</Work>", "<Work>PT0H0M0S</Work>");
+		xml = xml.substring(0, taskStart) + taskXml + xml.substring(taskEnd);
+		int assignmentStart = xml.indexOf("<Assignment>");
+		int assignmentEnd = xml.indexOf("</Assignment>", assignmentStart);
+		String assignmentXml = xml.substring(assignmentStart, assignmentEnd);
+		assignmentXml = assignmentXml.replace("<Work>PT8H0M0S</Work>",
+			"<ActualWork>PT0H0M0S</ActualWork><RemainingWork>PT0H0M0S</RemainingWork>"
+				+ "<PercentWorkComplete>0</PercentWorkComplete><Work>PT0H0M0S</Work>")
+			.replace("<Units>1</Units>", "<Units>1</Units><WorkContour>8</WorkContour>"
+				+ "<TimephasedData><Type>2</Type><UID>1</UID><Start>2026-10-12T08:00:00</Start>"
+				+ "<Finish>2026-10-12T17:00:00</Finish><Unit>2</Unit><Value>PT0H0M0S</Value></TimephasedData>"
+				+ "<TimephasedData><Type>1</Type><UID>2</UID><Start>2026-10-12T08:00:00</Start>"
+				+ "<Finish>2026-10-12T17:00:00</Finish><Unit>2</Unit><Value>PT0H0M0S</Value></TimephasedData>");
+		return xml.substring(0, assignmentStart) + assignmentXml + xml.substring(assignmentEnd);
+	}
+
+	@Test
+	void customContourPreservesCalendarGapsAndRejectsIncompleteOrNonPrefixProgress() throws Exception {
+		String progress = "<ActualWork>PT2H0M0S</ActualWork><RemainingWork>PT6H0M0S</RemainingWork>"
+			+ "<PercentWorkComplete>25</PercentWorkComplete>";
+		String gapRows = "<TimephasedData><Type>2</Type><UID>1</UID><Start>2026-10-12T08:00:00</Start><Finish>2026-10-12T12:00:00</Finish><Unit>2</Unit><Value>PT2H0M0S</Value></TimephasedData>"
+			+ "<TimephasedData><Type>1</Type><UID>2</UID><Start>2026-10-13T08:00:00</Start><Finish>2026-10-13T17:00:00</Finish><Unit>2</Unit><Value>PT6H0M0S</Value></TimephasedData>";
+		Project imported = importMspdi(twoDayCustomContourXml(progress, gapRows));
+		Assignment assignment = (Assignment) taskNamed(imported, "Assignment baseline task").getAssignments().iterator().next();
+		assertEquals(2L * 60L * 60L * 1000L,
+			assignment.work(modelWallTime("2026-10-12T08:00:00"), modelWallTime("2026-10-12T12:00:00")));
+		assertEquals(0L, assignment.work(modelWallTime("2026-10-12T13:00:00"), modelWallTime("2026-10-12T17:00:00")),
+			"The source gap must remain zero-work");
+		assertEquals(6L * 60L * 60L * 1000L,
+			assignment.work(modelWallTime("2026-10-13T08:00:00"), modelWallTime("2026-10-13T17:00:00")));
+		assertEquals(2L * 60L * 60L * 1000L,
+			assignment.actualWork(modelWallTime("2026-10-12T08:00:00"), modelWallTime("2026-10-12T12:00:00")));
+
+		assertThrows(IllegalArgumentException.class,
+			() -> importMspdi(twoDayCustomContourXml(progress, "")), "Custom contours need complete timephased source data");
+		String nonPrefixRows = "<TimephasedData><Type>1</Type><UID>1</UID><Start>2026-10-12T08:00:00</Start><Finish>2026-10-12T12:00:00</Finish><Unit>2</Unit><Value>PT2H0M0S</Value></TimephasedData>"
+			+ "<TimephasedData><Type>2</Type><UID>2</UID><Start>2026-10-12T13:00:00</Start><Finish>2026-10-12T17:00:00</Finish><Unit>2</Unit><Value>PT2H0M0S</Value></TimephasedData>"
+			+ "<TimephasedData><Type>1</Type><UID>3</UID><Start>2026-10-13T08:00:00</Start><Finish>2026-10-13T17:00:00</Finish><Unit>2</Unit><Value>PT4H0M0S</Value></TimephasedData>";
+		IllegalArgumentException unsupportedActualShape = assertThrows(IllegalArgumentException.class,
+			() -> importMspdi(twoDayCustomContourXml(progress, nonPrefixRows)),
+			"Actual-work intervals that cannot be represented by the model stop must not be reshaped silently");
+		assertTrue(unsupportedActualShape.getMessage().contains("cannot be represented by the assignment profile"),
+			unsupportedActualShape.getMessage());
+	}
+
+	@Test
+	void customContourImportCombinesActualAndRemainingIntervalsOnDifferentBounds() throws Exception {
+		String progress = "<ActualWork>PT2H0M0S</ActualWork><RemainingWork>PT6H0M0S</RemainingWork>"
+			+ "<PercentWorkComplete>25</PercentWorkComplete>";
+		String rows = "<TimephasedData><Type>2</Type><UID>1</UID><Start>2026-10-12T08:00:00</Start><Finish>2026-10-12T12:00:00</Finish><Unit>2</Unit><Value>PT2H0M0S</Value></TimephasedData>"
+			+ "<TimephasedData><Type>1</Type><UID>2</UID><Start>2026-10-12T12:00:00</Start><Finish>2026-10-12T17:00:00</Finish><Unit>2</Unit><Value>PT2H0M0S</Value></TimephasedData>"
+			+ "<TimephasedData><Type>1</Type><UID>3</UID><Start>2026-10-13T08:00:00</Start><Finish>2026-10-13T17:00:00</Finish><Unit>2</Unit><Value>PT4H0M0S</Value></TimephasedData>";
+		String xml = twoDayCustomContourXml(progress, rows);
+		Project imported = importMspdi(xml);
+		Assignment assignment = (Assignment) taskNamed(imported, "Assignment baseline task").getAssignments().iterator().next();
+		assertEquals(8L * 60L * 60L * 1000L, assignment.getWork(null));
+		assertEquals(2L * 60L * 60L * 1000L, assignment.getActualWork(null));
+		assertEquals(6L * 60L * 60L * 1000L, assignment.getRemainingWork());
+		long sourceActualBoundary = modelWallTime("2026-10-12T12:00:00");
+		assertEquals(assignment.getEffectiveWorkCalendar().compare(sourceActualBoundary, assignment.getStart(), false),
+			assignment.getEffectiveWorkCalendar().compare(assignment.getStop(), assignment.getStart(), false),
+			"Stop preserves the source actual-work boundary's working-time coordinate across lunch");
+		assertEquals(modelWallTime("2026-10-12T13:00:00"), assignment.getStop(),
+			"The model represents the post-lunch boundary after the source's 08:00–12:00 work interval");
+		assertEquals(0L, assignment.getEffectiveWorkCalendar().compare(assignment.getStop(), sourceActualBoundary, false),
+			"The normalized stop adds no work during the lunch gap");
+		ByteArrayOutputStream mpo = new ByteArrayOutputStream();
+		assertTrue(new com.microproject.exchange.MpoFileImporter().saveProject(imported, mpo));
+		byte[] contentXml = nativeProjectXml(mpo.toByteArray());
+		String savedXml = new String(contentXml, java.nio.charset.StandardCharsets.UTF_8);
+		assertEquals(3, savedXml.split("<TimephasedData>", -1).length - 1, savedXml);
+		assertEquals(3, savedXml.split("<Unit>2</Unit>", -1).length - 1, savedXml);
+		ProjectFile serialized = new net.sf.mpxj.mspdi.MSPDIReader().read(new ByteArrayInputStream(contentXml));
+		ResourceAssignment serializedAssignment = serialized.getResourceAssignments().get(0);
+		assertEquals(2.0d, timephasedHours(serializedAssignment.getTimephasedActualWork(), serialized), 0.00001d);
+		assertEquals(6.0d, timephasedHours(serializedAssignment.getTimephasedWork(), serialized), 0.00001d);
+		var actualRows = serializedAssignment.getTimephasedActualWork();
+		var remainingRows = serializedAssignment.getTimephasedWork();
+		assertEquals(1, actualRows.size(), actualRows.toString());
+		assertEquals(modelWallTime("2026-10-12T08:00:00"), DateUTCConverter.toModelTime(actualRows.get(0).getStart()));
+		assertEquals(modelWallTime("2026-10-12T13:00:00"), DateUTCConverter.toModelTime(actualRows.get(0).getFinish()));
+		assertEquals(2, remainingRows.size(), remainingRows.toString());
+		assertEquals(modelWallTime("2026-10-12T12:00:00"), DateUTCConverter.toModelTime(remainingRows.get(0).getStart()),
+			remainingRows.toString());
+		assertEquals(0L, assignment.getEffectiveWorkCalendar().compare(
+			DateUTCConverter.toModelTime(actualRows.get(0).getFinish()),
+			DateUTCConverter.toModelTime(remainingRows.get(0).getStart()), false),
+			"Actual and remaining rows only overlap across the nonworking lunch boundary");
+		assertEquals(modelWallTime("2026-10-12T17:00:00"), DateUTCConverter.toModelTime(remainingRows.get(0).getFinish()));
+		assertEquals(modelWallTime("2026-10-13T08:00:00"), DateUTCConverter.toModelTime(remainingRows.get(1).getStart()));
+		assertEquals(modelWallTime("2026-10-13T17:00:00"), DateUTCConverter.toModelTime(remainingRows.get(1).getFinish()));
+		Project reopened = new com.microproject.exchange.MpoFileImporter().loadProject(new ByteArrayInputStream(mpo.toByteArray()));
+		Assignment restored = (Assignment) taskNamed(reopened, "Assignment baseline task").getAssignments().iterator().next();
+		assertEquals(8L * 60L * 60L * 1000L, restored.getWork(null));
+		assertEquals(2L * 60L * 60L * 1000L, restored.getActualWork(null));
+		assertEquals(6L * 60L * 60L * 1000L, restored.getRemainingWork());
+		assertEquals(assignment.getEffectiveWorkCalendar().compare(assignment.getStop(), assignment.getStart(), false),
+			restored.getEffectiveWorkCalendar().compare(restored.getStop(), restored.getStart(), false));
+	}
+
+	private double timephasedHours(java.util.List<net.sf.mpxj.TimephasedWork> intervals, ProjectFile project) {
+		return intervals.stream().mapToDouble(interval -> interval.getTotalAmount()
+			.convertUnits(net.sf.mpxj.TimeUnit.HOURS, project.getProjectProperties()).getDuration()).sum();
+	}
+
+	private String twoDayCustomContourXml(String progressFields, String timephasedRows) throws Exception {
+		Path fixture = Path.of("modules", "microproject_exchange", "testdata", "Assignment Baseline Scalars.xml");
+		if (!Files.isRegularFile(fixture)) fixture = Path.of("testdata", "Assignment Baseline Scalars.xml");
+		String xml = Files.readString(fixture)
+			.replace("2026-10-12T17:00:00", "2026-10-13T17:00:00")
+			.replace("<Duration>PT8H0M0S</Duration><DurationFormat>7", "<Duration>PT16H0M0S</Duration><DurationFormat>7");
+		int assignmentStart = xml.indexOf("<Assignment>");
+		int assignmentEnd = xml.indexOf("</Assignment>", assignmentStart);
+		String assignmentXml = xml.substring(assignmentStart, assignmentEnd);
+		assignmentXml = assignmentXml.replace("<Work>PT8H0M0S</Work>", progressFields + "<Work>PT8H0M0S</Work>");
+		assignmentXml = assignmentXml.replace("<Units>1</Units>", "<Units>1</Units><WorkContour>8</WorkContour>" + timephasedRows);
+		return xml.substring(0, assignmentStart) + assignmentXml + xml.substring(assignmentEnd);
 	}
 
 	private Project importMspdi(String xml) throws Exception {

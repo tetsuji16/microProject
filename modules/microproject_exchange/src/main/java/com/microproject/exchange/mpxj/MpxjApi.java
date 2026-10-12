@@ -92,4 +92,9 @@ public final class MpxjApi {
 		Object value = assignment.getCachedValue(AssignmentField.WORK_CONTOUR);
 		return value == null ? 0 : workContourId((WorkContour) value);
 	}
+
+	public static boolean hasCustomWorkContour(ResourceAssignment assignment) {
+		Object value = assignment.getCachedValue(AssignmentField.WORK_CONTOUR);
+		return WorkContour.CONTOURED.equals(value);
+	}
 }

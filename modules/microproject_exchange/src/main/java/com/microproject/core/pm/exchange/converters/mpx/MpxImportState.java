@@ -24,6 +24,7 @@
  *******************************************************************************/
 package com.microproject.core.pm.exchange.converters.mpx;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,6 +58,23 @@ public class MpxImportState {
 	protected ResourcePool resourcePool;
 	protected boolean mspdi;
 	protected ProjectFile mpxProjectFile;
+	private final List<Runnable> postScheduleValidations = new ArrayList<>();
+	private Map<Long, RawMspdiAssignmentWork> rawMspdiAssignmentWork = Map.of();
+
+	public record RawMspdiWorkInterval(int type, long start, long finish, long work) { }
+	public record RawMspdiAssignmentWork(Long start, Long finish, Long work, Long actualWork, Long remainingWork,
+		List<RawMspdiWorkInterval> intervals) {
+		public RawMspdiAssignmentWork {
+			intervals = List.copyOf(intervals);
+		}
+	}
+
+	public void setRawMspdiAssignmentWork(Map<Long, RawMspdiAssignmentWork> values) {
+		rawMspdiAssignmentWork = Map.copyOf(values);
+	}
+	public RawMspdiAssignmentWork getRawMspdiAssignmentWork(Long uid) {
+		return uid == null ? null : rawMspdiAssignmentWork.get(uid);
+	}
 	
 	public ResourcePool getResourcePool() {
 		return resourcePool;
@@ -143,8 +161,22 @@ public class MpxImportState {
 		return mpxTimephasedMap;
 	}
 	public void initializeMpxTimephasedMap() {
+		postScheduleValidations.clear();
 		int assignmentCount = mpxProjectFile == null ? 0 : mpxProjectFile.getResourceAssignments().size();
 		mpxTimephasedMap = new HashMap<>(mapCapacity(assignmentCount));
+	}
+	public void addPostScheduleValidation(Runnable validation) {
+		if (validation == null) {
+			throw new IllegalArgumentException("validation must not be null");
+		}
+		postScheduleValidations.add(validation);
+	}
+	public void validatePostSchedule() {
+		List<Runnable> validations = List.copyOf(postScheduleValidations);
+		postScheduleValidations.clear();
+		for (Runnable validation : validations) {
+			validation.run();
+		}
 	}
 	public ProjectFile getMpxProjectFile() {
 		return mpxProjectFile;

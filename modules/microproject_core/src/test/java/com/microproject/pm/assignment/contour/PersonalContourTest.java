@@ -40,6 +40,13 @@ class PersonalContourTest {
 	}
 
 	@Test
+	void setIntervalPreservesExplicitTrailingZeroWork() {
+		PersonalContour updated = contour().setInterval(4L, 10L, 0.0D);
+
+		assertBuckets(updated, new long[] { 4L, 6L }, new double[] { 0.5D, 0.0D });
+	}
+
+	@Test
 	void insertBucketSplitsTheContainingBucketAndKeepsOrder() {
 		PersonalContour contour = contour();
 

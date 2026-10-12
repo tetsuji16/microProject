@@ -89,6 +89,7 @@ public class MSPDISerializer implements ProjectSerializer {
     private static final Logger logger = Logger.getLogger(MSPDISerializer.class.getName());
     protected JobRunnable job=null;
     private final Map<ResourceAssignment, Assignment> exportedAssignments = new IdentityHashMap<>();
+    private record ExactWorkRow(long start, long finish, long work) { }
     
     
     
@@ -477,15 +478,32 @@ public class MSPDISerializer implements ProjectSerializer {
 		ProjectFile data = serializeProject(project);
 		if (job != null) job.setProgress(0.9f);
 		ByteArrayOutputStream serialized = new ByteArrayOutputStream();
-		new MSPDIWriter().write(data, serialized);
-		byte[] xml = preserveExplicitZeroAssignmentBaselineWork(serialized.toByteArray());
+		MSPDIWriter writer = new MSPDIWriter();
+		writer.setWriteTimephasedData(true);
+		if (exportedAssignments.values().stream().anyMatch(assignment -> assignment.getWorkContour().isPersonal()))
+			writer.setSplitTimephasedAsDays(false);
+		writer.write(data, serialized);
+		byte[] xml = normalizeMspdiAssignmentWork(serialized.toByteArray());
 		out.write(xml);
 		if (job != null) job.setProgress(1.0f);
 	}
 
-	private byte[] preserveExplicitZeroAssignmentBaselineWork(byte[] xml) throws Exception {
+	private byte[] normalizeMspdiAssignmentWork(byte[] xml) throws Exception {
 		Map<String, Map<Integer, Assignment.BaselineValues>> expected = new java.util.HashMap<>();
+		Set<String> personalContourAssignments = new java.util.HashSet<>();
+		Set<String> zeroWorkPersonalAssignments = new java.util.HashSet<>();
+		Map<String, List<ExactWorkRow>> personalActualRows = new java.util.HashMap<>();
+		Map<String, List<ExactWorkRow>> personalRemainingRows = new java.util.HashMap<>();
 		for (Map.Entry<ResourceAssignment, Assignment> exported : exportedAssignments.entrySet()) {
+			Integer uid = exported.getKey().getUniqueID();
+			if (exported.getValue().getWorkContour().isPersonal()) {
+				if (uid == null || !personalContourAssignments.add(uid.toString()))
+					throw new IOException("MPXJ did not assign a unique identity to a personal-contour assignment");
+				if (exported.getValue().getWork(null) == 0L && exported.getValue().getActualWork(null) == 0L)
+					zeroWorkPersonalAssignments.add(uid.toString());
+				personalActualRows.put(uid.toString(), exactWorkRows(exported.getKey().getTimephasedActualWork()));
+				personalRemainingRows.put(uid.toString(), exactWorkRows(exported.getKey().getTimephasedWork()));
+			}
 			Map<Integer, Assignment.BaselineValues> zeroWorkSlots = new java.util.TreeMap<>();
 			for (int slot = 0; slot <= 10; slot++) {
 				Assignment.BaselineValues values = exported.getValue().getBaselineValues(slot);
@@ -493,13 +511,12 @@ public class MSPDISerializer implements ProjectSerializer {
 					zeroWorkSlots.put(Integer.valueOf(slot), values);
 			}
 			if (zeroWorkSlots.isEmpty()) continue;
-			Integer uid = exported.getKey().getUniqueID();
 			if (uid == null)
 				throw new IOException("MPXJ did not assign an identity to an assignment with zero baseline work");
 			if (expected.put(uid.toString(), zeroWorkSlots) != null)
 				throw new IOException("MPXJ assigned duplicate identities to baseline assignments");
 		}
-		if (expected.isEmpty()) return xml;
+		if (expected.isEmpty() && personalContourAssignments.isEmpty()) return xml;
 		javax.xml.parsers.DocumentBuilderFactory factory = javax.xml.parsers.DocumentBuilderFactory.newInstance();
 		factory.setNamespaceAware(true);
 		factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
@@ -513,9 +530,18 @@ public class MSPDISerializer implements ProjectSerializer {
 		String namespace = document.getDocumentElement().getNamespaceURI();
 		org.w3c.dom.NodeList assignmentNodes = document.getElementsByTagNameNS(namespace, "Assignment");
 		java.util.Set<String> applied = new java.util.HashSet<>();
+		java.util.Set<String> normalizedPersonalContours = new java.util.HashSet<>();
 		for (int index = 0; index < assignmentNodes.getLength(); index++) {
 			org.w3c.dom.Element assignmentNode = (org.w3c.dom.Element) assignmentNodes.item(index);
 			String uid = childText(assignmentNode, "UID");
+			if (uid != null && personalContourAssignments.contains(uid)) {
+				if (!normalizedPersonalContours.add(uid))
+					throw new IOException("MSPDI output contains duplicate personal-contour assignment identities");
+				normalizePersonalContourAssignmentScalars(assignmentNode, exportedAssignment(uid));
+				if (!normalizePersonalContourWorkRows(assignmentNode, zeroWorkPersonalAssignments.contains(uid),
+					personalActualRows.get(uid), personalRemainingRows.get(uid)))
+					throw new IOException("MSPDI output omitted personal-contour timephased work");
+			}
 			Map<Integer, Assignment.BaselineValues> zeroWorkSlots = uid == null ? null : expected.get(uid);
 			if (zeroWorkSlots == null)
 				continue;
@@ -523,28 +549,11 @@ public class MSPDISerializer implements ProjectSerializer {
 				throw new IOException("MSPDI output contains duplicate assignment identities");
 			for (Map.Entry<Integer, Assignment.BaselineValues> zeroWork : zeroWorkSlots.entrySet()) {
 				int slot = zeroWork.getKey().intValue();
-				org.w3c.dom.Element baseline = findBaseline(assignmentNode, slot);
-				if (baseline == null) {
-					baseline = document.createElementNS(assignmentNode.getNamespaceURI(), "Baseline");
-					org.w3c.dom.Element number = document.createElementNS(assignmentNode.getNamespaceURI(), "Number");
-					number.setTextContent(Integer.toString(slot));
-					baseline.appendChild(number);
-					insertBaselineAtSchemaPosition(assignmentNode, baseline, slot);
-				}
-				List<org.w3c.dom.Element> workNodes = directChildren(baseline, "Work");
-				if (workNodes.size() > 1)
-					throw new IOException("MSPDI output contains duplicate baseline Work fields");
-				if (workNodes.isEmpty()) {
-					org.w3c.dom.Element work = document.createElementNS(assignmentNode.getNamespaceURI(), "Work");
-					work.setTextContent("PT0H0M0S");
-					org.w3c.dom.Node followingField = firstBaselineFieldAfterWork(baseline);
-					if (followingField == null) baseline.appendChild(work);
-					else baseline.insertBefore(work, followingField);
-				} else if (!isZeroDuration(workNodes.get(0).getTextContent())) {
-					throw new IOException("MPXJ emitted a nonzero baseline Work value for a zero-work assignment");
-				}
+				preserveExplicitZeroBaselineWork(document, assignmentNode, slot);
 			}
 		}
+		if (!normalizedPersonalContours.equals(personalContourAssignments))
+			throw new IOException("MSPDI output omitted a personal-contour assignment");
 		if (!applied.equals(expected.keySet()))
 			throw new IOException("MSPDI output omitted an assignment with zero baseline work");
 		ByteArrayOutputStream result = new ByteArrayOutputStream();
@@ -556,6 +565,149 @@ public class MSPDISerializer implements ProjectSerializer {
 		transformer.transform(new javax.xml.transform.dom.DOMSource(document),
 			new javax.xml.transform.stream.StreamResult(result));
 		return result.toByteArray();
+	}
+
+	private Assignment exportedAssignment(String uid) throws IOException {
+		for (Map.Entry<ResourceAssignment, Assignment> exported : exportedAssignments.entrySet())
+			if (exported.getKey().getUniqueID() != null && uid.equals(exported.getKey().getUniqueID().toString()))
+				return exported.getValue();
+		throw new IOException("MSPDI output contains an unknown personal-contour assignment");
+	}
+
+	private static void normalizePersonalContourAssignmentScalars(org.w3c.dom.Element assignmentNode,
+		Assignment source) throws IOException {
+		setDurationField(assignmentNode, "Work", source.getWork(null));
+		setDurationField(assignmentNode, "ActualWork", source.getActualWork(null));
+		setDurationField(assignmentNode, "RemainingWork", source.getRemainingWork());
+	}
+
+	private static void setDurationField(org.w3c.dom.Element parent, String name, long millis) throws IOException {
+		org.w3c.dom.Element element = childElement(parent, name);
+		if (element == null) {
+			if (millis != 0L) throw new IOException("MSPDI output omitted nonzero assignment " + name);
+			return;
+		}
+		element.setTextContent(durationMillisToMspdi(millis));
+	}
+
+	private static List<ExactWorkRow> exactWorkRows(List<net.sf.mpxj.TimephasedWork> rows) throws IOException {
+		List<ExactWorkRow> result = new ArrayList<>();
+		for (net.sf.mpxj.TimephasedWork row : rows) {
+			net.sf.mpxj.Duration amount = row.getTotalAmount();
+			if (amount == null || amount.getUnits() != net.sf.mpxj.TimeUnit.HOURS
+					|| row.getStart() == null || row.getFinish() == null)
+				throw new IOException("MPXJ personal-contour work row has no exact hour amount");
+			result.add(new ExactWorkRow(
+				com.microproject.core.pm.exchange.converters.type.DateUTCConverter.toModelTime(row.getStart()),
+				com.microproject.core.pm.exchange.converters.type.DateUTCConverter.toModelTime(row.getFinish()),
+				Math.round(amount.getDuration() * 60L * 60L * 1000L)));
+		}
+		return List.copyOf(result);
+	}
+
+	private boolean normalizePersonalContourWorkRows(org.w3c.dom.Element assignmentNode, boolean zeroWorkAssignment,
+		List<ExactWorkRow> actualRows, List<ExactWorkRow> remainingRows)
+			throws IOException {
+		Map<String, ExactWorkRow> expectedActual = indexWorkRows(actualRows);
+		Map<String, ExactWorkRow> expectedRemaining = indexWorkRows(remainingRows);
+		for (org.w3c.dom.Element row : directChildren(assignmentNode, "TimephasedData")) {
+			String type = childText(row, "Type");
+			if (!"1".equals(type) && !"2".equals(type)) continue;
+			List<org.w3c.dom.Element> units = directChildren(row, "Unit");
+			if (units.size() != 1)
+				throw new IOException("MSPDI personal-contour work row is missing or duplicates its unit");
+			// MPXJ uses the duration display-unit enum here; MSPDI's Unit uses
+			// a separate enum. These timephased values are per-day totals.
+			units.get(0).setTextContent("2");
+			long start = parseMspdiWallTime(childText(row, "Start"));
+			long finish = parseMspdiWallTime(childText(row, "Finish"));
+			Map<String, ExactWorkRow> expectedRows = "2".equals(type) ? expectedActual : expectedRemaining;
+			ExactWorkRow expected = expectedRows.remove(workIntervalKey(start, finish));
+			if (expected == null)
+				throw new IOException("MSPDI personal-contour work row does not match its source interval");
+			String exactValue = durationMillisToMspdi(expected.work());
+			if (childText(row, "Value") == null) {
+				if (!zeroWorkAssignment || !"1".equals(type)
+						|| childText(row, "Start") == null || childText(row, "Finish") == null)
+					throw new IOException("MSPDI personal-contour work row is missing its value");
+				org.w3c.dom.Element value = row.getOwnerDocument()
+					.createElementNS(row.getNamespaceURI(), "Value");
+				value.setTextContent(exactValue);
+				row.appendChild(value);
+			} else {
+				childElement(row, "Value").setTextContent(exactValue);
+			}
+		}
+		return expectedActual.isEmpty() && expectedRemaining.isEmpty()
+			&& !(actualRows.isEmpty() && remainingRows.isEmpty());
+	}
+
+	private static Map<String, ExactWorkRow> indexWorkRows(List<ExactWorkRow> rows) throws IOException {
+		Map<String, ExactWorkRow> result = new java.util.HashMap<>();
+		for (ExactWorkRow row : rows) {
+			if (result.put(workIntervalKey(row.start(), row.finish()), row) != null)
+				throw new IOException("MPXJ personal-contour work rows have duplicate intervals");
+		}
+		return result;
+	}
+
+	private static String workIntervalKey(long start, long finish) {
+		return start + ":" + finish;
+	}
+
+	private static long parseMspdiWallTime(String value) throws IOException {
+		if (value == null) throw new IOException("MSPDI personal-contour work row is missing its interval");
+		try {
+			return java.time.LocalDateTime.parse(value).toInstant(java.time.ZoneOffset.UTC).toEpochMilli();
+		} catch (java.time.DateTimeException e) {
+			throw new IOException("MSPDI personal-contour work row has an invalid interval", e);
+		}
+	}
+
+	private static String durationMillisToMspdi(long millis) throws IOException {
+		if (millis < 0L) throw new IOException("MSPDI work row has negative work");
+		long hours = millis / 3_600_000L;
+		long minutes = (millis % 3_600_000L) / 60_000L;
+		long seconds = millis % 60_000L / 1_000L;
+		long fractionalMillis = millis % 1_000L;
+		String secondsText = Long.toString(seconds);
+		if (fractionalMillis != 0L) {
+			String fraction = String.format(java.util.Locale.ROOT, "%03d", Long.valueOf(fractionalMillis));
+			secondsText += "." + fraction.replaceFirst("0+$", "");
+		}
+		return "PT" + hours + "H" + minutes + "M" + secondsText + "S";
+	}
+
+	private static org.w3c.dom.Element childElement(org.w3c.dom.Element parent, String name) {
+		for (org.w3c.dom.Node child = parent.getFirstChild(); child != null; child = child.getNextSibling()) {
+			if (child instanceof org.w3c.dom.Element element
+					&& isNamedElement(element, name, parent.getNamespaceURI())) return element;
+		}
+		return null;
+	}
+
+	private void preserveExplicitZeroBaselineWork(org.w3c.dom.Document document,
+		org.w3c.dom.Element assignmentNode, int slot) throws IOException {
+		org.w3c.dom.Element baseline = findBaseline(assignmentNode, slot);
+		if (baseline == null) {
+			baseline = document.createElementNS(assignmentNode.getNamespaceURI(), "Baseline");
+			org.w3c.dom.Element number = document.createElementNS(assignmentNode.getNamespaceURI(), "Number");
+			number.setTextContent(Integer.toString(slot));
+			baseline.appendChild(number);
+			insertBaselineAtSchemaPosition(assignmentNode, baseline, slot);
+		}
+		List<org.w3c.dom.Element> workNodes = directChildren(baseline, "Work");
+		if (workNodes.size() > 1)
+			throw new IOException("MSPDI output contains duplicate baseline Work fields");
+		if (workNodes.isEmpty()) {
+			org.w3c.dom.Element work = document.createElementNS(assignmentNode.getNamespaceURI(), "Work");
+			work.setTextContent("PT0H0M0S");
+			org.w3c.dom.Node followingField = firstBaselineFieldAfterWork(baseline);
+			if (followingField == null) baseline.appendChild(work);
+			else baseline.insertBefore(work, followingField);
+		} else if (!isZeroDuration(workNodes.get(0).getTextContent())) {
+			throw new IOException("MPXJ emitted a nonzero baseline Work value for a zero-work assignment");
+		}
 	}
 
 	private static String childText(org.w3c.dom.Element parent, String name) {

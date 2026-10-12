@@ -31,7 +31,9 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -141,6 +143,7 @@ public class MspImporter {
 		project.initialize(false, false);
 		project.recalculate();
 		restoreImportedAssignmentLevelingDelays();
+		state.validatePostSchedule();
 
 		progress.updateProgress(1f, "Completed");
 		return project;
@@ -177,7 +180,13 @@ public class MspImporter {
 				source = prepareProjectStream(new ByteArrayInputStream(data));
 			} else {
 				nativeProject = null;
-				source = prepareProjectStream(in);
+				if ("xml".equalsIgnoreCase(extension)) {
+					byte[] data = in.readAllBytes();
+					state.setRawMspdiAssignmentWork(parseRawMspdiAssignmentWork(data));
+					source = prepareProjectStream(new ByteArrayInputStream(data));
+				} else {
+					source = prepareProjectStream(in);
+				}
 			}
 			String effectiveExtension = normalizeExtension(extension, source);
 			reader = createReader(effectiveExtension);
@@ -224,6 +233,91 @@ public class MspImporter {
 			return in;
 		}
 		return new BufferedInputStream(in);
+	}
+
+	private Map<Long, MpxImportState.RawMspdiAssignmentWork> parseRawMspdiAssignmentWork(byte[] xml)
+			throws Exception {
+		javax.xml.parsers.DocumentBuilderFactory factory = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+		factory.setNamespaceAware(true);
+		factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+		factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
+		factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+		factory.setXIncludeAware(false);
+		factory.setExpandEntityReferences(false);
+		factory.setAttribute(javax.xml.XMLConstants.ACCESS_EXTERNAL_DTD, "");
+		factory.setAttribute(javax.xml.XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+		org.w3c.dom.Document document = factory.newDocumentBuilder()
+			.parse(new ByteArrayInputStream(xml));
+		String namespace = document.getDocumentElement().getNamespaceURI();
+		org.w3c.dom.NodeList assignments = document.getElementsByTagNameNS(namespace, "Assignment");
+		Map<Long, MpxImportState.RawMspdiAssignmentWork> result = new HashMap<>();
+		for (int index = 0; index < assignments.getLength(); index++) {
+			org.w3c.dom.Element assignment = (org.w3c.dom.Element) assignments.item(index);
+			if (!"8".equals(xmlChildText(assignment, "WorkContour", namespace))) continue;
+			long uid = Long.parseLong(xmlChildText(assignment, "UID", namespace));
+			Long assignmentStart = parseNullableMspdiWallTime(xmlChildText(assignment, "Start", namespace));
+			Long assignmentFinish = parseNullableMspdiWallTime(xmlChildText(assignment, "Finish", namespace));
+			Long work = parseMspdiDuration(xmlChildText(assignment, "Work", namespace));
+			Long actual = parseMspdiDuration(xmlChildText(assignment, "ActualWork", namespace));
+			Long remaining = parseMspdiDuration(xmlChildText(assignment, "RemainingWork", namespace));
+			List<MpxImportState.RawMspdiWorkInterval> intervals = new ArrayList<>();
+			for (org.w3c.dom.Element row : xmlDirectChildren(assignment, "TimephasedData", namespace)) {
+				String rawType = xmlChildText(row, "Type", namespace);
+				if (!"1".equals(rawType) && !"2".equals(rawType)) continue;
+				if (!"2".equals(xmlChildText(row, "Unit", namespace)))
+					throw new IllegalArgumentException("Custom MSPDI work rows require per-day units");
+				long start = parseMspdiWallTime(xmlChildText(row, "Start", namespace));
+				long finish = parseMspdiWallTime(xmlChildText(row, "Finish", namespace));
+				Long rowWork = parseMspdiDuration(xmlChildText(row, "Value", namespace));
+				if (finish <= start || rowWork == null || rowWork.longValue() < 0L)
+					throw new IllegalArgumentException("Custom MSPDI work row has invalid bounds or value");
+				intervals.add(new MpxImportState.RawMspdiWorkInterval(Integer.parseInt(rawType),
+					start, finish, rowWork.longValue()));
+			}
+			if (result.put(Long.valueOf(uid), new MpxImportState.RawMspdiAssignmentWork(
+				assignmentStart, assignmentFinish, work, actual, remaining, intervals)) != null)
+				throw new IllegalArgumentException("MSPDI contains duplicate assignment UIDs");
+		}
+		return Map.copyOf(result);
+	}
+
+	private static String xmlChildText(org.w3c.dom.Element parent, String name, String namespace) {
+		for (org.w3c.dom.Node child = parent.getFirstChild(); child != null; child = child.getNextSibling())
+			if (child instanceof org.w3c.dom.Element element && name.equals(element.getLocalName())
+					&& namespace.equals(element.getNamespaceURI())) return element.getTextContent();
+		return null;
+	}
+
+	private static List<org.w3c.dom.Element> xmlDirectChildren(org.w3c.dom.Element parent, String name,
+		String namespace) {
+		List<org.w3c.dom.Element> result = new ArrayList<>();
+		for (org.w3c.dom.Node child = parent.getFirstChild(); child != null; child = child.getNextSibling())
+			if (child instanceof org.w3c.dom.Element element && name.equals(element.getLocalName())
+					&& namespace.equals(element.getNamespaceURI())) result.add(element);
+		return result;
+	}
+
+	private static Long parseMspdiDuration(String value) {
+		if (value == null || value.isBlank()) return null;
+		java.util.regex.Matcher matcher = java.util.regex.Pattern.compile(
+			"^PT(?:(\\d+)H)?(?:(\\d+)M)?(?:(\\d+(?:\\.\\d+)?)S)?$").matcher(value);
+		if (!matcher.matches()) throw new IllegalArgumentException("Invalid custom MSPDI work duration: " + value);
+		long hours = matcher.group(1) == null ? 0L : Long.parseLong(matcher.group(1));
+		long minutes = matcher.group(2) == null ? 0L : Long.parseLong(matcher.group(2));
+		java.math.BigDecimal seconds = matcher.group(3) == null ? java.math.BigDecimal.ZERO
+			: new java.math.BigDecimal(matcher.group(3));
+		long millis = seconds.movePointRight(3).longValueExact();
+		return Long.valueOf(Math.addExact(Math.addExact(Math.multiplyExact(hours, 3_600_000L),
+			Math.multiplyExact(minutes, 60_000L)), millis));
+	}
+
+	private static long parseMspdiWallTime(String value) {
+		if (value == null) throw new IllegalArgumentException("Custom MSPDI work row is missing a date bound");
+		return java.time.LocalDateTime.parse(value).toInstant(java.time.ZoneOffset.UTC).toEpochMilli();
+	}
+
+	private static Long parseNullableMspdiWallTime(String value) {
+		return value == null || value.isBlank() ? null : Long.valueOf(parseMspdiWallTime(value));
 	}
 
 	private String normalizeExtension(String extension, InputStream in) throws Exception {

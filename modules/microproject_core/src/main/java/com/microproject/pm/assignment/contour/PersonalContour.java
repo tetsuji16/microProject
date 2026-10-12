@@ -276,7 +276,7 @@ public class PersonalContour extends AbstractContour {
 		newList.addAll(bucketsBeforeDuration(startDuration));
 		newList.add(PersonalContourBucket.getInstance(endDuration - startDuration, units));
 		newList.addAll(bucketsAfterDuration(endDuration, false));
-		return getInstance(newList).makePacked();
+		return getInstance(newList).makePacked(true);
 	}
 	
 	
@@ -442,6 +442,10 @@ public class PersonalContour extends AbstractContour {
  * Return an optimized contour that has no superflous info
  * @return
  */	private PersonalContour makePacked() {
+		return makePacked(false);
+	}
+
+	private PersonalContour makePacked(boolean preserveTrailingZeroWork) {
 		ArrayList<PersonalContourBucket> newList = new ArrayList<>(contourBuckets.length);
 		PersonalContourBucket previous = null;
 		PersonalContourBucket bucket = null;
@@ -463,7 +467,8 @@ public class PersonalContour extends AbstractContour {
 			}
 			
 		}
-		if (previous != null && previous.getDuration() > 0 && previous.getUnits() != 0.0) // ignore 0 length buckets or ones with 0 units at end
+		if (previous != null && previous.getDuration() > 0
+				&& (preserveTrailingZeroWork || previous.getUnits() != 0.0)) // ignore filler tails unless explicitly set as work interval
 			newList.add(previous); // add the last one - it will not have been added yet
 		if (newList.isEmpty())
 			newList.add(PersonalContourBucket.getInstance(0,1.0)); // add empty bucket with no duration

@@ -252,13 +252,10 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		assertTrue(taskIterator.hasNext(), "MPP fixture must contain an editable task");
 		Task editedTask = taskIterator.next();
 		List<String> expectedAssignmentBaselines = assignmentBaselineSemantics(project);
-		// This checked-in MPP fixture currently imports no assignment baseline scalars;
-		// compare the actual imported set across MPO persistence without inventing values.
 		SwingUtilities.invokeAndWait(() -> {
-			editedTask.setName("Edited first imported task");
 			editedTask.setManuallyScheduled(true);
 		});
-		assertTrue(project.needsSaving(), "real task edit must make ordinary Save eligible");
+		assertTrue(project.needsSaving(), "manual schedule change must make ordinary Save eligible");
 		List<String> expectedTaskSemantics = taskSemantics(project);
 
 		activateWindowForRobot(robot);
