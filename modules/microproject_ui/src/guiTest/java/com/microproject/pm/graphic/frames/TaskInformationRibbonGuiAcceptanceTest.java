@@ -1486,8 +1486,29 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	@Test
 	void markOnTrackRibbonIsDisabledWithoutTaskSelection() throws Exception {
 		runProgressPhysicalRoute("mark-on-track-no-selection", c -> {
+			// Keep the tracking band in overflow regardless of label width differences
+			// between supported locales and the desktop's native resolution.
+			SwingUtilities.invokeAndWait(() -> { window.setSize(720, 700); window.validate(); });
 			AbstractButton markOnTrack = GuiPhysicalRouteAdapter.visibleButton(c.robot(), window, "RibbonMarkOnTrack");
-			assertFalse(markOnTrack.isEnabled(), "MSP Mark on Track requires selected tasks");
+			JPopupMenu[] popupAncestor = new JPopupMenu[1];
+			boolean[] popupVisible = new boolean[1];
+			boolean[] commandEnabled = new boolean[1];
+			int[] actualWindowWidth = new int[1];
+			SwingUtilities.invokeAndWait(() -> {
+				actualWindowWidth[0] = window.getWidth();
+				for (Component current = markOnTrack; current != null; current = current.getParent()) {
+					if (current instanceof JPopupMenu popup) {
+						popupAncestor[0] = popup;
+						popupVisible[0] = popup.isVisible();
+						break;
+					}
+				}
+				commandEnabled[0] = markOnTrack.isEnabled();
+			});
+			assertEquals(720, actualWindowWidth[0], "The responsive fixture must keep its requested width");
+			assertTrue(popupAncestor[0] != null && popupVisible[0],
+				"The narrow disabled-command fixture must exercise the visible ribbon overflow popup");
+			assertFalse(commandEnabled[0], "MSP Mark on Track requires selected tasks");
 			clickDisabled(c.robot(), markOnTrack);
 			assertEquals(initialPercentComplete, contextTask().getPercentComplete(),
 					"A disabled command must leave the task unchanged");
