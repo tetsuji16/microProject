@@ -114,6 +114,7 @@ import com.microproject.util.ClassLoaderUtils;
 import com.microproject.dialog.AbstractDialog;
 import com.microproject.dialog.LocaleDialog;
 import com.microproject.dialog.ProjectDialog;
+import com.microproject.dialog.ResourceSortOrderPanel;
 import com.microproject.dialog.PreferencesDialogBox;
 import com.microproject.dialog.RenameProjectDialog;
 import com.microproject.dialog.WelcomeDialog;
@@ -1876,7 +1877,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		// Legacy menu ids remain aliases of the canonical transform commands.  A
 		// single action instance keeps menu, ribbon and toolbar behavior identical.
 		TransformAction filterTransform = new TransformAction(TransformComboBoxModel.FILTER);
-		TransformAction sortTransform = new TransformAction(TransformComboBoxModel.SORTER);
+		TransformAction sortTransform = new SortOrderAction();
 		TransformAction groupTransform = new TransformAction(TransformComboBoxModel.GROUPER);
 		actionsMap.addHandler(ACTION_FILTER, filterTransform);
 		actionsMap.addHandler(ACTION_CHOOSE_FILTER, filterTransform);
@@ -3118,6 +3119,56 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		}
 	}
 
+	/** Opens Resource Sort Order through the existing resource-view sort pipeline. */
+	public class SortOrderAction extends TransformAction {
+		private static final long serialVersionUID = 1L;
+		public SortOrderAction() { super(TransformComboBoxModel.SORTER); }
+
+		@Override
+		public void actionPerformed(ActionEvent event) {
+			String commandId = event == null || event.getActionCommand() == null
+					? ACTION_SORT : event.getActionCommand();
+			if (event.getSource() instanceof TransformComboBox) {
+				super.actionPerformed(event);
+				return;
+			}
+			setMeAsLastGraphicManager();
+			if (!isDocumentActive()) {
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(commandId, "no-active-document"));
+				return;
+			}
+			DocumentFrame frame = getCurrentFrame();
+			if (frame == null || !(frame.getActiveTopView() instanceof ResourceView resourceView)) {
+				super.actionPerformed(event);
+				return;
+			}
+			if (!beforeChooserRoute("SortOrder")) {
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(commandId, "route-rejected"));
+				return;
+			}
+			ResourceSortOrderPanel panel = new ResourceSortOrderPanel(resourceView.getResourceSortFields(),
+				resourceView.getSortedFieldId(), resourceView.isSortAscending());
+			int choice = PopupDialogSupport.showConfirmDialog(getFrame(), panel,
+				Messages.getString("ResourceSortOrder.Title"), JOptionPane.OK_CANCEL_OPTION,
+				JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION);
+			if (choice != JOptionPane.OK_OPTION) {
+				publishTaskCommandOutcome(this, new RibbonCommandResult(commandId, RibbonCommandResult.Status.NO_CHANGE,
+					"dialog-cancelled").withActiveView(frame.getTopViewId()));
+				return;
+			}
+			String previousField = resourceView.getSortedFieldId();
+			boolean previousDirection = resourceView.isSortAscending();
+			boolean applied = resourceView.applySortOrder(panel.getFieldId(), panel.isAscending());
+			if (!applied) {
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(commandId, "invalid-sort-field"));
+				return;
+			}
+			boolean changed = !Objects.equals(previousField, panel.getFieldId()) || previousDirection != panel.isAscending();
+			publishTaskCommandOutcome(this, (changed ? RibbonCommandResult.changed(commandId) : RibbonCommandResult.noChange(commandId))
+				.withActiveView(frame.getTopViewId()));
+		}
+	}
+
 
 	public void closeApplication(){
 		addHistory("closeApplication");
@@ -3677,14 +3728,18 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 	public boolean saveLocalProject(boolean saveAs){
 		if (getCurrentFrame() == null || getCurrentFrame().getProject() == null) return false;
-		String fileName=null;
 		Project project=getCurrentFrame().getProject();
-		if (!saveAs){
-			fileName=project.getFileName();
+		String fileName = project.getFileName();
+		boolean chooseSaveAs = saveAs || com.microproject.application.ProjectFilePolicies.requiresSaveAs(fileName);
+		if (chooseSaveAs) {
+			String suggested = com.microproject.application.ProjectFilePolicies.defaultSaveAsFileName(
+				fileName == null ? project.getGuessedFileName() : fileName);
+			fileName = SessionFactory.getInstance().getLocalSession().chooseFileName(true, suggested);
+		} else if (fileName == null) {
+			fileName = SessionFactory.getInstance().getLocalSession().chooseFileName(true, project.getGuessedFileName());
 		}
-		if (fileName==null) fileName=SessionFactory.getInstance().getLocalSession().chooseFileName(true,project.getGuessedFileName());
 		if (fileName!=null) {
-			saveLocalDocument(fileName,saveAs);
+			saveLocalDocument(fileName,chooseSaveAs);
 			return true;
 		}
 		return false;
@@ -3695,8 +3750,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		DocumentFrame frame = getCurrentFrame();
 		Project project = frame == null ? null : frame.getProject();
 		if (project == null || !project.isMaster()) return false;
-		String suggested = project.getFileName();
+		String suggested = com.microproject.application.ProjectFilePolicies.defaultSaveAsFileName(project.getFileName());
 		if (suggested == null || suggested.isBlank()) suggested = project.getGuessedFileName();
+		suggested = com.microproject.application.ProjectFilePolicies.defaultSaveAsFileName(suggested);
 		if (suggested == null || suggested.isBlank()) suggested = "master.mpo";
 		if (!suggested.toLowerCase(java.util.Locale.ROOT).endsWith(".mpo")) suggested += ".mpo";
 		String selected = SessionFactory.getInstance().getLocalSession().chooseFileName(true, suggested);

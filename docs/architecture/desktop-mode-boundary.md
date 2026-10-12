@@ -32,4 +32,8 @@ JDK 25: `bash ./gradlew clean build installDist verifyArchitectureBoundaries ver
 
 New tests cover nested compound undo/redo, listener ordering, retired startup rejection and local file argument preservation. The Open action regression verifies it reaches the local chooser even with the legacy standalone flag false; existing subproject, scheduling and Undo tests retain their contracts.
 
-The repository references a local `microproject-gui-implementation` skill which is absent from the checkout and available skill catalog. This change uses the checked-in `docs/gui-quality-gate.md`; it preserves supported physical file routes and adds no layout or interaction design.
+This boundary migration preserves supported physical file routes and adds no
+layout or interaction design. GUI requirements are maintained in the
+repo-contained [`docs/gui-quality-gate.md`](../gui-quality-gate.md); physical
+Windows Robot evidence remains a separate gate for any later GUI-visible
+change.

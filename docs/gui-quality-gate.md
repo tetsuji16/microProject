@@ -126,13 +126,20 @@ remove the duplicate responsibility that made the defect possible.
    one and remove the other.  Test code is production code and follows the
    same no-duplication rule.
 
-The release gate uses the compact `-PguiTestSuite=smoke` matrix, which covers
-each shared-cause family changed by the release. The complete `full` suite is
-reserved for scheduled/manual audits and broad UI changes. Neither suite is a
-default per-PR requirement for a behavior-preserving source modernization;
-the affected module tests remain required, and a release gate still verifies
-the integrated result. A targeted GUI change must retain the invariant tests
-needed for that changed contract.
+The Windows GUI workflow uses the compact `-PguiTestSuite=smoke` matrix on
+pull requests and pushes by default, and runs `full` for its scheduled audit.
+The release workflow defaults beta candidates to `smoke` and requires `full`
+for stable candidates. Neither suite is a default per-PR requirement for a
+behavior-preserving source modernization; the affected module tests remain
+required, and the release gate verifies the integrated result. A targeted GUI
+change must retain the invariant tests needed for that changed contract.
+
+Implementation does not depend on a locally installed agent skill or a local
+desktop session. If a workstation cannot run Robot tests, continue source and
+headless work, record the physical evidence as pending, and run the Windows
+`GUI acceptance audit` workflow before treating the GUI contract as verified.
+Do not close an affected GUI issue or describe its physical route as passing
+until that workflow supplies the required evidence.
 
 The review question is therefore: *which duplicated path or missing invariant
 allowed this bug?*  “Add another case” is not an adequate answer by itself.
@@ -295,9 +302,12 @@ and stable task IDs, never only object identity or a blank event source.
 - A GUI compatibility claim cannot be closed from a passing action dispatch,
   a screenshot, or a comparison with an undocumented observed behavior.  The
   MSP-source evidence and the complete command contract above are mandatory.
-- Run the focused unit tests and focused `guiTest` before review.  Run the full
+- Run focused unit tests and focused `guiTest` before review. Run the full
   `:microproject_ui:test` and `:microproject_ui:guiTest --max-workers=1` before a
   release or when shared command, selection, layout, or shortcut code changes.
+  If local desktop automation is unavailable, use the Windows GUI acceptance
+  workflow for the physical route instead of treating the local omission as a
+  passing result.
 - Test failures, skipped desktop tests, visual regressions, or missing command
   contracts block release.  A waiver requires a linked open issue, a named
   owner, scope, and expiry; it cannot be used for a known data-loss, command,

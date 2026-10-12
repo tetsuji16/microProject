@@ -5,18 +5,28 @@ also builds Linux x64 and macOS Apple Silicon packages. Packaging availability
 does not itself assert equal platform-specific behavior. microProject is a
 desktop planning application with a task
 hierarchy, schedules, dependencies, resources, progress, and a Gantt view. Its
-product goal is complete compatibility with Microsoft Project desktop,
-including the current Microsoft 365 ribbon visual style and desktop command
-behavior. **That compatibility goal is not yet achieved.** MPP read and write,
-each workflow, and separately licensed or connected integrations remain
-measurable acceptance gates.
+product goal is complete compatibility with the standalone Microsoft Project
+desktop application, including the current Microsoft 365 ribbon visual style
+and desktop command behavior. **That compatibility goal is not yet achieved.**
+MPO (`.mpo`) is the application's authoritative native format and default save
+format. MPP (`.mpp`) remains a separate external interoperability target with
+read and write acceptance gates; it is not the native project format. POD is a
+frozen legacy import format. Desktop workflows and local automation/extensions
+remain measurable acceptance gates. Project Server, PWA, Project Online, and Microsoft
+Planner cloud authentication or synchronization are outside this standalone
+product goal. The [compatibility goal](docs/msp-compatibility-goal.md) and
+[roadmap](docs/msp-compatibility-roadmap.md) define the full scope.
 
 microProject は、タスク階層、日程、依存関係、リソース、進捗をガント
 チャートと一緒に管理するデスクトップ計画アプリです。製品目標は、
-Microsoft Project デスクトップとの完全互換です。最新 Microsoft 365
-版のリボン外観とデスクトップ操作を目標にしますが、互換性はまだ完了
-していません。MPP の読み書き、各業務フロー、接続・拡張機能を個別に
-検証してから完了を判断します。
+スタンドアロンの Microsoft Project デスクトップとの完全互換です。最新
+Microsoft 365 版のリボン外観とデスクトップ操作を目標にしますが、互換性は
+まだ完了していません。MPO（`.mpo`）を製品の正式なネイティブ形式かつ標準の
+保存形式とします。MPP（`.mpp`）は別個の外部互換形式で、読み書きの検証対象です。
+POD は wire 形式を変更しない旧形式の読込用です。デスクトップ業務フローとローカルの
+自動化・拡張機能も個別に検証します。Project Server、PWA、Project Online、
+Microsoft Planner のクラウド認証・同期はこの製品目標の対象外です。詳細は
+互換性目標とロードマップを参照してください。
 
 Quick links:
 
@@ -32,7 +42,7 @@ Quick links:
 | M1 | Current Office-style ribbon visuals | Open — [#793](https://github.com/tetsuji16/ProjectLibre/issues/793) |
 | M2 | Offline desktop workflow parity | Open — [#794](https://github.com/tetsuji16/ProjectLibre/issues/794) |
 | M3 | MPP and other file interoperability | Open — [#796](https://github.com/tetsuji16/ProjectLibre/issues/796) |
-| M4 | Automation and server scope | Open — [#797](https://github.com/tetsuji16/ProjectLibre/issues/797) |
+| M4 | Local automation and extensions | Open — [#797](https://github.com/tetsuji16/ProjectLibre/issues/797) |
 | M5 | Release compatibility acceptance | Open — [#795](https://github.com/tetsuji16/ProjectLibre/issues/795) |
 
 ![microProject commercial construction project plan in the Gantt view](docs/images/demo_gannt.png)
@@ -49,13 +59,15 @@ implementation). They do not share project-file state or release artifacts.
 
 ## What This Fork Is For
 
-- **Goal: complete Microsoft Project desktop compatibility.** This is a work
-  objective; compatibility is not complete. The target includes desktop
+- **Goal: complete standalone Microsoft Project desktop compatibility.** This
+  is a work objective; compatibility is not complete. The target includes desktop
   workflows and project-file behavior, with MPP read and write as explicit
   acceptance gates. See the
   [compatibility roadmap](docs/msp-compatibility-roadmap.md) for scope, open
-  coverage gaps, milestones, and issue review, and
-  [the compatibility goal](docs/msp-compatibility-goal.md) for verification
+  coverage gaps, milestones, and issue review. Project Server, PWA, Project
+  Online, and Microsoft Planner cloud services are outside the goal; local
+  files, offline collaboration and local automation/extensions remain in scope.
+  See [the compatibility goal](docs/msp-compatibility-goal.md) for verification
   rules.
 - Keep microProject usable on a modern JDK and packaging toolchain
 - Improve real-world planning workflows: task hierarchies, schedules, dependencies, resources, and progress in one desktop workspace

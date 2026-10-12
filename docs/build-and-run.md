@@ -7,7 +7,7 @@ This project has two different build outputs that matter during verification:
 
 When you need to execute the app for manual verification, always run the installed layout produced by `installDist`, not an older copy of the generated files.
 
-## Safe Verification Flow
+## Windows Verification Flow
 
 Use this sequence when you want to build and immediately test the desktop app:
 
@@ -21,7 +21,17 @@ If you also want to remove generated legacy packaging scratch output before rebu
 .\gradlew.bat clean cleanLegacyPackagingArtifacts installDist --console=plain
 ```
 
-Then launch the installed app from:
+On Linux or macOS, use the checked-in Unix wrapper for the equivalent build:
+
+```sh
+bash ./gradlew clean build installDist --console=plain
+```
+
+This builds the same source but does not execute a desktop GUI test. Start the
+app with the platform launcher from its generated install layout when a desktop
+session is available.
+
+On Windows, launch the installed app from:
 
 ```powershell
 modules\microproject_ui\build\install\microproject_ui\bin\microproject_ui.bat
@@ -80,6 +90,8 @@ creation/visibility. Use it to determine whether a reported click failed to disp
 lost its selection, was rejected by routing, or reached the dialog.
 
 Linux の Robot 検証にも実際のウィンドウ管理機能が必要です。Xvfb だけでは、子 modal を閉じた後の親 window へのフォーカス復帰を検証できません。1920×1080 の Xvfb と Openbox 等の window manager を同じ DISPLAY で起動し、manager の生存を確認してから実行します。Windows の出荷ゲートは通常の Windows desktop 上で実施します。
+
+ローカルに X server と window manager がない場合も、GUI実装や headless 検証を停止する必要はありません。物理Robotの合否は未確認として記録し、Windows 上の [GUI acceptance workflow](../.github/workflows/gui-acceptance.yml) を実行して証跡を得ます。PR/push の既定suiteは `smoke`、scheduled workflow は `full`、stable release は `full` を必須とします。headless build/test は物理GUIの合格証拠として扱いません。
 
 GUI受入は同じRobotケースをlocale／DPI軸でも実行できる。標準は日本語・100%で、
 U-21の視覚検査では次のように別プロセスで実行する。

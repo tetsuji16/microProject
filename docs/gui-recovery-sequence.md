@@ -7,6 +7,13 @@ Each phase fixes a shared cause, adds/reuses one command-contract fixture, and
 passes its exit gate before the next phase begins.  The order intentionally
 favors foundational command state over individual ribbon buttons.
 
+These phases order implementation work; they do not require a particular local
+agent skill or desktop environment. Continue source and headless work when
+physical automation is unavailable, record the Robot gate as pending, and use
+the Windows GUI acceptance workflow for physical evidence. Do not advance a
+phase, close an affected issue, or claim GUI acceptance until its stated gate
+has passed.
+
 ## Phase 0 — Baseline and freeze
 
 **Purpose:** establish one reproducible starting point.

@@ -27,6 +27,7 @@ package com.microproject.application;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -84,5 +85,19 @@ class ProjectDocumentWorkflowTest {
 		assertNotNull(options.getPostSaving());
 		options.getPostSaving().accept(null);
 		assertEquals(1, completions.get(), "ordinary Save must run the same completion path as Save As");
+	}
+
+	@Test
+	void mppImportSaveAsOptionsKeepSourceAssociationPendingSuccess() {
+		Project project = ProjectFactory.getInstance().createProject();
+		project.setFileName("source.mpp");
+
+		SaveOptions options = ProjectDocumentWorkflow.prepareSaveOptions(project, "source.mpo", true, true,
+			null, "user", null, null);
+		assertNotNull(options);
+		assertEquals("source.mpo", options.getFileName());
+		assertEquals(LocalSession.MPO_PROJECT_IMPORTER, options.getImporter());
+		assertTrue(options.isSaveAs());
+		assertEquals("source.mpp", project.getFileName(), "source association changes only after a successful save");
 	}
 }

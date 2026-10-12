@@ -32,6 +32,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.prefs.Preferences;
 
+import javax.swing.JOptionPane;
+
 import com.formdev.flatlaf.util.SystemFileChooser;
 import com.formdev.flatlaf.util.SystemFileChooser.FileFilter;
 import com.formdev.flatlaf.util.SystemFileChooser.FileNameExtensionFilter;
@@ -42,11 +44,7 @@ import com.microproject.strings.Messages;
 public final class SwingFileChooserProvider implements UiServices.FileChooserProvider {
 	private static final String DEFAULT_FILE_EXTENSION = FileHelper.DEFAULT_FILE_EXTENSION;
 	private static final String LEGACY_POD_FILE_EXTENSION = FileHelper.POD_FILE_EXTENSION;
-	/**
-	 * Native (OS) file dialogs are enabled by default. Users can still force
-	 * the Swing fallback via -Dflatlaf.useSystemFileChooser=false, e.g. when
-	 * running on a platform without FlatLaf native library support.
-	 */
+	/** FlatLaf allows a caller to explicitly select its Swing chooser fallback. */
 	static final String USE_SYSTEM_FILE_CHOOSER_PROPERTY = "flatlaf.useSystemFileChooser";
 
 	static {
@@ -103,6 +101,16 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 		FileFilter currentFilter = chooser.getFileFilter();
 		if (save) {
 			fileName = normalizeSelectedSaveFileName(fileName, currentFilter);
+			boolean normalizedToDifferentTarget = !new File(file.toString()).getAbsoluteFile()
+				.equals(new File(fileName).getAbsoluteFile());
+			if (normalizedToDifferentTarget && new File(fileName).exists()
+					&& JOptionPane.showOptionDialog(fileChooserParent,
+						Messages.format("Message.overwriteFileConfirmation", fileName),
+						Messages.getString("Text.confirmOverwrite"), JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE,
+						null, new Object[] { Messages.getString("Text.Replace"), Messages.getString("Text.Cancel") },
+						Messages.getString("Text.Cancel")) != 0) {
+				return null;
+			}
 		}
 		Preferences.userNodeForPackage(FileHelper.class).put("lastDirectory", file.getParent());
 		return fileName;
@@ -311,9 +319,6 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 		}
 		if (DEFAULT_FILE_EXTENSION.equals(extension)) {
 			return DEFAULT_FILE_EXTENSION;
-		}
-		if (standalone && LEGACY_POD_FILE_EXTENSION.equals(extension)) {
-			return extension;
 		}
 		return standalone ? DEFAULT_FILE_EXTENSION : "xml";
 	}

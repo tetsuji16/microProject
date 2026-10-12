@@ -79,6 +79,23 @@ public class FileHelper {
 		return isMicrosoftProjectFile(fileName) || isNativeFile(fileName);
 	}
 
+	/** Returns whether an existing local path cannot be used for an ordinary save. */
+	public static boolean requiresSaveAs(String fileName) {
+		return fileName != null && !isFileNameAllowed(fileName, true);
+	}
+
+	/**
+	 * Returns the native target suggested by Save As for an import-only source.
+	 * Callers may also choose to migrate a legacy POD source to MPO by setting
+	 * {@code migrateLegacyPod}; explicit POD export remains available in the UI.
+	 */
+	public static String defaultNativeSaveAsFileName(String fileName, boolean migrateLegacyPod) {
+		if (fileName == null) return null;
+		if (requiresSaveAs(fileName) || (migrateLegacyPod && isPodFile(fileName)))
+			return changeFileExtension(fileName, MPO_FILE_TYPE);
+		return fileName;
+	}
+
     public static String getFileExtension(String fileName) {
 		if (fileName == null) return null;
         int i=fileName.lastIndexOf('.');

@@ -56,6 +56,16 @@ class FileHelperEdgeCaseTest {
 	}
 
 	@Test
+	void importOnlySaveTargetsMigrateToMpoWithoutChangingLegacyPodOrdinarySavePolicy() {
+		assertTrue(FileHelper.requiresSaveAs("source.mpp"));
+		assertTrue(FileHelper.requiresSaveAs("source.mpx"));
+		assertEquals("source.mpo", FileHelper.defaultNativeSaveAsFileName("source.mpp", false));
+		assertEquals("source.mpo", FileHelper.defaultNativeSaveAsFileName("source.pod", true));
+		assertEquals("source.pod", FileHelper.defaultNativeSaveAsFileName("source.pod", false));
+		assertEquals("report.xlsx", FileHelper.defaultNativeSaveAsFileName("report.xlsx", true));
+	}
+
+	@Test
 	void deprecatedFormatRecoveryGuidanceUsesMpoInsteadOfPod() {
 		String message = Messages.getString("Message.ImportOldFormatError").toLowerCase(Locale.ROOT);
 		assertTrue(message.contains("mpo"));

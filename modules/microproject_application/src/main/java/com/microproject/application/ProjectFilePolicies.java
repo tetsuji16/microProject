@@ -37,6 +37,19 @@ public final class ProjectFilePolicies {
 		return FileHelper.isPodFile(fileName);
 	}
 
+	/**
+	 * Microsoft Project inputs are import-only.  A normal Save must ask for a
+	 * writable target instead of passing the source path to an unsupported writer.
+	 */
+	public static boolean requiresSaveAs(String fileName) {
+		return FileHelper.requiresSaveAs(fileName);
+	}
+
+	/** Gives imports a native MPO target while retaining their source path until save succeeds. */
+	public static String defaultSaveAsFileName(String fileName) {
+		return FileHelper.defaultNativeSaveAsFileName(fileName, true);
+	}
+
 	public static String resolveLoadImporter(String fileName) {
 		if (FileHelper.isMpoFile(fileName)) {
 			return LocalSession.MPO_PROJECT_IMPORTER;

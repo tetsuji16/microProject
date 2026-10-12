@@ -7,11 +7,19 @@ package com.microproject.ui.diagnostics;
 
 import java.awt.Component;
 import java.awt.EventQueue;
+import java.awt.AWTEvent;
+import java.awt.Dialog;
+import java.awt.Toolkit;
 import java.awt.Window;
+import java.awt.event.ComponentEvent;
 import java.awt.event.ActionEvent;
+import java.awt.event.AWTEventListener;
+import java.awt.event.WindowEvent;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -21,11 +29,16 @@ import javax.swing.Action;
 import com.microproject.pm.graphic.frames.DocumentFrame;
 import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet;
+import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheetModel;
+import com.microproject.pm.graphic.model.cache.GraphicNode;
+import com.microproject.pm.graphic.views.BaseView;
 import com.microproject.grouping.core.Node;
 import com.microproject.pm.key.HasKey;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectHierarchyQueries;
 import com.microproject.pm.task.Task;
+import com.microproject.dialog.AbstractDialog;
+import com.microproject.ribbon.RibbonCommandResult;
 
 /**
  * Adds opt-in action lifecycle diagnostics to command buttons. It is used
@@ -35,6 +48,12 @@ import com.microproject.pm.task.Task;
 public final class UiButtonDiagnostics {
 	private static final String UI_DEBUG_PROPERTY = "microproject.ui.debug";
 	private static final Logger logger = Logger.getLogger(UiButtonDiagnostics.class.getName());
+
+	static record ViewProjection(List<String> visibleRows, String viewState) {
+		ViewProjection {
+			visibleRows = List.copyOf(visibleRows);
+		}
+	}
 
 	private UiButtonDiagnostics() {
 	}
@@ -75,6 +94,7 @@ public final class UiButtonDiagnostics {
 			copyValue(Action.ACCELERATOR_KEY);
 			copyValue(Action.MNEMONIC_KEY);
 			copyValue(Action.SELECTED_KEY);
+			copyValue(RibbonCommandResult.RESULT_ACTION_PROPERTY);
 			setEnabled(delegate.isEnabled());
 		}
 
@@ -91,6 +111,7 @@ public final class UiButtonDiagnostics {
 			boolean visibleBefore = source == null || source.isShowing();
 			boolean selectedBefore = source instanceof javax.swing.AbstractButton button && button.isSelected();
 			UiState stateBefore = UiState.capture(source);
+			RibbonCommandResult outcomeBefore = semanticResult();
 			logger.fine("UI_BUTTON action-start id=" + buttonId
 				+ " delegate=" + delegate.getClass().getSimpleName()
 				+ " command=" + (event == null ? "null" : event.getActionCommand())
@@ -111,24 +132,30 @@ public final class UiButtonDiagnostics {
 					+ " selection=" + stateBefore.selection);
 				return;
 			}
+			DialogLifecycleObserver dialogs = new DialogLifecycleObserver(source);
+			dialogs.start();
 			try {
 				delegate.actionPerformed(event);
-				// Model listeners and repaint/revalidation commonly enqueue their work.
-				// Reading immediately here produces false no-op diagnostics and hides the
-				// very timing bug this facility is meant to expose.  Settle one EDT turn,
-				// then take the semantic after-snapshot without changing the user action.
-				Runnable observeAfter = () -> observeAfterAction(source, stateBefore,
-					enabledBefore, visibleBefore, selectedBefore);
-				EventQueue.invokeLater(observeAfter);
 			} catch (RuntimeException | Error e) {
 				logger.log(Level.WARNING, "UI_BUTTON_FAILURE id=" + buttonId
 					+ " reason=action-threw delegate=" + delegate.getClass().getName(), e);
 				throw e;
+			} finally {
+				dialogs.stop();
 			}
+			RibbonCommandResult outcomeAfter = freshSemanticResult(outcomeBefore);
+			// Model listeners and repaint/revalidation commonly enqueue their work.
+			// Reading immediately here produces false no-op diagnostics and hides the
+			// very timing bug this facility is meant to expose. Settle one EDT turn,
+			// then take the semantic after-snapshot without changing the user action.
+			Runnable observeAfter = () -> observeAfterAction(source, stateBefore,
+				enabledBefore, visibleBefore, selectedBefore, dialogs.outcomes(), outcomeAfter);
+			EventQueue.invokeLater(observeAfter);
 		}
 
 		private void observeAfterAction(Component source, UiState stateBefore,
-				boolean enabledBefore, boolean visibleBefore, boolean selectedBefore) {
+				boolean enabledBefore, boolean visibleBefore, boolean selectedBefore,
+				List<String> dialogOutcomes, RibbonCommandResult result) {
 			try {
 				UiState stateAfter = UiState.capture(source);
 				boolean enabledAfter = source == null || source.isEnabled();
@@ -149,11 +176,33 @@ public final class UiButtonDiagnostics {
 					+ " undo=" + stateAfter.undoSummary()
 					+ " modelChanged=" + stateBefore.modelChanged(stateAfter)
 					+ " viewChanged=" + stateBefore.viewChanged(stateAfter)
-					+ " undoChanged=" + stateBefore.undoChanged(stateAfter));
-				if (stateBefore.equals(stateAfter) && selectedBefore == selectedAfter
-						&& enabledBefore == enabledAfter && visibleBefore == visibleAfter) {
+					+ " undoChanged=" + stateBefore.undoChanged(stateAfter)
+					+ " dialogOutcome=" + (dialogOutcomes.isEmpty() ? "none" : dialogOutcomes));
+				boolean unchanged = stateBefore.equals(stateAfter) && selectedBefore == selectedAfter
+					&& enabledBefore == enabledAfter && visibleBefore == visibleAfter;
+				if (result != null && (result.status() == RibbonCommandResult.Status.FAILED
+						|| result.status() == RibbonCommandResult.Status.REJECTED)) {
+					logger.warning("UI_COMMAND_FAILURE id=" + buttonId
+						+ " reason=command-" + result.status().name().toLowerCase(java.util.Locale.ROOT)
+						+ " commandReason=" + result.reason()
+						+ " activeView=" + result.activeViewId()
+						+ " selection=" + result.selectedTaskIds());
+				} else if (result != null && result.status() == RibbonCommandResult.Status.NO_CHANGE) {
+					logger.fine("UI_COMMAND_RESULT id=" + buttonId + " reason=command-no-change"
+						+ " commandReason=" + result.reason());
+				} else if (unchanged && !dialogOutcomes.isEmpty()
+						&& "cancelled".equals(dialogOutcomes.get(dialogOutcomes.size() - 1))) {
+					logger.fine("UI_COMMAND_RESULT id=" + buttonId
+						+ " reason=dialog-cancelled");
+				} else if (unchanged) {
 					logger.warning("UI_COMMAND_FAILURE id=" + buttonId
 						+ " reason=no-observable-state-change activeView=" + stateAfter.activeView
+						+ " selection=" + stateAfter.selection);
+				} else if (result != null && result.status() == RibbonCommandResult.Status.CHANGED
+						&& !stateBefore.modelChanged(stateAfter) && !stateBefore.viewChanged(stateAfter)
+						&& !stateBefore.undoChanged(stateAfter)) {
+					logger.warning("UI_COMMAND_FAILURE id=" + buttonId
+						+ " reason=reported-change-not-observed activeView=" + stateAfter.activeView
 						+ " selection=" + stateAfter.selection);
 				} else {
 					logger.fine("UI_COMMAND_RESULT id=" + buttonId + " reason=observable-state-change");
@@ -163,23 +212,109 @@ public final class UiButtonDiagnostics {
 					+ " reason=diagnostic-observation-failed", e);
 			}
 		}
+
+		private RibbonCommandResult semanticResult() {
+			Object value = getValue(RibbonCommandResult.RESULT_ACTION_PROPERTY);
+			return value instanceof RibbonCommandResult result ? result : null;
+		}
+
+		private RibbonCommandResult freshSemanticResult(RibbonCommandResult outcomeBefore) {
+			RibbonCommandResult current = semanticResult();
+			return current != null && current != outcomeBefore && buttonId.equals(current.commandId()) ? current : null;
+		}
+	}
+
+	private static final class DialogLifecycleObserver implements AWTEventListener {
+		private static final long OBSERVED_EVENTS = AWTEvent.COMPONENT_EVENT_MASK | AWTEvent.WINDOW_EVENT_MASK;
+		private final Window sourceWindow;
+		private final Map<Dialog, Boolean> openDialogs = new IdentityHashMap<>();
+		private final List<String> completedOutcomes = new ArrayList<>();
+		private boolean registered;
+
+		private DialogLifecycleObserver(Component source) {
+			this.sourceWindow = source == null ? null : javax.swing.SwingUtilities.getWindowAncestor(source);
+		}
+
+		private void start() {
+			if (sourceWindow == null) return;
+			try {
+				Toolkit.getDefaultToolkit().addAWTEventListener(this, OBSERVED_EVENTS);
+				registered = true;
+			} catch (SecurityException denied) {
+				// Diagnostics cannot prevent a user command if the runtime disallows observation.
+			}
+		}
+
+		private void stop() {
+			if (registered) {
+				try {
+					Toolkit.getDefaultToolkit().removeAWTEventListener(this);
+				} catch (SecurityException denied) {
+					// Preserve the delegate's outcome if listener cleanup is restricted.
+				} finally {
+					registered = false;
+				}
+			}
+			finishHiddenDialogs();
+		}
+
+		private List<String> outcomes() {
+			return List.copyOf(completedOutcomes);
+		}
+
+		@Override
+		public void eventDispatched(AWTEvent event) {
+			if (event instanceof ComponentEvent componentEvent && componentEvent.getComponent() instanceof Dialog dialog) {
+				if (componentEvent.getID() == ComponentEvent.COMPONENT_SHOWN && dialog.isModal()
+						&& belongsToSource(dialog)) {
+					openDialogs.put(dialog, Boolean.TRUE);
+				} else if (componentEvent.getID() == ComponentEvent.COMPONENT_HIDDEN) {
+					recordClose(dialog);
+				}
+			} else if (event instanceof WindowEvent windowEvent && windowEvent.getSource() instanceof Dialog dialog
+					&& windowEvent.getID() == WindowEvent.WINDOW_CLOSED) {
+				recordClose(dialog);
+			}
+		}
+
+		private boolean belongsToSource(Dialog dialog) {
+			for (Window owner = dialog; owner != null; owner = owner.getOwner())
+				if (owner == sourceWindow) return true;
+			return false;
+		}
+
+		private void recordClose(Dialog dialog) {
+			if (openDialogs.remove(dialog) == null) return;
+			String outcome = "closed";
+			if (dialog instanceof AbstractDialog abstractDialog)
+				outcome = abstractDialog.getDialogResult() == javax.swing.JOptionPane.CANCEL_OPTION
+					? "cancelled" : "accepted";
+			completedOutcomes.add(outcome);
+		}
+
+		private void finishHiddenDialogs() {
+			for (Dialog dialog : List.copyOf(openDialogs.keySet()))
+				if (!dialog.isShowing()) recordClose(dialog);
+		}
 	}
 
 	private static final class UiState {
 		private final String selection;
 		private final String activeView;
 		private final int rows;
+		private final ViewProjection projection;
 		private final boolean dirty;
 		private final boolean canUndo;
 		private final boolean canRedo;
 		private final int visibleWindows;
 		private final String modelSignature;
 
-		private UiState(String selection, String activeView, int rows, boolean dirty,
+		private UiState(String selection, String activeView, int rows, ViewProjection projection, boolean dirty,
 				boolean canUndo, boolean canRedo, int visibleWindows, String modelSignature) {
 			this.selection = selection;
 			this.activeView = activeView;
 			this.rows = rows;
+			this.projection = projection;
 			this.dirty = dirty;
 			this.canUndo = canUndo;
 			this.canRedo = canRedo;
@@ -210,8 +345,9 @@ public final class UiButtonDiagnostics {
 				}
 				Collections.sort(selected);
 				String activeView = "none";
-				if (frame != null && frame.getActiveTopView() != null && frame.getActiveTopView().getViewName() != null)
-					activeView = frame.getActiveTopView().getViewName();
+				BaseView activeTopView = frame == null ? null : frame.getActiveTopView();
+				if (activeTopView != null && activeTopView.getViewName() != null)
+					activeView = activeTopView.getViewName();
 				boolean dirty = frame != null && frame.getProject() != null && frame.getProject().needsSaving();
 				String modelSignature = modelSignature(frame == null ? null : frame.getProject());
 				boolean canUndo = frame != null && frame.getUndoController() != null && frame.getUndoController().canUndo();
@@ -219,11 +355,33 @@ public final class UiButtonDiagnostics {
 				int visibleWindows = 0;
 				for (Window window : Window.getWindows())
 					if (window.isShowing()) visibleWindows++;
-				return new UiState(selected.toString(), activeView, sheet == null ? -1 : sheet.getRowCount(), dirty,
+				return new UiState(selected.toString(), activeView, sheet == null ? -1 : sheet.getRowCount(),
+					viewProjection(sheet, activeTopView), dirty,
 					canUndo, canRedo, visibleWindows, modelSignature);
-			} catch (RuntimeException | Error ignored) {
-				return new UiState("unavailable", "unavailable", -1, false, false, false, -1, "unavailable");
+			} catch (Exception | Error ignored) {
+				return new UiState("unavailable", "unavailable", -1,
+					new ViewProjection(List.of("unavailable"), "unavailable"), false, false, false, -1, "unavailable");
 			}
+		}
+
+		private static ViewProjection viewProjection(CommonSpreadSheet sheet, BaseView view) {
+			List<String> visibleRows = new ArrayList<>();
+			if (sheet != null && sheet.getModel() instanceof CommonSpreadSheetModel model) {
+				for (int row = 0; row < model.getRowCount(); row++) {
+					GraphicNode graphicNode = model.getNode(row);
+					Node node = graphicNode == null ? null : graphicNode.getNode();
+					Object impl = node == null ? null : node.getImpl();
+					String identity = impl instanceof HasKey key
+						? impl.getClass().getName() + "#" + key.getUniqueId()
+						: impl == null ? "null" : impl.getClass().getName();
+					visibleRows.add(identity + ":level=" + (graphicNode == null ? -1 : graphicNode.getLevel())
+						+ ":summary=" + (graphicNode != null && graphicNode.isSummary()));
+				}
+			} else if (sheet != null) {
+				visibleRows.add("model=" + sheet.getModel().getClass().getName());
+			}
+			String viewState = view == null ? "none" : view.getProjectionStateSignature();
+			return new ViewProjection(visibleRows, viewState);
 		}
 
 		private static String modelSignature(Project project) {
@@ -254,7 +412,9 @@ public final class UiButtonDiagnostics {
 		}
 
 		private String viewSummary() {
-			return "view=" + activeView + ",rows=" + rows + ",windows=" + visibleWindows;
+			return "view=" + activeView + ",rows=" + rows + ",windows=" + visibleWindows
+				+ ",projectionRows=" + projection.visibleRows().hashCode()
+				+ ",viewState=" + projection.viewState();
 		}
 
 		private String undoSummary() {
@@ -267,7 +427,7 @@ public final class UiButtonDiagnostics {
 
 		private boolean viewChanged(UiState other) {
 			return rows != other.rows || !activeView.equals(other.activeView)
-				|| visibleWindows != other.visibleWindows;
+				|| visibleWindows != other.visibleWindows || !projection.equals(other.projection);
 		}
 
 		private boolean undoChanged(UiState other) {
@@ -280,13 +440,13 @@ public final class UiButtonDiagnostics {
 			return rows == state.rows && dirty == state.dirty && canUndo == state.canUndo
 				&& canRedo == state.canRedo && visibleWindows == state.visibleWindows
 				&& selection.equals(state.selection) && activeView.equals(state.activeView)
-				&& modelSignature.equals(state.modelSignature);
+				&& modelSignature.equals(state.modelSignature) && projection.equals(state.projection);
 		}
 
 		@Override
 		public int hashCode() {
 			return java.util.Objects.hash(selection, activeView, rows, dirty, canUndo, canRedo, visibleWindows,
-				modelSignature);
+				modelSignature, projection);
 		}
 	}
 }
