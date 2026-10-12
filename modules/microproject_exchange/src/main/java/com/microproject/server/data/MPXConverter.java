@@ -363,14 +363,14 @@ public class MPXConverter {
 
 		mpxAssignment.setWorkContour(MpxjApi.workContour(assignment.getWorkContourType()));
 		for (int snapshotId = 0; snapshotId <= 10; snapshotId++) {
-			Assignment baseline = assignment.getBaselineAssignment(Integer.valueOf(snapshotId), false);
+			Assignment.BaselineValues baseline = assignment.getBaselineValues(snapshotId);
 			if (baseline == null)
 				continue;
-			Date baselineStart = baseline.getStart() == 0L ? null
-				: new Date(TimeUtil.removeTimeZoneOffset(baseline.getStart()));
-			Date baselineFinish = baseline.getFinish() == 0L ? null
-				: new Date(TimeUtil.removeTimeZoneOffset(baseline.getFinish()));
-			net.sf.mpxj.Duration baselineWork = toMPXDuration(baseline.getWork(null));
+			Date baselineStart = baseline.start() == null ? null
+				: new Date(TimeUtil.removeTimeZoneOffset(baseline.start().longValue()));
+			Date baselineFinish = baseline.finish() == null ? null
+				: new Date(TimeUtil.removeTimeZoneOffset(baseline.finish().longValue()));
+			net.sf.mpxj.Duration baselineWork = baseline.work() == null ? null : toMPXDuration(baseline.work().longValue());
 			if (snapshotId == 0) {
 				mpxAssignment.setBaselineStart(baselineStart);
 				mpxAssignment.setBaselineFinish(baselineFinish);

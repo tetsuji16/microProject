@@ -59,7 +59,6 @@ import com.microproject.core.pm.exchange.converters.mpx.MpxTaskConverter;
 import com.microproject.core.pm.exchange.converters.mpx.MpxUtils;
 import com.microproject.core.pm.exchange.converters.type.DateUTCConverter;
 import com.microproject.core.pm.exchange.converters.type.PercentNumberRatioDoubleConverter;
-import com.microproject.strings.Messages;
 import com.microproject.exchange.ImportedCalendarService;
 import com.microproject.exchange.BoundedInput;
 import com.microproject.grouping.core.Node;
@@ -89,7 +88,6 @@ public class MspImporter {
 	private static final Logger logger = Logger.getLogger(MspImporter.class.getName());
 	protected ProjectFile mpxProjectFile;
 	protected MpxImportState state=new MpxImportState();
-	private final List<String> importWarnings = new ArrayList<>();
 	protected AbstractProjectReader reader;
 	/** Native ProjectLibre XLSX payload, when present and valid. */
 	protected Project nativeProject;
@@ -112,7 +110,6 @@ public class MspImporter {
 	}
 
 	private Project importProject_(ProgressClosure progress) throws Exception{
-		importWarnings.clear();
 		if (nativeProject != null) {
 			progress.updateProgress(1f, "Completed");
 			return nativeProject;
@@ -190,11 +187,6 @@ public class MspImporter {
 			if (in!=null)
 				in.close();
 		}	
-	}
-
-	/** Returns conversion warnings from the most recent import. */
-	public List<String> getImportWarnings() {
-		return List.copyOf(importWarnings);
 	}
 
 	private AbstractProjectReader createReader(String extension) {
@@ -529,12 +521,7 @@ public class MspImporter {
 			// Attaching a non-default assignment can copy the default assignment's
 			// detail object and erase this imported value.
 			converter.restoreLevelingDelay(mpxAssignment, assignment);
-			converter.importBaselines(mpxAssignment, assignment, task, warning -> {
-				if (!importWarnings.contains(warning)) {
-					importWarnings.add(warning);
-					logger.warning(warning);
-				}
-			});
+			converter.importBaselines(mpxAssignment, assignment);
 			importedAssignmentLevelingDelays.add(new ImportedAssignmentLevelingDelay(mpxAssignment, assignment));
 		}
 	}

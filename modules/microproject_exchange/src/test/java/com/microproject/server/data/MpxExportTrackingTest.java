@@ -29,7 +29,6 @@ import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Iterator;
-import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -53,7 +52,6 @@ import com.microproject.pm.scheduling.ConstraintType;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
-import com.microproject.strings.Messages;
 import com.microproject.pm.scheduling.SchedulingType;
 import com.microproject.session.SessionFactory;
 import com.microproject.undo.DataFactoryUndoController;
@@ -219,11 +217,76 @@ class MpxExportTrackingTest {
 	}
 
 	@Test
-	void assignmentOnlyBaselineWithoutTaskBaselineIsSkippedWithWarning() throws Exception {
-		ImportFixture imported = importBaselineFixtureResult(true, false, false);
-		assertNotNull(imported.project());
-		assertTrue(imported.warnings().contains(java.text.MessageFormat.format(
-			Messages.getString("Message.AssignmentBaselineSkipped"), 0)));
+	void assignmentOnlyBaselineWithoutTaskBaselineSurvivesXmlAndMpoRoundTrips() throws Exception {
+		Project imported = importBaselineFixture(true, false, true);
+		NormalTask task = taskNamed(imported, "Assignment baseline contract");
+		assertNull(task.getSnapshot(Integer.valueOf(0)));
+		Assignment assignment = (Assignment) task.getAssignments().iterator().next();
+		assertEquals(java.time.Instant.parse("2026-10-05T17:00:00Z").toEpochMilli(),
+			assignment.getBaselineValues(0).start());
+		assertNull(assignment.getBaselineValues(0).finish());
+		assertEquals(Long.valueOf(8L * 60L * 60L * 1000L), assignment.getBaselineValues(0).work());
+		assertEquals(Long.valueOf(0L), assignment.getBaselineValues(10).work());
+		assertEquals(Long.valueOf(0L), assignment.getBaselineValues(9).work());
+
+		ByteArrayOutputStream xml = new ByteArrayOutputStream();
+		assertTrue(new MicrosoftImporter().saveProject(imported, xml));
+		assertAssignmentBaselineSchemaOrder(xml.toByteArray());
+		net.sf.mpxj.ResourceAssignment xmlAssignment = new net.sf.mpxj.mspdi.MSPDIReader()
+			.read(new ByteArrayInputStream(xml.toByteArray())).getTasks().stream()
+			.filter(candidate -> "Assignment baseline contract".equals(candidate.getName())).findFirst().orElseThrow()
+			.getResourceAssignments().get(0);
+		assertEquals(java.util.Date.from(java.time.Instant.parse("2026-10-05T08:00:00Z")), xmlAssignment.getBaselineStart());
+		assertNull(xmlAssignment.getBaselineFinish());
+		assertEquals(java.util.Date.from(java.time.Instant.parse("2026-10-07T08:00:00Z")),
+			xmlAssignment.getBaselineStart(10));
+		assertEquals(java.util.Date.from(java.time.Instant.parse("2026-10-07T08:00:00Z")),
+			xmlAssignment.getBaselineFinish(10));
+		assertEquals(0.0d, xmlAssignment.getBaselineWork(10).getDuration(), 0.00001d);
+		assertEquals(8.0d, xmlAssignment.getBaselineWork()
+			.getDuration(), 0.00001d);
+
+		ByteArrayOutputStream mpo = new ByteArrayOutputStream();
+		assertTrue(new com.microproject.exchange.MpoFileImporter().saveProject(imported, mpo));
+		Project reopened = new com.microproject.exchange.MpoFileImporter()
+			.loadProject(new ByteArrayInputStream(mpo.toByteArray()));
+		NormalTask reopenedTask = taskNamed(reopened, "Assignment baseline contract");
+		assertNull(reopenedTask.getSnapshot(Integer.valueOf(0)));
+		Assignment reopenedAssignment = (Assignment) reopenedTask.getAssignments().iterator().next();
+		assertEquals(assignment.getBaselineValues(0), reopenedAssignment.getBaselineValues(0));
+		assertEquals(assignment.getBaselineValues(9), reopenedAssignment.getBaselineValues(9));
+		assertEquals(assignment.getBaselineValues(10), reopenedAssignment.getBaselineValues(10));
+	}
+
+	private static void assertAssignmentBaselineSchemaOrder(byte[] xml) throws Exception {
+		javax.xml.parsers.DocumentBuilderFactory factory = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+		factory.setNamespaceAware(true);
+		org.w3c.dom.Document document = factory.newDocumentBuilder().parse(new ByteArrayInputStream(xml));
+		String namespace = document.getDocumentElement().getNamespaceURI();
+		org.w3c.dom.NodeList assignments = document.getElementsByTagNameNS(namespace, "Assignment");
+		assertTrue(assignments.getLength() > 0);
+		org.w3c.dom.Element assignment = (org.w3c.dom.Element) assignments.item(0);
+		java.util.List<Integer> slots = new java.util.ArrayList<>();
+		boolean sawBaseline = false;
+		boolean sawCustomField = false;
+		for (org.w3c.dom.Node child = assignment.getFirstChild(); child != null; child = child.getNextSibling()) {
+			if (!(child instanceof org.w3c.dom.Element element)) continue;
+			String name = element.getLocalName();
+			if ("Baseline".equals(name)) {
+				sawBaseline = true;
+				org.w3c.dom.NodeList numbers = element.getElementsByTagNameNS(namespace, "Number");
+				assertEquals(1, numbers.getLength());
+				slots.add(Integer.valueOf(numbers.item(0).getTextContent()));
+				assertFalse(sawCustomField, "MSPDI Baseline records precede assignment local custom fields");
+			} else if (name != null && name.length() == 7 && name.charAt(0) == 'f') {
+				sawCustomField = true;
+				assertFalse(!sawBaseline, "fixture must exercise the schema-order insertion point");
+			}
+		}
+		java.util.List<Integer> sortedSlots = new java.util.ArrayList<>(slots);
+		java.util.Collections.sort(sortedSlots);
+		assertEquals(sortedSlots, slots, "MSPDI assignment baseline slots are emitted in ascending order");
+		assertTrue(slots.contains(Integer.valueOf(9)), "zero-only baseline must be materialized in the Baseline sequence");
 	}
 
 	@Test
@@ -231,10 +294,29 @@ class MpxExportTrackingTest {
 		Project imported = importBaselineFixture(true, true, true);
 		Assignment assignment = (Assignment) taskNamed(imported, "Assignment baseline contract").getAssignments()
 			.iterator().next();
-		Assignment zeroWorkBaseline = assignment.getBaselineAssignment(Integer.valueOf(10), false);
-		assertNotNull(zeroWorkBaseline);
-		assertEquals(zeroWorkBaseline.getStart(), zeroWorkBaseline.getFinish());
-		assertEquals(0L, zeroWorkBaseline.getWork(null));
+		assertEquals(0L, assignment.getBaselineValues(10).work());
+		assertEquals(assignment.getBaselineValues(10).start(), assignment.getBaselineValues(10).finish());
+	}
+
+	@Test
+	void fixedAssignmentBaselineAcceptanceFixtureHasIndependentScalarExpectations() throws Exception {
+		Path fixture = Path.of("modules", "microproject_exchange", "testdata", "Assignment Baseline Scalars.xml");
+		if (!Files.isRegularFile(fixture)) fixture = Path.of("testdata", "Assignment Baseline Scalars.xml");
+		Project imported = new com.microproject.core.pm.exchange.MspImporter().importProject(
+			new ByteArrayInputStream(Files.readAllBytes(fixture)), "xml", (progress, label) -> {});
+		NormalTask task = taskNamed(imported, "Assignment baseline task");
+		assertNull(task.getSnapshot(Integer.valueOf(0)));
+		Assignment assignment = (Assignment) task.getAssignments().iterator().next();
+		assertEquals(DateUTCConverter.toModelTime(java.util.Date.from(java.time.Instant.parse("2026-10-05T08:00:00Z"))),
+			assignment.getBaselineValues(0).start());
+		assertNull(assignment.getBaselineValues(0).finish());
+		assertEquals(Long.valueOf(8L * 60L * 60L * 1000L), assignment.getBaselineValues(0).work());
+		assertEquals(new Assignment.BaselineValues(null, null, Long.valueOf(0L)), assignment.getBaselineValues(9));
+		assertEquals(java.time.Instant.parse("2026-10-07T17:00:00Z").toEpochMilli(),
+			assignment.getBaselineValues(10).start());
+		assertEquals(java.time.Instant.parse("2026-10-08T17:00:00Z").toEpochMilli(),
+			assignment.getBaselineValues(10).finish());
+		assertEquals(Long.valueOf(4L * 60L * 60L * 1000L), assignment.getBaselineValues(10).work());
 	}
 
 	private static Project importBaselineFixture(boolean includeBaselines) throws Exception {
@@ -243,13 +325,10 @@ class MpxExportTrackingTest {
 
 	private static Project importBaselineFixture(boolean includeBaselines, boolean includeTaskBaseline,
 			boolean zeroSlotTenWork) throws Exception {
-		return importBaselineFixtureResult(includeBaselines, includeTaskBaseline, zeroSlotTenWork).project();
+		return importBaselineFixtureResult(includeBaselines, includeTaskBaseline, zeroSlotTenWork);
 	}
 
-	private record ImportFixture(Project project, List<String> warnings) {
-	}
-
-	private static ImportFixture importBaselineFixtureResult(boolean includeBaselines, boolean includeTaskBaseline,
+	private static Project importBaselineFixtureResult(boolean includeBaselines, boolean includeTaskBaseline,
 			boolean zeroSlotTenWork) throws Exception {
 		net.sf.mpxj.ProjectFile source = new net.sf.mpxj.ProjectFile();
 		source.addDefaultBaseCalendar();
@@ -300,13 +379,17 @@ class MpxExportTrackingTest {
 			int baselineEnd = xmlText.indexOf("</Baseline>", slotTen);
 			assertTrue(assignments >= 0 && slotTen >= 0 && baselineEnd >= 0);
 			xmlText = xmlText.substring(0, baselineEnd) + "<Work>PT0H0M0S</Work>" + xmlText.substring(baselineEnd);
+			int assignmentEnd = xmlText.indexOf("</Assignment>", assignments);
+			assertTrue(assignmentEnd >= 0);
+			xmlText = xmlText.substring(0, assignmentEnd)
+				+ "<Baseline><Number>9</Number><Work>PT0S</Work></Baseline>" + xmlText.substring(assignmentEnd);
 			xml = new ByteArrayOutputStream();
 			xml.write(xmlText.getBytes(java.nio.charset.StandardCharsets.UTF_8));
 		}
 		com.microproject.core.pm.exchange.MspImporter importer = new com.microproject.core.pm.exchange.MspImporter();
 		Project imported = importer.importProject(new ByteArrayInputStream(xml.toByteArray()), "xml",
 			(progress, label) -> {});
-		return new ImportFixture(imported, importer.getImportWarnings());
+		return imported;
 	}
 
 	private static void assertBaselineDuration(long actual, double expectedValue, int expectedUnit) {

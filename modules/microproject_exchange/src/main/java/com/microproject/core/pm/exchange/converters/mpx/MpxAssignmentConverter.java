@@ -25,18 +25,15 @@
 package com.microproject.core.pm.exchange.converters.mpx;
 
 import java.util.Date;
-import java.util.function.Consumer;
-import java.text.MessageFormat;
 
 import net.sf.mpxj.Duration;
+import net.sf.mpxj.AssignmentField;
 import com.microproject.core.time.TimeUtil;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.resource.EnterpriseResource;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.task.Task;
-import com.microproject.pm.task.TaskSnapshot;
-import com.microproject.strings.Messages;
 
 /**
  * Converts an MPXJ ResourceAssignment into a microproject Assignment.
@@ -97,31 +94,74 @@ public class MpxAssignmentConverter {
 	}
 
 	/** Imports scalar MSPDI assignment baseline values, preserving absent fields. */
-	public void importBaselines(net.sf.mpxj.ResourceAssignment mpxAssignment, Assignment assignment, Task task,
-			Consumer<String> warningSink) {
+	public void importBaselines(net.sf.mpxj.ResourceAssignment mpxAssignment, Assignment assignment) {
 		for (int snapshotId = 0; snapshotId <= 10; snapshotId++) {
+			boolean hasBaselineStart = mpxAssignment.getCachedValue(baselineStartField(snapshotId)) != null;
+			boolean hasBaselineFinish = mpxAssignment.getCachedValue(baselineFinishField(snapshotId)) != null;
+			boolean hasBaselineWork = mpxAssignment.getCachedValue(baselineWorkField(snapshotId)) != null;
+			if (!hasBaselineStart && !hasBaselineFinish && !hasBaselineWork)
+				continue;
 			Date start = snapshotId == 0 ? mpxAssignment.getBaselineStart()
 				: mpxAssignment.getBaselineStart(snapshotId);
 			Date finish = snapshotId == 0 ? mpxAssignment.getBaselineFinish()
 				: mpxAssignment.getBaselineFinish(snapshotId);
 			Duration work = snapshotId == 0 ? mpxAssignment.getBaselineWork()
 				: mpxAssignment.getBaselineWork(snapshotId);
-			if (start == null && finish == null && work == null)
-				continue;
-
-			Integer baselineId = Integer.valueOf(snapshotId);
-			if (task.getSnapshot(baselineId) == null) {
-				warningSink.accept(MessageFormat.format(Messages.getString("Message.AssignmentBaselineSkipped"),
-					snapshotId));
-				continue;
-			}
-			Assignment baseline = task.getBaselineAssignment(assignment.getResource(), baselineId, true);
-			TaskSnapshot snapshot = (TaskSnapshot) task.getSnapshot(baselineId);
-			baseline.setTaskSchedule(snapshot.getCurrentSchedule());
-			baseline.importBaselineValues(start == null ? null : Long.valueOf(toLong(start)),
+			assignment.importBaselineValues(snapshotId, start == null ? null : Long.valueOf(toLong(start)),
 				finish == null ? null : Long.valueOf(toLong(finish)),
 				work == null ? null : Long.valueOf(toLong(work)));
 		}
+	}
+
+	private static AssignmentField baselineStartField(int slot) {
+		return switch (slot) {
+			case 0 -> AssignmentField.BASELINE_START;
+			case 1 -> AssignmentField.BASELINE1_START;
+			case 2 -> AssignmentField.BASELINE2_START;
+			case 3 -> AssignmentField.BASELINE3_START;
+			case 4 -> AssignmentField.BASELINE4_START;
+			case 5 -> AssignmentField.BASELINE5_START;
+			case 6 -> AssignmentField.BASELINE6_START;
+			case 7 -> AssignmentField.BASELINE7_START;
+			case 8 -> AssignmentField.BASELINE8_START;
+			case 9 -> AssignmentField.BASELINE9_START;
+			case 10 -> AssignmentField.BASELINE10_START;
+			default -> throw new IllegalArgumentException("Invalid baseline slot: " + slot);
+		};
+	}
+
+	private static AssignmentField baselineFinishField(int slot) {
+		return switch (slot) {
+			case 0 -> AssignmentField.BASELINE_FINISH;
+			case 1 -> AssignmentField.BASELINE1_FINISH;
+			case 2 -> AssignmentField.BASELINE2_FINISH;
+			case 3 -> AssignmentField.BASELINE3_FINISH;
+			case 4 -> AssignmentField.BASELINE4_FINISH;
+			case 5 -> AssignmentField.BASELINE5_FINISH;
+			case 6 -> AssignmentField.BASELINE6_FINISH;
+			case 7 -> AssignmentField.BASELINE7_FINISH;
+			case 8 -> AssignmentField.BASELINE8_FINISH;
+			case 9 -> AssignmentField.BASELINE9_FINISH;
+			case 10 -> AssignmentField.BASELINE10_FINISH;
+			default -> throw new IllegalArgumentException("Invalid baseline slot: " + slot);
+		};
+	}
+
+	private static AssignmentField baselineWorkField(int slot) {
+		return switch (slot) {
+			case 0 -> AssignmentField.BASELINE_WORK;
+			case 1 -> AssignmentField.BASELINE1_WORK;
+			case 2 -> AssignmentField.BASELINE2_WORK;
+			case 3 -> AssignmentField.BASELINE3_WORK;
+			case 4 -> AssignmentField.BASELINE4_WORK;
+			case 5 -> AssignmentField.BASELINE5_WORK;
+			case 6 -> AssignmentField.BASELINE6_WORK;
+			case 7 -> AssignmentField.BASELINE7_WORK;
+			case 8 -> AssignmentField.BASELINE8_WORK;
+			case 9 -> AssignmentField.BASELINE9_WORK;
+			case 10 -> AssignmentField.BASELINE10_WORK;
+			default -> throw new IllegalArgumentException("Invalid baseline slot: " + slot);
+		};
 	}
 
 	private static Resource resolveResource(net.sf.mpxj.ResourceAssignment mpxAssignment, MpxImportState state) {

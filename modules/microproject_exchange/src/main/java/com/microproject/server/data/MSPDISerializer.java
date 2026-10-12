@@ -27,13 +27,18 @@ package com.microproject.server.data;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -83,6 +88,7 @@ public class MSPDISerializer implements ProjectSerializer {
     public static final boolean TMP_FILES=false;
     private static final Logger logger = Logger.getLogger(MSPDISerializer.class.getName());
     protected JobRunnable job=null;
+    private final Map<ResourceAssignment, Assignment> exportedAssignments = new IdentityHashMap<>();
     
     
     
@@ -133,6 +139,7 @@ public class MSPDISerializer implements ProjectSerializer {
                         ResourceAssignment assignmentData=taskData.addResourceAssignment(resourceData);
                         if (s==Snapshottable.CURRENT.intValue()){
                         	MPXConverter.toMPXAssignment(assignment,assignmentData);
+							exportedAssignments.put(assignmentData, assignment);
                         }
                         
                     }
@@ -299,6 +306,7 @@ public class MSPDISerializer implements ProjectSerializer {
     	return serializeProject(project,false);
     }
 	public ProjectFile serializeProject(Project project,boolean globalIdsOnly) throws Exception{
+		exportedAssignments.clear();
         if (globalIdsOnly) 
         	makeGLobal(project);
         MPXConverter.beginExport(project);
@@ -468,8 +476,200 @@ public class MSPDISerializer implements ProjectSerializer {
 	public void saveProjectOrThrow(Project project, OutputStream out) throws Exception {
 		ProjectFile data = serializeProject(project);
 		if (job != null) job.setProgress(0.9f);
-		new MSPDIWriter().write(data, out);
+		ByteArrayOutputStream serialized = new ByteArrayOutputStream();
+		new MSPDIWriter().write(data, serialized);
+		byte[] xml = preserveExplicitZeroAssignmentBaselineWork(serialized.toByteArray());
+		out.write(xml);
 		if (job != null) job.setProgress(1.0f);
+	}
+
+	private byte[] preserveExplicitZeroAssignmentBaselineWork(byte[] xml) throws Exception {
+		Map<String, Map<Integer, Assignment.BaselineValues>> expected = new java.util.HashMap<>();
+		for (Map.Entry<ResourceAssignment, Assignment> exported : exportedAssignments.entrySet()) {
+			Map<Integer, Assignment.BaselineValues> zeroWorkSlots = new java.util.TreeMap<>();
+			for (int slot = 0; slot <= 10; slot++) {
+				Assignment.BaselineValues values = exported.getValue().getBaselineValues(slot);
+				if (values != null && values.work() != null && values.work().longValue() == 0L)
+					zeroWorkSlots.put(Integer.valueOf(slot), values);
+			}
+			if (zeroWorkSlots.isEmpty()) continue;
+			Integer uid = exported.getKey().getUniqueID();
+			if (uid == null)
+				throw new IOException("MPXJ did not assign an identity to an assignment with zero baseline work");
+			if (expected.put(uid.toString(), zeroWorkSlots) != null)
+				throw new IOException("MPXJ assigned duplicate identities to baseline assignments");
+		}
+		if (expected.isEmpty()) return xml;
+		javax.xml.parsers.DocumentBuilderFactory factory = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+		factory.setNamespaceAware(true);
+		factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+		factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
+		factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+		factory.setXIncludeAware(false);
+		factory.setExpandEntityReferences(false);
+		factory.setAttribute(javax.xml.XMLConstants.ACCESS_EXTERNAL_DTD, "");
+		factory.setAttribute(javax.xml.XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+		org.w3c.dom.Document document = factory.newDocumentBuilder().parse(new ByteArrayInputStream(xml));
+		String namespace = document.getDocumentElement().getNamespaceURI();
+		org.w3c.dom.NodeList assignmentNodes = document.getElementsByTagNameNS(namespace, "Assignment");
+		java.util.Set<String> applied = new java.util.HashSet<>();
+		for (int index = 0; index < assignmentNodes.getLength(); index++) {
+			org.w3c.dom.Element assignmentNode = (org.w3c.dom.Element) assignmentNodes.item(index);
+			String uid = childText(assignmentNode, "UID");
+			Map<Integer, Assignment.BaselineValues> zeroWorkSlots = uid == null ? null : expected.get(uid);
+			if (zeroWorkSlots == null)
+				continue;
+			if (!applied.add(uid))
+				throw new IOException("MSPDI output contains duplicate assignment identities");
+			for (Map.Entry<Integer, Assignment.BaselineValues> zeroWork : zeroWorkSlots.entrySet()) {
+				int slot = zeroWork.getKey().intValue();
+				org.w3c.dom.Element baseline = findBaseline(assignmentNode, slot);
+				if (baseline == null) {
+					baseline = document.createElementNS(assignmentNode.getNamespaceURI(), "Baseline");
+					org.w3c.dom.Element number = document.createElementNS(assignmentNode.getNamespaceURI(), "Number");
+					number.setTextContent(Integer.toString(slot));
+					baseline.appendChild(number);
+					insertBaselineAtSchemaPosition(assignmentNode, baseline, slot);
+				}
+				List<org.w3c.dom.Element> workNodes = directChildren(baseline, "Work");
+				if (workNodes.size() > 1)
+					throw new IOException("MSPDI output contains duplicate baseline Work fields");
+				if (workNodes.isEmpty()) {
+					org.w3c.dom.Element work = document.createElementNS(assignmentNode.getNamespaceURI(), "Work");
+					work.setTextContent("PT0H0M0S");
+					org.w3c.dom.Node followingField = firstBaselineFieldAfterWork(baseline);
+					if (followingField == null) baseline.appendChild(work);
+					else baseline.insertBefore(work, followingField);
+				} else if (!isZeroDuration(workNodes.get(0).getTextContent())) {
+					throw new IOException("MPXJ emitted a nonzero baseline Work value for a zero-work assignment");
+				}
+			}
+		}
+		if (!applied.equals(expected.keySet()))
+			throw new IOException("MSPDI output omitted an assignment with zero baseline work");
+		ByteArrayOutputStream result = new ByteArrayOutputStream();
+		javax.xml.transform.TransformerFactory transformerFactory = javax.xml.transform.TransformerFactory.newInstance();
+		transformerFactory.setAttribute(javax.xml.XMLConstants.ACCESS_EXTERNAL_DTD, "");
+		transformerFactory.setAttribute(javax.xml.XMLConstants.ACCESS_EXTERNAL_STYLESHEET, "");
+		javax.xml.transform.Transformer transformer = transformerFactory.newTransformer();
+		transformer.setOutputProperty(javax.xml.transform.OutputKeys.ENCODING, "UTF-8");
+		transformer.transform(new javax.xml.transform.dom.DOMSource(document),
+			new javax.xml.transform.stream.StreamResult(result));
+		return result.toByteArray();
+	}
+
+	private static String childText(org.w3c.dom.Element parent, String name) {
+		return childText(parent, name, parent.getNamespaceURI());
+	}
+
+	private static String childText(org.w3c.dom.Element parent, String name, String namespace) {
+		for (org.w3c.dom.Node child = parent.getFirstChild(); child != null; child = child.getNextSibling()) {
+			if (child instanceof org.w3c.dom.Element element && isNamedElement(element, name, namespace))
+				return element.getTextContent();
+		}
+		return null;
+	}
+
+	private static org.w3c.dom.Element findBaseline(org.w3c.dom.Element assignment, int slot) throws IOException {
+		org.w3c.dom.Element match = null;
+		Set<Integer> seenSlots = new HashSet<>();
+		int previousSlot = -1;
+		for (org.w3c.dom.Node child = assignment.getFirstChild(); child != null; child = child.getNextSibling()) {
+			if (!(child instanceof org.w3c.dom.Element element) || !isNamedElement(element, "Baseline", assignment.getNamespaceURI()))
+				continue;
+			String number = childText(element, "Number", assignment.getNamespaceURI());
+			int existingSlot;
+			try {
+				existingSlot = Integer.parseInt(number);
+			} catch (RuntimeException e) {
+				throw new IOException("MSPDI output contains an invalid assignment baseline number", e);
+			}
+			if (!seenSlots.add(Integer.valueOf(existingSlot)))
+				throw new IOException("MSPDI output contains duplicate assignment baseline slots");
+			if (existingSlot < previousSlot)
+				throw new IOException("MSPDI output contains assignment baseline slots out of order");
+			previousSlot = existingSlot;
+			if (existingSlot == slot) match = element;
+		}
+		return match;
+	}
+
+	private static void insertBaselineAtSchemaPosition(org.w3c.dom.Element assignment,
+			org.w3c.dom.Element baseline, int slot) throws IOException {
+		// Microsoft MSPDI assignment XSD sequence: ExtendedAttribute*, Baseline*, then
+		// local custom fields (f404000...). Keep new records in the Baseline group.
+		org.w3c.dom.Node firstCustomField = null;
+		org.w3c.dom.Node greaterSlotBaseline = null;
+		for (org.w3c.dom.Node child = assignment.getFirstChild(); child != null; child = child.getNextSibling()) {
+			if (!(child instanceof org.w3c.dom.Element element)) continue;
+			if (isNamedElement(element, "Baseline", assignment.getNamespaceURI())) {
+				String number = childText(element, "Number", assignment.getNamespaceURI());
+				try {
+					if (number != null && Integer.parseInt(number) > slot) {
+						greaterSlotBaseline = child;
+						break;
+					}
+				} catch (NumberFormatException e) {
+					throw new IOException("MSPDI output contains an invalid assignment baseline number", e);
+				}
+				continue;
+			}
+			if (isAssignmentCustomField(element)) {
+				firstCustomField = child;
+				break;
+			}
+		}
+		org.w3c.dom.Node insertionPoint = greaterSlotBaseline == null ? firstCustomField : greaterSlotBaseline;
+		if (insertionPoint == null) assignment.appendChild(baseline);
+		else assignment.insertBefore(baseline, insertionPoint);
+	}
+
+	private static boolean isAssignmentCustomField(org.w3c.dom.Element element) {
+		String name = element.getLocalName() == null ? element.getTagName() : element.getLocalName();
+		if (name.length() != 7 || name.charAt(0) != 'f') return false;
+		for (int index = 1; index < name.length(); index++) {
+			char value = name.charAt(index);
+			if (!((value >= '0' && value <= '9') || (value >= 'a' && value <= 'f')
+					|| (value >= 'A' && value <= 'F'))) return false;
+		}
+		return true;
+	}
+
+	private static boolean isZeroDuration(String value) throws IOException {
+		try {
+			return javax.xml.datatype.DatatypeFactory.newInstance().newDuration(value).getSign() == 0;
+		} catch (javax.xml.datatype.DatatypeConfigurationException | IllegalArgumentException e) {
+			throw new IOException("MSPDI output contains an invalid baseline Work duration", e);
+		}
+	}
+
+	private static List<org.w3c.dom.Element> directChildren(org.w3c.dom.Element parent, String name) {
+		List<org.w3c.dom.Element> result = new ArrayList<>();
+		for (org.w3c.dom.Node child = parent.getFirstChild(); child != null; child = child.getNextSibling()) {
+			if (child instanceof org.w3c.dom.Element element && isNamedElement(element, name, parent.getNamespaceURI()))
+				result.add(element);
+		}
+		return result;
+	}
+
+	private static boolean isNamedElement(org.w3c.dom.Element element, String name, String namespace) {
+		String localName = element.getLocalName() == null ? element.getTagName() : element.getLocalName();
+		return name.equals(localName) && java.util.Objects.equals(namespace, element.getNamespaceURI());
+	}
+
+	private static org.w3c.dom.Node firstBaselineFieldAfterWork(org.w3c.dom.Element baseline) {
+		String[] orderedFields = { "TimephasedData", "Number", "Start", "Finish", "Work", "Cost", "BCWS", "BCWP" };
+		for (int index = 0; index < orderedFields.length; index++) {
+			if (!"Work".equals(orderedFields[index])) continue;
+			for (int later = index + 1; later < orderedFields.length; later++) {
+				for (org.w3c.dom.Node child = baseline.getFirstChild(); child != null; child = child.getNextSibling()) {
+					if (child instanceof org.w3c.dom.Element element
+							&& isNamedElement(element, orderedFields[later], baseline.getNamespaceURI()))
+						return child;
+				}
+			}
+		}
+		return null;
 	}
 
 	public JobRunnable getJob() {
