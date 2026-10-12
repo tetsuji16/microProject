@@ -458,7 +458,8 @@ class MpxExportTrackingTest {
 		String taskXml = sourceXml.substring(taskStart, taskEnd);
 		taskXml = taskXml.replace("<DurationFormat>7</DurationFormat>", "<DurationFormat>8</DurationFormat>")
 			+ "<Baseline><Number>3</Number><Start>2026-10-05T08:00:00</Start>"
-			+ "<Finish>2026-10-07T08:00:00</Finish><Duration>PT48H0M0S</Duration></Baseline>";
+			+ "<Finish>2026-10-07T08:00:00</Finish><Duration>PT48H0M0S</Duration>"
+			+ "<DurationFormat>8</DurationFormat></Baseline>";
 		sourceXml = sourceXml.substring(0, taskStart) + taskXml + sourceXml.substring(taskEnd);
 
 		Project imported = importMspdi(sourceXml);
@@ -468,6 +469,24 @@ class MpxExportTrackingTest {
 		assertEquals(modelWallTime("2026-10-12T08:00:00"), task.getCurrentSchedule().getStart(),
 			"an elapsed baseline must not modify the current schedule");
 		assertEquals(modelWallTime("2026-10-12T17:00:00"), task.getCurrentSchedule().getFinish());
+
+		ByteArrayOutputStream roundTripXml = new ByteArrayOutputStream();
+		MicrosoftImporter exporter = new MicrosoftImporter();
+		exporter.setFileName("elapsed-baseline.xml");
+		assertTrue(exporter.saveProject(imported, roundTripXml));
+		String exportedXml = roundTripXml.toString(java.nio.charset.StandardCharsets.UTF_8);
+		int baselineNumber = exportedXml.indexOf("<Number>3</Number>");
+		assertTrue(baselineNumber >= 0, exportedXml);
+		int baselineEnd = exportedXml.indexOf("</Baseline>", baselineNumber);
+		assertTrue(baselineEnd > baselineNumber, exportedXml);
+		String exportedBaseline = exportedXml.substring(baselineNumber, baselineEnd);
+		assertTrue(exportedBaseline.contains("<DurationFormat>8</DurationFormat>"), exportedBaseline);
+		assertTrue(exportedBaseline.contains("<Duration>PT48H0M0S</Duration>"), exportedBaseline);
+		Project reopened = importMspdi(exportedXml);
+		assertBaselineDuration(taskNamed(reopened, "Assignment baseline task").getBaselineDuration(3), 2.0d,
+			com.microproject.datatype.TimeUnit.ELAPSED_DAYS);
+		String malformed = sourceXml.replace("<Duration>PT48H0M0S</Duration>", "<Duration>P</Duration>");
+		assertThrows(IllegalArgumentException.class, () -> importMspdi(malformed));
 	}
 
 	@Test
@@ -1156,7 +1175,7 @@ class MpxExportTrackingTest {
 	}
 
 	@Test
-	void mpxj1154MspdiRoundTripNormalizesElapsedBaselineDuration() throws Exception {
+	void mspdiElapsedBaselineDurationUsesDeclaredFormatAfterMpxjRoundTrip() throws Exception {
 		ProjectFile source = new ProjectFile();
 		source.addDefaultBaseCalendar();
 		source.getProjectProperties().setMinutesPerDay(Integer.valueOf(480));
@@ -1171,10 +1190,7 @@ class MpxExportTrackingTest {
 		Project imported = new com.microproject.core.pm.exchange.MspImporter().importProject(
 			new ByteArrayInputStream(xml.toByteArray()), "xml", (progress, label) -> {});
 		long baselineDuration = taskNamed(imported, "Elapsed baseline limitation").getBaselineDuration(3);
-		// MPXJ 11.5.4's MSPDI writer/reader normalization changes two elapsed days
-		// to six working days when MinutesPerDay is 480. Keep this explicit known
-		// limitation visible instead of claiming XML elapsed-unit round-trip parity.
-		assertBaselineDuration(baselineDuration, 6.0d, com.microproject.datatype.TimeUnit.DAYS);
+		assertBaselineDuration(baselineDuration, 2.0d, com.microproject.datatype.TimeUnit.ELAPSED_DAYS);
 	}
 
 	@Test

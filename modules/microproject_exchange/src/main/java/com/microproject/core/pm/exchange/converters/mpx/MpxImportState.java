@@ -60,8 +60,10 @@ public class MpxImportState {
 	protected ProjectFile mpxProjectFile;
 	private final List<Runnable> postScheduleValidations = new ArrayList<>();
 	private Map<Long, RawMspdiAssignmentWork> rawMspdiAssignmentWork = Map.of();
+	private Map<Long, Map<Integer, RawMspdiTaskBaseline>> rawMspdiTaskBaselines = Map.of();
 
 	public record RawMspdiWorkInterval(int type, long start, long finish, long work) { }
+	public record RawMspdiTaskBaseline(long durationMillis, int durationFormat) { }
 	public record RawMspdiAssignmentWork(Long start, Long finish, Long work, Long actualWork, Long remainingWork,
 		List<RawMspdiWorkInterval> intervals) {
 		public RawMspdiAssignmentWork {
@@ -74,6 +76,15 @@ public class MpxImportState {
 	}
 	public RawMspdiAssignmentWork getRawMspdiAssignmentWork(Long uid) {
 		return uid == null ? null : rawMspdiAssignmentWork.get(uid);
+	}
+	public void setRawMspdiTaskBaselines(Map<Long, Map<Integer, RawMspdiTaskBaseline>> values) {
+		Map<Long, Map<Integer, RawMspdiTaskBaseline>> copy = new HashMap<>();
+		values.forEach((uid, baselines) -> copy.put(uid, Map.copyOf(baselines)));
+		rawMspdiTaskBaselines = Map.copyOf(copy);
+	}
+	public RawMspdiTaskBaseline getRawMspdiTaskBaseline(Long uid, int slot) {
+		Map<Integer, RawMspdiTaskBaseline> baselines = uid == null ? null : rawMspdiTaskBaselines.get(uid);
+		return baselines == null ? null : baselines.get(Integer.valueOf(slot));
 	}
 	
 	public ResourcePool getResourcePool() {

@@ -182,7 +182,9 @@ public class MspImporter {
 				nativeProject = null;
 				if ("xml".equalsIgnoreCase(extension)) {
 					byte[] data = in.readAllBytes();
-					state.setRawMspdiAssignmentWork(parseRawMspdiAssignmentWork(data));
+					RawMspdiData rawData = parseRawMspdiData(data);
+					state.setRawMspdiAssignmentWork(rawData.assignmentWork());
+					state.setRawMspdiTaskBaselines(rawData.taskBaselines());
 					source = prepareProjectStream(new ByteArrayInputStream(data));
 				} else {
 					source = prepareProjectStream(in);
@@ -235,7 +237,10 @@ public class MspImporter {
 		return new BufferedInputStream(in);
 	}
 
-	private Map<Long, MpxImportState.RawMspdiAssignmentWork> parseRawMspdiAssignmentWork(byte[] xml)
+	private record RawMspdiData(Map<Long, MpxImportState.RawMspdiAssignmentWork> assignmentWork,
+		Map<Long, Map<Integer, MpxImportState.RawMspdiTaskBaseline>> taskBaselines) { }
+
+	private RawMspdiData parseRawMspdiData(byte[] xml)
 			throws Exception {
 		javax.xml.parsers.DocumentBuilderFactory factory = javax.xml.parsers.DocumentBuilderFactory.newInstance();
 		factory.setNamespaceAware(true);
@@ -251,6 +256,32 @@ public class MspImporter {
 		String namespace = document.getDocumentElement().getNamespaceURI();
 		org.w3c.dom.NodeList assignments = document.getElementsByTagNameNS(namespace, "Assignment");
 		Map<Long, MpxImportState.RawMspdiAssignmentWork> result = new HashMap<>();
+		Map<Long, Map<Integer, MpxImportState.RawMspdiTaskBaseline>> taskBaselines = new HashMap<>();
+		org.w3c.dom.NodeList tasks = document.getElementsByTagNameNS(namespace, "Task");
+		for (int index = 0; index < tasks.getLength(); index++) {
+			org.w3c.dom.Element task = (org.w3c.dom.Element) tasks.item(index);
+			String rawUid = xmlChildText(task, "UID", namespace);
+			if (rawUid == null) continue;
+			long uid = Long.parseLong(rawUid);
+			Map<Integer, MpxImportState.RawMspdiTaskBaseline> baselines = new HashMap<>();
+			for (org.w3c.dom.Element baseline : xmlDirectChildren(task, "Baseline", namespace)) {
+				String rawNumber = xmlChildText(baseline, "Number", namespace);
+				String rawFormat = xmlChildText(baseline, "DurationFormat", namespace);
+				String rawDuration = xmlChildText(baseline, "Duration", namespace);
+				if (rawNumber == null || rawFormat == null || rawDuration == null) continue;
+				int durationFormat = Integer.parseInt(rawFormat);
+				if (elapsedDurationUnit(durationFormat) == com.microproject.datatype.TimeUnit.NONE) continue;
+				int slot = Integer.parseInt(rawNumber);
+				if (slot < 0 || slot > 10) throw new IllegalArgumentException("MSPDI baseline number is outside 0..10");
+				long durationMillis = parseMspdiDuration(rawDuration);
+				if (durationMillis < 0L) throw new IllegalArgumentException("MSPDI baseline duration cannot be negative");
+				MpxImportState.RawMspdiTaskBaseline previous = baselines.put(Integer.valueOf(slot),
+					new MpxImportState.RawMspdiTaskBaseline(durationMillis, durationFormat));
+				if (previous != null) throw new IllegalArgumentException("MSPDI task contains duplicate baseline slots");
+			}
+			if (!baselines.isEmpty() && taskBaselines.put(Long.valueOf(uid), Map.copyOf(baselines)) != null)
+				throw new IllegalArgumentException("MSPDI contains duplicate task UIDs with baseline durations");
+		}
 		for (int index = 0; index < assignments.getLength(); index++) {
 			org.w3c.dom.Element assignment = (org.w3c.dom.Element) assignments.item(index);
 			if (!"8".equals(xmlChildText(assignment, "WorkContour", namespace))) continue;
@@ -278,7 +309,7 @@ public class MspImporter {
 				assignmentStart, assignmentFinish, work, actual, remaining, intervals)) != null)
 				throw new IllegalArgumentException("MSPDI contains duplicate assignment UIDs");
 		}
-		return Map.copyOf(result);
+		return new RawMspdiData(Map.copyOf(result), Map.copyOf(taskBaselines));
 	}
 
 	private static String xmlChildText(org.w3c.dom.Element parent, String name, String namespace) {
@@ -300,15 +331,47 @@ public class MspImporter {
 	private static Long parseMspdiDuration(String value) {
 		if (value == null || value.isBlank()) return null;
 		java.util.regex.Matcher matcher = java.util.regex.Pattern.compile(
-			"^PT(?:(\\d+)H)?(?:(\\d+)M)?(?:(\\d+(?:\\.\\d+)?)S)?$").matcher(value);
-		if (!matcher.matches()) throw new IllegalArgumentException("Invalid custom MSPDI work duration: " + value);
-		long hours = matcher.group(1) == null ? 0L : Long.parseLong(matcher.group(1));
-		long minutes = matcher.group(2) == null ? 0L : Long.parseLong(matcher.group(2));
-		java.math.BigDecimal seconds = matcher.group(3) == null ? java.math.BigDecimal.ZERO
-			: new java.math.BigDecimal(matcher.group(3));
+			"^P(?:(\\d+)Y)?(?:(\\d+)M)?(?:(\\d+)D)?(?:T(?:(\\d+)H)?(?:(\\d+)M)?(?:(\\d+(?:\\.\\d+)?)S)?)?$").matcher(value);
+		if (!matcher.matches() || (matcher.group(1) == null && matcher.group(2) == null
+				&& matcher.group(3) == null && matcher.group(4) == null && matcher.group(5) == null
+				&& matcher.group(6) == null))
+			throw new IllegalArgumentException("Invalid MSPDI duration: " + value);
+		long years = matcher.group(1) == null ? 0L : Long.parseLong(matcher.group(1));
+		long months = matcher.group(2) == null ? 0L : Long.parseLong(matcher.group(2));
+		long days = matcher.group(3) == null ? 0L : Long.parseLong(matcher.group(3));
+		long hours = matcher.group(4) == null ? 0L : Long.parseLong(matcher.group(4));
+		long minutes = matcher.group(5) == null ? 0L : Long.parseLong(matcher.group(5));
+		java.math.BigDecimal seconds = matcher.group(6) == null ? java.math.BigDecimal.ZERO
+			: new java.math.BigDecimal(matcher.group(6));
 		long millis = seconds.movePointRight(3).longValueExact();
-		return Long.valueOf(Math.addExact(Math.addExact(Math.multiplyExact(hours, 3_600_000L),
-			Math.multiplyExact(minutes, 60_000L)), millis));
+		long total = Math.multiplyExact(years, 365L * 86_400_000L);
+		// These match the core's existing elapsed duration factors (365d/year,
+		// 30d/month); do not reinterpret them using the project working calendar.
+		total = Math.addExact(total, Math.multiplyExact(months, 30L * 86_400_000L));
+		total = Math.addExact(total, Math.multiplyExact(days, 86_400_000L));
+		total = Math.addExact(total, Math.multiplyExact(hours, 3_600_000L));
+		total = Math.addExact(total, Math.multiplyExact(minutes, 60_000L));
+		return Long.valueOf(Math.addExact(total, millis));
+	}
+
+	private static int elapsedDurationUnit(int durationFormat) {
+		return switch (durationFormat) {
+			case 4, 36 -> com.microproject.datatype.TimeUnit.ELAPSED_MINUTES;
+			case 6, 38 -> com.microproject.datatype.TimeUnit.ELAPSED_HOURS;
+			case 8, 40 -> com.microproject.datatype.TimeUnit.ELAPSED_DAYS;
+			case 10, 42 -> com.microproject.datatype.TimeUnit.ELAPSED_WEEKS;
+			case 12, 44 -> com.microproject.datatype.TimeUnit.ELAPSED_MONTHS;
+			default -> com.microproject.datatype.TimeUnit.NONE;
+		};
+	}
+
+	private static long toRawBaselineDuration(MpxImportState.RawMspdiTaskBaseline baseline) {
+		int unit = elapsedDurationUnit(baseline.durationFormat());
+		double value = baseline.durationMillis() / com.microproject.datatype.Duration.timeUnitFactor(unit);
+		long duration = com.microproject.datatype.Duration.getInstance(value, unit);
+		if (baseline.durationFormat() >= 35)
+			duration = com.microproject.datatype.Duration.setAsEstimated(duration, true);
+		return duration;
 	}
 
 	private static long parseMspdiWallTime(String value) {
@@ -567,7 +630,9 @@ public class MspImporter {
 			Date start = getTaskBaselineStart(mpxTask, snapshotId);
 			Date finish = getTaskBaselineFinish(mpxTask, snapshotId);
 			Duration duration = getTaskBaselineDuration(mpxTask, snapshotId);
-			if (start == null && finish == null && duration == null)
+			MpxImportState.RawMspdiTaskBaseline rawBaseline = state.getRawMspdiTaskBaseline(
+				mpxTask.getUniqueID() == null ? null : Long.valueOf(mpxTask.getUniqueID().longValue()), snapshotId);
+			if (start == null && finish == null && duration == null && rawBaseline == null)
 				continue;
 
 			TaskSnapshot snapshot = new TaskSnapshot();
@@ -579,8 +644,11 @@ public class MspImporter {
 				schedule.setStart(DateUTCConverter.toModelTime(start));
 			if (finish != null)
 				schedule.setFinish(DateUTCConverter.toModelTime(finish));
-			if (duration != null)
+			if (rawBaseline != null) {
+				schedule.setRawDuration(toRawBaselineDuration(rawBaseline));
+			} else if (duration != null) {
 				schedule.setRawDuration(MpxUtils.toProjectDuration(duration));
+			}
 			snapshot.setCurrentSchedule(schedule);
 			task.setSnapshot(Integer.valueOf(snapshotId), snapshot);
 		}
