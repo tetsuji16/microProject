@@ -51,8 +51,11 @@ import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.scheduling.ConstraintType;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.scheduling.SchedulingType;
+import com.microproject.session.LocalSession;
+import com.microproject.session.SaveOptions;
 import com.microproject.session.SessionFactory;
 import com.microproject.undo.DataFactoryUndoController;
 
@@ -61,6 +64,36 @@ import net.sf.mpxj.ResourceAssignment;
 import net.sf.mpxj.TaskMode;
 
 class MpxExportTrackingTest {
+	@Test
+	void standaloneSaveJobIsCreatedWhenTargetIsNotRegisteredInPortfolio() {
+		ProjectFactory factory = ProjectFactory.createInstance();
+		Project unrelated = createProject();
+		unrelated.setGroupDirty(true);
+		factory.addProject(unrelated, false, false);
+
+		Project standalone = createProject();
+		standalone.setFileName("standalone.mpo");
+		standalone.setGroupDirty(true);
+		SaveOptions options = new SaveOptions();
+		options.setLocal(true);
+		options.setFileName("standalone.mpo");
+		options.setImporter(LocalSession.MPO_PROJECT_IMPORTER);
+		SessionFactory sessionFactory = SessionFactory.getInstance();
+		LocalSession session = sessionFactory.getLocalSession();
+		JobQueue previousFactoryQueue = sessionFactory.getJobQueue();
+		JobQueue previousSessionQueue = session.getJobQueue();
+		JobQueue testQueue = new JobQueue("standalone-save", false);
+		sessionFactory.setJobQueue(testQueue);
+		session.setJobQueue(testQueue);
+		try {
+			assertNotNull(factory.getSaveProjectJob(standalone, options),
+					"a standalone project without a portfolio node must still produce a save job");
+		} finally {
+			session.setJobQueue(previousSessionQueue);
+			sessionFactory.setJobQueue(previousFactoryQueue);
+		}
+	}
+
 	@Test
 	void taskBaselineSlotsImportAndRoundTripWithoutChangingCurrentSchedule() throws Exception {
 		ProjectFile source = new ProjectFile();
