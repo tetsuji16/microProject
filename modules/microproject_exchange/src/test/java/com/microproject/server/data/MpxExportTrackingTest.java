@@ -206,16 +206,13 @@ class MpxExportTrackingTest {
 		assertEquals(currentOnlyAssignment.getWork(null), assignment.getWork(null));
 		Assignment baseline = assignment.getBaselineAssignment(Integer.valueOf(0), false);
 		assertNotNull(baseline);
-		assertEquals(DateUTCConverter.toModelTime(java.util.Date.from(java.time.Instant.parse("2026-10-05T08:00:00Z"))),
-			baseline.getStart());
+		assertEquals(modelWallTime("2026-10-05T08:00:00"), baseline.getStart());
 		assertEquals(8L * 60L * 60L * 1000L, baseline.getWork(null));
 		assertNull(assignment.getBaselineAssignment(Integer.valueOf(1), false));
 		Assignment baselineTen = assignment.getBaselineAssignment(Integer.valueOf(10), false);
 		assertNotNull(baselineTen);
-		assertEquals(DateUTCConverter.toModelTime(java.util.Date.from(java.time.Instant.parse("2026-10-07T08:00:00Z"))),
-			baselineTen.getStart());
-		assertEquals(DateUTCConverter.toModelTime(java.util.Date.from(java.time.Instant.parse("2026-10-08T08:00:00Z"))),
-			baselineTen.getFinish());
+		assertEquals(Long.valueOf(modelWallTime("2026-10-07T08:00:00")), assignment.getBaselineValues(10).start());
+		assertEquals(Long.valueOf(modelWallTime("2026-10-08T08:00:00")), assignment.getBaselineValues(10).finish());
 		assertEquals(8L * 60L * 60L * 1000L, baselineTen.getWork(null));
 
 		ByteArrayOutputStream xml = new ByteArrayOutputStream();
@@ -227,14 +224,14 @@ class MpxExportTrackingTest {
 		net.sf.mpxj.ResourceAssignment roundTripAssignment = roundTrip.getTasks().stream()
 			.filter(candidate -> "Assignment baseline contract".equals(candidate.getName())).findFirst().orElseThrow()
 			.getResourceAssignments().get(0);
-		assertEquals(java.util.Date.from(java.time.Instant.parse("2026-10-05T08:00:00Z")),
+		assertEquals(localWallDate("2026-10-05T08:00:00"),
 			roundTripAssignment.getBaselineStart());
 		assertEquals(8.0d, roundTripAssignment.getBaselineWork()
 			.convertUnits(net.sf.mpxj.TimeUnit.HOURS, roundTrip.getProjectProperties()).getDuration(), 0.00001d);
 		assertNull(roundTripAssignment.getBaselineStart(1));
-		assertEquals(java.util.Date.from(java.time.Instant.parse("2026-10-07T08:00:00Z")),
+		assertEquals(localWallDate("2026-10-07T08:00:00"),
 			roundTripAssignment.getBaselineStart(10));
-		assertEquals(java.util.Date.from(java.time.Instant.parse("2026-10-08T08:00:00Z")),
+		assertEquals(localWallDate("2026-10-08T08:00:00"),
 			roundTripAssignment.getBaselineFinish(10));
 		assertEquals(8.0d, roundTripAssignment.getBaselineWork(10)
 			.convertUnits(net.sf.mpxj.TimeUnit.HOURS, roundTrip.getProjectProperties()).getDuration(), 0.00001d);
@@ -255,7 +252,7 @@ class MpxExportTrackingTest {
 		NormalTask task = taskNamed(imported, "Assignment baseline contract");
 		assertNull(task.getSnapshot(Integer.valueOf(0)));
 		Assignment assignment = (Assignment) task.getAssignments().iterator().next();
-		assertEquals(java.time.Instant.parse("2026-10-05T17:00:00Z").toEpochMilli(),
+		assertEquals(modelWallTime("2026-10-05T08:00:00"),
 			assignment.getBaselineValues(0).start());
 		assertNull(assignment.getBaselineValues(0).finish());
 		assertEquals(Long.valueOf(8L * 60L * 60L * 1000L), assignment.getBaselineValues(0).work());
@@ -269,11 +266,11 @@ class MpxExportTrackingTest {
 			.read(new ByteArrayInputStream(xml.toByteArray())).getTasks().stream()
 			.filter(candidate -> "Assignment baseline contract".equals(candidate.getName())).findFirst().orElseThrow()
 			.getResourceAssignments().get(0);
-		assertEquals(java.util.Date.from(java.time.Instant.parse("2026-10-05T08:00:00Z")), xmlAssignment.getBaselineStart());
+		assertEquals(localWallDate("2026-10-05T08:00:00"), xmlAssignment.getBaselineStart());
 		assertNull(xmlAssignment.getBaselineFinish());
-		assertEquals(java.util.Date.from(java.time.Instant.parse("2026-10-07T08:00:00Z")),
+		assertEquals(localWallDate("2026-10-07T08:00:00"),
 			xmlAssignment.getBaselineStart(10));
-		assertEquals(java.util.Date.from(java.time.Instant.parse("2026-10-07T08:00:00Z")),
+		assertEquals(localWallDate("2026-10-07T08:00:00"),
 			xmlAssignment.getBaselineFinish(10));
 		assertEquals(0.0d, xmlAssignment.getBaselineWork(10).getDuration(), 0.00001d);
 		assertEquals(8.0d, xmlAssignment.getBaselineWork()
@@ -340,20 +337,29 @@ class MpxExportTrackingTest {
 		NormalTask task = taskNamed(imported, "Assignment baseline task");
 		assertNull(task.getSnapshot(Integer.valueOf(0)));
 		Assignment assignment = (Assignment) task.getAssignments().iterator().next();
-		assertEquals(DateUTCConverter.toModelTime(java.util.Date.from(java.time.Instant.parse("2026-10-05T08:00:00Z"))),
+		assertEquals(modelWallTime("2026-10-05T17:00:00"),
 			assignment.getBaselineValues(0).start());
 		assertNull(assignment.getBaselineValues(0).finish());
 		assertEquals(Long.valueOf(8L * 60L * 60L * 1000L), assignment.getBaselineValues(0).work());
 		assertEquals(new Assignment.BaselineValues(null, null, Long.valueOf(0L)), assignment.getBaselineValues(9));
-		assertEquals(java.time.Instant.parse("2026-10-07T17:00:00Z").toEpochMilli(),
+		assertEquals(modelWallTime("2026-10-07T17:00:00"),
 			assignment.getBaselineValues(10).start());
-		assertEquals(java.time.Instant.parse("2026-10-08T17:00:00Z").toEpochMilli(),
+		assertEquals(modelWallTime("2026-10-08T17:00:00"),
 			assignment.getBaselineValues(10).finish());
 		assertEquals(Long.valueOf(4L * 60L * 60L * 1000L), assignment.getBaselineValues(10).work());
 	}
 
 	private static Project importBaselineFixture(boolean includeBaselines) throws Exception {
 		return importBaselineFixture(includeBaselines, true, false);
+	}
+
+	private static java.util.Date localWallDate(String value) {
+		return java.util.Date.from(java.time.LocalDateTime.parse(value)
+			.atZone(java.time.ZoneId.systemDefault()).toInstant());
+	}
+
+	private static long modelWallTime(String value) {
+		return java.time.LocalDateTime.parse(value).toInstant(java.time.ZoneOffset.UTC).toEpochMilli();
 	}
 
 	private static Project importBaselineFixture(boolean includeBaselines, boolean includeTaskBaseline,
@@ -366,8 +372,8 @@ class MpxExportTrackingTest {
 		net.sf.mpxj.ProjectFile source = new net.sf.mpxj.ProjectFile();
 		source.addDefaultBaseCalendar();
 		source.getProjectProperties().setMinutesPerDay(Integer.valueOf(480));
-		java.util.Date currentStart = java.util.Date.from(java.time.Instant.parse("2026-10-12T08:00:00Z"));
-		java.util.Date currentFinish = java.util.Date.from(java.time.Instant.parse("2026-10-13T17:00:00Z"));
+		java.util.Date currentStart = localWallDate("2026-10-12T08:00:00");
+		java.util.Date currentFinish = localWallDate("2026-10-13T17:00:00");
 		net.sf.mpxj.Task task = source.addTask();
 		task.setName("Assignment baseline contract");
 		task.setUniqueID(1);
@@ -375,8 +381,8 @@ class MpxExportTrackingTest {
 		task.setFinish(currentFinish);
 		task.setDuration(net.sf.mpxj.Duration.getInstance(2, net.sf.mpxj.TimeUnit.DAYS));
 		if (includeTaskBaseline) {
-			task.setBaselineStart(java.util.Date.from(java.time.Instant.parse("2026-10-05T08:00:00Z")));
-			task.setBaselineFinish(java.util.Date.from(java.time.Instant.parse("2026-10-06T08:00:00Z")));
+			task.setBaselineStart(localWallDate("2026-10-05T08:00:00"));
+			task.setBaselineFinish(localWallDate("2026-10-06T08:00:00"));
 		}
 		net.sf.mpxj.Resource resource = source.addResource();
 		resource.setName("Baseline worker");
@@ -387,11 +393,11 @@ class MpxExportTrackingTest {
 		assignment.setFinish(currentFinish);
 		assignment.setWork(net.sf.mpxj.Duration.getInstance(16, net.sf.mpxj.TimeUnit.HOURS));
 		if (includeBaselines) {
-			assignment.setBaselineStart(java.util.Date.from(java.time.Instant.parse("2026-10-05T08:00:00Z")));
+			assignment.setBaselineStart(localWallDate("2026-10-05T08:00:00"));
 			assignment.setBaselineWork(net.sf.mpxj.Duration.getInstance(8, net.sf.mpxj.TimeUnit.HOURS));
-			java.util.Date baselineTenStart = java.util.Date.from(java.time.Instant.parse("2026-10-07T08:00:00Z"));
+			java.util.Date baselineTenStart = localWallDate("2026-10-07T08:00:00");
 			java.util.Date baselineTenFinish = zeroSlotTenWork ? baselineTenStart
-				: java.util.Date.from(java.time.Instant.parse("2026-10-08T08:00:00Z"));
+				: localWallDate("2026-10-08T08:00:00");
 			if (includeTaskBaseline) {
 				task.setBaselineStart(10, baselineTenStart);
 				task.setBaselineFinish(10, baselineTenFinish);
