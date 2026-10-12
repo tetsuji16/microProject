@@ -37,10 +37,6 @@ import javax.swing.JOptionPane;
 import com.formdev.flatlaf.util.SystemFileChooser;
 import com.formdev.flatlaf.util.SystemFileChooser.FileFilter;
 import com.formdev.flatlaf.util.SystemFileChooser.FileNameExtensionFilter;
-import com.formdev.flatlaf.util.SystemInfo;
-import com.formdev.flatlaf.ui.FlatNativeWindowsLibrary;
-import com.formdev.flatlaf.ui.FlatNativeMacLibrary;
-import com.formdev.flatlaf.ui.FlatNativeLinuxLibrary;
 import com.microproject.session.FileHelper;
 import com.microproject.preference.ConfigurationFile;
 import com.microproject.strings.Messages;
@@ -48,11 +44,7 @@ import com.microproject.strings.Messages;
 public final class SwingFileChooserProvider implements UiServices.FileChooserProvider {
 	private static final String DEFAULT_FILE_EXTENSION = FileHelper.DEFAULT_FILE_EXTENSION;
 	private static final String LEGACY_POD_FILE_EXTENSION = FileHelper.POD_FILE_EXTENSION;
-	/**
-	 * Native (OS) file dialogs are enabled by default. Users can still force
-	 * the Swing fallback via -Dflatlaf.useSystemFileChooser=false, e.g. when
-	 * running on a platform without FlatLaf native library support.
-	 */
+	/** FlatLaf allows a caller to explicitly select its Swing chooser fallback. */
 	static final String USE_SYSTEM_FILE_CHOOSER_PROPERTY = "flatlaf.useSystemFileChooser";
 
 	static {
@@ -111,7 +103,7 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 			fileName = normalizeSelectedSaveFileName(fileName, currentFilter);
 			boolean normalizedToDifferentTarget = !new File(file.toString()).getAbsoluteFile()
 				.equals(new File(fileName).getAbsoluteFile());
-			if ((usesSwingFileChooser() || normalizedToDifferentTarget) && new File(fileName).exists()
+			if (normalizedToDifferentTarget && new File(fileName).exists()
 					&& JOptionPane.showOptionDialog(fileChooserParent,
 						Messages.format("Message.overwriteFileConfirmation", fileName),
 						Messages.getString("Text.confirmOverwrite"), JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE,
@@ -122,16 +114,6 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 		}
 		Preferences.userNodeForPackage(FileHelper.class).put("lastDirectory", file.getParent());
 		return fileName;
-	}
-
-	private static boolean usesSwingFileChooser() {
-		// Match SystemFileChooser 3.7.1's getProvider() decision: it falls back
-		// to Swing when the property disables native dialogs or when the matching
-		// platform library (and GTK on Linux) is unavailable.
-		if (!com.formdev.flatlaf.FlatSystemProperties.getBoolean(USE_SYSTEM_FILE_CHOOSER_PROPERTY, true)) return true;
-		if (SystemInfo.isWindows_10_orLater && FlatNativeWindowsLibrary.isLoaded()) return false;
-		if (SystemInfo.isMacOS && FlatNativeMacLibrary.isLoaded()) return false;
-		return !(SystemInfo.isLinux && FlatNativeLinuxLibrary.isLoaded() && FlatNativeLinuxLibrary.isGtk3Available());
 	}
 
 	@Override

@@ -265,16 +265,14 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> visibleOptionDialog() != null, "existing MPO target did not trigger overwrite confirmation");
 		robot.keyPress(java.awt.event.KeyEvent.VK_ESCAPE);
 		robot.keyRelease(java.awt.event.KeyEvent.VK_ESCAPE);
-		GuiAcceptanceSupport.await(() -> visibleOptionDialog() == null && visibleFileChooserDialog() == null,
-			"overwrite refusal did not cancel the save flow");
+		GuiAcceptanceSupport.await(() -> visibleOptionDialog() == null,
+			"overwrite refusal dialog did not close");
 		assertArrayEquals(existingMpoBytes, Files.readAllBytes(mpoSaveTarget), "declined overwrite must preserve the existing MPO");
 		assertEquals(originalAssociation, project.getFileName(), "declined overwrite must preserve the source association");
 		assertTrue(project.needsSaving(), "declined overwrite must preserve the dirty state");
 
-		activateWindowForRobot(robot);
-		click(robot, findCommandButton(window.getRibbonPanel(), "RibbonSaveProject", robot));
 		GuiAcceptanceSupport.await(() -> visibleFileChooserDialog() != null,
-			"Save As did not reopen after overwrite was declined");
+			"declining overwrite must leave Save As open for another target");
 		saveDialog = visibleFileChooserDialog();
 		JTextField fileNameField = findFileChooserNameField(saveDialog);
 		click(robot, fileNameField);
