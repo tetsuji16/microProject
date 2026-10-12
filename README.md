@@ -1,17 +1,39 @@
 # microProject
 
-microProject is a Windows desktop planning application aiming for compatibility with Microsoft Project (MSP). It lets teams organize tasks, schedules, dependencies, resources, and progress in one workspace, with a hierarchical task table beside its Gantt chart so the overall schedule remains visible together.
+This is the Windows-targeted ProjectLibre desktop fork; its release workflow
+also builds Linux x64 and macOS Apple Silicon packages. Packaging availability
+does not itself assert equal platform-specific behavior. microProject is a
+desktop planning application with a task
+hierarchy, schedules, dependencies, resources, progress, and a Gantt view. Its
+product goal is complete compatibility with Microsoft Project desktop,
+including the current Microsoft 365 ribbon visual style and desktop command
+behavior. **That compatibility goal is not yet achieved.** MPP read and write,
+each workflow, and separately licensed or connected integrations remain
+measurable acceptance gates.
 
-Current release in this fork:
-
-- [Stable: `v0.0.23.1219`](https://github.com/tetsuji16/ProjectLibre/releases/latest)
-- 今後のリリースでは Linux x64 と macOS Apple Silicon (aarch64) のアプリイメージ ZIP も公開します。
-- [Beta scope and release plan](docs/beta-release-plan.md)
-- [Beta.2 independence plan and legacy inventory](docs/beta2-release-plan.md)
+microProject は、タスク階層、日程、依存関係、リソース、進捗をガント
+チャートと一緒に管理するデスクトップ計画アプリです。製品目標は、
+Microsoft Project デスクトップとの完全互換です。最新 Microsoft 365
+版のリボン外観とデスクトップ操作を目標にしますが、互換性はまだ完了
+していません。MPP の読み書き、各業務フロー、接続・拡張機能を個別に
+検証してから完了を判断します。
 
 Quick links:
 
+- [Stable releases and downloads](https://github.com/tetsuji16/ProjectLibre/releases/latest)
 - [microProject documentation](https://o-server.main.jp/micro-project/)
+- [Microsoft Project desktop compatibility roadmap](docs/msp-compatibility-roadmap.md) — goal, phased acceptance gates, and review of every currently open issue
+- [Current ribbon command inventory](docs/MSP_STANDARD_COMMAND_INVENTORY.md)
+- [Beta release plans](docs/beta-release-plan.md) (historical release planning)
+
+| Gate | Scope | Status |
+|---|---|---|
+| M0 | Target and complete coverage inventory | Open — [#792](https://github.com/tetsuji16/ProjectLibre/issues/792) |
+| M1 | Current Office-style ribbon visuals | Open — [#793](https://github.com/tetsuji16/ProjectLibre/issues/793) |
+| M2 | Offline desktop workflow parity | Open — [#794](https://github.com/tetsuji16/ProjectLibre/issues/794) |
+| M3 | MPP and other file interoperability | Open — [#796](https://github.com/tetsuji16/ProjectLibre/issues/796) |
+| M4 | Automation and server scope | Open — [#797](https://github.com/tetsuji16/ProjectLibre/issues/797) |
+| M5 | Release compatibility acceptance | Open — [#795](https://github.com/tetsuji16/ProjectLibre/issues/795) |
 
 ![microProject commercial construction project plan in the Gantt view](docs/images/demo_gannt.png)
 
@@ -27,12 +49,14 @@ implementation). They do not share project-file state or release artifacts.
 
 ## What This Fork Is For
 
-- **Final objective: complete Microsoft Project (MSP) compatibility.** microProject
-  treats the current Microsoft Project desktop behavior and project-file semantics
-  as the compatibility target for planning, scheduling, resources, views, commands,
-  printing, and supported interchange formats. See
-  [`docs/msp-compatibility-goal.md`](docs/msp-compatibility-goal.md) for the
-  decision and verification rules.
+- **Goal: complete Microsoft Project desktop compatibility.** This is a work
+  objective; compatibility is not complete. The target includes desktop
+  workflows and project-file behavior, with MPP read and write as explicit
+  acceptance gates. See the
+  [compatibility roadmap](docs/msp-compatibility-roadmap.md) for scope, open
+  coverage gaps, milestones, and issue review, and
+  [the compatibility goal](docs/msp-compatibility-goal.md) for verification
+  rules.
 - Keep microProject usable on a modern JDK and packaging toolchain
 - Improve real-world planning workflows: task hierarchies, schedules, dependencies, resources, and progress in one desktop workspace
 - Add collaboration-oriented features for teams sharing project files locally
@@ -47,32 +71,6 @@ completed, and legacy, compatibility, and newly reconstructed source code are
 currently mixed in parts of the repository. Until this work is finished,
 internal implementation boundaries may change and some areas should be
 treated as transitional.
-
-## Baseline And Update Ratio
-
-The comparison baseline in this fork is the ProjectLibre 1.9.8 modernization commit:
-
-- Commit: `0530be227f4a10c5545cce8d3db20ac5a4d76a66`
-- Subject: `ProjectLibre 1.9.8 Java and Libraries updates Code using deprecated apis updated Performance fixes Toolbar fixes New builds using jpackage supporting Java 21 and ARM architecture.`
-
-The figures below describe cumulative change volume since that baseline commit.
-
-- Changed tracked file paths since `0530be22`: `2386 / 2386` (`100.0%` of the baseline tracked file count)
-- Changed tracked text lines since `0530be22` (insertions + deletions): `1685737`
-- Changed paths including files added after the baseline: `6350`
-
-Regenerate these figures with `./scripts/baseline_update_ratio.sh`; it disables rename
-detection so the counts are reproducible across machines and git versions.
-
-## What Has Been Added Or Improved Since `0530be22`
-
-- XLSX import/export support and related collaboration refresh behavior
-- Local collaboration support for shared project files
-- Gantt and Tracking Gantt progress-line improvements
-- Gantt zoom restore behavior
-- Mouse-wheel and horizontal scrolling refinements
-- Startup and initial view loading fixes
-- Logging cleanup, resource-leak fixes, and modernized build/CI setup
 
 ## Repository Layout
 

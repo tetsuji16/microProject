@@ -1,0 +1,192 @@
+# Microsoft Project desktop compatibility roadmap
+
+**Status:** goal and plan; compatibility is not complete.  
+**Reviewed:** 2026-10-12. **Issue inventory:** 34 open issues returned by GitHub.
+
+This document coordinates the goal in [msp-compatibility-goal.md](msp-compatibility-goal.md), the command-level evidence in [MSP_STANDARD_COMMAND_INVENTORY.md](MSP_STANDARD_COMMAND_INVENTORY.md), and the work boundaries below. It does not replace issue discussions or their history.
+
+## Target and evidence
+
+The goal is complete compatibility with Microsoft Project desktop. This is an objective, not a claim about the current product. Cover the current Microsoft 365 Project desktop client and Project Standard/Professional desktop editions; retain Project 2024 as a reproducible perpetual-license baseline. For any claim about current appearance, record observed product name, exact version/build, update channel, architecture, date, Windows version, resolution, scale, locale, and active view. Do not infer a “latest” build from a marketing page. A Microsoft 365 capture and a Project 2024 capture are separate evidence. The OfficeTips image in #765 is a visual style reference, not proof of Project command structure.
+
+Project desktop is distinct from Planner/Planner in Teams, Project for the web, Project Web App, Project Server, and cloud services. Track service and server connections separately; a desktop client connecting to a service is not equivalent to standalone desktop behavior.
+
+The complete target must account for:
+
+- Planning semantics: tasks, hierarchy/WBS, resources, assignments, calendars, work/duration/cost, constraints, all link types and lag, manual/automatic scheduling, leveling, progress/actuals, baselines, critical path, reports.
+- Desktop interactions: standard and contextual ribbon, Backstage, menus, dialogs, shortcuts, mouse routes, selection/enablement, accessibility, views, printing, Undo/Redo.
+- Files: **MPP read and write**, Project XML read and write, native MPO, and each advertised format. XML or MPO coverage does not substitute for MPP interoperability. Test semantic round trips against fixtures and desktop-generated projects and report loss/unsupported fields. POD retains its frozen wire format and required fixture coverage.
+- Automation/integration: VBA/macros, COM add-ins, extensibility, Project Server, historical Project Online workflows, and Planner linking. These remain unresolved coverage rows until explicitly verified or the product goal is openly revised. They cannot disappear from “complete” by omission.
+
+Microsoft-published specifications and support material are normative for behavior and issue closure; an installed MSP client is supplementary, not a prerequisite. Mark inferred rules as document-derived decisions. Current-appearance claims require dated captures with the exact target build. Keep missing, partial, unsupported, and unassessed rows visible.
+
+Junior implementation issues must be executable specifications: named owner/reviewer; dependencies; source and exact relevant behavior; supported inputs and preconditions; ordered steps; expected observable and numeric outcomes; fixture identity; tolerance only where a source defines it; negative/invalid cases; atomic failure behavior; selection and unrelated-state invariants; Undo/Redo; save/reload; test commands; evidence paths. A command dispatch or successful compile alone is not acceptance.
+
+For a scheduling change, use the owning module's fixture conventions and state input dates, calendars, duration units, dependency/lag, constraints, and exact expected start/finish. Derive each result from the cited Microsoft rule and fixture calendar; don't invent tolerance. Include a negative case, an injected failure that leaves model and Undo unchanged, and save/reload when data changes. For example, an FS link with one working-day lag must state predecessor finish, calendar, lag unit, expected successor start and explain any calendar boundary.
+
+For UI work, name the production class/resource and route from physical gesture to canonical action, fixture, visible result and persistence boundary. Verify locale through the app preference, not only JVM locale. Record Robot command/test, screenshot/log path, exact build and scale so a reviewer can rerun without guessing.
+
+## Proposed milestone gates
+
+These are dependency-ordered gates, not delivery dates. GitHub milestones should mirror these names and assign issues only after dependencies are checked.
+
+The connected GitHub interface does not expose milestone create/update operations and no authenticated GitHub CLI is installed. Six open gate-tracking issues (#792–#797, linked above) provide reviewable progress records; they are not native GitHub Milestone objects. Keep the gate table as the source of scope until native milestone support is available.
+
+### Junior work-package sequence
+
+Each package is a small PR with one observable contract. Before coding, check the current source and tests at the exact branch head; the file names below are entry points to inspect, not permission to duplicate an existing implementation.
+
+| Package | Inspect first | Implementation/verification sequence |
+|---|---|---|
+| M0.1 target manifest | docs/MSP_STANDARD_COMMAND_INVENTORY.md; docs/MSP_RIBBON_STRUCTURE_AND_COMMAND_COMPARISON.md; issues #453/#769 | Record product editions, feature rows, source links, current status, owner issue, fixture/test evidence. Reconcile stale rows against current source and recent issue updates. |
+| M0.2 file matrix | modules/microproject_exchange/src/main/java/com/microproject/core/pm/exchange/MspImporter.java; exchange tests and samples | Inventory each reader/writer separately. Current targeted scan locates MPXJ MPPReader construction in MspImporter; no writer was verified in that scan. Create fixed fixtures and record every semantic field and exact diff after round trips. |
+| M1.1 ribbon visual baseline | docs/architecture/ADR-0002-swing-ribbon-renderer.md; modules/microproject_ui/src/main/resources/com/microproject/menu/menuInternal.properties; ModernRibbonPanel; issue #765 | Capture observed Microsoft builds and microProject app; compare matched states; log dimensions/locale/DPI. Change one design token/layout family per PR and rerun the six-axis visual suite. Never add Flamingo JRibbon. |
+| M2.1 editing, sorting, hierarchy | modules/microproject_ui/src/main/java/com/microproject/ui/ribbon/RibbonCommandCatalog.java; spreadsheet/Gantt projection/sort classes; #408/#414/#750/#761 | First complete canonical action route. For sort, test at least three field types (text, date, numeric), equal and empty values, ascending/descending, filter/group, selection identity, Gantt row alignment, and unchanged model order. Keep permanent renumbering a separate explicit action with its own confirmation/Undo/save contract. Resource Sort Order menu entry in #750 is the remaining requested scope; do not redo its completed header toggle. |
+| M2.2 schedule and dependency semantics | modules/microproject_core scheduling services and task/dependency tests; docs/msp-task-command-contract.md; #403/#409/#410 | For each FS/SS/FF/SF and lag case, record fixture dates, working/nonworking calendar, units, constraints, exact expected dates and source rationale. Assert only intended tasks move, expected warnings/state, one Undo/Redo unit and MPO reopen. Inject failure after mutation and assert full state and Undo history restore. Confirm architecture child dependencies from #403 rather than inventing them. |
+| M2.3 resources, assignments, progress, baselines | modules/microproject_core resource/task services; modules/microproject_exchange MPO tests; #453/#769/#772 | Specify allocation, over-allocation, proposed-resource and leveling options separately. Test selected vs all-resource scope, clear/recompute provenance, assignment totals, progress/status date, baseline slots, Undo/Redo and MPO round trip. Don't remove user-created splits when clearing leveling. |
+| M2.4 views, ribbon, reports, print | modules/microproject_ui ribbon resources/catalog, GUI tests; modules/microproject_reports; #453/#765/#769/#770 | For every inventory row, provide enabled/disabled state, physical command route, exact visible result, no-mutation assertion for view-only actions, and locale/DPI evidence. For reports compare fixture values and rendered layout; for print inspect page boundaries and localized text. Record unsupported items as absent with reason, never as success-shaped dummy controls. |
+| M3.1 MPP read | MspImporter and exchange import fixtures | Use Project-created MPP with named edition/build. Compare imported task/resource/calendar/link/baseline/actual values to an independently recorded manifest; document unsupported constructs and clear failures. |
+| M3.2 MPP write | exchange export architecture and supported format registry | First determine whether a writer exists and the exact format path; do not assume because an MPP reader exists. Write a fixture and verify format validity and independently derived semantic manifests in both directions; supplement with a named Project desktop open/save/reopen when available, recording any evidence limit. Keep MPP write marked unverified until this completes. |
+
+For scheduling fixtures, independently compute expected dates from the cited
+rule and fixed working calendar. Record working-day and elapsed-day lag
+separately; do not substitute unverified illustrative dates for an oracle.
+
+| Milestone | Measurable exit criteria |
+|---|---|
+| **M0 — Target and coverage baseline** | Tracking issue [#792](https://github.com/tetsuji16/ProjectLibre/issues/792). Freeze dated target editions/source set. Inventory every command, workflow, format and integration with status, owner issue, source and evidence. |
+| **M1 — Office-style ribbon foundation** | Tracking issue [#793](https://github.com/tetsuji16/ProjectLibre/issues/793); coordinate #765/#483/#724. Use Swing ModernRibbonPanel and ADR-0002. Compare dated Microsoft 365 and Project 2024 captures. English/Japanese × 100/125/150% DPI without clipping; narrow width keeps commands reachable; keyboard/accessibility states verified. Visual gate only. |
+| **M2 — Offline desktop workflow parity** | Parent tracking issue [#794](https://github.com/tetsuji16/ProjectLibre/issues/794); split reviewable packages: **M2.1 editing/hierarchy** (#408/#414/#750/#761); **M2.2 scheduling/dependencies** (#403/#409/#410/#411/#453/#769); **M2.3 resources/assignments/progress/baselines** (#453/#769 and children); **M2.4 views/ribbon/context/reports/print/file commands** (#453/#765/#769/#770). Each action needs source, selection/precondition, physical route, visible/model result, disabled reason, unrelated-state invariants, failure atomicity, Undo/Redo if mutating and MPO save/reload. Parent closes only after package acceptance. |
+| **M3 — File interoperability** | Tracking issue [#796](https://github.com/tetsuji16/ProjectLibre/issues/796). MPP read **and** write pass reverse round trips against declared Project desktop editions and fixtures. Compare IDs, hierarchy, calendars, resources/assignments, links/lag, constraints, dates, progress, baselines, custom fields and represented views; enumerate losses. Independently gate XML and advertised formats. MPO backward-read and POD invariants pass. |
+| **M4 — Automation and server scope** | Tracking issue [#797](https://github.com/tetsuji16/ProjectLibre/issues/797). Publish explicit coverage for VBA/macros, COM add-ins, Project Server, Project Online workflows and Planner linking. Verify selected surfaces or openly revise the goal and public scope. |
+| **M5 — Release acceptance** | Tracking issue [#795](https://github.com/tetsuji16/ProjectLibre/issues/795). Automated tests, architecture, packaged launch, GUI quality, accessibility, locale/DPI, file round trips and dated visual comparison pass. Publish coverage report. “Complete” is prohibited while any in-scope row is partial, missing, unsupported or unassessed. |
+
+## Open issue scope review
+
+The following review covers all 34 open issues observed on 2026-10-12. It preserves prior discussion by recommending scope/sequence in this separate register; it is not a rewrite of issue bodies. These milestones are planning groupings, not statements that work is complete.
+
+| Issue | Priority / milestone | Revised boundary, source area, and acceptance refinement |
+|---|---|---|
+| [#84](https://github.com/tetsuji16/ProjectLibre/issues/84) Cleanup | P3 / M5 | Remove only proven dead/commented code; owning-module tests; preserve serialization and compatibility adapters. No credit by deletion count. |
+| [#215](https://github.com/tetsuji16/ProjectLibre/issues/215) Preferences | P2 / M2 | Separate user defaults from project values. Stage each preference; verify restart persistence, locale behavior, and no rewrite of opened project data. |
+| [#228](https://github.com/tetsuji16/ProjectLibre/issues/228) Collection sizing | P3 / M5 | Only strict known bounds; review every candidate and explain non-conversions. Performance-relevant tests; conversion count is not a metric. |
+| [#242](https://github.com/tetsuji16/ProjectLibre/issues/242) Commons Collections | P2 / M5 | Finish #752/#753 first; prove no 3.x runtime artifact in Gradle or packaged runtime; core/reports/UI and Windows acceptance pass. |
+| [#254](https://github.com/tetsuji16/ProjectLibre/issues/254) Locale audit | P2 / M2 | Recount live keys/locales; do not treat stale reported numbers as current. Specify source-key parity, translation workflow, supported-locale smoke gate before pruning. |
+| [#388](https://github.com/tetsuji16/ProjectLibre/issues/388) Japanese print label | P2 / M2 | Fix queue wording at source; physical Ctrl+P ja verification plus en regression and correct job count. |
+| [#403](https://github.com/tetsuji16/ProjectLibre/issues/403) Table/Gantt architecture | P1 / M2 | Parent only. Close after children, legacy-path removal, multi-view/filter/sort/EDT checks and two-window verification. Not a substitute for feature acceptance. |
+| [#408](https://github.com/tetsuji16/ProjectLibre/issues/408) Task commands | P1 / M2 | Enumerate each mutation entrypoint and use one typed boundary with result, Undo and persistence coverage; catalog-only audit cannot close. |
+| [#409](https://github.com/tetsuji16/ProjectLibre/issues/409) Revisioned updates | P1 / M2 | Test stale publication rejection, atomic EDT snapshot install, ordering/races, structural edits, and cross-view state. |
+| [#410](https://github.com/tetsuji16/ProjectLibre/issues/410) Rollback transactions | P1 / M2 | Inject failure at every transaction stage; model, Undo stack and observers remain unchanged after failure. |
+| [#411](https://github.com/tetsuji16/ProjectLibre/issues/411) Value projections | P1 / M2 | Final architecture gate: render/hit test from immutable values; prove no supported path uses legacy mutable row state. |
+| [#413](https://github.com/tetsuji16/ProjectLibre/issues/413) Alternative calendars | P3 / M5 | Product extension, not MSP parity. Define platform/calendar API, entry and display semantics; test DST, locale and persistence before UI. |
+| [#414](https://github.com/tetsuji16/ProjectLibre/issues/414) Input consolidation | P1 / M2 | Consolidate keyboard/mouse/dialog routes; renderer migration excluded by ADR-0002. One binding/action per gesture and physical route tests. |
+| [#453](https://github.com/tetsuji16/ProjectLibre/issues/453) Ribbon specification | P1 / M0-M2 | Keep normative functional inventory; date/version Microsoft sources, reconcile with #769, separate offline from licensed/service-conditional commands. CCPM is an extension. Zoom is PARTIAL: Entire Project works in Task Usage and Resource Usage; Selected Tasks only Gantt; Resource Graph is absent. |
+| [#479](https://github.com/tetsuji16/ProjectLibre/issues/479) Windows shell | P2 / M5 | Keep native window/snap behavior isolated from ribbon. Verify packaged Windows build; shell polish does not establish ribbon compatibility. |
+| [#483](https://github.com/tetsuji16/ProjectLibre/issues/483) FlatLaf coverage | P2 / M1 | Audit screens/states; preserve semantic chart/print colors; record platform differences. Not a proxy for MSP visual parity. |
+| [#595](https://github.com/tetsuji16/ProjectLibre/issues/595) Java 25 modernization | P3 / M5 | Behavior-preserving slices; protect MPO, frozen POD and MPP/XML; measure reviewed batches and tests, not files reformatted. |
+| [#724](https://github.com/tetsuji16/ProjectLibre/issues/724) Dialog sizing | P2 / M1 | Per-dialog min/preferred size; inspect tabs, locale, DPI, screen edges and resize behavior; no universal resize without evidence. |
+| [#728](https://github.com/tetsuji16/ProjectLibre/issues/728) Manual QA | P1 / M5 | Start after stated dependencies. Record exact build, fixture, routes, screenshots, passes/failures and untested scope. |
+| [#729](https://github.com/tetsuji16/ProjectLibre/issues/729) Duplication audit | P2 / M2 | Record callers, provenance, serialization and contracts; split confirmed duplicate work. Similar names alone do not justify merging. |
+| [#737](https://github.com/tetsuji16/ProjectLibre/issues/737) Core/UI boundary | P2 / M2 | Small module-boundary slices with architecture and format checks; do not duplicate #730 importer work or mix semantic changes. |
+| [#738](https://github.com/tetsuji16/ProjectLibre/issues/738) GraphicManager | P2 / M2 | Separate lifecycle/window/dialog/command/workspace ownership; verify shutdown, multi-window and recovery per extraction. |
+| [#740](https://github.com/tetsuji16/ProjectLibre/issues/740) Application workflows | P2 / M2 | Move one workflow per slice; prove UI relinquishes exchange/report orchestration and preserve behavior/file compatibility. |
+| [#743](https://github.com/tetsuji16/ProjectLibre/issues/743) Task model responsibilities | P2 / M2 | Extract one family at a time; invariant, MPO/MPP and POD tests before next family. |
+| [#748](https://github.com/tetsuji16/ProjectLibre/issues/748) Diagrams | P2 / M2 | Distinct WBS/PERT/Gantt contracts. Test geometry, labels, links, selection, zoom, hit testing and fixtures; merge only proven shared work. |
+| [#750](https://github.com/tetsuji16/ProjectLibre/issues/750) Resource sorting | P2 / M2.1 | Header sort/toggle is implemented and has hosted physical evidence in issue comments. The latest request is Sort Order in the Sort menu. Specify menu/header synchronization, stable ties, selection/model invariants and Workspace persistence; don't repeat completed header work. |
+| [#752](https://github.com/tetsuji16/ProjectLibre/issues/752) BeanUtils | P2 / M5 | No repeat of source migration. Finish #753 dependency chain; preserve converters; runtime graph and package evidence. |
+| [#753](https://github.com/tetsuji16/ProjectLibre/issues/753) JasperReports 7 | P2 / M5 | Migrate template/API by report family; compare rendered content/layout/data; prove packaged graph; #242 remains blocked until complete. |
+| [#761](https://github.com/tetsuji16/ProjectLibre/issues/761) Task sorting | P2 / M2.1 | Sort display order through the existing projection so table/Gantt stay aligned; define ties, filters/groups, selection identity and no schedule mutation. Permanent task/resource renumbering is a distinct explicit operation with confirmation, Undo and persistence; never silently renumber on sort. |
+| [#765](https://github.com/tetsuji16/ProjectLibre/issues/765) Office ribbon visuals | P1 / M1 | Visual-only gate on ModernRibbonPanel. Compare dated current Microsoft 365 and Project 2024 captures, exact build and environment; check density, type, icons, context and overflow. App locale must be confirmed from app preferences; JVM locale alone does not establish English UI evidence. |
+| [#769](https://github.com/tetsuji16/ProjectLibre/issues/769) Ribbon functional audit | P1 / M2 | Reconcile every #453 row to source/test/result/condition. A dispatch is not proof; tag standard, conditional, extension and unsupported. |
+| [#770](https://github.com/tetsuji16/ProjectLibre/issues/770) Ribbon customization | P2 / M2 | Separate user-scoped settings from command parity. Test persistence/restart, import/export, resets, invalid settings, keyboard/accessibility and locale/DPI; preserve Action IDs. |
+| [#773](https://github.com/tetsuji16/ProjectLibre/issues/773) Test audit | P2 / M5 | Consolidate around distinct observable contracts; retain fixed interoperability fixtures and GUI representatives; justify every removal. |
+| [#774](https://github.com/tetsuji16/ProjectLibre/issues/774) Legacy OpenProject paths | P2 / M0-M2 | Decide each server/login/master/copy path against declared product scope and provenance. Preserve local Open and supported MPP/XML; no removal before data/use review. |
+
+## Presently visible gaps
+
+The targeted exchange production scan found MPXJ MPPReader use in MspImporter;
+MPP writing was not verified in that scan. This is a verification gap, not a
+repository-wide claim that no writer exists. The command inventory reports
+gaps or partial scope for Task Inspector,
+Format Painter, Select/Clear and insertion commands, resource leveling,
+Selected Tasks zoom in usage views, and report/timeline object formatting.
+MPP read/write, current Microsoft 365 visual evidence, VBA/COM, and server
+integrations require explicit inventory rows. This is not yet an exhaustive gap
+list; M0 makes the inventory exhaustive before any claim expands.
+
+## Microsoft references
+
+- [Project desktop supported file formats](https://support.microsoft.com/en-us/project/file-formats-supported-by-project-desktop)
+- [Project Online desktop client service description](https://learn.microsoft.com/en-us/office365/servicedescriptions/project-online-service-description/project-online-desktop-client-service-description)
+- [Project for the web and Project desktop](https://support.microsoft.com/en-us/project/project-for-the-web-and-project-online-desktop-client)
+- [Microsoft Project Online retirement announcement](https://techcommunity.microsoft.com/blog/plannerblog/microsoft-project-online-is-retiring-what-you-need-to-know/4450558)
+- [Office ribbon customization](https://support.microsoft.com/en-us/office/foundations-experiences/customize-the-ribbon-in-office)
+- [Project 2024 lifecycle](https://learn.microsoft.com/en-us/lifecycle/products/project-2024)
+
+Recheck mutable Microsoft sources at each milestone and retain retrieval date
+with evidence.
+
+
+## ジュニアエンジニア向け実施・完了基準
+
+実装担当は以下の順序で進め、レビュー担当が証跡を確認してから親 Issue の
+チェック項目を完了にします。目標全体の完成と、一つの PR の完了を分けます。
+
+### 着手前に確定する仕様
+
+1. 作業元コミット、対象 Issue、依存 Issue、担当者・レビュー担当者を記録する。
+2. 対象コマンドを現在のインベントリと照合し、既存の実装・テスト・最新コメントを読む。
+   「未実装」「部分実装」「実装済みだが未検証」を区別する。
+3. Microsoft 公式資料の URL、確認日、該当する操作・計算規則を記録する。
+   資料から推定した部分には「文書由来の判断」と明記する。
+4. 入力値、事前状態、操作、期待結果、禁止する副作用を表にする。
+   日付計算はカレンダー、稼働時間、時間帯、期間単位まで固定する。
+5. 既存の正規 Action、選択解決、編集トランザクション、保存経路を特定する。
+   別のリボン描画器、別のショートカット登録、別の Undo 経路を追加しない。
+
+### 一つの PR の実施順序
+
+1. 既存 fixture を再利用し、現在失敗する条件または未検証の契約を一つ再現する。
+2. ドメイン・ユースケース・UI の責務に従って最小の変更を行う。
+3. 通常入力、空値、同値、境界、無効入力を検証する。変更対象以外の状態も比較する。
+4. データ更新では Undo → Redo → 保存 → 再読込を確認する。
+   エラー注入時は途中変更、通知、Undo 履歴が残らないことを確認する。
+5. UI 操作では物理操作から正規 Action までの経路を検証し、モデル値と画面表示を比較する。
+   `doClick`、例外がないこと、ダイアログが開くことだけで完了にしない。
+6. 変更したモジュールの必要なテストを実行し、無関係な生成物・サンプル変更を除く。
+7. PR にコマンド、結果、fixture、ログ・画像の所在、残る制約を記載する。
+
+### ソートの固定 fixture と期待結果
+
+以下は表示ソート専用の fixture。行 ID は表示番号と区別する。
+
+| 入力順 | 安定 ID | 名前 | 数値 | 日付 |
+|---|---|---|---|---|
+| 1 | R1 | B | 2 | 2026-10-13 |
+| 2 | R2 | A | 1 | 2026-10-12 |
+| 3 | R3 | A | 1 | 2026-10-12 |
+| 4 | R4 | 空 | 空 | 空 |
+
+- 空値を末尾、同値を入力順維持と定義した表示ソートの契約では、名前の昇順は
+  R2,R3,R1,R4、降順は R1,R2,R3,R4。同値・空値の契約は Microsoft の資料と
+  照合し、異なる場合は fixture の期待値を仕様と同時に修正する。
+- R3 を選択してからソートし、選択された安定 ID が R3 のままであることを確認する。
+  タスク fixture では表とガントの行 ID 列が一致することも確認する。
+- メニューとヘッダーで同じ方向・キーを示す。ソート前後でモデルの順序、ID、
+  リンク、日付、割当が変化しない。ビュー状態の保存範囲は Workspace の契約に従う。
+- 恒久的再採番を選ぶ操作は別 fixture で検証する。変更する ID と保持する安定 ID、
+  参照更新、確認、Undo、保存・再読込の期待値を先に定義する。
+
+### 段階別の提出物
+
+| 段階 | 必須提出物とレビュー条件 |
+|---|---|
+| M0 | 全機能・形式・接続のカバレッジ表。各行に版、公式資料、状態、担当 Issue、証跡。不明項目を隠さず、既存テストの契約と対応させる。 |
+| M1 | 同じ表示状態の比較画像。製品版・ビルド・確認日・アプリ言語・DPI を記録。日英×100/125/150% と狭いウィンドウで文字欠け・到達不能コマンドを確認。 |
+| M2 | M2.1～M2.4 ごとの操作契約と回帰結果。親は全パッケージの完了後に閉じる。日付・工数・コスト・基準計画の計算期待値を独立した manifest に保存。 |
+| M3 | 形式別の read/write 表と往復差分。MPP と XML を別ゲートにし、UID、階層、カレンダー、依存、割当、実績、基準計画、カスタム項目の損失を検出。MPO 後方読込と凍結 POD の fixture も維持。 |
+| M4 | VBA/COM/アドイン/Server/Planner ごとの操作、版、認証・接続条件、対応状態、テスト根拠。対象外へ変更する判断は製品目標の変更として明示し、完全互換の表現を合わせて修正。 |
+| M5 | リリース候補のコミット・テスト・配布物・起動確認・残存差異の報告。Windows と Linux/macOS の確認状態を別々に記録。未実行を成功扱いにせず、公開説明を証明済み範囲に合わせる。 |
+
+レビュー担当は仕様根拠、変更範囲、検証結果、データ保全、残存差異の五点を確認する。
+未検証の製品全体について「完全互換が完成」と表記しない。

@@ -53,9 +53,9 @@ buttons.
 | Task Inspector | Task | MISSING | No equivalent inspector route found; Microsoft documents a pane explaining scheduling factors and suggested changes. Do not bind a dummy Action. |
 | Respect Links, Inactivate Task, Format Painter | Task | MISSING | No equivalent standard-ribbon Action found in current menu/catalog definitions. Determine MSP scope and implement or intentionally omit with a documented product reason. |
 | Select/Clear and Summary/Milestone insertion | Task | MISSING/PARTIAL | No matching complete command set was found in current Task tab definitions. Recheck the standard Project edition and command semantics before implementing. |
-| Entire Project / Selected Tasks zoom | View | MISSING | Current `RibbonZoomIn`/`RibbonZoomOut` are incremental. The named MSP scope commands and their selection requirements are not present. |
+| Entire Project / Selected Tasks zoom | View | PARTIAL | Entire Project is physically verified in Gantt, Task Usage, and Resource Usage. Selected Tasks is verified only in Gantt; current Usage selection does not expose a task snapshot, and microProject has no Resource Graph equivalent. See #769 and its 2026-10-07 updates. |
 | Report/Timeline object-specific formatting | Contextual tabs | PARTIAL | Contextual surfaces exist for Network and Calendar. Report/Timeline object selection surfaces and their supported commands are not complete. |
-| Cloud account, Project Online/Planner linking, VBA/Macros, Microsoft feedback/training services | File/Help | NOT SUPPORTED | This local desktop fork has no account/cloud or macro execution service. Keep these absent; local Help/About are product replacements, not MSP parity. |
+| Cloud account, Project Online/Planner linking, VBA/Macros, Microsoft feedback/training services | File/Help | NOT SUPPORTED | This local desktop fork has no account/cloud or macro execution service. Do not add dummy controls. Track automation and connected integration coverage under roadmap M4; unsupported in-scope surfaces block a complete compatibility claim. Local Help/About are product replacements, not MSP parity. |
 
 ## Office customization inventory (#770)
 
