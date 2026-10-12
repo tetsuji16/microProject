@@ -713,6 +713,8 @@ class MpxExportTrackingTest {
 
 	@Test
 	void assignmentBaselineTimephasedWorkRoundTripsThroughMpoAndMspdi() throws Exception {
+		assertTrue(com.microproject.pm.assignment.TimeDistributedHelper.isCost(
+			com.microproject.pm.assignment.TimeDistributedConstants.BASELINE_COST));
 		int[] expectedWorkTypes = { 4, 16, 22, 28, 34, 40, 46, 52, 58, 64, 70 };
 		for (int slot = 0; slot < expectedWorkTypes.length; slot++) {
 			assertEquals(expectedWorkTypes[slot], MpxImportState.assignmentBaselineWorkType(slot));
@@ -727,11 +729,20 @@ class MpxExportTrackingTest {
 					+ "<Finish>2026-10-05T17:00:00</Finish><Unit>2</Unit><Value>PT2H0M0S</Value></TimephasedData>"
 					+ "<TimephasedData><Type>4</Type><UID>1</UID><Start>2026-10-06T08:00:00</Start>"
 					+ "<Finish>2026-10-06T17:00:00</Finish><Unit>2</Unit><Value>PT6H0M0S</Value></TimephasedData>"
+					+ "<TimephasedData><Type>5</Type><UID>1</UID><Start>2026-10-05T08:00:00</Start>"
+					+ "<Finish>2026-10-05T17:00:00</Finish><Unit>2</Unit><Value>100</Value></TimephasedData>"
+					+ "<TimephasedData><Type>5</Type><UID>1</UID><Start>2026-10-06T08:00:00</Start>"
+					+ "<Finish>2026-10-06T17:00:00</Finish><Unit>2</Unit><Value>300</Value></TimephasedData>"
 					+ "<Number>0</Number><Start>2026-10-05T08:00:00</Start><Finish>2026-10-06T17:00:00</Finish>"
 					+ "<Work>PT8H0M0S</Work></Baseline>")
 			.replace("<Baseline><Number>9</Number>",
-				"<Baseline><TimephasedData><Type>22</Type><UID>1</UID><Start>2026-10-07T08:00:00</Start>"
+				"<Baseline><TimephasedData><Type>17</Type><UID>1</UID><Start>2026-10-07T08:00:00</Start>"
+					+ "<Finish>2026-10-07T17:00:00</Finish><Unit>2</Unit><Value>17</Value></TimephasedData>"
+					+ "<Number>1</Number><Start>2026-10-07T08:00:00</Start><Finish>2026-10-07T17:00:00</Finish></Baseline>"
+					+ "<Baseline><TimephasedData><Type>22</Type><UID>1</UID><Start>2026-10-07T08:00:00</Start>"
 					+ "<Finish>2026-10-07T17:00:00</Finish><Unit>2</Unit><Value>PT1H0M0S</Value></TimephasedData>"
+					+ "<TimephasedData><Type>23</Type><UID>1</UID><Start>2026-10-07T08:00:00</Start>"
+					+ "<Finish>2026-10-07T17:00:00</Finish><Unit>2</Unit><Value>17</Value></TimephasedData>"
 					+ "<Number>2</Number><Start>2026-10-07T08:00:00</Start><Finish>2026-10-07T17:00:00</Finish>"
 					+ "<Work>PT1H0M0S</Work></Baseline><Baseline><Number>9</Number>");
 		assertTrue(xml.contains("<Type>4</Type><UID>1</UID><Start>2026-10-05T08:00:00</Start>"
@@ -749,12 +760,30 @@ class MpxExportTrackingTest {
 			baseline.work(modelWallTime("2026-10-05T08:00:00"), modelWallTime("2026-10-05T17:00:00")));
 		assertEquals(6L * 60L * 60L * 1000L,
 			baseline.work(modelWallTime("2026-10-06T08:00:00"), modelWallTime("2026-10-06T17:00:00")));
+		assertEquals(400.0D, baseline.calcAll(Assignment.COST), 0.00001D,
+			"The snapshot cost contour should contain both imported intervals");
+		assertEquals(100.0D, baseline.cost(modelWallTime("2026-10-05T08:00:00"),
+			modelWallTime("2026-10-05T17:00:00")), 0.00001D,
+			"The baseline snapshot query should return the first cost interval");
+		assertEquals(100.0D, assignment.baselineCost(modelWallTime("2026-10-05T08:00:00"),
+			modelWallTime("2026-10-05T17:00:00")), 0.00001D);
+		assertEquals(300.0D, assignment.baselineCost(modelWallTime("2026-10-06T08:00:00"),
+			modelWallTime("2026-10-06T17:00:00")), 0.00001D);
 		Assignment secondBaseline = assignment.getBaselineAssignment(Integer.valueOf(2), false);
 		assertNotNull(secondBaseline);
 		assertEquals(1L * 60L * 60L * 1000L, secondBaseline.work(
 			modelWallTime("2026-10-07T08:00:00"), modelWallTime("2026-10-07T17:00:00")));
+		assertEquals(17.0D, secondBaseline.cost(modelWallTime("2026-10-07T08:00:00"),
+			modelWallTime("2026-10-07T17:00:00")), 0.00001D);
+		Assignment costOnlyBaseline = assignment.getBaselineAssignment(Integer.valueOf(1), false);
+		assertNotNull(costOnlyBaseline);
+		assertNull(assignment.getBaselineValues(1).work(), "Cost-only baselines must preserve missing Work");
+		assertEquals(modelWallTime("2026-10-07T08:00:00"), costOnlyBaseline.getStart());
+		assertEquals(modelWallTime("2026-10-07T17:00:00"), costOnlyBaseline.getEnd());
+		assertEquals(17.0D, costOnlyBaseline.cost(modelWallTime("2026-10-07T08:00:00"),
+			modelWallTime("2026-10-07T17:00:00")), 0.00001D);
 		assertEquals(0L, assignment.getBaselineValues(9).work(), "Explicit zero remains distinct from a missing slot");
-		assertNull(assignment.getBaselineAssignment(Integer.valueOf(1), false), "Missing slots remain absent");
+		assertNull(assignment.getBaselineAssignment(Integer.valueOf(3), false), "Missing slots remain absent");
 
 		ByteArrayOutputStream mpo = new ByteArrayOutputStream();
 		assertTrue(new com.microproject.exchange.MpoFileImporter().saveProject(project, mpo));
@@ -764,12 +793,25 @@ class MpxExportTrackingTest {
 		Assignment reopenedBaseline = reopenedAssignment.getBaselineAssignment(Integer.valueOf(0), false);
 		assertNotNull(reopenedBaseline);
 		assertEquals(8L * 60L * 60L * 1000L, reopenedBaseline.getWork(null));
+		assertEquals(100.0D, reopenedAssignment.baselineCost(modelWallTime("2026-10-05T08:00:00"),
+			modelWallTime("2026-10-05T17:00:00")), 0.00001D);
+		assertEquals(300.0D, reopenedAssignment.baselineCost(modelWallTime("2026-10-06T08:00:00"),
+			modelWallTime("2026-10-06T17:00:00")), 0.00001D);
 		Assignment reopenedSecondBaseline = reopenedAssignment.getBaselineAssignment(Integer.valueOf(2), false);
 		assertNotNull(reopenedSecondBaseline);
 		assertEquals(1L * 60L * 60L * 1000L, reopenedSecondBaseline.work(
 			modelWallTime("2026-10-07T08:00:00"), modelWallTime("2026-10-07T17:00:00")));
+		assertEquals(17.0D, reopenedSecondBaseline.cost(modelWallTime("2026-10-07T08:00:00"),
+			modelWallTime("2026-10-07T17:00:00")), 0.00001D);
+		Assignment reopenedCostOnlyBaseline = reopenedAssignment.getBaselineAssignment(Integer.valueOf(1), false);
+		assertNotNull(reopenedCostOnlyBaseline);
+		assertNull(reopenedAssignment.getBaselineValues(1).work(), "MPO preserves missing baseline Work");
+		assertEquals(modelWallTime("2026-10-07T08:00:00"), reopenedCostOnlyBaseline.getStart());
+		assertEquals(modelWallTime("2026-10-07T17:00:00"), reopenedCostOnlyBaseline.getEnd());
+		assertEquals(17.0D, reopenedCostOnlyBaseline.cost(modelWallTime("2026-10-07T08:00:00"),
+			modelWallTime("2026-10-07T17:00:00")), 0.00001D);
 		assertEquals(0L, reopenedAssignment.getBaselineValues(9).work(), "MPO retains explicit zero baseline work");
-		assertNull(reopenedAssignment.getBaselineAssignment(Integer.valueOf(1), false), "MPO keeps missing slots absent");
+		assertNull(reopenedAssignment.getBaselineAssignment(Integer.valueOf(3), false), "MPO keeps missing slots absent");
 
 		ByteArrayOutputStream roundTripXml = new ByteArrayOutputStream();
 		assertTrue(new MicrosoftImporter().saveProject(reopened, roundTripXml));
@@ -780,11 +822,27 @@ class MpxExportTrackingTest {
 		assertTrue(exportedXml.contains("<TimephasedData><Type>4</Type><UID>1</UID>"
 			+ "<Start>2026-10-06T08:00:00</Start><Finish>2026-10-06T17:00:00</Finish>"
 			+ "<Unit>2</Unit><Value>PT6H0M0S</Value></TimephasedData>"), exportedXml);
+		assertTrue(exportedXml.contains("<TimephasedData><Type>5</Type><UID>1</UID>"
+			+ "<Start>2026-10-05T08:00:00</Start><Finish>2026-10-05T17:00:00</Finish>"
+			+ "<Unit>2</Unit><Value>100</Value></TimephasedData>"), exportedXml);
+		assertTrue(exportedXml.contains("<TimephasedData><Type>5</Type><UID>1</UID>"
+			+ "<Start>2026-10-06T08:00:00</Start><Finish>2026-10-06T17:00:00</Finish>"
+			+ "<Unit>2</Unit><Value>300</Value></TimephasedData>"), exportedXml);
+		assertTrue(exportedXml.contains("<TimephasedData><Type>23</Type><UID>1</UID>"
+			+ "<Start>2026-10-07T08:00:00</Start><Finish>2026-10-07T17:00:00</Finish>"
+			+ "<Unit>2</Unit><Value>17</Value></TimephasedData>"), exportedXml);
+		assertTrue(exportedXml.contains("<TimephasedData><Type>17</Type><UID>1</UID>"
+			+ "<Start>2026-10-07T08:00:00</Start><Finish>2026-10-07T17:00:00</Finish>"
+			+ "<Unit>2</Unit><Value>17</Value></TimephasedData>"), exportedXml);
 		assertTrue(exportedXml.contains("<TimephasedData><Type>22</Type><UID>1</UID>"
 			+ "<Start>2026-10-07T08:00:00</Start><Finish>2026-10-07T17:00:00</Finish>"
 			+ "<Unit>2</Unit><Value>PT1H0M0S</Value></TimephasedData>"), exportedXml);
 		Project roundTrip = importMspdi(exportedXml);
 		Assignment roundTripAssignment = (Assignment) taskNamed(roundTrip, "Assignment baseline task").getAssignments().iterator().next();
+		assertEquals(100.0D, roundTripAssignment.baselineCost(modelWallTime("2026-10-05T08:00:00"),
+			modelWallTime("2026-10-05T17:00:00")), 0.00001D);
+		assertEquals(300.0D, roundTripAssignment.baselineCost(modelWallTime("2026-10-06T08:00:00"),
+			modelWallTime("2026-10-06T17:00:00")), 0.00001D);
 		Assignment roundTripBaseline = roundTripAssignment.getBaselineAssignment(Integer.valueOf(0), false);
 		assertNotNull(roundTripBaseline);
 		assertEquals(2L * 60L * 60L * 1000L,
@@ -795,8 +853,13 @@ class MpxExportTrackingTest {
 		assertNotNull(roundTripSecondBaseline);
 		assertEquals(1L * 60L * 60L * 1000L, roundTripSecondBaseline.work(
 			modelWallTime("2026-10-07T08:00:00"), modelWallTime("2026-10-07T17:00:00")));
+		Assignment roundTripCostOnlyBaseline = roundTripAssignment.getBaselineAssignment(Integer.valueOf(1), false);
+		assertNotNull(roundTripCostOnlyBaseline);
+		assertNull(roundTripAssignment.getBaselineValues(1).work());
+		assertEquals(17.0D, roundTripCostOnlyBaseline.cost(modelWallTime("2026-10-07T08:00:00"),
+			modelWallTime("2026-10-07T17:00:00")), 0.00001D);
 		assertEquals(0L, roundTripAssignment.getBaselineValues(9).work());
-		assertNull(roundTripAssignment.getBaselineAssignment(Integer.valueOf(1), false));
+		assertNull(roundTripAssignment.getBaselineAssignment(Integer.valueOf(3), false));
 	}
 
 	@Test

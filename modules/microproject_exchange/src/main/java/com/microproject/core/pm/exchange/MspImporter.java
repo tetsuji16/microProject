@@ -185,6 +185,8 @@ public class MspImporter {
 					RawMspdiData rawData = parseRawMspdiData(data);
 					state.setRawMspdiAssignmentWork(rawData.assignmentWork());
 					state.setRawMspdiAssignmentBaselineWork(rawData.assignmentBaselineWork());
+					state.setRawMspdiAssignmentBaselineCost(rawData.assignmentBaselineCost());
+					state.setRawMspdiAssignmentBaselines(rawData.assignmentBaselines());
 					state.setRawMspdiTaskBaselines(rawData.taskBaselines());
 					source = prepareProjectStream(new ByteArrayInputStream(data));
 				} else {
@@ -240,6 +242,8 @@ public class MspImporter {
 
 	private record RawMspdiData(Map<Long, MpxImportState.RawMspdiAssignmentWork> assignmentWork,
 		Map<Long, Map<Integer, List<MpxImportState.RawMspdiWorkInterval>>> assignmentBaselineWork,
+		Map<Long, Map<Integer, List<MpxImportState.RawMspdiCostInterval>>> assignmentBaselineCost,
+		Map<Long, Map<Integer, MpxImportState.RawMspdiAssignmentBaseline>> assignmentBaselines,
 		Map<Long, Map<Integer, MpxImportState.RawMspdiTaskBaseline>> taskBaselines) { }
 
 	private RawMspdiData parseRawMspdiData(byte[] xml)
@@ -259,6 +263,8 @@ public class MspImporter {
 		org.w3c.dom.NodeList assignments = document.getElementsByTagNameNS(namespace, "Assignment");
 		Map<Long, MpxImportState.RawMspdiAssignmentWork> result = new HashMap<>();
 		Map<Long, Map<Integer, List<MpxImportState.RawMspdiWorkInterval>>> assignmentBaselineWork = new HashMap<>();
+		Map<Long, Map<Integer, List<MpxImportState.RawMspdiCostInterval>>> assignmentBaselineCost = new HashMap<>();
+		Map<Long, Map<Integer, MpxImportState.RawMspdiAssignmentBaseline>> assignmentBaselines = new HashMap<>();
 		Map<Long, Map<Integer, MpxImportState.RawMspdiTaskBaseline>> taskBaselines = new HashMap<>();
 		org.w3c.dom.NodeList tasks = document.getElementsByTagNameNS(namespace, "Task");
 		for (int index = 0; index < tasks.getLength(); index++) {
@@ -291,33 +297,65 @@ public class MspImporter {
 			if (rawAssignmentUid == null) continue;
 			long assignmentUid = Long.parseLong(rawAssignmentUid);
 			Map<Integer, List<MpxImportState.RawMspdiWorkInterval>> baselineSlots = new HashMap<>();
+			Map<Integer, List<MpxImportState.RawMspdiCostInterval>> baselineCostSlots = new HashMap<>();
+			Map<Integer, MpxImportState.RawMspdiAssignmentBaseline> scalarBaselineSlots = new HashMap<>();
 			for (org.w3c.dom.Element baseline : xmlDirectChildren(assignment, "Baseline", namespace)) {
 				String rawNumber = xmlChildText(baseline, "Number", namespace);
 				if (rawNumber == null) continue;
 				int slot = Integer.parseInt(rawNumber);
 				if (slot < 0 || slot > 10)
 					throw new IllegalArgumentException("MSPDI assignment baseline number is outside 0..10");
+				String rawStart = xmlChildText(baseline, "Start", namespace);
+				String rawFinish = xmlChildText(baseline, "Finish", namespace);
+				String rawWork = xmlChildText(baseline, "Work", namespace);
+				if (rawStart != null || rawFinish != null || rawWork != null) {
+					MpxImportState.RawMspdiAssignmentBaseline scalar =
+						new MpxImportState.RawMspdiAssignmentBaseline(
+							parseNullableMspdiWallTime(rawStart), parseNullableMspdiWallTime(rawFinish),
+							parseMspdiDuration(rawWork));
+					if (scalarBaselineSlots.put(Integer.valueOf(slot), scalar) != null)
+						throw new IllegalArgumentException("MSPDI assignment contains duplicate baseline scalar slots");
+				}
 				List<MpxImportState.RawMspdiWorkInterval> intervals = new ArrayList<>();
 				int expectedType = MpxImportState.assignmentBaselineWorkType(slot);
+				List<MpxImportState.RawMspdiCostInterval> costIntervals = new ArrayList<>();
+				int expectedCostType = MpxImportState.assignmentBaselineCostType(slot);
 				for (org.w3c.dom.Element row : xmlDirectChildren(baseline, "TimephasedData", namespace)) {
 					String rawType = xmlChildText(row, "Type", namespace);
-					if (rawType == null || Integer.parseInt(rawType) != expectedType) continue;
+					if (rawType == null) continue;
+					int type = Integer.parseInt(rawType);
+					if (type != expectedType && type != expectedCostType) continue;
 					if (!"2".equals(xmlChildText(row, "Unit", namespace)))
-						throw new IllegalArgumentException("Assignment baseline work rows require per-day units");
+						throw new IllegalArgumentException("Assignment baseline rows require per-day units");
 					long start = parseMspdiWallTime(xmlChildText(row, "Start", namespace));
 					long finish = parseMspdiWallTime(xmlChildText(row, "Finish", namespace));
-					Long rowWork = parseMspdiDuration(xmlChildText(row, "Value", namespace));
-					if (finish <= start || rowWork == null || rowWork.longValue() < 0L)
-						throw new IllegalArgumentException("Assignment baseline work row has invalid bounds or value");
-					intervals.add(new MpxImportState.RawMspdiWorkInterval(expectedType, start, finish,
-						rowWork.longValue()));
+					if (finish <= start)
+						throw new IllegalArgumentException("Assignment baseline row has invalid bounds");
+					String rawValue = xmlChildText(row, "Value", namespace);
+					if (type == expectedType) {
+						Long rowWork = parseMspdiDuration(rawValue);
+						if (rowWork == null || rowWork.longValue() < 0L)
+							throw new IllegalArgumentException("Assignment baseline work row has invalid value");
+						intervals.add(new MpxImportState.RawMspdiWorkInterval(expectedType, start, finish,
+							rowWork.longValue()));
+					} else {
+						double rowCost = parseMspdiCost(rawValue);
+						costIntervals.add(new MpxImportState.RawMspdiCostInterval(expectedCostType, start, finish, rowCost));
+					}
 				}
 				if (!intervals.isEmpty() && baselineSlots.put(Integer.valueOf(slot), List.copyOf(intervals)) != null)
 					throw new IllegalArgumentException("MSPDI assignment contains duplicate baseline work slots");
+				if (!costIntervals.isEmpty() && baselineCostSlots.put(Integer.valueOf(slot), List.copyOf(costIntervals)) != null)
+					throw new IllegalArgumentException("MSPDI assignment contains duplicate baseline cost slots");
 			}
 			if (!baselineSlots.isEmpty() && assignmentBaselineWork.put(Long.valueOf(assignmentUid),
 				Map.copyOf(baselineSlots)) != null)
 				throw new IllegalArgumentException("MSPDI contains duplicate assignment UIDs with baseline work");
+			if (!baselineCostSlots.isEmpty() && assignmentBaselineCost.put(Long.valueOf(assignmentUid),
+				Map.copyOf(baselineCostSlots)) != null)
+				throw new IllegalArgumentException("MSPDI contains duplicate assignment UIDs with baseline cost");
+			if (assignmentBaselines.put(Long.valueOf(assignmentUid), Map.copyOf(scalarBaselineSlots)) != null)
+				throw new IllegalArgumentException("MSPDI contains duplicate assignment UIDs with baseline scalars");
 			if (!"8".equals(xmlChildText(assignment, "WorkContour", namespace))) continue;
 			long uid = assignmentUid;
 			Long assignmentStart = parseNullableMspdiWallTime(xmlChildText(assignment, "Start", namespace));
@@ -343,7 +381,22 @@ public class MspImporter {
 				assignmentStart, assignmentFinish, work, actual, remaining, intervals)) != null)
 				throw new IllegalArgumentException("MSPDI contains duplicate assignment UIDs");
 		}
-		return new RawMspdiData(Map.copyOf(result), Map.copyOf(assignmentBaselineWork), Map.copyOf(taskBaselines));
+		return new RawMspdiData(Map.copyOf(result), Map.copyOf(assignmentBaselineWork),
+			Map.copyOf(assignmentBaselineCost), Map.copyOf(assignmentBaselines), Map.copyOf(taskBaselines));
+	}
+
+	private static double parseMspdiCost(String value) {
+		if (value == null)
+			throw new IllegalArgumentException("Assignment baseline cost row has no value");
+		double parsed;
+		try {
+			parsed = new java.math.BigDecimal(value.trim()).doubleValue();
+		} catch (NumberFormatException exception) {
+			throw new IllegalArgumentException("Assignment baseline cost row has invalid value", exception);
+		}
+		if (!Double.isFinite(parsed) || parsed < 0.0D)
+			throw new IllegalArgumentException("Assignment baseline cost must be finite and nonnegative");
+		return parsed;
 	}
 
 	private static String xmlChildText(org.w3c.dom.Element parent, String name, String namespace) {

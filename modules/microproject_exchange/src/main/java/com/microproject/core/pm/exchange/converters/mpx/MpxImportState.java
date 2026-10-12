@@ -61,9 +61,13 @@ public class MpxImportState {
 	private final List<Runnable> postScheduleValidations = new ArrayList<>();
 	private Map<Long, RawMspdiAssignmentWork> rawMspdiAssignmentWork = Map.of();
 	private Map<Long, Map<Integer, List<RawMspdiWorkInterval>>> rawMspdiAssignmentBaselineWork = Map.of();
+	private Map<Long, Map<Integer, List<RawMspdiCostInterval>>> rawMspdiAssignmentBaselineCost = Map.of();
+	private Map<Long, Map<Integer, RawMspdiAssignmentBaseline>> rawMspdiAssignmentBaselines = Map.of();
 	private Map<Long, Map<Integer, RawMspdiTaskBaseline>> rawMspdiTaskBaselines = Map.of();
 
 	public record RawMspdiWorkInterval(int type, long start, long finish, long work) { }
+	public record RawMspdiCostInterval(int type, long start, long finish, double cost) { }
+	public record RawMspdiAssignmentBaseline(Long start, Long finish, Long work) { }
 	public record RawMspdiTaskBaseline(long durationMillis, int durationFormat) { }
 
 	/** MSPDI assignment baseline work Type values: 4, then 16 + 6 per slot. */
@@ -102,6 +106,35 @@ public class MpxImportState {
 	public List<RawMspdiWorkInterval> getRawMspdiAssignmentBaselineWork(Long uid, int slot) {
 		Map<Integer, List<RawMspdiWorkInterval>> slots = uid == null ? null
 			: rawMspdiAssignmentBaselineWork.get(uid);
+		return slots == null ? null : slots.get(Integer.valueOf(slot));
+	}
+	public void setRawMspdiAssignmentBaselineCost(
+		Map<Long, Map<Integer, List<RawMspdiCostInterval>>> values) {
+		Map<Long, Map<Integer, List<RawMspdiCostInterval>>> copy = new HashMap<>();
+		values.forEach((uid, slots) -> {
+			Map<Integer, List<RawMspdiCostInterval>> slotCopy = new HashMap<>();
+			slots.forEach((slot, intervals) -> slotCopy.put(slot, List.copyOf(intervals)));
+			copy.put(uid, Map.copyOf(slotCopy));
+		});
+		rawMspdiAssignmentBaselineCost = Map.copyOf(copy);
+	}
+	public List<RawMspdiCostInterval> getRawMspdiAssignmentBaselineCost(Long uid, int slot) {
+		Map<Integer, List<RawMspdiCostInterval>> slots = uid == null ? null
+			: rawMspdiAssignmentBaselineCost.get(uid);
+		return slots == null ? null : slots.get(Integer.valueOf(slot));
+	}
+	public void setRawMspdiAssignmentBaselines(
+		Map<Long, Map<Integer, RawMspdiAssignmentBaseline>> values) {
+		Map<Long, Map<Integer, RawMspdiAssignmentBaseline>> copy = new HashMap<>();
+		values.forEach((uid, baselines) -> copy.put(uid, Map.copyOf(baselines)));
+		rawMspdiAssignmentBaselines = Map.copyOf(copy);
+	}
+	public boolean hasRawMspdiAssignmentBaselines(Long uid) {
+		return uid != null && rawMspdiAssignmentBaselines.containsKey(uid);
+	}
+	public RawMspdiAssignmentBaseline getRawMspdiAssignmentBaseline(Long uid, int slot) {
+		Map<Integer, RawMspdiAssignmentBaseline> slots = uid == null ? null
+			: rawMspdiAssignmentBaselines.get(uid);
 		return slots == null ? null : slots.get(Integer.valueOf(slot));
 	}
 	public void setRawMspdiTaskBaselines(Map<Long, Map<Integer, RawMspdiTaskBaseline>> values) {

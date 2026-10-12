@@ -26,7 +26,9 @@ package com.microproject.core.pm.exchange.converters.mpx;
 
 import java.util.Date;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import net.sf.mpxj.Duration;
 import net.sf.mpxj.AssignmentField;
@@ -379,30 +381,54 @@ public class MpxAssignmentConverter {
 	/** Imports scalar MSPDI assignment baseline values, preserving absent fields. */
 	public void importBaselines(net.sf.mpxj.ResourceAssignment mpxAssignment, Assignment assignment,
 		MpxImportState state) {
+		Long assignmentUid = mpxAssignment.getUniqueID() == null ? null
+			: Long.valueOf(mpxAssignment.getUniqueID().longValue());
+		boolean hasRawMspdiBaselines = state.hasRawMspdiAssignmentBaselines(assignmentUid);
+		Map<Integer, MpxImportState.RawMspdiAssignmentBaseline> scalarBaselines = new HashMap<>();
 		for (int snapshotId = 0; snapshotId <= 10; snapshotId++) {
+			MpxImportState.RawMspdiAssignmentBaseline rawBaseline = hasRawMspdiBaselines
+				? state.getRawMspdiAssignmentBaseline(assignmentUid, snapshotId) : null;
+			if (hasRawMspdiBaselines && rawBaseline == null)
+				continue;
 			boolean hasBaselineStart = mpxAssignment.getCachedValue(baselineStartField(snapshotId)) != null;
 			boolean hasBaselineFinish = mpxAssignment.getCachedValue(baselineFinishField(snapshotId)) != null;
 			boolean hasBaselineWork = mpxAssignment.getCachedValue(baselineWorkField(snapshotId)) != null;
-			if (!hasBaselineStart && !hasBaselineFinish && !hasBaselineWork)
+			if (rawBaseline == null && !hasBaselineStart && !hasBaselineFinish && !hasBaselineWork)
 				continue;
-			Date start = snapshotId == 0 ? mpxAssignment.getBaselineStart()
-				: mpxAssignment.getBaselineStart(snapshotId);
-			Date finish = snapshotId == 0 ? mpxAssignment.getBaselineFinish()
-				: mpxAssignment.getBaselineFinish(snapshotId);
-			Duration work = snapshotId == 0 ? mpxAssignment.getBaselineWork()
-				: mpxAssignment.getBaselineWork(snapshotId);
-			assignment.importBaselineValues(snapshotId, start == null ? null : Long.valueOf(toLong(start)),
-				finish == null ? null : Long.valueOf(toLong(finish)),
-				work == null ? null : Long.valueOf(toLong(work)));
+			Long start = rawBaseline != null ? rawBaseline.start()
+				: hasBaselineStart ? Long.valueOf(toLong(snapshotId == 0 ? mpxAssignment.getBaselineStart()
+					: mpxAssignment.getBaselineStart(snapshotId))) : null;
+			Long finish = rawBaseline != null ? rawBaseline.finish()
+				: hasBaselineFinish ? Long.valueOf(toLong(snapshotId == 0 ? mpxAssignment.getBaselineFinish()
+					: mpxAssignment.getBaselineFinish(snapshotId))) : null;
+			Long work = rawBaseline != null ? rawBaseline.work()
+				: hasBaselineWork ? Long.valueOf(toLong(snapshotId == 0 ? mpxAssignment.getBaselineWork()
+					: mpxAssignment.getBaselineWork(snapshotId))) : null;
+			scalarBaselines.put(Integer.valueOf(snapshotId),
+				new MpxImportState.RawMspdiAssignmentBaseline(start, finish, work));
 		}
 		List<MpxImportState.RawMspdiWorkInterval> intervals;
 		for (int slot = 0; slot <= 10; slot++) {
 			intervals = state.getRawMspdiAssignmentBaselineWork(
 				mpxAssignment.getUniqueID() == null ? null : Long.valueOf(mpxAssignment.getUniqueID().longValue()), slot);
-			if (intervals == null) continue;
-			Object field = baselineTimephasedWorkField(slot);
-			for (MpxImportState.RawMspdiWorkInterval interval : intervals)
-				assignment.setInterval(field, interval.start(), interval.finish(), interval.work());
+			if (intervals != null) {
+				Object field = baselineTimephasedWorkField(slot);
+				for (MpxImportState.RawMspdiWorkInterval interval : intervals)
+					assignment.setInterval(field, interval.start(), interval.finish(), interval.work());
+			}
+			List<MpxImportState.RawMspdiCostInterval> costIntervals = state.getRawMspdiAssignmentBaselineCost(
+				assignmentUid, slot);
+			if (costIntervals != null) {
+				Object costField = baselineTimephasedCostField(slot);
+				for (MpxImportState.RawMspdiCostInterval interval : costIntervals)
+					assignment.setInterval(costField, interval.start(), interval.finish(), interval.cost());
+			}
+		}
+		// Apply nullable source scalars after interval imports; baseline setters intentionally
+		// invalidate previously imported source metadata when a user edits a baseline.
+		for (Map.Entry<Integer, MpxImportState.RawMspdiAssignmentBaseline> entry : scalarBaselines.entrySet()) {
+			MpxImportState.RawMspdiAssignmentBaseline values = entry.getValue();
+			assignment.importBaselineValues(entry.getKey().intValue(), values.start(), values.finish(), values.work());
 		}
 	}
 
@@ -419,6 +445,23 @@ public class MpxAssignmentConverter {
 			case 8 -> TimeDistributedConstants.BASELINE8_WORK;
 			case 9 -> TimeDistributedConstants.BASELINE9_WORK;
 			case 10 -> TimeDistributedConstants.BASELINE10_WORK;
+			default -> throw new IllegalArgumentException("Invalid baseline slot: " + slot);
+		};
+	}
+
+	private static Object baselineTimephasedCostField(int slot) {
+		return switch (slot) {
+			case 0 -> TimeDistributedConstants.BASELINE_COST;
+			case 1 -> TimeDistributedConstants.BASELINE1_COST;
+			case 2 -> TimeDistributedConstants.BASELINE2_COST;
+			case 3 -> TimeDistributedConstants.BASELINE3_COST;
+			case 4 -> TimeDistributedConstants.BASELINE4_COST;
+			case 5 -> TimeDistributedConstants.BASELINE5_COST;
+			case 6 -> TimeDistributedConstants.BASELINE6_COST;
+			case 7 -> TimeDistributedConstants.BASELINE7_COST;
+			case 8 -> TimeDistributedConstants.BASELINE8_COST;
+			case 9 -> TimeDistributedConstants.BASELINE9_COST;
+			case 10 -> TimeDistributedConstants.BASELINE10_COST;
 			default -> throw new IllegalArgumentException("Invalid baseline slot: " + slot);
 		};
 	}

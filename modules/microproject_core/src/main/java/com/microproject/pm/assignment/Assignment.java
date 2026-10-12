@@ -322,6 +322,13 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	}
 
 	/**
+	 * @return the assignment's cost contour, including imported baseline cost profiles.
+	 */
+	public AbstractContour getCostContour() {
+		return detail.getCostContour();
+	}
+
+	/**
 	 * Accessor for the assignment's delay
 	 * @return delay
 	 */
@@ -954,6 +961,32 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 					schedule.setEnd(end);
 
 				baselineAssignment.setWorkInterval(start,end,value);
+			} else if (TimeDistributedHelper.isCost(type)) {
+				Object baseline = TimeDistributedHelper.baselineForData(type);
+				boolean newBaselineSnapshot = detail.getTask().getSnapshot(baseline) == null;
+				Assignment baselineAssignment = getBaselineAssignment(baseline, true);
+				if (newBaselineSnapshot) {
+					// An assignment-only baseline must not turn the current task schedule copied by
+					// Task.getBaselineAssignment into a fabricated task-level baseline.
+					TaskSchedule snapshotSchedule = baselineAssignment.getTaskScheduleOfAssignment();
+					snapshotSchedule.setStart(0L);
+					snapshotSchedule.setEnd(0L);
+				}
+				Assignment.BaselineValues values = getBaselineValues(((Number) baseline).intValue());
+				long baselineStart = values != null && values.start() != null
+					? values.start().longValue() : baselineAssignment.getStart();
+				long baselineFinish = values != null && values.finish() != null
+					? values.finish().longValue() : baselineAssignment.getFinish();
+				if (baselineStart == 0L || baselineStart > start) baselineStart = start;
+				if (baselineFinish == 0L || baselineFinish < end) baselineFinish = end;
+				TaskSchedule assignmentSchedule = new TaskSchedule(detail.getTask(), TaskSchedule.Kind.CURRENT);
+				assignmentSchedule.setStart(baselineStart);
+				assignmentSchedule.setEnd(baselineFinish);
+				baselineAssignment.setTaskSchedule(assignmentSchedule);
+				long baselineDuration = baselineAssignment.getEffectiveWorkCalendar()
+					.compare(baselineFinish, baselineStart, false);
+				baselineAssignment.setDurationMillis(baselineDuration);
+				baselineAssignment.setCostInterval(start, end, value);
 			}
 		}
 	}
@@ -981,6 +1014,23 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	 */
 	private void setWorkInterval(long start, long end, double value) {
 		timeFacade.setWorkInterval(start, end, value);
+	}
+
+	private void setCostInterval(long start, long end, double value) {
+		if (!detail.isBaseline())
+			throw new IllegalStateException("Baseline cost intervals can only be applied to a baseline assignment");
+		if (!Double.isFinite(value) || value < 0.0D || end <= start)
+			throw new IllegalArgumentException("Invalid baseline cost interval");
+		WorkCalendar calendar = getEffectiveWorkCalendar();
+		long assignmentStart = getStart();
+		long startOffset = calendar.compare(start, assignmentStart, false);
+		long endOffset = calendar.compare(end, assignmentStart, false);
+		if (startOffset < 0L || endOffset <= startOffset || endOffset > getDurationMillis())
+			throw new IllegalArgumentException("Baseline cost interval is outside the assignment baseline span");
+		PersonalContour personal = PersonalContour.makePersonal(detail.getCostContour(), getDurationMillis());
+		PersonalContour updated = personal.setInterval(startOffset, endOffset,
+			value / (double) (endOffset - startOffset));
+		newDetail().setContour(COST, updated.getContourBuckets());
 	}
 
 	/**
@@ -1811,7 +1861,9 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 		Assignment baseline = detail.getTask().getBaselineAssignment(getResource(), baselineId, true);
 		com.microproject.pm.task.TaskSnapshot snapshot =
 			(com.microproject.pm.task.TaskSnapshot) detail.getTask().getSnapshot(baselineId);
-		baseline.setTaskSchedule(snapshot.getCurrentSchedule());
+		TaskSchedule snapshotSchedule = snapshot.getCurrentSchedule();
+		if (snapshotSchedule != null && (snapshotSchedule.getStart() != 0L || snapshotSchedule.getEnd() != 0L))
+			baseline.setTaskSchedule(snapshotSchedule);
 		baseline.importBaselineValues(start, finish, work);
 		storeImportedBaselineValues(baselineId, start, finish, work);
 	}

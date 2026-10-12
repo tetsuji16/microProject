@@ -31,6 +31,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
@@ -91,6 +92,7 @@ public class MSPDISerializer implements ProjectSerializer {
     protected JobRunnable job=null;
     private final Map<ResourceAssignment, Assignment> exportedAssignments = new IdentityHashMap<>();
     private record ExactWorkRow(long start, long finish, long work) { }
+    private record ExactCostRow(long start, long finish, BigDecimal cost) { }
     
     
     
@@ -484,17 +486,18 @@ public class MSPDISerializer implements ProjectSerializer {
 		if (exportedAssignments.values().stream().anyMatch(assignment -> assignment.getWorkContour().isPersonal()))
 			writer.setSplitTimephasedAsDays(false);
 		writer.write(data, serialized);
-		byte[] xml = normalizeMspdiAssignmentWork(serialized.toByteArray());
+		byte[] xml = normalizeMspdiAssignmentData(serialized.toByteArray());
 		out.write(xml);
 		if (job != null) job.setProgress(1.0f);
 	}
 
-	private byte[] normalizeMspdiAssignmentWork(byte[] xml) throws Exception {
+	private byte[] normalizeMspdiAssignmentData(byte[] xml) throws Exception {
 		Map<String, Map<Integer, Assignment.BaselineValues>> expected = new java.util.HashMap<>();
 		Set<String> personalContourAssignments = new java.util.HashSet<>();
 		Map<String, List<ExactWorkRow>> personalActualRows = new java.util.HashMap<>();
 		Map<String, List<ExactWorkRow>> personalRemainingRows = new java.util.HashMap<>();
 		Map<String, Map<Integer, List<ExactWorkRow>>> baselineWorkRows = new java.util.HashMap<>();
+		Map<String, Map<Integer, List<ExactCostRow>>> baselineCostRows = new java.util.HashMap<>();
 		for (Map.Entry<ResourceAssignment, Assignment> exported : exportedAssignments.entrySet()) {
 			Integer uid = exported.getKey().getUniqueID();
 			if (exported.getValue().getWorkContour().isPersonal()) {
@@ -504,18 +507,29 @@ public class MSPDISerializer implements ProjectSerializer {
 				personalRemainingRows.put(uid.toString(), exactWorkRows(exported.getKey().getTimephasedWork()));
 			}
 			Map<Integer, List<ExactWorkRow>> assignmentBaselineRows = new java.util.TreeMap<>();
+			Map<Integer, List<ExactCostRow>> assignmentBaselineCostRows = new java.util.TreeMap<>();
 			for (int slot = 0; slot <= 10; slot++) {
 				Assignment baseline = exported.getValue().getBaselineAssignment(Integer.valueOf(slot), false);
-				if (baseline != null && baseline.getWorkContour().isPersonal()) {
+				if (baseline == null) continue;
+				if (baseline.getWorkContour().isPersonal()) {
 					if (uid == null)
 						throw new IOException("MPXJ did not assign an identity to a timephased assignment baseline");
 					assignmentBaselineRows.put(Integer.valueOf(slot), exactWorkRows(
 						MPXConverter.baselineTimephasedWorkRows(baseline)));
 				}
+				if (baseline.getCostContour().isPersonal()) {
+					if (uid == null)
+						throw new IOException("MPXJ did not assign an identity to a timephased assignment baseline cost");
+					assignmentBaselineCostRows.put(Integer.valueOf(slot), baselineTimephasedCostRows(baseline));
+				}
 			}
 			if (!assignmentBaselineRows.isEmpty()) {
 				if (baselineWorkRows.put(uid.toString(), Map.copyOf(assignmentBaselineRows)) != null)
 					throw new IOException("MPXJ assigned duplicate identities to timephased assignment baselines");
+			}
+			if (!assignmentBaselineCostRows.isEmpty()) {
+				if (baselineCostRows.put(uid.toString(), Map.copyOf(assignmentBaselineCostRows)) != null)
+					throw new IOException("MPXJ assigned duplicate identities to timephased assignment baseline costs");
 			}
 			Map<Integer, Assignment.BaselineValues> zeroWorkSlots = new java.util.TreeMap<>();
 			for (int slot = 0; slot <= 10; slot++) {
@@ -529,7 +543,8 @@ public class MSPDISerializer implements ProjectSerializer {
 			if (expected.put(uid.toString(), zeroWorkSlots) != null)
 				throw new IOException("MPXJ assigned duplicate identities to baseline assignments");
 		}
-		if (expected.isEmpty() && personalContourAssignments.isEmpty() && baselineWorkRows.isEmpty()) return xml;
+		if (expected.isEmpty() && personalContourAssignments.isEmpty() && baselineWorkRows.isEmpty()
+				&& baselineCostRows.isEmpty()) return xml;
 		javax.xml.parsers.DocumentBuilderFactory factory = javax.xml.parsers.DocumentBuilderFactory.newInstance();
 		factory.setNamespaceAware(true);
 		factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
@@ -544,6 +559,7 @@ public class MSPDISerializer implements ProjectSerializer {
 		org.w3c.dom.NodeList assignmentNodes = document.getElementsByTagNameNS(namespace, "Assignment");
 		java.util.Set<String> applied = new java.util.HashSet<>();
 		java.util.Set<String> appliedBaselineSlots = new java.util.HashSet<>();
+		java.util.Set<String> appliedBaselineCostSlots = new java.util.HashSet<>();
 		java.util.Set<String> normalizedPersonalContours = new java.util.HashSet<>();
 		for (int index = 0; index < assignmentNodes.getLength(); index++) {
 			org.w3c.dom.Element assignmentNode = (org.w3c.dom.Element) assignmentNodes.item(index);
@@ -585,6 +601,21 @@ public class MSPDISerializer implements ProjectSerializer {
 		baselineWorkRows.forEach((uid, slots) -> slots.keySet().forEach(slot -> expectedBaselineSlots.add(uid + ":" + slot)));
 		if (!appliedBaselineSlots.equals(expectedBaselineSlots))
 			throw new IOException("MSPDI output omitted assignment baseline timephased work");
+		for (Map.Entry<String, Map<Integer, List<ExactCostRow>>> entry : baselineCostRows.entrySet()) {
+			String uid = entry.getKey();
+			for (Map.Entry<Integer, List<ExactCostRow>> slotRows : entry.getValue().entrySet()) {
+				org.w3c.dom.Element assignmentNode = findAssignment(assignmentNodes, namespace, uid);
+				if (assignmentNode == null)
+					throw new IOException("MSPDI output omitted an assignment with timephased baseline cost");
+				normalizeAssignmentBaselineCostRows(document, assignmentNode, slotRows.getKey().intValue(),
+					slotRows.getValue());
+				appliedBaselineCostSlots.add(uid + ":" + slotRows.getKey());
+			}
+		}
+		java.util.Set<String> expectedBaselineCostSlots = new java.util.HashSet<>();
+		baselineCostRows.forEach((uid, slots) -> slots.keySet().forEach(slot -> expectedBaselineCostSlots.add(uid + ":" + slot)));
+		if (!appliedBaselineCostSlots.equals(expectedBaselineCostSlots))
+			throw new IOException("MSPDI output omitted assignment baseline timephased cost");
 		ByteArrayOutputStream result = new ByteArrayOutputStream();
 		javax.xml.transform.TransformerFactory transformerFactory = javax.xml.transform.TransformerFactory.newInstance();
 		transformerFactory.setAttribute(javax.xml.XMLConstants.ACCESS_EXTERNAL_DTD, "");
@@ -594,6 +625,31 @@ public class MSPDISerializer implements ProjectSerializer {
 		transformer.transform(new javax.xml.transform.dom.DOMSource(document),
 			new javax.xml.transform.stream.StreamResult(result));
 		return result.toByteArray();
+	}
+
+	private static List<ExactCostRow> baselineTimephasedCostRows(Assignment baseline) throws IOException {
+		List<ExactCostRow> result = new ArrayList<>();
+		com.microproject.pm.calendar.WorkCalendar calendar = baseline.getEffectiveWorkCalendar();
+		long start = calendar.adjustInsideCalendar(baseline.getStart(), false);
+		long finish = baseline.getFinish();
+		long cursor = start;
+		while (cursor < finish) {
+			long nextDay = com.microproject.util.DateTime.nextDay(com.microproject.util.DateTime.dayFloor(cursor));
+			long segmentEnd = Math.min(finish, nextDay);
+			long workingEnd = segmentEnd == nextDay ? calendar.adjustInsideCalendar(segmentEnd, true) : segmentEnd;
+			long workingDuration = calendar.compare(workingEnd, cursor, false);
+			if (workingDuration > 0L) {
+				double value = baseline.cost(cursor, workingEnd);
+				if (!Double.isFinite(value) || value < 0.0D)
+					throw new IOException("Assignment baseline cost contour produced an invalid value");
+				result.add(new ExactCostRow(cursor, workingEnd, BigDecimal.valueOf(value).stripTrailingZeros()));
+			}
+			if (segmentEnd <= cursor)
+				throw new IOException("Cannot advance an assignment baseline cost interval");
+			cursor = segmentEnd < finish ? calendar.adjustInsideCalendar(segmentEnd, false) : segmentEnd;
+		}
+		if (result.isEmpty()) throw new IOException("Assignment baseline cost contour has no working intervals");
+		return List.copyOf(result);
 	}
 
 	private Assignment exportedAssignment(String uid) throws IOException {
@@ -724,6 +780,39 @@ public class MSPDISerializer implements ProjectSerializer {
 			appendTextElement(document, timephased, "Finish", formatMspdiWallTime(row.finish()));
 			appendTextElement(document, timephased, "Unit", "2");
 			appendTextElement(document, timephased, "Value", durationMillisToMspdi(row.work()));
+			baseline.insertBefore(timephased, number);
+		}
+	}
+
+	private static void normalizeAssignmentBaselineCostRows(org.w3c.dom.Document document,
+		org.w3c.dom.Element assignment, int slot, List<ExactCostRow> rows) throws IOException {
+		org.w3c.dom.Element baseline = findBaseline(assignment, slot);
+		if (baseline == null) {
+			baseline = document.createElementNS(assignment.getNamespaceURI(), "Baseline");
+			insertBaselineAtSchemaPosition(assignment, baseline, slot);
+		}
+		int type = MpxImportState.assignmentBaselineCostType(slot);
+		for (org.w3c.dom.Element existing : directChildren(baseline, "TimephasedData")) {
+			if (Integer.toString(type).equals(childText(existing, "Type"))) baseline.removeChild(existing);
+		}
+		org.w3c.dom.Element number = childElement(baseline, "Number");
+		if (number == null) {
+			number = document.createElementNS(assignment.getNamespaceURI(), "Number");
+			number.setTextContent(Integer.toString(slot));
+			baseline.appendChild(number);
+		} else if (!Integer.toString(slot).equals(number.getTextContent().trim())) {
+			throw new IOException("MSPDI output assignment baseline number does not match its slot");
+		}
+		String assignmentUid = childText(assignment, "UID");
+		if (assignmentUid == null) throw new IOException("MSPDI output assignment has no UID");
+		for (ExactCostRow row : rows) {
+			org.w3c.dom.Element timephased = document.createElementNS(assignment.getNamespaceURI(), "TimephasedData");
+			appendTextElement(document, timephased, "Type", Integer.toString(type));
+			appendTextElement(document, timephased, "UID", assignmentUid);
+			appendTextElement(document, timephased, "Start", formatMspdiWallTime(row.start()));
+			appendTextElement(document, timephased, "Finish", formatMspdiWallTime(row.finish()));
+			appendTextElement(document, timephased, "Unit", "2");
+			appendTextElement(document, timephased, "Value", row.cost().toPlainString());
 			baseline.insertBefore(timephased, number);
 		}
 	}
