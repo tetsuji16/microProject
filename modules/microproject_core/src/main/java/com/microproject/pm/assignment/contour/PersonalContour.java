@@ -45,6 +45,35 @@ public class PersonalContour extends AbstractContour {
 			work += ((PersonalContourBucket)contourBuckets[i]).calcWork();
 		return work;
 	}
+
+	@Override
+	public long calcDurationForWork(long work, double assignmentUnits) {
+		if (work <= 0L)
+			return 0L;
+		long remainingWork = work;
+		long duration = 0L;
+		double lastProductiveUnits = 0.0D;
+		for (AbstractContourBucket abstractBucket : contourBuckets) {
+			PersonalContourBucket bucket = (PersonalContourBucket) abstractBucket;
+			long bucketDuration = bucket.getDuration();
+			double units = bucket.getUnits();
+			if (units <= 0.0D) {
+				duration = Math.addExact(duration, bucketDuration);
+				continue;
+			}
+			lastProductiveUnits = units;
+			long bucketWork = bucket.calcWork();
+			if (remainingWork <= bucketWork) {
+				return Math.addExact(duration, (long) Math.ceil(remainingWork / units));
+			}
+			remainingWork -= bucketWork;
+			duration = Math.addExact(duration, bucketDuration);
+		}
+		if (lastProductiveUnits <= 0.0D)
+			return 0L;
+		long extraWork = Math.max(0L, remainingWork);
+		return Math.addExact(duration, (long) Math.ceil(extraWork / lastProductiveUnits));
+	}
 	
 
 	public String getName() {

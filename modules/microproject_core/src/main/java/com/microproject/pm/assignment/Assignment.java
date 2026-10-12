@@ -131,6 +131,7 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	static final long serialVersionUID = 56779404923241L;
 	AssignmentDetail detail = null;
 	private transient Map<Integer, BaselineValues> importedBaselineValues;
+	private transient boolean preserveImportedProfilesDuringMutation;
 	private transient HasKeyImpl hasKey = new HasKeyImpl(true,this); //local ids only for assignments
 	/**
 	 * Issue #227: created timestamp persisted on the object (not the transient
@@ -222,6 +223,7 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 		Rate r = getRate();
 		Resource resource = getResource();
 		detail = (AssignmentDetail) from.detail.clone();
+		detail.clearImportedTimephasedWork();
 	    detail.replaceResourceAndUnits(units,resource);
 
 		if (!compatibleTypes) // don't want to set units if not compatible
@@ -248,6 +250,19 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 
 	public AbstractContourBucket[] getContour(Object type) {
 		return contourFacade.getContour(type);
+	}
+
+	/**
+	 * Installs separate actual and remaining profiles for imported timephased data.
+	 * The profiles are transient and are preserved by assignment snapshots; native
+	 * MPO persistence writes them through the existing MSPDI timephased rows.
+	 */
+	public void setImportedTimephasedWork(AbstractContour actual, AbstractContour remaining) {
+		detail.setImportedTimephasedWork(actual, remaining);
+	}
+
+	public boolean hasImportedTimephasedWork() {
+		return detail.hasImportedTimephasedWork();
 	}
 
 /**
@@ -361,7 +376,11 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	 * @param units The units to set.
 	 */
 	public void adjustRemainingUnits(double newRemainingUnits, double oldRemainingUnits, boolean doChildren, boolean conserveTotalUnits) {
-		timeFacade.adjustRemainingUnits(newRemainingUnits, oldRemainingUnits, doChildren, conserveTotalUnits);
+		AssignmentDetail importedProfiles = detail.hasImportedTimephasedWork() ? cloneDetail() : null;
+		long importedActualWork = importedProfiles == null ? 0L : getActualWork(null);
+		withImportedProfilesPreserved(() -> timeFacade.adjustRemainingUnits(newRemainingUnits, oldRemainingUnits,
+			doChildren, conserveTotalUnits));
+		restoreImportedProfilesAfterScheduleEdit(importedProfiles, importedActualWork);
 	}
 
 	public void setWork(long work, FieldContext context) {
@@ -540,8 +559,13 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	 * @return work field functor
 	 */
 	AssignmentFieldFunctor work(SelectFrom clause) {
-		ContourBucketIntervalGenerator contour = contourGeneratorInstance(WORK);
-		WorkFunctor workF = WorkFunctor.getInstance(this, contour.getWorkCalendar(), contour, detail.calcOvertimeUnits());
+		return work(clause, WORK);
+	}
+
+	private AssignmentFieldFunctor work(SelectFrom clause, Object type) {
+		ContourBucketIntervalGenerator contour = contourGeneratorInstance(type);
+		double overtimeUnits = detail.hasImportedTimephasedWork() && type != WORK ? 0.0D : detail.calcOvertimeUnits();
+		WorkFunctor workF = WorkFunctor.getInstance(this, contour.getWorkCalendar(), contour, overtimeUnits);
 		clause.select(workF).from(contour);
 		return workF;
 	}
@@ -645,11 +669,11 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 		} else if (type == WORK || type == THIS_PROJECT) {
 			return work(clause);
 		} else if (type == ACTUAL_WORK) {
-			clause.whereInRange(detail.getStart(),getStop());
-			return work(clause);
+			clause.whereInRange(detail.getStart(), detail.hasImportedTimephasedWork() ? detail.getFinish() : getStop());
+			return work(clause, ACTUAL_WORK);
 		} else if (type == REMAINING_WORK) {
-			clause.whereInRange(getResume(),detail.getFinish());
-			return work(clause);
+			clause.whereInRange(detail.hasImportedTimephasedWork() ? detail.getStart() : getResume(), detail.getFinish());
+			return work(clause, REMAINING_WORK);
 		} else if (type == ACTUAL_COST) {
 			clause.whereInRange(detail.getStart(),getStop());
 			return cost(clause,all);
@@ -1058,7 +1082,10 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 
 
 	public void forceUnits(double units) {
-		newDetail().setUnits(units);
+		AssignmentDetail importedProfiles = detail.hasImportedTimephasedWork() ? cloneDetail() : null;
+		long importedActualWork = importedProfiles == null ? 0L : getActualWork(null);
+		withImportedProfilesPreserved(() -> newDetail().setUnits(units));
+		restoreImportedProfilesAfterScheduleEdit(importedProfiles, importedActualWork);
 	}
 	public void doAddService(Object eventSource) {
 		AssignmentService.getInstance().connect(this,eventSource);
@@ -1202,9 +1229,11 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 		if (!isLabor())
 			return 0;
 		Query query = Query.getInstance();
-		SelectFrom clause = SelectFrom.getInstance().whereInRange(Math.max(start,detail.getStart()),Math.min(end,getStop()));
+		long queryStart = Math.max(start, detail.getStart());
+		long queryEnd = Math.min(end, detail.hasImportedTimephasedWork() ? detail.getFinish() : getStop());
+		SelectFrom clause = SelectFrom.getInstance().whereInRange(queryStart, queryEnd);
 		query.selectFrom(clause)
-			.action(work(clause))
+			.action(work(clause, ACTUAL_WORK))
 			.execute();
 		return (long) ((DoubleValue)query.getActionVisitor()).getValue();
 	}
@@ -1215,9 +1244,10 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 		if (!isLabor())
 			return 0;
 		Query query = Query.getInstance();
-		SelectFrom clause = SelectFrom.getInstance().whereInRange(Math.max(start,detail.getStop()),Math.min(end,getEnd()));
+		long queryStart = Math.max(start, detail.hasImportedTimephasedWork() ? detail.getStart() : detail.getStop());
+		SelectFrom clause = SelectFrom.getInstance().whereInRange(queryStart, Math.min(end, getEnd()));
 		query.selectFrom(clause)
-			.action(work(clause))
+			.action(work(clause, REMAINING_WORK))
 			.execute();
 		return (long) ((DoubleValue)query.getActionVisitor()).getValue();
 	}
@@ -1552,6 +1582,8 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
  * @return cloned assignment detail
  */	private AssignmentDetail newDetail() {
 			detail = cloneDetail();
+			if (!preserveImportedProfilesDuringMutation)
+				detail.clearImportedTimephasedWork();
 			if (getTask() != null)
 				getTask().setDirty(true);
 			setDirty(true);
@@ -1873,7 +1905,39 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
     }
 
     public void setRemainingWork(long remainingWork, FieldContext fieldContext) {
+		if (detail.hasImportedTimephasedWork() && !FieldContext.hasInterval(fieldContext)) {
+			AssignmentDetail importedProfiles = cloneDetail();
+			long importedActualWork = getActualWork(null);
+			long targetWork = Math.addExact(importedActualWork, Duration.millis(remainingWork));
+			withImportedProfilesPreserved(() -> timeFacade.setRemainingWork(remainingWork, fieldContext));
+			restoreImportedProfilesAfterScheduleEdit(importedProfiles, importedActualWork, targetWork);
+			return;
+		}
 		timeFacade.setRemainingWork(remainingWork, fieldContext);
+	}
+
+	private void restoreImportedProfilesAfterScheduleEdit(AssignmentDetail importedProfiles, long actualWork) {
+		if (importedProfiles == null) return;
+		long totalWork = getWork(null);
+		restoreImportedProfilesAfterScheduleEdit(importedProfiles, actualWork, totalWork);
+	}
+
+	private void restoreImportedProfilesAfterScheduleEdit(AssignmentDetail importedProfiles, long actualWork, long totalWork) {
+		if (importedProfiles == null) return;
+		if (totalWork < actualWork)
+			throw new IllegalArgumentException("Schedule edit reduced total work below imported actual work");
+		detail.restoreImportedTimephasedWorkScaledFrom(importedProfiles, actualWork, totalWork - actualWork, getDuration());
+		detail.rebuildImportedTotalWorkContour(getDuration());
+	}
+
+	private void withImportedProfilesPreserved(Runnable mutation) {
+		boolean previous = preserveImportedProfilesDuringMutation;
+		preserveImportedProfilesDuringMutation = true;
+		try {
+			mutation.run();
+		} finally {
+			preserveImportedProfilesDuringMutation = previous;
+		}
 	}
 	public boolean isReadOnlyWork(FieldContext fieldContext) {
 
@@ -2366,7 +2430,7 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 					adjustRemainingUnits(0, 0, true, false);
 				else if (!zeroWorkNoOp) {
 					if (SchedulingType.Kind.fromCode(getTaskSchedulingType()) == SchedulingType.Kind.FIXED_UNITS)
-						adjustRemainingDuration(detail.calcDurationForRemainingWork(remainingWork), false);
+						adjustRemainingDuration(detail.calcRemainingDurationForTotalWork(work), false);
 					else if (SchedulingType.Kind.fromCode(getTaskSchedulingType()) == SchedulingType.Kind.FIXED_DURATION && currentRemainingWork > 0)
 						adjustRemainingWork(((double) remainingWork) / currentRemainingWork, true);
 					else
@@ -2385,7 +2449,11 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 		}
 
 		void setRemainingWork(long remainingWork, FieldContext fieldContext) {
-			setActualWork(getWork(fieldContext) - Duration.millis(remainingWork), fieldContext);
+			if (!FieldContext.hasInterval(fieldContext)) {
+				setWork(Math.addExact(getActualWork(null), Duration.millis(remainingWork)), fieldContext);
+			} else {
+				setActualWork(getWork(fieldContext) - Duration.millis(remainingWork), fieldContext);
+			}
 		}
 
 		boolean addWorkingTimeIfRequired(long work, FieldContext context, boolean actual) {

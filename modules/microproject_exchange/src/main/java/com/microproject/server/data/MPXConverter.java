@@ -398,6 +398,21 @@ public class MPXConverter {
 	private static void toMPXTimephasedWork(Assignment assignment, ResourceAssignment mpxAssignment) {
 		List<TimephasedWork> actual = new ArrayList<>();
 		List<TimephasedWork> remaining = new ArrayList<>();
+		if (assignment.hasImportedTimephasedWork()) {
+			long actualTotal = appendProfileTimephasedWork(actual, assignment.getContour(Assignment.ACTUAL_WORK),
+				assignment.getStart(), assignment.getDuration(), assignment.getEffectiveWorkCalendar());
+			long remainingTotal = appendProfileTimephasedWork(remaining,
+				assignment.getContour(Assignment.REMAINING_WORK), assignment.getStart(), assignment.getDuration(),
+				assignment.getEffectiveWorkCalendar());
+			if (actualTotal != assignment.getActualWork(null)
+					|| remainingTotal != assignment.getRemainingWork()
+					|| Math.addExact(actualTotal, remainingTotal) != assignment.getWork(null))
+				throw new IllegalArgumentException("Imported timephased profiles do not match assignment totals");
+			var normaliser = new MSPDITimephasedWorkNormaliser();
+			mpxAssignment.setTimephasedActualWork(new DefaultTimephasedWorkContainer(mpxAssignment, normaliser, actual, false));
+			mpxAssignment.setTimephasedWork(new DefaultTimephasedWorkContainer(mpxAssignment, normaliser, remaining, false));
+			return;
+		}
 		long cursor = calendarStart(assignment.getStart(), assignment.getEffectiveWorkCalendar());
 		long stop = assignment.getStop();
 		long actualTotal = 0L;
@@ -427,6 +442,23 @@ public class MPXConverter {
 		var normaliser = new MSPDITimephasedWorkNormaliser();
 		mpxAssignment.setTimephasedActualWork(new DefaultTimephasedWorkContainer(mpxAssignment, normaliser, actual, false));
 		mpxAssignment.setTimephasedWork(new DefaultTimephasedWorkContainer(mpxAssignment, normaliser, remaining, false));
+	}
+
+	private static long appendProfileTimephasedWork(List<TimephasedWork> destination,
+		com.microproject.pm.assignment.contour.AbstractContourBucket[] buckets, long start, long assignmentDuration,
+		WorkCalendar calendar) {
+		long cursor = calendarStart(start, calendar);
+		long total = 0L;
+		for (var bucket : buckets) {
+			long duration = bucket.getBucketDuration(assignmentDuration);
+			long end = calendar.add(cursor, duration, true);
+			long work = Math.round(bucket.getUnits() * duration);
+			if (duration > 0L)
+				appendDailyTimephasedWork(destination, cursor, end, work, calendar);
+			total = Math.addExact(total, work);
+			cursor = calendarStart(end, calendar);
+		}
+		return total;
 	}
 
 	private static long calendarStart(long date, WorkCalendar calendar) {

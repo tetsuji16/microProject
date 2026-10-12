@@ -35,6 +35,10 @@ import com.microproject.field.FieldContext;
 import com.microproject.core.time.TimeUtil;
 import com.microproject.exchange.mpxj.MpxjApi;
 import com.microproject.pm.assignment.Assignment;
+import com.microproject.pm.assignment.contour.AbstractContour;
+import com.microproject.pm.assignment.contour.AbstractContourBucket;
+import com.microproject.pm.assignment.contour.PersonalContour;
+import com.microproject.pm.assignment.contour.PersonalContourBucket;
 import com.microproject.pm.resource.EnterpriseResource;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourceImpl;
@@ -248,8 +252,29 @@ public class MpxAssignmentConverter {
 		// Keep this immutable source plan in the per-import state and validate only
 		// after the project has completed its final initialize/recalculate pass.
 		List<WorkSegment> importedSegments = List.copyOf(segments);
-		state.addPostScheduleValidation(() -> validateAppliedCustomWorkPlan(
-			target, plan, importedSegments, sourceWork, sourceActualWork, sourceRemainingWork));
+		state.addPostScheduleValidation(() -> {
+			long actualFinish = importedSegments.stream().filter(segment -> segment.actualWork() > 0L)
+				.mapToLong(WorkSegment::end).max().orElse(0L);
+			if (actualFinish > 0L)
+				target.setStop(actualFinish);
+			target.setImportedTimephasedWork(workProfile(target, importedSegments, true),
+				workProfile(target, importedSegments, false));
+			validateAppliedCustomWorkPlan(target, plan, importedSegments, sourceWork,
+				sourceActualWork, sourceRemainingWork);
+		});
+	}
+
+	private AbstractContour workProfile(Assignment target, List<WorkSegment> segments, boolean actual) {
+		List<AbstractContourBucket> buckets = new ArrayList<>(segments.size());
+		var calendar = target.getEffectiveWorkCalendar();
+		for (WorkSegment segment : segments) {
+			long duration = calendar.compare(segment.end(), segment.start(), false);
+			long work = actual ? segment.actualWork() : segment.remainingWork();
+			if (duration <= 0L)
+				throw new IllegalArgumentException("Custom MSPDI work segment has no working duration: " + segment);
+			buckets.add(PersonalContourBucket.getInstance(duration, (double) work / duration));
+		}
+		return PersonalContour.getInstance(buckets);
 	}
 
 	private void validateAppliedCustomWorkPlan(Assignment target, CustomWorkPlan plan, List<WorkSegment> segments,

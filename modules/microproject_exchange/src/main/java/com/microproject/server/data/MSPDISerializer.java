@@ -491,7 +491,6 @@ public class MSPDISerializer implements ProjectSerializer {
 	private byte[] normalizeMspdiAssignmentWork(byte[] xml) throws Exception {
 		Map<String, Map<Integer, Assignment.BaselineValues>> expected = new java.util.HashMap<>();
 		Set<String> personalContourAssignments = new java.util.HashSet<>();
-		Set<String> zeroWorkPersonalAssignments = new java.util.HashSet<>();
 		Map<String, List<ExactWorkRow>> personalActualRows = new java.util.HashMap<>();
 		Map<String, List<ExactWorkRow>> personalRemainingRows = new java.util.HashMap<>();
 		for (Map.Entry<ResourceAssignment, Assignment> exported : exportedAssignments.entrySet()) {
@@ -499,8 +498,6 @@ public class MSPDISerializer implements ProjectSerializer {
 			if (exported.getValue().getWorkContour().isPersonal()) {
 				if (uid == null || !personalContourAssignments.add(uid.toString()))
 					throw new IOException("MPXJ did not assign a unique identity to a personal-contour assignment");
-				if (exported.getValue().getWork(null) == 0L && exported.getValue().getActualWork(null) == 0L)
-					zeroWorkPersonalAssignments.add(uid.toString());
 				personalActualRows.put(uid.toString(), exactWorkRows(exported.getKey().getTimephasedActualWork()));
 				personalRemainingRows.put(uid.toString(), exactWorkRows(exported.getKey().getTimephasedWork()));
 			}
@@ -538,8 +535,8 @@ public class MSPDISerializer implements ProjectSerializer {
 				if (!normalizedPersonalContours.add(uid))
 					throw new IOException("MSPDI output contains duplicate personal-contour assignment identities");
 				normalizePersonalContourAssignmentScalars(assignmentNode, exportedAssignment(uid));
-				if (!normalizePersonalContourWorkRows(assignmentNode, zeroWorkPersonalAssignments.contains(uid),
-					personalActualRows.get(uid), personalRemainingRows.get(uid)))
+				if (!normalizePersonalContourWorkRows(assignmentNode, personalActualRows.get(uid),
+					personalRemainingRows.get(uid)))
 					throw new IOException("MSPDI output omitted personal-contour timephased work");
 			}
 			Map<Integer, Assignment.BaselineValues> zeroWorkSlots = uid == null ? null : expected.get(uid);
@@ -605,7 +602,7 @@ public class MSPDISerializer implements ProjectSerializer {
 		return List.copyOf(result);
 	}
 
-	private boolean normalizePersonalContourWorkRows(org.w3c.dom.Element assignmentNode, boolean zeroWorkAssignment,
+	private boolean normalizePersonalContourWorkRows(org.w3c.dom.Element assignmentNode,
 		List<ExactWorkRow> actualRows, List<ExactWorkRow> remainingRows)
 			throws IOException {
 		Map<String, ExactWorkRow> expectedActual = indexWorkRows(actualRows);
@@ -627,8 +624,7 @@ public class MSPDISerializer implements ProjectSerializer {
 				throw new IOException("MSPDI personal-contour work row does not match its source interval");
 			String exactValue = durationMillisToMspdi(expected.work());
 			if (childText(row, "Value") == null) {
-				if (!zeroWorkAssignment || !"1".equals(type)
-						|| childText(row, "Start") == null || childText(row, "Finish") == null)
+				if (expected.work() != 0L || childText(row, "Start") == null || childText(row, "Finish") == null)
 					throw new IOException("MSPDI personal-contour work row is missing its value");
 				org.w3c.dom.Element value = row.getOwnerDocument()
 					.createElementNS(row.getNamespaceURI(), "Value");

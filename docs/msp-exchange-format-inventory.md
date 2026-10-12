@@ -1,6 +1,6 @@
 # Exchange format inventory
 
-**Reviewed:** 2026-10-12 against the current shared working tree. This records implemented code paths and
+**Reviewed:** 2026-10-13 against the current shared working tree. This records implemented code paths and
 their current verification scope; it is not a claim of full Microsoft Project
 interoperability.
 
@@ -52,15 +52,21 @@ cannot silently select another writer.
 
 ## Current semantic coverage and known losses
 
-- MPP read: implementation path exists; fixture and independent manifest
-  coverage are incomplete.
+- MPP read: implementation path exists. `New Product.mpp` identifies itself in
+  its file header as `Microsoft Project 9.0` / `MSProject.MPP9`; no editor
+  edition/build provenance is recorded. The fixed-file regression test records
+  one task and assignment's imported name, start, finish, work, actual work,
+  remaining work, and units through MPO save/reload. This is regression
+  evidence for that checked-in file, not an independent Microsoft Project
+  semantic manifest or MSP parity evidence; the independent MPP-read manifest
+  remains incomplete.
 - MPP write: unsupported and explicitly outside product scope; MPO is the native
   save format. MPP read/import remains in scope.
 - XML: import/export supports task baselines 0–10 for start, finish, and
-  duration. Current schedule slot 11 is preserved separately. A generated
-  MSPDI round trip with `MinutesPerDay=480` changes a two elapsed-day baseline
-  to six working days in MPXJ 11.5.4; elapsed-unit preservation through XML is
-  therefore unverified and currently lossy. A zero-duration milestone retains
+  duration. Current schedule slot 11 is preserved separately. Literal MSPDI
+  `DurationFormat=8` plus `PT48H0M0S` remains two elapsed days through XML
+  import/export/reimport; this is document-derived from Microsoft's elapsed
+  duration definition, not a claim about a physical MSP run. A zero-duration milestone retains
   its equal start/finish, while MPXJ omits an explicit zero duration element.
   Assignment baseline scalar Start/Finish/Work values transfer for slots 0–10,
   including assignment-only values that have no task-level baseline schedule.
