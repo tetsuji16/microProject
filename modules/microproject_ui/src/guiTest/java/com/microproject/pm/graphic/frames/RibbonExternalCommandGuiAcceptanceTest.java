@@ -127,10 +127,15 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		if (previousJobQueue != null || manager != null)
 			SessionFactory.getInstance().setJobQueue(previousJobQueue);
 		if (legacyPod != null) Files.deleteIfExists(legacyPod);
-		if (importedMpp != null) Files.deleteIfExists(importedMpp);
-		if (mpoSaveTarget != null) Files.deleteIfExists(mpoSaveTarget);
-		if (mpoSavedCopy != null) Files.deleteIfExists(mpoSavedCopy);
-		if (mppSaveDirectory != null) Files.deleteIfExists(mppSaveDirectory);
+		if (mppSaveDirectory != null && Files.exists(mppSaveDirectory)) {
+			List<Path> cleanupPaths;
+			// This directory belongs only to this fixture; do not follow symlinks.
+			try (var paths = Files.walk(mppSaveDirectory)) {
+				cleanupPaths = paths.sorted(java.util.Comparator.reverseOrder()).toList();
+			}
+			// Close the directory stream before deleting files on Windows.
+			for (Path path : cleanupPaths) Files.deleteIfExists(path);
+		}
 		if (restartFirstProject != null) Files.deleteIfExists(restartFirstProject);
 		if (restartSecondProject != null) Files.deleteIfExists(restartSecondProject);
 		if (localePreferences != null) {
