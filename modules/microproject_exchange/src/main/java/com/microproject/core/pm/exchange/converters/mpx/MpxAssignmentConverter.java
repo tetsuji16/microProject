@@ -29,6 +29,7 @@ import java.util.Date;
 import net.sf.mpxj.Duration;
 import net.sf.mpxj.AssignmentField;
 import com.microproject.core.time.TimeUtil;
+import com.microproject.exchange.mpxj.MpxjApi;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.resource.EnterpriseResource;
 import com.microproject.pm.resource.Resource;
@@ -37,9 +38,9 @@ import com.microproject.pm.task.Task;
 
 /**
  * Converts an MPXJ ResourceAssignment into a microproject Assignment.
- * Only fields carried by the microproject Assignment model are mapped; timephased
- * data, baseline snapshots and work contour details are intentionally skipped
- * (see issue #154).
+ * Only fields carried by the microproject Assignment model are mapped. Standard
+ * work-contour kinds and scalar baseline values are imported; timephased bucket
+ * distributions are not yet represented by this exchange path (see issue #154).
  * @author Laurent Chretienneau
  */
 public class MpxAssignmentConverter {
@@ -49,14 +50,15 @@ public class MpxAssignmentConverter {
 		if (resource == null) {
 			throw new IllegalStateException("Unable to resolve resource for assignment " + mpxAssignment.getResourceUniqueID());
 		}
+		int workContourType = MpxjApi.workContourId(mpxAssignment);
 		assignment.setTaskAndResource(task, resource);
 		// MSPDI stores assignment units as a percentage (100 = 1.0 in the
 		// microProject model). Restore this explicitly before work is applied;
 		// otherwise a round trip can leave the assignment at the default 0 units.
 		if (mpxAssignment.getUnits() != null)
 			assignment.forceUnits(mpxAssignment.getUnits().doubleValue() / 100.0D);
-
-		// main snapshot only (snapshotId handling for baselines is skipped, see #154)
+		// Import current schedule values here; scalar baseline slots are imported
+		// separately by importBaselines after this current assignment is attached.
 		long assignmentStart = toLong(mpxAssignment.getStart());
 		// AssignmentDetail stores a start as a delay relative to the task. During
 		// import the task's schedule can still be uninitialised, so feeding the
@@ -65,22 +67,40 @@ public class MpxAssignmentConverter {
 			assignment.setStart(assignmentStart);
 		if (mpxAssignment.getFinish() != null)
 			assignment.setEnd(toLong(mpxAssignment.getFinish()));
+		// Install the source profile before applying Work. A standard contour's
+		// inverse maps the scalar to the assignment span; applying Work as flat
+		// first would shrink the span and reinterpret ActualWork later.
+		assignment.setWorkContourType(workContourType);
 		assignment.setWork(toLong(mpxAssignment.getWork()), null);
-		assignment.setPercentComplete(mpxAssignment.getPercentageWorkComplete() == null
-				? 0.0 : mpxAssignment.getPercentageWorkComplete().doubleValue() / 100.0);
+		// MSPDI assignment PercentWorkComplete is work-based, while the model's
+		// PercentComplete is elapsed-duration based. ActualWork below determines
+		// the completion stop under the imported contour.
 		// These setters edit the schedule and completion state; an absent date
 		// must not be imported as an actual finish at the Unix epoch.
 		if (mpxAssignment.getActualStart() != null)
 			assignment.setActualStart(toLong(mpxAssignment.getActualStart()));
 		if (mpxAssignment.getActualFinish() != null)
 			assignment.setActualFinish(toLong(mpxAssignment.getActualFinish()));
+		// Capture before mutating actuals: MPXJ can derive/cache RemainingWork from
+		// the assignment's current state when the source field is absent.
+		long sourceRemainingWork = toLong(mpxAssignment.getRemainingWork());
 		assignment.setActualWork(toLong(mpxAssignment.getActualWork()), null);
-		assignment.setRemainingWork(toLong(mpxAssignment.getRemainingWork()), null);
+		assignment.setRemainingWork(sourceRemainingWork, null);
+		// WorkContour changes how the imported assignment span distributes work.
+		// Setting Work may resize that span, so restore explicit XML assignment
+		// bounds after all work/progress fields have been applied.
+		if (mpxAssignment.getStart() != null)
+			assignment.setStart(toLong(mpxAssignment.getStart()));
+		if (mpxAssignment.getFinish() != null)
+			assignment.setEnd(toLong(mpxAssignment.getFinish()));
+		// Apply the source contour after progress setters, which may intentionally
+		// convert a standard profile to a personal one. Do not call setWork again:
+		// that setter represents a user scheduling edit and may convert an imported
+		// standard contour into a personal profile when actuals are present.
+		assignment.setWorkContourType(workContourType);
 		restoreLevelingDelay(mpxAssignment, assignment);
 		if (mpxAssignment.getUniqueID() != null)
 			assignment.setUniqueId(mpxAssignment.getUniqueID().longValue());
-		// work contour: default to flat (0) for import; contour details skipped (#154)
-		assignment.setWorkContourType(0);
 	}
 
 	/**

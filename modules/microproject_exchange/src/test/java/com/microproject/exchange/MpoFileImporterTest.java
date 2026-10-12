@@ -2287,12 +2287,13 @@ class MpoFileImporterTest {
 			assertTrue(Files.isRegularFile(recoveryCopy));
 			double sharedUnits = assignmentUnits(load(shared), taskId, resourceName);
 			double recoveredUnits = assignmentUnits(load(recoveryCopy.toFile()), taskId, resourceName);
-			org.junit.jupiter.api.Assertions.assertNotEquals(sharedUnits, recoveredUnits,
-					"the shared and recovery archives must preserve different assignment units");
-			assertTrue(java.util.Set.of(0.5D, 1D).contains(sharedUnits));
-			assertTrue(java.util.Set.of(0.5D, 1D).contains(recoveredUnits));
 			OperationLog.DocumentLog recoveryLog = new OperationLog().readJsonl(
 					readEntries(Files.readAllBytes(recoveryCopy)).get(MpoFileImporter.OPERATIONS_ENTRY));
+			org.junit.jupiter.api.Assertions.assertNotEquals(sharedUnits, recoveredUnits,
+					"the shared and recovery archives must preserve different assignment units; shared=" + sharedUnits
+						+ ", recovery=" + recoveredUnits + ", operations=" + recoveryLog.operations());
+			assertTrue(java.util.Set.of(0.5D, 1D).contains(sharedUnits));
+			assertTrue(java.util.Set.of(0.5D, 1D).contains(recoveredUnits));
 			assertTrue(recoveryLog.operations().stream().anyMatch(operation -> operation.kind().equals("assignment.add")));
 			assertEquals(1, new OperationLog().merge(recoveryLog.operations()).conflicts().size());
 		} finally {

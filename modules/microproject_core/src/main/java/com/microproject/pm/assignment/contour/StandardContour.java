@@ -61,6 +61,12 @@ public class StandardContour extends AbstractContour implements ContourTypes {
 	public long calcTotalWork(long assignmentDuration) {
 		return (long) (meanUnits * assignmentDuration);
 	}
+
+	@Override
+	public long calcDurationForWork(long work, double assignmentUnits) {
+		double effectiveUnits = assignmentUnits * meanUnits;
+		return effectiveUnits <= 0.0D ? 0L : Math.round(work / effectiveUnits);
+	}
 	
     private StandardContour(int type, AbstractContourBucket[] contourBuckets) {
     	super(contourBuckets);

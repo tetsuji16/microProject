@@ -25,6 +25,8 @@
 package com.microproject.exchange.mpxj;
 
 import net.sf.mpxj.TaskType;
+import net.sf.mpxj.AssignmentField;
+import net.sf.mpxj.ResourceAssignment;
 import net.sf.mpxj.WorkContour;
 
 /**
@@ -65,5 +67,29 @@ public final class MpxjApi {
 
 	public static WorkContour workContour(int id) {
 		return id >= 0 && id < WORK_CONTOURS.length ? WORK_CONTOURS[id] : WorkContour.FLAT;
+	}
+
+	/** Maps MPXJ's Project XML work contour enum to MSPDI's documented integer value. */
+	public static int workContourId(WorkContour contour) {
+		if (contour == null)
+			return 0;
+		if (WorkContour.CONTOURED.equals(contour))
+			throw new UnsupportedOperationException(
+				"Custom MSPDI work contours require timephased assignment import, which is not supported yet");
+		for (int id = 0; id < WORK_CONTOURS.length; id++) {
+			if (WORK_CONTOURS[id].equals(contour))
+				return id;
+		}
+		throw new IllegalArgumentException("Unsupported MPXJ work contour: " + contour);
+	}
+
+	/**
+	 * Maps an explicitly imported contour. MPXJ's getter can supply a calculated
+	 * Contoured default when MSPDI omits WorkContour, while this application's
+	 * historical import contract treats an omitted contour as Flat.
+	 */
+	public static int workContourId(ResourceAssignment assignment) {
+		Object value = assignment.getCachedValue(AssignmentField.WORK_CONTOUR);
+		return value == null ? 0 : workContourId((WorkContour) value);
 	}
 }

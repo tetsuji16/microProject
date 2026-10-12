@@ -371,6 +371,13 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 		return workContour.calcWorkingBucketDuration(getDuration());
 	}
 
+	long calcDurationForRemainingWork(long work) {
+		if (getActualDuration() > 0L) {
+			return getUnits() <= 0.0D ? 0L : Math.round(work / getUnits());
+		}
+		return workContour.calcDurationForWork(work, getUnits());
+	}
+
 
 	/**
 	 * Allow setting of working duration. MSProject displays working duration (excludes non-work intervals) except when

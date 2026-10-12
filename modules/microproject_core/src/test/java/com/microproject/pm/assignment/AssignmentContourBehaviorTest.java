@@ -97,6 +97,88 @@ class AssignmentContourBehaviorTest {
 	}
 
 	@Test
+	void settingWorkWithAStandardContourUsesItsMeanUnits() {
+		long assignmentSpan = 16L * 60L * 60L * 1000L;
+		double[] meanUnits = { 1.0D, 0.6D, 0.6D, 0.5D, 0.5D, 0.5D, 0.5D, 0.7D };
+		ContourTypes.Kind[] kinds = ContourTypes.Kind.values();
+		for (double units : new double[] { 0.5D, 1.0D, 2.0D }) {
+			for (int code = 0; code < meanUnits.length; code++) {
+				Project project = createProject();
+				NormalTask task = createTask(project);
+				Assignment assignment = Assignment.getInstance(task,
+					project.getResourcePool().newResourceInstance(), units, 0L);
+				long expectedWork = Math.round(assignmentSpan * meanUnits[code] * units);
+
+				assignment.setWorkContourTypeKind(kinds[code]);
+				assignment.setWork(expectedWork, null);
+
+				assertEquals(expectedWork, assignment.getWork(null),
+					"contour " + code + " at assignment units " + units);
+				assertEquals(assignmentSpan, assignment.getDuration(),
+					"contour " + code + " must preserve the source assignment span");
+				assertEquals(units, assignment.getUnits(), 0.00001D,
+					"contour " + code + " must preserve assignment units");
+				assertEquals(kinds[code], assignment.getWorkContourTypeKind(),
+					"contour " + code + " must preserve the selected standard type");
+				assertEquals(expectedWork,
+					Math.round(assignment.getWorkContour().calcTotalWork(assignment.getDuration()) * units),
+					"contour " + code + " work must match the contour total");
+			}
+		}
+	}
+
+	@Test
+	void settingAlreadyZeroWorkPreservesExplicitAssignmentUnits() {
+		for (double units : new double[] { 0.0D, 0.5D, 1.0D, 2.0D }) {
+			Project project = createProject();
+			NormalTask task = createTask(project);
+			Assignment assignment = Assignment.getInstance(task,
+				project.getResourcePool().newResourceInstance(), units, 0L);
+			assignment.setWorkContourTypeKind(ContourTypes.Kind.BACK_LOADED);
+			long start = assignment.getStart();
+			long end = assignment.getEnd();
+
+			assignment.setWork(0L, null);
+
+			assertEquals(units, assignment.getUnits(), "zero-work no-op must preserve " + units + " units");
+			assertEquals(0L, assignment.getWork(null), "zero-work no-op must preserve work");
+			assertEquals(0L, assignment.getDuration(), "zero-work no-op must preserve duration");
+			assertEquals(ContourTypes.Kind.BACK_LOADED, assignment.getWorkContourTypeKind(),
+				"zero-work no-op must preserve non-flat contour");
+			assertEquals(start, assignment.getStart(), "zero-work no-op must preserve start");
+			assertEquals(end, assignment.getEnd(), "zero-work no-op must preserve end");
+		}
+	}
+
+	@Test
+	void settingActualWorkOnAStandardContourUsesItsCumulativeProfile() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		long span = 8L * 60L * 60L * 1000L;
+		long totalWork = Math.round(span * 0.6D);
+		long actualWork = totalWork / 2L;
+		Assignment assignment = Assignment.getInstance(task,
+			project.getResourcePool().newResourceInstance(), 1.0D, 0L);
+		assignment.setWorkContourTypeKind(ContourTypes.Kind.BACK_LOADED);
+		assignment.setWork(totalWork, null);
+		assertEquals(span, assignment.getDuration(), "source work must map back to the 8-hour contour span");
+		assertEquals(totalWork, assignment.getWork(null), "source work must be preserved before progress");
+		assignment.setPercentComplete(0.5D);
+
+		assignment.setActualWork(actualWork, null);
+
+		assertEquals(actualWork, assignment.getActualWork(null));
+		assertEquals(totalWork, assignment.getWork(null), "source work must be preserved after actual work");
+		assertEquals(span, assignment.getDuration(), "source duration must be preserved after actual work");
+		assignment.setActualWork(actualWork, null);
+		assertEquals(actualWork, assignment.getActualWork(null),
+			"reapplying the same actual-work scalar must not move its contour position");
+		assignment.setRemainingWork(totalWork - actualWork, null);
+		assertEquals(actualWork, assignment.getActualWork(null),
+			"importing matching remaining work must preserve the explicit actual-work scalar");
+	}
+
+	@Test
 	void personalContourBucketRejectsNegativeDuration() {
 		IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
 				() -> PersonalContourBucket.getInstance(-1L, 0.5D));

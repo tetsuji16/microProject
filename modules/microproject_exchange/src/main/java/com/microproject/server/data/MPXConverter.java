@@ -144,8 +144,8 @@ public class MPXConverter {
 		// the project.  Writing both dates without it causes readers to assume a
 		// forward schedule and loses a finish-scheduled project's semantics.
 		projectHeader.setScheduleFrom(project.isForward() ? ScheduleFrom.START : ScheduleFrom.FINISH);
-		projectHeader.setStartDate(DateTime.fromGmt(new Date(project.getStartDate())));
-		projectHeader.setFinishDate(DateTime.fromGmt(new Date(project.getFinishDate())));
+		projectHeader.setStartDate(toMpxDate(project.getStartDate()));
+		projectHeader.setFinishDate(toMpxDate(project.getFinishDate()));
 		projectHeader.setDefaultStartTime(CalendarOption.getInstance().getDefaultStartTime().getTime());
 		projectHeader.setDefaultEndTime(CalendarOption.getInstance().getDefaultEndTime().getTime());
 
@@ -340,9 +340,9 @@ public class MPXConverter {
 				: ((double) Duration.millis(assignment.getActualWork(null))) / assignmentWork;
 		mpxAssignment.setPercentageWorkComplete(percentWorkComplete * 100.0d);
 		if (assignment.getActualStart() != 0L)
-			mpxAssignment.setActualStart(DateTime.fromGmt(new Date(assignment.getActualStart())));
+			mpxAssignment.setActualStart(toMpxDate(assignment.getActualStart()));
 		if (assignment.getActualFinish() != 0L)
-			mpxAssignment.setActualFinish(DateTime.fromGmt(new Date(assignment.getActualFinish())));
+			mpxAssignment.setActualFinish(toMpxDate(assignment.getActualFinish()));
     	mpxAssignment.setUnits(MathUtils.roundToDecentPrecision(assignment.getUnits()*100.0D));
     	mpxAssignment.setRemainingWork(MPXConverter.toMPXDuration(assignment.getRemainingWork())); //2007
     	long delay = Duration.millis(assignment.getDelay());
@@ -367,9 +367,9 @@ public class MPXConverter {
 			if (baseline == null)
 				continue;
 			Date baselineStart = baseline.start() == null ? null
-				: new Date(TimeUtil.removeTimeZoneOffset(baseline.start().longValue()));
+				: toMpxDate(baseline.start().longValue());
 			Date baselineFinish = baseline.finish() == null ? null
-				: new Date(TimeUtil.removeTimeZoneOffset(baseline.finish().longValue()));
+				: toMpxDate(baseline.finish().longValue());
 			net.sf.mpxj.Duration baselineWork = baseline.work() == null ? null : toMPXDuration(baseline.work().longValue());
 			if (snapshotId == 0) {
 				mpxAssignment.setBaselineStart(baselineStart);
@@ -414,14 +414,16 @@ private static int autoId = 0;
 		mpxTask.setWork(toMPXDuration((long) projectlibreTask.getWork()));
 		mpxTask.setActualWork(toMPXDuration(projectlibreTask.getActualWork(null)));
 		mpxTask.setRemainingWork(toMPXDuration(projectlibreTask.getRemainingWork(null)));
-		mpxTask.setStart(DateTime.fromGmt(new Date(projectlibreTask.getStart())));
-		mpxTask.setFinish(DateTime.fromGmt(new Date(projectlibreTask.getEnd())));
+		// The model stores local wall time encoded in a UTC epoch. MPXJ formats
+		// these MSPDI fields in the host zone, so remove that encoding first.
+		mpxTask.setStart(toMpxDate(projectlibreTask.getStart()));
+		mpxTask.setFinish(toMpxDate(projectlibreTask.getEnd()));
 		mpxTask.setCritical(Boolean.valueOf(projectlibreTask.isCritical()));
 		mpxTask.setEstimated(projectlibreTask.isEstimated());
 		mpxTask.setEffortDriven(projectlibreTask.isEffortDriven());
 		mpxTask.setType(MpxjApi.taskType(projectlibreTask.getSchedulingType()));
 		mpxTask.setConstraintType(ConstraintType.getInstance(projectlibreTask.getConstraintType()));
-		mpxTask.setConstraintDate(DateTime.fromGmt(new Date(projectlibreTask.getConstraintDate())));
+		mpxTask.setConstraintDate(toMpxDate(projectlibreTask.getConstraintDate()));
 		mpxTask.setPriority(Priority.getInstance(projectlibreTask.getPriority()));
 		mpxTask.setFixedCost(projectlibreTask.getFixedCost());
 		mpxTask.setFixedCostAccrual(AccrueType.getInstance(projectlibreTask.getFixedCostAccrual()));
@@ -434,7 +436,7 @@ private static int autoId = 0;
 		// after an import/recalculation.
 		mpxTask.setLevelingDelay(toMPXLevelingDelay(projectlibreTask.getLevelingDelay()));
 		if (projectlibreTask.getDeadline() != 0)
-			mpxTask.setDeadline(DateTime.fromGmt(new Date(projectlibreTask.getDeadline())));
+			mpxTask.setDeadline(toMpxDate(projectlibreTask.getDeadline()));
 		mpxTask.setEarnedValueMethod(EarnedValueMethod.getInstance(projectlibreTask.getEarnedValueMethod()));
 		mpxTask.setIgnoreResourceCalendar(projectlibreTask.isIgnoreResourceCalendar());
 		toMpxTaskBaselines(projectlibreTask, mpxTask);
@@ -443,10 +445,10 @@ private static int autoId = 0;
 		mpxTask.setTotalSlack(toMPXDuration(projectlibreTask.getTotalSlack()));
 		mpxTask.setRemainingDuration(toMPXDuration(projectlibreTask.getRemainingDuration()));
 		if (projectlibreTask.getStop() != 0)
-			mpxTask.setStop(DateTime.fromGmt(new Date(projectlibreTask.getStop())));
+			mpxTask.setStop(toMpxDate(projectlibreTask.getStop()));
 		
 		if (projectlibreTask.getResume() != 0)
-			mpxTask.setResume(DateTime.fromGmt(new Date(projectlibreTask.getResume())));
+			mpxTask.setResume(toMpxDate(projectlibreTask.getResume()));
 
 		WorkCalendar cal = projectlibreTask.getWorkCalendar();
 
@@ -475,14 +477,14 @@ private static int autoId = 0;
 				continue;
 			var schedule = snapshot.getCurrentSchedule();
 			if (schedule.getStart() != 0L) {
-				Date start = new Date(TimeUtil.removeTimeZoneOffset(schedule.getStart()));
+				Date start = toMpxDate(schedule.getStart());
 				if (snapshotId == 0)
 					mpxTask.setBaselineStart(start);
 				else
 					mpxTask.setBaselineStart(snapshotId, start);
 			}
 			if (schedule.getFinish() != 0L) {
-				Date finish = new Date(TimeUtil.removeTimeZoneOffset(schedule.getFinish()));
+				Date finish = toMpxDate(schedule.getFinish());
 				if (snapshotId == 0)
 					mpxTask.setBaselineFinish(finish);
 				else
@@ -502,9 +504,9 @@ private static int autoId = 0;
 		mpxTask.setPercentageWorkComplete(projectlibreTask.getPercentWorkComplete()*100.0D);
 		mpxTask.setPhysicalPercentComplete(projectlibreTask.getPhysicalPercentComplete()*100.0D);
 		if (projectlibreTask.getActualStart() != 0L)
-			mpxTask.setActualStart(DateTime.fromGmt(new Date(projectlibreTask.getActualStart())));
+			mpxTask.setActualStart(toMpxDate(projectlibreTask.getActualStart()));
 		if (projectlibreTask.getActualFinish() != 0L)
-			mpxTask.setActualFinish(DateTime.fromGmt(new Date(projectlibreTask.getActualFinish())));
+			mpxTask.setActualFinish(toMpxDate(projectlibreTask.getActualFinish()));
 		mpxTask.setActualDuration(toMPXDuration(projectlibreTask.getActualDuration()));
 		mpxTask.setActive(!projectlibreTask.isInactiveTask());
 		mpxTask.setTaskMode(projectlibreTask.isManuallyScheduled() ? TaskMode.MANUALLY_SCHEDULED : TaskMode.AUTO_SCHEDULED);
@@ -624,6 +626,12 @@ private static int autoId = 0;
 			.withZone(ZoneId.systemDefault())
 			.format(Instant.ofEpochMilli(time));
 	}
+
+	/** Converts a model wall-time epoch into MPXJ's host-local date representation. */
+	private static Date toMpxDate(long modelWallTime) {
+		return new Date(TimeUtil.removeTimeZoneOffset(modelWallTime));
+	}
+
 	private static String truncName(String name) {
 		if (name == null)
 			return null;

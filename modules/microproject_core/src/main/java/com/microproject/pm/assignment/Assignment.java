@@ -2360,11 +2360,13 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 			WorkCalendar cal = getEffectiveWorkCalendar();
 			if (!FieldContext.hasInterval(context)) {
 				long currentRemainingWork = Duration.millis(getWork(context)) - Duration.millis(getActualWork(context));
-				if (currentRemainingWork == 0 && remainingWork == 0)
+				boolean zeroWorkNoOp = work == 0L && currentRemainingWork == 0L
+						&& Duration.millis(getActualWork(context)) == 0L;
+				if (currentRemainingWork == 0 && remainingWork == 0 && !zeroWorkNoOp)
 					adjustRemainingUnits(0, 0, true, false);
-				else {
+				else if (!zeroWorkNoOp) {
 					if (SchedulingType.Kind.fromCode(getTaskSchedulingType()) == SchedulingType.Kind.FIXED_UNITS)
-						adjustRemainingDuration(remainingWork, false);
+						adjustRemainingDuration(detail.calcDurationForRemainingWork(remainingWork), false);
 					else if (SchedulingType.Kind.fromCode(getTaskSchedulingType()) == SchedulingType.Kind.FIXED_DURATION && currentRemainingWork > 0)
 						adjustRemainingWork(((double) remainingWork) / currentRemainingWork, true);
 					else
