@@ -60,10 +60,22 @@ public class MpxImportState {
 	protected ProjectFile mpxProjectFile;
 	private final List<Runnable> postScheduleValidations = new ArrayList<>();
 	private Map<Long, RawMspdiAssignmentWork> rawMspdiAssignmentWork = Map.of();
+	private Map<Long, Map<Integer, List<RawMspdiWorkInterval>>> rawMspdiAssignmentBaselineWork = Map.of();
 	private Map<Long, Map<Integer, RawMspdiTaskBaseline>> rawMspdiTaskBaselines = Map.of();
 
 	public record RawMspdiWorkInterval(int type, long start, long finish, long work) { }
 	public record RawMspdiTaskBaseline(long durationMillis, int durationFormat) { }
+
+	/** MSPDI assignment baseline work Type values: 4, then 16 + 6 per slot. */
+	public static int assignmentBaselineWorkType(int slot) {
+		if (slot < 0 || slot > 10) throw new IllegalArgumentException("Invalid baseline slot: " + slot);
+		return slot == 0 ? 4 : 16 + (slot - 1) * 6;
+	}
+
+	/** MSPDI assignment baseline cost Type values immediately follow each work type. */
+	public static int assignmentBaselineCostType(int slot) {
+		return assignmentBaselineWorkType(slot) + 1;
+	}
 	public record RawMspdiAssignmentWork(Long start, Long finish, Long work, Long actualWork, Long remainingWork,
 		List<RawMspdiWorkInterval> intervals) {
 		public RawMspdiAssignmentWork {
@@ -76,6 +88,21 @@ public class MpxImportState {
 	}
 	public RawMspdiAssignmentWork getRawMspdiAssignmentWork(Long uid) {
 		return uid == null ? null : rawMspdiAssignmentWork.get(uid);
+	}
+	public void setRawMspdiAssignmentBaselineWork(
+		Map<Long, Map<Integer, List<RawMspdiWorkInterval>>> values) {
+		Map<Long, Map<Integer, List<RawMspdiWorkInterval>>> copy = new HashMap<>();
+		values.forEach((uid, slots) -> {
+			Map<Integer, List<RawMspdiWorkInterval>> slotCopy = new HashMap<>();
+			slots.forEach((slot, intervals) -> slotCopy.put(slot, List.copyOf(intervals)));
+			copy.put(uid, Map.copyOf(slotCopy));
+		});
+		rawMspdiAssignmentBaselineWork = Map.copyOf(copy);
+	}
+	public List<RawMspdiWorkInterval> getRawMspdiAssignmentBaselineWork(Long uid, int slot) {
+		Map<Integer, List<RawMspdiWorkInterval>> slots = uid == null ? null
+			: rawMspdiAssignmentBaselineWork.get(uid);
+		return slots == null ? null : slots.get(Integer.valueOf(slot));
 	}
 	public void setRawMspdiTaskBaselines(Map<Long, Map<Integer, RawMspdiTaskBaseline>> values) {
 		Map<Long, Map<Integer, RawMspdiTaskBaseline>> copy = new HashMap<>();

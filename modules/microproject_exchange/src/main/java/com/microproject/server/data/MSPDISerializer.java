@@ -48,6 +48,7 @@ import com.microproject.util.SafeFileReplace;
 
 import com.microproject.association.Association;
 import com.microproject.association.AssociationList;
+import com.microproject.core.pm.exchange.converters.mpx.MpxImportState;
 import com.microproject.exchange.ImportedCalendarService;
 import com.microproject.server.data.linker.Linker;
 import com.microproject.server.data.linker.ResourceLinker;
@@ -493,6 +494,7 @@ public class MSPDISerializer implements ProjectSerializer {
 		Set<String> personalContourAssignments = new java.util.HashSet<>();
 		Map<String, List<ExactWorkRow>> personalActualRows = new java.util.HashMap<>();
 		Map<String, List<ExactWorkRow>> personalRemainingRows = new java.util.HashMap<>();
+		Map<String, Map<Integer, List<ExactWorkRow>>> baselineWorkRows = new java.util.HashMap<>();
 		for (Map.Entry<ResourceAssignment, Assignment> exported : exportedAssignments.entrySet()) {
 			Integer uid = exported.getKey().getUniqueID();
 			if (exported.getValue().getWorkContour().isPersonal()) {
@@ -500,6 +502,20 @@ public class MSPDISerializer implements ProjectSerializer {
 					throw new IOException("MPXJ did not assign a unique identity to a personal-contour assignment");
 				personalActualRows.put(uid.toString(), exactWorkRows(exported.getKey().getTimephasedActualWork()));
 				personalRemainingRows.put(uid.toString(), exactWorkRows(exported.getKey().getTimephasedWork()));
+			}
+			Map<Integer, List<ExactWorkRow>> assignmentBaselineRows = new java.util.TreeMap<>();
+			for (int slot = 0; slot <= 10; slot++) {
+				Assignment baseline = exported.getValue().getBaselineAssignment(Integer.valueOf(slot), false);
+				if (baseline != null && baseline.getWorkContour().isPersonal()) {
+					if (uid == null)
+						throw new IOException("MPXJ did not assign an identity to a timephased assignment baseline");
+					assignmentBaselineRows.put(Integer.valueOf(slot), exactWorkRows(
+						MPXConverter.baselineTimephasedWorkRows(baseline)));
+				}
+			}
+			if (!assignmentBaselineRows.isEmpty()) {
+				if (baselineWorkRows.put(uid.toString(), Map.copyOf(assignmentBaselineRows)) != null)
+					throw new IOException("MPXJ assigned duplicate identities to timephased assignment baselines");
 			}
 			Map<Integer, Assignment.BaselineValues> zeroWorkSlots = new java.util.TreeMap<>();
 			for (int slot = 0; slot <= 10; slot++) {
@@ -513,7 +529,7 @@ public class MSPDISerializer implements ProjectSerializer {
 			if (expected.put(uid.toString(), zeroWorkSlots) != null)
 				throw new IOException("MPXJ assigned duplicate identities to baseline assignments");
 		}
-		if (expected.isEmpty() && personalContourAssignments.isEmpty()) return xml;
+		if (expected.isEmpty() && personalContourAssignments.isEmpty() && baselineWorkRows.isEmpty()) return xml;
 		javax.xml.parsers.DocumentBuilderFactory factory = javax.xml.parsers.DocumentBuilderFactory.newInstance();
 		factory.setNamespaceAware(true);
 		factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
@@ -527,6 +543,7 @@ public class MSPDISerializer implements ProjectSerializer {
 		String namespace = document.getDocumentElement().getNamespaceURI();
 		org.w3c.dom.NodeList assignmentNodes = document.getElementsByTagNameNS(namespace, "Assignment");
 		java.util.Set<String> applied = new java.util.HashSet<>();
+		java.util.Set<String> appliedBaselineSlots = new java.util.HashSet<>();
 		java.util.Set<String> normalizedPersonalContours = new java.util.HashSet<>();
 		for (int index = 0; index < assignmentNodes.getLength(); index++) {
 			org.w3c.dom.Element assignmentNode = (org.w3c.dom.Element) assignmentNodes.item(index);
@@ -553,6 +570,21 @@ public class MSPDISerializer implements ProjectSerializer {
 			throw new IOException("MSPDI output omitted a personal-contour assignment");
 		if (!applied.equals(expected.keySet()))
 			throw new IOException("MSPDI output omitted an assignment with zero baseline work");
+		for (Map.Entry<String, Map<Integer, List<ExactWorkRow>>> entry : baselineWorkRows.entrySet()) {
+			String uid = entry.getKey();
+			for (Map.Entry<Integer, List<ExactWorkRow>> slotRows : entry.getValue().entrySet()) {
+				org.w3c.dom.Element assignmentNode = findAssignment(assignmentNodes, namespace, uid);
+				if (assignmentNode == null)
+					throw new IOException("MSPDI output omitted an assignment with timephased baseline work");
+				normalizeAssignmentBaselineWorkRows(document, assignmentNode, slotRows.getKey().intValue(),
+					slotRows.getValue());
+				appliedBaselineSlots.add(uid + ":" + slotRows.getKey());
+			}
+		}
+		java.util.Set<String> expectedBaselineSlots = new java.util.HashSet<>();
+		baselineWorkRows.forEach((uid, slots) -> slots.keySet().forEach(slot -> expectedBaselineSlots.add(uid + ":" + slot)));
+		if (!appliedBaselineSlots.equals(expectedBaselineSlots))
+			throw new IOException("MSPDI output omitted assignment baseline timephased work");
 		ByteArrayOutputStream result = new ByteArrayOutputStream();
 		javax.xml.transform.TransformerFactory transformerFactory = javax.xml.transform.TransformerFactory.newInstance();
 		transformerFactory.setAttribute(javax.xml.XMLConstants.ACCESS_EXTERNAL_DTD, "");
@@ -649,6 +681,63 @@ public class MSPDISerializer implements ProjectSerializer {
 
 	private static String workIntervalKey(long start, long finish) {
 		return start + ":" + finish;
+	}
+
+	private static org.w3c.dom.Element findAssignment(org.w3c.dom.NodeList assignments, String namespace,
+		String uid) throws IOException {
+		org.w3c.dom.Element match = null;
+		for (int index = 0; index < assignments.getLength(); index++) {
+			org.w3c.dom.Element assignment = (org.w3c.dom.Element) assignments.item(index);
+			if (!uid.equals(childText(assignment, "UID", namespace))) continue;
+			if (match != null) throw new IOException("MSPDI output contains duplicate assignment identities");
+			match = assignment;
+		}
+		return match;
+	}
+
+	private static void normalizeAssignmentBaselineWorkRows(org.w3c.dom.Document document,
+		org.w3c.dom.Element assignment, int slot, List<ExactWorkRow> rows) throws IOException {
+		org.w3c.dom.Element baseline = findBaseline(assignment, slot);
+		if (baseline == null) {
+			baseline = document.createElementNS(assignment.getNamespaceURI(), "Baseline");
+			insertBaselineAtSchemaPosition(assignment, baseline, slot);
+		}
+		int type = MpxImportState.assignmentBaselineWorkType(slot);
+		for (org.w3c.dom.Element existing : directChildren(baseline, "TimephasedData")) {
+			if (Integer.toString(type).equals(childText(existing, "Type"))) baseline.removeChild(existing);
+		}
+		org.w3c.dom.Element number = childElement(baseline, "Number");
+		if (number == null) {
+			number = document.createElementNS(assignment.getNamespaceURI(), "Number");
+			number.setTextContent(Integer.toString(slot));
+			baseline.appendChild(number);
+		} else if (!Integer.toString(slot).equals(number.getTextContent().trim())) {
+			throw new IOException("MSPDI output assignment baseline number does not match its slot");
+		}
+		String assignmentUid = childText(assignment, "UID");
+		if (assignmentUid == null) throw new IOException("MSPDI output assignment has no UID");
+		for (ExactWorkRow row : rows) {
+			org.w3c.dom.Element timephased = document.createElementNS(assignment.getNamespaceURI(), "TimephasedData");
+			appendTextElement(document, timephased, "Type", Integer.toString(type));
+			appendTextElement(document, timephased, "UID", assignmentUid);
+			appendTextElement(document, timephased, "Start", formatMspdiWallTime(row.start()));
+			appendTextElement(document, timephased, "Finish", formatMspdiWallTime(row.finish()));
+			appendTextElement(document, timephased, "Unit", "2");
+			appendTextElement(document, timephased, "Value", durationMillisToMspdi(row.work()));
+			baseline.insertBefore(timephased, number);
+		}
+	}
+
+	private static void appendTextElement(org.w3c.dom.Document document, org.w3c.dom.Element parent,
+		String name, String value) {
+		org.w3c.dom.Element element = document.createElementNS(parent.getNamespaceURI(), name);
+		element.setTextContent(value);
+		parent.appendChild(element);
+	}
+
+	private static String formatMspdiWallTime(long millis) {
+		return java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME.format(
+			java.time.LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(millis), java.time.ZoneOffset.UTC));
 	}
 
 	private static long parseMspdiWallTime(String value) throws IOException {

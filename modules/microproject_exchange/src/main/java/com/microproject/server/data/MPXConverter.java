@@ -374,13 +374,15 @@ public class MPXConverter {
 			toMPXTimephasedWork(assignment, mpxAssignment);
 		for (int snapshotId = 0; snapshotId <= 10; snapshotId++) {
 			Assignment.BaselineValues baseline = assignment.getBaselineValues(snapshotId);
-			if (baseline == null)
+			Assignment baselineAssignment = assignment.getBaselineAssignment(Integer.valueOf(snapshotId), false);
+			if (baseline == null && baselineAssignment == null)
 				continue;
-			Date baselineStart = baseline.start() == null ? null
+			Date baselineStart = baseline == null || baseline.start() == null ? null
 				: toMpxDate(baseline.start().longValue());
-			Date baselineFinish = baseline.finish() == null ? null
+			Date baselineFinish = baseline == null || baseline.finish() == null ? null
 				: toMpxDate(baseline.finish().longValue());
-			net.sf.mpxj.Duration baselineWork = baseline.work() == null ? null : toMPXDuration(baseline.work().longValue());
+			net.sf.mpxj.Duration baselineWork = baseline == null || baseline.work() == null
+				? null : toMPXDuration(baseline.work().longValue());
 			if (snapshotId == 0) {
 				mpxAssignment.setBaselineStart(baselineStart);
 				mpxAssignment.setBaselineFinish(baselineFinish);
@@ -393,6 +395,15 @@ public class MPXConverter {
 		}
 
 
+	}
+
+	static List<TimephasedWork> baselineTimephasedWorkRows(Assignment baseline) {
+		List<TimephasedWork> intervals = new ArrayList<>();
+		long total = appendProfileTimephasedWork(intervals, baseline.getWorkContour().getContourBuckets(),
+			baseline.getStart(), baseline.getDuration(), baseline.getEffectiveWorkCalendar());
+		if (total != baseline.getWork(null))
+			throw new IllegalArgumentException("Assignment baseline contour does not match its work total");
+		return List.copyOf(intervals);
 	}
 
 	private static void toMPXTimephasedWork(Assignment assignment, ResourceAssignment mpxAssignment) {

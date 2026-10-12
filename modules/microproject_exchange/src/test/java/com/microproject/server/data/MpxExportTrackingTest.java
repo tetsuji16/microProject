@@ -38,6 +38,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.core.pm.exchange.converters.type.DateUTCConverter;
+import com.microproject.core.pm.exchange.converters.mpx.MpxImportState;
 import com.microproject.exchange.MicrosoftImporter;
 import com.microproject.job.Job;
 import com.microproject.job.JobQueue;
@@ -708,6 +709,94 @@ class MpxExportTrackingTest {
 		assertEquals(8L * 60L * 60L * 1000L, reopenedAssignment.getWorkContour().calcTotalWork(reopenedAssignment.getDuration()));
 		assertEquals(0.25d, reopenedAssignment.getWorkContour().getContourBuckets()[0].getUnits(), 0.00001d);
 		assertEquals(0.75d, reopenedAssignment.getWorkContour().getContourBuckets()[1].getUnits(), 0.00001d);
+	}
+
+	@Test
+	void assignmentBaselineTimephasedWorkRoundTripsThroughMpoAndMspdi() throws Exception {
+		int[] expectedWorkTypes = { 4, 16, 22, 28, 34, 40, 46, 52, 58, 64, 70 };
+		for (int slot = 0; slot < expectedWorkTypes.length; slot++) {
+			assertEquals(expectedWorkTypes[slot], MpxImportState.assignmentBaselineWorkType(slot));
+			assertEquals(expectedWorkTypes[slot] + 1, MpxImportState.assignmentBaselineCostType(slot));
+		}
+
+		String xml = twoDayCustomContourXml("",
+			"<TimephasedData><Type>1</Type><UID>1</UID><Start>2026-10-12T08:00:00</Start><Finish>2026-10-12T17:00:00</Finish><Unit>2</Unit><Value>PT2H0M0S</Value></TimephasedData>"
+				+ "<TimephasedData><Type>1</Type><UID>2</UID><Start>2026-10-13T08:00:00</Start><Finish>2026-10-13T17:00:00</Finish><Unit>2</Unit><Value>PT6H0M0S</Value></TimephasedData>")
+			.replace("<Baseline><Number>0</Number><Start>2026-10-05T17:00:00</Start><Work>PT8H0M0S</Work></Baseline>",
+				"<Baseline><TimephasedData><Type>4</Type><UID>1</UID><Start>2026-10-05T08:00:00</Start>"
+					+ "<Finish>2026-10-05T17:00:00</Finish><Unit>2</Unit><Value>PT2H0M0S</Value></TimephasedData>"
+					+ "<TimephasedData><Type>4</Type><UID>1</UID><Start>2026-10-06T08:00:00</Start>"
+					+ "<Finish>2026-10-06T17:00:00</Finish><Unit>2</Unit><Value>PT6H0M0S</Value></TimephasedData>"
+					+ "<Number>0</Number><Start>2026-10-05T08:00:00</Start><Finish>2026-10-06T17:00:00</Finish>"
+					+ "<Work>PT8H0M0S</Work></Baseline>")
+			.replace("<Baseline><Number>9</Number>",
+				"<Baseline><TimephasedData><Type>22</Type><UID>1</UID><Start>2026-10-07T08:00:00</Start>"
+					+ "<Finish>2026-10-07T17:00:00</Finish><Unit>2</Unit><Value>PT1H0M0S</Value></TimephasedData>"
+					+ "<Number>2</Number><Start>2026-10-07T08:00:00</Start><Finish>2026-10-07T17:00:00</Finish>"
+					+ "<Work>PT1H0M0S</Work></Baseline><Baseline><Number>9</Number>");
+		assertTrue(xml.contains("<Type>4</Type><UID>1</UID><Start>2026-10-05T08:00:00</Start>"
+			+ "<Finish>2026-10-05T17:00:00</Finish><Unit>2</Unit><Value>PT2H0M0S</Value>"));
+		assertTrue(xml.contains("<Type>4</Type><UID>1</UID><Start>2026-10-06T08:00:00</Start>"
+			+ "<Finish>2026-10-06T17:00:00</Finish><Unit>2</Unit><Value>PT6H0M0S</Value>"));
+
+		Project project = importMspdi(xml);
+		Assignment assignment = (Assignment) taskNamed(project, "Assignment baseline task").getAssignments().iterator().next();
+		Assignment baseline = assignment.getBaselineAssignment(Integer.valueOf(0), false);
+		assertNotNull(baseline, "An assignment baseline with timephased work creates its baseline snapshot");
+		assertTrue(baseline.getWorkContour().isPersonal(), baseline.getWorkContour().toString(baseline.getDuration()));
+		assertEquals(8L * 60L * 60L * 1000L, baseline.getWork(null));
+		assertEquals(2L * 60L * 60L * 1000L,
+			baseline.work(modelWallTime("2026-10-05T08:00:00"), modelWallTime("2026-10-05T17:00:00")));
+		assertEquals(6L * 60L * 60L * 1000L,
+			baseline.work(modelWallTime("2026-10-06T08:00:00"), modelWallTime("2026-10-06T17:00:00")));
+		Assignment secondBaseline = assignment.getBaselineAssignment(Integer.valueOf(2), false);
+		assertNotNull(secondBaseline);
+		assertEquals(1L * 60L * 60L * 1000L, secondBaseline.work(
+			modelWallTime("2026-10-07T08:00:00"), modelWallTime("2026-10-07T17:00:00")));
+		assertEquals(0L, assignment.getBaselineValues(9).work(), "Explicit zero remains distinct from a missing slot");
+		assertNull(assignment.getBaselineAssignment(Integer.valueOf(1), false), "Missing slots remain absent");
+
+		ByteArrayOutputStream mpo = new ByteArrayOutputStream();
+		assertTrue(new com.microproject.exchange.MpoFileImporter().saveProject(project, mpo));
+		Project reopened = new com.microproject.exchange.MpoFileImporter()
+			.loadProject(new ByteArrayInputStream(mpo.toByteArray()));
+		Assignment reopenedAssignment = (Assignment) taskNamed(reopened, "Assignment baseline task").getAssignments().iterator().next();
+		Assignment reopenedBaseline = reopenedAssignment.getBaselineAssignment(Integer.valueOf(0), false);
+		assertNotNull(reopenedBaseline);
+		assertEquals(8L * 60L * 60L * 1000L, reopenedBaseline.getWork(null));
+		Assignment reopenedSecondBaseline = reopenedAssignment.getBaselineAssignment(Integer.valueOf(2), false);
+		assertNotNull(reopenedSecondBaseline);
+		assertEquals(1L * 60L * 60L * 1000L, reopenedSecondBaseline.work(
+			modelWallTime("2026-10-07T08:00:00"), modelWallTime("2026-10-07T17:00:00")));
+		assertEquals(0L, reopenedAssignment.getBaselineValues(9).work(), "MPO retains explicit zero baseline work");
+		assertNull(reopenedAssignment.getBaselineAssignment(Integer.valueOf(1), false), "MPO keeps missing slots absent");
+
+		ByteArrayOutputStream roundTripXml = new ByteArrayOutputStream();
+		assertTrue(new MicrosoftImporter().saveProject(reopened, roundTripXml));
+		String exportedXml = roundTripXml.toString(java.nio.charset.StandardCharsets.UTF_8);
+		assertTrue(exportedXml.contains("<TimephasedData><Type>4</Type><UID>1</UID>"
+			+ "<Start>2026-10-05T08:00:00</Start><Finish>2026-10-05T17:00:00</Finish>"
+			+ "<Unit>2</Unit><Value>PT2H0M0S</Value></TimephasedData>"), exportedXml);
+		assertTrue(exportedXml.contains("<TimephasedData><Type>4</Type><UID>1</UID>"
+			+ "<Start>2026-10-06T08:00:00</Start><Finish>2026-10-06T17:00:00</Finish>"
+			+ "<Unit>2</Unit><Value>PT6H0M0S</Value></TimephasedData>"), exportedXml);
+		assertTrue(exportedXml.contains("<TimephasedData><Type>22</Type><UID>1</UID>"
+			+ "<Start>2026-10-07T08:00:00</Start><Finish>2026-10-07T17:00:00</Finish>"
+			+ "<Unit>2</Unit><Value>PT1H0M0S</Value></TimephasedData>"), exportedXml);
+		Project roundTrip = importMspdi(exportedXml);
+		Assignment roundTripAssignment = (Assignment) taskNamed(roundTrip, "Assignment baseline task").getAssignments().iterator().next();
+		Assignment roundTripBaseline = roundTripAssignment.getBaselineAssignment(Integer.valueOf(0), false);
+		assertNotNull(roundTripBaseline);
+		assertEquals(2L * 60L * 60L * 1000L,
+			roundTripBaseline.work(modelWallTime("2026-10-05T08:00:00"), modelWallTime("2026-10-05T17:00:00")));
+		assertEquals(6L * 60L * 60L * 1000L,
+			roundTripBaseline.work(modelWallTime("2026-10-06T08:00:00"), modelWallTime("2026-10-06T17:00:00")));
+		Assignment roundTripSecondBaseline = roundTripAssignment.getBaselineAssignment(Integer.valueOf(2), false);
+		assertNotNull(roundTripSecondBaseline);
+		assertEquals(1L * 60L * 60L * 1000L, roundTripSecondBaseline.work(
+			modelWallTime("2026-10-07T08:00:00"), modelWallTime("2026-10-07T17:00:00")));
+		assertEquals(0L, roundTripAssignment.getBaselineValues(9).work());
+		assertNull(roundTripAssignment.getBaselineAssignment(Integer.valueOf(1), false));
 	}
 
 	@Test

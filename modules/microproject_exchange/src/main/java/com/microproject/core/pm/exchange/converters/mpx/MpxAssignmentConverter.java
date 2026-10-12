@@ -35,6 +35,7 @@ import com.microproject.field.FieldContext;
 import com.microproject.core.time.TimeUtil;
 import com.microproject.exchange.mpxj.MpxjApi;
 import com.microproject.pm.assignment.Assignment;
+import com.microproject.pm.assignment.TimeDistributedConstants;
 import com.microproject.pm.assignment.contour.AbstractContour;
 import com.microproject.pm.assignment.contour.AbstractContourBucket;
 import com.microproject.pm.assignment.contour.PersonalContour;
@@ -376,7 +377,8 @@ public class MpxAssignmentConverter {
 	}
 
 	/** Imports scalar MSPDI assignment baseline values, preserving absent fields. */
-	public void importBaselines(net.sf.mpxj.ResourceAssignment mpxAssignment, Assignment assignment) {
+	public void importBaselines(net.sf.mpxj.ResourceAssignment mpxAssignment, Assignment assignment,
+		MpxImportState state) {
 		for (int snapshotId = 0; snapshotId <= 10; snapshotId++) {
 			boolean hasBaselineStart = mpxAssignment.getCachedValue(baselineStartField(snapshotId)) != null;
 			boolean hasBaselineFinish = mpxAssignment.getCachedValue(baselineFinishField(snapshotId)) != null;
@@ -393,6 +395,32 @@ public class MpxAssignmentConverter {
 				finish == null ? null : Long.valueOf(toLong(finish)),
 				work == null ? null : Long.valueOf(toLong(work)));
 		}
+		List<MpxImportState.RawMspdiWorkInterval> intervals;
+		for (int slot = 0; slot <= 10; slot++) {
+			intervals = state.getRawMspdiAssignmentBaselineWork(
+				mpxAssignment.getUniqueID() == null ? null : Long.valueOf(mpxAssignment.getUniqueID().longValue()), slot);
+			if (intervals == null) continue;
+			Object field = baselineTimephasedWorkField(slot);
+			for (MpxImportState.RawMspdiWorkInterval interval : intervals)
+				assignment.setInterval(field, interval.start(), interval.finish(), interval.work());
+		}
+	}
+
+	private static Object baselineTimephasedWorkField(int slot) {
+		return switch (slot) {
+			case 0 -> TimeDistributedConstants.BASELINE_WORK;
+			case 1 -> TimeDistributedConstants.BASELINE1_WORK;
+			case 2 -> TimeDistributedConstants.BASELINE2_WORK;
+			case 3 -> TimeDistributedConstants.BASELINE3_WORK;
+			case 4 -> TimeDistributedConstants.BASELINE4_WORK;
+			case 5 -> TimeDistributedConstants.BASELINE5_WORK;
+			case 6 -> TimeDistributedConstants.BASELINE6_WORK;
+			case 7 -> TimeDistributedConstants.BASELINE7_WORK;
+			case 8 -> TimeDistributedConstants.BASELINE8_WORK;
+			case 9 -> TimeDistributedConstants.BASELINE9_WORK;
+			case 10 -> TimeDistributedConstants.BASELINE10_WORK;
+			default -> throw new IllegalArgumentException("Invalid baseline slot: " + slot);
+		};
 	}
 
 	private static AssignmentField baselineStartField(int slot) {

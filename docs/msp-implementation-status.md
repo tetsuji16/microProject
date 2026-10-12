@@ -1,6 +1,6 @@
 # Microsoft Project compatibility implementation status
 
-Reviewed 2026-10-12. This report records completed implementation slices and
+Reviewed 2026-10-13. This report records completed implementation slices and
 remaining work against [the roadmap](msp-compatibility-roadmap.md).
 **The complete compatibility objective is not achieved.** Gate issues remain
 open; an inventory or passing narrow test does not close an entire milestone.
@@ -39,8 +39,11 @@ open; an inventory or passing narrow test does not close an entire milestone.
   NullPointerException in a freshly started importer process.
 - Task baselines 0–10 transfer start, finish and encoded duration through
   XML/MSPDI. Current schedule slot 11 is preserved. Partial and milestone
-  baselines and native MPO persistence are covered. Baseline assignment/work
-  distributions and elapsed-duration XML normalization remain explicit gaps.
+  baselines and native MPO persistence are covered. Assignment baseline
+  timephased work distributions use MSPDI Type 4 for slot 0 and Type 16+6 per
+  later slot; literal slot 0/2, explicit-zero slot 9, missing slot 1, XML and
+  MPO round trips have focused evidence. Assignment baseline cost distributions
+  and elapsed-duration XML normalization remain explicit gaps.
 - Calendar date-only conversion separates local MPXJ calendar dates from UTC
   model day keys. Exception, work-week and recurrence conversion uses one
   implementation instead of inconsistent offsets.
@@ -60,7 +63,7 @@ open; an inventory or passing narrow test does not close an entire milestone.
 | M0 / #792 | Source/test/format/integration inventories are reconciled. A complete versioned command/field manifest, independent format manifests and exact current Microsoft reference evidence remain incomplete. |
 | M1 / #793 | Current Swing ribbon is retained and GUI work follows the repo-contained gates in `docs/gui-quality-gate.md` and `docs/gui-recovery-sequence.md`; no separate skill package is required. The Sort menu journey and current MSPDI Save As journey passed physical Windows Robot acceptance at Japanese/100%; latest Office appearance, a dated document-derived Microsoft UI comparison table, and the full locale/DPI matrix remain unverified. Continue ordered implementation work while keeping that evidence gate open. |
 | M2 / #794 | One production Update Project transaction is repaired. Other mutation families, revision journal/atomic observer publication, immutable projections and missing commands remain open. Do not mark #408–#411 complete from this slice. |
-| M3 / #796 | MPO (`.mpo`) is the authoritative native and default save format; backward-read work remains a gate. MPP reading remains an external interoperability gate. Per the user's 2026-10-12 decision, MPP writing is out of scope and MPO is the native save substitute. Assignment scalar baselines (slots 0–10, including assignment-only and explicit zero Work) have focused core/exchange/physical MPO reopen evidence. MSPDI task baseline elapsed formats now preserve source Duration/DurationFormat through XML import/export; assignment timephased contours, broader external semantics and the independent MPP-read manifest remain incomplete. POD is frozen legacy import-only coverage. |
+| M3 / #796 | MPO (`.mpo`) is the authoritative native and default save format; backward-read work remains a gate. MPP reading remains an external interoperability gate. Per the user's 2026-10-12 decision, MPP writing is out of scope and MPO is the native save substitute. Assignment scalar baselines (slots 0–10, including assignment-only and explicit zero Work) and assignment timephased baseline work (literal slot 0/2, zero/missing distinction, XML/MPO round trips) have focused evidence. Assignment baseline cost distributions, broader external semantics and the independent MPP-read manifest remain incomplete. POD is frozen legacy import-only coverage. |
 | M4 / #797 | On 2026-10-12 the user explicitly excluded Microsoft Project VBA/macros, its macro-facing object model, COM automation, COM/VSTO add-ins, and local Office add-ins. These rows are EXCLUDED from the compatibility target; #797 can close as not planned. Native microProject local automation/extensions and offline collaboration are not excluded. |
 | M5 / #795 | Local domain/exchange/report/script checks and fresh install validation must be paired with CI and GUI evidence. The GUI full locale/DPI workflow is dispatched for the current PR head; no complete-compatibility release is justified while M1/M2/M3 rows and the release matrix remain incomplete. |
 

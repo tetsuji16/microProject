@@ -184,6 +184,7 @@ public class MspImporter {
 					byte[] data = in.readAllBytes();
 					RawMspdiData rawData = parseRawMspdiData(data);
 					state.setRawMspdiAssignmentWork(rawData.assignmentWork());
+					state.setRawMspdiAssignmentBaselineWork(rawData.assignmentBaselineWork());
 					state.setRawMspdiTaskBaselines(rawData.taskBaselines());
 					source = prepareProjectStream(new ByteArrayInputStream(data));
 				} else {
@@ -238,6 +239,7 @@ public class MspImporter {
 	}
 
 	private record RawMspdiData(Map<Long, MpxImportState.RawMspdiAssignmentWork> assignmentWork,
+		Map<Long, Map<Integer, List<MpxImportState.RawMspdiWorkInterval>>> assignmentBaselineWork,
 		Map<Long, Map<Integer, MpxImportState.RawMspdiTaskBaseline>> taskBaselines) { }
 
 	private RawMspdiData parseRawMspdiData(byte[] xml)
@@ -256,6 +258,7 @@ public class MspImporter {
 		String namespace = document.getDocumentElement().getNamespaceURI();
 		org.w3c.dom.NodeList assignments = document.getElementsByTagNameNS(namespace, "Assignment");
 		Map<Long, MpxImportState.RawMspdiAssignmentWork> result = new HashMap<>();
+		Map<Long, Map<Integer, List<MpxImportState.RawMspdiWorkInterval>>> assignmentBaselineWork = new HashMap<>();
 		Map<Long, Map<Integer, MpxImportState.RawMspdiTaskBaseline>> taskBaselines = new HashMap<>();
 		org.w3c.dom.NodeList tasks = document.getElementsByTagNameNS(namespace, "Task");
 		for (int index = 0; index < tasks.getLength(); index++) {
@@ -284,8 +287,39 @@ public class MspImporter {
 		}
 		for (int index = 0; index < assignments.getLength(); index++) {
 			org.w3c.dom.Element assignment = (org.w3c.dom.Element) assignments.item(index);
+			String rawAssignmentUid = xmlChildText(assignment, "UID", namespace);
+			if (rawAssignmentUid == null) continue;
+			long assignmentUid = Long.parseLong(rawAssignmentUid);
+			Map<Integer, List<MpxImportState.RawMspdiWorkInterval>> baselineSlots = new HashMap<>();
+			for (org.w3c.dom.Element baseline : xmlDirectChildren(assignment, "Baseline", namespace)) {
+				String rawNumber = xmlChildText(baseline, "Number", namespace);
+				if (rawNumber == null) continue;
+				int slot = Integer.parseInt(rawNumber);
+				if (slot < 0 || slot > 10)
+					throw new IllegalArgumentException("MSPDI assignment baseline number is outside 0..10");
+				List<MpxImportState.RawMspdiWorkInterval> intervals = new ArrayList<>();
+				int expectedType = MpxImportState.assignmentBaselineWorkType(slot);
+				for (org.w3c.dom.Element row : xmlDirectChildren(baseline, "TimephasedData", namespace)) {
+					String rawType = xmlChildText(row, "Type", namespace);
+					if (rawType == null || Integer.parseInt(rawType) != expectedType) continue;
+					if (!"2".equals(xmlChildText(row, "Unit", namespace)))
+						throw new IllegalArgumentException("Assignment baseline work rows require per-day units");
+					long start = parseMspdiWallTime(xmlChildText(row, "Start", namespace));
+					long finish = parseMspdiWallTime(xmlChildText(row, "Finish", namespace));
+					Long rowWork = parseMspdiDuration(xmlChildText(row, "Value", namespace));
+					if (finish <= start || rowWork == null || rowWork.longValue() < 0L)
+						throw new IllegalArgumentException("Assignment baseline work row has invalid bounds or value");
+					intervals.add(new MpxImportState.RawMspdiWorkInterval(expectedType, start, finish,
+						rowWork.longValue()));
+				}
+				if (!intervals.isEmpty() && baselineSlots.put(Integer.valueOf(slot), List.copyOf(intervals)) != null)
+					throw new IllegalArgumentException("MSPDI assignment contains duplicate baseline work slots");
+			}
+			if (!baselineSlots.isEmpty() && assignmentBaselineWork.put(Long.valueOf(assignmentUid),
+				Map.copyOf(baselineSlots)) != null)
+				throw new IllegalArgumentException("MSPDI contains duplicate assignment UIDs with baseline work");
 			if (!"8".equals(xmlChildText(assignment, "WorkContour", namespace))) continue;
-			long uid = Long.parseLong(xmlChildText(assignment, "UID", namespace));
+			long uid = assignmentUid;
 			Long assignmentStart = parseNullableMspdiWallTime(xmlChildText(assignment, "Start", namespace));
 			Long assignmentFinish = parseNullableMspdiWallTime(xmlChildText(assignment, "Finish", namespace));
 			Long work = parseMspdiDuration(xmlChildText(assignment, "Work", namespace));
@@ -309,7 +343,7 @@ public class MspImporter {
 				assignmentStart, assignmentFinish, work, actual, remaining, intervals)) != null)
 				throw new IllegalArgumentException("MSPDI contains duplicate assignment UIDs");
 		}
-		return new RawMspdiData(Map.copyOf(result), Map.copyOf(taskBaselines));
+		return new RawMspdiData(Map.copyOf(result), Map.copyOf(assignmentBaselineWork), Map.copyOf(taskBaselines));
 	}
 
 	private static String xmlChildText(org.w3c.dom.Element parent, String name, String namespace) {
@@ -683,7 +717,7 @@ public class MspImporter {
 			// Attaching a non-default assignment can copy the default assignment's
 			// detail object and erase this imported value.
 			converter.restoreLevelingDelay(mpxAssignment, assignment);
-			converter.importBaselines(mpxAssignment, assignment);
+			converter.importBaselines(mpxAssignment, assignment, state);
 			importedAssignmentLevelingDelays.add(new ImportedAssignmentLevelingDelay(mpxAssignment, assignment));
 		}
 	}
