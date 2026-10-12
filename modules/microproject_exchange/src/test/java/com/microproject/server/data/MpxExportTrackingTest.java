@@ -29,6 +29,7 @@ import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -52,6 +53,7 @@ import com.microproject.pm.scheduling.ConstraintType;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
+import com.microproject.strings.Messages;
 import com.microproject.pm.scheduling.SchedulingType;
 import com.microproject.session.SessionFactory;
 import com.microproject.undo.DataFactoryUndoController;
@@ -154,6 +156,157 @@ class MpxExportTrackingTest {
 			((com.microproject.pm.task.TaskSnapshot) reopenedTask.getSnapshot(Integer.valueOf(10)))
 			.getCurrentSchedule().getFinish());
 		assertEquals(importedTask.getCurrentSchedule().getStart(), reopenedTask.getCurrentSchedule().getStart());
+	}
+
+	@Test
+	void assignmentBaselineScalarsRoundTripWithoutChangingCurrentSchedule() throws Exception {
+		Project withBaselines = importBaselineFixture(true);
+		Project withoutBaselines = importBaselineFixture(false);
+		NormalTask task = taskNamed(withBaselines, "Assignment baseline contract");
+		NormalTask currentOnlyTask = taskNamed(withoutBaselines, "Assignment baseline contract");
+		assertEquals(currentOnlyTask.getCurrentSchedule().getStart(), task.getCurrentSchedule().getStart());
+		assertEquals(currentOnlyTask.getCurrentSchedule().getFinish(), task.getCurrentSchedule().getFinish());
+		assertEquals(currentOnlyTask.getCurrentSchedule().getRawDuration(), task.getCurrentSchedule().getRawDuration());
+
+		Assignment assignment = (Assignment) task.getAssignments().iterator().next();
+		Assignment currentOnlyAssignment = (Assignment) currentOnlyTask.getAssignments().iterator().next();
+		assertEquals(currentOnlyAssignment.getStart(), assignment.getStart());
+		assertEquals(currentOnlyAssignment.getFinish(), assignment.getFinish());
+		assertEquals(currentOnlyAssignment.getWork(null), assignment.getWork(null));
+		Assignment baseline = assignment.getBaselineAssignment(Integer.valueOf(0), false);
+		assertNotNull(baseline);
+		assertEquals(DateUTCConverter.toModelTime(java.util.Date.from(java.time.Instant.parse("2026-10-05T08:00:00Z"))),
+			baseline.getStart());
+		assertEquals(8L * 60L * 60L * 1000L, baseline.getWork(null));
+		assertNull(assignment.getBaselineAssignment(Integer.valueOf(1), false));
+		Assignment baselineTen = assignment.getBaselineAssignment(Integer.valueOf(10), false);
+		assertNotNull(baselineTen);
+		assertEquals(DateUTCConverter.toModelTime(java.util.Date.from(java.time.Instant.parse("2026-10-07T08:00:00Z"))),
+			baselineTen.getStart());
+		assertEquals(DateUTCConverter.toModelTime(java.util.Date.from(java.time.Instant.parse("2026-10-08T08:00:00Z"))),
+			baselineTen.getFinish());
+		assertEquals(8L * 60L * 60L * 1000L, baselineTen.getWork(null));
+
+		ByteArrayOutputStream xml = new ByteArrayOutputStream();
+		MicrosoftImporter exporter = new MicrosoftImporter();
+		exporter.setFileName("assignment-baseline.xml");
+		assertTrue(exporter.saveProject(withBaselines, xml));
+		net.sf.mpxj.ProjectFile roundTrip = new net.sf.mpxj.mspdi.MSPDIReader()
+			.read(new ByteArrayInputStream(xml.toByteArray()));
+		net.sf.mpxj.ResourceAssignment roundTripAssignment = roundTrip.getTasks().stream()
+			.filter(candidate -> "Assignment baseline contract".equals(candidate.getName())).findFirst().orElseThrow()
+			.getResourceAssignments().get(0);
+		assertEquals(java.util.Date.from(java.time.Instant.parse("2026-10-05T08:00:00Z")),
+			roundTripAssignment.getBaselineStart());
+		assertEquals(8.0d, roundTripAssignment.getBaselineWork()
+			.convertUnits(net.sf.mpxj.TimeUnit.HOURS, roundTrip.getProjectProperties()).getDuration(), 0.00001d);
+		assertNull(roundTripAssignment.getBaselineStart(1));
+		assertEquals(java.util.Date.from(java.time.Instant.parse("2026-10-07T08:00:00Z")),
+			roundTripAssignment.getBaselineStart(10));
+		assertEquals(java.util.Date.from(java.time.Instant.parse("2026-10-08T08:00:00Z")),
+			roundTripAssignment.getBaselineFinish(10));
+		assertEquals(8.0d, roundTripAssignment.getBaselineWork(10)
+			.convertUnits(net.sf.mpxj.TimeUnit.HOURS, roundTrip.getProjectProperties()).getDuration(), 0.00001d);
+
+		ByteArrayOutputStream mpo = new ByteArrayOutputStream();
+		assertTrue(new com.microproject.exchange.MpoFileImporter().saveProject(withBaselines, mpo));
+		Project reopened = new com.microproject.exchange.MpoFileImporter()
+			.loadProject(new ByteArrayInputStream(mpo.toByteArray()));
+		Assignment reopenedAssignment = (Assignment) taskNamed(reopened, "Assignment baseline contract")
+			.getAssignments().iterator().next();
+		assertEquals(baseline.getWork(null),
+			reopenedAssignment.getBaselineAssignment(Integer.valueOf(0), false).getWork(null));
+	}
+
+	@Test
+	void assignmentOnlyBaselineWithoutTaskBaselineIsSkippedWithWarning() throws Exception {
+		ImportFixture imported = importBaselineFixtureResult(true, false, false);
+		assertNotNull(imported.project());
+		assertTrue(imported.warnings().contains(java.text.MessageFormat.format(
+			Messages.getString("Message.AssignmentBaselineSkipped"), 0)));
+	}
+
+	@Test
+	void explicitZeroAssignmentBaselineWorkIsImportedFromLiteralXml() throws Exception {
+		Project imported = importBaselineFixture(true, true, true);
+		Assignment assignment = (Assignment) taskNamed(imported, "Assignment baseline contract").getAssignments()
+			.iterator().next();
+		Assignment zeroWorkBaseline = assignment.getBaselineAssignment(Integer.valueOf(10), false);
+		assertNotNull(zeroWorkBaseline);
+		assertEquals(zeroWorkBaseline.getStart(), zeroWorkBaseline.getFinish());
+		assertEquals(0L, zeroWorkBaseline.getWork(null));
+	}
+
+	private static Project importBaselineFixture(boolean includeBaselines) throws Exception {
+		return importBaselineFixture(includeBaselines, true, false);
+	}
+
+	private static Project importBaselineFixture(boolean includeBaselines, boolean includeTaskBaseline,
+			boolean zeroSlotTenWork) throws Exception {
+		return importBaselineFixtureResult(includeBaselines, includeTaskBaseline, zeroSlotTenWork).project();
+	}
+
+	private record ImportFixture(Project project, List<String> warnings) {
+	}
+
+	private static ImportFixture importBaselineFixtureResult(boolean includeBaselines, boolean includeTaskBaseline,
+			boolean zeroSlotTenWork) throws Exception {
+		net.sf.mpxj.ProjectFile source = new net.sf.mpxj.ProjectFile();
+		source.addDefaultBaseCalendar();
+		source.getProjectProperties().setMinutesPerDay(Integer.valueOf(480));
+		java.util.Date currentStart = java.util.Date.from(java.time.Instant.parse("2026-10-12T08:00:00Z"));
+		java.util.Date currentFinish = java.util.Date.from(java.time.Instant.parse("2026-10-13T17:00:00Z"));
+		net.sf.mpxj.Task task = source.addTask();
+		task.setName("Assignment baseline contract");
+		task.setUniqueID(1);
+		task.setStart(currentStart);
+		task.setFinish(currentFinish);
+		task.setDuration(net.sf.mpxj.Duration.getInstance(2, net.sf.mpxj.TimeUnit.DAYS));
+		if (includeTaskBaseline) {
+			task.setBaselineStart(java.util.Date.from(java.time.Instant.parse("2026-10-05T08:00:00Z")));
+			task.setBaselineFinish(java.util.Date.from(java.time.Instant.parse("2026-10-06T08:00:00Z")));
+		}
+		net.sf.mpxj.Resource resource = source.addResource();
+		resource.setName("Baseline worker");
+		resource.setUniqueID(1);
+		net.sf.mpxj.ResourceAssignment assignment = task.addResourceAssignment(resource);
+		assignment.setUnits(100d);
+		assignment.setStart(currentStart);
+		assignment.setFinish(currentFinish);
+		assignment.setWork(net.sf.mpxj.Duration.getInstance(16, net.sf.mpxj.TimeUnit.HOURS));
+		if (includeBaselines) {
+			assignment.setBaselineStart(java.util.Date.from(java.time.Instant.parse("2026-10-05T08:00:00Z")));
+			assignment.setBaselineWork(net.sf.mpxj.Duration.getInstance(8, net.sf.mpxj.TimeUnit.HOURS));
+			java.util.Date baselineTenStart = java.util.Date.from(java.time.Instant.parse("2026-10-07T08:00:00Z"));
+			java.util.Date baselineTenFinish = zeroSlotTenWork ? baselineTenStart
+				: java.util.Date.from(java.time.Instant.parse("2026-10-08T08:00:00Z"));
+			if (includeTaskBaseline) {
+				task.setBaselineStart(10, baselineTenStart);
+				task.setBaselineFinish(10, baselineTenFinish);
+				task.setBaselineDuration(10, net.sf.mpxj.Duration.getInstance(zeroSlotTenWork ? 0 : 1,
+					net.sf.mpxj.TimeUnit.DAYS));
+			}
+			assignment.setBaselineStart(10, baselineTenStart);
+			assignment.setBaselineFinish(10, baselineTenFinish);
+			assignment.setBaselineWork(10, net.sf.mpxj.Duration.getInstance(zeroSlotTenWork ? 0 : 8,
+				net.sf.mpxj.TimeUnit.HOURS));
+		}
+		ByteArrayOutputStream xml = new ByteArrayOutputStream();
+		new net.sf.mpxj.mspdi.MSPDIWriter().write(source, xml);
+		if (zeroSlotTenWork) {
+			String xmlText = xml.toString(java.nio.charset.StandardCharsets.UTF_8);
+			int assignments = xmlText.indexOf("<Assignments>");
+			int slotTen = xmlText.indexOf("<Number>10</Number>", assignments);
+			int baselineEnd = xmlText.indexOf("</Baseline>", slotTen);
+			assertTrue(assignments >= 0 && slotTen >= 0 && baselineEnd >= 0);
+			xmlText = xmlText.substring(0, baselineEnd) + "<Work>PT0H0M0S</Work>" + xmlText.substring(baselineEnd);
+			xml = new ByteArrayOutputStream();
+			xml.write(xmlText.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+		}
+		com.microproject.core.pm.exchange.MspImporter importer = new com.microproject.core.pm.exchange.MspImporter();
+		Project imported = importer.importProject(new ByteArrayInputStream(xml.toByteArray()), "xml",
+			(progress, label) -> {});
+		return new ImportFixture(imported, importer.getImportWarnings());
 	}
 
 	private static void assertBaselineDuration(long actual, double expectedValue, int expectedUnit) {

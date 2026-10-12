@@ -26,6 +26,8 @@ package com.microproject.pm.task;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
@@ -59,10 +61,41 @@ import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.scheduling.ScheduleInterval;
+import com.microproject.pm.criticalpath.TaskSchedule;
 import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.undo.DataFactoryUndoController;
 
 class NormalTaskPercentCompleteTest {
+	@Test
+	void creatingBaselineAssignmentPreservesItsTaskScheduleAndImportsAtomically() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		Assignment currentAssignment = assignWork(project, task, 8L * 60L * 60L * 1000L);
+		TaskSnapshot baselineSnapshot = new TaskSnapshot();
+		TaskSchedule baselineSchedule = new TaskSchedule(task, TaskSchedule.Kind.CURRENT);
+		baselineSchedule.setStart(task.getStart());
+		baselineSchedule.setFinish(task.getEnd());
+		baselineSnapshot.setCurrentSchedule(baselineSchedule);
+		task.setSnapshot(Snapshottable.BASELINE, baselineSnapshot);
+
+		Assignment baseline = task.getBaselineAssignment(currentAssignment.getResource(), Snapshottable.BASELINE, true);
+
+		assertSame(baselineSchedule, baselineSnapshot.getCurrentSchedule());
+		assertEquals(task.getStart(), baseline.getStart());
+		assertEquals(task.getEnd(), baseline.getFinish());
+		long baselineStart = baseline.getStart();
+		long baselineWork = baseline.getWork(null);
+		assertThrows(IllegalArgumentException.class, () -> baseline.importBaselineValues(null, null, Long.valueOf(-1L)));
+		assertEquals(baselineStart, baseline.getStart());
+		assertEquals(baselineWork, baseline.getWork(null));
+		long currentStart = currentAssignment.getStart();
+		long currentFinish = currentAssignment.getFinish();
+		assertThrows(IllegalStateException.class,
+			() -> currentAssignment.importBaselineValues(Long.valueOf(task.getStart()), null, null));
+		assertEquals(currentStart, currentAssignment.getStart());
+		assertEquals(currentFinish, currentAssignment.getFinish());
+	}
+
 	@Test
 	void mostLoadedAssignmentUnitsIncludesAssignedResources() {
 		Project project = createProject();

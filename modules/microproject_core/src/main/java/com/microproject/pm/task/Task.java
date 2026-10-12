@@ -273,8 +273,11 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		if (assignment == null && createIfDoesntExist) {
 			assignment = Assignment.getInstance(this,resource,1.0,0);
 			baselineSnapshot.addAssignment(assignment);
-			TaskSchedule baselineSchedule = new TaskSchedule(this,TaskSchedule.Kind.CURRENT);
-			baselineSnapshot.setCurrentSchedule(baselineSchedule);
+			TaskSchedule baselineSchedule = baselineSnapshot.getCurrentSchedule();
+			if (baselineSchedule == null) {
+				baselineSchedule = new TaskSchedule(this,TaskSchedule.Kind.CURRENT);
+				baselineSnapshot.setCurrentSchedule(baselineSchedule);
+			}
 			assignment.setTaskSchedule(baselineSchedule);
 			assignment.convertToBaselineAssignment(true);
 		}

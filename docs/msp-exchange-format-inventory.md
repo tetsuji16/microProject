@@ -10,7 +10,7 @@ interoperability.
 |---|---|---|---|
 | MPP | MPXJ `MPPReader` via `MspImporter` | None registered or called in the exchange module | Import is supported by the code path. Export is explicitly unsupported; `ProjectWriterFactory` rejects `.mpp`. Do not relabel MSPDI XML as MPP. `New Product.mpp` and sample MPPs are present, but there is no checked-in semantic manifest or MPP export round trip yet. |
 | MPX | MPXJ `MPXReader` via `MspImporter` | MPXJ `MPXWriter` via `ProjectWriterFactory` | Reader and writer exist. Import/export semantic coverage is partial and must be reported by field; no declaration of reverse-round-trip equivalence. |
-| Microsoft Project XML / MSPDI | MPXJ `MSPDIReader` through `MspImporter`; `.xml` also has the established `.pod` fallback path | `MSPDISerializer` → MPXJ `MSPDIWriter` | Primary external exchange path. Task baseline dates and duration (slots 0–10) now transfer in both directions. Assignment baseline/timephased data and work contours remain unsupported/lossy. Existing tests exercise selected task identity, links, scheduling and tracking cases. |
+| Microsoft Project XML / MSPDI | MPXJ `MSPDIReader` through `MspImporter`; `.xml` also has the established `.pod` fallback path | `MSPDISerializer` → MPXJ `MSPDIWriter` | Primary external exchange path. Task baseline dates and duration (slots 0–10) transfer in both directions. Assignment scalar Start/Finish/Work values transfer for slots 0–10 only when the corresponding task baseline schedule exists; assignment-only values are skipped with a user-visible import warning. Timephased assignment baseline distributions and work contours remain unsupported. Existing tests exercise selected task identity, links, scheduling, tracking and assignment-scalar cases. |
 | POD (legacy) | `LocalFileImporter`: frozen Java object stream first, then legacy embedded/plain XML recovery | Existing `LocalFileImporter` implementation can still write frozen POD payloads | Target contract is import-only: preserve wire layout and fixed `.pod` import fixtures, add no new write behavior. Current chooser and writer still expose POD save; this is a source/target-policy discrepancy for follow-up, not a reason to expand POD scope. This remains distinct from ordinary MSPDI XML despite the fallback reader. |
 | MPO (`.mpo`) | `MpoFileImporter` archive validation/extraction, with project content decoded through `MicrosoftImporter` | `MpoFileImporter` archive/container writer | Authoritative native format and default save target (`FileHelper.DEFAULT_FILE_EXTENSION`); backward-read files from earlier supported MPO versions. Its versioned container, merge, checksum, recovery and transaction behavior have dedicated tests. Do not substitute an XML-only export for MPO. |
 | XLSX | `ProjectLibreXlsxReader`; native payload first, MSPDI sheet fallback through MPXJ | `ProjectLibreXlsxWriter`; native project payload plus MSPDI worksheet | ProjectLibre XLSX has a lossless native payload for its own round trip and MSPDI fallback for external workbook interpretation. `XlsxSupportTest` covers malformed/oversized inputs and representative round trips. |
@@ -59,8 +59,15 @@ cannot silently select another writer.
   to six working days in MPXJ 11.5.4; elapsed-unit preservation through XML is
   therefore unverified and currently lossy. A zero-duration milestone retains
   its equal start/finish, while MPXJ omits an explicit zero duration element.
-  Task baseline assignment work/timephased distributions and contour details
-  are not mapped.
+  Assignment baseline scalar Start/Finish/Work values transfer for slots 0–10
+  when a matching task baseline schedule is present. If assignment values are
+  present without that task baseline, the importer skips those values and raises
+  a warning; it does not fabricate a task baseline. Explicit zero Work is read
+  from MSPDI XML, while MPXJ omits zero Work when writing. Assignment timephased
+  distributions and work contour details remain unsupported. This is a partial
+  scalar contract, not full baseline interoperability. See Microsoft [Baseline
+  element](https://learn.microsoft.com/en-us/office-project/xml-data-interchange/baseline-element?view=project-client-2016)
+  and [Work element](https://learn.microsoft.com/en-us/office-project/xml-data-interchange/work-element?view=project-client-2016).
 - Calendar date-only exception and dated work-week fields map by calendar day,
   independent of UTC, Tokyo, and Mexico City JVM defaults. The contract is
   tested against a hand-authored MSPDI date fixture and MPXJ 11.5.4's
@@ -76,3 +83,8 @@ cannot silently select another writer.
   fixtures. The current POD save chooser/writer is a discrepancy to resolve
   separately; do not use it to broaden the target contract. External-format tests
   must not replace native MPO or legacy POD fixtures.
+## Recent verification evidence
+
+- `:microproject_core:test :microproject_exchange:test` completed successfully after the scalar baseline and warning changes. The latest invocation was up-to-date; its output was `BUILD SUCCESSFUL`.
+- Physical Windows Robot acceptance, 2026-10-12, Japanese locale, UI scale 1: `RibbonExternalCommandGuiAcceptanceTest.robotSavesImportedMppAsMpoAndCancellationOrOverwriteRefusalKeepsSource`. It opened `New Product.mpp` through File/Open, displayed and acknowledged the assignment-baseline warning, waited for import completion, edited a task, and exercised MPO Save cancellation and overwrite refusal. Result: `PASSED`; XML evidence: `modules/microproject_ui/build/test-results/guiTest/TEST-com.microproject.pm.graphic.frames.RibbonExternalCommandGuiAcceptanceTest.xml`.
+- No Microsoft Project desktop application (Microsoft 365 Project or Project 2024) is installed on this host. The MSPDI behavior above is document-derived from the linked Microsoft schema references, not an empirical MSP comparison. MPP writing and assignment baseline contours remain open interoperability gates.

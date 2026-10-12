@@ -225,6 +225,7 @@ public class XlsxSupportTest {
 
 		assertNotNull(imported);
 		assertTrue(imported.getTasks().size() > 0);
+		assertTrue(importer.getImportWarnings().stream().anyMatch(warning -> !warning.isBlank()));
 	}
 
 	@Test

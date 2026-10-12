@@ -283,6 +283,40 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 		setDuration(d);
 	}
 
+	void importBaselineValues(Long start, Long finish, Long work) {
+		long taskStart = getTaskStart();
+		WorkCalendar calendar = getEffectiveWorkCalendar();
+		long targetStart = start == null ? getStart() : start.longValue();
+		if (targetStart < taskStart)
+			throw new IllegalArgumentException("Baseline assignment cannot start before its task baseline");
+		if (finish != null && finish.longValue() < targetStart)
+			throw new IllegalArgumentException("Baseline assignment finish precedes its start");
+		if (work != null && (work.longValue() < 0L || (work.longValue() > 0L && getUnits() <= 0.0D)))
+			throw new IllegalArgumentException("Baseline work must be nonnegative and require positive units");
+
+		long durationFromFinish = finish == null ? -1L
+			: calendar.compare(finish.longValue(), targetStart, false);
+		long durationFromWork = work == null || getUnits() <= 0.0D ? -1L
+			: Math.round(work.longValue() / getUnits());
+
+		if (start != null)
+			setDelay(calendar.compare(targetStart, taskStart, false));
+		if (finish != null || work != null) {
+			long duration = finish != null ? durationFromFinish : durationFromWork;
+			if (duration < 0L)
+				throw new IllegalArgumentException("Baseline work requires a positive-unit assignment or finish date");
+			workContour = workContour.adjustDuration(duration, 0L);
+			duration = workContour.calcTotalBucketDuration(duration);
+			this.duration = duration;
+			if (work != null && finish != null) {
+				long workingDuration = workContour.calcWorkingBucketDuration(duration);
+				if (workingDuration == 0L && work.longValue() > 0L)
+					throw new IllegalArgumentException("Positive baseline work requires working time");
+				rate.setValue(workingDuration == 0L ? 0.0D : ((double) work.longValue()) / workingDuration);
+			}
+		}
+	}
+
 	/**
 	 * @param units The units to set.
 	 */

@@ -25,6 +25,8 @@
 package com.microproject.core.pm.exchange.converters.mpx;
 
 import java.util.Date;
+import java.util.function.Consumer;
+import java.text.MessageFormat;
 
 import net.sf.mpxj.Duration;
 import com.microproject.core.time.TimeUtil;
@@ -33,6 +35,8 @@ import com.microproject.pm.resource.EnterpriseResource;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.task.Task;
+import com.microproject.pm.task.TaskSnapshot;
+import com.microproject.strings.Messages;
 
 /**
  * Converts an MPXJ ResourceAssignment into a microproject Assignment.
@@ -90,6 +94,34 @@ public class MpxAssignmentConverter {
 	 */
 	public void restoreLevelingDelay(net.sf.mpxj.ResourceAssignment mpxAssignment, Assignment assignment) {
 		assignment.setLevelingDelay(toLong(mpxAssignment.getLevelingDelay()));
+	}
+
+	/** Imports scalar MSPDI assignment baseline values, preserving absent fields. */
+	public void importBaselines(net.sf.mpxj.ResourceAssignment mpxAssignment, Assignment assignment, Task task,
+			Consumer<String> warningSink) {
+		for (int snapshotId = 0; snapshotId <= 10; snapshotId++) {
+			Date start = snapshotId == 0 ? mpxAssignment.getBaselineStart()
+				: mpxAssignment.getBaselineStart(snapshotId);
+			Date finish = snapshotId == 0 ? mpxAssignment.getBaselineFinish()
+				: mpxAssignment.getBaselineFinish(snapshotId);
+			Duration work = snapshotId == 0 ? mpxAssignment.getBaselineWork()
+				: mpxAssignment.getBaselineWork(snapshotId);
+			if (start == null && finish == null && work == null)
+				continue;
+
+			Integer baselineId = Integer.valueOf(snapshotId);
+			if (task.getSnapshot(baselineId) == null) {
+				warningSink.accept(MessageFormat.format(Messages.getString("Message.AssignmentBaselineSkipped"),
+					snapshotId));
+				continue;
+			}
+			Assignment baseline = task.getBaselineAssignment(assignment.getResource(), baselineId, true);
+			TaskSnapshot snapshot = (TaskSnapshot) task.getSnapshot(baselineId);
+			baseline.setTaskSchedule(snapshot.getCurrentSchedule());
+			baseline.importBaselineValues(start == null ? null : Long.valueOf(toLong(start)),
+				finish == null ? null : Long.valueOf(toLong(finish)),
+				work == null ? null : Long.valueOf(toLong(work)));
+		}
 	}
 
 	private static Resource resolveResource(net.sf.mpxj.ResourceAssignment mpxAssignment, MpxImportState state) {

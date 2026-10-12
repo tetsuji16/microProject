@@ -1730,6 +1730,20 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 		detail.convertToBaselineAssignment(useDefaultCalendar);
 	}
 
+	/**
+	 * Imports scalar values into a baseline assignment without applying the
+	 * current task's scheduling rule to its baseline work.
+	 */
+	public void importBaselineValues(Long start, Long finish, Long work) {
+		if (!detail.isBaseline())
+			throw new IllegalStateException("Baseline values can only be imported into a baseline assignment");
+		if (start != null && finish != null && finish.longValue() < start.longValue())
+			throw new IllegalArgumentException("Invalid baseline assignment dates");
+		AssignmentDetail candidate = (AssignmentDetail) detail.clone();
+		candidate.importBaselineValues(start, finish, work);
+		detail = candidate;
+	}
+
 
 	/**
 	 * See if assignment duration is empty

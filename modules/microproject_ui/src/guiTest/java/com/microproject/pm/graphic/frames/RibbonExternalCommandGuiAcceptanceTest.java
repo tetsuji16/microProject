@@ -77,6 +77,8 @@ import com.microproject.testsupport.RibbonGuiButton;
 import com.microproject.testsupport.RibbonGuiSupport;
 import com.microproject.testsupport.DialogLayoutAssertions;
 import com.microproject.util.Environment;
+import com.microproject.util.Alert;
+import com.microproject.ui.util.SwingAlertPresenter;
 import com.microproject.util.UiDispatch;
 import com.microproject.util.SwingFileChooserProvider;
 import com.microproject.util.UiServices;
@@ -115,6 +117,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 	void closeWindow() throws Exception {
 		if (manager != null) SwingUtilities.invokeAndWait(manager::cleanUp);
 		if (window != null) SwingUtilities.invokeAndWait(window::dispose);
+		Alert.setPresenter(null);
 		Environment.setRibbonUI(previousRibbonUi);
 		Environment.setNewLook(previousNewLook);
 		Environment.setStandAlone(previousStandalone);
@@ -205,6 +208,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
 		System.setProperty("flatlaf.useSystemFileChooser", "false");
+		Alert.setPresenter(new SwingAlertPresenter());
 		SwingFileChooserProvider swingChooser = new SwingFileChooserProvider();
 		mppSaveDirectory = Files.createTempDirectory("mpp-save-as-mpo-");
 		importedMpp = mppSaveDirectory.resolve("Imported sample.mpp");
@@ -228,6 +232,17 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		robot.setAutoDelay(45);
 		activateWindowForRobot(robot);
 		click(robot, findCommandButton(window.getRibbonPanel(), "RibbonOpenProject", robot));
+		GuiAcceptanceSupport.await(() -> visibleOptionDialog() != null,
+			"assignment-only MPP baseline warning was not shown after import");
+		Window warningDialog = visibleOptionDialog();
+		javax.swing.JOptionPane warningPane = flatten(warningDialog).stream()
+			.filter(javax.swing.JOptionPane.class::isInstance)
+			.map(javax.swing.JOptionPane.class::cast).findFirst().orElseThrow();
+		assertTrue(warningPane.getMessage() != null, "baseline import warning dialog has no message");
+		robot.keyPress(java.awt.event.KeyEvent.VK_ENTER);
+		robot.keyRelease(java.awt.event.KeyEvent.VK_ENTER);
+		GuiAcceptanceSupport.await(() -> visibleOptionDialog() == null,
+			"baseline import warning did not close after acknowledgement");
 		GuiAcceptanceSupport.await(() -> manager.findFrameForProjectFile(importedMpp.toString()) != null,
 			"File/Open did not import the MPP fixture");
 		Project project = manager.findFrameForProjectFile(importedMpp.toString()).getProject();
