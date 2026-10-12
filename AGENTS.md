@@ -203,7 +203,7 @@ Choose the narrowest command that exercises the change, then widen verification 
 ```
 
 - Add or update a focused regression test for a bug fix when practical. Reproduce the failure before the fix when possible.
-- `build` runs the module tests locally. CI currently uses `-x test`, so a successful CI-shaped compile is not evidence that tests passed.
+- `build` runs the module tests locally. `.github/workflows/build.yml` currently runs `build installDist` without `-x test`, so its successful build includes the enabled module test tasks; Windows GUI acceptance is a separate workflow gate.
 - For Swing tests, keep them headless-compatible and perform Swing state changes/assertions on the EDT where required.
 - For GUI-observable behavior changes, follow `docs/gui-quality-gate.md`. A dispatched Action, no exception, or visible dialog alone is never a passing result: verify the affected physical route, preconditions, model and rendered view state, Undo/Redo, and persistence where applicable. Add/update one Robot journey for a user-reported command regression or changed physical route, and visual assertions for changed layout constraints. Behavior-preserving source modernization does not require repeated Robot or locale/DPI matrix runs; choose the smallest relevant test set and run the broad GUI suite at release/scheduled gates.
 - Treat spreadsheet editing as an input transaction, never as a parser-only or

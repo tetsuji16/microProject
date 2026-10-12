@@ -56,6 +56,7 @@ import com.microproject.core.pm.exchange.converters.mpx.MpxOptionsConverter;
 import com.microproject.core.pm.exchange.converters.mpx.MpxProjectConverter;
 import com.microproject.core.pm.exchange.converters.mpx.MpxResourceConverter;
 import com.microproject.core.pm.exchange.converters.mpx.MpxTaskConverter;
+import com.microproject.core.pm.exchange.converters.mpx.MpxUtils;
 import com.microproject.core.pm.exchange.converters.type.DateUTCConverter;
 import com.microproject.core.pm.exchange.converters.type.PercentNumberRatioDoubleConverter;
 import com.microproject.exchange.ImportedCalendarService;
@@ -72,9 +73,11 @@ import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
+import com.microproject.pm.task.TaskSnapshot;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.SubProj;
 import com.microproject.pm.task.DefaultSubProj;
+import com.microproject.pm.criticalpath.TaskSchedule;
 import com.microproject.undo.DataFactoryUndoController;
 
 /**
@@ -464,8 +467,29 @@ public class MspImporter {
 	}
 
 	private void importTaskSnapshots(net.sf.mpxj.Task mpxTask, Task task) {
-		// Baseline snapshots (SnapshotList/TaskSnapshot) are not carried by the
-		// microproject model; import of baselines is intentionally skipped (issue #154).
+		// Slot 11 is the current snapshot. MSPDI baseline 0..10 map directly to
+		// the microProject baseline indices 0..10; keep the live schedule intact.
+		for (int snapshotId = 0; snapshotId <= 10; snapshotId++) {
+			Date start = getTaskBaselineStart(mpxTask, snapshotId);
+			Date finish = getTaskBaselineFinish(mpxTask, snapshotId);
+			Duration duration = getTaskBaselineDuration(mpxTask, snapshotId);
+			if (start == null && finish == null && duration == null)
+				continue;
+
+			TaskSnapshot snapshot = new TaskSnapshot();
+			// Snapshot clone and serialization helpers expect the assignment holder
+			// to be initialized even when this baseline contains task dates only.
+			snapshot.getHasAssignments();
+			TaskSchedule schedule = new TaskSchedule(task, TaskSchedule.Kind.CURRENT);
+			if (start != null)
+				schedule.setStart(DateUTCConverter.toModelTime(start));
+			if (finish != null)
+				schedule.setFinish(DateUTCConverter.toModelTime(finish));
+			if (duration != null)
+				schedule.setRawDuration(MpxUtils.toProjectDuration(duration));
+			snapshot.setCurrentSchedule(schedule);
+			task.setSnapshot(Integer.valueOf(snapshotId), snapshot);
+		}
 	}
 
 	private Date getTaskBaselineStart(net.sf.mpxj.Task mpxTask, int snapshotId) {

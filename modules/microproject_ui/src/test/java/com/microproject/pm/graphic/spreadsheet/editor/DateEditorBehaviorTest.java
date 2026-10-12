@@ -166,7 +166,7 @@ class DateEditorBehaviorTest {
 			TrackingDateEditor editor = new TrackingDateEditor();
 			editorRef[0] = editor;
 			JTable table = new JTable(new DefaultTableModel(new Object[][] { { exactDate } }, new Object[] { "Start" }));
-			SimpleDateFormat format = new SimpleDateFormat("yyyy/MM/dd");
+			SimpleDateFormat format = DateTime.dateFormatInstance("yyyy/MM/dd");
 			editor.dateField = new DateEditor.ExtDateField(format);
 			editor.dateField.setValue(exactDate);
 			editor.dateField.getTextField().setText(format.format(exactDate));

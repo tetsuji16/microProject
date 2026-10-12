@@ -63,7 +63,8 @@ public class TaskSnapshotBackup {
 	}
 	public static void restore(TaskSnapshot snapshot,TaskSnapshotBackup backup){
 		if (backup==null||snapshot==null) return;
-		if (backup.getAssignmentDetails()!=null) snapshot.setCurrentSchedule(backup.getCurrentSchedule());
+		TaskSchedule scheduleBackup = backup.getCurrentSchedule();
+		snapshot.setCurrentSchedule(scheduleBackup == null ? null : (TaskSchedule) scheduleBackup.clone());
 		AssociationList assignments=snapshot.getAssignments();
 		Iterator<?> j=backup.getAssignmentDetails().iterator();
 		for (Association association : assignments) {

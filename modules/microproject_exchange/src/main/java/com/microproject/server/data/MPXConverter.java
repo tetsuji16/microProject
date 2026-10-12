@@ -79,8 +79,11 @@ import com.microproject.pm.calendar.WorkingHours;
 import com.microproject.pm.calendar.WorkWeekPeriod;
 import com.microproject.pm.calendar.RecurringCalendarException;
 import com.microproject.core.pm.exchange.converters.mpx.MpxCalendarRecurrenceConverter;
+import com.microproject.core.time.TimeUtil;
+import com.microproject.core.pm.exchange.converters.mpx.MpxCalendarDateConverter;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.task.NormalTask;
+import com.microproject.pm.task.TaskSnapshot;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.SubProj;
 import com.microproject.util.DateTime;
@@ -171,8 +174,8 @@ public class MPXConverter {
 			ProjectCalendarWeek mpxWeek = mpx.addWorkWeek();
 			mpxWeek.setName(period.getName());
 			mpxWeek.setDateRange(new DateRange(
-				DateTime.fromGmt(new Date(DateTime.dayFloor(period.getStart()))),
-				DateTime.fromGmt(new Date(DateTime.dayFloor(period.getEnd())))));
+				MpxCalendarDateConverter.toMpxDate(period.getStart()),
+				MpxCalendarDateConverter.toMpxDate(period.getEnd())));
 			for (int i = 0; i < 7; i++) {
 				Day mpxDay = Day.getInstance(i + 1);
 				WorkDay workDay = period.getWeekDay(i);
@@ -202,10 +205,10 @@ public class MPXConverter {
 			for (int i=0;i<workDays.length;i++){
 				if (workDays[i]==null||workDays[i].getStart()==0L||workDays[i].getStart()==Long.MAX_VALUE)
 					continue;
-				Date start = DateTime.fromGmt(new Date(DateTime.dayFloor(workDays[i].getStart())));
+				Date start = MpxCalendarDateConverter.toMpxDate(workDays[i].getStart());
 				// Keep both bounds as calendar dates; MPXJ treats the exception end
 				// date as inclusive and normalizes its time component.
-				Date end = DateTime.fromGmt(new Date(DateTime.dayFloor(workDays[i].getEnd())));
+				Date end = MpxCalendarDateConverter.toMpxDate(workDays[i].getEnd());
 				ProjectCalendarException exception=mpx.addCalendarException(start,end); //claur
 				if (workDays[i].getDescription() != null)
 					exception.setName(workDays[i].getDescription());
@@ -415,6 +418,7 @@ private static int autoId = 0;
 			mpxTask.setDeadline(DateTime.fromGmt(new Date(projectlibreTask.getDeadline())));
 		mpxTask.setEarnedValueMethod(EarnedValueMethod.getInstance(projectlibreTask.getEarnedValueMethod()));
 		mpxTask.setIgnoreResourceCalendar(projectlibreTask.isIgnoreResourceCalendar());
+		toMpxTaskBaselines(projectlibreTask, mpxTask);
 
 		//2007
 		mpxTask.setTotalSlack(toMPXDuration(projectlibreTask.getTotalSlack()));
@@ -443,6 +447,35 @@ private static int autoId = 0;
 //	Not needed - it will be set when hierarchy is done		mpxTask.setOutlineLevel(new Integer(projectlibreTask.getOutlineLevel()));
 
 		toMpxCustomFields(projectlibreTask.getCustomFields(),mpxTask, CustomFieldsMapper.getInstance().taskMaps);
+	}
+
+	private static void toMpxTaskBaselines(NormalTask task, Task mpxTask) {
+		for (int snapshotId = 0; snapshotId <= 10; snapshotId++) {
+			TaskSnapshot snapshot = (TaskSnapshot) task.getSnapshot(Integer.valueOf(snapshotId));
+			if (snapshot == null || snapshot.getCurrentSchedule() == null)
+				continue;
+			var schedule = snapshot.getCurrentSchedule();
+			if (schedule.getStart() != 0L) {
+				Date start = new Date(TimeUtil.removeTimeZoneOffset(schedule.getStart()));
+				if (snapshotId == 0)
+					mpxTask.setBaselineStart(start);
+				else
+					mpxTask.setBaselineStart(snapshotId, start);
+			}
+			if (schedule.getFinish() != 0L) {
+				Date finish = new Date(TimeUtil.removeTimeZoneOffset(schedule.getFinish()));
+				if (snapshotId == 0)
+					mpxTask.setBaselineFinish(finish);
+				else
+					mpxTask.setBaselineFinish(snapshotId, finish);
+			}
+			// A present snapshot with zero duration is a valid milestone baseline.
+			net.sf.mpxj.Duration baselineDuration = toMPXDuration(schedule.getRawDuration());
+			if (snapshotId == 0)
+				mpxTask.setBaselineDuration(baselineDuration);
+			else
+				mpxTask.setBaselineDuration(snapshotId, baselineDuration);
+		}
 	}
 
 	public static void toMPXTaskTracking(NormalTask projectlibreTask, Task mpxTask) {

@@ -6,18 +6,40 @@ package com.microproject.pm.task;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 import com.microproject.pm.resource.ResourcePool;
+import com.microproject.util.DateTime;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.grouping.core.Node;
 
 class TaskProgressServiceTest {
+	@Test
+	void persistedStatusDateRestoresExactlyAndRejectsOutOfRangeValues() {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("restore-status", undo), undo);
+		project.initialize(false, false);
+		project.setStatusDate(project.getStartDate() + 4L * 24L * 60L * 60L * 1000L);
+		long persistedStatusDate = project.getStatusDate();
+
+		project.restoreStatusDate(0L);
+		assertFalse(project.isStatusDateSet());
+		project.restoreStatusDate(persistedStatusDate);
+		assertTrue(project.isStatusDateSet());
+		assertEquals(persistedStatusDate, project.getStatusDate(),
+			"Restoring persisted state must not normalize a canonical status date a second time");
+		assertThrows(IllegalArgumentException.class, () -> project.restoreStatusDate(-1L));
+		assertEquals(persistedStatusDate, project.getStatusDate(), "Invalid restore must leave state unchanged");
+		long firstUnsupportedInstant = DateTime.midnightNextDay(DateTime.getMaxDate().getTime());
+		assertThrows(IllegalArgumentException.class, () -> project.restoreStatusDate(firstUnsupportedInstant));
+		assertEquals(persistedStatusDate, project.getStatusDate(), "Out-of-range restore must leave state unchanged");
+	}
+
 	@Test
 	void statusDateAndMarkOnTrackAreUndoableAndBounded() {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
@@ -33,6 +55,7 @@ class TaskProgressServiceTest {
 		assertFalse(project.isStatusDateSet());
 		ReversibleModelChange statusDateChange = service.setStatusDate(project, date).change();
 		assertTrue(project.isStatusDateSet());
+		long explicitStatusDate = project.getStatusDate();
 		ReversibleModelChange progressChange = service.markOnTrack(project, List.of(task)).change();
 		assertEquals(1D, task.getPercentComplete(), 0.00001D,
 				() -> "status=" + project.getStatusDate() + " start=" + task.getStart() + " end=" + task.getEnd());
@@ -42,6 +65,14 @@ class TaskProgressServiceTest {
 		assertFalse(project.isStatusDateSet());
 		statusDateChange.redo();
 		assertTrue(project.isStatusDateSet());
+		assertEquals(explicitStatusDate, project.getStatusDate());
+		for (int cycle = 0; cycle < 3; cycle++) {
+			statusDateChange.undo();
+			assertFalse(project.isStatusDateSet());
+			statusDateChange.redo();
+			assertEquals(explicitStatusDate, project.getStatusDate(),
+				"Undo/Redo must restore the exact explicit status date on every cycle");
+		}
 		progressChange.redo();
 		assertEquals(1D, task.getPercentComplete(), 0.00001D);
 	}

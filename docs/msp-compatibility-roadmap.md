@@ -5,6 +5,9 @@
 
 This document coordinates the goal in [msp-compatibility-goal.md](msp-compatibility-goal.md), the command-level evidence in [MSP_STANDARD_COMMAND_INVENTORY.md](MSP_STANDARD_COMMAND_INVENTORY.md), and the work boundaries below. It does not replace issue discussions or their history.
 
+
+Current execution evidence and remaining blockers: [implementation status](msp-implementation-status.md).
+
 ## Target and evidence
 
 The goal is complete compatibility with Microsoft Project desktop. This is an objective, not a claim about the current product. Cover the current Microsoft 365 Project desktop client and Project Standard/Professional desktop editions; retain Project 2024 as a reproducible perpetual-license baseline. For any claim about current appearance, record observed product name, exact version/build, update channel, architecture, date, Windows version, resolution, scale, locale, and active view. Do not infer a “latest” build from a marketing page. A Microsoft 365 capture and a Project 2024 capture are separate evidence. The OfficeTips image in #765 is a visual style reference, not proof of Project command structure.
@@ -39,7 +42,7 @@ Each package is a small PR with one observable contract. Before coding, check th
 | Package | Inspect first | Implementation/verification sequence |
 |---|---|---|
 | M0.1 target manifest | docs/MSP_STANDARD_COMMAND_INVENTORY.md; docs/MSP_RIBBON_STRUCTURE_AND_COMMAND_COMPARISON.md; issues #453/#769 | Record product editions, feature rows, source links, current status, owner issue, fixture/test evidence. Reconcile stale rows against current source and recent issue updates. |
-| M0.2 file matrix | modules/microproject_exchange/src/main/java/com/microproject/core/pm/exchange/MspImporter.java; exchange tests and samples | Inventory each reader/writer separately. Current targeted scan locates MPXJ MPPReader construction in MspImporter; no writer was verified in that scan. Create fixed fixtures and record every semantic field and exact diff after round trips. |
+| M0.2 file matrix | modules/microproject_exchange/src/main/java/com/microproject/core/pm/exchange/MspImporter.java; exchange tests and samples; [exchange format inventory](msp-exchange-format-inventory.md) | Inventory each reader/writer separately. MPPReader is used by MspImporter; the application writer registry has no MPP writer. Create fixed fixtures and record every semantic field and exact diff after round trips. |
 | M1.1 ribbon visual baseline | docs/architecture/ADR-0002-swing-ribbon-renderer.md; modules/microproject_ui/src/main/resources/com/microproject/menu/menuInternal.properties; ModernRibbonPanel; issue #765 | Capture observed Microsoft builds and microProject app; compare matched states; log dimensions/locale/DPI. Change one design token/layout family per PR and rerun the six-axis visual suite. Never add Flamingo JRibbon. |
 | M2.1 editing, sorting, hierarchy | modules/microproject_ui/src/main/java/com/microproject/ui/ribbon/RibbonCommandCatalog.java; spreadsheet/Gantt projection/sort classes; #408/#414/#750/#761 | First complete canonical action route. For sort, test at least three field types (text, date, numeric), equal and empty values, ascending/descending, filter/group, selection identity, Gantt row alignment, and unchanged model order. Keep permanent renumbering a separate explicit action with its own confirmation/Undo/save contract. Resource Sort Order menu entry in #750 is the remaining requested scope; do not redo its completed header toggle. |
 | M2.2 schedule and dependency semantics | modules/microproject_core scheduling services and task/dependency tests; docs/msp-task-command-contract.md; #403/#409/#410 | For each FS/SS/FF/SF and lag case, record fixture dates, working/nonworking calendar, units, constraints, exact expected dates and source rationale. Assert only intended tasks move, expected warnings/state, one Undo/Redo unit and MPO reopen. Inject failure after mutation and assert full state and Undo history restore. Confirm architecture child dependencies from #403 rather than inventing them. |
@@ -104,9 +107,10 @@ The following review covers all 34 open issues observed on 2026-10-12. It preser
 
 ## Presently visible gaps
 
-The targeted exchange production scan found MPXJ MPPReader use in MspImporter;
-MPP writing was not verified in that scan. This is a verification gap, not a
-repository-wide claim that no writer exists. The command inventory reports
+The exchange inventory found MPXJ MPPReader use in MspImporter and no MPP writer
+registration or call in the exchange module. MPXJ's official format matrix and
+FAQ describe MPP as read-only; the pinned 11.5.4 release notes add no MPP writer.
+The command inventory reports
 gaps or partial scope for Task Inspector,
 Format Painter, Select/Clear and insertion commands, resource leveling,
 Selected Tasks zoom in usage views, and report/timeline object formatting.

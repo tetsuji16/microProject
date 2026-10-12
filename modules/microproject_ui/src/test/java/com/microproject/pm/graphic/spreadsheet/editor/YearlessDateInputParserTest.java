@@ -53,9 +53,10 @@ class YearlessDateInputParserTest {
 
 	@Test
 	void fullDateInputUsesTheRequestedDateWithoutLenientRollover() throws Exception {
-		Date parsed = YearlessDateInputParser.parse("2026/09/02", new SimpleDateFormat("yyyy/MM/dd"), null);
+		SimpleDateFormat canonicalFormat = DateTime.dateFormatInstance("yyyy/MM/dd");
+		Date parsed = YearlessDateInputParser.parse("2026/09/02", canonicalFormat, null);
 
-		assertEquals("2026/09/02", new SimpleDateFormat("yyyy/MM/dd").format(parsed));
+		assertEquals("2026/09/02", canonicalFormat.format(parsed));
 	}
 
 	@Test

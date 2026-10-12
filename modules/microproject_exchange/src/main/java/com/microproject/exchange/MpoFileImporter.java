@@ -263,9 +263,7 @@ public class MpoFileImporter extends FileImporter {
 		// The MPO manifest is authoritative for the explicit/NA distinction.
 		// The embedded MSP project XML may contain an effective date even when the
 		// user selected NA, so clear the delegate's value before applying it.
-		project.clearStatusDate();
-		if (manifestData.statusDate() != null && manifestData.statusDate().longValue() > 0L)
-			project.setStatusDate(manifestData.statusDate().longValue());
+		project.restoreStatusDate(manifestData.statusDate() == null ? 0L : manifestData.statusDate().longValue());
 		if (manifestData.sharedResourcePoolPath() != null && !manifestData.sharedResourcePoolPath().isBlank())
 			project.setSharedResourcePoolFile(manifestData.sharedResourcePoolPath());
 		if (manifestData.sharedResourcePoolProjectId() != null && manifestData.sharedResourcePoolProjectId().longValue() != 0L)
@@ -1786,6 +1784,7 @@ public class MpoFileImporter extends FileImporter {
 			String documentId = root.getAttribute("documentId");
 			Long projectUniqueId = root.hasAttribute("projectUniqueId") ? Long.valueOf(root.getAttribute("projectUniqueId")) : null;
 			Long statusDate = root.hasAttribute("statusDate") ? Long.valueOf(root.getAttribute("statusDate")) : null;
+			Project.validatePersistedStatusDate(statusDate == null ? 0L : statusDate.longValue());
 			Long sharedResourcePoolProjectId = root.hasAttribute("sharedResourcePoolProjectId")
 					? Long.valueOf(root.getAttribute("sharedResourcePoolProjectId")) : null;
 			java.util.List<EmbeddedProjectReference> embeddedProjects = new java.util.ArrayList<EmbeddedProjectReference>();
@@ -1814,8 +1813,6 @@ public class MpoFileImporter extends FileImporter {
 		} catch (IOException exception) { throw exception; }
 		catch (Exception exception) { throw new IOException("Invalid MPOF manifest", exception); }
 	}
-
-
 
 	private static CriticalChainService.Settings existingCcpm(Project project) {
 		return new CriticalChainService().findSettings(project);

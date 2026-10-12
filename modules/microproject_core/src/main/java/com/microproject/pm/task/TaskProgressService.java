@@ -34,8 +34,7 @@ public final class TaskProgressService {
 	}
 
 	private static void restoreStatusDate(Project project, long value) {
-		if (value == 0L) project.clearStatusDate();
-		else project.setStatusDate(value);
+		project.restoreStatusDate(value);
 	}
 
 	/** Marks selected tasks on track through the project's status date. */

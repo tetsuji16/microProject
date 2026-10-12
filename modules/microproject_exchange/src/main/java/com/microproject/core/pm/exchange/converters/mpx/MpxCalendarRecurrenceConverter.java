@@ -9,9 +9,7 @@ import java.util.Date;
 import java.util.Arrays;
 import java.util.List;
 
-import com.microproject.core.time.TimeUtil;
 import com.microproject.pm.calendar.CalendarRecurrence;
-import com.microproject.util.DateTime;
 
 import net.sf.mpxj.Day;
 import net.sf.mpxj.RecurringData;
@@ -22,10 +20,10 @@ import net.sf.mpxj.RecurrenceType;
 	public CalendarRecurrence from(RecurringData source) {
 		if (source == null || source.getStartDate() == null || source.getRecurrenceType() == null)
 			throw new IllegalArgumentException("MSP calendar recurrence is missing its start date or pattern");
-		long start = DateTime.dayFloor(TimeUtil.addTimeZoneOffset(source.getStartDate().getTime()));
+		long start = MpxCalendarDateConverter.toModelDay(source.getStartDate());
 		boolean byDate = source.getFinishDate() != null;
 		long finish = byDate
-			? DateTime.dayFloor(TimeUtil.addTimeZoneOffset(source.getFinishDate().getTime())) : 0L;
+			? MpxCalendarDateConverter.toModelDay(source.getFinishDate()) : 0L;
 		int count = source.getOccurrences() == null ? 1 : source.getOccurrences();
 		CalendarRecurrence.EndMode endMode = byDate
 			? CalendarRecurrence.EndMode.BY_DATE : CalendarRecurrence.EndMode.AFTER_OCCURRENCES;
@@ -52,7 +50,7 @@ import net.sf.mpxj.RecurrenceType;
 		if (mpxjDates == null || mpxjDates.length == 0)
 			throw new IllegalArgumentException("MSP calendar recurrence has no occurrences");
 		List<Long> sourceDates = Arrays.stream(mpxjDates)
-			.mapToLong(date -> DateTime.dayFloor(TimeUtil.addTimeZoneOffset(date.getTime())))
+			.mapToLong(date -> MpxCalendarDateConverter.toModelDay(date))
 			.boxed().toList();
 		if (!result.occurrenceDates().equals(sourceDates))
 			throw new IllegalArgumentException("MSP calendar recurrence " + result.getPattern()
@@ -64,7 +62,7 @@ import net.sf.mpxj.RecurrenceType;
 	public RecurringData to(CalendarRecurrence source) {
 		source.validate();
 		RecurringData result = new RecurringData();
-		result.setStartDate(DateTime.fromGmt(new Date(source.getStartDate())));
+		result.setStartDate(MpxCalendarDateConverter.toMpxDate(source.getStartDate()));
 		result.setRecurrenceType(switch (source.getPattern()) {
 			case DAILY -> RecurrenceType.DAILY;
 			case WEEKLY -> RecurrenceType.WEEKLY;
@@ -74,7 +72,7 @@ import net.sf.mpxj.RecurrenceType;
 		result.setFrequency(source.getFrequency());
 		result.setUseEndDate(source.getEndMode() == CalendarRecurrence.EndMode.BY_DATE);
 		if (source.getEndMode() == CalendarRecurrence.EndMode.BY_DATE) {
-			result.setFinishDate(DateTime.fromGmt(new Date(source.getFinishDate())));
+			result.setFinishDate(MpxCalendarDateConverter.toMpxDate(source.getFinishDate()));
 		} else {
 			result.setOccurrences(source.getOccurrenceCount());
 		}
