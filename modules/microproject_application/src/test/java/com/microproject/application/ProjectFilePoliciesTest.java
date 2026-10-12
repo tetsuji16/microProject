@@ -52,6 +52,17 @@ class ProjectFilePoliciesTest {
 	}
 
 	@Test
+	void importOnlySourcesRequireSaveAsAndDefaultToMpo() {
+		assertTrue(ProjectFilePolicies.requiresSaveAs("plan.mpp"));
+		assertTrue(ProjectFilePolicies.requiresSaveAs("plan.mpx"));
+		assertEquals("plan.mpo", ProjectFilePolicies.defaultSaveAsFileName("plan.mpp"));
+		assertEquals("plan.mpo", ProjectFilePolicies.defaultSaveAsFileName("plan.pod"));
+		assertFalse(ProjectFilePolicies.requiresSaveAs("plan.mpo"));
+		assertFalse(ProjectFilePolicies.requiresSaveAs("plan.xml"));
+		assertEquals("plan.xlsx", ProjectFilePolicies.defaultSaveAsFileName("plan.xlsx"));
+	}
+
+	@Test
 	void configuresLoadAndSaveOptions() {
 		LoadOptions loadOptions = new LoadOptions();
 		ProjectFilePolicies.configureLoadOptions(loadOptions, "plan.pod");

@@ -26,6 +26,7 @@ package com.microproject.pm.task;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.FileNotFoundException;
@@ -39,6 +40,8 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.session.SaveOptions;
+import com.microproject.session.LocalSession;
+import com.microproject.util.Environment;
 import com.microproject.undo.DataFactoryUndoController;
 
 class ProjectFactoryClosingTest {
@@ -80,6 +83,60 @@ class ProjectFactoryClosingTest {
 		project.setName("New project");
 
 		assertEquals("New project", ProjectFactory.getDisplayNameForSavePrompt(project));
+	}
+
+	@Test
+	void cancellingMppCloseSaveKeepsTheSourceAssociationAndDirtyState() {
+		boolean previousStandalone = Environment.getStandAlone();
+		try {
+			Environment.setStandAlone(true);
+			Project project = localMppProject();
+			assertTrue(project.needsSaving(), "fixture must be savable and dirty before cancellation");
+
+			SaveOptions options = ProjectFactory.prepareLocalCloseSaveOptions(project, suggested -> {
+				assertEquals("plan.mpo", suggested);
+				return null;
+			});
+
+			assertNull(options, "cancelled Save As must not enqueue a close save");
+			assertEquals("plan.mpp", project.getFileName());
+			assertTrue(project.needsSaving(), "cancellation must preserve the dirty state");
+		} finally {
+			Environment.setStandAlone(previousStandalone);
+		}
+	}
+
+	@Test
+	void preparingMppCloseSaveKeepsTheSourceUntilTheWriteCompletes() {
+		boolean previousStandalone = Environment.getStandAlone();
+		try {
+			Environment.setStandAlone(true);
+			Project project = localMppProject();
+			assertTrue(project.needsSaving(), "fixture must be savable and dirty before target selection");
+
+			SaveOptions options = ProjectFactory.prepareLocalCloseSaveOptions(project, suggested -> {
+				assertEquals("plan.mpo", suggested);
+				return "plan.mpo";
+			});
+
+			assertEquals("plan.mpo", options.getFileName());
+			assertEquals(LocalSession.MPO_PROJECT_IMPORTER, options.getImporter());
+			assertTrue(options.isSaveAs());
+			assertEquals("plan.mpp", project.getFileName(), "target selection must not change association before write success");
+			assertTrue(project.needsSaving(), "target selection must not clear dirty state before write success");
+		} finally {
+			Environment.setStandAlone(previousStandalone);
+		}
+	}
+
+	private static Project localMppProject() {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("local MPP", undo), undo);
+		project.setLocal(true);
+		project.setFileName("plan.mpp");
+		project.createScriptedTask().setManuallyScheduled(true);
+		project.setGroupDirty(true);
+		return project;
 	}
 
 	@Test

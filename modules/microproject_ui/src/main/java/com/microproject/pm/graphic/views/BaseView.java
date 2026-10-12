@@ -42,6 +42,8 @@ public interface BaseView extends SpreadSheetCategories, SavableToWorkspace{
 	SpreadSheet getSpreadSheet();
 	boolean hasNormalMinWidth();
 	String getViewName();
+	/** Stable semantic state for the active view's rendered projection (for diagnostics). */
+	default String getProjectionStateSignature() { return ""; }
 	boolean showsTasks();
 	boolean showsResources();
 	void onActivate(boolean activate);

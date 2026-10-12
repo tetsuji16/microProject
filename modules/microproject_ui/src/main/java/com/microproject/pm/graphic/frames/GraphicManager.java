@@ -3728,14 +3728,18 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 	public boolean saveLocalProject(boolean saveAs){
 		if (getCurrentFrame() == null || getCurrentFrame().getProject() == null) return false;
-		String fileName=null;
 		Project project=getCurrentFrame().getProject();
-		if (!saveAs){
-			fileName=project.getFileName();
+		String fileName = project.getFileName();
+		boolean chooseSaveAs = saveAs || com.microproject.application.ProjectFilePolicies.requiresSaveAs(fileName);
+		if (chooseSaveAs) {
+			String suggested = com.microproject.application.ProjectFilePolicies.defaultSaveAsFileName(
+				fileName == null ? project.getGuessedFileName() : fileName);
+			fileName = SessionFactory.getInstance().getLocalSession().chooseFileName(true, suggested);
+		} else if (fileName == null) {
+			fileName = SessionFactory.getInstance().getLocalSession().chooseFileName(true, project.getGuessedFileName());
 		}
-		if (fileName==null) fileName=SessionFactory.getInstance().getLocalSession().chooseFileName(true,project.getGuessedFileName());
 		if (fileName!=null) {
-			saveLocalDocument(fileName,saveAs);
+			saveLocalDocument(fileName,chooseSaveAs);
 			return true;
 		}
 		return false;
@@ -3746,8 +3750,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		DocumentFrame frame = getCurrentFrame();
 		Project project = frame == null ? null : frame.getProject();
 		if (project == null || !project.isMaster()) return false;
-		String suggested = project.getFileName();
+		String suggested = com.microproject.application.ProjectFilePolicies.defaultSaveAsFileName(project.getFileName());
 		if (suggested == null || suggested.isBlank()) suggested = project.getGuessedFileName();
+		suggested = com.microproject.application.ProjectFilePolicies.defaultSaveAsFileName(suggested);
 		if (suggested == null || suggested.isBlank()) suggested = "master.mpo";
 		if (!suggested.toLowerCase(java.util.Locale.ROOT).endsWith(".mpo")) suggested += ".mpo";
 		String selected = SessionFactory.getInstance().getLocalSession().chooseFileName(true, suggested);

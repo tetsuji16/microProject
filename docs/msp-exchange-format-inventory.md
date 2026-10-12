@@ -25,6 +25,12 @@ POD plus XML and XLSX; MPO is selected as the default native save format. Lower
 level writer factory registrations for MPX, PMXML, Planner, JSON and SDEF are
 separate from the desktop Save UI and do not imply that the UI advertises them.
 
+Ordinary Save and close-time Save for import-only MPP/MPX/Planner sources now
+ask for a writable target and suggest MPO. Cancelling retains the source path
+and dirty state; successful saving associates the document with the MPO target.
+Save As of a legacy POD also defaults to MPO. Explicit legacy POD writing still
+exists and remains separate from the import-only target policy.
+
 ## MPP write feasibility
 
 The application pins MPXJ `11.5.4` in `gradle/libs.versions.toml`. MPXJ's

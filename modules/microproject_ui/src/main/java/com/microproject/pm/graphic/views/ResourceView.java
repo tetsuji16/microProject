@@ -251,6 +251,9 @@ public class ResourceView extends JScrollPane implements BaseView {
 
 	public String getSortedFieldId() { return sortedFieldId; }
 	public boolean isSortAscending() { return sortAscending; }
+	@Override public String getProjectionStateSignature() {
+		return "sortField=" + sortedFieldId + ",ascending=" + sortAscending;
+	}
 
 	private static final class ResourceFieldSorter extends NodeSorter {
 		private final Field field;

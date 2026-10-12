@@ -83,6 +83,7 @@ import com.microproject.menu.MenuManager;
 import com.microproject.ui.ribbon.RibbonDisplayMode;
 import com.microproject.ui.ribbon.RibbonDisplayPreferences;
 import com.microproject.ribbon.RibbonCommandResult;
+import com.microproject.ui.diagnostics.UiButtonDiagnostics;
 import com.microproject.exchange.MpoFileImporter;
 import com.microproject.collaboration.CollaborationSession;
 import com.microproject.field.Field;
@@ -375,8 +376,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 
 		failUpdateTasksRoute = true;
 		click(robot, update);
-		GuiAcceptanceSupport.await(() -> manager.getLastRibbonCommandResult() != null
-				&& manager.getLastRibbonCommandResult().status() == RibbonCommandResult.Status.FAILED
+		GuiAcceptanceSupport.await(() -> ribbonCommandResult(update) != null
+				&& ribbonCommandResult(update).status() == RibbonCommandResult.Status.FAILED
 				&& diagnosticContains("UI_COMMAND_FAILURE id=RibbonUpdateTasks reason=command-failed"),
 			"a real exception from the routed command must remain visible in the semantic result and diagnostics");
 		assertTrue(diagnosticContains("commandReason=IllegalStateException"),
@@ -403,6 +404,12 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Dialog recurringDialog = findRecurringTaskDialog();
 		capture(robot, recurringDialog, "issue-590-recurring-task.png");
 		assertRecurringDialogComponentsFit(recurringDialog);
+	}
+
+	private static RibbonCommandResult ribbonCommandResult(AbstractButton button) {
+		javax.swing.Action action = UiButtonDiagnostics.unwrapAction(button.getAction());
+		Object result = action == null ? null : action.getValue(RibbonCommandResult.RESULT_ACTION_PROPERTY);
+		return result instanceof RibbonCommandResult commandResult ? commandResult : null;
 	}
 
 	private boolean diagnosticContains(String fragment) {

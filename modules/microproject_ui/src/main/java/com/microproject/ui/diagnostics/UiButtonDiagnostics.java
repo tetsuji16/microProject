@@ -29,6 +29,9 @@ import javax.swing.Action;
 import com.microproject.pm.graphic.frames.DocumentFrame;
 import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet;
+import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheetModel;
+import com.microproject.pm.graphic.model.cache.GraphicNode;
+import com.microproject.pm.graphic.views.BaseView;
 import com.microproject.grouping.core.Node;
 import com.microproject.pm.key.HasKey;
 import com.microproject.pm.task.Project;
@@ -45,6 +48,12 @@ import com.microproject.ribbon.RibbonCommandResult;
 public final class UiButtonDiagnostics {
 	private static final String UI_DEBUG_PROPERTY = "microproject.ui.debug";
 	private static final Logger logger = Logger.getLogger(UiButtonDiagnostics.class.getName());
+
+	static record ViewProjection(List<String> visibleRows, String viewState) {
+		ViewProjection {
+			visibleRows = List.copyOf(visibleRows);
+		}
+	}
 
 	private UiButtonDiagnostics() {
 	}
@@ -293,17 +302,19 @@ public final class UiButtonDiagnostics {
 		private final String selection;
 		private final String activeView;
 		private final int rows;
+		private final ViewProjection projection;
 		private final boolean dirty;
 		private final boolean canUndo;
 		private final boolean canRedo;
 		private final int visibleWindows;
 		private final String modelSignature;
 
-		private UiState(String selection, String activeView, int rows, boolean dirty,
+		private UiState(String selection, String activeView, int rows, ViewProjection projection, boolean dirty,
 				boolean canUndo, boolean canRedo, int visibleWindows, String modelSignature) {
 			this.selection = selection;
 			this.activeView = activeView;
 			this.rows = rows;
+			this.projection = projection;
 			this.dirty = dirty;
 			this.canUndo = canUndo;
 			this.canRedo = canRedo;
@@ -334,8 +345,9 @@ public final class UiButtonDiagnostics {
 				}
 				Collections.sort(selected);
 				String activeView = "none";
-				if (frame != null && frame.getActiveTopView() != null && frame.getActiveTopView().getViewName() != null)
-					activeView = frame.getActiveTopView().getViewName();
+				BaseView activeTopView = frame == null ? null : frame.getActiveTopView();
+				if (activeTopView != null && activeTopView.getViewName() != null)
+					activeView = activeTopView.getViewName();
 				boolean dirty = frame != null && frame.getProject() != null && frame.getProject().needsSaving();
 				String modelSignature = modelSignature(frame == null ? null : frame.getProject());
 				boolean canUndo = frame != null && frame.getUndoController() != null && frame.getUndoController().canUndo();
@@ -343,11 +355,33 @@ public final class UiButtonDiagnostics {
 				int visibleWindows = 0;
 				for (Window window : Window.getWindows())
 					if (window.isShowing()) visibleWindows++;
-				return new UiState(selected.toString(), activeView, sheet == null ? -1 : sheet.getRowCount(), dirty,
+				return new UiState(selected.toString(), activeView, sheet == null ? -1 : sheet.getRowCount(),
+					viewProjection(sheet, activeTopView), dirty,
 					canUndo, canRedo, visibleWindows, modelSignature);
-			} catch (RuntimeException | Error ignored) {
-				return new UiState("unavailable", "unavailable", -1, false, false, false, -1, "unavailable");
+			} catch (Exception | Error ignored) {
+				return new UiState("unavailable", "unavailable", -1,
+					new ViewProjection(List.of("unavailable"), "unavailable"), false, false, false, -1, "unavailable");
 			}
+		}
+
+		private static ViewProjection viewProjection(CommonSpreadSheet sheet, BaseView view) {
+			List<String> visibleRows = new ArrayList<>();
+			if (sheet != null && sheet.getModel() instanceof CommonSpreadSheetModel model) {
+				for (int row = 0; row < model.getRowCount(); row++) {
+					GraphicNode graphicNode = model.getNode(row);
+					Node node = graphicNode == null ? null : graphicNode.getNode();
+					Object impl = node == null ? null : node.getImpl();
+					String identity = impl instanceof HasKey key
+						? impl.getClass().getName() + "#" + key.getUniqueId()
+						: impl == null ? "null" : impl.getClass().getName();
+					visibleRows.add(identity + ":level=" + (graphicNode == null ? -1 : graphicNode.getLevel())
+						+ ":summary=" + (graphicNode != null && graphicNode.isSummary()));
+				}
+			} else if (sheet != null) {
+				visibleRows.add("model=" + sheet.getModel().getClass().getName());
+			}
+			String viewState = view == null ? "none" : view.getProjectionStateSignature();
+			return new ViewProjection(visibleRows, viewState);
 		}
 
 		private static String modelSignature(Project project) {
@@ -378,7 +412,9 @@ public final class UiButtonDiagnostics {
 		}
 
 		private String viewSummary() {
-			return "view=" + activeView + ",rows=" + rows + ",windows=" + visibleWindows;
+			return "view=" + activeView + ",rows=" + rows + ",windows=" + visibleWindows
+				+ ",projectionRows=" + projection.visibleRows().hashCode()
+				+ ",viewState=" + projection.viewState();
 		}
 
 		private String undoSummary() {
@@ -391,7 +427,7 @@ public final class UiButtonDiagnostics {
 
 		private boolean viewChanged(UiState other) {
 			return rows != other.rows || !activeView.equals(other.activeView)
-				|| visibleWindows != other.visibleWindows;
+				|| visibleWindows != other.visibleWindows || !projection.equals(other.projection);
 		}
 
 		private boolean undoChanged(UiState other) {
@@ -404,13 +440,13 @@ public final class UiButtonDiagnostics {
 			return rows == state.rows && dirty == state.dirty && canUndo == state.canUndo
 				&& canRedo == state.canRedo && visibleWindows == state.visibleWindows
 				&& selection.equals(state.selection) && activeView.equals(state.activeView)
-				&& modelSignature.equals(state.modelSignature);
+				&& modelSignature.equals(state.modelSignature) && projection.equals(state.projection);
 		}
 
 		@Override
 		public int hashCode() {
 			return java.util.Objects.hash(selection, activeView, rows, dirty, canUndo, canRedo, visibleWindows,
-				modelSignature);
+				modelSignature, projection);
 		}
 	}
 }

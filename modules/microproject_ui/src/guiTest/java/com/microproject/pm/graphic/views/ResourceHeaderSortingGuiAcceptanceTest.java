@@ -23,6 +23,10 @@ import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 
 import javax.swing.SwingUtilities;
 import javax.swing.AbstractButton;
@@ -44,6 +48,7 @@ import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.Project;
 import com.microproject.ribbon.RibbonCommandResult;
+import com.microproject.ui.diagnostics.UiButtonDiagnostics;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.Environment;
@@ -54,6 +59,10 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 	private GraphicManager manager;
 	private boolean previousRibbonUi;
 	private boolean previousNewLook;
+	private String previousUiDebug;
+	private Level previousDiagnosticsLevel;
+	private Handler diagnosticsHandler;
+	private final StringBuffer diagnostics = new StringBuffer();
 
 	@AfterEach
 	void closeWindow() throws Exception {
@@ -64,6 +73,13 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 		});
 		Environment.setRibbonUI(previousRibbonUi);
 		Environment.setNewLook(previousNewLook);
+		if (diagnosticsHandler != null) {
+			Logger logger = Logger.getLogger(UiButtonDiagnostics.class.getName());
+			logger.removeHandler(diagnosticsHandler);
+			logger.setLevel(previousDiagnosticsLevel);
+		}
+		if (previousUiDebug == null) System.clearProperty("microproject.ui.debug");
+		else System.setProperty("microproject.ui.debug", previousUiDebug);
 	}
 
 	@Test
@@ -71,6 +87,17 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
+		previousUiDebug = System.getProperty("microproject.ui.debug");
+		System.setProperty("microproject.ui.debug", "true");
+		Logger diagnosticsLogger = Logger.getLogger(UiButtonDiagnostics.class.getName());
+		previousDiagnosticsLevel = diagnosticsLogger.getLevel();
+		diagnosticsLogger.setLevel(Level.FINE);
+		diagnosticsHandler = new Handler() {
+			@Override public void publish(LogRecord record) { diagnostics.append(record.getMessage()).append('\n'); }
+			@Override public void flush() { }
+			@Override public void close() { }
+		};
+		diagnosticsLogger.addHandler(diagnosticsHandler);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
 		DataFactoryUndoController undo = new DataFactoryUndoController();
@@ -191,6 +218,12 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 			"Sort Order confirmation did not apply ascending Name order");
 		assertEquals(RibbonCommandResult.Status.CHANGED, manager.getLastRibbonCommandResult().status());
 		assertEquals("RibbonChooseSort", manager.getLastRibbonCommandResult().commandId());
+		GuiAcceptanceSupport.await(() -> diagnostics.toString().lines().anyMatch(line ->
+			line.contains("UI_COMMAND id=RibbonChooseSort") && line.contains("viewChanged=true")),
+			"a view-only Resource Sort change must be observable through the active sheet projection");
+		assertFalse(diagnostics.toString().contains(
+			"UI_COMMAND_FAILURE id=RibbonChooseSort reason=reported-change-not-observed"),
+			"the successful view-only sort must not produce a false no-op diagnostic");
 		ResourceView.Workspace persistedWorkspace = (ResourceView.Workspace) resourceView.createWorkspace(0);
 		SwingUtilities.invokeAndWait(() -> {
 			assertEquals(List.of(zulu), sheet.getSelectedNodes().stream().map(node -> (Resource) node.getImpl()).toList(),

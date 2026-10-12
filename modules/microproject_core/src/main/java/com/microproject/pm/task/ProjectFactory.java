@@ -40,6 +40,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -58,6 +59,7 @@ import com.microproject.pm.resource.ResourcePoolFactory;
 import com.microproject.server.data.DataUtil;
 import com.microproject.util.FilePathUtils;
 import com.microproject.session.CreateOptions;
+import com.microproject.session.FileHelper;
 import com.microproject.session.LoadOptions;
 import com.microproject.session.LocalSession;
 import com.microproject.session.SaveOptions;
@@ -708,6 +710,26 @@ public class ProjectFactory {
 			return Alert.confirmYesNo(text);
 	}
 
+	static SaveOptions prepareLocalCloseSaveOptions(Project project, Function<String, String> chooseTarget) {
+		if (project == null || !project.isLocal()) return null;
+		String sourceFileName = project.getFileName();
+		boolean needsSaveAs = sourceFileName == null || FileHelper.requiresSaveAs(sourceFileName);
+		String fileName = sourceFileName;
+		if (needsSaveAs) {
+			String suggested = sourceFileName == null ? project.getGuessedFileName()
+				: FileHelper.defaultNativeSaveAsFileName(sourceFileName, false);
+			fileName = chooseTarget == null ? null : chooseTarget.apply(suggested);
+		}
+		if (fileName == null) return null;
+
+		SaveOptions options = new SaveOptions();
+		options.setLocal(true);
+		options.setSaveAs(needsSaveAs || !fileName.equals(sourceFileName));
+		options.setFileName(fileName);
+		options.setImporter(LocalSession.getImporter(FileHelper.getFileType(fileName)));
+		return options;
+	}
+
 	static String getDisplayNameForSavePrompt(Project project) {
 		if (project == null)
 			return Messages.getString("Text.Untitled");
@@ -735,14 +757,9 @@ public class ProjectFactory {
 				SaveOptions opt=new SaveOptions();
 				opt.setLocal(project.isLocal());
 				if (project.isLocal()){
-					String fileName=project.getFileName();
-					if (fileName==null){
-						fileName=SessionFactory.getInstance().getLocalSession().chooseFileName(true,project.getGuessedFileName());
-					}
-					if (fileName==null) return null;
-					project.setFileName(fileName);
-					opt.setFileName(fileName);
-					opt.setImporter(LocalSession.getImporter(project.getFileType()));
+					opt=prepareLocalCloseSaveOptions(project, suggested ->
+						SessionFactory.getInstance().getLocalSession().chooseFileName(true, suggested));
+					if (opt == null) return null;
 				}
 				job=getSaveProjectJob(project, opt);
 			}

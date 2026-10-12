@@ -9,6 +9,11 @@ open; an inventory or passing narrow test does not close an entire milestone.
 
 - Standalone scope excludes connected Microsoft server/cloud services. MPO is
   the native/main save format; MPP remains a separate external exchange gate.
+- Ordinary Save and close-time Save for an imported MPP/MPX/Planner document
+  open the existing Save As chooser with an MPO suggestion. Source association
+  is retained until the write succeeds. Save As of a legacy POD defaults to MPO;
+  explicit XML/XLSX exports remain available. Swing-fallback overwrite refusal
+  preserves existing output. Legacy POD writes are still a policy discrepancy.
 - Resource Sort Order and header sorting share the existing single-field,
   view-only projection sorter. Selection identity and model resource order are
   preserved; Workspace fields and POD wire contracts are unchanged. English
@@ -17,6 +22,8 @@ open; an inventory or passing narrow test does not close an entire milestone.
   matching command outcomes. Stale no-change results cannot conceal a silent
   command failure; actual failed/rejected outcomes remain visible. Robot
   coverage includes repeated cancellation, injected route failure and recovery.
+  Ordered visible row identities and view sort state make view-only projection
+  changes observable without serializing workspace state in diagnostics.
 - Update Project validates every target before mutation and restores task and
   project state after a pre-commit failure. Linked tasks are restored as a
   batch; Undo/Redo uses the same restoration path. Snapshot schedules are cloned
@@ -63,9 +70,9 @@ broke runtime behavior. Issues #242, #752 and #753 remain open.
 
 ## Verification results
 
-Local JDK 25 runs cover all eight module test tasks: core 905, exchange 223,
-UI 1,053, reports 12, application 35, bootstrap 14, contrib 2 and ribbon 5
-(2,249 tests total, zero failures/errors, one documented core skip).
+Local JDK 25 runs cover all eight module test tasks: core 908, exchange 223,
+UI 1,054, reports 12, application 37, bootstrap 14, contrib 2 and ribbon 5
+(2,255 tests total, zero failures/errors, one documented core skip).
 The maintenance-script suite passes 10 tests. The calendar XML fixture also
 passes in separate startup-timezone JVMs for UTC, Tokyo and Mexico City.
 Two UI test fixtures originally formatted UTC model dates in the host timezone;

@@ -150,9 +150,9 @@ class SwingFileChooserProviderTest {
 	}
 
 	@Test
-	void saveAsKeepsTheSourceProjectsSupportedFormat() {
-		assertEquals("pod", SwingFileChooserProvider.preferredSaveExtension("original.pod", true));
-		assertEquals("pod", SwingFileChooserProvider.preferredSaveExtension("original.POD", true));
+	void saveAsDefaultsLegacyPodSourcesToMpoAndKeepsExplicitExchangeFormats() {
+		assertEquals("mpo", SwingFileChooserProvider.preferredSaveExtension("original.pod", true));
+		assertEquals("mpo", SwingFileChooserProvider.preferredSaveExtension("original.POD", true));
 		assertEquals("xml", SwingFileChooserProvider.preferredSaveExtension("original.xml", true));
 		assertEquals("xlsx", SwingFileChooserProvider.preferredSaveExtension("original.xlsx", true));
 	}

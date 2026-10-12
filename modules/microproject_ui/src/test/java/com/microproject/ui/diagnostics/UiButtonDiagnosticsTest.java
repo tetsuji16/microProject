@@ -6,6 +6,7 @@ package com.microproject.ui.diagnostics;
 
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -30,6 +31,23 @@ class UiButtonDiagnosticsTest {
 	@AfterEach
 	void clearDebugProperty() {
 		System.clearProperty("microproject.ui.debug");
+	}
+
+	@Test
+	void viewProjectionDetectsRenderedRowOrderAndSortStateChanges() {
+		UiButtonDiagnostics.ViewProjection before = new UiButtonDiagnostics.ViewProjection(
+			java.util.List.of("Resource#1:level=0:summary=false", "Resource#2:level=0:summary=false"),
+			"ascending-name");
+		UiButtonDiagnostics.ViewProjection unchanged = new UiButtonDiagnostics.ViewProjection(
+			java.util.List.of("Resource#1:level=0:summary=false", "Resource#2:level=0:summary=false"),
+			"ascending-name");
+		UiButtonDiagnostics.ViewProjection reordered = new UiButtonDiagnostics.ViewProjection(
+			java.util.List.of("Resource#2:level=0:summary=false", "Resource#1:level=0:summary=false"),
+			"descending-name");
+
+		assertEquals(before, unchanged, "identical visible projections should compare unchanged");
+		assertEquals(before.hashCode(), unchanged.hashCode());
+		assertFalse(before.equals(reordered), "row order and sort state are observable view changes");
 	}
 
 	@Test
