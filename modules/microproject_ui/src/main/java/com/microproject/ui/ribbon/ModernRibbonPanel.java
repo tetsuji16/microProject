@@ -62,6 +62,7 @@ import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import javax.swing.JRootPane;
 import javax.swing.JRadioButtonMenuItem;
@@ -1502,6 +1503,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 			// The action already opens its chooser.  Painting the chevron in its own
 			// hit-area keeps the label clean and matches Office split-button geometry.
 			button.putClientProperty("MicroProject.ribbonSplit", Boolean.TRUE);
+			if ("RibbonChooseSort".equals(buttonId)) installSortOrderMenu(button);
 		}
 		String tooltip = getStringOrNull(buttonId + ".tooltip");
 		String accelerator = getStringOrNull(buttonId + ".accelerator");
@@ -1519,6 +1521,48 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		button.putClientProperty("MicroProject.ribbonToggle", specification.isToggle());
 		button.getAccessibleContext().setAccessibleName(button.getText() == null ? buttonId : button.getText());
 		return button;
+	}
+
+	private void installSortOrderMenu(AbstractButton button) {
+		String menuText = getStringOrNull("Sort.text");
+		if (menuText == null || button.getAction() == null) return;
+		JPopupMenu popup = new JPopupMenu();
+		popup.setName("microproject.ribbon.sortMenu");
+		JMenuItem sortOrder = new JMenuItem(button.getAction());
+		sortOrder.setText(menuText);
+		sortOrder.setActionCommand(button.getActionCommand());
+		sortOrder.setName("microproject.ribbon.sortMenu.sortOrder");
+		popup.add(sortOrder);
+		button.getAccessibleContext().setAccessibleDescription(menuText);
+
+		JButton menuButton = new JButton();
+		menuButton.setName("microproject.ribbon.sortMenuButton");
+		menuButton.setToolTipText(menuText);
+		menuButton.setFocusable(true);
+		menuButton.setBorderPainted(false);
+		menuButton.setContentAreaFilled(false);
+		menuButton.setOpaque(false);
+		menuButton.setEnabled(button.isEnabled());
+		menuButton.getAccessibleContext().setAccessibleName(getStringOrNull("SortMenu.accessibleName"));
+		menuButton.getAccessibleContext().setAccessibleDescription(menuText);
+		menuButton.addActionListener(event -> {
+			if (!menuButton.isShowing() || !button.isEnabled()) return;
+			popup.show(menuButton, 0, menuButton.getHeight());
+			popup.requestFocusInWindow();
+		});
+		button.addPropertyChangeListener("enabled", event -> menuButton.setEnabled(button.isEnabled()));
+		button.putClientProperty("MicroProject.ribbon.sortMenu", popup);
+		button.putClientProperty("MicroProject.ribbon.sortMenuButton", menuButton);
+		button.setLayout(null);
+		button.add(menuButton);
+		int arrowWidth = RibbonButtonStyler.SPLIT_BUTTON_EXTRA_WIDTH;
+		Runnable resizeMenuButton = () -> menuButton.setBounds(Math.max(0, button.getWidth() - arrowWidth), 0,
+			Math.min(arrowWidth, button.getWidth()), button.getHeight());
+		button.addComponentListener(new java.awt.event.ComponentAdapter() {
+			@Override public void componentResized(java.awt.event.ComponentEvent event) { resizeMenuButton.run(); }
+			@Override public void componentShown(java.awt.event.ComponentEvent event) { resizeMenuButton.run(); }
+		});
+		resizeMenuButton.run();
 	}
 
 	private void showDisplayModePopup(java.awt.event.MouseEvent event) {

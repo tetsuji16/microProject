@@ -17,7 +17,12 @@ open; an inventory or passing narrow test does not close an entire milestone.
 - Resource Sort Order and header sorting share the existing single-field,
   view-only projection sorter. Selection identity and model resource order are
   preserved; Workspace fields and POD wire contracts are unchanged. English
-  and Japanese labels are provided. Multi-key/outline/renumber parity remains open.
+  and Japanese labels are provided. The Sort split button now exposes that same
+  action through a keyboard-focusable menu arrow; the menu item reuses the
+  button's canonical Swing Action. The Japanese 100% Windows Robot journey
+  physically opened the arrow menu by mouse and Space, chose Sort Order, and
+  verified the canonical dialog route and cancellation result. Multi-key,
+  outline, and renumber parity remain open.
 - Shared button diagnostics recognize completed modal cancellation and fresh
   matching command outcomes. Stale no-change results cannot conceal a silent
   command failure; actual failed/rejected outcomes remain visible. Robot
@@ -53,7 +58,7 @@ open; an inventory or passing narrow test does not close an entire milestone.
 | Gate | Current boundary and next required work |
 |---|---|
 | M0 / #792 | Source/test/format/integration inventories are reconciled. A complete versioned command/field manifest, independent format manifests and exact current Microsoft reference evidence remain incomplete. |
-| M1 / #793 | Current Swing ribbon is retained and GUI work follows the repo-contained gates in `docs/gui-quality-gate.md` and `docs/gui-recovery-sequence.md`; no separate skill package is required. This container has no physical Robot desktop, so the latest Office appearance and full locale/DPI matrix remain unverified pending the Windows GUI workflow. Continue ordered implementation work while keeping that evidence gate open. |
+| M1 / #793 | Current Swing ribbon is retained and GUI work follows the repo-contained gates in `docs/gui-quality-gate.md` and `docs/gui-recovery-sequence.md`; no separate skill package is required. The Sort menu journey passed physical Windows Robot acceptance at Japanese/100%; latest Office appearance, Microsoft comparison captures, and the full locale/DPI matrix remain unverified. Continue ordered implementation work while keeping that evidence gate open. |
 | M2 / #794 | One production Update Project transaction is repaired. Other mutation families, revision journal/atomic observer publication, immutable projections and missing commands remain open. Do not mark #408–#411 complete from this slice. |
 | M3 / #796 | MPO (`.mpo`) is the authoritative native and default save format; backward-read work remains a gate. MPP (`.mpp`) is a separate external interoperability format: reading exists, writing is absent because pinned MPXJ has no MPP writer. A genuine writer and independent semantic coverage are still required. XML elapsed baseline units, assignment baselines/contours and broad external format semantics remain incomplete. POD is frozen legacy import-only coverage. |
 | M4 / #797 | Local automation and extension surfaces were inventoried. VBA/macros, COM automation/add-ins, VSTO and local Office add-ins remain unsupported or unverified. Project Server/PWA/Project Online/Microsoft Planner cloud services are outside the standalone product goal and are not blockers. GNOME Planner file exchange, local Team Planner, linked/master projects and offline collaboration remain separate in-scope desktop/file behaviors. |
@@ -78,6 +83,20 @@ passes in separate startup-timezone JVMs for UTC, Tokyo and Mexico City.
 Two UI test fixtures originally formatted UTC model dates in the host timezone;
 the fixtures now use the production canonical UTC formatter. No date-editor
 production behavior was changed to satisfy those assertions.
+
+The Sort split-menu physical journey passed on Windows at Japanese locale and
+100% UI scale after refreshing the runnable distribution with
+`.\gradlew.bat :microproject_ui:installDist --rerun-tasks --no-daemon --max-workers=1 --console=plain`,
+then running
+`.\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.views.ResourceHeaderSortingGuiAcceptanceTest.physicalHeaderClickSortsAndTogglesWithoutMutatingResources" -PguiTestLocale=ja -PguiTestUiScale=1 --max-workers=1 --no-daemon --console=plain`.
+The journey checks physical header sorting, mouse and Space activation of the
+  Sort menu arrow, the shared Sort Order action/dialog, numeric Standard Rate
+  ascending results, preserved selection/model order, Workspace field state,
+  and cancellation as a no-change outcome. The fixture covers text and numeric
+  sorting; date, tie/empty, filter/group, and Gantt-alignment legs remain open.
+  Gradle evidence is in
+`modules/microproject_ui/build/test-results/guiTest/TEST-com.microproject.pm.graphic.views.ResourceHeaderSortingGuiAcceptanceTest.xml`
+and `modules/microproject_ui/build/reports/tests/guiTest/index.html`.
 
 Fresh install, architecture boundary, boundary fixture, dependency allowlist,
 naming, and packaged sample MPP/POD import checks pass. These are local domain

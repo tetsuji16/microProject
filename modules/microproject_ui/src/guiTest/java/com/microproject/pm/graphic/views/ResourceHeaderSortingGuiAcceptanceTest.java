@@ -32,6 +32,8 @@ import javax.swing.SwingUtilities;
 import javax.swing.AbstractButton;
 import javax.swing.JDialog;
 import javax.swing.JComboBox;
+import javax.swing.JMenuItem;
+import javax.swing.JPopupMenu;
 import javax.swing.UIManager;
 import javax.swing.table.JTableHeader;
 
@@ -39,10 +41,12 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
+import com.microproject.datatype.Rate;
+import com.microproject.field.Field;
+import com.microproject.dialog.ResourceSortOrderPanel;
 import com.microproject.pm.graphic.frames.DocumentFrame;
 import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.pm.graphic.frames.MainRibbonFrame;
-import com.microproject.dialog.ResourceSortOrderPanel;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourcePool;
@@ -109,8 +113,10 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 		project.initialize(false, false);
 		Resource zulu = pool.createScriptedResource();
 		zulu.setName("Zulu");
+		zulu.setStandardRate(new Rate(100));
 		Resource alpha = pool.createScriptedResource();
 		alpha.setName("Alpha");
+		alpha.setStandardRate(new Rate(50));
 		List<Resource> originalOrder = new ArrayList<>(pool.getResourceList());
 
 		SwingUtilities.invokeAndWait(() -> {
@@ -182,17 +188,81 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 			assertEquals("Field.name", workspace.getSortedFieldId());
 			assertFalse(workspace.isSortAscending());
 		});
-
 		String viewTabText = java.util.ResourceBundle.getBundle("com.microproject.menu.menu").getString("ViewRibbonTask.title");
 		click(robot, findShowingButtonByText(window, viewTabText));
 		GuiAcceptanceSupport.await(() -> findShowingButtonByCommand(window, "RibbonChooseSort") != null,
 			"View ribbon did not expose the Sort command");
+
+		// Document-derived contract: Microsoft documents View > Sort > Sort By in Project desktop;
+		// expose that existing Sort Order action from its split-menu affordance, without adding a
+		// second sort implementation. See https://support.microsoft.com/en-us/project/sort-tasks-resources-or-dates-in-project-desktop
+		AbstractButton sortButton = findShowingButtonByCommand(window, "RibbonChooseSort");
+		Point sortButtonLocation = sortButton.getLocationOnScreen();
+		robot.mouseMove(sortButtonLocation.x + sortButton.getWidth() - 8,
+			sortButtonLocation.y + sortButton.getHeight() / 2);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+		JPopupMenu sortMenu = (JPopupMenu) sortButton.getClientProperty("MicroProject.ribbon.sortMenu");
+		GuiAcceptanceSupport.await(() -> sortMenu != null && sortMenu.isShowing(),
+			"the Sort split-button chevron did not open its menu");
+		JMenuItem sortOrderItem = findComponent(sortMenu, JMenuItem.class);
+		assertEquals(java.util.ResourceBundle.getBundle("com.microproject.menu.menu").getString("Sort.text"),
+			sortOrderItem.getText());
+		assertEquals("RibbonChooseSort", sortOrderItem.getActionCommand());
+		assertEquals(sortButton.getAction(), sortOrderItem.getAction(),
+			"the menu item and ribbon command must share the canonical action");
+		AbstractButton sortMenuButton = (AbstractButton) sortButton.getClientProperty("MicroProject.ribbon.sortMenuButton");
+		assertTrue(sortMenuButton.isFocusable(), "Sort menu arrow must be keyboard accessible");
+		assertEquals(java.util.ResourceBundle.getBundle("com.microproject.menu.menu")
+			.getString("SortMenu.accessibleName"), sortMenuButton.getAccessibleContext().getAccessibleName());
+		robot.keyPress(KeyEvent.VK_ESCAPE);
+		robot.keyRelease(KeyEvent.VK_ESCAPE);
+		robot.waitForIdle();
+		SwingUtilities.invokeAndWait(sortMenuButton::requestFocusInWindow);
+		robot.keyPress(KeyEvent.VK_SPACE);
+		robot.keyRelease(KeyEvent.VK_SPACE);
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(sortMenu::isShowing, "Space on the accessible Sort menu arrow did not open its menu");
+		click(robot, sortOrderItem);
+		GuiAcceptanceSupport.await(() -> findDialogWith(ResourceSortOrderPanel.class) != null,
+			"Sort Order menu item did not use the existing resource sort dialog");
+		JDialog menuSortDialog = findDialogWith(ResourceSortOrderPanel.class);
+		ResourceSortOrderPanel menuOrderPanel = findComponent(menuSortDialog, ResourceSortOrderPanel.class);
+		assertEquals("Field.name", menuOrderPanel.getFieldId());
+		List<Field> sortFields = resourceView.getResourceSortFields();
+		int standardRateIndex = java.util.stream.IntStream.range(0, sortFields.size())
+			.filter(index -> "Field.standardRate".equals(sortFields.get(index).getId())).findFirst()
+			.orElseThrow(() -> new AssertionError("Resource Standard Rate field is missing"));
+		JComboBox<?> fieldChoice = flatten(menuSortDialog).stream().filter(JComboBox.class::isInstance)
+			.map(JComboBox.class::cast).filter(combo -> combo.getItemCount() == sortFields.size()).findFirst()
+			.orElseThrow(() -> new AssertionError("Sort Order field control is missing"));
+		selectComboIndex(robot, fieldChoice, standardRateIndex);
+		JComboBox<?> menuDirection = flatten(menuSortDialog).stream().filter(JComboBox.class::isInstance)
+			.map(JComboBox.class::cast).filter(combo -> combo.getItemCount() == 2).findFirst()
+			.orElseThrow(() -> new AssertionError("Sort Order direction control is missing"));
+		selectComboIndex(robot, menuDirection, 0);
+		click(robot, findShowingButtonByText(menuSortDialog, UIManager.getString("OptionPane.okButtonText")));
+		GuiAcceptanceSupport.await(() -> namedTestResources(sheet).equals(List.of("Alpha", "Zulu")),
+			"Sort menu should sort numeric Standard Rate values ascending");
+		assertEquals(RibbonCommandResult.Status.CHANGED, manager.getLastRibbonCommandResult().status());
+		assertEquals("Field.standardRate", resourceView.getSortedFieldId());
+		assertTrue(resourceView.isSortAscending());
+		assertEquals(originalOrder, pool.getResourceList(), "numeric view sorting must not reorder the resource model");
+		SwingUtilities.invokeAndWait(() -> {
+			assertEquals(List.of(zulu), sheet.getSelectedNodes().stream().map(node -> (Resource) node.getImpl()).toList(),
+				"numeric sorting must preserve selected resource identity");
+			ResourceView.Workspace workspace = (ResourceView.Workspace) resourceView.createWorkspace(0);
+			assertEquals("Field.standardRate", workspace.getSortedFieldId());
+			assertTrue(workspace.isSortAscending());
+		});
+
 		click(robot, findShowingButtonByCommand(window, "RibbonChooseSort"));
 		GuiAcceptanceSupport.await(() -> findDialogWith(ResourceSortOrderPanel.class) != null,
 			"Resource Sort Order dialog did not open from the View ribbon");
 		JDialog sortDialog = findDialogWith(ResourceSortOrderPanel.class);
 		ResourceSortOrderPanel orderPanel = findComponent(sortDialog, ResourceSortOrderPanel.class);
-		assertEquals("Field.name", orderPanel.getFieldId());
+		assertEquals("Field.standardRate", orderPanel.getFieldId());
 		click(robot, findShowingButtonByText(sortDialog, UIManager.getString("OptionPane.cancelButtonText")));
 		GuiAcceptanceSupport.await(() -> manager.getLastRibbonCommandResult() != null
 			&& manager.getLastRibbonCommandResult().status() == RibbonCommandResult.Status.NO_CHANGE
@@ -203,16 +273,18 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 			"Resource Sort Order dialog did not reopen after cancel");
 		sortDialog = findDialogWith(ResourceSortOrderPanel.class);
 		orderPanel = findComponent(sortDialog, ResourceSortOrderPanel.class);
-		assertEquals("Field.name", orderPanel.getFieldId());
+		assertEquals("Field.standardRate", orderPanel.getFieldId());
+		JComboBox<?> ribbonFieldChoice = flatten(sortDialog).stream().filter(JComboBox.class::isInstance)
+			.map(JComboBox.class::cast).filter(combo -> combo.getItemCount() == sortFields.size()).findFirst()
+			.orElseThrow(() -> new AssertionError("Sort Order field control is missing"));
+		int nameFieldIndex = java.util.stream.IntStream.range(0, sortFields.size())
+			.filter(index -> "Field.name".equals(sortFields.get(index).getId())).findFirst()
+			.orElseThrow(() -> new AssertionError("Resource Name field is missing"));
+		selectComboIndex(robot, ribbonFieldChoice, nameFieldIndex);
 		JComboBox<?> direction = flatten(orderPanel).stream().filter(JComboBox.class::isInstance)
 			.map(JComboBox.class::cast).filter(combo -> combo.getItemCount() == 2).findFirst()
 			.orElseThrow(() -> new AssertionError("Sort Order direction control is missing"));
-		click(robot, direction);
-		robot.keyPress(KeyEvent.VK_HOME);
-		robot.keyRelease(KeyEvent.VK_HOME);
-		robot.keyPress(KeyEvent.VK_ENTER);
-		robot.keyRelease(KeyEvent.VK_ENTER);
-		robot.waitForIdle();
+		selectComboIndex(robot, direction, 0);
 		click(robot, findShowingButtonByText(sortDialog, UIManager.getString("OptionPane.okButtonText")));
 		GuiAcceptanceSupport.await(() -> namedTestResources(sheet).equals(List.of("Alpha", "Zulu")),
 			"Sort Order confirmation did not apply ascending Name order");
@@ -247,6 +319,19 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 		robot.mouseMove(location.x + component.getWidth() / 2, location.y + component.getHeight() / 2);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+	}
+
+	private static void selectComboIndex(Robot robot, JComboBox<?> combo, int index) throws Exception {
+		click(robot, combo);
+		robot.keyPress(KeyEvent.VK_HOME);
+		robot.keyRelease(KeyEvent.VK_HOME);
+		for (int current = 0; current < index; current++) {
+			robot.keyPress(KeyEvent.VK_DOWN);
+			robot.keyRelease(KeyEvent.VK_DOWN);
+		}
+		robot.keyPress(KeyEvent.VK_ENTER);
+		robot.keyRelease(KeyEvent.VK_ENTER);
 		robot.waitForIdle();
 	}
 
