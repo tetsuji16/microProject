@@ -62,6 +62,138 @@ import net.sf.mpxj.TaskMode;
 
 class MpxExportTrackingTest {
 	@Test
+	void taskBaselineSlotsImportAndRoundTripWithoutChangingCurrentSchedule() throws Exception {
+		ProjectFile source = new ProjectFile();
+		source.addDefaultBaseCalendar();
+		source.getProjectProperties().setMinutesPerDay(Integer.valueOf(480));
+		java.util.Date currentStart = java.util.Date.from(java.time.Instant.parse("2026-10-12T08:00:00Z"));
+		java.util.Date currentFinish = java.util.Date.from(java.time.Instant.parse("2026-10-13T17:00:00Z"));
+		net.sf.mpxj.Task task = source.addTask();
+		task.setName("Baseline contract");
+		task.setUniqueID(1);
+		task.setStart(currentStart);
+		task.setFinish(currentFinish);
+		task.setDuration(net.sf.mpxj.Duration.getInstance(2, net.sf.mpxj.TimeUnit.DAYS));
+		java.util.Date baselineZeroStart = java.util.Date.from(java.time.Instant.parse("2026-10-05T08:00:00Z"));
+		java.util.Date baselineZeroFinish = java.util.Date.from(java.time.Instant.parse("2026-10-06T17:00:00Z"));
+		java.util.Date baselineOneStart = java.util.Date.from(java.time.Instant.parse("2026-10-07T08:00:00Z"));
+		java.util.Date milestoneBaseline = java.util.Date.from(java.time.Instant.parse("2026-10-08T08:00:00Z"));
+		java.util.Date baselineTenStart = java.util.Date.from(java.time.Instant.parse("2026-10-01T08:00:00Z"));
+		java.util.Date baselineTenFinish = java.util.Date.from(java.time.Instant.parse("2026-10-02T17:00:00Z"));
+		task.setBaselineStart(baselineZeroStart);
+		task.setBaselineFinish(baselineZeroFinish);
+		task.setBaselineDuration(net.sf.mpxj.Duration.getInstance(2, net.sf.mpxj.TimeUnit.DAYS));
+		task.setBaselineStart(1, baselineOneStart); // partial baseline: finish is absent
+		task.setBaselineStart(2, milestoneBaseline);
+		task.setBaselineFinish(2, milestoneBaseline);
+		task.setBaselineDuration(2, net.sf.mpxj.Duration.getInstance(0, net.sf.mpxj.TimeUnit.DAYS));
+		task.setBaselineStart(10, baselineTenStart);
+		task.setBaselineFinish(10, baselineTenFinish);
+		task.setBaselineDuration(10, net.sf.mpxj.Duration.getInstance(2, net.sf.mpxj.TimeUnit.DAYS));
+		ByteArrayOutputStream sourceXml = new ByteArrayOutputStream();
+		new net.sf.mpxj.mspdi.MSPDIWriter().write(source, sourceXml);
+
+		Project imported = new com.microproject.core.pm.exchange.MspImporter().importProject(
+			new ByteArrayInputStream(sourceXml.toByteArray()), "xml", (progress, label) -> {});
+		NormalTask importedTask = taskNamed(imported, "Baseline contract");
+		assertEquals(com.microproject.core.pm.exchange.converters.type.DateUTCConverter.toModelTime(currentStart),
+			importedTask.getCurrentSchedule().getStart(), "baseline conversion must leave the current schedule intact");
+		assertEquals(com.microproject.core.pm.exchange.converters.type.DateUTCConverter.toModelTime(baselineZeroStart),
+			importedTask.getBaselineStart());
+		assertEquals(com.microproject.core.pm.exchange.converters.type.DateUTCConverter.toModelTime(baselineZeroFinish),
+			importedTask.getBaselineFinish());
+		assertBaselineDuration(importedTask.getBaselineDuration(0), 2.0d,
+			com.microproject.datatype.TimeUnit.DAYS);
+		assertEquals(com.microproject.core.pm.exchange.converters.type.DateUTCConverter.toModelTime(baselineOneStart),
+			((com.microproject.pm.task.TaskSnapshot) importedTask.getSnapshot(Integer.valueOf(1)))
+				.getCurrentSchedule().getStart());
+		assertEquals(0L, ((com.microproject.pm.task.TaskSnapshot) importedTask.getSnapshot(Integer.valueOf(1)))
+			.getCurrentSchedule().getFinish(), "an absent finish must stay absent");
+		assertEquals(0L, ((com.microproject.pm.task.TaskSnapshot) importedTask.getSnapshot(Integer.valueOf(2)))
+			.getCurrentSchedule().getRawDuration(), "zero duration is a valid milestone baseline");
+		assertEquals(com.microproject.core.pm.exchange.converters.type.DateUTCConverter.toModelTime(baselineTenStart),
+			((com.microproject.pm.task.TaskSnapshot) importedTask.getSnapshot(Integer.valueOf(10)))
+				.getCurrentSchedule().getStart());
+
+		ByteArrayOutputStream roundTripXml = new ByteArrayOutputStream();
+		MicrosoftImporter exporter = new MicrosoftImporter();
+		exporter.setFileName("baseline-round-trip.xml");
+		assertTrue(exporter.saveProject(imported, roundTripXml));
+		ProjectFile roundTrip = new net.sf.mpxj.mspdi.MSPDIReader()
+			.read(new ByteArrayInputStream(roundTripXml.toByteArray()));
+		net.sf.mpxj.Task roundTripTask = roundTrip.getTasks().stream()
+			.filter(candidate -> "Baseline contract".equals(candidate.getName())).findFirst().orElseThrow();
+		assertEquals(baselineZeroStart, roundTripTask.getBaselineStart());
+		assertEquals(baselineZeroFinish, roundTripTask.getBaselineFinish());
+		assertEquals(2.0d, roundTripTask.getBaselineDuration().getDuration(), 0.00001d);
+		assertEquals(net.sf.mpxj.TimeUnit.DAYS, roundTripTask.getBaselineDuration().getUnits());
+		assertEquals(baselineOneStart, roundTripTask.getBaselineStart(1));
+		assertNull(roundTripTask.getBaselineFinish(1));
+		assertEquals(milestoneBaseline, roundTripTask.getBaselineStart(2));
+		assertEquals(milestoneBaseline, roundTripTask.getBaselineFinish(2));
+		assertEquals(baselineTenStart, roundTripTask.getBaselineStart(10));
+		assertEquals(baselineTenFinish, roundTripTask.getBaselineFinish(10));
+		assertEquals(2.0d, roundTripTask.getBaselineDuration(10).getDuration(), 0.00001d);
+
+		ByteArrayOutputStream mpo = new ByteArrayOutputStream();
+		com.microproject.exchange.MpoFileImporter nativeWriter = new com.microproject.exchange.MpoFileImporter();
+		assertTrue(nativeWriter.saveProject(imported, mpo));
+		Project reopened = new com.microproject.exchange.MpoFileImporter()
+			.loadProject(new ByteArrayInputStream(mpo.toByteArray()));
+		NormalTask reopenedTask = taskNamed(reopened, "Baseline contract");
+		assertEquals(importedTask.getBaselineStart(), reopenedTask.getBaselineStart());
+		assertEquals(importedTask.getBaselineFinish(), reopenedTask.getBaselineFinish());
+		assertEquals(((com.microproject.pm.task.TaskSnapshot) importedTask.getSnapshot(Integer.valueOf(1)))
+			.getCurrentSchedule().getStart(),
+			((com.microproject.pm.task.TaskSnapshot) reopenedTask.getSnapshot(Integer.valueOf(1)))
+			.getCurrentSchedule().getStart());
+		assertEquals(importedTask.getBaselineDuration(0), reopenedTask.getBaselineDuration(0));
+		assertEquals(importedTask.getBaselineDuration(2), reopenedTask.getBaselineDuration(2));
+		assertEquals(((com.microproject.pm.task.TaskSnapshot) importedTask.getSnapshot(Integer.valueOf(10)))
+			.getCurrentSchedule().getFinish(),
+			((com.microproject.pm.task.TaskSnapshot) reopenedTask.getSnapshot(Integer.valueOf(10)))
+			.getCurrentSchedule().getFinish());
+		assertEquals(importedTask.getCurrentSchedule().getStart(), reopenedTask.getCurrentSchedule().getStart());
+	}
+
+	private static void assertBaselineDuration(long actual, double expectedValue, int expectedUnit) {
+		assertEquals(expectedValue, com.microproject.datatype.Duration.getValue(actual), 0.00001d);
+		assertEquals(expectedUnit, com.microproject.datatype.Duration.getEffectiveType(actual));
+	}
+
+	@Test
+	void elapsedBaselineDurationUnitSurvivesMpxjModelConversion() {
+		long imported = com.microproject.core.pm.exchange.converters.mpx.MpxUtils.toProjectDuration(
+			net.sf.mpxj.Duration.getInstance(2, net.sf.mpxj.TimeUnit.ELAPSED_DAYS));
+		assertBaselineDuration(imported, 2.0d, com.microproject.datatype.TimeUnit.ELAPSED_DAYS);
+		net.sf.mpxj.Duration exported = MPXConverter.toMPXDuration(imported);
+		assertEquals(2.0d, exported.getDuration(), 0.00001d);
+		assertEquals(net.sf.mpxj.TimeUnit.ELAPSED_DAYS, exported.getUnits());
+	}
+
+	@Test
+	void mpxj1154MspdiRoundTripNormalizesElapsedBaselineDuration() throws Exception {
+		ProjectFile source = new ProjectFile();
+		source.addDefaultBaseCalendar();
+		source.getProjectProperties().setMinutesPerDay(Integer.valueOf(480));
+		net.sf.mpxj.Task task = source.addTask();
+		task.setName("Elapsed baseline limitation");
+		task.setUniqueID(1);
+		task.setBaselineDuration(3,
+			net.sf.mpxj.Duration.getInstance(2, net.sf.mpxj.TimeUnit.ELAPSED_DAYS));
+		ByteArrayOutputStream xml = new ByteArrayOutputStream();
+		new net.sf.mpxj.mspdi.MSPDIWriter().write(source, xml);
+
+		Project imported = new com.microproject.core.pm.exchange.MspImporter().importProject(
+			new ByteArrayInputStream(xml.toByteArray()), "xml", (progress, label) -> {});
+		long baselineDuration = taskNamed(imported, "Elapsed baseline limitation").getBaselineDuration(3);
+		// MPXJ 11.5.4's MSPDI writer/reader normalization changes two elapsed days
+		// to six working days when MinutesPerDay is 480. Keep this explicit known
+		// limitation visible instead of claiming XML elapsed-unit round-trip parity.
+		assertBaselineDuration(baselineDuration, 6.0d, com.microproject.datatype.TimeUnit.DAYS);
+	}
+
+	@Test
 	void historicalAssignmentImportUsesTheTaskStartAsItsOffsetOrigin() throws Exception {
 		ProjectFile source = new ProjectFile();
 		source.addDefaultBaseCalendar();

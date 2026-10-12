@@ -35,6 +35,7 @@ import javax.swing.undo.AbstractUndoableEdit;
 import com.microproject.undo.EditSupport;
 import com.microproject.strings.Messages;
 import com.microproject.util.DateTime;
+import com.microproject.transaction.ModelTransaction;
 
 
 /**
@@ -61,17 +62,72 @@ public class UpdateProjectCommand extends Command {
 
 	/** Applies one Update Project transaction and posts exactly one undoable edit. */
 	public List<Long> execute(List<? extends Task> targets, EditSupport edits) {
-		Map<Task, TaskState> before = backupProjectTasks();
 		affectedTaskIds.clear();
-		for (Task task : targets) accept(task);
-		if (!affectedTaskIds.isEmpty()) {
-			Map<Task, TaskState> after = backupProjectTasks();
-			edits.postEdit(new UpdateProjectEdit(project, before, after));
+		try {
+			ModelTransaction.execute(new ModelTransaction.Steps<ProjectState, List<Long>>() {
+				@Override public void validate() {
+					java.util.Objects.requireNonNull(targets, "targets");
+					java.util.Objects.requireNonNull(edits, "edits");
+					java.util.Set<Task> projectTasks = java.util.Collections.newSetFromMap(
+						new java.util.IdentityHashMap<>());
+					projectTasks.addAll(project.getTaskList());
+					java.util.Set<Task> uniqueTargets = java.util.Collections.newSetFromMap(
+						new java.util.IdentityHashMap<>());
+					for (Task task : targets) {
+						if (task == null || !projectTasks.contains(task))
+							throw new IllegalArgumentException("Every Update Project task must belong to its project");
+						if (!uniqueTargets.add(task))
+							throw new IllegalArgumentException("Update Project task targets must be unique");
+					}
+				}
+				@Override public void authorize() {
+					if (project.isReadOnly())
+						throw new IllegalStateException("Cannot update a read-only project");
+				}
+				@Override public ProjectState capture() {
+					beforeSnapshot = backupProjectTasks();
+					return beforeSnapshot;
+				}
+				@Override public ModelTransaction.Mutation<List<Long>> apply() {
+					for (Task task : targets) accept(task);
+					List<Long> changed = affectedTaskIds();
+					return changed.isEmpty()
+						? ModelTransaction.Mutation.unchanged(changed)
+						: ModelTransaction.Mutation.changed(changed);
+				}
+				@Override public void schedule() {
+					// Each task update recalculates incrementally. Finish the batch from one
+					// project-wide pass so dependent schedules and the captured Undo state agree.
+					project.recalculate();
+				}
+				@Override public void checkInvariants() {
+					for (Long taskId : affectedTaskIds) {
+						Task task = project.getTaskList().stream()
+							.filter(candidate -> candidate.getUniqueId() == taskId.longValue())
+							.findFirst().orElse(null);
+						if (task == null)
+							throw new IllegalStateException("Updated task was detached from the project");
+					}
+				}
+				@Override public void restore(ProjectState before) {
+					restoreProjectTasks(before);
+					affectedTaskIds.clear();
+				}
+				@Override public void commit(List<Long> changed) {
+					ProjectState after = backupProjectTasks();
+					edits.postEdit(new UpdateProjectEdit(project, beforeSnapshot.tasks(), after.tasks()));
+				}
+				private ProjectState beforeSnapshot;
+			});
+		} catch (ModelTransaction.ModelTransactionException failure) {
+			if (failure.stage() != ModelTransaction.Stage.COMMIT)
+				affectedTaskIds.clear();
+			throw new IllegalStateException("Update Project failed during " + failure.failedStage(), failure);
 		}
 		return affectedTaskIds();
 	}
 
-	private void applyToTask(Task task) {
+	protected void applyToTask(Task task) {
 		long taskEndBeforeUpdate = task.getEnd();
 		if (task.updateProjectTask(request.statusDate(), request.updateWorkAsCompleteThrough(),
 			request.setFractionalPercentComplete())) {
@@ -85,17 +141,38 @@ public class UpdateProjectCommand extends Command {
 		}
 	}
 
-	private Map<Task, TaskState> backupProjectTasks() {
+	private ProjectState backupProjectTasks() {
 		Map<Task, TaskState> result = new LinkedHashMap<>();
 		for (Task task : project.getTaskList()) {
 			Double override = task instanceof com.microproject.pm.task.NormalTask normal
 				? normal.getImportedPercentCompleteOverride() : null;
-			result.put(task, new TaskState(task.backupDetail(), override));
+			result.put(task, new TaskState(task.backupDetail(), override, task.isDirty()));
 		}
-		return result;
+		return new ProjectState(result, project.isDirty(), project.isGroupDirty());
 	}
 
-	private record TaskState(Object detail, Double importedPercentCompleteOverride) { }
+	private void restoreProjectTasks(ProjectState state) {
+		restoreTaskStates(project, state.tasks(), this);
+		project.setDirty(state.projectDirty());
+		project.setGroupDirty(state.projectGroupDirty());
+	}
+
+	private static void restoreTaskStates(Project project, Map<Task, TaskState> state, Object eventSource) {
+		for (Map.Entry<Task, TaskState> entry : state.entrySet()) {
+			Task task = entry.getKey();
+			TaskState taskState = entry.getValue();
+			task.restoreDetail(eventSource, taskState.detail(), true);
+			if (task instanceof com.microproject.pm.task.NormalTask normal)
+				normal.restoreImportedPercentCompleteOverride(taskState.importedPercentCompleteOverride());
+		}
+		// Restore all task and assignment inputs before recalculating linked schedules once.
+		project.recalculate();
+		for (Map.Entry<Task, TaskState> entry : state.entrySet())
+			entry.getKey().setDirty(entry.getValue().dirty());
+	}
+
+	private record ProjectState(Map<Task, TaskState> tasks, boolean projectDirty, boolean projectGroupDirty) { }
+	private record TaskState(Object detail, Double importedPercentCompleteOverride, boolean dirty) { }
 
 	private static final class UpdateProjectEdit extends AbstractUndoableEdit {
 		private static final long serialVersionUID = 1L;
@@ -117,11 +194,7 @@ public class UpdateProjectCommand extends Command {
 			restore(after);
 		}
 		private void restore(Map<Task, TaskState> state) {
-			for (Map.Entry<Task, TaskState> entry : state.entrySet()) {
-				entry.getKey().restoreDetail(this, entry.getValue().detail(), false);
-				if (entry.getKey() instanceof com.microproject.pm.task.NormalTask normal)
-					normal.restoreImportedPercentCompleteOverride(entry.getValue().importedPercentCompleteOverride());
-			}
+			restoreTaskStates(project, state, this);
 			project.setDirty(true);
 		}
 	}

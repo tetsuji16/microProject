@@ -5,7 +5,7 @@
 このリポジトリは ProjectLibre デスクトップアプリの開発フォークで、主な品質保証対象は以下です。
 
 - プロジェクト計画データの読込/保存/再読込が破損なく行えること
-- `MPP / XML / MPX / Planner / XLSX / POD` の import/export 互換性
+- `MPP / XML / MPX / Planner / XLSX / POD` の交換経路と形式別の保証範囲。MPP は現時点で import の部分実装のみを確認しており、MPP export は未実装として追跡する（[形式別監査](docs/MSP_STANDARD_COMMAND_INVENTORY.md#file-format-coverage-at-current-master)）
 - 共同編集用 sidecar メタデータ、ロック、外部変更検知が競合なく動作すること
 - タスク、依存関係、カレンダー、工数、進捗、リソース、レポート、Gantt 表示が境界値でも正しいこと
 - Swing UI 入力、IME、日付入力、Gantt/Report/Image 出力が実運用に耐えること
@@ -29,9 +29,11 @@ JUnitの失敗時診断はレポートに残し、成功時の大量標準出力
 
 旧アプリ内部実装との後方互換は原則として要件にしません。MPOは既存ユーザーファイルを読み込めることを後方互換要件として維持し、バージョン付きfixtureで検証します。PODは独立した固定フォーマット境界であり、フィールド、順序、識別子、バージョンその他のシリアライズ構造を変更してはいけません。既存POD fixtureはこの形式不変と読込・round-tripの回帰確認に使い、旧アプリ内部APIの互換性を広げる目的には使いません。MPP/MPX/XML/XLSXは対応する外部形式との現行交換契約をテストし、旧microProjectアプリの内部動作との互換性とは区別します。sidecarや永続化enumは現行のサポート範囲を個別に定義し、MPO/PODの要件から自動的に後方互換対象へ広げません。
 
-## 1.2 ベータ出荷に必要な代表契約
+## 1.2 現行テストゲートに必要な代表契約
 
-詳細な実行範囲は [beta-test-strategy](docs/testing/beta-test-strategy.md)、出荷条件は [beta-release-plan](docs/beta-release-plan.md) に記載する。全 unit/headless の境界回帰は保持し、GUI は共有旅程を選ぶ。
+詳細な実行範囲は [beta-test-strategy](docs/testing/beta-test-strategy.md)、リリース条件は [beta-release-plan](docs/beta-release-plan.md) に記載する。これらは既存の beta 配布手順を説明する文書であり、互換性の達成証拠ではない。全 unit/headless の境界回帰は保持し、GUI は共有旅程を選ぶ。
+
+MS Project 互換性に関する形式テストでは read と write を独立して扱う。現在の MPP reader fixture が開ける事実は部分的な読込経路の証拠に限る。完全な MPP 互換性には MPP writer が生成した実バイナリの schema/構造検査と、Project desktop で定義したフィールド・関係の round-trip fixture が必要である。XML/MSPDI の export を `.mpp` と命名することは合格条件にしない。
 
 | 契約 | 回帰の配置 |
 | --- | --- |
@@ -72,7 +74,7 @@ JUnitの失敗時診断はレポートに残し、成功時の大量標準出力
 | F-03 | 境界 | 大文字拡張子 `PLAN.XLSX`, 混在 `Plan.MpP` | 判定 | 小文字化され正しく認識 |
 | F-04 | 異常 | `null`, 空文字, `file.`, `.pod`, 拡張子なし | 各 FileHelper API 呼出 | NPE なし。仕様上未許可または既定拡張子付与 |
 | F-05 | 異常 | 未対応拡張子 `.csv`, `.txt`, `.xls` | import/export | 明示的失敗、または file type `0` |
-| F-06 | 正常 | 実 `samples/sampledata.mpp` | `MspImporter.importProject` | task/resource/calendar が 0 件でない |
+| F-06 | 正常・部分カバレッジ | 実 `modules/microproject_exchange/testdata/New Product.mpp` | `XlsxSupportTest.mspImporterCanReadMpp` → `MspImporter.importProject` | project が非 null で task が 1 件以上。resource/calendar の完全性・他 Project 版や高度なフィールドの意味互換性は未検証 |
 | F-06a | 経路 | MPXJ が生成する MPX stream、extension=`mpx` | `MspImporter.importProject(stream, "mpx", ...)` (`MpxStreamImportTest`) | MPX reader 経路から名前付き task を取り込む。実在する旧版 MPX fixture による製品間互換性は別途監査する |
 | F-07 | 正常 | MPXJ 生成 XLSX | import | project 非 null、root summary 除外、子タスク保持 |
 | F-08 | 境界 | `.xlsx` 拡張子だが中身は XML | `normalizeExtension` | `xml` として読込 |
@@ -214,6 +216,7 @@ JUnitの失敗時診断はレポートに残し、成功時の大量標準出力
 - GUI quality gate: `docs/gui-quality-gate.md` を正本とする。変更した契約に必要な層（物理操作、モデル／表示、Undo/Redo、保存再読込、視覚レイアウト）を選んで実行する。挙動を変えないリファクタリングで同じRobot/UI matrixを繰り返さず、対象モジュールのテストを優先する。広範なGUI smoke/full matrixはリリースまたは定期監査で実行する。
 - Sample data: `samples/sampledata.mpp`, `samples/Commercial construction project plan.{mpp,pod,xlsx,xml,json}`。
 - 一時ファイル: JUnit の temp directory を使い、POD/XLSX/sidecar を毎回隔離。
+- テストソース棚卸し: `python scripts/test_source_inventory.py --check --output build/audit/test-source-inventory.json`。全 `src/test` / `src/guiTest` Java ファイルの区分をJSONに記録し、テスト計画中の存在しないファイル参照と静的に解決できるDynamicTest名の重複を失敗にする。動的式はJSONで未解決一覧として残し、人が確認する。
 - 並行性: thread pool で sidecar lock、`Timer` poll、UI thread 操作を重ねる。
 - Locale/Timezone: `Asia/Tokyo`, `UTC`, DST あり timezone で日付/カレンダーを再実行。
 - モック/スタブ: `ProjectWriterUtility` 生成ファイル、fake `WorkspaceSetting`, fake `Schedule`, fake `GraphPageable/ViewPrintable`。

@@ -509,6 +509,30 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		statusDate = workCalendar.adjustInsideCalendar(statusDate, true);
 		this.statusDate = statusDate;
 	}
+
+	/**
+	 * Restores an already-normalized status date from persisted project state.
+	 * Unlike {@link #setStatusDate(long)}, this preserves the exact stored instant
+	 * instead of reapplying day and work-calendar normalization.
+	 *
+	 * @param persistedStatusDate the persisted status date, or zero when unset
+	 * @throws IllegalArgumentException if the value is negative or outside the supported date range
+	 */
+	public void restoreStatusDate(long persistedStatusDate) {
+		validatePersistedStatusDate(persistedStatusDate);
+		this.statusDate = persistedStatusDate;
+	}
+
+	/** Validates a persisted status date without requiring a project instance. */
+	public static void validatePersistedStatusDate(long persistedStatusDate) {
+		if (persistedStatusDate < 0L)
+			throw new IllegalArgumentException("Persisted status date cannot be negative");
+		if (persistedStatusDate > 0L) {
+			long lastSupportedInstant = DateTime.midnightNextDay(DateTime.getMaxDate().getTime()) - 1L;
+			if (persistedStatusDate > lastSupportedInstant)
+				throw new IllegalArgumentException("Persisted status date is outside the supported date range");
+		}
+	}
 	
 
 

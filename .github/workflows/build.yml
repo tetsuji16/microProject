@@ -39,7 +39,9 @@ jobs:
         run: bash ./gradlew verifyArchitectureBoundaries verifyArchitectureBoundaryFixtures verifyNamingConventions --console=plain
 
       - name: Test repository maintenance scripts
-        run: python -m unittest discover -s scripts/tests -v
+        run: |
+          python -m unittest discover -s scripts/tests -v
+          python scripts/test_source_inventory.py --check --output build/audit/test-source-inventory.json
 
       - name: Build and test with Gradle
         run: bash ./gradlew build installDist --console=plain
@@ -53,3 +55,4 @@ jobs:
           path: |
             modules/**/build/reports/tests/test
             modules/**/build/test-results/test
+            build/audit/test-source-inventory.json

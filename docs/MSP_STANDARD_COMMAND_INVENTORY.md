@@ -51,11 +51,48 @@ buttons.
 | Clear Leveling | Resource > Level | MISSING | No dedicated clear-leveling ribbon Action was found. Requires safe provenance so clearing removes only leveling-created delays/splits and preserves manual edits. |
 | Next Overallocation | Resource > Level | IMPLEMENTED | [Microsoft Project desktop guidance](https://support.microsoft.com/en-us/project/distribute-project-work-evenly-level-resource-assignments) defines this as navigating to the next task with overallocated resources. Document-derived compatibility decision: traverse visible task rows after the current selection, wrap to the first visible candidate, and do not mutate model data. Hidden/filtered tasks are excluded by resolving candidates through current view rows. Robot coverage verifies next, wrap, no-candidate feedback, and schedule preservation. |
 | Task Inspector | Task | MISSING | No equivalent inspector route found; Microsoft documents a pane explaining scheduling factors and suggested changes. Do not bind a dummy Action. |
-| Respect Links, Inactivate Task, Format Painter | Task | MISSING | No equivalent standard-ribbon Action found in current menu/catalog definitions. Determine MSP scope and implement or intentionally omit with a documented product reason. |
-| Select/Clear and Summary/Milestone insertion | Task | MISSING/PARTIAL | No matching complete command set was found in current Task tab definitions. Recheck the standard Project edition and command semantics before implementing. |
+| Respect Links | Task | MISSING | A source scan of current production core/UI found no Respect Links command/service or standard-ribbon Action. Confirm Microsoft TaskRespectLinks scope, then implement the canonical route and tests; no parity claim. |
+| Inactivate Task | Task | PARTIAL | The domain Task has an inactiveTask property and schedule diagnostics understand inactive tasks, but the current standard ribbon has no Inactivate action in menuInternal.properties or RibbonCommandCatalog. The field/model alone does not satisfy the Project command. |
+| Format Painter | Task | MISSING | No equivalent command in the current standard ribbon/catalog. Define copied scope and formatting target from the Project desktop source before implementation. |
+| Task Inspector | Task | MISSING | No inspector pane/action found. Microsoft documents scheduling factors; implement its selection-following results and physical route before parity claim. |
+| Select/Clear and Summary/Milestone insertion | Task | MISSING/PARTIAL | Current ribbon has normal task, recurring task, and subproject insertion. The complete MSP selection/clear command set and Summary/Milestone insertion behavior are not exposed by current Task ribbon definitions. |
 | Entire Project / Selected Tasks zoom | View | PARTIAL | Entire Project is physically verified in Gantt, Task Usage, and Resource Usage. Selected Tasks is verified only in Gantt; current Usage selection does not expose a task snapshot, and microProject has no Resource Graph equivalent. See #769 and its 2026-10-07 updates. |
 | Report/Timeline object-specific formatting | Contextual tabs | PARTIAL | Contextual surfaces exist for Network and Calendar. Report/Timeline object selection surfaces and their supported commands are not complete. |
 | Cloud account, Project Online/Planner linking, VBA/Macros, Microsoft feedback/training services | File/Help | NOT SUPPORTED | This local desktop fork has no account/cloud or macro execution service. Do not add dummy controls. Track automation and connected integration coverage under roadmap M4; unsupported in-scope surfaces block a complete compatibility claim. Local Help/About are product replacements, not MSP parity. |
+
+## File format coverage at current master
+
+The repository exposes format handlers; that fact alone is not complete
+interoperability. Read and write are separate contracts and must not be inferred
+from a filename filter or an XML trailer.
+
+| Format / direction | Current implementation evidence | Coverage status |
+|---|---|---|
+| MPP read | MPXJ MPPReader is selected in modules/microproject_exchange/src/main/java/com/microproject/core/pm/exchange/MspImporter.java. XlsxSupportTest.mspImporterCanReadMpp opens the checked-in New Product.mpp fixture. | PARTIAL: one fixed project opens; field-by-field semantic compatibility and supported Project versions are not exhaustively verified. |
+| MPP write | ProjectWriterFactory maps MPX, XML, PMXML, PLANNER, JSON, SDEF and XLSX writers; it has no MPP entry. XlsxSupportTest.fileHelperAcceptsMppForReadOnlyImport asserts .mpp is rejected for writing. | MISSING: no current MPP writer path. This is a hard M3 blocker. |
+| Microsoft Project XML / MSPDI read | MspImporter chooses MPXJ MSPDIReader for XML. Existing import and conversion tests include Microsoft XML inputs. | PARTIAL: add a documented semantic matrix and broader fixture coverage. |
+| Microsoft Project XML / MSPDI write | ProjectWriterFactory maps XML to MSPDIWriter. MpxExportTrackingTest and MpxProjectConverterTest cover selected exported fields and reloads. | PARTIAL: existing focused round trips do not prove complete Project XML compatibility. |
+| MPX read/write | Import is selected in MspImporter; ProjectWriterFactory maps MPX to MPXWriter. | IMPLEMENTED as a legacy exchange path; record its exact field/version limits separately from MPP compatibility. |
+| MPO native read/write | MpoFileImporter and the MPO archive/transaction/importer tests cover native read, write and versioned archive behavior. | IMPLEMENTED for the documented microProject format; continue backward-read and round-trip acceptance. |
+| POD compatibility | PodRoundTripTest covers established POD serialization and embedded MSPDI data. | Existing compatibility path; keep the serialized wire format immutable and retain fixed fixtures. Do not add serialized fields or change descriptors. |
+| XLSX read/write | ProjectLibreXlsxReader/Writer and XlsxSupportTest cover native payload, summary sheets and selected round trips. | IMPLEMENTED for the declared XLSX contract; maintain a field-loss inventory. |
+| PMXML, Planner, JSON, SDEF | Writer factory includes these output handlers. | EXPORT handlers exist; importer support and Project desktop parity are not implied. Track format-specific read/write scope independently. |
+
+The default project open filter accepts MPP read while the save filter rejects
+it. MPP writing therefore must be added as a separate, carefully scoped
+interoperability implementation; do not rename an XML or MPO file to .mpp.
+
+## Automation and connected integrations
+
+No current coverage row should equate a missing implementation with a product
+decision that the feature is permanently out of scope.
+
+| Surface | Current source state | Compatibility disposition |
+|---|---|---|
+| VBA / macro execution | No desktop VBA runtime or macro command was found in the current UI/source scan. | MISSING; M4 scope decision and verified coverage required. |
+| COM add-ins / desktop extensibility | No COM automation/add-in bridge found in the current Java desktop implementation. | MISSING; M4 blocker unless the product goal is explicitly revised. |
+| Project Server / Project Online connection | The desktop application has project-file and local collaboration flows; no Microsoft server connection workflow was found in this audit. | MISSING; keep server and retired/current service behavior separate in M4. |
+| Planner linking / cloud account | Backstage omits Share/Account and no cloud linking action is in the standard ribbon catalog. | MISSING; do not render dummy controls; M4 must explicitly resolve this against the complete goal. |
 
 ## Office customization inventory (#770)
 

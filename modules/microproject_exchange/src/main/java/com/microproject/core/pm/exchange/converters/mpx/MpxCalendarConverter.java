@@ -24,7 +24,6 @@
  *******************************************************************************/
 package com.microproject.core.pm.exchange.converters.mpx;
 
-import com.microproject.core.time.TimeUtil;
 import com.microproject.exchange.ImportedCalendarService;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.calendar.WorkDay;
@@ -102,8 +101,8 @@ public class MpxCalendarConverter {
 		for (ProjectCalendarWeek mpxWeek : mpxCalendar.getWorkWeeks()) {
 			if (mpxWeek.getDateRange() == null || mpxWeek.getDateRange().getStart() == null
 					|| mpxWeek.getDateRange().getEnd() == null) continue;
-			long start = DateTime.dayFloor(TimeUtil.addTimeZoneOffset(mpxWeek.getDateRange().getStart().getTime()));
-			long end = DateTime.dayFloor(TimeUtil.addTimeZoneOffset(mpxWeek.getDateRange().getEnd().getTime()));
+			long start = MpxCalendarDateConverter.toModelDay(mpxWeek.getDateRange().getStart());
+			long end = MpxCalendarDateConverter.toModelDay(mpxWeek.getDateRange().getEnd());
 			WorkWeek week = new WorkWeek();
 			for (int i = 0; i < 7; i++) {
 				Day dayId = Day.getInstance(i + 1);
@@ -129,17 +128,16 @@ public class MpxCalendarConverter {
 		MpxExceptionConverter exceptionConverter = new MpxExceptionConverter();
 		for (ProjectCalendarException mpxException : mpxCalendar.getCalendarExceptions()) {
 			com.microproject.pm.calendar.CalendarRecurrence recurrence = recurrenceRules.get(mpxException);
-			// MPXJ exposes calendar exception boundaries as local-midnight dates.
-			// Convert those local dates to the core's UTC day keys; subtracting the
-			// offset moved Japanese/negative-offset locales onto the previous day.
+			// MPXJ represents calendar dates using the host-local calendar day;
+			// map the date fields back to the model's UTC day keys explicitly.
 			long from = recurrence == null
-				? DateTime.dayFloor(TimeUtil.addTimeZoneOffset(mpxException.getFromDate().getTime()))
+				? MpxCalendarDateConverter.toModelDay(mpxException.getFromDate())
 				: recurrence.getStartDate();
 			// For recurring MPXJ exceptions getToDate() is the final recurrence
 			// occurrence, not the duration of one occurrence. Calendar exceptions
 			// selected from MSP's date grid are one-day events.
 			long to = recurrence != null || mpxException.getToDate() == null ? from
-				: DateTime.dayFloor(TimeUtil.addTimeZoneOffset(mpxException.getToDate().getTime()));
+				: MpxCalendarDateConverter.toModelDay(mpxException.getToDate());
 			WorkDay exception = new WorkDay(from, to, mpxException.getName());
 			exception.setWorkingHours(new WorkingHours());
 			exceptionConverter.from(mpxException, exception);

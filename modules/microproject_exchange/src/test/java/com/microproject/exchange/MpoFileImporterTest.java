@@ -2005,9 +2005,30 @@ class MpoFileImporterTest {
 			"Update Project uses its target date without changing the project Status Date setting");
 		assertEquals(statusDateWasSet, restored.isStatusDateSet(),
 			"MPO reload must preserve the unchanged Status Date setting");
-		assertEquals(originalStatusDate, restored.getStatusDate());
+		if (statusDateWasSet)
+			assertEquals(originalStatusDate, restored.getStatusDate());
 		assertEquals(1D, firstTask(restored).getPercentComplete(), 0.00001D,
 			"Update Project actual progress must survive MPO reload");
+	}
+
+	@Test
+	void mpoManifestStatusDatePreservesExplicitUnsetAndRejectsInvalidTimestamps() throws Exception {
+		Project original = projectForRoundTrip();
+		ByteArrayOutputStream generated = new ByteArrayOutputStream();
+		new MpoFileImporter().saveProject(original, generated);
+		Map<String, byte[]> entries = readEntries(generated.toByteArray());
+		String manifest = new String(entries.get(MpoFileImporter.MANIFEST_ENTRY), StandardCharsets.UTF_8);
+		String withExplicitUnset = manifest.replace("projectSha256=\"", "statusDate=\"0\" projectSha256=\"");
+		entries.put(MpoFileImporter.MANIFEST_ENTRY, withExplicitUnset.getBytes(StandardCharsets.UTF_8));
+		Project restored = loadFromBytes(zip(entries).toByteArray());
+		assertFalse(restored.isStatusDateSet(), "zero in the MPO manifest means the explicit setting is unset");
+
+		for (String invalid : java.util.List.of("-1", Long.toString(Long.MAX_VALUE))) {
+			String invalidManifest = manifest.replace("projectSha256=\"", "statusDate=\"" + invalid + "\" projectSha256=\"");
+			entries.put(MpoFileImporter.MANIFEST_ENTRY, invalidManifest.getBytes(StandardCharsets.UTF_8));
+			assertThrows(IOException.class, () -> loadFromBytes(zip(entries).toByteArray()),
+				"out-of-range persisted status date must fail before model restore: " + invalid);
+		}
 	}
 
 	private static File writeTempMpo(Project project) throws Exception {

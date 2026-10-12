@@ -565,9 +565,18 @@ public class CriticalPath implements SchedulingAlgorithm {
 	}
 	
 	public static String getTrace() {
+		CriticalPath instance = lastInstance;
+		if (instance == null)
+			return "CriticalPath trace unavailable: no scheduling calculation has run.";
+
 		StringBuilder buf = new StringBuilder();
-		buf.append(ToStringBuilder.reflectionToString(lastInstance));
-		buf.append("\nProject: " +  lastInstance.project + " Task: " + traceTask + " reverse=" + traceTask.isReverseScheduled() + " parent ="+traceTask.isParent());
+		buf.append(ToStringBuilder.reflectionToString(instance));
+		Task task = traceTask;
+		buf.append("\nProject: ").append(instance.project).append(" Task: ").append(task);
+		if (task == null)
+			buf.append(" (no task is being traced)");
+		else
+			buf.append(" reverse=").append(task.isReverseScheduled()).append(" parent =").append(task.isParent());
 		return buf.toString();
 	}
 	

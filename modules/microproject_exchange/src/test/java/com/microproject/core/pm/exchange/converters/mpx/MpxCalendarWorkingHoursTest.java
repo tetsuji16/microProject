@@ -9,6 +9,8 @@ import java.util.Arrays;
 import java.util.Calendar;
 import java.util.List;
 import java.util.BitSet;
+import java.util.TimeZone;
+import java.util.Locale;
 
 import org.junit.jupiter.api.Test;
 
@@ -59,6 +61,61 @@ class MpxCalendarWorkingHoursTest {
 			assertEquals(rule.occurrenceDates(), imported.occurrenceDates(),
 				"MPXJ import must preserve occurrence dates for " + rule.getPattern());
 		}
+	}
+
+	@Test
+	void dateOnlyCalendarValuesRoundTripAcrossHostTimeZonesAndRestoreDefault() {
+		TimeZone original = TimeZone.getDefault();
+		Locale originalLocale = Locale.getDefault();
+		long expected = day(2024, Calendar.JUNE, 4);
+		try {
+			for (String zone : List.of("UTC", "Asia/Tokyo", "America/Mexico_City")) {
+				TimeZone.setDefault(TimeZone.getTimeZone(zone));
+				if ("Asia/Tokyo".equals(zone))
+					Locale.setDefault(Locale.forLanguageTag("th-TH"));
+				Date mpxDate = MpxCalendarDateConverter.toMpxDate(expected);
+				assertEquals(expected, MpxCalendarDateConverter.toModelDay(mpxDate), zone);
+			}
+		} finally {
+			TimeZone.setDefault(original);
+			Locale.setDefault(originalLocale);
+		}
+		assertEquals(original, TimeZone.getDefault());
+		assertEquals(originalLocale, Locale.getDefault());
+	}
+
+	@Test
+	void handAuthoredMspdiCalendarDatesKeepTheirUtcDayAndExportedDate() throws Exception {
+		String xml = """
+			<?xml version="1.0" encoding="UTF-8"?>
+			<Project xmlns="http://schemas.microsoft.com/project">
+			  <Name>Calendar date contract</Name>
+			  <Calendars><Calendar><UID>1</UID><Name>Date fixture</Name><IsBaseCalendar>1</IsBaseCalendar><BaseCalendarUID>-1</BaseCalendarUID>
+			    <Exceptions><Exception><EnteredByOccurrences>0</EnteredByOccurrences><TimePeriod>
+			      <FromDate>2024-06-04T00:00:00</FromDate><ToDate>2024-06-06T00:00:00</ToDate>
+			    </TimePeriod><Occurrences>1</Occurrences><Name>Fixture shutdown</Name><Type>1</Type><DayWorking>0</DayWorking></Exception></Exceptions>
+			  </Calendar></Calendars>
+			</Project>
+			""";
+		ProjectFile source = new net.sf.mpxj.mspdi.MSPDIReader()
+			.read(new java.io.ByteArrayInputStream(xml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+		long expectedStart = DateTime.calendarInstance(2024, Calendar.JUNE, 4).getTimeInMillis();
+		long expectedEnd = DateTime.calendarInstance(2024, Calendar.JUNE, 6).getTimeInMillis();
+		WorkingCalendar model = WorkingCalendar.getStandardBasedInstance();
+		new MpxCalendarConverter().from(source.getCalendars().getFirst(), model, new MpxImportState());
+		WorkDay shutdown = Arrays.stream(model.getExceptionDays())
+			.filter(exception -> "Fixture shutdown".equals(exception.getDescription())).findFirst().orElseThrow();
+		assertEquals(expectedStart, DateTime.dayFloor(shutdown.getStart()));
+		assertEquals(expectedEnd, DateTime.dayFloor(shutdown.getEnd()));
+
+		ProjectFile exported = new ProjectFile();
+		ProjectCalendar target = exported.addCalendar();
+		MPXConverter.toMpxCalendar(model, target);
+		java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
+		new net.sf.mpxj.mspdi.MSPDIWriter().write(exported, bytes);
+		String written = bytes.toString(java.nio.charset.StandardCharsets.UTF_8);
+		assertTrue(written.contains("<FromDate>2024-06-04T00:00:00"), written);
+		assertTrue(written.contains("<ToDate>2024-06-06T23:59:59"), written);
 	}
 
 	@Test
@@ -207,7 +264,7 @@ class MpxCalendarWorkingHoursTest {
 	}
 
 	private static Date mspDate(long utcTime) {
-		return new Date(utcTime + Calendar.getInstance().getTimeZone().getOffset(utcTime));
+		return MpxCalendarDateConverter.toMpxDate(utcTime);
 	}
 
 }
