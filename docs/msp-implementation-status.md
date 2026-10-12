@@ -43,7 +43,9 @@ open; an inventory or passing narrow test does not close an entire milestone.
   timephased work distributions use MSPDI Type 4 for slot 0 and Type 16+6 per
   later slot; literal slot 0/2, explicit-zero slot 9, missing slot 1, XML and
   MPO round trips have focused evidence. Assignment baseline cost distributions
-  and elapsed-duration XML normalization remain explicit gaps.
+  and elapsed-duration XML normalization also have literal XML/MPO round-trip
+  coverage; this is a bounded implementation result, not a complete M3 format
+  manifest.
 - Calendar date-only conversion separates local MPXJ calendar dates from UTC
   model day keys. Exception, work-week and recurrence conversion uses one
   implementation instead of inconsistent offsets.
@@ -61,11 +63,26 @@ open; an inventory or passing narrow test does not close an entire milestone.
 | Gate | Current boundary and next required work |
 |---|---|
 | M0 / #792 | Source/test/format/integration inventories are reconciled. A complete versioned command/field manifest, independent format manifests and exact current Microsoft reference evidence remain incomplete. |
-| M1 / #793 | Current Swing ribbon is retained and GUI work follows the repo-contained gates in `docs/gui-quality-gate.md` and `docs/gui-recovery-sequence.md`; no separate skill package is required. The Sort menu journey and current MSPDI Save As journey passed physical Windows Robot acceptance at Japanese/100%; latest Office appearance, a dated document-derived Microsoft UI comparison table, and the full locale/DPI matrix remain unverified. Continue ordered implementation work while keeping that evidence gate open. |
-| M2 / #794 | One production Update Project transaction is repaired. Other mutation families, revision journal/atomic observer publication, immutable projections and missing commands remain open. Do not mark #408–#411 complete from this slice. |
-| M3 / #796 | MPO (`.mpo`) is the authoritative native and default save format; backward-read work remains a gate. MPP reading remains an external interoperability gate. Per the user's 2026-10-12 decision, MPP writing is out of scope and MPO is the native save substitute. Assignment scalar baselines (slots 0–10, including assignment-only and explicit zero Work) and assignment timephased baseline work (literal slot 0/2, zero/missing distinction, XML/MPO round trips) have focused evidence. Assignment baseline cost distributions, broader external semantics and the independent MPP-read manifest remain incomplete. POD is frozen legacy import-only coverage. |
+| M1 / #793 | Current Swing ribbon is retained. The Windows full GUI workflow at commit `3a70041` passed run [38320038198](https://github.com/tetsuji16/ProjectLibre/actions/runs/38320038198), including the en/ja × 100/125/150% matrix and evidence upload. This is microProject acceptance evidence, not Microsoft Project capture. The user confirmed neither target client is installed, so the dated, source-linked document-derived comparison table for Microsoft 365 Project and Project 2024 remains missing; narrow-width reachability/accessibility evidence must be linked explicitly before closure. |
+| M2 / #794 | The Resource Sort menu/header physical route and one Update Project transaction have evidence. Remaining issue rows are finite in the roadmap table below: M2.1 sort boundary/task-renumber cases; M2.2 dependency, failure-atomicity and mutation-family coverage; M2.3 resource/assignment/progress and baseline edit workflows; M2.4 command inventory, views, reports, print and locale/DPI evidence. One workflow does not close a package. |
+| M3 / #796 | MPO (`.mpo`) is the authoritative native and default save format; earlier MPO read compatibility remains a gate. MPP reading remains in scope, while MPP writing is excluded by the user's 2026-10-12 decision. Assignment scalar/timephased work/cost baseline transfer, elapsed-duration normalization, literal zero/missing distinctions, XML/MSPDI and MPO round trips now have focused evidence at `81dc3f5` and its parent checkpoints. The independent MPP-read edition/build semantic manifest and remaining format rows in the roadmap are incomplete. POD remains frozen legacy import-only coverage. |
 | M4 / #797 | On 2026-10-12 the user explicitly excluded Microsoft Project VBA/macros, its macro-facing object model, COM automation, COM/VSTO add-ins, and local Office add-ins. These rows are EXCLUDED from the compatibility target; #797 can close as not planned. Native microProject local automation/extensions and offline collaboration are not excluded. |
-| M5 / #795 | Local domain/exchange/report/script checks and fresh install validation must be paired with CI and GUI evidence. The GUI full locale/DPI workflow is dispatched for the current PR head; no complete-compatibility release is justified while M1/M2/M3 rows and the release matrix remain incomplete. |
+| M5 / #795 | The full GUI run above is evidence for that earlier implementation head only. Final release still requires the exact final head's build, install/package launch, full GUI matrix, in-scope MPP-read/XML/MPO checks, POD frozen-fixture check and dated residual-coverage report. It remains blocked while M1/M2/M3 rows are partial. |
+
+### Finite remaining rows for #793/#794
+
+These are acceptance gaps, not scope exclusions. Keep each row open until its
+linked evidence contains the required source, fixture, command, observed state
+and result.
+
+| Issue/package | Already evidenced | Remaining acceptance rows |
+|---|---|---|
+| #793 M1 | Swing renderer/ADR retained; Windows run 38320038198 passed the six app locale/scale legs and uploaded evidence. | Publish a dated, state-matched document-derived comparison table for Microsoft 365 Project and Project 2024 using the applicable Microsoft UI sources; record applicability/access date and clearly label inference. Link narrow-width command reachability, focus/accessibility and screenshot-bound checks. No empirical Microsoft capture may be claimed. |
+| #794 M2.1 Editing/hierarchy/sorting | Resource name header toggle, numeric Standard Rate sorting, Sort Order menu route, selected resource identity, unchanged model order; physical ja/100% evidence. | Date sort; ties and empty values; ascending/descending expectations; filter/group behavior; selection identity after each; task display sort keeping table/Gantt rows aligned; permanent renumber as a separate confirmed, undoable, persisted action. |
+| #794 M2.2 Scheduling/dependencies/transactions | Update Project prevalidation/rollback and linked-task Undo/Redo slice. | Cited expected-date fixtures for FS/SS/FF/SF and lag units/calendars/constraints; verify only intended tasks move; warning/result behavior; Undo/Redo and MPO reopen; inject post-mutation failure and prove model, Undo history and observers are unchanged. Cover remaining mutation families and revisioned projection publication. |
+| #794 M2.3 Resources/assignments/progress/baselines | Resource sort is view-only. Assignment work/cost and baseline work/cost import, edit/persistence slices have core/exchange evidence, including MPO reopen. | Selected-vs-all scope, proposed resources, leveling defaults/provenance, assignment totals, status date and actual-progress transitions; manual split preservation; baseline edit/clear/recapture; Undo/Redo and MPO reopen for each changed workflow. |
+| #794 M2.4 Views/ribbon/context/reports/print/files | Current sort and Save As physical routes; report export fixture test. | Reconcile each #453/#769 command inventory row to source/status/enablement/physical route/visible result; view-only commands must preserve model; persistence where applicable; locale/DPI for changed routes; report value/rendering comparison and print page-boundary plus English/Japanese labels. Unsupported commands must be absent and documented. |
+| #795 M5 | Build 1101 and full GUI run 38320038198 passed at commit 3a70041. | Run release checks against the final exact head, verify packaged launch, MPO older-version reads, MPP read (not write), XML/MSPDI and MPO round trips, frozen POD fixtures, all six GUI legs, and publish the dated residual-deviation/exclusion report. |
 
 ## Dependency migration boundary
 
