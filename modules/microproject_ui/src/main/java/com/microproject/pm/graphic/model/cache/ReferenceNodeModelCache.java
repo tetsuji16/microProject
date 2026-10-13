@@ -180,12 +180,13 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 		NodeCache newCache=new NodeCache();
 		update(null,newCache,change,reschedule);
 		
-		//edges
+		nodeCache.copyContent(newCache);
+		// One publication revision can contain several facts. Reconcile the entire
+		// dependency graph from the committed model before notifying any view so the
+		// first callback observes one coherent revision.
 		Set<GraphicDependency> edgeChange=new HashSet<>();
 		updateEdges(edgeChange);
-		
-		
-		nodeCache.copyContent(newCache);
+		reconcileEdges();
 		
 		updateVisibleElements(change,edgeChange);
 	}
@@ -312,8 +313,6 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 		edgeCache.clear();
 		getModel().getHierarchy().checkEndVoidNodes(NodeModel.SILENT);
 		update();
-		buildEdges();
-		syncEdges();
 	}
 	
 
@@ -323,11 +322,11 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 		update();
 	}
 	
-//edges
-	public void buildEdges(){
+	private void reconcileEdges(){
 		int nodeCount=nodeCache.getCacheSize();
 		Map<Object, GraphicNode> implMap = HashMap.newHashMap(nodeCount);
 		List<GraphicNode> gnodes = new ArrayList<>(nodeCount);
+		Set<Dependency> currentDependencies = new HashSet<>();
 		for (GraphicNode gnode : nodeCache.getCache()) {
 			if (gnode.isVoid()||gnode.isAssignment()) continue;
 			if (!(gnode.getNode().getImpl() instanceof HasDependencies))
@@ -342,18 +341,26 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 			AssociationList dependencyList=task.getSuccessorList();
 			for (Association association : dependencyList) {
 				Dependency dep = (Dependency) association;
-				
 				HasDependencies pre=dep.getPredecessor();
 				HasDependencies suc=dep.getSuccessor();
 				GraphicNode preGNode=(GraphicNode)implMap.get(pre);
 				GraphicNode sucGNode=(GraphicNode)implMap.get(suc);
 				if (preGNode!=null&&sucGNode!=null){
-					newGraphicDependency(preGNode,sucGNode,dep);
+					currentDependencies.add(dep);
+					if (edgeCache.getElement(dep) == null)
+						newGraphicDependency(preGNode,sucGNode,dep);
 				} else {
 					logger.log(Level.FINE, "no graphic node");
 				}
 			}
 		}
+		List<GraphicDependency> removed = new ArrayList<>();
+		for (GraphicDependency edge : edgeCache.getCache()) {
+			if (!currentDependencies.contains(edge.getDependency()))
+				removed.add(edge);
+		}
+		for (GraphicDependency edge : removed)
+			edgeCache.deleteElement(edge);
 	}
 	
 	
@@ -364,11 +371,6 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 		return gdep;
 	}
 	
-	
-	private void syncEdges(){
-		edgeCache.updateAllVisibleElements();
-	}
-
 	
 	public void removeEdge(GraphicDependency dep){
 		if (dep==null) return;
