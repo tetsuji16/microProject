@@ -25,6 +25,7 @@
 package com.microproject.grouping.core.model;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
@@ -47,6 +48,7 @@ import com.microproject.field.FieldContext;
 import com.microproject.field.FieldParseException;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeFactory;
+import com.microproject.grouping.core.transform.sorting.NodeSorter;
 import com.microproject.grouping.core.hierarchy.AbstractMutableNodeHierarchy;
 import com.microproject.grouping.core.event.HierarchyEvent;
 import com.microproject.grouping.core.event.HierarchyListener;
@@ -783,6 +785,78 @@ class DefaultNodeModelTest {
 		project.getUndoController().redo();
 		assertSame(secondNode, root.getChildAt(0));
 		assertEquals(secondUniqueId, second.getUniqueId());
+	}
+
+	@Test
+	void permanentOutlineSortPreservesHierarchyStableTiesAndUndoRedo() throws Exception {
+		Project project = createProjectWithoutVoidRows();
+		NormalTask parent = createTask(project, "Zulu summary");
+		NormalTask nestedZulu = createTask(project, "Zulu child");
+		NormalTask nestedAlpha = createTask(project, "Alpha child");
+		NormalTask alphaFirst = createTask(project, "Alpha");
+		NormalTask alphaSecond = createTask(project, "Alpha");
+		DefaultNodeModel model = (DefaultNodeModel) project.getTaskModel();
+		Node parentNode = model.search(parent);
+		Node nestedZuluNode = model.search(nestedZulu);
+		Node nestedAlphaNode = model.search(nestedAlpha);
+		Node alphaFirstNode = model.search(alphaFirst);
+		Node alphaSecondNode = model.search(alphaSecond);
+		assertTrue(model.relocate(List.of(nestedZuluNode, nestedAlphaNode), parentNode, 0, NodeModel.SILENT));
+		Dependency dependency = DependencyService.getInstance().newDependency(nestedZulu, alphaFirst,
+			DependencyType.FS, 0L, this);
+		long[] uniqueIds = { parent.getUniqueId(), nestedZulu.getUniqueId(), nestedAlpha.getUniqueId(),
+			alphaFirst.getUniqueId(), alphaSecond.getUniqueId() };
+		project.getUndoController().clear();
+
+		NodeSorter byTaskName = new NodeSorter() {
+			@Override
+			public int compare(Object left, Object right) {
+				return ((com.microproject.pm.task.Task) ((Node) left).getImpl()).getName()
+					.compareTo(((com.microproject.pm.task.Task) ((Node) right).getImpl()).getName());
+			}
+		};
+		assertTrue(model.sortOutlineBy(byTaskName, NodeModel.NORMAL));
+
+		Node root = (Node) model.getHierarchy().getRoot();
+		assertSame(alphaFirstNode, root.getChildAt(0));
+		assertSame(alphaSecondNode, root.getChildAt(1), "equal keys retain their prior sibling order");
+		assertSame(parentNode, root.getChildAt(2));
+		assertSame(nestedAlphaNode, parentNode.getChildAt(0));
+		assertSame(nestedZuluNode, parentNode.getChildAt(1));
+		assertSame(parentNode, nestedAlphaNode.getParent());
+		assertArrayEquals(uniqueIds, new long[] { parent.getUniqueId(), nestedZulu.getUniqueId(), nestedAlpha.getUniqueId(),
+			alphaFirst.getUniqueId(), alphaSecond.getUniqueId() });
+		assertEquals(List.of(1L, 2L, 3L, 4L, 5L), taskIds(project));
+		assertSame(dependency, findDependency(nestedZulu, alphaFirst));
+
+		assertTrue(project.getUndoController().canUndo());
+		project.getUndoController().undo();
+		assertSame(parentNode, root.getChildAt(0));
+		assertSame(alphaFirstNode, root.getChildAt(1));
+		assertSame(alphaSecondNode, root.getChildAt(2));
+		assertSame(nestedZuluNode, parentNode.getChildAt(0));
+		assertSame(nestedAlphaNode, parentNode.getChildAt(1));
+		assertSame(dependency, findDependency(nestedZulu, alphaFirst));
+		project.getUndoController().redo();
+		assertSame(alphaFirstNode, root.getChildAt(0));
+		assertSame(nestedAlphaNode, parentNode.getChildAt(0));
+		assertSame(dependency, findDependency(nestedZulu, alphaFirst));
+		project.getUndoController().clear();
+		assertFalse(model.sortOutlineBy(byTaskName, NodeModel.NORMAL), "an already sorted outline is a true no-op");
+		assertFalse(project.getUndoController().canUndo(), "a no-op must not create an Undo edit");
+
+		NodeSorter failingNestedSort = new NodeSorter() {
+			@Override
+			public int compare(Object left, Object right) {
+				if (((Node) left).getParent() == parentNode)
+					throw new IllegalStateException("nested comparison failed before mutation");
+				return ((com.microproject.pm.task.Task) ((Node) right).getImpl()).getName()
+					.compareTo(((com.microproject.pm.task.Task) ((Node) left).getImpl()).getName());
+			}
+		};
+		assertThrows(IllegalStateException.class, () -> model.sortOutlineBy(failingNestedSort, NodeModel.NORMAL));
+		assertSame(alphaFirstNode, root.getChildAt(0), "sort plans are validated before any sibling is moved");
+		assertFalse(project.getUndoController().canUndo(), "a failed preflight must not create an Undo edit");
 	}
 
 	@Test

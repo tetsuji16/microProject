@@ -90,6 +90,7 @@ import com.microproject.field.Field;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.transform.CommonTransformFactory;
 import com.microproject.grouping.core.transform.ViewConfiguration;
+import com.microproject.grouping.core.transform.ViewTransformer;
 import com.microproject.job.JobQueue;
 import com.microproject.job.Job;
 import com.microproject.menu.testsupport.UiComponentWalker;
@@ -3007,6 +3008,92 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> ganttView.getGantt().getHighlightedRows()
 				.equals(java.util.Set.of(rowForTask(sheet, tiedEarlier))),
 			"the rendered Gantt highlight did not follow the sorted task's table row");
+		Point selectedRowHeaderPoint = rowHeaderTargetOnScreen(sheet.getRowHeader(), rowForTask(sheet, tiedEarlier), false).screenPoint();
+		click(robot, new Rectangle(selectedRowHeaderPoint.x, selectedRowHeaderPoint.y, 1, 1));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(tiedEarlier),
+			"the task row-header selection precondition was not established before permanent sorting");
+
+		List<Long> originalIds = List.of(later.getId(), earlier.getId(), tiedEarlier.getId());
+		boolean undoBeforeCancel = project.getUndoController().canUndo();
+		boolean dirtyBeforeCancel = project.needsSaving();
+		click(robot, findShowingButtonByCommand("RibbonChooseSort"));
+		Dialog permanentChooser = (Dialog) java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow();
+		JCheckBox permanentCheck = UiComponentWalker.flatten(permanentChooser).stream()
+			.filter(JCheckBox.class::isInstance).map(JCheckBox.class::cast)
+			.filter(check -> check.getText().equals(ResourceBundle.getBundle("com.microproject.menu.menu")
+				.getString("Sort.PermanentTaskOrder"))).findFirst().orElseThrow();
+		click(robot, permanentCheck);
+		click(robot, findShowingButtonByText(permanentChooser, javax.swing.UIManager.getString("OptionPane.okButtonText")));
+		GuiAcceptanceSupport.await(() -> java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow() instanceof Dialog dialog
+				&& dialog != permanentChooser, "permanent task sort did not ask for a second confirmation");
+		Dialog confirmation = (Dialog) java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow();
+		click(robot, findShowingButtonByText(confirmation, javax.swing.UIManager.getString("OptionPane.noButtonText")));
+		GuiAcceptanceSupport.await(() -> !confirmation.isShowing(), "No did not cancel permanent task sorting");
+		assertEquals(originalOutline, taskOrder(project), "confirmation cancel must leave task order unchanged");
+		assertEquals(originalIds, List.of(later.getId(), earlier.getId(), tiedEarlier.getId()),
+			"confirmation cancel must leave task IDs unchanged");
+		assertEquals(undoBeforeCancel, project.getUndoController().canUndo(), "confirmation cancel must not add an Undo edit");
+		assertEquals(dirtyBeforeCancel, project.needsSaving(), "confirmation cancel must not dirty the project");
+
+		click(robot, findShowingButtonByCommand("RibbonChooseSort"));
+		JComboBox<?> permanentSorterAgain = findShowingTransformCombo("Sorter.StartDate");
+		int startDateIndex = -1;
+		for (int index = 0; index < permanentSorterAgain.getItemCount(); index++) {
+			Object item = permanentSorterAgain.getItemAt(index);
+			if (item instanceof CommonTransformFactory factory && "Sorter.StartDate".equals(factory.getId())) {
+				startDateIndex = index;
+				break;
+			}
+		}
+		assertTrue(startDateIndex >= 0);
+		GuiAcceptanceSupport.selectComboBoxItem(robot, permanentSorterAgain, startDateIndex);
+		Dialog permanentChooserAgain = (Dialog) java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow();
+		JCheckBox permanentCheckAgain = UiComponentWalker.flatten(permanentChooserAgain).stream()
+			.filter(JCheckBox.class::isInstance).map(JCheckBox.class::cast)
+			.filter(check -> check.getText().equals(ResourceBundle.getBundle("com.microproject.menu.menu")
+				.getString("Sort.PermanentTaskOrder"))).findFirst().orElseThrow();
+		click(robot, permanentCheckAgain);
+		click(robot, findShowingButtonByText(permanentChooserAgain, javax.swing.UIManager.getString("OptionPane.okButtonText")));
+		GuiAcceptanceSupport.await(() -> java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow() instanceof Dialog dialog
+				&& dialog != permanentChooserAgain, "confirmed permanent task sort did not ask before mutation");
+		Dialog confirmationAgain = (Dialog) java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow();
+		click(robot, findShowingButtonByText(confirmationAgain,
+				javax.swing.UIManager.getString("OptionPane.yesButtonText")));
+		GuiAcceptanceSupport.await(() -> taskOrder(project).equals(
+				List.of("Date sort earlier", "Date sort tied earlier", "Date sort later")),
+			"confirmed permanent task sort did not change outline order");
+		assertTrue(manager.getCurrentFrame().getSelectedImpls(false).contains(tiedEarlier),
+			"permanent sorting must preserve selected task identity");
+		assertTrue(earlier.getId() < tiedEarlier.getId() && tiedEarlier.getId() < later.getId(),
+			"permanent task sort must renumber IDs in outline order");
+		assertEquals(ViewTransformer.SORTER_NONE_ID,
+			ViewConfiguration.getView(manager.getCurrentFrame().getTopViewId()).getTransform().getUserSorterId(),
+			"permanent ordering must clear the view-only sorter after applying it to the model");
+		for (NormalTask task : List.of(earlier, tiedEarlier, later)) {
+			int sheetRow = rowForTask(sheet, task);
+			var graphicNode = sheet.getCache().getGraphicNode(((CommonSpreadSheetModel) sheet.getModel()).getNode(sheetRow).getNode());
+			int ganttRow = ganttView.getGantt().getCache().getVisibleNodes().getProjectionIndex().rowForNode((GraphicNode) graphicNode);
+			assertEquals(sheetRow, ganttRow, "Gantt must paint permanently reordered tasks at their table rows");
+		}
+		ByteArrayOutputStream permanentMpo = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, permanentMpo), "MPO save rejected the permanent task order");
+		Project permanentReload = new MpoFileImporter().loadProject(new ByteArrayInputStream(permanentMpo.toByteArray()));
+		assertEquals(List.of("Date sort earlier", "Date sort tied earlier", "Date sort later"),
+			taskOrder(permanentReload), "MPO reload must preserve permanent task ordering");
+		assertEquals(List.of(earlier.getId(), tiedEarlier.getId(), later.getId()),
+			List.of(taskNamed(permanentReload, "Date sort earlier").getId(),
+				taskNamed(permanentReload, "Date sort tied earlier").getId(),
+				taskNamed(permanentReload, "Date sort later").getId()),
+			"MPO reload must preserve renumbered task IDs");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> taskOrder(project).equals(originalOutline),
+			"one Undo must restore the previous task order");
+		assertEquals(originalIds, List.of(later.getId(), earlier.getId(), tiedEarlier.getId()),
+			"one Undo must restore the previous task IDs");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> taskOrder(project).equals(
+				List.of("Date sort earlier", "Date sort tied earlier", "Date sort later")),
+			"one Redo must restore the permanent task order");
 	}
 
 	@Test

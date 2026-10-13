@@ -57,6 +57,7 @@ import com.microproject.grouping.core.VoidNodeImpl;
 import com.microproject.grouping.core.hierarchy.HierarchyUtils;
 import com.microproject.grouping.core.hierarchy.MutableNodeHierarchy;
 import com.microproject.grouping.core.hierarchy.NodeHierarchy;
+import com.microproject.grouping.core.transform.sorting.NodeSorter;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.assignment.HasAssignments;
@@ -270,6 +271,78 @@ public class DefaultNodeModel implements NodeModel {
 			postEdit(new NodeRelocationEdit(this,branches,sourceParent,beforeIndex,destination,afterIndex));
 		if (dataFactory!=null) dataFactory.setGroupDirty(true);
 		return true;
+	}
+
+	/**
+	 * Permanently sorts task siblings with the supplied view sorter while preserving
+	 * every task's outline level. The existing relocation edits keep this operation
+	 * undoable and the hierarchy renumbers task IDs after each structural change.
+	 */
+	public boolean sortOutlineBy(NodeSorter sorter, int actionType) {
+		if (sorter == null || hierarchy == null) return false;
+		List<OutlineSortPlan> plans = new ArrayList<>();
+		collectOutlineSortPlans((Node) hierarchy.getRoot(), sorter, plans);
+		if (plans.isEmpty()) return false;
+		for (OutlineSortPlan plan : plans) {
+			for (int offset = 0; offset < plan.sortedTasks().size(); offset++) {
+				Node taskNode = plan.sortedTasks().get(offset);
+				int targetIndex = plan.firstTaskIndex() + offset;
+				if (plan.parent().getIndex(taskNode) != targetIndex
+						&& !canRelocate(List.of(taskNode), plan.parent(), targetIndex)) return false;
+			}
+		}
+
+		UndoController undo = getUndoController();
+		boolean groupUndo = isUndo(actionType) && undo != null;
+		if (groupUndo) undo.beginUpdate();
+		boolean changed = false;
+		try {
+			for (OutlineSortPlan plan : plans) {
+				for (int offset = 0; offset < plan.sortedTasks().size(); offset++) {
+					Node taskNode = plan.sortedTasks().get(offset);
+					int targetIndex = plan.firstTaskIndex() + offset;
+					if (plan.parent().getIndex(taskNode) != targetIndex) {
+						changed |= relocate(List.of(taskNode), plan.parent(), targetIndex, actionType);
+					}
+				}
+			}
+		} finally {
+			if (groupUndo) undo.endUpdate();
+		}
+		return changed;
+	}
+
+	private void collectOutlineSortPlans(Node parent, NodeSorter sorter, List<OutlineSortPlan> plans) {
+		List<Node> taskChildren = new ArrayList<>();
+		int firstTaskIndex = -1;
+		int previousTaskIndex = -2;
+		for (int index = 0; index < parent.getChildCount(); index++) {
+			Object childValue = parent.getChildAt(index);
+			if (!(childValue instanceof Node child) || !(child.getImpl() instanceof Task)) continue;
+			if (firstTaskIndex < 0) firstTaskIndex = index;
+			if (!taskChildren.isEmpty() && index != previousTaskIndex + 1) {
+				// Do not cross non-task rows (for example placeholders or linked projects).
+				// Such mixed sibling blocks have no safe task-only permanent ordering.
+				taskChildren.clear();
+				firstTaskIndex = -1;
+				break;
+			}
+			previousTaskIndex = index;
+			taskChildren.add(child);
+		}
+		if (taskChildren.size() > 1) {
+			List<Node> sorted = new ArrayList<>(taskChildren);
+			sorted.sort(sorter);
+			if (!sorted.equals(taskChildren)) plans.add(new OutlineSortPlan(parent, firstTaskIndex, sorted));
+		}
+		for (int index = 0; index < parent.getChildCount(); index++) {
+			Object childValue = parent.getChildAt(index);
+			if (childValue instanceof Node child && child.getImpl() instanceof Task)
+				collectOutlineSortPlans(child, sorter, plans);
+		}
+	}
+
+	private record OutlineSortPlan(Node parent, int firstTaskIndex, List<Node> sortedTasks) {
 	}
 
 	public boolean canMoveSelectedNodes(List<Node> nodes,int direction){
