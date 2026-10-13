@@ -29,4 +29,8 @@ import javax.swing.undo.UndoableEdit;
 @FunctionalInterface
 public interface EditListener {
 	void editPosted(UndoableEdit edit);
+
+	/** Called after every committed edit has been delivered to the listeners. */
+	default void historySettled() {
+	}
 }

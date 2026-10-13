@@ -330,15 +330,19 @@ class RibbonButtonBehaviorTest {
 			assertTrue(actualWork > 0L, "the source assignment must have actual work");
 			assertTrue(remainingWork > 0L, "the source assignment must have remaining work");
 			harness.undoController.clear();
-
-			List<Assignment> created = harness.project.runModelCommand(markApplied -> {
-				List<Assignment> assignments = AssignmentService.getInstance().replaceAssignment(
-					source, List.of(replacement), this, true);
-				markApplied.run();
-				return assignments;
-			}, assignments -> !assignments.isEmpty(), assignments -> assignments);
+			List<Assignment> created = AssignmentService.getInstance().replaceAssignment(
+				source, List.of(replacement), this, true);
 			assertEquals(1, harness.project.getUndoController().getEditNames().size(),
-				"the nested replace command must publish one undo group after assignment events");
+				"the replacement must publish one undo group after assignment events");
+			assertSame(harness.project.getUndoController(), harness.frame.getUndoController(),
+				"the visible frame must observe the project undo controller");
+			assertTrue(harness.project.getUndoController().canUndo(),
+				"the replacement must be undoable after its project event publication");
+			assertTrue(harness.manager.getAction(MenuActionConstants.ACTION_UNDO).isEnabled(),
+				"the document Undo action must be enabled when the committed replacement route returns; frameController="
+					+ (harness.frame.getUndoController() == harness.project.getUndoController())
+					+ ", controllerCanUndo=" + harness.project.getUndoController().canUndo()
+					+ ", actionEnabled=" + harness.manager.getAction(MenuActionConstants.ACTION_UNDO).isEnabled());
 			InputMap shortcuts = new InputMap();
 			ActionMap actions = new ActionMap();
 			harness.manager.applyMicrosoftShortcuts(shortcuts, actions);
@@ -348,6 +352,7 @@ class RibbonButtonBehaviorTest {
 			assertNotNull(redo, "Ctrl+Y must resolve through the document shortcut map");
 			undo.actionPerformed(new ActionEvent(harness.manager, ActionEvent.ACTION_PERFORMED, "undo"));
 			assertFalse(harness.project.getUndoController().canUndo(), "one undo must reverse the entire replacement");
+			assertNull(task.findAssignment(replacement), "one undo must remove the replacement assignment");
 			assertSame(source, task.findAssignment(original));
 			assertEquals(actualWork, source.getActualWork(null));
 			assertEquals(remainingWork, source.getRemainingWork());

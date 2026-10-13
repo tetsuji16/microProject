@@ -241,8 +241,13 @@ class AssignmentDialogGuiAcceptanceTest {
 		activateWindow(robot);
 		click(robot, cellBounds(taskSheet, rowForTask(taskSheet, task), nameColumn(taskSheet)));
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
-		GuiAcceptanceSupport.await(() -> task.findAssignment(replacement) == null,
-			"Ctrl+Z did not remove the replacement assignment");
+		try {
+			GuiAcceptanceSupport.await(() -> task.findAssignment(replacement) == null,
+				"Ctrl+Z did not remove the replacement assignment");
+		} catch (AssertionError failure) {
+			failure.addSuppressed(new AssertionError(assignmentUndoDiagnostics(project, task, source, replacement)));
+			throw failure;
+		}
 		GuiAcceptanceSupport.await(() -> source.getRemainingWork() == remainingWork,
 			"Ctrl+Z did not restore the source remaining work");
 		assertSame(source, task.findAssignment(original));
@@ -278,6 +283,10 @@ class AssignmentDialogGuiAcceptanceTest {
 					+ ", frameUndoMatchesProject=" + (frameUndo == project.getUndoController())
 					+ ", canUndo=" + project.getUndoController().canUndo()
 					+ ", canRedo=" + project.getUndoController().canRedo()
+					+ ", pendingHistory=" + project.getUndoController().getEditSupport().hasPendingHistory()
+					+ ", undoName=" + project.getUndoController().getUndoName()
+					+ ", redoName=" + project.getUndoController().getRedoName()
+					+ ", editNames=" + project.getUndoController().getEditNames()
 					+ ", activeWindowClass=" + (focus.getActiveWindow() == null ? "null"
 							: focus.getActiveWindow().getClass().getName())
 					+ ", focusOwnerClass=" + (focus.getFocusOwner() == null ? "null"
@@ -293,6 +302,11 @@ class AssignmentDialogGuiAcceptanceTest {
 		} catch (TimeoutException timeout) {
 			return "EDT snapshot timed out after 2 seconds; thread state=" + blockedThreadDiagnostics();
 		}
+	}
+
+	private String assignmentUndoDiagnostics(Project project, NormalTask task, Assignment source,
+			Resource replacementResource) throws Exception {
+		return "Undo failure; " + assignmentRedoDiagnostics(project, task, source, replacementResource);
 	}
 
 	private static String blockedThreadDiagnostics() {

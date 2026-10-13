@@ -76,6 +76,71 @@ class EditSupportTest {
 	}
 
 	@Test
+	void historySettlesAfterReentrantQueuedEditsHaveBeenRegistered() {
+		UndoController controller = new UndoController();
+		EditSupport support = controller.getEditSupport();
+		List<String> notifications = new ArrayList<>();
+		support.addEditListener(new EditListener() {
+			@Override public void editPosted(UndoableEdit edit) {
+				String name = edit.getPresentationName();
+				notifications.add(name);
+				if ("outer".equals(name)) support.postEdit(edit("inner", new ArrayList<>()));
+			}
+
+			@Override public void historySettled() {
+				assertFalse(support.hasPendingHistory(), "settled observers run only after the committed queue drains");
+				notifications.add("settled");
+			}
+		});
+
+		support.postEdit(edit("outer", new ArrayList<>()));
+
+		assertEquals(List.of("outer", "inner", "settled"), notifications);
+		assertEquals(2, controller.getEditNames().size());
+		assertTrue(controller.canUndo());
+		EditSupport.Activation noOp = support.beginCommand();
+		EditSupport.Group noOpGroup = noOp.group();
+		support.reserveCommit(noOpGroup);
+		noOp.close();
+		support.completePublication(noOpGroup);
+		assertEquals(List.of("outer", "inner", "settled", "settled"), notifications,
+			"an empty reserved group must not strand ready observers");
+		assertEquals(2, controller.getEditNames().size(), "an empty group must not create undo history");
+	}
+
+	@Test
+	void incompleteEarlierGroupPreventsFalseSettledNotification() throws Exception {
+		UndoController controller = new UndoController();
+		EditSupport support = controller.getEditSupport();
+		AtomicBoolean settled = new AtomicBoolean();
+		support.addEditListener(new EditListener() {
+			@Override public void editPosted(UndoableEdit edit) { }
+			@Override public void historySettled() { settled.set(true); }
+		});
+		EditSupport.Activation first = support.beginCommand();
+		support.postEdit(edit("first", new ArrayList<>()));
+		EditSupport.Group firstGroup = first.group();
+		support.reserveCommit(firstGroup);
+		AtomicReference<Throwable> failure = new AtomicReference<>();
+		Thread secondWriter = new Thread(() -> {
+			try { support.postEdit(edit("second", new ArrayList<>())); }
+			catch (Throwable current) { failure.set(current); }
+		}, "undo-later-commit");
+		secondWriter.start();
+		secondWriter.join(2000);
+		assertFalse(secondWriter.isAlive());
+		assertEquals(null, failure.get());
+		assertTrue(support.hasPendingHistory());
+		assertFalse(settled.get(), "a blocked later commit is not a history-settled state");
+
+		first.close();
+		support.completePublication(firstGroup);
+
+		assertTrue(settled.get());
+		assertEquals(2, controller.getEditNames().size());
+	}
+
+	@Test
 	void dequeuedEditBlocksOldHistoryUntilControllerRegistrationCompletes() throws Exception {
 		CountDownLatch registrationEntered = new CountDownLatch(1);
 		CountDownLatch releaseRegistration = new CountDownLatch(1);
@@ -147,11 +212,21 @@ class EditSupportTest {
 			assertFalse(controller.canUndo());
 			support.postEdit(edit("first-notification", changes));
 		}
-		EditListener failing = edit -> { throw new IllegalStateException("observer failure"); };
+		AtomicBoolean settledAfterFailure = new AtomicBoolean();
+		EditListener failing = new EditListener() {
+			@Override public void editPosted(UndoableEdit edit) {
+				throw new IllegalStateException("observer failure");
+			}
+
+			@Override public void historySettled() {
+				settledAfterFailure.set(true);
+			}
+		};
 		support.addEditListener(failing);
 		assertThrows(IllegalStateException.class, () -> support.completePublication(firstGroup));
 		support.removeEditListener(failing);
 		assertFalse(support.hasPendingHistory());
+		assertTrue(settledAfterFailure.get(), "observer failure must not strand completion notification");
 		assertEquals(2, controller.getEditNames().size());
 		controller.undo();
 		controller.undo();
@@ -191,6 +266,11 @@ class EditSupportTest {
 
 	private static UndoableEdit edit(String name, List<String> changes) {
 		return new AbstractUndoableEdit() {
+			@Override
+			public String getPresentationName() {
+				return name;
+			}
+
 			@Override
 			public void undo() {
 				super.undo();

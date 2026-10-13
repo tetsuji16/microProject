@@ -106,6 +106,8 @@ and result.
 | #794 M2.4 Views/ribbon/context/reports/print/files | Current sort and Save As physical routes; report export fixture test. | Reconcile each #453/#769 command inventory row to source/status/enablement/physical route/visible result; view-only commands must preserve model; persistence where applicable; locale/DPI for changed routes; report value/rendering comparison and print page-boundary plus English/Japanese labels. Unsupported commands must be absent and documented. |
 | #795 M5 | Build 1101 and full GUI run 38320038198 passed at commit 3a70041. | Run release checks against the final exact head, verify packaged launch, MPO older-version reads, MPP read (not write), XML/MSPDI and MPO round trips, frozen POD fixtures, all six GUI legs, and publish the dated residual-deviation/exclusion report. |
 
+Undo action readiness update (2026-10-13): core/UI clean test run 49017 passed, and focused `RibbonButtonBehaviorTest` run 59496 passed after removing temporary test diagnostics. The root cause was a document-frame Undo action refresh during queued history delivery: `canUndo` was temporarily suppressed and no later edit callback refreshed the action. `EditSupport.historySettled()` now refreshes the frame only after committed history drains. GUI492 failed on the pre-fix head; physical verification of this fix on a new head remains pending. Issue #409 remains partial: shared-pool/multi-project writes and the remaining public/legacy writer inventory are open.
+
 ## Dependency migration boundary
 
 JasperReports remains at 6.21.5. The resolved and packaged runtime still includes

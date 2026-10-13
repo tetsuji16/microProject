@@ -1975,7 +1975,14 @@ public class DocumentFrame extends NamedFrame implements
 		}
 	}
 	public void editPosted(UndoableEdit edit) {
-		refreshUndoButtons();
+		UndoController undoController = activeTopView == null ? null : activeTopView.getUndoController();
+		if (undoController == null || !undoController.getEditSupport().hasPendingHistory()) refreshUndoButtonsSafely();
+	}
+
+	@Override
+	public void historySettled() {
+		if (SwingUtilities.isEventDispatchThread()) refreshUndoButtonsSafely();
+		else SwingUtilities.invokeLater(this::refreshUndoButtonsSafely);
 	}
 
 	protected UndoController currentUndoController=null;

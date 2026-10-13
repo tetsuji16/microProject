@@ -190,6 +190,7 @@ public final class EditSupport {
 		}
 		Throwable failure = null;
 		boolean ownsDrain = true;
+		boolean notifySettled = false;
 		try {
 			while (true) {
 				Group group;
@@ -198,6 +199,7 @@ public final class EditSupport {
 					if (group == null || !group.complete) {
 						draining = false;
 						ownsDrain = false;
+						notifySettled = group == null;
 						break;
 					}
 					committed.removeFirst();
@@ -231,6 +233,12 @@ public final class EditSupport {
 				deliveringEdit = null;
 			}
 		}
+		if (notifySettled) {
+			try { fireHistorySettled(); }
+			catch (Throwable current) {
+				if (failure == null) failure = current; else failure.addSuppressed(current);
+			}
+		}
 		if (failure instanceof Error error) throw error;
 		if (failure instanceof RuntimeException runtime) throw runtime;
 		if (failure != null) throw new IllegalStateException("Undo publication failed", failure);
@@ -248,5 +256,19 @@ public final class EditSupport {
 		if (failure instanceof Error error) throw error;
 		if (failure instanceof RuntimeException runtime) throw runtime;
 		if (failure != null) throw new IllegalStateException("Undo observer failed", failure);
+	}
+
+	private void fireHistorySettled() {
+		EditListener[] snapshot = listeners.toArray(new EditListener[0]);
+		Throwable failure = null;
+		for (EditListener listener : snapshot) {
+			try { listener.historySettled(); }
+			catch (Throwable current) {
+				if (failure == null) failure = current; else failure.addSuppressed(current);
+			}
+		}
+		if (failure instanceof Error error) throw error;
+		if (failure instanceof RuntimeException runtime) throw runtime;
+		if (failure != null) throw new IllegalStateException("Undo history observer failed", failure);
 	}
 }
