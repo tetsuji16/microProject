@@ -443,7 +443,7 @@
           </p>
           <p>
             作成・保存に加え、インポート、エクスポート、印刷、PDF 出力をデスクトップ画面から利用できます。
-            Windows 向けには自己完結型の MSI と Portable ZIP を提供しています。今後のリリースでは Linux x64 と macOS Apple Silicon 向けの ZIP も追加します。
+            Windows 向けには自己完結型の MSI と Portable ZIP を提供しています。Linux x64 と macOS Apple Silicon 向けの ZIP は大きな更新時に追加し、各 OS の最新配布版を案内します。
           </p>
         </div>
         <div class="hero-actions">
@@ -509,6 +509,18 @@
             </div>
             <div class="download-meta">Release assets: MSI / app-image ZIP</div>
           </section>
+          <section class="download-item" data-platform-download="linux-x64">
+            <h3>Linux x64</h3>
+            <p>大きな更新時に提供する self-contained app-image です。</p>
+            <div class="download-actions"><a class="button secondary" href="https://github.com/tetsuji16/ProjectLibre/releases">Linux ZIP を探す</a></div>
+            <div class="download-meta" data-platform-version>安定版の配布物を確認しています</div>
+          </section>
+          <section class="download-item" data-platform-download="macos-aarch64">
+            <h3>macOS Apple Silicon</h3>
+            <p>大きな更新時に提供する self-contained app-image です。</p>
+            <div class="download-actions"><a class="button secondary" href="https://github.com/tetsuji16/ProjectLibre/releases">macOS ZIP を探す</a></div>
+            <div class="download-meta" data-platform-version>安定版の配布物を確認しています</div>
+          </section>
         </div>
       </article>
 
@@ -539,5 +551,6 @@
       </article>
     </section>
   </main>
+  <script src="platform-downloads.js"></script>
 </body>
 </html>

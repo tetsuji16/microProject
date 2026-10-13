@@ -4,7 +4,9 @@
 
 ## 配布経路
 
-`.github/workflows/release-and-pages.yml` の `workflow_dispatch` を使います。現在の `build.gradle.kts` の基準版は `0.0.24` です。GitHub Actions の **Release** workflow を、レビュー済みの最終 commit を含む branch/ref から手動実行し、`release_channel=beta`、`gui_suite=smoke` を選びます。workflow は `v0.0.24-beta.<run number>` と package version `0.0.24.<run number>` を割り当てます。Linux/macOS package job と、Windows の build・package・import・GUI smoke・package contents・launcher の必須検証が成功すると Release job が prerelease を公開します。Pages deployment は公開後の別 job です。公開 assets は Windows MSI と portable ZIP、Linux x64 / macOS Apple Silicon ZIP、および checksum です。
+`.github/workflows/release-and-pages.yml` の `workflow_dispatch` を使います。現在の `build.gradle.kts` の基準版は `0.0.24` です。GitHub Actions の **Release** workflow を、レビュー済みの最終 commit を含む branch/ref から手動実行し、`release_channel=beta`、`gui_suite=smoke` を選びます。大きな cross-platform 更新の場合だけ `build_unix_packages=true` を指定します。workflow は `v0.0.24-beta.<run number>` と package version `0.0.24.<run number>` を割り当てます。Windows の build・package・import・GUI smoke・package contents・launcher の必須検証が成功すると Release job が prerelease を公開し、Unix package を選んだ場合は両 OS の build も公開の条件になります。Pages deployment は公開後の別 job です。checksum はその release に含む assets を対象に生成します。
+
+今後の通常リリースは Windows を毎回ビルドします。Linux と macOS の配布物は大きな更新時だけ作成し、手動実行時に `build_unix_packages=true` を選びます。既定値は `false` で、tag / release branch の push も Windows のみです。選択した Unix build が失敗した場合は、そのリリース全体を公開しません。公開サイトは安定版の Release assets を OS ごとに確認し、Linux と macOS は各 OS の最新配布 tag を個別に表示します。ベータを安定版のリンクに混ぜません。
 
 Beta は stable の `latest` assets と自動更新 manifest を更新しません。リリース前に同じ番号の beta release note がある場合はそれを使い、なければ `docs/releases/beta-0.0.24.md` を使います。試用者には成功した run が公開した prerelease URL とその release note を案内してください。
 

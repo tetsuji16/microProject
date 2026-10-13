@@ -962,7 +962,7 @@ class MpxExportTrackingTest {
 	void completedImportedMilestoneKeepsTaskProgressThroughMpoReload() throws Exception {
 		Path fixture = Path.of("modules", "microproject_exchange", "testdata", "Assignment Baseline Scalars.xml");
 		if (!Files.isRegularFile(fixture)) fixture = Path.of("testdata", "Assignment Baseline Scalars.xml");
-		String xml = Files.readString(fixture)
+		String xml = Files.readString(fixture).replace("\r\n", "\n")
 			.replace("<Start>2026-10-12T08:00:00</Start><Finish>2026-10-12T17:00:00</Finish>\n            <Duration>PT8H0M0S</Duration><DurationFormat>7</DurationFormat><Work>PT8H0M0S</Work>",
 				"<Start>2026-10-12T08:00:00</Start><Finish>2026-10-12T08:00:00</Finish>\n            <Duration>PT0S</Duration><DurationFormat>7</DurationFormat><Work>PT0S</Work>")
 			.replace("<PercentComplete>0</PercentComplete><PercentWorkComplete>0</PercentWorkComplete>",
@@ -973,6 +973,9 @@ class MpxExportTrackingTest {
 			.replace("<Baseline><Number>0</Number><Start>2026-10-05T17:00:00</Start><Work>PT8H0M0S</Work></Baseline>",
 				"<Baseline><Number>0</Number><Start>2026-10-05T17:00:00</Start><Work>PT0S</Work></Baseline>")
 			.replaceAll("(?s)<Assignments>.*?</Assignments>", "<Assignments/>");
+		assertTrue(xml.contains("<Duration>PT0S</Duration><DurationFormat>7</DurationFormat><Work>PT0S</Work>"),
+			"fixture rewrite must produce a zero-duration milestone regardless of checkout line endings");
+		assertTrue(xml.contains("<PercentComplete>100</PercentComplete><PercentWorkComplete>0</PercentWorkComplete>"));
 		net.sf.mpxj.ProjectFile source = new net.sf.mpxj.mspdi.MSPDIReader()
 			.read(new ByteArrayInputStream(xml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
 		assertEquals(100.0d, source.getTasks().get(0).getPercentageComplete().doubleValue(), 0.00001d);

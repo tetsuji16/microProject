@@ -22,6 +22,11 @@ on:
         options:
           - smoke
           - full
+      build_unix_packages:
+        description: 'Build Linux and macOS packages for a substantial cross-platform update'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -34,6 +39,7 @@ concurrency:
 
 jobs:
   unix-packages:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_unix_packages }}
     name: Build ${{ matrix.os }} release package
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
@@ -118,6 +124,7 @@ jobs:
 
   release:
     needs: unix-packages
+    if: ${{ always() && !cancelled() && (needs.unix-packages.result == 'success' || needs.unix-packages.result == 'skipped') }}
     name: Build and publish Windows release
     runs-on: windows-latest
     # Stable candidates run the full GUI locale/DPI matrix, which can take
@@ -316,6 +323,7 @@ jobs:
           }
 
       - name: Download Linux and macOS packages
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_unix_packages }}
         uses: actions/download-artifact@v4
         with:
           pattern: package-*
@@ -330,11 +338,13 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $version = '${{ steps.version.outputs.release_version }}'
           New-Item -ItemType Directory -Path release-assets | Out-Null
-          foreach ($platform in @('linux-x64', 'macos-aarch64')) {
-            $packageDir = Join-Path $PWD "unix-packages/package-$platform"
-            $package = @(Get-ChildItem -LiteralPath $packageDir -File -Filter "microProject-$version-$platform.zip" -ErrorAction SilentlyContinue)
-            if ($package.Count -ne 1) { throw "Expected exactly one $platform package, found $($package.Count)" }
-            Copy-Item $package[0].FullName "release-assets/$($package[0].Name)"
+          if ('${{ github.event_name == 'workflow_dispatch' && inputs.build_unix_packages }}' -eq 'true') {
+            foreach ($platform in @('linux-x64', 'macos-aarch64')) {
+              $packageDir = Join-Path $PWD "unix-packages/package-$platform"
+              $package = @(Get-ChildItem -LiteralPath $packageDir -File -Filter "microProject-$version-$platform.zip" -ErrorAction SilentlyContinue)
+              if ($package.Count -ne 1) { throw "Expected exactly one $platform package, found $($package.Count)" }
+              Copy-Item $package[0].FullName "release-assets/$($package[0].Name)"
+            }
           }
           $msiCandidates = @(Get-ChildItem -LiteralPath "build/releases/v$version/msi" -File -Filter '*.msi' -ErrorAction SilentlyContinue)
           if ($msiCandidates.Count -ne 1) { throw "Expected exactly one MSI in build/releases/v$version/msi, found $($msiCandidates.Count)" }
