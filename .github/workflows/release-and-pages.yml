@@ -77,11 +77,14 @@ jobs:
             [[ "${BASH_REMATCH[1]}" == "$base_version" ]] || { echo 'Stable branch version mismatch.' >&2; exit 1; }
             release_version="$base_version.$GITHUB_RUN_NUMBER"; channel=stable
           elif [[ "$GITHUB_REF_NAME" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)-beta\.([1-9][0-9]*)$ ]]; then
+            base_version="${BASH_REMATCH[1]}"
             release_version="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}"; channel=beta
           elif [[ "$GITHUB_REF_NAME" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)(\.[0-9]+)?$ ]]; then
+            base_version="${BASH_REMATCH[1]}"
             release_version="${GITHUB_REF_NAME#v}"; channel=stable
           else echo "Unsupported release ref: $GITHUB_REF_NAME" >&2; exit 1; fi
           echo "release_version=$release_version" >> "$GITHUB_OUTPUT"
+          echo "base_version=$base_version" >> "$GITHUB_OUTPUT"
           echo "channel=$channel" >> "$GITHUB_OUTPUT"
       - name: Build and package app image
         run: bash ./gradlew clean build prepareWindowsReleaseInput "-PreleaseVersion=${{ steps.version.outputs.release_version }}" "-PreleaseChannel=${{ steps.version.outputs.channel }}" --console=plain
@@ -100,7 +103,7 @@ jobs:
         run: |
           set -euo pipefail
           root="build/releases/v${{ steps.version.outputs.release_version }}"; mkdir -p "$root"
-          jpackage --type app-image --name microProject --app-version '${{ steps.version.outputs.release_version }}' --vendor 'microProject contributors' --description 'microProject desktop project management software' --input "build/releases/v${{ steps.version.outputs.release_version }}/jpackage-input" --main-jar microproject_bootstrap.jar --main-class com.microproject.bootstrap.MicroProjectUpdater --java-options '-Dmicroproject.updates.enabled=${{ steps.version.outputs.channel == 'stable' }}' --dest "$root" --verbose
+          jpackage --type app-image --name microProject --app-version '${{ steps.version.outputs.base_version }}' --vendor 'microProject contributors' --description 'microProject desktop project management software' --input "build/releases/v${{ steps.version.outputs.release_version }}/jpackage-input" --main-jar microproject_bootstrap.jar --main-class com.microproject.bootstrap.MicroProjectUpdater --java-options '-Dmicroproject.updates.enabled=${{ steps.version.outputs.channel == 'stable' }}' --dest "$root" --verbose
           test -d "$root/microProject.app"
           (cd "$root" && ditto -c -k --sequesterRsrc --keepParent microProject.app "microProject-${{ steps.version.outputs.release_version }}-macos-aarch64.zip")
       - name: Upload OS package
