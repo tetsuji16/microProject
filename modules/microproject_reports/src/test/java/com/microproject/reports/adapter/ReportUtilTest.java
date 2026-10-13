@@ -110,7 +110,8 @@ class ReportUtilTest {
 			byte[] pdfBytes = pdf.toByteArray();
 
 			assertTrue(print.getPages().size() > 0, "Expected at least one rendered page");
-			assertTrue(printedText.contains(projectName), "Expected project name in rendered report: " + projectName);
+			assertTrue(printedText.contains(projectName), "Expected project name in rendered report: " + projectName
+				+ "; first rendered text element was: \"" + printedText.get(0) + "\"");
 			assertTrue(printedText.contains("Milestone note / 日本語"), "Expected data-source notes in rendered report");
 			assertTrue(pdfBytes.length > 0, "Expected non-empty PDF output for project name: " + projectName);
 			assertTrue(pdfBytes.length >= 4
