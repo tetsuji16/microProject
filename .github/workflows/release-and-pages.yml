@@ -79,7 +79,7 @@ jobs:
           echo "release_version=$release_version" >> "$GITHUB_OUTPUT"
           echo "channel=$channel" >> "$GITHUB_OUTPUT"
       - name: Build and package app image
-        run: ./gradlew clean build stageAppDist "-PreleaseVersion=${{ steps.version.outputs.release_version }}" "-PreleaseChannel=${{ steps.version.outputs.channel }}" --console=plain
+        run: bash ./gradlew clean build stageAppDist "-PreleaseVersion=${{ steps.version.outputs.release_version }}" "-PreleaseChannel=${{ steps.version.outputs.channel }}" --console=plain
       - name: Package Linux app image
         if: runner.os == 'Linux'
         shell: bash
