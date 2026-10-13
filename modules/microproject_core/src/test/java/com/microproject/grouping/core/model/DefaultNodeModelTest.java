@@ -929,13 +929,19 @@ class DefaultNodeModelTest {
 		long siblingUniqueId = sibling.getUniqueId();
 		DefaultNodeModel model = (DefaultNodeModel) project.getTaskModel();
 
-		model.getHierarchy().indent(Arrays.asList(model.search(child)), 1, model, NodeModel.NORMAL);
+		long revision = project.getMutationState().revision();
+		model.indent(Arrays.asList(model.search(child)), 1, NodeModel.NORMAL);
+		assertEquals(revision + 1, project.getMutationState().revision());
 		assertEquals(List.of(1L, 2L, 3L), taskIds(project));
 		assertEquals(parentUniqueId, parent.getUniqueId());
 		assertEquals(childUniqueId, child.getUniqueId());
 		assertEquals(siblingUniqueId, sibling.getUniqueId());
 
-		model.getHierarchy().indent(Arrays.asList(model.search(child)), -1, model, NodeModel.NORMAL);
+		long revisionAfterIndent = project.getMutationState().revision();
+		model.indent(Arrays.asList(model.search(child)), 1, NodeModel.NORMAL);
+		assertEquals(revisionAfterIndent, project.getMutationState().revision(), "an impossible second indent is a no-op");
+		model.indent(Arrays.asList(model.search(child)), -1, NodeModel.NORMAL);
+		assertEquals(revisionAfterIndent + 1, project.getMutationState().revision());
 		assertEquals(List.of(1L, 2L, 3L), taskIds(project));
 		assertEquals(childUniqueId, child.getUniqueId());
 	}
@@ -953,17 +959,23 @@ class DefaultNodeModelTest {
 		Node siblingNode = model.search(sibling);
 		project.getUndoController().clear();
 
-		model.getHierarchy().indent(List.of(childNode), 1, model, NodeModel.NORMAL);
+		long revisionBeforeIndent = project.getMutationState().revision();
+		model.indent(List.of(childNode), 1, NodeModel.NORMAL);
+		assertEquals(revisionBeforeIndent + 1, project.getMutationState().revision());
 		assertSame(parentNode, childNode.getParent());
 		assertSame(siblingNode, root.getChildAt(1));
 
+		long revisionBeforeUndo = project.getMutationState().revision();
 		project.getUndoController().undo();
+		assertEquals(revisionBeforeUndo + 1, project.getMutationState().revision());
 		assertSame(root, childNode.getParent());
 		assertSame(parentNode, root.getChildAt(0));
 		assertSame(childNode, root.getChildAt(1));
 		assertSame(siblingNode, root.getChildAt(2));
 
+		long revisionBeforeRedo = project.getMutationState().revision();
 		project.getUndoController().redo();
+		assertEquals(revisionBeforeRedo + 1, project.getMutationState().revision());
 		assertSame(parentNode, childNode.getParent());
 		assertSame(siblingNode, root.getChildAt(1));
 	}
