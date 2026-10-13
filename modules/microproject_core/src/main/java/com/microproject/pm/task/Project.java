@@ -1062,6 +1062,10 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		objectEventManager.beginBatch();
 		scheduleEventManager.beginBatch();
 	}
+	/** Number of deferred observer facts in the current nested transaction batches. */
+	public int pendingEventCount() {
+		return objectEventManager.pendingEventCount() + scheduleEventManager.pendingEventCount();
+	}
 	/** Completes the current observer batch, publishing only when the model committed. */
 	public void endEventBatch(boolean publish) {
 		publishEventBatch(detachEventBatch(publish));

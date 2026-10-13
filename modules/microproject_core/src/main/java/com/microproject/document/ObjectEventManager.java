@@ -48,6 +48,11 @@ public class ObjectEventManager {
         batchDepth++;
     }
 
+    /** Number of deferred facts currently waiting in this nested batch stack. */
+    public synchronized int pendingEventCount() {
+        return deferredEvents.size();
+    }
+
     /** Publishes deferred events on commit, or releases them without notifying observers on rollback. */
     public void endBatch(boolean publish) {
         publishBatch(detachBatch(publish));

@@ -44,6 +44,11 @@ public class ScheduleEventManager {
         batchDepth++;
     }
 
+    /** Number of deferred facts currently waiting in this nested batch stack. */
+    public synchronized int pendingEventCount() {
+        return deferredEvents.size();
+    }
+
     /** Publishes deferred events on commit, or drops them after rollback. */
     public void endBatch(boolean publish) {
         publishBatch(detachBatch(publish));

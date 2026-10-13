@@ -73,9 +73,17 @@ tests) and `ModelTransactionTest` (5 tests). `git diff --check` passed.
   Docker Desktop occupied the foreground window, so that physical path is not
   verified by this checkpoint.
 
+  `TaskCommandGateway` now holds the same barrier across field, hierarchy,
+  paste, schedule, and dependency commands. It advances one revision for a
+  changed result or newly emitted facts; an exception after an apply boundary
+  publishes existing event facts, or a schedule invalidation when no facts were
+  emitted. Preflight rejection and no-op leave the revision unchanged. Focused
+  gateway tests cover the apply-then-throw path and verify publication occurs
+  after the barrier is released. Undo/Redo and other command families are not
+  covered by this gateway boundary yet.
+
   This is not complete revisioned publication. The cache still updates mutable
-  nodes in place, and only `UpdateProjectCommand` currently holds the project
-  mutation barrier for its whole mutation. Remaining writer inventory includes
+  nodes in place. Remaining writer inventory includes
   direct task/resource/project field setters and `Field.fireEvent`; hierarchy
   mutation through `DefaultNodeModel.relocate`, `MutableNodeHierarchy`, and
   `OutlineCollectionImpl`; schedule/actual setters in `NormalTask`; dependency,
