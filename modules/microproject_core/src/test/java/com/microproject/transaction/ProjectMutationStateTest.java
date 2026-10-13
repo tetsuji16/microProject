@@ -7,6 +7,7 @@ package com.microproject.transaction;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
@@ -26,6 +27,66 @@ import com.microproject.undo.DataFactoryUndoController;
 import org.junit.jupiter.api.Test;
 
 class ProjectMutationStateTest {
+	@Test
+	void modelMutationBoundaryPreservesNoOpAndPublishesAppliedFailureAfterUnlock() {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("model-mutation-boundary", undo), undo);
+		project.initialize(false, false);
+		List<ScheduleEvent> delivered = new ArrayList<>();
+		project.addScheduleListener(event -> {
+			assertFalse(project.getMutationState().isHeldByCurrentThread(),
+				"observers are called only after the project barrier is released");
+			delivered.add(event);
+		});
+
+		long initialRevision = project.getMutationState().revision();
+		assertFalse(project.runModelMutation(markApplied -> false));
+		assertEquals(initialRevision, project.getMutationState().revision());
+		assertFalse(project.runModelMutation(markApplied -> {
+			markApplied.run();
+			return false;
+		}), "the apply marker is conservative for exceptions, not a successful no-op result");
+		assertEquals(initialRevision, project.getMutationState().revision());
+		assertTrue(delivered.isEmpty(), "a preflight no-op has no publication");
+
+		assertThrows(IllegalStateException.class, () -> project.runModelMutation(markApplied -> {
+			markApplied.run();
+			throw new IllegalStateException("failure after mutation began");
+		}));
+		assertEquals(initialRevision + 1, project.getMutationState().revision());
+		assertEquals(1, delivered.size());
+		assertEquals(ScheduleEvent.SCHEDULE, delivered.getFirst().getType());
+		assertEquals(initialRevision + 1, delivered.getFirst().getPublicationRevision());
+	}
+
+	@Test
+	void nestedModelMutationPublishesOnlyWithItsOutermostRevision() {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("nested-model-mutation", undo), undo);
+		project.initialize(false, false);
+		List<ScheduleEvent> delivered = new ArrayList<>();
+		project.addScheduleListener(delivered::add);
+		long initialRevision = project.getMutationState().revision();
+
+		Project.PendingEventBatch pending;
+		try (ProjectMutationState.Scope outer = project.getMutationState().begin()) {
+			project.beginEventBatch();
+			assertTrue(project.runModelMutation(markApplied -> {
+				markApplied.run();
+				project.fireScheduleChanged("nested-command", ScheduleEvent.SCHEDULE);
+				return true;
+			}));
+			assertEquals(initialRevision, project.getMutationState().revision());
+			assertTrue(delivered.isEmpty(), "nested commands cannot publish while the outer mutation is active");
+			pending = project.commitEventBatch(outer, true);
+		}
+		project.publishEventBatch(pending);
+
+		assertEquals(initialRevision + 1, project.getMutationState().revision());
+		assertEquals(1, delivered.size());
+		assertEquals(initialRevision + 1, delivered.getFirst().getPublicationRevision());
+	}
+
 	@Test
 	void unavailableProjectUndoAndRedoDoNotAdvanceRevision() {
 		DataFactoryUndoController undo = new DataFactoryUndoController();

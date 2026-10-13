@@ -804,6 +804,7 @@ class DefaultNodeModelTest {
 		assertTrue(model.relocate(List.of(nestedZuluNode, nestedAlphaNode), parentNode, 0, NodeModel.SILENT));
 		Dependency dependency = DependencyService.getInstance().newDependency(nestedZulu, alphaFirst,
 			DependencyType.FS, 0L, this);
+		long revisionBeforeSort = project.getMutationState().revision();
 		long[] uniqueIds = { parent.getUniqueId(), nestedZulu.getUniqueId(), nestedAlpha.getUniqueId(),
 			alphaFirst.getUniqueId(), alphaSecond.getUniqueId() };
 		project.getUndoController().clear();
@@ -816,6 +817,8 @@ class DefaultNodeModelTest {
 			}
 		};
 		assertTrue(model.sortOutlineBy(byTaskName, NodeModel.NORMAL));
+		assertEquals(revisionBeforeSort + 1, project.getMutationState().revision(),
+			"a multi-branch permanent sort publishes as one project mutation");
 
 		Node root = (Node) model.getHierarchy().getRoot();
 		assertSame(alphaFirstNode, root.getChildAt(0));
@@ -830,19 +833,25 @@ class DefaultNodeModelTest {
 		assertSame(dependency, findDependency(nestedZulu, alphaFirst));
 
 		assertTrue(project.getUndoController().canUndo());
+		long revisionBeforeUndo = project.getMutationState().revision();
 		project.getUndoController().undo();
+		assertEquals(revisionBeforeUndo + 1, project.getMutationState().revision());
 		assertSame(parentNode, root.getChildAt(0));
 		assertSame(alphaFirstNode, root.getChildAt(1));
 		assertSame(alphaSecondNode, root.getChildAt(2));
 		assertSame(nestedZuluNode, parentNode.getChildAt(0));
 		assertSame(nestedAlphaNode, parentNode.getChildAt(1));
 		assertSame(dependency, findDependency(nestedZulu, alphaFirst));
+		long revisionBeforeRedo = project.getMutationState().revision();
 		project.getUndoController().redo();
+		assertEquals(revisionBeforeRedo + 1, project.getMutationState().revision());
 		assertSame(alphaFirstNode, root.getChildAt(0));
 		assertSame(nestedAlphaNode, parentNode.getChildAt(0));
 		assertSame(dependency, findDependency(nestedZulu, alphaFirst));
 		project.getUndoController().clear();
+		long revisionBeforeNoOp = project.getMutationState().revision();
 		assertFalse(model.sortOutlineBy(byTaskName, NodeModel.NORMAL), "an already sorted outline is a true no-op");
+		assertEquals(revisionBeforeNoOp, project.getMutationState().revision());
 		assertFalse(project.getUndoController().canUndo(), "a no-op must not create an Undo edit");
 
 		NodeSorter failingNestedSort = new NodeSorter() {

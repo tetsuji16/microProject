@@ -245,6 +245,14 @@ public class DefaultNodeModel implements NodeModel {
 	}
 
 	public boolean relocate(List<Node> nodes,Node parent,int position,int actionType){
+		Project project = dataFactory instanceof Project currentProject ? currentProject : null;
+		if (project != null && isEvent(actionType))
+			return project.runModelMutation(markApplied -> relocateWithinBoundary(nodes, parent, position, actionType, markApplied));
+		return relocateWithinBoundary(nodes, parent, position, actionType, () -> { });
+	}
+
+	private boolean relocateWithinBoundary(List<Node> nodes, Node parent, int position, int actionType,
+			Runnable markApplied) {
 		if (!canRelocate(nodes,parent,position)) return false;
 		ArrayList<Node> branches=collectRelocationRoots(nodes);
 		Node sourceParent=(Node)branches.get(0).getParent();
@@ -260,6 +268,7 @@ public class DefaultNodeModel implements NodeModel {
 		if (doTransaction) transactionId=getDocument().fireMultipleTransaction(0,true);
 		boolean changed;
 		try {
+			markApplied.run();
 			changed=hierarchy.relocate(destination,branches,finalPosition,actionType);
 		} finally {
 			if (doTransaction) getDocument().fireMultipleTransaction(transactionId,false);
@@ -279,6 +288,13 @@ public class DefaultNodeModel implements NodeModel {
 	 * undoable and the hierarchy renumbers task IDs after each structural change.
 	 */
 	public boolean sortOutlineBy(NodeSorter sorter, int actionType) {
+		Project project = dataFactory instanceof Project currentProject ? currentProject : null;
+		if (project != null && isEvent(actionType))
+			return project.runModelMutation(markApplied -> sortOutlineByWithinBoundary(sorter, actionType, markApplied));
+		return sortOutlineByWithinBoundary(sorter, actionType, () -> { });
+	}
+
+	private boolean sortOutlineByWithinBoundary(NodeSorter sorter, int actionType, Runnable markApplied) {
 		if (sorter == null || hierarchy == null) return false;
 		List<OutlineSortPlan> plans = new ArrayList<>();
 		collectOutlineSortPlans((Node) hierarchy.getRoot(), sorter, plans);
@@ -302,7 +318,8 @@ public class DefaultNodeModel implements NodeModel {
 					Node taskNode = plan.sortedTasks().get(offset);
 					int targetIndex = plan.firstTaskIndex() + offset;
 					if (plan.parent().getIndex(taskNode) != targetIndex) {
-						changed |= relocate(List.of(taskNode), plan.parent(), targetIndex, actionType);
+						changed |= relocateWithinBoundary(List.of(taskNode), plan.parent(), targetIndex, actionType,
+							markApplied);
 					}
 				}
 			}

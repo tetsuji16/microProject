@@ -262,6 +262,81 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		return getOrCreateTransientDocumentState(ProjectMutationState.class, ProjectMutationState::new);
 	}
 
+	/** Runs one model command at the project revision/event publication boundary. */
+	public boolean runModelMutation(ModelMutation operation) {
+		java.util.Objects.requireNonNull(operation, "operation");
+		return runModelCommand(operation::apply, Boolean.TRUE::equals, changed -> Boolean.TRUE);
+	}
+
+	/** Runs a typed command through the shared project barrier and event-batch lifecycle. */
+	public <T, E extends Exception> T runModelCommand(ModelCommand<T, E> operation,
+			java.util.function.Predicate<? super T> changedResult,
+			java.util.function.UnaryOperator<T> resultWhenEventsWereEmitted) throws E {
+		java.util.Objects.requireNonNull(operation, "operation");
+		java.util.Objects.requireNonNull(changedResult, "changedResult");
+		java.util.Objects.requireNonNull(resultWhenEventsWereEmitted, "resultWhenEventsWereEmitted");
+		ProjectMutationState state = getMutationState();
+		ProjectMutationState.Scope mutation = state.begin();
+		int initialPendingEvents = pendingEventCount();
+		beginEventBatch();
+		boolean[] applied = { false };
+		T result;
+		PendingEventBatch pending;
+		try {
+			result = operation.apply(() -> applied[0] = true);
+		} catch (RuntimeException | Error failure) {
+			finishModelCommandFailure(mutation, initialPendingEvents, applied[0], failure);
+			throw failure;
+		} catch (Exception failure) {
+			finishModelCommandFailure(mutation, initialPendingEvents, applied[0], failure);
+			@SuppressWarnings("unchecked") E typedFailure = (E) failure;
+			throw typedFailure;
+		}
+		boolean hasFacts = pendingEventCount() > initialPendingEvents;
+		if (hasFacts) result = resultWhenEventsWereEmitted.apply(result);
+		boolean changed = changedResult.test(result) || hasFacts;
+		if (changed && !hasFacts)
+			fireScheduleChanged(this, com.microproject.pm.scheduling.ScheduleEvent.SCHEDULE);
+		pending = commitEventBatch(mutation, changed);
+		publishEventBatch(pending);
+		return result;
+	}
+
+	private void finishModelCommandFailure(ProjectMutationState.Scope mutation, int initialPendingEvents,
+			boolean applied, Throwable failure) {
+		try {
+			boolean hasFacts = pendingEventCount() > initialPendingEvents;
+			if (applied && !hasFacts)
+				fireScheduleChanged(this, com.microproject.pm.scheduling.ScheduleEvent.SCHEDULE);
+			if (applied || hasFacts) {
+				PendingEventBatch pending = commitEventBatch(mutation, true);
+				try {
+					publishEventBatch(pending);
+				} catch (Throwable publicationFailure) {
+					failure.addSuppressed(publicationFailure);
+				}
+			} else {
+				try {
+					endEventBatch(false);
+				} finally {
+					mutation.close();
+				}
+			}
+		} catch (Throwable cleanupFailure) {
+			if (cleanupFailure != failure) failure.addSuppressed(cleanupFailure);
+		}
+	}
+
+	@FunctionalInterface
+	public interface ModelMutation {
+		boolean apply(Runnable markApplied);
+	}
+
+	@FunctionalInterface
+	public interface ModelCommand<T, E extends Exception> {
+		T apply(Runnable markApplied) throws E;
+	}
+
 	public NodeModel getTaskModel() {
 		if (taskModel == null)
 			taskModel=NodeModelFactory.createTaskModel(this);

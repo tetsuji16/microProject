@@ -14,7 +14,6 @@ import java.util.Set;
 import java.util.function.BooleanSupplier;
 
 import com.microproject.undo.EditSupport;
-import com.microproject.transaction.ProjectMutationState;
 
 import com.microproject.pm.graphic.collaboration.CollaborationHelper;
 import com.microproject.grouping.core.Node;
@@ -107,7 +106,7 @@ public final class TaskCommandGateway {
 		if (intent.value() != null && Objects.deepEquals(currentValue, intent.value()))
 			return TaskCommandResult.of(TaskCommandResult.Status.NO_CHANGE);
 
-		progress.applying = true;
+		progress.markApplied();
 		sheetModel.getCache().getModel().setFieldValue(intent.field(), node, eventSource, intent.value(),
 			sheetModel.getFieldContext(), NodeModel.NORMAL);
 		return TaskCommandResult.of(TaskCommandResult.Status.CHANGED);
@@ -139,7 +138,7 @@ public final class TaskCommandGateway {
 			locks.add(prepared.anchor());
 		if (!CollaborationHelper.tryLockNodes(null, locks, sheet, "move task"))
 			return new TaskCommandResult(TaskCommandResult.Status.LOCKED, "collaboration-lock-denied");
-		progress.applying = true;
+		progress.markApplied();
 		boolean changed = intent.operation() == TaskHierarchyEditIntent.Operation.MOVE
 			? prepared.cache().moveNodes(prepared.graphicNodes(), intent.direction())
 			: prepared.cache().relocateNodes(prepared.graphicNodes(), prepared.anchor(), intent.after());
@@ -188,7 +187,7 @@ public final class TaskCommandGateway {
 		Node anchor = selectedNodes.isEmpty() ? null : selectedNodes.getFirst();
 		Node parent = anchor == null ? null : (Node) anchor.getParent();
 		int position = anchor == null || parent == null ? 0 : ((com.microproject.grouping.core.NodeBridge) parent).getIndex(anchor);
-		progress.applying = true;
+		progress.markApplied();
 		boolean pasted = sheetModel.getCache().pasteNodes(parent, new ArrayList<>(intent.copiedRoots()), position);
 		return TaskCommandResult.of(pasted ? TaskCommandResult.Status.CHANGED : TaskCommandResult.Status.REJECTED);
 	}
@@ -241,7 +240,7 @@ public final class TaskCommandGateway {
 			return TaskCommandResult.of(TaskCommandResult.Status.NO_CHANGE);
 		if (!CollaborationHelper.tryLockNodes(null, List.of(node), lockParent, "edit"))
 			return new TaskCommandResult(TaskCommandResult.Status.LOCKED, "collaboration-lock-denied");
-		progress.applying = true;
+		progress.markApplied();
 		return TaskCommandResult.of(mutation.getAsBoolean()
 			? TaskCommandResult.Status.CHANGED : TaskCommandResult.Status.NO_CHANGE);
 	}
@@ -342,7 +341,7 @@ public final class TaskCommandGateway {
 			? adjacentLinksToCreate(tasks) : intent.dependency() == null ? before : 1;
 		EditSupport undoSupport = beginCompoundUndo(project, anticipatedEdits);
 		try {
-			progress.applying = true;
+			progress.markApplied();
 			if (intent.operation() == TaskDependencyIntent.Operation.LINK) {
 				service.connect(tasks, eventSource, null);
 			} else if (intent.dependency() != null) {
@@ -454,7 +453,9 @@ public final class TaskCommandGateway {
 	}
 
 	private static final class MutationProgress {
-		private boolean applying;
+		private final Runnable marker;
+		private MutationProgress(Runnable marker) { this.marker = marker; }
+		private void markApplied() { marker.run(); }
 	}
 
 	/**
@@ -467,42 +468,9 @@ public final class TaskCommandGateway {
 	 */
 	private static <E extends Exception> TaskCommandResult withProjectMutation(Project project,
 			ProjectMutation<TaskCommandResult, E> command) throws E {
-		ProjectMutationState.Scope mutation = project.getMutationState().begin();
-		int initialPendingEvents = project.pendingEventCount();
-		project.beginEventBatch();
-		Project.PendingEventBatch pending = null;
-		MutationProgress progress = new MutationProgress();
-		TaskCommandResult result;
-		try {
-			result = command.run(progress);
-			boolean emittedFacts = project.pendingEventCount() > initialPendingEvents;
-			boolean changed = result.status() == TaskCommandResult.Status.CHANGED || emittedFacts;
-			if (emittedFacts && result.status() != TaskCommandResult.Status.CHANGED)
-				result = TaskCommandResult.of(TaskCommandResult.Status.CHANGED);
-			pending = project.commitEventBatch(mutation, changed);
-		} catch (RuntimeException | Error failure) {
-			finishFailedMutation(project, mutation, progress.applying, initialPendingEvents, failure);
-			throw failure;
-		} catch (Exception failure) {
-			finishFailedMutation(project, mutation, progress.applying, initialPendingEvents, failure);
-			@SuppressWarnings("unchecked") E typedFailure = (E) failure;
-			throw typedFailure;
-		}
-		project.publishEventBatch(pending);
-		return result;
-	}
-
-	private static void finishFailedMutation(Project project, ProjectMutationState.Scope mutation,
-			boolean applying, int initialPendingEvents, Throwable failure) {
-		try {
-			boolean emittedFacts = project.pendingEventCount() > initialPendingEvents;
-			boolean changed = applying || emittedFacts;
-			if (applying && !emittedFacts)
-				project.fireScheduleChanged(project, com.microproject.pm.scheduling.ScheduleEvent.SCHEDULE);
-			Project.PendingEventBatch pending = project.commitEventBatch(mutation, changed);
-			project.publishEventBatch(pending);
-		} catch (Throwable publicationFailure) {
-			failure.addSuppressed(publicationFailure);
-		}
+		return project.runModelCommand(markApplied -> command.run(new MutationProgress(markApplied)),
+			result -> result.status() == TaskCommandResult.Status.CHANGED,
+			result -> result.status() == TaskCommandResult.Status.CHANGED ? result
+				: TaskCommandResult.of(TaskCommandResult.Status.CHANGED));
 	}
 }

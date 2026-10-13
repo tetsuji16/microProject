@@ -27,6 +27,11 @@ public final class ProjectMutationState {
 		return revision;
 	}
 
+	/** Returns whether the current thread already owns a project mutation scope. */
+	public boolean isHeldByCurrentThread() {
+		return barrier.isHeldByCurrentThread();
+	}
+
 	private long finish(Scope scope) {
 		if (Thread.currentThread() != scope.owner)
 			throw new IllegalStateException("Project mutation scope must close on its owning thread");

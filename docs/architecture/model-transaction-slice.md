@@ -59,6 +59,15 @@ tests) and `ModelTransactionTest` (5 tests). `git diff --check` passed.
 
 ## Remaining architecture dependencies
 
+The 2026-10-13 hierarchy/gateway consolidation passed
+`:microproject_core:test :microproject_ui:test --console=plain --no-daemon`
+on JDK 25 (BUILD SUCCESSFUL). Focused coverage asserts one revision for a
+multi-relocation permanent sort, one revision for each Undo/Redo, no revision
+for a no-op, nested publication only after the outer batch closes, and an
+apply-then-throw invalidation after the barrier is released. GUI readiness was
+not available for a structural Robot rerun; the prior structural GUI evidence
+remains pending rather than inferred from these module tests.
+
 - #408 still owns schedule gesture stale checks and structural paste rollback;
   these UI entry points are not moved by this slice.
 - #409 is still open. The bounded `UpdateProjectCommand` path now has a
@@ -83,14 +92,29 @@ tests) and `ModelTransactionTest` (5 tests). `git diff --check` passed.
   Undo/Redo the same outer barrier; nested edits coalesce into one revision,
   unavailable history is a no-op, and a nested rollback batch is replaced with
   a fresh schedule invalidation if the outer mutation committed. Focused core
-  and UI tests cover these cases. Other command families are not covered by
-  these boundaries yet.
+  and UI tests cover these cases. Project-backed `DefaultNodeModel.relocate`
+  and `sortOutlineBy` use the same `Project.runModelMutation` boundary:
+  permanent sort planning and its multiple sibling relocations share one
+  revision, while nested relocation/Undo calls contribute facts to the outer
+  batch and cannot publish before it closes. Preflight/no-op leaves the
+  revision unchanged; an exception after hierarchy apply publishes a fresh
+  schedule invalidation if no event facts were emitted. Focused core tests
+  cover changed sort, Undo/Redo, no-op, nested publication, and apply failure.
+  `TaskCommandGateway` adapts typed results and checked exceptions to
+  `Project.runModelCommand`; its legacy apply paths do not expose a common
+  rollback contract, so failure after its apply marker conservatively advances
+  the revision and publishes existing facts or a schedule invalidation. This
+  is distinct from `UpdateProjectCommand`, whose inner `ModelTransaction`
+  restores state on failed pre-commit stages and preserves applied state on
+  commit failure. Other command families are not covered by these boundaries
+  yet.
 
   This is not complete revisioned publication. The cache still updates mutable
   nodes in place. Remaining writer inventory, outside the new gateway and
   history boundaries, includes
   direct task/resource/project field setters and `Field.fireEvent`; hierarchy
-  mutation through `DefaultNodeModel.relocate`, `MutableNodeHierarchy`, and
+  mutation through `DefaultNodeModel.add/cut/paste/remove/indent/move`, direct
+  `MutableNodeHierarchy` and
   `OutlineCollectionImpl`; schedule/actual setters in `NormalTask`; dependency,
   assignment, and calendar services; project task create/delete and recalculation
   paths; and linked/subproject/portfolio updates. These must move through their
