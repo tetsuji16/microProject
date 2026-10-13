@@ -44,6 +44,7 @@ public final class EditSupport {
 	/** One logical edit, retained independently while its model notifications publish. */
 	public static final class Group {
 		private final List<UndoableEdit> edits = new ArrayList<>();
+		private final List<UndoableEdit> finalEdits = new ArrayList<>();
 		private int updates;
 		private int publications;
 		private boolean reserved;
@@ -51,6 +52,9 @@ public final class EditSupport {
 		private boolean recording = true;
 		private boolean compound;
 	}
+
+	/** A rollback checkpoint covering both ordinary and terminal group edits. */
+	public record Checkpoint(int edits, int finalEdits) { }
 
 	public final class RecordingScope implements AutoCloseable {
 		private final Boolean previous = recordingSuppressed.get();
@@ -107,10 +111,13 @@ public final class EditSupport {
 		}
 	}
 
-	public synchronized int checkpoint(Group group) { return group.edits.size(); }
+	public synchronized Checkpoint checkpoint(Group group) {
+		return new Checkpoint(group.edits.size(), group.finalEdits.size());
+	}
 
-	public synchronized void discardSince(Group group, int checkpoint) {
-		group.edits.subList(checkpoint, group.edits.size()).clear();
+	public synchronized void discardSince(Group group, Checkpoint checkpoint) {
+		group.edits.subList(checkpoint.edits(), group.edits.size()).clear();
+		group.finalEdits.subList(checkpoint.finalEdits(), group.finalEdits.size()).clear();
 	}
 
 	public void completePublication(Group group) {
@@ -155,6 +162,24 @@ public final class EditSupport {
 		drain();
 	}
 
+	/** Posts state that must replay after all ordinary edits in this command group. */
+	public void postFinalEdit(UndoableEdit edit) {
+		boolean publishNow = false;
+		synchronized (this) {
+			Activation current = active.get();
+			if (Boolean.TRUE.equals(recordingSuppressed.get()) || (current != null && !current.group.recording)) return;
+			if (current != null) {
+				current.group.finalEdits.add(edit);
+				return;
+			}
+			Group group = new Group();
+			group.finalEdits.add(edit);
+			finish(group);
+			publishNow = group.reserved;
+		}
+		if (publishNow) drain();
+	}
+
 	public synchronized void beginUpdate() {
 		Activation current = active.get();
 		if (current == null) current = new Activation(new Group(), false, true);
@@ -178,6 +203,10 @@ public final class EditSupport {
 
 	private void finish(Group group) {
 		if (group.updates != 0 || group.publications != 0) return;
+		if (!group.finalEdits.isEmpty()) {
+			group.edits.addAll(group.finalEdits);
+			group.finalEdits.clear();
+		}
 		group.complete = true;
 		if (!group.edits.isEmpty()) reserveCommit(group);
 	}

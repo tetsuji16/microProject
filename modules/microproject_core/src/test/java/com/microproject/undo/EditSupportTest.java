@@ -64,6 +64,32 @@ class EditSupportTest {
 	}
 
 	@Test
+	void finalEditsFollowOrdinaryEditsAndRollbackDiscardsThem() {
+		UndoController controller = new UndoController();
+		EditSupport support = controller.getEditSupport();
+		List<String> changes = new ArrayList<>();
+		EditSupport.Activation command = support.beginCommand();
+		EditSupport.Group group = command.group();
+		support.postEdit(edit("first", changes));
+		EditSupport.Checkpoint checkpoint = support.checkpoint(group);
+		support.postEdit(edit("rolled-back", changes));
+		support.postFinalEdit(edit("rolled-back-final", changes));
+		support.discardSince(group, checkpoint);
+		support.postEdit(edit("topology", changes));
+		support.postFinalEdit(edit("detail", changes));
+		support.reserveCommit(group);
+		command.close();
+		support.completePublication(group);
+
+		assertEquals(1, controller.getEditNames().size());
+		controller.undo();
+		assertEquals(List.of("undo:detail", "undo:topology", "undo:first"), changes);
+		controller.redo();
+		assertEquals(List.of("undo:detail", "undo:topology", "undo:first",
+			"redo:first", "redo:topology", "redo:detail"), changes);
+	}
+
+	@Test
 	void listenersRunInRegistrationOrderAndUndoControllerReceivesBeforeObserver() {
 		UndoController controller = new UndoController();
 		EditSupport support = controller.getEditSupport();

@@ -67,6 +67,7 @@ import com.microproject.grouping.core.NodeFactory;
 import com.microproject.grouping.core.transform.grouping.NodeGroup;
 import com.microproject.menu.MenuActionConstants;
 import com.microproject.menu.MenuManager;
+import com.microproject.options.CalendarOption;
 import com.microproject.collaboration.CollaborationSession;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentService;
@@ -315,13 +316,13 @@ class RibbonButtonBehaviorTest {
 		Harness harness = newHarness();
 		NormalTask task = (NormalTask) harness.task;
 		SwingUtilities.invokeAndWait(() -> {
-			task.setDuration(16L * 60L * 60L * 1000L);
+			harness.project.initialize(false, false);
+			task.setDuration(2L * CalendarOption.getInstance().getMillisPerDay());
 			assertTrue(task.getDurationMillis() > 0L, "the source task must have a scheduled duration");
 			assertTrue(task.getStart() < task.getEnd(), "the source task must have valid scheduled bounds");
-			Resource original = harness.project.getResourcePool().createScriptedResource();
+			Resource original = harness.resource;
 			Resource replacement = harness.project.getResourcePool().createScriptedResource();
 			Assignment source = AssignmentService.getInstance().newAssignment(task, original, 1.0D, 0L, this, false);
-			source.setWork(16L * 60L * 60L * 1000L, null);
 			long sourceWork = source.getWork(null);
 			assertTrue(sourceWork > 0L, "the source assignment must have work before exercising Undo/Redo");
 			source.setActualWork(sourceWork / 2L, null);
@@ -329,9 +330,15 @@ class RibbonButtonBehaviorTest {
 			long remainingWork = source.getRemainingWork();
 			assertTrue(actualWork > 0L, "the source assignment must have actual work");
 			assertTrue(remainingWork > 0L, "the source assignment must have remaining work");
+			assertEquals(28_800_000L, remainingWork,
+				"the headless route must use the Robot fixture's two-day, half-complete work split");
 			harness.undoController.clear();
 			List<Assignment> created = AssignmentService.getInstance().replaceAssignment(
 				source, List.of(replacement), this, true);
+			assertEquals(1, created.size());
+			Assignment replacementAssignment = created.get(0);
+			assertEquals(0L, replacementAssignment.getActualWork(null));
+			assertEquals(remainingWork, replacementAssignment.getRemainingWork());
 			assertEquals(1, harness.project.getUndoController().getEditNames().size(),
 				"the replacement must publish one undo group after assignment events");
 			assertSame(harness.project.getUndoController(), harness.frame.getUndoController(),
@@ -358,13 +365,13 @@ class RibbonButtonBehaviorTest {
 			assertEquals(remainingWork, source.getRemainingWork());
 			redo.actionPerformed(new ActionEvent(harness.manager, ActionEvent.ACTION_PERFORMED, "redo"));
 
-			assertEquals(1, created.size());
-			Assignment replacementAssignment = created.get(0);
 			assertSame(source, task.findAssignment(original));
 			assertEquals(actualWork, source.getActualWork(null));
 			assertEquals(0L, source.getRemainingWork());
 			assertSame(replacementAssignment, task.findAssignment(replacement));
-			assertEquals(remainingWork, replacementAssignment.getRemainingWork());
+			assertEquals(remainingWork, replacementAssignment.getRemainingWork(),
+				"redo must restore transferred remaining work after reconnecting the replacement");
+			assertEquals(0L, replacementAssignment.getActualWork(null));
 		});
 	}
 

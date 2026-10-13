@@ -379,7 +379,7 @@ public class AssignmentService {
 		void postAssignmentDetailAfter(Map<Assignment, Object> after) {
 			if (transactionId != 0 && !after.isEmpty())
 				transactionProject.getUndoController().getEditSupport()
-					.postEdit(new AssignmentDetailStateEdit(Map.of(), after));
+					.postFinalEdit(new AssignmentDetailStateEdit(Map.of(), after));
 		}
 
 		void queueAssignmentDetailAfter(Collection<Assignment> assignments) {

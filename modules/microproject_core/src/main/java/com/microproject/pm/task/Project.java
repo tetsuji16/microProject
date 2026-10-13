@@ -140,6 +140,7 @@ import com.microproject.strings.Messages;
 import com.microproject.transaction.MultipleTransactionManager;
 import com.microproject.transaction.ProjectMutationState;
 import com.microproject.undo.DataFactoryUndoController;
+import com.microproject.undo.EditSupport;
 import com.microproject.util.DateTime;
 import com.microproject.util.Environment;
 import com.microproject.workspace.SavableToWorkspace;
@@ -168,7 +169,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	private transient int eventBatchDepth;
 	private transient List<AdditionalObjectEventManager> additionalEventManagers = new ArrayList<>();
 	private transient com.microproject.undo.EditSupport.Activation undoBatchActivation;
-	private transient List<Integer> undoBatchCheckpoints = new ArrayList<>();
+	private transient List<EditSupport.Checkpoint> undoBatchCheckpoints = new ArrayList<>();
 
 	private transient int taskIdCounter = 0;
 	private transient boolean isGroupDirty = false;
@@ -1209,7 +1210,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		com.microproject.undo.EditSupport.Group undoGroup = null;
 		synchronized (this) {
 			if (undoBatchActivation != null) {
-				int checkpoint = undoBatchCheckpoints.removeLast();
+				EditSupport.Checkpoint checkpoint = undoBatchCheckpoints.removeLast();
 				if (!publish) undoController.getEditSupport().discardSince(undoBatchActivation.group(), checkpoint);
 			}
 			for (AdditionalObjectEventManager participant : additionalEventManagers) {
