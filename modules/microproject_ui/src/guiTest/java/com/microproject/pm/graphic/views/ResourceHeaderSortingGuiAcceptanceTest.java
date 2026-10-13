@@ -117,6 +117,13 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 		Resource alpha = pool.createScriptedResource();
 		alpha.setName("Alpha");
 		alpha.setStandardRate(new Rate(50));
+		Resource tiedAlpha = pool.createScriptedResource();
+		tiedAlpha.setName("Alpha");
+		tiedAlpha.setStandardRate(new Rate(50));
+		Resource emptyName = pool.createScriptedResource();
+		emptyName.setName("");
+		emptyName.setStandardRate(new Rate(10));
+		List<Resource> testResources = List.of(zulu, alpha, tiedAlpha, emptyName);
 		List<Resource> originalOrder = new ArrayList<>(pool.getResourceList());
 
 		SwingUtilities.invokeAndWait(() -> {
@@ -168,19 +175,33 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 		robot.waitForIdle();
 		robot.delay(200);
 		assertTrue(physicalClicks.get() > 0, "Robot click did not reach the resource header component");
-		GuiAcceptanceSupport.await(() -> namedTestResources(sheet).equals(List.of("Alpha", "Zulu")),
-			"first physical Name-header click did not sort ascending: " + namedTestResources(sheet));
+		GuiAcceptanceSupport.await(() -> visibleTestResources(sheet, testResources)
+			.equals(List.of(emptyName, alpha, tiedAlpha, zulu)),
+			"first physical Name-header click must sort empty then equal names stably: "
+				+ visibleTestResources(sheet, testResources));
 
 		SwingUtilities.invokeAndWait(() -> {
 			int zuluRow = rowFor(sheet, zulu);
 			assertTrue(zuluRow >= 0);
 			sheet.setRowSelectionInterval(zuluRow, zuluRow);
+			assertEquals(List.of(zuluRow), java.util.Arrays.stream(sheet.getSelectedRows()).boxed().toList(),
+				"the fixture must select only Zulu before the descending sort");
+			assertEquals(List.of(zulu), sheet.getSelectedNodes().stream()
+				.map(node -> (Resource) node.getImpl()).toList(),
+				"the selected model identity must be Zulu before the descending sort");
 		});
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-		GuiAcceptanceSupport.await(() -> namedTestResources(sheet).equals(List.of("Zulu", "Alpha")),
-			"second physical Name-header click did not sort descending");
+		GuiAcceptanceSupport.await(() -> visibleTestResources(sheet, testResources)
+			.equals(List.of(zulu, alpha, tiedAlpha, emptyName)),
+			"second physical Name-header click must sort descending and retain equal-name order");
 		SwingUtilities.invokeAndWait(() -> {
+			int projectionSize = resourceView.getCache().getVisibleNodes().getProjectionIndex().size();
+			int[] selectedRows = sheet.getSelectedRows();
+			assertTrue(java.util.Arrays.stream(selectedRows).allMatch(row -> row >= 0 && row < projectionSize),
+				"selected JTable rows must belong to the published projection; rowCount=" + sheet.getRowCount()
+					+ ", projectionSize=" + projectionSize + ", selectedRows="
+					+ java.util.Arrays.toString(selectedRows) + ", projected=" + projectedResources(resourceView));
 			assertEquals(List.of(zulu), sheet.getSelectedNodes().stream().map(node -> (Resource) node.getImpl()).toList(),
 				"sorting should preserve selected resource identity");
 			assertEquals(originalOrder, pool.getResourceList(), "view sorting must not reorder the resource model");
@@ -243,8 +264,9 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 			.orElseThrow(() -> new AssertionError("Sort Order direction control is missing"));
 		selectComboIndex(robot, menuDirection, 0);
 		click(robot, findShowingButtonByText(menuSortDialog, UIManager.getString("OptionPane.okButtonText")));
-		GuiAcceptanceSupport.await(() -> namedTestResources(sheet).equals(List.of("Alpha", "Zulu")),
-			"Sort menu should sort numeric Standard Rate values ascending");
+		GuiAcceptanceSupport.await(() -> visibleTestResources(sheet, testResources)
+			.equals(List.of(emptyName, alpha, tiedAlpha, zulu)),
+			"Sort menu should sort numeric Standard Rate ascending and retain equal values stably");
 		assertEquals(RibbonCommandResult.Status.CHANGED, manager.getLastRibbonCommandResult().status());
 		assertEquals("Field.standardRate", resourceView.getSortedFieldId());
 		assertTrue(resourceView.isSortAscending());
@@ -286,8 +308,9 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 			.orElseThrow(() -> new AssertionError("Sort Order direction control is missing"));
 		selectComboIndex(robot, direction, 0);
 		click(robot, findShowingButtonByText(sortDialog, UIManager.getString("OptionPane.okButtonText")));
-		GuiAcceptanceSupport.await(() -> namedTestResources(sheet).equals(List.of("Alpha", "Zulu")),
-			"Sort Order confirmation did not apply ascending Name order");
+		GuiAcceptanceSupport.await(() -> visibleTestResources(sheet, testResources)
+			.equals(List.of(emptyName, alpha, tiedAlpha, zulu)),
+			"Sort Order confirmation did not apply ascending Name order with empty/equal values");
 		assertEquals(RibbonCommandResult.Status.CHANGED, manager.getLastRibbonCommandResult().status());
 		assertEquals("RibbonChooseSort", manager.getLastRibbonCommandResult().commandId());
 		GuiAcceptanceSupport.await(() -> diagnostics.toString().lines().anyMatch(line ->
@@ -305,7 +328,8 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 			assertTrue(persistedWorkspace.isSortAscending());
 		});
 		SwingUtilities.invokeAndWait(() -> resourceView.restoreWorkspace(persistedWorkspace, 0));
-		GuiAcceptanceSupport.await(() -> namedTestResources(sheet).equals(List.of("Alpha", "Zulu")),
+		GuiAcceptanceSupport.await(() -> visibleTestResources(sheet, testResources)
+			.equals(List.of(emptyName, alpha, tiedAlpha, zulu)),
 			"restoring the saved Workspace did not restore the resource sort");
 		SwingUtilities.invokeAndWait(() -> {
 			assertEquals(List.of(zulu), sheet.getSelectedNodes().stream().map(node -> (Resource) node.getImpl()).toList(),
@@ -376,13 +400,20 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 		return path.toString();
 	}
 
-	private static List<String> namedTestResources(SpreadSheet sheet) {
-		List<String> names = new ArrayList<>();
+	private static List<Resource> visibleTestResources(SpreadSheet sheet, List<Resource> testResources) {
+		List<Resource> resources = new ArrayList<>();
 		for (int row = 0; row < sheet.getRowCount(); row++) {
 			Object value = ((com.microproject.pm.graphic.spreadsheet.SpreadSheetModel) sheet.getModel()).getNodeForDisplayRow(row).getImpl();
-			if (value instanceof Resource resource && List.of("Alpha", "Zulu").contains(resource.getName())) names.add(resource.getName());
+			if (value instanceof Resource resource && testResources.contains(resource)) resources.add(resource);
 		}
-		return names;
+		return resources;
+	}
+
+	private static List<String> projectedResources(ResourceView resourceView) {
+		return resourceView.getCache().getVisibleNodes().getProjectionIndex().nodes().stream()
+			.map(node -> node.getNode().getImpl() instanceof Resource resource
+				? resource.getId() + ":" + resource.getName() : node.getNode().getImpl().getClass().getSimpleName())
+			.toList();
 	}
 
 	private static int rowFor(SpreadSheet sheet, Resource resource) {

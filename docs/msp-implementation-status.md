@@ -21,8 +21,11 @@ open; an inventory or passing narrow test does not close an entire milestone.
   action through a keyboard-focusable menu arrow; the menu item reuses the
   button's canonical Swing Action. The Japanese 100% Windows Robot journey
   physically opened the arrow menu by mouse and Space, chose Sort Order, and
-  verified the canonical dialog route and cancellation result. Multi-key,
-  outline, and renumber parity remain open.
+  verified the canonical dialog route and cancellation result. Empty names and
+  equal sort keys remain stable, and selection is cleared before the projection
+  changes then restored by resource identity to avoid JTable retaining an
+  out-of-range row during sort events. Multi-key, date, filter/group, outline,
+  and renumber parity remain open.
 - Shared button diagnostics recognize completed modal cancellation and fresh
   matching command outcomes. Stale no-change results cannot conceal a silent
   command failure; actual failed/rejected outcomes remain visible. Robot
@@ -78,7 +81,7 @@ and result.
 | Issue/package | Already evidenced | Remaining acceptance rows |
 |---|---|---|
 | #793 M1 | Swing renderer/ADR retained; Windows run 38320038198 passed the six app locale/scale legs and uploaded evidence. | Publish a dated, state-matched document-derived comparison table for Microsoft 365 Project and Project 2024 using the applicable Microsoft UI sources; record applicability/access date and clearly label inference. Link narrow-width command reachability, focus/accessibility and screenshot-bound checks. No empirical Microsoft capture may be claimed. |
-| #794 M2.1 Editing/hierarchy/sorting | Resource name header toggle, numeric Standard Rate sorting, Sort Order menu route, selected resource identity, unchanged model order; physical ja/100% evidence. | Date sort; ties and empty values; ascending/descending expectations; filter/group behavior; selection identity after each; task display sort keeping table/Gantt rows aligned; permanent renumber as a separate confirmed, undoable, persisted action. |
+| #794 M2.1 Editing/hierarchy/sorting | Resource name header toggle and numeric Standard Rate sort in both directions; empty names and equal keys retain stable order; selected resource identity and unchanged model order; Sort Order menu route; physical ja/100% evidence. | Date sort; filter/group behavior; task display sort keeping table/Gantt rows aligned; permanent renumber as a separate confirmed, undoable, persisted action. |
 | #794 M2.2 Scheduling/dependencies/transactions | Update Project prevalidation/rollback and linked-task Undo/Redo slice. | Cited expected-date fixtures for FS/SS/FF/SF and lag units/calendars/constraints; verify only intended tasks move; warning/result behavior; Undo/Redo and MPO reopen; inject post-mutation failure and prove model, Undo history and observers are unchanged. Cover remaining mutation families and revisioned projection publication. |
 | #794 M2.3 Resources/assignments/progress/baselines | Resource sort is view-only. Assignment work/cost and baseline work/cost import, edit/persistence slices have core/exchange evidence, including MPO reopen. | Selected-vs-all scope, proposed resources, leveling defaults/provenance, assignment totals, status date and actual-progress transitions; manual split preservation; baseline edit/clear/recapture; Undo/Redo and MPO reopen for each changed workflow. |
 | #794 M2.4 Views/ribbon/context/reports/print/files | Current sort and Save As physical routes; report export fixture test. | Reconcile each #453/#769 command inventory row to source/status/enablement/physical route/visible result; view-only commands must preserve model; persistence where applicable; locale/DPI for changed routes; report value/rendering comparison and print page-boundary plus English/Japanese labels. Unsupported commands must be absent and documented. |
@@ -104,19 +107,25 @@ Two UI test fixtures originally formatted UTC model dates in the host timezone;
 the fixtures now use the production canonical UTC formatter. No date-editor
 production behavior was changed to satisfy those assertions.
 
-The Sort split-menu physical journey passed on Windows at Japanese locale and
+The Resource sort physical journey passed on Windows at Japanese locale and
 100% UI scale after refreshing the runnable distribution with
 `.\gradlew.bat :microproject_ui:installDist --rerun-tasks --no-daemon --max-workers=1 --console=plain`,
 then running
 `.\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.views.ResourceHeaderSortingGuiAcceptanceTest.physicalHeaderClickSortsAndTogglesWithoutMutatingResources" -PguiTestLocale=ja -PguiTestUiScale=1 --max-workers=1 --no-daemon --console=plain`.
 The journey checks physical header sorting, mouse and Space activation of the
-  Sort menu arrow, the shared Sort Order action/dialog, numeric Standard Rate
-  ascending results, preserved selection/model order, Workspace field state,
-  and cancellation as a no-change outcome. The fixture covers text and numeric
-  sorting; date, tie/empty, filter/group, and Gantt-alignment legs remain open.
-  Gradle evidence is in
+Sort menu arrow, the shared Sort Order action/dialog, numeric Standard Rate
+ascending results, stable empty/equal text and numeric keys, selection identity,
+model order, Workspace field state, and cancellation as a no-change outcome.
+The follow-up sort regression clears selection before row-projection events and
+restores the selected resource by identity. The focused GUI evidence and UI unit
+suite are in the current branch's Gradle results. Date sort, filter/group, and
+Gantt-alignment legs remain open. Gradle evidence is in
 `modules/microproject_ui/build/test-results/guiTest/TEST-com.microproject.pm.graphic.views.ResourceHeaderSortingGuiAcceptanceTest.xml`
 and `modules/microproject_ui/build/reports/tests/guiTest/index.html`.
+
+The focused physical journey passed with JDK 25 at ja/100%; the full
+`:microproject_ui:test --console=plain --max-workers=1 --no-daemon` task also
+passed (BUILD SUCCESSFUL, 1m06s).
 
 Fresh install, architecture boundary, boundary fixture, dependency allowlist,
 naming, and packaged sample MPP/POD import checks pass. These are local domain
