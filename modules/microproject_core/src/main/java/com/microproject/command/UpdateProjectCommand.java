@@ -63,6 +63,7 @@ public class UpdateProjectCommand extends Command {
 	/** Applies one Update Project transaction and posts exactly one undoable edit. */
 	public List<Long> execute(List<? extends Task> targets, EditSupport edits) {
 		affectedTaskIds.clear();
+		project.beginEventBatch();
 		try {
 			ModelTransaction.execute(new ModelTransaction.Steps<ProjectState, List<Long>>() {
 				@Override public void validate() {
@@ -120,9 +121,26 @@ public class UpdateProjectCommand extends Command {
 				private ProjectState beforeSnapshot;
 			});
 		} catch (ModelTransaction.ModelTransactionException failure) {
+			try {
+				project.endEventBatch(failure.failedStage() == ModelTransaction.Stage.COMMIT);
+			} catch (Throwable publicationFailure) {
+				failure.addSuppressed(publicationFailure);
+			}
 			if (failure.stage() != ModelTransaction.Stage.COMMIT)
 				affectedTaskIds.clear();
 			throw new IllegalStateException("Update Project failed during " + failure.failedStage(), failure);
+		} catch (Error failure) {
+			try {
+				project.endEventBatch(false);
+			} catch (Throwable publicationFailure) {
+				failure.addSuppressed(publicationFailure);
+			}
+			throw failure;
+		}
+		try {
+			project.endEventBatch(true);
+		} catch (RuntimeException publicationFailure) {
+			throw new IllegalStateException("Update Project committed but observer publication failed", publicationFailure);
 		}
 		return affectedTaskIds();
 	}

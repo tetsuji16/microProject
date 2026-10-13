@@ -12,6 +12,8 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.junit.jupiter.api.Test;
 
 import com.microproject.command.UpdateProjectCommand;
@@ -46,7 +48,10 @@ class UpdateProjectRequestTest {
 		EditSupport editSupport = new EditSupport();
 		UndoManager undoManager = new UndoManager();
 		editSupport.addEditListener(undoManager::addEdit);
+		AtomicInteger publishedScheduleEvents = new AtomicInteger();
+		project.addScheduleListener(event -> publishedScheduleEvents.incrementAndGet());
 		command.execute(java.util.List.of(task), editSupport);
+		assertTrue(publishedScheduleEvents.get() > 0, "a committed Update Project publishes its schedule changes");
 		assertTrue(command.affectedTaskIds().contains(task.getUniqueId()));
 		assertEquals(originalStatusDate, project.getStatusDate(), "the command date must not overwrite Status Date");
 		assertNotEquals(0D, task.getPercentComplete());
@@ -199,6 +204,10 @@ class UpdateProjectRequestTest {
 		EditSupport editSupport = new EditSupport();
 		UndoManager undoManager = new UndoManager();
 		editSupport.addEditListener(undoManager::addEdit);
+		AtomicInteger publishedScheduleEvents = new AtomicInteger();
+		AtomicInteger publishedObjectEvents = new AtomicInteger();
+		project.addScheduleListener(event -> publishedScheduleEvents.incrementAndGet());
+		project.addObjectListener(event -> publishedObjectEvents.incrementAndGet());
 		UpdateProjectCommand command = new UpdateProjectCommand(project,
 			new UpdateProjectRequest(updateDate, true, false, false)) {
 			@Override protected void applyToTask(Task task) {
@@ -225,6 +234,10 @@ class UpdateProjectRequestTest {
 		assertNull(first.getImportedPercentCompleteOverride());
 		assertNull(second.getImportedPercentCompleteOverride());
 		assertFalse(undoManager.canUndo(), "failed mutations must not publish an Undo edit");
+		assertEquals(0, publishedScheduleEvents.get(),
+			"a rolled-back Update Project must not publish transient schedule state");
+		assertEquals(0, publishedObjectEvents.get(),
+			"a rolled-back Update Project must not publish transient object state");
 	}
 
 	private static TaskSnapshotValues capture(Task task) {
@@ -307,6 +320,8 @@ class UpdateProjectRequestTest {
 		UndoManager undoManager = new UndoManager();
 		editSupport.addEditListener(undoManager::addEdit);
 		editSupport.addEditListener(edit -> { throw new IllegalStateException("injected listener failure"); });
+		AtomicInteger publishedScheduleEvents = new AtomicInteger();
+		project.addScheduleListener(event -> publishedScheduleEvents.incrementAndGet());
 		UpdateProjectCommand command = new UpdateProjectCommand(project,
 			new UpdateProjectRequest(task.getEnd() + 86_400_000L, true, false, false));
 
@@ -318,5 +333,7 @@ class UpdateProjectRequestTest {
 		assertEquals(1D, task.getPercentComplete(), 0.00001D);
 		assertTrue(command.affectedTaskIds().contains(task.getUniqueId()));
 		assertTrue(undoManager.canUndo(), "an earlier listener may already have accepted the edit");
+		assertTrue(publishedScheduleEvents.get() > 0,
+			"a commit-stage publication failure must still flush the committed model's schedule events");
 	}
 }

@@ -1051,6 +1051,29 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	public void fireScheduleChanged(Object source, String type, Object object) {
 		scheduleEventManager.fire(source,type,object);
 	}
+	/** Starts a project-local observer batch for an atomic model transaction. */
+	public void beginEventBatch() {
+		objectEventManager.beginBatch();
+		scheduleEventManager.beginBatch();
+	}
+	/** Completes the current observer batch, publishing only when the model committed. */
+	public void endEventBatch(boolean publish) {
+		Throwable failure = null;
+		try {
+			objectEventManager.endBatch(publish);
+		} catch (Throwable current) {
+			failure = current;
+		}
+		try {
+			scheduleEventManager.endBatch(publish);
+		} catch (Throwable current) {
+			if (failure == null) failure = current;
+			else failure.addSuppressed(current);
+		}
+		if (failure instanceof Error error) throw error;
+		if (failure instanceof RuntimeException runtime) throw runtime;
+		if (failure != null) throw new IllegalStateException("Project event publication failed", failure);
+	}
 	public void fireBaselineChanged(Object source, Object object, Integer baselineNumber, boolean save) {
 		scheduleEventManager.fireBaselineChanged(source, null, baselineNumber, save);
 	}

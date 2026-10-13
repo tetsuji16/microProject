@@ -25,6 +25,8 @@
 package com.microproject.pm.scheduling;
 
 import com.microproject.util.ListenerRegistry;
+import java.util.ArrayList;
+import java.util.List;
 
 
 /**
@@ -33,6 +35,43 @@ import com.microproject.util.ListenerRegistry;
 public class ScheduleEventManager {
 
     private final ListenerRegistry<ScheduleEventListener> listeners = new ListenerRegistry<>();
+    private final List<ScheduleEvent> deferredEvents = new ArrayList<>();
+    private int batchDepth;
+    private boolean rollbackOnly;
+
+    /** Defers schedule observer callbacks until a surrounding model transaction commits. */
+    public synchronized void beginBatch() {
+        batchDepth++;
+    }
+
+    /** Publishes deferred events on commit, or drops them after rollback. */
+    public void endBatch(boolean publish) {
+        List<ScheduleEvent> events = null;
+        synchronized (this) {
+            if (batchDepth == 0) throw new IllegalStateException("No schedule-event batch is active");
+            if (!publish) rollbackOnly = true;
+            if (--batchDepth == 0) {
+                events = new ArrayList<>(deferredEvents);
+                deferredEvents.clear();
+                publish = !rollbackOnly;
+                rollbackOnly = false;
+            }
+        }
+        if (events == null) return;
+        if (!publish) return;
+        Throwable failure = null;
+        for (ScheduleEvent event : events) {
+            try {
+                dispatch(event);
+            } catch (Throwable current) {
+                if (failure == null) failure = current;
+                else failure.addSuppressed(current);
+            }
+        }
+        if (failure instanceof Error error) throw error;
+        if (failure instanceof RuntimeException runtime) throw runtime;
+        if (failure != null) throw new IllegalStateException("Deferred schedule-event publication failed", failure);
+    }
 
     // This methods allows classes to register for ObjectEvents
     public void addListener(ScheduleEventListener listener) {
@@ -58,6 +97,15 @@ public class ScheduleEventManager {
     	fire (evt);
     }
     private void fire(ScheduleEvent evt) {
+		synchronized (this) {
+			if (batchDepth > 0) {
+				deferredEvents.add(evt);
+				return;
+			}
+		}
+		dispatch(evt);
+	}
+	private void dispatch(ScheduleEvent evt) {
 		for (ScheduleEventListener listener : listeners.snapshot())
 			listener.scheduleChanged(evt);
     }
