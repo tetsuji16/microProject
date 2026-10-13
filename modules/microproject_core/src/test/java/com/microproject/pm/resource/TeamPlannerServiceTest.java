@@ -26,6 +26,7 @@ package com.microproject.pm.resource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -71,15 +72,20 @@ class TeamPlannerServiceTest {
 		sharer.first.setUniqueId(9001L);
 		NormalTask ownerTask = task(owner.project, "Owner task");
 		NormalTask sharerTask = task(sharer.project, "Sharer task");
+		sharerTask.setStart(ownerTask.getStart());
 		AssignmentService.getInstance().newAssignment(ownerTask, owner.first, 1D, 0L, this);
-		AssignmentService.getInstance().newAssignment(sharerTask, sharer.first, 1D, 0L, this);
+		var sharerAssignment = AssignmentService.getInstance().newAssignment(sharerTask, sharer.first, 1D, 0L, this);
+		assertEquals(1, owner.first.getAssignments().size());
+		assertEquals(1, sharer.first.getAssignments().size());
 
 		SharedResourcePoolService.getInstance().share(sharer.project, owner.project,
 			SharedResourcePoolService.ConflictPolicy.POOL_TAKES_PRECEDENCE);
 
 		var slots = new TeamPlannerService().slots(owner.project);
 		assertEquals(2, slots.size(), "The pool view must include each connected client's assignment");
-		assertTrue(slots.stream().allMatch(TeamPlannerService.Slot::overallocated));
+		assertSame(owner.first, sharerAssignment.getResource());
+		assertEquals(2, owner.first.getAssignments().size(), "the canonical resource keeps both project assignments");
+		assertTrue(slots.stream().allMatch(TeamPlannerService.Slot::overallocated), slots.toString());
 		assertTrue(slots.stream().anyMatch(slot -> slot.task() == ownerTask));
 		assertTrue(slots.stream().anyMatch(slot -> slot.task() == sharerTask));
 	}

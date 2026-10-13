@@ -47,6 +47,7 @@ import java.util.logging.Logger;
 
 
 import com.microproject.grouping.core.Node;
+import com.microproject.grouping.core.NodeBridge;
 import com.microproject.grouping.core.model.AssignmentNodeModel;
 import com.microproject.grouping.core.model.DefaultNodeModel;
 import com.microproject.grouping.core.model.NodeModel;
@@ -536,6 +537,11 @@ public class ProjectFactory {
 	 * and hierarchy edits.
 	 */
 	public boolean replaceOpenSubproject(Project parent, SubProj reference, Project replacement) {
+		return com.microproject.transaction.ProjectMutationState.coordinated(
+			() -> replaceOpenSubprojectCoordinated(parent, reference, replacement));
+	}
+
+	private boolean replaceOpenSubprojectCoordinated(Project parent, SubProj reference, Project replacement) {
 		if (parent == null || reference == null || replacement == null)
 			return false;
 		Project previous = reference.getSubproject();
@@ -794,20 +800,41 @@ public class ProjectFactory {
 
 		job.addRunnable(new JobRunnable("Local: closeProjects"){
 			public Object run() throws Exception{
-				for (Node node : toRemove) {
-					Project p = (Project)node.getImpl();
-					portfolio.handleExternalTasks(p,false,false); 		// external link handling
-					p.getResourcePool().removeProject(p);
-					p.disconnect();
-					portfolio.getObjectEventManager().fireDeleteEvent(this,p);
-					portfolio.getNodeModel().remove(node,NodeModel.EVENT);
-
-				}
+				com.microproject.transaction.ProjectMutationState.coordinated(() -> {
+					List<Project> closingProjects = new ArrayList<>(toRemove.size());
+					for (Node node : toRemove) {
+						Project p = (Project)node.getImpl();
+						portfolio.handleExternalTasks(p,false,false); 	// external link handling
+						p.getResourcePool().removeProject(p);
+						p.disconnect();
+						closingProjects.add(p);
+					}
+					removePortfolioNodesAndPublish(portfolio.getNodeModel(), toRemove);
+					for (Project p : closingProjects)
+						com.microproject.transaction.ProjectMutationState.publishAfterAllScopes(
+							() -> portfolio.getObjectEventManager().fireDeleteEvent(this,p));
+				});
 				System.gc(); // clean up memory used by projects
    	    	return null; //return not used anyway
 			}
 		},/*!calledFromSwing*/false,false,calledFromSwing,false);
 		return job;
+	}
+
+	static void removePortfolioNodesAndPublish(NodeModel nodeModel, List<Node> nodes) {
+		java.util.IdentityHashMap<Node, Boolean> seen = new java.util.IdentityHashMap<>();
+		List<Node> removedNodes = new ArrayList<>();
+		for (Node node : nodes) {
+			for (java.util.Enumeration<?> enumeration = ((NodeBridge)node).postorderEnumeration(); enumeration.hasMoreElements();) {
+				Node removed = (Node)enumeration.nextElement();
+				if (seen.put(removed, Boolean.TRUE) == null)
+					removedNodes.add(removed);
+			}
+		}
+		for (Node node : nodes)
+			nodeModel.remove(node, NodeModel.SILENT);
+		com.microproject.transaction.ProjectMutationState.publishAfterAllScopes(
+			() -> nodeModel.getHierarchy().fireRemoval(removedNodes.toArray(Node[]::new)));
 	}
 
 	public void removeProject(final Project project, boolean allowCancel, boolean prompt,boolean calledFromSwing) {
@@ -862,7 +889,8 @@ public class ProjectFactory {
 		Job job=projectFactory.getPortfolio().getRemoveProjectJob(project,calledFromSwing);
 		if (job!=null) {
 			SessionFactory.getInstance().getSession(project.isLocal()).schedule(job);
-			portfolio.handleExternalTasks(project,false, false); 		// external link handling
+			com.microproject.transaction.ProjectMutationState.coordinated(
+				() -> portfolio.handleExternalTasks(project,false, false)); // external link handling
 		}
 
 	}

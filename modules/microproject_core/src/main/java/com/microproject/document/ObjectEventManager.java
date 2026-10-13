@@ -114,6 +114,10 @@ public class ObjectEventManager {
         public boolean isPublishable() {
             return publish;
         }
+
+        public boolean hasEvents() {
+            return !events.isEmpty();
+        }
     }
 
     private record EventFacts(Object source, Object object, int eventType,

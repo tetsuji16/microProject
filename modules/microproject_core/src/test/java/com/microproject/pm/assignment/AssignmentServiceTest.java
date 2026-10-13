@@ -142,6 +142,7 @@ class AssignmentServiceTest {
 		NormalTask task = createTask(project);
 		ResourceImpl resource = project.getResourcePool().newResourceInstance();
 		long initialRevision = project.getMutationState().revision();
+		long initialPoolRevision = project.getResourcePool().getCoordinationRevision();
 		int[] poolEvents = { 0 };
 		long[] observedRevision = { -1L };
 		AtomicBoolean acquiredBarrierFromObserver = new AtomicBoolean();
@@ -183,7 +184,8 @@ class AssignmentServiceTest {
 		assertEquals(initialRevision + 1, project.getMutationState().revision(),
 			"the nested assignment command shares its outer project revision");
 		assertEquals(1, poolEvents[0], "pool facts publish once after the outer commit");
-		assertEquals(initialRevision + 1, observedRevision[0], "pool facts carry the committed revision");
+		assertEquals(initialPoolRevision + 1, observedRevision[0], "pool facts carry the pool's own revision");
+		assertEquals(initialPoolRevision + 1, project.getResourcePool().getCoordinationRevision());
 		assertTrue(acquiredBarrierFromObserver.get(), "observers run after the project barrier is released");
 
 		AssignmentService.getInstance().newAssignments(List.of(task), List.of(resource),
@@ -191,12 +193,103 @@ class AssignmentServiceTest {
 
 		assertEquals(initialRevision + 1, project.getMutationState().revision(),
 			"an assignment request that only encounters existing resources is a no-op");
+		assertEquals(initialPoolRevision + 1, project.getResourcePool().getCoordinationRevision(),
+			"a no-op must not advance the shared pool revision");
 		assertFalse(project.getMutationState().isHeldByCurrentThread());
 		project.getUndoController().clear();
 		AssignmentService.getInstance().newAssignments(List.of(task), List.of(resource),
 				1.0D, 0L, this, true);
 		assertFalse(project.getUndoController().canUndo(),
 			"a duplicate assignment request must not create an empty schedule-backup undo edit");
+	}
+
+	@Test
+	void projectOnlyMutationDoesNotAdvanceSharedPoolRevision() {
+		Project project = createProject();
+		long projectRevision = project.getMutationState().revision();
+		long poolRevision = project.getResourcePool().getCoordinationRevision();
+
+		assertTrue(project.runModelMutation(markApplied -> {
+			markApplied.run();
+			return true;
+		}));
+
+		assertEquals(projectRevision + 1, project.getMutationState().revision());
+		assertEquals(poolRevision, project.getResourcePool().getCoordinationRevision(),
+			"a project-only schedule change has no shared-pool publication");
+	}
+
+	@Test
+	void assignmentInSharedPoolUsesCoordinatedProjectAndPoolPublication() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		ResourcePool pool = project.getResourcePool();
+		DataFactoryUndoController otherUndo = new DataFactoryUndoController();
+		Project otherProject = Project.createProject(pool, otherUndo);
+		otherProject.initialize(false, false);
+		pool.addProject(otherProject);
+		NormalTask otherTask = createTask(otherProject);
+		ResourceImpl resource = pool.newResourceInstance();
+		ResourceImpl otherResource = pool.newResourceInstance();
+		long otherTaskStart = otherTask.getStart();
+		project.getUndoController().clear();
+		otherProject.getUndoController().clear();
+		long projectRevision = project.getMutationState().revision();
+		long otherRevision = otherProject.getMutationState().revision();
+		long poolRevision = pool.getCoordinationRevision();
+		List<Long> poolEventRevisions = java.util.Collections.synchronizedList(new ArrayList<>());
+		pool.addObjectListener(event -> {
+			poolEventRevisions.add(event.getPublicationRevision());
+		});
+		CountDownLatch ready = new CountDownLatch(2);
+		CountDownLatch start = new CountDownLatch(1);
+		AtomicReference<Throwable> failure = new AtomicReference<>();
+		Thread firstWriter = sharedPoolWriter(task, resource, ready, start, failure);
+		Thread secondWriter = sharedPoolWriter(otherTask, otherResource, ready, start, failure);
+		firstWriter.start();
+		secondWriter.start();
+		try {
+			assertTrue(ready.await(2, TimeUnit.SECONDS), "both project writers must reach the shared pool boundary");
+			start.countDown();
+			firstWriter.join(2000L);
+			secondWriter.join(2000L);
+			assertFalse(firstWriter.isAlive() || secondWriter.isAlive(), "both shared pool writes must finish");
+		} catch (InterruptedException interrupted) {
+			Thread.currentThread().interrupt();
+			throw new AssertionError(interrupted);
+		} finally {
+			start.countDown();
+		}
+
+		assertNotNull(task.findAssignment(resource));
+		assertNotNull(otherTask.findAssignment(otherResource));
+		assertNull(failure.get(), () -> "shared pool writer failed: " + failure.get());
+		assertEquals(projectRevision + 1, project.getMutationState().revision());
+		assertEquals(otherRevision + 1, otherProject.getMutationState().revision());
+		assertEquals(poolRevision + 2, pool.getCoordinationRevision(),
+			"each committed write advances the independent pool revision once");
+		assertEquals(2, poolEventRevisions.size(), "each write publishes its shared resource facts once");
+		assertEquals(java.util.Set.of(poolRevision + 1, poolRevision + 2), new java.util.HashSet<>(poolEventRevisions));
+		assertEquals(otherTaskStart, otherTask.getStart(), "another member's task is not automatically leveled");
+		project.getUndoController().undo();
+		assertNull(task.findAssignment(resource), "Undo follows the task-owning project's history");
+		assertNotNull(otherTask.findAssignment(otherResource), "Undo leaves the other project's task intact");
+		otherProject.getUndoController().undo();
+		assertNull(otherTask.findAssignment(otherResource));
+	}
+
+	private Thread sharedPoolWriter(NormalTask task, ResourceImpl resource, CountDownLatch ready,
+			CountDownLatch start, AtomicReference<Throwable> failure) {
+		return new Thread(() -> {
+			ready.countDown();
+			try {
+				if (!start.await(2, TimeUnit.SECONDS))
+					throw new AssertionError("shared pool writers were not released");
+				AssignmentService.getInstance().newAssignments(List.of(task), List.of(resource), 1.0D, 0L, this, true);
+			} catch (Throwable current) {
+				failure.compareAndSet(null, current);
+			}
+		}, "assignment-shared-pool-writer-" + task.getName());
 	}
 
 	@Test
@@ -274,6 +367,7 @@ class AssignmentServiceTest {
 		ResourceImpl resource = pool.newResourceInstance();
 		ResourceImpl secondResource = pool.newResourceInstance();
 		long initialRevision = project.getMutationState().revision();
+		long initialPoolRevision = pool.getCoordinationRevision();
 		List<Boolean> observedUpdates = new ArrayList<>();
 		List<Object> observedObjects = new ArrayList<>();
 		List<Long> observedRevisions = new ArrayList<>();
@@ -309,8 +403,100 @@ class AssignmentServiceTest {
 		assertTrue(observedUpdates.get(1));
 		assertTrue(observedObjects.contains(resource));
 		assertTrue(observedObjects.contains(secondResource));
-		assertEquals(initialRevision + 1, observedRevisions.get(0));
-		assertEquals(initialRevision + 1, observedRevisions.get(1));
+		assertEquals(initialPoolRevision + 1, observedRevisions.get(0));
+		assertEquals(initialPoolRevision + 1, observedRevisions.get(1));
+	}
+
+	@Test
+	void failedSharedPoolReconnectRestoresSourceAssociationAndPublishesBothPoolRefreshes() {
+		Project taskProject = createProject();
+		Project destinationProject = createProject();
+		NormalTask task = createTask(taskProject);
+		ResourceImpl source = taskProject.getResourcePool().newResourceInstance();
+		ResourceImpl destination = destinationProject.getResourcePool().newResourceInstance();
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task, source, 1.0D, 0L, this, false);
+		long totalWork = 8L * 60L * 60L * 1000L;
+		long actualWork = 2L * 60L * 60L * 1000L;
+		assignment.setWork(totalWork, null);
+		assignment.setActualWork(actualWork, null);
+		long taskStart = task.getStart();
+		long taskFinish = task.getEnd();
+		ResourcePool sourcePool = taskProject.getResourcePool();
+		ResourcePool destinationPool = destinationProject.getResourcePool();
+		long projectRevision = taskProject.getMutationState().revision();
+		long sourcePoolRevision = sourcePool.getCoordinationRevision();
+		long destinationPoolRevision = destinationPool.getCoordinationRevision();
+		List<Long> sourceRevisions = new ArrayList<>();
+		List<Long> destinationRevisions = new ArrayList<>();
+		ObjectEvent.Listener sourceListener = event -> sourceRevisions.add(event.getPublicationRevision());
+		ObjectEvent.Listener destinationListener = event -> destinationRevisions.add(event.getPublicationRevision());
+		sourcePool.addObjectListener(sourceListener);
+		destinationPool.addObjectListener(destinationListener);
+		AssignmentService failingService = new AssignmentService() {
+			@Override public boolean connect(Assignment candidate, Object eventSource, boolean undo) {
+				if (candidate.getResource() == destination) return false;
+				return super.connect(candidate, eventSource, undo);
+			}
+		};
+
+		try {
+			assertThrows(IllegalStateException.class,
+				() -> failingService.rewireSharedPoolAssignment(assignment, destination, this));
+		} finally {
+			sourcePool.removeObjectListener(sourceListener);
+			destinationPool.removeObjectListener(destinationListener);
+		}
+
+		assertSame(assignment, task.findAssignment(source));
+		assertSame(assignment, source.findAssignment(task));
+		assertNull(task.findAssignment(destination));
+		assertNull(destination.findAssignment(task));
+		assertEquals(totalWork, assignment.getWork(null));
+		assertEquals(actualWork, assignment.getActualWork(null));
+		assertEquals(totalWork - actualWork, assignment.getRemainingWork());
+		assertEquals(taskStart, task.getStart());
+		assertEquals(taskFinish, task.getEnd());
+		assertEquals(projectRevision + 1, taskProject.getMutationState().revision(),
+			"the failed mutation publishes one conservative committed refresh revision");
+		assertEquals(sourcePoolRevision + 1, sourcePool.getCoordinationRevision());
+		assertEquals(destinationPoolRevision + 1, destinationPool.getCoordinationRevision());
+		assertEquals(List.of(sourcePoolRevision + 1), sourceRevisions);
+		assertEquals(List.of(destinationPoolRevision + 1), destinationRevisions);
+		assertFalse(taskProject.getUndoController().canUndo(), "failed reconnect must not create an Undo edit");
+	}
+
+	@Test
+	void sharedPoolRewireRefreshesBothResourcesWithOnePoolRevision() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		ResourceImpl source = project.getResourcePool().newResourceInstance();
+		ResourceImpl destination = project.getResourcePool().newResourceInstance();
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task, source, 1.0D, 0L, this, false);
+		ResourcePool pool = project.getResourcePool();
+		long poolRevision = pool.getCoordinationRevision();
+		List<Object> observedObjects = new ArrayList<>();
+		List<Long> observedRevisions = new ArrayList<>();
+		ObjectEvent.Listener listener = event -> {
+			observedObjects.add(event.getObject());
+			observedRevisions.add(event.getPublicationRevision());
+		};
+		pool.addObjectListener(listener);
+		try {
+			AssignmentService.getInstance().rewireSharedPoolAssignment(assignment, destination, this);
+		} finally {
+			pool.removeObjectListener(listener);
+		}
+
+		assertSame(assignment, task.findAssignment(destination));
+		assertSame(assignment, destination.findAssignment(task));
+		assertNull(task.findAssignment(source));
+		assertNull(source.findAssignment(task));
+		assertTrue(observedObjects.contains(source), "source resource views must be invalidated");
+		assertTrue(observedObjects.contains(destination), "destination resource views must be invalidated");
+		assertFalse(observedRevisions.isEmpty());
+		assertTrue(observedRevisions.stream().allMatch(revision -> revision == poolRevision + 1),
+			"one shared-pool operation must publish one pool revision");
+		assertEquals(poolRevision + 1, pool.getCoordinationRevision());
 	}
 
 	@Test

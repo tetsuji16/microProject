@@ -550,10 +550,10 @@ public class EnterpriseResource implements Resource {
 	 * @return Returns the resourcePool.
 	 */
 	public ResourcePool getResourcePool() {
-		return resourcePool;
+		return com.microproject.transaction.ProjectMutationState.coordinated(() -> resourcePool);
 	}
 	public void setResourcePool(ResourcePool resourcePool) {
-		this.resourcePool = resourcePool;
+		com.microproject.transaction.ProjectMutationState.coordinated(() -> this.resourcePool = resourcePool);
 	}
 	public Document getDocument() {
 		return resourcePool;

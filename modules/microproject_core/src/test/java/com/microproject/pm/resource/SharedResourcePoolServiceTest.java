@@ -10,8 +10,15 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.junit.jupiter.api.Test;
 
+import com.microproject.document.ObjectEvent;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.task.NormalTask;
@@ -32,13 +39,66 @@ class SharedResourcePoolServiceTest {
 		NormalTask task = new NormalTask(sharer);
 		sharer.connectTask(task);
 		Assignment assignment = AssignmentService.getInstance().newAssignment(task, sharerResource, 1.0D, 0L, this, false);
+		ResourcePool sharerPool = sharer.getResourcePool();
+		long sharerRevision = sharerPool.getCoordinationRevision();
+		long poolRevision = poolProject.getResourcePool().getCoordinationRevision();
+		ExecutorService snapshotWorker = Executors.newSingleThreadExecutor();
+		AtomicInteger callbacksOutsideCoordinator = new AtomicInteger();
+		java.util.List<Long> sharerRevisions = new java.util.ArrayList<>();
+		java.util.List<Long> poolRevisions = new java.util.ArrayList<>();
+		java.util.List<Object> sharerObjects = new java.util.ArrayList<>();
+		java.util.List<Object> poolObjects = new java.util.ArrayList<>();
+		ObjectEvent.Listener sharerListener = event -> {
+			try {
+				Future<Boolean> snapshot = snapshotWorker.submit(() -> {
+					try (var ignored = sharer.getMutationState().begin()) {
+						return true;
+					}
+				});
+				if (snapshot.get(2, TimeUnit.SECONDS)) callbacksOutsideCoordinator.incrementAndGet();
+			} catch (Exception failure) {
+				throw new AssertionError("shared pool observer ran while the global mutation barrier was held", failure);
+			}
+			sharerRevisions.add(event.getPublicationRevision());
+			sharerObjects.add(event.getObject());
+		};
+		ObjectEvent.Listener poolListener = event -> {
+			try {
+				Future<Boolean> snapshot = snapshotWorker.submit(() -> {
+					try (var ignored = sharer.getMutationState().begin()) {
+						return true;
+					}
+				});
+				if (snapshot.get(2, TimeUnit.SECONDS)) callbacksOutsideCoordinator.incrementAndGet();
+			} catch (Exception failure) {
+				throw new AssertionError("shared pool observer ran while the global mutation barrier was held", failure);
+			}
+			poolRevisions.add(event.getPublicationRevision());
+			poolObjects.add(event.getObject());
+		};
+		poolProject.getResourcePool().addObjectListener(poolListener);
+		sharerPool.addObjectListener(sharerListener);
 
-		SharedResourcePoolService.getInstance().share(sharer, poolProject,
+		try {
+			SharedResourcePoolService.getInstance().share(sharer, poolProject,
 				SharedResourcePoolService.ConflictPolicy.POOL_TAKES_PRECEDENCE);
+		} finally {
+			poolProject.getResourcePool().removeObjectListener(poolListener);
+			sharerPool.removeObjectListener(sharerListener);
+			snapshotWorker.shutdownNow();
+		}
 
 		assertSame(poolProject.getResourcePool(), sharer.getResourcePool());
 		assertSame(poolResource, assignment.getResource());
 		assertEquals(1, poolProject.getResourcePool().getResourceList().size());
+		assertTrue(callbacksOutsideCoordinator.get() >= 2,
+			"both pool observers must run only after sharing releases the coordinator");
+		assertEquals(java.util.List.of(sharerRevision + 1), sharerRevisions,
+			"source-pool events must carry its own single operation revision");
+		assertEquals(java.util.List.of(poolRevision + 1), poolRevisions,
+			"destination-pool events must carry its own single operation revision");
+		assertTrue(sharerObjects.contains(sharerResource));
+		assertTrue(poolObjects.contains(poolResource));
 		assertEquals("C:\\plans\\resources.pod", sharer.getSharedResourcePoolFile());
 		assertTrue(sharer.isResourcePoolTakesPrecedence());
 	}

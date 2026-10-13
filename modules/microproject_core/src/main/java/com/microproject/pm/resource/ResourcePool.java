@@ -46,6 +46,7 @@ import com.microproject.pm.calendar.CalendarService;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.task.Project;
+import com.microproject.transaction.ProjectMutationState;
 import com.microproject.transaction.MultipleTransactionManager;
 import com.microproject.transaction.MultipleTransaction;
 import com.microproject.undo.DataFactoryUndoController;
@@ -62,6 +63,7 @@ public class ResourcePool implements Document, NodeModelDataFactory {
 	private ObjectEventManager objectEventManager = new ObjectEventManager();
 	private transient MultipleTransactionManager multipleTransactionManager = new MultipleTransactionManager();
 	private long resourceIdCounter = 0;
+	private transient volatile long coordinationRevision;
 	private WorkingCalendar defaultCalendar;
     private static ResourcePool globalPool = null;
 	protected ResourcePool(String name,DataFactoryUndoController undo) {
@@ -79,21 +81,25 @@ public class ResourcePool implements Document, NodeModelDataFactory {
 	
     private transient HashMap<Long,Resource> idMap = null;
 	public Resource findById(long id) {
-		if (idMap == null) {
-		    int resourceCount = getResourceList().size();
-		    idMap = HashMap.newHashMap(resourceCount);
-			for (Resource resource : getResourceList()) {
-				idMap.put(resource.getUniqueId(),resource);
+		return ProjectMutationState.coordinated(() -> {
+			if (idMap == null) {
+				idMap = HashMap.newHashMap(resourceList.size());
+				for (Resource resource : resourceList)
+					idMap.put(resource.getUniqueId(), resource);
 			}
-        }
-        return idMap.get(id);
+			return idMap.get(id);
+		});
 	}
 	public void initializeId(Resource resource) {
-		long id;
-		do {
-			id = ++resourceIdCounter;
-		} while (containsResourceId(id, resource));
-		resource.setId(id);
+		ProjectMutationState.coordinated(() -> {
+			long id;
+			do {
+				id = ++resourceIdCounter;
+			} while (containsResourceId(id, resource));
+			resource.setId(id);
+			idMap = null;
+			advanceCoordinationRevisionCoordinated();
+		});
 	}
 
 	private boolean containsResourceId(long id, Resource excluded) {
@@ -118,25 +124,41 @@ public class ResourcePool implements Document, NodeModelDataFactory {
 	
 	
 	public void addAndInitializeId(Resource resource) {
-		add(resource);
-		initializeId(resource);
+		ProjectMutationState.coordinated(() -> {
+			add(resource);
+			initializeId(resource);
+		});
 	}
 	public void add(Resource resource) {
-		resourceList.add(resource);
-		resourceIdCounter = Math.max(resourceIdCounter, resource.getId());
-		idMap = null;
+		ProjectMutationState.coordinated(() -> {
+			if (containsResourceIdentity(resource)) return;
+			resourceList.add(resource);
+			resourceIdCounter = Math.max(resourceIdCounter, resource.getId());
+			idMap = null;
+			advanceCoordinationRevisionCoordinated();
+		});
 	}
 
 	/** Registers an imported resource ID without allowing a later allocation to reuse it. */
 	public void setResourceUniqueId(Resource resource, long uniqueId) {
 		if (resource == null || uniqueId < 1L) throw new IllegalArgumentException("Invalid resource unique ID");
-		resource.setUniqueId(uniqueId);
-		resourceIdCounter = Math.max(resourceIdCounter, uniqueId);
-		idMap = null;
+		ProjectMutationState.coordinated(() -> {
+			boolean changed = resource.getUniqueId() != uniqueId;
+			if (changed) resource.setUniqueId(uniqueId);
+			resourceIdCounter = Math.max(resourceIdCounter, uniqueId);
+			if (changed) {
+				idMap = null;
+				advanceCoordinationRevisionCoordinated();
+			}
+		});
 	}
 	public void remove(Resource resource) {
-		resourceList.remove(resource);
-		idMap = null;
+		ProjectMutationState.coordinated(() -> {
+			if (removeResourceIdentity(resource)) {
+				idMap = null;
+				advanceCoordinationRevisionCoordinated();
+			}
+		});
 	}
 	
 	public ResourceImpl newResourceInstance() {
@@ -156,7 +178,7 @@ public class ResourcePool implements Document, NodeModelDataFactory {
 	 * @return Returns the resourceList.
 	 */
 	public List<Resource> getResourceList() {
-		return resourceList;
+		return ProjectMutationState.coordinated(() -> List.copyOf(resourceList));
 	}
 	
 	public static Resource findResourceByName(Object idObject, Object resourcePoolObject) {
@@ -205,32 +227,78 @@ public class ResourcePool implements Document, NodeModelDataFactory {
 	}
 	public void validateObject(Object newlyCreated, NodeModel nodeModel, Object eventSource, Object hierarchyInfo,boolean isNew) {
 		if (!(newlyCreated instanceof Resource)) return;// avoids VoidNodes
-		Resource resource=(Resource)newlyCreated;
-		
-		((ResourceImpl)resource).getGlobalResource().setResourcePool(this);
-		
-		add(resource);
-		if (isNew) initializeId(resource);
-		resourceOutlines.addToAll(newlyCreated,nodeModel); // update all node models except the one passed in
+		ProjectMutationState.coordinated(() -> {
+			Resource resource=(Resource)newlyCreated;
+			((ResourceImpl)resource).getGlobalResource().setResourcePool(this);
+			add(resource);
+			if (isNew) initializeId(resource);
+			resourceOutlines.addToAll(newlyCreated,nodeModel); // update all node models except the one passed in
+		});
 	}
 	public void remove(Object toRemove, NodeModel nodeModel,boolean deep,boolean undo,boolean removeDependencies){
-		remove((Resource)toRemove);
-		resourceOutlines.removeFromAll(toRemove,nodeModel); // update all node models except the one passed in		
+		ProjectMutationState.coordinated(() -> {
+			remove((Resource)toRemove);
+			resourceOutlines.removeFromAll(toRemove,nodeModel); // update all node models except the one passed in
+		});
 	}
 
 	public void addProject(Project project) {
-		projects.add(project);
+		ProjectMutationState.coordinated(() -> {
+			if (containsProjectIdentity(project)) return;
+			projects.add(project);
+			advanceCoordinationRevisionCoordinated();
+		});
 //		initUndoControlerForAllOutines(project);
 	}
 	public void removeProject(Project project) {
-		projects.remove(project);
+		ProjectMutationState.coordinated(() -> {
+			if (removeProjectIdentity(project)) advanceCoordinationRevisionCoordinated();
+		});
+	}
+	/** Revision for shared-pool membership and assignment publication, independent of any project. */
+	public long getCoordinationRevision() {
+		return coordinationRevision;
+	}
+	public long advanceCoordinationRevision() {
+		return ProjectMutationState.coordinated(this::advanceCoordinationRevisionCoordinated);
+	}
+	private long advanceCoordinationRevisionCoordinated() {
+		return ProjectMutationState.coordinatedRevision(this, () -> ++coordinationRevision);
+	}
+	private boolean containsResourceIdentity(Resource expected) {
+		for (Resource resource : resourceList)
+			if (resource == expected) return true;
+		return false;
+	}
+	private boolean removeResourceIdentity(Resource expected) {
+		for (int index = 0; index < resourceList.size(); index++) {
+			if (resourceList.get(index) == expected) {
+				resourceList.remove(index);
+				return true;
+			}
+		}
+		return false;
+	}
+	private boolean containsProjectIdentity(Project expected) {
+		for (Project project : projects)
+			if (project == expected) return true;
+		return false;
+	}
+	private boolean removeProjectIdentity(Project expected) {
+		for (int index = 0; index < projects.size(); index++) {
+			if (projects.get(index) == expected) {
+				projects.remove(index);
+				return true;
+			}
+		}
+		return false;
 	}
 	
 	/**
 	 * @return Returns the projects.
 	 */
 	public List<Project> getProjects() {
-		return projects;
+		return ProjectMutationState.coordinated(() -> List.copyOf(projects));
 	}
 	/**
 	 * @param listener

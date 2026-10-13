@@ -35,14 +35,25 @@ import java.nio.file.AccessDeniedException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
 
 import com.microproject.pm.resource.ResourcePool;
+import com.microproject.grouping.core.Node;
+import com.microproject.grouping.core.NodeFactory;
+import com.microproject.grouping.core.event.HierarchyListener;
+import com.microproject.grouping.core.event.HierarchyEvent;
+import com.microproject.grouping.core.model.DefaultNodeModel;
+import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.session.SaveOptions;
 import com.microproject.session.LocalSession;
 import com.microproject.util.Environment;
 import com.microproject.undo.DataFactoryUndoController;
+import com.microproject.transaction.ProjectMutationState;
 
 class ProjectFactoryClosingTest {
 	@Test
@@ -216,5 +227,38 @@ class ProjectFactoryClosingTest {
 		assertFalse(factory.isProjectClosing(6101L));
 		assertFalse(factory.isProjectClosing(6102L));
 		assertEquals(List.of(false), childStillClosing);
+	}
+
+	@Test
+	void closeRemovalNotificationRunsAfterTheCoordinatorReleases() throws Exception {
+		DefaultNodeModel model = new DefaultNodeModel();
+		model.getHierarchy().setNbEndVoidNodes(0);
+		Node node = NodeFactory.getInstance().createNode(new Object());
+		model.add((Node)model.getHierarchy().getRoot(), node, NodeModel.SILENT);
+		ExecutorService worker = Executors.newSingleThreadExecutor();
+		AtomicInteger notifications = new AtomicInteger();
+		model.getHierarchy().addHierarchyListener(new HierarchyListener() {
+			@Override public void nodesChanged(HierarchyEvent event) { }
+			@Override public void nodesInserted(HierarchyEvent event) { }
+			@Override public void structureChanged(HierarchyEvent event) { }
+			@Override public void nodesRemoved(HierarchyEvent event) {
+				assertNull(node.getParent(), "the portfolio node must be detached before observers are notified");
+				try {
+					assertTrue(worker.submit(() -> ProjectMutationState.coordinated(() -> true))
+						.get(2, TimeUnit.SECONDS), "a separate thread must acquire the mutation barrier during notification");
+				} catch (Exception failure) {
+					throw new AssertionError("hierarchy notification ran before the mutation barrier was released", failure);
+				}
+				notifications.incrementAndGet();
+			}
+		});
+
+		try {
+			ProjectMutationState.coordinated(() -> ProjectFactory.removePortfolioNodesAndPublish(model, List.of(node)));
+			assertEquals(1, notifications.get());
+			assertNull(node.getParent());
+		} finally {
+			worker.shutdownNow();
+		}
 	}
 }

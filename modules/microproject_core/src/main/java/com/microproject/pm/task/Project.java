@@ -316,10 +316,14 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		return result;
 	}
 
-	public record AdditionalObjectEventManager(ObjectEventManager manager, Object source, List<?> refreshObjects) {
+	public record AdditionalObjectEventManager(ObjectEventManager manager, ResourcePool revisionOwner, Object source,
+			List<?> refreshObjects) {
 		public AdditionalObjectEventManager {
 			java.util.Objects.requireNonNull(manager, "manager");
+			java.util.Objects.requireNonNull(revisionOwner, "revisionOwner");
 			java.util.Objects.requireNonNull(source, "source");
+			if (manager != revisionOwner.getObjectEventManager())
+				throw new IllegalArgumentException("The event manager must belong to its revision owner");
 			refreshObjects = List.copyOf(refreshObjects);
 		}
 	}
@@ -662,10 +666,10 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	 * @return Returns the resourcePool.
 	 */
 	public ResourcePool getResourcePool() {
-		return resourcePool;
+		return com.microproject.transaction.ProjectMutationState.coordinated(() -> resourcePool);
 	}
     public void setResourcePool(ResourcePool resourcePool) {
-        this.resourcePool = resourcePool;
+        com.microproject.transaction.ProjectMutationState.coordinated(() -> this.resourcePool = resourcePool);
     }
 
 	public String getSharedResourcePoolFile() {
@@ -1187,7 +1191,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 					if (refreshObjects.stream().noneMatch(existingObject -> existingObject == refreshObject))
 						refreshObjects.add(refreshObject);
 				additionalEventManagers.set(existingIndex, new AdditionalObjectEventManager(existing.manager(),
-					existing.source(), refreshObjects));
+					existing.revisionOwner(), existing.source(), refreshObjects));
 			}
 		}
 	}
@@ -1215,7 +1219,8 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 			}
 			for (AdditionalObjectEventManager participant : additionalEventManagers) {
 				ObjectEventManager.PendingBatch events = participant.manager().detachBatch(publish);
-				if (events != null) additionalEvents.add(new AdditionalPendingBatch(participant, events));
+				if (events != null) additionalEvents.add(new AdditionalPendingBatch(participant, events,
+					additionalPublicationRevision(participant)));
 			}
 			if (--eventBatchDepth == 0) {
 				if (undoBatchActivation != null) {
@@ -1227,7 +1232,10 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 			}
 		}
 		return new PendingEventBatch(getMutationState().revision(), objectEvents, scheduleEvents,
-			List.copyOf(additionalEvents), undoGroup);
+			List.copyOf(additionalEvents), undoGroup, false);
+	}
+	private long additionalPublicationRevision(AdditionalObjectEventManager participant) {
+		return participant.revisionOwner().getCoordinationRevision();
 	}
 	/** Atomically detaches notifications and commits the revision before releasing the mutation barrier. */
 	public PendingEventBatch commitEventBatch(com.microproject.transaction.ProjectMutationState.Scope mutation,
@@ -1258,15 +1266,38 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 				}
 			}
 		}
+		for (int index = 0; index < additionalEvents.size(); index++) {
+			AdditionalPendingBatch additional = additionalEvents.get(index);
+			if (additional.events().isPublishable() && additional.events().hasEvents())
+				additionalEvents.set(index, new AdditionalPendingBatch(additional.participant(), additional.events(),
+					additional.participant().revisionOwner().advanceCoordinationRevision()));
+		}
 		mutation.commit(changed);
 		if (changed && detached.undoGroup() != null)
 			undoController.getEditSupport().reserveCommit(detached.undoGroup());
-		long revision = mutation.closeAndGetRevision();
-		return new PendingEventBatch(revision, objectEvents, scheduleEvents, List.copyOf(additionalEvents),
-			detached.undoGroup());
+		long revision = mutation.projectedRevision();
+		boolean coordinatedPublication = com.microproject.transaction.ProjectMutationState.shouldDeferPublication();
+		boolean hasPublication = objectEvents != null || scheduleEvents != null || !additionalEvents.isEmpty()
+			|| detached.undoGroup() != null;
+		PendingEventBatch pending = new PendingEventBatch(revision, objectEvents, scheduleEvents,
+			List.copyOf(additionalEvents), detached.undoGroup(), coordinatedPublication);
+		if (hasPublication && coordinatedPublication) {
+			mutation.afterCommitRevision(committedRevision -> {
+				if (committedRevision != revision)
+					throw new IllegalStateException("Project publication revision changed before commit");
+				return () -> publishEventBatchNow(pending);
+			});
+		}
+		mutation.closeAndGetRevision();
+		return pending;
 	}
 	/** Dispatches events after the mutation barrier is released. */
 	public void publishEventBatch(PendingEventBatch batch) {
+		if (batch == null) return;
+		if (batch.coordinatedPublication()) return;
+		publishEventBatchNow(batch);
+	}
+	private void publishEventBatchNow(PendingEventBatch batch) {
 		if (batch == null) return;
 		com.microproject.undo.EditSupport support = batch.undoGroup() == null ? null : undoController.getEditSupport();
 		com.microproject.undo.EditSupport.Activation activation = support == null ? null
@@ -1286,7 +1317,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 			}
 			for (AdditionalPendingBatch additional : batch.additionalEvents()) {
 				try {
-					additional.participant().manager().publishBatch(additional.events(), batch.revision());
+				additional.participant().manager().publishBatch(additional.events(), additional.revision());
 				} catch (Throwable current) {
 					if (failure == null) failure = current;
 					else failure.addSuppressed(current);
@@ -1310,9 +1341,14 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		com.microproject.document.ObjectEventManager.PendingBatch objectEvents,
 		com.microproject.pm.scheduling.ScheduleEventManager.PendingBatch scheduleEvents,
 		List<AdditionalPendingBatch> additionalEvents,
-		com.microproject.undo.EditSupport.Group undoGroup) { }
+		com.microproject.undo.EditSupport.Group undoGroup,
+		boolean coordinatedPublication) { }
 	public record AdditionalPendingBatch(AdditionalObjectEventManager participant,
-		ObjectEventManager.PendingBatch events) { }
+		ObjectEventManager.PendingBatch events, long revision) {
+		public AdditionalPendingBatch(AdditionalObjectEventManager participant, ObjectEventManager.PendingBatch events) {
+			this(participant, events, 0L);
+		}
+	}
 	public void fireBaselineChanged(Object source, Object object, Integer baselineNumber, boolean save) {
 		scheduleEventManager.fireBaselineChanged(source, null, baselineNumber, save);
 	}

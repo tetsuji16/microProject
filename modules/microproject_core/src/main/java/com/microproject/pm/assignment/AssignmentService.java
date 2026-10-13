@@ -79,10 +79,10 @@ public class AssignmentService {
 		}
 		Project commandProject = firstTask.getProject();
 		ResourcePool commandPool = commandProject.getResourcePool();
-		if (isSingleProjectPool(commandProject, commandPool)) {
+		if (commandProject != null && commandPool != null) {
 			commandProject.runModelCommand(markApplied -> newAssignmentsInternal(taskSnapshot, resourceSnapshot,
 				units, delay, eventSource, undo, markApplied), Boolean.TRUE::equals, ignored -> Boolean.TRUE,
-				List.of(new Project.AdditionalObjectEventManager(commandPool.getObjectEventManager(), commandPool,
+				List.of(new Project.AdditionalObjectEventManager(commandPool.getObjectEventManager(), commandPool, commandPool,
 					resourceRefreshObjects(resourceSnapshot))));
 			return;
 		}
@@ -151,14 +151,14 @@ public class AssignmentService {
 		NormalTask task = (NormalTask) source.getTask();
 		Project commandProject = task.getProject();
 		ResourcePool commandPool = commandProject.getResourcePool();
-		if (isSingleProjectPool(commandProject, commandPool)) {
+		if (commandProject != null && commandPool != null) {
 			List<Object> refreshObjects = resourceRefreshObjects(replacementResources);
 			refreshObjects.add(source.getResource());
 			AssignmentMutationResult result = commandProject.runModelCommand(
 				markApplied -> replaceAssignmentInternal(source, replacementResources, eventSource, undo,
 					markApplied),
 				AssignmentMutationResult::changed, AssignmentMutationResult::withFacts,
-				List.of(new Project.AdditionalObjectEventManager(commandPool.getObjectEventManager(), commandPool,
+				List.of(new Project.AdditionalObjectEventManager(commandPool.getObjectEventManager(), commandPool, commandPool,
 					refreshObjects)));
 			return result.assignments();
 		}
@@ -223,13 +223,6 @@ public class AssignmentService {
 			batchUpdate.endIfNeeded();
 		}
 		return new AssignmentMutationResult(List.copyOf(created), changed);
-	}
-
-	private boolean isSingleProjectPool(Project project, ResourcePool pool) {
-		if (project == null || pool == null) return false;
-		for (Project poolProject : pool.getProjects())
-			if (poolProject != project) return false;
-		return true;
 	}
 
 	private List<Object> resourceRefreshObjects(Collection<?> resources) {
@@ -474,6 +467,92 @@ public class AssignmentService {
 	
 	public void remove(Assignment assignment, boolean cleanTaskLink, Object eventSource, boolean undo) {
 		remove(assignment,cleanTaskLink,eventSource,new NodeUndoInfo(undo));
+	}
+
+	/** Reconnects an assignment across resource pools as one task-owned publication. */
+	public void rewireSharedPoolAssignment(Assignment assignment, Resource replacement, Object eventSource) {
+		if (assignment == null || replacement == null)
+			throw new IllegalArgumentException("An assignment and replacement resource are required");
+		com.microproject.transaction.ProjectMutationState.coordinated(
+			() -> rewireSharedPoolAssignmentWithinCoordinator(assignment, replacement, eventSource));
+	}
+
+	private void rewireSharedPoolAssignmentWithinCoordinator(Assignment assignment, Resource replacement,
+			Object eventSource) {
+		if (!(assignment.getTask() instanceof NormalTask task))
+			throw new IllegalArgumentException("A shared-pool assignment requires a normal task");
+		Project project = task.getProject();
+		Resource source = assignment.getResource();
+		if (source == replacement) return;
+		ResourcePool sourcePool = resourcePoolOf(source);
+		ResourcePool replacementPool = resourcePoolOf(replacement);
+		if (!task.isAssignable() || task.findAssignment(source) != assignment || source.findAssignment(task) != assignment)
+			throw new IllegalStateException("Shared-pool assignment is not attached to its source task and resource");
+		if (replacementPool == null || replacementPool.getResourceList().stream().noneMatch(resource -> resource == replacement))
+			throw new IllegalArgumentException("Replacement resource is not a member of a resource pool");
+		Assignment existingDestination = replacement.findAssignment(task);
+		if (existingDestination != null && existingDestination != assignment)
+			throw new IllegalStateException("Replacement resource already has an assignment for this task");
+		List<Project.AdditionalObjectEventManager> additionalManagers = new ArrayList<>();
+		addPoolRefreshParticipant(additionalManagers, sourcePool, source);
+		addPoolRefreshParticipant(additionalManagers, replacementPool, replacement);
+		project.runModelCommand(markApplied -> {
+			Object assignmentDetail = assignment.backupDetail();
+			Object taskDetail = task.backupDetail();
+			markApplied.run();
+			try {
+				remove(assignment, null, false);
+				if (source.findAssignment(task) == assignment || task.findAssignment(source) == assignment)
+					throw new IllegalStateException("Could not detach assignment from its previous resource");
+				assignment.setTaskAndResource(task, replacement);
+				if (!connect(assignment, null, false))
+					throw new IllegalStateException("Could not reconnect assignment to the shared resource pool");
+				if (replacement.findAssignment(task) != assignment || task.findAssignment(replacement) != assignment)
+					throw new IllegalStateException("Shared-pool assignment reverse links were not updated");
+			} catch (RuntimeException | Error failure) {
+				try {
+					if (task.findAssignment(replacement) == assignment || replacement.findAssignment(task) == assignment)
+						remove(assignment, null, false);
+					assignment.setTaskAndResource(task, source);
+					if ((task.findAssignment(source) != assignment || source.findAssignment(task) != assignment)
+							&& !connect(assignment, null, false))
+						throw new IllegalStateException("Could not restore assignment to its source resource");
+					if (task.findAssignment(source) != assignment || source.findAssignment(task) != assignment)
+						throw new IllegalStateException("Assignment source reverse links were not restored");
+					task.restoreDetail(eventSource, taskDetail, true, (TaskSnapshot)task.getCurrentSnapshot());
+					assignment.restoreDetail(assignmentDetail);
+					publishSharedPoolRefreshes(project, eventSource, task, additionalManagers);
+				} catch (RuntimeException | Error rollbackFailure) {
+					failure.addSuppressed(rollbackFailure);
+				}
+				throw failure;
+			}
+			publishSharedPoolRefreshes(project, eventSource, task, additionalManagers);
+			return Boolean.TRUE;
+		}, Boolean.TRUE::equals, result -> result, additionalManagers);
+	}
+
+	private void publishSharedPoolRefreshes(Project project, Object eventSource, NormalTask task,
+			List<Project.AdditionalObjectEventManager> additionalManagers) {
+		project.fireUpdateEvent(eventSource, task);
+		for (Project.AdditionalObjectEventManager participant : additionalManagers)
+			for (Object refreshObject : participant.refreshObjects())
+				participant.manager().fireUpdateEvent(eventSource, refreshObject);
+	}
+
+	private void addPoolRefreshParticipant(List<Project.AdditionalObjectEventManager> participants,
+			ResourcePool pool, Resource resource) {
+		if (pool == null) return;
+		for (int index = 0; index < participants.size(); index++) {
+			Project.AdditionalObjectEventManager participant = participants.get(index);
+			if (participant.manager() != pool.getObjectEventManager()) continue;
+			List<Object> refreshObjects = new ArrayList<>(participant.refreshObjects());
+			if (refreshObjects.stream().noneMatch(existing -> existing == resource)) refreshObjects.add(resource);
+			participants.set(index, new Project.AdditionalObjectEventManager(participant.manager(), pool,
+				participant.source(), refreshObjects));
+			return;
+		}
+		participants.add(new Project.AdditionalObjectEventManager(pool.getObjectEventManager(), pool, pool, List.of(resource)));
 	}
 	public void remove(Collection<?> assignments, Object eventSource,boolean undo) {
 		for (Object value : assignments) {

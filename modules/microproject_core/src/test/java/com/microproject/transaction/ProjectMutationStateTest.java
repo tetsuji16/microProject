@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -27,6 +28,29 @@ import com.microproject.undo.DataFactoryUndoController;
 import org.junit.jupiter.api.Test;
 
 class ProjectMutationStateTest {
+	@Test
+	void mismatchedAdditionalEventOwnerIsRejectedBeforeAProjectCommandCanLeakItsBarrier() throws Exception {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool projectPool = ResourcePool.createRourcePool("participant-owner", undo);
+		Project project = Project.createProject(projectPool, undo);
+		project.initialize(false, false);
+		ResourcePool wrongOwner = ResourcePool.createRourcePool("wrong-participant-owner", new DataFactoryUndoController());
+
+		assertThrows(IllegalArgumentException.class, () -> new Project.AdditionalObjectEventManager(
+			projectPool.getObjectEventManager(), wrongOwner, wrongOwner, List.of()));
+
+		ExecutorService worker = Executors.newSingleThreadExecutor();
+		try {
+			assertTrue(worker.submit(() -> project.runModelMutation(markApplied -> {
+				markApplied.run();
+				return true;
+			})).get(2, TimeUnit.SECONDS), "a later thread must enter and commit a project command");
+		} finally {
+			worker.shutdownNow();
+		}
+		assertEquals(1, project.getMutationState().revision());
+	}
+
 	@Test
 	void rollbackAndPublicationFailureReleaseCommandUndoGroups() {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
@@ -112,6 +136,74 @@ class ProjectMutationStateTest {
 	}
 
 	@Test
+	void nestedDifferentProjectPublicationWaitsForEveryCoordinatedScope() {
+		DataFactoryUndoController firstUndo = new DataFactoryUndoController();
+		Project first = Project.createProject(ResourcePool.createRourcePool("coordinated-first", firstUndo), firstUndo);
+		first.initialize(false, false);
+		DataFactoryUndoController secondUndo = new DataFactoryUndoController();
+		Project second = Project.createProject(ResourcePool.createRourcePool("coordinated-second", secondUndo), secondUndo);
+		second.initialize(false, false);
+		List<String> publications = new ArrayList<>();
+		ExecutorService snapshotWorker = Executors.newSingleThreadExecutor();
+		second.addScheduleListener(event -> {
+			assertFalse(first.getMutationState().isHeldByCurrentThread(),
+				"a nested project's observers must run after every project scope releases the coordinator");
+			assertTrue(captureFromAnotherThread(first, snapshotWorker),
+				"a different thread must acquire the coordinator during publication");
+			assertEquals(1L, first.getMutationState().revision());
+			assertEquals(1L, second.getMutationState().revision());
+			publications.add("second");
+		});
+		first.addScheduleListener(event -> {
+			assertFalse(second.getMutationState().isHeldByCurrentThread());
+			assertTrue(captureFromAnotherThread(second, snapshotWorker));
+			assertEquals(1L, first.getMutationState().revision());
+			assertEquals(1L, second.getMutationState().revision());
+			publications.add("first");
+		});
+
+		try {
+			assertTrue(first.runModelMutation(markApplied -> {
+				markApplied.run();
+				assertTrue(second.runModelMutation(nestedApplied -> {
+					nestedApplied.run();
+					return true;
+				}));
+				assertTrue(publications.isEmpty(), "nested project events must wait for the outer coordinated command");
+				return true;
+			}));
+			assertEquals(List.of("second", "first"), publications);
+		} finally {
+			snapshotWorker.shutdownNow();
+		}
+	}
+
+	private static boolean captureFromAnotherThread(Project project, ExecutorService worker) {
+		try {
+			Future<Boolean> snapshot = worker.submit(() -> {
+				try (ProjectMutationState.Scope ignored = project.getMutationState().begin()) {
+					return true;
+				}
+			});
+			return snapshot.get(2, TimeUnit.SECONDS);
+		} catch (Exception failure) {
+			throw new AssertionError("another thread could not capture a coordinated project snapshot", failure);
+		}
+	}
+
+	private static boolean captureFromAnotherThread(ProjectMutationState state, ExecutorService worker) {
+		try {
+			return worker.submit(() -> {
+				try (ProjectMutationState.Scope ignored = state.begin()) {
+					return true;
+				}
+			}).get(2, TimeUnit.SECONDS);
+		} catch (Exception failure) {
+			throw new AssertionError("another thread could not acquire the mutation coordinator", failure);
+		}
+	}
+
+	@Test
 	void unavailableProjectUndoAndRedoDoNotAdvanceRevision() {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		Project project = Project.createProject(ResourcePool.createRourcePool("empty-project-history", undo), undo);
@@ -146,6 +238,29 @@ class ProjectMutationStateTest {
 			noOp.commit(false);
 		}
 		assertEquals(1, state.revision());
+	}
+
+	@Test
+	void publicationFactoryFailureStillReleasesCoordinatorAndPublishesOtherWork() throws Exception {
+		ProjectMutationState state = new ProjectMutationState();
+		List<String> delivered = new ArrayList<>();
+		ExecutorService worker = Executors.newSingleThreadExecutor();
+		ProjectMutationState.Scope scope = state.begin();
+		scope.publishAfterAllScopes(() -> delivered.add("already queued"));
+		scope.afterCommitRevision(revision -> { throw new IllegalStateException("factory failed"); });
+		scope.afterCommitRevision(revision -> () -> delivered.add("later factory"));
+		scope.commit(true);
+
+		try {
+			assertThrows(IllegalStateException.class, scope::close);
+			assertTrue(captureFromAnotherThread(state, worker),
+				"a failing publication factory must not retain the process-wide coordinator");
+			assertEquals(List.of("already queued", "later factory"), delivered,
+				"one failing factory must not suppress other detached publications");
+			assertEquals(1L, state.revision());
+		} finally {
+			worker.shutdownNow();
+		}
 	}
 
 	@Test
