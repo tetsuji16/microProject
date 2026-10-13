@@ -53,6 +53,14 @@ public class ObjectEventManager {
         return deferredEvents.size();
     }
 
+    /** Whether this batch contains a fact for the exact object identity after the supplied checkpoint. */
+    public synchronized boolean hasPendingEventFor(Object object, int afterCount) {
+        int start = Math.max(0, afterCount);
+        for (int index = start; index < deferredEvents.size(); index++)
+            if (deferredEvents.get(index).object == object) return true;
+        return false;
+    }
+
     /** Publishes deferred events on commit, or releases them without notifying observers on rollback. */
     public void endBatch(boolean publish) {
         publishBatch(detachBatch(publish));

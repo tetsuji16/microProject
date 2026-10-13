@@ -607,7 +607,7 @@ class MpoFileImporterTest {
 	void sharedPoolSharerRoundTripPreservesResourceIdentityAndAssignmentUnits() throws Exception {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		ResourcePool pool = ResourcePool.createRourcePool("shared-pool", undo);
-		Resource resource = pool.newResourceInstance();
+		Resource resource = pool.createScriptedResource();
 		resource.setResourceTypeKind(ResourceType.Kind.WORK);
 		((com.microproject.pm.resource.ResourceImpl) resource).setUniqueId(88001L);
 		Project poolProject = Project.createProject(pool, undo);
@@ -1976,6 +1976,109 @@ class MpoFileImporterTest {
 		Project restored = load(writeTempMpo(original));
 		assertTrue(firstTask(restored).isManuallyScheduled(),
 				"MPO reload must preserve the task scheduling mode");
+	}
+
+	@Test
+	void resourceSpreadsheetNameAndRateFieldsSurviveMpoRoundTrip() throws Exception {
+		// Document-derived interoperability rule: the Resource scalar StandardRate is the
+		// current-date rate when a rate table exists; RatesFrom/To delimit entries in
+		// tables A-E, and StandardRateFormat 2 means per hour. Keep the raw scalar and
+		// table values consistent. This follows Microsoft's XML schema documentation,
+		// not an empirical MSP run:
+		// https://learn.microsoft.com/en-us/office-project/xml-data-interchange/rate-element?view=project-client-2016
+		// https://learn.microsoft.com/en-us/office-project/xml-data-interchange/standardrateformat-element?view=project-client-2016
+		// https://learn.microsoft.com/en-us/office-project/xml-data-interchange/xml-schema-for-the-resources-element?view=project-client-2016
+		Project original = projectForRoundTrip();
+		ResourcePool pool = original.getResourcePool();
+		pool.setLocal(true);
+		pool.addProject(original);
+		com.microproject.grouping.core.model.NodeModel resourceModel = pool.getResourceOutline();
+		resourceModel.setUndoController(pool.getUndoController());
+		Resource resource = pool.createScriptedResource();
+		resource.setName("Initial Resource");
+		AssignmentService.getInstance().newAssignment((NormalTask) firstTask(original), resource, 1.0D, 0L, this);
+		com.microproject.grouping.core.Node resourceNode = resourceModel.search(resource);
+		resourceModel.setFieldValue(com.microproject.configuration.Configuration.getFieldFromId("Field.name"),
+			resourceNode, this, "Published Resource", null, com.microproject.grouping.core.model.NodeModel.NORMAL);
+		resourceModel.setFieldValue(com.microproject.configuration.Configuration.getFieldFromId("Field.standardRate"),
+			resourceNode, this, new com.microproject.datatype.Rate(
+				137.5D / com.microproject.datatype.Duration.timeUnitFactor(com.microproject.datatype.TimeUnit.HOURS),
+				com.microproject.datatype.TimeUnit.HOURS), null,
+			com.microproject.grouping.core.model.NodeModel.NORMAL);
+		long futureEffectiveDate = java.time.LocalDate.of(2027, 1, 1).atStartOfDay(java.time.ZoneOffset.UTC)
+			.toInstant().toEpochMilli();
+		com.microproject.pm.costing.CostRate futureDefaultRate = (com.microproject.pm.costing.CostRate)
+			resource.getCostRateTable(0).newValueObject(futureEffectiveDate);
+		futureDefaultRate.setStandardRate(new com.microproject.datatype.Rate(
+			150.0D / com.microproject.datatype.Duration.timeUnitFactor(com.microproject.datatype.TimeUnit.HOURS),
+			com.microproject.datatype.TimeUnit.HOURS));
+		com.microproject.pm.costing.CostRate alternateTableDefault = (com.microproject.pm.costing.CostRate)
+			resource.getCostRateTable(1).getList().getFirst();
+		alternateTableDefault.setStandardRate(new com.microproject.datatype.Rate(
+			25.0D / com.microproject.datatype.Duration.timeUnitFactor(com.microproject.datatype.TimeUnit.HOURS),
+			com.microproject.datatype.TimeUnit.HOURS));
+		alternateTableDefault.setOvertimeRate(new com.microproject.datatype.Rate(
+			40.0D / com.microproject.datatype.Duration.timeUnitFactor(com.microproject.datatype.TimeUnit.HOURS),
+			com.microproject.datatype.TimeUnit.HOURS));
+		alternateTableDefault.setCostPerUse(7.5D);
+		com.microproject.pm.costing.CostRate futureRate = (com.microproject.pm.costing.CostRate)
+			resource.getCostRateTable(1).newValueObject(futureEffectiveDate);
+		futureRate.setStandardRate(new com.microproject.datatype.Rate(
+			30.0D / com.microproject.datatype.Duration.timeUnitFactor(com.microproject.datatype.TimeUnit.HOURS),
+			com.microproject.datatype.TimeUnit.HOURS));
+		futureRate.setOvertimeRate(new com.microproject.datatype.Rate(
+			45.0D / com.microproject.datatype.Duration.timeUnitFactor(com.microproject.datatype.TimeUnit.HOURS),
+			com.microproject.datatype.TimeUnit.HOURS));
+		futureRate.setCostPerUse(9.0D);
+		assertEquals("Published Resource", resource.getName());
+		double expectedInternalRate = 137.5D
+			/ com.microproject.datatype.Duration.timeUnitFactor(com.microproject.datatype.TimeUnit.HOURS);
+		assertEquals(expectedInternalRate, resource.getStandardRate().getValue(), 0.0000001D);
+		String displayedRate = com.microproject.datatype.RateFormat.getInstance(null, false, false, true)
+			.format(resource.getStandardRate()).toString();
+		assertTrue(displayedRate.contains("137.5"), displayedRate);
+
+		byte[] bytes = saveMpo(original);
+		String projectXml = new String(readEntries(bytes).get(MpoFileImporter.PROJECT_ENTRY), StandardCharsets.UTF_8);
+		net.sf.mpxj.Resource mpxResource = new net.sf.mpxj.ProjectFile().addResource();
+		com.microproject.server.data.MPXConverter.toMPXResource((com.microproject.pm.resource.ResourceImpl) resource,
+			mpxResource);
+		assertEquals(com.microproject.server.data.MPXConverter.toMPXRate(resource.getStandardRate()),
+			mpxResource.getStandardRate());
+		assertTrue(projectXml.contains("<StandardRate>137.5</StandardRate>"), projectXml);
+		assertTrue(projectXml.contains("<StandardRateFormat>2</StandardRateFormat>"), projectXml);
+		assertTrue(projectXml.contains("<RateTable>0</RateTable>"), projectXml);
+		assertTrue(projectXml.contains("<RateTable>1</RateTable>"), projectXml);
+		Project restored = loadFromBytes(bytes);
+		com.microproject.pm.assignment.Assignment restoredAssignment =
+			(com.microproject.pm.assignment.Assignment) ((NormalTask) firstTask(restored)).getAssignments().iterator().next();
+		Resource restoredResource = restoredAssignment.getResource();
+		assertEquals("Published Resource", restoredResource.getName());
+		assertEquals(expectedInternalRate, restoredResource.getStandardRate().getValue(), 0.0000001D,
+			"MPO reload must restore the current-date A-table scalar from the source XML");
+		assertEquals(displayedRate, com.microproject.datatype.RateFormat.getInstance(null, false, false, true)
+			.format(restoredResource.getStandardRate()).toString());
+		com.microproject.pm.costing.CostRate restoredFutureDefault = (com.microproject.pm.costing.CostRate)
+			restoredResource.getCostRateTable(0).findActive(futureEffectiveDate);
+		assertEquals(futureEffectiveDate, restoredFutureDefault.getEffectiveDate());
+		assertEquals(150.0D / com.microproject.datatype.Duration.timeUnitFactor(com.microproject.datatype.TimeUnit.HOURS),
+			restoredFutureDefault.getStandardRate().getValue(), 0.0000001D,
+			"applying the current-date scalar must preserve the future A-table interval");
+		com.microproject.pm.costing.CostRate restoredAlternateDefault = (com.microproject.pm.costing.CostRate)
+			restoredResource.getCostRateTable(1).getList().getFirst();
+		assertEquals(25.0D / com.microproject.datatype.Duration.timeUnitFactor(com.microproject.datatype.TimeUnit.HOURS),
+			restoredAlternateDefault.getStandardRate().getValue(), 0.0000001D);
+		assertEquals(40.0D / com.microproject.datatype.Duration.timeUnitFactor(com.microproject.datatype.TimeUnit.HOURS),
+			restoredAlternateDefault.getOvertimeRate().getValue(), 0.0000001D);
+		assertEquals(7.5D, restoredAlternateDefault.getCostPerUse(), 0.0000001D);
+		com.microproject.pm.costing.CostRate restoredFutureRate = (com.microproject.pm.costing.CostRate)
+			restoredResource.getCostRateTable(1).findActive(futureEffectiveDate);
+		assertEquals(futureEffectiveDate, restoredFutureRate.getEffectiveDate());
+		assertEquals(30.0D / com.microproject.datatype.Duration.timeUnitFactor(com.microproject.datatype.TimeUnit.HOURS),
+			restoredFutureRate.getStandardRate().getValue(), 0.0000001D);
+		assertEquals(45.0D / com.microproject.datatype.Duration.timeUnitFactor(com.microproject.datatype.TimeUnit.HOURS),
+			restoredFutureRate.getOvertimeRate().getValue(), 0.0000001D);
+		assertEquals(9.0D, restoredFutureRate.getCostPerUse(), 0.0000001D);
 	}
 
 	@Test

@@ -65,6 +65,7 @@ import com.microproject.pm.assignment.HasAssignments;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.HasDependencies;
 import com.microproject.pm.resource.ResourceImpl;
+import com.microproject.pm.resource.ResourceFieldMutationService;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectFactory;
@@ -830,6 +831,17 @@ public class DefaultNodeModel implements NodeModel {
 	}
 
 	public void setFieldValue(Field field, Node node, Object eventSource, Object value, FieldContext context,int actionType) throws FieldParseException {
+		if (isEvent(actionType) && node != null && node.getImpl() instanceof ResourceImpl resource) {
+			ResourceFieldMutationService.getInstance().execute(resource, getUndoableEditSupport(),
+				() -> field.getValue(node, this, context),
+				() -> setFieldValueDirect(field, node, eventSource, value, context, actionType, true), eventSource);
+			return;
+		}
+		setFieldValueDirect(field, node, eventSource, value, context, actionType, false);
+	}
+
+	private void setFieldValueDirect(Field field, Node node, Object eventSource, Object value, FieldContext context,
+		int actionType, boolean changedOnlyUndo) throws FieldParseException {
 		Object oldValue=field.getValue(node,this,context);
 
 //		// this prevents the field from sending an update message.  However, ideally the field will send the message and the hiearchy event wont
@@ -844,7 +856,10 @@ public class DefaultNodeModel implements NodeModel {
 		// Field notifications are handled by the field implementation.
 
 		//Undo
-		if (isUndo(actionType)) postEdit(new ModelFieldEdit(this,field,node,eventSource,value,oldValue,context));
+		if (isUndo(actionType)) {
+			if (!changedOnlyUndo || !java.util.Objects.deepEquals(oldValue, field.getValue(node, this, context)))
+				postEdit(new ModelFieldEdit(this,field,node,eventSource,value,oldValue,context));
+		}
 
 	}
 

@@ -46,6 +46,9 @@ import org.junit.jupiter.api.Test;
 import com.microproject.field.Field;
 import com.microproject.field.FieldContext;
 import com.microproject.field.FieldParseException;
+import com.microproject.configuration.Configuration;
+import com.microproject.datatype.Rate;
+import com.microproject.document.ObjectEvent;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeFactory;
 import com.microproject.grouping.core.transform.sorting.NodeSorter;
@@ -731,6 +734,81 @@ class DefaultNodeModelTest {
 
 		assertSame(assignmentNode, model.search(assignment));
 		assertSame(assignmentNode.getParent(), model.search(task));
+	}
+
+	@Test
+	void resourceFieldEditRecalculatesAndPublishesAcrossSharedPoolProjectsWithOneUndo() throws Exception {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		DataFactoryUndoController firstProjectUndo = new DataFactoryUndoController();
+		DataFactoryUndoController secondProjectUndo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("shared-resource-field-test", undoController);
+		undoController.setDataFactory(pool);
+		pool.setLocal(true);
+		DefaultNodeModel resourceModel = (DefaultNodeModel) pool.getResourceOutline();
+		resourceModel.setUndoController(undoController);
+		Project firstProject = Project.createProject(pool, firstProjectUndo);
+		Project secondProject = Project.createProject(pool, secondProjectUndo);
+		firstProject.initialize(false, false);
+		secondProject.initialize(false, false);
+		pool.addProject(firstProject);
+		pool.addProject(secondProject);
+		ResourceImpl resource = (ResourceImpl) pool.createScriptedResource();
+		Node resourceNode = resourceModel.search(resource);
+		Field standardRate = Configuration.getFieldFromId("Field.standardRate");
+		Rate originalRate = resource.getStandardRate();
+		List<ObjectEvent> observed = new ArrayList<>();
+		boolean[] observerSawCoordinator = { false };
+		pool.addObjectListener(event -> {
+			if (event.getObject() == resource) {
+				observed.add(event);
+				observerSawCoordinator[0] |= firstProject.getMutationState().isHeldByCurrentThread();
+			}
+		});
+		undoController.clear();
+		long poolRevision = pool.getCoordinationRevision();
+		long firstRevision = firstProject.getMutationState().revision();
+		long secondRevision = secondProject.getMutationState().revision();
+
+		resourceModel.setFieldValue(standardRate, resourceNode, this, new Rate(125.0D), null, NodeModel.NORMAL);
+
+		assertEquals(125.0D, resource.getStandardRate().getValue());
+		assertEquals(poolRevision + 1, pool.getCoordinationRevision());
+		assertEquals(firstRevision + 1, firstProject.getMutationState().revision());
+		assertEquals(secondRevision + 1, secondProject.getMutationState().revision());
+		assertEquals(1, observed.size(), "one actual resource fact is published for the field edit");
+		assertEquals(pool.getCoordinationRevision(), observed.getFirst().getPublicationRevision());
+		assertFalse(observerSawCoordinator[0], "resource observers run after all project scopes unlock");
+		assertTrue(undoController.canUndo());
+		assertFalse(firstProjectUndo.canUndo(), "shared-resource edit history belongs to the resource model's controller");
+		assertFalse(secondProjectUndo.canUndo(), "member project controllers do not receive a duplicate field edit");
+
+		undoController.undo();
+		assertSame(originalRate, resource.getStandardRate());
+		assertEquals(poolRevision + 2, pool.getCoordinationRevision());
+		assertEquals(firstRevision + 2, firstProject.getMutationState().revision());
+		assertEquals(secondRevision + 2, secondProject.getMutationState().revision());
+		undoController.redo();
+		assertEquals(125.0D, resource.getStandardRate().getValue());
+		assertEquals(poolRevision + 3, pool.getCoordinationRevision());
+		assertEquals(firstRevision + 3, firstProject.getMutationState().revision());
+		assertEquals(secondRevision + 3, secondProject.getMutationState().revision());
+		assertEquals(3, observed.size(), "Undo and Redo publish the same actual resource fact");
+		undoController.clear();
+		long noOpPoolRevision = pool.getCoordinationRevision();
+		long noOpFirstRevision = firstProject.getMutationState().revision();
+		long noOpSecondRevision = secondProject.getMutationState().revision();
+		resourceModel.setFieldValue(standardRate, resourceNode, this, resource.getStandardRate(), null, NodeModel.NORMAL);
+		assertEquals(noOpPoolRevision, pool.getCoordinationRevision());
+		assertEquals(noOpFirstRevision, firstProject.getMutationState().revision());
+		assertEquals(noOpSecondRevision, secondProject.getMutationState().revision());
+		assertFalse(undoController.canUndo(), "a semantic no-op creates no history");
+		long failurePoolRevision = pool.getCoordinationRevision();
+		FailingField failingField = new FailingField();
+		failingField.setClass(ResourceImpl.class);
+		assertThrows(FieldParseException.class, () -> resourceModel.setFieldValue(
+			failingField, resourceNode, this, "invalid", null, NodeModel.NORMAL));
+		assertEquals(failurePoolRevision, pool.getCoordinationRevision());
+		assertFalse(undoController.canUndo(), "a rejected field parse creates no history");
 	}
 
 	@Test

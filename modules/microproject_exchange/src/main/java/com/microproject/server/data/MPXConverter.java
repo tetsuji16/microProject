@@ -70,10 +70,12 @@ import com.microproject.exchange.mpxj.MpxjApi;
 import com.microproject.configuration.Configuration;
 import com.microproject.datatype.Duration;
 import com.microproject.datatype.Rate;
+import com.microproject.interval.ValueObjectForInterval;
 import com.microproject.field.CustomFields;
 import com.microproject.grouping.core.VoidNodeImpl;
 import com.microproject.options.CalendarOption;
 import com.microproject.pm.assignment.Assignment;
+import com.microproject.pm.costing.CostRate;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.calendar.WorkDay;
 import com.microproject.pm.calendar.WorkRange;
@@ -252,9 +254,24 @@ public class MPXConverter {
 		mpxResource.setName(removeInvalidChars(projectlibreResource.getName()));
 		mpxResource.setNotes(removeInvalidChars(projectlibreResource.getNotes()));
 		mpxResource.setAccrueAt(AccrueType.getInstance(projectlibreResource.getAccrueAt()));
-		mpxResource.set(ResourceField.COST_PER_USE, Double.valueOf(projectlibreResource.getCostPerUse()));
-		mpxResource.set(ResourceField.STANDARD_RATE, toMPXRate(projectlibreResource.getStandardRate()));
-		mpxResource.set(ResourceField.OVERTIME_RATE, toMPXRate(projectlibreResource.getOvertimeRate()));
+		for (int tableIndex = 0; tableIndex < net.sf.mpxj.CostRateTable.MAX_TABLES; tableIndex++) {
+			com.microproject.pm.costing.CostRateTable sourceTable = projectlibreResource.getCostRateTableIfPresent(tableIndex);
+			net.sf.mpxj.CostRateTable targetTable = new net.sf.mpxj.CostRateTable();
+			if (sourceTable != null) {
+				for (ValueObjectForInterval value : sourceTable.getList()) {
+					CostRate rate = (CostRate) value;
+					Date start = value.isFirst() ? net.sf.mpxj.common.DateHelper.START_DATE_NA
+						: new Date(value.getStart());
+					Date end = value.getEnd() >= com.microproject.util.DateTime.getMaxDate().getTime()
+						? net.sf.mpxj.common.DateHelper.END_DATE_NA : new Date(value.getEnd());
+					targetTable.add(new net.sf.mpxj.CostRateTableEntry(start, end,
+						Double.valueOf(rate.getCostPerUse()), toMPXRate(rate.getStandardRate()),
+						toMPXRate(rate.getOvertimeRate())));
+				}
+			}
+			// MPXJ and the domain both number tables A-E as 0-4.
+			mpxResource.setCostRateTable(tableIndex, targetTable);
+		}
 		mpxResource.setGroup(projectlibreResource.getGroup());
 		mpxResource.setEmailAddress(projectlibreResource.getEmailAddress());
 		mpxResource.setGeneric(projectlibreResource.isGeneric()); // fix for 2024492

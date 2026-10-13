@@ -64,11 +64,14 @@ public class MpxImportState {
 	private Map<Long, Map<Integer, List<RawMspdiCostInterval>>> rawMspdiAssignmentBaselineCost = Map.of();
 	private Map<Long, Map<Integer, RawMspdiAssignmentBaseline>> rawMspdiAssignmentBaselines = Map.of();
 	private Map<Long, Map<Integer, RawMspdiTaskBaseline>> rawMspdiTaskBaselines = Map.of();
+	private Map<Long, RawMspdiResourceRates> rawMspdiResourceRates = Map.of();
 
 	public record RawMspdiWorkInterval(int type, long start, long finish, long work) { }
 	public record RawMspdiCostInterval(int type, long start, long finish, double cost) { }
 	public record RawMspdiAssignmentBaseline(Long start, Long finish, Long work) { }
 	public record RawMspdiTaskBaseline(long durationMillis, int durationFormat) { }
+	public record RawMspdiResourceRates(com.microproject.datatype.Rate standardRate,
+		com.microproject.datatype.Rate overtimeRate, Double costPerUse) { }
 
 	/** MSPDI assignment baseline work Type values: 4, then 16 + 6 per slot. */
 	public static int assignmentBaselineWorkType(int slot) {
@@ -145,6 +148,12 @@ public class MpxImportState {
 	public RawMspdiTaskBaseline getRawMspdiTaskBaseline(Long uid, int slot) {
 		Map<Integer, RawMspdiTaskBaseline> baselines = uid == null ? null : rawMspdiTaskBaselines.get(uid);
 		return baselines == null ? null : baselines.get(Integer.valueOf(slot));
+	}
+	public void setRawMspdiResourceRates(Map<Long, RawMspdiResourceRates> values) {
+		rawMspdiResourceRates = Map.copyOf(values);
+	}
+	public RawMspdiResourceRates getRawMspdiResourceRates(Long uid) {
+		return uid == null ? null : rawMspdiResourceRates.get(uid);
 	}
 	
 	public ResourcePool getResourcePool() {

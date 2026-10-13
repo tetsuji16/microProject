@@ -180,6 +180,32 @@ naming, and packaged sample MPP/POD import checks pass. These are local domain
 and packaging checks, not Microsoft desktop full-interoperability evidence.
 GitHub CI and Windows GUI results are recorded in the associated PR.
 
+Resource spreadsheet writer update (2026-10-13): `DefaultNodeModel` now routes
+Resource field edits and their existing `ModelFieldEdit` replay through one
+coordinated owner-aware boundary. It commits one edit to the Resource model's
+actual Undo controller, recalculates attached projects, and publishes resource
+facts after pool/project locks release; no-op and parse failures add no history.
+MPX/MPO conversion now carries CostRateTable A-E entries in both directions,
+including effective intervals, standard/overtime rates and cost-per-use. The
+round-trip regression uses a UI rate of 137.5/hour, separately asserts its
+internal currency-per-millisecond value, consistent table/scalar XML value and
+reloaded display. This is a document-derived rule from Microsoft's [Rate
+element](https://learn.microsoft.com/en-us/office-project/xml-data-interchange/rate-element?view=project-client-2016),
+[StandardRateFormat element](https://learn.microsoft.com/en-us/office-project/xml-data-interchange/standardrateformat-element?view=project-client-2016)
+and [Resource schema](https://learn.microsoft.com/en-us/office-project/xml-data-interchange/xml-schema-for-the-resources-element?view=project-client-2016),
+not a measured MSP run. The focused rate round-trip and the formerly failing
+POD serialized-payload stability regression both pass; the full Exchange module
+suite passed on JDK 25 with
+`.\gradlew.bat :microproject_exchange:test --console=plain --no-daemon --max-workers=1`.
+`CostRateTables` exposes a non-creating lookup for optional tables so MPX
+export does not mutate a project after its native payload has been serialized;
+its existing manual `EnterpriseResource.writeObject` format is unchanged.
+`DefaultNodeModelTest`, the no-mutation `CostRateTablesTest`, GUI test
+compilation, and `verifyArchitectureBoundaries` also passed. The physical
+ResourceView edit/Undo/Redo/MPO journey is compiled and awaits Windows GUI CI
+evidence. Issue #409 remains partial: other published writers and immutable
+render snapshots are still open.
+
 ## Verification policy
 
 Record the exact command, commit, result and skipped cases with each published

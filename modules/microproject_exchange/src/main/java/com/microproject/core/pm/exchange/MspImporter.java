@@ -188,6 +188,7 @@ public class MspImporter {
 					state.setRawMspdiAssignmentBaselineCost(rawData.assignmentBaselineCost());
 					state.setRawMspdiAssignmentBaselines(rawData.assignmentBaselines());
 					state.setRawMspdiTaskBaselines(rawData.taskBaselines());
+					state.setRawMspdiResourceRates(rawData.resourceRates());
 					source = prepareProjectStream(new ByteArrayInputStream(data));
 				} else {
 					source = prepareProjectStream(in);
@@ -244,7 +245,8 @@ public class MspImporter {
 		Map<Long, Map<Integer, List<MpxImportState.RawMspdiWorkInterval>>> assignmentBaselineWork,
 		Map<Long, Map<Integer, List<MpxImportState.RawMspdiCostInterval>>> assignmentBaselineCost,
 		Map<Long, Map<Integer, MpxImportState.RawMspdiAssignmentBaseline>> assignmentBaselines,
-		Map<Long, Map<Integer, MpxImportState.RawMspdiTaskBaseline>> taskBaselines) { }
+		Map<Long, Map<Integer, MpxImportState.RawMspdiTaskBaseline>> taskBaselines,
+		Map<Long, MpxImportState.RawMspdiResourceRates> resourceRates) { }
 
 	private RawMspdiData parseRawMspdiData(byte[] xml)
 			throws Exception {
@@ -266,6 +268,22 @@ public class MspImporter {
 		Map<Long, Map<Integer, List<MpxImportState.RawMspdiCostInterval>>> assignmentBaselineCost = new HashMap<>();
 		Map<Long, Map<Integer, MpxImportState.RawMspdiAssignmentBaseline>> assignmentBaselines = new HashMap<>();
 		Map<Long, Map<Integer, MpxImportState.RawMspdiTaskBaseline>> taskBaselines = new HashMap<>();
+		Map<Long, MpxImportState.RawMspdiResourceRates> resourceRates = new HashMap<>();
+		org.w3c.dom.NodeList resources = document.getElementsByTagNameNS(namespace, "Resource");
+		for (int index = 0; index < resources.getLength(); index++) {
+			org.w3c.dom.Element resource = (org.w3c.dom.Element) resources.item(index);
+			String rawUid = xmlChildText(resource, "UID", namespace);
+			if (rawUid == null) continue;
+			MpxImportState.RawMspdiResourceRates rates = new MpxImportState.RawMspdiResourceRates(
+				parseMspdiResourceRate(xmlChildText(resource, "StandardRate", namespace),
+					xmlChildText(resource, "StandardRateFormat", namespace)),
+				parseMspdiResourceRate(xmlChildText(resource, "OvertimeRate", namespace),
+					xmlChildText(resource, "OvertimeRateFormat", namespace)),
+				parseMspdiResourceCost(xmlChildText(resource, "CostPerUse", namespace)));
+			if ((rates.standardRate() != null || rates.overtimeRate() != null || rates.costPerUse() != null)
+				&& resourceRates.put(Long.valueOf(rawUid), rates) != null)
+				throw new IllegalArgumentException("MSPDI contains duplicate resource UIDs with scalar rates");
+		}
 		org.w3c.dom.NodeList tasks = document.getElementsByTagNameNS(namespace, "Task");
 		for (int index = 0; index < tasks.getLength(); index++) {
 			org.w3c.dom.Element task = (org.w3c.dom.Element) tasks.item(index);
@@ -382,7 +400,32 @@ public class MspImporter {
 				throw new IllegalArgumentException("MSPDI contains duplicate assignment UIDs");
 		}
 		return new RawMspdiData(Map.copyOf(result), Map.copyOf(assignmentBaselineWork),
-			Map.copyOf(assignmentBaselineCost), Map.copyOf(assignmentBaselines), Map.copyOf(taskBaselines));
+			Map.copyOf(assignmentBaselineCost), Map.copyOf(assignmentBaselines), Map.copyOf(taskBaselines),
+			Map.copyOf(resourceRates));
+	}
+
+	private static com.microproject.datatype.Rate parseMspdiResourceRate(String rawValue, String rawFormat) {
+		if (rawValue == null) return null;
+		double amount = new java.math.BigDecimal(rawValue.trim()).doubleValue();
+		int format = rawFormat == null ? 2 : Integer.parseInt(rawFormat.trim());
+		int unit = switch (format) {
+			case 1 -> com.microproject.datatype.TimeUnit.MINUTES;
+			case 2 -> com.microproject.datatype.TimeUnit.HOURS;
+			case 3 -> com.microproject.datatype.TimeUnit.DAYS;
+			case 4 -> com.microproject.datatype.TimeUnit.WEEKS;
+			case 5 -> com.microproject.datatype.TimeUnit.MONTHS;
+			case 7 -> com.microproject.datatype.TimeUnit.YEARS;
+			case 8 -> com.microproject.datatype.TimeUnit.NON_TEMPORAL;
+			default -> com.microproject.datatype.TimeUnit.NONE;
+		};
+		if (unit == com.microproject.datatype.TimeUnit.NONE) return null;
+		double factor = unit == com.microproject.datatype.TimeUnit.NON_TEMPORAL ? 1.0D
+			: com.microproject.datatype.Duration.timeUnitFactor(unit);
+		return new com.microproject.datatype.Rate(amount / factor, unit);
+	}
+
+	private static Double parseMspdiResourceCost(String rawValue) {
+		return rawValue == null ? null : Double.valueOf(new java.math.BigDecimal(rawValue.trim()).doubleValue());
 	}
 
 	private static double parseMspdiCost(String value) {

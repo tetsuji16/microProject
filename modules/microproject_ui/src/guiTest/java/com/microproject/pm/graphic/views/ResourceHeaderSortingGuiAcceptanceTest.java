@@ -20,6 +20,8 @@ import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -51,6 +53,7 @@ import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.Project;
+import com.microproject.exchange.MpoFileImporter;
 import com.microproject.ribbon.RibbonCommandResult;
 import com.microproject.ui.diagnostics.UiButtonDiagnostics;
 import com.microproject.testsupport.GuiAcceptanceSupport;
@@ -336,6 +339,131 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 				"Workspace restore should preserve the selected resource identity");
 			assertEquals(originalOrder, pool.getResourceList(), "Workspace sort restore must remain view-only");
 		});
+	}
+
+	@Test
+	void physicalResourceStandardRateEditUndoRedoAndMpoRoundTrip() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("resource-field-edit", undo);
+		pool.setLocal(true);
+		pool.setMaster(true);
+		Project project = Project.createProject(pool, undo);
+		project.setResourcePoolProject(true);
+		project.initialize(false, false);
+		pool.addProject(project);
+		Resource resource = pool.createScriptedResource();
+		resource.setName("Field Edit Resource");
+		resource.setStandardRate(new Rate(20.0D
+			/ com.microproject.datatype.Duration.timeUnitFactor(com.microproject.datatype.TimeUnit.HOURS),
+			com.microproject.datatype.TimeUnit.HOURS));
+		SwingUtilities.invokeAndWait(() -> {
+			window = new MainRibbonFrame("resource-field-edit", null);
+			manager = new GraphicManager(window);
+			window.setGraphicManager(manager);
+			manager.initView();
+			manager.addProjectFrame(project);
+			window.setSize(1120, 700);
+			window.setVisible(true);
+			manager.getFrameForProject(project).activateResourceView();
+		});
+		SpreadSheet sheet = manager.getFrameForProject(project).getResourceView().getSpreadSheet();
+		GuiAcceptanceSupport.await(() -> sheet.isShowing() && rowFor(sheet, resource) >= 0,
+			"resource spreadsheet did not show the edited resource");
+		int modelColumn = -1;
+		for (int index = 0; index < sheet.getFieldArray().size(); index++)
+			if ("Field.standardRate".equals(sheet.getFieldArray().get(index).getId())) modelColumn = index;
+		assertTrue(modelColumn >= 0, "resource Standard Rate column must be present");
+		int column = sheet.convertColumnIndexToView(modelColumn);
+		int row = rowFor(sheet, resource);
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		Rectangle cell = new Rectangle();
+		SwingUtilities.invokeAndWait(() -> {
+			window.toFront();
+			window.requestFocus();
+			Rectangle bounds = sheet.getCellRect(row, column, true);
+			Point location = sheet.getLocationOnScreen();
+			cell.setBounds(location.x + bounds.x, location.y + bounds.y, bounds.width, bounds.height);
+		});
+		robot.mouseMove(cell.x + cell.width / 2, cell.y + cell.height / 2);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(sheet::isFocusOwner, "Standard Rate cell did not receive physical focus");
+		robot.keyPress(KeyEvent.VK_F2);
+		robot.keyRelease(KeyEvent.VK_F2);
+		GuiAcceptanceSupport.await(sheet::isEditing, "physical F2 did not start the Standard Rate editor");
+		java.awt.Component editor = sheet.getEditorComponent();
+		assertTrue(editor != null, "Standard Rate editor is missing");
+		SwingUtilities.invokeAndWait(editor::requestFocusInWindow);
+		GuiAcceptanceSupport.await(() -> editor.isFocusOwner(), "Standard Rate editor did not receive focus");
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_A);
+		robot.keyRelease(KeyEvent.VK_A);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		for (char character : "137.5".toCharArray()) {
+			int keyCode = KeyEvent.getExtendedKeyCodeForChar(character);
+			robot.keyPress(keyCode);
+			robot.keyRelease(keyCode);
+		}
+		robot.keyPress(KeyEvent.VK_ENTER);
+		robot.keyRelease(KeyEvent.VK_ENTER);
+		GuiAcceptanceSupport.await(() -> !sheet.isEditing(), "Standard Rate edit did not commit");
+		double expectedEditRate = 137.5D
+			/ com.microproject.datatype.Duration.timeUnitFactor(com.microproject.datatype.TimeUnit.HOURS);
+		assertEquals(expectedEditRate, resource.getStandardRate().getValue(), 0.0000001D,
+			"physical input 137.5 must commit as the expected internal currency-per-millisecond rate");
+		assertEquals(com.microproject.datatype.TimeUnit.HOURS, resource.getStandardRate().getTimeUnit());
+		String editedRendered = renderedRateText(sheet, rowFor(sheet, resource), column);
+		assertEquals(expectedRateText(sheet, rowFor(sheet, resource), column,
+			new Rate(expectedEditRate, com.microproject.datatype.TimeUnit.HOURS)), editedRendered,
+			"ResourceView must render the committed 137.5/hour value");
+		robot.keyPress(KeyEvent.VK_CONTROL); robot.keyPress(KeyEvent.VK_Z);
+		robot.keyRelease(KeyEvent.VK_Z); robot.keyRelease(KeyEvent.VK_CONTROL);
+		robot.waitForIdle();
+		double expectedInitialRate = 20.0D
+			/ com.microproject.datatype.Duration.timeUnitFactor(com.microproject.datatype.TimeUnit.HOURS);
+		GuiAcceptanceSupport.await(() -> Math.abs(resource.getStandardRate().getValue() - expectedInitialRate) < 0.0000001D,
+			"physical Ctrl+Z did not restore the initial 20/hour rate");
+		assertEquals(expectedRateText(sheet, rowFor(sheet, resource), column,
+			new Rate(expectedInitialRate, com.microproject.datatype.TimeUnit.HOURS)),
+			renderedRateText(sheet, rowFor(sheet, resource), column), "Undo must refresh the rendered 20/hour value");
+		robot.keyPress(KeyEvent.VK_CONTROL); robot.keyPress(KeyEvent.VK_Y);
+		robot.keyRelease(KeyEvent.VK_Y); robot.keyRelease(KeyEvent.VK_CONTROL);
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(() -> Math.abs(resource.getStandardRate().getValue() - expectedEditRate) < 0.0000001D,
+			"physical Ctrl+Y did not restore the 137.5/hour rate");
+		assertEquals(expectedRateText(sheet, rowFor(sheet, resource), column,
+			new Rate(expectedEditRate, com.microproject.datatype.TimeUnit.HOURS)),
+			renderedRateText(sheet, rowFor(sheet, resource), column), "Redo must refresh the rendered 137.5/hour value");
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, saved), "MPO save rejected the physical rate edit");
+		Project restored = new MpoFileImporter().loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		Resource restoredResource = restored.getResourcePool().getResourceList().stream()
+			.filter(candidate -> "Field Edit Resource".equals(candidate.getName())).findFirst().orElseThrow();
+		assertEquals(expectedEditRate, restoredResource.getStandardRate().getValue(), 0.0000001D,
+			"MPO reopen lost the physically edited Standard Rate");
+	}
+
+	private static String renderedRateText(SpreadSheet sheet, int row, int column) throws Exception {
+		String[] text = new String[1];
+		SwingUtilities.invokeAndWait(() -> {
+			Component rendered = sheet.prepareRenderer(sheet.getCellRenderer(row, column), row, column);
+			text[0] = rendered instanceof javax.swing.JLabel label ? label.getText() : rendered.toString();
+		});
+		return text[0];
+	}
+
+	private static String expectedRateText(SpreadSheet sheet, int row, int column, Rate rate) throws Exception {
+		String[] text = new String[1];
+		SwingUtilities.invokeAndWait(() -> text[0] = com.microproject.pm.graphic.spreadsheet.renderer.RateRenderer
+			.getFormat(sheet, row, column).format(rate).toString());
+		return text[0];
 	}
 
 	private static void click(Robot robot, Component component) throws Exception {

@@ -342,6 +342,9 @@ public class ResourceImpl implements Resource, HasAvailability, HasResourceIndic
 	public CostRateTable getCostRateTable(int costRateIndex) {
 		return globalResource.getCostRateTable(costRateIndex);
 	}
+	public CostRateTable getCostRateTableIfPresent(int costRateIndex) {
+		return globalResource.getCostRateTableIfPresent(costRateIndex);
+	}
 	public double getCpi(FieldContext fieldContext) {
 		return globalResource.getCpi(fieldContext);
 	}

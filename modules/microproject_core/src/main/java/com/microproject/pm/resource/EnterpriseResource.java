@@ -231,6 +231,9 @@ public class EnterpriseResource implements Resource {
 	public CostRateTable getCostRateTable(int costRateIndex) {
 		return costRateTables.getCostRateTable(costRateIndex);
 	}
+	public CostRateTable getCostRateTableIfPresent(int costRateIndex) {
+		return costRateTables.getCostRateTableIfPresent(costRateIndex);
+	}
 
 
 	protected int accrueAt = Accrual.Kind.PRORATED.code();
