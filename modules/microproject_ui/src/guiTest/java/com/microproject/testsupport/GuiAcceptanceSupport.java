@@ -7,21 +7,17 @@ package com.microproject.testsupport;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.AWTEvent;
 import java.awt.Component;
 import java.awt.EventQueue;
 import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.Toolkit;
 import java.awt.Window;
-import java.awt.event.AWTEventListener;
 import java.awt.KeyboardFocusManager;
-import java.awt.event.PaintEvent;
 import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BooleanSupplier;
@@ -51,77 +47,96 @@ public final class GuiAcceptanceSupport {
 		throws Exception {
 		if (window == null || visibleContent == null || robot == null)
 			throw new IllegalArgumentException("Window, visible content, and Robot are required");
-		AtomicBoolean paintCompleted = new AtomicBoolean();
-		AtomicBoolean repaintRequested = new AtomicBoolean();
+		if (!(visibleContent instanceof javax.swing.JComponent swingContent))
+			throw new IllegalArgumentException("Visible content must be a Swing component");
 		long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
-		AWTEventListener paintListener = event -> {
-			if (!(event instanceof PaintEvent) || !(event.getSource() instanceof Component painted)
-					|| !(painted == window || SwingUtilities.isDescendingFrom(painted, window))
-					|| !repaintRequested.get() || !painted.isShowing())
-				return;
-			// AWT notifies listeners before dispatching the paint event. Queue a
-			// sentinel so success means that dispatch (and its native paint) finished.
-			EventQueue.invokeLater(() -> paintCompleted.set(true));
-		};
-		Toolkit.getDefaultToolkit().addAWTEventListener(paintListener, AWTEvent.PAINT_EVENT_MASK);
-		try {
-			EventQueue.invokeLater(() -> {
-				window.validate();
-				visibleContent.repaint();
-				window.repaint();
-				repaintRequested.set(true);
-			});
-			Toolkit.getDefaultToolkit().sync();
-			FutureTask<WindowRenderSnapshot> snapshotTask = null;
-			WindowRenderSnapshot snapshot = null;
-			while (System.nanoTime() < deadline) {
-				if (snapshotTask == null) {
-					snapshotTask = new FutureTask<>(() -> inspectWindow(window, visibleContent, paintCompleted.get()));
-					EventQueue.invokeLater(snapshotTask);
-				}
-				try {
-					snapshot = snapshotTask.get(25, TimeUnit.MILLISECONDS);
-				} catch (TimeoutException waitingForEdt) {
-					continue;
-				} catch (java.util.concurrent.ExecutionException failure) {
-					throw new AssertionError(description + " readiness inspection failed", failure.getCause());
-				}
-				if (snapshot.ready() && System.nanoTime() < deadline) break;
-				snapshotTask = null;
+		FutureTask<Boolean> paintTask = new FutureTask<>(() -> {
+			window.validate();
+			if (!window.isShowing() || !swingContent.isShowing() || !hasArea(swingContent.getSize()))
+				return false;
+			// Swing repaint requests can be coalesced without a corresponding AWT
+			// PaintEvent. paintImmediately paints this visible component to its real
+			// onscreen peer; the completed FutureTask is the EDT completion sentinel.
+			swingContent.paintImmediately(0, 0, swingContent.getWidth(), swingContent.getHeight());
+			return true;
+		});
+		EventQueue.invokeLater(paintTask);
+		while (System.nanoTime() < deadline && !paintTask.isDone()) {
+			try {
+				paintTask.get(25, TimeUnit.MILLISECONDS);
+			} catch (TimeoutException waitingForEdt) {
+				// Keep waiting for the actual EDT paint, bounded by the shared deadline.
+			} catch (ExecutionException failure) {
+				throw new AssertionError(description + " onscreen paint failed", failure.getCause());
 			}
-			if (snapshot == null || !snapshot.ready() || System.nanoTime() >= deadline)
-				throw new AssertionError(description + " did not become visible, rendered, and foreground-ready");
-			Toolkit.getDefaultToolkit().sync();
-			assertTrue(snapshot.windowBounds().contains(snapshot.contentBounds()),
-				description + " content must fit within its native window bounds");
-			BufferedImage screenshot = robot.createScreenCapture(snapshot.contentBounds());
-			assertTrue(screenshot.getWidth() > 0 && screenshot.getHeight() > 0,
-				description + " must have a non-empty on-screen content capture");
-			assertTrue(hasRenderedVariation(screenshot), description + " content capture must show rendered UI pixels");
-		} finally {
-			Toolkit.getDefaultToolkit().removeAWTEventListener(paintListener);
 		}
+		if (!paintTask.isDone()) paintTask.cancel(false);
+		boolean paintCompleted = false;
+		if (paintTask.isDone() && !paintTask.isCancelled()) {
+			try {
+				paintCompleted = paintTask.get();
+			} catch (ExecutionException failure) {
+				throw new AssertionError(description + " onscreen paint failed", failure.getCause());
+			}
+		}
+		final boolean onscreenPaintCompleted = paintCompleted;
+		Toolkit.getDefaultToolkit().sync();
+		FutureTask<WindowRenderSnapshot> snapshotTask = null;
+		WindowRenderSnapshot snapshot = null;
+		while (System.nanoTime() < deadline) {
+			if (snapshotTask == null) {
+				snapshotTask = new FutureTask<>(() -> inspectWindow(window, visibleContent, onscreenPaintCompleted));
+				EventQueue.invokeLater(snapshotTask);
+			}
+			try {
+				snapshot = snapshotTask.get(25, TimeUnit.MILLISECONDS);
+			} catch (TimeoutException waitingForEdt) {
+				continue;
+			} catch (ExecutionException failure) {
+				throw new AssertionError(description + " readiness inspection failed", failure.getCause());
+			}
+			if (snapshot.ready() && System.nanoTime() < deadline) break;
+			snapshotTask = null;
+		}
+		if (snapshot == null || !snapshot.ready() || System.nanoTime() >= deadline)
+			throw new AssertionError(description + " did not become visible, rendered, and foreground-ready: paintCompleted="
+				+ paintCompleted + ", lastSnapshot=" + snapshot + ", remainingMs="
+				+ TimeUnit.NANOSECONDS.toMillis(Math.max(0L, deadline - System.nanoTime())));
+		Toolkit.getDefaultToolkit().sync();
+		assertTrue(snapshot.windowBounds().contains(snapshot.contentBounds()),
+			description + " content must fit within its native window bounds");
+		BufferedImage screenshot = robot.createScreenCapture(snapshot.contentBounds());
+		assertTrue(screenshot.getWidth() > 0 && screenshot.getHeight() > 0,
+			description + " must have a non-empty on-screen content capture");
+		assertTrue(hasRenderedVariation(screenshot), description + " content capture must show rendered UI pixels");
+		assertTrue(System.nanoTime() < deadline, description + " rendered readiness exceeded its existing deadline");
 	}
 
 	private static WindowRenderSnapshot inspectWindow(Window window, Component visibleContent, boolean paintCompleted) {
 		if (!window.isShowing() || !visibleContent.isShowing())
-			return new WindowRenderSnapshot(false, new Rectangle(), new Rectangle());
+			return new WindowRenderSnapshot(false, window.isShowing(), visibleContent.isShowing(), window.isValid(),
+				visibleContent.isValid(), false, false, paintCompleted, new Rectangle(), new Rectangle());
 		Rectangle windowBounds = window.getBounds();
 		Rectangle contentBounds = new Rectangle(visibleContent.getLocationOnScreen(), visibleContent.getSize());
 		java.awt.Point windowLocation = window.getLocationOnScreen();
 		windowBounds.setLocation(windowLocation);
-		boolean ready = window.isShowing() && window.isValid() && hasArea(window.getSize())
-			&& visibleContent.isShowing() && visibleContent.isValid() && hasArea(visibleContent.getSize())
-			&& KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow() == window
-			&& window.isActive() && window.isFocused() && paintCompleted;
-		return new WindowRenderSnapshot(ready, windowBounds, contentBounds);
+		boolean showing = window.isShowing() && visibleContent.isShowing();
+		boolean valid = window.isValid() && visibleContent.isValid();
+		boolean sized = hasArea(window.getSize()) && hasArea(visibleContent.getSize());
+		boolean active = KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow() == window
+			&& window.isActive() && window.isFocused();
+		boolean ready = showing && valid && sized && active && paintCompleted;
+		return new WindowRenderSnapshot(ready, showing, visibleContent.isShowing(), valid, visibleContent.isValid(),
+			sized, active, paintCompleted, windowBounds, contentBounds);
 	}
 
 	private static boolean hasArea(java.awt.Dimension size) {
 		return size != null && size.width > 0 && size.height > 0;
 	}
 
-	private record WindowRenderSnapshot(boolean ready, Rectangle windowBounds, Rectangle contentBounds) { }
+	private record WindowRenderSnapshot(boolean ready, boolean showing, boolean contentShowing, boolean valid,
+		boolean contentValid, boolean sized, boolean active, boolean paintCompleted, Rectangle windowBounds,
+		Rectangle contentBounds) { }
 
 	private static boolean hasRenderedVariation(BufferedImage image) {
 		int first = image.getRGB(0, 0);
