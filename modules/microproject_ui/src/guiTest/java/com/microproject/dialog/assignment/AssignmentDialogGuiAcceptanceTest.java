@@ -309,6 +309,7 @@ class AssignmentDialogGuiAcceptanceTest {
 			if (included++ >= 8) break;
 			result.append("\n").append(name).append(" state=").append(info.getThreadState())
 				.append(" lock=").append(info.getLockName())
+				.append(" lockOwnerId=").append(info.getLockOwnerId())
 				.append(" lockOwner=").append(info.getLockOwnerName());
 			for (StackTraceElement frame : info.getStackTrace())
 				result.append("\n  at ").append(frame);
