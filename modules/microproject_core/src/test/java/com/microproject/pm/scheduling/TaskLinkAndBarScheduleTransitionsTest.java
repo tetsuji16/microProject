@@ -29,15 +29,20 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Calendar;
 import java.util.List;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.DynamicTest;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
 
 import com.microproject.field.FieldContext;
+import com.microproject.util.DateTime;
 import com.microproject.options.CalendarOption;
+import com.microproject.pm.calendar.WorkDay;
+import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
@@ -91,6 +96,39 @@ class TaskLinkAndBarScheduleTransitionsTest {
 			DynamicTest.dynamicTest(id("BAR", 29), this::verifyTaskSheetFinishDateEdit),
 			DynamicTest.dynamicTest(id("BAR", 30), this::verifyMilestoneBarMove));
 		return Stream.of(moveCases, resizeCases, durationCases, dateCases).flatMap(stream -> stream);
+	}
+
+	@Test
+	void finishToStartWorkingDayLagSkipsDatedNonworkingException() throws Exception {
+		Fixture fixture = createFixture();
+		Project project = fixture.project;
+		long mondayEight = timestamp(2030, Calendar.JUNE, 3, 8);
+		long mondaySeventeen = timestamp(2030, Calendar.JUNE, 3, 17);
+		long tuesdayMidnight = timestamp(2030, Calendar.JUNE, 4, 0);
+		long thursdayEight = timestamp(2030, Calendar.JUNE, 6, 8);
+		project.setStart(mondayEight);
+		((WorkingCalendar) project.getWorkCalendar()).addOrReplaceException(new WorkDay(tuesdayMidnight));
+
+		NormalTask predecessor = createTask(project, "holiday-lag predecessor", 1);
+		NormalTask successor = createTask(project, "holiday-lag successor", 1);
+		predecessor.setScheduleConstraint(ConstraintType.SNET, mondayEight);
+		predecessor.getCurrentSchedule().setStart(mondayEight);
+		successor.getCurrentSchedule().setStart(mondayEight);
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.FS, day(), this);
+
+		project.recalculate();
+
+		assertEquals(mondayEight, predecessor.getStart());
+		assertEquals(mondaySeventeen, predecessor.getEnd(),
+			"the one-day predecessor uses Monday's 08:00-12:00 and 13:00-17:00 work intervals");
+		// Document-derived: MSP uses the project calendar when no task/resource calendar overrides it;
+		// an 8h lag consumes Wednesday's 08:00-12:00 and 13:00-17:00 intervals, so the task starts
+		// Thursday 08:00. Sources: https://support.microsoft.com/en-us/project/how-project-schedules-tasks-behind-the-scenes
+		// and https://support.microsoft.com/en-gb/project/add-lead-or-lag-time-to-a-task
+		assertEquals(thursdayEight, successor.getStart(),
+			"one working day of FS lag skips Tuesday; the next task starts at the next working interval");
+		assertEquals(day(), dependency.getLag());
 	}
 
 	@TestFactory
@@ -328,6 +366,12 @@ class TaskLinkAndBarScheduleTransitionsTest {
 
 	private static long day() {
 		return CalendarOption.getInstance().getMillisPerDay();
+	}
+
+	private static long timestamp(int year, int month, int dayOfMonth, int hourOfDay) {
+		Calendar calendar = DateTime.calendarInstance(year, month, dayOfMonth);
+		calendar.set(Calendar.HOUR_OF_DAY, hourOfDay);
+		return calendar.getTimeInMillis();
 	}
 
 	private static String id(String group, int number) {
