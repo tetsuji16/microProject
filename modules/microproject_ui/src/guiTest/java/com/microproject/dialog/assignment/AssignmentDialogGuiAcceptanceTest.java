@@ -243,13 +243,51 @@ class AssignmentDialogGuiAcceptanceTest {
 		assertEquals(actualWork, source.getActualWork(null));
 		assertEquals(remainingWork, source.getRemainingWork());
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
-		GuiAcceptanceSupport.await(() -> task.findAssignment(replacement) != null
-				&& source.getRemainingWork() == 0L,
-			"Ctrl+Y did not restore the replacement assignment and source remaining work");
+		try {
+			GuiAcceptanceSupport.await(() -> task.findAssignment(replacement) != null
+					&& source.getRemainingWork() == 0L,
+				"Ctrl+Y did not restore the replacement assignment and source remaining work");
+		} catch (AssertionError failure) {
+			failure.addSuppressed(new AssertionError(assignmentRedoDiagnostics(project, task, source, replacement)));
+			throw failure;
+		}
 		assertSame(source, task.findAssignment(original));
 		assertEquals(actualWork, source.getActualWork(null));
 		assertEquals(0L, source.getRemainingWork());
 		assertEquals(remainingWork, task.findAssignment(replacement).getRemainingWork());
+	}
+
+	private String assignmentRedoDiagnostics(Project project, NormalTask task, Assignment source,
+			Resource replacementResource) throws Exception {
+		String[] result = new String[1];
+		SwingUtilities.invokeAndWait(() -> {
+			var frame = manager.getCurrentFrame();
+			var frameUndo = frame == null ? null : frame.getUndoController();
+			Assignment replacement = task.findAssignment(replacementResource);
+			KeyboardFocusManager focus = KeyboardFocusManager.getCurrentKeyboardFocusManager();
+			result[0] = "documentActive=" + manager.isDocumentActive()
+					+ ", frameActive=" + (frame != null && frame.isActive())
+					+ ", frameProjectMatches=" + (frame != null && frame.getProject() == project)
+					+ ", frameUndoMatchesProject=" + (frameUndo == project.getUndoController())
+					+ ", canUndo=" + project.getUndoController().canUndo()
+					+ ", canRedo=" + project.getUndoController().canRedo()
+					+ ", activeWindowClass=" + (focus.getActiveWindow() == null ? "null"
+							: focus.getActiveWindow().getClass().getName())
+					+ ", focusOwnerClass=" + (focus.getFocusOwner() == null ? "null"
+							: focus.getFocusOwner().getClass().getName())
+					+ ", source=" + describeAssignment(source)
+					+ ", replacement=" + describeAssignment(replacement);
+		});
+		return result[0];
+	}
+
+	private static String describeAssignment(Assignment assignment) {
+		if (assignment == null) return "null";
+		return "id=" + assignment.getUniqueId()
+				+ "/resource=" + assignment.getResource().getUniqueId()
+				+ "/work=" + assignment.getWork(null)
+				+ "/actual=" + assignment.getActualWork(null)
+				+ "/remaining=" + assignment.getRemainingWork();
 	}
 
 	private void showProject(Project project) throws Exception {
