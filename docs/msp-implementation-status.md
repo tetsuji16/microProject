@@ -81,7 +81,7 @@ and result.
 | Issue/package | Already evidenced | Remaining acceptance rows |
 |---|---|---|
 | #793 M1 | Swing renderer/ADR retained; Windows run 38320038198 passed the six app locale/scale legs and uploaded evidence. | Publish a dated, state-matched document-derived comparison table for Microsoft 365 Project and Project 2024 using the applicable Microsoft UI sources; record applicability/access date and clearly label inference. Link narrow-width command reachability, focus/accessibility and screenshot-bound checks. No empirical Microsoft capture may be claimed. |
-| #794 M2.1 Editing/hierarchy/sorting | Resource name header toggle and numeric Standard Rate sort in both directions; empty names and equal keys retain stable order; selected resource identity and unchanged model order; Sort Order menu route; physical ja/100% evidence. | Date sort; filter/group behavior; task display sort keeping table/Gantt rows aligned; permanent renumber as a separate confirmed, undoable, persisted action. |
+| #794 M2.1 Editing/hierarchy/sorting | Resource name header toggle and numeric Standard Rate sort in both directions; empty names and equal keys retain stable order; selected resource identity and unchanged model order; Sort Order menu route; physical ja/100% evidence. Task View > Sort physically selected the existing generic `Sorter.StartDate`, sorted known distinct/equal dates stably, preserved task dates and outline order, and kept spreadsheet rows, Gantt projection rows, and the rendered Gantt selection highlight aligned at ja/100%. | Finish-date/descending and empty or missing task-date behavior; filter/group combinations; remaining inventory sort fields; permanent renumber as a separate confirmed, undoable, persisted action. |
 | #794 M2.2 Scheduling/dependencies/transactions | Update Project prevalidation/rollback and linked-task Undo/Redo slice. | Cited expected-date fixtures for FS/SS/FF/SF and lag units/calendars/constraints; verify only intended tasks move; warning/result behavior; Undo/Redo and MPO reopen; inject post-mutation failure and prove model, Undo history and observers are unchanged. Cover remaining mutation families and revisioned projection publication. |
 | #794 M2.3 Resources/assignments/progress/baselines | Resource sort is view-only. Assignment work/cost and baseline work/cost import, edit/persistence slices have core/exchange evidence, including MPO reopen. | Selected-vs-all scope, proposed resources, leveling defaults/provenance, assignment totals, status date and actual-progress transitions; manual split preservation; baseline edit/clear/recapture; Undo/Redo and MPO reopen for each changed workflow. |
 | #794 M2.4 Views/ribbon/context/reports/print/files | Current sort and Save As physical routes; report export fixture test. | Reconcile each #453/#769 command inventory row to source/status/enablement/physical route/visible result; view-only commands must preserve model; persistence where applicable; locale/DPI for changed routes; report value/rendering comparison and print page-boundary plus English/Japanese labels. Unsupported commands must be absent and documented. |
@@ -117,11 +117,17 @@ Sort menu arrow, the shared Sort Order action/dialog, numeric Standard Rate
 ascending results, stable empty/equal text and numeric keys, selection identity,
 model order, Workspace field state, and cancellation as a no-change outcome.
 The follow-up sort regression clears selection before row-projection events and
-restores the selected resource by identity. The focused GUI evidence and UI unit
-suite are in the current branch's Gradle results. Date sort, filter/group, and
-Gantt-alignment legs remain open. Gradle evidence is in
+restores the selected resource by identity. The task date-sort journey also
+passed on Windows at ja/100% using the existing generic View > Sort chooser and
+`Sorter.StartDate`. Its fixture uses `Task.setStart()` to retain explicit
+SNET-constrained dates through project recalculation; it asserts an independent
+date order with an equal-date tie, unchanged task dates and outline order,
+spreadsheet/Gantt row identity, and the Gantt selection highlight after a real
+table click. The resource and task journeys were rerun together after moving
+their physical combo selection to the shared GUI test helper. Exact command:
+`.\gradlew.bat :microproject_ui:installDist :microproject_ui:guiTest --tests 'com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.physicalViewSortOrdersTasksByStartDateAndKeepsGanttRowsAligned' --tests 'com.microproject.pm.graphic.views.ResourceHeaderSortingGuiAcceptanceTest.physicalHeaderClickSortsAndTogglesWithoutMutatingResources' -PguiTestLocale=ja -PguiTestUiScale=1 --max-workers=1 --no-daemon --console=plain` (BUILD SUCCESSFUL; both tests passed). Finish-date/descending, empty/missing-date, filtered/grouped, and permanent-renumber rows remain open. Gradle evidence is in
 `modules/microproject_ui/build/test-results/guiTest/TEST-com.microproject.pm.graphic.views.ResourceHeaderSortingGuiAcceptanceTest.xml`
-and `modules/microproject_ui/build/reports/tests/guiTest/index.html`.
+and `modules/microproject_ui/build/test-results/guiTest/TEST-com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.xml`, plus `modules/microproject_ui/build/reports/tests/guiTest/index.html`.
 
 The focused physical journey passed with JDK 25 at ja/100%; the full
 `:microproject_ui:test --console=plain --max-workers=1 --no-daemon` task also

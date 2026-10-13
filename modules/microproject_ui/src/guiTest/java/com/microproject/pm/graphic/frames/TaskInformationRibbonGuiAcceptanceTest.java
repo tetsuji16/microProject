@@ -88,6 +88,8 @@ import com.microproject.exchange.MpoFileImporter;
 import com.microproject.collaboration.CollaborationSession;
 import com.microproject.field.Field;
 import com.microproject.grouping.core.Node;
+import com.microproject.grouping.core.transform.CommonTransformFactory;
+import com.microproject.grouping.core.transform.ViewConfiguration;
 import com.microproject.job.JobQueue;
 import com.microproject.job.Job;
 import com.microproject.menu.testsupport.UiComponentWalker;
@@ -101,11 +103,13 @@ import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetPopupMenu;
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheetModel;
+import com.microproject.pm.graphic.views.GanttView;
 import com.microproject.pm.graphic.views.UsageDetailView;
 import com.microproject.pm.graphic.views.PertView;
 import com.microproject.pm.graphic.views.TreeView;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.resource.Resource;
+import com.microproject.options.CalendarOption;
 import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.graphic.views.ResourceView;
 import com.microproject.pm.task.NormalTask;
@@ -150,6 +154,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	private Logger diagnosticsLogger;
 	private Handler diagnosticsHandler;
 	private Level previousDiagnosticsLevel;
+	private ViewConfiguration taskSortViewToRestore;
+	private String previousTaskUserSorterId;
 	private final ConcurrentLinkedQueue<String> diagnosticMessages = new ConcurrentLinkedQueue<>();
 	private volatile boolean failUpdateTasksRoute;
 
@@ -169,6 +175,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 					|| candidate instanceof CalendarDialogBox)
 					candidate.dispose();
 			}
+			if (taskSortViewToRestore != null && previousTaskUserSorterId != null)
+				taskSortViewToRestore.getTransform().setUserSorterId(previousTaskUserSorterId);
+			taskSortViewToRestore = null;
+			previousTaskUserSorterId = null;
 			if (manager != null)
 				manager.cleanUp();
 			for (Window candidate : Window.getWindows()) {
@@ -2908,6 +2918,98 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	@Test
+	void physicalViewSortOrdersTasksByStartDateAndKeepsGanttRowsAligned() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("task-date-sort-acceptance", undo), undo);
+		project.initialize(false, false);
+		NormalTask later = project.createScriptedTask();
+		later.setName("Date sort later");
+		NormalTask earlier = project.createScriptedTask();
+		earlier.setName("Date sort earlier");
+		NormalTask tiedEarlier = project.createScriptedTask();
+		tiedEarlier.setName("Date sort tied earlier");
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		long start = project.getStart();
+		for (NormalTask task : List.of(later, earlier, tiedEarlier))
+			task.setDuration(day / 2);
+		later.setStart(start + 2 * day);
+		earlier.setStart(start + day);
+		tiedEarlier.setStart(start + day);
+		project.recalculate();
+		List<String> originalOutline = taskOrder(project);
+		assertEquals(List.of("Date sort later", "Date sort earlier", "Date sort tied earlier"), originalOutline,
+			"fixture must begin in outline order rather than date order");
+		assertTrue(earlier.getStart() < later.getStart(), "fixture must retain distinct scheduled start dates after recalculation");
+		assertEquals(earlier.getStart(), tiedEarlier.getStart(), "fixture must retain an equal-date tie after recalculation");
+		long[] originalStarts = { later.getStart(), earlier.getStart(), tiedEarlier.getStart() };
+
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> window.setSize(1120, 700));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"task date-sort project did not become visible");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		GanttView ganttView = manager.getCurrentFrame().getGanttView();
+		taskSortViewToRestore = ViewConfiguration.getView(manager.getCurrentFrame().getTopViewId());
+		previousTaskUserSorterId = taskSortViewToRestore.getTransform().getUserSorterId();
+		assertSame(ganttView.getSpreadSheet(), sheet);
+		assertSame(sheet.getCache(), ganttView.getCache(), "task table and Gantt must share the live projection");
+		assertEquals(originalOutline, visibleTaskOrder(sheet), "task table must initially follow outline order");
+
+		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+			.getString("ViewRibbonTask.title"));
+		clickAndAwaitSelected(robot, viewTab, "Robot click did not select the View ribbon tab");
+		click(robot, findShowingButtonByCommand("RibbonChooseSort"));
+		JComboBox<?> sorterChoice = findShowingTransformCombo("Sorter.StartDate");
+		int dateSorterIndex = -1;
+		for (int index = 0; index < sorterChoice.getItemCount(); index++) {
+			Object item = sorterChoice.getItemAt(index);
+			if (item instanceof CommonTransformFactory factory && "Sorter.StartDate".equals(factory.getId())) {
+				dateSorterIndex = index;
+				break;
+			}
+		}
+		assertTrue(dateSorterIndex >= 0, "the shared task-view sorter list must expose Start Date");
+		GuiAcceptanceSupport.selectComboBoxItem(robot, sorterChoice, dateSorterIndex);
+		assertTrue(sorterChoice.getSelectedItem() instanceof CommonTransformFactory selectedSorter
+				&& "Sorter.StartDate".equals(selectedSorter.getId()),
+			"Robot keyboard selection must choose the Start Date sorter before dialog confirmation");
+		Dialog chooser = java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow() instanceof Dialog dialog
+			? dialog : null;
+		assertNotNull(chooser, "the generic task Sort dialog must remain open after choosing a sorter");
+		click(robot, findShowingButtonByText(chooser, javax.swing.UIManager.getString("OptionPane.okButtonText")));
+		GuiAcceptanceSupport.await(() -> visibleTaskOrder(sheet).equals(
+			List.of("Date sort earlier", "Date sort tied earlier", "Date sort later")),
+			"the physical View > Sort route did not apply the Start Date ordering stably; rows="
+				+ visibleTaskOrder(sheet) + ", selectedSorter="
+				+ ViewConfiguration.getView(manager.getCurrentFrame().getTopViewId()).getTransform().getUserSorterId());
+		GuiAcceptanceSupport.await(() -> "Sorter.StartDate".equals(
+			ViewConfiguration.getView(manager.getCurrentFrame().getTopViewId()).getTransform().getUserSorterId()),
+			"the active task-view configuration did not retain Start Date as its selected sorter");
+		assertEquals(originalOutline, taskOrder(project), "date sorting must remain view-only");
+		assertArrayEquals(originalStarts, new long[] { later.getStart(), earlier.getStart(), tiedEarlier.getStart() },
+			"date sorting must not change task schedules");
+		for (NormalTask task : List.of(earlier, tiedEarlier, later)) {
+			int sheetRow = rowForTask(sheet, task);
+			var graphicNode = sheet.getCache().getGraphicNode(((CommonSpreadSheetModel) sheet.getModel()).getNode(sheetRow).getNode());
+			int ganttRow = ganttView.getGantt().getCache().getVisibleNodes().getProjectionIndex().rowForNode((GraphicNode) graphicNode);
+			assertEquals(sheetRow, ganttRow, "Gantt must paint the task at the same visible row as its table row");
+		}
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, tiedEarlier), nameColumn(sheet)));
+		GuiAcceptanceSupport.await(() -> ganttView.getGantt().getHighlightedRows()
+				.equals(java.util.Set.of(rowForTask(sheet, tiedEarlier))),
+			"the rendered Gantt highlight did not follow the sorted task's table row");
+	}
+
+	@Test
 	void levelAllUsesEveryProjectResourceWithoutChangingTaskSelectionAndSupportsUndoRedoAndMpo() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
@@ -3294,6 +3396,38 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		while (iterator.hasNext())
 			names.add(iterator.next().getName());
 		return names;
+	}
+
+	private static List<String> visibleTaskOrder(SpreadSheet sheet) {
+		List<String> names = new ArrayList<>();
+		CommonSpreadSheetModel model = (CommonSpreadSheetModel) sheet.getModel();
+		for (int row = 0; row < sheet.getRowCount(); row++) {
+			if (model.getNode(row) != null && model.getNode(row).getNode() != null
+					&& model.getNode(row).getNode().getImpl() instanceof Task task)
+				names.add(task.getName());
+		}
+		return names;
+	}
+
+	private static JComboBox<?> findShowingTransformCombo(String transformId) throws Exception {
+		JComboBox<?>[] result = new JComboBox<?>[1];
+		SwingUtilities.invokeAndWait(() -> {
+			for (Window candidate : Window.getWindows()) {
+				if (!candidate.isShowing()) continue;
+				for (Component component : UiComponentWalker.flatten(candidate)) {
+					if (!(component instanceof JComboBox<?> combo) || !combo.isShowing()) continue;
+					for (int index = 0; index < combo.getItemCount(); index++) {
+						Object item = combo.getItemAt(index);
+						if (item instanceof CommonTransformFactory factory && transformId.equals(factory.getId())) {
+							result[0] = combo;
+							return;
+						}
+					}
+				}
+			}
+		});
+		assertNotNull(result[0], "Visible generic Sort dialog combo missing transform " + transformId);
+		return result[0];
 	}
 
 	private static Dialog visibleMoveConfirmation() {

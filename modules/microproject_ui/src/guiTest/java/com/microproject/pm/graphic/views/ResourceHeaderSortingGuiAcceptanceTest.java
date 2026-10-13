@@ -258,11 +258,11 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 		JComboBox<?> fieldChoice = flatten(menuSortDialog).stream().filter(JComboBox.class::isInstance)
 			.map(JComboBox.class::cast).filter(combo -> combo.getItemCount() == sortFields.size()).findFirst()
 			.orElseThrow(() -> new AssertionError("Sort Order field control is missing"));
-		selectComboIndex(robot, fieldChoice, standardRateIndex);
+		GuiAcceptanceSupport.selectComboBoxItem(robot, fieldChoice, standardRateIndex);
 		JComboBox<?> menuDirection = flatten(menuSortDialog).stream().filter(JComboBox.class::isInstance)
 			.map(JComboBox.class::cast).filter(combo -> combo.getItemCount() == 2).findFirst()
 			.orElseThrow(() -> new AssertionError("Sort Order direction control is missing"));
-		selectComboIndex(robot, menuDirection, 0);
+		GuiAcceptanceSupport.selectComboBoxItem(robot, menuDirection, 0);
 		click(robot, findShowingButtonByText(menuSortDialog, UIManager.getString("OptionPane.okButtonText")));
 		GuiAcceptanceSupport.await(() -> visibleTestResources(sheet, testResources)
 			.equals(List.of(emptyName, alpha, tiedAlpha, zulu)),
@@ -302,11 +302,11 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 		int nameFieldIndex = java.util.stream.IntStream.range(0, sortFields.size())
 			.filter(index -> "Field.name".equals(sortFields.get(index).getId())).findFirst()
 			.orElseThrow(() -> new AssertionError("Resource Name field is missing"));
-		selectComboIndex(robot, ribbonFieldChoice, nameFieldIndex);
+		GuiAcceptanceSupport.selectComboBoxItem(robot, ribbonFieldChoice, nameFieldIndex);
 		JComboBox<?> direction = flatten(orderPanel).stream().filter(JComboBox.class::isInstance)
 			.map(JComboBox.class::cast).filter(combo -> combo.getItemCount() == 2).findFirst()
 			.orElseThrow(() -> new AssertionError("Sort Order direction control is missing"));
-		selectComboIndex(robot, direction, 0);
+		GuiAcceptanceSupport.selectComboBoxItem(robot, direction, 0);
 		click(robot, findShowingButtonByText(sortDialog, UIManager.getString("OptionPane.okButtonText")));
 		GuiAcceptanceSupport.await(() -> visibleTestResources(sheet, testResources)
 			.equals(List.of(emptyName, alpha, tiedAlpha, zulu)),
@@ -343,19 +343,6 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 		robot.mouseMove(location.x + component.getWidth() / 2, location.y + component.getHeight() / 2);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-		robot.waitForIdle();
-	}
-
-	private static void selectComboIndex(Robot robot, JComboBox<?> combo, int index) throws Exception {
-		click(robot, combo);
-		robot.keyPress(KeyEvent.VK_HOME);
-		robot.keyRelease(KeyEvent.VK_HOME);
-		for (int current = 0; current < index; current++) {
-			robot.keyPress(KeyEvent.VK_DOWN);
-			robot.keyRelease(KeyEvent.VK_DOWN);
-		}
-		robot.keyPress(KeyEvent.VK_ENTER);
-		robot.keyRelease(KeyEvent.VK_ENTER);
 		robot.waitForIdle();
 	}
 
