@@ -35,6 +35,7 @@ public final class TaskSheetScheduleWorkflow {
 	public static final String START_FIELD_ID = "Field.start";
 	public static final String FINISH_FIELD_ID = "Field.finish";
 	public static final String DURATION_FIELD_ID = "Field.duration";
+	public static final String PERCENT_COMPLETE_FIELD_ID = "Field.percentComplete";
 
 	private TaskSheetScheduleWorkflow() {
 	}
@@ -90,6 +91,20 @@ public final class TaskSheetScheduleWorkflow {
 			}
 		}
 		return false;
+	}
+
+	/** Applies an explicit task-sheet percent entry while retaining task-duration semantics. */
+	public static boolean applyTaskPercentComplete(Object object, String fieldId, FieldContext context, Object value) {
+		if (!FieldContext.isTaskSheetUpdate(context) || !PERCENT_COMPLETE_FIELD_ID.equals(fieldId)
+				|| !(object instanceof NormalTask task) || !(value instanceof Number percent))
+			return false;
+		double enteredPercent = percent.doubleValue();
+		if (!Double.isFinite(enteredPercent))
+			throw new IllegalArgumentException("Percent complete must be finite");
+		task.setPercentComplete(enteredPercent);
+		if (!task.isWbsParent())
+			task.setImportedPercentComplete(enteredPercent);
+		return true;
 	}
 
 	private static Long getTaskDisplayValue(Task task, String fieldId) {

@@ -6,12 +6,14 @@ package com.microproject.pm.graphic.spreadsheet.command;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -22,6 +24,8 @@ import javax.swing.SwingUtilities;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.configuration.FieldDictionary;
+import com.microproject.datatype.Duration;
+import com.microproject.datatype.PercentFormat;
 import com.microproject.graphic.configuration.SpreadSheetCategories;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.model.NodeModel;
@@ -44,6 +48,100 @@ import com.microproject.pm.scheduling.ScheduleEvent;
 import com.microproject.undo.DataFactoryUndoController;
 
 class TaskCommandGatewayTest {
+	/**
+	 * Microsoft defines task % Complete as Actual Duration / Duration; it is distinct
+	 * from % Work Complete and an assignment's completion percentage. See
+	 * https://support.microsoft.com/en-us/project/percent-complete-fields.
+	 */
+	@Test
+	void sampleTaskPercentInputSurvivesAssignmentReconciliationUndoRedoAndMpoReload() throws Exception {
+		MpoFileImporter serializer = new MpoFileImporter();
+		Project project;
+		try (InputStream sample = getClass().getResourceAsStream("ccpm-progress-sample.mpo")) {
+			assertNotNull(sample, "the regression sample must be the pinned c573 MPO fixture");
+			project = serializer.loadProject(sample);
+		}
+		NodeModelCache cache = NodeModelCacheFactory.getInstance().createFilteredCache(
+			NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel()), "ccpm-percent-edit", null);
+		cache.update();
+		SpreadSheet[] sheet = new SpreadSheet[1];
+		SwingUtilities.invokeAndWait(() -> {
+			sheet[0] = new SpreadSheet();
+			sheet[0].setSpreadSheetCategory(SpreadSheetCategories.taskSpreadsheetCategory);
+			SpreadSheetUtils.setFieldsAndContext(sheet[0], cache, SpreadSheetCategories.taskSpreadsheetCategory,
+				"Spreadsheet.Task.summary", true);
+		});
+		SpreadSheetModel model = (SpreadSheetModel) sheet[0].getModel();
+		int percentColumn = -1;
+		for (int column = 1; column < model.getColumnCount(); column++) {
+			if ("Field.percentComplete".equals(model.getFieldInColumn(column).getId())) {
+				percentColumn = column;
+				break;
+			}
+		}
+		assertTrue(percentColumn > 0, "the task sheet must expose Percent Complete");
+		List<Task> leaves = project.getTaskList().stream().filter(task -> !task.isSummary()).map(Task.class::cast).toList();
+		AtomicReference<Throwable> editFailure = new AtomicReference<>();
+		int committedColumn = percentColumn;
+		SwingUtilities.invokeAndWait(() -> {
+			try {
+				for (double target : new double[] { 0.0d, 0.25d }) {
+					Object value = PercentFormat.getInstance().parseObject(target == 0.0d ? "0%" : "25%");
+					for (Task task : leaves) {
+						var projection = cache.getVisibleNodes().getProjectionIndex();
+						int row = projection.rowForKey(taskRowFor(projection, task));
+						model.setValueAt(value, row, committedColumn);
+					}
+				}
+				for (Task task : leaves) {
+					var projection = cache.getVisibleNodes().getProjectionIndex();
+					int row = projection.rowForKey(taskRowFor(projection, task));
+					assertEquals(0.25d, ((Number) model.getValueAt(row, committedColumn)).doubleValue(), 0.00001d,
+						"the task-sheet model must render the entered Percent Complete for " + task.getName());
+				}
+			} catch (Throwable failure) {
+				editFailure.set(failure);
+			}
+		});
+		if (editFailure.get() != null) throw new AssertionError("canonical task-field edit failed", editFailure.get());
+		for (Task task : leaves) {
+			assertEquals(0.25d, task.getPercentComplete(), 0.00001d,
+				"task Percent Complete must remain the entered duration percentage: " + task.getName());
+		}
+		assertProjectPercent(project, leaves);
+		Task completion = leaves.stream().filter(task -> "プロジェクト完了".equals(task.getName())).findFirst().orElseThrow();
+		SwingUtilities.invokeAndWait(() -> project.getUndoController().undo());
+		assertEquals(0.0d, completion.getPercentComplete(), 0.00001d,
+			"one Undo must restore the last task's previous Percent Complete value");
+		assertProjectPercent(project, leaves);
+		SwingUtilities.invokeAndWait(() -> project.getUndoController().redo());
+		assertEquals(0.25d, completion.getPercentComplete(), 0.00001d,
+			"one Redo must restore the edited task Percent Complete value");
+		assertProjectPercent(project, leaves);
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		assertTrue(serializer.saveProject(project, saved), "edited progress must serialize as MPO");
+		Project reopened = serializer.loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		for (Task task : reopened.getTaskList().stream().filter(task -> !task.isSummary()).toList()) {
+			assertEquals(0.25d, task.getPercentComplete(), 0.00001d,
+				"task Percent Complete must survive MPO reload: " + task.getName());
+		}
+		List<Task> reopenedLeaves = reopened.getTaskList().stream().filter(task -> !task.isSummary()).map(Task.class::cast).toList();
+		assertProjectPercent(reopened, reopenedLeaves);
+	}
+
+	private static void assertProjectPercent(Project project, List<Task> leaves) {
+		double completed = 0.0D;
+		double planned = 0.0D;
+		for (Task task : leaves) {
+			double duration = Duration.millis(task.getDuration());
+			completed += duration * task.getPercentComplete();
+			planned += duration;
+		}
+		assertTrue(planned > 0.0D, "the sample summary must have planned leaf duration");
+		assertEquals(completed / planned, project.getPercentComplete(), 0.00001D,
+			"project summary Percent Complete must be weighted by task duration, not assignment calendar duration");
+	}
+
 	@Test
 	void dependencyIntentUsesStableTaskRowsAndSharesUndoAndPersistencePath() throws Exception {
 		Fixture fixture = createDependencyFixture();
