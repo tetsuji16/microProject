@@ -1,18 +1,18 @@
-# microProject 試用版の準備と確認
+# microProject 安定版の試用と確認
 
-この試用版は、基本的なデスクトップ計画作成を利用者に試してもらうための prerelease です。Microsoft Project 全体との互換性完了を示すものではありません。ロードマップの M0 / M1 / M2 / M3 / M5 は引き続き未完了で、Microsoft Project 固有の自動化・拡張機能を扱う M4 は対象外です。MPO（`.mpo`）がネイティブ形式・標準保存先です。MPP は読込の相互運用対象で、MPP 書出しは対象外です。VBA、マクロ、COM、VSTO、Microsoft Office add-in も対象外です。
+この手順は、現在実装されている基本的なデスクトップ計画作成機能を安定版で試すためのものです。「安定版」は記載した実装範囲と出荷確認の位置づけであり、Microsoft Project 全体との互換性完了を示しません。ロードマップの M0 / M1 / M2 / M3 / M5 は引き続き未完了で、Microsoft Project 固有の自動化・拡張機能を扱う M4 は対象外です。MPO（`.mpo`）がネイティブ形式・標準保存先です。MPP は対応範囲を限定した読込相互運用で、MPP 書出しは対象外です。VBA、マクロ、COM、VSTO、Microsoft Office add-in も対象外です。
 
 ## 配布経路
 
-`.github/workflows/release-and-pages.yml` の `workflow_dispatch` を使います。現在の `build.gradle.kts` の基準版は `0.0.24` です。GitHub Actions の **Release** workflow を、レビュー済みの最終 commit を含む branch/ref から手動実行し、`release_channel=beta`、`gui_suite=smoke` を選びます。大きな cross-platform 更新の場合だけ `build_unix_packages=true` を指定します。workflow は `v0.0.24-beta.<run number>` と package version `0.0.24.<run number>` を割り当てます。Windows の build・package・import・GUI smoke・package contents・launcher の必須検証が成功すると Release job が prerelease を公開し、Unix package を選んだ場合は両 OS の build も公開の条件になります。Pages deployment は公開後の別 job です。checksum はその release に含む assets を対象に生成します。
+`.github/workflows/release-and-pages.yml` の **Release** workflow で、`release/stable-0.0.24` branch 上のレビュー済み最終 commit を選び、`release_channel=stable`、`gui_suite=full` を指定して手動実行します。workflow は run number から `v0.0.24.<run number>` と package version `0.0.24.<run number>` を割り当てます。Windows の build・全 module tests・package・import・full GUI acceptance・package contents・launcher 検証が成功した場合に stable release を公開します。大きな cross-platform 更新の場合だけ `build_unix_packages=true` を指定し、その場合は Linux と macOS の両方の build 成功も公開条件です。Pages deployment は公開後の別 job です。checksum はその release に含む assets を対象に生成します。
 
-今後の通常リリースは Windows を毎回ビルドします。Linux と macOS の配布物は大きな更新時だけ作成し、手動実行時に `build_unix_packages=true` を選びます。既定値は `false` で、tag / release branch の push も Windows のみです。選択した Unix build が失敗した場合は、そのリリース全体を公開しません。公開サイトは安定版の Release assets を OS ごとに確認し、Linux と macOS は各 OS の最新配布 tag を個別に表示します。ベータを安定版のリンクに混ぜません。
+通常リリースは Windows を毎回ビルドします。Linux と macOS の配布物は大きな更新時だけ作成し、手動実行時に `build_unix_packages=true` を選びます。既定値は `false` で、tag / release branch の push も Windows のみです。選択した Unix build が失敗した場合は、そのリリース全体を公開しません。公開サイトは OS ごとの stable Release assets を確認し、Linux と macOS は各 OS の最新 stable 配布 tag を個別に表示します。各 OS の配布版は異なる場合があります。
 
-Beta は stable の `latest` assets と自動更新 manifest を更新しません。リリース前に同じ番号の beta release note がある場合はそれを使い、なければ `docs/releases/beta-0.0.24.md` を使います。試用者には成功した run が公開した prerelease URL とその release note を案内してください。
+過去の beta release は prerelease の履歴として残っています。現在の安定版を案内するときは、成功した stable run が公開した release URL と release note を使い、beta の URL を試用版として案内しないでください。
 
 手動 workflow は GitHub 上の選択 ref を checkout します。作業ツリーの未コミット変更は入りません。試用対象の修正を含む最終 SHA をレビューしてから、その SHA が含まれる branch を push し、その branch を選んで workflow を実行します。
 
-GitHub Actions UI を使わない場合は、`release/beta-0.0.24-<N>` branch の push でも同じ release workflow を開始できます。`<N>` は未使用の正整数で、同じ番号が tag `v0.0.24-beta.<N>` と package version `0.0.24.<N>` に使われます。push 前に `git ls-remote --heads origin "refs/heads/release/beta-0.0.24-*"` と `git ls-remote --tags origin "refs/tags/v0.0.24-beta.*"` で既存番号を確認し、branch と tag の両方に重複がない番号を選びます。確認時点では 1 と 2 が使用済みで、3 が次候補です。push する SHA は試用対象の最終レビュー済み commit に固定します。
+GitHub Actions UI を使わず push で開始する場合は、`release/stable-0.0.24` branch への push で同じ full release workflow が実行されます。stable branch は `master` に統合済みの最終レビュー済み commit から作成し、push する SHA をその候補に固定します。stable tag と package version は workflow が run number から生成します。
 
 ## 試用者向け 10〜15 分チェック
 
@@ -29,8 +29,8 @@ GitHub Actions UI を使わない場合は、`release/beta-0.0.24-<N>` branch �
 
 ## 試用の範囲と未確認事項
 
-現行ブランチの Build 1132 と GUI 500 は成功したというレビュー時点の CI 記録があります（実行範囲は当該 run 設定に従います）。これは今回公開する package 自体の出荷確認ではありません。公開候補の release workflow がすべて成功することを別途確認します。
+stable release workflow の成功は、対象 commit の build、tests、package、full GUI acceptance、package launch の出荷確認です。個別の利用環境や記載外の機能すべてを保証するものではありません。
 
-基本的なタスク表、階層、依存関係、スケジュール、リソース、進捗、Undo / Redo、MPO 保存・再読込を優先して評価します。MPP 読込は別途確認中の相互運用機能です。MPO の過去版読込、ファイル形式ごとの全意味、全コマンド、全 locale / DPI、Microsoft 画面との視覚比較はロードマップに残っています。試用上の成功を M1〜M5 の完了や Microsoft Project 互換の保証として扱いません。Microsoft Project がインストールされていなくても試用できます。
+基本的なタスク表、階層、依存関係、スケジュール、リソース、進捗、Undo / Redo、MPO 保存・再読込を優先して評価します。MPP 読込は対象ファイルや意味の網羅を保証しません。MPO の全過去版、ファイル形式ごとの全意味、全コマンド、全 locale / DPI、Microsoft 画面との視覚比較はロードマップに残っています。試用上の成功や stable release の公開を M1〜M5 の完了や Microsoft Project 互換の保証として扱いません。Microsoft Project がインストールされていなくても試用できます。
 
-不具合報告には prerelease の URL / tag、OS、画面倍率、アプリ言語、利用したファイル形式、再現手順、期待結果と実際の結果を含めてください。可能なら個人情報・機密情報を除いた小さな再現用 MPO と画面を添付します。保存内容の欠落、表とガントの不一致、Undo / Redo の破損、起動不能は優先して報告してください。
+不具合報告には release の URL / tag、OS、画面倍率、アプリ言語、利用したファイル形式、再現手順、期待結果と実際の結果を含めてください。可能なら個人情報・機密情報を除いた小さな再現用 MPO と画面を添付します。保存内容の欠落、表とガントの不一致、Undo / Redo の破損、起動不能は優先して報告してください。
