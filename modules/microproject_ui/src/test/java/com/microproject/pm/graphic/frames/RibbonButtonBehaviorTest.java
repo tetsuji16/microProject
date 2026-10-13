@@ -35,6 +35,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.event.ActionEvent;
+import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -47,8 +49,11 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.swing.Action;
+import javax.swing.ActionMap;
 import javax.swing.AbstractButton;
 import javax.swing.JButton;
+import javax.swing.InputMap;
+import javax.swing.KeyStroke;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 
@@ -64,11 +69,13 @@ import com.microproject.menu.MenuActionConstants;
 import com.microproject.menu.MenuManager;
 import com.microproject.collaboration.CollaborationSession;
 import com.microproject.pm.assignment.Assignment;
+import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.DefaultSubProj;
 import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Task;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.pm.graphic.views.Searchable;
@@ -300,6 +307,52 @@ class RibbonButtonBehaviorTest {
 			assertEquals(beforeNodes, taskModel.getChildCount(root), "one undo must remove both inserted rows");
 			harness.undoController.redo();
 			assertEquals(beforeNodes + 2, taskModel.getChildCount(root), "one redo must restore both inserted rows");
+		});
+	}
+
+	@Test
+	void assignmentReplaceRedoRunsThroughDocumentFrameShortcutRoute() throws Exception {
+		Harness harness = newHarness();
+		NormalTask task = (NormalTask) harness.task;
+		SwingUtilities.invokeAndWait(() -> {
+			task.setDuration(16L * 60L * 60L * 1000L);
+			assertTrue(task.getDurationMillis() > 0L, "the source task must have a scheduled duration");
+			assertTrue(task.getStart() < task.getEnd(), "the source task must have valid scheduled bounds");
+			Resource original = harness.project.getResourcePool().createScriptedResource();
+			Resource replacement = harness.project.getResourcePool().createScriptedResource();
+			Assignment source = AssignmentService.getInstance().newAssignment(task, original, 1.0D, 0L, this, false);
+			source.setWork(16L * 60L * 60L * 1000L, null);
+			long sourceWork = source.getWork(null);
+			assertTrue(sourceWork > 0L, "the source assignment must have work before exercising Undo/Redo");
+			source.setActualWork(sourceWork / 2L, null);
+			long actualWork = source.getActualWork(null);
+			long remainingWork = source.getRemainingWork();
+			assertTrue(actualWork > 0L, "the source assignment must have actual work");
+			assertTrue(remainingWork > 0L, "the source assignment must have remaining work");
+			harness.undoController.clear();
+
+			List<Assignment> created = AssignmentService.getInstance().replaceAssignment(
+				source, List.of(replacement), this, true);
+			InputMap shortcuts = new InputMap();
+			ActionMap actions = new ActionMap();
+			harness.manager.applyMicrosoftShortcuts(shortcuts, actions);
+			Action undo = actions.get(shortcuts.get(KeyStroke.getKeyStroke(KeyEvent.VK_Z, InputEvent.CTRL_DOWN_MASK)));
+			Action redo = actions.get(shortcuts.get(KeyStroke.getKeyStroke(KeyEvent.VK_Y, InputEvent.CTRL_DOWN_MASK)));
+			assertNotNull(undo, "Ctrl+Z must resolve through the document shortcut map");
+			assertNotNull(redo, "Ctrl+Y must resolve through the document shortcut map");
+			undo.actionPerformed(new ActionEvent(harness.manager, ActionEvent.ACTION_PERFORMED, "undo"));
+			assertSame(source, task.findAssignment(original));
+			assertEquals(actualWork, source.getActualWork(null));
+			assertEquals(remainingWork, source.getRemainingWork());
+			redo.actionPerformed(new ActionEvent(harness.manager, ActionEvent.ACTION_PERFORMED, "redo"));
+
+			assertEquals(1, created.size());
+			Assignment replacementAssignment = created.get(0);
+			assertSame(source, task.findAssignment(original));
+			assertEquals(actualWork, source.getActualWork(null));
+			assertEquals(0L, source.getRemainingWork());
+			assertSame(replacementAssignment, task.findAssignment(replacement));
+			assertEquals(remainingWork, replacementAssignment.getRemainingWork());
 		});
 	}
 

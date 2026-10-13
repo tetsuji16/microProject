@@ -6,14 +6,17 @@
 package com.microproject.document;
 
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import com.microproject.field.Field;
 import com.microproject.pm.assignment.Assignment;
@@ -25,6 +28,64 @@ import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.undo.NodeUndoInfo;
 
 class ObjectEventManagerTest {
+	@Test
+	@Timeout(value = 5, unit = TimeUnit.SECONDS)
+	void pooledEventsAreReturnedWhileBatchRetainsOrderedFacts() {
+		ObjectEventManager manager = new ObjectEventManager();
+		List<CapturedEvent> observed = new ArrayList<>();
+		manager.addListener(event -> observed.add(new CapturedEvent(event.getSource(), event.getObject(),
+			event.getType(), event.getInfo(), event.getField(), event.getPublicationRevision())));
+		Object source = new Object();
+		List<Object> objects = new ArrayList<>();
+		List<NodeUndoInfo> infos = new ArrayList<>();
+		List<Field> fields = new ArrayList<>();
+		manager.beginBatch();
+
+		for (int index = 0; index < 32; index++) {
+			Object object = new Object();
+			NodeUndoInfo info = new NodeUndoInfo(index % 2 == 0);
+			Field field = new Field();
+			objects.add(object);
+			infos.add(info);
+			fields.add(field);
+			ObjectEvent event = ObjectEvent.getInstance(source, object,
+				index % 2 == 0 ? ObjectEvent.CREATE : ObjectEvent.UPDATE, info);
+			event.setField(field);
+			manager.fire(event);
+		}
+		assertEquals(32, manager.pendingEventCount());
+
+		ObjectEventManager.PendingBatch batch = manager.detachBatch(true);
+		manager.publishBatch(batch, 41L);
+
+		assertEquals(32, observed.size());
+		for (int index = 0; index < observed.size(); index++) {
+			CapturedEvent event = observed.get(index);
+			assertSame(source, event.source());
+			assertSame(objects.get(index), event.object());
+			assertEquals(index % 2 == 0 ? ObjectEvent.CREATE : ObjectEvent.UPDATE, event.type());
+			assertSame(infos.get(index), event.info());
+			assertSame(fields.get(index), event.field());
+			assertEquals(41L, event.revision());
+		}
+	}
+
+	@Test
+	void nestedRollbackDiscardsFactsAndRecyclesEventsImmediately() {
+		ObjectEventManager manager = new ObjectEventManager();
+		List<Object> observed = new ArrayList<>();
+		manager.addListener(event -> observed.add(event.getObject()));
+		manager.beginBatch();
+		manager.fireCreateEvent(this, new Object());
+		manager.beginBatch();
+		manager.fireDeleteEvent(this, new Object());
+		manager.endBatch(false);
+		manager.endBatch(true);
+
+		assertTrue(observed.isEmpty());
+		assertEquals(0, manager.pendingEventCount());
+	}
+
 	@Test
 	void assignmentApplicableTaskUpdateIsPropagatedToItsAssignments() {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
@@ -68,4 +129,7 @@ class ObjectEventManagerTest {
 			reused.recycle();
 		}
 	}
+
+	private record CapturedEvent(Object source, Object object, int type,
+		NodeUndoInfo info, Field field, long revision) { }
 }

@@ -39,7 +39,7 @@ import java.util.List;
  */
 public class ObjectEventManager {
     private final ListenerRegistry<ObjectEvent.Listener> listeners = new ListenerRegistry<>();
-    private final List<ObjectEvent> deferredEvents = new ArrayList<>();
+    private final List<EventFacts> deferredEvents = new ArrayList<>();
     private int batchDepth;
     private boolean rollbackOnly;
 
@@ -65,12 +65,7 @@ public class ObjectEventManager {
             if (batchDepth == 0) throw new IllegalStateException("No object-event batch is active");
             if (!publish) rollbackOnly = true;
             if (--batchDepth == 0) {
-                events = new ArrayList<>(deferredEvents.size());
-                for (ObjectEvent event : deferredEvents) {
-                    events.add(new EventFacts(event.getSource(), event.getObject(), event.getType(),
-                        event.getInfo(), event.getField()));
-                    event.recycle();
-                }
+                events = new ArrayList<>(deferredEvents);
                 deferredEvents.clear();
                 publish = !rollbackOnly;
                 rollbackOnly = false;
@@ -181,13 +176,16 @@ public class ObjectEventManager {
     }
     
     public void fire(ObjectEvent evt) {
+        boolean deferred = false;
         synchronized (this) {
             if (batchDepth > 0) {
-                deferredEvents.add(evt);
-                return;
+                deferredEvents.add(new EventFacts(evt.getSource(), evt.getObject(), evt.getType(),
+                    evt.getInfo(), evt.getField()));
+                deferred = true;
             }
         }
-        dispatch(evt);
+        if (deferred) evt.recycle();
+        else dispatch(evt);
     }
 
     private void dispatch(ObjectEvent evt) {
