@@ -2171,6 +2171,10 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		markTaskAsNeedingRecalculation();
 		return getProject();
 	}
+	@Override
+	public Document getCalendarOwnerDocument() {
+		return getProject();
+	}
 
 	public boolean hasActiveAssignment(long start, long end) {
 		return ((TaskSnapshot) getCurrentSnapshot()).hasActiveAssignment(start, end);

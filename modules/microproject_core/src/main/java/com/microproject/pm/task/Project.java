@@ -779,10 +779,12 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	 * @param workCalendar
 	 */
 	public void setWorkCalendar(WorkCalendar workCalendar) {
-		if (this.workCalendar != null)
-			((WorkingCalendar)this.workCalendar).removeObjectUsing(this);
-		this.workCalendar = workCalendar;
-		((WorkingCalendar)this.workCalendar).addObjectUsing(this);
+		com.microproject.transaction.ProjectMutationState.coordinated(() -> {
+			if (this.workCalendar != null)
+				((WorkingCalendar)this.workCalendar).removeObjectUsing(this);
+			this.workCalendar = workCalendar;
+			((WorkingCalendar)this.workCalendar).addObjectUsing(this);
+		});
 	}
 
 	public WorkCalendar getEffectiveWorkCalendar() {
@@ -2132,6 +2134,10 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	}
 	public Document invalidateCalendar() {
 		markAllTasksAsNeedingRecalculation(false);
+		return this;
+	}
+	@Override
+	public Document getCalendarOwnerDocument() {
 		return this;
 	}
 

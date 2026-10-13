@@ -1218,6 +1218,10 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 		return task.getOwningProject();
 		
 	}
+	@Override
+	public Document getCalendarOwnerDocument() {
+		return task == null ? null : task.getOwningProject();
+	}
 	
 	
 	public boolean isJustModified(){

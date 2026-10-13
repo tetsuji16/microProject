@@ -31,8 +31,11 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
-import java.util.HashSet;
+import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -44,6 +47,7 @@ import com.microproject.options.CalendarOption;
 import com.microproject.pm.key.HasCommonKeyImpl;
 import com.microproject.strings.Messages;
 import com.microproject.util.DateTime;
+import com.microproject.transaction.ProjectMutationState;
 /**
  * Calendar functions
  */
@@ -54,18 +58,81 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 	public static final WorkingCalendar INVALID_INTERSECTION_CALENDAR = new WorkingCalendar();
 
 // the objects that use this calendar
-	private transient HashSet<HasCalendar> objectsUsing = null;
+	private transient Set<HasCalendar> objectsUsing = null;
 
-	public final HashSet<HasCalendar> getObjectsUsing() {
-		if (objectsUsing == null)
-			objectsUsing = new HashSet<>();
-		return objectsUsing;
+	public final Set<HasCalendar> getObjectsUsing() {
+		return ProjectMutationState.coordinated(() -> {
+			Set<HasCalendar> snapshot = Collections.newSetFromMap(new IdentityHashMap<>());
+			if (objectsUsing != null) snapshot.addAll(objectsUsing);
+			return Collections.unmodifiableSet(snapshot);
+		});
 	}
 	public void addObjectUsing(HasCalendar cal) {
-		getObjectsUsing().add(cal);
+		ProjectMutationState.coordinated(() -> {
+			if (objectsUsing == null) objectsUsing = Collections.newSetFromMap(new IdentityHashMap<>());
+			objectsUsing.add(cal);
+		});
 	}
 	public void removeObjectUsing(HasCalendar cal) {
-		getObjectsUsing().remove(cal);
+		ProjectMutationState.coordinated(() -> {
+			if (objectsUsing != null) objectsUsing.remove(cal);
+		});
+	}
+
+	/** Compares persisted local calendar data, excluding caches and object identity. */
+	boolean hasSameDefinition(WorkingCalendar other) {
+		if (other == null || baseCalendar != other.baseCalendar || !java.util.Objects.equals(getName(), other.getName()))
+			return false;
+		CalendarDefinition left = differences;
+		CalendarDefinition right = other.differences;
+		for (int day = 0; day < WorkWeek.DAYS_IN_WEEK; day++)
+			if (!sameWorkDay(left.getWeekDay(day), right.getWeekDay(day))) return false;
+		if (!sameWorkDays(left.getLocalExceptionDays(), right.getLocalExceptionDays())) return false;
+		if (!sameWorkWeekPeriods(left.getWorkWeekPeriods(), right.getWorkWeekPeriods())) return false;
+		return sameRecurringExceptions(left.getRecurringExceptions(), right.getRecurringExceptions());
+	}
+
+	private static boolean sameWorkDays(WorkDay[] left, WorkDay[] right) {
+		if (left.length != right.length) return false;
+		for (int i = 0; i < left.length; i++) if (!sameWorkDay(left[i], right[i])) return false;
+		return true;
+	}
+
+	private static boolean sameWorkDay(WorkDay left, WorkDay right) {
+		if (left == right) return true;
+		return left != null && right != null && left.getStart() == right.getStart() && left.getEnd() == right.getEnd()
+			&& java.util.Objects.equals(left.getDescription(), right.getDescription())
+			&& java.util.Objects.equals(left.getWorkingHours(), right.getWorkingHours());
+	}
+
+	private static boolean sameWorkWeekPeriods(List<WorkWeekPeriod> left, List<WorkWeekPeriod> right) {
+		if (left.size() != right.size()) return false;
+		for (int i = 0; i < left.size(); i++) {
+			WorkWeekPeriod first = left.get(i), second = right.get(i);
+			if (first.getStart() != second.getStart() || first.getEnd() != second.getEnd()
+					|| !java.util.Objects.equals(first.getName(), second.getName())) return false;
+			for (int day = 0; day < WorkWeek.DAYS_IN_WEEK; day++)
+				if (!sameWorkDay(first.getWeekDay(day), second.getWeekDay(day))) return false;
+		}
+		return true;
+	}
+
+	private static boolean sameRecurringExceptions(List<RecurringCalendarException> left,
+		List<RecurringCalendarException> right) {
+		if (left.size() != right.size()) return false;
+		for (int i = 0; i < left.size(); i++) {
+			RecurringCalendarException first = left.get(i), second = right.get(i);
+			if (!sameWorkDay(first.getTemplate(), second.getTemplate())) return false;
+			CalendarRecurrence a = first.getRecurrence(), b = second.getRecurrence();
+			if (a.getPattern() != b.getPattern() || a.getEndMode() != b.getEndMode()
+					|| a.getStartDate() != b.getStartDate() || a.getFinishDate() != b.getFinishDate()
+					|| a.getOccurrenceCount() != b.getOccurrenceCount() || a.getFrequency() != b.getFrequency()
+					|| a.isWorkingDaysOnly() != b.isWorkingDaysOnly() || !a.getWeekdays().equals(b.getWeekdays())
+					|| a.isRelative() != b.isRelative() || a.getOrdinal() != b.getOrdinal()
+					|| a.getWeekday() != b.getWeekday() || a.getMonth() != b.getMonth()
+					|| a.getDayOfMonth() != b.getDayOfMonth()) return false;
+		}
+		return true;
 	}
 
 	void invalidateConcreteInstance() {
@@ -295,12 +362,17 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 	 * @param baseCalendar The baseCalendar to set.
 	 */
 	public void setBaseCalendar(WorkCalendar baseCalendar) throws CircularDependencyException {
-		if (baseCalendar != null && baseCalendar.dependsOn(this)) // avoid circular
-			throw new CircularDependencyException(Messages.getString("Calendar.ExceptionCircular"));
-		this.baseCalendar = baseCalendar;
-		invalidateConcreteInstance();
-		if (baseCalendar != null)
-			CalendarService.getInstance().registerDerivedCalendar(this);
+		CircularDependencyException[] failure = { null };
+		ProjectMutationState.coordinated(() -> {
+			if (baseCalendar != null && baseCalendar.dependsOn(this)) {
+				failure[0] = new CircularDependencyException(Messages.getString("Calendar.ExceptionCircular"));
+				return;
+			}
+			this.baseCalendar = baseCalendar;
+			invalidateConcreteInstance();
+			if (baseCalendar != null) CalendarService.getInstance().registerDerivedCalendar(this);
+		});
+		if (failure[0] != null) throw failure[0];
 	}
 
 	public void changeBaseCalendar(WorkCalendar baseCalendar) throws CircularDependencyException {

@@ -1011,6 +1011,76 @@ class MpxExportTrackingTest {
 	}
 
 	@Test
+	void committedSaturdayCalendarRecalculatesAndPersistsTaskAssignmentThroughMpo() throws Exception {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("MPO-saturday-calendar", undo);
+		Project project = Project.createProject(pool, undo);
+		project.initialize(false, false);
+		pool.addProject(project);
+		var baseCalendar = com.microproject.pm.calendar.WorkingCalendar.getStandardBasedInstance();
+		baseCalendar.setName("MPO committed Saturday calendar");
+		baseCalendar.setUniqueId(-9000111L);
+		var taskCalendar = com.microproject.pm.calendar.WorkingCalendar.getInstanceBasedOn(baseCalendar);
+		project.setWorkCalendar(taskCalendar);
+		NormalTask task = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		project.getSchedulingAlgorithm().addObject(task);
+		task.setName("MPO Saturday schedule");
+		task.setWorkCalendar(taskCalendar);
+		ResourceImpl resource = pool.newResourceInstance();
+		resource.setName("MPO Saturday assignment resource");
+		resource.setWorkCalendar(baseCalendar);
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1.0d, 0L, this);
+		java.util.GregorianCalendar fridayStart = com.microproject.util.DateTime.calendarInstance(
+			2026, java.util.Calendar.OCTOBER, 16);
+		fridayStart.set(java.util.Calendar.HOUR_OF_DAY, 8);
+		long fridayAtEight = fridayStart.getTimeInMillis();
+		task.setScheduleConstraint(ConstraintType.Kind.MSO, fridayAtEight);
+		task.getCurrentSchedule().setStart(fridayAtEight);
+		assignment.setWork(16L * 60L * 60L * 1000L, null);
+		assignment.setActualWork(2L * 60L * 60L * 1000L, null);
+		task.setDuration(16L * 60L * 60L * 1000L);
+		project.recalculate();
+		long expectedBeforeCommit = calendarTime(2026, java.util.Calendar.OCTOBER, 19, 17);
+		long expectedAfterCommit = calendarTime(2026, java.util.Calendar.OCTOBER, 17, 17);
+		assertEquals(expectedBeforeCommit, task.getEnd());
+		assertEquals(expectedBeforeCommit, assignment.getEnd());
+		taskCalendar.getConcreteInstance();
+		baseCalendar.getConcreteInstance();
+
+		var staged = com.microproject.pm.calendar.CalendarService.getInstance().makeScratchCopy(baseCalendar);
+		var saturdayHours = new com.microproject.pm.calendar.WorkingHours();
+		saturdayHours.setInterval(0, com.microproject.pm.calendar.WorkingHours.hourTime(8),
+			com.microproject.pm.calendar.WorkingHours.hourTime(12));
+		saturdayHours.setInterval(1, com.microproject.pm.calendar.WorkingHours.hourTime(13),
+			com.microproject.pm.calendar.WorkingHours.hourTime(17));
+		var saturday = new com.microproject.pm.calendar.WorkDay();
+		saturday.setWorkingHours(saturdayHours);
+		staged.setWeekDay(java.util.Calendar.SATURDAY - 1, saturday);
+		assertTrue(com.microproject.pm.calendar.CalendarService.getInstance().commitCalendars(
+			java.util.Map.of(baseCalendar, staged), undo.getEditSupport()));
+		assertEquals(expectedAfterCommit, task.getEnd(), "calendar commit must recalculate before returning");
+		assertEquals(expectedAfterCommit, assignment.getEnd());
+
+		ByteArrayOutputStream mpo = new ByteArrayOutputStream();
+		assertTrue(new com.microproject.exchange.MpoFileImporter().saveProject(project, mpo));
+		String rawMpoXml = new String(nativeProjectXml(mpo.toByteArray()), java.nio.charset.StandardCharsets.UTF_8);
+		assertTrue(rawMpoXml.contains("MPO committed Saturday calendar"), rawMpoXml);
+		Project reopened = new com.microproject.exchange.MpoFileImporter()
+			.loadProject(new ByteArrayInputStream(mpo.toByteArray()));
+		NormalTask reopenedTask = taskNamed(reopened, "MPO Saturday schedule");
+		Assignment reopenedAssignment = (Assignment) reopenedTask.getAssignments().iterator().next();
+		var reopenedCalendar = reopenedTask.getEffectiveWorkCalendar().getConcreteInstance();
+		assertTrue(reopenedCalendar.getWeekDay(java.util.Calendar.SATURDAY - 1).isWorking());
+		assertEquals(8L * 60L * 60L * 1000L,
+			reopenedCalendar.getWeekDay(java.util.Calendar.SATURDAY - 1).getWorkingHours().getDuration());
+		assertEquals(expectedAfterCommit, reopenedTask.getEnd());
+		assertEquals(expectedAfterCommit, reopenedAssignment.getEnd());
+		assertEquals(16L * 60L * 60L * 1000L, reopenedAssignment.getWork(null));
+		assertEquals(2L * 60L * 60L * 1000L, reopenedAssignment.getActualWork(null));
+		assertEquals(14L * 60L * 60L * 1000L, reopenedAssignment.getRemainingWork());
+	}
+
+	@Test
 	void ganttProgressAndTaskSplitPreserveCompletedThroughAcrossMpo() throws Exception {
 		Project project = createProject();
 		NormalTask task = (NormalTask) project.createLocalTaskNode(null).getImpl();
@@ -1856,5 +1926,11 @@ class MpxExportTrackingTest {
 		Project project = Project.createProject(resourcePool, undoController);
 		project.initialize(false, false);
 		return project;
+	}
+
+	private long calendarTime(int year, int month, int day, int hour) {
+		java.util.GregorianCalendar calendar = com.microproject.util.DateTime.calendarInstance(year, month, day);
+		calendar.set(java.util.Calendar.HOUR_OF_DAY, hour);
+		return calendar.getTimeInMillis();
 	}
 }

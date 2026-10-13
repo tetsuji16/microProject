@@ -62,6 +62,7 @@ import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.availability.AvailabilityTable;
 import com.microproject.pm.availability.HasAvailability;
 import com.microproject.pm.calendar.WorkCalendar;
+import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.costing.CostRateTable;
 import com.microproject.pm.key.HasKey;
 import com.microproject.pm.task.AccessControlPolicy;
@@ -507,7 +508,12 @@ public class ResourceImpl implements Resource, HasAvailability, HasResourceIndic
 		if (globalResource!=null) globalResource.setUniqueId(id);
 	}
 	public void setWorkCalendar(WorkCalendar workCalendar) {
-		globalResource.setWorkCalendar(workCalendar);
+		com.microproject.transaction.ProjectMutationState.coordinated(() -> {
+			WorkCalendar previous = globalResource.getWorkCalendar();
+			if (previous instanceof WorkingCalendar oldCalendar) oldCalendar.removeObjectUsing(this);
+			globalResource.setWorkCalendar(workCalendar);
+			if (workCalendar instanceof WorkingCalendar newCalendar) newCalendar.addObjectUsing(this);
+		});
 	}
 	public String toString() {
 		return globalResource.toString();
@@ -717,6 +723,10 @@ public class ResourceImpl implements Resource, HasAvailability, HasResourceIndic
 	}
 	public Document invalidateCalendar() {
 		return globalResource.invalidateCalendar();
+	}
+	@Override
+	public Document getCalendarOwnerDocument() {
+		return globalResource == null ? null : globalResource.getCalendarOwnerDocument();
 	}
 	public boolean isMaterial() {
 		return globalResource.isMaterial();

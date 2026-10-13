@@ -952,6 +952,10 @@ public class EnterpriseResource implements Resource {
 		invalidateAssignmentCalendars();
 		return getResourcePool();
 	}
+	@Override
+	public Document getCalendarOwnerDocument() {
+		return getResourcePool();
+	}
 
 	public boolean isWork() {
 		return hasResourceType(ResourceType.Kind.WORK);
