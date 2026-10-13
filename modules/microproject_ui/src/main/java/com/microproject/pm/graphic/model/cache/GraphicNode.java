@@ -294,7 +294,7 @@ public class GraphicNode implements HierarchicObject<GraphicNode>{
 		public void consumeInterval(ScheduleInterval interval){
 			if (size++==0) gnode.start=interval.getStart();
 			gnode.end=interval.getEnd();
-			if (cache!=null) cache.add(interval);
+			if (cache!=null) cache.add((ScheduleInterval) interval.clone());
 		}
 	}
 

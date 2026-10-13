@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.swing.SwingUtilities;
 
 import com.microproject.association.AssociationList;
 import com.microproject.association.Association;
@@ -71,6 +72,8 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 	protected DependencyCache edgeCache;
 	protected Document document;
 	private boolean closed;
+	private long bindingGeneration;
+	private long lastInstalledRevision = -1L;
 	
 	protected int type;
 		
@@ -114,6 +117,7 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 		if (closed)
 			return;
 		closed = true;
+		bindingGeneration++;
 		if (model != null)
 			removeListeners();
 		nodeCache.removeAllVisibleElements();
@@ -187,15 +191,17 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 	}
 	
 	protected void updateVisibleElements(Set<?> change,Set<?> edgeChange){
-		nodeCache.updateVisibleElements(change);
+		long revision = currentModelRevision();
+		nodeCache.updateVisibleElements(change, revision);
 
 		edgeCache.updateVisibleElements(edgeChange);
 
 		nodeCache.fireEvents(this);
+		lastInstalledRevision = Math.max(lastInstalledRevision, revision);
 
 	}
 	protected void updateVisibleElements(VisibleNodes nodes){
-		nodeCache.updateVisibleElements(nodes,new HashSet<GraphicNode>());
+		nodeCache.updateVisibleElements(nodes,new HashSet<GraphicNode>(), currentModelRevision());
 		edgeCache.updateVisibleElements(nodes.getVisibleDependencies(),new HashSet<GraphicDependency>());
 		nodeCache.fireEvents(this,nodes);
 	}
@@ -292,6 +298,7 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 	    if (this.model!=null) {
 	    	removeListeners();
 	    }
+		bindingGeneration++;
 		this.model=model;//new FilteredNodeModel(model);
 		//this.model.setFilter(filter);
 	    model.getHierarchy().addHierarchyListener(this);
@@ -391,7 +398,13 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 	}
 	
 	public GraphicNode createNode(Node node){
-		return new GraphicNode(node,-1);
+		GraphicNode graphicNode = new GraphicNode(node,-1);
+		graphicNode.setScheduleCaching(true);
+		return graphicNode;
+	}
+
+	private long currentModelRevision() {
+		return document instanceof Project project ? project.getMutationState().revision() : -1L;
 	}
 	
 	
@@ -406,17 +419,53 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 	
 	public void scheduleChanged(ScheduleEvent e){
 		if (!receiveEvents) return;
-		update(true);
+		dispatchCacheRefresh(bindingGeneration, e.getPublicationRevision(), true, null);
 	}
 	
 	
 	public void objectChanged(ObjectEvent objectEvent) {
 		if (!receiveEvents) return;
-		Object object=objectEvent.getObject();
+		dispatchCacheRefresh(bindingGeneration, objectEvent.getPublicationRevision(), false,
+			new ObjectChange(objectEvent.getObject(), objectEvent.getType()));
+	}
+
+	private void dispatchCacheRefresh(long generation, long eventRevision, boolean reschedule,
+		ObjectChange objectChange) {
+		Runnable refresh = () -> {
+			if (closed || generation != bindingGeneration || !receiveEvents) return;
+			if (document instanceof Project project) {
+				try (var ignored = project.getMutationState().begin()) {
+					if (closed || generation != bindingGeneration || !receiveEvents) return;
+					long revision = project.getMutationState().revision();
+					if (eventRevision >= 0 && eventRevision <= lastInstalledRevision) return;
+					ObjectChange change = objectChange;
+					boolean refreshSchedule = reschedule;
+					if (eventRevision >= 0 && eventRevision < revision) {
+						// A newer mutation committed before this callback was installed. Capture that
+						// current state as a fresh refresh; do not replay the old event facts.
+						change = null;
+						refreshSchedule = true;
+					}
+					if (change == null) update(refreshSchedule);
+					else if (applyObjectChange(change)) update(refreshSchedule);
+					lastInstalledRevision = Math.max(lastInstalledRevision, revision);
+				}
+			} else if (objectChange == null) {
+				update(reschedule);
+			} else if (applyObjectChange(objectChange)) {
+				update(reschedule);
+			}
+		};
+		if (SwingUtilities.isEventDispatchThread()) refresh.run();
+		else SwingUtilities.invokeLater(refresh);
+	}
+
+	private boolean applyObjectChange(ObjectChange change) {
+		Object object=change.object();
 		if (object instanceof Dependency) {
 			Dependency dependency = ((Dependency)object);
 			if (dependency.getDocument() == document || dependency.getMasterDocument() == document) { // links can come from other projects too, but successor should be in this project
-				if (objectEvent.isCreate()) {
+				if (change.eventType() == ObjectEvent.CREATE) {
 					Node preNode=(Node)model.search(dependency.getPredecessor());
 					Node sucNode=(Node)model.search(dependency.getSuccessor());
 					GraphicNode preGNode=nodeCache.getElement(preNode);
@@ -425,21 +474,21 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 						GraphicDependency edge=edgeCache.getElement(dependency);
 						if (edge == null) { // for external tasks in subprojects, it's possible they already were created
 							edge=newGraphicDependency(preGNode,sucGNode,dependency);
-							update();
+							return true;
 						}
 					}
-				} else if (objectEvent.isDelete()) {
+				} else if (change.eventType() == ObjectEvent.DELETE) {
 					GraphicDependency edge=edgeCache.getElement(dependency);
 					if (edge!=null){
 						removeEdge(edge);
-						update();
+						return true;
 					}
 					//edgeCache.fireEdgesRemoved(this,new Object[]{edge});
 				} else { //update
 					GraphicDependency edge=edgeCache.getElement(dependency);
 					if (edge!=null){
 						modifyEdge(edge,dependency.getDependencyKind());
-						update();
+						return true;
 					}
 					//edgeCache.fireEdgesUpdated(this,new Object[]{edge});
 				}
@@ -449,7 +498,7 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 				(object instanceof Resource && (type&NodeModelCache.RESOURCE_TYPE)==NodeModelCache.RESOURCE_TYPE)||
 				(object instanceof Assignment && (type&NodeModelCache.ASSIGNMENT_TYPE)==NodeModelCache.ASSIGNMENT_TYPE)||
 				(object instanceof Project && (type&NodeModelCache.PROJECT_TYPE)==NodeModelCache.PROJECT_TYPE))){
-				if (object!=null&&!objectEvent.isDelete()){ //because node is already deleted
+				if (object!=null&&change.eventType() != ObjectEvent.DELETE){ //because node is already deleted
 					Node node=model.search(object);
 					if (node !=null) {
 						for(;!node.isRoot();node=model.getParent(node)){
@@ -459,26 +508,29 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 						}
 					}
 				}
-				update();
+				return true;
 			}
-					
+			return false;
 		}
+		return false;
 	}
 
 	
 	
 	public void nodesChanged(HierarchyEvent e) {
-	    if (receiveEvents&&!e.isConsumed()) update();
+	    if (receiveEvents&&!e.isConsumed()) dispatchCacheRefresh(bindingGeneration, -1L, false, null);
 	}
 	public void nodesInserted(HierarchyEvent e) {
-		if (receiveEvents&&!e.isConsumed()) update();
+		if (receiveEvents&&!e.isConsumed()) dispatchCacheRefresh(bindingGeneration, -1L, false, null);
 	}
 	public void nodesRemoved(HierarchyEvent e) {
-		if (receiveEvents&&!e.isConsumed()) update();
+		if (receiveEvents&&!e.isConsumed()) dispatchCacheRefresh(bindingGeneration, -1L, false, null);
 	}
 	public void structureChanged(HierarchyEvent e) {
-		if (receiveEvents&&!e.isConsumed()) update();
+		if (receiveEvents&&!e.isConsumed()) dispatchCacheRefresh(bindingGeneration, -1L, false, null);
 	}
+
+	private record ObjectChange(Object object, int eventType) { }
 	
 	
 	

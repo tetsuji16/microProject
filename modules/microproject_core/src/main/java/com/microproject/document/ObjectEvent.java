@@ -79,6 +79,7 @@ public class ObjectEvent extends EventObject {
 	private int eventType;
 	private NodeUndoInfo info;
 	private Field field = null;
+	private long publicationRevision = -1L;
 	
 	public static ObjectEvent getInstance(Object source) {
 		ObjectEvent objectEvent;
@@ -114,6 +115,16 @@ public class ObjectEvent extends EventObject {
 		object = null;
 		info = null;
 		field = null;
+		publicationRevision = -1L;
+	}
+
+	/** Revision of the committed project publication carrying this event, or -1 for legacy events. */
+	public long getPublicationRevision() {
+		return publicationRevision;
+	}
+
+	public void setPublicationRevision(long publicationRevision) {
+		this.publicationRevision = publicationRevision;
 	}
 	
 	private ObjectEvent() {

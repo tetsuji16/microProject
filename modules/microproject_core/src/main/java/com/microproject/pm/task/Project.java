@@ -1086,12 +1086,12 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		if (batch == null) return;
 		Throwable failure = null;
 		try {
-			objectEventManager.publishBatch(batch.objectEvents());
+			objectEventManager.publishBatch(batch.objectEvents(), batch.revision());
 		} catch (Throwable current) {
 			failure = current;
 		}
 		try {
-			scheduleEventManager.publishBatch(batch.scheduleEvents());
+			scheduleEventManager.publishBatch(batch.scheduleEvents(), batch.revision());
 		} catch (Throwable current) {
 			if (failure == null) failure = current;
 			else failure.addSuppressed(current);

@@ -94,7 +94,11 @@ class ProjectMutationStateTest {
 		Object first = new Object();
 		Object second = new Object();
 		List<Object> delivered = Collections.synchronizedList(new ArrayList<>());
-		project.addScheduleListener(event -> delivered.add(event.getObject()));
+		List<Long> deliveredRevisions = Collections.synchronizedList(new ArrayList<>());
+		project.addScheduleListener(event -> {
+			delivered.add(event.getObject());
+			deliveredRevisions.add(event.getPublicationRevision());
+		});
 		CountDownLatch firstDetached = new CountDownLatch(1);
 		CountDownLatch releaseFirstNotification = new CountDownLatch(1);
 		CountDownLatch secondPublished = new CountDownLatch(1);
@@ -141,6 +145,8 @@ class ProjectMutationStateTest {
 			workers.shutdown();
 			assertTrue(workers.awaitTermination(2, TimeUnit.SECONDS));
 			assertEquals(List.of(second, first), delivered);
+			assertEquals(List.of(2L, 1L), deliveredRevisions,
+				"each observer event must retain its detached batch revision even when delivery is reordered");
 			assertEquals(1L, firstRevision.get());
 			assertEquals(2L, secondRevision.get());
 			assertTrue(failure.get() == null, () -> "concurrent writer failed: " + failure.get());

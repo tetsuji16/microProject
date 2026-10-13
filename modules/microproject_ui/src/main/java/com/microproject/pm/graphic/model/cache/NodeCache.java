@@ -45,14 +45,20 @@ public class NodeCache extends CellCache<GraphicNode, VisibleNodes> {
 	}
 	
 	public void updateVisibleElements(Set<?> updates){
+		updateVisibleElements(updates, -1L);
+	}
+	public void updateVisibleElements(Set<?> updates, long modelRevision){
 	    HashSet<Object> u=new HashSet<>(updates == null ? 0 : updates.size());
 	    for (VisibleNodes v : visibleElements) {
 	        u.clear();
 	        if (updates != null) u.addAll(updates);
-	        updateVisibleElements(v,u);
+	        updateVisibleElements(v,u,modelRevision);
 	    }
 	}
 	public void updateVisibleElements(VisibleNodes v, Set<?> updates){
+		updateVisibleElements(v, updates, -1L);
+	}
+	public void updateVisibleElements(VisibleNodes v, Set<?> updates, long modelRevision){
 //		long t0=System.currentTimeMillis();
 
 		ArrayList<GraphicNode> visibleElements =v.getElements();
@@ -69,7 +75,7 @@ public class NodeCache extends CellCache<GraphicNode, VisibleNodes> {
 //		long t1=System.currentTimeMillis();
 
 		v.applyTransformer();
-		v.publishProjectionIndex();
+		v.publishProjectionIndex(modelRevision);
 //		t0=System.currentTimeMillis();
 
 		applyUpdates(oldList, visibleElements, updates, v.getEvents(), this);

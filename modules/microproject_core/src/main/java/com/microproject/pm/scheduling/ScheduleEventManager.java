@@ -70,6 +70,11 @@ public class ScheduleEventManager {
 
     /** Publishes a batch detached after its model revision was committed. */
     public void publishBatch(PendingBatch batch) {
+        publishBatch(batch, -1L);
+    }
+
+    /** Publishes detached facts with the exact revision committed with their event batch. */
+    public void publishBatch(PendingBatch batch, long publicationRevision) {
         if (batch == null || !batch.publish) return;
         Throwable failure = null;
         for (EventFacts facts : batch.events) {
@@ -77,6 +82,7 @@ public class ScheduleEventManager {
                 ScheduleEvent event = new ScheduleEvent(facts.source, facts.type, facts.object);
                 event.setSnapshot(facts.snapshot);
                 event.setSaveSnapshot(facts.saveSnapshot);
+                event.setPublicationRevision(publicationRevision);
                 dispatch(event);
             } catch (Throwable current) {
                 if (failure == null) failure = current;

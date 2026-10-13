@@ -76,6 +76,11 @@ public class ObjectEventManager {
 
     /** Publishes a batch detached after its model revision was committed. */
     public void publishBatch(PendingBatch batch) {
+        publishBatch(batch, -1L);
+    }
+
+    /** Publishes detached facts with the exact revision committed with their event batch. */
+    public void publishBatch(PendingBatch batch, long publicationRevision) {
         if (batch == null) return;
         if (!batch.publish) return;
         Throwable failure = null;
@@ -85,6 +90,7 @@ public class ObjectEventManager {
                     facts.eventType, facts.info);
                 if (event == null) throw new IllegalStateException("Could not allocate an object event");
                 event.setField(facts.field);
+                event.setPublicationRevision(publicationRevision);
                 dispatch(event);
             } catch (Throwable current) {
                 if (failure == null) failure = current;

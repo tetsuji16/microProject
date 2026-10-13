@@ -61,12 +61,30 @@ tests) and `ModelTransactionTest` (5 tests). `git diff --check` passed.
 
 - #408 still owns schedule gesture stale checks and structural paste rollback;
   these UI entry points are not moved by this slice.
-- #409 still needs a project domain revision source, legacy change accumulation,
-  stale publication rejection, and atomic EDT installation. The current tree
-  has a UI `RevisionedProjectionIndex` for topology, but no core domain journal
-  or update coordinator. Its issue history also records missing evidence for
-  all mutation-source instrumentation, nested/reentrant event tests, and
-  mixed-revision visibility through real Swing listeners.
+- #409 is still open. The bounded `UpdateProjectCommand` path now has a
+  project-local mutation revision, detached event batches tagged with their
+  committed revision, and a UI cache refresh path that drops stale callbacks,
+  installs one revision into bound views before notifying, and rejects callbacks
+  after close/rebind. Core/UI tests cover two-writer event-batch isolation,
+  stale callback delivery, close/rebind, EDT notification, shared table/Gantt
+  revision, and cached schedule interval copying. Core and UI full test tasks
+  passed on JDK 25; the Update Project physical journey passed at ja/125%.
+  The structural Sort/Gantt Robot rerun was blocked before Robot input because
+  Docker Desktop occupied the foreground window, so that physical path is not
+  verified by this checkpoint.
+
+  This is not complete revisioned publication. The cache still updates mutable
+  nodes in place, and only `UpdateProjectCommand` currently holds the project
+  mutation barrier for its whole mutation. Remaining writer inventory includes
+  direct task/resource/project field setters and `Field.fireEvent`; hierarchy
+  mutation through `DefaultNodeModel.relocate`, `MutableNodeHierarchy`, and
+  `OutlineCollectionImpl`; schedule/actual setters in `NormalTask`; dependency,
+  assignment, and calendar services; project task create/delete and recalculation
+  paths; and linked/subproject/portfolio updates. These must move through their
+  existing command/service transaction boundaries rather than being wrapped
+  one setter at a time. A later phase must snapshot every renderer-visible
+  schedule value immutably and atomically install the same revision across
+  bound views. Reentrant publication and full writer coverage remain open.
 - #410 still needs a transaction boundary for broader task/resource/calendar,
   dependency, hierarchy, and ID-allocation cascades, plus authorization lease
   and post-commit-effect audits.
