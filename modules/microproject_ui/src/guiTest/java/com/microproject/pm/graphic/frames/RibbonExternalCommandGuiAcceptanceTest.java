@@ -1587,11 +1587,10 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		robot.mouseMove(location.x + Math.max(8, window.getWidth() / 2), location.y + 8);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-		// Foreground activation is controlled by Windows and can remain false in a
-		// Gradle-launched desktop even after the physical title-bar click.  The
-		// subsequent command click is the acceptance boundary; requiring the native
-		// isActive bit here made the test fail before exercising that route.
-		robot.delay(250);
+		// Wait for real application content to finish rendering and for the physical
+		// activation to settle before the next command is sent.
+		GuiAcceptanceSupport.awaitRenderedWindow(window, window.getRibbonPanel(), robot,
+			"ribbon application window before the next physical command");
 	}
 
 	private static void type(Robot robot, String text) {
