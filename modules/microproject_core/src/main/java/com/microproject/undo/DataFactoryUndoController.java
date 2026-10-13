@@ -27,6 +27,9 @@ package com.microproject.undo;
 import javax.swing.undo.UndoableEdit;
 
 import com.microproject.grouping.core.model.NodeModelDataFactory;
+import com.microproject.pm.scheduling.ScheduleEvent;
+import com.microproject.pm.task.Project;
+import com.microproject.transaction.ProjectMutationState;
 
 /**
  *
@@ -44,6 +47,66 @@ public class DataFactoryUndoController extends UndoController {
 	public void editPosted(UndoableEdit edit){
 		super.editPosted(edit);
 		dataFactory.setGroupDirty(true);
+	}
+
+	@Override
+	public void undo() {
+		mutateProjectHistory(true);
+	}
+
+	@Override
+	public void redo() {
+		mutateProjectHistory(false);
+	}
+
+	private void mutateProjectHistory(boolean undo) {
+		if (!(dataFactory instanceof Project project)) {
+			if (undo) super.undo();
+			else super.redo();
+			return;
+		}
+
+		ProjectMutationState.Scope mutation = project.getMutationState().begin();
+		project.beginEventBatch();
+		int initialPendingEvents = project.pendingEventCount();
+		Project.PendingEventBatch pending;
+		boolean applying = false;
+		try {
+			boolean available = undo ? canUndo() : canRedo();
+			if (!available) {
+				pending = project.commitEventBatch(mutation, false);
+				project.publishEventBatch(pending);
+				return;
+			}
+			applying = true;
+			if (undo) super.undo();
+			else super.redo();
+		} catch (RuntimeException | Error failure) {
+			pending = finishHistoryMutation(project, mutation, applying, initialPendingEvents, failure);
+			try {
+				project.publishEventBatch(pending);
+			} catch (Throwable publicationFailure) {
+				failure.addSuppressed(publicationFailure);
+			}
+			throw failure;
+		}
+		if (project.pendingEventCount() == initialPendingEvents)
+			project.fireScheduleChanged(project, ScheduleEvent.SCHEDULE);
+		pending = project.commitEventBatch(mutation, true);
+		project.publishEventBatch(pending);
+	}
+
+	private Project.PendingEventBatch finishHistoryMutation(Project project, ProjectMutationState.Scope mutation,
+			boolean applying, int initialPendingEvents, Throwable failure) {
+		try {
+			boolean emittedFacts = project.pendingEventCount() > initialPendingEvents;
+			if (applying && !emittedFacts)
+				project.fireScheduleChanged(project, ScheduleEvent.SCHEDULE);
+			return project.commitEventBatch(mutation, applying || emittedFacts);
+		} catch (Throwable commitFailure) {
+			failure.addSuppressed(commitFailure);
+			return null;
+		}
 	}
 	public NodeModelDataFactory getDataFactory() {
 		return dataFactory;

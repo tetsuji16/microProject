@@ -79,11 +79,16 @@ tests) and `ModelTransactionTest` (5 tests). `git diff --check` passed.
   publishes existing event facts, or a schedule invalidation when no facts were
   emitted. Preflight rejection and no-op leave the revision unchanged. Focused
   gateway tests cover the apply-then-throw path and verify publication occurs
-  after the barrier is released. Undo/Redo and other command families are not
-  covered by this gateway boundary yet.
+  after the barrier is released. `DataFactoryUndoController` now gives Project
+  Undo/Redo the same outer barrier; nested edits coalesce into one revision,
+  unavailable history is a no-op, and a nested rollback batch is replaced with
+  a fresh schedule invalidation if the outer mutation committed. Focused core
+  and UI tests cover these cases. Other command families are not covered by
+  these boundaries yet.
 
   This is not complete revisioned publication. The cache still updates mutable
-  nodes in place. Remaining writer inventory includes
+  nodes in place. Remaining writer inventory, outside the new gateway and
+  history boundaries, includes
   direct task/resource/project field setters and `Field.fireEvent`; hierarchy
   mutation through `DefaultNodeModel.relocate`, `MutableNodeHierarchy`, and
   `OutlineCollectionImpl`; schedule/actual setters in `NormalTask`; dependency,

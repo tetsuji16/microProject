@@ -6,6 +6,7 @@ package com.microproject.transaction;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
@@ -25,6 +26,19 @@ import com.microproject.undo.DataFactoryUndoController;
 import org.junit.jupiter.api.Test;
 
 class ProjectMutationStateTest {
+	@Test
+	void unavailableProjectUndoAndRedoDoNotAdvanceRevision() {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("empty-project-history", undo), undo);
+		project.initialize(false, false);
+		long revision = project.getMutationState().revision();
+
+		undo.undo();
+		undo.redo();
+
+		assertEquals(revision, project.getMutationState().revision());
+	}
+
 	@Test
 	void revisionsAdvanceOnlyForCommittedChangedOutermostMutation() {
 		ProjectMutationState state = new ProjectMutationState();
@@ -154,5 +168,29 @@ class ProjectMutationStateTest {
 			releaseFirstNotification.countDown();
 			workers.shutdownNow();
 		}
+	}
+
+	@Test
+	void committedOuterMutationReplacesNestedRolledBackFactsWithFreshInvalidation() {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("nested-event-rollback", undo), undo);
+		project.initialize(false, false);
+		List<ScheduleEvent> delivered = new ArrayList<>();
+		project.addScheduleListener(delivered::add);
+
+		Project.PendingEventBatch pending;
+		try (ProjectMutationState.Scope outer = project.getMutationState().begin()) {
+			project.beginEventBatch();
+			project.beginEventBatch();
+			project.fireScheduleChanged("rolled-back-inner-operation", ScheduleEvent.SCHEDULE, "stale-fact");
+			project.endEventBatch(false);
+			pending = project.commitEventBatch(outer, true);
+		}
+		project.publishEventBatch(pending);
+
+		assertEquals(1, delivered.size());
+		assertEquals(ScheduleEvent.SCHEDULE, delivered.getFirst().getType());
+		assertNull(delivered.getFirst().getObject(), "rolled-back facts must be replaced, not replayed");
+		assertEquals(1L, delivered.getFirst().getPublicationRevision());
 	}
 }

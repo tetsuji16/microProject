@@ -1081,6 +1081,16 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		boolean changed) {
 		com.microproject.document.ObjectEventManager.PendingBatch objectEvents = objectEventManager.detachBatch(true);
 		com.microproject.pm.scheduling.ScheduleEventManager.PendingBatch scheduleEvents = scheduleEventManager.detachBatch(true);
+		if (changed && ((objectEvents != null && !objectEvents.isPublishable())
+				|| (scheduleEvents != null && !scheduleEvents.isPublishable()))) {
+			// A nested operation rolled back its accumulated facts. Do not publish
+			// potentially stale pooled facts; the committed outer state needs a fresh
+			// schedule invalidation instead.
+			objectEvents = null;
+			scheduleEventManager.beginBatch();
+			scheduleEventManager.fire(this, com.microproject.pm.scheduling.ScheduleEvent.SCHEDULE);
+			scheduleEvents = scheduleEventManager.detachBatch(true);
+		}
 		mutation.commit(changed);
 		long revision = mutation.closeAndGetRevision();
 		return new PendingEventBatch(revision, objectEvents, scheduleEvents);

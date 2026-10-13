@@ -115,6 +115,10 @@ public class ObjectEventManager {
             this.events = events;
             this.publish = publish;
         }
+
+        public boolean isPublishable() {
+            return publish;
+        }
     }
 
     private record EventFacts(Object source, Object object, int eventType,

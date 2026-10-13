@@ -281,7 +281,13 @@ class TaskCommandGatewayTest {
 			"the changed edit advances one revision and the subsequent no-op does not");
 		assertEquals("After", fixture.task().getName());
 		SwingUtilities.invokeAndWait(() -> fixture.project().getUndoController().undo());
+		assertEquals(revisionBefore + 2, fixture.project().getMutationState().revision(),
+			"Undo must publish one outer revision even when the edit emits nested events");
 		assertEquals("Before", fixture.task().getName(), "no-op must not add a second Undo edit");
+		SwingUtilities.invokeAndWait(() -> fixture.project().getUndoController().redo());
+		assertEquals(revisionBefore + 3, fixture.project().getMutationState().revision(),
+			"Redo must publish one outer revision even when the edit emits nested events");
+		assertEquals("After", fixture.task().getName());
 	}
 
 	@Test

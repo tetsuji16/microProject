@@ -107,6 +107,10 @@ public class ScheduleEventManager {
             this.events = events;
             this.publish = publish;
         }
+
+        public boolean isPublishable() {
+            return publish;
+        }
     }
 
     private record EventFacts(Object source, String type, Object object, Integer snapshot,
