@@ -1027,8 +1027,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			openCommand.run();
 			GuiAcceptanceSupport.await(chooserCallStarted::get,
 				route + " did not enter the default Windows native chooser provider");
-			GuiAcceptanceSupport.await(() -> !visibleDialogOverlayBounds(beforeOpen, captureScreen(robot)).isEmpty(),
-				route + " called the native provider but no visible chooser appeared on the desktop");
+			requireNativeCancelControl(awaitNativeChooserSnapshot(route), route);
 			assertFalse(chooserCallReturned.get(), route + " chooser must remain modal until physical Escape");
 			String artifactName = "issue-398-native-" + route.toLowerCase(Locale.ROOT).replace(' ', '-')
 				+ "-before-escape.png";
@@ -1075,11 +1074,8 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			openCommand.run();
 			GuiAcceptanceSupport.await(chooserCallStarted::get,
 				route + " did not enter the default Windows native chooser provider for Cancel acceptance");
-			awaitVisibleNativeChooserBounds(beforeOpen, robot, route);
+			NativeCancelControl initialCancel = requireNativeCancelControl(awaitNativeChooserSnapshot(route), route);
 			assertFalse(chooserCallReturned.get(), route + " native chooser returned before physical Cancel");
-
-			NativeCancelControl initialCancel = requireNativeCancelControl(
-				captureNativeWindowState(route + "-cancel-initial"), route);
 			clickNativePoint(robot, centerX(initialCancel.dialogBounds),
 				initialCancel.dialogBounds.y + Math.max(12, Math.min(18, initialCancel.dialogBounds.height / 12)));
 			robot.delay(150); // allow foreground activation and native window geometry to settle
@@ -1112,15 +1108,6 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		}
 	}
 
-	private static Rectangle awaitVisibleNativeChooserBounds(BufferedImage beforeOpen, Robot robot, String route) throws Exception {
-		Rectangle[] bounds = new Rectangle[1];
-		GuiAcceptanceSupport.await(() -> {
-			bounds[0] = visibleDialogOverlayBounds(beforeOpen, captureScreen(robot));
-			return !bounds[0].isEmpty();
-		}, route + " did not show a visible Windows chooser before physical Cancel");
-		return bounds[0];
-	}
-
 	private static void clickNativePoint(Robot robot, int x, int y) {
 		robot.mouseMove(x, y);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
@@ -1140,30 +1127,26 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		return bounds.y + bounds.height / 2;
 	}
 
-	private static NativeCancelControl requireNativeCancelControl(String snapshot, String route) {
+	static NativeCancelControl parseNativeCancelControl(String snapshot, String route, long targetPid) {
 		List<String> ownedVisibleDialogs = new ArrayList<>();
 		List<NativeCancelControl> matching = new ArrayList<>();
+		String foregroundLine = null;
+		boolean ready = false;
 		for (String line : snapshot.split("\\R")) {
+			if (line.startsWith("foreground ")) foregroundLine = line;
+			if (line.equals("nativeChooserReady=True")) ready = true;
 			if (line.startsWith("ownedDialog ")) {
-				Map<String, String> dialog = new HashMap<>();
-				for (String field : line.split(" ")) {
-					int equals = field.indexOf('=');
-					if (equals > 0) dialog.put(field.substring(0, equals), field.substring(equals + 1));
-				}
-				if (Long.toString(ProcessHandle.current().pid()).equals(dialog.get("pid"))
+				Map<String, String> dialog = parseFields(line);
+				if (Long.toString(targetPid).equals(dialog.get("pid"))
 						&& "#32770".equals(dialog.get("class"))
 						&& Boolean.parseBoolean(dialog.get("visible")) && Boolean.parseBoolean(dialog.get("enabled"))
-						&& Long.toString(ProcessHandle.current().pid()).equals(dialog.get("ownerPid"))
+						&& Long.toString(targetPid).equals(dialog.get("ownerPid"))
 						&& parseBounds(dialog.get("bounds")) != null) ownedVisibleDialogs.add(line);
 				continue;
 			}
 			if (!line.startsWith("cancelControl ")) continue;
-			Map<String, String> fields = new HashMap<>();
-			for (String field : line.split(" ")) {
-				int equals = field.indexOf('=');
-				if (equals > 0) fields.put(field.substring(0, equals), field.substring(equals + 1));
-			}
-			if (!Long.toString(ProcessHandle.current().pid()).equals(fields.get("pid"))) continue;
+			Map<String, String> fields = parseFields(line);
+			if (!Long.toString(targetPid).equals(fields.get("pid"))) continue;
 			if (!"#32770".equals(fields.get("dialogClass")) || !Boolean.parseBoolean(fields.get("dialogOwnedByTarget"))
 					|| !"2".equals(fields.get("controlId")) || !"Button".equals(fields.get("class"))
 					|| !Boolean.parseBoolean(fields.get("dialogVisible")) || !Boolean.parseBoolean(fields.get("dialogEnabled"))
@@ -1178,7 +1161,67 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		assertEquals(1, matching.size(),
 			route + " must expose exactly one visible, enabled direct IDCANCEL (2) Button in the owned #32770 dialog; snapshot="
 				+ snapshot);
-		return matching.get(0);
+		NativeCancelControl control = matching.get(0);
+		Map<String, String> foreground = parseFields(foregroundLine);
+		String foregroundPid = foreground.get("pid");
+		String foregroundHandle = foreground.get("hwnd");
+		boolean foregroundInDialog = control.dialogHandle.equalsIgnoreCase(foregroundHandle)
+			|| snapshot.lines().anyMatch(line -> line.startsWith("nativeChild ")
+				&& control.dialogHandle.equalsIgnoreCase(parseFields(line).get("dialog"))
+				&& Long.toString(targetPid).equals(parseFields(line).get("pid"))
+				&& Boolean.parseBoolean(parseFields(line).get("visible"))
+				&& Boolean.parseBoolean(parseFields(line).get("enabled"))
+				&& foregroundHandle != null
+				&& foregroundHandle.equalsIgnoreCase(parseFields(line).get("hwnd")));
+		assertTrue(ready && Long.toString(targetPid).equals(foregroundPid) && foregroundInDialog,
+			route + " native chooser must be the foreground dialog (or own foreground child); snapshot=" + snapshot);
+		return control;
+	}
+
+	private static Map<String, String> parseFields(String line) {
+		Map<String, String> fields = new HashMap<>();
+		if (line == null) return fields;
+		for (String field : line.split(" ")) {
+			int equals = field.indexOf('=');
+			if (equals > 0) fields.put(field.substring(0, equals), field.substring(equals + 1));
+		}
+		return fields;
+	}
+
+	private static NativeCancelControl requireNativeCancelControl(String snapshot, String route) {
+		return parseNativeCancelControl(snapshot, route, ProcessHandle.current().pid());
+	}
+
+	private static String awaitNativeChooserSnapshot(String route) throws IOException {
+		long deadlineNanos = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(4);
+		long deadlineUtcTicks = 621355968000000000L
+			+ (System.currentTimeMillis() + java.util.concurrent.TimeUnit.SECONDS.toMillis(4)) * 10_000L;
+		String routeName = route.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9-]", "-");
+		Path projectDirectory = Path.of(System.getProperty("microproject.project.dir", ".")).toAbsolutePath();
+		Path script = projectDirectory.resolve(".github").resolve("scripts").resolve("capture-gui-desktop-state.ps1");
+		Path output = guiArtifactDirectory().resolve("issue-398-native-" + routeName + "-ready-windows.txt");
+		Files.createDirectories(output.getParent());
+		Process process = new ProcessBuilder("powershell.exe", "-NoLogo", "-NoProfile", "-NonInteractive", "-WindowStyle",
+			"Hidden", "-ExecutionPolicy", "Bypass", "-File", script.toString(), "-TargetPid",
+			Long.toString(ProcessHandle.current().pid()), "-WaitForNativeChooser", "-DeadlineUtcTicks",
+			Long.toString(deadlineUtcTicks)).redirectErrorStream(true).redirectOutput(output.toFile()).start();
+		try {
+			long remainingNanos = deadlineNanos - System.nanoTime();
+			if (remainingNanos <= 0 || !process.waitFor(remainingNanos, java.util.concurrent.TimeUnit.NANOSECONDS)) {
+				process.destroyForcibly();
+				process.waitFor(250, java.util.concurrent.TimeUnit.MILLISECONDS);
+				String partial = Files.exists(output) ? Files.readString(output) : "(no output)";
+				throw new IOException(route + " native chooser was not ready within 4 seconds; output=" + output + "\n" + partial);
+			}
+			String snapshot = Files.exists(output) ? Files.readString(output) : "";
+			if (process.exitValue() != 0)
+				throw new IOException("Native chooser probe exited " + process.exitValue() + "; output=" + output + "\n" + snapshot);
+			return snapshot;
+		} catch (InterruptedException interrupted) {
+			Thread.currentThread().interrupt();
+			process.destroyForcibly();
+			throw new IOException("Native chooser probe interrupted; output=" + output, interrupted);
+		}
 	}
 
 	private static Rectangle parseBounds(String value) {
@@ -1197,10 +1240,10 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		}
 	}
 
-	private static final class NativeCancelControl {
-		private final String dialogHandle;
-		private final Rectangle dialogBounds;
-		private final Rectangle cancelBounds;
+	static final class NativeCancelControl {
+		final String dialogHandle;
+		final Rectangle dialogBounds;
+		final Rectangle cancelBounds;
 
 		private NativeCancelControl(String dialogHandle, Rectangle dialogBounds, Rectangle cancelBounds) {
 			this.dialogHandle = dialogHandle;

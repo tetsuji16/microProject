@@ -2,7 +2,9 @@ param(
   [Parameter(Mandatory = $true)]
   [int]$TargetPid,
   [switch]$Watch,
-  [string]$LogFile
+  [string]$LogFile,
+  [switch]$WaitForNativeChooser,
+  [long]$DeadlineUtcTicks
 )
 
 $ErrorActionPreference = 'Stop'
@@ -33,9 +35,14 @@ public static class GuiDesktopWindowProbe {
         public string Title;
         public Rect Bounds;
     }
+    private sealed class DialogReadiness {
+        public bool IsOwnedVisibleEnabled;
+        public bool IsReady;
+    }
     private delegate bool EnumWindowsCallback(IntPtr handle, IntPtr parameter);
 
     [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] private static extern bool IsChild(IntPtr parent, IntPtr child);
     [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr handle, out uint processId);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowText(IntPtr handle, StringBuilder text, int capacity);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowTextLength(IntPtr handle);
@@ -80,11 +87,26 @@ public static class GuiDesktopWindowProbe {
         }, IntPtr.Zero);
 
         var result = new StringBuilder().Append("snapshotUtc=").Append(DateTime.UtcNow.ToString("o")).AppendLine();
-        WindowInfo foregroundInfo = windows.Find(window => window.Handle == foreground);
-        if (foregroundInfo == null) result.AppendLine("foreground=unavailable");
-        else result.Append("foreground pid=").Append(foregroundInfo.Pid).Append(" process=").Append(foregroundInfo.ProcessName)
-            .Append(" class=").Append(foregroundInfo.ClassName).Append(" title=").Append(foregroundInfo.Title)
-            .Append(" bounds=").Append(Format(foregroundInfo.Bounds)).AppendLine();
+        uint foregroundPid;
+        uint foregroundThread = GetWindowThreadProcessId(foreground, out foregroundPid);
+        string foregroundProcess = "unavailable";
+        try { foregroundProcess = Process.GetProcessById((int)foregroundPid).ProcessName; } catch { }
+        Rect foregroundBounds;
+        bool hasForegroundBounds = GetWindowRect(foreground, out foregroundBounds);
+        result.Append("foreground pid=").Append(foregroundPid).Append(" thread=").Append(foregroundThread)
+            .Append(" process=").Append(foregroundProcess)
+            .Append(" hwnd=0x").Append(foreground.ToInt64().ToString("X"))
+            .Append(" class=").Append(ReadClassName(foreground)).Append(" title=").Append(ReadTitle(foreground, Math.Max(1, GetWindowTextLength(foreground))))
+            .Append(" bounds=").Append(hasForegroundBounds ? Format(foregroundBounds) : "unavailable").AppendLine();
+
+        int ownedVisibleDialogs = 0;
+        int readyDialogs = 0;
+        foreach (WindowInfo dialog in windows) {
+            DialogReadiness readiness = InspectDialog(dialog.Handle, targetPid, foreground);
+            if (readiness.IsOwnedVisibleEnabled) ownedVisibleDialogs++;
+            if (readiness.IsReady) readyDialogs++;
+        }
+        result.Append("nativeChooserReady=").Append(ownedVisibleDialogs == 1 && readyDialogs == 1).AppendLine();
 
         var targetWindows = windows.FindAll(window => window.Pid == targetPid);
         foreach (WindowInfo target in targetWindows)
@@ -198,6 +220,41 @@ public static class GuiDesktopWindowProbe {
             + " bounds=" + Format(foregroundBounds) + " overlaps=" + String.Join(";", overlaps);
     }
 
+    public static bool IsNativeChooserReady(int targetPid) {
+        IntPtr foreground = GetForegroundWindow();
+        int ownedVisibleDialogs = 0;
+        int readyDialogs = 0;
+        EnumWindows((handle, parameter) => {
+            DialogReadiness readiness = InspectDialog(handle, targetPid, foreground);
+            if (readiness.IsOwnedVisibleEnabled) ownedVisibleDialogs++;
+            if (readiness.IsReady) readyDialogs++;
+            return true;
+        }, IntPtr.Zero);
+        return ownedVisibleDialogs == 1 && readyDialogs == 1;
+    }
+
+    private static DialogReadiness InspectDialog(IntPtr handle, int targetPid, IntPtr foreground) {
+        var result = new DialogReadiness();
+        uint pid;
+        GetWindowThreadProcessId(handle, out pid);
+        if (pid != (uint)targetPid || !IsWindowVisible(handle) || !IsWindowEnabled(handle)
+                || !String.Equals(ReadClassName(handle), "#32770", StringComparison.Ordinal)) return result;
+        IntPtr owner = GetWindow(handle, 4);
+        uint ownerPid = 0;
+        if (owner != IntPtr.Zero) GetWindowThreadProcessId(owner, out ownerPid);
+        if (owner == IntPtr.Zero || ownerPid != (uint)targetPid) return result;
+        result.IsOwnedVisibleEnabled = true;
+        if (!(foreground == handle || IsChild(handle, foreground))) return result;
+        IntPtr cancel = GetDlgItem(handle, 2);
+        if (cancel == IntPtr.Zero || !IsWindowVisible(cancel) || !IsWindowEnabled(cancel)
+                || GetDlgCtrlID(cancel) != 2 || !String.Equals(ReadClassName(cancel), "Button", StringComparison.Ordinal)) return result;
+        Rect dialogBounds, cancelBounds;
+        if (!GetWindowRect(handle, out dialogBounds) || !GetWindowRect(cancel, out cancelBounds)) return result;
+        result.IsReady = cancelBounds.Left >= dialogBounds.Left && cancelBounds.Top >= dialogBounds.Top
+            && cancelBounds.Right <= dialogBounds.Right && cancelBounds.Bottom <= dialogBounds.Bottom;
+        return result;
+    }
+
     private static string ReadClassName(IntPtr handle) {
         var className = new StringBuilder(256);
         GetClassName(handle, className, className.Capacity);
@@ -246,5 +303,14 @@ if ($Watch) {
     $logWriter.Dispose()
   }
 } else {
+  if ($WaitForNativeChooser) {
+    if ($DeadlineUtcTicks -le 0) { throw 'DeadlineUtcTicks is required with WaitForNativeChooser.' }
+    do {
+      $nowTicks = [DateTime]::UtcNow.Ticks
+      $ready = [GuiDesktopWindowProbe]::IsNativeChooserReady($TargetPid)
+      if ($ready -or $nowTicks -ge $DeadlineUtcTicks) { break }
+      Start-Sleep -Milliseconds 25
+    } while ([DateTime]::UtcNow.Ticks -lt $DeadlineUtcTicks)
+  }
   [GuiDesktopWindowProbe]::Capture($TargetPid)
 }
