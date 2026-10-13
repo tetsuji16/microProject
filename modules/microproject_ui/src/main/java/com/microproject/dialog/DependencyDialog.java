@@ -72,8 +72,6 @@ public class DependencyDialog extends AbstractDialog {
 		if (result = dialog.doModal()) {
 			if (dialog.remove) {
 				DependencyService.getInstance().remove(dependency,dialog,true);
-			} else {
-				DependencyService.getInstance().update(dependency,dialog);
 			}
 		}
 		dialog.dependency = null;

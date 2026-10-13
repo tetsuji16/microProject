@@ -84,7 +84,6 @@ public class DependencySetFieldsEdit extends AbstractUndoableEdit{
 			DependencyService.getInstance().setFields(dependency,lag,type,this);
 			lag=oldLag;
 			type=oldType;
-			DependencyService.getInstance().update(dependency,this);
 		} catch (InvalidAssociationException e) {
 			logger.log(Level.WARNING, "Failed to change dependency fields", e);
 			if (undo) {
