@@ -103,7 +103,10 @@ jobs:
         run: |
           set -euo pipefail
           root="build/releases/v${{ steps.version.outputs.release_version }}"; mkdir -p "$root"
-          jpackage --type app-image --name microProject --app-version '${{ steps.version.outputs.base_version }}' --vendor 'microProject contributors' --description 'microProject desktop project management software' --input "build/releases/v${{ steps.version.outputs.release_version }}/jpackage-input" --main-jar microproject_bootstrap.jar --main-class com.microproject.bootstrap.MicroProjectUpdater --java-options '-Dmicroproject.updates.enabled=${{ steps.version.outputs.channel == 'stable' }}' --dest "$root" --verbose
+          # CFBundleVersion requires a positive first component; offset the semantic major for macOS metadata only.
+          IFS=. read -r major minor patch <<< '${{ steps.version.outputs.base_version }}'
+          macos_app_version="$((10#$major + 1)).$minor.$patch"
+          jpackage --type app-image --name microProject --app-version "$macos_app_version" --vendor 'microProject contributors' --description 'microProject desktop project management software' --input "build/releases/v${{ steps.version.outputs.release_version }}/jpackage-input" --main-jar microproject_bootstrap.jar --main-class com.microproject.bootstrap.MicroProjectUpdater --java-options '-Dmicroproject.updates.enabled=${{ steps.version.outputs.channel == 'stable' }}' --dest "$root" --verbose
           test -d "$root/microProject.app"
           (cd "$root" && ditto -c -k --sequesterRsrc --keepParent microProject.app "microProject-${{ steps.version.outputs.release_version }}-macos-aarch64.zip")
       - name: Upload OS package
