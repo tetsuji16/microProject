@@ -287,7 +287,7 @@ public final class CriticalChainService {
 			plan.apply(editSupport);
 			Analysis analysis = analyze(project, plan, settings, resources);
 			boolean allResources = resources == null || resources.isEmpty();
-			Baseline baseline = new Baseline(project.getEnd(), analysis.projectBufferMillis(), settings.getBufferFraction(),
+			Baseline baseline = new Baseline(currentProjectFinish(project), analysis.projectBufferMillis(), settings.getBufferFraction(),
 				analysis.criticalTaskIds(), taskStarts(project, analysis.feedingBufferMillis().keySet()), analysis.feedingBufferMillis(),
 				allResources, allResources ? List.of() : resourceIds(resources));
 			project.removeTransientDocumentState(Baseline.class);
@@ -311,7 +311,7 @@ public final class CriticalChainService {
 		EditSupport editSupport = project.getUndoController().getEditSupport();
 		State before = captureState(project);
 		Baseline baseline = before.baseline();
-		boolean baselineEdited = baseline != null && project.getEnd() != baseline.projectFinishMillis();
+		boolean baselineEdited = baseline != null && currentProjectFinish(project) != baseline.projectFinishMillis();
 		if (editSupport != null) editSupport.beginUpdate();
 		try {
 			new ResourceLevelingService().clear(project, editSupport);
@@ -458,7 +458,7 @@ public final class CriticalChainService {
 		// buffer policy did not change.
 		boolean baselineMatches = baseline != null && Double.compare(baseline.bufferFraction(), settings.getBufferFraction()) == 0;
 		Buffer projectBuffer = buffer(baselineMatches ? baseline.projectBufferMillis() : recommendedProjectBuffer,
-			baselineMatches ? Math.max(0L, project.getEnd() - baseline.projectFinishMillis()) : 0L);
+			baselineMatches ? Math.max(0L, currentProjectFinish(project) - baseline.projectFinishMillis()) : 0L);
 		Map<Long, Buffer> feedingBuffers = LinkedHashMap.newLinkedHashMap(feeding.size());
 		for (Map.Entry<Long, Long> entry : feeding.entrySet()) {
 			long planned = baselineMatches ? baseline.feedingBufferMillis().getOrDefault(entry.getKey(), entry.getValue()) : entry.getValue();
@@ -468,6 +468,16 @@ public final class CriticalChainService {
 		}
 		Map<Long, Buffer> resourceBuffers = resourceBuffers(selectedResources, settings, project);
 		return new Analysis(plan, ids, recommendedProjectBuffer, feeding, projectBuffer, feedingBuffers, resourcePredecessors, graphEdges, resourceBuffers);
+	}
+
+	private static long currentProjectFinish(Project project) {
+		// Task-sheet edits update leaf intervals immediately, while Project.end is
+		// the scheduling boundary and can remain stale until a full recalculation.
+		long finish = Long.MIN_VALUE;
+		for (Task task : project.getTaskList()) {
+			if (!task.isSummary()) finish = Math.max(finish, task.getEnd());
+		}
+		return finish == Long.MIN_VALUE ? project.getEnd() : finish;
 	}
 
 	private static Map<Long, Buffer> resourceBuffers(Collection<? extends Resource> selectedResources, Settings settings, Project project) {
