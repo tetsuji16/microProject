@@ -58,7 +58,7 @@ final class RibbonButtonStyler {
 	private static final int INLINE_ICON_TEXT_GAP = 4;
 	private static final int LARGE_ICON_TEXT_GAP = 4;
 	private static final int LARGE_LONG_LABEL_WIDTH = 92;
-	private static final int SPLIT_BUTTON_EXTRA_WIDTH = 18;
+	static final int SPLIT_BUTTON_EXTRA_WIDTH = 18;
 
 	AbstractButton styleActionButton(AbstractButton button, boolean large) {
 		return styleActionButton(button, large ? "large" : "small");

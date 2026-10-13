@@ -45,6 +45,15 @@ public abstract class AbstractContour implements Cloneable{
 	}
 	public abstract boolean isPersonal();
 	public abstract long calcTotalWork(long assignmentDuration);
+	/**
+	 * Returns the assignment duration needed for the requested work at the given
+	 * assignment units. The default is the legacy flat duration-per-unit rule.
+	 * Non-flat implementations must override this when their inverse is defined;
+	 * personal/timephased contours do not yet provide an exact inverse.
+	 */
+	public long calcDurationForWork(long work, double assignmentUnits) {
+		return assignmentUnits <= 0.0D ? 0L : Math.round(work / assignmentUnits);
+	}
 	public AbstractContour adjustDuration(long newDuration, long actualDuration) {return this;} // only personal contours will treat this
 	public AbstractContour adjustUnits(double multiplier, long startingFrom) {return this;} // only personal contours will treat this
 	public AbstractContour contourAdjustWork(double multiplier, long actualDuration) {return this;}// only personal contours will treat this

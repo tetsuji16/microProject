@@ -138,7 +138,9 @@ import com.microproject.server.data.DistributionData;
 import com.microproject.session.FileHelper;
 import com.microproject.strings.Messages;
 import com.microproject.transaction.MultipleTransactionManager;
+import com.microproject.transaction.ProjectMutationState;
 import com.microproject.undo.DataFactoryUndoController;
+import com.microproject.undo.EditSupport;
 import com.microproject.util.DateTime;
 import com.microproject.util.Environment;
 import com.microproject.workspace.SavableToWorkspace;
@@ -164,6 +166,10 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	private transient MultipleTransactionManager multipleTransactionManager = new MultipleTransactionManager();
 	private transient ObjectEventManager objectEventManager = new ObjectEventManager();
 	private transient ObjectSelectionEventManager objectSelectionEventManager = new ObjectSelectionEventManager();
+	private transient int eventBatchDepth;
+	private transient List<AdditionalObjectEventManager> additionalEventManagers = new ArrayList<>();
+	private transient com.microproject.undo.EditSupport.Activation undoBatchActivation;
+	private transient List<EditSupport.Checkpoint> undoBatchCheckpoints = new ArrayList<>();
 
 	private transient int taskIdCounter = 0;
 	private transient boolean isGroupDirty = false;
@@ -254,6 +260,107 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 	public final synchronized void removeTransientDocumentState(Class<?> type) {
 		if (transientDocumentState != null) transientDocumentState.remove(type);
+	}
+
+	/** Returns this document's transient mutation barrier and committed revision. */
+	public final ProjectMutationState getMutationState() {
+		return getOrCreateTransientDocumentState(ProjectMutationState.class, ProjectMutationState::new);
+	}
+
+	/** Runs one model command at the project revision/event publication boundary. */
+	public boolean runModelMutation(ModelMutation operation) {
+		java.util.Objects.requireNonNull(operation, "operation");
+		return runModelCommand(operation::apply, Boolean.TRUE::equals, changed -> Boolean.TRUE);
+	}
+
+	/** Runs a typed command through the shared project barrier and event-batch lifecycle. */
+	public <T, E extends Exception> T runModelCommand(ModelCommand<T, E> operation,
+			java.util.function.Predicate<? super T> changedResult,
+			java.util.function.UnaryOperator<T> resultWhenEventsWereEmitted) throws E {
+		return runModelCommand(operation, changedResult, resultWhenEventsWereEmitted, List.of());
+	}
+
+	/** Runs a command while additional document observers join the same revisioned publication batch. */
+	public <T, E extends Exception> T runModelCommand(ModelCommand<T, E> operation,
+			java.util.function.Predicate<? super T> changedResult,
+			java.util.function.UnaryOperator<T> resultWhenEventsWereEmitted,
+			Collection<AdditionalObjectEventManager> additionalManagers) throws E {
+		java.util.Objects.requireNonNull(operation, "operation");
+		java.util.Objects.requireNonNull(changedResult, "changedResult");
+		java.util.Objects.requireNonNull(resultWhenEventsWereEmitted, "resultWhenEventsWereEmitted");
+		java.util.Objects.requireNonNull(additionalManagers, "additionalManagers");
+		ProjectMutationState state = getMutationState();
+		ProjectMutationState.Scope mutation = state.begin();
+		int initialPendingEvents = pendingEventCount();
+		beginEventBatch(additionalManagers);
+		boolean[] applied = { false };
+		T result;
+		PendingEventBatch pending;
+		try {
+			result = operation.apply(() -> applied[0] = true);
+		} catch (RuntimeException | Error failure) {
+			finishModelCommandFailure(mutation, initialPendingEvents, applied[0], failure);
+			throw failure;
+		} catch (Exception failure) {
+			finishModelCommandFailure(mutation, initialPendingEvents, applied[0], failure);
+			@SuppressWarnings("unchecked") E typedFailure = (E) failure;
+			throw typedFailure;
+		}
+		boolean hasFacts = pendingEventCount() > initialPendingEvents;
+		if (hasFacts) result = resultWhenEventsWereEmitted.apply(result);
+		boolean changed = changedResult.test(result) || hasFacts;
+		if (changed && !hasFacts)
+			fireScheduleChanged(this, com.microproject.pm.scheduling.ScheduleEvent.SCHEDULE);
+		pending = commitEventBatch(mutation, changed);
+		publishEventBatch(pending);
+		return result;
+	}
+
+	public record AdditionalObjectEventManager(ObjectEventManager manager, ResourcePool revisionOwner, Object source,
+			List<?> refreshObjects) {
+		public AdditionalObjectEventManager {
+			java.util.Objects.requireNonNull(manager, "manager");
+			java.util.Objects.requireNonNull(revisionOwner, "revisionOwner");
+			java.util.Objects.requireNonNull(source, "source");
+			if (manager != revisionOwner.getObjectEventManager())
+				throw new IllegalArgumentException("The event manager must belong to its revision owner");
+			refreshObjects = List.copyOf(refreshObjects);
+		}
+	}
+
+	private void finishModelCommandFailure(ProjectMutationState.Scope mutation, int initialPendingEvents,
+			boolean applied, Throwable failure) {
+		try {
+			boolean hasFacts = pendingEventCount() > initialPendingEvents;
+			if (applied && !hasFacts)
+				fireScheduleChanged(this, com.microproject.pm.scheduling.ScheduleEvent.SCHEDULE);
+			if (applied || hasFacts) {
+				PendingEventBatch pending = commitEventBatch(mutation, true);
+				try {
+					publishEventBatch(pending);
+				} catch (Throwable publicationFailure) {
+					failure.addSuppressed(publicationFailure);
+				}
+			} else {
+				try {
+					endEventBatch(false);
+				} finally {
+					mutation.close();
+				}
+			}
+		} catch (Throwable cleanupFailure) {
+			if (cleanupFailure != failure) failure.addSuppressed(cleanupFailure);
+		}
+	}
+
+	@FunctionalInterface
+	public interface ModelMutation {
+		boolean apply(Runnable markApplied);
+	}
+
+	@FunctionalInterface
+	public interface ModelCommand<T, E extends Exception> {
+		T apply(Runnable markApplied) throws E;
 	}
 
 	public NodeModel getTaskModel() {
@@ -559,10 +666,10 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	 * @return Returns the resourcePool.
 	 */
 	public ResourcePool getResourcePool() {
-		return resourcePool;
+		return com.microproject.transaction.ProjectMutationState.coordinated(() -> resourcePool);
 	}
     public void setResourcePool(ResourcePool resourcePool) {
-        this.resourcePool = resourcePool;
+        com.microproject.transaction.ProjectMutationState.coordinated(() -> this.resourcePool = resourcePool);
     }
 
 	public String getSharedResourcePoolFile() {
@@ -672,10 +779,12 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	 * @param workCalendar
 	 */
 	public void setWorkCalendar(WorkCalendar workCalendar) {
-		if (this.workCalendar != null)
-			((WorkingCalendar)this.workCalendar).removeObjectUsing(this);
-		this.workCalendar = workCalendar;
-		((WorkingCalendar)this.workCalendar).addObjectUsing(this);
+		com.microproject.transaction.ProjectMutationState.coordinated(() -> {
+			if (this.workCalendar != null)
+				((WorkingCalendar)this.workCalendar).removeObjectUsing(this);
+			this.workCalendar = workCalendar;
+			((WorkingCalendar)this.workCalendar).addObjectUsing(this);
+		});
 	}
 
 	public WorkCalendar getEffectiveWorkCalendar() {
@@ -1051,6 +1160,197 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	public void fireScheduleChanged(Object source, String type, Object object) {
 		scheduleEventManager.fire(source,type,object);
 	}
+	/** Starts a project-local observer batch for an atomic model transaction. */
+	public void beginEventBatch() {
+		beginEventBatch(List.of());
+	}
+	private synchronized void beginEventBatch(Collection<AdditionalObjectEventManager> requestedManagers) {
+		if (eventBatchDepth == 0 && undoController != null) {
+			undoBatchActivation = undoController.getEditSupport().beginCommand();
+		}
+		if (undoBatchActivation != null)
+			undoBatchCheckpoints.add(undoController.getEditSupport().checkpoint(undoBatchActivation.group()));
+		objectEventManager.beginBatch();
+		scheduleEventManager.beginBatch();
+		for (AdditionalObjectEventManager participant : additionalEventManagers)
+			participant.manager().beginBatch();
+		eventBatchDepth++;
+		for (AdditionalObjectEventManager participant : requestedManagers) {
+			int existingIndex = -1;
+			for (int index = 0; index < additionalEventManagers.size(); index++)
+				if (additionalEventManagers.get(index).manager() == participant.manager()) {
+					existingIndex = index;
+					break;
+				}
+			if (existingIndex < 0) {
+				for (int depth = 0; depth < eventBatchDepth; depth++)
+					participant.manager().beginBatch();
+				additionalEventManagers.add(participant);
+			} else {
+				AdditionalObjectEventManager existing = additionalEventManagers.get(existingIndex);
+				List<Object> refreshObjects = new ArrayList<>(existing.refreshObjects());
+				for (Object refreshObject : participant.refreshObjects())
+					if (refreshObjects.stream().noneMatch(existingObject -> existingObject == refreshObject))
+						refreshObjects.add(refreshObject);
+				additionalEventManagers.set(existingIndex, new AdditionalObjectEventManager(existing.manager(),
+					existing.revisionOwner(), existing.source(), refreshObjects));
+			}
+		}
+	}
+	/** Number of deferred observer facts in the current nested transaction batches. */
+	public int pendingEventCount() {
+		int pending = objectEventManager.pendingEventCount() + scheduleEventManager.pendingEventCount();
+		for (AdditionalObjectEventManager participant : additionalEventManagers)
+			pending += participant.manager().pendingEventCount();
+		return pending;
+	}
+	/** Completes the current observer batch, publishing only when the model committed. */
+	public void endEventBatch(boolean publish) {
+		publishEventBatch(detachEventBatch(publish));
+	}
+	/** Detaches both observer batches so a committed revision cannot mix with a later mutation. */
+	public PendingEventBatch detachEventBatch(boolean publish) {
+		com.microproject.document.ObjectEventManager.PendingBatch objectEvents = objectEventManager.detachBatch(publish);
+		com.microproject.pm.scheduling.ScheduleEventManager.PendingBatch scheduleEvents = scheduleEventManager.detachBatch(publish);
+		List<AdditionalPendingBatch> additionalEvents = new ArrayList<>();
+		com.microproject.undo.EditSupport.Group undoGroup = null;
+		synchronized (this) {
+			if (undoBatchActivation != null) {
+				EditSupport.Checkpoint checkpoint = undoBatchCheckpoints.removeLast();
+				if (!publish) undoController.getEditSupport().discardSince(undoBatchActivation.group(), checkpoint);
+			}
+			for (AdditionalObjectEventManager participant : additionalEventManagers) {
+				ObjectEventManager.PendingBatch events = participant.manager().detachBatch(publish);
+				if (events != null) additionalEvents.add(new AdditionalPendingBatch(participant, events,
+					additionalPublicationRevision(participant)));
+			}
+			if (--eventBatchDepth == 0) {
+				if (undoBatchActivation != null) {
+					undoGroup = undoBatchActivation.group();
+					undoBatchActivation.close();
+					undoBatchActivation = null;
+				}
+				additionalEventManagers.clear();
+			}
+		}
+		return new PendingEventBatch(getMutationState().revision(), objectEvents, scheduleEvents,
+			List.copyOf(additionalEvents), undoGroup, false);
+	}
+	private long additionalPublicationRevision(AdditionalObjectEventManager participant) {
+		return participant.revisionOwner().getCoordinationRevision();
+	}
+	/** Atomically detaches notifications and commits the revision before releasing the mutation barrier. */
+	public PendingEventBatch commitEventBatch(com.microproject.transaction.ProjectMutationState.Scope mutation,
+		boolean changed) {
+		PendingEventBatch detached = detachEventBatch(true);
+		com.microproject.document.ObjectEventManager.PendingBatch objectEvents = detached.objectEvents();
+		com.microproject.pm.scheduling.ScheduleEventManager.PendingBatch scheduleEvents = detached.scheduleEvents();
+		if (changed && ((objectEvents != null && !objectEvents.isPublishable())
+				|| (scheduleEvents != null && !scheduleEvents.isPublishable()))) {
+			// A nested operation rolled back its accumulated facts. Do not publish
+			// potentially stale pooled facts; the committed outer state needs a fresh
+			// schedule invalidation instead.
+			objectEvents = null;
+			scheduleEventManager.beginBatch();
+			scheduleEventManager.fire(this, com.microproject.pm.scheduling.ScheduleEvent.SCHEDULE);
+			scheduleEvents = scheduleEventManager.detachBatch(true);
+		}
+		List<AdditionalPendingBatch> additionalEvents = new ArrayList<>(detached.additionalEvents());
+		if (changed) {
+			for (int index = 0; index < additionalEvents.size(); index++) {
+				AdditionalPendingBatch additional = additionalEvents.get(index);
+				if (!additional.events().isPublishable()) {
+					ObjectEventManager manager = additional.participant().manager();
+					manager.beginBatch();
+					for (Object refreshObject : additional.participant().refreshObjects())
+						manager.fireUpdateEvent(additional.participant().source(), refreshObject);
+					additionalEvents.set(index, new AdditionalPendingBatch(additional.participant(), manager.detachBatch(true)));
+				}
+			}
+		}
+		for (int index = 0; index < additionalEvents.size(); index++) {
+			AdditionalPendingBatch additional = additionalEvents.get(index);
+			if (additional.events().isPublishable() && additional.events().hasEvents())
+				additionalEvents.set(index, new AdditionalPendingBatch(additional.participant(), additional.events(),
+					additional.participant().revisionOwner().advanceCoordinationRevision()));
+		}
+		mutation.commit(changed);
+		if (changed && detached.undoGroup() != null)
+			undoController.getEditSupport().reserveCommit(detached.undoGroup());
+		long revision = mutation.projectedRevision();
+		boolean coordinatedPublication = com.microproject.transaction.ProjectMutationState.shouldDeferPublication();
+		boolean hasPublication = objectEvents != null || scheduleEvents != null || !additionalEvents.isEmpty()
+			|| detached.undoGroup() != null;
+		PendingEventBatch pending = new PendingEventBatch(revision, objectEvents, scheduleEvents,
+			List.copyOf(additionalEvents), detached.undoGroup(), coordinatedPublication);
+		if (hasPublication && coordinatedPublication) {
+			mutation.afterCommitRevision(committedRevision -> {
+				if (committedRevision != revision)
+					throw new IllegalStateException("Project publication revision changed before commit");
+				return () -> publishEventBatchNow(pending);
+			});
+		}
+		mutation.closeAndGetRevision();
+		return pending;
+	}
+	/** Dispatches events after the mutation barrier is released. */
+	public void publishEventBatch(PendingEventBatch batch) {
+		if (batch == null) return;
+		if (batch.coordinatedPublication()) return;
+		publishEventBatchNow(batch);
+	}
+	private void publishEventBatchNow(PendingEventBatch batch) {
+		if (batch == null) return;
+		com.microproject.undo.EditSupport support = batch.undoGroup() == null ? null : undoController.getEditSupport();
+		com.microproject.undo.EditSupport.Activation activation = support == null ? null
+			: support.activatePublication(batch.undoGroup());
+		Throwable failure = null;
+		try {
+			try {
+				objectEventManager.publishBatch(batch.objectEvents(), batch.revision());
+			} catch (Throwable current) {
+				failure = current;
+			}
+			try {
+				scheduleEventManager.publishBatch(batch.scheduleEvents(), batch.revision());
+			} catch (Throwable current) {
+				if (failure == null) failure = current;
+				else failure.addSuppressed(current);
+			}
+			for (AdditionalPendingBatch additional : batch.additionalEvents()) {
+				try {
+				additional.participant().manager().publishBatch(additional.events(), additional.revision());
+				} catch (Throwable current) {
+					if (failure == null) failure = current;
+					else failure.addSuppressed(current);
+				}
+			}
+			} finally {
+			if (activation != null) {
+				activation.close();
+				try { support.completePublication(batch.undoGroup()); }
+				catch (Throwable current) {
+					if (failure == null) failure = current; else failure.addSuppressed(current);
+				}
+			}
+		}
+		if (failure instanceof Error error) throw error;
+		if (failure instanceof RuntimeException runtime) throw runtime;
+		if (failure != null) throw new IllegalStateException("Project event publication failed", failure);
+	}
+	public record PendingEventBatch(
+		long revision,
+		com.microproject.document.ObjectEventManager.PendingBatch objectEvents,
+		com.microproject.pm.scheduling.ScheduleEventManager.PendingBatch scheduleEvents,
+		List<AdditionalPendingBatch> additionalEvents,
+		com.microproject.undo.EditSupport.Group undoGroup,
+		boolean coordinatedPublication) { }
+	public record AdditionalPendingBatch(AdditionalObjectEventManager participant,
+		ObjectEventManager.PendingBatch events, long revision) {
+		public AdditionalPendingBatch(AdditionalObjectEventManager participant, ObjectEventManager.PendingBatch events) {
+			this(participant, events, 0L);
+		}
+	}
 	public void fireBaselineChanged(Object source, Object object, Integer baselineNumber, boolean save) {
 		scheduleEventManager.fireBaselineChanged(source, null, baselineNumber, save);
 	}
@@ -1399,6 +1699,10 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		objectEventManager = new ObjectEventManager();
 		objectSelectionEventManager = new ObjectSelectionEventManager();
 		scheduleEventManager = new ScheduleEventManager();
+		eventBatchDepth = 0;
+		additionalEventManagers = new ArrayList<>();
+		undoBatchActivation = null;
+		undoBatchCheckpoints = new ArrayList<>();
 		multipleTransactionManager = new MultipleTransactionManager();
 		projectListenerList=new CopyOnWriteArrayList<>();
 	    taskOutlines=new OutlineCollectionImpl(Settings.numHierarchies(),this);
@@ -1830,6 +2134,10 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	}
 	public Document invalidateCalendar() {
 		markAllTasksAsNeedingRecalculation(false);
+		return this;
+	}
+	@Override
+	public Document getCalendarOwnerDocument() {
 		return this;
 	}
 

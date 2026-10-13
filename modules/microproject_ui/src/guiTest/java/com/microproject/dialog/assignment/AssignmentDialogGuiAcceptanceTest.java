@@ -22,7 +22,13 @@ import java.awt.KeyboardFocusManager;
 import java.awt.Window;
 import java.awt.event.KeyEvent;
 import java.io.File;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
+import java.lang.management.ThreadMXBean;
 import java.util.ResourceBundle;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import javax.swing.AbstractButton;
 import javax.swing.SwingUtilities;
@@ -235,21 +241,103 @@ class AssignmentDialogGuiAcceptanceTest {
 		activateWindow(robot);
 		click(robot, cellBounds(taskSheet, rowForTask(taskSheet, task), nameColumn(taskSheet)));
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
-		GuiAcceptanceSupport.await(() -> task.findAssignment(replacement) == null,
-			"Ctrl+Z did not remove the replacement assignment");
+		try {
+			GuiAcceptanceSupport.await(() -> task.findAssignment(replacement) == null,
+				"Ctrl+Z did not remove the replacement assignment");
+		} catch (AssertionError failure) {
+			failure.addSuppressed(new AssertionError(assignmentUndoDiagnostics(project, task, source, replacement)));
+			throw failure;
+		}
 		GuiAcceptanceSupport.await(() -> source.getRemainingWork() == remainingWork,
 			"Ctrl+Z did not restore the source remaining work");
 		assertSame(source, task.findAssignment(original));
 		assertEquals(actualWork, source.getActualWork(null));
 		assertEquals(remainingWork, source.getRemainingWork());
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
-		GuiAcceptanceSupport.await(() -> task.findAssignment(replacement) != null
-				&& source.getRemainingWork() == 0L,
-			"Ctrl+Y did not restore the replacement assignment and source remaining work");
+		try {
+			GuiAcceptanceSupport.await(() -> task.findAssignment(replacement) != null
+					&& source.getRemainingWork() == 0L,
+				"Ctrl+Y did not restore the replacement assignment and source remaining work");
+		} catch (AssertionError failure) {
+			failure.addSuppressed(new AssertionError(assignmentRedoDiagnostics(project, task, source, replacement)));
+			throw failure;
+		}
 		assertSame(source, task.findAssignment(original));
 		assertEquals(actualWork, source.getActualWork(null));
 		assertEquals(0L, source.getRemainingWork());
 		assertEquals(remainingWork, task.findAssignment(replacement).getRemainingWork());
+	}
+
+	private String assignmentRedoDiagnostics(Project project, NormalTask task, Assignment source,
+			Resource replacementResource) throws Exception {
+		CompletableFuture<String> result = new CompletableFuture<>();
+		SwingUtilities.invokeLater(() -> {
+			try {
+			var frame = manager.getCurrentFrame();
+			var frameUndo = frame == null ? null : frame.getUndoController();
+			Assignment replacement = task.findAssignment(replacementResource);
+			KeyboardFocusManager focus = KeyboardFocusManager.getCurrentKeyboardFocusManager();
+			result.complete("documentActive=" + manager.isDocumentActive()
+					+ ", frameActive=" + (frame != null && frame.isActive())
+					+ ", frameProjectMatches=" + (frame != null && frame.getProject() == project)
+					+ ", frameUndoMatchesProject=" + (frameUndo == project.getUndoController())
+					+ ", canUndo=" + project.getUndoController().canUndo()
+					+ ", canRedo=" + project.getUndoController().canRedo()
+					+ ", pendingHistory=" + project.getUndoController().getEditSupport().hasPendingHistory()
+					+ ", undoName=" + project.getUndoController().getUndoName()
+					+ ", redoName=" + project.getUndoController().getRedoName()
+					+ ", editNames=" + project.getUndoController().getEditNames()
+					+ ", activeWindowClass=" + (focus.getActiveWindow() == null ? "null"
+							: focus.getActiveWindow().getClass().getName())
+					+ ", focusOwnerClass=" + (focus.getFocusOwner() == null ? "null"
+							: focus.getFocusOwner().getClass().getName())
+					+ ", source=" + describeAssignment(source)
+					+ ", replacement=" + describeAssignment(replacement));
+				} catch (Throwable failure) {
+					result.completeExceptionally(failure);
+				}
+		});
+		try {
+			return "EDT snapshot=" + result.get(2, TimeUnit.SECONDS);
+		} catch (TimeoutException timeout) {
+			return "EDT snapshot timed out after 2 seconds; thread state=" + blockedThreadDiagnostics();
+		}
+	}
+
+	private String assignmentUndoDiagnostics(Project project, NormalTask task, Assignment source,
+			Resource replacementResource) throws Exception {
+		return "Undo failure; " + assignmentRedoDiagnostics(project, task, source, replacementResource);
+	}
+
+	private static String blockedThreadDiagnostics() {
+		ThreadMXBean threads = ManagementFactory.getThreadMXBean();
+		long[] ids = threads.getAllThreadIds();
+		ThreadInfo[] infos = threads.getThreadInfo(ids, 12);
+		StringBuilder result = new StringBuilder();
+		int included = 0;
+		for (ThreadInfo info : infos) {
+			if (info == null) continue;
+			String name = info.getThreadName();
+			if (!(name.startsWith("AWT-EventQueue") || name.startsWith("Test worker")
+					|| name.startsWith("AWT-Windows") || info.getThreadState() == Thread.State.BLOCKED)) continue;
+			if (included++ >= 8) break;
+			result.append("\n").append(name).append(" state=").append(info.getThreadState())
+				.append(" lock=").append(info.getLockName())
+				.append(" lockOwnerId=").append(info.getLockOwnerId())
+				.append(" lockOwner=").append(info.getLockOwnerName());
+			for (StackTraceElement frame : info.getStackTrace())
+				result.append("\n  at ").append(frame);
+		}
+		return result.length() == 0 ? "no EDT/test/blocked thread snapshot available" : result.toString();
+	}
+
+	private static String describeAssignment(Assignment assignment) {
+		if (assignment == null) return "null";
+		return "id=" + assignment.getUniqueId()
+				+ "/resource=" + assignment.getResource().getUniqueId()
+				+ "/work=" + assignment.getWork(null)
+				+ "/actual=" + assignment.getActualWork(null)
+				+ "/remaining=" + assignment.getRemainingWork();
 	}
 
 	private void showProject(Project project) throws Exception {

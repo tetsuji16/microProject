@@ -274,6 +274,7 @@ public class MicrosoftImporter extends FileImporter {
 		setProgress(1f);
 
 	}
+
 	/**
 	 * This method imports an entire mpx, mpp or xml file
 	 *

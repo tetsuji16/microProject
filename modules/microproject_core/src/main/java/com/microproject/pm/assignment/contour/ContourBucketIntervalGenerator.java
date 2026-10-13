@@ -56,14 +56,17 @@ public class ContourBucketIntervalGenerator implements IntervalGenerator {
 		contourBuckets = assignment.getContour(type);
 
 		assignmentDuration = assignment.getDurationMillis();
-		assignmentActualDuration = assignment.getActualDuration();
+		boolean importedWorkProfile = assignment.hasImportedTimephasedWork()
+			&& (type == com.microproject.pm.assignment.HasTimeDistributedData.ACTUAL_WORK
+				|| type == com.microproject.pm.assignment.HasTimeDistributedData.REMAINING_WORK);
+		assignmentActualDuration = importedWorkProfile ? 0L : assignment.getActualDuration();
 		long assignmentStart = assignment.getStart();
 		end = assignmentStart; // treat 0th bucket as all time before contour begins
 		
 		// CalendarDefinition represents reverse-scheduled dates as negative values.
 		// Keep the same contour traversal; WorkCalendar.add() reverses the signed
 		// timeline, including the split handling below.
-		if (assignment.getDependencyStart() > assignmentStart && assignment.getPercentComplete() > 0.0D) { // if a split caused by remaining work being pushed out by a dependency
+		if (!importedWorkProfile && assignment.getDependencyStart() > assignmentStart && assignment.getPercentComplete() > 0.0D) { // if a split caused by remaining work being pushed out by a dependency
 			durationLeftUntilRemainingStartDependency = workCalendar.compare(assignment.getDependencyStart(),assignmentStart,false);
 			if (durationLeftUntilRemainingStartDependency > 0) {
 				if (durationLeftUntilRemainingStartDependency > assignmentActualDuration) {

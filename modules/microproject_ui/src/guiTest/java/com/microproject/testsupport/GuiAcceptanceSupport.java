@@ -7,11 +7,14 @@ package com.microproject.testsupport;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.awt.Robot;
+import java.awt.event.KeyEvent;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BooleanSupplier;
+import javax.swing.JComboBox;
 import javax.swing.SwingUtilities;
 
 /** Shared deterministic waits for non-headless Swing acceptance tests. */
@@ -26,6 +29,22 @@ public final class GuiAcceptanceSupport {
 			Thread.sleep(25);
 		}
 		assertTrue(false, message);
+	}
+
+	/** Selects a combo-box item through its physical dropdown and keyboard route. */
+	public static void selectComboBoxItem(Robot robot, JComboBox<?> combo, int index) throws Exception {
+		if (combo == null || index < 0 || index >= combo.getItemCount())
+			throw new AssertionError("Invalid physical combo-box selection index " + index);
+		WindowAcceptanceAssertions.clickComponent(robot, combo);
+		robot.keyPress(KeyEvent.VK_HOME);
+		robot.keyRelease(KeyEvent.VK_HOME);
+		for (int current = 0; current < index; current++) {
+			robot.keyPress(KeyEvent.VK_DOWN);
+			robot.keyRelease(KeyEvent.VK_DOWN);
+		}
+		robot.keyPress(KeyEvent.VK_ENTER);
+		robot.keyRelease(KeyEvent.VK_ENTER);
+		robot.waitForIdle();
 	}
 
 	/**

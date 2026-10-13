@@ -58,6 +58,11 @@ Read only what the task needs:
 3. `TEST_PLAN.md` for risk-specific regression cases.
 4. The target module's `build.gradle.kts`, nearby tests, callers, and persisted formats.
 
+When reproducing a previously investigated failure or test-fixture issue, also
+check [`docs/testing/regression-investigation-notes.md`](docs/testing/regression-investigation-notes.md)
+for confirmed causes and known false leads; add only compact, source-backed
+findings there when new evidence can prevent a repeated investigation.
+
 Use `rg` / `rg --files` for discovery. Search by symbol and behavior before introducing a new helper; this codebase contains legacy and compatibility paths that may look duplicated but serve different formats or UI flows.
 
 ## Module map

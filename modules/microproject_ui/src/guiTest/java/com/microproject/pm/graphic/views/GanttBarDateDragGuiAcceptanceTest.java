@@ -354,10 +354,24 @@ class GanttBarDateDragGuiAcceptanceTest {
 		assertEquals(scheduleFinishBeforeSave, reopenedTask.getEnd(), "final schedule finish must survive MPO reload");
 		int savedProgressPixel = screenPointForTaskDate(fixture, updatedProgress).x;
 		int restoredProgressPixel = screenPointForTaskDate(fixture, reopenedTask.getCompletedThrough()).x;
+		List<String> snapshotAssignments = mspSnapshot.getResourceAssignments().stream()
+			.filter(assignment -> java.util.Objects.equals(assignment.getTaskUniqueID(), mspTask.getUniqueID()))
+			.map(assignment -> "uid=" + assignment.getUniqueID() + " bounds=" + assignment.getStart() + ".."
+				+ assignment.getFinish() + " work=" + assignment.getWork() + " actual=" + assignment.getActualWork()
+				+ " remaining=" + assignment.getRemainingWork() + " units=" + assignment.getUnits()
+				+ " actualRows=" + assignment.getTimephasedActualWork() + " remainingRows="
+				+ assignment.getTimephasedWork()).toList();
 		assertTrue(Math.abs(savedProgressPixel - restoredProgressPixel) <= 1,
 			"progress must survive MPO reload within one rendered pixel: saved=" + updatedProgress
 				+ " restored=" + reopenedTask.getCompletedThrough() + " savedPixel=" + savedProgressPixel
-				+ " restoredPixel=" + restoredProgressPixel);
+				+ " restoredPixel=" + restoredProgressPixel + " modelPercent=" + fixture.predecessor.getPercentComplete()
+				+ " restoredPercent=" + reopenedTask.getPercentComplete() + " snapshotPercent="
+				+ mspTask.getPercentageComplete() + " snapshotPercentWork=" + mspTask.getPercentageWorkComplete()
+				+ " actualDuration=" + mspTask.getActualDuration() + " stop=" + mspTask.getStop()
+				+ " resume=" + mspTask.getResume() + " start=" + mspTask.getStart() + " finish=" + mspTask.getFinish()
+				+ " modelAssignments=" + assignmentScheduleStates(fixture.predecessor)
+				+ " snapshotAssignments=" + snapshotAssignments + " restoredAssignments="
+				+ assignmentScheduleStates(reopenedTask) + " taskSplits=" + persistedTaskSplits);
 		assertIntervalsMatchAtRenderedResolution(fixture, persistedIntervals, assignmentIntervals(reopenedTask),
 			"assignment intervals must survive MPO reload");
 		assertEquals(persistedTaskSplits, reopenedTask.getTaskSplitIntervals(),

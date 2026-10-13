@@ -58,7 +58,7 @@ buttons.
 | Select/Clear and Summary/Milestone insertion | Task | MISSING/PARTIAL | Current ribbon has normal task, recurring task, and subproject insertion. The complete MSP selection/clear command set and Summary/Milestone insertion behavior are not exposed by current Task ribbon definitions. |
 | Entire Project / Selected Tasks zoom | View | PARTIAL | Entire Project is physically verified in Gantt, Task Usage, and Resource Usage. Selected Tasks is verified only in Gantt; current Usage selection does not expose a task snapshot, and microProject has no Resource Graph equivalent. See #769 and its 2026-10-07 updates. |
 | Report/Timeline object-specific formatting | Contextual tabs | PARTIAL | Contextual surfaces exist for Network and Calendar. Report/Timeline object selection surfaces and their supported commands are not complete. |
-| Cloud account, Project Online/Planner linking, VBA/Macros, Microsoft feedback/training services | File/Help | OUT OF SCOPE or OPEN LOCAL EXTENSION GAP | Project Server/PWA/Project Online/Planner cloud accounts and connected services are outside the standalone product goal; do not add clients or dummy controls. VBA/macros remain an unresolved local automation gap under M4. Local Help/About are product replacements, not MSP parity. |
+| Cloud account, Project Online/Planner linking, Microsoft feedback/training services | File/Help | OUT OF SCOPE | Project Server/PWA/Project Online/Planner cloud accounts and connected services are outside the standalone product goal; do not add clients or dummy controls. Local Help/About are product replacements, not MSP parity. Microsoft Project VBA/macros and COM/VSTO/Office add-ins are separately EXCLUDED by the user scope decision dated 2026-10-12. |
 
 ## File format coverage at current master
 
@@ -69,7 +69,7 @@ from a filename filter or an XML trailer.
 | Format / direction | Current implementation evidence | Coverage status |
 |---|---|---|
 | MPP read | MPXJ MPPReader is selected in modules/microproject_exchange/src/main/java/com/microproject/core/pm/exchange/MspImporter.java. XlsxSupportTest.mspImporterCanReadMpp opens the checked-in New Product.mpp fixture. | PARTIAL: one fixed project opens; field-by-field semantic compatibility and supported Project versions are not exhaustively verified. |
-| MPP write | ProjectWriterFactory maps MPX, XML, PMXML, PLANNER, JSON, SDEF and XLSX writers; it has no MPP entry. XlsxSupportTest.fileHelperAcceptsMppForReadOnlyImport asserts .mpp is rejected for writing. | MISSING: no current MPP writer path. This is a hard M3 blocker. |
+| MPP write | ProjectWriterFactory has no MPP writer entry; `FileHelper` rejects `.mpp` for writing. | EXCLUDED by explicit user product decision dated 2026-10-12; MPO is the native save substitute. This does not imply MPP read coverage is complete. |
 | Microsoft Project XML / MSPDI read | MspImporter chooses MPXJ MSPDIReader for XML. Existing import and conversion tests include Microsoft XML inputs. | PARTIAL: add a documented semantic matrix and broader fixture coverage. |
 | Microsoft Project XML / MSPDI write | ProjectWriterFactory maps XML to MSPDIWriter. MpxExportTrackingTest and MpxProjectConverterTest cover selected exported fields and reloads. | PARTIAL: existing focused round trips do not prove complete Project XML compatibility. |
 | MPX read/write | Import is selected in MspImporter; ProjectWriterFactory maps MPX to MPXWriter. | IMPLEMENTED as a legacy exchange path; record its exact field/version limits separately from MPP compatibility. |
@@ -79,19 +79,21 @@ from a filename filter or an XML trailer.
 | PMXML, Planner, JSON, SDEF | Writer factory includes these output handlers. | EXPORT handlers exist; importer support and Project desktop parity are not implied. Track format-specific read/write scope independently. |
 
 The default project open filter accepts MPP read while the save filter rejects
-it. MPP writing therefore must be added as a separate, carefully scoped
-interoperability implementation; do not rename an XML or MPO file to .mpp.
+it. That is the intended product boundary: MPP is import-only and MPO is the
+native save substitute. Do not rename an XML or MPO file to .mpp.
 
 ## Local automation/extensions and excluded connected services
 
-Local desktop automation and extension behavior remains part of the compatibility
-goal. Project Server/PWA/Project Online and Microsoft Planner cloud connections
-are outside the standalone product goal and are not missing-feature blockers.
+The user explicitly excluded Microsoft Project-specific local automation and
+extension compatibility on 2026-10-12. This exclusion does not remove
+microProject-native local automation/extensions or offline collaboration from
+their applicable product scope. Project Server/PWA/Project Online and Microsoft
+Planner cloud connections are also outside the standalone product goal.
 
 | Surface | Current source state | Compatibility disposition |
 |---|---|---|
-| VBA / macro execution | No desktop VBA runtime or macro command was found in the current UI/source scan. | OPEN LOCAL AUTOMATION GAP; inventory and implementation/verification decision required in M4. |
-| COM automation/add-ins, VSTO, local Office add-ins | No COM automation/add-in bridge or Office add-in host found in the current Java desktop implementation. | OPEN LOCAL EXTENSION GAP; inventory and implementation/verification decision required in M4. |
+| Microsoft Project VBA/macros and macro-facing Project object model | No Microsoft Project-compatible desktop VBA runtime or macro object model is exposed in the current UI/source scan. | EXCLUDED by the explicit user scope decision dated 2026-10-12; tracked in #797 as not planned. This does not exclude microProject-native APIs. |
+| Microsoft Project COM automation/add-ins, VSTO, local Office task-pane add-ins | No Microsoft Project COM automation/add-in bridge or Office add-in host is present in the current Java desktop implementation. | EXCLUDED by the explicit user scope decision dated 2026-10-12; tracked in #797 as not planned. |
 | Project Server / Project Online connection | The desktop application has project-file and local collaboration flows; no Microsoft server connection workflow was found in this audit. | OUT OF SCOPE for the standalone product goal; no client or dependency should be added. |
 | Microsoft Planner linking / cloud account | Backstage omits Share/Account and no cloud linking action is in the standard ribbon catalog. | OUT OF SCOPE for the standalone product goal; do not render dummy controls. GNOME Planner file exchange is tracked separately in the format inventory. |
 

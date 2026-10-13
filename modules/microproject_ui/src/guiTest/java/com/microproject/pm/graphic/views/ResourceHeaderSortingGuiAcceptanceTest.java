@@ -20,6 +20,8 @@ import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -32,6 +34,8 @@ import javax.swing.SwingUtilities;
 import javax.swing.AbstractButton;
 import javax.swing.JDialog;
 import javax.swing.JComboBox;
+import javax.swing.JMenuItem;
+import javax.swing.JPopupMenu;
 import javax.swing.UIManager;
 import javax.swing.table.JTableHeader;
 
@@ -39,14 +43,17 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
+import com.microproject.datatype.Rate;
+import com.microproject.field.Field;
+import com.microproject.dialog.ResourceSortOrderPanel;
 import com.microproject.pm.graphic.frames.DocumentFrame;
 import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.pm.graphic.frames.MainRibbonFrame;
-import com.microproject.dialog.ResourceSortOrderPanel;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.Project;
+import com.microproject.exchange.MpoFileImporter;
 import com.microproject.ribbon.RibbonCommandResult;
 import com.microproject.ui.diagnostics.UiButtonDiagnostics;
 import com.microproject.testsupport.GuiAcceptanceSupport;
@@ -109,8 +116,17 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 		project.initialize(false, false);
 		Resource zulu = pool.createScriptedResource();
 		zulu.setName("Zulu");
+		zulu.setStandardRate(new Rate(100));
 		Resource alpha = pool.createScriptedResource();
 		alpha.setName("Alpha");
+		alpha.setStandardRate(new Rate(50));
+		Resource tiedAlpha = pool.createScriptedResource();
+		tiedAlpha.setName("Alpha");
+		tiedAlpha.setStandardRate(new Rate(50));
+		Resource emptyName = pool.createScriptedResource();
+		emptyName.setName("");
+		emptyName.setStandardRate(new Rate(10));
+		List<Resource> testResources = List.of(zulu, alpha, tiedAlpha, emptyName);
 		List<Resource> originalOrder = new ArrayList<>(pool.getResourceList());
 
 		SwingUtilities.invokeAndWait(() -> {
@@ -162,19 +178,33 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 		robot.waitForIdle();
 		robot.delay(200);
 		assertTrue(physicalClicks.get() > 0, "Robot click did not reach the resource header component");
-		GuiAcceptanceSupport.await(() -> namedTestResources(sheet).equals(List.of("Alpha", "Zulu")),
-			"first physical Name-header click did not sort ascending: " + namedTestResources(sheet));
+		GuiAcceptanceSupport.await(() -> visibleTestResources(sheet, testResources)
+			.equals(List.of(emptyName, alpha, tiedAlpha, zulu)),
+			"first physical Name-header click must sort empty then equal names stably: "
+				+ visibleTestResources(sheet, testResources));
 
 		SwingUtilities.invokeAndWait(() -> {
 			int zuluRow = rowFor(sheet, zulu);
 			assertTrue(zuluRow >= 0);
 			sheet.setRowSelectionInterval(zuluRow, zuluRow);
+			assertEquals(List.of(zuluRow), java.util.Arrays.stream(sheet.getSelectedRows()).boxed().toList(),
+				"the fixture must select only Zulu before the descending sort");
+			assertEquals(List.of(zulu), sheet.getSelectedNodes().stream()
+				.map(node -> (Resource) node.getImpl()).toList(),
+				"the selected model identity must be Zulu before the descending sort");
 		});
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-		GuiAcceptanceSupport.await(() -> namedTestResources(sheet).equals(List.of("Zulu", "Alpha")),
-			"second physical Name-header click did not sort descending");
+		GuiAcceptanceSupport.await(() -> visibleTestResources(sheet, testResources)
+			.equals(List.of(zulu, alpha, tiedAlpha, emptyName)),
+			"second physical Name-header click must sort descending and retain equal-name order");
 		SwingUtilities.invokeAndWait(() -> {
+			int projectionSize = resourceView.getCache().getVisibleNodes().getProjectionIndex().size();
+			int[] selectedRows = sheet.getSelectedRows();
+			assertTrue(java.util.Arrays.stream(selectedRows).allMatch(row -> row >= 0 && row < projectionSize),
+				"selected JTable rows must belong to the published projection; rowCount=" + sheet.getRowCount()
+					+ ", projectionSize=" + projectionSize + ", selectedRows="
+					+ java.util.Arrays.toString(selectedRows) + ", projected=" + projectedResources(resourceView));
 			assertEquals(List.of(zulu), sheet.getSelectedNodes().stream().map(node -> (Resource) node.getImpl()).toList(),
 				"sorting should preserve selected resource identity");
 			assertEquals(originalOrder, pool.getResourceList(), "view sorting must not reorder the resource model");
@@ -182,17 +212,82 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 			assertEquals("Field.name", workspace.getSortedFieldId());
 			assertFalse(workspace.isSortAscending());
 		});
-
 		String viewTabText = java.util.ResourceBundle.getBundle("com.microproject.menu.menu").getString("ViewRibbonTask.title");
 		click(robot, findShowingButtonByText(window, viewTabText));
 		GuiAcceptanceSupport.await(() -> findShowingButtonByCommand(window, "RibbonChooseSort") != null,
 			"View ribbon did not expose the Sort command");
+
+		// Document-derived contract: Microsoft documents View > Sort > Sort By in Project desktop;
+		// expose that existing Sort Order action from its split-menu affordance, without adding a
+		// second sort implementation. See https://support.microsoft.com/en-us/project/sort-tasks-resources-or-dates-in-project-desktop
+		AbstractButton sortButton = findShowingButtonByCommand(window, "RibbonChooseSort");
+		Point sortButtonLocation = sortButton.getLocationOnScreen();
+		robot.mouseMove(sortButtonLocation.x + sortButton.getWidth() - 8,
+			sortButtonLocation.y + sortButton.getHeight() / 2);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+		JPopupMenu sortMenu = (JPopupMenu) sortButton.getClientProperty("MicroProject.ribbon.sortMenu");
+		GuiAcceptanceSupport.await(() -> sortMenu != null && sortMenu.isShowing(),
+			"the Sort split-button chevron did not open its menu");
+		JMenuItem sortOrderItem = findComponent(sortMenu, JMenuItem.class);
+		assertEquals(java.util.ResourceBundle.getBundle("com.microproject.menu.menu").getString("Sort.text"),
+			sortOrderItem.getText());
+		assertEquals("RibbonChooseSort", sortOrderItem.getActionCommand());
+		assertEquals(sortButton.getAction(), sortOrderItem.getAction(),
+			"the menu item and ribbon command must share the canonical action");
+		AbstractButton sortMenuButton = (AbstractButton) sortButton.getClientProperty("MicroProject.ribbon.sortMenuButton");
+		assertTrue(sortMenuButton.isFocusable(), "Sort menu arrow must be keyboard accessible");
+		assertEquals(java.util.ResourceBundle.getBundle("com.microproject.menu.menu")
+			.getString("SortMenu.accessibleName"), sortMenuButton.getAccessibleContext().getAccessibleName());
+		robot.keyPress(KeyEvent.VK_ESCAPE);
+		robot.keyRelease(KeyEvent.VK_ESCAPE);
+		robot.waitForIdle();
+		SwingUtilities.invokeAndWait(sortMenuButton::requestFocusInWindow);
+		robot.keyPress(KeyEvent.VK_SPACE);
+		robot.keyRelease(KeyEvent.VK_SPACE);
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(sortMenu::isShowing, "Space on the accessible Sort menu arrow did not open its menu");
+		click(robot, sortOrderItem);
+		GuiAcceptanceSupport.await(() -> findDialogWith(ResourceSortOrderPanel.class) != null,
+			"Sort Order menu item did not use the existing resource sort dialog");
+		JDialog menuSortDialog = findDialogWith(ResourceSortOrderPanel.class);
+		ResourceSortOrderPanel menuOrderPanel = findComponent(menuSortDialog, ResourceSortOrderPanel.class);
+		assertEquals("Field.name", menuOrderPanel.getFieldId());
+		List<Field> sortFields = resourceView.getResourceSortFields();
+		int standardRateIndex = java.util.stream.IntStream.range(0, sortFields.size())
+			.filter(index -> "Field.standardRate".equals(sortFields.get(index).getId())).findFirst()
+			.orElseThrow(() -> new AssertionError("Resource Standard Rate field is missing"));
+		JComboBox<?> fieldChoice = flatten(menuSortDialog).stream().filter(JComboBox.class::isInstance)
+			.map(JComboBox.class::cast).filter(combo -> combo.getItemCount() == sortFields.size()).findFirst()
+			.orElseThrow(() -> new AssertionError("Sort Order field control is missing"));
+		GuiAcceptanceSupport.selectComboBoxItem(robot, fieldChoice, standardRateIndex);
+		JComboBox<?> menuDirection = flatten(menuSortDialog).stream().filter(JComboBox.class::isInstance)
+			.map(JComboBox.class::cast).filter(combo -> combo.getItemCount() == 2).findFirst()
+			.orElseThrow(() -> new AssertionError("Sort Order direction control is missing"));
+		GuiAcceptanceSupport.selectComboBoxItem(robot, menuDirection, 0);
+		click(robot, findShowingButtonByText(menuSortDialog, UIManager.getString("OptionPane.okButtonText")));
+		GuiAcceptanceSupport.await(() -> visibleTestResources(sheet, testResources)
+			.equals(List.of(emptyName, alpha, tiedAlpha, zulu)),
+			"Sort menu should sort numeric Standard Rate ascending and retain equal values stably");
+		assertEquals(RibbonCommandResult.Status.CHANGED, manager.getLastRibbonCommandResult().status());
+		assertEquals("Field.standardRate", resourceView.getSortedFieldId());
+		assertTrue(resourceView.isSortAscending());
+		assertEquals(originalOrder, pool.getResourceList(), "numeric view sorting must not reorder the resource model");
+		SwingUtilities.invokeAndWait(() -> {
+			assertEquals(List.of(zulu), sheet.getSelectedNodes().stream().map(node -> (Resource) node.getImpl()).toList(),
+				"numeric sorting must preserve selected resource identity");
+			ResourceView.Workspace workspace = (ResourceView.Workspace) resourceView.createWorkspace(0);
+			assertEquals("Field.standardRate", workspace.getSortedFieldId());
+			assertTrue(workspace.isSortAscending());
+		});
+
 		click(robot, findShowingButtonByCommand(window, "RibbonChooseSort"));
 		GuiAcceptanceSupport.await(() -> findDialogWith(ResourceSortOrderPanel.class) != null,
 			"Resource Sort Order dialog did not open from the View ribbon");
 		JDialog sortDialog = findDialogWith(ResourceSortOrderPanel.class);
 		ResourceSortOrderPanel orderPanel = findComponent(sortDialog, ResourceSortOrderPanel.class);
-		assertEquals("Field.name", orderPanel.getFieldId());
+		assertEquals("Field.standardRate", orderPanel.getFieldId());
 		click(robot, findShowingButtonByText(sortDialog, UIManager.getString("OptionPane.cancelButtonText")));
 		GuiAcceptanceSupport.await(() -> manager.getLastRibbonCommandResult() != null
 			&& manager.getLastRibbonCommandResult().status() == RibbonCommandResult.Status.NO_CHANGE
@@ -203,19 +298,22 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 			"Resource Sort Order dialog did not reopen after cancel");
 		sortDialog = findDialogWith(ResourceSortOrderPanel.class);
 		orderPanel = findComponent(sortDialog, ResourceSortOrderPanel.class);
-		assertEquals("Field.name", orderPanel.getFieldId());
+		assertEquals("Field.standardRate", orderPanel.getFieldId());
+		JComboBox<?> ribbonFieldChoice = flatten(sortDialog).stream().filter(JComboBox.class::isInstance)
+			.map(JComboBox.class::cast).filter(combo -> combo.getItemCount() == sortFields.size()).findFirst()
+			.orElseThrow(() -> new AssertionError("Sort Order field control is missing"));
+		int nameFieldIndex = java.util.stream.IntStream.range(0, sortFields.size())
+			.filter(index -> "Field.name".equals(sortFields.get(index).getId())).findFirst()
+			.orElseThrow(() -> new AssertionError("Resource Name field is missing"));
+		GuiAcceptanceSupport.selectComboBoxItem(robot, ribbonFieldChoice, nameFieldIndex);
 		JComboBox<?> direction = flatten(orderPanel).stream().filter(JComboBox.class::isInstance)
 			.map(JComboBox.class::cast).filter(combo -> combo.getItemCount() == 2).findFirst()
 			.orElseThrow(() -> new AssertionError("Sort Order direction control is missing"));
-		click(robot, direction);
-		robot.keyPress(KeyEvent.VK_HOME);
-		robot.keyRelease(KeyEvent.VK_HOME);
-		robot.keyPress(KeyEvent.VK_ENTER);
-		robot.keyRelease(KeyEvent.VK_ENTER);
-		robot.waitForIdle();
+		GuiAcceptanceSupport.selectComboBoxItem(robot, direction, 0);
 		click(robot, findShowingButtonByText(sortDialog, UIManager.getString("OptionPane.okButtonText")));
-		GuiAcceptanceSupport.await(() -> namedTestResources(sheet).equals(List.of("Alpha", "Zulu")),
-			"Sort Order confirmation did not apply ascending Name order");
+		GuiAcceptanceSupport.await(() -> visibleTestResources(sheet, testResources)
+			.equals(List.of(emptyName, alpha, tiedAlpha, zulu)),
+			"Sort Order confirmation did not apply ascending Name order with empty/equal values");
 		assertEquals(RibbonCommandResult.Status.CHANGED, manager.getLastRibbonCommandResult().status());
 		assertEquals("RibbonChooseSort", manager.getLastRibbonCommandResult().commandId());
 		GuiAcceptanceSupport.await(() -> diagnostics.toString().lines().anyMatch(line ->
@@ -233,13 +331,190 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 			assertTrue(persistedWorkspace.isSortAscending());
 		});
 		SwingUtilities.invokeAndWait(() -> resourceView.restoreWorkspace(persistedWorkspace, 0));
-		GuiAcceptanceSupport.await(() -> namedTestResources(sheet).equals(List.of("Alpha", "Zulu")),
+		GuiAcceptanceSupport.await(() -> visibleTestResources(sheet, testResources)
+			.equals(List.of(emptyName, alpha, tiedAlpha, zulu)),
 			"restoring the saved Workspace did not restore the resource sort");
 		SwingUtilities.invokeAndWait(() -> {
 			assertEquals(List.of(zulu), sheet.getSelectedNodes().stream().map(node -> (Resource) node.getImpl()).toList(),
 				"Workspace restore should preserve the selected resource identity");
 			assertEquals(originalOrder, pool.getResourceList(), "Workspace sort restore must remain view-only");
 		});
+	}
+
+	@Test
+	void physicalResourceStandardRateEditUndoRedoAndMpoRoundTrip() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("resource-field-edit", undo);
+		pool.setLocal(true);
+		pool.setMaster(true);
+		Project project = Project.createProject(pool, undo);
+		project.setResourcePoolProject(true);
+		project.initialize(false, false);
+		pool.addProject(project);
+		Resource resource = pool.createScriptedResource();
+		resource.setName("Field Edit Resource");
+		resource.setStandardRate(new Rate(20.0D
+			/ com.microproject.datatype.Duration.timeUnitFactor(com.microproject.datatype.TimeUnit.HOURS),
+			com.microproject.datatype.TimeUnit.HOURS));
+		SwingUtilities.invokeAndWait(() -> {
+			window = new MainRibbonFrame("resource-field-edit", null);
+			manager = new GraphicManager(window);
+			window.setGraphicManager(manager);
+			manager.initView();
+			manager.addProjectFrame(project);
+			window.setSize(1120, 700);
+			window.setVisible(true);
+			manager.getFrameForProject(project).activateResourceView();
+		});
+		SpreadSheet sheet = manager.getFrameForProject(project).getResourceView().getSpreadSheet();
+		GuiAcceptanceSupport.await(() -> sheet.isShowing() && rowFor(sheet, resource) >= 0,
+			"resource spreadsheet did not show the edited resource");
+		int modelColumn = -1;
+		for (int index = 0; index < sheet.getFieldArray().size(); index++)
+			if ("Field.standardRate".equals(sheet.getFieldArray().get(index).getId())) modelColumn = index;
+		assertTrue(modelColumn >= 0, "resource Standard Rate column must be present");
+		int column = sheet.convertColumnIndexToView(modelColumn);
+		int row = rowFor(sheet, resource);
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		clickVisibleCell(robot, window, sheet, row, column);
+		try {
+			GuiAcceptanceSupport.await(sheet::isFocusOwner, "Standard Rate cell did not receive physical focus");
+		} catch (AssertionError failure) {
+			String[] focusState = new String[1];
+			SwingUtilities.invokeAndWait(() -> focusState[0] = "active=" + window.isActive() + ",focused="
+				+ window.isFocused() + ",focusOwner="
+				+ java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner()
+				+ ",sheet=" + sheet.isFocusOwner() + ",targetCell=" + row + "," + column);
+			throw new AssertionError(failure.getMessage() + "; physical focus diagnostics: " + focusState[0], failure);
+		}
+		robot.keyPress(KeyEvent.VK_F2);
+		robot.keyRelease(KeyEvent.VK_F2);
+		GuiAcceptanceSupport.await(sheet::isEditing, "physical F2 did not start the Standard Rate editor");
+		java.awt.Component editor = sheet.getEditorComponent();
+		assertTrue(editor != null, "Standard Rate editor is missing");
+		SwingUtilities.invokeAndWait(editor::requestFocusInWindow);
+		GuiAcceptanceSupport.await(() -> editor.isFocusOwner(), "Standard Rate editor did not receive focus");
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_A);
+		robot.keyRelease(KeyEvent.VK_A);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		for (char character : "137.5".toCharArray()) {
+			int keyCode = KeyEvent.getExtendedKeyCodeForChar(character);
+			robot.keyPress(keyCode);
+			robot.keyRelease(keyCode);
+		}
+		robot.keyPress(KeyEvent.VK_ENTER);
+		robot.keyRelease(KeyEvent.VK_ENTER);
+		GuiAcceptanceSupport.await(() -> !sheet.isEditing(), "Standard Rate edit did not commit");
+		double expectedEditRate = 137.5D
+			/ com.microproject.datatype.Duration.timeUnitFactor(com.microproject.datatype.TimeUnit.HOURS);
+		assertEquals(expectedEditRate, resource.getStandardRate().getValue(), 0.0000001D,
+			"physical input 137.5 must commit as the expected internal currency-per-millisecond rate");
+		assertEquals(com.microproject.datatype.TimeUnit.HOURS, resource.getStandardRate().getTimeUnit());
+		String editedRendered = renderedRateText(sheet, rowFor(sheet, resource), column);
+		assertEquals(expectedRateText(sheet, rowFor(sheet, resource), column,
+			new Rate(expectedEditRate, com.microproject.datatype.TimeUnit.HOURS)), editedRendered,
+			"ResourceView must render the committed 137.5/hour value");
+		robot.keyPress(KeyEvent.VK_CONTROL); robot.keyPress(KeyEvent.VK_Z);
+		robot.keyRelease(KeyEvent.VK_Z); robot.keyRelease(KeyEvent.VK_CONTROL);
+		robot.waitForIdle();
+		double expectedInitialRate = 20.0D
+			/ com.microproject.datatype.Duration.timeUnitFactor(com.microproject.datatype.TimeUnit.HOURS);
+		GuiAcceptanceSupport.await(() -> Math.abs(resource.getStandardRate().getValue() - expectedInitialRate) < 0.0000001D,
+			"physical Ctrl+Z did not restore the initial 20/hour rate");
+		assertEquals(expectedRateText(sheet, rowFor(sheet, resource), column,
+			new Rate(expectedInitialRate, com.microproject.datatype.TimeUnit.HOURS)),
+			renderedRateText(sheet, rowFor(sheet, resource), column), "Undo must refresh the rendered 20/hour value");
+		robot.keyPress(KeyEvent.VK_CONTROL); robot.keyPress(KeyEvent.VK_Y);
+		robot.keyRelease(KeyEvent.VK_Y); robot.keyRelease(KeyEvent.VK_CONTROL);
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(() -> Math.abs(resource.getStandardRate().getValue() - expectedEditRate) < 0.0000001D,
+			"physical Ctrl+Y did not restore the 137.5/hour rate");
+		assertEquals(expectedRateText(sheet, rowFor(sheet, resource), column,
+			new Rate(expectedEditRate, com.microproject.datatype.TimeUnit.HOURS)),
+			renderedRateText(sheet, rowFor(sheet, resource), column), "Redo must refresh the rendered 137.5/hour value");
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, saved), "MPO save rejected the physical rate edit");
+		Project restored = new MpoFileImporter().loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		Resource restoredResource = restored.getResourcePool().getResourceList().stream()
+			.filter(candidate -> "Field Edit Resource".equals(candidate.getName())).findFirst().orElseThrow();
+		assertEquals(expectedEditRate, restoredResource.getStandardRate().getValue(), 0.0000001D,
+			"MPO reopen lost the physically edited Standard Rate");
+	}
+
+	private static String renderedRateText(SpreadSheet sheet, int row, int column) throws Exception {
+		String[] text = new String[1];
+		SwingUtilities.invokeAndWait(() -> {
+			Component rendered = sheet.prepareRenderer(sheet.getCellRenderer(row, column), row, column);
+			text[0] = rendered instanceof javax.swing.JLabel label ? label.getText() : rendered.toString();
+		});
+		return text[0];
+	}
+
+	private static void clickVisibleCell(Robot robot, MainRibbonFrame window, SpreadSheet sheet, int row, int column)
+		throws Exception {
+		Rectangle[] target = new Rectangle[1];
+		AtomicInteger pressedRow = new AtomicInteger(-1);
+		AtomicInteger pressedColumn = new AtomicInteger(-1);
+		MouseAdapter pressObserver = new MouseAdapter() {
+			@Override public void mousePressed(MouseEvent event) {
+				pressedRow.set(sheet.rowAtPoint(event.getPoint()));
+				pressedColumn.set(sheet.columnAtPoint(event.getPoint()));
+			}
+		};
+		SwingUtilities.invokeAndWait(() -> {
+			window.toFront();
+			window.requestFocus();
+			sheet.scrollRectToVisible(sheet.getCellRect(row, column, true));
+			sheet.addMouseListener(pressObserver);
+		});
+		GuiAcceptanceSupport.await(() -> window.isActive() && window.isFocused(),
+			"resource document window did not become active before the cell click");
+		SwingUtilities.invokeAndWait(() -> {
+			Rectangle cell = sheet.getCellRect(row, column, true);
+			Rectangle visible = sheet.getVisibleRect();
+			assertTrue(visible.contains(cell), "Standard Rate cell must be fully visible before clicking; cell=" + cell
+				+ ", viewport=" + visible + ", table=" + sheet.getBounds());
+			Point location = sheet.getLocationOnScreen();
+			target[0] = new Rectangle(location.x + cell.x, location.y + cell.y, cell.width, cell.height);
+		});
+		try {
+			robot.mouseMove(target[0].x + target[0].width / 2, target[0].y + target[0].height / 2);
+			robot.waitForIdle();
+			int[] hoveredCell = {-1, -1};
+			Point[] localPointer = new Point[1];
+			SwingUtilities.invokeAndWait(() -> {
+				localPointer[0] = sheet.getMousePosition();
+				if (localPointer[0] != null) {
+					hoveredCell[0] = sheet.rowAtPoint(localPointer[0]);
+					hoveredCell[1] = sheet.columnAtPoint(localPointer[0]);
+				}
+			});
+			assertEquals(row, hoveredCell[0], "Robot hover must reach the visible Standard Rate row; pointer="
+				+ localPointer[0] + ", screenCell=" + target[0]);
+			assertEquals(column, hoveredCell[1], "Robot hover must reach the visible Standard Rate column; pointer="
+				+ localPointer[0] + ", screenCell=" + target[0]);
+			robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+			robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+			robot.waitForIdle();
+		} finally {
+			SwingUtilities.invokeAndWait(() -> sheet.removeMouseListener(pressObserver));
+		}
+		assertEquals(row, pressedRow.get(), "physical mouse press must reach the visible Standard Rate row");
+		assertEquals(column, pressedColumn.get(), "physical mouse press must reach the visible Standard Rate column");
+	}
+
+	private static String expectedRateText(SpreadSheet sheet, int row, int column, Rate rate) throws Exception {
+		String[] text = new String[1];
+		SwingUtilities.invokeAndWait(() -> text[0] = com.microproject.pm.graphic.spreadsheet.renderer.RateRenderer
+			.getFormat(sheet, row, column).format(rate).toString());
+		return text[0];
 	}
 
 	private static void click(Robot robot, Component component) throws Exception {
@@ -291,13 +566,20 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 		return path.toString();
 	}
 
-	private static List<String> namedTestResources(SpreadSheet sheet) {
-		List<String> names = new ArrayList<>();
+	private static List<Resource> visibleTestResources(SpreadSheet sheet, List<Resource> testResources) {
+		List<Resource> resources = new ArrayList<>();
 		for (int row = 0; row < sheet.getRowCount(); row++) {
 			Object value = ((com.microproject.pm.graphic.spreadsheet.SpreadSheetModel) sheet.getModel()).getNodeForDisplayRow(row).getImpl();
-			if (value instanceof Resource resource && List.of("Alpha", "Zulu").contains(resource.getName())) names.add(resource.getName());
+			if (value instanceof Resource resource && testResources.contains(resource)) resources.add(resource);
 		}
-		return names;
+		return resources;
+	}
+
+	private static List<String> projectedResources(ResourceView resourceView) {
+		return resourceView.getCache().getVisibleNodes().getProjectionIndex().nodes().stream()
+			.map(node -> node.getNode().getImpl() instanceof Resource resource
+				? resource.getId() + ":" + resource.getName() : node.getNode().getImpl().getClass().getSimpleName())
+			.toList();
 	}
 
 	private static int rowFor(SpreadSheet sheet, Resource resource) {

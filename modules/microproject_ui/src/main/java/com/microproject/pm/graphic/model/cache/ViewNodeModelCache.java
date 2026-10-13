@@ -495,14 +495,14 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 		if (nodes==null) return;
 		if (!isAllowedAction(nodes,false)) return;
 		List validNodes=TransformList.getNotVoidFilter().filterList(convertToBase(nodes));
-		if (validNodes.size()>0) getModel().getHierarchy().indent(validNodes,1,getModel(),NodeModel.NORMAL);
+		if (validNodes.size()>0) getModel().indent(validNodes,1,NodeModel.NORMAL);
 	}
 
 	public void outdentNodes(List nodes){
 		if (nodes==null) return;
 		if (!isAllowedAction(nodes,false)) return;
 		List validNodes=TransformList.getNotVoidFilter().filterList(convertToBase(nodes));
-		if (validNodes.size()>0) getModel().getHierarchy().indent(validNodes,-1,getModel(),NodeModel.NORMAL);
+		if (validNodes.size()>0) getModel().indent(validNodes,-1,NodeModel.NORMAL);
 	}
 
 	//returns same list with converted elements

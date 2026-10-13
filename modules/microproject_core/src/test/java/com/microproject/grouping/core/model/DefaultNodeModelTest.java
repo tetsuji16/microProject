@@ -25,6 +25,7 @@
 package com.microproject.grouping.core.model;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
@@ -45,8 +46,12 @@ import org.junit.jupiter.api.Test;
 import com.microproject.field.Field;
 import com.microproject.field.FieldContext;
 import com.microproject.field.FieldParseException;
+import com.microproject.configuration.Configuration;
+import com.microproject.datatype.Rate;
+import com.microproject.document.ObjectEvent;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeFactory;
+import com.microproject.grouping.core.transform.sorting.NodeSorter;
 import com.microproject.grouping.core.hierarchy.AbstractMutableNodeHierarchy;
 import com.microproject.grouping.core.event.HierarchyEvent;
 import com.microproject.grouping.core.event.HierarchyListener;
@@ -732,6 +737,81 @@ class DefaultNodeModelTest {
 	}
 
 	@Test
+	void resourceFieldEditRecalculatesAndPublishesAcrossSharedPoolProjectsWithOneUndo() throws Exception {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		DataFactoryUndoController firstProjectUndo = new DataFactoryUndoController();
+		DataFactoryUndoController secondProjectUndo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("shared-resource-field-test", undoController);
+		undoController.setDataFactory(pool);
+		pool.setLocal(true);
+		DefaultNodeModel resourceModel = (DefaultNodeModel) pool.getResourceOutline();
+		resourceModel.setUndoController(undoController);
+		Project firstProject = Project.createProject(pool, firstProjectUndo);
+		Project secondProject = Project.createProject(pool, secondProjectUndo);
+		firstProject.initialize(false, false);
+		secondProject.initialize(false, false);
+		pool.addProject(firstProject);
+		pool.addProject(secondProject);
+		ResourceImpl resource = (ResourceImpl) pool.createScriptedResource();
+		Node resourceNode = resourceModel.search(resource);
+		Field standardRate = Configuration.getFieldFromId("Field.standardRate");
+		Rate originalRate = resource.getStandardRate();
+		List<ObjectEvent> observed = new ArrayList<>();
+		boolean[] observerSawCoordinator = { false };
+		pool.addObjectListener(event -> {
+			if (event.getObject() == resource) {
+				observed.add(event);
+				observerSawCoordinator[0] |= firstProject.getMutationState().isHeldByCurrentThread();
+			}
+		});
+		undoController.clear();
+		long poolRevision = pool.getCoordinationRevision();
+		long firstRevision = firstProject.getMutationState().revision();
+		long secondRevision = secondProject.getMutationState().revision();
+
+		resourceModel.setFieldValue(standardRate, resourceNode, this, new Rate(125.0D), null, NodeModel.NORMAL);
+
+		assertEquals(125.0D, resource.getStandardRate().getValue());
+		assertEquals(poolRevision + 1, pool.getCoordinationRevision());
+		assertEquals(firstRevision + 1, firstProject.getMutationState().revision());
+		assertEquals(secondRevision + 1, secondProject.getMutationState().revision());
+		assertEquals(1, observed.size(), "one actual resource fact is published for the field edit");
+		assertEquals(pool.getCoordinationRevision(), observed.getFirst().getPublicationRevision());
+		assertFalse(observerSawCoordinator[0], "resource observers run after all project scopes unlock");
+		assertTrue(undoController.canUndo());
+		assertFalse(firstProjectUndo.canUndo(), "shared-resource edit history belongs to the resource model's controller");
+		assertFalse(secondProjectUndo.canUndo(), "member project controllers do not receive a duplicate field edit");
+
+		undoController.undo();
+		assertSame(originalRate, resource.getStandardRate());
+		assertEquals(poolRevision + 2, pool.getCoordinationRevision());
+		assertEquals(firstRevision + 2, firstProject.getMutationState().revision());
+		assertEquals(secondRevision + 2, secondProject.getMutationState().revision());
+		undoController.redo();
+		assertEquals(125.0D, resource.getStandardRate().getValue());
+		assertEquals(poolRevision + 3, pool.getCoordinationRevision());
+		assertEquals(firstRevision + 3, firstProject.getMutationState().revision());
+		assertEquals(secondRevision + 3, secondProject.getMutationState().revision());
+		assertEquals(3, observed.size(), "Undo and Redo publish the same actual resource fact");
+		undoController.clear();
+		long noOpPoolRevision = pool.getCoordinationRevision();
+		long noOpFirstRevision = firstProject.getMutationState().revision();
+		long noOpSecondRevision = secondProject.getMutationState().revision();
+		resourceModel.setFieldValue(standardRate, resourceNode, this, resource.getStandardRate(), null, NodeModel.NORMAL);
+		assertEquals(noOpPoolRevision, pool.getCoordinationRevision());
+		assertEquals(noOpFirstRevision, firstProject.getMutationState().revision());
+		assertEquals(noOpSecondRevision, secondProject.getMutationState().revision());
+		assertFalse(undoController.canUndo(), "a semantic no-op creates no history");
+		long failurePoolRevision = pool.getCoordinationRevision();
+		FailingField failingField = new FailingField();
+		failingField.setClass(ResourceImpl.class);
+		assertThrows(FieldParseException.class, () -> resourceModel.setFieldValue(
+			failingField, resourceNode, this, "invalid", null, NodeModel.NORMAL));
+		assertEquals(failurePoolRevision, pool.getCoordinationRevision());
+		assertFalse(undoController.canUndo(), "a rejected field parse creates no history");
+	}
+
+	@Test
 	void copyRebuildsWbsChildrenForCopiedSummaryTask() {
 		Project project = createProjectWithoutVoidRows();
 		NormalTask parent = createTask(project, "parent");
@@ -783,6 +863,87 @@ class DefaultNodeModelTest {
 		project.getUndoController().redo();
 		assertSame(secondNode, root.getChildAt(0));
 		assertEquals(secondUniqueId, second.getUniqueId());
+	}
+
+	@Test
+	void permanentOutlineSortPreservesHierarchyStableTiesAndUndoRedo() throws Exception {
+		Project project = createProjectWithoutVoidRows();
+		NormalTask parent = createTask(project, "Zulu summary");
+		NormalTask nestedZulu = createTask(project, "Zulu child");
+		NormalTask nestedAlpha = createTask(project, "Alpha child");
+		NormalTask alphaFirst = createTask(project, "Alpha");
+		NormalTask alphaSecond = createTask(project, "Alpha");
+		DefaultNodeModel model = (DefaultNodeModel) project.getTaskModel();
+		Node parentNode = model.search(parent);
+		Node nestedZuluNode = model.search(nestedZulu);
+		Node nestedAlphaNode = model.search(nestedAlpha);
+		Node alphaFirstNode = model.search(alphaFirst);
+		Node alphaSecondNode = model.search(alphaSecond);
+		assertTrue(model.relocate(List.of(nestedZuluNode, nestedAlphaNode), parentNode, 0, NodeModel.SILENT));
+		Dependency dependency = DependencyService.getInstance().newDependency(nestedZulu, alphaFirst,
+			DependencyType.FS, 0L, this);
+		long revisionBeforeSort = project.getMutationState().revision();
+		long[] uniqueIds = { parent.getUniqueId(), nestedZulu.getUniqueId(), nestedAlpha.getUniqueId(),
+			alphaFirst.getUniqueId(), alphaSecond.getUniqueId() };
+		project.getUndoController().clear();
+
+		NodeSorter byTaskName = new NodeSorter() {
+			@Override
+			public int compare(Object left, Object right) {
+				return ((com.microproject.pm.task.Task) ((Node) left).getImpl()).getName()
+					.compareTo(((com.microproject.pm.task.Task) ((Node) right).getImpl()).getName());
+			}
+		};
+		assertTrue(model.sortOutlineBy(byTaskName, NodeModel.NORMAL));
+		assertEquals(revisionBeforeSort + 1, project.getMutationState().revision(),
+			"a multi-branch permanent sort publishes as one project mutation");
+
+		Node root = (Node) model.getHierarchy().getRoot();
+		assertSame(alphaFirstNode, root.getChildAt(0));
+		assertSame(alphaSecondNode, root.getChildAt(1), "equal keys retain their prior sibling order");
+		assertSame(parentNode, root.getChildAt(2));
+		assertSame(nestedAlphaNode, parentNode.getChildAt(0));
+		assertSame(nestedZuluNode, parentNode.getChildAt(1));
+		assertSame(parentNode, nestedAlphaNode.getParent());
+		assertArrayEquals(uniqueIds, new long[] { parent.getUniqueId(), nestedZulu.getUniqueId(), nestedAlpha.getUniqueId(),
+			alphaFirst.getUniqueId(), alphaSecond.getUniqueId() });
+		assertEquals(List.of(1L, 2L, 3L, 4L, 5L), taskIds(project));
+		assertSame(dependency, findDependency(nestedZulu, alphaFirst));
+
+		assertTrue(project.getUndoController().canUndo());
+		long revisionBeforeUndo = project.getMutationState().revision();
+		project.getUndoController().undo();
+		assertEquals(revisionBeforeUndo + 1, project.getMutationState().revision());
+		assertSame(parentNode, root.getChildAt(0));
+		assertSame(alphaFirstNode, root.getChildAt(1));
+		assertSame(alphaSecondNode, root.getChildAt(2));
+		assertSame(nestedZuluNode, parentNode.getChildAt(0));
+		assertSame(nestedAlphaNode, parentNode.getChildAt(1));
+		assertSame(dependency, findDependency(nestedZulu, alphaFirst));
+		long revisionBeforeRedo = project.getMutationState().revision();
+		project.getUndoController().redo();
+		assertEquals(revisionBeforeRedo + 1, project.getMutationState().revision());
+		assertSame(alphaFirstNode, root.getChildAt(0));
+		assertSame(nestedAlphaNode, parentNode.getChildAt(0));
+		assertSame(dependency, findDependency(nestedZulu, alphaFirst));
+		project.getUndoController().clear();
+		long revisionBeforeNoOp = project.getMutationState().revision();
+		assertFalse(model.sortOutlineBy(byTaskName, NodeModel.NORMAL), "an already sorted outline is a true no-op");
+		assertEquals(revisionBeforeNoOp, project.getMutationState().revision());
+		assertFalse(project.getUndoController().canUndo(), "a no-op must not create an Undo edit");
+
+		NodeSorter failingNestedSort = new NodeSorter() {
+			@Override
+			public int compare(Object left, Object right) {
+				if (((Node) left).getParent() == parentNode)
+					throw new IllegalStateException("nested comparison failed before mutation");
+				return ((com.microproject.pm.task.Task) ((Node) right).getImpl()).getName()
+					.compareTo(((com.microproject.pm.task.Task) ((Node) left).getImpl()).getName());
+			}
+		};
+		assertThrows(IllegalStateException.class, () -> model.sortOutlineBy(failingNestedSort, NodeModel.NORMAL));
+		assertSame(alphaFirstNode, root.getChildAt(0), "sort plans are validated before any sibling is moved");
+		assertFalse(project.getUndoController().canUndo(), "a failed preflight must not create an Undo edit");
 	}
 
 	@Test
@@ -846,13 +1007,19 @@ class DefaultNodeModelTest {
 		long siblingUniqueId = sibling.getUniqueId();
 		DefaultNodeModel model = (DefaultNodeModel) project.getTaskModel();
 
-		model.getHierarchy().indent(Arrays.asList(model.search(child)), 1, model, NodeModel.NORMAL);
+		long revision = project.getMutationState().revision();
+		model.indent(Arrays.asList(model.search(child)), 1, NodeModel.NORMAL);
+		assertEquals(revision + 1, project.getMutationState().revision());
 		assertEquals(List.of(1L, 2L, 3L), taskIds(project));
 		assertEquals(parentUniqueId, parent.getUniqueId());
 		assertEquals(childUniqueId, child.getUniqueId());
 		assertEquals(siblingUniqueId, sibling.getUniqueId());
 
-		model.getHierarchy().indent(Arrays.asList(model.search(child)), -1, model, NodeModel.NORMAL);
+		long revisionAfterIndent = project.getMutationState().revision();
+		model.indent(Arrays.asList(model.search(child)), 1, NodeModel.NORMAL);
+		assertEquals(revisionAfterIndent, project.getMutationState().revision(), "an impossible second indent is a no-op");
+		model.indent(Arrays.asList(model.search(child)), -1, NodeModel.NORMAL);
+		assertEquals(revisionAfterIndent + 1, project.getMutationState().revision());
 		assertEquals(List.of(1L, 2L, 3L), taskIds(project));
 		assertEquals(childUniqueId, child.getUniqueId());
 	}
@@ -870,17 +1037,23 @@ class DefaultNodeModelTest {
 		Node siblingNode = model.search(sibling);
 		project.getUndoController().clear();
 
-		model.getHierarchy().indent(List.of(childNode), 1, model, NodeModel.NORMAL);
+		long revisionBeforeIndent = project.getMutationState().revision();
+		model.indent(List.of(childNode), 1, NodeModel.NORMAL);
+		assertEquals(revisionBeforeIndent + 1, project.getMutationState().revision());
 		assertSame(parentNode, childNode.getParent());
 		assertSame(siblingNode, root.getChildAt(1));
 
+		long revisionBeforeUndo = project.getMutationState().revision();
 		project.getUndoController().undo();
+		assertEquals(revisionBeforeUndo + 1, project.getMutationState().revision());
 		assertSame(root, childNode.getParent());
 		assertSame(parentNode, root.getChildAt(0));
 		assertSame(childNode, root.getChildAt(1));
 		assertSame(siblingNode, root.getChildAt(2));
 
+		long revisionBeforeRedo = project.getMutationState().revision();
 		project.getUndoController().redo();
+		assertEquals(revisionBeforeRedo + 1, project.getMutationState().revision());
 		assertSame(parentNode, childNode.getParent());
 		assertSame(siblingNode, root.getChildAt(1));
 	}

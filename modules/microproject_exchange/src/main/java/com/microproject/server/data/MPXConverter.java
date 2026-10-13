@@ -30,6 +30,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -59,18 +60,22 @@ import net.sf.mpxj.Task;
 import net.sf.mpxj.TaskMode;
 import net.sf.mpxj.TaskType;
 import net.sf.mpxj.TimeUnit;
+import net.sf.mpxj.TimephasedWork;
+import net.sf.mpxj.common.DefaultTimephasedWorkContainer;
 import net.sf.mpxj.WorkContour;
-import net.sf.mpxj.mspdi.DatatypeConverter;
+import net.sf.mpxj.mspdi.MSPDITimephasedWorkNormaliser;
 
 import com.microproject.exchange.ImportedCalendarService;
 import com.microproject.exchange.mpxj.MpxjApi;
 import com.microproject.configuration.Configuration;
 import com.microproject.datatype.Duration;
 import com.microproject.datatype.Rate;
+import com.microproject.interval.ValueObjectForInterval;
 import com.microproject.field.CustomFields;
 import com.microproject.grouping.core.VoidNodeImpl;
 import com.microproject.options.CalendarOption;
 import com.microproject.pm.assignment.Assignment;
+import com.microproject.pm.costing.CostRate;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.calendar.WorkDay;
 import com.microproject.pm.calendar.WorkRange;
@@ -144,8 +149,8 @@ public class MPXConverter {
 		// the project.  Writing both dates without it causes readers to assume a
 		// forward schedule and loses a finish-scheduled project's semantics.
 		projectHeader.setScheduleFrom(project.isForward() ? ScheduleFrom.START : ScheduleFrom.FINISH);
-		projectHeader.setStartDate(DateTime.fromGmt(new Date(project.getStartDate())));
-		projectHeader.setFinishDate(DateTime.fromGmt(new Date(project.getFinishDate())));
+		projectHeader.setStartDate(toMpxDate(project.getStartDate()));
+		projectHeader.setFinishDate(toMpxDate(project.getFinishDate()));
 		projectHeader.setDefaultStartTime(CalendarOption.getInstance().getDefaultStartTime().getTime());
 		projectHeader.setDefaultEndTime(CalendarOption.getInstance().getDefaultEndTime().getTime());
 
@@ -228,7 +233,8 @@ public class MPXConverter {
 
 		for (WorkRange range : workingHours.getIntervals()) { //claur
 			if (range!=null)
-				mpxDay.add(new DateRange(DateTime.fromGmt(range.getNormalizedStartTime()),DateTime.fromGmt(range.getNormalizedEndTime())));
+				mpxDay.add(new DateRange(toMpxDate(range.getNormalizedStartTime().getTime()),
+						toMpxDate(range.getNormalizedEndTime().getTime())));
 		}
 	}
 
@@ -238,8 +244,8 @@ public class MPXConverter {
 		WorkingHours workingHours=day.getWorkingHours();
 		for (WorkRange range : workingHours.getIntervals()) {
 			if (range != null)
-				mpxDay.add(new DateRange(DateTime.fromGmt(range.getNormalizedStartTime()),
-						DateTime.fromGmt(range.getNormalizedEndTime())));
+				mpxDay.add(new DateRange(toMpxDate(range.getNormalizedStartTime().getTime()),
+						toMpxDate(range.getNormalizedEndTime().getTime())));
 		}
 	}
 
@@ -248,22 +254,41 @@ public class MPXConverter {
 		mpxResource.setName(removeInvalidChars(projectlibreResource.getName()));
 		mpxResource.setNotes(removeInvalidChars(projectlibreResource.getNotes()));
 		mpxResource.setAccrueAt(AccrueType.getInstance(projectlibreResource.getAccrueAt()));
-		mpxResource.set(ResourceField.COST_PER_USE, Double.valueOf(projectlibreResource.getCostPerUse()));
-		mpxResource.set(ResourceField.STANDARD_RATE, toMPXRate(projectlibreResource.getStandardRate()));
-		mpxResource.set(ResourceField.OVERTIME_RATE, toMPXRate(projectlibreResource.getOvertimeRate()));
+		for (int tableIndex = 0; tableIndex < net.sf.mpxj.CostRateTable.MAX_TABLES; tableIndex++) {
+			com.microproject.pm.costing.CostRateTable sourceTable = projectlibreResource.getCostRateTableIfPresent(tableIndex);
+			net.sf.mpxj.CostRateTable targetTable = new net.sf.mpxj.CostRateTable();
+			if (sourceTable != null) {
+				for (ValueObjectForInterval value : sourceTable.getList()) {
+					CostRate rate = (CostRate) value;
+					Date start = value.isFirst() ? net.sf.mpxj.common.DateHelper.START_DATE_NA
+						: new Date(value.getStart());
+					Date end = value.getEnd() >= com.microproject.util.DateTime.getMaxDate().getTime()
+						? net.sf.mpxj.common.DateHelper.END_DATE_NA : new Date(value.getEnd());
+					targetTable.add(new net.sf.mpxj.CostRateTableEntry(start, end,
+						Double.valueOf(rate.getCostPerUse()), toMPXRate(rate.getStandardRate()),
+						toMPXRate(rate.getOvertimeRate())));
+				}
+			}
+			// MPXJ and the domain both number tables A-E as 0-4.
+			mpxResource.setCostRateTable(tableIndex, targetTable);
+		}
 		mpxResource.setGroup(projectlibreResource.getGroup());
 		mpxResource.setEmailAddress(projectlibreResource.getEmailAddress());
 		mpxResource.setGeneric(projectlibreResource.isGeneric()); // fix for 2024492
 
 		mpxResource.setInitials(projectlibreResource.getInitials());
-		int resourceId = exportId(IdNamespace.RESOURCE_ROW, projectlibreResource.getId());
+		int resourceId = projectlibreResource.isDefault() ? 0
+			: exportId(IdNamespace.RESOURCE_ROW, projectlibreResource.getId());
 		mpxResource.setID(resourceId);
 		long uid = projectlibreResource.getExternalId(); // try using external id of one set
 		if (uid <= 0)
 			uid = projectlibreResource.getUniqueId();
 		if (uid <= 0)
 			uid = projectlibreResource.getId();
-		mpxResource.setUniqueID(exportId(IdNamespace.RESOURCE, uid));
+		// The unassigned singleton is a sentinel, not a new resource requiring an ID.
+		mpxResource.setUniqueID(projectlibreResource.isDefault()
+			? com.microproject.pm.resource.EnterpriseResource.UNASSIGNED_ID
+			: exportId(IdNamespace.RESOURCE, uid));
 		mpxResource.setMaxUnits(projectlibreResource.getMaximumUnits()*100);
 
 		WorkingCalendar projectlibreCalendar = (WorkingCalendar)projectlibreResource.getWorkCalendar();
@@ -333,6 +358,10 @@ public class MPXConverter {
 	public static void toMPXAssignment(Assignment assignment, ResourceAssignment mpxAssignment) {
 //		long work = assignment.isDefault() ? 0 : assignment.getWork(null); // microsoft considers no work on default assignments
 		long work = assignment.getWork(null); // microsoft considers no work on default assignments
+		if (assignment.getStart() != 0L)
+			mpxAssignment.setStart(toMpxDate(assignment.getStart()));
+		if (assignment.getEnd() != 0L)
+			mpxAssignment.setFinish(toMpxDate(assignment.getEnd()));
     	mpxAssignment.setWork(MPXConverter.toMPXDuration(work));
 		mpxAssignment.setActualWork(MPXConverter.toMPXDuration(assignment.getActualWork(null)));
 		long assignmentWork = Duration.millis(assignment.getWork(null));
@@ -340,9 +369,9 @@ public class MPXConverter {
 				: ((double) Duration.millis(assignment.getActualWork(null))) / assignmentWork;
 		mpxAssignment.setPercentageWorkComplete(percentWorkComplete * 100.0d);
 		if (assignment.getActualStart() != 0L)
-			mpxAssignment.setActualStart(DateTime.fromGmt(new Date(assignment.getActualStart())));
+			mpxAssignment.setActualStart(toMpxDate(assignment.getActualStart()));
 		if (assignment.getActualFinish() != 0L)
-			mpxAssignment.setActualFinish(DateTime.fromGmt(new Date(assignment.getActualFinish())));
+			mpxAssignment.setActualFinish(toMpxDate(assignment.getActualFinish()));
     	mpxAssignment.setUnits(MathUtils.roundToDecentPrecision(assignment.getUnits()*100.0D));
     	mpxAssignment.setRemainingWork(MPXConverter.toMPXDuration(assignment.getRemainingWork())); //2007
     	long delay = Duration.millis(assignment.getDelay());
@@ -362,9 +391,153 @@ public class MPXConverter {
 
 
 		mpxAssignment.setWorkContour(MpxjApi.workContour(assignment.getWorkContourType()));
+		if (assignment.getWorkContour().isPersonal())
+			toMPXTimephasedWork(assignment, mpxAssignment);
+		for (int snapshotId = 0; snapshotId <= 10; snapshotId++) {
+			Assignment.BaselineValues baseline = assignment.getBaselineValues(snapshotId);
+			Assignment baselineAssignment = assignment.getBaselineAssignment(Integer.valueOf(snapshotId), false);
+			if (baseline == null && baselineAssignment == null)
+				continue;
+			Date baselineStart = baseline == null || baseline.start() == null ? null
+				: toMpxDate(baseline.start().longValue());
+			Date baselineFinish = baseline == null || baseline.finish() == null ? null
+				: toMpxDate(baseline.finish().longValue());
+			net.sf.mpxj.Duration baselineWork = baseline == null || baseline.work() == null
+				? null : toMPXDuration(baseline.work().longValue());
+			if (snapshotId == 0) {
+				mpxAssignment.setBaselineStart(baselineStart);
+				mpxAssignment.setBaselineFinish(baselineFinish);
+				mpxAssignment.setBaselineWork(baselineWork);
+			} else {
+				mpxAssignment.setBaselineStart(snapshotId, baselineStart);
+				mpxAssignment.setBaselineFinish(snapshotId, baselineFinish);
+				mpxAssignment.setBaselineWork(snapshotId, baselineWork);
+			}
+		}
 
 
 	}
+
+	static List<TimephasedWork> baselineTimephasedWorkRows(Assignment baseline) {
+		List<TimephasedWork> intervals = new ArrayList<>();
+		long total = appendProfileTimephasedWork(intervals, baseline.getWorkContour().getContourBuckets(),
+			baseline.getStart(), baseline.getDuration(), baseline.getEffectiveWorkCalendar());
+		if (total != baseline.getWork(null))
+			throw new IllegalArgumentException("Assignment baseline contour does not match its work total");
+		return List.copyOf(intervals);
+	}
+
+	private static void toMPXTimephasedWork(Assignment assignment, ResourceAssignment mpxAssignment) {
+		List<TimephasedWork> actual = new ArrayList<>();
+		List<TimephasedWork> remaining = new ArrayList<>();
+		if (assignment.hasImportedTimephasedWork()) {
+			long actualTotal = appendProfileTimephasedWork(actual, assignment.getContour(Assignment.ACTUAL_WORK),
+				assignment.getStart(), assignment.getDuration(), assignment.getEffectiveWorkCalendar());
+			long remainingTotal = appendProfileTimephasedWork(remaining,
+				assignment.getContour(Assignment.REMAINING_WORK), assignment.getStart(), assignment.getDuration(),
+				assignment.getEffectiveWorkCalendar());
+			if (actualTotal != assignment.getActualWork(null)
+					|| remainingTotal != assignment.getRemainingWork()
+					|| Math.addExact(actualTotal, remainingTotal) != assignment.getWork(null))
+				throw new IllegalArgumentException("Imported timephased profiles do not match assignment totals");
+			var normaliser = new MSPDITimephasedWorkNormaliser();
+			mpxAssignment.setTimephasedActualWork(new DefaultTimephasedWorkContainer(mpxAssignment, normaliser, actual, false));
+			mpxAssignment.setTimephasedWork(new DefaultTimephasedWorkContainer(mpxAssignment, normaliser, remaining, false));
+			return;
+		}
+		long cursor = calendarStart(assignment.getStart(), assignment.getEffectiveWorkCalendar());
+		long stop = assignment.getStop();
+		long actualTotal = 0L;
+		long remainingTotal = 0L;
+		WorkCalendar calendar = assignment.getEffectiveWorkCalendar();
+		for (var bucket : assignment.getWorkContour().getContourBuckets()) {
+			long duration = bucket.getBucketDuration(assignment.getDuration());
+			long end = calendar.add(cursor, duration, true);
+			long work = (long) (bucket.getUnits() * duration);
+			long actualDuration = stop <= cursor ? 0L : Math.min(duration, calendar.compare(Math.min(stop, end), cursor, false));
+			long actualWork = (long) (bucket.getUnits() * actualDuration);
+			long remainingWork = work - actualWork;
+			if (duration > 0L && end <= cursor)
+				throw new IllegalArgumentException("Cannot export a personal contour bucket without a calendar interval");
+			if (actualDuration > 0L)
+				appendDailyTimephasedWork(actual, cursor, calendar.add(cursor, actualDuration, true), actualWork, calendar);
+			if (duration > actualDuration)
+				appendDailyTimephasedWork(remaining, calendar.adjustInsideCalendar(calendar.add(cursor, actualDuration, true), false),
+					end, remainingWork, calendar);
+			actualTotal = Math.addExact(actualTotal, actualWork);
+			remainingTotal = Math.addExact(remainingTotal, remainingWork);
+			cursor = calendarStart(end, calendar);
+		}
+		if (actualTotal != assignment.getActualWork(null)
+				|| Math.addExact(actualTotal, remainingTotal) != assignment.getWork(null))
+			throw new IllegalArgumentException("Personal contour does not match assignment work/actual-work totals");
+		var normaliser = new MSPDITimephasedWorkNormaliser();
+		mpxAssignment.setTimephasedActualWork(new DefaultTimephasedWorkContainer(mpxAssignment, normaliser, actual, false));
+		mpxAssignment.setTimephasedWork(new DefaultTimephasedWorkContainer(mpxAssignment, normaliser, remaining, false));
+	}
+
+	private static long appendProfileTimephasedWork(List<TimephasedWork> destination,
+		com.microproject.pm.assignment.contour.AbstractContourBucket[] buckets, long start, long assignmentDuration,
+		WorkCalendar calendar) {
+		long cursor = calendarStart(start, calendar);
+		long total = 0L;
+		for (var bucket : buckets) {
+			long duration = bucket.getBucketDuration(assignmentDuration);
+			long end = calendar.add(cursor, duration, true);
+			long work = Math.round(bucket.getUnits() * duration);
+			if (duration > 0L)
+				appendDailyTimephasedWork(destination, cursor, end, work, calendar);
+			total = Math.addExact(total, work);
+			cursor = calendarStart(end, calendar);
+		}
+		return total;
+	}
+
+	private static long calendarStart(long date, WorkCalendar calendar) {
+		return calendar.adjustInsideCalendar(date, false);
+	}
+
+	static void appendDailyTimephasedWork(List<TimephasedWork> destination, long start, long end, long totalWork,
+		WorkCalendar calendar) {
+		long cursor = calendarStart(start, calendar);
+		long totalDuration = calendar.compare(end, cursor, false);
+		if (totalDuration <= 0L) {
+			throw new IllegalArgumentException("Cannot export a personal-contour interval without working duration");
+		}
+		long cumulativeDuration = 0L;
+		long previousWork = 0L;
+		while (cursor < end) {
+			long nextDay = DateTime.nextDay(DateTime.dayFloor(cursor));
+			long segmentEnd = Math.min(end, nextDay);
+			long workingEnd = segmentEnd == nextDay ? calendar.adjustInsideCalendar(segmentEnd, true) : segmentEnd;
+			long duration = calendar.compare(workingEnd, cursor, false);
+			if (duration > 0L) {
+				cumulativeDuration = Math.addExact(cumulativeDuration, duration);
+				long cumulativeWork = cumulativeDuration >= totalDuration ? totalWork
+					: Math.round(totalWork * (cumulativeDuration / (double) totalDuration));
+				long work = cumulativeWork - previousWork;
+				destination.add(timephasedWork(cursor, workingEnd, work));
+				previousWork = cumulativeWork;
+			}
+			if (segmentEnd <= cursor)
+				throw new IllegalArgumentException("Cannot advance a personal-contour timephased interval");
+			cursor = segmentEnd < end ? calendarStart(segmentEnd, calendar) : segmentEnd;
+		}
+		if (cumulativeDuration != totalDuration || previousWork != totalWork)
+			throw new IllegalArgumentException("Cannot export a personal-contour interval without exact daily work totals");
+	}
+
+	private static TimephasedWork timephasedWork(long start, long end, long work) {
+		TimephasedWork result = new TimephasedWork();
+		result.setStart(toMpxDate(start));
+		result.setFinish(toMpxDate(end));
+		net.sf.mpxj.Duration amount = net.sf.mpxj.Duration.getInstance(
+			work / (double) (60L * 60L * 1000L), TimeUnit.HOURS);
+		result.setTotalAmount(amount);
+		result.setAmountPerDay(amount);
+		return result;
+	}
+
 private static int autoId = 0;
 
 
@@ -395,14 +568,16 @@ private static int autoId = 0;
 		mpxTask.setWork(toMPXDuration((long) projectlibreTask.getWork()));
 		mpxTask.setActualWork(toMPXDuration(projectlibreTask.getActualWork(null)));
 		mpxTask.setRemainingWork(toMPXDuration(projectlibreTask.getRemainingWork(null)));
-		mpxTask.setStart(DateTime.fromGmt(new Date(projectlibreTask.getStart())));
-		mpxTask.setFinish(DateTime.fromGmt(new Date(projectlibreTask.getEnd())));
+		// The model stores local wall time encoded in a UTC epoch. MPXJ formats
+		// these MSPDI fields in the host zone, so remove that encoding first.
+		mpxTask.setStart(toMpxDate(projectlibreTask.getStart()));
+		mpxTask.setFinish(toMpxDate(projectlibreTask.getEnd()));
 		mpxTask.setCritical(Boolean.valueOf(projectlibreTask.isCritical()));
 		mpxTask.setEstimated(projectlibreTask.isEstimated());
 		mpxTask.setEffortDriven(projectlibreTask.isEffortDriven());
 		mpxTask.setType(MpxjApi.taskType(projectlibreTask.getSchedulingType()));
 		mpxTask.setConstraintType(ConstraintType.getInstance(projectlibreTask.getConstraintType()));
-		mpxTask.setConstraintDate(DateTime.fromGmt(new Date(projectlibreTask.getConstraintDate())));
+		mpxTask.setConstraintDate(toMpxDate(projectlibreTask.getConstraintDate()));
 		mpxTask.setPriority(Priority.getInstance(projectlibreTask.getPriority()));
 		mpxTask.setFixedCost(projectlibreTask.getFixedCost());
 		mpxTask.setFixedCostAccrual(AccrueType.getInstance(projectlibreTask.getFixedCostAccrual()));
@@ -415,7 +590,7 @@ private static int autoId = 0;
 		// after an import/recalculation.
 		mpxTask.setLevelingDelay(toMPXLevelingDelay(projectlibreTask.getLevelingDelay()));
 		if (projectlibreTask.getDeadline() != 0)
-			mpxTask.setDeadline(DateTime.fromGmt(new Date(projectlibreTask.getDeadline())));
+			mpxTask.setDeadline(toMpxDate(projectlibreTask.getDeadline()));
 		mpxTask.setEarnedValueMethod(EarnedValueMethod.getInstance(projectlibreTask.getEarnedValueMethod()));
 		mpxTask.setIgnoreResourceCalendar(projectlibreTask.isIgnoreResourceCalendar());
 		toMpxTaskBaselines(projectlibreTask, mpxTask);
@@ -424,10 +599,10 @@ private static int autoId = 0;
 		mpxTask.setTotalSlack(toMPXDuration(projectlibreTask.getTotalSlack()));
 		mpxTask.setRemainingDuration(toMPXDuration(projectlibreTask.getRemainingDuration()));
 		if (projectlibreTask.getStop() != 0)
-			mpxTask.setStop(DateTime.fromGmt(new Date(projectlibreTask.getStop())));
+			mpxTask.setStop(toMpxDate(projectlibreTask.getStop()));
 		
 		if (projectlibreTask.getResume() != 0)
-			mpxTask.setResume(DateTime.fromGmt(new Date(projectlibreTask.getResume())));
+			mpxTask.setResume(toMpxDate(projectlibreTask.getResume()));
 
 		WorkCalendar cal = projectlibreTask.getWorkCalendar();
 
@@ -456,14 +631,14 @@ private static int autoId = 0;
 				continue;
 			var schedule = snapshot.getCurrentSchedule();
 			if (schedule.getStart() != 0L) {
-				Date start = new Date(TimeUtil.removeTimeZoneOffset(schedule.getStart()));
+				Date start = toMpxDate(schedule.getStart());
 				if (snapshotId == 0)
 					mpxTask.setBaselineStart(start);
 				else
 					mpxTask.setBaselineStart(snapshotId, start);
 			}
 			if (schedule.getFinish() != 0L) {
-				Date finish = new Date(TimeUtil.removeTimeZoneOffset(schedule.getFinish()));
+				Date finish = toMpxDate(schedule.getFinish());
 				if (snapshotId == 0)
 					mpxTask.setBaselineFinish(finish);
 				else
@@ -483,9 +658,9 @@ private static int autoId = 0;
 		mpxTask.setPercentageWorkComplete(projectlibreTask.getPercentWorkComplete()*100.0D);
 		mpxTask.setPhysicalPercentComplete(projectlibreTask.getPhysicalPercentComplete()*100.0D);
 		if (projectlibreTask.getActualStart() != 0L)
-			mpxTask.setActualStart(DateTime.fromGmt(new Date(projectlibreTask.getActualStart())));
+			mpxTask.setActualStart(toMpxDate(projectlibreTask.getActualStart()));
 		if (projectlibreTask.getActualFinish() != 0L)
-			mpxTask.setActualFinish(DateTime.fromGmt(new Date(projectlibreTask.getActualFinish())));
+			mpxTask.setActualFinish(toMpxDate(projectlibreTask.getActualFinish()));
 		mpxTask.setActualDuration(toMPXDuration(projectlibreTask.getActualDuration()));
 		mpxTask.setActive(!projectlibreTask.isInactiveTask());
 		mpxTask.setTaskMode(projectlibreTask.isManuallyScheduled() ? TaskMode.MANUALLY_SCHEDULED : TaskMode.AUTO_SCHEDULED);
@@ -605,6 +780,12 @@ private static int autoId = 0;
 			.withZone(ZoneId.systemDefault())
 			.format(Instant.ofEpochMilli(time));
 	}
+
+	/** Converts a model wall-time epoch into MPXJ's host-local date representation. */
+	private static Date toMpxDate(long modelWallTime) {
+		return new Date(TimeUtil.removeTimeZoneOffset(modelWallTime));
+	}
+
 	private static String truncName(String name) {
 		if (name == null)
 			return null;

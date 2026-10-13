@@ -25,16 +25,27 @@
 package com.microproject.pm.calendar;
 
 import java.util.ArrayList;
+import java.util.AbstractMap;
+import java.util.Comparator;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.microproject.configuration.Settings;
 import com.microproject.document.Document;
+import com.microproject.document.ObjectEventManager;
+import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.task.Project;
 import com.microproject.pm.time.HasStartAndEnd;
 import com.microproject.strings.Messages;
 import com.microproject.timescale.CalendarUtil;
+import com.microproject.transaction.ProjectMutationState;
+import com.microproject.undo.CalendarEdit;
+import com.microproject.undo.EditSupport;
 
 /**
  * Facade for manipulating calendars via a dialog or web interface
@@ -324,20 +335,187 @@ public class CalendarService {
 		workingCalendar.setWeekDayNonWorking(dayNum);
 	}
 
-	/**
-	 * Assigns an existing calendar with the contents of another. Used when
-	 * validating the calendar dialog to copy the days back into the non-scratch
-	 * calendar
-	 *
-	 * @param destination
-	 *            Where to copy data
-	 * @param source
-	 *            Where to copy from
-	 */
-	public void assignCalendar(WorkingCalendar destination, WorkingCalendar source) {
+	/** Commits one staged calendar definition and publishes its dependent-document refreshes. */
+	public boolean commitCalendar(WorkingCalendar destination, WorkingCalendar source) {
 		if (destination == null || source == null)
 			throw new IllegalArgumentException("Both calendars are required");
-		destination.assignFrom(source);
+		return commitCalendars(Map.of(destination, source));
+	}
+
+	/** Commits a dialog's staged calendars as one coordinated document mutation. */
+	public boolean commitCalendars(Map<WorkingCalendar, WorkingCalendar> stagedCalendars) {
+		return commitCalendars(stagedCalendars, null);
+	}
+
+	/** Commits staged calendars and reserves their Undo history in the same model order. */
+	public boolean commitCalendars(Map<WorkingCalendar, WorkingCalendar> stagedCalendars, EditSupport editSupport) {
+		if (stagedCalendars == null || stagedCalendars.isEmpty()) return false;
+		List<Map.Entry<WorkingCalendar, WorkingCalendar>> entries = new ArrayList<>();
+		for (Map.Entry<WorkingCalendar, WorkingCalendar> entry : stagedCalendars.entrySet())
+			entries.add(new AbstractMap.SimpleImmutableEntry<>(entry.getKey(), entry.getValue()));
+		for (Map.Entry<WorkingCalendar, WorkingCalendar> entry : entries)
+			if (entry.getKey() == null || entry.getValue() == null)
+				throw new IllegalArgumentException("Both calendars are required");
+		AtomicBoolean applied = new AtomicBoolean();
+		try {
+			return ProjectMutationState.coordinated(() -> commitCalendarsCoordinated(entries, applied, editSupport));
+		} catch (RuntimeException | Error failure) {
+			if (applied.get()) throw new CommittedMutationException(failure);
+			throw failure;
+		}
+	}
+
+	private boolean commitCalendarsCoordinated(List<Map.Entry<WorkingCalendar, WorkingCalendar>> entries,
+		AtomicBoolean applied, EditSupport editSupport) {
+		entries.removeIf(entry -> entry.getKey().hasSameDefinition(entry.getValue()));
+		if (entries.isEmpty()) return false;
+		List<WorkingCalendar> affectedCalendars = identityList();
+		List<HasCalendar> affectedObjects = identityList();
+		List<Project> projects = identityList();
+		List<ResourcePool> pools = identityList();
+		for (Map.Entry<WorkingCalendar, WorkingCalendar> entry : entries) {
+			WorkingCalendar calendar = entry.getKey();
+			if (!affectedCalendars.contains(calendar)) collectDependentCalendars(calendar, affectedCalendars);
+		}
+		for (WorkingCalendar calendar : affectedCalendars) {
+			for (HasCalendar object : calendar.getObjectsUsing()) {
+				if (containsIdentity(affectedObjects, object)) continue;
+				affectedObjects.add(object);
+				Document owner = object.getCalendarOwnerDocument();
+				if (owner instanceof Project project) addIdentity(projects, project);
+				else if (owner instanceof ResourcePool pool) addIdentity(pools, pool);
+			}
+		}
+		List<ResourcePool> orphanPools = identityList();
+		for (ResourcePool pool : List.copyOf(pools)) {
+			List<Project> poolProjects = pool.getProjects();
+			if (poolProjects.isEmpty()) addIdentity(orphanPools, pool);
+			for (Project project : poolProjects) addIdentity(projects, project);
+		}
+		projects.sort(Comparator.comparingInt(System::identityHashCode));
+		pools.sort(Comparator.comparingInt(System::identityHashCode));
+		List<Project.AdditionalObjectEventManager> additionalManagers = new ArrayList<>();
+		for (ResourcePool pool : pools) {
+			List<Object> refreshObjects = new ArrayList<>();
+			for (HasCalendar object : affectedObjects)
+				if (object.getCalendarOwnerDocument() == pool) refreshObjects.add(object);
+			additionalManagers.add(new Project.AdditionalObjectEventManager(
+				pool.getObjectEventManager(), pool, this, refreshObjects));
+		}
+		List<CalendarEdit> calendarEdits = new ArrayList<>();
+		if (editSupport != null)
+			for (Map.Entry<WorkingCalendar, WorkingCalendar> entry : entries)
+				calendarEdits.add(new CalendarEdit(entry.getKey(), entry.getValue()));
+		EditSupport.Activation undoActivation = editSupport == null ? null : editSupport.beginCommand();
+		EditSupport.Checkpoint undoCheckpoint = undoActivation == null ? null
+			: editSupport.checkpoint(undoActivation.group());
+		if (undoActivation != null) {
+			for (CalendarEdit edit : calendarEdits) editSupport.postEdit(edit);
+		}
+		for (ResourcePool pool : orphanPools) pool.getObjectEventManager().beginBatch();
+		Throwable failure = null;
+		boolean result = false;
+		List<Runnable> projectAppliedCallbacks = new ArrayList<>(projects.size());
+		try {
+			result = runCalendarProjectCommands(projects, additionalManagers, 0, projectAppliedCallbacks, () -> {
+				for (Map.Entry<WorkingCalendar, WorkingCalendar> entry : entries) {
+					entry.getKey().assignFrom(entry.getValue());
+					if (!applied.get()) {
+						applied.set(true);
+						for (Runnable markApplied : projectAppliedCallbacks) markApplied.run();
+					}
+				}
+				for (WorkingCalendar calendar : affectedCalendars) calendar.invalidateConcreteInstance();
+				for (HasCalendar object : affectedObjects) {
+					Document document = object.invalidateCalendar();
+					if (document != null && document != object.getCalendarOwnerDocument())
+						throw new IllegalStateException("Calendar invalidation returned an undiscovered owner document");
+				}
+				for (Project project : projects) project.recalculate();
+				for (Project project : projects) project.fireUpdateEvent(this, project);
+				for (ResourcePool pool : pools)
+					if (!containsIdentity(orphanPools, pool))
+						for (HasCalendar object : affectedObjects)
+							if (object.getCalendarOwnerDocument() == pool) pool.fireUpdateEvent(this, object);
+				return true;
+			});
+		} catch (Throwable current) {
+			failure = current;
+		} finally {
+			for (ResourcePool pool : orphanPools) {
+				try {
+					if (applied.get())
+						for (HasCalendar object : affectedObjects)
+							if (object.getCalendarOwnerDocument() == pool) pool.fireUpdateEvent(this, object);
+					ObjectEventManager.PendingBatch batch = pool.getObjectEventManager().detachBatch(applied.get());
+					if (applied.get() && batch != null && batch.isPublishable() && batch.hasEvents()) {
+						long revision = pool.advanceCoordinationRevision();
+						ProjectMutationState.publishAfterAllScopes(
+							() -> pool.getObjectEventManager().publishBatch(batch, revision));
+					}
+				} catch (Throwable current) {
+					if (failure == null) failure = current;
+					else failure.addSuppressed(current);
+				}
+			}
+			if (undoActivation != null) {
+				EditSupport.Group group = undoActivation.group();
+				try {
+					if (applied.get()) editSupport.reserveCommit(group);
+					else editSupport.discardSince(group, undoCheckpoint);
+				} catch (Throwable current) {
+					if (failure == null) failure = current;
+					else failure.addSuppressed(current);
+				}
+				try { undoActivation.close(); }
+				catch (Throwable current) {
+					if (failure == null) failure = current;
+					else failure.addSuppressed(current);
+				}
+				ProjectMutationState.publishAfterAllScopes(() -> editSupport.completePublication(group));
+			}
+		}
+		if (failure instanceof Error error) throw error;
+		if (failure instanceof RuntimeException runtime) throw runtime;
+		if (failure != null) throw new IllegalStateException("Calendar mutation failed", failure);
+		return result;
+	}
+
+	/** Indicates that observer publication failed after the calendar edit itself committed. */
+	public static final class CommittedMutationException extends RuntimeException {
+		private static final long serialVersionUID = 1L;
+		private CommittedMutationException(Throwable cause) {
+			super("Calendar changes were committed, but an observer failed during publication", cause);
+		}
+	}
+
+	private boolean runCalendarProjectCommands(List<Project> projects,
+		List<Project.AdditionalObjectEventManager> additionalManagers, int index, List<Runnable> appliedCallbacks,
+		java.util.function.BooleanSupplier operation) {
+		if (index == projects.size()) return operation.getAsBoolean();
+		return projects.get(index).runModelCommand(markApplied -> {
+			appliedCallbacks.add(markApplied);
+			boolean changed = runCalendarProjectCommands(projects, additionalManagers, index + 1,
+				appliedCallbacks, operation);
+			return changed;
+		}, Boolean.TRUE::equals, changed -> true, additionalManagers);
+	}
+
+	private void collectDependentCalendars(WorkingCalendar base, List<WorkingCalendar> calendars) {
+		addIdentity(calendars, base);
+		for (WorkingCalendar derived : derivedCalendars)
+			if (derived != null && derived != base && derived.dependsOn(base)) addIdentity(calendars, derived);
+	}
+
+	private static <T> List<T> identityList() {
+		return new ArrayList<>();
+	}
+	private static <T> void addIdentity(List<T> values, T value) {
+		if (value != null && !containsIdentity(values, value)) values.add(value);
+	}
+	private static <T> boolean containsIdentity(List<T> values, T candidate) {
+		for (T value : values) if (value == candidate) return true;
+		return false;
 	}
 
 	/**
@@ -382,12 +560,6 @@ public class CalendarService {
 		return wc;
 	}
 
-	public void saveAndUpdate(WorkingCalendar workingCalendar) {
-		if (workingCalendar == null)
-			throw new IllegalArgumentException("Calendar is required");
-		workingCalendar.invalidate();
-	}
-
 	public void invalidate(WorkingCalendar cal) {
 		if (cal == null)
 			return;
@@ -424,17 +596,16 @@ public class CalendarService {
 
 
 	public void add(WorkingCalendar cal) {
-		if (cal.isBaseCalendar()) {
-			if (!baseCalendars.contains(cal)) {
-				boolean found = findBaseCalendar(cal.getName()) != null;
-				if (found)
-					return;
-				baseCalendars.add(cal);
-			}
-		} else {
-			if (!derivedCalendars.contains(cal) && !baseCalendars.contains(cal))
+		ProjectMutationState.coordinated(() -> {
+			if (cal.isBaseCalendar()) {
+				if (!baseCalendars.contains(cal)) {
+					boolean found = findBaseCalendar(cal.getName()) != null;
+					if (found) return;
+					baseCalendars.add(cal);
+				}
+			} else if (!derivedCalendars.contains(cal) && !baseCalendars.contains(cal))
 				derivedCalendars.add(cal);
-		}
+		});
 	}
 
 	/**
@@ -443,14 +614,16 @@ public class CalendarService {
 	 * through the normal calendar-list loading path.
 	 */
 	void registerDerivedCalendar(WorkingCalendar cal) {
-		if (cal != null && cal.getBaseCalendar() != null && !derivedCalendars.contains(cal))
-			derivedCalendars.add(cal);
+		ProjectMutationState.coordinated(() -> {
+			if (cal != null && cal.getBaseCalendar() != null && !derivedCalendars.contains(cal))
+				derivedCalendars.add(cal);
+		});
 	}
 	public ArrayList<WorkingCalendar> getBaseCalendars() {
-		return baseCalendars;
+		return ProjectMutationState.coordinated(() -> new ArrayList<>(baseCalendars));
 	}
 	public ArrayList<WorkingCalendar> getDerivedCalendars() {
-		return derivedCalendars;
+		return ProjectMutationState.coordinated(() -> new ArrayList<>(derivedCalendars));
 	}
 
 	public static final Object[] allBaseCalendars() {
@@ -500,12 +673,13 @@ public class CalendarService {
 	}
 
 	public void reassignCalendar(HasCalendar object, WorkCalendar oldCal, WorkCalendar newCal) {
-		if (oldCal == newCal)
-			return;
-		if (oldCal instanceof WorkingCalendar workingCalendar)
-			workingCalendar.removeObjectUsing(object);
-		if (newCal instanceof WorkingCalendar workingCalendar)
-			workingCalendar.addObjectUsing(object);
+		ProjectMutationState.coordinated(() -> {
+			if (oldCal == newCal) return;
+			if (oldCal instanceof WorkingCalendar workingCalendar)
+				workingCalendar.removeObjectUsing(object);
+			if (newCal instanceof WorkingCalendar workingCalendar)
+				workingCalendar.addObjectUsing(object);
+		});
 	}
 
 }

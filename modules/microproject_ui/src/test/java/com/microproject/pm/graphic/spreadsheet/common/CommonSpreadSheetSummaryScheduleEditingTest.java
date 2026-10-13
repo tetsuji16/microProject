@@ -76,7 +76,13 @@ class CommonSpreadSheetSummaryScheduleEditingTest {
 		assertEquals(fixture.originalChildStart, fixture.child.getStart());
 	}
 
-	private Fixture createFixture() {
+	private Fixture createFixture() throws Exception {
+		final Fixture[] fixtureRef = new Fixture[1];
+		SwingUtilities.invokeAndWait(() -> fixtureRef[0] = createFixtureOnEdt());
+		return fixtureRef[0];
+	}
+
+	private Fixture createFixtureOnEdt() {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
 		ResourcePool resourcePool = ResourcePool.createRourcePool("summary-sheet-test", undoController);
 		Project project = Project.createProject(resourcePool, undoController);
@@ -104,24 +110,14 @@ class CommonSpreadSheetSummaryScheduleEditingTest {
 		}
 		cache.update();
 
-		final SpreadSheet[] sheetRef = new SpreadSheet[1];
-		try {
-			SwingUtilities.invokeAndWait(() -> {
-				SpreadSheet sheet = new SpreadSheet();
-				sheet.setSpreadSheetCategory(SpreadSheetCategories.taskSpreadsheetCategory);
-				SpreadSheetUtils.setFieldsAndContext(
-					sheet,
-					cache,
-					SpreadSheetCategories.taskSpreadsheetCategory,
-					"Spreadsheet.Task.entry",
-					true);
-				sheetRef[0] = sheet;
-			});
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
-
-		SpreadSheet sheet = sheetRef[0];
+		SpreadSheet sheet = new SpreadSheet();
+		sheet.setSpreadSheetCategory(SpreadSheetCategories.taskSpreadsheetCategory);
+		SpreadSheetUtils.setFieldsAndContext(
+			sheet,
+			cache,
+			SpreadSheetCategories.taskSpreadsheetCategory,
+			"Spreadsheet.Task.entry",
+			true);
 		SpreadSheetModel model = (SpreadSheetModel) sheet.getModel();
 		long day = CalendarOption.getInstance().getMillisPerDay();
 		return new Fixture(

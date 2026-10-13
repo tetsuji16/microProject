@@ -25,6 +25,7 @@ package com.microproject.pm.costing;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -32,6 +33,15 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import org.junit.jupiter.api.Test;
 
 class CostRateTablesTest {
+	@Test
+	void readingAnAbsentTableDoesNotCreateIt() {
+		CostRateTables tables = new CostRateTables();
+
+		assertNull(tables.getCostRateTableIfPresent(CostRateIndex.Kind.B.code()));
+		assertNull(tables.getCostRateTableIfPresent(CostRateIndex.Kind.B.code()));
+		assertNotNull(tables.getCostRateTable(CostRateIndex.Kind.B.code()));
+	}
+
 	@Test
 	void clonePreservesNamesWithoutSharingTheMutableArray() {
 		CostRateTables tables = new CostRateTables();

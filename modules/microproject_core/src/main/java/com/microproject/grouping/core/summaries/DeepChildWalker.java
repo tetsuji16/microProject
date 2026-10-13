@@ -70,9 +70,9 @@ public class DeepChildWalker extends NodeWalker {
 	 * @param closure
 	 */
 	public static void recursivelyTreatBranch(NodeModel nodeModel, Object impl, Consumer<Object> closure) {
-		DeepChildWalker walker = new DeepChildWalker(closure,false);
-		walker.setNodeModel(nodeModel);
-		walker.accept(nodeModel.search(impl));
+		Node branch = nodeModel.search(impl);
+		if (branch != null)
+			recursivelyTreatBranch(nodeModel, branch, closure);
 	}
 	
 }

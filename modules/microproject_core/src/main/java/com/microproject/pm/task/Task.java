@@ -33,7 +33,6 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.SortedSet;
 import java.util.TreeSet;
@@ -273,8 +272,11 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		if (assignment == null && createIfDoesntExist) {
 			assignment = Assignment.getInstance(this,resource,1.0,0);
 			baselineSnapshot.addAssignment(assignment);
-			TaskSchedule baselineSchedule = new TaskSchedule(this,TaskSchedule.Kind.CURRENT);
-			baselineSnapshot.setCurrentSchedule(baselineSchedule);
+			TaskSchedule baselineSchedule = baselineSnapshot.getCurrentSchedule();
+			if (baselineSchedule == null) {
+				baselineSchedule = new TaskSchedule(this,TaskSchedule.Kind.CURRENT);
+				baselineSnapshot.setCurrentSchedule(baselineSchedule);
+			}
 			assignment.setTaskSchedule(baselineSchedule);
 			assignment.convertToBaselineAssignment(true);
 		}
@@ -932,16 +934,9 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 			project.removeStartSentinelDependency(this);
 			project.removeEndSentinelDependency(this);
 
-			// Snapshot both sides before removal because removing a dependency mutates both lists.
-			LinkedList<Dependency> toRemove = new LinkedList<>();
-			DependencyService.getInstance().remove(getPredecessorList(), toRemove);
-			for (Dependency dependency : toRemove)
-				DependencyService.getInstance().remove(dependency, eventSource, undo);
-
-			toRemove.clear();
-			DependencyService.getInstance().remove(getSuccessorList(), toRemove);
-			for (Dependency dependency : toRemove)
-				DependencyService.getInstance().remove(dependency, eventSource, undo);
+			// One service command removes both sides and owns the revisioned publication.
+			DependencyService.getInstance().remove(
+				DependencyService.getInstance().getIncidentDependencies(this), eventSource, undo);
 		}
 
 	}

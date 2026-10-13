@@ -147,6 +147,9 @@ public class Portfolio implements Document, NodeModelDataFactory {
 	}
 
 	private void _addProject(Project project){
+		com.microproject.transaction.ProjectMutationState.coordinated(() -> addProjectCoordinated(project));
+	}
+	private void addProjectCoordinated(Project project){
     	nodeModel.add(NodeFactory.getInstance().createNode(project),NodeModel.SILENT);
 		com.microproject.pm.resource.ResourcePoolFactory.getInstance().registerPool(project.getResourcePool());
     	handleExternalTasks(project,true, false); 		// external link handling
@@ -163,6 +166,10 @@ public class Portfolio implements Document, NodeModelDataFactory {
 	 * document or from invalidating the master reference.
 	 */
 	boolean replaceProject(Project previous, Project replacement) {
+		return com.microproject.transaction.ProjectMutationState.coordinated(
+			() -> replaceProjectCoordinated(previous, replacement));
+	}
+	private boolean replaceProjectCoordinated(Project previous, Project replacement) {
 		if (previous == null || replacement == null)
 			return false;
 		Node node = nodeModel.search(previous, comparator);

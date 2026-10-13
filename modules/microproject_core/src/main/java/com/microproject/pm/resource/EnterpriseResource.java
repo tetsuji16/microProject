@@ -231,6 +231,9 @@ public class EnterpriseResource implements Resource {
 	public CostRateTable getCostRateTable(int costRateIndex) {
 		return costRateTables.getCostRateTable(costRateIndex);
 	}
+	public CostRateTable getCostRateTableIfPresent(int costRateIndex) {
+		return costRateTables.getCostRateTableIfPresent(costRateIndex);
+	}
 
 
 	protected int accrueAt = Accrual.Kind.PRORATED.code();
@@ -550,10 +553,10 @@ public class EnterpriseResource implements Resource {
 	 * @return Returns the resourcePool.
 	 */
 	public ResourcePool getResourcePool() {
-		return resourcePool;
+		return com.microproject.transaction.ProjectMutationState.coordinated(() -> resourcePool);
 	}
 	public void setResourcePool(ResourcePool resourcePool) {
-		this.resourcePool = resourcePool;
+		com.microproject.transaction.ProjectMutationState.coordinated(() -> this.resourcePool = resourcePool);
 	}
 	public Document getDocument() {
 		return resourcePool;
@@ -950,6 +953,10 @@ public class EnterpriseResource implements Resource {
 
 	public Document invalidateCalendar() {
 		invalidateAssignmentCalendars();
+		return getResourcePool();
+	}
+	@Override
+	public Document getCalendarOwnerDocument() {
 		return getResourcePool();
 	}
 

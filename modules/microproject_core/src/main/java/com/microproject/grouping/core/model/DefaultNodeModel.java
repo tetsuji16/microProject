@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 
 import javax.swing.event.TreeModelListener;
 import javax.swing.tree.TreePath;
@@ -57,12 +58,14 @@ import com.microproject.grouping.core.VoidNodeImpl;
 import com.microproject.grouping.core.hierarchy.HierarchyUtils;
 import com.microproject.grouping.core.hierarchy.MutableNodeHierarchy;
 import com.microproject.grouping.core.hierarchy.NodeHierarchy;
+import com.microproject.grouping.core.transform.sorting.NodeSorter;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.assignment.HasAssignments;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.HasDependencies;
 import com.microproject.pm.resource.ResourceImpl;
+import com.microproject.pm.resource.ResourceFieldMutationService;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectFactory;
@@ -102,6 +105,21 @@ public class DefaultNodeModel implements NodeModel {
 		this();
 		this.dataFactory = dataFactory;
 	}
+
+	private <T> T runProjectMutation(int actionType, Function<Runnable, T> operation) {
+		return runProjectMutation(actionType, operation, Boolean.TRUE::equals);
+	}
+
+	private <T> T runProjectMutation(int actionType, Function<Runnable, T> operation,
+			java.util.function.Predicate<? super T> changedResult) {
+		Project project = dataFactory instanceof Project currentProject ? currentProject : null;
+		if (project != null && isEvent(actionType)) {
+			return project.runModelCommand(operation::apply,
+			changedResult, result -> result);
+		}
+		return operation.apply(() -> { });
+	}
+
 	//for clone()
 	DefaultNodeModel(NodeHierarchy hierarchy, NodeModelDataFactory dataFactory) {
 		this.hierarchy=hierarchy;
@@ -110,11 +128,18 @@ public class DefaultNodeModel implements NodeModel {
 	}
 
 	public void addBefore(LinkedList<Node> siblings,Node newNode,int actionType){
+		if (siblings.isEmpty()) return;
+		runProjectMutation(actionType, markApplied -> {
+			markApplied.run();
+			addBeforeWithinBoundary(siblings, newNode, actionType);
+			return true;
+		});
+	}
+
+	private void addBeforeWithinBoundary(LinkedList<Node> siblings, Node newNode, int actionType) {
 		Node previous,next,parent;
 		boolean firstChild;
-		if (siblings.size()==0){
-			return;
-		}else if (siblings.size()==1){
+		if (siblings.size()==1){
 			previous=null;
 			next=(Node)siblings.removeLast();
 			parent=null;
@@ -154,10 +179,15 @@ public class DefaultNodeModel implements NodeModel {
 		add(parent,children,-1,actionType);
 	}
 	public void add(Node parent,List<Node> children,int position,int actionType){
-		hierarchy.add(parent,children,position,actionType);
-		registerNodes(children);
-		//Undo
-		if (isUndo(actionType)) postEdit(new NodeCreationEdit(this,parent,children,position));
+		if (children.isEmpty()) return;
+		runProjectMutation(actionType, markApplied -> {
+			markApplied.run();
+			hierarchy.add(parent,children,position,actionType);
+			registerNodes(children);
+			//Undo
+			if (isUndo(actionType)) postEdit(new NodeCreationEdit(this,parent,children,position));
+			return true;
+		});
 
 	}
 
@@ -191,12 +221,37 @@ public class DefaultNodeModel implements NodeModel {
 
 	public void paste(Node parent,List<Node> nodes,int position,int actionType){
 		//done in transfert handler
-
-		hierarchy.paste(parent,nodes,position,this,actionType);
-		registerNodes(nodes);
-		//Undo
-		if (isUndo(actionType)) postEdit(new NodePasteEdit(this,parent,nodes,position));
+		if (nodes.isEmpty()) return;
+		runProjectMutation(actionType, markApplied -> {
+			markApplied.run();
+			hierarchy.paste(parent,nodes,position,this,actionType);
+			registerNodes(nodes);
+			//Undo
+			if (isUndo(actionType)) postEdit(new NodePasteEdit(this,parent,nodes,position));
+			return true;
+		});
 	}
+
+	@Override
+	public void indent(List<Node> nodes, int deltaLevel, int actionType) {
+		if (nodes.isEmpty() || (deltaLevel != 1 && deltaLevel != -1)) return;
+		runProjectMutation(actionType, markApplied -> {
+			List<NodePosition> before = nodes.stream()
+				.filter(java.util.Objects::nonNull)
+				.map(DefaultNodeModel::positionOf)
+				.toList();
+			markApplied.run();
+			hierarchy.indent(nodes, deltaLevel, this, actionType);
+			return before.stream().anyMatch(position -> !position.equals(positionOf(position.node())));
+		});
+	}
+
+	private static NodePosition positionOf(Node node) {
+		Node parent = (Node) node.getParent();
+		return new NodePosition(node, parent, parent == null ? -1 : parent.getIndex(node));
+	}
+
+	private record NodePosition(Node node, Node parent, int index) { }
 
 	public boolean isAncestor(Node parent, Node child) {
 		if (child == null)
@@ -219,10 +274,15 @@ public class DefaultNodeModel implements NodeModel {
 	}
 
 	public void move(Node parent,List<Node> nodes,int position,int actionType){
-		if (!testAncestorOrDescendant(parent,nodes)) // don't allow circular
-			return;
-		List<Node> cutNodes=cut(nodes,false,actionType);
-		paste(parent,cutNodes,position,actionType);
+		if (nodes.isEmpty()) return;
+		runProjectMutation(actionType, markApplied -> {
+			if (!testAncestorOrDescendant(parent,nodes)) // don't allow circular
+				return false;
+			markApplied.run();
+			List<Node> cutNodes=cut(nodes,false,actionType);
+			paste(parent,cutNodes,position,actionType);
+			return true;
+		});
 	}
 
 	/**
@@ -244,6 +304,14 @@ public class DefaultNodeModel implements NodeModel {
 	}
 
 	public boolean relocate(List<Node> nodes,Node parent,int position,int actionType){
+		Project project = dataFactory instanceof Project currentProject ? currentProject : null;
+		if (project != null && isEvent(actionType))
+			return project.runModelMutation(markApplied -> relocateWithinBoundary(nodes, parent, position, actionType, markApplied));
+		return relocateWithinBoundary(nodes, parent, position, actionType, () -> { });
+	}
+
+	private boolean relocateWithinBoundary(List<Node> nodes, Node parent, int position, int actionType,
+			Runnable markApplied) {
 		if (!canRelocate(nodes,parent,position)) return false;
 		ArrayList<Node> branches=collectRelocationRoots(nodes);
 		Node sourceParent=(Node)branches.get(0).getParent();
@@ -259,6 +327,7 @@ public class DefaultNodeModel implements NodeModel {
 		if (doTransaction) transactionId=getDocument().fireMultipleTransaction(0,true);
 		boolean changed;
 		try {
+			markApplied.run();
 			changed=hierarchy.relocate(destination,branches,finalPosition,actionType);
 		} finally {
 			if (doTransaction) getDocument().fireMultipleTransaction(transactionId,false);
@@ -270,6 +339,86 @@ public class DefaultNodeModel implements NodeModel {
 			postEdit(new NodeRelocationEdit(this,branches,sourceParent,beforeIndex,destination,afterIndex));
 		if (dataFactory!=null) dataFactory.setGroupDirty(true);
 		return true;
+	}
+
+	/**
+	 * Permanently sorts task siblings with the supplied view sorter while preserving
+	 * every task's outline level. The existing relocation edits keep this operation
+	 * undoable and the hierarchy renumbers task IDs after each structural change.
+	 */
+	public boolean sortOutlineBy(NodeSorter sorter, int actionType) {
+		Project project = dataFactory instanceof Project currentProject ? currentProject : null;
+		if (project != null && isEvent(actionType))
+			return project.runModelMutation(markApplied -> sortOutlineByWithinBoundary(sorter, actionType, markApplied));
+		return sortOutlineByWithinBoundary(sorter, actionType, () -> { });
+	}
+
+	private boolean sortOutlineByWithinBoundary(NodeSorter sorter, int actionType, Runnable markApplied) {
+		if (sorter == null || hierarchy == null) return false;
+		List<OutlineSortPlan> plans = new ArrayList<>();
+		collectOutlineSortPlans((Node) hierarchy.getRoot(), sorter, plans);
+		if (plans.isEmpty()) return false;
+		for (OutlineSortPlan plan : plans) {
+			for (int offset = 0; offset < plan.sortedTasks().size(); offset++) {
+				Node taskNode = plan.sortedTasks().get(offset);
+				int targetIndex = plan.firstTaskIndex() + offset;
+				if (plan.parent().getIndex(taskNode) != targetIndex
+						&& !canRelocate(List.of(taskNode), plan.parent(), targetIndex)) return false;
+			}
+		}
+
+		UndoController undo = getUndoController();
+		boolean groupUndo = isUndo(actionType) && undo != null;
+		if (groupUndo) undo.beginUpdate();
+		boolean changed = false;
+		try {
+			for (OutlineSortPlan plan : plans) {
+				for (int offset = 0; offset < plan.sortedTasks().size(); offset++) {
+					Node taskNode = plan.sortedTasks().get(offset);
+					int targetIndex = plan.firstTaskIndex() + offset;
+					if (plan.parent().getIndex(taskNode) != targetIndex) {
+						changed |= relocateWithinBoundary(List.of(taskNode), plan.parent(), targetIndex, actionType,
+							markApplied);
+					}
+				}
+			}
+		} finally {
+			if (groupUndo) undo.endUpdate();
+		}
+		return changed;
+	}
+
+	private void collectOutlineSortPlans(Node parent, NodeSorter sorter, List<OutlineSortPlan> plans) {
+		List<Node> taskChildren = new ArrayList<>();
+		int firstTaskIndex = -1;
+		int previousTaskIndex = -2;
+		for (int index = 0; index < parent.getChildCount(); index++) {
+			Object childValue = parent.getChildAt(index);
+			if (!(childValue instanceof Node child) || !(child.getImpl() instanceof Task)) continue;
+			if (firstTaskIndex < 0) firstTaskIndex = index;
+			if (!taskChildren.isEmpty() && index != previousTaskIndex + 1) {
+				// Do not cross non-task rows (for example placeholders or linked projects).
+				// Such mixed sibling blocks have no safe task-only permanent ordering.
+				taskChildren.clear();
+				firstTaskIndex = -1;
+				break;
+			}
+			previousTaskIndex = index;
+			taskChildren.add(child);
+		}
+		if (taskChildren.size() > 1) {
+			List<Node> sorted = new ArrayList<>(taskChildren);
+			sorted.sort(sorter);
+			if (!sorted.equals(taskChildren)) plans.add(new OutlineSortPlan(parent, firstTaskIndex, sorted));
+		}
+		for (int index = 0; index < parent.getChildCount(); index++) {
+			Object childValue = parent.getChildAt(index);
+			if (childValue instanceof Node child && child.getImpl() instanceof Task)
+				collectOutlineSortPlans(child, sorter, plans);
+		}
+	}
+
+	private record OutlineSortPlan(Node parent, int firstTaskIndex, List<Node> sortedTasks) {
 	}
 
 	public boolean canMoveSelectedNodes(List<Node> nodes,int direction){
@@ -335,10 +484,15 @@ public class DefaultNodeModel implements NodeModel {
 	 * @param collection
 	 */
 	public void addImplCollection(Node parent, Collection<?> collection,int actionType) {
-		for (Object implementation : collection) {
-			Node child = NodeFactory.getInstance().createNode(implementation);
-			add(parent,child,actionType);
-		}
+		if (collection.isEmpty()) return;
+		runProjectMutation(actionType, markApplied -> {
+			markApplied.run();
+			for (Object implementation : collection) {
+				Node child = NodeFactory.getInstance().createNode(implementation);
+				add(parent,child,actionType);
+			}
+			return true;
+		});
 
 	}
 
@@ -361,13 +515,20 @@ public class DefaultNodeModel implements NodeModel {
 		remove(nodes, actionType, true,removeDependencies);
 	}
 	public void remove(List<Node> nodes,int actionType,boolean filterAssignments,boolean removeDependencies){
+		runProjectMutation(actionType, markApplied -> removeWithinBoundary(nodes, actionType, filterAssignments, removeDependencies, markApplied));
+	}
+
+	private boolean removeWithinBoundary(List<Node> nodes, int actionType, boolean filterAssignments,
+			boolean removeDependencies, Runnable markApplied) {
 		beginUndoUpdate(actionType);
 		try {
 			List<Node> roots = collectRemovalRoots(nodes, filterAssignments);
 			RemovalSnapshot removalSnapshot = RemovalSnapshot.capture(roots);
 			if (!confirmRemove(roots))
-				return;
+				return false;
 
+			if (roots.isEmpty()) return false;
+			markApplied.run();
 			hierarchy.remove(roots,this,actionType,removeDependencies);
 			unregisterNodes(roots);
 			//it calls back removeApartFromHierarchy for each node to remove
@@ -376,12 +537,18 @@ public class DefaultNodeModel implements NodeModel {
 			//Undo
 			if (undoController!=null&&isUndo(actionType))
 				postEdit(new NodeDeletionEdit(this,removalSnapshot));
+			return true;
 		} finally{
 			endUndoUpdate(actionType);
 		}
 	}
 	public void removeAll(int actionType){
-		hierarchy.removeAll(this,actionType);
+		runProjectMutation(actionType, markApplied -> {
+			if (((Node) hierarchy.getRoot()).getChildCount() == 0) return false;
+			markApplied.run();
+			hierarchy.removeAll(this,actionType);
+			return true;
+		});
 	}
 	public boolean removeApartFromHierarchy(Node node,boolean cleanAssignment,int actionType,boolean removeDependencies){
 		if (!isEvent(actionType))
@@ -397,10 +564,17 @@ public class DefaultNodeModel implements NodeModel {
 		return cut(nodes,true,actionType);
 	}
 	public List<Node> cut(List<Node> nodes,boolean clone,int actionType){
-		List<Node> newNodes=copy(nodes,clone,actionType);
-		remove(nodes,actionType);
-		return newNodes;
+		if (nodes.isEmpty()) return List.of();
+		CutResult result = runProjectMutation(actionType, markApplied -> {
+			markApplied.run();
+			List<Node> newNodes=copy(nodes,clone,actionType);
+			boolean removed = removeWithinBoundary(nodes, actionType, true, true, markApplied);
+			return new CutResult(newNodes, removed);
+		}, CutResult::changed);
+		return result.nodes();
 	}
+
+	private record CutResult(List<Node> nodes, boolean changed) { }
 
 
 	public List<Node> copy(List<Node> nodes,int actionType){
@@ -657,6 +831,17 @@ public class DefaultNodeModel implements NodeModel {
 	}
 
 	public void setFieldValue(Field field, Node node, Object eventSource, Object value, FieldContext context,int actionType) throws FieldParseException {
+		if (isEvent(actionType) && node != null && node.getImpl() instanceof ResourceImpl resource) {
+			ResourceFieldMutationService.getInstance().execute(resource, getUndoableEditSupport(),
+				() -> field.getValue(node, this, context),
+				() -> setFieldValueDirect(field, node, eventSource, value, context, actionType, true), eventSource);
+			return;
+		}
+		setFieldValueDirect(field, node, eventSource, value, context, actionType, false);
+	}
+
+	private void setFieldValueDirect(Field field, Node node, Object eventSource, Object value, FieldContext context,
+		int actionType, boolean changedOnlyUndo) throws FieldParseException {
 		Object oldValue=field.getValue(node,this,context);
 
 //		// this prevents the field from sending an update message.  However, ideally the field will send the message and the hiearchy event wont
@@ -671,7 +856,10 @@ public class DefaultNodeModel implements NodeModel {
 		// Field notifications are handled by the field implementation.
 
 		//Undo
-		if (isUndo(actionType)) postEdit(new ModelFieldEdit(this,field,node,eventSource,value,oldValue,context));
+		if (isUndo(actionType)) {
+			if (!changedOnlyUndo || !java.util.Objects.deepEquals(oldValue, field.getValue(node, this, context)))
+				postEdit(new ModelFieldEdit(this,field,node,eventSource,value,oldValue,context));
+		}
 
 	}
 

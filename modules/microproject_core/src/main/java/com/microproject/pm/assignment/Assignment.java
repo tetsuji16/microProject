@@ -35,7 +35,9 @@ import java.util.function.Predicate;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 
 import com.microproject.algorithm.CollectionIntervalGenerator;
@@ -128,6 +130,8 @@ import com.microproject.util.Environment;
 public final class Assignment implements Schedule, Association, Allocation, Delayable, HasTimeDistributedData, TimeDistributedFields, EarnedValueValues, EarnedValueFields, AssignmentSpecificFields, HasKey, BelongsToDocument, HasRequestDemandType,UpdatesFromTimesheet, CanSupplyRateUnit, HasCostRateIndex, Cloneable, DataObject  {
 	static final long serialVersionUID = 56779404923241L;
 	AssignmentDetail detail = null;
+	private transient Map<Integer, BaselineValues> importedBaselineValues;
+	private transient boolean preserveImportedProfilesDuringMutation;
 	private transient HasKeyImpl hasKey = new HasKeyImpl(true,this); //local ids only for assignments
 	/**
 	 * Issue #227: created timestamp persisted on the object (not the transient
@@ -219,14 +223,17 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 		Rate r = getRate();
 		Resource resource = getResource();
 		detail = (AssignmentDetail) from.detail.clone();
+		detail.clearImportedTimephasedWork();
 	    detail.replaceResourceAndUnits(units,resource);
 
 		if (!compatibleTypes) // don't want to set units if not compatible
 			detail.setRate(r);
+		clearImportedBaselineValuesForBaselineMutation();
 	}
 
 	public void setStart(long start) {
 		detail.setStart(start);
+		clearImportedBaselineValuesForBaselineMutation();
 	}
 
 	/** @deprecated use {@link #getRequestDemandKind()} for domain logic. */
@@ -243,6 +250,19 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 
 	public AbstractContourBucket[] getContour(Object type) {
 		return contourFacade.getContour(type);
+	}
+
+	/**
+	 * Installs separate actual and remaining profiles for imported timephased data.
+	 * The profiles are transient and are preserved by assignment snapshots; native
+	 * MPO persistence writes them through the existing MSPDI timephased rows.
+	 */
+	public void setImportedTimephasedWork(AbstractContour actual, AbstractContour remaining) {
+		detail.setImportedTimephasedWork(actual, remaining);
+	}
+
+	public boolean hasImportedTimephasedWork() {
+		return detail.hasImportedTimephasedWork();
 	}
 
 /**
@@ -302,6 +322,13 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	}
 
 	/**
+	 * @return the assignment's cost contour, including imported baseline cost profiles.
+	 */
+	public AbstractContour getCostContour() {
+		return detail.getCostContour();
+	}
+
+	/**
 	 * Accessor for the assignment's delay
 	 * @return delay
 	 */
@@ -335,6 +362,7 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 
 	public void setDuration(long duration) {
 		timeFacade.setDuration(duration);
+		clearImportedBaselineValuesForBaselineMutation();
 	}
 	/**
 	 * @param duration The duration to set.
@@ -355,11 +383,16 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	 * @param units The units to set.
 	 */
 	public void adjustRemainingUnits(double newRemainingUnits, double oldRemainingUnits, boolean doChildren, boolean conserveTotalUnits) {
-		timeFacade.adjustRemainingUnits(newRemainingUnits, oldRemainingUnits, doChildren, conserveTotalUnits);
+		AssignmentDetail importedProfiles = detail.hasImportedTimephasedWork() ? cloneDetail() : null;
+		long importedActualWork = importedProfiles == null ? 0L : getActualWork(null);
+		withImportedProfilesPreserved(() -> timeFacade.adjustRemainingUnits(newRemainingUnits, oldRemainingUnits,
+			doChildren, conserveTotalUnits));
+		restoreImportedProfilesAfterScheduleEdit(importedProfiles, importedActualWork);
 	}
 
 	public void setWork(long work, FieldContext context) {
 		timeFacade.setWork(work, context);
+		clearImportedBaselineValuesForBaselineMutation();
 	}
 
 	private boolean addWorkingTimeIfRequired(long work,FieldContext context, boolean actual) {
@@ -533,8 +566,13 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	 * @return work field functor
 	 */
 	AssignmentFieldFunctor work(SelectFrom clause) {
-		ContourBucketIntervalGenerator contour = contourGeneratorInstance(WORK);
-		WorkFunctor workF = WorkFunctor.getInstance(this, contour.getWorkCalendar(), contour, detail.calcOvertimeUnits());
+		return work(clause, WORK);
+	}
+
+	private AssignmentFieldFunctor work(SelectFrom clause, Object type) {
+		ContourBucketIntervalGenerator contour = contourGeneratorInstance(type);
+		double overtimeUnits = detail.hasImportedTimephasedWork() && type != WORK ? 0.0D : detail.calcOvertimeUnits();
+		WorkFunctor workF = WorkFunctor.getInstance(this, contour.getWorkCalendar(), contour, overtimeUnits);
 		clause.select(workF).from(contour);
 		return workF;
 	}
@@ -638,11 +676,11 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 		} else if (type == WORK || type == THIS_PROJECT) {
 			return work(clause);
 		} else if (type == ACTUAL_WORK) {
-			clause.whereInRange(detail.getStart(),getStop());
-			return work(clause);
+			clause.whereInRange(detail.getStart(), detail.hasImportedTimephasedWork() ? detail.getFinish() : getStop());
+			return work(clause, ACTUAL_WORK);
 		} else if (type == REMAINING_WORK) {
-			clause.whereInRange(getResume(),detail.getFinish());
-			return work(clause);
+			clause.whereInRange(detail.hasImportedTimephasedWork() ? detail.getStart() : getResume(), detail.getFinish());
+			return work(clause, REMAINING_WORK);
 		} else if (type == ACTUAL_COST) {
 			clause.whereInRange(detail.getStart(),getStop());
 			return cost(clause,all);
@@ -923,6 +961,32 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 					schedule.setEnd(end);
 
 				baselineAssignment.setWorkInterval(start,end,value);
+			} else if (TimeDistributedHelper.isCost(type)) {
+				Object baseline = TimeDistributedHelper.baselineForData(type);
+				boolean newBaselineSnapshot = detail.getTask().getSnapshot(baseline) == null;
+				Assignment baselineAssignment = getBaselineAssignment(baseline, true);
+				if (newBaselineSnapshot) {
+					// An assignment-only baseline must not turn the current task schedule copied by
+					// Task.getBaselineAssignment into a fabricated task-level baseline.
+					TaskSchedule snapshotSchedule = baselineAssignment.getTaskScheduleOfAssignment();
+					snapshotSchedule.setStart(0L);
+					snapshotSchedule.setEnd(0L);
+				}
+				Assignment.BaselineValues values = getBaselineValues(((Number) baseline).intValue());
+				long baselineStart = values != null && values.start() != null
+					? values.start().longValue() : baselineAssignment.getStart();
+				long baselineFinish = values != null && values.finish() != null
+					? values.finish().longValue() : baselineAssignment.getFinish();
+				if (baselineStart == 0L || baselineStart > start) baselineStart = start;
+				if (baselineFinish == 0L || baselineFinish < end) baselineFinish = end;
+				TaskSchedule assignmentSchedule = new TaskSchedule(detail.getTask(), TaskSchedule.Kind.CURRENT);
+				assignmentSchedule.setStart(baselineStart);
+				assignmentSchedule.setEnd(baselineFinish);
+				baselineAssignment.setTaskSchedule(assignmentSchedule);
+				long baselineDuration = baselineAssignment.getEffectiveWorkCalendar()
+					.compare(baselineFinish, baselineStart, false);
+				baselineAssignment.setDurationMillis(baselineDuration);
+				baselineAssignment.setCostInterval(start, end, value);
 			}
 		}
 	}
@@ -950,6 +1014,23 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	 */
 	private void setWorkInterval(long start, long end, double value) {
 		timeFacade.setWorkInterval(start, end, value);
+	}
+
+	private void setCostInterval(long start, long end, double value) {
+		if (!detail.isBaseline())
+			throw new IllegalStateException("Baseline cost intervals can only be applied to a baseline assignment");
+		if (!Double.isFinite(value) || value < 0.0D || end <= start)
+			throw new IllegalArgumentException("Invalid baseline cost interval");
+		WorkCalendar calendar = getEffectiveWorkCalendar();
+		long assignmentStart = getStart();
+		long startOffset = calendar.compare(start, assignmentStart, false);
+		long endOffset = calendar.compare(end, assignmentStart, false);
+		if (startOffset < 0L || endOffset <= startOffset || endOffset > getDurationMillis())
+			throw new IllegalArgumentException("Baseline cost interval is outside the assignment baseline span");
+		PersonalContour personal = PersonalContour.makePersonal(detail.getCostContour(), getDurationMillis());
+		PersonalContour updated = personal.setInterval(startOffset, endOffset,
+			value / (double) (endOffset - startOffset));
+		newDetail().setContour(COST, updated.getContourBuckets());
 	}
 
 	/**
@@ -1051,7 +1132,10 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 
 
 	public void forceUnits(double units) {
-		newDetail().setUnits(units);
+		AssignmentDetail importedProfiles = detail.hasImportedTimephasedWork() ? cloneDetail() : null;
+		long importedActualWork = importedProfiles == null ? 0L : getActualWork(null);
+		withImportedProfilesPreserved(() -> newDetail().setUnits(units));
+		restoreImportedProfilesAfterScheduleEdit(importedProfiles, importedActualWork);
 	}
 	public void doAddService(Object eventSource) {
 		AssignmentService.getInstance().connect(this,eventSource);
@@ -1195,9 +1279,11 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 		if (!isLabor())
 			return 0;
 		Query query = Query.getInstance();
-		SelectFrom clause = SelectFrom.getInstance().whereInRange(Math.max(start,detail.getStart()),Math.min(end,getStop()));
+		long queryStart = Math.max(start, detail.getStart());
+		long queryEnd = Math.min(end, detail.hasImportedTimephasedWork() ? detail.getFinish() : getStop());
+		SelectFrom clause = SelectFrom.getInstance().whereInRange(queryStart, queryEnd);
 		query.selectFrom(clause)
-			.action(work(clause))
+			.action(work(clause, ACTUAL_WORK))
 			.execute();
 		return (long) ((DoubleValue)query.getActionVisitor()).getValue();
 	}
@@ -1208,9 +1294,10 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 		if (!isLabor())
 			return 0;
 		Query query = Query.getInstance();
-		SelectFrom clause = SelectFrom.getInstance().whereInRange(Math.max(start,detail.getStop()),Math.min(end,getEnd()));
+		long queryStart = Math.max(start, detail.hasImportedTimephasedWork() ? detail.getStart() : detail.getStop());
+		SelectFrom clause = SelectFrom.getInstance().whereInRange(queryStart, Math.min(end, getEnd()));
 		query.selectFrom(clause)
-			.action(work(clause))
+			.action(work(clause, REMAINING_WORK))
 			.execute();
 		return (long) ((DoubleValue)query.getActionVisitor()).getValue();
 	}
@@ -1545,6 +1632,8 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
  * @return cloned assignment detail
  */	private AssignmentDetail newDetail() {
 			detail = cloneDetail();
+			if (!preserveImportedProfilesDuringMutation)
+				detail.clearImportedTimephasedWork();
 			if (getTask() != null)
 				getTask().setDirty(true);
 			setDirty(true);
@@ -1573,6 +1662,7 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	}
 	public void setEnd(long end) {
 		detail.setEnd(end);
+		clearImportedBaselineValuesForBaselineMutation();
 	}
 	public long getActualStart() {
 		return detail.getActualStart();
@@ -1624,6 +1714,7 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 
 		}
 		newDetail().setStop(stop);
+		clearImportedBaselineValuesForBaselineMutation();
 	}
 	public void clearDuration() {
 		newDetail().clearDuration();
@@ -1702,6 +1793,8 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 			a.hasKey=new HasKeyImpl(true,a);
 			a.initializeFacades();
 			a.setName(getName());
+			a.importedBaselineValues = importedBaselineValues == null
+				? null : new HashMap<>(importedBaselineValues);
 //			barClosureInstance = new BarClosure();
 			a.detail=a.cloneDetail();
 			return a;
@@ -1730,6 +1823,130 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 		detail.convertToBaselineAssignment(useDefaultCalendar);
 	}
 
+	/**
+	 * Imports scalar values into a baseline assignment without applying the
+	 * current task's scheduling rule to its baseline work.
+	 */
+	public void importBaselineValues(Long start, Long finish, Long work) {
+		if (!detail.isBaseline())
+			throw new IllegalStateException("Baseline values can only be imported into a baseline assignment");
+		if (start != null && finish != null && finish.longValue() < start.longValue())
+			throw new IllegalArgumentException("Invalid baseline assignment dates");
+		AssignmentDetail candidate = (AssignmentDetail) detail.clone();
+		candidate.importBaselineValues(start, finish, work);
+		detail = candidate;
+	}
+
+	/** Scalar baseline values kept separately when the source has no task-level baseline anchor. */
+	public record BaselineValues(Long start, Long finish, Long work) {
+	}
+
+	/**
+	 * Imports an assignment baseline in the model representation supported by its task.
+	 * The transient values retain the source's nullable scalar fields, while an existing
+	 * task snapshot also receives a baseline assignment for scheduling calculations.
+	 */
+	public void importBaselineValues(int slot, Long start, Long finish, Long work) {
+		checkBaselineSlot(slot);
+		validateBaselineValues(start, finish, work);
+		if (start == null && finish == null && work == null) {
+			clearBaselineValues(slot);
+			return;
+		}
+		Integer baselineId = Integer.valueOf(slot);
+		if (detail.getTask().getSnapshot(baselineId) == null) {
+			storeImportedBaselineValues(baselineId, start, finish, work);
+			return;
+		}
+		Assignment baseline = detail.getTask().getBaselineAssignment(getResource(), baselineId, true);
+		com.microproject.pm.task.TaskSnapshot snapshot =
+			(com.microproject.pm.task.TaskSnapshot) detail.getTask().getSnapshot(baselineId);
+		TaskSchedule snapshotSchedule = snapshot.getCurrentSchedule();
+		if (snapshotSchedule != null && (snapshotSchedule.getStart() != 0L || snapshotSchedule.getEnd() != 0L))
+			baseline.setTaskSchedule(snapshotSchedule);
+		baseline.importBaselineValues(start, finish, work);
+		storeImportedBaselineValues(baselineId, start, finish, work);
+	}
+
+	private void storeImportedBaselineValues(Integer baselineId, Long start, Long finish, Long work) {
+		if (importedBaselineValues == null)
+			importedBaselineValues = new HashMap<>();
+		importedBaselineValues.put(baselineId, new BaselineValues(start, finish, work));
+	}
+
+	/** Returns the anchored baseline assignment values or assignment-only imported scalar values. */
+	public BaselineValues getBaselineValues(int slot) {
+		checkBaselineSlot(slot);
+		Integer baselineId = Integer.valueOf(slot);
+		if (importedBaselineValues != null) {
+			BaselineValues imported = importedBaselineValues.get(baselineId);
+			if (imported != null)
+				return imported;
+		}
+		Assignment baseline = detail.getTask().getBaselineAssignment(getResource(), baselineId, false);
+		if (baseline != null) {
+			Long start = baseline.getStart() == 0L ? null : Long.valueOf(baseline.getStart());
+			Long finish = baseline.getFinish() == 0L ? null : Long.valueOf(baseline.getFinish());
+			long work = baseline.getWork(null);
+			if (start == null && finish == null && work == 0L)
+				return null;
+			return new BaselineValues(start,
+				finish, Long.valueOf(work));
+		}
+		return null;
+	}
+
+	/** Removes imported scalar presence data after a task snapshot replaces that slot. */
+	public void clearImportedBaselineValues(int slot) {
+		checkBaselineSlot(slot);
+		if (importedBaselineValues == null)
+			return;
+		importedBaselineValues.remove(Integer.valueOf(slot));
+		if (importedBaselineValues.isEmpty())
+			importedBaselineValues = null;
+	}
+
+	private void clearImportedBaselineValuesForBaselineMutation() {
+		if (!detail.isBaseline() || !(detail.getTask() instanceof com.microproject.pm.task.NormalTask task))
+			return;
+		com.microproject.pm.resource.Resource resource = getResource();
+		for (int slot = 0; slot <= 10; slot++) {
+			com.microproject.pm.task.TaskSnapshot snapshot =
+				(com.microproject.pm.task.TaskSnapshot) task.getSnapshot(Integer.valueOf(slot));
+			if (snapshot != null && snapshot.findAssignment(resource) == this) {
+				Assignment current = task.findAssignment(resource);
+				if (current != null && current != this)
+					current.clearImportedBaselineValues(slot);
+			}
+		}
+	}
+
+	/** Clears the values for one baseline slot without creating a task snapshot. */
+	public void clearBaselineValues(int slot) {
+		checkBaselineSlot(slot);
+		Integer baselineId = Integer.valueOf(slot);
+		clearImportedBaselineValues(slot);
+		com.microproject.pm.task.TaskSnapshot snapshot =
+			(com.microproject.pm.task.TaskSnapshot) detail.getTask().getSnapshot(baselineId);
+		if (snapshot != null) {
+			Assignment baseline = snapshot.findAssignment(getResource());
+			if (baseline != null)
+				snapshot.removeAssignment(baseline);
+		}
+	}
+
+	private static void checkBaselineSlot(int slot) {
+		if (slot < 0 || slot > 10)
+			throw new IllegalArgumentException("Baseline slot must be between 0 and 10");
+	}
+
+	private static void validateBaselineValues(Long start, Long finish, Long work) {
+		if (start != null && finish != null && finish.longValue() < start.longValue())
+			throw new IllegalArgumentException("Invalid baseline assignment dates");
+		if (work != null && work.longValue() < 0L)
+			throw new IllegalArgumentException("Baseline work must be nonnegative");
+	}
+
 
 	/**
 	 * See if assignment duration is empty
@@ -1740,7 +1957,39 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
     }
 
     public void setRemainingWork(long remainingWork, FieldContext fieldContext) {
+		if (detail.hasImportedTimephasedWork() && !FieldContext.hasInterval(fieldContext)) {
+			AssignmentDetail importedProfiles = cloneDetail();
+			long importedActualWork = getActualWork(null);
+			long targetWork = Math.addExact(importedActualWork, Duration.millis(remainingWork));
+			withImportedProfilesPreserved(() -> timeFacade.setRemainingWork(remainingWork, fieldContext));
+			restoreImportedProfilesAfterScheduleEdit(importedProfiles, importedActualWork, targetWork);
+			return;
+		}
 		timeFacade.setRemainingWork(remainingWork, fieldContext);
+	}
+
+	private void restoreImportedProfilesAfterScheduleEdit(AssignmentDetail importedProfiles, long actualWork) {
+		if (importedProfiles == null) return;
+		long totalWork = getWork(null);
+		restoreImportedProfilesAfterScheduleEdit(importedProfiles, actualWork, totalWork);
+	}
+
+	private void restoreImportedProfilesAfterScheduleEdit(AssignmentDetail importedProfiles, long actualWork, long totalWork) {
+		if (importedProfiles == null) return;
+		if (totalWork < actualWork)
+			throw new IllegalArgumentException("Schedule edit reduced total work below imported actual work");
+		detail.restoreImportedTimephasedWorkScaledFrom(importedProfiles, actualWork, totalWork - actualWork, getDuration());
+		detail.rebuildImportedTotalWorkContour(getDuration());
+	}
+
+	private void withImportedProfilesPreserved(Runnable mutation) {
+		boolean previous = preserveImportedProfilesDuringMutation;
+		preserveImportedProfilesDuringMutation = true;
+		try {
+			mutation.run();
+		} finally {
+			preserveImportedProfilesDuringMutation = previous;
+		}
 	}
 	public boolean isReadOnlyWork(FieldContext fieldContext) {
 
@@ -2227,11 +2476,13 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 			WorkCalendar cal = getEffectiveWorkCalendar();
 			if (!FieldContext.hasInterval(context)) {
 				long currentRemainingWork = Duration.millis(getWork(context)) - Duration.millis(getActualWork(context));
-				if (currentRemainingWork == 0 && remainingWork == 0)
+				boolean zeroWorkNoOp = work == 0L && currentRemainingWork == 0L
+						&& Duration.millis(getActualWork(context)) == 0L;
+				if (currentRemainingWork == 0 && remainingWork == 0 && !zeroWorkNoOp)
 					adjustRemainingUnits(0, 0, true, false);
-				else {
+				else if (!zeroWorkNoOp) {
 					if (SchedulingType.Kind.fromCode(getTaskSchedulingType()) == SchedulingType.Kind.FIXED_UNITS)
-						adjustRemainingDuration(remainingWork, false);
+						adjustRemainingDuration(detail.calcRemainingDurationForTotalWork(work), false);
 					else if (SchedulingType.Kind.fromCode(getTaskSchedulingType()) == SchedulingType.Kind.FIXED_DURATION && currentRemainingWork > 0)
 						adjustRemainingWork(((double) remainingWork) / currentRemainingWork, true);
 					else
@@ -2250,7 +2501,11 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 		}
 
 		void setRemainingWork(long remainingWork, FieldContext fieldContext) {
-			setActualWork(getWork(fieldContext) - Duration.millis(remainingWork), fieldContext);
+			if (!FieldContext.hasInterval(fieldContext)) {
+				setWork(Math.addExact(getActualWork(null), Duration.millis(remainingWork)), fieldContext);
+			} else {
+				setActualWork(getWork(fieldContext) - Duration.millis(remainingWork), fieldContext);
+			}
 		}
 
 		boolean addWorkingTimeIfRequired(long work, FieldContext context, boolean actual) {

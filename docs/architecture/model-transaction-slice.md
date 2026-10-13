@@ -59,14 +59,69 @@ tests) and `ModelTransactionTest` (5 tests). `git diff --check` passed.
 
 ## Remaining architecture dependencies
 
+The 2026-10-13 hierarchy/gateway consolidation passed
+`:microproject_core:test :microproject_ui:test --console=plain --no-daemon`
+on JDK 25 (BUILD SUCCESSFUL). Focused coverage asserts one revision for a
+multi-relocation permanent sort, one revision for each Undo/Redo, no revision
+for a no-op, nested publication only after the outer batch closes, and an
+apply-then-throw invalidation after the barrier is released. GUI readiness was
+not available for a structural Robot rerun; the prior structural GUI evidence
+remains pending rather than inferred from these module tests.
+
 - #408 still owns schedule gesture stale checks and structural paste rollback;
   these UI entry points are not moved by this slice.
-- #409 still needs a project domain revision source, legacy change accumulation,
-  stale publication rejection, and atomic EDT installation. The current tree
-  has a UI `RevisionedProjectionIndex` for topology, but no core domain journal
-  or update coordinator. Its issue history also records missing evidence for
-  all mutation-source instrumentation, nested/reentrant event tests, and
-  mixed-revision visibility through real Swing listeners.
+- #409 is still open. The bounded `UpdateProjectCommand` path now has a
+  project-local mutation revision, detached event batches tagged with their
+  committed revision, and a UI cache refresh path that drops stale callbacks,
+  installs one revision into bound views before notifying, and rejects callbacks
+  after close/rebind. Core/UI tests cover two-writer event-batch isolation,
+  stale callback delivery, close/rebind, EDT notification, shared table/Gantt
+  revision, and cached schedule interval copying. Core and UI full test tasks
+  passed on JDK 25; the Update Project physical journey passed at ja/125%.
+  The structural Sort/Gantt Robot rerun was blocked before Robot input because
+  Docker Desktop occupied the foreground window, so that physical path is not
+  verified by this checkpoint.
+
+  `TaskCommandGateway` now holds the same barrier across field, hierarchy,
+  paste, schedule, and dependency commands. It advances one revision for a
+  changed result or newly emitted facts; an exception after an apply boundary
+  publishes existing event facts, or a schedule invalidation when no facts were
+  emitted. Preflight rejection and no-op leave the revision unchanged. Focused
+  gateway tests cover the apply-then-throw path and verify publication occurs
+  after the barrier is released. `DataFactoryUndoController` now gives Project
+  Undo/Redo the same outer barrier; nested edits coalesce into one revision,
+  unavailable history is a no-op, and a nested rollback batch is replaced with
+  a fresh schedule invalidation if the outer mutation committed. Focused core
+  and UI tests cover these cases. Project-backed `DefaultNodeModel.relocate`
+  and `sortOutlineBy` use the same `Project.runModelMutation` boundary:
+  permanent sort planning and its multiple sibling relocations share one
+  revision, while nested relocation/Undo calls contribute facts to the outer
+  batch and cannot publish before it closes. Preflight/no-op leaves the
+  revision unchanged; an exception after hierarchy apply publishes a fresh
+  schedule invalidation if no event facts were emitted. Focused core tests
+  cover changed sort, Undo/Redo, no-op, nested publication, and apply failure.
+  `TaskCommandGateway` adapts typed results and checked exceptions to
+  `Project.runModelCommand`; its legacy apply paths do not expose a common
+  rollback contract, so failure after its apply marker conservatively advances
+  the revision and publishes existing facts or a schedule invalidation. This
+  is distinct from `UpdateProjectCommand`, whose inner `ModelTransaction`
+  restores state on failed pre-commit stages and preserves applied state on
+  commit failure. Other command families are not covered by these boundaries
+  yet.
+
+  This is not complete revisioned publication. The cache still updates mutable
+  nodes in place. Remaining writer inventory, outside the new gateway and
+  history boundaries, includes
+  direct task/resource/project field setters and `Field.fireEvent`; hierarchy
+  mutation through `DefaultNodeModel.add/cut/paste/remove/indent/move`, direct
+  `MutableNodeHierarchy` and
+  `OutlineCollectionImpl`; schedule/actual setters in `NormalTask`; dependency,
+  assignment, and calendar services; project task create/delete and recalculation
+  paths; and linked/subproject/portfolio updates. These must move through their
+  existing command/service transaction boundaries rather than being wrapped
+  one setter at a time. A later phase must snapshot every renderer-visible
+  schedule value immutably and atomically install the same revision across
+  bound views. Reentrant publication and full writer coverage remain open.
 - #410 still needs a transaction boundary for broader task/resource/calendar,
   dependency, hierarchy, and ID-allocation cascades, plus authorization lease
   and post-commit-effect audits.

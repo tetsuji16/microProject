@@ -29,13 +29,18 @@ import java.util.ArrayList;
 import java.util.function.Predicate;
 import java.util.Collection;
 import java.util.List;
+import java.util.IdentityHashMap;
+import java.util.Comparator;
+import java.util.Map;
 
 import javax.swing.undo.UndoableEdit;
 import com.microproject.undo.EditSupport;
 
 import com.microproject.association.InvalidAssociationException;
 import com.microproject.pm.task.SubProj;
+import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
+import com.microproject.transaction.ProjectMutationState;
 import com.microproject.strings.Messages;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.undo.DependencyCreationEdit;
@@ -78,19 +83,35 @@ public class DependencyService {
 			throw new InvalidAssociationException(Messages.getString("Message.cantLinkToReadOnly"));
 
 		Dependency dependency = Dependency.getInstance(predecessor, successor, dependencyType, lead);
-		dependency.testValid(false); // throws if exception
-		connect(dependency,eventSource);
-		dependency.setDirty(true);
+		runDependencyMutation(List.of(predecessorTask, successorTask), eventSource, (context, mutationSource) -> {
+			dependency.testValid(false); // throws if exception
+			connectInternal(dependency, mutationSource, context);
+			dependency.setDirty(true);
+			return true;
+		});
 		return dependency;
 	}
 
 	//for deserialization
 	public void initDependency(Dependency dependency,HasDependencies predecessor, HasDependencies successor, Object eventSource) throws InvalidAssociationException {
-		dependency.setPredecessor(predecessor);
-		dependency.setSuccessor(successor);
-		if (!dependency.isDisabled()) // allow for calling a second time once invalidated
-			dependency.testValid(false); // throws if exception
-		connect(dependency,eventSource);
+		Task predecessorTask = (Task) predecessor;
+		Task successorTask = (Task) successor;
+		runDependencyMutation(List.of(predecessorTask, successorTask), eventSource, (context, mutationSource) -> {
+			HasDependencies oldPredecessor = dependency.getPredecessor();
+			HasDependencies oldSuccessor = dependency.getSuccessor();
+			dependency.setPredecessor(predecessor);
+			dependency.setSuccessor(successor);
+			try {
+				if (!dependency.isDisabled()) // allow for calling a second time once invalidated
+					dependency.testValid(false); // throws if exception
+			} catch (InvalidAssociationException failure) {
+				dependency.setPredecessor(oldPredecessor);
+				dependency.setSuccessor(oldSuccessor);
+				throw failure;
+			}
+			connectInternal(dependency, mutationSource, context);
+			return true;
+		});
 	}
 
 	public void addStartSentinelDependency(HasDependencies sentinel, HasDependencies successor) {
@@ -122,6 +143,18 @@ public class DependencyService {
 	}
 
 	public void connect(Dependency dependency, Object eventSource) {
+		Task predecessor = (Task) dependency.getPredecessor();
+		Task successor = (Task) dependency.getSuccessor();
+		runDependencyMutation(List.of(predecessor, successor), eventSource, (context, mutationSource) -> {
+			return connectInternal(dependency, mutationSource, context);
+		});
+	}
+
+	private boolean connectInternal(Dependency dependency, Object eventSource, MutationContext context) {
+		if (dependency.getPredecessor().getSuccessorList().findRight(dependency.getSuccessor()) == dependency
+				&& dependency.getSuccessor().getPredecessorList().findLeft(dependency.getPredecessor()) == dependency)
+			return false;
+		context.markApplied(dependency);
 		dependency.getPredecessor().getSuccessorList().add(dependency);
 		dependency.getSuccessor().getPredecessorList().add(dependency);
 		updateSentinels(dependency);
@@ -131,9 +164,10 @@ public class DependencyService {
 		dependency.setDirty(true);
 
 		EditSupport undoableEditSupport=getEditSupport(dependency);
-		if (undoableEditSupport!=null&&eventSource!=null&&!(eventSource instanceof UndoableEdit)){
+		if (undoableEditSupport!=null&&eventSource!=null&&shouldRecordUndo(eventSource)){
 			undoableEditSupport.postEdit(new DependencyCreationEdit(dependency,eventSource));
 		}
+		return true;
 	}
 
 	public void fireTaskPredecessors(Collection<?> list) {
@@ -146,6 +180,18 @@ public class DependencyService {
 	}
 
 	public void remove(Dependency dependency, Object eventSource,boolean undo) {
+		Task predecessor = (Task) dependency.getPredecessor();
+		Task successor = (Task) dependency.getSuccessor();
+		runDependencyMutation(List.of(predecessor, successor), eventSource, (context, mutationSource) -> {
+			return removeInternal(dependency, mutationSource, undo, context);
+		});
+	}
+
+	private boolean removeInternal(Dependency dependency, Object eventSource, boolean undo, MutationContext context) {
+		boolean connected = dependency.getPredecessor().getSuccessorList().findRight(dependency.getSuccessor()) == dependency
+				|| dependency.getSuccessor().getPredecessorList().findLeft(dependency.getPredecessor()) == dependency;
+		if (!connected) return false;
+		context.markApplied(dependency);
 		dependency.setDirty(true); //for setGroupDirty()
 		dependency.getPredecessor().getSuccessorList().remove(dependency);
 		dependency.getSuccessor().getPredecessorList().remove(dependency);
@@ -155,9 +201,10 @@ public class DependencyService {
 			dependency.fireDeleteEvent(eventSource);
 
 		EditSupport undoableEditSupport=getEditSupport(dependency);
-		if (undo && undoableEditSupport!=null&&!(eventSource instanceof UndoableEdit)){
+		if (undo && undoableEditSupport!=null&&shouldRecordUndo(eventSource)){
 			undoableEditSupport.postEdit(new DependencyDeletionEdit(dependency,eventSource));
 		}
+		return true;
 
 
 	}
@@ -166,11 +213,18 @@ public class DependencyService {
 	}
 
 	public void setFields(Dependency dependency, long lag, DependencyType.Kind type,Object eventSource) throws InvalidAssociationException{
+		Task predecessor = (Task) dependency.getPredecessor();
+		Task successor = (Task) dependency.getSuccessor();
+		runDependencyMutation(List.of(predecessor, successor), eventSource, (context, mutationSource) -> {
+			return setFieldsInternal(dependency, lag, type, mutationSource, context);
+		});
+	}
 
-//		if (eventSource != null)
-//			dependency.getDocument().getObjectEventManager().fireUpdateEvent(eventSource,dependency);
+	private boolean setFieldsInternal(Dependency dependency, long lag, DependencyType.Kind type,
+			Object eventSource, MutationContext context) throws InvalidAssociationException {
 		long oldLag=dependency.getLag();
 		int oldType=dependency.getDependencyType();
+		if (oldLag == lag && oldType == type.code()) return false;
 		dependency.setLag(lag);
 		try {
 			dependency.setDependencyKind(type);
@@ -179,20 +233,131 @@ public class DependencyService {
 			dependency.setDependencyType(oldType);
 			throw e;
 		}
+		context.markApplied(dependency);
+		if (eventSource != null) dependency.fireUpdateEvent(eventSource);
 		dependency.setDirty(true);
 
 		EditSupport undoableEditSupport=getEditSupport(dependency);
-		if (undoableEditSupport!=null&&!(eventSource instanceof UndoableEdit)){
+		if (undoableEditSupport!=null&&shouldRecordUndo(eventSource)){
 			undoableEditSupport.postEdit(new DependencySetFieldsEdit(dependency,oldLag,oldType,eventSource));
 		}
+		return true;
 
 	}
 
 	public void update(Dependency dependency, Object eventSource) {
+		Task predecessor = (Task) dependency.getPredecessor();
+		Task successor = (Task) dependency.getSuccessor();
+		runDependencyMutation(List.of(predecessor, successor), eventSource, (context, mutationSource) -> {
+			context.markApplied(dependency);
+			updateInternal(dependency, mutationSource);
+			return true;
+		});
+	}
+
+	private void updateInternal(Dependency dependency, Object eventSource) {
 		if (eventSource != null)
 			dependency.fireUpdateEvent(eventSource);
 		dependency.setDirty(true);
 	}
+
+	private static boolean shouldRecordUndo(Object eventSource) {
+		return !(eventSource instanceof UndoableEdit) && eventSource != LiveDependencyRefreshSource.INSTANCE;
+	}
+
+	@FunctionalInterface
+	private interface DependencyMutation<T, E extends Exception> {
+		T apply(MutationContext context, Object mutationSource) throws E;
+	}
+
+	private final class MutationContext {
+		private final Map<Project, Boolean> changedProjects = new IdentityHashMap<>();
+		private final Map<Project, Runnable> activeMarkAppliedCallbacks = new IdentityHashMap<>();
+
+		private void markApplied(Dependency dependency) {
+			for (Project project : affectedProjects(List.of((Task) dependency.getPredecessor(),
+				(Task) dependency.getSuccessor()))) {
+				changedProjects.put(project, Boolean.TRUE);
+				Runnable markApplied = activeMarkAppliedCallbacks.get(project);
+				if (markApplied != null) markApplied.run();
+			}
+		}
+
+		private void push(Project project, Runnable callback) {
+			activeMarkAppliedCallbacks.put(project, callback);
+		}
+
+		private void pop(Project project) {
+			activeMarkAppliedCallbacks.remove(project);
+		}
+	}
+
+	/**
+	 * Runs dependency writes through each affected project's publication boundary.
+	 * Cross-project dependency events stay with the successor's document and Undo
+	 * edits stay with each predecessor's project.
+	 */
+	private <T, E extends Exception> T runDependencyMutation(List<Task> affectedTasks,
+			Object eventSource, DependencyMutation<T, E> operation) throws E {
+		try {
+			return ProjectMutationState.coordinated(() -> {
+				try {
+					return runDependencyMutationCoordinated(affectedTasks, eventSource, operation);
+				} catch (RuntimeException | Error failure) {
+					throw failure;
+				} catch (Exception failure) {
+					throw new CheckedDependencyMutationFailure(failure);
+				}
+			});
+		} catch (CheckedDependencyMutationFailure failure) {
+			@SuppressWarnings("unchecked") E typedFailure = (E) failure.getCause();
+			throw typedFailure;
+		}
+	}
+
+	private <T, E extends Exception> T runDependencyMutationCoordinated(List<Task> affectedTasks,
+			Object eventSource, DependencyMutation<T, E> operation) throws E {
+		List<Project> participants = affectedProjects(affectedTasks);
+		boolean initialized = participants.stream().anyMatch(Project::isInitialized);
+		if (participants.isEmpty() || (eventSource == null && !initialized)) {
+			return operation.apply(new MutationContext(), eventSource);
+		}
+		Object mutationSource = eventSource == null ? LiveDependencyRefreshSource.INSTANCE : eventSource;
+		return runProjectCommands(participants, 0, operation, mutationSource, new MutationContext());
+	}
+
+	private static final class CheckedDependencyMutationFailure extends RuntimeException {
+		private static final long serialVersionUID = 1L;
+		private CheckedDependencyMutationFailure(Exception cause) { super(cause); }
+	}
+
+	private <T, E extends Exception> T runProjectCommands(List<Project> projects, int index,
+			DependencyMutation<T, E> operation, Object mutationSource, MutationContext context) throws E {
+		if (index >= projects.size())
+			return operation.apply(context, mutationSource);
+		Project project = projects.get(index);
+		return project.runModelCommand(markApplied -> {
+			context.push(project, markApplied);
+			try {
+				return runProjectCommands(projects, index + 1, operation, mutationSource, context);
+			} finally {
+				context.pop(project);
+			}
+		}, value -> Boolean.TRUE.equals(value) && context.changedProjects.containsKey(project), value -> value);
+	}
+
+	private List<Project> affectedProjects(List<Task> affectedTasks) {
+		Map<Project, Boolean> unique = new IdentityHashMap<>();
+		for (Task task : affectedTasks) {
+			if (task == null) continue;
+			if (task.getProject() != null) unique.put(task.getProject(), Boolean.TRUE);
+			if (task.getMasterDocument() instanceof Project project) unique.put(project, Boolean.TRUE);
+		}
+		return unique.keySet().stream().sorted(Comparator.comparingInt(System::identityHashCode)).toList();
+	}
+
+	/** Neutral source marker for live refresh events that must not create user Undo entries. */
+	private enum LiveDependencyRefreshSource { INSTANCE }
 
 // update the starting and ending sentinels of the project - the sentinels keep track of which
 //	tasks have no preds or no successors
@@ -212,31 +377,35 @@ public class DependencyService {
 	 * @throws InvalidAssociationException
 	 */
 	public void connect(List<?> tasks, Object eventSource, Predicate<Object> canBeSuccessorCondition) throws InvalidAssociationException {
-		ArrayList<Dependency> newDependencies = new ArrayList<>(Math.max(0, tasks.size() - 1));
 		ArrayList<HasDependencies> connectableTasks = new ArrayList<>(tasks.size());
 		for (Object task : tasks) {
 			if (task instanceof HasDependencies hasDependencies && !ClassUtils.isObjectReadOnly(task))
 				connectableTasks.add(hasDependencies);
 		}
-		// try making new dependencies between all items earlier to all items later, thereby checking all possible circularities
-		for (int i = 0; i < connectableTasks.size()-1; i++) {
-			HasDependencies pred = connectableTasks.get(i);
-			for (int j = i+1; j < connectableTasks.size(); j++) {
-				HasDependencies succ = connectableTasks.get(j);
-				if (canBeSuccessorCondition != null && !canBeSuccessorCondition.test(succ)) // allow exclusion of certain nodes that we don't want to be successors
-					continue;
-				if (succ.getPredecessorList().findLeft(pred) != null) // if dependency already exists, skip it
-					continue;
-				Dependency test = Dependency.getInstance(pred,succ,DependencyType.Kind.FS,0); // make a new one
-				test.testValid(false); // test for circularity, throws if bad
-				if (j == i+1) // only add sequential ones
-					newDependencies.add(test);
+		if (connectableTasks.size() < 2) return;
+		Task predecessor = (Task) connectableTasks.get(0);
+		Task successor = (Task) connectableTasks.get(connectableTasks.size() - 1);
+		runDependencyMutation(connectableTasks.stream().map(Task.class::cast).toList(), eventSource,
+				(context, mutationSource) -> {
+			ArrayList<Dependency> newDependencies = new ArrayList<>(Math.max(0, connectableTasks.size() - 1));
+			// try making dependencies between earlier and later items to check all possible circularities
+			for (int i = 0; i < connectableTasks.size()-1; i++) {
+				HasDependencies pred = connectableTasks.get(i);
+				for (int j = i+1; j < connectableTasks.size(); j++) {
+					HasDependencies succ = connectableTasks.get(j);
+					if (canBeSuccessorCondition != null && !canBeSuccessorCondition.test(succ))
+						continue;
+					if (succ.getPredecessorList().findLeft(pred) != null)
+						continue;
+					Dependency test = Dependency.getInstance(pred, succ, DependencyType.Kind.FS, 0);
+					test.testValid(false);
+					if (j == i+1) newDependencies.add(test);
+				}
 			}
-		}
-		for (Dependency dependency : newDependencies)
-			connect(dependency, eventSource);
-
-
+			for (Dependency dependency : newDependencies)
+				connectInternal(dependency, mutationSource, context);
+			return !newDependencies.isEmpty();
+		});
 	}
 	/**
 	 * Remove all dependencies between all tasks in an array
@@ -244,35 +413,50 @@ public class DependencyService {
 	 * @param eventSource
 	 */
 	public void removeAnyDependencies(List<?> tasks, Object eventSource) {
-		// Remove dependencies between any two selected tasks (pairwise).
-		for (int i = 0; i < tasks.size()-1; i++) {
-			HasDependencies pred = writableDependencies(tasks.get(i));
-			if (pred == null)
-				continue;
-			for (int j = i+1; j < tasks.size(); j++) {
-				HasDependencies succ = writableDependencies(tasks.get(j));
-				if (succ == null)
-					continue;
-				removeAnyDependencies(pred,succ,eventSource);
+		ProjectMutationState.coordinated(() -> {
+			List<Dependency> incident = new ArrayList<>();
+			for (Object candidate : tasks) {
+				if (candidate instanceof HasDependencies hasDependencies && !ClassUtils.isObjectReadOnly(candidate))
+					for (Dependency dependency : getIncidentDependencies(hasDependencies))
+						if (!incident.contains(dependency)) incident.add(dependency);
 			}
-		}
-		// Issue #266: also remove every dependency incident to a selected task, even when
-		// the other endpoint is not selected. Without this, selecting a single task (or a
-		// task whose only links point to unselected tasks) removed nothing, so "Unlink" did
-		// nothing. Snapshot the incident dependencies first because remove() mutates the lists.
-		for (int i = 0; i < tasks.size(); i++) {
-			HasDependencies selected = writableDependencies(tasks.get(i));
-			if (selected == null)
-				continue;
-			for (Dependency d : getIncidentDependencies(selected))
-				remove(d, eventSource, true);
-		}
+			removeDependenciesInOneCommand(incident, eventSource, true);
+		});
 	}
 
-	private HasDependencies writableDependencies(Object value) {
-		if (value instanceof HasDependencies dependencies && !ClassUtils.isObjectReadOnly(value))
-			return dependencies;
-		return null;
+	private void removeDependenciesInOneCommand(List<Dependency> dependencies, Object eventSource, boolean undo) {
+		if (dependencies.isEmpty()) return;
+		Map<Task, Boolean> uniqueEndpoints = new IdentityHashMap<>();
+		List<Task> endpoints = new ArrayList<>(dependencies.size() * 2);
+		for (Dependency dependency : dependencies) {
+			for (Task task : List.of((Task) dependency.getPredecessor(), (Task) dependency.getSuccessor())) {
+				if (uniqueEndpoints.put(task, Boolean.TRUE) == null) endpoints.add(task);
+			}
+		}
+		runDependencyMutation(endpoints, eventSource, (context, mutationSource) -> {
+			boolean changed = false;
+			for (Dependency dependency : dependencies)
+				changed |= removeInternal(dependency, mutationSource, undo, context);
+			return changed;
+		});
+	}
+
+	/**
+	 * Remove the dependencies between two tasks. Kept as a pairwise helper for
+	 * hierarchy changes; the list command owns the outer transaction when present.
+	 */
+	private void removeAnyDependenciesInternal(HasDependencies first, HasDependencies second, Object eventSource) {
+		List<Dependency> dependencies = new ArrayList<>(4);
+		Dependency dependency;
+		if (first == null || second == null)
+			return;
+		if (ClassUtils.isObjectReadOnly(first) || ClassUtils.isObjectReadOnly(second))
+			return;
+		if ((dependency = (Dependency) first.getPredecessorList().findLeft(second)) != null) dependencies.add(dependency);
+		if ((dependency = (Dependency) second.getPredecessorList().findLeft(first)) != null) dependencies.add(dependency);
+		if ((dependency = (Dependency) first.getSuccessorList().findRight(second)) != null) dependencies.add(dependency);
+		if ((dependency = (Dependency) second.getSuccessorList().findRight(first)) != null) dependencies.add(dependency);
+		removeDependenciesInOneCommand(dependencies, eventSource, true);
 	}
 
 	/** Returns a stable snapshot of every dependency touching the supplied task. */
@@ -287,26 +471,18 @@ public class DependencyService {
 		return incident;
 	}
 	public void removeAnyDependencies(HasDependencies first, HasDependencies second, Object eventSource) {
-		Dependency dependency;
-		if (first == null || second == null)
-			return;
-		if (ClassUtils.isObjectReadOnly(first) || ClassUtils.isObjectReadOnly(second))
-			return;
-		if ((dependency = (Dependency) first.getPredecessorList().findLeft(second)) != null)
-			remove(dependency,eventSource,true);
-		if ((dependency = (Dependency) second.getPredecessorList().findLeft(first)) != null)
-			remove(dependency,eventSource,true);
-		if ((dependency = (Dependency) first.getSuccessorList().findRight(second)) != null)
-			remove(dependency,eventSource,true);
-		if ((dependency = (Dependency) second.getSuccessorList().findRight(first)) != null)
-			remove(dependency,eventSource,true);
+		ProjectMutationState.coordinated(() -> removeAnyDependenciesInternal(first, second, eventSource));
 	}
 
 	public void remove(Collection<?> dependencyList, Object eventSource) {
-		for (Object item : dependencyList) {
-			Dependency dependency = (Dependency) item;
-			remove(dependency,eventSource,true);
-		}
+		remove(dependencyList, eventSource, true);
+	}
+
+	public void remove(Collection<?> dependencyList, Object eventSource, boolean undo) {
+		ProjectMutationState.coordinated(() -> {
+			List<Dependency> dependencies = dependencyList.stream().map(Dependency.class::cast).toList();
+			removeDependenciesInOneCommand(dependencies, eventSource, undo);
+		});
 	}
 
 	//fix

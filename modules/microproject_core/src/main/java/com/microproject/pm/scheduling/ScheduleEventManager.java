@@ -25,6 +25,8 @@
 package com.microproject.pm.scheduling;
 
 import com.microproject.util.ListenerRegistry;
+import java.util.ArrayList;
+import java.util.List;
 
 
 /**
@@ -33,6 +35,86 @@ import com.microproject.util.ListenerRegistry;
 public class ScheduleEventManager {
 
     private final ListenerRegistry<ScheduleEventListener> listeners = new ListenerRegistry<>();
+    private final List<ScheduleEvent> deferredEvents = new ArrayList<>();
+    private int batchDepth;
+    private boolean rollbackOnly;
+
+    /** Defers schedule observer callbacks until a surrounding model transaction commits. */
+    public synchronized void beginBatch() {
+        batchDepth++;
+    }
+
+    /** Number of deferred facts currently waiting in this nested batch stack. */
+    public synchronized int pendingEventCount() {
+        return deferredEvents.size();
+    }
+
+    /** Publishes deferred events on commit, or drops them after rollback. */
+    public void endBatch(boolean publish) {
+        publishBatch(detachBatch(publish));
+    }
+
+    /** Detaches one completed outer batch without invoking observer callbacks. */
+    public PendingBatch detachBatch(boolean publish) {
+        List<EventFacts> events = null;
+        synchronized (this) {
+            if (batchDepth == 0) throw new IllegalStateException("No schedule-event batch is active");
+            if (!publish) rollbackOnly = true;
+            if (--batchDepth == 0) {
+                events = new ArrayList<>(deferredEvents.size());
+                for (ScheduleEvent event : deferredEvents)
+                    events.add(new EventFacts(event.getSource(), event.getType(), event.getObject(),
+                        event.getSnapshot(), event.isSaveSnapshot()));
+                deferredEvents.clear();
+                publish = !rollbackOnly;
+                rollbackOnly = false;
+            }
+        }
+        return events == null ? null : new PendingBatch(List.copyOf(events), publish);
+    }
+
+    /** Publishes a batch detached after its model revision was committed. */
+    public void publishBatch(PendingBatch batch) {
+        publishBatch(batch, -1L);
+    }
+
+    /** Publishes detached facts with the exact revision committed with their event batch. */
+    public void publishBatch(PendingBatch batch, long publicationRevision) {
+        if (batch == null || !batch.publish) return;
+        Throwable failure = null;
+        for (EventFacts facts : batch.events) {
+            try {
+                ScheduleEvent event = new ScheduleEvent(facts.source, facts.type, facts.object);
+                event.setSnapshot(facts.snapshot);
+                event.setSaveSnapshot(facts.saveSnapshot);
+                event.setPublicationRevision(publicationRevision);
+                dispatch(event);
+            } catch (Throwable current) {
+                if (failure == null) failure = current;
+                else failure.addSuppressed(current);
+            }
+        }
+        if (failure instanceof Error error) throw error;
+        if (failure instanceof RuntimeException runtime) throw runtime;
+        if (failure != null) throw new IllegalStateException("Deferred schedule-event publication failed", failure);
+    }
+
+    public static final class PendingBatch {
+        private final List<EventFacts> events;
+        private final boolean publish;
+
+        private PendingBatch(List<EventFacts> events, boolean publish) {
+            this.events = events;
+            this.publish = publish;
+        }
+
+        public boolean isPublishable() {
+            return publish;
+        }
+    }
+
+    private record EventFacts(Object source, String type, Object object, Integer snapshot,
+        boolean saveSnapshot) { }
 
     // This methods allows classes to register for ObjectEvents
     public void addListener(ScheduleEventListener listener) {
@@ -58,6 +140,15 @@ public class ScheduleEventManager {
     	fire (evt);
     }
     private void fire(ScheduleEvent evt) {
+		synchronized (this) {
+			if (batchDepth > 0) {
+				deferredEvents.add(evt);
+				return;
+			}
+		}
+		dispatch(evt);
+	}
+	private void dispatch(ScheduleEvent evt) {
 		for (ScheduleEventListener listener : listeners.snapshot())
 			listener.scheduleChanged(evt);
     }

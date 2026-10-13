@@ -7,11 +7,14 @@ package com.microproject.pm.graphic.spreadsheet.command;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.List;
 
 import javax.swing.SwingUtilities;
@@ -37,6 +40,7 @@ import com.microproject.pm.task.ProjectTaskKey;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.scheduling.Schedule;
+import com.microproject.pm.scheduling.ScheduleEvent;
 import com.microproject.undo.DataFactoryUndoController;
 
 class TaskCommandGatewayTest {
@@ -253,6 +257,7 @@ class TaskCommandGatewayTest {
 	@Test
 	void stableKeyEditUpdatesTheIntendedTaskAndNoOpDoesNotCreateAnotherMutation() throws Exception {
 		Fixture fixture = createFixture();
+		long revisionBefore = fixture.project().getMutationState().revision();
 		var projection = fixture.cache().getVisibleNodes().getProjectionIndex();
 		TaskFieldEditIntent intent = new TaskFieldEditIntent(fixture.taskKey(), 0,
 			projection.topologyRevision(), FieldDictionary.getInstance().getFieldFromId("Field.name"),
@@ -272,9 +277,63 @@ class TaskCommandGatewayTest {
 
 		assertEquals(TaskCommandResult.Status.CHANGED, changed.get().status());
 		assertEquals(TaskCommandResult.Status.NO_CHANGE, unchanged.get().status());
+		assertEquals(revisionBefore + 1, fixture.project().getMutationState().revision(),
+			"the changed edit advances one revision and the subsequent no-op does not");
 		assertEquals("After", fixture.task().getName());
 		SwingUtilities.invokeAndWait(() -> fixture.project().getUndoController().undo());
+		assertEquals(revisionBefore + 2, fixture.project().getMutationState().revision(),
+			"Undo must publish one outer revision even when the edit emits nested events");
 		assertEquals("Before", fixture.task().getName(), "no-op must not add a second Undo edit");
+		SwingUtilities.invokeAndWait(() -> fixture.project().getUndoController().redo());
+		assertEquals(revisionBefore + 3, fixture.project().getMutationState().revision(),
+			"Redo must publish one outer revision even when the edit emits nested events");
+		assertEquals("After", fixture.task().getName());
+	}
+
+	@Test
+	void scheduleApplyFailurePublishesInvalidationAfterReleasingProjectBarrier() throws Exception {
+		Fixture fixture = createFixture();
+		fixture.task().setDuration(com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
+		RevisionedProjectionIndex projection = fixture.cache().getVisibleNodes().getProjectionIndex();
+		Schedule schedule = (Schedule) fixture.task();
+		ProjectionRowKey.TaskRow row = taskRowFor(projection, fixture.task());
+		TaskScheduleEditIntent intent = new TaskScheduleEditIntent(row, projection.topologyRevision(),
+			TaskScheduleEditIntent.Operation.PROGRESS, schedule.getStart(), schedule.getEnd(),
+			schedule.getCompletedThrough(), schedule.getStart(), schedule.getEnd(), fixture.task().getConstraintType(),
+			fixture.task().getConstraintDate(), schedule.getStart(), schedule.getEnd(), schedule.getCompletedThrough() + 1);
+		long revisionBefore = fixture.project().getMutationState().revision();
+		AtomicReference<ScheduleEvent> published = new AtomicReference<>();
+		CountDownLatch barrierAvailable = new CountDownLatch(1);
+		fixture.project().addScheduleListener(event -> {
+			published.set(event);
+			Thread writer = new Thread(() -> {
+				try (var ignored = fixture.project().getMutationState().begin()) {
+					barrierAvailable.countDown();
+				}
+			}, "gateway-publication-barrier-check");
+			writer.start();
+			try {
+				if (!barrierAvailable.await(2, TimeUnit.SECONDS))
+					throw new AssertionError("publication ran before the project barrier was released");
+				writer.join(2_000);
+			} catch (InterruptedException interrupted) {
+				Thread.currentThread().interrupt();
+				throw new AssertionError(interrupted);
+			}
+		});
+
+		assertThrows(IllegalStateException.class, () -> TaskCommandGateway.executeScheduleEdit(fixture.cache(), intent,
+			fixture.sheet(), () -> {
+				fixture.task().setName("Applied before failure");
+				throw new IllegalStateException("injected after apply started");
+			}));
+		assertEquals("Applied before failure", fixture.task().getName(),
+			"the gateway must not silently discard an applied mutation it cannot roll back");
+		assertEquals(revisionBefore + 1, fixture.project().getMutationState().revision());
+		assertEquals(0, barrierAvailable.getCount(), "a listener must run after the project mutation lock is released");
+		assertTrue(published.get() != null, "a failed apply without its own event still requires cache invalidation");
+		assertEquals(ScheduleEvent.SCHEDULE, published.get().getType());
+		assertEquals(revisionBefore + 1, published.get().getPublicationRevision());
 	}
 
 	@Test

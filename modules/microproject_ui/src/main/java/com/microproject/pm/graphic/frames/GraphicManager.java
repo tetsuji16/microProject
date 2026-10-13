@@ -129,9 +129,12 @@ import com.microproject.graphic.configuration.SpreadSheetFieldArray;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.VoidNodeImpl;
 import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.grouping.core.model.DefaultNodeModel;
+import com.microproject.grouping.core.transform.CommonTransformFactory;
 import com.microproject.grouping.core.transform.ViewTransformer;
 import com.microproject.grouping.core.transform.filtering.NodeFilter;
 import com.microproject.grouping.core.transform.filtering.ResourceInTeamFilter;
+import com.microproject.grouping.core.transform.sorting.NodeSorter;
 import com.microproject.job.Job;
 import com.microproject.job.JobQueue;
 import com.microproject.job.JobRunnable;
@@ -3106,16 +3109,20 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			if (!beforeChooserRoute(actionId))
 				return;
 	        CommonSpreadSheet spreadSheet=getCurrentFrame().getTopSpreadSheet();
+	        List<Node> taskSortSelection = List.of();
+	        if (type == TransformComboBoxModel.SORTER && spreadSheet != null) {
+			taskSortSelection = new ArrayList<>(spreadSheet.getSelectedNodes());
+		}
 	        if (spreadSheet!=null){
 	            if (spreadSheet.isEditing())
 	            	spreadSheet.getCellEditor().stopCellEditing();//.cancelCellEditing();
-	            spreadSheet.clearSelection();
+	            if (type != TransformComboBoxModel.SORTER) spreadSheet.clearSelection();
 	        }
 	        if (e.getSource() instanceof TransformComboBox combo) {
 	        	combo.transformBasedOnValue();
 	        	return;
 	        }
-	        showTransformChooser(type);
+	        showTransformChooser(type, this, actionId, taskSortSelection);
 		}
 	}
 
@@ -3830,23 +3837,74 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		return getCurrentFrame().getGanttView();
 	}
 
-	private void showTransformChooser(int type) {
+	private void showTransformChooser(int type, Action action, String actionId, List<Node> taskSortSelection) {
 		if (!isDocumentActive())
 			return;
-		String actionId = switch (type) {
-		case TransformComboBoxModel.SORTER -> ACTION_CHOOSE_SORT;
-		case TransformComboBoxModel.GROUPER -> ACTION_CHOOSE_GROUP;
-		default -> ACTION_CHOOSE_FILTER;
-		};
 		TransformComboBox combo = new TransformComboBox(getMenuManager(), actionId, type);
 		combo.setView(com.microproject.grouping.core.transform.ViewConfiguration.getView(getTopViewId()));
 		if (combo.getItemCount() == 0)
 			return;
 		if (combo.getSelectedIndex() < 0)
 			combo.setSelectedIndex(0);
-		int choice = PopupDialogSupport.showConfirmDialog(getFrame(), combo,
+		boolean taskSort = type == TransformComboBoxModel.SORTER
+				&& getCurrentFrame() != null
+				&& !(getCurrentFrame().getActiveTopView() instanceof ResourceView)
+				&& getCurrentFrame().getProject() != null
+				&& !getCurrentFrame().getProject().isReadOnly();
+		JCheckBox permanentOrder = taskSort
+				? new JCheckBox(getMenuManager().getString("Sort.PermanentTaskOrder")) : null;
+		JPanel chooser = new JPanel(new BorderLayout(0, 8));
+		chooser.add(combo, BorderLayout.CENTER);
+		if (permanentOrder != null) chooser.add(permanentOrder, BorderLayout.SOUTH);
+		int choice = PopupDialogSupport.showConfirmDialog(getFrame(), chooser,
 				getMenuManager().getString(actionId + ".text"), JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION);
 		if (choice == JOptionPane.OK_OPTION) {
+			if (permanentOrder != null && permanentOrder.isSelected()) {
+				int confirm = PopupDialogSupport.showConfirmDialog(getFrame(),
+						getMenuManager().getString("Sort.PermanentTaskOrderConfirm"),
+						getMenuManager().getString("Sort.PermanentTaskOrder"),
+						JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE, JOptionPane.NO_OPTION);
+				if (confirm != JOptionPane.YES_OPTION) {
+					publishTaskCommandOutcome(action, new RibbonCommandResult(actionId, RibbonCommandResult.Status.NO_CHANGE,
+							"permanent-sort-cancelled").withActiveView(getCurrentFrame().getTopViewId()));
+					return;
+				}
+				CommonTransformFactory factory = (CommonTransformFactory) combo.getSelectedItem();
+				try {
+					if (factory == null || !(factory.getTransform() instanceof NodeSorter sorter)) {
+						publishTaskCommandOutcome(action, RibbonCommandResult.rejected(actionId, "invalid-sorter"));
+						return;
+					}
+					DocumentFrame frame = getCurrentFrame();
+					Project sortingProject = frame.getProject();
+					NodeModel taskModel = frame.getTaskModel();
+					if (!(taskModel instanceof DefaultNodeModel defaultNodeModel)) {
+						publishTaskCommandOutcome(action, RibbonCommandResult.rejected(actionId, "unsupported-task-model"));
+						return;
+					}
+					boolean changed = defaultNodeModel.sortOutlineBy(sorter, NodeModel.NORMAL);
+					if (changed) {
+						combo.transformBasedOnValue();
+						ViewTransformer viewTransform = combo.getModel() instanceof TransformComboBoxModel model
+								? model.getView().getTransform() : null;
+						if (viewTransform != null) viewTransform.setUserSorterId(ViewTransformer.SORTER_NONE_ID);
+						if (frame.getActiveSpreadSheet() instanceof SpreadSheet taskSheet && !taskSortSelection.isEmpty()) {
+							List<Node> selectionToRestore = List.copyOf(taskSortSelection);
+							SwingUtilities.invokeLater(() -> {
+								if (getCurrentFrame() == frame && frame.getProject() == sortingProject
+										&& frame.getActiveSpreadSheet() == taskSheet)
+									taskSheet.restoreTaskRowSelection(selectionToRestore);
+							});
+						}
+					}
+					publishTaskCommandOutcome(action, (changed ? RibbonCommandResult.changed(actionId)
+							: RibbonCommandResult.noChange(actionId)).withActiveView(frame.getTopViewId()));
+				} catch (Exception exception) {
+					logger.log(Level.WARNING, "Unable to apply permanent task order", exception);
+					publishTaskCommandOutcome(action, RibbonCommandResult.rejected(actionId, "sort-failed"));
+				}
+				return;
+			}
 			combo.transformBasedOnValue();
 		}
 	}

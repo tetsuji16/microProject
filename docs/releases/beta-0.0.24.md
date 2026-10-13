@@ -1,6 +1,6 @@
 # microProject 0.0.24 beta
 
-Windows 用の計画作成・更新・CCPM運用を対象にしたベータ版です。MSI または ZIP を GitHub の prerelease から取得できます。Windows ゲートに合格するまで配布物を公開しません。
+Windows 用の計画作成・更新・CCPM運用を対象にした試用向け prerelease です。公開後は GitHub の prerelease から各 OS の配布物を取得できます。基本操作の試用手順と未確認事項は[試用ガイド](https://github.com/tetsuji16/ProjectLibre/blob/codex/roadmap-gate-closure/docs/trial-release-plan.md)を参照してください。
 
 ## 最小実用範囲
 
@@ -8,6 +8,8 @@ Windows 用の計画作成・更新・CCPM運用を対象にしたベータ版�
 - ガント：表とバーの連動、日付／期間の変更、ズーム・スクロール、依存関係の表示。
 - CCPM：設定・適用、クリティカルチェーン／バッファの表示、Undo/Redo、MPO 保存・再読込。
 - 新規作成、MPO 保存・再読込、既存 POD と MPP の読込。
+
+MPP は読込のみが相互運用対象で、MPP 書出しは対象外です。VBA / マクロ、COM、VSTO、Microsoft Office add-in も対象外です。
 
 ## この版の修正
 

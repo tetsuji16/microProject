@@ -29,6 +29,7 @@ import javax.swing.undo.CannotRedoException;
 import javax.swing.undo.CannotUndoException;
 
 import com.microproject.grouping.core.Node;
+import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentService;
 
 /**
@@ -36,6 +37,7 @@ import com.microproject.pm.assignment.AssignmentService;
  */
 public class AssignmentCreationEdit extends AbstractUndoableEdit{
 	protected Node assignment;
+	protected Assignment detachedAssignment;
 	
 	/**
 	 * @param dependency
@@ -45,14 +47,20 @@ public class AssignmentCreationEdit extends AbstractUndoableEdit{
 		super();
 		this.assignment = assignment;
 	}
+	public AssignmentCreationEdit(Assignment assignment) {
+		super();
+		this.detachedAssignment = assignment;
+	}
 	
 	public void redo() throws CannotRedoException {
 		super.redo();
-		AssignmentService.getInstance().connect(assignment,this,false);
+		if (assignment == null) AssignmentService.getInstance().connect(detachedAssignment,this,false);
+		else AssignmentService.getInstance().connect(assignment,this,false);
 	}
 	public void undo() throws CannotUndoException {
 		super.undo();
-		AssignmentService.getInstance().remove(assignment,this,false);
+		if (assignment == null) AssignmentService.getInstance().remove(detachedAssignment,this,false);
+		else AssignmentService.getInstance().remove(assignment,this,false);
 	}
 	public String getPresentationName() {
 		return "AssignmentCreation";

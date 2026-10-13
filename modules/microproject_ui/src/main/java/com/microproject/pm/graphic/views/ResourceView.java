@@ -221,11 +221,14 @@ public class ResourceView extends JScrollPane implements BaseView {
 	private void applySort(Field field, boolean ascending) {
 		if (field == null) return;
 		List<GraphicNode> selected = spreadSheet.getSelectedGraphicNodes();
+		// Clear row indexes before the projection emits remove/insert events. JTable
+		// otherwise shifts the old selection during those events and can briefly
+		// address a row beyond the new projection, before we restore by node identity.
+		spreadSheet.clearSelection();
 		sortedFieldId = field.getId();
 		sortAscending = ascending;
 		NodeSorter sorter = new ResourceFieldSorter(field, ascending);
 		((NodeCacheTransformer) cache.getVisibleNodes().getTransformer()).getTransformer().setUserSorter(sorter);
-		spreadSheet.clearSelection();
 		for (GraphicNode selectedNode : selected) {
 			Object visible = cache.getGraphicNode(selectedNode.getNode());
 			int row = cache.getRowAt(visible);

@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.awt.Component;
 import java.awt.GraphicsConfiguration;
 import java.awt.Insets;
+import java.awt.MouseInfo;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Robot;
@@ -19,9 +20,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.swing.AbstractButton;
 import javax.swing.JFrame;
+import javax.swing.JPopupMenu;
 import javax.swing.SwingUtilities;
 import javax.imageio.ImageIO;
 
@@ -77,6 +80,8 @@ public final class WindowAcceptanceAssertions {
 
 	private static void clickComponent(Robot robot, Component component, boolean expectedEnabled) throws Exception {
 		long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(8);
+		List<JPopupMenu> popupAncestors = popupAncestors(component);
+		Point lastRobotTarget = null;
 		PointerSnapshot last = pointerSnapshot(component);
 		PointerSnapshot initial = last;
 		PointerSnapshot previous = last;
@@ -85,6 +90,7 @@ public final class WindowAcceptanceAssertions {
 			if (last.showing() && last.enabled() == expectedEnabled && last.bounds() != null && !last.bounds().isEmpty()) {
 				Point target = new Point(last.bounds().x + last.bounds().width / 2,
 					last.bounds().y + last.bounds().height / 2);
+				lastRobotTarget = target;
 				robot.mouseMove(target.x, target.y);
 				robot.waitForIdle();
 				last = pointerSnapshot(component);
@@ -108,7 +114,8 @@ public final class WindowAcceptanceAssertions {
 				+ "; expectedEnabled=" + expectedEnabled + "; initial={" + pointerDescription(initial)
 				+ "}; transitions=" + (observedTransitions.isEmpty() ? "none" : String.join(" -> ", observedTransitions)
 					+ (observedTransitions.size() == 20 ? " (first 20 transitions; further transitions omitted)" : ""))
-				+ "; test=" + currentTestCaller() + "; windows={" + showingWindows() + "}");
+				+ "; test=" + currentTestCaller() + "; windows={" + showingWindows() + "}"
+				+ diagnosticDetails(expectedEnabled, lastRobotTarget, popupAncestors));
 		}
 		System.out.println("[GUI_PHYSICAL_CLICK] test=" + currentTestCaller() + " target=" + last.identity()
 			+ " bounds=" + last.bounds() + " localHover=" + last.localMouse());
@@ -121,6 +128,37 @@ public final class WindowAcceptanceAssertions {
 		robot.delay(150);
 	}
 
+	private static List<JPopupMenu> popupAncestors(Component component) throws Exception {
+		AtomicReference<List<JPopupMenu>> result = new AtomicReference<>();
+		SwingUtilities.invokeAndWait(() -> {
+			List<JPopupMenu> ancestors = new ArrayList<>();
+			for (Component current = component; current != null; current = current.getParent())
+				if (current instanceof JPopupMenu popup) ancestors.add(popup);
+			result.set(ancestors);
+		});
+		return result.get();
+	}
+
+	private static String diagnosticDetails(boolean enabledExpected, Point robotTarget, List<JPopupMenu> popups)
+		throws Exception {
+		if (enabledExpected) return "";
+		Point pointer = null;
+		try {
+			if (MouseInfo.getPointerInfo() != null) pointer = MouseInfo.getPointerInfo().getLocation();
+		} catch (java.awt.HeadlessException ignored) { }
+		AtomicReference<List<String>> popupStates = new AtomicReference<>();
+		SwingUtilities.invokeAndWait(() -> {
+			List<String> states = new ArrayList<>();
+			for (JPopupMenu popup : popups)
+				states.add("visible=" + popup.isVisible() + ",showing=" + popup.isShowing()
+					+ ",bounds=" + popup.getBounds() + ",invoker=" + (popup.getInvoker() == null ? "null"
+						: popup.getInvoker().getClass().getSimpleName() + "@" + safeScreenLocation(popup.getInvoker())));
+			popupStates.set(states);
+		});
+		return "; diagnostic={robotRequestedCenter=" + robotTarget
+			+ ",awtPointer=" + pointer + ",popupAncestors=" + popupStates.get() + "}";
+	}
+
 	private static void appendPointerTransition(List<String> history, PointerSnapshot before, PointerSnapshot after) {
 		if (before == null || after == null) return;
 		boolean visibilityChanged = before.showing() != after.showing();
@@ -128,6 +166,11 @@ public final class WindowAcceptanceAssertions {
 		if (!visibilityChanged && !boundsChanged) return;
 		if (history.size() >= 20) return;
 		history.add(pointerDescription(before) + " => " + pointerDescription(after));
+	}
+
+	private static Point safeScreenLocation(Component component) {
+		try { return component.getLocationOnScreen(); }
+		catch (java.awt.IllegalComponentStateException ignored) { return null; }
 	}
 
 	private static String pointerDescription(PointerSnapshot snapshot) {

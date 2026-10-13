@@ -39,6 +39,42 @@ class DeepChildWalkerTest {
 		assertSame(grandchild, visited.get(2));
 	}
 
+	@Test
+	void missingImplementationDoesNotWalkRootBranches() {
+		Node child = node();
+		List<Object> visited = new ArrayList<>();
+		int[] treeReads = {0};
+		NodeModel nodeModel = (NodeModel) Proxy.newProxyInstance(NodeModel.class.getClassLoader(),
+				new Class<?>[] { NodeModel.class }, (proxy, method, arguments) -> {
+					if ("search".equals(method.getName())) return null;
+					if ("getChildren".equals(method.getName())) {
+						treeReads[0]++;
+						return List.of(child); // the Node overload's null root means this tree's roots
+					}
+					return null;
+				});
+
+		DeepChildWalker.recursivelyTreatBranch(nodeModel, new Object(), visited::add);
+
+		assertEquals(0, treeReads[0]);
+		assertEquals(List.of(), visited);
+	}
+
+	@Test
+	void emptyExplicitRootWalkVisitsOnlyTheRoot() {
+		Node root = node();
+		List<Object> visited = new ArrayList<>();
+		NodeModel nodeModel = (NodeModel) Proxy.newProxyInstance(NodeModel.class.getClassLoader(),
+				new Class<?>[] { NodeModel.class }, (proxy, method, arguments) -> {
+					if ("getChildren".equals(method.getName())) return List.of();
+					return null;
+				});
+
+		DeepChildWalker.recursivelyTreatBranch(nodeModel, root, visited::add);
+
+		assertEquals(List.of(root), visited);
+	}
+
 	private static Node node() {
 		return (Node) Proxy.newProxyInstance(Node.class.getClassLoader(), new Class<?>[] { Node.class },
 				(proxy, method, arguments) -> null);

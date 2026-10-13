@@ -38,6 +38,7 @@ public class ScheduleEvent extends EventObject {
 	private Object object;
 	private Integer snapshot;
 	private boolean saveSnapshot = true;
+	private long publicationRevision = -1L;
 	/**
 	 * @param arg0
 	 */
@@ -79,6 +80,13 @@ public class ScheduleEvent extends EventObject {
 	 */
 	public boolean isSaveSnapshot() {
 		return saveSnapshot;
+	}
+	/** Revision of the committed project publication carrying this event, or -1 for legacy events. */
+	public long getPublicationRevision() {
+		return publicationRevision;
+	}
+	public void setPublicationRevision(long publicationRevision) {
+		this.publicationRevision = publicationRevision;
 	}
 	/**
 	 * @param saveSnapshot The saveSnapshot to set.

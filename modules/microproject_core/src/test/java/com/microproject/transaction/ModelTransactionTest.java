@@ -12,6 +12,22 @@ import org.junit.jupiter.api.Test;
 
 class ModelTransactionTest {
 	@Test
+	void validationAuthorizationCaptureAndApplyFailuresDoNotCommitPartialState() {
+		for (ModelTransaction.Stage stage : new ModelTransaction.Stage[] {
+				ModelTransaction.Stage.VALIDATE, ModelTransaction.Stage.AUTHORIZE,
+				ModelTransaction.Stage.CAPTURE, ModelTransaction.Stage.APPLY }) {
+			Fixture fixture = new Fixture(stage);
+			ModelTransaction.ModelTransactionException failure = assertThrows(
+				ModelTransaction.ModelTransactionException.class,
+				() -> ModelTransaction.execute(fixture));
+
+			assertEquals(stage, failure.failedStage());
+			assertEquals(4, fixture.value, "failed stage must leave the model at its pre-transaction value");
+			assertEquals(0, fixture.commits, "failed stage must not publish a commit");
+		}
+	}
+
+	@Test
 	void schedulingAndInvariantFailuresRestoreStateAndSkipCommit() {
 		for (ModelTransaction.Stage stage : new ModelTransaction.Stage[] {
 				ModelTransaction.Stage.SCHEDULE, ModelTransaction.Stage.INVARIANT }) {
@@ -97,12 +113,20 @@ class ModelTransactionTest {
 			this.failingStage = failingStage;
 		}
 
-		@Override public void validate() { }
-		@Override public void authorize() { }
-		@Override public Integer capture() { return value; }
+		@Override public void validate() throws Exception {
+			if (failingStage == ModelTransaction.Stage.VALIDATE) throw (Exception) failure;
+		}
+		@Override public void authorize() throws Exception {
+			if (failingStage == ModelTransaction.Stage.AUTHORIZE) throw (Exception) failure;
+		}
+		@Override public Integer capture() throws Exception {
+			if (failingStage == ModelTransaction.Stage.CAPTURE) throw (Exception) failure;
+			return value;
+		}
 		@Override public ModelTransaction.Mutation<Integer> apply() {
 			value++;
 			if (failApply) throw (Error) failure;
+			if (failingStage == ModelTransaction.Stage.APPLY) throw (IllegalStateException) failure;
 			return ModelTransaction.Mutation.changed(value);
 		}
 		@Override public void schedule() throws Exception {

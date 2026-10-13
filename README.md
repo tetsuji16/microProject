@@ -9,10 +9,12 @@ product goal is complete compatibility with the standalone Microsoft Project
 desktop application, including the current Microsoft 365 ribbon visual style
 and desktop command behavior. **That compatibility goal is not yet achieved.**
 MPO (`.mpo`) is the application's authoritative native format and default save
-format. MPP (`.mpp`) remains a separate external interoperability target with
-read and write acceptance gates; it is not the native project format. POD is a
-frozen legacy import format. Desktop workflows and local automation/extensions
-remain measurable acceptance gates. Project Server, PWA, Project Online, and Microsoft
+format. MPP (`.mpp`) remains a separate external interoperability target for
+reading; MPP writing is out of scope. It is not the native project format. POD
+is a frozen legacy import format. Desktop workflows and native microProject
+automation/extensions remain measurable acceptance gates. VBA/macros, COM,
+VSTO, and Microsoft Office add-ins are out of scope. Project Server, PWA,
+Project Online, and Microsoft
 Planner cloud authentication or synchronization are outside this standalone
 product goal. The [compatibility goal](docs/msp-compatibility-goal.md) and
 [roadmap](docs/msp-compatibility-roadmap.md) define the full scope.
@@ -22,15 +24,17 @@ microProject は、タスク階層、日程、依存関係、リソース、進�
 スタンドアロンの Microsoft Project デスクトップとの完全互換です。最新
 Microsoft 365 版のリボン外観とデスクトップ操作を目標にしますが、互換性は
 まだ完了していません。MPO（`.mpo`）を製品の正式なネイティブ形式かつ標準の
-保存形式とします。MPP（`.mpp`）は別個の外部互換形式で、読み書きの検証対象です。
+保存形式とします。MPP（`.mpp`）は別個の外部互換形式で、読込が対象です。書出しは対象外です。
 POD は wire 形式を変更しない旧形式の読込用です。デスクトップ業務フローとローカルの
-自動化・拡張機能も個別に検証します。Project Server、PWA、Project Online、
+自動化・拡張機能も個別に検証します。VBA / マクロ、COM、VSTO、Microsoft Office add-in は
+対象外です。Project Server、PWA、Project Online、
 Microsoft Planner のクラウド認証・同期はこの製品目標の対象外です。詳細は
 互換性目標とロードマップを参照してください。
 
 Quick links:
 
 - [Stable releases and downloads](https://github.com/tetsuji16/ProjectLibre/releases/latest)
+- [Trial release checklist](docs/trial-release-plan.md) — prerelease route, basic user journey, and known limits
 - [microProject documentation](https://o-server.main.jp/micro-project/)
 - [Microsoft Project desktop compatibility roadmap](docs/msp-compatibility-roadmap.md) — goal, phased acceptance gates, and review of every currently open issue
 - [Current ribbon command inventory](docs/MSP_STANDARD_COMMAND_INVENTORY.md)
@@ -41,8 +45,8 @@ Quick links:
 | M0 | Target and complete coverage inventory | Open — [#792](https://github.com/tetsuji16/ProjectLibre/issues/792) |
 | M1 | Current Office-style ribbon visuals | Open — [#793](https://github.com/tetsuji16/ProjectLibre/issues/793) |
 | M2 | Offline desktop workflow parity | Open — [#794](https://github.com/tetsuji16/ProjectLibre/issues/794) |
-| M3 | MPP and other file interoperability | Open — [#796](https://github.com/tetsuji16/ProjectLibre/issues/796) |
-| M4 | Local automation and extensions | Open — [#797](https://github.com/tetsuji16/ProjectLibre/issues/797) |
+| M3 | MPP reading and other file interoperability (MPP writing out of scope) | Open — [#796](https://github.com/tetsuji16/ProjectLibre/issues/796) |
+| M4 | Microsoft Project-specific automation and extensions | Excluded by product scope — [#797](https://github.com/tetsuji16/ProjectLibre/issues/797) |
 | M5 | Release compatibility acceptance | Open — [#795](https://github.com/tetsuji16/ProjectLibre/issues/795) |
 
 ![microProject commercial construction project plan in the Gantt view](docs/images/demo_gannt.png)
@@ -61,12 +65,14 @@ implementation). They do not share project-file state or release artifacts.
 
 - **Goal: complete standalone Microsoft Project desktop compatibility.** This
   is a work objective; compatibility is not complete. The target includes desktop
-  workflows and project-file behavior, with MPP read and write as explicit
-  acceptance gates. See the
+  workflows and project-file behavior, with MPP reading as an explicit
+  interoperability gate; MPP writing is out of scope. See the
   [compatibility roadmap](docs/msp-compatibility-roadmap.md) for scope, open
   coverage gaps, milestones, and issue review. Project Server, PWA, Project
   Online, and Microsoft Planner cloud services are outside the goal; local
-  files, offline collaboration and local automation/extensions remain in scope.
+  files, offline collaboration and native microProject automation/extensions
+  remain in scope. VBA/macros, COM, VSTO, and Microsoft Office add-ins are out
+  of scope.
   See [the compatibility goal](docs/msp-compatibility-goal.md) for verification
   rules.
 - Keep microProject usable on a modern JDK and packaging toolchain

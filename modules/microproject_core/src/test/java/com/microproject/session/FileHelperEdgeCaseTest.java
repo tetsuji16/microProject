@@ -61,8 +61,11 @@ class FileHelperEdgeCaseTest {
 		assertTrue(FileHelper.requiresSaveAs("source.mpx"));
 		assertEquals("source.mpo", FileHelper.defaultNativeSaveAsFileName("source.mpp", false));
 		assertEquals("source.mpo", FileHelper.defaultNativeSaveAsFileName("source.pod", true));
-		assertEquals("source.pod", FileHelper.defaultNativeSaveAsFileName("source.pod", false));
-		assertEquals("report.xlsx", FileHelper.defaultNativeSaveAsFileName("report.xlsx", true));
+		assertEquals("source.mpo", FileHelper.defaultNativeSaveAsFileName("source.pod", false));
+		assertEquals("report.mpo", FileHelper.defaultNativeSaveAsFileName("report.xlsx", true));
+		assertEquals("plan.mpo", FileHelper.defaultNativeSaveAsFileName("plan.xml", true));
+		assertEquals("plan.mpo", FileHelper.defaultNativeSaveAsFileName("plan.mpx", true));
+		assertEquals("plan.mpo", FileHelper.defaultNativeSaveAsFileName("plan.mpo", true));
 	}
 
 	@Test

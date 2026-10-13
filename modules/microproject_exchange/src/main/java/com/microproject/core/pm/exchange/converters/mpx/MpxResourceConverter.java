@@ -24,6 +24,13 @@
  *******************************************************************************/
 package com.microproject.core.pm.exchange.converters.mpx;
 
+import java.util.Date;
+
+import com.microproject.datatype.Duration;
+import com.microproject.datatype.Rate;
+import com.microproject.datatype.TimeUnit;
+import com.microproject.interval.ValueObjectForInterval;
+import com.microproject.pm.costing.CostRate;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.resource.Resource;
@@ -32,9 +39,8 @@ import net.sf.mpxj.ProjectCalendar;
 
 /**
  * Converts an MPXJ Resource into a microproject Resource.
- * Only fields carried by the microproject Resource interface are mapped. Rates,
- * cost, maximum units, start/finish and availability are intentionally skipped
- * (see issue #154).
+ * Resource values represented by the local model are mapped. Availability and
+ * maximum units remain outside this converter's contract (see issue #154).
  * @author Laurent Chretienneau
  */
 public class MpxResourceConverter {
@@ -58,8 +64,54 @@ public class MpxResourceConverter {
 			resource.setUniqueId(mpxResource.getUniqueID().longValue());
 		if (mpxResource.getAccrueAt() != null)
 			resource.setAccrueAt(mpxResource.getAccrueAt().getValue());
-		if (mpxResource.getCostPerUse() != null)
-			resource.setCostPerUse(mpxResource.getCostPerUse().doubleValue());
+		for (int tableIndex = 0; tableIndex < net.sf.mpxj.CostRateTable.MAX_TABLES; tableIndex++) {
+			// MPXJ and the domain both number tables A-E as 0-4.
+			net.sf.mpxj.CostRateTable sourceTable = mpxResource.getCostRateTable(tableIndex);
+			if (sourceTable == null || sourceTable.isEmpty()) continue;
+			com.microproject.pm.costing.CostRateTable targetTable = resource.getCostRateTable(tableIndex);
+			for (net.sf.mpxj.CostRateTableEntry sourceEntry : sourceTable) {
+				Date startDate = sourceEntry.getStartDate();
+				CostRate targetEntry;
+				if (startDate == null || net.sf.mpxj.common.DateHelper.START_DATE_NA.equals(startDate)) {
+					targetEntry = (CostRate) targetTable.getList().getFirst();
+				} else {
+					long start = startDate.getTime();
+					ValueObjectForInterval existing = targetTable.findActive(start);
+					if (existing != null && existing.getStart() == start) targetEntry = (CostRate) existing;
+					else {
+						try { targetEntry = (CostRate) targetTable.newValueObject(start); }
+						catch (com.microproject.interval.InvalidValueObjectForIntervalException invalid) {
+							throw new IllegalArgumentException("Invalid resource cost-rate effective date", invalid);
+						}
+					}
+				}
+				targetEntry.setStandardRate(fromMpxRate(sourceEntry.getStandardRate()));
+				targetEntry.setOvertimeRate(fromMpxRate(sourceEntry.getOvertimeRate()));
+				if (sourceEntry.getCostPerUse() != null)
+					targetEntry.setCostPerUse(sourceEntry.getCostPerUse().doubleValue());
+				Date endDate = sourceEntry.getEndDate();
+				if (endDate != null && !net.sf.mpxj.common.DateHelper.END_DATE_NA.equals(endDate)
+						&& !targetEntry.isFirst()) targetEntry.setEnd(endDate.getTime());
+			}
+		}
+		// MSPDI represents table A's current value as Resource scalar fields. MPXJ's
+		// reader ignores those scalar defaults when a Rates collection is present,
+		// so prefer the values captured by MspImporter from the source XML.
+		Integer sourceUniqueId = mpxResource.getUniqueID();
+		MpxImportState.RawMspdiResourceRates rawRates = state.getRawMspdiResourceRates(
+			sourceUniqueId == null ? null : Long.valueOf(sourceUniqueId.longValue()));
+		if (rawRates != null) {
+			if (rawRates.standardRate() != null) resource.setStandardRate(rawRates.standardRate());
+			if (rawRates.overtimeRate() != null) resource.setOvertimeRate(rawRates.overtimeRate());
+			if (rawRates.costPerUse() != null) resource.setCostPerUse(rawRates.costPerUse().doubleValue());
+		} else {
+			if (mpxResource.getStandardRate() != null)
+				resource.setStandardRate(fromMpxRate(mpxResource.getStandardRate()));
+			if (mpxResource.getOvertimeRate() != null)
+				resource.setOvertimeRate(fromMpxRate(mpxResource.getOvertimeRate()));
+			if (mpxResource.getCostPerUse() != null)
+				resource.setCostPerUse(mpxResource.getCostPerUse().doubleValue());
+		}
 
 		// convert calendar
 		WorkCalendar calendar;
@@ -76,5 +128,26 @@ public class MpxResourceConverter {
 			}
 		}
 		resource.setWorkCalendar(calendar);
+	}
+
+	private static Rate fromMpxRate(net.sf.mpxj.Rate rate) {
+		if (rate == null) return new Rate();
+		int unit = switch (rate.getUnits()) {
+			case MINUTES -> TimeUnit.MINUTES;
+			case HOURS -> TimeUnit.HOURS;
+			case DAYS -> TimeUnit.DAYS;
+			case WEEKS -> TimeUnit.WEEKS;
+			case MONTHS -> TimeUnit.MONTHS;
+			case YEARS -> TimeUnit.YEARS;
+			case PERCENT -> TimeUnit.PERCENT;
+			case ELAPSED_MINUTES -> TimeUnit.ELAPSED_MINUTES;
+			case ELAPSED_HOURS -> TimeUnit.ELAPSED_HOURS;
+			case ELAPSED_DAYS -> TimeUnit.ELAPSED_DAYS;
+			case ELAPSED_WEEKS -> TimeUnit.ELAPSED_WEEKS;
+			case ELAPSED_MONTHS -> TimeUnit.ELAPSED_MONTHS;
+			case ELAPSED_YEARS -> TimeUnit.ELAPSED_YEARS;
+			case ELAPSED_PERCENT -> TimeUnit.ELAPSED_PERCENT;
+		};
+		return new Rate(rate.getAmount() / Duration.timeUnitFactor(unit), unit);
 	}
 }
