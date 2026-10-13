@@ -863,7 +863,7 @@ class MpxExportTrackingTest {
 	}
 
 	@Test
-	void importedMppWithCustomContoursCanBeSavedAndReloadedAsMpo() throws Exception {
+	void importedMppAssignmentsCanBeSavedAndReloadedAsMpo() throws Exception {
 		Path sample = Path.of("modules", "microproject_exchange", "testdata", "New Product.mpp");
 		if (!Files.exists(sample))
 			sample = Path.of("testdata", "New Product.mpp");
@@ -871,6 +871,15 @@ class MpxExportTrackingTest {
 		String mppHeader = new String(Files.readAllBytes(sample), java.nio.charset.StandardCharsets.ISO_8859_1);
 		assertTrue(mppHeader.contains("Microsoft Project 9.0") && mppHeader.contains("MSProject.MPP9"),
 			"fixture identifies itself as Microsoft Project 9.0 MPP");
+		net.sf.mpxj.ProjectFile rawSource = new net.sf.mpxj.mpp.MPPReader().read(sample.toFile());
+		assertEquals(38, rawSource.getResourceAssignments().size(), "fixture source assignment inventory");
+		assertTrue(rawSource.getResourceAssignments().stream().noneMatch(assignment ->
+			com.microproject.exchange.mpxj.MpxjApi.hasCustomWorkContour(assignment)
+				|| com.microproject.exchange.mpxj.MpxjApi.workContourId(assignment) == 8),
+			"New Product.mpp does not contain custom-contour assignments");
+		long sourceResourceAssignments = rawSource.getResourceAssignments().stream()
+			.filter(assignment -> assignment.getResourceUniqueID() != null
+				&& assignment.getResourceUniqueID().intValue() != -65535).count();
 		com.microproject.core.pm.exchange.MspImporter importer = new com.microproject.core.pm.exchange.MspImporter();
 		Project imported = importer.importProject(sample.toAbsolutePath().toString(),
 			new com.microproject.core.pm.exchange.MspImporter.ProgressClosure() {
@@ -889,14 +898,15 @@ class MpxExportTrackingTest {
 		assertEquals(1.0d, sourceAssignment.getUnits(), 0.00001d);
 		editedTask.setName("Edited first imported task");
 		editedTask.setNotes("Saved through the native MPO workflow");
-		List<String> expected = customAssignmentScheduleSemantics(imported);
-		assertFalse(expected.isEmpty(), "sample MPP must exercise custom assignment contours");
+		List<String> expected = assignmentScheduleSemantics(imported);
+		assertFalse(expected.isEmpty(), "sample MPP must contain resource assignments");
+		assertEquals(sourceResourceAssignments, expected.size(), "all source resource assignments are imported");
 		ByteArrayOutputStream mpo = new ByteArrayOutputStream();
 		assertTrue(new com.microproject.exchange.MpoFileImporter().saveProject(imported, mpo));
 		Project reopened = new com.microproject.exchange.MpoFileImporter()
 			.loadProject(new ByteArrayInputStream(mpo.toByteArray()));
-		assertEquals(expected, customAssignmentScheduleSemantics(reopened),
-			"MPP custom assignment work, bounds, and progress must survive MPO persistence");
+		assertEquals(expected, assignmentScheduleSemantics(reopened),
+			"MPP assignment work, bounds, and progress must survive MPO persistence");
 	}
 
 	@Test
@@ -914,13 +924,13 @@ class MpxExportTrackingTest {
 		assertFalse(task.isManuallyScheduled(), "fixture task must begin in automatic scheduling mode");
 		long start = task.getStart();
 		long finish = task.getEnd();
-		List<String> assignments = customAssignmentScheduleSemantics(project);
+		List<String> assignments = assignmentScheduleSemantics(project);
 		task.setManuallyScheduled(true);
 		assertEquals(start, task.getManualStart(), "manual scheduling must capture the current start");
 		assertEquals(finish, task.getManualFinish(), "manual scheduling must capture the current finish");
 		assertEquals(start, task.getStart(), "manual scheduling must retain the current start");
 		assertEquals(finish, task.getEnd(), "manual scheduling must retain the current finish");
-		assertEquals(assignments, customAssignmentScheduleSemantics(project),
+		assertEquals(assignments, assignmentScheduleSemantics(project),
 			"manual scheduling must preserve imported assignment bounds and work");
 	}
 
@@ -938,14 +948,66 @@ class MpxExportTrackingTest {
 		Task task = taskIterator.next();
 		assertFalse(task.isManuallyScheduled(), "fixture task must begin in automatic scheduling mode");
 		task.setManuallyScheduled(true);
-		List<String> expected = customAssignmentScheduleSemantics(project);
-		assertFalse(expected.isEmpty(), "manual task must retain its custom assignment work");
+		List<String> expected = assignmentScheduleSemantics(project);
+		assertFalse(expected.isEmpty(), "manual task must retain its imported assignments");
 		ByteArrayOutputStream mpo = new ByteArrayOutputStream();
 		assertTrue(new com.microproject.exchange.MpoFileImporter().saveProject(project, mpo));
 		Project reopened = new com.microproject.exchange.MpoFileImporter()
 			.loadProject(new ByteArrayInputStream(mpo.toByteArray()));
-		assertEquals(expected, customAssignmentScheduleSemantics(reopened),
+		assertEquals(expected, assignmentScheduleSemantics(reopened),
 			"manual scheduling must preserve imported assignment work through MPO reload");
+	}
+
+	@Test
+	void completedImportedMilestoneKeepsTaskProgressThroughMpoReload() throws Exception {
+		Path fixture = Path.of("modules", "microproject_exchange", "testdata", "Assignment Baseline Scalars.xml");
+		if (!Files.isRegularFile(fixture)) fixture = Path.of("testdata", "Assignment Baseline Scalars.xml");
+		String xml = Files.readString(fixture)
+			.replace("<Start>2026-10-12T08:00:00</Start><Finish>2026-10-12T17:00:00</Finish>\n            <Duration>PT8H0M0S</Duration><DurationFormat>7</DurationFormat><Work>PT8H0M0S</Work>",
+				"<Start>2026-10-12T08:00:00</Start><Finish>2026-10-12T08:00:00</Finish>\n            <Duration>PT0S</Duration><DurationFormat>7</DurationFormat><Work>PT0S</Work>")
+			.replace("<PercentComplete>0</PercentComplete><PercentWorkComplete>0</PercentWorkComplete>",
+				"<PercentComplete>100</PercentComplete><PercentWorkComplete>0</PercentWorkComplete>")
+			.replace("<Summary>0</Summary><Milestone>0</Milestone>", "<Summary>0</Summary><Milestone>1</Milestone>")
+			.replace("<Start>2026-10-12T08:00:00</Start><Finish>2026-10-12T17:00:00</Finish>\n            <Work>PT8H0M0S</Work>",
+				"<Start>2026-10-12T08:00:00</Start><Finish>2026-10-12T08:00:00</Finish>\n            <Work>PT0S</Work>")
+			.replace("<Baseline><Number>0</Number><Start>2026-10-05T17:00:00</Start><Work>PT8H0M0S</Work></Baseline>",
+				"<Baseline><Number>0</Number><Start>2026-10-05T17:00:00</Start><Work>PT0S</Work></Baseline>")
+			.replaceAll("(?s)<Assignments>.*?</Assignments>", "<Assignments/>");
+		net.sf.mpxj.ProjectFile source = new net.sf.mpxj.mspdi.MSPDIReader()
+			.read(new ByteArrayInputStream(xml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+		assertEquals(100.0d, source.getTasks().get(0).getPercentageComplete().doubleValue(), 0.00001d);
+		assertEquals(0.0d, source.getTasks().get(0).getDuration().getDuration(), 0.00001d);
+		assertEquals(source.getTasks().get(0).getStart(), source.getTasks().get(0).getFinish());
+		assertTrue(source.getResourceAssignments().isEmpty(), "milestone has no resource-assignment progress");
+		Project imported = importMspdi(xml);
+		Task task = taskNamed(imported, "Assignment baseline task");
+
+		assertEquals(0L, task.getDurationMillis());
+		assertEquals(1.0d, task.getPercentComplete(), 0.00001d);
+
+		ByteArrayOutputStream mpo = new ByteArrayOutputStream();
+		assertTrue(new com.microproject.exchange.MpoFileImporter().saveProject(imported, mpo));
+		byte[] savedContent = nativeProjectXml(mpo.toByteArray());
+		net.sf.mpxj.ProjectFile savedSource = new net.sf.mpxj.mspdi.MSPDIReader()
+			.read(new ByteArrayInputStream(savedContent));
+		net.sf.mpxj.Resource unassigned = savedSource.getResources().stream()
+			.filter(resource -> resource.getID() != null && resource.getID().intValue() == 0)
+			.findFirst().orElseThrow();
+		assertEquals(com.microproject.pm.resource.EnterpriseResource.UNASSIGNED_ID,
+			unassigned.getUniqueID().intValue(), "unassigned resource must retain its sentinel UID");
+		assertTrue(savedSource.getResourceAssignments().stream().allMatch(assignment ->
+			assignment.getResourceUniqueID().equals(unassigned.getUniqueID())),
+			"default assignments must reference the exported unassigned sentinel");
+		assertEquals(100.0d, savedSource.getTasks().stream()
+			.filter(sourceTask -> "Assignment baseline task".equals(sourceTask.getName())).findFirst().orElseThrow()
+			.getPercentageComplete().doubleValue(), 0.00001d, "MPO content must write milestone progress");
+		Project reopened = new com.microproject.exchange.MpoFileImporter()
+			.loadProject(new ByteArrayInputStream(mpo.toByteArray()));
+		NormalTask reopenedTask = (NormalTask) taskNamed(reopened, "Assignment baseline task");
+		assertTrue(reopenedTask.getAssignments().stream().allMatch(value -> ((Assignment) value).isDefault()),
+			"unassigned milestone must not acquire a real resource during MPO reload");
+		assertEquals(1.0d, reopenedTask.getImportedPercentCompleteOverride(), 0.00001d);
+		assertEquals(1.0d, reopenedTask.getPercentComplete(), 0.00001d);
 	}
 
 	@Test
@@ -1018,14 +1080,14 @@ class MpxExportTrackingTest {
 				+ "/" + assignment.getActualWork(null) + "/" + assignment.getRemainingWork());
 	}
 
-	private List<String> customAssignmentScheduleSemantics(Project project) {
+	private List<String> assignmentScheduleSemantics(Project project) {
 		List<String> result = new java.util.ArrayList<>();
 		for (Task task : project.getTaskList()) {
 			if (!(task instanceof NormalTask normalTask))
 				continue;
 			for (Object value : normalTask.getAssignments()) {
 				Assignment assignment = (Assignment) value;
-				if (assignment.getWorkContourType() != 8 || assignment.getWork(null) == 0L)
+				if (assignment.isDefault())
 					continue;
 				result.add(task.getName() + "|" + assignment.getResource().getName() + "|"
 					+ assignment.getStart() + "|" + assignment.getEnd() + "|"
@@ -1068,7 +1130,9 @@ class MpxExportTrackingTest {
 		long end = modelWallTime("2026-10-13T17:00:00");
 		NormalTask task = (NormalTask) project.createLocalTaskNode(null).getImpl();
 		task.setName("Fractional multi-day contour");
+		project.setStartDate(start);
 		task.getCurrentSchedule().setStart(start);
+		task.setScheduleConstraint(ConstraintType.Kind.SNET, start);
 		task.setDuration(16L * 60L * 60L * 1000L);
 		Assignment assignment = AssignmentService.getInstance().newAssignment(task,
 			project.getResourcePool().newResourceInstance(), 1.0d, 0L, this);
@@ -1124,6 +1188,8 @@ class MpxExportTrackingTest {
 		NormalTask task = taskNamed(project, "Zero-work personal contour");
 		Assignment assignment = (Assignment) task.getAssignments().iterator().next();
 		assertTrue(assignment.getWorkContour().isPersonal());
+		assertFalse(assignment.isDefault(), "zero work does not make a real resource unassigned");
+		assertEquals(1L, assignment.getResource().getUniqueId());
 		assertEquals(0L, assignment.getWork(null));
 		assertTrue(assignment.getEnd() > assignment.getStart(), "zero work must retain its positive assignment span: "
 			+ assignment.getStart() + ".." + assignment.getEnd() + ", task=" + task.getStart() + ".." + task.getEnd());
@@ -1156,6 +1222,8 @@ class MpxExportTrackingTest {
 		Assignment restored = (Assignment) taskNamed(reopened, "Zero-work personal contour")
 			.getAssignments().iterator().next();
 		assertTrue(restored.getWorkContour().isPersonal());
+		assertFalse(restored.isDefault(), "real UID 1 must remain assigned after MPO reload");
+		assertEquals(1L, restored.getResource().getUniqueId());
 		assertEquals(0L, restored.getWork(null));
 		assertTrue(restored.getEnd() > restored.getStart());
 	}

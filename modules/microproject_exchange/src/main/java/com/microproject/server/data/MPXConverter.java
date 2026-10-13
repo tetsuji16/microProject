@@ -260,14 +260,18 @@ public class MPXConverter {
 		mpxResource.setGeneric(projectlibreResource.isGeneric()); // fix for 2024492
 
 		mpxResource.setInitials(projectlibreResource.getInitials());
-		int resourceId = exportId(IdNamespace.RESOURCE_ROW, projectlibreResource.getId());
+		int resourceId = projectlibreResource.isDefault() ? 0
+			: exportId(IdNamespace.RESOURCE_ROW, projectlibreResource.getId());
 		mpxResource.setID(resourceId);
 		long uid = projectlibreResource.getExternalId(); // try using external id of one set
 		if (uid <= 0)
 			uid = projectlibreResource.getUniqueId();
 		if (uid <= 0)
 			uid = projectlibreResource.getId();
-		mpxResource.setUniqueID(exportId(IdNamespace.RESOURCE, uid));
+		// The unassigned singleton is a sentinel, not a new resource requiring an ID.
+		mpxResource.setUniqueID(projectlibreResource.isDefault()
+			? com.microproject.pm.resource.EnterpriseResource.UNASSIGNED_ID
+			: exportId(IdNamespace.RESOURCE, uid));
 		mpxResource.setMaxUnits(projectlibreResource.getMaximumUnits()*100);
 
 		WorkingCalendar projectlibreCalendar = (WorkingCalendar)projectlibreResource.getWorkCalendar();

@@ -206,7 +206,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		return Duration.millis(getRawDuration()) == 0 || isMarkTaskAsMilestone();
 	}
 	public double getPercentComplete() {
-		if (importedPercentComplete != null && !isZeroDuration())
+		if (importedPercentComplete != null)
 			return importedPercentComplete.doubleValue();
 		if (isZeroDuration()) { // special case for completion on milestones
 			int count = 0;
@@ -216,8 +216,8 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 				pc += ass.getPercentComplete();
 				count++;
 			}
-			if (count == 0) // shouldn't happen
-				return 0;
+			if (count == 0)
+				return 0.0D;
 			return pc / count;
 		} else {
 			return super.getPercentComplete();

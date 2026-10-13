@@ -50,6 +50,20 @@ public class MpxTaskConverter {
 	private MpxCalendarConverter calendarConverter = new MpxCalendarConverter();
 
 	public void from(net.sf.mpxj.Task mpxTask, Task task, MpxImportState state) {
+		WorkCalendar calendar;
+		if (mpxTask.getCalendar() == null) {
+			calendar = state.getProjectBaseCalendar();
+		} else {
+			calendar = state.getImportedCalendar(mpxTask.getCalendar());
+			if (calendar == null) {
+				calendar = WorkingCalendar.getStandardBasedInstance();
+				calendar.setName(mpxTask.getName());
+				calendarConverter.from(mpxTask.getCalendar(), (WorkingCalendar) calendar, state);
+				state.registerImportedCalendar(calendar, mpxTask.getCalendar());
+			}
+		}
+		task.setWorkCalendar(calendar);
+
 		if (mpxTask.getName() != null)
 			task.setName(mpxTask.getName());
 		if (mpxTask.getWBS() != null)
@@ -72,12 +86,11 @@ public class MpxTaskConverter {
 		task.setDeadline(toLong(mpxTask.getDeadline()));
 		task.setLevelingDelay(toLong(mpxTask.getLevelingDelay()));
 
-		task.setStart(toLong(mpxTask.getStart()));
-		// While importing, setStart records a constraint instead of initializing
-		// the schedule. Assignment dates need this source start as their offset origin.
+		// Keep the imported start as a scheduling constraint, but restore the current
+		// schedule directly below. Editing setters can update assignments and trigger
+		// critical-path calculations before the imported project is fully assembled.
 		if (mpxTask.getStart() != null)
-			task.getCurrentSchedule().setStart(toLong(mpxTask.getStart()));
-		task.setEnd(toLong(mpxTask.getFinish()));
+			task.setStart(toLong(mpxTask.getStart()));
 		if (mpxTask.getConstraintType() != null) {
 			try {
 				task.setConstraintType(mpxTask.getConstraintType().getValue());
@@ -86,12 +99,28 @@ public class MpxTaskConverter {
 			}
 		}
 		task.setConstraintDate(toLong(mpxTask.getConstraintDate()));
-		task.setActualStart(toLong(mpxTask.getActualStart()));
-		task.setActualFinish(toLong(mpxTask.getActualFinish()));
-		task.setActualDuration(toLong(mpxTask.getActualDuration()));
-		task.setRemainingDuration(toLong(mpxTask.getRemainingDuration()));
-		task.setDuration(MpxUtils.toProjectDuration(mpxTask.getDuration()));
-		task.setPercentComplete(toRatio(mpxTask.getPercentageComplete()));
+		if (mpxTask.getStart() != null)
+			task.getCurrentSchedule().setStart(toLong(mpxTask.getStart()));
+		if (mpxTask.getFinish() != null)
+			task.getCurrentSchedule().setFinish(toLong(mpxTask.getFinish()));
+		if (task instanceof NormalTask normalTask) {
+			if (mpxTask.getActualStart() != null)
+				normalTask.setActualStartNoEvent(toLong(mpxTask.getActualStart()));
+			if (mpxTask.getDuration() != null) {
+				long duration = MpxUtils.toProjectDuration(mpxTask.getDuration());
+				normalTask.setRawDuration(duration);
+				normalTask.setEstimated(com.microproject.datatype.Duration.isEstimated(duration));
+			}
+			if (mpxTask.getPercentageComplete() != null)
+				normalTask.setImportedPercentComplete(toRatio(mpxTask.getPercentageComplete()));
+		} else {
+			if (mpxTask.getActualStart() != null)
+				task.setActualStart(toLong(mpxTask.getActualStart()));
+			if (mpxTask.getDuration() != null)
+				task.setDuration(MpxUtils.toProjectDuration(mpxTask.getDuration()));
+			if (mpxTask.getPercentageComplete() != null)
+				task.setPercentComplete(toRatio(mpxTask.getPercentageComplete()));
+		}
 		if (mpxTask.getPhysicalPercentComplete() != null)
 			task.setPhysicalPercentComplete(toRatio(mpxTask.getPhysicalPercentComplete()));
 		if (task instanceof NormalTask) {
@@ -110,20 +139,6 @@ public class MpxTaskConverter {
 		task.setInactiveTask(!mpxTask.getActive());
 		task.setManuallyScheduled(mpxTask.getTaskMode() == TaskMode.MANUALLY_SCHEDULED);
 
-		// convert calendar
-		WorkCalendar calendar;
-		if (mpxTask.getCalendar() == null) {
-			calendar = state.getProjectBaseCalendar();
-		} else {
-			calendar = state.getImportedCalendar(mpxTask.getCalendar());
-			if (calendar == null) {
-				calendar = WorkingCalendar.getStandardBasedInstance();
-				calendar.setName(mpxTask.getName());
-				calendarConverter.from(mpxTask.getCalendar(), (WorkingCalendar) calendar, state);
-				state.registerImportedCalendar(calendar, mpxTask.getCalendar());
-			}
-		}
-		task.setWorkCalendar(calendar);
 	}
 
 	private static long toLong(Date d) {
