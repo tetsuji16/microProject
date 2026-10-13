@@ -46,22 +46,37 @@ public class ScheduleEventManager {
 
     /** Publishes deferred events on commit, or drops them after rollback. */
     public void endBatch(boolean publish) {
-        List<ScheduleEvent> events = null;
+        publishBatch(detachBatch(publish));
+    }
+
+    /** Detaches one completed outer batch without invoking observer callbacks. */
+    public PendingBatch detachBatch(boolean publish) {
+        List<EventFacts> events = null;
         synchronized (this) {
             if (batchDepth == 0) throw new IllegalStateException("No schedule-event batch is active");
             if (!publish) rollbackOnly = true;
             if (--batchDepth == 0) {
-                events = new ArrayList<>(deferredEvents);
+                events = new ArrayList<>(deferredEvents.size());
+                for (ScheduleEvent event : deferredEvents)
+                    events.add(new EventFacts(event.getSource(), event.getType(), event.getObject(),
+                        event.getSnapshot(), event.isSaveSnapshot()));
                 deferredEvents.clear();
                 publish = !rollbackOnly;
                 rollbackOnly = false;
             }
         }
-        if (events == null) return;
-        if (!publish) return;
+        return events == null ? null : new PendingBatch(List.copyOf(events), publish);
+    }
+
+    /** Publishes a batch detached after its model revision was committed. */
+    public void publishBatch(PendingBatch batch) {
+        if (batch == null || !batch.publish) return;
         Throwable failure = null;
-        for (ScheduleEvent event : events) {
+        for (EventFacts facts : batch.events) {
             try {
+                ScheduleEvent event = new ScheduleEvent(facts.source, facts.type, facts.object);
+                event.setSnapshot(facts.snapshot);
+                event.setSaveSnapshot(facts.saveSnapshot);
                 dispatch(event);
             } catch (Throwable current) {
                 if (failure == null) failure = current;
@@ -72,6 +87,19 @@ public class ScheduleEventManager {
         if (failure instanceof RuntimeException runtime) throw runtime;
         if (failure != null) throw new IllegalStateException("Deferred schedule-event publication failed", failure);
     }
+
+    public static final class PendingBatch {
+        private final List<EventFacts> events;
+        private final boolean publish;
+
+        private PendingBatch(List<EventFacts> events, boolean publish) {
+            this.events = events;
+            this.publish = publish;
+        }
+    }
+
+    private record EventFacts(Object source, String type, Object object, Integer snapshot,
+        boolean saveSnapshot) { }
 
     // This methods allows classes to register for ObjectEvents
     public void addListener(ScheduleEventListener listener) {

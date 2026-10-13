@@ -138,6 +138,7 @@ import com.microproject.server.data.DistributionData;
 import com.microproject.session.FileHelper;
 import com.microproject.strings.Messages;
 import com.microproject.transaction.MultipleTransactionManager;
+import com.microproject.transaction.ProjectMutationState;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.DateTime;
 import com.microproject.util.Environment;
@@ -254,6 +255,11 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 	public final synchronized void removeTransientDocumentState(Class<?> type) {
 		if (transientDocumentState != null) transientDocumentState.remove(type);
+	}
+
+	/** Returns this document's transient mutation barrier and committed revision. */
+	public final ProjectMutationState getMutationState() {
+		return getOrCreateTransientDocumentState(ProjectMutationState.class, ProjectMutationState::new);
 	}
 
 	public NodeModel getTaskModel() {
@@ -1058,14 +1064,34 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	}
 	/** Completes the current observer batch, publishing only when the model committed. */
 	public void endEventBatch(boolean publish) {
+		publishEventBatch(detachEventBatch(publish));
+	}
+	/** Detaches both observer batches so a committed revision cannot mix with a later mutation. */
+	public PendingEventBatch detachEventBatch(boolean publish) {
+		com.microproject.document.ObjectEventManager.PendingBatch objectEvents = objectEventManager.detachBatch(publish);
+		com.microproject.pm.scheduling.ScheduleEventManager.PendingBatch scheduleEvents = scheduleEventManager.detachBatch(publish);
+		return new PendingEventBatch(getMutationState().revision(), objectEvents, scheduleEvents);
+	}
+	/** Atomically detaches notifications and commits the revision before releasing the mutation barrier. */
+	public PendingEventBatch commitEventBatch(com.microproject.transaction.ProjectMutationState.Scope mutation,
+		boolean changed) {
+		com.microproject.document.ObjectEventManager.PendingBatch objectEvents = objectEventManager.detachBatch(true);
+		com.microproject.pm.scheduling.ScheduleEventManager.PendingBatch scheduleEvents = scheduleEventManager.detachBatch(true);
+		mutation.commit(changed);
+		long revision = mutation.closeAndGetRevision();
+		return new PendingEventBatch(revision, objectEvents, scheduleEvents);
+	}
+	/** Dispatches events after the mutation barrier is released. */
+	public void publishEventBatch(PendingEventBatch batch) {
+		if (batch == null) return;
 		Throwable failure = null;
 		try {
-			objectEventManager.endBatch(publish);
+			objectEventManager.publishBatch(batch.objectEvents());
 		} catch (Throwable current) {
 			failure = current;
 		}
 		try {
-			scheduleEventManager.endBatch(publish);
+			scheduleEventManager.publishBatch(batch.scheduleEvents());
 		} catch (Throwable current) {
 			if (failure == null) failure = current;
 			else failure.addSuppressed(current);
@@ -1074,6 +1100,10 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		if (failure instanceof RuntimeException runtime) throw runtime;
 		if (failure != null) throw new IllegalStateException("Project event publication failed", failure);
 	}
+	public record PendingEventBatch(
+		long revision,
+		com.microproject.document.ObjectEventManager.PendingBatch objectEvents,
+		com.microproject.pm.scheduling.ScheduleEventManager.PendingBatch scheduleEvents) { }
 	public void fireBaselineChanged(Object source, Object object, Integer baselineNumber, boolean save) {
 		scheduleEventManager.fireBaselineChanged(source, null, baselineNumber, save);
 	}

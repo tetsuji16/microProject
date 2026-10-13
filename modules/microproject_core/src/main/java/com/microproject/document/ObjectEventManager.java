@@ -50,25 +50,41 @@ public class ObjectEventManager {
 
     /** Publishes deferred events on commit, or releases them without notifying observers on rollback. */
     public void endBatch(boolean publish) {
-        List<ObjectEvent> events = null;
+        publishBatch(detachBatch(publish));
+    }
+
+    /** Detaches one completed outer batch without invoking observer callbacks. */
+    public PendingBatch detachBatch(boolean publish) {
+        List<EventFacts> events = null;
         synchronized (this) {
             if (batchDepth == 0) throw new IllegalStateException("No object-event batch is active");
             if (!publish) rollbackOnly = true;
             if (--batchDepth == 0) {
-                events = new ArrayList<>(deferredEvents);
+                events = new ArrayList<>(deferredEvents.size());
+                for (ObjectEvent event : deferredEvents) {
+                    events.add(new EventFacts(event.getSource(), event.getObject(), event.getType(),
+                        event.getInfo(), event.getField()));
+                    event.recycle();
+                }
                 deferredEvents.clear();
                 publish = !rollbackOnly;
                 rollbackOnly = false;
             }
         }
-        if (events == null) return;
-        if (!publish) {
-            events.forEach(ObjectEvent::recycle);
-            return;
-        }
+        return events == null ? null : new PendingBatch(List.copyOf(events), publish);
+    }
+
+    /** Publishes a batch detached after its model revision was committed. */
+    public void publishBatch(PendingBatch batch) {
+        if (batch == null) return;
+        if (!batch.publish) return;
         Throwable failure = null;
-        for (ObjectEvent event : events) {
+        for (EventFacts facts : batch.events) {
             try {
+                ObjectEvent event = ObjectEvent.getInstance(facts.source, facts.object,
+                    facts.eventType, facts.info);
+                if (event == null) throw new IllegalStateException("Could not allocate an object event");
+                event.setField(facts.field);
                 dispatch(event);
             } catch (Throwable current) {
                 if (failure == null) failure = current;
@@ -79,6 +95,19 @@ public class ObjectEventManager {
         if (failure instanceof RuntimeException runtime) throw runtime;
         if (failure != null) throw new IllegalStateException("Deferred object-event publication failed", failure);
     }
+
+    public static final class PendingBatch {
+        private final List<EventFacts> events;
+        private final boolean publish;
+
+        private PendingBatch(List<EventFacts> events, boolean publish) {
+            this.events = events;
+            this.publish = publish;
+        }
+    }
+
+    private record EventFacts(Object source, Object object, int eventType,
+        NodeUndoInfo info, Field field) { }
 
     // This methods allows classes to register for ObjectEvents
     public void addListener(ObjectEvent.Listener listener) {

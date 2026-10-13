@@ -13,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.jupiter.api.Test;
 
@@ -49,16 +50,31 @@ class UpdateProjectRequestTest {
 		UndoManager undoManager = new UndoManager();
 		editSupport.addEditListener(undoManager::addEdit);
 		AtomicInteger publishedScheduleEvents = new AtomicInteger();
-		project.addScheduleListener(event -> publishedScheduleEvents.incrementAndGet());
+		AtomicLong revisionObservedByScheduleListener = new AtomicLong(-1L);
+		project.addScheduleListener(event -> {
+			publishedScheduleEvents.incrementAndGet();
+			revisionObservedByScheduleListener.set(project.getMutationState().revision());
+		});
+		long revisionBeforeUpdate = project.getMutationState().revision();
 		command.execute(java.util.List.of(task), editSupport);
+		assertEquals(revisionBeforeUpdate + 1, project.getMutationState().revision(),
+			"one committed Update Project publishes one project revision");
+		assertEquals(revisionBeforeUpdate + 1, revisionObservedByScheduleListener.get(),
+			"schedule observers see the committed revision before publication");
 		assertTrue(publishedScheduleEvents.get() > 0, "a committed Update Project publishes its schedule changes");
 		assertTrue(command.affectedTaskIds().contains(task.getUniqueId()));
 		assertEquals(originalStatusDate, project.getStatusDate(), "the command date must not overwrite Status Date");
 		assertNotEquals(0D, task.getPercentComplete());
 		undoManager.undo();
+		assertEquals(revisionBeforeUpdate + 2, project.getMutationState().revision(),
+			"Undo publishes one additional project revision");
+		assertEquals(revisionBeforeUpdate + 2, revisionObservedByScheduleListener.get());
 		assertEquals(0D, task.getPercentComplete(), "one undo restores task progress");
 		assertEquals(originalStatusDate, project.getStatusDate());
 		undoManager.redo();
+		assertEquals(revisionBeforeUpdate + 3, project.getMutationState().revision(),
+			"Redo publishes one additional project revision");
+		assertEquals(revisionBeforeUpdate + 3, revisionObservedByScheduleListener.get());
 		assertNotEquals(0D, task.getPercentComplete(), "one redo reapplies task progress");
 		assertEquals(originalStatusDate, project.getStatusDate());
 	}
@@ -201,6 +217,7 @@ class UpdateProjectRequestTest {
 		Double secondOverride = second.getImportedPercentCompleteOverride();
 		boolean projectDirty = project.isDirty();
 		boolean projectGroupDirty = project.isGroupDirty();
+		long revisionBeforeFailure = project.getMutationState().revision();
 		EditSupport editSupport = new EditSupport();
 		UndoManager undoManager = new UndoManager();
 		editSupport.addEditListener(undoManager::addEdit);
@@ -238,6 +255,8 @@ class UpdateProjectRequestTest {
 			"a rolled-back Update Project must not publish transient schedule state");
 		assertEquals(0, publishedObjectEvents.get(),
 			"a rolled-back Update Project must not publish transient object state");
+		assertEquals(revisionBeforeFailure, project.getMutationState().revision(),
+			"a rolled-back update must not advance the project revision");
 	}
 
 	private static TaskSnapshotValues capture(Task task) {
@@ -322,6 +341,7 @@ class UpdateProjectRequestTest {
 		editSupport.addEditListener(edit -> { throw new IllegalStateException("injected listener failure"); });
 		AtomicInteger publishedScheduleEvents = new AtomicInteger();
 		project.addScheduleListener(event -> publishedScheduleEvents.incrementAndGet());
+		long revisionBeforeCommitFailure = project.getMutationState().revision();
 		UpdateProjectCommand command = new UpdateProjectCommand(project,
 			new UpdateProjectRequest(task.getEnd() + 86_400_000L, true, false, false));
 
@@ -335,5 +355,7 @@ class UpdateProjectRequestTest {
 		assertTrue(undoManager.canUndo(), "an earlier listener may already have accepted the edit");
 		assertTrue(publishedScheduleEvents.get() > 0,
 			"a commit-stage publication failure must still flush the committed model's schedule events");
+		assertEquals(revisionBeforeCommitFailure + 1, project.getMutationState().revision(),
+			"a commit publication failure does not roll back the applied model revision");
 	}
 }
