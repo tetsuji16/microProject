@@ -331,8 +331,14 @@ class RibbonButtonBehaviorTest {
 			assertTrue(remainingWork > 0L, "the source assignment must have remaining work");
 			harness.undoController.clear();
 
-			List<Assignment> created = AssignmentService.getInstance().replaceAssignment(
-				source, List.of(replacement), this, true);
+			List<Assignment> created = harness.project.runModelCommand(markApplied -> {
+				List<Assignment> assignments = AssignmentService.getInstance().replaceAssignment(
+					source, List.of(replacement), this, true);
+				markApplied.run();
+				return assignments;
+			}, assignments -> !assignments.isEmpty(), assignments -> assignments);
+			assertEquals(1, harness.project.getUndoController().getEditNames().size(),
+				"the nested replace command must publish one undo group after assignment events");
 			InputMap shortcuts = new InputMap();
 			ActionMap actions = new ActionMap();
 			harness.manager.applyMicrosoftShortcuts(shortcuts, actions);
@@ -341,6 +347,7 @@ class RibbonButtonBehaviorTest {
 			assertNotNull(undo, "Ctrl+Z must resolve through the document shortcut map");
 			assertNotNull(redo, "Ctrl+Y must resolve through the document shortcut map");
 			undo.actionPerformed(new ActionEvent(harness.manager, ActionEvent.ACTION_PERFORMED, "undo"));
+			assertFalse(harness.project.getUndoController().canUndo(), "one undo must reverse the entire replacement");
 			assertSame(source, task.findAssignment(original));
 			assertEquals(actualWork, source.getActualWork(null));
 			assertEquals(remainingWork, source.getRemainingWork());

@@ -28,6 +28,30 @@ import org.junit.jupiter.api.Test;
 
 class ProjectMutationStateTest {
 	@Test
+	void rollbackAndPublicationFailureReleaseCommandUndoGroups() {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("undo-lifecycle", undo), undo);
+		project.initialize(false, false);
+		undo.clear();
+		try (ProjectMutationState.Scope mutation = project.getMutationState().begin()) {
+			project.beginEventBatch();
+			undo.getEditSupport().postEdit(new javax.swing.undo.AbstractUndoableEdit());
+			project.endEventBatch(false);
+		}
+		assertFalse(undo.canUndo(), "rolled-back edits must be discarded");
+		assertFalse(undo.getEditSupport().hasPendingHistory());
+		project.addScheduleListener(event -> { throw new IllegalStateException("publication failure"); });
+		assertThrows(IllegalStateException.class, () -> project.runModelMutation(markApplied -> {
+			undo.getEditSupport().postEdit(new javax.swing.undo.AbstractUndoableEdit());
+			markApplied.run();
+			return true;
+		}));
+		assertFalse(undo.getEditSupport().hasPendingHistory(), "publication failure must complete committed history");
+		assertEquals(1, undo.getEditNames().size());
+		assertTrue(undo.canUndo());
+	}
+
+	@Test
 	void modelMutationBoundaryPreservesNoOpAndPublishesAppliedFailureAfterUnlock() {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		Project project = Project.createProject(ResourcePool.createRourcePool("model-mutation-boundary", undo), undo);

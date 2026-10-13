@@ -71,6 +71,26 @@ public class AssignmentService {
 		if (tasks.isEmpty() || resources.isEmpty()) {
 			return;
 		}
+		List<?> taskSnapshot = new ArrayList<>(tasks);
+		List<?> resourceSnapshot = new ArrayList<>(resources);
+		if (!(taskSnapshot.get(0) instanceof NormalTask firstTask)) {
+			newAssignmentsInternal(taskSnapshot, resourceSnapshot, units, delay, eventSource, undo, null);
+			return;
+		}
+		Project commandProject = firstTask.getProject();
+		ResourcePool commandPool = commandProject.getResourcePool();
+		if (isSingleProjectPool(commandProject, commandPool)) {
+			commandProject.runModelCommand(markApplied -> newAssignmentsInternal(taskSnapshot, resourceSnapshot,
+				units, delay, eventSource, undo, markApplied), Boolean.TRUE::equals, ignored -> Boolean.TRUE,
+				List.of(new Project.AdditionalObjectEventManager(commandPool.getObjectEventManager(), commandPool,
+					resourceRefreshObjects(resourceSnapshot))));
+			return;
+		}
+		newAssignmentsInternal(taskSnapshot, resourceSnapshot, units, delay, eventSource, undo, null);
+	}
+
+	private boolean newAssignmentsInternal(Collection<?> tasks, Collection<?> resources, double units, long delay,
+			Object eventSource, boolean undo, Runnable markApplied) {
 		Project transactionProject = null;
 		ResourcePool transactionResourcePool = null;
 		for (Object taskObject : tasks) {
@@ -94,15 +114,22 @@ public class AssignmentService {
 			}
 		}
 		BatchUpdate batchUpdate = new BatchUpdate();
+		boolean changed = false;
 		try {
 			for (Object taskObject : tasks) {
 				NormalTask task = (NormalTask) taskObject;
+				Set<Resource> assignedResources = getAssignedResources(task);
+				boolean hasUnassignedResource = resources.stream()
+					.anyMatch(resourceObject -> !assignedResources.contains((Resource) resourceObject));
+				if (!hasUnassignedResource)
+					continue;
 				batchUpdate.beginIfNeeded(task, tasks, transactionResourcePool, this, undo);
-				batchAssignResources(task, resources, units, delay, eventSource);
+				changed |= batchAssignResources(task, resources, units, delay, eventSource, markApplied);
 			}
 		} finally {
 			batchUpdate.endIfNeeded();
 		}
+		return changed;
 	}
 
 	/**
@@ -122,13 +149,34 @@ public class AssignmentService {
 		if (source == null || !(source.getTask() instanceof NormalTask))
 			throw new IllegalArgumentException("A replacement requires a normal-task assignment");
 		NormalTask task = (NormalTask) source.getTask();
+		Project commandProject = task.getProject();
+		ResourcePool commandPool = commandProject.getResourcePool();
+		if (isSingleProjectPool(commandProject, commandPool)) {
+			List<Object> refreshObjects = resourceRefreshObjects(replacementResources);
+			refreshObjects.add(source.getResource());
+			AssignmentMutationResult result = commandProject.runModelCommand(
+				markApplied -> replaceAssignmentInternal(source, replacementResources, eventSource, undo,
+					markApplied),
+				AssignmentMutationResult::changed, AssignmentMutationResult::withFacts,
+				List.of(new Project.AdditionalObjectEventManager(commandPool.getObjectEventManager(), commandPool,
+					refreshObjects)));
+			return result.assignments();
+		}
+		return replaceAssignmentInternal(source, replacementResources, eventSource, undo, null).assignments();
+	}
+
+
+	private AssignmentMutationResult replaceAssignmentInternal(Assignment source,
+			Collection<? extends Resource> replacementResources, Object eventSource, boolean undo,
+			Runnable markApplied) {
+		NormalTask task = (NormalTask) source.getTask();
 		if (task.findAssignment(source.getResource()) != source)
 			throw new IllegalArgumentException("The source assignment is no longer attached to its task");
 		if (!task.isAssignable())
-			return List.of();
+			return new AssignmentMutationResult(List.of(), false);
 		List<Resource> replacements = replacementResourcesFor(source, replacementResources);
 		if (replacements.isEmpty())
-			return List.of();
+			return new AssignmentMutationResult(List.of(), false);
 
 		ResourcePool resourcePool = resourcePoolOf(replacements.get(0));
 		BatchUpdate batchUpdate = new BatchUpdate();
@@ -140,12 +188,15 @@ public class AssignmentService {
 		boolean sourceHasActualWork = source.getActualWork(null) > 0L;
 		long sourceActualWork = source.getActualWork(null);
 		long sourceRemainingWork = source.getRemainingWork();
+		boolean changed = false;
 		try {
 			// Assignment detail state is authoritative for replacement; the generic
 			// task snapshot would overwrite it during undo.
 			batchUpdate.beginIfNeeded(task, List.of(task), resourcePool, this, undo, false);
 			if (undo)
 				batchUpdate.postAssignmentDetailBefore(detailBefore);
+			if (markApplied != null) markApplied.run();
+			changed = true;
 			if (!sourceHasActualWork)
 				remove(source, eventSource, undo);
 			for (int index = 0; index < replacements.size(); index++) {
@@ -171,7 +222,28 @@ public class AssignmentService {
 		} finally {
 			batchUpdate.endIfNeeded();
 		}
-		return List.copyOf(created);
+		return new AssignmentMutationResult(List.copyOf(created), changed);
+	}
+
+	private boolean isSingleProjectPool(Project project, ResourcePool pool) {
+		if (project == null || pool == null) return false;
+		for (Project poolProject : pool.getProjects())
+			if (poolProject != project) return false;
+		return true;
+	}
+
+	private List<Object> resourceRefreshObjects(Collection<?> resources) {
+		List<Object> refreshObjects = new ArrayList<>();
+		if (resources != null)
+			for (Object resource : resources)
+				if (resource instanceof Resource) refreshObjects.add(resource);
+		return refreshObjects;
+	}
+
+	private record AssignmentMutationResult(List<Assignment> assignments, boolean changed) {
+		AssignmentMutationResult withFacts() {
+			return new AssignmentMutationResult(assignments, true);
+		}
 	}
 
 	private List<Resource> replacementResourcesFor(Assignment source,
@@ -206,18 +278,22 @@ public class AssignmentService {
 		return resource.getDocument() instanceof ResourcePool ? (ResourcePool) resource.getDocument() : null;
 	}
 
-	private void batchAssignResources(NormalTask task, Collection<?> resources, double units, long delay, Object eventSource) {
+	private boolean batchAssignResources(NormalTask task, Collection<?> resources, double units, long delay,
+			Object eventSource, Runnable markApplied) {
 		boolean taskHadNoRealAssignments = !task.hasRealAssignments() || !task.hasLaborAssignment();
 		TaskState taskState = preserveTaskState(task, taskHadNoRealAssignments);
 		Set<Resource> assignedResources = getAssignedResources(task);
+		boolean changed = false;
 		try {
 			for (Object resourceObject : resources) {
 				Resource resource = (Resource) resourceObject;
 				if (assignedResources.contains(resource)) {
 					continue;
 				}
+				if (markApplied != null) markApplied.run();
 				Assignment assignment = newAssignment(task, resource, units, delay, eventSource, true);
 				if (assignment != null) {
+					changed = true;
 					if (!resource.isLabor()) {
 						assignment.setRateUnit(TimeUnit.NON_TEMPORAL);
 					}
@@ -227,6 +303,7 @@ public class AssignmentService {
 		} finally {
 			taskState.restore(task);
 		}
+		return changed;
 	}
 
 	private Set<Resource> getAssignedResources(NormalTask task) {

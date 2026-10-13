@@ -29,11 +29,17 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.Test;
 
@@ -41,6 +47,7 @@ import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
+import com.microproject.document.ObjectEvent;
 import com.microproject.options.CalendarOption;
 import com.microproject.transaction.MultipleTransaction;
 import com.microproject.undo.DataFactoryUndoController;
@@ -127,6 +134,183 @@ class AssignmentServiceTest {
 		assertEquals(1, countAssignmentsForResource(task, resource));
 		assertNotNull(task.findAssignment(resource));
 		assertNotNull(resource.findAssignment(task));
+	}
+
+	@Test
+	void newAssignmentsUseOneNestedProjectRevisionAndNoRevisionForDuplicateResources() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		ResourceImpl resource = project.getResourcePool().newResourceInstance();
+		long initialRevision = project.getMutationState().revision();
+		int[] poolEvents = { 0 };
+		long[] observedRevision = { -1L };
+		AtomicBoolean acquiredBarrierFromObserver = new AtomicBoolean();
+		ObjectEvent.Listener listener = event -> {
+			poolEvents[0]++;
+			observedRevision[0] = event.getPublicationRevision();
+			Thread barrierProbe = new Thread(() -> {
+				var scope = project.getMutationState().begin();
+				try {
+					acquiredBarrierFromObserver.set(true);
+				} finally {
+					scope.close();
+				}
+			}, "assignment-event-barrier-probe");
+			barrierProbe.setDaemon(true);
+			barrierProbe.start();
+			try {
+				barrierProbe.join(1000L);
+			} catch (InterruptedException interrupted) {
+				Thread.currentThread().interrupt();
+				throw new AssertionError(interrupted);
+			}
+		};
+		project.getResourcePool().addObjectListener(listener);
+
+		try {
+			project.runModelMutation(markApplied -> {
+				AssignmentService.getInstance().newAssignments(List.of(task), List.of(resource),
+						1.0D, 0L, this, false);
+				assertEquals(0, poolEvents[0], "nested pool events wait for the outer project commit");
+				markApplied.run();
+				return true;
+			});
+		} finally {
+			project.getResourcePool().removeObjectListener(listener);
+		}
+
+		assertNotNull(task.findAssignment(resource));
+		assertEquals(initialRevision + 1, project.getMutationState().revision(),
+			"the nested assignment command shares its outer project revision");
+		assertEquals(1, poolEvents[0], "pool facts publish once after the outer commit");
+		assertEquals(initialRevision + 1, observedRevision[0], "pool facts carry the committed revision");
+		assertTrue(acquiredBarrierFromObserver.get(), "observers run after the project barrier is released");
+
+		AssignmentService.getInstance().newAssignments(List.of(task), List.of(resource),
+				1.0D, 0L, this, false);
+
+		assertEquals(initialRevision + 1, project.getMutationState().revision(),
+			"an assignment request that only encounters existing resources is a no-op");
+		assertFalse(project.getMutationState().isHeldByCurrentThread());
+		project.getUndoController().clear();
+		AssignmentService.getInstance().newAssignments(List.of(task), List.of(resource),
+				1.0D, 0L, this, true);
+		assertFalse(project.getUndoController().canUndo(),
+			"a duplicate assignment request must not create an empty schedule-backup undo edit");
+	}
+
+	@Test
+	void concurrentAssignmentCommandsKeepTheirUndoGroupsSeparateWhenPublicationOverlaps() throws Exception {
+		Project project = createProject();
+		NormalTask firstTask = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		NormalTask secondTask = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		ResourceImpl firstResource = project.getResourcePool().newResourceInstance();
+		ResourceImpl secondResource = project.getResourcePool().newResourceInstance();
+		project.getUndoController().clear();
+		CountDownLatch firstPublicationEntered = new CountDownLatch(1);
+		CountDownLatch releaseFirstPublication = new CountDownLatch(1);
+		CountDownLatch firstCommandFinished = new CountDownLatch(1);
+		AtomicReference<Throwable> firstFailure = new AtomicReference<>();
+		ObjectEvent.Listener listener = event -> {
+			if (event.isCreate() && event.getObject() instanceof Assignment assignment
+					&& assignment.getResource() == firstResource) {
+				firstPublicationEntered.countDown();
+				try {
+					if (!releaseFirstPublication.await(2, TimeUnit.SECONDS))
+						throw new AssertionError("first assignment publication was not released");
+				} catch (InterruptedException interrupted) {
+					Thread.currentThread().interrupt();
+					throw new AssertionError(interrupted);
+				}
+			}
+		};
+		project.getResourcePool().addObjectListener(listener);
+		Thread firstCommand = new Thread(() -> {
+			try {
+				AssignmentService.getInstance().newAssignments(List.of(firstTask), List.of(firstResource),
+					1.0D, 0L, this, true);
+			} catch (Throwable failure) {
+				firstFailure.set(failure);
+			} finally {
+				firstCommandFinished.countDown();
+			}
+		}, "assignment-command-first-publication");
+		firstCommand.start();
+		try {
+			assertTrue(firstPublicationEntered.await(2, TimeUnit.SECONDS),
+				"the first command must reach post-commit pool publication");
+			AssignmentService.getInstance().newAssignments(List.of(secondTask), List.of(secondResource),
+				1.0D, 0L, this, true);
+			assertNotNull(secondTask.findAssignment(secondResource));
+			assertFalse(project.getUndoController().canUndo(), "unfinished publication must block older Undo history");
+			assertFalse(project.getUndoController().canRedo());
+		} finally {
+			releaseFirstPublication.countDown();
+			project.getResourcePool().removeObjectListener(listener);
+			assertTrue(firstCommandFinished.await(2, TimeUnit.SECONDS), "the first command must finish");
+		}
+		assertNull(firstFailure.get(), () -> "first assignment command failed: " + firstFailure.get());
+		assertEquals(2, project.getUndoController().getEditNames().size(),
+			"overlapping publications must leave one independent undo entry per command");
+		project.getUndoController().undo();
+		assertNotNull(firstTask.findAssignment(firstResource), "Undo must follow commit order, not publication order");
+		assertNull(secondTask.findAssignment(secondResource));
+		project.getUndoController().undo();
+		assertNull(firstTask.findAssignment(firstResource));
+		assertEquals(2, project.getUndoController().getEditNames().size(), "Undo must not record new delayed edits");
+		assertTrue(project.getUndoController().canRedo(), "both committed command groups must remain redoable");
+		project.getUndoController().redo();
+		assertNotNull(firstTask.findAssignment(firstResource));
+		assertNull(secondTask.findAssignment(secondResource));
+		project.getUndoController().redo();
+		assertNotNull(secondTask.findAssignment(secondResource));
+	}
+
+	@Test
+	void rolledBackNestedPoolFactsRefreshCommittedAssignmentAfterOuterUnlock() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		ResourcePool pool = project.getResourcePool();
+		ResourceImpl resource = pool.newResourceInstance();
+		ResourceImpl secondResource = pool.newResourceInstance();
+		long initialRevision = project.getMutationState().revision();
+		List<Boolean> observedUpdates = new ArrayList<>();
+		List<Object> observedObjects = new ArrayList<>();
+		List<Long> observedRevisions = new ArrayList<>();
+		ObjectEvent.Listener listener = event -> {
+			observedUpdates.add(event.isUpdate());
+			observedObjects.add(event.getObject());
+			observedRevisions.add(event.getPublicationRevision());
+		};
+		pool.addObjectListener(listener);
+
+		try {
+			project.runModelMutation(markApplied -> {
+				AssignmentService.getInstance().newAssignments(List.of(task), List.of(resource),
+						1.0D, 0L, this, false);
+				AssignmentService.getInstance().newAssignments(List.of(task), List.of(secondResource),
+						1.0D, 0L, this, false);
+				assertEquals(0, observedUpdates.size(), "duplicate participant enlistment stays deferred");
+				pool.getObjectEventManager().beginBatch();
+				pool.fireUpdateEvent(this, secondResource);
+				pool.getObjectEventManager().endBatch(false);
+				markApplied.run();
+				return true;
+			});
+		} finally {
+			pool.removeObjectListener(listener);
+		}
+
+		assertNotNull(task.findAssignment(resource));
+		assertNotNull(task.findAssignment(secondResource));
+		assertEquals(initialRevision + 1, project.getMutationState().revision());
+		assertEquals(2, observedUpdates.size(), "rolled-back facts are replaced by committed-state refreshes");
+		assertTrue(observedUpdates.get(0));
+		assertTrue(observedUpdates.get(1));
+		assertTrue(observedObjects.contains(resource));
+		assertTrue(observedObjects.contains(secondResource));
+		assertEquals(initialRevision + 1, observedRevisions.get(0));
+		assertEquals(initialRevision + 1, observedRevisions.get(1));
 	}
 
 	@Test
