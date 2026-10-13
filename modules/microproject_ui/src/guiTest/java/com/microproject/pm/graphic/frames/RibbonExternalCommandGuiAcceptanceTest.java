@@ -1208,8 +1208,11 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		try {
 			long remainingNanos = deadlineNanos - System.nanoTime();
 			if (remainingNanos <= 0 || !process.waitFor(remainingNanos, java.util.concurrent.TimeUnit.NANOSECONDS)) {
-				process.destroyForcibly();
-				process.waitFor(250, java.util.concurrent.TimeUnit.MILLISECONDS);
+				// Let the bounded probe flush its deadline-stage diagnostics before forcing cleanup.
+				if (!process.waitFor(250, java.util.concurrent.TimeUnit.MILLISECONDS)) {
+					process.destroyForcibly();
+					process.waitFor(250, java.util.concurrent.TimeUnit.MILLISECONDS);
+				}
 				String partial = Files.exists(output) ? Files.readString(output) : "(no output)";
 				throw new IOException(route + " native chooser was not ready within 4 seconds; output=" + output + "\n" + partial);
 			}
