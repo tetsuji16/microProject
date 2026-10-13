@@ -382,19 +382,17 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 		int row = rowFor(sheet, resource);
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
-		Rectangle cell = new Rectangle();
-		SwingUtilities.invokeAndWait(() -> {
-			window.toFront();
-			window.requestFocus();
-			Rectangle bounds = sheet.getCellRect(row, column, true);
-			Point location = sheet.getLocationOnScreen();
-			cell.setBounds(location.x + bounds.x, location.y + bounds.y, bounds.width, bounds.height);
-		});
-		robot.mouseMove(cell.x + cell.width / 2, cell.y + cell.height / 2);
-		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-		robot.waitForIdle();
-		GuiAcceptanceSupport.await(sheet::isFocusOwner, "Standard Rate cell did not receive physical focus");
+		clickVisibleCell(robot, window, sheet, row, column);
+		try {
+			GuiAcceptanceSupport.await(sheet::isFocusOwner, "Standard Rate cell did not receive physical focus");
+		} catch (AssertionError failure) {
+			String[] focusState = new String[1];
+			SwingUtilities.invokeAndWait(() -> focusState[0] = "active=" + window.isActive() + ",focused="
+				+ window.isFocused() + ",focusOwner="
+				+ java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner()
+				+ ",sheet=" + sheet.isFocusOwner() + ",targetCell=" + row + "," + column);
+			throw new AssertionError(failure.getMessage() + "; physical focus diagnostics: " + focusState[0], failure);
+		}
 		robot.keyPress(KeyEvent.VK_F2);
 		robot.keyRelease(KeyEvent.VK_F2);
 		GuiAcceptanceSupport.await(sheet::isEditing, "physical F2 did not start the Standard Rate editor");
@@ -457,6 +455,59 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 			text[0] = rendered instanceof javax.swing.JLabel label ? label.getText() : rendered.toString();
 		});
 		return text[0];
+	}
+
+	private static void clickVisibleCell(Robot robot, MainRibbonFrame window, SpreadSheet sheet, int row, int column)
+		throws Exception {
+		Rectangle[] target = new Rectangle[1];
+		AtomicInteger pressedRow = new AtomicInteger(-1);
+		AtomicInteger pressedColumn = new AtomicInteger(-1);
+		MouseAdapter pressObserver = new MouseAdapter() {
+			@Override public void mousePressed(MouseEvent event) {
+				pressedRow.set(sheet.rowAtPoint(event.getPoint()));
+				pressedColumn.set(sheet.columnAtPoint(event.getPoint()));
+			}
+		};
+		SwingUtilities.invokeAndWait(() -> {
+			window.toFront();
+			window.requestFocus();
+			sheet.scrollRectToVisible(sheet.getCellRect(row, column, true));
+			sheet.addMouseListener(pressObserver);
+		});
+		GuiAcceptanceSupport.await(() -> window.isActive() && window.isFocused(),
+			"resource document window did not become active before the cell click");
+		SwingUtilities.invokeAndWait(() -> {
+			Rectangle cell = sheet.getCellRect(row, column, true);
+			Rectangle visible = sheet.getVisibleRect();
+			assertTrue(visible.contains(cell), "Standard Rate cell must be fully visible before clicking; cell=" + cell
+				+ ", viewport=" + visible + ", table=" + sheet.getBounds());
+			Point location = sheet.getLocationOnScreen();
+			target[0] = new Rectangle(location.x + cell.x, location.y + cell.y, cell.width, cell.height);
+		});
+		try {
+			robot.mouseMove(target[0].x + target[0].width / 2, target[0].y + target[0].height / 2);
+			robot.waitForIdle();
+			int[] hoveredCell = {-1, -1};
+			Point[] localPointer = new Point[1];
+			SwingUtilities.invokeAndWait(() -> {
+				localPointer[0] = sheet.getMousePosition();
+				if (localPointer[0] != null) {
+					hoveredCell[0] = sheet.rowAtPoint(localPointer[0]);
+					hoveredCell[1] = sheet.columnAtPoint(localPointer[0]);
+				}
+			});
+			assertEquals(row, hoveredCell[0], "Robot hover must reach the visible Standard Rate row; pointer="
+				+ localPointer[0] + ", screenCell=" + target[0]);
+			assertEquals(column, hoveredCell[1], "Robot hover must reach the visible Standard Rate column; pointer="
+				+ localPointer[0] + ", screenCell=" + target[0]);
+			robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+			robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+			robot.waitForIdle();
+		} finally {
+			SwingUtilities.invokeAndWait(() -> sheet.removeMouseListener(pressObserver));
+		}
+		assertEquals(row, pressedRow.get(), "physical mouse press must reach the visible Standard Rate row");
+		assertEquals(column, pressedColumn.get(), "physical mouse press must reach the visible Standard Rate column");
 	}
 
 	private static String expectedRateText(SpreadSheet sheet, int row, int column, Rate rate) throws Exception {
