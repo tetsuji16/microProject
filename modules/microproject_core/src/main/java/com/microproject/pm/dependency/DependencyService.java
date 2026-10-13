@@ -46,7 +46,6 @@ import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.undo.DependencyCreationEdit;
 import com.microproject.undo.DependencyDeletionEdit;
 import com.microproject.undo.DependencySetFieldsEdit;
-import javax.swing.undo.AbstractUndoableEdit;
 import com.microproject.util.ClassUtils;
 
 /**
@@ -165,7 +164,7 @@ public class DependencyService {
 		dependency.setDirty(true);
 
 		EditSupport undoableEditSupport=getEditSupport(dependency);
-		if (undoableEditSupport!=null&&eventSource!=null&&!(eventSource instanceof UndoableEdit)){
+		if (undoableEditSupport!=null&&eventSource!=null&&shouldRecordUndo(eventSource)){
 			undoableEditSupport.postEdit(new DependencyCreationEdit(dependency,eventSource));
 		}
 		return true;
@@ -202,7 +201,7 @@ public class DependencyService {
 			dependency.fireDeleteEvent(eventSource);
 
 		EditSupport undoableEditSupport=getEditSupport(dependency);
-		if (undo && undoableEditSupport!=null&&!(eventSource instanceof UndoableEdit)){
+		if (undo && undoableEditSupport!=null&&shouldRecordUndo(eventSource)){
 			undoableEditSupport.postEdit(new DependencyDeletionEdit(dependency,eventSource));
 		}
 		return true;
@@ -239,7 +238,7 @@ public class DependencyService {
 		dependency.setDirty(true);
 
 		EditSupport undoableEditSupport=getEditSupport(dependency);
-		if (undoableEditSupport!=null&&!(eventSource instanceof UndoableEdit)){
+		if (undoableEditSupport!=null&&shouldRecordUndo(eventSource)){
 			undoableEditSupport.postEdit(new DependencySetFieldsEdit(dependency,oldLag,oldType,eventSource));
 		}
 		return true;
@@ -260,6 +259,10 @@ public class DependencyService {
 		if (eventSource != null)
 			dependency.fireUpdateEvent(eventSource);
 		dependency.setDirty(true);
+	}
+
+	private static boolean shouldRecordUndo(Object eventSource) {
+		return !(eventSource instanceof UndoableEdit) && eventSource != LiveDependencyRefreshSource.INSTANCE;
 	}
 
 	@FunctionalInterface
@@ -319,7 +322,7 @@ public class DependencyService {
 		if (participants.isEmpty() || (eventSource == null && !initialized)) {
 			return operation.apply(new MutationContext(), eventSource);
 		}
-		Object mutationSource = eventSource == null ? new LiveDependencyRefreshSource() : eventSource;
+		Object mutationSource = eventSource == null ? LiveDependencyRefreshSource.INSTANCE : eventSource;
 		return runProjectCommands(participants, 0, operation, mutationSource, new MutationContext());
 	}
 
@@ -353,10 +356,8 @@ public class DependencyService {
 		return unique.keySet().stream().sorted(Comparator.comparingInt(System::identityHashCode)).toList();
 	}
 
-	/** Marks live refresh events as non-user edits so they publish without adding Undo entries. */
-	private static final class LiveDependencyRefreshSource extends AbstractUndoableEdit {
-		private static final long serialVersionUID = 1L;
-	}
+	/** Neutral source marker for live refresh events that must not create user Undo entries. */
+	private enum LiveDependencyRefreshSource { INSTANCE }
 
 // update the starting and ending sentinels of the project - the sentinels keep track of which
 //	tasks have no preds or no successors
