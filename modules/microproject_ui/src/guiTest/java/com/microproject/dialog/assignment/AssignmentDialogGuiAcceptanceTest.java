@@ -22,7 +22,13 @@ import java.awt.KeyboardFocusManager;
 import java.awt.Window;
 import java.awt.event.KeyEvent;
 import java.io.File;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
+import java.lang.management.ThreadMXBean;
 import java.util.ResourceBundle;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import javax.swing.AbstractButton;
 import javax.swing.SwingUtilities;
@@ -259,13 +265,14 @@ class AssignmentDialogGuiAcceptanceTest {
 
 	private String assignmentRedoDiagnostics(Project project, NormalTask task, Assignment source,
 			Resource replacementResource) throws Exception {
-		String[] result = new String[1];
-		SwingUtilities.invokeAndWait(() -> {
+		CompletableFuture<String> result = new CompletableFuture<>();
+		SwingUtilities.invokeLater(() -> {
+			try {
 			var frame = manager.getCurrentFrame();
 			var frameUndo = frame == null ? null : frame.getUndoController();
 			Assignment replacement = task.findAssignment(replacementResource);
 			KeyboardFocusManager focus = KeyboardFocusManager.getCurrentKeyboardFocusManager();
-			result[0] = "documentActive=" + manager.isDocumentActive()
+			result.complete("documentActive=" + manager.isDocumentActive()
 					+ ", frameActive=" + (frame != null && frame.isActive())
 					+ ", frameProjectMatches=" + (frame != null && frame.getProject() == project)
 					+ ", frameUndoMatchesProject=" + (frameUndo == project.getUndoController())
@@ -276,9 +283,37 @@ class AssignmentDialogGuiAcceptanceTest {
 					+ ", focusOwnerClass=" + (focus.getFocusOwner() == null ? "null"
 							: focus.getFocusOwner().getClass().getName())
 					+ ", source=" + describeAssignment(source)
-					+ ", replacement=" + describeAssignment(replacement);
+					+ ", replacement=" + describeAssignment(replacement));
+				} catch (Throwable failure) {
+					result.completeExceptionally(failure);
+				}
 		});
-		return result[0];
+		try {
+			return "EDT snapshot=" + result.get(2, TimeUnit.SECONDS);
+		} catch (TimeoutException timeout) {
+			return "EDT snapshot timed out after 2 seconds; thread state=" + blockedThreadDiagnostics();
+		}
+	}
+
+	private static String blockedThreadDiagnostics() {
+		ThreadMXBean threads = ManagementFactory.getThreadMXBean();
+		long[] ids = threads.getAllThreadIds();
+		ThreadInfo[] infos = threads.getThreadInfo(ids, 12);
+		StringBuilder result = new StringBuilder();
+		int included = 0;
+		for (ThreadInfo info : infos) {
+			if (info == null) continue;
+			String name = info.getThreadName();
+			if (!(name.startsWith("AWT-EventQueue") || name.startsWith("Test worker")
+					|| name.startsWith("AWT-Windows") || info.getThreadState() == Thread.State.BLOCKED)) continue;
+			if (included++ >= 8) break;
+			result.append("\n").append(name).append(" state=").append(info.getThreadState())
+				.append(" lock=").append(info.getLockName())
+				.append(" lockOwner=").append(info.getLockOwnerName());
+			for (StackTraceElement frame : info.getStackTrace())
+				result.append("\n  at ").append(frame);
+		}
+		return result.length() == 0 ? "no EDT/test/blocked thread snapshot available" : result.toString();
 	}
 
 	private static String describeAssignment(Assignment assignment) {
