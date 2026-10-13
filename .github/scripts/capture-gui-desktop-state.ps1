@@ -9,6 +9,16 @@ param(
 
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+$probeScriptStartedUtc = [DateTime]::UtcNow
+
+function Write-NativeChooserProbeLine([string]$Line) {
+  [Console]::Out.WriteLine($Line)
+  [Console]::Out.Flush()
+}
+
+if ($WaitForNativeChooser) {
+  Write-NativeChooserProbeLine("nativeChooserProbe processStartedUtc=$($probeScriptStartedUtc.ToString('o')) deadlineUtc=$([DateTime]::new($DeadlineUtcTicks, [DateTimeKind]::Utc).ToString('o'))")
+}
 
 Add-Type -TypeDefinition @'
 using System;
@@ -38,6 +48,17 @@ public static class GuiDesktopWindowProbe {
     private sealed class DialogReadiness {
         public bool IsOwnedVisibleEnabled;
         public bool IsReady;
+    }
+    public sealed class NativeChooserStage {
+        public int DialogCount { get; set; }
+        public IntPtr Handle { get; set; }
+        public IntPtr Owner { get; set; }
+        public uint OwnerPid { get; set; }
+        public bool Visible { get; set; }
+        public bool Enabled { get; set; }
+        public bool OwnedByTarget { get; set; }
+        public bool Foreground { get; set; }
+        public bool Ready { get; set; }
     }
     private delegate bool EnumWindowsCallback(IntPtr handle, IntPtr parameter);
 
@@ -233,6 +254,40 @@ public static class GuiDesktopWindowProbe {
         return ownedVisibleDialogs == 1 && readyDialogs == 1;
     }
 
+    public static NativeChooserStage CaptureNativeChooserStage(int targetPid) {
+        IntPtr foreground = GetForegroundWindow();
+        var candidates = new List<NativeChooserStage>();
+        EnumWindows((handle, parameter) => {
+            uint pid;
+            GetWindowThreadProcessId(handle, out pid);
+            if (pid != (uint)targetPid || !String.Equals(ReadClassName(handle), "#32770", StringComparison.Ordinal))
+                return true;
+
+            IntPtr owner = GetWindow(handle, 4);
+            uint ownerPid = 0;
+            if (owner != IntPtr.Zero) GetWindowThreadProcessId(owner, out ownerPid);
+            candidates.Add(new NativeChooserStage {
+                Handle = handle,
+                Owner = owner,
+                OwnerPid = ownerPid,
+                Visible = IsWindowVisible(handle),
+                Enabled = IsWindowEnabled(handle),
+                OwnedByTarget = owner != IntPtr.Zero && ownerPid == (uint)targetPid,
+                Foreground = foreground == handle || IsChild(handle, foreground),
+                Ready = InspectDialog(handle, targetPid, foreground).IsReady
+            });
+            return true;
+        }, IntPtr.Zero);
+
+        NativeChooserStage selected = null;
+        foreach (NativeChooserStage candidate in candidates) {
+            if (selected == null || (candidate.OwnedByTarget && !selected.OwnedByTarget)) selected = candidate;
+        }
+        if (selected == null) return new NativeChooserStage();
+        selected.DialogCount = candidates.Count;
+        return selected;
+    }
+
     private static DialogReadiness InspectDialog(IntPtr handle, int targetPid, IntPtr foreground) {
         var result = new DialogReadiness();
         uint pid;
@@ -305,12 +360,50 @@ if ($Watch) {
 } else {
   if ($WaitForNativeChooser) {
     if ($DeadlineUtcTicks -le 0) { throw 'DeadlineUtcTicks is required with WaitForNativeChooser.' }
+    Write-NativeChooserProbeLine("nativeChooserProbe waitStartedUtc=$([DateTime]::UtcNow.ToString('o'))")
+    $firstDialogUtc = $null
+    $firstOwnedUtc = $null
+    $firstVisibleUtc = $null
+    $firstForegroundUtc = $null
+    $firstReadyUtc = $null
     do {
-      $nowTicks = [DateTime]::UtcNow.Ticks
-      $ready = [GuiDesktopWindowProbe]::IsNativeChooserReady($TargetPid)
-      if ($ready -or $nowTicks -ge $DeadlineUtcTicks) { break }
+      $stage = [GuiDesktopWindowProbe]::CaptureNativeChooserStage($TargetPid)
+      $sampleUtc = [DateTime]::UtcNow
+      $handle = if ($stage.Handle -eq [IntPtr]::Zero) { 'none' } else { '0x' + $stage.Handle.ToInt64().ToString('X') }
+      $owner = if ($stage.Owner -eq [IntPtr]::Zero) { 'none' } else { '0x' + $stage.Owner.ToInt64().ToString('X') }
+      $stageFacts = "hwnd=$handle owner=$owner ownerPid=$($stage.OwnerPid) targetPid=$TargetPid visible=$($stage.Visible) enabled=$($stage.Enabled) ownedByTarget=$($stage.OwnedByTarget) foreground=$($stage.Foreground) ready=$($stage.Ready) dialogCount=$($stage.DialogCount)"
+      if ($stage.Handle -ne [IntPtr]::Zero -and $null -eq $firstDialogUtc) {
+        $firstDialogUtc = $sampleUtc
+        Write-NativeChooserProbeLine("nativeChooserFirstHwndObservedUtc=$($sampleUtc.ToString('o')) $stageFacts")
+      }
+      if ($stage.OwnedByTarget -and $null -eq $firstOwnedUtc) {
+        $firstOwnedUtc = $sampleUtc
+        Write-NativeChooserProbeLine("nativeChooserFirstOwnedObservedUtc=$($sampleUtc.ToString('o')) $stageFacts")
+      }
+      if ($stage.Visible -and $null -eq $firstVisibleUtc) {
+        $firstVisibleUtc = $sampleUtc
+        Write-NativeChooserProbeLine("nativeChooserFirstVisibleObservedUtc=$($sampleUtc.ToString('o')) $stageFacts")
+      }
+      if ($stage.Foreground -and $null -eq $firstForegroundUtc) {
+        $firstForegroundUtc = $sampleUtc
+        Write-NativeChooserProbeLine("nativeChooserFirstForegroundObservedUtc=$($sampleUtc.ToString('o')) $stageFacts")
+      }
+      if ($stage.Ready -and $sampleUtc.Ticks -lt $DeadlineUtcTicks -and $null -eq $firstReadyUtc) {
+        $firstReadyUtc = $sampleUtc
+        Write-NativeChooserProbeLine("nativeChooserFirstReadyObservedUtc=$($sampleUtc.ToString('o')) $stageFacts")
+      }
+      $ready = $false
+      if ($sampleUtc.Ticks -lt $DeadlineUtcTicks) {
+        $ready = [GuiDesktopWindowProbe]::IsNativeChooserReady($TargetPid)
+        if ([DateTime]::UtcNow.Ticks -ge $DeadlineUtcTicks) { $ready = $false; break }
+        if ($ready) { break }
+      } else {
+        break
+      }
       Start-Sleep -Milliseconds 25
     } while ([DateTime]::UtcNow.Ticks -lt $DeadlineUtcTicks)
+    $completionReason = if ($ready) { 'ready' } else { 'deadline' }
+    Write-NativeChooserProbeLine("nativeChooserProbe completedUtc=$([DateTime]::UtcNow.ToString('o')) reason=$completionReason ready=$ready")
   }
   [GuiDesktopWindowProbe]::Capture($TargetPid)
 }

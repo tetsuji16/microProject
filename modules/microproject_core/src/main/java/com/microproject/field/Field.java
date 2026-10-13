@@ -985,6 +985,14 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 		if (FieldContext.isParseOnly(context))
 			return false;
 
+		if (TaskSheetScheduleWorkflow.applyTaskPercentComplete(object, id, context, value)) {
+			if (object instanceof DataObject dataObject) {
+				if (context == null || !context.isNoDirty())
+					dataObject.setDirty(true);
+			}
+			return true;
+		}
+
 		Long taskSheetScheduleValue = toTaskSheetScheduleValue(value);
 		if (FieldContext.isTaskSheetUpdate(context) && TaskSheetScheduleWorkflow.isScheduleField(id) && taskSheetScheduleValue != null) {
 			if (TaskSheetScheduleWorkflow.apply(object, id, taskSheetScheduleValue.longValue())) {

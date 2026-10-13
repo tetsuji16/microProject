@@ -1208,8 +1208,11 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		try {
 			long remainingNanos = deadlineNanos - System.nanoTime();
 			if (remainingNanos <= 0 || !process.waitFor(remainingNanos, java.util.concurrent.TimeUnit.NANOSECONDS)) {
-				process.destroyForcibly();
-				process.waitFor(250, java.util.concurrent.TimeUnit.MILLISECONDS);
+				// Let the bounded probe flush its deadline-stage diagnostics before forcing cleanup.
+				if (!process.waitFor(250, java.util.concurrent.TimeUnit.MILLISECONDS)) {
+					process.destroyForcibly();
+					process.waitFor(250, java.util.concurrent.TimeUnit.MILLISECONDS);
+				}
 				String partial = Files.exists(output) ? Files.readString(output) : "(no output)";
 				throw new IOException(route + " native chooser was not ready within 4 seconds; output=" + output + "\n" + partial);
 			}
@@ -1571,24 +1574,8 @@ class RibbonExternalCommandGuiAcceptanceTest {
 	}
 
 	private void activateWindowForRobot(Robot robot, boolean alwaysOnTop) throws Exception {
-		SwingUtilities.invokeAndWait(() -> {
-			window.toFront();
-			window.requestFocus();
-			window.setAlwaysOnTop(alwaysOnTop);
-		});
-		Point location = window.getLocationOnScreen();
-		// The Alt transition grants a foreground activation opportunity on
-		// Windows when the test worker was launched behind another desktop window.
-		robot.keyPress(java.awt.event.KeyEvent.VK_ALT);
-		robot.keyRelease(java.awt.event.KeyEvent.VK_ALT);
-		robot.mouseMove(location.x + Math.max(8, window.getWidth() / 2), location.y + 8);
-		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-		// Foreground activation is controlled by Windows and can remain false in a
-		// Gradle-launched desktop even after the physical title-bar click.  The
-		// subsequent command click is the acceptance boundary; requiring the native
-		// isActive bit here made the test fail before exercising that route.
-		robot.delay(250);
+		GuiAcceptanceSupport.activateAndAwaitRenderedWindow(window, window.getRibbonPanel(), robot, alwaysOnTop,
+			"ribbon application window before the next physical command");
 	}
 
 	private static void type(Robot robot, String text) {

@@ -44,6 +44,9 @@ import com.microproject.exchange.MpoFileImporter;
 import com.microproject.pm.ccpm.CriticalChainService;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
+import com.microproject.pm.graphic.frames.DocumentFrame;
+import com.microproject.pm.graphic.frames.GraphicManager;
+import com.microproject.pm.graphic.frames.MainRibbonFrame;
 import com.microproject.pm.graphic.views.CriticalChainBufferChartPanel;
 import com.microproject.pm.graphic.views.CriticalChainGraphPanel;
 import com.microproject.pm.resource.Resource;
@@ -100,9 +103,9 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 		CriticalChainService.Settings settings = service.settings(project);
 		settings.setEnabled(true);
 		service.apply(project, null, settings);
-		CriticalChainStatusDialogBox dialog = openStatusDialog(project);
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
+		CriticalChainStatusDialogBox dialog = openStatusDialog(project, robot);
 		click(robot, findButton(dialog, "CSV"));
 		GuiAcceptanceSupport.await(() -> visibleFileChooser() != null, "CCPM CSV export did not open the shared chooser");
 		Window csvChooser = visibleFileChooser();
@@ -186,8 +189,9 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 	void unconfiguredNetworkOffersPhysicalRouteToCcpmSettings() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for CCPM dialog coverage.");
 		Project project = newProjectWithTasks();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		observer = new DialogObserver();
-		observer.open();
+		observer.open(project, robot);
 		observer.show(project, CriticalChainStatusDialogBox.Surface.NETWORK);
 		CriticalChainStatusDialogBox dialog = observer.awaitDialog();
 		GuiAcceptanceSupport.await(dialog::isActive, "CCPM result dialog did not become active");
@@ -205,8 +209,6 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 			if (SwingUtilities.getDeepestComponentAt(dialog, local.x + configure.getWidth() / 2, local.y + configure.getHeight() / 2) != configure)
 				throw new AssertionError("CCPM configure button must be the physical hit target");
 		});
-		Robot robot = new com.microproject.testsupport.GuiRobot();
-		robot.setAutoDelay(40);
 		robot.waitForIdle();
 		robot.mouseMove(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
 		robot.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
@@ -234,14 +236,14 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 		// proves that the user-facing Apply action is reversible.
 		project.getUndoController().discardAllEdits();
 		CriticalChainService service = new CriticalChainService();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(40);
 		observer = new DialogObserver();
-		observer.open();
+		observer.open(project, robot);
 		observer.show(project, CriticalChainStatusDialogBox.Surface.NETWORK);
 		CriticalChainStatusDialogBox network = observer.awaitDialog();
 		GuiAcceptanceSupport.await(() -> findButton(network, UsabilityStrings.text("ccpm.configure")) != null,
 			"unconfigured network did not expose CCPM setup");
-		Robot robot = new com.microproject.testsupport.GuiRobot();
-		robot.setAutoDelay(40);
 		click(robot, findButton(network, UsabilityStrings.text("ccpm.configure")));
 		GuiAcceptanceSupport.await(() -> findResourceLevelingDialog() != null,
 			"physical configure route did not open CCPM settings");
@@ -263,7 +265,7 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 		});
 		observer.close();
 		observer = null;
-		CriticalChainStatusDialogBox buffer = openStatusDialog(project);
+		CriticalChainStatusDialogBox buffer = openStatusDialog(project, robot);
 		assertTrue(visibleComponentExists(buffer, CriticalChainBufferChartPanel.class),
 			"applied plan must render the buffer view");
 		robot.keyPress(java.awt.event.KeyEvent.VK_CONTROL);
@@ -293,8 +295,9 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 
 	private void assertDialogShows(Project project, CriticalChainStatusDialogBox.Surface surface,
 		Class<? extends Component> expectedComponent) throws Exception {
+		Robot robot = new com.microproject.testsupport.GuiRobot();
 		observer = new DialogObserver();
-		observer.open();
+		observer.open(project, robot);
 		observer.show(project, surface);
 		CriticalChainStatusDialogBox dialog = observer.awaitDialog();
 		GuiAcceptanceSupport.await(() -> visibleComponentExists(dialog, expectedComponent),
@@ -364,9 +367,9 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 		return null;
 	}
 
-	private CriticalChainStatusDialogBox openStatusDialog(Project project) throws Exception {
+	private CriticalChainStatusDialogBox openStatusDialog(Project project, Robot robot) throws Exception {
 		observer = new DialogObserver();
-		observer.open();
+		observer.open(project, robot);
 		observer.show(project, CriticalChainStatusDialogBox.Surface.BUFFER_STATUS);
 		CriticalChainStatusDialogBox dialog = observer.awaitDialog();
 		GuiAcceptanceSupport.await(dialog::isActive, "CCPM result dialog did not become active");
@@ -457,16 +460,42 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 		private final CountDownLatch showReturned = new CountDownLatch(1);
 		private final java.util.Set<Window> existingWindows = java.util.Collections.newSetFromMap(
 			new java.util.IdentityHashMap<>());
+		private MainRibbonFrame ownerFrame;
+		private GraphicManager graphicManager;
+		private final AtomicReference<FindDialog> unexpectedFindDialog = new AtomicReference<>();
 
-		void open() {
-			java.util.Collections.addAll(existingWindows, Window.getWindows());
+		void open(Project project, Robot robot) throws Exception {
+			DocumentFrame[] documentFrame = new DocumentFrame[1];
 			Toolkit.getDefaultToolkit().addAWTEventListener(this, AWTEvent.WINDOW_EVENT_MASK);
+			SwingUtilities.invokeAndWait(() -> {
+				java.util.Collections.addAll(existingWindows, Window.getWindows());
+				ownerFrame = new MainRibbonFrame("CCPM status dialog acceptance", null);
+				graphicManager = new GraphicManager(ownerFrame);
+				ownerFrame.setGraphicManager(graphicManager);
+				graphicManager.initView();
+				documentFrame[0] = graphicManager.addProjectFrame(project);
+				ownerFrame.setSize(1100, 700);
+				ownerFrame.setLocationByPlatform(true);
+				ownerFrame.setAlwaysOnTop(true);
+				ownerFrame.setVisible(true);
+			});
+			GuiAcceptanceSupport.await(() -> ownerFrame.isShowing() && documentFrame[0].isShowing(),
+				"CCPM owner application frame did not become visible");
+			GuiAcceptanceSupport.activateAndAwaitRenderedWindow(ownerFrame, ownerFrame.getContentPane(), robot, true,
+				"CCPM owner application frame");
+			FindDialog[] visibleFindDialog = new FindDialog[1];
+			SwingUtilities.invokeAndWait(() -> {
+				for (Window window : Window.getWindows())
+					if (window instanceof FindDialog findDialog && findDialog.isShowing()) visibleFindDialog[0] = findDialog;
+			});
+			assertTrue(unexpectedFindDialog.get() == null && visibleFindDialog[0] == null,
+				"Physically activating the CCPM owner must not open or retain a Find dialog");
 		}
 
 		void show(Project project, CriticalChainStatusDialogBox.Surface surface) {
 			SwingUtilities.invokeLater(() -> {
 				try {
-					CriticalChainStatusDialogBox.show(null, project, surface);
+					CriticalChainStatusDialogBox.show(ownerFrame, project, surface);
 				} catch (Throwable failure) {
 					showFailure.compareAndSet(null, failure);
 					throw new AssertionError("CCPM result dialog show failed on the EDT", failure);
@@ -478,6 +507,20 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 
 		void close() {
 			Toolkit.getDefaultToolkit().removeAWTEventListener(this);
+			if (graphicManager != null) {
+				try {
+					SwingUtilities.invokeAndWait(() -> graphicManager.cleanUp());
+				} catch (Exception failure) {
+					throw new IllegalStateException("Could not close CCPM owner document", failure);
+				}
+			}
+			if (ownerFrame != null) {
+				try {
+					SwingUtilities.invokeAndWait(ownerFrame::dispose);
+				} catch (Exception failure) {
+					throw new IllegalStateException("Could not close CCPM owner frame", failure);
+				}
+			}
 		}
 
 		CriticalChainStatusDialogBox awaitDialog() throws Exception {
@@ -522,9 +565,13 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 
 		@Override
 		public void eventDispatched(AWTEvent event) {
-			if (event instanceof WindowEvent windowEvent && windowEvent.getID() == WindowEvent.WINDOW_OPENED
-				&& windowEvent.getWindow() instanceof CriticalChainStatusDialogBox statusDialog) {
-				dialog.compareAndSet(null, statusDialog);
+			if (event instanceof WindowEvent windowEvent && windowEvent.getID() == WindowEvent.WINDOW_OPENED) {
+				if (windowEvent.getWindow() instanceof CriticalChainStatusDialogBox statusDialog) {
+					dialog.compareAndSet(null, statusDialog);
+				} else if (windowEvent.getWindow() instanceof FindDialog findDialog
+					&& !existingWindows.contains(findDialog)) {
+					unexpectedFindDialog.compareAndSet(null, findDialog);
+				}
 			}
 		}
 	}

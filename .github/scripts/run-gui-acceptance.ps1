@@ -1,9 +1,13 @@
 param(
   [ValidateSet('smoke', 'full', 'visual')]
-  [string]$Suite = 'smoke'
+  [string]$Suite = 'smoke',
+  [string]$TestFilter
 )
 
 $ErrorActionPreference = 'Stop'
+if (-not [string]::IsNullOrWhiteSpace($TestFilter) -and $TestFilter -notmatch '^com\.microproject(?:\.[A-Za-z_$][A-Za-z0-9_$]*){2,}$') {
+  throw 'TestFilter must be a fully qualified com.microproject test class or method name containing only Java identifier segments.'
+}
 $gateLogs = 'modules/microproject_ui/build/reports/guiTest-artifacts'
 $gateFailures = [System.Collections.Generic.List[string]]::new()
 $hostedWarningWatcher = $null
@@ -207,6 +211,18 @@ $visualTests = @(
 )
 
 try {
+  if (-not [string]::IsNullOrWhiteSpace($TestFilter)) {
+    $safeFilter = ($TestFilter -replace '[^A-Za-z0-9_.-]', '_')
+    Write-Host "Run targeted GUI test filter at 100% (ja): $TestFilter. This run is not full GUI acceptance coverage."
+    $focusedArgs = @(
+      ':microproject_ui:guiTest', '--max-workers=1', '--console=plain',
+      '-PguiTestLocale=ja', '-PguiTestUiScale=1.0', '-PguiTestSuite=full',
+      '--tests', $TestFilter
+    )
+    Invoke-GuiGate "focused-$safeFilter-ja-100" $focusedArgs 1200
+    return
+  }
+
   Write-Host "GUI acceptance Step 1/2: run the '$Suite' suite at 100% (ja)."
   try {
     $functionalTimeoutSeconds = if ($Suite -eq 'full') { 2700 } else { 1200 }

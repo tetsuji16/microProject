@@ -18,6 +18,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.command.UpdateProjectCommand;
+import com.microproject.datatype.Duration;
+import com.microproject.field.FieldContext;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.grouping.core.Node;
@@ -192,6 +194,58 @@ class UpdateProjectRequestTest {
 		assertTaskValues(predecessorAfterEntire, predecessor);
 		assertTaskValues(successorAfterEntire, successor);
 		assertTaskValues(summaryAfterEntire, summary);
+	}
+
+	@Test
+	void explicitTaskSheetProgressRollsUpByTaskDurationInLinkedSummary() {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("task-progress-summary", undo), undo);
+		project.initialize(false, false);
+		Node summaryNode = project.createLocalTaskNode(null);
+		Task summary = (Task) summaryNode.getImpl();
+		Task predecessor = (Task) project.createLocalTaskNode(summaryNode).getImpl();
+		Task successor = (Task) project.createLocalTaskNode(summaryNode).getImpl();
+		long day = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		predecessor.setDuration(3L * day);
+		successor.setDuration(day);
+		FieldContext context = new FieldContext();
+		context.setTaskSheetUpdate(true);
+
+		assertTrue(TaskSheetScheduleWorkflow.applyTaskPercentComplete(predecessor,
+			TaskSheetScheduleWorkflow.PERCENT_COMPLETE_FIELD_ID, context, Double.valueOf(0.25D)));
+		assertTrue(TaskSheetScheduleWorkflow.applyTaskPercentComplete(successor,
+			TaskSheetScheduleWorkflow.PERCENT_COMPLETE_FIELD_ID, context, Double.valueOf(1.0D)));
+
+		assertEquals(0.25D, predecessor.getPercentComplete(), 0.00001D);
+		assertEquals(1.0D, successor.getPercentComplete(), 0.00001D);
+		double planned = Duration.millis(predecessor.getDuration()) + Duration.millis(successor.getDuration());
+		double expected = (Duration.millis(predecessor.getDuration()) * predecessor.getPercentComplete()
+			+ Duration.millis(successor.getDuration()) * successor.getPercentComplete()) / planned;
+		assertEquals(expected, summary.getPercentComplete(), 0.00001D,
+			"an explicit task-duration percentage must roll up over the linked summary using task duration");
+		assertEquals(0.4375D, summary.getPercentComplete(), 0.00001D,
+			"three days at 25% plus one day at 100% must weight to 43.75%");
+	}
+
+	@Test
+	void nonFiniteTaskSheetProgressIsRejectedBeforeScheduleMutation() {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("invalid-task-progress", undo), undo);
+		project.initialize(false, false);
+		NormalTask task = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		long day = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		task.setDuration(4L * day);
+		FieldContext context = new FieldContext();
+		context.setTaskSheetUpdate(true);
+		assertTrue(TaskSheetScheduleWorkflow.applyTaskPercentComplete(task,
+			TaskSheetScheduleWorkflow.PERCENT_COMPLETE_FIELD_ID, context, Double.valueOf(0.25D)));
+		long actualDuration = task.getActualDuration();
+
+		assertThrows(IllegalArgumentException.class, () -> TaskSheetScheduleWorkflow.applyTaskPercentComplete(task,
+			TaskSheetScheduleWorkflow.PERCENT_COMPLETE_FIELD_ID, context, Double.valueOf(Double.NaN)));
+		assertEquals(0.25D, task.getPercentComplete(), 0.00001D);
+		assertEquals(actualDuration, task.getActualDuration(),
+			"invalid task progress must not partially mutate the schedule before rejection");
 	}
 
 	@Test

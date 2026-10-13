@@ -18,6 +18,10 @@ on:
           - smoke
           - visual
           - full
+      gui_test_filter:
+        description: 'Optional targeted Gradle test filter (FQCN or FQCN.method); manual dispatch only'
+        required: false
+        type: string
   schedule:
     - cron: '17 2 * * 1'
 
@@ -53,6 +57,8 @@ jobs:
 
       - name: Run selected GUI acceptance suite and visual matrix
         shell: pwsh
+        env:
+          GUI_TEST_FILTER: ${{ inputs.gui_test_filter }}
         timeout-minutes: 110
         run: |
           $requestedSuite = '${{ inputs.gui_suite }}'
@@ -63,7 +69,11 @@ jobs:
             } else { $requestedSuite = 'smoke' }
           }
           Write-Host "Selected GUI suite: $requestedSuite (event=$env:GITHUB_EVENT_NAME)"
-          .\.github\scripts\run-gui-acceptance.ps1 -Suite $requestedSuite
+          if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch' -and -not [string]::IsNullOrWhiteSpace($env:GUI_TEST_FILTER)) {
+            .\.github\scripts\run-gui-acceptance.ps1 -Suite $requestedSuite -TestFilter $env:GUI_TEST_FILTER
+          } else {
+            .\.github\scripts\run-gui-acceptance.ps1 -Suite $requestedSuite
+          }
 
       - name: Capture GUI failure diagnostics
         if: failure()

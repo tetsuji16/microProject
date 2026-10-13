@@ -69,6 +69,11 @@ import com.microproject.datatype.TimeUnit;
 import com.microproject.graphic.configuration.BarStyles;
 import com.microproject.pm.graphic.gantt.Gantt;
 import com.microproject.pm.graphic.gantt.GanttUI;
+import com.microproject.pm.graphic.frames.DocumentFrame;
+import com.microproject.pm.graphic.frames.GraphicManager;
+import com.microproject.pm.graphic.frames.GuiAcceptanceShortcutInstaller;
+import com.microproject.pm.graphic.frames.workspace.FrameHolder;
+import com.microproject.pm.graphic.frames.workspace.FrameManager;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
@@ -101,8 +106,13 @@ class TaskTableGanttGridGuiAcceptanceTest {
 	private JFrame frame;
 	private Gantt gantt;
 	private TaskSelectionController selectionController;
+	private GraphicManager popupGraphicManager;
 	@AfterEach
 	void closeWindow() throws Exception {
+		if (popupGraphicManager != null) {
+			SwingUtilities.invokeAndWait(() -> popupGraphicManager.cleanUp());
+			popupGraphicManager = null;
+		}
 		if (selectionController != null) {
 			SwingUtilities.invokeAndWait(() -> selectionController.close());
 			selectionController = null;
@@ -558,7 +568,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 	void physicalHeaderRightClickHidesTheChosenColumnThroughTheColumnPopup() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Fixture fixture = createFixture(3);
-		showFixture(fixture);
+		showFixture(fixture, true);
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		SwingUtilities.invokeAndWait(() -> {
@@ -1194,8 +1204,23 @@ class TaskTableGanttGridGuiAcceptanceTest {
 	}
 
 	private void showFixture(Fixture fixture) throws Exception {
+		showFixture(fixture, false);
+	}
+
+	private void showFixture(Fixture fixture, boolean installDocumentShortcuts) throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
-			frame = new JFrame("Task table and Gantt GUI acceptance");
+			if (installDocumentShortcuts) {
+				FixtureFrame fixtureFrame = new FixtureFrame();
+				frame = fixtureFrame;
+				FixtureGraphicManager manager = fixtureFrame.manager;
+				popupGraphicManager = manager;
+				DocumentFrame document = new DocumentFrame(manager, fixture.project, "task-table-column-popup-test");
+				document.setActive(true);
+				manager.setDocumentFrame(document);
+				GuiAcceptanceShortcutInstaller.install(manager, fixtureFrame);
+			} else {
+				frame = new JFrame("Task table and Gantt GUI acceptance");
+			}
 			JScrollPane ganttPane = new JScrollPane(fixture.gantt);
 			// The production GanttView puts a time-scale header above the chart.
 			// Keep this lightweight fixture's row origin aligned with the table.
@@ -1214,6 +1239,29 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			frame.setVisible(true);
 			gantt.updateSize();
 		});
+	}
+
+	private static final class FixtureFrame extends JFrame implements FrameHolder {
+		private static final long serialVersionUID = 1L;
+		private FixtureGraphicManager manager;
+
+		FixtureFrame() {
+			super("Task table and Gantt GUI acceptance");
+			manager = new FixtureGraphicManager(this);
+			manager.getMenuManager();
+		}
+
+		@Override public FrameManager getFrameManager() { return null; }
+		@Override public GraphicManager getGraphicManager() { return manager; }
+		@Override public void setGraphicManager(GraphicManager manager) { this.manager = (FixtureGraphicManager) manager; }
+	}
+
+	private static final class FixtureGraphicManager extends GraphicManager {
+		private DocumentFrame documentFrame;
+
+		FixtureGraphicManager(FixtureFrame frame) { super(frame); }
+		void setDocumentFrame(DocumentFrame frame) { documentFrame = frame; }
+		@Override public DocumentFrame getCurrentFrame() { return documentFrame; }
 	}
 
 	private Fixture createFixture() throws Exception {
