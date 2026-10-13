@@ -32,6 +32,9 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.function.UnaryOperator;
 
 import com.microproject.undo.EditSupport;
 
@@ -60,6 +63,7 @@ import com.microproject.undo.ScheduleEdit;
 public class AssignmentService {
 	
 	private static AssignmentService instance = null;
+	private static final ThreadLocal<Boolean> suppressNestedUndo = ThreadLocal.withInitial(() -> false);
 	public static AssignmentService getInstance() {
 		if (instance == null)
 			instance = new AssignmentService();
@@ -124,7 +128,7 @@ public class AssignmentService {
 				if (!hasUnassignedResource)
 					continue;
 				batchUpdate.beginIfNeeded(task, tasks, transactionResourcePool, this, undo);
-				changed |= batchAssignResources(task, resources, units, delay, eventSource, markApplied);
+				changed |= batchAssignResources(task, resources, units, delay, eventSource, undo, markApplied);
 			}
 		} finally {
 			batchUpdate.endIfNeeded();
@@ -198,10 +202,10 @@ public class AssignmentService {
 			if (markApplied != null) markApplied.run();
 			changed = true;
 			if (!sourceHasActualWork)
-				remove(source, eventSource, undo);
+				removeInternal(source, true, eventSource, new NodeUndoInfo(undo));
 			for (int index = 0; index < replacements.size(); index++) {
 				Assignment replacement = newAssignment(task, replacements.get(index), 1.0D, 0L,
-					eventSource, undo);
+					eventSource, new NodeUndoInfo(undo));
 				if (replacement == null)
 					continue;
 				if (undo)
@@ -272,7 +276,7 @@ public class AssignmentService {
 	}
 
 	private boolean batchAssignResources(NormalTask task, Collection<?> resources, double units, long delay,
-			Object eventSource, Runnable markApplied) {
+			Object eventSource, boolean undo, Runnable markApplied) {
 		boolean taskHadNoRealAssignments = !task.hasRealAssignments() || !task.hasLaborAssignment();
 		TaskState taskState = preserveTaskState(task, taskHadNoRealAssignments);
 		Set<Resource> assignedResources = getAssignedResources(task);
@@ -284,7 +288,8 @@ public class AssignmentService {
 					continue;
 				}
 				if (markApplied != null) markApplied.run();
-				Assignment assignment = newAssignment(task, resource, units, delay, eventSource, true);
+				Assignment assignment = newAssignment(task, resource, units, delay, eventSource,
+					new NodeUndoInfo(undo));
 				if (assignment != null) {
 					changed = true;
 					if (!resource.isLabor()) {
@@ -338,7 +343,13 @@ public class AssignmentService {
 			}
 			transactionProject = task.getProject();
 			transactionProject.beginUndoUpdate();
-			transactionId = transactionProject.fireMultipleTransaction(0, true);
+			try {
+				transactionId = transactionProject.fireMultipleTransaction(0, true);
+			} catch (RuntimeException | Error failure) {
+				transactionProject.endUndoUpdate();
+				transactionProject = null;
+				throw failure;
+			}
 			transactionResourcePool = resourcePool;
 			if (transactionResourcePool != null)
 				resourceTransactionId = transactionResourcePool.fireMultipleTransaction(0, true);
@@ -413,11 +424,21 @@ public class AssignmentService {
  * @return
  */	
 	public Assignment newAssignment(NormalTask task, Resource resource, double units, long delay, Object eventSource,boolean undo) {
-		return newAssignment(task, resource, units, delay, eventSource, new NodeUndoInfo(undo));
+		if (task == null || resource == null) throw new IllegalArgumentException("A task and resource are required");
+		Project project = task.getProject();
+		ResourcePool pool = resourcePoolOf(resource);
+		return runAssignmentCommand(project, pool, List.of(resource), project != null && project.isInitialized() || eventSource != null, markApplied -> {
+			if (!task.isAssignable()) return null;
+			markApplied.run();
+			Assignment assignment = newAssignment(task, resource, units, delay, eventSource, new NodeUndoInfo(undo));
+			if (assignment != null && eventSource == null && project != null && project.isInitialized())
+				publishSilentAssignmentRefresh(project, task, pool, resource);
+			return assignment;
+		}, java.util.Objects::nonNull, result -> result);
 	}
 	private Assignment newAssignment(NormalTask task, Resource resource, double units, long delay, Object eventSource, NodeUndoInfo undoInfo) {
 		Assignment assignment = Assignment.getInstance(task, resource, units, delay);
-		if (!connect(assignment,eventSource,undoInfo))
+		if (!connectInternal(assignment,eventSource,undoInfo))
 			return null;
 		// NormalTask.addAssignment may copy the default assignment's fields. Apply
 		// the caller-provided delay after that normalization so it is not lost.
@@ -445,13 +466,38 @@ public class AssignmentService {
 		return connect((Assignment)node.getImpl(),eventSource,new NodeUndoInfo(node,undo));
 	}
 	public boolean connect(Assignment assignment, Object eventSource, NodeUndoInfo undo) {
+		if (assignment == null) return false;
+		NormalTask task = (NormalTask)assignment.getTask();
+		Project project = task.getProject();
+		Resource resource = assignment.getResource();
+		ResourcePool pool = resourcePoolOf(resource);
+		return runAssignmentCommand(project, pool, List.of(resource), project != null && project.isInitialized() || eventSource != null, markApplied -> {
+			if (!task.isAssignable()) return false;
+			markApplied.run();
+			boolean connected = connectInternal(assignment, eventSource, undo);
+			if (eventSource == null && project != null && project.isInitialized()) publishSilentAssignmentRefresh(project, task, pool, resource);
+			return connected;
+		}, Boolean.TRUE::equals, result -> result);
+	}
+
+	private boolean connectInternal(Assignment assignment, Object eventSource, NodeUndoInfo undo) {
 		if (!assignment.getTask().isAssignable())
 			return false;
-		((NormalTask)assignment.getTask()).addAssignment(assignment);
+		withNestedUndoSuppressed(undo == null || !undo.isUndo(),
+			() -> ((NormalTask)assignment.getTask()).addAssignment(assignment));
 		assignment.getResource().addAssignment(assignment);
+		if (undo != null && undo.isUndo() && !suppressNestedUndo.get()) {
+			EditSupport editSupport = getEditSupport(assignment);
+			if (editSupport != null) {
+				if (undo.getNode() == null) editSupport.postEdit(new AssignmentCreationEdit(assignment));
+				else editSupport.postEdit(new AssignmentCreationEdit(undo.getNode()));
+			}
+		}
 		if (eventSource != null){
-			assignment.getDocument().getObjectEventManager().fireCreateEvent(eventSource,assignment,undo);
-			((ResourcePool)assignment.getResource().getDocument()).getObjectEventManager().fireCreateEvent(eventSource,assignment,undo);
+			NodeUndoInfo observerInfo = new NodeUndoInfo(undo == null ? null : undo.getNode(), false);
+			assignment.getDocument().getObjectEventManager().fireCreateEvent(eventSource,assignment,observerInfo);
+			ResourcePool pool = resourcePoolOf(assignment.getResource());
+			if (pool != null) pool.getObjectEventManager().fireCreateEvent(eventSource,assignment,observerInfo);
 		}
 		return true;
 	}
@@ -501,21 +547,21 @@ public class AssignmentService {
 			Object taskDetail = task.backupDetail();
 			markApplied.run();
 			try {
-				remove(assignment, null, false);
+				removeInternal(assignment, true, null, new NodeUndoInfo(false));
 				if (source.findAssignment(task) == assignment || task.findAssignment(source) == assignment)
 					throw new IllegalStateException("Could not detach assignment from its previous resource");
 				assignment.setTaskAndResource(task, replacement);
-				if (!connect(assignment, null, false))
+				if (!connectForSharedPoolRewire(assignment))
 					throw new IllegalStateException("Could not reconnect assignment to the shared resource pool");
 				if (replacement.findAssignment(task) != assignment || task.findAssignment(replacement) != assignment)
 					throw new IllegalStateException("Shared-pool assignment reverse links were not updated");
 			} catch (RuntimeException | Error failure) {
 				try {
 					if (task.findAssignment(replacement) == assignment || replacement.findAssignment(task) == assignment)
-						remove(assignment, null, false);
+						removeInternal(assignment, true, null, new NodeUndoInfo(false));
 					assignment.setTaskAndResource(task, source);
 					if ((task.findAssignment(source) != assignment || source.findAssignment(task) != assignment)
-							&& !connect(assignment, null, false))
+							&& !connectInternal(assignment, null, new NodeUndoInfo(false)))
 						throw new IllegalStateException("Could not restore assignment to its source resource");
 					if (task.findAssignment(source) != assignment || source.findAssignment(task) != assignment)
 						throw new IllegalStateException("Assignment source reverse links were not restored");
@@ -530,6 +576,10 @@ public class AssignmentService {
 			publishSharedPoolRefreshes(project, eventSource, task, additionalManagers);
 			return Boolean.TRUE;
 		}, Boolean.TRUE::equals, result -> result, additionalManagers);
+	}
+
+	protected boolean connectForSharedPoolRewire(Assignment assignment) {
+		return connectInternal(assignment, null, new NodeUndoInfo(false));
 	}
 
 	private void publishSharedPoolRefreshes(Project project, Object eventSource, NormalTask task,
@@ -555,35 +605,196 @@ public class AssignmentService {
 		participants.add(new Project.AdditionalObjectEventManager(pool.getObjectEventManager(), pool, pool, List.of(resource)));
 	}
 	public void remove(Collection<?> assignments, Object eventSource,boolean undo) {
-		for (Object value : assignments) {
-			Assignment assignment = (Assignment) value;
-			remove(assignment,true,eventSource,undo);
-		}
+		removeCollection(assignments, eventSource, undo, true);
 	}
 
 	public void remove(Assignment assignment, boolean cleanTaskLink, Object eventSource, NodeUndoInfo undo) {
-			NormalTask task=(NormalTask)assignment.getTask();
-			Resource resource=assignment.getResource();
-			            
-			if (task.findAssignment(resource) == null)
-				return; // avoids endless loop 9/1/06 hk
+		if (assignment == null) return;
+		NormalTask task = (NormalTask)assignment.getTask();
+		Resource resource = assignment.getResource();
+		Project project = task.getProject();
+		ResourcePool pool = resourcePoolOf(resource);
+		runAssignmentCommand(project, pool, List.of(resource), project != null && project.isInitialized() || eventSource != null, markApplied -> {
+			if (task.findAssignment(resource) == null) return false;
+			markApplied.run();
+			removeInternal(assignment, cleanTaskLink, eventSource, undo);
+			if (eventSource == null && project != null && project.isInitialized()) publishSilentAssignmentRefresh(project, task, pool, resource);
+			return true;
+		}, Boolean.TRUE::equals, result -> result);
+	}
 
-			
-			if (cleanTaskLink) task.removeAssignment(assignment);
-			resource.removeAssignment(assignment);
-
-			if (eventSource != null){
-				if (cleanTaskLink) assignment.getDocument().getObjectEventManager().fireDeleteEvent(eventSource,assignment,undo);
-				if (assignment.getResource().getDocument() != null) // it's null if local project
-					((ResourcePool)assignment.getResource().getDocument()).getObjectEventManager().fireDeleteEvent(eventSource,assignment);
+	private void removeInternal(Assignment assignment, boolean cleanTaskLink, Object eventSource, NodeUndoInfo undo) {
+		NormalTask task = (NormalTask)assignment.getTask();
+		Resource resource = assignment.getResource();
+		if (task.findAssignment(resource) == null) return;
+		if (cleanTaskLink)
+			withNestedUndoSuppressed(undo == null || !undo.isUndo(), () -> task.removeAssignment(assignment));
+		resource.removeAssignment(assignment);
+		if (cleanTaskLink && undo != null && undo.isUndo() && !suppressNestedUndo.get()) {
+			EditSupport editSupport = getEditSupport(assignment);
+			if (editSupport != null) {
+				if (undo.getNode() == null) editSupport.postEdit(new AssignmentDeletionEdit(assignment));
+				else editSupport.postEdit(new AssignmentDeletionEdit(undo.getNode()));
 			}
+		}
+		if (eventSource != null) {
+			NodeUndoInfo observerInfo = new NodeUndoInfo(undo == null ? null : undo.getNode(), false);
+			if (cleanTaskLink) assignment.getDocument().getObjectEventManager().fireDeleteEvent(eventSource, assignment, observerInfo);
+			if (resource.getDocument() != null)
+				((ResourcePool)resource.getDocument()).getObjectEventManager().fireDeleteEvent(eventSource, assignment, observerInfo);
+		}
+	}
+
+	private void withNestedUndoSuppressed(boolean suppress, Runnable mutation) {
+		boolean previousSuppression = suppressNestedUndo.get();
+		if (suppress) suppressNestedUndo.set(true);
+		try {
+			mutation.run();
+		} finally {
+			if (previousSuppression) suppressNestedUndo.set(true);
+			else suppressNestedUndo.remove();
+		}
 	}
 
 	public void remove(Collection assignmentList, Object eventSource) {
-		for (Object item : assignmentList) {
-			Assignment assignment = (Assignment) item;
-			remove(assignment,true,eventSource,null);
+		removeCollection(assignmentList, eventSource, false, false);
+	}
+
+	private void removeCollection(Collection<?> assignments, Object eventSource, boolean undo, boolean batchUndo) {
+		List<Assignment> snapshot = new ArrayList<>();
+		Set<Assignment> seen = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+		for (Object value : assignments) {
+			if (!(value instanceof Assignment assignment))
+				throw new IllegalArgumentException("Assignment removal requires assignments");
+			if (seen.add(assignment)) snapshot.add(assignment);
 		}
+		if (snapshot.isEmpty()) return;
+		List<AssignmentRemovalGroup> groups = new ArrayList<>();
+		for (Assignment assignment : snapshot) {
+			NormalTask task = requireNormalTask(assignment);
+			Project project = task.getProject();
+			AssignmentRemovalGroup group = groups.stream().filter(existing -> existing.project == project).findFirst().orElse(null);
+			if (group == null) {
+				group = new AssignmentRemovalGroup(project);
+				groups.add(group);
+			}
+			group.assignments.add(assignment);
+		}
+		com.microproject.transaction.ProjectMutationState.coordinated(() -> {
+			for (AssignmentRemovalGroup group : groups)
+				removeCollectionGroup(group, eventSource, undo, batchUndo);
+		});
+	}
+
+	private static final class AssignmentRemovalGroup {
+		final Project project;
+		final List<Assignment> assignments = new ArrayList<>();
+		AssignmentRemovalGroup(Project project) { this.project = project; }
+	}
+
+	private void removeCollectionGroup(AssignmentRemovalGroup group, Object eventSource, boolean undo, boolean batchUndo) {
+		List<Project.AdditionalObjectEventManager> participants = new ArrayList<>();
+		for (Assignment assignment : group.assignments)
+			addPoolRefreshParticipant(participants, resourcePoolOf(assignment.getResource()), assignment.getResource());
+		boolean published = group.project != null && group.project.isInitialized() || eventSource != null;
+		java.util.function.Function<Runnable, Boolean> operation = markApplied -> {
+			List<Assignment> attached = group.assignments.stream().filter(assignment -> {
+				NormalTask task = (NormalTask) assignment.getTask();
+				return task.findAssignment(assignment.getResource()) == assignment
+					&& assignment.getResource().findAssignment(task) == assignment;
+			}).toList();
+			if (attached.isEmpty()) return false;
+			Set<ResourcePool> pools = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+			for (Assignment assignment : attached) {
+				ResourcePool pool = resourcePoolOf(assignment.getResource());
+				if (pool != null) pools.add(pool);
+			}
+			boolean undoGroup = batchUndo && undo && group.project != null;
+			int projectTransaction = 0;
+			List<ResourcePool> transactionPools = new ArrayList<>();
+			List<Integer> poolTransactions = new ArrayList<>();
+			boolean undoUpdateStarted = false;
+			Throwable commandFailure = null;
+			try {
+				if (undoGroup) {
+					group.project.beginUndoUpdate();
+					undoUpdateStarted = true;
+					projectTransaction = group.project.fireMultipleTransaction(0, true);
+					for (ResourcePool pool : pools) {
+						int transaction = pool.fireMultipleTransaction(0, true);
+						transactionPools.add(pool);
+						poolTransactions.add(transaction);
+					}
+					Map<Assignment, Object> assignmentDetails = new LinkedHashMap<>();
+					for (Assignment assignment : attached) assignmentDetails.put(assignment, assignment.backupDetail());
+					group.project.getUndoController().getEditSupport().postEdit(
+						new AssignmentDetailStateEdit(assignmentDetails, Map.of()));
+				}
+				markApplied.run();
+				for (Assignment assignment : attached)
+					removeInternal(assignment, true, eventSource, new NodeUndoInfo(undo));
+				if (eventSource == null && group.project != null && group.project.isInitialized()) {
+					for (Assignment assignment : attached)
+						publishSilentAssignmentRefresh(group.project, (NormalTask) assignment.getTask(),
+							resourcePoolOf(assignment.getResource()), assignment.getResource());
+				}
+				return true;
+			} catch (RuntimeException | Error failure) {
+				commandFailure = failure;
+				throw failure;
+			} finally {
+				Throwable cleanupFailure = null;
+				for (int index = transactionPools.size() - 1; index >= 0; index--) {
+					try { transactionPools.get(index).fireMultipleTransaction(poolTransactions.get(index), false); }
+					catch (RuntimeException | Error failure) { cleanupFailure = appendFailure(cleanupFailure, failure); }
+				}
+				if (projectTransaction != 0) {
+					try { group.project.fireMultipleTransaction(projectTransaction, false); }
+					catch (RuntimeException | Error failure) { cleanupFailure = appendFailure(cleanupFailure, failure); }
+				}
+				if (undoUpdateStarted) {
+					try { group.project.endUndoUpdate(); }
+					catch (RuntimeException | Error failure) { cleanupFailure = appendFailure(cleanupFailure, failure); }
+				}
+				if (cleanupFailure != null) {
+					if (commandFailure != null) appendFailure(commandFailure, cleanupFailure);
+					else if (cleanupFailure instanceof Error error) throw error;
+					else throw (RuntimeException) cleanupFailure;
+				}
+			}
+		};
+		if (group.project == null || !published) {
+			operation.apply(() -> {});
+		} else {
+			group.project.runModelCommand(operation::apply, Boolean.TRUE::equals, result -> result, participants);
+		}
+	}
+
+	private NormalTask requireNormalTask(Assignment assignment) {
+		if (!(assignment.getTask() instanceof NormalTask task))
+			throw new IllegalArgumentException("Assignments require a normal task");
+		return task;
+	}
+
+	private static Throwable appendFailure(Throwable current, Throwable next) {
+		if (current == null) return next;
+		if (current != next) current.addSuppressed(next);
+		return current;
+	}
+
+	private <T> T runAssignmentCommand(Project project, ResourcePool pool, Collection<?> refreshObjects, boolean published,
+			Function<Runnable, T> operation, Predicate<? super T> changed, UnaryOperator<T> resultWhenFactsExist) {
+		if (project == null || !published)
+			return operation.apply(() -> {});
+		List<Project.AdditionalObjectEventManager> participants = pool == null ? List.of()
+			: List.of(new Project.AdditionalObjectEventManager(pool.getObjectEventManager(), pool, pool,
+				List.copyOf(refreshObjects)));
+		return project.runModelCommand(operation::apply, changed, resultWhenFactsExist, participants);
+	}
+
+	private void publishSilentAssignmentRefresh(Project project, NormalTask task, ResourcePool pool, Resource resource) {
+		if (project != null) project.fireUpdateEvent(null, task);
+		if (pool != null) pool.getObjectEventManager().fireUpdateEvent(null, resource);
 	}
 	
 	//fix
