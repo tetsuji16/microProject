@@ -462,10 +462,13 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 			new java.util.IdentityHashMap<>());
 		private MainRibbonFrame ownerFrame;
 		private GraphicManager graphicManager;
+		private final AtomicReference<FindDialog> unexpectedFindDialog = new AtomicReference<>();
 
 		void open(Project project, Robot robot) throws Exception {
 			DocumentFrame[] documentFrame = new DocumentFrame[1];
+			Toolkit.getDefaultToolkit().addAWTEventListener(this, AWTEvent.WINDOW_EVENT_MASK);
 			SwingUtilities.invokeAndWait(() -> {
+				java.util.Collections.addAll(existingWindows, Window.getWindows());
 				ownerFrame = new MainRibbonFrame("CCPM status dialog acceptance", null);
 				graphicManager = new GraphicManager(ownerFrame);
 				ownerFrame.setGraphicManager(graphicManager);
@@ -478,18 +481,15 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 			});
 			GuiAcceptanceSupport.await(() -> ownerFrame.isShowing() && documentFrame[0].isShowing(),
 				"CCPM owner application frame did not become visible");
-			Point activationPoint = new Point();
-			SwingUtilities.invokeAndWait(() -> {
-				Point location = ownerFrame.getLocationOnScreen();
-				activationPoint.setLocation(location.x + ownerFrame.getWidth() / 2, location.y + 12);
-			});
-			robot.mouseMove(activationPoint.x, activationPoint.y);
-			robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-			robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-			GuiAcceptanceSupport.awaitRenderedWindow(ownerFrame, ownerFrame.getContentPane(), robot,
+			GuiAcceptanceSupport.activateAndAwaitRenderedWindow(ownerFrame, ownerFrame.getContentPane(), robot, true,
 				"CCPM owner application frame");
-			java.util.Collections.addAll(existingWindows, Window.getWindows());
-			Toolkit.getDefaultToolkit().addAWTEventListener(this, AWTEvent.WINDOW_EVENT_MASK);
+			FindDialog[] visibleFindDialog = new FindDialog[1];
+			SwingUtilities.invokeAndWait(() -> {
+				for (Window window : Window.getWindows())
+					if (window instanceof FindDialog findDialog && findDialog.isShowing()) visibleFindDialog[0] = findDialog;
+			});
+			assertTrue(unexpectedFindDialog.get() == null && visibleFindDialog[0] == null,
+				"Physically activating the CCPM owner must not open or retain a Find dialog");
 		}
 
 		void show(Project project, CriticalChainStatusDialogBox.Surface surface) {
@@ -565,9 +565,13 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 
 		@Override
 		public void eventDispatched(AWTEvent event) {
-			if (event instanceof WindowEvent windowEvent && windowEvent.getID() == WindowEvent.WINDOW_OPENED
-				&& windowEvent.getWindow() instanceof CriticalChainStatusDialogBox statusDialog) {
-				dialog.compareAndSet(null, statusDialog);
+			if (event instanceof WindowEvent windowEvent && windowEvent.getID() == WindowEvent.WINDOW_OPENED) {
+				if (windowEvent.getWindow() instanceof CriticalChainStatusDialogBox statusDialog) {
+					dialog.compareAndSet(null, statusDialog);
+				} else if (windowEvent.getWindow() instanceof FindDialog findDialog
+					&& !existingWindows.contains(findDialog)) {
+					unexpectedFindDialog.compareAndSet(null, findDialog);
+				}
 			}
 		}
 	}

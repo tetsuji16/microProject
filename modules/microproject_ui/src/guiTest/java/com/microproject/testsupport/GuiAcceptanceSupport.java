@@ -8,20 +8,27 @@ package com.microproject.testsupport;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Component;
+import java.awt.Container;
 import java.awt.EventQueue;
 import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.Toolkit;
 import java.awt.Window;
 import java.awt.KeyboardFocusManager;
+import java.awt.Point;
+import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BooleanSupplier;
 import javax.swing.JComboBox;
+import javax.swing.JComponent;
 import javax.swing.SwingUtilities;
 
 /** Shared deterministic waits for non-headless Swing acceptance tests. */
@@ -39,17 +46,75 @@ public final class GuiAcceptanceSupport {
 	}
 
 	/**
-	 * Waits for an already-activated application window to paint real on-screen
-	 * content before a physical command is sent. Call after the Robot activation
-	 * route; this keeps the command's own existing readiness deadline unchanged.
+	 * Physically activates an application window, waits for real on-screen content,
+	 * and checks focus and captured pixels before the next physical command.
 	 */
-	public static void awaitRenderedWindow(Window window, Component visibleContent, Robot robot, String description)
-		throws Exception {
+	public static void activateAndAwaitRenderedWindow(Window window, Component visibleContent, Robot robot,
+		boolean alwaysOnTop, String description) throws Exception {
 		if (window == null || visibleContent == null || robot == null)
 			throw new IllegalArgumentException("Window, visible content, and Robot are required");
-		if (!(visibleContent instanceof javax.swing.JComponent swingContent))
+		if (!(visibleContent instanceof javax.swing.JComponent))
 			throw new IllegalArgumentException("Visible content must be a Swing component");
 		long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+		FutureTask<Point> activationPointTask = new FutureTask<>(() -> {
+			window.toFront();
+			window.requestFocus();
+			window.setAlwaysOnTop(alwaysOnTop);
+			return captionActivationPoint(window);
+		});
+		EventQueue.invokeLater(activationPointTask);
+		Point activationPoint = awaitTask(activationPointTask, deadline, description + " activation setup");
+		robot.keyPress(KeyEvent.VK_ALT);
+		robot.keyRelease(KeyEvent.VK_ALT);
+		robot.mouseMove(activationPoint.x, activationPoint.y);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		if (System.nanoTime() >= deadline)
+			throw new AssertionError(description + " physical activation exceeded its existing deadline");
+		awaitRenderedWindow(window, visibleContent, robot, description, deadline);
+	}
+
+	private static Point captionActivationPoint(Window window) {
+		List<JComponent> captionTargets = new ArrayList<>();
+		collectCaptionTargets(window, captionTargets);
+		JComponent target = captionTargets.stream()
+			.filter(Component::isShowing)
+			.filter(component -> component.getComponentCount() == 0)
+			.filter(component -> !component.isFocusable())
+			.filter(component -> component.getWidth() > 0 && component.getHeight() > 0)
+			.max(Comparator.comparingLong(component -> (long) component.getWidth() * component.getHeight()))
+			.orElse(null);
+		if (target != null) {
+			Point location = target.getLocationOnScreen();
+			Point windowLocation = window.getLocationOnScreen();
+			Point activationPoint = new Point(location.x + target.getWidth() / 2,
+				location.y + target.getHeight() / 2);
+			Component hitTarget = SwingUtilities.getDeepestComponentAt(window,
+				activationPoint.x - windowLocation.x, activationPoint.y - windowLocation.y);
+			if (hitTarget == target) return activationPoint;
+			throw new AssertionError("Semantic title-bar caption point did not resolve to its marked component");
+		}
+		java.awt.Insets insets = window.getInsets();
+		if (insets.top <= 0)
+			throw new AssertionError("Window has no visible semantic caption target or native title-bar inset");
+		Point location = window.getLocationOnScreen();
+		int rightCaptionLimit = Math.max(1, window.getWidth() - insets.right - 24);
+		int leftCaptionOffset = Math.min(Math.max(40, insets.left + 24), rightCaptionLimit);
+		return new Point(location.x + leftCaptionOffset, location.y + Math.max(1, insets.top / 2));
+	}
+
+	private static void collectCaptionTargets(Container parent, List<JComponent> targets) {
+		for (Component child : parent.getComponents()) {
+			if (child instanceof JComponent swingChild
+				&& Boolean.TRUE.equals(swingChild.getClientProperty("JComponent.titleBarCaption")))
+				targets.add(swingChild);
+			if (child instanceof Container container) collectCaptionTargets(container, targets);
+		}
+	}
+
+	private static void awaitRenderedWindow(Window window, Component visibleContent, Robot robot, String description,
+		long deadline) throws Exception {
+		javax.swing.JComponent swingContent = (javax.swing.JComponent) visibleContent;
 		FutureTask<Boolean> paintTask = new FutureTask<>(() -> {
 			window.validate();
 			if (!window.isShowing() || !swingContent.isShowing() || !hasArea(swingContent.getSize()))
@@ -61,15 +126,7 @@ public final class GuiAcceptanceSupport {
 			return true;
 		});
 		EventQueue.invokeLater(paintTask);
-		while (System.nanoTime() < deadline && !paintTask.isDone()) {
-			try {
-				paintTask.get(25, TimeUnit.MILLISECONDS);
-			} catch (TimeoutException waitingForEdt) {
-				// Keep waiting for the actual EDT paint, bounded by the shared deadline.
-			} catch (ExecutionException failure) {
-				throw new AssertionError(description + " onscreen paint failed", failure.getCause());
-			}
-		}
+		while (System.nanoTime() < deadline && !paintTask.isDone()) waitForTask(paintTask, deadline);
 		if (!paintTask.isDone()) paintTask.cancel(false);
 		boolean paintCompleted = false;
 		if (paintTask.isDone() && !paintTask.isCancelled()) {
@@ -88,13 +145,7 @@ public final class GuiAcceptanceSupport {
 				snapshotTask = new FutureTask<>(() -> inspectWindow(window, visibleContent, onscreenPaintCompleted));
 				EventQueue.invokeLater(snapshotTask);
 			}
-			try {
-				snapshot = snapshotTask.get(25, TimeUnit.MILLISECONDS);
-			} catch (TimeoutException waitingForEdt) {
-				continue;
-			} catch (ExecutionException failure) {
-				throw new AssertionError(description + " readiness inspection failed", failure.getCause());
-			}
+			snapshot = awaitTask(snapshotTask, deadline, description + " readiness inspection");
 			if (snapshot.ready() && System.nanoTime() < deadline) break;
 			snapshotTask = null;
 		}
@@ -112,30 +163,75 @@ public final class GuiAcceptanceSupport {
 		assertTrue(System.nanoTime() < deadline, description + " rendered readiness exceeded its existing deadline");
 	}
 
+	private static void waitForTask(FutureTask<?> task, long deadline) throws Exception {
+		long remaining = deadline - System.nanoTime();
+		if (remaining <= 0) return;
+		try {
+			task.get(Math.min(remaining, TimeUnit.MILLISECONDS.toNanos(25)), TimeUnit.NANOSECONDS);
+		} catch (TimeoutException waitingForEdt) {
+			// Keep waiting for the current bounded EDT operation.
+		} catch (ExecutionException failure) {
+			throw new AssertionError("Swing readiness EDT operation failed", failure.getCause());
+		}
+	}
+
+	private static <T> T awaitTask(FutureTask<T> task, long deadline, String description) throws Exception {
+		while (System.nanoTime() < deadline) {
+			long remaining = deadline - System.nanoTime();
+			try {
+				return task.get(Math.min(remaining, TimeUnit.MILLISECONDS.toNanos(25)), TimeUnit.NANOSECONDS);
+			} catch (TimeoutException waitingForEdt) {
+				// Keep waiting until the shared readiness deadline.
+			} catch (ExecutionException failure) {
+				throw new AssertionError(description + " failed", failure.getCause());
+			}
+		}
+		throw new AssertionError(description + " exceeded the existing readiness deadline");
+	}
+
 	private static WindowRenderSnapshot inspectWindow(Window window, Component visibleContent, boolean paintCompleted) {
-		if (!window.isShowing() || !visibleContent.isShowing())
-			return new WindowRenderSnapshot(false, window.isShowing(), visibleContent.isShowing(), window.isValid(),
-				visibleContent.isValid(), false, false, paintCompleted, new Rectangle(), new Rectangle());
+		boolean windowShowing = window.isShowing();
+		boolean contentShowing = visibleContent.isShowing();
+		boolean windowValid = window.isValid();
+		boolean contentValid = visibleContent.isValid();
+		Window activeWindow = KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow();
+		boolean activeWindowMatches = activeWindow == window;
+		boolean windowActive = window.isActive();
+		boolean windowFocused = window.isFocused();
+		String activeWindowIdentity = windowIdentity(activeWindow);
+		String visibleModalBlockers = java.util.Arrays.stream(Window.getWindows())
+			.filter(candidate -> candidate != window && candidate.isShowing())
+			.filter(candidate -> candidate instanceof java.awt.Dialog dialog && dialog.isModal())
+			.map(GuiAcceptanceSupport::windowIdentity)
+			.collect(java.util.stream.Collectors.joining(","));
+		if (!windowShowing || !contentShowing)
+			return new WindowRenderSnapshot(false, windowShowing, contentShowing, windowValid, contentValid, false,
+				activeWindowMatches, windowActive, windowFocused, activeWindowIdentity, visibleModalBlockers,
+				paintCompleted, new Rectangle(), new Rectangle());
 		Rectangle windowBounds = window.getBounds();
 		Rectangle contentBounds = new Rectangle(visibleContent.getLocationOnScreen(), visibleContent.getSize());
 		java.awt.Point windowLocation = window.getLocationOnScreen();
 		windowBounds.setLocation(windowLocation);
-		boolean showing = window.isShowing() && visibleContent.isShowing();
-		boolean valid = window.isValid() && visibleContent.isValid();
 		boolean sized = hasArea(window.getSize()) && hasArea(visibleContent.getSize());
-		boolean active = KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow() == window
-			&& window.isActive() && window.isFocused();
-		boolean ready = showing && valid && sized && active && paintCompleted;
-		return new WindowRenderSnapshot(ready, showing, visibleContent.isShowing(), valid, visibleContent.isValid(),
-			sized, active, paintCompleted, windowBounds, contentBounds);
+		boolean active = activeWindowMatches && windowActive && windowFocused;
+		boolean ready = windowShowing && contentShowing && contentValid && sized && active && paintCompleted;
+		return new WindowRenderSnapshot(ready, windowShowing, contentShowing, windowValid, contentValid, sized,
+			activeWindowMatches, windowActive, windowFocused, activeWindowIdentity, visibleModalBlockers,
+			paintCompleted, windowBounds, contentBounds);
+	}
+
+	private static String windowIdentity(Window window) {
+		return window == null ? "none" : window.getClass().getName() + "@"
+			+ Integer.toHexString(System.identityHashCode(window));
 	}
 
 	private static boolean hasArea(java.awt.Dimension size) {
 		return size != null && size.width > 0 && size.height > 0;
 	}
 
-	private record WindowRenderSnapshot(boolean ready, boolean showing, boolean contentShowing, boolean valid,
-		boolean contentValid, boolean sized, boolean active, boolean paintCompleted, Rectangle windowBounds,
+	private record WindowRenderSnapshot(boolean ready, boolean showing, boolean contentShowing, boolean windowValid,
+		boolean contentValid, boolean sized, boolean activeWindowMatches, boolean windowActive, boolean windowFocused,
+		String activeWindowIdentity, String visibleModalBlockers, boolean paintCompleted, Rectangle windowBounds,
 		Rectangle contentBounds) { }
 
 	private static boolean hasRenderedVariation(BufferedImage image) {

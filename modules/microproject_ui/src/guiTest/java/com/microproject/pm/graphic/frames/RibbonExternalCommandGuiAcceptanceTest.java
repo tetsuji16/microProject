@@ -1574,22 +1574,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 	}
 
 	private void activateWindowForRobot(Robot robot, boolean alwaysOnTop) throws Exception {
-		SwingUtilities.invokeAndWait(() -> {
-			window.toFront();
-			window.requestFocus();
-			window.setAlwaysOnTop(alwaysOnTop);
-		});
-		Point location = window.getLocationOnScreen();
-		// The Alt transition grants a foreground activation opportunity on
-		// Windows when the test worker was launched behind another desktop window.
-		robot.keyPress(java.awt.event.KeyEvent.VK_ALT);
-		robot.keyRelease(java.awt.event.KeyEvent.VK_ALT);
-		robot.mouseMove(location.x + Math.max(8, window.getWidth() / 2), location.y + 8);
-		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-		// Wait for real application content to finish rendering and for the physical
-		// activation to settle before the next command is sent.
-		GuiAcceptanceSupport.awaitRenderedWindow(window, window.getRibbonPanel(), robot,
+		GuiAcceptanceSupport.activateAndAwaitRenderedWindow(window, window.getRibbonPanel(), robot, alwaysOnTop,
 			"ribbon application window before the next physical command");
 	}
 
