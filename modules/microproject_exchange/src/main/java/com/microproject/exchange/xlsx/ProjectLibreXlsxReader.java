@@ -29,8 +29,10 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;	import java.util.logging.Level;
@@ -210,6 +212,7 @@ public class ProjectLibreXlsxReader extends AbstractProjectReader {
 
 	private Map<Integer, net.sf.mpxj.Task> readTasks(ProjectFile project, Sheet sheet) {
 		Map<Integer, net.sf.mpxj.Task> tasks = new LinkedHashMap<Integer, net.sf.mpxj.Task>();
+		Map<Integer, Integer> parentUniqueIds = new LinkedHashMap<Integer, Integer>();
 		if (sheet == null) {
 			return tasks;
 		}
@@ -224,6 +227,10 @@ public class ProjectLibreXlsxReader extends AbstractProjectReader {
 			if (uid != null) {
 				task.setUniqueID(uid);
 				tasks.put(uid, task);
+				Integer parentUniqueId = integerCell(row, 2);
+				if (parentUniqueId != null) {
+					parentUniqueIds.put(uid, parentUniqueId);
+				}
 			}
 			if (id != null) {
 				task.setID(id);
@@ -245,7 +252,47 @@ public class ProjectLibreXlsxReader extends AbstractProjectReader {
 				task.setWBS(wbs);
 			}
 		}
+		validateParentUniqueIds(tasks, parentUniqueIds);
+		// Resolve parent references after the UID index is complete.
+		for (Map.Entry<Integer, Integer> entry : parentUniqueIds.entrySet()) {
+			net.sf.mpxj.Task task = tasks.get(entry.getKey());
+			net.sf.mpxj.Task parent = tasks.get(entry.getValue());
+			parent.addChildTask(task);
+		}
 		return tasks;
+	}
+
+	private void validateParentUniqueIds(Map<Integer, net.sf.mpxj.Task> tasks, Map<Integer, Integer> parentUniqueIds) {
+		for (Map.Entry<Integer, Integer> entry : parentUniqueIds.entrySet()) {
+			Integer taskUniqueId = entry.getKey();
+			Integer parentUniqueId = entry.getValue();
+			if (taskUniqueId.equals(parentUniqueId)) {
+				throw new IllegalArgumentException("Task UID " + taskUniqueId + " cannot be its own parent");
+			}
+			if (!tasks.containsKey(parentUniqueId)) {
+				throw new IllegalArgumentException("ParentUniqueID " + parentUniqueId + " references no task");
+			}
+		}
+
+		Map<Integer, Boolean> visited = new HashMap<Integer, Boolean>();
+		for (Integer start : parentUniqueIds.keySet()) {
+			if (Boolean.TRUE.equals(visited.get(start))) {
+				continue;
+			}
+			List<Integer> path = new ArrayList<Integer>();
+			Integer current = start;
+			while (current != null && !Boolean.TRUE.equals(visited.get(current))) {
+				if (Boolean.FALSE.equals(visited.get(current))) {
+					throw new IllegalArgumentException("ParentUniqueID relationships contain a cycle at task UID " + current);
+				}
+				visited.put(current, Boolean.FALSE);
+				path.add(current);
+				current = parentUniqueIds.get(current);
+			}
+			for (Integer taskUniqueId : path) {
+				visited.put(taskUniqueId, Boolean.TRUE);
+			}
+		}
 	}
 
 	private Map<Integer, net.sf.mpxj.Resource> readResources(ProjectFile project, Sheet sheet) {
