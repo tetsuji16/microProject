@@ -18,15 +18,17 @@ EVIDENCE_FILES = (
     "ribbon-tabs-overflow-focused-320.png",
     "ribbon-tabs-overflow-popup-320.png",
 )
-VISUAL_LEGS = (
-    "visual-ja-1.0",
+GUI_LEGS = (
+    "functional-full-ja-100",
     "visual-ja-1.25",
     "visual-ja-1.5",
     "visual-en-1.0",
     "visual-en-1.25",
     "visual-en-1.5",
 )
-LEG_DIRECTORY = re.compile(r"^(?P<label>visual-(?:ja|en)-(?:1\.0|1\.25|1\.5))-(?P<invocation>[0-9a-f]{32})$")
+LEG_DIRECTORY = re.compile(
+    r"^(?P<label>functional-full-ja-100|visual-(?:ja|en)-(?:1\.25|1\.5|1\.0))-(?P<invocation>[0-9a-f]{32})$"
+)
 
 
 def _sha256(path: Path) -> str:
@@ -50,13 +52,13 @@ def _find_leg(root: Path, label: str) -> Path:
 
 
 def build_archive(source_root: Path, archive_path: Path, manifest: dict) -> dict:
-    """Package only source-listed images, preserving the six visual-leg paths."""
+    """Package only source-listed images, preserving all six GUI matrix-leg paths."""
     source_root = source_root.resolve(strict=True)
     archive_path.parent.mkdir(parents=True, exist_ok=True)
     staged: list[tuple[str, Path]] = []
     image_records = []
 
-    for label in VISUAL_LEGS:
+    for label in GUI_LEGS:
         leg = _find_leg(source_root, label)
         for name in EVIDENCE_FILES:
             candidates = [path for path in leg.rglob(name) if path.is_file()]

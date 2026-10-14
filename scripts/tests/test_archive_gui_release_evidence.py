@@ -13,7 +13,7 @@ import archive_gui_release_evidence as evidence
 
 class ArchiveGuiReleaseEvidenceTest(unittest.TestCase):
 	def _create_source(self, root):
-		for label in evidence.VISUAL_LEGS:
+		for label in evidence.GUI_LEGS:
 			directory_name = label + "-" + ("a" * 32)
 			artifact_dir = (root / "modules" / "microproject_ui" / "build" / "reports"
 				/ "guiTest-artifacts" / directory_name)
@@ -34,8 +34,8 @@ class ArchiveGuiReleaseEvidenceTest(unittest.TestCase):
 
 			with zipfile.ZipFile(archive_path) as archive:
 				names = set(archive.namelist())
-				self.assertEqual(len(evidence.VISUAL_LEGS) * len(evidence.EVIDENCE_FILES) + 1, len(names))
-				self.assertIn("visual-ja-1.0/ribbon-tabs-narrow-320.png", names)
+				self.assertEqual(len(evidence.GUI_LEGS) * len(evidence.EVIDENCE_FILES) + 1, len(names))
+				self.assertIn("functional-full-ja-100/ribbon-tabs-narrow-320.png", names)
 				self.assertIn("visual-en-1.5/ribbon-file-backstage-open.png", names)
 				self.assertIn("gui-evidence-provenance.json", names)
 				self.assertTrue(all(name.endswith(".png") or name == "gui-evidence-provenance.json" for name in names))
@@ -43,8 +43,8 @@ class ArchiveGuiReleaseEvidenceTest(unittest.TestCase):
 				self.assertEqual(36, len(archived_manifest["curated_files"]))
 				self.assertIn("numeric bounds are not claimed", archived_manifest["bounds_evidence"])
 				self.assertEqual(manifest, {key: archived_manifest[key] for key in manifest})
-				first = archive.read("visual-ja-1.0/ribbon-tabs-narrow-320.png")
-				self.assertEqual(b"visual-ja-1.0:ribbon-tabs-narrow-320.png", first)
+				first = archive.read("functional-full-ja-100/ribbon-tabs-narrow-320.png")
+				self.assertEqual(b"functional-full-ja-100:ribbon-tabs-narrow-320.png", first)
 			self.assertEqual(result["curated_files"][0]["sha256"], archived_manifest["curated_files"][0]["sha256"])
 
 	def test_archive_fails_closed_when_one_visual_leg_image_is_missing(self):

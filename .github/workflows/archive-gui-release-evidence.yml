@@ -41,10 +41,11 @@ jobs:
           REPOSITORY: ${{ github.repository }}
         run: |
           $ErrorActionPreference = 'Stop'
-          if ($env:RELEASE_TAG -notmatch '^v(?<base>(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*))\.(?:0|[1-9][0-9]*)$') {
+          if ($env:RELEASE_TAG -notmatch '^v(?<base>(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*))\.(?<runNumber>[1-9][0-9]*)$') {
             throw 'release_tag must be a stable four-part numeric tag such as v0.0.24.1244.'
           }
           $releaseBaseVersion = $Matches.base
+          $releaseRunNumber = $Matches.runNumber
           if ($env:SOURCE_RUN_ID -notmatch '^[1-9][0-9]{0,19}$') { throw 'source_run_id must contain only decimal digits.' }
 
           function Get-GhJson([string]$Path) {
@@ -58,6 +59,7 @@ jobs:
           if ($run.path -ne '.github/workflows/release-and-pages.yml') { throw "Unexpected source workflow path: $($run.path)" }
           if ($run.event -ne 'workflow_dispatch') { throw "Expected a manually dispatched stable release source run; event was $($run.event)." }
           if ($run.head_branch -ne "release/stable-$releaseBaseVersion") { throw "Source ref $($run.head_branch) does not match stable tag base $releaseBaseVersion." }
+          if ([string]$run.run_number -ne $releaseRunNumber) { throw "Release tag sequence $releaseRunNumber does not match source workflow run number $($run.run_number)." }
           $sourceSha = [string]$run.head_sha
           if ($sourceSha -notmatch '^[0-9a-f]{40}$') { throw "Invalid source commit SHA: $sourceSha" }
 
@@ -92,9 +94,9 @@ jobs:
           foreach ($line in $requiredLogLines) {
             if (-not $logText.Contains($line)) { throw "Source release log does not contain required full-GUI evidence: $line" }
           }
-          foreach ($leg in @('ja-1.0', 'ja-1.25', 'ja-1.5', 'en-1.0', 'en-1.25', 'en-1.5')) {
+          foreach ($leg in @('functional-full-ja-100', 'visual-ja-1.25', 'visual-ja-1.5', 'visual-en-1.0', 'visual-en-1.25', 'visual-en-1.5')) {
             $encoded = $leg.Replace('.', '-')
-            if (-not $logText.Contains("GUI gate elapsed: visual-$encoded ")) { throw "Source release log is missing successful visual leg $leg." }
+            if (-not $logText.Contains("GUI gate elapsed: $encoded ")) { throw "Source release log is missing successful GUI matrix leg $leg." }
           }
 
           $artifacts = Get-GhJson "repos/$env:REPOSITORY/actions/runs/$env:SOURCE_RUN_ID/artifacts?per_page=100"
@@ -113,6 +115,7 @@ jobs:
             source_workflow_path = [string]$run.path
             source_event = [string]$run.event
             source_ref = [string]$run.head_branch
+            source_run_number = [string]$run.run_number
             source_head_sha = $sourceSha
             source_artifact_name = $expectedName
             source_artifact_id = $artifactId
@@ -120,7 +123,7 @@ jobs:
             source_gui_job_id = [string]$releaseJob[0].id
             operating_system = @{ value = 'Windows Server 2025'; provenance = 'Source GUI release-job log; historical CI fact, not newly measured.' }
             display_resolution = @{ value = '1920x1080'; provenance = 'Source release workflow configures this resolution before GUI acceptance; configured CI fact, not per-window bounds.' }
-            visual_legs = @('ja-1.0', 'ja-1.25', 'ja-1.5', 'en-1.0', 'en-1.25', 'en-1.5')
+            gui_matrix_legs = @('functional-full-ja-100', 'visual-ja-1.25', 'visual-ja-1.5', 'visual-en-1.0', 'visual-en-1.25', 'visual-en-1.5')
             bounds_note = 'The source test asserts layout bounds; the historical run artifact contains no numeric bounds sidecar.'
           }
           $facts | ConvertTo-Json -Depth 8 | Set-Content -Path source-provenance.json -Encoding utf8
