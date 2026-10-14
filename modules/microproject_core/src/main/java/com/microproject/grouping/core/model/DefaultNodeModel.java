@@ -346,14 +346,14 @@ public class DefaultNodeModel implements NodeModel {
 	 * every task's outline level. The existing relocation edits keep this operation
 	 * undoable and the hierarchy renumbers task IDs after each structural change.
 	 */
-	public boolean sortOutlineBy(NodeSorter sorter, int actionType) {
+	public boolean sortOutlineBy(Comparator<Object> sorter, int actionType) {
 		Project project = dataFactory instanceof Project currentProject ? currentProject : null;
 		if (project != null && isEvent(actionType))
 			return project.runModelMutation(markApplied -> sortOutlineByWithinBoundary(sorter, actionType, markApplied));
 		return sortOutlineByWithinBoundary(sorter, actionType, () -> { });
 	}
 
-	private boolean sortOutlineByWithinBoundary(NodeSorter sorter, int actionType, Runnable markApplied) {
+	private boolean sortOutlineByWithinBoundary(Comparator<Object> sorter, int actionType, Runnable markApplied) {
 		if (sorter == null || hierarchy == null) return false;
 		List<OutlineSortPlan> plans = new ArrayList<>();
 		collectOutlineSortPlans((Node) hierarchy.getRoot(), sorter, plans);
@@ -388,7 +388,7 @@ public class DefaultNodeModel implements NodeModel {
 		return changed;
 	}
 
-	private void collectOutlineSortPlans(Node parent, NodeSorter sorter, List<OutlineSortPlan> plans) {
+	private void collectOutlineSortPlans(Node parent, Comparator<Object> sorter, List<OutlineSortPlan> plans) {
 		List<Node> taskChildren = new ArrayList<>();
 		int firstTaskIndex = -1;
 		int previousTaskIndex = -2;

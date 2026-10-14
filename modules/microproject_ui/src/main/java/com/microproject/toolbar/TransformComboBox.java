@@ -97,5 +97,9 @@ public class TransformComboBox extends JComboBox {
 		CommonTransformFactory factory = (CommonTransformFactory)getSelectedItem();
 		((TransformComboBoxModel)getModel()).changeTransform(factory);
 	}
+	public void transformBasedOnValue(boolean ascending) {
+		CommonTransformFactory factory = (CommonTransformFactory)getSelectedItem();
+		((TransformComboBoxModel)getModel()).changeTransform(factory, ascending);
+	}
 
 }
