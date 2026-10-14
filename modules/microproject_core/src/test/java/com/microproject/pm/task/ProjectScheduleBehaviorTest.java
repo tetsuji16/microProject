@@ -337,6 +337,36 @@ class ProjectScheduleBehaviorTest {
 	}
 
 	@Test
+	void baselineOccupancyQueryHonorsScopeAndImportedAssignmentOnlyValues() {
+		Project project = createProject();
+		NormalTask selected = project.createScriptedTask();
+		NormalTask unselected = project.createScriptedTask();
+		project.connectTask(selected);
+		project.connectTask(unselected);
+		unselected.saveCurrentToSnapshot(Snapshottable.BASELINE_1);
+		ResourceImpl resource = project.getResourcePool().newResourceInstance();
+		Assignment assignment = AssignmentService.getInstance().newAssignment(selected, resource, 1.0d, 0L, this);
+		Assignment.BaselineValues imported = new Assignment.BaselineValues(10L, 20L, 30L);
+		assignment.importBaselineValues(Snapshottable.BASELINE_2,
+			imported.start(), imported.finish(), imported.work());
+
+		assertFalse(project.hasBaselineData(Snapshottable.BASELINE_1, false, List.of(selected)),
+			"A baseline on a task outside the selected scope must not trigger overwrite confirmation");
+		assertTrue(project.hasBaselineData(Snapshottable.BASELINE_1, false, List.of(unselected)));
+		assertTrue(project.hasBaselineData(Snapshottable.BASELINE_1, true, null),
+			"Entire-project scope must see an unselected task baseline");
+		assertTrue(project.hasBaselineData(Snapshottable.BASELINE_2, false, List.of(selected)),
+			"Imported assignment-only values count as data even without a task snapshot");
+		assertFalse(project.hasBaselineData(Snapshottable.BASELINE_2, false, List.of(unselected)));
+		assertFalse(project.hasBaselineData(Snapshottable.BASELINE_3, true, null),
+			"A different empty slot must not be reported as occupied");
+		assertNull(selected.getSnapshot(Integer.valueOf(Snapshottable.BASELINE_2)),
+			"The occupancy preflight must not create a task snapshot");
+		assertEquals(imported, assignment.getImportedBaselineValues(Snapshottable.BASELINE_2),
+			"The occupancy preflight must not rewrite imported assignment metadata");
+	}
+
+	@Test
 	void projectBaselinesRemainIndependentFromCurrentAndOtherBaselines() {
 		Project project = createProject();
 		NormalTask task = project.createScriptedTask();

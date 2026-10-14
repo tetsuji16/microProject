@@ -140,6 +140,7 @@ import com.microproject.util.ArrayUtils;
 import com.microproject.util.ClassUtils;
 import com.microproject.util.DataUtils;
 import com.microproject.util.Environment;
+import com.microproject.ui.util.PopupDialogSupport;
 import com.microproject.workspace.SavableToWorkspace;
 import com.microproject.workspace.WorkspaceSetting;
 import com.microproject.ribbon.CommandId;
@@ -351,15 +352,25 @@ public class DocumentFrame extends NamedFrame implements
 
 	boolean doBaselineDialog(boolean save) {
 		finishAnyOperations();
+		List<Object> selectedTasks = getSelectedImpls(true);
 
 		BaselineDialog baselineDialog = BaselineDialog.getInstance(getGraphicManager().getFrame(),
 				null, save,hasAtLeastOneTaskSelected());
+		if (save) {
+			baselineDialog.setBeforeAccept(form -> {
+				List<?> target = form.isEntireProject() ? null : selectedTasks;
+				if (!getProject().hasBaselineData(form.getBaselineNumber(), form.isEntireProject(), target))
+					return true;
+				java.util.ResourceBundle labels = java.util.ResourceBundle.getBundle("com.microproject.dialog.usability");
+				return PopupDialogSupport.showConfirmDialog(baselineDialog,
+					labels.getString("baseline.overwritePrompt"), labels.getString("baseline.overwriteTitle"),
+					JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE) == JOptionPane.YES_OPTION;
+			});
+		}
 		if (!baselineDialog.doModal())
 			return false;
-		Integer baselineNumber = Integer.valueOf(baselineDialog.getForm()
-				.getBaselineNumber());
 		boolean entireProject = baselineDialog.getForm().isEntireProject();
-		List<Object> selection = entireProject ? null : getSelectedImpls(true);
+		List<Object> selection = entireProject ? null : selectedTasks;
 		return applyBaseline(getProject(), save, baselineDialog.getForm(), selection);
 	}
 

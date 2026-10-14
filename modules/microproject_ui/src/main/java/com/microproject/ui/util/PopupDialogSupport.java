@@ -114,8 +114,9 @@ public final class PopupDialogSupport {
 	public static int showOptionDialog(Component parentComponent, Object message, String title, int optionType, int messageType,
 		Icon icon, Object[] options, Object initialValue, int escapeResult) {
 		JOptionPane optionPane = new JOptionPane(message, messageType, optionType, icon, options, initialValue);
-			JDialog dialog = optionPane.createDialog(parentComponent, title);
+		JDialog dialog = optionPane.createDialog(parentComponent, title);
 		bindOptionButtons(optionPane, options);
+		if (initialValue instanceof JButton defaultButton) dialog.getRootPane().setDefaultButton(defaultButton);
 		bindEscapeToOptionPane(dialog, optionPane, escapeResult);
 		bindConfirmationMnemonics(dialog.getRootPane(), options);
 		dialog.setVisible(true);

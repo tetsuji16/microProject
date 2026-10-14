@@ -1064,6 +1064,29 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 	}
 
+	/**
+	 * Checks whether saving the requested baseline would replace data in its scope.
+	 * This is a read-only preflight; it does not create snapshots or change imported
+	 * assignment values. Imported assignment-only baselines count even when no task
+	 * snapshot is present.
+	 */
+	public boolean hasBaselineData(int baselineNumber, boolean entireProject, Collection<?> selection) {
+		if (baselineNumber < 0 || baselineNumber > 10)
+			throw new IllegalArgumentException("Baseline number must be between 0 and 10");
+		Iterator<?> tasks = getSnapshotIterator(entireProject, selection);
+		Integer slot = Integer.valueOf(baselineNumber);
+		while (tasks.hasNext()) {
+			Object value = tasks.next();
+			if (!(value instanceof NormalTask task)) continue;
+			if (task.getSnapshot(slot) != null) return true;
+			for (Object association : task.getAssignments()) {
+				if (association instanceof Assignment assignment
+						&& assignment.getImportedBaselineValues(baselineNumber) != null) return true;
+			}
+		}
+		return false;
+	}
+
 	private void clearSnapshotState(Object snapshotId, boolean entireProject, List<?> selection) {
 		if (entireProject) forTasks(new SnapshottableImpl.ClearSnapshotClosure(snapshotId));
 		else DataUtils.forAllDo(selection.iterator(), new SnapshottableImpl.ClearSnapshotClosure(snapshotId));
@@ -1142,7 +1165,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		return snapshotId instanceof Integer slot && slot.intValue() >= 0 && slot.intValue() <= 10;
 	}
 
-	private Iterator<?> getSnapshotIterator(boolean entireProject, List<?> selection) {
+	private Iterator<?> getSnapshotIterator(boolean entireProject, Collection<?> selection) {
 		if (entireProject) {
 			return getTaskOutlineIterator();
 		}
