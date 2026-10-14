@@ -27,6 +27,7 @@ package com.microproject.dialog;
 import java.awt.Frame;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.function.Predicate;
 
 import javax.swing.ButtonGroup;
 import javax.swing.JComboBox;
@@ -74,6 +75,7 @@ public final class BaselineDialog extends AbstractDialog {
 		}
 	}
 	private Form form;
+	private Predicate<Form> beforeAccept;
 	
 	// use property utils to copy to project like struts
 
@@ -191,6 +193,16 @@ public final class BaselineDialog extends AbstractDialog {
 	 */
 	public Form getForm() {
 		return form;
+	}
+
+	/** Installs a pre-accept check that can keep the chooser open when declined. */
+	public void setBeforeAccept(Predicate<Form> beforeAccept) {
+		this.beforeAccept = beforeAccept;
+	}
+
+	@Override
+	protected boolean beforeAccept() {
+		return beforeAccept == null || beforeAccept.test(form);
 	}
 	
 	public Object getBean() {

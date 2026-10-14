@@ -170,10 +170,14 @@ public abstract class AbstractDialog extends FlatLafDialog {
 	}
 
 	public void onOk() {
-		if (!bind(false))
-			return;
+		if (!bind(false) || !beforeAccept()) return;
 		setDialogResult(JOptionPane.OK_OPTION);
 		setVisible(false);
+	}
+
+	/** Allows a dialog to reject acceptance after its form has been bound. */
+	protected boolean beforeAccept() {
+		return true;
 	}
 
 	public abstract JComponent createContentPanel();

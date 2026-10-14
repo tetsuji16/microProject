@@ -42,6 +42,8 @@ import java.time.Instant;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -1725,10 +1727,84 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		BaselineDialog overwriteDialog = java.util.Arrays.stream(Window.getWindows())
 			.filter(candidate -> candidate instanceof BaselineDialog && candidate.isShowing())
 			.map(BaselineDialog.class::cast).findFirst().orElseThrow();
+		AtomicInteger baselineEventCount = new AtomicInteger();
+		com.microproject.pm.scheduling.ScheduleEventListener baselineListener = event -> {
+			if (com.microproject.pm.scheduling.ScheduleEvent.BASELINE.equals(event.getType())) baselineEventCount.incrementAndGet();
+		};
+		AtomicInteger undoEditCount = new AtomicInteger();
+		com.microproject.undo.EditListener undoListener = edit -> undoEditCount.incrementAndGet();
+		project.addScheduleListener(baselineListener);
+		project.getUndoController().getEditSupport().addEditListener(undoListener);
+		int eventCountBeforeConfirmation = baselineEventCount.get();
+		boolean undoBeforeConfirmation = project.getUndoController().canUndo();
+		boolean dirtyBeforeConfirmation = project.needsSaving();
+		java.util.ResourceBundle baselineLabels = java.util.ResourceBundle.getBundle("com.microproject.dialog.usability");
 		click(robot, findShowingButtonByText(overwriteDialog, Messages.getString("ButtonText.OK")));
+		GuiAcceptanceSupport.await(() -> isActiveDialogOwnedBy(overwriteDialog,
+				baselineLabels.getString("baseline.overwriteTitle")),
+			"Overwriting an occupied baseline must ask before mutation");
+		Dialog noConfirmation = activeDialogOwnedBy(overwriteDialog);
+		String[] promptUiState = new String[2];
+		boolean[] promptOwnedByChooser = new boolean[1];
+		SwingUtilities.invokeAndWait(() -> {
+			promptUiState[0] = componentText(noConfirmation);
+			promptUiState[1] = ((javax.swing.JDialog) noConfirmation).getRootPane().getDefaultButton().getText();
+			promptOwnedByChooser[0] = noConfirmation.getOwner() == overwriteDialog
+				&& baselineLabels.getString("baseline.overwriteTitle").equals(noConfirmation.getTitle());
+		});
+		assertTrue(promptOwnedByChooser[0], "The localized overwrite prompt must be owned by its chooser");
+		assertTrue(promptUiState[0].contains(baselineLabels.getString("baseline.overwritePrompt")),
+			"The confirmation must explain which operation is being confirmed");
+		assertEquals(baselineLabels.getString("dialog.no"), promptUiState[1],
+			"No must be the confirmation's default button");
+		click(robot, findShowingButtonByText(noConfirmation,
+			baselineLabels.getString("dialog.no")));
+		GuiAcceptanceSupport.await(() -> !isShowingOnEdt(noConfirmation) && isShowingOnEdt(overwriteDialog),
+			"No must leave the baseline chooser open");
+		assertEquals(Snapshottable.BASELINE, overwriteDialog.getForm().getBaselineNumber(),
+			"No must retain the selected baseline slot");
+		assertTrue(overwriteDialog.getForm().isEntireProject(), "No must retain the selected project scope");
+		assertEquals(originalBaselineStart, task.getBaselineStart(Snapshottable.BASELINE));
+		assertEquals(originalBaselineValues, assignment.getBaselineValues(Snapshottable.BASELINE));
+		assertEquals(currentAssignmentWork, assignment.getWork(null));
+		assertEquals(eventCountBeforeConfirmation, baselineEventCount.get(), "No must not publish baseline events");
+		assertEquals(0, undoEditCount.get(), "No must not publish an undo edit");
+		assertEquals(undoBeforeConfirmation, project.getUndoController().canUndo(), "No must not add an Undo edit");
+		assertEquals(dirtyBeforeConfirmation, project.needsSaving(), "No must not dirty the project");
+
+		click(robot, findShowingButtonByText(overwriteDialog, Messages.getString("ButtonText.OK")));
+		GuiAcceptanceSupport.await(() -> isActiveDialogOwnedBy(overwriteDialog,
+				baselineLabels.getString("baseline.overwriteTitle")),
+			"The overwrite confirmation did not reopen after No");
+		Dialog escapeConfirmation = activeDialogOwnedBy(overwriteDialog);
+		press(robot, KeyEvent.VK_ESCAPE);
+		GuiAcceptanceSupport.await(() -> !isShowingOnEdt(escapeConfirmation) && isShowingOnEdt(overwriteDialog),
+			"Escape must leave the baseline chooser open");
+		assertEquals(Snapshottable.BASELINE, overwriteDialog.getForm().getBaselineNumber(),
+			"Escape must retain the selected baseline slot");
+		assertTrue(overwriteDialog.getForm().isEntireProject(), "Escape must retain the selected project scope");
+		assertEquals(originalBaselineStart, task.getBaselineStart(Snapshottable.BASELINE));
+		assertEquals(originalBaselineValues, assignment.getBaselineValues(Snapshottable.BASELINE));
+		assertEquals(currentAssignmentWork, assignment.getWork(null));
+		assertEquals(eventCountBeforeConfirmation, baselineEventCount.get(), "Escape must not publish baseline events");
+		assertEquals(0, undoEditCount.get(), "Escape must not publish an undo edit");
+		assertEquals(undoBeforeConfirmation, project.getUndoController().canUndo(), "Escape must not add an Undo edit");
+		assertEquals(dirtyBeforeConfirmation, project.needsSaving(), "Escape must not dirty the project");
+
+		click(robot, findShowingButtonByText(overwriteDialog, Messages.getString("ButtonText.OK")));
+		GuiAcceptanceSupport.await(() -> isActiveDialogOwnedBy(overwriteDialog,
+				baselineLabels.getString("baseline.overwriteTitle")),
+			"The overwrite confirmation did not reopen after Escape");
+		Dialog yesConfirmation = activeDialogOwnedBy(overwriteDialog);
+		click(robot, findShowingButtonByText(yesConfirmation,
+			baselineLabels.getString("dialog.yes")));
 		GuiAcceptanceSupport.await(() -> !overwriteDialog.isShowing()
-				&& task.getBaselineStart(Snapshottable.BASELINE) == overwrittenBaselineStart,
+				&& task.getBaselineStart(Snapshottable.BASELINE) == overwrittenBaselineStart
+				&& baselineEventCount.get() == eventCountBeforeConfirmation + 1 && undoEditCount.get() == 1,
 			"Save Baseline did not overwrite the existing task baseline");
+		project.removeScheduleListener(baselineListener);
+		project.getUndoController().getEditSupport().removeEditListener(undoListener);
+		assertEquals(eventCountBeforeConfirmation + 1, baselineEventCount.get(), "Yes must publish one baseline change");
 		Assignment.BaselineValues overwrittenBaselineValues = assignment.getBaselineValues(Snapshottable.BASELINE);
 		assertEquals(Long.valueOf(3L * day), overwrittenBaselineValues.work(),
 			"Overwrite must capture the explicitly seeded three-day assignment work");
@@ -3681,6 +3757,40 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		}
 		return text.toString().replaceAll("(?i)<br\\s*/?>", " ")
 				.replaceAll("<[^>]+>", " ").replaceAll("\\s+", " ");
+	}
+
+	private static boolean isActiveDialogOwnedBy(Window expectedOwner, String expectedTitle) {
+		boolean[] result = new boolean[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				Window active = KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow();
+				result[0] = active instanceof Dialog dialog && dialog.getOwner() == expectedOwner
+					&& expectedTitle.equals(dialog.getTitle());
+			});
+		} catch (Exception exception) {
+			throw new AssertionError("Could not inspect the active confirmation on the EDT", exception);
+		}
+		return result[0];
+	}
+
+	private static Dialog activeDialogOwnedBy(Window expectedOwner) throws Exception {
+		Dialog[] result = new Dialog[1];
+		SwingUtilities.invokeAndWait(() -> {
+			Window active = KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow();
+			if (active instanceof Dialog dialog && dialog.getOwner() == expectedOwner) result[0] = dialog;
+		});
+		if (result[0] == null) throw new AssertionError("No active confirmation is owned by the baseline chooser");
+		return result[0];
+	}
+
+	private static boolean isShowingOnEdt(Window window) {
+		boolean[] result = new boolean[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> result[0] = window.isShowing());
+		} catch (Exception exception) {
+			throw new AssertionError("Could not inspect the dialog on the EDT", exception);
+		}
+		return result[0];
 	}
 
 	private static void appendMessageText(Object message, StringBuilder text) {
