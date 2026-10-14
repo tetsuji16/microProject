@@ -265,28 +265,6 @@ class ProjectScheduleBehaviorTest {
 	}
 
 	@Test
-	void restoreSnapshotUsesTheSelectedTaskList() {
-		Project project = createProject();
-		NormalTask task = project.createScriptedTask();
-		project.connectTask(task);
-
-		long originalStart = project.getStart();
-		long originalDuration = 2L * day();
-		task.setStart(originalStart);
-		task.setDuration(originalDuration);
-
-		Integer snapshotId = Integer.valueOf(1);
-		task.saveCurrentToSnapshot(snapshotId);
-		Object backup = task.backupDetail(snapshotId);
-
-		task.setStart(project.getEffectiveWorkCalendar().add(originalStart, day(), false));
-
-		project.restoreSnapshot(snapshotId, false, Collections.singletonList(task), Collections.singletonList(backup));
-
-		assertEquals(originalStart, task.getStart(), "taskStart=" + task.getStart() + " taskEnd=" + task.getEnd());
-	}
-
-	@Test
 	void clearSnapshotRemovesTheStoredSnapshot() {
 		Project project = createProject();
 		NormalTask task = project.createScriptedTask();

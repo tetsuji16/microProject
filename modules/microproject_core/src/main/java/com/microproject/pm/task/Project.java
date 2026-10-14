@@ -1051,20 +1051,6 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 			() -> restoreSnapshotState(snapshotId, after));
 	}
 
-	public void restoreSnapshot(Object snapshotId, boolean entireProject, List<?> selection, Collection<?> snapshotDetails) {
-		Iterator<?> i = getSnapshotIterator(entireProject, selection);
-		if (i == null) {
-			return;
-		}
-
-		Iterator<?> j=snapshotDetails.iterator();
-		while (i.hasNext()){
-			NormalTask t=(NormalTask)i.next();
-			t.restoreSnapshot(snapshotId,j.next());
-		}
-		fireCurrentBaselineRowState(snapshotId);
-	}
-
 	public ReversibleModelChange clearSnapshot(final Object snapshotId, boolean entireProject, List<?> selection) {
 		SnapshotState before = captureSnapshotState(snapshotId, entireProject, selection);
 
