@@ -910,6 +910,26 @@ class MpxExportTrackingTest {
 	}
 
 	@Test
+	void mpp9CustomAssignmentContourMatchesIndependentManifestAndMpoReload() throws Exception {
+		Path sample = Path.of("modules", "microproject_exchange", "testdata", "mpxj", "mpp9timephasedsegments.mpp");
+		if (!Files.isRegularFile(sample))
+			sample = Path.of("testdata", "mpxj", "mpp9timephasedsegments.mpp");
+		assertTrue(Files.isRegularFile(sample), sample.toString());
+
+		Project imported = new com.microproject.core.pm.exchange.MspImporter().importProject(
+			sample.toAbsolutePath().toString(), new com.microproject.core.pm.exchange.MspImporter.ProgressClosure() {
+				@Override public void updateProgress(float progress, String label) { }
+			});
+		assertMpp9ContourManifest(imported);
+
+		ByteArrayOutputStream mpo = new ByteArrayOutputStream();
+		assertTrue(new com.microproject.exchange.MpoFileImporter().saveProject(imported, mpo));
+		Project reopened = new com.microproject.exchange.MpoFileImporter()
+			.loadProject(new ByteArrayInputStream(mpo.toByteArray()));
+		assertMpp9ContourManifest(reopened);
+	}
+
+	@Test
 	void switchingImportedMppTaskToManualKeepsItsCurrentScheduleAndAssignments() throws Exception {
 		Path sample = Path.of("modules", "microproject_exchange", "testdata", "New Product.mpp");
 		if (!Files.exists(sample))
@@ -1170,6 +1190,27 @@ class MpxExportTrackingTest {
 		}
 		result.sort(String::compareTo);
 		return result;
+	}
+
+	private void assertMpp9ContourManifest(Project project) {
+		Assignment assignment = (Assignment) taskNamed(project, "Task Sixteen").getAssignments().iterator().next();
+		assertEquals(com.microproject.pm.assignment.contour.ContourTypes.Kind.CONTOURED.code(),
+			assignment.getWorkContourType(), "the MPP fixture's manually shaped work must stay a custom contour");
+		assertEquals(55L * 60L * 60L * 1000L, assignment.getWork(null));
+		assertEquals(0L, assignment.getActualWork(null));
+		assertEquals(55L * 60L * 60L * 1000L, assignment.getRemainingWork());
+
+		String[] workdays = {
+			"2011-02-07", "2011-02-08", "2011-02-09", "2011-02-10", "2011-02-11",
+			"2011-02-14", "2011-02-15", "2011-02-16", "2011-02-17", "2011-02-18"
+		};
+		for (int index = 0; index < workdays.length; index++) {
+			com.microproject.field.FieldContext interval = new com.microproject.field.FieldContext();
+			interval.setInterval(new com.microproject.pm.time.ImmutableInterval(
+				modelWallTime(workdays[index] + "T08:00:00"), modelWallTime(workdays[index] + "T17:00:00")));
+			assertEquals((index + 1L) * 60L * 60L * 1000L, assignment.getWork(interval),
+				"upstream MPP9 manifest workday " + workdays[index]);
+		}
 	}
 
 	@Test
