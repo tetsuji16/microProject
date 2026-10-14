@@ -24,6 +24,7 @@
 package com.microproject.grouping.core.transform.sorting;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 import java.util.ArrayList;
@@ -52,6 +53,30 @@ class NodeSorterTraversalTest {
 		ListIterator<Object> currentSorter = sorter.getCurrentSorter();
 
 		assertSame(child, currentSorter.next());
+	}
+
+	@Test
+	void reversesComparisonWithoutChangingTies() {
+		NodeSorter ascending = new NodeSorter() {
+			@Override
+			public int compare(Object left, Object right) {
+				return Integer.compare((Integer) left, (Integer) right);
+			}
+		};
+		java.util.Comparator<Object> descending = NodeSorter.forOrder(ascending, false);
+
+		assertEquals(-1, Integer.signum(descending.compare(2, 1)));
+		assertEquals(1, Integer.signum(descending.compare(1, 2)));
+		assertEquals(0, descending.compare(1, 1));
+		assertNull(NodeSorter.forOrder(null, false));
+		NodeSorter extreme = new NodeSorter() {
+			@Override
+			public int compare(Object left, Object right) {
+				return Integer.MIN_VALUE;
+			}
+		};
+		assertEquals(1, Integer.signum(NodeSorter.forOrder(extreme, false).compare(1, 2)),
+			"descending comparison must reverse MIN_VALUE without overflowing");
 	}
 
 	@Test

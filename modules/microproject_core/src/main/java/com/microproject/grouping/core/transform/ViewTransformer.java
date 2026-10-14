@@ -65,6 +65,7 @@ public class ViewTransformer{
     protected String hiddenGrouperId;
     protected String userGrouperId=GROUPER_NONE_ID;
     protected String transformerId;
+    protected boolean userSorterAscending=true;
 
     protected boolean hiddenFilterIdDirty=false;
     protected boolean userFilterIdDirty=false;
@@ -122,8 +123,9 @@ public class ViewTransformer{
         	hiddenSorterIdDirty=true;
         }
         else{
-        	userSorterId=id.getId();
-        	userSorterIdDirty=true;
+			userSorterId=id.getId();
+			if (userSorterId == null || SORTER_NONE_ID.equals(userSorterId)) userSorterAscending=true;
+			userSorterIdDirty=true;
         }
     }
     public void setGrouperId(TransformId id) {
@@ -185,8 +187,23 @@ public class ViewTransformer{
 		return userSorterId;
 	}
 	public void setUserSorterId(String userSorterId) {
+		setUserSorter(userSorterId, userSorterAscending);
+	}
+	public void setUserSorter(String userSorterId, boolean userSorterAscending) {
 		this.userSorterId = userSorterId;
+		this.userSorterAscending = userSorterId == null || SORTER_NONE_ID.equals(userSorterId)
+				|| userSorterAscending;
 		userSorterIdDirty=true;
+		fireTransformerChanged(this);
+	}
+	public boolean isUserSorterAscending() {
+		return userSorterAscending;
+	}
+	public void setUserSorterAscending(boolean userSorterAscending) {
+		boolean effectiveAscending = userSorterId == null || SORTER_NONE_ID.equals(userSorterId)
+				|| userSorterAscending;
+		if (this.userSorterAscending == effectiveAscending) return;
+		this.userSorterAscending = effectiveAscending;
 		fireTransformerChanged(this);
 	}
 	public String getTransformerId() {
@@ -279,6 +296,7 @@ public class ViewTransformer{
     public void setUserSorter(NodeSorter userSorter) {
         this.userSorter = userSorter;
         userSorterId = SORTER_NONE_ID;
+		userSorterAscending = true;
         userSorterIdDirty = false;
         fireTransformerChanged(this);
     }

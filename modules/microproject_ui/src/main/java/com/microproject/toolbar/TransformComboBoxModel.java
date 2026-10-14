@@ -123,6 +123,15 @@ public class TransformComboBoxModel extends AbstractListModel implements ComboBo
 				break;
 			}
 	}
+
+	public void changeTransform(CommonTransformFactory factory, boolean ascending){
+		if (view==null) return;
+		if (type == SORTER) {
+			view.getTransform().setUserSorter(factory.getId(), ascending);
+		} else {
+			changeTransform(factory);
+		}
+	}
 	
 	public Object getSelectedItem() {
 		return selected;

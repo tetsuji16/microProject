@@ -158,6 +158,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	private Level previousDiagnosticsLevel;
 	private ViewConfiguration taskSortViewToRestore;
 	private String previousTaskUserSorterId;
+	private boolean previousTaskUserSorterAscending;
 	private final ConcurrentLinkedQueue<String> diagnosticMessages = new ConcurrentLinkedQueue<>();
 	private volatile boolean failUpdateTasksRoute;
 
@@ -177,8 +178,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 					|| candidate instanceof CalendarDialogBox)
 					candidate.dispose();
 			}
-			if (taskSortViewToRestore != null && previousTaskUserSorterId != null)
+			if (taskSortViewToRestore != null && previousTaskUserSorterId != null) {
 				taskSortViewToRestore.getTransform().setUserSorterId(previousTaskUserSorterId);
+				taskSortViewToRestore.getTransform().setUserSorterAscending(previousTaskUserSorterAscending);
+			}
 			taskSortViewToRestore = null;
 			previousTaskUserSorterId = null;
 			if (manager != null)
@@ -2943,7 +2946,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	@Test
-	void physicalViewSortOrdersTasksByStartDateAndKeepsGanttRowsAligned() throws Exception {
+	void physicalTaskSortSupportsAscendingStartAndDescendingFinishForViewAndOutline() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
@@ -2960,8 +2963,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		tiedEarlier.setName("Date sort tied earlier");
 		long day = CalendarOption.getInstance().getMillisPerDay();
 		long start = project.getStart();
-		for (NormalTask task : List.of(later, earlier, tiedEarlier))
-			task.setDuration(day / 2);
+		later.setDuration(day / 2);
+		earlier.setDuration(4 * day);
+		tiedEarlier.setDuration(day / 2);
 		later.setStart(start + 2 * day);
 		earlier.setStart(start + day);
 		tiedEarlier.setStart(start + day);
@@ -2972,6 +2976,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertTrue(earlier.getStart() < later.getStart(), "fixture must retain distinct scheduled start dates after recalculation");
 		assertEquals(earlier.getStart(), tiedEarlier.getStart(), "fixture must retain an equal-date tie after recalculation");
 		long[] originalStarts = { later.getStart(), earlier.getStart(), tiedEarlier.getStart() };
+		long[] originalFinishes = { later.getEnd(), earlier.getEnd(), tiedEarlier.getEnd() };
+		assertTrue(earlier.getEnd() > later.getEnd() && later.getEnd() > tiedEarlier.getEnd(),
+			"fixture must distinguish Finish Date descending from Start Date ordering");
 
 		showProject(project);
 		SwingUtilities.invokeAndWait(() -> window.setSize(1120, 700));
@@ -2985,6 +2992,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GanttView ganttView = manager.getCurrentFrame().getGanttView();
 		taskSortViewToRestore = ViewConfiguration.getView(manager.getCurrentFrame().getTopViewId());
 		previousTaskUserSorterId = taskSortViewToRestore.getTransform().getUserSorterId();
+		previousTaskUserSorterAscending = taskSortViewToRestore.getTransform().isUserSorterAscending();
 		assertSame(ganttView.getSpreadSheet(), sheet);
 		assertSame(sheet.getCache(), ganttView.getCache(), "task table and Gantt must share the live projection");
 		assertEquals(originalOutline, visibleTaskOrder(sheet), "task table must initially follow outline order");
@@ -3010,6 +3018,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Dialog chooser = java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow() instanceof Dialog dialog
 			? dialog : null;
 		assertNotNull(chooser, "the generic task Sort dialog must remain open after choosing a sorter");
+		JComboBox<?> startDirection = findTaskSortDirection(chooser);
+		assertEquals(0, startDirection.getSelectedIndex(), "Start Date begins in ascending order");
 		click(robot, findShowingButtonByText(chooser, javax.swing.UIManager.getString("OptionPane.okButtonText")));
 		GuiAcceptanceSupport.await(() -> visibleTaskOrder(sheet).equals(
 			List.of("Date sort earlier", "Date sort tied earlier", "Date sort later")),
@@ -3022,6 +3032,39 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertEquals(originalOutline, taskOrder(project), "date sorting must remain view-only");
 		assertArrayEquals(originalStarts, new long[] { later.getStart(), earlier.getStart(), tiedEarlier.getStart() },
 			"date sorting must not change task schedules");
+		assertArrayEquals(originalFinishes, new long[] { later.getEnd(), earlier.getEnd(), tiedEarlier.getEnd() },
+			"date sorting must not change task finishes");
+
+		// Microsoft Project's Application.Sort documents Ascending1=False for a
+		// selected field (https://learn.microsoft.com/en-us/office/vba/api/project.application.sort).
+		// Exercise the documented direction through the same task-view route.
+		click(robot, findShowingButtonByCommand("RibbonChooseSort"));
+		JComboBox<?> finishSorterChoice = findShowingTransformCombo("Sorter.StartDate");
+		int finishSorterIndex = -1;
+		for (int index = 0; index < finishSorterChoice.getItemCount(); index++) {
+			Object item = finishSorterChoice.getItemAt(index);
+			if (item instanceof CommonTransformFactory factory && "Sorter.FinishDate".equals(factory.getId())) {
+				finishSorterIndex = index;
+				break;
+			}
+		}
+		assertTrue(finishSorterIndex >= 0, "the shared task-view sorter list must expose Finish Date");
+		GuiAcceptanceSupport.selectComboBoxItem(robot, finishSorterChoice, finishSorterIndex);
+		Dialog finishChooser = (Dialog) java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow();
+		JComboBox<?> finishDirection = findTaskSortDirection(finishChooser);
+		GuiAcceptanceSupport.selectComboBoxItem(robot, finishDirection, 1);
+		assertEquals(1, finishDirection.getSelectedIndex(), "Finish Date must be explicitly set to descending");
+		click(robot, findShowingButtonByText(finishChooser, javax.swing.UIManager.getString("OptionPane.okButtonText")));
+		List<String> descendingFinishOrder = List.of("Date sort earlier", "Date sort later", "Date sort tied earlier");
+		GuiAcceptanceSupport.await(() -> visibleTaskOrder(sheet).equals(descendingFinishOrder),
+			"descending Finish Date must order by task finish, independently of Start Date; rows=" + visibleTaskOrder(sheet));
+		assertEquals("Sorter.FinishDate", taskSortViewToRestore.getTransform().getUserSorterId());
+		assertFalse(taskSortViewToRestore.getTransform().isUserSorterAscending());
+		assertEquals(originalOutline, taskOrder(project), "descending view sort must not reorder the task model");
+		assertArrayEquals(originalStarts, new long[] { later.getStart(), earlier.getStart(), tiedEarlier.getStart() },
+			"descending view sort must not change task starts");
+		assertArrayEquals(originalFinishes, new long[] { later.getEnd(), earlier.getEnd(), tiedEarlier.getEnd() },
+			"descending view sort must not change task finishes");
 		for (NormalTask task : List.of(earlier, tiedEarlier, later)) {
 			int sheetRow = rowForTask(sheet, task);
 			var graphicNode = sheet.getCache().getGraphicNode(((CommonSpreadSheetModel) sheet.getModel()).getNode(sheetRow).getNode());
@@ -3060,18 +3103,20 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertEquals(dirtyBeforeCancel, project.needsSaving(), "confirmation cancel must not dirty the project");
 
 		click(robot, findShowingButtonByCommand("RibbonChooseSort"));
-		JComboBox<?> permanentSorterAgain = findShowingTransformCombo("Sorter.StartDate");
-		int startDateIndex = -1;
+		JComboBox<?> permanentSorterAgain = findShowingTransformCombo("Sorter.FinishDate");
+		int finishDateIndex = -1;
 		for (int index = 0; index < permanentSorterAgain.getItemCount(); index++) {
 			Object item = permanentSorterAgain.getItemAt(index);
-			if (item instanceof CommonTransformFactory factory && "Sorter.StartDate".equals(factory.getId())) {
-				startDateIndex = index;
+			if (item instanceof CommonTransformFactory factory && "Sorter.FinishDate".equals(factory.getId())) {
+				finishDateIndex = index;
 				break;
 			}
 		}
-		assertTrue(startDateIndex >= 0);
-		GuiAcceptanceSupport.selectComboBoxItem(robot, permanentSorterAgain, startDateIndex);
+		assertTrue(finishDateIndex >= 0);
+		GuiAcceptanceSupport.selectComboBoxItem(robot, permanentSorterAgain, finishDateIndex);
 		Dialog permanentChooserAgain = (Dialog) java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow();
+		assertEquals(1, findTaskSortDirection(permanentChooserAgain).getSelectedIndex(),
+			"the selected task sort direction must carry into permanent ordering");
 		JCheckBox permanentCheckAgain = UiComponentWalker.flatten(permanentChooserAgain).stream()
 			.filter(JCheckBox.class::isInstance).map(JCheckBox.class::cast)
 			.filter(check -> check.getText().equals(ResourceBundle.getBundle("com.microproject.menu.menu")
@@ -3083,13 +3128,12 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Dialog confirmationAgain = (Dialog) java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow();
 		click(robot, findShowingButtonByText(confirmationAgain,
 				javax.swing.UIManager.getString("OptionPane.yesButtonText")));
-		GuiAcceptanceSupport.await(() -> taskOrder(project).equals(
-				List.of("Date sort earlier", "Date sort tied earlier", "Date sort later")),
-			"confirmed permanent task sort did not change outline order");
+		GuiAcceptanceSupport.await(() -> taskOrder(project).equals(descendingFinishOrder),
+			"confirmed permanent Finish Date descending sort did not change outline order");
 		assertTrue(manager.getCurrentFrame().getSelectedImpls(false).contains(tiedEarlier),
 			"permanent sorting must preserve selected task identity");
-		assertTrue(earlier.getId() < tiedEarlier.getId() && tiedEarlier.getId() < later.getId(),
-			"permanent task sort must renumber IDs in outline order");
+		assertTrue(earlier.getId() < later.getId() && later.getId() < tiedEarlier.getId(),
+			"permanent descending task sort must renumber IDs in outline order");
 		assertEquals(ViewTransformer.SORTER_NONE_ID,
 			ViewConfiguration.getView(manager.getCurrentFrame().getTopViewId()).getTransform().getUserSorterId(),
 			"permanent ordering must clear the view-only sorter after applying it to the model");
@@ -3102,12 +3146,12 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		ByteArrayOutputStream permanentMpo = new ByteArrayOutputStream();
 		assertTrue(new MpoFileImporter().saveProject(project, permanentMpo), "MPO save rejected the permanent task order");
 		Project permanentReload = new MpoFileImporter().loadProject(new ByteArrayInputStream(permanentMpo.toByteArray()));
-		assertEquals(List.of("Date sort earlier", "Date sort tied earlier", "Date sort later"),
+		assertEquals(descendingFinishOrder,
 			taskOrder(permanentReload), "MPO reload must preserve permanent task ordering");
-		assertEquals(List.of(earlier.getId(), tiedEarlier.getId(), later.getId()),
+		assertEquals(List.of(earlier.getId(), later.getId(), tiedEarlier.getId()),
 			List.of(taskNamed(permanentReload, "Date sort earlier").getId(),
-				taskNamed(permanentReload, "Date sort tied earlier").getId(),
-				taskNamed(permanentReload, "Date sort later").getId()),
+				taskNamed(permanentReload, "Date sort later").getId(),
+				taskNamed(permanentReload, "Date sort tied earlier").getId()),
 			"MPO reload must preserve renumbered task IDs");
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
 		GuiAcceptanceSupport.await(() -> taskOrder(project).equals(originalOutline),
@@ -3115,8 +3159,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertEquals(originalIds, List.of(later.getId(), earlier.getId(), tiedEarlier.getId()),
 			"one Undo must restore the previous task IDs");
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
-		GuiAcceptanceSupport.await(() -> taskOrder(project).equals(
-				List.of("Date sort earlier", "Date sort tied earlier", "Date sort later")),
+		GuiAcceptanceSupport.await(() -> taskOrder(project).equals(descendingFinishOrder),
 			"one Redo must restore the permanent task order");
 	}
 
@@ -3531,6 +3574,13 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		});
 		assertNotNull(result[0], "Visible generic Sort dialog combo missing transform " + transformId);
 		return result[0];
+	}
+
+	private static JComboBox<?> findTaskSortDirection(Dialog dialog) {
+		return UiComponentWalker.flatten(dialog).stream()
+			.filter(JComboBox.class::isInstance).map(JComboBox.class::cast)
+			.filter(combo -> "microproject.taskSort.direction".equals(combo.getName()))
+			.findFirst().orElseThrow(() -> new AssertionError("Task sort direction chooser missing"));
 	}
 
 	private static Dialog visibleMoveConfirmation() {

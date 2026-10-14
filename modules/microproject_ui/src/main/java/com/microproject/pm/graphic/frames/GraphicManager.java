@@ -3851,11 +3851,40 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				&& !(getCurrentFrame().getActiveTopView() instanceof ResourceView)
 				&& getCurrentFrame().getProject() != null
 				&& !getCurrentFrame().getProject().isReadOnly();
+		boolean taskViewSort = type == TransformComboBoxModel.SORTER
+				&& getCurrentFrame() != null
+				&& !(getCurrentFrame().getActiveTopView() instanceof ResourceView)
+				&& getCurrentFrame().getProject() != null;
+		JComboBox<String> sortDirection = taskViewSort
+				? new JComboBox<>(new String[] {
+					getMenuManager().getString("ResourceSortOrder.Ascending"),
+					getMenuManager().getString("ResourceSortOrder.Descending") }) : null;
+		if (sortDirection != null) {
+			sortDirection.setName("microproject.taskSort.direction");
+			ViewTransformer viewTransform = ((TransformComboBoxModel) combo.getModel()).getView().getTransform();
+			sortDirection.setSelectedIndex(viewTransform.isUserSorterAscending() ? 0 : 1);
+			Runnable syncSortDirection = () -> {
+				boolean noneSelected = combo.getSelectedItem() instanceof CommonTransformFactory factory
+						&& ViewTransformer.SORTER_NONE_ID.equals(factory.getId());
+				if (noneSelected) sortDirection.setSelectedIndex(0);
+				sortDirection.setEnabled(!noneSelected);
+			};
+			combo.addActionListener(event -> syncSortDirection.run());
+			syncSortDirection.run();
+		}
 		JCheckBox permanentOrder = taskSort
 				? new JCheckBox(getMenuManager().getString("Sort.PermanentTaskOrder")) : null;
 		JPanel chooser = new JPanel(new BorderLayout(0, 8));
 		chooser.add(combo, BorderLayout.CENTER);
-		if (permanentOrder != null) chooser.add(permanentOrder, BorderLayout.SOUTH);
+		if (sortDirection != null || permanentOrder != null) {
+			JPanel options = new JPanel(new FlowLayout(FlowLayout.LEADING, 8, 0));
+			if (sortDirection != null) {
+				options.add(new JLabel(getMenuManager().getString("ResourceSortOrder.Order")));
+				options.add(sortDirection);
+			}
+			if (permanentOrder != null) options.add(permanentOrder);
+			chooser.add(options, BorderLayout.SOUTH);
+		}
 		int choice = PopupDialogSupport.showConfirmDialog(getFrame(), chooser,
 				getMenuManager().getString(actionId + ".text"), JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION);
 		if (choice == JOptionPane.OK_OPTION) {
@@ -3882,12 +3911,18 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 						publishTaskCommandOutcome(action, RibbonCommandResult.rejected(actionId, "unsupported-task-model"));
 						return;
 					}
-					boolean changed = defaultNodeModel.sortOutlineBy(sorter, NodeModel.NORMAL);
+					boolean ascending = sortDirection == null || sortDirection.getSelectedIndex() == 0;
+					boolean changed = defaultNodeModel.sortOutlineBy(NodeSorter.forOrder(sorter, ascending), NodeModel.NORMAL);
 					if (changed) {
-						combo.transformBasedOnValue();
-						ViewTransformer viewTransform = combo.getModel() instanceof TransformComboBoxModel model
-								? model.getView().getTransform() : null;
-						if (viewTransform != null) viewTransform.setUserSorterId(ViewTransformer.SORTER_NONE_ID);
+						for (int index = 0; index < combo.getItemCount(); index++) {
+							Object item = combo.getItemAt(index);
+							if (item instanceof CommonTransformFactory noneFactory
+									&& ViewTransformer.SORTER_NONE_ID.equals(noneFactory.getId())) {
+								combo.setSelectedItem(noneFactory);
+								combo.transformBasedOnValue(true);
+								break;
+							}
+						}
 						if (frame.getActiveSpreadSheet() instanceof SpreadSheet taskSheet && !taskSortSelection.isEmpty()) {
 							List<Node> selectionToRestore = List.copyOf(taskSortSelection);
 							SwingUtilities.invokeLater(() -> {
@@ -3905,7 +3940,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				}
 				return;
 			}
-			combo.transformBasedOnValue();
+			if (sortDirection == null) combo.transformBasedOnValue();
+			else combo.transformBasedOnValue(sortDirection.getSelectedIndex() == 0);
 		}
 	}
 

@@ -191,8 +191,10 @@ public class NodeCacheTransformer implements CacheTransformer<GraphicNode> {
         if (sorting){
 	        if (sorter1!=null)
 	            sorter1.sortList(localList,new GraphicNodeComparator(sorter1,composition),preserveHierarchy);
-	        if (!transformer.isNoneSorter())
-	            sorter2.sortList(localList,new GraphicNodeComparator(sorter2,composition),preserveHierarchy);
+	        if (!transformer.isNoneSorter()) {
+	            Comparator<Object> orderedComparator = NodeSorter.forOrder(sorter2, transformer.isUserSorterAscending());
+	            sorter2.sortList(localList,new GraphicNodeComparator(orderedComparator,sorter2,composition),preserveHierarchy);
+	        }
         }
 
 
@@ -266,13 +268,18 @@ public class NodeCacheTransformer implements CacheTransformer<GraphicNode> {
 
 
 	private class GraphicNodeComparator implements Comparator<GraphicNode>{
-	    protected NodeSorter comparator;
+	    protected Comparator<Object> comparator;
+	    protected NodeSorter sorterMetadata;
 	    protected NodeTransformer composition;
 	    private GraphicNodeComparator(NodeSorter comparator){
-	        this(comparator,null);
+	        this(comparator,comparator,null);
 	    }
 	    private GraphicNodeComparator(NodeSorter comparator,NodeTransformer composition){
+	        this(comparator,comparator,composition);
+	    }
+	    private GraphicNodeComparator(Comparator<Object> comparator,NodeSorter sorterMetadata,NodeTransformer composition){
 	        this.comparator=comparator;
+	        this.sorterMetadata=sorterMetadata;
 	        this.composition=composition;
 	    }
 	    public int compare(GraphicNode n1, GraphicNode n2) {
@@ -284,7 +291,7 @@ public class NodeCacheTransformer implements CacheTransformer<GraphicNode> {
 	    	else return comparator.compare(composition.evaluate(n1.getNode()),composition.evaluate(n2.getNode()));
 	    }
 	    public ListIterator<Object> getCurrentSorter(){
-	        return comparator.getCurrentSorter();
+	        return sorterMetadata.getCurrentSorter();
 	    }
 	}
 

@@ -59,6 +59,12 @@ public class NodeSorter extends CommonTransform implements Comparator<Object>{
 	public void setModel(NodeModel model) {
 		this.model = model;
 	}
+
+	/** Reuses one sorter's comparison rules in the requested direction. */
+	public static Comparator<Object> forOrder(NodeSorter sorter, boolean ascending) {
+		if (sorter == null || ascending) return sorter;
+		return (left, right) -> Integer.compare(0, Integer.signum(sorter.compare(left, right)));
+	}
 	
 	
 	
