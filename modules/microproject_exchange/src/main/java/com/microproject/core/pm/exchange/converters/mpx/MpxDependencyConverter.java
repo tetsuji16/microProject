@@ -41,13 +41,22 @@ public class MpxDependencyConverter {
 
 	/**
 	 * Converts an MPXJ relation lag into the microproject Dependency lag
-	 * encoding. Time-based lags are stored as plain milliseconds (see
-	 * Dependency.getLeadValue); percent lags keep their percent encoding so
+	 * encoding. Time-based lags are stored as milliseconds, with elapsed lags
+	 * retaining the elapsed bit (see Dependency.getLeadValue); percent lags keep
+	 * their percent encoding so
 	 * getLeadValue computes them against the predecessor duration (issue #163).
 	 */
 	static long toDependencyLag(net.sf.mpxj.Duration mpxLag) {
+		return toDependencyLag(mpxLag, null);
+	}
+
+	static long toDependencyLag(net.sf.mpxj.Duration mpxLag,
+			net.sf.mpxj.TimeUnitDefaultsContainer defaults) {
 		if (mpxLag == null) {
 			return 0L;
+		}
+		if (!Double.isFinite(mpxLag.getDuration())) {
+			throw new IllegalArgumentException("MPXJ dependency lag must be finite");
 		}
 		net.sf.mpxj.TimeUnit unit = mpxLag.getUnits();
 		if (unit == net.sf.mpxj.TimeUnit.PERCENT) {
@@ -56,7 +65,7 @@ public class MpxDependencyConverter {
 		if (unit == net.sf.mpxj.TimeUnit.ELAPSED_PERCENT) {
 			return com.microproject.datatype.Duration.getInstance(mpxLag.getDuration() / 100.0, com.microproject.datatype.TimeUnit.ELAPSED_PERCENT);
 		}
-		return MpxUtils.toMillis(mpxLag);
+		return defaults == null ? MpxUtils.toMillis(mpxLag) : MpxUtils.toMillis(mpxLag, defaults);
 	}
 
 	public Dependency from(net.sf.mpxj.Relation mpxRelation, MpxImportState state) {
@@ -66,7 +75,9 @@ public class MpxDependencyConverter {
 			return null;
 		}
 
-		long lag = toDependencyLag(mpxRelation.getLag());
+		net.sf.mpxj.ProjectFile source = state.getMpxProjectFile();
+		net.sf.mpxj.TimeUnitDefaultsContainer defaults = source == null ? null : source.getProjectProperties();
+		long lag = toDependencyLag(mpxRelation.getLag(), defaults);
 
 		MpxDependencyTypeConverter dependencyTypeConverter = new MpxDependencyTypeConverter();
 		Integer dependencyType = (Integer) dependencyTypeConverter.from(mpxRelation.getType());

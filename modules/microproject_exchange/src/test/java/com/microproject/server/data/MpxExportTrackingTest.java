@@ -930,6 +930,137 @@ class MpxExportTrackingTest {
 	}
 
 	@Test
+	void project2019Mpp14FixturesMatchIndependentManifestAndMpoReload() throws Exception {
+		Path fixtureDirectory = Path.of("modules", "microproject_exchange", "testdata", "mpxj", "project2019");
+		if (!Files.isDirectory(fixtureDirectory))
+			fixtureDirectory = Path.of("testdata", "mpxj", "project2019");
+		net.sf.mpxj.ProjectFile rawLinks = new net.sf.mpxj.mpp.MPPReader()
+			.read(fixtureDirectory.resolve("task-links-project2019-mpp14.mpp").toFile());
+		net.sf.mpxj.Duration rawOneDayLag = rawLinks.getTaskByUniqueID(Integer.valueOf(4)).getPredecessors().get(0).getLag();
+		assertEquals(1.0d, rawOneDayLag.getDuration(), "MPX14 raw one-day link lag");
+		assertEquals(net.sf.mpxj.TimeUnit.DAYS, rawOneDayLag.getUnits(), "MPX14 raw one-day link lag unit");
+		assertEquals(Integer.valueOf(480), rawLinks.getProjectProperties().getMinutesPerDay(),
+			"independent MSPDI source declares an eight-hour workday");
+		String sourceMspdi = Files.readString(fixtureDirectory.resolve("task-links-project2019-mspdi.xml"));
+		assertTrue(sourceMspdi.contains("<MinutesPerDay>480</MinutesPerDay>"));
+		assertTrue(sourceMspdi.contains("<MinutesPerWeek>2400</MinutesPerWeek>"));
+		assertTrue(sourceMspdi.contains("<LinkLag>4800</LinkLag>"), "independent MSPDI one-day lag is 480 minutes");
+
+		Project linkedTasks = importMppFixture(fixtureDirectory.resolve("task-links-project2019-mpp14.mpp"));
+		assertProject2019TaskLinks(linkedTasks);
+		assertProject2019TaskLinks(roundTripMpo(linkedTasks));
+		assertProject2019EditedLagSurvivesMpo(linkedTasks);
+
+		Project assignments = importMppFixture(fixtureDirectory.resolve("assignment-assignments-project2019-mpp14.mpp"));
+		assertProject2019Assignments(assignments);
+		assertProject2019Assignments(roundTripMpo(assignments));
+
+		Project calendars = importMppFixture(fixtureDirectory.resolve("calendar-calendars-project2019-mpp14.mpp"));
+		assertProject2019Calendars(calendars);
+		assertProject2019Calendars(roundTripMpo(calendars));
+	}
+
+	private void assertProject2019EditedLagSurvivesMpo(Project imported) throws Exception {
+		Task predecessor = imported.findByUniqueId(3);
+		Task successor = imported.findByUniqueId(4);
+		predecessor.getCurrentSchedule().setStart(modelWallTime("2018-10-22T08:00:00"));
+		predecessor.getCurrentSchedule().setFinish(modelWallTime("2018-10-22T17:00:00"));
+		com.microproject.pm.dependency.Dependency dependency =
+			(com.microproject.pm.dependency.Dependency) successor.getPredecessorList().get(0);
+		assertEquals(8L * 60L * 60L * 1000L, dependency.getLeadValue(), "one MSP workday is eight scheduled hours");
+		assertEquals(modelWallTime("2018-10-24T08:00:00"),
+			dependency.calcForwardDependencyDate(predecessor.getStart(), predecessor.getEnd(), true),
+			"one-workday lag after moving predecessor to Monday");
+
+		ByteArrayOutputStream mpo = new ByteArrayOutputStream();
+		assertTrue(new com.microproject.exchange.MpoFileImporter().saveProject(imported, mpo));
+		String nativeMspdi = new String(nativeProjectXml(mpo.toByteArray()), java.nio.charset.StandardCharsets.UTF_8);
+		assertTrue(nativeMspdi.contains("<LinkLag>4800</LinkLag>"), "native MSPDI emits 480 source minutes, not 1440");
+		Project reopened = new com.microproject.exchange.MpoFileImporter()
+			.loadProject(new ByteArrayInputStream(mpo.toByteArray()));
+		Task reopenedPredecessor = reopened.findByUniqueId(3);
+		Task reopenedSuccessor = reopened.findByUniqueId(4);
+		com.microproject.pm.dependency.Dependency reopenedDependency =
+			(com.microproject.pm.dependency.Dependency) reopenedSuccessor.getPredecessorList().get(0);
+		assertEquals(8L * 60L * 60L * 1000L, reopenedDependency.getLeadValue(), "MPO-reopened one-workday lag");
+		assertEquals(modelWallTime("2018-10-24T08:00:00"),
+			reopenedDependency.calcForwardDependencyDate(reopenedPredecessor.getStart(),
+				reopenedPredecessor.getEnd(), true), "reopened link keeps its schedule meaning");
+	}
+
+	private Project importMppFixture(Path sample) throws Exception {
+		assertTrue(Files.isRegularFile(sample), sample.toString());
+		return new com.microproject.core.pm.exchange.MspImporter().importProject(sample.toAbsolutePath().toString(),
+			new com.microproject.core.pm.exchange.MspImporter.ProgressClosure() {
+				@Override public void updateProgress(float progress, String label) { }
+			});
+	}
+
+	private Project roundTripMpo(Project project) throws Exception {
+		ByteArrayOutputStream mpo = new ByteArrayOutputStream();
+		assertTrue(new com.microproject.exchange.MpoFileImporter().saveProject(project, mpo));
+		return new com.microproject.exchange.MpoFileImporter().loadProject(new ByteArrayInputStream(mpo.toByteArray()));
+	}
+
+	private void assertProject2019TaskLinks(Project project) {
+		long eightHours = 8L * 60L * 60L * 1000L;
+		int[] predecessorUids = {1, 3, 5, 7, 9, 11, 13, 15};
+		int[] successorUids = {2, 4, 6, 8, 10, 12, 14, 16};
+		int[] dependencyTypes = {1, 1, 1, 1, 1, 2, 3, 0};
+		String[] starts = {
+			"2018-10-18T08:00:00", "2018-10-19T08:00:00", "2018-10-18T08:00:00", "2018-10-22T08:00:00",
+			"2018-10-18T08:00:00", "2018-10-23T08:00:00", "2018-10-18T08:00:00", "2018-10-26T08:00:00",
+			"2018-10-18T08:00:00", "2018-11-02T08:00:00", "2018-10-18T08:00:00", "2018-10-19T08:00:00",
+			"2018-10-18T08:00:00", "2018-10-22T08:00:00", "2018-10-18T08:00:00", "2018-10-22T08:00:00"
+		};
+		long workDayMillis = 8L * 60L * 60L * 1000L;
+		long[] expectedLagMillis = {0L, workDayMillis, 2L * workDayMillis, 5L * workDayMillis,
+			10L * workDayMillis, 2L * workDayMillis, 2L * workDayMillis, 2L * workDayMillis};
+		for (int uid = 1; uid <= 16; uid++) {
+			Task task = project.findByUniqueId(uid);
+			assertNotNull(task, "MPP14 task UID " + uid);
+			assertEquals((uid & 1) == 1 ? "Task 1" : "Task 2", task.getName(), "task UID " + uid);
+			assertEquals(0, task.getOutlineLevel(), "MPP14 top-level task for UID " + uid);
+			assertEquals(eightHours, task.getDurationMillis(), "MPP14 duration for UID " + uid);
+			assertEquals(modelWallTime(starts[uid - 1]), task.getStart(), "MPP14 source start for UID " + uid);
+			assertEquals(modelWallTime(starts[uid - 1].substring(0, 11) + "17:00:00"), task.getEnd(),
+				"MPP14 source finish for UID " + uid);
+		}
+		for (int index = 0; index < predecessorUids.length; index++) {
+			Task successor = project.findByUniqueId(successorUids[index]);
+			assertEquals(1, successor.getPredecessorList().size(), "predecessor count for UID " + successorUids[index]);
+			com.microproject.pm.dependency.Dependency dependency =
+				(com.microproject.pm.dependency.Dependency) successor.getPredecessorList().get(0);
+			assertEquals(predecessorUids[index], ((Task) dependency.getPredecessor()).getUniqueId());
+			assertEquals(dependencyTypes[index], dependency.getDependencyType(), "dependency type at pair " + index);
+			assertEquals(expectedLagMillis[index], dependency.getLag(), "dependency lag at pair " + index);
+		}
+	}
+
+	private void assertProject2019Assignments(Project project) {
+		String[] resourceNames = {"Resource 1", "Resource 2", "Resource 3"};
+		for (int uid = 1; uid <= resourceNames.length; uid++) {
+			Task task = project.findByUniqueId(uid);
+			assertNotNull(task, "MPP14 assignment task UID " + uid);
+			assertEquals("Task " + uid, task.getName());
+			assertTrue(task instanceof NormalTask);
+			assertEquals(1, ((NormalTask) task).getAssignments().size(), "assignment count for task UID " + uid);
+			Assignment assignment = (Assignment) ((NormalTask) task).getAssignments().iterator().next();
+			assertEquals(resourceNames[uid - 1], assignment.getResource().getName());
+			assertEquals(80L * 60L * 60L * 1000L, assignment.getWork(null), "assignment work for task UID " + uid);
+		}
+	}
+
+	private void assertProject2019Calendars(Project project) {
+		for (String resourceName : List.of("Resource One", "Resource Two")) {
+			com.microproject.pm.resource.Resource resource =
+				com.microproject.pm.resource.ResourcePool.findResourceByName(resourceName, project.getResourcePool());
+			assertNotNull(resource, "MPP14 calendar fixture resource " + resourceName);
+			assertEquals(resourceName, resource.getWorkCalendar().getName(), "resource calendar for " + resourceName);
+		}
+	}
+
+	@Test
 	void switchingImportedMppTaskToManualKeepsItsCurrentScheduleAndAssignments() throws Exception {
 		Path sample = Path.of("modules", "microproject_exchange", "testdata", "New Product.mpp");
 		if (!Files.exists(sample))

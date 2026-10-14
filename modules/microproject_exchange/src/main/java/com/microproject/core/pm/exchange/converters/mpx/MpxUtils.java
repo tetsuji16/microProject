@@ -152,6 +152,36 @@ public class MpxUtils {
     }
 
     /**
+     * Convert a project duration using the source project's declared time-unit
+     * defaults. In MPXJ, a non-elapsed day or week depends on MinutesPerDay or
+     * MinutesPerWeek; elapsed units retain their wall-clock length.
+     */
+    public static long toMillis(Duration duration, net.sf.mpxj.TimeUnitDefaultsContainer defaults) {
+        if (duration == null)
+            return 0L;
+        net.sf.mpxj.TimeUnit unit = duration.getUnits();
+        if (unit == net.sf.mpxj.TimeUnit.PERCENT || unit == net.sf.mpxj.TimeUnit.ELAPSED_PERCENT)
+            throw new IllegalArgumentException("Percent durations must be converted as percentages");
+        double millisValue;
+        if (defaults == null) {
+            millisValue = duration.getDuration() * minutesPerUnit(unit.getValue()) * 60_000.0d;
+        } else {
+            net.sf.mpxj.Duration minutes = duration.convertUnits(net.sf.mpxj.TimeUnit.MINUTES, defaults);
+            millisValue = minutes.getDuration() * 60_000.0d;
+        }
+        long millis = checkedDurationMillis(millisValue);
+        return unit != null && unit.isElapsed()
+            ? com.microproject.datatype.Duration.setAsElapsed(millis) : millis;
+    }
+
+    private static long checkedDurationMillis(double value) {
+        long maximum = (1L << 57) - 1L;
+        if (!Double.isFinite(value) || value < -maximum || value > maximum)
+            throw new IllegalArgumentException("MPXJ duration is outside the supported millisecond range");
+        return Math.round(value);
+    }
+
+    /**
      * Converts an MPXJ duration to the encoded duration representation required by
      * task schedules. Raw millisecond values can overlap the internal unit bits and
      * are therefore not safe to pass to {@code Task.setDuration} directly.

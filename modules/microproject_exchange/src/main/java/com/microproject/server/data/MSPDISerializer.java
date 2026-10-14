@@ -257,7 +257,7 @@ public class MSPDISerializer implements ProjectSerializer {
 	            	net.sf.mpxj.Task predData=(net.sf.mpxj.Task)taskLinker.getTransformationMap().get(pred);
 				if (predData==null)
 					predData=externalTask(projectFile,externalTasks,pred);
-	            	Relation rel=taskData.addPredecessor(predData,RelationType.getInstance(dependency.getDependencyType()),MPXConverter.toMPXDuration(dependency.getLag())); //claur
+				Relation rel=taskData.addPredecessor(predData,RelationType.getInstance(dependency.getDependencyType()),MPXConverter.toMPXDependencyLag(dependency.getLag())); //claur
 	            }
 	            taskCount++;
     		}
