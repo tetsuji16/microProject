@@ -79,6 +79,7 @@ class FixedSchedulePreviousWriterGeneratorTest {
 		resource.setName("Fixture resource");
 		resource.setUniqueId(7L);
 		resource.setExternalId(7L);
+		resource.getAvailabilityTable().setMaximumUnits(0.5D);
 		resource.setWorkCalendar(null);
 
 		NormalTask predecessor = addTask(project, 4201L, "Predecessor — 8h", "2030-06-03T08:00:00", calendar);
@@ -132,6 +133,11 @@ class FixedSchedulePreviousWriterGeneratorTest {
 		assertEquals(tue17, project.getEnd());
 		assertEquals(42L, project.getWorkCalendar().getUniqueId());
 		assertEquals("Fixture Mon-Fri 08:00-12:00 13:00-17:00", project.getWorkCalendar().getName());
+		Resource resource = project.getResourcePool().getResourceList().stream()
+			.filter(candidate -> candidate.getUniqueId() == 7L).findFirst()
+			.orElseThrow(() -> new AssertionError("Missing fixture resource"));
+		assertEquals("Fixture resource", resource.getName());
+		assertEquals(0.5D, resource.getMaximumUnits(), 0.00001D);
 		WorkingCalendar projectCalendar = (WorkingCalendar) project.getWorkCalendar();
 		assertEquals(WorkingHours.hourTime(8), projectCalendar.getWeekDay(2).getWorkingHours()
 			.getInterval(0).getStart());

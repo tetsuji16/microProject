@@ -39,14 +39,20 @@ import net.sf.mpxj.ProjectCalendar;
 
 /**
  * Converts an MPXJ Resource into a microproject Resource.
- * Resource values represented by the local model are mapped. Availability and
- * maximum units remain outside this converter's contract (see issue #154).
+ * Resource values represented by the local model are mapped. Time-phased
+ * availability remains outside this converter's contract (see issue #154).
  * @author Laurent Chretienneau
  */
 public class MpxResourceConverter {
 	private MpxCalendarConverter calendarConverter = new MpxCalendarConverter();
 
 	public void from(net.sf.mpxj.Resource mpxResource, Resource resource, MpxImportState state) {
+		Double maximumUnits = null;
+		if (mpxResource.getMaxUnits() != null) {
+			maximumUnits = Double.valueOf(mpxResource.getMaxUnits().doubleValue() / 100.0D);
+			if (!Double.isFinite(maximumUnits.doubleValue()) || maximumUnits.doubleValue() < 0.0D)
+				throw new IllegalArgumentException("Invalid resource maximum units: " + mpxResource.getMaxUnits());
+		}
 		if (mpxResource.getName() != null)
 			resource.setName(mpxResource.getName());
 		if (mpxResource.getNotes() != null)
@@ -62,6 +68,8 @@ public class MpxResourceConverter {
 			resource.setId(mpxResource.getID().longValue());
 		if (mpxResource.getUniqueID() != null)
 			resource.setUniqueId(mpxResource.getUniqueID().longValue());
+		if (maximumUnits != null)
+			resource.getAvailabilityTable().setMaximumUnits(maximumUnits.doubleValue());
 		if (mpxResource.getAccrueAt() != null)
 			resource.setAccrueAt(mpxResource.getAccrueAt().getValue());
 		for (int tableIndex = 0; tableIndex < net.sf.mpxj.CostRateTable.MAX_TABLES; tableIndex++) {

@@ -57,6 +57,7 @@ import com.microproject.collaboration.ProjectMergeService;
 import com.microproject.exchange.MicrosoftImporter;
 import com.microproject.exchange.BoundedInput;
 import com.microproject.exchange.LocalFileImporter;
+import com.microproject.exchange.xlsx.ProjectLibreXlsxWriter;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.core.pm.exchange.MspImporter;
 import com.microproject.collaboration.CollaborationMetadataStore;
@@ -310,7 +311,7 @@ public class XlsxSupportTest {
 			writeRow(tasks, 4, 13.0, 4.0, 10.0, "Review", null, null, null, 0.0, "1.3");
 			org.apache.poi.ss.usermodel.Sheet resources = workbook.createSheet("Resources");
 			writeRow(resources, 0, "UniqueID", "ID", "Name", "Notes", "Group", "Email", "MaxUnits");
-			writeRow(resources, 1, 7.0, 1.0, "Engineer", null, null, null, 1.0);
+			writeRow(resources, 1, 7.0, 1.0, "Engineer", null, null, null, 50.0);
 			org.apache.poi.ss.usermodel.Sheet assignments = workbook.createSheet("Assignments");
 			writeRow(assignments, 0, "TaskUniqueID", "ResourceUniqueID", "Units", "Delay", "LevelingDelay", "WorkContour");
 			writeRow(assignments, 1, 11.0, 7.0, 50.0);
@@ -336,15 +337,30 @@ public class XlsxSupportTest {
 		assertEquals(0.5D, ((com.microproject.pm.assignment.Assignment) child.getAssignments().get(0)).getUnits(), 0.0001D);
 		assertEquals(0.0D, ((com.microproject.pm.assignment.Assignment) zeroUnitTask.getAssignments().get(0)).getUnits(), 0.0001D);
 		assertEquals(1.0D, ((com.microproject.pm.assignment.Assignment) missingUnitsTask.getAssignments().get(0)).getUnits(), 0.0001D);
+		assertEquals(0.5D, ((com.microproject.pm.assignment.Assignment) child.getAssignments().get(0))
+			.getResource().getMaximumUnits(), 0.0001D);
 		assertEquals(3, parent.getWbsChildrenNodes().size());
 
 		ByteArrayOutputStream exported = new ByteArrayOutputStream();
-		new com.microproject.exchange.xlsx.ProjectLibreXlsxWriter().writeProjectLibreProject(imported, exported);
+		new ProjectLibreXlsxWriter().writeProjectLibreProject(imported, exported);
+		String resourceUid = Long.toString(((com.microproject.pm.assignment.Assignment) child.getAssignments().get(0))
+			.getResource().getUniqueId());
 		try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(exported.toByteArray()))) {
+			org.apache.poi.ss.usermodel.Sheet exportedResources = workbook.getSheet("Resources");
+			boolean wroteExpectedResourceCapacity = false;
+			for (int rowIndex = 1; rowIndex <= exportedResources.getLastRowNum(); rowIndex++) {
+				Row row = exportedResources.getRow(rowIndex);
+				if (row != null && row.getCell(0) != null && row.getCell(6) != null
+						&& resourceUid.equals(row.getCell(0).getStringCellValue())
+						&& Math.abs(Double.parseDouble(row.getCell(6).getStringCellValue()) - 50.0D) < 0.0001D) {
+					wroteExpectedResourceCapacity = true;
+					break;
+				}
+			}
+			assertTrue("50% resource capacity must use the summary sheet percent scale", wroteExpectedResourceCapacity);
+
 			org.apache.poi.ss.usermodel.Sheet exportedAssignments = workbook.getSheet("Assignments");
 			String taskUid = Long.toString(child.getUniqueId());
-			String resourceUid = Long.toString(((com.microproject.pm.assignment.Assignment) child.getAssignments().get(0))
-				.getResource().getUniqueId());
 			boolean wroteExpectedAssignmentAsPercent = false;
 			for (int rowIndex = 1; rowIndex <= exportedAssignments.getLastRowNum(); rowIndex++) {
 				Row row = exportedAssignments.getRow(rowIndex);
@@ -358,6 +374,23 @@ public class XlsxSupportTest {
 			}
 			assertTrue("50% assignment must use the summary sheet percent scale", wroteExpectedAssignmentAsPercent);
 		}
+
+		ByteArrayOutputStream summaryOnly = new ByteArrayOutputStream();
+		try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(exported.toByteArray()))) {
+			int payloadIndex = workbook.getSheetIndex("_PL_DATA");
+			assertTrue("writer output contains its higher-priority MSPDI payload", payloadIndex >= 0);
+			workbook.removeSheetAt(payloadIndex);
+			int nativePayloadIndex = workbook.getSheetIndex("_PL_NATIVE");
+			assertTrue("writer output contains its native project payload", nativePayloadIndex >= 0);
+			workbook.removeSheetAt(nativePayloadIndex);
+			workbook.write(summaryOnly);
+		}
+		com.microproject.pm.task.Project summaryImported = new MspImporter().importProject(
+			new ByteArrayInputStream(summaryOnly.toByteArray()), "xlsx", (progress, label) -> {});
+		NormalTask summaryChild = (NormalTask) summaryImported.getTaskList().stream()
+			.filter(task -> "Deploy".equals(task.getName())).findFirst().orElseThrow();
+		assertEquals(0.5D, ((com.microproject.pm.assignment.Assignment) summaryChild.getAssignments().get(0))
+			.getResource().getMaximumUnits(), 0.0001D);
 	}
 
 	@Test

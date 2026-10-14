@@ -164,6 +164,7 @@ class MpoHistoricalFixtureTest {
 		Assignment assignment = (Assignment) task.getAssignments().get(0);
 		assertEquals(7L, assignment.getResource().getUniqueId());
 		assertEquals("Fixture resource", assignment.getResource().getName());
+		assertEquals(0.5D, assignment.getResource().getMaximumUnits(), 0.00001D);
 		assertEquals(workHours * HOUR, assignment.getWork(null));
 		assertEquals(actualHours * HOUR, assignment.getActualWork(null));
 		assertEquals(remainingHours * HOUR, assignment.getRemainingWork(null));

@@ -284,7 +284,7 @@ public class ProjectLibreXlsxWriter implements ProjectWriter {
 				safe(resource.getNotes()),
 				safe(resource.getGroup()),
 				safe(resource.getEmailAddress()),
-				valueOf(resource.getMaximumUnits()));
+				valueOf(toPercent(resource.getMaximumUnits())));
 		}
 		autoSize(sheet, 6);
 	}
@@ -325,7 +325,7 @@ public class ProjectLibreXlsxWriter implements ProjectWriter {
 				writeRow(sheet, rowIndex++,
 					valueOf(assignment.getTask().getUniqueId()),
 					valueOf(assignment.getResource().getUniqueId()),
-					valueOf(assignment.getUnits() * 100.0D),
+					valueOf(toPercent(assignment.getUnits())),
 					safe(assignment.getDelay()),
 					safe(assignment.getLevelingDelay()),
 					valueOf(assignment.getWorkContourType()));
@@ -557,6 +557,10 @@ public class ProjectLibreXlsxWriter implements ProjectWriter {
 
 	private String safe(Object value) {
 		return value == null ? "" : String.valueOf(value);
+	}
+
+	private static double toPercent(double fraction) {
+		return fraction * 100.0D;
 	}
 
 	private String valueOf(Object value) {
