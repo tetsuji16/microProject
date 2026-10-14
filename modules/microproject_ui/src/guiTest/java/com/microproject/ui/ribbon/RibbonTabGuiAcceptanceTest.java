@@ -40,6 +40,9 @@ import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JFrame;
 import javax.swing.JComponent;
+import javax.swing.JButton;
+import javax.swing.JLabel;
+import javax.swing.JScrollPane;
 import javax.swing.MenuElement;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
@@ -644,6 +647,35 @@ class RibbonTabGuiAcceptanceTest {
 			.findFirst().orElseThrow(() -> new AssertionError("narrow ribbon group proxy is missing"));
 		JPopupMenu popup = (JPopupMenu)proxy.getClientProperty(ModernRibbonPanel.COLLAPSED_POPUP_PROPERTY);
 		assertTrue(popup.getComponentCount() > 0, "group proxy has no commands");
+		RibbonTail tail = findRibbonTail(host);
+		assertTrue(onEdt(tail.nextButton()::isShowing), "narrow ribbon must expose its horizontal next control");
+		Rectangle initialTitleBounds = ribbonBounds(tail.title());
+		Rectangle initialViewportBounds = viewportBounds(tail.scrollPane());
+		assertTrue(!initialViewportBounds.contains(initialTitleBounds),
+			"the last group caption should require horizontal navigation at narrow width");
+		int initialViewX = onEdt(() -> tail.scrollPane().getViewport().getViewPosition().x);
+		for (int attempt = 0; attempt < 24; attempt++) {
+			int beforeScroll = onEdt(() -> tail.scrollPane().getViewport().getViewPosition().x);
+			click(robot, tail.nextButton());
+			robot.waitForIdle();
+			int afterScroll = onEdt(() -> tail.scrollPane().getViewport().getViewPosition().x);
+			if (afterScroll == beforeScroll) break;
+		}
+		int finalViewX = onEdt(() -> tail.scrollPane().getViewport().getViewPosition().x);
+		assertTrue(finalViewX > initialViewX, "physical next-arrow clicks did not scroll the ribbon groups");
+		Rectangle finalViewportBounds = viewportBounds(tail.scrollPane());
+		assertTrue(finalViewportBounds.contains(ribbonBounds(tail.title())),
+			"horizontal navigation must expose the full last group caption");
+		assertTrue(finalViewportBounds.contains(ribbonBounds(tail.command())),
+			"horizontal navigation must expose the last group's command control");
+		JPopupMenu tailPopup = onEdt(() -> (JPopupMenu) tail.command()
+			.getClientProperty(ModernRibbonPanel.COLLAPSED_POPUP_PROPERTY));
+		assertTrue(tailPopup != null, "last group's narrow proxy must retain its command menu");
+		click(robot, tail.command());
+		GuiAcceptanceSupport.await(tailPopup::isVisible,
+			"last group's command menu was not reachable after horizontal navigation");
+		assertTrue(onEdt(() -> tailPopup.getComponentCount() > 0),
+			"last group's command menu must expose its commands after horizontal navigation");
 	}
 
 	@Test
@@ -1012,6 +1044,50 @@ class RibbonTabGuiAcceptanceTest {
 			.filter(button -> button.isShowing()
 				&& Boolean.TRUE.equals(button.getClientProperty(ModernRibbonPanel.BAND_PROXY_PROPERTY)))
 			.count();
+	}
+
+	private record RibbonTail(JScrollPane scrollPane, JButton nextButton, JLabel title, AbstractButton command) { }
+
+	private static RibbonTail findRibbonTail(JPanel host) throws Exception {
+		return onEdt(() -> {
+			JButton next = UiComponentWalker.flatten(host).stream()
+				.filter(JButton.class::isInstance).map(JButton.class::cast)
+				.filter(button -> Boolean.TRUE.equals(button.getClientProperty(ModernRibbonPanel.SCROLL_NEXT_PROPERTY)))
+				.findFirst().orElseThrow(() -> new AssertionError("narrow ribbon next control is missing"));
+			Container viewportContainer = next.getParent();
+			JScrollPane scrollPane = java.util.Arrays.stream(viewportContainer.getComponents())
+				.filter(JScrollPane.class::isInstance).map(JScrollPane.class::cast)
+				.findFirst().orElseThrow(() -> new AssertionError("ribbon next control has no viewport"));
+			Component view = scrollPane.getViewport().getView();
+			Component lastBand = UiComponentWalker.flatten(view).stream()
+				.filter(JComponent.class::isInstance).map(JComponent.class::cast)
+				.filter(component -> ModernRibbonPanel.RIBBON_BAND_COMPONENT_NAME.equals(component.getName()))
+				.max(java.util.Comparator.comparingInt(component ->
+					SwingUtilities.convertRectangle(component.getParent(), component.getBounds(), view).x))
+				.orElseThrow(() -> new AssertionError("narrow ribbon has no group bands"));
+			JLabel title = java.util.Arrays.stream(((Container) lastBand).getComponents())
+				.filter(JLabel.class::isInstance).map(JLabel.class::cast).findFirst()
+				.orElseThrow(() -> new AssertionError("last ribbon group has no caption"));
+			AbstractButton command = UiComponentWalker.flatten(lastBand).stream()
+				.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+				.filter(button -> Boolean.TRUE.equals(button.getClientProperty(ModernRibbonPanel.BAND_PROXY_PROPERTY)))
+				.findFirst().orElseThrow(() -> new AssertionError("last narrow ribbon group has no command proxy"));
+			return new RibbonTail(scrollPane, next, title, command);
+		});
+	}
+
+	private static Rectangle ribbonBounds(Component component) throws Exception {
+		return onEdt(() -> SwingUtilities.convertRectangle(component.getParent(), component.getBounds(),
+			((JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class, component))
+				.getViewport().getView()));
+	}
+
+	private static Rectangle viewportBounds(JScrollPane scrollPane) throws Exception {
+		return onEdt(() -> {
+			Point position = scrollPane.getViewport().getViewPosition();
+			Dimension extent = scrollPane.getViewport().getExtentSize();
+			return new Rectangle(position.x, position.y, extent.width, extent.height);
+		});
 	}
 
 	private static boolean containsCommand(JPanel host, String commandId) {
