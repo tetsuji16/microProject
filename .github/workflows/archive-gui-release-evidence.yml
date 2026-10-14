@@ -57,7 +57,7 @@ jobs:
           $run = Get-GhJson "repos/$env:REPOSITORY/actions/runs/$env:SOURCE_RUN_ID"
           if ($run.status -ne 'completed' -or $run.conclusion -ne 'success') { throw 'Source workflow run must have completed successfully.' }
           if ($run.path -ne '.github/workflows/release-and-pages.yml') { throw "Unexpected source workflow path: $($run.path)" }
-          if ($run.event -ne 'workflow_dispatch') { throw "Expected a manually dispatched stable release source run; event was $($run.event)." }
+          if ($run.event -notin @('workflow_dispatch', 'push')) { throw "Expected a stable release push or manual source run; event was $($run.event)." }
           if ($run.head_branch -ne "release/stable-$releaseBaseVersion") { throw "Source ref $($run.head_branch) does not match stable tag base $releaseBaseVersion." }
           if ([string]$run.run_number -ne $releaseRunNumber) { throw "Release tag sequence $releaseRunNumber does not match source workflow run number $($run.run_number)." }
           $sourceSha = [string]$run.head_sha
