@@ -3862,11 +3862,18 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		if (sortDirection != null) {
 			sortDirection.setName("microproject.taskSort.direction");
 			ViewTransformer viewTransform = ((TransformComboBoxModel) combo.getModel()).getView().getTransform();
-			sortDirection.setSelectedIndex(viewTransform.isUserSorterAscending() ? 0 : 1);
+			boolean[] lastNonNoneAscending = { viewTransform.isUserSorterAscending() };
+			sortDirection.setSelectedIndex(lastNonNoneAscending[0] ? 0 : 1);
+			sortDirection.addActionListener(event -> {
+				boolean noneSelected = combo.getSelectedItem() instanceof CommonTransformFactory factory
+						&& ViewTransformer.SORTER_NONE_ID.equals(factory.getId());
+				if (!noneSelected) lastNonNoneAscending[0] = sortDirection.getSelectedIndex() == 0;
+			});
 			Runnable syncSortDirection = () -> {
 				boolean noneSelected = combo.getSelectedItem() instanceof CommonTransformFactory factory
 						&& ViewTransformer.SORTER_NONE_ID.equals(factory.getId());
 				if (noneSelected) sortDirection.setSelectedIndex(0);
+				else sortDirection.setSelectedIndex(lastNonNoneAscending[0] ? 0 : 1);
 				sortDirection.setEnabled(!noneSelected);
 			};
 			combo.addActionListener(event -> syncSortDirection.run());
