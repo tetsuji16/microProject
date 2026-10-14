@@ -151,6 +151,43 @@ class AssignmentContourBehaviorTest {
 	}
 
 	@Test
+	void importedBoundsMustBeInitializedBeforeAssignmentWork() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		Assignment assignment = Assignment.getInstance(task,
+			project.getResourcePool().newResourceInstance(), 1.0D, 0L);
+		long start = task.getStart();
+		assignment.initializeImportedBounds(start, start + 60L * 60L * 1000L);
+		assertEquals(0L, assignment.getWork(null));
+		assertEquals(0L, assignment.getActualWork(null));
+		assertEquals(0L, assignment.getRemainingWork(null));
+
+		assignment.setWork(60L * 60L * 1000L, null);
+		assertThrows(IllegalStateException.class,
+			() -> assignment.initializeImportedBounds(start, start + 60L * 60L * 1000L));
+		assertEquals(60L * 60L * 1000L, assignment.getWork(null));
+	}
+
+	@Test
+	void importedBoundsAtZeroUnitsPreserveZeroWorkAndPositiveSpan() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		Assignment assignment = Assignment.getInstance(task,
+			project.getResourcePool().newResourceInstance(), 0.0D, 0L);
+		long start = task.getStart();
+		long finish = start + 60L * 60L * 1000L;
+
+		assignment.initializeImportedBounds(start, finish);
+
+		assertEquals(0L, assignment.getWork(null));
+		assertEquals(0L, assignment.getActualWork(null));
+		assertEquals(0L, assignment.getRemainingWork(null));
+		assertEquals(0.0D, assignment.getUnits(), 0.00001D);
+		assertEquals(start, assignment.getStart());
+		assertEquals(finish, assignment.getEnd());
+	}
+
+	@Test
 	void settingActualWorkOnAStandardContourUsesItsCumulativeProfile() {
 		Project project = createProject();
 		NormalTask task = createTask(project);

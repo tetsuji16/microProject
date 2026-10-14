@@ -1625,18 +1625,19 @@ class MpxExportTrackingTest {
 	}
 
 	@Test
-	void historicalAssignmentImportUsesTheTaskStartAsItsOffsetOrigin() throws Exception {
+	void standardAssignmentImportPreservesConsistentBoundsAndProgress() throws Exception {
 		ProjectFile source = new ProjectFile();
 		source.addDefaultBaseCalendar();
-		java.util.Date start = localWallDate("2000-01-03T08:00:00");
-		java.util.Date finish = localWallDate("2000-01-04T17:00:00");
+		java.util.Date start = localWallDate("2026-10-12T08:00:00");
+		java.util.Date finish = localWallDate("2026-10-16T10:00:00");
 		source.getProjectProperties().setStartDate(start);
 		net.sf.mpxj.Task task = source.addTask();
-		task.setName("Historical assignment");
+		task.setName("Standard assignment with actual work");
 		task.setUniqueID(1);
 		task.setStart(start);
 		task.setFinish(finish);
-		task.setDuration(net.sf.mpxj.Duration.getInstance(2, net.sf.mpxj.TimeUnit.DAYS));
+		task.setDuration(net.sf.mpxj.Duration.getInstance(34, net.sf.mpxj.TimeUnit.HOURS));
+		task.setType(net.sf.mpxj.TaskType.FIXED_DURATION);
 		net.sf.mpxj.Resource resource = source.addResource();
 		resource.setName("Worker");
 		resource.setUniqueID(1);
@@ -1644,20 +1645,56 @@ class MpxExportTrackingTest {
 		assignment.setUnits(100d);
 		assignment.setStart(start);
 		assignment.setFinish(finish);
-		assignment.setWork(net.sf.mpxj.Duration.getInstance(16, net.sf.mpxj.TimeUnit.HOURS));
-		assignment.setRemainingWork(net.sf.mpxj.Duration.getInstance(16, net.sf.mpxj.TimeUnit.HOURS));
+		assignment.setWork(net.sf.mpxj.Duration.getInstance(34, net.sf.mpxj.TimeUnit.HOURS));
+		assignment.setActualWork(net.sf.mpxj.Duration.getInstance(32, net.sf.mpxj.TimeUnit.HOURS));
+		assignment.setRemainingWork(net.sf.mpxj.Duration.getInstance(2, net.sf.mpxj.TimeUnit.HOURS));
+		assignment.setPercentageWorkComplete(94);
 		ByteArrayOutputStream xml = new ByteArrayOutputStream();
 		new net.sf.mpxj.mspdi.MSPDIWriter().write(source, xml);
 
 		Project imported = new com.microproject.core.pm.exchange.MspImporter().importProject(
 			new ByteArrayInputStream(xml.toByteArray()), "xml", (progress, label) -> {});
-		NormalTask importedTask = taskNamed(imported, "Historical assignment");
+		NormalTask importedTask = taskNamed(imported, "Standard assignment with actual work");
 		Assignment importedAssignment = (Assignment) importedTask.getAssignments().iterator().next();
 		assertEquals(0L, importedAssignment.getDelay());
-		assertEquals(16L * 60L * 60L * 1000L, importedAssignment.getWork(null));
-		assertEquals(importedTask.getStart(), importedAssignment.getStart());
-		assertTrue(importedTask.getEnd() < java.util.Date.from(
-			java.time.Instant.parse("2001-01-01T00:00:00Z")).getTime());
+		assertEquals(34L * 60L * 60L * 1000L, importedAssignment.getWork(null));
+		assertEquals(32L * 60L * 60L * 1000L, importedAssignment.getActualWork(null));
+		assertEquals(2L * 60L * 60L * 1000L, importedAssignment.getRemainingWork());
+		assertEquals(1.0d, importedAssignment.getUnits(), 0.00001d);
+		assertEquals(com.microproject.pm.scheduling.SchedulingType.Kind.FIXED_DURATION.code(),
+			importedTask.getSchedulingType());
+		assertEquals(modelWallTime("2026-10-12T08:00:00"), importedAssignment.getStart());
+		assertEquals(modelWallTime("2026-10-16T10:00:00"), importedAssignment.getEnd());
+	}
+
+	@Test
+	void standardZeroWorkAssignmentKeepsFixedDurationSourceBoundsAndZeroUnits() throws Exception {
+		Path fixture = Path.of("modules", "microproject_exchange", "testdata", "Assignment Baseline Scalars.xml");
+		if (!Files.isRegularFile(fixture)) fixture = Path.of("testdata", "Assignment Baseline Scalars.xml");
+		String sourceXml = withAssignmentProgress(Files.readString(fixture), 0L, 0L, 0)
+			.replaceFirst("<Type>0</Type>", "<Type>1</Type>")
+			.replace("<Units>1</Units>", "<Units>0</Units>");
+		Project imported = importMspdi(sourceXml);
+		NormalTask task = taskNamed(imported, "Assignment baseline task");
+		Assignment assignment = (Assignment) task.getAssignments().iterator().next();
+		assertEquals(com.microproject.pm.scheduling.SchedulingType.Kind.FIXED_DURATION.code(), task.getSchedulingType());
+		assertEquals(0L, assignment.getWork(null));
+		assertEquals(0L, assignment.getActualWork(null));
+		assertEquals(0L, assignment.getRemainingWork());
+		assertEquals(0.0d, assignment.getUnits(), 0.00001d);
+		assertEquals(modelWallTime("2026-10-12T08:00:00"), assignment.getStart());
+		assertEquals(modelWallTime("2026-10-12T17:00:00"), assignment.getEnd());
+
+		ByteArrayOutputStream mpo = new ByteArrayOutputStream();
+		assertTrue(new com.microproject.exchange.MpoFileImporter().saveProject(imported, mpo));
+		Project reopened = new com.microproject.exchange.MpoFileImporter()
+			.loadProject(new ByteArrayInputStream(mpo.toByteArray()));
+		NormalTask reopenedTask = taskNamed(reopened, "Assignment baseline task");
+		Assignment reopenedAssignment = (Assignment) reopenedTask.getAssignments().iterator().next();
+		assertEquals(0L, reopenedAssignment.getWork(null));
+		assertEquals(0.0d, reopenedAssignment.getUnits(), 0.00001d);
+		assertEquals(modelWallTime("2026-10-12T08:00:00"), reopenedAssignment.getStart());
+		assertEquals(modelWallTime("2026-10-12T17:00:00"), reopenedAssignment.getEnd());
 	}
 
 	@Test
