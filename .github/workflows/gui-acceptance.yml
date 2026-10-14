@@ -22,6 +22,23 @@ on:
         description: 'Optional targeted Gradle test filter (FQCN or FQCN.method); manual dispatch only'
         required: false
         type: string
+      gui_test_locale:
+        description: 'Locale for a manual targeted test only'
+        required: false
+        default: ja
+        type: choice
+        options:
+          - ja
+          - en
+      gui_test_scale:
+        description: 'UI scale for a manual targeted test only'
+        required: false
+        default: '1.0'
+        type: choice
+        options:
+          - '1.0'
+          - '1.25'
+          - '1.5'
   schedule:
     - cron: '17 2 * * 1'
 
@@ -59,6 +76,8 @@ jobs:
         shell: pwsh
         env:
           GUI_TEST_FILTER: ${{ inputs.gui_test_filter }}
+          GUI_TEST_LOCALE: ${{ inputs.gui_test_locale }}
+          GUI_TEST_SCALE: ${{ inputs.gui_test_scale }}
         timeout-minutes: 110
         run: |
           $requestedSuite = '${{ inputs.gui_suite }}'
@@ -70,7 +89,9 @@ jobs:
           }
           Write-Host "Selected GUI suite: $requestedSuite (event=$env:GITHUB_EVENT_NAME)"
           if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch' -and -not [string]::IsNullOrWhiteSpace($env:GUI_TEST_FILTER)) {
-            .\.github\scripts\run-gui-acceptance.ps1 -Suite $requestedSuite -TestFilter $env:GUI_TEST_FILTER
+            $focusedLocale = if ([string]::IsNullOrWhiteSpace($env:GUI_TEST_LOCALE)) { 'ja' } else { $env:GUI_TEST_LOCALE }
+            $focusedScale = if ([string]::IsNullOrWhiteSpace($env:GUI_TEST_SCALE)) { '1.0' } else { $env:GUI_TEST_SCALE }
+            .\.github\scripts\run-gui-acceptance.ps1 -Suite $requestedSuite -TestFilter $env:GUI_TEST_FILTER -Locale $focusedLocale -Scale $focusedScale
           } else {
             .\.github\scripts\run-gui-acceptance.ps1 -Suite $requestedSuite
           }
