@@ -12,6 +12,20 @@ import archive_gui_release_evidence as evidence
 
 
 class ArchiveGuiReleaseEvidenceTest(unittest.TestCase):
+	def test_source_log_validation_accepts_the_actual_six_ci_marker_labels(self):
+		historical_markers = "\n".join((
+			"GUI gate elapsed: functional-full-ja-100 00:09:03 (limit 00:45:00)",
+			"GUI gate elapsed: visual-ja-1.25 00:02:44 (limit 00:20:00)",
+			"GUI gate elapsed: visual-ja-1.5 00:02:49 (limit 00:20:00)",
+			"GUI gate elapsed: visual-en-1.0 00:02:55 (limit 00:20:00)",
+			"GUI gate elapsed: visual-en-1.25 00:02:47 (limit 00:20:00)",
+			"GUI gate elapsed: visual-en-1.5 00:02:52 (limit 00:20:00)",
+		))
+
+		evidence.validate_gui_leg_log(historical_markers)
+		with self.assertRaisesRegex(ValueError, "visual-ja-1.25"):
+			evidence.validate_gui_leg_log(historical_markers.replace("visual-ja-1.25", "visual-ja-1-25"))
+
 	def _create_source(self, root):
 		for label in evidence.GUI_LEGS:
 			directory_name = label + "-" + ("a" * 32)

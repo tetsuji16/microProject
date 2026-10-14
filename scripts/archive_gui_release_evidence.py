@@ -26,9 +26,20 @@ GUI_LEGS = (
     "visual-en-1.25",
     "visual-en-1.5",
 )
+GUI_LEG_LOG_PREFIX = "GUI gate elapsed: "
 LEG_DIRECTORY = re.compile(
     r"^(?P<label>functional-full-ja-100|visual-(?:ja|en)-(?:1\.25|1\.5|1\.0))-(?P<invocation>[0-9a-f]{32})$"
 )
+
+
+def validate_gui_leg_log(log_text: str) -> None:
+    """Require the exact successful marker names emitted by the GUI gate."""
+    missing = [
+        leg for leg in GUI_LEGS
+        if f"{GUI_LEG_LOG_PREFIX}{leg} " not in log_text
+    ]
+    if missing:
+        raise ValueError("Source release log is missing successful GUI matrix legs: " + ", ".join(missing))
 
 
 def _sha256(path: Path) -> str:
@@ -101,10 +112,16 @@ def main() -> None:
     import argparse
 
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--source-root", type=Path, required=True, help="Extracted Actions artifact directory")
-    parser.add_argument("--manifest", type=Path, required=True, help="JSON file with verified run/release provenance")
-    parser.add_argument("--output", type=Path, required=True, help="Destination ZIP archive")
+    parser.add_argument("--validate-source-log", type=Path, help="Validate successful GUI matrix markers in a source job log")
+    parser.add_argument("--source-root", type=Path, help="Extracted Actions artifact directory")
+    parser.add_argument("--manifest", type=Path, help="JSON file with verified run/release provenance")
+    parser.add_argument("--output", type=Path, help="Destination ZIP archive")
     args = parser.parse_args()
+    if args.validate_source_log is not None:
+        validate_gui_leg_log(args.validate_source_log.read_text(encoding="utf-8-sig"))
+        return
+    if args.source_root is None or args.manifest is None or args.output is None:
+        parser.error("--source-root, --manifest, and --output are required unless --validate-source-log is used")
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
     build_archive(args.source_root, args.output, manifest)
 
