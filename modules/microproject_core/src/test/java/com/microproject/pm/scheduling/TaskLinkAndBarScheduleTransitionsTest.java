@@ -29,15 +29,20 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Calendar;
 import java.util.List;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.DynamicTest;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
 
 import com.microproject.field.FieldContext;
+import com.microproject.util.DateTime;
 import com.microproject.options.CalendarOption;
+import com.microproject.pm.calendar.WorkDay;
+import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
@@ -91,6 +96,78 @@ class TaskLinkAndBarScheduleTransitionsTest {
 			DynamicTest.dynamicTest(id("BAR", 29), this::verifyTaskSheetFinishDateEdit),
 			DynamicTest.dynamicTest(id("BAR", 30), this::verifyMilestoneBarMove));
 		return Stream.of(moveCases, resizeCases, durationCases, dateCases).flatMap(stream -> stream);
+	}
+
+	@Test
+	void finishToStartWorkingDayLagUsesPredecessorTaskCalendarAcrossNonworkingDays() throws Exception {
+		Fixture fixture = createFixture();
+		Project project = fixture.project;
+		long mondayEight = timestamp(2030, Calendar.JUNE, 3, 8);
+		long mondaySeventeen = timestamp(2030, Calendar.JUNE, 3, 17);
+		long tuesdayMidnight = timestamp(2030, Calendar.JUNE, 4, 0);
+		long wednesdayMidnight = timestamp(2030, Calendar.JUNE, 5, 0);
+		long thursdayEight = timestamp(2030, Calendar.JUNE, 6, 8);
+		long fridayEight = timestamp(2030, Calendar.JUNE, 7, 8);
+		project.setStart(mondayEight);
+		((WorkingCalendar) project.getWorkCalendar()).addOrReplaceException(new WorkDay(tuesdayMidnight));
+
+		NormalTask predecessor = createTask(project, "holiday-lag predecessor", 1);
+		NormalTask successor = createTask(project, "holiday-lag successor", 1);
+		NormalTask unrelated = createTask(project, "unrelated task", 1);
+		WorkingCalendar predecessorCalendar = WorkingCalendar.getInstanceBasedOn(project.getWorkCalendar());
+		predecessorCalendar.setName("Predecessor Wednesday exception");
+		predecessorCalendar.addOrReplaceException(new WorkDay(wednesdayMidnight));
+		predecessor.setWorkCalendar(predecessorCalendar);
+		predecessor.setScheduleConstraint(ConstraintType.SNET, mondayEight);
+		successor.setScheduleConstraint(ConstraintType.SNET, mondayEight);
+		unrelated.setScheduleConstraint(ConstraintType.SNET, mondayEight);
+		predecessor.getCurrentSchedule().setStart(mondayEight);
+		successor.getCurrentSchedule().setStart(mondayEight);
+
+		// Fixture preconditions: project Tuesday is nonworking; the predecessor
+		// calendar inherits that and also makes Wednesday nonworking.
+		assertEquals(thursdayEight, project.getWorkCalendar().add(mondaySeventeen, day(), false));
+		assertEquals(fridayEight, predecessor.getEffectiveWorkCalendar().add(mondaySeventeen, day(), false));
+		assertSame(predecessorCalendar, predecessor.getEffectiveWorkCalendar());
+		project.recalculate();
+		assertEquals(mondayEight, predecessor.getStart());
+		assertEquals(mondaySeventeen, predecessor.getEnd(), "predecessor finish before link creation");
+		assertEquals(mondayEight, successor.getStart(), "successor start before link creation");
+		assertEquals(mondayEight, unrelated.getStart(), "unrelated task start before link creation");
+
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.FS, day(), this);
+
+		project.recalculate();
+
+		assertEquals(mondayEight, predecessor.getStart());
+		assertEquals(mondaySeventeen, predecessor.getEnd());
+		// Literal calendar oracle: FS starts from predecessor finish (Mon 17:00).
+		// The existing engine rule applies the 8h working lag on the predecessor's
+		// task calendar, which skips Tuesday and Wednesday, consumes Thursday's
+		// 08:00-12:00 and 13:00-17:00 intervals, and starts the successor Fri 08:00.
+		// Microsoft documents that task calendars participate in scheduling and that
+		// lag delays the successor, but does not specify the calendar owner for lag.
+		// This preserves the existing predecessor-calendar product rule as a
+		// document-derived decision, not measured MSP behavior or proven owner parity.
+		// Sources: https://support.microsoft.com/en-us/project/how-project-schedules-tasks-behind-the-scenes
+		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
+		// https://learn.microsoft.com/en-us/office-project/xml-data-interchange/predecessorlink-element?view=project-client-2016
+		assertEquals(fridayEight, successor.getStart(),
+			"the predecessor task calendar skips Tuesday and Wednesday; Thursday's 8h lag ends at 17:00");
+		assertEquals(mondayEight, unrelated.getStart(), "dependency recalculation leaves unrelated task unchanged");
+		assertEquals(day(), dependency.getLag());
+
+		assertTrue(fixture.undo.canUndo());
+		fixture.undo.undo();
+		project.recalculate();
+		assertFalse(predecessor.getSuccessorList().iterator().hasNext());
+		assertEquals(mondayEight, successor.getStart(), "Undo restores the independent schedule");
+		fixture.undo.redo();
+		project.recalculate();
+		assertSame(dependency, predecessor.getSuccessorList().findRight(successor));
+		assertEquals(fridayEight, successor.getStart(), "Redo restores the calendar-derived date");
+		assertEquals(mondayEight, unrelated.getStart(), "Undo/Redo leaves unrelated task unchanged");
 	}
 
 	@TestFactory
@@ -328,6 +405,12 @@ class TaskLinkAndBarScheduleTransitionsTest {
 
 	private static long day() {
 		return CalendarOption.getInstance().getMillisPerDay();
+	}
+
+	private static long timestamp(int year, int month, int dayOfMonth, int hourOfDay) {
+		Calendar calendar = DateTime.calendarInstance(year, month, dayOfMonth);
+		calendar.set(Calendar.HOUR_OF_DAY, hourOfDay);
+		return calendar.getTimeInMillis();
 	}
 
 	private static String id(String group, int number) {
