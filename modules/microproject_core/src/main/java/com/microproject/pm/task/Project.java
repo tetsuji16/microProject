@@ -1045,7 +1045,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		else DataUtils.forAllDo(selection.iterator(), new SnapshottableImpl.SaveCurrentToSnapshotClosure(snapshotId));
 		SnapshotState after = captureSnapshotState(snapshotId, entireProject, selection);
 
-		fireSnapshotBaselineChanged(snapshotId, true);
+		fireCurrentBaselineRowState(snapshotId);
 		return ReversibleModelChange.changed(
 			() -> restoreSnapshotState(snapshotId, before),
 			() -> restoreSnapshotState(snapshotId, after));
@@ -1062,14 +1062,14 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 			NormalTask t=(NormalTask)i.next();
 			t.restoreSnapshot(snapshotId,j.next());
 		}
-		fireSnapshotBaselineChanged(snapshotId, true);
+		fireCurrentBaselineRowState(snapshotId);
 	}
 
 	public ReversibleModelChange clearSnapshot(final Object snapshotId, boolean entireProject, List<?> selection) {
 		SnapshotState before = captureSnapshotState(snapshotId, entireProject, selection);
 
 		clearSnapshotState(snapshotId, entireProject, selection);
-		if (!before.hasSnapshot()) {
+		if (!before.hasRestorableState()) {
 			return ReversibleModelChange.unchanged();
 		}
 		return ReversibleModelChange.changed(
@@ -1081,7 +1081,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	private void clearSnapshotState(Object snapshotId, boolean entireProject, List<?> selection) {
 		if (entireProject) forTasks(new SnapshottableImpl.ClearSnapshotClosure(snapshotId));
 		else DataUtils.forAllDo(selection.iterator(), new SnapshottableImpl.ClearSnapshotClosure(snapshotId));
-		fireSnapshotBaselineChanged(snapshotId, false);
+		fireCurrentBaselineRowState(snapshotId);
 	}
 
 	private SnapshotState captureSnapshotState(Object snapshotId, boolean entireProject, List<?> selection) {
@@ -1121,7 +1121,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 				taskState.importedBaselineValues.forEach((assignment, values) ->
 					assignment.restoreImportedBaselineValues((Integer) snapshotId, values));
 		}
-		fireSnapshotBaselineChanged(snapshotId, state.hasSnapshot());
+		fireCurrentBaselineRowState(snapshotId);
 	}
 
 	private record SnapshotTaskState(NormalTask task, DataSnapshot snapshot,
@@ -1135,9 +1135,21 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 			this.tasks = tasks;
 		}
 
-		private boolean hasSnapshot() {
+		private boolean hasRestorableState() {
 			return tasks.stream().anyMatch(task -> task.snapshot != null || !task.importedBaselineValues.isEmpty());
 		}
+	}
+
+	private void fireCurrentBaselineRowState(Object snapshotId) {
+		fireSnapshotBaselineChanged(snapshotId, hasProjectBaselineSnapshot(snapshotId));
+	}
+
+	private boolean hasProjectBaselineSnapshot(Object snapshotId) {
+		if (!isBaselineSlot(snapshotId)) return false;
+		for (Iterator<Task> tasks = getTaskOutlineIterator(); tasks.hasNext();) {
+			if (tasks.next().getSnapshot(snapshotId) != null) return true;
+		}
+		return false;
 	}
 
 	private static boolean isBaselineSlot(Object snapshotId) {
