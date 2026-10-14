@@ -168,6 +168,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 
 	@BeforeEach
 	void captureClientSide() {
+		previousJobQueue = SessionFactory.getInstance().getJobQueue();
 		previousClientSide = Environment.isClientSide();
 		previousBatchMode = Environment.isBatchMode();
 		previousShellDisplayMode = RibbonDisplayPreferences.load();
