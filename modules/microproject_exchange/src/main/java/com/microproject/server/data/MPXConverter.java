@@ -706,6 +706,16 @@ private static int autoId = 0;
 
 	}
 
+	/** Converts a dependency lag without reinterpreting its milliseconds as the current display unit. */
+	public static net.sf.mpxj.Duration toMPXDependencyLag(long lag) {
+		if (Duration.isPercent(lag))
+			return toMPXDuration(lag);
+		boolean elapsed = Duration.isElapsed(lag);
+		net.sf.mpxj.TimeUnit unit = elapsed
+			? net.sf.mpxj.TimeUnit.ELAPSED_MINUTES : net.sf.mpxj.TimeUnit.MINUTES;
+		return net.sf.mpxj.Duration.getInstance(Duration.millis(lag) / 60_000.0d, unit);
+	}
+
 	/** Converts the engine's millisecond leveling delay to MSPDI minutes. */
 	public static net.sf.mpxj.Duration toMPXLevelingDelay(long levelingDelay) {
 		return net.sf.mpxj.Duration.getInstance(
