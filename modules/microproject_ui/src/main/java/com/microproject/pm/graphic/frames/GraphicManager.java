@@ -3857,8 +3857,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				&& getCurrentFrame().getProject() != null;
 		JComboBox<String> sortDirection = taskViewSort
 				? new JComboBox<>(new String[] {
-					getMenuManager().getString("ResourceSortOrder.Ascending"),
-					getMenuManager().getString("ResourceSortOrder.Descending") }) : null;
+					Messages.getString("ResourceSortOrder.Ascending"),
+					Messages.getString("ResourceSortOrder.Descending") }) : null;
 		if (sortDirection != null) {
 			sortDirection.setName("microproject.taskSort.direction");
 			ViewTransformer viewTransform = ((TransformComboBoxModel) combo.getModel()).getView().getTransform();
@@ -3879,7 +3879,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		if (sortDirection != null || permanentOrder != null) {
 			JPanel options = new JPanel(new FlowLayout(FlowLayout.LEADING, 8, 0));
 			if (sortDirection != null) {
-				options.add(new JLabel(getMenuManager().getString("ResourceSortOrder.Order")));
+				options.add(new JLabel(Messages.getString("ResourceSortOrder.Order")));
 				options.add(sortDirection);
 			}
 			if (permanentOrder != null) options.add(permanentOrder);
