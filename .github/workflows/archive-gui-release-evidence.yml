@@ -142,7 +142,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path source-artifact | Out-Null
           gh run download $env:SOURCE_RUN_ID --name $env:ARTIFACT_NAME --dir source-artifact --repo $env:GITHUB_REPOSITORY
           if ($LASTEXITCODE -ne 0) { throw 'Could not download the verified source artifact.' }
-          python scripts/archive_gui_release_evidence.py --source-root source-artifact --manifest source-provenance.json --output "microProject-gui-evidence-$env:RELEASE_TAG.zip"
+          python scripts/archive_gui_release_evidence.py --source-root source-artifact --manifest source-provenance.json --output "microProject-gui-evidence-v2-$env:RELEASE_TAG.zip"
           if ($LASTEXITCODE -ne 0) { throw 'Could not create the allowlisted GUI evidence archive.' }
 
       - name: Upload curated evidence without clobbering
@@ -152,7 +152,7 @@ jobs:
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
           $ErrorActionPreference = 'Stop'
-          $assetName = "microProject-gui-evidence-$env:RELEASE_TAG.zip"
+          $assetName = "microProject-gui-evidence-v2-$env:RELEASE_TAG.zip"
           $assetPath = Join-Path $PWD $assetName
           $sha256 = (Get-FileHash -LiteralPath $assetPath -Algorithm SHA256).Hash.ToLowerInvariant()
           $release = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$env:RELEASE_TAG"

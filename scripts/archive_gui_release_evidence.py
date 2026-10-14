@@ -6,6 +6,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import struct
 import zipfile
 from pathlib import Path
 
@@ -14,10 +15,14 @@ EVIDENCE_FILES = (
     "ribbon-tab-1.png",  # Task tab: representative main ribbon state.
     "ribbon-tab-5.png",  # View tab: a second main ribbon state.
     "ribbon-file-backstage-open.png",
+    "ribbon-contextual-NetworkFormatRibbonTask.png",
+    "ribbon-contextual-CalendarFormatRibbonTask.png",
     "ribbon-tabs-narrow-320.png",
     "ribbon-tabs-overflow-focused-320.png",
     "ribbon-tabs-overflow-popup-320.png",
 )
+EVIDENCE_PACKET_VERSION = 2
+EVIDENCE_ASSET_PREFIX = f"microProject-gui-evidence-v{EVIDENCE_PACKET_VERSION}"
 GUI_LEGS = (
     "functional-full-ja-100",
     "visual-ja-1.25",
@@ -50,6 +55,17 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _png_dimensions(path: Path) -> tuple[int, int]:
+    with path.open("rb") as stream:
+        header = stream.read(24)
+    if len(header) != 24 or header[:8] != b"\x89PNG\r\n\x1a\n" or header[12:16] != b"IHDR":
+        raise ValueError(f"Evidence image is not a PNG with an IHDR header: {path}")
+    width, height = struct.unpack(">II", header[16:24])
+    if width <= 0 or height <= 0:
+        raise ValueError(f"Evidence PNG has invalid dimensions: {path}")
+    return width, height
+
+
 def _find_leg(root: Path, label: str) -> Path:
     candidates = []
     for child in root.rglob("*"):
@@ -78,16 +94,20 @@ def build_archive(source_root: Path, archive_path: Path, manifest: dict) -> dict
             source = candidates[0].resolve(strict=True)
             if not source.is_relative_to(source_root):
                 raise ValueError(f"Evidence path escapes extracted artifact root: {source}")
+            width_px, height_px = _png_dimensions(source)
             relative = f"{label}/{name}"
             staged.append((relative, source))
             image_records.append({
                 "archive_path": relative,
                 "sha256": _sha256(source),
                 "bytes": source.stat().st_size,
+                "width_px": width_px,
+                "height_px": height_px,
                 "source_artifact_path": source.relative_to(source_root).as_posix(),
             })
 
     output_manifest = dict(manifest)
+    output_manifest["evidence_packet_version"] = EVIDENCE_PACKET_VERSION
     output_manifest["curated_files"] = image_records
     output_manifest["bounds_evidence"] = (
         "The source GUI test asserts ribbon/tab bounds, but the historical run artifact does not serialize numeric bounds. "
