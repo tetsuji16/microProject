@@ -30,13 +30,17 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.FutureTask;
 
+import javax.accessibility.AccessibleState;
 import javax.imageio.ImageIO;
 import javax.swing.AbstractButton;
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JFrame;
 import javax.swing.JComponent;
+import javax.swing.MenuElement;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.MenuSelectionManager;
@@ -659,6 +663,14 @@ class RibbonTabGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(taskTab::isSelected, "Task tab did not become active at narrow width");
 		assertTrue(taskTab.isShowing(), "the selected tab must remain visible when other tabs overflow");
 		assertTrue(fileTab.isShowing(), "the fixed File tab must remain directly available");
+		String taskTabText = onEdt(taskTab::getText);
+		String taskTabAccessibleName = onEdt(() -> taskTab.getAccessibleContext().getAccessibleName());
+		boolean taskTabAccessibleSelected = onEdt(() -> taskTab.getAccessibleContext()
+			.getAccessibleStateSet().contains(AccessibleState.CHECKED));
+		assertEquals(taskTabText, taskTabAccessibleName,
+			"the selected tab must expose its label to assistive technology");
+		assertTrue(taskTabAccessibleSelected,
+			"the selected tab must expose its selected state to assistive technology");
 		for (Component component : UiComponentWalker.flatten(host)) {
 			if (!(component instanceof AbstractButton button)
 				|| !(button.getClientProperty(ModernRibbonPanel.TAB_ID_PROPERTY) instanceof String)
@@ -680,39 +692,63 @@ class RibbonTabGuiAcceptanceTest {
 		captureVisibleRibbon(robot, "ribbon-tabs-narrow-320.png", 0);
 		assertTrue(overflow.isFocusable() && overflow.isFocusPainted(),
 			"tab overflow must support keyboard access with a visible focus indication");
-		SwingUtilities.invokeAndWait(() -> {
-			frame.toFront();
-			frame.requestFocusInWindow();
-			overflow.requestFocusInWindow();
-		});
-		GuiAcceptanceSupport.await(overflow::isFocusOwner, "tab overflow did not receive keyboard focus");
+		String overflowAccessibleName = onEdt(() -> overflow.getAccessibleContext().getAccessibleName());
+		assertTrue(overflowAccessibleName != null && !overflowAccessibleName.isBlank(),
+			"tab overflow must expose its name to assistive technology");
+		GuiAcceptanceSupport.await(taskTab::isFocusOwner, "physical tab click did not leave focus on the selected tab");
+		robot.keyPress(KeyEvent.VK_TAB);
+		robot.keyRelease(KeyEvent.VK_TAB);
+		GuiAcceptanceSupport.await(overflow::isFocusOwner,
+			"Tab traversal from the selected tab did not reach the tab overflow control");
+		boolean overflowAccessibleFocused = onEdt(() -> overflow.getAccessibleContext()
+			.getAccessibleStateSet().contains(AccessibleState.FOCUSED));
+		assertTrue(overflowAccessibleFocused,
+			"tab overflow must expose its focused state to assistive technology");
 		captureVisibleRibbon(robot, "ribbon-tabs-overflow-focused-320.png", 0);
 		robot.keyPress(KeyEvent.VK_SPACE);
 		robot.keyRelease(KeyEvent.VK_SPACE);
 		JPopupMenu keyboardPopup = (JPopupMenu) overflow.getClientProperty(ModernRibbonPanel.TAB_OVERFLOW_POPUP_PROPERTY);
 		GuiAcceptanceSupport.await(() -> keyboardPopup != null && keyboardPopup.isVisible(),
 			"Space did not open the tab overflow menu");
-		robot.keyPress(KeyEvent.VK_ESCAPE);
-		robot.keyRelease(KeyEvent.VK_ESCAPE);
-		GuiAcceptanceSupport.await(() -> !keyboardPopup.isVisible(), "Escape did not close the tab overflow menu");
-		clickCommand(robot, overflow);
-		JPopupMenu popup = (JPopupMenu) overflow.getClientProperty(ModernRibbonPanel.TAB_OVERFLOW_POPUP_PROPERTY);
-		GuiAcceptanceSupport.await(popup::isVisible, "tab overflow menu did not open from its physical control");
+		robot.keyPress(KeyEvent.VK_DOWN);
+		robot.keyRelease(KeyEvent.VK_DOWN);
+		AbstractButton keyboardSelectedTab = selectedOverflowTabOnEdt();
+		assertTrue(keyboardSelectedTab != null,
+			"keyboard traversal did not select a hidden tab menu item after opening overflow");
+		String hiddenTabId = onEdt(() -> (String) keyboardSelectedTab.getClientProperty(ModernRibbonPanel.TAB_ID_PROPERTY));
+		String hiddenTabText = onEdt(keyboardSelectedTab::getText);
+		String hiddenTabAccessibleName = onEdt(() -> keyboardSelectedTab.getAccessibleContext().getAccessibleName());
+		assertEquals(hiddenTabText, hiddenTabAccessibleName,
+			"keyboard-selected hidden tab must expose its label to assistive technology");
 		Rectangle[] popupBounds = new Rectangle[1];
-		SwingUtilities.invokeAndWait(() -> popupBounds[0] = new Rectangle(popup.getLocationOnScreen(), popup.getSize()));
+		SwingUtilities.invokeAndWait(() -> popupBounds[0] = new Rectangle(keyboardPopup.getLocationOnScreen(), keyboardPopup.getSize()));
 		assertTrue(new Rectangle(frame.getLocationOnScreen(), frame.getSize()).contains(popupBounds[0]),
 			() -> "tab overflow popup escaped the application window: popup=" + popupBounds[0] + " frame=" + frame.getBounds());
 		captureVisibleRibbon(robot, "ribbon-tabs-overflow-popup-320.png", 0);
-		AbstractButton hiddenTab = UiComponentWalker.flatten(popup).stream()
-			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
-			.filter(button -> button.getClientProperty(ModernRibbonPanel.TAB_ID_PROPERTY) instanceof String)
-			.findFirst().orElseThrow(() -> new AssertionError("tab overflow menu contains no hidden tabs"));
-		String hiddenTabId = (String) hiddenTab.getClientProperty(ModernRibbonPanel.TAB_ID_PROPERTY);
-		clickCommand(robot, hiddenTab);
+		robot.keyPress(KeyEvent.VK_ENTER);
+		robot.keyRelease(KeyEvent.VK_ENTER);
 		AbstractButton selectedTab = findTab(host, hiddenTabId);
 		GuiAcceptanceSupport.await(() -> selectedTab.isSelected() && selectedTab.isShowing(),
-			"choosing an overflow tab did not select and reveal it: " + hiddenTabId);
+			"keyboard selection from the overflow menu did not reveal the hidden tab: " + hiddenTabId);
+		boolean selectedTabAccessibleSelected = onEdt(() -> selectedTab.getAccessibleContext()
+			.getAccessibleStateSet().contains(AccessibleState.CHECKED));
+		assertTrue(selectedTabAccessibleSelected,
+			"the keyboard-selected tab must expose its selected state to assistive technology");
 		assertTrue(fileTab.isShowing(), "selecting an overflow tab hid the fixed File tab");
+
+		clickCommand(robot, overflow);
+		JPopupMenu mousePopup = (JPopupMenu) overflow.getClientProperty(ModernRibbonPanel.TAB_OVERFLOW_POPUP_PROPERTY);
+		GuiAcceptanceSupport.await(mousePopup::isVisible, "tab overflow menu did not open from its physical control");
+		AbstractButton mouseSelectedTab = onEdt(() -> UiComponentWalker.flatten(mousePopup).stream()
+			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+			.filter(button -> button.getClientProperty(ModernRibbonPanel.TAB_ID_PROPERTY) instanceof String)
+			.findFirst().orElse(null));
+		assertTrue(mouseSelectedTab != null, "mouse-opened tab overflow menu contains no hidden tabs");
+		String mouseHiddenTabId = onEdt(() -> (String) mouseSelectedTab.getClientProperty(ModernRibbonPanel.TAB_ID_PROPERTY));
+		clickCommand(robot, mouseSelectedTab);
+		AbstractButton mouseRevealedTab = findTab(host, mouseHiddenTabId);
+		GuiAcceptanceSupport.await(() -> mouseRevealedTab.isSelected() && mouseRevealedTab.isShowing(),
+			"mouse selection from the overflow menu did not reveal the hidden tab: " + mouseHiddenTabId);
 
 		resizeWindow(1200);
 		GuiAcceptanceSupport.await(() -> UiComponentWalker.flatten(host).stream()
@@ -775,6 +811,26 @@ class RibbonTabGuiAcceptanceTest {
 			.map(AbstractButton.class::cast)
 			.filter(button -> tabId.equals(button.getClientProperty(ModernRibbonPanel.TAB_ID_PROPERTY)))
 			.findFirst().orElseThrow(() -> new AssertionError("Ribbon tab not found: " + tabId));
+	}
+
+	private static <T> T onEdt(Callable<T> action) throws Exception {
+		if (SwingUtilities.isEventDispatchThread()) return action.call();
+		FutureTask<T> task = new FutureTask<>(action);
+		SwingUtilities.invokeAndWait(task);
+		return task.get();
+	}
+
+	private static AbstractButton selectedOverflowTabOnEdt() throws Exception {
+		return onEdt(() -> {
+			for (MenuElement element : MenuSelectionManager.defaultManager().getSelectedPath()) {
+				Component component = element.getComponent();
+				if (component instanceof AbstractButton button
+					&& button.getClientProperty(ModernRibbonPanel.TAB_ID_PROPERTY) instanceof String) {
+					return button;
+				}
+			}
+			return null;
+		});
 	}
 
 	private static void openFileCommandDestination(Robot robot, JFrame frame, AbstractButton fileTab,
