@@ -117,6 +117,7 @@ import com.microproject.pm.key.HasKey;
 import com.microproject.pm.key.HasKeyImpl;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.snapshot.DataSnapshot;
 import com.microproject.pm.scheduling.BarClosure;
 import com.microproject.pm.scheduling.ConstraintType;
 import com.microproject.pm.scheduling.Schedule;
@@ -1039,13 +1040,15 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 
 	public ReversibleModelChange saveCurrentToSnapshot(Object snapshotId, boolean entireProject, List<?> selection) {
+		SnapshotState before = captureSnapshotState(snapshotId, entireProject, selection);
 		if (entireProject) forTasks(new SnapshottableImpl.SaveCurrentToSnapshotClosure(snapshotId));
 		else DataUtils.forAllDo(selection.iterator(), new SnapshottableImpl.SaveCurrentToSnapshotClosure(snapshotId));
+		SnapshotState after = captureSnapshotState(snapshotId, entireProject, selection);
 
 		fireSnapshotBaselineChanged(snapshotId, true);
 		return ReversibleModelChange.changed(
-			() -> clearSnapshotState(snapshotId, entireProject, selection),
-			() -> saveCurrentToSnapshot(snapshotId, entireProject, selection));
+			() -> restoreSnapshotState(snapshotId, before),
+			() -> restoreSnapshotState(snapshotId, after));
 	}
 
 	public void restoreSnapshot(Object snapshotId, boolean entireProject, List<?> selection, Collection<?> snapshotDetails) {
@@ -1063,18 +1066,14 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	}
 
 	public ReversibleModelChange clearSnapshot(final Object snapshotId, boolean entireProject, List<?> selection) {
-		Iterator<?> i = getSnapshotIterator(entireProject, selection);
-
-		final boolean[] foundSnapshot = new boolean[1]; // no undo edit if there is no snapshot
-		int snapshotTaskCount = entireProject ? getTaskList().size() : selection == null ? 0 : selection.size();
-		final Collection<?> snapshotDetails = collectSnapshotDetails(snapshotId, i, foundSnapshot, snapshotTaskCount);
+		SnapshotState before = captureSnapshotState(snapshotId, entireProject, selection);
 
 		clearSnapshotState(snapshotId, entireProject, selection);
-		if (!foundSnapshot[0]) {
+		if (!before.hasSnapshot()) {
 			return ReversibleModelChange.unchanged();
 		}
 		return ReversibleModelChange.changed(
-			() -> restoreSnapshot(snapshotId, entireProject, selection, snapshotDetails),
+			() -> restoreSnapshotState(snapshotId, before),
 			() -> clearSnapshotState(snapshotId, entireProject, selection));
 
 	}
@@ -1085,21 +1084,64 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		fireSnapshotBaselineChanged(snapshotId, false);
 	}
 
-	private Collection<?> collectSnapshotDetails(Object snapshotId, Iterator<?> tasks, boolean[] foundSnapshot,
-		int expectedTaskCount) {
-		if (tasks == null || !tasks.hasNext()) {
-			return null;
-		}
-		Collection<TaskBackup> snapshotDetails = new ArrayList<>(Math.max(0, expectedTaskCount));
-		while (tasks.hasNext()) {
-			NormalTask task = (NormalTask) tasks.next();
-			TaskBackup taskBackup = (TaskBackup) task.backupDetail(snapshotId);
-			if (taskBackup.snapshot != null) {
-				foundSnapshot[0] = true;
+	private SnapshotState captureSnapshotState(Object snapshotId, boolean entireProject, List<?> selection) {
+		Iterator<?> tasks = getSnapshotIterator(entireProject, selection);
+		ArrayList<SnapshotTaskState> taskStates = new ArrayList<>();
+		boolean capturesImportedBaselineValues = isBaselineSlot(snapshotId);
+		if (tasks != null) {
+			while (tasks.hasNext()) {
+				Object value = tasks.next();
+				if (!(value instanceof NormalTask task)) continue;
+				DataSnapshot snapshot = task.getSnapshot(snapshotId);
+				Map<Assignment, Assignment.BaselineValues> importedValues = new HashMap<>();
+				if (capturesImportedBaselineValues) {
+					for (Object assignmentValue : task.getAssignments()) {
+						Assignment assignment = (Assignment) assignmentValue;
+						Assignment.BaselineValues baselineValues = assignment.getImportedBaselineValues((Integer) snapshotId);
+						if (baselineValues != null) importedValues.put(assignment, baselineValues);
+					}
+				}
+				taskStates.add(new SnapshotTaskState(task,
+					snapshot == null ? null : task.cloneSnapshot(snapshot), importedValues));
 			}
-			snapshotDetails.add(taskBackup);
 		}
-		return snapshotDetails;
+		return new SnapshotState(taskStates);
+	}
+
+	private void restoreSnapshotState(Object snapshotId, SnapshotState state) {
+		for (SnapshotTaskState taskState : state.tasks) {
+			NormalTask task = taskState.task;
+			if (taskState.snapshot == null) task.clearSnapshot(snapshotId);
+			else {
+				task.setSnapshot(snapshotId, task.cloneSnapshot(taskState.snapshot));
+				task.markTaskAsNeedingRecalculation();
+				task.setDirty(true);
+			}
+			if (isBaselineSlot(snapshotId))
+				taskState.importedBaselineValues.forEach((assignment, values) ->
+					assignment.restoreImportedBaselineValues((Integer) snapshotId, values));
+		}
+		fireSnapshotBaselineChanged(snapshotId, state.hasSnapshot());
+	}
+
+	private record SnapshotTaskState(NormalTask task, DataSnapshot snapshot,
+		Map<Assignment, Assignment.BaselineValues> importedBaselineValues) {
+	}
+
+	private static final class SnapshotState {
+		private final List<SnapshotTaskState> tasks;
+
+		private SnapshotState(List<SnapshotTaskState> tasks) {
+			this.tasks = tasks;
+		}
+
+		private boolean hasSnapshot() {
+			return tasks.stream().anyMatch(task -> task.snapshot != null || !task.importedBaselineValues.isEmpty());
+		}
+	}
+
+	private static boolean isBaselineSlot(Object snapshotId) {
+		return snapshotId instanceof Integer slot && slot.intValue() >= 0 && slot.intValue() <= 10;
 	}
 
 	private Iterator<?> getSnapshotIterator(boolean entireProject, List<?> selection) {

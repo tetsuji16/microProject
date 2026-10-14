@@ -310,6 +310,28 @@ class ProjectScheduleBehaviorTest {
 	}
 
 	@Test
+	void clearAssignmentOnlyImportedBaselineIsUndoable() {
+		Project project = createProject();
+		NormalTask task = project.createScriptedTask();
+		project.connectTask(task);
+		ResourceImpl resource = project.getResourcePool().newResourceInstance();
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1.0d, 0L, this);
+		Integer slot = Integer.valueOf(Snapshottable.BASELINE_1);
+		Assignment.BaselineValues importedValues = new Assignment.BaselineValues(1L, 2L, 3L);
+		assignment.importBaselineValues(Snapshottable.BASELINE_1, importedValues.start(),
+			importedValues.finish(), importedValues.work());
+
+		ReversibleModelChange change = project.clearSnapshot(slot, false, Collections.singletonList(task));
+
+		assertTrue(change.hasChanged());
+		assertNull(assignment.getImportedBaselineValues(Snapshottable.BASELINE_1));
+		change.undo();
+		assertEquals(importedValues, assignment.getImportedBaselineValues(Snapshottable.BASELINE_1));
+		change.redo();
+		assertNull(assignment.getImportedBaselineValues(Snapshottable.BASELINE_1));
+	}
+
+	@Test
 	void projectBaselinesRemainIndependentFromCurrentAndOtherBaselines() {
 		Project project = createProject();
 		NormalTask task = project.createScriptedTask();
@@ -343,6 +365,106 @@ class ProjectScheduleBehaviorTest {
 		assertNull(task.getSnapshot(Snapshottable.BASELINE));
 		change.redo();
 		assertNotNull(task.getSnapshot(Snapshottable.BASELINE));
+	}
+
+	@Test
+	void overwritingSelectedBaselineRestoresPriorAndAbsentTaskSnapshotsOnUndoRedo() {
+		Project project = createProject();
+		NormalTask existing = project.createScriptedTask();
+		NormalTask previouslyUnbaselined = project.createScriptedTask();
+		NormalTask outsideSelection = project.createScriptedTask();
+		project.connectTask(existing);
+		project.connectTask(previouslyUnbaselined);
+		project.connectTask(outsideSelection);
+		ResourceImpl resource = project.getResourcePool().newResourceInstance();
+		resource.getStandardRate().setValue(10.0d);
+		Assignment existingAssignment = AssignmentService.getInstance().newAssignment(existing, resource, 1.0d, 0L, this);
+		Assignment newAssignment = AssignmentService.getInstance().newAssignment(previouslyUnbaselined, resource, 1.0d, 0L, this);
+		long hour = 60L * 60L * 1000L;
+
+		long start = project.getStartDate();
+		existing.setStart(start);
+		existing.setDuration(day());
+		existingAssignment.setWork(8L * hour, null);
+		previouslyUnbaselined.setStart(project.getEffectiveWorkCalendar().add(start, day(), false));
+		previouslyUnbaselined.setDuration(day());
+		newAssignment.setWork(16L * hour, null);
+		outsideSelection.setStart(project.getEffectiveWorkCalendar().add(start, 2L * day(), false));
+		outsideSelection.setDuration(day());
+
+		Integer slot = Integer.valueOf(Snapshottable.BASELINE_1);
+		Integer unrelatedSlot = Integer.valueOf(Snapshottable.BASELINE);
+		existing.saveCurrentToSnapshot(slot);
+		existing.saveCurrentToSnapshot(unrelatedSlot);
+		outsideSelection.saveCurrentToSnapshot(slot);
+		long oldExistingStart = existing.getBaselineStart(Snapshottable.BASELINE_1);
+		double originalFixedCost = ((TaskSnapshot) existing.getSnapshot(slot)).fixedCost;
+		Assignment.BaselineValues importedOverride = new Assignment.BaselineValues(oldExistingStart,
+			Long.valueOf(existing.getBaselineFinish(Snapshottable.BASELINE_1)), Long.valueOf(5L * day()));
+		existingAssignment.importBaselineValues(Snapshottable.BASELINE_1, importedOverride.start(),
+			importedOverride.finish(), importedOverride.work());
+		double oldExistingCost = existingAssignment.getBaselineCost(Snapshottable.BASELINE_1, null);
+		long unrelatedStart = outsideSelection.getBaselineStart(Snapshottable.BASELINE_1);
+		long unrelatedOtherSlotStart = existing.getBaselineStart(Snapshottable.BASELINE);
+
+		existing.setStart(project.getEffectiveWorkCalendar().add(start, 3L * day(), false));
+		existing.setDuration(3L * day());
+		existingAssignment.setWork(24L * hour, null);
+		previouslyUnbaselined.setStart(project.getEffectiveWorkCalendar().add(start, 4L * day(), false));
+		previouslyUnbaselined.setDuration(4L * day());
+		newAssignment.setWork(32L * hour, null);
+		long replacementExistingStart = existing.getStart();
+		long replacementNewStart = previouslyUnbaselined.getStart();
+		long currentExistingStart = existing.getStart();
+		long currentExistingWork = existingAssignment.getWork(null);
+		long currentNewStart = previouslyUnbaselined.getStart();
+		long currentNewWork = newAssignment.getWork(null);
+
+		ReversibleModelChange change = project.saveCurrentToSnapshot(slot, false,
+			List.of(existing, previouslyUnbaselined));
+		Assignment.BaselineValues replacementExistingValues = existingAssignment.getBaselineValues(Snapshottable.BASELINE_1);
+		Assignment.BaselineValues replacementNewValues = newAssignment.getBaselineValues(Snapshottable.BASELINE_1);
+		double replacementExistingCost = existingAssignment.getBaselineCost(Snapshottable.BASELINE_1, null);
+		double replacementFixedCost = ((TaskSnapshot) existing.getSnapshot(slot)).fixedCost;
+		assertEquals(replacementExistingStart, existing.getBaselineStart(Snapshottable.BASELINE_1));
+		assertEquals(replacementExistingValues, existingAssignment.getBaselineValues(Snapshottable.BASELINE_1));
+		assertEquals(replacementExistingCost, existingAssignment.getBaselineCost(Snapshottable.BASELINE_1, null));
+		assertTrue(!importedOverride.equals(replacementExistingValues),
+			"Overwrite must replace the imported assignment baseline values");
+		assertEquals(replacementNewStart, previouslyUnbaselined.getBaselineStart(Snapshottable.BASELINE_1));
+		assertEquals(replacementNewValues, newAssignment.getBaselineValues(Snapshottable.BASELINE_1));
+		assertEquals(unrelatedStart, outsideSelection.getBaselineStart(Snapshottable.BASELINE_1));
+
+		change.undo();
+		assertEquals(oldExistingStart, existing.getBaselineStart(Snapshottable.BASELINE_1));
+		assertEquals(importedOverride, existingAssignment.getBaselineValues(Snapshottable.BASELINE_1));
+		assertEquals(importedOverride, existingAssignment.getImportedBaselineValues(Snapshottable.BASELINE_1));
+		assertEquals(oldExistingCost, existingAssignment.getBaselineCost(Snapshottable.BASELINE_1, null));
+		assertNull(previouslyUnbaselined.getSnapshot(slot));
+		assertEquals(unrelatedStart, outsideSelection.getBaselineStart(Snapshottable.BASELINE_1));
+		assertEquals(unrelatedOtherSlotStart, existing.getBaselineStart(Snapshottable.BASELINE));
+		assertEquals(currentExistingStart, existing.getStart(), "Undo must leave the current task schedule untouched");
+		assertEquals(currentExistingWork, existingAssignment.getWork(null), "Undo must leave current assignment work untouched");
+		assertEquals(currentNewStart, previouslyUnbaselined.getStart());
+		assertEquals(currentNewWork, newAssignment.getWork(null));
+		((TaskSnapshot) existing.getSnapshot(slot)).fixedCost = 77.0d;
+
+		change.redo();
+		assertEquals(replacementExistingStart, existing.getBaselineStart(Snapshottable.BASELINE_1));
+		assertEquals(replacementExistingValues, existingAssignment.getBaselineValues(Snapshottable.BASELINE_1));
+		assertEquals(replacementExistingCost, existingAssignment.getBaselineCost(Snapshottable.BASELINE_1, null));
+		assertEquals(replacementNewStart, previouslyUnbaselined.getBaselineStart(Snapshottable.BASELINE_1));
+		assertEquals(replacementNewValues, newAssignment.getBaselineValues(Snapshottable.BASELINE_1));
+		assertEquals(unrelatedStart, outsideSelection.getBaselineStart(Snapshottable.BASELINE_1));
+		assertNull(existingAssignment.getImportedBaselineValues(Snapshottable.BASELINE_1),
+			"Redo must restore the replacement slot without the overwritten imported override");
+		assertEquals(currentExistingStart, existing.getStart());
+		assertEquals(currentExistingWork, existingAssignment.getWork(null));
+		assertEquals(replacementFixedCost, ((TaskSnapshot) existing.getSnapshot(slot)).fixedCost);
+		((TaskSnapshot) existing.getSnapshot(slot)).fixedCost = 88.0d;
+		change.undo();
+		assertEquals(originalFixedCost, ((TaskSnapshot) existing.getSnapshot(slot)).fixedCost,
+			"Undo state must remain isolated from later edits to the live baseline snapshot");
 	}
 
 	@Test
