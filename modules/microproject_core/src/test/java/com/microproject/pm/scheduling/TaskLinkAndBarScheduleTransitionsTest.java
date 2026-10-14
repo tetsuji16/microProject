@@ -54,7 +54,9 @@ import com.microproject.undo.DataFactoryUndoController;
 /** Named schedule transitions for task links, bar edits, and task-sheet dates. */
 class TaskLinkAndBarScheduleTransitionsTest {
 	private record LinkCase(int type, int lagDays) {}
-	private record CalendarLagCase(int type, long expectedSuccessorStart) {}
+	private record CalendarLagCase(int type, long predecessorStart, long predecessorDuration,
+		long expectedPredecessorFinish, long successorDuration, long expectedInitialSuccessorFinish,
+		long expectedSuccessorStart, long expectedSuccessorFinish) {}
 	private record MoveCase(int offsetDays) {}
 	private record ResizeCase(int durationDays) {}
 	private record DurationCase(int durationDays) {}
@@ -134,11 +136,31 @@ class TaskLinkAndBarScheduleTransitionsTest {
 
 	@TestFactory
 	Stream<DynamicTest> workingDayLagUsesPredecessorTaskCalendarAcrossNonworkingDays() {
+		long mondayEight = timestamp(2030, Calendar.JUNE, 3, 8);
+		long mondayThirteen = timestamp(2030, Calendar.JUNE, 3, 13);
+		long mondaySeventeen = timestamp(2030, Calendar.JUNE, 3, 17);
 		long thursdayEight = timestamp(2030, Calendar.JUNE, 6, 8);
+		long thursdayThirteen = timestamp(2030, Calendar.JUNE, 6, 13);
+		long thursdaySeventeen = timestamp(2030, Calendar.JUNE, 6, 17);
 		long fridayEight = timestamp(2030, Calendar.JUNE, 7, 8);
+		long fridaySeventeen = timestamp(2030, Calendar.JUNE, 7, 17);
+		long fourHours = day() / 2;
 		List<CalendarLagCase> cases = List.of(
-			new CalendarLagCase(DependencyType.FS, fridayEight),
-			new CalendarLagCase(DependencyType.SS, thursdayEight));
+			// Retain the full-day end-boundary cases from the earlier oracle.
+			new CalendarLagCase(DependencyType.FS, mondayEight, day(), mondaySeventeen,
+				day(), mondaySeventeen, fridayEight, fridaySeventeen),
+			new CalendarLagCase(DependencyType.SS, mondayEight, day(), mondaySeventeen,
+				day(), mondaySeventeen, thursdayEight, thursdaySeventeen),
+			// The half-day cases place lag endpoints inside working intervals or at
+			// the explicit 12:00-13:00 break boundary.
+			new CalendarLagCase(DependencyType.FS, mondayEight, fourHours, mondayThirteen,
+				fourHours, mondayThirteen, thursdayThirteen, thursdaySeventeen),
+			new CalendarLagCase(DependencyType.SS, mondayEight, fourHours, mondayThirteen,
+				fourHours, mondayThirteen, thursdayEight, thursdayThirteen),
+			new CalendarLagCase(DependencyType.FF, mondayEight, fourHours, mondayThirteen,
+				fourHours, mondayThirteen, thursdayEight, thursdayThirteen),
+			new CalendarLagCase(DependencyType.SF, mondayThirteen, fourHours, mondaySeventeen,
+				fourHours, mondayThirteen, thursdayEight, thursdayThirteen));
 		return IntStream.range(0, cases.size()).mapToObj(index ->
 			DynamicTest.dynamicTest(id("LINK-CALENDAR", index + 1),
 				() -> verifyWorkingDayLagUsesPredecessorTaskCalendar(cases.get(index))));
@@ -148,11 +170,16 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		Fixture fixture = createFixture();
 		Project project = fixture.project;
 		long mondayEight = timestamp(2030, Calendar.JUNE, 3, 8);
+		long mondayThirteen = timestamp(2030, Calendar.JUNE, 3, 13);
 		long mondaySeventeen = timestamp(2030, Calendar.JUNE, 3, 17);
 		long tuesdayMidnight = timestamp(2030, Calendar.JUNE, 4, 0);
 		long wednesdayMidnight = timestamp(2030, Calendar.JUNE, 5, 0);
+		long wednesdayThirteen = timestamp(2030, Calendar.JUNE, 5, 13);
 		long thursdayEight = timestamp(2030, Calendar.JUNE, 6, 8);
+		long thursdayThirteen = timestamp(2030, Calendar.JUNE, 6, 13);
+		long thursdaySeventeen = timestamp(2030, Calendar.JUNE, 6, 17);
 		long fridayEight = timestamp(2030, Calendar.JUNE, 7, 8);
+		long fridaySeventeen = timestamp(2030, Calendar.JUNE, 7, 17);
 		project.setStart(mondayEight);
 		((WorkingCalendar) project.getWorkCalendar()).addOrReplaceException(new WorkDay(tuesdayMidnight));
 
@@ -163,10 +190,12 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		predecessorCalendar.setName("Predecessor Wednesday exception");
 		predecessorCalendar.addOrReplaceException(new WorkDay(wednesdayMidnight));
 		predecessor.setWorkCalendar(predecessorCalendar);
-		predecessor.setScheduleConstraint(ConstraintType.SNET, mondayEight);
+		predecessor.setScheduleConstraint(ConstraintType.SNET, c.predecessorStart);
 		successor.setScheduleConstraint(ConstraintType.SNET, mondayEight);
 		unrelated.setScheduleConstraint(ConstraintType.SNET, mondayEight);
-		predecessor.getCurrentSchedule().setStart(mondayEight);
+		predecessor.setDuration(c.predecessorDuration);
+		successor.setDuration(c.successorDuration);
+		predecessor.getCurrentSchedule().setStart(c.predecessorStart);
 		successor.getCurrentSchedule().setStart(mondayEight);
 
 		// The project calendar skips Tuesday; the predecessor calendar inherits that
@@ -174,35 +203,48 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		assertEquals(thursdayEight, project.getWorkCalendar().add(mondaySeventeen, day(), false));
 		assertEquals(thursdayEight, predecessorCalendar.add(mondayEight, day(), false));
 		assertEquals(fridayEight, predecessor.getEffectiveWorkCalendar().add(mondaySeventeen, day(), false));
+		assertEquals(wednesdayThirteen, project.getWorkCalendar().add(mondayEight + day() / 2, day(), false));
+		assertEquals(thursdayThirteen, predecessorCalendar.add(mondayEight + day() / 2, day(), false));
+		assertEquals(thursdayThirteen, predecessorCalendar.add(mondayThirteen, day(), false));
 		assertSame(predecessorCalendar, predecessor.getEffectiveWorkCalendar());
 		project.recalculate();
-		assertEquals(mondayEight, predecessor.getStart());
-		assertEquals(mondaySeventeen, predecessor.getEnd(), "predecessor finish before link creation");
+		assertEquals(c.predecessorStart, predecessor.getStart());
+		assertEquals(c.expectedPredecessorFinish, predecessor.getEnd(), "predecessor finish before link creation");
 		assertEquals(mondayEight, successor.getStart(), "successor start before link creation");
+		assertEquals(c.expectedInitialSuccessorFinish, successor.getEnd(), "successor finish before link creation");
 		assertEquals(mondayEight, unrelated.getStart(), "unrelated task start before link creation");
+		assertEquals(mondaySeventeen, unrelated.getEnd(), "unrelated task finish before link creation");
 
 		Dependency dependency = DependencyService.getInstance().newDependency(
 			predecessor, successor, c.type, day(), this);
 		project.recalculate();
 
-		assertEquals(mondayEight, predecessor.getStart());
-		assertEquals(mondaySeventeen, predecessor.getEnd());
-		// Literal oracle: FS anchors its 8h lag at Monday 17:00 and reaches Friday
-		// 08:00 after skipping Tuesday/Wednesday and consuming Thursday's intervals.
-		// SS anchors at Monday 08:00; consuming Monday's 08:00-12:00 and 13:00-17:00
-		// intervals puts its 8h endpoint at Monday 17:00. The successor start then
-		// normalizes to Thursday 08:00 because Tuesday/Wednesday are nonworking.
-		// No expected value is obtained from the scheduler.
-		// Microsoft documents calendar scheduling and lag separately, but does not
-		// specify which calendar owns lag. Preserve this as a document-derived product
-		// decision, not measured MSP behavior or a claim of owner parity.
-		// Sources: https://support.microsoft.com/en-us/project/how-project-schedules-tasks-behind-the-scenes
+		assertEquals(c.predecessorStart, predecessor.getStart());
+		assertEquals(c.expectedPredecessorFinish, predecessor.getEnd());
+		// Literal oracle uses the stated 08:00-12:00 and 13:00-17:00 intervals.
+		// A 4h task starting Monday 08:00 finishes at Monday 13:00 (the next work
+		// interval after the 12:00 break). FS/FF lag from that finish consumes Monday
+		// 13:00-17:00 plus Thursday 08:00-12:00; the lag target normalizes to Thursday
+		// 13:00. Thus FS starts Thursday 13:00, while a 4h FF successor starts Thursday
+		// 08:00 and finishes Thursday 13:00. SS lag from Monday 08:00 consumes both
+		// Monday intervals, then skips Tuesday/Wednesday to Thursday 08:00. SF lag from
+		// Monday 13:00 consumes the afternoon plus Thursday morning, so a 4h successor
+		// finishes Thursday 13:00. The retained full-day FS/SS cases assert their
+		// Friday/Thursday 08:00 start boundaries.
+		// Microsoft defines the four link endpoints and documents scheduling calendars
+		// and lag, but not which calendar owns lag. Retain predecessor effective calendar
+		// as a document-derived product decision, not measured MSP behavior or owner parity.
+		// Sources: https://support.microsoft.com/en-us/project/link-tasks-in-a-project
+		// https://support.microsoft.com/en-us/project/how-project-schedules-tasks-behind-the-scenes
 		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
 		// https://learn.microsoft.com/en-us/office-project/xml-data-interchange/predecessorlink-element?view=project-client-2016
 		assertEquals(c.type, dependency.getDependencyType());
 		assertEquals(c.expectedSuccessorStart, successor.getStart(),
 			"the predecessor task calendar skips Tuesday and Wednesday for type=" + c.type);
+		assertEquals(c.expectedSuccessorFinish, successor.getEnd(),
+			"the literal successor finish differs for type=" + c.type);
 		assertEquals(mondayEight, unrelated.getStart(), "dependency recalculation leaves unrelated task unchanged");
+		assertEquals(mondaySeventeen, unrelated.getEnd(), "dependency recalculation leaves unrelated finish unchanged");
 		assertEquals(day(), dependency.getLag());
 
 		assertTrue(fixture.undo.canUndo());
@@ -210,11 +252,17 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		project.recalculate();
 		assertFalse(predecessor.getSuccessorList().iterator().hasNext());
 		assertEquals(mondayEight, successor.getStart(), "Undo restores the independent schedule");
+		assertEquals(c.expectedInitialSuccessorFinish, successor.getEnd(), "Undo restores the original finish");
+		assertEquals(c.predecessorStart, predecessor.getStart(), "Undo leaves predecessor start unchanged");
+		assertEquals(c.expectedPredecessorFinish, predecessor.getEnd(), "Undo leaves predecessor finish unchanged");
+		assertEquals(mondaySeventeen, unrelated.getEnd(), "Undo leaves unrelated finish unchanged");
 		fixture.undo.redo();
 		project.recalculate();
 		assertSame(dependency, predecessor.getSuccessorList().findRight(successor));
 		assertEquals(c.expectedSuccessorStart, successor.getStart(), "Redo restores the calendar-derived date");
+		assertEquals(c.expectedSuccessorFinish, successor.getEnd(), "Redo restores the calendar-derived finish");
 		assertEquals(mondayEight, unrelated.getStart(), "Undo/Redo leaves unrelated task unchanged");
+		assertEquals(mondaySeventeen, unrelated.getEnd(), "Undo/Redo leaves unrelated task finish unchanged");
 	}
 
 	@TestFactory
