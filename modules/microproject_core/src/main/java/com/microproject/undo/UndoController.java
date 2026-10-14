@@ -52,6 +52,7 @@ public class UndoController extends UndoManager implements EditListener{
 	}
 	public void editPosted(UndoableEdit edit){
 		super.addEdit(edit);
+		editSupport.historyRecorded(edit);
 	}
 
 	public void clear(){
@@ -67,7 +68,7 @@ public class UndoController extends UndoManager implements EditListener{
 		if (canUndo()) {
 			boolean previousBatchMode = Environment.isBatchMode();
 			Environment.setBatchMode(true);
-			try {
+			try (EditSupport.RecordingScope recording = editSupport.suppressRecording()) {
 				super.undo();
 //				undoManager.undo();
 			} finally {
@@ -80,7 +81,7 @@ public class UndoController extends UndoManager implements EditListener{
 		if (canRedo()) {
 			boolean previousBatchMode = Environment.isBatchMode();
 			Environment.setBatchMode(true);
-			try {
+			try (EditSupport.RecordingScope recording = editSupport.suppressRecording()) {
 //				undoManager.redo();
 				super.redo();
 			} finally {
@@ -89,10 +90,10 @@ public class UndoController extends UndoManager implements EditListener{
 		}
 	}
 	public boolean canUndo() {
-		return super.canUndo();//undoManager.canUndo();
+		return !editSupport.hasPendingHistory() && super.canUndo();
 	}
 	public boolean canRedo() {
-		return super.canRedo();//undoManager.canRedo();
+		return !editSupport.hasPendingHistory() && super.canRedo();
 	}
 
 

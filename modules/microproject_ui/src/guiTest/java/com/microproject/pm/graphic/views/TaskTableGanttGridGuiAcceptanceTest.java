@@ -7,6 +7,7 @@ package com.microproject.pm.graphic.views;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -61,9 +62,18 @@ import org.junit.jupiter.api.Test;
 import com.microproject.graphic.configuration.SpreadSheetCategories;
 import com.microproject.graphic.configuration.SpreadSheetFieldArray;
 import com.microproject.configuration.Dictionary;
+import com.microproject.configuration.Configuration;
+import com.microproject.datatype.Duration;
+import com.microproject.datatype.DurationFormat;
+import com.microproject.datatype.TimeUnit;
 import com.microproject.graphic.configuration.BarStyles;
 import com.microproject.pm.graphic.gantt.Gantt;
 import com.microproject.pm.graphic.gantt.GanttUI;
+import com.microproject.pm.graphic.frames.DocumentFrame;
+import com.microproject.pm.graphic.frames.GraphicManager;
+import com.microproject.pm.graphic.frames.GuiAcceptanceShortcutInstaller;
+import com.microproject.pm.graphic.frames.workspace.FrameHolder;
+import com.microproject.pm.graphic.frames.workspace.FrameManager;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
@@ -82,6 +92,7 @@ import com.microproject.options.CalendarOption;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.field.Field;
+import com.microproject.field.FieldContext;
 import com.microproject.exchange.MpoFileImporter;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.undo.DataFactoryUndoController;
@@ -95,8 +106,13 @@ class TaskTableGanttGridGuiAcceptanceTest {
 	private JFrame frame;
 	private Gantt gantt;
 	private TaskSelectionController selectionController;
+	private GraphicManager popupGraphicManager;
 	@AfterEach
 	void closeWindow() throws Exception {
+		if (popupGraphicManager != null) {
+			SwingUtilities.invokeAndWait(() -> popupGraphicManager.cleanUp());
+			popupGraphicManager = null;
+		}
 		if (selectionController != null) {
 			SwingUtilities.invokeAndWait(() -> selectionController.close());
 			selectionController = null;
@@ -552,21 +568,27 @@ class TaskTableGanttGridGuiAcceptanceTest {
 	void physicalHeaderRightClickHidesTheChosenColumnThroughTheColumnPopup() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Fixture fixture = createFixture(3);
-		showFixture(fixture);
+		showFixture(fixture, true);
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		SwingUtilities.invokeAndWait(() -> {
 			frame.toFront();
 			frame.requestFocus();
 		});
-		GuiAcceptanceSupport.await(() -> fixture.sheet.isShowing() && fixture.sheet.getColumnCount() > 1,
+		GuiAcceptanceSupport.await(() -> hasVisibleColumns(fixture.sheet, 1),
 			"task table was not ready for a header context-menu operation");
 
 		int column = 1;
-		int beforeFields = fixture.sheet.getFieldArray().size();
+		int[] beforeFieldsValue = new int[1];
+		String[] hiddenFieldIdValue = new String[1];
+		SwingUtilities.invokeAndWait(() -> {
+			beforeFieldsValue[0] = fixture.sheet.getFieldArray().size();
+			hiddenFieldIdValue[0] = fixture.sheet.getFieldArray().get(column + 1).getId();
+		});
+		int beforeFields = beforeFieldsValue[0];
 		// HeaderMouseListener passes the visible header index plus one because the
 		// persisted field array reserves index zero for the hidden task ID field.
-		String hiddenFieldId = fixture.sheet.getFieldArray().get(column + 1).getId();
+		String hiddenFieldId = hiddenFieldIdValue[0];
 		Point headerPoint = screenCenter(fixture.sheet.getTableHeader(),
 			fixture.sheet.getTableHeader().getHeaderRect(column));
 		robot.mouseMove(headerPoint.x, headerPoint.y);
@@ -588,18 +610,28 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		robot.mouseMove(hideLocation.x + hide.getWidth() / 2, hideLocation.y + hide.getHeight() / 2);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-		GuiAcceptanceSupport.await(() -> fixture.sheet.getFieldArray().size() == beforeFields - 1,
+		GuiAcceptanceSupport.await(() -> fieldLayoutMatches(fixture.sheet, beforeFields - 1, hiddenFieldId, false),
 			"Hide Column from the physical popup did not update the persistent field layout");
-		SwingUtilities.invokeAndWait(() -> {
-			assertEquals(beforeFields - 1, fixture.sheet.getColumnCount() + 1,
-				"the visible table must remove exactly the header column chosen from its popup");
-			assertFalse(fixture.sheet.getFieldArray().stream().anyMatch(field -> hiddenFieldId.equals(field.getId())),
-				"the physically hidden field must leave the visible field array");
-		});
-		fixture.project.getUndoController().undo();
-		assertEquals(beforeFields, fixture.sheet.getFieldArray().size(), "Undo must restore the hidden column");
-		fixture.project.getUndoController().redo();
-		assertEquals(beforeFields - 1, fixture.sheet.getFieldArray().size(), "Redo must reapply the hidden column");
+		assertTrue(fieldLayoutMatches(fixture.sheet, beforeFields - 1, hiddenFieldId, false),
+			"the visible table must remove exactly the header column chosen from its popup");
+		SwingUtilities.invokeAndWait(() -> fixture.sheet.requestFocusInWindow());
+		GuiAcceptanceSupport.await(fixture.sheet::isFocusOwner, "task table did not regain focus before physical Undo");
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_Z);
+		robot.keyRelease(KeyEvent.VK_Z);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		GuiAcceptanceSupport.await(() -> fieldLayoutMatches(fixture.sheet, beforeFields, hiddenFieldId, true),
+			"physical Ctrl+Z did not restore the hidden column");
+		assertTrue(fieldLayoutMatches(fixture.sheet, beforeFields, hiddenFieldId, true),
+			"Undo must restore the selected header in the persisted field layout");
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_Y);
+		robot.keyRelease(KeyEvent.VK_Y);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		GuiAcceptanceSupport.await(() -> fieldLayoutMatches(fixture.sheet, beforeFields - 1, hiddenFieldId, false),
+			"physical Ctrl+Y did not reapply the hidden column");
+		assertTrue(fieldLayoutMatches(fixture.sheet, beforeFields - 1, hiddenFieldId, false),
+			"Redo must remove the selected header from the persisted field layout again");
 
 		ByteArrayOutputStream saved = new ByteArrayOutputStream();
 		assertTrue(new MpoFileImporter().saveProject(fixture.project, saved),
@@ -1172,8 +1204,23 @@ class TaskTableGanttGridGuiAcceptanceTest {
 	}
 
 	private void showFixture(Fixture fixture) throws Exception {
+		showFixture(fixture, false);
+	}
+
+	private void showFixture(Fixture fixture, boolean installDocumentShortcuts) throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
-			frame = new JFrame("Task table and Gantt GUI acceptance");
+			if (installDocumentShortcuts) {
+				FixtureFrame fixtureFrame = new FixtureFrame();
+				frame = fixtureFrame;
+				FixtureGraphicManager manager = fixtureFrame.manager;
+				popupGraphicManager = manager;
+				DocumentFrame document = new DocumentFrame(manager, fixture.project, "task-table-column-popup-test");
+				document.setActive(true);
+				manager.setDocumentFrame(document);
+				GuiAcceptanceShortcutInstaller.install(manager, fixtureFrame);
+			} else {
+				frame = new JFrame("Task table and Gantt GUI acceptance");
+			}
 			JScrollPane ganttPane = new JScrollPane(fixture.gantt);
 			// The production GanttView puts a time-scale header above the chart.
 			// Keep this lightweight fixture's row origin aligned with the table.
@@ -1192,6 +1239,29 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			frame.setVisible(true);
 			gantt.updateSize();
 		});
+	}
+
+	private static final class FixtureFrame extends JFrame implements FrameHolder {
+		private static final long serialVersionUID = 1L;
+		private FixtureGraphicManager manager;
+
+		FixtureFrame() {
+			super("Task table and Gantt GUI acceptance");
+			manager = new FixtureGraphicManager(this);
+			manager.getMenuManager();
+		}
+
+		@Override public FrameManager getFrameManager() { return null; }
+		@Override public GraphicManager getGraphicManager() { return manager; }
+		@Override public void setGraphicManager(GraphicManager manager) { this.manager = (FixtureGraphicManager) manager; }
+	}
+
+	private static final class FixtureGraphicManager extends GraphicManager {
+		private DocumentFrame documentFrame;
+
+		FixtureGraphicManager(FixtureFrame frame) { super(frame); }
+		void setDocumentFrame(DocumentFrame frame) { documentFrame = frame; }
+		@Override public DocumentFrame getCurrentFrame() { return documentFrame; }
 	}
 
 	private Fixture createFixture() throws Exception {
@@ -1348,9 +1418,30 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			"a task-table date commit must not move the Gantt timescale viewport");
 	}
 
+	private static void assertBareDurationFieldConversion() throws Exception {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("duration-field-conversion-test", undo);
+		Project project = Project.createProject(pool, undo);
+		project.initialize(false, false);
+		NormalTask task = project.createScriptedTask();
+		FieldContext context = new FieldContext();
+		context.setTaskSheetUpdate(true);
+
+		Duration parsedText = (Duration) DurationFormat.getInstance().parseObject("10");
+		assertNotNull(parsedText, "the duration parser must accept the same bare numeric input as the task table");
+		assertEquals(TimeUnit.DAYS, Duration.getType(parsedText.getEncodedMillis()),
+			"the configured bare numeric duration input is interpreted in the current entry unit");
+		Configuration.getFieldFromId("Field.duration").setValue(task, task, "10", context);
+
+		assertEquals(Duration.millis(parsedText.getEncodedMillis()), Duration.millis(task.getRawDuration()));
+		assertEquals(TimeUnit.NONE, Duration.getType(task.getRawDuration()),
+			"the schedule workflow stores entered duration as unitless milliseconds before MPO normalization");
+	}
+
 	@Test
 	void physicalTaskTableDurationEditRoundTripsThroughMpo() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		assertBareDurationFieldConversion();
 		Fixture fixture = createFixture(1);
 		showFixture(fixture);
 		Robot robot = new com.microproject.testsupport.GuiRobot();
@@ -1358,9 +1449,12 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		GraphicNode node = (GraphicNode) fixture.gantt.getModel().getCache().getElementAt(0);
 		editCellPhysically(robot, fixture.sheet, fixture.sheet.getCache().getRowAt(node),
 			findColumn(fixture.sheet, "Field.duration"), "10");
-		assertEquals(10L * CalendarOption.getInstance().getMillisPerDay(), fixture.project.getTasks().stream()
+		NormalTask edited = fixture.project.getTasks().stream()
 			.filter(value -> value instanceof NormalTask && "Sequential 1".equals(((NormalTask) value).getName()))
-			.map(value -> ((NormalTask) value).getRawDuration()).findFirst().orElseThrow());
+			.map(value -> (NormalTask) value).findFirst().orElseThrow();
+		assertEquals(10L * CalendarOption.getInstance().getMillisPerDay(), Duration.millis(edited.getRawDuration()));
+		assertEquals(TimeUnit.NONE, Duration.getType(edited.getRawDuration()),
+			"the live schedule stores the entered duration as unitless milliseconds");
 		ByteArrayOutputStream saved = new ByteArrayOutputStream();
 		assertTrue(new MpoFileImporter().saveProject(fixture.project, saved),
 			"MPO save rejected the physical duration edit");
@@ -1368,8 +1462,10 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		NormalTask restored = reloaded.getTasks().stream()
 			.filter(value -> value instanceof NormalTask && "Sequential 1".equals(((NormalTask) value).getName()))
 			.map(value -> (NormalTask) value).findFirst().orElseThrow();
-		assertEquals(10L * CalendarOption.getInstance().getMillisPerDay(), restored.getRawDuration(),
-			"MPO reload lost the physical duration edit");
+		assertEquals(10L * CalendarOption.getInstance().getMillisPerDay(), Duration.millis(restored.getRawDuration()),
+			"MPO reload lost the physical duration value");
+		assertEquals(TimeUnit.DAYS, Duration.getType(restored.getRawDuration()),
+			"MPO reload lost the physical duration unit");
 	}
 
 	private static void editCellPhysically(Robot robot, SpreadSheet sheet, int row, int column, String value) throws Exception {
@@ -1402,6 +1498,31 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		robot.keyPress(KeyEvent.VK_ENTER);
 		robot.keyRelease(KeyEvent.VK_ENTER);
 		GuiAcceptanceSupport.await(() -> !sheet.isEditing(), "duration edit did not commit");
+	}
+
+	private static boolean fieldLayoutMatches(SpreadSheet sheet, int expectedFields, String fieldId, boolean contains)
+		throws AssertionError {
+		boolean[] matches = new boolean[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				boolean found = sheet.getFieldArray().stream().anyMatch(field -> fieldId.equals(field.getId()));
+				matches[0] = sheet.getFieldArray().size() == expectedFields
+					&& sheet.getColumnCount() + 1 == expectedFields && found == contains;
+			});
+		} catch (Exception exception) {
+			throw new AssertionError("Could not inspect the task-table layout on the EDT", exception);
+		}
+		return matches[0];
+	}
+
+	private static boolean hasVisibleColumns(SpreadSheet sheet, int minimumColumns) throws AssertionError {
+		boolean[] matches = new boolean[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> matches[0] = sheet.isShowing() && sheet.getColumnCount() > minimumColumns);
+		} catch (Exception exception) {
+			throw new AssertionError("Could not inspect task-table visibility on the EDT", exception);
+		}
+		return matches[0];
 	}
 
 	private static String activeEditorText(SpreadSheet sheet) throws Exception {

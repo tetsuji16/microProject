@@ -64,6 +64,7 @@ public interface NodeModel extends TreeModel, WalkersNodeModel{
 	public List<Node> newNodes(Node parent,int position,int count,int actionType);
 
 	public void paste(Node parent,List<Node> nodes,int position,int actionType);
+	public void indent(List<Node> nodes,int deltaLevel,int actionType);
 
 	public void remove(Node node,int actionType);
 	public void remove(List<Node> nodes,int actionType);

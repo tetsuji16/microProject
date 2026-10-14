@@ -57,9 +57,10 @@ class ProjectFilePoliciesTest {
 		assertTrue(ProjectFilePolicies.requiresSaveAs("plan.mpx"));
 		assertEquals("plan.mpo", ProjectFilePolicies.defaultSaveAsFileName("plan.mpp"));
 		assertEquals("plan.mpo", ProjectFilePolicies.defaultSaveAsFileName("plan.pod"));
+		assertEquals("plan.mpo", ProjectFilePolicies.defaultSaveAsFileName("plan.xml"));
+		assertEquals("plan.mpo", ProjectFilePolicies.defaultSaveAsFileName("plan.xlsx"));
 		assertFalse(ProjectFilePolicies.requiresSaveAs("plan.mpo"));
 		assertFalse(ProjectFilePolicies.requiresSaveAs("plan.xml"));
-		assertEquals("plan.xlsx", ProjectFilePolicies.defaultSaveAsFileName("plan.xlsx"));
 	}
 
 	@Test

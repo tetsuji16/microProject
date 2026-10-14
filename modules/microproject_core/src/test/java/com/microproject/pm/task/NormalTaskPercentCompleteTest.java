@@ -26,6 +26,8 @@ package com.microproject.pm.task;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -77,12 +79,23 @@ class NormalTaskPercentCompleteTest {
 		baselineSchedule.setFinish(task.getEnd());
 		baselineSnapshot.setCurrentSchedule(baselineSchedule);
 		task.setSnapshot(Snapshottable.BASELINE, baselineSnapshot);
+		assertNull(currentAssignment.getBaselineValues(0),
+			"a task baseline schedule without an assignment baseline must not invent assignment scalars");
 
 		Assignment baseline = task.getBaselineAssignment(currentAssignment.getResource(), Snapshottable.BASELINE, true);
 
 		assertSame(baselineSchedule, baselineSnapshot.getCurrentSchedule());
 		assertEquals(task.getStart(), baseline.getStart());
 		assertEquals(task.getEnd(), baseline.getFinish());
+		currentAssignment.importBaselineValues(0, Long.valueOf(baseline.getStart()), Long.valueOf(baseline.getFinish()),
+			Long.valueOf(0L));
+		assertEquals(Long.valueOf(0L), currentAssignment.getBaselineValues(0).work());
+		baseline.setStart(baseline.getStart() + 1L);
+		assertEquals(Long.valueOf(baseline.getStart()), currentAssignment.getBaselineValues(0).start(),
+			"editing an anchored baseline assignment must invalidate imported source metadata");
+		baseline.setWork(baseline.getWork(null) + 1_000L, null);
+		assertEquals(Long.valueOf(baseline.getWork(null)), currentAssignment.getBaselineValues(0).work(),
+			"editing baseline work must invalidate the current assignment's imported scalar metadata");
 		long baselineStart = baseline.getStart();
 		long baselineWork = baseline.getWork(null);
 		assertThrows(IllegalArgumentException.class, () -> baseline.importBaselineValues(null, null, Long.valueOf(-1L)));
@@ -94,6 +107,31 @@ class NormalTaskPercentCompleteTest {
 			() -> currentAssignment.importBaselineValues(Long.valueOf(task.getStart()), null, null));
 		assertEquals(currentStart, currentAssignment.getStart());
 		assertEquals(currentFinish, currentAssignment.getFinish());
+	}
+
+	@Test
+	void assignmentOnlyBaselineIsReplacedByCaptureAndRemovedWithSnapshot() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		Assignment assignment = assignWork(project, task, 8L * 60L * 60L * 1000L);
+		assignment.importBaselineValues(0, Long.valueOf(task.getStart()), Long.valueOf(task.getEnd()),
+			Long.valueOf(4L * 60L * 60L * 1000L));
+		assertEquals(Long.valueOf(4L * 60L * 60L * 1000L), assignment.getBaselineValues(0).work());
+		assertNull(task.getSnapshot(Integer.valueOf(0)));
+		Assignment copy = (Assignment) assignment.clone();
+		copy.clearBaselineValues(0);
+		assertNull(copy.getBaselineValues(0));
+		assertEquals(Long.valueOf(4L * 60L * 60L * 1000L), assignment.getBaselineValues(0).work());
+		assertThrows(IllegalArgumentException.class, () -> assignment.clearBaselineValues(11));
+
+		task.saveCurrentToSnapshot(Integer.valueOf(0));
+		assertNotNull(task.getSnapshot(Integer.valueOf(0)));
+		assertEquals(Long.valueOf(assignment.getStart()), assignment.getBaselineValues(0).start());
+		assertEquals(Long.valueOf(assignment.getWork(null)), assignment.getBaselineValues(0).work());
+
+		task.clearSnapshot(Integer.valueOf(0));
+		assertNull(assignment.getBaselineValues(0));
+		assertNull(task.getSnapshot(Integer.valueOf(0)));
 	}
 
 	@Test

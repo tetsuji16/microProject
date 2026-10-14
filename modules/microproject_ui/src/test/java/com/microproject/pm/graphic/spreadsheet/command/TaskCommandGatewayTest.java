@@ -6,12 +6,17 @@ package com.microproject.pm.graphic.spreadsheet.command;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.List;
 
 import javax.swing.SwingUtilities;
@@ -19,6 +24,8 @@ import javax.swing.SwingUtilities;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.configuration.FieldDictionary;
+import com.microproject.datatype.Duration;
+import com.microproject.datatype.PercentFormat;
 import com.microproject.graphic.configuration.SpreadSheetCategories;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.model.NodeModel;
@@ -37,9 +44,104 @@ import com.microproject.pm.task.ProjectTaskKey;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.scheduling.Schedule;
+import com.microproject.pm.scheduling.ScheduleEvent;
 import com.microproject.undo.DataFactoryUndoController;
 
 class TaskCommandGatewayTest {
+	/**
+	 * Microsoft defines task % Complete as Actual Duration / Duration; it is distinct
+	 * from % Work Complete and an assignment's completion percentage. See
+	 * https://support.microsoft.com/en-us/project/percent-complete-fields.
+	 */
+	@Test
+	void sampleTaskPercentInputSurvivesAssignmentReconciliationUndoRedoAndMpoReload() throws Exception {
+		MpoFileImporter serializer = new MpoFileImporter();
+		Project project;
+		try (InputStream sample = getClass().getResourceAsStream("ccpm-progress-sample.mpo")) {
+			assertNotNull(sample, "the regression sample must be the pinned c573 MPO fixture");
+			project = serializer.loadProject(sample);
+		}
+		NodeModelCache cache = NodeModelCacheFactory.getInstance().createFilteredCache(
+			NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel()), "ccpm-percent-edit", null);
+		cache.update();
+		SpreadSheet[] sheet = new SpreadSheet[1];
+		SwingUtilities.invokeAndWait(() -> {
+			sheet[0] = new SpreadSheet();
+			sheet[0].setSpreadSheetCategory(SpreadSheetCategories.taskSpreadsheetCategory);
+			SpreadSheetUtils.setFieldsAndContext(sheet[0], cache, SpreadSheetCategories.taskSpreadsheetCategory,
+				"Spreadsheet.Task.summary", true);
+		});
+		SpreadSheetModel model = (SpreadSheetModel) sheet[0].getModel();
+		int percentColumn = -1;
+		for (int column = 1; column < model.getColumnCount(); column++) {
+			if ("Field.percentComplete".equals(model.getFieldInColumn(column).getId())) {
+				percentColumn = column;
+				break;
+			}
+		}
+		assertTrue(percentColumn > 0, "the task sheet must expose Percent Complete");
+		List<Task> leaves = project.getTaskList().stream().filter(task -> !task.isSummary()).map(Task.class::cast).toList();
+		AtomicReference<Throwable> editFailure = new AtomicReference<>();
+		int committedColumn = percentColumn;
+		SwingUtilities.invokeAndWait(() -> {
+			try {
+				for (double target : new double[] { 0.0d, 0.25d }) {
+					Object value = PercentFormat.getInstance().parseObject(target == 0.0d ? "0%" : "25%");
+					for (Task task : leaves) {
+						var projection = cache.getVisibleNodes().getProjectionIndex();
+						int row = projection.rowForKey(taskRowFor(projection, task));
+						model.setValueAt(value, row, committedColumn);
+					}
+				}
+				for (Task task : leaves) {
+					var projection = cache.getVisibleNodes().getProjectionIndex();
+					int row = projection.rowForKey(taskRowFor(projection, task));
+					assertEquals(0.25d, ((Number) model.getValueAt(row, committedColumn)).doubleValue(), 0.00001d,
+						"the task-sheet model must render the entered Percent Complete for " + task.getName());
+				}
+			} catch (Throwable failure) {
+				editFailure.set(failure);
+			}
+		});
+		if (editFailure.get() != null) throw new AssertionError("canonical task-field edit failed", editFailure.get());
+		for (Task task : leaves) {
+			assertEquals(0.25d, task.getPercentComplete(), 0.00001d,
+				"task Percent Complete must remain the entered duration percentage: " + task.getName());
+		}
+		assertProjectPercent(project, leaves);
+		Task completion = leaves.stream().filter(task -> "プロジェクト完了".equals(task.getName())).findFirst().orElseThrow();
+		SwingUtilities.invokeAndWait(() -> project.getUndoController().undo());
+		assertEquals(0.0d, completion.getPercentComplete(), 0.00001d,
+			"one Undo must restore the last task's previous Percent Complete value");
+		assertProjectPercent(project, leaves);
+		SwingUtilities.invokeAndWait(() -> project.getUndoController().redo());
+		assertEquals(0.25d, completion.getPercentComplete(), 0.00001d,
+			"one Redo must restore the edited task Percent Complete value");
+		assertProjectPercent(project, leaves);
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		assertTrue(serializer.saveProject(project, saved), "edited progress must serialize as MPO");
+		Project reopened = serializer.loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		for (Task task : reopened.getTaskList().stream().filter(task -> !task.isSummary()).toList()) {
+			assertEquals(0.25d, task.getPercentComplete(), 0.00001d,
+				"task Percent Complete must survive MPO reload: " + task.getName());
+		}
+		List<Task> reopenedLeaves = reopened.getTaskList().stream().filter(task -> !task.isSummary()).map(Task.class::cast).toList();
+		assertProjectPercent(reopened, reopenedLeaves);
+	}
+
+	private static void assertProjectPercent(Project project, List<Task> leaves) {
+		double completed = 0.0D;
+		double planned = 0.0D;
+		for (Task task : leaves) {
+			double duration = Duration.millis(task.getDuration());
+			completed += duration * task.getPercentComplete();
+			planned += duration;
+		}
+		assertTrue(planned > 0.0D, "the sample summary must have planned leaf duration");
+		assertEquals(completed / planned, project.getPercentComplete(), 0.00001D,
+			"project summary Percent Complete must be weighted by task duration, not assignment calendar duration");
+	}
+
 	@Test
 	void dependencyIntentUsesStableTaskRowsAndSharesUndoAndPersistencePath() throws Exception {
 		Fixture fixture = createDependencyFixture();
@@ -253,6 +355,7 @@ class TaskCommandGatewayTest {
 	@Test
 	void stableKeyEditUpdatesTheIntendedTaskAndNoOpDoesNotCreateAnotherMutation() throws Exception {
 		Fixture fixture = createFixture();
+		long revisionBefore = fixture.project().getMutationState().revision();
 		var projection = fixture.cache().getVisibleNodes().getProjectionIndex();
 		TaskFieldEditIntent intent = new TaskFieldEditIntent(fixture.taskKey(), 0,
 			projection.topologyRevision(), FieldDictionary.getInstance().getFieldFromId("Field.name"),
@@ -272,9 +375,63 @@ class TaskCommandGatewayTest {
 
 		assertEquals(TaskCommandResult.Status.CHANGED, changed.get().status());
 		assertEquals(TaskCommandResult.Status.NO_CHANGE, unchanged.get().status());
+		assertEquals(revisionBefore + 1, fixture.project().getMutationState().revision(),
+			"the changed edit advances one revision and the subsequent no-op does not");
 		assertEquals("After", fixture.task().getName());
 		SwingUtilities.invokeAndWait(() -> fixture.project().getUndoController().undo());
+		assertEquals(revisionBefore + 2, fixture.project().getMutationState().revision(),
+			"Undo must publish one outer revision even when the edit emits nested events");
 		assertEquals("Before", fixture.task().getName(), "no-op must not add a second Undo edit");
+		SwingUtilities.invokeAndWait(() -> fixture.project().getUndoController().redo());
+		assertEquals(revisionBefore + 3, fixture.project().getMutationState().revision(),
+			"Redo must publish one outer revision even when the edit emits nested events");
+		assertEquals("After", fixture.task().getName());
+	}
+
+	@Test
+	void scheduleApplyFailurePublishesInvalidationAfterReleasingProjectBarrier() throws Exception {
+		Fixture fixture = createFixture();
+		fixture.task().setDuration(com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
+		RevisionedProjectionIndex projection = fixture.cache().getVisibleNodes().getProjectionIndex();
+		Schedule schedule = (Schedule) fixture.task();
+		ProjectionRowKey.TaskRow row = taskRowFor(projection, fixture.task());
+		TaskScheduleEditIntent intent = new TaskScheduleEditIntent(row, projection.topologyRevision(),
+			TaskScheduleEditIntent.Operation.PROGRESS, schedule.getStart(), schedule.getEnd(),
+			schedule.getCompletedThrough(), schedule.getStart(), schedule.getEnd(), fixture.task().getConstraintType(),
+			fixture.task().getConstraintDate(), schedule.getStart(), schedule.getEnd(), schedule.getCompletedThrough() + 1);
+		long revisionBefore = fixture.project().getMutationState().revision();
+		AtomicReference<ScheduleEvent> published = new AtomicReference<>();
+		CountDownLatch barrierAvailable = new CountDownLatch(1);
+		fixture.project().addScheduleListener(event -> {
+			published.set(event);
+			Thread writer = new Thread(() -> {
+				try (var ignored = fixture.project().getMutationState().begin()) {
+					barrierAvailable.countDown();
+				}
+			}, "gateway-publication-barrier-check");
+			writer.start();
+			try {
+				if (!barrierAvailable.await(2, TimeUnit.SECONDS))
+					throw new AssertionError("publication ran before the project barrier was released");
+				writer.join(2_000);
+			} catch (InterruptedException interrupted) {
+				Thread.currentThread().interrupt();
+				throw new AssertionError(interrupted);
+			}
+		});
+
+		assertThrows(IllegalStateException.class, () -> TaskCommandGateway.executeScheduleEdit(fixture.cache(), intent,
+			fixture.sheet(), () -> {
+				fixture.task().setName("Applied before failure");
+				throw new IllegalStateException("injected after apply started");
+			}));
+		assertEquals("Applied before failure", fixture.task().getName(),
+			"the gateway must not silently discard an applied mutation it cannot roll back");
+		assertEquals(revisionBefore + 1, fixture.project().getMutationState().revision());
+		assertEquals(0, barrierAvailable.getCount(), "a listener must run after the project mutation lock is released");
+		assertTrue(published.get() != null, "a failed apply without its own event still requires cache invalidation");
+		assertEquals(ScheduleEvent.SCHEDULE, published.get().getType());
+		assertEquals(revisionBefore + 1, published.get().getPublicationRevision());
 	}
 
 	@Test

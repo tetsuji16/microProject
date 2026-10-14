@@ -213,7 +213,6 @@ public class MicrosoftImporter extends FileImporter {
 
 			throw lastException == null ? new Exception("Failed to import file") : lastException; //$NON-NLS-1$
 		}
-		showImportWarnings(plImporter);
 		logger.info(plProject.toString());
 
 		setProgress(0.2f);
@@ -269,7 +268,6 @@ public class MicrosoftImporter extends FileImporter {
 
 			throw lastException == null ? new Exception("Failed to import file") : lastException; //$NON-NLS-1$
 		}
-		showImportWarnings(plImporter);
 		logger.info(plProject.toString());
 
 		setProgress(0.2f);
@@ -277,12 +275,6 @@ public class MicrosoftImporter extends FileImporter {
 
 	}
 
-	private void showImportWarnings(MspImporter importer) {
-		if (jobRunnable == null || importer.getImportWarnings().isEmpty())
-			return;
-		jobRunnable.getJob().warm(Messages.getString("Message.ImportWarning") + "\n"
-			+ String.join("\n", importer.getImportWarnings()), false);
-	}
 	/**
 	 * This method imports an entire mpx, mpp or xml file
 	 *

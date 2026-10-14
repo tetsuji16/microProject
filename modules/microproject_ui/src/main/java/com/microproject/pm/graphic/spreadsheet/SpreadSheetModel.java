@@ -167,7 +167,6 @@ public class SpreadSheetModel extends CommonSpreadSheetModel implements OutlineM
 					long lag = getDependencyLag(field, value, dependency);
 					int type = getDependencyType(field, value, dependency);
 					dependencyService.setFields(dependency, lag, type, this);
-					dependencyService.update(dependency, this);
 				} catch (InvalidAssociationException e1) {
 					throw new RuntimeException(e1);
 				}

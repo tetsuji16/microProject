@@ -94,11 +94,13 @@ public final class TeamPlannerService {
 	/** Returns the current project plus every document connected to its resource pool. */
 	private static List<Project> projectsFor(Project project) {
 		ResourcePool pool = project.getResourcePool();
-		if (pool == null || pool.getProjects().isEmpty())
+		if (pool == null)
 			return List.of(project);
-		List<Project> projects = new ArrayList<Project>(pool.getProjects().size() + 1);
+		List<Project> poolProjects = pool.getProjects();
+		if (poolProjects.isEmpty()) return List.of(project);
+		List<Project> projects = new ArrayList<Project>(poolProjects.size() + 1);
 		projects.add(project);
-		for (Project candidate : pool.getProjects())
+		for (Project candidate : poolProjects)
 			if (candidate != null && !containsIdentity(projects, candidate))
 				projects.add(candidate);
 		return projects;

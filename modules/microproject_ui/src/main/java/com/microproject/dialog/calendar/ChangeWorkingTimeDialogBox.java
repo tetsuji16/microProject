@@ -66,7 +66,6 @@ import javax.swing.JTextField;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import com.microproject.undo.EditSupport;
-import javax.swing.undo.CompoundEdit;
 
 import com.jgoodies.forms.builder.DefaultFormBuilder;
 import com.jgoodies.forms.layout.CellConstraints;
@@ -90,7 +89,6 @@ import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.time.HasStartAndEnd;
 import com.microproject.strings.Messages;
-import com.microproject.undo.CalendarEdit;
 import com.microproject.undo.UndoController;
 import com.microproject.util.UiServices;
 import com.microproject.util.Alert;
@@ -442,17 +440,8 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 		if (!stageCurrentCalendar()) return false;
 		if (stagedCalendars.isEmpty()) return true;
 		CalendarService service = CalendarService.getInstance();
-		CompoundEdit transaction = new CompoundEdit();
-		for (Map.Entry<WorkingCalendar, WorkingCalendar> entry : stagedCalendars.entrySet()) {
-			WorkingCalendar original = entry.getKey();
-			WorkingCalendar updated = entry.getValue();
-			transaction.addEdit(new CalendarEdit(original, updated));
-			service.assignCalendar(original, updated);
-			service.saveAndUpdate(original);
-		}
-		transaction.end();
 		EditSupport editSupport = undoController == null ? null : undoController.getEditSupport();
-		if (editSupport != null) editSupport.postEdit(transaction);
+		service.commitCalendars(stagedCalendars, editSupport);
 		stagedCalendars.clear();
 		committed = true;
 		return true;

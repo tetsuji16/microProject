@@ -13,15 +13,17 @@ import java.util.Map;
 /** Immutable row/key lookup snapshot for one visible view projection. */
 public final class RevisionedProjectionIndex {
 	private final long topologyRevision;
+	private final long modelRevision;
 	private final List<GraphicNode> nodes;
 	private final List<ProjectionRowKey> rowKeys;
 	private final Map<ProjectionRowKey, Integer> rowsByKey;
 	private final IdentityHashMap<GraphicNode, List<Integer>> rowsByNode;
 
-	private RevisionedProjectionIndex(long topologyRevision, List<GraphicNode> nodes,
+	private RevisionedProjectionIndex(long topologyRevision, long modelRevision, List<GraphicNode> nodes,
 			List<ProjectionRowKey> rowKeys, Map<ProjectionRowKey, Integer> rowsByKey,
 			IdentityHashMap<GraphicNode, List<Integer>> rowsByNode) {
 		this.topologyRevision = topologyRevision;
+		this.modelRevision = modelRevision;
 		this.nodes = List.copyOf(nodes);
 		this.rowKeys = List.copyOf(rowKeys);
 		this.rowsByKey = Map.copyOf(rowsByKey);
@@ -30,11 +32,16 @@ public final class RevisionedProjectionIndex {
 	}
 
 	public static RevisionedProjectionIndex empty() {
-		return create(List.of(), null);
+		return create(List.of(), null, -1L);
 	}
 
 	public static RevisionedProjectionIndex create(List<GraphicNode> projectedNodes,
 			RevisionedProjectionIndex previous) {
+		return create(projectedNodes, previous, previous == null ? -1L : previous.modelRevision);
+	}
+
+	public static RevisionedProjectionIndex create(List<GraphicNode> projectedNodes,
+			RevisionedProjectionIndex previous, long modelRevision) {
 		if (projectedNodes == null)
 			throw new IllegalArgumentException("projectedNodes must not be null");
 		List<GraphicNode> snapshot = List.copyOf(projectedNodes);
@@ -54,7 +61,7 @@ public final class RevisionedProjectionIndex {
 		boolean sameTopology = previous != null && previous.rowKeys.equals(keys);
 		long revision = previous == null ? 0L
 				: previous.topologyRevision + (sameTopology ? 0L : 1L);
-		return new RevisionedProjectionIndex(revision, snapshot, keys, keyRows, nodeRows);
+		return new RevisionedProjectionIndex(revision, modelRevision, snapshot, keys, keyRows, nodeRows);
 	}
 
 	private static Object occurrenceIdentity(GraphicNode graphicNode) {
@@ -65,6 +72,11 @@ public final class RevisionedProjectionIndex {
 
 	public long topologyRevision() {
 		return topologyRevision;
+	}
+
+	/** Committed project revision captured with this projection, or -1 for non-project views. */
+	public long modelRevision() {
+		return modelRevision;
 	}
 
 	public int size() {

@@ -20,22 +20,26 @@ coverage blockers and issue review are tracked in
 - Project-file behavior: microProject's native `.mpo` (MPO) is the authoritative
   project format and default save format; it must preserve project data and read
   files from earlier supported MPO versions. MPP (`.mpp`) is a separate external
-  Microsoft Project interoperability format with explicit read and write gates;
-  it is not the application's native or default format. Project XML is another
+  Microsoft Project import format; reading remains in scope, while MPP writing
+  is explicitly excluded by the user's 2026-10-12 product decision and MPO is
+  the native save substitute. Project XML is another
   external interchange format and does not substitute for MPP coverage. POD is
   a frozen legacy import format: preserve its wire contract and fixed-fixture
   reads, and add no new POD write behavior.
 - Multi-project, master-project, shared-resource, reporting, and collaboration
   workflows supported by MSP desktop, including local linked projects and
-  offline collaboration. Local automation and extensions remain in scope:
-  VBA/macros, COM automation, COM/VSTO add-ins, and local Office add-ins.
-  Unsupported or unassessed local desktop behavior blocks a complete claim.
+  offline collaboration. On 2026-10-12 the user explicitly excluded Microsoft
+  Project VBA/macros, the macro-facing Project object model, COM automation,
+  COM/VSTO add-ins, and local Office add-ins from scope. This exclusion does not
+  remove microProject-native local automation/extensions or local/offline
+  collaboration. Unsupported or unassessed in-scope local desktop behavior
+  blocks a complete claim.
 - Project Server, Project Web App (PWA), Project Online, Microsoft Planner cloud
   authentication/synchronization/publishing, and other connected-service APIs
   are outside this standalone product goal. Do not add connected-service
   imports, clients, or dependencies. This exclusion does not remove local file
   interoperability, local master/linked projects, shared resources, offline
-  collaboration, or local automation/extensions from scope.
+  collaboration, or microProject-native local automation/extensions from scope.
 
 ## Engineering rules
 

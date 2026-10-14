@@ -30,6 +30,8 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.Collection;
 
 import com.microproject.configuration.CircularDependencyException;
@@ -43,6 +45,7 @@ import com.microproject.pm.assignment.contour.AbstractContour;
 import com.microproject.pm.assignment.contour.AbstractContourBucket;
 import com.microproject.pm.assignment.contour.ContourTypes;
 import com.microproject.pm.assignment.contour.PersonalContour;
+import com.microproject.pm.assignment.contour.PersonalContourBucket;
 import com.microproject.pm.assignment.contour.StandardContour;
 import com.microproject.pm.availability.Availability;
 import com.microproject.pm.calendar.CalendarService;
@@ -75,6 +78,8 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 	private int costContourType;
  	private transient AbstractContour workContour = StandardContour.FLAT_CONTOUR;
 	private transient AbstractContour costContour = StandardContour.FLAT_CONTOUR;
+	private transient AbstractContour importedActualWorkContour;
+	private transient AbstractContour importedRemainingWorkContour;
 
 	private WorkingCalendar actualExceptionsCalendar = null; // for when user enters actual work during non-work time of calendar
 	private transient WorkingCalendar intersectionCalendar = null;
@@ -371,6 +376,11 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 		return workContour.calcWorkingBucketDuration(getDuration());
 	}
 
+	long calcRemainingDurationForTotalWork(long totalWork) {
+		long totalDuration = workContour.calcDurationForWork(totalWork, getUnits());
+		return Math.max(0L, totalDuration - getActualDuration());
+	}
+
 
 	/**
 	 * Allow setting of working duration. MSProject displays working duration (excludes non-work intervals) except when
@@ -521,7 +531,139 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 	}
 	
 	AbstractContourBucket[] getContour(Object type) {
+		if (type == HasTimeDistributedData.ACTUAL_WORK && importedActualWorkContour != null)
+			return importedActualWorkContour.getContourBuckets();
+		if (type == HasTimeDistributedData.REMAINING_WORK && importedRemainingWorkContour != null)
+			return importedRemainingWorkContour.getContourBuckets();
 		return ((type == HasTimeDistributedData.COST) ? costContour : workContour).getContourBuckets();
+	}
+
+	boolean hasImportedTimephasedWork() {
+		return importedActualWorkContour != null && importedRemainingWorkContour != null;
+	}
+
+	void setImportedTimephasedWork(AbstractContour actual, AbstractContour remaining) {
+		if (actual == null || remaining == null)
+			throw new IllegalArgumentException("Imported actual and remaining work profiles are required");
+		importedActualWorkContour = actual;
+		importedRemainingWorkContour = remaining;
+	}
+
+	void restoreImportedTimephasedWorkScaledFrom(AssignmentDetail source, long actualWork, long remainingWork, long duration) {
+		if (!source.hasImportedTimephasedWork())
+			throw new IllegalArgumentException("Source assignment has no imported timephased work profiles");
+		if (actualWork < 0L || remainingWork < 0L || duration < 0L)
+			throw new IllegalArgumentException("Imported timephased work totals cannot be negative");
+		importedActualWorkContour = scaleImportedContour(source.importedActualWorkContour, actualWork, duration);
+		importedRemainingWorkContour = scaleImportedContour(source.importedRemainingWorkContour, remainingWork, duration);
+	}
+
+	private static AbstractContour scaleImportedContour(AbstractContour source, long targetWork, long maxDuration) {
+		AbstractContourBucket[] sourceBuckets = source.getContourBuckets();
+		long sourceTotal = 0L;
+		long totalDuration = 0L;
+		long[] sourceWork = new long[sourceBuckets.length];
+		long[] durations = new long[sourceBuckets.length];
+		for (int index = 0; index < sourceBuckets.length; index++) {
+			durations[index] = sourceBuckets[index].getBucketDuration(0L);
+			if (durations[index] < 0L) throw new IllegalArgumentException("Imported work profile has negative duration");
+			sourceWork[index] = Math.round(sourceBuckets[index].getUnits() * durations[index]);
+			sourceTotal = Math.addExact(sourceTotal, sourceWork[index]);
+			totalDuration = Math.addExact(totalDuration, durations[index]);
+		}
+		if (targetWork > 0L && totalDuration == 0L)
+			throw new IllegalArgumentException("Cannot distribute work across an empty imported profile");
+
+		long[] targetBucketWork = new long[sourceBuckets.length];
+		long cumulativeSource = 0L;
+		long cumulativeDuration = 0L;
+		long previousTarget = 0L;
+		for (int index = 0; index < sourceBuckets.length; index++) {
+			cumulativeSource = Math.addExact(cumulativeSource, sourceWork[index]);
+			cumulativeDuration = Math.addExact(cumulativeDuration, durations[index]);
+			long cumulativeTarget = sourceTotal > 0L
+				? roundedRatio(targetWork, cumulativeSource, sourceTotal)
+				: roundedRatio(targetWork, cumulativeDuration, totalDuration);
+			targetBucketWork[index] = cumulativeTarget - previousTarget;
+			previousTarget = cumulativeTarget;
+		}
+		ArrayList<AbstractContourBucket> scaled = new ArrayList<>(sourceBuckets.length);
+		long remainingDuration = maxDuration;
+		long preservedWork = 0L;
+		for (int index = 0; index < sourceBuckets.length; index++) {
+			long bucketWork = targetBucketWork[index];
+			long duration = Math.min(durations[index], remainingDuration);
+			if (duration == 0L) {
+				if (bucketWork != 0L)
+					throw new IllegalArgumentException("Imported work profile does not fit the edited assignment duration");
+				continue;
+			}
+			double units = (double) bucketWork / duration;
+			if (duration > 0L && (long) (units * duration) < bucketWork)
+				units = Math.nextUp(units);
+			scaled.add(PersonalContourBucket.getInstance(duration, units));
+			preservedWork = Math.addExact(preservedWork, bucketWork);
+			remainingDuration -= duration;
+		}
+		if (preservedWork != targetWork)
+			throw new IllegalArgumentException("Imported work profile could not preserve the edited work total");
+		if (remainingDuration > 0L)
+			scaled.add(PersonalContourBucket.getInstance(remainingDuration, 0.0D));
+		return PersonalContour.getInstance(scaled);
+	}
+
+	void rebuildImportedTotalWorkContour(long assignmentDuration) {
+		if (!hasImportedTimephasedWork())
+			return;
+		AbstractContourBucket[] actual = importedActualWorkContour.getContourBuckets();
+		AbstractContourBucket[] remaining = importedRemainingWorkContour.getContourBuckets();
+		ArrayList<AbstractContourBucket> total = new ArrayList<>(actual.length + remaining.length);
+		int actualIndex = 0;
+		int remainingIndex = 0;
+		long actualLeft = actual.length == 0 ? 0L : actual[0].getBucketDuration(0L);
+		long remainingLeft = remaining.length == 0 ? 0L : remaining[0].getBucketDuration(0L);
+		long left = assignmentDuration;
+		while (left > 0L) {
+			while (actualIndex < actual.length && actualLeft == 0L) {
+				actualIndex++;
+				if (actualIndex < actual.length) actualLeft = actual[actualIndex].getBucketDuration(0L);
+			}
+			while (remainingIndex < remaining.length && remainingLeft == 0L) {
+				remainingIndex++;
+				if (remainingIndex < remaining.length) remainingLeft = remaining[remainingIndex].getBucketDuration(0L);
+			}
+			long span = Math.min(left, Math.min(actualIndex < actual.length ? actualLeft : left,
+				remainingIndex < remaining.length ? remainingLeft : left));
+			if (span <= 0L)
+				break;
+			double actualUnits = actualIndex < actual.length ? actual[actualIndex].getUnits() : 0.0D;
+			double remainingUnits = remainingIndex < remaining.length ? remaining[remainingIndex].getUnits() : 0.0D;
+			total.add(PersonalContourBucket.getInstance(span, actualUnits + remainingUnits));
+			left -= span;
+			if (actualIndex < actual.length && (actualLeft -= span) == 0L) {
+				actualIndex++;
+				if (actualIndex < actual.length) actualLeft = actual[actualIndex].getBucketDuration(0L);
+			}
+			if (remainingIndex < remaining.length && (remainingLeft -= span) == 0L) {
+				remainingIndex++;
+				if (remainingIndex < remaining.length) remainingLeft = remaining[remainingIndex].getBucketDuration(0L);
+			}
+		}
+		if (left > 0L)
+			total.add(PersonalContourBucket.getInstance(left, 0.0D));
+		workContour = PersonalContour.getInstance(total);
+	}
+
+	private static long roundedRatio(long total, long part, long whole) {
+		if (whole == 0L) return 0L;
+		BigInteger numerator = BigInteger.valueOf(total).multiply(BigInteger.valueOf(part));
+		BigInteger divisor = BigInteger.valueOf(whole);
+		return numerator.add(divisor.shiftRight(1)).divide(divisor).longValueExact();
+	}
+
+	void clearImportedTimephasedWork() {
+		importedActualWorkContour = null;
+		importedRemainingWorkContour = null;
 	}
 	/**
 	 * @return Returns the costContour.
@@ -1020,6 +1162,10 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 		target.duration = duration;
 		target.workContour = (AbstractContour) workContour.clone();
 		target.costContour = costContour;
+		target.importedActualWorkContour = importedActualWorkContour == null ? null
+			: (AbstractContour) importedActualWorkContour.clone();
+		target.importedRemainingWorkContour = importedRemainingWorkContour == null ? null
+			: (AbstractContour) importedRemainingWorkContour.clone();
 		target.actualExceptionsCalendar = actualExceptionsCalendar;
 		target.intersectionCalendar = intersectionCalendar;
 		target.taskSchedule = taskSchedule;
@@ -1071,6 +1217,10 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 	public Document invalidateCalendar() {
 		return task.getOwningProject();
 		
+	}
+	@Override
+	public Document getCalendarOwnerDocument() {
+		return task == null ? null : task.getOwningProject();
 	}
 	
 	

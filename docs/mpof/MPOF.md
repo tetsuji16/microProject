@@ -21,16 +21,19 @@ MPOF is the open, ODF-style project container for microProject.
 
 `formatVersion` is `major.minor`:
 
-- This CCPM history format is the current format for this build; old `.mpo` files without
-  `ccpm/history.jsonl` are not a compatibility target.
+- `ccpm/history.jsonl` is optional project metadata. Older `.mpo` files without it
+  remain readable and import with empty CCPM history; current writes include the entry.
 - A format change may update `formatVersion` and all checked-in samples/fixtures together.
-- Missing or malformed `formatVersion`, or a missing required CCPM history entry, is rejected.
+- Missing or malformed `formatVersion`, an unsupported major version, or malformed
+  present CCPM history is rejected.
 
 ## Evolving the format
 
-The supported-version policy is centralized in `MpoFormatVersion`. When this format
-changes, update the schema, checked-in samples, fixtures, and documentation together.
-No legacy reader or migration path is required for this feature.
+The supported-version policy is centralized in `MpoFormatVersion`. The reader accepts
+all minor revisions in the supported major version, including files from earlier
+microProject releases. When this format changes, update the schema, checked-in samples,
+fixtures, and documentation together without dropping reads for supported earlier MPO
+files. A future incompatible major version needs an explicit reader or migration path.
 
 Saving always rewrites the whole container at the version this build writes
 (`formatVersion="1.0"`), so opening an older file and saving it upgrades it to the
@@ -38,10 +41,9 @@ current layout. One canonical check
 (`MpoFileImporter.requireReadableFormatVersion`) is applied by both the current XML
 manifest reader and the legacy JSON draft manifest reader.
 
-This layout is a draft and is not a stability promise. Future revisions may change
-entry schemas or names; readers preserve unknown extra entries and write only the
-version they explicitly support.
-The importer accepts only the current MPOF layout (`.mpo`) for CCPM history.
+Entry schemas and names may evolve; readers preserve unknown extra entries and
+write only the version they explicitly support. This does not narrow the
+supported earlier MPO reader-compatibility policy above.
 
 The implementation lives in `com.microproject.exchange.MpoFileImporter`
 (see `MpoFileImporterTest` for round-trip and validation coverage).

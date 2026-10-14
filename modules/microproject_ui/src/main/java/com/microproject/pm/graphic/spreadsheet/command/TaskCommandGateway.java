@@ -46,6 +46,13 @@ public final class TaskCommandGateway {
 
 	public static TaskCommandResult createDependency(NodeModelCache cache, GraphicNode startNode,
 			GraphicNode endNode, Object eventSource, Component dialogParent) throws InvalidAssociationException {
+		if (cache == null || !(cache.getModel().getDataFactory() instanceof Project))
+			return new TaskCommandResult(TaskCommandResult.Status.INVALID_INTENT, "dependency-requires-project-model");
+		return createDependencyInProject(cache, startNode, endNode, eventSource, dialogParent);
+	}
+
+	private static TaskCommandResult createDependencyInProject(NodeModelCache cache, GraphicNode startNode,
+			GraphicNode endNode, Object eventSource, Component dialogParent) throws InvalidAssociationException {
 		if (cache == null || startNode == null || endNode == null || startNode.getNode() == null
 				|| endNode.getNode() == null || !(startNode.getNode().getImpl() instanceof Task)
 				|| !(endNode.getNode().getImpl() instanceof Task))
@@ -73,7 +80,13 @@ public final class TaskCommandGateway {
 		Objects.requireNonNull(intent, "intent");
 		if (sheetModel.getCache() == null)
 			return new TaskCommandResult(TaskCommandResult.Status.MISSING_TASK, "missing-task-projection");
+		if (!(sheetModel.getCache().getModel().getDataFactory() instanceof Project project))
+			return new TaskCommandResult(TaskCommandResult.Status.INVALID_INTENT, "task-edit-requires-project-model");
+		return withProjectMutation(project, progress -> executeFieldEditInProject(sheetModel, intent, eventSource, progress));
+	}
 
+	private static TaskCommandResult executeFieldEditInProject(SpreadSheetModel sheetModel, TaskFieldEditIntent intent,
+			Object eventSource, MutationProgress progress) throws FieldParseException {
 		RevisionedProjectionIndex projection = sheetModel.getCache().getVisibleNodes().getProjectionIndex();
 		if (projection.topologyRevision() != intent.projectionRevision())
 			return new TaskCommandResult(TaskCommandResult.Status.STALE_PROJECTION, "projection-revision-changed");
@@ -93,6 +106,7 @@ public final class TaskCommandGateway {
 		if (intent.value() != null && Objects.deepEquals(currentValue, intent.value()))
 			return TaskCommandResult.of(TaskCommandResult.Status.NO_CHANGE);
 
+		progress.markApplied();
 		sheetModel.getCache().getModel().setFieldValue(intent.field(), node, eventSource, intent.value(),
 			sheetModel.getFieldContext(), NodeModel.NORMAL);
 		return TaskCommandResult.of(TaskCommandResult.Status.CHANGED);
@@ -105,6 +119,15 @@ public final class TaskCommandGateway {
 	}
 
 	public static TaskCommandResult execute(SpreadSheet sheet, TaskHierarchyEditIntent intent) {
+		if (sheet == null || !(sheet.getModel() instanceof SpreadSheetModel sheetModel)
+				|| sheetModel.getCache() == null
+				|| !(sheetModel.getCache().getModel().getDataFactory() instanceof Project project))
+			return new TaskCommandResult(TaskCommandResult.Status.INVALID_INTENT, "hierarchy-edit-requires-project-model");
+		return withProjectMutation(project, progress -> executeHierarchyEditInProject(sheet, intent, progress));
+	}
+
+	private static TaskCommandResult executeHierarchyEditInProject(SpreadSheet sheet, TaskHierarchyEditIntent intent,
+			MutationProgress progress) {
 		PreparedHierarchyEdit prepared = prepare(sheet, intent);
 		if (prepared.rejection() != null)
 			return prepared.rejection();
@@ -115,6 +138,7 @@ public final class TaskCommandGateway {
 			locks.add(prepared.anchor());
 		if (!CollaborationHelper.tryLockNodes(null, locks, sheet, "move task"))
 			return new TaskCommandResult(TaskCommandResult.Status.LOCKED, "collaboration-lock-denied");
+		progress.markApplied();
 		boolean changed = intent.operation() == TaskHierarchyEditIntent.Operation.MOVE
 			? prepared.cache().moveNodes(prepared.graphicNodes(), intent.direction())
 			: prepared.cache().relocateNodes(prepared.graphicNodes(), prepared.anchor(), intent.after());
@@ -128,6 +152,11 @@ public final class TaskCommandGateway {
 		if (!(sheet.getModel() instanceof SpreadSheetModel sheetModel) || sheetModel.getCache() == null
 				|| !(sheetModel.getCache().getModel().getDataFactory() instanceof Project project))
 			return new TaskCommandResult(TaskCommandResult.Status.INVALID_INTENT, "task-paste-requires-project-model");
+		return withProjectMutation(project, progress -> executePasteInProject(sheet, intent, sheetModel, project, progress));
+	}
+
+	private static TaskCommandResult executePasteInProject(SpreadSheet sheet, TaskPasteIntent intent,
+		SpreadSheetModel sheetModel, Project project, MutationProgress progress) {
 		if (project.isReadOnly())
 			return new TaskCommandResult(TaskCommandResult.Status.REJECTED, "document-read-only");
 
@@ -158,6 +187,7 @@ public final class TaskCommandGateway {
 		Node anchor = selectedNodes.isEmpty() ? null : selectedNodes.getFirst();
 		Node parent = anchor == null ? null : (Node) anchor.getParent();
 		int position = anchor == null || parent == null ? 0 : ((com.microproject.grouping.core.NodeBridge) parent).getIndex(anchor);
+		progress.markApplied();
 		boolean pasted = sheetModel.getCache().pasteNodes(parent, new ArrayList<>(intent.copiedRoots()), position);
 		return TaskCommandResult.of(pasted ? TaskCommandResult.Status.CHANGED : TaskCommandResult.Status.REJECTED);
 	}
@@ -170,6 +200,12 @@ public final class TaskCommandGateway {
 		Objects.requireNonNull(mutation, "mutation");
 		if (!(cache.getModel().getDataFactory() instanceof Project project))
 			return new TaskCommandResult(TaskCommandResult.Status.INVALID_INTENT, "schedule-edit-requires-project-model");
+		return withProjectMutation(project, progress -> executeScheduleEditInProject(cache, intent, lockParent,
+			mutation, project, progress));
+	}
+
+	private static TaskCommandResult executeScheduleEditInProject(NodeModelCache cache, TaskScheduleEditIntent intent,
+			Component lockParent, BooleanSupplier mutation, Project project, MutationProgress progress) {
 		if (project.isReadOnly())
 			return new TaskCommandResult(TaskCommandResult.Status.REJECTED, "document-read-only");
 		RevisionedProjectionIndex projection = cache.getVisibleNodes().getProjectionIndex();
@@ -204,6 +240,7 @@ public final class TaskCommandGateway {
 			return TaskCommandResult.of(TaskCommandResult.Status.NO_CHANGE);
 		if (!CollaborationHelper.tryLockNodes(null, List.of(node), lockParent, "edit"))
 			return new TaskCommandResult(TaskCommandResult.Status.LOCKED, "collaboration-lock-denied");
+		progress.markApplied();
 		return TaskCommandResult.of(mutation.getAsBoolean()
 			? TaskCommandResult.Status.CHANGED : TaskCommandResult.Status.NO_CHANGE);
 	}
@@ -251,6 +288,13 @@ public final class TaskCommandGateway {
 		Objects.requireNonNull(intent, "intent");
 		if (!(cache.getModel().getDataFactory() instanceof Project project))
 			return new TaskCommandResult(TaskCommandResult.Status.INVALID_INTENT, "task-dependency-requires-project-model");
+		return withProjectMutation(project, progress -> executeDependencyInProject(cache, intent, eventSource,
+			lockParent, project, progress));
+	}
+
+	private static TaskCommandResult executeDependencyInProject(NodeModelCache cache, TaskDependencyIntent intent,
+			Object eventSource, Component lockParent, Project project, MutationProgress progress)
+			throws InvalidAssociationException {
 		if (project.isReadOnly())
 			return new TaskCommandResult(TaskCommandResult.Status.REJECTED, "document-read-only");
 
@@ -297,6 +341,7 @@ public final class TaskCommandGateway {
 			? adjacentLinksToCreate(tasks) : intent.dependency() == null ? before : 1;
 		EditSupport undoSupport = beginCompoundUndo(project, anticipatedEdits);
 		try {
+			progress.markApplied();
 			if (intent.operation() == TaskDependencyIntent.Operation.LINK) {
 				service.connect(tasks, eventSource, null);
 			} else if (intent.dependency() != null) {
@@ -400,5 +445,32 @@ public final class TaskCommandGateway {
 		private static PreparedHierarchyEdit rejected(TaskCommandResult rejection) {
 			return new PreparedHierarchyEdit(null, List.of(), List.of(), null, rejection, false);
 		}
+	}
+
+	@FunctionalInterface
+	private interface ProjectMutation<T, E extends Exception> {
+		T run(MutationProgress progress) throws E;
+	}
+
+	private static final class MutationProgress {
+		private final Runnable marker;
+		private MutationProgress(Runnable marker) { this.marker = marker; }
+		private void markApplied() { marker.run(); }
+	}
+
+	/**
+	 * Serializes one complete gateway command and publishes its events only after
+	 * the project revision and detached event batch have committed. Preflight
+	 * rejections do not advance the revision. If an apply callback throws,
+	 * it conservatively commits an invalidation revision because these legacy paths
+	 * do not expose a common rollback contract. Deferred facts are delivered through
+	 * the existing event managers after the barrier is released.
+	 */
+	private static <E extends Exception> TaskCommandResult withProjectMutation(Project project,
+			ProjectMutation<TaskCommandResult, E> command) throws E {
+		return project.runModelCommand(markApplied -> command.run(new MutationProgress(markApplied)),
+			result -> result.status() == TaskCommandResult.Status.CHANGED,
+			result -> result.status() == TaskCommandResult.Status.CHANGED ? result
+				: TaskCommandResult.of(TaskCommandResult.Status.CHANGED));
 	}
 }

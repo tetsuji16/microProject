@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.task.Project;
+import com.microproject.transaction.ProjectMutationState;
 import com.microproject.util.FilePathUtils;
 
 /**
@@ -33,6 +34,10 @@ public final class SharedResourcePoolService {
 	}
 
 	public void share(Project sharer, Project poolProject, ConflictPolicy policy) {
+		ProjectMutationState.coordinated(() -> shareCoordinated(sharer, poolProject, policy));
+	}
+
+	private void shareCoordinated(Project sharer, Project poolProject, ConflictPolicy policy) {
 		if (sharer == null || poolProject == null || sharer == poolProject)
 			throw new IllegalArgumentException("A distinct sharer and resource-pool project are required");
 		ResourcePool pool = poolProject.getResourcePool();
@@ -146,9 +151,7 @@ public final class SharedResourcePoolService {
 	private void rewireAssignments(Resource source, Resource destination) {
 		for (Object candidate : new ArrayList<Object>(source.getAssignments())) {
 			Assignment assignment = (Assignment) candidate;
-			AssignmentService.getInstance().remove(assignment, null, false);
-			assignment.setTaskAndResource(assignment.getTask(), destination);
-			AssignmentService.getInstance().connect(assignment, null, false);
+			AssignmentService.getInstance().rewireSharedPoolAssignment(assignment, destination, this);
 		}
 	}
 

@@ -69,9 +69,9 @@ class ChangeWorkingTimeDialogBoxSaveTest {
 		int saveCalendar = src.indexOf("private boolean saveCalendar()");
 		assertTrue(saveCalendar > 0);
 		String saveBody = src.substring(saveCalendar, src.indexOf("private void importNonWorkingDays()", saveCalendar));
-		assertTrue(saveBody.contains("new CompoundEdit()"), "calendar edits must undo in one step");
-		assertTrue(saveBody.contains("service.assignCalendar(original, updated)"),
-				"commit path must assign every staged calendar copy");
+		assertFalse(saveBody.contains("postEdit("), "Undo registration must share the model commit boundary");
+		assertTrue(saveBody.contains("service.commitCalendars(stagedCalendars, editSupport)"),
+				"staged copies and their Undo edit must use one canonical commit path");
 
 		int importNonWorkingDays = src.indexOf("private void importNonWorkingDays()");
 		assertTrue(importNonWorkingDays > 0,

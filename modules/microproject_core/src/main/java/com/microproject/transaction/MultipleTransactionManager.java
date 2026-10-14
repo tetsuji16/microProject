@@ -61,8 +61,32 @@ public class MultipleTransactionManager {
     	else
     		depth--;
     	MultipleTransaction evt = MultipleTransaction.getInstance(source,id, begin, depth);
-		for (MultipleTransaction.Listener listener : listeners.snapshot())
-            listener.multipleTransaction(evt);
+		java.util.List<MultipleTransaction.Listener> snapshot = listeners.snapshot();
+		Throwable failure = notifyListeners(snapshot, evt);
+		if (failure != null && begin) {
+			depth--;
+			MultipleTransaction rollback = MultipleTransaction.getInstance(source, id, false, depth);
+			failure = appendFailure(failure, notifyListeners(snapshot, rollback));
+		}
+		if (failure instanceof Error error) throw error;
+		if (failure instanceof RuntimeException runtime) throw runtime;
+		if (failure != null) throw new IllegalStateException("Multiple transaction observer failed", failure);
         return id;
     }
+
+	private Throwable notifyListeners(java.util.List<MultipleTransaction.Listener> snapshot, MultipleTransaction event) {
+		Throwable failure = null;
+		for (MultipleTransaction.Listener listener : snapshot) {
+			try { listener.multipleTransaction(event); }
+			catch (RuntimeException | Error current) { failure = appendFailure(failure, current); }
+		}
+		return failure;
+	}
+
+	private Throwable appendFailure(Throwable current, Throwable next) {
+		if (next == null) return current;
+		if (current == null) return next;
+		if (current != next) current.addSuppressed(next);
+		return current;
+	}
 }

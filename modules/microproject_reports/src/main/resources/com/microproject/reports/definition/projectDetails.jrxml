@@ -721,7 +721,7 @@
 						x="87"
 						y="15"
 						width="380"
-						height="20"
+						height="30"
 						forecolor="#000000"
 						backcolor="#FFFFFF"
 						key="textField"

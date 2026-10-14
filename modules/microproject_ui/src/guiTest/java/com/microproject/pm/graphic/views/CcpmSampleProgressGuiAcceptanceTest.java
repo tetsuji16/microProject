@@ -266,7 +266,7 @@ class CcpmSampleProgressGuiAcceptanceTest {
 		double earlyProgress = project.getPercentComplete();
 		assertTrue(earlyProgress > 0D && earlyDelay.projectBuffer().consumedMillis() > 0L,
 			() -> "an early delivery checkpoint must move right and consume a small part of the buffer: percent="
-				+ project.getPercentComplete() + " consumption=" + earlyDelay.projectBuffer().consumptionRatio());
+				+ project.getPercentComplete() + " consumptionMillis=" + earlyDelay.projectBuffer().consumedMillis());
 		dialog = openBufferDialog(project);
 		chart = findComponent(dialog, CriticalChainBufferChartPanel.class);
 		assertEquals(2, CriticalChainBufferChartPanel.observationCount(chart), "the early checkpoint must follow 0% / 0%");

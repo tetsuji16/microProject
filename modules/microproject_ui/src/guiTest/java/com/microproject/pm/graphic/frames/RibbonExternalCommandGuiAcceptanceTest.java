@@ -15,12 +15,18 @@ import java.awt.Container;
 import java.awt.Color;
 import java.awt.GraphicsEnvironment;
 import java.awt.IllegalComponentStateException;
+import java.awt.AWTEvent;
+import java.awt.Dialog;
+import java.awt.Frame;
+import java.awt.KeyboardFocusManager;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.Toolkit;
 import java.awt.Window;
 import java.awt.event.InputEvent;
+import java.awt.event.AWTEventListener;
+import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -37,13 +43,16 @@ import java.time.Instant;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
+import java.util.function.BooleanSupplier;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.imageio.ImageIO;
 import javax.swing.AbstractButton;
 import javax.swing.JComboBox;
+import javax.swing.JDialog;
 import javax.swing.JFileChooser;
+import javax.swing.JLabel;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
@@ -99,6 +108,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 	private boolean previousClientSide;
 	private UiServices.FileChooserProvider previousChooser;
 	private String previousSystemChooserProperty;
+	private WindowTrace saveWindowTrace;
 	private JobQueue previousJobQueue;
 	private Path legacyPod;
 	private Path importedMpp;
@@ -115,6 +125,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 
 	@AfterEach
 	void closeWindow() throws Exception {
+		if (saveWindowTrace != null) saveWindowTrace.close();
 		if (manager != null) SwingUtilities.invokeAndWait(manager::cleanUp);
 		if (window != null) SwingUtilities.invokeAndWait(window::dispose);
 		Alert.setPresenter(null);
@@ -216,6 +227,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		mpoSavedCopy = mppSaveDirectory.resolve("Saved project.mpo");
 		Path sample = Path.of(System.getProperty("microproject.project.dir"), "modules", "microproject_exchange", "testdata", "New Product.mpp");
 		Files.copy(sample, importedMpp);
+		AtomicReference<Path> openPath = new AtomicReference<>(importedMpp);
 		byte[] originalMppBytes = Files.readAllBytes(importedMpp);
 		byte[] existingMpoBytes = "existing MPO must survive a declined overwrite".getBytes(java.nio.charset.StandardCharsets.UTF_8);
 		Files.write(mpoSaveTarget, existingMpoBytes);
@@ -225,24 +237,13 @@ class RibbonExternalCommandGuiAcceptanceTest {
 				return swingChooser.chooseFileName(save, selectedFileName, parent);
 			}
 			@Override public List<String> chooseFileNames(boolean save, String selectedFileName, Object parent) {
-				return save ? List.of() : List.of(importedMpp.toString());
+				return save ? List.of() : List.of(openPath.get().toString());
 			}
 		});
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindowForRobot(robot);
 		click(robot, findCommandButton(window.getRibbonPanel(), "RibbonOpenProject", robot));
-		GuiAcceptanceSupport.await(() -> visibleOptionDialog() != null,
-			"assignment-only MPP baseline warning was not shown after import");
-		Window warningDialog = visibleOptionDialog();
-		javax.swing.JOptionPane warningPane = flatten(warningDialog).stream()
-			.filter(javax.swing.JOptionPane.class::isInstance)
-			.map(javax.swing.JOptionPane.class::cast).findFirst().orElseThrow();
-		assertTrue(warningPane.getMessage() != null, "baseline import warning dialog has no message");
-		robot.keyPress(java.awt.event.KeyEvent.VK_ENTER);
-		robot.keyRelease(java.awt.event.KeyEvent.VK_ENTER);
-		GuiAcceptanceSupport.await(() -> visibleOptionDialog() == null,
-			"baseline import warning did not close after acknowledgement");
 		GuiAcceptanceSupport.await(() -> manager.findFrameForProjectFile(importedMpp.toString()) != null,
 			"File/Open did not import the MPP fixture");
 		Project project = manager.findFrameForProjectFile(importedMpp.toString()).getProject();
@@ -250,11 +251,11 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		java.util.Iterator<Task> taskIterator = project.getTaskOutlineIterator();
 		assertTrue(taskIterator.hasNext(), "MPP fixture must contain an editable task");
 		Task editedTask = taskIterator.next();
+		List<String> expectedAssignmentBaselines = assignmentBaselineSemantics(project);
 		SwingUtilities.invokeAndWait(() -> {
-			editedTask.setName("Edited first imported task");
 			editedTask.setManuallyScheduled(true);
 		});
-		assertTrue(project.needsSaving(), "real task edit must make ordinary Save eligible");
+		assertTrue(project.needsSaving(), "manual schedule change must make ordinary Save eligible");
 		List<String> expectedTaskSemantics = taskSemantics(project);
 
 		activateWindowForRobot(robot);
@@ -312,6 +313,82 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		reader.importFile();
 		assertEquals(expectedTaskSemantics, taskSemantics(reader.getProject()),
 			"MPO reopen must preserve imported task names and schedule dates");
+		assertEquals(expectedAssignmentBaselines, assignmentBaselineSemantics(reader.getProject()),
+			"MPO reopen must preserve imported assignment baseline scalar values");
+
+		Path scalarXmlFixture = Path.of(System.getProperty("microproject.project.dir"), "modules",
+			"microproject_exchange", "testdata", "Assignment Baseline Scalars.xml");
+		Path scalarXml = mppSaveDirectory.resolve("assignment-baseline-scalars.xml");
+		Path scalarMpo = mppSaveDirectory.resolve("assignment-baseline-scalars.mpo");
+		Files.copy(scalarXmlFixture, scalarXml);
+		click(robot, findCommandButton(window.getRibbonPanel(), "RibbonCloseProject", robot));
+		GuiAcceptanceSupport.await(() -> manager.findFrameForProjectFile(mpoSavedCopy.toString()) == null,
+			"saved MPP import did not close before the separate MSPDI fixture route");
+		openPath.set(scalarXml);
+		activateWindowForRobot(robot);
+		click(robot, findCommandButton(window.getRibbonPanel(), "RibbonOpenProject", robot));
+		GuiAcceptanceSupport.await(() -> manager.findFrameForProjectFile(scalarXml.toString()) != null,
+			"File/Open did not import the fixed MSPDI assignment-baseline fixture");
+		Project scalarProject = manager.findFrameForProjectFile(scalarXml.toString()).getProject();
+		Task baselineTask = scalarProject.getTaskList().stream()
+			.filter(candidate -> "Assignment baseline task".equals(candidate.getName())).findFirst().orElseThrow();
+		assertTrue(baselineTask instanceof com.microproject.pm.task.NormalTask);
+		com.microproject.pm.task.NormalTask normalBaselineTask = (com.microproject.pm.task.NormalTask) baselineTask;
+		assertEquals("Baseline test resource", ((com.microproject.pm.assignment.Assignment)
+			normalBaselineTask.getAssignments().iterator().next()).getResource().getName());
+		assertEquals(null, normalBaselineTask.getSnapshot(Integer.valueOf(0)),
+			"assignment-only baseline import must not create a task baseline");
+		com.microproject.pm.assignment.Assignment scalarAssignment =
+			(com.microproject.pm.assignment.Assignment) normalBaselineTask.getAssignments().iterator().next();
+		assertEquals(Instant.parse("2026-10-05T17:00:00Z").toEpochMilli(),
+			scalarAssignment.getBaselineValues(0).start());
+		assertEquals(null, scalarAssignment.getBaselineValues(0).finish(), "slot 0 Finish is intentionally missing");
+		assertEquals(Long.valueOf(8L * 60L * 60L * 1000L), scalarAssignment.getBaselineValues(0).work());
+		assertEquals(Long.valueOf(0L), scalarAssignment.getBaselineValues(9).work());
+		assertEquals(Instant.parse("2026-10-07T17:00:00Z").toEpochMilli(),
+			scalarAssignment.getBaselineValues(10).start());
+		assertEquals(Instant.parse("2026-10-08T17:00:00Z").toEpochMilli(),
+			scalarAssignment.getBaselineValues(10).finish());
+		assertEquals(Long.valueOf(4L * 60L * 60L * 1000L), scalarAssignment.getBaselineValues(10).work());
+		SwingUtilities.invokeAndWait(() -> {
+			baselineTask.setName("Edited assignment baseline task");
+			baselineTask.setManuallyScheduled(true);
+		});
+		assertTrue(scalarProject.needsSaving(), "real baseline-project edit must make ordinary Save eligible");
+		List<String> expectedScalarBaselines = assignmentBaselineSemantics(scalarProject);
+		saveWindowTrace = new WindowTrace();
+		saveWindowTrace.open();
+		activateWindowForRobot(robot);
+		click(robot, findCommandButton(window.getRibbonPanel(), "RibbonSaveProjectAs", robot));
+		awaitWithWindowTrace(() -> visibleFileChooserDialog() != null,
+			"Save As of an MSPDI import did not open the file chooser");
+		Window scalarChooserWindow = visibleFileChooserDialog();
+		awaitWithWindowTrace(() -> scalarChooserWindow.isActive()
+			&& KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner() != null
+			&& SwingUtilities.getWindowAncestor(KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner())
+				== scalarChooserWindow,
+			"Save As chooser did not own keyboard focus");
+		JFileChooser scalarChooser = findFileChooser(visibleFileChooserDialog());
+		assertEquals(scalarMpo.getFileName().toString(), scalarChooser.getSelectedFile().getName(),
+			"Save As must default an imported MSPDI XML project to the native MPO format");
+		click(robot, selectFileChooserSaveButton(visibleFileChooserDialog()));
+		awaitWithWindowTrace(() -> scalarMpo.toFile().isFile()
+			&& scalarMpo.toString().equals(scalarProject.getFileName()) && !scalarProject.needsSaving(),
+			"MSPDI assignment baseline project was not saved as MPO");
+		MpoFileImporter scalarReader = new MpoFileImporter();
+		scalarReader.setFileName(scalarMpo.toString());
+		scalarReader.importFile();
+		Project scalarReopened = scalarReader.getProject();
+		com.microproject.pm.task.NormalTask reopenedBaselineTask = (com.microproject.pm.task.NormalTask)
+			scalarReopened.getTaskList().stream()
+				.filter(candidate -> "Edited assignment baseline task".equals(candidate.getName())).findFirst().orElseThrow();
+		assertEquals(expectedScalarBaselines, assignmentBaselineSemantics(scalarReopened),
+			"MPO reopen must preserve physical MSPDI assignment baseline values");
+		com.microproject.pm.assignment.Assignment reopenedScalarAssignment =
+			(com.microproject.pm.assignment.Assignment) reopenedBaselineTask.getAssignments().iterator().next();
+		assertEquals(scalarAssignment.getBaselineValues(0), reopenedScalarAssignment.getBaselineValues(0));
+		assertEquals(scalarAssignment.getBaselineValues(9), reopenedScalarAssignment.getBaselineValues(9));
+		assertEquals(scalarAssignment.getBaselineValues(10), reopenedScalarAssignment.getBaselineValues(10));
 	}
 
 	/** GUI-RIBBON-FILE-03: a persisted CCPM fever-chart history survives the physical File/Open route. */
@@ -950,8 +1027,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			openCommand.run();
 			GuiAcceptanceSupport.await(chooserCallStarted::get,
 				route + " did not enter the default Windows native chooser provider");
-			GuiAcceptanceSupport.await(() -> !visibleDialogOverlayBounds(beforeOpen, captureScreen(robot)).isEmpty(),
-				route + " called the native provider but no visible chooser appeared on the desktop");
+			requireNativeCancelControl(awaitNativeChooserSnapshot(route), route);
 			assertFalse(chooserCallReturned.get(), route + " chooser must remain modal until physical Escape");
 			String artifactName = "issue-398-native-" + route.toLowerCase(Locale.ROOT).replace(' ', '-')
 				+ "-before-escape.png";
@@ -998,11 +1074,8 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			openCommand.run();
 			GuiAcceptanceSupport.await(chooserCallStarted::get,
 				route + " did not enter the default Windows native chooser provider for Cancel acceptance");
-			awaitVisibleNativeChooserBounds(beforeOpen, robot, route);
+			NativeCancelControl initialCancel = requireNativeCancelControl(awaitNativeChooserSnapshot(route), route);
 			assertFalse(chooserCallReturned.get(), route + " native chooser returned before physical Cancel");
-
-			NativeCancelControl initialCancel = requireNativeCancelControl(
-				captureNativeWindowState(route + "-cancel-initial"), route);
 			clickNativePoint(robot, centerX(initialCancel.dialogBounds),
 				initialCancel.dialogBounds.y + Math.max(12, Math.min(18, initialCancel.dialogBounds.height / 12)));
 			robot.delay(150); // allow foreground activation and native window geometry to settle
@@ -1035,15 +1108,6 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		}
 	}
 
-	private static Rectangle awaitVisibleNativeChooserBounds(BufferedImage beforeOpen, Robot robot, String route) throws Exception {
-		Rectangle[] bounds = new Rectangle[1];
-		GuiAcceptanceSupport.await(() -> {
-			bounds[0] = visibleDialogOverlayBounds(beforeOpen, captureScreen(robot));
-			return !bounds[0].isEmpty();
-		}, route + " did not show a visible Windows chooser before physical Cancel");
-		return bounds[0];
-	}
-
 	private static void clickNativePoint(Robot robot, int x, int y) {
 		robot.mouseMove(x, y);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
@@ -1063,30 +1127,26 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		return bounds.y + bounds.height / 2;
 	}
 
-	private static NativeCancelControl requireNativeCancelControl(String snapshot, String route) {
+	static NativeCancelControl parseNativeCancelControl(String snapshot, String route, long targetPid) {
 		List<String> ownedVisibleDialogs = new ArrayList<>();
 		List<NativeCancelControl> matching = new ArrayList<>();
+		String foregroundLine = null;
+		boolean ready = false;
 		for (String line : snapshot.split("\\R")) {
+			if (line.startsWith("foreground ")) foregroundLine = line;
+			if (line.equals("nativeChooserReady=True")) ready = true;
 			if (line.startsWith("ownedDialog ")) {
-				Map<String, String> dialog = new HashMap<>();
-				for (String field : line.split(" ")) {
-					int equals = field.indexOf('=');
-					if (equals > 0) dialog.put(field.substring(0, equals), field.substring(equals + 1));
-				}
-				if (Long.toString(ProcessHandle.current().pid()).equals(dialog.get("pid"))
+				Map<String, String> dialog = parseFields(line);
+				if (Long.toString(targetPid).equals(dialog.get("pid"))
 						&& "#32770".equals(dialog.get("class"))
 						&& Boolean.parseBoolean(dialog.get("visible")) && Boolean.parseBoolean(dialog.get("enabled"))
-						&& Long.toString(ProcessHandle.current().pid()).equals(dialog.get("ownerPid"))
+						&& Long.toString(targetPid).equals(dialog.get("ownerPid"))
 						&& parseBounds(dialog.get("bounds")) != null) ownedVisibleDialogs.add(line);
 				continue;
 			}
 			if (!line.startsWith("cancelControl ")) continue;
-			Map<String, String> fields = new HashMap<>();
-			for (String field : line.split(" ")) {
-				int equals = field.indexOf('=');
-				if (equals > 0) fields.put(field.substring(0, equals), field.substring(equals + 1));
-			}
-			if (!Long.toString(ProcessHandle.current().pid()).equals(fields.get("pid"))) continue;
+			Map<String, String> fields = parseFields(line);
+			if (!Long.toString(targetPid).equals(fields.get("pid"))) continue;
 			if (!"#32770".equals(fields.get("dialogClass")) || !Boolean.parseBoolean(fields.get("dialogOwnedByTarget"))
 					|| !"2".equals(fields.get("controlId")) || !"Button".equals(fields.get("class"))
 					|| !Boolean.parseBoolean(fields.get("dialogVisible")) || !Boolean.parseBoolean(fields.get("dialogEnabled"))
@@ -1101,7 +1161,70 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		assertEquals(1, matching.size(),
 			route + " must expose exactly one visible, enabled direct IDCANCEL (2) Button in the owned #32770 dialog; snapshot="
 				+ snapshot);
-		return matching.get(0);
+		NativeCancelControl control = matching.get(0);
+		Map<String, String> foreground = parseFields(foregroundLine);
+		String foregroundPid = foreground.get("pid");
+		String foregroundHandle = foreground.get("hwnd");
+		boolean foregroundInDialog = control.dialogHandle.equalsIgnoreCase(foregroundHandle)
+			|| snapshot.lines().anyMatch(line -> line.startsWith("nativeChild ")
+				&& control.dialogHandle.equalsIgnoreCase(parseFields(line).get("dialog"))
+				&& Long.toString(targetPid).equals(parseFields(line).get("pid"))
+				&& Boolean.parseBoolean(parseFields(line).get("visible"))
+				&& Boolean.parseBoolean(parseFields(line).get("enabled"))
+				&& foregroundHandle != null
+				&& foregroundHandle.equalsIgnoreCase(parseFields(line).get("hwnd")));
+		assertTrue(ready && Long.toString(targetPid).equals(foregroundPid) && foregroundInDialog,
+			route + " native chooser must be the foreground dialog (or own foreground child); snapshot=" + snapshot);
+		return control;
+	}
+
+	private static Map<String, String> parseFields(String line) {
+		Map<String, String> fields = new HashMap<>();
+		if (line == null) return fields;
+		for (String field : line.split(" ")) {
+			int equals = field.indexOf('=');
+			if (equals > 0) fields.put(field.substring(0, equals), field.substring(equals + 1));
+		}
+		return fields;
+	}
+
+	private static NativeCancelControl requireNativeCancelControl(String snapshot, String route) {
+		return parseNativeCancelControl(snapshot, route, ProcessHandle.current().pid());
+	}
+
+	private static String awaitNativeChooserSnapshot(String route) throws IOException {
+		long deadlineNanos = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(4);
+		long deadlineUtcTicks = 621355968000000000L
+			+ (System.currentTimeMillis() + java.util.concurrent.TimeUnit.SECONDS.toMillis(4)) * 10_000L;
+		String routeName = route.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9-]", "-");
+		Path projectDirectory = Path.of(System.getProperty("microproject.project.dir", ".")).toAbsolutePath();
+		Path script = projectDirectory.resolve(".github").resolve("scripts").resolve("capture-gui-desktop-state.ps1");
+		Path output = guiArtifactDirectory().resolve("issue-398-native-" + routeName + "-ready-windows.txt");
+		Files.createDirectories(output.getParent());
+		Process process = new ProcessBuilder("powershell.exe", "-NoLogo", "-NoProfile", "-NonInteractive", "-WindowStyle",
+			"Hidden", "-ExecutionPolicy", "Bypass", "-File", script.toString(), "-TargetPid",
+			Long.toString(ProcessHandle.current().pid()), "-WaitForNativeChooser", "-DeadlineUtcTicks",
+			Long.toString(deadlineUtcTicks)).redirectErrorStream(true).redirectOutput(output.toFile()).start();
+		try {
+			long remainingNanos = deadlineNanos - System.nanoTime();
+			if (remainingNanos <= 0 || !process.waitFor(remainingNanos, java.util.concurrent.TimeUnit.NANOSECONDS)) {
+				// Let the bounded probe flush its deadline-stage diagnostics before forcing cleanup.
+				if (!process.waitFor(250, java.util.concurrent.TimeUnit.MILLISECONDS)) {
+					process.destroyForcibly();
+					process.waitFor(250, java.util.concurrent.TimeUnit.MILLISECONDS);
+				}
+				String partial = Files.exists(output) ? Files.readString(output) : "(no output)";
+				throw new IOException(route + " native chooser was not ready within 4 seconds; output=" + output + "\n" + partial);
+			}
+			String snapshot = Files.exists(output) ? Files.readString(output) : "";
+			if (process.exitValue() != 0)
+				throw new IOException("Native chooser probe exited " + process.exitValue() + "; output=" + output + "\n" + snapshot);
+			return snapshot;
+		} catch (InterruptedException interrupted) {
+			Thread.currentThread().interrupt();
+			process.destroyForcibly();
+			throw new IOException("Native chooser probe interrupted; output=" + output, interrupted);
+		}
 	}
 
 	private static Rectangle parseBounds(String value) {
@@ -1120,10 +1243,10 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		}
 	}
 
-	private static final class NativeCancelControl {
-		private final String dialogHandle;
-		private final Rectangle dialogBounds;
-		private final Rectangle cancelBounds;
+	static final class NativeCancelControl {
+		final String dialogHandle;
+		final Rectangle dialogBounds;
+		final Rectangle cancelBounds;
 
 		private NativeCancelControl(String dialogHandle, Rectangle dialogBounds, Rectangle cancelBounds) {
 			this.dialogHandle = dialogHandle;
@@ -1451,24 +1574,8 @@ class RibbonExternalCommandGuiAcceptanceTest {
 	}
 
 	private void activateWindowForRobot(Robot robot, boolean alwaysOnTop) throws Exception {
-		SwingUtilities.invokeAndWait(() -> {
-			window.toFront();
-			window.requestFocus();
-			window.setAlwaysOnTop(alwaysOnTop);
-		});
-		Point location = window.getLocationOnScreen();
-		// The Alt transition grants a foreground activation opportunity on
-		// Windows when the test worker was launched behind another desktop window.
-		robot.keyPress(java.awt.event.KeyEvent.VK_ALT);
-		robot.keyRelease(java.awt.event.KeyEvent.VK_ALT);
-		robot.mouseMove(location.x + Math.max(8, window.getWidth() / 2), location.y + 8);
-		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-		// Foreground activation is controlled by Windows and can remain false in a
-		// Gradle-launched desktop even after the physical title-bar click.  The
-		// subsequent command click is the acceptance boundary; requiring the native
-		// isActive bit here made the test fail before exercising that route.
-		robot.delay(250);
+		GuiAcceptanceSupport.activateAndAwaitRenderedWindow(window, window.getRibbonPanel(), robot, alwaysOnTop,
+			"ribbon application window before the next physical command");
 	}
 
 	private static void type(Robot robot, String text) {
@@ -1700,6 +1807,97 @@ class RibbonExternalCommandGuiAcceptanceTest {
 				+ "|" + task.getCurrentSchedule().getFinish());
 		}
 		return summary;
+	}
+
+	private static List<String> assignmentBaselineSemantics(Project project) {
+		List<String> summary = new ArrayList<>();
+		for (Task task : project.getTaskList()) {
+			if (!(task instanceof com.microproject.pm.task.NormalTask normalTask)) continue;
+			for (Object value : normalTask.getAssignments()) {
+				com.microproject.pm.assignment.Assignment assignment = (com.microproject.pm.assignment.Assignment) value;
+				for (int slot = 0; slot <= 10; slot++) {
+					com.microproject.pm.assignment.Assignment.BaselineValues baseline = assignment.getBaselineValues(slot);
+					if (baseline != null && (baseline.start() != null || baseline.finish() != null
+							|| (baseline.work() != null && baseline.work().longValue() != 0L)))
+						summary.add(task.getName() + "|" + assignment.getResource().getName() + "|" + slot
+							+ "|" + baseline.start() + "|" + baseline.finish() + "|" + baseline.work());
+				}
+			}
+		}
+		return summary;
+	}
+
+	private void awaitWithWindowTrace(BooleanSupplier condition, String message) throws Exception {
+		try {
+			GuiAcceptanceSupport.await(condition, message);
+		} catch (AssertionError failure) {
+			throw new AssertionError(failure.getMessage() + "\n" + saveWindowTrace.snapshot(), failure);
+		}
+	}
+
+	/** Captures modal ownership and focus from AWT window events on the EDT for failure diagnostics. */
+	private static final class WindowTrace implements AWTEventListener {
+		private final List<String> events = java.util.Collections.synchronizedList(new ArrayList<>());
+
+		void open() {
+			Toolkit.getDefaultToolkit().addAWTEventListener(this,
+				AWTEvent.WINDOW_EVENT_MASK | AWTEvent.WINDOW_FOCUS_EVENT_MASK);
+		}
+
+		void close() {
+			Toolkit.getDefaultToolkit().removeAWTEventListener(this);
+		}
+
+		@Override public void eventDispatched(AWTEvent event) {
+			if (event instanceof WindowEvent windowEvent) {
+				Window changed = windowEvent.getWindow();
+				events.add(windowEvent.getID() + " " + describeWindow(changed) + " | " + describeAllWindows());
+			}
+		}
+
+		String snapshot() {
+			synchronized (events) {
+				return "AWT modal/focus trace (last 20 events):\n  "
+					+ String.join("\n  ", events.subList(Math.max(0, events.size() - 20), events.size()));
+			}
+		}
+
+		private static String describeAllWindows() {
+			List<String> descriptions = new ArrayList<>();
+			for (Window candidate : Window.getWindows())
+				descriptions.add(describeWindow(candidate));
+			KeyboardFocusManager focus = KeyboardFocusManager.getCurrentKeyboardFocusManager();
+			return "windows=" + descriptions + ", active=" + describeWindow(focus.getActiveWindow())
+				+ ", focused=" + describeWindow(focus.getFocusedWindow()) + ", focusOwner="
+				+ (focus.getFocusOwner() == null ? "none" : focus.getFocusOwner().getClass().getName());
+		}
+
+		private static String describeWindow(Window candidate) {
+			if (candidate == null) return "none";
+			String title = candidate instanceof Frame frame ? frame.getTitle()
+				: candidate instanceof Dialog dialog ? dialog.getTitle() : "";
+			Window owner = candidate.getOwner();
+			String ownerTitle = owner instanceof Frame frame ? frame.getTitle()
+				: owner instanceof Dialog dialog ? dialog.getTitle() : "";
+			StringBuilder details = new StringBuilder(candidate.getClass().getSimpleName())
+				.append("{title='").append(title).append("',visible=").append(candidate.isVisible())
+				.append(",showing=").append(candidate.isShowing()).append(",active=").append(candidate.isActive())
+				.append(",focused=").append(candidate.isFocused()).append(",modal=")
+				.append(candidate instanceof Dialog dialog && dialog.isModal())
+				.append(",owner=").append(owner == null ? "none" : owner.getClass().getSimpleName() + "['" + ownerTitle + "']")
+				.append(",bounds=").append(candidate.getBounds());
+			if (candidate instanceof JDialog dialog) {
+				List<String> text = new ArrayList<>();
+				for (Component component : flatten(dialog)) {
+					if (component instanceof JLabel label && label.getText() != null && !label.getText().isBlank())
+						text.add(label.getText().trim());
+					if (component instanceof JFileChooser chooser && chooser.getSelectedFile() != null)
+						text.add("selectedFile=" + chooser.getSelectedFile());
+				}
+				details.append(",content=").append(text.stream().limit(12).toList());
+			}
+			return details.append('}').toString();
+		}
 	}
 
 	private static JFileChooser findFileChooser(Window chooserWindow) {

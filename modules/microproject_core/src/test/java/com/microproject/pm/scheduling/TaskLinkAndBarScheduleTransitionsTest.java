@@ -99,6 +99,39 @@ class TaskLinkAndBarScheduleTransitionsTest {
 	}
 
 	@Test
+	void finishToStartWorkingDayLagSkipsDatedNonworkingException() throws Exception {
+		Fixture fixture = createFixture();
+		Project project = fixture.project;
+		long mondayEight = timestamp(2030, Calendar.JUNE, 3, 8);
+		long mondaySeventeen = timestamp(2030, Calendar.JUNE, 3, 17);
+		long tuesdayMidnight = timestamp(2030, Calendar.JUNE, 4, 0);
+		long thursdayEight = timestamp(2030, Calendar.JUNE, 6, 8);
+		project.setStart(mondayEight);
+		((WorkingCalendar) project.getWorkCalendar()).addOrReplaceException(new WorkDay(tuesdayMidnight));
+
+		NormalTask predecessor = createTask(project, "holiday-lag predecessor", 1);
+		NormalTask successor = createTask(project, "holiday-lag successor", 1);
+		predecessor.setScheduleConstraint(ConstraintType.SNET, mondayEight);
+		predecessor.getCurrentSchedule().setStart(mondayEight);
+		successor.getCurrentSchedule().setStart(mondayEight);
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.FS, day(), this);
+
+		project.recalculate();
+
+		assertEquals(mondayEight, predecessor.getStart());
+		assertEquals(mondaySeventeen, predecessor.getEnd(),
+			"the one-day predecessor uses Monday's 08:00-12:00 and 13:00-17:00 work intervals");
+		// Document-derived: MSP uses the project calendar when no task/resource calendar overrides it;
+		// an 8h lag consumes Wednesday's 08:00-12:00 and 13:00-17:00 intervals, so the task starts
+		// Thursday 08:00. Sources: https://support.microsoft.com/en-us/project/how-project-schedules-tasks-behind-the-scenes
+		// and https://support.microsoft.com/en-gb/project/add-lead-or-lag-time-to-a-task
+		assertEquals(thursdayEight, successor.getStart(),
+			"one working day of FS lag skips Tuesday; the next task starts at the next working interval");
+		assertEquals(day(), dependency.getLag());
+	}
+
+	@Test
 	void finishToStartWorkingDayLagUsesPredecessorTaskCalendarAcrossNonworkingDays() throws Exception {
 		Fixture fixture = createFixture();
 		Project project = fixture.project;
@@ -111,8 +144,8 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		project.setStart(mondayEight);
 		((WorkingCalendar) project.getWorkCalendar()).addOrReplaceException(new WorkDay(tuesdayMidnight));
 
-		NormalTask predecessor = createTask(project, "holiday-lag predecessor", 1);
-		NormalTask successor = createTask(project, "holiday-lag successor", 1);
+		NormalTask predecessor = createTask(project, "calendar-lag predecessor", 1);
+		NormalTask successor = createTask(project, "calendar-lag successor", 1);
 		NormalTask unrelated = createTask(project, "unrelated task", 1);
 		WorkingCalendar predecessorCalendar = WorkingCalendar.getInstanceBasedOn(project.getWorkCalendar());
 		predecessorCalendar.setName("Predecessor Wednesday exception");
@@ -124,8 +157,8 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		predecessor.getCurrentSchedule().setStart(mondayEight);
 		successor.getCurrentSchedule().setStart(mondayEight);
 
-		// Fixture preconditions: project Tuesday is nonworking; the predecessor
-		// calendar inherits that and also makes Wednesday nonworking.
+		// The project calendar skips Tuesday; the predecessor calendar inherits that
+		// exception and also skips Wednesday.
 		assertEquals(thursdayEight, project.getWorkCalendar().add(mondaySeventeen, day(), false));
 		assertEquals(fridayEight, predecessor.getEffectiveWorkCalendar().add(mondaySeventeen, day(), false));
 		assertSame(predecessorCalendar, predecessor.getEffectiveWorkCalendar());
@@ -137,24 +170,21 @@ class TaskLinkAndBarScheduleTransitionsTest {
 
 		Dependency dependency = DependencyService.getInstance().newDependency(
 			predecessor, successor, DependencyType.FS, day(), this);
-
 		project.recalculate();
 
 		assertEquals(mondayEight, predecessor.getStart());
 		assertEquals(mondaySeventeen, predecessor.getEnd());
-		// Literal calendar oracle: FS starts from predecessor finish (Mon 17:00).
-		// The existing engine rule applies the 8h working lag on the predecessor's
-		// task calendar, which skips Tuesday and Wednesday, consumes Thursday's
-		// 08:00-12:00 and 13:00-17:00 intervals, and starts the successor Fri 08:00.
-		// Microsoft documents that task calendars participate in scheduling and that
-		// lag delays the successor, but does not specify the calendar owner for lag.
-		// This preserves the existing predecessor-calendar product rule as a
-		// document-derived decision, not measured MSP behavior or proven owner parity.
+		// Literal oracle: the existing engine applies the 8h FS lag on the
+		// predecessor task calendar, skipping Tuesday and Wednesday, then consuming
+		// Thursday's 08:00-12:00 and 13:00-17:00 work intervals.
+		// Microsoft documents calendar scheduling and lag separately, but does not
+		// specify which calendar owns lag. Preserve this as a document-derived product
+		// decision, not measured MSP behavior or a claim of owner parity.
 		// Sources: https://support.microsoft.com/en-us/project/how-project-schedules-tasks-behind-the-scenes
 		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
 		// https://learn.microsoft.com/en-us/office-project/xml-data-interchange/predecessorlink-element?view=project-client-2016
 		assertEquals(fridayEight, successor.getStart(),
-			"the predecessor task calendar skips Tuesday and Wednesday; Thursday's 8h lag ends at 17:00");
+			"the predecessor task calendar skips Tuesday and Wednesday; Thursday's lag ends at 17:00");
 		assertEquals(mondayEight, unrelated.getStart(), "dependency recalculation leaves unrelated task unchanged");
 		assertEquals(day(), dependency.getLag());
 

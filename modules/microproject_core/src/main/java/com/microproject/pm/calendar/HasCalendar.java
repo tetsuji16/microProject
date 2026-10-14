@@ -33,5 +33,7 @@ public interface HasCalendar {
 	public void setWorkCalendar(WorkCalendar workCalendar);
 	public WorkCalendar getWorkCalendar();
 	public WorkCalendar getEffectiveWorkCalendar();
+	/** Returns the document whose schedule or resource state is affected by calendar edits. */
+	public default Document getCalendarOwnerDocument() { return null; }
 	public Document invalidateCalendar();
 }

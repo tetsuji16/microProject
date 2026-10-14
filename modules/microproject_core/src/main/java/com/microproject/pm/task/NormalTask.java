@@ -206,7 +206,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		return Duration.millis(getRawDuration()) == 0 || isMarkTaskAsMilestone();
 	}
 	public double getPercentComplete() {
-		if (importedPercentComplete != null && !isZeroDuration())
+		if (importedPercentComplete != null)
 			return importedPercentComplete.doubleValue();
 		if (isZeroDuration()) { // special case for completion on milestones
 			int count = 0;
@@ -216,8 +216,8 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 				pc += ass.getPercentComplete();
 				count++;
 			}
-			if (count == 0) // shouldn't happen
-				return 0;
+			if (count == 0)
+				return 0.0D;
 			return pc / count;
 		} else {
 			return super.getPercentComplete();
@@ -432,6 +432,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	 */
 	public void setSnapshot(Object snapshotId, DataSnapshot snapshot) {
 		snapshots.setSnapshot(snapshotId, snapshot);
+		clearDetachedAssignmentBaselineValues(snapshotId, snapshot);
 	}
 
 	/**
@@ -439,8 +440,20 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	 */
 	public void clearSnapshot(Object snapshotId) {
 		snapshots.clearSnapshot(snapshotId);
+		clearDetachedAssignmentBaselineValues(snapshotId, null);
 		markTaskAsNeedingRecalculation(); // for redraw purpooses, not for recalc.
 		setDirty(true);
+	}
+
+	private void clearDetachedAssignmentBaselineValues(Object snapshotId, DataSnapshot replacement) {
+		if (!(snapshotId instanceof Integer slot) || slot.intValue() < 0 || slot.intValue() > 10)
+			return;
+		for (Object value : getAssignments())
+			((Assignment) value).clearImportedBaselineValues(slot.intValue());
+		if (replacement instanceof TaskSnapshot taskSnapshot) {
+			for (Object value : taskSnapshot.getAssignments())
+				((Assignment) value).clearImportedBaselineValues(slot.intValue());
+		}
 	}
 
 	public boolean hasRealAssignments() {
@@ -2156,6 +2169,10 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	public Document invalidateCalendar() {
 		invalidateAssignmentCalendars();
 		markTaskAsNeedingRecalculation();
+		return getProject();
+	}
+	@Override
+	public Document getCalendarOwnerDocument() {
 		return getProject();
 	}
 

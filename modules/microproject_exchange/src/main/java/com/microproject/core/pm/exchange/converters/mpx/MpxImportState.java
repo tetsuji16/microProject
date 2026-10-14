@@ -24,6 +24,7 @@
  *******************************************************************************/
 package com.microproject.core.pm.exchange.converters.mpx;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,6 +58,103 @@ public class MpxImportState {
 	protected ResourcePool resourcePool;
 	protected boolean mspdi;
 	protected ProjectFile mpxProjectFile;
+	private final List<Runnable> postScheduleValidations = new ArrayList<>();
+	private Map<Long, RawMspdiAssignmentWork> rawMspdiAssignmentWork = Map.of();
+	private Map<Long, Map<Integer, List<RawMspdiWorkInterval>>> rawMspdiAssignmentBaselineWork = Map.of();
+	private Map<Long, Map<Integer, List<RawMspdiCostInterval>>> rawMspdiAssignmentBaselineCost = Map.of();
+	private Map<Long, Map<Integer, RawMspdiAssignmentBaseline>> rawMspdiAssignmentBaselines = Map.of();
+	private Map<Long, Map<Integer, RawMspdiTaskBaseline>> rawMspdiTaskBaselines = Map.of();
+	private Map<Long, RawMspdiResourceRates> rawMspdiResourceRates = Map.of();
+
+	public record RawMspdiWorkInterval(int type, long start, long finish, long work) { }
+	public record RawMspdiCostInterval(int type, long start, long finish, double cost) { }
+	public record RawMspdiAssignmentBaseline(Long start, Long finish, Long work) { }
+	public record RawMspdiTaskBaseline(long durationMillis, int durationFormat) { }
+	public record RawMspdiResourceRates(com.microproject.datatype.Rate standardRate,
+		com.microproject.datatype.Rate overtimeRate, Double costPerUse) { }
+
+	/** MSPDI assignment baseline work Type values: 4, then 16 + 6 per slot. */
+	public static int assignmentBaselineWorkType(int slot) {
+		if (slot < 0 || slot > 10) throw new IllegalArgumentException("Invalid baseline slot: " + slot);
+		return slot == 0 ? 4 : 16 + (slot - 1) * 6;
+	}
+
+	/** MSPDI assignment baseline cost Type values immediately follow each work type. */
+	public static int assignmentBaselineCostType(int slot) {
+		return assignmentBaselineWorkType(slot) + 1;
+	}
+	public record RawMspdiAssignmentWork(Long start, Long finish, Long work, Long actualWork, Long remainingWork,
+		List<RawMspdiWorkInterval> intervals) {
+		public RawMspdiAssignmentWork {
+			intervals = List.copyOf(intervals);
+		}
+	}
+
+	public void setRawMspdiAssignmentWork(Map<Long, RawMspdiAssignmentWork> values) {
+		rawMspdiAssignmentWork = Map.copyOf(values);
+	}
+	public RawMspdiAssignmentWork getRawMspdiAssignmentWork(Long uid) {
+		return uid == null ? null : rawMspdiAssignmentWork.get(uid);
+	}
+	public void setRawMspdiAssignmentBaselineWork(
+		Map<Long, Map<Integer, List<RawMspdiWorkInterval>>> values) {
+		Map<Long, Map<Integer, List<RawMspdiWorkInterval>>> copy = new HashMap<>();
+		values.forEach((uid, slots) -> {
+			Map<Integer, List<RawMspdiWorkInterval>> slotCopy = new HashMap<>();
+			slots.forEach((slot, intervals) -> slotCopy.put(slot, List.copyOf(intervals)));
+			copy.put(uid, Map.copyOf(slotCopy));
+		});
+		rawMspdiAssignmentBaselineWork = Map.copyOf(copy);
+	}
+	public List<RawMspdiWorkInterval> getRawMspdiAssignmentBaselineWork(Long uid, int slot) {
+		Map<Integer, List<RawMspdiWorkInterval>> slots = uid == null ? null
+			: rawMspdiAssignmentBaselineWork.get(uid);
+		return slots == null ? null : slots.get(Integer.valueOf(slot));
+	}
+	public void setRawMspdiAssignmentBaselineCost(
+		Map<Long, Map<Integer, List<RawMspdiCostInterval>>> values) {
+		Map<Long, Map<Integer, List<RawMspdiCostInterval>>> copy = new HashMap<>();
+		values.forEach((uid, slots) -> {
+			Map<Integer, List<RawMspdiCostInterval>> slotCopy = new HashMap<>();
+			slots.forEach((slot, intervals) -> slotCopy.put(slot, List.copyOf(intervals)));
+			copy.put(uid, Map.copyOf(slotCopy));
+		});
+		rawMspdiAssignmentBaselineCost = Map.copyOf(copy);
+	}
+	public List<RawMspdiCostInterval> getRawMspdiAssignmentBaselineCost(Long uid, int slot) {
+		Map<Integer, List<RawMspdiCostInterval>> slots = uid == null ? null
+			: rawMspdiAssignmentBaselineCost.get(uid);
+		return slots == null ? null : slots.get(Integer.valueOf(slot));
+	}
+	public void setRawMspdiAssignmentBaselines(
+		Map<Long, Map<Integer, RawMspdiAssignmentBaseline>> values) {
+		Map<Long, Map<Integer, RawMspdiAssignmentBaseline>> copy = new HashMap<>();
+		values.forEach((uid, baselines) -> copy.put(uid, Map.copyOf(baselines)));
+		rawMspdiAssignmentBaselines = Map.copyOf(copy);
+	}
+	public boolean hasRawMspdiAssignmentBaselines(Long uid) {
+		return uid != null && rawMspdiAssignmentBaselines.containsKey(uid);
+	}
+	public RawMspdiAssignmentBaseline getRawMspdiAssignmentBaseline(Long uid, int slot) {
+		Map<Integer, RawMspdiAssignmentBaseline> slots = uid == null ? null
+			: rawMspdiAssignmentBaselines.get(uid);
+		return slots == null ? null : slots.get(Integer.valueOf(slot));
+	}
+	public void setRawMspdiTaskBaselines(Map<Long, Map<Integer, RawMspdiTaskBaseline>> values) {
+		Map<Long, Map<Integer, RawMspdiTaskBaseline>> copy = new HashMap<>();
+		values.forEach((uid, baselines) -> copy.put(uid, Map.copyOf(baselines)));
+		rawMspdiTaskBaselines = Map.copyOf(copy);
+	}
+	public RawMspdiTaskBaseline getRawMspdiTaskBaseline(Long uid, int slot) {
+		Map<Integer, RawMspdiTaskBaseline> baselines = uid == null ? null : rawMspdiTaskBaselines.get(uid);
+		return baselines == null ? null : baselines.get(Integer.valueOf(slot));
+	}
+	public void setRawMspdiResourceRates(Map<Long, RawMspdiResourceRates> values) {
+		rawMspdiResourceRates = Map.copyOf(values);
+	}
+	public RawMspdiResourceRates getRawMspdiResourceRates(Long uid) {
+		return uid == null ? null : rawMspdiResourceRates.get(uid);
+	}
 	
 	public ResourcePool getResourcePool() {
 		return resourcePool;
@@ -143,8 +241,22 @@ public class MpxImportState {
 		return mpxTimephasedMap;
 	}
 	public void initializeMpxTimephasedMap() {
+		postScheduleValidations.clear();
 		int assignmentCount = mpxProjectFile == null ? 0 : mpxProjectFile.getResourceAssignments().size();
 		mpxTimephasedMap = new HashMap<>(mapCapacity(assignmentCount));
+	}
+	public void addPostScheduleValidation(Runnable validation) {
+		if (validation == null) {
+			throw new IllegalArgumentException("validation must not be null");
+		}
+		postScheduleValidations.add(validation);
+	}
+	public void validatePostSchedule() {
+		List<Runnable> validations = List.copyOf(postScheduleValidations);
+		postScheduleValidations.clear();
+		for (Runnable validation : validations) {
+			validation.run();
+		}
 	}
 	public ProjectFile getMpxProjectFile() {
 		return mpxProjectFile;

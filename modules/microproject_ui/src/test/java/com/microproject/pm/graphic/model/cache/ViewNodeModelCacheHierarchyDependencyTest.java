@@ -26,13 +26,21 @@ package com.microproject.pm.graphic.model.cache;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import javax.swing.SwingUtilities;
 
 import org.junit.jupiter.api.Test;
 
+import com.microproject.document.ObjectEvent;
 import com.microproject.grouping.core.Node;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
+import com.microproject.pm.dependency.Dependency;
+import com.microproject.pm.dependency.DependencyService;
+import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
@@ -68,6 +76,64 @@ class ViewNodeModelCacheHierarchyDependencyTest {
 			(GraphicNode) viewCache.getGraphicNode(childNode));
 
 		assertSame(parentNode, project.getTaskModel().getHierarchy().getParent(childNode));
+	}
+
+	@Test
+	void firstListenerSeesAllDependencyFactsFromTheSameRevision() throws Exception {
+		Project project = createProject();
+		NormalTask predecessor = createTask(project, "Predecessor");
+		NormalTask successor = createTask(project, "Successor");
+		ReferenceNodeModelCache reference = NodeModelCacheFactory.createTaskNodeModelCache(project,
+				project.getTaskModel());
+		ViewNodeModelCache firstView = (ViewNodeModelCache) NodeModelCacheFactory.getInstance()
+			.createFilteredCache(reference, "same-revision-first", null);
+		ViewNodeModelCache secondView = (ViewNodeModelCache) NodeModelCacheFactory.getInstance()
+			.createFilteredCache(reference, "same-revision-second", null);
+		Dependency[] dependencyHolder = new Dependency[1];
+		AtomicBoolean firstListenerSawCompleteState = new AtomicBoolean();
+		firstView.addNodeModelListener(event -> firstListenerSawCompleteState.set(
+			reference.getGraphicDependency(dependencyHolder[0]) != null
+				&& firstView.getVisibleDependencies().getElements().stream()
+					.anyMatch(edge -> edge.getDependency() == dependencyHolder[0])
+				&& secondView.getVisibleDependencies().getElements().stream()
+					.anyMatch(edge -> edge.getDependency() == dependencyHolder[0])
+				&& firstView.getVisibleNodes().getProjectionIndex().modelRevision()
+					== secondView.getVisibleNodes().getProjectionIndex().modelRevision()));
+
+		reference.setReceiveEvents(false);
+		try (var mutation = project.getMutationState().begin()) {
+			dependencyHolder[0] = DependencyService.getInstance().newDependency(predecessor, successor,
+				DependencyType.FS, 0L, this);
+			mutation.commit(true);
+		}
+		long revision = project.getMutationState().revision();
+		reference.setReceiveEvents(true);
+		SwingUtilities.invokeAndWait(() -> {
+			ObjectEvent taskFact = ObjectEvent.getInstance(this, predecessor, ObjectEvent.UPDATE, null);
+			taskFact.setPublicationRevision(revision);
+			try {
+				reference.objectChanged(taskFact);
+			} finally {
+				taskFact.recycle();
+			}
+			ObjectEvent dependencyFact = ObjectEvent.getInstance(this, dependencyHolder[0], ObjectEvent.CREATE, null);
+			dependencyFact.setPublicationRevision(revision);
+			try {
+				reference.objectChanged(dependencyFact);
+			} finally {
+				dependencyFact.recycle();
+			}
+		});
+
+		assertTrue(firstListenerSawCompleteState.get(),
+			"the first view listener must observe the dependency and both view projections from this revision");
+		assertTrue(firstView.getVisibleDependencies().getElements().stream()
+			.anyMatch(edge -> edge.getDependency() == dependencyHolder[0]));
+		assertTrue(secondView.getVisibleDependencies().getElements().stream()
+			.anyMatch(edge -> edge.getDependency() == dependencyHolder[0]));
+		firstView.close();
+		secondView.close();
+		reference.close();
 	}
 
 	private Project createProject() {

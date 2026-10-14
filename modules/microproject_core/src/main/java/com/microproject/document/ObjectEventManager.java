@@ -30,6 +30,8 @@ import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.undo.NodeUndoInfo;
 import com.microproject.util.ListenerRegistry;
+import java.util.ArrayList;
+import java.util.List;
 
 
 /**
@@ -37,6 +39,97 @@ import com.microproject.util.ListenerRegistry;
  */
 public class ObjectEventManager {
     private final ListenerRegistry<ObjectEvent.Listener> listeners = new ListenerRegistry<>();
+    private final List<EventFacts> deferredEvents = new ArrayList<>();
+    private int batchDepth;
+    private boolean rollbackOnly;
+
+    /** Defers observer callbacks until a surrounding model transaction commits. */
+    public synchronized void beginBatch() {
+        batchDepth++;
+    }
+
+    /** Number of deferred facts currently waiting in this nested batch stack. */
+    public synchronized int pendingEventCount() {
+        return deferredEvents.size();
+    }
+
+    /** Whether this batch contains a fact for the exact object identity after the supplied checkpoint. */
+    public synchronized boolean hasPendingEventFor(Object object, int afterCount) {
+        int start = Math.max(0, afterCount);
+        for (int index = start; index < deferredEvents.size(); index++)
+            if (deferredEvents.get(index).object == object) return true;
+        return false;
+    }
+
+    /** Publishes deferred events on commit, or releases them without notifying observers on rollback. */
+    public void endBatch(boolean publish) {
+        publishBatch(detachBatch(publish));
+    }
+
+    /** Detaches one completed outer batch without invoking observer callbacks. */
+    public PendingBatch detachBatch(boolean publish) {
+        List<EventFacts> events = null;
+        synchronized (this) {
+            if (batchDepth == 0) throw new IllegalStateException("No object-event batch is active");
+            if (!publish) rollbackOnly = true;
+            if (--batchDepth == 0) {
+                events = new ArrayList<>(deferredEvents);
+                deferredEvents.clear();
+                publish = !rollbackOnly;
+                rollbackOnly = false;
+            }
+        }
+        return events == null ? null : new PendingBatch(List.copyOf(events), publish);
+    }
+
+    /** Publishes a batch detached after its model revision was committed. */
+    public void publishBatch(PendingBatch batch) {
+        publishBatch(batch, -1L);
+    }
+
+    /** Publishes detached facts with the exact revision committed with their event batch. */
+    public void publishBatch(PendingBatch batch, long publicationRevision) {
+        if (batch == null) return;
+        if (!batch.publish) return;
+        Throwable failure = null;
+        for (EventFacts facts : batch.events) {
+            try {
+                ObjectEvent event = ObjectEvent.getInstance(facts.source, facts.object,
+                    facts.eventType, facts.info);
+                if (event == null) throw new IllegalStateException("Could not allocate an object event");
+                event.setField(facts.field);
+                event.setPublicationRevision(publicationRevision);
+                dispatch(event);
+            } catch (Throwable current) {
+                if (failure == null) failure = current;
+                else failure.addSuppressed(current);
+            }
+        }
+        if (failure instanceof Error error) throw error;
+        if (failure instanceof RuntimeException runtime) throw runtime;
+        if (failure != null) throw new IllegalStateException("Deferred object-event publication failed", failure);
+    }
+
+    public static final class PendingBatch {
+        private final List<EventFacts> events;
+        private final boolean publish;
+
+        private PendingBatch(List<EventFacts> events, boolean publish) {
+            this.events = events;
+            this.publish = publish;
+        }
+
+        public boolean isPublishable() {
+            return publish;
+        }
+
+        public boolean hasEvents() {
+            return !events.isEmpty();
+        }
+    }
+
+    private record EventFacts(Object source, Object object, int eventType,
+        NodeUndoInfo info, Field field) { }
 
     // This methods allows classes to register for ObjectEvents
     public void addListener(ObjectEvent.Listener listener) {
@@ -95,6 +188,19 @@ public class ObjectEventManager {
     }
     
     public void fire(ObjectEvent evt) {
+        boolean deferred = false;
+        synchronized (this) {
+            if (batchDepth > 0) {
+                deferredEvents.add(new EventFacts(evt.getSource(), evt.getObject(), evt.getType(),
+                    evt.getInfo(), evt.getField()));
+                deferred = true;
+            }
+        }
+        if (deferred) evt.recycle();
+        else dispatch(evt);
+    }
+
+    private void dispatch(ObjectEvent evt) {
         try {
             for (ObjectEvent.Listener listener : listeners.snapshot())
                 listener.objectChanged(evt);

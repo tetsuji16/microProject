@@ -33,7 +33,6 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.SortedSet;
 import java.util.TreeSet;
@@ -62,7 +61,7 @@ import com.microproject.grouping.core.OutlineCollection;
 import com.microproject.grouping.core.hierarchy.BelongsToHierarchy;
 import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.grouping.core.summaries.DivisionSummaryVisitor;
-import com.microproject.grouping.core.summaries.LeafWalker;
+import com.microproject.grouping.core.summaries.DeepChildWalker;
 import com.microproject.options.CalculationOption;
 import com.microproject.options.CalendarOption;
 import com.microproject.pm.assignment.Assignment;
@@ -935,16 +934,9 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 			project.removeStartSentinelDependency(this);
 			project.removeEndSentinelDependency(this);
 
-			// Snapshot both sides before removal because removing a dependency mutates both lists.
-			LinkedList<Dependency> toRemove = new LinkedList<>();
-			DependencyService.getInstance().remove(getPredecessorList(), toRemove);
-			for (Dependency dependency : toRemove)
-				DependencyService.getInstance().remove(dependency, eventSource, undo);
-
-			toRemove.clear();
-			DependencyService.getInstance().remove(getSuccessorList(), toRemove);
-			for (Dependency dependency : toRemove)
-				DependencyService.getInstance().remove(dependency, eventSource, undo);
+			// One service command removes both sides and owns the revisioned publication.
+			DependencyService.getInstance().remove(
+				DependencyService.getInstance().getIncidentDependencies(this), eventSource, undo);
 		}
 
 	}
@@ -988,30 +980,39 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		return Duration.millis(getRawDuration()) == 0;
 	}
 
-/**
- * Percent complete is calculated based on assignments
- */
+	/**
+	 * Leaf task percent complete is calculated from assignments. WBS summaries
+	 * aggregate their leaf task percentages by task duration.
+	 */
 	public double getPercentComplete() {
 		if (isInactiveTask() && inactivePercentComplete != null)
 			return inactivePercentComplete.doubleValue();
-		boolean parent = isWbsParent();
-		DivisionSummaryVisitor divisionClosure = ScheduleUtil.percentCompleteClosureInstance(parent);
-		Project proj = (Project) (getMasterDocument() == null ? getProject() : getMasterDocument());
-		NodeModel nodeModel = proj.getTaskOutline();
-		if (isWbsParent()) {
-			try {
-			   LeafWalker.recursivelyTreatBranch(nodeModel,this, divisionClosure);
-			} catch (NullPointerException n ){
-				ErrorLogger.logOnce("getPercentComplete","getPercentComplete() Task: " + this + " Project " + project,n);
-				return 0;  // better this than crashing
-			}
-		} else {
-			DataUtils.forAllDo(((NormalTask)this).getAssignments().iterator(), divisionClosure);
-		}
+		if (isWbsParent())
+			return taskDurationPercentRollup();
+		DivisionSummaryVisitor divisionClosure = ScheduleUtil.percentCompleteClosureInstance(false);
+		DataUtils.forAllDo(((NormalTask)this).getAssignments().iterator(), divisionClosure);
 		double val = divisionClosure.getValue();
 		if (val >=COMPLETE_THRESHOLD) // adjust for rounding
 			val = 1.0D;
 		return val;
+	}
+
+	/**
+	 * Summary task % Complete is the duration-weighted rollup of its leaf tasks.
+	 * Assignment calendars can produce different completion percentages from the
+	 * task's actual duration / duration, so assignments are not the summary unit.
+	 */
+	private double taskDurationPercentRollup() {
+		Project project = (Project) (getMasterDocument() == null ? getProject() : getMasterDocument());
+		DivisionSummaryVisitor rollup = ScheduleUtil.percentCompleteClosureInstance(true);
+		DeepChildWalker.recursivelyTreatBranch(project.getTaskOutline(), this, value -> {
+			if (!(value instanceof Node node) || !(node.getImpl() instanceof Task task)
+					|| task == this || task.isWbsParent())
+				return;
+			rollup.accept(node);
+		});
+		double value = rollup.getValue();
+		return value >= COMPLETE_THRESHOLD ? 1.0D : value;
 	}
 
 	public boolean inProgress() {

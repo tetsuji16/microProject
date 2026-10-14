@@ -12,9 +12,14 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+
 import org.junit.jupiter.api.Test;
 
 import com.microproject.command.UpdateProjectCommand;
+import com.microproject.datatype.Duration;
+import com.microproject.field.FieldContext;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.grouping.core.Node;
@@ -46,14 +51,32 @@ class UpdateProjectRequestTest {
 		EditSupport editSupport = new EditSupport();
 		UndoManager undoManager = new UndoManager();
 		editSupport.addEditListener(undoManager::addEdit);
+		AtomicInteger publishedScheduleEvents = new AtomicInteger();
+		AtomicLong revisionObservedByScheduleListener = new AtomicLong(-1L);
+		project.addScheduleListener(event -> {
+			publishedScheduleEvents.incrementAndGet();
+			revisionObservedByScheduleListener.set(project.getMutationState().revision());
+		});
+		long revisionBeforeUpdate = project.getMutationState().revision();
 		command.execute(java.util.List.of(task), editSupport);
+		assertEquals(revisionBeforeUpdate + 1, project.getMutationState().revision(),
+			"one committed Update Project publishes one project revision");
+		assertEquals(revisionBeforeUpdate + 1, revisionObservedByScheduleListener.get(),
+			"schedule observers see the committed revision before publication");
+		assertTrue(publishedScheduleEvents.get() > 0, "a committed Update Project publishes its schedule changes");
 		assertTrue(command.affectedTaskIds().contains(task.getUniqueId()));
 		assertEquals(originalStatusDate, project.getStatusDate(), "the command date must not overwrite Status Date");
 		assertNotEquals(0D, task.getPercentComplete());
 		undoManager.undo();
+		assertEquals(revisionBeforeUpdate + 2, project.getMutationState().revision(),
+			"Undo publishes one additional project revision");
+		assertEquals(revisionBeforeUpdate + 2, revisionObservedByScheduleListener.get());
 		assertEquals(0D, task.getPercentComplete(), "one undo restores task progress");
 		assertEquals(originalStatusDate, project.getStatusDate());
 		undoManager.redo();
+		assertEquals(revisionBeforeUpdate + 3, project.getMutationState().revision(),
+			"Redo publishes one additional project revision");
+		assertEquals(revisionBeforeUpdate + 3, revisionObservedByScheduleListener.get());
 		assertNotEquals(0D, task.getPercentComplete(), "one redo reapplies task progress");
 		assertEquals(originalStatusDate, project.getStatusDate());
 	}
@@ -174,6 +197,58 @@ class UpdateProjectRequestTest {
 	}
 
 	@Test
+	void explicitTaskSheetProgressRollsUpByTaskDurationInLinkedSummary() {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("task-progress-summary", undo), undo);
+		project.initialize(false, false);
+		Node summaryNode = project.createLocalTaskNode(null);
+		Task summary = (Task) summaryNode.getImpl();
+		Task predecessor = (Task) project.createLocalTaskNode(summaryNode).getImpl();
+		Task successor = (Task) project.createLocalTaskNode(summaryNode).getImpl();
+		long day = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		predecessor.setDuration(3L * day);
+		successor.setDuration(day);
+		FieldContext context = new FieldContext();
+		context.setTaskSheetUpdate(true);
+
+		assertTrue(TaskSheetScheduleWorkflow.applyTaskPercentComplete(predecessor,
+			TaskSheetScheduleWorkflow.PERCENT_COMPLETE_FIELD_ID, context, Double.valueOf(0.25D)));
+		assertTrue(TaskSheetScheduleWorkflow.applyTaskPercentComplete(successor,
+			TaskSheetScheduleWorkflow.PERCENT_COMPLETE_FIELD_ID, context, Double.valueOf(1.0D)));
+
+		assertEquals(0.25D, predecessor.getPercentComplete(), 0.00001D);
+		assertEquals(1.0D, successor.getPercentComplete(), 0.00001D);
+		double planned = Duration.millis(predecessor.getDuration()) + Duration.millis(successor.getDuration());
+		double expected = (Duration.millis(predecessor.getDuration()) * predecessor.getPercentComplete()
+			+ Duration.millis(successor.getDuration()) * successor.getPercentComplete()) / planned;
+		assertEquals(expected, summary.getPercentComplete(), 0.00001D,
+			"an explicit task-duration percentage must roll up over the linked summary using task duration");
+		assertEquals(0.4375D, summary.getPercentComplete(), 0.00001D,
+			"three days at 25% plus one day at 100% must weight to 43.75%");
+	}
+
+	@Test
+	void nonFiniteTaskSheetProgressIsRejectedBeforeScheduleMutation() {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("invalid-task-progress", undo), undo);
+		project.initialize(false, false);
+		NormalTask task = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		long day = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		task.setDuration(4L * day);
+		FieldContext context = new FieldContext();
+		context.setTaskSheetUpdate(true);
+		assertTrue(TaskSheetScheduleWorkflow.applyTaskPercentComplete(task,
+			TaskSheetScheduleWorkflow.PERCENT_COMPLETE_FIELD_ID, context, Double.valueOf(0.25D)));
+		long actualDuration = task.getActualDuration();
+
+		assertThrows(IllegalArgumentException.class, () -> TaskSheetScheduleWorkflow.applyTaskPercentComplete(task,
+			TaskSheetScheduleWorkflow.PERCENT_COMPLETE_FIELD_ID, context, Double.valueOf(Double.NaN)));
+		assertEquals(0.25D, task.getPercentComplete(), 0.00001D);
+		assertEquals(actualDuration, task.getActualDuration(),
+			"invalid task progress must not partially mutate the schedule before rejection");
+	}
+
+	@Test
 	void partialUpdateFailureRestoresTaskValuesAndDoesNotPublishUndo() throws Exception {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		Project project = Project.createProject(ResourcePool.createRourcePool("update-rollback", undo), undo);
@@ -196,9 +271,14 @@ class UpdateProjectRequestTest {
 		Double secondOverride = second.getImportedPercentCompleteOverride();
 		boolean projectDirty = project.isDirty();
 		boolean projectGroupDirty = project.isGroupDirty();
+		long revisionBeforeFailure = project.getMutationState().revision();
 		EditSupport editSupport = new EditSupport();
 		UndoManager undoManager = new UndoManager();
 		editSupport.addEditListener(undoManager::addEdit);
+		AtomicInteger publishedScheduleEvents = new AtomicInteger();
+		AtomicInteger publishedObjectEvents = new AtomicInteger();
+		project.addScheduleListener(event -> publishedScheduleEvents.incrementAndGet());
+		project.addObjectListener(event -> publishedObjectEvents.incrementAndGet());
 		UpdateProjectCommand command = new UpdateProjectCommand(project,
 			new UpdateProjectRequest(updateDate, true, false, false)) {
 			@Override protected void applyToTask(Task task) {
@@ -225,6 +305,12 @@ class UpdateProjectRequestTest {
 		assertNull(first.getImportedPercentCompleteOverride());
 		assertNull(second.getImportedPercentCompleteOverride());
 		assertFalse(undoManager.canUndo(), "failed mutations must not publish an Undo edit");
+		assertEquals(0, publishedScheduleEvents.get(),
+			"a rolled-back Update Project must not publish transient schedule state");
+		assertEquals(0, publishedObjectEvents.get(),
+			"a rolled-back Update Project must not publish transient object state");
+		assertEquals(revisionBeforeFailure, project.getMutationState().revision(),
+			"a rolled-back update must not advance the project revision");
 	}
 
 	private static TaskSnapshotValues capture(Task task) {
@@ -307,6 +393,9 @@ class UpdateProjectRequestTest {
 		UndoManager undoManager = new UndoManager();
 		editSupport.addEditListener(undoManager::addEdit);
 		editSupport.addEditListener(edit -> { throw new IllegalStateException("injected listener failure"); });
+		AtomicInteger publishedScheduleEvents = new AtomicInteger();
+		project.addScheduleListener(event -> publishedScheduleEvents.incrementAndGet());
+		long revisionBeforeCommitFailure = project.getMutationState().revision();
 		UpdateProjectCommand command = new UpdateProjectCommand(project,
 			new UpdateProjectRequest(task.getEnd() + 86_400_000L, true, false, false));
 
@@ -318,5 +407,9 @@ class UpdateProjectRequestTest {
 		assertEquals(1D, task.getPercentComplete(), 0.00001D);
 		assertTrue(command.affectedTaskIds().contains(task.getUniqueId()));
 		assertTrue(undoManager.canUndo(), "an earlier listener may already have accepted the edit");
+		assertTrue(publishedScheduleEvents.get() > 0,
+			"a commit-stage publication failure must still flush the committed model's schedule events");
+		assertEquals(revisionBeforeCommitFailure + 1, project.getMutationState().revision(),
+			"a commit publication failure does not roll back the applied model revision");
 	}
 }

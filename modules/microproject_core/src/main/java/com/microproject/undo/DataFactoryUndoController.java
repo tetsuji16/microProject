@@ -27,6 +27,7 @@ package com.microproject.undo;
 import javax.swing.undo.UndoableEdit;
 
 import com.microproject.grouping.core.model.NodeModelDataFactory;
+import com.microproject.pm.task.Project;
 
 /**
  *
@@ -44,6 +45,31 @@ public class DataFactoryUndoController extends UndoController {
 	public void editPosted(UndoableEdit edit){
 		super.editPosted(edit);
 		dataFactory.setGroupDirty(true);
+	}
+
+	@Override
+	public void undo() {
+		mutateProjectHistory(true);
+	}
+
+	@Override
+	public void redo() {
+		mutateProjectHistory(false);
+	}
+
+	private void mutateProjectHistory(boolean undo) {
+		if (!(dataFactory instanceof Project project)) {
+			if (undo) super.undo();
+			else super.redo();
+			return;
+		}
+		project.runModelMutation(markApplied -> {
+			if (!(undo ? canUndo() : canRedo())) return false;
+			markApplied.run();
+			if (undo) super.undo();
+			else super.redo();
+			return true;
+		});
 	}
 	public NodeModelDataFactory getDataFactory() {
 		return dataFactory;

@@ -55,15 +55,23 @@ public class CalendarEdit extends AbstractUndoableEdit{
 		return "Calendar";
 	}
 	public void redo() throws CannotRedoException {
+		if (!canRedo()) throw new CannotRedoException();
+		try {
+			CalendarService.getInstance().commitCalendar(dest, newValue);
+		} catch (CalendarService.CommittedMutationException committed) {
+			super.redo();
+			throw committed;
+		}
 		super.redo();
-		dest.assignFrom(newValue);
-	    CalendarService service=CalendarService.getInstance();
-	    service.saveAndUpdate(dest);
 	}
 	public void undo() throws CannotUndoException {
+		if (!canUndo()) throw new CannotUndoException();
+		try {
+			CalendarService.getInstance().commitCalendar(dest, oldValue);
+		} catch (CalendarService.CommittedMutationException committed) {
+			super.undo();
+			throw committed;
+		}
 		super.undo();
-		dest.assignFrom(oldValue);
-	    CalendarService service=CalendarService.getInstance();
-	    service.saveAndUpdate(dest);
 	}
 }

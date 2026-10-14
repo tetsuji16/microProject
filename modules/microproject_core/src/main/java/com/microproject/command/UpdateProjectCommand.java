@@ -36,6 +36,7 @@ import com.microproject.undo.EditSupport;
 import com.microproject.strings.Messages;
 import com.microproject.util.DateTime;
 import com.microproject.transaction.ModelTransaction;
+import com.microproject.transaction.ProjectMutationState;
 
 
 /**
@@ -63,7 +64,9 @@ public class UpdateProjectCommand extends Command {
 	/** Applies one Update Project transaction and posts exactly one undoable edit. */
 	public List<Long> execute(List<? extends Task> targets, EditSupport edits) {
 		affectedTaskIds.clear();
-		try {
+		try (ProjectMutationState.Scope mutation = project.getMutationState().begin()) {
+			project.beginEventBatch();
+			try {
 			ModelTransaction.execute(new ModelTransaction.Steps<ProjectState, List<Long>>() {
 				@Override public void validate() {
 					java.util.Objects.requireNonNull(targets, "targets");
@@ -119,10 +122,37 @@ public class UpdateProjectCommand extends Command {
 				}
 				private ProjectState beforeSnapshot;
 			});
-		} catch (ModelTransaction.ModelTransactionException failure) {
-			if (failure.stage() != ModelTransaction.Stage.COMMIT)
-				affectedTaskIds.clear();
-			throw new IllegalStateException("Update Project failed during " + failure.failedStage(), failure);
+				List<Long> changed = affectedTaskIds();
+				Project.PendingEventBatch pendingEvents = project.commitEventBatch(mutation, !changed.isEmpty());
+				project.publishEventBatch(pendingEvents);
+			} catch (ModelTransaction.ModelTransactionException failure) {
+				boolean committed = failure.failedStage() == ModelTransaction.Stage.COMMIT;
+				if (committed) {
+					Project.PendingEventBatch pendingEvents = project.commitEventBatch(mutation,
+						!affectedTaskIds.isEmpty());
+					try {
+						project.publishEventBatch(pendingEvents);
+					} catch (Throwable publicationFailure) {
+						failure.addSuppressed(publicationFailure);
+					}
+				} else {
+					try {
+						project.endEventBatch(false);
+					} catch (Throwable publicationFailure) {
+						failure.addSuppressed(publicationFailure);
+					}
+				}
+				if (failure.stage() != ModelTransaction.Stage.COMMIT)
+					affectedTaskIds.clear();
+				throw new IllegalStateException("Update Project failed during " + failure.failedStage(), failure);
+			} catch (Error failure) {
+				try {
+					project.endEventBatch(false);
+				} catch (Throwable publicationFailure) {
+					failure.addSuppressed(publicationFailure);
+				}
+				throw failure;
+			}
 		}
 		return affectedTaskIds();
 	}
@@ -194,8 +224,23 @@ public class UpdateProjectCommand extends Command {
 			restore(after);
 		}
 		private void restore(Map<Task, TaskState> state) {
-			restoreTaskStates(project, state, this);
-			project.setDirty(true);
+			try (ProjectMutationState.Scope mutation = project.getMutationState().begin()) {
+				project.beginEventBatch();
+				Project.PendingEventBatch pendingEvents;
+				try {
+					restoreTaskStates(project, state, this);
+					project.setDirty(true);
+					pendingEvents = project.commitEventBatch(mutation, true);
+				} catch (RuntimeException | Error failure) {
+					try {
+						project.endEventBatch(false);
+					} catch (Throwable publicationFailure) {
+						failure.addSuppressed(publicationFailure);
+					}
+					throw failure;
+				}
+				project.publishEventBatch(pendingEvents);
+			}
 		}
 	}
 	public UpdateProjectRequest request() { return request; }

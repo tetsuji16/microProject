@@ -55,6 +55,10 @@ public class CostRateTables implements Cost, Serializable, Cloneable {
 			costRateTableArray[index] = new CostRateTable(getName(index));
 		return costRateTableArray[index];
 	}
+	/** Returns a configured table without lazily creating an empty one. */
+	public CostRateTable getCostRateTableIfPresent(int index) {
+		return costRateTableArray[index];
+	}
 	public CostRateTable getCostRateTable(CostRateIndex.Kind index) {
 		return getCostRateTable(java.util.Objects.requireNonNull(index, "index").code());
 	}

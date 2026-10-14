@@ -79,6 +79,19 @@ class RevisionedProjectionIndexTest {
 	}
 
 	@Test
+	void projectionSnapshotCarriesTheModelRevisionItWasBuiltFrom() {
+		Project project = project();
+		GraphicNode node = graphicNode(project, task(project, 32L));
+		RevisionedProjectionIndex previous = RevisionedProjectionIndex.create(List.of(node), null, 4L);
+		RevisionedProjectionIndex next = RevisionedProjectionIndex.create(List.of(node), previous, 5L);
+
+		assertEquals(4L, previous.modelRevision());
+		assertEquals(5L, next.modelRevision());
+		assertEquals(previous.topologyRevision(), next.topologyRevision(),
+			"a model revision can advance without changing the visible row topology");
+	}
+
+	@Test
 	void repeatedGraphicNodeOccurrencesReceiveDistinctKeysAndRows() {
 		Project project = project();
 		GraphicNode node = graphicNode(project, task(project, 41L));

@@ -78,6 +78,32 @@ class CriticalChainServiceTest {
 	}
 
 	@Test
+	void analysisMeasuresEditedTaskFinishBeforeProjectEnvelopeRecalculation() {
+		Fixture fixture = fixture();
+		NormalTask task = task(fixture.project, "scheduled finish");
+		fixture.project.recalculate();
+
+		CriticalChainService service = new CriticalChainService();
+		service.settings(fixture.project).setEnabled(true);
+		service.apply(fixture.project, List.of(fixture.resource));
+		long baselineFinish = service.findBaseline(fixture.project).projectFinishMillis();
+		long originalDuration = task.getDuration();
+		task.setDuration(originalDuration + CalendarOption.getInstance().getMillisPerDay());
+
+		assertTrue(task.getEnd() > baselineFinish, "the edited task schedule must move beyond the captured finish");
+		assertEquals(baselineFinish, fixture.project.getEnd(), "the project envelope is still awaiting schedule recalculation");
+		long delayedConsumption = service.analysis(fixture.project).projectBuffer().consumedMillis();
+		assertEquals(task.getEnd() - baselineFinish, delayedConsumption,
+			"CCPM status must measure the current task rollup, not the stale project envelope");
+		task.setDuration(originalDuration);
+		long shortenedConsumption = service.analysis(fixture.project).projectBuffer().consumedMillis();
+		assertEquals(Math.max(0L, task.getEnd() - baselineFinish), shortenedConsumption,
+			"CCPM must report the shortened leaf's actual end delta, even before the envelope recalculates");
+		assertTrue(shortenedConsumption < delayedConsumption,
+			"shortening the leaf schedule must reduce its consumed buffer even before envelope recalculation");
+	}
+
+	@Test
 	void applyRequiresExplicitEnablementAndPersistsSettings() {
 		Fixture fixture = fixture();
 		CriticalChainService service = new CriticalChainService();
@@ -298,9 +324,8 @@ class CriticalChainServiceTest {
 		CriticalChainService service = new CriticalChainService();
 		service.settings(fixture.project).setEnabled(true);
 		service.apply(fixture.project, List.of(fixture.resource));
-		long originalEnd = fixture.project.getEnd();
+		long originalEnd = service.findBaseline(fixture.project).projectFinishMillis();
 		task.setDuration(task.getDuration() + 86_400_000L);
-		fixture.project.recalculate();
 		CriticalChainService.ClearResult result = service.clearWithReport(fixture.project);
 		assertTrue(result.cleared());
 		assertTrue(result.baselineEdited());

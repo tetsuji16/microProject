@@ -37,6 +37,7 @@ import java.util.ResourceBundle;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.time.Instant;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
@@ -88,6 +89,9 @@ import com.microproject.exchange.MpoFileImporter;
 import com.microproject.collaboration.CollaborationSession;
 import com.microproject.field.Field;
 import com.microproject.grouping.core.Node;
+import com.microproject.grouping.core.transform.CommonTransformFactory;
+import com.microproject.grouping.core.transform.ViewConfiguration;
+import com.microproject.grouping.core.transform.ViewTransformer;
 import com.microproject.job.JobQueue;
 import com.microproject.job.Job;
 import com.microproject.menu.testsupport.UiComponentWalker;
@@ -101,11 +105,13 @@ import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetPopupMenu;
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheetModel;
+import com.microproject.pm.graphic.views.GanttView;
 import com.microproject.pm.graphic.views.UsageDetailView;
 import com.microproject.pm.graphic.views.PertView;
 import com.microproject.pm.graphic.views.TreeView;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.resource.Resource;
+import com.microproject.options.CalendarOption;
 import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.graphic.views.ResourceView;
 import com.microproject.pm.task.NormalTask;
@@ -150,6 +156,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	private Logger diagnosticsLogger;
 	private Handler diagnosticsHandler;
 	private Level previousDiagnosticsLevel;
+	private ViewConfiguration taskSortViewToRestore;
+	private String previousTaskUserSorterId;
 	private final ConcurrentLinkedQueue<String> diagnosticMessages = new ConcurrentLinkedQueue<>();
 	private volatile boolean failUpdateTasksRoute;
 
@@ -169,6 +177,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 					|| candidate instanceof CalendarDialogBox)
 					candidate.dispose();
 			}
+			if (taskSortViewToRestore != null && previousTaskUserSorterId != null)
+				taskSortViewToRestore.getTransform().setUserSorterId(previousTaskUserSorterId);
+			taskSortViewToRestore = null;
+			previousTaskUserSorterId = null;
 			if (manager != null)
 				manager.cleanUp();
 			for (Window candidate : Window.getWindows()) {
@@ -230,7 +242,12 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			cleanupProject[0] = openedProject;
 			ProjectFactory.getInstance().addProject(openedProject, false, false);
 			showProject(openedProject);
-			SessionFactory.getInstance().setJobQueue(manager.getJobQueue());
+			JobQueue saveQueue = manager.getJobQueue();
+			SessionFactory.getInstance().setJobQueue(saveQueue);
+			assertSame(saveQueue, SessionFactory.getInstance().getJobQueue(),
+				"the File/Save route must start with the fixture's active job queue");
+			assertSame(saveQueue, SessionFactory.getInstance().getLocalSession().getJobQueue(),
+				"the local save session must use the fixture's active job queue");
 			GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
 				&& manager.getCurrentFrame().getProject() == openedProject, "the MPO project did not open");
 
@@ -243,6 +260,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			GuiAcceptanceSupport.await(fileTab::isSelected, "Robot click did not select the File ribbon tab");
 			AbstractButton save = findShowingButtonByCommand("RibbonSaveProject");
 			assertTrue(save.isEnabled(), "Save must be enabled for the edited MPO project");
+			ConcurrentLinkedQueue<String> saveActionEvents = new ConcurrentLinkedQueue<>();
+			save.addActionListener(event -> saveActionEvents.add(Instant.now()
+				+ " factoryQueue=" + queueIdentity(SessionFactory.getInstance().getJobQueue())
+				+ " localQueue=" + queueIdentity(SessionFactory.getInstance().getLocalSession().getJobQueue())));
 			click(robot, save);
 
 			GuiAcceptanceSupport.await(() -> {
@@ -257,6 +278,14 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				return false;
 			}, "the physical Save route did not display the recovery-copy path");
 			assertArrayEquals(originalArchive, Files.readAllBytes(target), "a failed save must leave the shared archive untouched");
+			assertSame(saveQueue, SessionFactory.getInstance().getJobQueue(),
+				"the session queue must remain attached through the Save recovery result");
+			assertSame(saveQueue, SessionFactory.getInstance().getLocalSession().getJobQueue(),
+				"the local save session queue must remain attached through the Save recovery result");
+			assertEquals("saveProject", manager.getLastRibbonCommandResult().commandId(),
+				"the physical Save route must reach its canonical ribbon command");
+			assertFalse(manager.getLastRibbonCommandResult().status() == RibbonCommandResult.Status.FAILED,
+				"the physical Save command must not fail before producing its recovery result");
 			try (var files = Files.list(target.getParent())) {
 				recoveryCopy = files.filter(path -> path.getFileName().toString().startsWith(target.getFileName() + ".conflict-"))
 					.filter(path -> path.getFileName().toString().endsWith(".mpo"))
@@ -271,6 +300,12 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			robot.keyPress(KeyEvent.VK_ENTER);
 			robot.keyRelease(KeyEvent.VK_ENTER);
 			GuiAcceptanceSupport.await(() -> !alert[0].isShowing(), "the recovery alert did not close after Enter");
+			GuiAcceptanceSupport.awaitInputAndEventQueueIdle(robot, "Save recovery alert dismissal");
+			assertEquals(1, saveActionEvents.size(),
+				"the Save button must invoke the shared command exactly once; events=" + saveActionEvents);
+			assertTrue(saveActionEvents.peek().contains("factoryQueue=" + queueIdentity(saveQueue)
+				+ " localQueue=" + queueIdentity(saveQueue)),
+				"the Save button action must observe the attached queue; events=" + saveActionEvents);
 		} finally {
 			if (alert[0] != null && alert[0].isShowing())
 				SwingUtilities.invokeAndWait(alert[0]::dispose);
@@ -1486,8 +1521,29 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	@Test
 	void markOnTrackRibbonIsDisabledWithoutTaskSelection() throws Exception {
 		runProgressPhysicalRoute("mark-on-track-no-selection", c -> {
+			// Keep the tracking band in overflow regardless of label width differences
+			// between supported locales and the desktop's native resolution.
+			SwingUtilities.invokeAndWait(() -> { window.setSize(720, 700); window.validate(); });
 			AbstractButton markOnTrack = GuiPhysicalRouteAdapter.visibleButton(c.robot(), window, "RibbonMarkOnTrack");
-			assertFalse(markOnTrack.isEnabled(), "MSP Mark on Track requires selected tasks");
+			JPopupMenu[] popupAncestor = new JPopupMenu[1];
+			boolean[] popupVisible = new boolean[1];
+			boolean[] commandEnabled = new boolean[1];
+			int[] actualWindowWidth = new int[1];
+			SwingUtilities.invokeAndWait(() -> {
+				actualWindowWidth[0] = window.getWidth();
+				for (Component current = markOnTrack; current != null; current = current.getParent()) {
+					if (current instanceof JPopupMenu popup) {
+						popupAncestor[0] = popup;
+						popupVisible[0] = popup.isVisible();
+						break;
+					}
+				}
+				commandEnabled[0] = markOnTrack.isEnabled();
+			});
+			assertEquals(720, actualWindowWidth[0], "The responsive fixture must keep its requested width");
+			assertTrue(popupAncestor[0] != null && popupVisible[0],
+				"The narrow disabled-command fixture must exercise the visible ribbon overflow popup");
+			assertFalse(commandEnabled[0], "MSP Mark on Track requires selected tasks");
 			clickDisabled(c.robot(), markOnTrack);
 			assertEquals(initialPercentComplete, contextTask().getPercentComplete(),
 					"A disabled command must leave the task unchanged");
@@ -1943,10 +1999,14 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
 		Gantt gantt = manager.getCurrentFrame().getGanttView().getGantt();
 		undo.clear();
+		assertTrue(isTaskVisible(sheet, child), "fixture must start with the child visible in the task table");
 		assertTrue(isTaskVisibleInGantt(gantt, parent), "Gantt must show the selected summary before collapse");
 		assertTrue(isTaskVisibleInGantt(gantt, child), "Gantt must show the child before collapse");
 		assertFalse(undo.canUndo(), "view-state fixture must start with an empty project undo history");
-		click(robot, cellOnScreen(sheet, rowForTask(sheet, parent), nameColumn(sheet)));
+		JTable rowHeader = sheet.getRowHeader();
+		RowHeaderTarget parentRowTarget = rowHeaderTargetOnScreen(rowHeader, rowForTask(sheet, parent), false);
+		click(robot, new Rectangle(parentRowTarget.screenPoint().x, parentRowTarget.screenPoint().y, 1, 1));
+		assertTrue(isTaskVisible(sheet, child), "selecting the summary row must not collapse its children");
 		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("TaskRibbonTask.title"));
 		clickAndAwaitSelected(robot, taskTab, "Robot click did not select the Task ribbon tab");
@@ -2883,6 +2943,184 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	@Test
+	void physicalViewSortOrdersTasksByStartDateAndKeepsGanttRowsAligned() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("task-date-sort-acceptance", undo), undo);
+		project.initialize(false, false);
+		NormalTask later = project.createScriptedTask();
+		later.setName("Date sort later");
+		NormalTask earlier = project.createScriptedTask();
+		earlier.setName("Date sort earlier");
+		NormalTask tiedEarlier = project.createScriptedTask();
+		tiedEarlier.setName("Date sort tied earlier");
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		long start = project.getStart();
+		for (NormalTask task : List.of(later, earlier, tiedEarlier))
+			task.setDuration(day / 2);
+		later.setStart(start + 2 * day);
+		earlier.setStart(start + day);
+		tiedEarlier.setStart(start + day);
+		project.recalculate();
+		List<String> originalOutline = taskOrder(project);
+		assertEquals(List.of("Date sort later", "Date sort earlier", "Date sort tied earlier"), originalOutline,
+			"fixture must begin in outline order rather than date order");
+		assertTrue(earlier.getStart() < later.getStart(), "fixture must retain distinct scheduled start dates after recalculation");
+		assertEquals(earlier.getStart(), tiedEarlier.getStart(), "fixture must retain an equal-date tie after recalculation");
+		long[] originalStarts = { later.getStart(), earlier.getStart(), tiedEarlier.getStart() };
+
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> window.setSize(1120, 700));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"task date-sort project did not become visible");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		GanttView ganttView = manager.getCurrentFrame().getGanttView();
+		taskSortViewToRestore = ViewConfiguration.getView(manager.getCurrentFrame().getTopViewId());
+		previousTaskUserSorterId = taskSortViewToRestore.getTransform().getUserSorterId();
+		assertSame(ganttView.getSpreadSheet(), sheet);
+		assertSame(sheet.getCache(), ganttView.getCache(), "task table and Gantt must share the live projection");
+		assertEquals(originalOutline, visibleTaskOrder(sheet), "task table must initially follow outline order");
+
+		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+			.getString("ViewRibbonTask.title"));
+		clickAndAwaitSelected(robot, viewTab, "Robot click did not select the View ribbon tab");
+		click(robot, findShowingButtonByCommand("RibbonChooseSort"));
+		JComboBox<?> sorterChoice = findShowingTransformCombo("Sorter.StartDate");
+		int dateSorterIndex = -1;
+		for (int index = 0; index < sorterChoice.getItemCount(); index++) {
+			Object item = sorterChoice.getItemAt(index);
+			if (item instanceof CommonTransformFactory factory && "Sorter.StartDate".equals(factory.getId())) {
+				dateSorterIndex = index;
+				break;
+			}
+		}
+		assertTrue(dateSorterIndex >= 0, "the shared task-view sorter list must expose Start Date");
+		GuiAcceptanceSupport.selectComboBoxItem(robot, sorterChoice, dateSorterIndex);
+		assertTrue(sorterChoice.getSelectedItem() instanceof CommonTransformFactory selectedSorter
+				&& "Sorter.StartDate".equals(selectedSorter.getId()),
+			"Robot keyboard selection must choose the Start Date sorter before dialog confirmation");
+		Dialog chooser = java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow() instanceof Dialog dialog
+			? dialog : null;
+		assertNotNull(chooser, "the generic task Sort dialog must remain open after choosing a sorter");
+		click(robot, findShowingButtonByText(chooser, javax.swing.UIManager.getString("OptionPane.okButtonText")));
+		GuiAcceptanceSupport.await(() -> visibleTaskOrder(sheet).equals(
+			List.of("Date sort earlier", "Date sort tied earlier", "Date sort later")),
+			"the physical View > Sort route did not apply the Start Date ordering stably; rows="
+				+ visibleTaskOrder(sheet) + ", selectedSorter="
+				+ ViewConfiguration.getView(manager.getCurrentFrame().getTopViewId()).getTransform().getUserSorterId());
+		GuiAcceptanceSupport.await(() -> "Sorter.StartDate".equals(
+			ViewConfiguration.getView(manager.getCurrentFrame().getTopViewId()).getTransform().getUserSorterId()),
+			"the active task-view configuration did not retain Start Date as its selected sorter");
+		assertEquals(originalOutline, taskOrder(project), "date sorting must remain view-only");
+		assertArrayEquals(originalStarts, new long[] { later.getStart(), earlier.getStart(), tiedEarlier.getStart() },
+			"date sorting must not change task schedules");
+		for (NormalTask task : List.of(earlier, tiedEarlier, later)) {
+			int sheetRow = rowForTask(sheet, task);
+			var graphicNode = sheet.getCache().getGraphicNode(((CommonSpreadSheetModel) sheet.getModel()).getNode(sheetRow).getNode());
+			int ganttRow = ganttView.getGantt().getCache().getVisibleNodes().getProjectionIndex().rowForNode((GraphicNode) graphicNode);
+			assertEquals(sheetRow, ganttRow, "Gantt must paint the task at the same visible row as its table row");
+		}
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, tiedEarlier), nameColumn(sheet)));
+		GuiAcceptanceSupport.await(() -> ganttView.getGantt().getHighlightedRows()
+				.equals(java.util.Set.of(rowForTask(sheet, tiedEarlier))),
+			"the rendered Gantt highlight did not follow the sorted task's table row");
+		Point selectedRowHeaderPoint = rowHeaderTargetOnScreen(sheet.getRowHeader(), rowForTask(sheet, tiedEarlier), false).screenPoint();
+		click(robot, new Rectangle(selectedRowHeaderPoint.x, selectedRowHeaderPoint.y, 1, 1));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(tiedEarlier),
+			"the task row-header selection precondition was not established before permanent sorting");
+
+		List<Long> originalIds = List.of(later.getId(), earlier.getId(), tiedEarlier.getId());
+		boolean undoBeforeCancel = project.getUndoController().canUndo();
+		boolean dirtyBeforeCancel = project.needsSaving();
+		click(robot, findShowingButtonByCommand("RibbonChooseSort"));
+		Dialog permanentChooser = (Dialog) java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow();
+		JCheckBox permanentCheck = UiComponentWalker.flatten(permanentChooser).stream()
+			.filter(JCheckBox.class::isInstance).map(JCheckBox.class::cast)
+			.filter(check -> check.getText().equals(ResourceBundle.getBundle("com.microproject.menu.menu")
+				.getString("Sort.PermanentTaskOrder"))).findFirst().orElseThrow();
+		click(robot, permanentCheck);
+		click(robot, findShowingButtonByText(permanentChooser, javax.swing.UIManager.getString("OptionPane.okButtonText")));
+		GuiAcceptanceSupport.await(() -> java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow() instanceof Dialog dialog
+				&& dialog != permanentChooser, "permanent task sort did not ask for a second confirmation");
+		Dialog confirmation = (Dialog) java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow();
+		click(robot, findShowingButtonByText(confirmation, javax.swing.UIManager.getString("OptionPane.noButtonText")));
+		GuiAcceptanceSupport.await(() -> !confirmation.isShowing(), "No did not cancel permanent task sorting");
+		assertEquals(originalOutline, taskOrder(project), "confirmation cancel must leave task order unchanged");
+		assertEquals(originalIds, List.of(later.getId(), earlier.getId(), tiedEarlier.getId()),
+			"confirmation cancel must leave task IDs unchanged");
+		assertEquals(undoBeforeCancel, project.getUndoController().canUndo(), "confirmation cancel must not add an Undo edit");
+		assertEquals(dirtyBeforeCancel, project.needsSaving(), "confirmation cancel must not dirty the project");
+
+		click(robot, findShowingButtonByCommand("RibbonChooseSort"));
+		JComboBox<?> permanentSorterAgain = findShowingTransformCombo("Sorter.StartDate");
+		int startDateIndex = -1;
+		for (int index = 0; index < permanentSorterAgain.getItemCount(); index++) {
+			Object item = permanentSorterAgain.getItemAt(index);
+			if (item instanceof CommonTransformFactory factory && "Sorter.StartDate".equals(factory.getId())) {
+				startDateIndex = index;
+				break;
+			}
+		}
+		assertTrue(startDateIndex >= 0);
+		GuiAcceptanceSupport.selectComboBoxItem(robot, permanentSorterAgain, startDateIndex);
+		Dialog permanentChooserAgain = (Dialog) java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow();
+		JCheckBox permanentCheckAgain = UiComponentWalker.flatten(permanentChooserAgain).stream()
+			.filter(JCheckBox.class::isInstance).map(JCheckBox.class::cast)
+			.filter(check -> check.getText().equals(ResourceBundle.getBundle("com.microproject.menu.menu")
+				.getString("Sort.PermanentTaskOrder"))).findFirst().orElseThrow();
+		click(robot, permanentCheckAgain);
+		click(robot, findShowingButtonByText(permanentChooserAgain, javax.swing.UIManager.getString("OptionPane.okButtonText")));
+		GuiAcceptanceSupport.await(() -> java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow() instanceof Dialog dialog
+				&& dialog != permanentChooserAgain, "confirmed permanent task sort did not ask before mutation");
+		Dialog confirmationAgain = (Dialog) java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow();
+		click(robot, findShowingButtonByText(confirmationAgain,
+				javax.swing.UIManager.getString("OptionPane.yesButtonText")));
+		GuiAcceptanceSupport.await(() -> taskOrder(project).equals(
+				List.of("Date sort earlier", "Date sort tied earlier", "Date sort later")),
+			"confirmed permanent task sort did not change outline order");
+		assertTrue(manager.getCurrentFrame().getSelectedImpls(false).contains(tiedEarlier),
+			"permanent sorting must preserve selected task identity");
+		assertTrue(earlier.getId() < tiedEarlier.getId() && tiedEarlier.getId() < later.getId(),
+			"permanent task sort must renumber IDs in outline order");
+		assertEquals(ViewTransformer.SORTER_NONE_ID,
+			ViewConfiguration.getView(manager.getCurrentFrame().getTopViewId()).getTransform().getUserSorterId(),
+			"permanent ordering must clear the view-only sorter after applying it to the model");
+		for (NormalTask task : List.of(earlier, tiedEarlier, later)) {
+			int sheetRow = rowForTask(sheet, task);
+			var graphicNode = sheet.getCache().getGraphicNode(((CommonSpreadSheetModel) sheet.getModel()).getNode(sheetRow).getNode());
+			int ganttRow = ganttView.getGantt().getCache().getVisibleNodes().getProjectionIndex().rowForNode((GraphicNode) graphicNode);
+			assertEquals(sheetRow, ganttRow, "Gantt must paint permanently reordered tasks at their table rows");
+		}
+		ByteArrayOutputStream permanentMpo = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, permanentMpo), "MPO save rejected the permanent task order");
+		Project permanentReload = new MpoFileImporter().loadProject(new ByteArrayInputStream(permanentMpo.toByteArray()));
+		assertEquals(List.of("Date sort earlier", "Date sort tied earlier", "Date sort later"),
+			taskOrder(permanentReload), "MPO reload must preserve permanent task ordering");
+		assertEquals(List.of(earlier.getId(), tiedEarlier.getId(), later.getId()),
+			List.of(taskNamed(permanentReload, "Date sort earlier").getId(),
+				taskNamed(permanentReload, "Date sort tied earlier").getId(),
+				taskNamed(permanentReload, "Date sort later").getId()),
+			"MPO reload must preserve renumbered task IDs");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> taskOrder(project).equals(originalOutline),
+			"one Undo must restore the previous task order");
+		assertEquals(originalIds, List.of(later.getId(), earlier.getId(), tiedEarlier.getId()),
+			"one Undo must restore the previous task IDs");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> taskOrder(project).equals(
+				List.of("Date sort earlier", "Date sort tied earlier", "Date sort later")),
+			"one Redo must restore the permanent task order");
+	}
+
+	@Test
 	void levelAllUsesEveryProjectResourceWithoutChangingTaskSelectionAndSupportsUndoRedoAndMpo() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
@@ -3185,6 +3423,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		throw new AssertionError("Reloaded task is absent: " + name);
 	}
 
+	private static String queueIdentity(JobQueue queue) {
+		return queue == null ? "null" : queue.getName() + "@" + Integer.toHexString(System.identityHashCode(queue));
+	}
+
 	private void showProject(Project project) throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			for (Window candidate : Window.getWindows()) {
@@ -3216,23 +3458,11 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	private AbstractButton findShowingButtonByText(String text) throws Exception {
-		AbstractButton[] result = new AbstractButton[1];
-		SwingUtilities.invokeAndWait(() -> result[0] = UiComponentWalker.flatten(window).stream()
-			.filter(AbstractButton.class::isInstance)
-			.map(RibbonGuiButton::adapt)
-			.filter(AbstractButton::isShowing).filter(button -> text.equals(button.getText()))
-			.findFirst().orElseThrow(() -> new AssertionError("Visible ribbon button not found: " + text)));
-		return result[0];
+		return GuiAcceptanceSupport.findShowingButtonByText(window, text);
 	}
 
 	private static AbstractButton findShowingButtonByText(java.awt.Container container, String text) throws Exception {
-		AbstractButton[] result = new AbstractButton[1];
-		SwingUtilities.invokeAndWait(() -> result[0] = UiComponentWalker.flatten(container).stream()
-				.filter(AbstractButton.class::isInstance)
-				.map(RibbonGuiButton::adapt)
-				.filter(AbstractButton::isShowing).filter(button -> text.equals(button.getText())).findFirst()
-				.orElseThrow(() -> new AssertionError("Visible dialog button not found: " + text)));
-		return result[0];
+		return GuiAcceptanceSupport.findShowingButtonByText(container, text);
 	}
 
 	private AbstractButton findShowingButtonByCommand(String command) throws Exception {
@@ -3269,6 +3499,38 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		while (iterator.hasNext())
 			names.add(iterator.next().getName());
 		return names;
+	}
+
+	private static List<String> visibleTaskOrder(SpreadSheet sheet) {
+		List<String> names = new ArrayList<>();
+		CommonSpreadSheetModel model = (CommonSpreadSheetModel) sheet.getModel();
+		for (int row = 0; row < sheet.getRowCount(); row++) {
+			if (model.getNode(row) != null && model.getNode(row).getNode() != null
+					&& model.getNode(row).getNode().getImpl() instanceof Task task)
+				names.add(task.getName());
+		}
+		return names;
+	}
+
+	private static JComboBox<?> findShowingTransformCombo(String transformId) throws Exception {
+		JComboBox<?>[] result = new JComboBox<?>[1];
+		SwingUtilities.invokeAndWait(() -> {
+			for (Window candidate : Window.getWindows()) {
+				if (!candidate.isShowing()) continue;
+				for (Component component : UiComponentWalker.flatten(candidate)) {
+					if (!(component instanceof JComboBox<?> combo) || !combo.isShowing()) continue;
+					for (int index = 0; index < combo.getItemCount(); index++) {
+						Object item = combo.getItemAt(index);
+						if (item instanceof CommonTransformFactory factory && transformId.equals(factory.getId())) {
+							result[0] = combo;
+							return;
+						}
+					}
+				}
+			}
+		});
+		assertNotNull(result[0], "Visible generic Sort dialog combo missing transform " + transformId);
+		return result[0];
 	}
 
 	private static Dialog visibleMoveConfirmation() {
@@ -3375,11 +3637,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			RibbonCommandResult.Status expectedStatus, List<Long> expectedSelectedTaskIds,
 			List<Long> expectedAffectedTaskIds) throws Exception {
 		GuiAcceptanceSupport.await(() -> manager.getLastRibbonCommandResult() != null
-				&& manager.getLastRibbonCommandResult() != previousOutcome
-				&& manager.getLastRibbonCommandResult().status() == expectedStatus,
-			"GraphicManager did not record " + expectedStatus + " command outcome");
+				&& manager.getLastRibbonCommandResult() != previousOutcome,
+			"GraphicManager did not record a new command outcome");
 		RibbonCommandResult result = manager.getLastRibbonCommandResult();
-		assertEquals(expectedStatus, result.status(), "ribbon command status");
+		assertEquals(expectedStatus, result.status(), "ribbon command status: " + result);
 		assertEquals(expectedSelectedTaskIds, result.selectedTaskIds(), "ribbon command selected task IDs");
 		assertEquals(expectedAffectedTaskIds, result.affectedTaskIds(), "ribbon command affected task IDs");
 		assertEquals(manager.getCurrentFrame().getTopViewId(), result.activeViewId(),
@@ -3673,14 +3934,13 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	private static AbstractButton findVisibleButton(java.awt.Container container, String text) {
-		for (java.awt.Component child : container.getComponents()) {
-			if (child instanceof AbstractButton button && button.isShowing() && text.equals(button.getText())) return button;
-			if (child instanceof java.awt.Container nested) {
-				AbstractButton found = findVisibleButton(nested, text);
-				if (found != null) return found;
-			}
+		try {
+			return GuiAcceptanceSupport.findShowingButtonByText(container, text);
+		} catch (AssertionError missingButton) {
+			return null;
+		} catch (Exception failure) {
+			throw new AssertionError("Unable to inspect visible button for semantic label: " + text, failure);
 		}
-		return null;
 	}
 
 	private static void capture(Robot robot, TaskInformationDialog dialog) throws Exception {

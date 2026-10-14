@@ -31,7 +31,9 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -59,7 +61,6 @@ import com.microproject.core.pm.exchange.converters.mpx.MpxTaskConverter;
 import com.microproject.core.pm.exchange.converters.mpx.MpxUtils;
 import com.microproject.core.pm.exchange.converters.type.DateUTCConverter;
 import com.microproject.core.pm.exchange.converters.type.PercentNumberRatioDoubleConverter;
-import com.microproject.strings.Messages;
 import com.microproject.exchange.ImportedCalendarService;
 import com.microproject.exchange.BoundedInput;
 import com.microproject.grouping.core.Node;
@@ -89,7 +90,6 @@ public class MspImporter {
 	private static final Logger logger = Logger.getLogger(MspImporter.class.getName());
 	protected ProjectFile mpxProjectFile;
 	protected MpxImportState state=new MpxImportState();
-	private final List<String> importWarnings = new ArrayList<>();
 	protected AbstractProjectReader reader;
 	/** Native ProjectLibre XLSX payload, when present and valid. */
 	protected Project nativeProject;
@@ -112,7 +112,6 @@ public class MspImporter {
 	}
 
 	private Project importProject_(ProgressClosure progress) throws Exception{
-		importWarnings.clear();
 		if (nativeProject != null) {
 			progress.updateProgress(1f, "Completed");
 			return nativeProject;
@@ -144,6 +143,7 @@ public class MspImporter {
 		project.initialize(false, false);
 		project.recalculate();
 		restoreImportedAssignmentLevelingDelays();
+		state.validatePostSchedule();
 
 		progress.updateProgress(1f, "Completed");
 		return project;
@@ -180,7 +180,19 @@ public class MspImporter {
 				source = prepareProjectStream(new ByteArrayInputStream(data));
 			} else {
 				nativeProject = null;
-				source = prepareProjectStream(in);
+				if ("xml".equalsIgnoreCase(extension)) {
+					byte[] data = in.readAllBytes();
+					RawMspdiData rawData = parseRawMspdiData(data);
+					state.setRawMspdiAssignmentWork(rawData.assignmentWork());
+					state.setRawMspdiAssignmentBaselineWork(rawData.assignmentBaselineWork());
+					state.setRawMspdiAssignmentBaselineCost(rawData.assignmentBaselineCost());
+					state.setRawMspdiAssignmentBaselines(rawData.assignmentBaselines());
+					state.setRawMspdiTaskBaselines(rawData.taskBaselines());
+					state.setRawMspdiResourceRates(rawData.resourceRates());
+					source = prepareProjectStream(new ByteArrayInputStream(data));
+				} else {
+					source = prepareProjectStream(in);
+				}
 			}
 			String effectiveExtension = normalizeExtension(extension, source);
 			reader = createReader(effectiveExtension);
@@ -190,11 +202,6 @@ public class MspImporter {
 			if (in!=null)
 				in.close();
 		}	
-	}
-
-	/** Returns conversion warnings from the most recent import. */
-	public List<String> getImportWarnings() {
-		return List.copyOf(importWarnings);
 	}
 
 	private AbstractProjectReader createReader(String extension) {
@@ -232,6 +239,278 @@ public class MspImporter {
 			return in;
 		}
 		return new BufferedInputStream(in);
+	}
+
+	private record RawMspdiData(Map<Long, MpxImportState.RawMspdiAssignmentWork> assignmentWork,
+		Map<Long, Map<Integer, List<MpxImportState.RawMspdiWorkInterval>>> assignmentBaselineWork,
+		Map<Long, Map<Integer, List<MpxImportState.RawMspdiCostInterval>>> assignmentBaselineCost,
+		Map<Long, Map<Integer, MpxImportState.RawMspdiAssignmentBaseline>> assignmentBaselines,
+		Map<Long, Map<Integer, MpxImportState.RawMspdiTaskBaseline>> taskBaselines,
+		Map<Long, MpxImportState.RawMspdiResourceRates> resourceRates) { }
+
+	private RawMspdiData parseRawMspdiData(byte[] xml)
+			throws Exception {
+		javax.xml.parsers.DocumentBuilderFactory factory = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+		factory.setNamespaceAware(true);
+		factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+		factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
+		factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+		factory.setXIncludeAware(false);
+		factory.setExpandEntityReferences(false);
+		factory.setAttribute(javax.xml.XMLConstants.ACCESS_EXTERNAL_DTD, "");
+		factory.setAttribute(javax.xml.XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+		org.w3c.dom.Document document = factory.newDocumentBuilder()
+			.parse(new ByteArrayInputStream(xml));
+		String namespace = document.getDocumentElement().getNamespaceURI();
+		org.w3c.dom.NodeList assignments = document.getElementsByTagNameNS(namespace, "Assignment");
+		Map<Long, MpxImportState.RawMspdiAssignmentWork> result = new HashMap<>();
+		Map<Long, Map<Integer, List<MpxImportState.RawMspdiWorkInterval>>> assignmentBaselineWork = new HashMap<>();
+		Map<Long, Map<Integer, List<MpxImportState.RawMspdiCostInterval>>> assignmentBaselineCost = new HashMap<>();
+		Map<Long, Map<Integer, MpxImportState.RawMspdiAssignmentBaseline>> assignmentBaselines = new HashMap<>();
+		Map<Long, Map<Integer, MpxImportState.RawMspdiTaskBaseline>> taskBaselines = new HashMap<>();
+		Map<Long, MpxImportState.RawMspdiResourceRates> resourceRates = new HashMap<>();
+		org.w3c.dom.NodeList resources = document.getElementsByTagNameNS(namespace, "Resource");
+		for (int index = 0; index < resources.getLength(); index++) {
+			org.w3c.dom.Element resource = (org.w3c.dom.Element) resources.item(index);
+			String rawUid = xmlChildText(resource, "UID", namespace);
+			if (rawUid == null) continue;
+			MpxImportState.RawMspdiResourceRates rates = new MpxImportState.RawMspdiResourceRates(
+				parseMspdiResourceRate(xmlChildText(resource, "StandardRate", namespace),
+					xmlChildText(resource, "StandardRateFormat", namespace)),
+				parseMspdiResourceRate(xmlChildText(resource, "OvertimeRate", namespace),
+					xmlChildText(resource, "OvertimeRateFormat", namespace)),
+				parseMspdiResourceCost(xmlChildText(resource, "CostPerUse", namespace)));
+			if ((rates.standardRate() != null || rates.overtimeRate() != null || rates.costPerUse() != null)
+				&& resourceRates.put(Long.valueOf(rawUid), rates) != null)
+				throw new IllegalArgumentException("MSPDI contains duplicate resource UIDs with scalar rates");
+		}
+		org.w3c.dom.NodeList tasks = document.getElementsByTagNameNS(namespace, "Task");
+		for (int index = 0; index < tasks.getLength(); index++) {
+			org.w3c.dom.Element task = (org.w3c.dom.Element) tasks.item(index);
+			String rawUid = xmlChildText(task, "UID", namespace);
+			if (rawUid == null) continue;
+			long uid = Long.parseLong(rawUid);
+			Map<Integer, MpxImportState.RawMspdiTaskBaseline> baselines = new HashMap<>();
+			for (org.w3c.dom.Element baseline : xmlDirectChildren(task, "Baseline", namespace)) {
+				String rawNumber = xmlChildText(baseline, "Number", namespace);
+				String rawFormat = xmlChildText(baseline, "DurationFormat", namespace);
+				String rawDuration = xmlChildText(baseline, "Duration", namespace);
+				if (rawNumber == null || rawFormat == null || rawDuration == null) continue;
+				int durationFormat = Integer.parseInt(rawFormat);
+				if (elapsedDurationUnit(durationFormat) == com.microproject.datatype.TimeUnit.NONE) continue;
+				int slot = Integer.parseInt(rawNumber);
+				if (slot < 0 || slot > 10) throw new IllegalArgumentException("MSPDI baseline number is outside 0..10");
+				long durationMillis = parseMspdiDuration(rawDuration);
+				if (durationMillis < 0L) throw new IllegalArgumentException("MSPDI baseline duration cannot be negative");
+				MpxImportState.RawMspdiTaskBaseline previous = baselines.put(Integer.valueOf(slot),
+					new MpxImportState.RawMspdiTaskBaseline(durationMillis, durationFormat));
+				if (previous != null) throw new IllegalArgumentException("MSPDI task contains duplicate baseline slots");
+			}
+			if (!baselines.isEmpty() && taskBaselines.put(Long.valueOf(uid), Map.copyOf(baselines)) != null)
+				throw new IllegalArgumentException("MSPDI contains duplicate task UIDs with baseline durations");
+		}
+		for (int index = 0; index < assignments.getLength(); index++) {
+			org.w3c.dom.Element assignment = (org.w3c.dom.Element) assignments.item(index);
+			String rawAssignmentUid = xmlChildText(assignment, "UID", namespace);
+			if (rawAssignmentUid == null) continue;
+			long assignmentUid = Long.parseLong(rawAssignmentUid);
+			Map<Integer, List<MpxImportState.RawMspdiWorkInterval>> baselineSlots = new HashMap<>();
+			Map<Integer, List<MpxImportState.RawMspdiCostInterval>> baselineCostSlots = new HashMap<>();
+			Map<Integer, MpxImportState.RawMspdiAssignmentBaseline> scalarBaselineSlots = new HashMap<>();
+			for (org.w3c.dom.Element baseline : xmlDirectChildren(assignment, "Baseline", namespace)) {
+				String rawNumber = xmlChildText(baseline, "Number", namespace);
+				if (rawNumber == null) continue;
+				int slot = Integer.parseInt(rawNumber);
+				if (slot < 0 || slot > 10)
+					throw new IllegalArgumentException("MSPDI assignment baseline number is outside 0..10");
+				String rawStart = xmlChildText(baseline, "Start", namespace);
+				String rawFinish = xmlChildText(baseline, "Finish", namespace);
+				String rawWork = xmlChildText(baseline, "Work", namespace);
+				if (rawStart != null || rawFinish != null || rawWork != null) {
+					MpxImportState.RawMspdiAssignmentBaseline scalar =
+						new MpxImportState.RawMspdiAssignmentBaseline(
+							parseNullableMspdiWallTime(rawStart), parseNullableMspdiWallTime(rawFinish),
+							parseMspdiDuration(rawWork));
+					if (scalarBaselineSlots.put(Integer.valueOf(slot), scalar) != null)
+						throw new IllegalArgumentException("MSPDI assignment contains duplicate baseline scalar slots");
+				}
+				List<MpxImportState.RawMspdiWorkInterval> intervals = new ArrayList<>();
+				int expectedType = MpxImportState.assignmentBaselineWorkType(slot);
+				List<MpxImportState.RawMspdiCostInterval> costIntervals = new ArrayList<>();
+				int expectedCostType = MpxImportState.assignmentBaselineCostType(slot);
+				for (org.w3c.dom.Element row : xmlDirectChildren(baseline, "TimephasedData", namespace)) {
+					String rawType = xmlChildText(row, "Type", namespace);
+					if (rawType == null) continue;
+					int type = Integer.parseInt(rawType);
+					if (type != expectedType && type != expectedCostType) continue;
+					if (!"2".equals(xmlChildText(row, "Unit", namespace)))
+						throw new IllegalArgumentException("Assignment baseline rows require per-day units");
+					long start = parseMspdiWallTime(xmlChildText(row, "Start", namespace));
+					long finish = parseMspdiWallTime(xmlChildText(row, "Finish", namespace));
+					if (finish <= start)
+						throw new IllegalArgumentException("Assignment baseline row has invalid bounds");
+					String rawValue = xmlChildText(row, "Value", namespace);
+					if (type == expectedType) {
+						Long rowWork = parseMspdiDuration(rawValue);
+						if (rowWork == null || rowWork.longValue() < 0L)
+							throw new IllegalArgumentException("Assignment baseline work row has invalid value");
+						intervals.add(new MpxImportState.RawMspdiWorkInterval(expectedType, start, finish,
+							rowWork.longValue()));
+					} else {
+						double rowCost = parseMspdiCost(rawValue);
+						costIntervals.add(new MpxImportState.RawMspdiCostInterval(expectedCostType, start, finish, rowCost));
+					}
+				}
+				if (!intervals.isEmpty() && baselineSlots.put(Integer.valueOf(slot), List.copyOf(intervals)) != null)
+					throw new IllegalArgumentException("MSPDI assignment contains duplicate baseline work slots");
+				if (!costIntervals.isEmpty() && baselineCostSlots.put(Integer.valueOf(slot), List.copyOf(costIntervals)) != null)
+					throw new IllegalArgumentException("MSPDI assignment contains duplicate baseline cost slots");
+			}
+			if (!baselineSlots.isEmpty() && assignmentBaselineWork.put(Long.valueOf(assignmentUid),
+				Map.copyOf(baselineSlots)) != null)
+				throw new IllegalArgumentException("MSPDI contains duplicate assignment UIDs with baseline work");
+			if (!baselineCostSlots.isEmpty() && assignmentBaselineCost.put(Long.valueOf(assignmentUid),
+				Map.copyOf(baselineCostSlots)) != null)
+				throw new IllegalArgumentException("MSPDI contains duplicate assignment UIDs with baseline cost");
+			if (assignmentBaselines.put(Long.valueOf(assignmentUid), Map.copyOf(scalarBaselineSlots)) != null)
+				throw new IllegalArgumentException("MSPDI contains duplicate assignment UIDs with baseline scalars");
+			if (!"8".equals(xmlChildText(assignment, "WorkContour", namespace))) continue;
+			long uid = assignmentUid;
+			Long assignmentStart = parseNullableMspdiWallTime(xmlChildText(assignment, "Start", namespace));
+			Long assignmentFinish = parseNullableMspdiWallTime(xmlChildText(assignment, "Finish", namespace));
+			Long work = parseMspdiDuration(xmlChildText(assignment, "Work", namespace));
+			Long actual = parseMspdiDuration(xmlChildText(assignment, "ActualWork", namespace));
+			Long remaining = parseMspdiDuration(xmlChildText(assignment, "RemainingWork", namespace));
+			List<MpxImportState.RawMspdiWorkInterval> intervals = new ArrayList<>();
+			for (org.w3c.dom.Element row : xmlDirectChildren(assignment, "TimephasedData", namespace)) {
+				String rawType = xmlChildText(row, "Type", namespace);
+				if (!"1".equals(rawType) && !"2".equals(rawType)) continue;
+				if (!"2".equals(xmlChildText(row, "Unit", namespace)))
+					throw new IllegalArgumentException("Custom MSPDI work rows require per-day units");
+				long start = parseMspdiWallTime(xmlChildText(row, "Start", namespace));
+				long finish = parseMspdiWallTime(xmlChildText(row, "Finish", namespace));
+				Long rowWork = parseMspdiDuration(xmlChildText(row, "Value", namespace));
+				if (finish <= start || rowWork == null || rowWork.longValue() < 0L)
+					throw new IllegalArgumentException("Custom MSPDI work row has invalid bounds or value");
+				intervals.add(new MpxImportState.RawMspdiWorkInterval(Integer.parseInt(rawType),
+					start, finish, rowWork.longValue()));
+			}
+			if (result.put(Long.valueOf(uid), new MpxImportState.RawMspdiAssignmentWork(
+				assignmentStart, assignmentFinish, work, actual, remaining, intervals)) != null)
+				throw new IllegalArgumentException("MSPDI contains duplicate assignment UIDs");
+		}
+		return new RawMspdiData(Map.copyOf(result), Map.copyOf(assignmentBaselineWork),
+			Map.copyOf(assignmentBaselineCost), Map.copyOf(assignmentBaselines), Map.copyOf(taskBaselines),
+			Map.copyOf(resourceRates));
+	}
+
+	private static com.microproject.datatype.Rate parseMspdiResourceRate(String rawValue, String rawFormat) {
+		if (rawValue == null) return null;
+		double amount = new java.math.BigDecimal(rawValue.trim()).doubleValue();
+		int format = rawFormat == null ? 2 : Integer.parseInt(rawFormat.trim());
+		int unit = switch (format) {
+			case 1 -> com.microproject.datatype.TimeUnit.MINUTES;
+			case 2 -> com.microproject.datatype.TimeUnit.HOURS;
+			case 3 -> com.microproject.datatype.TimeUnit.DAYS;
+			case 4 -> com.microproject.datatype.TimeUnit.WEEKS;
+			case 5 -> com.microproject.datatype.TimeUnit.MONTHS;
+			case 7 -> com.microproject.datatype.TimeUnit.YEARS;
+			case 8 -> com.microproject.datatype.TimeUnit.NON_TEMPORAL;
+			default -> com.microproject.datatype.TimeUnit.NONE;
+		};
+		if (unit == com.microproject.datatype.TimeUnit.NONE) return null;
+		double factor = unit == com.microproject.datatype.TimeUnit.NON_TEMPORAL ? 1.0D
+			: com.microproject.datatype.Duration.timeUnitFactor(unit);
+		return new com.microproject.datatype.Rate(amount / factor, unit);
+	}
+
+	private static Double parseMspdiResourceCost(String rawValue) {
+		return rawValue == null ? null : Double.valueOf(new java.math.BigDecimal(rawValue.trim()).doubleValue());
+	}
+
+	private static double parseMspdiCost(String value) {
+		if (value == null)
+			throw new IllegalArgumentException("Assignment baseline cost row has no value");
+		double parsed;
+		try {
+			parsed = new java.math.BigDecimal(value.trim()).doubleValue();
+		} catch (NumberFormatException exception) {
+			throw new IllegalArgumentException("Assignment baseline cost row has invalid value", exception);
+		}
+		if (!Double.isFinite(parsed) || parsed < 0.0D)
+			throw new IllegalArgumentException("Assignment baseline cost must be finite and nonnegative");
+		return parsed;
+	}
+
+	private static String xmlChildText(org.w3c.dom.Element parent, String name, String namespace) {
+		for (org.w3c.dom.Node child = parent.getFirstChild(); child != null; child = child.getNextSibling())
+			if (child instanceof org.w3c.dom.Element element && name.equals(element.getLocalName())
+					&& namespace.equals(element.getNamespaceURI())) return element.getTextContent();
+		return null;
+	}
+
+	private static List<org.w3c.dom.Element> xmlDirectChildren(org.w3c.dom.Element parent, String name,
+		String namespace) {
+		List<org.w3c.dom.Element> result = new ArrayList<>();
+		for (org.w3c.dom.Node child = parent.getFirstChild(); child != null; child = child.getNextSibling())
+			if (child instanceof org.w3c.dom.Element element && name.equals(element.getLocalName())
+					&& namespace.equals(element.getNamespaceURI())) result.add(element);
+		return result;
+	}
+
+	private static Long parseMspdiDuration(String value) {
+		if (value == null || value.isBlank()) return null;
+		java.util.regex.Matcher matcher = java.util.regex.Pattern.compile(
+			"^P(?:(\\d+)Y)?(?:(\\d+)M)?(?:(\\d+)D)?(?:T(?:(\\d+)H)?(?:(\\d+)M)?(?:(\\d+(?:\\.\\d+)?)S)?)?$").matcher(value);
+		if (!matcher.matches() || (matcher.group(1) == null && matcher.group(2) == null
+				&& matcher.group(3) == null && matcher.group(4) == null && matcher.group(5) == null
+				&& matcher.group(6) == null))
+			throw new IllegalArgumentException("Invalid MSPDI duration: " + value);
+		long years = matcher.group(1) == null ? 0L : Long.parseLong(matcher.group(1));
+		long months = matcher.group(2) == null ? 0L : Long.parseLong(matcher.group(2));
+		long days = matcher.group(3) == null ? 0L : Long.parseLong(matcher.group(3));
+		long hours = matcher.group(4) == null ? 0L : Long.parseLong(matcher.group(4));
+		long minutes = matcher.group(5) == null ? 0L : Long.parseLong(matcher.group(5));
+		java.math.BigDecimal seconds = matcher.group(6) == null ? java.math.BigDecimal.ZERO
+			: new java.math.BigDecimal(matcher.group(6));
+		long millis = seconds.movePointRight(3).longValueExact();
+		long total = Math.multiplyExact(years, 365L * 86_400_000L);
+		// These match the core's existing elapsed duration factors (365d/year,
+		// 30d/month); do not reinterpret them using the project working calendar.
+		total = Math.addExact(total, Math.multiplyExact(months, 30L * 86_400_000L));
+		total = Math.addExact(total, Math.multiplyExact(days, 86_400_000L));
+		total = Math.addExact(total, Math.multiplyExact(hours, 3_600_000L));
+		total = Math.addExact(total, Math.multiplyExact(minutes, 60_000L));
+		return Long.valueOf(Math.addExact(total, millis));
+	}
+
+	private static int elapsedDurationUnit(int durationFormat) {
+		return switch (durationFormat) {
+			case 4, 36 -> com.microproject.datatype.TimeUnit.ELAPSED_MINUTES;
+			case 6, 38 -> com.microproject.datatype.TimeUnit.ELAPSED_HOURS;
+			case 8, 40 -> com.microproject.datatype.TimeUnit.ELAPSED_DAYS;
+			case 10, 42 -> com.microproject.datatype.TimeUnit.ELAPSED_WEEKS;
+			case 12, 44 -> com.microproject.datatype.TimeUnit.ELAPSED_MONTHS;
+			default -> com.microproject.datatype.TimeUnit.NONE;
+		};
+	}
+
+	private static long toRawBaselineDuration(MpxImportState.RawMspdiTaskBaseline baseline) {
+		int unit = elapsedDurationUnit(baseline.durationFormat());
+		double value = baseline.durationMillis() / com.microproject.datatype.Duration.timeUnitFactor(unit);
+		long duration = com.microproject.datatype.Duration.getInstance(value, unit);
+		if (baseline.durationFormat() >= 35)
+			duration = com.microproject.datatype.Duration.setAsEstimated(duration, true);
+		return duration;
+	}
+
+	private static long parseMspdiWallTime(String value) {
+		if (value == null) throw new IllegalArgumentException("Custom MSPDI work row is missing a date bound");
+		return java.time.LocalDateTime.parse(value).toInstant(java.time.ZoneOffset.UTC).toEpochMilli();
+	}
+
+	private static Long parseNullableMspdiWallTime(String value) {
+		return value == null || value.isBlank() ? null : Long.valueOf(parseMspdiWallTime(value));
 	}
 
 	private String normalizeExtension(String extension, InputStream in) throws Exception {
@@ -481,7 +760,9 @@ public class MspImporter {
 			Date start = getTaskBaselineStart(mpxTask, snapshotId);
 			Date finish = getTaskBaselineFinish(mpxTask, snapshotId);
 			Duration duration = getTaskBaselineDuration(mpxTask, snapshotId);
-			if (start == null && finish == null && duration == null)
+			MpxImportState.RawMspdiTaskBaseline rawBaseline = state.getRawMspdiTaskBaseline(
+				mpxTask.getUniqueID() == null ? null : Long.valueOf(mpxTask.getUniqueID().longValue()), snapshotId);
+			if (start == null && finish == null && duration == null && rawBaseline == null)
 				continue;
 
 			TaskSnapshot snapshot = new TaskSnapshot();
@@ -493,8 +774,11 @@ public class MspImporter {
 				schedule.setStart(DateUTCConverter.toModelTime(start));
 			if (finish != null)
 				schedule.setFinish(DateUTCConverter.toModelTime(finish));
-			if (duration != null)
+			if (rawBaseline != null) {
+				schedule.setRawDuration(toRawBaselineDuration(rawBaseline));
+			} else if (duration != null) {
 				schedule.setRawDuration(MpxUtils.toProjectDuration(duration));
+			}
 			snapshot.setCurrentSchedule(schedule);
 			task.setSnapshot(Integer.valueOf(snapshotId), snapshot);
 		}
@@ -529,12 +813,7 @@ public class MspImporter {
 			// Attaching a non-default assignment can copy the default assignment's
 			// detail object and erase this imported value.
 			converter.restoreLevelingDelay(mpxAssignment, assignment);
-			converter.importBaselines(mpxAssignment, assignment, task, warning -> {
-				if (!importWarnings.contains(warning)) {
-					importWarnings.add(warning);
-					logger.warning(warning);
-				}
-			});
+			converter.importBaselines(mpxAssignment, assignment, state);
 			importedAssignmentLevelingDelays.add(new ImportedAssignmentLevelingDelay(mpxAssignment, assignment));
 		}
 	}
