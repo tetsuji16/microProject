@@ -408,16 +408,6 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		markTaskAsNeedingRecalculation(); // for redraw purpooses, not for recalc.
 		setDirty(true);
 	}
-	public void restoreSnapshot(Object snapshotId,Object b) {
-		TaskBackup backup=(TaskBackup)b;
-		if (backup.snapshot==null) return;
-		TaskSnapshot snapshot=(TaskSnapshot)((TaskSnapshot) getSnapshot(CURRENT)).clone();
-		restoreDetail(this, backup, true,snapshot);
-		setSnapshot(snapshotId, snapshot);
-		markTaskAsNeedingRecalculation(); // for redraw purpooses, not for recalc.
-		setDirty(true);
-	}
-
 	/**
 	 * @param snapshot
 	 */

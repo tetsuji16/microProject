@@ -1916,6 +1916,19 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 		return null;
 	}
 
+	/** Returns the imported scalar values independently of the anchored snapshot. */
+	public BaselineValues getImportedBaselineValues(int slot) {
+		checkBaselineSlot(slot);
+		return importedBaselineValues == null ? null : importedBaselineValues.get(Integer.valueOf(slot));
+	}
+
+	/** Restores imported scalar metadata without changing the anchored task snapshot. */
+	public void restoreImportedBaselineValues(int slot, BaselineValues values) {
+		checkBaselineSlot(slot);
+		if (values == null) clearImportedBaselineValues(slot);
+		else storeImportedBaselineValues(Integer.valueOf(slot), values.start(), values.finish(), values.work());
+	}
+
 	/** Removes imported scalar presence data after a task snapshot replaces that slot. */
 	public void clearImportedBaselineValues(int slot) {
 		checkBaselineSlot(slot);

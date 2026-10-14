@@ -8,6 +8,7 @@ package com.microproject.pm.graphic.frames;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -98,6 +99,7 @@ import com.microproject.menu.testsupport.UiComponentWalker;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
+import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.graphic.gantt.Gantt;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
@@ -1671,6 +1673,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Environment.setNewLook(true);
 		NormalTask task = createTask();
 		Project project = task.getOwningProject();
+		Resource resource = project.getResourcePool().createScriptedResource();
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1.0d, 0L, this);
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		assignment.setWork(day, null);
 		showProject(project);
 		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
 		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null
@@ -1696,13 +1702,66 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> !dialog.isShowing() && task.getSnapshot(Snapshottable.BASELINE) != null,
 			"Save Baseline did not store the baseline snapshot");
 		assertTrue(rowForTask(sheet, task) >= 0, "Baseline mutation must keep the task visible");
+		long originalBaselineStart = task.getBaselineStart(Snapshottable.BASELINE);
+		Assignment.BaselineValues originalBaselineValues = assignment.getBaselineValues(Snapshottable.BASELINE);
+		assertEquals(Long.valueOf(day), originalBaselineValues.work(),
+			"The first save must capture the seeded one-day assignment baseline");
+		long replacementStart = project.getEffectiveWorkCalendar().add(task.getStart(),
+			day, false);
+		SwingUtilities.invokeAndWait(() -> {
+			task.setStart(replacementStart);
+			assignment.setWork(3L * day, null);
+			project.recalculate();
+		});
+		assertEquals(replacementStart, task.getStart(), "Fixture must move the current task before overwrite");
+		assertNotEquals(originalBaselineStart, task.getStart(),
+			"Replacement current start must differ from the seeded baseline start");
+		long overwrittenBaselineStart = task.getStart();
+		long currentAssignmentWork = assignment.getWork(null);
+		click(robot, findShowingButtonByCommand("RibbonSaveBaseline"));
+		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
+				.anyMatch(candidate -> candidate instanceof BaselineDialog && candidate.isShowing()),
+			"Overwrite Save Baseline dialog did not open");
+		BaselineDialog overwriteDialog = java.util.Arrays.stream(Window.getWindows())
+			.filter(candidate -> candidate instanceof BaselineDialog && candidate.isShowing())
+			.map(BaselineDialog.class::cast).findFirst().orElseThrow();
+		click(robot, findShowingButtonByText(overwriteDialog, Messages.getString("ButtonText.OK")));
+		GuiAcceptanceSupport.await(() -> !overwriteDialog.isShowing()
+				&& task.getBaselineStart(Snapshottable.BASELINE) == overwrittenBaselineStart,
+			"Save Baseline did not overwrite the existing task baseline");
+		Assignment.BaselineValues overwrittenBaselineValues = assignment.getBaselineValues(Snapshottable.BASELINE);
+		assertEquals(Long.valueOf(3L * day), overwrittenBaselineValues.work(),
+			"Overwrite must capture the explicitly seeded three-day assignment work");
+		assertNotEquals(originalBaselineValues, overwrittenBaselineValues,
+			"Overwrite must produce assignment baseline values distinct from the prior slot");
 
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
-		GuiAcceptanceSupport.await(() -> task.getSnapshot(Snapshottable.BASELINE) == null,
-			"Undo did not remove the saved baseline snapshot");
+		GuiAcceptanceSupport.await(() -> task.getBaselineStart(Snapshottable.BASELINE) == originalBaselineStart
+				&& originalBaselineValues.equals(assignment.getBaselineValues(Snapshottable.BASELINE)),
+			"Undo did not restore the overwritten baseline snapshot");
+		assertEquals(originalBaselineValues, assignment.getBaselineValues(Snapshottable.BASELINE));
+		assertEquals(overwrittenBaselineStart, task.getStart(), "Undo must preserve the current task schedule");
+		assertEquals(currentAssignmentWork, assignment.getWork(null), "Undo must preserve current assignment work");
+		ByteArrayOutputStream restoredSaved = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, restoredSaved), "MPO save must accept the restored baseline");
+		Project restoredReload = new MpoFileImporter().loadProject(new ByteArrayInputStream(restoredSaved.toByteArray()));
+		NormalTask restoredTask = (NormalTask) taskNamed(restoredReload, task.getName());
+		assertEquals(originalBaselineStart, restoredTask.getBaselineStart(Snapshottable.BASELINE));
+		Assignment restoredAssignment = (Assignment) restoredTask.getAssignments().iterator().next();
+		assertEquals(originalBaselineValues, restoredAssignment.getBaselineValues(Snapshottable.BASELINE));
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
-		GuiAcceptanceSupport.await(() -> task.getSnapshot(Snapshottable.BASELINE) != null,
-			"Redo did not restore the saved baseline snapshot");
+		GuiAcceptanceSupport.await(() -> task.getBaselineStart(Snapshottable.BASELINE) == overwrittenBaselineStart
+				&& overwrittenBaselineValues.equals(assignment.getBaselineValues(Snapshottable.BASELINE)),
+			"Redo did not restore the replacement baseline snapshot");
+		assertEquals(overwrittenBaselineValues, assignment.getBaselineValues(Snapshottable.BASELINE));
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, saved), "MPO save must accept the overwritten baseline");
+		Project reloaded = new MpoFileImporter().loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		NormalTask reloadedTask = (NormalTask) taskNamed(reloaded, task.getName());
+		assertEquals(overwrittenBaselineStart, reloadedTask.getBaselineStart(Snapshottable.BASELINE),
+			"MPO reopen must retain the replacement baseline");
+		Assignment reloadedAssignment = (Assignment) reloadedTask.getAssignments().iterator().next();
+		assertEquals(overwrittenBaselineValues, reloadedAssignment.getBaselineValues(Snapshottable.BASELINE));
 	}
 
 	private void runProgressPhysicalRoute(String routeName, TaskModeRoute route,
