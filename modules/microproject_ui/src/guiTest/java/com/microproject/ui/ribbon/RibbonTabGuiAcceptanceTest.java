@@ -666,7 +666,7 @@ class RibbonTabGuiAcceptanceTest {
 		String taskTabText = onEdt(taskTab::getText);
 		String taskTabAccessibleName = onEdt(() -> taskTab.getAccessibleContext().getAccessibleName());
 		boolean taskTabAccessibleSelected = onEdt(() -> taskTab.getAccessibleContext()
-			.getAccessibleStateSet().contains(AccessibleState.SELECTED));
+			.getAccessibleStateSet().contains(AccessibleState.CHECKED));
 		assertEquals(taskTabText, taskTabAccessibleName,
 			"the selected tab must expose its label to assistive technology");
 		assertTrue(taskTabAccessibleSelected,
@@ -731,7 +731,7 @@ class RibbonTabGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> selectedTab.isSelected() && selectedTab.isShowing(),
 			"keyboard selection from the overflow menu did not reveal the hidden tab: " + hiddenTabId);
 		boolean selectedTabAccessibleSelected = onEdt(() -> selectedTab.getAccessibleContext()
-			.getAccessibleStateSet().contains(AccessibleState.SELECTED));
+			.getAccessibleStateSet().contains(AccessibleState.CHECKED));
 		assertTrue(selectedTabAccessibleSelected,
 			"the keyboard-selected tab must expose its selected state to assistive technology");
 		assertTrue(fileTab.isShowing(), "selecting an overflow tab hid the fixed File tab");
