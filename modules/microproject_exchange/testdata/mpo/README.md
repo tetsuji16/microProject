@@ -48,7 +48,7 @@ this fixture's assertions.
 It uses a simple project authored with the old model API, rather than the
 CCPM sample's duplicate calendar UIDs and already-inconsistent assignment
 values. SHA-256:
-`bd624c7103b6191651b1961be8d00ba9855ce67c354b2ff371b4e9d23a443694`.
+`2b8e492009edbf779122495f15959f8e1ad86d39a07192f4f8ccec6bce42e996`.
 
 The independent source manifest is the pre-write model state, checked before
 calling the old writer, and matches the archive's raw `content.xml`:
@@ -57,7 +57,7 @@ calling the old writer, and matches the archive's raw `content.xml`:
 |---|---|
 | Project | `Fixed schedule native fixture`; start `2030-06-03T08:00:00`; base calendar UID 42 |
 | Calendar UID 42 | Monday–Friday 08:00–12:00 and 13:00–17:00; no weekend work |
-| Resource UID 7 | `Fixture resource`; inherits project base calendar UID 42 |
+| Resource UID 7 | `Fixture resource`; maximum units 0.5; inherits project base calendar UID 42 |
 | Task UID 4201, ID 1 | `Predecessor — 8h`; Monday 08:00–17:00; PT8H; 0%; SNET constraint at Monday 08:00; calendar UID 42; auto-scheduled |
 | Assignment for Task UID 4201 | resource UID 7; work 8h; actual work 0h; remaining work 8h; units 1.0 |
 | Task UID 4202, ID 2 | `Successor — partial progress`; Tuesday 08:00–17:00; PT8H; 25%; SNET constraint at Tuesday 08:00; calendar UID 42; auto-scheduled |
@@ -89,6 +89,9 @@ metadata may vary, so the SHA-256 above identifies only the checked-in archive;
 reproduction is validated by its literal model and XML semantics, not by a
 claim of byte-identical regenerated archives.
 
+Both assignments deliberately retain units 1.0 while the resource maximum is
+0.5. This models an overallocated assignment and checks that import preserves
+the saved assignment value without silently changing the resource capacity.
 The test deliberately uses the current reader as the prior-writer contract
 check. The old reader's clock-sensitive schedule and zero-unit assignment
 outputs are not normative expectations. The CCPM test remains a selected-field
