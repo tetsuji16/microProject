@@ -236,6 +236,26 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 		clearImportedBaselineValuesForBaselineMutation();
 	}
 
+	/**
+	 * Initializes imported assignment bounds before work and progress are applied.
+	 * Standard assignments with positive units derive their finish from imported
+	 * quantities. At zero units a finish can be stored directly without deriving
+	 * work from the span.
+	 */
+	public void initializeImportedBounds(long start, long finish) {
+		if (getWork(null) != 0L || getActualWork(null) != 0L || getRemainingWork(null) != 0L)
+			throw new IllegalStateException("Imported assignment bounds must be initialized before work and progress");
+		if (start != 0L && start != getTask().getStart())
+			setStart(start);
+		if (finish != 0L && getUnits() == 0.0D) {
+			long effectiveStart = start == 0L ? getStart() : start;
+			long duration = getEffectiveWorkCalendar().compare(finish, effectiveStart, false);
+			if (duration < 0L)
+				throw new IllegalArgumentException("Imported assignment finish precedes its start");
+			detail.setDuration(duration);
+		}
+	}
+
 	/** @deprecated use {@link #getRequestDemandKind()} for domain logic. */
 	@Deprecated
 	public int getRequestDemandType() {

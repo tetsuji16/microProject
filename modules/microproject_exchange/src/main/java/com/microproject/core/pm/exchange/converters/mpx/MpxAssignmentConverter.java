@@ -90,13 +90,14 @@ public class MpxAssignmentConverter {
 			: toLong(mpxAssignment.getStart());
 		Long assignmentFinish = rawWork != null && rawWork.finish() != null ? rawWork.finish()
 			: mpxAssignment.getFinish() == null ? null : Long.valueOf(toLong(mpxAssignment.getFinish()));
+		if (assignmentFinish == null && sourceWork == 0L && sourceActualWork == 0L && sourceRemainingWork == 0L
+				&& assignment.getUnits() == 0.0D)
+			assignmentFinish = Long.valueOf(task.getEnd());
 		// AssignmentDetail stores a start as a delay relative to the task. During
 		// import the task's schedule can still be uninitialised, so feeding the
 		// identical task date through setStart turns it into an epoch-sized delay.
-		if (assignmentStart != 0L && assignmentStart != task.getStart())
-			assignment.setStart(assignmentStart);
-		if (assignmentFinish != null)
-			assignment.setEnd(assignmentFinish.longValue());
+		assignment.initializeImportedBounds(assignmentStart,
+			assignmentFinish == null ? 0L : assignmentFinish.longValue());
 		// Install the source profile before applying Work. A standard contour's
 		// inverse maps the scalar to the assignment span; applying Work as flat
 		// first would shrink the span and reinterpret ActualWork later.
@@ -115,22 +116,23 @@ public class MpxAssignmentConverter {
 		// the assignment's current state when the source field is absent.
 		assignment.setActualWork(sourceActualWork, null);
 		assignment.setRemainingWork(sourceRemainingWork, null);
-		// WorkContour changes how the imported assignment span distributes work.
-		// Setting Work may resize that span, so restore explicit XML assignment
-		// bounds after all work/progress fields have been applied.
-		if (assignmentStart != 0L)
-			assignment.setStart(assignmentStart);
-		if (assignmentFinish != null)
-			assignment.setEnd(assignmentFinish.longValue());
 		// Apply the source contour after progress setters, which may intentionally
 		// convert a standard profile to a personal one. Do not call setWork again:
 		// that setter represents a user scheduling edit and may convert an imported
 		// standard contour into a personal profile when actuals are present.
-		if (!customWorkContour)
+		if (!customWorkContour) {
 			assignment.setWorkContourType(workContourType);
-		else
+		} else {
+			// Timephased intervals are relative to the explicit source bounds. Restore
+			// those bounds immediately before installing the imported profile; for
+			// standard contours the scalar work/progress values determine the finish.
+			if (assignmentStart != 0L)
+				assignment.setStart(assignmentStart);
+			if (assignmentFinish != null)
+				assignment.setEnd(assignmentFinish.longValue());
 			importCustomTimephasedWork(customWorkPlan, assignment, sourceWork, sourceActualWork,
 				sourceRemainingWork, state);
+		}
 		restoreLevelingDelay(mpxAssignment, assignment);
 		if (mpxAssignment.getUniqueID() != null)
 			assignment.setUniqueId(mpxAssignment.getUniqueID().longValue());
