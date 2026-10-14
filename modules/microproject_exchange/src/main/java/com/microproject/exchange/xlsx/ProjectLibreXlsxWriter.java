@@ -325,7 +325,7 @@ public class ProjectLibreXlsxWriter implements ProjectWriter {
 				writeRow(sheet, rowIndex++,
 					valueOf(assignment.getTask().getUniqueId()),
 					valueOf(assignment.getResource().getUniqueId()),
-					valueOf(assignment.getUnits()),
+					valueOf(assignment.getUnits() * 100.0D),
 					safe(assignment.getDelay()),
 					safe(assignment.getLevelingDelay()),
 					valueOf(assignment.getWorkContourType()));

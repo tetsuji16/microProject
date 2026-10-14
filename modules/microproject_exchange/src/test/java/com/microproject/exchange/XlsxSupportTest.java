@@ -295,6 +295,105 @@ public class XlsxSupportTest {
 		assertEquals(2L * 24L * 60L * 60L * 1000L, com.microproject.core.pm.exchange.converters.mpx.MpxUtils.toMillis(elapsedLag));
 	}
 
+	@Test
+	void externalXlsxSummaryFallbackPreservesHierarchyUnitsAndProgress() throws Exception {
+		// Hand-authored summary sheets exercise the advertised external-workbook
+		// fallback without the native payload or embedded MSPDI XML. The literal
+		// rows define the expected parent, assignment percent, and task progress.
+		ByteArrayOutputStream out = new ByteArrayOutputStream();
+		try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+			org.apache.poi.ss.usermodel.Sheet tasks = workbook.createSheet("Tasks");
+			writeRow(tasks, 0, "UniqueID", "ID", "ParentUniqueID", "Name", "Notes", "Start", "Finish", "PercentComplete", "WBS");
+			writeRow(tasks, 1, 10.0, 1.0, null, "Release", null, null, null, null, "1");
+			writeRow(tasks, 2, 11.0, 2.0, 10.0, "Deploy", null, null, null, 40.0, "1.1");
+			writeRow(tasks, 3, 12.0, 3.0, 10.0, "Audit", null, null, null, 0.0, "1.2");
+			writeRow(tasks, 4, 13.0, 4.0, 10.0, "Review", null, null, null, 0.0, "1.3");
+			org.apache.poi.ss.usermodel.Sheet resources = workbook.createSheet("Resources");
+			writeRow(resources, 0, "UniqueID", "ID", "Name", "Notes", "Group", "Email", "MaxUnits");
+			writeRow(resources, 1, 7.0, 1.0, "Engineer", null, null, null, 1.0);
+			org.apache.poi.ss.usermodel.Sheet assignments = workbook.createSheet("Assignments");
+			writeRow(assignments, 0, "TaskUniqueID", "ResourceUniqueID", "Units", "Delay", "LevelingDelay", "WorkContour");
+			writeRow(assignments, 1, 11.0, 7.0, 50.0);
+			writeRow(assignments, 2, 12.0, 7.0, 0.0);
+			writeRow(assignments, 3, 13.0, 7.0);
+			workbook.write(out);
+		}
+
+		com.microproject.pm.task.Project imported = new MspImporter().importProject(
+			new ByteArrayInputStream(out.toByteArray()), "xlsx", (progress, label) -> {});
+		com.microproject.pm.task.Task parent = imported.getTaskList().stream()
+			.filter(task -> "Release".equals(task.getName())).findFirst().orElseThrow();
+		NormalTask child = (NormalTask) imported.getTaskList().stream()
+			.filter(task -> "Deploy".equals(task.getName())).findFirst().orElseThrow();
+		NormalTask zeroUnitTask = (NormalTask) imported.getTaskList().stream()
+			.filter(task -> "Audit".equals(task.getName())).findFirst().orElseThrow();
+		NormalTask missingUnitsTask = (NormalTask) imported.getTaskList().stream()
+			.filter(task -> "Review".equals(task.getName())).findFirst().orElseThrow();
+
+		assertEquals("Release", child.getWbsParentTask().getName());
+		assertEquals(0.4D, child.getPercentComplete(), 0.0001D);
+		assertEquals(1, child.getAssignments().size());
+		assertEquals(0.5D, ((com.microproject.pm.assignment.Assignment) child.getAssignments().get(0)).getUnits(), 0.0001D);
+		assertEquals(0.0D, ((com.microproject.pm.assignment.Assignment) zeroUnitTask.getAssignments().get(0)).getUnits(), 0.0001D);
+		assertEquals(1.0D, ((com.microproject.pm.assignment.Assignment) missingUnitsTask.getAssignments().get(0)).getUnits(), 0.0001D);
+		assertEquals(3, parent.getWbsChildrenNodes().size());
+
+		ByteArrayOutputStream exported = new ByteArrayOutputStream();
+		new com.microproject.exchange.xlsx.ProjectLibreXlsxWriter().writeProjectLibreProject(imported, exported);
+		try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(exported.toByteArray()))) {
+			org.apache.poi.ss.usermodel.Sheet exportedAssignments = workbook.getSheet("Assignments");
+			String taskUid = Long.toString(child.getUniqueId());
+			String resourceUid = Long.toString(((com.microproject.pm.assignment.Assignment) child.getAssignments().get(0))
+				.getResource().getUniqueId());
+			boolean wroteExpectedAssignmentAsPercent = false;
+			for (int rowIndex = 1; rowIndex <= exportedAssignments.getLastRowNum(); rowIndex++) {
+				Row row = exportedAssignments.getRow(rowIndex);
+				if (row != null && row.getCell(0) != null && row.getCell(1) != null && row.getCell(2) != null
+						&& taskUid.equals(row.getCell(0).getStringCellValue())
+						&& resourceUid.equals(row.getCell(1).getStringCellValue())
+						&& Math.abs(Double.parseDouble(row.getCell(2).getStringCellValue()) - 50.0D) < 0.0001D) {
+					wroteExpectedAssignmentAsPercent = true;
+					break;
+				}
+			}
+			assertTrue("50% assignment must use the summary sheet percent scale", wroteExpectedAssignmentAsPercent);
+		}
+	}
+
+	@Test
+	void externalXlsxSummaryRejectsMalformedParentReferences() throws Exception {
+		assertInvalidParentLinks(new Object[][] {
+			{1.0, 1.0, 1.0, "Self parent"}
+		}, "cannot be its own parent");
+		assertInvalidParentLinks(new Object[][] {
+			{1.0, 1.0, 9.0, "Dangling child"}
+		}, "references no task");
+		assertInvalidParentLinks(new Object[][] {
+			{1.0, 1.0, 2.0, "Cycle A"},
+			{2.0, 2.0, 1.0, "Cycle B"}
+		}, "contain a cycle");
+	}
+
+	private static void assertInvalidParentLinks(Object[][] taskRows, String expectedMessage) throws Exception {
+		ByteArrayOutputStream out = new ByteArrayOutputStream();
+		try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+			org.apache.poi.ss.usermodel.Sheet tasks = workbook.createSheet("Tasks");
+			writeRow(tasks, 0, "UniqueID", "ID", "ParentUniqueID", "Name", "Notes", "Start", "Finish", "PercentComplete", "WBS");
+			for (int i = 0; i < taskRows.length; i++) {
+				Object[] taskRow = taskRows[i];
+				writeRow(tasks, i + 1, taskRow[0], taskRow[1], taskRow[2], taskRow[3], null, null, null, null, null);
+			}
+			workbook.write(out);
+		}
+		try {
+			new ProjectLibreXlsxReader().read(new ByteArrayInputStream(out.toByteArray()));
+			fail("Malformed ParentUniqueID references must be rejected");
+		} catch (net.sf.mpxj.MPXJException expected) {
+			assertTrue(expected.getCause() instanceof IllegalArgumentException);
+			assertTrue(expected.getCause().getMessage().contains(expectedMessage));
+		}
+	}
+
 	private static void writeRow(org.apache.poi.ss.usermodel.Sheet sheet, int rowIndex, Object... values) {
 		Row row = sheet.createRow(rowIndex);
 		for (int i = 0; i < values.length; i++) {
