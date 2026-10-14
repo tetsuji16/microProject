@@ -526,9 +526,11 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 	}
 
 	private static AbstractButton findShowingButtonByText(Component root, String text) {
-		for (Component component : flatten(root))
-			if (component instanceof AbstractButton button && button.isShowing() && text.equals(button.getText())) return button;
-		throw new AssertionError("Showing button not found: " + text);
+		try {
+			return GuiAcceptanceSupport.findShowingButtonByText(root, text);
+		} catch (Exception exception) {
+			throw new AssertionError("Unable to locate showing button for semantic label: " + text, exception);
+		}
 	}
 
 	private static AbstractButton findShowingButtonByCommand(Component root, String command) {

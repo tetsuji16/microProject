@@ -27,6 +27,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BooleanSupplier;
+import javax.swing.AbstractButton;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.SwingUtilities;
@@ -43,6 +44,60 @@ public final class GuiAcceptanceSupport {
 			Thread.sleep(25);
 		}
 		assertTrue(false, message);
+	}
+
+	/** Drains Robot input and then the AWT queue under one bounded deadline. */
+	public static void awaitInputAndEventQueueIdle(Robot robot, String description) throws Exception {
+		if (robot == null) throw new IllegalArgumentException("Robot is required");
+		long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+		FutureTask<Void> robotIdleTask = new FutureTask<>(() -> {
+			robot.waitForIdle();
+			return null;
+		});
+		Thread robotIdleWaiter = new Thread(robotIdleTask, "gui-acceptance-robot-idle");
+		robotIdleWaiter.setDaemon(true);
+		robotIdleWaiter.start();
+		try {
+			awaitTask(robotIdleTask, deadline, description + " Robot input drain");
+		} catch (Exception | Error failure) {
+			robotIdleTask.cancel(false);
+			throw failure;
+		}
+		FutureTask<Void> eventQueueBarrier = new FutureTask<>(() -> null);
+		EventQueue.invokeLater(eventQueueBarrier);
+		awaitTask(eventQueueBarrier, deadline, description + " AWT event-queue drain");
+	}
+
+	/** Finds a visible button by its semantic label, including the LAF mnemonic suffix. */
+	public static AbstractButton findShowingButtonByText(Component root, String expectedText) throws Exception {
+		if (root == null || expectedText == null)
+			throw new IllegalArgumentException("A component root and expected button label are required");
+		AbstractButton[] result = new AbstractButton[1];
+		Runnable lookup = () -> result[0] = findShowingButton(root, expectedText);
+		if (EventQueue.isDispatchThread()) lookup.run();
+		else SwingUtilities.invokeAndWait(lookup);
+		if (result[0] == null)
+			throw new AssertionError("Showing button not found for semantic label: " + expectedText);
+		return result[0];
+	}
+
+	private static AbstractButton findShowingButton(Component component, String expectedText) {
+		if (component instanceof AbstractButton button && button.isShowing()
+			&& hasButtonLabel(button, expectedText)) return button;
+		if (component instanceof Container container) {
+			for (Component child : container.getComponents()) {
+				AbstractButton found = findShowingButton(child, expectedText);
+				if (found != null) return found;
+			}
+		}
+		return null;
+	}
+
+	private static boolean hasButtonLabel(AbstractButton button, String expectedText) {
+		String actualText = button.getText();
+		if (expectedText.equals(actualText)) return true;
+		int mnemonic = button.getMnemonic();
+		return mnemonic != 0 && (expectedText + " (" + KeyEvent.getKeyText(mnemonic) + ")").equals(actualText);
 	}
 
 	/**

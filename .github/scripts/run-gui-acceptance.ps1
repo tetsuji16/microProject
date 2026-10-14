@@ -1,7 +1,11 @@
 param(
   [ValidateSet('smoke', 'full', 'visual')]
   [string]$Suite = 'smoke',
-  [string]$TestFilter
+  [string]$TestFilter,
+  [ValidateSet('ja', 'en')]
+  [string]$Locale = 'ja',
+  [ValidateSet('1.0', '1.25', '1.5')]
+  [string]$Scale = '1.0'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -213,13 +217,14 @@ $visualTests = @(
 try {
   if (-not [string]::IsNullOrWhiteSpace($TestFilter)) {
     $safeFilter = ($TestFilter -replace '[^A-Za-z0-9_.-]', '_')
-    Write-Host "Run targeted GUI test filter at 100% (ja): $TestFilter. This run is not full GUI acceptance coverage."
+    $safeScale = $Scale.Replace('.', '-')
+    Write-Host "Run targeted GUI test filter: $TestFilter (locale=$Locale, scale=$Scale). This run is not full GUI acceptance coverage."
     $focusedArgs = @(
       ':microproject_ui:guiTest', '--max-workers=1', '--console=plain',
-      '-PguiTestLocale=ja', '-PguiTestUiScale=1.0', '-PguiTestSuite=full',
+      "-PguiTestLocale=$Locale", "-PguiTestUiScale=$Scale", '-PguiTestSuite=full',
       '--tests', $TestFilter
     )
-    Invoke-GuiGate "focused-$safeFilter-ja-100" $focusedArgs 1200
+    Invoke-GuiGate "focused-$safeFilter-$Locale-$safeScale" $focusedArgs 1200
     return
   }
 

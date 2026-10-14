@@ -37,6 +37,7 @@ import java.util.ResourceBundle;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.time.Instant;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
@@ -241,7 +242,12 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			cleanupProject[0] = openedProject;
 			ProjectFactory.getInstance().addProject(openedProject, false, false);
 			showProject(openedProject);
-			SessionFactory.getInstance().setJobQueue(manager.getJobQueue());
+			JobQueue saveQueue = manager.getJobQueue();
+			SessionFactory.getInstance().setJobQueue(saveQueue);
+			assertSame(saveQueue, SessionFactory.getInstance().getJobQueue(),
+				"the File/Save route must start with the fixture's active job queue");
+			assertSame(saveQueue, SessionFactory.getInstance().getLocalSession().getJobQueue(),
+				"the local save session must use the fixture's active job queue");
 			GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
 				&& manager.getCurrentFrame().getProject() == openedProject, "the MPO project did not open");
 
@@ -254,6 +260,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			GuiAcceptanceSupport.await(fileTab::isSelected, "Robot click did not select the File ribbon tab");
 			AbstractButton save = findShowingButtonByCommand("RibbonSaveProject");
 			assertTrue(save.isEnabled(), "Save must be enabled for the edited MPO project");
+			ConcurrentLinkedQueue<String> saveActionEvents = new ConcurrentLinkedQueue<>();
+			save.addActionListener(event -> saveActionEvents.add(Instant.now()
+				+ " factoryQueue=" + queueIdentity(SessionFactory.getInstance().getJobQueue())
+				+ " localQueue=" + queueIdentity(SessionFactory.getInstance().getLocalSession().getJobQueue())));
 			click(robot, save);
 
 			GuiAcceptanceSupport.await(() -> {
@@ -268,6 +278,14 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				return false;
 			}, "the physical Save route did not display the recovery-copy path");
 			assertArrayEquals(originalArchive, Files.readAllBytes(target), "a failed save must leave the shared archive untouched");
+			assertSame(saveQueue, SessionFactory.getInstance().getJobQueue(),
+				"the session queue must remain attached through the Save recovery result");
+			assertSame(saveQueue, SessionFactory.getInstance().getLocalSession().getJobQueue(),
+				"the local save session queue must remain attached through the Save recovery result");
+			assertEquals("saveProject", manager.getLastRibbonCommandResult().commandId(),
+				"the physical Save route must reach its canonical ribbon command");
+			assertFalse(manager.getLastRibbonCommandResult().status() == RibbonCommandResult.Status.FAILED,
+				"the physical Save command must not fail before producing its recovery result");
 			try (var files = Files.list(target.getParent())) {
 				recoveryCopy = files.filter(path -> path.getFileName().toString().startsWith(target.getFileName() + ".conflict-"))
 					.filter(path -> path.getFileName().toString().endsWith(".mpo"))
@@ -282,6 +300,12 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			robot.keyPress(KeyEvent.VK_ENTER);
 			robot.keyRelease(KeyEvent.VK_ENTER);
 			GuiAcceptanceSupport.await(() -> !alert[0].isShowing(), "the recovery alert did not close after Enter");
+			GuiAcceptanceSupport.awaitInputAndEventQueueIdle(robot, "Save recovery alert dismissal");
+			assertEquals(1, saveActionEvents.size(),
+				"the Save button must invoke the shared command exactly once; events=" + saveActionEvents);
+			assertTrue(saveActionEvents.peek().contains("factoryQueue=" + queueIdentity(saveQueue)
+				+ " localQueue=" + queueIdentity(saveQueue)),
+				"the Save button action must observe the attached queue; events=" + saveActionEvents);
 		} finally {
 			if (alert[0] != null && alert[0].isShowing())
 				SwingUtilities.invokeAndWait(alert[0]::dispose);
@@ -3399,6 +3423,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		throw new AssertionError("Reloaded task is absent: " + name);
 	}
 
+	private static String queueIdentity(JobQueue queue) {
+		return queue == null ? "null" : queue.getName() + "@" + Integer.toHexString(System.identityHashCode(queue));
+	}
+
 	private void showProject(Project project) throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			for (Window candidate : Window.getWindows()) {
@@ -3430,23 +3458,11 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	private AbstractButton findShowingButtonByText(String text) throws Exception {
-		AbstractButton[] result = new AbstractButton[1];
-		SwingUtilities.invokeAndWait(() -> result[0] = UiComponentWalker.flatten(window).stream()
-			.filter(AbstractButton.class::isInstance)
-			.map(RibbonGuiButton::adapt)
-			.filter(AbstractButton::isShowing).filter(button -> text.equals(button.getText()))
-			.findFirst().orElseThrow(() -> new AssertionError("Visible ribbon button not found: " + text)));
-		return result[0];
+		return GuiAcceptanceSupport.findShowingButtonByText(window, text);
 	}
 
 	private static AbstractButton findShowingButtonByText(java.awt.Container container, String text) throws Exception {
-		AbstractButton[] result = new AbstractButton[1];
-		SwingUtilities.invokeAndWait(() -> result[0] = UiComponentWalker.flatten(container).stream()
-				.filter(AbstractButton.class::isInstance)
-				.map(RibbonGuiButton::adapt)
-				.filter(AbstractButton::isShowing).filter(button -> text.equals(button.getText())).findFirst()
-				.orElseThrow(() -> new AssertionError("Visible dialog button not found: " + text)));
-		return result[0];
+		return GuiAcceptanceSupport.findShowingButtonByText(container, text);
 	}
 
 	private AbstractButton findShowingButtonByCommand(String command) throws Exception {
@@ -3918,14 +3934,13 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	private static AbstractButton findVisibleButton(java.awt.Container container, String text) {
-		for (java.awt.Component child : container.getComponents()) {
-			if (child instanceof AbstractButton button && button.isShowing() && text.equals(button.getText())) return button;
-			if (child instanceof java.awt.Container nested) {
-				AbstractButton found = findVisibleButton(nested, text);
-				if (found != null) return found;
-			}
+		try {
+			return GuiAcceptanceSupport.findShowingButtonByText(container, text);
+		} catch (AssertionError missingButton) {
+			return null;
+		} catch (Exception failure) {
+			throw new AssertionError("Unable to inspect visible button for semantic label: " + text, failure);
 		}
-		return null;
 	}
 
 	private static void capture(Robot robot, TaskInformationDialog dialog) throws Exception {
