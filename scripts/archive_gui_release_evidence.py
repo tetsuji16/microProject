@@ -108,6 +108,10 @@ def build_archive(source_root: Path, archive_path: Path, manifest: dict) -> dict
 
     output_manifest = dict(manifest)
     output_manifest["evidence_packet_version"] = EVIDENCE_PACKET_VERSION
+    if "release_tag" in output_manifest:
+        output_manifest["evidence_asset_name"] = (
+            f"{EVIDENCE_ASSET_PREFIX}-{output_manifest['release_tag']}.zip"
+        )
     output_manifest["curated_files"] = image_records
     output_manifest["bounds_evidence"] = (
         "The source GUI test asserts ribbon/tab bounds, but the historical run artifact does not serialize numeric bounds. "

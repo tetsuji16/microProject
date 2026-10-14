@@ -61,6 +61,8 @@ class ArchiveGuiReleaseEvidenceTest(unittest.TestCase):
 				archived_manifest = json.loads(archive.read("gui-evidence-provenance.json"))
 				self.assertEqual(48, len(archived_manifest["curated_files"]))
 				self.assertEqual(2, archived_manifest["evidence_packet_version"])
+				self.assertEqual("microProject-gui-evidence-v2-v0.0.24.1244.zip",
+					archived_manifest["evidence_asset_name"])
 				self.assertTrue(all(item["width_px"] == 320 and item["height_px"] == 240
 					for item in archived_manifest["curated_files"]))
 				self.assertIn("numeric bounds are not claimed", archived_manifest["bounds_evidence"])
