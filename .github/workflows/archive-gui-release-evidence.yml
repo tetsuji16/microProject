@@ -1,0 +1,168 @@
+name: Archive GUI release evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Existing stable release tag, for example v0.0.24.1244'
+        required: true
+        type: string
+      source_run_id:
+        description: 'Successful full GUI release workflow run ID'
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: archive-gui-release-evidence-${{ inputs.release_tag }}
+  cancel-in-progress: false
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+
+      - name: Validate release, source run, and evidence artifact
+        id: source
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:RELEASE_TAG -notmatch '^v(?<base>(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*))\.(?:0|[1-9][0-9]*)$') {
+            throw 'release_tag must be a stable four-part numeric tag such as v0.0.24.1244.'
+          }
+          $releaseBaseVersion = $Matches.base
+          if ($env:SOURCE_RUN_ID -notmatch '^[1-9][0-9]{0,19}$') { throw 'source_run_id must contain only decimal digits.' }
+
+          function Get-GhJson([string]$Path) {
+            $json = gh api $Path
+            if ($LASTEXITCODE -ne 0) { throw "GitHub API request failed: $Path" }
+            return ($json -join "`n") | ConvertFrom-Json
+          }
+
+          $run = Get-GhJson "repos/$env:REPOSITORY/actions/runs/$env:SOURCE_RUN_ID"
+          if ($run.status -ne 'completed' -or $run.conclusion -ne 'success') { throw 'Source workflow run must have completed successfully.' }
+          if ($run.path -ne '.github/workflows/release-and-pages.yml') { throw "Unexpected source workflow path: $($run.path)" }
+          if ($run.event -ne 'workflow_dispatch') { throw "Expected a manually dispatched stable release source run; event was $($run.event)." }
+          if ($run.head_branch -ne "release/stable-$releaseBaseVersion") { throw "Source ref $($run.head_branch) does not match stable tag base $releaseBaseVersion." }
+          $sourceSha = [string]$run.head_sha
+          if ($sourceSha -notmatch '^[0-9a-f]{40}$') { throw "Invalid source commit SHA: $sourceSha" }
+
+          $release = Get-GhJson "repos/$env:REPOSITORY/releases/tags/$env:RELEASE_TAG"
+          if ($release.tag_name -ne $env:RELEASE_TAG -or $release.draft -or $release.prerelease) {
+            throw 'Target must be an existing published stable release with the requested tag.'
+          }
+          $tagRef = Get-GhJson "repos/$env:REPOSITORY/git/ref/tags/$env:RELEASE_TAG"
+          $tagObject = $tagRef.object
+          while ($tagObject.type -eq 'tag') { $tagObject = (Get-GhJson "repos/$env:REPOSITORY/git/tags/$($tagObject.sha)").object }
+          if ($tagObject.type -ne 'commit' -or $tagObject.sha -ne $sourceSha) {
+            throw "Target release tag commit does not match source run head SHA ($sourceSha)."
+          }
+
+          $jobs = Get-GhJson "repos/$env:REPOSITORY/actions/runs/$env:SOURCE_RUN_ID/jobs?per_page=100"
+          $releaseJob = @($jobs.jobs | Where-Object { $_.name -eq 'Build and publish Windows release' })
+          if ($releaseJob.Count -ne 1 -or $releaseJob[0].conclusion -ne 'success') { throw 'Expected exactly one successful Windows release job.' }
+          $gateStep = @($releaseJob[0].steps | Where-Object { $_.name -eq 'Run Windows GUI acceptance gate' })
+          $artifactStep = @($releaseJob[0].steps | Where-Object { $_.name -eq 'Upload GUI acceptance evidence' })
+          if ($gateStep.Count -ne 1 -or $gateStep[0].conclusion -ne 'success') { throw 'Windows GUI acceptance gate step did not succeed.' }
+          if ($artifactStep.Count -ne 1 -or $artifactStep[0].conclusion -ne 'success') { throw 'GUI evidence artifact upload step did not succeed.' }
+          $jobLog = gh run view $env:SOURCE_RUN_ID --job $releaseJob[0].id --log --repo $env:REPOSITORY
+          if ($LASTEXITCODE -ne 0) { throw 'Could not read the source release job log.' }
+          $logText = $jobLog -join "`n"
+          $requiredLogLines = @(
+            "GUI acceptance Step 1/2: run the 'full' suite at 100% (ja).",
+            'GUI acceptance Step 2/2: run the visual matrix after the 100% suite passed.',
+            'GUI visual gate: locale=ja scale=1.25', 'GUI visual gate: locale=ja scale=1.5',
+            'GUI visual gate: locale=en scale=1.0', 'GUI visual gate: locale=en scale=1.25',
+            'GUI visual gate: locale=en scale=1.5', 'Windows Server 2025', '1920x1080'
+          )
+          foreach ($line in $requiredLogLines) {
+            if (-not $logText.Contains($line)) { throw "Source release log does not contain required full-GUI evidence: $line" }
+          }
+          foreach ($leg in @('ja-1.0', 'ja-1.25', 'ja-1.5', 'en-1.0', 'en-1.25', 'en-1.5')) {
+            $encoded = $leg.Replace('.', '-')
+            if (-not $logText.Contains("GUI gate elapsed: visual-$encoded ")) { throw "Source release log is missing successful visual leg $leg." }
+          }
+
+          $artifacts = Get-GhJson "repos/$env:REPOSITORY/actions/runs/$env:SOURCE_RUN_ID/artifacts?per_page=100"
+          $expectedName = "gui-acceptance-evidence-$env:SOURCE_RUN_ID"
+          $sourceArtifact = @($artifacts.artifacts | Where-Object { $_.name -eq $expectedName })
+          if ($sourceArtifact.Count -ne 1 -or $sourceArtifact[0].expired) { throw "Expected exactly one available artifact named $expectedName." }
+          $artifactDigest = [string]$sourceArtifact[0].digest
+          if ($artifactDigest -notmatch '^sha256:[0-9a-f]{64}$') { throw 'Source artifact has no valid SHA-256 digest in Actions metadata.' }
+          $artifactId = [string]$sourceArtifact[0].id
+
+          $facts = [ordered]@{
+            release_tag = $env:RELEASE_TAG
+            release_url = [string]$release.html_url
+            source_run_id = [string]$run.id
+            source_run_url = [string]$run.html_url
+            source_workflow_path = [string]$run.path
+            source_event = [string]$run.event
+            source_ref = [string]$run.head_branch
+            source_head_sha = $sourceSha
+            source_artifact_name = $expectedName
+            source_artifact_id = $artifactId
+            source_artifact_digest = $artifactDigest
+            source_gui_job_id = [string]$releaseJob[0].id
+            operating_system = @{ value = 'Windows Server 2025'; provenance = 'Source GUI release-job log; historical CI fact, not newly measured.' }
+            display_resolution = @{ value = '1920x1080'; provenance = 'Source release workflow configures this resolution before GUI acceptance; configured CI fact, not per-window bounds.' }
+            visual_legs = @('ja-1.0', 'ja-1.25', 'ja-1.5', 'en-1.0', 'en-1.25', 'en-1.5')
+            bounds_note = 'The source test asserts layout bounds; the historical run artifact contains no numeric bounds sidecar.'
+          }
+          $facts | ConvertTo-Json -Depth 8 | Set-Content -Path source-provenance.json -Encoding utf8
+          "artifact_name=$expectedName" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "artifact_id=$artifactId" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "source_sha=$sourceSha" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Download and curate source screenshots
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          ARTIFACT_NAME: ${{ steps.source.outputs.artifact_name }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path source-artifact | Out-Null
+          gh run download $env:SOURCE_RUN_ID --name $env:ARTIFACT_NAME --dir source-artifact --repo $env:GITHUB_REPOSITORY
+          if ($LASTEXITCODE -ne 0) { throw 'Could not download the verified source artifact.' }
+          python scripts/archive_gui_release_evidence.py --source-root source-artifact --manifest source-provenance.json --output "microProject-gui-evidence-$env:RELEASE_TAG.zip"
+          if ($LASTEXITCODE -ne 0) { throw 'Could not create the allowlisted GUI evidence archive.' }
+
+      - name: Upload curated evidence without clobbering
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $assetName = "microProject-gui-evidence-$env:RELEASE_TAG.zip"
+          $assetPath = Join-Path $PWD $assetName
+          $sha256 = (Get-FileHash -LiteralPath $assetPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          $release = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$env:RELEASE_TAG"
+          if ($LASTEXITCODE -ne 0) { throw 'Could not re-read the target release before upload.' }
+          $releaseObject = ($release -join "`n") | ConvertFrom-Json
+          $existing = @($releaseObject.assets | Where-Object { $_.name -eq $assetName })
+          if ($existing.Count -gt 0) {
+            if ($existing.Count -eq 1 -and $existing[0].digest -eq "sha256:$sha256") {
+              Write-Host "Identical evidence asset already exists; verified idempotent archive sha256=$sha256."
+              exit 0
+            }
+            throw "Refusing to clobber existing release asset $assetName with a different digest."
+          }
+          gh release upload $env:RELEASE_TAG $assetPath --repo $env:GITHUB_REPOSITORY
+          if ($LASTEXITCODE -ne 0) { throw 'Release asset upload failed.' }
