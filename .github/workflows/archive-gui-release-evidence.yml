@@ -94,10 +94,9 @@ jobs:
           foreach ($line in $requiredLogLines) {
             if (-not $logText.Contains($line)) { throw "Source release log does not contain required full-GUI evidence: $line" }
           }
-          foreach ($leg in @('functional-full-ja-100', 'visual-ja-1.25', 'visual-ja-1.5', 'visual-en-1.0', 'visual-en-1.25', 'visual-en-1.5')) {
-            $encoded = $leg.Replace('.', '-')
-            if (-not $logText.Contains("GUI gate elapsed: $encoded ")) { throw "Source release log is missing successful GUI matrix leg $leg." }
-          }
+          $jobLog | Set-Content -Path source-job.log -Encoding utf8
+          python scripts/archive_gui_release_evidence.py --validate-source-log source-job.log
+          if ($LASTEXITCODE -ne 0) { throw 'Source release log is missing an exact successful GUI matrix marker.' }
 
           $artifacts = Get-GhJson "repos/$env:REPOSITORY/actions/runs/$env:SOURCE_RUN_ID/artifacts?per_page=100"
           $expectedName = "gui-acceptance-evidence-$env:SOURCE_RUN_ID"
