@@ -54,6 +54,7 @@ import com.microproject.undo.DataFactoryUndoController;
 /** Named schedule transitions for task links, bar edits, and task-sheet dates. */
 class TaskLinkAndBarScheduleTransitionsTest {
 	private record LinkCase(int type, int lagDays) {}
+	private record CalendarLagCase(int type, long expectedSuccessorStart) {}
 	private record MoveCase(int offsetDays) {}
 	private record ResizeCase(int durationDays) {}
 	private record DurationCase(int durationDays) {}
@@ -131,8 +132,19 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		assertEquals(day(), dependency.getLag());
 	}
 
-	@Test
-	void finishToStartWorkingDayLagUsesPredecessorTaskCalendarAcrossNonworkingDays() throws Exception {
+	@TestFactory
+	Stream<DynamicTest> workingDayLagUsesPredecessorTaskCalendarAcrossNonworkingDays() {
+		long thursdayEight = timestamp(2030, Calendar.JUNE, 6, 8);
+		long fridayEight = timestamp(2030, Calendar.JUNE, 7, 8);
+		List<CalendarLagCase> cases = List.of(
+			new CalendarLagCase(DependencyType.FS, fridayEight),
+			new CalendarLagCase(DependencyType.SS, thursdayEight));
+		return IntStream.range(0, cases.size()).mapToObj(index ->
+			DynamicTest.dynamicTest(id("LINK-CALENDAR", index + 1),
+				() -> verifyWorkingDayLagUsesPredecessorTaskCalendar(cases.get(index))));
+	}
+
+	private void verifyWorkingDayLagUsesPredecessorTaskCalendar(CalendarLagCase c) throws Exception {
 		Fixture fixture = createFixture();
 		Project project = fixture.project;
 		long mondayEight = timestamp(2030, Calendar.JUNE, 3, 8);
@@ -160,6 +172,7 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		// The project calendar skips Tuesday; the predecessor calendar inherits that
 		// exception and also skips Wednesday.
 		assertEquals(thursdayEight, project.getWorkCalendar().add(mondaySeventeen, day(), false));
+		assertEquals(thursdayEight, predecessorCalendar.add(mondayEight, day(), false));
 		assertEquals(fridayEight, predecessor.getEffectiveWorkCalendar().add(mondaySeventeen, day(), false));
 		assertSame(predecessorCalendar, predecessor.getEffectiveWorkCalendar());
 		project.recalculate();
@@ -169,22 +182,26 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		assertEquals(mondayEight, unrelated.getStart(), "unrelated task start before link creation");
 
 		Dependency dependency = DependencyService.getInstance().newDependency(
-			predecessor, successor, DependencyType.FS, day(), this);
+			predecessor, successor, c.type, day(), this);
 		project.recalculate();
 
 		assertEquals(mondayEight, predecessor.getStart());
 		assertEquals(mondaySeventeen, predecessor.getEnd());
-		// Literal oracle: the existing engine applies the 8h FS lag on the
-		// predecessor task calendar, skipping Tuesday and Wednesday, then consuming
-		// Thursday's 08:00-12:00 and 13:00-17:00 work intervals.
+		// Literal oracle: FS anchors its 8h lag at Monday 17:00 and reaches Friday
+		// 08:00 after skipping Tuesday/Wednesday and consuming Thursday's intervals.
+		// SS anchors at Monday 08:00; consuming Monday's 08:00-12:00 and 13:00-17:00
+		// intervals puts its 8h endpoint at Monday 17:00. The successor start then
+		// normalizes to Thursday 08:00 because Tuesday/Wednesday are nonworking.
+		// No expected value is obtained from the scheduler.
 		// Microsoft documents calendar scheduling and lag separately, but does not
 		// specify which calendar owns lag. Preserve this as a document-derived product
 		// decision, not measured MSP behavior or a claim of owner parity.
 		// Sources: https://support.microsoft.com/en-us/project/how-project-schedules-tasks-behind-the-scenes
 		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
 		// https://learn.microsoft.com/en-us/office-project/xml-data-interchange/predecessorlink-element?view=project-client-2016
-		assertEquals(fridayEight, successor.getStart(),
-			"the predecessor task calendar skips Tuesday and Wednesday; Thursday's lag ends at 17:00");
+		assertEquals(c.type, dependency.getDependencyType());
+		assertEquals(c.expectedSuccessorStart, successor.getStart(),
+			"the predecessor task calendar skips Tuesday and Wednesday for type=" + c.type);
 		assertEquals(mondayEight, unrelated.getStart(), "dependency recalculation leaves unrelated task unchanged");
 		assertEquals(day(), dependency.getLag());
 
@@ -196,7 +213,7 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		fixture.undo.redo();
 		project.recalculate();
 		assertSame(dependency, predecessor.getSuccessorList().findRight(successor));
-		assertEquals(fridayEight, successor.getStart(), "Redo restores the calendar-derived date");
+		assertEquals(c.expectedSuccessorStart, successor.getStart(), "Redo restores the calendar-derived date");
 		assertEquals(mondayEight, unrelated.getStart(), "Undo/Redo leaves unrelated task unchanged");
 	}
 

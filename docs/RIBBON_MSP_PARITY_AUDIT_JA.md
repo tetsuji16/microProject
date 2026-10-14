@@ -5,6 +5,34 @@
 画面のスタイル基準: issue [#765](https://github.com/tetsuji16/ProjectLibre/issues/765)。
 機能監査・受入証跡: issue [#769](https://github.com/tetsuji16/ProjectLibre/issues/769)。
 
+## M1 (#793) Microsoft公開資料とのリボン比較パケット
+
+調査日: 2026-10-14。対象は Project for Microsoft 365 desktop（Microsoft Support上の
+「Project Online Desktop Client」）と Project Standard / Professional 2024。
+どちらのMicrosoftクライアントもこのホストにはなく、以下は公式文書・図の記載に
+基づく **document-derived comparison** である。実機で見た状態、最新ビルドとの
+pixel parity、Microsoft側のスクリーンショット取得環境は主張しない。
+
+| 比較軸 | Microsoft一次資料と図の対象状態 | 文書から確定できること | 判定と境界 |
+|---|---|---|---|
+| タブ、グループ、コマンド位置 | [Projectデスクトップでプロジェクトを編集](https://support.microsoft.com/en-us/project/edit-a-project-in-project-desktop) と [タスクをリンク](https://support.microsoft.com/en-us/project/link-tasks-in-a-project) は Project Online Desktop Client、Project Professional 2024、Project Standard 2024に適用。図の説明はTaskタブ上のLink Tasksボタン、TaskタブのScheduleグループにあるLinkボタン、ViewタブのTask Views/Resource Viewsグループを特定する。ページ本文はGantt Chartで2タスクをCtrl選択してTaskからリンクする手順を示す。 | タブ、グループ、コマンドの発見場所と選択前提。 | 公式図の状態説明はProject固有だが、図に製品ビルド、Windows build、解像度、DPI、UI言語は付かない。図は構造比較の根拠であり、ピクセル比較の実測値ではない。 |
+| 文脈タブと選択状態 | [Projectレポート作成](https://support.microsoft.com/en-us/project/create-a-project-report) は同じ2024両エディションとMicrosoft 365 desktopに適用。図はReportタブのDashboard menu、Project Overview report、レポート上の選択要素に応じたReport Tools/Chart Tools/Table Toolsを示す。 | レポート対象や選択要素により利用可能なタブ・操作面が変わる。 | 表示中の具体的な押下/disabled色や状態装飾は公開資料に規定されない。代表的な状態装飾はOffice-consistentなdocument-derived contractとして定め、microProject実画面で確認する。MSP実機は補助証拠とする。 |
+| リボン表示状態・サイズ | [Officeのリボンをカスタマイズ](https://support.microsoft.com/en-us/office/foundations-experiences/customize-the-ribbon-in-office) の適用先にProject Online Desktop ClientとProject Standard/Professional 2024を含む。ページはリボンの表示/折りたたみ、タブ/コマンドの表示・順序変更を記載する。 | 表示状態とカスタマイズの機能。Microsoftはリボンや文字/アイコンのサイズを個別に縮小できないと明記する。 | 添付図「Customization areas of the Office ribbon」「Expand/Collapse the ribbon」はOffice共通図でProjectの画面状態とは明記されないため、Project固有の見た目の証拠にしない。狭幅時のProjectのoverflow/reflow閾値・配置は資料に規定がない。 |
+| キーボード、フォーカス、アクセシビリティ | [リボンをキーボードで操作](https://support.microsoft.com/en-us/accessibility/windows/use-the-keyboard-to-work-with-the-ribbon) の適用先にMicrosoft 365 desktop ProjectおよびProject Standard/Professional 2024を含む。本文はAltでKeyTips、矢印でタブ移動、Tab/Shift+Tabでコマンド移動、Space/Enterで実行、分割ボタンはAlt+Down、Escで閉じる操作を記載する。 | リボンをマウスなしで操作するフォーカス移動と実行規則。 | 掲載図はWordのKeyTips/領域説明であり、Projectの画面キャプチャではない。Projectの個別コマンドに対するaccessible name/stateや全KeyTip一覧は別途確認が必要。 |
+| Project固有ショートカット | [Projectのキーボードショートカット](https://support.microsoft.com/en-us/accessibility/project/keyboard-shortcuts-for-project) はMicrosoft 365 desktop ProjectとProject Standard/Professional 2024に適用。ページはUSキーボード配列を前提と明記する。 | Project固有のショートカットと対象範囲。 | リボン全コマンドのKeyTip/accessible state一覧ではない。日本語配列への同一キー割当は推定しない。 |
+
+**文書由来の比較判断:** 公式に記されたタブ/グループ/選択条件/キーボード遷移を比較対象にする。狭幅タブoverflowはMicrosoftのProject挙動と断定できる公開仕様を確認できなかったため、microProject独自の到達性契約としてのみ評価する。Office共通図や旧画面を最新Projectのpixel referenceとして扱わない。
+
+**microProject側の証拠:** 安定版run [38495421214](https://github.com/tetsuji16/ProjectLibre/actions/runs/38495421214) はWindows full GUI gate、配布物の内容/起動確認、Linux x64とmacOS arm64のpackage jobが成功した。対象production candidateは `702146871dbe9059412b83ab7780936e01f2e7f2`。Windows jobはWindows Server 2025 (10.0.26100)を報告し、GUI workflowはdesktopを1920×1080に構成する。runnerイベントは `functional-full-ja-100` で195 cases started / 194 passed / 1 skipped / 0 failedを報告した。残り5つのvisual locale/scale leg (ja/125%、ja/150%、en/100%、en/125%、en/150%) も各69 cases started / 68 passed / 1 skipped / 0 failedを報告した。6 legを合算すると540 started / 534 passed / 6 skipped / 0 failed。これらの件数はrunnerイベント由来で、JUnit XMLを個別に確認した値ではない。各legの1 skipはgateで許可されたscale-exclusiveな all-command sweep / high-DPI containment assumption のいずれかである。run gateの結果として英語/日本語×100/125/150%の6組合せは完了している。証拠artifactはID `11864269464` (23,937,459 bytes; SHA-256 `7d3bf212c6861db06b6803389302c73f163739bf5d995898b565fa5334805cbb`) としてアップロードされた。ただしこの作業中はZIPの中身を読める共有ファイル参照を取得できておらず、個々の画像・bounds report・accessibility reportの有無とファイル名は未確認である。run [38320038198](https://github.com/tetsuji16/ProjectLibre/actions/runs/38320038198) はcommit `3a70041`の過去のアプリ証拠で、現行安定版候補の証明には使わない。beta.9の配布/起動/import/smoke/137.5リソース編集証拠も、下記の未確認項目を置き換えない。
+
+| 未完了のM1証拠 | 状態 |
+|---|---|
+| 現行安定版候補SHAのWindows full GUI runと6 locale/scale leg | **PASS** — run [38495421214](https://github.com/tetsuji16/ProjectLibre/actions/runs/38495421214)、production candidate `702146871dbe9059412b83ab7780936e01f2e7f2`。full GUI gateとartifact uploadは成功し、ja/en×100/125/150%の全6組合せで失敗0件。上記の規定済みhigh-DPI skipを含む。artifact IDとSHA-256は上記を参照。 |
+| 同じrunの英語/日本語×100/125/150% ribbon画像、およびbounds/clippingのartifact確認 | **PENDING** — Windows Server 2025 (10.0.26100)とworkflowの1920×1080 desktop構成はrun/workflowで確認済み。artifact ZIPの内容をこの作業環境で読み取れる共有ファイル参照がまだないため、各画像の状態/active view、画像/bounds reportの有無と名前は未検証。artifactを読み取れる時点で一覧を記録する。 |
+| 狭幅でFile/選択中tab/全コマンドに到達できる物理確認、keyboard focus/KeyTip相当、accessible name/stateの証拠 | **PARTIAL** — 現行候補のfull GUI runner logは `narrowTabStripKeepsFileAndSelectedTabVisibleAndExposesHiddenTabs`、`narrowRibbonUsesReachableGroupProxiesInsteadOfATabLauncher`、`resizingWindowCollapsesOnlyNecessaryCommandsAndKeepsThemReachable`、`narrowRibbonExposesCollapsedCommandsThroughMousePopup` が6 locale/scale legすべてでpassedと報告する。既存Robot fixtureは320pxでFile/選択tabを表示し、hidden tabをpopupから物理選択、proxyのSpace/Enter/EscapeとMouse route、focus ringおよびaccessible descriptionを検査する。ただしfocusをテストから直接requestしており、focus traversal/KeyTip相当を証明しない。accessible nameや選択/disabled/focused stateの値もassertしていない。最小の次作業は新規ケースを足さず、既存 `narrowTabStripKeepsFileAndSelectedTabVisibleAndExposesHiddenTabs` に実際のkeyboard traversalとAccessibleContext name/state assertionを追加して、そのfocused journeyを実行すること。artifactに含まれる現行runの320px画像とbounds reportも内容を確認してファイル名・画面状態を記録する。全コマンドのaccessibility inventoryは引き続き別途未確認。 |
+
+このパケットはM1の出典と文書由来の判断を確定する。上記pending項目とレビューが残るため **#793はPARTIALのまま** とする。
+
 ## 判定ルール
 
 - **実装あり**: 実画面にコマンドがあり、同じ意味の既存 Action と結果検証がある。
