@@ -86,6 +86,7 @@ import com.microproject.pm.calendar.RecurringCalendarException;
 import com.microproject.core.pm.exchange.converters.mpx.MpxCalendarRecurrenceConverter;
 import com.microproject.core.time.TimeUtil;
 import com.microproject.core.pm.exchange.converters.mpx.MpxCalendarDateConverter;
+import com.microproject.core.pm.exchange.converters.mpx.MpxResourceAvailabilityConverter;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.TaskSnapshot;
@@ -251,6 +252,8 @@ public class MPXConverter {
 
 
 	public static void toMPXResource(ResourceImpl projectlibreResource,Resource mpxResource) {
+		// Validate and install the full interval table before writing any other target fields.
+		MpxResourceAvailabilityConverter.to(projectlibreResource.getAvailabilityTable(), mpxResource);
 		mpxResource.setName(removeInvalidChars(projectlibreResource.getName()));
 		mpxResource.setNotes(removeInvalidChars(projectlibreResource.getNotes()));
 		mpxResource.setAccrueAt(AccrueType.getInstance(projectlibreResource.getAccrueAt()));
