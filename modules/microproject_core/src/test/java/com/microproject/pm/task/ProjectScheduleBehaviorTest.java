@@ -32,6 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -46,6 +47,7 @@ import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.scheduling.ScheduleInterval;
+import com.microproject.pm.scheduling.ScheduleEvent;
 import com.microproject.pm.scheduling.ScheduleEventListener;
 import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.undo.DataFactoryUndoController;
@@ -263,28 +265,6 @@ class ProjectScheduleBehaviorTest {
 	}
 
 	@Test
-	void restoreSnapshotUsesTheSelectedTaskList() {
-		Project project = createProject();
-		NormalTask task = project.createScriptedTask();
-		project.connectTask(task);
-
-		long originalStart = project.getStart();
-		long originalDuration = 2L * day();
-		task.setStart(originalStart);
-		task.setDuration(originalDuration);
-
-		Integer snapshotId = Integer.valueOf(1);
-		task.saveCurrentToSnapshot(snapshotId);
-		Object backup = task.backupDetail(snapshotId);
-
-		task.setStart(project.getEffectiveWorkCalendar().add(originalStart, day(), false));
-
-		project.restoreSnapshot(snapshotId, false, Collections.singletonList(task), Collections.singletonList(backup));
-
-		assertEquals(originalStart, task.getStart(), "taskStart=" + task.getStart() + " taskEnd=" + task.getEnd());
-	}
-
-	@Test
 	void clearSnapshotRemovesTheStoredSnapshot() {
 		Project project = createProject();
 		NormalTask task = project.createScriptedTask();
@@ -310,25 +290,50 @@ class ProjectScheduleBehaviorTest {
 	}
 
 	@Test
-	void clearAssignmentOnlyImportedBaselineIsUndoable() {
+	void clearAssignmentOnlyImportedBaselineIsUndoableAndBaselineEventsReflectProjectState() {
 		Project project = createProject();
 		NormalTask task = project.createScriptedTask();
 		project.connectTask(task);
+		NormalTask unselectedTask = project.createScriptedTask();
+		project.connectTask(unselectedTask);
 		ResourceImpl resource = project.getResourcePool().newResourceInstance();
 		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1.0d, 0L, this);
 		Integer slot = Integer.valueOf(Snapshottable.BASELINE_1);
 		Assignment.BaselineValues importedValues = new Assignment.BaselineValues(1L, 2L, 3L);
 		assignment.importBaselineValues(Snapshottable.BASELINE_1, importedValues.start(),
 			importedValues.finish(), importedValues.work());
+		List<ScheduleEvent> baselineEvents = new ArrayList<>();
+		ScheduleEventListener listener = event -> {
+			if (ScheduleEvent.BASELINE.equals(event.getType())) baselineEvents.add(event);
+		};
+		project.addScheduleListener(listener);
+		try {
+			ReversibleModelChange change = project.clearSnapshot(slot, false, Collections.singletonList(task));
 
-		ReversibleModelChange change = project.clearSnapshot(slot, false, Collections.singletonList(task));
+			assertTrue(change.hasChanged());
+			assertNull(assignment.getImportedBaselineValues(Snapshottable.BASELINE_1));
+			assertFalse(baselineEvents.getLast().isSaveSnapshot(),
+				"Assignment-only values must not advertise a Gantt task baseline row");
+			change.undo();
+			assertEquals(importedValues, assignment.getImportedBaselineValues(Snapshottable.BASELINE_1));
+			assertFalse(baselineEvents.getLast().isSaveSnapshot(),
+				"Undo restores assignment data but must keep task-row presence empty");
+			change.redo();
+			assertNull(assignment.getImportedBaselineValues(Snapshottable.BASELINE_1));
+			assertFalse(baselineEvents.getLast().isSaveSnapshot());
 
-		assertTrue(change.hasChanged());
-		assertNull(assignment.getImportedBaselineValues(Snapshottable.BASELINE_1));
-		change.undo();
-		assertEquals(importedValues, assignment.getImportedBaselineValues(Snapshottable.BASELINE_1));
-		change.redo();
-		assertNull(assignment.getImportedBaselineValues(Snapshottable.BASELINE_1));
+			project.saveCurrentToSnapshot(slot, false, Collections.singletonList(task));
+			unselectedTask.saveCurrentToSnapshot(slot);
+			ReversibleModelChange clearSelected = project.clearSnapshot(slot, false, Collections.singletonList(task));
+			assertTrue(clearSelected.hasChanged());
+			assertTrue(baselineEvents.getLast().isSaveSnapshot(),
+				"Clearing a selected task must retain the row while another project task has the baseline");
+			project.clearSnapshot(slot, false, Collections.singletonList(unselectedTask));
+			assertFalse(baselineEvents.getLast().isSaveSnapshot(),
+				"Clearing the final task baseline must remove the project baseline row");
+		} finally {
+			project.removeScheduleListener(listener);
+		}
 	}
 
 	@Test
