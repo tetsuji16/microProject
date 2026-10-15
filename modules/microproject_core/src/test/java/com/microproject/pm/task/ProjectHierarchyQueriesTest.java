@@ -68,6 +68,8 @@ class ProjectHierarchyQueriesTest {
 
 		project.setLocalParent(child, null);
 		assertNull(child.getWbsParentTask());
+		assertTrue(parent.getWbsChildrenTasks().isEmpty(),
+			"outdenting the last child must clear the old parent's WBS children snapshot");
 	}
 
 	@Test
