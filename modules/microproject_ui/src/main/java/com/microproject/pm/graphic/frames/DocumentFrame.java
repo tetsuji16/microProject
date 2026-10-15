@@ -880,6 +880,8 @@ public class DocumentFrame extends NamedFrame implements
 		List<Task> changedTasks = service.tasksWithLevelingState(project, targets);
 		if (changedTasks.isEmpty())
 			return RibbonCommandResult.noChange(command.actionId(), selectedIds).withActiveView(getTopViewId());
+		if (changedTasks.stream().anyMatch(Task::isReadOnly))
+			return RibbonCommandResult.rejected(command.actionId(), "task-read-only").withSelectedTaskIds(selectedIds);
 		com.microproject.undo.EditSupport edits = project.getUndoController().getEditSupport();
 		if (edits == null)
 			return RibbonCommandResult.rejected(command.actionId(), "undo-unavailable").withSelectedTaskIds(selectedIds);

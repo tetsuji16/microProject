@@ -462,6 +462,49 @@ class ResourceLevelingServiceTest {
 	}
 
 	@Test
+	void clearRejectsReadOnlyTaskInProjectWideScopeBeforeMutation() {
+		Fixture fixture = fixture();
+		NormalTask editable = task(fixture.project, "Editable", 1L);
+		NormalTask linked = task(fixture.project, "Linked", 1L);
+		editable.setLevelingDelay(com.microproject.datatype.Duration.millis(86_400_000L));
+		linked.setLevelingDelay(com.microproject.datatype.Duration.millis(172_800_000L));
+		linked.setExternal(true);
+
+		assertThrows(IllegalStateException.class,
+			() -> new ResourceLevelingService().clear(fixture.project, null, null));
+		assertEquals(86_400_000L, com.microproject.datatype.Duration.millis(editable.getLevelingDelay()));
+		assertEquals(172_800_000L, com.microproject.datatype.Duration.millis(linked.getLevelingDelay()));
+	}
+
+	@Test
+	void failedClearRestoresEveryTaskAndDoesNotPublishUndo() {
+		Fixture fixture = fixture();
+		NormalTask first = task(fixture.project, "First", 1L);
+		ThrowingClearTask second = new ThrowingClearTask(fixture.project);
+		second.setName("Second");
+		fixture.project.connectTask(second);
+		fixture.project.getSchedulingAlgorithm().addObject(second);
+		second.getCurrentSchedule().setStart(fixture.project.getStart());
+		second.setDuration(CalendarOption.getInstance().getMillisPerDay());
+		for (NormalTask target : List.of(first, second)) {
+			long from = target.getStart() + com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+			target.splitForLeveling(this, from, from + com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR);
+			target.setLevelingDelay(com.microproject.datatype.Duration.millis(86_400_000L));
+		}
+		var undo = fixture.project.getUndoController();
+		undo.clear();
+		second.failAfterClear = true;
+
+		assertThrows(IllegalStateException.class,
+			() -> new ResourceLevelingService().clear(fixture.project, null, undo.getEditSupport()));
+		for (NormalTask target : List.of(first, second)) {
+			assertEquals(86_400_000L, com.microproject.datatype.Duration.millis(target.getLevelingDelay()));
+			assertEquals(1, target.getLevelingTaskSplitIntervals().size());
+		}
+		assertFalse(undo.canUndo(), "a rolled-back clear must not leave an Undo edit");
+	}
+
+	@Test
 	void priorityOneThousandReportsUnresolvedConflict() {
 		Fixture fixture = fixture();
 		NormalTask first = task(fixture.project, "First", 1L);
@@ -520,5 +563,15 @@ class ResourceLevelingServiceTest {
 	}
 
 	private record Fixture(Project project, ResourceImpl resource) {
+	}
+
+	private static final class ThrowingClearTask extends NormalTask {
+		private boolean failAfterClear;
+		private ThrowingClearTask(Project project) { super(project); }
+		@Override public boolean clearLevelingGeneratedSplits(Object eventSource) {
+			boolean changed = super.clearLevelingGeneratedSplits(eventSource);
+			if (failAfterClear) throw new IllegalStateException("injected clear failure");
+			return changed;
+		}
 	}
 }

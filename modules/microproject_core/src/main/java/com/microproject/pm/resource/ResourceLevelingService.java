@@ -53,8 +53,11 @@ import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.TaskSplitInterval;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
+import com.microproject.pm.task.ProjectTaskSnapshot;
 import com.microproject.pm.scheduling.ScheduleService;
 import com.microproject.strings.Messages;
+import com.microproject.transaction.ModelTransaction;
+import com.microproject.transaction.ProjectMutationState;
 
 /**
  * Deterministic resource-leveling engine. It delays lower-ranked, unstarted
@@ -342,6 +345,11 @@ public final class ResourceLevelingService {
 	/** Clears leveling state for all tasks, or only the supplied project tasks. */
 	public List<Task> clear(Project project, Collection<? extends Task> selectedTasks, EditSupport editSupport) {
 		List<Task> affected = tasksWithLevelingState(project, selectedTasks);
+		if (project.isReadOnly()) throw new IllegalStateException("Cannot clear leveling in a read-only project");
+		for (Task task : affected) {
+			if (task.isReadOnly()) throw new IllegalStateException("Cannot clear leveling on a read-only task: " + task.getName());
+		}
+		if (affected.isEmpty()) return List.of();
 		List<Change> changes = new ArrayList<>(affected.size());
 		List<NormalTask> generatedSplits = new ArrayList<>();
 		for (Task task : affected) {
@@ -352,9 +360,56 @@ public final class ResourceLevelingService {
 				generatedSplits.add(normalTask);
 			}
 		}
-		new Plan(changes, List.of(), List.of(), generatedSplits).apply(editSupport);
+		clearAtomically(project, affected, changes, generatedSplits, editSupport);
 		return List.copyOf(affected);
 	}
+
+	private void clearAtomically(Project project, List<Task> affected, List<Change> changes,
+		List<NormalTask> generatedSplits, EditSupport editSupport) {
+		ProjectTaskSnapshot[] before = new ProjectTaskSnapshot[1];
+		try (ProjectMutationState.Scope mutation = project.getMutationState().begin()) {
+			project.beginEventBatch();
+			try {
+				ModelTransaction.execute(new ModelTransaction.Steps<ProjectTaskSnapshot, Boolean>() {
+					@Override public void validate() {
+						for (Task task : affected) {
+							if (task.getOwningProject() != project || task.isReadOnly())
+								throw new IllegalStateException("A leveling task is no longer editable in this project");
+						}
+					}
+					@Override public void authorize() {
+						if (project.isReadOnly()) throw new IllegalStateException("Cannot clear leveling in a read-only project");
+					}
+					@Override public ProjectTaskSnapshot capture() {
+						before[0] = ProjectTaskSnapshot.capture(project);
+						return before[0];
+					}
+					@Override public ModelTransaction.Mutation<Boolean> apply() {
+						new Plan(changes, List.of(), List.of(), generatedSplits).apply(editSupport);
+						return ModelTransaction.Mutation.changed(Boolean.TRUE);
+					}
+					@Override public void schedule() { }
+					@Override public void checkInvariants() {
+						for (Task task : affected)
+							if (hasLevelingState(task)) throw new IllegalStateException("Leveling state remains after clear");
+					}
+					@Override public void restore(ProjectTaskSnapshot snapshot) { snapshot.restore(project, ResourceLevelingService.this); }
+					@Override public void commit(Boolean changed) { }
+				});
+				Project.PendingEventBatch pending = project.commitEventBatch(mutation, true);
+				project.publishEventBatch(pending);
+			} catch (ModelTransaction.ModelTransactionException failure) {
+				try { project.endEventBatch(false); }
+				catch (Throwable closeFailure) { failure.addSuppressed(closeFailure); }
+				throw new IllegalStateException("Clear leveling failed during " + failure.failedStage(), failure);
+			} catch (RuntimeException | Error failure) {
+				try { project.endEventBatch(false); }
+				catch (Throwable closeFailure) { failure.addSuppressed(closeFailure); }
+				throw failure;
+			}
+		}
+	}
+
 
 	private boolean levelResource(Resource resource, Options options, Set<Task> selectedTasks, Map<Task, Long> addedDelay,
 		Map<Task, String> limitingResource, Map<Task, Split> splits, List<Conflict> unresolved,
