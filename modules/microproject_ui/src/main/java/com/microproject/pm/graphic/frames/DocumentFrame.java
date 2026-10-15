@@ -354,6 +354,7 @@ public class DocumentFrame extends NamedFrame implements
 	boolean doBaselineDialog(boolean save) {
 		finishAnyOperations();
 		List<Object> selectedTasks = getSelectedImpls(true);
+		List<Node> selectedTaskNodes = new ArrayList<>(getSelectedTaskNodes(true, true));
 
 		BaselineDialog baselineDialog = BaselineDialog.getInstance(getGraphicManager().getFrame(),
 				null, save,hasAtLeastOneTaskSelected());
@@ -374,7 +375,12 @@ public class DocumentFrame extends NamedFrame implements
 			return false;
 		boolean entireProject = baselineDialog.getForm().isEntireProject();
 		List<Object> selection = entireProject ? null : selectedTasks;
-		return applyBaseline(getProject(), save, baselineDialog.getForm(), selection);
+		boolean applied = applyBaseline(getProject(), save, baselineDialog.getForm(), selection);
+		if (applied && !selectedTaskNodes.isEmpty()) {
+			SpreadSheet sheet = getActiveSpreadSheet();
+			if (sheet != null) sheet.restoreTaskRowSelection(selectedTaskNodes);
+		}
+		return applied;
 	}
 
 	/**

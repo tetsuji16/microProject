@@ -1723,6 +1723,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, findShowingButtonByText(ancestorOverwrite, baselineLabels.getString("dialog.yes")));
 		GuiAcceptanceSupport.await(() -> !dialog.isShowing() && task.getSnapshot(Snapshottable.BASELINE) != null,
 			"Confirmed selected-task save did not store the baseline snapshot");
+		assertTrue(sheet.getSelectedNodes().contains(taskModel.search(task)),
+			"A completed Save Baseline command must preserve the user's selected task row");
 		assertTrue(rowForTask(sheet, task) >= 0, "Baseline mutation must keep the task visible");
 		long originalBaselineStart = task.getBaselineStart(Snapshottable.BASELINE);
 		int originalSummaryBaselineProfileCount = ((com.microproject.pm.task.TaskSnapshot)
