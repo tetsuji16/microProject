@@ -86,18 +86,24 @@ public final class ResourceLevelingService {
 	}
 
 	public record Options(Order order, boolean onlyWithinAvailableSlack, boolean allowTaskSplits,
-		long rangeStart, long rangeEnd, boolean includeProposedResources, Sensitivity sensitivity) {
+		long rangeStart, long rangeEnd, boolean includeProposedResources, Sensitivity sensitivity,
+		boolean levelManuallyScheduledTasks) {
 		public Options(Order order, boolean onlyWithinAvailableSlack, long rangeStart, long rangeEnd) {
-			this(order, onlyWithinAvailableSlack, true, rangeStart, rangeEnd, false, Sensitivity.DAY);
+			this(order, onlyWithinAvailableSlack, true, rangeStart, rangeEnd, false, Sensitivity.DAY, false);
 		}
 		public Options(Order order, boolean onlyWithinAvailableSlack, boolean allowTaskSplits,
 			long rangeStart, long rangeEnd) {
-			this(order, onlyWithinAvailableSlack, allowTaskSplits, rangeStart, rangeEnd, false, Sensitivity.DAY);
+			this(order, onlyWithinAvailableSlack, allowTaskSplits, rangeStart, rangeEnd, false, Sensitivity.DAY, false);
 		}
 		public Options(Order order, boolean onlyWithinAvailableSlack, boolean allowTaskSplits,
 			long rangeStart, long rangeEnd, boolean includeProposedResources) {
 			this(order, onlyWithinAvailableSlack, allowTaskSplits, rangeStart, rangeEnd,
-				includeProposedResources, Sensitivity.DAY);
+				includeProposedResources, Sensitivity.DAY, false);
+		}
+		public Options(Order order, boolean onlyWithinAvailableSlack, boolean allowTaskSplits,
+			long rangeStart, long rangeEnd, boolean includeProposedResources, Sensitivity sensitivity) {
+			this(order, onlyWithinAvailableSlack, allowTaskSplits, rangeStart, rangeEnd,
+				includeProposedResources, sensitivity, false);
 		}
 		public Options {
 			Objects.requireNonNull(order, "order");
@@ -129,6 +135,8 @@ public final class ResourceLevelingService {
 		private final List<Split> splits;
 		private final List<NormalTask> clearGeneratedSplits;
 		private final Map<Task, Object> detailBackups;
+		private final Map<Task, ManualDates> manualDateChanges = new IdentityHashMap<>();
+		private record ManualDates(long oldStart, long oldFinish, long newStart, long newFinish) { }
 
 		private Plan(List<Change> changes, List<Conflict> unresolved, List<Split> splits) {
 			this(changes, unresolved, splits, List.of());
@@ -141,6 +149,16 @@ public final class ResourceLevelingService {
 			this.splits = List.copyOf(splits);
 			this.clearGeneratedSplits = List.copyOf(clearGeneratedSplits);
 			this.detailBackups = new IdentityHashMap<>(splits.size() + clearGeneratedSplits.size());
+			for (Change change : changes) {
+				Task task = change.task();
+				if (task.isManuallyScheduled() && change.oldDelay() != change.newDelay()) {
+					long oldStart = task.getManualStart();
+					long oldFinish = task.getManualFinish();
+					long shift = change.projectedStart() - change.oldStart();
+					manualDateChanges.put(task, new ManualDates(oldStart, oldFinish,
+						Math.addExact(oldStart, shift), Math.addExact(oldFinish, shift)));
+				}
+			}
 		}
 
 		public List<Change> changes() {
@@ -194,9 +212,15 @@ public final class ResourceLevelingService {
 				}
 			}
 			for (Change change : changes) {
-				change.task().setLevelingDelay(forward ? change.newDelay() : change.oldDelay());
-				change.task().setDirty(true);
-				projects.add(change.task().getOwningProject());
+				Task task = change.task();
+				task.setLevelingDelay(forward ? change.newDelay() : change.oldDelay());
+				ManualDates manualDates = manualDateChanges.get(task);
+				if (manualDates != null) {
+					task.setManualDates(forward ? manualDates.newStart() : manualDates.oldStart(),
+						forward ? manualDates.newFinish() : manualDates.oldFinish());
+				}
+				task.setDirty(true);
+				projects.add(task.getOwningProject());
 			}
 			for (Project project : projects) {
 				project.recalculate();
@@ -440,18 +464,14 @@ public final class ResourceLevelingService {
 			}
 		}
 		Comparator<Assignment> assignmentOrder = assignmentComparator(options.order());
-		if (selectedTasks != null) {
-			assignments.sort(Comparator
-				.comparing((Assignment assignment) -> selectedTasks.contains(assignment.getTask()))
-				.thenComparing(assignmentOrder));
-		} else {
-			assignments.sort(assignmentOrder);
-		}
+		assignments.sort(Comparator
+			.comparing((Assignment assignment) -> !isFixedConstraint(assignment.getTask(), selectedTasks, options))
+			.thenComparing(assignmentOrder));
 		List<Scheduled> accepted = scratch.accepted;
 		boolean changed = false;
 		for (Assignment assignment : assignments) {
 			Task task = assignment.getTask();
-			if (selectedTasks != null && !selectedTasks.contains(task)) {
+			if (isFixedConstraint(task, selectedTasks, options)) {
 				Scheduled scheduled = new Scheduled(assignment, task, assignment.getStart(), assignment.getEnd(),
 					Math.max(0D, assignment.getUnits()));
 				accepted.add(scheduled);
@@ -527,6 +547,11 @@ public final class ResourceLevelingService {
 	private static boolean eligible(Task task, Assignment assignment, Options options) {
 		return task != null && !task.isSummary() && !task.isComplete() && !task.isInactiveTask() && !task.isReadOnly()
 			&& assignment.getEnd() > options.rangeStart() && assignment.getStart() < options.rangeEnd();
+	}
+
+	private static boolean isFixedConstraint(Task task, Set<Task> selectedTasks, Options options) {
+		return (selectedTasks != null && !selectedTasks.contains(task))
+			|| (task.isManuallyScheduled() && !options.levelManuallyScheduledTasks());
 	}
 
 	private static boolean canMove(Task task, Options options, long existingAdded,

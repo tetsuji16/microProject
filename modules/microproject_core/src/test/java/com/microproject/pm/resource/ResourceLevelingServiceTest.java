@@ -65,6 +65,80 @@ class ResourceLevelingServiceTest {
 	}
 
 	@Test
+	void manuallyScheduledAssignmentsRemainCapacityAndMoveOnlyWhenOptedIn() {
+		// Microsoft exposes a separate “Level manually scheduled tasks” option.
+		// Task-mode guidance says manual dates otherwise remain fixed. This is a
+		// document-derived compatibility rule, not a measurement against MSP.
+		// https://support.microsoft.com/en-us/project/resource-leveling-dialog-box
+		// https://support.microsoft.com/en-us/project/task-mode-task-field
+		Fixture fixture = fixture();
+		NormalTask manualFirst = task(fixture.project, "Manual first", 1L);
+		NormalTask manualSecond = task(fixture.project, "Manual second", 1L);
+		manualFirst.setManuallyScheduled(true);
+		manualSecond.setManuallyScheduled(false);
+		manualFirst.setPriority(100);
+		manualSecond.setPriority(900);
+		AssignmentService.getInstance().newAssignment(manualFirst, fixture.resource, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(manualSecond, fixture.resource, 1D, 0L, this);
+		ResourceLevelingService service = new ResourceLevelingService();
+
+		ResourceLevelingService.Plan excluded = service.preview(fixture.project, List.of(fixture.resource),
+			ResourceLevelingService.Options.defaults());
+		assertEquals(List.of(manualSecond), excluded.changes().stream()
+			.map(ResourceLevelingService.Change::task).toList(),
+			"manual assignments count as fixed load and constrain otherwise movable work, regardless of priority");
+		assertTrue(excluded.unresolved().isEmpty(), "fixed manual work is not a movable-task failure");
+		assertEquals(0L, manualFirst.getLevelingDelay());
+		assertEquals(0L, manualSecond.getLevelingDelay());
+
+		manualSecond.setManuallyScheduled(true);
+		var options = new ResourceLevelingService.Options(ResourceLevelingService.Order.STANDARD,
+			false, true, Long.MIN_VALUE, Long.MAX_VALUE, false,
+			ResourceLevelingService.Sensitivity.DAY, true);
+		ResourceLevelingService.Plan included = service.previewSelectedTasks(fixture.project,
+			List.of(fixture.resource), options, List.of(manualSecond));
+		assertEquals(List.of(manualSecond), included.changes().stream()
+			.map(ResourceLevelingService.Change::task).toList(),
+			"selected scope may move its manual target while the unselected manual task stays fixed");
+		long originalStart = manualSecond.getStart();
+		long expectedStart = included.changes().getFirst().projectedStart();
+		var undo = fixture.project.getUndoController();
+		included.apply(undo.getEditSupport());
+		assertTrue(manualSecond.getLevelingDelay() > 0L);
+		assertEquals(expectedStart, manualSecond.getStart(), "opt-in must apply the projected start to the manual task");
+		undo.undo();
+		assertEquals(0L, manualSecond.getLevelingDelay());
+		assertEquals(originalStart, manualSecond.getStart());
+		undo.redo();
+		assertTrue(manualSecond.getLevelingDelay() > 0L);
+		assertEquals(expectedStart, manualSecond.getStart());
+	}
+
+	@Test
+	void manualTaskOptInDoesNotOverridePriorityOrActualProgressProtections() {
+		Fixture fixture = fixture();
+		NormalTask blocker = task(fixture.project, "Fixed blocker", 1L);
+		NormalTask protectedTask = task(fixture.project, "Priority protected", 1L);
+		NormalTask inProgress = task(fixture.project, "In progress", 1L);
+		protectedTask.setManuallyScheduled(true);
+		protectedTask.setPriority(1000);
+		inProgress.setManuallyScheduled(true);
+		inProgress.setPercentComplete(0.5D);
+		AssignmentService.getInstance().newAssignment(blocker, fixture.resource, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(protectedTask, fixture.resource, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(inProgress, fixture.resource, 1D, 0L, this);
+		var options = new ResourceLevelingService.Options(ResourceLevelingService.Order.ID_ONLY,
+			false, true, Long.MIN_VALUE, Long.MAX_VALUE, false,
+			ResourceLevelingService.Sensitivity.DAY, true);
+
+		ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(fixture.project,
+			List.of(fixture.resource), options);
+		assertTrue(plan.changes().isEmpty());
+		assertTrue(plan.unresolved().stream().anyMatch(value -> value.reason().contains("priority 1000")));
+		assertTrue(plan.unresolved().stream().anyMatch(value -> value.reason().contains("In-progress")));
+	}
+
+	@Test
 	void levelingSensitivityComparesWorkWithinTheSelectedCalendarPeriod() {
 		assertEquals(ResourceLevelingService.Sensitivity.DAY, ResourceLevelingService.Options.defaults().sensitivity(),
 			"day basis is the product default while Microsoft support pages conflict on the default");
@@ -585,6 +659,7 @@ class ResourceLevelingServiceTest {
 	private NormalTask task(Project project, String name, long days) {
 		NormalTask task = new NormalTask(project);
 		task.setName(name);
+		task.setManuallyScheduled(false);
 		project.connectTask(task);
 		project.getSchedulingAlgorithm().addObject(task);
 		task.getCurrentSchedule().setStart(project.getStart());

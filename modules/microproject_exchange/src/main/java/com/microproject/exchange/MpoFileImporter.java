@@ -2322,6 +2322,7 @@ public class MpoFileImporter extends FileImporter {
 		ccpm.put("levelingOrder", settings.getLevelingOrder().name());
 		ccpm.put("onlyWithinAvailableSlack", settings.isOnlyWithinAvailableSlack());
 		ccpm.put("allowTaskSplits", settings.isAllowTaskSplits());
+		ccpm.put("levelManuallyScheduledTasks", settings.isLevelManuallyScheduledTasks());
 		ccpm.put("sensitivity", settings.getSensitivity().name());
 		if (baseline != null) {
 			ObjectNode value = ccpm.putObject("baseline");
@@ -2355,6 +2356,8 @@ public class MpoFileImporter extends FileImporter {
 			settings.setAllowTaskSplits(bool(root, "allowTaskSplits"));
 			settings.setIncludeProposedResources(root.has("includeProposedResources")
 				? bool(root, "includeProposedResources") : false);
+			settings.setLevelManuallyScheduledTasks(root.has("levelManuallyScheduledTasks")
+				? bool(root, "levelManuallyScheduledTasks") : false);
 			settings.setSensitivity(root.has("sensitivity")
 				? com.microproject.pm.resource.ResourceLevelingService.Sensitivity.valueOf(text(root, "sensitivity"))
 				: com.microproject.pm.resource.ResourceLevelingService.Sensitivity.DAY);
@@ -2366,6 +2369,7 @@ public class MpoFileImporter extends FileImporter {
 			target.setOnlyWithinAvailableSlack(settings.isOnlyWithinAvailableSlack());
 			target.setAllowTaskSplits(settings.isAllowTaskSplits());
 			target.setIncludeProposedResources(settings.isIncludeProposedResources());
+			target.setLevelManuallyScheduledTasks(settings.isLevelManuallyScheduledTasks());
 			target.setSensitivity(settings.getSensitivity());
 			JsonNode baseline = root.get("baseline");
 			if (baseline != null) service.restoreBaseline(project, baseline(baseline));
@@ -2535,6 +2539,7 @@ public class MpoFileImporter extends FileImporter {
 				.append("\" levelingOrder=\"").append(settings.getLevelingOrder()).append("\" onlyWithinAvailableSlack=\"").append(settings.isOnlyWithinAvailableSlack())
 				.append("\" allowTaskSplits=\"").append(settings.isAllowTaskSplits())
 				.append("\" includeProposedResources=\"").append(settings.isIncludeProposedResources())
+				.append("\" levelManuallyScheduledTasks=\"").append(settings.isLevelManuallyScheduledTasks())
 				.append("\" sensitivity=\"").append(settings.getSensitivity()).append("\">");
 			if (baseline != null) {
 				xml.append("<baseline projectFinishMillis=\"").append(baseline.projectFinishMillis()).append("\" projectBufferMillis=\"").append(baseline.projectBufferMillis())
@@ -2573,6 +2578,8 @@ public class MpoFileImporter extends FileImporter {
 			settings.setAllowTaskSplits(Boolean.parseBoolean(requiredAttribute(value, "allowTaskSplits")));
 			settings.setIncludeProposedResources(value.hasAttribute("includeProposedResources")
 				&& Boolean.parseBoolean(value.getAttribute("includeProposedResources")));
+			settings.setLevelManuallyScheduledTasks(value.hasAttribute("levelManuallyScheduledTasks")
+				&& Boolean.parseBoolean(value.getAttribute("levelManuallyScheduledTasks")));
 			settings.setSensitivity(value.hasAttribute("sensitivity")
 				? com.microproject.pm.resource.ResourceLevelingService.Sensitivity.valueOf(value.getAttribute("sensitivity"))
 				: com.microproject.pm.resource.ResourceLevelingService.Sensitivity.DAY);
@@ -2580,6 +2587,7 @@ public class MpoFileImporter extends FileImporter {
 			target.setEnabled(settings.isEnabled()); target.setBufferFraction(settings.getBufferFraction()); target.setLevelingOrder(settings.getLevelingOrder());
 			target.setOnlyWithinAvailableSlack(settings.isOnlyWithinAvailableSlack()); target.setAllowTaskSplits(settings.isAllowTaskSplits());
 			target.setIncludeProposedResources(settings.isIncludeProposedResources());
+			target.setLevelManuallyScheduledTasks(settings.isLevelManuallyScheduledTasks());
 			target.setSensitivity(settings.getSensitivity());
 			org.w3c.dom.NodeList baselines = value.getElementsByTagName("baseline");
 			if (baselines.getLength() > 0) {

@@ -75,6 +75,7 @@ public final class ResourceLevelingDialogBox extends FlatLafDialog {
 	private final JCheckBox slackOnly = new JCheckBox(UsabilityStrings.text("leveling.slackOnly"));
 	private final JCheckBox allowSplits = new JCheckBox(UsabilityStrings.text("leveling.splits"), true);
 	private final JCheckBox includeProposed = new JCheckBox(UsabilityStrings.text("leveling.includeProposed"));
+	private final JCheckBox includeManual = new JCheckBox(UsabilityStrings.text("leveling.includeManual"));
 	private final JCheckBox ccpm = new JCheckBox(UsabilityStrings.text("ccpm.enabled"));
 	private final JSpinner bufferPercent = new JSpinner(new javax.swing.SpinnerNumberModel(50, 0, 100, 5));
 	private final JList<Resource> resources;
@@ -114,6 +115,7 @@ public final class ResourceLevelingDialogBox extends FlatLafDialog {
 		slackOnly.setSelected(workingSettings.isOnlyWithinAvailableSlack());
 		allowSplits.setSelected(workingSettings.isAllowTaskSplits());
 		includeProposed.setSelected(workingSettings.isIncludeProposedResources());
+		includeManual.setSelected(workingSettings.isLevelManuallyScheduledTasks());
 		List<Resource> resourceList = project.getResourcePool().getResourceList().stream()
 			.filter(Resource::isLabor)
 			.filter(value -> !value.getAssignments().isEmpty())
@@ -158,6 +160,8 @@ public final class ResourceLevelingDialogBox extends FlatLafDialog {
 		options.add(allowSplits, constraints);
 		constraints.gridy++;
 		options.add(includeProposed, constraints);
+		constraints.gridy++;
+		options.add(includeManual, constraints);
 		constraints.gridy++;
 		options.add(ccpm, constraints);
 		constraints.gridy++;
@@ -221,6 +225,7 @@ public final class ResourceLevelingDialogBox extends FlatLafDialog {
 		workingSettings.setOnlyWithinAvailableSlack(slackOnly.isSelected());
 		workingSettings.setAllowTaskSplits(allowSplits.isSelected());
 		workingSettings.setIncludeProposedResources(includeProposed.isSelected());
+		workingSettings.setLevelManuallyScheduledTasks(includeManual.isSelected());
 		CriticalChainService.Analysis analysis = criticalChainService.preview(project, selected.isEmpty() ? null : selected, workingSettings);
 		criticalChainGraph.setAnalysis(analysis);
 		criticalChainBufferChart.setAnalysis(analysis, ccpm.isSelected());

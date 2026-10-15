@@ -2432,6 +2432,7 @@ class MpoFileImporterTest {
 		ccpm.setEnabled(true);
 		ccpm.setBufferFraction(0.4D);
 		ccpm.setIncludeProposedResources(true);
+		ccpm.setLevelManuallyScheduledTasks(true);
 		ccpm.setSensitivity(com.microproject.pm.resource.ResourceLevelingService.Sensitivity.HOUR);
 		new CriticalChainService().restoreBaseline(original, new CriticalChainService.Baseline(1L, 2L, 0.4D,
 			java.util.List.of(), java.util.Map.of(), java.util.Map.of()));
@@ -2456,6 +2457,7 @@ class MpoFileImporterTest {
 		org.junit.jupiter.api.Assertions.assertTrue(restored.isEnabled());
 		org.junit.jupiter.api.Assertions.assertEquals(0.4D, restored.getBufferFraction());
 		org.junit.jupiter.api.Assertions.assertTrue(restored.isIncludeProposedResources());
+		org.junit.jupiter.api.Assertions.assertTrue(restored.isLevelManuallyScheduledTasks());
 		org.junit.jupiter.api.Assertions.assertEquals(com.microproject.pm.resource.ResourceLevelingService.Sensitivity.HOUR,
 			restored.getSensitivity());
 		org.junit.jupiter.api.Assertions.assertEquals(2L, new CriticalChainService().findBaseline(reader.getProject()).projectBufferMillis());
@@ -2471,6 +2473,7 @@ class MpoFileImporterTest {
 		CriticalChainService.Settings settings = new CriticalChainService().settings(original);
 		settings.setEnabled(true);
 		settings.setIncludeProposedResources(true);
+		settings.setLevelManuallyScheduledTasks(true);
 		File mpo = File.createTempFile("mpo-old-ccpm-options", ".mpo");
 		mpo.deleteOnExit();
 		MpoFileImporter writer = new MpoFileImporter();
@@ -2480,6 +2483,7 @@ class MpoFileImporterTest {
 		Map<String, byte[]> entries = readEntries(java.nio.file.Files.readAllBytes(mpo.toPath()));
 		String xml = new String(entries.get("settings.xml"), StandardCharsets.UTF_8);
 		String oldXml = xml.replace(" includeProposedResources=\"true\"", "")
+			.replace(" levelManuallyScheduledTasks=\"true\"", "")
 			.replace(" sensitivity=\"DAY\"", "");
 		org.junit.jupiter.api.Assertions.assertNotEquals(xml, oldXml, "fixture must contain the new XML setting");
 		entries.put("settings.xml", oldXml.getBytes(StandardCharsets.UTF_8));
@@ -2488,6 +2492,8 @@ class MpoFileImporterTest {
 		Project reopened = loadFromBytes(zip(entries).toByteArray());
 		org.junit.jupiter.api.Assertions.assertFalse(new CriticalChainService().settings(reopened).isIncludeProposedResources(),
 			"MPO files written before the option existed must retain the safe excluded default");
+		org.junit.jupiter.api.Assertions.assertFalse(new CriticalChainService().settings(reopened).isLevelManuallyScheduledTasks(),
+			"MPO files written before the option existed must keep manual tasks fixed by default");
 		org.junit.jupiter.api.Assertions.assertEquals(com.microproject.pm.resource.ResourceLevelingService.Sensitivity.DAY,
 			new CriticalChainService().settings(reopened).getSensitivity(),
 			"MPO settings written before sensitivity must retain the day product default");
