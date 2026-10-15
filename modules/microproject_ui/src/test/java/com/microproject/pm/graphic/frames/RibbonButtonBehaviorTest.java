@@ -1283,7 +1283,8 @@ class RibbonButtonBehaviorTest {
 			"RibbonExpand",
 			"RibbonCollapse",
 			"RibbonLink",
-			"RibbonUnlink");
+			"RibbonUnlink",
+			"RibbonRespectLinks");
 		return map;
 	}
 

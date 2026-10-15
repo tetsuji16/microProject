@@ -37,6 +37,7 @@ import com.microproject.strings.Messages;
 import com.microproject.util.DateTime;
 import com.microproject.transaction.ModelTransaction;
 import com.microproject.transaction.ProjectMutationState;
+import com.microproject.pm.task.ProjectTaskSnapshot;
 
 
 /**
@@ -67,7 +68,7 @@ public class UpdateProjectCommand extends Command {
 		try (ProjectMutationState.Scope mutation = project.getMutationState().begin()) {
 			project.beginEventBatch();
 			try {
-			ModelTransaction.execute(new ModelTransaction.Steps<ProjectState, List<Long>>() {
+			ModelTransaction.execute(new ModelTransaction.Steps<ProjectTaskSnapshot, List<Long>>() {
 				@Override public void validate() {
 					java.util.Objects.requireNonNull(targets, "targets");
 					java.util.Objects.requireNonNull(edits, "edits");
@@ -87,8 +88,8 @@ public class UpdateProjectCommand extends Command {
 					if (project.isReadOnly())
 						throw new IllegalStateException("Cannot update a read-only project");
 				}
-				@Override public ProjectState capture() {
-					beforeSnapshot = backupProjectTasks();
+				@Override public ProjectTaskSnapshot capture() {
+					beforeSnapshot = ProjectTaskSnapshot.capture(project);
 					return beforeSnapshot;
 				}
 				@Override public ModelTransaction.Mutation<List<Long>> apply() {
@@ -112,15 +113,15 @@ public class UpdateProjectCommand extends Command {
 							throw new IllegalStateException("Updated task was detached from the project");
 					}
 				}
-				@Override public void restore(ProjectState before) {
-					restoreProjectTasks(before);
+				@Override public void restore(ProjectTaskSnapshot before) {
+					before.restore(project, UpdateProjectCommand.this);
 					affectedTaskIds.clear();
 				}
 				@Override public void commit(List<Long> changed) {
-					ProjectState after = backupProjectTasks();
-					edits.postEdit(new UpdateProjectEdit(project, beforeSnapshot.tasks(), after.tasks()));
+					ProjectTaskSnapshot after = ProjectTaskSnapshot.capture(project);
+					edits.postEdit(new UpdateProjectEdit(project, beforeSnapshot, after));
 				}
-				private ProjectState beforeSnapshot;
+				private ProjectTaskSnapshot beforeSnapshot;
 			});
 				List<Long> changed = affectedTaskIds();
 				Project.PendingEventBatch pendingEvents = project.commitEventBatch(mutation, !changed.isEmpty());
@@ -171,45 +172,12 @@ public class UpdateProjectCommand extends Command {
 		}
 	}
 
-	private ProjectState backupProjectTasks() {
-		Map<Task, TaskState> result = new LinkedHashMap<>();
-		for (Task task : project.getTaskList()) {
-			Double override = task instanceof com.microproject.pm.task.NormalTask normal
-				? normal.getImportedPercentCompleteOverride() : null;
-			result.put(task, new TaskState(task.backupDetail(), override, task.isDirty()));
-		}
-		return new ProjectState(result, project.isDirty(), project.isGroupDirty());
-	}
-
-	private void restoreProjectTasks(ProjectState state) {
-		restoreTaskStates(project, state.tasks(), this);
-		project.setDirty(state.projectDirty());
-		project.setGroupDirty(state.projectGroupDirty());
-	}
-
-	private static void restoreTaskStates(Project project, Map<Task, TaskState> state, Object eventSource) {
-		for (Map.Entry<Task, TaskState> entry : state.entrySet()) {
-			Task task = entry.getKey();
-			TaskState taskState = entry.getValue();
-			task.restoreDetail(eventSource, taskState.detail(), true);
-			if (task instanceof com.microproject.pm.task.NormalTask normal)
-				normal.restoreImportedPercentCompleteOverride(taskState.importedPercentCompleteOverride());
-		}
-		// Restore all task and assignment inputs before recalculating linked schedules once.
-		project.recalculate();
-		for (Map.Entry<Task, TaskState> entry : state.entrySet())
-			entry.getKey().setDirty(entry.getValue().dirty());
-	}
-
-	private record ProjectState(Map<Task, TaskState> tasks, boolean projectDirty, boolean projectGroupDirty) { }
-	private record TaskState(Object detail, Double importedPercentCompleteOverride, boolean dirty) { }
-
 	private static final class UpdateProjectEdit extends AbstractUndoableEdit {
 		private static final long serialVersionUID = 1L;
 		private final Project project;
-		private final Map<Task, TaskState> before;
-		private final Map<Task, TaskState> after;
-		UpdateProjectEdit(Project project, Map<Task, TaskState> before, Map<Task, TaskState> after) {
+		private final ProjectTaskSnapshot before;
+		private final ProjectTaskSnapshot after;
+		UpdateProjectEdit(Project project, ProjectTaskSnapshot before, ProjectTaskSnapshot after) {
 			this.project = project;
 			this.before = before;
 			this.after = after;
@@ -223,12 +191,12 @@ public class UpdateProjectCommand extends Command {
 			super.redo();
 			restore(after);
 		}
-		private void restore(Map<Task, TaskState> state) {
+		private void restore(ProjectTaskSnapshot state) {
 			try (ProjectMutationState.Scope mutation = project.getMutationState().begin()) {
 				project.beginEventBatch();
 				Project.PendingEventBatch pendingEvents;
 				try {
-					restoreTaskStates(project, state, this);
+					state.restore(project, this);
 					project.setDirty(true);
 					pendingEvents = project.commitEventBatch(mutation, true);
 				} catch (RuntimeException | Error failure) {

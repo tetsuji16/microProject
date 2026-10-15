@@ -414,7 +414,7 @@ public final class TaskSchedule implements Cloneable {
 
 				long dep = newBegin; // by default (if no preds for example)
 				if (dependencyCount > 0) {
-					boolean useSooner = !dependencyTask.isWbsParent() && dependencyTask.hasDuration();
+					boolean useSooner = !dependencyTask.isWbsParent() && !dependencyTask.isMilestone();
 					dep = dependency.calcDependencyDate(forward,newBegin,newEnd,useSooner); // calculate it and store off value
 					if (dependencyCount > 1) // can't just set date directly because more than one
 						dep = needsCalculation; // it will need to be calculated later
@@ -565,7 +565,7 @@ public final class TaskSchedule implements Cloneable {
 		Task parent = task.getWbsParentTask();
 		
 		//boolean useSooner = (forward != task.hasDuration()); // shortcut: if forward and is milestone, use sooner, otherwise later.  And conversely, if reverse and isn't milestone, use sooner, othewise later
-		boolean useSooner = !task.hasDuration();
+		boolean useSooner = task.isMilestone();
 		
 		if (parent != null) {
 			TaskSchedule parentSchedule = parent.getSchedule(type);
@@ -646,6 +646,12 @@ public final class TaskSchedule implements Cloneable {
 		
 		if (Duration.millis(levelingDelay) != 0)
 			begin = task.getEffectiveWorkCalendar().add(begin,levelingDelay,useSooner);
+		// A dependency with elapsed lag can yield a wall-clock date outside
+		// working hours. Normalize the scheduled task boundary after applying
+		// constraints and leveling, using the same calendar path as parent starts.
+		if (context.forward && begin != 0 && task.getActualStart() == 0 && !task.getPredecessorList().isEmpty()
+			&& Duration.millis(task.getRawDuration()) > 0 && !Duration.isElapsed(task.getRawDuration()))
+			begin = task.getEffectiveWorkCalendar().add(begin, 0, useSooner);
 		
 		long remainingBegin = begin;
 		
@@ -662,6 +668,7 @@ public final class TaskSchedule implements Cloneable {
 		setEnd(end);
 		
 	}
+
 	
 	public void dump() {
 		logger.fine("Task " + task + " schedule " + type + " start " + new Date(start) + " finish " + new Date(finish));

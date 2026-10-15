@@ -102,56 +102,66 @@ public final class ScheduleDiagnosticsService {
 
 	/** Returns whether any enabled incoming link is contradicted by the task's current dates. */
 	public static boolean hasDependencyConflict(Task task) {
+		return hasDependencyConflict(task, true);
+	}
+
+	/** Checks stored dates for link violations even when automatic scheduling would usually hide them. */
+	static boolean hasCurrentDependencyConflict(Task task) {
+		return hasDependencyConflict(task, false);
+	}
+
+	private static boolean hasDependencyConflict(Task task, boolean requireManualScheduling) {
 		Objects.requireNonNull(task, "task");
 		for (var value : task.getPredecessorList()) {
 			Dependency dependency = (Dependency) value;
-			if (violates(dependency))
+			if (violates(dependency, requireManualScheduling))
 				return true;
 		}
 		return false;
 	}
 
-	private static boolean violates(Dependency dependency) {
+	/** Returns the date boundary imposed on a successor by one enabled incoming link. */
+	public static DependencyBoundary requiredBoundary(Dependency dependency) {
+		Objects.requireNonNull(dependency, "dependency");
+		Task predecessor = (Task) dependency.getPredecessor();
+		Task successor = (Task) dependency.getSuccessor();
+		WorkCalendar calendar = dependency.getEffectiveWorkCalendar();
+		return switch (dependency.getDependencyKind()) {
+			case FS -> new DependencyBoundary(false, requiredDate(calendar, predecessor.getEnd(), dependency, successor));
+			case SS -> new DependencyBoundary(false, requiredDate(calendar, predecessor.getStart(), dependency, successor));
+			case FF -> new DependencyBoundary(true, requiredDate(calendar, predecessor.getEnd(), dependency, successor));
+			case SF -> new DependencyBoundary(true, requiredDate(calendar, predecessor.getStart(), dependency, successor));
+		};
+	}
+
+	public record DependencyBoundary(boolean finish, long requiredDate) { }
+
+	private static boolean violates(Dependency dependency, boolean requireManualScheduling) {
 		if (dependency.isDisabled())
 			return false;
 		Task predecessor = (Task) dependency.getPredecessor();
 		Task successor = (Task) dependency.getSuccessor();
 		// Auto-scheduled tasks are resolved by the scheduling engine; a user-facing
 		// conflict is meaningful only when manually entered dates override that result.
-		if (!successor.isManuallyScheduled())
+		if (requireManualScheduling && !successor.isManuallyScheduled())
 			return false;
 		if (predecessor.isInactiveTask() || successor.isInactiveTask())
 			return false;
 
-		WorkCalendar calendar = dependency.getEffectiveWorkCalendar();
 		long requiredDate;
 		long scheduledDate;
-		switch (dependency.getDependencyKind()) {
-			case FS -> {
-				requiredDate = requiredDate(calendar, predecessor.getEnd(), dependency, successor);
-				scheduledDate = successor.getStart();
-			}
-			case SS -> {
-				requiredDate = requiredDate(calendar, predecessor.getStart(), dependency, successor);
-				scheduledDate = successor.getStart();
-			}
-			case FF -> {
-				requiredDate = requiredDate(calendar, predecessor.getEnd(), dependency, successor);
-				scheduledDate = successor.getEnd();
-			}
-			case SF -> {
-				requiredDate = requiredDate(calendar, predecessor.getStart(), dependency, successor);
-				scheduledDate = successor.getEnd();
-			}
-			default -> throw new IllegalStateException("Unsupported dependency type");
-		}
+		DependencyBoundary boundary = requiredBoundary(dependency);
+		requiredDate = boundary.requiredDate();
+		scheduledDate = boundary.finish() ? successor.getEnd() : successor.getStart();
 		return scheduledDate < requiredDate;
 	}
 
 	private static long requiredDate(WorkCalendar calendar, long predecessorDate, Dependency dependency, Task successor) {
 		long lag = dependency.getLeadValue();
-		return Duration.millis(lag) == 0L ? predecessorDate : calendar.add(predecessorDate, lag, successor.isMilestone());
+		return Duration.millis(lag) == 0L ? predecessorDate
+			: calendar.add(predecessorDate, lag, successor.isMilestone());
 	}
+
 
 	private static boolean isHardConstraint(ConstraintType.Kind type) {
 		return type != ConstraintType.Kind.ASAP && type != ConstraintType.Kind.ALAP;

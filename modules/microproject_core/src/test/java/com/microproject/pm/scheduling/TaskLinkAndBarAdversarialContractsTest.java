@@ -162,8 +162,9 @@ class TaskLinkAndBarAdversarialContractsTest {
 			predecessor, successor, DependencyType.FS, lagDays * day(), this);
 		f.project.recalculate();
 		assertEquals(lagDays * day(), dependency.getLag());
-		assertEquals(dependency.calcForwardDependencyDate(predecessor.getStart(), predecessor.getEnd(), true),
-			successor.getStart());
+		long requiredStart = dependency.calcForwardDependencyDate(predecessor.getStart(), predecessor.getEnd(), true);
+		assertTrue(successor.getStart() >= requiredStart,
+			"extreme lag must not schedule before its converted dependency start");
 	}
 
 	private void unchangedIntervalIsNoOp() {

@@ -237,6 +237,25 @@ class CalendarDefinitionTest {
 	}
 
 	@Test
+	void elapsedAdditionPreservesWallClockTimeForEitherSchedulingDirection() {
+		CalendarDefinition calendar = standardWeekCalendar();
+		long mondayAtFive = timestamp(2024, Calendar.JUNE, 3, 17);
+		long fourElapsedHours = Duration.setAsElapsed(4L * 60L * 60L * 1000L);
+		long mondayAtNine = mondayAtFive + Duration.millis(fourElapsedHours);
+
+		assertEquals(mondayAtNine, calendar.add(mondayAtFive, fourElapsedHours, true));
+		assertEquals(mondayAtNine, calendar.add(mondayAtFive, fourElapsedHours, false));
+		assertEquals(-mondayAtFive + Duration.millis(fourElapsedHours), calendar.add(-mondayAtFive, fourElapsedHours, true),
+			"negative dates preserve the scheduler's reverse-pass sign convention");
+
+		long newYearEveAtEleven = timestamp(2024, Calendar.DECEMBER, 31, 23);
+		long newYearDayAtOne = timestamp(2025, Calendar.JANUARY, 1, 1);
+		assertEquals(newYearDayAtOne,
+			calendar.add(newYearEveAtEleven, Duration.setAsElapsed(2L * 60L * 60L * 1000L), false),
+			"elapsed addition crosses the year boundary by exact wall-clock milliseconds");
+	}
+
+	@Test
 	void addWithZeroWorkingTimeWeekIsSignConsistentWithElapsedPath() {
 		// Issue #175: a no-working-time calendar must behave exactly like the
 		// elapsed-time path, including for negative (reverse-scheduling) dates.

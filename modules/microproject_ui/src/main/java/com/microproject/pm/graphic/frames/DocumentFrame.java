@@ -583,6 +583,7 @@ public class DocumentFrame extends NamedFrame implements
 		case SHOW_ALL -> lastTaskCommandResult = applyTaskVisibility(command, false);
 		case TASK_MODE_MANUAL -> lastTaskCommandResult = applyTaskMode(command, com.microproject.pm.task.TaskModeService.Mode.MANUAL);
 		case TASK_MODE_AUTOMATIC -> lastTaskCommandResult = applyTaskMode(command, com.microproject.pm.task.TaskModeService.Mode.AUTOMATIC);
+		case RESPECT_LINKS -> lastTaskCommandResult = applyRespectLinks(command);
 		case RESOURCE_LEVEL_ALL -> lastTaskCommandResult = applyResourceLevelAll(command);
 		case RESOURCE_LEVEL_SELECTION -> lastTaskCommandResult = applyResourceLevelSelection(command);
 		case NEXT_OVERALLOCATION -> lastTaskCommandResult = selectNextOverallocatedTask(command);
@@ -678,6 +679,25 @@ public class DocumentFrame extends NamedFrame implements
 		if (!result.change().hasChanged())
 			return RibbonCommandResult.noChange(command.actionId(), taskIds(selection)).withActiveView("task");
 		return RibbonCommandResult.changed(command.actionId(), taskIds(selection)).withActiveView("task");
+	}
+
+	private RibbonCommandResult applyRespectLinks(CommandId command) {
+		List<Node> selection = new ArrayList<>(getSelectedTaskNodes(true, true));
+		List<Long> selectedIds = taskIds(selection);
+		if (selection.isEmpty()) return RibbonCommandResult.rejected(command.actionId(), "no-selection");
+		if (project == null || project.isReadOnly()) return RibbonCommandResult.rejected(command.actionId(), "document-read-only");
+		List<Task> tasks = selection.stream().map(Node::getImpl).filter(Task.class::isInstance).map(Task.class::cast).toList();
+		if (tasks.isEmpty()) return RibbonCommandResult.rejected(command.actionId(), "no-task-selection");
+		try {
+			var result = new com.microproject.pm.task.RespectLinksService().apply(project, tasks);
+			if (!result.change().hasChanged())
+				return RibbonCommandResult.noChange(command.actionId(), selectedIds).withActiveView("task");
+			SwingUndoAdapter.post(project.getUndoController().getEditSupport(), result.change());
+			getActiveSpreadSheet().restoreTaskRowSelection(selection);
+			return RibbonCommandResult.changed(command.actionId(), selectedIds).withActiveView("task");
+		} catch (RuntimeException failure) {
+			return RibbonCommandResult.failed(command.actionId(), failure).withSelectedTaskIds(selectedIds);
+		}
 	}
 
 	private RibbonCommandResult selectNextOverallocatedTask(CommandId command) {

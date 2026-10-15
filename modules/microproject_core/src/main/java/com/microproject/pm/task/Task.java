@@ -1861,20 +1861,27 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	public final boolean isManuallyScheduled() {
 		return manuallyScheduled;
 	}
+	final void restoreManualSchedulingState(boolean manuallyScheduled, long manualStart, long manualFinish) {
+		this.manuallyScheduled = manuallyScheduled;
+		this.manualStart = manualStart;
+		this.manualFinish = manualFinish;
+	}
 	final void initializeManualScheduling() {
 		manuallyScheduled = true;
 		captureManualDates();
 	}
 	public final void setManuallyScheduled(boolean manuallyScheduled) {
-		if (this.manuallyScheduled == manuallyScheduled)
-			return;
-		if (manuallyScheduled) {
-			captureManualDates();
-		}
-		this.manuallyScheduled = manuallyScheduled;
-		setDirty(true);
+		if (!setManuallyScheduledWithoutRecalculation(manuallyScheduled)) return;
 		if (project != null)
 			project.recalculate();
+	}
+	/** Changes scheduling mode and captures manual dates without running a project pass. */
+	final boolean setManuallyScheduledWithoutRecalculation(boolean manuallyScheduled) {
+		if (this.manuallyScheduled == manuallyScheduled) return false;
+		if (manuallyScheduled) captureManualDates();
+		this.manuallyScheduled = manuallyScheduled;
+		setDirty(true);
+		return true;
 	}
 	public final boolean isInactiveTask() {
 		return inactiveTask;

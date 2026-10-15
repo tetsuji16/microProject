@@ -45,6 +45,7 @@ microProjectの標準リボンに表示される全コマンドボタンを、�
 | RibbonMoveTaskUp / RibbonMoveTaskDown | タスク行を上下移動 | 行順と選択状態が更新される |
 | RibbonExpand / RibbonCollapse | サマリーを展開／折りたたみ | 子タスクの表示状態が変わる |
 | RibbonLink / RibbonUnlink | タスク間の先行関係を作成／解除 | 矢印と先行タスク列が更新される |
+| RibbonRespectLinks | 先行リンクと競合する手動スケジュールのタスクを選び、Task > Schedule の「リンクを反映」を実行する | 選択タスクの表示日程とガントバーがリンク制約に沿って変わり、手動モードと他タスクを維持する。対象外タスクでは操作が無効、制約を満たせない場合は変更なしで理由を表示する。Undo/RedoとMPO保存再読込で日程を確認する。根拠: [Microsoftのタスクリンク定義](https://support.microsoft.com/en-us/project/link-tasks-in-a-project)。 |
 | RibbonAssignResources | リソースを割り当てる | 割当ダイアログとタスクのリソース表示が更新される |
 | RibbonDelegateTasks | タスクを委任する | 委任操作または結果ダイアログが表示される |
 | RibbonTaskInformation | タスク情報を開く | タスク情報ダイアログが表示される |

@@ -372,22 +372,65 @@ public class Dependency implements Association, BelongsToDocument, DataObject {
 			return earlyDate;
 		long t = 0;
 
-		boolean canStartAtDayEnd = !hasDuration; // to handle the milestone case
+		boolean finishLink = getDependencyKind() == DependencyType.Kind.FF
+			|| getDependencyKind() == DependencyType.Kind.SF;
+		boolean finishBoundary = !hasDuration;
+		long predecessorAnchor = 0L;
 		switch (DependencyType.Kind.fromCode(dependencyType)) {
 			case FS:
-				t = end;
+				predecessorAnchor = end;
 				break;
 			case SS:
-				t = begin;
+				predecessorAnchor = begin;
 				break;
 			case FF:
-				t = ((ScheduleWindow)successor).calcOffsetFrom(end,end,false,false, canStartAtDayEnd);
+				predecessorAnchor = end;
 				break;
 			case SF:
-				t = ((ScheduleWindow)successor).calcOffsetFrom(begin,begin,false,false, canStartAtDayEnd);
+				predecessorAnchor = begin;
 			break;
 		}
-		earlyDate = getEffectiveWorkCalendar().add(t,getLeadValue(), canStartAtDayEnd);
+		long lead = getLeadValue();
+		long requiredDate = Duration.millis(lead) == 0L ? predecessorAnchor
+			: getEffectiveWorkCalendar().add(predecessorAnchor, lead, finishBoundary);
+		if (finishLink) {
+			Task successorTask = (Task) successor;
+			long successorDurationMillis = Duration.millis(successorTask.getDurationMillis());
+			t = ((ScheduleWindow) successor).calcOffsetFrom(requiredDate, requiredDate, false, false,
+				successorTask.isMilestone());
+			// Calendar subtraction can collapse a nonworking gap to zero, but FF/SF
+			// constraints are chronological. Correct against wall-clock instants so a
+			// Friday finish never compares equal to a Monday morning boundary.
+			if (successorDurationMillis > 0L) {
+				long previousCandidateFinish = Long.MIN_VALUE;
+				while (true) {
+					long candidateFinish = ((ScheduleWindow) successor).calcOffsetFrom(t, t, true, true, true);
+					if (candidateFinish >= requiredDate)
+						break;
+					if (candidateFinish <= previousCandidateFinish)
+						throw new IllegalStateException("Cannot satisfy chronological finish dependency boundary: required="
+							+ requiredDate + " candidate=" + candidateFinish + " task=" + successorTask.getName());
+					previousCandidateFinish = candidateFinish;
+					WorkCalendar successorCalendar = successorTask.getEffectiveWorkCalendar();
+					long workingCorrection = successorCalendar.compare(requiredDate, candidateFinish, false);
+					long correctedStart;
+					if (workingCorrection != 0L) {
+						correctedStart = successorCalendar.add(t, workingCorrection, false);
+					} else {
+						// A nonworking gap can have zero calendar duration. Move to the
+						// next valid start after the strict chronological finish boundary.
+						correctedStart = successorCalendar.adjustInsideCalendar(requiredDate, false);
+					}
+					if (correctedStart <= t)
+						throw new IllegalStateException("Cannot advance task start to satisfy chronological finish dependency boundary: required="
+							+ requiredDate + " candidate=" + candidateFinish + " task=" + successorTask.getName());
+					t = correctedStart;
+				}
+			}
+			earlyDate = t;
+		} else {
+			earlyDate = requiredDate;
+		}
 		return earlyDate;
 	}
 	/**

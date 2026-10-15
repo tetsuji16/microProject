@@ -461,14 +461,17 @@ class NormalTaskDurationTest {
 		NormalTask successor = createTask(project);
 		predecessor.setDuration(day());
 		successor.setDuration(day());
-		DependencyService.getInstance().newDependency(predecessor, successor, DependencyType.SF, 0L, this);
+		var dependency = DependencyService.getInstance().newDependency(predecessor, successor, DependencyType.SF, 0L, this);
 		recalculate(project, predecessor);
 
 		predecessor.setDuration(2L * day());
 		recalculate(project, predecessor);
 
-		assertTrue(successor.getEnd() <= predecessor.getStart(),
-				"successorEnd=" + successor.getEnd() + " predecessorStart=" + predecessor.getStart());
+		assertTrue(successor.getEnd() >= predecessor.getStart(),
+				"successorEnd=" + successor.getEnd() + " predecessorStart=" + predecessor.getStart()
+					+ " successorStart=" + successor.getStart() + " early=" + successor.getEarlyStart() + "/" + successor.getEarlyFinish()
+					+ " dependencyDate=" + dependency.getDate(true) + " convertedStart="
+					+ dependency.calcForwardDependencyDate(predecessor.getStart(), predecessor.getEnd(), true));
 	}
 
 	@Test
@@ -492,7 +495,7 @@ class NormalTaskDurationTest {
 			if (type == DependencyType.FF)
 				assertEquals(predecessor.getEnd(), successor.getEnd());
 			else
-				assertTrue(successor.getEnd() <= predecessor.getStart());
+				assertTrue(successor.getEnd() >= predecessor.getStart());
 		}
 	}
 
@@ -513,7 +516,7 @@ class NormalTaskDurationTest {
 			case DependencyType.FS -> assertTrue(successor.getStart() >= predecessor.getEnd());
 			case DependencyType.SS -> assertEquals(predecessor.getStart(), successor.getStart());
 			case DependencyType.FF -> assertEquals(predecessor.getEnd(), successor.getEnd());
-			case DependencyType.SF -> assertTrue(successor.getEnd() <= predecessor.getStart());
+			case DependencyType.SF -> assertTrue(successor.getEnd() >= predecessor.getStart());
 			default -> throw new AssertionError("Unexpected dependency type: " + type);
 			}
 		}

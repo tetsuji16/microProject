@@ -1856,6 +1856,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_INSERT_TASK, new InsertTaskAction());
 		actionsMap.addHandler(ACTION_TASK_MODE_MANUAL, new TaskModeAction(true));
 		actionsMap.addHandler(ACTION_TASK_MODE_AUTOMATIC, new TaskModeAction(false));
+		actionsMap.addHandler(CommandId.RESPECT_LINKS.actionId(), new RespectLinksAction());
 		actionsMap.addHandler(ACTION_STATUS_DATE, new StatusDateAction());
 		actionsMap.addHandler(ACTION_MARK_ON_TRACK, new MarkOnTrackAction());
 		actionsMap.addHandler(ACTION_INSERT_RESOURCE, new InsertResourceAction());
@@ -2789,6 +2790,13 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			setMeAsLastGraphicManager();
 			publishTaskCommandOutcome(this,
 				dispatchTaskCommand(manual ? CommandId.TASK_MODE_MANUAL : CommandId.TASK_MODE_AUTOMATIC));
+		}
+	}
+	private final class RespectLinksAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.RESPECT_LINKS));
 		}
 	}
 	private final class StatusDateAction extends MenuActionsMap.DocumentMenuAction {
