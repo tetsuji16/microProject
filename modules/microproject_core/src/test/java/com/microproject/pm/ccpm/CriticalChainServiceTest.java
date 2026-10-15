@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.options.CalendarOption;
 import com.microproject.pm.assignment.AssignmentService;
+import com.microproject.pm.resource.ResourceLevelingService;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.resource.ResourceImpl;
@@ -112,7 +113,9 @@ class CriticalChainServiceTest {
 		CriticalChainService.Settings settings = service.settings(fixture.project);
 		settings.setEnabled(true);
 		settings.setBufferFraction(0.4D);
+		settings.setSensitivity(ResourceLevelingService.Sensitivity.HOUR);
 		assertEquals(settings, service.settings(fixture.project));
+		assertEquals(ResourceLevelingService.Sensitivity.HOUR, settings.copy().getSensitivity());
 		assertTrue(fixture.project.getExtraFields().isEmpty(), "CCPM must not alter the legacy POD object graph");
 		assertTrue(settings.isEnabled());
 		assertTrue(service.requiresMpo(fixture.project));

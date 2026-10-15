@@ -103,6 +103,7 @@ public final class CriticalChainService {
 		private boolean onlyWithinAvailableSlack;
 		private boolean allowTaskSplits = true;
 		private boolean includeProposedResources;
+		private ResourceLevelingService.Sensitivity sensitivity = ResourceLevelingService.Sensitivity.DAY;
 
 		public boolean isEnabled() { return enabled; }
 		public void setEnabled(boolean enabled) { this.enabled = enabled; }
@@ -123,6 +124,10 @@ public final class CriticalChainService {
 		public void setAllowTaskSplits(boolean allowTaskSplits) { this.allowTaskSplits = allowTaskSplits; }
 		public boolean isIncludeProposedResources() { return includeProposedResources; }
 		public void setIncludeProposedResources(boolean includeProposedResources) { this.includeProposedResources = includeProposedResources; }
+		public ResourceLevelingService.Sensitivity getSensitivity() { return sensitivity; }
+		public void setSensitivity(ResourceLevelingService.Sensitivity sensitivity) {
+			this.sensitivity = Objects.requireNonNull(sensitivity, "sensitivity");
+		}
 		public Settings copy() {
 			Settings copy = new Settings();
 			copy.enabled = enabled;
@@ -131,6 +136,7 @@ public final class CriticalChainService {
 			copy.onlyWithinAvailableSlack = onlyWithinAvailableSlack;
 			copy.allowTaskSplits = allowTaskSplits;
 			copy.includeProposedResources = includeProposedResources;
+			copy.sensitivity = sensitivity;
 			return copy;
 		}
 	}
@@ -256,7 +262,7 @@ public final class CriticalChainService {
 		Objects.requireNonNull(settings, "settings");
 		ResourceLevelingService.Options options = new ResourceLevelingService.Options(settings.getLevelingOrder(),
 			settings.isOnlyWithinAvailableSlack(), settings.isAllowTaskSplits(), Long.MIN_VALUE, Long.MAX_VALUE,
-			settings.isIncludeProposedResources());
+			settings.isIncludeProposedResources(), settings.getSensitivity());
 		ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(project, resources, options);
 		return analyze(project, plan, settings, resources);
 	}
@@ -284,12 +290,13 @@ public final class CriticalChainService {
 			settings.setOnlyWithinAvailableSlack(requestedSettings.isOnlyWithinAvailableSlack());
 			settings.setAllowTaskSplits(requestedSettings.isAllowTaskSplits());
 			settings.setIncludeProposedResources(requestedSettings.isIncludeProposedResources());
+			settings.setSensitivity(requestedSettings.getSensitivity());
 			if (!settings.isEnabled()) {
 				throw new IllegalStateException("Enable CCPM before applying a critical chain");
 			}
 			ResourceLevelingService.Options options = new ResourceLevelingService.Options(settings.getLevelingOrder(),
 				settings.isOnlyWithinAvailableSlack(), settings.isAllowTaskSplits(), Long.MIN_VALUE, Long.MAX_VALUE,
-				settings.isIncludeProposedResources());
+				settings.isIncludeProposedResources(), settings.getSensitivity());
 			ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(project, resources, options);
 			plan.apply(editSupport);
 			Analysis analysis = analyze(project, plan, settings, resources);
