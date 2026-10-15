@@ -124,13 +124,20 @@ public final class ResourceLevelingService {
 		private final List<Change> changes;
 		private final List<Conflict> unresolved;
 		private final List<Split> splits;
+		private final List<NormalTask> clearGeneratedSplits;
 		private final Map<Task, Object> detailBackups;
 
 		private Plan(List<Change> changes, List<Conflict> unresolved, List<Split> splits) {
+			this(changes, unresolved, splits, List.of());
+		}
+
+		private Plan(List<Change> changes, List<Conflict> unresolved, List<Split> splits,
+			List<NormalTask> clearGeneratedSplits) {
 			this.changes = List.copyOf(changes);
 			this.unresolved = List.copyOf(unresolved);
 			this.splits = List.copyOf(splits);
-			this.detailBackups = new IdentityHashMap<>(splits.size());
+			this.clearGeneratedSplits = List.copyOf(clearGeneratedSplits);
+			this.detailBackups = new IdentityHashMap<>(splits.size() + clearGeneratedSplits.size());
 		}
 
 		public List<Change> changes() {
@@ -152,7 +159,7 @@ public final class ResourceLevelingService {
 
 		public void apply(EditSupport editSupport) {
 			applyChanges(true);
-			if (editSupport != null && !changes.isEmpty()) {
+			if (editSupport != null && hasMutations()) {
 				editSupport.postEdit(new AbstractUndoableEdit() {
 					private static final long serialVersionUID = 1L;
 					@Override public String getPresentationName() { return Messages.getString("ResourceLevelingService.PresentationName"); }
@@ -167,8 +174,13 @@ public final class ResourceLevelingService {
 			if (forward) {
 				for (Split split : splits) {
 					detailBackups.computeIfAbsent(split.task(), Task::backupDetail);
-					ScheduleService.getInstance().split(this, split.task(), split.from(), split.to(), null);
+					ScheduleService.getInstance().splitForLeveling(this, split.task(), split.from(), split.to());
 					projects.add(split.task().getOwningProject());
+				}
+				for (NormalTask task : clearGeneratedSplits) {
+					detailBackups.computeIfAbsent(task, Task::backupDetail);
+					task.clearLevelingGeneratedSplits(this);
+					projects.add(task.getOwningProject());
 				}
 			} else {
 				for (Map.Entry<Task, Object> backup : detailBackups.entrySet()) {
@@ -185,6 +197,10 @@ public final class ResourceLevelingService {
 				project.recalculate();
 				project.setGroupDirty(true);
 			}
+		}
+
+		private boolean hasMutations() {
+			return !changes.isEmpty() || !splits.isEmpty() || !clearGeneratedSplits.isEmpty();
 		}
 
 		public void revert() {
@@ -295,6 +311,7 @@ public final class ResourceLevelingService {
 
 	public void clear(Project project, EditSupport editSupport) {
 		List<Change> changes = new ArrayList<>(project.getTaskList().size());
+		List<NormalTask> generatedSplits = new ArrayList<>();
 		// The outline iterator omits detached/unparented tasks while a project is
 		// being edited.  Leveling applies to every schedulable task, so clear must
 		// use the task list as well or leave invisible leveling delays behind.
@@ -303,8 +320,10 @@ public final class ResourceLevelingService {
 			if (Duration.millis(task.getLevelingDelay()) != 0L) {
 				changes.add(new Change(task, task.getLevelingDelay(), 0L, task.getStart(), task.getStart(), ""));
 			}
+			if (task instanceof NormalTask normalTask && !normalTask.getLevelingTaskSplitIntervals().isEmpty())
+				generatedSplits.add(normalTask);
 		}
-		new Plan(changes, List.of(), List.of()).apply(editSupport);
+		new Plan(changes, List.of(), List.of(), generatedSplits).apply(editSupport);
 	}
 
 	private boolean levelResource(Resource resource, Options options, Set<Task> selectedTasks, Map<Task, Long> addedDelay,

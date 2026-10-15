@@ -36,6 +36,7 @@ import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.NormalTask;
+import com.microproject.pm.task.TaskSplitInterval;
 import com.microproject.undo.TaskConstraintEdit;
 import com.microproject.undo.ScheduleEdit;
 import com.microproject.undo.SplitEdit;
@@ -176,13 +177,27 @@ public class ScheduleService {
 	 * @param to - end of nonwork interval
 	 */
 	public boolean split(Object eventSource, Schedule schedule, long from, long to,EditSupport undoableEditSupport) {
+		return split(eventSource, schedule, from, to, undoableEditSupport, false);
+	}
+
+	public boolean splitForLeveling(Object eventSource, Schedule schedule, long from, long to) {
+		return split(eventSource, schedule, from, to, null, true);
+	}
+
+	private boolean split(Object eventSource, Schedule schedule, long from, long to,
+		EditSupport undoableEditSupport, boolean levelingGenerated) {
 		if (isReadOnly(schedule))
 			return false;
 		boolean recordUndo = undoableEditSupport != null && !(eventSource instanceof UndoableEdit);
 		Object detailBackup = schedule instanceof NormalTask || schedule instanceof Assignment
 			|| recordUndo ? schedule.backupDetail() : null;
 		List<String> intervalsBefore = splitIntervalState(schedule);
-		schedule.split(eventSource,DateTime.hourFloor(from),DateTime.hourFloor(to));
+		long roundedFrom = DateTime.hourFloor(from);
+		long roundedTo = DateTime.hourFloor(to);
+		if (levelingGenerated && schedule instanceof NormalTask normalTask)
+			normalTask.splitForLeveling(eventSource, roundedFrom, roundedTo);
+		else
+			schedule.split(eventSource, roundedFrom, roundedTo);
 		boolean changed = didSplitChangeSchedule(schedule, detailBackup, intervalsBefore);
 		if (!changed && detailBackup != null) {
 			schedule.restoreDetail(eventSource, detailBackup, false);
@@ -206,6 +221,10 @@ public class ScheduleService {
 		List<String> state = new ArrayList<>();
 		appendSplitIntervals(state, "schedule", schedule);
 		if (schedule instanceof NormalTask task) {
+			for (TaskSplitInterval interval : task.getManualTaskSplitIntervals())
+				state.add("manual:" + interval.startOffset() + ":" + interval.endOffset());
+			for (TaskSplitInterval interval : task.getLevelingTaskSplitIntervals())
+				state.add("leveling:" + interval.startOffset() + ":" + interval.endOffset());
 			int index = 0;
 			for (Association association : task.getAssignments()) {
 				appendSplitIntervals(state, "assignment-" + index++, (Assignment) association);
