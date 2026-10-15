@@ -103,6 +103,7 @@ public class MpoFileImporter extends FileImporter {
 	static final String VISIBILITY_ENTRY = "microproject/visibility.json";
 	/** Task-owned Gantt split intervals not represented by the MSPDI schema. */
 	static final String TASK_SPLITS_ENTRY = "microproject/task-splits.json";
+	static final String TASK_LEVELING_OPTIONS_ENTRY = "microproject/task-leveling-options.json";
 	/** Exact native schedule values needed when MSPDI import recalculates assignments. */
 	static final String TASK_SCHEDULES_ENTRY = "microproject/task-schedules.json";
 	/** Detached saved-baseline assignment profiles not representable in MSPDI assignments. */
@@ -319,6 +320,10 @@ public class MpoFileImporter extends FileImporter {
 		restoreEmbeddedProjectReferences(project, manifestData, extensions.entries, embeddedProjectFailures);
 		if (extensions.entries.containsKey(TASK_SPLITS_ENTRY))
 			restoreTaskSplits(project, extensions.entries.get(TASK_SPLITS_ENTRY));
+		if (extensions.entries.containsKey(TASK_LEVELING_OPTIONS_ENTRY))
+			restoreTaskLevelingOptions(project, extensions.entries.get(TASK_LEVELING_OPTIONS_ENTRY));
+		else
+			resetLegacyTaskLevelingDefaults(project);
 		if (extensions.entries.containsKey(TASK_SCHEDULES_ENTRY))
 			restoreTaskSchedules(project, extensions.entries.get(TASK_SCHEDULES_ENTRY));
 		if (extensions.entries.containsKey(BASELINE_PROFILES_ENTRY))
@@ -531,13 +536,14 @@ public class MpoFileImporter extends FileImporter {
 		archiveEntries.put(TASK_IDENTITIES_ENTRY, taskIdentities.getBytes(StandardCharsets.UTF_8));
 		archiveEntries.put(VISIBILITY_ENTRY, visibilityJson(project, taskIdentities));
 		archiveEntries.put(TASK_SPLITS_ENTRY, taskSplitsJson(project, taskIdentities));
+		archiveEntries.put(TASK_LEVELING_OPTIONS_ENTRY, taskLevelingOptionsJson(project, taskIdentities));
 		archiveEntries.put(TASK_SCHEDULES_ENTRY, taskSchedulesJson(project, taskIdentities));
 		archiveEntries.put(BASELINE_PROFILES_ENTRY, baselineProfilesJson(project, taskIdentities,
 			resourceIdentitiesForMpo(project)));
 		archiveEntries.put(CCPM_HISTORY_ENTRY, ccpmHistoryJson(project));
 		MpoExtensions extensions = project.findTransientDocumentState(MpoExtensions.class);
 		if (extensions != null) for (java.util.Map.Entry<String, byte[]> extension : extensions.entries.entrySet()) {
-			if (MIMETYPE_ENTRY.equals(extension.getKey()) || MANIFEST_ENTRY.equals(extension.getKey()) || META_ENTRY.equals(extension.getKey()) || SETTINGS_ENTRY.equals(extension.getKey()) || CCPM_HISTORY_ENTRY.equals(extension.getKey()) || LAYOUT_ENTRY.equals(extension.getKey()) || VISIBILITY_ENTRY.equals(extension.getKey()) || TASK_SPLITS_ENTRY.equals(extension.getKey()) || TASK_SCHEDULES_ENTRY.equals(extension.getKey()) || BASELINE_PROFILES_ENTRY.equals(extension.getKey()) || PROJECT_ENTRY.equals(extension.getKey()) || OPERATIONS_ENTRY.equals(extension.getKey()) || TASK_IDENTITIES_ENTRY.equals(extension.getKey()) || extension.getKey().startsWith(EMBEDDED_PROJECT_PREFIX)) continue;
+			if (MIMETYPE_ENTRY.equals(extension.getKey()) || MANIFEST_ENTRY.equals(extension.getKey()) || META_ENTRY.equals(extension.getKey()) || SETTINGS_ENTRY.equals(extension.getKey()) || CCPM_HISTORY_ENTRY.equals(extension.getKey()) || LAYOUT_ENTRY.equals(extension.getKey()) || VISIBILITY_ENTRY.equals(extension.getKey()) || TASK_SPLITS_ENTRY.equals(extension.getKey()) || TASK_LEVELING_OPTIONS_ENTRY.equals(extension.getKey()) || TASK_SCHEDULES_ENTRY.equals(extension.getKey()) || BASELINE_PROFILES_ENTRY.equals(extension.getKey()) || PROJECT_ENTRY.equals(extension.getKey()) || OPERATIONS_ENTRY.equals(extension.getKey()) || TASK_IDENTITIES_ENTRY.equals(extension.getKey()) || extension.getKey().startsWith(EMBEDDED_PROJECT_PREFIX)) continue;
 			archiveEntries.put(extension.getKey(), extension.getValue());
 		}
 		MpoArchiveSnapshot snapshot = snapshotForWrite(project, projectXml, archiveEntries, embeddedProjects);
@@ -771,6 +777,64 @@ public class MpoFileImporter extends FileImporter {
 			throw exception;
 		} catch (Exception exception) {
 			throw new IOException("Unable to serialize mpo task splits", exception);
+		}
+	}
+
+	private static byte[] taskLevelingOptionsJson(Project project, String taskIdentities) throws IOException {
+		try {
+			JsonNode identities = JSON.readTree(taskIdentities);
+			ObjectNode root = JSON.createObjectNode();
+			root.put("version", 1);
+			var tasks = root.putArray("tasks");
+			for (java.util.Iterator<?> iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
+				Task task = (Task) iterator.next();
+				// The current core model cannot encode MSPDI recurrence. Preserve an
+				// imported recurring task's effective No/Yes values even when they equal
+				// that source task's recurrence-sensitive defaults.
+				if (!task.isRecurringTask() && task.isLevelingCanSplit() && task.isLevelAssignments()) continue;
+				JsonNode serializedUid = identities.path(String.valueOf(task.getUniqueId()));
+				if (!serializedUid.canConvertToLong()) throw new IOException("Missing serialized task identity for leveling options");
+				ObjectNode node = tasks.addObject();
+				node.put("taskUid", serializedUid.longValue());
+				node.put("levelingCanSplit", task.isLevelingCanSplit());
+				node.put("levelAssignments", task.isLevelAssignments());
+			}
+			return JSON.writeValueAsBytes(root);
+		} catch (IOException exception) {
+			throw exception;
+		} catch (Exception exception) {
+			throw new IOException("Unable to serialize mpo task leveling options", exception);
+		}
+	}
+
+	private static void restoreTaskLevelingOptions(Project project, byte[] bytes) throws IOException {
+		JsonNode root = JSON.readTree(bytes);
+		JsonNode tasks = root.path("tasks");
+		if (requiredInt(root, "version") != 1 || !tasks.isArray())
+			throw new IOException("Invalid mpo task leveling options");
+		java.util.HashSet<Long> seen = new java.util.HashSet<>();
+		int count = 0;
+		for (JsonNode node : tasks) {
+			if (++count > MAX_OPERATION_COUNT) throw new IOException("MPO contains too many task leveling options");
+			long serializedId = integralLong(node.path("taskUid"), "taskUid");
+			if (!seen.add(Long.valueOf(serializedId))) throw new IOException("Duplicate MPO task leveling option identity");
+			JsonNode canSplit = node.get("levelingCanSplit");
+			JsonNode levelAssignments = node.get("levelAssignments");
+			if (canSplit == null || !canSplit.isBoolean() || levelAssignments == null || !levelAssignments.isBoolean())
+				throw new IOException("Invalid MPO task leveling option values");
+			Task task = project.findByUniqueId(serializedId);
+			if (task == null) throw new IOException("MPO task leveling options reference an unknown task");
+			task.setLevelingCanSplit(canSplit.booleanValue());
+			task.setLevelAssignments(levelAssignments.booleanValue());
+		}
+	}
+
+	/** Older MPO snapshots predate these task flags; use the documented Yes defaults. */
+	private static void resetLegacyTaskLevelingDefaults(Project project) {
+		for (java.util.Iterator<?> iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
+			Task task = (Task) iterator.next();
+			task.setLevelingCanSplit(!task.isRecurringTask());
+			task.setLevelAssignments(true);
 		}
 	}
 
@@ -2322,6 +2386,7 @@ public class MpoFileImporter extends FileImporter {
 		ccpm.put("levelingOrder", settings.getLevelingOrder().name());
 		ccpm.put("onlyWithinAvailableSlack", settings.isOnlyWithinAvailableSlack());
 		ccpm.put("allowTaskSplits", settings.isAllowTaskSplits());
+		ccpm.put("levelAssignments", settings.isLevelAssignments());
 		ccpm.put("sensitivity", settings.getSensitivity().name());
 		if (baseline != null) {
 			ObjectNode value = ccpm.putObject("baseline");
@@ -2353,6 +2418,7 @@ public class MpoFileImporter extends FileImporter {
 			settings.setLevelingOrder(com.microproject.pm.resource.ResourceLevelingService.Order.valueOf(text(root, "levelingOrder")));
 			settings.setOnlyWithinAvailableSlack(bool(root, "onlyWithinAvailableSlack"));
 			settings.setAllowTaskSplits(bool(root, "allowTaskSplits"));
+			settings.setLevelAssignments(root.has("levelAssignments") ? bool(root, "levelAssignments") : true);
 			settings.setIncludeProposedResources(root.has("includeProposedResources")
 				? bool(root, "includeProposedResources") : false);
 			settings.setSensitivity(root.has("sensitivity")
@@ -2365,6 +2431,7 @@ public class MpoFileImporter extends FileImporter {
 			target.setLevelingOrder(settings.getLevelingOrder());
 			target.setOnlyWithinAvailableSlack(settings.isOnlyWithinAvailableSlack());
 			target.setAllowTaskSplits(settings.isAllowTaskSplits());
+			target.setLevelAssignments(settings.isLevelAssignments());
 			target.setIncludeProposedResources(settings.isIncludeProposedResources());
 			target.setSensitivity(settings.getSensitivity());
 			JsonNode baseline = root.get("baseline");
@@ -2534,6 +2601,7 @@ public class MpoFileImporter extends FileImporter {
 			xml.append("<ccpm enabled=\"").append(settings.isEnabled()).append("\" bufferFraction=\"").append(settings.getBufferFraction())
 				.append("\" levelingOrder=\"").append(settings.getLevelingOrder()).append("\" onlyWithinAvailableSlack=\"").append(settings.isOnlyWithinAvailableSlack())
 				.append("\" allowTaskSplits=\"").append(settings.isAllowTaskSplits())
+				.append("\" levelAssignments=\"").append(settings.isLevelAssignments())
 				.append("\" includeProposedResources=\"").append(settings.isIncludeProposedResources())
 				.append("\" sensitivity=\"").append(settings.getSensitivity()).append("\">");
 			if (baseline != null) {
@@ -2571,6 +2639,8 @@ public class MpoFileImporter extends FileImporter {
 			settings.setLevelingOrder(com.microproject.pm.resource.ResourceLevelingService.Order.valueOf(requiredAttribute(value, "levelingOrder")));
 			settings.setOnlyWithinAvailableSlack(Boolean.parseBoolean(requiredAttribute(value, "onlyWithinAvailableSlack")));
 			settings.setAllowTaskSplits(Boolean.parseBoolean(requiredAttribute(value, "allowTaskSplits")));
+			settings.setLevelAssignments(value.hasAttribute("levelAssignments")
+				? Boolean.parseBoolean(value.getAttribute("levelAssignments")) : true);
 			settings.setIncludeProposedResources(value.hasAttribute("includeProposedResources")
 				&& Boolean.parseBoolean(value.getAttribute("includeProposedResources")));
 			settings.setSensitivity(value.hasAttribute("sensitivity")
@@ -2579,6 +2649,7 @@ public class MpoFileImporter extends FileImporter {
 			CriticalChainService service = new CriticalChainService(); CriticalChainService.Settings target = service.settings(project);
 			target.setEnabled(settings.isEnabled()); target.setBufferFraction(settings.getBufferFraction()); target.setLevelingOrder(settings.getLevelingOrder());
 			target.setOnlyWithinAvailableSlack(settings.isOnlyWithinAvailableSlack()); target.setAllowTaskSplits(settings.isAllowTaskSplits());
+			target.setLevelAssignments(settings.isLevelAssignments());
 			target.setIncludeProposedResources(settings.isIncludeProposedResources());
 			target.setSensitivity(settings.getSensitivity());
 			org.w3c.dom.NodeList baselines = value.getElementsByTagName("baseline");

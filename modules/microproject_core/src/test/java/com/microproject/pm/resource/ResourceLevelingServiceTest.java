@@ -26,6 +26,7 @@ package com.microproject.pm.resource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -55,13 +56,51 @@ class ResourceLevelingServiceTest {
 		AssignmentService.getInstance().newAssignment(second, fixture.resource, 1D, 0L, this);
 
 		ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(
-			fixture.project, List.of(fixture.resource), ResourceLevelingService.Options.defaults());
+			fixture.project, List.of(fixture.resource), wholeTaskOptions());
 
 		assertEquals(1, plan.changes().size());
 		assertEquals(second, plan.changes().getFirst().task());
 		assertTrue(plan.changes().getFirst().addedDelayMillis() > 0L);
 		assertEquals(0L, second.getLevelingDelay(), "preview must not mutate the task");
 		assertTrue(plan.isComplete());
+	}
+
+	@Test
+	void applyRejectsStaleResourceAndAssignmentInputsBeforeMutation() {
+		Fixture fixture = fixture();
+		NormalTask first = task(fixture.project, "First", 1L);
+		NormalTask second = task(fixture.project, "Second", 1L);
+		AssignmentService.getInstance().newAssignment(first, fixture.resource, 1D, 0L, this);
+		Assignment secondAssignment = AssignmentService.getInstance().newAssignment(second, fixture.resource, 1D, 0L, this);
+		ResourceLevelingService.Plan staleAssignment = new ResourceLevelingService().preview(
+			fixture.project, List.of(fixture.resource), wholeTaskOptions());
+		secondAssignment.forceUnits(0.5D);
+		assertThrows(IllegalStateException.class, staleAssignment::apply,
+			"assignment edits after preview must invalidate its capacity calculation");
+		assertEquals(0L, second.getLevelingDelay());
+
+		ResourceLevelingService.Plan staleCapacity = new ResourceLevelingService().preview(
+			fixture.project, List.of(fixture.resource), wholeTaskOptions());
+		fixture.resource.setMaximumUnits(0.5D);
+		assertThrows(IllegalStateException.class, staleCapacity::apply,
+			"resource unit changes after preview must invalidate its capacity calculation");
+		assertEquals(0L, second.getLevelingDelay());
+	}
+
+	@Test
+	void applyRejectsStaleTaskScheduleRevisionBeforeMutation() {
+		Fixture fixture = fixture();
+		NormalTask first = task(fixture.project, "First", 1L);
+		NormalTask second = task(fixture.project, "Second", 1L);
+		AssignmentService.getInstance().newAssignment(first, fixture.resource, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(second, fixture.resource, 1D, 0L, this);
+		ResourceLevelingService.Plan stale = new ResourceLevelingService().preview(
+			fixture.project, List.of(fixture.resource), wholeTaskOptions());
+		second.setPriority(900);
+
+		assertThrows(IllegalStateException.class, stale::apply,
+			"project scheduling edits after preview must invalidate its task ordering");
+		assertEquals(0L, second.getLevelingDelay());
 	}
 
 	@Test
@@ -257,7 +296,8 @@ class ResourceLevelingServiceTest {
 	private ResourceLevelingService.Plan previewAt(ResourceLevelingService service, Fixture fixture,
 		ResourceLevelingService.Sensitivity sensitivity) {
 		return service.preview(fixture.project, List.of(fixture.resource), new ResourceLevelingService.Options(
-			ResourceLevelingService.Order.ID_ONLY, false, true, Long.MIN_VALUE, Long.MAX_VALUE, false, sensitivity));
+			ResourceLevelingService.Order.ID_ONLY, false, true, Long.MIN_VALUE, Long.MAX_VALUE, false,
+			sensitivity, false));
 	}
 
 	@Test
@@ -282,7 +322,7 @@ class ResourceLevelingServiceTest {
 		ResourceLevelingService service = new ResourceLevelingService();
 
 		ResourceLevelingService.Plan defaultPlan = service.preview(fixture.project, null,
-			ResourceLevelingService.Options.defaults());
+			wholeTaskOptions());
 		assertEquals(List.of(committedSecond), defaultPlan.changes().stream()
 			.map(ResourceLevelingService.Change::task).toList(),
 			"default leveling keeps committed resources active and excludes proposed-resource conflicts");
@@ -291,11 +331,11 @@ class ResourceLevelingServiceTest {
 
 		ResourceLevelingService.Plan includedPlan = service.preview(fixture.project, null,
 			new ResourceLevelingService.Options(ResourceLevelingService.Order.STANDARD, false, true,
-				Long.MIN_VALUE, Long.MAX_VALUE, true));
+				Long.MIN_VALUE, Long.MAX_VALUE, true, ResourceLevelingService.Sensitivity.DAY, false));
 		assertEquals(2, includedPlan.changes().size(), "explicit inclusion adds proposed resources to committed resources");
 		ResourceLevelingService.Plan selectedPlan = service.preview(fixture.project, List.of(fixture.resource),
 			new ResourceLevelingService.Options(ResourceLevelingService.Order.STANDARD, false, true,
-				Long.MIN_VALUE, Long.MAX_VALUE, true));
+				Long.MIN_VALUE, Long.MAX_VALUE, true, ResourceLevelingService.Sensitivity.DAY, false));
 		assertEquals(1, selectedPlan.changes().size(), "the selected-resource scope must remain authoritative");
 		assertEquals(second, selectedPlan.changes().getFirst().task());
 		var undo = fixture.project.getUndoController();
@@ -322,7 +362,7 @@ class ResourceLevelingServiceTest {
 		ResourceLevelingService.Plan plan = new ResourceLevelingService().previewSelectedTasks(
 			fixture.project, null,
 			new ResourceLevelingService.Options(ResourceLevelingService.Order.ID_ONLY, false,
-				Long.MIN_VALUE, Long.MAX_VALUE),
+				true, Long.MIN_VALUE, Long.MAX_VALUE, false, ResourceLevelingService.Sensitivity.DAY, false),
 			List.of(selected, selectedSecond));
 
 		assertEquals(Set.of(selected, selectedSecond), plan.changes().stream()
@@ -383,7 +423,7 @@ class ResourceLevelingServiceTest {
 		AssignmentService.getInstance().newAssignment(first, fixture.resource, 1D, 0L, this);
 		AssignmentService.getInstance().newAssignment(second, fixture.resource, 1D, 0L, this);
 		ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(
-			fixture.project, List.of(fixture.resource), ResourceLevelingService.Options.defaults());
+			fixture.project, List.of(fixture.resource), wholeTaskOptions());
 
 		plan.apply();
 		assertTrue(second.getLevelingDelay() > 0L);
@@ -399,7 +439,7 @@ class ResourceLevelingServiceTest {
 		AssignmentService.getInstance().newAssignment(first, fixture.resource, 1D, 0L, this);
 		AssignmentService.getInstance().newAssignment(second, fixture.resource, 1D, 0L, this);
 		ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(
-			fixture.project, List.of(fixture.resource), ResourceLevelingService.Options.defaults());
+			fixture.project, List.of(fixture.resource), wholeTaskOptions());
 		var undo = fixture.project.getUndoController();
 		undo.clear();
 
@@ -505,6 +545,83 @@ class ResourceLevelingServiceTest {
 	}
 
 	@Test
+	void failedApplyRestoresMutatedSplitAndDoesNotPublishUndo() {
+		Fixture fixture = fixture();
+		ThrowingApplySplitTask longTask = new ThrowingApplySplitTask(fixture.project);
+		longTask.setName("Long task");
+		fixture.project.connectTask(longTask);
+		fixture.project.getSchedulingAlgorithm().addObject(longTask);
+		longTask.getCurrentSchedule().setStart(fixture.project.getStart());
+		longTask.setDuration(3L * CalendarOption.getInstance().getMillisPerDay());
+		NormalTask blocker = task(fixture.project, "Priority work", 1L);
+		blocker.setPriority(900);
+		long oneDayLater = fixture.project.getEffectiveWorkCalendar().add(
+			fixture.project.getStart(), CalendarOption.getInstance().getMillisPerDay(), false);
+		blocker.setStart(oneDayLater);
+		AssignmentService.getInstance().newAssignment(longTask, fixture.resource, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(blocker, fixture.resource, 1D, 0L, this);
+		long start = longTask.getStart();
+		long finish = longTask.getEnd();
+		var undo = fixture.project.getUndoController();
+		undo.clear();
+		longTask.failAfterSplit = true;
+
+		ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(
+			fixture.project, List.of(fixture.resource), new ResourceLevelingService.Options(
+				ResourceLevelingService.Order.PRIORITY_STANDARD, false, true, Long.MIN_VALUE, Long.MAX_VALUE,
+				false, ResourceLevelingService.Sensitivity.DAY, false));
+		assertFalse(plan.splits().isEmpty());
+		assertThrows(IllegalStateException.class, () -> plan.apply(undo.getEditSupport()));
+
+		assertTrue(longTask.getLevelingTaskSplitIntervals().isEmpty(), "the partial split must be restored");
+		assertEquals(start, longTask.getStart());
+		assertEquals(finish, longTask.getEnd());
+		assertFalse(undo.canUndo(), "a rolled-back apply must not leave an Undo edit");
+	}
+
+	@Test
+	void failedApplyRestoresEveryAssignmentDelayAndDoesNotPublishUndo() {
+		Fixture fixture = fixture();
+		ResourceImpl secondResource = fixture.project.getResourcePool().newResourceInstance();
+		secondResource.setName("Second resource");
+		NormalTask first = task(fixture.project, "First assignment", 3L);
+		ThrowingDirtyTask second = new ThrowingDirtyTask(fixture.project);
+		second.setName("Second assignment");
+		fixture.project.connectTask(second);
+		fixture.project.getSchedulingAlgorithm().addObject(second);
+		second.getCurrentSchedule().setStart(fixture.project.getStart());
+		second.setDuration(3L * CalendarOption.getInstance().getMillisPerDay());
+		NormalTask firstBlocker = task(fixture.project, "First blocker", 1L);
+		NormalTask secondBlocker = task(fixture.project, "Second blocker", 1L);
+		firstBlocker.setPriority(900);
+		secondBlocker.setPriority(900);
+		long oneDayLater = fixture.project.getEffectiveWorkCalendar().add(
+			fixture.project.getStart(), CalendarOption.getInstance().getMillisPerDay(), false);
+		firstBlocker.setStart(oneDayLater);
+		secondBlocker.setStart(oneDayLater);
+		Assignment firstAssignment = AssignmentService.getInstance().newAssignment(first, fixture.resource, 1D, 0L, this);
+		Assignment secondAssignment = AssignmentService.getInstance().newAssignment(second, secondResource, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(firstBlocker, fixture.resource, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(secondBlocker, secondResource, 1D, 0L, this);
+		ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(
+			fixture.project, List.of(fixture.resource, secondResource), new ResourceLevelingService.Options(
+				ResourceLevelingService.Order.PRIORITY_STANDARD, false, false, Long.MIN_VALUE, Long.MAX_VALUE,
+				false, ResourceLevelingService.Sensitivity.DAY, true));
+		assertEquals(2, plan.assignmentChanges().size());
+		var undo = fixture.project.getUndoController();
+		undo.clear();
+		long revision = fixture.project.getMutationState().revision();
+		second.failNextDirty = true;
+
+		assertThrows(IllegalStateException.class, () -> plan.apply(undo.getEditSupport()));
+
+		assertEquals(0L, com.microproject.datatype.Duration.millis(firstAssignment.getLevelingDelay()));
+		assertEquals(0L, com.microproject.datatype.Duration.millis(secondAssignment.getLevelingDelay()));
+		assertEquals(revision, fixture.project.getMutationState().revision(), "a failed apply must not publish a revision");
+		assertFalse(undo.canUndo(), "a rolled-back multi-assignment apply must not leave an Undo edit");
+	}
+
+	@Test
 	void invariantFailureAfterClearRestoresTasksAndDoesNotPublishUndo() {
 		Fixture fixture = fixture();
 		NormalTask first = task(fixture.project, "First", 1L);
@@ -565,11 +682,130 @@ class ResourceLevelingServiceTest {
 
 		ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(
 			fixture.project, List.of(fixture.resource), new ResourceLevelingService.Options(
-				ResourceLevelingService.Order.PRIORITY_STANDARD, false, true, Long.MIN_VALUE, Long.MAX_VALUE));
+				ResourceLevelingService.Order.PRIORITY_STANDARD, false, true, Long.MIN_VALUE, Long.MAX_VALUE,
+				false, ResourceLevelingService.Sensitivity.DAY, false));
 
 		assertEquals(1, plan.splits().size());
 		assertEquals(longTask, plan.splits().getFirst().task());
 		assertTrue(plan.isComplete());
+	}
+
+	@Test
+	void taskLevelingCanSplitFieldMustAlsoAllowSplitting() {
+		// Microsoft documents the global split option and the per-task Leveling
+		// Can Split Yes/No field as conjunctive gates. This is document-derived.
+		// https://support.microsoft.com/en-us/project/resource-leveling-dialog-box
+		Fixture fixture = fixture();
+		NormalTask longTask = task(fixture.project, "Long task", 3L);
+		NormalTask blocker = task(fixture.project, "Priority work", 1L);
+		blocker.setPriority(900);
+		long oneDayLater = fixture.project.getEffectiveWorkCalendar().add(
+			fixture.project.getStart(), CalendarOption.getInstance().getMillisPerDay(), false);
+		blocker.setStart(oneDayLater);
+		AssignmentService.getInstance().newAssignment(longTask, fixture.resource, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(blocker, fixture.resource, 1D, 0L, this);
+		longTask.setLevelingCanSplit(false);
+
+		ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(
+			fixture.project, List.of(fixture.resource), new ResourceLevelingService.Options(
+				ResourceLevelingService.Order.PRIORITY_STANDARD, false, true, Long.MIN_VALUE, Long.MAX_VALUE,
+				false, ResourceLevelingService.Sensitivity.DAY, false));
+
+		assertTrue(plan.splits().isEmpty(), "the per-task No value blocks the global split setting");
+		assertTrue(plan.changes().stream().anyMatch(change -> change.task() == longTask && change.addedDelayMillis() > 0L),
+			"the task remains eligible for ordinary whole-task leveling");
+		longTask.setLevelingCanSplit(true);
+		ResourceLevelingService.Plan globallyDisabled = new ResourceLevelingService().preview(
+			fixture.project, List.of(fixture.resource), new ResourceLevelingService.Options(
+				ResourceLevelingService.Order.PRIORITY_STANDARD, false, false, Long.MIN_VALUE, Long.MAX_VALUE,
+				false, ResourceLevelingService.Sensitivity.DAY, false));
+		assertTrue(globallyDisabled.splits().isEmpty(), "task Yes cannot bypass the global split No");
+	}
+
+	@Test
+	void levelingCanTargetOneAssignmentOrMoveItsWholeTask() {
+		// Microsoft documents the global Level Assignments option as selected by
+		// default and allows the task-sheet field to override it per task. This is
+		// document-derived compatibility, not an empirical MSP run.
+		// https://support.microsoft.com/en-us/project/resource-leveling-dialog-box
+		assertTrue(ResourceLevelingService.Options.defaults().levelAssignments(),
+			"global assignment-level leveling defaults on per Microsoft's documented dialog behavior");
+		Fixture fixture = fixture();
+		ResourceImpl independent = fixture.project.getResourcePool().newResourceInstance();
+		independent.setName("Independent");
+		NormalTask longTask = task(fixture.project, "Long task", 3L);
+		NormalTask blocker = task(fixture.project, "Priority work", 1L);
+		blocker.setPriority(900);
+		long oneDayLater = fixture.project.getEffectiveWorkCalendar().add(
+			fixture.project.getStart(), CalendarOption.getInstance().getMillisPerDay(), false);
+		blocker.setStart(oneDayLater);
+		Assignment targetAssignment = AssignmentService.getInstance().newAssignment(longTask, fixture.resource, 1D, 0L, this);
+		Assignment unaffectedAssignment = AssignmentService.getInstance().newAssignment(longTask, independent, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(blocker, fixture.resource, 1D, 0L, this);
+		long unaffectedStart = unaffectedAssignment.getStart();
+
+		ResourceLevelingService.Plan assignmentPlan = new ResourceLevelingService().preview(
+			fixture.project, List.of(fixture.resource), new ResourceLevelingService.Options(
+				ResourceLevelingService.Order.PRIORITY_STANDARD, false, false, Long.MIN_VALUE,
+				Long.MAX_VALUE, false, ResourceLevelingService.Sensitivity.DAY, true));
+		assertTrue(assignmentPlan.changes().isEmpty());
+		assertEquals(1, assignmentPlan.assignmentChanges().size());
+		assertSame(targetAssignment, assignmentPlan.assignmentChanges().getFirst().assignment());
+		assignmentPlan.apply();
+		assertTrue(targetAssignment.getStart() > unaffectedAssignment.getStart());
+		assertEquals(unaffectedStart, unaffectedAssignment.getStart());
+		assertTrue(new ResourceLevelingService().tasksWithLevelingState(fixture.project, null).contains(longTask));
+		var undo = fixture.project.getUndoController();
+		undo.clear();
+		new ResourceLevelingService().clear(fixture.project, null, undo.getEditSupport());
+		assertEquals(0L, com.microproject.datatype.Duration.millis(targetAssignment.getLevelingDelay()));
+		undo.undo();
+		assertTrue(com.microproject.datatype.Duration.millis(targetAssignment.getLevelingDelay()) > 0L);
+		undo.redo();
+		assertEquals(0L, com.microproject.datatype.Duration.millis(targetAssignment.getLevelingDelay()));
+		longTask.setLevelAssignments(true);
+		ResourceLevelingService.Plan globallyDisabled = new ResourceLevelingService().preview(
+			fixture.project, List.of(fixture.resource), new ResourceLevelingService.Options(
+				ResourceLevelingService.Order.PRIORITY_STANDARD, false, false, Long.MIN_VALUE,
+				Long.MAX_VALUE, false, ResourceLevelingService.Sensitivity.DAY, false));
+		assertTrue(globallyDisabled.assignmentChanges().isEmpty());
+		assertTrue(globallyDisabled.changes().stream().anyMatch(change -> change.task() == longTask),
+			"the global No value forces whole-task leveling even when the task field is Yes");
+		longTask.setLevelAssignments(false);
+		ResourceLevelingService.Plan taskPlan = new ResourceLevelingService().preview(
+			fixture.project, List.of(fixture.resource), new ResourceLevelingService.Options(
+				ResourceLevelingService.Order.PRIORITY_STANDARD, false, false, Long.MIN_VALUE,
+				Long.MAX_VALUE, false, ResourceLevelingService.Sensitivity.DAY, true));
+		assertTrue(taskPlan.assignmentChanges().isEmpty());
+		assertTrue(taskPlan.changes().stream().anyMatch(change -> change.task() == longTask));
+		taskPlan.apply();
+		assertEquals(targetAssignment.getStart(), unaffectedAssignment.getStart(),
+			"disabling assignment-level leveling applies one whole-task delay");
+	}
+
+	@Test
+	void clearingLevelingPreservesAssignmentStartEditedByTheUser() {
+		Fixture fixture = fixture();
+		NormalTask longTask = task(fixture.project, "Long task", 3L);
+		NormalTask blocker = task(fixture.project, "Priority work", 1L);
+		blocker.setPriority(900);
+		long oneDayLater = fixture.project.getEffectiveWorkCalendar().add(
+			fixture.project.getStart(), CalendarOption.getInstance().getMillisPerDay(), false);
+		blocker.setStart(oneDayLater);
+		Assignment target = AssignmentService.getInstance().newAssignment(longTask, fixture.resource, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(blocker, fixture.resource, 1D, 0L, this);
+		ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(fixture.project,
+			List.of(fixture.resource), new ResourceLevelingService.Options(ResourceLevelingService.Order.PRIORITY_STANDARD,
+				false, false, Long.MIN_VALUE, Long.MAX_VALUE, false, ResourceLevelingService.Sensitivity.DAY, true));
+		plan.apply();
+		long userStart = target.getEffectiveWorkCalendar().add(target.getStart(), CalendarOption.getInstance().getMillisPerDay(), false);
+		target.setStart(userStart);
+		assertEquals(0L, com.microproject.datatype.Duration.millis(target.getLevelingDelay()));
+		assertEquals(userStart, target.getStart());
+
+		new ResourceLevelingService().clear(fixture.project);
+		assertEquals(userStart, target.getStart(), "Clear must retain the user's assignment start edit");
+		assertTrue(com.microproject.datatype.Duration.millis(target.getDelay()) > 0L);
 	}
 
 	private Fixture fixture() {
@@ -580,6 +816,11 @@ class ResourceLevelingServiceTest {
 		ResourceImpl resource = pool.newResourceInstance();
 		resource.setName("Engineer");
 		return new Fixture(project, resource);
+	}
+
+	private static ResourceLevelingService.Options wholeTaskOptions() {
+		return new ResourceLevelingService.Options(ResourceLevelingService.Order.STANDARD, false, true,
+			Long.MIN_VALUE, Long.MAX_VALUE, false, ResourceLevelingService.Sensitivity.DAY, false);
 	}
 
 	private NormalTask task(Project project, String name, long days) {
@@ -602,6 +843,27 @@ class ResourceLevelingServiceTest {
 			boolean changed = super.clearLevelingGeneratedSplits(eventSource);
 			if (failAfterClear) throw new IllegalStateException("injected clear failure");
 			return changed;
+		}
+	}
+
+	private static final class ThrowingApplySplitTask extends NormalTask {
+		private boolean failAfterSplit;
+		private ThrowingApplySplitTask(Project project) { super(project); }
+		@Override public void splitForLeveling(Object eventSource, long from, long to) {
+			super.splitForLeveling(eventSource, from, to);
+			if (failAfterSplit) throw new IllegalStateException("injected apply failure");
+		}
+	}
+
+	private static final class ThrowingDirtyTask extends NormalTask {
+		private boolean failNextDirty;
+		private ThrowingDirtyTask(Project project) { super(project); }
+		@Override public void setDirty(boolean dirty) {
+			if (failNextDirty) {
+				failNextDirty = false;
+				throw new IllegalStateException("injected second assignment failure");
+			}
+			super.setDirty(dirty);
 		}
 	}
 

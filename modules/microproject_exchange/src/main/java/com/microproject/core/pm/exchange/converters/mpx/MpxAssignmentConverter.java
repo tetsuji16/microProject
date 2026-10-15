@@ -133,7 +133,7 @@ public class MpxAssignmentConverter {
 			importCustomTimephasedWork(customWorkPlan, assignment, sourceWork, sourceActualWork,
 				sourceRemainingWork, state);
 		}
-		restoreLevelingDelay(mpxAssignment, assignment, state);
+		restoreScheduleDelays(mpxAssignment, assignment, state);
 		if (mpxAssignment.getUniqueID() != null)
 			assignment.setUniqueId(mpxAssignment.getUniqueID().longValue());
 	}
@@ -372,13 +372,17 @@ public class MpxAssignmentConverter {
 	}
 
 	/**
-	 * Restores the leveler-imposed offset after an assignment is attached to its
-	 * task. {@link com.microproject.pm.task.NormalTask#addAssignment(Assignment)}
-	 * may copy the default assignment's properties while attaching it, so callers
-	 * must invoke this again after that operation.
+	 * Restores the independent MSPDI assignment Delay and LevelingDelay values.
+	 * Assignment bounds may include both offsets, and attaching the assignment can
+	 * copy default details, so call this after attachment and final recalculation.
 	 */
-	public void restoreLevelingDelay(net.sf.mpxj.ResourceAssignment mpxAssignment, Assignment assignment,
+	public void restoreScheduleDelays(net.sf.mpxj.ResourceAssignment mpxAssignment, Assignment assignment,
 			MpxImportState state) {
+		// Assignment Start can already include both manual Delay and LevelingDelay.
+		// Keep the independently published MSPDI fields authoritative instead of
+		// retaining their combined offset as the manual delay.
+		if (mpxAssignment.getDelay() != null)
+			assignment.setDelay(toLong(mpxAssignment.getDelay(), state));
 		assignment.setLevelingDelay(toLong(mpxAssignment.getLevelingDelay(), state));
 	}
 

@@ -55,6 +55,7 @@ class CriticalChainServiceTest {
 		AssignmentService.getInstance().newAssignment(second, fixture.resource, 1D, 0L, this);
 
 		CriticalChainService service = new CriticalChainService();
+		service.settings(fixture.project).setLevelAssignments(false);
 		CriticalChainService.Analysis analysis = service.preview(fixture.project, List.of(fixture.resource));
 
 		assertEquals(1, analysis.levelingPlan().changes().size());
@@ -130,6 +131,7 @@ class CriticalChainServiceTest {
 		AssignmentService.getInstance().newAssignment(second, fixture.resource, 1D, 0L, this);
 		CriticalChainService service = new CriticalChainService();
 		service.settings(fixture.project).setEnabled(true);
+		service.settings(fixture.project).setLevelAssignments(false);
 
 		CriticalChainService.Analysis result = service.apply(fixture.project, List.of(fixture.resource));
 
@@ -158,6 +160,7 @@ class CriticalChainServiceTest {
 		AssignmentService.getInstance().newAssignment(second, fixture.resource, 1D, 0L, this);
 		CriticalChainService service = new CriticalChainService();
 		service.settings(fixture.project).setEnabled(true);
+		service.settings(fixture.project).setLevelAssignments(false);
 
 		CriticalChainService.Analysis applied = service.apply(fixture.project, List.of(fixture.resource));
 		assertTrue(service.analysis(fixture.project) != null,

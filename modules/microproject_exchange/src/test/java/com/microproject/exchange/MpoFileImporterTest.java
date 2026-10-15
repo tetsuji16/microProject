@@ -58,6 +58,7 @@ import com.microproject.pm.resource.ResourceType;
 import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.pm.resource.SharedResourcePoolService;
 import com.microproject.pm.resource.TeamPlannerService;
+import com.microproject.pm.resource.ResourceLevelingService;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.grouping.core.NodeFactory;
 import com.microproject.configuration.FieldDictionary;
@@ -377,12 +378,21 @@ class MpoFileImporterTest {
 
 	@Test
 	void levelingSplitProvenanceDoesNotChangeLegacyTaskSerializationDescriptor() {
+		ObjectStreamClass taskDescriptor = ObjectStreamClass.lookup(com.microproject.pm.task.Task.class);
+		assertEquals(786665335611L, taskDescriptor.getSerialVersionUID());
+		assertTrue(java.util.Arrays.stream(taskDescriptor.getFields())
+			.noneMatch(field -> field.getName().equals("levelingCanSplit")
+				|| field.getName().equals("levelAssignments")),
+			"legacy Task descriptors must not acquire POD fields for transient leveling defaults");
 		ObjectStreamClass descriptor = ObjectStreamClass.lookup(NormalTask.class);
 		assertEquals(273898992929L, descriptor.getSerialVersionUID());
 		assertTrue(java.util.Arrays.stream(descriptor.getFields())
 			.noneMatch(field -> field.getName().equals("manualTaskSplitIntervals")
-				|| field.getName().equals("levelingTaskSplitIntervals")),
-			"transient provenance remains outside the immutable POD object descriptor");
+				|| field.getName().equals("levelingTaskSplitIntervals")
+				|| field.getName().equals("levelingCanSplit")
+				|| field.getName().equals("levelAssignments")
+				|| field.getName().equals("recurringTask")),
+			"transient split and task-leveling options remain outside the immutable POD object descriptor");
 	}
 
 	@Test
@@ -2402,6 +2412,41 @@ class MpoFileImporterTest {
 	}
 
 	@Test
+	void mpoTaskLevelingOptionsRoundTripAndOlderFilesKeepDefaults() throws Exception {
+		Project original = projectForRoundTrip();
+		NormalTask task = (NormalTask) firstTask(original);
+		task.setLevelingCanSplit(false);
+		task.setLevelAssignments(false);
+		com.microproject.pm.resource.Resource resource = original.getResourcePool().newResourceInstance();
+		resource.setName("Leveling resource");
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, this);
+		assignment.setLevelingDelay(8L * 60L * 60L * 1000L);
+		ByteArrayOutputStream current = new ByteArrayOutputStream();
+		new MpoFileImporter().saveProject(original, current);
+		Map<String, byte[]> entries = readEntries(current.toByteArray());
+		assertTrue(entries.containsKey(MpoFileImporter.TASK_LEVELING_OPTIONS_ENTRY));
+		Project loaded = loadFromBytes(current.toByteArray());
+		assertFalse(firstTask(loaded).isLevelingCanSplit());
+		assertFalse(firstTask(loaded).isLevelAssignments());
+		Assignment loadedAssignment = (Assignment) ((NormalTask) firstTask(loaded)).getAssignments().iterator().next();
+		assertEquals(8L * 60L * 60L * 1000L,
+			com.microproject.datatype.Duration.millis(loadedAssignment.getLevelingDelay()));
+		new com.microproject.pm.resource.ResourceLevelingService().clear(loaded);
+		assertEquals(0L, com.microproject.datatype.Duration.millis(loadedAssignment.getLevelingDelay()),
+			"Clear after native reload removes generated assignment leveling delay");
+
+		entries.remove(MpoFileImporter.TASK_LEVELING_OPTIONS_ENTRY);
+		String manifest = new String(entries.get(MpoFileImporter.MANIFEST_ENTRY), StandardCharsets.UTF_8);
+		manifest = manifest.replaceAll("(?m)^\\s*<entry\\s+path=\\\""
+			+ java.util.regex.Pattern.quote(MpoFileImporter.TASK_LEVELING_OPTIONS_ENTRY)
+			+ "\\\" sha256=\\\"[^\\\"]*\\\"\\s*/>\\R?", "");
+		entries.put(MpoFileImporter.MANIFEST_ENTRY, manifest.getBytes(StandardCharsets.UTF_8));
+		Project older = loadFromBytes(zip(entries).toByteArray());
+		assertTrue(firstTask(older).isLevelingCanSplit(), "older MPO defaults to the documented Yes value");
+		assertTrue(firstTask(older).isLevelAssignments(), "older MPO defaults to the documented Yes value");
+	}
+
+	@Test
 	void draftManifestMustIdentifyTheProjectSnapshotEntry() throws Exception {
 		Project original = projectForRoundTrip();
 		ByteArrayOutputStream current = new ByteArrayOutputStream();
@@ -2432,6 +2477,7 @@ class MpoFileImporterTest {
 		ccpm.setEnabled(true);
 		ccpm.setBufferFraction(0.4D);
 		ccpm.setIncludeProposedResources(true);
+		ccpm.setLevelAssignments(false);
 		ccpm.setSensitivity(com.microproject.pm.resource.ResourceLevelingService.Sensitivity.HOUR);
 		new CriticalChainService().restoreBaseline(original, new CriticalChainService.Baseline(1L, 2L, 0.4D,
 			java.util.List.of(), java.util.Map.of(), java.util.Map.of()));
@@ -2456,6 +2502,7 @@ class MpoFileImporterTest {
 		org.junit.jupiter.api.Assertions.assertTrue(restored.isEnabled());
 		org.junit.jupiter.api.Assertions.assertEquals(0.4D, restored.getBufferFraction());
 		org.junit.jupiter.api.Assertions.assertTrue(restored.isIncludeProposedResources());
+		org.junit.jupiter.api.Assertions.assertFalse(restored.isLevelAssignments());
 		org.junit.jupiter.api.Assertions.assertEquals(com.microproject.pm.resource.ResourceLevelingService.Sensitivity.HOUR,
 			restored.getSensitivity());
 		org.junit.jupiter.api.Assertions.assertEquals(2L, new CriticalChainService().findBaseline(reader.getProject()).projectBufferMillis());
@@ -2480,6 +2527,7 @@ class MpoFileImporterTest {
 		Map<String, byte[]> entries = readEntries(java.nio.file.Files.readAllBytes(mpo.toPath()));
 		String xml = new String(entries.get("settings.xml"), StandardCharsets.UTF_8);
 		String oldXml = xml.replace(" includeProposedResources=\"true\"", "")
+			.replace(" levelAssignments=\"true\"", "")
 			.replace(" sensitivity=\"DAY\"", "");
 		org.junit.jupiter.api.Assertions.assertNotEquals(xml, oldXml, "fixture must contain the new XML setting");
 		entries.put("settings.xml", oldXml.getBytes(StandardCharsets.UTF_8));
@@ -2488,6 +2536,8 @@ class MpoFileImporterTest {
 		Project reopened = loadFromBytes(zip(entries).toByteArray());
 		org.junit.jupiter.api.Assertions.assertFalse(new CriticalChainService().settings(reopened).isIncludeProposedResources(),
 			"MPO files written before the option existed must retain the safe excluded default");
+		org.junit.jupiter.api.Assertions.assertTrue(new CriticalChainService().settings(reopened).isLevelAssignments(),
+			"MPO files written before the option existed default to individual assignment leveling");
 		org.junit.jupiter.api.Assertions.assertEquals(com.microproject.pm.resource.ResourceLevelingService.Sensitivity.DAY,
 			new CriticalChainService().settings(reopened).getSensitivity(),
 			"MPO settings written before sensitivity must retain the day product default");
@@ -2658,6 +2708,119 @@ class MpoFileImporterTest {
 		Project restored = load(writeTempMpo(original));
 		assertTrue(firstTask(restored).isManuallyScheduled(),
 				"MPO reload must preserve the task scheduling mode");
+	}
+
+	@Test
+	void clearingAssignmentLevelingAfterMpoReloadPreservesManualAssignmentDelay() throws Exception {
+		// Document-derived MSPDI contract: Assignment Delay is waiting time after the
+		// task start, while Assignment LevelingDelay is the leveler-imposed offset.
+		// Both are independent fields and must not be folded together on import.
+		// https://learn.microsoft.com/en-us/office-project/xml-data-interchange/delay-element?view=project-client-2016
+		// https://learn.microsoft.com/en-us/office-project/xml-data-interchange/levelingdelay-element?view=project-client-2016
+		Project original = projectForRoundTrip();
+		NormalTask task = (NormalTask) firstTask(original);
+		long fixtureStart = java.time.Instant.parse("2025-01-06T08:00:00Z").toEpochMilli();
+		original.setStartDate(fixtureStart);
+		task.getCurrentSchedule().setStart(fixtureStart);
+		task.getCurrentSchedule().setFinish(fixtureStart + 2L * 24L * 60L * 60L * 1000L);
+		task.getCurrentSchedule().setRawDuration(8L * 60L * 60L * 1000L);
+		Resource resource = original.getResourcePool().newResourceInstance();
+		resource.setStandardRate(new com.microproject.datatype.Rate(
+			80D / com.microproject.datatype.Duration.timeUnitFactor(com.microproject.datatype.TimeUnit.HOURS),
+			com.microproject.datatype.TimeUnit.HOURS));
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, this);
+		assignment.setWork(8L * 60L * 60L * 1000L, null);
+		long manualDelay = com.microproject.datatype.Duration.millis(3L * 60L * 60L * 1000L);
+		long levelingDelay = com.microproject.datatype.Duration.millis(60L * 60L * 1000L);
+		assignment.setDelay(manualDelay);
+		assignment.setLevelingDelay(levelingDelay);
+		original.recalculate();
+		long expectedTaskStart = task.getStart();
+		long expectedTaskFinish = task.getEnd();
+		long expectedAssignmentStart = assignment.getStart();
+		long expectedAssignmentFinish = assignment.getFinish();
+		long expectedAssignmentWork = assignment.getWork(null);
+		double expectedAssignmentCost = assignment.getCost(null);
+		assertEquals(fixtureStart, expectedTaskStart,
+			"the deterministic fixture starts at its explicit task date");
+		assertEquals(expectedAssignmentFinish, expectedTaskFinish,
+			"the deterministic task finish follows its sole assignment's work projection");
+		assertEquals(8L * 60L * 60L * 1000L, expectedAssignmentWork,
+			"the source fixture contributes eight hours of work");
+		assertEquals(640D, expectedAssignmentCost, 0.0001D,
+			"the source fixture contributes eight hours at the configured rate");
+		assertEquals(assignment.getEffectiveWorkCalendar().add(expectedTaskStart,
+			4L * 60L * 60L * 1000L, false), expectedAssignmentStart,
+			"the assignment starts after the independent three-hour manual plus one-hour leveling delay");
+		assertEquals(assignment.getEffectiveWorkCalendar().add(expectedAssignmentStart, expectedAssignmentWork, false),
+			expectedAssignmentFinish, "the assignment finish follows its eight-hour work projection");
+		assertEquals(3L * 60L * 60L * 1000L, com.microproject.datatype.Duration.millis(assignment.getDelay()),
+			"the source assignment must keep manual delay independent from leveling delay");
+
+		File initialMpo = writeTempMpo(original);
+		byte[] mspdi = readEntries(Files.readAllBytes(initialMpo.toPath())).get(MpoFileImporter.PROJECT_ENTRY);
+		String mspdiXml = new String(mspdi, StandardCharsets.UTF_8);
+		assertTrue(mspdiXml.contains("<Delay>1800</Delay>"),
+			"the MSPDI fixture must carry its independent 1800-tenths-of-a-minute manual Delay");
+		assertTrue(mspdiXml.contains("<LevelingDelay>600</LevelingDelay>"),
+			"the MSPDI fixture must carry its independent 600-tenths-of-a-minute LevelingDelay");
+		Project externalMspdi = new com.microproject.core.pm.exchange.MspImporter().importProject(
+			new ByteArrayInputStream(mspdi), "xml", (progress, label) -> { });
+		Assignment externalAssignment = firstRealAssignment(externalMspdi);
+		assertEquals(3L * 60L * 60L * 1000L,
+			com.microproject.datatype.Duration.millis(externalAssignment.getDelay()),
+			"ordinary MSPDI import must restore the published manual Delay field");
+		assertEquals(60L * 60L * 1000L,
+			com.microproject.datatype.Duration.millis(externalAssignment.getLevelingDelay()));
+		assertEquals(expectedTaskStart, firstTask(externalMspdi).getStart(),
+			"restoring independent delay fields must not shift the imported task start");
+		assertEquals(expectedTaskFinish, firstTask(externalMspdi).getEnd(),
+			"restoring independent delay fields must not shift the imported task finish");
+		assertEquals(expectedAssignmentStart, externalAssignment.getStart(),
+			"the imported assignment must retain its independently calculated start projection");
+		assertEquals(expectedAssignmentFinish, externalAssignment.getFinish(),
+			"the imported assignment must retain its independently calculated finish projection");
+		assertEquals(expectedAssignmentWork, externalAssignment.getWork(null),
+			"restoring delay fields must preserve the imported work projection");
+		assertEquals(expectedAssignmentCost, externalAssignment.getCost(null), 0.0001D,
+			"restoring delay fields must preserve the imported cost projection");
+
+		Project restored = load(initialMpo);
+		Assignment restoredAssignment = firstRealAssignment(restored);
+		long manualDelayAfterReload = restoredAssignment.getDelay();
+		assertEquals(3L * 60L * 60L * 1000L,
+			com.microproject.datatype.Duration.millis(manualDelayAfterReload),
+			"MPO reload must preserve the MSPDI manual Delay independently of LevelingDelay");
+		assertEquals(60L * 60L * 1000L,
+			com.microproject.datatype.Duration.millis(restoredAssignment.getLevelingDelay()));
+		assertEquals(expectedTaskStart, firstTask(restored).getStart());
+		assertEquals(expectedTaskFinish, firstTask(restored).getEnd());
+		assertEquals(expectedAssignmentStart, restoredAssignment.getStart());
+		assertEquals(expectedAssignmentFinish, restoredAssignment.getFinish());
+		assertEquals(expectedAssignmentWork, restoredAssignment.getWork(null));
+		assertEquals(expectedAssignmentCost, restoredAssignment.getCost(null), 0.0001D);
+
+		new ResourceLevelingService().clear(restored);
+		assertEquals(manualDelayAfterReload, restoredAssignment.getDelay(),
+			"Clear removes generated leveling delay but preserves independent manual assignment delay");
+		assertEquals(0L, com.microproject.datatype.Duration.millis(restoredAssignment.getLevelingDelay()));
+		assertEquals(restoredAssignment.getEffectiveWorkCalendar().add(expectedTaskStart,
+			3L * 60L * 60L * 1000L, false), restoredAssignment.getStart(),
+			"Clear retains the three-hour manual assignment start offset");
+
+		Project clearedReload = load(writeTempMpo(restored));
+		Assignment reloadedAssignment = firstRealAssignment(clearedReload);
+		NormalTask clearedTask = (NormalTask) firstTask(clearedReload);
+		assertEquals(manualDelayAfterReload, reloadedAssignment.getDelay(),
+			"MPO save/reload after Clear retains the saved manual assignment delay");
+		assertEquals(0L, com.microproject.datatype.Duration.millis(reloadedAssignment.getLevelingDelay()));
+		assertEquals(expectedTaskStart, clearedTask.getStart());
+		assertEquals(reloadedAssignment.getEffectiveWorkCalendar().add(expectedTaskStart,
+			3L * 60L * 60L * 1000L, false), reloadedAssignment.getStart());
+		assertEquals(reloadedAssignment.getEffectiveWorkCalendar().add(reloadedAssignment.getStart(),
+			expectedAssignmentWork, false), reloadedAssignment.getFinish());
+		assertEquals(expectedAssignmentWork, reloadedAssignment.getWork(null));
+		assertEquals(expectedAssignmentCost, reloadedAssignment.getCost(null), 0.0001D);
 	}
 
 	@Test

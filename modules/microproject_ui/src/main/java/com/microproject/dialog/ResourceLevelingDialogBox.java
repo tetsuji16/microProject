@@ -74,6 +74,7 @@ public final class ResourceLevelingDialogBox extends FlatLafDialog {
 	private final JComboBox<ResourceLevelingService.Sensitivity> sensitivity = new JComboBox<>(ResourceLevelingService.Sensitivity.values());
 	private final JCheckBox slackOnly = new JCheckBox(UsabilityStrings.text("leveling.slackOnly"));
 	private final JCheckBox allowSplits = new JCheckBox(UsabilityStrings.text("leveling.splits"), true);
+	private final JCheckBox levelAssignments = new JCheckBox(UsabilityStrings.text("leveling.assignments"), true);
 	private final JCheckBox includeProposed = new JCheckBox(UsabilityStrings.text("leveling.includeProposed"));
 	private final JCheckBox ccpm = new JCheckBox(UsabilityStrings.text("ccpm.enabled"));
 	private final JSpinner bufferPercent = new JSpinner(new javax.swing.SpinnerNumberModel(50, 0, 100, 5));
@@ -113,6 +114,7 @@ public final class ResourceLevelingDialogBox extends FlatLafDialog {
 			list, UsabilityStrings.text("leveling.sensitivity." + value.name().toLowerCase(java.util.Locale.ROOT)), index, selected, focus));
 		slackOnly.setSelected(workingSettings.isOnlyWithinAvailableSlack());
 		allowSplits.setSelected(workingSettings.isAllowTaskSplits());
+		levelAssignments.setSelected(workingSettings.isLevelAssignments());
 		includeProposed.setSelected(workingSettings.isIncludeProposedResources());
 		List<Resource> resourceList = project.getResourcePool().getResourceList().stream()
 			.filter(Resource::isLabor)
@@ -156,6 +158,8 @@ public final class ResourceLevelingDialogBox extends FlatLafDialog {
 		options.add(slackOnly, constraints);
 		constraints.gridy++;
 		options.add(allowSplits, constraints);
+		constraints.gridy++;
+		options.add(levelAssignments, constraints);
 		constraints.gridy++;
 		options.add(includeProposed, constraints);
 		constraints.gridy++;
@@ -220,6 +224,7 @@ public final class ResourceLevelingDialogBox extends FlatLafDialog {
 		workingSettings.setSensitivity((ResourceLevelingService.Sensitivity) sensitivity.getSelectedItem());
 		workingSettings.setOnlyWithinAvailableSlack(slackOnly.isSelected());
 		workingSettings.setAllowTaskSplits(allowSplits.isSelected());
+		workingSettings.setLevelAssignments(levelAssignments.isSelected());
 		workingSettings.setIncludeProposedResources(includeProposed.isSelected());
 		CriticalChainService.Analysis analysis = criticalChainService.preview(project, selected.isEmpty() ? null : selected, workingSettings);
 		criticalChainGraph.setAnalysis(analysis);
@@ -230,9 +235,10 @@ public final class ResourceLevelingDialogBox extends FlatLafDialog {
 		// remain available when leveling finds no date changes; otherwise a
 		// conflict-free project can never produce the baseline used by the
 		// buffer graph/status view.
-		apply.setEnabled(ccpm.isSelected() || !currentPlan.changes().isEmpty());
+		apply.setEnabled(ccpm.isSelected() || currentPlan.hasChanges());
 		status.setText(java.text.MessageFormat.format(UsabilityStrings.text("leveling.status"),
-			currentPlan.changes().size(), currentPlan.splits().size(), currentPlan.unresolved().size())
+			currentPlan.changes().size() + currentPlan.assignmentChanges().size(),
+			currentPlan.splits().size(), currentPlan.unresolved().size())
 			+ (ccpm.isSelected() ? " " + java.text.MessageFormat.format(UsabilityStrings.text("ccpm.status"),
 				analysis.criticalTaskIds().size(), ChangeTableModel.humanDuration(analysis.projectBufferMillis()))
 				+ " " + java.text.MessageFormat.format(UsabilityStrings.text("ccpm.bufferStatus"),
@@ -241,7 +247,7 @@ public final class ResourceLevelingDialogBox extends FlatLafDialog {
 	}
 
 	private void apply() {
-		if (currentPlan == null || (currentPlan.changes().isEmpty() && !ccpm.isSelected())) {
+		if (currentPlan == null || (!currentPlan.hasChanges() && !ccpm.isSelected())) {
 			return;
 		}
 		if (!currentPlan.isComplete()) {
@@ -279,10 +285,27 @@ public final class ResourceLevelingDialogBox extends FlatLafDialog {
 		private static final String[] COLUMNS = { UsabilityStrings.text("common.task"), UsabilityStrings.text("leveling.currentStart"), UsabilityStrings.text("leveling.leveledStart"), UsabilityStrings.text("leveling.delay"), UsabilityStrings.text("common.resource") };
 		private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
 			.withZone(ZoneId.systemDefault());
-		private List<ResourceLevelingService.Change> rows = List.of();
+		private record Row(String taskName, long oldStart, long projectedStart, long delay, String resource) { }
+		private List<Row> rows = List.of();
 
 		void setPlan(ResourceLevelingService.Plan plan) {
-			rows = plan == null ? List.of() : plan.changes();
+			if (plan == null) {
+				rows = List.of();
+			} else {
+				java.util.ArrayList<Row> values = new java.util.ArrayList<>();
+				for (ResourceLevelingService.Change change : plan.changes())
+					values.add(new Row(change.task().getName(), change.oldStart(), change.projectedStart(),
+						change.addedDelayMillis(), change.limitingResource()));
+				for (ResourceLevelingService.AssignmentChange change : plan.assignmentChanges()) {
+					long delay = com.microproject.datatype.Duration.millis(change.newDelay())
+						- com.microproject.datatype.Duration.millis(change.oldDelay());
+					long start = change.assignment().getStart();
+					long projected = change.assignment().getEffectiveWorkCalendar().add(start, delay, false);
+					values.add(new Row(change.assignment().getTask().getName(), start, projected, delay,
+						change.assignment().getResource().getName()));
+				}
+				rows = List.copyOf(values);
+			}
 			fireTableDataChanged();
 		}
 
@@ -299,13 +322,13 @@ public final class ResourceLevelingDialogBox extends FlatLafDialog {
 		}
 
 		public Object getValueAt(int rowIndex, int columnIndex) {
-			ResourceLevelingService.Change change = rows.get(rowIndex);
+			Row change = rows.get(rowIndex);
 			return switch (columnIndex) {
-				case 0 -> change.task().getName();
+				case 0 -> change.taskName();
 				case 1 -> formatter.format(Instant.ofEpochMilli(change.oldStart()));
 				case 2 -> formatter.format(Instant.ofEpochMilli(change.projectedStart()));
-				case 3 -> humanDuration(change.addedDelayMillis());
-				case 4 -> change.limitingResource();
+				case 3 -> humanDuration(change.delay());
+				case 4 -> change.resource();
 				default -> "";
 			};
 		}
