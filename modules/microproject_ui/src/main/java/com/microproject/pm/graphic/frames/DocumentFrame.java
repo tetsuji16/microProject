@@ -583,6 +583,7 @@ public class DocumentFrame extends NamedFrame implements
 		case SHOW_ALL -> lastTaskCommandResult = applyTaskVisibility(command, false);
 		case TASK_MODE_MANUAL -> lastTaskCommandResult = applyTaskMode(command, com.microproject.pm.task.TaskModeService.Mode.MANUAL);
 		case TASK_MODE_AUTOMATIC -> lastTaskCommandResult = applyTaskMode(command, com.microproject.pm.task.TaskModeService.Mode.AUTOMATIC);
+		case INACTIVATE_TASK -> lastTaskCommandResult = applyInactivateTask(command);
 		case RESPECT_LINKS -> lastTaskCommandResult = applyRespectLinks(command);
 		case RESOURCE_LEVEL_ALL -> lastTaskCommandResult = applyResourceLevelAll(command);
 		case RESOURCE_LEVEL_SELECTION -> lastTaskCommandResult = applyResourceLevelSelection(command);
@@ -681,6 +682,25 @@ public class DocumentFrame extends NamedFrame implements
 		if (!result.change().hasChanged())
 			return RibbonCommandResult.noChange(command.actionId(), taskIds(selection)).withActiveView("task");
 		return RibbonCommandResult.changed(command.actionId(), taskIds(selection)).withActiveView("task");
+	}
+
+	private RibbonCommandResult applyInactivateTask(CommandId command) {
+		List<Node> selection = new ArrayList<>(getSelectedTaskNodes(true, true));
+		List<Long> selectedIds = taskIds(selection);
+		if (selection.isEmpty()) return RibbonCommandResult.rejected(command.actionId(), "no-selection");
+		if (project == null || project.isReadOnly())
+			return RibbonCommandResult.rejected(command.actionId(), "document-read-only");
+		List<Task> tasks = selection.stream().map(Node::getImpl).filter(Task.class::isInstance)
+			.map(Task.class::cast).toList();
+		if (!CollaborationHelper.tryLockNodes(project, tasks, this, "inactivate"))
+			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.REJECTED,
+				"collaboration-lock-denied", selectedIds, List.of(), getTopViewId());
+		var result = new com.microproject.pm.task.TaskInactivationService().toggle(tasks);
+		if (!result.change().hasChanged())
+			return RibbonCommandResult.noChange(command.actionId(), selectedIds).withActiveView("task");
+		SwingUndoAdapter.post(project.getUndoController().getEditSupport(), result.change());
+		getActiveSpreadSheet().restoreTaskRowSelection(selection);
+		return RibbonCommandResult.changed(command.actionId(), selectedIds).withActiveView("task");
 	}
 
 	private RibbonCommandResult applyRespectLinks(CommandId command) {

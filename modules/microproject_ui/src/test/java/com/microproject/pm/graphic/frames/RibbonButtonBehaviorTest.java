@@ -519,6 +519,40 @@ class RibbonButtonBehaviorTest {
 	}
 
 	@Test
+	void inactivateTaskRibbonRouteUsesSelectedRowsAndOneUndoEdit() throws Exception {
+		Harness harness = newHarness();
+		harness.setTaskInformation(true, false);
+		harness.undoController.clear();
+		SwingUtilities.invokeAndWait(() -> {
+			harness.frame.setSelection(List.of(harness.taskNode));
+			harness.manager.setButtonState(harness.task, harness.project);
+			Action action = harness.manager.getAction(MenuActionConstants.ACTION_INACTIVATE_TASK);
+			assertTrue(action.isEnabled());
+			assertEquals(RibbonCommandResult.Status.CHANGED,
+				harness.frame.routeTaskCommand(CommandId.INACTIVATE_TASK).status());
+			assertTrue(harness.task.isInactiveTask());
+			assertTrue(harness.undoController.canUndo());
+			harness.undoController.undo();
+			assertFalse(harness.task.isInactiveTask());
+			harness.undoController.redo();
+			assertTrue(harness.task.isInactiveTask());
+			harness.manager.setButtonState(harness.task, harness.project);
+			assertTrue(action.isEnabled(), "the command remains enabled so an all-inactive selection can be reactivated");
+			assertEquals(RibbonCommandResult.Status.CHANGED,
+				harness.frame.routeTaskCommand(CommandId.INACTIVATE_TASK).status());
+			assertFalse(harness.task.isInactiveTask(), "an all-inactive selection must reactivate");
+			harness.undoController.undo();
+			assertTrue(harness.task.isInactiveTask());
+			assertFalse(harness.secondTask.isInactiveTask());
+			harness.frame.setSelection(List.of(harness.taskNode, harness.secondTaskNode));
+			assertEquals(RibbonCommandResult.Status.CHANGED,
+				harness.frame.routeTaskCommand(CommandId.INACTIVATE_TASK).status());
+			assertTrue(harness.task.isInactiveTask());
+			assertTrue(harness.secondTask.isInactiveTask(), "mixed selection should converge to inactive");
+		});
+	}
+
+	@Test
 	void linkEnablementAndExecutionRequireTwoEditableTasks() throws Exception {
 		Harness harness = newHarness();
 		harness.setTaskInformation(true, false);
@@ -1243,6 +1277,7 @@ class RibbonButtonBehaviorTest {
 		add(map, Strategy.STATE_TOGGLE,
 			"RibbonZoomIn",
 			"RibbonZoomOut",
+			"RibbonInactivateTask",
 			"RibbonToggleProgressLine",
 			"RibbonLabelResourceNames",
 			"RibbonLabelTaskName",
