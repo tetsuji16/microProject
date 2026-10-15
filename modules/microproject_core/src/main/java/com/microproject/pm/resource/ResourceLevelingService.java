@@ -46,7 +46,11 @@ import com.microproject.options.CalendarOption;
 import com.microproject.pm.availability.Availability;
 import com.microproject.interval.ValueObjectForInterval;
 import com.microproject.pm.assignment.Assignment;
+import com.microproject.pm.assignment.HasTimeDistributedData;
+import com.microproject.pm.assignment.contour.AbstractContourBucket;
+import com.microproject.pm.assignment.contour.ContourBucketIntervalGenerator;
 import com.microproject.pm.task.NormalTask;
+import com.microproject.pm.task.TaskSplitInterval;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.scheduling.ScheduleService;
@@ -58,6 +62,7 @@ import com.microproject.strings.Messages;
  * result is a previewable plan; no model state changes until {@link Plan#apply()}.
  */
 public final class ResourceLevelingService {
+	private static final int MAX_PREVIEW_PERIODS = 100_000;
 	public enum Order {
 		ID_ONLY,
 		STANDARD,
@@ -196,6 +201,7 @@ public final class ResourceLevelingService {
 		private final Map<Long, Double> bucketLoads = new HashMap<>();
 		private final Map<Long, Double> bucketCapacities = new HashMap<>();
 		private final Map<Long, Scheduled> firstBucketAssignments = new HashMap<>();
+		private final Map<Assignment, List<WorkSegment>> workProfiles = new IdentityHashMap<>();
 
 		private void reset(int assignmentCount) {
 			assignments.ensureCapacity(assignmentCount);
@@ -205,8 +211,11 @@ public final class ResourceLevelingService {
 			bucketLoads.clear();
 			bucketCapacities.clear();
 			firstBucketAssignments.clear();
+			workProfiles.clear();
 		}
 	}
+
+	private record WorkSegment(long start, long end, double units) { }
 
 	public Plan preview(Project project, Collection<? extends Resource> selectedResources, Options options) {
 		Objects.requireNonNull(project, "project");
@@ -315,6 +324,13 @@ public final class ResourceLevelingService {
 				assignments.add(assignment);
 			}
 		}
+		for (Assignment assignment : assignments) {
+			if (exceedsBucketLimit(assignment.getStart(), assignment.getEnd(), options.sensitivity())) {
+				unresolved.add(new Conflict(resource, assignment.getTask(),
+					"Selected sensitivity exceeds the supported " + MAX_PREVIEW_PERIODS + "-period preview bound"));
+				return false;
+			}
+		}
 		Comparator<Assignment> assignmentOrder = assignmentComparator(options.order());
 		if (selectedTasks != null) {
 			assignments.sort(Comparator
@@ -355,7 +371,7 @@ public final class ResourceLevelingService {
 					break;
 				}
 				long next = nextAvailableBoundary(start, end, assignment, resource, options.sensitivity(), scratch);
-				if (next <= start) {
+				if (next == Long.MAX_VALUE || next <= start) {
 					unresolved.add(new Conflict(resource, task, "No later capacity boundary was found"));
 					break;
 				}
@@ -446,7 +462,7 @@ public final class ResourceLevelingService {
 		for (long bucketStart = periodStart(start, sensitivity); bucketStart < end;
 			bucketStart = nextPeriodStart(bucketStart, sensitivity)) {
 			long bucketEnd = nextPeriodStart(bucketStart, sensitivity);
-			double load = assignmentLoad(candidate, start, end, bucketStart, bucketEnd)
+			double load = assignmentLoad(candidate, start, end, bucketStart, bucketEnd, scratch)
 				+ scratch.bucketLoads.getOrDefault(bucketStart, 0D);
 			double available = bucketCapacity(resource, bucketStart, bucketEnd, scratch.bucketCapacities);
 			if (load > available + 1D) return true;
@@ -454,12 +470,60 @@ public final class ResourceLevelingService {
 		return false;
 	}
 
-	private static double assignmentLoad(Assignment assignment, long start, long end, long bucketStart, long bucketEnd) {
+	static boolean exceedsBucketLimit(long start, long end, Sensitivity sensitivity) {
+		long bucket = periodStart(start, sensitivity);
+		for (int count = 0; bucket < end; count++) {
+			if (count >= MAX_PREVIEW_PERIODS) return true;
+			long next = nextPeriodStart(bucket, sensitivity);
+			if (next <= bucket) return true;
+			bucket = next;
+		}
+		return false;
+	}
+
+	private static double assignmentLoad(Assignment assignment, long start, long end, long bucketStart, long bucketEnd,
+		LevelingScratch scratch) {
 		long overlapStart = Math.max(start, bucketStart);
 		long overlapEnd = Math.min(end, bucketEnd);
 		if (overlapStart >= overlapEnd) return 0D;
-		return Math.max(0L, assignment.getEffectiveWorkCalendar().compare(overlapEnd, overlapStart, false))
-			* Math.max(0D, assignment.getUnits());
+		List<WorkSegment> profile = scratch.workProfiles.computeIfAbsent(assignment, ResourceLevelingService::workProfile);
+		long shift = start - assignment.getStart();
+		long taskShift = start - assignment.getStart();
+		double work = 0D;
+		for (WorkSegment segment : profile) {
+			long segmentStart = segment.start() + shift;
+			long segmentEnd = segment.end() + shift;
+			long from = Math.max(overlapStart, segmentStart);
+			long to = Math.min(overlapEnd, segmentEnd);
+			if (from >= to) continue;
+			for (TaskSplitInterval split : assignment.getTask() instanceof NormalTask task
+				? task.getTaskSplitIntervals() : List.<TaskSplitInterval>of()) {
+				long gapStart = assignment.getTask().getStart() + split.startOffset() + taskShift;
+				long gapEnd = assignment.getTask().getStart() + split.endOffset() + taskShift;
+				if (gapEnd <= from || gapStart >= to) continue;
+				if (gapStart > from) work += segment.units()
+					* Math.max(0L, assignment.getEffectiveWorkCalendar().compare(gapStart, from, false));
+				from = Math.max(from, gapEnd);
+				if (from >= to) break;
+			}
+			if (from < to) work += segment.units()
+				* Math.max(0L, assignment.getEffectiveWorkCalendar().compare(to, from, false));
+		}
+		return work;
+	}
+
+	private static List<WorkSegment> workProfile(Assignment assignment) {
+		ArrayList<WorkSegment> profile = new ArrayList<>();
+		ContourBucketIntervalGenerator generator = assignment.contourGeneratorInstance(HasTimeDistributedData.WORK);
+		while (generator.hasNext() && generator.test(null)) {
+			AbstractContourBucket bucket = (AbstractContourBucket) generator.current();
+			if (bucket == null) continue;
+			double units = Math.max(0D, bucket.getEffectiveUnits(assignment.getUnits()));
+			if (units > 0D && generator.currentStart() < generator.currentEnd()) {
+				profile.add(new WorkSegment(generator.currentStart(), generator.currentEnd(), units));
+			}
+		}
+		return profile;
 	}
 
 	private static long nextAvailableBoundary(long start, long end, Assignment candidate,
@@ -467,7 +531,7 @@ public final class ResourceLevelingService {
 		for (long bucketStart = periodStart(start, sensitivity); bucketStart < end;
 			bucketStart = nextPeriodStart(bucketStart, sensitivity)) {
 			long bucketEnd = nextPeriodStart(bucketStart, sensitivity);
-			double candidateLoad = assignmentLoad(candidate, start, end, bucketStart, bucketEnd);
+			double candidateLoad = assignmentLoad(candidate, start, end, bucketStart, bucketEnd, scratch);
 			double load = candidateLoad + scratch.bucketLoads.getOrDefault(bucketStart, 0D);
 			double available = bucketCapacity(resource, bucketStart, bucketEnd, scratch.bucketCapacities);
 			if (load > available + 1D) return candidateLoad > available + 1D ? Long.MAX_VALUE : bucketEnd;
@@ -480,7 +544,7 @@ public final class ResourceLevelingService {
 		for (long bucketStart = periodStart(start, sensitivity); bucketStart < end;
 			bucketStart = nextPeriodStart(bucketStart, sensitivity)) {
 			long bucketEnd = nextPeriodStart(bucketStart, sensitivity);
-			double load = assignmentLoad(candidate, start, end, bucketStart, bucketEnd)
+			double load = assignmentLoad(candidate, start, end, bucketStart, bucketEnd, scratch)
 				+ scratch.bucketLoads.getOrDefault(bucketStart, 0D);
 			double available = bucketCapacity(resource, bucketStart, bucketEnd, scratch.bucketCapacities);
 			if (load <= available + 1D) continue;
@@ -508,7 +572,7 @@ public final class ResourceLevelingService {
 		for (long bucketStart = periodStart(scheduled.start(), sensitivity); bucketStart < scheduled.end();
 			bucketStart = nextPeriodStart(bucketStart, sensitivity)) {
 			long bucketEnd = nextPeriodStart(bucketStart, sensitivity);
-			double load = assignmentLoad(scheduled.assignment(), scheduled.start(), scheduled.end(), bucketStart, bucketEnd);
+			double load = assignmentLoad(scheduled.assignment(), scheduled.start(), scheduled.end(), bucketStart, bucketEnd, scratch);
 			if (load > 0D) {
 				scratch.bucketLoads.merge(bucketStart, load, Double::sum);
 				scratch.firstBucketAssignments.merge(bucketStart, scheduled,

@@ -36,7 +36,10 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.options.CalendarOption;
+import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentService;
+import com.microproject.pm.assignment.contour.ContourTypes;
+import com.microproject.pm.scheduling.ScheduleService;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.undo.DataFactoryUndoController;
@@ -155,6 +158,99 @@ class ResourceLevelingServiceTest {
 		} finally {
 			option.setWeekStartsOn(previousWeekStart);
 		}
+	}
+
+	@Test
+	void hourlySensitivityUsesTimephasedContourWorkInsteadOfConstantAssignmentUnits() {
+		Fixture fixture = fixture();
+		long hour = com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		fixture.resource.setMaximumUnits(0.75D);
+		NormalTask contoured = task(fixture.project, "Back-loaded", 1L);
+		NormalTask candidate = task(fixture.project, "Early hour", 1L);
+		Assignment firstAssignment = AssignmentService.getInstance().newAssignment(contoured, fixture.resource, 0.5D, 0L, this);
+		AssignmentService.getInstance().newAssignment(candidate, fixture.resource, 0.5D, 0L, this);
+		contoured.setDuration(10L * hour);
+		candidate.setDuration(hour);
+		firstAssignment.setWorkContourTypeKind(ContourTypes.Kind.BACK_LOADED);
+		long start = firstAssignment.getStart();
+		long firstHourWork = firstAssignment.work(start, start + hour);
+		assertTrue(firstHourWork > 0L && firstHourWork < hour / 4L,
+			"fixture must independently prove the back-loaded contour has low first-hour work");
+
+		ResourceLevelingService.Plan plan = previewAt(new ResourceLevelingService(), fixture,
+			ResourceLevelingService.Sensitivity.HOUR);
+		assertTrue(plan.changes().isEmpty(), () -> plan.changes() + " / " + plan.unresolved() +
+			"0.05 + 0.5 units of first-hour work fit 0.75 availability; constant units would falsely level it");
+	}
+
+	@Test
+	void hourlySensitivityDoesNotCountAssignmentWorkInsideTaskOwnedSplitGaps() {
+		Fixture fixture = fixture();
+		long hour = com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		NormalTask first = task(fixture.project, "Task with manual gap", 1L);
+		NormalTask second = task(fixture.project, "Gap occupant", 1L);
+		Assignment firstAssignment = AssignmentService.getInstance().newAssignment(first, fixture.resource, 1D, 0L, this);
+		first.setDuration(8L * hour);
+		long gapStart = first.getEffectiveWorkCalendar().add(first.getStart(), hour, false);
+		long gapEnd = first.getEffectiveWorkCalendar().add(gapStart, hour, false);
+		assertTrue(ScheduleService.getInstance().split(this, first, gapStart, gapEnd, null));
+		assertEquals(hour, firstAssignment.work(gapStart, gapEnd),
+			"the assignment contour still stores work, while the task's manual split marks that time nonworking");
+		second.setStart(gapStart);
+		Assignment secondAssignment = AssignmentService.getInstance().newAssignment(second, fixture.resource, 1D, 0L, this);
+		second.setDuration(hour);
+
+		ResourceLevelingService.Plan plan = previewAt(new ResourceLevelingService(), fixture,
+			ResourceLevelingService.Sensitivity.HOUR);
+		assertTrue(plan.changes().isEmpty(), () -> plan.changes() + " / " + plan.unresolved() + " an empty task gap must not consume resource capacity");
+	}
+
+	@Test
+	void shiftedCandidateRetainsItsContourAtTheNewScheduledStart() {
+		Fixture fixture = fixture();
+		long hour = com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		fixture.resource.setMaximumUnits(0.5D);
+		NormalTask blocker = task(fixture.project, "Earlier assignment", 1L);
+		NormalTask candidateTask = task(fixture.project, "Shifted back-loaded", 1L);
+		AssignmentService.getInstance().newAssignment(blocker, fixture.resource, 0.5D, 0L, this);
+		Assignment candidate = AssignmentService.getInstance().newAssignment(candidateTask, fixture.resource, 0.5D, 0L, this);
+		blocker.setDuration(hour);
+		candidateTask.setDuration(10L * hour);
+		candidate.setWorkContourTypeKind(ContourTypes.Kind.BACK_LOADED);
+		long originalStart = candidate.getStart();
+		long firstHourWork = candidate.work(originalStart, originalStart + hour);
+		assertTrue(firstHourWork > 0L && firstHourWork < hour / 4L);
+
+		ResourceLevelingService.Plan plan = previewAt(new ResourceLevelingService(), fixture,
+			ResourceLevelingService.Sensitivity.HOUR);
+		assertEquals(1, plan.changes().size(), () -> plan.changes() + " / " + plan.unresolved());
+		assertEquals(hour, plan.changes().getFirst().newDelay());
+		assertTrue(plan.unresolved().isEmpty(), () -> plan.unresolved().toString());
+	}
+
+	@Test
+	void minuteSensitivityBoundsLongRangeBeforeBuildingPeriodBuckets() {
+		long minute = com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_MINUTE;
+		assertTrue(ResourceLevelingService.exceedsBucketLimit(0L, 100_001L * minute,
+			ResourceLevelingService.Sensitivity.MINUTE));
+		assertFalse(ResourceLevelingService.exceedsBucketLimit(0L, 100_000L * minute,
+			ResourceLevelingService.Sensitivity.MINUTE));
+	}
+
+	@Test
+	void candidateWhoseOwnLoadExceedsCapacityDoesNotTreatLongMaxAsADate() {
+		Fixture fixture = fixture();
+		long hour = com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		fixture.resource.setMaximumUnits(0.25D);
+		NormalTask task = task(fixture.project, "Cannot fit", 1L);
+		AssignmentService.getInstance().newAssignment(task, fixture.resource, 0.5D, 0L, this);
+		task.setDuration(hour);
+
+		ResourceLevelingService.Plan plan = previewAt(new ResourceLevelingService(), fixture,
+			ResourceLevelingService.Sensitivity.HOUR);
+		assertTrue(plan.changes().isEmpty());
+		assertTrue(plan.unresolved().stream().anyMatch(conflict ->
+			conflict.reason().equals("No later capacity boundary was found")), () -> plan.unresolved().toString());
 	}
 
 	private ResourceLevelingService.Plan previewAt(ResourceLevelingService service, Fixture fixture,
