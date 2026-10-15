@@ -15,6 +15,7 @@ import java.util.regex.Pattern;
 /** Applies the chooser readiness deadline independently from probe serialization and process exit. */
 public final class NativeChooserProbeCompletion {
 	private static final Pattern READY_OBSERVED = Pattern.compile("nativeChooserFirstReadyObservedUtc=([^\\s]+)");
+	private static final Pattern PREPARED = Pattern.compile("nativeChooserProbe preparedUtc=([^\\s]+)");
 	private static final Pattern COMPLETED_READY = Pattern.compile(
 		"nativeChooserProbe completedUtc=([^\\s]+) reason=ready ready=True", Pattern.CASE_INSENSITIVE);
 
@@ -23,6 +24,24 @@ public final class NativeChooserProbeCompletion {
 	public record Result(Status status, String output, int exitCode) {}
 
 	private NativeChooserProbeCompletion() {}
+
+	/** Waits for PowerShell and the Win32 observer to initialize before a user command starts its SLA. */
+	public static String awaitPrepared(Process process, Supplier<String> readOutput, Duration startupTimeout)
+			throws IOException, InterruptedException {
+		long deadline = System.nanoTime() + startupTimeout.toNanos();
+		while (true) {
+			String output = readOutput.get();
+			if (PREPARED.matcher(output).find()) return output;
+			if (!process.isAlive())
+				throw new IOException("Native chooser observer exited before prepared handshake (exit="
+					+ process.exitValue() + "); output=" + output);
+			long remaining = deadline - System.nanoTime();
+			if (remaining <= 0)
+				throw new IOException("Native chooser observer did not prepare within " + startupTimeout
+					+ "; output=" + readOutput.get());
+			TimeUnit.NANOSECONDS.sleep(Math.min(remaining, TimeUnit.MILLISECONDS.toNanos(20)));
+		}
+	}
 
 	public static Result await(Process process, Supplier<String> readOutput, long deadlineNanos, Instant deadlineUtc,
 			Duration readinessDrain, Duration diagnosticDrain) throws IOException, InterruptedException {

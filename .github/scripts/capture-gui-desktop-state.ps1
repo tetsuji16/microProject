@@ -3,10 +3,9 @@ param(
   [int]$TargetPid,
   [switch]$Watch,
   [string]$LogFile,
-  [string]$StopFile,
-  [switch]$WaitForNativeChooser,
-  [long]$DeadlineUtcTicks,
-  [switch]$WatchNativeChooserLifecycle
+  [switch]$PrepareNativeChooser,
+  [string]$ProbeTriggerFile,
+  [string]$LifecycleLogFile
 )
 
 $ErrorActionPreference = 'Stop'
@@ -18,8 +17,8 @@ function Write-NativeChooserProbeLine([string]$Line) {
   [Console]::Out.Flush()
 }
 
-if ($WaitForNativeChooser) {
-  Write-NativeChooserProbeLine("nativeChooserProbe processStartedUtc=$($probeScriptStartedUtc.ToString('o')) deadlineUtc=$([DateTime]::new($DeadlineUtcTicks, [DateTimeKind]::Utc).ToString('o'))")
+if ($PrepareNativeChooser) {
+  Write-NativeChooserProbeLine("nativeChooserProbe processStartedUtc=$($probeScriptStartedUtc.ToString('o'))")
 }
 
 Add-Type -TypeDefinition @'
@@ -65,6 +64,9 @@ public static class GuiDesktopWindowProbe {
     private delegate bool EnumWindowsCallback(IntPtr handle, IntPtr parameter);
     private delegate void WinEventCallback(IntPtr hook, uint eventType, IntPtr hwnd, int idObject,
         int idChild, uint eventThread, uint eventTime);
+    private static IntPtr lifecycleHook;
+    private static WinEventCallback lifecycleCallback;
+    private static System.IO.StreamWriter lifecycleWriter;
     [StructLayout(LayoutKind.Sequential)] private struct Message {
         public IntPtr Hwnd; public uint MessageId; public UIntPtr WParam; public IntPtr LParam;
         public uint Time; public int PointX; public int PointY;
@@ -92,13 +94,13 @@ public static class GuiDesktopWindowProbe {
     [DllImport("user32.dll")] private static extern bool TranslateMessage(ref Message message);
     [DllImport("user32.dll")] private static extern IntPtr DispatchMessage(ref Message message);
 
-    public static void WatchNativeChooserLifecycle(int targetPid, string logFile, string stopFile) {
+    public static void StartNativeChooserLifecycle(int targetPid, string logFile) {
         const uint create = 0x8000, destroy = 0x8001, show = 0x8002, hide = 0x8003;
         const uint outOfContext = 0x0000;
-        var logStream = new System.IO.FileStream(logFile, System.IO.FileMode.Append, System.IO.FileAccess.Write,
+        var logStream = new System.IO.FileStream(logFile, System.IO.FileMode.Create, System.IO.FileAccess.Write,
             System.IO.FileShare.ReadWrite);
-        var writer = new System.IO.StreamWriter(logStream, new System.Text.UTF8Encoding(false)) { AutoFlush = true };
-        WinEventCallback callback = (eventHook, eventType, hwnd, idObject, idChild, eventThread, eventTime) => {
+        lifecycleWriter = new System.IO.StreamWriter(logStream, new System.Text.UTF8Encoding(false)) { AutoFlush = true };
+        lifecycleCallback = (eventHook, eventType, hwnd, idObject, idChild, eventThread, eventTime) => {
             if (hwnd == IntPtr.Zero || idObject != 0 || idChild != 0) return;
             // SetWinEventHook already filters events to the target process. Keep
             // the callback's event thread ID even for DESTROY, where hwnd may
@@ -113,7 +115,7 @@ public static class GuiDesktopWindowProbe {
             IntPtr foreground = GetForegroundWindow();
             string title = ReadTitle(hwnd, Math.Max(1, GetWindowTextLength(hwnd)))
                 .Replace('\r', ' ').Replace('\n', ' ').Replace('|', '/');
-            writer.WriteLine("windowEventUtc=" + DateTime.UtcNow.ToString("o") + " event=" + eventName
+            lifecycleWriter.WriteLine("windowEventUtc=" + DateTime.UtcNow.ToString("o") + " event=" + eventName
                 + " eventThread=" + eventThread + " eventTimeMs=" + eventTime + " pid=" + pid + " thread=" + threadId
                 + " hwnd=0x" + hwnd.ToInt64().ToString("X") + " owner=0x" + owner.ToInt64().ToString("X")
                 + " class=" + ReadClassName(hwnd) + " title=" + title
@@ -121,22 +123,27 @@ public static class GuiDesktopWindowProbe {
                 + " bounds=" + (hasBounds ? Format(bounds) : "unavailable")
                 + " foreground=" + (foreground == hwnd));
         };
-        IntPtr hook = SetWinEventHook(create, hide, IntPtr.Zero, callback, (uint)targetPid, 0, outOfContext);
-        if (hook == IntPtr.Zero) throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
-        writer.WriteLine("windowEventWatchStartedUtc=" + DateTime.UtcNow.ToString("o") + " targetPid=" + targetPid);
-        try {
-            Message message;
-            while (!System.IO.File.Exists(stopFile)) {
-                while (PeekMessage(out message, IntPtr.Zero, 0, 0, 0x0001)) {
-                    TranslateMessage(ref message);
-                    DispatchMessage(ref message);
-                }
-                System.Threading.Thread.Sleep(10);
-            }
-        } finally {
-            UnhookWinEvent(hook);
-            writer.WriteLine("windowEventWatchStoppedUtc=" + DateTime.UtcNow.ToString("o"));
-            writer.Dispose();
+        lifecycleHook = SetWinEventHook(create, hide, IntPtr.Zero, lifecycleCallback, (uint)targetPid, 0, outOfContext);
+        if (lifecycleHook == IntPtr.Zero) throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
+        lifecycleWriter.WriteLine("windowEventWatchStartedUtc=" + DateTime.UtcNow.ToString("o") + " targetPid=" + targetPid);
+    }
+
+    public static void PumpNativeChooserLifecycle() {
+        Message message;
+        while (PeekMessage(out message, IntPtr.Zero, 0, 0, 0x0001)) {
+            TranslateMessage(ref message);
+            DispatchMessage(ref message);
+        }
+    }
+
+    public static void StopNativeChooserLifecycle() {
+        if (lifecycleHook != IntPtr.Zero) {
+            UnhookWinEvent(lifecycleHook);
+            lifecycleHook = IntPtr.Zero;
+            lifecycleWriter.WriteLine("windowEventWatchStoppedUtc=" + DateTime.UtcNow.ToString("o"));
+            lifecycleWriter.Dispose();
+            lifecycleWriter = null;
+            lifecycleCallback = null;
         }
     }
 
@@ -420,22 +427,29 @@ if ($Watch) {
     $logWriter.Dispose()
   }
 } else {
-  if ($WatchNativeChooserLifecycle) {
-    if ([string]::IsNullOrWhiteSpace($LogFile) -or [string]::IsNullOrWhiteSpace($StopFile)) {
-      throw 'LogFile and StopFile are required with WatchNativeChooserLifecycle.'
+  if ($PrepareNativeChooser) {
+    if ([string]::IsNullOrWhiteSpace($ProbeTriggerFile) -or [string]::IsNullOrWhiteSpace($LifecycleLogFile)) {
+      throw 'ProbeTriggerFile and LifecycleLogFile are required with PrepareNativeChooser.'
     }
-    [GuiDesktopWindowProbe]::WatchNativeChooserLifecycle($TargetPid, $LogFile, $StopFile)
-    exit 0
-  }
-  if ($WaitForNativeChooser) {
-    if ($DeadlineUtcTicks -le 0) { throw 'DeadlineUtcTicks is required with WaitForNativeChooser.' }
-    Write-NativeChooserProbeLine("nativeChooserProbe waitStartedUtc=$([DateTime]::UtcNow.ToString('o'))")
+    [GuiDesktopWindowProbe]::StartNativeChooserLifecycle($TargetPid, $LifecycleLogFile)
+    Write-NativeChooserProbeLine("nativeChooserProbe preparedUtc=$([DateTime]::UtcNow.ToString('o'))")
+    while (-not [System.IO.File]::Exists($ProbeTriggerFile)) {
+      [GuiDesktopWindowProbe]::PumpNativeChooserLifecycle()
+      Start-Sleep -Milliseconds 10
+    }
+    $triggerText = [System.IO.File]::ReadAllText($ProbeTriggerFile)
+    if ($triggerText -notmatch '(?m)^deadlineUtcTicks=(\d+)$') { throw 'Probe trigger lacks deadlineUtcTicks.' }
+    $DeadlineUtcTicks = [long]$Matches[1]
+    if ($DeadlineUtcTicks -le 0) { throw 'Probe trigger deadlineUtcTicks must be positive.' }
+    $callId = if ($triggerText -match '(?m)^callId=([^\r\n]+)$') { $Matches[1] } else { 'unknown' }
+    Write-NativeChooserProbeLine("nativeChooserProbe waitStartedUtc=$([DateTime]::UtcNow.ToString('o')) callId=$callId deadlineUtc=$([DateTime]::new($DeadlineUtcTicks, [DateTimeKind]::Utc).ToString('o'))")
     $firstDialogUtc = $null
     $firstOwnedUtc = $null
     $firstVisibleUtc = $null
     $firstForegroundUtc = $null
     $firstReadyUtc = $null
     do {
+      [GuiDesktopWindowProbe]::PumpNativeChooserLifecycle()
       $stage = [GuiDesktopWindowProbe]::CaptureNativeChooserStage($TargetPid)
       $sampleUtc = [DateTime]::UtcNow
       $handle = if ($stage.Handle -eq [IntPtr]::Zero) { 'none' } else { '0x' + $stage.Handle.ToInt64().ToString('X') }
@@ -472,7 +486,11 @@ if ($Watch) {
       Start-Sleep -Milliseconds 25
     } while ([DateTime]::UtcNow.Ticks -lt $DeadlineUtcTicks)
     $completionReason = if ($ready) { 'ready' } else { 'deadline' }
-    Write-NativeChooserProbeLine("nativeChooserProbe completedUtc=$([DateTime]::UtcNow.ToString('o')) reason=$completionReason ready=$ready")
+    [GuiDesktopWindowProbe]::PumpNativeChooserLifecycle()
+    Write-NativeChooserProbeLine("nativeChooserProbe completedUtc=$([DateTime]::UtcNow.ToString('o')) reason=$completionReason ready=$ready callId=$callId")
+    [GuiDesktopWindowProbe]::StopNativeChooserLifecycle()
+    [GuiDesktopWindowProbe]::Capture($TargetPid)
+    exit 0
   }
   [GuiDesktopWindowProbe]::Capture($TargetPid)
 }
