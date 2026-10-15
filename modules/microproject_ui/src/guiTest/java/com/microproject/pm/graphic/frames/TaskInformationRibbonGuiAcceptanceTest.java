@@ -57,6 +57,7 @@ import javax.swing.JComponent;
 import javax.swing.JComboBox;
 import javax.swing.JTabbedPane;
 import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
 import javax.swing.JMenuItem;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
@@ -75,6 +76,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.dialog.BaselineDialog;
+import com.microproject.dialog.TaskInspectorPanel;
 import com.microproject.dialog.TaskInformationDialog;
 import com.microproject.dialog.UpdateTaskDialog;
 import com.microproject.dialog.UpdateProjectDialogBox;
@@ -3439,6 +3441,255 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			if (panes.length > 0) return panes[0];
 		}
 		return null;
+	}
+
+	@Test
+	void physicalTaskInspectorFollowsSelectionAndNavigatesOnlyVisiblePredecessors() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		NormalTask successor = createTask();
+		Project project = successor.getOwningProject();
+		NormalTask predecessor = project.createScriptedTask();
+		predecessor.setName("Inspector predecessor");
+		successor.setName("Inspector successor");
+		DependencyService.getInstance().newDependency(predecessor, successor, DependencyType.FS, 0L, this);
+		project.recalculate();
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> window.setSize(1320, 760));
+		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"the task Inspector project did not become visible");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		clickUntilSelected(robot, window, sheet, rowForTask(sheet, successor), nameColumn(sheet));
+		clickAndAwaitSelected(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+			.getString("TaskRibbonTask.title")), "Robot click did not select the Task ribbon tab");
+		click(robot, findVisibleOrOverflowButton(robot, "RibbonTaskInspector"));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().taskInspectorVisible()
+				&& manager.getCurrentFrame().getSelectedImpls(false).contains(successor),
+			"Inspect Task did not open its pane for the selected task");
+		JSplitPane inspectorSplit = manager.getCurrentFrame().getTaskInspectorSplit();
+		assertTrue(inspectorSplit.getDividerLocation() > 0, "the Inspector must appear to the left of project information");
+		assertTrue(inspectorSplit.getLeftComponent().isVisible(), "the Inspector pane must remain visible");
+		inspectorSplit.setDividerLocation(300);
+		long predecessorStart = predecessor.getStart();
+		long successorStart = successor.getStart();
+		boolean dirtyBefore = project.needsSaving();
+		boolean undoBefore = project.getUndoController().canUndo();
+		AbstractButton predecessorLink = inspectorPredecessorButton("Inspector predecessor");
+		assertTrue(inspectorLinkFitsNaturalHeight(predecessorLink),
+			"Inspector sections and predecessor controls must keep natural heights in the narrow pane: button="
+				+ inspectorButtonBounds(predecessorLink) + "; viewport="
+				+ inspectorViewportBounds(SwingUtilities.getAncestorOfClass(javax.swing.JScrollPane.class, predecessorLink) instanceof javax.swing.JScrollPane scrollPane
+					? scrollPane.getViewport() : null));
+		java.util.concurrent.atomic.AtomicBoolean predecessorRouteInvoked = new java.util.concurrent.atomic.AtomicBoolean();
+		predecessorLink.addActionListener(event -> predecessorRouteInvoked.set(true));
+		click(robot, predecessorLink);
+		GuiAcceptanceSupport.await(predecessorRouteInvoked::get,
+			"the physical predecessor-link click did not invoke its route; label=" + predecessorLink.getText());
+		try {
+			GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(predecessor),
+				"clicking the visible predecessor did not select its rendered spreadsheet row");
+		} catch (AssertionError failure) {
+			Node predecessorNode = DocumentFrame.findTaskNode(project, predecessor);
+			throw new AssertionError(failure.getMessage() + "; routeInvoked=" + predecessorRouteInvoked.get()
+				+ "; " + inspectorNavigationDiagnostics(sheet, predecessor, predecessorNode), failure);
+		}
+		GuiAcceptanceSupport.await(() -> taskInspectorTitleContains("Inspector predecessor"),
+			"the Inspector did not follow the physical predecessor selection");
+		assertEquals(predecessorStart, predecessor.getStart());
+		assertEquals(successorStart, successor.getStart());
+		assertEquals(dirtyBefore, project.needsSaving(), "inspection and navigation must not dirty the project");
+		assertEquals(undoBefore, project.getUndoController().canUndo(), "inspection and navigation must not add Undo history");
+
+		clickUntilSelected(robot, window, sheet, rowForTask(sheet, successor), nameColumn(sheet));
+		GuiAcceptanceSupport.await(() -> taskInspectorTitleContains("Inspector successor"),
+			"the Inspector did not update when selection returned to the successor");
+		int[] hiddenCount = new int[1];
+		SwingUtilities.invokeAndWait(() -> hiddenCount[0] = TaskVisibilityService.hideTasks(
+			project, List.of(predecessor), project.getUndoController()));
+		assertEquals(1, hiddenCount[0],
+			"the fixture must hide exactly the predecessor row before testing filtered navigation");
+		GuiAcceptanceSupport.await(() -> sheet.taskNodeToViewRow(DocumentFrame.findTaskNode(project, predecessor)) < 0,
+			"the hidden predecessor must be absent from visible view coordinates");
+		int selectionBeforeHiddenClick = sheet.getSelectedRow();
+		boolean dirtyBeforeHiddenClick = project.needsSaving();
+		boolean undoBeforeHiddenClick = project.getUndoController().canUndo();
+		AbstractButton hiddenPredecessorLink = inspectorPredecessorButton("Inspector predecessor");
+		java.util.concurrent.atomic.AtomicBoolean hiddenRouteInvoked = new java.util.concurrent.atomic.AtomicBoolean();
+		hiddenPredecessorLink.addActionListener(event -> hiddenRouteInvoked.set(true));
+		click(robot, hiddenPredecessorLink);
+		GuiAcceptanceSupport.await(hiddenRouteInvoked::get,
+			"the hidden predecessor click did not invoke its route; button=" + inspectorButtonBounds(hiddenPredecessorLink)
+				+ "; viewport=" + inspectorViewportBounds(
+					(javax.swing.JViewport) SwingUtilities.getAncestorOfClass(javax.swing.JViewport.class, hiddenPredecessorLink)));
+		try {
+			GuiAcceptanceSupport.await(() -> taskInspectorTitleEquals(Messages.getString("TaskInspector.PredecessorHidden")),
+				"the Inspector must explain when a predecessor is hidden by the current projection");
+		} catch (AssertionError failure) {
+			throw new AssertionError(failure.getMessage() + "; hiddenRouteInvoked=" + hiddenRouteInvoked.get()
+				+ "; button=" + inspectorButtonBounds(hiddenPredecessorLink)
+				+ "; " + inspectorNavigationDiagnostics(sheet, predecessor, DocumentFrame.findTaskNode(project, predecessor)), failure);
+		}
+		assertEquals(selectionBeforeHiddenClick, sheet.getSelectedRow(), "hidden predecessor navigation must preserve selection");
+		assertEquals(dirtyBeforeHiddenClick, project.needsSaving(), "hidden navigation must not mutate the project");
+		assertEquals(undoBeforeHiddenClick, project.getUndoController().canUndo(), "hidden navigation must not change Undo history");
+	}
+
+	private boolean taskInspectorTitleContains(String text) {
+		return taskInspectorTitle().contains(text);
+	}
+
+	private boolean taskInspectorTitleEquals(String text) {
+		return text.equals(taskInspectorTitle());
+	}
+
+	private String taskInspectorTitle() {
+		String[] title = new String[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> title[0] = manager.getCurrentFrame().getTaskInspectorPanel().getTitleText());
+		} catch (Exception failure) {
+			throw new IllegalStateException("could not read Inspector title on the EDT", failure);
+		}
+		return title[0];
+	}
+
+	private String inspectorNavigationDiagnostics(SpreadSheet sheet, Task expected, Node expectedNode) {
+		String[] result = new String[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				int[] modelRows = sheet.nodesToRows(List.of(expectedNode));
+				int modelRow = modelRows.length == 0 ? -1 : modelRows[0];
+				int viewRow = sheet.taskNodeToViewRow(expectedNode);
+				int selectedRow = sheet.getSelectedRow();
+				int selectedModelRow = selectedRow < 0 ? -1 : sheet.convertRowIndexToModel(selectedRow);
+				String rowSelection = java.util.Arrays.stream(sheet.getSelectedRows())
+					.mapToObj(row -> row + "->" + sheet.convertRowIndexToModel(row)).toList().toString();
+				String selectedNodes = sheet.getSelectedNodes().stream().map(node -> {
+					Object implementation = node.getImpl();
+					return (implementation instanceof Task task ? task.getName() : String.valueOf(implementation))
+						+ "[node=" + System.identityHashCode(node) + ",impl="
+						+ System.identityHashCode(implementation) + "]";
+				}).toList().toString();
+				String frameSelection = manager.getCurrentFrame().getSelectedImpls(false).stream()
+					.map(value -> value instanceof Task task ? task.getName() + "[impl="
+						+ System.identityHashCode(value) + "]" : String.valueOf(value)).toList().toString();
+				Object cached = ((SpreadSheetModel) sheet.getModel()).getCache().getGraphicNode(expectedNode);
+				result[0] = "expected=" + expected.getName() + "[node=" + System.identityHashCode(expectedNode)
+					+ ",impl=" + System.identityHashCode(expected) + ",graphic="
+					+ System.identityHashCode(cached) + ",modelRow=" + modelRow + ",viewRow=" + viewRow
+					+ "]; tableSelectedRows(view->model)=" + rowSelection + ",selectedRow=" + selectedRow
+					+ ",selectedModelRow=" + selectedModelRow + ",selectedNodes=" + selectedNodes
+					+ ",frameSelectedImpls=" + frameSelection + ",inspectorTitle="
+					+ manager.getCurrentFrame().getTaskInspectorPanel().getTitleText();
+			});
+		} catch (Exception failure) {
+			return "inspector navigation diagnostic collection failed: " + failure;
+		}
+		return result[0];
+	}
+
+	private AbstractButton inspectorPredecessorButton(String predecessorName) throws Exception {
+		AbstractButton[] found = new AbstractButton[1];
+		javax.swing.JViewport[] foundViewport = new javax.swing.JViewport[1];
+		SwingUtilities.invokeAndWait(() -> {
+			TaskInspectorPanel panel = manager.getCurrentFrame().getTaskInspectorPanel();
+			findInspectorButton(panel, predecessorName, found);
+			if (found[0] != null) {
+				for (java.awt.Container parent = found[0].getParent(); parent != null; parent = parent.getParent()) {
+					if (parent instanceof javax.swing.JScrollPane scrollPane) {
+						javax.swing.JViewport viewport = scrollPane.getViewport();
+						foundViewport[0] = viewport;
+						scrollInspectorButtonToCenter(found[0], viewport);
+						break;
+					}
+				}
+			}
+		});
+		if (found[0] == null)
+			throw new AssertionError("Inspector predecessor control not found for: " + predecessorName);
+		GuiAcceptanceSupport.await(() -> inspectorButtonCenterIsVisible(found[0], foundViewport[0], predecessorName),
+			"Inspector predecessor control did not reach the visible scroll viewport: " + predecessorName
+				+ "; button=" + inspectorButtonBounds(found[0]) + "; viewport=" + inspectorViewportBounds(foundViewport[0]));
+		return found[0];
+	}
+
+	private static void scrollInspectorButtonToCenter(AbstractButton button, javax.swing.JViewport viewport) {
+		javax.swing.JComponent view = (javax.swing.JComponent) viewport.getView();
+		view.validate();
+		viewport.validate();
+		java.awt.Rectangle bounds = javax.swing.SwingUtilities.convertRectangle(button.getParent(), button.getBounds(), view);
+		java.awt.Dimension extent = viewport.getExtentSize();
+		int x = Math.max(0, bounds.x + bounds.width / 2 - extent.width / 2);
+		int y = Math.max(0, bounds.y + bounds.height / 2 - extent.height / 2);
+		int maxX = Math.max(0, view.getWidth() - extent.width);
+		int maxY = Math.max(0, view.getHeight() - extent.height);
+		viewport.setViewPosition(new java.awt.Point(Math.min(maxX, x), Math.min(maxY, y)));
+	}
+
+	private boolean inspectorButtonCenterIsVisible(AbstractButton button, javax.swing.JViewport viewport,
+			String predecessorName) {
+		boolean[] visible = new boolean[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				TaskInspectorPanel current = manager.getCurrentFrame().getTaskInspectorPanel();
+				if (button == null || viewport == null || !button.isShowing() || !viewport.isShowing()
+						|| !javax.swing.SwingUtilities.isDescendingFrom(button, current)) return;
+				scrollInspectorButtonToCenter(button, viewport);
+				java.awt.Rectangle buttonBounds = new java.awt.Rectangle(button.getLocationOnScreen(), button.getSize());
+				java.awt.Rectangle viewportBounds = new java.awt.Rectangle(viewport.getLocationOnScreen(), viewport.getExtentSize());
+				visible[0] = viewportBounds.contains(buttonBounds.getCenterX(), buttonBounds.getCenterY());
+			});
+		} catch (Exception failure) {
+			throw new IllegalStateException("could not prepare Inspector predecessor target " + predecessorName, failure);
+		}
+		return visible[0];
+	}
+
+	private static String inspectorButtonBounds(AbstractButton button) {
+		return button == null || !button.isShowing() ? "not-showing"
+			: new java.awt.Rectangle(button.getLocationOnScreen(), button.getSize()).toString();
+	}
+
+	private static String inspectorViewportBounds(javax.swing.JViewport viewport) {
+		return viewport == null || !viewport.isShowing() ? "not-showing"
+			: new java.awt.Rectangle(viewport.getLocationOnScreen(), viewport.getExtentSize()).toString()
+				+ " viewPosition=" + viewport.getViewPosition() + " viewSize=" + viewport.getViewSize();
+	}
+
+	private static boolean inspectorLinkFitsNaturalHeight(AbstractButton button) {
+		boolean[] fits = new boolean[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				if (button == null || !button.isShowing()) return;
+				javax.swing.JScrollPane scroll = (javax.swing.JScrollPane) SwingUtilities.getAncestorOfClass(
+					javax.swing.JScrollPane.class, button);
+				fits[0] = scroll != null && button.getHeight() <= 80
+					&& button.getHeight() < scroll.getViewport().getExtentSize().height;
+			});
+		} catch (Exception failure) {
+			throw new IllegalStateException("could not inspect Inspector control dimensions", failure);
+		}
+		return fits[0];
+	}
+
+	private static void findInspectorButton(java.awt.Container parent, String expectedPrefix, AbstractButton[] result) {
+		for (java.awt.Component component : parent.getComponents()) {
+			if (component instanceof AbstractButton button && button.getText() != null
+				&& button.getText().startsWith(expectedPrefix + " — ")) {
+				result[0] = button;
+				return;
+			}
+			if (component instanceof java.awt.Container nested) {
+				findInspectorButton(nested, expectedPrefix, result);
+				if (result[0] != null) return;
+			}
+		}
 	}
 
 	@Test
