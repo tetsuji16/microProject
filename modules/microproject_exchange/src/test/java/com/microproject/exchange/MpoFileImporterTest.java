@@ -58,6 +58,7 @@ import com.microproject.pm.resource.ResourceType;
 import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.pm.resource.SharedResourcePoolService;
 import com.microproject.pm.resource.TeamPlannerService;
+import com.microproject.pm.resource.ResourceLevelingService;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.grouping.core.NodeFactory;
 import com.microproject.configuration.FieldDictionary;
@@ -2701,6 +2702,39 @@ class MpoFileImporterTest {
 		Project restored = load(writeTempMpo(original));
 		assertTrue(firstTask(restored).isManuallyScheduled(),
 				"MPO reload must preserve the task scheduling mode");
+	}
+
+	@Test
+	void clearingAssignmentLevelingAfterMpoReloadPreservesManualAssignmentDelay() throws Exception {
+		Project original = projectForRoundTrip();
+		NormalTask task = (NormalTask) firstTask(original);
+		Resource resource = original.getResourcePool().newResourceInstance();
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, this);
+		long manualDelay = com.microproject.datatype.Duration.millis(3L * 60L * 60L * 1000L);
+		long levelingDelay = com.microproject.datatype.Duration.millis(60L * 60L * 1000L);
+		assignment.setDelay(manualDelay);
+		assignment.setLevelingDelay(levelingDelay);
+		assertEquals(3L * 60L * 60L * 1000L, com.microproject.datatype.Duration.millis(assignment.getDelay()),
+			"the source assignment must keep manual delay independent from leveling delay");
+
+		File initialMpo = writeTempMpo(original);
+		Project restored = load(initialMpo);
+		Assignment restoredAssignment = firstRealAssignment(restored);
+		long manualDelayAfterReload = restoredAssignment.getDelay();
+		assertTrue(com.microproject.datatype.Duration.millis(manualDelayAfterReload) > 0L);
+		assertEquals(60L * 60L * 1000L,
+			com.microproject.datatype.Duration.millis(restoredAssignment.getLevelingDelay()));
+
+		new ResourceLevelingService().clear(restored);
+		assertEquals(manualDelayAfterReload, restoredAssignment.getDelay(),
+			"Clear removes generated leveling delay but preserves independent manual assignment delay");
+		assertEquals(0L, com.microproject.datatype.Duration.millis(restoredAssignment.getLevelingDelay()));
+
+		Project clearedReload = load(writeTempMpo(restored));
+		Assignment reloadedAssignment = firstRealAssignment(clearedReload);
+		assertEquals(manualDelayAfterReload, reloadedAssignment.getDelay(),
+			"MPO save/reload after Clear retains the saved manual assignment delay");
+		assertEquals(0L, com.microproject.datatype.Duration.millis(reloadedAssignment.getLevelingDelay()));
 	}
 
 	@Test
