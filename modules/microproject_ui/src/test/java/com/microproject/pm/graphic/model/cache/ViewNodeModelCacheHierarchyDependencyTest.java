@@ -25,6 +25,7 @@
 package com.microproject.pm.graphic.model.cache;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -49,6 +50,7 @@ import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.Task;
 import com.microproject.undo.DataFactoryUndoController;
 
 class ViewNodeModelCacheHierarchyDependencyTest {
@@ -135,6 +137,65 @@ class ViewNodeModelCacheHierarchyDependencyTest {
 		try {
 			assertEquals(List.of("Date sort tied earlier", "Date sort earlier"), visibleNames(sortedView),
 				"the view pipeline must resolve and apply a secondary descending Name comparator");
+		} finally {
+			sortedView.close();
+			reference.close();
+		}
+	}
+
+	@Test
+	void taskSortAppliesToFilteredRowsWithinConfiguredGroupsWithoutChangingModelOrder() throws Exception {
+		// Document-derived projection rule: Project describes sorting, filtering, and
+		// grouping as view operations. Filtering first limits visible tasks; sorting
+		// orders those tasks within the configured group buckets; neither operation
+		// changes task outline order. The exact composition is our deterministic
+		// Office-consistent rule, not a measured MSP result.
+		// Sources: https://support.microsoft.com/en-us/project/sort-tasks-resources-or-dates-in-project-desktop
+		// https://support.microsoft.com/en-us/project/filter-tasks-or-resources
+		// https://support.microsoft.com/en-us/project/group-tasks-or-resources
+		Dictionary.getInstance();
+		Project project = createProject();
+		NormalTask zuluShort = createTask(project, "Zulu short");
+		NormalTask alphaShort = createTask(project, "Alpha short");
+		NormalTask bravoLong = createTask(project, "Bravo long");
+		NormalTask hiddenComplete = createTask(project, "Hidden complete");
+		long day = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		zuluShort.setDuration(day);
+		alphaShort.setDuration(day);
+		bravoLong.setDuration(2L * day);
+		hiddenComplete.setDuration(day);
+		hiddenComplete.setPercentComplete(1.0d);
+		DefaultNodeModel model = (DefaultNodeModel) project.getTaskModel();
+		List<Task> originalOrder = List.copyOf(project.getTaskList());
+		ReferenceNodeModelCache reference = NodeModelCacheFactory.createTaskNodeModelCache(project, model);
+		ViewNodeModelCache sortedView = (ViewNodeModelCache) NodeModelCacheFactory.getInstance().createFilteredCache(
+			reference, "filtered-grouped-task-sort-test", transformer -> {
+				ViewTransformer viewTransformer = (ViewTransformer) transformer;
+				viewTransformer.setUserFilterId("Filter.IncompleteTasks");
+				viewTransformer.setUserGrouperId("Grouper.Duration");
+				viewTransformer.setTaskSortSpec(new TaskSortSpec(
+						List.of(new TaskSortSpec.Key("Sorter.Name", true)), true));
+			});
+		reference.update();
+		try {
+			List<GraphicNode> projected = sortedView.getVisibleNodes().getElements().stream()
+				.filter(GraphicNode.class::isInstance).map(GraphicNode.class::cast).toList();
+			List<GraphicNode> visibleTasks = projected.stream()
+				.filter(node -> !node.isGroup() && node.getNode().getImpl() instanceof NormalTask).toList();
+			assertEquals(List.of("Bravo long", "Alpha short", "Zulu short"), visibleTasks.stream()
+				.map(node -> ((NormalTask) node.getNode().getImpl()).getName()).toList(),
+				"sorting must order filtered task rows while grouping retains its category buckets");
+			assertEquals(2L, projected.stream().filter(GraphicNode::isGroup).count(),
+				"the duration grouper must retain one visible header for each nonempty bucket");
+			assertFalse(projected.stream().anyMatch(node -> node.getNode().getImpl() == hiddenComplete),
+				"the active incomplete-task filter must remove completed tasks from the sorted projection");
+			GraphicNode alphaShortNode = visibleTasks.get(1);
+			assertTrue(sortedView.getVisibleNodes().getProjectionIndex().rowForNode(alphaShortNode) >= 0,
+				"visible task selection must resolve to its post-sort projection row");
+			GraphicNode hiddenNode = reference.getGraphicNode((Node) model.search(hiddenComplete));
+			assertEquals(-1, sortedView.getVisibleNodes().getProjectionIndex().rowForNode(hiddenNode),
+				"filtered tasks must not resolve to a visible selection row");
+			assertEquals(originalOrder, project.getTaskList(), "view sort/filter/group must not mutate project task order");
 		} finally {
 			sortedView.close();
 			reference.close();
