@@ -76,6 +76,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.dialog.BaselineDialog;
+import com.microproject.dialog.TaskInspectorPanel;
 import com.microproject.dialog.TaskInformationDialog;
 import com.microproject.dialog.UpdateTaskDialog;
 import com.microproject.dialog.UpdateProjectDialogBox;
@@ -3479,7 +3480,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		long successorStart = successor.getStart();
 		boolean dirtyBefore = project.needsSaving();
 		boolean undoBefore = project.getUndoController().canUndo();
-		click(robot, findShowingButtonByText("Inspector predecessor"));
+		click(robot, inspectorPredecessorButton("Inspector predecessor"));
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(predecessor),
 			"clicking the visible predecessor did not select its rendered spreadsheet row");
 		GuiAcceptanceSupport.await(() -> taskInspectorTitleContains("Inspector predecessor"),
@@ -3502,7 +3503,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		int selectionBeforeHiddenClick = sheet.getSelectedRow();
 		boolean dirtyBeforeHiddenClick = project.needsSaving();
 		boolean undoBeforeHiddenClick = project.getUndoController().canUndo();
-		click(robot, findShowingButtonByText("Inspector predecessor"));
+		click(robot, inspectorPredecessorButton("Inspector predecessor"));
 		GuiAcceptanceSupport.await(() -> taskInspectorTitleContains("hidden by the current filter"),
 			"the Inspector must explain when a predecessor is hidden by the current projection");
 		assertEquals(selectionBeforeHiddenClick, sheet.getSelectedRow(), "hidden predecessor navigation must preserve selection");
@@ -3518,6 +3519,35 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			throw new IllegalStateException("could not read Inspector title on the EDT", failure);
 		}
 		return title[0].contains(text);
+	}
+
+	private AbstractButton inspectorPredecessorButton(String predecessorName) throws Exception {
+		AbstractButton[] found = new AbstractButton[1];
+		SwingUtilities.invokeAndWait(() -> {
+			TaskInspectorPanel panel = manager.getCurrentFrame().getTaskInspectorPanel();
+			findInspectorButton(panel, predecessorName, found);
+			if (found[0] != null) found[0].scrollRectToVisible(new java.awt.Rectangle(0, 0,
+				found[0].getWidth(), found[0].getHeight()));
+		});
+		if (found[0] == null)
+			throw new AssertionError("Inspector predecessor control not found for: " + predecessorName);
+		GuiAcceptanceSupport.await(found[0]::isShowing,
+			"Inspector predecessor control did not render: " + predecessorName);
+		return found[0];
+	}
+
+	private static void findInspectorButton(java.awt.Container parent, String expectedPrefix, AbstractButton[] result) {
+		for (java.awt.Component component : parent.getComponents()) {
+			if (component instanceof AbstractButton button && button.getText() != null
+				&& button.getText().startsWith(expectedPrefix + " — ")) {
+				result[0] = button;
+				return;
+			}
+			if (component instanceof java.awt.Container nested) {
+				findInspectorButton(nested, expectedPrefix, result);
+				if (result[0] != null) return;
+			}
+		}
 	}
 
 	private static Node findTaskNode(Project project, Task target) {

@@ -290,7 +290,8 @@ public class DocumentFrame extends NamedFrame implements
 		mainView.setBorder(null);
 		setLayout(new BorderLayout()); // main view fills the center, status bar below
 		taskInspectorPanel = new TaskInspectorPanel(this::navigateInspectorPredecessor,
-			task -> getGraphicManager().setTaskModeAutomatic(task));
+			task -> getGraphicManager().setTaskModeAutomatic(task),
+			task -> getGraphicManager().canSetTaskModeAutomatic(task));
 		taskInspectorPanel.setVisible(false);
 		taskInspectorSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, taskInspectorPanel, mainView);
 		taskInspectorSplit.setBorder(null);

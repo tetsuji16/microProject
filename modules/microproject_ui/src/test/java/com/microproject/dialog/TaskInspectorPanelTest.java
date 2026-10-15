@@ -12,6 +12,7 @@ import java.awt.Component;
 import java.awt.Container;
 
 import javax.swing.JLabel;
+import javax.swing.JButton;
 import javax.swing.JTextArea;
 import javax.swing.SwingUtilities;
 
@@ -31,6 +32,7 @@ class TaskInspectorPanelTest {
 		project.initialize(false, false);
 		NormalTask first = new NormalTask(project);
 		first.setName("First task");
+		first.setManuallyScheduled(true);
 		project.connectTask(first);
 		NormalTask second = new NormalTask(project);
 		second.setName("Second task");
@@ -43,9 +45,12 @@ class TaskInspectorPanelTest {
 		boolean canUndo = undo.canUndo();
 
 		SwingUtilities.invokeAndWait(() -> {
-			TaskInspectorPanel panel = new TaskInspectorPanel(task -> { }, task -> { });
+			TaskInspectorPanel panel = new TaskInspectorPanel(task -> { }, task -> { }, task -> false);
 			panel.showTask(first);
 			assertSame(first, panel.getTask());
+			assertTrue(findButton(panel, Messages.getString("TaskInspector.Automatic")) != null);
+			assertTrue(!findButton(panel, Messages.getString("TaskInspector.Automatic")).isEnabled(),
+				"the mutation route must reflect the command's unavailable state");
 			String rendered = renderedText(panel);
 			assertTrue(rendered.contains(Messages.getString("TaskInspector.ActualStartAssignments")), rendered);
 			assertTrue(rendered.contains(Messages.getString("TaskInspector.LevelingDelay")));
@@ -73,5 +78,16 @@ class TaskInspectorPanelTest {
 			if (component instanceof Container nested) text.append(renderedText(nested));
 		}
 		return text.toString();
+	}
+
+	private static JButton findButton(Container container, String text) {
+		for (Component component : container.getComponents()) {
+			if (component instanceof JButton button && text.equals(button.getText())) return button;
+			if (component instanceof Container nested) {
+				JButton found = findButton(nested, text);
+				if (found != null) return found;
+			}
+		}
+		return null;
 	}
 }

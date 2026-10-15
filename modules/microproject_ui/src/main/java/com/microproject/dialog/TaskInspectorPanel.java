@@ -8,10 +8,13 @@ import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
 import java.text.DateFormat;
+import java.text.DateFormatSymbols;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -24,6 +27,8 @@ import javax.swing.SwingConstants;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.calendar.WorkingCalendar;
+import com.microproject.datatype.Duration;
+import com.microproject.datatype.DurationFormat;
 import com.microproject.pm.task.ScheduleDiagnosticsService;
 import com.microproject.pm.task.Task;
 import com.microproject.strings.Messages;
@@ -35,11 +40,13 @@ public final class TaskInspectorPanel extends JPanel {
 	private final JLabel title = new JLabel(Messages.getString("TaskInspector.SelectTask"), SwingConstants.LEADING);
 	private final Consumer<Task> navigate;
 	private final Consumer<Task> makeAutomatic;
+	private final Predicate<Task> canMakeAutomatic;
 	private Task task;
 
-	public TaskInspectorPanel(Consumer<Task> navigate, Consumer<Task> makeAutomatic) {
+	public TaskInspectorPanel(Consumer<Task> navigate, Consumer<Task> makeAutomatic, Predicate<Task> canMakeAutomatic) {
 		this.navigate = navigate;
 		this.makeAutomatic = makeAutomatic;
+		this.canMakeAutomatic = canMakeAutomatic;
 		setLayout(new BorderLayout(0, 8));
 		setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
 		add(title, BorderLayout.NORTH);
@@ -62,27 +69,28 @@ public final class TaskInspectorPanel extends JPanel {
 			return;
 		}
 		title.setText(selected.getName());
+		title.setToolTipText(selected.getName());
 		section(Messages.getString("TaskInspector.TaskDates"), date(selected.getStart()) + " – " + date(selected.getEnd()));
-		section(Messages.getString("TaskInspector.ActualStartAssignments"),
-			"Actual start: " + date(selected.getActualStart()) + assignmentSummary(selected));
-		section(Messages.getString("TaskInspector.LevelingDelay"),
-			selected.getLevelingDelay() == 0 ? "None" : selected.getLevelingDelay() + " ms");
-		section(Messages.getString("TaskInspector.Constraint"),
-			selected.getConstraintTypeKind() + " — " + date(selected.getConstraintDate()));
+		section(Messages.getString("TaskInspector.ActualStartAssignments"), format("TaskInspector.ActualStartValue", date(selected.getActualStart())) + assignmentSummary(selected));
+		section(Messages.getString("TaskInspector.LevelingDelay"), selected.getLevelingDelay() == 0
+			? Messages.getString("TaskInspector.None") : formatDuration(selected, selected.getLevelingDelay()));
+		section(Messages.getString("TaskInspector.Constraint"), format("TaskInspector.ConstraintValue",
+			selected.getConstraintTypeKind(), date(selected.getConstraintDate())));
 		section(Messages.getString("TaskInspector.SummaryConstraint"), summaryConstraint(selected));
 		section(Messages.getString("TaskInspector.Predecessors"), predecessorPanel(selected));
 		section(Messages.getString("TaskInspector.Subtasks"), subtasks(selected));
 		section(Messages.getString("TaskInspector.Calendar"), calendar(selected));
 		JPanel mode = new JPanel(new FlowLayout(FlowLayout.LEADING, 4, 0));
-		mode.add(new JLabel(selected.isManuallyScheduled() ? "Manually scheduled" : "Automatically scheduled"));
+			mode.add(new JLabel(Messages.getString(selected.isManuallyScheduled()
+				? "TaskInspector.ManualMode" : "TaskInspector.AutomaticMode")));
 		if (selected.isManuallyScheduled()) {
 			JButton automatic = new JButton(Messages.getString("TaskInspector.Automatic"));
+			automatic.setEnabled(canMakeAutomatic.test(selected));
 			automatic.addActionListener(event -> makeAutomatic.accept(selected));
 			mode.add(automatic);
 		}
 		section(Messages.getString("TaskInspector.SchedulingMode"), mode);
-		section(Messages.getString("TaskInspector.Refresh"),
-			"If the schedule looks inaccurate, recalculate with F9.");
+		section(Messages.getString("TaskInspector.Refresh"), Messages.getString("TaskInspector.RefreshGuidance"));
 		String diagnostics = new ScheduleDiagnosticsService().diagnose(selected).stream()
 			.map(issue -> issue.severity() + ": " + issue.summary() + "\n" + issue.recommendation())
 			.collect(java.util.stream.Collectors.joining("\n\n"));
@@ -93,12 +101,12 @@ public final class TaskInspectorPanel extends JPanel {
 
 	private String assignmentSummary(Task selected) {
 		if (!(selected instanceof com.microproject.pm.task.NormalTask normal) || normal.getAssignments().isEmpty())
-			return "\nAssignments: None";
-		StringBuilder value = new StringBuilder("\nAssignments:");
+			return "\n" + Messages.getString("TaskInspector.Assignments") + ": " + Messages.getString("TaskInspector.None");
+		StringBuilder value = new StringBuilder("\n").append(Messages.getString("TaskInspector.Assignments")).append(':');
 		for (var association : normal.getAssignments()) {
 			if (association instanceof Assignment assignment)
-				value.append("\n• ").append(assignment.getResourceName()).append(" — actual start ")
-					.append(date(assignment.getActualStart()));
+				value.append("\n• ").append(assignment.getResourceName()).append(" — ")
+					.append(format("TaskInspector.AssignmentActualStart", date(assignment.getActualStart())));
 		}
 		return value.toString();
 	}
@@ -108,27 +116,27 @@ public final class TaskInspectorPanel extends JPanel {
 		for (Object value : selected.getPredecessorList()) {
 			Dependency dependency = (Dependency) value;
 			Task predecessor = (Task) dependency.getPredecessor();
-			JButton link = new JButton(predecessor.getName() + " — " + dependency.getDependencyKind()
-				+ " — lag " + dependency.getLeadValue() / 3_600_000.0 + " h");
+			JButton link = new JButton(format("TaskInspector.PredecessorValue", predecessor.getName(),
+				dependency.getDependencyKind(), formatDuration(selected, dependency.getLeadValue())));
 			link.setHorizontalAlignment(SwingConstants.LEADING);
 			link.addActionListener(event -> navigate.accept(predecessor));
 			rows.add(link);
 		}
 		if (rows.getComponentCount() == 0)
-			rows.add(new JLabel("None"));
+			rows.add(new JLabel(Messages.getString("TaskInspector.None")));
 		return rows;
 	}
 
 	private String subtasks(Task selected) {
 		Collection<com.microproject.grouping.core.Node> children = selected.getWbsChildrenNodes();
-		if (children == null || children.isEmpty()) return "None";
+		if (children == null || children.isEmpty()) return Messages.getString("TaskInspector.None");
 		List<String> names = new ArrayList<>();
 		for (var child : children) {
 			if (child.getImpl() instanceof Task task) {
 				String matchingBounds = "";
 				if (selected.isWbsParent()) {
-					if (task.getStart() == selected.getStart()) matchingBounds += " — start matches summary";
-					if (task.getEnd() == selected.getEnd()) matchingBounds += " — finish matches summary";
+					if (task.getStart() == selected.getStart()) matchingBounds += " — " + Messages.getString("TaskInspector.MatchesSummaryStart");
+					if (task.getEnd() == selected.getEnd()) matchingBounds += " — " + Messages.getString("TaskInspector.MatchesSummaryFinish");
 				}
 				names.add(task.getName() + " (" + date(task.getStart()) + " – " + date(task.getEnd()) + ")" + matchingBounds);
 			}
@@ -138,14 +146,16 @@ public final class TaskInspectorPanel extends JPanel {
 
 	private String calendar(Task selected) {
 		var calendar = selected.getEffectiveWorkCalendar();
-		if (calendar == null) return "Project calendar";
-		String[] days = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
+		if (calendar == null) return Messages.getString("TaskInspector.ProjectCalendar");
+		String[] days = new DateFormatSymbols().getShortWeekdays();
 		StringBuilder details = new StringBuilder(calendar.getName());
 		if (calendar instanceof WorkingCalendar workingCalendar) {
-			for (int day = 0; day < days.length; day++) {
+			for (int day = 0; day < 7; day++) {
 				var workDay = workingCalendar.getDerivedWeekDay(day);
-				details.append("\n").append(days[day]).append(": ")
-					.append(workDay == null ? "inherit" : workDay.getWorkingHours().toString());
+				String hours = workDay == null ? Messages.getString("TaskInspector.Inherit")
+					: workDay.getWorkingHours() == null || !workDay.getWorkingHours().hasHours()
+						? Messages.getString("TaskInspector.Nonworking") : workDay.getWorkingHours().toString();
+				details.append("\n").append(days[day + 1]).append(": ").append(hours);
 			}
 		}
 		return details.toString();
@@ -156,7 +166,7 @@ public final class TaskInspectorPanel extends JPanel {
 			if (isFixedConstraint(parent))
 				return parent.getName() + ": " + parent.getConstraintTypeKind() + " — " + date(parent.getConstraintDate());
 		}
-		return "None detected";
+		return Messages.getString("TaskInspector.NoneDetected");
 	}
 
 	private static boolean isFixedConstraint(Task task) {
@@ -166,6 +176,15 @@ public final class TaskInspectorPanel extends JPanel {
 
 	private static String date(long value) {
 		return value == 0 ? "—" : DateFormat.getDateTimeInstance().format(new java.util.Date(value));
+	}
+
+	private static String formatDuration(Task task, long encodedMillis) {
+		return ((DurationFormat) DurationFormat.getSignedInstance())
+			.format(new Duration(encodedMillis), task.getProject().getDurationDefaults());
+	}
+
+	private static String format(String key, Object... values) {
+		return MessageFormat.format(Messages.getString(key), values);
 	}
 
 	private void section(String heading, String text) {

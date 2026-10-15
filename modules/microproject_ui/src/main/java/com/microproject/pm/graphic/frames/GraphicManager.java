@@ -2224,6 +2224,14 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		publishTaskCommandOutcome(getMenuManager().getActionFromId(ACTION_TASK_MODE_AUTOMATIC),
 			dispatchTaskCommand(CommandId.TASK_MODE_AUTOMATIC));
 	}
+
+	public boolean canSetTaskModeAutomatic(Task task) {
+		DocumentFrame frame = getCurrentFrame();
+		if (frame == null || task == null || frame.getActiveSpreadSheet() == null || task.isReadOnly()) return false;
+		List<Node> selected = frame.getSelectedTaskNodes(true, false);
+		Action action = getMenuManager().getActionFromId(ACTION_TASK_MODE_AUTOMATIC);
+		return selected.size() == 1 && selected.get(0).getImpl() == task && action != null && action.isEnabled();
+	}
 	public class RibbonResourceInformationAction extends MenuActionsMap.DocumentMenuAction {
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
