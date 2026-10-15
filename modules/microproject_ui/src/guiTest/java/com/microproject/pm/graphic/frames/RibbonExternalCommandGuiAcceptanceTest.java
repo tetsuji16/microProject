@@ -612,10 +612,17 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		AtomicBoolean chooserCallReturned = new AtomicBoolean();
 		AtomicBoolean chooserCancelled = new AtomicBoolean();
 		AtomicReference<Throwable> chooserFailure = new AtomicReference<>();
+		AtomicReference<Instant> chooserProviderStartedAt = new AtomicReference<>();
+		AtomicReference<Instant> chooserProviderReturnedAt = new AtomicReference<>();
+		AtomicReference<String> chooserOwnerAtProviderEntry = new AtomicReference<>("not-entered");
+		AtomicReference<Window> chooserOwnerWindow = new AtomicReference<>();
 		SwingFileChooserProvider nativeProvider = new SwingFileChooserProvider();
 		UiServices.setFileChooserProvider(new UiServices.FileChooserProvider() {
 			@Override
 			public String chooseFileName(boolean save, String selectedFileName, Object parent) {
+				chooserProviderStartedAt.set(Instant.now());
+				chooserOwnerAtProviderEntry.set(describeChooserOwner(parent));
+				chooserOwnerWindow.set(resolveChooserOwner(parent));
 				chooserCallStarted.set(true);
 				try {
 					String selected = nativeProvider.chooseFileName(save, selectedFileName, parent);
@@ -625,12 +632,16 @@ class RibbonExternalCommandGuiAcceptanceTest {
 					chooserFailure.set(failure);
 					throw failure;
 				} finally {
+					chooserProviderReturnedAt.set(Instant.now());
 					chooserCallReturned.set(true);
 				}
 			}
 
 			@Override
 			public List<String> chooseFileNames(boolean save, String selectedFileName, Object parent) {
+				chooserProviderStartedAt.set(Instant.now());
+				chooserOwnerAtProviderEntry.set(describeChooserOwner(parent));
+				chooserOwnerWindow.set(resolveChooserOwner(parent));
 				chooserCallStarted.set(true);
 				try {
 					List<String> selected = nativeProvider.chooseFileNames(save, selectedFileName, parent);
@@ -640,6 +651,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 					chooserFailure.set(failure);
 					throw failure;
 				} finally {
+					chooserProviderReturnedAt.set(Instant.now());
 					chooserCallReturned.set(true);
 				}
 			}
@@ -650,18 +662,21 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		activateWindowForRobot(robot);
 		int documentsBefore = manager.getFrameManager().getAllFrames().size();
 		verifyNativeChooserEscape(robot, () -> pressCtrlO(robot), chooserCallStarted, chooserCallReturned,
-			chooserCancelled, chooserFailure, "Ctrl+O");
+			chooserCancelled, chooserFailure, "Ctrl+O", chooserProviderStartedAt, chooserProviderReturnedAt,
+			chooserOwnerAtProviderEntry, chooserOwnerWindow);
 		assertEquals(documentsBefore, manager.getFrameManager().getAllFrames().size(),
 			"native Ctrl+O cancellation must not open a project");
 		verifyNativeChooserEscape(robot,
 			() -> click(robot, findCommandButton(window.getRibbonPanel(), "RibbonOpenProject", robot)),
 			chooserCallStarted, chooserCallReturned,
-			chooserCancelled, chooserFailure, "Ribbon Open");
+			chooserCancelled, chooserFailure, "Ribbon Open", chooserProviderStartedAt, chooserProviderReturnedAt,
+			chooserOwnerAtProviderEntry, chooserOwnerWindow);
 		assertEquals(documentsBefore, manager.getFrameManager().getAllFrames().size(),
 			"native Ribbon Open cancellation must not open a project");
 		verifyNativeChooserCancelButton(robot,
 			() -> click(robot, findCommandButton(window.getRibbonPanel(), "RibbonOpenProject", robot)), chooserCallStarted,
-			chooserCallReturned, chooserCancelled, chooserFailure, "Ribbon Open");
+			chooserCallReturned, chooserCancelled, chooserFailure, "Ribbon Open", chooserProviderStartedAt,
+			chooserProviderReturnedAt, chooserOwnerAtProviderEntry, chooserOwnerWindow);
 		assertEquals(documentsBefore, manager.getFrameManager().getAllFrames().size(),
 			"native Ribbon Open Cancel must not open a project");
 	}
@@ -1043,7 +1058,8 @@ class RibbonExternalCommandGuiAcceptanceTest {
 
 	private void verifyNativeChooserEscape(Robot robot, GuiCommand openCommand, AtomicBoolean chooserCallStarted,
 			AtomicBoolean chooserCallReturned, AtomicBoolean chooserCancelled, AtomicReference<Throwable> chooserFailure,
-			String route) throws Exception {
+			String route, AtomicReference<Instant> providerStartedAt, AtomicReference<Instant> providerReturnedAt,
+			AtomicReference<String> ownerAtProviderEntry, AtomicReference<Window> ownerWindowAtProviderEntry) throws Exception {
 		// Native Windows choosers are external top-level windows. Do not place the
 		// owner above them in the test window's z-order while exercising this route.
 		activateWindowForRobot(robot, false);
@@ -1051,6 +1067,10 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		chooserCallReturned.set(false);
 		chooserCancelled.set(false);
 		chooserFailure.set(null);
+		providerStartedAt.set(null);
+		providerReturnedAt.set(null);
+		ownerAtProviderEntry.set("not-entered");
+		ownerWindowAtProviderEntry.set(null);
 		BufferedImage beforeOpen = captureScreen(robot);
 		String windowsBeforeOpen = snapshotNativeChooserWindows();
 		Instant chooserInvokedAt = Instant.now();
@@ -1076,7 +1096,8 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			assertTrue(chooserCancelled.get(), route + " Escape must cancel the default Windows file chooser");
 		} catch (Exception | Error failure) {
 			captureNativeChooserFailureDiagnostics(route, robot, beforeOpen, chooserCallStarted, chooserCallReturned,
-				chooserCancelled, chooserFailure, windowsBeforeOpen, chooserInvokedAt, failure);
+				chooserCancelled, chooserFailure, windowsBeforeOpen, chooserInvokedAt, failure, providerStartedAt,
+				providerReturnedAt, ownerAtProviderEntry, ownerWindowAtProviderEntry.get());
 			throw failure;
 		} finally {
 			if (chooserCallStarted.get() && !chooserCallReturned.get()) {
@@ -1092,12 +1113,18 @@ class RibbonExternalCommandGuiAcceptanceTest {
 
 	private void verifyNativeChooserCancelButton(Robot robot, GuiCommand openCommand,
 			AtomicBoolean chooserCallStarted, AtomicBoolean chooserCallReturned,
-			AtomicBoolean chooserCancelled, AtomicReference<Throwable> chooserFailure, String route) throws Exception {
+			AtomicBoolean chooserCancelled, AtomicReference<Throwable> chooserFailure, String route,
+			AtomicReference<Instant> providerStartedAt, AtomicReference<Instant> providerReturnedAt,
+			AtomicReference<String> ownerAtProviderEntry, AtomicReference<Window> ownerWindowAtProviderEntry) throws Exception {
 		activateWindowForRobot(robot, false);
 		chooserCallStarted.set(false);
 		chooserCallReturned.set(false);
 		chooserCancelled.set(false);
 		chooserFailure.set(null);
+		providerStartedAt.set(null);
+		providerReturnedAt.set(null);
+		ownerAtProviderEntry.set("not-entered");
+		ownerWindowAtProviderEntry.set(null);
 		BufferedImage beforeOpen = captureScreen(robot);
 		String windowsBeforeOpen = snapshotNativeChooserWindows();
 		Instant chooserInvokedAt = Instant.now();
@@ -1127,7 +1154,8 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			captureNativeChooserScreen(robot, "issue-398-native-ribbon-after-cancel.png");
 		} catch (Exception | Error failure) {
 			captureNativeChooserFailureDiagnostics(route + "-cancel", robot, beforeOpen, chooserCallStarted,
-				chooserCallReturned, chooserCancelled, chooserFailure, windowsBeforeOpen, chooserInvokedAt, failure);
+				chooserCallReturned, chooserCancelled, chooserFailure, windowsBeforeOpen, chooserInvokedAt, failure,
+				providerStartedAt, providerReturnedAt, ownerAtProviderEntry, ownerWindowAtProviderEntry.get());
 			throw failure;
 		} finally {
 			if (chooserCallStarted.get() && !chooserCallReturned.get()) {
@@ -1295,11 +1323,17 @@ class RibbonExternalCommandGuiAcceptanceTest {
 	private static void captureNativeChooserFailureDiagnostics(String route, Robot robot, BufferedImage beforeOpen,
 			AtomicBoolean chooserCallStarted, AtomicBoolean chooserCallReturned, AtomicBoolean chooserCancelled,
 			AtomicReference<Throwable> chooserFailure, String windowsBeforeOpen, Instant chooserInvokedAt,
-			Throwable originalFailure) {
+			Throwable originalFailure, AtomicReference<Instant> providerStartedAt,
+			AtomicReference<Instant> providerReturnedAt, AtomicReference<String> ownerAtProviderEntry, Window owner) {
 		Instant capturedAt = Instant.now();
 		String diagnostic = "Native chooser failure snapshot route=" + route + " capturedUtc=" + capturedAt
 			+ " chooserInvokedUtc=" + chooserInvokedAt
 			+ " elapsedMs=" + Duration.between(chooserInvokedAt, capturedAt).toMillis()
+			+ " providerStartedUtc=" + providerStartedAt.get()
+			+ " providerReturnedUtc=" + providerReturnedAt.get()
+			+ " ownerAtProviderEntry=" + ownerAtProviderEntry.get()
+			+ " ownerHwndSource=targetPidWin32SnapshotMatchByTitle"
+			+ " ownerAfterFailure=" + describeChooserOwner(owner)
 			+ " state=" + describeNativeChooserState(chooserCallStarted, chooserCallReturned, chooserCancelled,
 				chooserFailure, windowsBeforeOpen);
 		System.err.println(diagnostic);
@@ -1322,6 +1356,26 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		} catch (Exception captureFailure) {
 			originalFailure.addSuppressed(captureFailure);
 		}
+	}
+
+	private static Window resolveChooserOwner(Object parent) {
+		Component component = parent instanceof Component ? (Component) parent : null;
+		return parent instanceof Window ? (Window) parent
+			: component == null ? null : SwingUtilities.getWindowAncestor(component);
+	}
+
+	private static String describeChooserOwner(Object parent) {
+		Window owner = resolveChooserOwner(parent);
+		if (owner == null)
+			return "parent=" + (parent == null ? "null" : parent.getClass().getName()) + ",window=none";
+		return "parent=" + (parent == null ? "null" : parent.getClass().getName())
+			+ ",window=" + owner.getClass().getName()
+			+ "@" + Integer.toHexString(System.identityHashCode(owner))
+			+ ",title=" + (owner instanceof Frame frame ? frame.getTitle() : "")
+			+ ",displayable=" + owner.isDisplayable() + ",showing=" + owner.isShowing()
+			+ ",active=" + owner.isActive() + ",focused=" + owner.isFocused()
+			+ ",bounds=" + owner.getBounds()
+			+ ",providerThread=" + Thread.currentThread().getName() + "#" + Thread.currentThread().getId();
 	}
 
 	private static String captureNativeChooserThreadDump(String route, Instant chooserInvokedAt) throws IOException {
