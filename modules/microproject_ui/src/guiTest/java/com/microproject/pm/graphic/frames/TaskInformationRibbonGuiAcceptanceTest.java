@@ -4401,7 +4401,12 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false)
 				.containsAll(List.of(source, firstTarget)), "Shift-click must create the mixed multi-task selection fixture");
 		assertFalse(painter.isEnabled(), "Format Painter must reject a multiple-task source selection");
-		clickUntilSelected(robot, window, sheet, rowForTask(sheet, source), 0);
+		// The lead row can already be the source while Shift-click has extended the selection.
+		// clickUntilSelected only checks that lead row, so issue an unmodified physical click
+		// here to collapse the multi-selection before asserting single-source enablement.
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, source), 0));
+		GuiAcceptanceSupport.await(() -> sheetHasOnlySelectedTask(sheet, source),
+			"an unmodified source-row click did not collapse the Format Painter source selection");
 		GuiAcceptanceSupport.await(painter::isEnabled, "Format Painter must re-enable for a single source task");
 		click(robot, painter);
 		GuiAcceptanceSupport.await(painter::isSelected, "one-shot Format Painter did not enter its armed state");
@@ -4468,6 +4473,20 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertArrayEquals(originalDates, new long[] { firstTarget.getStart(), firstTarget.getEnd(), secondTarget.getStart(),
 			secondTarget.getEnd(), thirdTarget.getStart(), thirdTarget.getEnd(), untouched.getStart(), untouched.getEnd() },
 			"continuous text formatting must leave all target schedules unchanged");
+	}
+
+	private static boolean sheetHasOnlySelectedTask(SpreadSheet sheet, Task expected) {
+		boolean[] selected = new boolean[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				List<Node> nodes = sheet.getSelectedNodes();
+				selected[0] = sheet.getSelectedRows().length == 1 && nodes.size() == 1
+					&& nodes.getFirst().getImpl() == expected;
+			});
+		} catch (Exception failure) {
+			throw new IllegalStateException("could not inspect single-source task selection", failure);
+		}
+		return selected[0];
 	}
 
 	private AbstractButton findShowingButtonByText(String text) throws Exception {
