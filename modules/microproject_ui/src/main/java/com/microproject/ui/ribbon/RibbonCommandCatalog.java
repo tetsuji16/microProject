@@ -149,7 +149,8 @@ final class RibbonCommandCatalog {
 			"RibbonHideSelectedTasks", "RibbonShowAllTasks");
 		register(result, CommandScope.RESOURCE, RESOURCE,
 			"RibbonInsertResource", "RibbonResourceInformation", "RibbonTimesheet", "RibbonTeamFilter",
-			"RibbonLevelSelection", "RibbonLevelAll", "RibbonLevelResources", "RibbonNextOverallocation",
+			"RibbonLevelSelection", "RibbonLevelAll", "RibbonClearLevelSelection", "RibbonClearLevelAll",
+			"RibbonLevelResources", "RibbonNextOverallocation",
 			"RibbonUseResourcePool", "RibbonCreateResourcePool", "RibbonRefreshResourcePool");
 		register(result, CommandScope.REPORT, REPORT,
 			"RibbonReport", "RibbonCustomReport", "RibbonHistogram", "RibbonCharts", "RibbonTaskUsage", "RibbonResourceUsage", "RibbonCCPMBufferStatus");

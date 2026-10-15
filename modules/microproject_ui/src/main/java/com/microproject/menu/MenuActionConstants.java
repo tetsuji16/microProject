@@ -127,6 +127,8 @@ public interface MenuActionConstants {
 	public static final String ACTION_LEVEL_RESOURCES         = "LevelResources";
 	public static final String ACTION_LEVEL_ALL               = "LevelAll";
 	public static final String ACTION_LEVEL_SELECTION         = "LevelSelection";
+	public static final String ACTION_CLEAR_LEVEL_ALL          = "ClearLevelAll";
+	public static final String ACTION_CLEAR_LEVEL_SELECTION    = "ClearLevelSelection";
 	public static final String ACTION_NEXT_OVERALLOCATION     = "NextOverallocation";
 	public static final String ACTION_USE_RESOURCE_POOL       = "UseResourcePool";
 	public static final String ACTION_CREATE_RESOURCE_POOL    = "CreateResourcePool";

@@ -53,8 +53,11 @@ import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.TaskSplitInterval;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
+import com.microproject.pm.task.ProjectTaskSnapshot;
 import com.microproject.pm.scheduling.ScheduleService;
 import com.microproject.strings.Messages;
+import com.microproject.transaction.ModelTransaction;
+import com.microproject.transaction.ProjectMutationState;
 
 /**
  * Deterministic resource-leveling engine. It delays lower-ranked, unstarted
@@ -159,14 +162,16 @@ public final class ResourceLevelingService {
 
 		public void apply(EditSupport editSupport) {
 			applyChanges(true);
-			if (editSupport != null && hasMutations()) {
-				editSupport.postEdit(new AbstractUndoableEdit() {
-					private static final long serialVersionUID = 1L;
-					@Override public String getPresentationName() { return Messages.getString("ResourceLevelingService.PresentationName"); }
-					@Override public void undo() { super.undo(); applyChanges(false); }
-					@Override public void redo() { super.redo(); applyChanges(true); }
-				});
-			}
+			postUndoEdit(editSupport);
+		}
+
+		private void postUndoEdit(EditSupport editSupport) {
+			if (editSupport != null && hasMutations()) editSupport.postEdit(new AbstractUndoableEdit() {
+				private static final long serialVersionUID = 1L;
+				@Override public String getPresentationName() { return Messages.getString("ResourceLevelingService.PresentationName"); }
+				@Override public void undo() { super.undo(); applyChanges(false); }
+				@Override public void redo() { super.redo(); applyChanges(true); }
+			});
 		}
 
 		private void applyChanges(boolean forward) {
@@ -310,21 +315,105 @@ public final class ResourceLevelingService {
 	}
 
 	public void clear(Project project, EditSupport editSupport) {
-		List<Change> changes = new ArrayList<>(project.getTaskList().size());
-		List<NormalTask> generatedSplits = new ArrayList<>();
-		// The outline iterator omits detached/unparented tasks while a project is
-		// being edited.  Leveling applies to every schedulable task, so clear must
-		// use the task list as well or leave invisible leveling delays behind.
+		clear(project, null, editSupport);
+	}
+
+	/** Returns the schedulable tasks that own leveling delays or generated gaps in the requested scope. */
+	public List<Task> tasksWithLevelingState(Project project, Collection<? extends Task> selectedTasks) {
+		Objects.requireNonNull(project, "project");
+		Set<Task> selected = null;
+		if (selectedTasks != null) {
+			selected = Collections.newSetFromMap(new IdentityHashMap<>());
+			for (Task task : selectedTasks) {
+				if (task == null || task.getOwningProject() != project)
+					throw new IllegalArgumentException("selectedTasks must belong to the supplied project");
+				selected.add(task);
+			}
+		}
+		List<Task> affected = new ArrayList<>();
 		for (Object value : project.getTaskList()) {
 			Task task = (Task) value;
+			if (selected != null && !selected.contains(task)) continue;
+			if (hasLevelingState(task)) affected.add(task);
+		}
+		return List.copyOf(affected);
+	}
+
+	private static boolean hasLevelingState(Task task) {
+		return Duration.millis(task.getLevelingDelay()) != 0L
+			|| task instanceof NormalTask normalTask && !normalTask.getLevelingTaskSplitIntervals().isEmpty();
+	}
+
+	/** Clears leveling state for all tasks, or only the supplied project tasks. */
+	public List<Task> clear(Project project, Collection<? extends Task> selectedTasks, EditSupport editSupport) {
+		List<Task> affected = tasksWithLevelingState(project, selectedTasks);
+		if (project.isReadOnly()) throw new IllegalStateException("Cannot clear leveling in a read-only project");
+		for (Task task : affected) {
+			if (task.isReadOnly()) throw new IllegalStateException("Cannot clear leveling on a read-only task: " + task.getName());
+		}
+		if (affected.isEmpty()) return List.of();
+		List<Change> changes = new ArrayList<>(affected.size());
+		List<NormalTask> generatedSplits = new ArrayList<>();
+		for (Task task : affected) {
 			if (Duration.millis(task.getLevelingDelay()) != 0L) {
 				changes.add(new Change(task, task.getLevelingDelay(), 0L, task.getStart(), task.getStart(), ""));
 			}
-			if (task instanceof NormalTask normalTask && !normalTask.getLevelingTaskSplitIntervals().isEmpty())
+			if (task instanceof NormalTask normalTask && !normalTask.getLevelingTaskSplitIntervals().isEmpty()) {
 				generatedSplits.add(normalTask);
+			}
 		}
-		new Plan(changes, List.of(), List.of(), generatedSplits).apply(editSupport);
+		clearAtomically(project, affected, changes, generatedSplits, editSupport);
+		return List.copyOf(affected);
 	}
+
+	private void clearAtomically(Project project, List<Task> affected, List<Change> changes,
+		List<NormalTask> generatedSplits, EditSupport editSupport) {
+		ProjectTaskSnapshot[] before = new ProjectTaskSnapshot[1];
+		Plan clearPlan = new Plan(changes, List.of(), List.of(), generatedSplits);
+		try (ProjectMutationState.Scope mutation = project.getMutationState().begin()) {
+			project.beginEventBatch();
+			try {
+				ModelTransaction.execute(new ModelTransaction.Steps<ProjectTaskSnapshot, Boolean>() {
+					@Override public void validate() {
+						for (Task task : affected) {
+							if (task.getOwningProject() != project || task.isReadOnly())
+								throw new IllegalStateException("A leveling task is no longer editable in this project");
+						}
+					}
+					@Override public void authorize() {
+						if (project.isReadOnly()) throw new IllegalStateException("Cannot clear leveling in a read-only project");
+					}
+					@Override public ProjectTaskSnapshot capture() {
+						before[0] = ProjectTaskSnapshot.capture(project);
+						return before[0];
+					}
+					@Override public ModelTransaction.Mutation<Boolean> apply() {
+						clearPlan.applyChanges(true);
+						return ModelTransaction.Mutation.changed(Boolean.TRUE);
+					}
+					@Override public void schedule() { }
+					@Override public void checkInvariants() {
+						for (Task task : affected)
+							if (hasLevelingState(task)) throw new IllegalStateException("Leveling state remains after clear");
+					}
+					@Override public void restore(ProjectTaskSnapshot snapshot) { snapshot.restore(project, ResourceLevelingService.this); }
+					@Override public void commit(Boolean changed) { }
+				});
+				Project.PendingEventBatch pending = project.commitEventBatch(mutation, true);
+				project.publishEventBatch(pending);
+				clearPlan.postUndoEdit(editSupport);
+			} catch (ModelTransaction.ModelTransactionException failure) {
+				try { project.endEventBatch(false); }
+				catch (Throwable closeFailure) { failure.addSuppressed(closeFailure); }
+				throw new IllegalStateException("Clear leveling failed during " + failure.failedStage(), failure);
+			} catch (RuntimeException | Error failure) {
+				try { project.endEventBatch(false); }
+				catch (Throwable closeFailure) { failure.addSuppressed(closeFailure); }
+				throw failure;
+			}
+		}
+	}
+
 
 	private boolean levelResource(Resource resource, Options options, Set<Task> selectedTasks, Map<Task, Long> addedDelay,
 		Map<Task, String> limitingResource, Map<Task, Split> splits, List<Conflict> unresolved,

@@ -38,6 +38,8 @@ public enum CommandId {
 	RESPECT_LINKS("RespectLinks"),
 	RESOURCE_LEVEL_ALL("LevelAll"),
 	RESOURCE_LEVEL_SELECTION("LevelSelection"),
+	RESOURCE_CLEAR_LEVEL_ALL("ClearLevelAll"),
+	RESOURCE_CLEAR_LEVEL_SELECTION("ClearLevelSelection"),
 	NEXT_OVERALLOCATION("NextOverallocation"),
 	STATUS_DATE("StatusDate"),
 	MARK_ON_TRACK("MarkOnTrack"),

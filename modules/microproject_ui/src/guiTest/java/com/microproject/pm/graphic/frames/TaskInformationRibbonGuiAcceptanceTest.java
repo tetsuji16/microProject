@@ -3318,6 +3318,130 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	@Test
+	void clearLevelingRibbonScopesPreserveManualSplitsAndRoundTripUndoMpo() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("ribbon-clear-leveling", undo), undo);
+		project.initialize(false, false);
+		NormalTask selected = project.createScriptedTask();
+		selected.setName("Clear leveling selected");
+		NormalTask other = project.createScriptedTask();
+		other.setName("Clear leveling other");
+		long hour = com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		long workday = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		selected.setDuration(workday);
+		other.setDuration(workday);
+		long selectedGapStart = selected.getStart() + hour;
+		selected.splitForLeveling(this, selectedGapStart, selectedGapStart + hour);
+		selected.split(this, selectedGapStart, selectedGapStart + hour);
+		long otherGapStart = other.getStart() + 2L * hour;
+		other.splitForLeveling(this, otherGapStart, otherGapStart + hour);
+		selected.setLevelingDelay(com.microproject.datatype.Duration.millis(86_400_000L));
+		other.setLevelingDelay(com.microproject.datatype.Duration.millis(172_800_000L));
+		assertEquals(1, selected.getLevelingTaskSplitIntervals().size(),
+			"fixture must start with one generated split on the selected task");
+		assertEquals(1, selected.getManualTaskSplitIntervals().size(),
+			"fixture must retain an overlapping manual split as independent ownership");
+		assertEquals(1, other.getLevelingTaskSplitIntervals().size(),
+			"fixture must start with a generated split on the unselected task");
+		undo.clear();
+		project.recalculate();
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"Clear Leveling task sheet did not become visible");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, selected), nameColumn(sheet)));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(selected),
+			"physical task click did not select the Clear Leveling target");
+		clickAndAwaitSelected(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+				.getString("ResourceRibbonTask.title")), "Robot click did not select the Resource ribbon tab");
+		AbstractButton clearSelected = findVisibleOrOverflowButton(robot, "RibbonClearLevelSelection");
+		GuiAcceptanceSupport.await(clearSelected::isEnabled,
+			"Clear Leveling (Selection) must be enabled for an editable task selection");
+		String activeView = manager.getCurrentFrame().getTopViewId();
+		click(robot, clearSelected);
+		GuiAcceptanceSupport.await(() -> findShowingOptionPane() != null,
+			"Clear selected leveling must ask for confirmation before changing the project");
+		press(robot, KeyEvent.VK_ESCAPE);
+		GuiAcceptanceSupport.await(() -> findShowingOptionPane() == null,
+			"Escape did not cancel Clear Leveling confirmation");
+		assertEquals(86_400_000L, com.microproject.datatype.Duration.millis(selected.getLevelingDelay()),
+			"canceling confirmation must leave selected leveling untouched");
+		assertEquals(1, selected.getLevelingTaskSplitIntervals().size());
+		assertFalse(undo.canUndo(), "canceling confirmation must not add an Undo edit");
+		assertTrue(manager.getCurrentFrame().getSelectedImpls(false).contains(selected),
+			"canceling confirmation must retain the physical task selection");
+		assertEquals(activeView, manager.getCurrentFrame().getTopViewId(), "canceling confirmation must retain the active view");
+		assertEquals(RibbonCommandResult.Status.REJECTED, manager.getLastRibbonCommandResult().status());
+		click(robot, clearSelected);
+		GuiAcceptanceSupport.await(() -> findShowingOptionPane() != null,
+			"Clear selected leveling confirmation did not reopen");
+		press(robot, KeyEvent.VK_ENTER);
+		GuiAcceptanceSupport.await(() -> com.microproject.datatype.Duration.millis(selected.getLevelingDelay()) == 0L
+				&& selected.getLevelingTaskSplitIntervals().isEmpty(),
+			"Clear Leveling (Selection) did not clear selected delay and generated split");
+		assertEquals(1, selected.getManualTaskSplitIntervals().size(), "manual split must remain after selected clear");
+		assertEquals(172_800_000L, com.microproject.datatype.Duration.millis(other.getLevelingDelay()),
+			"selected clear must leave other tasks unchanged");
+		assertEquals(1, other.getLevelingTaskSplitIntervals().size());
+		assertTrue(manager.getCurrentFrame().getSelectedImpls(false).contains(selected),
+			"Clear Leveling must preserve the user's task selection");
+		assertEquals(activeView, manager.getCurrentFrame().getTopViewId(), "Clear Leveling must preserve the active view");
+		assertEquals(List.of(selected.getUniqueId()), manager.getLastRibbonCommandResult().affectedTaskIds());
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> com.microproject.datatype.Duration.millis(selected.getLevelingDelay()) == 86_400_000L
+				&& selected.getLevelingTaskSplitIntervals().size() == 1,
+			"one Ctrl+Z did not restore the selected leveling state");
+		assertEquals(1, selected.getManualTaskSplitIntervals().size(), "Undo must retain manual split ownership");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> com.microproject.datatype.Duration.millis(selected.getLevelingDelay()) == 0L
+				&& selected.getLevelingTaskSplitIntervals().isEmpty(),
+			"one Ctrl+Y did not clear selected leveling again");
+
+		click(robot, findVisibleOrOverflowButton(robot, "RibbonClearLevelAll"));
+		GuiAcceptanceSupport.await(() -> findShowingOptionPane() != null,
+			"Clear Leveling (All) must ask for confirmation before changing the project");
+		press(robot, KeyEvent.VK_ENTER);
+		GuiAcceptanceSupport.await(() -> com.microproject.datatype.Duration.millis(other.getLevelingDelay()) == 0L
+				&& other.getLevelingTaskSplitIntervals().isEmpty(),
+			"Clear Leveling (All) did not clear the remaining generated leveling state");
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		MpoFileImporter importer = new MpoFileImporter();
+		assertTrue(importer.saveProject(project, saved), "MPO save rejected the cleared leveling project");
+		Project reloaded = importer.loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		assertEquals(0L, com.microproject.datatype.Duration.millis(taskNamed(reloaded, selected.getName()).getLevelingDelay()));
+		assertEquals(1, taskNamed(reloaded, selected.getName()).getManualTaskSplitIntervals().size(),
+			"MPO reload must preserve the manually owned split after both clear scopes");
+		assertTrue(taskNamed(reloaded, selected.getName()).getLevelingTaskSplitIntervals().isEmpty());
+		assertTrue(taskNamed(reloaded, other.getName()).getLevelingTaskSplitIntervals().isEmpty());
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> com.microproject.datatype.Duration.millis(other.getLevelingDelay()) == 172_800_000L
+				&& other.getLevelingTaskSplitIntervals().size() == 1,
+			"one Ctrl+Z did not undo Clear Leveling (All)");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> com.microproject.datatype.Duration.millis(other.getLevelingDelay()) == 0L,
+			"one Ctrl+Y did not redo Clear Leveling (All)");
+	}
+
+	private static JOptionPane findShowingOptionPane() {
+		for (Window candidate : Window.getWindows()) {
+			if (!candidate.isShowing()) continue;
+			JOptionPane[] panes = UiComponentWalker.flatten(candidate).stream()
+				.filter(JOptionPane.class::isInstance).map(JOptionPane.class::cast).toArray(JOptionPane[]::new);
+			if (panes.length > 0) return panes[0];
+		}
+		return null;
+	}
+
+	@Test
 	void physicalTaskSortSupportsAscendingStartAndDescendingFinishForViewAndOutline() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
