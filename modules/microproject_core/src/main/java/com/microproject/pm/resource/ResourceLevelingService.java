@@ -60,9 +60,13 @@ public final class ResourceLevelingService {
 	}
 
 	public record Options(Order order, boolean onlyWithinAvailableSlack, boolean allowTaskSplits,
-		long rangeStart, long rangeEnd) {
+		long rangeStart, long rangeEnd, boolean includeProposedResources) {
 		public Options(Order order, boolean onlyWithinAvailableSlack, long rangeStart, long rangeEnd) {
-			this(order, onlyWithinAvailableSlack, true, rangeStart, rangeEnd);
+			this(order, onlyWithinAvailableSlack, true, rangeStart, rangeEnd, false);
+		}
+		public Options(Order order, boolean onlyWithinAvailableSlack, boolean allowTaskSplits,
+			long rangeStart, long rangeEnd) {
+			this(order, onlyWithinAvailableSlack, allowTaskSplits, rangeStart, rangeEnd, false);
 		}
 		public Options {
 			Objects.requireNonNull(order, "order");
@@ -72,7 +76,7 @@ public final class ResourceLevelingService {
 		}
 
 		public static Options defaults() {
-			return new Options(Order.STANDARD, false, true, Long.MIN_VALUE, Long.MAX_VALUE);
+			return new Options(Order.STANDARD, false, true, Long.MIN_VALUE, Long.MAX_VALUE, false);
 		}
 	}
 
@@ -269,7 +273,9 @@ public final class ResourceLevelingService {
 	private boolean levelResource(Resource resource, Options options, Set<Task> selectedTasks, Map<Task, Long> addedDelay,
 		Map<Task, String> limitingResource, Map<Task, Split> splits, List<Conflict> unresolved,
 		LevelingScratch scratch) {
-		if (resource == null || !resource.isLabor() || resource.getMaximumUnits() <= 0D) {
+		if (resource == null || !resource.isLabor() || resource.getMaximumUnits() <= 0D
+			|| (!options.includeProposedResources()
+				&& resource.getBookingTypeKind() == BookingType.Kind.PROPOSED)) {
 			return false;
 		}
 		scratch.reset(resource.getAssignments().size());

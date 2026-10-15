@@ -60,6 +60,10 @@ public interface Resource extends HasCalendar, HasKey, BelongsToDocument, Cost, 
     /** @deprecated use {@link #setResourceTypeKind(ResourceType.Kind)} for typed access. */
     @Deprecated
     public void setResourceType(int resourceType);
+    /** Implementations without booking metadata retain the historical committed-resource behavior. */
+    default BookingType.Kind getBookingTypeKind() {
+        return BookingType.Kind.COMMITTED;
+    }
     default ResourceType.Kind getResourceTypeKind() {
         return ResourceType.Kind.fromCode(getResourceType());
     }
