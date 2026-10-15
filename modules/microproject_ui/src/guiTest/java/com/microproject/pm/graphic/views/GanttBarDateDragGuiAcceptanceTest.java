@@ -424,7 +424,8 @@ class GanttBarDateDragGuiAcceptanceTest {
 		} else if (fixture.dependency.getDependencyType() == DependencyType.SF) {
 			// Microsoft defines SF as a successor that cannot finish until its
 			// predecessor starts; it may finish later. This is the minimum finish
-			// boundary, not a maximum. Source:
+			// boundary, not a maximum. The separate upper bound below is only this
+			// one-day fixture's Standard-calendar schedule expectation. Source:
 			// https://support.microsoft.com/en-us/project/how-project-schedules-tasks-behind-the-scenes
 			assertTrue(fixture.successor.getEnd() >= fixture.predecessor.getStart(),
 				"SF successor must not finish before the dragged predecessor starts: predecessor="
@@ -432,12 +433,55 @@ class GanttBarDateDragGuiAcceptanceTest {
 					+ fixture.successor.getStart() + ".." + fixture.successor.getEnd() + " mode="
 					+ (fixture.successor.isManuallyScheduled() ? "manual" : "auto") + " calendar="
 					+ fixture.successor.getEffectiveWorkCalendar().getName());
+			long fixtureLatestFinish = addStandardWork(fixture.predecessor.getStart(), 8L * 60L * 60L * 1000L);
+			assertTrue(fixture.successor.getEnd() <= fixtureLatestFinish,
+				"one-day Standard-calendar successor should finish within one workday of the SF boundary: "
+					+ "predecessor=" + fixture.predecessor.getStart() + ".." + fixture.predecessor.getEnd()
+					+ " successor=" + fixture.successor.getStart() + ".." + fixture.successor.getEnd()
+					+ " fixtureLatestFinish=" + fixtureLatestFinish);
 		} else {
 			long expected = fixture.dependency.calcForwardDependencyDate(fixture.predecessor.getStart(), fixture.predecessor.getEnd(), true);
 			assertEquals(expected, fixture.successor.getStart(), "Successor must match " + DependencyType.toLongString(fixture.dependency.getDependencyType())
 				+ " date implied by the dragged bar (expected=" + expected + ", actual=" + fixture.successor.getStart() + ")");
 		}
 		capture(robot);
+	}
+
+	private static long addStandardWork(long start, long workMillis) {
+		java.util.Calendar time = com.microproject.util.DateTime.calendarInstance();
+		time.setTimeInMillis(start);
+		long remaining = workMillis;
+		while (remaining > 0L) {
+			int day = time.get(java.util.Calendar.DAY_OF_WEEK);
+			if (day == java.util.Calendar.SATURDAY || day == java.util.Calendar.SUNDAY) {
+				time.add(java.util.Calendar.DAY_OF_MONTH, day == java.util.Calendar.SATURDAY ? 2 : 1);
+				setStandardTime(time, 8);
+				continue;
+			}
+			int hour = time.get(java.util.Calendar.HOUR_OF_DAY);
+			if (hour < 8) setStandardTime(time, 8);
+			else if (hour >= 17) {
+				time.add(java.util.Calendar.DAY_OF_MONTH, 1);
+				setStandardTime(time, 8);
+			} else if (hour >= 12 && hour < 13) setStandardTime(time, 13);
+			long sessionEnd = time.getTimeInMillis();
+			time.set(java.util.Calendar.HOUR_OF_DAY, time.get(java.util.Calendar.HOUR_OF_DAY) < 12 ? 12 : 17);
+			time.set(java.util.Calendar.MINUTE, 0);
+			time.set(java.util.Calendar.SECOND, 0);
+			time.set(java.util.Calendar.MILLISECOND, 0);
+			long available = time.getTimeInMillis() - sessionEnd;
+			long consumed = Math.min(remaining, available);
+			time.setTimeInMillis(sessionEnd + consumed);
+			remaining -= consumed;
+		}
+		return time.getTimeInMillis();
+	}
+
+	private static void setStandardTime(java.util.Calendar time, int hour) {
+		time.set(java.util.Calendar.HOUR_OF_DAY, hour);
+		time.set(java.util.Calendar.MINUTE, 0);
+		time.set(java.util.Calendar.SECOND, 0);
+		time.set(java.util.Calendar.MILLISECOND, 0);
 	}
 
 	private void activateWindow(Robot robot) throws Exception {

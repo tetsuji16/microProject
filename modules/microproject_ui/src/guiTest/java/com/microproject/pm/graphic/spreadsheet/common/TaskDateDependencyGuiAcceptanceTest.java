@@ -206,12 +206,32 @@ class TaskDateDependencyGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(fixture.project::recalculate);
 		long requiredSuccessorStart = fixture.dependency.calcForwardDependencyDate(
 			fixture.predecessor.getStart(), fixture.predecessor.getEnd(), true);
-		// Document-derived rule: Microsoft says links set the earliest permitted
-		// boundary, while automatically scheduled tasks use their working calendar.
-		// A boundary at a nonworking time therefore normalizes to the next work time.
-		// Source: https://support.microsoft.com/en-us/project/how-project-schedules-tasks-behind-the-scenes
-		long expectedSuccessorStart = fixture.successor.getEffectiveWorkCalendar().add(
-			requiredSuccessorStart, 0L, fixture.successor.isMilestone());
+		if (lagDays == 0L) {
+			long independentlyExpectedBoundary = switch (type) {
+				case DependencyType.FS, DependencyType.FF -> fixture.predecessor.getEnd();
+				case DependencyType.SS, DependencyType.SF -> fixture.predecessor.getStart();
+				default -> throw new AssertionError("Unexpected dependency type " + type);
+			};
+			assertEquals(independentlyExpectedBoundary, requiredSuccessorStart,
+				"zero-lag raw link boundary must equal its documented predecessor endpoint");
+		}
+		// Microsoft specifies that the link boundary is a minimum and automatic
+		// tasks use working time. Compute the fixture's Standard-calendar start
+		// independently (UTC weekdays, 08:00-12:00 and 13:00-17:00); do not call
+		// the production WorkCalendar to manufacture the test expectation.
+		long expectedSuccessorStart = standardCalendarStartAtOrAfter(requiredSuccessorStart);
+		if (type == DependencyType.FS && lagDays == 0L && "2026/06/09".equals(editedDate)) {
+			assertEquals(utc("2026-06-08T17:00:00Z"), requiredSuccessorStart,
+				"FS fixture's raw boundary is the predecessor's Monday 17:00 finish");
+			assertEquals(utc("2026-06-09T08:00:00Z"), expectedSuccessorStart,
+				"the next Standard-calendar start after Monday 17:00 is Tuesday 08:00");
+		}
+		if (type == DependencyType.SS && lagDays == 0L && "2026/06/09".equals(editedDate)) {
+			assertEquals(utc("2026-06-06T08:00:00Z"), requiredSuccessorStart,
+				"SS fixture's raw boundary is Saturday 08:00");
+			assertEquals(utc("2026-06-08T08:00:00Z"), expectedSuccessorStart,
+				"the next Standard-calendar start after Saturday 08:00 is Monday 08:00");
+		}
 		assertTrue(fixture.predecessor.getStart() > fixture.originalStart, "predecessor start must move after GUI edit");
 		if ("2026/06/13".equals(editedDate)) {
 			Calendar moved = DateTime.calendarInstance();
@@ -230,6 +250,45 @@ class TaskDateDependencyGuiAcceptanceTest {
 				+ (fixture.successor.isManuallyScheduled() ? "manual" : "auto") + " calendar="
 				+ fixture.successor.getEffectiveWorkCalendar().getName());
 		capture(robot, type, lagDays);
+	}
+
+	private static long standardCalendarStartAtOrAfter(long boundary) {
+		Calendar time = DateTime.calendarInstance();
+		time.setTimeInMillis(boundary);
+		while (true) {
+			int day = time.get(Calendar.DAY_OF_WEEK);
+			if (day == Calendar.SATURDAY || day == Calendar.SUNDAY) {
+				time.add(Calendar.DAY_OF_MONTH, day == Calendar.SATURDAY ? 2 : 1);
+				setUtcTime(time, 8, 0);
+				continue;
+			}
+			int hour = time.get(Calendar.HOUR_OF_DAY);
+			if (hour < 8) {
+				setUtcTime(time, 8, 0);
+				return time.getTimeInMillis();
+			}
+			if (hour >= 17) {
+				time.add(Calendar.DAY_OF_MONTH, 1);
+				setUtcTime(time, 8, 0);
+				continue;
+			}
+			if (hour == 12) {
+				setUtcTime(time, 13, 0);
+				return time.getTimeInMillis();
+			}
+			return boundary;
+		}
+	}
+
+	private static void setUtcTime(Calendar time, int hour, int minute) {
+		time.set(Calendar.HOUR_OF_DAY, hour);
+		time.set(Calendar.MINUTE, minute);
+		time.set(Calendar.SECOND, 0);
+		time.set(Calendar.MILLISECOND, 0);
+	}
+
+	private static long utc(String value) {
+		return java.time.Instant.parse(value).toEpochMilli();
 	}
 
 	private void showFixture(Fixture fixture) throws Exception {
