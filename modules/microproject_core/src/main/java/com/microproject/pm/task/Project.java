@@ -554,9 +554,13 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		Task parent = (Task) (parentNode == null ? null : parentNode.getImpl());
 		if (child.getWbsParentTask() == parent)
 			return;
+		Task oldParent = child.getWbsParentTask();
+		Node oldParentNode = oldParent == null ? null : getTaskModel().search(oldParent);
 		ArrayList<Node> temp = new ArrayList<>(1);
 		temp.add(childNode);
 		getTaskModel().move(parentNode, temp, -1,NodeModel.NORMAL);
+		if (oldParent != null && oldParent != parent)
+			oldParent.setWbsChildrenNodes(getTaskModel().getChildren(oldParentNode));
 		setDefaultRelationship(parentNode,childNode);
 	}
 
