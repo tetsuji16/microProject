@@ -93,6 +93,7 @@ import com.microproject.collaboration.CollaborationSession;
 import com.microproject.field.Field;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.transform.CommonTransformFactory;
+import com.microproject.grouping.core.transform.sorting.TaskSortSpec;
 import com.microproject.grouping.core.transform.ViewConfiguration;
 import com.microproject.grouping.core.transform.ViewTransformer;
 import com.microproject.job.JobQueue;
@@ -161,8 +162,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	private Handler diagnosticsHandler;
 	private Level previousDiagnosticsLevel;
 	private ViewConfiguration taskSortViewToRestore;
-	private String previousTaskUserSorterId;
-	private boolean previousTaskUserSorterAscending;
+	private TaskSortSpec previousTaskSortSpec;
 	private final ConcurrentLinkedQueue<String> diagnosticMessages = new ConcurrentLinkedQueue<>();
 	private volatile boolean failUpdateTasksRoute;
 
@@ -183,12 +183,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 					|| candidate instanceof CalendarDialogBox)
 					candidate.dispose();
 			}
-			if (taskSortViewToRestore != null && previousTaskUserSorterId != null) {
-				taskSortViewToRestore.getTransform().setUserSorterId(previousTaskUserSorterId);
-				taskSortViewToRestore.getTransform().setUserSorterAscending(previousTaskUserSorterAscending);
-			}
+			if (taskSortViewToRestore != null && previousTaskSortSpec != null)
+				taskSortViewToRestore.getTransform().setTaskSortSpec(previousTaskSortSpec);
 			taskSortViewToRestore = null;
-			previousTaskUserSorterId = null;
+			previousTaskSortSpec = null;
 			if (manager != null)
 				manager.cleanUp();
 			for (Window candidate : Window.getWindows()) {
@@ -3127,8 +3125,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
 		GanttView ganttView = manager.getCurrentFrame().getGanttView();
 		taskSortViewToRestore = ViewConfiguration.getView(manager.getCurrentFrame().getTopViewId());
-		previousTaskUserSorterId = taskSortViewToRestore.getTransform().getUserSorterId();
-		previousTaskUserSorterAscending = taskSortViewToRestore.getTransform().isUserSorterAscending();
+		previousTaskSortSpec = taskSortViewToRestore.getTransform().getTaskSortSpec();
 		assertSame(ganttView.getSpreadSheet(), sheet);
 		assertSame(sheet.getCache(), ganttView.getCache(), "task table and Gantt must share the live projection");
 		assertEquals(originalOutline, visibleTaskOrder(sheet), "task table must initially follow outline order");
@@ -3201,12 +3198,91 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"descending view sort must not change task starts");
 		assertArrayEquals(originalFinishes, new long[] { later.getEnd(), earlier.getEnd(), tiedEarlier.getEnd() },
 			"descending view sort must not change task finishes");
+
+		// Microsoft Project's Sort dialog permits a secondary field with its own direction.
+		// Keep Outline off is view-only here; this product contract does not rewrite WBS.
+		click(robot, findShowingButtonByCommand("RibbonChooseSort"));
+		Dialog multiKeyChooser = (Dialog) java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow();
+		JComboBox<?> multiPrimary = findShowingTransformCombo("Sorter.FinishDate");
+		int startIndex = -1;
+		for (int index = 0; index < multiPrimary.getItemCount(); index++) {
+			if (multiPrimary.getItemAt(index) instanceof CommonTransformFactory factory
+					&& "Sorter.StartDate".equals(factory.getId())) startIndex = index;
+		}
+		GuiAcceptanceSupport.selectComboBoxItem(robot, multiPrimary, startIndex);
+		JComboBox<?> multiPrimaryDirection = findTaskSortDirection(multiKeyChooser);
+		GuiAcceptanceSupport.selectComboBoxItem(robot, multiPrimaryDirection, 0);
+		assertEquals(0, multiPrimaryDirection.getSelectedIndex(),
+			"the new primary Start Date key must be explicitly ascending after a descending prior sort");
+		JComboBox<?> secondField = UiComponentWalker.flatten(multiKeyChooser).stream()
+			.filter(JComboBox.class::isInstance).map(JComboBox.class::cast)
+			.filter(field -> "microproject.taskSort.secondary".equals(field.getName())).findFirst().orElseThrow();
+		int nameIndex = -1;
+		for (int index = 0; index < secondField.getItemCount(); index++) {
+			if (secondField.getItemAt(index) instanceof CommonTransformFactory factory
+					&& "Sorter.Name".equals(factory.getId())) nameIndex = index;
+		}
+		assertTrue(nameIndex >= 0, "the secondary key must use the shared task sorter catalog");
+		GuiAcceptanceSupport.selectComboBoxItem(robot, secondField, nameIndex);
+		JComboBox<?> secondDirection = UiComponentWalker.flatten(multiKeyChooser).stream()
+			.filter(JComboBox.class::isInstance).map(JComboBox.class::cast)
+			.filter(field -> "microproject.taskSort.secondaryDirection".equals(field.getName())).findFirst().orElseThrow();
+		GuiAcceptanceSupport.selectComboBoxItem(robot, secondDirection, 1);
+		JCheckBox keepOutline = UiComponentWalker.flatten(multiKeyChooser).stream()
+			.filter(JCheckBox.class::isInstance).map(JCheckBox.class::cast)
+			.filter(check -> "microproject.taskSort.keepOutline".equals(check.getName())).findFirst().orElseThrow();
+		click(robot, keepOutline);
+		click(robot, findShowingButtonByText(multiKeyChooser, javax.swing.UIManager.getString("OptionPane.okButtonText")));
+		GuiAcceptanceSupport.await(() -> visibleTaskOrder(sheet).equals(
+				List.of("Date sort tied earlier", "Date sort earlier", "Date sort later")),
+			"the physical sort route must apply the secondary descending Name key; rows=" + visibleTaskOrder(sheet));
+		assertFalse(taskSortViewToRestore.getTransform().isKeepOutline());
+		assertEquals(List.of(new TaskSortSpec.Key("Sorter.StartDate", true), new TaskSortSpec.Key("Sorter.Name", false)),
+			taskSortViewToRestore.getTransform().getTaskSortSpec().keys());
+		assertEquals(originalOutline, taskOrder(project), "flat view sorting must not mutate task outline/WBS order");
+		for (NormalTask task : List.of(earlier, tiedEarlier, later)) {
+			int sheetRow = rowForTask(sheet, task);
+			GraphicNode graphicNode = (GraphicNode) sheet.getCache().getGraphicNode(
+					((CommonSpreadSheetModel) sheet.getModel()).getNode(sheetRow).getNode());
+			assertEquals(1, sheet.getCache().getLevel(graphicNode), "flat sort rows must have one displayed level");
+			int ganttRow = ganttView.getGantt().getCache().getVisibleNodes().getProjectionIndex().rowForNode(graphicNode);
+			assertEquals(sheetRow, ganttRow, "flat view sort must keep table and Gantt rows aligned");
+		}
 		for (NormalTask task : List.of(earlier, tiedEarlier, later)) {
 			int sheetRow = rowForTask(sheet, task);
 			var graphicNode = sheet.getCache().getGraphicNode(((CommonSpreadSheetModel) sheet.getModel()).getNode(sheetRow).getNode());
 			int ganttRow = ganttView.getGantt().getCache().getVisibleNodes().getProjectionIndex().rowForNode((GraphicNode) graphicNode);
 			assertEquals(sheetRow, ganttRow, "Gantt must paint the task at the same visible row as its table row");
 		}
+		List<Long> flatModeIds = List.of(later.getId(), earlier.getId(), tiedEarlier.getId());
+		click(robot, findShowingButtonByCommand("RibbonChooseSort"));
+		Dialog flatSortChooser = (Dialog) java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow();
+		JCheckBox flatPermanent = UiComponentWalker.flatten(flatSortChooser).stream()
+			.filter(JCheckBox.class::isInstance).map(JCheckBox.class::cast)
+			.filter(check -> "microproject.taskSort.permanentOrder".equals(check.getName())).findFirst().orElseThrow();
+		assertFalse(flatPermanent.isEnabled(), "Keep Outline off must disable permanent ordering and renumbering");
+		assertFalse(flatPermanent.isSelected(), "a flat projection cannot retain a permanent-order selection");
+		JComboBox<?> reopenedSecondary = UiComponentWalker.flatten(flatSortChooser).stream()
+			.filter(JComboBox.class::isInstance).map(JComboBox.class::cast)
+			.filter(field -> "microproject.taskSort.secondary".equals(field.getName())).findFirst().orElseThrow();
+		assertEquals("Sorter.Name", ((CommonTransformFactory) reopenedSecondary.getSelectedItem()).getId(),
+			"reopening the chooser must restore the complete secondary key");
+		JComboBox<?> reopenedSecondaryDirection = UiComponentWalker.flatten(flatSortChooser).stream()
+			.filter(JComboBox.class::isInstance).map(JComboBox.class::cast)
+			.filter(field -> "microproject.taskSort.secondaryDirection".equals(field.getName())).findFirst().orElseThrow();
+		assertEquals(1, reopenedSecondaryDirection.getSelectedIndex(),
+			"reopening the chooser must restore the secondary key direction");
+		JCheckBox reopenedKeepOutline = UiComponentWalker.flatten(flatSortChooser).stream()
+			.filter(JCheckBox.class::isInstance).map(JCheckBox.class::cast)
+			.filter(check -> "microproject.taskSort.keepOutline".equals(check.getName())).findFirst().orElseThrow();
+		assertFalse(reopenedKeepOutline.isSelected(), "reopening the chooser must restore Keep Outline=false");
+		click(robot, flatPermanent);
+		assertFalse(flatPermanent.isSelected(), "a disabled permanent-order option cannot be activated physically");
+		click(robot, findShowingButtonByText(flatSortChooser, javax.swing.UIManager.getString("OptionPane.cancelButtonText")));
+		GuiAcceptanceSupport.await(() -> !flatSortChooser.isShowing(), "flat sort review dialog did not close");
+		assertEquals(originalOutline, taskOrder(project), "flat mode must never mutate WBS order");
+		assertEquals(flatModeIds, List.of(later.getId(), earlier.getId(), tiedEarlier.getId()),
+			"flat mode must never permanently renumber task IDs");
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, tiedEarlier), nameColumn(sheet)));
 		GuiAcceptanceSupport.await(() -> ganttView.getGantt().getHighlightedRows()
 				.equals(java.util.Set.of(rowForTask(sheet, tiedEarlier))),
@@ -3225,6 +3301,11 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			.filter(JCheckBox.class::isInstance).map(JCheckBox.class::cast)
 			.filter(check -> check.getText().equals(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("Sort.PermanentTaskOrder"))).findFirst().orElseThrow();
+		JCheckBox keepOutlineForCancel = UiComponentWalker.flatten(permanentChooser).stream()
+			.filter(JCheckBox.class::isInstance).map(JCheckBox.class::cast)
+			.filter(check -> "microproject.taskSort.keepOutline".equals(check.getName())).findFirst().orElseThrow();
+		click(robot, keepOutlineForCancel);
+		assertTrue(permanentCheck.isEnabled(), "permanent ordering is available after restoring Keep Outline");
 		click(robot, permanentCheck);
 		click(robot, findShowingButtonByText(permanentChooser, javax.swing.UIManager.getString("OptionPane.okButtonText")));
 		GuiAcceptanceSupport.await(() -> java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow() instanceof Dialog dialog
@@ -3257,6 +3338,11 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			.filter(JCheckBox.class::isInstance).map(JCheckBox.class::cast)
 			.filter(check -> check.getText().equals(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("Sort.PermanentTaskOrder"))).findFirst().orElseThrow();
+		JCheckBox keepOutlineAgain = UiComponentWalker.flatten(permanentChooserAgain).stream()
+			.filter(JCheckBox.class::isInstance).map(JCheckBox.class::cast)
+			.filter(check -> "microproject.taskSort.keepOutline".equals(check.getName())).findFirst().orElseThrow();
+		click(robot, keepOutlineAgain);
+		assertTrue(permanentCheckAgain.isEnabled(), "permanent ordering is enabled after restoring Keep Outline");
 		click(robot, permanentCheckAgain);
 		click(robot, findShowingButtonByText(permanentChooserAgain, javax.swing.UIManager.getString("OptionPane.okButtonText")));
 		GuiAcceptanceSupport.await(() -> java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow() instanceof Dialog dialog

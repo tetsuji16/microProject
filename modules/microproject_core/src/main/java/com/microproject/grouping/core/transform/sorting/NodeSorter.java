@@ -113,13 +113,17 @@ public class NodeSorter extends CommonTransform implements Comparator<Object>{
 	}
 	
 	public <T extends HierarchicObject<T>> List<T> sortList(List<T> list,boolean preserverHierarchy){
-	    return sortList(list,this,preserverHierarchy);
+	    return sortHierarchically(list,this,preserverHierarchy);
 	}
 	public <T extends HierarchicObject<T>> List<T> sortList(List<T> list,Comparator<? super T> comparator,boolean preserveHierarchy){
+		return sortHierarchically(list, comparator, preserveHierarchy);
+	}
+	public static <T extends HierarchicObject<T>> List<T> sortHierarchically(List<T> list,
+			Comparator<? super T> comparator, boolean preserveHierarchy) {
 		list.sort(comparator);
 		if (preserveHierarchy)
 		for (T child : list){
-			if (child.getChildren().size()>0) sortList(child.getChildren(), comparator,true);
+			if (child.getChildren().size()>0) sortHierarchically(child.getChildren(), comparator,true);
 		}
 		return list;
 	}

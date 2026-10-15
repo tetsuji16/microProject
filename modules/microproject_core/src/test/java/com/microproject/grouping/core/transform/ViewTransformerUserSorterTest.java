@@ -12,6 +12,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.grouping.core.transform.sorting.NodeSorter;
+import com.microproject.grouping.core.transform.sorting.TaskSortSpec;
+import java.util.List;
 
 class ViewTransformerUserSorterTest {
 	@Test
@@ -53,5 +55,23 @@ class ViewTransformerUserSorterTest {
 
 		transformer.setUserSorter(null);
 		assertTrue(transformer.isNoneSorter());
+	}
+
+	@Test
+	void clearingLegacySorterClearsEveryCanonicalKeyInOneNotification() {
+		ViewTransformer transformer = new ViewTransformer();
+		transformer.setTaskSortSpec(new TaskSortSpec(List.of(
+				new TaskSortSpec.Key("Sorter.StartDate", false),
+				new TaskSortSpec.Key("Sorter.Name", true)), false));
+		int[] notifications = { 0 };
+		transformer.addViewTransformerListener(event -> notifications[0]++);
+
+		transformer.setUserSorterId(ViewTransformer.SORTER_NONE_ID);
+
+		assertTrue(transformer.isNoneSorter());
+		assertTrue(transformer.getTaskSortSpec().keys().isEmpty());
+		assertFalse(transformer.getTaskSortSpec().keepOutline());
+		assertEquals(ViewTransformer.SORTER_NONE_ID, transformer.getUserSorterId());
+		assertEquals(1, notifications[0], "clearing legacy sort state publishes one canonical update");
 	}
 }
