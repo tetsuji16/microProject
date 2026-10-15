@@ -422,8 +422,16 @@ class GanttBarDateDragGuiAcceptanceTest {
 					+ " successor=" + fixture.successor.getStart() + ".." + fixture.successor.getEnd()
 					+ " early=" + fixture.successor.getEarlyStart() + ".." + fixture.successor.getEarlyFinish());
 		} else if (fixture.dependency.getDependencyType() == DependencyType.SF) {
-			assertTrue(fixture.successor.getEnd() <= fixture.predecessor.getStart(),
-				"SF successor finish must not be later than the dragged predecessor start");
+			// Microsoft defines SF as a successor that cannot finish until its
+			// predecessor starts; it may finish later. This is the minimum finish
+			// boundary, not a maximum. Source:
+			// https://support.microsoft.com/en-us/project/how-project-schedules-tasks-behind-the-scenes
+			assertTrue(fixture.successor.getEnd() >= fixture.predecessor.getStart(),
+				"SF successor must not finish before the dragged predecessor starts: predecessor="
+					+ fixture.predecessor.getStart() + ".." + fixture.predecessor.getEnd() + " successor="
+					+ fixture.successor.getStart() + ".." + fixture.successor.getEnd() + " mode="
+					+ (fixture.successor.isManuallyScheduled() ? "manual" : "auto") + " calendar="
+					+ fixture.successor.getEffectiveWorkCalendar().getName());
 		} else {
 			long expected = fixture.dependency.calcForwardDependencyDate(fixture.predecessor.getStart(), fixture.predecessor.getEnd(), true);
 			assertEquals(expected, fixture.successor.getStart(), "Successor must match " + DependencyType.toLongString(fixture.dependency.getDependencyType())

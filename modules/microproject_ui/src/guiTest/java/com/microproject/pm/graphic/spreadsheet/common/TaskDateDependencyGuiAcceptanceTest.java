@@ -204,8 +204,14 @@ class TaskDateDependencyGuiAcceptanceTest {
 		});
 		GuiAcceptanceSupport.await(() -> !fixture.sheet.isEditing(), "date edit did not commit");
 		SwingUtilities.invokeAndWait(fixture.project::recalculate);
-		long expectedSuccessorStart = fixture.dependency.calcForwardDependencyDate(
+		long requiredSuccessorStart = fixture.dependency.calcForwardDependencyDate(
 			fixture.predecessor.getStart(), fixture.predecessor.getEnd(), true);
+		// Document-derived rule: Microsoft says links set the earliest permitted
+		// boundary, while automatically scheduled tasks use their working calendar.
+		// A boundary at a nonworking time therefore normalizes to the next work time.
+		// Source: https://support.microsoft.com/en-us/project/how-project-schedules-tasks-behind-the-scenes
+		long expectedSuccessorStart = fixture.successor.getEffectiveWorkCalendar().add(
+			requiredSuccessorStart, 0L, fixture.successor.isMilestone());
 		assertTrue(fixture.predecessor.getStart() > fixture.originalStart, "predecessor start must move after GUI edit");
 		if ("2026/06/13".equals(editedDate)) {
 			Calendar moved = DateTime.calendarInstance();
@@ -216,7 +222,13 @@ class TaskDateDependencyGuiAcceptanceTest {
 				"calendar must not leave a task on Sunday (" + moved.getTime() + ")");
 		}
 		assertEquals(expectedSuccessorStart, fixture.successor.getStart(),
-			"successor must match dependency date after GUI edit (" + dependencyTypeName(type) + ")");
+			"successor must honor the link boundary at a valid calendar time after GUI edit; required="
+				+ requiredSuccessorStart + " expected=" + expectedSuccessorStart + " predecessor="
+				+ fixture.predecessor.getStart() + ".." + fixture.predecessor.getEnd() + " successor="
+				+ fixture.successor.getStart() + ".." + fixture.successor.getEnd() + " type="
+				+ dependencyTypeName(type) + " lag=" + fixture.dependency.getLeadValue() + " mode="
+				+ (fixture.successor.isManuallyScheduled() ? "manual" : "auto") + " calendar="
+				+ fixture.successor.getEffectiveWorkCalendar().getName());
 		capture(robot, type, lagDays);
 	}
 
