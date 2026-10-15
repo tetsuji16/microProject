@@ -378,6 +378,12 @@ class MpoFileImporterTest {
 
 	@Test
 	void levelingSplitProvenanceDoesNotChangeLegacyTaskSerializationDescriptor() {
+		ObjectStreamClass taskDescriptor = ObjectStreamClass.lookup(com.microproject.pm.task.Task.class);
+		assertEquals(786665335611L, taskDescriptor.getSerialVersionUID());
+		assertTrue(java.util.Arrays.stream(taskDescriptor.getFields())
+			.noneMatch(field -> field.getName().equals("levelingCanSplit")
+				|| field.getName().equals("levelAssignments")),
+			"legacy Task descriptors must not acquire POD fields for transient leveling defaults");
 		ObjectStreamClass descriptor = ObjectStreamClass.lookup(NormalTask.class);
 		assertEquals(273898992929L, descriptor.getSerialVersionUID());
 		assertTrue(java.util.Arrays.stream(descriptor.getFields())

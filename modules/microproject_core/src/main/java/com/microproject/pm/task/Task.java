@@ -26,6 +26,8 @@ package com.microproject.pm.task;
 
 import com.microproject.util.DataUtils;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.util.Collection;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -176,6 +178,17 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	protected transient boolean markerStatus = false;
 	protected int earnedValueMethod = EarnedValueMethodType.Kind.PERCENT_COMPLETE.code();
 	protected static Field startFieldInstance = null;
+
+	/**
+	 * POD is a frozen format and cannot persist the newer task-level leveling
+	 * options. Restore their documented defaults when reading a legacy object
+	 * graph; these transient fields remain absent from the serialized descriptor.
+	 */
+	private void readObject(ObjectInputStream input) throws IOException, ClassNotFoundException {
+		input.defaultReadObject();
+		levelingCanSplit = true;
+		levelAssignments = true;
+	}
 
 	protected int constraintType = ConstraintType.Kind.ASAP.code();
 	protected long deadline = 0;
