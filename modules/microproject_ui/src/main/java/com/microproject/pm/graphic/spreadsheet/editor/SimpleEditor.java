@@ -39,6 +39,7 @@ import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet;
 import com.microproject.datatype.CanSupplyRateUnit;
 import com.microproject.datatype.DurationFormat;
+import com.microproject.datatype.DurationDefaults;
 import com.microproject.field.Field;
 import com.microproject.field.FieldConverter;
 import com.microproject.field.FieldParseException;
@@ -129,10 +130,20 @@ public class SimpleEditor extends DefaultCellEditor   {
 			}
 		else
 			try {
+				DurationDefaults defaults = durationDefaults();
+				if (useFormat instanceof DurationFormat durationFormat && defaults != null)
+					return durationFormat.parseObject(component.getText(), new java.text.ParsePosition(0), defaults);
 				return useFormat.parseObject(component.getText());
 			} catch (ParseException e) {
 				return null;
 			}
+	}
+
+	protected DurationDefaults durationDefaults() {
+		if (cachedTable != null && cachedTable.getModel() instanceof SpreadSheetModel model
+				&& model.getFieldContext() != null)
+			return model.getFieldContext().getDurationDefaults();
+		return null;
 	}
 	
 	

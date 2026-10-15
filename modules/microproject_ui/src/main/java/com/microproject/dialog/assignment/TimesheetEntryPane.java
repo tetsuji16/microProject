@@ -153,6 +153,8 @@ public class TimesheetEntryPane extends JScrollPane {
 				(NodeModelDataFactory) project,
 				0);
 		}
+		((SpreadSheetModel) spreadSheet.getModel()).getFieldContext()
+			.setDurationDefaultsResolver(project::getDurationDefaults);
 
 		JViewport viewport = createViewport();
 		viewport.setView(spreadSheet);

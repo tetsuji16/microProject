@@ -104,7 +104,7 @@ public class MSPDISerializer implements ProjectSerializer {
     		ResourceImpl resource=(ResourceImpl)child;
 //    		resource.setId(count++); // enumerate them
     		net.sf.mpxj.Resource resourceData=projectFile.addResource();
-    		MPXConverter.toMPXResource(resource,resourceData);
+			MPXConverter.toMPXResource(project, resource, resourceData);
     		            
             transformationMap.put(resource,resourceData);
             return resourceData;
@@ -322,7 +322,7 @@ public class MSPDISerializer implements ProjectSerializer {
 	        //project
 	        ProjectProperties projectHeader=projectFile.getProjectProperties();
 	        
-			MPXConverter.toMPXOptions(projectHeader);
+			MPXConverter.toMPXOptions(project, projectHeader);
 
 			MPXConverter.toMPXProject(project,projectHeader);
 	        if (job!=null) job.setProgress(0.2f);

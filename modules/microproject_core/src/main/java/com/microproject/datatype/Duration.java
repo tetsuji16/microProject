@@ -298,43 +298,70 @@ public class Duration extends Number implements Comparable<Duration> {
 	}	
 
 	public static double timeUnitFactor(int type) {
-		if (type == TimeUnit.NONE)
-			type = ScheduleOption.getInstance().getDurationEnteredIn();
+		return timeUnitFactor(type, DurationDefaults.from(CalendarOption.getInstance()));
+	}
 
-		return switch (type) {
+	/** Returns the unit factor using an explicit project's duration defaults. */
+	public static double timeUnitFactor(int type, DurationDefaults defaults) {
+		if (defaults == null)
+			throw new IllegalArgumentException("Duration defaults are required");
+		if (type == TimeUnit.NONE)
+			type = defaults.durationEnteredIn();
+		double factor = switch (type) {
 			case TimeUnit.NON_TEMPORAL -> 1.0D;
-			case TimeUnit.MINUTES, TimeUnit.ELAPSED_MINUTES -> 60.0 * 1000;
-			case TimeUnit.HOURS, TimeUnit.ELAPSED_HOURS -> 60.0 * 60 * 1000;
-			case TimeUnit.DAYS -> CalendarOption.getInstance().getHoursPerDay() * 60.0 * 60 * 1000;
-			case TimeUnit.ELAPSED_DAYS -> 24.0 * 60 * 60 * 1000;
-			case TimeUnit.WEEKS -> CalendarOption.getInstance().getHoursPerWeek() * 60.0 * 60 * 1000;
-			case TimeUnit.ELAPSED_WEEKS -> 7.0 * 24 * 60 * 60 * 1000;
-			case TimeUnit.MONTHS -> CalendarOption.getInstance().hoursPerMonth() * 60.0 * 60 * 1000;
-			case TimeUnit.ELAPSED_MONTHS -> 30.0 * 24 * 60 * 60 * 1000;
-			case TimeUnit.YEARS -> 365 * CalendarOption.getInstance().getHoursPerDay() * 60 * 60 * 1000;
-			case TimeUnit.ELAPSED_YEARS -> 365 * 24 * 60 * 60 * 1000;
+			case TimeUnit.MINUTES, TimeUnit.ELAPSED_MINUTES -> 60.0D * 1000.0D;
+			case TimeUnit.HOURS, TimeUnit.ELAPSED_HOURS -> 60.0D * 60.0D * 1000.0D;
+			case TimeUnit.DAYS -> defaults.minutesPerDay() * 60_000.0D;
+			case TimeUnit.WEEKS -> defaults.minutesPerWeek() * 60_000.0D;
+			case TimeUnit.MONTHS -> defaults.minutesPerDay() * defaults.daysPerMonth() * 60_000.0D;
+			case TimeUnit.YEARS -> defaults.minutesPerDay() * 365.0D * 60_000.0D;
+			case TimeUnit.ELAPSED_DAYS -> 24.0D * 60.0D * 60.0D * 1000.0D;
+			case TimeUnit.ELAPSED_WEEKS -> 7.0D * 24.0D * 60.0D * 60.0D * 1000.0D;
+			case TimeUnit.ELAPSED_MONTHS -> 30.0D * 24.0D * 60.0D * 60.0D * 1000.0D;
+			case TimeUnit.ELAPSED_YEARS -> 365.0D * 24.0D * 60.0D * 60.0D * 1000.0D;
 			default -> 1.0D;
 		};
+		if (!Double.isFinite(factor) || factor <= 0.0D)
+			throw new IllegalArgumentException("Duration unit factor is outside the supported range");
+		return factor;
 	}
 	
 	public static long getInstance(double value, int type) {
-		long result = 0;
-		if (type == TimeUnit.PERCENT || type == TimeUnit.ELAPSED_PERCENT) { // percentages are treated specially
-			result = Duration.setPercentAsDecimal(result,(float) value);
-		} else {
-			result = Math.round(value * timeUnitFactor(type));
+		return getInstance(value, type, DurationDefaults.from(CalendarOption.getInstance()));
+	}
+
+	/** Encodes a duration using explicit project-specific unit defaults. */
+	public static long getInstance(double value, int type, DurationDefaults defaults) {
+		if (!Double.isFinite(value))
+			throw new IllegalArgumentException("Duration value must be finite");
+		if (type == TimeUnit.PERCENT || type == TimeUnit.ELAPSED_PERCENT) {
+			float percent = (float) value;
+			if (!Float.isFinite(percent))
+				throw new IllegalArgumentException("Duration percentage is outside the supported range");
+			return setAsTimeUnit(setPercentAsDecimal(0L, percent), type);
 		}
-		result = setAsTimeUnit(result,type);
-		return result;
+		double millisValue = value * timeUnitFactor(type, defaults);
+		long maximum = (1L << SHIFT) - 1L;
+		if (!Double.isFinite(millisValue) || millisValue < -maximum || millisValue > maximum)
+			throw new IllegalArgumentException("Duration is outside the supported millisecond range");
+		long result = Math.round(millisValue);
+		return setAsTimeUnit(result, type);
 	}
 	
 	public static double getValue(long duration) {
-		int type = getEffectiveType(duration);
-		if (type == TimeUnit.PERCENT || type == TimeUnit.ELAPSED_PERCENT) { // percentages are treated specially
+		return getValue(duration, DurationDefaults.from(CalendarOption.getInstance()));
+	}
+
+	/** Reads a duration value using explicit project-specific unit defaults. */
+	public static double getValue(long duration, DurationDefaults defaults) {
+		if (defaults == null)
+			throw new IllegalArgumentException("Duration defaults are required");
+		int type = getType(duration);
+		if (type == TimeUnit.NONE)
+			type = defaults.durationEnteredIn();
+		if (type == TimeUnit.PERCENT || type == TimeUnit.ELAPSED_PERCENT)
 			return getPercentAsDecimal(duration);
-		} else {
-			return ((double)millis(duration)) / timeUnitFactor(type);
-		}
+		return ((double) millis(duration)) / timeUnitFactor(type, defaults);
 	}
 	public static int getType(long duration) {
 		long unitBits = getBits(ELAPSED_AND_UNITS_MASK,duration);

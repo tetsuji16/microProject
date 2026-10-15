@@ -70,14 +70,14 @@ public class MpxAssignmentConverter {
 		boolean hasSourceRemainingWork = rawWork != null ? rawWork.remainingWork() != null
 			: mpxAssignment.getCachedValue(AssignmentField.REMAINING_WORK) != null;
 		long sourceWork = rawWork != null && rawWork.work() != null ? rawWork.work().longValue()
-			: toLong(mpxAssignment.getWork());
+			: toLong(mpxAssignment.getWork(), state);
 		long sourceActualWork = rawWork != null && rawWork.actualWork() != null ? rawWork.actualWork().longValue()
-			: toLong(mpxAssignment.getActualWork());
+			: toLong(mpxAssignment.getActualWork(), state);
 		long sourceRemainingWork = rawWork != null && rawWork.remainingWork() != null
-			? rawWork.remainingWork().longValue() : hasSourceRemainingWork ? toLong(mpxAssignment.getRemainingWork())
+			? rawWork.remainingWork().longValue() : hasSourceRemainingWork ? toLong(mpxAssignment.getRemainingWork(), state)
 			: Math.max(0L, sourceWork - sourceActualWork);
 		CustomWorkPlan customWorkPlan = customWorkContour
-			? customWorkPlan(mpxAssignment, sourceWork, sourceActualWork, sourceRemainingWork, rawWork) : null;
+			? customWorkPlan(mpxAssignment, sourceWork, sourceActualWork, sourceRemainingWork, rawWork, state) : null;
 		assignment.setTaskAndResource(task, resource);
 		// MSPDI stores assignment units as a percentage (100 = 1.0 in the
 		// microProject model). Restore this explicitly before work is applied;
@@ -133,7 +133,7 @@ public class MpxAssignmentConverter {
 			importCustomTimephasedWork(customWorkPlan, assignment, sourceWork, sourceActualWork,
 				sourceRemainingWork, state);
 		}
-		restoreLevelingDelay(mpxAssignment, assignment);
+		restoreLevelingDelay(mpxAssignment, assignment, state);
 		if (mpxAssignment.getUniqueID() != null)
 			assignment.setUniqueId(mpxAssignment.getUniqueID().longValue());
 	}
@@ -144,10 +144,11 @@ public class MpxAssignmentConverter {
 	 * timephased representation is rejected instead of being flattened.
 	 */
 	private CustomWorkPlan customWorkPlan(net.sf.mpxj.ResourceAssignment source, long sourceWork,
-			long sourceActualWork, long sourceRemainingWork, MpxImportState.RawMspdiAssignmentWork rawWork) {
-		List<WorkInterval> actual = rawWork == null ? readIntervals(source.getTimephasedActualWork())
+			long sourceActualWork, long sourceRemainingWork, MpxImportState.RawMspdiAssignmentWork rawWork,
+			MpxImportState state) {
+		List<WorkInterval> actual = rawWork == null ? readIntervals(source.getTimephasedActualWork(), state)
 			: readRawIntervals(rawWork, 2);
-		List<WorkInterval> remaining = rawWork == null ? readIntervals(source.getTimephasedWork())
+		List<WorkInterval> remaining = rawWork == null ? readIntervals(source.getTimephasedWork(), state)
 			: readRawIntervals(rawWork, 1);
 		long actualTotal = sumWork(actual);
 		long remainingTotal = sumWork(remaining);
@@ -177,7 +178,7 @@ public class MpxAssignmentConverter {
 		return List.copyOf(result);
 	}
 
-	private List<WorkInterval> readIntervals(List<TimephasedWork> sourceIntervals) {
+	private List<WorkInterval> readIntervals(List<TimephasedWork> sourceIntervals, MpxImportState state) {
 		List<WorkInterval> result = new ArrayList<>();
 		if (sourceIntervals == null)
 			return result;
@@ -186,7 +187,7 @@ public class MpxAssignmentConverter {
 				throw new IllegalArgumentException("Custom MSPDI work interval is missing a bound");
 			long start = toLong(interval.getStart());
 			long end = toLong(interval.getFinish());
-			long work = toLong(interval.getTotalAmount());
+			long work = toLong(interval.getTotalAmount(), state);
 			if (end <= start || work < 0L)
 				throw new IllegalArgumentException("Custom MSPDI work interval has invalid bounds or value: "
 					+ start + ".." + end + " work=" + work + " raw=" + interval);
@@ -376,8 +377,9 @@ public class MpxAssignmentConverter {
 	 * may copy the default assignment's properties while attaching it, so callers
 	 * must invoke this again after that operation.
 	 */
-	public void restoreLevelingDelay(net.sf.mpxj.ResourceAssignment mpxAssignment, Assignment assignment) {
-		assignment.setLevelingDelay(toLong(mpxAssignment.getLevelingDelay()));
+	public void restoreLevelingDelay(net.sf.mpxj.ResourceAssignment mpxAssignment, Assignment assignment,
+			MpxImportState state) {
+		assignment.setLevelingDelay(toLong(mpxAssignment.getLevelingDelay(), state));
 	}
 
 	/** Imports scalar MSPDI assignment baseline values, preserving absent fields. */
@@ -405,7 +407,7 @@ public class MpxAssignmentConverter {
 					: mpxAssignment.getBaselineFinish(snapshotId))) : null;
 			Long work = rawBaseline != null ? rawBaseline.work()
 				: hasBaselineWork ? Long.valueOf(toLong(snapshotId == 0 ? mpxAssignment.getBaselineWork()
-					: mpxAssignment.getBaselineWork(snapshotId))) : null;
+					: mpxAssignment.getBaselineWork(snapshotId), state)) : null;
 			scalarBaselines.put(Integer.valueOf(snapshotId),
 				new MpxImportState.RawMspdiAssignmentBaseline(start, finish, work));
 		}
@@ -533,7 +535,10 @@ public class MpxAssignmentConverter {
 		return TimeUtil.addTimeZoneOffset(d.getTime());
 	}
 
-	private static long toLong(net.sf.mpxj.Duration d) {
-		return MpxUtils.toMillis(d);
+	private static long toLong(net.sf.mpxj.Duration d, MpxImportState state) {
+		if (d == null) return 0L;
+		net.sf.mpxj.TimeUnitDefaultsContainer defaults = state.getMpxProjectFile() == null ? null
+			: state.getMpxProjectFile().getProjectProperties();
+		return com.microproject.datatype.Duration.millis(MpxUtils.toMillis(d, defaults));
 	}
 }

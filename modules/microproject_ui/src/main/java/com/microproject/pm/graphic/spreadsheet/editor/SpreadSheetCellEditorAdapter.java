@@ -169,7 +169,7 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 	public Object getCellEditorValue() {
 		if (activeDurationField && activeEditorComponent instanceof JTextComponent text) {
 			try {
-				return com.microproject.datatype.DurationFormat.getInstance().parseObject(text.getText());
+				return parseDuration(text.getText());
 			} catch (java.text.ParseException e) {
 				return null;
 			}
@@ -180,7 +180,7 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 			if (field != null && (field.isDuration() || "Field.duration".equals(field.getId()))
 					&& activeEditorComponent instanceof JTextComponent text) {
 				try {
-					return com.microproject.datatype.DurationFormat.getInstance().parseObject(text.getText());
+					return parseDuration(text.getText());
 				} catch (java.text.ParseException e) {
 					return null;
 				}
@@ -188,6 +188,16 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 		}
 		Object value=editor.getCellEditorValue();
 		return value;
+	}
+
+	private Object parseDuration(String text) throws java.text.ParseException {
+		com.microproject.datatype.DurationFormat format = (com.microproject.datatype.DurationFormat)
+			com.microproject.datatype.DurationFormat.getInstance();
+		if (lastTable != null && lastTable.getModel() instanceof SpreadSheetModel model
+				&& model.getFieldContext() != null
+				&& model.getFieldContext().getDurationDefaults() != null)
+			return format.parseObject(text, new java.text.ParsePosition(0), model.getFieldContext().getDurationDefaults());
+		return format.parseObject(text);
 	}
 	/**
 	 * Special behavior here to be able to control edition and trigger it by JTable.editCellAt

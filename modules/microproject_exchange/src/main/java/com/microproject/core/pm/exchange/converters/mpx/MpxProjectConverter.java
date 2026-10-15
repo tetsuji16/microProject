@@ -27,6 +27,8 @@ package com.microproject.core.pm.exchange.converters.mpx;
 import java.util.Date;
 
 import com.microproject.core.pm.exchange.converters.type.DateUTCConverter;
+import com.microproject.datatype.DurationDefaults;
+import com.microproject.datatype.TimeUnit;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.task.Project;
 
@@ -42,6 +44,7 @@ import net.sf.mpxj.ScheduleFrom;
 public class MpxProjectConverter {
 
 	public void from(ProjectProperties mpxProjectHeader, Project project, MpxImportState state) {
+		project.setDurationDefaults(durationDefaults(mpxProjectHeader));
 		if (mpxProjectHeader.getName() != null)
 			project.setName(mpxProjectHeader.getName());
 		if (mpxProjectHeader.getManager() != null)
@@ -70,6 +73,21 @@ public class MpxProjectConverter {
 		} catch (com.microproject.configuration.CircularDependencyException e) {
 			// ignore: a self-referential base calendar is not expected here
 		}
+	}
+
+	public static DurationDefaults durationDefaults(ProjectProperties source) {
+		DurationDefaults product = DurationDefaults.PRODUCT_DEFAULTS;
+		if (source == null)
+			return product;
+		int durationUnit = source.getDefaultDurationUnits() == null ? product.durationEnteredIn()
+			: MpxUtils.toProjectTimeUnit(source.getDefaultDurationUnits());
+		int workUnit = source.getDefaultWorkUnits() == null ? product.workUnit()
+			: MpxUtils.toProjectTimeUnit(source.getDefaultWorkUnits());
+		return new DurationDefaults(
+			source.getMinutesPerDay() == null ? product.minutesPerDay() : source.getMinutesPerDay().doubleValue(),
+			source.getMinutesPerWeek() == null ? product.minutesPerWeek() : source.getMinutesPerWeek().doubleValue(),
+			source.getDaysPerMonth() == null ? product.daysPerMonth() : source.getDaysPerMonth().doubleValue(),
+			durationUnit, workUnit);
 	}
 
 	private static long toLong(Date d) {
