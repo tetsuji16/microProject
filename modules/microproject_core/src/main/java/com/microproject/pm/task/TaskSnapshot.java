@@ -50,6 +50,7 @@ import com.microproject.pm.criticalpath.TaskSchedule;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.pm.snapshot.DataSnapshot;
+import com.microproject.datatype.TimeUnit;
 /**
  *
  */
@@ -61,6 +62,15 @@ public class TaskSnapshot implements DataSnapshot, HasAssignments, Cloneable {
 	transient WorkCalendar fixedCostCalendar;
 	transient java.util.List<FixedCostProfile> rolledUpFixedCosts = java.util.List.of();
 	boolean ignoreResourceCalendar = false;
+	private transient int durationDisplayUnit = TimeUnit.NONE;
+
+	public int getDurationDisplayUnit() {
+		return durationDisplayUnit;
+	}
+
+	public void setDurationDisplayUnit(int durationDisplayUnit) {
+		this.durationDisplayUnit = durationDisplayUnit;
+	}
 
 	/** Immutable time-phased fixed-cost contribution captured from a descendant task. */
 	public static final class FixedCostProfile {

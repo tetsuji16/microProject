@@ -89,14 +89,14 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 
 		SwingUtilities.invokeAndWait(() -> tabs.setSelectedIndex(0));
 		activate(fixture.entrySheet);
-		editWithPhysicalKeys(robot, fixture.entrySheet, fixture.entryRow, fixture.durationColumn, "10");
+		editWithPhysicalKeys(robot, fixture.entrySheet, fixture.entryRow, fixture.durationColumn, "10", "1 day");
 		assertEquals(10L * 60L * 60L * 1000L, Duration.millis(fixture.task.getRawDuration()),
 			"physical bare duration input must use the owning project's default hours");
-		// Task schedules normalize entered durations to physical milliseconds; the
-		// project's duration-entered setting supplies the retained display unit.
+		// Task schedules normalize entered durations to physical milliseconds; parsing
+		// the bare input with this project's Hours setting records that per-task unit.
 		assertEquals(TimeUnit.HOURS, fixture.task.getProject().getDurationDefaults().durationEnteredIn(),
 			"the owning project must retain Hours as its duration-entry and display unit");
-		assertEquals(DurationFormat.getProjectInstance().format(new Duration(fixture.task.getRawDuration()),
+		assertEquals(DurationFormat.getProjectInstance().format(fixture.task.getDurationForDisplay(),
 			fixture.task.getProject().getDurationDefaults()), durationText(fixture.task,
 			((SpreadSheetModel) fixture.entrySheet.getModel()).getFieldContext()),
 			"the committed duration cell must render using the owning project's Hours default");
@@ -163,6 +163,23 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		assertEquals(fixture.progressBarBefore(), afterComplete.bar(),
 			"100% task-table input must not change the planned bar geometry");
 
+		editWithPhysicalKeys(robot, fixture.entrySheet, fixture.entryRow, fixture.durationColumn, "1 day", "10 hours");
+		assertEquals(6L * 60L * 60L * 1000L, Duration.millis(fixture.task.getRawDuration()),
+			"with a six-hour project day, physical 1 day input must store six hours");
+		assertEquals(TimeUnit.DAYS, fixture.task.getDurationDisplayUnit());
+		assertEquals("1 day", durationText(fixture.task,
+			((SpreadSheetModel) fixture.entrySheet.getModel()).getFieldContext()));
+		editWithPhysicalKeys(robot, fixture.entrySheet, fixture.entryRow, fixture.durationColumn, "6 hours", "1 day");
+		assertEquals(6L * 60L * 60L * 1000L, Duration.millis(fixture.task.getRawDuration()),
+			"physical 6 hours input must match 1 day on this project's calendar");
+		assertEquals(TimeUnit.HOURS, fixture.task.getDurationDisplayUnit());
+		assertEquals("6 hours", durationText(fixture.task,
+			((SpreadSheetModel) fixture.entrySheet.getModel()).getFieldContext()));
+		editWithPhysicalKeys(robot, fixture.entrySheet, fixture.entryRow, fixture.durationColumn, "10", "6 hours");
+		assertEquals(10L * 60L * 60L * 1000L, Duration.millis(fixture.task.getRawDuration()),
+			"restore the bare project-hour duration for the structural save/reload assertions");
+		assertEquals(TimeUnit.HOURS, fixture.task.getDurationDisplayUnit());
+
 		Project project = fixture.task.getProject();
 		NormalTask structuralTask = project.createScriptedTask();
 		structuralTask.setName("U-26 structural round-trip");
@@ -184,7 +201,9 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		assertEquals(TimeUnit.HOURS, reopened.getDurationDefaults().durationEnteredIn());
 		FieldContext reopenedContext = new FieldContext();
 		reopenedContext.setDurationDefaults(reopened.getDurationDefaults());
-		assertEquals(DurationFormat.getProjectInstance().format(new Duration(restored.getRawDuration()),
+		assertEquals(TimeUnit.HOURS, restored.getDurationDisplayUnit(),
+			"MPO task format must restore the explicit per-task duration unit");
+		assertEquals(DurationFormat.getProjectInstance().format(restored.getDurationForDisplay(),
 			reopened.getDurationDefaults()), durationText(restored, reopenedContext),
 			"MPO reopen must retain the project duration display unit for the task cell");
 
@@ -224,6 +243,11 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 	}
 
 	private static void editWithPhysicalKeys(Robot robot, SpreadSheet sheet, int row, int column, String value) throws Exception {
+		editWithPhysicalKeys(robot, sheet, row, column, value, null);
+	}
+
+	private static void editWithPhysicalKeys(Robot robot, SpreadSheet sheet, int row, int column, String value,
+			String expectedEditorSeed) throws Exception {
 		Rectangle anchor = cellOnScreen(sheet, row, Math.min(1, column));
 		clickCell(robot, anchor, 0);
 		robot.waitForIdle();
@@ -240,6 +264,8 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 			"physical input must target the active cell editor");
 		SwingUtilities.invokeAndWait(input::requestFocusInWindow);
 		GuiAcceptanceSupport.await(input::isFocusOwner, "cell editor lost focus before physical typing");
+		if (expectedEditorSeed != null)
+			assertEquals(expectedEditorSeed, input.getText(), "duration editor must seed from the task's display format");
 		robot.waitForIdle();
 		robot.delay(150);
 		robot.keyPress(KeyEvent.VK_CONTROL);
