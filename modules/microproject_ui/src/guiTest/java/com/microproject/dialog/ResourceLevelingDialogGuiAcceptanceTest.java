@@ -16,6 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import javax.swing.AbstractButton;
+import javax.swing.JComboBox;
 import javax.swing.JTable;
 import javax.swing.SwingUtilities;
 
@@ -52,8 +53,14 @@ class ResourceLevelingDialogGuiAcceptanceTest {
 		ResourceLevelingDialogBox dialog = findDialog();
 		AbstractButton preview = findButton(dialog, UsabilityStrings.text("leveling.preview"));
 		AbstractButton includeProposed = findButton(dialog, UsabilityStrings.text("leveling.includeProposed"));
+		JComboBox<?> order = findComboBox(dialog, 0);
+		JComboBox<?> sensitivity = findComboBox(dialog, 1);
 		assertTrue(preview != null && preview.isShowing(), "Preview button must be visible");
 		assertTrue(includeProposed != null && includeProposed.isShowing(), "Proposed-resource option must be visible");
+		assertTrue(sensitivity != null && sensitivity.isShowing(), "sensitivity period must be visible");
+		assertTrue(order != null && isBelow(sensitivity, order),
+			"sensitivity must occupy a separate form row below leveling order");
+		assertTrue(selectedIndex(sensitivity, 2), "day must be the document-derived product default");
 		assertTrue(!isSelected(includeProposed), "Proposed resources must be excluded by default");
 		assertTrue(tableRowCount(dialog) == 0, "default preview must leave proposed-resource conflicts untouched");
 
@@ -70,6 +77,20 @@ class ResourceLevelingDialogGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> findTable(dialog) != null && findTable(dialog).getRowCount() > 0,
 			"same-resource conflict preview must show at least one proposed change");
 		assertTrue(isSelected(includeProposed), "physical opt-in must stay selected while showing the plan");
+		for (int index : new int[] {0, 1}) {
+			GuiAcceptanceSupport.selectComboBoxItem(robot, sensitivity, index);
+			click(robot, preview);
+			GuiAcceptanceSupport.await(() -> tableRowCountUnchecked(dialog) > 0,
+				"minute and hour sensitivity must show the same full-day conflict");
+		}
+		GuiAcceptanceSupport.selectComboBoxItem(robot, sensitivity, 3);
+		click(robot, preview);
+		GuiAcceptanceSupport.await(() -> tableRowCountUnchecked(dialog) == 0,
+			"weekly sensitivity must accept two one-day assignments within weekly capacity");
+		GuiAcceptanceSupport.selectComboBoxItem(robot, sensitivity, 2);
+		click(robot, preview);
+		GuiAcceptanceSupport.await(() -> tableRowCountUnchecked(dialog) > 0,
+			"daily sensitivity must detect the full-day conflict");
 		capture(robot, dialog);
 	}
 
@@ -91,10 +112,43 @@ class ResourceLevelingDialogGuiAcceptanceTest {
 		return selected[0];
 	}
 
+	private static boolean selectedIndex(JComboBox<?> combo, int index) throws Exception {
+		boolean[] selected = new boolean[1];
+		SwingUtilities.invokeAndWait(() -> selected[0] = combo.getSelectedIndex() == index);
+		return selected[0];
+	}
+
+	private static boolean isBelow(Component component, Component other) throws Exception {
+		boolean[] below = new boolean[1];
+		SwingUtilities.invokeAndWait(() -> below[0] = component.getY() >= other.getY() + other.getHeight());
+		return below[0];
+	}
+
 	private static int tableRowCount(ResourceLevelingDialogBox dialog) throws Exception {
 		int[] rowCount = new int[1];
 		SwingUtilities.invokeAndWait(() -> rowCount[0] = findTable(dialog).getRowCount());
 		return rowCount[0];
+	}
+
+	private static int tableRowCountUnchecked(ResourceLevelingDialogBox dialog) {
+		try { return tableRowCount(dialog); }
+		catch (Exception exception) { throw new IllegalStateException(exception); }
+	}
+
+	private static JComboBox<?> findComboBox(java.awt.Container container, int index) {
+		int[] visited = {0};
+		return findComboBox(container, index, visited);
+	}
+
+	private static JComboBox<?> findComboBox(java.awt.Container container, int index, int[] visited) {
+		for (Component child : container.getComponents()) {
+			if (child instanceof JComboBox<?> combo && visited[0]++ == index) return combo;
+			if (child instanceof java.awt.Container nested) {
+				JComboBox<?> combo = findComboBox(nested, index, visited);
+				if (combo != null) return combo;
+			}
+		}
+		return null;
 	}
 
 	private static ResourceLevelingDialogBox findDialog() {

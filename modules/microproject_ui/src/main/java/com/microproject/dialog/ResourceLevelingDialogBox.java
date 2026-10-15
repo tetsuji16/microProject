@@ -71,6 +71,7 @@ public final class ResourceLevelingDialogBox extends FlatLafDialog {
 	private final CriticalChainService criticalChainService = new CriticalChainService();
 	private final CriticalChainService.Settings workingSettings;
 	private final JComboBox<ResourceLevelingService.Order> order = new JComboBox<>(ResourceLevelingService.Order.values());
+	private final JComboBox<ResourceLevelingService.Sensitivity> sensitivity = new JComboBox<>(ResourceLevelingService.Sensitivity.values());
 	private final JCheckBox slackOnly = new JCheckBox(UsabilityStrings.text("leveling.slackOnly"));
 	private final JCheckBox allowSplits = new JCheckBox(UsabilityStrings.text("leveling.splits"), true);
 	private final JCheckBox includeProposed = new JCheckBox(UsabilityStrings.text("leveling.includeProposed"));
@@ -107,6 +108,9 @@ public final class ResourceLevelingDialogBox extends FlatLafDialog {
 		ccpm.setSelected(startInCriticalChainMode || workingSettings.isEnabled());
 		bufferPercent.setValue(Integer.valueOf((int) Math.round(workingSettings.getBufferFraction() * 100D)));
 		order.setSelectedItem(workingSettings.getLevelingOrder());
+		sensitivity.setSelectedItem(workingSettings.getSensitivity());
+		sensitivity.setRenderer((list, value, index, selected, focus) -> new javax.swing.DefaultListCellRenderer().getListCellRendererComponent(
+			list, UsabilityStrings.text("leveling.sensitivity." + value.name().toLowerCase(java.util.Locale.ROOT)), index, selected, focus));
 		slackOnly.setSelected(workingSettings.isOnlyWithinAvailableSlack());
 		allowSplits.setSelected(workingSettings.isAllowTaskSplits());
 		includeProposed.setSelected(workingSettings.isIncludeProposedResources());
@@ -137,6 +141,15 @@ public final class ResourceLevelingDialogBox extends FlatLafDialog {
 		constraints.weightx = 1;
 		constraints.fill = GridBagConstraints.HORIZONTAL;
 		options.add(order, constraints);
+		constraints.gridx = 0;
+		constraints.gridy++;
+		constraints.weightx = 0;
+		constraints.fill = GridBagConstraints.NONE;
+		options.add(new JLabel(UsabilityStrings.text("leveling.sensitivity")), constraints);
+		constraints.gridx = 1;
+		constraints.weightx = 1;
+		constraints.fill = GridBagConstraints.HORIZONTAL;
+		options.add(sensitivity, constraints);
 		constraints.gridx = 0;
 		constraints.gridy++;
 		constraints.gridwidth = 2;
@@ -204,6 +217,7 @@ public final class ResourceLevelingDialogBox extends FlatLafDialog {
 		workingSettings.setEnabled(ccpm.isSelected());
 		workingSettings.setBufferFraction(((Number) bufferPercent.getValue()).doubleValue() / 100D);
 		workingSettings.setLevelingOrder((ResourceLevelingService.Order) order.getSelectedItem());
+		workingSettings.setSensitivity((ResourceLevelingService.Sensitivity) sensitivity.getSelectedItem());
 		workingSettings.setOnlyWithinAvailableSlack(slackOnly.isSelected());
 		workingSettings.setAllowTaskSplits(allowSplits.isSelected());
 		workingSettings.setIncludeProposedResources(includeProposed.isSelected());

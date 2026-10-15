@@ -61,6 +61,109 @@ class ResourceLevelingServiceTest {
 	}
 
 	@Test
+	void levelingSensitivityComparesWorkWithinTheSelectedCalendarPeriod() {
+		assertEquals(ResourceLevelingService.Sensitivity.DAY, ResourceLevelingService.Options.defaults().sensitivity(),
+			"day basis is the product default while Microsoft support pages conflict on the default");
+		Fixture fixture = fixture();
+		List<NormalTask> tasks = new java.util.ArrayList<>();
+		for (int index = 0; index < 6; index++) {
+			NormalTask task = task(fixture.project, "Task " + index, 1L);
+			tasks.add(task);
+			AssignmentService.getInstance().newAssignment(task, fixture.resource, 1D, 0L, this);
+		}
+		ResourceLevelingService service = new ResourceLevelingService();
+		long workday = CalendarOption.getInstance().getMillisPerDay();
+		// The current Resource Leveling dialog documentation lists Minute, Hour,
+		// Day, Week, and Month. The support page and the separate distribution
+		// guidance disagree on the default (Month vs Day), so Day is our explicit
+		// product default, not an MSP-parity claim.
+		// https://support.microsoft.com/en-us/project/resource-leveling-dialog-box
+		// https://support.microsoft.com/en-us/project/distribute-project-work-evenly-level-resource-assignments
+		ResourceLevelingService.Plan daily = previewAt(service, fixture, ResourceLevelingService.Sensitivity.DAY);
+		ResourceLevelingService.Plan weekly = previewAt(service, fixture, ResourceLevelingService.Sensitivity.WEEK);
+		ResourceLevelingService.Plan monthly = previewAt(service, fixture, ResourceLevelingService.Sensitivity.MONTH);
+		ResourceLevelingService.Plan hourly = previewAt(service, fixture, ResourceLevelingService.Sensitivity.HOUR);
+		ResourceLevelingService.Plan minutely = previewAt(service, fixture, ResourceLevelingService.Sensitivity.MINUTE);
+
+		assertTrue(workday > 0L);
+		Set<NormalTask> expectedDelayed = Set.copyOf(tasks.subList(1, tasks.size()));
+		assertEquals(expectedDelayed, daily.changes().stream().map(ResourceLevelingService.Change::task).collect(Collectors.toSet()));
+		assertTrue(daily.changes().stream().allMatch(change -> change.addedDelayMillis() >= workday));
+		assertEquals(Set.of(tasks.getLast()), weekly.changes().stream().map(ResourceLevelingService.Change::task).collect(Collectors.toSet()),
+			"48 hours exceed normal 40-hour weekly availability");
+		assertTrue(monthly.changes().isEmpty(), "48 hours fit within monthly availability");
+		assertEquals(expectedDelayed, hourly.changes().stream().map(ResourceLevelingService.Change::task).collect(Collectors.toSet()));
+		assertEquals(expectedDelayed, minutely.changes().stream().map(ResourceLevelingService.Change::task).collect(Collectors.toSet()));
+	}
+
+	@Test
+	void minuteAndHourUseTheirOwnWorkBucketsWhileDayAggregationFits() {
+		Fixture fixture = fixture();
+		long oneHour = com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		long overlapStart = fixture.project.getEffectiveWorkCalendar().add(fixture.project.getStart(), oneHour, false);
+		NormalTask first = task(fixture.project, "Short first", 1L);
+		NormalTask second = task(fixture.project, "Short second", 1L);
+		AssignmentService.getInstance().newAssignment(first, fixture.resource, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(second, fixture.resource, 1D, 0L, this);
+		first.setStart(overlapStart);
+		second.setStart(overlapStart);
+		first.setDuration(oneHour);
+		second.setDuration(oneHour);
+		ResourceLevelingService service = new ResourceLevelingService();
+
+		assertEquals(oneHour, first.getEffectiveWorkCalendar().compare(first.getEnd(), first.getStart(), false),
+			"the independent fixture must contain one work-hour per assignment");
+		assertTrue(previewAt(service, fixture, ResourceLevelingService.Sensitivity.DAY).changes().isEmpty(),
+			"two hours fit the resource's daily capacity");
+		for (ResourceLevelingService.Sensitivity sensitivity : List.of(
+			ResourceLevelingService.Sensitivity.MINUTE, ResourceLevelingService.Sensitivity.HOUR)) {
+			ResourceLevelingService.Plan plan = previewAt(service, fixture, sensitivity);
+			assertEquals(List.of(second), plan.changes().stream()
+				.map(ResourceLevelingService.Change::task).toList(), sensitivity + " buckets expose the overlapping work");
+		}
+	}
+
+	@Test
+	void sensitivityBucketsUseUtcAndConfiguredWeekStartBoundaries() {
+		java.util.GregorianCalendar timestamp = com.microproject.util.DateTime.calendarInstance();
+		timestamp.clear();
+		timestamp.set(2026, java.util.Calendar.APRIL, 8, 13, 47, 32);
+		long value = timestamp.getTimeInMillis();
+		assertEquals(0, timestamp.getTimeZone().getOffset(value), "project buckets use the shared UTC calendar basis");
+		java.util.GregorianCalendar minute = com.microproject.util.DateTime.calendarInstance();
+		minute.setTimeInMillis(ResourceLevelingService.periodStart(value, ResourceLevelingService.Sensitivity.MINUTE));
+		assertEquals(13, minute.get(java.util.Calendar.HOUR_OF_DAY));
+		assertEquals(47, minute.get(java.util.Calendar.MINUTE));
+		assertEquals(0, minute.get(java.util.Calendar.SECOND));
+		java.util.GregorianCalendar hour = com.microproject.util.DateTime.calendarInstance();
+		hour.setTimeInMillis(ResourceLevelingService.periodStart(value, ResourceLevelingService.Sensitivity.HOUR));
+		assertEquals(13, hour.get(java.util.Calendar.HOUR_OF_DAY));
+		assertEquals(0, hour.get(java.util.Calendar.MINUTE));
+
+		CalendarOption option = CalendarOption.getInstance();
+		int previousWeekStart = option.getWeekStartsOn();
+		try {
+			option.setWeekStartsOn(java.util.Calendar.MONDAY);
+			java.util.GregorianCalendar week = com.microproject.util.DateTime.calendarInstance();
+			week.setTimeInMillis(ResourceLevelingService.periodStart(value, ResourceLevelingService.Sensitivity.WEEK));
+			assertEquals(java.util.Calendar.MONDAY, week.get(java.util.Calendar.DAY_OF_WEEK));
+			assertEquals(0, week.get(java.util.Calendar.HOUR_OF_DAY));
+			option.setWeekStartsOn(java.util.Calendar.SUNDAY);
+			week.setTimeInMillis(ResourceLevelingService.periodStart(value, ResourceLevelingService.Sensitivity.WEEK));
+			assertEquals(java.util.Calendar.SUNDAY, week.get(java.util.Calendar.DAY_OF_WEEK));
+			assertEquals(0, week.get(java.util.Calendar.HOUR_OF_DAY));
+		} finally {
+			option.setWeekStartsOn(previousWeekStart);
+		}
+	}
+
+	private ResourceLevelingService.Plan previewAt(ResourceLevelingService service, Fixture fixture,
+		ResourceLevelingService.Sensitivity sensitivity) {
+		return service.preview(fixture.project, List.of(fixture.resource), new ResourceLevelingService.Options(
+			ResourceLevelingService.Order.ID_ONLY, false, true, Long.MIN_VALUE, Long.MAX_VALUE, false, sensitivity));
+	}
+
+	@Test
 	void proposedResourcesAreExcludedByDefaultAndIncludedOnlyByExplicitOption() {
 		// Document-derived MSP rule: proposed resources are excluded unless the
 		// leveling dialog explicitly opts them in. See the current Desktop support
