@@ -161,6 +161,8 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		assertEquals(fixture.progressBarBefore(), afterComplete.bar(),
 			"100% task-table input must not change the planned bar geometry");
 
+		SwingUtilities.invokeAndWait(() -> tabs.setSelectedIndex(0));
+		activate(fixture.entrySheet, robot);
 		editWithPhysicalKeys(robot, fixture.entrySheet, fixture.entryRow, fixture.durationColumn, "1 day", "10 hours");
 		assertEquals(6L * 60L * 60L * 1000L, Duration.millis(fixture.task.getRawDuration()),
 			"with a six-hour project day, physical 1 day input must store six hours");
