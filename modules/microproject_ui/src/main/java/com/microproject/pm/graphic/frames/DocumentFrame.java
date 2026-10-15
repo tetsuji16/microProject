@@ -2032,7 +2032,7 @@ public class DocumentFrame extends NamedFrame implements
 
 	private void navigateInspectorPredecessor(Task task) {
 		SpreadSheet sheet = getActiveSpreadSheet();
-		Node node = findTaskNode(project.getTaskModel().getRoot(), task);
+		Node node = findTaskNode(project, task);
 		if (sheet == null || node == null) {
 			taskInspectorPanel.showFeedback("Predecessor is not available in this view.");
 			return;
@@ -2045,14 +2045,8 @@ public class DocumentFrame extends NamedFrame implements
 		sheet.restoreTaskRowSelection(List.of(node));
 	}
 
-	private Node findTaskNode(Object candidate, Task task) {
-		if (!(candidate instanceof Node node)) return null;
-		if (node.getImpl() == task) return node;
-		for (Object child : node.getChildren()) {
-			Node found = findTaskNode(child, task);
-			if (found != null) return found;
-		}
-		return null;
+	static Node findTaskNode(Project project, Task task) {
+		return project == null || task == null ? null : project.getTaskModel().search(task);
 	}
 
 	/**

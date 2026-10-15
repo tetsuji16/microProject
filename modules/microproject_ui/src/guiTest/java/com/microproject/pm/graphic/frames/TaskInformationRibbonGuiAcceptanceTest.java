@@ -3490,7 +3490,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(predecessor),
 				"clicking the visible predecessor did not select its rendered spreadsheet row");
 		} catch (AssertionError failure) {
-			Node predecessorNode = findTaskNode(project, predecessor);
+			Node predecessorNode = DocumentFrame.findTaskNode(project, predecessor);
 			throw new AssertionError(failure.getMessage() + "; routeInvoked=" + predecessorRouteInvoked.get()
 				+ "; " + inspectorNavigationDiagnostics(sheet, predecessor, predecessorNode), failure);
 		}
@@ -3509,7 +3509,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			project, List.of(predecessor), project.getUndoController()));
 		assertEquals(1, hiddenCount[0],
 			"the fixture must hide exactly the predecessor row before testing filtered navigation");
-		GuiAcceptanceSupport.await(() -> sheet.taskNodeToViewRow(findTaskNode(project, predecessor)) < 0,
+		GuiAcceptanceSupport.await(() -> sheet.taskNodeToViewRow(DocumentFrame.findTaskNode(project, predecessor)) < 0,
 			"the hidden predecessor must be absent from visible view coordinates");
 		int selectionBeforeHiddenClick = sheet.getSelectedRow();
 		boolean dirtyBeforeHiddenClick = project.needsSaving();
@@ -3609,20 +3609,6 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				if (result[0] != null) return;
 			}
 		}
-	}
-
-	private static Node findTaskNode(Project project, Task target) {
-		return findTaskNode(project.getTaskModel().getRoot(), target);
-	}
-
-	private static Node findTaskNode(Object candidate, Task target) {
-		if (!(candidate instanceof Node node)) return null;
-		if (node.getImpl() == target) return node;
-		for (Object child : node.getChildren()) {
-			Node found = findTaskNode(child, target);
-			if (found != null) return found;
-		}
-		return null;
 	}
 
 	@Test
