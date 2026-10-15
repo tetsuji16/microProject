@@ -46,6 +46,7 @@ import com.microproject.pm.costing.Accrual;
 import com.microproject.pm.criticalpath.TaskSchedule;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.snapshot.DataSnapshot;
+import com.microproject.datatype.TimeUnit;
 /**
  *
  */
@@ -55,6 +56,15 @@ public class TaskSnapshot implements DataSnapshot, HasAssignments, Cloneable {
 	double fixedCost = 0;
 	int fixedCostAccrual = Accrual.Kind.END.code();
 	boolean ignoreResourceCalendar = false;
+	private transient int durationDisplayUnit = TimeUnit.NONE;
+
+	public int getDurationDisplayUnit() {
+		return durationDisplayUnit;
+	}
+
+	public void setDurationDisplayUnit(int durationDisplayUnit) {
+		this.durationDisplayUnit = durationDisplayUnit;
+	}
 
 
 	public long getEarliestAssignmentStart() {

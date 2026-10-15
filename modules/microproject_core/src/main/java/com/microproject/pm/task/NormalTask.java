@@ -114,6 +114,9 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	boolean estimated = true;
 	int priority = 500;
 	private double percentWorkCompleteOverride = Double.NaN;
+	// Display-unit metadata is reconstructed from MSPDI's per-task DurationFormat.
+	// Transient keeps the frozen POD serialization descriptor unchanged.
+	private transient int durationDisplayUnit = TimeUnit.NONE;
 	public NormalTask(Project project) {
 		this(project == null || project.isLocal(),project);
 	}
@@ -262,6 +265,18 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		return duration;
 	}
 
+	/** Unit used to display this task's duration when it was explicitly entered or imported. */
+	public int getDurationDisplayUnit() {
+		return durationDisplayUnit;
+	}
+
+	/** Duration value carrying its display unit without changing stored schedule millis. */
+	public Duration getDurationForDisplay() {
+		long duration = getDuration();
+		return durationDisplayUnit == TimeUnit.NONE ? new Duration(duration)
+			: new Duration(Duration.setAsTimeUnit(duration, durationDisplayUnit));
+	}
+
 	/** Quickly check to see if a task has a duration without actually calculating it
 	 *
 	 * @return true if duration > 0
@@ -289,6 +304,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	 * @param duration
 	 */
 	public void setDuration(long duration) {
+		rememberDurationDisplayUnit(duration);
 		estimated = Duration.isEstimated(duration);
 		duration = Duration.millis(duration);
 		if (isWbsParent()) {
@@ -415,6 +431,8 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	public void setCurrentSnapshot(DataSnapshot snapshot) {
 
 		snapshots.setCurrentSnapshot(snapshot);
+		if (snapshot instanceof TaskSnapshot taskSnapshot)
+			durationDisplayUnit = taskSnapshot.getDurationDisplayUnit();
 	}
 
 	/**
@@ -2141,7 +2159,17 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	}
 
 	public void setRawDuration(long duration) {
+		rememberDurationDisplayUnit(duration);
 		currentSchedule.setRawDuration(duration);
+	}
+
+	private void rememberDurationDisplayUnit(long duration) {
+		if (Duration.hasUnits(duration)) {
+			durationDisplayUnit = Duration.getType(duration);
+			DataSnapshot snapshot = getCurrentSnapshot();
+			if (snapshot instanceof TaskSnapshot taskSnapshot)
+				taskSnapshot.setDurationDisplayUnit(durationDisplayUnit);
+		}
 	}
 
 

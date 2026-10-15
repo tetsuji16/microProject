@@ -460,8 +460,11 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 		Format f = getFormat(object);
 		if (f != null) {
 			if (context != null && context.getDurationDefaults() != null
-					&& f instanceof DurationFormat durationFormat && value instanceof Duration duration)
+					&& f instanceof DurationFormat durationFormat && value instanceof Duration duration) {
+				if (isDuration() && object instanceof com.microproject.pm.task.NormalTask task)
+					duration = task.getDurationForDisplay();
 				return durationFormat.format(duration, context.getDurationDefaults());
+			}
 			if (context != null && context.getDurationDefaults() != null
 					&& f instanceof RateFormat rateFormat && value instanceof Rate rate)
 				return rateFormat.format(rate, new StringBuffer(), new java.text.FieldPosition(0),

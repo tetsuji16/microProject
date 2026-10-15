@@ -586,7 +586,7 @@ private static int autoId = 0;
 		mpxTask.setUniqueID(exportId(IdNamespace.TASK, projectlibreTask.getUniqueId()));
 		mpxTask.setCreateDate(projectlibreTask.getCreated());
 		DurationDefaults defaults = projectlibreTask.getProject().getDurationDefaults();
-		mpxTask.setDuration(toMPXDuration(projectlibreTask.getDuration(), defaults)); // set duration without controls
+		mpxTask.setDuration(toTaskDuration(projectlibreTask, defaults)); // set duration without controls
 		mpxTask.setWork(toMPXDuration((long) projectlibreTask.getWork(), defaults));
 		mpxTask.setActualWork(toMPXDuration(projectlibreTask.getActualWork(null), defaults));
 		mpxTask.setRemainingWork(toMPXDuration(projectlibreTask.getRemainingWork(null), defaults));
@@ -688,7 +688,11 @@ private static int autoId = 0;
 		mpxTask.setActive(!projectlibreTask.isInactiveTask());
 		mpxTask.setTaskMode(projectlibreTask.isManuallyScheduled() ? TaskMode.MANUALLY_SCHEDULED : TaskMode.AUTO_SCHEDULED);
 		if (projectlibreTask.isManuallyScheduled())
-			mpxTask.setManualDuration(toMPXDuration(projectlibreTask.getDuration(), defaults));
+			mpxTask.setManualDuration(toTaskDuration(projectlibreTask, defaults));
+	}
+
+	private static net.sf.mpxj.Duration toTaskDuration(NormalTask task, DurationDefaults defaults) {
+		return toMPXDuration(task.getDurationForDisplay().getEncodedMillis(), defaults);
 	}
 
 	public static void toMPXVoid(VoidNodeImpl projectlibreVoid, Task mpxTask) {

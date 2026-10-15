@@ -984,8 +984,11 @@ class MpxExportTrackingTest {
 		assertEquals(com.microproject.datatype.TimeUnit.HOURS, imported.getDurationDefaults().durationEnteredIn());
 		assertEquals(com.microproject.datatype.TimeUnit.MINUTES, imported.getDurationDefaults().workUnit(),
 			"MSPDI default work units are independent from default duration units");
+		NormalTask importedTask = taskNamed(imported, "Assignment baseline task");
+		assertEquals(com.microproject.datatype.TimeUnit.DAYS, importedTask.getDurationDisplayUnit(),
+			"an explicit source task duration unit is retained independently of the project default");
 		assertEquals(8L * 60L * 60L * 1000L,
-			com.microproject.datatype.Duration.millis(taskNamed(imported, "Assignment baseline task").getRawDuration()),
+			com.microproject.datatype.Duration.millis(importedTask.getRawDuration()),
 			"the imported explicit task duration is independent of the six-hour default day; source="
 				+ source.getTaskByUniqueID(Integer.valueOf(1)).getDuration() + " projectDefaults="
 				+ imported.getDurationDefaults());
@@ -998,6 +1001,9 @@ class MpxExportTrackingTest {
 		assertEquals(1800.0d, reopened.getDurationDefaults().minutesPerWeek(), 0.00001d);
 		assertEquals(com.microproject.datatype.TimeUnit.HOURS, reopened.getDurationDefaults().durationEnteredIn());
 		assertEquals(com.microproject.datatype.TimeUnit.MINUTES, reopened.getDurationDefaults().workUnit());
+		assertEquals(com.microproject.datatype.TimeUnit.DAYS,
+			taskNamed(reopened, "Assignment baseline task").getDurationDisplayUnit(),
+			"native MPO preserves the MSPDI task DurationFormat as task display metadata");
 		assertEquals(6L * 60L * 60L * 1000L,
 			com.microproject.datatype.Duration.millis(new NormalTask(reopened).getRawDuration()));
 	}

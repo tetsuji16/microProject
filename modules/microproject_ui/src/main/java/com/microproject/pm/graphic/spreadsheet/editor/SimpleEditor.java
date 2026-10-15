@@ -104,6 +104,11 @@ public class SimpleEditor extends DefaultCellEditor   {
 				// value such as "3" keeps the configured duration unit instead of
 				// becoming three milliseconds and rendering as zero.
 				useFormat = DurationFormat.getInstance();
+				if ("Field.duration".equals(field.getId()) && model.getFieldContext() != null) {
+					Object rowObject = model.getObjectInRow(row);
+					if (rowObject instanceof com.microproject.pm.task.NormalTask)
+						component.setText(field.getText(rowObject, model.getFieldContext()));
+				}
 			}
 			if (field.isWork()) {
 				Object rowObject = model.getObjectInRow(row);

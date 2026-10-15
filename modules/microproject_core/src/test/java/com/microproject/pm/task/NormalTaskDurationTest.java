@@ -89,6 +89,55 @@ class NormalTaskDurationTest {
 	}
 
 	@Test
+	void explicitTaskDurationUnitsRemainDistinctFromProjectDefaultAndCalendarChanges() {
+		Project project = createProject();
+		DurationDefaults defaults = new DurationDefaults(360.0D, 1800.0D, 20.0D,
+			TimeUnit.HOURS, TimeUnit.MINUTES);
+		project.setDurationDefaults(defaults);
+		NormalTask oneDay = createTask(project);
+		NormalTask sixHours = createTask(project);
+		oneDay.setDuration(Duration.getInstance(1.0D, TimeUnit.DAYS, defaults));
+		sixHours.setDuration(Duration.getInstance(6.0D, TimeUnit.HOURS, defaults));
+
+		assertEquals(6L * 60L * 60L * 1000L, Duration.millis(oneDay.getDuration()));
+		assertEquals(Duration.millis(oneDay.getDuration()), Duration.millis(sixHours.getDuration()));
+		assertEquals(TimeUnit.DAYS, oneDay.getDurationDisplayUnit());
+		assertEquals(TimeUnit.HOURS, sixHours.getDurationDisplayUnit());
+
+		FieldContext context = new FieldContext();
+		context.setDurationDefaultsResolver(project::getDurationDefaults);
+		com.microproject.field.Field durationField = Configuration.getFieldFromId("Field.duration");
+		assertEquals("1 day", durationField.getText(oneDay, context));
+		assertEquals("6 hours", durationField.getText(sixHours, context));
+
+		CalendarOption changed = CalendarOption.getNewInstance();
+		changed.setHoursPerDay(7.0D);
+		changed.setHoursPerWeek(35.0D);
+		changed.setDaysPerMonth(21.0D);
+		project.setCalendarOption(changed);
+		assertEquals("0.857 days", durationField.getText(oneDay, context));
+		assertEquals("6 hours", durationField.getText(sixHours, context));
+	}
+
+	@Test
+	void taskDisplayUnitFollowsScheduleSnapshotRestore() {
+		Project project = createProject();
+		DurationDefaults defaults = new DurationDefaults(360.0D, 1800.0D, 20.0D,
+			TimeUnit.HOURS, TimeUnit.MINUTES);
+		project.setDurationDefaults(defaults);
+		NormalTask task = createTask(project);
+		task.setDuration(Duration.getInstance(1.0D, TimeUnit.DAYS, defaults));
+		task.saveCurrentToSnapshot(Integer.valueOf(1));
+		task.setDuration(Duration.getInstance(6.0D, TimeUnit.HOURS, defaults));
+		assertEquals(TimeUnit.HOURS, task.getDurationDisplayUnit());
+
+		task.setCurrentSnapshot(task.getSnapshot(Integer.valueOf(1)));
+
+		assertEquals(TimeUnit.DAYS, task.getDurationDisplayUnit());
+		assertEquals(6L * 60L * 60L * 1000L, Duration.millis(task.getDuration()));
+	}
+
+	@Test
 	void calendarOptionChangesRefreshOnlyOwningProjectDurationDefaults() {
 		Project sixHourProject = createProject();
 		Project otherProject = createProject();

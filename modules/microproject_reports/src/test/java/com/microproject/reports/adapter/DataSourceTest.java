@@ -25,6 +25,7 @@
 package com.microproject.reports.adapter;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -32,12 +33,25 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.NoSuchElementException;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import com.microproject.configuration.Configuration;
+import com.microproject.datatype.Duration;
+import com.microproject.datatype.DurationDefaults;
+import com.microproject.datatype.TimeUnit;
+import com.microproject.field.Field;
+import com.microproject.field.FieldContext;
 import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.grouping.core.model.NodeModelDataFactory;
+import com.microproject.grouping.core.model.WalkersNodeModel;
 import com.microproject.grouping.core.transform.filtering.PredicatedNodeFilterIterator;
+import com.microproject.grouping.core.Node;
+import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.task.NormalTask;
+import com.microproject.pm.task.Project;
+import com.microproject.undo.DataFactoryUndoController;
 
 class DataSourceTest {
 	@Test
@@ -77,6 +91,43 @@ class DataSourceTest {
 		dataSource.setNodeModel(nodeModel);
 
 		assertSame(expectedFactory, dataSource.getDataFactory());
+	}
+
+	@Test
+	void taskDurationReportTextUsesPerTaskFormatRatherThanOnlyProjectDefault() throws Exception {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("duration-report", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		project.initialize(false, false);
+		DurationDefaults defaults = new DurationDefaults(360.0D, 1800.0D, 20.0D,
+			TimeUnit.HOURS, TimeUnit.MINUTES);
+		project.setDurationDefaults(defaults);
+		NormalTask task = new NormalTask(project);
+		project.connectTask(task);
+		project.getSchedulingAlgorithm().addObject(task);
+		task.setDuration(Duration.getInstance(1.0D, TimeUnit.DAYS, defaults));
+		Node node = (Node) Proxy.newProxyInstance(Node.class.getClassLoader(), new Class<?>[] { Node.class },
+			(proxy, method, arguments) -> switch (method.getName()) {
+				case "getImpl" -> task;
+				case "isVoid", "isVirtual", "isRoot" -> Boolean.FALSE;
+				case "toString" -> "duration report task";
+				case "equals" -> proxy == arguments[0];
+				case "hashCode" -> System.identityHashCode(proxy);
+				default -> null;
+			});
+		DataSource dataSource = new DataSource();
+		dataSource.setNodeBased(true);
+		dataSource.setIterator(List.of(node).iterator());
+		dataSource.setProject(project);
+		dataSource.setNodeModel((WalkersNodeModel) Proxy.newProxyInstance(
+			WalkersNodeModel.class.getClassLoader(), new Class<?>[] { WalkersNodeModel.class },
+			(proxy, method, arguments) -> "isSummary".equals(method.getName()) ? Boolean.FALSE : null));
+		assertTrue(dataSource.next());
+		FieldContext context = new FieldContext();
+		context.setDurationDefaultsResolver(project::getDurationDefaults);
+		Field duration = Configuration.getFieldFromId("Field.duration");
+
+		assertEquals("1 day", duration.getText(dataSource, context));
 	}
 
 	private static final class DefaultHandler implements InvocationHandler {
