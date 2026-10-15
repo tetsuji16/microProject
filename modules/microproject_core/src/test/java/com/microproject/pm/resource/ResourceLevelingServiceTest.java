@@ -66,6 +66,44 @@ class ResourceLevelingServiceTest {
 	}
 
 	@Test
+	void applyRejectsStaleResourceAndAssignmentInputsBeforeMutation() {
+		Fixture fixture = fixture();
+		NormalTask first = task(fixture.project, "First", 1L);
+		NormalTask second = task(fixture.project, "Second", 1L);
+		AssignmentService.getInstance().newAssignment(first, fixture.resource, 1D, 0L, this);
+		Assignment secondAssignment = AssignmentService.getInstance().newAssignment(second, fixture.resource, 1D, 0L, this);
+		ResourceLevelingService.Plan staleAssignment = new ResourceLevelingService().preview(
+			fixture.project, List.of(fixture.resource), wholeTaskOptions());
+		secondAssignment.forceUnits(0.5D);
+		assertThrows(IllegalStateException.class, staleAssignment::apply,
+			"assignment edits after preview must invalidate its capacity calculation");
+		assertEquals(0L, second.getLevelingDelay());
+
+		ResourceLevelingService.Plan staleCapacity = new ResourceLevelingService().preview(
+			fixture.project, List.of(fixture.resource), wholeTaskOptions());
+		fixture.resource.setMaximumUnits(0.5D);
+		assertThrows(IllegalStateException.class, staleCapacity::apply,
+			"resource unit changes after preview must invalidate its capacity calculation");
+		assertEquals(0L, second.getLevelingDelay());
+	}
+
+	@Test
+	void applyRejectsStaleTaskScheduleRevisionBeforeMutation() {
+		Fixture fixture = fixture();
+		NormalTask first = task(fixture.project, "First", 1L);
+		NormalTask second = task(fixture.project, "Second", 1L);
+		AssignmentService.getInstance().newAssignment(first, fixture.resource, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(second, fixture.resource, 1D, 0L, this);
+		ResourceLevelingService.Plan stale = new ResourceLevelingService().preview(
+			fixture.project, List.of(fixture.resource), wholeTaskOptions());
+		second.setPriority(900);
+
+		assertThrows(IllegalStateException.class, stale::apply,
+			"project scheduling edits after preview must invalidate its task ordering");
+		assertEquals(0L, second.getLevelingDelay());
+	}
+
+	@Test
 	void levelingSensitivityComparesWorkWithinTheSelectedCalendarPeriod() {
 		assertEquals(ResourceLevelingService.Sensitivity.DAY, ResourceLevelingService.Options.defaults().sensitivity(),
 			"day basis is the product default while Microsoft support pages conflict on the default");
