@@ -1759,8 +1759,11 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, findShowingButtonByText(overwriteDialog, Messages.getString("Text.SelectedTasks")));
 		click(robot, findShowingButtonByText(overwriteDialog,
 			baselineLabels.getString("baseline.rollupToSummaryTasks")));
-		assertTrue(overwriteDialog.getForm().isRollupToSummaryTasks(),
-			"The physical summary-roll-up choice must be bound to the dialog form");
+		AbstractButton summaryRollupCheckbox = findShowingButtonByText(overwriteDialog,
+			baselineLabels.getString("baseline.rollupToSummaryTasks"));
+		boolean[] summaryRollupSelected = new boolean[1];
+		SwingUtilities.invokeAndWait(() -> summaryRollupSelected[0] = summaryRollupCheckbox.isSelected());
+		assertTrue(summaryRollupSelected[0], "The physical summary-roll-up checkbox must remain selected");
 		AtomicInteger baselineEventCount = new AtomicInteger();
 		com.microproject.pm.scheduling.ScheduleEventListener baselineListener = event -> {
 			if (com.microproject.pm.scheduling.ScheduleEvent.BASELINE.equals(event.getType())) baselineEventCount.incrementAndGet();
@@ -1776,6 +1779,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> isActiveDialogOwnedBy(overwriteDialog,
 				baselineLabels.getString("baseline.overwriteTitle")),
 			"Overwriting an occupied baseline must ask before mutation");
+		assertTrue(overwriteDialog.getForm().isRollupToSummaryTasks(),
+			"Accepting the dialog binds the physical summary-roll-up choice before overwrite preflight");
 		Dialog noConfirmation = activeDialogOwnedBy(overwriteDialog);
 		String[] promptUiState = new String[2];
 		boolean[] promptOwnedByChooser = new boolean[1];
