@@ -4346,6 +4346,130 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		});
 	}
 
+	@Test
+	// Microsoft documents one-shot formatting, double-click to continue, and Escape to stop; the exact
+	// six task text attributes are a document-derived microProject rule because Project's support page
+	// does not enumerate task-format fields. Gantt bar appearance remains a separate per-view style.
+	// Source: https://support.microsoft.com/en-us/word/use-the-format-painter
+	void formatPainterCopiesTaskTextStyleOnceOrContinuouslyWithUndoAndMpoReload() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("format-painter-acceptance", undo), undo);
+		project.initialize(false, false);
+		NormalTask source = project.createScriptedTask();
+		source.setName("Format source");
+		source.setFontFamily("Dialog");
+		source.setFontSize(15);
+		source.setFontColor(0x2457A6);
+		source.setFontBold(true);
+		source.setFontItalic(true);
+		source.setFontStrikethrough(true);
+		NormalTask firstTarget = project.createScriptedTask();
+		firstTarget.setName("Format first target");
+		NormalTask secondTarget = project.createScriptedTask();
+		secondTarget.setName("Format second target");
+		NormalTask thirdTarget = project.createScriptedTask();
+		thirdTarget.setName("Format third target");
+		NormalTask untouched = project.createScriptedTask();
+		untouched.setName("Format untouched");
+		project.recalculate();
+		List<Long> originalIds = List.of(source.getId(), firstTarget.getId(), secondTarget.getId(),
+			thirdTarget.getId(), untouched.getId());
+		long[] originalDates = { firstTarget.getStart(), firstTarget.getEnd(), secondTarget.getStart(),
+			secondTarget.getEnd(), thirdTarget.getStart(), thirdTarget.getEnd(), untouched.getStart(), untouched.getEnd() };
+		undo.clear();
+
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> window.setSize(1120, 700));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"format-painter project did not become visible");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		clickUntilSelected(robot, window, sheet, rowForTask(sheet, source), 0);
+		AbstractButton painter = findShowingButtonByCommand("RibbonFormatPainter");
+		assertTrue(painter.isEnabled(), "Format Painter must be enabled for one editable task source");
+		robot.keyPress(KeyEvent.VK_SHIFT);
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, firstTarget), 0));
+		robot.keyRelease(KeyEvent.VK_SHIFT);
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false)
+				.containsAll(List.of(source, firstTarget)), "Shift-click must create the mixed multi-task selection fixture");
+		assertFalse(painter.isEnabled(), "Format Painter must reject a multiple-task source selection");
+		clickUntilSelected(robot, window, sheet, rowForTask(sheet, source), 0);
+		GuiAcceptanceSupport.await(painter::isEnabled, "Format Painter must re-enable for a single source task");
+		click(robot, painter);
+		GuiAcceptanceSupport.await(painter::isSelected, "one-shot Format Painter did not enter its armed state");
+		clickUntilSelected(robot, window, sheet, rowForTask(sheet, firstTarget), 0);
+		GuiAcceptanceSupport.await(() -> firstTarget.isFontBold() && firstTarget.isFontItalic()
+				&& firstTarget.isFontStrikethrough() && firstTarget.getFontSize() == 15
+				&& java.util.Objects.equals(firstTarget.getFontFamily(), "Dialog")
+				&& java.util.Objects.equals(firstTarget.getFontColor(), 0x2457A6),
+			"the physical target-row selection did not receive all six source text-style properties");
+		GuiAcceptanceSupport.await(() -> !painter.isSelected(), "one-shot Format Painter must disarm after one target selection");
+		assertTrue(undo.canUndo(), "one target application must create one undoable mutation");
+		assertEquals("Format first target", firstTarget.getName(), "format painting must preserve task data");
+		assertArrayEquals(originalDates, new long[] { firstTarget.getStart(), firstTarget.getEnd(), secondTarget.getStart(),
+			secondTarget.getEnd(), thirdTarget.getStart(), thirdTarget.getEnd(), untouched.getStart(), untouched.getEnd() },
+			"text formatting must not change schedule dates");
+		java.awt.Font fallback = new java.awt.Font("SansSerif", java.awt.Font.PLAIN, 12);
+		assertEquals(com.microproject.pm.graphic.TaskFontStyle.resolveFont(source, fallback),
+			com.microproject.pm.graphic.TaskFontStyle.resolveFont(firstTarget, fallback),
+			"the task sheet and Gantt text renderer must resolve the same copied text format");
+		java.awt.Component renderedTaskName = renderedTaskNameCell(sheet, firstTarget);
+		assertEquals(com.microproject.pm.graphic.TaskFontStyle.resolveFont(firstTarget, renderedTaskName.getFont()),
+			renderedTaskName.getFont(), "the rendered task-table name must display the copied font attributes");
+		assertEquals(com.microproject.pm.graphic.TaskFontStyle.resolveColor(firstTarget, renderedTaskName.getForeground()),
+			renderedTaskName.getForeground(), "the rendered task-table name must display the copied font color");
+
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> !firstTarget.isFontBold() && firstTarget.getFontSize() == 0
+				&& firstTarget.getFontColor() == null,
+			"Undo did not restore the target's original task text style");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> firstTarget.isFontBold() && firstTarget.getFontSize() == 15,
+			"Redo did not restore the copied task text style");
+
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		MpoFileImporter importer = new MpoFileImporter();
+		assertTrue(importer.saveProject(project, saved), "MPO save rejected the formatted task project");
+		Project reloaded = importer.loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		Task reloadedFirst = taskNamed(reloaded, "Format first target");
+		assertTrue(reloadedFirst.isFontBold() && reloadedFirst.isFontItalic() && reloadedFirst.isFontStrikethrough());
+		assertEquals("Dialog", reloadedFirst.getFontFamily());
+		assertEquals(15, reloadedFirst.getFontSize());
+		assertEquals(Integer.valueOf(0x2457A6), reloadedFirst.getFontColor());
+
+		clickUntilSelected(robot, window, sheet, rowForTask(sheet, source), 0);
+		click(robot, painter);
+		GuiAcceptanceSupport.await(painter::isSelected, "Format Painter did not arm before continuous mode");
+		click(robot, painter);
+		GuiAcceptanceSupport.await(painter::isSelected, "second Format Painter activation must promote to continuous mode");
+		clickUntilSelected(robot, window, sheet, rowForTask(sheet, secondTarget), 0);
+		GuiAcceptanceSupport.await(() -> secondTarget.isFontBold() && secondTarget.getFontSize() == 15,
+			"continuous Format Painter did not format its first target");
+		assertTrue(painter.isSelected(), "continuous Format Painter must remain armed after a target selection");
+		clickUntilSelected(robot, window, sheet, rowForTask(sheet, thirdTarget), 0);
+		GuiAcceptanceSupport.await(() -> thirdTarget.isFontBold() && thirdTarget.getFontSize() == 15,
+			"continuous Format Painter did not format its next target");
+		press(robot, KeyEvent.VK_ESCAPE);
+		GuiAcceptanceSupport.await(() -> !painter.isSelected(), "Escape must stop continuous Format Painter mode");
+		clickUntilSelected(robot, window, sheet, rowForTask(sheet, untouched), 0);
+		assertFalse(untouched.isFontBold() || untouched.isFontItalic() || untouched.isFontStrikethrough()
+			|| untouched.getFontSize() != 0 || untouched.getFontFamily() != null || untouched.getFontColor() != null,
+			"the target selected after Escape must remain unchanged");
+		assertEquals(originalIds, List.of(source.getId(), firstTarget.getId(), secondTarget.getId(),
+			thirdTarget.getId(), untouched.getId()), "format painting must not reorder or renumber tasks");
+		assertArrayEquals(originalDates, new long[] { firstTarget.getStart(), firstTarget.getEnd(), secondTarget.getStart(),
+			secondTarget.getEnd(), thirdTarget.getStart(), thirdTarget.getEnd(), untouched.getStart(), untouched.getEnd() },
+			"continuous text formatting must leave all target schedules unchanged");
+	}
+
 	private AbstractButton findShowingButtonByText(String text) throws Exception {
 		return GuiAcceptanceSupport.findShowingButtonByText(window, text);
 	}
@@ -4380,6 +4504,19 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				return row;
 		}
 		throw new AssertionError("Task is absent from the visible spreadsheet");
+	}
+
+	private static java.awt.Component renderedTaskNameCell(SpreadSheet sheet, Task task) throws Exception {
+		java.awt.Component[] rendered = new java.awt.Component[1];
+		SwingUtilities.invokeAndWait(() -> {
+			int row = rowForTask(sheet, (NormalTask)task);
+			int viewRow = sheet.convertRowIndexToView(row);
+			int viewColumn = sheet.convertColumnIndexToView(0);
+			javax.swing.table.TableCellRenderer renderer = sheet.getCellRenderer(viewRow, viewColumn);
+			rendered[0] = renderer.getTableCellRendererComponent(sheet, sheet.getValueAt(viewRow, viewColumn),
+				false, false, viewRow, viewColumn);
+		});
+		return rendered[0];
 	}
 
 	private static List<String> taskOrder(Project project) {

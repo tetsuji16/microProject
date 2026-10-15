@@ -50,6 +50,7 @@ microProjectの標準リボンに表示される全コマンドボタンを、�
 | RibbonAssignResources | リソースを割り当てる | 割当ダイアログとタスクのリソース表示が更新される |
 | RibbonDelegateTasks | タスクを委任する | 委任操作または結果ダイアログが表示される |
 | RibbonTaskInformation | タスク情報を開く | タスク情報ダイアログが表示される |
+| RibbonFormatPainter | 1つの編集可能なタスクを選び、書式のコピーを1回押して別タスクを選択する。連続適用はボタンを2回押し、Escapeで解除する | 6つのタスク文字書式（フォント、サイズ、色、太字、斜体、取り消し線）だけを適用し、タスクデータやガントバーの個別書式を変えない。複数選択・読み取り専用・ロック対象は拒否する。Undo/RedoとMPO保存再読込を確認する。Microsoftの説明は1回適用、ダブルクリックで連続適用、Escapeで終了を定義するがタスクの個別書式項目は列挙しないため、6項目の範囲はdocument-derived product contractとする。根拠: [Microsoft Format Painter](https://support.microsoft.com/en-us/word/use-the-format-painter)。 |
 | RibbonNotes | タスクメモを編集 | メモを保存して再表示できる |
 | RibbonUpdateTasks | タスクの進捗を更新 | 更新値がタスク表とバーへ反映される |
 | RibbonDelete | 選択タスクを削除 | 確認後に対象行だけが削除される |

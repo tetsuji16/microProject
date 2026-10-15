@@ -1988,11 +1988,15 @@ public class DocumentFrame extends NamedFrame implements
 
 
 	protected SelectionNodeEvent lastSelectionEvent=null;
+	private TaskFormatPainterService.TaskTextFormat formatPainterStyle;
+	private Task formatPainterSource;
+	private boolean formatPainterContinuous;
 	/**
 	 * React to selection changed events and forward them on to any bottom
 	 * window
 	 */
 	public void selectionChanged(SelectionNodeEvent e) {
+		applyFormatPainterToSelection(e);
 		lastSelectionEvent=e;
 		statusBar.setSelectedCount(e.getNodes() == null ? 0 : e.getNodes().size());
 		Component bottom = mainView.getBottomComponent();
@@ -2047,6 +2051,90 @@ public class DocumentFrame extends NamedFrame implements
 
 	static Node findTaskNode(Project project, Task task) {
 		return project == null || task == null ? null : project.getTaskModel().search(task);
+	}
+
+	boolean canStartFormatPainter() {
+		if (formatPainterStyle != null)
+			return true;
+		if (project == null || project.isReadOnly() || getActiveSpreadSheet() == null)
+			return false;
+		ActiveTaskSelectionResolver.Selection selection = resolveTaskSelection(true, false);
+		return selection.isEligible(1) && selection.nodes().size() == 1;
+	}
+
+	void startOrPromoteFormatPainter() {
+		if (formatPainterStyle != null) {
+			if (!formatPainterContinuous) {
+				formatPainterContinuous = true;
+				getMenuManager().setActionSelected("RibbonFormatPainter", true);
+			} else {
+				cancelFormatPainter();
+			}
+			return;
+		}
+		finishAnyOperations();
+		if (project == null || project.isReadOnly())
+			return;
+		ActiveTaskSelectionResolver.Selection selection = resolveTaskSelection(true, false);
+		if (!selection.isEligible(1) || selection.nodes().size() != 1
+				|| !(selection.nodes().getFirst().getImpl() instanceof Task source)
+				|| source.getProject() != project || source.isReadOnly())
+			return;
+		formatPainterSource = source;
+		formatPainterStyle = TaskFormatPainterService.capture(source);
+		formatPainterContinuous = false;
+		getMenuManager().setActionSelected("RibbonFormatPainter", true);
+		getGraphicManager().traceUi("format-painter armed sourceTask=" + source.getUniqueId());
+	}
+
+	void cancelFormatPainter() {
+		if (formatPainterStyle == null)
+			return;
+		formatPainterStyle = null;
+		formatPainterSource = null;
+		formatPainterContinuous = false;
+		getMenuManager().setActionSelected("RibbonFormatPainter", false);
+		getGraphicManager().traceUi("format-painter cancelled");
+	}
+
+	private void applyFormatPainterToSelection(SelectionNodeEvent event) {
+		if (formatPainterStyle == null || event == null || event.getNodes() == null || event.getNodes().isEmpty())
+			return;
+		ActiveTaskSelectionResolver.Selection selection = ActiveTaskSelectionResolver.resolve(
+			new ArrayList<>(event.getNodes()), false, false, false);
+		if (!selection.isEligible(1)) {
+			if (!formatPainterContinuous)
+				cancelFormatPainter();
+			return;
+		}
+		List<Task> targets = new ArrayList<>(selection.nodes().size());
+		List<Node> targetNodes = new ArrayList<>(selection.nodes().size());
+		for (Node node : selection.nodes()) {
+			if (!(node.getImpl() instanceof Task task) || task.getProject() != project || task.isReadOnly()) {
+				if (!formatPainterContinuous)
+					cancelFormatPainter();
+				return;
+			}
+			if (task == formatPainterSource || TaskFormatPainterService.capture(task).equals(formatPainterStyle))
+				continue;
+			targets.add(task);
+			targetNodes.add(node);
+		}
+		if (targets.isEmpty())
+			return;
+		if (project == null || project.isReadOnly()
+				|| !CollaborationHelper.tryLockNodes(project, targetNodes, this,
+					"format-painter")) {
+			if (!formatPainterContinuous)
+				cancelFormatPainter();
+			return;
+		}
+		List<Long> changed = TaskFormatPainterService.apply(project, targets, formatPainterStyle,
+			getUndoController());
+		getGraphicManager().traceUi("format-painter applied targets=" + changed.size()
+			+ " continuous=" + formatPainterContinuous);
+		if (!formatPainterContinuous)
+			cancelFormatPainter();
 	}
 
 	/**

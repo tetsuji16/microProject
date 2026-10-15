@@ -146,6 +146,10 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		container=graphInfoContainer(container);
 	}
 
+	static Font resolveTaskAnnotationFont(Object task, Font fallback) {
+		return TaskFontStyle.resolveFont(task, fallback);
+	}
+
     private Color getProgressLineColor() {
         return palette.getProjectLineColor();
     }
@@ -729,7 +733,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			int rowHeight=((GanttParams)graphInfo).getRowHeight();
 			config=((GanttParams)graphInfo).getConfiguration();
 			yrow=row*rowHeight;
-			annotationFont = TaskFontStyle.resolveFont(getNodeImpl(node), FlatUiSupport.uiFont().deriveFont(Font.PLAIN));
+			annotationFont = resolveTaskAnnotationFont(getNodeImpl(node), FlatUiSupport.uiFont().deriveFont(Font.PLAIN));
 			fontMetrics = g2.getFontMetrics(annotationFont);
 			renderedAnnotationKeys = new HashSet<String>();
 			annotationRenderedForNode = false;
