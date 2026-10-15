@@ -232,6 +232,8 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		byte[] existingMpoBytes = "existing MPO must survive a declined overwrite".getBytes(java.nio.charset.StandardCharsets.UTF_8);
 		Files.write(mpoSaveTarget, existingMpoBytes);
 		createWindow("microProject — imported MPP Save acceptance");
+		saveWindowTrace = new WindowTrace();
+		saveWindowTrace.open();
 		UiServices.setFileChooserProvider(new UiServices.FileChooserProvider() {
 			@Override public String chooseFileName(boolean save, String selectedFileName, Object parent) {
 				return swingChooser.chooseFileName(save, selectedFileName, parent);
@@ -307,9 +309,18 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		GuiAcceptanceSupport.awaitInputAndEventQueueIdle(robot, "Save As filename entry");
 		assertEquals(mpoSavedCopy.getFileName().toString(), textOnEdt(fileNameField),
 			"physical filename entry must be present in the chooser field before approval");
-		click(robot, selectFileChooserSaveButton(saveDialog));
-		GuiAcceptanceSupport.await(() -> visibleFileChooserDialog() == null && Files.isRegularFile(mpoSavedCopy),
-			"selected MPO copy was not written");
+		AbstractButton finalApproveButton = selectFileChooserSaveButton(saveDialog);
+		String preApproveState = saveAsChooserDiagnostics(saveDialog, finalApproveButton);
+		System.err.println("=== Save As pre-approve diagnostic ===\n" + preApproveState);
+		captureNativeChooserScreen(robot, "mpp-save-as-before-final-approve.png");
+		click(robot, finalApproveButton);
+		try {
+			GuiAcceptanceSupport.await(() -> visibleFileChooserDialog() == null && Files.isRegularFile(mpoSavedCopy),
+				"selected MPO copy was not written");
+		} catch (AssertionError failure) {
+			throw new AssertionError(failure.getMessage() + "\nPre-approve chooser state:\n" + preApproveState
+				+ "\n" + saveWindowTrace.snapshot(), failure);
+		}
 		GuiAcceptanceSupport.await(() -> mpoSavedCopy.toString().equals(project.getFileName()) && !project.needsSaving(),
 			"successful MPO save did not update association and clear dirty state");
 		assertArrayEquals(originalMppBytes, Files.readAllBytes(importedMpp), "MPO save must leave the MPP source untouched");
@@ -1955,13 +1966,53 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		String swingSaveLabel = UIManager.getString("FileChooser.saveButtonText");
 		if (swingSaveLabel != null) saveLabels.add(swingSaveLabel);
 		saveLabels.add(Messages.getString("Text.Save"));
+		List<AbstractButton> candidates = new ArrayList<>();
 		for (Component component : flatten(chooserWindow)) {
 			if (component instanceof AbstractButton button && button.isShowing()
 					&& ("ApproveSelection".equals(button.getActionCommand())
 						|| saveLabels.contains(button.getText())))
-				return button;
+				candidates.add(button);
 		}
-		return null;
+		if (candidates.size() != 1)
+			throw new AssertionError("Expected exactly one visible Save As approve button, found " + candidates.size()
+				+ "; candidates=" + candidates.stream().map(RibbonExternalCommandGuiAcceptanceTest::describeButton)
+					.toList() + "; all buttons=" + flatten(chooserWindow).stream()
+					.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+					.map(RibbonExternalCommandGuiAcceptanceTest::describeButton).toList());
+		return candidates.get(0);
+	}
+
+	private static String saveAsChooserDiagnostics(Window chooserWindow, AbstractButton approveButton) throws Exception {
+		AtomicReference<String> snapshot = new AtomicReference<>();
+		SwingUtilities.invokeAndWait(() -> {
+			JFileChooser chooser = findFileChooser(chooserWindow);
+			JTextField nameField = findFileChooserNameField(chooserWindow);
+			KeyboardFocusManager focus = KeyboardFocusManager.getCurrentKeyboardFocusManager();
+			snapshot.set("dialog=" + WindowTrace.describeWindow(chooserWindow)
+				+ "\nchooser.selectedFile=" + chooser.getSelectedFile()
+				+ ", currentDirectory=" + chooser.getCurrentDirectory()
+				+ ", nameFieldText='" + nameField.getText() + "', nameFieldBounds=" + nameField.getBounds()
+				+ ", nameFieldFocus=" + nameField.isFocusOwner()
+				+ "\napprove=" + describeButton(approveButton)
+				+ "\nactive=" + WindowTrace.describeWindow(focus.getActiveWindow())
+				+ ", focused=" + WindowTrace.describeWindow(focus.getFocusedWindow())
+				+ ", focusOwner=" + (focus.getFocusOwner() == null ? "none"
+					: focus.getFocusOwner().getClass().getName() + "[" + focus.getFocusOwner().getName() + "]"));
+		});
+		return snapshot.get();
+	}
+
+	private static String describeButton(AbstractButton button) {
+		String location;
+		try {
+			location = button.getLocationOnScreen().toString();
+		} catch (IllegalComponentStateException notShowing) {
+			location = "unavailable";
+		}
+		return "{" + button.getClass().getSimpleName() + ",text='" + button.getText()
+			+ "',action='" + button.getActionCommand() + "',showing=" + button.isShowing()
+			+ ",enabled=" + button.isEnabled() + ",bounds=" + button.getBounds()
+			+ ",screenLocation=" + location + "}";
 	}
 
 	private static AbstractButton findFileChooserCancelButton(Window chooserWindow) {
