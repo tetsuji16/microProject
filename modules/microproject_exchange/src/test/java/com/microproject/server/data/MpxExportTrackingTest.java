@@ -990,6 +990,35 @@ class MpxExportTrackingTest {
 	}
 
 	@Test
+	void project2013Mpp14TaskConstraintMatchesUpstreamManifestAndMpoReload() throws Exception {
+		Path fixtureDirectory = Path.of("modules", "microproject_exchange", "testdata", "mpxj", "project2013");
+		if (!Files.isDirectory(fixtureDirectory))
+			fixtureDirectory = Path.of("testdata", "mpxj", "project2013");
+		Path mpp = fixtureDirectory.resolve("mpp14task-from2013.mpp");
+		assertTrue(Files.isRegularFile(mpp), mpp.toString());
+		net.sf.mpxj.ProjectFile mppOracle = new net.sf.mpxj.mpp.MPPReader().read(mpp.toFile());
+		net.sf.mpxj.Task rawTask = mppOracle.getTaskByUniqueID(Integer.valueOf(1));
+		assertNotNull(rawTask);
+		assertEquals(net.sf.mpxj.ConstraintType.MUST_START_ON, rawTask.getConstraintType(),
+			"MPXJ pinned MppTaskTest.testMpp14TaskFromProject2013 expects MUST_START_ON");
+		assertEquals("23/08/2006", new java.text.SimpleDateFormat("dd/MM/yyyy").format(rawTask.getConstraintDate()),
+			"MPXJ pinned MppTaskTest.testMpp14TaskFromProject2013 literal date oracle");
+
+		Project imported = importMppFixture(mpp);
+		assertProject2013TaskConstraint(imported, rawTask);
+		assertProject2013TaskConstraint(roundTripMpo(imported), rawTask);
+	}
+
+	private void assertProject2013TaskConstraint(Project project, net.sf.mpxj.Task rawTask) {
+		Task task = project.getTaskList().stream()
+			.filter(candidate -> candidate.getUniqueId() == rawTask.getUniqueID().longValue()).findFirst()
+			.orElseThrow(() -> new AssertionError("Missing imported task UID " + rawTask.getUniqueID()));
+		assertEquals(ConstraintType.Kind.MSO, task.getConstraintTypeKind());
+		assertEquals(DateUTCConverter.toModelTime(rawTask.getConstraintDate()), task.getConstraintDate(),
+			"MPP dates are converted to the model's local-time epoch representation");
+	}
+
+	@Test
 	void nondefaultMspdiDurationDefaultsSurviveNativeMpoAndNewTaskCreation() throws Exception {
 		Path fixture = Path.of("modules", "microproject_exchange", "testdata", "Assignment Baseline Scalars.xml");
 		if (!Files.isRegularFile(fixture)) fixture = Path.of("testdata", "Assignment Baseline Scalars.xml");
