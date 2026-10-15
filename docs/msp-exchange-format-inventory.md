@@ -111,7 +111,8 @@ cannot silently select another writer.
   and rejects unknown or malformed IDs, missing values, lookup GUIDs,
   conflicting duplicates, and assignment-level custom values before changing
   project state. Numeric Cost/Number literals must be finite decimal values;
-  unexpected parsed MPXJ runtime types also fail instead of being skipped.
+  unexpected parsed MPXJ runtime types and non-finite numeric or duration values
+  also fail instead of being skipped or rounded into a misleading result.
   Same-value duplicates are accepted. Alias persistence and lookup-value
   resolution remain unsupported. Duration parsing remains delegated to MPXJ's
   `DurationFormat` interpretation. Literal MSPDI Task and Resource

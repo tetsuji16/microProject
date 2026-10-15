@@ -193,8 +193,11 @@ public final class MpxCustomFieldsConverter {
 		for (int i = 0; i < fields.length; i++) {
 			net.sf.mpxj.Duration duration = (net.sf.mpxj.Duration) typedValue(source, fields[i],
 				net.sf.mpxj.Duration.class);
-			if (duration != null)
+			if (duration != null) {
+				if (!Double.isFinite(duration.getDuration()))
+					throw invalidSourceValue(fields[i], "finite duration", duration);
 				target.setCustomDuration(i, MpxUtils.toProjectDuration(duration, defaults));
+			}
 		}
 	}
 

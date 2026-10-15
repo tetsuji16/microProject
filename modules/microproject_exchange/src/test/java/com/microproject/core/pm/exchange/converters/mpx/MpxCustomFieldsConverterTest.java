@@ -105,6 +105,11 @@ class MpxCustomFieldsConverterTest {
 		sourceTask.set(TaskField.NUMBER1, "12.5");
 		assertThrows(IllegalArgumentException.class, () -> MpxCustomFieldsConverter.from(sourceTask,
 			task.getCustomFields(), CustomFieldsMapper.getInstance().taskMaps, target.getDurationDefaults()));
+		sourceTask.set(TaskField.NUMBER1, null);
+		sourceTask.set(TaskField.DURATION1,
+			net.sf.mpxj.Duration.getInstance(Double.NaN, net.sf.mpxj.TimeUnit.HOURS));
+		assertThrows(IllegalArgumentException.class, () -> MpxCustomFieldsConverter.from(sourceTask,
+			task.getCustomFields(), CustomFieldsMapper.getInstance().taskMaps, target.getDurationDefaults()));
 	}
 
 	@Test
