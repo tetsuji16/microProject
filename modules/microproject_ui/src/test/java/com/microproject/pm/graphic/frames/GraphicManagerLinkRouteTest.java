@@ -123,6 +123,40 @@ class GraphicManagerLinkRouteTest {
 	}
 
 	@Test
+	void closedManagerCannotDisturbAnotherActiveManagersQueue() {
+		com.microproject.session.SessionFactory factory = com.microproject.session.SessionFactory.getInstance();
+		com.microproject.job.JobQueue previousQueue = factory.getJobQueue();
+		class TestGraphicManager extends GraphicManager {
+			TestGraphicManager() { super(new JPanel()); }
+			com.microproject.ribbon.RibbonCommandResult runExternal(String id, Runnable command) {
+				return executeExternalRibbonCommand(id, command);
+			}
+		}
+		TestGraphicManager closedManager = new TestGraphicManager();
+		TestGraphicManager activeManager = new TestGraphicManager();
+		AtomicInteger commandRuns = new AtomicInteger();
+		try {
+			closedManager.cleanUp();
+			com.microproject.job.JobQueue activeQueue = activeManager.getJobQueue();
+			activeManager.setMeAsLastGraphicManager();
+			assertSame(activeQueue, factory.getJobQueue(), "the active manager must own the shared session queue");
+
+			com.microproject.ribbon.RibbonCommandResult result =
+				closedManager.runExternal("saveProject", commandRuns::incrementAndGet);
+
+			assertEquals(com.microproject.ribbon.RibbonCommandResult.Status.REJECTED, result.status());
+			assertEquals("manager-closed", result.reason());
+			assertEquals(0, commandRuns.get(), "a closed manager's command body must not run");
+			assertSame(activeQueue, factory.getJobQueue(), "rejecting a stale command must preserve the live manager queue");
+			assertSame(activeQueue, factory.getLocalSession().getJobQueue(),
+				"rejecting a stale command must preserve the live local-session queue");
+		} finally {
+			activeManager.cleanUp();
+			factory.setJobQueue(previousQueue);
+		}
+	}
+
+	@Test
 	void frameManagerFindsOpenDocumentByCanonicalProjectFileIdentity() throws Exception {
 		Project project = allocateWithoutConstructor(Project.class);
 		Field fileName = Project.class.getDeclaredField("fileName");
