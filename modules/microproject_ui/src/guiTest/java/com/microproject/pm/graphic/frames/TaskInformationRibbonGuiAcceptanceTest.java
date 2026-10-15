@@ -3458,7 +3458,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		DependencyService.getInstance().newDependency(predecessor, successor, DependencyType.FS, 0L, this);
 		project.recalculate();
 		showProject(project);
-		SwingUtilities.invokeAndWait(() -> window.setSize(980, 760));
+		SwingUtilities.invokeAndWait(() -> window.setSize(1320, 760));
 		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null
 				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
 			"the task Inspector project did not become visible");
@@ -3469,7 +3469,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		clickUntilSelected(robot, window, sheet, rowForTask(sheet, successor), nameColumn(sheet));
 		clickAndAwaitSelected(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("TaskRibbonTask.title")), "Robot click did not select the Task ribbon tab");
-		click(robot, findShowingButtonByCommand("RibbonTaskInspector"));
+		click(robot, findVisibleOrOverflowButton(robot, "RibbonTaskInspector"));
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().taskInspectorVisible()
 				&& manager.getCurrentFrame().getSelectedImpls(false).contains(successor),
 			"Inspect Task did not open its pane for the selected task");
