@@ -37,6 +37,7 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.field.Field;
+import com.microproject.field.FieldContext;
 import com.microproject.configuration.FieldDictionary;
 import com.microproject.datatype.Duration;
 import com.microproject.datatype.DurationFormat;
@@ -91,8 +92,14 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		editWithPhysicalKeys(robot, fixture.entrySheet, fixture.entryRow, fixture.durationColumn, "10");
 		assertEquals(10L * 60L * 60L * 1000L, Duration.millis(fixture.task.getRawDuration()),
 			"physical bare duration input must use the owning project's default hours");
-		assertEquals(TimeUnit.HOURS, Duration.getType(fixture.task.getRawDuration()),
-			"physical duration input must preserve the source unit");
+		// Task schedules normalize entered durations to physical milliseconds; the
+		// project's duration-entered setting supplies the retained display unit.
+		assertEquals(TimeUnit.HOURS, fixture.task.getProject().getDurationDefaults().durationEnteredIn(),
+			"the owning project must retain Hours as its duration-entry and display unit");
+		assertEquals(DurationFormat.getProjectInstance().format(new Duration(fixture.task.getRawDuration()),
+			fixture.task.getProject().getDurationDefaults()), durationText(fixture.task,
+			((SpreadSheetModel) fixture.entrySheet.getModel()).getFieldContext()),
+			"the committed duration cell must render using the owning project's Hours default");
 
 		editWithPhysicalKeys(robot, fixture.entrySheet, fixture.entryRow, fixture.startColumn, "2026/9/25");
 		Calendar committedStart = DateTime.calendarInstance();
@@ -173,9 +180,13 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		NormalTask restoredStructuralTask = (NormalTask) reopened.findByUniqueId(structuralTask.getUniqueId());
 		assertEquals(10L * 60L * 60L * 1000L, Duration.millis(restored.getRawDuration()),
 			"the project-unit duration must survive a structural edit and MPO reload");
-		assertEquals(TimeUnit.HOURS, Duration.getType(restored.getRawDuration()));
 		assertEquals(null, restoredStructuralTask.getWbsParentTask(), "outdented task must remain at project root after reload");
 		assertEquals(TimeUnit.HOURS, reopened.getDurationDefaults().durationEnteredIn());
+		FieldContext reopenedContext = new FieldContext();
+		reopenedContext.setDurationDefaults(reopened.getDurationDefaults());
+		assertEquals(DurationFormat.getProjectInstance().format(new Duration(restored.getRawDuration()),
+			reopened.getDurationDefaults()), durationText(restored, reopenedContext),
+			"MPO reopen must retain the project duration display unit for the task cell");
 
 	}
 
@@ -356,6 +367,11 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		Field field = FieldDictionary.getInstance().getFieldFromId("Field.remainingDuration");
 		return field.getText(fixture.task,
 			((SpreadSheetModel) fixture.entrySheet.getModel()).getFieldContext());
+	}
+
+	private static String durationText(NormalTask task, FieldContext context) {
+		Field field = FieldDictionary.getInstance().getFieldFromId("Field.duration");
+		return field.getText(task, context);
 	}
 
 	private static GanttGeometry ganttGeometry(Fixture fixture) throws Exception {
