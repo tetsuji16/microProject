@@ -181,14 +181,17 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		assertEquals(TimeUnit.HOURS, fixture.task.getDurationDisplayUnit());
 
 		Project project = fixture.task.getProject();
-		NormalTask structuralTask = project.createScriptedTask();
+		NormalTask[] structuralTaskHolder = new NormalTask[1];
 		SwingUtilities.invokeAndWait(() -> {
+			NormalTask structuralTask = project.createScriptedTask();
+			structuralTaskHolder[0] = structuralTask;
 			structuralTask.setName("U-26 structural round-trip");
 			project.setLocalParent(structuralTask, fixture.task);
 			assertEquals(fixture.task, structuralTask.getWbsParentTask(), "fixture must create a child before outdent");
 			project.setLocalParent(structuralTask, null);
 			assertEquals(null, structuralTask.getWbsParentTask(), "outdent must restore the task to the project root");
 		});
+		NormalTask structuralTask = structuralTaskHolder[0];
 
 		ByteArrayOutputStream mpo = new ByteArrayOutputStream();
 		assertTrue(new MpoFileImporter().saveProject(project, mpo), "MPO save after structural change must succeed");
