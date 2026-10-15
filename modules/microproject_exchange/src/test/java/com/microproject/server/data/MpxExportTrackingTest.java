@@ -151,14 +151,14 @@ class MpxExportTrackingTest {
 		long baselineStart = com.microproject.core.pm.exchange.converters.type.DateUTCConverter.toModelTime(baselineZeroStart);
 		com.microproject.pm.task.TaskSnapshot baselineZero = (com.microproject.pm.task.TaskSnapshot)
 			importedTask.getSnapshot(Integer.valueOf(0));
-		assertEquals(160.0D, baselineZero.getFixedCost(), 0.00001D);
+		assertEquals(1.6D, baselineZero.getFixedCost(), 0.00001D);
 		assertNotNull(baselineZero.getFixedCostCalendar());
 		assertEquals(com.microproject.pm.costing.Accrual.Kind.PRORATED.code(), baselineZero.getFixedCostAccrual());
 		assertTrue(baselineZero.getFixedCostCalendar().compare(baselineStart + java.util.concurrent.TimeUnit.HOURS.toMillis(13),
 			baselineStart, false) > 0L, "the captured baseline calendar must count the partial interval as work");
-		assertEquals(160.0D, importedTask.getBaselineCost(0, baselineStart,
+		assertEquals(1.6D, importedTask.getBaselineCost(0, baselineStart,
 			com.microproject.core.pm.exchange.converters.type.DateUTCConverter.toModelTime(baselineZeroFinish)), 0.00001D);
-		assertEquals(80.0D, importedTask.getBaselineCost(0, baselineStart,
+		assertEquals(0.8D, importedTask.getBaselineCost(0, baselineStart,
 			baselineStart + java.util.concurrent.TimeUnit.HOURS.toMillis(13)), 0.00001D,
 			"an imported MSPDI fixed-cost baseline must accrue against its captured task calendar");
 		assertEquals(com.microproject.core.pm.exchange.converters.type.DateUTCConverter.toModelTime(baselineOneStart),
@@ -195,9 +195,9 @@ class MpxExportTrackingTest {
 		assertEquals(baselineTenFinish, roundTripTask.getBaselineFinish(10));
 		Project modelRoundTrip = new com.microproject.core.pm.exchange.MspImporter().importProject(
 			new ByteArrayInputStream(roundTripXml.toByteArray()), "xml", (progress, label) -> {});
-		assertEquals(160.0D, ((com.microproject.pm.task.TaskSnapshot)
+		assertEquals(1.6D, ((com.microproject.pm.task.TaskSnapshot)
 			taskNamed(modelRoundTrip, "Baseline contract").getSnapshot(Integer.valueOf(0))).getFixedCost(), 0.00001D,
-			"reimport must retain the baseline fixed-cost amount emitted in canonical MSPDI");
+			"reimport must retain the normalized baseline fixed-cost amount emitted in canonical MSPDI");
 		assertEquals(2.0d, roundTripTask.getBaselineDuration(10).getDuration(), 0.00001d);
 
 		ByteArrayOutputStream mpo = new ByteArrayOutputStream();
@@ -759,9 +759,9 @@ class MpxExportTrackingTest {
 					+ "<TimephasedData><Type>4</Type><UID>1</UID><Start>2026-10-06T08:00:00</Start>"
 					+ "<Finish>2026-10-06T17:00:00</Finish><Unit>2</Unit><Value>PT6H0M0S</Value></TimephasedData>"
 					+ "<TimephasedData><Type>5</Type><UID>1</UID><Start>2026-10-05T08:00:00</Start>"
-					+ "<Finish>2026-10-05T17:00:00</Finish><Unit>2</Unit><Value>100</Value></TimephasedData>"
+					+ "<Finish>2026-10-05T17:00:00</Finish><Unit>2</Unit><Value>0.1</Value></TimephasedData>"
 					+ "<TimephasedData><Type>5</Type><UID>1</UID><Start>2026-10-06T08:00:00</Start>"
-					+ "<Finish>2026-10-06T17:00:00</Finish><Unit>2</Unit><Value>300</Value></TimephasedData>"
+					+ "<Finish>2026-10-06T17:00:00</Finish><Unit>2</Unit><Value>0.3</Value></TimephasedData>"
 					+ "<Number>0</Number><Start>2026-10-05T08:00:00</Start><Finish>2026-10-06T17:00:00</Finish>"
 					+ "<Work>PT8H0M0S</Work></Baseline>")
 			.replace("<Baseline><Number>9</Number>",
@@ -789,27 +789,27 @@ class MpxExportTrackingTest {
 			baseline.work(modelWallTime("2026-10-05T08:00:00"), modelWallTime("2026-10-05T17:00:00")));
 		assertEquals(6L * 60L * 60L * 1000L,
 			baseline.work(modelWallTime("2026-10-06T08:00:00"), modelWallTime("2026-10-06T17:00:00")));
-		assertEquals(400.0D, baseline.calcAll(Assignment.COST), 0.00001D,
+		assertEquals(0.004D, baseline.calcAll(Assignment.COST), 0.0000001D,
 			"The snapshot cost contour should contain both imported intervals");
-		assertEquals(100.0D, baseline.cost(modelWallTime("2026-10-05T08:00:00"),
-			modelWallTime("2026-10-05T17:00:00")), 0.00001D,
+		assertEquals(0.001D, baseline.cost(modelWallTime("2026-10-05T08:00:00"),
+			modelWallTime("2026-10-05T17:00:00")), 0.0000001D,
 			"The baseline snapshot query should return the first cost interval");
-		assertEquals(100.0D, assignment.baselineCost(modelWallTime("2026-10-05T08:00:00"),
-			modelWallTime("2026-10-05T17:00:00")), 0.00001D);
-		assertEquals(300.0D, assignment.baselineCost(modelWallTime("2026-10-06T08:00:00"),
-			modelWallTime("2026-10-06T17:00:00")), 0.00001D);
+		assertEquals(0.001D, assignment.baselineCost(modelWallTime("2026-10-05T08:00:00"),
+			modelWallTime("2026-10-05T17:00:00")), 0.0000001D);
+		assertEquals(0.003D, assignment.baselineCost(modelWallTime("2026-10-06T08:00:00"),
+			modelWallTime("2026-10-06T17:00:00")), 0.0000001D);
 		Assignment secondBaseline = assignment.getBaselineAssignment(Integer.valueOf(2), false);
 		assertNotNull(secondBaseline);
 		assertEquals(1L * 60L * 60L * 1000L, secondBaseline.work(
 			modelWallTime("2026-10-07T08:00:00"), modelWallTime("2026-10-07T17:00:00")));
-		assertEquals(17.0D, secondBaseline.cost(modelWallTime("2026-10-07T08:00:00"),
+		assertEquals(0.17D, secondBaseline.cost(modelWallTime("2026-10-07T08:00:00"),
 			modelWallTime("2026-10-07T17:00:00")), 0.00001D);
 		Assignment costOnlyBaseline = assignment.getBaselineAssignment(Integer.valueOf(1), false);
 		assertNotNull(costOnlyBaseline);
 		assertNull(assignment.getBaselineValues(1).work(), "Cost-only baselines must preserve missing Work");
 		assertEquals(modelWallTime("2026-10-07T08:00:00"), costOnlyBaseline.getStart());
 		assertEquals(modelWallTime("2026-10-07T17:00:00"), costOnlyBaseline.getEnd());
-		assertEquals(17.0D, costOnlyBaseline.cost(modelWallTime("2026-10-07T08:00:00"),
+		assertEquals(0.17D, costOnlyBaseline.cost(modelWallTime("2026-10-07T08:00:00"),
 			modelWallTime("2026-10-07T17:00:00")), 0.00001D);
 		assertEquals(0L, assignment.getBaselineValues(9).work(), "Explicit zero remains distinct from a missing slot");
 		assertNull(assignment.getBaselineAssignment(Integer.valueOf(3), false), "Missing slots remain absent");
@@ -822,22 +822,22 @@ class MpxExportTrackingTest {
 		Assignment reopenedBaseline = reopenedAssignment.getBaselineAssignment(Integer.valueOf(0), false);
 		assertNotNull(reopenedBaseline);
 		assertEquals(8L * 60L * 60L * 1000L, reopenedBaseline.getWork(null));
-		assertEquals(100.0D, reopenedAssignment.baselineCost(modelWallTime("2026-10-05T08:00:00"),
-			modelWallTime("2026-10-05T17:00:00")), 0.00001D);
-		assertEquals(300.0D, reopenedAssignment.baselineCost(modelWallTime("2026-10-06T08:00:00"),
-			modelWallTime("2026-10-06T17:00:00")), 0.00001D);
+		assertEquals(0.001D, reopenedAssignment.baselineCost(modelWallTime("2026-10-05T08:00:00"),
+			modelWallTime("2026-10-05T17:00:00")), 0.0000001D);
+		assertEquals(0.003D, reopenedAssignment.baselineCost(modelWallTime("2026-10-06T08:00:00"),
+			modelWallTime("2026-10-06T17:00:00")), 0.0000001D);
 		Assignment reopenedSecondBaseline = reopenedAssignment.getBaselineAssignment(Integer.valueOf(2), false);
 		assertNotNull(reopenedSecondBaseline);
 		assertEquals(1L * 60L * 60L * 1000L, reopenedSecondBaseline.work(
 			modelWallTime("2026-10-07T08:00:00"), modelWallTime("2026-10-07T17:00:00")));
-		assertEquals(17.0D, reopenedSecondBaseline.cost(modelWallTime("2026-10-07T08:00:00"),
+		assertEquals(0.17D, reopenedSecondBaseline.cost(modelWallTime("2026-10-07T08:00:00"),
 			modelWallTime("2026-10-07T17:00:00")), 0.00001D);
 		Assignment reopenedCostOnlyBaseline = reopenedAssignment.getBaselineAssignment(Integer.valueOf(1), false);
 		assertNotNull(reopenedCostOnlyBaseline);
 		assertNull(reopenedAssignment.getBaselineValues(1).work(), "MPO preserves missing baseline Work");
 		assertEquals(modelWallTime("2026-10-07T08:00:00"), reopenedCostOnlyBaseline.getStart());
 		assertEquals(modelWallTime("2026-10-07T17:00:00"), reopenedCostOnlyBaseline.getEnd());
-		assertEquals(17.0D, reopenedCostOnlyBaseline.cost(modelWallTime("2026-10-07T08:00:00"),
+		assertEquals(0.17D, reopenedCostOnlyBaseline.cost(modelWallTime("2026-10-07T08:00:00"),
 			modelWallTime("2026-10-07T17:00:00")), 0.00001D);
 		assertEquals(0L, reopenedAssignment.getBaselineValues(9).work(), "MPO retains explicit zero baseline work");
 		assertNull(reopenedAssignment.getBaselineAssignment(Integer.valueOf(3), false), "MPO keeps missing slots absent");
@@ -853,10 +853,10 @@ class MpxExportTrackingTest {
 			+ "<Unit>2</Unit><Value>PT6H0M0S</Value></TimephasedData>"), exportedXml);
 		assertTrue(exportedXml.contains("<TimephasedData><Type>5</Type><UID>1</UID>"
 			+ "<Start>2026-10-05T08:00:00</Start><Finish>2026-10-05T17:00:00</Finish>"
-			+ "<Unit>2</Unit><Value>100</Value></TimephasedData>"), exportedXml);
+			+ "<Unit>2</Unit><Value>0.1</Value></TimephasedData>"), exportedXml);
 		assertTrue(exportedXml.contains("<TimephasedData><Type>5</Type><UID>1</UID>"
 			+ "<Start>2026-10-06T08:00:00</Start><Finish>2026-10-06T17:00:00</Finish>"
-			+ "<Unit>2</Unit><Value>300</Value></TimephasedData>"), exportedXml);
+			+ "<Unit>2</Unit><Value>0.3</Value></TimephasedData>"), exportedXml);
 		assertTrue(exportedXml.contains("<TimephasedData><Type>23</Type><UID>1</UID>"
 			+ "<Start>2026-10-07T08:00:00</Start><Finish>2026-10-07T17:00:00</Finish>"
 			+ "<Unit>2</Unit><Value>17</Value></TimephasedData>"), exportedXml);
@@ -868,10 +868,10 @@ class MpxExportTrackingTest {
 			+ "<Unit>2</Unit><Value>PT1H0M0S</Value></TimephasedData>"), exportedXml);
 		Project roundTrip = importMspdi(exportedXml);
 		Assignment roundTripAssignment = (Assignment) taskNamed(roundTrip, "Assignment baseline task").getAssignments().iterator().next();
-		assertEquals(100.0D, roundTripAssignment.baselineCost(modelWallTime("2026-10-05T08:00:00"),
-			modelWallTime("2026-10-05T17:00:00")), 0.00001D);
-		assertEquals(300.0D, roundTripAssignment.baselineCost(modelWallTime("2026-10-06T08:00:00"),
-			modelWallTime("2026-10-06T17:00:00")), 0.00001D);
+		assertEquals(0.001D, roundTripAssignment.baselineCost(modelWallTime("2026-10-05T08:00:00"),
+			modelWallTime("2026-10-05T17:00:00")), 0.0000001D);
+		assertEquals(0.003D, roundTripAssignment.baselineCost(modelWallTime("2026-10-06T08:00:00"),
+			modelWallTime("2026-10-06T17:00:00")), 0.0000001D);
 		Assignment roundTripBaseline = roundTripAssignment.getBaselineAssignment(Integer.valueOf(0), false);
 		assertNotNull(roundTripBaseline);
 		assertEquals(2L * 60L * 60L * 1000L,
@@ -885,7 +885,7 @@ class MpxExportTrackingTest {
 		Assignment roundTripCostOnlyBaseline = roundTripAssignment.getBaselineAssignment(Integer.valueOf(1), false);
 		assertNotNull(roundTripCostOnlyBaseline);
 		assertNull(roundTripAssignment.getBaselineValues(1).work());
-		assertEquals(17.0D, roundTripCostOnlyBaseline.cost(modelWallTime("2026-10-07T08:00:00"),
+		assertEquals(0.17D, roundTripCostOnlyBaseline.cost(modelWallTime("2026-10-07T08:00:00"),
 			modelWallTime("2026-10-07T17:00:00")), 0.00001D);
 		assertEquals(0L, roundTripAssignment.getBaselineValues(9).work());
 		assertNull(roundTripAssignment.getBaselineAssignment(Integer.valueOf(3), false));
@@ -1094,6 +1094,97 @@ class MpxExportTrackingTest {
 			"MPO preserves progress after the summary becomes a leaf");
 	}
 
+	@Test
+	void project2019TaskBaselineSlotsMatchIndependentManifestAndMpoReload() throws Exception {
+		Path fixtureDirectory = Path.of("modules", "microproject_exchange", "testdata", "mpxj", "project2019");
+		if (!Files.isDirectory(fixtureDirectory))
+			fixtureDirectory = Path.of("testdata", "mpxj", "project2019");
+		Path sourceMspdi = fixtureDirectory.resolve("task-baselines-project2019-mspdi.xml");
+		assertTrue(Files.isRegularFile(sourceMspdi), sourceMspdi.toString());
+		String mspdi = Files.readString(sourceMspdi);
+		assertTrue(mspdi.contains("<Name>Baseline Duration - Task</Name>"), "source baseline task is present");
+		assertTrue(mspdi.contains("<Number>10</Number>"), "source contains numbered baseline 10");
+		assertTrue(mspdi.contains("<Duration>PT88H0M0S</Duration>"), "source baseline zero duration is 88 hours");
+		assertTrue(mspdi.contains("<Name>Baseline Cost - Task</Name>"), "source aggregate baseline cost task is present");
+		assertTrue(mspdi.contains("<Cost>100</Cost>"), "source explicitly records baseline cost 100");
+		Project mppImport = importMppFixture(fixtureDirectory.resolve("task-baselines-project2019-mpp14.mpp"));
+		assertBaselineDuration(taskNamed(mppImport, "Baseline Duration - Task").getBaselineDuration(0),
+			11.0d, com.microproject.datatype.TimeUnit.DAYS);
+		assertBaselineDuration(taskNamed(mppImport, "Baseline1 Duration - Task").getBaselineDuration(1),
+			12.0d, com.microproject.datatype.TimeUnit.DAYS);
+		assertBaselineDuration(taskNamed(mppImport, "Baseline10 Duration - Task").getBaselineDuration(10),
+			21.0d, com.microproject.datatype.TimeUnit.DAYS);
+		assertEquals(1.0d, taskNamed(mppImport, "Baseline Cost - Task").getBaselineCost(0), 0.00001d,
+			"MPP14 scalar baseline cost follows the pinned MPXJ MPP oracle");
+		assertEquals(2.0d, taskNamed(mppImport, "Baseline1 Cost - Task").getBaselineCost(1), 0.00001d);
+		assertEquals(11.0d, taskNamed(mppImport, "Baseline10 Cost - Task").getBaselineCost(10), 0.00001d);
+
+		Project imported = importMspdi(mspdi);
+		assertProject2019TaskBaselines(imported);
+		ByteArrayOutputStream mpo = new ByteArrayOutputStream();
+		assertTrue(new com.microproject.exchange.MpoFileImporter().saveProject(imported, mpo));
+		String normalized = new String(nativeProjectXml(mpo.toByteArray()), java.nio.charset.StandardCharsets.UTF_8);
+		assertTrue(normalized.contains("<Cost>100</Cost>"), "standard MSPDI output preserves total baseline Cost");
+		assertTrue(normalized.contains("<FixedCost>0</FixedCost>"), "standard MSPDI keeps FixedCost separate");
+		Project reopened = new com.microproject.exchange.MpoFileImporter()
+			.loadProject(new ByteArrayInputStream(mpo.toByteArray()));
+		assertProject2019TaskBaselines(reopened);
+		Project explicitZero = importMspdi(mspdi.replaceFirst("<Cost>100</Cost>", "<Cost>0</Cost>"));
+		NormalTask zeroCostTask = (NormalTask) taskNamed(explicitZero, "Baseline Cost - Task");
+		assertNotNull(zeroCostTask.getSnapshot(Integer.valueOf(0)), "explicit zero keeps its baseline snapshot");
+		assertEquals(0.0d, zeroCostTask.getBaselineCost(0), 0.00001d,
+			"explicit zero remains a present total baseline cost");
+
+		Project fractionalCurrency = importMspdi(mspdi.replaceFirst("<Cost>100</Cost>", "<Cost>0.1</Cost>"));
+		NormalTask fractionalTask = (NormalTask) taskNamed(fractionalCurrency, "Baseline Cost - Task");
+		assertEquals(0.001d, fractionalTask.getBaselineCost(0), 0.0000001d,
+			"currency precision is not limited by the UI CurrencyDigits display setting");
+		ByteArrayOutputStream fractionalMpo = new ByteArrayOutputStream();
+		assertTrue(new com.microproject.exchange.MpoFileImporter().saveProject(fractionalCurrency, fractionalMpo));
+		String fractionalXml = new String(nativeProjectXml(fractionalMpo.toByteArray()),
+			java.nio.charset.StandardCharsets.UTF_8);
+		assertTrue(fractionalXml.contains("<Cost>0.1</Cost>"),
+			"MSPDI hundredths preserve sub-cent normalized model costs");
+		Project fractionalReopened = new com.microproject.exchange.MpoFileImporter()
+			.loadProject(new ByteArrayInputStream(fractionalMpo.toByteArray()));
+		assertEquals(0.001d, taskNamed(fractionalReopened, "Baseline Cost - Task").getBaselineCost(0), 0.0000001d);
+		Project negativeCurrency = importMspdi(mspdi.replaceFirst("<Cost>100</Cost>", "<Cost>-0.1</Cost>"));
+		assertEquals(-0.001d, taskNamed(negativeCurrency, "Baseline Cost - Task").getBaselineCost(0), 0.0000001d,
+			"finite negative currency values are preserved as credits");
+		assertThrows(IllegalArgumentException.class,
+			() -> importMspdi(mspdi.replaceFirst("<Cost>100</Cost>", "<Cost>Infinity</Cost>")),
+			"non-finite baseline scalar currency is rejected");
+
+		int resourceStart = mspdi.indexOf("<Resource>");
+		int resourceEnd = mspdi.indexOf("</Resource>", resourceStart);
+		assertTrue(resourceStart >= 0 && resourceEnd > resourceStart);
+		String resourceXml = mspdi.substring(resourceStart, resourceEnd)
+			.replace("<UID>0</UID>", "<UID>1</UID>")
+			.replace("<ID>0</ID>", "<ID>1</ID>")
+			.replace("<CostPerUse>0</CostPerUse>", "<CostPerUse>0.1</CostPerUse>")
+			.replace("<ID>1</ID>", "<ID>1</ID><Name>Fractional Cost Resource</Name>");
+		String resourceCostMspdi = mspdi.substring(0, resourceStart) + resourceXml
+			+ mspdi.substring(resourceEnd);
+		Project resourceCostProject = importMspdi(resourceCostMspdi);
+		com.microproject.pm.resource.Resource fractionalResource =
+			com.microproject.pm.resource.ResourcePool.findResourceByName("Fractional Cost Resource",
+				resourceCostProject.getResourcePool());
+		assertNotNull(fractionalResource);
+		assertEquals(0.001d, fractionalResource.getCostPerUse(),
+			0.0000001d, "raw MSPDI CostPerUse uses the same currency scale as MPXJ");
+		ByteArrayOutputStream resourceCostMpo = new ByteArrayOutputStream();
+		assertTrue(new com.microproject.exchange.MpoFileImporter().saveProject(resourceCostProject, resourceCostMpo));
+		String resourceCostXml = new String(nativeProjectXml(resourceCostMpo.toByteArray()),
+			java.nio.charset.StandardCharsets.UTF_8);
+		assertTrue(resourceCostXml.contains("<CostPerUse>0.1</CostPerUse>"),
+			"the canonical MSPDI writer emits resource cost-per-use in hundredths");
+		Project resourceCostReopened = new com.microproject.exchange.MpoFileImporter()
+			.loadProject(new ByteArrayInputStream(resourceCostMpo.toByteArray()));
+		assertEquals(0.001d, com.microproject.pm.resource.ResourcePool.findResourceByName(
+			"Fractional Cost Resource", resourceCostReopened.getResourcePool()).getCostPerUse(),
+			0.0000001d, "MPO reimport preserves normalized resource cost-per-use");
+	}
+
 	private void assertProject2019EditedLagSurvivesMpo(Project imported) throws Exception {
 		Task predecessor = imported.findByUniqueId(3);
 		Task successor = imported.findByUniqueId(4);
@@ -1173,6 +1264,8 @@ class MpxExportTrackingTest {
 
 	private void assertProject2019Assignments(Project project) {
 		String[] resourceNames = {"Resource 1", "Resource 2", "Resource 3"};
+		double[] taskProgress = {0.0d, 0.25d, 0.5d};
+		long[] actualWork = {0L, 20L, 40L};
 		for (int uid = 1; uid <= resourceNames.length; uid++) {
 			Task task = project.findByUniqueId(uid);
 			assertNotNull(task, "MPP14 assignment task UID " + uid);
@@ -1182,7 +1275,34 @@ class MpxExportTrackingTest {
 			Assignment assignment = (Assignment) ((NormalTask) task).getAssignments().iterator().next();
 			assertEquals(resourceNames[uid - 1], assignment.getResource().getName());
 			assertEquals(80L * 60L * 60L * 1000L, assignment.getWork(null), "assignment work for task UID " + uid);
+			assertEquals(taskProgress[uid - 1], task.getPercentComplete(), 0.00001d,
+				"task progress for UID " + uid);
+			assertEquals(actualWork[uid - 1] * 60L * 60L * 1000L, assignment.getActualWork(null),
+				"assignment actual work for task UID " + uid);
+			assertEquals((80L - actualWork[uid - 1]) * 60L * 60L * 1000L, assignment.getRemainingWork(),
+				"assignment remaining work for task UID " + uid);
+			assertEquals(taskProgress[uid - 1], assignment.getPercentComplete(), 0.00001d,
+				"assignment progress for task UID " + uid);
 		}
+	}
+
+	private void assertProject2019TaskBaselines(Project project) {
+		assertBaselineDuration(taskNamed(project, "Baseline Duration - Task").getBaselineDuration(0),
+			11.0d, com.microproject.datatype.TimeUnit.DAYS);
+		assertBaselineDuration(taskNamed(project, "Baseline1 Duration - Task").getBaselineDuration(1),
+			12.0d, com.microproject.datatype.TimeUnit.DAYS);
+		assertBaselineDuration(taskNamed(project, "Baseline10 Duration - Task").getBaselineDuration(10),
+			21.0d, com.microproject.datatype.TimeUnit.DAYS);
+		NormalTask totalCostTask = (NormalTask) taskNamed(project, "Baseline Cost - Task");
+		assertEquals(1.0d, totalCostTask.getBaselineCost(0), 0.00001d,
+			"baseline total cost is preserved separately from baseline fixed cost");
+		assertEquals(0.0d, ((com.microproject.pm.task.TaskSnapshot) totalCostTask.getSnapshot(Integer.valueOf(0)))
+			.getFixedCost(), 0.00001d,
+			"task total cost does not become own baseline fixed cost");
+		assertEquals(2.0d, taskNamed(project, "Baseline1 Cost - Task").getBaselineCost(1), 0.00001d);
+		assertEquals(11.0d, taskNamed(project, "Baseline10 Cost - Task").getBaselineCost(10), 0.00001d);
+		assertNull(taskNamed(project, "Baseline Fixed Cost - Task").getSnapshot(Integer.valueOf(0)),
+			"an absent baseline stays absent rather than becoming an explicit zero-cost baseline");
 	}
 
 	private void assertProject2019Calendars(Project project) {

@@ -1228,6 +1228,9 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	public double baselineCost(long start, long end) {
 		if (isParentWithoutAssignments()) {
 			TaskSnapshot snapshot = getBaselineSnapshot();
+			if (snapshot != null && snapshot.getImportedBaselineCost() != null
+					&& FieldContext.isScalar(start, end))
+				return snapshot.getImportedBaselineCost().doubleValue();
 			return TimeDistributedDataConsolidator.baselineCost(start, end, rollupValues())
 				+ (snapshot == null ? 0.0D : snapshot.fixedCost(start, end));
 		}

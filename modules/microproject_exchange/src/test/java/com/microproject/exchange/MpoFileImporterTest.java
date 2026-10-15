@@ -473,7 +473,7 @@ class MpoFileImporterTest {
 		assertMalformedBaselineMetadataPreservesTarget(validationTarget, baselineMapper, invalidCalendarMetadata);
 		net.sf.mpxj.ProjectFile mspdi = new net.sf.mpxj.mspdi.MSPDIReader()
 			.read(new ByteArrayInputStream(savedEntries.get(MpoFileImporter.PROJECT_ENTRY)));
-		assertEquals(7.0d, Double.parseDouble(taskBaselineXmlField(
+		assertEquals(700.0d, Double.parseDouble(taskBaselineXmlField(
 			savedEntries.get(MpoFileImporter.PROJECT_ENTRY), "Mpo task", 0, "FixedCost")),
 			"Summary fixed cost uses the standard MSPDI Baseline.FixedCost field");
 		long profileResourceUid = baselineMetadata.path("tasks").findValues("resourceUid").stream()
@@ -599,7 +599,7 @@ class MpoFileImporterTest {
 		net.sf.mpxj.Task xmlTask = mspdi.getTasks().stream()
 			.filter(candidate -> "Mpo task".equals(candidate.getName())).findFirst().orElseThrow();
 		for (int slot = 0; slot <= 10; slot++) {
-			assertEquals(slot == 0 ? 0.0d : slot * 10.0d,
+			assertEquals(slot == 0 ? 0.0d : slot * 1000.0d,
 				Double.parseDouble(taskBaselineXmlField(projectXml, "Mpo task", slot, "FixedCost")));
 			assertTrue((slot == 0 ? xmlTask.getBaselineStart() : xmlTask.getBaselineStart(slot)) == null,
 				"Cost-only snapshots must not gain a baseline start date");

@@ -1,6 +1,6 @@
 # Project 2019 MPP14 compatibility fixtures
 
-These six files are the generated MPP and companion MSPDI XML from MPXJ's
+These eight files are the generated MPP and companion MSPDI XML from MPXJ's
 pinned public test-data corpus. They are included under the upstream MPXJ
 repository's LGPL-2.1 license; the applicable license text is
 [`../LICENSE-LGPL-2.1.txt`](../LICENSE-LGPL-2.1.txt). The fixture files are not
@@ -17,7 +17,8 @@ it is not a claim that Project 365 or Project 2024 generated these files.
 
 The companion MSPDI files and upstream MPXJ tests provide an oracle independent
 of microProject's MPP reader. `MpxExportTrackingTest.project2019Mpp14FixturesMatchIndependentManifestAndMpoReload`
-freezes these contract rows and checks them after MPP import and MPO save/reload:
+checks the MPP fixtures; `MpxExportTrackingTest.project2019TaskBaselineSlotsMatchIndependentManifestAndMpoReload`
+checks baseline values from the paired MSPDI fixture, standard MSPDI output, and MPO save/reload:
 
 - `task-links`: 16 named tasks at outline level 1 with eight-hour durations;
   eight fixed predecessor/successor pairs and relation types. Source lags are
@@ -28,9 +29,25 @@ freezes these contract rows and checks them after MPP import and MPO save/reload
   date, and verifies the native MPO MSPDI still emits the one-day lag as 480
   minutes (`LinkLag` 4800).
 - `assignment-assignments`: three named tasks, each assigned to its matching
-  named resource for 80 hours.
+  named resource for 80 hours. Task progress is 0%, 25%, and 50%; actual work
+  is 0, 20, and 40 hours, with remaining work and assignment progress matching
+  the MSPDI companion.
 - `calendar-calendars`: the two named resources retain their correspondingly
   named resource calendars.
+- `task-baselines`: baseline duration slots 0, 1, and 10 import as 11, 12, and
+  21 eight-hour workdays from the paired MPP and the MSPDI `PT88H`, `PT96H`, and
+  `PT168H`. MPXJ v11.5.4's upstream `TaskBaselinesTest` expects normalized MPP
+  baseline costs 1, 2, and 11 for slots 0, 1, and 10. The companion MSPDI
+  encodes those same normalized totals as literal `Baseline/Cost` values 100,
+  200, and 1100; MPXJ's MSPDI currency parser divides these values by 100, and
+  its currency writer applies the inverse scale. The direct-import test keeps
+  these totals through standard MSPDI output and MPO reload despite zero
+  baseline work and fixed cost. Explicit zero remains distinct from a missing
+  baseline, and total cost stays separate from `Baseline/FixedCost`. Raw MSPDI
+  task fixed cost, assignment baseline timephased cost, and resource cost per
+  use use the same pinned MPXJ currency conversion. Output preserves fractional
+  hundredths; `CurrencyDigits` affects display only and does not cap stored
+  precision.
 
 These tests cover only the listed fields and this Project 2019 MPP14 fixture
 set. They do not establish general MPP parity or a measured Project 365/2024
@@ -44,6 +61,8 @@ build result.
 | `assignment-assignments-project2019-mspdi.xml` | `7DD6168F9207C2FB208F67D558C28E781BCE67C829035F58DC3B189F2B8FFA3F` |
 | `calendar-calendars-project2019-mpp14.mpp` | `DBE235069C9FBC91DEB286AD6F5ABA6B2D68120D6B0A2FCF62BE4B588BA227C6` |
 | `calendar-calendars-project2019-mspdi.xml` | `EACFA299910F9E7724A375504A0044B2DB67C86D829EFEE018CE9F3F26569B73` |
+| `task-baselines-project2019-mpp14.mpp` | `19A4A7A6D3FE510E9F2A71EE827E25D1C9E705C6E24B831F4943FD73FF80C9A7` |
+| `task-baselines-project2019-mspdi.xml` | `9814F728E2D88C742CAC5917CD758E1DD094C827D9B2F92D5EADFA4B3C50880C` |
 
 Microsoft format context: the [Project `FileFormatID` documentation](https://learn.microsoft.com/en-us/office/vba/api/project.application.fileformatid)
 identifies `MSProject.MPP.14` as the standard Project MPP format. Microsoft's
@@ -53,3 +72,22 @@ identifies MPP as Project's standard project-file format and lists Project 2019,
 define the relevant file-format family, not a measured read of this particular
 file in every listed release; this fixture's generation provenance remains
 Project 2019 build `16.0.10730.20102`.
+
+Microsoft defines task `Baseline/Cost` as the projected task cost when the
+baseline was saved, and `Baseline/FixedCost` separately as the task's fixed cost
+at that time. These tasks have no assignments and zero fixed cost, while their
+baseline totals are nonzero, so the fixture directly demonstrates the distinct
+historical total field rather than a derived assignment or fixed-cost rollup.
+The contract tested here keeps the total scalar authoritative for
+whole-task baseline-cost fields; without a timephased cost profile, it does not
+invent partial-interval values from that scalar. See the Microsoft [Baseline
+element](https://learn.microsoft.com/en-us/office-project/xml-data-interchange/baseline-element?view=project-client-2016)
+and [Cost element](https://learn.microsoft.com/en-us/office-project/xml-data-interchange/cost-element?view=project-client-2016),
+accessed 2026-10-15. The pinned MPXJ oracle is [`TaskBaselinesTest.java`
+at v11.5.4](https://github.com/joniles/mpxj/blob/v11.5.4/src/test/java/net/sf/mpxj/junit/task/TaskBaselinesTest.java);
+the corresponding XML currency scaling is implemented in MPXJ's pinned
+[`DatatypeConverter.java`](https://github.com/joniles/mpxj/blob/v11.5.4/src/main/java/net/sf/mpxj/mspdi/DatatypeConverter.java).
+Microsoft's [`CurrencyDigits` documentation](https://learn.microsoft.com/en-us/office-project/xml-data-interchange/currencydigits-element?view=project-client-2016)
+defines this property as the number of decimal places shown in the UI, not a
+storage precision rule. Tests therefore preserve fractional hundredths and
+finite negative costs, and reject non-finite baseline totals.

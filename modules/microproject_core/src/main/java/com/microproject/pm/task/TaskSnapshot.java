@@ -59,6 +59,8 @@ public class TaskSnapshot implements DataSnapshot, HasAssignments, Cloneable {
 	HasAssignments hasAssignments = null;
 	double fixedCost = 0;
 	int fixedCostAccrual = Accrual.Kind.END.code();
+	/** Imported whole-task baseline cost; null means calculate from assignments and fixed cost. */
+	transient Double importedBaselineCost;
 	transient WorkCalendar fixedCostCalendar;
 	transient java.util.List<FixedCostProfile> rolledUpFixedCosts = java.util.List.of();
 	boolean ignoreResourceCalendar = false;
@@ -160,6 +162,7 @@ public class TaskSnapshot implements DataSnapshot, HasAssignments, Cloneable {
 			newOne.currentSchedule = (TaskSchedule) currentSchedule.clone();
 			newOne.hasAssignments = (HasAssignments) ((HasAssignmentsImpl)hasAssignments)
 				.cloneSnapshotWithSchedule(newOne.currentSchedule);
+			newOne.importedBaselineCost = importedBaselineCost;
 			if (fixedCostCalendar != null)
 				newOne.fixedCostCalendar = (WorkCalendar) fixedCostCalendar.clone();
 			newOne.rolledUpFixedCosts = copyFixedCostProfiles(rolledUpFixedCosts);
@@ -177,6 +180,7 @@ public class TaskSnapshot implements DataSnapshot, HasAssignments, Cloneable {
 			newOne.currentSchedule = (TaskSchedule) currentSchedule.cloneWithTask(task);
 			newOne.hasAssignments = (HasAssignments) ((HasAssignmentsImpl)hasAssignments)
 				.deepCloneSnapshotWithTask(task);
+			newOne.importedBaselineCost = importedBaselineCost;
 			if (fixedCostCalendar != null)
 				newOne.fixedCostCalendar = (WorkCalendar) fixedCostCalendar.clone();
 			newOne.rolledUpFixedCosts = copyFixedCostProfiles(rolledUpFixedCosts);
@@ -431,9 +435,21 @@ public class TaskSnapshot implements DataSnapshot, HasAssignments, Cloneable {
 	 * @return
 	 */
 	public double baselineCost(long start, long end) {
+		if (importedBaselineCost != null && FieldContext.isScalar(start, end))
+			return importedBaselineCost.doubleValue();
 		double total = hasAssignments.baselineCost(start, end) + baselineFixedCost(start, end);
 		for (FixedCostProfile profile : rolledUpFixedCosts) total += profile.cost(start, end);
 		return total;
+	}
+
+	public Double getImportedBaselineCost() {
+		return importedBaselineCost;
+	}
+
+	public void setImportedBaselineCost(Double cost) {
+		if (cost != null && !Double.isFinite(cost.doubleValue()))
+			throw new IllegalArgumentException("Baseline cost must be finite");
+		importedBaselineCost = cost;
 	}
 	/**
 	 * @param start

@@ -331,8 +331,10 @@ public class MspImporter {
 				String rawNumber = xmlChildText(baseline, "Number", namespace);
 				String rawFormat = xmlChildText(baseline, "DurationFormat", namespace);
 				String rawDuration = xmlChildText(baseline, "Duration", namespace);
+				String rawBaselineCost = xmlChildText(baseline, "Cost", namespace);
 				String rawFixedCost = xmlChildText(baseline, "FixedCost", namespace);
 				if (rawNumber == null) continue;
+				if (rawBaselineCost != null) parseMspdiCurrency(rawBaselineCost, "MSPDI baseline Cost");
 				int slot = Integer.parseInt(rawNumber);
 				if (slot < 0 || slot > 10) throw new IllegalArgumentException("MSPDI baseline number is outside 0..10");
 				Long durationMillis = null;
@@ -347,10 +349,9 @@ public class MspImporter {
 						durationFormat = Integer.valueOf(parsedFormat);
 					}
 				}
-			Double fixedCost = rawFixedCost == null ? null : Double.valueOf(rawFixedCost);
-			if (fixedCost != null && !Double.isFinite(fixedCost.doubleValue()))
-				throw new IllegalArgumentException("MSPDI baseline fixed cost must be finite");
-			if (durationMillis == null && fixedCost == null) continue;
+				Double fixedCost = rawFixedCost == null ? null
+					: Double.valueOf(parseMspdiCurrency(rawFixedCost, "MSPDI baseline FixedCost"));
+				if (durationMillis == null && fixedCost == null) continue;
 				MpxImportState.RawMspdiTaskBaseline previous = baselines.put(Integer.valueOf(slot),
 					new MpxImportState.RawMspdiTaskBaseline(durationMillis, durationFormat, fixedCost));
 				if (previous != null) throw new IllegalArgumentException("MSPDI task contains duplicate baseline slots");
@@ -489,20 +490,27 @@ public class MspImporter {
 	}
 
 	private static Double parseMspdiResourceCost(String rawValue) {
-		return rawValue == null ? null : Double.valueOf(new java.math.BigDecimal(rawValue.trim()).doubleValue());
+		return rawValue == null ? null
+			: Double.valueOf(parseMspdiCurrency(rawValue, "MSPDI resource CostPerUse"));
+	}
+
+	private static double parseMspdiCurrency(String rawValue, String fieldName) {
+		double parsed;
+		try {
+			parsed = new java.math.BigDecimal(rawValue.trim()).doubleValue();
+		} catch (NumberFormatException exception) {
+			throw new IllegalArgumentException(fieldName + " must be numeric", exception);
+		}
+		if (!Double.isFinite(parsed)) throw new IllegalArgumentException(fieldName + " must be finite");
+		return net.sf.mpxj.mspdi.DatatypeConverter.parseCurrency(Double.valueOf(parsed)).doubleValue();
 	}
 
 	private static double parseMspdiCost(String value) {
 		if (value == null)
 			throw new IllegalArgumentException("Assignment baseline cost row has no value");
-		double parsed;
-		try {
-			parsed = new java.math.BigDecimal(value.trim()).doubleValue();
-		} catch (NumberFormatException exception) {
-			throw new IllegalArgumentException("Assignment baseline cost row has invalid value", exception);
-		}
-		if (!Double.isFinite(parsed) || parsed < 0.0D)
-			throw new IllegalArgumentException("Assignment baseline cost must be finite and nonnegative");
+		double parsed = parseMspdiCurrency(value, "Assignment baseline cost");
+		if (parsed < 0.0D)
+			throw new IllegalArgumentException("Assignment baseline cost must be nonnegative");
 		return parsed;
 	}
 
@@ -827,6 +835,8 @@ public class MspImporter {
 			Duration duration = getTaskBaselineDuration(mpxTask, snapshotId);
 			Number fixedCost = snapshotId == 0 ? mpxTask.getBaselineFixedCost()
 				: mpxTask.getBaselineFixedCost(snapshotId);
+			Number baselineCost = snapshotId == 0 ? mpxTask.getBaselineCost()
+				: mpxTask.getBaselineCost(snapshotId);
 			// MSPDI defines FixedCostAccrual on Task, not inside each Baseline
 			// element. Apply the task-level rule when importing its baseline amount.
 			net.sf.mpxj.AccrueType fixedCostAccrual = mpxTask.getFixedCostAccrual();
@@ -834,7 +844,9 @@ public class MspImporter {
 				mpxTask.getUniqueID() == null ? null : Long.valueOf(mpxTask.getUniqueID().longValue()), snapshotId);
 			if (fixedCost == null && rawBaseline != null && rawBaseline.fixedCost() != null)
 				fixedCost = rawBaseline.fixedCost();
-			if (start == null && finish == null && duration == null && fixedCost == null
+			if (baselineCost != null && !Double.isFinite(baselineCost.doubleValue()))
+				throw new IllegalArgumentException("Imported baseline cost must be finite");
+			if (start == null && finish == null && duration == null && fixedCost == null && baselineCost == null
 					&& rawBaseline == null)
 				continue;
 
@@ -855,6 +867,7 @@ public class MspImporter {
 			snapshot.setCurrentSchedule(schedule);
 			snapshot.setFixedCostCalendar(task.getEffectiveWorkCalendar());
 			if (fixedCost != null) snapshot.setFixedCost(fixedCost.doubleValue());
+			if (baselineCost != null) snapshot.setImportedBaselineCost(Double.valueOf(baselineCost.doubleValue()));
 			if (fixedCostAccrual != null)
 				snapshot.setFixedCostAccrual(((Integer) new MpxAccrueTypeConverter().from(fixedCostAccrual)).intValue());
 			task.setSnapshot(Integer.valueOf(snapshotId), snapshot);
