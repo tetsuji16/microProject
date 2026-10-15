@@ -277,6 +277,18 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 			: new Duration(Duration.setAsTimeUnit(duration, durationDisplayUnit));
 	}
 
+	void initializeLeafScheduleFromSummarySpan(RollupSpan summarySpan, double percentComplete) {
+		if (summarySpan == null || summarySpan.getFinish() < summarySpan.getStart())
+			throw new IllegalArgumentException("A summary-to-leaf schedule requires a valid captured summary span");
+		TaskSchedule schedule = getCurrentSchedule();
+		long start = summarySpan.getStart();
+		long finish = summarySpan.getFinish();
+		schedule.setStart(start);
+		schedule.setFinish(finish);
+		schedule.setRawDuration(getEffectiveWorkCalendar().compare(finish, start, false));
+		setPercentComplete(percentComplete);
+	}
+
 	/** Quickly check to see if a task has a duration without actually calculating it
 	 *
 	 * @return true if duration > 0
@@ -1727,7 +1739,12 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 			long d = remainingOnly ? Duration.millis(getRemainingDuration()) : getDurationMillis();
 			if (!ahead)
 				d = -d;
-			return getEffectiveWorkCalendar().add(startDate, d, useSooner);
+			long start = startDate;
+			if (ahead && getPercentComplete() == 0.0d && dependencyDate > start)
+				start = dependencyDate;
+			if (getPercentComplete() > 0.0d)
+				start = getEffectiveWorkCalendar().add(start, Duration.millis(getActualDuration()), useSooner);
+			return getEffectiveWorkCalendar().add(start, d, useSooner);
 		}
 //
 //

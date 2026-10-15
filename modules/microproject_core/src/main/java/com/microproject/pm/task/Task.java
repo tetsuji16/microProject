@@ -1004,13 +1004,24 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	 */
 	private double taskDurationPercentRollup() {
 		Project project = (Project) (getMasterDocument() == null ? getProject() : getMasterDocument());
+		return taskDurationPercentRollup(project, new Object[] { this });
+	}
+
+	double taskDurationPercentRollup(Object[] rootNodes) {
+		Project project = (Project) (getMasterDocument() == null ? getProject() : getMasterDocument());
+		return taskDurationPercentRollup(project, rootNodes);
+	}
+
+	private double taskDurationPercentRollup(Project project, Object[] rootNodes) {
 		DivisionSummaryVisitor rollup = ScheduleUtil.percentCompleteClosureInstance(true);
-		DeepChildWalker.recursivelyTreatBranch(project.getTaskOutline(), this, value -> {
-			if (!(value instanceof Node node) || !(node.getImpl() instanceof Task task)
-					|| task == this || task.isWbsParent())
-				return;
-			rollup.accept(node);
-		});
+		for (Object root : rootNodes) {
+			Object branch = root instanceof Node node ? node.getImpl() : root;
+			DeepChildWalker.recursivelyTreatBranch(project.getTaskOutline(), branch, value -> {
+				if (!(value instanceof Node leafNode) || !(leafNode.getImpl() instanceof Task task)
+						|| task == this || task.isWbsParent()) return;
+				rollup.accept(leafNode);
+			});
+		}
 		double value = rollup.getValue();
 		return value >= COMPLETE_THRESHOLD ? 1.0D : value;
 	}
@@ -1142,6 +1153,10 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	}
 	public RollupSpan calculateRollupSpan() {
 		return RollupSpanCalculator.forTask(this);
+	}
+
+	RollupSpan calculateRollupSpan(Object[] childNodes) {
+		return RollupSpanCalculator.forChildren(this, java.util.Arrays.asList(childNodes));
 	}
 	public void cloneTo(Task task){
 		task.project=project;

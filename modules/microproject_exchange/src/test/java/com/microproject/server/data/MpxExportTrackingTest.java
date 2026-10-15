@@ -1008,6 +1008,63 @@ class MpxExportTrackingTest {
 			com.microproject.datatype.Duration.millis(new NormalTask(reopened).getRawDuration()));
 	}
 
+	@Test
+	void sixHourDurationAndProgressSurviveMpoReloadAlongsideHierarchyEdits() throws Exception {
+		Project project = createProject();
+		project.setDurationDefaults(new com.microproject.datatype.DurationDefaults(360.0d, 1800.0d, 20.0d,
+			com.microproject.datatype.TimeUnit.HOURS, com.microproject.datatype.TimeUnit.HOURS));
+		NormalTask task = project.createScriptedTask();
+		task.setName("Ten-hour task");
+		task.getCurrentSchedule().setStart(modelWallTime("2026-10-12T08:00:00"));
+		task.setDuration(com.microproject.datatype.Duration.getInstance(10.0d,
+			com.microproject.datatype.TimeUnit.HOURS, project.getDurationDefaults()));
+		task.setPercentComplete(1.0d);
+		assertEquals(10L * 60L * 60L * 1000L,
+			com.microproject.datatype.Duration.millis(task.getRawDuration()), "10h is physical elapsed duration");
+
+		NormalTask structuralParent = project.createScriptedTask();
+		structuralParent.setName("Structural parent");
+		structuralParent.getCurrentSchedule().setStart(modelWallTime("2026-10-12T08:00:00"));
+		structuralParent.setDuration(com.microproject.datatype.Duration.getInstance(6.0d,
+			com.microproject.datatype.TimeUnit.HOURS, project.getDurationDefaults()));
+		structuralParent.setPercentComplete(1.0d);
+		NormalTask structuralChild = project.createScriptedTask();
+		structuralChild.setName("Structural child");
+		structuralChild.setDuration(com.microproject.datatype.Duration.getInstance(6.0d,
+			com.microproject.datatype.TimeUnit.HOURS, project.getDurationDefaults()));
+		structuralChild.setPercentComplete(1.0d);
+		project.setLocalParent(structuralChild, structuralParent);
+		assertSame(structuralParent, structuralChild.getWbsParentTask());
+		assertTrue(structuralParent.getWbsChildrenTasks().contains(structuralChild));
+		long summaryDuration = com.microproject.datatype.Duration.millis(structuralParent.getRawDuration());
+		project.setLocalParent(structuralChild, null);
+		assertNull(structuralChild.getWbsParentTask());
+		assertTrue(structuralParent.getWbsChildrenTasks().isEmpty(), "outdent updates the old parent's cached WBS snapshot");
+		assertTrue(com.microproject.datatype.Duration.millis(structuralParent.getRawDuration()) >= 0,
+			"an empty summary becomes a valid leaf schedule");
+		assertEquals(summaryDuration, com.microproject.datatype.Duration.millis(structuralParent.getRawDuration()),
+			"the leaf duration is recalculated from the last summary schedule span");
+		assertEquals(1.0d, structuralParent.getPercentComplete(), 0.00001d,
+			"the summary's 100% progress remains valid when it becomes a leaf");
+		for (Task outlineTask : project.getTasks()) {
+			assertTrue(outlineTask.getEnd() >= outlineTask.getStart(), "valid schedule bounds for " + outlineTask.getName());
+		}
+
+		Project reopened = roundTripMpo(project);
+		NormalTask reopenedTask = taskNamed(reopened, "Ten-hour task");
+		assertEquals(10L * 60L * 60L * 1000L,
+			com.microproject.datatype.Duration.millis(reopenedTask.getRawDuration()),
+			"MPO preserves physical duration after hierarchy edits");
+		assertEquals(1.0d, reopenedTask.getPercentComplete(), 0.00001d, "MPO preserves 100% progress");
+		NormalTask reopenedParent = taskNamed(reopened, "Structural parent");
+		assertNull(reopenedTask.getWbsParentTask(), "MPO preserves the edited task's root placement");
+		assertTrue(reopenedParent.getWbsChildrenTasks().isEmpty());
+		assertEquals(summaryDuration, com.microproject.datatype.Duration.millis(reopenedParent.getRawDuration()),
+			"MPO preserves the summary-to-leaf physical duration");
+		assertEquals(1.0d, reopenedParent.getPercentComplete(), 0.00001d,
+			"MPO preserves progress after the summary becomes a leaf");
+	}
+
 	private void assertProject2019EditedLagSurvivesMpo(Project imported) throws Exception {
 		Task predecessor = imported.findByUniqueId(3);
 		Task successor = imported.findByUniqueId(4);
