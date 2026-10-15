@@ -3529,7 +3529,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				+ "; viewport=" + inspectorViewportBounds(
 					(javax.swing.JViewport) SwingUtilities.getAncestorOfClass(javax.swing.JViewport.class, hiddenPredecessorLink)));
 		try {
-			GuiAcceptanceSupport.await(() -> taskInspectorTitleContains("hidden by the current filter"),
+			GuiAcceptanceSupport.await(() -> taskInspectorTitleEquals(Messages.getString("TaskInspector.PredecessorHidden")),
 				"the Inspector must explain when a predecessor is hidden by the current projection");
 		} catch (AssertionError failure) {
 			throw new AssertionError(failure.getMessage() + "; hiddenRouteInvoked=" + hiddenRouteInvoked.get()
@@ -3542,13 +3542,21 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	private boolean taskInspectorTitleContains(String text) {
+		return taskInspectorTitle().contains(text);
+	}
+
+	private boolean taskInspectorTitleEquals(String text) {
+		return text.equals(taskInspectorTitle());
+	}
+
+	private String taskInspectorTitle() {
 		String[] title = new String[1];
 		try {
 			SwingUtilities.invokeAndWait(() -> title[0] = manager.getCurrentFrame().getTaskInspectorPanel().getTitleText());
 		} catch (Exception failure) {
 			throw new IllegalStateException("could not read Inspector title on the EDT", failure);
 		}
-		return title[0].contains(text);
+		return title[0];
 	}
 
 	private String inspectorNavigationDiagnostics(SpreadSheet sheet, Task expected, Node expectedNode) {

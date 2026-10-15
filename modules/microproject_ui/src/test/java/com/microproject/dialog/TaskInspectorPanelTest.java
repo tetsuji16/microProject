@@ -10,6 +10,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Component;
 import java.awt.Container;
+import java.util.Locale;
+import java.util.ResourceBundle;
 
 import javax.swing.JLabel;
 import javax.swing.JButton;
@@ -25,6 +27,16 @@ import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.strings.Messages;
 
 class TaskInspectorPanelTest {
+	@Test
+	void predecessorProjectionFeedbackHasEnglishAndJapaneseResourceValues() {
+		ResourceBundle english = ResourceBundle.getBundle("com.microproject.strings.client", Locale.ROOT);
+		ResourceBundle japanese = ResourceBundle.getBundle("com.microproject.strings.client", Locale.JAPANESE);
+		String key = "TaskInspector.PredecessorHidden";
+
+		assertEquals("The predecessor is hidden by the current filter or grouping.", english.getString(key));
+		assertEquals("先行タスクは現在のフィルターまたはグループ化で非表示です。", japanese.getString(key));
+	}
+
 	@Test
 	void followsSelectedTaskAndRendersScheduleCategoriesWithoutChangingModel() throws Exception {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
