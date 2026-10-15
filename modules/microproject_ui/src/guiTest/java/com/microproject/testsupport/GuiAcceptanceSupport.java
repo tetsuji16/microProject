@@ -305,7 +305,10 @@ public final class GuiAcceptanceSupport {
 	public static void selectComboBoxItem(Robot robot, JComboBox<?> combo, int index) throws Exception {
 		if (combo == null || index < 0 || index >= combo.getItemCount())
 			throw new AssertionError("Invalid physical combo-box selection index " + index);
-		WindowAcceptanceAssertions.clickComponent(robot, combo);
+		java.awt.Component dropdown = java.util.Arrays.stream(combo.getComponents())
+			.filter(javax.swing.AbstractButton.class::isInstance).findFirst().orElse(combo);
+		WindowAcceptanceAssertions.clickComponent(robot, dropdown);
+		await(combo::isPopupVisible, "the physically clicked combo-box dropdown did not open");
 		robot.keyPress(KeyEvent.VK_HOME);
 		robot.keyRelease(KeyEvent.VK_HOME);
 		for (int current = 0; current < index; current++) {
