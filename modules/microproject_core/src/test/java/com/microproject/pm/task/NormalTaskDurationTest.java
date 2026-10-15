@@ -120,6 +120,29 @@ class NormalTaskDurationTest {
 	}
 
 	@Test
+	void onlyPlannedDurationUsesTheTasksExplicitDisplayUnit() {
+		Project project = createProject();
+		DurationDefaults defaults = new DurationDefaults(360.0D, 1800.0D, 20.0D,
+			TimeUnit.HOURS, TimeUnit.HOURS);
+		project.setDurationDefaults(defaults);
+		NormalTask task = createTask(project);
+		task.setDuration(Duration.getInstance(1.0D, TimeUnit.DAYS, defaults));
+		task.saveCurrentToSnapshot(Integer.valueOf(0));
+
+		FieldContext context = new FieldContext();
+		context.setDurationDefaultsResolver(project::getDurationDefaults);
+		assertEquals("1 day", Configuration.getFieldFromId("Field.duration").getText(task, context));
+
+		task.setPercentComplete(0.5D);
+
+		assertEquals("1 day", Configuration.getFieldFromId("Field.duration").getText(task, context));
+		assertEquals("3 hours", Configuration.getFieldFromId("Field.actualDuration").getText(task, context));
+		assertEquals("3 hours", Configuration.getFieldFromId("Field.remainingDuration").getText(task, context));
+		assertEquals(6L * 60L * 60L * 1000L, Duration.millis(task.getBaselineDuration(0)),
+			"progress presentation must not substitute the current duration into the saved baseline");
+	}
+
+	@Test
 	void taskDisplayUnitFollowsScheduleSnapshotRestore() {
 		Project project = createProject();
 		DurationDefaults defaults = new DurationDefaults(360.0D, 1800.0D, 20.0D,
