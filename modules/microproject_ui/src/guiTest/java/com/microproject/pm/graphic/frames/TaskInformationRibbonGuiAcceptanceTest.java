@@ -3225,7 +3225,13 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertTrue(nameIndex >= 0, "the secondary key must use the shared task sorter catalog");
 		GuiAcceptanceSupport.selectComboBoxItem(robot, secondField, nameIndex);
 		assertTrue(secondField.getSelectedItem() instanceof CommonTransformFactory selectedName
-				&& "Sorter.Name".equals(selectedName.getId()), "the physical chooser must select Name as its secondary key");
+				&& "Sorter.Name".equals(selectedName.getId()),
+			"the physical chooser must select Name as its secondary key; selected="
+				+ (secondField.getSelectedItem() instanceof CommonTransformFactory selected
+					? selected.getId() : secondField.getSelectedItem())
+				+ "; beforeKeys=" + secondField.getClientProperty("microproject.combo.beforeKeys")
+				+ "; afterKeys=" + secondField.getClientProperty("microproject.combo.afterKeys")
+				+ "; " + GuiAcceptanceSupport.comboState(secondField));
 		JComboBox<?> secondDirection = UiComponentWalker.flatten(multiKeyChooser).stream()
 			.filter(JComboBox.class::isInstance).map(JComboBox.class::cast)
 			.filter(field -> "microproject.taskSort.secondaryDirection".equals(field.getName())).findFirst().orElseThrow();

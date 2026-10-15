@@ -312,8 +312,8 @@ public final class GuiAcceptanceSupport {
 		// other component even though this popup is visible.
 		WindowAcceptanceAssertions.clickComponent(robot, combo);
 		await(combo::isPopupVisible, "the physically clicked combo-box dropdown did not open");
-		if (combo.getName() != null && combo.getName().startsWith("microproject.taskSort."))
-			System.out.println("[GUI_COMBO_FOCUS] beforeKeys " + comboState(combo));
+		boolean taskSortCombo = combo.getName() != null && combo.getName().startsWith("microproject.taskSort.");
+		if (taskSortCombo) setComboDiagnostic(combo, "microproject.combo.beforeKeys", comboState(combo));
 		robot.keyPress(KeyEvent.VK_HOME);
 		robot.keyRelease(KeyEvent.VK_HOME);
 		for (int current = 0; current < index; current++) {
@@ -323,11 +323,14 @@ public final class GuiAcceptanceSupport {
 		robot.keyPress(KeyEvent.VK_ENTER);
 		robot.keyRelease(KeyEvent.VK_ENTER);
 		robot.waitForIdle();
-		if (combo.getName() != null && combo.getName().startsWith("microproject.taskSort."))
-			System.out.println("[GUI_COMBO_FOCUS] afterKeys " + comboState(combo));
+		if (taskSortCombo) setComboDiagnostic(combo, "microproject.combo.afterKeys", comboState(combo));
 	}
 
-	private static String comboState(JComboBox<?> combo) throws Exception {
+	private static void setComboDiagnostic(JComboBox<?> combo, String key, String state) throws Exception {
+		SwingUtilities.invokeAndWait(() -> combo.putClientProperty(key, state));
+	}
+
+	public static String comboState(JComboBox<?> combo) throws Exception {
 		AtomicReference<String> state = new AtomicReference<>();
 		SwingUtilities.invokeAndWait(() -> {
 			Component focus = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
