@@ -499,6 +499,7 @@ public class MSPDISerializer implements ProjectSerializer {
 		Map<String, Map<Integer, List<ExactWorkRow>>> baselineWorkRows = new java.util.HashMap<>();
 		Map<String, Map<Integer, List<ExactCostRow>>> baselineCostRows = new java.util.HashMap<>();
 		Map<String, Map<Integer, Double>> taskBaselineFixedCosts = taskBaselineFixedCosts();
+		Map<String, Map<Integer, Double>> taskBaselineTotalCosts = taskBaselineTotalCosts();
 		for (Map.Entry<ResourceAssignment, Assignment> exported : exportedAssignments.entrySet()) {
 			Integer uid = exported.getKey().getUniqueID();
 			if (exported.getValue().getWorkContour().isPersonal()) {
@@ -545,7 +546,8 @@ public class MSPDISerializer implements ProjectSerializer {
 				throw new IOException("MPXJ assigned duplicate identities to baseline assignments");
 		}
 		if (expected.isEmpty() && personalContourAssignments.isEmpty() && baselineWorkRows.isEmpty()
-				&& baselineCostRows.isEmpty() && taskBaselineFixedCosts.isEmpty()) return xml;
+				&& baselineCostRows.isEmpty() && taskBaselineFixedCosts.isEmpty()
+				&& taskBaselineTotalCosts.isEmpty()) return xml;
 		javax.xml.parsers.DocumentBuilderFactory factory = javax.xml.parsers.DocumentBuilderFactory.newInstance();
 		factory.setNamespaceAware(true);
 		factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
@@ -564,6 +566,7 @@ public class MSPDISerializer implements ProjectSerializer {
 		java.util.Set<String> appliedBaselineCostSlots = new java.util.HashSet<>();
 		java.util.Set<String> normalizedPersonalContours = new java.util.HashSet<>();
 		java.util.Set<String> normalizedTaskFixedCosts = new java.util.HashSet<>();
+		java.util.Set<String> normalizedTaskTotalCosts = new java.util.HashSet<>();
 		for (int index = 0; index < taskNodes.getLength(); index++) {
 			org.w3c.dom.Element taskNode = (org.w3c.dom.Element) taskNodes.item(index);
 			String uid = childText(taskNode, "UID", namespace);
@@ -572,10 +575,24 @@ public class MSPDISerializer implements ProjectSerializer {
 			if (!normalizedTaskFixedCosts.add(uid))
 				throw new IOException("MSPDI output contains duplicate task identities for baseline fixed cost");
 			for (Map.Entry<Integer, Double> cost : costs.entrySet())
-				putTaskBaselineFixedCost(document, taskNode, cost.getKey().intValue(), cost.getValue().doubleValue());
+				putTaskBaselineScalar(document, taskNode, cost.getKey().intValue(), "FixedCost",
+					cost.getValue().doubleValue());
 		}
 		if (!normalizedTaskFixedCosts.equals(taskBaselineFixedCosts.keySet()))
 			throw new IOException("MSPDI output omitted a task with baseline fixed cost");
+		for (int index = 0; index < taskNodes.getLength(); index++) {
+			org.w3c.dom.Element taskNode = (org.w3c.dom.Element) taskNodes.item(index);
+			String uid = childText(taskNode, "UID", namespace);
+			Map<Integer, Double> costs = uid == null ? null : taskBaselineTotalCosts.get(uid);
+			if (costs == null) continue;
+			if (!normalizedTaskTotalCosts.add(uid))
+				throw new IOException("MSPDI output contains duplicate task identities for baseline total cost");
+			for (Map.Entry<Integer, Double> cost : costs.entrySet())
+				putTaskBaselineScalar(document, taskNode, cost.getKey().intValue(), "Cost",
+					cost.getValue().doubleValue());
+		}
+		if (!normalizedTaskTotalCosts.equals(taskBaselineTotalCosts.keySet()))
+			throw new IOException("MSPDI output omitted a task with baseline total cost");
 		for (int index = 0; index < assignmentNodes.getLength(); index++) {
 			org.w3c.dom.Element assignmentNode = (org.w3c.dom.Element) assignmentNodes.item(index);
 			String uid = childText(assignmentNode, "UID");
@@ -659,20 +676,52 @@ public class MSPDISerializer implements ProjectSerializer {
 		return result;
 	}
 
-	private static void putTaskBaselineFixedCost(org.w3c.dom.Document document, org.w3c.dom.Element taskNode,
-		int slot, double value) throws IOException {
-		if (!Double.isFinite(value)) throw new IOException("Baseline fixed cost must be finite");
+	private Map<String, Map<Integer, Double>> taskBaselineTotalCosts() throws IOException {
+		Map<String, Map<Integer, Double>> result = new java.util.HashMap<>();
+		for (Map.Entry<?, ?> transformation : taskLinker.getTransformationMap().entrySet()) {
+			if (!(transformation.getKey() instanceof NormalTask task)
+					|| !(transformation.getValue() instanceof net.sf.mpxj.Task exported)) continue;
+			if (exported.getUniqueID() == null) continue;
+			Map<Integer, Double> costs = new java.util.TreeMap<>();
+			for (int slot = 0; slot <= 10; slot++) {
+				if (!(task.getSnapshot(Integer.valueOf(slot)) instanceof TaskSnapshot snapshot)) continue;
+				Double cost = snapshot.getImportedBaselineCost();
+				if (cost != null) costs.put(Integer.valueOf(slot), cost);
+			}
+			if (!costs.isEmpty() && result.put(exported.getUniqueID().toString(), Map.copyOf(costs)) != null)
+				throw new IOException("MPXJ assigned duplicate task identities to baseline total costs");
+		}
+		return result;
+	}
+
+	private static void putTaskBaselineScalar(org.w3c.dom.Document document, org.w3c.dom.Element taskNode,
+		int slot, String fieldName, double value) throws IOException {
+		if (!Double.isFinite(value)) throw new IOException("Baseline " + fieldName + " must be finite");
 		org.w3c.dom.Element baseline = findBaseline(taskNode, slot);
 		if (baseline == null) {
 			baseline = document.createElementNS(taskNode.getNamespaceURI(), "Baseline");
 			insertTaskBaselineAtSchemaPosition(taskNode, baseline, slot);
 		}
-		org.w3c.dom.Element fixedCost = childElement(baseline, "FixedCost");
-		if (fixedCost == null) {
-			fixedCost = document.createElementNS(taskNode.getNamespaceURI(), "FixedCost");
-			baseline.appendChild(fixedCost);
+		org.w3c.dom.Element field = childElement(baseline, fieldName);
+		if (field == null) {
+			field = document.createElementNS(taskNode.getNamespaceURI(), fieldName);
+			baseline.appendChild(field);
 		}
-		fixedCost.setTextContent(BigDecimal.valueOf(value).stripTrailingZeros().toPlainString());
+		// MSPDI currency values are stored in hundredths; the model and MPXJ use
+		// whole currency units.
+		field.setTextContent(serializeMspdiCurrency(BigDecimal.valueOf(value)));
+	}
+
+	private static String serializeMspdiCurrency(BigDecimal modelValue) {
+		BigDecimal hundredths = modelValue.movePointRight(2);
+		double asDouble = hundredths.doubleValue();
+		if (Double.isFinite(asDouble)) {
+			BigDecimal nearestHundredth = hundredths.setScale(0, java.math.RoundingMode.HALF_UP);
+			BigDecimal floatingPointNoise = BigDecimal.valueOf(Math.ulp(asDouble) * 2.0D);
+			if (hundredths.subtract(nearestHundredth).abs().compareTo(floatingPointNoise) <= 0)
+				hundredths = nearestHundredth;
+		}
+		return hundredths.stripTrailingZeros().toPlainString();
 	}
 
 	private static void insertTaskBaselineAtSchemaPosition(org.w3c.dom.Element task,
@@ -892,7 +941,7 @@ public class MSPDISerializer implements ProjectSerializer {
 			appendTextElement(document, timephased, "Start", formatMspdiWallTime(row.start()));
 			appendTextElement(document, timephased, "Finish", formatMspdiWallTime(row.finish()));
 			appendTextElement(document, timephased, "Unit", "2");
-			appendTextElement(document, timephased, "Value", row.cost().toPlainString());
+			appendTextElement(document, timephased, "Value", serializeMspdiCurrency(row.cost()));
 			baseline.insertBefore(timephased, number);
 		}
 	}

@@ -97,3 +97,26 @@ check. The old reader's clock-sensitive schedule and zero-unit assignment
 outputs are not normative expectations. The CCPM test remains a selected-field
 compatibility case and makes no claim that one fixture proves broad MPO or
 Microsoft Project parity.
+
+## Assignment baseline cost written by the released raw-row serializer
+
+`legacy-assignment-baseline-cost-probe.mpo` was saved by the
+`MpoFileImporter.saveProject(Project, OutputStream)` implementation at released
+source commit `144675b75` (application version `0.0.24`). Its pre-write model
+had one assignment baseline timephased cost of 125.0 and resource CostPerUse
+7.5. The old writer emitted the custom assignment row as MSPDI
+`Type=5, Value=125` directly, while MPXJ's standard resource writer emitted
+`CostPerUse=750`. Archive SHA-256:
+`F13568BBCAE62CFA4973D3BF471C1C5A0A2EFF6BE2DEC24FC4E122369D95D3AD`.
+`content.xml` SHA-256, also recorded as the manifest `projectSha256` and
+`content.xml` entry hash:
+`1A1D73D4BF6CF23A6D050DED4DED4A0528D51B6F68C802DF8FBFC72A21F2B755`.
+
+`MpoFileImporterTest.releasedMpoWriterBaselineCostFixtureKeepsItsModelCurrencyAndUpgradesOnSave`
+checks the archive SHA and domain values, reads the old custom row as 125.0
+through the MPO-only migration, and confirms ordinary MSPDI interprets the
+same literal `Value=125` as 1.25. It also checks standard `CostPerUse=750` as
+7.5, then saves and reloads with the new metadata unit marker so the old-row
+migration cannot apply twice. The fixture was generated from the source model
+through the released writer in a clean probe at `144675b75`; the pre-write
+model values and emitted XML values are asserted by the test and recorded here.

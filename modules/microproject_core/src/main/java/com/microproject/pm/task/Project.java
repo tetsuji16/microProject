@@ -1136,6 +1136,9 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 			TaskSnapshot template = previous;
 			if (template == null) template = (TaskSnapshot) summary.getCurrentSnapshot();
 			TaskSnapshot rolled = (TaskSnapshot) template.deepCloneWithTask(summary);
+			// The rolled assignment and fixed-cost profiles become the new authority.
+			// A scalar imported from MSPDI describes the old aggregate and must not mask them.
+			rolled.setImportedBaselineCost(null);
 			TaskSchedule schedule = rolled.getCurrentSchedule();
 			long start = Long.MAX_VALUE;
 			long finish = Long.MIN_VALUE;

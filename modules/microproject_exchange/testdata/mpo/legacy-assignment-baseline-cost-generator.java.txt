@@ -1,0 +1,15 @@
+// Generated from commit 144675b75 with JDK 25.
+// Add this method to MpoFileImporterTest, run it once, then remove the method.
+@Test
+void generateHistoricalBaselineCostMpoProbe() throws Exception {
+	Project project = projectForRoundTrip();
+	NormalTask task = (NormalTask) firstTask(project);
+	Resource resource = project.getResourcePool().newResourceInstance();
+	resource.setCostPerUse(7.5D);
+	Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1.0D, 0L, this);
+	task.saveCurrentToSnapshot(Integer.valueOf(0));
+	assignment.setInterval(Assignment.BASELINE_COST, assignment.getStart(), assignment.getFinish(), 125.0D);
+	ByteArrayOutputStream output = new ByteArrayOutputStream();
+	new MpoFileImporter().saveProject(project, output);
+	Files.write(Path.of("legacy-assignment-baseline-cost-probe.mpo"), output.toByteArray());
+}

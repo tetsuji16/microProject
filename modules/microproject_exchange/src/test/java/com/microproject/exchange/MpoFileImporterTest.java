@@ -68,6 +68,71 @@ import org.junit.jupiter.api.Test;
 
 class MpoFileImporterTest {
 	@Test
+	void releasedMpoWriterBaselineCostFixtureKeepsItsModelCurrencyAndUpgradesOnSave() throws Exception {
+		Path fixture = Path.of("modules", "microproject_exchange", "testdata", "mpo",
+			"legacy-assignment-baseline-cost-probe.mpo");
+		if (!Files.isRegularFile(fixture))
+			fixture = Path.of("testdata", "mpo", "legacy-assignment-baseline-cost-probe.mpo");
+		byte[] archive = Files.readAllBytes(fixture);
+		assertEquals("f13568bbcae62cfa4973d3bf471c1c5a0a2eff6be2dec24fc4e122369d95d3ad", sha256(archive));
+		Map<String, byte[]> entries = readEntries(archive);
+		String meta = new String(entries.get(MpoFileImporter.META_ENTRY), StandardCharsets.UTF_8);
+		assertTrue(meta.contains("applicationVersion=\"0.0.24\""));
+		assertFalse(meta.contains("assignmentBaselineCostUnit"), "Released archive predates the unit marker");
+		String projectXml = new String(entries.get(MpoFileImporter.PROJECT_ENTRY), StandardCharsets.UTF_8);
+		assertTrue(projectXml.contains("<Type>5</Type><UID>1</UID>"));
+		assertTrue(projectXml.contains("<Value>125</Value>"), "Released writer stored model currency directly");
+		String manifest = new String(entries.get(MpoFileImporter.MANIFEST_ENTRY), StandardCharsets.UTF_8);
+		assertEquals(sha256(entries.get(MpoFileImporter.PROJECT_ENTRY)),
+			manifest.replaceFirst("(?s).*projectSha256=\"([^\"]+)\".*", "$1"));
+		assertEquals(sha256(entries.get(MpoFileImporter.PROJECT_ENTRY)),
+			manifest.replaceFirst("(?s).*path=\"content.xml\" sha256=\"([^\"]+)\".*", "$1"));
+
+		Project reopened = loadFromBytes(archive);
+		assertEquals(125.0d, ((NormalTask) firstTask(reopened)).getBaselineCost(0), 0.00001d,
+			"MPO migration restores the released writer's model-currency baseline contour");
+		NormalTask nativeTask = (NormalTask) firstTask(reopened);
+		com.microproject.pm.assignment.Assignment nativeAssignment =
+			(com.microproject.pm.assignment.Assignment) nativeTask.getAssignments().iterator().next();
+		assertEquals(7.5d, nativeAssignment.getResource().getCostPerUse(), 0.00001d,
+			"The released standard MSPDI resource writer already stored CostPerUse in hundredths");
+		Project external = new com.microproject.core.pm.exchange.MspImporter().importProject(
+			new ByteArrayInputStream(entries.get(MpoFileImporter.PROJECT_ENTRY)), "xml", (progress, label) -> { });
+		assertEquals(1.25d, ((NormalTask) firstTask(external)).getBaselineCost(0), 0.00001d,
+			"The same literal 125 in ordinary MSPDI means 1.25 normalized currency units");
+		assertEquals(7.5d, ((com.microproject.pm.assignment.Assignment) ((NormalTask) firstTask(external))
+			.getAssignments().iterator().next()).getResource().getCostPerUse(), 0.00001d,
+			"Ordinary MSPDI resource CostPerUse keeps the standard hundredths conversion");
+		ByteArrayOutputStream upgraded = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(reopened, upgraded));
+		Map<String, byte[]> upgradedEntries = readEntries(upgraded.toByteArray());
+		assertTrue(new String(upgradedEntries.get(MpoFileImporter.META_ENTRY), StandardCharsets.UTF_8)
+			.contains("assignmentBaselineCostUnit=\"mspdi-hundredths\""));
+		Project upgradedReload = loadFromBytes(upgraded.toByteArray());
+		assertEquals(125.0d, ((NormalTask) firstTask(upgradedReload)).getBaselineCost(0), 0.00001d,
+			"Resaving marks converted rows, preventing a second 100x conversion");
+	}
+
+	@Test
+	void legacyMpoAssignmentBaselineCostRowsUpgradeToMspdiCurrencyUnits() throws Exception {
+		String xml = "<Project><Assignment>"
+			+ "<TimephasedData><Type>5</Type><Value>0.001</Value></TimephasedData>"
+			+ "<TimephasedData><Type>4</Type><Value>8</Value></TimephasedData>"
+			+ "<TimephasedData><Type>23</Type><Value>1.25</Value></TimephasedData>"
+			+ "</Assignment><Task><TimephasedData><Type>5</Type><Value>0.001</Value></TimephasedData></Task></Project>";
+		String migrated = new String(MpoFileImporter.migrateLegacyAssignmentBaselineCosts(
+			xml.getBytes(java.nio.charset.StandardCharsets.UTF_8)), java.nio.charset.StandardCharsets.UTF_8);
+		assertTrue(migrated.contains("<Type>5</Type><Value>0.1</Value>"),
+			"Legacy slot-zero baseline currency rows gain MSPDI hundredths while preserving sub-cent value");
+		assertTrue(migrated.contains("<Type>4</Type><Value>8</Value>"),
+			"Baseline work rows remain unchanged");
+		assertTrue(migrated.contains("<Type>23</Type><Value>125</Value>"),
+			"Numbered baseline currency rows use the same conversion");
+		assertTrue(migrated.contains("<Task><TimephasedData><Type>5</Type><Value>0.001</Value></TimephasedData></Task>"),
+			"Type 5 rows outside Assignment elements are not migrated");
+	}
+
+	@Test
 	void saveFailureFeedbackDistinguishesConflictFromLockFailureAndNamesRecoveryCopy() {
 		Path recoveryCopy = Path.of("C:/projects/recovery.mpo");
 		MpoConflictRecoveryException conflict = new MpoConflictRecoveryException(recoveryCopy, List.of());
@@ -360,23 +425,37 @@ class MpoFileImporterTest {
 		assertNotEquals(firstProfile.costContour(), secondProfile.costContour(),
 			"Same-resource contributors retain distinct saved cost contours");
 		summary.saveCurrentToSnapshot(Integer.valueOf(Snapshottable.BASELINE));
-		int originalSummaryBaselineAssignmentCount = ((TaskSnapshot) summary
-			.getSnapshot(Integer.valueOf(Snapshottable.BASELINE))).getAssignments().size();
+		TaskSnapshot originalSummaryBaseline = (TaskSnapshot) summary
+			.getSnapshot(Integer.valueOf(Snapshottable.BASELINE));
+		int originalSummaryBaselineAssignmentCount = originalSummaryBaseline.getAssignments().size();
+		originalSummaryBaseline.setImportedBaselineCost(Double.valueOf(1.0d));
+		assertEquals(1.0d, summary.getBaselineCost(Snapshottable.BASELINE),
+			"The imported whole-task aggregate is authoritative before roll-up");
 
 		var change = project.saveCurrentToSnapshot(Integer.valueOf(Snapshottable.BASELINE), false,
 			List.of(summary), new BaselineRollupOptions(false, true));
 		TaskSnapshot rolled = (TaskSnapshot) summary.getSnapshot(Integer.valueOf(Snapshottable.BASELINE));
+		assertTrue(rolled.getImportedBaselineCost() == null,
+			"A recomputed summary must clear the previous imported aggregate override");
 		assertEquals(2, rolled.getAssignments().size());
+		assertEquals(540.0d, summary.getBaselineCost(Snapshottable.BASELINE), 0.001d,
+			"The recomputed roll-up replaces the imported scalar with its derived total");
 		assertEquals(7.0d, rolled.getFixedCost(), "The summary retains its own Fixed Cost field value");
 		assertTrue(rolled.captureBaselineProfiles(summary, Snapshottable.BASELINE).stream()
 			.anyMatch(profile -> java.util.Arrays.stream(profile.calendarCopy().getExceptionDays())
 				.anyMatch(value -> value.getStart() == firstCalendarException)),
 			"Initial roll-up preserves the first contributor calendar");
 		change.undo();
-		assertEquals(originalSummaryBaselineAssignmentCount,
-			((TaskSnapshot) summary.getSnapshot(Integer.valueOf(Snapshottable.BASELINE))).getAssignments().size());
+		TaskSnapshot restoredSummaryBaseline = (TaskSnapshot) summary
+			.getSnapshot(Integer.valueOf(Snapshottable.BASELINE));
+		assertEquals(originalSummaryBaselineAssignmentCount, restoredSummaryBaseline.getAssignments().size());
+		assertEquals(1.0d, summary.getBaselineCost(Snapshottable.BASELINE),
+			"Undo restores the imported aggregate that preceded roll-up");
 		change.redo();
 		rolled = (TaskSnapshot) summary.getSnapshot(Integer.valueOf(Snapshottable.BASELINE));
+		assertTrue(rolled.getImportedBaselineCost() == null, "Redo restores the recomputed summary authority");
+		assertEquals(540.0d, summary.getBaselineCost(Snapshottable.BASELINE), 0.001d,
+			"Redo recomputes the aggregate from the rolled profiles");
 		assertEquals(2, rolled.getAssignments().size(), "Redo restores each contributor profile");
 		var rolledProfiles = rolled.captureBaselineProfiles(summary, Snapshottable.BASELINE);
 		assertTrue(rolledProfiles.stream().anyMatch(profile -> java.util.Arrays.stream(profile.calendarCopy()
@@ -423,6 +502,31 @@ class MpoFileImporterTest {
 
 		byte[] savedArchive = saveProjectBytes(project);
 		java.util.Map<String, byte[]> savedEntries = readEntries(savedArchive);
+		String currentMeta = new String(savedEntries.get(MpoFileImporter.META_ENTRY), StandardCharsets.UTF_8);
+		assertTrue(currentMeta.contains("assignmentBaselineCostUnit=\"mspdi-hundredths\""),
+			"New MPO output declares the standard currency unit so legacy migration cannot apply twice");
+		java.util.Map<String, byte[]> unknownCostUnitEntries = new java.util.HashMap<>(savedEntries);
+		byte[] unknownCostMeta = currentMeta.replace("mspdi-hundredths", "unknown-units")
+			.getBytes(StandardCharsets.UTF_8);
+		unknownCostUnitEntries.put(MpoFileImporter.META_ENTRY, unknownCostMeta);
+		updateManifestChecksum(unknownCostUnitEntries, MpoFileImporter.META_ENTRY, unknownCostMeta);
+		assertThrows(java.io.IOException.class, () -> loadFromBytes(zip(unknownCostUnitEntries).toByteArray()),
+			"Unknown MPO currency-unit markers fail clearly before project import");
+		java.util.Map<String, byte[]> legacyCostEntries = new java.util.HashMap<>(savedEntries);
+		byte[] legacyProjectXml = legacyAssignmentCostXml(savedEntries.get(MpoFileImporter.PROJECT_ENTRY));
+		legacyCostEntries.put(MpoFileImporter.PROJECT_ENTRY, legacyProjectXml);
+		String legacyMeta = currentMeta.replace(" assignmentBaselineCostUnit=\"mspdi-hundredths\"", "");
+		byte[] legacyMetaBytes = legacyMeta.getBytes(StandardCharsets.UTF_8);
+		legacyCostEntries.put(MpoFileImporter.META_ENTRY, legacyMetaBytes);
+		updateManifestChecksum(legacyCostEntries, MpoFileImporter.PROJECT_ENTRY, legacyProjectXml);
+		updateManifestChecksum(legacyCostEntries, MpoFileImporter.META_ENTRY, legacyMetaBytes);
+		String legacyManifest = new String(legacyCostEntries.get(MpoFileImporter.MANIFEST_ENTRY), StandardCharsets.UTF_8)
+			.replaceFirst("(?s)(projectSha256=\")[^\"]*(\")", "$1" + sha256(legacyProjectXml) + "$2");
+		legacyCostEntries.put(MpoFileImporter.MANIFEST_ENTRY, legacyManifest.getBytes(StandardCharsets.UTF_8));
+		Project legacyCostReload = loadFromBytes(zip(legacyCostEntries).toByteArray());
+		assertEquals(540.0d, ((NormalTask) findByName(legacyCostReload, "Mpo task"))
+			.getBaselineCost(Snapshottable.BASELINE),
+			0.001d, "A checksum-valid archive made with the released raw-row writer retains assignment baseline cost");
 		com.fasterxml.jackson.databind.ObjectMapper baselineMapper = new com.fasterxml.jackson.databind.ObjectMapper();
 		com.fasterxml.jackson.databind.JsonNode baselineMetadata = baselineMapper
 			.readTree(savedEntries.get(MpoFileImporter.BASELINE_PROFILES_ENTRY));
@@ -473,7 +577,7 @@ class MpoFileImporterTest {
 		assertMalformedBaselineMetadataPreservesTarget(validationTarget, baselineMapper, invalidCalendarMetadata);
 		net.sf.mpxj.ProjectFile mspdi = new net.sf.mpxj.mspdi.MSPDIReader()
 			.read(new ByteArrayInputStream(savedEntries.get(MpoFileImporter.PROJECT_ENTRY)));
-		assertEquals(7.0d, Double.parseDouble(taskBaselineXmlField(
+		assertEquals(700.0d, Double.parseDouble(taskBaselineXmlField(
 			savedEntries.get(MpoFileImporter.PROJECT_ENTRY), "Mpo task", 0, "FixedCost")),
 			"Summary fixed cost uses the standard MSPDI Baseline.FixedCost field");
 		long profileResourceUid = baselineMetadata.path("tasks").findValues("resourceUid").stream()
@@ -599,7 +703,7 @@ class MpoFileImporterTest {
 		net.sf.mpxj.Task xmlTask = mspdi.getTasks().stream()
 			.filter(candidate -> "Mpo task".equals(candidate.getName())).findFirst().orElseThrow();
 		for (int slot = 0; slot <= 10; slot++) {
-			assertEquals(slot == 0 ? 0.0d : slot * 10.0d,
+			assertEquals(slot == 0 ? 0.0d : slot * 1000.0d,
 				Double.parseDouble(taskBaselineXmlField(projectXml, "Mpo task", slot, "FixedCost")));
 			assertTrue((slot == 0 ? xmlTask.getBaselineStart() : xmlTask.getBaselineStart(slot)) == null,
 				"Cost-only snapshots must not gain a baseline start date");
@@ -3236,6 +3340,27 @@ class MpoFileImporterTest {
 		} catch (java.security.NoSuchAlgorithmException impossible) {
 			throw new AssertionError(impossible);
 		}
+	}
+
+	private static byte[] legacyAssignmentCostXml(byte[] currentXml) throws IOException {
+		String xml = new String(currentXml, StandardCharsets.UTF_8);
+		java.util.regex.Pattern row = java.util.regex.Pattern.compile(
+			"(<TimephasedData(?:\\s[^>]*)?>[\\s\\S]*?<Type>)(\\d+)(</Type>[\\s\\S]*?<Value>)([^<]+)(</Value>[\\s\\S]*?</TimephasedData>)");
+		java.util.regex.Matcher matcher = row.matcher(xml);
+		StringBuffer legacy = new StringBuffer(xml.length());
+		while (matcher.find()) {
+			int type = Integer.parseInt(matcher.group(2));
+			boolean cost = false;
+			for (int slot = 0; slot <= 10; slot++)
+				if (type == com.microproject.core.pm.exchange.converters.mpx.MpxImportState
+						.assignmentBaselineCostType(slot)) { cost = true; break; }
+			if (!cost) continue;
+			String raw = new java.math.BigDecimal(matcher.group(4)).movePointLeft(2).stripTrailingZeros().toPlainString();
+			matcher.appendReplacement(legacy, java.util.regex.Matcher.quoteReplacement(matcher.group(1)
+				+ matcher.group(2) + matcher.group(3) + raw + matcher.group(5)));
+		}
+		matcher.appendTail(legacy);
+		return legacy.toString().getBytes(StandardCharsets.UTF_8);
 	}
 
 	private static void updateManifestChecksum(Map<String, byte[]> entries, String path, byte[] content) {

@@ -122,6 +122,8 @@ public class MpoFileImporter extends FileImporter {
 	/** Marker added once MPOF snapshots use the MSPDI minute-based delay unit. */
 	private static final String LEVELING_DELAY_UNIT_ATTRIBUTE = "levelingDelayUnit";
 	private static final String LEVELING_DELAY_UNIT_MINUTES = "minutes";
+	private static final String ASSIGNMENT_BASELINE_COST_UNIT_ATTRIBUTE = "assignmentBaselineCostUnit";
+	private static final String ASSIGNMENT_BASELINE_COST_UNIT_HUNDREDTHS = "mspdi-hundredths";
 	private static final String LEVELING_DELAY_FORMAT_MINUTES = "3";
 	private static final Pattern LEVELING_DELAY = Pattern.compile("<LevelingDelay>(-?\\d+)</LevelingDelay>");
 	private static final Pattern LEVELING_DELAY_FORMAT = Pattern.compile("<LevelingDelayFormat>\\d+</LevelingDelayFormat>");
@@ -244,6 +246,8 @@ public class MpoFileImporter extends FileImporter {
 			throw new IOException("MPOF contains both current and draft CCPM settings");
 		}
 		boolean legacyMicroprojectLevelingDelay = meta != null && isLegacyMicroprojectLevelingDelay(meta);
+		boolean legacyMicroprojectAssignmentBaselineCost = meta != null
+			&& isLegacyMicroprojectAssignmentBaselineCost(meta);
 		if (meta != null) validateMeta(meta);
 		ManifestData manifestData = readManifest(manifest, projectXml);
 		validateArchiveChecksums(manifestData, mimetype, meta, settings, ccpmHistory, layout, visibility,
@@ -267,6 +271,8 @@ public class MpoFileImporter extends FileImporter {
 		validateMergePlan(planFor(snapshot, java.util.List.of(), java.util.List.of()));
 		java.util.Map<String, SubProj.LoadStatus> embeddedProjectFailures = validateEmbeddedProjects(manifestData, extensions.entries);
 		if (legacyMicroprojectLevelingDelay) projectXml = migrateLegacyLevelingDelays(projectXml);
+		if (legacyMicroprojectAssignmentBaselineCost)
+			projectXml = migrateLegacyAssignmentBaselineCosts(projectXml);
 		MicrosoftImporter delegate = new MicrosoftImporter();
 		delegate.setFileName(PROJECT_ENTRY);
 		delegate.setProjectFactory(projectFactory);
@@ -2368,7 +2374,55 @@ public class MpoFileImporter extends FileImporter {
 		String version = com.microproject.util.VersionUtils.getVersion();
 		return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<meta formatVersion=\"1.0\" generator=\"microProject\"" +
 			" " + LEVELING_DELAY_UNIT_ATTRIBUTE + "=\"" + LEVELING_DELAY_UNIT_MINUTES + "\"" +
+			" " + ASSIGNMENT_BASELINE_COST_UNIT_ATTRIBUTE + "=\"" + ASSIGNMENT_BASELINE_COST_UNIT_HUNDREDTHS + "\"" +
 			(version == null ? "" : " applicationVersion=\"" + xmlEscape(version) + "\"") + "/>\n";
+	}
+
+	private static boolean isLegacyMicroprojectAssignmentBaselineCost(byte[] xmlBytes) throws IOException {
+		try {
+			javax.xml.parsers.DocumentBuilderFactory factory = secureDocumentBuilderFactory();
+			org.w3c.dom.Element root = factory.newDocumentBuilder().parse(new ByteArrayInputStream(xmlBytes)).getDocumentElement();
+			return "microProject".equals(root.getAttribute("generator"))
+				&& !ASSIGNMENT_BASELINE_COST_UNIT_HUNDREDTHS.equals(
+					root.getAttribute(ASSIGNMENT_BASELINE_COST_UNIT_ATTRIBUTE));
+		} catch (Exception exception) { throw new IOException("Invalid meta.xml", exception); }
+	}
+
+	static byte[] migrateLegacyAssignmentBaselineCosts(byte[] xmlBytes) throws IOException {
+		String xml = new String(xmlBytes, StandardCharsets.UTF_8);
+		Pattern assignment = Pattern.compile("(<Assignment(?:\\s[^>]*)?>)([\\s\\S]*?)(</Assignment>)");
+		Matcher matcher = assignment.matcher(xml);
+		StringBuffer migrated = new StringBuffer(xml.length());
+		while (matcher.find()) {
+			String assignmentBody = matcher.group(2);
+			Pattern row = Pattern.compile("(<TimephasedData(?:\\s[^>]*)?>[\\s\\S]*?<Type>)(\\d+)(</Type>[\\s\\S]*?<Value>)([^<]+)(</Value>[\\s\\S]*?</TimephasedData>)");
+			Matcher rows = row.matcher(assignmentBody);
+			StringBuffer migratedRows = new StringBuffer(assignmentBody.length());
+			while (rows.find()) {
+				int type;
+				try { type = Integer.parseInt(rows.group(2)); }
+				catch (NumberFormatException exception) { throw new IOException("Invalid legacy assignment baseline cost type", exception); }
+				boolean baselineCost = false;
+				for (int slot = 0; slot <= 10; slot++)
+					if (type == com.microproject.core.pm.exchange.converters.mpx.MpxImportState
+							.assignmentBaselineCostType(slot)) { baselineCost = true; break; }
+				if (!baselineCost) continue;
+				String value;
+				try {
+					value = new java.math.BigDecimal(rows.group(4)).multiply(java.math.BigDecimal.valueOf(100L))
+						.stripTrailingZeros().toPlainString();
+				} catch (NumberFormatException exception) {
+					throw new IOException("Invalid legacy assignment baseline cost value", exception);
+				}
+				rows.appendReplacement(migratedRows, Matcher.quoteReplacement(rows.group(1) + rows.group(2)
+					+ rows.group(3) + value + rows.group(5)));
+			}
+			rows.appendTail(migratedRows);
+			matcher.appendReplacement(migrated, Matcher.quoteReplacement(matcher.group(1)
+				+ migratedRows + matcher.group(3)));
+		}
+		matcher.appendTail(migrated);
+		return migrated.toString().getBytes(StandardCharsets.UTF_8);
 	}
 
 	/**
@@ -2420,6 +2474,10 @@ public class MpoFileImporter extends FileImporter {
 			org.w3c.dom.Element root = factory.newDocumentBuilder().parse(new ByteArrayInputStream(xmlBytes)).getDocumentElement();
 			if (!"meta".equals(root.getTagName()) || root.getAttribute("generator").isBlank()) throw new IOException("Invalid meta.xml");
 			requireReadableFormatVersion(root.getAttribute("formatVersion"));
+			String baselineCostUnit = root.getAttribute(ASSIGNMENT_BASELINE_COST_UNIT_ATTRIBUTE);
+			if (!baselineCostUnit.isEmpty()
+					&& !ASSIGNMENT_BASELINE_COST_UNIT_HUNDREDTHS.equals(baselineCostUnit))
+				throw new IOException("Unsupported MPO assignment baseline cost unit: " + baselineCostUnit);
 		} catch (IOException exception) { throw exception; }
 		catch (Exception exception) { throw new IOException("Invalid meta.xml", exception); }
 	}
