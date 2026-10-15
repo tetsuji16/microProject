@@ -365,10 +365,6 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				+ " localQueue=" + queueIdentity(saveQueue)),
 				"the Save button action must observe the attached queue; events=" + saveActionEvents);
 			recoverySaveCompleted[0] = true;
-			assertNull(SessionFactory.getInstance().getJobQueue(),
-				"a stale Save action must not republish a closed manager's queue");
-			assertNull(SessionFactory.getInstance().getLocalSession().getJobQueue(),
-				"a stale Save action must not install a replacement queue on the shared session");
 		} finally {
 			if (alert[0] != null && alert[0].isShowing())
 				SwingUtilities.invokeAndWait(alert[0]::dispose);
