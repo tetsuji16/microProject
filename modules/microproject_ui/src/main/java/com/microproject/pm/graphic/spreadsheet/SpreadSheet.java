@@ -339,16 +339,14 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	}
 
 	public void restoreTaskRowSelection(List<Node> nodes) {
-		if (!(getModel() instanceof SpreadSheetModel model) || nodes == null || nodes.isEmpty())
+		if (!(getModel() instanceof SpreadSheetModel) || nodes == null || nodes.isEmpty())
 			return;
 		clearSelection();
 		setRowHeaderSelectionActive(true);
 		boolean first = true;
 		int firstRow = -1;
 		for (Node node : nodes) {
-			GraphicNode graphicNode = (GraphicNode)getCache().getGraphicNode(node);
-			int modelRow = graphicNode == null ? -1 : model.findGraphicNodeRow(graphicNode);
-			int row = modelRow < 0 ? -1 : convertRowIndexToView(modelRow);
+			int row = taskNodeToViewRow(node);
 			if (row < 0)
 				continue;
 			if (first) {
@@ -363,6 +361,15 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			getColumnModel().getSelectionModel().setSelectionInterval(0, getColumnCount() - 1);
 		if (firstRow >= 0)
 			scrollRectToVisible(getCellRect(firstRow, 0, true));
+	}
+
+	/** Resolves a task's stable node identity through cache/model coordinates into the visible JTable row. */
+	public int taskNodeToViewRow(Node node) {
+		if (node == null || !(getModel() instanceof SpreadSheetModel model) || model.getCache() == null)
+			return -1;
+		Object cached = model.getCache().getGraphicNode(node);
+		int modelRow = cached instanceof GraphicNode graphicNode ? model.findGraphicNodeRow(graphicNode) : -1;
+		return modelRow < 0 ? -1 : convertRowIndexToView(modelRow);
 	}
 
 	public List<Node> insertTaskRowsAfter(Node anchor, int count) {

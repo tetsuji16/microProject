@@ -41,6 +41,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.swing.JOptionPane;
+import javax.swing.JSplitPane;
 
 import javax.swing.JRadioButtonMenuItem;
 import javax.swing.SwingUtilities;
@@ -58,6 +59,7 @@ import com.microproject.dialog.CustomFieldsDialogBox;
 import com.microproject.dialog.CustomReportDialogBox;
 import com.microproject.dialog.MoveProjectDialog;
 import com.microproject.dialog.StatusDateDialog;
+import com.microproject.dialog.TaskInspectorPanel;
 import com.microproject.dialog.UpdateProjectDialogBox;
 import com.microproject.dialog.UpdateTaskDialog;
 import com.microproject.dialog.calendar.ChangeWorkingTimeDialogBox;
@@ -156,6 +158,8 @@ public class DocumentFrame extends NamedFrame implements
 	private static final long serialVersionUID = 2075764134837908178L;
 	private static final java.util.logging.Logger logger = java.util.logging.Logger.getLogger(DocumentFrame.class.getName());
 	protected MainView mainView;
+	private JSplitPane taskInspectorSplit;
+	private TaskInspectorPanel taskInspectorPanel;
 	protected final DocumentStatusBar statusBar = new DocumentStatusBar();
 	protected GanttView ganttView;
 	protected UsageDetailView taskUsageDetailView;
@@ -285,7 +289,15 @@ public class DocumentFrame extends NamedFrame implements
 		mainView.setDividerDoubleClickHandler(this::deactivateBottomView);
 		mainView.setBorder(null);
 		setLayout(new BorderLayout()); // main view fills the center, status bar below
-		add(mainView, BorderLayout.CENTER);
+		taskInspectorPanel = new TaskInspectorPanel(this::navigateInspectorPredecessor,
+			task -> getGraphicManager().setTaskModeAutomatic(task));
+		taskInspectorPanel.setVisible(false);
+		taskInspectorSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, taskInspectorPanel, mainView);
+		taskInspectorSplit.setBorder(null);
+		taskInspectorSplit.setDividerSize(0);
+		taskInspectorSplit.setResizeWeight(0.0);
+		taskInspectorSplit.setDividerLocation(0);
+		add(taskInspectorSplit, BorderLayout.CENTER);
 		add(statusBar, BorderLayout.SOUTH);
 		updateStatusBarZoom();
 
@@ -1986,6 +1998,60 @@ public class DocumentFrame extends NamedFrame implements
 		if (bottom != null && bottom instanceof SelectionNodeListener)
 			((SelectionNodeListener) bottom).selectionChanged(e);
 		graphicManager.selectionChanged(e);
+		if (taskInspectorPanel != null && taskInspectorPanel.isVisible()) {
+			Object selected = e.getCurrentNode() == null ? null : e.getCurrentNode().getImpl();
+			taskInspectorPanel.showTask(selected instanceof Task task ? task : null);
+		}
+	}
+
+	public void showTaskInspector(boolean show) {
+		if (taskInspectorPanel == null || taskInspectorSplit == null) return;
+		taskInspectorPanel.setVisible(show);
+		if (show) {
+			Object selected = lastSelectionEvent == null || lastSelectionEvent.getCurrentNode() == null
+				? null : lastSelectionEvent.getCurrentNode().getImpl();
+			taskInspectorPanel.showTask(selected instanceof Task task ? task : null);
+			taskInspectorSplit.setDividerSize(6);
+			taskInspectorSplit.setDividerLocation(300);
+		} else {
+			taskInspectorSplit.setDividerSize(0);
+			taskInspectorSplit.setDividerLocation(0);
+		}
+		taskInspectorSplit.revalidate();
+		taskInspectorSplit.repaint();
+	}
+
+	public void toggleTaskInspector() {
+		showTaskInspector(!taskInspectorVisible());
+	}
+
+	boolean taskInspectorVisible() { return taskInspectorPanel != null && taskInspectorPanel.isVisible(); }
+	TaskInspectorPanel getTaskInspectorPanel() { return taskInspectorPanel; }
+	JSplitPane getTaskInspectorSplit() { return taskInspectorSplit; }
+
+	private void navigateInspectorPredecessor(Task task) {
+		SpreadSheet sheet = getActiveSpreadSheet();
+		Node node = findTaskNode(project.getTaskModel().getRoot(), task);
+		if (sheet == null || node == null) {
+			taskInspectorPanel.showFeedback("Predecessor is not available in this view.");
+			return;
+		}
+		int viewRow = sheet.taskNodeToViewRow(node);
+		if (viewRow < 0) {
+			taskInspectorPanel.showFeedback("Predecessor is hidden by the current filter or grouping.");
+			return;
+		}
+		sheet.restoreTaskRowSelection(List.of(node));
+	}
+
+	private Node findTaskNode(Object candidate, Task task) {
+		if (!(candidate instanceof Node node)) return null;
+		if (node.getImpl() == task) return node;
+		for (Object child : node.getChildren()) {
+			Node found = findTaskNode(child, task);
+			if (found != null) return found;
+		}
+		return null;
 	}
 
 	/**

@@ -63,6 +63,21 @@ open; an inventory or passing narrow test does not close an entire milestone.
 - Diagnostic trace generation tolerates an uninitialized scheduling engine or
   absent trace task. A calendar warning no longer becomes an unrelated
   NullPointerException in a freshly started importer process.
+- Task Inspector now has a Task ribbon route and a left pane that follows task
+  selection. It displays task start/finish; actual-start and assignment facts;
+  leveling delay; task constraint type/date and the nearest constrained summary
+  ancestor; predecessor names, link types and lag/lead; child dates with a
+  marker when a child date equals a summary bound (an observed match, not proof
+  of causation); effective calendar name and weekly work hours; scheduling
+  mode with an explicit Auto Schedule action for manual tasks; F9 recalculation
+  guidance; and separate `ScheduleDiagnosticsService` findings. Predecessor
+  navigation resolves a stable node identity through model and visible-row
+  coordinates; hidden rows produce feedback. This is a partial,
+  document-derived implementation of
+  Microsoft's [scheduling factors guidance](https://support.microsoft.com/en-us/project/view-and-track-scheduling-factors),
+  not a measured Project run. Headless panel/model-preservation and
+  sorted/filtered row tests pass; Windows physical navigation and recalculated
+  result evidence remain pending.
 - Task baselines 0–10 transfer start, finish and encoded duration through
   XML/MSPDI. Current schedule slot 11 is preserved. Partial and milestone
   baselines and native MPO persistence are covered. Assignment baseline

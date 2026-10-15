@@ -57,6 +57,7 @@ import javax.swing.JComponent;
 import javax.swing.JComboBox;
 import javax.swing.JTabbedPane;
 import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
 import javax.swing.JMenuItem;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
@@ -3437,6 +3438,98 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			JOptionPane[] panes = UiComponentWalker.flatten(candidate).stream()
 				.filter(JOptionPane.class::isInstance).map(JOptionPane.class::cast).toArray(JOptionPane[]::new);
 			if (panes.length > 0) return panes[0];
+		}
+		return null;
+	}
+
+	@Test
+	void physicalTaskInspectorFollowsSelectionAndNavigatesOnlyVisiblePredecessors() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		NormalTask successor = createTask();
+		Project project = successor.getOwningProject();
+		NormalTask predecessor = project.createScriptedTask();
+		predecessor.setName("Inspector predecessor");
+		successor.setName("Inspector successor");
+		DependencyService.getInstance().newDependency(predecessor, successor, DependencyType.FS, 0L, this);
+		project.recalculate();
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> window.setSize(1320, 760));
+		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"the task Inspector project did not become visible");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		clickUntilSelected(robot, window, sheet, rowForTask(sheet, successor), nameColumn(sheet));
+		clickAndAwaitSelected(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+			.getString("TaskRibbonTask.title")), "Robot click did not select the Task ribbon tab");
+		click(robot, findShowingButtonByCommand("RibbonTaskInspector"));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().taskInspectorVisible()
+				&& manager.getCurrentFrame().getSelectedImpls(false).contains(successor),
+			"Inspect Task did not open its pane for the selected task");
+		JSplitPane inspectorSplit = manager.getCurrentFrame().getTaskInspectorSplit();
+		assertTrue(inspectorSplit.getDividerLocation() > 0, "the Inspector must appear to the left of project information");
+		assertTrue(inspectorSplit.getLeftComponent().isVisible(), "the Inspector pane must remain visible");
+		long predecessorStart = predecessor.getStart();
+		long successorStart = successor.getStart();
+		boolean dirtyBefore = project.needsSaving();
+		boolean undoBefore = project.getUndoController().canUndo();
+		click(robot, findShowingButtonByText("Inspector predecessor"));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(predecessor),
+			"clicking the visible predecessor did not select its rendered spreadsheet row");
+		GuiAcceptanceSupport.await(() -> taskInspectorTitleContains("Inspector predecessor"),
+			"the Inspector did not follow the physical predecessor selection");
+		assertEquals(predecessorStart, predecessor.getStart());
+		assertEquals(successorStart, successor.getStart());
+		assertEquals(dirtyBefore, project.needsSaving(), "inspection and navigation must not dirty the project");
+		assertEquals(undoBefore, project.getUndoController().canUndo(), "inspection and navigation must not add Undo history");
+
+		clickUntilSelected(robot, window, sheet, rowForTask(sheet, successor), nameColumn(sheet));
+		GuiAcceptanceSupport.await(() -> taskInspectorTitleContains("Inspector successor"),
+			"the Inspector did not update when selection returned to the successor");
+		int[] hiddenCount = new int[1];
+		SwingUtilities.invokeAndWait(() -> hiddenCount[0] = TaskVisibilityService.hideTasks(
+			project, List.of(predecessor), project.getUndoController()));
+		assertEquals(1, hiddenCount[0],
+			"the fixture must hide exactly the predecessor row before testing filtered navigation");
+		GuiAcceptanceSupport.await(() -> sheet.taskNodeToViewRow(findTaskNode(project, predecessor)) < 0,
+			"the hidden predecessor must be absent from visible view coordinates");
+		int selectionBeforeHiddenClick = sheet.getSelectedRow();
+		boolean dirtyBeforeHiddenClick = project.needsSaving();
+		boolean undoBeforeHiddenClick = project.getUndoController().canUndo();
+		click(robot, findShowingButtonByText("Inspector predecessor"));
+		GuiAcceptanceSupport.await(() -> taskInspectorTitleContains("hidden by the current filter"),
+			"the Inspector must explain when a predecessor is hidden by the current projection");
+		assertEquals(selectionBeforeHiddenClick, sheet.getSelectedRow(), "hidden predecessor navigation must preserve selection");
+		assertEquals(dirtyBeforeHiddenClick, project.needsSaving(), "hidden navigation must not mutate the project");
+		assertEquals(undoBeforeHiddenClick, project.getUndoController().canUndo(), "hidden navigation must not change Undo history");
+	}
+
+	private boolean taskInspectorTitleContains(String text) {
+		String[] title = new String[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> title[0] = manager.getCurrentFrame().getTaskInspectorPanel().getTitleText());
+		} catch (Exception failure) {
+			throw new IllegalStateException("could not read Inspector title on the EDT", failure);
+		}
+		return title[0].contains(text);
+	}
+
+	private static Node findTaskNode(Project project, Task target) {
+		return findTaskNode(project.getTaskModel().getRoot(), target);
+	}
+
+	private static Node findTaskNode(Object candidate, Task target) {
+		if (!(candidate instanceof Node node)) return null;
+		if (node.getImpl() == target) return node;
+		for (Object child : node.getChildren()) {
+			Node found = findTaskNode(child, target);
+			if (found != null) return found;
 		}
 		return null;
 	}
