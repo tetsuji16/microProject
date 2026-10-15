@@ -290,6 +290,52 @@ class NormalTaskPercentCompleteTest {
 	}
 
 	@Test
+	void unassignedTaskOffsetPreservesAssignmentForwardAndInverseContracts() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		task.setDuration(8L * day);
+		ResourceImpl resource = project.getResourcePool().newResourceInstance();
+		resource.setName("Unassigned offset contract resource");
+		AssignmentService.getInstance().newAssignment(task, resource, 1.0d, 0L, this);
+		Assignment assignment = firstAssignment(task);
+		long startDate = task.getStart();
+		long dependencyDate = task.getEffectiveWorkCalendar().add(startDate, 2L * day, false);
+
+		for (double percentComplete : new double[] { 0.0d, 0.5d }) {
+			assignment.setPercentComplete(percentComplete);
+			for (boolean ahead : new boolean[] { false, true }) {
+				for (boolean remainingOnly : new boolean[] { false, true }) {
+					long expected = assignment.calcOffsetFrom(startDate, dependencyDate, ahead, remainingOnly, false);
+					long actual = task.calcOffsetFrom(startDate, dependencyDate, ahead, remainingOnly, false);
+					assertEquals(expected, actual, "assigned percent=" + percentComplete + ", ahead=" + ahead
+						+ ", remainingOnly=" + remainingOnly);
+				}
+			}
+		}
+
+		task.removeAssignment(assignment);
+		assertFalse(task.hasRealAssignments());
+		for (double percentComplete : new double[] { 0.0d, 0.5d }) {
+			task.setPercentComplete(percentComplete);
+			for (boolean ahead : new boolean[] { false, true }) {
+				for (boolean remainingOnly : new boolean[] { false, true }) {
+					long offsetStart = ahead && percentComplete == 0.0d
+						? Math.max(startDate, dependencyDate) : startDate;
+					if (percentComplete > 0.0d)
+						offsetStart = task.getEffectiveWorkCalendar().add(offsetStart,
+							Duration.millis(task.getActualDuration()), false);
+					long duration = remainingOnly ? Duration.millis(task.getRemainingDuration()) : task.getDurationMillis();
+					long expected = task.getEffectiveWorkCalendar().add(offsetStart, ahead ? duration : -duration, false);
+					long actual = task.calcOffsetFrom(startDate, dependencyDate, ahead, remainingOnly, false);
+					assertEquals(expected, actual, "unassigned percent=" + percentComplete + ", ahead=" + ahead
+						+ ", remainingOnly=" + remainingOnly);
+				}
+			}
+		}
+	}
+
+	@Test
 	void completedThroughUpdatePropagatesAssignmentActualStart() {
 		Project project = createProject();
 		NormalTask task = createTask(project);

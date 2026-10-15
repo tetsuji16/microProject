@@ -25,6 +25,9 @@
 package com.microproject.grouping.core.event;
 
 import java.util.EventObject;
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.Map;
 
 import com.microproject.grouping.core.Node;
 
@@ -41,6 +44,7 @@ public class HierarchyEvent extends EventObject {
 	protected Object[] nodes;
 	protected Object flag;
 	protected Object[] oldNodes;
+	protected Map<Object, Object[]> previousParentChildren;
 	protected boolean consumed=false;
 	
 	
@@ -75,6 +79,21 @@ public class HierarchyEvent extends EventObject {
 	}
 	public Object[] getOldNodes() {
 		return oldNodes;
+	}
+	public Map<Object, Object[]> getPreviousParentChildren() {
+		if (previousParentChildren == null) return null;
+		Map<Object, Object[]> copy = new IdentityHashMap<>();
+		previousParentChildren.forEach((parent, children) -> copy.put(parent, children.clone()));
+		return Collections.unmodifiableMap(copy);
+	}
+	public void setPreviousParentChildren(Map<Object, Object[]> previousParentChildren) {
+		if (previousParentChildren == null) {
+			this.previousParentChildren = null;
+			return;
+		}
+		Map<Object, Object[]> copy = new IdentityHashMap<>();
+		previousParentChildren.forEach((parent, children) -> copy.put(parent, children.clone()));
+		this.previousParentChildren = Collections.unmodifiableMap(copy);
 	}
 	public void setOldNodes(Object[] oldNodes) {
 		this.oldNodes = oldNodes;
