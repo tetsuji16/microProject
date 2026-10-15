@@ -409,8 +409,12 @@ public final class ResourceLevelingService {
 						resourcePoolRevisions.putIfAbsent(pool, pool.getCoordinationRevision());
 					}
 				}
+			List<AvailabilityInput> availability = new ArrayList<>();
+			for (ValueObjectForInterval interval : resource.getAvailabilityTable().getList())
+				availability.add(new AvailabilityInput(interval.getStart(), interval.getEnd(),
+					((Availability) interval).getMaximumUnits()));
 				resourceInputs.add(new ResourceInput(resource, resource.getMaximumUnits(), resource.getBookingTypeKind(),
-					resource.isLabor(), resource.getEffectiveWorkCalendar(), List.copyOf(resourceAssignments)));
+				resource.isLabor(), resource.getEffectiveWorkCalendar(), List.copyOf(resourceAssignments), List.copyOf(availability)));
 			}
 			return new PlanSourceState(projectRevisions(revisions), poolRevisions(resourcePoolRevisions),
 				resourceInputs, assignmentInputs, taskInputs);
@@ -443,15 +447,21 @@ public final class ResourceLevelingService {
 		}
 		private record ProjectRevision(Project project, long revision) { }
 		private record ResourcePoolRevision(ResourcePool pool, long revision) { }
+		private record AvailabilityInput(long start, long end, double units) { }
 		private record ResourceInput(Resource resource, double maximumUnits, BookingType.Kind bookingType,
-			boolean labor, WorkCalendar calendar, List<Assignment> assignments) {
+			boolean labor, WorkCalendar calendar, List<Assignment> assignments, List<AvailabilityInput> availability) {
 			private boolean matches() {
 				if (resource.getMaximumUnits() != maximumUnits || resource.getBookingTypeKind() != bookingType
 					|| resource.isLabor() != labor || resource.getEffectiveWorkCalendar() != calendar) return false;
 				List<Assignment> currentAssignments = new ArrayList<>();
 				for (Object value : resource.getAssignments())
 					if (value instanceof Assignment assignment) currentAssignments.add(assignment);
-				return sameIdentitySequence(assignments, currentAssignments);
+			if (!sameIdentitySequence(assignments, currentAssignments)) return false;
+			List<AvailabilityInput> currentAvailability = new ArrayList<>();
+			for (ValueObjectForInterval interval : resource.getAvailabilityTable().getList())
+				currentAvailability.add(new AvailabilityInput(interval.getStart(), interval.getEnd(),
+					((Availability) interval).getMaximumUnits()));
+			return availability.equals(currentAvailability);
 			}
 		}
 		private record AssignmentInput(Assignment assignment, Task task, long start, long end, long delay,
