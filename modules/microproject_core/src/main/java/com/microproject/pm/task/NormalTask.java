@@ -173,6 +173,8 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	private Double importedPercentWorkComplete;
 	/** Task-owned gaps; assignment contours remain the independent work record. */
 	private ArrayList<TaskSplitInterval> taskSplitIntervals = new ArrayList<>();
+	private transient ArrayList<TaskSplitInterval> manualTaskSplitIntervals;
+	private transient ArrayList<TaskSplitInterval> levelingTaskSplitIntervals;
 
 	public static NormalTask getUnassignedInstance() {
 		if (UNASSIGNED == null) {
@@ -1904,6 +1906,15 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 
 
 	public void split(Object eventSource, long from, long to) {
+		split(eventSource, from, to, false);
+	}
+
+	/** Applies a split created by resource leveling so Clear Leveling can remove only generated gaps. */
+	public void splitForLeveling(Object eventSource, long from, long to) {
+		split(eventSource, from, to, true);
+	}
+
+	private void split(Object eventSource, long from, long to, boolean levelingGenerated) {
 		long originalEnd = getEnd();
 		WorkCalendar calendar = getEffectiveWorkCalendar();
 		from = calendar.adjustInsideCalendar(from, false);
@@ -1913,37 +1924,64 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		to = Math.min(to, getEnd());
 		if (to <= from) return;
 		TaskSplitInterval added = new TaskSplitInterval(from - getStart(), to - getStart());
-		for (TaskSplitInterval existing : taskSplitIntervals) {
+		initializeSplitProvenance();
+		ArrayList<TaskSplitInterval> sourceIntervals = levelingGenerated ? levelingTaskSplitIntervals : manualTaskSplitIntervals;
+		for (TaskSplitInterval existing : sourceIntervals) {
 			if (existing.startOffset() <= added.startOffset() && existing.endOffset() >= added.endOffset()) return;
 		}
 		long originalSplitLength = totalTaskSplitLength(taskSplitIntervals);
-		ArrayList<TaskSplitInterval> merged = new ArrayList<>(taskSplitIntervals.size() + 1);
-		long mergedStart = added.startOffset();
-		long mergedEnd = added.endOffset();
-		boolean inserted = false;
-		for (TaskSplitInterval existing : taskSplitIntervals) {
-			if (existing.endOffset() < mergedStart) {
-				merged.add(existing);
-			} else if (existing.startOffset() > mergedEnd) {
-				if (!inserted) {
-					merged.add(new TaskSplitInterval(mergedStart, mergedEnd));
-					inserted = true;
-				}
-				merged.add(existing);
-			} else {
-				mergedStart = Math.min(mergedStart, existing.startOffset());
-				mergedEnd = Math.max(mergedEnd, existing.endOffset());
-			}
-		}
-		if (!inserted) merged.add(new TaskSplitInterval(mergedStart, mergedEnd));
+		sourceIntervals.add(added);
+		ArrayList<TaskSplitInterval> merged = new ArrayList<>(unionTaskSplitIntervals(manualTaskSplitIntervals, levelingTaskSplitIntervals));
 		long addedGapLength = totalTaskSplitLength(merged) - originalSplitLength;
-		if (addedGapLength <= 0) return;
+		if (addedGapLength <= 0) {
+			sourceIntervals.remove(added);
+			return;
+		}
 		long updatedFinish = Math.addExact(originalEnd, addedGapLength);
 		taskSplitIntervals = merged;
 		getCurrentSchedule().setFinish(updatedFinish);
 		setDirty(true);
 		getProject().fireScheduleChanged(eventSource, ScheduleEvent.SCHEDULE, this);
 
+	}
+
+	public boolean clearLevelingGeneratedSplits(Object eventSource) {
+		initializeSplitProvenance();
+		if (levelingTaskSplitIntervals.isEmpty()) return false;
+		long originalEnd = getEnd();
+		long previousLength = totalTaskSplitLength(taskSplitIntervals);
+		ArrayList<TaskSplitInterval> manual = new ArrayList<>(manualTaskSplitIntervals);
+		ArrayList<TaskSplitInterval> merged = new ArrayList<>(unionTaskSplitIntervals(manual, java.util.List.of()));
+		long removedLength = previousLength - totalTaskSplitLength(merged);
+		if (removedLength > 0L) getCurrentSchedule().setFinish(Math.subtractExact(originalEnd, removedLength));
+		taskSplitIntervals = merged;
+		levelingTaskSplitIntervals.clear();
+		setDirty(true);
+		getProject().fireScheduleChanged(eventSource, ScheduleEvent.SCHEDULE, this);
+		return removedLength > 0L;
+	}
+
+	private void initializeSplitProvenance() {
+		if (manualTaskSplitIntervals == null) manualTaskSplitIntervals = new ArrayList<>(taskSplitIntervals);
+		if (levelingTaskSplitIntervals == null) levelingTaskSplitIntervals = new ArrayList<>();
+	}
+
+	public static java.util.List<TaskSplitInterval> unionTaskSplitIntervals(
+		java.util.List<TaskSplitInterval> first, java.util.List<TaskSplitInterval> second) {
+		ArrayList<TaskSplitInterval> sorted = new ArrayList<>(first.size() + second.size());
+		sorted.addAll(first);
+		sorted.addAll(second);
+		sorted.sort(java.util.Comparator.comparingLong(TaskSplitInterval::startOffset));
+		ArrayList<TaskSplitInterval> merged = new ArrayList<>(sorted.size());
+		for (TaskSplitInterval interval : sorted) {
+			if (merged.isEmpty() || merged.getLast().endOffset() < interval.startOffset()) {
+				merged.add(interval);
+			} else {
+				TaskSplitInterval last = merged.removeLast();
+				merged.add(new TaskSplitInterval(last.startOffset(), Math.max(last.endOffset(), interval.endOffset())));
+			}
+		}
+		return java.util.List.copyOf(merged);
 	}
 
 	private static long totalTaskSplitLength(java.util.List<TaskSplitInterval> intervals) {
@@ -1960,6 +1998,25 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	public void restoreTaskSplitIntervals(Object eventSource, java.util.List<TaskSplitInterval> intervals) {
 		taskSplitIntervals = new ArrayList<>(intervals);
 		taskSplitIntervals.sort(java.util.Comparator.comparingLong(TaskSplitInterval::startOffset));
+		manualTaskSplitIntervals = new ArrayList<>(taskSplitIntervals);
+		levelingTaskSplitIntervals = new ArrayList<>();
+	}
+
+	public java.util.List<TaskSplitInterval> getManualTaskSplitIntervals() {
+		initializeSplitProvenance();
+		return java.util.List.copyOf(manualTaskSplitIntervals);
+	}
+
+	public java.util.List<TaskSplitInterval> getLevelingTaskSplitIntervals() {
+		initializeSplitProvenance();
+		return java.util.List.copyOf(levelingTaskSplitIntervals);
+	}
+
+	public void restoreTaskSplitProvenance(java.util.List<TaskSplitInterval> manual,
+		java.util.List<TaskSplitInterval> levelingGenerated) {
+		manualTaskSplitIntervals = new ArrayList<>(manual);
+		levelingTaskSplitIntervals = new ArrayList<>(levelingGenerated);
+		taskSplitIntervals = new ArrayList<>(unionTaskSplitIntervals(manualTaskSplitIntervals, levelingTaskSplitIntervals));
 	}
 
 	/** Restores the native MPO snapshot after MSPDI assignments have been reconstructed. */
@@ -2099,6 +2156,8 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	private void readObject(ObjectInputStream s) throws IOException, ClassNotFoundException  {
 	    s.defaultReadObject();
 	    if (taskSplitIntervals == null) taskSplitIntervals = new ArrayList<>();
+		manualTaskSplitIntervals = new ArrayList<>(taskSplitIntervals);
+		levelingTaskSplitIntervals = new ArrayList<>();
 
 	    hasKey=HasKeyImpl.deserialize(s,this);
 	    customFields=CustomFieldsImpl.deserialize(s);
@@ -2127,7 +2186,11 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	}
 	public Object clone(){
 		Task task=(Task)super.clone();
-		if (task instanceof NormalTask copy) copy.taskSplitIntervals = new ArrayList<>(taskSplitIntervals);
+		if (task instanceof NormalTask copy) {
+			copy.taskSplitIntervals = new ArrayList<>(taskSplitIntervals);
+			copy.manualTaskSplitIntervals = manualTaskSplitIntervals == null ? null : new ArrayList<>(manualTaskSplitIntervals);
+			copy.levelingTaskSplitIntervals = levelingTaskSplitIntervals == null ? null : new ArrayList<>(levelingTaskSplitIntervals);
+		}
 
 
 		return task;
@@ -2142,6 +2205,8 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 			n.importedPercentComplete = importedPercentComplete;
 			n.importedPercentWorkComplete = importedPercentWorkComplete;
 			n.taskSplitIntervals = new ArrayList<>(taskSplitIntervals);
+			n.manualTaskSplitIntervals = manualTaskSplitIntervals == null ? null : new ArrayList<>(manualTaskSplitIntervals);
+			n.levelingTaskSplitIntervals = levelingTaskSplitIntervals == null ? null : new ArrayList<>(levelingTaskSplitIntervals);
 		}
 
 		super.cloneTo(task);
@@ -2370,6 +2435,9 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		TaskBackup backup=new TaskBackup();
 		backup.snapshot=snapshotBackup;
 		backup.taskSplitIntervals = new ArrayList<>(taskSplitIntervals);
+		initializeSplitProvenance();
+		backup.manualTaskSplitIntervals = new ArrayList<>(manualTaskSplitIntervals);
+		backup.levelingTaskSplitIntervals = new ArrayList<>(levelingTaskSplitIntervals);
 		backup.windowEarlyFinish=windowEarlyFinish;
 		backup.windowEarlyStart=windowEarlyStart;
 		backup.windowLateFinish=windowLateFinish;
@@ -2384,6 +2452,8 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	public void restoreDetail(Object source,Object backup,boolean isChild,TaskSnapshot snapshot) {
 		TaskBackup b=(TaskBackup)backup;
 		taskSplitIntervals = b.taskSplitIntervals == null ? new ArrayList<>() : new ArrayList<>(b.taskSplitIntervals);
+		manualTaskSplitIntervals = b.manualTaskSplitIntervals == null ? new ArrayList<>(taskSplitIntervals) : new ArrayList<>(b.manualTaskSplitIntervals);
+		levelingTaskSplitIntervals = b.levelingTaskSplitIntervals == null ? new ArrayList<>() : new ArrayList<>(b.levelingTaskSplitIntervals);
 		windowEarlyFinish=b.windowEarlyFinish;
 		windowEarlyStart=b.windowEarlyStart;
 		windowLateFinish=b.windowLateFinish;

@@ -763,6 +763,8 @@ public class MpoFileImporter extends FileImporter {
 					intervalNode.put("startOffset", interval.startOffset());
 					intervalNode.put("endOffset", interval.endOffset());
 				}
+				writeTaskSplitIntervals(taskNode.putArray("manualIntervals"), normalTask.getManualTaskSplitIntervals());
+				writeTaskSplitIntervals(taskNode.putArray("levelingIntervals"), normalTask.getLevelingTaskSplitIntervals());
 			}
 			return JSON.writeValueAsBytes(root);
 		} catch (IOException exception) {
@@ -803,7 +805,46 @@ public class MpoFileImporter extends FileImporter {
 				previousEnd = interval.endOffset();
 				intervals.add(interval);
 			}
-			normalTask.restoreTaskSplitIntervals(MpoFileImporter.class, intervals);
+			java.util.ArrayList<TaskSplitInterval> manualIntervals = new java.util.ArrayList<>();
+			java.util.ArrayList<TaskSplitInterval> levelingIntervals = new java.util.ArrayList<>();
+			JsonNode manualNodes = taskNode.get("manualIntervals");
+			JsonNode levelingNodes = taskNode.get("levelingIntervals");
+			if (manualNodes == null && levelingNodes == null) {
+				manualIntervals.addAll(intervals);
+			} else {
+				readTaskSplitIntervals(manualNodes, manualIntervals, "manualIntervals");
+				readTaskSplitIntervals(levelingNodes, levelingIntervals, "levelingIntervals");
+				if (!NormalTask.unionTaskSplitIntervals(manualIntervals, levelingIntervals).equals(intervals))
+					throw new IOException("MPO task split provenance does not match task split intervals");
+			}
+		normalTask.restoreTaskSplitProvenance(manualIntervals, levelingIntervals);
+		}
+	}
+
+	private static void writeTaskSplitIntervals(com.fasterxml.jackson.databind.node.ArrayNode nodes,
+		java.util.List<TaskSplitInterval> intervals) {
+		for (TaskSplitInterval interval : intervals) {
+			ObjectNode intervalNode = nodes.addObject();
+			intervalNode.put("startOffset", interval.startOffset());
+			intervalNode.put("endOffset", interval.endOffset());
+		}
+	}
+
+	private static void readTaskSplitIntervals(JsonNode nodes, java.util.List<TaskSplitInterval> target,
+		String fieldName) throws IOException {
+		if (nodes == null || !nodes.isArray()) throw new IOException("Invalid MPO " + fieldName);
+		long previousEnd = Long.MIN_VALUE;
+		for (JsonNode node : nodes) {
+			TaskSplitInterval interval;
+			try {
+				interval = new TaskSplitInterval(integralLong(node.path("startOffset"), "startOffset"),
+					integralLong(node.path("endOffset"), "endOffset"));
+			} catch (IllegalArgumentException | ArithmeticException exception) {
+				throw new IOException("Invalid MPO " + fieldName, exception);
+			}
+			if (interval.startOffset() < previousEnd) throw new IOException("MPO " + fieldName + " overlap or unsorted");
+			previousEnd = interval.endOffset();
+			target.add(interval);
 		}
 	}
 

@@ -319,6 +319,62 @@ class MpoFileImporterTest {
 	}
 
 	@Test
+	void mpoPreservesManualAndLevelingSplitProvenanceForClearLeveling() throws Exception {
+		Project original = projectForRoundTrip();
+		NormalTask task = (NormalTask) firstTask(original);
+		long day = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		task.setDuration(5L * day);
+		long start = task.getStart();
+		long manualFrom = task.getEffectiveWorkCalendar().add(start, day, false);
+		long manualTo = task.getEffectiveWorkCalendar().add(manualFrom, day, false);
+		long levelingFrom = task.getEffectiveWorkCalendar().add(start, 3L * day, false);
+		long levelingTo = task.getEffectiveWorkCalendar().add(levelingFrom, day, false);
+		assertTrue(com.microproject.pm.scheduling.ScheduleService.getInstance().split(this, task, manualFrom, manualTo, null));
+		assertTrue(com.microproject.pm.scheduling.ScheduleService.getInstance().splitForLeveling(this, task, levelingFrom, levelingTo));
+
+		ByteArrayOutputStream archive = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(original, archive));
+		Project reopened = loadFromBytes(archive.toByteArray());
+		NormalTask restored = (NormalTask) firstTask(reopened);
+		assertEquals(task.getManualTaskSplitIntervals(), restored.getManualTaskSplitIntervals());
+		assertEquals(task.getLevelingTaskSplitIntervals(), restored.getLevelingTaskSplitIntervals());
+
+		new com.microproject.pm.resource.ResourceLevelingService().clear(reopened);
+		assertEquals(task.getManualTaskSplitIntervals(), restored.getTaskSplitIntervals(),
+			"clear after MPO reload must retain manual gaps and remove only generated leveling gaps");
+		assertTrue(restored.getLevelingTaskSplitIntervals().isEmpty());
+	}
+
+	@Test
+	void mpoTaskSplitMetadataWithoutProvenanceTreatsExistingGapsAsManual() throws Exception {
+		Project original = projectForRoundTrip();
+		NormalTask task = (NormalTask) firstTask(original);
+		long day = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		task.setDuration(4L * day);
+		long start = task.getStart();
+		long manualFrom = task.getEffectiveWorkCalendar().add(start, day, false);
+		long manualTo = task.getEffectiveWorkCalendar().add(manualFrom, day, false);
+		assertTrue(com.microproject.pm.scheduling.ScheduleService.getInstance().split(this, task, manualFrom, manualTo, null));
+		ByteArrayOutputStream archive = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(original, archive));
+		Map<String, byte[]> entries = readEntries(archive.toByteArray());
+		com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+		com.fasterxml.jackson.databind.node.ObjectNode root = (com.fasterxml.jackson.databind.node.ObjectNode)
+			mapper.readTree(entries.get(MpoFileImporter.TASK_SPLITS_ENTRY));
+		for (com.fasterxml.jackson.databind.JsonNode node : root.path("tasks")) {
+			((com.fasterxml.jackson.databind.node.ObjectNode) node).remove(List.of("manualIntervals", "levelingIntervals"));
+		}
+		byte[] legacySplits = mapper.writeValueAsBytes(root);
+		entries.put(MpoFileImporter.TASK_SPLITS_ENTRY, legacySplits);
+		updateManifestChecksum(entries, MpoFileImporter.TASK_SPLITS_ENTRY, legacySplits);
+		Project reopened = loadFromBytes(zip(entries).toByteArray());
+		NormalTask restored = (NormalTask) firstTask(reopened);
+		assertEquals(task.getTaskSplitIntervals(), restored.getManualTaskSplitIntervals());
+		assertTrue(restored.getLevelingTaskSplitIntervals().isEmpty(),
+			"version-1 MPO task split records without provenance are treated as user-owned splits");
+	}
+
+	@Test
 	void summaryBaselineRollupPreservesSameResourceProfilesAcrossMpoAndUndoRedo() throws Exception {
 		Project project = projectForRoundTrip();
 		NormalTask summary = (NormalTask) firstTask(project);

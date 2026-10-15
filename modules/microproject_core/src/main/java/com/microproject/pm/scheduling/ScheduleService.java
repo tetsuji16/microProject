@@ -176,13 +176,27 @@ public class ScheduleService {
 	 * @param to - end of nonwork interval
 	 */
 	public boolean split(Object eventSource, Schedule schedule, long from, long to,EditSupport undoableEditSupport) {
+		return split(eventSource, schedule, from, to, undoableEditSupport, false);
+	}
+
+	public boolean splitForLeveling(Object eventSource, Schedule schedule, long from, long to) {
+		return split(eventSource, schedule, from, to, null, true);
+	}
+
+	private boolean split(Object eventSource, Schedule schedule, long from, long to,
+		EditSupport undoableEditSupport, boolean levelingGenerated) {
 		if (isReadOnly(schedule))
 			return false;
 		boolean recordUndo = undoableEditSupport != null && !(eventSource instanceof UndoableEdit);
 		Object detailBackup = schedule instanceof NormalTask || schedule instanceof Assignment
 			|| recordUndo ? schedule.backupDetail() : null;
 		List<String> intervalsBefore = splitIntervalState(schedule);
-		schedule.split(eventSource,DateTime.hourFloor(from),DateTime.hourFloor(to));
+		long roundedFrom = DateTime.hourFloor(from);
+		long roundedTo = DateTime.hourFloor(to);
+		if (levelingGenerated && schedule instanceof NormalTask normalTask)
+			normalTask.splitForLeveling(eventSource, roundedFrom, roundedTo);
+		else
+			schedule.split(eventSource, roundedFrom, roundedTo);
 		boolean changed = didSplitChangeSchedule(schedule, detailBackup, intervalsBefore);
 		if (!changed && detailBackup != null) {
 			schedule.restoreDetail(eventSource, detailBackup, false);

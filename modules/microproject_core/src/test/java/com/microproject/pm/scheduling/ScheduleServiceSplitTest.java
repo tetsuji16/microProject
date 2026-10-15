@@ -39,6 +39,7 @@ import com.microproject.options.CalendarOption;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.resource.ResourceLevelingService;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.scheduling.IntervalConsumer;
@@ -234,6 +235,43 @@ class ScheduleServiceSplitTest {
 		assertFalse(undoController.canUndo(), "a repeated split must not create phantom Undo history");
 		assertFalse(project.isDirty(), "a repeated split must not dirty the project");
 		assertFalse(task.isDirty(), "a repeated split must not dirty the task");
+	}
+
+	@Test
+	void clearLevelingRemovesOnlyGeneratedSplitCoverageAndUndoRestoresIt() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		project.initialize(false, false);
+		NormalTask task = new NormalTask(project);
+		project.connectTask(task);
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		task.setDuration(5L * day);
+		long start = task.getStart();
+		long originalEnd = task.getEnd();
+		long manualFrom = task.getEffectiveWorkCalendar().add(start, day, false);
+		long manualTo = task.getEffectiveWorkCalendar().add(manualFrom, day, false);
+		assertTrue(ScheduleService.getInstance().split(this, task, manualFrom, manualTo, null));
+		long generatedFrom = task.getEffectiveWorkCalendar().add(start, day + day / 2L, false);
+		long generatedTo = task.getEffectiveWorkCalendar().add(start, 2L * day + day / 2L, false);
+		assertTrue(ScheduleService.getInstance().splitForLeveling(this, task, generatedFrom, generatedTo));
+		assertEquals(1, task.getTaskSplitIntervals().size(), "manual and generated overlap should remain one visible gap");
+		assertEquals(1, task.getManualTaskSplitIntervals().size());
+		assertEquals(1, task.getLevelingTaskSplitIntervals().size());
+		long endWithBoth = task.getEnd();
+
+		new ResourceLevelingService().clear(project, undoController.getEditSupport());
+		assertEquals(List.of(new com.microproject.pm.task.TaskSplitInterval(manualFrom - start, manualTo - start)),
+			task.getTaskSplitIntervals(), "clear must preserve the manual interval even where it overlapped a generated split");
+		assertTrue(task.getEnd() < endWithBoth);
+		assertTrue(undoController.canUndo(), "clear must be undoable when it removes generated split state");
+		undoController.undo();
+		assertEquals(endWithBoth, task.getEnd());
+		assertEquals(1, task.getLevelingTaskSplitIntervals().size());
+		undoController.redo();
+		assertEquals(originalEnd + (manualTo - manualFrom), task.getEnd(),
+			"after clearing, only the manual gap's elapsed duration remains");
+		assertTrue(task.getLevelingTaskSplitIntervals().isEmpty());
 	}
 
 	private List<String> taskIntervals(NormalTask task) {
