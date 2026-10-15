@@ -6,7 +6,6 @@ package com.microproject.dialog;
 
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
-import java.awt.GridLayout;
 import java.text.DateFormat;
 import java.text.DateFormatSymbols;
 import java.text.MessageFormat;
@@ -17,6 +16,7 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 import javax.swing.BorderFactory;
+import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -36,7 +36,7 @@ import com.microproject.strings.Messages;
 /** Read-only, selection-following schedule facts for the selected task. */
 public final class TaskInspectorPanel extends JPanel {
 	private static final long serialVersionUID = 1L;
-	private final JPanel content = new JPanel(new GridLayout(0, 1, 0, 8));
+	private final JPanel content = new JPanel();
 	private final JLabel title = new JLabel(Messages.getString("TaskInspector.SelectTask"), SwingConstants.LEADING);
 	private final Consumer<Task> navigate;
 	private final Consumer<Task> makeAutomatic;
@@ -48,6 +48,7 @@ public final class TaskInspectorPanel extends JPanel {
 		this.makeAutomatic = makeAutomatic;
 		this.canMakeAutomatic = canMakeAutomatic;
 		setLayout(new BorderLayout(0, 8));
+		content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
 		setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
 		add(title, BorderLayout.NORTH);
 		add(new JScrollPane(content), BorderLayout.CENTER);
@@ -112,7 +113,8 @@ public final class TaskInspectorPanel extends JPanel {
 	}
 
 	private JPanel predecessorPanel(Task selected) {
-		JPanel rows = new JPanel(new GridLayout(0, 1, 0, 3));
+		JPanel rows = new JPanel();
+		rows.setLayout(new BoxLayout(rows, BoxLayout.Y_AXIS));
 		for (Object value : selected.getPredecessorList()) {
 			Dependency dependency = (Dependency) value;
 			Task predecessor = (Task) dependency.getPredecessor();

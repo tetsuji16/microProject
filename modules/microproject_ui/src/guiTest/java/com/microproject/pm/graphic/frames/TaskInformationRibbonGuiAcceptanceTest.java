@@ -3458,7 +3458,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		DependencyService.getInstance().newDependency(predecessor, successor, DependencyType.FS, 0L, this);
 		project.recalculate();
 		showProject(project);
-		SwingUtilities.invokeAndWait(() -> window.setSize(1320, 760));
+		SwingUtilities.invokeAndWait(() -> window.setSize(980, 760));
 		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null
 				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
 			"the task Inspector project did not become visible");
@@ -3476,11 +3476,17 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		JSplitPane inspectorSplit = manager.getCurrentFrame().getTaskInspectorSplit();
 		assertTrue(inspectorSplit.getDividerLocation() > 0, "the Inspector must appear to the left of project information");
 		assertTrue(inspectorSplit.getLeftComponent().isVisible(), "the Inspector pane must remain visible");
+		inspectorSplit.setDividerLocation(300);
 		long predecessorStart = predecessor.getStart();
 		long successorStart = successor.getStart();
 		boolean dirtyBefore = project.needsSaving();
 		boolean undoBefore = project.getUndoController().canUndo();
 		AbstractButton predecessorLink = inspectorPredecessorButton("Inspector predecessor");
+		assertTrue(inspectorLinkFitsNaturalHeight(predecessorLink),
+			"Inspector sections and predecessor controls must keep natural heights in the narrow pane: button="
+				+ inspectorButtonBounds(predecessorLink) + "; viewport="
+				+ inspectorViewportBounds(SwingUtilities.getAncestorOfClass(javax.swing.JScrollPane.class, predecessorLink) instanceof javax.swing.JScrollPane scrollPane
+					? scrollPane.getViewport() : null));
 		java.util.concurrent.atomic.AtomicBoolean predecessorRouteInvoked = new java.util.concurrent.atomic.AtomicBoolean();
 		predecessorLink.addActionListener(event -> predecessorRouteInvoked.set(true));
 		click(robot, predecessorLink);
@@ -3569,6 +3575,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 
 	private AbstractButton inspectorPredecessorButton(String predecessorName) throws Exception {
 		AbstractButton[] found = new AbstractButton[1];
+		javax.swing.JViewport[] foundViewport = new javax.swing.JViewport[1];
 		SwingUtilities.invokeAndWait(() -> {
 			TaskInspectorPanel panel = manager.getCurrentFrame().getTaskInspectorPanel();
 			findInspectorButton(panel, predecessorName, found);
@@ -3576,15 +3583,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				for (java.awt.Container parent = found[0].getParent(); parent != null; parent = parent.getParent()) {
 					if (parent instanceof javax.swing.JScrollPane scrollPane) {
 						javax.swing.JViewport viewport = scrollPane.getViewport();
-						java.awt.Rectangle bounds = javax.swing.SwingUtilities.convertRectangle(found[0].getParent(),
-							found[0].getBounds(), viewport.getView());
-						java.awt.Point position = viewport.getViewPosition();
-						java.awt.Dimension extent = viewport.getExtentSize();
-						int y = position.y;
-						if (bounds.y < y) y = bounds.y;
-						else if (bounds.y + bounds.height > y + extent.height) y = bounds.y + bounds.height - extent.height;
-						int maxY = Math.max(0, viewport.getView().getHeight() - extent.height);
-						viewport.setViewPosition(new java.awt.Point(Math.max(0, bounds.x), Math.max(0, Math.min(maxY, y))));
+						foundViewport[0] = viewport;
+						scrollInspectorButtonToCenter(found[0], viewport);
 						break;
 					}
 				}
@@ -3592,9 +3592,69 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		});
 		if (found[0] == null)
 			throw new AssertionError("Inspector predecessor control not found for: " + predecessorName);
-		GuiAcceptanceSupport.await(found[0]::isShowing,
-			"Inspector predecessor control did not render: " + predecessorName);
+		GuiAcceptanceSupport.await(() -> inspectorButtonCenterIsVisible(found[0], foundViewport[0], predecessorName),
+			"Inspector predecessor control did not reach the visible scroll viewport: " + predecessorName
+				+ "; button=" + inspectorButtonBounds(found[0]) + "; viewport=" + inspectorViewportBounds(foundViewport[0]));
 		return found[0];
+	}
+
+	private static void scrollInspectorButtonToCenter(AbstractButton button, javax.swing.JViewport viewport) {
+		javax.swing.JComponent view = (javax.swing.JComponent) viewport.getView();
+		view.validate();
+		viewport.validate();
+		java.awt.Rectangle bounds = javax.swing.SwingUtilities.convertRectangle(button.getParent(), button.getBounds(), view);
+		java.awt.Dimension extent = viewport.getExtentSize();
+		int x = Math.max(0, bounds.x + bounds.width / 2 - extent.width / 2);
+		int y = Math.max(0, bounds.y + bounds.height / 2 - extent.height / 2);
+		int maxX = Math.max(0, view.getWidth() - extent.width);
+		int maxY = Math.max(0, view.getHeight() - extent.height);
+		viewport.setViewPosition(new java.awt.Point(Math.min(maxX, x), Math.min(maxY, y)));
+	}
+
+	private boolean inspectorButtonCenterIsVisible(AbstractButton button, javax.swing.JViewport viewport,
+			String predecessorName) {
+		boolean[] visible = new boolean[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				TaskInspectorPanel current = manager.getCurrentFrame().getTaskInspectorPanel();
+				if (button == null || viewport == null || !button.isShowing() || !viewport.isShowing()
+						|| !javax.swing.SwingUtilities.isDescendingFrom(button, current)) return;
+				scrollInspectorButtonToCenter(button, viewport);
+				java.awt.Rectangle buttonBounds = new java.awt.Rectangle(button.getLocationOnScreen(), button.getSize());
+				java.awt.Rectangle viewportBounds = new java.awt.Rectangle(viewport.getLocationOnScreen(), viewport.getExtentSize());
+				visible[0] = viewportBounds.contains(buttonBounds.getCenterX(), buttonBounds.getCenterY());
+			});
+		} catch (Exception failure) {
+			throw new IllegalStateException("could not prepare Inspector predecessor target " + predecessorName, failure);
+		}
+		return visible[0];
+	}
+
+	private static String inspectorButtonBounds(AbstractButton button) {
+		return button == null || !button.isShowing() ? "not-showing"
+			: new java.awt.Rectangle(button.getLocationOnScreen(), button.getSize()).toString();
+	}
+
+	private static String inspectorViewportBounds(javax.swing.JViewport viewport) {
+		return viewport == null || !viewport.isShowing() ? "not-showing"
+			: new java.awt.Rectangle(viewport.getLocationOnScreen(), viewport.getExtentSize()).toString()
+				+ " viewPosition=" + viewport.getViewPosition() + " viewSize=" + viewport.getViewSize();
+	}
+
+	private static boolean inspectorLinkFitsNaturalHeight(AbstractButton button) {
+		boolean[] fits = new boolean[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				if (button == null || !button.isShowing()) return;
+				javax.swing.JScrollPane scroll = (javax.swing.JScrollPane) SwingUtilities.getAncestorOfClass(
+					javax.swing.JScrollPane.class, button);
+				fits[0] = scroll != null && button.getHeight() <= 80
+					&& button.getHeight() < scroll.getViewport().getExtentSize().height;
+			});
+		} catch (Exception failure) {
+			throw new IllegalStateException("could not inspect Inspector control dimensions", failure);
+		}
+		return fits[0];
 	}
 
 	private static void findInspectorButton(java.awt.Container parent, String expectedPrefix, AbstractButton[] result) {
