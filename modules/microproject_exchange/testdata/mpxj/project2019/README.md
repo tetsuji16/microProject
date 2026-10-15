@@ -17,7 +17,8 @@ it is not a claim that Project 365 or Project 2024 generated these files.
 
 The companion MSPDI files and upstream MPXJ tests provide an oracle independent
 of microProject's MPP reader. `MpxExportTrackingTest.project2019Mpp14FixturesMatchIndependentManifestAndMpoReload`
-checks the MPP fixtures; `MpxExportTrackingTest.project2019TaskBaselineSlotsMatchIndependentManifestAndMpoReload`
+checks the MPP fixtures and the assignment-progress literals in both paired
+MSPDI import and MPO reload; `MpxExportTrackingTest.project2019TaskBaselineSlotsMatchIndependentManifestAndMpoReload`
 checks baseline values from the paired MSPDI fixture, standard MSPDI output, and MPO save/reload:
 
 - `task-links`: 16 named tasks at outline level 1 with eight-hour durations;

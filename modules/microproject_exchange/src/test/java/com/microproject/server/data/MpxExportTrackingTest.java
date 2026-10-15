@@ -984,6 +984,11 @@ class MpxExportTrackingTest {
 		assertProject2019Assignments(assignments);
 		assertProject2019Assignments(roundTripMpo(assignments));
 
+		Project assignmentMspdi = importMspdi(Files.readString(
+			fixtureDirectory.resolve("assignment-assignments-project2019-mspdi.xml")));
+		assertProject2019Assignments(assignmentMspdi);
+		assertProject2019Assignments(roundTripMpo(assignmentMspdi));
+
 		Project calendars = importMppFixture(fixtureDirectory.resolve("calendar-calendars-project2019-mpp14.mpp"));
 		assertProject2019Calendars(calendars);
 		assertProject2019Calendars(roundTripMpo(calendars));
