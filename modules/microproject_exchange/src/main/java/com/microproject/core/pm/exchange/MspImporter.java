@@ -777,14 +777,15 @@ public class MspImporter {
 			Duration duration = getTaskBaselineDuration(mpxTask, snapshotId);
 			Number fixedCost = snapshotId == 0 ? mpxTask.getBaselineFixedCost()
 				: mpxTask.getBaselineFixedCost(snapshotId);
-			net.sf.mpxj.AccrueType fixedCostAccrual = snapshotId == 0
-				? mpxTask.getBaselineFixedCostAccrual() : mpxTask.getBaselineFixedCostAccrual(snapshotId);
+			// MSPDI defines FixedCostAccrual on Task, not inside each Baseline
+			// element. Apply the task-level rule when importing its baseline amount.
+			net.sf.mpxj.AccrueType fixedCostAccrual = mpxTask.getFixedCostAccrual();
 			MpxImportState.RawMspdiTaskBaseline rawBaseline = state.getRawMspdiTaskBaseline(
 				mpxTask.getUniqueID() == null ? null : Long.valueOf(mpxTask.getUniqueID().longValue()), snapshotId);
 			if (fixedCost == null && rawBaseline != null && rawBaseline.fixedCost() != null)
 				fixedCost = rawBaseline.fixedCost();
 			if (start == null && finish == null && duration == null && fixedCost == null
-					&& fixedCostAccrual == null && rawBaseline == null)
+					&& rawBaseline == null)
 				continue;
 
 			TaskSnapshot snapshot = new TaskSnapshot();
@@ -802,6 +803,7 @@ public class MspImporter {
 				schedule.setRawDuration(MpxUtils.toProjectDuration(duration));
 			}
 			snapshot.setCurrentSchedule(schedule);
+			snapshot.setFixedCostCalendar(task.getEffectiveWorkCalendar());
 			if (fixedCost != null) snapshot.setFixedCost(fixedCost.doubleValue());
 			if (fixedCostAccrual != null)
 				snapshot.setFixedCostAccrual(((Integer) new MpxAccrueTypeConverter().from(fixedCostAccrual)).intValue());

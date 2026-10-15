@@ -1117,7 +1117,9 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		Map<NormalTask, TaskSnapshot> snapshots = new java.util.IdentityHashMap<>();
 		for (NormalTask task : selectedTasks) {
 			if (!(task.getCurrentSnapshot() instanceof TaskSnapshot current)) continue;
-			snapshots.put(task, (TaskSnapshot) task.cloneSnapshot(current));
+			TaskSnapshot snapshot = (TaskSnapshot) task.cloneSnapshot(current);
+			snapshot.setFixedCostCalendar(task.getEffectiveWorkCalendar());
+			snapshots.put(task, snapshot);
 		}
 		return snapshots;
 	}
@@ -1161,6 +1163,8 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 				? ((TaskSnapshot) summary.getCurrentSnapshot()).getFixedCost()
 				: previous == null ? 0.0d : previous.getFixedCost();
 			rolled.setFixedCost(ownFixedCost);
+			if (selectedTasks.contains(summary) || previous == null)
+				rolled.setFixedCostCalendar(summary.getEffectiveWorkCalendar());
 			stagedSnapshots.put(summary, rolled);
 			prepared.add(new PreparedBaselineRollup(summary, rolled, assignments));
 		}

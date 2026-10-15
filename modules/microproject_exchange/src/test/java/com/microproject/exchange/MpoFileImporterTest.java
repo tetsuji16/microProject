@@ -441,6 +441,15 @@ class MpoFileImporterTest {
 			baselineMetadata.deepCopy();
 		((com.fasterxml.jackson.databind.node.ObjectNode) fractionalSlotMetadata.path("tasks").get(0)).put("slot", 0.5d);
 		assertMalformedBaselineMetadataPreservesTarget(validationTarget, baselineMapper, fractionalSlotMetadata);
+		com.fasterxml.jackson.databind.node.ObjectNode invalidCalendarMetadata =
+			(com.fasterxml.jackson.databind.node.ObjectNode) baselineMetadata.deepCopy();
+		com.fasterxml.jackson.databind.node.ObjectNode calendarRecord =
+			(com.fasterxml.jackson.databind.node.ObjectNode) java.util.stream.StreamSupport
+				.stream(invalidCalendarMetadata.path("tasks").spliterator(), false)
+				.filter(value -> value.has("fixedCostCalendar")).findFirst().orElseThrow();
+		((com.fasterxml.jackson.databind.node.ObjectNode) calendarRecord.path("fixedCostCalendar")
+			.path("week").get(0)).remove("defined");
+		assertMalformedBaselineMetadataPreservesTarget(validationTarget, baselineMapper, invalidCalendarMetadata);
 		net.sf.mpxj.ProjectFile mspdi = new net.sf.mpxj.mspdi.MSPDIReader()
 			.read(new ByteArrayInputStream(savedEntries.get(MpoFileImporter.PROJECT_ENTRY)));
 		assertEquals(7.0d, Double.parseDouble(taskBaselineXmlField(
@@ -579,6 +588,38 @@ class MpoFileImporterTest {
 			assertEquals(0L, snapshot.getCurrentSchedule().getStart());
 			assertEquals(0L, snapshot.getCurrentSchedule().getFinish());
 		}
+	}
+
+	@Test
+	void baselineProratedFixedCostCalendarSurvivesCalendarChangeAndMpoRoundTrip() throws Exception {
+		Project project = projectForRoundTrip();
+		NormalTask task = (NormalTask) firstTask(project);
+		long start = project.getStartDate();
+		long hour = 60L * 60L * 1000L;
+		task.getCurrentSchedule().setStart(start);
+		task.getCurrentSchedule().setFinish(start + 8L * hour);
+		task.getCurrentSchedule().setRawDuration(8L * hour);
+		task.setFixedCost(240.0d);
+		task.setFixedCostAccrual(com.microproject.pm.costing.Accrual.Kind.PRORATED);
+		int slot = com.microproject.pm.snapshot.Snapshottable.BASELINE_1;
+		task.saveCurrentToSnapshot(Integer.valueOf(slot));
+		double expectedFirstHalf = task.getBaselineCost(slot, start, start + 4L * hour);
+		assertEquals(120.0d, expectedFirstHalf, 0.001d);
+
+		com.microproject.pm.calendar.WorkingCalendar changed =
+			((com.microproject.pm.calendar.WorkingCalendar) task.getEffectiveWorkCalendar()).copyForBaselineSnapshot();
+		for (int day = 0; day < com.microproject.pm.calendar.WorkWeek.DAYS_IN_WEEK; day++)
+			changed.setWeekDay(day, null);
+		task.setWorkCalendar(changed);
+		assertEquals(expectedFirstHalf, task.getBaselineCost(slot, start, start + 4L * hour), 0.001d,
+			"Live calendar changes must not alter a saved baseline's fixed-cost profile");
+
+		Project reopened = loadFromBytes(saveProjectBytes(project));
+		NormalTask restored = (NormalTask) firstTask(reopened);
+		assertEquals(expectedFirstHalf, restored.getBaselineCost(slot, start, start + 4L * hour), 0.001d,
+			"MPO must restore the captured baseline fixed-cost calendar and accrual");
+		assertEquals(240.0d, restored.getBaselineCost(slot, start - 1L, start + 8L * hour + 1L), 0.001d,
+			"The complete baseline interval must retain the full prorated fixed cost");
 	}
 
 	private static String taskBaselineXmlField(byte[] xml, String taskName, int slot, String field)
@@ -1043,6 +1084,8 @@ class MpoFileImporterTest {
 	private static void assertMalformedBaselineMetadataPreservesTarget(Project target,
 		com.fasterxml.jackson.databind.ObjectMapper mapper, com.fasterxml.jackson.databind.JsonNode malformed) throws Exception {
 		java.util.Map<String, java.util.List<Long>> originalProfileIds = new java.util.LinkedHashMap<>();
+		java.util.Map<String, com.microproject.pm.calendar.WorkCalendar> originalFixedCostCalendars =
+			new java.util.LinkedHashMap<>();
 		for (com.fasterxml.jackson.databind.JsonNode taskNode : malformed.path("tasks")) {
 			long taskUid = taskNode.path("taskUid").longValue();
 			int slot = taskNode.path("slot").intValue();
@@ -1051,6 +1094,8 @@ class MpoFileImporterTest {
 					|| !(normalTask.getSnapshot(Integer.valueOf(slot)) instanceof TaskSnapshot snapshot)) continue;
 			originalProfileIds.put(taskUid + ":" + slot, snapshot.captureBaselineProfiles(normalTask, slot).stream()
 				.map(profile -> Long.valueOf(profile.profileId())).toList());
+			if (snapshot.getFixedCostCalendar() != null)
+				originalFixedCostCalendars.put(taskUid + ":" + slot, snapshot.getFixedCostCalendar());
 		}
 		java.lang.reflect.Method restore = MpoFileImporter.class.getDeclaredMethod("restoreBaselineProfiles",
 			Project.class, byte[].class);
@@ -1073,6 +1118,9 @@ class MpoFileImporterTest {
 			assertEquals(originalProfileIds.get(key), snapshot.captureBaselineProfiles(task, slot).stream()
 				.map(profile -> Long.valueOf(profile.profileId())).toList(),
 				"Malformed MPO sidecar data must not partially replace target baseline profiles");
+			if (originalFixedCostCalendars.containsKey(key))
+				assertSame(originalFixedCostCalendars.get(key), snapshot.getFixedCostCalendar(),
+					"Malformed MPO sidecar data must not replace a saved baseline fixed-cost calendar");
 		}
 	}
 

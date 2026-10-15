@@ -38,11 +38,13 @@ import com.microproject.algorithm.TimeIteratorGenerator;
 import com.microproject.algorithm.buffer.CalculatedValues;
 import com.microproject.association.AssociationList;
 import com.microproject.field.FieldContext;
+import com.microproject.datatype.Duration;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.BaselineAssignmentProfile;
 import com.microproject.pm.assignment.HasAssignments;
 import com.microproject.pm.assignment.HasAssignmentsImpl;
 import com.microproject.pm.calendar.WorkCalendar;
+import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.costing.Accrual;
 import com.microproject.pm.criticalpath.TaskSchedule;
 import com.microproject.pm.resource.Resource;
@@ -56,6 +58,7 @@ public class TaskSnapshot implements DataSnapshot, HasAssignments, Cloneable {
 	HasAssignments hasAssignments = null;
 	double fixedCost = 0;
 	int fixedCostAccrual = Accrual.Kind.END.code();
+	WorkCalendar fixedCostCalendar;
 	boolean ignoreResourceCalendar = false;
 
 
@@ -110,6 +113,8 @@ public class TaskSnapshot implements DataSnapshot, HasAssignments, Cloneable {
 			newOne.currentSchedule = (TaskSchedule) currentSchedule.clone();
 			newOne.hasAssignments = (HasAssignments) ((HasAssignmentsImpl)hasAssignments)
 				.cloneSnapshotWithSchedule(newOne.currentSchedule);
+			if (fixedCostCalendar != null)
+				newOne.fixedCostCalendar = (WorkCalendar) fixedCostCalendar.clone();
 		} catch (CloneNotSupportedException e) {
 			throw new IllegalStateException("TaskSnapshot should be cloneable", e);
 		}
@@ -124,6 +129,8 @@ public class TaskSnapshot implements DataSnapshot, HasAssignments, Cloneable {
 			newOne.currentSchedule = (TaskSchedule) currentSchedule.cloneWithTask(task);
 			newOne.hasAssignments = (HasAssignments) ((HasAssignmentsImpl)hasAssignments)
 				.deepCloneSnapshotWithTask(task);
+			if (fixedCostCalendar != null)
+				newOne.fixedCostCalendar = (WorkCalendar) fixedCostCalendar.clone();
 		} catch (CloneNotSupportedException e) {
 			throw new IllegalStateException("TaskSnapshot should be cloneable", e);
 		}
@@ -375,7 +382,7 @@ public class TaskSnapshot implements DataSnapshot, HasAssignments, Cloneable {
 	 * @return
 	 */
 	public double baselineCost(long start, long end) {
-		return hasAssignments.baselineCost(start, end);
+		return hasAssignments.baselineCost(start, end) + baselineFixedCost(start, end);
 	}
 	/**
 	 * @param start
@@ -394,7 +401,31 @@ public class TaskSnapshot implements DataSnapshot, HasAssignments, Cloneable {
 	}
 
 	public double fixedCost(long start, long end) {
-		return 0;
+		return baselineFixedCost(start, end);
+	}
+
+	private double baselineFixedCost(long start, long end) {
+		if (currentSchedule == null) return 0.0D;
+		WorkCalendar calendar = fixedCostCalendar;
+		if (calendar == null) return 0.0D;
+		return FixedCostAccrualCalculator.calculate(Accrual.Kind.fromCodeOrNull(fixedCostAccrual),
+			fixedCost, currentSchedule.getStart(), currentSchedule.getFinish(),
+			Duration.millis(currentSchedule.getRawDuration()),
+			calendar, start, end);
+	}
+
+	public WorkCalendar getFixedCostCalendar() { return fixedCostCalendar; }
+	public void setFixedCostCalendar(WorkCalendar calendar) {
+		if (calendar == null) { fixedCostCalendar = null; return; }
+		if (calendar instanceof WorkingCalendar workingCalendar) {
+			fixedCostCalendar = workingCalendar.copyForBaselineSnapshot();
+			return;
+		}
+		try {
+			fixedCostCalendar = (WorkCalendar) calendar.clone();
+		} catch (CloneNotSupportedException exception) {
+			throw new IllegalArgumentException("Baseline fixed-cost calendar cannot be copied", exception);
+		}
 	}
 	public double actualFixedCost(long start, long end) {
 		return 0;
@@ -409,6 +440,8 @@ public class TaskSnapshot implements DataSnapshot, HasAssignments, Cloneable {
 	 * @param fixedCost The fixedCost to set.
 	 */
 	public final void setFixedCost(double fixedCost) {
+		if (!Double.isFinite(fixedCost))
+			throw new IllegalArgumentException("Fixed cost must be a finite currency amount");
 		this.fixedCost = fixedCost;
 	}
 	/**

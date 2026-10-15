@@ -1686,6 +1686,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		task.setWbsParent(summary);
 		Resource resource = project.getResourcePool().createScriptedResource();
 		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1.0d, 0L, this);
+		task.setFixedCost(10.0d);
+		summary.setFixedCost(5.0d);
 		long day = CalendarOption.getInstance().getMillisPerDay();
 		assignment.setWork(day, null);
 		project.saveCurrentToSnapshot(Integer.valueOf(Snapshottable.BASELINE), false, List.of(summary));
@@ -1733,10 +1735,15 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Assignment.BaselineValues originalBaselineValues = assignment.getBaselineValues(Snapshottable.BASELINE);
 		assertEquals(Long.valueOf(day), originalBaselineValues.work(),
 			"The first save must capture the seeded one-day assignment baseline");
+		assertEquals(10.0d, task.getBaselineCost(Snapshottable.BASELINE), 0.001d,
+			"The leaf Baseline Cost includes its own saved Fixed Cost");
+		assertEquals(15.0d, summary.getBaselineCost(Snapshottable.BASELINE), 0.001d,
+			"The summary Baseline Cost includes the leaf total and its own Fixed Cost exactly once");
 		long replacementStart = project.getEffectiveWorkCalendar().add(task.getStart(),
 			day, false);
 		SwingUtilities.invokeAndWait(() -> {
 			task.setStart(replacementStart);
+			task.setFixedCost(20.0d);
 			assignment.setWork(3L * day, null);
 			project.recalculate();
 		});
@@ -1850,6 +1857,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Assignment.BaselineValues overwrittenBaselineValues = assignment.getBaselineValues(Snapshottable.BASELINE);
 		assertEquals(Long.valueOf(3L * day), overwrittenBaselineValues.work(),
 			"Overwrite must capture the explicitly seeded three-day assignment work");
+		assertEquals(20.0d, task.getBaselineCost(Snapshottable.BASELINE), 0.001d,
+			"The overwritten leaf Baseline Cost includes its replacement Fixed Cost");
+		assertEquals(25.0d, summary.getBaselineCost(Snapshottable.BASELINE), 0.001d,
+			"The rolled-up summary includes descendant Baseline Cost and its own Fixed Cost once");
 		assertEquals(1, ((com.microproject.pm.task.TaskSnapshot) summary.getSnapshot(Snapshottable.BASELINE))
 			.captureBaselineProfiles(summary, Snapshottable.BASELINE).size(),
 			"The summary receives one detached child baseline profile");
@@ -1863,6 +1874,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				&& originalBaselineValues.equals(assignment.getBaselineValues(Snapshottable.BASELINE)),
 			"Undo did not restore the overwritten task and summary baseline snapshots");
 		assertEquals(originalBaselineValues, assignment.getBaselineValues(Snapshottable.BASELINE));
+		assertEquals(10.0d, task.getBaselineCost(Snapshottable.BASELINE), 0.001d,
+			"Undo restores the leaf total Baseline Cost");
+		assertEquals(15.0d, summary.getBaselineCost(Snapshottable.BASELINE), 0.001d,
+			"Undo restores the summary total Baseline Cost without rolling Fixed Cost into its own field");
 		assertEquals(overwrittenBaselineStart, task.getStart(), "Undo must preserve the current task schedule");
 		assertEquals(currentAssignmentWork, assignment.getWork(null), "Undo must preserve current assignment work");
 		ByteArrayOutputStream restoredSaved = new ByteArrayOutputStream();
@@ -1870,6 +1885,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Project restoredReload = new MpoFileImporter().loadProject(new ByteArrayInputStream(restoredSaved.toByteArray()));
 		NormalTask restoredTask = (NormalTask) taskNamed(restoredReload, task.getName());
 		assertEquals(originalBaselineStart, restoredTask.getBaselineStart(Snapshottable.BASELINE));
+		assertEquals(10.0d, restoredTask.getBaselineCost(Snapshottable.BASELINE), 0.001d,
+			"MPO reopen preserves the restored leaf total Baseline Cost");
 		NormalTask restoredSummary = (NormalTask) taskNamed(restoredReload, summary.getName());
 		assertEquals(originalSummaryBaselineProfileCount,
 			((com.microproject.pm.task.TaskSnapshot) restoredSummary.getSnapshot(Snapshottable.BASELINE))
@@ -1890,7 +1907,11 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		NormalTask reloadedTask = (NormalTask) taskNamed(reloaded, task.getName());
 		assertEquals(overwrittenBaselineStart, reloadedTask.getBaselineStart(Snapshottable.BASELINE),
 			"MPO reopen must retain the replacement baseline");
+		assertEquals(20.0d, reloadedTask.getBaselineCost(Snapshottable.BASELINE), 0.001d,
+			"MPO reopen preserves the overwritten leaf total Baseline Cost");
 		NormalTask reloadedSummary = (NormalTask) taskNamed(reloaded, summary.getName());
+		assertEquals(25.0d, reloadedSummary.getBaselineCost(Snapshottable.BASELINE), 0.001d,
+			"MPO reopen preserves the rolled-up summary total Baseline Cost");
 		assertEquals(1, ((com.microproject.pm.task.TaskSnapshot) reloadedSummary.getSnapshot(Snapshottable.BASELINE))
 			.captureBaselineProfiles(reloadedSummary, Snapshottable.BASELINE).size(),
 			"MPO reopen must retain the summary's detached rolled-up profile");

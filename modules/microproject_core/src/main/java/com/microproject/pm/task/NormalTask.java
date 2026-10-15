@@ -95,6 +95,7 @@ import com.microproject.pm.scheduling.SchedulingType;
 import com.microproject.pm.snapshot.BaselineScheduleFields;
 import com.microproject.pm.snapshot.DataSnapshot;
 import com.microproject.pm.snapshot.SnapshottableImpl;
+import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.server.access.ErrorLogger;
 import com.microproject.strings.Messages;
 import com.microproject.util.DateTime;
@@ -404,7 +405,11 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	 * @param i
 	 */
 	public void saveCurrentToSnapshot(Object snapshotId) {
-		setSnapshot(snapshotId, cloneSnapshot(getSnapshot(CURRENT)));
+		TaskSnapshot snapshot = (TaskSnapshot) cloneSnapshot(getSnapshot(CURRENT));
+		if (snapshotId instanceof Integer slot && slot.intValue() >= 0
+				&& slot.intValue() < Snapshottable.CURRENT.intValue())
+			snapshot.setFixedCostCalendar(getEffectiveWorkCalendar());
+		setSnapshot(snapshotId, snapshot);
 		markTaskAsNeedingRecalculation(); // for redraw purpooses, not for recalc.
 		setDirty(true);
 	}
@@ -839,7 +844,20 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 				numBaseline)));
 		if (snapshot == null)
 			return 0;
-		return snapshot.cost(start, end);
+		return snapshot.baselineCost(start, end) + baselineDescendantFixedCost(numBaseline, start, end);
+	}
+
+	private double baselineDescendantFixedCost(int numBaseline, long start, long end) {
+		Collection<Node> children = getWbsChildrenNodes();
+		if (children == null || children.isEmpty()) return 0.0D;
+		double total = 0.0D;
+		for (Node node : children) {
+			if (!(node.getImpl() instanceof NormalTask child)) continue;
+			if (child.getSnapshot(Integer.valueOf(numBaseline)) instanceof TaskSnapshot childSnapshot)
+				total += childSnapshot.fixedCost(start, end);
+			total += child.baselineDescendantFixedCost(numBaseline, start, end);
+		}
+		return total;
 	}
 
 	public double getBaselineWork(int numBaseline, long start, long end) {
@@ -1166,12 +1184,15 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	}
 
 	public double baselineCost(long start, long end) {
-		if (isParentWithoutAssignments())
-			return TimeDistributedDataConsolidator.baselineCost(start, end, rollupValues());
+		if (isParentWithoutAssignments()) {
+			TaskSnapshot snapshot = getBaselineSnapshot();
+			return TimeDistributedDataConsolidator.baselineCost(start, end, rollupValues())
+				+ (snapshot == null ? 0.0D : snapshot.fixedCost(start, end));
+		}
 		if (getBaselineSnapshot() == null)
 			return 0;
 
-		return getBaselineSnapshot().cost(start, end);
+		return getBaselineSnapshot().baselineCost(start, end);
 	}
 
 	public long baselineWork(long start, long end) {
@@ -1365,9 +1386,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 				numBaseline));
 		if (snapshot == null)
 			return 0.0D;
-		return ((TaskSnapshot) getSnapshot(Integer.valueOf(numBaseline))).cost(
-				FieldContext.start(fieldContext), FieldContext
-						.end(fieldContext));
+		return getBaselineCost(numBaseline, FieldContext.start(fieldContext), FieldContext.end(fieldContext));
 	}
 
 	public long getBaselineWork(int numBaseline, FieldContext fieldContext) {

@@ -37,13 +37,19 @@ final class FixedCostAccrualCalculator {
 			return taskStart >= intervalStart && taskStart <= intervalEnd ? fixedCost : 0.0D;
 
 		if (accrual == Accrual.Kind.PRORATED) {
+			if (taskEnd <= taskStart)
+				return taskStart >= intervalStart && taskStart <= intervalEnd ? fixedCost : 0.0D;
 			long overlapStart = Math.max(intervalStart, taskStart);
 			long overlapEnd = Math.min(intervalEnd, taskEnd);
 			if (overlapStart >= overlapEnd)
 				return 0.0D;
+			if (overlapStart == taskStart && overlapEnd == taskEnd)
+				return fixedCost;
 
 			long overlappingDuration = calendar.compare(overlapEnd, overlapStart, false);
-			double fraction = ((double) overlappingDuration) / taskDuration;
+			long denominator = taskDuration;
+			if (denominator <= 0L) return 0.0D;
+			double fraction = ((double) overlappingDuration) / denominator;
 			return fixedCost * fraction;
 		}
 
