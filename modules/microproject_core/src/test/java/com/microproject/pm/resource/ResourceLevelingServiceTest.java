@@ -42,6 +42,7 @@ import com.microproject.pm.assignment.contour.ContourTypes;
 import com.microproject.pm.scheduling.ScheduleService;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.Task;
 import com.microproject.undo.DataFactoryUndoController;
 
 class ResourceLevelingServiceTest {
@@ -409,6 +410,55 @@ class ResourceLevelingServiceTest {
 		assertEquals(0L, second.getLevelingDelay());
 		undo.redo();
 		assertTrue(second.getLevelingDelay() > 0L);
+	}
+
+	@Test
+	void scopedClearRemovesOnlyGeneratedSplitsAndIsUndoable() {
+		Fixture fixture = fixture();
+		NormalTask selected = task(fixture.project, "Selected", 1L);
+		NormalTask untouched = task(fixture.project, "Untouched", 1L);
+		long from = selected.getStart() + com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		long to = from + com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		selected.splitForLeveling(this, from, to);
+		selected.split(this, from, to);
+		untouched.splitForLeveling(this, untouched.getStart() + 3_600_000L, untouched.getStart() + 7_200_000L);
+		selected.setLevelingDelay(com.microproject.datatype.Duration.millis(86_400_000L));
+		untouched.setLevelingDelay(com.microproject.datatype.Duration.millis(172_800_000L));
+		var undo = fixture.project.getUndoController();
+		undo.clear();
+
+		List<Task> affected = new ResourceLevelingService().clear(fixture.project, List.of(selected),
+			undo.getEditSupport());
+
+		assertEquals(List.of(selected), affected);
+		assertEquals(0L, com.microproject.datatype.Duration.millis(selected.getLevelingDelay()));
+		assertTrue(selected.getLevelingTaskSplitIntervals().isEmpty());
+		assertEquals(1, selected.getManualTaskSplitIntervals().size(), "manual overlap remains owned by the user");
+		assertEquals(172_800_000L, com.microproject.datatype.Duration.millis(untouched.getLevelingDelay()));
+		assertEquals(1, untouched.getLevelingTaskSplitIntervals().size(), "selection clear leaves other tasks unchanged");
+		assertTrue(undo.canUndo());
+
+		undo.undo();
+		assertEquals(86_400_000L, com.microproject.datatype.Duration.millis(selected.getLevelingDelay()));
+		assertEquals(1, selected.getLevelingTaskSplitIntervals().size());
+		undo.redo();
+		assertEquals(0L, com.microproject.datatype.Duration.millis(selected.getLevelingDelay()));
+		assertTrue(selected.getLevelingTaskSplitIntervals().isEmpty());
+		assertEquals(1, selected.getManualTaskSplitIntervals().size());
+	}
+
+	@Test
+	void scopedClearRejectsTasksOwnedByAnotherProjectBeforeMutation() {
+		Fixture fixture = fixture();
+		Fixture other = fixture();
+		NormalTask target = task(fixture.project, "Target", 1L);
+		NormalTask foreign = task(other.project, "Foreign", 1L);
+		target.setLevelingDelay(com.microproject.datatype.Duration.millis(86_400_000L));
+
+		assertThrows(IllegalArgumentException.class, () -> new ResourceLevelingService().clear(
+			fixture.project, List.of(foreign), null));
+		assertEquals(86_400_000L, com.microproject.datatype.Duration.millis(target.getLevelingDelay()),
+			"invalid scoped requests must not mutate project tasks");
 	}
 
 	@Test

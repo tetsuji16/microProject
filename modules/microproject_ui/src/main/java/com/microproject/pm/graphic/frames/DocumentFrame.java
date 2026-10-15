@@ -586,6 +586,8 @@ public class DocumentFrame extends NamedFrame implements
 		case RESPECT_LINKS -> lastTaskCommandResult = applyRespectLinks(command);
 		case RESOURCE_LEVEL_ALL -> lastTaskCommandResult = applyResourceLevelAll(command);
 		case RESOURCE_LEVEL_SELECTION -> lastTaskCommandResult = applyResourceLevelSelection(command);
+		case RESOURCE_CLEAR_LEVEL_ALL -> lastTaskCommandResult = clearResourceLeveling(command, false);
+		case RESOURCE_CLEAR_LEVEL_SELECTION -> lastTaskCommandResult = clearResourceLeveling(command, true);
 		case NEXT_OVERALLOCATION -> lastTaskCommandResult = selectNextOverallocatedTask(command);
 		case STATUS_DATE -> lastTaskCommandResult = applyStatusDate(command);
 		case MARK_ON_TRACK -> lastTaskCommandResult = applyMarkOnTrack(command);
@@ -857,6 +859,55 @@ public class DocumentFrame extends NamedFrame implements
 		} catch (RuntimeException failure) {
 			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.FAILED,
 				failure.getClass().getSimpleName(), selectedIds, List.of(), getTopViewId());
+		}
+	}
+
+	private RibbonCommandResult clearResourceLeveling(CommandId command, boolean selectedOnly) {
+		ActiveTaskSelectionResolver.Selection selection = resolveTaskSelection(true, false);
+		List<Long> selectedIds = selection.stableTaskIds();
+		if (project == null)
+			return RibbonCommandResult.rejected(command.actionId(), "no-active-document").withSelectedTaskIds(selectedIds);
+		if (project.isReadOnly())
+			return RibbonCommandResult.rejected(command.actionId(), "document-read-only").withSelectedTaskIds(selectedIds);
+		if (selectedOnly && !selection.isEligible(1))
+			return RibbonCommandResult.rejected(command.actionId(), selection.rejectionReason()).withSelectedTaskIds(selectedIds);
+
+		finishAnyOperations();
+		List<Task> targets = selectedOnly
+			? selection.nodes().stream().map(Node::getImpl).filter(Task.class::isInstance).map(Task.class::cast).toList()
+			: null;
+		ResourceLevelingService service = new ResourceLevelingService();
+		List<Task> changedTasks = service.tasksWithLevelingState(project, targets);
+		if (changedTasks.isEmpty())
+			return RibbonCommandResult.noChange(command.actionId(), selectedIds).withActiveView(getTopViewId());
+		com.microproject.undo.EditSupport edits = project.getUndoController().getEditSupport();
+		if (edits == null)
+			return RibbonCommandResult.rejected(command.actionId(), "undo-unavailable").withSelectedTaskIds(selectedIds);
+
+		String scope = selectedOnly
+			? com.microproject.dialog.UsabilityStrings.text("leveling.clear.scopeSelection")
+			: com.microproject.dialog.UsabilityStrings.text("leveling.clear.scopeAll");
+		String prompt = java.text.MessageFormat.format(
+			com.microproject.dialog.UsabilityStrings.text("leveling.clear.confirm"), scope, changedTasks.size());
+		int answer = JOptionPane.showConfirmDialog(this, prompt,
+			com.microproject.dialog.UsabilityStrings.text("leveling.title"), JOptionPane.YES_NO_OPTION,
+			JOptionPane.WARNING_MESSAGE);
+		if (answer != JOptionPane.YES_OPTION)
+			return RibbonCommandResult.rejected(command.actionId(), "clear-leveling-cancelled").withSelectedTaskIds(selectedIds);
+		if (!CollaborationHelper.tryLockNodes(project, changedTasks, this,
+			selectedOnly ? "clear leveling for selected tasks" : "clear leveling for all tasks"))
+			return RibbonCommandResult.rejected(command.actionId(), "collaboration-lock-denied").withSelectedTaskIds(selectedIds);
+		SelectionSnapshot viewSelection = SelectionSnapshot.capture(getActiveSpreadSheet(), List.of());
+		try {
+			List<Task> affected = service.clear(project, targets, edits);
+			viewSelection.restore();
+			refreshUndoButtonsSafely();
+			return affected.isEmpty()
+				? RibbonCommandResult.noChange(command.actionId(), selectedIds).withActiveView(getTopViewId())
+				: new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.CHANGED, "", selectedIds,
+					affected.stream().map(Task::getUniqueId).filter(java.util.Objects::nonNull).toList(), getTopViewId());
+		} catch (RuntimeException failure) {
+			return RibbonCommandResult.failed(command.actionId(), failure).withSelectedTaskIds(selectedIds);
 		}
 	}
 

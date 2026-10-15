@@ -33,6 +33,8 @@ class MspStandardCommandInventoryTest {
 		assertTrue(advertised.contains("RibbonIndent"));
 		assertTrue(advertised.contains("RibbonLink"));
 		assertTrue(advertised.contains("RibbonLevelAll"));
+		assertTrue(advertised.contains("RibbonClearLevelSelection"));
+		assertTrue(advertised.contains("RibbonClearLevelAll"));
 		assertTrue(advertised.contains("RibbonNextOverallocation"));
 		assertFalse(advertised.contains("RibbonVisualReports"));
 		assertFalse(advertised.contains("RibbonMacros"));

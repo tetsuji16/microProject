@@ -310,20 +310,50 @@ public final class ResourceLevelingService {
 	}
 
 	public void clear(Project project, EditSupport editSupport) {
-		List<Change> changes = new ArrayList<>(project.getTaskList().size());
-		List<NormalTask> generatedSplits = new ArrayList<>();
-		// The outline iterator omits detached/unparented tasks while a project is
-		// being edited.  Leveling applies to every schedulable task, so clear must
-		// use the task list as well or leave invisible leveling delays behind.
+		clear(project, null, editSupport);
+	}
+
+	/** Returns the schedulable tasks that own leveling delays or generated gaps in the requested scope. */
+	public List<Task> tasksWithLevelingState(Project project, Collection<? extends Task> selectedTasks) {
+		Objects.requireNonNull(project, "project");
+		Set<Task> selected = null;
+		if (selectedTasks != null) {
+			selected = Collections.newSetFromMap(new IdentityHashMap<>());
+			for (Task task : selectedTasks) {
+				if (task == null || task.getOwningProject() != project)
+					throw new IllegalArgumentException("selectedTasks must belong to the supplied project");
+				selected.add(task);
+			}
+		}
+		List<Task> affected = new ArrayList<>();
 		for (Object value : project.getTaskList()) {
 			Task task = (Task) value;
+			if (selected != null && !selected.contains(task)) continue;
+			if (hasLevelingState(task)) affected.add(task);
+		}
+		return List.copyOf(affected);
+	}
+
+	private static boolean hasLevelingState(Task task) {
+		return Duration.millis(task.getLevelingDelay()) != 0L
+			|| task instanceof NormalTask normalTask && !normalTask.getLevelingTaskSplitIntervals().isEmpty();
+	}
+
+	/** Clears leveling state for all tasks, or only the supplied project tasks. */
+	public List<Task> clear(Project project, Collection<? extends Task> selectedTasks, EditSupport editSupport) {
+		List<Task> affected = tasksWithLevelingState(project, selectedTasks);
+		List<Change> changes = new ArrayList<>(affected.size());
+		List<NormalTask> generatedSplits = new ArrayList<>();
+		for (Task task : affected) {
 			if (Duration.millis(task.getLevelingDelay()) != 0L) {
 				changes.add(new Change(task, task.getLevelingDelay(), 0L, task.getStart(), task.getStart(), ""));
 			}
-			if (task instanceof NormalTask normalTask && !normalTask.getLevelingTaskSplitIntervals().isEmpty())
+			if (task instanceof NormalTask normalTask && !normalTask.getLevelingTaskSplitIntervals().isEmpty()) {
 				generatedSplits.add(normalTask);
+			}
 		}
 		new Plan(changes, List.of(), List.of(), generatedSplits).apply(editSupport);
+		return List.copyOf(affected);
 	}
 
 	private boolean levelResource(Resource resource, Options options, Set<Task> selectedTasks, Map<Task, Long> addedDelay,

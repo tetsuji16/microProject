@@ -1874,6 +1874,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_LEVEL_RESOURCES, new LevelResourcesAction());
 		actionsMap.addHandler(ACTION_LEVEL_ALL, new LevelAllAction());
 		actionsMap.addHandler(ACTION_LEVEL_SELECTION, new LevelSelectionAction());
+		actionsMap.addHandler(ACTION_CLEAR_LEVEL_ALL, new ClearLevelAllAction());
+		actionsMap.addHandler(ACTION_CLEAR_LEVEL_SELECTION, new ClearLevelSelectionAction());
 		actionsMap.addHandler(ACTION_NEXT_OVERALLOCATION, new NextOverallocationAction());
 		actionsMap.addHandler(ACTION_USE_RESOURCE_POOL, new UseResourcePoolAction());
 		actionsMap.addHandler(ACTION_CREATE_RESOURCE_POOL, new CreateResourcePoolAction());
@@ -2515,6 +2517,22 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		@Override public void actionPerformed(ActionEvent event) {
 			setMeAsLastGraphicManager();
 			publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.RESOURCE_LEVEL_SELECTION));
+		}
+	}
+
+	private final class ClearLevelAllAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.RESOURCE_CLEAR_LEVEL_ALL));
+		}
+	}
+
+	private final class ClearLevelSelectionAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.RESOURCE_CLEAR_LEVEL_SELECTION));
 		}
 	}
 
@@ -4350,6 +4368,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled(ACTION_LEVEL_RESOURCES,!readOnly && project != null);
 		getMenuManager().setActionEnabled(ACTION_LEVEL_ALL,!readOnly && project != null);
 		getMenuManager().setActionEnabled(ACTION_LEVEL_SELECTION,
+			!readOnly && getCurrentFrame() != null && getCurrentFrame().hasTaskSelection(true, 1, false));
+		getMenuManager().setActionEnabled(ACTION_CLEAR_LEVEL_ALL, !readOnly && project != null);
+		getMenuManager().setActionEnabled(ACTION_CLEAR_LEVEL_SELECTION,
 			!readOnly && getCurrentFrame() != null && getCurrentFrame().hasTaskSelection(true, 1, false));
 		getMenuManager().setActionEnabled(ACTION_NEXT_OVERALLOCATION,
 			getCurrentFrame() != null && getCurrentFrame().canNavigateToNextOverallocatedTask());
