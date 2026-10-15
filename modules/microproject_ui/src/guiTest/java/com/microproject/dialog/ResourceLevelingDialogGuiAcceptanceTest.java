@@ -135,7 +135,7 @@ class ResourceLevelingDialogGuiAcceptanceTest {
 	}
 
 	private static java.util.Map<NormalTask, Long> taskStarts(Project project) {
-		java.util.Map<NormalTask, Long> result = new java.util.IdentityHashMap<>();
+		java.util.Map<NormalTask, Long> result = new java.util.HashMap<>();
 		runOnEdt(() -> {
 			for (Object value : project.getTaskList()) {
 				NormalTask task = (NormalTask) value;

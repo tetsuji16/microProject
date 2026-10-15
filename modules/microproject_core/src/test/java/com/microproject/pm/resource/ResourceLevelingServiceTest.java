@@ -103,7 +103,12 @@ class ResourceLevelingServiceTest {
 		long originalStart = manualSecond.getStart();
 		long expectedStart = included.changes().getFirst().projectedStart();
 		var undo = fixture.project.getUndoController();
-		included.apply(undo.getEditSupport());
+		undo.getEditSupport().beginUpdate();
+		try {
+			included.apply(undo.getEditSupport());
+		} finally {
+			undo.getEditSupport().endUpdate();
+		}
 		assertTrue(manualSecond.getLevelingDelay() > 0L);
 		assertEquals(expectedStart, manualSecond.getStart(), "opt-in must apply the projected start to the manual task");
 		undo.undo();
