@@ -3480,7 +3480,12 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		long successorStart = successor.getStart();
 		boolean dirtyBefore = project.needsSaving();
 		boolean undoBefore = project.getUndoController().canUndo();
-		click(robot, inspectorPredecessorButton("Inspector predecessor"));
+		AbstractButton predecessorLink = inspectorPredecessorButton("Inspector predecessor");
+		java.util.concurrent.atomic.AtomicBoolean predecessorRouteInvoked = new java.util.concurrent.atomic.AtomicBoolean();
+		predecessorLink.addActionListener(event -> predecessorRouteInvoked.set(true));
+		click(robot, predecessorLink);
+		GuiAcceptanceSupport.await(predecessorRouteInvoked::get,
+			"the physical predecessor-link click did not invoke its route; label=" + predecessorLink.getText());
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(predecessor),
 			"clicking the visible predecessor did not select its rendered spreadsheet row");
 		GuiAcceptanceSupport.await(() -> taskInspectorTitleContains("Inspector predecessor"),
@@ -3526,8 +3531,23 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> {
 			TaskInspectorPanel panel = manager.getCurrentFrame().getTaskInspectorPanel();
 			findInspectorButton(panel, predecessorName, found);
-			if (found[0] != null) found[0].scrollRectToVisible(new java.awt.Rectangle(0, 0,
-				found[0].getWidth(), found[0].getHeight()));
+			if (found[0] != null) {
+				for (java.awt.Container parent = found[0].getParent(); parent != null; parent = parent.getParent()) {
+					if (parent instanceof javax.swing.JScrollPane scrollPane) {
+						javax.swing.JViewport viewport = scrollPane.getViewport();
+						java.awt.Rectangle bounds = javax.swing.SwingUtilities.convertRectangle(found[0].getParent(),
+							found[0].getBounds(), viewport.getView());
+						java.awt.Point position = viewport.getViewPosition();
+						java.awt.Dimension extent = viewport.getExtentSize();
+						int y = position.y;
+						if (bounds.y < y) y = bounds.y;
+						else if (bounds.y + bounds.height > y + extent.height) y = bounds.y + bounds.height - extent.height;
+						int maxY = Math.max(0, viewport.getView().getHeight() - extent.height);
+						viewport.setViewPosition(new java.awt.Point(Math.max(0, bounds.x), Math.max(0, Math.min(maxY, y))));
+						break;
+					}
+				}
+			}
 		});
 		if (found[0] == null)
 			throw new AssertionError("Inspector predecessor control not found for: " + predecessorName);
