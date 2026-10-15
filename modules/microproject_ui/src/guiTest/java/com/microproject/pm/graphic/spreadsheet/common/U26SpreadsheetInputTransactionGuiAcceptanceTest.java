@@ -300,9 +300,13 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 	private Rectangle cellOnScreen(SpreadSheet sheet, int row, int column) throws Exception {
 		Rectangle[] result = new Rectangle[1];
 		SwingUtilities.invokeAndWait(() -> {
-			if (!sheet.isShowing() || !sheet.isValid()
-					|| !SwingUtilities.isDescendingFrom(sheet, tabs.getSelectedComponent()))
-				throw new AssertionError("U-26 cell coordinates require the selected, laid-out task table to be showing");
+			Component selectedTab = tabs.getSelectedComponent();
+			boolean selectedAncestor = selectedTab != null && SwingUtilities.isDescendingFrom(sheet, selectedTab);
+			if (!sheet.isShowing() || !sheet.isValid() || !selectedAncestor)
+				throw new AssertionError("U-26 cell coordinates require the selected, laid-out task table to be showing: "
+					+ "frameShowing=" + frame.isShowing() + ", selectedIndex=" + tabs.getSelectedIndex()
+					+ ", selectedTab=" + componentState(selectedTab) + ", sheet=" + componentState(sheet)
+					+ ", selectedAncestor=" + selectedAncestor);
 			sheet.changeSelection(row, Math.max(0, column - 1), false, false);
 			Rectangle bounds = sheet.getCellRect(row, column, true);
 			sheet.scrollRectToVisible(bounds);
@@ -312,6 +316,16 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 			result[0] = new Rectangle(location.x + bounds.x, location.y + bounds.y, bounds.width, bounds.height);
 		});
 		return result[0];
+	}
+
+	private static String componentState(Component component) {
+		if (component == null) return "null";
+		return component.getClass().getSimpleName() + "@" + Integer.toHexString(System.identityHashCode(component))
+			+ "[showing=" + component.isShowing() + ",valid=" + component.isValid()
+			+ ",parent=" + (component.getParent() == null ? "null"
+				: component.getParent().getClass().getSimpleName() + "@"
+					+ Integer.toHexString(System.identityHashCode(component.getParent())))
+			+ ",size=" + component.getWidth() + "x" + component.getHeight() + "]";
 	}
 
 	private static void clickCell(Robot robot, Rectangle cell, int xOffset) {
