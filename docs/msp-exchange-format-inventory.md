@@ -1,23 +1,36 @@
 # Exchange format inventory
 
-**Reviewed:** 2026-10-13 against the current shared working tree. This records implemented code paths and
+**Reviewed:** 2026-10-15 at master `8f980ce978414fd6d8d894992481e5c9d326bdd2`. This records implemented code paths and
 their current verification scope; it is not a claim of full Microsoft Project
 interoperability.
 
+For the canonical M0 status, owner, source/applicability, and remaining-gap
+register, see [MSP standard command and format inventory](MSP_STANDARD_COMMAND_INVENTORY.md).
+
 ## Reader and writer paths
 
-| Format | Reader | Writer | Current contract and evidence |
+| Format / direction | Handler | Current contract and evidence |
 |---|---|---|---|
-| MPP | MPXJ `MPPReader` via `MspImporter` | None registered or called in the exchange module | Import is supported by the code path. Export is explicitly outside this product's scope: MPO is the native save format and replacement. `ProjectWriterFactory` rejects `.mpp`; do not relabel MSPDI XML as MPP. Read/import semantics remain in scope. |
-| MPX | MPXJ `MPXReader` via `MspImporter` | MPXJ `MPXWriter` via `ProjectWriterFactory` | Reader and writer exist. Import/export semantic coverage is partial and must be reported by field; no declaration of reverse-round-trip equivalence. |
-| Microsoft Project XML / MSPDI | MPXJ `MSPDIReader` through `MspImporter`; `.xml` also has the established `.pod` fallback path | `MSPDISerializer` → MPXJ `MSPDIWriter` | Primary external exchange path. Task baseline dates and duration (slots 0–10) transfer in both directions. Assignment scalar Start/Finish/Work values and assignment baseline timephased **work** distributions transfer in slots 0–10; assignment-only values do not manufacture a task baseline. Explicit zero and missing baseline work remain distinct in XML and MPO. Assignment baseline timephased **cost** distributions and broader external semantics remain unsupported/partial. Existing tests exercise selected task identity, links, scheduling, tracking and assignment baseline work. |
-| POD (legacy) | `LocalFileImporter`: frozen Java object stream first, then legacy embedded/plain XML recovery | Existing `LocalFileImporter` implementation can still write frozen POD payloads | Target contract is import-only: preserve wire layout and fixed `.pod` import fixtures, add no new write behavior. Current chooser and writer still expose POD save; this is a source/target-policy discrepancy for follow-up, not a reason to expand POD scope. This remains distinct from ordinary MSPDI XML despite the fallback reader. |
-| MPO (`.mpo`) | `MpoFileImporter` archive validation/extraction, with project content decoded through `MicrosoftImporter` | `MpoFileImporter` archive/container writer | Authoritative native format and default save target (`FileHelper.DEFAULT_FILE_EXTENSION`); backward-read files from earlier supported MPO versions. Its versioned container, merge, checksum, recovery and transaction behavior have dedicated tests. Do not substitute an XML-only export for MPO. |
-| XLSX | `ProjectLibreXlsxReader`; native payload first, MSPDI sheet fallback through MPXJ | `ProjectLibreXlsxWriter`; native project payload plus MSPDI worksheet | ProjectLibre XLSX has a lossless native payload for its own round trip and MSPDI fallback for external workbook interpretation. `XlsxSupportTest` covers malformed/oversized inputs and representative round trips. |
-| GNOME Planner (`.planner`) | MPXJ `PlannerReader` via `MspImporter` | MPXJ `PlannerWriter` via factory | This is GNOME Planner file exchange, not Microsoft Planner. Reader/writer classes are wired. Semantic round-trip manifest not yet established. |
-| PMXML | No reader path found in `MspImporter` | MPXJ `PrimaveraPMFileWriter` via factory | Export-only writer registration; import is not supported by the current importer. |
-| JSON | No reader path found in `MspImporter` | MPXJ `JsonWriter` via factory | Export-only writer registration; this is not the MPO container JSON. |
-| SDEF | No reader path found in `MspImporter` | MPXJ `SDEFWriter` via factory | Export-only writer registration; import is not supported by the current importer. |
+| MPP read | MPXJ `MPPReader` via `MspImporter` | Import is supported by the code path; semantics remain partial and fixture authoring provenance is incomplete. |
+| MPP write | No writer registered; `ProjectWriterFactory` rejects `.mpp` | Explicitly outside product scope: MPO is the native save format. Do not relabel MSPDI XML as MPP. |
+| MPX read | MPXJ `MPXReader` via `MspImporter` | Reader exists; import semantic coverage is partial and must be reported by field. |
+| MPX write | MPXJ `MPXWriter` via `ProjectWriterFactory` | Writer exists; export semantic coverage is partial; no reverse-round-trip equivalence claim. |
+| Microsoft Project XML / MSPDI read | MPXJ `MSPDIReader` through `MspImporter`; `.xml` also has the established `.pod` fallback path | Primary external exchange path; tests cover selected task identity, links, scheduling and tracking. |
+| Microsoft Project XML / MSPDI write | `MSPDISerializer` → MPXJ `MSPDIWriter` | Task baseline dates/duration and assignment scalar Start/Finish/Work plus baseline timephased work (slots 0–10) have focused evidence. Assignment-only values do not manufacture task baselines; explicit zero and missing baseline work remain distinct. Baseline timephased cost and broader semantics remain partial. |
+| POD (legacy) read | `LocalFileImporter`: frozen Java object stream first, then legacy embedded/plain XML recovery | Preserve fixed `.pod` import fixtures and wire layout; this remains distinct from ordinary MSPDI XML despite the fallback reader. |
+| POD (legacy) write | Existing `LocalFileImporter` can still write frozen POD payloads | New write behavior is not in scope; current chooser/writer exposure is a source/target-policy discrepancy. |
+| MPO (`.mpo`) read | `MpoFileImporter` archive validation/extraction; content decoded through `MicrosoftImporter` | Backward-read files from earlier supported MPO versions; versioned container, merge, checksum and recovery tests exist. |
+| MPO (`.mpo`) write | `MpoFileImporter` archive/container writer | Authoritative native format and default save target (`FileHelper.DEFAULT_FILE_EXTENSION`); container, checksum and transaction behavior have dedicated tests. |
+| XLSX read | `ProjectLibreXlsxReader`; native payload first, MSPDI sheet fallback through MPXJ | Native payload and external MSPDI fallback are distinct contracts; malformed/oversized input and representative reads are covered by `XlsxSupportTest`. |
+| XLSX write | `ProjectLibreXlsxWriter`; native payload plus MSPDI worksheet | Native payload supports ProjectLibre round trips; representative output is covered by `XlsxSupportTest`. |
+| GNOME Planner (`.planner`) read | MPXJ `PlannerReader` via `MspImporter` | GNOME Planner file exchange, not Microsoft Planner; semantic import coverage is not established. |
+| GNOME Planner (`.planner`) write | MPXJ `PlannerWriter` via factory | Writer is wired; semantic export coverage is not established. |
+| PMXML read | No reader path found in `MspImporter` | Import is not supported by the current importer. |
+| PMXML write | MPXJ `PrimaveraPMFileWriter` via factory | Export-only writer registration. |
+| JSON read | No reader path found in `MspImporter` | Import is not supported; this is distinct from MPO container JSON. |
+| JSON write | MPXJ `JsonWriter` via factory | Export-only writer registration. |
+| SDEF read | No reader path found in `MspImporter` | Import is not supported by the current importer. |
+| SDEF write | MPXJ `SDEFWriter` via factory | Export-only writer registration. |
 
 The desktop Open chooser advertises native MPO plus legacy POD and external MPP,
 MPX, XML, XLSX and GNOME Planner. The Save chooser currently advertises MPO and
@@ -54,7 +67,8 @@ cannot silently select another writer.
 
 - MPP read: implementation path exists. `New Product.mpp` identifies itself in
   its file header as `Microsoft Project 9.0` / `MSProject.MPP9`; no editor
-  edition/build provenance is recorded. The fixed-file regression test records
+  edition/build provenance is recorded, and no Microsoft 365 Project or
+  Project 2024 authored fixture is currently registered. The fixed-file regression test records
   one task and assignment's imported name, start, finish, work, actual work,
   remaining work, and units through MPO save/reload. This is regression
   evidence for that checked-in file, not an independent Microsoft Project
