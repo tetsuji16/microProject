@@ -297,11 +297,16 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		saveDialog = visibleFileChooserDialog();
 		JTextField fileNameField = findFileChooserNameField(saveDialog);
 		click(robot, fileNameField);
+		GuiAcceptanceSupport.await(fileNameField::isFocusOwner,
+			"Save As filename field did not acquire keyboard focus after its physical click");
 		robot.keyPress(java.awt.event.KeyEvent.VK_CONTROL);
 		robot.keyPress(java.awt.event.KeyEvent.VK_A);
 		robot.keyRelease(java.awt.event.KeyEvent.VK_A);
 		robot.keyRelease(java.awt.event.KeyEvent.VK_CONTROL);
 		type(robot, mpoSavedCopy.getFileName().toString());
+		GuiAcceptanceSupport.awaitInputAndEventQueueIdle(robot, "Save As filename entry");
+		assertEquals(mpoSavedCopy.getFileName().toString(), saveChooser.getSelectedFile().getName(),
+			"physical filename entry must update the chooser's selected target before approval");
 		click(robot, selectFileChooserSaveButton(saveDialog));
 		GuiAcceptanceSupport.await(() -> visibleFileChooserDialog() == null && Files.isRegularFile(mpoSavedCopy),
 			"selected MPO copy was not written");
@@ -517,9 +522,25 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
 		System.setProperty("flatlaf.useSystemFileChooser", "false");
-		UiServices.setFileChooserProvider(new SwingFileChooserProvider());
+		SwingFileChooserProvider swingChooser = new SwingFileChooserProvider();
+		AtomicBoolean chooserCallStarted = new AtomicBoolean();
+		AtomicBoolean chooserCallReturned = new AtomicBoolean();
+		UiServices.setFileChooserProvider(new UiServices.FileChooserProvider() {
+			@Override public String chooseFileName(boolean save, String selectedFileName, Object parent) {
+				chooserCallStarted.set(true);
+				try { return swingChooser.chooseFileName(save, selectedFileName, parent); }
+				finally { chooserCallReturned.set(true); }
+			}
+			@Override public List<String> chooseFileNames(boolean save, String selectedFileName, Object parent) {
+				chooserCallStarted.set(true);
+				try { return swingChooser.chooseFileNames(save, selectedFileName, parent); }
+				finally { chooserCallReturned.set(true); }
+			}
+		});
 
 		createWindow("microProject — File/Open cancellation acceptance (#398)");
+		saveWindowTrace = new WindowTrace();
+		saveWindowTrace.open();
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindowForRobot(robot);
@@ -527,8 +548,9 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		int documentsBefore = manager.getFrameManager().getAllFrames().size();
 
 		click(robot, open);
-		GuiAcceptanceSupport.await(() -> visibleFileChooserDialog() != null,
-			"File/Open did not show the Swing file chooser");
+		awaitWithWindowTrace(() -> visibleFileChooserDialog() != null,
+			"File/Open did not show the Swing file chooser; providerStarted=" + chooserCallStarted.get()
+				+ ", providerReturned=" + chooserCallReturned.get());
 		Window escapeChooser = visibleFileChooserDialog();
 		GuiAcceptanceSupport.await(() -> {
 			Component owner = java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
