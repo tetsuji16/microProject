@@ -347,7 +347,8 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		int firstRow = -1;
 		for (Node node : nodes) {
 			GraphicNode graphicNode = (GraphicNode)getCache().getGraphicNode(node);
-			int row = graphicNode == null ? -1 : model.findGraphicNodeRow(graphicNode);
+			int modelRow = graphicNode == null ? -1 : model.findGraphicNodeRow(graphicNode);
+			int row = modelRow < 0 ? -1 : convertRowIndexToView(modelRow);
 			if (row < 0)
 				continue;
 			if (first) {

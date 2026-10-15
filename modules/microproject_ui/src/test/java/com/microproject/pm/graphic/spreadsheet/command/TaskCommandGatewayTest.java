@@ -4,9 +4,11 @@
  ******************************************************************************/
 package com.microproject.pm.graphic.spreadsheet.command;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -19,7 +21,9 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.List;
 
+import javax.swing.SortOrder;
 import javax.swing.SwingUtilities;
+import javax.swing.table.TableRowSorter;
 
 import org.junit.jupiter.api.Test;
 
@@ -48,6 +52,42 @@ import com.microproject.pm.scheduling.ScheduleEvent;
 import com.microproject.undo.DataFactoryUndoController;
 
 class TaskCommandGatewayTest {
+	@Test
+	void restoringTaskSelectionConvertsCacheModelRowToSortedViewRow() throws Exception {
+		Fixture fixture = createDependencyFixture();
+		Task finalTask = fixture.project().getTaskList().stream()
+			.filter(task -> "Final task".equals(task.getName())).findFirst().orElseThrow();
+		Node finalNode = fixture.project().getTaskModel().search(finalTask);
+		AtomicReference<Throwable> failure = new AtomicReference<>();
+		SwingUtilities.invokeAndWait(() -> {
+			try {
+				int nameColumn = -1;
+				for (int column = 0; column < fixture.model().getColumnCount(); column++) {
+					if ("Field.name".equals(fixture.model().getFieldInColumn(column).getId())) {
+						nameColumn = column;
+						break;
+					}
+				}
+				assertTrue(nameColumn >= 0, "task sheet must expose its Name field");
+				TableRowSorter<SpreadSheetModel> sorter = new TableRowSorter<>(fixture.model());
+				sorter.setSortKeys(List.of(new javax.swing.RowSorter.SortKey(nameColumn, SortOrder.ASCENDING)));
+				fixture.sheet().setRowSorter(sorter);
+				int modelRow = fixture.model().findGraphicNodeRow(
+					fixture.cache().getGraphicNode(finalNode));
+				int expectedViewRow = sorter.convertRowIndexToView(modelRow);
+				assertNotEquals(modelRow, expectedViewRow,
+					"the fixture must distinguish transformed model coordinates from sorted view coordinates");
+				fixture.sheet().restoreTaskRowSelection(List.of(finalNode));
+				assertArrayEquals(new int[] { expectedViewRow }, fixture.sheet().getSelectedRows());
+				assertEquals(modelRow, sorter.convertRowIndexToModel(fixture.sheet().getSelectedRow()),
+					"the selected view row must still resolve to the requested task's model identity");
+			} catch (Throwable thrown) {
+				failure.set(thrown);
+			}
+		});
+		if (failure.get() != null) throw new AssertionError("sorted task selection restoration failed", failure.get());
+	}
+
 	/**
 	 * Microsoft defines task % Complete as Actual Duration / Duration; it is distinct
 	 * from % Work Complete and an assignment's completion percentage. See

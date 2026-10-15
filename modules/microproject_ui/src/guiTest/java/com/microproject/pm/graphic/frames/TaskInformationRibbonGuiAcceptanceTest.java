@@ -1743,6 +1743,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertEquals(replacementStart, task.getStart(), "Fixture must move the current task before overwrite");
 		assertNotEquals(originalBaselineStart, task.getStart(),
 			"Replacement current start must differ from the seeded baseline start");
+		// The schedule mutation below is fixture setup, not the Save Baseline route.
+		// Select the task again so the second dialog exercises the overwrite path
+		// with an explicit physical selection after the model refresh.
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, task), nameColumn(sheet)));
 		long overwrittenBaselineStart = task.getStart();
 		long currentAssignmentWork = assignment.getWork(null);
 		click(robot, findShowingButtonByCommand("RibbonSaveBaseline"));
