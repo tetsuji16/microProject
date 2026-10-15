@@ -103,20 +103,22 @@ class GraphicManagerLinkRouteTest {
 		com.microproject.job.JobQueue previousQueue = com.microproject.session.SessionFactory.getInstance().getJobQueue();
 		class TestGraphicManager extends GraphicManager {
 			TestGraphicManager() { super(new JPanel()); }
-			com.microproject.ribbon.RibbonCommandResult runExternal(String id, Runnable command) {
-				return executeExternalRibbonCommand(id, command);
-			}
 		}
 		TestGraphicManager manager = new TestGraphicManager();
-		AtomicInteger commandRuns = new AtomicInteger();
 		try {
+			javax.swing.Action saveAction = manager.getAction(com.microproject.menu.MenuActionConstants.ACTION_SAVE_PROJECT);
 			manager.cleanUp();
 			com.microproject.session.SessionFactory.getInstance().setJobQueue(null);
-			com.microproject.ribbon.RibbonCommandResult result = manager.runExternal("saveProject", commandRuns::incrementAndGet);
+			// Invoke the actual SaveProjectAction callback on the closed manager.
+			// This exercises the route as retained by the menu action map, rather
+			// than calling executeExternalRibbonCommand through a test-only wrapper.
+			saveAction.actionPerformed(new ActionEvent(manager, ActionEvent.ACTION_PERFORMED, "SaveProject"));
 
-			assertEquals(com.microproject.ribbon.RibbonCommandResult.Status.REJECTED, result.status());
-			assertEquals("manager-closed", result.reason());
-			assertEquals(0, commandRuns.get(), "late action must not reach save scheduling after manager cleanup");
+			assertEquals(com.microproject.ribbon.RibbonCommandResult.Status.REJECTED,
+				manager.getLastRibbonCommandResult().status());
+			assertEquals("manager-closed", manager.getLastRibbonCommandResult().reason());
+			assertNull(com.microproject.session.SessionFactory.getInstance().getJobQueue(),
+				"the actual late Save action must not publish a queue after cleanup");
 		} finally {
 			com.microproject.session.SessionFactory.getInstance().setJobQueue(previousQueue);
 		}
