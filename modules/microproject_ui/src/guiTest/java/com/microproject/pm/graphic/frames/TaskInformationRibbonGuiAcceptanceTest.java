@@ -3520,9 +3520,22 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		int selectionBeforeHiddenClick = sheet.getSelectedRow();
 		boolean dirtyBeforeHiddenClick = project.needsSaving();
 		boolean undoBeforeHiddenClick = project.getUndoController().canUndo();
-		click(robot, inspectorPredecessorButton("Inspector predecessor"));
-		GuiAcceptanceSupport.await(() -> taskInspectorTitleContains("hidden by the current filter"),
-			"the Inspector must explain when a predecessor is hidden by the current projection");
+		AbstractButton hiddenPredecessorLink = inspectorPredecessorButton("Inspector predecessor");
+		java.util.concurrent.atomic.AtomicBoolean hiddenRouteInvoked = new java.util.concurrent.atomic.AtomicBoolean();
+		hiddenPredecessorLink.addActionListener(event -> hiddenRouteInvoked.set(true));
+		click(robot, hiddenPredecessorLink);
+		GuiAcceptanceSupport.await(hiddenRouteInvoked::get,
+			"the hidden predecessor click did not invoke its route; button=" + inspectorButtonBounds(hiddenPredecessorLink)
+				+ "; viewport=" + inspectorViewportBounds(
+					(javax.swing.JViewport) SwingUtilities.getAncestorOfClass(javax.swing.JViewport.class, hiddenPredecessorLink)));
+		try {
+			GuiAcceptanceSupport.await(() -> taskInspectorTitleContains("hidden by the current filter"),
+				"the Inspector must explain when a predecessor is hidden by the current projection");
+		} catch (AssertionError failure) {
+			throw new AssertionError(failure.getMessage() + "; hiddenRouteInvoked=" + hiddenRouteInvoked.get()
+				+ "; button=" + inspectorButtonBounds(hiddenPredecessorLink)
+				+ "; " + inspectorNavigationDiagnostics(sheet, predecessor, DocumentFrame.findTaskNode(project, predecessor)), failure);
+		}
 		assertEquals(selectionBeforeHiddenClick, sheet.getSelectedRow(), "hidden predecessor navigation must preserve selection");
 		assertEquals(dirtyBeforeHiddenClick, project.needsSaving(), "hidden navigation must not mutate the project");
 		assertEquals(undoBeforeHiddenClick, project.getUndoController().canUndo(), "hidden navigation must not change Undo history");
