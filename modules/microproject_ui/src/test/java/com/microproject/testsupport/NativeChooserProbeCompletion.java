@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026 microProject
+ * SPDX-License-Identifier: MIT
+ */
 package com.microproject.testsupport;
 
 import java.io.IOException;
@@ -27,7 +31,7 @@ public final class NativeChooserProbeCompletion {
 			return classify(process, readOutput.get(), deadlineUtc);
 
 		String output = readOutput.get();
-		if (readyWasObservedBy(output, deadlineUtc)) {
+		if (firstReadyWasObservedBy(output, deadlineUtc)) {
 			if (process.waitFor(readinessDrain.toNanos(), TimeUnit.NANOSECONDS))
 				return classify(process, readOutput.get(), deadlineUtc);
 			return new Result(Status.READY_BUT_INCOMPLETE, readOutput.get(), -1);
@@ -35,7 +39,7 @@ public final class NativeChooserProbeCompletion {
 		if (process.waitFor(diagnosticDrain.toNanos(), TimeUnit.NANOSECONDS))
 			return classify(process, readOutput.get(), deadlineUtc);
 		output = readOutput.get();
-		if (readyWasObservedBy(output, deadlineUtc)) {
+		if (firstReadyWasObservedBy(output, deadlineUtc)) {
 			if (process.waitFor(readinessDrain.toNanos(), TimeUnit.NANOSECONDS))
 				return classify(process, readOutput.get(), deadlineUtc);
 			return new Result(Status.READY_BUT_INCOMPLETE, readOutput.get(), -1);
@@ -46,14 +50,17 @@ public final class NativeChooserProbeCompletion {
 	private static Result classify(Process process, String output, Instant deadlineUtc) {
 		int exitCode = process.exitValue();
 		if (exitCode != 0) return new Result(Status.PROCESS_FAILED, output, exitCode);
-		return new Result(readyWasObservedBy(output, deadlineUtc) ? Status.COMPLETE : Status.NOT_READY_BY_DEADLINE,
+		return new Result(completeReadyWasObservedBy(output, deadlineUtc) ? Status.COMPLETE : Status.NOT_READY_BY_DEADLINE,
 			output, exitCode);
 	}
 
-	private static boolean readyWasObservedBy(String output, Instant deadlineUtc) {
+	private static boolean firstReadyWasObservedBy(String output, Instant deadlineUtc) {
 		Instant firstReady = timestamp(READY_OBSERVED, output);
-		Instant completed = timestamp(COMPLETED_READY, output);
-		return firstReady != null && completed != null && !firstReady.isAfter(deadlineUtc);
+		return firstReady != null && !firstReady.isAfter(deadlineUtc);
+	}
+
+	private static boolean completeReadyWasObservedBy(String output, Instant deadlineUtc) {
+		return firstReadyWasObservedBy(output, deadlineUtc) && timestamp(COMPLETED_READY, output) != null;
 	}
 
 	private static Instant timestamp(Pattern pattern, String output) {

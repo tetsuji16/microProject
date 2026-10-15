@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026 microProject
+ * SPDX-License-Identifier: MIT
+ */
 package com.microproject.testsupport;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -30,6 +34,19 @@ class NativeChooserProbeCompletionTest {
 		Supplier<String> output = () -> TIMELY_READY;
 		var result = NativeChooserProbeCompletion.await(process, output, System.nanoTime() + TimeUnit.SECONDS.toNanos(1), DEADLINE,
 			Duration.ofMillis(300), Duration.ofMillis(25));
+
+		assertEquals(NativeChooserProbeCompletion.Status.COMPLETE, result.status());
+		assertEquals(0, result.exitCode());
+	}
+
+	@Test
+	void drainsForCompletionWhenFirstReadyIsTimelyButSnapshotMarkerIsNotYetSerialized() throws Exception {
+		FakeProcess process = new FakeProcess(0, true);
+		Queue<String> outputs = new ArrayDeque<>();
+		outputs.add(PARTIAL_READY);
+		outputs.add(TIMELY_READY_LATE_EXIT);
+		var result = NativeChooserProbeCompletion.await(process, outputs::remove,
+			System.nanoTime() - 1, DEADLINE, Duration.ofMillis(300), Duration.ofMillis(25));
 
 		assertEquals(NativeChooserProbeCompletion.Status.COMPLETE, result.status());
 		assertEquals(0, result.exitCode());
@@ -77,7 +94,7 @@ class NativeChooserProbeCompletionTest {
 			Duration.ofMillis(1), Duration.ofMillis(1));
 
 		assertEquals(NativeChooserProbeCompletion.Status.NOT_READY_BY_DEADLINE, deadlineResult.status());
-		assertEquals(NativeChooserProbeCompletion.Status.NOT_READY_BY_DEADLINE, partialResult.status());
+		assertEquals(NativeChooserProbeCompletion.Status.READY_BUT_INCOMPLETE, partialResult.status());
 	}
 
 	@Test
