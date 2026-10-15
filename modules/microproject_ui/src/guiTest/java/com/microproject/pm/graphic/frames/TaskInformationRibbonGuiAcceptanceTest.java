@@ -3229,8 +3229,6 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"the physical chooser must select Name as its secondary key; selected="
 				+ (secondField.getSelectedItem() instanceof CommonTransformFactory selected
 					? selected.getId() : secondField.getSelectedItem())
-				+ "; beforeKeys=" + secondField.getClientProperty("microproject.combo.beforeKeys")
-				+ "; afterKeys=" + secondField.getClientProperty("microproject.combo.afterKeys")
 				+ "; " + GuiAcceptanceSupport.comboState(secondField));
 		JComboBox<?> secondDirection = UiComponentWalker.flatten(multiKeyChooser).stream()
 			.filter(JComboBox.class::isInstance).map(JComboBox.class::cast)
