@@ -297,6 +297,8 @@ public class MspImporter {
 		org.w3c.dom.Document document = factory.newDocumentBuilder()
 			.parse(new ByteArrayInputStream(xml));
 		String namespace = document.getDocumentElement().getNamespaceURI();
+		com.microproject.core.pm.exchange.converters.mpx.MpxCustomFieldsConverter
+			.validateMspdiValues(document, namespace);
 		DurationDefaults durationDefaults = rawDurationDefaults(document.getDocumentElement(), namespace);
 		org.w3c.dom.NodeList assignments = document.getElementsByTagNameNS(namespace, "Assignment");
 		Map<Long, MpxImportState.RawMspdiAssignmentWork> result = new HashMap<>();

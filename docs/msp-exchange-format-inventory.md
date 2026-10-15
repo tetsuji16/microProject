@@ -1,6 +1,6 @@
 # Exchange format inventory
 
-**Reviewed:** 2026-10-15 at master `8f980ce978414fd6d8d894992481e5c9d326bdd2`. This records implemented code paths and
+**Reviewed:** 2026-10-16 at master `d4381676f`. This records implemented code paths and
 their current verification scope; it is not a claim of full Microsoft Project
 interoperability.
 
@@ -102,6 +102,23 @@ cannot silently select another writer.
   Element](https://learn.microsoft.com/en-us/office-project/xml-data-interchange/xml-schema-for-the-assignments-element?view=project-client-2016),
   which places assignment Baseline records after ExtendedAttribute and before
   the local custom-field sequence.
+- MSPDI indexed custom fields: `ExtendedAttribute/FieldID` is the identity used
+  for local task/resource values; `FieldName` and `Alias` are not persisted by
+  the current model. Microsoft distinguishes literal `Value` from lookup
+  `ValueGUID` ([ExtendedAttribute element](https://learn.microsoft.com/en-us/office-project/xml-data-interchange/extendedattribute-element?view=project-client-2016),
+  [custom-field data](https://learn.microsoft.com/en-us/office-project/xml-data-interchange/custom-field-data-in-xml?view=project-client-2016)).
+  The importer supports mapped indexed fields represented by `CustomFieldsMapper`
+  and rejects unknown or malformed IDs, missing values, lookup GUIDs,
+  conflicting duplicates, and assignment-level custom values before changing
+  project state. Same-value duplicates are accepted. Alias persistence and
+  lookup-value resolution remain unsupported. Literal MSPDI Task and Resource
+  XML tests cover Cost, Date, Duration, Finish, Flag, Number, Start, and Text,
+  including MPO save/reopen. Field type numbers follow Microsoft's
+  [CFType element](https://learn.microsoft.com/en-us/office-project/xml-data-interchange/cftype-element?view=project-client-2016).
+  MPXJ 11.5.4's pinned `DatatypeConverter.parseCustomFieldCurrency` /
+  `printCustomFieldCurrency` path maps MSPDI currency values in hundredths; the
+  literal test uses 1250/2250 for domain values 12.5/22.5. This is a pinned
+  library conversion, not a general currency precision rule.
 - Calendar date-only exception and dated work-week fields map by calendar day,
   independent of UTC, Tokyo, and Mexico City JVM defaults. The contract is
   tested against a hand-authored MSPDI date fixture and MPXJ 11.5.4's
@@ -119,6 +136,11 @@ cannot silently select another writer.
   must not replace native MPO or legacy POD fixtures.
 ## Recent verification evidence
 
+- `MpxCustomFieldsConverterTest` covers all eight indexed categories for task
+  and resource MPXJ objects and literal MSPDI task/resource fields, then checks
+  MPO save/reopen. Negative cases cover unsupported/malformed IDs, missing
+  values, ValueGUID, assignment values, and conflicting duplicates. Currency
+  expectations use the pinned MPXJ MSPDI hundredths conversion.
 - Focused lifecycle and assignment-only XML/MPO round-trip tests passed after implementation. Full verification command `:microproject_core:test :microproject_exchange:test --no-daemon --max-workers=1 --console=plain` completed successfully on 2026-10-12 (`BUILD SUCCESSFUL`, 43s).
 - Physical Windows Robot acceptance passed on 2026-10-12 with JDK 25, Japanese locale, and UI scale 1. Command: `gradlew.bat :microproject_ui:installDist :microproject_ui:guiTest --tests "com.microproject.pm.graphic.frames.RibbonExternalCommandGuiAcceptanceTest.robotSavesImportedMppAsMpoAndCancellationOrOverwriteRefusalKeepsSource" -PguiTestLocale=ja -PguiTestUiScale=1 --no-daemon --max-workers=1 --console=plain`. The route imports the checked-in MPP copy, verifies cancellation and overwrite refusal preserve the source, saves MPO, reopens it, then opens a fixed MSPDI XML copy and verifies assignment baseline slots 0/9/10 survive Save As MPO and reopen. The checked-in New Product MPP currently has no assignment baseline scalars, so its round trip is not counted as scalar baseline evidence. The test report is `modules/microproject_ui/build/reports/tests/guiTest/index.html`.
 - The physical test first failed because it expected ordinary Save on an XML source to prompt for Save As; XML is a supported explicit export format and ordinary Save remains associated with that XML path. A later Save As attempt timed out at the save-completion assertion; the run did not record a modal owner/title, so it is not evidence of a window-ownership defect. The corrected route uses the explicit Save As command and native MPO default, and passed.
