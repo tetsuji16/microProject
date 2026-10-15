@@ -33,8 +33,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.ListIterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
@@ -53,6 +53,7 @@ import com.microproject.grouping.core.transform.filtering.NodeFilter;
 import com.microproject.grouping.core.transform.grouping.NodeGroup;
 import com.microproject.grouping.core.transform.grouping.NodeGrouper;
 import com.microproject.grouping.core.transform.sorting.NodeSorter;
+import com.microproject.grouping.core.transform.sorting.TaskSortSpec;
 import com.microproject.grouping.core.transform.transformer.NodeTransformer;
 
 /**
@@ -85,14 +86,24 @@ public class NodeCacheTransformer implements CacheTransformer<GraphicNode> {
 		return transformer;
 	}
 
+	public boolean isFlatTaskSort() {
+		return !transformer.isKeepOutline() && !transformer.getTaskSortSpec().keys().isEmpty()
+				&& (viewName == null || !viewName.startsWith("Resource"));
+	}
+
+	public int getDisplayLevel(GraphicNode node) {
+		return isFlatTaskSort() && !node.isGroup() ? levelOffset + 1 : node.getLevel() + (node.isGroup() ? 0 : levelOffset);
+	}
+
 
 
     public void transfrom(List<GraphicNode> list){
     	model.clear();
+        levelOffset=0;
 
         if (list==null) return;
 
-        boolean preserveHierarchy=transformer.isPreserveHierarchy();
+        boolean preserveHierarchy=transformer.isPreserveHierarchy() && transformer.isKeepOutline();
 
         if (!transformer.isShowSummary()){
         	preserveHierarchy=false;
@@ -112,7 +123,10 @@ public class NodeCacheTransformer implements CacheTransformer<GraphicNode> {
 
         NodeSorter sorter1=transformer.getHiddenSorter();
         NodeSorter sorter2=transformer.getUserSorter();
-        boolean sorting=!(sorter1==null&&transformer.isNoneSorter());
+		TaskSortSpec taskSortSpec = transformer.getTaskSortSpec();
+        boolean taskView = viewName == null || !viewName.startsWith("Resource");
+		boolean canonicalTaskSorter = taskView && !taskSortSpec.keys().isEmpty();
+        boolean sorting=sorter1!=null || canonicalTaskSorter || !transformer.isNoneSorter();
 
         NodeGrouper grouper=transformer.getUserGrouper();
         boolean grouping=!transformer.isNoneGrouper();
@@ -191,7 +205,11 @@ public class NodeCacheTransformer implements CacheTransformer<GraphicNode> {
         if (sorting){
 	        if (sorter1!=null)
 	            sorter1.sortList(localList,new GraphicNodeComparator(sorter1,composition),preserveHierarchy);
-	        if (!transformer.isNoneSorter()) {
+	        if (canonicalTaskSorter) {
+	            Comparator<Object> taskComparator = taskSortSpec.comparator();
+	            NodeSorter.sortHierarchically(localList,
+					new GraphicNodeComparator(taskComparator, null, composition), preserveHierarchy);
+	        } else if (!transformer.isNoneSorter()) {
 	            Comparator<Object> orderedComparator = NodeSorter.forOrder(sorter2, transformer.isUserSorterAscending());
 	            sorter2.sortList(localList,new GraphicNodeComparator(orderedComparator,sorter2,composition),preserveHierarchy);
 	        }

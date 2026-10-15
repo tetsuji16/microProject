@@ -22,15 +22,19 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import javax.swing.AbstractButton;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
+import javax.swing.JList;
 import javax.swing.SwingUtilities;
+import javax.swing.plaf.basic.ComboPopup;
 
 /** Shared deterministic waits for non-headless Swing acceptance tests. */
 public final class GuiAcceptanceSupport {
@@ -301,21 +305,82 @@ public final class GuiAcceptanceSupport {
 		return false;
 	}
 
-	/** Selects a combo-box item through its physical dropdown and keyboard route. */
+	/** Selects a combo-box item by physically clicking its rendered popup row. */
 	public static void selectComboBoxItem(Robot robot, JComboBox<?> combo, int index) throws Exception {
 		if (combo == null || index < 0 || index >= combo.getItemCount())
 			throw new AssertionError("Invalid physical combo-box selection index " + index);
 		WindowAcceptanceAssertions.clickComponent(robot, combo);
-		robot.keyPress(KeyEvent.VK_HOME);
-		robot.keyRelease(KeyEvent.VK_HOME);
-		for (int current = 0; current < index; current++) {
-			robot.keyPress(KeyEvent.VK_DOWN);
-			robot.keyRelease(KeyEvent.VK_DOWN);
-		}
-		robot.keyPress(KeyEvent.VK_ENTER);
-		robot.keyRelease(KeyEvent.VK_ENTER);
+		await(combo::isPopupVisible, "the physically clicked combo-box dropdown did not open");
+		PopupCell target = popupCell(combo, index);
+		robot.mouseMove(target.screenPoint().x, target.screenPoint().y);
 		robot.waitForIdle();
+		AtomicReference<Boolean> pointerOverCell = new AtomicReference<>(false);
+		SwingUtilities.invokeAndWait(() -> {
+			Point pointer = target.list().getMousePosition();
+			pointerOverCell.set(target.list().isShowing() && pointer != null && target.cellBounds().contains(pointer));
+		});
+		if (!pointerOverCell.get())
+			throw new AssertionError("Robot pointer did not enter the target combo popup row; combo=" + combo.getName()
+				+ ", index=" + index + ", item=" + target.item() + ", cell=" + target.cellBounds());
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		try {
+			robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		} finally {
+			robot.waitForIdle();
+		}
+		robot.delay(150);
+		await(() -> combo.getSelectedIndex() == index && !combo.isPopupVisible(),
+			"physical popup-row click did not select combo item " + index + " (" + target.item() + ")");
 	}
+
+	public static String comboState(JComboBox<?> combo) throws Exception {
+		AtomicReference<String> state = new AtomicReference<>();
+		SwingUtilities.invokeAndWait(() -> {
+			Component focus = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
+			StringBuilder result = new StringBuilder("name=").append(combo.getName())
+				.append(" selectedIndex=").append(combo.getSelectedIndex())
+				.append(" selectedItem=").append(combo.getSelectedItem())
+				.append(" popupVisible=").append(combo.isPopupVisible())
+				.append(" focusOwner=").append(focus == null ? "null"
+					: focus.getClass().getName() + "/" + focus.getName());
+			for (int key : new int[] { KeyEvent.VK_HOME, KeyEvent.VK_DOWN, KeyEvent.VK_ENTER }) {
+				javax.swing.KeyStroke stroke = javax.swing.KeyStroke.getKeyStroke(key, 0);
+				Object binding = combo.getInputMap(JComponent.WHEN_FOCUSED).get(stroke);
+				Object action = binding == null ? null : combo.getActionMap().get(binding);
+				result.append(" key[").append(KeyEvent.getKeyText(key)).append("]=" ).append(binding)
+					.append('/').append(action == null ? "null" : action.getClass().getName());
+			}
+			state.set(result.toString());
+		});
+		return state.get();
+	}
+
+	private static PopupCell popupCell(JComboBox<?> combo, int index) throws Exception {
+		AtomicReference<PopupCell> cell = new AtomicReference<>();
+		SwingUtilities.invokeAndWait(() -> {
+			if (!(combo.getUI().getAccessibleChild(combo, 0) instanceof ComboPopup popup))
+				throw new AssertionError("Combo-box UI does not expose its live popup list: " + combo.getUI().getClass());
+			JList<?> list = popup.getList();
+			if (list == null || list.getModel().getSize() != combo.getItemCount())
+				throw new AssertionError("Combo popup list does not match combo model size for " + combo.getName());
+			for (int row = 0; row < combo.getItemCount(); row++) {
+				if (!Objects.equals(combo.getItemAt(row), list.getModel().getElementAt(row)))
+					throw new AssertionError("Combo popup list model differs at row " + row + " for " + combo.getName());
+			}
+			list.ensureIndexIsVisible(index);
+			Rectangle bounds = list.getCellBounds(index, index);
+			if (bounds == null || !list.isShowing() || !list.getVisibleRect().contains(bounds))
+				throw new AssertionError("Target combo popup row is not rendered: combo=" + combo.getName()
+					+ ", index=" + index + ", bounds=" + bounds + ", visible=" + list.getVisibleRect());
+			Point location = list.getLocationOnScreen();
+			Point center = new Point(location.x + bounds.x + bounds.width / 2,
+				location.y + bounds.y + bounds.height / 2);
+			cell.set(new PopupCell(list, bounds, center, list.getModel().getElementAt(index)));
+		});
+		return cell.get();
+	}
+
+	private record PopupCell(JList<?> list, Rectangle cellBounds, Point screenPoint, Object item) { }
 
 	/**
 	 * Runs Swing cleanup without allowing a native-window/EDT deadlock to hang a

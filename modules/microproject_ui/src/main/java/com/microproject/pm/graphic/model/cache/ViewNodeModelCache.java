@@ -611,9 +611,11 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 
 
 	public int getLevel(GraphicNode node){
-		if (node.isGroup()) return node.getLevel();
 		NodeCacheTransformer transformer=(NodeCacheTransformer)visibleNodes.getTransformer();
-		return node.getLevel()+transformer.getLevelOffset();
+		return transformer.getDisplayLevel(node);
+	}
+	private int treeLevel(GraphicNode node) {
+		return node == getRoot() ? 0 : getLevel(node);
 	}
 	public int getPertLevel(GraphicNode node){
 		return node.getPertLevel();
@@ -659,8 +661,8 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 		int count=0;
 		while (i.hasNext()){
 			node=(GraphicNode)i.next();
-			if (node.getLevel()<=ref.getLevel()) break;
-			else if (node.getLevel()==ref.getLevel()+1){
+			if (treeLevel(node)<=treeLevel(ref)) break;
+			else if (treeLevel(node)==treeLevel(ref)+1){
 				if (count==index) return node;
 				count++;
 			}
@@ -683,8 +685,8 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 		if (ref!=null)
 		while (i.hasNext()){
 			node=(GraphicNode)i.next();
-			if (node.getLevel()<=ref.getLevel()) break;
-			else if (node.getLevel()==ref.getLevel()+1) count++;
+			if (treeLevel(node)<=treeLevel(ref)) break;
+			else if (treeLevel(node)==treeLevel(ref)+1) count++;
 		}
 		return count;
 	}
@@ -704,8 +706,8 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 		int count=0;
 		while (i.hasNext()){
 			node=(GraphicNode)i.next();
-			if (node.getLevel()<=ref.getLevel()) break;
-			else if (node.getLevel()==ref.getLevel()+1){
+			if (treeLevel(node)<=treeLevel(ref)) break;
+			else if (treeLevel(node)==treeLevel(ref)+1){
 				if (node==child) return count;
 				count++;
 			}
@@ -730,7 +732,7 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 		if (ref==null) return true;
 		if (i.hasNext()){
 			node=(GraphicNode)i.next();
-			if (node.getLevel()>ref.getLevel()) return false;
+			if (treeLevel(node)>treeLevel(ref)) return false;
 			else return true;
 		}
 		return true;

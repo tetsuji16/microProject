@@ -66,11 +66,13 @@ public class NodeCache extends CellCache<GraphicNode, VisibleNodes> {
 		
 		visibleElements.clear();
 		int minLevel=-1;
+		boolean flattenCollapsedTasks = v.getTransformer() instanceof com.microproject.pm.graphic.model.transform.NodeCacheTransformer transformer
+				&& transformer.isFlatTaskSort();
 		for (GraphicNode node : cache) {
-			if (minLevel!=-1&&node.getLevel()>minLevel) continue;
+			if (!flattenCollapsedTasks && minLevel!=-1&&node.getLevel()>minLevel) continue;
 			minLevel=-1;
 			visibleElements.add(node);
-			if (node.isComposite()&&node.isCollapsed()) minLevel=node.getLevel();
+			if (!flattenCollapsedTasks && node.isComposite()&&node.isCollapsed()) minLevel=node.getLevel();
 		}
 //		long t1=System.currentTimeMillis();
 

@@ -96,7 +96,7 @@ public class PrintDocumentFactory {
 		ViewTransformer transformer=((NodeCacheTransformer)cache.getVisibleNodes().getTransformer()).getTransformer();
 		ViewTransformer srcTransformer=((NodeCacheTransformer)srcCache.getVisibleNodes().getTransformer()).getTransformer();
 		transformer.setUserFilterId(srcTransformer.getUserFilterId()); //this is valid just because the views have the same transformers
-		transformer.setUserSorter(srcTransformer.getUserSorterId(), srcTransformer.isUserSorterAscending()); //same view transforms
+		transformer.setTaskSortSpec(srcTransformer.getTaskSortSpec());
 		transformer.setUserGrouperId(srcTransformer.getUserGrouperId()); //this is valid just because the views have the same transformers
 		GraphPageable document=new GraphPageable(renderer,printOnly,pdfAsDefault,true);
 		return document;

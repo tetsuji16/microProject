@@ -115,6 +115,7 @@ import com.microproject.dialog.AbstractDialog;
 import com.microproject.dialog.LocaleDialog;
 import com.microproject.dialog.ProjectDialog;
 import com.microproject.dialog.ResourceSortOrderPanel;
+import com.microproject.dialog.TaskSortOptionsPanel;
 import com.microproject.dialog.PreferencesDialogBox;
 import com.microproject.dialog.RenameProjectDialog;
 import com.microproject.dialog.WelcomeDialog;
@@ -135,6 +136,7 @@ import com.microproject.grouping.core.transform.ViewTransformer;
 import com.microproject.grouping.core.transform.filtering.NodeFilter;
 import com.microproject.grouping.core.transform.filtering.ResourceInTeamFilter;
 import com.microproject.grouping.core.transform.sorting.NodeSorter;
+import com.microproject.grouping.core.transform.sorting.TaskSortSpec;
 import com.microproject.job.Job;
 import com.microproject.job.JobQueue;
 import com.microproject.job.JobRunnable;
@@ -3881,8 +3883,27 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		}
 		JCheckBox permanentOrder = taskSort
 				? new JCheckBox(getMenuManager().getString("Sort.PermanentTaskOrder")) : null;
+		TaskSortOptionsPanel taskSortOptions = null;
+		if (taskViewSort) {
+			ViewTransformer taskViewTransformer = ((TransformComboBoxModel) combo.getModel()).getView().getTransform();
+			TaskSortSpec current = taskViewTransformer.getTaskSortSpec();
+			List<CommonTransformFactory> sortChoices = new ArrayList<>();
+			for (int index = 0; index < combo.getItemCount(); index++)
+				if (combo.getItemAt(index) instanceof CommonTransformFactory factory) sortChoices.add(factory);
+			taskSortOptions = new TaskSortOptionsPanel(sortChoices, current);
+			if (permanentOrder != null) {
+				permanentOrder.setName("microproject.taskSort.permanentOrder");
+				permanentOrder.setEnabled(current.keepOutline());
+				taskSortOptions.addKeepOutlineListener(event -> {
+					boolean keepOutline = event.getStateChange() == java.awt.event.ItemEvent.SELECTED;
+					if (!keepOutline) permanentOrder.setSelected(false);
+					permanentOrder.setEnabled(keepOutline);
+				});
+			}
+		}
 		JPanel chooser = new JPanel(new BorderLayout(0, 8));
 		chooser.add(combo, BorderLayout.CENTER);
+		if (taskSortOptions != null) chooser.add(taskSortOptions, BorderLayout.NORTH);
 		if (sortDirection != null || permanentOrder != null) {
 			JPanel options = new JPanel(new FlowLayout(FlowLayout.LEADING, 8, 0));
 			if (sortDirection != null) {
@@ -3906,8 +3927,13 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 					return;
 				}
 				CommonTransformFactory factory = (CommonTransformFactory) combo.getSelectedItem();
+				TaskSortSpec sortSpec = taskSortSpec(combo, sortDirection, taskSortOptions);
 				try {
-					if (factory == null || !(factory.getTransform() instanceof NodeSorter sorter)) {
+					if (!sortSpec.keepOutline()) {
+						publishTaskCommandOutcome(action, RibbonCommandResult.rejected(actionId, "permanent-sort-requires-outline"));
+						return;
+					}
+					if (factory == null || sortSpec.keys().isEmpty()) {
 						publishTaskCommandOutcome(action, RibbonCommandResult.rejected(actionId, "invalid-sorter"));
 						return;
 					}
@@ -3918,15 +3944,15 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 						publishTaskCommandOutcome(action, RibbonCommandResult.rejected(actionId, "unsupported-task-model"));
 						return;
 					}
-					boolean ascending = sortDirection == null || sortDirection.getSelectedIndex() == 0;
-					boolean changed = defaultNodeModel.sortOutlineBy(NodeSorter.forOrder(sorter, ascending), NodeModel.NORMAL);
+					boolean changed = defaultNodeModel.sortOutlineBy(sortSpec.comparator(), NodeModel.NORMAL);
 					if (changed) {
 						for (int index = 0; index < combo.getItemCount(); index++) {
 							Object item = combo.getItemAt(index);
 							if (item instanceof CommonTransformFactory noneFactory
 									&& ViewTransformer.SORTER_NONE_ID.equals(noneFactory.getId())) {
 								combo.setSelectedItem(noneFactory);
-								combo.transformBasedOnValue(true);
+								((TransformComboBoxModel) combo.getModel()).getView().getTransform()
+									.setTaskSortSpec(TaskSortSpec.outlineDefault());
 								break;
 							}
 						}
@@ -3947,9 +3973,25 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				}
 				return;
 			}
-			if (sortDirection == null) combo.transformBasedOnValue();
+			if (taskSortOptions != null) {
+				ViewTransformer taskViewTransformer = ((TransformComboBoxModel) combo.getModel()).getView().getTransform();
+				taskViewTransformer.setTaskSortSpec(taskSortSpec(combo, sortDirection, taskSortOptions));
+			} else if (sortDirection == null) combo.transformBasedOnValue();
 			else combo.transformBasedOnValue(sortDirection.getSelectedIndex() == 0);
 		}
+	}
+
+	private TaskSortSpec taskSortSpec(TransformComboBox combo, JComboBox<String> direction, TaskSortOptionsPanel options) {
+		List<TaskSortSpec.Key> keys = new ArrayList<>();
+		Object selected = combo.getSelectedItem();
+		if (selected instanceof CommonTransformFactory factory && factory.getId() != null
+				&& !ViewTransformer.SORTER_NONE_ID.equals(factory.getId())) {
+			keys.add(new TaskSortSpec.Key(factory.getId(), direction == null || direction.getSelectedIndex() == 0));
+			for (TaskSortSpec.Key key : options.getAdditionalKeys()) {
+				if (keys.stream().noneMatch(existing -> existing.fieldId().equals(key.fieldId()))) keys.add(key);
+			}
+		}
+		return new TaskSortSpec(keys, options.isKeepOutline());
 	}
 
 	private void showTimescaleChooser() {

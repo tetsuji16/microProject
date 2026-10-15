@@ -34,6 +34,7 @@ import java.util.StringTokenizer;
 import com.microproject.grouping.core.transform.filtering.NodeFilter;
 import com.microproject.grouping.core.transform.grouping.NodeGrouper;
 import com.microproject.grouping.core.transform.sorting.NodeSorter;
+import com.microproject.grouping.core.transform.sorting.TaskSortSpec;
 import com.microproject.grouping.core.transform.transformer.NodeTransformer;
 import com.microproject.util.ListenerRegistry;
 
@@ -65,7 +66,7 @@ public class ViewTransformer{
     protected String hiddenGrouperId;
     protected String userGrouperId=GROUPER_NONE_ID;
     protected String transformerId;
-    protected boolean userSorterAscending=true;
+    private TaskSortSpec taskSortSpec = TaskSortSpec.outlineDefault();
 
     protected boolean hiddenFilterIdDirty=false;
     protected boolean userFilterIdDirty=false;
@@ -123,9 +124,7 @@ public class ViewTransformer{
         	hiddenSorterIdDirty=true;
         }
         else{
-			userSorterId=id.getId();
-			if (userSorterId == null || SORTER_NONE_ID.equals(userSorterId)) userSorterAscending=true;
-			userSorterIdDirty=true;
+			setUserSorter(id.getId(), true);
         }
     }
     public void setGrouperId(TransformId id) {
@@ -184,27 +183,47 @@ public class ViewTransformer{
 		fireTransformerChanged(this);
 	}
 	public String getUserSorterId() {
-		return userSorterId;
+		return taskSortSpec.keys().isEmpty() ? userSorterId : taskSortSpec.keys().get(0).fieldId();
 	}
 	public void setUserSorterId(String userSorterId) {
-		setUserSorter(userSorterId, userSorterAscending);
+		setUserSorter(userSorterId, isUserSorterAscending());
 	}
 	public void setUserSorter(String userSorterId, boolean userSorterAscending) {
-		this.userSorterId = userSorterId;
-		this.userSorterAscending = userSorterId == null || SORTER_NONE_ID.equals(userSorterId)
-				|| userSorterAscending;
-		userSorterIdDirty=true;
-		fireTransformerChanged(this);
+		if (userSorterId == null || SORTER_NONE_ID.equals(userSorterId)) {
+			setTaskSortSpec(new TaskSortSpec(List.of(), taskSortSpec.keepOutline()));
+			return;
+		}
+		setTaskSortSpec(new TaskSortSpec(List.of(new TaskSortSpec.Key(userSorterId, userSorterAscending)),
+				taskSortSpec.keepOutline()));
+	}
+	private void setCanonicalTaskSortSpec(TaskSortSpec spec) {
+		this.taskSortSpec = spec;
+		this.userSorterId = spec.keys().isEmpty() ? SORTER_NONE_ID : spec.keys().get(0).fieldId();
+		this.userSorterIdDirty = true;
+		this.userSorter = null;
 	}
 	public boolean isUserSorterAscending() {
-		return userSorterAscending;
+		return taskSortSpec.keys().isEmpty() || taskSortSpec.keys().get(0).ascending();
+	}
+	public TaskSortSpec getTaskSortSpec() {
+		return taskSortSpec;
+	}
+	public void setTaskSortSpec(TaskSortSpec taskSortSpec) {
+		setCanonicalTaskSortSpec(taskSortSpec == null ? TaskSortSpec.outlineDefault() : taskSortSpec);
+		fireTransformerChanged(this);
+	}
+	public boolean isKeepOutline() {
+		return taskSortSpec.keepOutline();
 	}
 	public void setUserSorterAscending(boolean userSorterAscending) {
-		boolean effectiveAscending = userSorterId == null || SORTER_NONE_ID.equals(userSorterId)
-				|| userSorterAscending;
-		if (this.userSorterAscending == effectiveAscending) return;
-		this.userSorterAscending = effectiveAscending;
-		fireTransformerChanged(this);
+		if (!taskSortSpec.keys().isEmpty()) {
+			TaskSortSpec.Key first = taskSortSpec.keys().get(0);
+			if (first.ascending() != userSorterAscending) {
+				List<TaskSortSpec.Key> keys = new ArrayList<>(taskSortSpec.keys());
+				keys.set(0, new TaskSortSpec.Key(first.fieldId(), userSorterAscending));
+				setTaskSortSpec(new TaskSortSpec(keys, taskSortSpec.keepOutline()));
+			}
+		}
 	}
 	public String getTransformerId() {
 		return transformerId;
@@ -296,7 +315,7 @@ public class ViewTransformer{
     public void setUserSorter(NodeSorter userSorter) {
         this.userSorter = userSorter;
         userSorterId = SORTER_NONE_ID;
-		userSorterAscending = true;
+		this.taskSortSpec = TaskSortSpec.outlineDefault();
         userSorterIdDirty = false;
         fireTransformerChanged(this);
     }
@@ -381,7 +400,7 @@ public class ViewTransformer{
     	return userFilterId==null||FILTER_NONE_ID.equals(userFilterId);
     }
     public boolean isNoneSorter(){
-	return userSorter == null && (userSorterId==null||SORTER_NONE_ID.equals(userSorterId));
+	return userSorter == null && taskSortSpec.keys().isEmpty();
     }
     public boolean isNoneGrouper(){
     	return userGrouperId==null||GROUPER_NONE_ID.equals(userGrouperId);

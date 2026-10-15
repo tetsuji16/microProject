@@ -36,7 +36,12 @@ import javax.swing.SwingUtilities;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.document.ObjectEvent;
+import com.microproject.configuration.Dictionary;
 import com.microproject.grouping.core.Node;
+import com.microproject.grouping.core.model.DefaultNodeModel;
+import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.grouping.core.transform.ViewTransformer;
+import com.microproject.grouping.core.transform.sorting.TaskSortSpec;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;
@@ -76,6 +81,64 @@ class ViewNodeModelCacheHierarchyDependencyTest {
 			(GraphicNode) viewCache.getGraphicNode(childNode));
 
 		assertSame(parentNode, project.getTaskModel().getHierarchy().getParent(childNode));
+	}
+
+	@Test
+	void keepOutlineOffFlattensCollapsedSummaryAndChildRowsWithoutMutatingTheModel() throws Exception {
+		Dictionary.getInstance();
+		Project project = createProject();
+		NormalTask parent = createTask(project, "Zulu Parent");
+		NormalTask child = createTask(project, "Alpha Child");
+		NormalTask sibling = createTask(project, "Beta Sibling");
+		DefaultNodeModel model = (DefaultNodeModel) project.getTaskModel();
+		model.indent(List.of(model.search(child)), 1, NodeModel.SILENT);
+		Node parentNode = (Node) model.search(parent);
+		Node childNode = (Node) model.search(child);
+		ReferenceNodeModelCache reference = NodeModelCacheFactory.createTaskNodeModelCache(project, model);
+		GraphicNode parentGraphic = reference.getGraphicNode(parentNode);
+		parentGraphic.setCollapsed(true);
+		ViewNodeModelCache flatView = (ViewNodeModelCache) NodeModelCacheFactory.getInstance().createFilteredCache(
+			reference, "flat-sort-test", transformer -> {
+				ViewTransformer viewTransformer = (ViewTransformer) transformer;
+				viewTransformer.setUserSorter("Sorter.Name", true);
+				viewTransformer.setTaskSortSpec(new TaskSortSpec(
+						List.of(new TaskSortSpec.Key("Sorter.Name", true)), false));
+			});
+		reference.update();
+		try {
+			assertEquals(List.of("Alpha Child", "Beta Sibling", "Zulu Parent"), visibleNames(flatView));
+			assertEquals(3, flatView.getChildCount(flatView.getRoot()), "flat TreeModel exposes every row under the root");
+			for (int row = 0; row < flatView.getVisibleNodes().getSize(); row++)
+				assertEquals(1, flatView.getLevel(flatView.getVisibleNodes().getElementAt(row)));
+			assertSame(parentNode, model.getHierarchy().getParent(childNode), "Keep Outline off is projection-only");
+			assertTrue(reference.getGraphicNode(parentNode).isCollapsed(), "the view projection must not change collapse state");
+		} finally {
+			flatView.close();
+			reference.close();
+		}
+	}
+
+	@Test
+	void multiKeyTaskSortAppliesDescendingNameAfterEqualStartDates() throws Exception {
+		Dictionary.getInstance();
+		Project project = createProject();
+		NormalTask earlierName = createTask(project, "Date sort earlier");
+		NormalTask laterName = createTask(project, "Date sort tied earlier");
+		assertEquals(earlierName.getStart(), laterName.getStart(), "fixture must tie on Start Date");
+		DefaultNodeModel model = (DefaultNodeModel) project.getTaskModel();
+		ReferenceNodeModelCache reference = NodeModelCacheFactory.createTaskNodeModelCache(project, model);
+		ViewNodeModelCache sortedView = (ViewNodeModelCache) NodeModelCacheFactory.getInstance().createFilteredCache(
+			reference, "multi-key-sort-test", transformer -> ((ViewTransformer) transformer).setTaskSortSpec(
+				new TaskSortSpec(List.of(new TaskSortSpec.Key("Sorter.StartDate", true),
+						new TaskSortSpec.Key("Sorter.Name", false)), true)));
+		reference.update();
+		try {
+			assertEquals(List.of("Date sort tied earlier", "Date sort earlier"), visibleNames(sortedView),
+				"the view pipeline must resolve and apply a secondary descending Name comparator");
+		} finally {
+			sortedView.close();
+			reference.close();
+		}
 	}
 
 	@Test
@@ -150,5 +213,12 @@ class ViewNodeModelCacheHierarchyDependencyTest {
 		project.connectTask(task);
 		project.getTaskOutlines().addToAll(task, null);
 		return task;
+	}
+
+	private List<String> visibleNames(ViewNodeModelCache cache) {
+		List<String> names = new java.util.ArrayList<>();
+		for (GraphicNode node : cache.getVisibleNodes().getElements())
+			if (node.getNode().getImpl() instanceof NormalTask task) names.add(task.getName());
+		return names;
 	}
 }
