@@ -24,10 +24,9 @@
 package com.microproject.core.pm.exchange.converters.mpx;
 
 import java.util.Date;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.HashMap;
-import java.util.Set;
+import java.math.BigDecimal;
 
 import com.microproject.datatype.DurationDefaults;
 import com.microproject.field.CustomFields;
@@ -61,33 +60,35 @@ public final class MpxCustomFieldsConverter {
 	 */
 	public static void validateMspdiValues(org.w3c.dom.Document document, String namespace) {
 		CustomFieldsMapper mapper = CustomFieldsMapper.getInstance();
-		Set<Integer> taskFields = fieldIds(mapper.taskMaps);
-		Set<Integer> resourceFields = fieldIds(mapper.resourceMaps);
+		Map<Integer, ValueType> taskFields = fieldTypes(mapper.taskMaps);
+		Map<Integer, ValueType> resourceFields = fieldTypes(mapper.resourceMaps);
 		validateElements(document, namespace, "Task", taskFields);
 		validateElements(document, namespace, "Resource", resourceFields);
-		validateElements(document, namespace, "Assignment", Set.of());
+		validateElements(document, namespace, "Assignment", Map.of());
 	}
 
-	private static Set<Integer> fieldIds(CustomFieldsMapper.Maps maps) {
-		Set<Integer> result = new HashSet<>();
-		addFieldIds(result, maps.costMap);
-		addFieldIds(result, maps.dateMap);
-		addFieldIds(result, maps.durationMap);
-		addFieldIds(result, maps.finishMap);
-		addFieldIds(result, maps.flagMap);
-		addFieldIds(result, maps.numberMap);
-		addFieldIds(result, maps.startMap);
-		addFieldIds(result, maps.textMap);
+	private enum ValueType { COST, DATE, DURATION, FINISH, FLAG, NUMBER, START, TEXT }
+
+	private static Map<Integer, ValueType> fieldTypes(CustomFieldsMapper.Maps maps) {
+		Map<Integer, ValueType> result = new HashMap<>();
+		addFieldTypes(result, maps.costMap, ValueType.COST);
+		addFieldTypes(result, maps.dateMap, ValueType.DATE);
+		addFieldTypes(result, maps.durationMap, ValueType.DURATION);
+		addFieldTypes(result, maps.finishMap, ValueType.FINISH);
+		addFieldTypes(result, maps.flagMap, ValueType.FLAG);
+		addFieldTypes(result, maps.numberMap, ValueType.NUMBER);
+		addFieldTypes(result, maps.startMap, ValueType.START);
+		addFieldTypes(result, maps.textMap, ValueType.TEXT);
 		return result;
 	}
 
-	private static void addFieldIds(Set<Integer> ids, FieldType[] fields) {
+	private static void addFieldTypes(Map<Integer, ValueType> types, FieldType[] fields, ValueType type) {
 		for (FieldType field : fields)
-			if (field != null) ids.add(Integer.valueOf(net.sf.mpxj.common.FieldTypeHelper.getFieldID(field)));
+			if (field != null) types.put(Integer.valueOf(net.sf.mpxj.common.FieldTypeHelper.getFieldID(field)), type);
 	}
 
 	private static void validateElements(org.w3c.dom.Document document, String namespace, String elementName,
-			Set<Integer> supportedFields) {
+			Map<Integer, ValueType> supportedFields) {
 		org.w3c.dom.NodeList elements = document.getElementsByTagNameNS(namespace, elementName);
 		for (int i = 0; i < elements.getLength(); i++) {
 			org.w3c.dom.Element element = (org.w3c.dom.Element) elements.item(i);
@@ -103,7 +104,8 @@ public final class MpxCustomFieldsConverter {
 				catch (NumberFormatException invalid) {
 					throw new IllegalArgumentException("MSPDI custom FieldID is malformed: " + rawFieldId, invalid);
 				}
-				if (!supportedFields.contains(Integer.valueOf(fieldId)))
+				ValueType type = supportedFields.get(Integer.valueOf(fieldId));
+				if (type == null)
 					throw new IllegalArgumentException("Unsupported MSPDI " + elementName
 						+ " custom-field FieldID " + fieldId + "; import would lose its value");
 				String value = childText(extended, "Value", namespace);
@@ -112,11 +114,41 @@ public final class MpxCustomFieldsConverter {
 					throw new IllegalArgumentException("MSPDI custom-field ValueGUID lookup values are not supported");
 				if (value == null)
 					throw new IllegalArgumentException("MSPDI custom FieldID " + fieldId + " is missing Value");
+				validateValueType(elementName, fieldId, type, value);
 				String previous = seen.putIfAbsent(Integer.valueOf(fieldId), value);
 				if (previous != null && !previous.equals(value))
 					throw new IllegalArgumentException("MSPDI " + elementName
 						+ " has conflicting duplicate values for custom FieldID " + fieldId);
 			}
+		}
+	}
+
+	private static void validateValueType(String elementName, int fieldId, ValueType type, String value) {
+		try {
+			switch (type) {
+			case COST, NUMBER -> new BigDecimal(value.trim());
+			case DATE, FINISH, START -> {
+				javax.xml.datatype.XMLGregorianCalendar date = javax.xml.datatype.DatatypeFactory.newInstance()
+					.newXMLGregorianCalendar(value.trim());
+				if (!date.isValid() || date.getYear() == javax.xml.datatype.DatatypeConstants.FIELD_UNDEFINED
+						|| date.getMonth() == javax.xml.datatype.DatatypeConstants.FIELD_UNDEFINED
+						|| date.getDay() == javax.xml.datatype.DatatypeConstants.FIELD_UNDEFINED)
+					throw new IllegalArgumentException("invalid XML date");
+			}
+			case DURATION -> {
+				// MPXJ parses this using the field's DurationFormat metadata; do not
+				// impose a second lexical format here.
+			}
+			case FLAG -> {
+				if (!("0".equals(value.trim()) || "1".equals(value.trim())
+						|| "true".equals(value.trim()) || "false".equals(value.trim())))
+					throw new IllegalArgumentException("invalid XML boolean");
+			}
+			case TEXT -> { }
+			}
+		} catch (javax.xml.datatype.DatatypeConfigurationException | IllegalArgumentException invalid) {
+			throw new IllegalArgumentException("Invalid MSPDI " + type + " value for " + elementName
+				+ " custom FieldID " + fieldId + ": " + value, invalid);
 		}
 	}
 
@@ -131,18 +163,21 @@ public final class MpxCustomFieldsConverter {
 
 	private static void copyNumbers(FieldContainer source, CustomFields target, FieldType[] fields, int kind) {
 		for (int i = 0; i < fields.length; i++) {
-			Object value = source.get(fields[i]);
-			if (value instanceof Number number) {
-				if (kind == 0) target.setCustomCost(i, number.doubleValue());
-				else target.setCustomNumber(i, number.doubleValue());
+			Number number = (Number) typedValue(source, fields[i], Number.class);
+			if (number != null) {
+				double value = number.doubleValue();
+				if (!Double.isFinite(value))
+					throw invalidSourceValue(fields[i], "finite number", number);
+				if (kind == 0) target.setCustomCost(i, value);
+				else target.setCustomNumber(i, value);
 			}
 		}
 	}
 
 	private static void copyDates(FieldContainer source, CustomFields target, FieldType[] fields, int kind) {
 		for (int i = 0; i < fields.length; i++) {
-			Object value = source.get(fields[i]);
-			if (value instanceof Date date) {
+			Date date = (Date) typedValue(source, fields[i], Date.class);
+			if (date != null) {
 				long modelTime = com.microproject.core.pm.exchange.converters.type.DateUTCConverter.toModelTime(date);
 				switch (kind) {
 				case 0 -> target.setCustomDate(i, modelTime);
@@ -156,23 +191,37 @@ public final class MpxCustomFieldsConverter {
 	private static void copyDurations(FieldContainer source, CustomFields target, FieldType[] fields,
 			DurationDefaults defaults) {
 		for (int i = 0; i < fields.length; i++) {
-			Object value = source.get(fields[i]);
-			if (value instanceof net.sf.mpxj.Duration duration)
+			net.sf.mpxj.Duration duration = (net.sf.mpxj.Duration) typedValue(source, fields[i],
+				net.sf.mpxj.Duration.class);
+			if (duration != null)
 				target.setCustomDuration(i, MpxUtils.toProjectDuration(duration, defaults));
 		}
 	}
 
 	private static void copyFlags(FieldContainer source, CustomFields target, FieldType[] fields) {
 		for (int i = 0; i < fields.length; i++) {
-			Object value = source.get(fields[i]);
-			if (value instanceof Boolean flag) target.setCustomFlag(i, flag.booleanValue());
+			Boolean flag = (Boolean) typedValue(source, fields[i], Boolean.class);
+			if (flag != null) target.setCustomFlag(i, flag.booleanValue());
 		}
 	}
 
 	private static void copyTexts(FieldContainer source, CustomFields target, FieldType[] fields) {
 		for (int i = 0; i < fields.length; i++) {
-			Object value = source.get(fields[i]);
-			if (value instanceof String text) target.setCustomText(i, text);
+			String text = (String) typedValue(source, fields[i], String.class);
+			if (text != null) target.setCustomText(i, text);
 		}
+	}
+
+	private static Object typedValue(FieldContainer source, FieldType field, Class<?> expectedType) {
+		if (field == null) return null;
+		Object value = source.get(field);
+		if (value != null && !expectedType.isInstance(value))
+			throw invalidSourceValue(field, expectedType.getSimpleName(), value);
+		return value;
+	}
+
+	private static IllegalArgumentException invalidSourceValue(FieldType field, String expected, Object value) {
+		return new IllegalArgumentException("Invalid MPXJ custom-field value for " + field + ": expected "
+			+ expected + ", got " + value.getClass().getSimpleName());
 	}
 }

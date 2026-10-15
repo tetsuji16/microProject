@@ -86,6 +86,28 @@ class MpxCustomFieldsConverterTest {
 	}
 
 	@Test
+	void rejectsNonFiniteNumericValuesAndUnexpectedMpxjValueTypes() throws Exception {
+		assertCustomMspdiRejected("<Task><ExtendedAttribute><FieldID>188743786</FieldID><Value>NaN</Value>"
+			+ "</ExtendedAttribute></Task>", "Invalid MSPDI COST value");
+		assertCustomMspdiRejected("<Task><ExtendedAttribute><FieldID>188743767</FieldID><Value>Infinity</Value>"
+			+ "</ExtendedAttribute></Task>", "Invalid MSPDI NUMBER value");
+		assertCustomMspdiRejected("<Task><ExtendedAttribute><FieldID>188743767</FieldID><Value>not-a-number</Value>"
+			+ "</ExtendedAttribute></Task>", "Invalid MSPDI NUMBER value");
+
+		ProjectFile source = new ProjectFile();
+		net.sf.mpxj.Task sourceTask = source.addTask();
+		Project target = project();
+		NormalTask task = target.createScriptedTask();
+		sourceTask.set(TaskField.COST1, Double.valueOf(Double.POSITIVE_INFINITY));
+		assertThrows(IllegalArgumentException.class, () -> MpxCustomFieldsConverter.from(sourceTask,
+			task.getCustomFields(), CustomFieldsMapper.getInstance().taskMaps, target.getDurationDefaults()));
+		sourceTask.set(TaskField.COST1, null);
+		sourceTask.set(TaskField.NUMBER1, "12.5");
+		assertThrows(IllegalArgumentException.class, () -> MpxCustomFieldsConverter.from(sourceTask,
+			task.getCustomFields(), CustomFieldsMapper.getInstance().taskMaps, target.getDurationDefaults()));
+	}
+
+	@Test
 	void importsLiteralMspdiTaskAndResourceTextFieldIdsAndRoundTripsThroughMpo() throws Exception {
 		Path fixture = Path.of("testdata", "mpxj", "project2019", "assignment-assignments-project2019-mspdi.xml");
 		if (!Files.isRegularFile(fixture))

@@ -110,8 +110,11 @@ cannot silently select another writer.
   The importer supports mapped indexed fields represented by `CustomFieldsMapper`
   and rejects unknown or malformed IDs, missing values, lookup GUIDs,
   conflicting duplicates, and assignment-level custom values before changing
-  project state. Same-value duplicates are accepted. Alias persistence and
-  lookup-value resolution remain unsupported. Literal MSPDI Task and Resource
+  project state. Numeric Cost/Number literals must be finite decimal values;
+  unexpected parsed MPXJ runtime types also fail instead of being skipped.
+  Same-value duplicates are accepted. Alias persistence and lookup-value
+  resolution remain unsupported. Duration parsing remains delegated to MPXJ's
+  `DurationFormat` interpretation. Literal MSPDI Task and Resource
   XML tests cover Cost, Date, Duration, Finish, Flag, Number, Start, and Text,
   including MPO save/reopen. Field type numbers follow Microsoft's
   [CFType element](https://learn.microsoft.com/en-us/office-project/xml-data-interchange/cftype-element?view=project-client-2016).
