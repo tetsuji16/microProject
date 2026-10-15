@@ -197,8 +197,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		});
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
-		AbstractButton openButton = findCommandButton(window.getRibbonPanel(), "RibbonOpenProject", robot);
-		click(robot, openButton);
+		clickBackstageOpenTile(robot);
 		GuiAcceptanceSupport.await(() -> manager.findFrameForProjectFile(legacyPod.toString()) != null,
 			"File/Open rejected the selected legacy POD before its importer ran");
 		assertTrue(manager.findFrameForProjectFile(legacyPod.toString()).getProject() != null,
@@ -247,7 +246,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindowForRobot(robot);
-		click(robot, findCommandButton(window.getRibbonPanel(), "RibbonOpenProject", robot));
+		clickBackstageOpenTile(robot);
 		GuiAcceptanceSupport.await(() -> manager.findFrameForProjectFile(importedMpp.toString()) != null,
 			"File/Open did not import the MPP fixture");
 		Project project = manager.findFrameForProjectFile(importedMpp.toString()).getProject();
@@ -348,7 +347,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			"saved MPP import did not close before the separate MSPDI fixture route");
 		openPath.set(scalarXml);
 		activateWindowForRobot(robot);
-		click(robot, findCommandButton(window.getRibbonPanel(), "RibbonOpenProject", robot));
+		clickBackstageOpenTile(robot);
 		GuiAcceptanceSupport.await(() -> manager.findFrameForProjectFile(scalarXml.toString()) != null,
 			"File/Open did not import the fixed MSPDI assignment-baseline fixture");
 		Project scalarProject = manager.findFrameForProjectFile(scalarXml.toString()).getProject();
@@ -439,7 +438,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		});
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
-		click(robot, findCommandButton(window.getRibbonPanel(), "RibbonOpenProject", robot));
+		clickBackstageOpenTile(robot);
 		GuiAcceptanceSupport.await(() -> manager.findFrameForProjectFile(historySample.toString()) != null,
 			"File/Open did not register the selected CCPM history sample");
 		Project loaded = manager.findFrameForProjectFile(historySample.toString()).getProject();
@@ -561,10 +560,9 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindowForRobot(robot);
-		AbstractButton open = findCommandButton(window.getRibbonPanel(), "RibbonOpenProject", robot);
 		int documentsBefore = manager.getFrameManager().getAllFrames().size();
 
-		click(robot, open);
+		clickBackstageOpenTile(robot);
 		awaitWithWindowTrace(() -> visibleFileChooserDialog() != null,
 			"File/Open did not show the Swing file chooser; providerStarted=" + chooserCallStarted.get()
 				+ ", providerReturned=" + chooserCallReturned.get());
@@ -580,8 +578,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		assertEquals(documentsBefore, manager.getFrameManager().getAllFrames().size(),
 			"Escape cancellation must not open a project");
 
-		AbstractButton reopenedOpen = findCommandButton(window.getRibbonPanel(), "RibbonOpenProject", robot);
-		click(robot, reopenedOpen);
+		clickBackstageOpenTile(robot);
 		GuiAcceptanceSupport.await(() -> visibleFileChooserDialog() != null,
 			"File/Open did not reopen after Escape cancellation");
 		Window cancelChooser = visibleFileChooserDialog();
@@ -673,14 +670,14 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		assertEquals(documentsBefore, manager.getFrameManager().getAllFrames().size(),
 			"native Ctrl+O cancellation must not open a project");
 		verifyNativeChooserEscape(robot,
-			() -> click(robot, findCommandButton(window.getRibbonPanel(), "RibbonOpenProject", robot)),
+			() -> clickBackstageOpenTile(robot),
 			chooserCallStarted, chooserCallReturned,
 			chooserCancelled, chooserFailure, "Ribbon Open", chooserProviderStartedAt, chooserProviderReturnedAt,
 			chooserOwnerAtProviderEntry, chooserOwnerWindow);
 		assertEquals(documentsBefore, manager.getFrameManager().getAllFrames().size(),
 			"native Ribbon Open cancellation must not open a project");
 		verifyNativeChooserCancelButton(robot,
-			() -> click(robot, findCommandButton(window.getRibbonPanel(), "RibbonOpenProject", robot)), chooserCallStarted,
+			() -> clickBackstageOpenTile(robot), chooserCallStarted,
 			chooserCallReturned, chooserCancelled, chooserFailure, "Ribbon Open", chooserProviderStartedAt,
 			chooserProviderReturnedAt, chooserOwnerAtProviderEntry, chooserOwnerWindow);
 		assertEquals(documentsBefore, manager.getFrameManager().getAllFrames().size(),
@@ -1884,6 +1881,31 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		}
 		if (match != null) return match;
 		throw new AssertionError("Ribbon command is not present: " + commandId);
+	}
+
+	/** Follow the user-visible File tab, Open page, and Open tile before waiting for a chooser. */
+	private void clickBackstageOpenTile(Robot robot) throws Exception {
+		Window owner = SwingUtilities.getWindowAncestor(window.getRibbonPanel());
+		if (!(owner instanceof javax.swing.JFrame frame))
+			throw new AssertionError("File/Open route has no application frame");
+		if (findNamedOnEdt(frame, "officeBackstageOverlay") == null) {
+			click(robot, findRibbonTab(window.getRibbonPanel(), "File", "ファイル"));
+			GuiAcceptanceSupport.await(() -> findNamedOnEdt(frame, "officeBackstageView") != null,
+				"File tab did not open Backstage before File/Open");
+		}
+		Component openPage = findNamedOnEdt(frame, "officeBackstageNav-open");
+		if (!(openPage instanceof AbstractButton button))
+			throw new AssertionError("Backstage navigation is missing the Open page");
+		click(robot, button);
+		String tileName = "officeBackstageCommand-RibbonOpenProject";
+		GuiAcceptanceSupport.await(() -> {
+			Component tile = findNamedOnEdt(frame, tileName);
+			return tile instanceof AbstractButton && isEnabledAndShowingOnEdt(tile);
+		}, "Backstage Open page did not expose its enabled Open tile");
+		Component tile = findNamedOnEdt(frame, tileName);
+		if (!(tile instanceof AbstractButton) || !isShowingOnEdt(tile))
+			throw new AssertionError("Backstage Open tile is not physically visible");
+		click(robot, tile);
 	}
 
 	private AbstractButton findCommandButton(Component root, String commandId, Robot robot) throws Exception {
