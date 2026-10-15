@@ -85,10 +85,8 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		showFixture(fixture);
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(35);
-		activate(fixture.entrySheet);
-
 		SwingUtilities.invokeAndWait(() -> tabs.setSelectedIndex(0));
-		activate(fixture.entrySheet);
+		activate(fixture.entrySheet, robot);
 		editWithPhysicalKeys(robot, fixture.entrySheet, fixture.entryRow, fixture.durationColumn, "10", "8 days");
 		assertEquals(10L * 60L * 60L * 1000L, Duration.millis(fixture.task.getRawDuration()),
 			"physical bare duration input must use the owning project's default hours");
@@ -119,7 +117,7 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		fixture.setProgressBaseline();
 
 		SwingUtilities.invokeAndWait(() -> tabs.setSelectedIndex(1));
-		activate(fixture.trackingSheet);
+		activate(fixture.trackingSheet, robot);
 		editWithPhysicalKeys(robot, fixture.trackingSheet, fixture.trackingRow, fixture.percentColumn, "10");
 		assertEquals(0.10d, fixture.task.getPercentComplete(), 0.00001d,
 			"physical multi-character percent input must commit the complete value");
@@ -232,21 +230,35 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		});
 	}
 
-	private void activate(SpreadSheet sheet) throws Exception {
-		SwingUtilities.invokeAndWait(() -> {
-			frame.toFront();
-			frame.requestFocus();
-			sheet.requestFocusInWindow();
-		});
-		GuiAcceptanceSupport.await(() -> frame.isActive() && sheet.isFocusOwner(),
-			"spreadsheet window did not become active and focused");
+	private void activate(SpreadSheet sheet, Robot robot) throws Exception {
+		GuiAcceptanceSupport.await(() -> isSelectedSheetReady(sheet, false),
+			"selected U-26 task table did not finish showing and laying out");
+		GuiAcceptanceSupport.activateAndAwaitRenderedWindow(frame, sheet, robot, true,
+			"U-26 spreadsheet window");
+		SwingUtilities.invokeAndWait(sheet::requestFocusInWindow);
+		GuiAcceptanceSupport.await(() -> isSelectedSheetReady(sheet, true),
+			"selected U-26 task table was not laid out, visible, and focused");
 	}
 
-	private static void editWithPhysicalKeys(Robot robot, SpreadSheet sheet, int row, int column, String value) throws Exception {
+	private boolean isSelectedSheetReady(SpreadSheet sheet, boolean requireFocus) {
+		boolean[] ready = new boolean[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> ready[0] = frame.isShowing()
+				&& sheet.isShowing() && sheet.isValid() && sheet.getWidth() > 0 && sheet.getHeight() > 0
+				&& sheet.getVisibleRect().width > 0 && sheet.getVisibleRect().height > 0
+				&& SwingUtilities.isDescendingFrom(sheet, tabs.getSelectedComponent())
+				&& (!requireFocus || frame.isActive() && sheet.isFocusOwner()));
+		} catch (Exception exception) {
+			throw new AssertionError("could not inspect the selected U-26 sheet on the EDT", exception);
+		}
+		return ready[0];
+	}
+
+	private void editWithPhysicalKeys(Robot robot, SpreadSheet sheet, int row, int column, String value) throws Exception {
 		editWithPhysicalKeys(robot, sheet, row, column, value, null);
 	}
 
-	private static void editWithPhysicalKeys(Robot robot, SpreadSheet sheet, int row, int column, String value,
+	private void editWithPhysicalKeys(Robot robot, SpreadSheet sheet, int row, int column, String value,
 			String expectedEditorSeed) throws Exception {
 		Rectangle anchor = cellOnScreen(sheet, row, Math.min(1, column));
 		clickCell(robot, anchor, 0);
@@ -285,11 +297,17 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> !sheet.isEditing(), "physical input did not commit: " + value);
 	}
 
-	private static Rectangle cellOnScreen(SpreadSheet sheet, int row, int column) throws Exception {
+	private Rectangle cellOnScreen(SpreadSheet sheet, int row, int column) throws Exception {
 		Rectangle[] result = new Rectangle[1];
 		SwingUtilities.invokeAndWait(() -> {
+			if (!sheet.isShowing() || !sheet.isValid()
+					|| !SwingUtilities.isDescendingFrom(sheet, tabs.getSelectedComponent()))
+				throw new AssertionError("U-26 cell coordinates require the selected, laid-out task table to be showing");
 			sheet.changeSelection(row, Math.max(0, column - 1), false, false);
 			Rectangle bounds = sheet.getCellRect(row, column, true);
+			sheet.scrollRectToVisible(bounds);
+			if (!sheet.getVisibleRect().intersects(bounds))
+				throw new AssertionError("U-26 target cell is outside the laid-out spreadsheet viewport");
 			Point location = sheet.getLocationOnScreen();
 			result[0] = new Rectangle(location.x + bounds.x, location.y + bounds.y, bounds.width, bounds.height);
 		});
