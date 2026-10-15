@@ -143,6 +143,57 @@ class ResourceLevelingServiceTest {
 	}
 
 	@Test
+	void clearAfterSwitchingLeveledTaskToAutomaticOnlyDropsProvenance() {
+		Fixture fixture = fixture();
+		NormalTask first = task(fixture.project, "First", 1L);
+		NormalTask manual = task(fixture.project, "Manual", 1L);
+		manual.setManuallyScheduled(true);
+		AssignmentService.getInstance().newAssignment(first, fixture.resource, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(manual, fixture.resource, 1D, 0L, this);
+		var options = new ResourceLevelingService.Options(ResourceLevelingService.Order.STANDARD,
+			false, true, Long.MIN_VALUE, Long.MAX_VALUE, false,
+			ResourceLevelingService.Sensitivity.DAY, true);
+		ResourceLevelingService service = new ResourceLevelingService();
+		service.preview(fixture.project, List.of(fixture.resource), options).apply();
+		long leveledManualStart = manual.getManualStart();
+		assertTrue(manual.getLevelingManualDateState() != null);
+		manual.setManuallyScheduled(false);
+		long automaticManualStart = manual.getManualStart();
+
+		service.clear(fixture.project);
+
+		assertEquals(automaticManualStart, manual.getManualStart(), "Clear must leave inactive manual date provenance alone after switching mode");
+		assertEquals(leveledManualStart, automaticManualStart, "switching mode must keep captured manual dates without changing them");
+		assertEquals(0L, com.microproject.datatype.Duration.millis(manual.getLevelingDelay()));
+		assertEquals(null, manual.getLevelingManualDateState());
+	}
+
+	@Test
+	void stateOnlyClearRestoresManualDatesAndUndoRestoresProvenance() {
+		Fixture fixture = fixture();
+		NormalTask manual = task(fixture.project, "Manual", 1L);
+		manual.setManuallyScheduled(true);
+		long originalStart = manual.getManualStart();
+		long originalFinish = manual.getManualFinish();
+		long shift = com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		manual.setManualDates(originalStart + shift, originalFinish + shift);
+		manual.setLevelingManualDateState(new Task.LevelingManualDateState(originalStart, originalFinish,
+			originalStart + shift, originalFinish + shift));
+		var undo = fixture.project.getUndoController();
+		undo.clear();
+
+		assertEquals(List.of(manual), new ResourceLevelingService().clear(fixture.project, List.of(manual), undo.getEditSupport()));
+		assertEquals(originalStart, manual.getManualStart());
+		assertEquals(null, manual.getLevelingManualDateState());
+		undo.undo();
+		assertEquals(originalStart + shift, manual.getManualStart());
+		assertTrue(manual.getLevelingManualDateState() != null);
+		undo.redo();
+		assertEquals(originalStart, manual.getManualStart());
+		assertEquals(null, manual.getLevelingManualDateState());
+	}
+
+	@Test
 	void manualTaskOptInDoesNotOverridePriorityOrActualProgressProtections() {
 		Fixture fixture = fixture();
 		NormalTask blocker = task(fixture.project, "Fixed blocker", 1L);

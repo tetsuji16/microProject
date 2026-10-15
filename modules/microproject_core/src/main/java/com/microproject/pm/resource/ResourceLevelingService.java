@@ -137,7 +137,7 @@ public final class ResourceLevelingService {
 		private final Map<Task, Object> detailBackups;
 		private final Map<Task, ManualDates> manualDateChanges = new IdentityHashMap<>();
 		private record ManualDates(long oldStart, long oldFinish, long newStart, long newFinish,
-			Task.LevelingManualDateState oldState, Task.LevelingManualDateState newState) { }
+			Task.LevelingManualDateState oldState, Task.LevelingManualDateState newState, boolean changeDates) { }
 
 		private Plan(List<Change> changes, List<Conflict> unresolved, List<Split> splits) {
 			this(changes, unresolved, splits, List.of());
@@ -152,17 +152,18 @@ public final class ResourceLevelingService {
 			this.detailBackups = new IdentityHashMap<>(splits.size() + clearGeneratedSplits.size());
 			for (Change change : changes) {
 				Task task = change.task();
-				if (task.isManuallyScheduled() && change.oldDelay() != change.newDelay()) {
+				Task.LevelingManualDateState oldState = task.getLevelingManualDateState();
+				if (change.oldDelay() != change.newDelay()
+					|| (change.newDelay() == 0L && oldState != null)) {
 					long oldStart = task.getManualStart();
 					long oldFinish = task.getManualFinish();
-					Task.LevelingManualDateState oldState = task.getLevelingManualDateState();
 					if (change.newDelay() == 0L) {
-						boolean unchanged = oldState != null && oldStart == oldState.generatedStart()
+						boolean restoreDates = task.isManuallyScheduled() && oldState != null && oldStart == oldState.generatedStart()
 							&& oldFinish == oldState.generatedFinish();
 						manualDateChanges.put(task, new ManualDates(oldStart, oldFinish,
-							unchanged ? oldState.originalStart() : oldStart,
-							unchanged ? oldState.originalFinish() : oldFinish, oldState, null));
-					} else {
+							restoreDates ? oldState.originalStart() : oldStart,
+							restoreDates ? oldState.originalFinish() : oldFinish, oldState, null, restoreDates));
+					} else if (task.isManuallyScheduled()) {
 						long shift = Math.subtractExact(change.projectedStart(), change.oldStart());
 						boolean continuing = oldState != null && oldStart == oldState.generatedStart()
 							&& oldFinish == oldState.generatedFinish();
@@ -170,10 +171,13 @@ public final class ResourceLevelingService {
 						long originalFinish = continuing ? oldState.originalFinish() : oldFinish;
 						long generatedStart = Math.addExact(oldStart, shift);
 						long generatedFinish = Math.addExact(oldFinish, shift);
-						Task.LevelingManualDateState newState = shift == 0L ? oldState
+						Task.LevelingManualDateState newState = shift == 0L || oldStart <= 0L || oldFinish < oldStart ? oldState
 							: new Task.LevelingManualDateState(originalStart, originalFinish, generatedStart, generatedFinish);
 						manualDateChanges.put(task, new ManualDates(oldStart, oldFinish, generatedStart,
-							generatedFinish, oldState, newState));
+							generatedFinish, oldState, newState, newState != oldState && oldStart > 0L && oldFinish >= oldStart));
+					} else if (oldState != null) {
+						manualDateChanges.put(task, new ManualDates(oldStart, oldFinish, oldStart, oldFinish,
+							oldState, null, false));
 					}
 				}
 			}
@@ -234,8 +238,10 @@ public final class ResourceLevelingService {
 				task.setLevelingDelay(forward ? change.newDelay() : change.oldDelay());
 				ManualDates manualDates = manualDateChanges.get(task);
 				if (manualDates != null) {
-					task.setManualDates(forward ? manualDates.newStart() : manualDates.oldStart(),
-						forward ? manualDates.newFinish() : manualDates.oldFinish());
+					if (manualDates.changeDates()) {
+						task.setManualDates(forward ? manualDates.newStart() : manualDates.oldStart(),
+							forward ? manualDates.newFinish() : manualDates.oldFinish());
+					}
 					task.setLevelingManualDateState(forward ? manualDates.newState() : manualDates.oldState());
 				}
 				task.setDirty(true);
@@ -384,6 +390,7 @@ public final class ResourceLevelingService {
 
 	private static boolean hasLevelingState(Task task) {
 		return Duration.millis(task.getLevelingDelay()) != 0L
+			|| task.getLevelingManualDateState() != null
 			|| task instanceof NormalTask normalTask && !normalTask.getLevelingTaskSplitIntervals().isEmpty();
 	}
 
