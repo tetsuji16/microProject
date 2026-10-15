@@ -183,11 +183,13 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		Project project = fixture.task.getProject();
 		NormalTask[] structuralTaskHolder = new NormalTask[1];
 		SwingUtilities.invokeAndWait(() -> {
+			NormalTask structuralParent = project.createScriptedTask();
+			structuralParent.setName("U-26 structural parent");
 			NormalTask structuralTask = project.createScriptedTask();
 			structuralTaskHolder[0] = structuralTask;
 			structuralTask.setName("U-26 structural round-trip");
-			project.setLocalParent(structuralTask, fixture.task);
-			assertEquals(fixture.task, structuralTask.getWbsParentTask(), "fixture must create a child before outdent");
+			project.setLocalParent(structuralTask, structuralParent);
+			assertEquals(structuralParent, structuralTask.getWbsParentTask(), "fixture must create a child before outdent");
 			project.setLocalParent(structuralTask, null);
 			assertEquals(null, structuralTask.getWbsParentTask(), "outdent must restore the task to the project root");
 		});
