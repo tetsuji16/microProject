@@ -39,7 +39,10 @@ final class RollupSpanCalculator {
 		Collection<?> children = task.getWbsChildrenNodes();
 		if (children == null || children.isEmpty())
 			return taskSpan(task);
+		return forChildren(task, children);
+	}
 
+	static RollupSpan forChildren(Task task, Collection<?> children) {
 		long start = Long.MAX_VALUE;
 		long finish = Long.MIN_VALUE;
 		for (Object childNode : children) {

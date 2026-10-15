@@ -27,6 +27,7 @@ package com.microproject.core.pm.exchange.converters.mpx;
 import java.math.BigInteger;
 
 import com.microproject.core.time.TimephasedType;
+import com.microproject.datatype.DurationDefaults;
 import com.microproject.datatype.TimeUnit;
 import net.sf.mpxj.Duration;
 
@@ -187,12 +188,17 @@ public class MpxUtils {
      * are therefore not safe to pass to {@code Task.setDuration} directly.
      */
     public static long toProjectDuration(net.sf.mpxj.Duration duration) {
+		return toProjectDuration(duration, DurationDefaults.PRODUCT_DEFAULTS);
+	}
+
+	/** Encodes an MPXJ duration using the owning project's unit defaults. */
+	public static long toProjectDuration(net.sf.mpxj.Duration duration, DurationDefaults defaults) {
         if (duration == null)
             return 0L;
-        return com.microproject.datatype.Duration.getInstance(duration.getDuration(), toProjectTimeUnit(duration.getUnits()));
+        return com.microproject.datatype.Duration.getInstance(duration.getDuration(), toProjectTimeUnit(duration.getUnits()), defaults);
     }
 
-    private static int toProjectTimeUnit(net.sf.mpxj.TimeUnit unit) {
+    static int toProjectTimeUnit(net.sf.mpxj.TimeUnit unit) {
         if (unit == null)
             return TimeUnit.MINUTES;
         return switch (unit) {
@@ -211,6 +217,27 @@ public class MpxUtils {
             case ELAPSED_YEARS -> TimeUnit.ELAPSED_YEARS;
             case ELAPSED_PERCENT -> TimeUnit.ELAPSED_PERCENT;
             default -> TimeUnit.MINUTES;
+        };
+    }
+
+    /** Maps one project unit to MPXJ without relying on coincidental enum ordinals. */
+    public static net.sf.mpxj.TimeUnit toMpxTimeUnit(int unit) {
+        return switch (unit) {
+            case TimeUnit.MINUTES -> net.sf.mpxj.TimeUnit.MINUTES;
+            case TimeUnit.HOURS -> net.sf.mpxj.TimeUnit.HOURS;
+            case TimeUnit.DAYS -> net.sf.mpxj.TimeUnit.DAYS;
+            case TimeUnit.WEEKS -> net.sf.mpxj.TimeUnit.WEEKS;
+            case TimeUnit.MONTHS -> net.sf.mpxj.TimeUnit.MONTHS;
+            case TimeUnit.YEARS -> net.sf.mpxj.TimeUnit.YEARS;
+            case TimeUnit.PERCENT -> net.sf.mpxj.TimeUnit.PERCENT;
+            case TimeUnit.ELAPSED_MINUTES -> net.sf.mpxj.TimeUnit.ELAPSED_MINUTES;
+            case TimeUnit.ELAPSED_HOURS -> net.sf.mpxj.TimeUnit.ELAPSED_HOURS;
+            case TimeUnit.ELAPSED_DAYS -> net.sf.mpxj.TimeUnit.ELAPSED_DAYS;
+            case TimeUnit.ELAPSED_WEEKS -> net.sf.mpxj.TimeUnit.ELAPSED_WEEKS;
+            case TimeUnit.ELAPSED_MONTHS -> net.sf.mpxj.TimeUnit.ELAPSED_MONTHS;
+            case TimeUnit.ELAPSED_YEARS -> net.sf.mpxj.TimeUnit.ELAPSED_YEARS;
+            case TimeUnit.ELAPSED_PERCENT -> net.sf.mpxj.TimeUnit.ELAPSED_PERCENT;
+            default -> throw new IllegalArgumentException("Unsupported project duration unit: " + unit);
         };
     }
 }

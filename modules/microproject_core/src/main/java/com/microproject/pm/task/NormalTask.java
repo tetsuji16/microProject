@@ -116,6 +116,9 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	boolean estimated = true;
 	int priority = 500;
 	private double percentWorkCompleteOverride = Double.NaN;
+	// Display-unit metadata is reconstructed from MSPDI's per-task DurationFormat.
+	// Transient keeps the frozen POD serialization descriptor unchanged.
+	private transient int durationDisplayUnit = TimeUnit.NONE;
 	public NormalTask(Project project) {
 		this(project == null || project.isLocal(),project);
 	}
@@ -138,7 +141,8 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	 */
 	void initializeDates() {
 		setRawConstraintType(project == null ? ConstraintType.Kind.ASAP : project.getDefaultConstraintTypeKind());
-		long duration = CalendarOption.getInstance().getDefaultDuration(); //MS uses 1 day estimated
+		long duration = Duration.setAsEstimated(Duration.getInstance(1.0D, TimeUnit.DAYS,
+			project.getDurationDefaults()), true); // MS uses 1 day estimated
 		setRawDuration(duration);
 		setWorkCalendar(null);
 
@@ -263,6 +267,30 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		return duration;
 	}
 
+	/** Unit used to display this task's duration when it was explicitly entered or imported. */
+	public int getDurationDisplayUnit() {
+		return durationDisplayUnit;
+	}
+
+	/** Duration value carrying its display unit without changing stored schedule millis. */
+	public Duration getDurationForDisplay() {
+		long duration = getDuration();
+		return durationDisplayUnit == TimeUnit.NONE ? new Duration(duration)
+			: new Duration(Duration.setAsTimeUnit(duration, durationDisplayUnit));
+	}
+
+	void initializeLeafScheduleFromSummarySpan(RollupSpan summarySpan, double percentComplete) {
+		if (summarySpan == null || summarySpan.getFinish() < summarySpan.getStart())
+			throw new IllegalArgumentException("A summary-to-leaf schedule requires a valid captured summary span");
+		TaskSchedule schedule = getCurrentSchedule();
+		long start = summarySpan.getStart();
+		long finish = summarySpan.getFinish();
+		schedule.setStart(start);
+		schedule.setFinish(finish);
+		schedule.setRawDuration(getEffectiveWorkCalendar().compare(finish, start, false));
+		setPercentComplete(percentComplete);
+	}
+
 	/** Quickly check to see if a task has a duration without actually calculating it
 	 *
 	 * @return true if duration > 0
@@ -290,6 +318,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	 * @param duration
 	 */
 	public void setDuration(long duration) {
+		rememberDurationDisplayUnit(duration);
 		estimated = Duration.isEstimated(duration);
 		duration = Duration.millis(duration);
 		if (isWbsParent()) {
@@ -422,6 +451,8 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	public void setCurrentSnapshot(DataSnapshot snapshot) {
 
 		snapshots.setCurrentSnapshot(snapshot);
+		if (snapshot instanceof TaskSnapshot taskSnapshot)
+			durationDisplayUnit = taskSnapshot.getDurationDisplayUnit();
 	}
 
 	/**
@@ -1738,7 +1769,12 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 			long d = remainingOnly ? Duration.millis(getRemainingDuration()) : getDurationMillis();
 			if (!ahead)
 				d = -d;
-			return getEffectiveWorkCalendar().add(startDate, d, useSooner);
+			long start = startDate;
+			if (ahead && getPercentComplete() == 0.0d && dependencyDate > start)
+				start = dependencyDate;
+			if (getPercentComplete() > 0.0d)
+				start = getEffectiveWorkCalendar().add(start, Duration.millis(getActualDuration()), useSooner);
+			return getEffectiveWorkCalendar().add(start, d, useSooner);
 		}
 //
 //
@@ -2170,7 +2206,17 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	}
 
 	public void setRawDuration(long duration) {
+		rememberDurationDisplayUnit(duration);
 		currentSchedule.setRawDuration(duration);
+	}
+
+	private void rememberDurationDisplayUnit(long duration) {
+		if (Duration.hasUnits(duration)) {
+			durationDisplayUnit = Duration.getType(duration);
+			DataSnapshot snapshot = getCurrentSnapshot();
+			if (snapshot instanceof TaskSnapshot taskSnapshot)
+				taskSnapshot.setDurationDisplayUnit(durationDisplayUnit);
+		}
 	}
 
 

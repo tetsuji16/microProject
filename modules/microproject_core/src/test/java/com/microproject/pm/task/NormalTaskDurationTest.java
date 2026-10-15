@@ -32,6 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ListIterator;
+import java.text.ParsePosition;
 
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.MutableTreeNode;
@@ -42,6 +43,9 @@ import org.junit.jupiter.api.Test;
 import com.microproject.association.InvalidAssociationException;
 import com.microproject.configuration.Configuration;
 import com.microproject.datatype.Duration;
+import com.microproject.datatype.DurationDefaults;
+import com.microproject.datatype.DurationFormat;
+import com.microproject.datatype.TimeUnit;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeException;
 import com.microproject.grouping.core.NodeVisitor;
@@ -59,6 +63,138 @@ import com.microproject.pm.scheduling.ScheduleInterval;
 import com.microproject.undo.DataFactoryUndoController;
 
 class NormalTaskDurationTest {
+	// Document-derived compatibility rule: Microsoft describes an automatically
+	// scheduled new task as estimated at one day; the separate "Duration is entered
+	// in" option controls unitless input. Preserve one working day while parsing a
+	// bare value in the configured unit. Sources:
+	// https://support.microsoft.com/en-us/project/duration-task-field
+	// https://support.microsoft.com/en-us/project/change-the-default-task-duration-unit
+	@Test
+	void newTaskDefaultDurationIsOneOwningProjectDayEvenWhenEntryUnitIsHours() {
+		Project project = createProject();
+		DurationDefaults defaults = new DurationDefaults(360.0D, 1800.0D, 20.0D,
+			TimeUnit.HOURS, TimeUnit.MINUTES);
+		project.setDurationDefaults(defaults);
+
+		NormalTask task = new NormalTask(project);
+
+		assertEquals(6L * 60L * 60L * 1000L, Duration.millis(task.getRawDuration()));
+		assertEquals(TimeUnit.DAYS, Duration.getType(task.getRawDuration()));
+		assertTrue(task.isEstimated());
+
+		ParsePosition position = new ParsePosition(0);
+		Duration enteredOne = (Duration) DurationFormat.getProjectInstance().parseObject("1", position, defaults);
+		assertEquals(60L * 60L * 1000L, Duration.millis(enteredOne.getEncodedMillis()),
+			"the separate Duration is entered in setting interprets a bare value as hours");
+	}
+
+	@Test
+	void explicitTaskDurationUnitsRemainDistinctFromProjectDefaultAndCalendarChanges() {
+		Project project = createProject();
+		DurationDefaults defaults = new DurationDefaults(360.0D, 1800.0D, 20.0D,
+			TimeUnit.HOURS, TimeUnit.MINUTES);
+		project.setDurationDefaults(defaults);
+		NormalTask oneDay = createTask(project);
+		NormalTask sixHours = createTask(project);
+		oneDay.setDuration(Duration.getInstance(1.0D, TimeUnit.DAYS, defaults));
+		sixHours.setDuration(Duration.getInstance(6.0D, TimeUnit.HOURS, defaults));
+
+		assertEquals(6L * 60L * 60L * 1000L, Duration.millis(oneDay.getDuration()));
+		assertEquals(Duration.millis(oneDay.getDuration()), Duration.millis(sixHours.getDuration()));
+		assertEquals(TimeUnit.DAYS, oneDay.getDurationDisplayUnit());
+		assertEquals(TimeUnit.HOURS, sixHours.getDurationDisplayUnit());
+
+		FieldContext context = new FieldContext();
+		context.setDurationDefaultsResolver(project::getDurationDefaults);
+		com.microproject.field.Field durationField = Configuration.getFieldFromId("Field.duration");
+		assertEquals("1 day", durationField.getText(oneDay, context));
+		assertEquals("6 hours", durationField.getText(sixHours, context));
+
+		CalendarOption changed = CalendarOption.getNewInstance();
+		changed.setHoursPerDay(7.0D);
+		changed.setHoursPerWeek(35.0D);
+		changed.setDaysPerMonth(21.0D);
+		project.setCalendarOption(changed);
+		assertEquals("0.857 days", durationField.getText(oneDay, context));
+		assertEquals("6 hours", durationField.getText(sixHours, context));
+	}
+
+	@Test
+	void onlyPlannedDurationUsesTheTasksExplicitDisplayUnit() {
+		Project project = createProject();
+		DurationDefaults defaults = new DurationDefaults(360.0D, 1800.0D, 20.0D,
+			TimeUnit.HOURS, TimeUnit.HOURS);
+		project.setDurationDefaults(defaults);
+		NormalTask task = createTask(project);
+		task.setDuration(Duration.getInstance(1.0D, TimeUnit.DAYS, defaults));
+		task.saveCurrentToSnapshot(Integer.valueOf(0));
+
+		FieldContext context = new FieldContext();
+		context.setDurationDefaultsResolver(project::getDurationDefaults);
+		assertEquals("1 day", Configuration.getFieldFromId("Field.duration").getText(task, context));
+
+		task.setPercentComplete(0.5D);
+
+		assertEquals("1 day", Configuration.getFieldFromId("Field.duration").getText(task, context));
+		assertEquals("3 hours", Configuration.getFieldFromId("Field.actualDuration").getText(task, context));
+		assertEquals("3 hours", Configuration.getFieldFromId("Field.remainingDuration").getText(task, context));
+		assertEquals(6L * 60L * 60L * 1000L, Duration.millis(task.getBaselineDuration(0)),
+			"progress presentation must not substitute the current duration into the saved baseline");
+	}
+
+	@Test
+	void taskDisplayUnitFollowsScheduleSnapshotRestore() {
+		Project project = createProject();
+		DurationDefaults defaults = new DurationDefaults(360.0D, 1800.0D, 20.0D,
+			TimeUnit.HOURS, TimeUnit.MINUTES);
+		project.setDurationDefaults(defaults);
+		NormalTask task = createTask(project);
+		task.setDuration(Duration.getInstance(1.0D, TimeUnit.DAYS, defaults));
+		task.saveCurrentToSnapshot(Integer.valueOf(1));
+		task.setDuration(Duration.getInstance(6.0D, TimeUnit.HOURS, defaults));
+		assertEquals(TimeUnit.HOURS, task.getDurationDisplayUnit());
+
+		task.setCurrentSnapshot(task.getSnapshot(Integer.valueOf(1)));
+
+		assertEquals(TimeUnit.DAYS, task.getDurationDisplayUnit());
+		assertEquals(6L * 60L * 60L * 1000L, Duration.millis(task.getDuration()));
+	}
+
+	@Test
+	void calendarOptionChangesRefreshOnlyOwningProjectDurationDefaults() {
+		Project sixHourProject = createProject();
+		Project otherProject = createProject();
+		sixHourProject.setDurationDefaults(new DurationDefaults(360.0D, 1800.0D, 20.0D,
+			TimeUnit.HOURS, TimeUnit.MINUTES));
+		otherProject.setDurationDefaults(new DurationDefaults(480.0D, 2400.0D, 20.0D,
+			TimeUnit.DAYS, TimeUnit.HOURS));
+		FieldContext context = new FieldContext();
+		context.setDurationDefaultsResolver(sixHourProject::getDurationDefaults);
+		FieldContext otherContext = new FieldContext();
+		otherContext.setDurationDefaultsResolver(otherProject::getDurationDefaults);
+
+		CalendarOption changed = CalendarOption.getNewInstance();
+		changed.setHoursPerDay(7.0D);
+		changed.setHoursPerWeek(35.0D);
+		changed.setDaysPerMonth(21.0D);
+		sixHourProject.setCalendarOption(changed);
+
+		assertEquals(420.0D, context.getDurationDefaults().minutesPerDay());
+		assertEquals(2100.0D, context.getDurationDefaults().minutesPerWeek());
+		assertEquals(21.0D, context.getDurationDefaults().daysPerMonth());
+		assertEquals(TimeUnit.HOURS, context.getDurationDefaults().durationEnteredIn());
+		assertEquals(TimeUnit.MINUTES, context.getDurationDefaults().workUnit());
+		assertEquals(480.0D, otherProject.getDurationDefaults().minutesPerDay());
+		ParsePosition sixHourPosition = new ParsePosition(0);
+		Duration oneHour = (Duration) DurationFormat.getProjectInstance().parseObject("1", sixHourPosition,
+			context.getDurationDefaults());
+		ParsePosition eightHourPosition = new ParsePosition(0);
+		Duration oneEightHourDay = (Duration) DurationFormat.getProjectInstance().parseObject("1", eightHourPosition,
+			otherContext.getDurationDefaults());
+		assertEquals(60L * 60L * 1000L, Duration.millis(oneHour.getEncodedMillis()));
+		assertEquals(8L * 60L * 60L * 1000L, Duration.millis(oneEightHourDay.getEncodedMillis()));
+	}
+
 	@Test
 	void attachingImportedAssignmentPreservesItsWorkAndDelay() {
 		for (boolean withDefault : new boolean[] {false, true}) {

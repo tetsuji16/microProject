@@ -33,6 +33,7 @@ import net.sf.jasperreports.engine.design.JRDesignBand;
 import net.sf.jasperreports.engine.design.JRDesignExpression;
 import net.sf.jasperreports.engine.design.JRDesignField;
 import net.sf.jasperreports.engine.design.JRDesignGroup;
+import net.sf.jasperreports.engine.design.JRDesignParameter;
 import net.sf.jasperreports.engine.design.JRDesignLine;
 import net.sf.jasperreports.engine.design.JRDesignFont;
 import net.sf.jasperreports.engine.design.JRDesignStaticText;
@@ -100,6 +101,10 @@ public class ReportAdapter {
 				, Integer.valueOf(reportDefinition.getCollectionType()).toString());
 		
 		jasperDesign.setName(reportDefinition.getName());
+		JRDesignParameter durationDefaults = new JRDesignParameter();
+		durationDefaults.setName("projectDurationDefaults");
+		durationDefaults.setValueClass(com.microproject.datatype.DurationDefaults.class);
+		jasperDesign.addParameter(durationDefaults);
 		jasperDesign.setPageWidth(1008);
 		jasperDesign.setPageHeight(612);
 		jasperDesign.setColumnWidth(968);
@@ -410,9 +415,9 @@ public class ReportAdapter {
 					textField.setPattern(getFieldPattern(field));
 					expression.setText("$V{" + getFieldName(field, true) + "Sum}");
 				} else if (field.isWork()) {
-					expression.setText("com.microproject.datatype.DurationFormat.formatWork($V{" + getFieldName(field, true) + "Sum})" );
+					expression.setText("com.microproject.datatype.DurationFormat.formatWork($V{" + getFieldName(field, true) + "Sum}, $P{projectDurationDefaults})" );
 				} else if(field.isDuration()) {
-					expression.setText("com.microproject.datatype.DurationFormat.format($V{" + getFieldName(field, true) + "Sum})" );
+					expression.setText("com.microproject.datatype.DurationFormat.format($V{" + getFieldName(field, true) + "Sum}, $P{projectDurationDefaults})" );
 				}
 
 				textField.setExpression(expression);

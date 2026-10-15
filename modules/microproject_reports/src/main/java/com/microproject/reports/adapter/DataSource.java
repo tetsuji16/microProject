@@ -91,7 +91,7 @@ public class DataSource implements JRDataSource, ObjectRef {
 	public void setTimeBased(boolean timeBased) {
 		if (timeBased) {
 			// initialize interval treatment
-			context = new FieldContext();
+			if (context == null) context = new FieldContext();
 			interval = new MutableInterval(0, 0);
 			context.setInterval(interval);
 		}
@@ -100,6 +100,8 @@ public class DataSource implements JRDataSource, ObjectRef {
 	
 	public void setProject(Project project) {
 		this.project = project;
+		if (context == null) context = new FieldContext();
+		context.setDurationDefaultsResolver(project == null ? null : project::getDurationDefaults);
 	}
 	
 	public boolean next() throws JRException {

@@ -51,6 +51,14 @@ public class DurationFormat extends Format {
 			instance = new DurationFormat(false, false, false);
 		return instance;
 	}
+
+	private static DurationFormat projectInstance = null;
+	/** Returns the stateless formatter used with explicit per-project defaults. */
+	public static DurationFormat getProjectInstance() {
+		if (projectInstance == null)
+			projectInstance = new DurationFormat(false, false, false);
+		return projectInstance;
+	}
 	private static Format signedInstance = null;
 	public static Format getSignedInstance() {
 		if (signedInstance == null)
@@ -124,6 +132,11 @@ public class DurationFormat extends Format {
 	}
 	
 	public Object parseObject(String durationString, ParsePosition pos) {
+		return parseObject(durationString, pos, null);
+	}
+
+	/** Parses using an explicit project's unit defaults; null preserves legacy preference behavior. */
+	public Object parseObject(String durationString, ParsePosition pos, DurationDefaults defaults) {
 		Object result = null;
 		if (durationString.isEmpty() || pos.getIndex() < 0 || pos.getIndex() >= durationString.length())
 			return null;
@@ -149,11 +162,14 @@ public class DurationFormat extends Format {
 					if (canBeNonTemporal)
 						timeUnit = TimeUnit.NON_TEMPORAL;
 					else
-						timeUnit = ScheduleOption.getInstance().getWorkUnit(); // use default work unit if work and nothing entered
+						timeUnit = defaults == null ? ScheduleOption.getInstance().getWorkUnit()
+							: defaults.workUnit(); // use project work unit when available
 				}
 				if (timeUnit == TimeUnit.NONE)
-					timeUnit = ScheduleOption.getInstance().getDurationEnteredIn();
-				long longResult = Duration.getInstance(value,timeUnit);
+					timeUnit = defaults == null ? ScheduleOption.getInstance().getDurationEnteredIn()
+						: defaults.durationEnteredIn();
+				long longResult = defaults == null ? Duration.getInstance(value, timeUnit)
+					: Duration.getInstance(value, timeUnit, defaults);
 				if (Duration.millis(longResult) > Duration.MAX_DURATION) // check for too big
 					return null;
 				if (matcher.group(2).length() != 0) { // second group is estimated				
@@ -161,6 +177,7 @@ public class DurationFormat extends Format {
 				}
 
 				result = new Duration(longResult);
+				pos.setIndex(durationString.length());
 				
 				return result;
 			}
@@ -169,13 +186,20 @@ public class DurationFormat extends Format {
 		return null;
 	}
 	public StringBuffer format(Object durationObject, StringBuffer toAppendTo, FieldPosition pos) {
+		return format(durationObject, toAppendTo, pos, null);
+	}
+
+	/** Formats using an explicit project's unit defaults; null preserves legacy preference behavior. */
+	public StringBuffer format(Object durationObject, StringBuffer toAppendTo, FieldPosition pos,
+		DurationDefaults defaults) {
 		long duration = ((Duration)durationObject).getEncodedMillis();
 		if (((Duration)durationObject).isWork() && Duration.getType(duration) != TimeUnit.NON_TEMPORAL) {
-			duration = Duration.setAsTimeUnit(duration,ScheduleOption.getInstance().getWorkUnit());
+			int workUnit = defaults == null ? ScheduleOption.getInstance().getWorkUnit() : defaults.workUnit();
+			duration = Duration.setAsTimeUnit(duration, workUnit);
 		}
 		
-		double value = Duration.getValue(duration);
-		int type = Duration.getEffectiveType(duration);
+		double value = defaults == null ? Duration.getValue(duration) : Duration.getValue(duration, defaults);
+		int type = effectiveType(duration, defaults);
 		if (value > 0D && showPlusSign)
 			toAppendTo.append("+");
 		boolean isPercent = Duration.isPercent(duration);
@@ -192,16 +216,25 @@ public class DurationFormat extends Format {
 		toAppendTo.append(unit);
 		return toAppendTo;
 	}
+
+	public String format(Duration duration, DurationDefaults defaults) {
+		return format(duration, new StringBuffer(), new FieldPosition(0), defaults).toString();
+	}
 	
 	public String formatCompact(Object durationObject) {
+		return formatCompact(durationObject, null);
+	}
+
+	public String formatCompact(Object durationObject, DurationDefaults defaults) {
 		StringBuilder toAppendTo = new StringBuilder();
 		long duration = ((Duration)durationObject).getEncodedMillis();
 		if (((Duration)durationObject).isWork() && Duration.getType(duration) != TimeUnit.NON_TEMPORAL) {
-			duration = Duration.setAsTimeUnit(duration,ScheduleOption.getInstance().getWorkUnit());
+			int workUnit = defaults == null ? ScheduleOption.getInstance().getWorkUnit() : defaults.workUnit();
+			duration = Duration.setAsTimeUnit(duration, workUnit);
 		}
 		
-		double value = Duration.getValue(duration);
-		int type = Duration.getEffectiveType(duration);
+		double value = defaults == null ? Duration.getValue(duration) : Duration.getValue(duration, defaults);
+		int type = effectiveType(duration, defaults);
 		if (value > 0D && showPlusSign)
 			toAppendTo.append("+");
 		boolean isPercent = Duration.isPercent(duration);
@@ -217,6 +250,13 @@ public class DurationFormat extends Format {
 				,3);
 		toAppendTo.append(unit);
 		return toAppendTo.toString();
+	}
+
+	private static int effectiveType(long duration, DurationDefaults defaults) {
+		int type = Duration.getType(duration);
+		if (type != TimeUnit.NONE)
+			return type;
+		return defaults == null ? ScheduleOption.getInstance().getDurationEnteredIn() : defaults.durationEnteredIn();
 	}
 
 	public static String formatTypeUnit(int type, boolean isSingular, boolean addSpace, boolean isPercent, boolean isEstimated, int displayIndex) {
@@ -241,11 +281,17 @@ public class DurationFormat extends Format {
 	public static String format(long millis) {
 		return getInstance().format(new Duration(millis)).toString();
 	}
+	public static String format(long millis, DurationDefaults defaults) {
+		return getProjectInstance().format(new Duration(millis), defaults);
+	}
 	public static String formatCompact(long millis) {
 		return ((DurationFormat)getInstance()).formatCompact(new Duration(millis)).toString();
 	}
 	public static String formatWork(long millis) {
 		return getWorkInstance().format(new Work(millis)).toString();
+	}
+	public static String formatWork(long millis, DurationDefaults defaults) {
+		return ((DurationFormat) getWorkInstance()).format(new Work(millis), defaults);
 	}
 	public static String formatWork(Object millis) {
 		if (millis instanceof Long longMillis) return formatWork(longMillis);

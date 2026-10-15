@@ -24,6 +24,9 @@
  *******************************************************************************/
 package com.microproject.field;
 
+import java.util.function.Supplier;
+
+import com.microproject.datatype.DurationDefaults;
 import com.microproject.pm.time.HasStartAndEnd;
 import com.microproject.util.DateTime;
 /**
@@ -43,6 +46,8 @@ public class FieldContext implements HasStartAndEnd {
 	private boolean compact = false;
 	private boolean forceValue = false;
 	private boolean taskSheetUpdate = false;
+	private DurationDefaults durationDefaults;
+	private Supplier<DurationDefaults> durationDefaultsResolver;
 	
 	private static FieldContext noUpdateInstance = null;
 	private static FieldContext scriptingInstance = null;
@@ -141,6 +146,18 @@ public class FieldContext implements HasStartAndEnd {
 			return false;
 		return context.isForceValue();
 	}	
+	public DurationDefaults getDurationDefaults() {
+		return durationDefaultsResolver == null ? durationDefaults : durationDefaultsResolver.get();
+	}
+
+	public void setDurationDefaults(DurationDefaults durationDefaults) {
+		this.durationDefaults = durationDefaults;
+		this.durationDefaultsResolver = null;
+	}
+
+	public void setDurationDefaultsResolver(Supplier<DurationDefaults> resolver) {
+		this.durationDefaultsResolver = resolver;
+	}
 	/**
 	 * @return
 	 */

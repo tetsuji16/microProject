@@ -151,11 +151,17 @@ public class FilteredNodeHierarchy extends AbstractMutableNodeHierarchy implemen
 	
 	public void nodesChanged(HierarchyEvent e) {
 		Object[] nodes=filter.filterArray(e.getNodes());
-		fireNodesChanged(e.getSource(),nodes,e.getNodes(),e.getFlag());
+		Object[] oldNodes = e.getOldNodes() == null ? e.getNodes() : e.getOldNodes();
+		HierarchyEvent forwarded = new HierarchyEvent(e.getSource(), HierarchyEvent.NODES_CHANGED, nodes, oldNodes, e.getFlag());
+		forwarded.setPreviousParentChildren(e.getPreviousParentChildren());
+		for (HierarchyListener listener : hierarchyListeners.snapshot()) listener.nodesChanged(forwarded);
 	}
 	public void nodesInserted(HierarchyEvent e) {
 		Object[] nodes=filter.filterArray(e.getNodes());
-		fireNodesInserted(e.getSource(),nodes,e.getNodes(),e.getFlag());
+		Object[] oldNodes = e.getOldNodes() == null ? e.getNodes() : e.getOldNodes();
+		HierarchyEvent forwarded = new HierarchyEvent(e.getSource(), HierarchyEvent.NODES_INSERTED, nodes, oldNodes, e.getFlag());
+		forwarded.setPreviousParentChildren(e.getPreviousParentChildren());
+		for (HierarchyListener listener : hierarchyListeners.snapshot()) listener.nodesInserted(forwarded);
 	}
 	public void nodesRemoved(HierarchyEvent e) {
 		Object[] nodes=filter.filterArray(e.getNodes());

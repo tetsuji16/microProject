@@ -355,8 +355,12 @@ public class TaskInformationDialog extends InformationDialog {
 		if (value == null)
 			return null;
 		try {
-			Duration duration = (Duration) DurationFormat.getSignedInstance().parseObject(value.trim());
-			if (duration == null)
+			Task task = (Task) getObject();
+			var defaults = task.getProject().getDurationDefaults();
+			java.text.ParsePosition position = new java.text.ParsePosition(0);
+			Duration duration = (Duration) ((DurationFormat) DurationFormat.getSignedInstance())
+				.parseObject(value.trim(), position, defaults);
+			if (duration == null || position.getIndex() != value.trim().length())
 				throw new ParseException(value, 0);
 			return Long.valueOf(duration.getEncodedMillis());
 		} catch (ParseException e) {

@@ -62,6 +62,7 @@ import com.microproject.configuration.Dictionary;
 import com.microproject.configuration.FieldDictionary;
 import com.microproject.configuration.Settings;
 import com.microproject.datatype.Duration;
+import com.microproject.datatype.DurationDefaults;
 import com.microproject.datatype.Hyperlink;
 import com.microproject.datatype.ImageLink;
 import com.microproject.document.Document;
@@ -90,6 +91,7 @@ import com.microproject.grouping.core.model.NodeModelDataFactory;
 import com.microproject.grouping.core.model.NodeModelFactory;
 import com.microproject.grouping.core.transform.filtering.NotAssignmentFilter;
 import com.microproject.options.CalendarOption;
+import com.microproject.options.ScheduleOption;
 import com.microproject.options.TimesheetOption;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.HasTimeDistributedData;
@@ -156,6 +158,7 @@ import com.microproject.util.UiDispatch;
  * Project class
  */
 public class Project implements Document, BelongsToDocument, HasKey, HasPriority, MutableHasStartAndEnd, ProjectSpecificFields, HasNotes, HasBaseCalendar, HasCalendar, NodeModelDataFactory, HierarchyListener, HasTimeDistributedData, TimeDistributedFields, EarnedValueValues, EarnedValueFields, DataObject, HasSentinels, BaselineScheduleFields, Schedule,UpdatesFromTimesheet, HasExtraFields, HasExpenseType, SavableToWorkspace {
+	private record LeafScheduleTransition(NormalTask task, RollupSpan span, double percentComplete) { }
 	static final long serialVersionUID = 17283790404932L;
 	private static final Logger logger = Logger.getLogger(Project.class.getName());
 	private long statusDate = 0;
@@ -390,6 +393,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		start = getEffectiveWorkCalendar().adjustInsideCalendar(start,false);
 		end = start;
 		calendarOption = CalendarOption.getDefaultInstance();
+		durationDefaults = DurationDefaults.from(calendarOption, ScheduleOption.getInstance());
 	}
 
 
@@ -554,12 +558,10 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		Task parent = (Task) (parentNode == null ? null : parentNode.getImpl());
 		if (child.getWbsParentTask() == parent)
 			return;
-		Node oldParentNode = getTaskModel().search(child.getWbsParentTask());
-		if (oldParentNode != null)
-			oldParentNode.getChildren().remove(childNode);
 		ArrayList<Node> temp = new ArrayList<>(1);
 		temp.add(childNode);
-		getTaskModel().move(parentNode, temp, -1,NodeModel.NORMAL);
+		int position = parentNode == null ? getTaskModel().getChildren(null).size() : parentNode.getChildCount();
+		getTaskModel().relocate(temp, parentNode, position, NodeModel.NORMAL);
 		setDefaultRelationship(parentNode,childNode);
 	}
 
@@ -1862,6 +1864,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	public void nodesChanged(HierarchyEvent e) {
 		Node node, previousParentNode, newParentNode;
 		Task previousParentTask, newParentTask;
+		ArrayList<LeafScheduleTransition> transitionedToLeaf = new ArrayList<>();
 		int count=e.getNodes().length;
 		if (count==0) return;
 		for (int i=0;i<count;i++){
@@ -1873,7 +1876,22 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 			if (previousParentTask!=null) {
 				previousParentTask.markAllDependentTasksAsNeedingRecalculation(true); // flag this and dependent tasks as dirty
+				boolean wasSummary = previousParentTask.isWbsParent();
+				RollupSpan previousSummarySpan = wasSummary ? previousParentTask.calculateRollupSpan() : null;
+				double previousSummaryPercentComplete = previousParentTask.getPercentComplete();
+				Map<Object, Object[]> previousParentChildren = e.getPreviousParentChildren();
+				Object[] previousChildren = previousParentChildren == null ? null : previousParentChildren.get(previousParentTask);
+				if (previousChildren != null) {
+					SummaryRollup eventPreviousRollup = calculateSummaryRollup(previousParentTask, previousChildren);
+					if (eventPreviousRollup != null) {
+						wasSummary = true;
+						previousSummarySpan = eventPreviousRollup.span();
+						previousSummaryPercentComplete = eventPreviousRollup.percentComplete();
+					}
+				}
 				previousParentTask.setWbsChildrenNodes(taskOutlines.getDefaultOutline().getHierarchy().getChildren(previousParentNode));
+				if (wasSummary && !previousParentTask.isWbsParent() && previousParentTask instanceof NormalTask normalTask)
+					transitionedToLeaf.add(new LeafScheduleTransition(normalTask, previousSummarySpan, previousSummaryPercentComplete));
 			}
 
 			NodeHierarchy hierarchy=taskOutlines.getDefaultOutline().getHierarchy();
@@ -1899,7 +1917,10 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		}
 		if (!e.isVoid()) { // if the event was not the promotion of a void node
 			e.consume();
-			updateScheduling(e.getSource(),this,ObjectEvent.CREATE); // will cause critical path to reset and to run and send schedule events
+			for (LeafScheduleTransition transition : transitionedToLeaf) {
+				initializeFormerSummaryLeaf(transition.task(), true, transition.span(), transition.percentComplete());
+			}
+			updateScheduling(e.getSource(),this,ObjectEvent.CREATE); // calculate final leaf state before publishing schedule events
 		}
 	}
 	public void nodesInserted(HierarchyEvent e) {
@@ -1907,6 +1928,20 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	}
 	public void nodesRemoved(HierarchyEvent e) {
 	}
+
+	private record SummaryRollup(RollupSpan span, double percentComplete) { }
+
+	private SummaryRollup calculateSummaryRollup(Task task, Object[] previousChildren) {
+		RollupSpan span = task.calculateRollupSpan(previousChildren);
+		if (span.getStart() == 0L || span.getFinish() == 0L || span.getFinish() < span.getStart()) return null;
+		return new SummaryRollup(span, task.taskDurationPercentRollup(previousChildren));
+	}
+
+	private void initializeFormerSummaryLeaf(Task task, boolean wasSummary, RollupSpan span, double percentComplete) {
+		if (wasSummary && task != null && !task.isWbsParent() && task instanceof NormalTask normalTask)
+			normalTask.initializeLeafScheduleFromSummarySpan(span, percentComplete);
+	}
+
     public void structureChanged(HierarchyEvent e) {
     }
 
@@ -2011,6 +2046,8 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	    	restoreWorkspace(workspace, SavableToWorkspace.PERSIST);
 	    if (calendarOption == null)
 	    	calendarOption = CalendarOption.getDefaultInstance();
+		if (durationDefaults == null)
+			durationDefaults = DurationDefaults.PRODUCT_DEFAULTS;
 
 	}
 
@@ -2978,6 +3015,19 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	public transient PrintSettings printSettings = null;
 	public transient PrintSettings tmpSettings = null;
 	public transient CalendarOption calendarOption = null;
+	// Persisted native projects carry these defaults in their MSPDI Project header.
+	// Keep the object transient so the frozen POD serialization descriptor is unchanged.
+	private transient DurationDefaults durationDefaults;
+
+	public DurationDefaults getDurationDefaults() {
+		if (durationDefaults == null)
+			durationDefaults = DurationDefaults.PRODUCT_DEFAULTS;
+		return durationDefaults;
+	}
+
+	public void setDurationDefaults(DurationDefaults durationDefaults) {
+		this.durationDefaults = java.util.Objects.requireNonNull(durationDefaults, "durationDefaults");
+	}
 
 	public PrintSettings getPrintSettings(int context) {
 		return context==SavableToWorkspace.PERSIST?printSettings:tmpSettings;
@@ -2993,6 +3043,12 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 	public void setCalendarOption(CalendarOption calendarOption) {
 		this.calendarOption = calendarOption;
+		if (calendarOption != null) {
+			DurationDefaults current = getDurationDefaults();
+			durationDefaults = new DurationDefaults(calendarOption.getHoursPerDay() * 60.0D,
+				calendarOption.getHoursPerWeek() * 60.0D, calendarOption.getDaysPerMonth(),
+				current.durationEnteredIn(), current.workUnit());
+		}
 		setGroupDirty(true);
 	}
 

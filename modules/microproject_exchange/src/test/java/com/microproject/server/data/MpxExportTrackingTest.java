@@ -989,6 +989,111 @@ class MpxExportTrackingTest {
 		assertProject2019Calendars(roundTripMpo(calendars));
 	}
 
+	@Test
+	void nondefaultMspdiDurationDefaultsSurviveNativeMpoAndNewTaskCreation() throws Exception {
+		Path fixture = Path.of("modules", "microproject_exchange", "testdata", "Assignment Baseline Scalars.xml");
+		if (!Files.isRegularFile(fixture)) fixture = Path.of("testdata", "Assignment Baseline Scalars.xml");
+		String sourceXml = Files.readString(fixture)
+			.replace("<MinutesPerDay>480</MinutesPerDay>", "<MinutesPerDay>360</MinutesPerDay>")
+			.replace("<MinutesPerWeek>2400</MinutesPerWeek>", "<MinutesPerWeek>1800</MinutesPerWeek>");
+		net.sf.mpxj.ProjectFile source = new net.sf.mpxj.mspdi.MSPDIReader()
+			.read(new ByteArrayInputStream(sourceXml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+		source.getProjectProperties().setDefaultDurationUnits(net.sf.mpxj.TimeUnit.HOURS);
+		source.getProjectProperties().setDefaultWorkUnits(net.sf.mpxj.TimeUnit.MINUTES);
+		ByteArrayOutputStream configuredSource = new ByteArrayOutputStream();
+		new net.sf.mpxj.mspdi.MSPDIWriter().write(source, configuredSource);
+		sourceXml = configuredSource.toString(java.nio.charset.StandardCharsets.UTF_8);
+		assertEquals(Integer.valueOf(360), source.getProjectProperties().getMinutesPerDay());
+		assertEquals(Integer.valueOf(1800), source.getProjectProperties().getMinutesPerWeek());
+
+		Project imported = importMspdi(sourceXml);
+		assertEquals(360.0d, imported.getDurationDefaults().minutesPerDay(), 0.00001d);
+		assertEquals(1800.0d, imported.getDurationDefaults().minutesPerWeek(), 0.00001d);
+		assertEquals(20.0d, imported.getDurationDefaults().daysPerMonth(), 0.00001d);
+		assertEquals(com.microproject.datatype.TimeUnit.HOURS, imported.getDurationDefaults().durationEnteredIn());
+		assertEquals(com.microproject.datatype.TimeUnit.MINUTES, imported.getDurationDefaults().workUnit(),
+			"MSPDI default work units are independent from default duration units");
+		NormalTask importedTask = taskNamed(imported, "Assignment baseline task");
+		assertEquals(com.microproject.datatype.TimeUnit.DAYS, importedTask.getDurationDisplayUnit(),
+			"an explicit source task duration unit is retained independently of the project default");
+		assertEquals(8L * 60L * 60L * 1000L,
+			com.microproject.datatype.Duration.millis(importedTask.getRawDuration()),
+			"the imported explicit task duration is independent of the six-hour default day; source="
+				+ source.getTaskByUniqueID(Integer.valueOf(1)).getDuration() + " projectDefaults="
+				+ imported.getDurationDefaults());
+		NormalTask newTask = new NormalTask(imported);
+		assertEquals(6L * 60L * 60L * 1000L, com.microproject.datatype.Duration.millis(newTask.getRawDuration()),
+			"new one-day task follows the MSPDI project's six-hour duration default");
+
+		Project reopened = roundTripMpo(imported);
+		assertEquals(360.0d, reopened.getDurationDefaults().minutesPerDay(), 0.00001d);
+		assertEquals(1800.0d, reopened.getDurationDefaults().minutesPerWeek(), 0.00001d);
+		assertEquals(com.microproject.datatype.TimeUnit.HOURS, reopened.getDurationDefaults().durationEnteredIn());
+		assertEquals(com.microproject.datatype.TimeUnit.MINUTES, reopened.getDurationDefaults().workUnit());
+		assertEquals(com.microproject.datatype.TimeUnit.DAYS,
+			taskNamed(reopened, "Assignment baseline task").getDurationDisplayUnit(),
+			"native MPO preserves the MSPDI task DurationFormat as task display metadata");
+		assertEquals(6L * 60L * 60L * 1000L,
+			com.microproject.datatype.Duration.millis(new NormalTask(reopened).getRawDuration()));
+	}
+
+	@Test
+	void sixHourDurationAndProgressSurviveMpoReloadAlongsideHierarchyEdits() throws Exception {
+		Project project = createProject();
+		project.setDurationDefaults(new com.microproject.datatype.DurationDefaults(360.0d, 1800.0d, 20.0d,
+			com.microproject.datatype.TimeUnit.HOURS, com.microproject.datatype.TimeUnit.HOURS));
+		NormalTask task = project.createScriptedTask();
+		task.setName("Ten-hour task");
+		task.getCurrentSchedule().setStart(modelWallTime("2026-10-12T08:00:00"));
+		task.setDuration(com.microproject.datatype.Duration.getInstance(10.0d,
+			com.microproject.datatype.TimeUnit.HOURS, project.getDurationDefaults()));
+		task.setPercentComplete(1.0d);
+		assertEquals(10L * 60L * 60L * 1000L,
+			com.microproject.datatype.Duration.millis(task.getRawDuration()), "10h is physical elapsed duration");
+
+		NormalTask structuralParent = project.createScriptedTask();
+		structuralParent.setName("Structural parent");
+		structuralParent.getCurrentSchedule().setStart(modelWallTime("2026-10-12T08:00:00"));
+		structuralParent.setDuration(com.microproject.datatype.Duration.getInstance(6.0d,
+			com.microproject.datatype.TimeUnit.HOURS, project.getDurationDefaults()));
+		structuralParent.setPercentComplete(1.0d);
+		NormalTask structuralChild = project.createScriptedTask();
+		structuralChild.setName("Structural child");
+		structuralChild.setDuration(com.microproject.datatype.Duration.getInstance(6.0d,
+			com.microproject.datatype.TimeUnit.HOURS, project.getDurationDefaults()));
+		structuralChild.setPercentComplete(1.0d);
+		project.setLocalParent(structuralChild, structuralParent);
+		assertSame(structuralParent, structuralChild.getWbsParentTask());
+		assertTrue(structuralParent.getWbsChildrenTasks().contains(structuralChild));
+		long summaryDuration = com.microproject.datatype.Duration.millis(structuralParent.getRawDuration());
+		project.setLocalParent(structuralChild, null);
+		assertNull(structuralChild.getWbsParentTask());
+		assertTrue(structuralParent.getWbsChildrenTasks().isEmpty(), "outdent updates the old parent's cached WBS snapshot");
+		assertTrue(com.microproject.datatype.Duration.millis(structuralParent.getRawDuration()) >= 0,
+			"an empty summary becomes a valid leaf schedule");
+		assertEquals(summaryDuration, com.microproject.datatype.Duration.millis(structuralParent.getRawDuration()),
+			"the leaf duration is recalculated from the last summary schedule span");
+		assertEquals(1.0d, structuralParent.getPercentComplete(), 0.00001d,
+			"the summary's 100% progress remains valid when it becomes a leaf");
+		for (Task outlineTask : project.getTasks()) {
+			assertTrue(outlineTask.getEnd() >= outlineTask.getStart(), "valid schedule bounds for " + outlineTask.getName());
+		}
+
+		Project reopened = roundTripMpo(project);
+		NormalTask reopenedTask = taskNamed(reopened, "Ten-hour task");
+		assertEquals(10L * 60L * 60L * 1000L,
+			com.microproject.datatype.Duration.millis(reopenedTask.getRawDuration()),
+			"MPO preserves physical duration after hierarchy edits");
+		assertEquals(1.0d, reopenedTask.getPercentComplete(), 0.00001d, "MPO preserves 100% progress");
+		NormalTask reopenedParent = taskNamed(reopened, "Structural parent");
+		assertNull(reopenedTask.getWbsParentTask(), "MPO preserves the edited task's root placement");
+		assertTrue(reopenedParent.getWbsChildrenTasks().isEmpty());
+		assertEquals(summaryDuration, com.microproject.datatype.Duration.millis(reopenedParent.getRawDuration()),
+			"MPO preserves the summary-to-leaf physical duration");
+		assertEquals(1.0d, reopenedParent.getPercentComplete(), 0.00001d,
+			"MPO preserves progress after the summary becomes a leaf");
+	}
+
 	private void assertProject2019EditedLagSurvivesMpo(Project imported) throws Exception {
 		Task predecessor = imported.findByUniqueId(3);
 		Task successor = imported.findByUniqueId(4);
@@ -1932,10 +2037,16 @@ class MpxExportTrackingTest {
 	@Test
 	void assignmentTrackingValuesAreExported() {
 		NormalTask task = createTask();
+		task.getProject().setDurationDefaults(new com.microproject.datatype.DurationDefaults(
+			360.0d, 1800.0d, 20.0d, com.microproject.datatype.TimeUnit.HOURS,
+			com.microproject.datatype.TimeUnit.MINUTES));
 		task.setPercentWorkComplete(0.50d);
 		Iterator<?> assignments = task.getAssignments().iterator();
 		Assignment source = (Assignment) assignments.next();
+		source.setDelay(3L * 60L * 60L * 1000L);
 		source.setLevelingDelay(2L * 60L * 60L * 1000L);
+		com.microproject.options.CalendarOption globalCalendarOptions =
+			com.microproject.options.CalendarOption.getInstance();
 		ProjectFile file = new ProjectFile();
 		net.sf.mpxj.Task targetTask = file.addTask();
 		ResourceAssignment target = targetTask.addResourceAssignment(file.addResource());
@@ -1946,6 +2057,9 @@ class MpxExportTrackingTest {
 		assertNotNull(target.getActualStart());
 		assertEquals(120.0d, target.getLevelingDelay().getDuration(), 0.00001d);
 		assertEquals(net.sf.mpxj.TimeUnit.MINUTES, target.getLevelingDelay().getUnits());
+		assertEquals(3.0d, target.getDelay().getDuration(), 0.00001d);
+		assertEquals(net.sf.mpxj.TimeUnit.HOURS, target.getDelay().getUnits());
+		assertSame(globalCalendarOptions, com.microproject.options.CalendarOption.getInstance());
 	}
 
 	@Test

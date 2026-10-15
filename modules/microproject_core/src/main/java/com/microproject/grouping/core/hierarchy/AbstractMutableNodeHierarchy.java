@@ -355,6 +355,12 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
 			listener.nodesChanged(e);
 		}
 	}
+	protected void fireNodesChanged(Object source, Object[] nodes, Object[] oldNodes, Object flag,
+			java.util.Map<Object, Object[]> previousParentChildren) {
+		HierarchyEvent e = new HierarchyEvent(source, HierarchyEvent.NODES_CHANGED, nodes, oldNodes, flag);
+		e.setPreviousParentChildren(previousParentChildren);
+		for (HierarchyListener listener : hierarchyListeners.snapshot()) listener.nodesChanged(e);
+	}
 	protected void fireNodesInserted(Object source, Object[] nodes,Object[] oldNodes,Object flag) {
 		HierarchyEvent e = null;
 		for (HierarchyListener listener : hierarchyListeners.snapshot()) {
@@ -362,6 +368,12 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
 				e = new HierarchyEvent(source, HierarchyEvent.NODES_INSERTED, nodes, oldNodes, flag);
 			listener.nodesInserted(e);
 		}
+	}
+	protected void fireNodesInserted(Object source, Object[] nodes, Object[] oldNodes, Object flag,
+			java.util.Map<Object, Object[]> previousParentChildren) {
+		HierarchyEvent e = new HierarchyEvent(source, HierarchyEvent.NODES_INSERTED, nodes, oldNodes, flag);
+		e.setPreviousParentChildren(previousParentChildren);
+		for (HierarchyListener listener : hierarchyListeners.snapshot()) listener.nodesInserted(e);
 	}
 	protected void fireNodesRemoved(Object source, Object[] nodes,Object[] oldNodes,Object flag) {
 		HierarchyEvent e = null;
