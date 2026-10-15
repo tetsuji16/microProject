@@ -4530,7 +4530,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> {
 			int row = rowForTask(sheet, (NormalTask)task);
 			int viewRow = sheet.convertRowIndexToView(row);
-			int viewColumn = sheet.convertColumnIndexToView(0);
+			int viewColumn = nameColumn(sheet);
+			if (viewColumn < 0)
+				throw new AssertionError("Task-name field is not visible in the spreadsheet");
 			javax.swing.table.TableCellRenderer renderer = sheet.getCellRenderer(viewRow, viewColumn);
 			rendered[0] = renderer.getTableCellRendererComponent(sheet, sheet.getValueAt(viewRow, viewColumn),
 				false, false, viewRow, viewColumn);
