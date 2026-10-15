@@ -3286,7 +3286,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			.filter(JCheckBox.class::isInstance).map(JCheckBox.class::cast)
 			.filter(check -> "microproject.taskSort.keepOutline".equals(check.getName())).findFirst().orElseThrow();
 		assertFalse(reopenedKeepOutline.isSelected(), "reopening the chooser must restore Keep Outline=false");
-		click(robot, flatPermanent);
+		clickDisabled(robot, flatPermanent);
 		assertFalse(flatPermanent.isSelected(), "a disabled permanent-order option cannot be activated physically");
 		click(robot, findShowingButtonByText(flatSortChooser, javax.swing.UIManager.getString("OptionPane.cancelButtonText")));
 		GuiAcceptanceSupport.await(() -> !flatSortChooser.isShowing(), "flat sort review dialog did not close");
