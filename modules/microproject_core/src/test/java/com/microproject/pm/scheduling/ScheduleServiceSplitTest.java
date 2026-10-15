@@ -274,6 +274,46 @@ class ScheduleServiceSplitTest {
 		assertTrue(task.getLevelingTaskSplitIntervals().isEmpty());
 	}
 
+	@Test
+	void manualOwnershipAddedOverGeneratedSplitIsUndoableAndSurvivesClear() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		project.initialize(false, false);
+		NormalTask task = new NormalTask(project);
+		project.connectTask(task);
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		task.setDuration(5L * day);
+		long start = task.getStart();
+		long generatedFrom = task.getEffectiveWorkCalendar().add(start, day, false);
+		long generatedTo = task.getEffectiveWorkCalendar().add(generatedFrom, day, false);
+		assertTrue(ScheduleService.getInstance().splitForLeveling(this, task, generatedFrom, generatedTo));
+		List<com.microproject.pm.task.TaskSplitInterval> visibleBeforeManual = task.getTaskSplitIntervals();
+		long finishBeforeManual = task.getEnd();
+		undoController.discardAllEdits();
+
+		assertTrue(ScheduleService.getInstance().split(this, task, generatedFrom, generatedTo,
+			undoController.getEditSupport()),
+			"adding manual ownership is a real edit even when it does not change visible split coverage");
+		assertEquals(visibleBeforeManual, task.getTaskSplitIntervals());
+		assertEquals(finishBeforeManual, task.getEnd());
+		assertEquals(1, task.getManualTaskSplitIntervals().size());
+		assertEquals(1, task.getLevelingTaskSplitIntervals().size());
+		assertTrue(undoController.canUndo());
+
+		undoController.undo();
+		assertTrue(task.getManualTaskSplitIntervals().isEmpty());		assertEquals(1, task.getLevelingTaskSplitIntervals().size());
+		undoController.redo();
+		assertEquals(1, task.getManualTaskSplitIntervals().size());
+		assertEquals(1, task.getLevelingTaskSplitIntervals().size());
+
+		new ResourceLevelingService().clear(project, undoController.getEditSupport());
+		assertEquals(visibleBeforeManual, task.getTaskSplitIntervals(),
+			"clearing leveling must retain the gap that now has manual ownership");
+		assertEquals(1, task.getManualTaskSplitIntervals().size());
+		assertTrue(task.getLevelingTaskSplitIntervals().isEmpty());
+	}
+
 	private List<String> taskIntervals(NormalTask task) {
 		List<String> intervals = new ArrayList<>();
 		task.consumeIntervals(interval -> intervals.add(interval.getStart() + ":" + interval.getEnd()));

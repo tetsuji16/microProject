@@ -1930,16 +1930,17 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 			if (existing.startOffset() <= added.startOffset() && existing.endOffset() >= added.endOffset()) return;
 		}
 		long originalSplitLength = totalTaskSplitLength(taskSplitIntervals);
-		sourceIntervals.add(added);
-		ArrayList<TaskSplitInterval> merged = new ArrayList<>(unionTaskSplitIntervals(manualTaskSplitIntervals, levelingTaskSplitIntervals));
+		ArrayList<TaskSplitInterval> proposedManual = new ArrayList<>(manualTaskSplitIntervals);
+		ArrayList<TaskSplitInterval> proposedLeveling = new ArrayList<>(levelingTaskSplitIntervals);
+		(levelingGenerated ? proposedLeveling : proposedManual).add(added);
+		ArrayList<TaskSplitInterval> merged = new ArrayList<>(unionTaskSplitIntervals(proposedManual, proposedLeveling));
 		long addedGapLength = totalTaskSplitLength(merged) - originalSplitLength;
-		if (addedGapLength <= 0) {
-			sourceIntervals.remove(added);
-			return;
-		}
-		long updatedFinish = Math.addExact(originalEnd, addedGapLength);
+		if (addedGapLength < 0L) throw new IllegalStateException("Adding split provenance reduced task split coverage");
+		long updatedFinish = addedGapLength == 0L ? originalEnd : Math.addExact(originalEnd, addedGapLength);
+		manualTaskSplitIntervals = proposedManual;
+		levelingTaskSplitIntervals = proposedLeveling;
 		taskSplitIntervals = merged;
-		getCurrentSchedule().setFinish(updatedFinish);
+		if (addedGapLength > 0L) getCurrentSchedule().setFinish(updatedFinish);
 		setDirty(true);
 		getProject().fireScheduleChanged(eventSource, ScheduleEvent.SCHEDULE, this);
 

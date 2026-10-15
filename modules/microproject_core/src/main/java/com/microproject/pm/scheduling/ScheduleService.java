@@ -36,6 +36,7 @@ import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.NormalTask;
+import com.microproject.pm.task.TaskSplitInterval;
 import com.microproject.undo.TaskConstraintEdit;
 import com.microproject.undo.ScheduleEdit;
 import com.microproject.undo.SplitEdit;
@@ -220,6 +221,10 @@ public class ScheduleService {
 		List<String> state = new ArrayList<>();
 		appendSplitIntervals(state, "schedule", schedule);
 		if (schedule instanceof NormalTask task) {
+			for (TaskSplitInterval interval : task.getManualTaskSplitIntervals())
+				state.add("manual:" + interval.startOffset() + ":" + interval.endOffset());
+			for (TaskSplitInterval interval : task.getLevelingTaskSplitIntervals())
+				state.add("leveling:" + interval.startOffset() + ":" + interval.endOffset());
 			int index = 0;
 			for (Association association : task.getAssignments()) {
 				appendSplitIntervals(state, "assignment-" + index++, (Assignment) association);
