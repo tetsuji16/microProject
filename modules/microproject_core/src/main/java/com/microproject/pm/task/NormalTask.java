@@ -34,6 +34,7 @@ import java.util.Date;
 import java.util.function.Consumer;
 import java.util.Iterator;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Logger;
 
 
@@ -95,6 +96,7 @@ import com.microproject.pm.scheduling.SchedulingType;
 import com.microproject.pm.snapshot.BaselineScheduleFields;
 import com.microproject.pm.snapshot.DataSnapshot;
 import com.microproject.pm.snapshot.SnapshottableImpl;
+import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.server.access.ErrorLogger;
 import com.microproject.strings.Messages;
 import com.microproject.util.DateTime;
@@ -404,7 +406,13 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	 * @param i
 	 */
 	public void saveCurrentToSnapshot(Object snapshotId) {
-		setSnapshot(snapshotId, cloneSnapshot(getSnapshot(CURRENT)));
+		TaskSnapshot snapshot = (TaskSnapshot) cloneSnapshot(getSnapshot(CURRENT));
+		if (snapshotId instanceof Integer slot && slot.intValue() >= 0
+				&& slot.intValue() < Snapshottable.CURRENT.intValue()) {
+			snapshot.setFixedCostCalendar(getEffectiveWorkCalendar());
+			snapshot.setRolledUpFixedCostProfiles(captureCurrentDescendantFixedCosts());
+		}
+		setSnapshot(snapshotId, snapshot);
 		markTaskAsNeedingRecalculation(); // for redraw purpooses, not for recalc.
 		setDirty(true);
 	}
@@ -839,7 +847,28 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 				numBaseline)));
 		if (snapshot == null)
 			return 0;
-		return snapshot.cost(start, end);
+		return snapshot.baselineCost(start, end);
+	}
+
+	private List<TaskSnapshot.FixedCostProfile> captureCurrentDescendantFixedCosts() {
+		ArrayList<TaskSnapshot.FixedCostProfile> profiles = new ArrayList<>();
+		collectCurrentDescendantFixedCosts(this, profiles);
+		return List.copyOf(profiles);
+	}
+
+	private static void collectCurrentDescendantFixedCosts(NormalTask task,
+		List<TaskSnapshot.FixedCostProfile> profiles) {
+		Collection<Node> children = task.getWbsChildrenNodes();
+		if (children == null || children.isEmpty()) return;
+		for (Node node : children) {
+			if (!(node.getImpl() instanceof NormalTask child)) continue;
+			if (child.getCurrentSnapshot() instanceof TaskSnapshot childSnapshot) {
+				TaskSnapshot.FixedCostProfile profile = childSnapshot.captureOwnFixedCostProfile(
+					child.getEffectiveWorkCalendar());
+				if (profile != null) profiles.add(profile);
+			}
+			collectCurrentDescendantFixedCosts(child, profiles);
+		}
 	}
 
 	public double getBaselineWork(int numBaseline, long start, long end) {
@@ -1166,12 +1195,15 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	}
 
 	public double baselineCost(long start, long end) {
-		if (isParentWithoutAssignments())
-			return TimeDistributedDataConsolidator.baselineCost(start, end, rollupValues());
+		if (isParentWithoutAssignments()) {
+			TaskSnapshot snapshot = getBaselineSnapshot();
+			return TimeDistributedDataConsolidator.baselineCost(start, end, rollupValues())
+				+ (snapshot == null ? 0.0D : snapshot.fixedCost(start, end));
+		}
 		if (getBaselineSnapshot() == null)
 			return 0;
 
-		return getBaselineSnapshot().cost(start, end);
+		return getBaselineSnapshot().baselineCost(start, end);
 	}
 
 	public long baselineWork(long start, long end) {
@@ -1365,9 +1397,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 				numBaseline));
 		if (snapshot == null)
 			return 0.0D;
-		return ((TaskSnapshot) getSnapshot(Integer.valueOf(numBaseline))).cost(
-				FieldContext.start(fieldContext), FieldContext
-						.end(fieldContext));
+		return getBaselineCost(numBaseline, FieldContext.start(fieldContext), FieldContext.end(fieldContext));
 	}
 
 	public long getBaselineWork(int numBaseline, FieldContext fieldContext) {

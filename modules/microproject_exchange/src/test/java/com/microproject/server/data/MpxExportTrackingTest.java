@@ -110,15 +110,17 @@ class MpxExportTrackingTest {
 		task.setStart(currentStart);
 		task.setFinish(currentFinish);
 		task.setDuration(net.sf.mpxj.Duration.getInstance(2, net.sf.mpxj.TimeUnit.DAYS));
-		java.util.Date baselineZeroStart = java.util.Date.from(java.time.Instant.parse("2026-10-05T08:00:00Z"));
-		java.util.Date baselineZeroFinish = java.util.Date.from(java.time.Instant.parse("2026-10-06T17:00:00Z"));
-		java.util.Date baselineOneStart = java.util.Date.from(java.time.Instant.parse("2026-10-07T08:00:00Z"));
-		java.util.Date milestoneBaseline = java.util.Date.from(java.time.Instant.parse("2026-10-08T08:00:00Z"));
-		java.util.Date baselineTenStart = java.util.Date.from(java.time.Instant.parse("2026-10-01T08:00:00Z"));
-		java.util.Date baselineTenFinish = java.util.Date.from(java.time.Instant.parse("2026-10-02T17:00:00Z"));
+		java.util.Date baselineZeroStart = mspdiDateAtModelTime("2026-10-05T08:00:00Z");
+		java.util.Date baselineZeroFinish = mspdiDateAtModelTime("2026-10-06T17:00:00Z");
+		java.util.Date baselineOneStart = mspdiDateAtModelTime("2026-10-07T08:00:00Z");
+		java.util.Date milestoneBaseline = mspdiDateAtModelTime("2026-10-08T08:00:00Z");
+		java.util.Date baselineTenStart = mspdiDateAtModelTime("2026-10-01T08:00:00Z");
+		java.util.Date baselineTenFinish = mspdiDateAtModelTime("2026-10-02T17:00:00Z");
 		task.setBaselineStart(baselineZeroStart);
 		task.setBaselineFinish(baselineZeroFinish);
 		task.setBaselineDuration(net.sf.mpxj.Duration.getInstance(2, net.sf.mpxj.TimeUnit.DAYS));
+		task.setBaselineFixedCost(Double.valueOf(160.0D));
+		task.setFixedCostAccrual(net.sf.mpxj.AccrueType.PRORATED);
 		task.setBaselineStart(1, baselineOneStart); // partial baseline: finish is absent
 		task.setBaselineStart(2, milestoneBaseline);
 		task.setBaselineFinish(2, milestoneBaseline);
@@ -128,9 +130,15 @@ class MpxExportTrackingTest {
 		task.setBaselineDuration(10, net.sf.mpxj.Duration.getInstance(2, net.sf.mpxj.TimeUnit.DAYS));
 		ByteArrayOutputStream sourceXml = new ByteArrayOutputStream();
 		new net.sf.mpxj.mspdi.MSPDIWriter().write(source, sourceXml);
+		String sourceMspdi = sourceXml.toString(java.nio.charset.StandardCharsets.UTF_8);
+		// MPXJ's writer omits Baseline.FixedCost, so include the published MSPDI field
+		// directly in this interoperability fixture instead of weakening the expected value.
+		assertTrue(sourceMspdi.contains("<Baseline>"), "the fixture must contain a baseline element");
+		sourceMspdi = sourceMspdi.replaceFirst("</Baseline>", "<FixedCost>160</FixedCost></Baseline>");
 
 		Project imported = new com.microproject.core.pm.exchange.MspImporter().importProject(
-			new ByteArrayInputStream(sourceXml.toByteArray()), "xml", (progress, label) -> {});
+			new ByteArrayInputStream(sourceMspdi.getBytes(java.nio.charset.StandardCharsets.UTF_8)), "xml",
+			(progress, label) -> {});
 		NormalTask importedTask = taskNamed(imported, "Baseline contract");
 		assertEquals(com.microproject.core.pm.exchange.converters.type.DateUTCConverter.toModelTime(currentStart),
 			importedTask.getCurrentSchedule().getStart(), "baseline conversion must leave the current schedule intact");
@@ -140,6 +148,19 @@ class MpxExportTrackingTest {
 			importedTask.getBaselineFinish());
 		assertBaselineDuration(importedTask.getBaselineDuration(0), 2.0d,
 			com.microproject.datatype.TimeUnit.DAYS);
+		long baselineStart = com.microproject.core.pm.exchange.converters.type.DateUTCConverter.toModelTime(baselineZeroStart);
+		com.microproject.pm.task.TaskSnapshot baselineZero = (com.microproject.pm.task.TaskSnapshot)
+			importedTask.getSnapshot(Integer.valueOf(0));
+		assertEquals(160.0D, baselineZero.getFixedCost(), 0.00001D);
+		assertNotNull(baselineZero.getFixedCostCalendar());
+		assertEquals(com.microproject.pm.costing.Accrual.Kind.PRORATED.code(), baselineZero.getFixedCostAccrual());
+		assertTrue(baselineZero.getFixedCostCalendar().compare(baselineStart + java.util.concurrent.TimeUnit.HOURS.toMillis(13),
+			baselineStart, false) > 0L, "the captured baseline calendar must count the partial interval as work");
+		assertEquals(160.0D, importedTask.getBaselineCost(0, baselineStart,
+			com.microproject.core.pm.exchange.converters.type.DateUTCConverter.toModelTime(baselineZeroFinish)), 0.00001D);
+		assertEquals(80.0D, importedTask.getBaselineCost(0, baselineStart,
+			baselineStart + java.util.concurrent.TimeUnit.HOURS.toMillis(13)), 0.00001D,
+			"an imported MSPDI fixed-cost baseline must accrue against its captured task calendar");
 		assertEquals(com.microproject.core.pm.exchange.converters.type.DateUTCConverter.toModelTime(baselineOneStart),
 			((com.microproject.pm.task.TaskSnapshot) importedTask.getSnapshot(Integer.valueOf(1)))
 				.getCurrentSchedule().getStart());
@@ -162,6 +183,9 @@ class MpxExportTrackingTest {
 		assertEquals(baselineZeroStart, roundTripTask.getBaselineStart());
 		assertEquals(baselineZeroFinish, roundTripTask.getBaselineFinish());
 		assertEquals(2.0d, roundTripTask.getBaselineDuration().getDuration(), 0.00001d);
+		assertTrue(roundTripXml.toString(java.nio.charset.StandardCharsets.UTF_8).contains("<FixedCost>160</FixedCost>"),
+			"the canonical MSPDI writer must publish the baseline fixed-cost field");
+		assertEquals(net.sf.mpxj.AccrueType.PRORATED, roundTripTask.getFixedCostAccrual());
 		assertEquals(net.sf.mpxj.TimeUnit.DAYS, roundTripTask.getBaselineDuration().getUnits());
 		assertEquals(baselineOneStart, roundTripTask.getBaselineStart(1));
 		assertNull(roundTripTask.getBaselineFinish(1));
@@ -169,6 +193,11 @@ class MpxExportTrackingTest {
 		assertEquals(milestoneBaseline, roundTripTask.getBaselineFinish(2));
 		assertEquals(baselineTenStart, roundTripTask.getBaselineStart(10));
 		assertEquals(baselineTenFinish, roundTripTask.getBaselineFinish(10));
+		Project modelRoundTrip = new com.microproject.core.pm.exchange.MspImporter().importProject(
+			new ByteArrayInputStream(roundTripXml.toByteArray()), "xml", (progress, label) -> {});
+		assertEquals(160.0D, ((com.microproject.pm.task.TaskSnapshot)
+			taskNamed(modelRoundTrip, "Baseline contract").getSnapshot(Integer.valueOf(0))).getFixedCost(), 0.00001D,
+			"reimport must retain the baseline fixed-cost amount emitted in canonical MSPDI");
 		assertEquals(2.0d, roundTripTask.getBaselineDuration(10).getDuration(), 0.00001d);
 
 		ByteArrayOutputStream mpo = new ByteArrayOutputStream();
@@ -2144,5 +2173,10 @@ class MpxExportTrackingTest {
 		java.util.GregorianCalendar calendar = com.microproject.util.DateTime.calendarInstance(year, month, day);
 		calendar.set(java.util.Calendar.HOUR_OF_DAY, hour);
 		return calendar.getTimeInMillis();
+	}
+
+	private static java.util.Date mspdiDateAtModelTime(String instant) {
+		long modelTime = java.time.Instant.parse(instant).toEpochMilli();
+		return new java.util.Date(com.microproject.core.time.TimeUtil.removeTimeZoneOffset(modelTime));
 	}
 }

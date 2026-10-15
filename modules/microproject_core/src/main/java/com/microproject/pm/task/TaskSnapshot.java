@@ -38,11 +38,13 @@ import com.microproject.algorithm.TimeIteratorGenerator;
 import com.microproject.algorithm.buffer.CalculatedValues;
 import com.microproject.association.AssociationList;
 import com.microproject.field.FieldContext;
+import com.microproject.datatype.Duration;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.BaselineAssignmentProfile;
 import com.microproject.pm.assignment.HasAssignments;
 import com.microproject.pm.assignment.HasAssignmentsImpl;
 import com.microproject.pm.calendar.WorkCalendar;
+import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.costing.Accrual;
 import com.microproject.pm.criticalpath.TaskSchedule;
 import com.microproject.pm.resource.Resource;
@@ -56,7 +58,45 @@ public class TaskSnapshot implements DataSnapshot, HasAssignments, Cloneable {
 	HasAssignments hasAssignments = null;
 	double fixedCost = 0;
 	int fixedCostAccrual = Accrual.Kind.END.code();
+	transient WorkCalendar fixedCostCalendar;
+	transient java.util.List<FixedCostProfile> rolledUpFixedCosts = java.util.List.of();
 	boolean ignoreResourceCalendar = false;
+
+	/** Immutable time-phased fixed-cost contribution captured from a descendant task. */
+	public static final class FixedCostProfile {
+		private final double cost;
+		private final int accrualCode;
+		private final long start;
+		private final long finish;
+		private final long rawDuration;
+		private final transient WorkCalendar calendar;
+
+		public FixedCostProfile(double cost, int accrualCode, long start, long finish, long rawDuration,
+			WorkCalendar calendar) {
+			if (!Double.isFinite(cost)) throw new IllegalArgumentException("Fixed cost must be finite");
+			Accrual.Kind.fromCode(accrualCode);
+			if (calendar == null) throw new IllegalArgumentException("A fixed-cost profile requires its calendar");
+			this.cost = cost;
+			this.accrualCode = accrualCode;
+			this.start = start;
+			this.finish = finish;
+			this.rawDuration = rawDuration;
+			this.calendar = copyCalendar(calendar);
+		}
+
+		public double cost(long intervalStart, long intervalEnd) {
+			return FixedCostAccrualCalculator.calculate(Accrual.Kind.fromCodeOrNull(accrualCode), cost,
+				start, finish, Duration.millis(rawDuration), calendar, intervalStart, intervalEnd);
+		}
+
+		public double fixedCost() { return cost; }
+		public int accrualCode() { return accrualCode; }
+		public long start() { return start; }
+		public long finish() { return finish; }
+		public long rawDuration() { return rawDuration; }
+		public WorkCalendar calendarCopy() { return copyCalendar(calendar); }
+		public FixedCostProfile copy() { return new FixedCostProfile(cost, accrualCode, start, finish, rawDuration, calendar); }
+	}
 
 
 	public long getEarliestAssignmentStart() {
@@ -110,6 +150,9 @@ public class TaskSnapshot implements DataSnapshot, HasAssignments, Cloneable {
 			newOne.currentSchedule = (TaskSchedule) currentSchedule.clone();
 			newOne.hasAssignments = (HasAssignments) ((HasAssignmentsImpl)hasAssignments)
 				.cloneSnapshotWithSchedule(newOne.currentSchedule);
+			if (fixedCostCalendar != null)
+				newOne.fixedCostCalendar = (WorkCalendar) fixedCostCalendar.clone();
+			newOne.rolledUpFixedCosts = copyFixedCostProfiles(rolledUpFixedCosts);
 		} catch (CloneNotSupportedException e) {
 			throw new IllegalStateException("TaskSnapshot should be cloneable", e);
 		}
@@ -124,6 +167,9 @@ public class TaskSnapshot implements DataSnapshot, HasAssignments, Cloneable {
 			newOne.currentSchedule = (TaskSchedule) currentSchedule.cloneWithTask(task);
 			newOne.hasAssignments = (HasAssignments) ((HasAssignmentsImpl)hasAssignments)
 				.deepCloneSnapshotWithTask(task);
+			if (fixedCostCalendar != null)
+				newOne.fixedCostCalendar = (WorkCalendar) fixedCostCalendar.clone();
+			newOne.rolledUpFixedCosts = copyFixedCostProfiles(rolledUpFixedCosts);
 		} catch (CloneNotSupportedException e) {
 			throw new IllegalStateException("TaskSnapshot should be cloneable", e);
 		}
@@ -375,7 +421,9 @@ public class TaskSnapshot implements DataSnapshot, HasAssignments, Cloneable {
 	 * @return
 	 */
 	public double baselineCost(long start, long end) {
-		return hasAssignments.baselineCost(start, end);
+		double total = hasAssignments.baselineCost(start, end) + baselineFixedCost(start, end);
+		for (FixedCostProfile profile : rolledUpFixedCosts) total += profile.cost(start, end);
+		return total;
 	}
 	/**
 	 * @param start
@@ -394,7 +442,58 @@ public class TaskSnapshot implements DataSnapshot, HasAssignments, Cloneable {
 	}
 
 	public double fixedCost(long start, long end) {
-		return 0;
+		return baselineFixedCost(start, end);
+	}
+
+	private double baselineFixedCost(long start, long end) {
+		if (currentSchedule == null) return 0.0D;
+		WorkCalendar calendar = fixedCostCalendar;
+		if (calendar == null) return 0.0D;
+		return FixedCostAccrualCalculator.calculate(Accrual.Kind.fromCodeOrNull(fixedCostAccrual),
+			fixedCost, currentSchedule.getStart(), currentSchedule.getFinish(),
+			Duration.millis(currentSchedule.getRawDuration()),
+			calendar, start, end);
+	}
+
+	public WorkCalendar getFixedCostCalendar() { return fixedCostCalendar; }
+	public FixedCostProfile captureOwnFixedCostProfile(WorkCalendar fallbackCalendar) {
+		if (currentSchedule == null || fixedCost == 0.0D) return null;
+		WorkCalendar calendar = fixedCostCalendar == null ? fallbackCalendar : fixedCostCalendar;
+		if (calendar == null) return null;
+		return new FixedCostProfile(fixedCost, fixedCostAccrual, currentSchedule.getStart(),
+			currentSchedule.getFinish(), currentSchedule.getRawDuration(), calendar);
+	}
+	public java.util.List<FixedCostProfile> getRolledUpFixedCostProfiles() {
+		return rolledUpFixedCosts.stream().map(FixedCostProfile::copy).toList();
+	}
+	public void setRolledUpFixedCostProfiles(java.util.List<FixedCostProfile> profiles) {
+		rolledUpFixedCosts = copyFixedCostProfiles(profiles);
+	}
+	public void setPreparedRolledUpFixedCostProfiles(java.util.List<FixedCostProfile> profiles) {
+		rolledUpFixedCosts = profiles == null || profiles.isEmpty() ? java.util.List.of() : java.util.List.copyOf(profiles);
+	}
+	public void setPreparedFixedCostCalendar(WorkCalendar calendar) {
+		fixedCostCalendar = calendar;
+	}
+	public void setFixedCostCalendar(WorkCalendar calendar) {
+		fixedCostCalendar = calendar == null ? null : copyCalendar(calendar);
+	}
+	public static WorkCalendar copyCalendarForSnapshot(WorkCalendar calendar) {
+		return calendar == null ? null : copyCalendar(calendar);
+	}
+
+	private static java.util.List<FixedCostProfile> copyFixedCostProfiles(java.util.List<FixedCostProfile> profiles) {
+		if (profiles == null || profiles.isEmpty()) return java.util.List.of();
+		return profiles.stream().map(FixedCostProfile::copy).toList();
+	}
+
+	private static WorkCalendar copyCalendar(WorkCalendar calendar) {
+		if (calendar instanceof WorkingCalendar workingCalendar) return workingCalendar.copyForBaselineSnapshot();
+		try {
+			return (WorkCalendar) calendar.clone();
+		} catch (CloneNotSupportedException exception) {
+			throw new IllegalArgumentException("Baseline fixed-cost calendar cannot be copied", exception);
+		}
 	}
 	public double actualFixedCost(long start, long end) {
 		return 0;
@@ -409,6 +508,8 @@ public class TaskSnapshot implements DataSnapshot, HasAssignments, Cloneable {
 	 * @param fixedCost The fixedCost to set.
 	 */
 	public final void setFixedCost(double fixedCost) {
+		if (!Double.isFinite(fixedCost))
+			throw new IllegalArgumentException("Fixed cost must be a finite currency amount");
 		this.fixedCost = fixedCost;
 	}
 	/**

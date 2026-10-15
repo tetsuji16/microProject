@@ -670,6 +670,92 @@ class ProjectScheduleBehaviorTest {
 		assertEquals(summaryDirtyBefore, summary.isDirty(), "A failed preflight must preserve summary dirty state");
 	}
 
+	@Test
+	void baselineCostIncludesTaskFixedCostAccrualAndDoesNotDoubleCountSummaryOwnCost() {
+		// Document-derived compatibility contract (no installed MSP experiment): Microsoft's
+		// Baseline1-10 Cost field includes resource planned costs plus task Fixed Cost, while
+		// the separate Fixed Cost summary field does not roll child fixed costs into itself.
+		// See https://support.microsoft.com/en-us/project/baseline1-10-cost-fields and
+		// https://support.microsoft.com/en-us/project/view-project-cost-totals. Microsoft
+		// documents costs as negative-capable at
+		// https://learn.microsoft.com/en-us/previous-versions/office/project-class/gg206671(v=office.15).
+		// START,
+		// PRORATED, and END use the saved baseline schedule/accrual/calendar, and summary
+		// Baseline Cost includes each descendant's own fixed contribution exactly once.
+		Project project = createProject();
+		NormalTask summary = project.createScriptedTask();
+		NormalTask nestedSummary = project.createScriptedTask();
+		NormalTask startCost = project.createScriptedTask();
+		NormalTask proratedCost = project.createScriptedTask();
+		NormalTask endCost = project.createScriptedTask();
+		NormalTask milestoneCost = project.createScriptedTask();
+		attachWbsChildren(summary, nestedSummary, startCost, endCost, milestoneCost);
+		attachWbsChildren(nestedSummary, proratedCost);
+		long start = project.getStartDate();
+		long hour = 60L * 60L * 1000L;
+		setPlan(startCost, start, 8L * hour, 100.0d);
+		setPlan(proratedCost, start, 8L * hour, 200.0d);
+		setPlan(endCost, start, 8L * hour, -300.0d);
+		setPlan(milestoneCost, start, 0L, 25.0d);
+		startCost.setFixedCostAccrual(com.microproject.pm.costing.Accrual.Kind.START);
+		proratedCost.setFixedCostAccrual(com.microproject.pm.costing.Accrual.Kind.PRORATED);
+		endCost.setFixedCostAccrual(com.microproject.pm.costing.Accrual.Kind.END);
+		milestoneCost.setFixedCostAccrual(com.microproject.pm.costing.Accrual.Kind.PRORATED);
+		summary.setFixedCost(50.0d);
+		summary.setFixedCostAccrual(com.microproject.pm.costing.Accrual.Kind.END);
+		nestedSummary.setFixedCost(40.0d);
+		nestedSummary.setFixedCostAccrual(com.microproject.pm.costing.Accrual.Kind.START);
+		int slot = Snapshottable.BASELINE_1;
+		project.saveCurrentToSnapshot(Integer.valueOf(slot), true, null, new BaselineRollupOptions(true, false));
+
+		assertEquals(0.0d, startCost.getBaselineCost(slot, start - 1L, start - 1L), 0.001d);
+		assertEquals(100.0d, startCost.getBaselineCost(slot, start, start), 0.001d,
+			"START accrual belongs to the task baseline start");
+		assertEquals(100.0d, proratedCost.getBaselineCost(slot, start, start + 4L * hour), 0.001d,
+			"PRORATED accrual follows the frozen baseline work calendar");
+		assertEquals(-300.0d, endCost.getBaselineCost(slot, start + 8L * hour, start + 8L * hour), 0.001d,
+			"END accrual belongs to the task baseline finish");
+		assertEquals(25.0d, milestoneCost.getBaselineCost(slot, start, start), 0.001d,
+			"A zero-duration PRORATED task accrues its fixed cost at its baseline instant");
+		assertEquals(240.0d, nestedSummary.getBaselineCost(slot, 0L, Long.MAX_VALUE), 0.001d,
+			"Nested summary baseline cost includes its leaf and own fixed cost exactly once");
+		assertEquals(115.0d, summary.getBaselineCost(slot, 0L, Long.MAX_VALUE), 0.001d,
+			"Three-level summary baseline cost includes each descendant contribution and own fixed cost once");
+		assertEquals(50.0d, ((TaskSnapshot) summary.getSnapshot(Integer.valueOf(slot))).getFixedCost(), 0.001d,
+			"The summary Fixed Cost field remains its own value rather than the child total");
+		assertEquals(40.0d, ((TaskSnapshot) nestedSummary.getSnapshot(Integer.valueOf(slot))).getFixedCost(), 0.001d,
+			"The nested summary Fixed Cost field remains its own value rather than the leaf total");
+		assertThrows(IllegalArgumentException.class, () -> summary.setFixedCost(Double.NaN),
+			"A fixed-cost currency value cannot be NaN");
+		assertThrows(IllegalArgumentException.class, () -> summary.setFixedCost(Double.POSITIVE_INFINITY),
+			"A fixed-cost currency value cannot be infinite");
+
+		com.microproject.pm.calendar.WorkingCalendar changed =
+			((com.microproject.pm.calendar.WorkingCalendar) proratedCost.getEffectiveWorkCalendar()).copyForBaselineSnapshot();
+		changed.setWeekDay(0, null);
+		proratedCost.setWorkCalendar(changed);
+		assertEquals(100.0d, proratedCost.getBaselineCost(slot, start, start + 4L * hour), 0.001d,
+			"Changing the live task calendar must not change the saved baseline fixed-cost distribution");
+
+		double savedRootTotal = summary.getBaselineCost(slot, 0L, Long.MAX_VALUE);
+		endCost.setFixedCost(-600.0d);
+		project.saveCurrentToSnapshot(Integer.valueOf(slot), false, List.of(endCost));
+		assertEquals(savedRootTotal, summary.getBaselineCost(slot, 0L, Long.MAX_VALUE), 0.001d,
+			"Overwriting a descendant baseline without roll-up must not change the saved summary total");
+		project.saveCurrentToSnapshot(Integer.valueOf(slot), false, List.of(endCost),
+			new BaselineRollupOptions(true, false));
+		assertEquals( -185.0d, summary.getBaselineCost(slot, 0L, Long.MAX_VALUE), 0.001d,
+			"An explicit roll-up replaces the frozen descendant contribution exactly once");
+		NormalTask otherParent = project.createScriptedTask();
+		otherParent.setWbsChildrenNodes(List.of(NodeFactory.getInstance().createNode(endCost)));
+		endCost.setWbsParent(otherParent);
+		summary.setWbsChildrenNodes(List.of(NodeFactory.getInstance().createNode(nestedSummary),
+			NodeFactory.getInstance().createNode(startCost), NodeFactory.getInstance().createNode(milestoneCost)));
+		endCost.setFixedCost(900.0d);
+		assertEquals(-185.0d, summary.getBaselineCost(slot, 0L, Long.MAX_VALUE), 0.001d,
+			"Reparenting and changing a descendant must not mutate the stored summary fixed-cost profiles");
+	}
+
 	private static void setPlan(NormalTask task, long start, long duration, double fixedCost) {
 		task.getCurrentSchedule().setStart(start);
 		task.getCurrentSchedule().setFinish(start + duration);

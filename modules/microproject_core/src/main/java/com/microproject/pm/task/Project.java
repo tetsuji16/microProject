@@ -1117,7 +1117,9 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		Map<NormalTask, TaskSnapshot> snapshots = new java.util.IdentityHashMap<>();
 		for (NormalTask task : selectedTasks) {
 			if (!(task.getCurrentSnapshot() instanceof TaskSnapshot current)) continue;
-			snapshots.put(task, (TaskSnapshot) task.cloneSnapshot(current));
+			TaskSnapshot snapshot = (TaskSnapshot) task.cloneSnapshot(current);
+			snapshot.setFixedCostCalendar(task.getEffectiveWorkCalendar());
+			snapshots.put(task, snapshot);
 		}
 		return snapshots;
 	}
@@ -1161,6 +1163,11 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 				? ((TaskSnapshot) summary.getCurrentSnapshot()).getFixedCost()
 				: previous == null ? 0.0d : previous.getFixedCost();
 			rolled.setFixedCost(ownFixedCost);
+			if (selectedTasks.contains(summary) || previous == null)
+				rolled.setFixedCostCalendar(summary.getEffectiveWorkCalendar());
+			ArrayList<TaskSnapshot.FixedCostProfile> fixedCostProfiles = new ArrayList<>();
+			collectBaselineFixedCostProfiles(summary, snapshotId, stagedSnapshots, fixedCostProfiles);
+			rolled.setRolledUpFixedCostProfiles(fixedCostProfiles);
 			stagedSnapshots.put(summary, rolled);
 			prepared.add(new PreparedBaselineRollup(summary, rolled, assignments));
 		}
@@ -1220,6 +1227,23 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 			return;
 		}
 		if (snapshot != null) contributions.add(new BaselineContribution(task, snapshot));
+	}
+
+	private void collectBaselineFixedCostProfiles(NormalTask summary, Object snapshotId,
+		Map<NormalTask, TaskSnapshot> stagedSnapshots, List<TaskSnapshot.FixedCostProfile> profiles) {
+		Collection<Node> children = summary.getWbsChildrenNodes();
+		if (children == null) return;
+		for (Node childNode : children) {
+			if (!(childNode.getImpl() instanceof NormalTask child)) continue;
+			TaskSnapshot childSnapshot = stagedSnapshots.containsKey(child) ? stagedSnapshots.get(child)
+				: (TaskSnapshot) child.getSnapshot(snapshotId);
+			if (childSnapshot != null) {
+				TaskSnapshot.FixedCostProfile profile = childSnapshot.captureOwnFixedCostProfile(
+					child.getEffectiveWorkCalendar());
+				if (profile != null) profiles.add(profile);
+			}
+			collectBaselineFixedCostProfiles(child, snapshotId, stagedSnapshots, profiles);
+		}
 	}
 
 	private record BaselineContribution(NormalTask task, TaskSnapshot snapshot) { }

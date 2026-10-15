@@ -143,11 +143,39 @@ public class MspImporter {
 		// before exposing this imported project to a Gantt view.
 		project.initialize(false, false);
 		project.recalculate();
+		captureImportedBaselineFixedCostProfiles(project);
 		restoreImportedAssignmentLevelingDelays();
 		state.validatePostSchedule();
 
 		progress.updateProgress(1f, "Completed");
 		return project;
+	}
+
+	private static void captureImportedBaselineFixedCostProfiles(Project project) {
+		for (Task task : project.getTaskList()) {
+			if (!(task instanceof NormalTask summary)) continue;
+			for (int slot = 0; slot <= 10; slot++) {
+				if (!(summary.getSnapshot(Integer.valueOf(slot)) instanceof TaskSnapshot snapshot)) continue;
+				java.util.ArrayList<TaskSnapshot.FixedCostProfile> profiles = new java.util.ArrayList<>();
+				collectImportedBaselineFixedCosts(summary, slot, profiles);
+				snapshot.setRolledUpFixedCostProfiles(profiles);
+			}
+		}
+	}
+
+	private static void collectImportedBaselineFixedCosts(NormalTask summary, int slot,
+		java.util.List<TaskSnapshot.FixedCostProfile> profiles) {
+		java.util.Collection<com.microproject.grouping.core.Node> children = summary.getWbsChildrenNodes();
+		if (children == null) return;
+		for (com.microproject.grouping.core.Node node : children) {
+			if (!(node.getImpl() instanceof NormalTask child)) continue;
+			if (child.getSnapshot(Integer.valueOf(slot)) instanceof TaskSnapshot childSnapshot) {
+				TaskSnapshot.FixedCostProfile profile = childSnapshot.captureOwnFixedCostProfile(
+					child.getEffectiveWorkCalendar());
+				if (profile != null) profiles.add(profile);
+			}
+			collectImportedBaselineFixedCosts(child, slot, profiles);
+		}
 	}
 
 	private void restoreImportedAssignmentLevelingDelays() {
@@ -777,14 +805,15 @@ public class MspImporter {
 			Duration duration = getTaskBaselineDuration(mpxTask, snapshotId);
 			Number fixedCost = snapshotId == 0 ? mpxTask.getBaselineFixedCost()
 				: mpxTask.getBaselineFixedCost(snapshotId);
-			net.sf.mpxj.AccrueType fixedCostAccrual = snapshotId == 0
-				? mpxTask.getBaselineFixedCostAccrual() : mpxTask.getBaselineFixedCostAccrual(snapshotId);
+			// MSPDI defines FixedCostAccrual on Task, not inside each Baseline
+			// element. Apply the task-level rule when importing its baseline amount.
+			net.sf.mpxj.AccrueType fixedCostAccrual = mpxTask.getFixedCostAccrual();
 			MpxImportState.RawMspdiTaskBaseline rawBaseline = state.getRawMspdiTaskBaseline(
 				mpxTask.getUniqueID() == null ? null : Long.valueOf(mpxTask.getUniqueID().longValue()), snapshotId);
 			if (fixedCost == null && rawBaseline != null && rawBaseline.fixedCost() != null)
 				fixedCost = rawBaseline.fixedCost();
 			if (start == null && finish == null && duration == null && fixedCost == null
-					&& fixedCostAccrual == null && rawBaseline == null)
+					&& rawBaseline == null)
 				continue;
 
 			TaskSnapshot snapshot = new TaskSnapshot();
@@ -802,6 +831,7 @@ public class MspImporter {
 				schedule.setRawDuration(MpxUtils.toProjectDuration(duration));
 			}
 			snapshot.setCurrentSchedule(schedule);
+			snapshot.setFixedCostCalendar(task.getEffectiveWorkCalendar());
 			if (fixedCost != null) snapshot.setFixedCost(fixedCost.doubleValue());
 			if (fixedCostAccrual != null)
 				snapshot.setFixedCostAccrual(((Integer) new MpxAccrueTypeConverter().from(fixedCostAccrual)).intValue());

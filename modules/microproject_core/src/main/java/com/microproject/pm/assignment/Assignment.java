@@ -866,6 +866,11 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 
 
 	private AssignmentFieldFunctor baselineData(Object type, SelectFrom baselineSelectFrom) {
+		// A detached baseline assignment is already the saved profile. Resolving its
+		// baseline again by resource ID can select a sibling profile when several
+		// assignments share one resource, which silently repeats the first contour.
+		if (detail.isBaseline())
+			return getDataSelect(type, baselineSelectFrom, false);
 		Assignment baselineAssignment = detail.getBaselineAssignment();
 		AssignmentFieldFunctor baselineFunctor;
 		if (baselineAssignment == null) {
@@ -882,6 +887,8 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	}
 
 	private AssignmentFieldFunctor baselineData(Object type, SelectFrom baselineSelectFrom, Object baseline) {
+		if (detail.isBaseline())
+			return getDataSelect(type, baselineSelectFrom, false);
 		Assignment baselineAssignment = detail.getBaselineAssignment(baseline, false);
 		AssignmentFieldFunctor baselineFunctor;
 		if (baselineAssignment == null) {
