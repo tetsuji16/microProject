@@ -6,6 +6,7 @@
 package com.microproject.dialog;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.awt.Component;
 import java.awt.GraphicsEnvironment;
@@ -25,6 +26,7 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.pm.assignment.AssignmentService;
+import com.microproject.pm.assignment.Assignment;
 import com.microproject.options.CalendarOption;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.resource.Resource;
@@ -42,6 +44,35 @@ class ResourceLevelingDialogGuiAcceptanceTest {
 			for (Window window : Window.getWindows())
 				if (window instanceof ResourceLevelingDialogBox) window.dispose();
 		});
+	}
+
+	@Test
+	void assignmentLevelingIsThePhysicalDefaultAndMovesOnlyTheAssignment() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Project project = newConflictProject();
+		for (Object value : project.getResourcePool().getResourceList())
+			((ResourceImpl) value).setBookingTypeKind(com.microproject.pm.resource.BookingType.Kind.COMMITTED);
+		NormalTask target = (NormalTask) project.getTaskList().get(1);
+		Assignment assignment = (Assignment) target.getAssignments().iterator().next();
+		SwingUtilities.invokeLater(() -> ResourceLevelingDialogBox.getInstance(null, project).setVisible(true));
+		GuiAcceptanceSupport.await(() -> findDialog() != null, "Resource leveling dialog did not open");
+		ResourceLevelingDialogBox dialog = findDialog();
+		AbstractButton preview = findButton(dialog, UsabilityStrings.text("leveling.preview"));
+		AbstractButton levelAssignments = findButton(dialog, UsabilityStrings.text("leveling.assignments"));
+		AbstractButton apply = findButton(dialog, UsabilityStrings.text("leveling.apply"));
+		assertTrue(levelAssignments != null && levelAssignments.isShowing(), "Level Assignments option must be visible");
+		assertTrue(isSelected(levelAssignments), "global Level Assignments defaults on");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(40);
+		click(robot, preview);
+		GuiAcceptanceSupport.await(() -> tableRowCountUnchecked(dialog) > 0,
+			"the default assignment-level preview must show the contested assignment");
+		click(robot, apply);
+		GuiAcceptanceSupport.await(() -> com.microproject.datatype.Duration.millis(assignment.getLevelingDelay()) > 0L,
+			"physical Apply must move the assignment under the default setting");
+		assertEquals(0L, target.getLevelingDelay(), "assignment-level leveling leaves the task-wide delay untouched");
+		assertTrue(com.microproject.datatype.Duration.millis(assignment.getLevelingDelay()) > 0L);
+		capture(robot, dialog);
 	}
 
 	@Test

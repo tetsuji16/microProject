@@ -34,6 +34,10 @@ import com.microproject.pm.resource.Resource;
  * 
  */
 public interface TaskSpecificFields {
+	boolean isLevelingCanSplit();
+	void setLevelingCanSplit(boolean levelingCanSplit);
+	boolean isLevelAssignments();
+	void setLevelAssignments(boolean levelAssignments);
 	double getFixedCost();
 	void setFixedCost(double fixedCost);	
 	boolean isWbsParent();

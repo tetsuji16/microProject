@@ -90,6 +90,9 @@ public class MpxTaskConverter {
 		task.setCreated(mpxTask.getCreateDate());
 		task.setDeadline(toLong(mpxTask.getDeadline()));
 		task.setLevelingDelay(toLong(mpxTask.getLevelingDelay()));
+		task.setRecurringTask(mpxTask.getRecurring());
+		task.setLevelingCanSplit(!mpxTask.getRecurring() && mpxTask.getLevelingCanSplit());
+		task.setLevelAssignments(mpxTask.getLevelAssignments());
 
 		// Keep the imported start as a scheduling constraint, but restore the current
 		// schedule directly below. Editing setters can update assignments and trigger

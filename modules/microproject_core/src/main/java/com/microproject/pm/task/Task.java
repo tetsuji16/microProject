@@ -151,6 +151,9 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	protected long actualStart = 0;
 
 	protected long levelingDelay = 0L;
+	private transient boolean levelingCanSplit = true;
+	private transient boolean levelAssignments = true;
+	private transient boolean recurringTask;
 	/** Keeps incomplete planning data fixed until the user returns to automatic scheduling. */
 	protected boolean manuallyScheduled = false;
 	/** Keeps a scenario task in the plan without affecting dates, dependencies, or resource load. */
@@ -1858,6 +1861,12 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	public final void setLevelingDelay(long levelingDelay) {
 		this.levelingDelay = levelingDelay;
 	}
+	public final boolean isLevelingCanSplit() { return levelingCanSplit; }
+	public final void setLevelingCanSplit(boolean value) { levelingCanSplit = value; setDirty(true); }
+	public final boolean isLevelAssignments() { return levelAssignments; }
+	public final void setLevelAssignments(boolean value) { levelAssignments = value; setDirty(true); }
+	public final boolean isRecurringTask() { return recurringTask; }
+	public final void setRecurringTask(boolean value) { recurringTask = value; }
 	public final boolean isManuallyScheduled() {
 		return manuallyScheduled;
 	}

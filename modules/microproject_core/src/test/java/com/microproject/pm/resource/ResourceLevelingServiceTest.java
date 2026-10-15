@@ -26,6 +26,7 @@ package com.microproject.pm.resource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -55,7 +56,7 @@ class ResourceLevelingServiceTest {
 		AssignmentService.getInstance().newAssignment(second, fixture.resource, 1D, 0L, this);
 
 		ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(
-			fixture.project, List.of(fixture.resource), ResourceLevelingService.Options.defaults());
+			fixture.project, List.of(fixture.resource), wholeTaskOptions());
 
 		assertEquals(1, plan.changes().size());
 		assertEquals(second, plan.changes().getFirst().task());
@@ -257,7 +258,8 @@ class ResourceLevelingServiceTest {
 	private ResourceLevelingService.Plan previewAt(ResourceLevelingService service, Fixture fixture,
 		ResourceLevelingService.Sensitivity sensitivity) {
 		return service.preview(fixture.project, List.of(fixture.resource), new ResourceLevelingService.Options(
-			ResourceLevelingService.Order.ID_ONLY, false, true, Long.MIN_VALUE, Long.MAX_VALUE, false, sensitivity));
+			ResourceLevelingService.Order.ID_ONLY, false, true, Long.MIN_VALUE, Long.MAX_VALUE, false,
+			sensitivity, false));
 	}
 
 	@Test
@@ -282,7 +284,7 @@ class ResourceLevelingServiceTest {
 		ResourceLevelingService service = new ResourceLevelingService();
 
 		ResourceLevelingService.Plan defaultPlan = service.preview(fixture.project, null,
-			ResourceLevelingService.Options.defaults());
+			wholeTaskOptions());
 		assertEquals(List.of(committedSecond), defaultPlan.changes().stream()
 			.map(ResourceLevelingService.Change::task).toList(),
 			"default leveling keeps committed resources active and excludes proposed-resource conflicts");
@@ -291,11 +293,11 @@ class ResourceLevelingServiceTest {
 
 		ResourceLevelingService.Plan includedPlan = service.preview(fixture.project, null,
 			new ResourceLevelingService.Options(ResourceLevelingService.Order.STANDARD, false, true,
-				Long.MIN_VALUE, Long.MAX_VALUE, true));
+				Long.MIN_VALUE, Long.MAX_VALUE, true, ResourceLevelingService.Sensitivity.DAY, false));
 		assertEquals(2, includedPlan.changes().size(), "explicit inclusion adds proposed resources to committed resources");
 		ResourceLevelingService.Plan selectedPlan = service.preview(fixture.project, List.of(fixture.resource),
 			new ResourceLevelingService.Options(ResourceLevelingService.Order.STANDARD, false, true,
-				Long.MIN_VALUE, Long.MAX_VALUE, true));
+				Long.MIN_VALUE, Long.MAX_VALUE, true, ResourceLevelingService.Sensitivity.DAY, false));
 		assertEquals(1, selectedPlan.changes().size(), "the selected-resource scope must remain authoritative");
 		assertEquals(second, selectedPlan.changes().getFirst().task());
 		var undo = fixture.project.getUndoController();
@@ -322,7 +324,7 @@ class ResourceLevelingServiceTest {
 		ResourceLevelingService.Plan plan = new ResourceLevelingService().previewSelectedTasks(
 			fixture.project, null,
 			new ResourceLevelingService.Options(ResourceLevelingService.Order.ID_ONLY, false,
-				Long.MIN_VALUE, Long.MAX_VALUE),
+				true, Long.MIN_VALUE, Long.MAX_VALUE, false, ResourceLevelingService.Sensitivity.DAY, false),
 			List.of(selected, selectedSecond));
 
 		assertEquals(Set.of(selected, selectedSecond), plan.changes().stream()
@@ -383,7 +385,7 @@ class ResourceLevelingServiceTest {
 		AssignmentService.getInstance().newAssignment(first, fixture.resource, 1D, 0L, this);
 		AssignmentService.getInstance().newAssignment(second, fixture.resource, 1D, 0L, this);
 		ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(
-			fixture.project, List.of(fixture.resource), ResourceLevelingService.Options.defaults());
+			fixture.project, List.of(fixture.resource), wholeTaskOptions());
 
 		plan.apply();
 		assertTrue(second.getLevelingDelay() > 0L);
@@ -399,7 +401,7 @@ class ResourceLevelingServiceTest {
 		AssignmentService.getInstance().newAssignment(first, fixture.resource, 1D, 0L, this);
 		AssignmentService.getInstance().newAssignment(second, fixture.resource, 1D, 0L, this);
 		ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(
-			fixture.project, List.of(fixture.resource), ResourceLevelingService.Options.defaults());
+			fixture.project, List.of(fixture.resource), wholeTaskOptions());
 		var undo = fixture.project.getUndoController();
 		undo.clear();
 
@@ -565,11 +567,130 @@ class ResourceLevelingServiceTest {
 
 		ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(
 			fixture.project, List.of(fixture.resource), new ResourceLevelingService.Options(
-				ResourceLevelingService.Order.PRIORITY_STANDARD, false, true, Long.MIN_VALUE, Long.MAX_VALUE));
+				ResourceLevelingService.Order.PRIORITY_STANDARD, false, true, Long.MIN_VALUE, Long.MAX_VALUE,
+				false, ResourceLevelingService.Sensitivity.DAY, false));
 
 		assertEquals(1, plan.splits().size());
 		assertEquals(longTask, plan.splits().getFirst().task());
 		assertTrue(plan.isComplete());
+	}
+
+	@Test
+	void taskLevelingCanSplitFieldMustAlsoAllowSplitting() {
+		// Microsoft documents the global split option and the per-task Leveling
+		// Can Split Yes/No field as conjunctive gates. This is document-derived.
+		// https://support.microsoft.com/en-us/project/resource-leveling-dialog-box
+		Fixture fixture = fixture();
+		NormalTask longTask = task(fixture.project, "Long task", 3L);
+		NormalTask blocker = task(fixture.project, "Priority work", 1L);
+		blocker.setPriority(900);
+		long oneDayLater = fixture.project.getEffectiveWorkCalendar().add(
+			fixture.project.getStart(), CalendarOption.getInstance().getMillisPerDay(), false);
+		blocker.setStart(oneDayLater);
+		AssignmentService.getInstance().newAssignment(longTask, fixture.resource, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(blocker, fixture.resource, 1D, 0L, this);
+		longTask.setLevelingCanSplit(false);
+
+		ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(
+			fixture.project, List.of(fixture.resource), new ResourceLevelingService.Options(
+				ResourceLevelingService.Order.PRIORITY_STANDARD, false, true, Long.MIN_VALUE, Long.MAX_VALUE,
+				false, ResourceLevelingService.Sensitivity.DAY, false));
+
+		assertTrue(plan.splits().isEmpty(), "the per-task No value blocks the global split setting");
+		assertTrue(plan.changes().stream().anyMatch(change -> change.task() == longTask && change.addedDelayMillis() > 0L),
+			"the task remains eligible for ordinary whole-task leveling");
+		longTask.setLevelingCanSplit(true);
+		ResourceLevelingService.Plan globallyDisabled = new ResourceLevelingService().preview(
+			fixture.project, List.of(fixture.resource), new ResourceLevelingService.Options(
+				ResourceLevelingService.Order.PRIORITY_STANDARD, false, false, Long.MIN_VALUE, Long.MAX_VALUE,
+				false, ResourceLevelingService.Sensitivity.DAY, false));
+		assertTrue(globallyDisabled.splits().isEmpty(), "task Yes cannot bypass the global split No");
+	}
+
+	@Test
+	void levelingCanTargetOneAssignmentOrMoveItsWholeTask() {
+		// Microsoft documents the global Level Assignments option as selected by
+		// default and allows the task-sheet field to override it per task. This is
+		// document-derived compatibility, not an empirical MSP run.
+		// https://support.microsoft.com/en-us/project/resource-leveling-dialog-box
+		assertTrue(ResourceLevelingService.Options.defaults().levelAssignments(),
+			"global assignment-level leveling defaults on per Microsoft's documented dialog behavior");
+		Fixture fixture = fixture();
+		ResourceImpl independent = fixture.project.getResourcePool().newResourceInstance();
+		independent.setName("Independent");
+		NormalTask longTask = task(fixture.project, "Long task", 3L);
+		NormalTask blocker = task(fixture.project, "Priority work", 1L);
+		blocker.setPriority(900);
+		long oneDayLater = fixture.project.getEffectiveWorkCalendar().add(
+			fixture.project.getStart(), CalendarOption.getInstance().getMillisPerDay(), false);
+		blocker.setStart(oneDayLater);
+		Assignment targetAssignment = AssignmentService.getInstance().newAssignment(longTask, fixture.resource, 1D, 0L, this);
+		Assignment unaffectedAssignment = AssignmentService.getInstance().newAssignment(longTask, independent, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(blocker, fixture.resource, 1D, 0L, this);
+		long unaffectedStart = unaffectedAssignment.getStart();
+
+		ResourceLevelingService.Plan assignmentPlan = new ResourceLevelingService().preview(
+			fixture.project, List.of(fixture.resource), new ResourceLevelingService.Options(
+				ResourceLevelingService.Order.PRIORITY_STANDARD, false, false, Long.MIN_VALUE,
+				Long.MAX_VALUE, false, ResourceLevelingService.Sensitivity.DAY, true));
+		assertTrue(assignmentPlan.changes().isEmpty());
+		assertEquals(1, assignmentPlan.assignmentChanges().size());
+		assertSame(targetAssignment, assignmentPlan.assignmentChanges().getFirst().assignment());
+		assignmentPlan.apply();
+		assertTrue(targetAssignment.getStart() > unaffectedAssignment.getStart());
+		assertEquals(unaffectedStart, unaffectedAssignment.getStart());
+		assertTrue(new ResourceLevelingService().tasksWithLevelingState(fixture.project, null).contains(longTask));
+		var undo = fixture.project.getUndoController();
+		undo.clear();
+		new ResourceLevelingService().clear(fixture.project, null, undo.getEditSupport());
+		assertEquals(0L, com.microproject.datatype.Duration.millis(targetAssignment.getLevelingDelay()));
+		undo.undo();
+		assertTrue(com.microproject.datatype.Duration.millis(targetAssignment.getLevelingDelay()) > 0L);
+		undo.redo();
+		assertEquals(0L, com.microproject.datatype.Duration.millis(targetAssignment.getLevelingDelay()));
+		longTask.setLevelAssignments(true);
+		ResourceLevelingService.Plan globallyDisabled = new ResourceLevelingService().preview(
+			fixture.project, List.of(fixture.resource), new ResourceLevelingService.Options(
+				ResourceLevelingService.Order.PRIORITY_STANDARD, false, false, Long.MIN_VALUE,
+				Long.MAX_VALUE, false, ResourceLevelingService.Sensitivity.DAY, false));
+		assertTrue(globallyDisabled.assignmentChanges().isEmpty());
+		assertTrue(globallyDisabled.changes().stream().anyMatch(change -> change.task() == longTask),
+			"the global No value forces whole-task leveling even when the task field is Yes");
+		longTask.setLevelAssignments(false);
+		ResourceLevelingService.Plan taskPlan = new ResourceLevelingService().preview(
+			fixture.project, List.of(fixture.resource), new ResourceLevelingService.Options(
+				ResourceLevelingService.Order.PRIORITY_STANDARD, false, false, Long.MIN_VALUE,
+				Long.MAX_VALUE, false, ResourceLevelingService.Sensitivity.DAY, true));
+		assertTrue(taskPlan.assignmentChanges().isEmpty());
+		assertTrue(taskPlan.changes().stream().anyMatch(change -> change.task() == longTask));
+		taskPlan.apply();
+		assertEquals(targetAssignment.getStart(), unaffectedAssignment.getStart(),
+			"disabling assignment-level leveling applies one whole-task delay");
+	}
+
+	@Test
+	void clearingLevelingPreservesAssignmentStartEditedByTheUser() {
+		Fixture fixture = fixture();
+		NormalTask longTask = task(fixture.project, "Long task", 3L);
+		NormalTask blocker = task(fixture.project, "Priority work", 1L);
+		blocker.setPriority(900);
+		long oneDayLater = fixture.project.getEffectiveWorkCalendar().add(
+			fixture.project.getStart(), CalendarOption.getInstance().getMillisPerDay(), false);
+		blocker.setStart(oneDayLater);
+		Assignment target = AssignmentService.getInstance().newAssignment(longTask, fixture.resource, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(blocker, fixture.resource, 1D, 0L, this);
+		ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(fixture.project,
+			List.of(fixture.resource), new ResourceLevelingService.Options(ResourceLevelingService.Order.PRIORITY_STANDARD,
+				false, false, Long.MIN_VALUE, Long.MAX_VALUE, false, ResourceLevelingService.Sensitivity.DAY, true));
+		plan.apply();
+		long userStart = target.getEffectiveWorkCalendar().add(target.getStart(), CalendarOption.getInstance().getMillisPerDay(), false);
+		target.setStart(userStart);
+		assertEquals(0L, com.microproject.datatype.Duration.millis(target.getLevelingDelay()));
+		assertEquals(userStart, target.getStart());
+
+		new ResourceLevelingService().clear(fixture.project);
+		assertEquals(userStart, target.getStart(), "Clear must retain the user's assignment start edit");
+		assertTrue(com.microproject.datatype.Duration.millis(target.getDelay()) > 0L);
 	}
 
 	private Fixture fixture() {
@@ -580,6 +701,11 @@ class ResourceLevelingServiceTest {
 		ResourceImpl resource = pool.newResourceInstance();
 		resource.setName("Engineer");
 		return new Fixture(project, resource);
+	}
+
+	private static ResourceLevelingService.Options wholeTaskOptions() {
+		return new ResourceLevelingService.Options(ResourceLevelingService.Order.STANDARD, false, true,
+			Long.MIN_VALUE, Long.MAX_VALUE, false, ResourceLevelingService.Sensitivity.DAY, false);
 	}
 
 	private NormalTask task(Project project, String name, long days) {

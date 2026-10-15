@@ -381,8 +381,11 @@ class MpoFileImporterTest {
 		assertEquals(273898992929L, descriptor.getSerialVersionUID());
 		assertTrue(java.util.Arrays.stream(descriptor.getFields())
 			.noneMatch(field -> field.getName().equals("manualTaskSplitIntervals")
-				|| field.getName().equals("levelingTaskSplitIntervals")),
-			"transient provenance remains outside the immutable POD object descriptor");
+				|| field.getName().equals("levelingTaskSplitIntervals")
+				|| field.getName().equals("levelingCanSplit")
+				|| field.getName().equals("levelAssignments")
+				|| field.getName().equals("recurringTask")),
+			"transient split and task-leveling options remain outside the immutable POD object descriptor");
 	}
 
 	@Test
@@ -2402,6 +2405,41 @@ class MpoFileImporterTest {
 	}
 
 	@Test
+	void mpoTaskLevelingOptionsRoundTripAndOlderFilesKeepDefaults() throws Exception {
+		Project original = projectForRoundTrip();
+		NormalTask task = (NormalTask) firstTask(original);
+		task.setLevelingCanSplit(false);
+		task.setLevelAssignments(false);
+		com.microproject.pm.resource.Resource resource = original.getResourcePool().newResourceInstance();
+		resource.setName("Leveling resource");
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, this);
+		assignment.setLevelingDelay(8L * 60L * 60L * 1000L);
+		ByteArrayOutputStream current = new ByteArrayOutputStream();
+		new MpoFileImporter().saveProject(original, current);
+		Map<String, byte[]> entries = readEntries(current.toByteArray());
+		assertTrue(entries.containsKey(MpoFileImporter.TASK_LEVELING_OPTIONS_ENTRY));
+		Project loaded = loadFromBytes(current.toByteArray());
+		assertFalse(firstTask(loaded).isLevelingCanSplit());
+		assertFalse(firstTask(loaded).isLevelAssignments());
+		Assignment loadedAssignment = (Assignment) ((NormalTask) firstTask(loaded)).getAssignments().iterator().next();
+		assertEquals(8L * 60L * 60L * 1000L,
+			com.microproject.datatype.Duration.millis(loadedAssignment.getLevelingDelay()));
+		new com.microproject.pm.resource.ResourceLevelingService().clear(loaded);
+		assertEquals(0L, com.microproject.datatype.Duration.millis(loadedAssignment.getLevelingDelay()),
+			"Clear after native reload removes generated assignment leveling delay");
+
+		entries.remove(MpoFileImporter.TASK_LEVELING_OPTIONS_ENTRY);
+		String manifest = new String(entries.get(MpoFileImporter.MANIFEST_ENTRY), StandardCharsets.UTF_8);
+		manifest = manifest.replaceAll("(?m)^\\s*<entry\\s+path=\\\""
+			+ java.util.regex.Pattern.quote(MpoFileImporter.TASK_LEVELING_OPTIONS_ENTRY)
+			+ "\\\" sha256=\\\"[^\\\"]*\\\"\\s*/>\\R?", "");
+		entries.put(MpoFileImporter.MANIFEST_ENTRY, manifest.getBytes(StandardCharsets.UTF_8));
+		Project older = loadFromBytes(zip(entries).toByteArray());
+		assertTrue(firstTask(older).isLevelingCanSplit(), "older MPO defaults to the documented Yes value");
+		assertTrue(firstTask(older).isLevelAssignments(), "older MPO defaults to the documented Yes value");
+	}
+
+	@Test
 	void draftManifestMustIdentifyTheProjectSnapshotEntry() throws Exception {
 		Project original = projectForRoundTrip();
 		ByteArrayOutputStream current = new ByteArrayOutputStream();
@@ -2432,6 +2470,7 @@ class MpoFileImporterTest {
 		ccpm.setEnabled(true);
 		ccpm.setBufferFraction(0.4D);
 		ccpm.setIncludeProposedResources(true);
+		ccpm.setLevelAssignments(false);
 		ccpm.setSensitivity(com.microproject.pm.resource.ResourceLevelingService.Sensitivity.HOUR);
 		new CriticalChainService().restoreBaseline(original, new CriticalChainService.Baseline(1L, 2L, 0.4D,
 			java.util.List.of(), java.util.Map.of(), java.util.Map.of()));
@@ -2456,6 +2495,7 @@ class MpoFileImporterTest {
 		org.junit.jupiter.api.Assertions.assertTrue(restored.isEnabled());
 		org.junit.jupiter.api.Assertions.assertEquals(0.4D, restored.getBufferFraction());
 		org.junit.jupiter.api.Assertions.assertTrue(restored.isIncludeProposedResources());
+		org.junit.jupiter.api.Assertions.assertFalse(restored.isLevelAssignments());
 		org.junit.jupiter.api.Assertions.assertEquals(com.microproject.pm.resource.ResourceLevelingService.Sensitivity.HOUR,
 			restored.getSensitivity());
 		org.junit.jupiter.api.Assertions.assertEquals(2L, new CriticalChainService().findBaseline(reader.getProject()).projectBufferMillis());
@@ -2480,6 +2520,7 @@ class MpoFileImporterTest {
 		Map<String, byte[]> entries = readEntries(java.nio.file.Files.readAllBytes(mpo.toPath()));
 		String xml = new String(entries.get("settings.xml"), StandardCharsets.UTF_8);
 		String oldXml = xml.replace(" includeProposedResources=\"true\"", "")
+			.replace(" levelAssignments=\"true\"", "")
 			.replace(" sensitivity=\"DAY\"", "");
 		org.junit.jupiter.api.Assertions.assertNotEquals(xml, oldXml, "fixture must contain the new XML setting");
 		entries.put("settings.xml", oldXml.getBytes(StandardCharsets.UTF_8));
@@ -2488,6 +2529,8 @@ class MpoFileImporterTest {
 		Project reopened = loadFromBytes(zip(entries).toByteArray());
 		org.junit.jupiter.api.Assertions.assertFalse(new CriticalChainService().settings(reopened).isIncludeProposedResources(),
 			"MPO files written before the option existed must retain the safe excluded default");
+		org.junit.jupiter.api.Assertions.assertTrue(new CriticalChainService().settings(reopened).isLevelAssignments(),
+			"MPO files written before the option existed default to individual assignment leveling");
 		org.junit.jupiter.api.Assertions.assertEquals(com.microproject.pm.resource.ResourceLevelingService.Sensitivity.DAY,
 			new CriticalChainService().settings(reopened).getSensitivity(),
 			"MPO settings written before sensitivity must retain the day product default");

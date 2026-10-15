@@ -635,6 +635,8 @@ private static int autoId = 0;
 		// serialize milliseconds as minutes and create months of artificial delay
 		// after an import/recalculation.
 		mpxTask.setLevelingDelay(toMPXLevelingDelay(projectlibreTask.getLevelingDelay()));
+		mpxTask.setLevelingCanSplit(projectlibreTask.isLevelingCanSplit());
+		mpxTask.setLevelAssignments(projectlibreTask.isLevelAssignments());
 		if (projectlibreTask.getDeadline() != 0)
 			mpxTask.setDeadline(toMpxDate(projectlibreTask.getDeadline()));
 		mpxTask.setEarnedValueMethod(EarnedValueMethod.getInstance(projectlibreTask.getEarnedValueMethod()));
