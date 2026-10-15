@@ -18,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.IOException;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.ObjectStreamClass;
 import java.io.File;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
@@ -372,6 +373,16 @@ class MpoFileImporterTest {
 		assertEquals(task.getTaskSplitIntervals(), restored.getManualTaskSplitIntervals());
 		assertTrue(restored.getLevelingTaskSplitIntervals().isEmpty(),
 			"version-1 MPO task split records without provenance are treated as user-owned splits");
+	}
+
+	@Test
+	void levelingSplitProvenanceDoesNotChangeLegacyTaskSerializationDescriptor() {
+		ObjectStreamClass descriptor = ObjectStreamClass.lookup(NormalTask.class);
+		assertEquals(273898992929L, descriptor.getSerialVersionUID());
+		assertTrue(java.util.Arrays.stream(descriptor.getFields())
+			.noneMatch(field -> field.getName().equals("manualTaskSplitIntervals")
+				|| field.getName().equals("levelingTaskSplitIntervals")),
+			"transient provenance remains outside the immutable POD object descriptor");
 	}
 
 	@Test
