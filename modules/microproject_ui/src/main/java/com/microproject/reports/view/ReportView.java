@@ -212,8 +212,9 @@ public class ReportView extends JPanel implements BaseView, CacheListener {
         
         // projet name is used as report's title
         // and passed as a parameter
-        Map<String, Object> params = new HashMap<>(1);
+		Map<String, Object> params = new HashMap<>(2);
         params.put("projectName", PrivacyDisplayMode.projectName(project)); //$NON-NLS-1$
+		params.put("projectDurationDefaults", project.getDurationDefaults());
         
 		JasperPrint jasperPrint = JasperFillManager.fillReport(report, params, dataSource);
 		if (viewer != null) {

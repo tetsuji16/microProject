@@ -29,18 +29,52 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.text.ParseException;
 import java.util.Collection;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 import com.microproject.datatype.Hyperlink;
+import com.microproject.datatype.DurationDefaults;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.model.NodeModelDataFactory;
 import com.microproject.grouping.core.model.WalkersNodeModel;
+import com.microproject.pm.task.NormalTask;
 import com.microproject.server.data.DataObject;
 
 class FieldSetValueTest {
+	@Test
+	void invalidContextDurationInputThrowsAndPreservesExistingValue() {
+		Field field = new Field();
+		field.setClass(NormalTask.class);
+		field.setProperty("duration");
+		field.setId("Field.testDuration");
+		field.setDuration(true);
+		field.build();
+		NormalTask task = new NormalTask();
+		Object originalDuration = field.getValue(task, null);
+		FieldContext context = new FieldContext();
+		context.setDurationDefaults(new DurationDefaults(360.0D, 1800.0D, 20.0D));
+
+		FieldParseException failure = assertThrows(FieldParseException.class,
+			() -> field.setText(task, "not a duration", context));
+
+		assertTrue(failure.getCause() instanceof ParseException);
+		assertEquals(originalDuration, field.getValue(task, null));
+	}
+
+	@Test
+	void explicitDurationDefaultsReplaceResolver() {
+		FieldContext context = new FieldContext();
+		context.setDurationDefaultsResolver(() -> DurationDefaults.PRODUCT_DEFAULTS);
+		DurationDefaults explicitDefaults = new DurationDefaults(360.0D, 1800.0D, 20.0D);
+
+		context.setDurationDefaults(explicitDefaults);
+
+		assertSame(explicitDefaults, context.getDurationDefaults());
+	}
+
 	@Test
 	void preservesParseExceptionThrownByReflectiveSetter() {
 		FieldParseException expected = new FieldParseException("invalid field value");

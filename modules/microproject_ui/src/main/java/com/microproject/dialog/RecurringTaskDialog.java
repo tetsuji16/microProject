@@ -29,7 +29,6 @@ import java.awt.Frame;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Collections;
@@ -54,10 +53,13 @@ import com.jgoodies.forms.builder.DefaultFormBuilder;
 import com.jgoodies.forms.layout.FormLayout;
 import com.microproject.datatype.Duration;
 import com.microproject.datatype.DurationFormat;
+import com.microproject.datatype.DurationDefaults;
+import com.microproject.datatype.TimeUnit;
 import com.microproject.dialog.util.ComponentFactory;
 import com.microproject.dialog.util.ExtDateField;
 import com.microproject.options.CalendarOption;
 import com.microproject.pm.task.RecurringTaskSpec;
+import com.microproject.pm.task.Project;
 import com.microproject.strings.Messages;
 import com.microproject.util.FlatUiSupport;
 import com.microproject.util.Alert;
@@ -77,14 +79,21 @@ public final class RecurringTaskDialog extends AbstractDialog {
 	private final JSpinner occurrenceSpinner = new JSpinner(new SpinnerNumberModel(5, 1, 999, 1));
 	private final JLabel monthlyHint = new JLabel(Messages.getString("RecurringTaskDialog.MonthlyHint"));
 	private RecurringTaskSpec spec;
+	private final DurationDefaults durationDefaults;
 
-	public static RecurringTaskDialog getInstance(Frame owner) {
-		return new RecurringTaskDialog(owner);
+	public static RecurringTaskDialog getInstance(Frame owner, Project project) {
+		return new RecurringTaskDialog(owner, project);
 	}
 
-	private RecurringTaskDialog(Frame owner) {
+	public static RecurringTaskDialog getInstance(Frame owner) {
+		return new RecurringTaskDialog(owner, null);
+	}
+
+	private RecurringTaskDialog(Frame owner, Project project) {
 		super(owner, Messages.getString("RecurringTaskDialog.Title"), true);
-		durationField.setText(DurationFormat.format(CalendarOption.getInstance().getDefaultDuration()));
+		durationDefaults = project == null ? DurationDefaults.PRODUCT_DEFAULTS : project.getDurationDefaults();
+		long defaultDuration = Duration.setAsEstimated(Duration.getInstance(1.0D, TimeUnit.DAYS, durationDefaults), true);
+		durationField.setText(DurationFormat.getProjectInstance().format(new Duration(defaultDuration), durationDefaults));
 		startDateField.setValue(new Date(CalendarOption.getInstance().makeValidStart(DateTime.midnightToday(), true)));
 		endDateField.setValue(new Date(CalendarOption.getInstance().makeValidEnd(DateTime.midnightToday(), true)));
 		patternBox.addItem(new PatternOption(RecurringTaskSpec.PatternType.DAILY, Messages.getString("RecurringTaskDialog.PatternDaily")));
@@ -137,7 +146,7 @@ public final class RecurringTaskDialog extends AbstractDialog {
 	protected boolean bind(boolean get) {
 		if (get)
 			return true;
-		ValidationResult result = validateAndBuildSpec(readSpecInput());
+		ValidationResult result = validateAndBuildSpec(readSpecInput(), durationDefaults);
 		if (!result.isValid()) {
 			Alert.error(Messages.getString(result.getErrorKey()), this);
 			return false;
@@ -241,11 +250,15 @@ public final class RecurringTaskDialog extends AbstractDialog {
 	}
 
 	static ValidationResult validateAndBuildSpec(SpecInput input) {
+		return validateAndBuildSpec(input, DurationDefaults.PRODUCT_DEFAULTS);
+	}
+
+	static ValidationResult validateAndBuildSpec(SpecInput input, DurationDefaults durationDefaults) {
 		if (input.name.length() == 0)
 			return ValidationResult.error("RecurringTaskDialog.ErrorName");
 		if (input.startDate == null)
 			return ValidationResult.error("RecurringTaskDialog.ErrorStart");
-		Duration duration = parseDuration(input.durationText);
+		Duration duration = parseDuration(input.durationText, durationDefaults);
 		if (duration == null)
 			return ValidationResult.error("RecurringTaskDialog.ErrorDuration");
 		if (input.patternType == RecurringTaskSpec.PatternType.WEEKLY && input.weeklyDays.isEmpty())
@@ -271,12 +284,10 @@ public final class RecurringTaskDialog extends AbstractDialog {
 		}
 	}
 
-	private static Duration parseDuration(String durationText) {
-		try {
-			return (Duration) DurationFormat.getInstance().parseObject(durationText);
-		} catch (ParseException e) {
-			return null;
-		}
+	private static Duration parseDuration(String durationText, DurationDefaults defaults) {
+		java.text.ParsePosition position = new java.text.ParsePosition(0);
+		Duration duration = (Duration) DurationFormat.getProjectInstance().parseObject(durationText, position, defaults);
+		return duration != null && position.getIndex() == durationText.length() ? duration : null;
 	}
 
 	private static RangeSelection resolveRangeSelection(SpecInput input, long start) {

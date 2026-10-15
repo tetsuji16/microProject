@@ -113,6 +113,7 @@ public class UsageDetailView extends SplittedView implements BaseView, FieldArra
 
 		this.taskUsage = taskUsage;
 		fieldContext = new FieldContext();
+		fieldContext.setDurationDefaultsResolver(project::getDurationDefaults);
 		fieldContext.setLeftAssociation(taskUsage);
 		HelpUtil.addDocHelp(this,taskUsage ? (subView ? "Task_Usage" : "Task_Usage_Detail") : (subView ? "Resource_Usage" : "Resource_Usage_Detail"));
 		super.init();

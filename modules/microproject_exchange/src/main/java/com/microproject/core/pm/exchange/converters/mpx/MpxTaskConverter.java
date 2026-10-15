@@ -30,6 +30,7 @@ import com.microproject.core.pm.exchange.converters.mpx.type.MpxAccrueTypeConver
 import com.microproject.core.pm.exchange.converters.mpx.type.MpxPriorityConverter;
 import com.microproject.core.pm.exchange.converters.mpx.type.MpxSchedulingTypeConverter;
 import com.microproject.core.pm.exchange.converters.type.DateUTCConverter;
+import com.microproject.datatype.DurationDefaults;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.task.NormalTask;
@@ -50,6 +51,10 @@ public class MpxTaskConverter {
 	private MpxCalendarConverter calendarConverter = new MpxCalendarConverter();
 
 	public void from(net.sf.mpxj.Task mpxTask, Task task, MpxImportState state) {
+		DurationDefaults durationDefaults = task.getProject() == null
+			? MpxProjectConverter.durationDefaults(state.getMpxProjectFile() == null ? null
+				: state.getMpxProjectFile().getProjectProperties())
+			: task.getProject().getDurationDefaults();
 		WorkCalendar calendar;
 		if (mpxTask.getCalendar() == null) {
 			calendar = state.getProjectBaseCalendar();
@@ -107,7 +112,7 @@ public class MpxTaskConverter {
 			if (mpxTask.getActualStart() != null)
 				normalTask.setActualStartNoEvent(toLong(mpxTask.getActualStart()));
 			if (mpxTask.getDuration() != null) {
-				long duration = MpxUtils.toProjectDuration(mpxTask.getDuration());
+				long duration = MpxUtils.toProjectDuration(mpxTask.getDuration(), durationDefaults);
 				normalTask.setRawDuration(duration);
 				normalTask.setEstimated(com.microproject.datatype.Duration.isEstimated(duration));
 			}
@@ -117,7 +122,7 @@ public class MpxTaskConverter {
 			if (mpxTask.getActualStart() != null)
 				task.setActualStart(toLong(mpxTask.getActualStart()));
 			if (mpxTask.getDuration() != null)
-				task.setDuration(MpxUtils.toProjectDuration(mpxTask.getDuration()));
+				task.setDuration(MpxUtils.toProjectDuration(mpxTask.getDuration(), durationDefaults));
 			if (mpxTask.getPercentageComplete() != null)
 				task.setPercentComplete(toRatio(mpxTask.getPercentageComplete()));
 		}

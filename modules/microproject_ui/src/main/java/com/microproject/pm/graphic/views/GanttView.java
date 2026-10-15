@@ -121,6 +121,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		this.cache = NodeModelCacheFactory.getInstance().createFilteredCache((ReferenceNodeModelCache) cache, getViewName(), null);
 
 		fieldContext = new FieldContext();
+		fieldContext.setDurationDefaultsResolver(project::getDurationDefaults);
 		fieldContext.setLeftAssociation(true);
 		/*cellStyle=new CellStyle(){
 			CellFormat cellProperties=new CellFormat();

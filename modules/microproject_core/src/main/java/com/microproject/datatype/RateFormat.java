@@ -100,6 +100,10 @@ public class RateFormat extends Format implements TimeUnit {
 		this.temporal = temporal;
 	}
 	public Object parseObject(String rateString, ParsePosition pos) {
+		return parseObject(rateString, pos, null);
+	}
+
+	public Object parseObject(String rateString, ParsePosition pos, DurationDefaults defaults) {
 		if (rateString.isEmpty() || pos.getIndex() < 0 || pos.getIndex() >= rateString.length())
 			return null;
 		
@@ -116,6 +120,7 @@ public class RateFormat extends Format implements TimeUnit {
 			}
 			if (numberResult == null)
 				return null;
+			pos.setIndex(rateString.length());
 			return new Rate(numberResult.doubleValue(),TimeUnit.PERCENT);
 		}
 
@@ -137,15 +142,22 @@ public class RateFormat extends Format implements TimeUnit {
 				type = getDefaultType();
 		} else {
 			durationPart = "1" + durationPart.substring(slashIndex+1,durationPart.length());// replace the slash with a 1
-			Duration duration = (Duration) DurationFormat.getInstance().parseObject(durationPart, new ParsePosition(0));
+			Duration duration = defaults == null
+				? (Duration) DurationFormat.getInstance().parseObject(durationPart, new ParsePosition(0))
+				: (Duration) DurationFormat.getProjectInstance().parseObject(durationPart, new ParsePosition(0), defaults);
 			if (duration == null)
 				return null;
 			type = Duration.getEffectiveType(duration.getEncodedMillis());
 		}
-		rate /= Duration.timeUnitFactor(type);
+		rate /= defaults == null ? Duration.timeUnitFactor(type) : Duration.timeUnitFactor(type, defaults);
+		pos.setIndex(rateString.length());
 		return new Rate(rate,type);
 	}
 	public StringBuffer format(Object rateObject, StringBuffer toAppendTo, FieldPosition pos) {
+		return format(rateObject, toAppendTo, pos, null);
+	}
+
+	public StringBuffer format(Object rateObject, StringBuffer toAppendTo, FieldPosition pos, DurationDefaults defaults) {
 
 		if (rateObject == null)
 			return toAppendTo;
@@ -163,7 +175,7 @@ public class RateFormat extends Format implements TimeUnit {
 		if (percent) {
 			percentFormat().format(Double.valueOf(rateValue),toAppendTo,pos);
 		} else {
-			rateValue *= Duration.timeUnitFactor(type);
+			rateValue *= defaults == null ? Duration.timeUnitFactor(type) : Duration.timeUnitFactor(type, defaults);
 			if (money) {
 				moneyFormat().format(Double.valueOf(rateValue),toAppendTo,pos);
 			} else {
@@ -179,6 +191,10 @@ public class RateFormat extends Format implements TimeUnit {
 			} 
 		}
 		return toAppendTo;
+	}
+
+	public String format(Object rateObject, DurationDefaults defaults) {
+		return format(rateObject, new StringBuffer(), new FieldPosition(0), defaults).toString();
 	}
 	
 	private int getDefaultType() {

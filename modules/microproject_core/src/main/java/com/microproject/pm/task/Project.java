@@ -60,6 +60,7 @@ import com.microproject.configuration.Dictionary;
 import com.microproject.configuration.FieldDictionary;
 import com.microproject.configuration.Settings;
 import com.microproject.datatype.Duration;
+import com.microproject.datatype.DurationDefaults;
 import com.microproject.datatype.Hyperlink;
 import com.microproject.datatype.ImageLink;
 import com.microproject.document.Document;
@@ -88,6 +89,7 @@ import com.microproject.grouping.core.model.NodeModelDataFactory;
 import com.microproject.grouping.core.model.NodeModelFactory;
 import com.microproject.grouping.core.transform.filtering.NotAssignmentFilter;
 import com.microproject.options.CalendarOption;
+import com.microproject.options.ScheduleOption;
 import com.microproject.options.TimesheetOption;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.HasTimeDistributedData;
@@ -387,6 +389,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		start = getEffectiveWorkCalendar().adjustInsideCalendar(start,false);
 		end = start;
 		calendarOption = CalendarOption.getDefaultInstance();
+		durationDefaults = DurationDefaults.from(calendarOption, ScheduleOption.getInstance());
 	}
 
 
@@ -1809,6 +1812,8 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	    	restoreWorkspace(workspace, SavableToWorkspace.PERSIST);
 	    if (calendarOption == null)
 	    	calendarOption = CalendarOption.getDefaultInstance();
+		if (durationDefaults == null)
+			durationDefaults = DurationDefaults.PRODUCT_DEFAULTS;
 
 	}
 
@@ -2776,6 +2781,19 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	public transient PrintSettings printSettings = null;
 	public transient PrintSettings tmpSettings = null;
 	public transient CalendarOption calendarOption = null;
+	// Persisted native projects carry these defaults in their MSPDI Project header.
+	// Keep the object transient so the frozen POD serialization descriptor is unchanged.
+	private transient DurationDefaults durationDefaults;
+
+	public DurationDefaults getDurationDefaults() {
+		if (durationDefaults == null)
+			durationDefaults = DurationDefaults.PRODUCT_DEFAULTS;
+		return durationDefaults;
+	}
+
+	public void setDurationDefaults(DurationDefaults durationDefaults) {
+		this.durationDefaults = java.util.Objects.requireNonNull(durationDefaults, "durationDefaults");
+	}
 
 	public PrintSettings getPrintSettings(int context) {
 		return context==SavableToWorkspace.PERSIST?printSettings:tmpSettings;
@@ -2791,6 +2809,12 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 	public void setCalendarOption(CalendarOption calendarOption) {
 		this.calendarOption = calendarOption;
+		if (calendarOption != null) {
+			DurationDefaults current = getDurationDefaults();
+			durationDefaults = new DurationDefaults(calendarOption.getHoursPerDay() * 60.0D,
+				calendarOption.getHoursPerWeek() * 60.0D, calendarOption.getDaysPerMonth(),
+				current.durationEnteredIn(), current.workUnit());
+		}
 		setGroupDirty(true);
 	}
 

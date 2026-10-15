@@ -136,7 +136,8 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	 */
 	void initializeDates() {
 		setRawConstraintType(project == null ? ConstraintType.Kind.ASAP : project.getDefaultConstraintTypeKind());
-		long duration = CalendarOption.getInstance().getDefaultDuration(); //MS uses 1 day estimated
+		long duration = Duration.setAsEstimated(Duration.getInstance(1.0D, TimeUnit.DAYS,
+			project.getDurationDefaults()), true); // MS uses 1 day estimated
 		setRawDuration(duration);
 		setWorkCalendar(null);
 

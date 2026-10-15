@@ -27,6 +27,7 @@ package com.microproject.core.pm.exchange.converters.mpx;
 import java.util.Date;
 
 import com.microproject.datatype.Duration;
+import com.microproject.datatype.DurationDefaults;
 import com.microproject.datatype.Rate;
 import com.microproject.datatype.TimeUnit;
 import com.microproject.interval.ValueObjectForInterval;
@@ -47,6 +48,8 @@ public class MpxResourceConverter {
 	private MpxCalendarConverter calendarConverter = new MpxCalendarConverter();
 
 	public void from(net.sf.mpxj.Resource mpxResource, Resource resource, MpxImportState state) {
+		DurationDefaults defaults = MpxProjectConverter.durationDefaults(state.getMpxProjectFile() == null ? null
+			: state.getMpxProjectFile().getProjectProperties());
 		// Parse and validate interval and scalar availability before changing any target fields.
 		MpxResourceAvailabilityConverter.from(mpxResource, resource.getAvailabilityTable());
 		if (mpxResource.getName() != null)
@@ -87,8 +90,8 @@ public class MpxResourceConverter {
 						}
 					}
 				}
-				targetEntry.setStandardRate(fromMpxRate(sourceEntry.getStandardRate()));
-				targetEntry.setOvertimeRate(fromMpxRate(sourceEntry.getOvertimeRate()));
+				targetEntry.setStandardRate(fromMpxRate(sourceEntry.getStandardRate(), defaults));
+				targetEntry.setOvertimeRate(fromMpxRate(sourceEntry.getOvertimeRate(), defaults));
 				if (sourceEntry.getCostPerUse() != null)
 					targetEntry.setCostPerUse(sourceEntry.getCostPerUse().doubleValue());
 				Date endDate = sourceEntry.getEndDate();
@@ -108,9 +111,9 @@ public class MpxResourceConverter {
 			if (rawRates.costPerUse() != null) resource.setCostPerUse(rawRates.costPerUse().doubleValue());
 		} else {
 			if (mpxResource.getStandardRate() != null)
-				resource.setStandardRate(fromMpxRate(mpxResource.getStandardRate()));
+				resource.setStandardRate(fromMpxRate(mpxResource.getStandardRate(), defaults));
 			if (mpxResource.getOvertimeRate() != null)
-				resource.setOvertimeRate(fromMpxRate(mpxResource.getOvertimeRate()));
+				resource.setOvertimeRate(fromMpxRate(mpxResource.getOvertimeRate(), defaults));
 			if (mpxResource.getCostPerUse() != null)
 				resource.setCostPerUse(mpxResource.getCostPerUse().doubleValue());
 		}
@@ -132,7 +135,7 @@ public class MpxResourceConverter {
 		resource.setWorkCalendar(calendar);
 	}
 
-	private static Rate fromMpxRate(net.sf.mpxj.Rate rate) {
+	private static Rate fromMpxRate(net.sf.mpxj.Rate rate, DurationDefaults defaults) {
 		if (rate == null) return new Rate();
 		int unit = switch (rate.getUnits()) {
 			case MINUTES -> TimeUnit.MINUTES;
@@ -150,6 +153,6 @@ public class MpxResourceConverter {
 			case ELAPSED_YEARS -> TimeUnit.ELAPSED_YEARS;
 			case ELAPSED_PERCENT -> TimeUnit.ELAPSED_PERCENT;
 		};
-		return new Rate(rate.getAmount() / Duration.timeUnitFactor(unit), unit);
+		return new Rate(rate.getAmount() / Duration.timeUnitFactor(unit, defaults), unit);
 	}
 }

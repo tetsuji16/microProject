@@ -61,6 +61,7 @@ import com.microproject.core.pm.exchange.converters.mpx.MpxTaskConverter;
 import com.microproject.core.pm.exchange.converters.mpx.MpxUtils;
 import com.microproject.core.pm.exchange.converters.type.DateUTCConverter;
 import com.microproject.core.pm.exchange.converters.type.PercentNumberRatioDoubleConverter;
+import com.microproject.datatype.DurationDefaults;
 import com.microproject.exchange.ImportedCalendarService;
 import com.microproject.exchange.BoundedInput;
 import com.microproject.grouping.core.Node;
@@ -123,6 +124,11 @@ public class MspImporter {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		ResourcePool resourcePool = ResourcePool.createRourcePool("imported", undo);
 		Project project = Project.createProject(resourcePool, undo);
+		// Task creation and duration conversion happen before the remainder of
+		// the project header is applied. Install the source unit defaults first so
+		// task constructors and converters never interpret this project through
+		// the process-wide calendar settings.
+		project.setDurationDefaults(MpxProjectConverter.durationDefaults(mpxProjectFile.getProjectProperties()));
 
 		importOptions(project);
 		progress.updateProgress(0.3f, "Options converted");
@@ -152,7 +158,7 @@ public class MspImporter {
 	private void restoreImportedAssignmentLevelingDelays() {
 		MpxAssignmentConverter converter = new MpxAssignmentConverter();
 		for (ImportedAssignmentLevelingDelay imported : importedAssignmentLevelingDelays) {
-			converter.restoreLevelingDelay(imported.source(), imported.target());
+			converter.restoreLevelingDelay(imported.source(), imported.target(), state);
 		}
 	}
 	
@@ -262,6 +268,7 @@ public class MspImporter {
 		org.w3c.dom.Document document = factory.newDocumentBuilder()
 			.parse(new ByteArrayInputStream(xml));
 		String namespace = document.getDocumentElement().getNamespaceURI();
+		DurationDefaults durationDefaults = rawDurationDefaults(document.getDocumentElement(), namespace);
 		org.w3c.dom.NodeList assignments = document.getElementsByTagNameNS(namespace, "Assignment");
 		Map<Long, MpxImportState.RawMspdiAssignmentWork> result = new HashMap<>();
 		Map<Long, Map<Integer, List<MpxImportState.RawMspdiWorkInterval>>> assignmentBaselineWork = new HashMap<>();
@@ -276,9 +283,9 @@ public class MspImporter {
 			if (rawUid == null) continue;
 			MpxImportState.RawMspdiResourceRates rates = new MpxImportState.RawMspdiResourceRates(
 				parseMspdiResourceRate(xmlChildText(resource, "StandardRate", namespace),
-					xmlChildText(resource, "StandardRateFormat", namespace)),
+					xmlChildText(resource, "StandardRateFormat", namespace), durationDefaults),
 				parseMspdiResourceRate(xmlChildText(resource, "OvertimeRate", namespace),
-					xmlChildText(resource, "OvertimeRateFormat", namespace)),
+					xmlChildText(resource, "OvertimeRateFormat", namespace), durationDefaults),
 				parseMspdiResourceCost(xmlChildText(resource, "CostPerUse", namespace)));
 			if ((rates.standardRate() != null || rates.overtimeRate() != null || rates.costPerUse() != null)
 				&& resourceRates.put(Long.valueOf(rawUid), rates) != null)
@@ -404,7 +411,22 @@ public class MspImporter {
 			Map.copyOf(resourceRates));
 	}
 
-	private static com.microproject.datatype.Rate parseMspdiResourceRate(String rawValue, String rawFormat) {
+	private static DurationDefaults rawDurationDefaults(org.w3c.dom.Element project, String namespace) {
+		DurationDefaults product = DurationDefaults.PRODUCT_DEFAULTS;
+		return new DurationDefaults(rawProjectNumber(project, "MinutesPerDay", namespace, product.minutesPerDay()),
+			rawProjectNumber(project, "MinutesPerWeek", namespace, product.minutesPerWeek()),
+			rawProjectNumber(project, "DaysPerMonth", namespace, product.daysPerMonth()),
+			product.durationEnteredIn(), product.workUnit());
+	}
+
+	private static double rawProjectNumber(org.w3c.dom.Element project, String field, String namespace,
+			double defaultValue) {
+		String value = xmlChildText(project, field, namespace);
+		return value == null ? defaultValue : Double.parseDouble(value.trim());
+	}
+
+	private static com.microproject.datatype.Rate parseMspdiResourceRate(String rawValue, String rawFormat,
+			DurationDefaults defaults) {
 		if (rawValue == null) return null;
 		double amount = new java.math.BigDecimal(rawValue.trim()).doubleValue();
 		int format = rawFormat == null ? 2 : Integer.parseInt(rawFormat.trim());
@@ -420,7 +442,7 @@ public class MspImporter {
 		};
 		if (unit == com.microproject.datatype.TimeUnit.NONE) return null;
 		double factor = unit == com.microproject.datatype.TimeUnit.NON_TEMPORAL ? 1.0D
-			: com.microproject.datatype.Duration.timeUnitFactor(unit);
+			: com.microproject.datatype.Duration.timeUnitFactor(unit, defaults);
 		return new com.microproject.datatype.Rate(amount / factor, unit);
 	}
 
@@ -777,7 +799,7 @@ public class MspImporter {
 			if (rawBaseline != null) {
 				schedule.setRawDuration(toRawBaselineDuration(rawBaseline));
 			} else if (duration != null) {
-				schedule.setRawDuration(MpxUtils.toProjectDuration(duration));
+				schedule.setRawDuration(MpxUtils.toProjectDuration(duration, task.getProject().getDurationDefaults()));
 			}
 			snapshot.setCurrentSchedule(schedule);
 			task.setSnapshot(Integer.valueOf(snapshotId), snapshot);
@@ -812,7 +834,7 @@ public class MspImporter {
 			((NormalTask) task).addAssignment(assignment);
 			// Attaching a non-default assignment can copy the default assignment's
 			// detail object and erase this imported value.
-			converter.restoreLevelingDelay(mpxAssignment, assignment);
+			converter.restoreLevelingDelay(mpxAssignment, assignment, state);
 			converter.importBaselines(mpxAssignment, assignment, state);
 			importedAssignmentLevelingDelays.add(new ImportedAssignmentLevelingDelay(mpxAssignment, assignment));
 		}

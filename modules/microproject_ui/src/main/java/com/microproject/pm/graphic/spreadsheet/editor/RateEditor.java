@@ -54,7 +54,7 @@ public class RateEditor extends SimpleEditor {
 		}
 		
 		JTextField result = (JTextField) super.getTableCellEditorComponent(table, value, arg2, row, column);
-		result.setText(RateRenderer.getFormat(table,row,column).format(value));
+		result.setText(RateRenderer.formatValue(table, row, column, value));
 		return result;
 	}
 	String timeUnit =null;
@@ -78,8 +78,14 @@ public class RateEditor extends SimpleEditor {
 	 * @see javax.swing.CellEditor#getCellEditorValue()
 	 */
 	public Object getCellEditorValue() {
+		RateFormat format = RateFormat.getInstance(timeUnit, money, percent, temporal);
+		if (durationDefaults() != null) {
+			java.text.ParsePosition position = new java.text.ParsePosition(0);
+			Object parsed = format.parseObject(component.getText(), position, durationDefaults());
+			return parsed != null && position.getIndex() == component.getText().length() ? parsed : null;
+		}
 		try { // try parsing as currency
-			return RateFormat.getInstance(timeUnit, money,percent,temporal).parseObject(component.getText());
+			return format.parseObject(component.getText());
 		} catch (ParseException e) {
 		}
 		try { // try parsing as number

@@ -18,6 +18,8 @@ import java.awt.Robot;
 import java.awt.event.KeyEvent;
 import java.util.Calendar;
 import java.awt.event.InputEvent;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 
 import javax.swing.AbstractAction;
 import javax.swing.ActionMap;
@@ -38,13 +40,14 @@ import com.microproject.field.Field;
 import com.microproject.configuration.FieldDictionary;
 import com.microproject.datatype.Duration;
 import com.microproject.datatype.DurationFormat;
+import com.microproject.datatype.DurationDefaults;
+import com.microproject.datatype.TimeUnit;
 import com.microproject.graphic.configuration.SpreadSheetCategories;
 import com.microproject.configuration.Dictionary;
 import com.microproject.graphic.configuration.BarStyles;
 import com.microproject.pm.graphic.gantt.Gantt;
 import com.microproject.grouping.core.Node;
 import com.microproject.pm.graphic.timescale.CoordinatesConverter;
-import com.microproject.options.CalendarOption;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
@@ -54,6 +57,8 @@ import com.microproject.pm.graphic.spreadsheet.editor.DateEditor;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.ProjectFactory;
+import com.microproject.exchange.MpoFileImporter;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.DateTime;
@@ -84,8 +89,10 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> tabs.setSelectedIndex(0));
 		activate(fixture.entrySheet);
 		editWithPhysicalKeys(robot, fixture.entrySheet, fixture.entryRow, fixture.durationColumn, "10");
-		assertEquals(10L * CalendarOption.getInstance().getMillisPerDay(), fixture.task.getRawDuration(),
-			"physical multi-character duration input must commit the complete value");
+		assertEquals(10L * 60L * 60L * 1000L, Duration.millis(fixture.task.getRawDuration()),
+			"physical bare duration input must use the owning project's default hours");
+		assertEquals(TimeUnit.HOURS, Duration.getType(fixture.task.getRawDuration()),
+			"physical duration input must preserve the source unit");
 
 		editWithPhysicalKeys(robot, fixture.entrySheet, fixture.entryRow, fixture.startColumn, "2026/9/25");
 		Calendar committedStart = DateTime.calendarInstance();
@@ -99,9 +106,9 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 				+ " editable=" + fixture.entrySheet.isCellEditable(fixture.entryRow, fixture.startColumn)
 				+ " cell=" + ((SpreadSheetModel) fixture.entrySheet.getModel()).getValueAt(fixture.entryRow, startModelColumn));
 		assertEquals(25, committedStart.get(Calendar.DAY_OF_MONTH), "physical date input must commit the day");
-		Field remainingDuration = FieldDictionary.getInstance().getFieldFromId("Field.remainingDuration");
-		assertEquals(DurationFormat.getInstance().format(new Duration(fixture.task.getRemainingDuration())),
-			remainingDuration.getText(fixture.task, null), "0% renderer must show the full remaining duration");
+		assertEquals(DurationFormat.getProjectInstance().format(new Duration(fixture.task.getRemainingDuration()),
+			fixture.task.getProject().getDurationDefaults()), remainingDurationText(fixture),
+			"0% renderer must show the full remaining duration using project defaults");
 		fixture.setProgressBaseline();
 
 		SwingUtilities.invokeAndWait(() -> tabs.setSelectedIndex(1));
@@ -111,8 +118,9 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 			"physical multi-character percent input must commit the complete value");
 
 		assertTrue(fixture.task.getRemainingDuration() > 0L, "10% progress must leave a positive remaining duration");
-		assertEquals(DurationFormat.getInstance().format(new Duration(fixture.task.getRemainingDuration())),
-			remainingDuration.getText(fixture.task, null), "10% renderer must show the intermediate remaining duration");
+		assertEquals(DurationFormat.getProjectInstance().format(new Duration(fixture.task.getRemainingDuration()),
+			fixture.task.getProject().getDurationDefaults()), remainingDurationText(fixture),
+			"10% renderer must show the intermediate remaining duration");
 		GanttGeometry afterTen = ganttGeometry(fixture);
 		assertEquals(fixture.progressViewportBefore(), afterTen.viewport(),
 			"10% task-table input must not move the Gantt timescale viewport");
@@ -139,13 +147,35 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		editWithPhysicalKeys(robot, fixture.trackingSheet, fixture.trackingRow, fixture.percentColumn, "100");
 		assertEquals(1.0d, fixture.task.getPercentComplete(), 0.00001d,
 			"physical 100% input must commit the complete value");
-		assertEquals(DurationFormat.getInstance().format(new Duration(fixture.task.getRemainingDuration())),
-			remainingDuration.getText(fixture.task, null), "100% renderer must show zero remaining duration");
+		assertEquals(DurationFormat.getProjectInstance().format(new Duration(fixture.task.getRemainingDuration()),
+			fixture.task.getProject().getDurationDefaults()), remainingDurationText(fixture),
+			"100% renderer must show zero remaining duration using project defaults");
 		GanttGeometry afterComplete = ganttGeometry(fixture);
 		assertEquals(fixture.progressViewportBefore(), afterComplete.viewport(),
 			"100% task-table input must not move the Gantt timescale viewport");
 		assertEquals(fixture.progressBarBefore(), afterComplete.bar(),
 			"100% task-table input must not change the planned bar geometry");
+
+		Project project = fixture.task.getProject();
+		NormalTask structuralTask = project.createScriptedTask();
+		structuralTask.setName("U-26 structural round-trip");
+		project.setLocalParent(structuralTask, fixture.task);
+		assertEquals(fixture.task, structuralTask.getWbsParentTask(), "fixture must create a child before outdent");
+		project.setLocalParent(structuralTask, null);
+		assertEquals(null, structuralTask.getWbsParentTask(), "outdent must restore the task to the project root");
+
+		ByteArrayOutputStream mpo = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, mpo), "MPO save after structural change must succeed");
+		MpoFileImporter reader = new MpoFileImporter();
+		reader.setProjectFactory(ProjectFactory.getInstance());
+		Project reopened = reader.loadProject(new ByteArrayInputStream(mpo.toByteArray()));
+		NormalTask restored = (NormalTask) reopened.findByUniqueId(fixture.task.getUniqueId());
+		NormalTask restoredStructuralTask = (NormalTask) reopened.findByUniqueId(structuralTask.getUniqueId());
+		assertEquals(10L * 60L * 60L * 1000L, Duration.millis(restored.getRawDuration()),
+			"the project-unit duration must survive a structural edit and MPO reload");
+		assertEquals(TimeUnit.HOURS, Duration.getType(restored.getRawDuration()));
+		assertEquals(null, restoredStructuralTask.getWbsParentTask(), "outdented task must remain at project root after reload");
+		assertEquals(TimeUnit.HOURS, reopened.getDurationDefaults().durationEnteredIn());
 
 	}
 
@@ -271,11 +301,13 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 	private static Fixture createFixture() throws Exception {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		Project project = Project.createProject(ResourcePool.createRourcePool("u26-physical-input", undo), undo);
+		project.setDurationDefaults(new DurationDefaults(360.0D, 1800.0D, 20.0D,
+			TimeUnit.HOURS, TimeUnit.HOURS));
 		project.initialize(false, false);
 		NormalTask task = project.createScriptedTask();
 		task.setName("U-26 physical input");
 		task.setStart(DateTime.calendarInstance(2026, Calendar.SEPTEMBER, 1).getTimeInMillis());
-		task.setDuration(8L * CalendarOption.getInstance().getMillisPerDay());
+		task.setDuration(Duration.getInstance(8.0D, TimeUnit.DAYS, project.getDurationDefaults()));
 		task.setPercentComplete(0.0d);
 		final Fixture[] result = new Fixture[1];
 		SwingUtilities.invokeAndWait(() -> {
@@ -301,6 +333,7 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		NodeModelCache cache = NodeModelCacheFactory.getInstance().createFilteredCache(
 			NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel()), cacheId, null);
 		SpreadSheetUtils.setFieldsAndContext(sheet, cache, SpreadSheetCategories.taskSpreadsheetCategory, spreadsheetId, true);
+		((SpreadSheetModel) sheet.getModel()).getFieldContext().setDurationDefaultsResolver(project::getDurationDefaults);
 		return new SheetSetup(sheet, cache);
 	}
 
@@ -317,6 +350,12 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 			if (field != null && fieldId.equals(field.getId())) return sheet.convertColumnIndexToView(column);
 		}
 		throw new IllegalArgumentException("Missing field: " + fieldId);
+	}
+
+	private static String remainingDurationText(Fixture fixture) {
+		Field field = FieldDictionary.getInstance().getFieldFromId("Field.remainingDuration");
+		return field.getText(fixture.task,
+			((SpreadSheetModel) fixture.entrySheet.getModel()).getFieldContext());
 	}
 
 	private static GanttGeometry ganttGeometry(Fixture fixture) throws Exception {

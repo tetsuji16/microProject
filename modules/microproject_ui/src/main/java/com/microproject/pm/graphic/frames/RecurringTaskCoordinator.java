@@ -49,7 +49,8 @@ final class RecurringTaskCoordinator {
 			new SpecProvider() {
 				@Override
 				public RecurringTaskSpec show(DocumentFrame frame) {
-					RecurringTaskDialog dialog = RecurringTaskDialog.getInstance(frame.getGraphicManager().getFrame());
+					RecurringTaskDialog dialog = RecurringTaskDialog.getInstance(
+						frame.getGraphicManager().getFrame(), frame.getProject());
 					return dialog.doModal() ? dialog.getSpec() : null;
 				}
 			},

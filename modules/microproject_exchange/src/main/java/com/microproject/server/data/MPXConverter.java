@@ -69,11 +69,13 @@ import com.microproject.exchange.ImportedCalendarService;
 import com.microproject.exchange.mpxj.MpxjApi;
 import com.microproject.configuration.Configuration;
 import com.microproject.datatype.Duration;
+import com.microproject.datatype.DurationDefaults;
 import com.microproject.datatype.Rate;
 import com.microproject.interval.ValueObjectForInterval;
 import com.microproject.field.CustomFields;
 import com.microproject.grouping.core.VoidNodeImpl;
 import com.microproject.options.CalendarOption;
+import com.microproject.options.ScheduleOption;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.costing.CostRate;
 import com.microproject.pm.calendar.WorkCalendar;
@@ -87,6 +89,7 @@ import com.microproject.core.pm.exchange.converters.mpx.MpxCalendarRecurrenceCon
 import com.microproject.core.time.TimeUtil;
 import com.microproject.core.pm.exchange.converters.mpx.MpxCalendarDateConverter;
 import com.microproject.core.pm.exchange.converters.mpx.MpxResourceAvailabilityConverter;
+import com.microproject.core.pm.exchange.converters.mpx.MpxUtils;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.TaskSnapshot;
@@ -128,16 +131,24 @@ public class MPXConverter {
 	}
 
 
-	public static void toMPXOptions(ProjectProperties projectHeader) {
+	public static void toMPXOptions(Project project, ProjectProperties projectHeader) {
 
 		CalendarOption calendarOption = CalendarOption.getInstance();
-		projectHeader.setMinutesPerDay(Integer.valueOf((int) (60 * calendarOption.getHoursPerDay())));
-		projectHeader.setMinutesPerWeek(Integer.valueOf((int) (60 * calendarOption.getHoursPerWeek())));
-
-		projectHeader.setDaysPerMonth(Integer.valueOf((int) Math.round(calendarOption.getDaysPerMonth())));
+		com.microproject.datatype.DurationDefaults defaults = project.getDurationDefaults();
+		projectHeader.setMinutesPerDay(Integer.valueOf(mspdiInteger(defaults.minutesPerDay(), "MinutesPerDay")));
+		projectHeader.setMinutesPerWeek(Integer.valueOf(mspdiInteger(defaults.minutesPerWeek(), "MinutesPerWeek")));
+		projectHeader.setDaysPerMonth(Integer.valueOf(mspdiInteger(defaults.daysPerMonth(), "DaysPerMonth")));
+		projectHeader.setDefaultDurationUnits(MpxUtils.toMpxTimeUnit(defaults.durationEnteredIn()));
+		projectHeader.setDefaultWorkUnits(MpxUtils.toMpxTimeUnit(defaults.workUnit()));
 
 		projectHeader.setDefaultStartTime(calendarOption.getDefaultStartTime().getTime());
 		projectHeader.setDefaultEndTime(calendarOption.getDefaultEndTime().getTime());
+	}
+
+	private static int mspdiInteger(double value, String name) {
+		if (!Double.isFinite(value) || value < 1.0D || value > Integer.MAX_VALUE || value != Math.rint(value))
+			throw new IllegalArgumentException("Project " + name + " must be a positive whole number for MSPDI export");
+		return (int) value;
 	}
 
 	public static void toMPXProject(Project project,ProjectProperties projectHeader) {
@@ -252,6 +263,11 @@ public class MPXConverter {
 
 
 	public static void toMPXResource(ResourceImpl projectlibreResource,Resource mpxResource) {
+		toMPXResource(null, projectlibreResource, mpxResource);
+	}
+
+	public static void toMPXResource(Project project, ResourceImpl projectlibreResource, Resource mpxResource) {
+		DurationDefaults defaults = project == null ? currentDurationDefaults() : project.getDurationDefaults();
 		// Validate and install the full interval table before writing any other target fields.
 		MpxResourceAvailabilityConverter.to(projectlibreResource.getAvailabilityTable(), mpxResource);
 		mpxResource.setName(removeInvalidChars(projectlibreResource.getName()));
@@ -268,8 +284,8 @@ public class MPXConverter {
 					Date end = value.getEnd() >= com.microproject.util.DateTime.getMaxDate().getTime()
 						? net.sf.mpxj.common.DateHelper.END_DATE_NA : new Date(value.getEnd());
 					targetTable.add(new net.sf.mpxj.CostRateTableEntry(start, end,
-						Double.valueOf(rate.getCostPerUse()), toMPXRate(rate.getStandardRate()),
-						toMPXRate(rate.getOvertimeRate())));
+						Double.valueOf(rate.getCostPerUse()), toMPXRate(rate.getStandardRate(), defaults),
+						toMPXRate(rate.getOvertimeRate(), defaults)));
 				}
 			}
 			// MPXJ and the domain both number tables A-E as 0-4.
@@ -308,13 +324,18 @@ public class MPXConverter {
 			}
 			mpxResource.setCalendar(mpxCalendar);
 		}
-		toMpxCustomFields(projectlibreResource.getCustomFields(),mpxResource, CustomFieldsMapper.getInstance().resourceMaps);
+		toMpxCustomFields(projectlibreResource.getCustomFields(),mpxResource, CustomFieldsMapper.getInstance().resourceMaps, defaults);
 
 
 	}
 
 
 	public static void toMpxCustomFields(CustomFields projectlibreFields,FieldContainer mpx, CustomFieldsMapper.Maps maps) {
+		toMpxCustomFields(projectlibreFields, mpx, maps, currentDurationDefaults());
+	}
+
+	private static void toMpxCustomFields(CustomFields projectlibreFields, FieldContainer mpx,
+		CustomFieldsMapper.Maps maps, DurationDefaults defaults) {
 		for (int i = 0; i < maps.costMap.length; i++) {
 			double cost = projectlibreFields.getCustomCost(i);
 			if (cost != 0.0D)
@@ -328,7 +349,7 @@ public class MPXConverter {
 		for (int i = 0; i < maps.durationMap.length; i++) {
 			long d = projectlibreFields.getCustomDuration(i);
 			if (Duration.millis(d) != 0)
-				mpx.set(maps.durationMap[i],toMPXDuration(d));
+				mpx.set(maps.durationMap[i],toMPXDuration(d, defaults));
 		}
 		for (int i = 0; i < maps.finishMap.length; i++) {
 			long d = projectlibreFields.getCustomFinish(i);
@@ -365,8 +386,10 @@ public class MPXConverter {
 			mpxAssignment.setStart(toMpxDate(assignment.getStart()));
 		if (assignment.getEnd() != 0L)
 			mpxAssignment.setFinish(toMpxDate(assignment.getEnd()));
-    	mpxAssignment.setWork(MPXConverter.toMPXDuration(work));
-		mpxAssignment.setActualWork(MPXConverter.toMPXDuration(assignment.getActualWork(null)));
+		DurationDefaults defaults = assignment.getTask() == null || assignment.getTask().getProject() == null
+			? currentDurationDefaults() : assignment.getTask().getProject().getDurationDefaults();
+		mpxAssignment.setWork(MPXConverter.toMPXDuration(work, defaults));
+		mpxAssignment.setActualWork(MPXConverter.toMPXDuration(assignment.getActualWork(null), defaults));
 		long assignmentWork = Duration.millis(assignment.getWork(null));
 		double percentWorkComplete = assignmentWork == 0L ? 0.0d
 				: ((double) Duration.millis(assignment.getActualWork(null))) / assignmentWork;
@@ -376,15 +399,10 @@ public class MPXConverter {
 		if (assignment.getActualFinish() != 0L)
 			mpxAssignment.setActualFinish(toMpxDate(assignment.getActualFinish()));
     	mpxAssignment.setUnits(MathUtils.roundToDecentPrecision(assignment.getUnits()*100.0D));
-    	mpxAssignment.setRemainingWork(MPXConverter.toMPXDuration(assignment.getRemainingWork())); //2007
+		mpxAssignment.setRemainingWork(MPXConverter.toMPXDuration(assignment.getRemainingWork(), defaults)); //2007
     	long delay = Duration.millis(assignment.getDelay());
     	if (delay != 0) {
-    		// mpxj uses default options when dealing with assignment delay
-    		CalendarOption oldOptions = CalendarOption.getInstance();
-    		CalendarOption.setInstance(CalendarOption.getDefaultInstance());
-
-        	mpxAssignment.setDelay(MPXConverter.toMPXDuration(assignment.getDelay()));
-            CalendarOption.setInstance(oldOptions);
+			mpxAssignment.setDelay(MPXConverter.toMPXDuration(assignment.getDelay(), defaults));
     	}
 
 		long levelingDelay = Duration.millis(assignment.getLevelingDelay());
@@ -406,7 +424,7 @@ public class MPXConverter {
 			Date baselineFinish = baseline == null || baseline.finish() == null ? null
 				: toMpxDate(baseline.finish().longValue());
 			net.sf.mpxj.Duration baselineWork = baseline == null || baseline.work() == null
-				? null : toMPXDuration(baseline.work().longValue());
+				? null : toMPXDuration(baseline.work().longValue(), defaults);
 			if (snapshotId == 0) {
 				mpxAssignment.setBaselineStart(baselineStart);
 				mpxAssignment.setBaselineFinish(baselineFinish);
@@ -567,10 +585,11 @@ private static int autoId = 0;
 		mpxTask.setID(taskId);
 		mpxTask.setUniqueID(exportId(IdNamespace.TASK, projectlibreTask.getUniqueId()));
 		mpxTask.setCreateDate(projectlibreTask.getCreated());
-		mpxTask.setDuration(toMPXDuration(projectlibreTask.getDuration())); // set duration without controls
-		mpxTask.setWork(toMPXDuration((long) projectlibreTask.getWork()));
-		mpxTask.setActualWork(toMPXDuration(projectlibreTask.getActualWork(null)));
-		mpxTask.setRemainingWork(toMPXDuration(projectlibreTask.getRemainingWork(null)));
+		DurationDefaults defaults = projectlibreTask.getProject().getDurationDefaults();
+		mpxTask.setDuration(toMPXDuration(projectlibreTask.getDuration(), defaults)); // set duration without controls
+		mpxTask.setWork(toMPXDuration((long) projectlibreTask.getWork(), defaults));
+		mpxTask.setActualWork(toMPXDuration(projectlibreTask.getActualWork(null), defaults));
+		mpxTask.setRemainingWork(toMPXDuration(projectlibreTask.getRemainingWork(null), defaults));
 		// The model stores local wall time encoded in a UTC epoch. MPXJ formats
 		// these MSPDI fields in the host zone, so remove that encoding first.
 		mpxTask.setStart(toMpxDate(projectlibreTask.getStart()));
@@ -599,8 +618,8 @@ private static int autoId = 0;
 		toMpxTaskBaselines(projectlibreTask, mpxTask);
 
 		//2007
-		mpxTask.setTotalSlack(toMPXDuration(projectlibreTask.getTotalSlack()));
-		mpxTask.setRemainingDuration(toMPXDuration(projectlibreTask.getRemainingDuration()));
+		mpxTask.setTotalSlack(toMPXDuration(projectlibreTask.getTotalSlack(), defaults));
+		mpxTask.setRemainingDuration(toMPXDuration(projectlibreTask.getRemainingDuration(), defaults));
 		if (projectlibreTask.getStop() != 0)
 			mpxTask.setStop(toMpxDate(projectlibreTask.getStop()));
 		
@@ -624,7 +643,7 @@ private static int autoId = 0;
 
 //	Not needed - it will be set when hierarchy is done		mpxTask.setOutlineLevel(new Integer(projectlibreTask.getOutlineLevel()));
 
-		toMpxCustomFields(projectlibreTask.getCustomFields(),mpxTask, CustomFieldsMapper.getInstance().taskMaps);
+		toMpxCustomFields(projectlibreTask.getCustomFields(),mpxTask, CustomFieldsMapper.getInstance().taskMaps, defaults);
 	}
 
 	private static void toMpxTaskBaselines(NormalTask task, Task mpxTask) {
@@ -648,7 +667,7 @@ private static int autoId = 0;
 					mpxTask.setBaselineFinish(snapshotId, finish);
 			}
 			// A present snapshot with zero duration is a valid milestone baseline.
-			net.sf.mpxj.Duration baselineDuration = toMPXDuration(schedule.getRawDuration());
+			net.sf.mpxj.Duration baselineDuration = toMPXDuration(schedule.getRawDuration(), task.getProject().getDurationDefaults());
 			if (snapshotId == 0)
 				mpxTask.setBaselineDuration(baselineDuration);
 			else
@@ -657,6 +676,7 @@ private static int autoId = 0;
 	}
 
 	public static void toMPXTaskTracking(NormalTask projectlibreTask, Task mpxTask) {
+		DurationDefaults defaults = projectlibreTask.getProject().getDurationDefaults();
 		mpxTask.setPercentageComplete(projectlibreTask.getPercentComplete()*100.0D);
 		mpxTask.setPercentageWorkComplete(projectlibreTask.getPercentWorkComplete()*100.0D);
 		mpxTask.setPhysicalPercentComplete(projectlibreTask.getPhysicalPercentComplete()*100.0D);
@@ -664,11 +684,11 @@ private static int autoId = 0;
 			mpxTask.setActualStart(toMpxDate(projectlibreTask.getActualStart()));
 		if (projectlibreTask.getActualFinish() != 0L)
 			mpxTask.setActualFinish(toMpxDate(projectlibreTask.getActualFinish()));
-		mpxTask.setActualDuration(toMPXDuration(projectlibreTask.getActualDuration()));
+		mpxTask.setActualDuration(toMPXDuration(projectlibreTask.getActualDuration(), defaults));
 		mpxTask.setActive(!projectlibreTask.isInactiveTask());
 		mpxTask.setTaskMode(projectlibreTask.isManuallyScheduled() ? TaskMode.MANUALLY_SCHEDULED : TaskMode.AUTO_SCHEDULED);
 		if (projectlibreTask.isManuallyScheduled())
-			mpxTask.setManualDuration(toMPXDuration(projectlibreTask.getDuration()));
+			mpxTask.setManualDuration(toMPXDuration(projectlibreTask.getDuration(), defaults));
 	}
 
 	public static void toMPXVoid(VoidNodeImpl projectlibreVoid, Task mpxTask) {
@@ -678,7 +698,7 @@ private static int autoId = 0;
 		mpxTask.setNull(true);
 		// below is for mpxj 2007. These values need to be set
 		mpxTask.setCritical(false);
-		mpxTask.setTotalSlack(toMPXDuration(0));
+		mpxTask.setTotalSlack(toMPXDuration(0, currentDurationDefaults()));
 
 	}
 
@@ -689,14 +709,24 @@ private static int autoId = 0;
 
 
 	public static net.sf.mpxj.Rate toMPXRate(Rate rate) {
-		double value = rate.getValue() * Duration.timeUnitFactor(rate.getTimeUnit());
-		return new net.sf.mpxj.Rate(value,TimeUnit.getInstance(rate.getTimeUnit()));
+		return toMPXRate(rate, currentDurationDefaults());
+	}
+
+	public static net.sf.mpxj.Rate toMPXRate(Rate rate, DurationDefaults defaults) {
+		double value = rate.getValue() * Duration.timeUnitFactor(rate.getTimeUnit(), defaults);
+		return new net.sf.mpxj.Rate(value, MpxUtils.toMpxTimeUnit(rate.getTimeUnit()));
 	}
 
 	public static net.sf.mpxj.Duration toMPXDuration(long duration) {
+		return toMPXDuration(duration, currentDurationDefaults());
+	}
+
+	public static net.sf.mpxj.Duration toMPXDuration(long duration, DurationDefaults defaults) {
 		//merge [ba296a] and [6fe45f] 
-		double durationValue = Duration.getValue(duration);
-		int type = Duration.getEffectiveType(duration);
+		double durationValue = Duration.getValue(duration, defaults);
+		int type = Duration.getType(duration);
+		if (type == com.microproject.datatype.TimeUnit.NONE)
+			type = defaults.durationEnteredIn();
 		TimeUnit timeUnit = projity2mpxTimeUnit(type);
 		if (timeUnit == TimeUnit.PERCENT || timeUnit == TimeUnit.ELAPSED_PERCENT) {
 			durationValue = durationValue * 100.0;
@@ -704,6 +734,10 @@ private static int autoId = 0;
 		return net.sf.mpxj.Duration.getInstance(durationValue, timeUnit);
 
 
+	}
+
+	private static DurationDefaults currentDurationDefaults() {
+		return DurationDefaults.from(CalendarOption.getInstance(), ScheduleOption.getInstance());
 	}
 
 	/** Converts a dependency lag without reinterpreting its milliseconds as the current display unit. */

@@ -46,7 +46,7 @@ public class RateRenderer extends SimpleRenderer {
 		JLabel result = (JLabel) super.getTableCellRendererComponent(table, value, isSelected,
 				hasFocus, row, column);
 		if (value != null)
-			result.setText(getFormat(table,row,column).format(value));
+			result.setText(formatValue(table, row, column, value));
 		return result;
 	}
 	
@@ -59,6 +59,13 @@ public class RateRenderer extends SimpleRenderer {
 			labor = ((CanSupplyRateUnit)rowObject).getTimeUnitLabel() == null;
 		return RateFormat.getInstance(rowObject, field.isMoney(), labor && field.isPercent(),labor);
 	}
+
+	public static String formatValue(JTable table, int row, int column, Object value) {
+		SpreadSheetModel model = (SpreadSheetModel) table.getModel();
+		var defaults = model.getFieldContext() == null ? null : model.getFieldContext().getDurationDefaults();
+		return defaults == null ? getFormat(table, row, column).format(value)
+			: ((RateFormat) getFormat(table, row, column)).format(value, defaults);
+	}
 	
 	public Component getComponent(Object value, GraphicNode node,Field field,SpreadSheetParams params){
 		JLabel result = (JLabel) super.getTableCellRendererComponent(null, value, false,
@@ -68,7 +75,9 @@ public class RateRenderer extends SimpleRenderer {
 			boolean labor = true;
 			if (rowObject instanceof CanSupplyRateUnit) 
 				labor = ((CanSupplyRateUnit)rowObject).getTimeUnitLabel() == null;
-			result.setText(RateFormat.getInstance(rowObject, field.isMoney(), labor && field.isPercent(),labor).format(value));
+			var defaults = params.getFieldContext() == null ? null : params.getFieldContext().getDurationDefaults();
+			RateFormat format = RateFormat.getInstance(rowObject, field.isMoney(), labor && field.isPercent(),labor);
+			result.setText(defaults == null ? format.format(value) : format.format(value, defaults));
 		}
 		return result;
 	}

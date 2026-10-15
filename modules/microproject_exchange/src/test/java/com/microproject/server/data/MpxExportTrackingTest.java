@@ -960,6 +960,48 @@ class MpxExportTrackingTest {
 		assertProject2019Calendars(roundTripMpo(calendars));
 	}
 
+	@Test
+	void nondefaultMspdiDurationDefaultsSurviveNativeMpoAndNewTaskCreation() throws Exception {
+		Path fixture = Path.of("modules", "microproject_exchange", "testdata", "Assignment Baseline Scalars.xml");
+		if (!Files.isRegularFile(fixture)) fixture = Path.of("testdata", "Assignment Baseline Scalars.xml");
+		String sourceXml = Files.readString(fixture)
+			.replace("<MinutesPerDay>480</MinutesPerDay>", "<MinutesPerDay>360</MinutesPerDay>")
+			.replace("<MinutesPerWeek>2400</MinutesPerWeek>", "<MinutesPerWeek>1800</MinutesPerWeek>");
+		net.sf.mpxj.ProjectFile source = new net.sf.mpxj.mspdi.MSPDIReader()
+			.read(new ByteArrayInputStream(sourceXml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+		source.getProjectProperties().setDefaultDurationUnits(net.sf.mpxj.TimeUnit.HOURS);
+		source.getProjectProperties().setDefaultWorkUnits(net.sf.mpxj.TimeUnit.MINUTES);
+		ByteArrayOutputStream configuredSource = new ByteArrayOutputStream();
+		new net.sf.mpxj.mspdi.MSPDIWriter().write(source, configuredSource);
+		sourceXml = configuredSource.toString(java.nio.charset.StandardCharsets.UTF_8);
+		assertEquals(Integer.valueOf(360), source.getProjectProperties().getMinutesPerDay());
+		assertEquals(Integer.valueOf(1800), source.getProjectProperties().getMinutesPerWeek());
+
+		Project imported = importMspdi(sourceXml);
+		assertEquals(360.0d, imported.getDurationDefaults().minutesPerDay(), 0.00001d);
+		assertEquals(1800.0d, imported.getDurationDefaults().minutesPerWeek(), 0.00001d);
+		assertEquals(20.0d, imported.getDurationDefaults().daysPerMonth(), 0.00001d);
+		assertEquals(com.microproject.datatype.TimeUnit.HOURS, imported.getDurationDefaults().durationEnteredIn());
+		assertEquals(com.microproject.datatype.TimeUnit.MINUTES, imported.getDurationDefaults().workUnit(),
+			"MSPDI default work units are independent from default duration units");
+		assertEquals(8L * 60L * 60L * 1000L,
+			com.microproject.datatype.Duration.millis(taskNamed(imported, "Assignment baseline task").getRawDuration()),
+			"the imported explicit task duration is independent of the six-hour default day; source="
+				+ source.getTaskByUniqueID(Integer.valueOf(1)).getDuration() + " projectDefaults="
+				+ imported.getDurationDefaults());
+		NormalTask newTask = new NormalTask(imported);
+		assertEquals(6L * 60L * 60L * 1000L, com.microproject.datatype.Duration.millis(newTask.getRawDuration()),
+			"new one-day task follows the MSPDI project's six-hour duration default");
+
+		Project reopened = roundTripMpo(imported);
+		assertEquals(360.0d, reopened.getDurationDefaults().minutesPerDay(), 0.00001d);
+		assertEquals(1800.0d, reopened.getDurationDefaults().minutesPerWeek(), 0.00001d);
+		assertEquals(com.microproject.datatype.TimeUnit.HOURS, reopened.getDurationDefaults().durationEnteredIn());
+		assertEquals(com.microproject.datatype.TimeUnit.MINUTES, reopened.getDurationDefaults().workUnit());
+		assertEquals(6L * 60L * 60L * 1000L,
+			com.microproject.datatype.Duration.millis(new NormalTask(reopened).getRawDuration()));
+	}
+
 	private void assertProject2019EditedLagSurvivesMpo(Project imported) throws Exception {
 		Task predecessor = imported.findByUniqueId(3);
 		Task successor = imported.findByUniqueId(4);
@@ -1903,10 +1945,16 @@ class MpxExportTrackingTest {
 	@Test
 	void assignmentTrackingValuesAreExported() {
 		NormalTask task = createTask();
+		task.getProject().setDurationDefaults(new com.microproject.datatype.DurationDefaults(
+			360.0d, 1800.0d, 20.0d, com.microproject.datatype.TimeUnit.HOURS,
+			com.microproject.datatype.TimeUnit.MINUTES));
 		task.setPercentWorkComplete(0.50d);
 		Iterator<?> assignments = task.getAssignments().iterator();
 		Assignment source = (Assignment) assignments.next();
+		source.setDelay(3L * 60L * 60L * 1000L);
 		source.setLevelingDelay(2L * 60L * 60L * 1000L);
+		com.microproject.options.CalendarOption globalCalendarOptions =
+			com.microproject.options.CalendarOption.getInstance();
 		ProjectFile file = new ProjectFile();
 		net.sf.mpxj.Task targetTask = file.addTask();
 		ResourceAssignment target = targetTask.addResourceAssignment(file.addResource());
@@ -1917,6 +1965,9 @@ class MpxExportTrackingTest {
 		assertNotNull(target.getActualStart());
 		assertEquals(120.0d, target.getLevelingDelay().getDuration(), 0.00001d);
 		assertEquals(net.sf.mpxj.TimeUnit.MINUTES, target.getLevelingDelay().getUnits());
+		assertEquals(3.0d, target.getDelay().getDuration(), 0.00001d);
+		assertEquals(net.sf.mpxj.TimeUnit.HOURS, target.getDelay().getUnits());
+		assertSame(globalCalendarOptions, com.microproject.options.CalendarOption.getInstance());
 	}
 
 	@Test

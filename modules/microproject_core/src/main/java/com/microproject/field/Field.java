@@ -29,6 +29,7 @@ import java.lang.reflect.Method;
 import java.text.Format;
 import java.text.NumberFormat;
 import java.text.ParseException;
+import java.text.ParsePosition;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -49,6 +50,7 @@ import com.microproject.datatype.DurationFormat;
 import com.microproject.datatype.Hyperlink;
 import com.microproject.datatype.Money;
 import com.microproject.datatype.PercentFormat;
+import com.microproject.datatype.Rate;
 import com.microproject.datatype.RateFormat;
 import com.microproject.datatype.TimeUnit;
 import com.microproject.datatype.Work;
@@ -447,12 +449,23 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 
 	}
 	private String toText(Object value, Object object) {
+		return toText(value, object, null);
+	}
+
+	private String toText(Object value, Object object, FieldContext context) {
 		if (value == null)
 			return EMPTY_STRING;
 		if (defaultValue != null && hideZeroValues && defaultValue.equals(value))
 			return EMPTY_STRING;
 		Format f = getFormat(object);
 		if (f != null) {
+			if (context != null && context.getDurationDefaults() != null
+					&& f instanceof DurationFormat durationFormat && value instanceof Duration duration)
+				return durationFormat.format(duration, context.getDurationDefaults());
+			if (context != null && context.getDurationDefaults() != null
+					&& f instanceof RateFormat rateFormat && value instanceof Rate rate)
+				return rateFormat.format(rate, new StringBuffer(), new java.text.FieldPosition(0),
+					context.getDurationDefaults()).toString();
 			return f.format(value);
 		} else {
 			if (isHyperlink())
@@ -461,6 +474,21 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 																			// to
 																			// string
 		}
+	}
+
+	private static Object parseFormattedText(Format format, String text, FieldContext context)
+			throws ParseException {
+		if (context != null && context.getDurationDefaults() != null
+				&& (format instanceof DurationFormat || format instanceof RateFormat)) {
+			ParsePosition position = new ParsePosition(0);
+			Object value = format instanceof DurationFormat durationFormat
+				? durationFormat.parseObject(text, position, context.getDurationDefaults())
+				: ((RateFormat) format).parseObject(text, position, context.getDurationDefaults());
+			if (position.getIndex() == 0)
+				throw new ParseException("Unparseable value", Math.max(0, position.getErrorIndex()));
+			return value;
+		}
+		return format.parseObject(text);
 	}
 
 	public String toExternalText(Object value,Object obj) {
@@ -487,7 +515,7 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 		} catch (IllegalArgumentException e1) {
 			logger.log(Level.SEVERE, "Unexpected error", e1);
 		}
-		return toText(value, object);
+		return toText(value, object, context);
 	}
 
 	public final String getText(Node node, WalkersNodeModel nodeModel, FieldContext context) {
@@ -508,7 +536,7 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 		} catch (IllegalArgumentException e1) {
 			logger.log(Level.SEVERE, "Unexpected error", e1);
 		}
-		return toText(value, object);
+		return toText(value, object, context);
 	}
 
 	public final String getText(ObjectRef objectRef, FieldContext context) {
@@ -767,7 +795,7 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 			Format f = getFormat(object);
 			if (f != null) {
 				try {
-					value = f.parseObject(textValue);
+					value = parseFormattedText(f, textValue, context);
 				} catch (ParseException e) {
 					f = getSecondaryFormat(object); // allow money to parse as number too
 					boolean secondOK = false;
@@ -804,7 +832,7 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 			Format f = getFormat(object);
 			if (f != null) {
 				try {
-					value = f.parseObject(textValue);
+					value = parseFormattedText(f, textValue, context);
 				} catch (ParseException e) {
 					throw new FieldParseException(e);
 				}

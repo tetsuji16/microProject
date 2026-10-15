@@ -174,7 +174,9 @@ public class DependencyDialog extends AbstractDialog {
 			sucLabel.setText(dependency.getQualifiedSuccessorName());
 			String stype = DependencyType.mapValueToString(Integer.valueOf(dependency.getDependencyType()));
 			typeCombo.setSelectedItem(stype);
-			lagTextField.setText(DurationFormat.format(dependency.getLag()));
+			var defaults = ((NormalTask) dependency.getPredecessor()).getProject().getDurationDefaults();
+			lagTextField.setText(DurationFormat.getProjectInstance().format(
+				new Duration(dependency.getLag()), defaults));
 			
 			boolean readOnly = ((NormalTask)dependency.getPredecessor()).getProject().isReadOnly();
 			typeCombo.setEnabled(!readOnly);
@@ -182,7 +184,12 @@ public class DependencyDialog extends AbstractDialog {
 			removeButton.setEnabled(!readOnly);
 		} else {
 			try {
-				Duration duration = (Duration) DurationFormat.getInstance().parseObject(lagTextField.getText());
+				var defaults = ((NormalTask) dependency.getPredecessor()).getProject().getDurationDefaults();
+				java.text.ParsePosition position = new java.text.ParsePosition(0);
+				Duration duration = (Duration) DurationFormat.getProjectInstance()
+					.parseObject(lagTextField.getText(), position, defaults);
+				if (duration == null || position.getIndex() != lagTextField.getText().length())
+					throw new ParseException(lagTextField.getText(), position.getErrorIndex());
 				int type = ((Number)DependencyType.mapStringToValue(typeCombo.getSelectedItem().toString())).intValue();
 				
 				
