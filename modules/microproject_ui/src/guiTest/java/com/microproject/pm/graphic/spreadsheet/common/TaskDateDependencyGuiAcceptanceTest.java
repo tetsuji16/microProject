@@ -245,8 +245,8 @@ class TaskDateDependencyGuiAcceptanceTest {
 						"the one-workday FF fixture finishes at the fixed Monday 17:00 boundary");
 				}
 				case DependencyType.SF -> {
-					assertEquals(utc("2026-06-08T17:00:00Z"), rawLinkBoundary,
-						"SF raw boundary is the predecessor's Monday 17:00 start");
+					assertEquals(utc("2026-06-06T08:00:00Z"), rawLinkBoundary,
+						"SF raw boundary is the predecessor's Saturday 08:00 start");
 					expectedSuccessorStart = utc("2026-06-08T08:00:00Z");
 					assertTrue(fixture.successor.getEnd() >= rawLinkBoundary,
 						"SF successor must not finish before the predecessor starts");
