@@ -162,14 +162,16 @@ public final class ResourceLevelingService {
 
 		public void apply(EditSupport editSupport) {
 			applyChanges(true);
-			if (editSupport != null && hasMutations()) {
-				editSupport.postEdit(new AbstractUndoableEdit() {
-					private static final long serialVersionUID = 1L;
-					@Override public String getPresentationName() { return Messages.getString("ResourceLevelingService.PresentationName"); }
-					@Override public void undo() { super.undo(); applyChanges(false); }
-					@Override public void redo() { super.redo(); applyChanges(true); }
-				});
-			}
+			postUndoEdit(editSupport);
+		}
+
+		private void postUndoEdit(EditSupport editSupport) {
+			if (editSupport != null && hasMutations()) editSupport.postEdit(new AbstractUndoableEdit() {
+				private static final long serialVersionUID = 1L;
+				@Override public String getPresentationName() { return Messages.getString("ResourceLevelingService.PresentationName"); }
+				@Override public void undo() { super.undo(); applyChanges(false); }
+				@Override public void redo() { super.redo(); applyChanges(true); }
+			});
 		}
 
 		private void applyChanges(boolean forward) {
@@ -367,6 +369,7 @@ public final class ResourceLevelingService {
 	private void clearAtomically(Project project, List<Task> affected, List<Change> changes,
 		List<NormalTask> generatedSplits, EditSupport editSupport) {
 		ProjectTaskSnapshot[] before = new ProjectTaskSnapshot[1];
+		Plan clearPlan = new Plan(changes, List.of(), List.of(), generatedSplits);
 		try (ProjectMutationState.Scope mutation = project.getMutationState().begin()) {
 			project.beginEventBatch();
 			try {
@@ -385,7 +388,7 @@ public final class ResourceLevelingService {
 						return before[0];
 					}
 					@Override public ModelTransaction.Mutation<Boolean> apply() {
-						new Plan(changes, List.of(), List.of(), generatedSplits).apply(editSupport);
+						clearPlan.applyChanges(true);
 						return ModelTransaction.Mutation.changed(Boolean.TRUE);
 					}
 					@Override public void schedule() { }
@@ -398,6 +401,7 @@ public final class ResourceLevelingService {
 				});
 				Project.PendingEventBatch pending = project.commitEventBatch(mutation, true);
 				project.publishEventBatch(pending);
+				clearPlan.postUndoEdit(editSupport);
 			} catch (ModelTransaction.ModelTransactionException failure) {
 				try { project.endEventBatch(false); }
 				catch (Throwable closeFailure) { failure.addSuppressed(closeFailure); }

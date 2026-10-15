@@ -505,6 +505,36 @@ class ResourceLevelingServiceTest {
 	}
 
 	@Test
+	void invariantFailureAfterClearRestoresTasksAndDoesNotPublishUndo() {
+		Fixture fixture = fixture();
+		NormalTask first = task(fixture.project, "First", 1L);
+		InvariantFailClearTask second = new InvariantFailClearTask(fixture.project);
+		second.setName("Second");
+		fixture.project.connectTask(second);
+		fixture.project.getSchedulingAlgorithm().addObject(second);
+		second.getCurrentSchedule().setStart(fixture.project.getStart());
+		second.setDuration(CalendarOption.getInstance().getMillisPerDay());
+		for (NormalTask target : List.of(first, second)) {
+			long from = target.getStart() + com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+			target.splitForLeveling(this, from, from + com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR);
+			target.setLevelingDelay(com.microproject.datatype.Duration.millis(86_400_000L));
+		}
+		var undo = fixture.project.getUndoController();
+		undo.clear();
+		second.failInvariantAfterClear = true;
+
+		IllegalStateException failure = assertThrows(IllegalStateException.class,
+			() -> new ResourceLevelingService().clear(fixture.project, null, undo.getEditSupport()));
+		assertTrue(failure.getMessage().contains("INVARIANT"));
+		second.failInvariantAfterClear = false;
+		for (NormalTask target : List.of(first, second)) {
+			assertEquals(86_400_000L, com.microproject.datatype.Duration.millis(target.getLevelingDelay()));
+			assertEquals(1, target.getLevelingTaskSplitIntervals().size());
+		}
+		assertFalse(undo.canUndo(), "an invariant rollback must not leave an Undo edit");
+	}
+
+	@Test
 	void priorityOneThousandReportsUnresolvedConflict() {
 		Fixture fixture = fixture();
 		NormalTask first = task(fixture.project, "First", 1L);
@@ -572,6 +602,21 @@ class ResourceLevelingServiceTest {
 			boolean changed = super.clearLevelingGeneratedSplits(eventSource);
 			if (failAfterClear) throw new IllegalStateException("injected clear failure");
 			return changed;
+		}
+	}
+
+	private static final class InvariantFailClearTask extends NormalTask {
+		private boolean failInvariantAfterClear;
+		private InvariantFailClearTask(Project project) { super(project); }
+		@Override public boolean clearLevelingGeneratedSplits(Object eventSource) {
+			boolean changed = super.clearLevelingGeneratedSplits(eventSource);
+			failInvariantAfterClear = true;
+			return changed;
+		}
+		@Override public java.util.List<com.microproject.pm.task.TaskSplitInterval> getLevelingTaskSplitIntervals() {
+			if (failInvariantAfterClear && super.getLevelingTaskSplitIntervals().isEmpty())
+				return java.util.List.of(new com.microproject.pm.task.TaskSplitInterval(0L, 1L));
+			return super.getLevelingTaskSplitIntervals();
 		}
 	}
 }
