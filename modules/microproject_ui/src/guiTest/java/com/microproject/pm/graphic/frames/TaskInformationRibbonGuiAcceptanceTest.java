@@ -3332,6 +3332,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		NormalTask other = project.createScriptedTask();
 		other.setName("Clear leveling other");
 		long hour = com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		long workday = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		selected.setDuration(workday);
+		other.setDuration(workday);
 		long selectedGapStart = selected.getStart() + hour;
 		selected.splitForLeveling(this, selectedGapStart, selectedGapStart + hour);
 		selected.split(this, selectedGapStart, selectedGapStart + hour);
@@ -3339,6 +3342,12 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		other.splitForLeveling(this, otherGapStart, otherGapStart + hour);
 		selected.setLevelingDelay(com.microproject.datatype.Duration.millis(86_400_000L));
 		other.setLevelingDelay(com.microproject.datatype.Duration.millis(172_800_000L));
+		assertEquals(1, selected.getLevelingTaskSplitIntervals().size(),
+			"fixture must start with one generated split on the selected task");
+		assertEquals(1, selected.getManualTaskSplitIntervals().size(),
+			"fixture must retain an overlapping manual split as independent ownership");
+		assertEquals(1, other.getLevelingTaskSplitIntervals().size(),
+			"fixture must start with a generated split on the unselected task");
 		undo.clear();
 		project.recalculate();
 		showProject(project);
