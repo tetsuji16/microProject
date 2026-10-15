@@ -1,8 +1,11 @@
 # Exchange format inventory
 
-**Reviewed:** 2026-10-13 against the current shared working tree. This records implemented code paths and
+**Reviewed:** 2026-10-15 at master `8f980ce978414fd6d8d894992481e5c9d326bdd2`. This records implemented code paths and
 their current verification scope; it is not a claim of full Microsoft Project
 interoperability.
+
+For the canonical M0 status, owner, source/applicability, and remaining-gap
+register, see [MSP standard command and format inventory](MSP_STANDARD_COMMAND_INVENTORY.md).
 
 ## Reader and writer paths
 
@@ -54,7 +57,8 @@ cannot silently select another writer.
 
 - MPP read: implementation path exists. `New Product.mpp` identifies itself in
   its file header as `Microsoft Project 9.0` / `MSProject.MPP9`; no editor
-  edition/build provenance is recorded. The fixed-file regression test records
+  edition/build provenance is recorded, and no Microsoft 365 Project or
+  Project 2024 authored fixture is currently registered. The fixed-file regression test records
   one task and assignment's imported name, start, finish, work, actual work,
   remaining work, and units through MPO save/reload. This is regression
   evidence for that checked-in file, not an independent Microsoft Project

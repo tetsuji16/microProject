@@ -1,64 +1,163 @@
 # MSP standard ribbon command inventory (#453 / #769)
 
-This is a current source-to-spec inventory for the microProject desktop ribbon.
-The target is Microsoft Project desktop command behavior presented through the
-current Microsoft 365 ribbon visual language. Microsoft Project's task and
-resource semantics remain the compatibility oracle for Project commands; the
-Office customization guide is the oracle for ribbon customization mechanics.
-An inferred rule is identified as document-derived, not as an observed MSP
-result. No row claims pixel-level equivalence.
+Inventory reviewed at master `8f980ce978414fd6d8d894992481e5c9d326bdd2` on
+2026-10-15. Evidence links identify the exact test/build run where available;
+an absent source edition or build is recorded as unknown rather than inferred.
+
+This is the canonical command and ribbon evidence inventory for M0 (#792),
+reconciled against #453, #769, #770, current source, tests, and the scoped
+compatibility roadmap. It is a coverage inventory, not a claim of complete
+Microsoft Project behavior. A row marked VERIFIED establishes only the
+specific local behavior and evidence named in that row; it does not imply
+product-wide parity. Inferred rules are document-derived, not observed MSP
+results. No row claims pixel-level equivalence.
+
+Use only these row states: `VERIFIED`, `PARTIAL`, `MISSING`, `UNSUPPORTED`,
+`UNASSESSED`, and `EXCLUDED`. `VERIFIED` means the stated contract has current
+source/test evidence; `PARTIAL` means implementation or evidence is bounded;
+`MISSING` means no equivalent route was found; `UNSUPPORTED` means an explicit
+product limitation; `UNASSESSED` means the row still needs source/code review;
+`EXCLUDED` means an explicit scope decision. These statuses describe each
+row's current evidence, not completion of #794, #796, or the overall goal.
+
+For Microsoft-published support pages that do not state a Project edition,
+version, or publication date, the applicability entry below says so
+explicitly. Do not infer that a rolling support page proves behavior for a
+specific Project build. The current compatibility target is Microsoft 365
+Project desktop with Project 2024 as the reproducible perpetual-license
+baseline; Project Server, PWA, Project Online/cloud services are excluded.
+In historical issue #453, “Project Online Desktop Client” refers to the
+standalone installable Project desktop client, which remains in scope; it does
+not bring Project Online service connections into scope.
 
 ## Official baseline
 
-- [Learn the Project ribbon](https://support.microsoft.com/en-us/office/learn-the-project-2010-ribbon)
-- [Distribute project work evenly (level resource assignments)](https://support.microsoft.com/en-us/project/distribute-project-work-evenly-level-resource-assignments)
-- [Resource Leveling dialog box](https://support.microsoft.com/en-us/project/resource-leveling-dialog-box)
-- [Update work on a project](https://support.microsoft.com/en-us/project/update-work-on-a-project)
-- [View resource workloads and availability in Project desktop](https://support.microsoft.com/en-us/project/view-resource-workloads-and-availability-in-project-desktop)
-- [Customize the ribbon in Office](https://support.microsoft.com/en-us/office/foundations-experiences/customize-the-ribbon-in-office)
+| ID | Microsoft or project source | Applicability/version as stated by source |
+|---|---|---|
+| S1 | [Learn the Project ribbon](https://support.microsoft.com/en-us/office/learn-the-project-2010-ribbon) | Microsoft page explicitly names Project 2010; use for the ribbon concepts it describes, not as proof of current M365/2024 layout. |
+| S2 | [Distribute project work evenly (level resource assignments)](https://support.microsoft.com/en-us/project/distribute-project-work-evenly-level-resource-assignments); [Resource Leveling dialog box](https://support.microsoft.com/en-us/project/resource-leveling-dialog-box) | Microsoft Support pages do not state an edition, product build, or publication date. |
+| S3 | [Update work on a project](https://support.microsoft.com/en-us/project/update-work-on-a-project) | Microsoft Support page does not state an edition, product build, or publication date. |
+| S4 | [View resource workloads and availability in Project desktop](https://support.microsoft.com/en-us/project/view-resource-workloads-and-availability-in-project-desktop) | Microsoft Support page does not state an edition, product build, or publication date. |
+| S5 | [Customize the ribbon in Office](https://support.microsoft.com/en-us/office/foundations-experiences/customize-the-ribbon-in-office) | Office customization guidance; page does not identify a Project edition/build. The #770 issue records its Windows Office scope. |
+| S6 | [View and track scheduling factors](https://support.microsoft.com/en-us/project/view-and-track-scheduling-factors); [Link tasks in a project](https://support.microsoft.com/en-us/project/link-tasks-in-a-project) | Microsoft Support pages do not state an edition, product build, or publication date. |
+| S7 | [TaskRespectLinks API](https://learn.microsoft.com/en-us/office/vba/api/project.application.taskrespectlinks) | Microsoft Project VBA API contract; API page does not state the desktop edition/build to which this behavior applies. |
+| S8 | [Active task field](https://support.microsoft.com/en-us/project/active-task-field) | Microsoft Support page; edition/version applicability is not stated on the source page. |
+| S9 | [Task sorting](https://support.microsoft.com/en-us/project/sort-tasks-resources-or-dates-in-project-desktop), [filtering](https://support.microsoft.com/en-us/project/filter-tasks-or-resources), and [grouping](https://support.microsoft.com/en-us/project/group-tasks-or-resources) | Microsoft Support pages do not state an edition, product build, or publication date. Combined filtered/grouped sorting is a document-derived product rule, not a Microsoft-measured result. |
+| S10 | [Application.Sort](https://learn.microsoft.com/en-us/office/vba/api/project.application.sort) | Microsoft Project VBA API reference; task/resource parameter semantics as stated there; desktop edition/build not stated. |
+| S11 | Repository compatibility decisions and tests | Internal evidence only; not a Microsoft source. Cite the applicable issue/commit/test and mark Microsoft applicability not applicable. |
 
 ## Current structure
 
-| Surface | Current source state | Status and verification |
-|---|---|---|
-| File | File tab opens a Backstage view; commands route through canonical Actions | Implemented; `RibbonStructureTest`, Backstage Robot acceptance. Share/Account are omitted because this desktop fork has no cloud-account service. |
-| Task, Resource, Report, Project, View, Help | Seven normal tabs, in this order after File | Implemented as tab structure; `RibbonStructureTest` and `RibbonTabGuiAcceptanceTest`. This does not mean all MSP commands within each tab are implemented. |
-| Format, Network Format, Calendar Format | Separate contextual surfaces | Implemented for available views; `ContextualRibbonVisibilityContractTest` and ribbon Robot acceptance. |
-| Flamingo renderer | Not used | Required architecture decision: Swing `ModernRibbonPanel`, see ADR-0002. There is one ribbon renderer. |
-| QAT | Save/Undo/Redo defaults; implemented actions can be added/removed, retained order is stable, new entries append, reset restores defaults | Add and reset physically verified in `OfficeChromeRibbonDisplayGuiAcceptanceTest.quickAccessCustomizationAddsAndPersistsCanonicalRibbonAction`. Full ribbon configuration import/export is not implemented. |
+| Surface | Current source state | Status | Owner | Source/applicability | Evidence and unknowns |
+|---|---|---|---|---|---|
+| File | File tab opens a Backstage view; commands route through canonical Actions | VERIFIED | #794 M2.4 | #453; S1 is Project 2010 only; current edition applicability not stated | `RibbonStructureTest`, Backstage Robot acceptance; Share/Account omitted because there is no cloud-account service. |
+| Task, Resource, Report, Project, View, Help | Seven normal tabs in this order after File | VERIFIED | #794 M2.4 | #453; S1 explicitly Project 2010, not a current M365/2024 layout claim | `RibbonStructureTest`, `RibbonTabGuiAcceptanceTest` verify tab structure only; individual command coverage is in the command table below. |
+| Format, Network Format, Calendar Format | Separate contextual surfaces | PARTIAL | #794 M2.4 | #453; current edition applicability not stated by a cited Microsoft page | `ContextualRibbonVisibilityContractTest` and ribbon Robot acceptance cover existing views; Report/Timeline object surfaces remain incomplete. |
+| Flamingo renderer | Not used | VERIFIED | #794 M2.4 | Internal ADR-0002; Microsoft applicability not applicable | Swing `ModernRibbonPanel` is the sole ribbon renderer; architecture only, not a user-visible MSP capability. |
+| QAT | Save/Undo/Redo defaults; supported actions can be added/removed, order retained and reset restores defaults | PARTIAL | #770 | S5 Office customization guidance; Office guide does not identify a Project edition/build | `OfficeChromeRibbonDisplayGuiAcceptanceTest.quickAccessCustomizationAddsAndPersistsCanonicalRibbonAction` verifies add/reset; full ribbon configuration import/export and production-shell restart acceptance remain unimplemented. |
 
 ## MSP command inventory
 
-`SUPPORTED` means the named command is wired to an implementation; it does not
-mean the full Project product has been reproduced. `PARTIAL` means the visible
-command has a narrower implementation than MSP or lacks one of MSP's required
-settings. `MISSING` means no equivalent command is available. Unsupported
-product services must remain absent instead of appearing as enabled no-op
-buttons.
+Each command row uses the canonical states above. A visible button alone is
+not evidence of behavior; tests and gaps are named per row. Where a row groups
+several commands, its partial status explicitly means the subcommands and
+their full Project behavior still need separate mapping. Unsupported and
+excluded product services must remain absent instead of appearing as enabled
+no-op buttons.
 
-| MSP capability | Current ribbon/action | Status | Known gap and evidence |
-|---|---|---|---|
-| Insert, delete, copy, cut, paste tasks | Task ribbon canonical Action routes | SUPPORTED | Route/state evidence in `CommandRouteMatrixTest`, `RibbonButtonBehaviorTest`, and task Robot journeys. |
-| Indent/outdent, expand/collapse, move tasks | Task > Outline/Schedule | SUPPORTED | Canonical hierarchy command route with model, visible rows, Undo/Redo and persistence coverage in task GUI acceptance. |
-| Link/unlink tasks | Task > Schedule | SUPPORTED | Canonical dependency route; route and model behavior covered by `CommandRouteMatrixTest` and dependency tests. |
-| Task Information, Notes, Custom Fields, Assign Resources | Task ribbon | SUPPORTED | Dialog/assignment journeys exist; audit each command's full invalid-state behavior before parity closure. |
-| Manual/Automatic task mode | Task > Schedule | SUPPORTED | `TaskModeServiceTest` and MPO round trip. No POD layout change is allowed for this or any other feature. |
-| Mark on Track, Update Tasks, Update Project, Status Date | Task/Project ribbon | SUPPORTED | See `msp-task-command-contract.md`; selection, schedule, Undo/Redo and MPO evidence is recorded there. |
-| Level Selection | Resource > Level | PARTIAL | Action exists. MSP defines selected tasks as the scope and allows multi-selection. Exact preservation of nonselected task dates/assignments, default clear behavior, and physical acceptance must be verified before parity closure. |
-| Level All | Resource > Level | PARTIAL | Action exists and a Robot journey verifies all-project scope, selection preservation, Undo/Redo and MPO round trip. MSP defaults to clearing prior leveling effects, excludes proposed resources by default, and exposes split/manual-task controls. Current leveling does not yet provide the complete settings/provenance contract; issue #772 tracks provenance. POD format must remain byte/schema compatible. |
-| Level Resource | Resource > Level | PARTIAL | Existing `LevelResourcesAction` is registered, but MSP's resource-specific selection behavior and multi-resource case require a route/result audit. |
-| Leveling Options | Resource > Level | PARTIAL | Existing `RibbonLevelResources` opens the resource-leveling dialog. Compare every MSP option (calculation, sensitivity, range, order, proposed resources, manually scheduled tasks, split tasks) and its effects before claiming parity. |
-| Clear Leveling | Resource > Level | MISSING | No dedicated clear-leveling ribbon Action was found. Requires safe provenance so clearing removes only leveling-created delays/splits and preserves manual edits. |
-| Next Overallocation | Resource > Level | IMPLEMENTED | [Microsoft Project desktop guidance](https://support.microsoft.com/en-us/project/distribute-project-work-evenly-level-resource-assignments) defines this as navigating to the next task with overallocated resources. Document-derived compatibility decision: traverse visible task rows after the current selection, wrap to the first visible candidate, and do not mutate model data. Hidden/filtered tasks are excluded by resolving candidates through current view rows. Robot coverage verifies next, wrap, no-candidate feedback, and schedule preservation. |
-| Task Inspector | Task | MISSING | No equivalent inspector route found; Microsoft documents a pane explaining scheduling factors and suggested changes. Do not bind a dummy Action. |
-| Respect Links | Task > Schedule | PARTIAL | The canonical Task ribbon route applies a transactional update to selected manually scheduled tasks with active incoming links, preserves manual mode, and supports Undo/Redo and MPO round trip. Core coverage checks all four link types with positive/negative working lag and elapsed lag, with and without assignments. A Windows Robot journey now checks the visible Gantt update, Undo/Redo, and persistence; it still needs to pass on the final PR head. Document-derived endpoint rules follow [Microsoft's link definitions](https://support.microsoft.com/en-us/project/link-tasks-in-a-project); this focused command implementation does not close the broader #794 scheduling/transaction package. |
-| Inactivate Task | Task | PARTIAL | The domain Task has an inactiveTask property and schedule diagnostics understand inactive tasks, but the current standard ribbon has no Inactivate action in menuInternal.properties or RibbonCommandCatalog. The field/model alone does not satisfy the Project command. |
-| Format Painter | Task | MISSING | No equivalent command in the current standard ribbon/catalog. Define copied scope and formatting target from the Project desktop source before implementation. |
-| Task Inspector | Task | MISSING | No inspector pane/action found. Microsoft documents scheduling factors; implement its selection-following results and physical route before parity claim. |
-| Select/Clear and Summary/Milestone insertion | Task | MISSING/PARTIAL | Current ribbon has normal task, recurring task, and subproject insertion. The complete MSP selection/clear command set and Summary/Milestone insertion behavior are not exposed by current Task ribbon definitions. |
-| Entire Project / Selected Tasks zoom | View | PARTIAL | Entire Project is physically verified in Gantt, Task Usage, and Resource Usage. Selected Tasks is verified only in Gantt; current Usage selection does not expose a task snapshot, and microProject has no Resource Graph equivalent. See #769 and its 2026-10-07 updates. |
-| Report/Timeline object-specific formatting | Contextual tabs | PARTIAL | Contextual surfaces exist for Network and Calendar. Report/Timeline object selection surfaces and their supported commands are not complete. |
-| Cloud account, Project Online/Planner linking, Microsoft feedback/training services | File/Help | OUT OF SCOPE | Project Server/PWA/Project Online/Planner cloud accounts and connected services are outside the standalone product goal; do not add clients or dummy controls. Local Help/About are product replacements, not MSP parity. Microsoft Project VBA/macros and COM/VSTO/Office add-ins are separately EXCLUDED by the user scope decision dated 2026-10-12. |
+| MSP capability | Current ribbon/action | Status | Owner | Source/applicability | Evidence and explicit unknown |
+|---|---|---|---|---|---|
+| Insert, delete, copy, cut, paste tasks | Task ribbon canonical Action routes | PARTIAL | **Owner:** #794 M2.4 (source inventory). **Source/applicability:** #453 task surface; S1 is Project 2010 only; current edition applicability for this grouped command row is not stated. **Evidence/unknown:** `CommandRouteMatrixTest`, `RibbonButtonBehaviorTest`, and task Robot journeys verify local route/state; individual invalid-state and save/reload parity is not fully mapped. |
+| Indent/outdent, expand/collapse, move tasks | Task > Outline/Schedule | PARTIAL | **Owner:** #794 M2.1/M2.4. **Source/applicability:** #453 task surface; S1 explicitly Project 2010, not a current M365/2024 version claim. **Evidence/unknown:** canonical hierarchy route and task GUI acceptance cover model, visible rows, Undo/Redo and persistence; command-level Microsoft source-to-result mapping remains to be reconciled. |
+| Link/unlink tasks | Task > Schedule | PARTIAL | **Owner:** #794 M2.2/M2.4. **Source/applicability:** #453 task surface and S6; S6 version/edition not stated. **Evidence/unknown:** `CommandRouteMatrixTest` and dependency tests verify local route/model behavior; full link/lag/calendar/constraint evidence remains open in #794. |
+| Task Information, Notes, Custom Fields, Assign Resources | Task ribbon | PARTIAL | **Owner:** #794 M2.3/M2.4. **Source/applicability:** #453 task surface; exact current Microsoft source and edition applicability are not assigned separately to the grouped commands. **Evidence/unknown:** dialog/assignment journeys exist; per-command invalid-state, mutation, Undo and persistence mapping remains to be split/reconciled. |
+| Manual/Automatic task mode | Task > Schedule | PARTIAL | **Owner:** #794 M2.2/M2.4. **Source/applicability:** #453 task surface; edition/version-specific primary source not mapped for this row. **Evidence/unknown:** `TaskModeServiceTest` and MPO round trip verify local mode behavior; full conversion semantics remain outside this bounded evidence. No POD layout change is allowed. |
+| Task view sort, Keep Outline, permanent task order | View > Data > Sort; Task > Outline > Sort | PARTIAL | **Owner:** #794 M2.1. **Source/applicability:** S9 and S10 do not state an edition/build; S10 documents task Renumber. **Evidence:** PRs #815/#827 cover field/direction keys, stable ties, missing/empty values, flat Keep Outline, table/Gantt alignment and permanent-order confirmation/Undo/Redo/MPO; PR #832 adds filtered/grouped projection composition and unchanged model order. Physical task sort passed in Windows GUI run [38728563004](https://github.com/tetsuji16/ProjectLibre/actions/runs/38728563004); filtered/grouped fixture passed Build [38743643764](https://github.com/tetsuji16/ProjectLibre/actions/runs/38743643764). The filter-first, preserve-group-buckets, sort-within-bucket rule is document-derived, not measured MSP behavior. |
+| Resource view sort | Resource Name/Standard Rate header and Sort Order menu | PARTIAL | **Owner:** #794 M2.1; bounded header/menu issue #750 is closed. **Source/applicability:** S9 and S10 do not state an edition/build; S10's Renumber argument is task-specific. **Evidence:** physical header/menu route passed ja/100% Windows run [38728563004](https://github.com/tetsuji16/ProjectLibre/actions/runs/38728563004), preserving model order, selection identity and Workspace state. Broader resource multi-key/date/filter/group behavior remains open. Resource permanent renumbering is not an applicable requirement. |
+| Mark on Track, Update Tasks, Update Project, Status Date | Task/Project ribbon | PARTIAL | **Owner:** #794 M2.2/M2.4. **Source/applicability:** S3 is a Microsoft Support page without stated edition/build; #453 groups the commands. **Evidence/unknown:** `msp-task-command-contract.md` records selection, schedule, Undo/Redo and MPO evidence; remaining mutation-family/transaction rows are listed under #794. |
+| Level Selection | Resource > Level | PARTIAL | **Owner:** #794 M2.3. **Source/applicability:** S2 pages do not state edition/build. **Evidence/unknown:** selected-task scope and multi-selection are documented; exact preservation of nonselected task dates/assignments, default clear behavior and final physical acceptance remain open. |
+| Level All | Resource > Level | PARTIAL | **Owner:** #772 / #794 M2.3. **Source/applicability:** S2 edition/build not stated. **Evidence/unknown:** Robot journey verifies all-project scope, selection, Undo/Redo and MPO; clearing effects, proposed-resource defaults, split/manual-task controls and provenance remain open. Preserve frozen POD schema. |
+| Level Resource | Resource > Level | PARTIAL | **Owner:** #794 M2.3. **Source/applicability:** S2 edition/build not stated. **Evidence/unknown:** `LevelResourcesAction` is registered; resource-specific selection and multi-resource route/results need audit. |
+| Leveling Options | Resource > Level | PARTIAL | **Owner:** #794 M2.3. **Source/applicability:** S2 edition/build not stated. **Evidence/unknown:** `RibbonLevelResources` opens the dialog; calculation, sensitivity, range, order, proposed resources, manual tasks and split settings need per-option result evidence. |
+| Clear Leveling | Resource > Level | MISSING | **Owner:** #794 M2.3. **Source/applicability:** S2 edition/build not stated. **Evidence/unknown:** no dedicated clear-leveling Action found; safe provenance must preserve leveling-independent delays/splits and manual edits. |
+| Next Overallocation | Resource > Level | VERIFIED | **Owner:** #794 M2.4. **Source/applicability:** S2 defines navigation behavior but states no edition/build. **Evidence/decision:** Robot verifies next, wrap, no-candidate feedback and schedule preservation. Traversing visible task rows and excluding filtered tasks is a document-derived product decision, not measured MSP behavior. |
+| Task Inspector | Task | MISSING | **Owner:** #794 M2.4. **Source/applicability:** S6 scheduling-factor page; edition/build not stated. **Evidence/unknown:** no inspector route found; Microsoft describes a pane explaining scheduling factors/suggested changes. Selection-following content and physical route remain unimplemented. This row replaces the duplicate Inspector entry in the earlier inventory. |
+| Respect Links | Task > Schedule | PARTIAL | **Owner:** #794 M2.2/M2.4. **Source/applicability:** S6 and S7; S7 is a VBA API page and states no desktop edition/build. **Evidence:** merged PR #831 (`b03368a8d3677fde6ba2a18e6bb70cb4d057996c`); `RespectLinksServiceTest` covers FS/SS/FF/SF, positive/negative working and elapsed lag, with/without assignments. On exact current master `8f980ce978414fd6d8d894992481e5c9d326bdd2`, Build run [38745252670](https://github.com/tetsuji16/ProjectLibre/actions/runs/38745252670) passed; GUI push run [38745252701](https://github.com/tetsuji16/ProjectLibre/actions/runs/38745252701) selected `smoke` at 100% (ja), and physical `TaskInformationRibbonGuiAcceptanceTest.respectLinksRibbonRouteMovesTheSelectedManualTaskAndRoundTripsUndoRedoAndMpo` passed. This is Windows smoke evidence only, not a full GUI matrix; broader #794 scheduling/transaction coverage remains open. |
+| Inactivate Task | Task | MISSING | **Owner:** #794 M2.4. **Source/applicability:** S8 does not state edition/build. **Evidence/unknown:** source scan found the task model field but no Inactivate ribbon Action in current `menuInternal.properties`/`RibbonCommandCatalog`; the model field alone does not implement the command. |
+| Format Painter | Task | MISSING | **Owner:** #794 M2.4. **Source/applicability:** #453 lists the command; exact current Microsoft source/version is not mapped. **Evidence/unknown:** no equivalent command in the current standard ribbon/catalog; copied fields and formatting target need a source-backed contract. |
+| Select/Clear and Summary/Milestone insertion | Task | PARTIAL | **Owner:** #794 M2.1/M2.4. **Source/applicability:** #453 lists the capability; per-command Microsoft source/version not mapped. **Evidence/unknown:** normal task, recurring task and subproject insertion exist; full Select/Clear and Summary/Milestone insertion are not exposed through current Task ribbon definitions. |
+| Entire Project / Selected Tasks zoom | View | PARTIAL | **Owner:** #794 M2.4. **Source/applicability:** #769 references Microsoft `Application.ZoomTimescale`; source page applicability does not establish an observed current build. **Evidence/unknown:** Entire Project is physically verified in Gantt and both Usage views; Selected Tasks is only verified in Gantt, and Resource Graph has no microProject equivalent. |
+| Report/Timeline object-specific formatting | Contextual tabs | PARTIAL | **Owner:** #794 M2.4. **Source/applicability:** #453 report/contextual requirements; exact current Microsoft source and edition applicability are not mapped per object command. **Evidence/unknown:** Network and Calendar contextual surfaces exist; Report/Timeline object selection surfaces and supported commands are incomplete. |
+| Cloud services and Microsoft Project local automation/extensions | File/Help and local integration | EXCLUDED | **Owner:** #797 for VBA/macros, COM/VSTO and Office add-ins; #792 for connected services. **Source/applicability:** explicit user scope decision dated 2026-10-12; Microsoft edition applicability not applicable. **Evidence:** current inventory records Project Server/PWA/Project Online/Planner connected services as out of scope and Microsoft Project VBA/macros, COM/VSTO and local Office add-ins as excluded. Keep microProject-native automation distinct and in scope. |
+
+## #453 / #769 specification crosswalk
+
+The rows below account for the requirements in the historical specification;
+they do not convert an unverified requirement into a pass. `#453` is the
+project's normative feature list and names Project Standard/Professional 2024
+and the standalone Windows Project desktop client as its target. S1 is only a
+Project 2010 ribbon reference; the Microsoft support pages S2–S10 do not state
+the current desktop edition/build unless the source-register row says
+otherwise. For requirements with no mapped Microsoft primary source, the
+project specification is cited and the source gap is explicit.
+
+| #453 / #769 requirement | Status | Owner | Source / applicability | Evidence and explicit unknown |
+|---|---|---|---|---|
+| QAT defaults Save, Undo, Redo; all surfaces use one Action ID | PARTIAL | #770 / #794 M2.4 | #453 §2; S5 for customization, edition/build unstated | Default commands and canonical command routes exist; QAT customization add/reset has physical evidence. One-action equivalence across every menu, shortcut and ribbon command is not inventoried as a complete matrix. |
+| Standard tabs and order: File, Task, Resource, Report, Project, View, Help | VERIFIED | #794 M2.4 | #453 §2; S1 is Project 2010 only | `RibbonStructureTest` and `RibbonTabGuiAcceptanceTest` verify the local seven-tab structure/order. Current Microsoft 365/2024 visual comparison is unobserved. |
+| File backstage: New, Open, Info, Save, Save As, Print, Share, Export, Close, Account, Options | PARTIAL | #794 M2.4 | #453 §2; S1 Project 2010 concepts only; Share/Account cloud applicability excluded | Backstage and local file commands exist; Share/Account are omitted. Per-command current edition route, enablement, print/export result, and failure/Undo behavior are not fully mapped. |
+| Narrow-width grouping, no silent command loss, tooltip purpose/shortcut/disabled reason | UNASSESSED | #794 M2.4 | #453 §2; no mapped version-specific Microsoft source | Responsive and tooltip coverage is not registered per command; do not count general tab screenshots as evidence. |
+| KeyTips, keyboard traversal/activation, accessible names and selected/disabled state | PARTIAL | #794 M2.4 | #453 §2; current Project edition/build not stated by a cited source | Root-pane shortcut layer is canonical per project guide; all-command Alt/Tab/arrow/Space/Enter and screen-reader coverage is not established. |
+| Task > View: select Gantt Chart | PARTIAL | #794 M2.4 | #453 §3 Task; S1 Project 2010 only | Gantt and task-view commands exist. View-choice availability and selected-state contract across all task views is not fully mapped. |
+| Task > Clipboard: Paste, Cut, Copy | PARTIAL | #794 M2.1/M2.4 | #453 §3 Task; exact current Microsoft source/version not mapped | Route/state evidence: `CommandRouteMatrixTest`, `RibbonButtonBehaviorTest`, task GUI journeys. Per-command read-only, invalid-selection and save/reload cases remain incomplete. |
+| Task > Clipboard: Format Painter | MISSING | #794 M2.4 | #453 §3 Task; current Microsoft source/version not mapped | No equivalent standard ribbon/catalog command found; source-backed copied-format scope and physical evidence are absent. |
+| Task > Font: font, size, bold, italic, underline, font color and fill | MISSING | #794 M2.4 | #453 §3 Task; current Microsoft source/version not mapped | Standard Task ribbon formatting commands are not present in the current source inventory; no physical route evidence. |
+| Task > Schedule: % Complete, Mark on Track | PARTIAL | #794 M2.2/M2.4 | #453 §3 Task; S3 is an undated Microsoft Support page | `msp-task-command-contract.md` records selected update workflows; exact independent outcomes, invalid inputs, Undo and MPO evidence remain package-scoped. |
+| Task > Schedule: Respect Links | PARTIAL | #794 M2.2/M2.4 | #453 §3 Task; S6/S7 have no stated edition/build | PR #831 and its focused core/Windows GUI evidence are listed in the command table; broader schedule/transaction package remains open. |
+| Task > Schedule: Move Task / Move Up / Move Down | PARTIAL | #794 M2.1/M2.4 | #453 §3 Task; current Microsoft source/version not mapped | Hierarchy move routes exist; command-by-command parity, disabled conditions and independent visible-result evidence are not fully crosswalked. |
+| Task > Schedule: Inspect / Task Inspector | MISSING | #794 M2.4 | #453 §3 Task; S6 scheduling-factor page has no stated edition/build | No inspector route found; Microsoft documents scheduling factors. Selection-following content and GUI route remain absent. |
+| Task > Tasks: Manually Schedule, Auto Schedule, Task Mode | PARTIAL | #794 M2.2/M2.4 | #453 §3 Task; Microsoft source/version not mapped per action | `TaskModeServiceTest` and MPO round trip cover mode behavior; each command's precondition and full conversion contract remains open. |
+| Task > Tasks: Inactivate | MISSING | #794 M2.4 | #453 §3 Task; S8 Active task field page has no stated edition/build | Current master has the `inactiveTask` model field and Task General dialog field, but no Inactivate Action in `menuInternal.properties` or `RibbonCommandCatalog`. This conflicts with #769's 2026-10-07 status note that says it is implemented; retain MISSING for the required ribbon command until its route is located and proven. |
+| Task > Insert: Task, Summary, Milestone, Recurring Task, Subproject | PARTIAL | #794 M2.1/M2.4 | #453 §3 Task; current Microsoft source/version not mapped per insert type | Normal/recurring task and subproject insertion exist; Summary/Milestone behavior and selection-position parity are not fully established. |
+| Task > Properties: Information, Notes, Details, Add to Timeline | PARTIAL | #794 M2.4 | #453 §3 Task; current Microsoft source/version not mapped | Dialogs/notes exist; Details pane and Timeline route, selection following, and per-command physical results are not fully mapped. |
+| Task > Editing: Find, Clear, Scroll to Task, Select | PARTIAL | #794 M2.1/M2.4 | #453 §3 Task; current Microsoft source/version not mapped | Find and clear routes exist in local UI; the complete selection/scroll contracts and physical result matrix are unverified. |
+| Task > Outline: Indent/Outdent, Link/Unlink | PARTIAL | #794 M2.1/M2.2 | #453 §3 Task; S6 for dependencies is undated | Canonical route and hierarchy/dependency tests exist; schedule/transaction and physical outcome gaps are tracked in #794. |
+| Resource > View: Resource Sheet, Resource Usage, Team Planner, Other Views | PARTIAL | #794 M2.4 | #453 §3 Resource; S4 has no stated edition/build | Resource Sheet/Usage exist; Team Planner and full other-view inventory are not established. Exact list and per-view evidence remain unknown. |
+| Resource > Assignments: Assign Resources and Team Planner assignment actions | PARTIAL | #794 M2.3/M2.4 | #453 §3 Resource; current Microsoft source/version not mapped per command | Assignment dialogs/services and tests exist; Team Planner route and complete selected/multi-resource results are unverified. |
+| Resource > Insert: Add Work, Material and Cost resources | PARTIAL | #794 M2.3 | #453 §3 Resource; current Microsoft source/version not mapped | Resource creation exists; separate type choice, fields, constraints and physical result coverage are not registered here. |
+| Resource > Properties: Resource Information, Notes, Details | PARTIAL | #794 M2.3/M2.4 | #453 §3 Resource; current Microsoft source/version not mapped | Existing resource dialogs/fields provide bounded evidence; Notes/Details command route and persistence matrix remain unknown. |
+| Resource > Level: Level Selection, Level Resource, Level All, Options, Clear Leveling, Next Overallocation | PARTIAL | #794 M2.3 | #453 §3 Resource; S2 pages do not state edition/build | Individual rows above record the implemented and missing actions. Assignment/date preservation, provenance, settings, and clear semantics remain open. |
+| Resource Pool: share resources, pool, substitute resources, refresh/resolve pool | PARTIAL | #794 M2.3 | #453 §3 Resource; local shared-resource scope retained; cloud services excluded | Shared/local resource functionality remains in scope. The full pool command family and conflict/refresh behavior are not mapped to independent test evidence; no server/cloud claim. |
+| Report: gallery, dashboards/resources/costs/in-progress, New/Custom/Recent, Visual Reports, Compare Projects | PARTIAL | #794 M2.4 | #453 §3 Report; Microsoft report sources linked in #453, edition/build not stated | Report surface exists but no full gallery/selection/rendered-value inventory; Visual Reports have external Excel/Visio conditions. Each report and compare route remains individually unverified. |
+| Project > Properties: Project Information, Custom Fields, Links Between Projects, WBS, Change Working Time | PARTIAL | #794 M2.1–M2.4 | #453 §3 Project; command-specific Microsoft source/version not mapped | Local dialogs/services exist for some properties; source-to-result and cross-project/calendar behavior must be audited per command. |
+| Project > Schedule: Calculate Project, Set/Clear Baseline, Move Project | PARTIAL | #794 M2.2/M2.3 | #453 §3 Project; current Microsoft source/version not mapped per action | Scheduling and baseline services exist; baseline slots/scope and move-project date invariants are not fully evidenced in this inventory. |
+| Project > Status: Status Date, Update Project, Mark on Track | PARTIAL | #794 M2.2/M2.3 | #453 §3 Project; S3 is undated | Update Project transaction has bounded source/test evidence; status-date and remaining progress mutation families need independent outcome/Undo/MPO coverage. |
+| Project > Reports: Visual Reports | PARTIAL | #794 M2.4 | #453 §3 Project; report sources cited in #453, edition/build not stated | External Excel/Visio conditions are explicit; user route, availability and output comparison remain unverified. |
+| Project > Proofing: Spelling and proofing language | MISSING | #794 M2.4 | #453 §3 Project; current Microsoft source/version not mapped | No equivalent desktop proofing command found in the current inventory; no evidence of spelling/language workflow. |
+| View > Task Views: Gantt, Task Usage, Task Board, Network Diagram, Calendar, Other Views | PARTIAL | #794 M2.4 | #453 §3 View; S1/S4 do not establish current 2024 view set | Gantt, usage, network and calendar views exist; Task Board and complete Other Views set are not evidenced. Exact view list is a known unknown. |
+| View > Resource Views: Team Planner, Resource Usage, Resource Sheet, Other Views | PARTIAL | #794 M2.4 | #453 §3 View; S4 edition/build not stated | Resource Usage/Sheet exist; Team Planner and complete Other Views set remain unverified. |
+| View > Data: Highlight, Filter, Group By, Sort, Outline, Tables | PARTIAL | #794 M2.1/M2.4 | #453 §3 View; S9/S10 edition/build unstated | Sort and filtered/grouped task projections have PR #815/#827/#832 evidence; full Highlight/Filter/Group/Outline/Table source, view-availability, selection and GUI matrix remains open. |
+| View > Zoom: Timescale, Zoom, Entire Project, Selected Tasks | PARTIAL | #794 M2.4 | #453 §3 View; #769 cites `Application.ZoomTimescale`; Microsoft current build unobserved | Entire Project has Gantt and both Usage-view evidence; Selected Tasks has Gantt-only evidence. Usage selection and Resource Graph are explicit gaps. |
+| View > Split View: Timeline, Details, Resource Graph | PARTIAL | #794 M2.4 | #453 §3 View; current Microsoft source/version not mapped | Timeline/Details/Resource Graph command parity and Timeline+Details mutual-exclusion behavior are not fully evidenced; microProject has no Resource Graph equivalent. |
+| View > Window: New Window, Arrange All, Hide/Unhide, Switch Windows | PARTIAL | #794 M2.4 | #453 §3 View; current Microsoft source/version not mapped | Multi-document windows exist; each command's open/hidden/arrange state and save interaction are not individually tested in the compatibility inventory. |
+| View > Macros: Macros, Visual Basic | EXCLUDED | #797 | #453 §3 View; explicit user exclusion dated 2026-10-12 | Microsoft Project VBA/macros, macro object model and local Office add-ins are out of scope. Native microProject automation remains separate/in scope. |
+| Help: Help, Training, Feedback, About | PARTIAL | #794 M2.4 | #453 §3 Help; current source edition not stated | Local Help/About replacements are present; Training/Feedback service behavior is excluded or replaced, not MSP parity. Per-route availability evidence remains incomplete. |
+| Gantt/Tracking Gantt contextual formatting and display toggles | PARTIAL | #794 M2.4 | #453 §4; support pages do not state current edition/build | Existing Gantt contextual controls exist; full list (styles, columns, bars, critical/slack/late/path/baseline/slippage/outline/summary) and persistence/render evidence is not complete. |
+| Timeline contextual formatting and existing-task/copy/date/detail controls | PARTIAL | #794 M2.4 | #453 §4; current Microsoft edition/build not stated | Timeline surface and all listed command outcomes/selection conditions are not established. |
+| Network Diagram, Calendar contextual formatting | PARTIAL | #794 M2.4 | #453 §4; current Microsoft edition/build not stated | Contextual surfaces exist; complete Layout/Box Style/Data Template/Text/Drawing or Bar Style/Gridline behavior remains unverified. |
+| Report design and selected chart/table/picture/shape contextual tabs | PARTIAL | #794 M2.4 | #453 §4; report source cited in #453, current edition/build not stated | Report contextual object surfaces and per-object selection/format routes are incomplete. |
+| microProject tab keeps extensions separate from MSP commands | PARTIAL | #794 M2.4 | #453 §5; product extension, not MSP parity | Existing microProject-specific commands are not yet inventoried as a complete separate extension surface. Do not insert them among standard MSP actions. |
+| CCPM Settings, Analyze, Apply, Clear | MISSING | #794 M2.4 | #453 §5 CCPM spec; product extension, Microsoft applicability not applicable | The specification defines preview, transactions, restoration and failure rules; current implementation/test evidence for these commands was not found in this inventory. |
+| CCPM Buffer Status, Network, Refresh Analysis | MISSING | #794 M2.4 | #453 §5 CCPM spec; product extension | No current command/output evidence recorded; analysis must preserve ordinary CPM schedule when unapplied. |
+| CCPM Show Critical Chain / Show Buffers | MISSING | #794 M2.4 | #453 §5 CCPM spec; product extension | No current display-only overlay proof recorded; must not mutate task dates. |
+| CCPM model separation, snapshot/rollback, progress/constraint protection, background calculation | UNASSESSED | #794 M2.2/M2.3 | #453 §5; product extension | Required architecture/edge-case acceptance is specified; implementation, atomic failure, concurrent mutation and MPO persistence evidence need separate source audit. |
+| CCPM scenarios: empty project, dependency-only chain, shared-resource contention, multiple feeding chains, milestone, completed task, fixed constraint, progress update, Apply/Save/Reload/Clear | UNASSESSED | #794 M2.2/M2.3 | #453 §5; product extension | Scenario list is explicit; no complete fixed-fixture independent expected-results matrix is registered. Do not claim CCPM acceptance. |
+| #453 §6 machine-readable command mapping: Action ID, label, icon, group, visibility condition, model mutation, Undo unit, shortcut | PARTIAL | #794 M2.4 | #453 §6; project command catalog is internal evidence | `RibbonCommandCatalog` and route tests provide source metadata, but this inventory is not yet a generated exhaustive field-by-field crosswalk; missing fields and command-level mappings are explicit above. |
+| #453 §7 group order, 2024 screen evidence, save/reload workflows and contextual-tab lifecycle | PARTIAL | #794 M2.1–M2.4 | #453 §7 states Project Standard/Professional 2024 and Windows desktop | Local tab order and selected GUI journeys are cited above. Current Microsoft 365/2024 screenshots and a complete group-order/save-reload/context lifecycle matrix are unobserved. |
+| #453 no dummy controls for unavailable cloud/share/account features | VERIFIED | #792 | #453 §§2–3; explicit standalone product scope 2026-10-12 | Share/Account and cloud service actions are omitted; source scan confirms no cloud-linking command in standard catalog. Keep local shared-resource collaboration in scope. |
+| #769 source-to-action, precondition, visible/model outcome and failure result for each command | PARTIAL | #794 M2.1–M2.4 | #769 acceptance; normative Project 2024 target; sources mapped per rows above | Existing tests cover selected flows; the crosswalk above explicitly identifies unmapped sources, physical outcomes and gaps. |
+| #769 Undo/Redo and MPO save/reload for mutating commands | PARTIAL | #794 M2.1–M2.4 | #769 acceptance; product persistence contract | Evidence is named where available; all other mutating command rows explicitly remain unverified. |
+| #769 English/Japanese, narrow width, keyboard, high DPI and accessibility | PARTIAL | #794 M2.4 / #765 | #769 acceptance; Project 2024 Windows target | Selected locale/scale and tab journeys exist; no complete all-command accessibility/width matrix is recorded. Physical MSP current-client comparison is unobserved. |
 
 ## File format coverage at current master
 
@@ -66,17 +165,19 @@ The repository exposes format handlers; that fact alone is not complete
 interoperability. Read and write are separate contracts and must not be inferred
 from a filename filter or an XML trailer.
 
-| Format / direction | Current implementation evidence | Coverage status |
-|---|---|---|
-| MPP read | MPXJ MPPReader is selected in modules/microproject_exchange/src/main/java/com/microproject/core/pm/exchange/MspImporter.java. XlsxSupportTest.mspImporterCanReadMpp opens the checked-in New Product.mpp fixture. | PARTIAL: one fixed project opens; field-by-field semantic compatibility and supported Project versions are not exhaustively verified. |
-| MPP write | ProjectWriterFactory has no MPP writer entry; `FileHelper` rejects `.mpp` for writing. | EXCLUDED by explicit user product decision dated 2026-10-12; MPO is the native save substitute. This does not imply MPP read coverage is complete. |
-| Microsoft Project XML / MSPDI read | MspImporter chooses MPXJ MSPDIReader for XML. Existing import and conversion tests include Microsoft XML inputs. | PARTIAL: add a documented semantic matrix and broader fixture coverage. |
-| Microsoft Project XML / MSPDI write | ProjectWriterFactory maps XML to MSPDIWriter. MpxExportTrackingTest and MpxProjectConverterTest cover selected exported fields and reloads. | PARTIAL: existing focused round trips do not prove complete Project XML compatibility. |
-| MPX read/write | Import is selected in MspImporter; ProjectWriterFactory maps MPX to MPXWriter. | IMPLEMENTED as a legacy exchange path; record its exact field/version limits separately from MPP compatibility. |
-| MPO native read/write | MpoFileImporter and the MPO archive/transaction/importer tests cover native read, write and versioned archive behavior. | IMPLEMENTED for the documented microProject format; continue backward-read and round-trip acceptance. |
-| POD compatibility | PodRoundTripTest covers established POD serialization and embedded MSPDI data. | Existing compatibility path; keep the serialized wire format immutable and retain fixed fixtures. Do not add serialized fields or change descriptors. |
-| XLSX read/write | ProjectLibreXlsxReader/Writer and XlsxSupportTest cover native payload, summary sheets and selected round trips. | IMPLEMENTED for the declared XLSX contract; maintain a field-loss inventory. |
-| PMXML, Planner, JSON, SDEF | Writer factory includes these output handlers. | EXPORT handlers exist; importer support and Project desktop parity are not implied. Track format-specific read/write scope independently. |
+| Format / direction | Current implementation evidence | Status | Owner | Provenance/applicability | Explicit unknown |
+|---|---|---|---|---|---|
+| MPP read | MPXJ MPPReader via `MspImporter`; `XlsxSupportTest.mspImporterCanReadMpp` opens `New Product.mpp`. | PARTIAL | #796 | Fixture provenance/version must be established per #805; MPXJ is implementation evidence, not a Microsoft source/version. | Field-level semantics and Project 365/2024 input provenance remain incomplete. |
+| MPP write | No MPP writer in `ProjectWriterFactory`; `FileHelper` rejects `.mpp` writes. | EXCLUDED | #796 | Explicit user scope decision 2026-10-12; Microsoft version not applicable. | This exclusion does not imply MPP read compatibility is complete. |
+| Microsoft Project XML / MSPDI read | `MspImporter` selects MPXJ MSPDIReader; tests include Microsoft XML inputs. | PARTIAL | #796 | Microsoft format; exact authoring edition/build provenance is not recorded for every fixture. | Semantic matrix and broader fixture provenance/coverage are incomplete. |
+| Microsoft Project XML / MSPDI write | `ProjectWriterFactory` maps XML to MSPDIWriter; `MpxExportTrackingTest` and `MpxProjectConverterTest` cover selected exports/reloads. | PARTIAL | #796 | XML interoperability fixtures do not establish a particular Project edition/build unless each fixture records it. | Focused round trips do not prove full Project XML compatibility. |
+| MPX read/write | `MspImporter` selects MPXReader; `ProjectWriterFactory` maps MPX to MPXWriter. | PARTIAL | #796 | MPX implementation path is not versioned Microsoft Project evidence. | Exact field/version limits and field-loss matrix remain to be recorded. |
+| MPO native read/write | `MpoFileImporter` and archive/transaction/importer tests cover native read, write and versioned archive behavior. | VERIFIED | #796 | Product-owned format; Microsoft applicability not applicable. | Product-native contract only; retain earlier supported MPO backward reads and field-level round trips; no MSP parity claim. |
+| POD compatibility | `PodRoundTripTest` covers established POD serialization and embedded MSPDI data. | PARTIAL | #796 | Frozen microProject legacy format; Microsoft applicability not applicable. | Preserve wire layout/fixed fixtures; current chooser/writer exposure remains a policy discrepancy. |
+| XLSX read/write | `ProjectLibreXlsxReader`/`Writer` and `XlsxSupportTest` cover native payload, summary sheets and selected round trips. | PARTIAL | #796 | ProjectLibre XLSX native payload and external MSPDI fallback have distinct contracts; no Project edition implied. | Field-loss and external workbook semantic matrix remains incomplete. |
+| PMXML export | Writer factory registers `PrimaveraPMFileWriter`; no importer path found. | PARTIAL | #796 | MPXJ writer path; Microsoft Project edition not applicable. | Export semantics and user-facing advertisement/contract need a separate row review. |
+| GNOME Planner read/write | `PlannerReader` and `PlannerWriter` are registered; this is GNOME Planner file exchange, not Microsoft Planner cloud service. | PARTIAL | #796 | MPXJ exchange path; Microsoft Project edition not applicable. | Semantic round-trip manifest is not established. |
+| JSON / SDEF export | `JsonWriter` and `SDEFWriter` are registered; no importer path found. | PARTIAL | #796 | MPXJ writer paths; Microsoft Project edition not applicable. | Export contract, semantics and UI advertisement need separate review. |
 
 The default project open filter accepts MPP read while the save filter rejects
 it. That is the intended product boundary: MPP is import-only and MPO is the
@@ -90,12 +191,12 @@ microProject-native local automation/extensions or offline collaboration from
 their applicable product scope. Project Server/PWA/Project Online and Microsoft
 Planner cloud connections are also outside the standalone product goal.
 
-| Surface | Current source state | Compatibility disposition |
-|---|---|---|
-| Microsoft Project VBA/macros and macro-facing Project object model | No Microsoft Project-compatible desktop VBA runtime or macro object model is exposed in the current UI/source scan. | EXCLUDED by the explicit user scope decision dated 2026-10-12; tracked in #797 as not planned. This does not exclude microProject-native APIs. |
-| Microsoft Project COM automation/add-ins, VSTO, local Office task-pane add-ins | No Microsoft Project COM automation/add-in bridge or Office add-in host is present in the current Java desktop implementation. | EXCLUDED by the explicit user scope decision dated 2026-10-12; tracked in #797 as not planned. |
-| Project Server / Project Online connection | The desktop application has project-file and local collaboration flows; no Microsoft server connection workflow was found in this audit. | OUT OF SCOPE for the standalone product goal; no client or dependency should be added. |
-| Microsoft Planner linking / cloud account | Backstage omits Share/Account and no cloud linking action is in the standard ribbon catalog. | OUT OF SCOPE for the standalone product goal; do not render dummy controls. GNOME Planner file exchange is tracked separately in the format inventory. |
+| Surface | Current source state | Status/owner | Source/applicability and evidence |
+|---|---|---|---|
+| Microsoft Project VBA/macros and macro-facing Project object model | No Microsoft Project-compatible desktop VBA runtime or macro object model is exposed in the current UI/source scan. | EXCLUDED; #797 | Explicit user scope decision 2026-10-12; Microsoft edition not applicable. Does not exclude microProject-native APIs. |
+| Microsoft Project COM automation/add-ins, VSTO, local Office task-pane add-ins | No Microsoft Project COM automation/add-in bridge or Office add-in host is present in the current Java desktop implementation. | EXCLUDED; #797 | Explicit user scope decision 2026-10-12; Microsoft edition not applicable. |
+| Project Server / PWA / Project Online cloud connection | Desktop application has project-file/local collaboration flows; no Microsoft server connection workflow was found in this audit. | EXCLUDED; #792 | Explicit standalone desktop scope; no client or dependency should be added. |
+| Microsoft Planner linking / cloud account | Backstage omits Share/Account and no cloud-linking action is in the standard ribbon catalog. | EXCLUDED; #792 | Explicit standalone desktop scope. GNOME Planner file exchange is a separate in-scope file row above; Microsoft Planner cloud service is not. |
 
 ## Office customization inventory (#770)
 
@@ -107,16 +208,16 @@ commands cannot be renamed, have their icons changed, or be reordered. Only
 custom tabs can be removed. Import replaces the current ribbon and QAT
 customizations.
 
-| Capability | Current state |
-|---|---|
-| Ribbon display: Auto-hide / Tabs only / Always show | Implemented; physical display-option journeys and locale/scale visual matrix exist. |
-| QAT add/remove, append order, reset | Implemented; add and reset physical Robot journey passed 2026-10-06. |
-| Add, rename, reorder, hide custom/default tabs; remove custom tabs | Missing. |
-| Add, rename, reorder, remove custom groups and add commands to them | Missing. |
-| Rename custom commands and configure their display/icon | Missing. |
-| Reset all ribbon customization and reset one default tab | Missing. |
-| Export/import ribbon and QAT configuration | Missing. |
-| Persist custom ribbon layout across process restart | Missing for custom tabs/groups; QAT persistence needs a production-shell restart acceptance test. |
+| Capability | Status | Owner | Source/applicability | Evidence and explicit unknown |
+|---|---|---|---|---|
+| Ribbon display: Auto-hide / Tabs only / Always show | VERIFIED | #770 | S5; Windows Office customization guide does not identify a Project edition/build. | Physical display-option journeys and locale/scale visual matrix verify display only; user-edited ribbon composition is a separate capability. |
+| QAT add/remove, append order, reset | PARTIAL | #770 | S5; Office guide does not identify a Project edition/build. | `OfficeChromeRibbonDisplayGuiAcceptanceTest` verifies add/reset; import/export and production-shell restart acceptance remain open. |
+| Add, rename, reorder, hide custom/default tabs; remove custom tabs | MISSING | #770 | S5; Windows Office customization behavior, Project edition/build not stated. | No customization UI/setting route in current implementation. |
+| Add, rename, reorder, remove custom groups and add commands to them | MISSING | #770 | S5; edition/build not stated. | No custom group editor or persisted user configuration. |
+| Rename custom commands and configure their display/icon | MISSING | #770 | S5; edition/build not stated. | No custom command configuration route. |
+| Reset all ribbon customization and reset one default tab | MISSING | #770 | S5; edition/build not stated. | Current QAT reset does not implement ribbon-wide or default-tab reset. |
+| Export/import ribbon and QAT configuration | MISSING | #770 | S5; edition/build not stated. | No configuration file import/export path. |
+| Persist custom ribbon layout across process restart | MISSING | #770 | S5; edition/build not stated. | Custom tabs/groups do not exist; QAT production-shell restart remains unverified. |
 
 Do not implement these with a second ribbon renderer or a second Action layer.
 User configuration is user-scoped, separate from project data. Old application
@@ -147,3 +248,30 @@ changes. Visual compatibility (#765) is reviewed separately using current
 Office references and screenshots. Keep #453, #769 and #770 open until their
 rows are implemented or explicitly resolved with an evidence-backed
 unsupported decision.
+
+## M0 inventory checkpoint (#792)
+
+This document is the canonical current inventory; historical issue bodies are
+not a second source of truth. M0 is an inventory-readiness gate, not a demand
+that every capability be implemented. `MISSING`, `PARTIAL`, `UNSUPPORTED`, and
+`EXCLUDED` are valid outcomes when the row includes its owner, source and
+applicability, evidence, and explicit unknowns. They do not alone block M0.
+
+The crosswalk above enumerates the standard command/surface families in #453,
+the acceptance themes in #769, and every Office customization row in #770.
+The exchange-format table separately enumerates each read/write/native/frozen
+format direction. Unobserved Microsoft editions/builds and incomplete test or
+fixture provenance are explicitly labeled; no such unknown is reported as a
+pass. For exact source pages, use IDs S1–S10, and where a source/version is not
+assigned the row names that gap. The #769 Inactivate statement is flagged as a
+source/code conflict rather than silently treated as current evidence. MPP
+write remains explicitly excluded. Respect Links and the two sort inventories
+have current implementation/test evidence, but their broader #794 work remains
+open. Project Online Desktop Client in old issue wording means the standalone
+desktop application; connected Project Online services remain excluded.
+
+M0 is ready for maintainer review against #792 acceptance: verify no capability
+family was omitted from #453/#769/#770, confirm the explicit row dispositions
+and source-version unknowns are adequate, then close #792 if accepted. This
+checkpoint does not claim overall compatibility completion; #794/#796 remain
+open and the #795 release gate remains blocked by those feature/format gaps.
