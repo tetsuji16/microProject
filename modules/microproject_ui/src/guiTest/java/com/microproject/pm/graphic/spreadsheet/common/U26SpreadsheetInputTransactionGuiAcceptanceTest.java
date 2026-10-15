@@ -89,7 +89,7 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 
 		SwingUtilities.invokeAndWait(() -> tabs.setSelectedIndex(0));
 		activate(fixture.entrySheet);
-		editWithPhysicalKeys(robot, fixture.entrySheet, fixture.entryRow, fixture.durationColumn, "10", "1 day");
+		editWithPhysicalKeys(robot, fixture.entrySheet, fixture.entryRow, fixture.durationColumn, "10", "8 days");
 		assertEquals(10L * 60L * 60L * 1000L, Duration.millis(fixture.task.getRawDuration()),
 			"physical bare duration input must use the owning project's default hours");
 		// Task schedules normalize entered durations to physical milliseconds; parsing
