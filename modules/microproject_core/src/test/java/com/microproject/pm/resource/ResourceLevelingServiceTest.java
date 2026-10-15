@@ -61,6 +61,55 @@ class ResourceLevelingServiceTest {
 	}
 
 	@Test
+	void proposedResourcesAreExcludedByDefaultAndIncludedOnlyByExplicitOption() {
+		// Document-derived MSP rule: proposed resources are excluded unless the
+		// leveling dialog explicitly opts them in. See the current Desktop support
+		// guidance and the leveling dialog option:
+		// https://support.microsoft.com/en-us/project/resource-leveling-dialog-box
+		// https://support.microsoft.com/en-us/project/distribute-project-work-evenly-level-resource-assignments
+		Fixture fixture = fixture();
+		fixture.resource.setBookingTypeKind(BookingType.Kind.PROPOSED);
+		NormalTask first = task(fixture.project, "Proposed first", 1L);
+		NormalTask second = task(fixture.project, "Proposed second", 1L);
+		ResourceImpl committed = fixture.project.getResourcePool().newResourceInstance();
+		committed.setName("Committed resource");
+		NormalTask committedFirst = task(fixture.project, "Committed first", 1L);
+		NormalTask committedSecond = task(fixture.project, "Committed second", 1L);
+		AssignmentService.getInstance().newAssignment(first, fixture.resource, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(second, fixture.resource, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(committedFirst, committed, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(committedSecond, committed, 1D, 0L, this);
+		ResourceLevelingService service = new ResourceLevelingService();
+
+		ResourceLevelingService.Plan defaultPlan = service.preview(fixture.project, null,
+			ResourceLevelingService.Options.defaults());
+		assertEquals(List.of(committedSecond), defaultPlan.changes().stream()
+			.map(ResourceLevelingService.Change::task).toList(),
+			"default leveling keeps committed resources active and excludes proposed-resource conflicts");
+		assertTrue(defaultPlan.unresolved().isEmpty(), "excluded proposed work is not a leveling conflict");
+		assertEquals(0L, second.getLevelingDelay(), "excluded proposed work must remain unscheduled");
+
+		ResourceLevelingService.Plan includedPlan = service.preview(fixture.project, null,
+			new ResourceLevelingService.Options(ResourceLevelingService.Order.STANDARD, false, true,
+				Long.MIN_VALUE, Long.MAX_VALUE, true));
+		assertEquals(2, includedPlan.changes().size(), "explicit inclusion adds proposed resources to committed resources");
+		ResourceLevelingService.Plan selectedPlan = service.preview(fixture.project, List.of(fixture.resource),
+			new ResourceLevelingService.Options(ResourceLevelingService.Order.STANDARD, false, true,
+				Long.MIN_VALUE, Long.MAX_VALUE, true));
+		assertEquals(1, selectedPlan.changes().size(), "the selected-resource scope must remain authoritative");
+		assertEquals(second, selectedPlan.changes().getFirst().task());
+		var undo = fixture.project.getUndoController();
+		selectedPlan.apply(undo.getEditSupport());
+		assertTrue(second.getLevelingDelay() > 0L, "explicitly included proposed work must be leveled");
+		assertEquals(0L, committedSecond.getLevelingDelay(), "unselected committed resources must remain untouched");
+		undo.undo();
+		assertEquals(0L, second.getLevelingDelay(), "Undo must restore the proposed-resource assignment schedule");
+		undo.redo();
+		assertTrue(second.getLevelingDelay() > 0L, "Redo must restore the leveled schedule");
+		assertEquals(0L, committedSecond.getLevelingDelay(), "Redo must not affect the unselected resource scope");
+	}
+
+	@Test
 	void selectedTaskLevelingMovesOnlySelectedTasksAgainstFixedUnselectedAssignments() {
 		Fixture fixture = fixture();
 		NormalTask fixed = task(fixture.project, "Unselected", 1L);

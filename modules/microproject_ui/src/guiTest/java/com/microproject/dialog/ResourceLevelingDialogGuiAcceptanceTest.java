@@ -44,29 +44,57 @@ class ResourceLevelingDialogGuiAcceptanceTest {
 	}
 
 	@Test
-	void sameResourceConflictShowsPreviewChangesAfterRobotClick() throws Exception {
+	void proposedResourcesStayOutOfPreviewUntilRobotEnablesThem() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Project project = newConflictProject();
 		SwingUtilities.invokeLater(() -> ResourceLevelingDialogBox.getInstance(null, project).setVisible(true));
 		GuiAcceptanceSupport.await(() -> findDialog() != null, "Resource leveling dialog did not open");
 		ResourceLevelingDialogBox dialog = findDialog();
 		AbstractButton preview = findButton(dialog, UsabilityStrings.text("leveling.preview"));
+		AbstractButton includeProposed = findButton(dialog, UsabilityStrings.text("leveling.includeProposed"));
 		assertTrue(preview != null && preview.isShowing(), "Preview button must be visible");
+		assertTrue(includeProposed != null && includeProposed.isShowing(), "Proposed-resource option must be visible");
+		assertTrue(!isSelected(includeProposed), "Proposed resources must be excluded by default");
+		assertTrue(tableRowCount(dialog) == 0, "default preview must leave proposed-resource conflicts untouched");
+
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(40);
+		click(robot, includeProposed);
+		click(robot, preview);
 
 		Rectangle bounds = new Rectangle();
 		SwingUtilities.invokeAndWait(() -> {
 			java.awt.Point location = preview.getLocationOnScreen();
 			bounds.setBounds(location.x, location.y, preview.getWidth(), preview.getHeight());
 		});
-		Robot robot = new com.microproject.testsupport.GuiRobot();
-		robot.setAutoDelay(40);
+		GuiAcceptanceSupport.await(() -> findTable(dialog) != null && findTable(dialog).getRowCount() > 0,
+			"same-resource conflict preview must show at least one proposed change");
+		assertTrue(isSelected(includeProposed), "physical opt-in must stay selected while showing the plan");
+		capture(robot, dialog);
+	}
+
+	private static void click(Robot robot, Component component) throws Exception {
+		Rectangle bounds = new Rectangle();
+		SwingUtilities.invokeAndWait(() -> {
+			java.awt.Point location = component.getLocationOnScreen();
+			bounds.setBounds(location.x, location.y, component.getWidth(), component.getHeight());
+		});
 		robot.mouseMove(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
 		robot.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+	}
 
-		GuiAcceptanceSupport.await(() -> findTable(dialog) != null && findTable(dialog).getRowCount() > 0,
-			"same-resource conflict preview must show at least one proposed change");
-		capture(robot, dialog);
+	private static boolean isSelected(AbstractButton button) throws Exception {
+		boolean[] selected = new boolean[1];
+		SwingUtilities.invokeAndWait(() -> selected[0] = button.isSelected());
+		return selected[0];
+	}
+
+	private static int tableRowCount(ResourceLevelingDialogBox dialog) throws Exception {
+		int[] rowCount = new int[1];
+		SwingUtilities.invokeAndWait(() -> rowCount[0] = findTable(dialog).getRowCount());
+		return rowCount[0];
 	}
 
 	private static ResourceLevelingDialogBox findDialog() {
@@ -118,6 +146,7 @@ class ResourceLevelingDialogGuiAcceptanceTest {
 		second.setDuration(CalendarOption.getInstance().getMillisPerDay());
 		ResourceImpl resource = pool.newResourceInstance();
 		resource.setName("Shared resource");
+		resource.setBookingTypeKind(com.microproject.pm.resource.BookingType.Kind.PROPOSED);
 		AssignmentService.getInstance().newAssignment(first, resource, 1.0, 0L, ResourceLevelingDialogGuiAcceptanceTest.class);
 		AssignmentService.getInstance().newAssignment(second, resource, 1.0, 0L, ResourceLevelingDialogGuiAcceptanceTest.class);
 		project.recalculate();

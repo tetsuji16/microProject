@@ -2305,6 +2305,8 @@ public class MpoFileImporter extends FileImporter {
 			settings.setLevelingOrder(com.microproject.pm.resource.ResourceLevelingService.Order.valueOf(text(root, "levelingOrder")));
 			settings.setOnlyWithinAvailableSlack(bool(root, "onlyWithinAvailableSlack"));
 			settings.setAllowTaskSplits(bool(root, "allowTaskSplits"));
+			settings.setIncludeProposedResources(root.has("includeProposedResources")
+				? bool(root, "includeProposedResources") : false);
 			CriticalChainService service = new CriticalChainService();
 			CriticalChainService.Settings target = service.settings(project);
 			target.setEnabled(settings.isEnabled());
@@ -2312,6 +2314,7 @@ public class MpoFileImporter extends FileImporter {
 			target.setLevelingOrder(settings.getLevelingOrder());
 			target.setOnlyWithinAvailableSlack(settings.isOnlyWithinAvailableSlack());
 			target.setAllowTaskSplits(settings.isAllowTaskSplits());
+			target.setIncludeProposedResources(settings.isIncludeProposedResources());
 			JsonNode baseline = root.get("baseline");
 			if (baseline != null) service.restoreBaseline(project, baseline(baseline));
 		} catch (RuntimeException e) {
@@ -2426,7 +2429,8 @@ public class MpoFileImporter extends FileImporter {
 		if (settings != null) {
 			xml.append("<ccpm enabled=\"").append(settings.isEnabled()).append("\" bufferFraction=\"").append(settings.getBufferFraction())
 				.append("\" levelingOrder=\"").append(settings.getLevelingOrder()).append("\" onlyWithinAvailableSlack=\"").append(settings.isOnlyWithinAvailableSlack())
-				.append("\" allowTaskSplits=\"").append(settings.isAllowTaskSplits()).append("\">");
+				.append("\" allowTaskSplits=\"").append(settings.isAllowTaskSplits())
+				.append("\" includeProposedResources=\"").append(settings.isIncludeProposedResources()).append("\">");
 			if (baseline != null) {
 				xml.append("<baseline projectFinishMillis=\"").append(baseline.projectFinishMillis()).append("\" projectBufferMillis=\"").append(baseline.projectBufferMillis())
 					.append("\" bufferFraction=\"").append(baseline.bufferFraction()).append("\" allResources=\"").append(baseline.allResources()).append("\"><criticalTaskIds>");
@@ -2462,9 +2466,12 @@ public class MpoFileImporter extends FileImporter {
 			settings.setLevelingOrder(com.microproject.pm.resource.ResourceLevelingService.Order.valueOf(requiredAttribute(value, "levelingOrder")));
 			settings.setOnlyWithinAvailableSlack(Boolean.parseBoolean(requiredAttribute(value, "onlyWithinAvailableSlack")));
 			settings.setAllowTaskSplits(Boolean.parseBoolean(requiredAttribute(value, "allowTaskSplits")));
+			settings.setIncludeProposedResources(value.hasAttribute("includeProposedResources")
+				&& Boolean.parseBoolean(value.getAttribute("includeProposedResources")));
 			CriticalChainService service = new CriticalChainService(); CriticalChainService.Settings target = service.settings(project);
 			target.setEnabled(settings.isEnabled()); target.setBufferFraction(settings.getBufferFraction()); target.setLevelingOrder(settings.getLevelingOrder());
 			target.setOnlyWithinAvailableSlack(settings.isOnlyWithinAvailableSlack()); target.setAllowTaskSplits(settings.isAllowTaskSplits());
+			target.setIncludeProposedResources(settings.isIncludeProposedResources());
 			org.w3c.dom.NodeList baselines = value.getElementsByTagName("baseline");
 			if (baselines.getLength() > 0) {
 				org.w3c.dom.Element baseline = (org.w3c.dom.Element) baselines.item(0);
