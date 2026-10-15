@@ -338,6 +338,32 @@ class RespectLinksServiceTest {
 		assertEquals(oldDirty, successor.isDirty());
 	}
 
+	@Test
+	void automaticConstraintConflictIsRejectedWithoutChangingModeOrDates() throws Exception {
+		Project project = project();
+		NormalTask predecessor = task(project, "Predecessor", 2);
+		NormalTask successor = task(project, "Automatic successor", 1);
+		long day = day();
+		long base = project.getWorkCalendar().adjustInsideCalendar(project.getStart(), false);
+		long late = project.getWorkCalendar().add(base, 5L * day, false);
+		predecessor.setManualDates(late, project.getWorkCalendar().add(late, 2L * day, true));
+		successor.setManualDates(base, project.getWorkCalendar().add(base, day, true));
+		successor.setScheduleConstraint(ConstraintType.Kind.MSO, base);
+		DependencyService.getInstance().newDependency(predecessor, successor, DependencyType.FS, 0L, this);
+		successor.setManuallyScheduled(false);
+		project.recalculate();
+		long oldStart = successor.getStart();
+		long oldFinish = successor.getEnd();
+		assertTrue(ScheduleDiagnosticsService.hasCurrentDependencyConflict(successor));
+
+		assertThrows(IllegalStateException.class, () -> new RespectLinksService().apply(project, List.of(successor)));
+
+		assertEquals(oldStart, successor.getStart());
+		assertEquals(oldFinish, successor.getEnd());
+		assertFalse(successor.isManuallyScheduled());
+		assertEquals(ConstraintType.Kind.MSO, successor.getConstraintTypeKind());
+	}
+
 	private static Project project() {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		Project project = Project.createProject(ResourcePool.createRourcePool("respect-links", undo), undo);
