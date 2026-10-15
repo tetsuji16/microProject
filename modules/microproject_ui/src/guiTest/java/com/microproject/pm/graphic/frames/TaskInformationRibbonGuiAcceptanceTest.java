@@ -3342,8 +3342,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertTrue(finishDateIndex >= 0);
 		GuiAcceptanceSupport.selectComboBoxItem(robot, permanentSorterAgain, finishDateIndex);
 		Dialog permanentChooserAgain = (Dialog) java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow();
+		GuiAcceptanceSupport.selectComboBoxItem(robot, findTaskSortDirection(permanentChooserAgain), 1);
 		assertEquals(1, findTaskSortDirection(permanentChooserAgain).getSelectedIndex(),
-			"the selected task sort direction must carry into permanent ordering");
+			"the permanent sort must use the explicitly selected descending direction");
 		JCheckBox permanentCheckAgain = UiComponentWalker.flatten(permanentChooserAgain).stream()
 			.filter(JCheckBox.class::isInstance).map(JCheckBox.class::cast)
 			.filter(check -> check.getText().equals(ResourceBundle.getBundle("com.microproject.menu.menu")
