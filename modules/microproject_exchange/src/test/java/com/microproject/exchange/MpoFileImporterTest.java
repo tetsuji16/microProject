@@ -2713,12 +2713,41 @@ class MpoFileImporterTest {
 		// https://learn.microsoft.com/en-us/office-project/xml-data-interchange/levelingdelay-element?view=project-client-2016
 		Project original = projectForRoundTrip();
 		NormalTask task = (NormalTask) firstTask(original);
+		long fixtureStart = java.time.Instant.parse("2025-01-06T08:00:00Z").toEpochMilli();
+		original.setStartDate(fixtureStart);
+		task.getCurrentSchedule().setStart(fixtureStart);
+		task.getCurrentSchedule().setFinish(fixtureStart + 2L * 24L * 60L * 60L * 1000L);
+		task.getCurrentSchedule().setRawDuration(8L * 60L * 60L * 1000L);
 		Resource resource = original.getResourcePool().newResourceInstance();
+		resource.setStandardRate(new com.microproject.datatype.Rate(
+			80D / com.microproject.datatype.Duration.timeUnitFactor(com.microproject.datatype.TimeUnit.HOURS),
+			com.microproject.datatype.TimeUnit.HOURS));
 		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, this);
+		assignment.setWork(8L * 60L * 60L * 1000L, null);
 		long manualDelay = com.microproject.datatype.Duration.millis(3L * 60L * 60L * 1000L);
 		long levelingDelay = com.microproject.datatype.Duration.millis(60L * 60L * 1000L);
 		assignment.setDelay(manualDelay);
 		assignment.setLevelingDelay(levelingDelay);
+		original.recalculate();
+		long expectedTaskStart = task.getStart();
+		long expectedTaskFinish = task.getEnd();
+		long expectedAssignmentStart = assignment.getStart();
+		long expectedAssignmentFinish = assignment.getFinish();
+		long expectedAssignmentWork = assignment.getWork(null);
+		double expectedAssignmentCost = assignment.getCost(null);
+		assertEquals(fixtureStart, expectedTaskStart,
+			"the deterministic fixture starts at its explicit task date");
+		assertEquals(expectedAssignmentFinish, expectedTaskFinish,
+			"the deterministic task finish follows its sole assignment's work projection");
+		assertEquals(8L * 60L * 60L * 1000L, expectedAssignmentWork,
+			"the source fixture contributes eight hours of work");
+		assertEquals(640D, expectedAssignmentCost, 0.0001D,
+			"the source fixture contributes eight hours at the configured rate");
+		assertEquals(assignment.getEffectiveWorkCalendar().add(expectedTaskStart,
+			4L * 60L * 60L * 1000L, false), expectedAssignmentStart,
+			"the assignment starts after the independent three-hour manual plus one-hour leveling delay");
+		assertEquals(assignment.getEffectiveWorkCalendar().add(expectedAssignmentStart, expectedAssignmentWork, false),
+			expectedAssignmentFinish, "the assignment finish follows its eight-hour work projection");
 		assertEquals(3L * 60L * 60L * 1000L, com.microproject.datatype.Duration.millis(assignment.getDelay()),
 			"the source assignment must keep manual delay independent from leveling delay");
 
@@ -2732,6 +2761,18 @@ class MpoFileImporterTest {
 			"ordinary MSPDI import must restore the published manual Delay field");
 		assertEquals(60L * 60L * 1000L,
 			com.microproject.datatype.Duration.millis(externalAssignment.getLevelingDelay()));
+		assertEquals(expectedTaskStart, firstTask(externalMspdi).getStart(),
+			"restoring independent delay fields must not shift the imported task start");
+		assertEquals(expectedTaskFinish, firstTask(externalMspdi).getEnd(),
+			"restoring independent delay fields must not shift the imported task finish");
+		assertEquals(expectedAssignmentStart, externalAssignment.getStart(),
+			"the imported assignment must retain its independently calculated start projection");
+		assertEquals(expectedAssignmentFinish, externalAssignment.getFinish(),
+			"the imported assignment must retain its independently calculated finish projection");
+		assertEquals(expectedAssignmentWork, externalAssignment.getWork(null),
+			"restoring delay fields must preserve the imported work projection");
+		assertEquals(expectedAssignmentCost, externalAssignment.getCost(null), 0.0001D,
+			"restoring delay fields must preserve the imported cost projection");
 
 		Project restored = load(initialMpo);
 		Assignment restoredAssignment = firstRealAssignment(restored);
@@ -2741,17 +2782,34 @@ class MpoFileImporterTest {
 			"MPO reload must preserve the MSPDI manual Delay independently of LevelingDelay");
 		assertEquals(60L * 60L * 1000L,
 			com.microproject.datatype.Duration.millis(restoredAssignment.getLevelingDelay()));
+		assertEquals(expectedTaskStart, firstTask(restored).getStart());
+		assertEquals(expectedTaskFinish, firstTask(restored).getEnd());
+		assertEquals(expectedAssignmentStart, restoredAssignment.getStart());
+		assertEquals(expectedAssignmentFinish, restoredAssignment.getFinish());
+		assertEquals(expectedAssignmentWork, restoredAssignment.getWork(null));
+		assertEquals(expectedAssignmentCost, restoredAssignment.getCost(null), 0.0001D);
 
 		new ResourceLevelingService().clear(restored);
 		assertEquals(manualDelayAfterReload, restoredAssignment.getDelay(),
 			"Clear removes generated leveling delay but preserves independent manual assignment delay");
 		assertEquals(0L, com.microproject.datatype.Duration.millis(restoredAssignment.getLevelingDelay()));
+		assertEquals(restoredAssignment.getEffectiveWorkCalendar().add(expectedTaskStart,
+			3L * 60L * 60L * 1000L, false), restoredAssignment.getStart(),
+			"Clear retains the three-hour manual assignment start offset");
 
 		Project clearedReload = load(writeTempMpo(restored));
 		Assignment reloadedAssignment = firstRealAssignment(clearedReload);
+		NormalTask clearedTask = (NormalTask) firstTask(clearedReload);
 		assertEquals(manualDelayAfterReload, reloadedAssignment.getDelay(),
 			"MPO save/reload after Clear retains the saved manual assignment delay");
 		assertEquals(0L, com.microproject.datatype.Duration.millis(reloadedAssignment.getLevelingDelay()));
+		assertEquals(expectedTaskStart, clearedTask.getStart());
+		assertEquals(reloadedAssignment.getEffectiveWorkCalendar().add(expectedTaskStart,
+			3L * 60L * 60L * 1000L, false), reloadedAssignment.getStart());
+		assertEquals(reloadedAssignment.getEffectiveWorkCalendar().add(reloadedAssignment.getStart(),
+			expectedAssignmentWork, false), reloadedAssignment.getFinish());
+		assertEquals(expectedAssignmentWork, reloadedAssignment.getWork(null));
+		assertEquals(expectedAssignmentCost, reloadedAssignment.getCost(null), 0.0001D);
 	}
 
 	@Test
