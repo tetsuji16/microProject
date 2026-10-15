@@ -54,35 +54,43 @@ final class TaskFormatPainterService {
 		}
 		if (after.isEmpty())
 			return List.of();
+		applyStatesAtomically(project, after, undoController, hook,
+			() -> edits.postEdit(new TaskTextFormatEdit(project, before, after, undoController,
+				(task, index) -> { })));
+		return after.keySet().stream().map(Task::getUniqueId).toList();
+	}
+
+	private static void applyStatesAtomically(Project project, Map<Task, TaskTextFormat> states,
+			UndoController undoController, ApplyHook hook, Runnable committed) {
 		boolean projectWasDirty = project.isDirty();
 		try (ProjectMutationState.Scope mutation = project.getMutationState().begin()) {
 			project.beginEventBatch();
 			Project.PendingEventBatch pending;
 			try {
-				ModelTransaction.execute(new ModelTransaction.Steps<Map<Task, TaskState>, List<Long>>() {
+				ModelTransaction.execute(new ModelTransaction.Steps<Map<Task, TaskState>, Void>() {
 					@Override public void validate() { }
 					@Override public void authorize() {
 						if (project.isReadOnly()) throw new IllegalStateException("Cannot format a read-only project");
-						if (undoController.getEditSupport() != edits)
-							throw new IllegalStateException("Format Painter Undo support changed");
+						if (undoController == null || undoController.getEditSupport() == null)
+							throw new IllegalStateException("Format Painter Undo support is unavailable");
 					}
 					@Override public Map<Task, TaskState> capture() {
 						Map<Task, TaskState> snapshot = new LinkedHashMap<>();
-						for (Task task : after.keySet()) snapshot.put(task,
+						for (Task task : states.keySet()) snapshot.put(task,
 							new TaskState(TaskFormatPainterService.capture(task), task.isDirty()));
 						return snapshot;
 					}
-					@Override public ModelTransaction.Mutation<List<Long>> apply() {
+					@Override public ModelTransaction.Mutation<Void> apply() {
 						int index = 0;
-						for (Map.Entry<Task, TaskTextFormat> entry : after.entrySet()) {
+						for (Map.Entry<Task, TaskTextFormat> entry : states.entrySet()) {
 							entry.getValue().applyTo(entry.getKey());
 							hook.afterTask(entry.getKey(), index++);
 						}
-						return ModelTransaction.Mutation.changed(after.keySet().stream().map(Task::getUniqueId).toList());
+						return ModelTransaction.Mutation.changed(null);
 					}
 					@Override public void schedule() { }
 					@Override public void checkInvariants() {
-						for (Map.Entry<Task, TaskTextFormat> entry : after.entrySet())
+						for (Map.Entry<Task, TaskTextFormat> entry : states.entrySet())
 							if (!entry.getValue().equals(TaskFormatPainterService.capture(entry.getKey())))
 								throw new IllegalStateException("Task text style did not apply");
 					}
@@ -93,9 +101,9 @@ final class TaskFormatPainterService {
 						}
 						project.setDirty(projectWasDirty);
 					}
-					@Override public void commit(List<Long> changed) {
-						for (Task task : after.keySet()) project.fireUpdateEvent(TaskFormatPainterService.class, task);
-						edits.postEdit(new TaskTextFormatEdit(project, before, after));
+					@Override public void commit(Void ignored) {
+						for (Task task : states.keySet()) project.fireUpdateEvent(TaskFormatPainterService.class, task);
+						committed.run();
 					}
 				});
 				pending = project.commitEventBatch(mutation, true);
@@ -110,30 +118,19 @@ final class TaskFormatPainterService {
 			}
 			project.publishEventBatch(pending);
 		}
-		return after.keySet().stream().map(Task::getUniqueId).toList();
 	}
 
-	private static void applyStates(Project project, Map<Task, TaskTextFormat> states) {
-		try (ProjectMutationState.Scope mutation = project.getMutationState().begin()) {
-			project.beginEventBatch();
-			Project.PendingEventBatch pending;
-			try {
-				for (Map.Entry<Task, TaskTextFormat> entry : states.entrySet()) {
-					entry.getValue().applyTo(entry.getKey());
-					project.fireUpdateEvent(TaskFormatPainterService.class, entry.getKey());
-				}
-				pending = project.commitEventBatch(mutation, true);
-			} catch (RuntimeException | Error failure) {
-				try { project.endEventBatch(false); }
-				catch (Throwable closeFailure) { failure.addSuppressed(closeFailure); }
-				throw failure;
-			}
-			project.publishEventBatch(pending);
-		}
-	}
-
+	/*
+	 * Apply, Undo, and Redo use the same transactional path. In particular, a failure
+	 * while restoring multiple tasks must leave both the model and edit history intact.
+	 */
 	@FunctionalInterface interface ApplyHook { void afterTask(Task task, int index); }
 	private record TaskState(TaskTextFormat format, boolean dirty) { }
+
+	private static void applyStates(Project project, Map<Task, TaskTextFormat> states,
+			UndoController undoController, ApplyHook hook) {
+		applyStatesAtomically(project, states, undoController, hook, () -> { });
+	}
 
 	record TaskTextFormat(String family, int size, Integer color, boolean bold, boolean italic, boolean strikethrough) {
 		private void applyTo(Task task) {
@@ -146,29 +143,35 @@ final class TaskFormatPainterService {
 		}
 	}
 
-	private static final class TaskTextFormatEdit extends AbstractUndoableEdit {
+	static final class TaskTextFormatEdit extends AbstractUndoableEdit {
 		private static final long serialVersionUID = 1L;
 		private final Project project;
+		private final UndoController undoController;
 		private final Map<Task, TaskTextFormat> before;
 		private final Map<Task, TaskTextFormat> after;
+		private final ApplyHook hook;
 
-		private TaskTextFormatEdit(Project project, Map<Task, TaskTextFormat> before,
-				Map<Task, TaskTextFormat> after) {
+		TaskTextFormatEdit(Project project, Map<Task, TaskTextFormat> before,
+				Map<Task, TaskTextFormat> after, UndoController undoController, ApplyHook hook) {
 			this.project = project;
+			this.undoController = undoController;
 			this.before = new LinkedHashMap<>(before);
 			this.after = new LinkedHashMap<>(after);
+			this.hook = hook;
 		}
 
 		@Override
 		public void undo() {
+			if (!canUndo()) throw new javax.swing.undo.CannotUndoException();
+			applyStates(project, before, undoController, hook);
 			super.undo();
-			applyStates(project, before);
 		}
 
 		@Override
 		public void redo() {
+			if (!canRedo()) throw new javax.swing.undo.CannotRedoException();
+			applyStates(project, after, undoController, hook);
 			super.redo();
-			applyStates(project, after);
 		}
 
 		@Override

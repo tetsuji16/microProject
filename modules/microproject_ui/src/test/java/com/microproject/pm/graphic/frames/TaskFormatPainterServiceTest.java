@@ -11,6 +11,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
 
@@ -114,6 +117,68 @@ class TaskFormatPainterServiceTest {
 	}
 
 	@Test
+	void undoAndRedoFailuresRollbackAtomicallyAndKeepEditHistoryUsable() {
+		Project project = createProject();
+		Task first = (Task)project.createLocalTaskNode(null).getImpl();
+		Task second = (Task)project.createLocalTaskNode(null).getImpl();
+		TaskFormatPainterService.TaskTextFormat before = TaskFormatPainterService.capture(first);
+		TaskFormatPainterService.TaskTextFormat formatted =
+			new TaskFormatPainterService.TaskTextFormat("Dialog", 16, 0xABCDEF, true, true, true);
+		Map<Task, TaskFormatPainterService.TaskTextFormat> beforeStates = new LinkedHashMap<>();
+		Map<Task, TaskFormatPainterService.TaskTextFormat> afterStates = new LinkedHashMap<>();
+		beforeStates.put(first, before);
+		beforeStates.put(second, before);
+		afterStates.put(first, formatted);
+		afterStates.put(second, formatted);
+		setFormat(first, formatted);
+		setFormat(second, formatted);
+		first.setDirty(false);
+		second.setDirty(false);
+		project.setDirty(false);
+		long revision = project.getMutationState().revision();
+		int[] events = { 0 };
+		project.addObjectListener(event -> events[0]++);
+		project.addScheduleListener(event -> events[0]++);
+		AtomicInteger operation = new AtomicInteger();
+		TaskFormatPainterService.ApplyHook hook = (task, index) -> {
+			if (index == 0) operation.incrementAndGet();
+			if (index == 1 && (operation.get() == 1 || operation.get() == 3))
+				throw new IllegalStateException("injected replay failure");
+		};
+		TaskFormatPainterService.TaskTextFormatEdit edit = new TaskFormatPainterService.TaskTextFormatEdit(
+			project, beforeStates, afterStates, project.getUndoController(), hook);
+		project.getUndoController().clear();
+
+		assertThrows(RuntimeException.class, edit::undo);
+		assertEquals(formatted, TaskFormatPainterService.capture(first));
+		assertEquals(formatted, TaskFormatPainterService.capture(second));
+		assertEquals(revision, project.getMutationState().revision());
+		assertEquals(0, events[0]);
+		assertFalse(project.getUndoController().canUndo());
+		assertFalse(project.getUndoController().canRedo());
+		assertFalse(first.isDirty());
+		assertFalse(second.isDirty());
+		assertFalse(project.isDirty());
+		assertTrue(edit.canUndo(), "failed undo must preserve the edit's undo state");
+
+		edit.undo();
+		assertEquals(before, TaskFormatPainterService.capture(first));
+		assertEquals(before, TaskFormatPainterService.capture(second));
+		long undoneRevision = project.getMutationState().revision();
+		int undoneEvents = events[0];
+		assertThrows(RuntimeException.class, edit::redo);
+		assertEquals(before, TaskFormatPainterService.capture(first));
+		assertEquals(before, TaskFormatPainterService.capture(second));
+		assertEquals(undoneRevision, project.getMutationState().revision());
+		assertEquals(undoneEvents, events[0]);
+		assertTrue(edit.canRedo(), "failed redo must preserve the edit's redo state");
+
+		edit.redo();
+		assertEquals(formatted, TaskFormatPainterService.capture(first));
+		assertEquals(formatted, TaskFormatPainterService.capture(second));
+	}
+
+	@Test
 	void missingUndoControllerRejectsBeforeChangingStyle() {
 		Project project = createProject();
 		Task task = (Task)project.createLocalTaskNode(null).getImpl();
@@ -129,5 +194,14 @@ class TaskFormatPainterServiceTest {
 		Project project = Project.createProject(ResourcePool.createRourcePool("format-painter", undo), undo);
 		project.initialize(false, false);
 		return project;
+	}
+
+	private static void setFormat(Task task, TaskFormatPainterService.TaskTextFormat format) {
+		task.setFontFamily(format.family());
+		task.setFontSize(format.size());
+		task.setFontColor(format.color());
+		task.setFontBold(format.bold());
+		task.setFontItalic(format.italic());
+		task.setFontStrikethrough(format.strikethrough());
 	}
 }
