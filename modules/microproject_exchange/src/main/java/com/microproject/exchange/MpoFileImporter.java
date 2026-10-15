@@ -824,6 +824,9 @@ public class MpoFileImporter extends FileImporter {
 					var profiles = taskNode.putArray("profiles");
 					for (BaselineAssignmentProfile profile : snapshot.captureBaselineProfiles(task, slot))
 						writeBaselineProfile(profiles.addObject(), profile, resourceIdentities);
+					var fixedCostProfiles = taskNode.putArray("rolledUpFixedCosts");
+					for (TaskSnapshot.FixedCostProfile profile : snapshot.getRolledUpFixedCostProfiles())
+						writeFixedCostProfile(fixedCostProfiles.addObject(), profile);
 				}
 			}
 			return JSON.writeValueAsBytes(root);
@@ -853,6 +856,15 @@ public class MpoFileImporter extends FileImporter {
 		node.put("overtimeWork", profile.overtimeWork());
 		writeContour(node.putObject("workContour"), profile.workContour());
 		writeContour(node.putObject("costContour"), profile.costContour());
+		writeCalendar(node.putObject("calendar"), profile.calendarCopy());
+	}
+
+	private static void writeFixedCostProfile(ObjectNode node, TaskSnapshot.FixedCostProfile profile) {
+		node.put("cost", profile.fixedCost());
+		node.put("accrual", profile.accrualCode());
+		node.put("start", profile.start());
+		node.put("finish", profile.finish());
+		node.put("rawDuration", profile.rawDuration());
 		writeCalendar(node.putObject("calendar"), profile.calendarCopy());
 	}
 
@@ -962,6 +974,8 @@ public class MpoFileImporter extends FileImporter {
 			Integer fixedCostAccrual = Integer.valueOf(accrualCode);
 			com.microproject.pm.calendar.WorkCalendar fixedCostCalendar = taskNode.has("fixedCostCalendar")
 				? readCalendar(taskNode.path("fixedCostCalendar")) : null;
+			java.util.List<TaskSnapshot.FixedCostProfile> rolledUpFixedCosts = taskNode.has("rolledUpFixedCosts")
+				? readFixedCostProfiles(taskNode.path("rolledUpFixedCosts")) : null;
 			if (taskUid <= 0L || slot < 0 || slot >= Snapshottable.CURRENT.intValue())
 				throw new IOException("MPO baseline profile references an invalid task or slot");
 			String slotKey = taskUid + ":" + slot;
@@ -989,8 +1003,9 @@ public class MpoFileImporter extends FileImporter {
 				}
 			}
 			if (fixedCostCalendar == null) fixedCostCalendar = normalTask.getEffectiveWorkCalendar();
+			fixedCostCalendar = TaskSnapshot.copyCalendarForSnapshot(fixedCostCalendar);
 			replacements.add(new BaselineProfilesReplacement(normalTask, slot, snapshot, assignments,
-				fixedCostAccrual, fixedCostCalendar));
+				fixedCostAccrual, fixedCostCalendar, rolledUpFixedCosts));
 		}
 		for (BaselineProfilesReplacement replacement : replacements)
 			replacement.snapshot().replaceBaselineRollupAssignments(replacement.task(), replacement.slot(),
@@ -999,7 +1014,33 @@ public class MpoFileImporter extends FileImporter {
 			if (replacement.fixedCostAccrual() != null)
 				replacement.snapshot().setFixedCostAccrual(replacement.fixedCostAccrual().intValue());
 		for (BaselineProfilesReplacement replacement : replacements)
-			replacement.snapshot().setFixedCostCalendar(replacement.fixedCostCalendar());
+			replacement.snapshot().setPreparedFixedCostCalendar(replacement.fixedCostCalendar());
+		for (BaselineProfilesReplacement replacement : replacements)
+			if (replacement.rolledUpFixedCosts() != null)
+				replacement.snapshot().setPreparedRolledUpFixedCostProfiles(replacement.rolledUpFixedCosts());
+	}
+
+	private static java.util.List<TaskSnapshot.FixedCostProfile> readFixedCostProfiles(JsonNode node) throws IOException {
+		if (!node.isArray() || node.size() > MAX_OPERATION_COUNT)
+			throw new IOException("Invalid mpo rolled-up fixed-cost profiles");
+		java.util.ArrayList<TaskSnapshot.FixedCostProfile> profiles = new java.util.ArrayList<>(node.size());
+		for (JsonNode profile : node) {
+			JsonNode cost = profile.path("cost");
+			if (!cost.isNumber() || !Double.isFinite(cost.doubleValue()))
+				throw new IOException("Invalid mpo rolled-up fixed cost");
+			int accrual = requiredInt(profile, "accrual");
+			long start = integralLong(profile.path("start"), "start");
+			long finish = integralLong(profile.path("finish"), "finish");
+			long rawDuration = integralLong(profile.path("rawDuration"), "rawDuration");
+			com.microproject.pm.calendar.WorkCalendar calendar = readCalendar(profile.path("calendar"));
+			try {
+				profiles.add(new TaskSnapshot.FixedCostProfile(cost.doubleValue(), accrual, start, finish,
+					rawDuration, calendar));
+			} catch (RuntimeException exception) {
+				throw new IOException("Invalid mpo rolled-up fixed-cost profile", exception);
+			}
+		}
+		return java.util.List.copyOf(profiles);
 	}
 
 	private static BaselineAssignmentProfile readBaselineProfile(JsonNode node) throws IOException {
@@ -1189,7 +1230,8 @@ public class MpoFileImporter extends FileImporter {
 
 	private record BaselineProfilesReplacement(NormalTask task, int slot, TaskSnapshot snapshot,
 		java.util.List<Assignment> assignments, Integer fixedCostAccrual,
-		com.microproject.pm.calendar.WorkCalendar fixedCostCalendar) { }
+		com.microproject.pm.calendar.WorkCalendar fixedCostCalendar,
+		java.util.List<TaskSnapshot.FixedCostProfile> rolledUpFixedCosts) { }
 
 	private static byte[] taskSchedulesJson(Project project, String taskIdentities) throws IOException {
 		try {

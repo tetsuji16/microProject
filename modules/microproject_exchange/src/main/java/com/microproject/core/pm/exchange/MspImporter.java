@@ -143,11 +143,39 @@ public class MspImporter {
 		// before exposing this imported project to a Gantt view.
 		project.initialize(false, false);
 		project.recalculate();
+		captureImportedBaselineFixedCostProfiles(project);
 		restoreImportedAssignmentLevelingDelays();
 		state.validatePostSchedule();
 
 		progress.updateProgress(1f, "Completed");
 		return project;
+	}
+
+	private static void captureImportedBaselineFixedCostProfiles(Project project) {
+		for (Task task : project.getTaskList()) {
+			if (!(task instanceof NormalTask summary)) continue;
+			for (int slot = 0; slot <= 10; slot++) {
+				if (!(summary.getSnapshot(Integer.valueOf(slot)) instanceof TaskSnapshot snapshot)) continue;
+				java.util.ArrayList<TaskSnapshot.FixedCostProfile> profiles = new java.util.ArrayList<>();
+				collectImportedBaselineFixedCosts(summary, slot, profiles);
+				snapshot.setRolledUpFixedCostProfiles(profiles);
+			}
+		}
+	}
+
+	private static void collectImportedBaselineFixedCosts(NormalTask summary, int slot,
+		java.util.List<TaskSnapshot.FixedCostProfile> profiles) {
+		java.util.Collection<com.microproject.grouping.core.Node> children = summary.getWbsChildrenNodes();
+		if (children == null) return;
+		for (com.microproject.grouping.core.Node node : children) {
+			if (!(node.getImpl() instanceof NormalTask child)) continue;
+			if (child.getSnapshot(Integer.valueOf(slot)) instanceof TaskSnapshot childSnapshot) {
+				TaskSnapshot.FixedCostProfile profile = childSnapshot.captureOwnFixedCostProfile(
+					child.getEffectiveWorkCalendar());
+				if (profile != null) profiles.add(profile);
+			}
+			collectImportedBaselineFixedCosts(child, slot, profiles);
+		}
 	}
 
 	private void restoreImportedAssignmentLevelingDelays() {

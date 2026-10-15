@@ -34,6 +34,7 @@ import java.util.Date;
 import java.util.function.Consumer;
 import java.util.Iterator;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Logger;
 
 
@@ -407,8 +408,10 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	public void saveCurrentToSnapshot(Object snapshotId) {
 		TaskSnapshot snapshot = (TaskSnapshot) cloneSnapshot(getSnapshot(CURRENT));
 		if (snapshotId instanceof Integer slot && slot.intValue() >= 0
-				&& slot.intValue() < Snapshottable.CURRENT.intValue())
+				&& slot.intValue() < Snapshottable.CURRENT.intValue()) {
 			snapshot.setFixedCostCalendar(getEffectiveWorkCalendar());
+			snapshot.setRolledUpFixedCostProfiles(captureCurrentDescendantFixedCosts());
+		}
 		setSnapshot(snapshotId, snapshot);
 		markTaskAsNeedingRecalculation(); // for redraw purpooses, not for recalc.
 		setDirty(true);
@@ -844,20 +847,28 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 				numBaseline)));
 		if (snapshot == null)
 			return 0;
-		return snapshot.baselineCost(start, end) + baselineDescendantFixedCost(numBaseline, start, end);
+		return snapshot.baselineCost(start, end);
 	}
 
-	private double baselineDescendantFixedCost(int numBaseline, long start, long end) {
-		Collection<Node> children = getWbsChildrenNodes();
-		if (children == null || children.isEmpty()) return 0.0D;
-		double total = 0.0D;
+	private List<TaskSnapshot.FixedCostProfile> captureCurrentDescendantFixedCosts() {
+		ArrayList<TaskSnapshot.FixedCostProfile> profiles = new ArrayList<>();
+		collectCurrentDescendantFixedCosts(this, profiles);
+		return List.copyOf(profiles);
+	}
+
+	private static void collectCurrentDescendantFixedCosts(NormalTask task,
+		List<TaskSnapshot.FixedCostProfile> profiles) {
+		Collection<Node> children = task.getWbsChildrenNodes();
+		if (children == null || children.isEmpty()) return;
 		for (Node node : children) {
 			if (!(node.getImpl() instanceof NormalTask child)) continue;
-			if (child.getSnapshot(Integer.valueOf(numBaseline)) instanceof TaskSnapshot childSnapshot)
-				total += childSnapshot.fixedCost(start, end);
-			total += child.baselineDescendantFixedCost(numBaseline, start, end);
+			if (child.getCurrentSnapshot() instanceof TaskSnapshot childSnapshot) {
+				TaskSnapshot.FixedCostProfile profile = childSnapshot.captureOwnFixedCostProfile(
+					child.getEffectiveWorkCalendar());
+				if (profile != null) profiles.add(profile);
+			}
+			collectCurrentDescendantFixedCosts(child, profiles);
 		}
-		return total;
 	}
 
 	public double getBaselineWork(int numBaseline, long start, long end) {

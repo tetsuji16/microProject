@@ -396,6 +396,27 @@ class MpoFileImporterTest {
 			.mapToDouble(value -> value.calcAll(Assignment.COST)).sum(), 0.00001D,
 			"The rolled baseline preserves both independent assignment cost contours");
 		assertEquals(7.0d, rolled.getFixedCost());
+		long baselineWindowStart = start - day;
+		long baselineWindowEnd = start + 5L * day;
+		java.util.List<Double> rolledAssignmentIntervalCosts = rolled.getAssignments().stream().map(Assignment.class::cast)
+			.map(value -> value.baselineCost(baselineWindowStart, baselineWindowEnd)).sorted().toList();
+		assertEquals(List.of(125.0d, 375.0d), rolledAssignmentIntervalCosts,
+			"Each rolled same-resource baseline profile must query its own saved contour");
+		double rolledAssignmentIntervalCost = rolledAssignmentIntervalCosts.stream().mapToDouble(Double::doubleValue).sum();
+		assertEquals(40.0d, summary.getBaselineCost(Snapshottable.BASELINE,
+			baselineWindowStart, baselineWindowEnd) - rolledAssignmentIntervalCost, 0.001d,
+			"The rolled summary interval adds both frozen descendant fixed costs and its own once; "
+				+ "independent child calcAll contours remain 125+375="
+				+ (firstSavedBaseline.calcAll(Assignment.COST) + secondSavedBaseline.calcAll(Assignment.COST))
+				+ ", rolled assignment intervals=" + rolled.getAssignments().stream().map(Assignment.class::cast)
+					.map(value -> value.baselineCost(baselineWindowStart, baselineWindowEnd) + "/"
+						+ value.calcAll(Assignment.COST)).toList());
+		assertEquals(540.0d, summary.getBaselineCost(Snapshottable.BASELINE,
+			baselineWindowStart, baselineWindowEnd), 0.001d,
+			"All-time summary baseline cost must equal 500 in child assignment contours plus 40 fixed costs; "
+				+ "rolled assignment intervals=" + rolled.getAssignments().stream().map(Assignment.class::cast)
+					.map(value -> value.baselineCost(baselineWindowStart, baselineWindowEnd) + "/"
+						+ value.calcAll(Assignment.COST)).toList());
 		assertEquals(0, summary.getAssignments().stream()
 			.filter(value -> !((Assignment) value).isDefault()).count(),
 			"Baseline roll-up must not create current summary assignments");
@@ -503,6 +524,14 @@ class MpoFileImporterTest {
 		assertEquals(27L * 60L * 60L * 1000L, restoredBaseline.work(0L, Long.MAX_VALUE),
 			"MPO reload preserves the contributors' regular and overtime baseline work");
 		assertEquals(7.0d, restoredBaseline.getFixedCost());
+		double restoredAssignmentIntervalCost = restoredBaseline.getAssignments().stream().map(Assignment.class::cast)
+			.mapToDouble(value -> value.baselineCost(baselineWindowStart, baselineWindowEnd)).sum();
+		assertEquals(40.0d, restored.getBaselineCost(Snapshottable.BASELINE,
+			baselineWindowStart, baselineWindowEnd) - restoredAssignmentIntervalCost, 0.001d,
+			"MPO reload preserves the rolled-up total fixed-cost contribution profiles");
+		assertEquals(540.0d, restored.getBaselineCost(Snapshottable.BASELINE,
+			baselineWindowStart, baselineWindowEnd), 0.001d,
+			"MPO reload preserves the 500 assignment plus 40 fixed-cost summary baseline total");
 		assertEquals(com.microproject.pm.costing.Accrual.Kind.START.code(), restoredBaseline.getFixedCostAccrual());
 		assertEquals(0, restored.getAssignments().stream()
 			.filter(value -> !((Assignment) value).isDefault()).count(),

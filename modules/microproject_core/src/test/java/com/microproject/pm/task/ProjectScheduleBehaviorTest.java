@@ -736,6 +736,24 @@ class ProjectScheduleBehaviorTest {
 		proratedCost.setWorkCalendar(changed);
 		assertEquals(100.0d, proratedCost.getBaselineCost(slot, start, start + 4L * hour), 0.001d,
 			"Changing the live task calendar must not change the saved baseline fixed-cost distribution");
+
+		double savedRootTotal = summary.getBaselineCost(slot, 0L, Long.MAX_VALUE);
+		endCost.setFixedCost(-600.0d);
+		project.saveCurrentToSnapshot(Integer.valueOf(slot), false, List.of(endCost));
+		assertEquals(savedRootTotal, summary.getBaselineCost(slot, 0L, Long.MAX_VALUE), 0.001d,
+			"Overwriting a descendant baseline without roll-up must not change the saved summary total");
+		project.saveCurrentToSnapshot(Integer.valueOf(slot), false, List.of(endCost),
+			new BaselineRollupOptions(true, false));
+		assertEquals( -185.0d, summary.getBaselineCost(slot, 0L, Long.MAX_VALUE), 0.001d,
+			"An explicit roll-up replaces the frozen descendant contribution exactly once");
+		NormalTask otherParent = project.createScriptedTask();
+		otherParent.setWbsChildrenNodes(List.of(NodeFactory.getInstance().createNode(endCost)));
+		endCost.setWbsParent(otherParent);
+		summary.setWbsChildrenNodes(List.of(NodeFactory.getInstance().createNode(nestedSummary),
+			NodeFactory.getInstance().createNode(startCost), NodeFactory.getInstance().createNode(milestoneCost)));
+		endCost.setFixedCost(900.0d);
+		assertEquals(-185.0d, summary.getBaselineCost(slot, 0L, Long.MAX_VALUE), 0.001d,
+			"Reparenting and changing a descendant must not mutate the stored summary fixed-cost profiles");
 	}
 
 	private static void setPlan(NormalTask task, long start, long duration, double fixedCost) {
