@@ -297,7 +297,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		saveDialog = visibleFileChooserDialog();
 		JTextField fileNameField = findFileChooserNameField(saveDialog);
 		click(robot, fileNameField);
-		GuiAcceptanceSupport.await(fileNameField::isFocusOwner,
+		GuiAcceptanceSupport.await(() -> isFocusOwnerOnEdt(fileNameField),
 			"Save As filename field did not acquire keyboard focus after its physical click");
 		robot.keyPress(java.awt.event.KeyEvent.VK_CONTROL);
 		robot.keyPress(java.awt.event.KeyEvent.VK_A);
@@ -305,8 +305,8 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		robot.keyRelease(java.awt.event.KeyEvent.VK_CONTROL);
 		type(robot, mpoSavedCopy.getFileName().toString());
 		GuiAcceptanceSupport.awaitInputAndEventQueueIdle(robot, "Save As filename entry");
-		assertEquals(mpoSavedCopy.getFileName().toString(), saveChooser.getSelectedFile().getName(),
-			"physical filename entry must update the chooser's selected target before approval");
+		assertEquals(mpoSavedCopy.getFileName().toString(), textOnEdt(fileNameField),
+			"physical filename entry must be present in the chooser field before approval");
 		click(robot, selectFileChooserSaveButton(saveDialog));
 		GuiAcceptanceSupport.await(() -> visibleFileChooserDialog() == null && Files.isRegularFile(mpoSavedCopy),
 			"selected MPO copy was not written");
@@ -1756,6 +1756,26 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			throw new AssertionError("Could not inspect Backstage visibility on the EDT", exception);
 		}
 		return showing[0];
+	}
+
+	private static boolean isFocusOwnerOnEdt(Component component) {
+		boolean[] focused = new boolean[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> focused[0] = component.isFocusOwner());
+		} catch (Exception exception) {
+			throw new AssertionError("Could not inspect file chooser focus on the EDT", exception);
+		}
+		return focused[0];
+	}
+
+	private static String textOnEdt(JTextField field) {
+		String[] text = new String[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> text[0] = field.getText());
+		} catch (Exception exception) {
+			throw new AssertionError("Could not inspect file chooser text on the EDT", exception);
+		}
+		return text[0];
 	}
 
 	private static boolean isInsideTopLevelContent(Component component) {
