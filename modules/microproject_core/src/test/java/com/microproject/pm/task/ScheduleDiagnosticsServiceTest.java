@@ -114,7 +114,9 @@ class ScheduleDiagnosticsServiceTest {
 		successor.setManualDates(successorStart, successorFinish);
 		DependencyService.getInstance().newDependency(predecessor, successor, type, day, this);
 
-		assertTrue(ScheduleDiagnosticsService.hasDependencyConflict(successor), "type=" + type);
+		assertTrue(ScheduleDiagnosticsService.hasDependencyConflict(successor), "type=" + type + " successor="
+			+ successor.getStart() + "/" + successor.getEnd() + " required="
+			+ ScheduleDiagnosticsService.requiredBoundary((Dependency) successor.getPredecessorList().get(0)));
 	}
 
 	private Project project() {

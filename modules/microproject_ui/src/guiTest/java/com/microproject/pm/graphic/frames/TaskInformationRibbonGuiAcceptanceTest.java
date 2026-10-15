@@ -1364,6 +1364,82 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	@Test
+	void respectLinksRibbonRouteMovesTheSelectedManualTaskAndRoundTripsUndoRedoAndMpo() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Respect Links Robot coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("respect-links-ribbon-acceptance", undo), undo);
+		project.initialize(false, false);
+		NormalTask predecessor = project.createScriptedTask();
+		predecessor.setName("Respect Links predecessor");
+		NormalTask successor = project.createScriptedTask();
+		successor.setName("Respect Links successor");
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		predecessor.setDuration(day);
+		successor.setDuration(day);
+		long base = project.getWorkCalendar().adjustInsideCalendar(project.getStart(), false);
+		long predecessorStart = project.getWorkCalendar().add(base, 2L * day, false);
+		long predecessorFinish = project.getWorkCalendar().add(predecessorStart, day, false);
+		long oldSuccessorStart = base;
+		long oldSuccessorFinish = project.getWorkCalendar().add(oldSuccessorStart, day, false);
+		predecessor.setManualDates(predecessorStart, predecessorFinish);
+		successor.setManualDates(oldSuccessorStart, oldSuccessorFinish);
+		DependencyService.getInstance().newDependency(predecessor, successor, DependencyType.FS, 0L, this);
+		project.recalculate();
+		assertTrue(successor.isManuallyScheduled(), "fixture successor must be manually scheduled");
+		assertTrue(successor.getStart() < predecessor.getEnd(), "fixture must begin with an FS conflict");
+		undo.clear();
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> window.setExtendedState(java.awt.Frame.MAXIMIZED_BOTH));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"Respect Links project did not become visible");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, successor), nameColumn(sheet)));
+		clickAndAwaitSelected(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+				.getString("TaskRibbonTask.title")), "Robot click did not select the Task ribbon tab for Respect Links");
+		AbstractButton respectLinks = findVisibleOrOverflowButton(robot, "RibbonRespectLinks");
+		GuiAcceptanceSupport.await(respectLinks::isEnabled, "Respect Links remained disabled for the selected conflicting task");
+		RibbonCommandResult previousOutcome = manager.getLastRibbonCommandResult();
+		click(robot, respectLinks);
+		GuiAcceptanceSupport.await(() -> successor.isManuallyScheduled() && successor.getStart() >= predecessor.getEnd(),
+			"Respect Links did not preserve manual mode while moving the successor after its predecessor");
+		GuiAcceptanceSupport.await(() -> {
+			var cache = manager.getCurrentFrame().getGanttView().getGantt().getModel().getCache();
+			for (int row = 0; row < cache.getSize(); row++) {
+				Object element = cache.getElementAt(row);
+				if (element instanceof GraphicNode graphic && graphic.getNode() != null
+						&& graphic.getNode().getImpl() == successor)
+					return graphic.getStart() == successor.getStart() && graphic.getEnd() == successor.getEnd();
+			}
+			return false;
+		}, "Gantt projection did not redraw the moved successor dates");
+		assertRibbonOutcome(manager, previousOutcome, RibbonCommandResult.Status.CHANGED, successor.getUniqueId());
+		long respectedStart = successor.getStart();
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> successor.isManuallyScheduled() && successor.getStart() == oldSuccessorStart
+				&& successor.getEnd() == oldSuccessorFinish,
+			"Undo did not restore the original manually scheduled dates");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> successor.isManuallyScheduled() && successor.getStart() == respectedStart
+				&& successor.getStart() >= predecessor.getEnd(),
+			"Redo did not restore the link-respecting dates and manual mode");
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, saved), "MPO save rejected the respected schedule");
+		Project reloaded = new MpoFileImporter().loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		NormalTask reloadedSuccessor = taskNamed(reloaded, "Respect Links successor");
+		NormalTask reloadedPredecessor = taskNamed(reloaded, "Respect Links predecessor");
+		assertTrue(reloadedSuccessor.isManuallyScheduled(), "MPO reload lost manual scheduling mode");
+		assertTrue(reloadedSuccessor.getStart() >= reloadedPredecessor.getEnd(), "MPO reload lost the respected FS boundary");
+	}
+
+	@Test
 	void taskModePopupRouteUsesVisibleItemAndSharedMutationFixture() throws Exception {
 		runTaskModePhysicalRoute("popup", context -> {
 			rightClick(context.robot(), context.cell());

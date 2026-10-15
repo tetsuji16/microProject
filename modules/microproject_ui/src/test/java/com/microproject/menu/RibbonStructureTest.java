@@ -106,7 +106,7 @@ class RibbonStructureTest {
 		assertTrue(menuBundle(Locale.ROOT).getString("RibbonMoveTaskDown.tooltip").contains("Alt+Shift+Down"));
 		assertEquals(List.of("RibbonAssignResources", "RibbonDelegateTasks"),
 			ribbonButtonIds("TaskDependenciesRibbonBand"));
-		assertEquals(List.of("RibbonMarkOnTrack", "RibbonUpdateTasks", "RibbonLink", "RibbonUnlink",
+		assertEquals(List.of("RibbonMarkOnTrack", "RibbonUpdateTasks", "RibbonLink", "RibbonUnlink", "RibbonRespectLinks",
 			"RibbonIndent", "RibbonOutdent", "RibbonTaskModeManual", "RibbonTaskModeAutomatic"),
 			ribbonButtonIds("TaskTrackingRibbonBand"));
 		assertEquals(List.of("RibbonProjectInformation", "RibbonChangeWorkingTime", "RibbonCalendarOptions", "RibbonProjectsDialog"),

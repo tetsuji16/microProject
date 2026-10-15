@@ -406,7 +406,7 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 		}
 		long result;
 		if (elapsed) {
-			result = addElapsedTime(date, duration, useSooner);
+			result = addElapsedTime(date, duration);
 		} else if (hasNoWorkingTime()) {
 			// Issue #175: the calendar has no working time at all. Schedule as
 			// elapsed time - the same date + duration arithmetic addElapsedTime
@@ -421,8 +421,10 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 		return negative ? -result : result;
 	}
 
-	private long addElapsedTime(long date, long duration, boolean useSooner) {
-		return adjustInsideCalendar(date + duration, useSooner);
+	private long addElapsedTime(long date, long duration) {
+		// Elapsed durations advance the wall clock exactly. Work-time normalization
+		// belongs to the task start/finish calculation that consumes this date.
+		return date + duration;
 	}
 
 	private long addScheduledTime(long date, long duration, boolean useSooner, boolean forward) {

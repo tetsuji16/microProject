@@ -143,7 +143,7 @@ final class RibbonCommandCatalog {
 		register(result, CommandScope.TASK, TASK,
 			"RibbonInsert", "RibbonInsertRecurring", "RibbonInsertProject", "RibbonIndent", "RibbonOutdent",
 			"RibbonMoveTaskUp", "RibbonMoveTaskDown",
-			"RibbonExpand", "RibbonCollapse", "RibbonLink", "RibbonUnlink", "RibbonAssignResources",
+			"RibbonExpand", "RibbonCollapse", "RibbonLink", "RibbonUnlink", "RibbonRespectLinks", "RibbonAssignResources",
 			"RibbonDelegateTasks", "RibbonTaskInformation", "RibbonNotes", "RibbonUpdateTasks", "RibbonMarkOnTrack", "RibbonDelete",
 			"RibbonCustomFields", "RibbonFind", "RibbonScrollToTask", "RibbonTaskModeManual", "RibbonTaskModeAutomatic",
 			"RibbonHideSelectedTasks", "RibbonShowAllTasks");
