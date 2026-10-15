@@ -26,6 +26,7 @@ import java.awt.Toolkit;
 import java.awt.Window;
 import java.awt.event.InputEvent;
 import java.awt.event.AWTEventListener;
+import java.awt.event.MouseEvent;
 import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -311,6 +312,8 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			"physical filename entry must be present in the chooser field before approval");
 		AbstractButton finalApproveButton = selectFileChooserSaveButton(saveDialog);
 		String preApproveState = saveAsChooserDiagnostics(saveDialog, finalApproveButton);
+		java.util.concurrent.atomic.AtomicBoolean approveActionFired = new java.util.concurrent.atomic.AtomicBoolean();
+		finalApproveButton.addActionListener(event -> approveActionFired.set(true));
 		System.err.println("=== Save As pre-approve diagnostic ===\n" + preApproveState);
 		captureNativeChooserScreen(robot, "mpp-save-as-before-final-approve.png");
 		click(robot, finalApproveButton);
@@ -319,6 +322,8 @@ class RibbonExternalCommandGuiAcceptanceTest {
 				"selected MPO copy was not written");
 		} catch (AssertionError failure) {
 			throw new AssertionError(failure.getMessage() + "\nPre-approve chooser state:\n" + preApproveState
+				+ "\nApprove action fired=" + approveActionFired.get()
+				+ "\nPost-approve chooser state:\n" + saveAsChooserDiagnostics(saveDialog, finalApproveButton)
 				+ "\n" + saveWindowTrace.snapshot(), failure);
 		}
 		GuiAcceptanceSupport.await(() -> mpoSavedCopy.toString().equals(project.getFileName()) && !project.needsSaving(),
@@ -1948,7 +1953,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 
 		void open() {
 			Toolkit.getDefaultToolkit().addAWTEventListener(this,
-				AWTEvent.WINDOW_EVENT_MASK | AWTEvent.WINDOW_FOCUS_EVENT_MASK);
+				AWTEvent.WINDOW_EVENT_MASK | AWTEvent.WINDOW_FOCUS_EVENT_MASK | AWTEvent.MOUSE_EVENT_MASK);
 		}
 
 		void close() {
@@ -1959,6 +1964,15 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			if (event instanceof WindowEvent windowEvent) {
 				Window changed = windowEvent.getWindow();
 				events.add(windowEvent.getID() + " " + describeWindow(changed) + " | " + describeAllWindows());
+			} else if (event instanceof MouseEvent mouseEvent
+					&& (mouseEvent.getID() == MouseEvent.MOUSE_PRESSED || mouseEvent.getID() == MouseEvent.MOUSE_RELEASED)) {
+				Component source = mouseEvent.getComponent();
+				Point screen = new Point(mouseEvent.getX(), mouseEvent.getY());
+				try { SwingUtilities.convertPointToScreen(screen, source); }
+				catch (IllegalComponentStateException ignored) { }
+				String target = source instanceof AbstractButton button ? describeButton(button)
+					: source.getClass().getSimpleName() + "[bounds=" + source.getBounds() + "]";
+				events.add("mouse " + mouseEvent.getID() + " screen=" + screen + " target=" + target);
 			}
 		}
 
@@ -2041,6 +2055,11 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> {
 			JFileChooser chooser = findFileChooser(chooserWindow);
 			JTextField nameField = findFileChooserNameField(chooserWindow);
+			java.awt.Container viewport = SwingUtilities.getAncestorOfClass(javax.swing.JViewport.class, approveButton);
+			String viewportState = viewport instanceof javax.swing.JViewport view
+				? "viewportBounds=" + safeScreenBounds(view)
+					+ ", viewPosition=" + view.getViewPosition() + ", viewSize=" + view.getViewSize()
+				: "viewport=none";
 			KeyboardFocusManager focus = KeyboardFocusManager.getCurrentKeyboardFocusManager();
 			snapshot.set("dialog=" + WindowTrace.describeWindow(chooserWindow)
 				+ "\nchooser.selectedFile=" + chooser.getSelectedFile()
@@ -2048,12 +2067,19 @@ class RibbonExternalCommandGuiAcceptanceTest {
 				+ ", nameFieldText='" + nameField.getText() + "', nameFieldBounds=" + nameField.getBounds()
 				+ ", nameFieldFocus=" + nameField.isFocusOwner()
 				+ "\napprove=" + describeButton(approveButton)
+				+ ", approveScreenBounds=" + safeScreenBounds(approveButton)
+				+ ", " + viewportState
 				+ "\nactive=" + WindowTrace.describeWindow(focus.getActiveWindow())
 				+ ", focused=" + WindowTrace.describeWindow(focus.getFocusedWindow())
 				+ ", focusOwner=" + (focus.getFocusOwner() == null ? "none"
 					: focus.getFocusOwner().getClass().getName() + "[" + focus.getFocusOwner().getName() + "]"));
 		});
 		return snapshot.get();
+	}
+
+	private static String safeScreenBounds(Component component) {
+		try { return new Rectangle(component.getLocationOnScreen(), component.getSize()).toString(); }
+		catch (IllegalComponentStateException notShowing) { return "unavailable(" + notShowing.getMessage() + ")"; }
 	}
 
 	private static String describeButton(AbstractButton button) {
