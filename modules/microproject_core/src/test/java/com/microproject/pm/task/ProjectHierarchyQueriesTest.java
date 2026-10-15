@@ -56,6 +56,21 @@ class ProjectHierarchyQueriesTest {
 	}
 
 	@Test
+	void setLocalParentCanOutdentAnExistingTask() {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("local-parent", undo), undo);
+		project.initialize(false, false);
+		NormalTask parent = project.createScriptedTask();
+		NormalTask child = project.createScriptedTask();
+
+		project.setLocalParent(child, parent);
+		assertSame(parent, child.getWbsParentTask());
+
+		project.setLocalParent(child, null);
+		assertNull(child.getWbsParentTask());
+	}
+
+	@Test
 	void wbsChildrenTasksReturnsImplementationsFromNodeCache() {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		Project project = Project.createProject(ResourcePool.createRourcePool("wbs-children", undo), undo);
