@@ -2034,12 +2034,12 @@ public class DocumentFrame extends NamedFrame implements
 		SpreadSheet sheet = getActiveSpreadSheet();
 		Node node = findTaskNode(project, task);
 		if (sheet == null || node == null) {
-			taskInspectorPanel.showFeedback("Predecessor is not available in this view.");
+			taskInspectorPanel.showFeedback(Messages.getString("TaskInspector.PredecessorUnavailable"));
 			return;
 		}
 		int viewRow = sheet.taskNodeToViewRow(node);
 		if (viewRow < 0) {
-			taskInspectorPanel.showFeedback("Predecessor is hidden by the current filter or grouping.");
+			taskInspectorPanel.showFeedback(Messages.getString("TaskInspector.PredecessorHidden"));
 			return;
 		}
 		sheet.restoreTaskRowSelection(List.of(node));
