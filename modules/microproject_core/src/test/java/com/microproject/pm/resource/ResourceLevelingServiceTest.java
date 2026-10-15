@@ -507,6 +507,83 @@ class ResourceLevelingServiceTest {
 	}
 
 	@Test
+	void failedApplyRestoresMutatedSplitAndDoesNotPublishUndo() {
+		Fixture fixture = fixture();
+		ThrowingApplySplitTask longTask = new ThrowingApplySplitTask(fixture.project);
+		longTask.setName("Long task");
+		fixture.project.connectTask(longTask);
+		fixture.project.getSchedulingAlgorithm().addObject(longTask);
+		longTask.getCurrentSchedule().setStart(fixture.project.getStart());
+		longTask.setDuration(3L * CalendarOption.getInstance().getMillisPerDay());
+		NormalTask blocker = task(fixture.project, "Priority work", 1L);
+		blocker.setPriority(900);
+		long oneDayLater = fixture.project.getEffectiveWorkCalendar().add(
+			fixture.project.getStart(), CalendarOption.getInstance().getMillisPerDay(), false);
+		blocker.setStart(oneDayLater);
+		AssignmentService.getInstance().newAssignment(longTask, fixture.resource, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(blocker, fixture.resource, 1D, 0L, this);
+		long start = longTask.getStart();
+		long finish = longTask.getEnd();
+		var undo = fixture.project.getUndoController();
+		undo.clear();
+		longTask.failAfterSplit = true;
+
+		ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(
+			fixture.project, List.of(fixture.resource), new ResourceLevelingService.Options(
+				ResourceLevelingService.Order.PRIORITY_STANDARD, false, true, Long.MIN_VALUE, Long.MAX_VALUE,
+				false, ResourceLevelingService.Sensitivity.DAY, false));
+		assertFalse(plan.splits().isEmpty());
+		assertThrows(IllegalStateException.class, () -> plan.apply(undo.getEditSupport()));
+
+		assertTrue(longTask.getLevelingTaskSplitIntervals().isEmpty(), "the partial split must be restored");
+		assertEquals(start, longTask.getStart());
+		assertEquals(finish, longTask.getEnd());
+		assertFalse(undo.canUndo(), "a rolled-back apply must not leave an Undo edit");
+	}
+
+	@Test
+	void failedApplyRestoresEveryAssignmentDelayAndDoesNotPublishUndo() {
+		Fixture fixture = fixture();
+		ResourceImpl secondResource = fixture.project.getResourcePool().newResourceInstance();
+		secondResource.setName("Second resource");
+		NormalTask first = task(fixture.project, "First assignment", 3L);
+		ThrowingDirtyTask second = new ThrowingDirtyTask(fixture.project);
+		second.setName("Second assignment");
+		fixture.project.connectTask(second);
+		fixture.project.getSchedulingAlgorithm().addObject(second);
+		second.getCurrentSchedule().setStart(fixture.project.getStart());
+		second.setDuration(3L * CalendarOption.getInstance().getMillisPerDay());
+		NormalTask firstBlocker = task(fixture.project, "First blocker", 1L);
+		NormalTask secondBlocker = task(fixture.project, "Second blocker", 1L);
+		firstBlocker.setPriority(900);
+		secondBlocker.setPriority(900);
+		long oneDayLater = fixture.project.getEffectiveWorkCalendar().add(
+			fixture.project.getStart(), CalendarOption.getInstance().getMillisPerDay(), false);
+		firstBlocker.setStart(oneDayLater);
+		secondBlocker.setStart(oneDayLater);
+		Assignment firstAssignment = AssignmentService.getInstance().newAssignment(first, fixture.resource, 1D, 0L, this);
+		Assignment secondAssignment = AssignmentService.getInstance().newAssignment(second, secondResource, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(firstBlocker, fixture.resource, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(secondBlocker, secondResource, 1D, 0L, this);
+		ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(
+			fixture.project, List.of(fixture.resource, secondResource), new ResourceLevelingService.Options(
+				ResourceLevelingService.Order.PRIORITY_STANDARD, false, false, Long.MIN_VALUE, Long.MAX_VALUE,
+				false, ResourceLevelingService.Sensitivity.DAY, true));
+		assertEquals(2, plan.assignmentChanges().size());
+		var undo = fixture.project.getUndoController();
+		undo.clear();
+		long revision = fixture.project.getMutationState().revision();
+		second.failNextDirty = true;
+
+		assertThrows(IllegalStateException.class, () -> plan.apply(undo.getEditSupport()));
+
+		assertEquals(0L, com.microproject.datatype.Duration.millis(firstAssignment.getLevelingDelay()));
+		assertEquals(0L, com.microproject.datatype.Duration.millis(secondAssignment.getLevelingDelay()));
+		assertEquals(revision, fixture.project.getMutationState().revision(), "a failed apply must not publish a revision");
+		assertFalse(undo.canUndo(), "a rolled-back multi-assignment apply must not leave an Undo edit");
+	}
+
+	@Test
 	void invariantFailureAfterClearRestoresTasksAndDoesNotPublishUndo() {
 		Fixture fixture = fixture();
 		NormalTask first = task(fixture.project, "First", 1L);
@@ -728,6 +805,27 @@ class ResourceLevelingServiceTest {
 			boolean changed = super.clearLevelingGeneratedSplits(eventSource);
 			if (failAfterClear) throw new IllegalStateException("injected clear failure");
 			return changed;
+		}
+	}
+
+	private static final class ThrowingApplySplitTask extends NormalTask {
+		private boolean failAfterSplit;
+		private ThrowingApplySplitTask(Project project) { super(project); }
+		@Override public void splitForLeveling(Object eventSource, long from, long to) {
+			super.splitForLeveling(eventSource, from, to);
+			if (failAfterSplit) throw new IllegalStateException("injected apply failure");
+		}
+	}
+
+	private static final class ThrowingDirtyTask extends NormalTask {
+		private boolean failNextDirty;
+		private ThrowingDirtyTask(Project project) { super(project); }
+		@Override public void setDirty(boolean dirty) {
+			if (failNextDirty) {
+				failNextDirty = false;
+				throw new IllegalStateException("injected second assignment failure");
+			}
+			super.setDirty(dirty);
 		}
 	}
 

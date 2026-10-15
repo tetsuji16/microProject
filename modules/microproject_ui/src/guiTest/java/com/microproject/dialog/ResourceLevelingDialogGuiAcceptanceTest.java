@@ -15,6 +15,7 @@ import java.awt.Robot;
 import java.awt.Window;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.swing.AbstractButton;
 import javax.swing.JComboBox;
@@ -54,9 +55,7 @@ class ResourceLevelingDialogGuiAcceptanceTest {
 			((ResourceImpl) value).setBookingTypeKind(com.microproject.pm.resource.BookingType.Kind.COMMITTED);
 		NormalTask target = (NormalTask) project.getTaskList().get(1);
 		Assignment assignment = (Assignment) target.getAssignments().iterator().next();
-		SwingUtilities.invokeLater(() -> ResourceLevelingDialogBox.getInstance(null, project).setVisible(true));
-		GuiAcceptanceSupport.await(() -> findDialog() != null, "Resource leveling dialog did not open");
-		ResourceLevelingDialogBox dialog = findDialog();
+		ResourceLevelingDialogBox dialog = openDialog(project);
 		AbstractButton preview = findButton(dialog, UsabilityStrings.text("leveling.preview"));
 		AbstractButton levelAssignments = findButton(dialog, UsabilityStrings.text("leveling.assignments"));
 		AbstractButton apply = findButton(dialog, UsabilityStrings.text("leveling.apply"));
@@ -79,9 +78,7 @@ class ResourceLevelingDialogGuiAcceptanceTest {
 	void proposedResourcesStayOutOfPreviewUntilRobotEnablesThem() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Project project = newConflictProject();
-		SwingUtilities.invokeLater(() -> ResourceLevelingDialogBox.getInstance(null, project).setVisible(true));
-		GuiAcceptanceSupport.await(() -> findDialog() != null, "Resource leveling dialog did not open");
-		ResourceLevelingDialogBox dialog = findDialog();
+		ResourceLevelingDialogBox dialog = openDialog(project);
 		AbstractButton preview = findButton(dialog, UsabilityStrings.text("leveling.preview"));
 		AbstractButton includeProposed = findButton(dialog, UsabilityStrings.text("leveling.includeProposed"));
 		JComboBox<?> order = findComboBox(dialog, 0);
@@ -182,10 +179,23 @@ class ResourceLevelingDialogGuiAcceptanceTest {
 		return null;
 	}
 
-	private static ResourceLevelingDialogBox findDialog() {
-		for (Window window : Window.getWindows())
-			if (window instanceof ResourceLevelingDialogBox dialog && dialog.isVisible()) return dialog;
-		return null;
+	private static ResourceLevelingDialogBox openDialog(Project project) throws Exception {
+		ResourceLevelingDialogBox[] dialog = new ResourceLevelingDialogBox[1];
+		SwingUtilities.invokeAndWait(() -> dialog[0] = ResourceLevelingDialogBox.getInstance(null, project));
+		AtomicReference<Throwable> showFailure = new AtomicReference<>();
+		SwingUtilities.invokeLater(() -> {
+			try { dialog[0].setVisible(true); }
+			catch (Throwable failure) { showFailure.set(failure); }
+		});
+		GuiAcceptanceSupport.await(() -> {
+			Throwable failure = showFailure.get();
+			if (failure != null) throw new IllegalStateException("Resource leveling dialog failed while showing", failure);
+			boolean[] visible = new boolean[1];
+			try { SwingUtilities.invokeAndWait(() -> visible[0] = dialog[0].isVisible()); }
+			catch (Exception invocationFailure) { throw new IllegalStateException("Could not inspect dialog visibility", invocationFailure); }
+			return visible[0];
+		}, "Resource leveling dialog did not become visible");
+		return dialog[0];
 	}
 
 	private static AbstractButton findButton(java.awt.Container container, String text) {

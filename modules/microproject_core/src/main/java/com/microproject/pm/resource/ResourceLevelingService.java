@@ -173,12 +173,133 @@ public final class ResourceLevelingService {
 		}
 
 		public void apply() {
-			applyChanges(true);
+			applyAtomically(null, List.of(), null, null);
 		}
 
 		public void apply(EditSupport editSupport) {
-			applyChanges(true);
-			postUndoEdit(editSupport);
+			applyAtomically(editSupport, List.of(), null, null);
+		}
+
+		private void applyAtomically(EditSupport editSupport, Collection<? extends Task> requiredTasks,
+			Runnable validationCheck, Runnable invariantCheck) {
+			ProjectMutationState.coordinated(() -> applyAtomicallyCoordinated(
+				editSupport, requiredTasks, validationCheck, invariantCheck));
+		}
+
+		private void applyAtomicallyCoordinated(EditSupport editSupport, Collection<? extends Task> requiredTasks,
+			Runnable validationCheck, Runnable invariantCheck) {
+			List<Project> projects = affectedProjects(requiredTasks);
+			if (!hasMutations()) return;
+			if (projects.isEmpty()) throw new IllegalStateException("Leveling plan has no owning project");
+			List<ProjectMutationState.Scope> scopes = new ArrayList<>(projects.size());
+			List<Project> openedScopes = new ArrayList<>(projects.size());
+			List<Project> openedBatches = new ArrayList<>(projects.size());
+			List<Project.PendingEventBatch> pendingBatches = new ArrayList<>(projects.size());
+			Map<Task, Object> originalBackups = new IdentityHashMap<>(detailBackups);
+			try {
+				for (Project project : projects) {
+					scopes.add(project.getMutationState().begin());
+					openedScopes.add(project);
+					project.beginEventBatch();
+					openedBatches.add(project);
+				}
+				ModelTransaction.execute(new ModelTransaction.Steps<Map<Project, ProjectTaskSnapshot>, Boolean>() {
+					@Override public void validate() {
+						if (validationCheck != null) validationCheck.run();
+						for (Task task : mutatedTasks(requiredTasks)) {
+							if (task.getOwningProject() == null || task.isReadOnly())
+								throw new IllegalStateException("A leveling task is no longer editable");
+						}
+					}
+					@Override public void authorize() {
+						for (Project project : projects)
+							if (project.isReadOnly()) throw new IllegalStateException("Cannot level a read-only project");
+					}
+					@Override public Map<Project, ProjectTaskSnapshot> capture() {
+						Map<Project, ProjectTaskSnapshot> snapshots = new LinkedHashMap<>();
+						for (Project project : projects) snapshots.put(project, ProjectTaskSnapshot.capture(project));
+						return snapshots;
+					}
+					@Override public ModelTransaction.Mutation<Boolean> apply() {
+						applyChanges(true);
+						return ModelTransaction.Mutation.changed(Boolean.TRUE);
+					}
+					@Override public void schedule() { }
+					@Override public void checkInvariants() {
+						if (invariantCheck != null) invariantCheck.run();
+					}
+					@Override public void restore(Map<Project, ProjectTaskSnapshot> snapshots) {
+						for (Project project : projects) {
+							ProjectTaskSnapshot snapshot = snapshots.get(project);
+							if (snapshot != null) snapshot.restore(project, Plan.this);
+						}
+						detailBackups.clear();
+						detailBackups.putAll(originalBackups);
+					}
+					@Override public void commit(Boolean changed) {
+						for (int index = projects.size() - 1; index >= 0; index--) {
+							Project project = projects.get(index);
+							Project.PendingEventBatch pending = project.commitEventBatch(scopes.get(index), changed);
+							openedBatches.remove(project);
+							openedScopes.remove(project);
+							pendingBatches.add(pending);
+						}
+					}
+				});
+				Project.PendingEventBatch undoBatch = pendingBatches.stream()
+					.filter(batch -> batch != null && batch.undoGroup() != null).findFirst().orElse(null);
+				if (editSupport != null && undoBatch != null) {
+					try (EditSupport.Activation ignored = editSupport.activatePublication(undoBatch.undoGroup())) {
+						postUndoEdit(editSupport);
+					}
+				} else {
+					postUndoEdit(editSupport);
+				}
+				for (int index = 0; index < projects.size(); index++)
+					projects.get(index).publishEventBatch(pendingBatches.get(projects.size() - index - 1));
+			} catch (ModelTransaction.ModelTransactionException failure) {
+				rollbackBatches(openedScopes, openedBatches, scopes, failure);
+				throw new IllegalStateException("Apply leveling failed during " + failure.failedStage(), failure);
+			} catch (RuntimeException | Error failure) {
+				rollbackBatches(openedScopes, openedBatches, scopes, failure);
+				throw failure;
+			}
+		}
+
+		private List<Project> affectedProjects(Collection<? extends Task> requiredTasks) {
+			Set<Project> result = new LinkedHashSet<>();
+			for (Task task : mutatedTasks(requiredTasks)) {
+				Project project = task.getOwningProject();
+				if (project != null) result.add(project);
+			}
+			return List.copyOf(result);
+		}
+
+		private List<Task> mutatedTasks(Collection<? extends Task> requiredTasks) {
+			List<Task> result = new ArrayList<>();
+			if (requiredTasks != null) for (Task task : requiredTasks) addIdentity(result, task);
+			for (Change change : changes) addIdentity(result, change.task());
+			for (Split split : splits) addIdentity(result, split.task());
+			for (NormalTask task : clearGeneratedSplits) addIdentity(result, task);
+			for (AssignmentChange change : assignmentChanges) addIdentity(result, change.assignment().getTask());
+			return List.copyOf(result);
+		}
+
+		private static void addIdentity(List<Task> tasks, Task candidate) {
+			if (candidate != null && tasks.stream().noneMatch(task -> task == candidate)) tasks.add(candidate);
+		}
+
+		private static void rollbackBatches(List<Project> openedScopes, List<Project> openedBatches,
+			List<ProjectMutationState.Scope> scopes, Throwable failure) {
+			for (int index = openedScopes.size() - 1; index >= 0; index--) {
+				Project project = openedScopes.get(index);
+				if (openedBatches.contains(project)) {
+					try { project.endEventBatch(false); }
+					catch (Throwable closeFailure) { failure.addSuppressed(closeFailure); }
+				}
+				try { scopes.get(index).close(); }
+				catch (Throwable closeFailure) { failure.addSuppressed(closeFailure); }
+			}
 		}
 
 		private void postUndoEdit(EditSupport editSupport) {
@@ -402,56 +523,16 @@ public final class ResourceLevelingService {
 					assignmentChanges.add(new AssignmentChange(assignment, assignment.getLevelingDelay(), 0L));
 			}
 		}
-		clearAtomically(project, affected, changes, assignmentChanges, generatedSplits, editSupport);
-		return List.copyOf(affected);
-	}
-
-	private void clearAtomically(Project project, List<Task> affected, List<Change> changes,
-		List<AssignmentChange> assignmentChanges, List<NormalTask> generatedSplits, EditSupport editSupport) {
-		ProjectTaskSnapshot[] before = new ProjectTaskSnapshot[1];
 		Plan clearPlan = new Plan(changes, List.of(), List.of(), assignmentChanges, generatedSplits);
-		try (ProjectMutationState.Scope mutation = project.getMutationState().begin()) {
-			project.beginEventBatch();
-			try {
-				ModelTransaction.execute(new ModelTransaction.Steps<ProjectTaskSnapshot, Boolean>() {
-					@Override public void validate() {
-						for (Task task : affected) {
-							if (task.getOwningProject() != project || task.isReadOnly())
-								throw new IllegalStateException("A leveling task is no longer editable in this project");
-						}
-					}
-					@Override public void authorize() {
-						if (project.isReadOnly()) throw new IllegalStateException("Cannot clear leveling in a read-only project");
-					}
-					@Override public ProjectTaskSnapshot capture() {
-						before[0] = ProjectTaskSnapshot.capture(project);
-						return before[0];
-					}
-					@Override public ModelTransaction.Mutation<Boolean> apply() {
-						clearPlan.applyChanges(true);
-						return ModelTransaction.Mutation.changed(Boolean.TRUE);
-					}
-					@Override public void schedule() { }
-					@Override public void checkInvariants() {
-						for (Task task : affected)
-							if (hasLevelingState(task)) throw new IllegalStateException("Leveling state remains after clear");
-					}
-					@Override public void restore(ProjectTaskSnapshot snapshot) { snapshot.restore(project, ResourceLevelingService.this); }
-					@Override public void commit(Boolean changed) { }
-				});
-				Project.PendingEventBatch pending = project.commitEventBatch(mutation, true);
-				project.publishEventBatch(pending);
-				clearPlan.postUndoEdit(editSupport);
-			} catch (ModelTransaction.ModelTransactionException failure) {
-				try { project.endEventBatch(false); }
-				catch (Throwable closeFailure) { failure.addSuppressed(closeFailure); }
-				throw new IllegalStateException("Clear leveling failed during " + failure.failedStage(), failure);
-			} catch (RuntimeException | Error failure) {
-				try { project.endEventBatch(false); }
-				catch (Throwable closeFailure) { failure.addSuppressed(closeFailure); }
-				throw failure;
-			}
-		}
+		clearPlan.applyAtomically(editSupport, affected, () -> {
+			for (Task task : affected)
+				if (task.getOwningProject() != project || task.isReadOnly())
+					throw new IllegalStateException("A leveling task is no longer editable in this project");
+		}, () -> {
+			for (Task task : affected)
+				if (hasLevelingState(task)) throw new IllegalStateException("Leveling state remains after clear");
+		});
+		return List.copyOf(affected);
 	}
 
 
