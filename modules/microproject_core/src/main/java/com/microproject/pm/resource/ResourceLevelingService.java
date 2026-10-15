@@ -129,40 +129,49 @@ public final class ResourceLevelingService {
 	public record Conflict(Resource resource, Task task, String reason) {
 	}
 	public record Split(Task task, long from, long to, String limitingResource) { }
+	public record AssignmentSplit(Assignment assignment, long from, long to, String limitingResource) { }
 	public record AssignmentChange(Assignment assignment, long oldDelay, long newDelay) { }
 
 	public static final class Plan {
 		private final List<Change> changes;
 		private final List<Conflict> unresolved;
 		private final List<Split> splits;
+		private final List<AssignmentSplit> assignmentSplits;
 		private final List<AssignmentChange> assignmentChanges;
 		private final List<NormalTask> clearGeneratedSplits;
+		private final List<Assignment> clearGeneratedAssignmentSplits;
 		private final Map<Task, Object> detailBackups;
+		private final Map<Assignment, Object> assignmentDetailBackups;
 		private final PlanSourceState sourceState;
 
 		private Plan(List<Change> changes, List<Conflict> unresolved, List<Split> splits) {
-			this(changes, unresolved, splits, List.of(), List.of());
+			this(changes, unresolved, splits, List.of(), List.of(), List.of(), List.of(), null);
 		}
 
 		private Plan(List<Change> changes, List<Conflict> unresolved, List<Split> splits,
 			List<NormalTask> clearGeneratedSplits) {
-			this(changes, unresolved, splits, List.of(), clearGeneratedSplits);
+			this(changes, unresolved, splits, List.of(), List.of(), clearGeneratedSplits, List.of(), null);
 		}
 
 		private Plan(List<Change> changes, List<Conflict> unresolved, List<Split> splits,
 			List<AssignmentChange> assignmentChanges, List<NormalTask> clearGeneratedSplits) {
-			this(changes, unresolved, splits, assignmentChanges, clearGeneratedSplits, null);
+			this(changes, unresolved, splits, List.of(), assignmentChanges, clearGeneratedSplits, List.of(), null);
 		}
 
 		private Plan(List<Change> changes, List<Conflict> unresolved, List<Split> splits,
-			List<AssignmentChange> assignmentChanges, List<NormalTask> clearGeneratedSplits,
+			List<AssignmentSplit> assignmentSplits, List<AssignmentChange> assignmentChanges,
+			List<NormalTask> clearGeneratedSplits, List<Assignment> clearGeneratedAssignmentSplits,
 			PlanSourceState sourceState) {
 			this.changes = List.copyOf(changes);
 			this.unresolved = List.copyOf(unresolved);
 			this.splits = List.copyOf(splits);
+			this.assignmentSplits = List.copyOf(assignmentSplits);
 			this.assignmentChanges = List.copyOf(assignmentChanges);
 			this.clearGeneratedSplits = List.copyOf(clearGeneratedSplits);
-			this.detailBackups = new IdentityHashMap<>(splits.size() + clearGeneratedSplits.size() + assignmentChanges.size());
+			this.clearGeneratedAssignmentSplits = List.copyOf(clearGeneratedAssignmentSplits);
+			this.detailBackups = new IdentityHashMap<>(splits.size() + clearGeneratedSplits.size()
+				+ assignmentChanges.size() + assignmentSplits.size() + clearGeneratedAssignmentSplits.size());
+			this.assignmentDetailBackups = new IdentityHashMap<>(assignmentSplits.size() + clearGeneratedAssignmentSplits.size());
 			this.sourceState = sourceState;
 		}
 
@@ -174,6 +183,7 @@ public final class ResourceLevelingService {
 			return unresolved;
 		}
 		public List<Split> splits() { return splits; }
+		public List<AssignmentSplit> assignmentSplits() { return assignmentSplits; }
 		public List<AssignmentChange> assignmentChanges() { return assignmentChanges; }
 		public boolean hasChanges() { return hasMutations(); }
 
@@ -205,6 +215,7 @@ public final class ResourceLevelingService {
 			List<Project> openedBatches = new ArrayList<>(projects.size());
 			List<Project.PendingEventBatch> pendingBatches = new ArrayList<>(projects.size());
 			Map<Task, Object> originalBackups = new IdentityHashMap<>(detailBackups);
+			Map<Assignment, Object> originalAssignmentBackups = new IdentityHashMap<>(assignmentDetailBackups);
 			try {
 				for (Project project : projects) {
 					scopes.add(project.getMutationState().begin());
@@ -243,8 +254,13 @@ public final class ResourceLevelingService {
 							ProjectTaskSnapshot snapshot = snapshots.get(project);
 							if (snapshot != null) snapshot.restore(project, Plan.this);
 						}
+						for (Map.Entry<Assignment, Object> backup : assignmentDetailBackups.entrySet())
+							backup.getKey().restoreDetail(backup.getValue());
+						for (Project project : projects) project.recalculate();
 						detailBackups.clear();
 						detailBackups.putAll(originalBackups);
+						assignmentDetailBackups.clear();
+						assignmentDetailBackups.putAll(originalAssignmentBackups);
 					}
 					@Override public void commit(Boolean changed) {
 						for (int index = projects.size() - 1; index >= 0; index--) {
@@ -292,6 +308,8 @@ public final class ResourceLevelingService {
 			for (Split split : splits) addIdentity(result, split.task());
 			for (NormalTask task : clearGeneratedSplits) addIdentity(result, task);
 			for (AssignmentChange change : assignmentChanges) addIdentity(result, change.assignment().getTask());
+			for (AssignmentSplit split : assignmentSplits) addIdentity(result, split.assignment().getTask());
+			for (Assignment assignment : clearGeneratedAssignmentSplits) addIdentity(result, assignment.getTask());
 			return List.copyOf(result);
 		}
 
@@ -334,10 +352,25 @@ public final class ResourceLevelingService {
 					task.clearLevelingGeneratedSplits(this);
 					projects.add(task.getOwningProject());
 				}
+				for (AssignmentSplit split : assignmentSplits) {
+					assignmentDetailBackups.computeIfAbsent(split.assignment(), Assignment::backupDetail);
+					if (!ScheduleService.getInstance().splitForLeveling(this, split.assignment(), split.from(), split.to()))
+						throw new IllegalStateException("The planned assignment-level split could not be applied");
+					projects.add(split.assignment().getTask().getOwningProject());
+				}
+				for (Assignment assignment : clearGeneratedAssignmentSplits) {
+					assignmentDetailBackups.computeIfAbsent(assignment, Assignment::backupDetail);
+					assignment.clearLevelingGeneratedSplits(this);
+					projects.add(assignment.getTask().getOwningProject());
+				}
 			} else {
 				for (Map.Entry<Task, Object> backup : detailBackups.entrySet()) {
 					backup.getKey().restoreDetail(this, backup.getValue(), false);
 					projects.add(backup.getKey().getOwningProject());
+				}
+				for (Map.Entry<Assignment, Object> backup : assignmentDetailBackups.entrySet()) {
+					backup.getKey().restoreDetail(backup.getValue());
+					projects.add(backup.getKey().getTask().getOwningProject());
 				}
 			}
 			for (Change change : changes) {
@@ -358,7 +391,9 @@ public final class ResourceLevelingService {
 		}
 
 		private boolean hasMutations() {
-			return !changes.isEmpty() || !assignmentChanges.isEmpty() || !splits.isEmpty() || !clearGeneratedSplits.isEmpty();
+			return !changes.isEmpty() || !assignmentChanges.isEmpty() || !splits.isEmpty()
+				|| !assignmentSplits.isEmpty() || !clearGeneratedSplits.isEmpty()
+				|| !clearGeneratedAssignmentSplits.isEmpty();
 		}
 
 		public void revert() {
@@ -519,6 +554,7 @@ public final class ResourceLevelingService {
 		private final Map<Long, Double> bucketCapacities = new HashMap<>();
 		private final Map<Long, Scheduled> firstBucketAssignments = new HashMap<>();
 		private final Map<Assignment, List<WorkSegment>> workProfiles = new IdentityHashMap<>();
+		private final Map<Assignment, Assignment> virtualAssignments = new IdentityHashMap<>();
 
 		private void reset(int assignmentCount) {
 			assignments.ensureCapacity(assignmentCount);
@@ -579,6 +615,7 @@ public final class ResourceLevelingService {
 		Map<Assignment, Long> assignmentAddedDelay = new IdentityHashMap<>();
 		Map<Task, String> limitingResource = new IdentityHashMap<>();
 		Map<Task, Split> splits = new IdentityHashMap<>();
+		Map<Assignment, List<AssignmentSplit>> assignmentSplits = new IdentityHashMap<>();
 		List<Conflict> unresolved = new ArrayList<>(Math.max(4, resources.size()));
 		LevelingScratch scratch = new LevelingScratch();
 
@@ -588,7 +625,7 @@ public final class ResourceLevelingService {
 			changed = false;
 			for (Resource resource : resources) {
 				changed |= levelResource(resource, options, selectedTasks, addedDelay, assignmentAddedDelay,
-					limitingResource, splits, unresolved, scratch);
+					limitingResource, splits, assignmentSplits, unresolved, scratch);
 			}
 		} while (changed && ++pass < Math.max(8, resources.size() * 4));
 
@@ -613,8 +650,10 @@ public final class ResourceLevelingService {
 				Duration.millis(assignment.getLevelingDelay()) + entry.getValue()));
 		}
 		sourceState.assertUnchanged();
+		List<AssignmentSplit> assignmentSplitChanges = new ArrayList<>();
+		for (List<AssignmentSplit> values : assignmentSplits.values()) assignmentSplitChanges.addAll(values);
 		return new Plan(new ArrayList<>(result.values()), deduplicate(unresolved), new ArrayList<>(splits.values()),
-			assignmentChanges, List.of(), sourceState);
+			assignmentSplitChanges, assignmentChanges, List.of(), List.of(), sourceState);
 	}
 
 	public void clear(Project project) {
@@ -650,7 +689,8 @@ public final class ResourceLevelingService {
 		if (Duration.millis(task.getLevelingDelay()) != 0L
 			|| task instanceof NormalTask normalTask && !normalTask.getLevelingTaskSplitIntervals().isEmpty()) return true;
 		if (task instanceof NormalTask normalTask) for (Object value : normalTask.getAssignments())
-			if (Duration.millis(((Assignment) value).getLevelingDelay()) != 0L) return true;
+			if (Duration.millis(((Assignment) value).getLevelingDelay()) != 0L
+				|| ((Assignment) value).getLevelingSplitState() != null) return true;
 		return false;
 	}
 
@@ -665,6 +705,7 @@ public final class ResourceLevelingService {
 		List<Change> changes = new ArrayList<>(affected.size());
 		List<AssignmentChange> assignmentChanges = new ArrayList<>();
 		List<NormalTask> generatedSplits = new ArrayList<>();
+		List<Assignment> generatedAssignmentSplits = new ArrayList<>();
 		for (Task task : affected) {
 			if (Duration.millis(task.getLevelingDelay()) != 0L) {
 				changes.add(new Change(task, task.getLevelingDelay(), 0L, task.getStart(), task.getStart(), ""));
@@ -676,9 +717,11 @@ public final class ResourceLevelingService {
 				Assignment assignment = (Assignment) value;
 				if (Duration.millis(assignment.getLevelingDelay()) != 0L)
 					assignmentChanges.add(new AssignmentChange(assignment, assignment.getLevelingDelay(), 0L));
+				if (assignment.getLevelingSplitState() != null) generatedAssignmentSplits.add(assignment);
 			}
 		}
-		Plan clearPlan = new Plan(changes, List.of(), List.of(), assignmentChanges, generatedSplits);
+		Plan clearPlan = new Plan(changes, List.of(), List.of(), List.of(), assignmentChanges,
+			generatedSplits, generatedAssignmentSplits, null);
 		clearPlan.applyAtomically(editSupport, affected, () -> {
 			for (Task task : affected)
 				if (task.getOwningProject() != project || task.isReadOnly())
@@ -693,7 +736,8 @@ public final class ResourceLevelingService {
 
 	private boolean levelResource(Resource resource, Options options, Set<Task> selectedTasks, Map<Task, Long> addedDelay,
 		Map<Assignment, Long> assignmentAddedDelay,
-		Map<Task, String> limitingResource, Map<Task, Split> splits, List<Conflict> unresolved,
+		Map<Task, String> limitingResource, Map<Task, Split> splits,
+		Map<Assignment, List<AssignmentSplit>> assignmentSplits, List<Conflict> unresolved,
 		LevelingScratch scratch) {
 		if (resource == null || !resource.isLabor() || resource.getMaximumUnits() <= 0D
 			|| (!options.includeProposedResources()
@@ -728,8 +772,10 @@ public final class ResourceLevelingService {
 		boolean changed = false;
 		for (Assignment assignment : assignments) {
 			Task task = assignment.getTask();
+			Assignment virtualAssignment = scratch.virtualAssignments.get(assignment);
 			if (selectedTasks != null && !selectedTasks.contains(task)) {
-				Scheduled scheduled = new Scheduled(assignment, task, assignment.getStart(), assignment.getEnd(),
+				Assignment schedule = virtualAssignment == null ? assignment : virtualAssignment;
+				Scheduled scheduled = new Scheduled(assignment, task, schedule.getStart(), schedule.getEnd(),
 					Math.max(0D, assignment.getUnits()));
 				accepted.add(scheduled);
 				addBucketLoads(scheduled, options.sensitivity(), scratch);
@@ -739,7 +785,8 @@ public final class ResourceLevelingService {
 			long existingAdded = levelAssignment
 				? assignmentAddedDelay.getOrDefault(assignment, 0L)
 				: addedDelay.getOrDefault(task, 0L);
-			long duration = Math.max(0L, assignment.getEnd() - assignment.getStart());
+			Assignment schedule = virtualAssignment == null ? assignment : virtualAssignment;
+			long duration = Math.max(0L, schedule.getEnd() - schedule.getStart());
 			long start = shiftedStart(task, assignment.getStart(), existingAdded);
 			long end = start + duration;
 			Split proposedSplit = null;
@@ -754,6 +801,23 @@ public final class ResourceLevelingService {
 					Split previous = splits.put(task, proposedSplit);
 					limitingResource.put(task, resource.getName());
 					changed |= !proposedSplit.equals(previous);
+					break;
+				}
+				if (levelAssignment && options.allowTaskSplits() && task.isLevelingCanSplit()
+					&& blocker != null && blocker.start() > start && blocker.end() < end
+					&& !task.isMilestone() && !task.inProgress()) {
+					virtualAssignment = scratch.virtualAssignments.computeIfAbsent(assignment,
+						ignored -> (Assignment) assignment.clone());
+					if (ScheduleService.getInstance().splitForLeveling(this, virtualAssignment, blocker.start(), blocker.end())) {
+						scratch.workProfiles.remove(assignment);
+						AssignmentSplit split = new AssignmentSplit(assignment, blocker.start(), blocker.end(), resource.getName());
+						assignmentSplits.computeIfAbsent(assignment, ignored -> new ArrayList<>()).add(split);
+						limitingResource.put(task, resource.getName());
+						changed = true;
+						start = shiftedStart(task, virtualAssignment.getStart(), existingAdded);
+						end = start + Math.max(0L, virtualAssignment.getEnd() - virtualAssignment.getStart());
+						continue;
+					}
 					break;
 				}
 				if (!canMove(task, options, existingAdded, unresolved, resource)) {
@@ -881,8 +945,10 @@ public final class ResourceLevelingService {
 		long overlapStart = Math.max(start, bucketStart);
 		long overlapEnd = Math.min(end, bucketEnd);
 		if (overlapStart >= overlapEnd) return 0D;
-		List<WorkSegment> profile = scratch.workProfiles.computeIfAbsent(assignment, ResourceLevelingService::workProfile);
-		long shift = start - assignment.getStart();
+		Assignment profileAssignment = scratch.virtualAssignments.getOrDefault(assignment, assignment);
+		List<WorkSegment> profile = scratch.workProfiles.computeIfAbsent(assignment,
+			ignored -> workProfile(profileAssignment));
+		long shift = start - profileAssignment.getStart();
 		long taskShift = start - assignment.getStart();
 		double work = 0D;
 		for (WorkSegment segment : profile) {

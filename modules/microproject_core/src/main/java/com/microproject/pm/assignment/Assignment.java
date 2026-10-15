@@ -1094,6 +1094,28 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 		detail.split(eventSource, from, to);
 	}
 
+	/** Adds a leveling-owned split while retaining the contour state needed by Clear Leveling. */
+	public boolean splitForLeveling(Object eventSource, long from, long to) {
+		boolean changed = detail.splitForLeveling(eventSource, from, to);
+		if (changed && getTask() != null)
+			getTask().recalculate(eventSource);
+		return changed;
+	}
+
+	public AssignmentLevelingSplitState getLevelingSplitState() {
+		return detail.getLevelingSplitState();
+	}
+
+	public void restoreLevelingSplitState(AssignmentLevelingSplitState state) {
+		detail.restoreLevelingSplitState(state);
+	}
+
+	public boolean clearLevelingGeneratedSplits(Object eventSource) {
+		boolean changed = detail.clearLevelingGeneratedSplits();
+		if (changed && getTask() != null) getTask().recalculate(eventSource);
+		return changed;
+	}
+
 	public void extendBefore(long start, long end, long extendDuration) {
 		timeFacade.extendBefore(start, end, extendDuration);
 
