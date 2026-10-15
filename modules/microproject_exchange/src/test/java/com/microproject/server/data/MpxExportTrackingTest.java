@@ -1119,6 +1119,21 @@ class MpxExportTrackingTest {
 		assertEquals(2.0d, taskNamed(mppImport, "Baseline1 Cost - Task").getBaselineCost(1), 0.00001d);
 		assertEquals(11.0d, taskNamed(mppImport, "Baseline10 Cost - Task").getBaselineCost(10), 0.00001d);
 
+		NormalTask importedCostTask = (NormalTask) taskNamed(importMspdi(mspdi), "Baseline Cost - Task");
+		Project lifecycleProject = (Project) importedCostTask.getProject();
+		assertEquals(1.0d, importedCostTask.getBaselineCost(0), 0.00001d);
+		importedCostTask.setFixedCost(9.0d);
+		var overwrite = lifecycleProject.saveCurrentToSnapshot(Integer.valueOf(0), false,
+			List.of(importedCostTask));
+		assertEquals(9.0d, importedCostTask.getBaselineCost(0), 0.00001d,
+			"Overwriting a baseline replaces its imported aggregate with the selected current snapshot");
+		overwrite.undo();
+		assertEquals(1.0d, importedCostTask.getBaselineCost(0), 0.00001d,
+			"Undo restores the imported aggregate baseline value");
+		overwrite.redo();
+		assertEquals(9.0d, importedCostTask.getBaselineCost(0), 0.00001d,
+			"Redo restores the overwritten current snapshot without the stale aggregate");
+
 		Project imported = importMspdi(mspdi);
 		assertProject2019TaskBaselines(imported);
 		ByteArrayOutputStream mpo = new ByteArrayOutputStream();
