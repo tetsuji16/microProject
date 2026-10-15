@@ -1452,8 +1452,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		previousNewLook = Environment.isNewLook();
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
-		NormalTask task = createTask();
-		task.setPercentComplete(0.4d);
+		NormalTask task = createTaskWithProgress(0.4d);
 		Project project = task.getOwningProject();
 		showProject(project);
 		SwingUtilities.invokeAndWait(() -> window.setExtendedState(java.awt.Frame.MAXIMIZED_BOTH));
@@ -1464,6 +1463,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		assertProgressTaskFixtureRendered(sheet, task, 0.4d);
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, task), nameColumn(sheet)));
 		clickAndAwaitSelected(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("TaskRibbonTask.title")), "Robot click did not select the Task ribbon tab for Inactivate Task");
@@ -4093,6 +4093,27 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		task.setName("Ribbon information acceptance");
 		project.getResourcePool().createScriptedResource().setName("Ribbon resource acceptance");
 		return task;
+	}
+
+	private static NormalTask createTaskWithProgress(double percentComplete) {
+		NormalTask task = createTask();
+		task.setDuration(CalendarOption.getInstance().getMillisPerDay());
+		task.setPercentComplete(percentComplete);
+		assertEquals(percentComplete, task.getPercentComplete(), 0.00001d,
+			"Progress fixture must use a nonzero-duration task so percent complete is task-level work progress");
+		return task;
+	}
+
+	private static void assertProgressTaskFixtureRendered(SpreadSheet sheet, NormalTask task, double percentComplete)
+			throws Exception {
+		GuiAcceptanceSupport.await(() -> sheet.isShowing() && isTaskVisible(sheet, task),
+			"Progress fixture task row did not render in the visible task sheet");
+		int row = rowForTask(sheet, task);
+		Rectangle nameCell = sheet.getCellRect(row, nameColumn(sheet), true);
+		assertTrue(sheet.getVisibleRect().contains(nameCell),
+			"Progress fixture task name cell must be inside the rendered spreadsheet viewport");
+		assertEquals(percentComplete, task.getPercentComplete(), 0.00001d,
+			"Progress fixture domain value must be established before the physical command");
 	}
 
 	private static NormalTask taskNamed(Project project, String name) {
