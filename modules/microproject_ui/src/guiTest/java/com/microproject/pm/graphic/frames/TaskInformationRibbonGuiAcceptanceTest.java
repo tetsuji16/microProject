@@ -3224,15 +3224,21 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		}
 		assertTrue(nameIndex >= 0, "the secondary key must use the shared task sorter catalog");
 		GuiAcceptanceSupport.selectComboBoxItem(robot, secondField, nameIndex);
+		assertTrue(secondField.getSelectedItem() instanceof CommonTransformFactory selectedName
+				&& "Sorter.Name".equals(selectedName.getId()), "the physical chooser must select Name as its secondary key");
 		JComboBox<?> secondDirection = UiComponentWalker.flatten(multiKeyChooser).stream()
 			.filter(JComboBox.class::isInstance).map(JComboBox.class::cast)
 			.filter(field -> "microproject.taskSort.secondaryDirection".equals(field.getName())).findFirst().orElseThrow();
 		GuiAcceptanceSupport.selectComboBoxItem(robot, secondDirection, 1);
+		assertEquals(1, secondDirection.getSelectedIndex(), "the secondary Name key must be explicitly descending");
 		JCheckBox keepOutline = UiComponentWalker.flatten(multiKeyChooser).stream()
 			.filter(JCheckBox.class::isInstance).map(JCheckBox.class::cast)
 			.filter(check -> "microproject.taskSort.keepOutline".equals(check.getName())).findFirst().orElseThrow();
 		click(robot, keepOutline);
 		click(robot, findShowingButtonByText(multiKeyChooser, javax.swing.UIManager.getString("OptionPane.okButtonText")));
+		assertEquals(List.of(new TaskSortSpec.Key("Sorter.StartDate", true), new TaskSortSpec.Key("Sorter.Name", false)),
+			taskSortViewToRestore.getTransform().getTaskSortSpec().keys(),
+			"confirming the dialog must atomically commit both selected keys and directions");
 		GuiAcceptanceSupport.await(() -> visibleTaskOrder(sheet).equals(
 				List.of("Date sort tied earlier", "Date sort earlier", "Date sort later")),
 			"the physical sort route must apply the secondary descending Name key; rows=" + visibleTaskOrder(sheet));

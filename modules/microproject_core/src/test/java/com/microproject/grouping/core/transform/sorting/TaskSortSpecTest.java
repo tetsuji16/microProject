@@ -104,6 +104,22 @@ class TaskSortSpecTest {
 				.comparator(id -> nameSorter).compare(empty, named));
 	}
 
+	@Test
+	void canonicalCatalogComparatorAppliesDescendingNameAfterEqualStartDates() {
+		com.microproject.configuration.Dictionary.getInstance();
+		NormalTask earlierName = new NormalTask();
+		earlierName.setName("Date sort earlier");
+		NormalTask laterName = new NormalTask();
+		laterName.setName("Date sort tied earlier");
+		TaskSortSpec spec = new TaskSortSpec(List.of(
+				new TaskSortSpec.Key("Sorter.StartDate", true),
+				new TaskSortSpec.Key("Sorter.Name", false)), true);
+
+		assertEquals(earlierName.getStart(), laterName.getStart(), "fixture must tie on Start Date");
+		assertEquals(1, spec.comparator().compare(earlierName, laterName),
+			"descending Name must reverse the lexical order after the primary Start Date tie");
+	}
+
 	private static NodeSorter sorter(Comparator<Object> comparator) {
 		return new NodeSorter() {
 			@Override public int compare(Object left, Object right) { return comparator.compare(left, right); }

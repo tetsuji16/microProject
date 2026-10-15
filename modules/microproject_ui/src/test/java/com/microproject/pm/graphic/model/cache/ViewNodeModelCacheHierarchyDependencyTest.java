@@ -119,6 +119,29 @@ class ViewNodeModelCacheHierarchyDependencyTest {
 	}
 
 	@Test
+	void multiKeyTaskSortAppliesDescendingNameAfterEqualStartDates() throws Exception {
+		Dictionary.getInstance();
+		Project project = createProject();
+		NormalTask earlierName = createTask(project, "Date sort earlier");
+		NormalTask laterName = createTask(project, "Date sort tied earlier");
+		assertEquals(earlierName.getStart(), laterName.getStart(), "fixture must tie on Start Date");
+		DefaultNodeModel model = (DefaultNodeModel) project.getTaskModel();
+		ReferenceNodeModelCache reference = NodeModelCacheFactory.createTaskNodeModelCache(project, model);
+		ViewNodeModelCache sortedView = (ViewNodeModelCache) NodeModelCacheFactory.getInstance().createFilteredCache(
+			reference, "multi-key-sort-test", transformer -> ((ViewTransformer) transformer).setTaskSortSpec(
+				new TaskSortSpec(List.of(new TaskSortSpec.Key("Sorter.StartDate", true),
+						new TaskSortSpec.Key("Sorter.Name", false)), true)));
+		reference.update();
+		try {
+			assertEquals(List.of("Date sort tied earlier", "Date sort earlier"), visibleNames(sortedView),
+				"the view pipeline must resolve and apply a secondary descending Name comparator");
+		} finally {
+			sortedView.close();
+			reference.close();
+		}
+	}
+
+	@Test
 	void firstListenerSeesAllDependencyFactsFromTheSameRevision() throws Exception {
 		Project project = createProject();
 		NormalTask predecessor = createTask(project, "Predecessor");
