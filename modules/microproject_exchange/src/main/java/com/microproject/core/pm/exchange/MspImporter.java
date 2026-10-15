@@ -327,6 +327,7 @@ public class MspImporter {
 			if (rawUid == null) continue;
 			long uid = Long.parseLong(rawUid);
 			Map<Integer, MpxImportState.RawMspdiTaskBaseline> baselines = new HashMap<>();
+			java.util.Set<Integer> seenBaselineSlots = new java.util.HashSet<>();
 			for (org.w3c.dom.Element baseline : xmlDirectChildren(task, "Baseline", namespace)) {
 				String rawNumber = xmlChildText(baseline, "Number", namespace);
 				String rawFormat = xmlChildText(baseline, "DurationFormat", namespace);
@@ -337,6 +338,8 @@ public class MspImporter {
 				if (rawBaselineCost != null) parseMspdiCurrency(rawBaselineCost, "MSPDI baseline Cost");
 				int slot = Integer.parseInt(rawNumber);
 				if (slot < 0 || slot > 10) throw new IllegalArgumentException("MSPDI baseline number is outside 0..10");
+				if (!seenBaselineSlots.add(Integer.valueOf(slot)))
+					throw new IllegalArgumentException("MSPDI task contains duplicate baseline slots");
 				Long durationMillis = null;
 				Integer durationFormat = null;
 				if (rawFormat != null && rawDuration != null) {

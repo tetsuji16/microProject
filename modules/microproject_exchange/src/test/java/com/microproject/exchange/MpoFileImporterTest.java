@@ -119,7 +119,7 @@ class MpoFileImporterTest {
 			+ "<TimephasedData><Type>5</Type><Value>0.001</Value></TimephasedData>"
 			+ "<TimephasedData><Type>4</Type><Value>8</Value></TimephasedData>"
 			+ "<TimephasedData><Type>23</Type><Value>1.25</Value></TimephasedData>"
-			+ "</Assignment></Project>";
+			+ "</Assignment><Task><TimephasedData><Type>5</Type><Value>0.001</Value></TimephasedData></Task></Project>";
 		String migrated = new String(MpoFileImporter.migrateLegacyAssignmentBaselineCosts(
 			xml.getBytes(java.nio.charset.StandardCharsets.UTF_8)), java.nio.charset.StandardCharsets.UTF_8);
 		assertTrue(migrated.contains("<Type>5</Type><Value>0.1</Value>"),
@@ -128,6 +128,8 @@ class MpoFileImporterTest {
 			"Baseline work rows remain unchanged");
 		assertTrue(migrated.contains("<Type>23</Type><Value>125</Value>"),
 			"Numbered baseline currency rows use the same conversion");
+		assertTrue(migrated.contains("<Task><TimephasedData><Type>5</Type><Value>0.001</Value></TimephasedData></Task>"),
+			"Type 5 rows outside Assignment elements are not migrated");
 	}
 
 	@Test

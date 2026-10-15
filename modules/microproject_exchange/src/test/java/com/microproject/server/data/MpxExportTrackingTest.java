@@ -1107,6 +1107,10 @@ class MpxExportTrackingTest {
 		assertTrue(mspdi.contains("<Duration>PT88H0M0S</Duration>"), "source baseline zero duration is 88 hours");
 		assertTrue(mspdi.contains("<Name>Baseline Cost - Task</Name>"), "source aggregate baseline cost task is present");
 		assertTrue(mspdi.contains("<Cost>100</Cost>"), "source explicitly records baseline cost 100");
+		String duplicateCostOnlySlot = mspdi.replaceFirst("</Baseline>",
+			"</Baseline><Baseline><Number>0</Number><Cost>100</Cost></Baseline>");
+		assertThrows(IllegalArgumentException.class, () -> importMspdi(duplicateCostOnlySlot),
+			"Duplicate baseline slots must be rejected even when the duplicate only contains total Cost");
 		Project mppImport = importMppFixture(fixtureDirectory.resolve("task-baselines-project2019-mpp14.mpp"));
 		assertBaselineDuration(taskNamed(mppImport, "Baseline Duration - Task").getBaselineDuration(0),
 			11.0d, com.microproject.datatype.TimeUnit.DAYS);

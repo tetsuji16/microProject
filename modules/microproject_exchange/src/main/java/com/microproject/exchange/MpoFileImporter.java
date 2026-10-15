@@ -2390,27 +2390,36 @@ public class MpoFileImporter extends FileImporter {
 
 	static byte[] migrateLegacyAssignmentBaselineCosts(byte[] xmlBytes) throws IOException {
 		String xml = new String(xmlBytes, StandardCharsets.UTF_8);
-		Pattern row = Pattern.compile("(<TimephasedData(?:\\s[^>]*)?>[\\s\\S]*?<Type>)(\\d+)(</Type>[\\s\\S]*?<Value>)([^<]+)(</Value>[\\s\\S]*?</TimephasedData>)");
-		Matcher matcher = row.matcher(xml);
+		Pattern assignment = Pattern.compile("(<Assignment(?:\\s[^>]*)?>)([\\s\\S]*?)(</Assignment>)");
+		Matcher matcher = assignment.matcher(xml);
 		StringBuffer migrated = new StringBuffer(xml.length());
 		while (matcher.find()) {
-			int type;
-			try { type = Integer.parseInt(matcher.group(2)); }
-			catch (NumberFormatException exception) { throw new IOException("Invalid legacy assignment baseline cost type", exception); }
-			boolean baselineCost = false;
-			for (int slot = 0; slot <= 10; slot++)
-				if (type == com.microproject.core.pm.exchange.converters.mpx.MpxImportState
-						.assignmentBaselineCostType(slot)) { baselineCost = true; break; }
-			if (!baselineCost) continue;
-			String value;
-			try {
-				value = new java.math.BigDecimal(matcher.group(4)).multiply(java.math.BigDecimal.valueOf(100L))
-					.stripTrailingZeros().toPlainString();
-			} catch (NumberFormatException exception) {
-				throw new IOException("Invalid legacy assignment baseline cost value", exception);
+			String assignmentBody = matcher.group(2);
+			Pattern row = Pattern.compile("(<TimephasedData(?:\\s[^>]*)?>[\\s\\S]*?<Type>)(\\d+)(</Type>[\\s\\S]*?<Value>)([^<]+)(</Value>[\\s\\S]*?</TimephasedData>)");
+			Matcher rows = row.matcher(assignmentBody);
+			StringBuffer migratedRows = new StringBuffer(assignmentBody.length());
+			while (rows.find()) {
+				int type;
+				try { type = Integer.parseInt(rows.group(2)); }
+				catch (NumberFormatException exception) { throw new IOException("Invalid legacy assignment baseline cost type", exception); }
+				boolean baselineCost = false;
+				for (int slot = 0; slot <= 10; slot++)
+					if (type == com.microproject.core.pm.exchange.converters.mpx.MpxImportState
+							.assignmentBaselineCostType(slot)) { baselineCost = true; break; }
+				if (!baselineCost) continue;
+				String value;
+				try {
+					value = new java.math.BigDecimal(rows.group(4)).multiply(java.math.BigDecimal.valueOf(100L))
+						.stripTrailingZeros().toPlainString();
+				} catch (NumberFormatException exception) {
+					throw new IOException("Invalid legacy assignment baseline cost value", exception);
+				}
+				rows.appendReplacement(migratedRows, Matcher.quoteReplacement(rows.group(1) + rows.group(2)
+					+ rows.group(3) + value + rows.group(5)));
 			}
-			matcher.appendReplacement(migrated, Matcher.quoteReplacement(matcher.group(1) + matcher.group(2)
-				+ matcher.group(3) + value + matcher.group(5)));
+			rows.appendTail(migratedRows);
+			matcher.appendReplacement(migrated, Matcher.quoteReplacement(matcher.group(1)
+				+ migratedRows + matcher.group(3)));
 		}
 		matcher.appendTail(migrated);
 		return migrated.toString().getBytes(StandardCharsets.UTF_8);
