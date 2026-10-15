@@ -1829,7 +1829,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"Escape must leave the baseline chooser open");
 		assertEquals(Snapshottable.BASELINE, overwriteDialog.getForm().getBaselineNumber(),
 			"Escape must retain the selected baseline slot");
-		assertTrue(overwriteDialog.getForm().isEntireProject(), "Escape must retain the selected project scope");
+		assertFalse(overwriteDialog.getForm().isEntireProject(), "Escape must retain the selected task scope");
+		assertTrue(overwriteDialog.getForm().isRollupToSummaryTasks(),
+			"Escape must retain the selected summary roll-up option");
 		assertEquals(originalBaselineStart, task.getBaselineStart(Snapshottable.BASELINE));
 		assertEquals(originalBaselineValues, assignment.getBaselineValues(Snapshottable.BASELINE));
 		assertEquals(currentAssignmentWork, assignment.getWork(null));
