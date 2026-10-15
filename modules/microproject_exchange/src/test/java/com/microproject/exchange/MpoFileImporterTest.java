@@ -2706,6 +2706,11 @@ class MpoFileImporterTest {
 
 	@Test
 	void clearingAssignmentLevelingAfterMpoReloadPreservesManualAssignmentDelay() throws Exception {
+		// Document-derived MSPDI contract: Assignment Delay is waiting time after the
+		// task start, while Assignment LevelingDelay is the leveler-imposed offset.
+		// Both are independent fields and must not be folded together on import.
+		// https://learn.microsoft.com/en-us/office-project/xml-data-interchange/delay-element?view=project-client-2016
+		// https://learn.microsoft.com/en-us/office-project/xml-data-interchange/levelingdelay-element?view=project-client-2016
 		Project original = projectForRoundTrip();
 		NormalTask task = (NormalTask) firstTask(original);
 		Resource resource = original.getResourcePool().newResourceInstance();
@@ -2718,10 +2723,22 @@ class MpoFileImporterTest {
 			"the source assignment must keep manual delay independent from leveling delay");
 
 		File initialMpo = writeTempMpo(original);
+		byte[] mspdi = readEntries(Files.readAllBytes(initialMpo.toPath())).get(MpoFileImporter.PROJECT_ENTRY);
+		Project externalMspdi = new com.microproject.core.pm.exchange.MspImporter().importProject(
+			new ByteArrayInputStream(mspdi), "xml", (progress, label) -> { });
+		Assignment externalAssignment = firstRealAssignment(externalMspdi);
+		assertEquals(3L * 60L * 60L * 1000L,
+			com.microproject.datatype.Duration.millis(externalAssignment.getDelay()),
+			"ordinary MSPDI import must restore the published manual Delay field");
+		assertEquals(60L * 60L * 1000L,
+			com.microproject.datatype.Duration.millis(externalAssignment.getLevelingDelay()));
+
 		Project restored = load(initialMpo);
 		Assignment restoredAssignment = firstRealAssignment(restored);
 		long manualDelayAfterReload = restoredAssignment.getDelay();
-		assertTrue(com.microproject.datatype.Duration.millis(manualDelayAfterReload) > 0L);
+		assertEquals(3L * 60L * 60L * 1000L,
+			com.microproject.datatype.Duration.millis(manualDelayAfterReload),
+			"MPO reload must preserve the MSPDI manual Delay independently of LevelingDelay");
 		assertEquals(60L * 60L * 1000L,
 			com.microproject.datatype.Duration.millis(restoredAssignment.getLevelingDelay()));
 
