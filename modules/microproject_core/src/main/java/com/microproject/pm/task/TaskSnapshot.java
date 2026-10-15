@@ -39,12 +39,14 @@ import com.microproject.algorithm.buffer.CalculatedValues;
 import com.microproject.association.AssociationList;
 import com.microproject.field.FieldContext;
 import com.microproject.pm.assignment.Assignment;
+import com.microproject.pm.assignment.BaselineAssignmentProfile;
 import com.microproject.pm.assignment.HasAssignments;
 import com.microproject.pm.assignment.HasAssignmentsImpl;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.costing.Accrual;
 import com.microproject.pm.criticalpath.TaskSchedule;
 import com.microproject.pm.resource.Resource;
+import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.pm.snapshot.DataSnapshot;
 /**
  *
@@ -106,7 +108,8 @@ public class TaskSnapshot implements DataSnapshot, HasAssignments, Cloneable {
 		try {
 			newOne = (TaskSnapshot) super.clone();
 			newOne.currentSchedule = (TaskSchedule) currentSchedule.clone();
-			newOne.hasAssignments = (HasAssignments) ((HasAssignmentsImpl)hasAssignments).cloneWithSchedule(newOne.currentSchedule);
+			newOne.hasAssignments = (HasAssignments) ((HasAssignmentsImpl)hasAssignments)
+				.cloneSnapshotWithSchedule(newOne.currentSchedule);
 		} catch (CloneNotSupportedException e) {
 			throw new IllegalStateException("TaskSnapshot should be cloneable", e);
 		}
@@ -119,7 +122,8 @@ public class TaskSnapshot implements DataSnapshot, HasAssignments, Cloneable {
 		try {
 			newOne = (TaskSnapshot) super.clone();
 			newOne.currentSchedule = (TaskSchedule) currentSchedule.cloneWithTask(task);
-			newOne.hasAssignments = (HasAssignments) ((HasAssignmentsImpl)hasAssignments).deepCloneWithTask(task);
+			newOne.hasAssignments = (HasAssignments) ((HasAssignmentsImpl)hasAssignments)
+				.deepCloneSnapshotWithTask(task);
 		} catch (CloneNotSupportedException e) {
 			throw new IllegalStateException("TaskSnapshot should be cloneable", e);
 		}
@@ -131,6 +135,69 @@ public class TaskSnapshot implements DataSnapshot, HasAssignments, Cloneable {
 	 */
 	public void addAssignment(Assignment assignment) {
 		getHasAssignments().addAssignment(assignment);
+	}
+
+	/**
+	 * Adds one independently identified assignment profile to a saved baseline snapshot.
+	 * Summary roll-ups can contain multiple child contributions for the same resource;
+	 * those detached profiles must remain separate so their absolute time-phased values
+	 * are preserved. Live/current assignment lists continue to enforce one task/resource
+	 * association.
+	 */
+	public void addBaselineRollupAssignment(Task owner, int baselineSlot, Assignment assignment) {
+		if (baselineSlot < 0 || baselineSlot >= Snapshottable.CURRENT.intValue())
+			throw new IllegalArgumentException("Baseline roll-up assignments require a baseline slot");
+		if (owner == null || owner.getSnapshot(Integer.valueOf(baselineSlot)) != this)
+			throw new IllegalArgumentException("Baseline roll-up assignments require their attached baseline snapshot");
+		if (assignment == null || assignment.isDefault() || !assignment.isBaselineAssignment())
+			throw new IllegalArgumentException("A baseline roll-up requires a real baseline assignment");
+		if (assignment.getTask() != owner)
+			throw new IllegalArgumentException("A baseline roll-up assignment must belong to the snapshot owner");
+		for (Object existing : getAssignments()) {
+			Assignment current = (Assignment) existing;
+			if (current == assignment || current.getUniqueId() == assignment.getUniqueId())
+				throw new IllegalArgumentException("A baseline roll-up assignment identity can only be stored once");
+		}
+		AssociationList assignments = getAssignments();
+		assignments.add(assignments.size(), assignment);
+	}
+
+	/** Captures the detached profiles in one attached baseline slot. */
+	public java.util.List<BaselineAssignmentProfile> captureBaselineProfiles(Task owner, int baselineSlot) {
+		validateBaselineSlotOwner(owner, baselineSlot);
+		java.util.ArrayList<BaselineAssignmentProfile> profiles = new java.util.ArrayList<>();
+		for (Object value : getAssignments()) {
+			Assignment assignment = (Assignment) value;
+			if (assignment.isDefault()) continue;
+			if (assignment.getTask() != owner || !assignment.isBaselineAssignment())
+				throw new IllegalStateException("Baseline snapshot contains a non-detached assignment");
+			profiles.add(BaselineAssignmentProfile.capture(assignment));
+		}
+		return java.util.List.copyOf(profiles);
+	}
+
+	/** Replaces one baseline slot only after every decoded profile passes validation. */
+	public void replaceBaselineRollupAssignments(Task owner, int baselineSlot,
+		java.util.Collection<Assignment> replacements) {
+		validateBaselineSlotOwner(owner, baselineSlot);
+		java.util.ArrayList<Assignment> validated = new java.util.ArrayList<>();
+		java.util.HashSet<Long> profileIds = new java.util.HashSet<>();
+		for (Assignment assignment : replacements) {
+			if (assignment == null || assignment.isDefault() || !assignment.isBaselineAssignment()
+					|| assignment.getTask() != owner || !profileIds.add(Long.valueOf(assignment.getUniqueId())))
+				throw new IllegalArgumentException("Invalid or duplicate detached baseline assignment");
+			validated.add(assignment);
+		}
+		AssociationList current = getAssignments();
+		current.clear();
+		for (Assignment assignment : validated) addBaselineRollupAssignment(owner, baselineSlot, assignment);
+	}
+
+	private void validateBaselineSlotOwner(Task owner, int baselineSlot) {
+		if (baselineSlot < 0 || baselineSlot >= Snapshottable.CURRENT.intValue())
+			throw new IllegalArgumentException("Baseline profiles require a baseline slot");
+		if (owner == null || owner.getSnapshot(Integer.valueOf(baselineSlot)) != this)
+			throw new IllegalArgumentException("Baseline profiles require their attached task snapshot");
 	}
 
 	/**

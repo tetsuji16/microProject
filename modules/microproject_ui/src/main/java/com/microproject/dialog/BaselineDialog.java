@@ -27,10 +27,12 @@ package com.microproject.dialog;
 import java.awt.Frame;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.ResourceBundle;
 import java.util.function.Predicate;
 
 import javax.swing.ButtonGroup;
 import javax.swing.JComboBox;
+import javax.swing.JCheckBox;
 import javax.swing.JComponent;
 import javax.swing.JRadioButton;
 
@@ -45,10 +47,13 @@ import com.microproject.util.FlatUiSupport;
 public final class BaselineDialog extends AbstractDialog {
 	private static final long serialVersionUID = 1L;
 	boolean hasTasksSelected;
+	boolean allowRollup;
     boolean entire = true;
 	public static class Form {
 		int baselineNumber = 0; // baselines start at 1
 		boolean entireProject = true;
+		boolean rollupToSummaryTasks;
+		boolean rollupFromSubtasks;
 		/**
 		 * @return Returns the baselineNumber.
 		 */
@@ -73,6 +78,10 @@ public final class BaselineDialog extends AbstractDialog {
 		public void setEntireProject(boolean entireProject) {
 			this.entireProject = entireProject;
 		}
+		public boolean isRollupToSummaryTasks() { return rollupToSummaryTasks; }
+		public void setRollupToSummaryTasks(boolean value) { rollupToSummaryTasks = value; }
+		public boolean isRollupFromSubtasks() { return rollupFromSubtasks; }
+		public void setRollupFromSubtasks(boolean value) { rollupFromSubtasks = value; }
 	}
 	private Form form;
 	private Predicate<Form> beforeAccept;
@@ -82,6 +91,8 @@ public final class BaselineDialog extends AbstractDialog {
 	JComboBox baseline;
 	JRadioButton entireProject;
 	JRadioButton selectedTasks;
+	JCheckBox rollupToSummaryTasks;
+	JCheckBox rollupFromSubtasks;
 	ButtonGroup radioGroup;
 
 	public final void setHasTasksSelected(boolean hasTasksSelected) {
@@ -99,14 +110,20 @@ public final class BaselineDialog extends AbstractDialog {
 			selectedTasks.setSelected(!entire);
 			entireProject.setSelected(entire);
 			baseline.setSelectedIndex(form.getBaselineNumber());
+			if (rollupToSummaryTasks != null) rollupToSummaryTasks.setSelected(form.isRollupToSummaryTasks());
+			if (rollupFromSubtasks != null) rollupFromSubtasks.setSelected(form.isRollupFromSubtasks());
+			updateRollupEnabled();
 		} else {
 			form.setEntireProject(entire);
 			form.setBaselineNumber(baseline.getSelectedIndex());
+			if (rollupToSummaryTasks != null) form.setRollupToSummaryTasks(rollupToSummaryTasks.isSelected());
+			if (rollupFromSubtasks != null) form.setRollupFromSubtasks(rollupFromSubtasks.isSelected());
 		}
 		return true;
 	}
 	public static BaselineDialog getInstance(Frame owner, Form project, boolean save, boolean hasTasksSelected) {
 		BaselineDialog instance = new BaselineDialog(owner, project, hasTasksSelected);
+		instance.allowRollup = save;
 		instance.setTitle(Messages.getString( save ? "Text.SaveBaseline" : "Text.ClearBaseline")); //$NON-NLS-1$ //$NON-NLS-2$
 		instance.addDocHelp(save ? "Save_Baseline_Dialog" : "Clear_Baseline_Dialog");
 		
@@ -134,6 +151,11 @@ public final class BaselineDialog extends AbstractDialog {
 
 		entireProject = new JRadioButton(Messages.getString("Text.EntireProject")); //$NON-NLS-1$
 		selectedTasks = new JRadioButton(Messages.getString("Text.SelectedTasks")); //$NON-NLS-1$
+		if (allowRollup) {
+			ResourceBundle labels = ResourceBundle.getBundle("com.microproject.dialog.usability");
+			rollupToSummaryTasks = new JCheckBox(labels.getString("baseline.rollupToSummaryTasks"));
+			rollupFromSubtasks = new JCheckBox(labels.getString("baseline.rollupFromSubtasks"));
+		}
 		
 		// for some strange reason, the value of the buttons is not correct in bind at the end, so I am using a listener instead
 		entireProject.addActionListener(new ActionListener() {
@@ -143,7 +165,9 @@ public final class BaselineDialog extends AbstractDialog {
 		selectedTasks.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				entire = !((JRadioButton)e.getSource()).isSelected();
+				updateRollupEnabled();
 			}});
+		entireProject.addActionListener(e -> updateRollupEnabled());
 		radioGroup = new ButtonGroup();
 		radioGroup.add(entireProject);
 		radioGroup.add(selectedTasks);
@@ -168,7 +192,7 @@ public final class BaselineDialog extends AbstractDialog {
 		// from the layout code makes both parts easier to read.
 		initControls();
 		FormLayout layout = new FormLayout("default, 3dlu, fill:80dlu:grow", // cols //$NON-NLS-1$
-				FlatUiSupport.preferredFormRows(5)); // rows //$NON-NLS-1$
+				FlatUiSupport.preferredFormRows(allowRollup ? 9 : 5)); // rows //$NON-NLS-1$
 
 		// Create a builder that assists in adding components to the container.
 		// Wrap the panel with a standardized border.
@@ -185,6 +209,12 @@ public final class BaselineDialog extends AbstractDialog {
 		builder.append(entireProject);
 		builder.nextLine(2);
 		builder.append(selectedTasks);
+		if (allowRollup) {
+			builder.nextLine(2);
+			builder.append(rollupToSummaryTasks);
+			builder.nextLine(2);
+			builder.append(rollupFromSubtasks);
+		}
 		return builder.getPanel();
 	}
 
@@ -203,6 +233,11 @@ public final class BaselineDialog extends AbstractDialog {
 	@Override
 	protected boolean beforeAccept() {
 		return beforeAccept == null || beforeAccept.test(form);
+	}
+
+	private void updateRollupEnabled() {
+		if (rollupToSummaryTasks != null) rollupToSummaryTasks.setEnabled(!entire && hasTasksSelected);
+		if (rollupFromSubtasks != null) rollupFromSubtasks.setEnabled(!entire && hasTasksSelected);
 	}
 	
 	public Object getBean() {

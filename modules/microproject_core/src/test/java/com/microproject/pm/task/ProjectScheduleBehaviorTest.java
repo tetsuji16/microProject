@@ -30,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.Collections;
 import java.util.ArrayList;
@@ -39,6 +40,7 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.field.FieldContext;
 import com.microproject.grouping.core.Node;
+import com.microproject.grouping.core.NodeFactory;
 import com.microproject.grouping.core.model.AssignmentNodeModel;
 import com.microproject.graphic.configuration.SpreadSheetFieldArray;
 import com.microproject.options.CalendarOption;
@@ -500,6 +502,188 @@ class ProjectScheduleBehaviorTest {
 		change.undo();
 		assertEquals(originalFixedCost, ((TaskSnapshot) existing.getSnapshot(slot)).fixedCost,
 			"Undo state must remain isolated from later edits to the live baseline snapshot");
+	}
+
+	@Test
+	void selectedBaselineRollupUsesLeafFrontierAndRestoresAffectedSummaries() {
+		Project project = createProject();
+		NormalTask root = project.createScriptedTask();
+		NormalTask nested = project.createScriptedTask();
+		NormalTask untouchedSummary = project.createScriptedTask();
+		NormalTask first = project.createScriptedTask();
+		NormalTask second = project.createScriptedTask();
+		NormalTask third = project.createScriptedTask();
+		NormalTask noBaseline = project.createScriptedTask();
+		attachWbsChildren(root, nested, untouchedSummary);
+		attachWbsChildren(nested, first, second, noBaseline);
+		attachWbsChildren(untouchedSummary, third);
+		long hour = 60L * 60L * 1000L;
+		long start = project.getStartDate();
+		setPlan(first, start, 2L * hour, 10.0d);
+		setPlan(second, start + 24L * hour, 4L * hour, 20.0d);
+		setPlan(third, start + 48L * hour, 6L * hour, 30.0d);
+		setPlan(noBaseline, start - 72L * hour, 1L * hour, 40.0d);
+		ResourceImpl resource = project.getResourcePool().newResourceInstance();
+		Assignment firstAssignment = AssignmentService.getInstance().newAssignment(first, resource, 1.0d, 0L, this);
+		Assignment secondAssignment = AssignmentService.getInstance().newAssignment(second, resource, 1.0d, 0L, this);
+		Assignment thirdAssignment = AssignmentService.getInstance().newAssignment(third, resource, 1.0d, 0L, this);
+		firstAssignment.setWork(8L * hour, null);
+		secondAssignment.setWork(16L * hour, null);
+		thirdAssignment.setWork(24L * hour, null);
+		setPlan(first, start, 2L * hour, 10.0d);
+		setPlan(second, start + 24L * hour, 4L * hour, 20.0d);
+		setPlan(third, start + 48L * hour, 6L * hour, 30.0d);
+		int slot = Snapshottable.BASELINE_1;
+		first.saveCurrentToSnapshot(Integer.valueOf(slot));
+		first.saveCurrentToSnapshot(Integer.valueOf(Snapshottable.BASELINE));
+		second.saveCurrentToSnapshot(Integer.valueOf(slot));
+		third.saveCurrentToSnapshot(Integer.valueOf(slot));
+		nested.saveCurrentToSnapshot(Integer.valueOf(slot));
+		untouchedSummary.saveCurrentToSnapshot(Integer.valueOf(slot));
+		root.saveCurrentToSnapshot(Integer.valueOf(slot));
+		assertTrue(project.hasBaselineData(slot, false, List.of(noBaseline),
+			new BaselineRollupOptions(true, false)),
+			"Overwrite preflight must include an already-baselined ancestor of a newly selected leaf");
+		long untouchedStart = untouchedSummary.getBaselineStart(slot);
+		long otherSlotStart = first.getBaselineStart(Snapshottable.BASELINE);
+		int liveAssignmentsBefore = first.getAssignments().size() + second.getAssignments().size()
+			+ third.getAssignments().size();
+
+		long replacementStart = start + 8L * hour;
+		firstAssignment.setWork(12L * hour, null);
+		setPlan(first, replacementStart, 2L * hour, 10.0d);
+		ReversibleModelChange change = project.saveCurrentToSnapshot(Integer.valueOf(slot), false,
+			List.of(first), new BaselineRollupOptions(true, false));
+
+		assertEquals(replacementStart, nested.getBaselineStart(slot), "The affected nested summary starts at its earliest saved child");
+		assertEquals(start + 28L * hour, nested.getBaselineFinish(slot));
+		assertEquals(replacementStart, root.getBaselineStart(slot));
+		assertEquals(start + 54L * hour, root.getBaselineFinish(slot));
+		assertEquals(12L * hour + 16L * hour + 24L * hour,
+			root.getBaselineWork(slot, 0L, Long.MAX_VALUE),
+			"Nested summary snapshots must not be counted again alongside their leaves");
+		TaskSnapshot rolledSnapshot = (TaskSnapshot) root.getSnapshot(Integer.valueOf(slot));
+		assertEquals(3, rolledSnapshot.getAssignments().size(),
+			"A same-resource summary must retain each independently identified child baseline profile");
+		java.util.Set<Long> rolledAssignmentIds = new java.util.HashSet<>();
+		for (Object value : rolledSnapshot.getAssignments()) {
+			Assignment rolledAssignment = (Assignment) value;
+			assertSame(root, rolledAssignment.getTask());
+			assertTrue(rolledAssignment.isBaselineAssignment());
+			assertTrue(rolledAssignmentIds.add(rolledAssignment.getUniqueId()),
+				"Rolled assignment profiles must keep independent IDs");
+		}
+		Assignment firstResourceMatch = rolledSnapshot.findAssignment(resource);
+		assertSame(rolledSnapshot.getAssignments().get(0), firstResourceMatch,
+			"Resource lookup keeps its established first-match behavior; task-level time-phased totals iterate every profile");
+		TaskSnapshot clonedSnapshot = (TaskSnapshot) rolledSnapshot.clone();
+		assertEquals(3, clonedSnapshot.getAssignments().size(), "Snapshot clone must preserve all distinct roll-up profiles");
+		Assignment removedProfile = (Assignment) clonedSnapshot.getAssignments().get(1);
+		clonedSnapshot.removeAssignment(removedProfile);
+		assertEquals(2, clonedSnapshot.getAssignments().size(), "Removing one duplicate-resource profile must preserve its sibling");
+		assertEquals(36L * hour, clonedSnapshot.work(0L, Long.MAX_VALUE),
+			"Removing one profile must subtract only that profile's baseline work");
+		Assignment baselineContribution = (Assignment) rolledSnapshot.getAssignments().get(0);
+		assertThrows(IllegalArgumentException.class,
+			() -> rolledSnapshot.addBaselineRollupAssignment(root, Snapshottable.CURRENT, baselineContribution));
+		assertThrows(IllegalArgumentException.class,
+			() -> rolledSnapshot.addBaselineRollupAssignment(root, Snapshottable.TIMESHEET, baselineContribution));
+		assertEquals(0.0d, ((TaskSnapshot) root.getSnapshot(Integer.valueOf(slot))).getFixedCost(),
+			"Subtask fixed costs do not roll into the summary task's Fixed Cost field");
+		assertEquals(10.0d, ((TaskSnapshot) first.getSnapshot(Integer.valueOf(slot))).getFixedCost());
+		assertEquals(20.0d, ((TaskSnapshot) second.getSnapshot(Integer.valueOf(slot))).getFixedCost());
+		assertEquals(30.0d, ((TaskSnapshot) third.getSnapshot(Integer.valueOf(slot))).getFixedCost());
+		assertEquals(untouchedStart, untouchedSummary.getBaselineStart(slot),
+			"An unselected sibling summary keeps its stored slot snapshot");
+		assertEquals(otherSlotStart, first.getBaselineStart(Snapshottable.BASELINE),
+			"Roll-up must leave other baseline slots unchanged");
+		assertEquals(liveAssignmentsBefore, first.getAssignments().size() + second.getAssignments().size()
+			+ third.getAssignments().size(), "Snapshot aggregation must not attach cloned assignments to live task/resource associations");
+
+		change.undo();
+		assertEquals(start, first.getBaselineStart(slot));
+		assertEquals(untouchedStart, untouchedSummary.getBaselineStart(slot));
+		assertEquals(otherSlotStart, first.getBaselineStart(Snapshottable.BASELINE));
+		change.redo();
+		assertEquals(replacementStart, first.getBaselineStart(slot));
+		assertEquals(replacementStart, root.getBaselineStart(slot));
+		assertEquals(3, ((TaskSnapshot) root.getSnapshot(Integer.valueOf(slot))).getAssignments().size(),
+			"Redo snapshot copies must preserve duplicate-resource contributions");
+		assertEquals(52L * hour, root.getBaselineWork(slot, 0L, Long.MAX_VALUE));
+
+		// Reparenting changes the selected summary's live WBS frontier; the unselected
+		// old parent snapshot remains stored and is not recomputed as a side effect.
+		nested.setWbsChildrenNodes(List.of(NodeFactory.getInstance().createNode(first),
+			NodeFactory.getInstance().createNode(second)));
+		untouchedSummary.setWbsChildrenNodes(List.of());
+		third.setWbsParent(nested);
+		attachWbsChildren(nested, first, second, third, noBaseline);
+		long oldUntouchedSummaryStart = untouchedSummary.getBaselineStart(slot);
+		project.saveCurrentToSnapshot(Integer.valueOf(slot), false, List.of(nested),
+			new BaselineRollupOptions(false, true));
+		assertEquals(replacementStart, nested.getBaselineStart(slot));
+		assertEquals(start + 54L * hour, nested.getBaselineFinish(slot));
+		assertEquals(untouchedStart, untouchedSummary.getBaselineStart(slot),
+			"From-subtasks updates only selected summaries after reparenting");
+		assertEquals(oldUntouchedSummaryStart, untouchedSummary.getBaselineStart(slot));
+	}
+
+	@Test
+	void failedBaselineRollupPreparationLeavesSelectedAndImportedStateUntouched() {
+		Project project = createProject();
+		NormalTask summary = project.createScriptedTask();
+		NormalTask existingLeaf = project.createScriptedTask();
+		NormalTask selectedLeaf = project.createScriptedTask();
+		attachWbsChildren(summary, existingLeaf, selectedLeaf);
+		ResourceImpl resource = project.getResourcePool().newResourceInstance();
+		Assignment existing = AssignmentService.getInstance().newAssignment(existingLeaf, resource, 1.0d, 0L, this);
+		Assignment selected = AssignmentService.getInstance().newAssignment(selectedLeaf, resource, 1.0d, 0L, this);
+		int slot = Snapshottable.BASELINE_1;
+		existingLeaf.saveCurrentToSnapshot(Integer.valueOf(slot));
+		summary.saveCurrentToSnapshot(Integer.valueOf(slot));
+		Assignment.BaselineValues imported = new Assignment.BaselineValues(Long.valueOf(10L), Long.valueOf(20L), Long.valueOf(30L));
+		selected.restoreImportedBaselineValues(slot, imported);
+		TaskSnapshot existingSummarySnapshot = (TaskSnapshot) summary.getSnapshot(Integer.valueOf(slot));
+		TaskSnapshot failingSnapshot = new TaskSnapshot(List.of()) {
+			{
+				setCurrentSchedule(existingSummarySnapshot.getCurrentSchedule());
+			}
+			@Override
+			public Object deepCloneWithTask(Task task) {
+				throw new IllegalStateException("injected baseline preparation failure");
+			}
+		};
+		summary.setSnapshot(Integer.valueOf(slot), failingSnapshot);
+		boolean selectedDirtyBefore = selectedLeaf.isDirty();
+		boolean summaryDirtyBefore = summary.isDirty();
+		long originalSummaryStart = summary.getBaselineStart(slot);
+
+		assertThrows(IllegalStateException.class, () -> project.saveCurrentToSnapshot(Integer.valueOf(slot), false,
+			List.of(selectedLeaf), new BaselineRollupOptions(true, false)));
+		assertNull(selectedLeaf.getSnapshot(Integer.valueOf(slot)),
+			"A failed preflight must not attach the selected task snapshot");
+		assertEquals(originalSummaryStart, summary.getBaselineStart(slot),
+			"A failed preflight must not replace an ancestor snapshot");
+		assertEquals(imported, selected.getImportedBaselineValues(slot),
+			"A failed preflight must preserve imported assignment-only baseline data");
+		assertEquals(selectedDirtyBefore, selectedLeaf.isDirty(), "A failed preflight must preserve selected task dirty state");
+		assertEquals(summaryDirtyBefore, summary.isDirty(), "A failed preflight must preserve summary dirty state");
+	}
+
+	private static void setPlan(NormalTask task, long start, long duration, double fixedCost) {
+		task.getCurrentSchedule().setStart(start);
+		task.getCurrentSchedule().setFinish(start + duration);
+		task.getCurrentSchedule().setRawDuration(duration);
+		task.setFixedCost(fixedCost);
+	}
+
+	private static void attachWbsChildren(NormalTask parent, NormalTask... children) {
+		ArrayList<Node> nodes = new ArrayList<>(children.length);
+		for (NormalTask child : children) {
+			child.setWbsParent(parent);
+			nodes.add(NodeFactory.getInstance().createNode(child));
+		}
+		parent.setWbsChildrenNodes(nodes);
 	}
 
 	@Test

@@ -24,6 +24,7 @@
  *******************************************************************************/
 package com.microproject.server.data;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -94,6 +95,7 @@ import com.microproject.pm.task.Project;
 import com.microproject.pm.task.SubProj;
 import com.microproject.util.DateTime;
 import com.microproject.util.MathUtils;
+import com.microproject.server.data.linker.ResourceLinker;
 /**
  *
  */
@@ -125,6 +127,35 @@ public class MPXConverter {
 			EXPORT_IDS.set(allocator);
 		}
 		return allocator.get(namespace, sourceId);
+	}
+
+	/** Returns the exact MSPDI UID assigned to a resource during the active export. */
+	public static int exportedResourceUniqueId(ResourceImpl resource) {
+		long uid = resource.getExternalId();
+		if (uid <= 0L) uid = resource.getUniqueId();
+		if (uid <= 0L) uid = resource.getId();
+		return resource.isDefault() ? com.microproject.pm.resource.EnterpriseResource.UNASSIGNED_ID
+			: exportId(IdNamespace.RESOURCE, uid);
+	}
+
+	/** Returns the MSPDI resource identities in the exact order used by ResourceLinker. */
+	public static Map<Long, Long> exportedResourceIdentities(Project project) throws IOException {
+		beginExport(project);
+		try {
+			Map<Long, Long> identities = new java.util.LinkedHashMap<>();
+			java.util.Set<Long> serializedIds = new java.util.HashSet<>();
+			for (ResourceImpl resource : ResourceLinker.resourcesInExportOrder(project)) {
+				if (resource.isDefault()) continue;
+				Long sourceId = Long.valueOf(resource.getUniqueId());
+				long serializedId = exportedResourceUniqueId(resource);
+				if (identities.containsKey(sourceId) || !serializedIds.add(Long.valueOf(serializedId)))
+					throw new IOException("Duplicate resource identity during MSPDI export");
+				identities.put(sourceId, Long.valueOf(serializedId));
+			}
+			return java.util.Collections.unmodifiableMap(identities);
+		} finally {
+			endExport();
+		}
 	}
 
 
@@ -283,15 +314,8 @@ public class MPXConverter {
 		int resourceId = projectlibreResource.isDefault() ? 0
 			: exportId(IdNamespace.RESOURCE_ROW, projectlibreResource.getId());
 		mpxResource.setID(resourceId);
-		long uid = projectlibreResource.getExternalId(); // try using external id of one set
-		if (uid <= 0)
-			uid = projectlibreResource.getUniqueId();
-		if (uid <= 0)
-			uid = projectlibreResource.getId();
 		// The unassigned singleton is a sentinel, not a new resource requiring an ID.
-		mpxResource.setUniqueID(projectlibreResource.isDefault()
-			? com.microproject.pm.resource.EnterpriseResource.UNASSIGNED_ID
-			: exportId(IdNamespace.RESOURCE, uid));
+		mpxResource.setUniqueID(exportedResourceUniqueId(projectlibreResource));
 		mpxResource.setMaxUnits(projectlibreResource.getMaximumUnits()*100);
 
 		WorkingCalendar projectlibreCalendar = (WorkingCalendar)projectlibreResource.getWorkCalendar();
@@ -646,6 +670,14 @@ private static int autoId = 0;
 					mpxTask.setBaselineFinish(finish);
 				else
 					mpxTask.setBaselineFinish(snapshotId, finish);
+			}
+			if (snapshotId == 0) {
+				mpxTask.setBaselineFixedCost(Double.valueOf(snapshot.getFixedCost()));
+				mpxTask.setBaselineFixedCostAccrual(AccrueType.getInstance(snapshot.getFixedCostAccrual()));
+			} else {
+				mpxTask.setBaselineFixedCost(snapshotId, Double.valueOf(snapshot.getFixedCost()));
+				mpxTask.setBaselineFixedCostAccrual(snapshotId,
+					AccrueType.getInstance(snapshot.getFixedCostAccrual()));
 			}
 			// A present snapshot with zero duration is a valid milestone baseline.
 			net.sf.mpxj.Duration baselineDuration = toMPXDuration(schedule.getRawDuration());

@@ -39,6 +39,7 @@ import java.util.EventListener;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -54,6 +55,7 @@ import java.util.function.Predicate;
 
 import com.microproject.algorithm.ReverseQuery;
 import com.microproject.association.Association;
+import com.microproject.association.AssociationList;
 import com.microproject.association.InvalidAssociationException;
 import com.microproject.configuration.CircularDependencyException;
 import com.microproject.configuration.Dictionary;
@@ -108,6 +110,7 @@ import com.microproject.pm.costing.EarnedValueValues;
 import com.microproject.pm.costing.ExpenseType;
 import com.microproject.pm.costing.HasExpenseType;
 import com.microproject.pm.criticalpath.CriticalPath;
+import com.microproject.pm.criticalpath.TaskSchedule;
 import com.microproject.pm.criticalpath.HasSentinels;
 import com.microproject.pm.criticalpath.SchedulingAlgorithm;
 import com.microproject.pm.dependency.Dependency;
@@ -1040,16 +1043,186 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 
 	public ReversibleModelChange saveCurrentToSnapshot(Object snapshotId, boolean entireProject, List<?> selection) {
-		SnapshotState before = captureSnapshotState(snapshotId, entireProject, selection);
+		return saveCurrentToSnapshot(snapshotId, entireProject, selection, BaselineRollupOptions.NONE);
+	}
+
+	/** Saves selected task baselines and, when requested, recomputes affected summary baselines. */
+	public ReversibleModelChange saveCurrentToSnapshot(Object snapshotId, boolean entireProject,
+		List<?> selection, BaselineRollupOptions rollupOptions) {
+		BaselineRollupOptions options = rollupOptions == null ? BaselineRollupOptions.NONE : rollupOptions;
+		BaselineMutationScope scope = resolveBaselineMutationScope(snapshotId, entireProject, selection, options);
+		List<NormalTask> selectedTasks = scope.selectedTasks();
+		List<NormalTask> affectedTasks = scope.affectedTasks();
+		SnapshotState before = captureSnapshotState(snapshotId, false, affectedTasks);
+		boolean rollsUp = !entireProject && isBaselineSlot(snapshotId)
+			&& (options.toSummaryTasks() || options.fromSubtasks());
+		List<PreparedBaselineRollup> preparedRollups = List.of();
+		Map<NormalTask, TaskSnapshot> selectedSnapshots = Map.of();
+		if (rollsUp) {
+			selectedSnapshots = prepareSelectedBaselineSnapshots(selectedTasks);
+			preparedRollups = prepareBaselineRollups(snapshotId, selectedTasks, scope.rollupSummaries(), selectedSnapshots);
+		}
 		if (entireProject) forTasks(new SnapshottableImpl.SaveCurrentToSnapshotClosure(snapshotId));
-		else DataUtils.forAllDo(selection.iterator(), new SnapshottableImpl.SaveCurrentToSnapshotClosure(snapshotId));
-		SnapshotState after = captureSnapshotState(snapshotId, entireProject, selection);
+		else if (rollsUp) {
+			for (NormalTask task : selectedTasks) {
+				task.setSnapshot(snapshotId, selectedSnapshots.get(task));
+				task.markTaskAsNeedingRecalculation();
+				task.setDirty(true);
+			}
+			for (PreparedBaselineRollup prepared : preparedRollups) {
+				prepared.summary().setSnapshot(snapshotId, prepared.snapshot());
+				for (Assignment assignment : prepared.assignments())
+					prepared.snapshot().addBaselineRollupAssignment(prepared.summary(),
+						((Integer) snapshotId).intValue(), assignment);
+				prepared.summary().markTaskAsNeedingRecalculation();
+				prepared.summary().setDirty(true);
+			}
+		} else DataUtils.forAllDo(selection.iterator(), new SnapshottableImpl.SaveCurrentToSnapshotClosure(snapshotId));
+		// Summary snapshots changed by roll-up must be included in the redo state too.
+		SnapshotState after = !affectedTasks.isEmpty() && !entireProject
+			? captureSnapshotState(snapshotId, false, new ArrayList<>(affectedTasks))
+			: captureSnapshotState(snapshotId, entireProject, selection);
 
 		fireCurrentBaselineRowState(snapshotId);
 		return ReversibleModelChange.changed(
 			() -> restoreSnapshotState(snapshotId, before),
 			() -> restoreSnapshotState(snapshotId, after));
 	}
+
+	private BaselineMutationScope resolveBaselineMutationScope(Object snapshotId, boolean entireProject,
+		Collection<?> selection, BaselineRollupOptions options) {
+		List<NormalTask> selectedTasks = snapshotTasks(entireProject, selection);
+		LinkedHashSet<NormalTask> selectedSummaries = new LinkedHashSet<>();
+		LinkedHashSet<NormalTask> ancestorSummaries = new LinkedHashSet<>();
+		if (!entireProject && isBaselineSlot(snapshotId)
+				&& (options.toSummaryTasks() || options.fromSubtasks())) {
+			for (NormalTask task : selectedTasks) {
+				if (options.fromSubtasks() && hasWbsChildren(task)) selectedSummaries.add(task);
+				if (options.toSummaryTasks())
+					for (Task parent = task.getWbsParentTask(); parent != null; parent = parent.getWbsParentTask())
+						if (parent instanceof NormalTask summary && hasWbsChildren(summary))
+							ancestorSummaries.add(summary);
+			}
+		}
+		LinkedHashSet<NormalTask> affected = new LinkedHashSet<>(selectedTasks);
+		affected.addAll(selectedSummaries);
+		affected.addAll(ancestorSummaries);
+		LinkedHashSet<NormalTask> rollups = new LinkedHashSet<>(selectedSummaries);
+		rollups.addAll(ancestorSummaries);
+		return new BaselineMutationScope(selectedTasks, List.copyOf(selectedSummaries),
+			List.copyOf(ancestorSummaries), List.copyOf(affected), deepestFirst(rollups));
+	}
+
+	private Map<NormalTask, TaskSnapshot> prepareSelectedBaselineSnapshots(List<NormalTask> selectedTasks) {
+		Map<NormalTask, TaskSnapshot> snapshots = new java.util.IdentityHashMap<>();
+		for (NormalTask task : selectedTasks) {
+			if (!(task.getCurrentSnapshot() instanceof TaskSnapshot current)) continue;
+			snapshots.put(task, (TaskSnapshot) task.cloneSnapshot(current));
+		}
+		return snapshots;
+	}
+
+	private List<PreparedBaselineRollup> prepareBaselineRollups(Object snapshotId, List<NormalTask> selectedTasks,
+		List<NormalTask> summaries, Map<NormalTask, TaskSnapshot> stagedSnapshots) {
+		ArrayList<PreparedBaselineRollup> prepared = new ArrayList<>(summaries.size());
+		for (NormalTask summary : summaries) {
+			ArrayList<BaselineContribution> contributions = new ArrayList<>();
+			collectBaselineContributions(summary, snapshotId, stagedSnapshots, contributions);
+			TaskSnapshot previous = (TaskSnapshot) summary.getSnapshot(snapshotId);
+			TaskSnapshot template = previous;
+			if (template == null) template = (TaskSnapshot) summary.getCurrentSnapshot();
+			TaskSnapshot rolled = (TaskSnapshot) template.deepCloneWithTask(summary);
+			TaskSchedule schedule = rolled.getCurrentSchedule();
+			long start = Long.MAX_VALUE;
+			long finish = Long.MIN_VALUE;
+			rolled.getAssignments().clear();
+			ArrayList<Assignment> assignments = new ArrayList<>();
+			Set<Long> profileIds = new java.util.HashSet<>();
+			for (BaselineContribution contribution : contributions) {
+				TaskSchedule childSchedule = contribution.snapshot().getCurrentSchedule();
+				if (childSchedule.getStart() != 0L) start = Math.min(start, childSchedule.getStart());
+				if (childSchedule.getFinish() != 0L) finish = Math.max(finish, childSchedule.getFinish());
+				for (Object value : contribution.snapshot().getAssignments())
+					if (value instanceof Assignment childAssignment && !childAssignment.isDefault()) {
+						Assignment clone = (Assignment) childAssignment.cloneWithTask(summary);
+						if (!clone.isBaselineAssignment() || clone.getTask() != summary || clone.isDefault()
+								|| !profileIds.add(Long.valueOf(clone.getUniqueId())))
+							throw new IllegalArgumentException("Invalid or duplicate baseline roll-up assignment profile");
+						assignments.add(clone);
+					}
+			}
+			long rolledStart = start == Long.MAX_VALUE ? 0L : start;
+			long rolledFinish = finish == Long.MIN_VALUE ? 0L : finish;
+			schedule.setStart(rolledStart);
+			schedule.setFinish(rolledFinish);
+			schedule.setRawDuration(rolledStart == 0L || rolledFinish == 0L ? 0L
+				: summary.getEffectiveWorkCalendar().compare(rolledFinish, rolledStart, false));
+			double ownFixedCost = selectedTasks.contains(summary)
+				? ((TaskSnapshot) summary.getCurrentSnapshot()).getFixedCost()
+				: previous == null ? 0.0d : previous.getFixedCost();
+			rolled.setFixedCost(ownFixedCost);
+			stagedSnapshots.put(summary, rolled);
+			prepared.add(new PreparedBaselineRollup(summary, rolled, assignments));
+		}
+		return List.copyOf(prepared);
+	}
+
+	private record BaselineMutationScope(List<NormalTask> selectedTasks, List<NormalTask> selectedSummaries,
+		List<NormalTask> ancestorSummaries, List<NormalTask> affectedTasks, List<NormalTask> rollupSummaries) { }
+	private record PreparedBaselineRollup(NormalTask summary, TaskSnapshot snapshot, List<Assignment> assignments) { }
+
+	private List<NormalTask> snapshotTasks(boolean entireProject, Collection<?> selection) {
+		ArrayList<NormalTask> result = new ArrayList<>();
+		Iterator<?> tasks = getSnapshotIterator(entireProject, selection);
+		if (tasks == null) return result;
+		while (tasks.hasNext())
+			if (tasks.next() instanceof NormalTask task) result.add(task);
+		return result;
+	}
+
+	private static boolean hasWbsChildren(Task task) {
+		Collection<Node> children = task.getWbsChildrenNodes();
+		return children != null && !children.isEmpty();
+	}
+
+	private List<NormalTask> deepestFirst(Collection<NormalTask> tasks) {
+		ArrayList<NormalTask> result = new ArrayList<>(tasks);
+		result.sort((left, right) -> Integer.compare(wbsDepth(right), wbsDepth(left)));
+		return result;
+	}
+
+	private static int wbsDepth(Task task) {
+		int depth = 0;
+		for (Task parent = task.getWbsParentTask(); parent != null; parent = parent.getWbsParentTask()) depth++;
+		return depth;
+	}
+
+	private void collectBaselineContributions(NormalTask task, Object snapshotId,
+		Map<NormalTask, TaskSnapshot> stagedSnapshots, List<BaselineContribution> contributions) {
+		TaskSnapshot snapshot = stagedSnapshots.containsKey(task) ? stagedSnapshots.get(task)
+			: (TaskSnapshot) task.getSnapshot(snapshotId);
+		Collection<?> rollupChildren = task.childrenToRollup();
+		boolean assignedDirectly = false;
+		if (rollupChildren != null)
+			for (Object child : rollupChildren)
+				if (child instanceof Assignment assignment && !assignment.isDefault()) {
+					assignedDirectly = true;
+					break;
+				}
+		if (assignedDirectly) {
+			if (snapshot != null) contributions.add(new BaselineContribution(task, snapshot));
+			return;
+		}
+		if (rollupChildren != null && !rollupChildren.isEmpty()) {
+			for (Object child : rollupChildren)
+				if (child instanceof NormalTask normalChild)
+					collectBaselineContributions(normalChild, snapshotId, stagedSnapshots, contributions);
+			return;
+		}
+		if (snapshot != null) contributions.add(new BaselineContribution(task, snapshot));
+	}
+
+	private record BaselineContribution(NormalTask task, TaskSnapshot snapshot) { }
 
 	public ReversibleModelChange clearSnapshot(final Object snapshotId, boolean entireProject, List<?> selection) {
 		SnapshotState before = captureSnapshotState(snapshotId, entireProject, selection);
@@ -1071,13 +1244,17 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	 * snapshot is present.
 	 */
 	public boolean hasBaselineData(int baselineNumber, boolean entireProject, Collection<?> selection) {
+		return hasBaselineData(baselineNumber, entireProject, selection, BaselineRollupOptions.NONE);
+	}
+
+	public boolean hasBaselineData(int baselineNumber, boolean entireProject, Collection<?> selection,
+		BaselineRollupOptions rollupOptions) {
 		if (baselineNumber < 0 || baselineNumber > 10)
 			throw new IllegalArgumentException("Baseline number must be between 0 and 10");
-		Iterator<?> tasks = getSnapshotIterator(entireProject, selection);
+		BaselineMutationScope scope = resolveBaselineMutationScope(Integer.valueOf(baselineNumber), entireProject,
+			selection, rollupOptions == null ? BaselineRollupOptions.NONE : rollupOptions);
 		Integer slot = Integer.valueOf(baselineNumber);
-		while (tasks.hasNext()) {
-			Object value = tasks.next();
-			if (!(value instanceof NormalTask task)) continue;
+		for (NormalTask task : scope.affectedTasks()) {
 			if (task.getSnapshot(slot) != null) return true;
 			for (Object association : task.getAssignments()) {
 				if (association instanceof Assignment assignment
@@ -1147,6 +1324,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		private boolean hasRestorableState() {
 			return tasks.stream().anyMatch(task -> task.snapshot != null || !task.importedBaselineValues.isEmpty());
 		}
+
 	}
 
 	private void fireCurrentBaselineRowState(Object snapshotId) {

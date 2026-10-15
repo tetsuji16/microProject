@@ -51,6 +51,7 @@ import net.sf.mpxj.planner.PlannerReader;
 import com.microproject.exchange.xlsx.ProjectLibreXlsxReader;
 
 import com.microproject.core.pm.exchange.converters.mpx.MpxAssignmentConverter;
+import com.microproject.core.pm.exchange.converters.mpx.type.MpxAccrueTypeConverter;
 import com.microproject.core.pm.exchange.converters.mpx.MpxCalendarConverter;
 import com.microproject.core.pm.exchange.converters.mpx.MpxDependencyConverter;
 import com.microproject.core.pm.exchange.converters.mpx.MpxImportState;
@@ -295,15 +296,28 @@ public class MspImporter {
 				String rawNumber = xmlChildText(baseline, "Number", namespace);
 				String rawFormat = xmlChildText(baseline, "DurationFormat", namespace);
 				String rawDuration = xmlChildText(baseline, "Duration", namespace);
-				if (rawNumber == null || rawFormat == null || rawDuration == null) continue;
-				int durationFormat = Integer.parseInt(rawFormat);
-				if (elapsedDurationUnit(durationFormat) == com.microproject.datatype.TimeUnit.NONE) continue;
+				String rawFixedCost = xmlChildText(baseline, "FixedCost", namespace);
+				if (rawNumber == null) continue;
 				int slot = Integer.parseInt(rawNumber);
 				if (slot < 0 || slot > 10) throw new IllegalArgumentException("MSPDI baseline number is outside 0..10");
-				long durationMillis = parseMspdiDuration(rawDuration);
-				if (durationMillis < 0L) throw new IllegalArgumentException("MSPDI baseline duration cannot be negative");
+				Long durationMillis = null;
+				Integer durationFormat = null;
+				if (rawFormat != null && rawDuration != null) {
+					int parsedFormat = Integer.parseInt(rawFormat);
+					if (elapsedDurationUnit(parsedFormat) != com.microproject.datatype.TimeUnit.NONE) {
+						long parsedDuration = parseMspdiDuration(rawDuration);
+						if (parsedDuration < 0L)
+							throw new IllegalArgumentException("MSPDI baseline duration cannot be negative");
+						durationMillis = Long.valueOf(parsedDuration);
+						durationFormat = Integer.valueOf(parsedFormat);
+					}
+				}
+			Double fixedCost = rawFixedCost == null ? null : Double.valueOf(rawFixedCost);
+			if (fixedCost != null && !Double.isFinite(fixedCost.doubleValue()))
+				throw new IllegalArgumentException("MSPDI baseline fixed cost must be finite");
+			if (durationMillis == null && fixedCost == null) continue;
 				MpxImportState.RawMspdiTaskBaseline previous = baselines.put(Integer.valueOf(slot),
-					new MpxImportState.RawMspdiTaskBaseline(durationMillis, durationFormat));
+					new MpxImportState.RawMspdiTaskBaseline(durationMillis, durationFormat, fixedCost));
 				if (previous != null) throw new IllegalArgumentException("MSPDI task contains duplicate baseline slots");
 			}
 			if (!baselines.isEmpty() && taskBaselines.put(Long.valueOf(uid), Map.copyOf(baselines)) != null)
@@ -496,10 +510,11 @@ public class MspImporter {
 	}
 
 	private static long toRawBaselineDuration(MpxImportState.RawMspdiTaskBaseline baseline) {
-		int unit = elapsedDurationUnit(baseline.durationFormat());
-		double value = baseline.durationMillis() / com.microproject.datatype.Duration.timeUnitFactor(unit);
+		int unit = elapsedDurationUnit(baseline.durationFormat().intValue());
+		double value = baseline.durationMillis().longValue()
+			/ com.microproject.datatype.Duration.timeUnitFactor(unit);
 		long duration = com.microproject.datatype.Duration.getInstance(value, unit);
-		if (baseline.durationFormat() >= 35)
+		if (baseline.durationFormat().intValue() >= 35)
 			duration = com.microproject.datatype.Duration.setAsEstimated(duration, true);
 		return duration;
 	}
@@ -760,9 +775,16 @@ public class MspImporter {
 			Date start = getTaskBaselineStart(mpxTask, snapshotId);
 			Date finish = getTaskBaselineFinish(mpxTask, snapshotId);
 			Duration duration = getTaskBaselineDuration(mpxTask, snapshotId);
+			Number fixedCost = snapshotId == 0 ? mpxTask.getBaselineFixedCost()
+				: mpxTask.getBaselineFixedCost(snapshotId);
+			net.sf.mpxj.AccrueType fixedCostAccrual = snapshotId == 0
+				? mpxTask.getBaselineFixedCostAccrual() : mpxTask.getBaselineFixedCostAccrual(snapshotId);
 			MpxImportState.RawMspdiTaskBaseline rawBaseline = state.getRawMspdiTaskBaseline(
 				mpxTask.getUniqueID() == null ? null : Long.valueOf(mpxTask.getUniqueID().longValue()), snapshotId);
-			if (start == null && finish == null && duration == null && rawBaseline == null)
+			if (fixedCost == null && rawBaseline != null && rawBaseline.fixedCost() != null)
+				fixedCost = rawBaseline.fixedCost();
+			if (start == null && finish == null && duration == null && fixedCost == null
+					&& fixedCostAccrual == null && rawBaseline == null)
 				continue;
 
 			TaskSnapshot snapshot = new TaskSnapshot();
@@ -774,12 +796,15 @@ public class MspImporter {
 				schedule.setStart(DateUTCConverter.toModelTime(start));
 			if (finish != null)
 				schedule.setFinish(DateUTCConverter.toModelTime(finish));
-			if (rawBaseline != null) {
+			if (rawBaseline != null && rawBaseline.durationMillis() != null && rawBaseline.durationFormat() != null) {
 				schedule.setRawDuration(toRawBaselineDuration(rawBaseline));
 			} else if (duration != null) {
 				schedule.setRawDuration(MpxUtils.toProjectDuration(duration));
 			}
 			snapshot.setCurrentSchedule(schedule);
+			if (fixedCost != null) snapshot.setFixedCost(fixedCost.doubleValue());
+			if (fixedCostAccrual != null)
+				snapshot.setFixedCostAccrual(((Integer) new MpxAccrueTypeConverter().from(fixedCostAccrual)).intValue());
 			task.setSnapshot(Integer.valueOf(snapshotId), snapshot);
 		}
 	}

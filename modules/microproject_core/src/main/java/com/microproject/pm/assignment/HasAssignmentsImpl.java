@@ -113,17 +113,41 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 		return newOne;
 	}
 
+	/** Copies a detached task snapshot while preserving legitimate same-resource baseline contributions. */
+	public HasAssignments cloneSnapshotWithSchedule(TaskSchedule currentSchedule) {
+		HasAssignmentsImpl copy = (HasAssignmentsImpl) clone();
+		copy.assignments = new AssociationList();
+		for (Association association : assignments) {
+			Assignment assignment = (Assignment) ((Assignment) association).clone();
+			copy.assignments.add(copy.assignments.size(), assignment);
+		}
+		copy.setScheduleForAssignments(currentSchedule);
+		return copy;
+	}
+
 	private void setScheduleForAssignments(TaskSchedule currentSchedule) {
 		for (Association association : assignments) {
 			Assignment assignment = (Assignment) association;
 			assignment.setTaskSchedule(currentSchedule);
-			assignment.convertToBaselineAssignment(false);
+			if (!assignment.isBaselineAssignment())
+				assignment.convertToBaselineAssignment(false);
 		}
 	}
 
 	// Very deep copy of assignments, including task rebinding.
 	public HasAssignments deepCloneWithTask(Task task) {
 		return (HasAssignmentsImpl) cloneWithTask(task);
+	}
+
+	/** Rebinds a detached task snapshot without collapsing same-resource baseline contributions. */
+	public HasAssignments deepCloneSnapshotWithTask(Task task) {
+		HasAssignmentsImpl copy = (HasAssignmentsImpl) clone();
+		copy.assignments = new AssociationList();
+		for (Association association : assignments) {
+			Assignment assignment = (Assignment) ((Assignment) association).cloneWithTask(task);
+			copy.assignments.add(copy.assignments.size(), assignment);
+		}
+		return copy;
 	}
 	public Object clone(){
 		try {

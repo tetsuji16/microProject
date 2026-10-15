@@ -255,6 +255,10 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 			costContour  = PersonalContour.getInstance(buckets);
 		}
 	}
+	void setContour(Object type, AbstractContour contour) {
+		if (type == HasTimeDistributedData.WORK) workContour = contour;
+		else if (type == HasTimeDistributedData.COST) costContour = contour;
+	}
 	
 	/**
 	 * @return Returns the requestDemandType.
@@ -407,14 +411,10 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 	
 	
 	void convertToBaselineAssignment(boolean useDefaultCalendar) {
-		try {
-			if (useDefaultCalendar)
-				baselineCalendar = CalendarService.getInstance().getDefaultInstance();
-			else
-				baselineCalendar = (WorkingCalendar) getEffectiveWorkCalendar().clone();
-		} catch (CloneNotSupportedException e) {
-			throw new IllegalStateException("Unable to clone effective work calendar", e);
-		}
+		WorkingCalendar calendar = useDefaultCalendar
+			? CalendarService.getInstance().getDefaultInstance()
+			: (WorkingCalendar) getEffectiveWorkCalendar();
+		baselineCalendar = calendar.copyForBaselineSnapshot();
 	}
 	
 	boolean isBaseline() {
@@ -431,6 +431,12 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 
 	WorkingCalendar getBaselineCalendar() {
 		return baselineCalendar;
+	}
+
+	void setBaselineCalendarSnapshot(WorkingCalendar calendar) {
+		if (baselineCalendar == null)
+			throw new IllegalStateException("A baseline calendar can only be restored on a baseline assignment");
+		baselineCalendar = java.util.Objects.requireNonNull(calendar, "calendar").copyForBaselineSnapshot();
 	}
 
 	WorkingCalendar getIntersectionCalendar() {
@@ -1175,7 +1181,7 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 		target.requestDemandType = requestDemandType;
 		target.costRateIndex = costRateIndex;
 		target.overtimeWork = overtimeWork;
-		target.baselineCalendar = baselineCalendar;
+		target.baselineCalendar = baselineCalendar == null ? null : baselineCalendar.copyForBaselineSnapshot();
 	}
 
 

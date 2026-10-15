@@ -69,7 +69,7 @@ public class MpxImportState {
 	public record RawMspdiWorkInterval(int type, long start, long finish, long work) { }
 	public record RawMspdiCostInterval(int type, long start, long finish, double cost) { }
 	public record RawMspdiAssignmentBaseline(Long start, Long finish, Long work) { }
-	public record RawMspdiTaskBaseline(long durationMillis, int durationFormat) { }
+	public record RawMspdiTaskBaseline(Long durationMillis, Integer durationFormat, Double fixedCost) { }
 	public record RawMspdiResourceRates(com.microproject.datatype.Rate standardRate,
 		com.microproject.datatype.Rate overtimeRate, Double costPerUse) { }
 

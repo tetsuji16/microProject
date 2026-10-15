@@ -498,6 +498,7 @@ public class MSPDISerializer implements ProjectSerializer {
 		Map<String, List<ExactWorkRow>> personalRemainingRows = new java.util.HashMap<>();
 		Map<String, Map<Integer, List<ExactWorkRow>>> baselineWorkRows = new java.util.HashMap<>();
 		Map<String, Map<Integer, List<ExactCostRow>>> baselineCostRows = new java.util.HashMap<>();
+		Map<String, Map<Integer, Double>> taskBaselineFixedCosts = taskBaselineFixedCosts();
 		for (Map.Entry<ResourceAssignment, Assignment> exported : exportedAssignments.entrySet()) {
 			Integer uid = exported.getKey().getUniqueID();
 			if (exported.getValue().getWorkContour().isPersonal()) {
@@ -544,7 +545,7 @@ public class MSPDISerializer implements ProjectSerializer {
 				throw new IOException("MPXJ assigned duplicate identities to baseline assignments");
 		}
 		if (expected.isEmpty() && personalContourAssignments.isEmpty() && baselineWorkRows.isEmpty()
-				&& baselineCostRows.isEmpty()) return xml;
+				&& baselineCostRows.isEmpty() && taskBaselineFixedCosts.isEmpty()) return xml;
 		javax.xml.parsers.DocumentBuilderFactory factory = javax.xml.parsers.DocumentBuilderFactory.newInstance();
 		factory.setNamespaceAware(true);
 		factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
@@ -557,10 +558,24 @@ public class MSPDISerializer implements ProjectSerializer {
 		org.w3c.dom.Document document = factory.newDocumentBuilder().parse(new ByteArrayInputStream(xml));
 		String namespace = document.getDocumentElement().getNamespaceURI();
 		org.w3c.dom.NodeList assignmentNodes = document.getElementsByTagNameNS(namespace, "Assignment");
+		org.w3c.dom.NodeList taskNodes = document.getElementsByTagNameNS(namespace, "Task");
 		java.util.Set<String> applied = new java.util.HashSet<>();
 		java.util.Set<String> appliedBaselineSlots = new java.util.HashSet<>();
 		java.util.Set<String> appliedBaselineCostSlots = new java.util.HashSet<>();
 		java.util.Set<String> normalizedPersonalContours = new java.util.HashSet<>();
+		java.util.Set<String> normalizedTaskFixedCosts = new java.util.HashSet<>();
+		for (int index = 0; index < taskNodes.getLength(); index++) {
+			org.w3c.dom.Element taskNode = (org.w3c.dom.Element) taskNodes.item(index);
+			String uid = childText(taskNode, "UID", namespace);
+			Map<Integer, Double> costs = uid == null ? null : taskBaselineFixedCosts.get(uid);
+			if (costs == null) continue;
+			if (!normalizedTaskFixedCosts.add(uid))
+				throw new IOException("MSPDI output contains duplicate task identities for baseline fixed cost");
+			for (Map.Entry<Integer, Double> cost : costs.entrySet())
+				putTaskBaselineFixedCost(document, taskNode, cost.getKey().intValue(), cost.getValue().doubleValue());
+		}
+		if (!normalizedTaskFixedCosts.equals(taskBaselineFixedCosts.keySet()))
+			throw new IOException("MSPDI output omitted a task with baseline fixed cost");
 		for (int index = 0; index < assignmentNodes.getLength(); index++) {
 			org.w3c.dom.Element assignmentNode = (org.w3c.dom.Element) assignmentNodes.item(index);
 			String uid = childText(assignmentNode, "UID");
@@ -625,6 +640,71 @@ public class MSPDISerializer implements ProjectSerializer {
 		transformer.transform(new javax.xml.transform.dom.DOMSource(document),
 			new javax.xml.transform.stream.StreamResult(result));
 		return result.toByteArray();
+	}
+
+	private Map<String, Map<Integer, Double>> taskBaselineFixedCosts() throws IOException {
+		Map<String, Map<Integer, Double>> result = new java.util.HashMap<>();
+		for (Map.Entry<?, ?> transformation : taskLinker.getTransformationMap().entrySet()) {
+			if (!(transformation.getKey() instanceof NormalTask task)
+					|| !(transformation.getValue() instanceof net.sf.mpxj.Task exported)) continue;
+			if (exported == null || exported.getUniqueID() == null) continue;
+			Map<Integer, Double> costs = new java.util.TreeMap<>();
+			for (int slot = 0; slot <= 10; slot++) {
+				if (!(task.getSnapshot(Integer.valueOf(slot)) instanceof TaskSnapshot snapshot)) continue;
+				costs.put(Integer.valueOf(slot), Double.valueOf(snapshot.getFixedCost()));
+			}
+			if (!costs.isEmpty() && result.put(exported.getUniqueID().toString(), Map.copyOf(costs)) != null)
+				throw new IOException("MPXJ assigned duplicate task identities to baseline fixed costs");
+		}
+		return result;
+	}
+
+	private static void putTaskBaselineFixedCost(org.w3c.dom.Document document, org.w3c.dom.Element taskNode,
+		int slot, double value) throws IOException {
+		if (!Double.isFinite(value)) throw new IOException("Baseline fixed cost must be finite");
+		org.w3c.dom.Element baseline = findBaseline(taskNode, slot);
+		if (baseline == null) {
+			baseline = document.createElementNS(taskNode.getNamespaceURI(), "Baseline");
+			insertTaskBaselineAtSchemaPosition(taskNode, baseline, slot);
+		}
+		org.w3c.dom.Element fixedCost = childElement(baseline, "FixedCost");
+		if (fixedCost == null) {
+			fixedCost = document.createElementNS(taskNode.getNamespaceURI(), "FixedCost");
+			baseline.appendChild(fixedCost);
+		}
+		fixedCost.setTextContent(BigDecimal.valueOf(value).stripTrailingZeros().toPlainString());
+	}
+
+	private static void insertTaskBaselineAtSchemaPosition(org.w3c.dom.Element task,
+		org.w3c.dom.Element baseline, int slot) throws IOException {
+		org.w3c.dom.Node firstOutlineCode = null;
+		org.w3c.dom.Node greaterSlotBaseline = null;
+		for (org.w3c.dom.Node child = task.getFirstChild(); child != null; child = child.getNextSibling()) {
+			if (!(child instanceof org.w3c.dom.Element element)) continue;
+			if (isNamedElement(element, "Baseline", task.getNamespaceURI())) {
+				String number = childText(element, "Number", task.getNamespaceURI());
+				try {
+					if (number != null && Integer.parseInt(number) > slot) {
+						greaterSlotBaseline = child;
+						break;
+					}
+				} catch (NumberFormatException exception) {
+					throw new IOException("MSPDI output contains an invalid task baseline number", exception);
+				}
+				continue;
+			}
+			if (isNamedElement(element, "OutlineCode", task.getNamespaceURI())) {
+				firstOutlineCode = child;
+				break;
+			}
+		}
+		org.w3c.dom.Node insertionPoint = greaterSlotBaseline == null ? firstOutlineCode : greaterSlotBaseline;
+		if (insertionPoint == null) task.appendChild(baseline);
+		else task.insertBefore(baseline, insertionPoint);
+		org.w3c.dom.Element number = task.getOwnerDocument()
+			.createElementNS(task.getNamespaceURI(), "Number");
+		number.setTextContent(Integer.toString(slot));
+		baseline.insertBefore(number, baseline.getFirstChild());
 	}
 
 	private static List<ExactCostRow> baselineTimephasedCostRows(Assignment baseline) throws IOException {

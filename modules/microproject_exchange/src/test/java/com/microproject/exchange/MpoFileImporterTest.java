@@ -38,6 +38,8 @@ import com.microproject.pm.ccpm.CriticalChainBufferHistory;
 import com.microproject.collaboration.CollaborationSession;
 import com.microproject.collaboration.OperationLog;
 import com.microproject.pm.task.NormalTask;
+import com.microproject.pm.task.BaselineRollupOptions;
+import com.microproject.pm.task.TaskSnapshot;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.task.TaskSplitInterval;
 import com.microproject.pm.task.DefaultSubProj;
@@ -52,6 +54,7 @@ import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourceType;
+import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.pm.resource.SharedResourcePoolService;
 import com.microproject.pm.resource.TeamPlannerService;
 import com.microproject.undo.DataFactoryUndoController;
@@ -248,6 +251,368 @@ class MpoFileImporterTest {
 		restored.consumeIntervals(interval -> projected.add(interval.getStart() + ":" + interval.getEnd()));
 		assertTrue(projected.size() > 1, "reloaded task projection must render the split gap: " + projected
 			+ " / " + restored.getStart() + ".." + restored.getEnd() + " / " + expected);
+	}
+
+	@Test
+	void summaryBaselineRollupPreservesSameResourceProfilesAcrossMpoAndUndoRedo() throws Exception {
+		Project project = projectForRoundTrip();
+		NormalTask summary = (NormalTask) firstTask(project);
+		NormalTask first = project.createScriptedTask();
+		NormalTask second = project.createScriptedTask();
+		first.setName("Contributor one");
+		second.setName("Contributor two");
+		var model = project.getTaskModel();
+		var summaryNode = model.search(summary);
+		assertTrue(model.relocate(List.of(model.search(first), model.search(second)), summaryNode, 0,
+			com.microproject.grouping.core.model.NodeModel.SILENT));
+		summary.setWbsChildrenNodes(model.getHierarchy().getChildren(summaryNode));
+		first.setWbsParent(summary);
+		second.setWbsParent(summary);
+
+		long day = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		long start = project.getStartDate();
+		first.getCurrentSchedule().setStart(start);
+		first.getCurrentSchedule().setFinish(start + day);
+		first.getCurrentSchedule().setRawDuration(day);
+		second.getCurrentSchedule().setStart(start + 2L * day);
+		second.getCurrentSchedule().setFinish(start + 4L * day);
+		second.getCurrentSchedule().setRawDuration(2L * day);
+		first.setFixedCost(11.0d);
+		second.setFixedCost(22.0d);
+		first.setIgnoreResourceCalendar(false);
+		second.setIgnoreResourceCalendar(false);
+		summary.setFixedCost(7.0d);
+		summary.setFixedCostAccrual(com.microproject.pm.costing.Accrual.Kind.START.code());
+		Resource resource = project.getResourcePool().newResourceInstance();
+		long firstCalendarException = start + 10L * day;
+		long secondCalendarException = start + 20L * day;
+		com.microproject.pm.calendar.WorkingCalendar firstCalendar =
+			com.microproject.pm.calendar.WorkingCalendar.getInstanceBasedOn(project.getWorkCalendar());
+		firstCalendar.setName("Baseline profile calendar one");
+		firstCalendar.addOrReplaceException(new com.microproject.pm.calendar.WorkDay(firstCalendarException,
+			firstCalendarException + day, "First profile exception"));
+		((com.microproject.pm.resource.ResourceImpl) resource).setWorkCalendar(firstCalendar);
+		Assignment firstAssignment = AssignmentService.getInstance().newAssignment(first, resource, 1D, 0L,
+			MpoFileImporterTest.class);
+		assertTrue(java.util.Arrays.stream(((com.microproject.pm.calendar.WorkingCalendar)
+			firstAssignment.getEffectiveWorkCalendar()).getConcreteInstance().getExceptionDays())
+			.anyMatch(exception -> exception.getStart() == firstCalendarException),
+			"Fixture assignment must resolve the first resource-calendar exception");
+		firstAssignment.setWork(8L * 60L * 60L * 1000L, null);
+		firstAssignment.setRate(new com.microproject.datatype.Rate(5.0D, com.microproject.datatype.TimeUnit.HOURS));
+		firstAssignment.setOvertimeWork(60L * 60L * 1000L);
+		first.saveCurrentToSnapshot(Integer.valueOf(Snapshottable.BASELINE));
+		TaskSnapshot firstBaseline = (TaskSnapshot) first.getSnapshot(Integer.valueOf(Snapshottable.BASELINE));
+		firstAssignment.setInterval(Assignment.BASELINE_COST, firstAssignment.getStart(), firstAssignment.getFinish(), 125.0D);
+		var firstProfile = firstBaseline.captureBaselineProfiles(first, Snapshottable.BASELINE).get(0);
+		firstAssignment.setRate(new com.microproject.datatype.Rate(9.0D, com.microproject.datatype.TimeUnit.HOURS));
+		assertTrue(java.util.Arrays.stream(firstProfile.calendarCopy().getExceptionDays())
+			.anyMatch(value -> value.getStart() == firstCalendarException),
+			"The first saved profile lost its exception: profile=" + firstProfile.profileId() + " resource="
+				+ firstProfile.resourceUniqueId() + " calendar=" + firstProfile.calendarCopy().getName() + " exceptions="
+				+ java.util.Arrays.toString(java.util.Arrays.stream(firstProfile.calendarCopy().getExceptionDays())
+					.mapToLong(com.microproject.pm.calendar.WorkDay::getStart).toArray()));
+		com.microproject.pm.calendar.WorkingCalendar secondCalendar =
+			com.microproject.pm.calendar.WorkingCalendar.getInstanceBasedOn(project.getWorkCalendar());
+		secondCalendar.setName("Baseline profile calendar two");
+		secondCalendar.addOrReplaceException(new com.microproject.pm.calendar.WorkDay(secondCalendarException,
+			secondCalendarException + day, "Second profile exception"));
+		((com.microproject.pm.resource.ResourceImpl) resource).setWorkCalendar(secondCalendar);
+		Assignment secondAssignment = AssignmentService.getInstance().newAssignment(second, resource, 1D, 0L,
+			MpoFileImporterTest.class);
+		secondAssignment.setWork(16L * 60L * 60L * 1000L, null);
+		secondAssignment.setRate(new com.microproject.datatype.Rate(3.0D, com.microproject.datatype.TimeUnit.HOURS));
+		secondAssignment.setOvertimeWork(2L * 60L * 60L * 1000L);
+		second.saveCurrentToSnapshot(Integer.valueOf(Snapshottable.BASELINE));
+		TaskSnapshot secondBaseline = (TaskSnapshot) second.getSnapshot(Integer.valueOf(Snapshottable.BASELINE));
+		secondAssignment.setInterval(Assignment.BASELINE_COST, secondAssignment.getStart(), secondAssignment.getFinish(), 375.0D);
+		var secondProfile = secondBaseline.captureBaselineProfiles(second, Snapshottable.BASELINE).get(0);
+		assertTrue(java.util.Arrays.stream(secondProfile.calendarCopy().getExceptionDays())
+			.anyMatch(value -> value.getStart() == secondCalendarException),
+			"The second saved profile must contain its explicit exception");
+		var firstProfileAfterSecondCalendarChange = firstBaseline.captureBaselineProfiles(first,
+			Snapshottable.BASELINE).get(0);
+		assertEquals(firstProfile.profileId(), firstProfileAfterSecondCalendarChange.profileId());
+		assertTrue(java.util.Arrays.stream(firstProfileAfterSecondCalendarChange.calendarCopy().getExceptionDays())
+			.anyMatch(value -> value.getStart() == firstCalendarException),
+			"Changing the shared resource calendar must not alter the first saved profile");
+		assertEquals(5.0D, firstProfile.rate(), "Saved profile rate must not follow a later live rate change");
+		assertEquals(3.0D, secondProfile.rate());
+		assertEquals(60L * 60L * 1000L, firstProfile.overtimeWork());
+		assertEquals(2L * 60L * 60L * 1000L, secondProfile.overtimeWork());
+		Assignment firstSavedBaseline = (Assignment) firstBaseline.getAssignments().iterator().next();
+		Assignment secondSavedBaseline = (Assignment) secondBaseline.getAssignments().iterator().next();
+		assertEquals(9L * 60L * 60L * 1000L, firstSavedBaseline.getWork(null),
+			"The first saved baseline total includes eight regular hours and one overtime hour");
+		assertEquals(18L * 60L * 60L * 1000L, secondSavedBaseline.getWork(null),
+			"The second saved baseline total includes sixteen regular hours and two overtime hours");
+		assertEquals(60L * 60L * 1000L, firstSavedBaseline.getDetail().getOvertimeWork());
+		assertEquals(2L * 60L * 60L * 1000L, secondSavedBaseline.getDetail().getOvertimeWork());
+		assertEquals(27L * 60L * 60L * 1000L,
+			firstSavedBaseline.calcAll(Assignment.WORK) + secondSavedBaseline.calcAll(Assignment.WORK),
+			"Expected baseline total is regular work plus the separately preserved overtime values");
+		assertEquals(125.0D, firstSavedBaseline.calcAll(Assignment.COST), 0.00001D,
+			"The first saved baseline must retain its explicit cost contour before roll-up: profile="
+				+ firstProfile.costContour() + " duration=" + firstProfile.duration() + " start=" + firstProfile.start()
+				+ " finish=" + firstProfile.finish());
+		assertEquals(375.0D, secondSavedBaseline.calcAll(Assignment.COST), 0.00001D,
+			"The second saved baseline must retain its explicit cost contour before roll-up");
+		assertNotEquals(firstProfile.costContour(), secondProfile.costContour(),
+			"Same-resource contributors retain distinct saved cost contours");
+		summary.saveCurrentToSnapshot(Integer.valueOf(Snapshottable.BASELINE));
+		int originalSummaryBaselineAssignmentCount = ((TaskSnapshot) summary
+			.getSnapshot(Integer.valueOf(Snapshottable.BASELINE))).getAssignments().size();
+
+		var change = project.saveCurrentToSnapshot(Integer.valueOf(Snapshottable.BASELINE), false,
+			List.of(summary), new BaselineRollupOptions(false, true));
+		TaskSnapshot rolled = (TaskSnapshot) summary.getSnapshot(Integer.valueOf(Snapshottable.BASELINE));
+		assertEquals(2, rolled.getAssignments().size());
+		assertEquals(7.0d, rolled.getFixedCost(), "The summary retains its own Fixed Cost field value");
+		assertTrue(rolled.captureBaselineProfiles(summary, Snapshottable.BASELINE).stream()
+			.anyMatch(profile -> java.util.Arrays.stream(profile.calendarCopy().getExceptionDays())
+				.anyMatch(value -> value.getStart() == firstCalendarException)),
+			"Initial roll-up preserves the first contributor calendar");
+		change.undo();
+		assertEquals(originalSummaryBaselineAssignmentCount,
+			((TaskSnapshot) summary.getSnapshot(Integer.valueOf(Snapshottable.BASELINE))).getAssignments().size());
+		change.redo();
+		rolled = (TaskSnapshot) summary.getSnapshot(Integer.valueOf(Snapshottable.BASELINE));
+		assertEquals(2, rolled.getAssignments().size(), "Redo restores each contributor profile");
+		var rolledProfiles = rolled.captureBaselineProfiles(summary, Snapshottable.BASELINE);
+		assertTrue(rolledProfiles.stream().anyMatch(profile -> java.util.Arrays.stream(profile.calendarCopy()
+			.getExceptionDays()).anyMatch(value -> value.getStart() == firstCalendarException)),
+			"Roll-up preserves the first contributor calendar before serialization");
+		assertTrue(rolledProfiles.stream().anyMatch(profile -> java.util.Arrays.stream(profile.calendarCopy()
+			.getExceptionDays()).anyMatch(value -> value.getStart() == secondCalendarException)),
+			"Roll-up preserves the second contributor calendar before serialization");
+		assertTrue(summary.isDirty(), "A summary whose baseline profiles changed must be serialized");
+		java.util.ArrayList<Integer> serializedSnapshotSlots = new java.util.ArrayList<>();
+		com.microproject.server.data.Serializer.forAssignments(summary,
+			(assignment, snapshotId) -> serializedSnapshotSlots.add(snapshotId));
+		assertEquals(2, serializedSnapshotSlots.stream().filter(slot -> slot == Snapshottable.BASELINE).count(),
+			"The baseline assignment walker must see both summary profiles");
+		assertEquals(27L * 60L * 60L * 1000L, rolled.work(0L, Long.MAX_VALUE));
+		assertEquals(500.0D, rolled.getAssignments().stream().map(Assignment.class::cast)
+			.mapToDouble(value -> value.calcAll(Assignment.COST)).sum(), 0.00001D,
+			"The rolled baseline preserves both independent assignment cost contours");
+		assertEquals(7.0d, rolled.getFixedCost());
+		assertEquals(0, summary.getAssignments().stream()
+			.filter(value -> !((Assignment) value).isDefault()).count(),
+			"Baseline roll-up must not create current summary assignments");
+
+		byte[] savedArchive = saveProjectBytes(project);
+		java.util.Map<String, byte[]> savedEntries = readEntries(savedArchive);
+		com.fasterxml.jackson.databind.ObjectMapper baselineMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+		com.fasterxml.jackson.databind.JsonNode baselineMetadata = baselineMapper
+			.readTree(savedEntries.get(MpoFileImporter.BASELINE_PROFILES_ENTRY));
+		java.util.Map<String, byte[]> invalidSlotEntries = new java.util.HashMap<>(savedEntries);
+		com.fasterxml.jackson.databind.node.ObjectNode invalidSlotMetadata = (com.fasterxml.jackson.databind.node.ObjectNode)
+			baselineMetadata.deepCopy();
+		((com.fasterxml.jackson.databind.node.ObjectNode) invalidSlotMetadata.path("tasks").get(0)).put("slot", 11);
+		invalidSlotEntries.put(MpoFileImporter.BASELINE_PROFILES_ENTRY,
+			baselineMapper.writeValueAsBytes(invalidSlotMetadata));
+		assertThrows(java.io.IOException.class,
+			() -> loadFromBytes(zip(invalidSlotEntries).toByteArray()),
+			"The native baseline-profile codec must reject slots outside 0..10");
+		java.util.Map<String, byte[]> invalidProfileEntries = new java.util.HashMap<>(savedEntries);
+		com.fasterxml.jackson.databind.node.ObjectNode invalidProfileMetadata = (com.fasterxml.jackson.databind.node.ObjectNode)
+			baselineMetadata.deepCopy();
+		com.fasterxml.jackson.databind.node.ObjectNode profileRecord =
+			(com.fasterxml.jackson.databind.node.ObjectNode) java.util.stream.StreamSupport
+				.stream(invalidProfileMetadata.path("tasks").spliterator(), false)
+				.filter(value -> value.path("profiles").size() == 2).findFirst().orElseThrow();
+		((com.fasterxml.jackson.databind.node.ObjectNode) profileRecord.path("profiles").get(0)).put("profileUid", 0L);
+		invalidProfileEntries.put(MpoFileImporter.BASELINE_PROFILES_ENTRY,
+			baselineMapper.writeValueAsBytes(invalidProfileMetadata));
+		assertThrows(java.io.IOException.class,
+			() -> loadFromBytes(zip(invalidProfileEntries).toByteArray()),
+			"The native baseline-profile codec must reject a zero profile identity");
+		Project validationTarget = loadFromBytes(savedArchive);
+		com.fasterxml.jackson.databind.node.ObjectNode fractionalUidMetadata = (com.fasterxml.jackson.databind.node.ObjectNode)
+			baselineMetadata.deepCopy();
+		com.fasterxml.jackson.databind.node.ObjectNode fractionalUidRecord =
+			(com.fasterxml.jackson.databind.node.ObjectNode) java.util.stream.StreamSupport
+				.stream(fractionalUidMetadata.path("tasks").spliterator(), false)
+				.filter(value -> value.path("profiles").size() > 0).findFirst().orElseThrow();
+		((com.fasterxml.jackson.databind.node.ObjectNode) fractionalUidRecord.path("profiles").get(0))
+			.put("profileUid", 1.5d);
+		assertMalformedBaselineMetadataPreservesTarget(validationTarget, baselineMapper, fractionalUidMetadata);
+		com.fasterxml.jackson.databind.node.ObjectNode fractionalSlotMetadata = (com.fasterxml.jackson.databind.node.ObjectNode)
+			baselineMetadata.deepCopy();
+		((com.fasterxml.jackson.databind.node.ObjectNode) fractionalSlotMetadata.path("tasks").get(0)).put("slot", 0.5d);
+		assertMalformedBaselineMetadataPreservesTarget(validationTarget, baselineMapper, fractionalSlotMetadata);
+		net.sf.mpxj.ProjectFile mspdi = new net.sf.mpxj.mspdi.MSPDIReader()
+			.read(new ByteArrayInputStream(savedEntries.get(MpoFileImporter.PROJECT_ENTRY)));
+		assertEquals(7.0d, Double.parseDouble(taskBaselineXmlField(
+			savedEntries.get(MpoFileImporter.PROJECT_ENTRY), "Mpo task", 0, "FixedCost")),
+			"Summary fixed cost uses the standard MSPDI Baseline.FixedCost field");
+		long profileResourceUid = baselineMetadata.path("tasks").findValues("resourceUid").stream()
+			.filter(com.fasterxml.jackson.databind.JsonNode::isNumber).findFirst().orElseThrow().longValue();
+		assertTrue(mspdi.getResources().stream().anyMatch(resourceData -> resourceData.getUniqueID() != null
+			&& resourceData.getUniqueID().longValue() == profileResourceUid),
+			"MPO baseline resource IDs must use the same canonical traversal and MSPDI mapping as XML export");
+		assertTrue(mspdi.getTasks().stream().filter(task -> "Mpo task".equals(task.getName())
+				&& task.getResourceAssignments() != null).findFirst().orElseThrow().getResourceAssignments().stream()
+			.noneMatch(assignment -> assignment.getResource() != null
+				&& assignment.getResource().getUniqueID().longValue() == profileResourceUid),
+			"Detached baseline profiles must stay out of MSPDI current assignments");
+		com.fasterxml.jackson.databind.JsonNode summaryRecord = null;
+		for (com.fasterxml.jackson.databind.JsonNode record : baselineMetadata.path("tasks")) {
+			if (record.path("slot").asInt(-1) == Snapshottable.BASELINE
+					&& record.path("profiles").size() == 2) summaryRecord = record;
+		}
+		assertNotNull(summaryRecord, "The MPO sidecar must contain both detached summary profiles");
+		var savedProfiles = summaryRecord.path("profiles");
+		assertEquals(savedProfiles.get(0).path("resourceUid").longValue(),
+			savedProfiles.get(1).path("resourceUid").longValue(), "The child profiles share one resource");
+		assertNotEquals(savedProfiles.get(0).path("profileUid").longValue(),
+			savedProfiles.get(1).path("profileUid").longValue(), "Contributor profiles retain independent IDs");
+		var firstRolledProfile = rolledProfiles.stream().filter(profile -> java.util.Arrays.stream(profile.calendarCopy()
+			.getExceptionDays()).anyMatch(value -> value.getStart() == firstCalendarException)).findFirst().orElseThrow();
+		var secondRolledProfile = rolledProfiles.stream().filter(profile -> java.util.Arrays.stream(profile.calendarCopy()
+			.getExceptionDays()).anyMatch(value -> value.getStart() == secondCalendarException)).findFirst().orElseThrow();
+		com.fasterxml.jackson.databind.JsonNode savedFirstProfile = java.util.stream.StreamSupport
+			.stream(savedProfiles.spliterator(), false)
+			.filter(value -> value.path("profileUid").asLong(-1L) == firstRolledProfile.profileId())
+			.findFirst().orElseThrow();
+		com.fasterxml.jackson.databind.JsonNode savedSecondProfile = java.util.stream.StreamSupport
+			.stream(savedProfiles.spliterator(), false)
+			.filter(value -> value.path("profileUid").asLong(-1L) == secondRolledProfile.profileId())
+			.findFirst().orElseThrow();
+		assertTrue(savedFirstProfile.path("calendar").path("exceptions").findValues("start").stream()
+			.anyMatch(value -> value.longValue() == firstCalendarException),
+			"The first contributor keeps its captured calendar exception");
+		assertTrue(savedSecondProfile.path("calendar").path("exceptions").findValues("start").stream()
+			.anyMatch(value -> value.longValue() == secondCalendarException),
+			"The second contributor keeps its captured calendar exception");
+		Project reopened = loadFromBytes(savedArchive);
+		NormalTask restored = (NormalTask) findByName(reopened, "Mpo task");
+		TaskSnapshot restoredBaseline = (TaskSnapshot) restored.getSnapshot(Integer.valueOf(Snapshottable.BASELINE));
+		assertNotNull(restoredBaseline);
+		assertEquals(2, restoredBaseline.getAssignments().size(),
+			"MPO reload must preserve both same-resource contributor rows as baseline-only profiles");
+		assertEquals(27L * 60L * 60L * 1000L, restoredBaseline.work(0L, Long.MAX_VALUE),
+			"MPO reload preserves the contributors' regular and overtime baseline work");
+		assertEquals(7.0d, restoredBaseline.getFixedCost());
+		assertEquals(com.microproject.pm.costing.Accrual.Kind.START.code(), restoredBaseline.getFixedCostAccrual());
+		assertEquals(0, restored.getAssignments().stream()
+			.filter(value -> !((Assignment) value).isDefault()).count(),
+			"Saved baseline profiles must not become current assignments");
+		assertEquals(500.0D, restoredBaseline.getAssignments().stream().map(Assignment.class::cast)
+			.mapToDouble(value -> value.calcAll(Assignment.COST)).sum(), 0.00001D,
+			"MPO reload retains both contributors' absolute baseline cost contours");
+		java.util.Set<Long> restoredCalendarExceptions = new java.util.HashSet<>();
+		for (Object value : restoredBaseline.getAssignments()) {
+			Assignment profile = (Assignment) value;
+			com.microproject.pm.calendar.WorkingCalendar profileCalendar =
+				(com.microproject.pm.calendar.WorkingCalendar) profile.getEffectiveWorkCalendar();
+			for (com.microproject.pm.calendar.WorkDay exception : profileCalendar.getConcreteInstance().getExceptionDays()) {
+				restoredCalendarExceptions.add(Long.valueOf(exception.getStart()));
+				if (exception.getStart() == firstCalendarException) {
+					assertEquals(5.0D, profile.getRate().getValue(),
+						"MPO must retain the first saved rate after its live assignment rate changed");
+					assertEquals(60L * 60L * 1000L, profile.getDetail().getOvertimeWork());
+				} else if (exception.getStart() == secondCalendarException) {
+					assertEquals(3.0D, profile.getRate().getValue());
+					assertEquals(2L * 60L * 60L * 1000L, profile.getDetail().getOvertimeWork());
+				}
+			}
+		}
+		assertTrue(restoredCalendarExceptions.contains(Long.valueOf(firstCalendarException)));
+		assertTrue(restoredCalendarExceptions.contains(Long.valueOf(secondCalendarException)));
+	}
+
+	@Test
+	void fixedCostOnlyBaselineSlotsRoundTripThroughMspdiAndMpo() throws Exception {
+		Project project = projectForRoundTrip();
+		NormalTask task = (NormalTask) firstTask(project);
+		task.setFixedCost(99.0d);
+		int[] accruals = {
+			com.microproject.pm.costing.Accrual.Kind.START.code(),
+			com.microproject.pm.costing.Accrual.Kind.PRORATED.code(),
+			com.microproject.pm.costing.Accrual.Kind.END.code(),
+			com.microproject.pm.costing.Accrual.Kind.START.code(),
+			com.microproject.pm.costing.Accrual.Kind.PRORATED.code(),
+			com.microproject.pm.costing.Accrual.Kind.END.code(),
+			com.microproject.pm.costing.Accrual.Kind.START.code(),
+			com.microproject.pm.costing.Accrual.Kind.PRORATED.code(),
+			com.microproject.pm.costing.Accrual.Kind.END.code(),
+			com.microproject.pm.costing.Accrual.Kind.START.code(),
+			com.microproject.pm.costing.Accrual.Kind.END.code()
+		};
+		for (int slot = 0; slot <= 10; slot++) {
+			TaskSnapshot snapshot = new TaskSnapshot();
+			snapshot.getHasAssignments();
+			com.microproject.pm.criticalpath.TaskSchedule schedule = new com.microproject.pm.criticalpath.TaskSchedule(
+				task, com.microproject.pm.criticalpath.TaskSchedule.Kind.CURRENT);
+			schedule.setStart(0L);
+			schedule.setFinish(0L);
+			schedule.setRawDuration(0L);
+			snapshot.setCurrentSchedule(schedule);
+			snapshot.setFixedCost(slot == 0 ? 0.0d : slot * 10.0d);
+			snapshot.setFixedCostAccrual(accruals[slot]);
+			task.setSnapshot(Integer.valueOf(slot), snapshot);
+		}
+
+		byte[] archive = saveProjectBytes(project);
+		byte[] projectXml = readEntries(archive).get(MpoFileImporter.PROJECT_ENTRY);
+		net.sf.mpxj.ProjectFile mspdi = new net.sf.mpxj.mspdi.MSPDIReader()
+			.read(new ByteArrayInputStream(projectXml));
+		net.sf.mpxj.Task xmlTask = mspdi.getTasks().stream()
+			.filter(candidate -> "Mpo task".equals(candidate.getName())).findFirst().orElseThrow();
+		for (int slot = 0; slot <= 10; slot++) {
+			assertEquals(slot == 0 ? 0.0d : slot * 10.0d,
+				Double.parseDouble(taskBaselineXmlField(projectXml, "Mpo task", slot, "FixedCost")));
+			assertTrue((slot == 0 ? xmlTask.getBaselineStart() : xmlTask.getBaselineStart(slot)) == null,
+				"Cost-only snapshots must not gain a baseline start date");
+			assertTrue((slot == 0 ? xmlTask.getBaselineFinish() : xmlTask.getBaselineFinish(slot)) == null,
+				"Cost-only snapshots must not gain a baseline finish date");
+		}
+
+		Project reopened = loadFromBytes(archive);
+		NormalTask restored = (NormalTask) findByName(reopened, "Mpo task");
+		for (int slot = 0; slot <= 10; slot++) {
+			TaskSnapshot snapshot = (TaskSnapshot) restored.getSnapshot(Integer.valueOf(slot));
+			assertNotNull(snapshot, "Cost-only baseline slot must import: " + slot);
+			assertEquals(slot == 0 ? 0.0d : slot * 10.0d, snapshot.getFixedCost());
+			assertEquals(accruals[slot], snapshot.getFixedCostAccrual());
+			assertEquals(0L, snapshot.getCurrentSchedule().getStart());
+			assertEquals(0L, snapshot.getCurrentSchedule().getFinish());
+		}
+	}
+
+	private static String taskBaselineXmlField(byte[] xml, String taskName, int slot, String field)
+		throws Exception {
+		javax.xml.parsers.DocumentBuilderFactory factory = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+		factory.setNamespaceAware(true);
+		factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+		factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
+		factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+		org.w3c.dom.Document document = factory.newDocumentBuilder().parse(new ByteArrayInputStream(xml));
+		String namespace = document.getDocumentElement().getNamespaceURI();
+		org.w3c.dom.NodeList tasks = document.getElementsByTagNameNS(namespace, "Task");
+		for (int index = 0; index < tasks.getLength(); index++) {
+			org.w3c.dom.Element task = (org.w3c.dom.Element) tasks.item(index);
+			if (!taskName.equals(xmlDirectChildText(task, "Name", namespace))) continue;
+			org.w3c.dom.NodeList children = task.getElementsByTagNameNS(namespace, "Baseline");
+			for (int childIndex = 0; childIndex < children.getLength(); childIndex++) {
+				org.w3c.dom.Element baseline = (org.w3c.dom.Element) children.item(childIndex);
+				if (!Integer.toString(slot).equals(xmlDirectChildText(baseline, "Number", namespace))) continue;
+				return xmlDirectChildText(baseline, field, namespace);
+			}
+			return null;
+		}
+		throw new AssertionError("MSPDI task not found: " + taskName);
+	}
+
+	private static String xmlDirectChildText(org.w3c.dom.Element parent, String name, String namespace) {
+		for (org.w3c.dom.Node child = parent.getFirstChild(); child != null; child = child.getNextSibling()) {
+			if (child instanceof org.w3c.dom.Element element
+					&& name.equals(element.getLocalName())
+					&& java.util.Objects.equals(namespace, element.getNamespaceURI()))
+				return element.getTextContent();
+		}
+		return null;
 	}
 
 	@Test
@@ -673,6 +1038,42 @@ class MpoFileImporterTest {
 		ByteArrayOutputStream output = new ByteArrayOutputStream();
 		new MpoFileImporter().saveProject(project, output);
 		return output.toByteArray();
+	}
+
+	private static void assertMalformedBaselineMetadataPreservesTarget(Project target,
+		com.fasterxml.jackson.databind.ObjectMapper mapper, com.fasterxml.jackson.databind.JsonNode malformed) throws Exception {
+		java.util.Map<String, java.util.List<Long>> originalProfileIds = new java.util.LinkedHashMap<>();
+		for (com.fasterxml.jackson.databind.JsonNode taskNode : malformed.path("tasks")) {
+			long taskUid = taskNode.path("taskUid").longValue();
+			int slot = taskNode.path("slot").intValue();
+			Task task = target.findByUniqueId(taskUid);
+			if (!(task instanceof NormalTask normalTask)
+					|| !(normalTask.getSnapshot(Integer.valueOf(slot)) instanceof TaskSnapshot snapshot)) continue;
+			originalProfileIds.put(taskUid + ":" + slot, snapshot.captureBaselineProfiles(normalTask, slot).stream()
+				.map(profile -> Long.valueOf(profile.profileId())).toList());
+		}
+		java.lang.reflect.Method restore = MpoFileImporter.class.getDeclaredMethod("restoreBaselineProfiles",
+			Project.class, byte[].class);
+		restore.setAccessible(true);
+		assertThrows(java.io.IOException.class, () -> {
+			try {
+				restore.invoke(null, target, mapper.writeValueAsBytes(malformed));
+			} catch (java.lang.reflect.InvocationTargetException exception) {
+				if (exception.getCause() instanceof java.io.IOException ioException) throw ioException;
+				throw new RuntimeException(exception.getCause());
+			}
+		});
+		for (com.fasterxml.jackson.databind.JsonNode taskNode : malformed.path("tasks")) {
+			long taskUid = taskNode.path("taskUid").longValue();
+			int slot = taskNode.path("slot").intValue();
+			String key = taskUid + ":" + slot;
+			if (!originalProfileIds.containsKey(key)) continue;
+			NormalTask task = (NormalTask) target.findByUniqueId(taskUid);
+			TaskSnapshot snapshot = (TaskSnapshot) task.getSnapshot(Integer.valueOf(slot));
+			assertEquals(originalProfileIds.get(key), snapshot.captureBaselineProfiles(task, slot).stream()
+				.map(profile -> Long.valueOf(profile.profileId())).toList(),
+				"Malformed MPO sidecar data must not partially replace target baseline profiles");
+		}
 	}
 
 	private static Assignment firstRealAssignment(Project project) {

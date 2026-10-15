@@ -60,6 +60,22 @@ import com.microproject.pm.task.TaskSplitInterval;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.assignment.Assignment;
+import com.microproject.pm.assignment.BaselineAssignmentProfile;
+import com.microproject.pm.assignment.BaselineAssignmentProfile.Bucket;
+import com.microproject.pm.assignment.BaselineAssignmentProfile.Contour;
+import com.microproject.pm.calendar.CalendarDefinition;
+import com.microproject.pm.calendar.CalendarRecurrence;
+import com.microproject.pm.calendar.RecurringCalendarException;
+import com.microproject.pm.calendar.WorkDay;
+import com.microproject.pm.calendar.WorkRange;
+import com.microproject.pm.calendar.WorkWeek;
+import com.microproject.pm.calendar.WorkWeekPeriod;
+import com.microproject.pm.calendar.WorkingCalendar;
+import com.microproject.pm.calendar.WorkingHours;
+import com.microproject.pm.resource.Resource;
+import com.microproject.pm.resource.ResourceImpl;
+import com.microproject.pm.snapshot.Snapshottable;
+import com.microproject.pm.task.TaskSnapshot;
 import com.microproject.field.Field;
 import com.microproject.graphic.configuration.SpreadSheetFieldArray;
 import com.microproject.pm.assignment.TimeDistributedHelper;
@@ -89,6 +105,8 @@ public class MpoFileImporter extends FileImporter {
 	static final String TASK_SPLITS_ENTRY = "microproject/task-splits.json";
 	/** Exact native schedule values needed when MSPDI import recalculates assignments. */
 	static final String TASK_SCHEDULES_ENTRY = "microproject/task-schedules.json";
+	/** Detached saved-baseline assignment profiles not representable in MSPDI assignments. */
+	static final String BASELINE_PROFILES_ENTRY = "microproject/baseline-profiles.json";
 	/** MPOF v1.0 container layout (ODF conventions). */
 	static final String FORMAT_ID = "mpof";
 	/** Container version this build writes; every save rewrites the file at this version. */
@@ -297,6 +315,8 @@ public class MpoFileImporter extends FileImporter {
 			restoreTaskSplits(project, extensions.entries.get(TASK_SPLITS_ENTRY));
 		if (extensions.entries.containsKey(TASK_SCHEDULES_ENTRY))
 			restoreTaskSchedules(project, extensions.entries.get(TASK_SCHEDULES_ENTRY));
+		if (extensions.entries.containsKey(BASELINE_PROFILES_ENTRY))
+			restoreBaselineProfiles(project, extensions.entries.get(BASELINE_PROFILES_ENTRY));
 		return project;
 	}
 
@@ -506,10 +526,12 @@ public class MpoFileImporter extends FileImporter {
 		archiveEntries.put(VISIBILITY_ENTRY, visibilityJson(project, taskIdentities));
 		archiveEntries.put(TASK_SPLITS_ENTRY, taskSplitsJson(project, taskIdentities));
 		archiveEntries.put(TASK_SCHEDULES_ENTRY, taskSchedulesJson(project, taskIdentities));
+		archiveEntries.put(BASELINE_PROFILES_ENTRY, baselineProfilesJson(project, taskIdentities,
+			resourceIdentitiesForMpo(project)));
 		archiveEntries.put(CCPM_HISTORY_ENTRY, ccpmHistoryJson(project));
 		MpoExtensions extensions = project.findTransientDocumentState(MpoExtensions.class);
 		if (extensions != null) for (java.util.Map.Entry<String, byte[]> extension : extensions.entries.entrySet()) {
-			if (MIMETYPE_ENTRY.equals(extension.getKey()) || MANIFEST_ENTRY.equals(extension.getKey()) || META_ENTRY.equals(extension.getKey()) || SETTINGS_ENTRY.equals(extension.getKey()) || CCPM_HISTORY_ENTRY.equals(extension.getKey()) || LAYOUT_ENTRY.equals(extension.getKey()) || VISIBILITY_ENTRY.equals(extension.getKey()) || TASK_SPLITS_ENTRY.equals(extension.getKey()) || TASK_SCHEDULES_ENTRY.equals(extension.getKey()) || PROJECT_ENTRY.equals(extension.getKey()) || OPERATIONS_ENTRY.equals(extension.getKey()) || TASK_IDENTITIES_ENTRY.equals(extension.getKey()) || extension.getKey().startsWith(EMBEDDED_PROJECT_PREFIX)) continue;
+			if (MIMETYPE_ENTRY.equals(extension.getKey()) || MANIFEST_ENTRY.equals(extension.getKey()) || META_ENTRY.equals(extension.getKey()) || SETTINGS_ENTRY.equals(extension.getKey()) || CCPM_HISTORY_ENTRY.equals(extension.getKey()) || LAYOUT_ENTRY.equals(extension.getKey()) || VISIBILITY_ENTRY.equals(extension.getKey()) || TASK_SPLITS_ENTRY.equals(extension.getKey()) || TASK_SCHEDULES_ENTRY.equals(extension.getKey()) || BASELINE_PROFILES_ENTRY.equals(extension.getKey()) || PROJECT_ENTRY.equals(extension.getKey()) || OPERATIONS_ENTRY.equals(extension.getKey()) || TASK_IDENTITIES_ENTRY.equals(extension.getKey()) || extension.getKey().startsWith(EMBEDDED_PROJECT_PREFIX)) continue;
 			archiveEntries.put(extension.getKey(), extension.getValue());
 		}
 		MpoArchiveSnapshot snapshot = snapshotForWrite(project, projectXml, archiveEntries, embeddedProjects);
@@ -747,13 +769,13 @@ public class MpoFileImporter extends FileImporter {
 	private static void restoreTaskSplits(Project project, byte[] bytes) throws IOException {
 		JsonNode root = JSON.readTree(bytes);
 		JsonNode tasks = root.path("tasks");
-		if (root.path("version").asInt(-1) != 1 || !tasks.isArray()) throw new IOException("Invalid mpo task split data");
+		if (requiredInt(root, "version") != 1 || !tasks.isArray()) throw new IOException("Invalid mpo task split data");
 		int intervalCount = 0;
 		for (JsonNode taskNode : tasks) {
 			JsonNode uidNode = taskNode.path("taskUid");
 			JsonNode intervalsNode = taskNode.path("intervals");
-			if (!uidNode.canConvertToLong() || !intervalsNode.isArray()) throw new IOException("Invalid mpo task split record");
-			long serializedId = uidNode.longValue();
+			long serializedId = integralLong(uidNode, "taskUid");
+			if (!intervalsNode.isArray()) throw new IOException("Invalid mpo task split record");
 			Task task = project.findByUniqueId(serializedId);
 			if (!(task instanceof NormalTask normalTask)) throw new IOException("MPO task split references an unknown task");
 			java.util.ArrayList<TaskSplitInterval> intervals = new java.util.ArrayList<>();
@@ -762,10 +784,10 @@ public class MpoFileImporter extends FileImporter {
 				if (++intervalCount > MAX_OPERATION_COUNT) throw new IOException("MPO contains too many task split intervals");
 				JsonNode startNode = intervalNode.path("startOffset");
 				JsonNode endNode = intervalNode.path("endOffset");
-				if (!startNode.canConvertToLong() || !endNode.canConvertToLong()) throw new IOException("Invalid mpo task split interval");
 				TaskSplitInterval interval;
 				try {
-					interval = new TaskSplitInterval(startNode.longValue(), endNode.longValue());
+					interval = new TaskSplitInterval(integralLong(startNode, "startOffset"),
+						integralLong(endNode, "endOffset"));
 				} catch (IllegalArgumentException exception) {
 					throw new IOException("Invalid mpo task split interval", exception);
 				} catch (ArithmeticException exception) {
@@ -778,6 +800,387 @@ public class MpoFileImporter extends FileImporter {
 			normalTask.restoreTaskSplitIntervals(MpoFileImporter.class, intervals);
 		}
 	}
+
+	private static byte[] baselineProfilesJson(Project project, String taskIdentities,
+		java.util.Map<Long, Long> resourceIdentities) throws IOException {
+		try {
+			JsonNode taskUidMap = JSON.readTree(taskIdentities);
+			ObjectNode root = JSON.createObjectNode();
+			root.put("version", 1);
+			var tasks = root.putArray("tasks");
+			for (java.util.Iterator<?> iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
+				Task task = (Task) iterator.next();
+				JsonNode serializedTaskUid = taskUidMap.path(String.valueOf(task.getUniqueId()));
+				if (!serializedTaskUid.canConvertToLong()) continue;
+				for (int slot = 0; slot < Snapshottable.CURRENT.intValue(); slot++) {
+					if (!(task.getSnapshot(Integer.valueOf(slot)) instanceof TaskSnapshot snapshot)) continue;
+					ObjectNode taskNode = tasks.addObject();
+					taskNode.put("taskUid", serializedTaskUid.longValue());
+					taskNode.put("slot", slot);
+					taskNode.put("fixedCostAccrual", snapshot.getFixedCostAccrual());
+					var profiles = taskNode.putArray("profiles");
+					for (BaselineAssignmentProfile profile : snapshot.captureBaselineProfiles(task, slot))
+						writeBaselineProfile(profiles.addObject(), profile, resourceIdentities);
+				}
+			}
+			return JSON.writeValueAsBytes(root);
+		} catch (IOException exception) {
+			throw exception;
+		} catch (Exception exception) {
+			throw new IOException("Unable to serialize mpo baseline profiles", exception);
+		}
+	}
+
+	private static void writeBaselineProfile(ObjectNode node, BaselineAssignmentProfile profile,
+		java.util.Map<Long, Long> resourceIdentities) throws IOException {
+		Long resourceUid = resourceIdentities.get(Long.valueOf(profile.resourceUniqueId()));
+		if (resourceUid == null) throw new IOException("Missing serialized resource identity for baseline profile");
+		node.put("profileUid", profile.profileId());
+		node.put("resourceUid", resourceUid.longValue());
+		node.put("start", profile.start());
+		node.put("finish", profile.finish());
+		node.put("duration", profile.duration());
+		node.put("units", profile.units());
+		node.put("rate", profile.rate());
+		node.put("rateUnit", profile.rateUnit());
+		node.put("requestDemandType", profile.requestDemandType());
+		node.put("costRateIndex", profile.costRateIndex());
+		node.put("delay", profile.delay());
+		node.put("levelingDelay", profile.levelingDelay());
+		node.put("overtimeWork", profile.overtimeWork());
+		writeContour(node.putObject("workContour"), profile.workContour());
+		writeContour(node.putObject("costContour"), profile.costContour());
+		writeCalendar(node.putObject("calendar"), profile.calendarCopy());
+	}
+
+	private static void writeContour(ObjectNode node, Contour contour) {
+		node.put("type", contour.type());
+		var buckets = node.putArray("buckets");
+		for (Bucket bucket : contour.buckets()) {
+			ObjectNode item = buckets.addObject();
+			item.put("duration", bucket.duration());
+			item.put("units", bucket.units());
+		}
+	}
+
+	private static void writeCalendar(ObjectNode node, WorkingCalendar calendar) {
+		CalendarDefinition definition = calendar.getConcreteInstance();
+		node.put("name", calendar.getName());
+		var week = node.putArray("week");
+		for (int day = 0; day < WorkWeek.DAYS_IN_WEEK; day++)
+			writeCalendarDay(week.addObject(), definition.getWeekDay(day));
+		var exceptions = node.putArray("exceptions");
+		for (WorkDay day : definition.getExceptionDays()) writeCalendarDay(exceptions.addObject(), day);
+		var periods = node.putArray("workWeeks");
+		for (WorkWeekPeriod period : definition.getWorkWeekPeriods()) {
+			ObjectNode item = periods.addObject();
+			item.put("name", period.getName());
+			item.put("start", period.getStart());
+			item.put("end", period.getEnd());
+			var days = item.putArray("week");
+			for (int day = 0; day < WorkWeek.DAYS_IN_WEEK; day++)
+				writeCalendarDay(days.addObject(), period.getWeekDay(day));
+		}
+		var recurring = node.putArray("recurringExceptions");
+		for (RecurringCalendarException exception : definition.getRecurringExceptions()) {
+			ObjectNode item = recurring.addObject();
+			writeCalendarDay(item.putObject("template"), exception.getTemplate());
+			writeRecurrence(item.putObject("recurrence"), exception.getRecurrence());
+		}
+	}
+
+	private static void writeCalendarDay(ObjectNode node, WorkDay day) {
+		if (day == null) {
+			node.put("defined", false);
+			return;
+		}
+		node.put("defined", true);
+		node.put("start", day.getStart());
+		node.put("end", day.getEnd());
+		node.put("description", day.getDescription());
+		var ranges = node.putArray("ranges");
+		java.util.List<WorkRange> intervals = day.getWorkingHours().getIntervals();
+		for (int index = 0; index < intervals.size(); index++) {
+			WorkRange range = intervals.get(index);
+			if (range == null) continue;
+			ObjectNode item = ranges.addObject();
+			item.put("index", index);
+			item.put("start", range.getStart());
+			item.put("end", range.getEnd());
+			item.put("overtime", range.isOvertime());
+		}
+	}
+
+	private static void writeRecurrence(ObjectNode node, CalendarRecurrence recurrence) {
+		node.put("pattern", recurrence.getPattern().name());
+		node.put("endMode", recurrence.getEndMode().name());
+		node.put("start", recurrence.getStartDate());
+		node.put("finish", recurrence.getFinishDate());
+		node.put("count", recurrence.getOccurrenceCount());
+		node.put("frequency", recurrence.getFrequency());
+		node.put("workingDaysOnly", recurrence.isWorkingDaysOnly());
+		node.put("relative", recurrence.isRelative());
+		node.put("ordinal", recurrence.getOrdinal());
+		node.put("weekday", recurrence.getWeekday());
+		node.put("month", recurrence.getMonth());
+		node.put("dayOfMonth", recurrence.getDayOfMonth());
+		var weekdays = node.putArray("weekdays");
+		java.util.BitSet selected = recurrence.getWeekdays();
+		for (int day = selected.nextSetBit(0); day >= 0; day = selected.nextSetBit(day + 1)) weekdays.add(day);
+	}
+
+	private static java.util.Map<Long, Long> resourceIdentitiesForMpo(Project project) throws IOException {
+		return com.microproject.server.data.MPXConverter.exportedResourceIdentities(project);
+	}
+
+	private static void restoreBaselineProfiles(Project project, byte[] bytes) throws IOException {
+		JsonNode root = JSON.readTree(bytes);
+		JsonNode tasks = root.path("tasks");
+		int version = requiredInt(root, "version");
+		if (version != 1 || !tasks.isArray() || tasks.size() > MAX_OPERATION_COUNT)
+			throw new IOException("Invalid mpo baseline profile data");
+		java.util.ArrayList<BaselineProfilesReplacement> replacements = new java.util.ArrayList<>();
+		java.util.HashSet<String> seenSlots = new java.util.HashSet<>();
+		int profileCount = 0;
+		for (JsonNode taskNode : tasks) {
+			JsonNode taskUidNode = taskNode.path("taskUid");
+			JsonNode slotNode = taskNode.path("slot");
+			JsonNode profilesNode = taskNode.path("profiles");
+			if (!profilesNode.isArray() || profilesNode.size() > MAX_OPERATION_COUNT)
+				throw new IOException("Invalid mpo baseline task slot");
+			long taskUid = integralLong(taskUidNode, "taskUid");
+			int slot = integralInt(slotNode, "slot");
+			int accrualCode = requiredInt(taskNode, "fixedCostAccrual");
+			try {
+				com.microproject.pm.costing.Accrual.Kind.fromCode(accrualCode);
+			} catch (IllegalArgumentException exception) {
+				throw new IOException("Invalid mpo baseline fixed-cost accrual", exception);
+			}
+			Integer fixedCostAccrual = Integer.valueOf(accrualCode);
+			if (taskUid <= 0L || slot < 0 || slot >= Snapshottable.CURRENT.intValue())
+				throw new IOException("MPO baseline profile references an invalid task or slot");
+			String slotKey = taskUid + ":" + slot;
+			if (!seenSlots.add(slotKey)) throw new IOException("Duplicate mpo baseline profile task slot");
+			Task task = project.findByUniqueId(taskUid);
+			if (!(task instanceof NormalTask normalTask)
+					|| !(normalTask.getSnapshot(Integer.valueOf(slot)) instanceof TaskSnapshot snapshot))
+				throw new IOException("MPO baseline profile references a missing task snapshot uid=" + taskUid
+					+ " slot=" + slot);
+			java.util.ArrayList<Assignment> assignments = new java.util.ArrayList<>();
+			java.util.HashSet<Long> profileIds = new java.util.HashSet<>();
+			for (JsonNode profileNode : profilesNode) {
+				if (++profileCount > MAX_OPERATION_COUNT) throw new IOException("MPO contains too many baseline profiles");
+				BaselineAssignmentProfile profile = readBaselineProfile(profileNode);
+				if (!profileIds.add(Long.valueOf(profile.profileId())))
+					throw new IOException("Duplicate profile identity in mpo baseline slot");
+				Resource resource = project.getResourcePool().findById(profile.resourceUniqueId());
+				if (resource == null) throw new IOException("MPO baseline profile references an unknown resource uid="
+					+ profile.resourceUniqueId());
+				try {
+					assignments.add(profile.restore(normalTask, resource));
+				} catch (RuntimeException exception) {
+					throw new IOException("Invalid mpo baseline profile for task uid=" + taskUid + " slot=" + slot,
+						exception);
+				}
+			}
+			replacements.add(new BaselineProfilesReplacement(normalTask, slot, snapshot, assignments,
+				fixedCostAccrual));
+		}
+		for (BaselineProfilesReplacement replacement : replacements)
+			replacement.snapshot().replaceBaselineRollupAssignments(replacement.task(), replacement.slot(),
+				replacement.assignments());
+		for (BaselineProfilesReplacement replacement : replacements)
+			if (replacement.fixedCostAccrual() != null)
+				replacement.snapshot().setFixedCostAccrual(replacement.fixedCostAccrual().intValue());
+	}
+
+	private static BaselineAssignmentProfile readBaselineProfile(JsonNode node) throws IOException {
+		try {
+			return new BaselineAssignmentProfile(requiredNonZeroLong(node, "profileUid"),
+				requiredPositiveLong(node, "resourceUid"), requiredLong(node, "start"), requiredLong(node, "finish"),
+				requiredLong(node, "duration"), requiredFiniteDouble(node, "units"),
+				requiredFiniteDouble(node, "rate"), requiredInt(node, "rateUnit"), requiredInt(node, "requestDemandType"),
+				requiredInt(node, "costRateIndex"), requiredLong(node, "delay"), requiredLong(node, "levelingDelay"),
+				requiredLong(node, "overtimeWork"), readContour(node.path("workContour")),
+				readContour(node.path("costContour")), readCalendar(node.path("calendar")));
+		} catch (RuntimeException exception) {
+			throw new IOException("Invalid mpo baseline assignment profile", exception);
+		}
+	}
+
+	private static Contour readContour(JsonNode node) throws IOException {
+		JsonNode bucketsNode = node.path("buckets");
+		if (!bucketsNode.isArray() || bucketsNode.size() > MAX_OPERATION_COUNT)
+			throw new IOException("Invalid mpo baseline contour");
+		int type = integralInt(node.path("type"), "type");
+		java.util.ArrayList<Bucket> buckets = new java.util.ArrayList<>();
+		for (JsonNode bucket : bucketsNode) {
+			if (!bucket.path("units").isNumber() || !Double.isFinite(bucket.path("units").doubleValue()))
+				throw new IOException("Invalid mpo baseline contour bucket");
+			buckets.add(new Bucket(integralLong(bucket.path("duration"), "duration"), bucket.path("units").doubleValue()));
+		}
+		return new Contour(type, buckets);
+	}
+
+	private static WorkingCalendar readCalendar(JsonNode node) throws IOException {
+		JsonNode weekNode = node.path("week");
+		JsonNode exceptionsNode = node.path("exceptions");
+		JsonNode periodsNode = node.path("workWeeks");
+		JsonNode recurringNode = node.path("recurringExceptions");
+		if (!node.path("name").isTextual() || !weekNode.isArray()
+				|| weekNode.size() != WorkWeek.DAYS_IN_WEEK || !exceptionsNode.isArray()
+				|| exceptionsNode.size() > MAX_OPERATION_COUNT || !periodsNode.isArray()
+				|| periodsNode.size() > MAX_OPERATION_COUNT || !recurringNode.isArray()
+				|| recurringNode.size() > MAX_OPERATION_COUNT)
+			throw new IOException("Invalid mpo baseline calendar");
+		WorkingCalendar calendar = WorkingCalendar.getInstance();
+		calendar.setName(node.path("name").textValue());
+		for (int day = 0; day < WorkWeek.DAYS_IN_WEEK; day++)
+			calendar.setWeekDay(day, readCalendarDay(weekNode.get(day)));
+		for (JsonNode exception : exceptionsNode) calendar.addOrReplaceException(readCalendarDay(exception));
+		for (JsonNode periodNode : periodsNode) {
+			JsonNode periodWeek = periodNode.path("week");
+			if (!periodNode.path("name").isTextual() || !periodWeek.isArray()
+					|| periodWeek.size() != WorkWeek.DAYS_IN_WEEK)
+				throw new IOException("Invalid mpo baseline work-week period");
+			long periodStart = integralLong(periodNode.path("start"), "start");
+			long periodEnd = integralLong(periodNode.path("end"), "end");
+			WorkWeek week = new WorkWeek();
+			for (int day = 0; day < WorkWeek.DAYS_IN_WEEK; day++) week.setWeekDay(day, readCalendarDay(periodWeek.get(day)));
+			calendar.addOrReplaceWorkWeekPeriod(new WorkWeekPeriod(periodNode.path("name").textValue(),
+				periodStart, periodEnd, week));
+		}
+		for (JsonNode recurring : recurringNode) {
+			WorkDay template = readCalendarDay(recurring.path("template"));
+			CalendarRecurrence rule = readRecurrence(recurring.path("recurrence"));
+			calendar.addOrReplaceRecurringException(new RecurringCalendarException(template, rule));
+		}
+		return calendar.copyForBaselineSnapshot();
+	}
+
+	private static WorkDay readCalendarDay(JsonNode node) throws IOException {
+		if (!node.path("defined").isBoolean()) throw new IOException("Invalid mpo calendar day defined flag");
+		if (!node.path("defined").booleanValue()) return null;
+		if (!node.path("description").isTextual() || !node.path("ranges").isArray()
+				|| node.path("ranges").size() > new WorkingHours().getIntervals().size())
+			throw new IOException("Invalid mpo calendar day");
+		WorkDay day = new WorkDay(integralLong(node.path("start"), "start"), integralLong(node.path("end"), "end"),
+			node.path("description").textValue());
+		WorkingHours hours = new WorkingHours();
+		java.util.HashSet<Integer> indexes = new java.util.HashSet<>();
+		for (JsonNode range : node.path("ranges")) {
+			if (!range.path("overtime").isBoolean())
+				throw new IOException("Invalid mpo calendar work range");
+			int index = integralInt(range.path("index"), "index");
+			if (index < 0 || index >= hours.getIntervals().size() || !indexes.add(Integer.valueOf(index)))
+				throw new IOException("Duplicate or out-of-range mpo calendar work range");
+			try {
+				hours.setInterval(index, integralLong(range.path("start"), "start"),
+					integralLong(range.path("end"), "end"));
+			} catch (Exception exception) {
+				throw new IOException("Invalid mpo calendar work range", exception);
+			}
+			WorkRange restored = hours.getInterval(index);
+			if (restored != null) restored.setOvertime(range.path("overtime").booleanValue());
+		}
+		day.setWorkingHours(hours);
+		return day;
+	}
+
+	private static CalendarRecurrence readRecurrence(JsonNode node) throws IOException {
+		try {
+			CalendarRecurrence.Pattern pattern = CalendarRecurrence.Pattern.valueOf(requiredText(node, "pattern"));
+			CalendarRecurrence.EndMode endMode = CalendarRecurrence.EndMode.valueOf(requiredText(node, "endMode"));
+			long start = requiredLong(node, "start");
+			long finish = requiredLong(node, "finish");
+			int count = requiredInt(node, "count");
+			int frequency = requiredInt(node, "frequency");
+			boolean relative = requiredBoolean(node, "relative");
+			int dayOfMonth = requiredInt(node, "dayOfMonth");
+			int ordinal = requiredInt(node, "ordinal");
+			int weekday = requiredInt(node, "weekday");
+			int month = requiredInt(node, "month");
+			return switch (pattern) {
+				case DAILY -> CalendarRecurrence.daily(start, frequency, requiredBoolean(node, "workingDaysOnly"),
+					endMode, finish, count);
+				case WEEKLY -> {
+					java.util.BitSet weekdays = new java.util.BitSet(8);
+					JsonNode weekdayNodes = node.path("weekdays");
+					if (!weekdayNodes.isArray()) throw new IOException("Invalid mpo weekly recurrence weekdays");
+					for (JsonNode item : weekdayNodes) {
+						int weekdayCode = integralInt(item, "weekday");
+						if (weekdayCode < 1 || weekdayCode > 7)
+							throw new IOException("Invalid mpo weekly recurrence weekday");
+						weekdays.set(weekdayCode);
+					}
+					yield CalendarRecurrence.weekly(start, frequency, weekdays, endMode, finish, count);
+				}
+				case MONTHLY -> CalendarRecurrence.monthly(start, frequency, relative, dayOfMonth, ordinal,
+					weekday, endMode, finish, count);
+				case YEARLY -> CalendarRecurrence.yearly(start, frequency, relative, month, dayOfMonth,
+					ordinal, weekday, endMode, finish, count);
+			};
+		} catch (IOException exception) {
+			throw exception;
+		} catch (RuntimeException exception) {
+			throw new IOException("Invalid mpo baseline calendar recurrence", exception);
+		}
+	}
+
+	private static long requiredPositiveLong(JsonNode node, String name) throws IOException {
+		long value = requiredLong(node, name);
+		if (value <= 0L) throw new IOException("Invalid positive MPO baseline value: " + name);
+		return value;
+	}
+
+	private static long requiredNonZeroLong(JsonNode node, String name) throws IOException {
+		long value = requiredLong(node, name);
+		if (value == 0L) throw new IOException("Invalid nonzero MPO baseline value: " + name);
+		return value;
+	}
+
+	private static long requiredLong(JsonNode node, String name) throws IOException {
+		return integralLong(node.path(name), name);
+	}
+
+	private static int requiredInt(JsonNode node, String name) throws IOException {
+		return integralInt(node.path(name), name);
+	}
+
+	private static long integralLong(JsonNode value, String name) throws IOException {
+		if (value == null || !value.isIntegralNumber() || !value.canConvertToLong())
+			throw new IOException("Invalid MPO integer value: " + name);
+		return value.longValue();
+	}
+
+	private static int integralInt(JsonNode value, String name) throws IOException {
+		long integral = integralLong(value, name);
+		if (integral < Integer.MIN_VALUE || integral > Integer.MAX_VALUE)
+			throw new IOException("Out-of-range MPO integer value: " + name);
+		return (int) integral;
+	}
+
+	private static double requiredFiniteDouble(JsonNode node, String name) throws IOException {
+		JsonNode value = node.path(name);
+		if (!value.isNumber() || !Double.isFinite(value.doubleValue()))
+			throw new IOException("Invalid MPO baseline value: " + name);
+		return value.doubleValue();
+	}
+
+	private static String requiredText(JsonNode node, String name) throws IOException {
+		JsonNode value = node.path(name);
+		if (!value.isTextual()) throw new IOException("Invalid MPO baseline value: " + name);
+		return value.textValue();
+	}
+
+	private static boolean requiredBoolean(JsonNode node, String name) throws IOException {
+		JsonNode value = node.path(name);
+		if (!value.isBoolean()) throw new IOException("Invalid MPO baseline value: " + name);
+		return value.booleanValue();
+	}
+
+	private record BaselineProfilesReplacement(NormalTask task, int slot, TaskSnapshot snapshot,
+		java.util.List<Assignment> assignments, Integer fixedCostAccrual) { }
 
 	private static byte[] taskSchedulesJson(Project project, String taskIdentities) throws IOException {
 		try {
@@ -813,7 +1216,7 @@ public class MpoFileImporter extends FileImporter {
 	private static void restoreTaskSchedules(Project project, byte[] bytes) throws IOException {
 		JsonNode root = JSON.readTree(bytes);
 		JsonNode tasks = root.path("tasks");
-		if (root.path("version").asInt(-1) != 1 || !tasks.isArray())
+		if (requiredInt(root, "version") != 1 || !tasks.isArray())
 			throw new IOException("Invalid mpo task schedule data");
 		java.util.Set<Long> seen = new java.util.HashSet<>();
 		java.util.ArrayList<TaskScheduleSnapshot> snapshots = new java.util.ArrayList<>();
@@ -825,24 +1228,21 @@ public class MpoFileImporter extends FileImporter {
 			JsonNode startNode = taskNode.path("start");
 			JsonNode finishNode = taskNode.path("finish");
 			JsonNode actualStartNode = taskNode.path("actualStart");
-			if (!uidNode.canConvertToLong() || !constraintTypeNode.canConvertToInt()
-					|| !constraintDateNode.canConvertToLong() || !startNode.canConvertToLong()
-					|| !finishNode.canConvertToLong() || !actualStartNode.canConvertToLong())
-				throw new IOException("Invalid mpo task schedule record");
-			long serializedId = uidNode.longValue();
+			long serializedId = integralLong(uidNode, "taskUid");
+			int constraintType = integralInt(constraintTypeNode, "constraintType");
+			long constraintDate = integralLong(constraintDateNode, "constraintDate");
+			long start = integralLong(startNode, "start");
+			long finish = integralLong(finishNode, "finish");
+			long actualStart = integralLong(actualStartNode, "actualStart");
 			if (!seen.add(serializedId)) throw new IOException("Duplicate task schedule record in MPO");
 			Task task = project.findByUniqueId(serializedId);
 			if (!(task instanceof NormalTask normalTask))
 				throw new IOException("MPO task schedule references an unknown task uid=" + serializedId
 					+ " found=" + (task == null ? "null" : task.getClass().getName()));
-			int constraintType = constraintTypeNode.intValue();
 			if (com.microproject.pm.scheduling.ConstraintType.Kind.fromCodeOrNull(constraintType) == null)
 				throw new IOException("Invalid mpo task schedule constraint type");
-			long start = startNode.longValue();
-			long finish = finishNode.longValue();
 			if (finish < start) throw new IOException("Invalid mpo task schedule boundaries");
-			snapshots.add(new TaskScheduleSnapshot(normalTask, constraintType, constraintDateNode.longValue(), start,
-				finish, actualStartNode.longValue()));
+			snapshots.add(new TaskScheduleSnapshot(normalTask, constraintType, constraintDate, start, finish, actualStart));
 		}
 		for (TaskScheduleSnapshot snapshot : snapshots) {
 			snapshot.task().restoreMpoScheduleSnapshot(snapshot.constraintType(), snapshot.constraintDate(),
@@ -856,11 +1256,10 @@ public class MpoFileImporter extends FileImporter {
 	private static void restoreVisibility(Project project, byte[] bytes) throws IOException {
 		JsonNode root = JSON.readTree(bytes);
 		JsonNode hidden = root.path("hiddenTaskUniqueIds");
-		if (!root.path("version").canConvertToInt() || root.path("version").intValue() != 1 || !hidden.isArray())
+		if (requiredInt(root, "version") != 1 || !hidden.isArray())
 			throw new IOException("Invalid mpo visibility state");
 		for (JsonNode entry : hidden) {
-			if (!entry.canConvertToLong()) throw new IOException("Invalid mpo hidden task identity");
-			long serializedId = entry.longValue();
+			long serializedId = integralLong(entry, "taskUid");
 			Task task = project.findByUniqueId(serializedId);
 			if (task != null) task.setHiddenTask(true);
 		}
@@ -874,8 +1273,7 @@ public class MpoFileImporter extends FileImporter {
 		while (fields.hasNext()) {
 			java.util.Map.Entry<String, JsonNode> entry = fields.next();
 			try {
-				if (!entry.getValue().canConvertToLong()) throw new NumberFormatException();
-				result.put(Long.valueOf(entry.getKey()), Long.valueOf(entry.getValue().longValue()));
+				result.put(Long.valueOf(entry.getKey()), Long.valueOf(integralLong(entry.getValue(), "taskUid")));
 			} catch (NumberFormatException exception) {
 				throw new IOException("Invalid mpo task identity", exception);
 			}

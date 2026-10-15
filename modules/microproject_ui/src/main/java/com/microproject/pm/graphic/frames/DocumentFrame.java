@@ -123,6 +123,7 @@ import com.microproject.pm.resource.ResourceLevelingService;
 import com.microproject.pm.resource.TeamPlannerService;
 import com.microproject.pm.task.Portfolio;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.BaselineRollupOptions;
 import com.microproject.pm.task.ProjectEvent;
 import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.task.ProjectListener;
@@ -359,7 +360,9 @@ public class DocumentFrame extends NamedFrame implements
 		if (save) {
 			baselineDialog.setBeforeAccept(form -> {
 				List<?> target = form.isEntireProject() ? null : selectedTasks;
-				if (!getProject().hasBaselineData(form.getBaselineNumber(), form.isEntireProject(), target))
+			BaselineRollupOptions options = form.isEntireProject() ? BaselineRollupOptions.NONE
+				: new BaselineRollupOptions(form.isRollupToSummaryTasks(), form.isRollupFromSubtasks());
+				if (!getProject().hasBaselineData(form.getBaselineNumber(), form.isEntireProject(), target, options))
 					return true;
 				java.util.ResourceBundle labels = java.util.ResourceBundle.getBundle("com.microproject.dialog.usability");
 				return PopupDialogSupport.showConfirmDialog(baselineDialog,
@@ -385,8 +388,11 @@ public class DocumentFrame extends NamedFrame implements
 		}
 		Integer baselineNumber = Integer.valueOf(form.getBaselineNumber());
 		boolean entireProject = form.isEntireProject();
+		BaselineRollupOptions rollupOptions = save && !entireProject
+			? new BaselineRollupOptions(form.isRollupToSummaryTasks(), form.isRollupFromSubtasks())
+			: BaselineRollupOptions.NONE;
 		var change = save
-			? project.saveCurrentToSnapshot(baselineNumber, entireProject, selection)
+			? project.saveCurrentToSnapshot(baselineNumber, entireProject, selection, rollupOptions)
 			: project.clearSnapshot(baselineNumber, entireProject, selection);
 		String presentationName = save
 			? "SaveSnapshot: Project " + project.getName() + "(" + project.getUniqueId() + ")"
