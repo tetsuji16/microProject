@@ -68,7 +68,9 @@ import javax.swing.JTable;
 import javax.swing.text.JTextComponent;
 
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -155,6 +157,21 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	private boolean previousClientSide;
 	private boolean previousBatchMode;
 	private String previousUiDebug;
+	private static String previousQueueTrace;
+	private static final ConcurrentLinkedQueue<String> queueLifecycleMessages = new ConcurrentLinkedQueue<>();
+	private static final Logger[] queueLifecycleLoggers = {
+		Logger.getLogger(GraphicManager.class.getName()),
+		Logger.getLogger(SessionFactory.class.getName())
+	};
+	private static final Level[] previousQueueLoggerLevels = new Level[queueLifecycleLoggers.length];
+	private static final Handler queueLifecycleHandler = new Handler() {
+		@Override public void publish(LogRecord record) {
+			if (record != null && record.getMessage() != null)
+				queueLifecycleMessages.add(record.getMessage());
+		}
+		@Override public void flush() { }
+		@Override public void close() { }
+	};
 	private JobQueue previousJobQueue;
 	private Locale previousFormatLocale;
 	private RibbonDisplayMode previousShellDisplayMode;
@@ -165,6 +182,35 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	private TaskSortSpec previousTaskSortSpec;
 	private final ConcurrentLinkedQueue<String> diagnosticMessages = new ConcurrentLinkedQueue<>();
 	private volatile boolean failUpdateTasksRoute;
+
+	@BeforeAll
+	static void enableQueueLifecycleTraceForClass() {
+		previousQueueTrace = System.getProperty("microproject.session.traceQueueLifecycle");
+		System.setProperty("microproject.session.traceQueueLifecycle", "true");
+		queueLifecycleHandler.setLevel(Level.ALL);
+		for (int index = 0; index < queueLifecycleLoggers.length; index++) {
+			Logger logger = queueLifecycleLoggers[index];
+			previousQueueLoggerLevels[index] = logger.getLevel();
+			logger.setLevel(Level.ALL);
+			logger.addHandler(queueLifecycleHandler);
+		}
+	}
+
+	@AfterAll
+	static void restoreQueueLifecycleTraceForClass() {
+		for (int index = 0; index < queueLifecycleLoggers.length; index++) {
+			Logger logger = queueLifecycleLoggers[index];
+			logger.removeHandler(queueLifecycleHandler);
+			logger.setLevel(previousQueueLoggerLevels[index]);
+		}
+		queueLifecycleMessages.stream()
+			.filter(message -> message.startsWith("SESSION_QUEUE_CLEAR") || message.startsWith("EXTERNAL_COMMAND_START"))
+			.forEach(message -> System.out.println("QUEUE_LIFECYCLE_TRACE " + message));
+		if (previousQueueTrace == null)
+			System.clearProperty("microproject.session.traceQueueLifecycle");
+		else
+			System.setProperty("microproject.session.traceQueueLifecycle", previousQueueTrace);
+	}
 
 	@BeforeEach
 	void captureClientSide() {
@@ -232,6 +278,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Path recoveryCopy = null;
 		Project[] cleanupProject = new Project[1];
 		Dialog[] alert = new Dialog[1];
+		AbstractButton[] staleSaveButton = new AbstractButton[1];
+		javax.swing.Action[] staleSaveAction = new javax.swing.Action[1];
+		boolean[] recoverySaveCompleted = new boolean[1];
 		try {
 			MpoFileImporter importer = new MpoFileImporter();
 			try (OutputStream output = Files.newOutputStream(target)) {
@@ -265,6 +314,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			clickAndAwaitSelected(robot, fileTab, "Robot click did not select the File ribbon tab");
 			GuiAcceptanceSupport.await(fileTab::isSelected, "Robot click did not select the File ribbon tab");
 			AbstractButton save = findShowingButtonByCommand("RibbonSaveProject");
+			staleSaveButton[0] = save;
+			staleSaveAction[0] = manager.getAction(com.microproject.menu.MenuActionConstants.ACTION_SAVE_PROJECT);
+			assertNotNull(staleSaveAction[0], "the visible Save command must resolve to its canonical action for teardown testing");
 			assertTrue(save.isEnabled(), "Save must be enabled for the edited MPO project");
 			ConcurrentLinkedQueue<String> saveActionEvents = new ConcurrentLinkedQueue<>();
 			save.addActionListener(event -> saveActionEvents.add(Instant.now()
@@ -312,6 +364,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			assertTrue(saveActionEvents.peek().contains("factoryQueue=" + queueIdentity(saveQueue)
 				+ " localQueue=" + queueIdentity(saveQueue)),
 				"the Save button action must observe the attached queue; events=" + saveActionEvents);
+			recoverySaveCompleted[0] = true;
 		} finally {
 			if (alert[0] != null && alert[0].isShowing())
 				SwingUtilities.invokeAndWait(alert[0]::dispose);
@@ -332,6 +385,35 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				}
 				GuiAcceptanceSupport.await(() -> factory.getPortfolio().getNodeModel().search(cleanupProject[0]) == null,
 					"the test project did not leave the portfolio before the GUI manager closed");
+			}
+			if (recoverySaveCompleted[0] && staleSaveButton[0] != null && manager != null) {
+				GraphicManager closedManager = manager;
+				SwingUtilities.invokeAndWait(() -> {
+					closedManager.cleanUp();
+					window.dispose();
+				});
+				manager = null;
+				SessionFactory.getInstance().setJobQueue(null);
+				// The retained component is no longer showing and may be disabled, so
+				// doClick() can silently skip its listener. Deliver the retained
+				// canonical action directly to model a late event already queued before
+				// window teardown; this is an integration lifecycle check, not a second
+				// physical click.
+				SwingUtilities.invokeAndWait(() -> staleSaveAction[0].actionPerformed(
+					new java.awt.event.ActionEvent(staleSaveButton[0], java.awt.event.ActionEvent.ACTION_PERFORMED,
+						staleSaveButton[0].getActionCommand())));
+				assertEquals(RibbonCommandResult.Status.REJECTED, closedManager.getLastRibbonCommandResult().status(),
+					"a late Save action from a closed window must be rejected before reaching the shared session");
+				assertEquals("manager-closed", closedManager.getLastRibbonCommandResult().reason());
+				String lateSaveTrace = queueLifecycleMessages.stream()
+					.filter(message -> message.startsWith("EXTERNAL_COMMAND_START id=saveProject"))
+					.reduce((first, second) -> second).orElse("");
+				assertTrue(lateSaveTrace.contains("cleanedUp=true"),
+					"the retained action must reach the closed manager guard; trace=" + lateSaveTrace);
+				assertNull(SessionFactory.getInstance().getJobQueue(),
+					"a stale Save action must not republish a closed manager's queue");
+				assertNull(SessionFactory.getInstance().getLocalSession().getJobQueue(),
+					"a stale Save action must not install a replacement queue on the shared session");
 			}
 			if (recoveryCopy != null) Files.deleteIfExists(recoveryCopy);
 			Files.deleteIfExists(lockPath);

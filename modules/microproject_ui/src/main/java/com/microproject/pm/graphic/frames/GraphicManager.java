@@ -256,6 +256,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	public static boolean badLAF = false;
 	private final ApplicationRestartCoordinator applicationRestartCoordinator = new ApplicationRestartCoordinator();
 	protected JobQueue jobQueue=null;
+	private volatile boolean cleanedUp;
 
 	protected GlobalPreferences preferences=null;
 	private FilterToolBarManager filterToolBarManager;
@@ -355,6 +356,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		registerForMacOSXEvents();
 	}
 	public void cleanUp() {
+		cleanedUp = true;
 		// Discard any document-load completions already queued on the EDT before
 		// tearing down the frame manager they would otherwise target.
 		documentGeneration.advance();
@@ -1681,6 +1683,20 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	/** Executes an external ribbon route and records its dispatch outcome. */
 	protected final RibbonCommandResult executeExternalRibbonCommand(String commandId, Runnable command) {
 		Objects.requireNonNull(command, "command");
+		if (Boolean.getBoolean("microproject.session.traceQueueLifecycle")) {
+			GraphicManager active = MANAGER_REGISTRY.getActiveManager();
+			logger.warning("EXTERNAL_COMMAND_START id=" + commandId + " manager=" + diagnosticIdentity(this)
+				+ " activeManager=" + diagnosticIdentity(active) + " cleanedUp=" + cleanedUp
+				+ " managerQueue=" + diagnosticIdentity(jobQueue) + " factoryQueue="
+				+ diagnosticIdentity(SessionFactory.getInstance().getJobQueue()) + " sessionQueue="
+				+ diagnosticIdentity(SessionFactory.getInstance().getLocalSession().getJobQueue()));
+		}
+		if (cleanedUp) {
+			RibbonCommandResult result = RibbonCommandResult.rejected(commandId, "manager-closed");
+			recordRibbonCommandResult(result);
+			logger.fine("Ignoring external command for a closed GraphicManager: " + commandId);
+			return result;
+		}
 		if (!beforeExternalRoute(commandId)) {
 			RibbonCommandResult result = RibbonCommandResult.rejected(commandId, "route-rejected");
 			recordRibbonCommandResult(result);
@@ -1701,6 +1717,11 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			logger.log(Level.WARNING, "UI_COMMAND_FAILURE id=" + commandId + " reason=" + result.reason(), failure);
 			throw failure;
 		}
+	}
+
+	private static String diagnosticIdentity(Object value) {
+		return value == null ? "null" : value.getClass().getSimpleName() + "@"
+			+ Integer.toHexString(System.identityHashCode(value));
 	}
 
 	public RibbonCommandResult getLastRibbonCommandResult() {
