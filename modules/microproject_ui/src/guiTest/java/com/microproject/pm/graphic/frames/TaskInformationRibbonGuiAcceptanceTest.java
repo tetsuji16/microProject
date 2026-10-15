@@ -3486,8 +3486,14 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, predecessorLink);
 		GuiAcceptanceSupport.await(predecessorRouteInvoked::get,
 			"the physical predecessor-link click did not invoke its route; label=" + predecessorLink.getText());
-		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(predecessor),
-			"clicking the visible predecessor did not select its rendered spreadsheet row");
+		try {
+			GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(predecessor),
+				"clicking the visible predecessor did not select its rendered spreadsheet row");
+		} catch (AssertionError failure) {
+			Node predecessorNode = findTaskNode(project, predecessor);
+			throw new AssertionError(failure.getMessage() + "; routeInvoked=" + predecessorRouteInvoked.get()
+				+ "; " + inspectorNavigationDiagnostics(sheet, predecessor, predecessorNode), failure);
+		}
 		GuiAcceptanceSupport.await(() -> taskInspectorTitleContains("Inspector predecessor"),
 			"the Inspector did not follow the physical predecessor selection");
 		assertEquals(predecessorStart, predecessor.getStart());
@@ -3524,6 +3530,41 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			throw new IllegalStateException("could not read Inspector title on the EDT", failure);
 		}
 		return title[0].contains(text);
+	}
+
+	private String inspectorNavigationDiagnostics(SpreadSheet sheet, Task expected, Node expectedNode) {
+		String[] result = new String[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				int[] modelRows = sheet.nodesToRows(List.of(expectedNode));
+				int modelRow = modelRows.length == 0 ? -1 : modelRows[0];
+				int viewRow = sheet.taskNodeToViewRow(expectedNode);
+				int selectedRow = sheet.getSelectedRow();
+				int selectedModelRow = selectedRow < 0 ? -1 : sheet.convertRowIndexToModel(selectedRow);
+				String rowSelection = java.util.Arrays.stream(sheet.getSelectedRows())
+					.mapToObj(row -> row + "->" + sheet.convertRowIndexToModel(row)).toList().toString();
+				String selectedNodes = sheet.getSelectedNodes().stream().map(node -> {
+					Object implementation = node.getImpl();
+					return (implementation instanceof Task task ? task.getName() : String.valueOf(implementation))
+						+ "[node=" + System.identityHashCode(node) + ",impl="
+						+ System.identityHashCode(implementation) + "]";
+				}).toList().toString();
+				String frameSelection = manager.getCurrentFrame().getSelectedImpls(false).stream()
+					.map(value -> value instanceof Task task ? task.getName() + "[impl="
+						+ System.identityHashCode(value) + "]" : String.valueOf(value)).toList().toString();
+				Object cached = ((SpreadSheetModel) sheet.getModel()).getCache().getGraphicNode(expectedNode);
+				result[0] = "expected=" + expected.getName() + "[node=" + System.identityHashCode(expectedNode)
+					+ ",impl=" + System.identityHashCode(expected) + ",graphic="
+					+ System.identityHashCode(cached) + ",modelRow=" + modelRow + ",viewRow=" + viewRow
+					+ "]; tableSelectedRows(view->model)=" + rowSelection + ",selectedRow=" + selectedRow
+					+ ",selectedModelRow=" + selectedModelRow + ",selectedNodes=" + selectedNodes
+					+ ",frameSelectedImpls=" + frameSelection + ",inspectorTitle="
+					+ manager.getCurrentFrame().getTaskInspectorPanel().getTitleText();
+			});
+		} catch (Exception failure) {
+			return "inspector navigation diagnostic collection failed: " + failure;
+		}
+		return result[0];
 	}
 
 	private AbstractButton inspectorPredecessorButton(String predecessorName) throws Exception {
