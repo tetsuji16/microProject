@@ -2753,6 +2753,11 @@ class MpoFileImporterTest {
 
 		File initialMpo = writeTempMpo(original);
 		byte[] mspdi = readEntries(Files.readAllBytes(initialMpo.toPath())).get(MpoFileImporter.PROJECT_ENTRY);
+		String mspdiXml = new String(mspdi, StandardCharsets.UTF_8);
+		assertTrue(mspdiXml.contains("<Delay>1800</Delay>"),
+			"the MSPDI fixture must carry its independent 1800-tenths-of-a-minute manual Delay");
+		assertTrue(mspdiXml.contains("<LevelingDelay>600</LevelingDelay>"),
+			"the MSPDI fixture must carry its independent 600-tenths-of-a-minute LevelingDelay");
 		Project externalMspdi = new com.microproject.core.pm.exchange.MspImporter().importProject(
 			new ByteArrayInputStream(mspdi), "xml", (progress, label) -> { });
 		Assignment externalAssignment = firstRealAssignment(externalMspdi);
