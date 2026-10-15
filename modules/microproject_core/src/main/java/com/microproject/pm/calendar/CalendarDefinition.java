@@ -170,6 +170,11 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 			.toArray(WorkDay[]::new);
 	}
 
+	/** Returns a defensive copy of the explicit exception days in this definition. */
+	public WorkDay[] getExceptionDays() {
+		return getLocalExceptionDays();
+	}
+
 	/** Canonicalize empty lists written by transitional builds and legacy fixtures. */
 	private void readObject(ObjectInputStream input) throws IOException, ClassNotFoundException {
 		input.defaultReadObject();

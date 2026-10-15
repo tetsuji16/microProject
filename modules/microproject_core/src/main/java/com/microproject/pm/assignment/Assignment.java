@@ -656,7 +656,8 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	private AssignmentFieldFunctor cost(SelectFrom clause, boolean all) {
 		if (detail.getCostContour().isPersonal()) { // in the case where a cost contour has already been saved, use it
 			ContourBucketIntervalGenerator costContour = contourGeneratorInstance(COST);
-			WorkFunctor workF = WorkFunctor.getInstance(this, getEffectiveWorkCalendar(), costContour, detail.calcOvertimeUnits()); // note that is is a work contour
+			// A personal cost contour stores absolute cost; overtime is already represented there.
+			WorkFunctor workF = WorkFunctor.getInstance(this, getEffectiveWorkCalendar(), costContour, 0.0D);
 			clause.select(workF).from(costContour);
 			return workF;
 		} else {
@@ -1841,6 +1842,11 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 
 	public void convertToBaselineAssignment(boolean useDefaultCalendar) {
 		detail.convertToBaselineAssignment(useDefaultCalendar);
+	}
+
+	/** Returns whether this assignment is a detached baseline assignment profile. */
+	public boolean isBaselineAssignment() {
+		return detail.isBaseline();
 	}
 
 	/**

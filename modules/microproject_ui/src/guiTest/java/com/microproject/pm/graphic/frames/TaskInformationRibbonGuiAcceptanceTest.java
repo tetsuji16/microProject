@@ -1676,10 +1676,21 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Environment.setNewLook(true);
 		NormalTask task = createTask();
 		Project project = task.getOwningProject();
+		NormalTask summary = project.createScriptedTask();
+		summary.setName("Baseline roll-up summary");
+		var taskModel = project.getTaskModel();
+		var summaryNode = taskModel.search(summary);
+		assertTrue(taskModel.relocate(List.of(taskModel.search(task)), summaryNode, 0,
+			com.microproject.grouping.core.model.NodeModel.SILENT));
+		summary.setWbsChildrenNodes(taskModel.getHierarchy().getChildren(summaryNode));
+		task.setWbsParent(summary);
 		Resource resource = project.getResourcePool().createScriptedResource();
 		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1.0d, 0L, this);
 		long day = CalendarOption.getInstance().getMillisPerDay();
 		assignment.setWork(day, null);
+		project.saveCurrentToSnapshot(Integer.valueOf(Snapshottable.BASELINE), false, List.of(summary));
+		assertNull(task.getSnapshot(Snapshottable.BASELINE),
+			"The physical overwrite route starts with a new leaf and an already-baselined ancestor");
 		showProject(project);
 		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
 		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null
@@ -1701,11 +1712,24 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		BaselineDialog dialog = java.util.Arrays.stream(Window.getWindows())
 			.filter(candidate -> candidate instanceof BaselineDialog && candidate.isShowing())
 			.map(BaselineDialog.class::cast).findFirst().orElseThrow();
+		click(robot, findShowingButtonByText(dialog, Messages.getString("Text.SelectedTasks")));
+		ResourceBundle baselineLabels = ResourceBundle.getBundle("com.microproject.dialog.usability");
+		click(robot, findShowingButtonByText(dialog,
+			baselineLabels.getString("baseline.rollupToSummaryTasks")));
 		click(robot, findShowingButtonByText(dialog, Messages.getString("ButtonText.OK")));
+		GuiAcceptanceSupport.await(() -> isActiveDialogOwnedBy(dialog, baselineLabels.getString("baseline.overwriteTitle")),
+			"A new selected leaf must still confirm overwrite of its already-baselined ancestor");
+		Dialog ancestorOverwrite = activeDialogOwnedBy(dialog);
+		click(robot, findShowingButtonByText(ancestorOverwrite, baselineLabels.getString("dialog.yes")));
 		GuiAcceptanceSupport.await(() -> !dialog.isShowing() && task.getSnapshot(Snapshottable.BASELINE) != null,
-			"Save Baseline did not store the baseline snapshot");
+			"Confirmed selected-task save did not store the baseline snapshot");
+		assertTrue(sheet.getSelectedNodes().contains(taskModel.search(task)),
+			"A completed Save Baseline command must preserve the user's selected task row");
 		assertTrue(rowForTask(sheet, task) >= 0, "Baseline mutation must keep the task visible");
 		long originalBaselineStart = task.getBaselineStart(Snapshottable.BASELINE);
+		int originalSummaryBaselineProfileCount = ((com.microproject.pm.task.TaskSnapshot)
+			summary.getSnapshot(Snapshottable.BASELINE))
+			.captureBaselineProfiles(summary, Snapshottable.BASELINE).size();
 		Assignment.BaselineValues originalBaselineValues = assignment.getBaselineValues(Snapshottable.BASELINE);
 		assertEquals(Long.valueOf(day), originalBaselineValues.work(),
 			"The first save must capture the seeded one-day assignment baseline");
@@ -1719,6 +1743,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertEquals(replacementStart, task.getStart(), "Fixture must move the current task before overwrite");
 		assertNotEquals(originalBaselineStart, task.getStart(),
 			"Replacement current start must differ from the seeded baseline start");
+		// The schedule mutation below is fixture setup, not the Save Baseline route.
+		// Select the task again so the second dialog exercises the overwrite path
+		// with an explicit physical selection after the model refresh.
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, task), nameColumn(sheet)));
 		long overwrittenBaselineStart = task.getStart();
 		long currentAssignmentWork = assignment.getWork(null);
 		click(robot, findShowingButtonByCommand("RibbonSaveBaseline"));
@@ -1728,6 +1756,14 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		BaselineDialog overwriteDialog = java.util.Arrays.stream(Window.getWindows())
 			.filter(candidate -> candidate instanceof BaselineDialog && candidate.isShowing())
 			.map(BaselineDialog.class::cast).findFirst().orElseThrow();
+		click(robot, findShowingButtonByText(overwriteDialog, Messages.getString("Text.SelectedTasks")));
+		click(robot, findShowingButtonByText(overwriteDialog,
+			baselineLabels.getString("baseline.rollupToSummaryTasks")));
+		AbstractButton summaryRollupCheckbox = findShowingButtonByText(overwriteDialog,
+			baselineLabels.getString("baseline.rollupToSummaryTasks"));
+		boolean[] summaryRollupSelected = new boolean[1];
+		SwingUtilities.invokeAndWait(() -> summaryRollupSelected[0] = summaryRollupCheckbox.isSelected());
+		assertTrue(summaryRollupSelected[0], "The physical summary-roll-up checkbox must remain selected");
 		AtomicInteger baselineEventCount = new AtomicInteger();
 		com.microproject.pm.scheduling.ScheduleEventListener baselineListener = event -> {
 			if (com.microproject.pm.scheduling.ScheduleEvent.BASELINE.equals(event.getType())) baselineEventCount.incrementAndGet();
@@ -1739,11 +1775,12 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		int eventCountBeforeConfirmation = baselineEventCount.get();
 		boolean undoBeforeConfirmation = project.getUndoController().canUndo();
 		boolean dirtyBeforeConfirmation = project.needsSaving();
-		java.util.ResourceBundle baselineLabels = java.util.ResourceBundle.getBundle("com.microproject.dialog.usability");
 		click(robot, findShowingButtonByText(overwriteDialog, Messages.getString("ButtonText.OK")));
 		GuiAcceptanceSupport.await(() -> isActiveDialogOwnedBy(overwriteDialog,
 				baselineLabels.getString("baseline.overwriteTitle")),
 			"Overwriting an occupied baseline must ask before mutation");
+		assertTrue(overwriteDialog.getForm().isRollupToSummaryTasks(),
+			"Accepting the dialog binds the physical summary-roll-up choice before overwrite preflight");
 		Dialog noConfirmation = activeDialogOwnedBy(overwriteDialog);
 		String[] promptUiState = new String[2];
 		boolean[] promptOwnedByChooser = new boolean[1];
@@ -1764,7 +1801,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"No must leave the baseline chooser open");
 		assertEquals(Snapshottable.BASELINE, overwriteDialog.getForm().getBaselineNumber(),
 			"No must retain the selected baseline slot");
-		assertTrue(overwriteDialog.getForm().isEntireProject(), "No must retain the selected project scope");
+		assertFalse(overwriteDialog.getForm().isEntireProject(), "No must retain the selected task scope");
+		assertTrue(overwriteDialog.getForm().isRollupToSummaryTasks(),
+			"No must retain the selected summary roll-up option");
 		assertEquals(originalBaselineStart, task.getBaselineStart(Snapshottable.BASELINE));
 		assertEquals(originalBaselineValues, assignment.getBaselineValues(Snapshottable.BASELINE));
 		assertEquals(currentAssignmentWork, assignment.getWork(null));
@@ -1801,21 +1840,28 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			baselineLabels.getString("dialog.yes")));
 		GuiAcceptanceSupport.await(() -> !overwriteDialog.isShowing()
 				&& task.getBaselineStart(Snapshottable.BASELINE) == overwrittenBaselineStart
+				&& ((com.microproject.pm.task.TaskSnapshot) summary.getSnapshot(Snapshottable.BASELINE))
+					.captureBaselineProfiles(summary, Snapshottable.BASELINE).size() == 1
 				&& baselineEventCount.get() == eventCountBeforeConfirmation + 1 && undoEditCount.get() == 1,
-			"Save Baseline did not overwrite the existing task baseline");
+			"Save Baseline did not overwrite the task and roll its baseline up to the summary");
 		project.removeScheduleListener(baselineListener);
 		project.getUndoController().getEditSupport().removeEditListener(undoListener);
 		assertEquals(eventCountBeforeConfirmation + 1, baselineEventCount.get(), "Yes must publish one baseline change");
 		Assignment.BaselineValues overwrittenBaselineValues = assignment.getBaselineValues(Snapshottable.BASELINE);
 		assertEquals(Long.valueOf(3L * day), overwrittenBaselineValues.work(),
 			"Overwrite must capture the explicitly seeded three-day assignment work");
+		assertEquals(1, ((com.microproject.pm.task.TaskSnapshot) summary.getSnapshot(Snapshottable.BASELINE))
+			.captureBaselineProfiles(summary, Snapshottable.BASELINE).size(),
+			"The summary receives one detached child baseline profile");
 		assertNotEquals(originalBaselineValues, overwrittenBaselineValues,
 			"Overwrite must produce assignment baseline values distinct from the prior slot");
 
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
 		GuiAcceptanceSupport.await(() -> task.getBaselineStart(Snapshottable.BASELINE) == originalBaselineStart
+				&& ((com.microproject.pm.task.TaskSnapshot) summary.getSnapshot(Snapshottable.BASELINE))
+					.captureBaselineProfiles(summary, Snapshottable.BASELINE).size() == originalSummaryBaselineProfileCount
 				&& originalBaselineValues.equals(assignment.getBaselineValues(Snapshottable.BASELINE)),
-			"Undo did not restore the overwritten baseline snapshot");
+			"Undo did not restore the overwritten task and summary baseline snapshots");
 		assertEquals(originalBaselineValues, assignment.getBaselineValues(Snapshottable.BASELINE));
 		assertEquals(overwrittenBaselineStart, task.getStart(), "Undo must preserve the current task schedule");
 		assertEquals(currentAssignmentWork, assignment.getWork(null), "Undo must preserve current assignment work");
@@ -1824,12 +1870,19 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Project restoredReload = new MpoFileImporter().loadProject(new ByteArrayInputStream(restoredSaved.toByteArray()));
 		NormalTask restoredTask = (NormalTask) taskNamed(restoredReload, task.getName());
 		assertEquals(originalBaselineStart, restoredTask.getBaselineStart(Snapshottable.BASELINE));
+		NormalTask restoredSummary = (NormalTask) taskNamed(restoredReload, summary.getName());
+		assertEquals(originalSummaryBaselineProfileCount,
+			((com.microproject.pm.task.TaskSnapshot) restoredSummary.getSnapshot(Snapshottable.BASELINE))
+				.captureBaselineProfiles(restoredSummary, Snapshottable.BASELINE).size(),
+			"Undo snapshot MPO reload must restore the summary profile list");
 		Assignment restoredAssignment = (Assignment) restoredTask.getAssignments().iterator().next();
 		assertEquals(originalBaselineValues, restoredAssignment.getBaselineValues(Snapshottable.BASELINE));
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
 		GuiAcceptanceSupport.await(() -> task.getBaselineStart(Snapshottable.BASELINE) == overwrittenBaselineStart
+				&& ((com.microproject.pm.task.TaskSnapshot) summary.getSnapshot(Snapshottable.BASELINE))
+					.captureBaselineProfiles(summary, Snapshottable.BASELINE).size() == 1
 				&& overwrittenBaselineValues.equals(assignment.getBaselineValues(Snapshottable.BASELINE)),
-			"Redo did not restore the replacement baseline snapshot");
+			"Redo did not restore the replacement task and summary baseline snapshots");
 		assertEquals(overwrittenBaselineValues, assignment.getBaselineValues(Snapshottable.BASELINE));
 		ByteArrayOutputStream saved = new ByteArrayOutputStream();
 		assertTrue(new MpoFileImporter().saveProject(project, saved), "MPO save must accept the overwritten baseline");
@@ -1837,6 +1890,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		NormalTask reloadedTask = (NormalTask) taskNamed(reloaded, task.getName());
 		assertEquals(overwrittenBaselineStart, reloadedTask.getBaselineStart(Snapshottable.BASELINE),
 			"MPO reopen must retain the replacement baseline");
+		NormalTask reloadedSummary = (NormalTask) taskNamed(reloaded, summary.getName());
+		assertEquals(1, ((com.microproject.pm.task.TaskSnapshot) reloadedSummary.getSnapshot(Snapshottable.BASELINE))
+			.captureBaselineProfiles(reloadedSummary, Snapshottable.BASELINE).size(),
+			"MPO reopen must retain the summary's detached rolled-up profile");
 		Assignment reloadedAssignment = (Assignment) reloadedTask.getAssignments().iterator().next();
 		assertEquals(overwrittenBaselineValues, reloadedAssignment.getBaselineValues(Snapshottable.BASELINE));
 	}

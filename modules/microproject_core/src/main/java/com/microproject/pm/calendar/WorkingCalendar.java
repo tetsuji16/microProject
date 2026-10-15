@@ -183,6 +183,37 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 		return cal;
 	}
 
+	/** Returns an isolated copy of this calendar and its complete base definition. */
+	public WorkingCalendar copyForBaselineSnapshot() {
+		java.util.Set<WorkingCalendar> path = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+		validateBaselineCalendarGraph(this, path);
+		WorkingCalendar copy = getInstance();
+		copy.setName(getName());
+		copy.fixedId = fixedId;
+		copy.baseCalendar = null;
+		try {
+			// This copy has no base calendar, so its full effective definition must
+			// be authoritative differences. A concrete-only cache would be lost on
+			// invalidation and is not what calendar serialization reads.
+			copy.differences = getConcreteInstance().clone();
+		} catch (CloneNotSupportedException exception) {
+			throw new IllegalStateException("Unable to copy baseline calendar rules", exception);
+		}
+		copy.concrete = null;
+		return copy;
+	}
+
+	private static void validateBaselineCalendarGraph(WorkingCalendar source,
+		java.util.Set<WorkingCalendar> path) {
+		if (!path.add(source)) throw new IllegalStateException("Calendar inheritance cycle in baseline profile");
+		if (source.baseCalendar instanceof WorkingCalendar base)
+			validateBaselineCalendarGraph(base, path);
+		else if (source.baseCalendar != null)
+			throw new IllegalStateException("Unsupported baseline calendar base: "
+				+ source.baseCalendar.getClass().getName());
+		path.remove(source);
+	}
+
 
 	public WorkingCalendar makeScratchCopy() {
 		WorkingCalendar newOne = null;

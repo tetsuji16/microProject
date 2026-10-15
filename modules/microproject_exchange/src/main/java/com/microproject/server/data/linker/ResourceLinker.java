@@ -24,8 +24,15 @@
  *******************************************************************************/
 package com.microproject.server.data.linker;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.Map;
+
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.hierarchy.NodeHierarchy;
+import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.task.Project;
 /**
@@ -33,15 +40,30 @@ import com.microproject.pm.task.Project;
  */
 public abstract class ResourceLinker extends Linker {
 	public void initIterator(){
-		iterator=((Project)getParent()).getResourcePool().getResourceOutline().iterator();
+		iterator=resourcesInExportOrder((Project)getParent()).iterator();
 	}
 	public Object executeNext(){
-        Node  node=(Node)iterator.next();
-		if (!(node.getImpl() instanceof ResourceImpl resource)) {
-			return null;
-        }
-		//ResourceImpl to have the EnterpriseResource link
-		return resource;
+		return iterator.next();
+	}
+
+	/** Canonical resource traversal used by both MSPDI export and MPO sidecars. */
+	public static List<ResourceImpl> resourcesInExportOrder(Project project) {
+		ArrayList<ResourceImpl> result = new ArrayList<>();
+		Map<ResourceImpl, Boolean> seen = new IdentityHashMap<>();
+		for (java.util.Iterator<?> iterator = project.getResourcePool().getResourceOutline().iterator(); iterator.hasNext();) {
+			Object item = iterator.next();
+			if (item instanceof Node node && node.getImpl() instanceof ResourceImpl resource)
+				addResource(result, seen, resource);
+		}
+		// Keep detached pool members in the same order used by the export fallback.
+		for (Resource item : project.getResourcePool().getResourceList())
+			if (item instanceof ResourceImpl resource) addResource(result, seen, resource);
+		return Collections.unmodifiableList(result);
+	}
+
+	private static void addResource(List<ResourceImpl> result, Map<ResourceImpl, Boolean> seen,
+		ResourceImpl resource) {
+		if (seen.put(resource, Boolean.TRUE) == null) result.add(resource);
 	}
     public NodeHierarchy getHierarchy(){return ((Project)getParent()).getResourcePool().getResourceOutline().getHierarchy();}
 
