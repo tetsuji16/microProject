@@ -14,6 +14,9 @@ import javax.swing.undo.AbstractUndoableEdit;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
 import com.microproject.strings.Messages;
+import com.microproject.transaction.ModelTransaction;
+import com.microproject.transaction.ProjectMutationState;
+import com.microproject.undo.EditSupport;
 import com.microproject.undo.UndoController;
 
 /** Copies the task-specific text formatting used by task rows and Gantt labels. */
@@ -28,7 +31,15 @@ final class TaskFormatPainterService {
 
 	static List<Long> apply(Project project, List<Task> targets, TaskTextFormat format,
 			UndoController undoController) {
+		return apply(project, targets, format, undoController, (task, index) -> { });
+	}
+
+	static List<Long> apply(Project project, List<Task> targets, TaskTextFormat format,
+			UndoController undoController, ApplyHook hook) {
 		if (project == null || project.isReadOnly() || targets == null || targets.isEmpty() || format == null)
+			return List.of();
+		EditSupport edits = undoController == null ? null : undoController.getEditSupport();
+		if (edits == null)
 			return List.of();
 		Map<Task, TaskTextFormat> before = new LinkedHashMap<>();
 		Map<Task, TaskTextFormat> after = new LinkedHashMap<>();
@@ -43,19 +54,86 @@ final class TaskFormatPainterService {
 		}
 		if (after.isEmpty())
 			return List.of();
-		applyStates(project, after);
-		if (undoController != null)
-			undoController.getEditSupport().postEdit(new TaskTextFormatEdit(project, before, after));
+		boolean projectWasDirty = project.isDirty();
+		try (ProjectMutationState.Scope mutation = project.getMutationState().begin()) {
+			project.beginEventBatch();
+			Project.PendingEventBatch pending;
+			try {
+				ModelTransaction.execute(new ModelTransaction.Steps<Map<Task, TaskState>, List<Long>>() {
+					@Override public void validate() { }
+					@Override public void authorize() {
+						if (project.isReadOnly()) throw new IllegalStateException("Cannot format a read-only project");
+						if (undoController.getEditSupport() != edits)
+							throw new IllegalStateException("Format Painter Undo support changed");
+					}
+					@Override public Map<Task, TaskState> capture() {
+						Map<Task, TaskState> snapshot = new LinkedHashMap<>();
+						for (Task task : after.keySet()) snapshot.put(task,
+							new TaskState(TaskFormatPainterService.capture(task), task.isDirty()));
+						return snapshot;
+					}
+					@Override public ModelTransaction.Mutation<List<Long>> apply() {
+						int index = 0;
+						for (Map.Entry<Task, TaskTextFormat> entry : after.entrySet()) {
+							entry.getValue().applyTo(entry.getKey());
+							hook.afterTask(entry.getKey(), index++);
+						}
+						return ModelTransaction.Mutation.changed(after.keySet().stream().map(Task::getUniqueId).toList());
+					}
+					@Override public void schedule() { }
+					@Override public void checkInvariants() {
+						for (Map.Entry<Task, TaskTextFormat> entry : after.entrySet())
+							if (!entry.getValue().equals(TaskFormatPainterService.capture(entry.getKey())))
+								throw new IllegalStateException("Task text style did not apply");
+					}
+					@Override public void restore(Map<Task, TaskState> snapshot) {
+						for (Map.Entry<Task, TaskState> entry : snapshot.entrySet()) {
+							entry.getValue().format().applyTo(entry.getKey());
+							entry.getKey().setDirty(entry.getValue().dirty());
+						}
+						project.setDirty(projectWasDirty);
+					}
+					@Override public void commit(List<Long> changed) {
+						for (Task task : after.keySet()) project.fireUpdateEvent(TaskFormatPainterService.class, task);
+						edits.postEdit(new TaskTextFormatEdit(project, before, after));
+					}
+				});
+				pending = project.commitEventBatch(mutation, true);
+			} catch (ModelTransaction.ModelTransactionException failure) {
+				try { project.endEventBatch(false); }
+				catch (Throwable closeFailure) { failure.addSuppressed(closeFailure); }
+				throw new IllegalStateException("Format Painter failed during " + failure.failedStage(), failure);
+			} catch (RuntimeException | Error failure) {
+				try { project.endEventBatch(false); }
+				catch (Throwable closeFailure) { failure.addSuppressed(closeFailure); }
+				throw failure;
+			}
+			project.publishEventBatch(pending);
+		}
 		return after.keySet().stream().map(Task::getUniqueId).toList();
 	}
 
 	private static void applyStates(Project project, Map<Task, TaskTextFormat> states) {
-		for (Map.Entry<Task, TaskTextFormat> entry : states.entrySet()) {
-			Task task = entry.getKey();
-			entry.getValue().applyTo(task);
-			project.fireUpdateEvent(TaskFormatPainterService.class, task);
+		try (ProjectMutationState.Scope mutation = project.getMutationState().begin()) {
+			project.beginEventBatch();
+			Project.PendingEventBatch pending;
+			try {
+				for (Map.Entry<Task, TaskTextFormat> entry : states.entrySet()) {
+					entry.getValue().applyTo(entry.getKey());
+					project.fireUpdateEvent(TaskFormatPainterService.class, entry.getKey());
+				}
+				pending = project.commitEventBatch(mutation, true);
+			} catch (RuntimeException | Error failure) {
+				try { project.endEventBatch(false); }
+				catch (Throwable closeFailure) { failure.addSuppressed(closeFailure); }
+				throw failure;
+			}
+			project.publishEventBatch(pending);
 		}
 	}
+
+	@FunctionalInterface interface ApplyHook { void afterTask(Task task, int index); }
+	private record TaskState(TaskTextFormat format, boolean dirty) { }
 
 	record TaskTextFormat(String family, int size, Integer color, boolean bold, boolean italic, boolean strikethrough) {
 		private void applyTo(Task task) {

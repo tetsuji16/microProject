@@ -8,6 +8,7 @@ package com.microproject.pm.graphic.frames;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.List;
 
@@ -78,6 +79,49 @@ class TaskFormatPainterServiceTest {
 			project.getUndoController()).isEmpty());
 		assertEquals(original, TaskFormatPainterService.capture(editable));
 		assertFalse(project.getUndoController().canUndo());
+	}
+
+	@Test
+	void failureOnSecondTargetRollsBackStylesDirtyStateRevisionEventsAndUndo() {
+		Project project = createProject();
+		Task first = (Task)project.createLocalTaskNode(null).getImpl();
+		Task second = (Task)project.createLocalTaskNode(null).getImpl();
+		TaskFormatPainterService.TaskTextFormat firstBefore = TaskFormatPainterService.capture(first);
+		TaskFormatPainterService.TaskTextFormat secondBefore = TaskFormatPainterService.capture(second);
+		TaskFormatPainterService.TaskTextFormat requested =
+			new TaskFormatPainterService.TaskTextFormat("Dialog", 16, 0xABCDEF, true, true, true);
+		project.setDirty(false);
+		first.setDirty(false);
+		second.setDirty(false);
+		long revision = project.getMutationState().revision();
+		int[] events = { 0 };
+		project.addObjectListener(event -> events[0]++);
+		project.addScheduleListener(event -> events[0]++);
+
+		assertThrows(IllegalStateException.class, () -> TaskFormatPainterService.apply(project,
+			List.of(first, second), requested, project.getUndoController(), (task, index) -> {
+				if (index == 1) throw new IllegalStateException("injected second-target failure");
+			}));
+
+		assertEquals(firstBefore, TaskFormatPainterService.capture(first));
+		assertEquals(secondBefore, TaskFormatPainterService.capture(second));
+		assertFalse(first.isDirty());
+		assertFalse(second.isDirty());
+		assertFalse(project.isDirty());
+		assertEquals(revision, project.getMutationState().revision());
+		assertEquals(0, events[0]);
+		assertFalse(project.getUndoController().canUndo());
+	}
+
+	@Test
+	void missingUndoControllerRejectsBeforeChangingStyle() {
+		Project project = createProject();
+		Task task = (Task)project.createLocalTaskNode(null).getImpl();
+		TaskFormatPainterService.TaskTextFormat before = TaskFormatPainterService.capture(task);
+
+		assertTrue(TaskFormatPainterService.apply(project, List.of(task),
+			new TaskFormatPainterService.TaskTextFormat("Dialog", 16, 0xABCDEF, true, false, false), null).isEmpty());
+		assertEquals(before, TaskFormatPainterService.capture(task));
 	}
 
 	private static Project createProject() {
