@@ -68,7 +68,9 @@ import javax.swing.JTable;
 import javax.swing.text.JTextComponent;
 
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -155,7 +157,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	private boolean previousClientSide;
 	private boolean previousBatchMode;
 	private String previousUiDebug;
-	private String previousQueueTrace;
+	private static String previousQueueTrace;
 	private JobQueue previousJobQueue;
 	private Locale previousFormatLocale;
 	private RibbonDisplayMode previousShellDisplayMode;
@@ -167,10 +169,23 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	private final ConcurrentLinkedQueue<String> diagnosticMessages = new ConcurrentLinkedQueue<>();
 	private volatile boolean failUpdateTasksRoute;
 
+	@BeforeAll
+	static void enableQueueLifecycleTraceForClass() {
+		previousQueueTrace = System.getProperty("microproject.session.traceQueueLifecycle");
+		System.setProperty("microproject.session.traceQueueLifecycle", "true");
+	}
+
+	@AfterAll
+	static void restoreQueueLifecycleTraceForClass() {
+		if (previousQueueTrace == null)
+			System.clearProperty("microproject.session.traceQueueLifecycle");
+		else
+			System.setProperty("microproject.session.traceQueueLifecycle", previousQueueTrace);
+	}
+
 	@BeforeEach
 	void captureClientSide() {
 		previousJobQueue = SessionFactory.getInstance().getJobQueue();
-		previousQueueTrace = System.getProperty("microproject.session.traceQueueLifecycle");
 		previousClientSide = Environment.isClientSide();
 		previousBatchMode = Environment.isBatchMode();
 		previousShellDisplayMode = RibbonDisplayPreferences.load();
@@ -212,10 +227,6 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		else
 			System.setProperty("microproject.ui.debug", previousUiDebug);
 		SessionFactory.getInstance().setJobQueue(previousJobQueue);
-		if (previousQueueTrace == null)
-			System.clearProperty("microproject.session.traceQueueLifecycle");
-		else
-			System.setProperty("microproject.session.traceQueueLifecycle", previousQueueTrace);
 		if (previousFormatLocale != null)
 			Locale.setDefault(Locale.Category.FORMAT, previousFormatLocale);
 	}
@@ -223,7 +234,6 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	@Test
 	void robotSaveShowsMpoRecoveryCopyAfterLockFailure() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
-		System.setProperty("microproject.session.traceQueueLifecycle", "true");
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
 		previousClientSide = Environment.isClientSide();
