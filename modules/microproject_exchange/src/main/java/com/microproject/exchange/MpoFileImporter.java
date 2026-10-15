@@ -752,19 +752,28 @@ public class MpoFileImporter extends FileImporter {
 			com.fasterxml.jackson.databind.node.ArrayNode tasks = root.putArray("tasks");
 			for (java.util.Iterator<?> it = project.getTaskOutlineIterator(); it.hasNext();) {
 				Task task = (Task) it.next();
-				if (!(task instanceof NormalTask normalTask) || normalTask.getTaskSplitIntervals().isEmpty()) continue;
+				NormalTask normalTask = task instanceof NormalTask normal ? normal : null;
+				Task.LevelingManualDateState manualDates = task.getLevelingManualDateState();
+				if ((normalTask == null || normalTask.getTaskSplitIntervals().isEmpty()) && manualDates == null) continue;
 				JsonNode serializedUid = identities.path(String.valueOf(task.getUniqueId()));
 				if (!serializedUid.canConvertToLong()) throw new IOException("Missing serialized task identity for task split");
 				ObjectNode taskNode = tasks.addObject();
 				taskNode.put("taskUid", serializedUid.longValue());
 				com.fasterxml.jackson.databind.node.ArrayNode intervals = taskNode.putArray("intervals");
-				for (TaskSplitInterval interval : normalTask.getTaskSplitIntervals()) {
+				for (TaskSplitInterval interval : normalTask == null ? java.util.List.<TaskSplitInterval>of() : normalTask.getTaskSplitIntervals()) {
 					ObjectNode intervalNode = intervals.addObject();
 					intervalNode.put("startOffset", interval.startOffset());
 					intervalNode.put("endOffset", interval.endOffset());
 				}
-				writeTaskSplitIntervals(taskNode.putArray("manualIntervals"), normalTask.getManualTaskSplitIntervals());
-				writeTaskSplitIntervals(taskNode.putArray("levelingIntervals"), normalTask.getLevelingTaskSplitIntervals());
+				writeTaskSplitIntervals(taskNode.putArray("manualIntervals"), normalTask == null ? java.util.List.of() : normalTask.getManualTaskSplitIntervals());
+				writeTaskSplitIntervals(taskNode.putArray("levelingIntervals"), normalTask == null ? java.util.List.of() : normalTask.getLevelingTaskSplitIntervals());
+				if (manualDates != null) {
+					ObjectNode dates = taskNode.putObject("manualLevelingDates");
+					dates.put("originalStart", manualDates.originalStart());
+					dates.put("originalFinish", manualDates.originalFinish());
+					dates.put("generatedStart", manualDates.generatedStart());
+					dates.put("generatedFinish", manualDates.generatedFinish());
+				}
 			}
 			return JSON.writeValueAsBytes(root);
 		} catch (IOException exception) {
@@ -785,7 +794,9 @@ public class MpoFileImporter extends FileImporter {
 			long serializedId = integralLong(uidNode, "taskUid");
 			if (!intervalsNode.isArray()) throw new IOException("Invalid mpo task split record");
 			Task task = project.findByUniqueId(serializedId);
-			if (!(task instanceof NormalTask normalTask)) throw new IOException("MPO task split references an unknown task");
+			if (task == null) throw new IOException("MPO task split references an unknown task");
+			NormalTask normalTask = task instanceof NormalTask normal ? normal : null;
+			if (normalTask == null && !intervalsNode.isEmpty()) throw new IOException("MPO task split references a non-normal task");
 			java.util.ArrayList<TaskSplitInterval> intervals = new java.util.ArrayList<>();
 			long previousEnd = Long.MIN_VALUE;
 			for (JsonNode intervalNode : intervalsNode) {
@@ -809,7 +820,10 @@ public class MpoFileImporter extends FileImporter {
 			java.util.ArrayList<TaskSplitInterval> levelingIntervals = new java.util.ArrayList<>();
 			JsonNode manualNodes = taskNode.get("manualIntervals");
 			JsonNode levelingNodes = taskNode.get("levelingIntervals");
-			if (manualNodes == null && levelingNodes == null) {
+			if (normalTask == null) {
+				if ((manualNodes != null && !manualNodes.isArray()) || (levelingNodes != null && !levelingNodes.isArray()))
+					throw new IOException("Invalid MPO task split provenance");
+			} else if (manualNodes == null && levelingNodes == null) {
 				manualIntervals.addAll(intervals);
 			} else {
 				readTaskSplitIntervals(manualNodes, manualIntervals, "manualIntervals");
@@ -817,7 +831,18 @@ public class MpoFileImporter extends FileImporter {
 				if (!NormalTask.unionTaskSplitIntervals(manualIntervals, levelingIntervals).equals(intervals))
 					throw new IOException("MPO task split provenance does not match task split intervals");
 			}
-		normalTask.restoreTaskSplitProvenance(manualIntervals, levelingIntervals);
+			if (normalTask != null) normalTask.restoreTaskSplitProvenance(manualIntervals, levelingIntervals);
+			JsonNode dates = taskNode.get("manualLevelingDates");
+			if (dates != null) {
+				long originalStart = integralLong(dates.path("originalStart"), "originalStart");
+				long originalFinish = integralLong(dates.path("originalFinish"), "originalFinish");
+				long generatedStart = integralLong(dates.path("generatedStart"), "generatedStart");
+				long generatedFinish = integralLong(dates.path("generatedFinish"), "generatedFinish");
+				if (originalStart <= 0L || originalFinish < originalStart || generatedStart <= 0L || generatedFinish < generatedStart)
+					throw new IOException("Invalid MPO manual leveling date provenance");
+				task.setLevelingManualDateState(new Task.LevelingManualDateState(originalStart, originalFinish,
+					generatedStart, generatedFinish));
+			}
 		}
 	}
 

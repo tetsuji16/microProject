@@ -347,6 +347,32 @@ class MpoFileImporterTest {
 	}
 
 	@Test
+	void mpoClearRestoresOptInLevelingManualDatesAfterReload() throws Exception {
+		Project original = projectForRoundTrip();
+		NormalTask task = (NormalTask) firstTask(original);
+		long start = task.getStart();
+		long finish = task.getEnd();
+		long shift = com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		task.setManuallyScheduled(true);
+		task.setManualDates(start + shift, finish + shift);
+		task.setLevelingDelay(com.microproject.datatype.Duration.millis(shift));
+		task.setLevelingManualDateState(new Task.LevelingManualDateState(start, finish, start + shift, finish + shift));
+
+		ByteArrayOutputStream archive = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(original, archive));
+		Project reopened = loadFromBytes(archive.toByteArray());
+		NormalTask restored = (NormalTask) firstTask(reopened);
+		assertEquals(start + shift, restored.getManualStart());
+		assertEquals(start, restored.getLevelingManualDateState().originalStart());
+
+		new com.microproject.pm.resource.ResourceLevelingService().clear(reopened);
+
+		assertEquals(start, restored.getManualStart(), "Clear after MPO reload restores the pre-leveling date");
+		assertEquals(finish, restored.getManualFinish());
+		org.junit.jupiter.api.Assertions.assertNull(restored.getLevelingManualDateState());
+	}
+
+	@Test
 	void mpoTaskSplitMetadataWithoutProvenanceTreatsExistingGapsAsManual() throws Exception {
 		Project original = projectForRoundTrip();
 		NormalTask task = (NormalTask) firstTask(original);
@@ -383,6 +409,9 @@ class MpoFileImporterTest {
 			.noneMatch(field -> field.getName().equals("manualTaskSplitIntervals")
 				|| field.getName().equals("levelingTaskSplitIntervals")),
 			"transient provenance remains outside the immutable POD object descriptor");
+		assertTrue(java.util.Arrays.stream(ObjectStreamClass.lookup(Task.class).getFields())
+			.noneMatch(field -> field.getName().equals("levelingManualDateState")),
+			"manual-date provenance must stay outside the immutable POD task descriptor");
 	}
 
 	@Test

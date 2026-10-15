@@ -151,6 +151,7 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	protected long actualStart = 0;
 
 	protected long levelingDelay = 0L;
+	private transient LevelingManualDateState levelingManualDateState;
 	/** Keeps incomplete planning data fixed until the user returns to automatic scheduling. */
 	protected boolean manuallyScheduled = false;
 	/** Keeps a scenario task in the plan without affecting dates, dependencies, or resource load. */
@@ -1858,6 +1859,9 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	public final void setLevelingDelay(long levelingDelay) {
 		this.levelingDelay = levelingDelay;
 	}
+	public final LevelingManualDateState getLevelingManualDateState() { return levelingManualDateState; }
+	public final void setLevelingManualDateState(LevelingManualDateState state) { levelingManualDateState = state; }
+	public record LevelingManualDateState(long originalStart, long originalFinish, long generatedStart, long generatedFinish) { }
 	public final boolean isManuallyScheduled() {
 		return manuallyScheduled;
 	}
