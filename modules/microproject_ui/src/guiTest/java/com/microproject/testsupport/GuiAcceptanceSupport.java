@@ -26,6 +26,7 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import javax.swing.AbstractButton;
 import javax.swing.JComboBox;
@@ -305,10 +306,14 @@ public final class GuiAcceptanceSupport {
 	public static void selectComboBoxItem(Robot robot, JComboBox<?> combo, int index) throws Exception {
 		if (combo == null || index < 0 || index >= combo.getItemCount())
 			throw new AssertionError("Invalid physical combo-box selection index " + index);
-		java.awt.Component dropdown = java.util.Arrays.stream(combo.getComponents())
-			.filter(javax.swing.AbstractButton.class::isInstance).findFirst().orElse(combo);
-		WindowAcceptanceAssertions.clickComponent(robot, dropdown);
+		// Click the JComboBox itself so it owns keyboard focus while its popup is
+		// open. Clicking the arrow child can open the popup without transferring
+		// focus from a previously active combo, causing HOME/DOWN to target that
+		// other component even though this popup is visible.
+		WindowAcceptanceAssertions.clickComponent(robot, combo);
 		await(combo::isPopupVisible, "the physically clicked combo-box dropdown did not open");
+		if (combo.getName() != null && combo.getName().startsWith("microproject.taskSort."))
+			System.out.println("[GUI_COMBO_FOCUS] beforeKeys " + comboState(combo));
 		robot.keyPress(KeyEvent.VK_HOME);
 		robot.keyRelease(KeyEvent.VK_HOME);
 		for (int current = 0; current < index; current++) {
@@ -318,6 +323,30 @@ public final class GuiAcceptanceSupport {
 		robot.keyPress(KeyEvent.VK_ENTER);
 		robot.keyRelease(KeyEvent.VK_ENTER);
 		robot.waitForIdle();
+		if (combo.getName() != null && combo.getName().startsWith("microproject.taskSort."))
+			System.out.println("[GUI_COMBO_FOCUS] afterKeys " + comboState(combo));
+	}
+
+	private static String comboState(JComboBox<?> combo) throws Exception {
+		AtomicReference<String> state = new AtomicReference<>();
+		SwingUtilities.invokeAndWait(() -> {
+			Component focus = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
+			StringBuilder result = new StringBuilder("name=").append(combo.getName())
+				.append(" selectedIndex=").append(combo.getSelectedIndex())
+				.append(" selectedItem=").append(combo.getSelectedItem())
+				.append(" popupVisible=").append(combo.isPopupVisible())
+				.append(" focusOwner=").append(focus == null ? "null"
+					: focus.getClass().getName() + "/" + focus.getName());
+			for (int key : new int[] { KeyEvent.VK_HOME, KeyEvent.VK_DOWN, KeyEvent.VK_ENTER }) {
+				javax.swing.KeyStroke stroke = javax.swing.KeyStroke.getKeyStroke(key, 0);
+				Object binding = combo.getInputMap(JComponent.WHEN_FOCUSED).get(stroke);
+				Object action = binding == null ? null : combo.getActionMap().get(binding);
+				result.append(" key[").append(KeyEvent.getKeyText(key)).append("]=" ).append(binding)
+					.append('/').append(action == null ? "null" : action.getClass().getName());
+			}
+			state.set(result.toString());
+		});
+		return state.get();
 	}
 
 	/**
