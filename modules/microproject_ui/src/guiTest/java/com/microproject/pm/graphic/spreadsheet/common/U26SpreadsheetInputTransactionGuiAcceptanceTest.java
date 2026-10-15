@@ -233,7 +233,7 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 	private void activate(SpreadSheet sheet, Robot robot) throws Exception {
 		GuiAcceptanceSupport.await(() -> isSelectedSheetReady(sheet, false),
 			"selected U-26 task table did not finish showing and laying out");
-		GuiAcceptanceSupport.activateAndAwaitRenderedWindow(frame, sheet, robot, true,
+		GuiAcceptanceSupport.activateAndAwaitRenderedWindow(frame, tabs, robot, true,
 			"U-26 spreadsheet window");
 		SwingUtilities.invokeAndWait(sheet::requestFocusInWindow);
 		GuiAcceptanceSupport.await(() -> isSelectedSheetReady(sheet, true),
