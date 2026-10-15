@@ -155,6 +155,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	private boolean previousClientSide;
 	private boolean previousBatchMode;
 	private String previousUiDebug;
+	private String previousQueueTrace;
 	private JobQueue previousJobQueue;
 	private Locale previousFormatLocale;
 	private RibbonDisplayMode previousShellDisplayMode;
@@ -169,6 +170,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	@BeforeEach
 	void captureClientSide() {
 		previousJobQueue = SessionFactory.getInstance().getJobQueue();
+		previousQueueTrace = System.getProperty("microproject.session.traceQueueLifecycle");
 		previousClientSide = Environment.isClientSide();
 		previousBatchMode = Environment.isBatchMode();
 		previousShellDisplayMode = RibbonDisplayPreferences.load();
@@ -210,6 +212,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		else
 			System.setProperty("microproject.ui.debug", previousUiDebug);
 		SessionFactory.getInstance().setJobQueue(previousJobQueue);
+		if (previousQueueTrace == null)
+			System.clearProperty("microproject.session.traceQueueLifecycle");
+		else
+			System.setProperty("microproject.session.traceQueueLifecycle", previousQueueTrace);
 		if (previousFormatLocale != null)
 			Locale.setDefault(Locale.Category.FORMAT, previousFormatLocale);
 	}
@@ -217,6 +223,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	@Test
 	void robotSaveShowsMpoRecoveryCopyAfterLockFailure() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		System.setProperty("microproject.session.traceQueueLifecycle", "true");
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
 		previousClientSide = Environment.isClientSide();
@@ -232,6 +239,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Path recoveryCopy = null;
 		Project[] cleanupProject = new Project[1];
 		Dialog[] alert = new Dialog[1];
+		AbstractButton[] staleSaveButton = new AbstractButton[1];
+		boolean[] recoverySaveCompleted = new boolean[1];
 		try {
 			MpoFileImporter importer = new MpoFileImporter();
 			try (OutputStream output = Files.newOutputStream(target)) {
@@ -265,6 +274,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			clickAndAwaitSelected(robot, fileTab, "Robot click did not select the File ribbon tab");
 			GuiAcceptanceSupport.await(fileTab::isSelected, "Robot click did not select the File ribbon tab");
 			AbstractButton save = findShowingButtonByCommand("RibbonSaveProject");
+			staleSaveButton[0] = save;
 			assertTrue(save.isEnabled(), "Save must be enabled for the edited MPO project");
 			ConcurrentLinkedQueue<String> saveActionEvents = new ConcurrentLinkedQueue<>();
 			save.addActionListener(event -> saveActionEvents.add(Instant.now()
@@ -312,6 +322,11 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			assertTrue(saveActionEvents.peek().contains("factoryQueue=" + queueIdentity(saveQueue)
 				+ " localQueue=" + queueIdentity(saveQueue)),
 				"the Save button action must observe the attached queue; events=" + saveActionEvents);
+			recoverySaveCompleted[0] = true;
+			assertNull(SessionFactory.getInstance().getJobQueue(),
+				"a stale Save action must not republish a closed manager's queue");
+			assertNull(SessionFactory.getInstance().getLocalSession().getJobQueue(),
+				"a stale Save action must not install a replacement queue on the shared session");
 		} finally {
 			if (alert[0] != null && alert[0].isShowing())
 				SwingUtilities.invokeAndWait(alert[0]::dispose);
@@ -332,6 +347,23 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				}
 				GuiAcceptanceSupport.await(() -> factory.getPortfolio().getNodeModel().search(cleanupProject[0]) == null,
 					"the test project did not leave the portfolio before the GUI manager closed");
+			}
+			if (recoverySaveCompleted[0] && staleSaveButton[0] != null && manager != null) {
+				GraphicManager closedManager = manager;
+				SwingUtilities.invokeAndWait(() -> {
+					closedManager.cleanUp();
+					window.dispose();
+				});
+				manager = null;
+				SessionFactory.getInstance().setJobQueue(null);
+				SwingUtilities.invokeAndWait(staleSaveButton[0]::doClick);
+				assertEquals(RibbonCommandResult.Status.REJECTED, closedManager.getLastRibbonCommandResult().status(),
+					"a late Save action from a closed window must be rejected before reaching the shared session");
+				assertEquals("manager-closed", closedManager.getLastRibbonCommandResult().reason());
+				assertNull(SessionFactory.getInstance().getJobQueue(),
+					"a stale Save action must not republish a closed manager's queue");
+				assertNull(SessionFactory.getInstance().getLocalSession().getJobQueue(),
+					"a stale Save action must not install a replacement queue on the shared session");
 			}
 			if (recoveryCopy != null) Files.deleteIfExists(recoveryCopy);
 			Files.deleteIfExists(lockPath);

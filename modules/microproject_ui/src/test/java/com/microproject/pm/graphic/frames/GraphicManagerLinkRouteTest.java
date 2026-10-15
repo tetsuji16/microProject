@@ -99,6 +99,30 @@ class GraphicManagerLinkRouteTest {
 	}
 
 	@Test
+	void closedManagerRejectsLateExternalCommandsWithoutRunningThem() {
+		com.microproject.job.JobQueue previousQueue = com.microproject.session.SessionFactory.getInstance().getJobQueue();
+		class TestGraphicManager extends GraphicManager {
+			TestGraphicManager() { super(new JPanel()); }
+			com.microproject.ribbon.RibbonCommandResult runExternal(String id, Runnable command) {
+				return executeExternalRibbonCommand(id, command);
+			}
+		}
+		TestGraphicManager manager = new TestGraphicManager();
+		AtomicInteger commandRuns = new AtomicInteger();
+		try {
+			manager.cleanUp();
+			com.microproject.session.SessionFactory.getInstance().setJobQueue(null);
+			com.microproject.ribbon.RibbonCommandResult result = manager.runExternal("saveProject", commandRuns::incrementAndGet);
+
+			assertEquals(com.microproject.ribbon.RibbonCommandResult.Status.REJECTED, result.status());
+			assertEquals("manager-closed", result.reason());
+			assertEquals(0, commandRuns.get(), "late action must not reach save scheduling after manager cleanup");
+		} finally {
+			com.microproject.session.SessionFactory.getInstance().setJobQueue(previousQueue);
+		}
+	}
+
+	@Test
 	void frameManagerFindsOpenDocumentByCanonicalProjectFileIdentity() throws Exception {
 		Project project = allocateWithoutConstructor(Project.class);
 		Field fileName = Project.class.getDeclaredField("fileName");

@@ -147,8 +147,22 @@ public class SessionFactory {
 		return jobQueue;
 	}
 	public synchronized void setJobQueue(JobQueue jobQueue) {
+		if (jobQueue == null && Boolean.getBoolean("microproject.session.traceQueueLifecycle")) {
+			String caller = StackWalker.getInstance().walk(frames -> frames.skip(1).limit(8)
+				.map(frame -> frame.getClassName() + "." + frame.getMethodName() + ":" + frame.getLineNumber())
+				.collect(java.util.stream.Collectors.joining(" <- ")));
+			logger.warning("SESSION_QUEUE_CLEAR factory=" + identity(this) + " localSession="
+				+ identity(localSession) + " oldFactoryQueue=" + identity(this.jobQueue)
+				+ " oldSessionQueue=" + (localSession == null ? "n/a" : identity(localSession.getJobQueue()))
+				+ " caller=" + caller);
+		}
 		this.jobQueue = jobQueue;
 		ensureLocalSession().setJobQueue(jobQueue);
+	}
+
+	private static String identity(Object value) {
+		return value == null ? "null" : value.getClass().getSimpleName() + "@"
+			+ Integer.toHexString(System.identityHashCode(value));
 	}
 	
 	public void schedule(Job job){
