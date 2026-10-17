@@ -93,6 +93,28 @@ class TeamPlannerDialogGuiAcceptanceTest {
 		ImageIO.write(robot.createScreenCapture(bounds), "png", directory.resolve("team-planner-shared-overload-source-project.png").toFile());
 	}
 
+	/** Windows/Office rule: Enter presses the dialog's default command; for Team Planner that is Close. */
+	@Test
+	void robotEnterPressesTheDefaultCloseButton() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Fixture fixture = fixture();
+		SwingUtilities.invokeLater(() -> TeamPlannerDialogBox.getInstance(null, fixture.owner).setVisible(true));
+		GuiAcceptanceSupport.await(() -> findDialog() != null, "Team Planner dialog did not open");
+		TeamPlannerDialogBox dialog = findDialog();
+		SwingUtilities.invokeAndWait(() -> {
+			dialog.setAlwaysOnTop(true);
+			dialog.toFront();
+			dialog.requestFocus();
+		});
+		GuiAcceptanceSupport.await(dialog::isFocused, "Team Planner dialog did not take focus");
+		assertTrue(dialog.getRootPane().getDefaultButton() != null, "Team Planner must declare a default button");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.keyPress(java.awt.event.KeyEvent.VK_ENTER);
+		robot.keyRelease(java.awt.event.KeyEvent.VK_ENTER);
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(() -> !dialog.isShowing(), "Enter did not press the default Close button");
+	}
+
 	private static boolean hasVisibleTooltip(String expectedText) {
 		boolean[] visible = {false};
 		try {
