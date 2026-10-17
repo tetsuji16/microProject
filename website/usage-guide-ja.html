@@ -5,10 +5,9 @@
   (function () {
     var saved = null;
     try { saved = localStorage.getItem('microProjectLanguage'); } catch (e) {}
-    var languages = navigator.languages || [navigator.language || 'ja'];
     var supported = ['ja', 'en', 'es', 'zh'];
-    var preferred = languages.map(function (value) { return value.toLowerCase().split('-')[0]; }).find(function (value) { return supported.indexOf(value) >= 0; }) || 'en';
-    var language = saved || preferred;
+    // Only an explicit language-link choice redirects; browser language alone does not.
+    var language = supported.indexOf(saved) >= 0 ? saved : 'ja';
     if (language !== 'ja') location.replace('usage-guide-' + language + '.html' + location.search + location.hash);
   })();
 </script>
@@ -25,8 +24,13 @@
 
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>microProject 使い方</title>
 <link rel="canonical" href="https://o-server.main.jp/micro-project/usage-guide-ja.html">
+<link rel="alternate" hreflang="ja" href="https://o-server.main.jp/micro-project/usage-guide-ja.html">
+<link rel="alternate" hreflang="en" href="https://o-server.main.jp/micro-project/usage-guide-en.html">
+<link rel="alternate" hreflang="es" href="https://o-server.main.jp/micro-project/usage-guide-es.html">
+<link rel="alternate" hreflang="zh-Hans" href="https://o-server.main.jp/micro-project/usage-guide-zh.html">
+<link rel="alternate" hreflang="x-default" href="https://o-server.main.jp/micro-project/usage-guide-ja.html">
+<title>microProject 使い方</title>
 <style>body{font-family:system-ui,"Meiryo",sans-serif;color:#17212b;background:#f5f7fa;line-height:1.8;margin:0}main{max-width:960px;margin:auto;padding:24px}nav{display:flex;gap:20px;flex-wrap:wrap}a{color:#1754bc}section{background:white;border:1px solid #dde3eb;border-radius:12px;padding:24px;margin:24px 0}h1,h2,h3{line-height:1.4}table{border-collapse:collapse;width:100%}td,th{border:1px solid #dde3eb;padding:10px;text-align:left}img{max-width:100%;height:auto}figure{margin:20px 0}.warn,.tip{padding:14px;background:#eef4ff;margin:16px 0}code,kbd{background:#edf0f5;padding:2px 5px}footer{padding:24px 0} @media(max-width:600px){main{padding:14px}section{padding:16px}table{font-size:14px}}</style>
 </head>
 <body>
