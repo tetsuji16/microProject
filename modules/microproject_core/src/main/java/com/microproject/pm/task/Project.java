@@ -1662,7 +1662,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	}
 
 	public double cost(long start, long end) {
-		return TimeDistributedDataConsolidator.cost(start,end,childrenToRollup());
+		return TimeDistributedDataConsolidator.cost(start,end,activeTasksForRollup());
 	}
 
 	public double actualCost(long start, long end) {
@@ -1670,7 +1670,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	}
 
 	public double fixedCost(long start, long end) {
-		return TimeDistributedDataConsolidator.fixedCost(start,end,childrenToRollup());
+		return TimeDistributedDataConsolidator.fixedCost(start,end,activeTasksForRollup());
 	}
 
 	public double actualFixedCost(long start, long end) {
@@ -1681,14 +1681,14 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		return false;
 	}
 	public long work(long start, long end) {
-		return TimeDistributedDataConsolidator.work(start,end,childrenToRollup(),true);
+		return TimeDistributedDataConsolidator.work(start,end,activeTasksForRollup(),true);
 	}
 
 	public long actualWork(long start, long end) {
 		return TimeDistributedDataConsolidator.actualWork(start,end,childrenToRollup(),true);
 	}
 	public long remainingWork(long start, long end) {
-		return TimeDistributedDataConsolidator.remainingWork(start,end,childrenToRollup(),true);
+		return TimeDistributedDataConsolidator.remainingWork(start,end,activeTasksForRollup(),true);
 	}
 	boolean isInRange(long start, long finish) {
 		long s = getStart();
@@ -1845,6 +1845,9 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	}
 	public Collection childrenToRollup() {
 		return tasks;
+	}
+	private Collection<Task> activeTasksForRollup() {
+		return tasks.stream().filter(task -> !task.isInactiveTask()).toList();
 	}
 	public String getSchedulingMethod() {
 		return schedulingAlgorithm.getName();

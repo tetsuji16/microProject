@@ -27,6 +27,7 @@ import java.awt.Component;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.util.function.Consumer;
 
 import javax.swing.JCheckBox;
 import javax.swing.JComponent;
@@ -47,9 +48,10 @@ import com.microproject.strings.Messages;
 final class TaskGeneralPanel {
 	private final JPanel component;
 	private final BarColorEditorPanel barColorEditor;
+	private final JCheckBox inactiveTask;
 
 	TaskGeneralPanel(Component owner, FieldComponentMap fields, Task task, BarFormat barFormat,
-			GanttRenderer.DisplayedBarColors displayedColors) {
+			GanttRenderer.DisplayedBarColors displayedColors, Consumer<Boolean> inactiveTaskChange) {
 		component = new JPanel(new GridBagLayout());
 		component.setBorder(javax.swing.BorderFactory.createEmptyBorder(10, 12, 10, 12));
 		int row = 0;
@@ -59,7 +61,12 @@ final class TaskGeneralPanel {
 		addField(fields, "Field.percentComplete", ComponentFactory.SOMETIMES_READ_ONLY, row, 0, 2);
 		addField(fields, "Field.priority", 0, row++, 2, 2);
 		addField(fields, "Field.manuallyScheduled", 0, row, 0, 2);
-		addField(fields, "Field.inactiveTask", 0, row++, 2, 2);
+		inactiveTask = new JCheckBox(Messages.getString("Field.inactiveTask"), task.isInactiveTask());
+		GridBagConstraints inactiveConstraints = constraints(2, row++);
+		inactiveConstraints.gridwidth = 2;
+		inactiveConstraints.anchor = GridBagConstraints.WEST;
+		component.add(inactiveTask, inactiveConstraints);
+		inactiveTask.addActionListener(event -> inactiveTaskChange.accept(inactiveTask.isSelected()));
 		addField(fields, "Field.hiddenTask", 0, row++, 0, 2);
 		addField(fields, "Field.cost", 0, row, 0, 2);
 		addField(fields, "Field.work", 0, row++, 2, 2);
@@ -88,8 +95,10 @@ final class TaskGeneralPanel {
 		return component;
 	}
 
-	void refresh(BarFormat format, boolean readOnly) {
+	void refresh(BarFormat format, boolean readOnly, boolean isInactive) {
 		refreshBarColorFields(barColorEditor, format, readOnly);
+		inactiveTask.setEnabled(!readOnly);
+		inactiveTask.setSelected(isInactive);
 	}
 
 	void apply(Task task, Gantt gantt) {

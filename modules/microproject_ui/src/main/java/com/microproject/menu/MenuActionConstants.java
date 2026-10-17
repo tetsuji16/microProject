@@ -101,6 +101,7 @@ public interface MenuActionConstants {
 	public static final String ACTION_INSERT_TASK             = "InsertTask";
 	public static final String ACTION_TASK_MODE_MANUAL       = "TaskModeManual";
 	public static final String ACTION_TASK_MODE_AUTOMATIC    = "TaskModeAutomatic";
+	public static final String ACTION_INACTIVATE_TASK        = "InactivateTask";
 	public static final String ACTION_STATUS_DATE             = "StatusDate";
 	public static final String ACTION_MARK_ON_TRACK           = "MarkOnTrack";
 	public static final String ACTION_INSERT_RESOURCE         = "InsertResource";

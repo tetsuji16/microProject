@@ -19,8 +19,8 @@ public final class ProjectTaskSnapshot {
 		for (Task task : project.getTaskList()) {
 			Double override = task instanceof NormalTask normal
 				? normal.getImportedPercentCompleteOverride() : null;
-			result.put(task, new TaskState(task.backupDetail(), override, task.isDirty(), task.isManuallyScheduled(),
-				task.getManualStart(), task.getManualFinish(), task.getLevelingDelay(), task.getLevelingManualDateState()));
+			result.put(task, new TaskState(task.backupDetail(), override, task.isInactiveTask(), task.isDirty(),
+				task.isManuallyScheduled(), task.getManualStart(), task.getManualFinish(), task.getLevelingDelay(), task.getLevelingManualDateState()));
 		}
 		tasks = Collections.unmodifiableMap(result);
 		projectDirty = project.isDirty();
@@ -35,6 +35,7 @@ public final class ProjectTaskSnapshot {
 		for (Map.Entry<Task, TaskState> entry : tasks.entrySet()) {
 			Task task = entry.getKey();
 			TaskState state = entry.getValue();
+			if (task.isInactiveTask() != state.inactiveTask()) task.setInactiveTask(state.inactiveTask());
 			task.restoreDetail(eventSource, state.detail(), true);
 			task.restoreManualSchedulingState(state.manuallyScheduled(), state.manualStart(), state.manualFinish());
 			task.setLevelingDelay(state.levelingDelay());
@@ -51,7 +52,7 @@ public final class ProjectTaskSnapshot {
 
 	public Map<Task, TaskState> taskStates() { return tasks; }
 
-	public record TaskState(Object detail, Double importedPercentCompleteOverride, boolean dirty,
+	public record TaskState(Object detail, Double importedPercentCompleteOverride, boolean inactiveTask, boolean dirty,
 		boolean manuallyScheduled, long manualStart, long manualFinish, long levelingDelay,
 		Task.LevelingManualDateState levelingManualDateState) { }
 }

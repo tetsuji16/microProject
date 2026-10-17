@@ -197,8 +197,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		});
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
-		AbstractButton openButton = findCommandButton(window.getRibbonPanel(), "RibbonOpenProject", robot);
-		click(robot, openButton);
+		clickBackstageOpenTile(robot);
 		GuiAcceptanceSupport.await(() -> manager.findFrameForProjectFile(legacyPod.toString()) != null,
 			"File/Open rejected the selected legacy POD before its importer ran");
 		assertTrue(manager.findFrameForProjectFile(legacyPod.toString()).getProject() != null,
@@ -247,7 +246,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindowForRobot(robot);
-		click(robot, findCommandButton(window.getRibbonPanel(), "RibbonOpenProject", robot));
+		clickBackstageOpenTile(robot);
 		GuiAcceptanceSupport.await(() -> manager.findFrameForProjectFile(importedMpp.toString()) != null,
 			"File/Open did not import the MPP fixture");
 		Project project = manager.findFrameForProjectFile(importedMpp.toString()).getProject();
@@ -348,7 +347,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			"saved MPP import did not close before the separate MSPDI fixture route");
 		openPath.set(scalarXml);
 		activateWindowForRobot(robot);
-		click(robot, findCommandButton(window.getRibbonPanel(), "RibbonOpenProject", robot));
+		clickBackstageOpenTile(robot);
 		GuiAcceptanceSupport.await(() -> manager.findFrameForProjectFile(scalarXml.toString()) != null,
 			"File/Open did not import the fixed MSPDI assignment-baseline fixture");
 		Project scalarProject = manager.findFrameForProjectFile(scalarXml.toString()).getProject();
@@ -439,7 +438,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		});
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
-		click(robot, findCommandButton(window.getRibbonPanel(), "RibbonOpenProject", robot));
+		clickBackstageOpenTile(robot);
 		GuiAcceptanceSupport.await(() -> manager.findFrameForProjectFile(historySample.toString()) != null,
 			"File/Open did not register the selected CCPM history sample");
 		Project loaded = manager.findFrameForProjectFile(historySample.toString()).getProject();
@@ -561,10 +560,9 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindowForRobot(robot);
-		AbstractButton open = findCommandButton(window.getRibbonPanel(), "RibbonOpenProject", robot);
 		int documentsBefore = manager.getFrameManager().getAllFrames().size();
 
-		click(robot, open);
+		clickBackstageOpenTile(robot);
 		awaitWithWindowTrace(() -> visibleFileChooserDialog() != null,
 			"File/Open did not show the Swing file chooser; providerStarted=" + chooserCallStarted.get()
 				+ ", providerReturned=" + chooserCallReturned.get());
@@ -580,8 +578,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		assertEquals(documentsBefore, manager.getFrameManager().getAllFrames().size(),
 			"Escape cancellation must not open a project");
 
-		AbstractButton reopenedOpen = findCommandButton(window.getRibbonPanel(), "RibbonOpenProject", robot);
-		click(robot, reopenedOpen);
+		clickBackstageOpenTile(robot);
 		GuiAcceptanceSupport.await(() -> visibleFileChooserDialog() != null,
 			"File/Open did not reopen after Escape cancellation");
 		Window cancelChooser = visibleFileChooserDialog();
@@ -673,14 +670,14 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		assertEquals(documentsBefore, manager.getFrameManager().getAllFrames().size(),
 			"native Ctrl+O cancellation must not open a project");
 		verifyNativeChooserEscape(robot,
-			() -> click(robot, findCommandButton(window.getRibbonPanel(), "RibbonOpenProject", robot)),
+			() -> clickBackstageOpenTile(robot),
 			chooserCallStarted, chooserCallReturned,
 			chooserCancelled, chooserFailure, "Ribbon Open", chooserProviderStartedAt, chooserProviderReturnedAt,
 			chooserOwnerAtProviderEntry, chooserOwnerWindow);
 		assertEquals(documentsBefore, manager.getFrameManager().getAllFrames().size(),
 			"native Ribbon Open cancellation must not open a project");
 		verifyNativeChooserCancelButton(robot,
-			() -> click(robot, findCommandButton(window.getRibbonPanel(), "RibbonOpenProject", robot)), chooserCallStarted,
+			() -> clickBackstageOpenTile(robot), chooserCallStarted,
 			chooserCallReturned, chooserCancelled, chooserFailure, "Ribbon Open", chooserProviderStartedAt,
 			chooserProviderReturnedAt, chooserOwnerAtProviderEntry, chooserOwnerWindow);
 		assertEquals(documentsBefore, manager.getFrameManager().getAllFrames().size(),
@@ -1079,15 +1076,18 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		ownerWindowAtProviderEntry.set(null);
 		BufferedImage beforeOpen = captureScreen(robot);
 		String windowsBeforeOpen = snapshotNativeChooserWindows();
-		Instant chooserInvokedAt = Instant.now();
 		captureNativeChooserScreen(beforeOpen, "issue-398-native-" + route.toLowerCase(Locale.ROOT).replace(' ', '-')
 			+ "-before-open.png");
-		NativeChooserWindowEventProbe windowEvents = startNativeChooserWindowEventProbe(route);
+		PreparedNativeChooserProbe probe = null;
+		Instant chooserInvokedAt = null;
 		try {
+			probe = PreparedNativeChooserProbe.start(route);
+			probe.awaitPrepared();
 			openCommand.run();
+			chooserInvokedAt = probe.startReadinessDeadline();
 			GuiAcceptanceSupport.await(chooserCallStarted::get,
 				route + " did not enter the default Windows native chooser provider");
-			requireNativeCancelControl(awaitNativeChooserSnapshot(route), route);
+			requireNativeCancelControl(awaitNativeChooserSnapshot(probe, route), route);
 			assertFalse(chooserCallReturned.get(), route + " chooser must remain modal until physical Escape");
 			String artifactName = "issue-398-native-" + route.toLowerCase(Locale.ROOT).replace(' ', '-')
 				+ "-before-escape.png";
@@ -1103,11 +1103,11 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			assertTrue(chooserCancelled.get(), route + " Escape must cancel the default Windows file chooser");
 		} catch (Exception | Error failure) {
 			captureNativeChooserFailureDiagnostics(route, robot, beforeOpen, chooserCallStarted, chooserCallReturned,
-				chooserCancelled, chooserFailure, windowsBeforeOpen, chooserInvokedAt, failure, providerStartedAt,
-				providerReturnedAt, ownerAtProviderEntry, ownerWindowAtProviderEntry.get(), windowEvents);
+				chooserCancelled, chooserFailure, windowsBeforeOpen, chooserInvokedAt == null ? Instant.now() : chooserInvokedAt,
+				failure, providerStartedAt, providerReturnedAt, ownerAtProviderEntry, ownerWindowAtProviderEntry.get(), probe);
 			throw failure;
 		} finally {
-			windowEvents.close();
+			if (probe != null) probe.close();
 			if (chooserCallStarted.get() && !chooserCallReturned.get()) {
 				robot.keyPress(java.awt.event.KeyEvent.VK_ESCAPE);
 				try {
@@ -1135,15 +1135,18 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		ownerWindowAtProviderEntry.set(null);
 		BufferedImage beforeOpen = captureScreen(robot);
 		String windowsBeforeOpen = snapshotNativeChooserWindows();
-		Instant chooserInvokedAt = Instant.now();
 		captureNativeChooserScreen(beforeOpen, "issue-398-native-" + route.toLowerCase(Locale.ROOT).replace(' ', '-')
 			+ "-before-open.png");
-		NativeChooserWindowEventProbe windowEvents = startNativeChooserWindowEventProbe(route + "-cancel");
+		PreparedNativeChooserProbe probe = null;
+		Instant chooserInvokedAt = null;
 		try {
+			probe = PreparedNativeChooserProbe.start(route + "-cancel");
+			probe.awaitPrepared();
 			openCommand.run();
+			chooserInvokedAt = probe.startReadinessDeadline();
 			GuiAcceptanceSupport.await(chooserCallStarted::get,
 				route + " did not enter the default Windows native chooser provider for Cancel acceptance");
-			NativeCancelControl initialCancel = requireNativeCancelControl(awaitNativeChooserSnapshot(route), route);
+			NativeCancelControl initialCancel = requireNativeCancelControl(awaitNativeChooserSnapshot(probe, route), route);
 			assertFalse(chooserCallReturned.get(), route + " native chooser returned before physical Cancel");
 			clickNativePoint(robot, centerX(initialCancel.dialogBounds),
 				initialCancel.dialogBounds.y + Math.max(12, Math.min(18, initialCancel.dialogBounds.height / 12)));
@@ -1163,11 +1166,12 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			captureNativeChooserScreen(robot, "issue-398-native-ribbon-after-cancel.png");
 		} catch (Exception | Error failure) {
 			captureNativeChooserFailureDiagnostics(route + "-cancel", robot, beforeOpen, chooserCallStarted,
-				chooserCallReturned, chooserCancelled, chooserFailure, windowsBeforeOpen, chooserInvokedAt, failure,
-				providerStartedAt, providerReturnedAt, ownerAtProviderEntry, ownerWindowAtProviderEntry.get(), windowEvents);
+				chooserCallReturned, chooserCancelled, chooserFailure, windowsBeforeOpen,
+				chooserInvokedAt == null ? Instant.now() : chooserInvokedAt, failure, providerStartedAt,
+				providerReturnedAt, ownerAtProviderEntry, ownerWindowAtProviderEntry.get(), probe);
 			throw failure;
 		} finally {
-			windowEvents.close();
+			if (probe != null) probe.close();
 			if (chooserCallStarted.get() && !chooserCallReturned.get()) {
 				robot.keyPress(java.awt.event.KeyEvent.VK_ESCAPE);
 				try {
@@ -1263,39 +1267,20 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		return parseNativeCancelControl(snapshot, route, ProcessHandle.current().pid());
 	}
 
-	private static String awaitNativeChooserSnapshot(String route) throws IOException {
-		long deadlineNanos = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(4);
-		long deadlineEpochMillis = System.currentTimeMillis() + java.util.concurrent.TimeUnit.SECONDS.toMillis(4);
-		long deadlineUtcTicks = 621355968000000000L
-			+ deadlineEpochMillis * 10_000L;
-		Instant deadlineUtc = Instant.ofEpochMilli(deadlineEpochMillis);
-		String routeName = route.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9-]", "-");
-		Path projectDirectory = Path.of(System.getProperty("microproject.project.dir", ".")).toAbsolutePath();
-		Path script = projectDirectory.resolve(".github").resolve("scripts").resolve("capture-gui-desktop-state.ps1");
-		Path output = guiArtifactDirectory().resolve("issue-398-native-" + routeName + "-ready-windows.txt");
-		Files.createDirectories(output.getParent());
-		Process process = new ProcessBuilder("powershell.exe", "-NoLogo", "-NoProfile", "-NonInteractive", "-WindowStyle",
-			"Hidden", "-ExecutionPolicy", "Bypass", "-File", script.toString(), "-TargetPid",
-			Long.toString(ProcessHandle.current().pid()), "-WaitForNativeChooser", "-DeadlineUtcTicks",
-			Long.toString(deadlineUtcTicks)).redirectErrorStream(true).redirectOutput(output.toFile()).start();
+	private static String awaitNativeChooserSnapshot(PreparedNativeChooserProbe probe, String route) throws IOException {
 		try {
-			NativeChooserProbeCompletion.Result result = NativeChooserProbeCompletion.await(process,
-				() -> readNativeChooserProbeOutput(output), deadlineNanos, deadlineUtc,
-				java.time.Duration.ofSeconds(2), java.time.Duration.ofMillis(250));
+			NativeChooserProbeCompletion.Result result = probe.awaitReadiness();
 			if (result.status() == NativeChooserProbeCompletion.Status.COMPLETE) return result.output();
 			if (result.status() == NativeChooserProbeCompletion.Status.PROCESS_FAILED)
-				throw new IOException("Native chooser probe exited " + result.exitCode() + "; output=" + output + "\n" + result.output());
-			process.destroyForcibly();
-			process.waitFor(250, java.util.concurrent.TimeUnit.MILLISECONDS);
+				throw new IOException("Native chooser probe exited " + result.exitCode() + "; output=" + result.output());
 			if (result.status() == NativeChooserProbeCompletion.Status.READY_BUT_INCOMPLETE)
 				throw new IOException(route + " chooser was ready by the 4-second deadline but the probe snapshot did not finish its bounded 2-second serialization drain; output="
-					+ output + "\n" + readNativeChooserProbeOutput(output));
-			throw new IOException(route + " native chooser was not ready within 4 seconds; output=" + output + "\n"
-				+ readNativeChooserProbeOutput(output));
+					+ result.output());
+			throw new IOException(route + " native chooser readiness was not observed by the 4-second command deadline; output="
+				+ result.output());
 		} catch (InterruptedException interrupted) {
 			Thread.currentThread().interrupt();
-			process.destroyForcibly();
-			throw new IOException("Native chooser probe interrupted; output=" + output, interrupted);
+			throw new IOException("Native chooser probe interrupted", interrupted);
 		}
 	}
 
@@ -1323,77 +1308,96 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		}
 	}
 
-	private static final class NativeChooserWindowEventProbe implements AutoCloseable {
+	private static final class PreparedNativeChooserProbe implements AutoCloseable {
 		private final Process process;
-		private final Path logFile;
-		private final Path stopFile;
-		private final String unavailableReason;
+		private final Path output;
+		private final Path trigger;
+		private final Path lifecycleLog;
+		private long deadlineNanos;
+		private Instant deadlineUtc;
+		private boolean triggered;
 		private boolean retained;
 
-		private NativeChooserWindowEventProbe(Process process, Path logFile, Path stopFile, String unavailableReason) {
+		private PreparedNativeChooserProbe(Process process, Path output, Path trigger, Path lifecycleLog) {
 			this.process = process;
-			this.logFile = logFile;
-			this.stopFile = stopFile;
-			this.unavailableReason = unavailableReason;
+			this.output = output;
+			this.trigger = trigger;
+			this.lifecycleLog = lifecycleLog;
 		}
 
-		static NativeChooserWindowEventProbe unavailable(String reason) {
-			return new NativeChooserWindowEventProbe(null, null, null, reason);
-		}
-
-		static NativeChooserWindowEventProbe start(String route) throws Exception {
+		static PreparedNativeChooserProbe start(String route) throws IOException {
 			Path directory = guiArtifactDirectory();
 			Files.createDirectories(directory);
-			String name = "issue-398-native-" + route.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9-]", "-")
-				+ "-window-events";
-			Path log = directory.resolve(name + ".txt");
-			Path stop = directory.resolve(name + ".stop");
-			Files.deleteIfExists(log);
-			Files.deleteIfExists(stop);
+			String name = "issue-398-native-" + route.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9-]", "-");
+			Path output = directory.resolve(name + "-ready-windows.txt");
+			Path trigger = directory.resolve(name + "-trigger.txt");
+			Path lifecycleLog = directory.resolve(name + "-window-events.txt");
+			Files.deleteIfExists(output);
+			Files.deleteIfExists(trigger);
+			Files.deleteIfExists(lifecycleLog);
 			Path script = Path.of(System.getProperty("microproject.project.dir", ".")).toAbsolutePath()
 				.resolve(".github").resolve("scripts").resolve("capture-gui-desktop-state.ps1");
-			Process watcher = new ProcessBuilder("powershell.exe", "-NoLogo", "-NoProfile", "-NonInteractive",
+			Process process = new ProcessBuilder("powershell.exe", "-NoLogo", "-NoProfile", "-NonInteractive",
 				"-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass", "-File", script.toString(), "-TargetPid",
-				Long.toString(ProcessHandle.current().pid()), "-WatchNativeChooserLifecycle", "-LogFile", log.toString(),
-				"-StopFile", stop.toString()).redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
-			long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(2);
-			while (System.nanoTime() < deadline && watcher.isAlive()) {
-				if (Files.exists(log) && Files.readString(log).contains("windowEventWatchStartedUtc="))
-					return new NativeChooserWindowEventProbe(watcher, log, stop, null);
-				Thread.sleep(20);
+				Long.toString(ProcessHandle.current().pid()), "-PrepareNativeChooser", "-ProbeTriggerFile", trigger.toString(),
+				"-LifecycleLogFile", lifecycleLog.toString()).redirectErrorStream(true).redirectOutput(output.toFile()).start();
+			return new PreparedNativeChooserProbe(process, output, trigger, lifecycleLog);
+		}
+
+		void awaitPrepared() throws IOException {
+			try {
+				NativeChooserProbeCompletion.awaitPrepared(process, () -> readNativeChooserProbeOutput(output),
+					java.time.Duration.ofSeconds(15));
+			} catch (InterruptedException interrupted) {
+				Thread.currentThread().interrupt();
+				throw new IOException("Interrupted while preparing native chooser observer", interrupted);
 			}
-			watcher.destroyForcibly();
-			return unavailable("window-event watcher did not become ready; exit="
-				+ (watcher.isAlive() ? "running" : watcher.exitValue()));
+		}
+
+		Instant startReadinessDeadline() throws IOException {
+			if (triggered) throw new IllegalStateException("Native chooser probe already triggered");
+			long deadlineEpochMillis = System.currentTimeMillis() + java.util.concurrent.TimeUnit.SECONDS.toMillis(4);
+			deadlineNanos = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(4);
+			deadlineUtc = Instant.ofEpochMilli(deadlineEpochMillis);
+			String request = "callId=" + Long.toUnsignedString(System.nanoTime()) + "\ndeadlineUtcTicks="
+				+ (621355968000000000L + deadlineEpochMillis * 10_000L) + "\n";
+			Path temporary = trigger.resolveSibling(trigger.getFileName() + ".tmp");
+			Files.writeString(temporary, request, java.nio.charset.StandardCharsets.UTF_8);
+			try {
+				Files.move(temporary, trigger, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+			} catch (java.nio.file.AtomicMoveNotSupportedException unsupported) {
+				Files.move(temporary, trigger);
+			}
+			triggered = true;
+			return Instant.now();
+		}
+
+		NativeChooserProbeCompletion.Result awaitReadiness() throws IOException, InterruptedException {
+			if (!triggered) throw new IllegalStateException("Native chooser probe has not been triggered");
+			return NativeChooserProbeCompletion.await(process, () -> readNativeChooserProbeOutput(output), deadlineNanos,
+				deadlineUtc, java.time.Duration.ofSeconds(2), java.time.Duration.ofMillis(250));
 		}
 
 		String stopAndRead() throws IOException {
-			if (process == null) return "windowEventStatus=unavailable reason=" + unavailableReason;
-			try {
-				Files.writeString(stopFile, "stop");
-				if (!process.waitFor(1, java.util.concurrent.TimeUnit.SECONDS)) {
-					process.destroyForcibly();
-					process.waitFor(1, java.util.concurrent.TimeUnit.SECONDS);
-				}
-			} catch (InterruptedException interrupted) {
-				Thread.currentThread().interrupt();
-				throw new IOException("Interrupted while stopping native chooser event probe", interrupted);
-			}
-			String events = Files.exists(logFile) ? Files.readString(logFile) : "(no event log)";
+			String events = Files.exists(lifecycleLog) ? Files.readString(lifecycleLog) : "(no event log)";
 			if (events.length() > 32 * 1024) events = events.substring(0, 32 * 1024) + "\n[truncated at 32 KiB]";
 			retained = true;
-			return "path=" + logFile + " exit=" + (process.isAlive() ? "still-running" : process.exitValue())
-				+ "\n" + events;
+			return "path=" + lifecycleLog + " processExit=" + (process.isAlive() ? "running" : process.exitValue())
+				+ "\n" + events + "\nobserverOutput=" + readNativeChooserProbeOutput(output);
 		}
 
 		@Override
 		public void close() {
-			if (process == null) return;
 			try {
-				Files.writeString(stopFile, "stop");
-				if (!process.waitFor(1, java.util.concurrent.TimeUnit.SECONDS)) process.destroyForcibly();
-				if (!retained) Files.deleteIfExists(logFile);
-				Files.deleteIfExists(stopFile);
+				if (process.isAlive()) {
+					process.destroyForcibly();
+					process.waitFor(1, java.util.concurrent.TimeUnit.SECONDS);
+				}
+				if (!retained) {
+					Files.deleteIfExists(lifecycleLog);
+					Files.deleteIfExists(output);
+				}
+				Files.deleteIfExists(trigger);
 			} catch (Exception ignored) {
 				process.destroyForcibly();
 			}
@@ -1421,7 +1425,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			AtomicReference<Throwable> chooserFailure, String windowsBeforeOpen, Instant chooserInvokedAt,
 			Throwable originalFailure, AtomicReference<Instant> providerStartedAt,
 			AtomicReference<Instant> providerReturnedAt, AtomicReference<String> ownerAtProviderEntry, Window owner,
-			NativeChooserWindowEventProbe windowEvents) {
+			PreparedNativeChooserProbe probe) {
 		Instant capturedAt = Instant.now();
 		String diagnostic = "Native chooser failure snapshot route=" + route + " capturedUtc=" + capturedAt
 			+ " chooserInvokedUtc=" + chooserInvokedAt
@@ -1436,7 +1440,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		System.err.println(diagnostic);
 		originalFailure.addSuppressed(new AssertionError(diagnostic));
 		try {
-			String events = windowEvents.stopAndRead();
+			String events = probe == null ? "windowEventStatus=unavailable reason=probe-not-started" : probe.stopAndRead();
 			originalFailure.addSuppressed(new AssertionError("Native chooser HWND lifecycle timeline:\n" + events));
 		} catch (Exception captureFailure) {
 			originalFailure.addSuppressed(captureFailure);
@@ -1464,14 +1468,6 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			originalFailure.addSuppressed(new AssertionError("Native chooser OS-thread stack:\n" + nativeStack));
 		} catch (Exception captureFailure) {
 			originalFailure.addSuppressed(captureFailure);
-		}
-	}
-
-	private static NativeChooserWindowEventProbe startNativeChooserWindowEventProbe(String route) {
-		try {
-			return NativeChooserWindowEventProbe.start(route);
-		} catch (Exception unavailable) {
-			return NativeChooserWindowEventProbe.unavailable(unavailable.toString());
 		}
 	}
 
@@ -1884,6 +1880,31 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		}
 		if (match != null) return match;
 		throw new AssertionError("Ribbon command is not present: " + commandId);
+	}
+
+	/** Follow the user-visible File tab, Open page, and Open tile before waiting for a chooser. */
+	private void clickBackstageOpenTile(Robot robot) throws Exception {
+		Window owner = SwingUtilities.getWindowAncestor(window.getRibbonPanel());
+		if (!(owner instanceof javax.swing.JFrame frame))
+			throw new AssertionError("File/Open route has no application frame");
+		if (findNamedOnEdt(frame, "officeBackstageOverlay") == null) {
+			click(robot, findRibbonTab(window.getRibbonPanel(), "File", "ファイル"));
+			GuiAcceptanceSupport.await(() -> findNamedOnEdt(frame, "officeBackstageView") != null,
+				"File tab did not open Backstage before File/Open");
+		}
+		Component openPage = findNamedOnEdt(frame, "officeBackstageNav-open");
+		if (!(openPage instanceof AbstractButton button))
+			throw new AssertionError("Backstage navigation is missing the Open page");
+		click(robot, button);
+		String tileName = "officeBackstageCommand-RibbonOpenProject";
+		GuiAcceptanceSupport.await(() -> {
+			Component tile = findNamedOnEdt(frame, tileName);
+			return tile instanceof AbstractButton && isEnabledAndShowingOnEdt(tile);
+		}, "Backstage Open page did not expose its enabled Open tile");
+		Component tile = findNamedOnEdt(frame, tileName);
+		if (!(tile instanceof AbstractButton) || !isShowingOnEdt(tile))
+			throw new AssertionError("Backstage Open tile is not physically visible");
+		click(robot, tile);
 	}
 
 	private AbstractButton findCommandButton(Component root, String commandId, Robot robot) throws Exception {

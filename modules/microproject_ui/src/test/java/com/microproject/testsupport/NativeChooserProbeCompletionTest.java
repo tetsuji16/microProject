@@ -5,6 +5,8 @@
 package com.microproject.testsupport;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -33,6 +35,39 @@ class NativeChooserProbeCompletionTest {
 		FakeProcess process = new FakeProcess(0, false, true);
 		Supplier<String> output = () -> TIMELY_READY;
 		var result = NativeChooserProbeCompletion.await(process, output, System.nanoTime() + TimeUnit.SECONDS.toNanos(1), DEADLINE,
+			Duration.ofMillis(300), Duration.ofMillis(25));
+
+		assertEquals(NativeChooserProbeCompletion.Status.COMPLETE, result.status());
+		assertEquals(0, result.exitCode());
+	}
+
+	@Test
+	void observerStartupDelayDoesNotConsumeTheChooserReadinessDeadline() throws Exception {
+		FakeProcess preparation = new FakeProcess(0, false);
+		Instant deadlineIfStartupWereIncluded = Instant.now().plusMillis(100);
+		java.util.concurrent.atomic.AtomicInteger reads = new java.util.concurrent.atomic.AtomicInteger();
+		NativeChooserProbeCompletion.awaitPrepared(preparation, () -> {
+			if (reads.getAndIncrement() == 0) return "nativeChooserProbe processStartedUtc=2026-10-15T16:25:40Z\\n";
+			try {
+				Thread.sleep(200);
+			} catch (InterruptedException interrupted) {
+				Thread.currentThread().interrupt();
+				throw new AssertionError(interrupted);
+			}
+			return "nativeChooserProbe preparedUtc=2026-10-15T16:25:45Z\\n";
+		}, Duration.ofSeconds(1));
+
+		FakeProcess readiness = new FakeProcess(0, true);
+		Instant chooserStart = Instant.now();
+		Instant chooserDeadlineUtc = chooserStart.plusMillis(100);
+		Instant firstReady = chooserStart.plusMillis(10);
+		Instant completed = chooserStart.plusMillis(20);
+		assertTrue(firstReady.isAfter(deadlineIfStartupWereIncluded));
+		assertFalse(firstReady.isAfter(chooserDeadlineUtc));
+		String readyOutput = "nativeChooserFirstReadyObservedUtc=" + firstReady + " hwnd=0x1\\n"
+			+ "nativeChooserProbe completedUtc=" + completed + " reason=ready ready=True\\n";
+		var result = NativeChooserProbeCompletion.await(readiness, () -> readyOutput,
+			System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(100), chooserDeadlineUtc,
 			Duration.ofMillis(300), Duration.ofMillis(25));
 
 		assertEquals(NativeChooserProbeCompletion.Status.COMPLETE, result.status());

@@ -26,6 +26,9 @@ package com.microproject.pm.resource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -40,6 +43,9 @@ import com.microproject.options.CalendarOption;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.assignment.contour.ContourTypes;
+import com.microproject.pm.dependency.DependencyService;
+import com.microproject.pm.dependency.DependencyType;
+import com.microproject.grouping.core.NodeFactory;
 import com.microproject.pm.scheduling.ScheduleService;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
@@ -717,7 +723,7 @@ class ResourceLevelingServiceTest {
 			fixture.project.getStart(), CalendarOption.getInstance().getMillisPerDay(), false);
 		blocker.setStart(oneDayLater);
 		AssignmentService.getInstance().newAssignment(longTask, fixture.resource, 1D, 0L, this);
-		AssignmentService.getInstance().newAssignment(blocker, fixture.resource, 1D, 0L, this);
+		Assignment blockerAssignment = AssignmentService.getInstance().newAssignment(blocker, fixture.resource, 1D, 0L, this);
 		long start = longTask.getStart();
 		long finish = longTask.getEnd();
 		var undo = fixture.project.getUndoController();
@@ -939,6 +945,137 @@ class ResourceLevelingServiceTest {
 		taskPlan.apply();
 		assertEquals(targetAssignment.getStart(), unaffectedAssignment.getStart(),
 			"disabling assignment-level leveling applies one whole-task delay");
+	}
+
+	@Test
+	void assignmentLevelingSplitCanBeClearedAndUndoneWithoutChangingTaskOrOtherAssignments() throws Exception {
+		Fixture fixture = fixture();
+		NormalTask longTask = task(fixture.project, "Long task", 5L);
+		NormalTask summary = task(fixture.project, "Summary", 0L);
+		longTask.setWbsParent(summary);
+		summary.setWbsChildrenNodes(List.of(NodeFactory.getInstance().createNode(longTask)));
+		NormalTask blocker = task(fixture.project, "Priority work", 1L);
+		blocker.setPriority(900);
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		long oneDayLater = fixture.project.getEffectiveWorkCalendar().add(
+			fixture.project.getStart(), day, false);
+		blocker.setStart(oneDayLater);
+		Assignment target = AssignmentService.getInstance().newAssignment(longTask, fixture.resource, 1D, 0L, this);
+		long manualGapStart = target.getStart() + com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		target.split(this, manualGapStart, manualGapStart + com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR);
+		ResourceImpl otherResource = fixture.project.getResourcePool().newResourceInstance();
+		otherResource.setName("Other");
+		Assignment unaffected = AssignmentService.getInstance().newAssignment(longTask, otherResource, 1D, 0L, this);
+		Assignment blockerAssignment = AssignmentService.getInstance().newAssignment(blocker, fixture.resource, 1D, 0L, this);
+		NormalTask successor = task(fixture.project, "Successor", 1L);
+		DependencyService.getInstance().newDependency(longTask, successor, DependencyType.FS, 0L, this);
+		long taskStart = longTask.getStart();
+		long unaffectedStart = unaffected.getStart();
+		long beforeDuration = target.getDurationMillis();
+		String beforeContour = target.getWorkContour().toString(beforeDuration);
+		ResourceLevelingService service = new ResourceLevelingService();
+		ResourceLevelingService.Plan plan = service.preview(fixture.project, List.of(fixture.resource),
+			new ResourceLevelingService.Options(ResourceLevelingService.Order.PRIORITY_STANDARD, false, true,
+				Long.MIN_VALUE, Long.MAX_VALUE, false, ResourceLevelingService.Sensitivity.HOUR, true, false));
+
+		assertTrue(plan.changes().isEmpty(), "assignment mode must not move the shared task");
+		assertTrue(plan.splits().isEmpty(), "assignment mode must not add a whole-task split");
+		assertEquals(1, plan.assignmentSplits().size(), "the target assignment can split around the blocker: "
+			+ plan.unresolved() + " changes=" + plan.assignmentChanges() + " target=" + target.getStart() + ".."
+			+ target.getEnd() + " blocker=" + blockerAssignment.getStart() + ".." + blockerAssignment.getEnd());
+		plan.apply();
+		assertNotNull(target.getLevelingSplitState());
+		assertEquals(taskStart, longTask.getStart());
+		assertEquals(unaffectedStart, unaffected.getStart());
+		assertTrue(longTask.getEnd() >= target.getEnd(), "task finish must cover the extended assignment span");
+		assertTrue(summary.getEnd() >= target.getEnd(), "automatic summary finish must roll up the extended assignment");
+		assertTrue(successor.getStart() >= longTask.getEnd(), "FS successor must follow the updated task finish");
+		assertNotEquals(beforeContour, target.getWorkContour().toString(target.getDurationMillis()));
+
+		var undo = fixture.project.getUndoController();
+		undo.clear();
+		service.clear(fixture.project, null, undo.getEditSupport());
+		assertNull(target.getLevelingSplitState());
+		assertEquals(beforeDuration, target.getDurationMillis());
+		assertEquals(beforeContour, target.getWorkContour().toString(beforeDuration));
+		undo.undo();
+		assertNotNull(target.getLevelingSplitState(), "Undo restores the generated assignment split and its ownership");
+		undo.redo();
+		assertNull(target.getLevelingSplitState());
+	}
+
+	@Test
+	void dialogDefaultSettingsPlanAnAssignmentSplitAroundAnInteriorBlocker() {
+		// Mirrors the Resource Leveling dialog fixture: product-default CCPM settings
+		// (priority/standard order, day sensitivity, assignment leveling) after recalculation.
+		Fixture fixture = fixture();
+		NormalTask longTask = task(fixture.project, "Long task", 5L);
+		NormalTask blocker = task(fixture.project, "Priority work", 1L);
+		blocker.setPriority(900);
+		blocker.setStart(fixture.project.getEffectiveWorkCalendar().add(
+			fixture.project.getStart(), CalendarOption.getInstance().getMillisPerDay(), false));
+		AssignmentService.getInstance().newAssignment(longTask, fixture.resource, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(blocker, fixture.resource, 1D, 0L, this);
+		fixture.project.recalculate();
+		com.microproject.pm.ccpm.CriticalChainService.Settings defaults =
+			new com.microproject.pm.ccpm.CriticalChainService.Settings();
+		ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(fixture.project,
+			List.of(fixture.resource), new ResourceLevelingService.Options(defaults.getLevelingOrder(),
+				defaults.isOnlyWithinAvailableSlack(), defaults.isAllowTaskSplits(), Long.MIN_VALUE, Long.MAX_VALUE,
+				defaults.isIncludeProposedResources(), defaults.getSensitivity(), defaults.isLevelAssignments(), defaults.isLevelManuallyScheduledTasks()));
+
+		assertEquals(1, plan.assignmentSplits().size(), "dialog defaults must offer the assignment split: "
+			+ plan.unresolved() + " changes=" + plan.assignmentChanges());
+	}
+
+	@Test
+	void assignmentLevelingClearRejectsAContourEditedAfterApply() {
+		Fixture fixture = fixture();
+		NormalTask longTask = task(fixture.project, "Long task", 5L);
+		NormalTask blocker = task(fixture.project, "Priority work", 1L);
+		blocker.setPriority(900);
+		blocker.setStart(fixture.project.getEffectiveWorkCalendar().add(
+			fixture.project.getStart(), CalendarOption.getInstance().getMillisPerDay(), false));
+		Assignment target = AssignmentService.getInstance().newAssignment(longTask, fixture.resource, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(blocker, fixture.resource, 1D, 0L, this);
+		ResourceLevelingService service = new ResourceLevelingService();
+		ResourceLevelingService.Plan plan = service.preview(fixture.project, List.of(fixture.resource),
+			new ResourceLevelingService.Options(ResourceLevelingService.Order.PRIORITY_STANDARD, false, true,
+				Long.MIN_VALUE, Long.MAX_VALUE, false, ResourceLevelingService.Sensitivity.HOUR, true, false));
+		assertEquals(1, plan.assignmentSplits().size());
+		plan.apply();
+		String generatedContour = target.getWorkContour().toString(target.getDurationMillis());
+		target.extend(target.getStart(), target.getEnd(), com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR);
+		String userContour = target.getWorkContour().toString(target.getDurationMillis());
+
+		assertThrows(IllegalStateException.class, () -> service.clear(fixture.project));
+		assertEquals(userContour, target.getWorkContour().toString(target.getDurationMillis()));
+		assertNotEquals(generatedContour, userContour);
+		assertNotNull(target.getLevelingSplitState());
+	}
+
+	@Test
+	void assignmentLevelingSplitLeavesPartialAndCompleteActualWorkUntouched() {
+		for (double percentComplete : new double[] {0.5D, 1.0D}) {
+			Fixture fixture = fixture();
+			NormalTask targetTask = task(fixture.project, "Actual work " + percentComplete, 5L);
+			NormalTask blockerTask = task(fixture.project, "Blocker " + percentComplete, 1L);
+			blockerTask.setPriority(900);
+			blockerTask.setStart(fixture.project.getEffectiveWorkCalendar().add(
+				fixture.project.getStart(), CalendarOption.getInstance().getMillisPerDay(), false));
+			Assignment target = AssignmentService.getInstance().newAssignment(targetTask, fixture.resource, 1D, 0L, this);
+			AssignmentService.getInstance().newAssignment(blockerTask, fixture.resource, 1D, 0L, this);
+			target.setPercentComplete(percentComplete);
+			long actualWorkBefore = target.getActualWork(null);
+
+			ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(fixture.project,
+				List.of(fixture.resource), new ResourceLevelingService.Options(ResourceLevelingService.Order.PRIORITY_STANDARD,
+					false, true, Long.MIN_VALUE, Long.MAX_VALUE, false, ResourceLevelingService.Sensitivity.HOUR, true, false));
+
+			assertTrue(plan.assignmentSplits().isEmpty(), "generated assignment splits must not rewrite actual work at "
+				+ percentComplete * 100 + "% complete");
+			assertEquals(actualWorkBefore, target.getActualWork(null));
+		}
 	}
 
 	@Test

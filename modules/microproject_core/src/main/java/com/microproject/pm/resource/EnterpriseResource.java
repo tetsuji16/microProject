@@ -81,11 +81,11 @@ public class EnterpriseResource implements Resource {
 
 
 	public long getEarliestAssignmentStart() {
-		return hasAssignments.getEarliestAssignmentStart();
+		return activeAssignments().stream().mapToLong(Assignment::getStart).min().orElse(Long.MAX_VALUE);
 	}
 
 	public boolean hasActiveAssignment(long start, long end) {
-		return hasAssignments.hasActiveAssignment(start, end);
+		return activeAssignments().stream().anyMatch(assignment -> assignment.isActiveBetween(start, end));
 	}
 
 	public EnterpriseResource(ResourcePool resourcePool) {
@@ -511,7 +511,7 @@ public class EnterpriseResource implements Resource {
 	 * @return
 	 */
 	public double cost(long start, long end) {
-		return hasAssignments.cost(start, end);
+		return com.microproject.pm.assignment.TimeDistributedDataConsolidator.cost(start, end, activeAssignments());
 	}
 	/**
 	 * @param start
@@ -519,7 +519,7 @@ public class EnterpriseResource implements Resource {
 	 * @return
 	 */
 	public long work(long start, long end) {
-		return hasAssignments.work(start, end);
+		return com.microproject.pm.assignment.TimeDistributedDataConsolidator.work(start, end, activeAssignments(), true);
 	}
 	/**
 	 * @param context
@@ -535,7 +535,17 @@ public class EnterpriseResource implements Resource {
 	 */
 	public void calcDataBetween(Object type, TimeIteratorGenerator generator,
 			CalculatedValues values) {
-		hasAssignments.calcDataBetween(type, generator, values);
+		// Inactive tasks leave the active plan, while their actual and baseline
+		// timephased values remain available for history and reporting.
+		boolean currentPlan = type == com.microproject.pm.assignment.HasTimeDistributedData.WORK
+				|| type == com.microproject.pm.assignment.HasTimeDistributedData.REMAINING_WORK
+				|| type == com.microproject.pm.assignment.HasTimeDistributedData.COST
+				|| type == com.microproject.pm.assignment.HasTimeDistributedData.REMAINING_COST;
+		List<Assignment> assignmentsToInclude = currentPlan ? activeAssignments()
+				: hasAssignments.getAssignments().stream().filter(Assignment.class::isInstance)
+					.map(Assignment.class::cast).toList();
+		for (Assignment assignment : assignmentsToInclude)
+			assignment.calcDataBetween(type, generator, values);
 	}
 	/**
 	 * @return Returns the rbsCode.
@@ -566,6 +576,11 @@ public class EnterpriseResource implements Resource {
 	 */
 	public Collection childrenToRollup() {
 		return hasAssignments.childrenToRollup();
+	}
+	private List<Assignment> activeAssignments() {
+		return hasAssignments.getAssignments().stream()
+			.filter(Assignment.class::isInstance).map(Assignment.class::cast)
+			.filter(assignment -> !assignment.getTask().isInactiveTask()).toList();
 	}
 	public double getCost(FieldContext fieldContext) {
 		return cost(FieldContext.start(fieldContext),FieldContext.end(fieldContext));

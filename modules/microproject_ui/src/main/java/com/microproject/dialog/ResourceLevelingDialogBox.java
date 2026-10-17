@@ -243,7 +243,7 @@ public final class ResourceLevelingDialogBox extends FlatLafDialog {
 		apply.setEnabled(ccpm.isSelected() || currentPlan.hasChanges());
 		status.setText(java.text.MessageFormat.format(UsabilityStrings.text("leveling.status"),
 			currentPlan.changes().size() + currentPlan.assignmentChanges().size(),
-			currentPlan.splits().size(), currentPlan.unresolved().size())
+			currentPlan.splits().size() + currentPlan.assignmentSplits().size(), currentPlan.unresolved().size())
 			+ (ccpm.isSelected() ? " " + java.text.MessageFormat.format(UsabilityStrings.text("ccpm.status"),
 				analysis.criticalTaskIds().size(), ChangeTableModel.humanDuration(analysis.projectBufferMillis()))
 				+ " " + java.text.MessageFormat.format(UsabilityStrings.text("ccpm.bufferStatus"),
@@ -308,6 +308,14 @@ public final class ResourceLevelingDialogBox extends FlatLafDialog {
 					long projected = change.assignment().getEffectiveWorkCalendar().add(start, delay, false);
 					values.add(new Row(change.assignment().getTask().getName(), start, projected, delay,
 						change.assignment().getResource().getName()));
+				}
+				// An assignment split keeps its start and inserts a working-time gap.
+				for (ResourceLevelingService.AssignmentSplit split : plan.assignmentSplits()) {
+					long start = split.assignment().getStart();
+					long gap = com.microproject.datatype.Duration.millis(
+						split.assignment().getEffectiveWorkCalendar().compare(split.to(), split.from(), false));
+					values.add(new Row(split.assignment().getTask().getName(), start, start, gap,
+						split.limitingResource()));
 				}
 				rows = List.copyOf(values);
 			}

@@ -76,6 +76,54 @@ class ResourceLevelingDialogGuiAcceptanceTest {
 	}
 
 	@Test
+	void physicalAssignmentSplitPreservesTaskAndPersistsItsContour() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("resource-leveling-assignment-split-gui", undo);
+		pool.setLocal(true);
+		Project project = Project.createProject(pool, undo);
+		project.initialize(false, false);
+		ResourceImpl resource = pool.newResourceInstance();
+		resource.setName("Shared resource");
+		resource.setBookingTypeKind(com.microproject.pm.resource.BookingType.Kind.COMMITTED);
+		NormalTask targetTask = task(project, "Split target", 5L);
+		NormalTask blockerTask = task(project, "Interior blocker", 1L);
+		blockerTask.setPriority(900);
+		blockerTask.setStart(project.getEffectiveWorkCalendar().add(project.getStart(),
+			CalendarOption.getInstance().getMillisPerDay(), false));
+		Assignment target = AssignmentService.getInstance().newAssignment(targetTask, resource, 1.0, 0L, this);
+		AssignmentService.getInstance().newAssignment(blockerTask, resource, 1.0, 0L, this);
+		project.recalculate();
+		long taskStart = targetTask.getStart();
+		long taskEndBefore = targetTask.getEnd();
+		String contourBefore = target.getWorkContour().toString(target.getDurationMillis());
+		ResourceLevelingDialogBox dialog = openDialog(project);
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(40);
+		click(robot, findButton(dialog, UsabilityStrings.text("leveling.preview")));
+		GuiAcceptanceSupport.await(() -> tableRowCountUnchecked(dialog) > 0,
+			"physical preview must identify the assignment that can split around the blocker");
+		click(robot, findButton(dialog, UsabilityStrings.text("leveling.apply")));
+		GuiAcceptanceSupport.await(() -> target.getLevelingSplitState() != null,
+			"physical Apply must generate an assignment-owned split around the interior blocker");
+		assertEquals(taskStart, targetTask.getStart(), "assignment splitting must preserve task start");
+		assertTrue(targetTask.getEnd() >= target.getEnd(), "task finish must cover the split assignment's new finish");
+		assertTrue(target.getEnd() > taskEndBefore, "the assignment contour must extend beyond the original finish");
+		assertTrue(!contourBefore.equals(target.getWorkContour().toString(target.getDurationMillis())),
+			"the physical route must change the assignment work contour");
+		java.io.ByteArrayOutputStream saved = new java.io.ByteArrayOutputStream();
+		com.microproject.exchange.MpoFileImporter importer = new com.microproject.exchange.MpoFileImporter();
+		assertTrue(importer.saveProject(project, saved), "MPO save rejected assignment split state");
+		Project reloaded = importer.loadProject(new java.io.ByteArrayInputStream(saved.toByteArray()));
+		Assignment reloadedTarget = (Assignment) taskNamed(reloaded, "Split target").getAssignments().iterator().next();
+		assertTrue(reloadedTarget.getLevelingSplitState() != null, "MPO reload lost generated assignment split ownership");
+		assertEquals(target.getWorkContour().toString(target.getDurationMillis()),
+			reloadedTarget.getWorkContour().toString(reloadedTarget.getDurationMillis()),
+			"MPO reload changed the physical route's assignment contour");
+		capture(robot, dialog);
+	}
+
+	@Test
 	void proposedResourcesStayOutOfPreviewUntilRobotEnablesThem() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Project project = newConflictProject();
@@ -267,25 +315,6 @@ class ResourceLevelingDialogGuiAcceptanceTest {
 		return null;
 	}
 
-	private static ResourceLevelingDialogBox openDialog(Project project) throws Exception {
-		ResourceLevelingDialogBox[] dialog = new ResourceLevelingDialogBox[1];
-		SwingUtilities.invokeAndWait(() -> dialog[0] = ResourceLevelingDialogBox.getInstance(null, project));
-		AtomicReference<Throwable> showFailure = new AtomicReference<>();
-		SwingUtilities.invokeLater(() -> {
-			try { dialog[0].setVisible(true); }
-			catch (Throwable failure) { showFailure.set(failure); }
-		});
-		GuiAcceptanceSupport.await(() -> {
-			Throwable failure = showFailure.get();
-			if (failure != null) throw new IllegalStateException("Resource leveling dialog failed while showing", failure);
-			boolean[] visible = new boolean[1];
-			try { SwingUtilities.invokeAndWait(() -> visible[0] = dialog[0].isVisible()); }
-			catch (Exception invocationFailure) { throw new IllegalStateException("Could not inspect dialog visibility", invocationFailure); }
-			return visible[0];
-		}, "Resource leveling dialog did not become visible");
-		return dialog[0];
-	}
-
 	private static AbstractButton findButton(java.awt.Container container, String text) {
 		for (Component child : container.getComponents()) {
 			if (child instanceof AbstractButton button && text.equals(button.getText())) return button;
@@ -336,6 +365,21 @@ class ResourceLevelingDialogGuiAcceptanceTest {
 		AssignmentService.getInstance().newAssignment(second, resource, 1.0, 0L, ResourceLevelingDialogGuiAcceptanceTest.class);
 		project.recalculate();
 		return project;
+	}
+
+	private static NormalTask task(Project project, String name, long days) {
+		NormalTask task = new NormalTask(project);
+		task.setName(name);
+		project.connectTask(task);
+		project.getSchedulingAlgorithm().addObject(task);
+		task.getCurrentSchedule().setStart(project.getStart());
+		task.setDuration(days * CalendarOption.getInstance().getMillisPerDay());
+		return task;
+	}
+
+	private static NormalTask taskNamed(Project project, String name) {
+		return (NormalTask) project.getTaskList().stream().filter(task -> name.equals(((NormalTask) task).getName()))
+			.findFirst().orElseThrow();
 	}
 
 	private static void capture(Robot robot, ResourceLevelingDialogBox dialog) throws Exception {

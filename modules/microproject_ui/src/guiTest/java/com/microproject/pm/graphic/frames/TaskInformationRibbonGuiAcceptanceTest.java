@@ -1448,6 +1448,48 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	@Test
+	void inactivateTaskRibbonRouteKeepsTaskVisibleAndSupportsUndoRedoAndMpo() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Inactivate Task Robot coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		NormalTask task = createTaskWithProgress(0.4d);
+		Project project = task.getOwningProject();
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> window.setExtendedState(java.awt.Frame.MAXIMIZED_BOTH));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"inactivate-task project did not become visible");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		assertProgressTaskFixtureRendered(sheet, task, 0.4d);
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, task), nameColumn(sheet)));
+		clickAndAwaitSelected(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+				.getString("TaskRibbonTask.title")), "Robot click did not select the Task ribbon tab for Inactivate Task");
+		AbstractButton inactivate = findVisibleOrOverflowButton(robot, "RibbonInactivateTask");
+		GuiAcceptanceSupport.await(inactivate::isEnabled, "Inactivate remained disabled for the selected active task");
+		RibbonCommandResult previousOutcome = manager.getLastRibbonCommandResult();
+		click(robot, inactivate);
+		GuiAcceptanceSupport.await(task::isInactiveTask, "Inactivate did not update the selected task's Active field");
+		GuiAcceptanceSupport.await(() -> isTaskVisible(sheet, task), "Inactivate removed the task record from the task table");
+		assertTrue(task.getPercentComplete() == 0.4d, "Inactivate must preserve progress");
+		assertRibbonOutcome(manager, previousOutcome, RibbonCommandResult.Status.CHANGED, task.getUniqueId());
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> !task.isInactiveTask(), "Undo did not reactivate the task");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(task::isInactiveTask, "Redo did not inactivate the task");
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, saved), "MPO save rejected the inactive task");
+		Project reloaded = new MpoFileImporter().loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		NormalTask reloadedTask = taskNamed(reloaded, task.getName());
+		assertTrue(reloadedTask.isInactiveTask(), "MPO reload lost the inactive state");
+		assertTrue(reloadedTask.getPercentComplete() == 0.4d, "MPO reload lost inactive task progress");
+	}
+
+	@Test
 	void respectLinksRibbonRouteMovesTheSelectedManualTaskAndRoundTripsUndoRedoAndMpo() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Respect Links Robot coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
@@ -4302,6 +4344,27 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		task.setName("Ribbon information acceptance");
 		project.getResourcePool().createScriptedResource().setName("Ribbon resource acceptance");
 		return task;
+	}
+
+	private static NormalTask createTaskWithProgress(double percentComplete) {
+		NormalTask task = createTask();
+		task.setDuration(CalendarOption.getInstance().getMillisPerDay());
+		task.setPercentComplete(percentComplete);
+		assertEquals(percentComplete, task.getPercentComplete(), 0.00001d,
+			"Progress fixture must use a nonzero-duration task so percent complete is task-level work progress");
+		return task;
+	}
+
+	private static void assertProgressTaskFixtureRendered(SpreadSheet sheet, NormalTask task, double percentComplete)
+			throws Exception {
+		GuiAcceptanceSupport.await(() -> sheet.isShowing() && isTaskVisible(sheet, task),
+			"Progress fixture task row did not render in the visible task sheet");
+		int row = rowForTask(sheet, task);
+		Rectangle nameCell = sheet.getCellRect(row, nameColumn(sheet), true);
+		assertTrue(sheet.getVisibleRect().contains(nameCell),
+			"Progress fixture task name cell must be inside the rendered spreadsheet viewport");
+		assertEquals(percentComplete, task.getPercentComplete(), 0.00001d,
+			"Progress fixture domain value must be established before the physical command");
 	}
 
 	private static NormalTask taskNamed(Project project, String name) {

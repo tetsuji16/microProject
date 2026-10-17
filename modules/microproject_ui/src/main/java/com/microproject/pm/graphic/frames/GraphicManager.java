@@ -1857,6 +1857,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_INSERT_TASK, new InsertTaskAction());
 		actionsMap.addHandler(ACTION_TASK_MODE_MANUAL, new TaskModeAction(true));
 		actionsMap.addHandler(ACTION_TASK_MODE_AUTOMATIC, new TaskModeAction(false));
+		actionsMap.addHandler(ACTION_INACTIVATE_TASK, new InactivateTaskAction());
 		actionsMap.addHandler(CommandId.RESPECT_LINKS.actionId(), new RespectLinksAction());
 		actionsMap.addHandler(ACTION_STATUS_DATE, new StatusDateAction());
 		actionsMap.addHandler(ACTION_MARK_ON_TRACK, new MarkOnTrackAction());
@@ -2841,6 +2842,13 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		@Override public void actionPerformed(ActionEvent event) {
 			setMeAsLastGraphicManager();
 			publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.RESPECT_LINKS));
+		}
+	}
+	private final class InactivateTaskAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.INACTIVATE_TASK));
 		}
 	}
 	private final class StatusDateAction extends MenuActionsMap.DocumentMenuAction {
@@ -4385,6 +4393,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		boolean taskModeEnabled = !readOnly && taskType && hasEditableTaskSelection;
 		getMenuManager().setActionEnabled(ACTION_TASK_MODE_MANUAL, taskModeEnabled);
 		getMenuManager().setActionEnabled(ACTION_TASK_MODE_AUTOMATIC, taskModeEnabled);
+		getMenuManager().setActionEnabled(ACTION_INACTIVATE_TASK,
+			!readOnly && taskType && hasEditableTaskSelection && getCurrentFrame() != null);
 		getMenuManager().setActionEnabled(ACTION_HIDE_SELECTED_TASKS,
 				!readOnly && getCurrentFrame() != null
 					&& !getCurrentFrame().getSelectedVisibilityTaskNodes().isEmpty());
