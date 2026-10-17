@@ -2456,6 +2456,8 @@ public class DocumentFrame extends NamedFrame implements
 			project.removeObjectListener(this);
 			project.removeScheduleListener(coord);
 		}
+		// Registered in the constructor; the preferences outlive every document.
+		getGraphicManager().getPreferences().removeObjectListener(this);
 		if (getUndoController() != null &&  getUndoController().getEditSupport() != null)
 			getUndoController().getEditSupport().removeEditListener(this);
 		if (coord != null)

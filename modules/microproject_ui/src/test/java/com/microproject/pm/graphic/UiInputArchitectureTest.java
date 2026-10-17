@@ -61,6 +61,14 @@ class UiInputArchitectureTest {
 			"a second wheel path would double-handle Ctrl/Shift/plain wheel events");
 	}
 
+	/** #414: GlobalPreferences outlive documents and dialogs, so every registration must be undone by its owner. */
+	@Test
+	void everyGlobalPreferencesListenerRegistrationHasAMatchingRemoval() throws Exception {
+		List<String> adds = sourcesMatching(Pattern.quote("getPreferences().addObjectListener("));
+		List<String> removes = sourcesMatching(Pattern.quote("getPreferences().removeObjectListener("));
+		assertEquals(adds, removes, "a class that registers on GlobalPreferences must also unregister on cleanup/dispose");
+	}
+
 	private static List<String> sourcesMatching(String regex) throws Exception {
 		Pattern pattern = Pattern.compile(regex);
 		Path sourceRoot = findProjectRoot().resolve("modules/microproject_ui/src/main/java/com/microproject");
