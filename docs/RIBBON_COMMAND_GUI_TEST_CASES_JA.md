@@ -39,6 +39,7 @@ microProjectの標準リボンに表示される全コマンドボタンを、�
 | ID | 操作ユースケース | 合格条件 |
 |---|---|---|
 | RibbonInsert | タスクを挿入 | 選択行の位置にタスクが追加される |
+| RibbonTaskInspector | Task > Inspect Task を選ぶ | 選択タスクのスケジュール要因を左ペインに表示する。先行タスクへの移動は表示中の行だけを選択し、フィルター等で隠れた場合は理由を表示して選択・モデル・Undo状態を変えない。閉じる／別タスク選択後も読み取り専用を保つ。明示的な自動スケジュール操作は既存の Task Mode/Undo 経路を使う。 |
 | RibbonInsertRecurring | 定期タスクを挿入 | 定期タスク設定ダイアログが表示される |
 | RibbonInsertProject | サブプロジェクトを挿入 | サブプロジェクト選択・挿入が可能 |
 | RibbonIndent / RibbonOutdent | タスク階層を上げ下げ | WBS階層と表示が更新される |

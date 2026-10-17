@@ -1,6 +1,17 @@
 <!doctype html>
 <html lang="ja">
 <head>
+<script>
+  (function () {
+    var saved = null;
+    try { saved = localStorage.getItem('microProjectLanguage'); } catch (e) {}
+    var languages = navigator.languages || [navigator.language || 'ja'];
+    var supported = ['ja', 'en', 'es', 'zh'];
+    var preferred = languages.map(function (value) { return value.toLowerCase().split('-')[0]; }).find(function (value) { return supported.indexOf(value) >= 0; }) || 'en';
+    var language = saved || preferred;
+    if (language !== 'ja') location.replace('usage-guide-' + language + '.html' + location.search + location.hash);
+  })();
+</script>
 <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-E7T6ZX28VE"></script>
 <script>
@@ -21,6 +32,9 @@
 <body>
 <main>
 <nav>
+<a href="usage-guide-en.html" onclick="try{localStorage.setItem('microProjectLanguage','en')}catch(e){}">English</a>
+<a href="usage-guide-es.html" onclick="try{localStorage.setItem('microProjectLanguage','es')}catch(e){}">Español</a>
+<a href="usage-guide-zh.html" onclick="try{localStorage.setItem('microProjectLanguage','zh')}catch(e){}">中文</a>
 <a href="index.html">microProject・ダウンロード</a>
 <a href="ccpm-sample-guide-ja.html">CCPM実習サンプル</a>
 </nav>

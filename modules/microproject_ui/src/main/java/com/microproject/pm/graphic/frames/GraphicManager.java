@@ -1846,6 +1846,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_DOCUMENTS, new DocumentsAction());
 		actionsMap.addHandler(ACTION_INFORMATION, new InformationAction());
 		actionsMap.addHandler("RibbonTaskInformation", new RibbonTaskInformationAction());
+		actionsMap.addHandler("RibbonTaskInspector", new RibbonTaskInspectorAction());
 		actionsMap.addHandler("RibbonResourceInformation", new RibbonResourceInformationAction());
 		actionsMap.addHandler(ACTION_NOTES, new NotesAction());
 		actionsMap.addHandler(ACTION_ASSIGN_RESOURCES, new AssignResourcesAction());
@@ -2206,6 +2207,31 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			setMeAsLastGraphicManager();
 			showTaskInformationForSelection(this, false);
 		}
+	}
+	public class RibbonTaskInspectorAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			DocumentFrame frame = getCurrentFrame();
+			if (frame != null) frame.toggleTaskInspector();
+		}
+	}
+
+	public void setTaskModeAutomatic(Task task) {
+		DocumentFrame frame = getCurrentFrame();
+		if (frame == null || task == null || frame.getActiveSpreadSheet() == null) return;
+		List<Node> selected = frame.getSelectedTaskNodes(true, false);
+		if (selected.size() != 1 || selected.get(0).getImpl() != task) return;
+		publishTaskCommandOutcome(getMenuManager().getActionFromId(ACTION_TASK_MODE_AUTOMATIC),
+			dispatchTaskCommand(CommandId.TASK_MODE_AUTOMATIC));
+	}
+
+	public boolean canSetTaskModeAutomatic(Task task) {
+		DocumentFrame frame = getCurrentFrame();
+		if (frame == null || task == null || frame.getActiveSpreadSheet() == null || task.isReadOnly()) return false;
+		List<Node> selected = frame.getSelectedTaskNodes(true, false);
+		Action action = getMenuManager().getActionFromId(ACTION_TASK_MODE_AUTOMATIC);
+		return selected.size() == 1 && selected.get(0).getImpl() == task && action != null && action.isEnabled();
 	}
 	public class RibbonResourceInformationAction extends MenuActionsMap.DocumentMenuAction {
 		private static final long serialVersionUID = 1L;
@@ -4319,6 +4345,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		boolean readOnly = !isDocumentWritable();
 		getMenuManager().setActionEnabled(ACTION_INFORMATION,infoEnabled);
 		getMenuManager().setActionEnabled("RibbonTaskInformation", taskInfoEnabled);
+		getMenuManager().setActionEnabled("RibbonTaskInspector", taskInfoEnabled);
 		getMenuManager().setActionEnabled("RibbonResourceInformation", resourceInfoEnabled);
 		getMenuManager().setActionEnabled(ACTION_NOTES,infoEnabled);
 		getMenuManager().setActionEnabled(ACTION_INSERT_TASK, !readOnly && (taskType || resourceType)&&(actions==null||actions.contains(ACTION_INSERT_TASK)));
