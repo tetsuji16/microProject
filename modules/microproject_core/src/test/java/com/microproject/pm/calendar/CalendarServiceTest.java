@@ -141,7 +141,9 @@ class CalendarServiceTest {
 		first.getSchedulingAlgorithm().addObject(task);
 		task.setWorkCalendar(firstDerived);
 		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1.0D, 0L, this);
-		java.util.GregorianCalendar fridayStart = DateTime.calendarInstance(2026, Calendar.OCTOBER, 16);
+		// Keep the fixture in the future: unstarted work is not scheduled before the
+		// current date, so a past Friday would move the finish with the wall clock.
+		java.util.GregorianCalendar fridayStart = DateTime.calendarInstance(2099, Calendar.OCTOBER, 16);
 		fridayStart.set(Calendar.HOUR_OF_DAY, 8);
 		long fridayAhead = fridayStart.getTimeInMillis();
 		task.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.MSO, fridayAhead);
@@ -151,8 +153,8 @@ class CalendarServiceTest {
 		first.recalculate();
 		long taskFinishBefore = task.getEnd();
 		long assignmentFinishBefore = assignment.getEnd();
-		long expectedFinishBefore = calendarTime(2026, Calendar.OCTOBER, 19, 17);
-		long expectedFinishAfter = calendarTime(2026, Calendar.OCTOBER, 17, 17);
+		long expectedFinishBefore = calendarTime(2099, Calendar.OCTOBER, 19, 17);
+		long expectedFinishAfter = calendarTime(2099, Calendar.OCTOBER, 17, 17);
 		assertEquals(expectedFinishBefore, taskFinishBefore, "two workdays from Friday end Monday without Saturday work");
 		assertEquals(expectedFinishBefore, assignmentFinishBefore);
 		firstUndo.clear();
