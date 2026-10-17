@@ -43,6 +43,7 @@ import javax.swing.border.Border;
 import javax.swing.text.JTextComponent;
 
 import com.microproject.pm.graphic.IconManager;
+import com.microproject.pm.graphic.TaskFontStyle;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetParams;
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheetModel;
@@ -273,6 +274,8 @@ public class NameCellComponent extends JPanel {
 			component.setLeaf(node.isVoid());
 		}
 		FontManager.setComponentFont(model.getCellProperties(node),component);
+		// The task-name column must show the same task text style as SimpleRenderer cells.
+		TaskFontStyle.apply(component, node.getNode() == null ? null : node.getNode().getImpl(), isSelected);
 		component.doLayout();
 		return component;
 	}
@@ -296,6 +299,7 @@ public class NameCellComponent extends JPanel {
 			component.setLeaf(node.isVoid());
 		}
 		FontManager.setComponentFont(format,component);
+		TaskFontStyle.apply(component, node.getNode() == null ? null : node.getNode().getImpl(), false);
 		return component;
 	}
 
