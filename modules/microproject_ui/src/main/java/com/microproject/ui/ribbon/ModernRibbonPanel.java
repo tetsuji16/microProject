@@ -1043,11 +1043,10 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		JPanel bandRow = new OfficeRibbonSurfacePanel();
 		bandRow.setLayout(new GridBagLayout());
 		bandRow.setBackground(theme.surfaceColor());
-		bandRow.setBorder(BorderFactory.createEmptyBorder(
-			3,
-			BAND_ROW_HORIZONTAL_INSET,
-			3,
-			BAND_ROW_HORIZONTAL_INSET));
+		// The rounded shell supplies the row's horizontal gutter. A second inset
+		// here repeated the same 8px on both sides, while the width calculation
+		// accounted for only one layer. Keep the row flush inside its shell.
+		bandRow.setBorder(BorderFactory.createEmptyBorder(3, 0, 3, 0));
 		int availableBandWidth = getWidth() > 0
 			? Math.max(0, getWidth() - 2 * SURFACE_HORIZONTAL_INSET - 2 * BAND_ROW_HORIZONTAL_INSET)
 			: 0;
