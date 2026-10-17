@@ -847,6 +847,30 @@ class ResourceLevelingServiceTest {
 	}
 
 	@Test
+	void dialogDefaultSettingsPlanAnAssignmentSplitAroundAnInteriorBlocker() {
+		// Mirrors the Resource Leveling dialog fixture: product-default CCPM settings
+		// (priority/standard order, day sensitivity, assignment leveling) after recalculation.
+		Fixture fixture = fixture();
+		NormalTask longTask = task(fixture.project, "Long task", 5L);
+		NormalTask blocker = task(fixture.project, "Priority work", 1L);
+		blocker.setPriority(900);
+		blocker.setStart(fixture.project.getEffectiveWorkCalendar().add(
+			fixture.project.getStart(), CalendarOption.getInstance().getMillisPerDay(), false));
+		AssignmentService.getInstance().newAssignment(longTask, fixture.resource, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(blocker, fixture.resource, 1D, 0L, this);
+		fixture.project.recalculate();
+		com.microproject.pm.ccpm.CriticalChainService.Settings defaults =
+			new com.microproject.pm.ccpm.CriticalChainService.Settings();
+		ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(fixture.project,
+			List.of(fixture.resource), new ResourceLevelingService.Options(defaults.getLevelingOrder(),
+				defaults.isOnlyWithinAvailableSlack(), defaults.isAllowTaskSplits(), Long.MIN_VALUE, Long.MAX_VALUE,
+				defaults.isIncludeProposedResources(), defaults.getSensitivity(), defaults.isLevelAssignments()));
+
+		assertEquals(1, plan.assignmentSplits().size(), "dialog defaults must offer the assignment split: "
+			+ plan.unresolved() + " changes=" + plan.assignmentChanges());
+	}
+
+	@Test
 	void assignmentLevelingClearRejectsAContourEditedAfterApply() {
 		Fixture fixture = fixture();
 		NormalTask longTask = task(fixture.project, "Long task", 5L);
