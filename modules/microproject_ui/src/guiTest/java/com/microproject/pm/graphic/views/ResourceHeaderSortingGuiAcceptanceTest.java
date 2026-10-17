@@ -253,7 +253,7 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 			"Sort Order menu item did not use the existing resource sort dialog");
 		JDialog menuSortDialog = findDialogWith(ResourceSortOrderPanel.class);
 		ResourceSortOrderPanel menuOrderPanel = findComponent(menuSortDialog, ResourceSortOrderPanel.class);
-		assertEquals("Field.name", menuOrderPanel.getFieldId());
+		assertEquals("Field.name", menuOrderPanel.getKeys().get(0).fieldId());
 		List<Field> sortFields = resourceView.getResourceSortFields();
 		int standardRateIndex = java.util.stream.IntStream.range(0, sortFields.size())
 			.filter(index -> "Field.standardRate".equals(sortFields.get(index).getId())).findFirst()
@@ -287,7 +287,7 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 			"Resource Sort Order dialog did not open from the View ribbon");
 		JDialog sortDialog = findDialogWith(ResourceSortOrderPanel.class);
 		ResourceSortOrderPanel orderPanel = findComponent(sortDialog, ResourceSortOrderPanel.class);
-		assertEquals("Field.standardRate", orderPanel.getFieldId());
+		assertEquals("Field.standardRate", orderPanel.getKeys().get(0).fieldId());
 		click(robot, findShowingButtonByText(sortDialog, UIManager.getString("OptionPane.cancelButtonText")));
 		GuiAcceptanceSupport.await(() -> manager.getLastRibbonCommandResult() != null
 			&& manager.getLastRibbonCommandResult().status() == RibbonCommandResult.Status.NO_CHANGE
@@ -298,7 +298,7 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 			"Resource Sort Order dialog did not reopen after cancel");
 		sortDialog = findDialogWith(ResourceSortOrderPanel.class);
 		orderPanel = findComponent(sortDialog, ResourceSortOrderPanel.class);
-		assertEquals("Field.standardRate", orderPanel.getFieldId());
+		assertEquals("Field.standardRate", orderPanel.getKeys().get(0).fieldId());
 		JComboBox<?> ribbonFieldChoice = flatten(sortDialog).stream().filter(JComboBox.class::isInstance)
 			.map(JComboBox.class::cast).filter(combo -> combo.getItemCount() == sortFields.size()).findFirst()
 			.orElseThrow(() -> new AssertionError("Sort Order field control is missing"));
