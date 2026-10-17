@@ -31,6 +31,27 @@ class MicrosoftProjectGanttPaletteTest {
 		assertEquals(new Color(0x7F7F7F), palette.getAccentColor(format("Bar.baseline"), null, null));
 	}
 
+	@Test
+	void darkThemeUsesDarkSurfaceAndReadableLinesInsteadOfLightColors() {
+		try {
+			com.microproject.ui.theme.MicroProjectTheme.installDark();
+			Color background = palette.getChartBackground();
+			assertEquals(FlatUiSupport.spreadsheetBodyBackground(), background);
+			org.junit.jupiter.api.Assertions.assertTrue(luminance(background) < 0.2, "dark chart surface");
+			org.junit.jupiter.api.Assertions.assertTrue(luminance(palette.getDependencyLinkColor()) > 0.4, "dependency links readable");
+			org.junit.jupiter.api.Assertions.assertTrue(luminance(palette.getSummaryProgressColor(null)) > 0.4, "summary bars readable");
+			org.junit.jupiter.api.Assertions.assertNotEquals(new Color(0xD9E2F3), palette.getGridLine());
+			org.junit.jupiter.api.Assertions.assertTrue(luminance(MicrosoftProjectGanttTheme.nonWorkingFill()) < 0.3, "non-working shading stays dark");
+		} finally {
+			com.microproject.ui.theme.MicroProjectTheme.installLight();
+		}
+		assertEquals(Color.WHITE, palette.getChartBackground());
+	}
+
+	private static double luminance(Color c) {
+		return (0.2126 * c.getRed() + 0.7152 * c.getGreen() + 0.0722 * c.getBlue()) / 255.0;
+	}
+
 	private static BarFormat format(String id) {
 		BarFormat format = new BarFormat();
 		format.setId(id);
