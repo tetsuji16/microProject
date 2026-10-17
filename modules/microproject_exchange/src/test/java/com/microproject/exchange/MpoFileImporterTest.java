@@ -153,6 +153,27 @@ class MpoFileImporterTest {
 	}
 
 	@Test
+	void mpoRoundTripPreservesPerTaskTextStyle() throws Exception {
+		Project project = projectForRoundTrip();
+		Task styled = firstTask(project);
+		styled.setFontFamily("Dialog");
+		styled.setFontSize(15);
+		styled.setFontColor(Integer.valueOf(0x2457A6));
+		styled.setFontBold(true);
+		styled.setFontItalic(true);
+		styled.setFontStrikethrough(true);
+		ByteArrayOutputStream archive = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, archive));
+
+		Task reopened = firstTask(new MpoFileImporter().loadProject(new ByteArrayInputStream(archive.toByteArray())));
+		assertEquals("Dialog", reopened.getFontFamily());
+		assertEquals(15, reopened.getFontSize());
+		assertEquals(Integer.valueOf(0x2457A6), reopened.getFontColor());
+		assertTrue(reopened.isFontBold() && reopened.isFontItalic() && reopened.isFontStrikethrough(),
+			"MPO must keep the task text style that Format Painter and Text Styles write");
+	}
+
+	@Test
 	void loadProjectDoesNotCloseCallerOwnedInputStream() throws Exception {
 		Project project = projectForRoundTrip();
 		ByteArrayOutputStream archive = new ByteArrayOutputStream();
