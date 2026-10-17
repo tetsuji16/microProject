@@ -355,9 +355,14 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 		GuiAcceptanceSupport.selectComboBoxItem(robot, secondField, standardRateIndex + 1);
 		GuiAcceptanceSupport.selectComboBoxItem(robot, secondDirection, 1);
 		click(robot, findShowingButtonByText(multiKeyDialog, UIManager.getString("OptionPane.okButtonText")));
-		GuiAcceptanceSupport.await(() -> visibleTestResources(sheet, testResources)
+		try { GuiAcceptanceSupport.await(() -> visibleTestResources(sheet, testResources)
 			.equals(List.of(emptyName, tiedAlpha, alpha, zulu)),
 			"the second key (Standard Rate descending) did not break the Name tie");
+		} catch (AssertionError failure) {
+			throw new AssertionError("multi-key sort mismatch: visible=" + visibleTestResources(sheet, testResources).stream().map(r -> r.getName() + "@" + r.getStandardRate()).toList()
+				+ " keys=" + resourceView.getSortKeys() + " result=" + manager.getLastRibbonCommandResult()
+				+ " key2=" + secondField.getSelectedItem() + " dir2=" + secondDirection.getSelectedIndex(), failure);
+		}
 		assertEquals(RibbonCommandResult.Status.CHANGED, manager.getLastRibbonCommandResult().status());
 		ResourceView.Workspace multiKeyWorkspace = (ResourceView.Workspace) resourceView.createWorkspace(0);
 		assertEquals("Field.name", multiKeyWorkspace.getSortedFieldId());
