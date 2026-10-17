@@ -419,6 +419,8 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
 
 	@Override
 	public void dispose() {
+		// Unregister first: a later documentSelected would otherwise re-attach this disposed dialog.
+		DocumentSelectedEvent.removeListener(this);
 		detachDocumentFrame(documentFrame);
 		if (documentFrame != null) documentFrame.getGraphicManager().getPreferences().removeObjectListener(this);
 		super.dispose();

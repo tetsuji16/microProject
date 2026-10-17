@@ -147,17 +147,23 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 
     /** Compensation record for one paste: everything attached or registered before a failure can be undone. */
     private static final class PasteJournal {
+    	/** An item and the document it was registered in (a subproject for tasks pasted under one). */
+    	record Registration(Object item, Object owner) { }
     	final ArrayList<Node> attached = new ArrayList<>();
-    	final ArrayList<Object> registered = new ArrayList<>();
+    	final ArrayList<Registration> registered = new ArrayList<>();
     	Node attachedTo;
     	int transactionId;
     	boolean transactionOpen;
+    	/** Set once the model mutation is complete; listener failures after this point are not rolled back. */
+    	boolean committed;
     }
 
     /**
-     * Pastes the roots as one batch. If any step fails after the first mutation, the hierarchy,
+     * Pastes the roots as one batch. If any step fails before the batch commits, the hierarchy,
      * registered tasks and multiple-transaction bracket are restored before the failure is rethrown,
-     * so a rejected paste leaves neither a partial subtree nor an unbalanced transaction.
+     * so a rejected paste leaves neither a partial subtree nor an unbalanced transaction. Failures in
+     * insertion listeners, after the batch committed and was announced, are rethrown without rollback
+     * so views never keep rows for nodes that were silently detached.
      */
     public void paste(Node parent,List<Node> children,int position,NodeModel model,int actionType){
     	java.util.Objects.requireNonNull(children, "children");
@@ -166,17 +172,20 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     	try {
     		pasteBatch(parent, children, position, model, actionType, journal);
     	} catch (RuntimeException | Error failure) {
-    		rollbackPaste(journal, model, failure);
+    		if (!journal.committed) rollbackPaste(journal, model, failure);
     		throw failure;
     	}
     }
 
     private void rollbackPaste(PasteJournal journal, NodeModel model, Throwable failure) {
-    	Object dataFactory = model.getDataFactory();
     	for (int i = journal.registered.size() - 1; i >= 0; i--) {
+    		PasteJournal.Registration registration = journal.registered.get(i);
     		try {
-    			if (dataFactory instanceof Project project) project.remove(journal.registered.get(i), model, false, false, true);
-    			else if (dataFactory instanceof ResourcePool pool) pool.remove(journal.registered.get(i), model, false, false, true);
+    			// Only items that actually reached their document are removed, so no unmatched delete event is fired.
+    			if (registration.owner() instanceof Project project && project.getTaskList().contains(registration.item()))
+    				project.remove(registration.item(), model, false, false, true);
+    			else if (registration.owner() instanceof ResourcePool pool && pool.getResourceList().contains(registration.item()))
+    				pool.remove(registration.item(), model, false, false, true);
     		} catch (RuntimeException | Error compensationFailure) {
     			failure.addSuppressed(compensationFailure);
     		}
@@ -271,7 +280,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 
         			Node parentSubproject=getParentSubproject((Node)descendants[i].getParent());
         			if (parentSubproject!=null) owningProject=((SubProj)parentSubproject.getImpl()).getSubproject();
-        			journal.registered.add(task);
+        			journal.registered.add(new PasteJournal.Registration(task, owningProject));
         			if (!task.isExternal()) // fixes  subproject bug with external links
         				task.setProjectId(owningProject.getUniqueId()); //useful?
         			owningProject.validateObject(task,model,this,null,false);
@@ -371,7 +380,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     	}else if (resourcePool!=null){
         	for (int i=0;i<descendants.length;i++){
         		if (descendants[i].getImpl() instanceof Resource resource){
-                			journal.registered.add(resource);
+                			journal.registered.add(new PasteJournal.Registration(resource, resourcePool));
 			model.getDataFactory().validateObject(resource,model,this,null,false);
         			resourcePool.initializeId(resource);
     	    		insertedNodes.add(descendants[i]);
@@ -387,6 +396,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
         	journal.transactionOpen = false; // the manager decrements depth before notifying, so never close twice
         	model.getDocument().fireMultipleTransaction(transactionId,false);
         }
+        journal.committed = true;
 
 
        	if (isEvent(actionType)){
