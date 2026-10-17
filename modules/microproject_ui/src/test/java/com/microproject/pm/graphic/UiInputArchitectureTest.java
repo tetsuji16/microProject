@@ -23,10 +23,14 @@
  *******************************************************************************/
 package com.microproject.pm.graphic;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Pattern;
 
 import org.junit.jupiter.api.Test;
 
@@ -41,6 +45,34 @@ class UiInputArchitectureTest {
 		}
 	}
 
+
+	/** #414: shortcuts resolve through the root-pane InputMap; no production KeyListener may dispatch commands. */
+	@Test
+	void productionUiHasNoKeyListenerInputPath() throws Exception {
+		assertEquals(List.of(), sourcesMatching("\\b(addKeyListener|KeyAdapter|implements\\s+KeyListener)\\b"),
+			"use InputMap/ActionMap (applyMicrosoftShortcuts or editor-local bindings) instead of a KeyListener");
+	}
+
+	/** #414: one wheel owner per synchronized view, with symmetric registration in ScrollPaneSynchronizer. */
+	@Test
+	void mouseWheelListenersAreOwnedOnlyByTheScrollPaneSynchronizer() throws Exception {
+		assertEquals(List.of("pm/graphic/views/synchro/ScrollPaneSynchronizer.java"),
+			sourcesMatching("\\baddMouseWheelListener\\s*\\("),
+			"a second wheel path would double-handle Ctrl/Shift/plain wheel events");
+	}
+
+	private static List<String> sourcesMatching(String regex) throws Exception {
+		Pattern pattern = Pattern.compile(regex);
+		Path sourceRoot = findProjectRoot().resolve("modules/microproject_ui/src/main/java/com/microproject");
+		try (var files = Files.walk(sourceRoot)) {
+			List<String> matches = new ArrayList<>();
+			for (Path path : files.filter(p -> p.toString().endsWith(".java")).sorted().toList()) {
+				if (pattern.matcher(Files.readString(path)).find())
+					matches.add(sourceRoot.relativize(path).toString().replace('\\', '/'));
+			}
+			return matches;
+		}
+	}
 	private static Path findProjectRoot() throws java.io.IOException {
 		for (Path current = Path.of("").toAbsolutePath(); current != null; current = current.getParent()) {
 			if (Files.isDirectory(current.resolve("modules/microproject_ui")))
