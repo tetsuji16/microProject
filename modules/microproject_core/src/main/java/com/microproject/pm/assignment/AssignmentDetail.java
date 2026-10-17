@@ -63,6 +63,7 @@ import com.microproject.pm.scheduling.ScheduleInterval;
 import com.microproject.pm.scheduling.ScheduleUtil;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Task;
+import com.microproject.pm.task.TaskSplitInterval;
 import com.microproject.pm.time.MutableInterval;
 import com.microproject.util.DateTime;
 /**
@@ -93,6 +94,8 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 	private long overtimeWork = 0; // allowed overtime that is evenly distributed across contour
 	
 	private WorkingCalendar baselineCalendar = null; // only applies if this is a baseline
+	// Kept out of Java serialization so the frozen POD object descriptor/wire remains unchanged.
+	private transient AssignmentLevelingSplitState levelingSplitState;
 	/**
 	 * @return Returns the percentComplete.
 	 */
@@ -829,9 +832,46 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 	}
 	
 	public void split(Object eventSource, long from, long to) {
+		applySplit(from, to);
+	}
+
+	public boolean splitForLeveling(Object eventSource, long from, long to) {
+		AssignmentLevelingSplitState previous = levelingSplitState;
+		if (previous != null && !previous.matchesGenerated(workContour, duration))
+			throw new IllegalStateException("Assignment contour changed after leveling; clear or review that edit before leveling again");
+		AbstractContour before = previous == null ? copyContour(workContour) : previous.beforeContourCopy();
+		long beforeDuration = previous == null ? duration : previous.beforeDuration();
+		ArrayList<TaskSplitInterval> gaps = new ArrayList<>();
+		if (previous != null) gaps.addAll(previous.generatedGaps());
+		from = Math.max(from, getResume());
+		if (from >= to) return false;
+		WorkCalendar calendar = getEffectiveWorkCalendar();
+		long splitDuration = calendar.compare(to, from, false);
+		long taskStart = task == null ? getStart() : task.getStart();
+		long startOffset = calendar.compare(from, taskStart, false);
+		long endOffset = calendar.compare(getEnd(), taskStart, false);
+		if (getResume() != 0 && from >= getResume()) {
+			long existingSplitDuration = getSplitDuration();
+			startOffset -= existingSplitDuration;
+			endOffset -= existingSplitDuration;
+		}
+		if (startOffset >= endOffset || splitDuration <= 0L) return false;
+		TaskSplitInterval proposedGap = new TaskSplitInterval(startOffset, Math.addExact(startOffset, splitDuration));
+		if (previous != null && previous.generatedGaps().contains(proposedGap)) return false;
+		boolean changed = applySplit(from, to);
+		if (!changed) return false;
+		gaps.add(proposedGap);
+		levelingSplitState = new AssignmentLevelingSplitState(before, beforeDuration,
+			copyContour(workContour), duration, gaps);
+		return true;
+	}
+
+	private boolean applySplit(long from, long to) {
+		AbstractContour originalContour = copyContour(workContour);
+		long originalDuration = duration;
 		from = Math.max(from, getResume());
 		if (from >= to)
-			return;
+			return false;
 		WorkCalendar calendar = getEffectiveWorkCalendar();
 		long splitDuration = calendar.compare(to, from, false);
 		long taskStart = task == null ? getStart() : task.getStart();
@@ -843,11 +883,44 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 			endOffset -= existingSplitDuration;
 		}
 		if (startOffset >= endOffset)
-			return;
+			return false;
 		if (!workContour.isPersonal()) {
 			workContour = PersonalContour.makePersonal(workContour, getDuration());
 		}
 		shift(startOffset, endOffset, splitDuration);
+		return duration != originalDuration || !sameContour(originalContour, workContour, originalDuration, duration);
+	}
+
+	public AssignmentLevelingSplitState getLevelingSplitState() { return levelingSplitState; }
+
+	public void restoreLevelingSplitState(AssignmentLevelingSplitState state) {
+		levelingSplitState = state;
+	}
+
+	public boolean clearLevelingGeneratedSplits() {
+		if (levelingSplitState == null) return false;
+		if (!levelingSplitState.matchesGenerated(workContour, duration))
+			throw new IllegalStateException("Assignment contour changed after leveling; refusing to overwrite the later edit");
+		workContour = levelingSplitState.beforeContourCopy();
+		duration = levelingSplitState.beforeDuration();
+		levelingSplitState = null;
+		return true;
+	}
+
+	private static AbstractContour copyContour(AbstractContour contour) {
+		return (AbstractContour) contour.clone();
+	}
+
+	private static boolean sameContour(AbstractContour first, AbstractContour second, long firstDuration, long secondDuration) {
+		if (first.getTypeKind() != second.getTypeKind() || first.numBuckets() != second.numBuckets()) return false;
+		AbstractContourBucket[] a = first.getContourBuckets();
+		AbstractContourBucket[] b = second.getContourBuckets();
+		for (int index = 0; index < a.length; index++) {
+			if (a[index] == null || b[index] == null
+				|| a[index].getBucketDuration(firstDuration) != b[index].getBucketDuration(secondDuration)
+				|| Double.doubleToLongBits(a[index].getUnits()) != Double.doubleToLongBits(b[index].getUnits())) return false;
+		}
+		return true;
 	}
 
 	
@@ -1182,6 +1255,10 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 		target.costRateIndex = costRateIndex;
 		target.overtimeWork = overtimeWork;
 		target.baselineCalendar = baselineCalendar == null ? null : baselineCalendar.copyForBaselineSnapshot();
+		target.levelingSplitState = levelingSplitState == null ? null : new AssignmentLevelingSplitState(
+			levelingSplitState.beforeContourCopy(), levelingSplitState.beforeDuration(),
+			levelingSplitState.generatedContourCopy(), levelingSplitState.generatedDuration(),
+			levelingSplitState.generatedGaps());
 	}
 
 

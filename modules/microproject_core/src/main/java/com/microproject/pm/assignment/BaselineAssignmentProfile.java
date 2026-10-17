@@ -91,14 +91,15 @@ public final class BaselineAssignmentProfile {
 			assignment.getStart(), assignment.getFinish(), detail.getDuration(), detail.getUnits(),
 			detail.getRate().getValue(), detail.getRate().getTimeUnit(), detail.getRequestDemandType(),
 			detail.getCostRateIndex(), detail.getDelay(), detail.getLevelingDelay(), detail.getOvertimeWork(),
-			contour(detail.getWorkContour()), contour(detail.getCostContour()), detail.getBaselineCalendar());
+			contourSnapshot(detail.getWorkContour(), detail.getDuration()),
+			contourSnapshot(detail.getCostContour(), detail.getDuration()), detail.getBaselineCalendar());
 	}
 
-	private static Contour contour(AbstractContour contour) {
+	public static Contour contourSnapshot(AbstractContour contour, long duration) {
 		List<Bucket> buckets = new ArrayList<>();
 		if (contour.isPersonal()) {
 			for (AbstractContourBucket bucket : contour.getContourBuckets())
-				buckets.add(new Bucket(bucket.getBucketDuration(0L), bucket.getUnits()));
+				buckets.add(new Bucket(bucket.getBucketDuration(duration), bucket.getUnits()));
 		}
 		return new Contour(contour.getType(), buckets);
 	}
@@ -148,7 +149,7 @@ public final class BaselineAssignmentProfile {
 		return result;
 	}
 
-	private static AbstractContour restoreContour(Contour contour) {
+	public static AbstractContour restoreContour(Contour contour) {
 		ContourTypes.Kind kind = ContourTypes.Kind.fromCode(contour.type());
 		return kind == ContourTypes.Kind.CONTOURED
 			? com.microproject.pm.assignment.contour.PersonalContour.getInstance(buckets(contour))

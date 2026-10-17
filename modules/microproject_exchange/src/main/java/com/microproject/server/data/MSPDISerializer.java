@@ -491,6 +491,23 @@ public class MSPDISerializer implements ProjectSerializer {
 		if (job != null) job.setProgress(1.0f);
 	}
 
+	/**
+	 * Returns the exact native MSPDI assignment UID mapping created by this export.
+	 * MPO sidecars use these IDs so their identities follow the canonical writer,
+	 * including any UID normalization performed during serialization.
+	 */
+	public Map<Assignment, Integer> exportedAssignmentUniqueIds() throws IOException {
+		Map<Assignment, Integer> result = new IdentityHashMap<>();
+		Set<Integer> seen = new HashSet<>();
+		for (Map.Entry<ResourceAssignment, Assignment> entry : exportedAssignments.entrySet()) {
+			Integer uid = entry.getKey().getUniqueID();
+			if (uid == null || uid.intValue() <= 0 || !seen.add(uid))
+				throw new IOException("MSPDI export did not produce unique positive assignment UIDs");
+			result.put(entry.getValue(), uid);
+		}
+		return java.util.Collections.unmodifiableMap(result);
+	}
+
 	private byte[] normalizeMspdiAssignmentData(byte[] xml) throws Exception {
 		Map<String, Map<Integer, Assignment.BaselineValues>> expected = new java.util.HashMap<>();
 		Set<String> personalContourAssignments = new java.util.HashSet<>();
