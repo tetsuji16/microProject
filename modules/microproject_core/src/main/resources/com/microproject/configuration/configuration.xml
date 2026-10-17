@@ -417,6 +417,8 @@
 			</field>
 		</class>
 		<class name="com.microproject.pm.task.TaskSpecificFields">
+			<field property="levelingCanSplit" id="Field.levelingCanSplit" />
+			<field property="levelAssignments" id="Field.levelAssignments" />
 			<field property="percentWorkComplete"
 				id="Field.percentWorkComplete" percent="true">
 				<range minimum="0" maximum="1" step="0.05" />

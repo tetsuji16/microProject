@@ -97,9 +97,9 @@ public class MspImporter {
 	protected Project nativeProject;
 	protected long earliestTaskStart=-1L;
 	protected net.sf.mpxj.Task mpxRootTask=null;
-	private final List<ImportedAssignmentLevelingDelay> importedAssignmentLevelingDelays = new ArrayList<>();
+	private final List<ImportedAssignmentScheduleDelays> importedAssignmentScheduleDelays = new ArrayList<>();
 
-	private record ImportedAssignmentLevelingDelay(ResourceAssignment source, Assignment target) {}
+	private record ImportedAssignmentScheduleDelays(ResourceAssignment source, Assignment target) {}
 	
 	public Project importProject(String name, ProgressClosure progress) throws Exception{
 		progress.updateProgress(0.0f, "Start");
@@ -120,7 +120,7 @@ public class MspImporter {
 		}
 		progress.updateProgress(0.2f, "File parsed");
 		state.initializeMpxTimephasedMap();
-		importedAssignmentLevelingDelays.clear();
+		importedAssignmentScheduleDelays.clear();
 
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		ResourcePool resourcePool = ResourcePool.createRourcePool("imported", undo);
@@ -150,7 +150,7 @@ public class MspImporter {
 		project.initialize(false, false);
 		project.recalculate();
 		captureImportedBaselineFixedCostProfiles(project);
-		restoreImportedAssignmentLevelingDelays();
+		restoreImportedAssignmentScheduleDelays();
 		state.validatePostSchedule();
 
 		progress.updateProgress(1f, "Completed");
@@ -184,10 +184,10 @@ public class MspImporter {
 		}
 	}
 
-	private void restoreImportedAssignmentLevelingDelays() {
+	private void restoreImportedAssignmentScheduleDelays() {
 		MpxAssignmentConverter converter = new MpxAssignmentConverter();
-		for (ImportedAssignmentLevelingDelay imported : importedAssignmentLevelingDelays) {
-			converter.restoreLevelingDelay(imported.source(), imported.target(), state);
+		for (ImportedAssignmentScheduleDelays imported : importedAssignmentScheduleDelays) {
+			converter.restoreScheduleDelays(imported.source(), imported.target(), state);
 		}
 	}
 	
@@ -297,6 +297,8 @@ public class MspImporter {
 		org.w3c.dom.Document document = factory.newDocumentBuilder()
 			.parse(new ByteArrayInputStream(xml));
 		String namespace = document.getDocumentElement().getNamespaceURI();
+		com.microproject.core.pm.exchange.converters.mpx.MpxCustomFieldsConverter
+			.validateMspdiValues(document, namespace);
 		DurationDefaults durationDefaults = rawDurationDefaults(document.getDocumentElement(), namespace);
 		org.w3c.dom.NodeList assignments = document.getElementsByTagNameNS(namespace, "Assignment");
 		Map<Long, MpxImportState.RawMspdiAssignmentWork> result = new HashMap<>();
@@ -905,9 +907,9 @@ public class MspImporter {
 			((NormalTask) task).addAssignment(assignment);
 			// Attaching a non-default assignment can copy the default assignment's
 			// detail object and erase this imported value.
-			converter.restoreLevelingDelay(mpxAssignment, assignment, state);
+			converter.restoreScheduleDelays(mpxAssignment, assignment, state);
 			converter.importBaselines(mpxAssignment, assignment, state);
-			importedAssignmentLevelingDelays.add(new ImportedAssignmentLevelingDelay(mpxAssignment, assignment));
+			importedAssignmentScheduleDelays.add(new ImportedAssignmentScheduleDelays(mpxAssignment, assignment));
 		}
 	}
 

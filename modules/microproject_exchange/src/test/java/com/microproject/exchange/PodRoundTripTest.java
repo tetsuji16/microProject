@@ -472,6 +472,12 @@ public class PodRoundTripTest {
 
 		Project loaded = load(sample);
 		assertTrue("legacy POD must deserialize tasks through LocalFileImporter", loaded.getTaskList().size() > 0);
+		for (Task task : loaded.getTaskList()) {
+			assertTrue("POD tasks default to split-enabled because the frozen format has no split-option field",
+				task.isLevelingCanSplit());
+			assertTrue("POD tasks default to assignment-leveling enabled because the frozen format has no option field",
+				task.isLevelAssignments());
+		}
 	}
 
 	@Test

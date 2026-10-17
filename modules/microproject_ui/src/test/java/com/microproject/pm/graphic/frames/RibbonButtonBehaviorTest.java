@@ -1214,6 +1214,7 @@ class RibbonButtonBehaviorTest {
 			"RibbonCCPMBufferStatus",
 			"RibbonCCPMNetwork");
 		add(map, Strategy.ROUTE_VIEW,
+			"RibbonTaskInspector",
 			"RibbonTimeline",
 			"RibbonCalendarView",
 			"RibbonGantt",

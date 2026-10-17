@@ -145,6 +145,25 @@ class OfficeChromePanelVisualSmokeTest {
 			});
 	}
 
+	private static void assertTaskCommandsUseOneLeadingSurfaceInset(JPanel panel) {
+		JComponent tabBody = findNamedComponent(panel, "projectLibreRibbonTabBody");
+		AbstractButton paste = UiComponentWalker.flatten(tabBody).stream()
+			.filter(AbstractButton.class::isInstance)
+			.map(AbstractButton.class::cast)
+			.filter(button -> "RibbonPaste".equals(button.getActionCommand()))
+			.findFirst()
+			.orElseThrow(() -> new AssertionError("Task ribbon did not expose its Paste command"));
+		Rectangle bounds = javax.swing.SwingUtilities.convertRectangle(paste.getParent(), paste.getBounds(), tabBody);
+		// Microsoft documents Project's ribbon tabs and command groups at
+		// https://support.microsoft.com/en-us/project/edit-a-project-in-project-desktop,
+		// but does not specify a pixel inset. Treat 16 logical pixels as a
+		// document-derived visual decision. Swing component bounds are logical
+		// layout coordinates; the rule removes the duplicated shell/row inset
+		// while preserving the shell gutter and the band's own 8px content padding.
+		assertEquals(16, bounds.x,
+			"the first command should start after only the band-row and band-content insets");
+	}
+
 	@Test
 	void rendersEveryTabAtOfficeReferenceWidthsInEnglishAndJapanese() throws IOException {
 		for (Locale locale : List.of(Locale.ROOT, Locale.JAPAN)) {
@@ -190,6 +209,9 @@ class OfficeChromePanelVisualSmokeTest {
 				panel.doLayout();
 				layoutRecursively(panel);
 				assertSearchIsAttachedToChromeHeader(panel);
+				if (width >= 1024 && "TaskRibbonTask".equals(tab.getId())) {
+					assertTaskCommandsUseOneLeadingSurfaceInset(panel);
+				}
 				if (width == 320) {
 					assertTrue(!isVisibleInHierarchy(findNamedComponent(panel, OfficeChromePanel.SEARCH_BOX_NAME)),
 						"the title-bar search field should yield to the window controls at narrow widths");

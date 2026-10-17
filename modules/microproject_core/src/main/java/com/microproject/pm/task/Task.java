@@ -26,6 +26,8 @@ package com.microproject.pm.task;
 
 import com.microproject.util.DataUtils;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.util.Collection;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -152,6 +154,9 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 
 	protected long levelingDelay = 0L;
 	private transient LevelingManualDateState levelingManualDateState;
+	private transient boolean levelingCanSplit = true;
+	private transient boolean levelAssignments = true;
+	private transient boolean recurringTask;
 	/** Keeps incomplete planning data fixed until the user returns to automatic scheduling. */
 	protected boolean manuallyScheduled = false;
 	/** Keeps a scenario task in the plan without affecting dates, dependencies, or resource load. */
@@ -174,6 +179,17 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	protected transient boolean markerStatus = false;
 	protected int earnedValueMethod = EarnedValueMethodType.Kind.PERCENT_COMPLETE.code();
 	protected static Field startFieldInstance = null;
+
+	/**
+	 * POD is a frozen format and cannot persist the newer task-level leveling
+	 * options. Restore their documented defaults when reading a legacy object
+	 * graph; these transient fields remain absent from the serialized descriptor.
+	 */
+	private void readObject(ObjectInputStream input) throws IOException, ClassNotFoundException {
+		input.defaultReadObject();
+		levelingCanSplit = true;
+		levelAssignments = true;
+	}
 
 	protected int constraintType = ConstraintType.Kind.ASAP.code();
 	protected long deadline = 0;
@@ -1862,6 +1878,12 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	public final LevelingManualDateState getLevelingManualDateState() { return levelingManualDateState; }
 	public final void setLevelingManualDateState(LevelingManualDateState state) { levelingManualDateState = state; }
 	public record LevelingManualDateState(long originalStart, long originalFinish, long generatedStart, long generatedFinish) { }
+	public final boolean isLevelingCanSplit() { return levelingCanSplit; }
+	public final void setLevelingCanSplit(boolean value) { levelingCanSplit = value; setDirty(true); }
+	public final boolean isLevelAssignments() { return levelAssignments; }
+	public final void setLevelAssignments(boolean value) { levelAssignments = value; setDirty(true); }
+	public final boolean isRecurringTask() { return recurringTask; }
+	public final void setRecurringTask(boolean value) { recurringTask = value; }
 	public final boolean isManuallyScheduled() {
 		return manuallyScheduled;
 	}

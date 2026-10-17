@@ -53,6 +53,7 @@ import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.TaskSplitInterval;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
+import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.task.ProjectTaskSnapshot;
 import com.microproject.pm.scheduling.ScheduleService;
 import com.microproject.strings.Messages;
@@ -87,23 +88,23 @@ public final class ResourceLevelingService {
 
 	public record Options(Order order, boolean onlyWithinAvailableSlack, boolean allowTaskSplits,
 		long rangeStart, long rangeEnd, boolean includeProposedResources, Sensitivity sensitivity,
-		boolean levelManuallyScheduledTasks) {
+		boolean levelAssignments, boolean levelManuallyScheduledTasks) {
 		public Options(Order order, boolean onlyWithinAvailableSlack, long rangeStart, long rangeEnd) {
-			this(order, onlyWithinAvailableSlack, true, rangeStart, rangeEnd, false, Sensitivity.DAY, false);
+			this(order, onlyWithinAvailableSlack, true, rangeStart, rangeEnd, false, Sensitivity.DAY, true, false);
 		}
 		public Options(Order order, boolean onlyWithinAvailableSlack, boolean allowTaskSplits,
 			long rangeStart, long rangeEnd) {
-			this(order, onlyWithinAvailableSlack, allowTaskSplits, rangeStart, rangeEnd, false, Sensitivity.DAY, false);
+			this(order, onlyWithinAvailableSlack, allowTaskSplits, rangeStart, rangeEnd, false, Sensitivity.DAY, true, false);
 		}
 		public Options(Order order, boolean onlyWithinAvailableSlack, boolean allowTaskSplits,
 			long rangeStart, long rangeEnd, boolean includeProposedResources) {
 			this(order, onlyWithinAvailableSlack, allowTaskSplits, rangeStart, rangeEnd,
-				includeProposedResources, Sensitivity.DAY, false);
+				includeProposedResources, Sensitivity.DAY, true, false);
 		}
 		public Options(Order order, boolean onlyWithinAvailableSlack, boolean allowTaskSplits,
 			long rangeStart, long rangeEnd, boolean includeProposedResources, Sensitivity sensitivity) {
 			this(order, onlyWithinAvailableSlack, allowTaskSplits, rangeStart, rangeEnd,
-				includeProposedResources, sensitivity, false);
+				includeProposedResources, sensitivity, true, false);
 		}
 		public Options {
 			Objects.requireNonNull(order, "order");
@@ -128,28 +129,44 @@ public final class ResourceLevelingService {
 	public record Conflict(Resource resource, Task task, String reason) {
 	}
 	public record Split(Task task, long from, long to, String limitingResource) { }
+	public record AssignmentChange(Assignment assignment, long oldDelay, long newDelay) { }
 
 	public static final class Plan {
 		private final List<Change> changes;
 		private final List<Conflict> unresolved;
 		private final List<Split> splits;
+		private final List<AssignmentChange> assignmentChanges;
 		private final List<NormalTask> clearGeneratedSplits;
 		private final Map<Task, Object> detailBackups;
 		private final Map<Task, ManualDates> manualDateChanges = new IdentityHashMap<>();
 		private record ManualDates(long oldStart, long oldFinish, long newStart, long newFinish,
 			Task.LevelingManualDateState oldState, Task.LevelingManualDateState newState, boolean changeDates) { }
+		private final PlanSourceState sourceState;
 
 		private Plan(List<Change> changes, List<Conflict> unresolved, List<Split> splits) {
-			this(changes, unresolved, splits, List.of());
+			this(changes, unresolved, splits, List.of(), List.of());
 		}
 
 		private Plan(List<Change> changes, List<Conflict> unresolved, List<Split> splits,
 			List<NormalTask> clearGeneratedSplits) {
+			this(changes, unresolved, splits, List.of(), clearGeneratedSplits);
+		}
+
+		private Plan(List<Change> changes, List<Conflict> unresolved, List<Split> splits,
+			List<AssignmentChange> assignmentChanges, List<NormalTask> clearGeneratedSplits) {
+			this(changes, unresolved, splits, assignmentChanges, clearGeneratedSplits, null);
+		}
+
+		private Plan(List<Change> changes, List<Conflict> unresolved, List<Split> splits,
+			List<AssignmentChange> assignmentChanges, List<NormalTask> clearGeneratedSplits,
+			PlanSourceState sourceState) {
 			this.changes = List.copyOf(changes);
 			this.unresolved = List.copyOf(unresolved);
 			this.splits = List.copyOf(splits);
+			this.assignmentChanges = List.copyOf(assignmentChanges);
 			this.clearGeneratedSplits = List.copyOf(clearGeneratedSplits);
-			this.detailBackups = new IdentityHashMap<>(splits.size() + clearGeneratedSplits.size());
+			this.detailBackups = new IdentityHashMap<>(splits.size() + clearGeneratedSplits.size() + assignmentChanges.size());
+			this.sourceState = sourceState;
 			for (Change change : changes) {
 				Task task = change.task();
 				Task.LevelingManualDateState oldState = task.getLevelingManualDateState();
@@ -191,18 +208,142 @@ public final class ResourceLevelingService {
 			return unresolved;
 		}
 		public List<Split> splits() { return splits; }
+		public List<AssignmentChange> assignmentChanges() { return assignmentChanges; }
+		public boolean hasChanges() { return hasMutations(); }
 
 		public boolean isComplete() {
 			return unresolved.isEmpty();
 		}
 
 		public void apply() {
-			applyChanges(true);
+			applyAtomically(null, List.of(), null, null);
 		}
 
 		public void apply(EditSupport editSupport) {
-			applyChanges(true);
-			postUndoEdit(editSupport);
+			applyAtomically(editSupport, List.of(), null, null);
+		}
+
+		private void applyAtomically(EditSupport editSupport, Collection<? extends Task> requiredTasks,
+			Runnable validationCheck, Runnable invariantCheck) {
+			ProjectMutationState.coordinated(() -> applyAtomicallyCoordinated(
+				editSupport, requiredTasks, validationCheck, invariantCheck));
+		}
+
+		private void applyAtomicallyCoordinated(EditSupport editSupport, Collection<? extends Task> requiredTasks,
+			Runnable validationCheck, Runnable invariantCheck) {
+			List<Project> projects = affectedProjects(requiredTasks);
+			if (!hasMutations()) return;
+			if (projects.isEmpty()) throw new IllegalStateException("Leveling plan has no owning project");
+			List<ProjectMutationState.Scope> scopes = new ArrayList<>(projects.size());
+			List<Project> openedScopes = new ArrayList<>(projects.size());
+			List<Project> openedBatches = new ArrayList<>(projects.size());
+			List<Project.PendingEventBatch> pendingBatches = new ArrayList<>(projects.size());
+			Map<Task, Object> originalBackups = new IdentityHashMap<>(detailBackups);
+			try {
+				for (Project project : projects) {
+					scopes.add(project.getMutationState().begin());
+					openedScopes.add(project);
+					project.beginEventBatch();
+					openedBatches.add(project);
+				}
+				ModelTransaction.execute(new ModelTransaction.Steps<Map<Project, ProjectTaskSnapshot>, Boolean>() {
+					@Override public void validate() {
+						if (sourceState != null) sourceState.assertUnchanged();
+						if (validationCheck != null) validationCheck.run();
+						for (Task task : mutatedTasks(requiredTasks)) {
+							if (task.getOwningProject() == null || task.isReadOnly())
+								throw new IllegalStateException("A leveling task is no longer editable");
+						}
+					}
+					@Override public void authorize() {
+						for (Project project : projects)
+							if (project.isReadOnly()) throw new IllegalStateException("Cannot level a read-only project");
+					}
+					@Override public Map<Project, ProjectTaskSnapshot> capture() {
+						Map<Project, ProjectTaskSnapshot> snapshots = new LinkedHashMap<>();
+						for (Project project : projects) snapshots.put(project, ProjectTaskSnapshot.capture(project));
+						return snapshots;
+					}
+					@Override public ModelTransaction.Mutation<Boolean> apply() {
+						applyChanges(true);
+						return ModelTransaction.Mutation.changed(Boolean.TRUE);
+					}
+					@Override public void schedule() { }
+					@Override public void checkInvariants() {
+						if (invariantCheck != null) invariantCheck.run();
+					}
+					@Override public void restore(Map<Project, ProjectTaskSnapshot> snapshots) {
+						for (Project project : projects) {
+							ProjectTaskSnapshot snapshot = snapshots.get(project);
+							if (snapshot != null) snapshot.restore(project, Plan.this);
+						}
+						detailBackups.clear();
+						detailBackups.putAll(originalBackups);
+					}
+					@Override public void commit(Boolean changed) {
+						for (int index = projects.size() - 1; index >= 0; index--) {
+							Project project = projects.get(index);
+							Project.PendingEventBatch pending = project.commitEventBatch(scopes.get(index), changed);
+							openedBatches.remove(project);
+							openedScopes.remove(project);
+							pendingBatches.add(pending);
+						}
+					}
+				});
+				Project.PendingEventBatch undoBatch = pendingBatches.stream()
+					.filter(batch -> batch != null && batch.undoGroup() != null).findFirst().orElse(null);
+				if (editSupport != null && undoBatch != null) {
+					try (EditSupport.Activation ignored = editSupport.activatePublication(undoBatch.undoGroup())) {
+						postUndoEdit(editSupport);
+					}
+				} else {
+					postUndoEdit(editSupport);
+				}
+				for (int index = 0; index < projects.size(); index++)
+					projects.get(index).publishEventBatch(pendingBatches.get(projects.size() - index - 1));
+			} catch (ModelTransaction.ModelTransactionException failure) {
+				rollbackBatches(openedScopes, openedBatches, scopes, failure);
+				throw new IllegalStateException("Apply leveling failed during " + failure.failedStage(), failure);
+			} catch (RuntimeException | Error failure) {
+				rollbackBatches(openedScopes, openedBatches, scopes, failure);
+				throw failure;
+			}
+		}
+
+		private List<Project> affectedProjects(Collection<? extends Task> requiredTasks) {
+			Set<Project> result = new LinkedHashSet<>();
+			for (Task task : mutatedTasks(requiredTasks)) {
+				Project project = task.getOwningProject();
+				if (project != null) result.add(project);
+			}
+			return List.copyOf(result);
+		}
+
+		private List<Task> mutatedTasks(Collection<? extends Task> requiredTasks) {
+			List<Task> result = new ArrayList<>();
+			if (requiredTasks != null) for (Task task : requiredTasks) addIdentity(result, task);
+			for (Change change : changes) addIdentity(result, change.task());
+			for (Split split : splits) addIdentity(result, split.task());
+			for (NormalTask task : clearGeneratedSplits) addIdentity(result, task);
+			for (AssignmentChange change : assignmentChanges) addIdentity(result, change.assignment().getTask());
+			return List.copyOf(result);
+		}
+
+		private static void addIdentity(List<Task> tasks, Task candidate) {
+			if (candidate != null && tasks.stream().noneMatch(task -> task == candidate)) tasks.add(candidate);
+		}
+
+		private static void rollbackBatches(List<Project> openedScopes, List<Project> openedBatches,
+			List<ProjectMutationState.Scope> scopes, Throwable failure) {
+			for (int index = openedScopes.size() - 1; index >= 0; index--) {
+				Project project = openedScopes.get(index);
+				if (openedBatches.contains(project)) {
+					try { project.endEventBatch(false); }
+					catch (Throwable closeFailure) { failure.addSuppressed(closeFailure); }
+				}
+				try { scopes.get(index).close(); }
+				catch (Throwable closeFailure) { failure.addSuppressed(closeFailure); }
+			}
 		}
 
 		private void postUndoEdit(EditSupport editSupport) {
@@ -247,6 +388,12 @@ public final class ResourceLevelingService {
 				task.setDirty(true);
 				projects.add(task.getOwningProject());
 			}
+			for (AssignmentChange change : assignmentChanges) {
+				change.assignment().setLevelingDelay(forward ? change.newDelay() : change.oldDelay());
+				Task task = change.assignment().getTask();
+				task.setDirty(true);
+				projects.add(task.getOwningProject());
+			}
 			for (Project project : projects) {
 				project.recalculate();
 				project.setGroupDirty(true);
@@ -254,12 +401,155 @@ public final class ResourceLevelingService {
 		}
 
 		private boolean hasMutations() {
-			return !changes.isEmpty() || !splits.isEmpty() || !clearGeneratedSplits.isEmpty();
+			return !changes.isEmpty() || !assignmentChanges.isEmpty() || !splits.isEmpty() || !clearGeneratedSplits.isEmpty();
 		}
 
 		public void revert() {
 			applyChanges(false);
 		}
+	}
+
+	/** Captures the mutable scheduling inputs used by a preview so Apply cannot commit a stale plan. */
+	private static final class PlanSourceState {
+		private final List<ProjectRevision> projectRevisions;
+		private final List<ResourcePoolRevision> resourcePoolRevisions;
+		private final List<ResourceInput> resources;
+		private final List<AssignmentInput> assignments;
+		private final List<TaskInput> tasks;
+
+		private PlanSourceState(List<ProjectRevision> projectRevisions, List<ResourcePoolRevision> resourcePoolRevisions,
+			List<ResourceInput> resources,
+			List<AssignmentInput> assignments, List<TaskInput> tasks) {
+			this.projectRevisions = List.copyOf(projectRevisions);
+			this.resourcePoolRevisions = List.copyOf(resourcePoolRevisions);
+			this.resources = List.copyOf(resources);
+			this.assignments = List.copyOf(assignments);
+			this.tasks = List.copyOf(tasks);
+		}
+
+		private static PlanSourceState capture(Collection<? extends Resource> sourceResources) {
+			Map<Project, Long> revisions = new IdentityHashMap<>();
+			Map<ResourcePool, Long> resourcePoolRevisions = new IdentityHashMap<>();
+			List<ResourceInput> resourceInputs = new ArrayList<>();
+			List<AssignmentInput> assignmentInputs = new ArrayList<>();
+			List<TaskInput> taskInputs = new ArrayList<>();
+			Set<Resource> seenResources = Collections.newSetFromMap(new IdentityHashMap<>());
+			Set<Assignment> seenAssignments = Collections.newSetFromMap(new IdentityHashMap<>());
+			Set<Task> seenTasks = Collections.newSetFromMap(new IdentityHashMap<>());
+			for (Resource resource : sourceResources) {
+				if (resource == null || !seenResources.add(resource)) continue;
+				List<Assignment> resourceAssignments = new ArrayList<>();
+				for (Object value : resource.getAssignments()) {
+					if (!(value instanceof Assignment assignment)) continue;
+					resourceAssignments.add(assignment);
+					if (seenAssignments.add(assignment)) assignmentInputs.add(AssignmentInput.capture(assignment));
+					Task task = assignment.getTask();
+					if (task != null && seenTasks.add(task)) taskInputs.add(TaskInput.capture(task));
+					Project project = task == null ? null : task.getOwningProject();
+					if (project != null) {
+						revisions.putIfAbsent(project, project.getMutationState().revision());
+						ResourcePool pool = project.getResourcePool();
+						resourcePoolRevisions.putIfAbsent(pool, pool.getCoordinationRevision());
+					}
+				}
+			List<AvailabilityInput> availability = new ArrayList<>();
+			for (ValueObjectForInterval interval : resource.getAvailabilityTable().getList())
+				availability.add(new AvailabilityInput(interval.getStart(), interval.getEnd(),
+					((Availability) interval).getMaximumUnits()));
+				resourceInputs.add(new ResourceInput(resource, resource.getMaximumUnits(), resource.getBookingTypeKind(),
+				resource.isLabor(), resource.getEffectiveWorkCalendar(), List.copyOf(resourceAssignments), List.copyOf(availability)));
+			}
+			return new PlanSourceState(projectRevisions(revisions), poolRevisions(resourcePoolRevisions),
+				resourceInputs, assignmentInputs, taskInputs);
+		}
+
+		private void assertUnchanged() {
+			for (ProjectRevision revision : projectRevisions)
+				if (revision.project().getMutationState().revision() != revision.revision())
+					throw new IllegalStateException("Leveling preview is stale because the project changed");
+			for (ResourcePoolRevision revision : resourcePoolRevisions)
+				if (revision.pool().getCoordinationRevision() != revision.revision())
+					throw new IllegalStateException("Leveling preview is stale because the shared resource pool changed");
+			for (ResourceInput input : resources)
+				if (!input.matches()) throw new IllegalStateException("Leveling preview is stale because resource capacity changed");
+			for (AssignmentInput input : assignments)
+				if (!input.matches()) throw new IllegalStateException("Leveling preview is stale because an assignment changed");
+			for (TaskInput input : tasks)
+				if (!input.matches()) throw new IllegalStateException("Leveling preview is stale because a task schedule changed");
+		}
+
+		private static List<ProjectRevision> projectRevisions(Map<Project, Long> revisions) {
+			List<ProjectRevision> result = new ArrayList<>(revisions.size());
+			revisions.forEach((project, revision) -> result.add(new ProjectRevision(project, revision)));
+			return result;
+		}
+		private static List<ResourcePoolRevision> poolRevisions(Map<ResourcePool, Long> revisions) {
+			List<ResourcePoolRevision> result = new ArrayList<>(revisions.size());
+			revisions.forEach((pool, revision) -> result.add(new ResourcePoolRevision(pool, revision)));
+			return result;
+		}
+		private record ProjectRevision(Project project, long revision) { }
+		private record ResourcePoolRevision(ResourcePool pool, long revision) { }
+		private record AvailabilityInput(long start, long end, double units) { }
+		private record ResourceInput(Resource resource, double maximumUnits, BookingType.Kind bookingType,
+			boolean labor, WorkCalendar calendar, List<Assignment> assignments, List<AvailabilityInput> availability) {
+			private boolean matches() {
+				if (resource.getMaximumUnits() != maximumUnits || resource.getBookingTypeKind() != bookingType
+					|| resource.isLabor() != labor || resource.getEffectiveWorkCalendar() != calendar) return false;
+				List<Assignment> currentAssignments = new ArrayList<>();
+				for (Object value : resource.getAssignments())
+					if (value instanceof Assignment assignment) currentAssignments.add(assignment);
+			if (!sameIdentitySequence(assignments, currentAssignments)) return false;
+			List<AvailabilityInput> currentAvailability = new ArrayList<>();
+			for (ValueObjectForInterval interval : resource.getAvailabilityTable().getList())
+				currentAvailability.add(new AvailabilityInput(interval.getStart(), interval.getEnd(),
+					((Availability) interval).getMaximumUnits()));
+			return availability.equals(currentAvailability);
+			}
+		}
+		private record AssignmentInput(Assignment assignment, Task task, long start, long end, long delay,
+			double units, long duration, WorkCalendar calendar, String contour) {
+			private static AssignmentInput capture(Assignment assignment) {
+				return new AssignmentInput(assignment, assignment.getTask(), assignment.getStart(), assignment.getEnd(),
+					assignment.getLevelingDelay(), assignment.getUnits(), assignment.getDurationMillis(),
+					assignment.getEffectiveWorkCalendar(),
+					assignment.getWorkContour().toString(assignment.getDurationMillis()));
+			}
+			private boolean matches() {
+				return assignment.getTask() == task && assignment.getStart() == start && assignment.getEnd() == end
+					&& assignment.getLevelingDelay() == delay && Double.compare(assignment.getUnits(), units) == 0
+					&& assignment.getDurationMillis() == duration && assignment.getEffectiveWorkCalendar() == calendar
+					&& contour.equals(assignment.getWorkContour().toString(assignment.getDurationMillis()));
+			}
+		}
+		private record TaskInput(Task task, Project project, long start, long end, long delay, long totalSlack,
+			long actualStart, double percentComplete, int priority, boolean manuallyScheduled, boolean inactive,
+			boolean complete, boolean readOnly, boolean levelingCanSplit, boolean levelAssignments,
+			WorkCalendar calendar) {
+			private static TaskInput capture(Task task) {
+				WorkCalendar calendar = task.getEffectiveWorkCalendar();
+				return new TaskInput(task, task.getOwningProject(), task.getStart(), task.getEnd(), task.getLevelingDelay(),
+					task.getTotalSlack(), task.getActualStart(), task.getPercentComplete(), task.getPriority(),
+					task.isManuallyScheduled(), task.isInactiveTask(), task.isComplete(), task.isReadOnly(),
+					task.isLevelingCanSplit(), task.isLevelAssignments(), calendar);
+			}
+			private boolean matches() {
+				return task.getOwningProject() == project && task.getStart() == start && task.getEnd() == end
+					&& task.getLevelingDelay() == delay && task.getTotalSlack() == totalSlack
+					&& task.getActualStart() == actualStart && Double.compare(task.getPercentComplete(), percentComplete) == 0
+					&& task.getPriority() == priority && task.isManuallyScheduled() == manuallyScheduled
+					&& task.isInactiveTask() == inactive && task.isComplete() == complete && task.isReadOnly() == readOnly
+					&& task.isLevelingCanSplit() == levelingCanSplit && task.isLevelAssignments() == levelAssignments
+					&& task.getEffectiveWorkCalendar() == calendar;
+			}
+		}
+	}
+
+	private static boolean sameIdentitySequence(List<?> expected, List<?> actual) {
+		if (expected.size() != actual.size()) return false;
+		for (int index = 0; index < expected.size(); index++)
+			if (expected.get(index) != actual.get(index)) return false;
+		return true;
 	}
 
 	private record Scheduled(Assignment assignment, Task task, long start, long end, double units) {
@@ -327,7 +617,9 @@ public final class ResourceLevelingService {
 	private Plan preview(Collection<? extends Resource> resources, Options options, Set<Task> selectedTasks) {
 		Objects.requireNonNull(resources, "resources");
 		Objects.requireNonNull(options, "options");
+		PlanSourceState sourceState = PlanSourceState.capture(resources);
 		Map<Task, Long> addedDelay = new IdentityHashMap<>();
+		Map<Assignment, Long> assignmentAddedDelay = new IdentityHashMap<>();
 		Map<Task, String> limitingResource = new IdentityHashMap<>();
 		Map<Task, Split> splits = new IdentityHashMap<>();
 		List<Conflict> unresolved = new ArrayList<>(Math.max(4, resources.size()));
@@ -338,7 +630,8 @@ public final class ResourceLevelingService {
 		do {
 			changed = false;
 			for (Resource resource : resources) {
-				changed |= levelResource(resource, options, selectedTasks, addedDelay, limitingResource, splits, unresolved, scratch);
+				changed |= levelResource(resource, options, selectedTasks, addedDelay, assignmentAddedDelay,
+					limitingResource, splits, unresolved, scratch);
 			}
 		} while (changed && ++pass < Math.max(8, resources.size() * 4));
 
@@ -356,7 +649,15 @@ public final class ResourceLevelingService {
 				limitingResource.get(task)));
 		}
 		for (Split split : splits.values()) result.putIfAbsent(split.task(), new Change(split.task(), split.task().getLevelingDelay(), split.task().getLevelingDelay(), split.task().getStart(), split.task().getStart(), split.limitingResource()));
-		return new Plan(new ArrayList<>(result.values()), deduplicate(unresolved), new ArrayList<>(splits.values()));
+		List<AssignmentChange> assignmentChanges = new ArrayList<>(assignmentAddedDelay.size());
+		for (Map.Entry<Assignment, Long> entry : assignmentAddedDelay.entrySet()) {
+			Assignment assignment = entry.getKey();
+			assignmentChanges.add(new AssignmentChange(assignment, assignment.getLevelingDelay(),
+				Duration.millis(assignment.getLevelingDelay()) + entry.getValue()));
+		}
+		sourceState.assertUnchanged();
+		return new Plan(new ArrayList<>(result.values()), deduplicate(unresolved), new ArrayList<>(splits.values()),
+			assignmentChanges, List.of(), sourceState);
 	}
 
 	public void clear(Project project) {
@@ -389,9 +690,12 @@ public final class ResourceLevelingService {
 	}
 
 	private static boolean hasLevelingState(Task task) {
-		return Duration.millis(task.getLevelingDelay()) != 0L
+		if (Duration.millis(task.getLevelingDelay()) != 0L
 			|| task.getLevelingManualDateState() != null
-			|| task instanceof NormalTask normalTask && !normalTask.getLevelingTaskSplitIntervals().isEmpty();
+			|| task instanceof NormalTask normalTask && !normalTask.getLevelingTaskSplitIntervals().isEmpty()) return true;
+		if (task instanceof NormalTask normalTask) for (Object value : normalTask.getAssignments())
+			if (Duration.millis(((Assignment) value).getLevelingDelay()) != 0L) return true;
+		return false;
 	}
 
 	/** Clears leveling state for all tasks, or only the supplied project tasks. */
@@ -403,6 +707,7 @@ public final class ResourceLevelingService {
 		}
 		if (affected.isEmpty()) return List.of();
 		List<Change> changes = new ArrayList<>(affected.size());
+		List<AssignmentChange> assignmentChanges = new ArrayList<>();
 		List<NormalTask> generatedSplits = new ArrayList<>();
 		for (Task task : affected) {
 			if (Duration.millis(task.getLevelingDelay()) != 0L || task.getLevelingManualDateState() != null) {
@@ -411,61 +716,27 @@ public final class ResourceLevelingService {
 			if (task instanceof NormalTask normalTask && !normalTask.getLevelingTaskSplitIntervals().isEmpty()) {
 				generatedSplits.add(normalTask);
 			}
-		}
-		clearAtomically(project, affected, changes, generatedSplits, editSupport);
-		return List.copyOf(affected);
-	}
-
-	private void clearAtomically(Project project, List<Task> affected, List<Change> changes,
-		List<NormalTask> generatedSplits, EditSupport editSupport) {
-		ProjectTaskSnapshot[] before = new ProjectTaskSnapshot[1];
-		Plan clearPlan = new Plan(changes, List.of(), List.of(), generatedSplits);
-		try (ProjectMutationState.Scope mutation = project.getMutationState().begin()) {
-			project.beginEventBatch();
-			try {
-				ModelTransaction.execute(new ModelTransaction.Steps<ProjectTaskSnapshot, Boolean>() {
-					@Override public void validate() {
-						for (Task task : affected) {
-							if (task.getOwningProject() != project || task.isReadOnly())
-								throw new IllegalStateException("A leveling task is no longer editable in this project");
-						}
-					}
-					@Override public void authorize() {
-						if (project.isReadOnly()) throw new IllegalStateException("Cannot clear leveling in a read-only project");
-					}
-					@Override public ProjectTaskSnapshot capture() {
-						before[0] = ProjectTaskSnapshot.capture(project);
-						return before[0];
-					}
-					@Override public ModelTransaction.Mutation<Boolean> apply() {
-						clearPlan.applyChanges(true);
-						return ModelTransaction.Mutation.changed(Boolean.TRUE);
-					}
-					@Override public void schedule() { }
-					@Override public void checkInvariants() {
-						for (Task task : affected)
-							if (hasLevelingState(task)) throw new IllegalStateException("Leveling state remains after clear");
-					}
-					@Override public void restore(ProjectTaskSnapshot snapshot) { snapshot.restore(project, ResourceLevelingService.this); }
-					@Override public void commit(Boolean changed) { }
-				});
-				Project.PendingEventBatch pending = project.commitEventBatch(mutation, true);
-				project.publishEventBatch(pending);
-				clearPlan.postUndoEdit(editSupport);
-			} catch (ModelTransaction.ModelTransactionException failure) {
-				try { project.endEventBatch(false); }
-				catch (Throwable closeFailure) { failure.addSuppressed(closeFailure); }
-				throw new IllegalStateException("Clear leveling failed during " + failure.failedStage(), failure);
-			} catch (RuntimeException | Error failure) {
-				try { project.endEventBatch(false); }
-				catch (Throwable closeFailure) { failure.addSuppressed(closeFailure); }
-				throw failure;
+			if (task instanceof NormalTask normalTask) for (Object value : normalTask.getAssignments()) {
+				Assignment assignment = (Assignment) value;
+				if (Duration.millis(assignment.getLevelingDelay()) != 0L)
+					assignmentChanges.add(new AssignmentChange(assignment, assignment.getLevelingDelay(), 0L));
 			}
 		}
+		Plan clearPlan = new Plan(changes, List.of(), List.of(), assignmentChanges, generatedSplits);
+		clearPlan.applyAtomically(editSupport, affected, () -> {
+			for (Task task : affected)
+				if (task.getOwningProject() != project || task.isReadOnly())
+					throw new IllegalStateException("A leveling task is no longer editable in this project");
+		}, () -> {
+			for (Task task : affected)
+				if (hasLevelingState(task)) throw new IllegalStateException("Leveling state remains after clear");
+		});
+		return List.copyOf(affected);
 	}
 
 
 	private boolean levelResource(Resource resource, Options options, Set<Task> selectedTasks, Map<Task, Long> addedDelay,
+		Map<Assignment, Long> assignmentAddedDelay,
 		Map<Task, String> limitingResource, Map<Task, Split> splits, List<Conflict> unresolved,
 		LevelingScratch scratch) {
 		if (resource == null || !resource.isLabor() || resource.getMaximumUnits() <= 0D
@@ -504,7 +775,10 @@ public final class ResourceLevelingService {
 				addBucketLoads(scheduled, options.sensitivity(), scratch);
 				continue;
 			}
-			long existingAdded = addedDelay.getOrDefault(task, 0L);
+			boolean levelAssignment = options.levelAssignments() && task.isLevelAssignments();
+			long existingAdded = levelAssignment
+				? assignmentAddedDelay.getOrDefault(assignment, 0L)
+				: addedDelay.getOrDefault(task, 0L);
 			long duration = Math.max(0L, assignment.getEnd() - assignment.getStart());
 			long start = shiftedStart(task, assignment.getStart(), existingAdded);
 			long end = start + duration;
@@ -513,7 +787,8 @@ public final class ResourceLevelingService {
 			while (isOverallocated(start, end, assignment, resource, options.sensitivity(), scratch)
 				&& attempts++ < assignments.size() + 2) {
 				Scheduled blocker = firstBlockingInterval(start, end, assignment, resource, options.sensitivity(), scratch);
-				if (options.allowTaskSplits() && blocker != null && blocker.start() > start && blocker.end() < end
+				if (!levelAssignment && options.allowTaskSplits() && task.isLevelingCanSplit()
+					&& blocker != null && blocker.start() > start && blocker.end() < end
 					&& !task.isMilestone() && !task.inProgress()) {
 					proposedSplit = new Split(task, blocker.start(), blocker.end(), resource.getName());
 					Split previous = splits.put(task, proposedSplit);
@@ -538,7 +813,9 @@ public final class ResourceLevelingService {
 				if (options.onlyWithinAvailableSlack()
 					&& existingAdded > Math.max(0L, Duration.millis(task.getTotalSlack()))) {
 					unresolved.add(new Conflict(resource, task, "Available slack is insufficient"));
-					existingAdded = addedDelay.getOrDefault(task, 0L);
+					existingAdded = levelAssignment
+						? assignmentAddedDelay.getOrDefault(assignment, 0L)
+						: addedDelay.getOrDefault(task, 0L);
 					start = shiftedStart(task, assignment.getStart(), existingAdded);
 					end = start + duration;
 					break;
@@ -546,8 +823,12 @@ public final class ResourceLevelingService {
 				start = shiftedStart(task, assignment.getStart(), existingAdded);
 				end = start + duration;
 			}
-			if (existingAdded > addedDelay.getOrDefault(task, 0L)) {
-				addedDelay.put(task, existingAdded);
+			long previousAdded = levelAssignment
+				? assignmentAddedDelay.getOrDefault(assignment, 0L)
+				: addedDelay.getOrDefault(task, 0L);
+			if (existingAdded > previousAdded) {
+				if (levelAssignment) assignmentAddedDelay.put(assignment, existingAdded);
+				else addedDelay.put(task, existingAdded);
 				limitingResource.put(task, resource.getName());
 				changed = true;
 			}

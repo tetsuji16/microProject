@@ -1,6 +1,19 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
+<script>
+  (function () {
+    var saved = null;
+    try { saved = localStorage.getItem('microProjectLanguage'); } catch (e) {}
+    var languages = navigator.languages || [navigator.language || 'ja'];
+    var supported = ['ja', 'en', 'es', 'zh'];
+    var preferred = languages.map(function (value) { return value.toLowerCase().split('-')[0]; }).find(function (value) { return supported.indexOf(value) >= 0; }) || 'en';
+    var language = saved || preferred;
+    var target = language === 'ja' ? 'index.html' : 'index-' + language + '.html';
+    var atRoot = target === 'index.html' && location.pathname.endsWith('/');
+    if (!atRoot && !location.pathname.endsWith(target)) location.replace(target + location.search + location.hash);
+  })();
+</script>
 <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-E7T6ZX28VE"></script>
 <script>
@@ -421,6 +434,9 @@
         </div>
       </div>
       <div class="top-actions">
+        <a class="button secondary" href="index-en.html" onclick="try{localStorage.setItem('microProjectLanguage','en')}catch(e){}">English</a>
+        <a class="button secondary" href="index-es.html" onclick="try{localStorage.setItem('microProjectLanguage','es')}catch(e){}">Español</a>
+        <a class="button secondary" href="index-zh.html" onclick="try{localStorage.setItem('microProjectLanguage','zh')}catch(e){}">中文</a>
         <a class="button secondary" href="usage-guide-ja.html">オンライン ヘルプ</a>
         <a class="button secondary" href="ccpm-sample-guide-ja.html">CCPM サンプルガイド</a>
         <a class="button secondary" href="https://github.com/tetsuji16/ProjectLibre">Repository</a>

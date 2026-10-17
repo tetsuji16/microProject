@@ -3,8 +3,10 @@ param(
   [int]$TargetPid,
   [switch]$Watch,
   [string]$LogFile,
+  [string]$StopFile,
   [switch]$WaitForNativeChooser,
-  [long]$DeadlineUtcTicks
+  [long]$DeadlineUtcTicks,
+  [switch]$WatchNativeChooserLifecycle
 )
 
 $ErrorActionPreference = 'Stop'
@@ -61,6 +63,12 @@ public static class GuiDesktopWindowProbe {
         public bool Ready { get; set; }
     }
     private delegate bool EnumWindowsCallback(IntPtr handle, IntPtr parameter);
+    private delegate void WinEventCallback(IntPtr hook, uint eventType, IntPtr hwnd, int idObject,
+        int idChild, uint eventThread, uint eventTime);
+    [StructLayout(LayoutKind.Sequential)] private struct Message {
+        public IntPtr Hwnd; public uint MessageId; public UIntPtr WParam; public IntPtr LParam;
+        public uint Time; public int PointX; public int PointY;
+    }
 
     [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")] private static extern bool IsChild(IntPtr parent, IntPtr child);
@@ -77,6 +85,60 @@ public static class GuiDesktopWindowProbe {
     [DllImport("user32.dll")] private static extern bool IsIconic(IntPtr handle);
     [DllImport("user32.dll")] private static extern bool EnumWindows(EnumWindowsCallback callback, IntPtr parameter);
     [DllImport("user32.dll")] private static extern IntPtr GetWindow(IntPtr handle, uint command);
+    [DllImport("user32.dll", SetLastError = true)] private static extern IntPtr SetWinEventHook(uint eventMin, uint eventMax,
+        IntPtr module, WinEventCallback callback, uint processId, uint threadId, uint flags);
+    [DllImport("user32.dll")] private static extern bool UnhookWinEvent(IntPtr hook);
+    [DllImport("user32.dll")] private static extern bool PeekMessage(out Message message, IntPtr hwnd, uint min, uint max, uint remove);
+    [DllImport("user32.dll")] private static extern bool TranslateMessage(ref Message message);
+    [DllImport("user32.dll")] private static extern IntPtr DispatchMessage(ref Message message);
+
+    public static void WatchNativeChooserLifecycle(int targetPid, string logFile, string stopFile) {
+        const uint create = 0x8000, destroy = 0x8001, show = 0x8002, hide = 0x8003;
+        const uint outOfContext = 0x0000;
+        var logStream = new System.IO.FileStream(logFile, System.IO.FileMode.Append, System.IO.FileAccess.Write,
+            System.IO.FileShare.ReadWrite);
+        var writer = new System.IO.StreamWriter(logStream, new System.Text.UTF8Encoding(false)) { AutoFlush = true };
+        WinEventCallback callback = (eventHook, eventType, hwnd, idObject, idChild, eventThread, eventTime) => {
+            if (hwnd == IntPtr.Zero || idObject != 0 || idChild != 0) return;
+            // SetWinEventHook already filters events to the target process. Keep
+            // the callback's event thread ID even for DESTROY, where hwnd may
+            // already be invalid by the time window queries run.
+            uint pid = (uint)targetPid;
+            uint threadId = eventThread;
+            string eventName = eventType == create ? "CREATE" : eventType == destroy ? "DESTROY"
+                : eventType == show ? "SHOW" : eventType == hide ? "HIDE" : "OTHER";
+            IntPtr owner = GetWindow(hwnd, 4);
+            Rect bounds;
+            bool hasBounds = GetWindowRect(hwnd, out bounds);
+            IntPtr foreground = GetForegroundWindow();
+            string title = ReadTitle(hwnd, Math.Max(1, GetWindowTextLength(hwnd)))
+                .Replace('\r', ' ').Replace('\n', ' ').Replace('|', '/');
+            writer.WriteLine("windowEventUtc=" + DateTime.UtcNow.ToString("o") + " event=" + eventName
+                + " eventThread=" + eventThread + " eventTimeMs=" + eventTime + " pid=" + pid + " thread=" + threadId
+                + " hwnd=0x" + hwnd.ToInt64().ToString("X") + " owner=0x" + owner.ToInt64().ToString("X")
+                + " class=" + ReadClassName(hwnd) + " title=" + title
+                + " visible=" + IsWindowVisible(hwnd) + " enabled=" + IsWindowEnabled(hwnd)
+                + " bounds=" + (hasBounds ? Format(bounds) : "unavailable")
+                + " foreground=" + (foreground == hwnd));
+        };
+        IntPtr hook = SetWinEventHook(create, hide, IntPtr.Zero, callback, (uint)targetPid, 0, outOfContext);
+        if (hook == IntPtr.Zero) throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
+        writer.WriteLine("windowEventWatchStartedUtc=" + DateTime.UtcNow.ToString("o") + " targetPid=" + targetPid);
+        try {
+            Message message;
+            while (!System.IO.File.Exists(stopFile)) {
+                while (PeekMessage(out message, IntPtr.Zero, 0, 0, 0x0001)) {
+                    TranslateMessage(ref message);
+                    DispatchMessage(ref message);
+                }
+                System.Threading.Thread.Sleep(10);
+            }
+        } finally {
+            UnhookWinEvent(hook);
+            writer.WriteLine("windowEventWatchStoppedUtc=" + DateTime.UtcNow.ToString("o"));
+            writer.Dispose();
+        }
+    }
 
     public static string Capture(int targetPid) {
         var windows = new List<WindowInfo>();
@@ -358,6 +420,13 @@ if ($Watch) {
     $logWriter.Dispose()
   }
 } else {
+  if ($WatchNativeChooserLifecycle) {
+    if ([string]::IsNullOrWhiteSpace($LogFile) -or [string]::IsNullOrWhiteSpace($StopFile)) {
+      throw 'LogFile and StopFile are required with WatchNativeChooserLifecycle.'
+    }
+    [GuiDesktopWindowProbe]::WatchNativeChooserLifecycle($TargetPid, $LogFile, $StopFile)
+    exit 0
+  }
   if ($WaitForNativeChooser) {
     if ($DeadlineUtcTicks -le 0) { throw 'DeadlineUtcTicks is required with WaitForNativeChooser.' }
     Write-NativeChooserProbeLine("nativeChooserProbe waitStartedUtc=$([DateTime]::UtcNow.ToString('o'))")

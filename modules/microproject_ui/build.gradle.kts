@@ -133,6 +133,7 @@ tasks.register<Test>("guiTest") {
 		"com.microproject.pm.graphic.spreadsheet.common.U26SpreadsheetInputTransactionGuiAcceptanceTest.robotTypesDurationAndPercentAsOneInputTransaction",
 		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.physicalTaskRowHeaderDragReordersStableTasksAndSurvivesUndoAndReload",
 		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.physicalTaskSortSupportsAscendingStartAndDescendingFinishForViewAndOutline",
+		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.physicalTaskInspectorFollowsSelectionAndNavigatesOnlyVisiblePredecessors",
 		"com.microproject.pm.graphic.views.TaskTableGanttGridGuiAcceptanceTest.physicalTaskTableDurationEditDoesNotPanGanttViewport",
 		"com.microproject.pm.graphic.views.TaskTableGanttGridGuiAcceptanceTest.physicalTaskTableDateEditRepositionsBarWithoutPanningGanttViewport",
 		"com.microproject.pm.graphic.views.TaskTableGanttGridGuiAcceptanceTest.physicalGanttWheelScrollsByOneOwnerStep",
@@ -156,6 +157,7 @@ tasks.register<Test>("guiTest") {
 		"com.microproject.dialog.assignment.AssignmentDialogGuiAcceptanceTest.robotReplaceWithActualWorkPreservesActualsAndSupportsUndoRedo",
 		"com.microproject.dialog.CriticalChainStatusDialogGuiAcceptanceTest.robotAppliesCcpmAndUndoRedoSurvivesMpoReload",
 		"com.microproject.pm.graphic.frames.RibbonExternalCommandGuiAcceptanceTest.robotEscapeAndCancelCloseTheFileOpenChooserWithoutOpeningAProject",
+		"com.microproject.pm.graphic.frames.RibbonExternalCommandGuiAcceptanceTest.robotSavesImportedMppAsMpoAndCancellationOrOverwriteRefusalKeepsSource",
 		"com.microproject.ui.shell.WindowShellNativeDecorationGuiAcceptanceTest.physicalCaptionDragUsesNativeWindowShell"
 	)
 	inputs.property("guiTestSuite", guiTestSuite)

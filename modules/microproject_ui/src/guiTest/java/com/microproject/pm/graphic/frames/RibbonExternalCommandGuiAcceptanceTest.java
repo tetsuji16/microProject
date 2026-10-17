@@ -26,6 +26,7 @@ import java.awt.Toolkit;
 import java.awt.Window;
 import java.awt.event.InputEvent;
 import java.awt.event.AWTEventListener;
+import java.awt.event.MouseEvent;
 import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -82,6 +83,7 @@ import com.microproject.preference.ConfigurationFile;
 import com.microproject.session.SessionFactory;
 import com.microproject.strings.Messages;
 import com.microproject.testsupport.GuiAcceptanceSupport;
+import com.microproject.testsupport.NativeChooserProbeCompletion;
 import com.microproject.testsupport.RibbonGuiButton;
 import com.microproject.testsupport.RibbonGuiSupport;
 import com.microproject.testsupport.DialogLayoutAssertions;
@@ -232,6 +234,8 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		byte[] existingMpoBytes = "existing MPO must survive a declined overwrite".getBytes(java.nio.charset.StandardCharsets.UTF_8);
 		Files.write(mpoSaveTarget, existingMpoBytes);
 		createWindow("microProject — imported MPP Save acceptance");
+		saveWindowTrace = new WindowTrace();
+		saveWindowTrace.open();
 		UiServices.setFileChooserProvider(new UiServices.FileChooserProvider() {
 			@Override public String chooseFileName(boolean save, String selectedFileName, Object parent) {
 				return swingChooser.chooseFileName(save, selectedFileName, parent);
@@ -307,9 +311,22 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		GuiAcceptanceSupport.awaitInputAndEventQueueIdle(robot, "Save As filename entry");
 		assertEquals(mpoSavedCopy.getFileName().toString(), textOnEdt(fileNameField),
 			"physical filename entry must be present in the chooser field before approval");
-		click(robot, selectFileChooserSaveButton(saveDialog));
-		GuiAcceptanceSupport.await(() -> visibleFileChooserDialog() == null && Files.isRegularFile(mpoSavedCopy),
-			"selected MPO copy was not written");
+		AbstractButton finalApproveButton = selectFileChooserSaveButton(saveDialog);
+		String preApproveState = saveAsChooserDiagnostics(saveDialog, finalApproveButton);
+		java.util.concurrent.atomic.AtomicBoolean approveActionFired = new java.util.concurrent.atomic.AtomicBoolean();
+		finalApproveButton.addActionListener(event -> approveActionFired.set(true));
+		System.err.println("=== Save As pre-approve diagnostic ===\n" + preApproveState);
+		captureNativeChooserScreen(robot, "mpp-save-as-before-final-approve.png");
+		click(robot, finalApproveButton);
+		try {
+			GuiAcceptanceSupport.await(() -> visibleFileChooserDialog() == null && Files.isRegularFile(mpoSavedCopy),
+				"selected MPO copy was not written");
+		} catch (AssertionError failure) {
+			throw new AssertionError(failure.getMessage() + "\nPre-approve chooser state:\n" + preApproveState
+				+ "\nApprove action fired=" + approveActionFired.get()
+				+ "\nPost-approve chooser state:\n" + saveAsChooserDiagnostics(saveDialog, finalApproveButton)
+				+ "\n" + saveWindowTrace.snapshot(), failure);
+		}
 		GuiAcceptanceSupport.await(() -> mpoSavedCopy.toString().equals(project.getFileName()) && !project.needsSaving(),
 			"successful MPO save did not update association and clear dirty state");
 		assertArrayEquals(originalMppBytes, Files.readAllBytes(importedMpp), "MPO save must leave the MPP source untouched");
@@ -601,10 +618,17 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		AtomicBoolean chooserCallReturned = new AtomicBoolean();
 		AtomicBoolean chooserCancelled = new AtomicBoolean();
 		AtomicReference<Throwable> chooserFailure = new AtomicReference<>();
+		AtomicReference<Instant> chooserProviderStartedAt = new AtomicReference<>();
+		AtomicReference<Instant> chooserProviderReturnedAt = new AtomicReference<>();
+		AtomicReference<String> chooserOwnerAtProviderEntry = new AtomicReference<>("not-entered");
+		AtomicReference<Window> chooserOwnerWindow = new AtomicReference<>();
 		SwingFileChooserProvider nativeProvider = new SwingFileChooserProvider();
 		UiServices.setFileChooserProvider(new UiServices.FileChooserProvider() {
 			@Override
 			public String chooseFileName(boolean save, String selectedFileName, Object parent) {
+				chooserProviderStartedAt.set(Instant.now());
+				chooserOwnerAtProviderEntry.set(describeChooserOwner(parent));
+				chooserOwnerWindow.set(resolveChooserOwner(parent));
 				chooserCallStarted.set(true);
 				try {
 					String selected = nativeProvider.chooseFileName(save, selectedFileName, parent);
@@ -614,12 +638,16 @@ class RibbonExternalCommandGuiAcceptanceTest {
 					chooserFailure.set(failure);
 					throw failure;
 				} finally {
+					chooserProviderReturnedAt.set(Instant.now());
 					chooserCallReturned.set(true);
 				}
 			}
 
 			@Override
 			public List<String> chooseFileNames(boolean save, String selectedFileName, Object parent) {
+				chooserProviderStartedAt.set(Instant.now());
+				chooserOwnerAtProviderEntry.set(describeChooserOwner(parent));
+				chooserOwnerWindow.set(resolveChooserOwner(parent));
 				chooserCallStarted.set(true);
 				try {
 					List<String> selected = nativeProvider.chooseFileNames(save, selectedFileName, parent);
@@ -629,6 +657,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 					chooserFailure.set(failure);
 					throw failure;
 				} finally {
+					chooserProviderReturnedAt.set(Instant.now());
 					chooserCallReturned.set(true);
 				}
 			}
@@ -639,18 +668,21 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		activateWindowForRobot(robot);
 		int documentsBefore = manager.getFrameManager().getAllFrames().size();
 		verifyNativeChooserEscape(robot, () -> pressCtrlO(robot), chooserCallStarted, chooserCallReturned,
-			chooserCancelled, chooserFailure, "Ctrl+O");
+			chooserCancelled, chooserFailure, "Ctrl+O", chooserProviderStartedAt, chooserProviderReturnedAt,
+			chooserOwnerAtProviderEntry, chooserOwnerWindow);
 		assertEquals(documentsBefore, manager.getFrameManager().getAllFrames().size(),
 			"native Ctrl+O cancellation must not open a project");
 		verifyNativeChooserEscape(robot,
 			() -> click(robot, findCommandButton(window.getRibbonPanel(), "RibbonOpenProject", robot)),
 			chooserCallStarted, chooserCallReturned,
-			chooserCancelled, chooserFailure, "Ribbon Open");
+			chooserCancelled, chooserFailure, "Ribbon Open", chooserProviderStartedAt, chooserProviderReturnedAt,
+			chooserOwnerAtProviderEntry, chooserOwnerWindow);
 		assertEquals(documentsBefore, manager.getFrameManager().getAllFrames().size(),
 			"native Ribbon Open cancellation must not open a project");
 		verifyNativeChooserCancelButton(robot,
 			() -> click(robot, findCommandButton(window.getRibbonPanel(), "RibbonOpenProject", robot)), chooserCallStarted,
-			chooserCallReturned, chooserCancelled, chooserFailure, "Ribbon Open");
+			chooserCallReturned, chooserCancelled, chooserFailure, "Ribbon Open", chooserProviderStartedAt,
+			chooserProviderReturnedAt, chooserOwnerAtProviderEntry, chooserOwnerWindow);
 		assertEquals(documentsBefore, manager.getFrameManager().getAllFrames().size(),
 			"native Ribbon Open Cancel must not open a project");
 	}
@@ -1032,7 +1064,8 @@ class RibbonExternalCommandGuiAcceptanceTest {
 
 	private void verifyNativeChooserEscape(Robot robot, GuiCommand openCommand, AtomicBoolean chooserCallStarted,
 			AtomicBoolean chooserCallReturned, AtomicBoolean chooserCancelled, AtomicReference<Throwable> chooserFailure,
-			String route) throws Exception {
+			String route, AtomicReference<Instant> providerStartedAt, AtomicReference<Instant> providerReturnedAt,
+			AtomicReference<String> ownerAtProviderEntry, AtomicReference<Window> ownerWindowAtProviderEntry) throws Exception {
 		// Native Windows choosers are external top-level windows. Do not place the
 		// owner above them in the test window's z-order while exercising this route.
 		activateWindowForRobot(robot, false);
@@ -1040,11 +1073,16 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		chooserCallReturned.set(false);
 		chooserCancelled.set(false);
 		chooserFailure.set(null);
+		providerStartedAt.set(null);
+		providerReturnedAt.set(null);
+		ownerAtProviderEntry.set("not-entered");
+		ownerWindowAtProviderEntry.set(null);
 		BufferedImage beforeOpen = captureScreen(robot);
 		String windowsBeforeOpen = snapshotNativeChooserWindows();
 		Instant chooserInvokedAt = Instant.now();
 		captureNativeChooserScreen(beforeOpen, "issue-398-native-" + route.toLowerCase(Locale.ROOT).replace(' ', '-')
 			+ "-before-open.png");
+		NativeChooserWindowEventProbe windowEvents = startNativeChooserWindowEventProbe(route);
 		try {
 			openCommand.run();
 			GuiAcceptanceSupport.await(chooserCallStarted::get,
@@ -1065,9 +1103,11 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			assertTrue(chooserCancelled.get(), route + " Escape must cancel the default Windows file chooser");
 		} catch (Exception | Error failure) {
 			captureNativeChooserFailureDiagnostics(route, robot, beforeOpen, chooserCallStarted, chooserCallReturned,
-				chooserCancelled, chooserFailure, windowsBeforeOpen, chooserInvokedAt, failure);
+				chooserCancelled, chooserFailure, windowsBeforeOpen, chooserInvokedAt, failure, providerStartedAt,
+				providerReturnedAt, ownerAtProviderEntry, ownerWindowAtProviderEntry.get(), windowEvents);
 			throw failure;
 		} finally {
+			windowEvents.close();
 			if (chooserCallStarted.get() && !chooserCallReturned.get()) {
 				robot.keyPress(java.awt.event.KeyEvent.VK_ESCAPE);
 				try {
@@ -1081,17 +1121,24 @@ class RibbonExternalCommandGuiAcceptanceTest {
 
 	private void verifyNativeChooserCancelButton(Robot robot, GuiCommand openCommand,
 			AtomicBoolean chooserCallStarted, AtomicBoolean chooserCallReturned,
-			AtomicBoolean chooserCancelled, AtomicReference<Throwable> chooserFailure, String route) throws Exception {
+			AtomicBoolean chooserCancelled, AtomicReference<Throwable> chooserFailure, String route,
+			AtomicReference<Instant> providerStartedAt, AtomicReference<Instant> providerReturnedAt,
+			AtomicReference<String> ownerAtProviderEntry, AtomicReference<Window> ownerWindowAtProviderEntry) throws Exception {
 		activateWindowForRobot(robot, false);
 		chooserCallStarted.set(false);
 		chooserCallReturned.set(false);
 		chooserCancelled.set(false);
 		chooserFailure.set(null);
+		providerStartedAt.set(null);
+		providerReturnedAt.set(null);
+		ownerAtProviderEntry.set("not-entered");
+		ownerWindowAtProviderEntry.set(null);
 		BufferedImage beforeOpen = captureScreen(robot);
 		String windowsBeforeOpen = snapshotNativeChooserWindows();
 		Instant chooserInvokedAt = Instant.now();
 		captureNativeChooserScreen(beforeOpen, "issue-398-native-" + route.toLowerCase(Locale.ROOT).replace(' ', '-')
 			+ "-before-open.png");
+		NativeChooserWindowEventProbe windowEvents = startNativeChooserWindowEventProbe(route + "-cancel");
 		try {
 			openCommand.run();
 			GuiAcceptanceSupport.await(chooserCallStarted::get,
@@ -1116,9 +1163,11 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			captureNativeChooserScreen(robot, "issue-398-native-ribbon-after-cancel.png");
 		} catch (Exception | Error failure) {
 			captureNativeChooserFailureDiagnostics(route + "-cancel", robot, beforeOpen, chooserCallStarted,
-				chooserCallReturned, chooserCancelled, chooserFailure, windowsBeforeOpen, chooserInvokedAt, failure);
+				chooserCallReturned, chooserCancelled, chooserFailure, windowsBeforeOpen, chooserInvokedAt, failure,
+				providerStartedAt, providerReturnedAt, ownerAtProviderEntry, ownerWindowAtProviderEntry.get(), windowEvents);
 			throw failure;
 		} finally {
+			windowEvents.close();
 			if (chooserCallStarted.get() && !chooserCallReturned.get()) {
 				robot.keyPress(java.awt.event.KeyEvent.VK_ESCAPE);
 				try {
@@ -1216,8 +1265,10 @@ class RibbonExternalCommandGuiAcceptanceTest {
 
 	private static String awaitNativeChooserSnapshot(String route) throws IOException {
 		long deadlineNanos = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(4);
+		long deadlineEpochMillis = System.currentTimeMillis() + java.util.concurrent.TimeUnit.SECONDS.toMillis(4);
 		long deadlineUtcTicks = 621355968000000000L
-			+ (System.currentTimeMillis() + java.util.concurrent.TimeUnit.SECONDS.toMillis(4)) * 10_000L;
+			+ deadlineEpochMillis * 10_000L;
+		Instant deadlineUtc = Instant.ofEpochMilli(deadlineEpochMillis);
 		String routeName = route.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9-]", "-");
 		Path projectDirectory = Path.of(System.getProperty("microproject.project.dir", ".")).toAbsolutePath();
 		Path script = projectDirectory.resolve(".github").resolve("scripts").resolve("capture-gui-desktop-state.ps1");
@@ -1228,24 +1279,31 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			Long.toString(ProcessHandle.current().pid()), "-WaitForNativeChooser", "-DeadlineUtcTicks",
 			Long.toString(deadlineUtcTicks)).redirectErrorStream(true).redirectOutput(output.toFile()).start();
 		try {
-			long remainingNanos = deadlineNanos - System.nanoTime();
-			if (remainingNanos <= 0 || !process.waitFor(remainingNanos, java.util.concurrent.TimeUnit.NANOSECONDS)) {
-				// Let the bounded probe flush its deadline-stage diagnostics before forcing cleanup.
-				if (!process.waitFor(250, java.util.concurrent.TimeUnit.MILLISECONDS)) {
-					process.destroyForcibly();
-					process.waitFor(250, java.util.concurrent.TimeUnit.MILLISECONDS);
-				}
-				String partial = Files.exists(output) ? Files.readString(output) : "(no output)";
-				throw new IOException(route + " native chooser was not ready within 4 seconds; output=" + output + "\n" + partial);
-			}
-			String snapshot = Files.exists(output) ? Files.readString(output) : "";
-			if (process.exitValue() != 0)
-				throw new IOException("Native chooser probe exited " + process.exitValue() + "; output=" + output + "\n" + snapshot);
-			return snapshot;
+			NativeChooserProbeCompletion.Result result = NativeChooserProbeCompletion.await(process,
+				() -> readNativeChooserProbeOutput(output), deadlineNanos, deadlineUtc,
+				java.time.Duration.ofSeconds(2), java.time.Duration.ofMillis(250));
+			if (result.status() == NativeChooserProbeCompletion.Status.COMPLETE) return result.output();
+			if (result.status() == NativeChooserProbeCompletion.Status.PROCESS_FAILED)
+				throw new IOException("Native chooser probe exited " + result.exitCode() + "; output=" + output + "\n" + result.output());
+			process.destroyForcibly();
+			process.waitFor(250, java.util.concurrent.TimeUnit.MILLISECONDS);
+			if (result.status() == NativeChooserProbeCompletion.Status.READY_BUT_INCOMPLETE)
+				throw new IOException(route + " chooser was ready by the 4-second deadline but the probe snapshot did not finish its bounded 2-second serialization drain; output="
+					+ output + "\n" + readNativeChooserProbeOutput(output));
+			throw new IOException(route + " native chooser was not ready within 4 seconds; output=" + output + "\n"
+				+ readNativeChooserProbeOutput(output));
 		} catch (InterruptedException interrupted) {
 			Thread.currentThread().interrupt();
 			process.destroyForcibly();
 			throw new IOException("Native chooser probe interrupted; output=" + output, interrupted);
+		}
+	}
+
+	private static String readNativeChooserProbeOutput(Path output) {
+		try {
+			return Files.exists(output) ? Files.readString(output) : "(no output)";
+		} catch (IOException failure) {
+			return "(unable to read probe output: " + failure + ")";
 		}
 	}
 
@@ -1262,6 +1320,83 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			return new Rectangle(x, y, width, height);
 		} catch (NumberFormatException invalidBounds) {
 			return null;
+		}
+	}
+
+	private static final class NativeChooserWindowEventProbe implements AutoCloseable {
+		private final Process process;
+		private final Path logFile;
+		private final Path stopFile;
+		private final String unavailableReason;
+		private boolean retained;
+
+		private NativeChooserWindowEventProbe(Process process, Path logFile, Path stopFile, String unavailableReason) {
+			this.process = process;
+			this.logFile = logFile;
+			this.stopFile = stopFile;
+			this.unavailableReason = unavailableReason;
+		}
+
+		static NativeChooserWindowEventProbe unavailable(String reason) {
+			return new NativeChooserWindowEventProbe(null, null, null, reason);
+		}
+
+		static NativeChooserWindowEventProbe start(String route) throws Exception {
+			Path directory = guiArtifactDirectory();
+			Files.createDirectories(directory);
+			String name = "issue-398-native-" + route.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9-]", "-")
+				+ "-window-events";
+			Path log = directory.resolve(name + ".txt");
+			Path stop = directory.resolve(name + ".stop");
+			Files.deleteIfExists(log);
+			Files.deleteIfExists(stop);
+			Path script = Path.of(System.getProperty("microproject.project.dir", ".")).toAbsolutePath()
+				.resolve(".github").resolve("scripts").resolve("capture-gui-desktop-state.ps1");
+			Process watcher = new ProcessBuilder("powershell.exe", "-NoLogo", "-NoProfile", "-NonInteractive",
+				"-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass", "-File", script.toString(), "-TargetPid",
+				Long.toString(ProcessHandle.current().pid()), "-WatchNativeChooserLifecycle", "-LogFile", log.toString(),
+				"-StopFile", stop.toString()).redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
+			long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(2);
+			while (System.nanoTime() < deadline && watcher.isAlive()) {
+				if (Files.exists(log) && Files.readString(log).contains("windowEventWatchStartedUtc="))
+					return new NativeChooserWindowEventProbe(watcher, log, stop, null);
+				Thread.sleep(20);
+			}
+			watcher.destroyForcibly();
+			return unavailable("window-event watcher did not become ready; exit="
+				+ (watcher.isAlive() ? "running" : watcher.exitValue()));
+		}
+
+		String stopAndRead() throws IOException {
+			if (process == null) return "windowEventStatus=unavailable reason=" + unavailableReason;
+			try {
+				Files.writeString(stopFile, "stop");
+				if (!process.waitFor(1, java.util.concurrent.TimeUnit.SECONDS)) {
+					process.destroyForcibly();
+					process.waitFor(1, java.util.concurrent.TimeUnit.SECONDS);
+				}
+			} catch (InterruptedException interrupted) {
+				Thread.currentThread().interrupt();
+				throw new IOException("Interrupted while stopping native chooser event probe", interrupted);
+			}
+			String events = Files.exists(logFile) ? Files.readString(logFile) : "(no event log)";
+			if (events.length() > 32 * 1024) events = events.substring(0, 32 * 1024) + "\n[truncated at 32 KiB]";
+			retained = true;
+			return "path=" + logFile + " exit=" + (process.isAlive() ? "still-running" : process.exitValue())
+				+ "\n" + events;
+		}
+
+		@Override
+		public void close() {
+			if (process == null) return;
+			try {
+				Files.writeString(stopFile, "stop");
+				if (!process.waitFor(1, java.util.concurrent.TimeUnit.SECONDS)) process.destroyForcibly();
+				if (!retained) Files.deleteIfExists(logFile);
+				Files.deleteIfExists(stopFile);
+			} catch (Exception ignored) {
+				process.destroyForcibly();
+			}
 		}
 	}
 
@@ -1284,15 +1419,28 @@ class RibbonExternalCommandGuiAcceptanceTest {
 	private static void captureNativeChooserFailureDiagnostics(String route, Robot robot, BufferedImage beforeOpen,
 			AtomicBoolean chooserCallStarted, AtomicBoolean chooserCallReturned, AtomicBoolean chooserCancelled,
 			AtomicReference<Throwable> chooserFailure, String windowsBeforeOpen, Instant chooserInvokedAt,
-			Throwable originalFailure) {
+			Throwable originalFailure, AtomicReference<Instant> providerStartedAt,
+			AtomicReference<Instant> providerReturnedAt, AtomicReference<String> ownerAtProviderEntry, Window owner,
+			NativeChooserWindowEventProbe windowEvents) {
 		Instant capturedAt = Instant.now();
 		String diagnostic = "Native chooser failure snapshot route=" + route + " capturedUtc=" + capturedAt
 			+ " chooserInvokedUtc=" + chooserInvokedAt
 			+ " elapsedMs=" + Duration.between(chooserInvokedAt, capturedAt).toMillis()
+			+ " providerStartedUtc=" + providerStartedAt.get()
+			+ " providerReturnedUtc=" + providerReturnedAt.get()
+			+ " ownerAtProviderEntry=" + ownerAtProviderEntry.get()
+			+ " ownerHwndSource=targetPidWin32SnapshotMatchByTitle"
+			+ " ownerAfterFailure=" + describeChooserOwner(owner)
 			+ " state=" + describeNativeChooserState(chooserCallStarted, chooserCallReturned, chooserCancelled,
 				chooserFailure, windowsBeforeOpen);
 		System.err.println(diagnostic);
 		originalFailure.addSuppressed(new AssertionError(diagnostic));
+		try {
+			String events = windowEvents.stopAndRead();
+			originalFailure.addSuppressed(new AssertionError("Native chooser HWND lifecycle timeline:\n" + events));
+		} catch (Exception captureFailure) {
+			originalFailure.addSuppressed(captureFailure);
+		}
 		try {
 			String dump = captureNativeChooserThreadDump(route, chooserInvokedAt);
 			originalFailure.addSuppressed(new AssertionError("Full JVM thread dump saved and printed: " + dump));
@@ -1311,6 +1459,113 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		} catch (Exception captureFailure) {
 			originalFailure.addSuppressed(captureFailure);
 		}
+		try {
+			String nativeStack = captureNativeChooserOsThreadStack(chooserCallStarted.get(), chooserCallReturned.get());
+			originalFailure.addSuppressed(new AssertionError("Native chooser OS-thread stack:\n" + nativeStack));
+		} catch (Exception captureFailure) {
+			originalFailure.addSuppressed(captureFailure);
+		}
+	}
+
+	private static NativeChooserWindowEventProbe startNativeChooserWindowEventProbe(String route) {
+		try {
+			return NativeChooserWindowEventProbe.start(route);
+		} catch (Exception unavailable) {
+			return NativeChooserWindowEventProbe.unavailable(unavailable.toString());
+		}
+	}
+
+	private static String captureNativeChooserOsThreadStack(boolean chooserStarted, boolean chooserReturned) throws IOException {
+		Path output = guiArtifactDirectory().resolve("issue-398-native-os-thread-stack.txt");
+		Files.createDirectories(output.getParent());
+		if (!chooserStarted || chooserReturned) {
+			String skipped = "nativeStackStatus=skipped chooserStarted=" + chooserStarted + " chooserReturned=" + chooserReturned;
+			Files.writeString(output, skipped + System.lineSeparator());
+			return skipped;
+		}
+		String cdb = "C:\\Program Files (x86)\\Windows Kits\\10\\Debuggers\\x64\\cdb.exe";
+		if (!Files.isRegularFile(Path.of(cdb))) {
+			String unavailable = "nativeStackStatus=unavailable reason=cdb-not-installed expected=" + cdb;
+			Files.writeString(output, unavailable + System.lineSeparator());
+			return unavailable;
+		}
+		long pid = ProcessHandle.current().pid();
+		Path jcmd = Path.of(System.getProperty("java.home"), "bin", "jcmd.exe");
+		if (!Files.isRegularFile(jcmd)) {
+			String unavailable = "nativeStackStatus=unavailable reason=jcmd-not-found path=" + jcmd;
+			Files.writeString(output, unavailable + System.lineSeparator());
+			return unavailable;
+		}
+		Path jcmdOutput = guiArtifactDirectory().resolve("issue-398-native-jcmd-threads.txt");
+		Process dumpProcess = new ProcessBuilder(jcmd.toString(), Long.toString(pid), "Thread.print", "-l")
+			.redirectErrorStream(true).redirectOutput(jcmdOutput.toFile()).start();
+		String javaDump;
+		try {
+			if (!dumpProcess.waitFor(3, java.util.concurrent.TimeUnit.SECONDS)) {
+				dumpProcess.destroyForcibly();
+				Files.deleteIfExists(jcmdOutput);
+				String unavailable = "nativeStackStatus=unavailable reason=jcmd-timeout";
+				Files.writeString(output, unavailable + System.lineSeparator());
+				return unavailable;
+			}
+			javaDump = Files.readString(jcmdOutput, java.nio.charset.StandardCharsets.UTF_8);
+			Files.deleteIfExists(jcmdOutput);
+		} catch (InterruptedException interrupted) {
+			Thread.currentThread().interrupt();
+			Files.deleteIfExists(jcmdOutput);
+			throw new IOException("Interrupted while locating the native chooser thread", interrupted);
+		}
+		java.util.regex.Matcher match = java.util.regex.Pattern
+			.compile("(?m)^\\\"FlatLaf SystemFileChooser\\\"[^\\r\\n]*?\\[(\\d+)\\]").matcher(javaDump);
+		if (!match.find()) {
+			String unavailable = "nativeStackStatus=unavailable reason=chooser-os-tid-not-reported-by-jcmd";
+			Files.writeString(output, unavailable + System.lineSeparator());
+			return unavailable;
+		}
+		long tid = Long.parseLong(match.group(1));
+		String command = "~~[0x" + Long.toHexString(tid) + "]s; k 20; qd";
+		Process debugger = new ProcessBuilder(cdb, "-p", Long.toString(pid), "-c", command)
+			.redirectErrorStream(true).redirectOutput(output.toFile()).start();
+		try {
+			if (!debugger.waitFor(8, java.util.concurrent.TimeUnit.SECONDS)) {
+				debugger.destroyForcibly();
+				debugger.waitFor(1, java.util.concurrent.TimeUnit.SECONDS);
+				Files.writeString(output, "nativeStackStatus=unavailable reason=cdb-timeout pid=" + pid + " tid=" + tid
+					+ System.lineSeparator(), java.nio.charset.StandardCharsets.UTF_8);
+			} else if (debugger.exitValue() != 0) {
+				Files.writeString(output, "nativeStackStatus=unavailable reason=cdb-exit-" + debugger.exitValue()
+					+ " pid=" + pid + " tid=" + tid + System.lineSeparator(), java.nio.charset.StandardCharsets.UTF_8,
+					java.nio.file.StandardOpenOption.APPEND);
+			}
+		} catch (InterruptedException interrupted) {
+			Thread.currentThread().interrupt();
+			debugger.destroyForcibly();
+			throw new IOException("Interrupted while capturing native chooser thread", interrupted);
+		}
+		String stack = Files.readString(output, java.nio.charset.StandardCharsets.UTF_8);
+		if (stack.length() > 64 * 1024) stack = stack.substring(0, 64 * 1024) + "\n[truncated at 64 KiB]";
+		Files.writeString(output, stack, java.nio.charset.StandardCharsets.UTF_8);
+		return "path=" + output + " pid=" + pid + " tid=" + tid + " bytes=" + stack.length() + "\n" + stack;
+	}
+
+	private static Window resolveChooserOwner(Object parent) {
+		Component component = parent instanceof Component ? (Component) parent : null;
+		return parent instanceof Window ? (Window) parent
+			: component == null ? null : SwingUtilities.getWindowAncestor(component);
+	}
+
+	private static String describeChooserOwner(Object parent) {
+		Window owner = resolveChooserOwner(parent);
+		if (owner == null)
+			return "parent=" + (parent == null ? "null" : parent.getClass().getName()) + ",window=none";
+		return "parent=" + (parent == null ? "null" : parent.getClass().getName())
+			+ ",window=" + owner.getClass().getName()
+			+ "@" + Integer.toHexString(System.identityHashCode(owner))
+			+ ",title=" + (owner instanceof Frame frame ? frame.getTitle() : "")
+			+ ",displayable=" + owner.isDisplayable() + ",showing=" + owner.isShowing()
+			+ ",active=" + owner.isActive() + ",focused=" + owner.isFocused()
+			+ ",bounds=" + owner.getBounds()
+			+ ",providerThread=" + Thread.currentThread().getName() + "#" + Thread.currentThread().getId();
 	}
 
 	private static String captureNativeChooserThreadDump(String route, Instant chooserInvokedAt) throws IOException {
@@ -1645,7 +1900,6 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		String targetName = switch (commandId) {
 			case "RibbonSaveProject" -> "officeBackstageNav-save";
 			case "RibbonCloseProject" -> "officeBackstageNav-close";
-			case "RibbonLocale" -> "officeBackstageNav-locale";
 			default -> "officeBackstageCommand-" + commandId;
 		};
 		if (findNamedOnEdt(frame, "officeBackstageOverlay") == null) {
@@ -1691,12 +1945,12 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			case "RibbonNewProject", "RibbonNewMasterProject" -> "new";
 			case "RibbonOpenProject", "RibbonRecentProjects" -> "open";
 			case "RibbonBackstageProjectInformation" -> "info";
-			case "RibbonBackstageOptions" -> "options";
+			case "RibbonBackstageOptions", "RibbonLocale" -> "options";
 			case "RibbonSaveProject" -> null;
 			case "RibbonSaveProjectAs", "RibbonSaveMpoAs" -> "saveAs";
 			case "RibbonPrint", "RibbonPrintPreview", "RibbonPDF" -> "print";
 			case "RibbonImportProject", "RibbonExportProject" -> "export";
-			case "RibbonCloseProject", "RibbonLocale" -> null;
+			case "RibbonCloseProject" -> null;
 			default -> throw new IllegalArgumentException("Not a Backstage command: " + commandId);
 		};
 	}
@@ -1883,7 +2137,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 
 		void open() {
 			Toolkit.getDefaultToolkit().addAWTEventListener(this,
-				AWTEvent.WINDOW_EVENT_MASK | AWTEvent.WINDOW_FOCUS_EVENT_MASK);
+				AWTEvent.WINDOW_EVENT_MASK | AWTEvent.WINDOW_FOCUS_EVENT_MASK | AWTEvent.MOUSE_EVENT_MASK);
 		}
 
 		void close() {
@@ -1894,6 +2148,15 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			if (event instanceof WindowEvent windowEvent) {
 				Window changed = windowEvent.getWindow();
 				events.add(windowEvent.getID() + " " + describeWindow(changed) + " | " + describeAllWindows());
+			} else if (event instanceof MouseEvent mouseEvent
+					&& (mouseEvent.getID() == MouseEvent.MOUSE_PRESSED || mouseEvent.getID() == MouseEvent.MOUSE_RELEASED)) {
+				Component source = mouseEvent.getComponent();
+				Point screen = new Point(mouseEvent.getX(), mouseEvent.getY());
+				try { SwingUtilities.convertPointToScreen(screen, source); }
+				catch (IllegalComponentStateException ignored) { }
+				String target = source instanceof AbstractButton button ? describeButton(button)
+					: source.getClass().getSimpleName() + "[bounds=" + source.getBounds() + "]";
+				events.add("mouse " + mouseEvent.getID() + " screen=" + screen + " target=" + target);
 			}
 		}
 
@@ -1955,13 +2218,65 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		String swingSaveLabel = UIManager.getString("FileChooser.saveButtonText");
 		if (swingSaveLabel != null) saveLabels.add(swingSaveLabel);
 		saveLabels.add(Messages.getString("Text.Save"));
+		List<AbstractButton> candidates = new ArrayList<>();
 		for (Component component : flatten(chooserWindow)) {
 			if (component instanceof AbstractButton button && button.isShowing()
 					&& ("ApproveSelection".equals(button.getActionCommand())
 						|| saveLabels.contains(button.getText())))
-				return button;
+				candidates.add(button);
 		}
-		return null;
+		if (candidates.size() != 1)
+			throw new AssertionError("Expected exactly one visible Save As approve button, found " + candidates.size()
+				+ "; candidates=" + candidates.stream().map(RibbonExternalCommandGuiAcceptanceTest::describeButton)
+					.toList() + "; all buttons=" + flatten(chooserWindow).stream()
+					.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+					.map(RibbonExternalCommandGuiAcceptanceTest::describeButton).toList());
+		return candidates.get(0);
+	}
+
+	private static String saveAsChooserDiagnostics(Window chooserWindow, AbstractButton approveButton) throws Exception {
+		AtomicReference<String> snapshot = new AtomicReference<>();
+		SwingUtilities.invokeAndWait(() -> {
+			JFileChooser chooser = findFileChooser(chooserWindow);
+			JTextField nameField = findFileChooserNameField(chooserWindow);
+			java.awt.Container viewport = SwingUtilities.getAncestorOfClass(javax.swing.JViewport.class, approveButton);
+			String viewportState = viewport instanceof javax.swing.JViewport view
+				? "viewportBounds=" + safeScreenBounds(view)
+					+ ", viewPosition=" + view.getViewPosition() + ", viewSize=" + view.getViewSize()
+				: "viewport=none";
+			KeyboardFocusManager focus = KeyboardFocusManager.getCurrentKeyboardFocusManager();
+			snapshot.set("dialog=" + WindowTrace.describeWindow(chooserWindow)
+				+ "\nchooser.selectedFile=" + chooser.getSelectedFile()
+				+ ", currentDirectory=" + chooser.getCurrentDirectory()
+				+ ", nameFieldText='" + nameField.getText() + "', nameFieldBounds=" + nameField.getBounds()
+				+ ", nameFieldFocus=" + nameField.isFocusOwner()
+				+ "\napprove=" + describeButton(approveButton)
+				+ ", approveScreenBounds=" + safeScreenBounds(approveButton)
+				+ ", " + viewportState
+				+ "\nactive=" + WindowTrace.describeWindow(focus.getActiveWindow())
+				+ ", focused=" + WindowTrace.describeWindow(focus.getFocusedWindow())
+				+ ", focusOwner=" + (focus.getFocusOwner() == null ? "none"
+					: focus.getFocusOwner().getClass().getName() + "[" + focus.getFocusOwner().getName() + "]"));
+		});
+		return snapshot.get();
+	}
+
+	private static String safeScreenBounds(Component component) {
+		try { return new Rectangle(component.getLocationOnScreen(), component.getSize()).toString(); }
+		catch (IllegalComponentStateException notShowing) { return "unavailable(" + notShowing.getMessage() + ")"; }
+	}
+
+	private static String describeButton(AbstractButton button) {
+		String location;
+		try {
+			location = button.getLocationOnScreen().toString();
+		} catch (IllegalComponentStateException notShowing) {
+			location = "unavailable";
+		}
+		return "{" + button.getClass().getSimpleName() + ",text='" + button.getText()
+			+ "',action='" + button.getActionCommand() + "',showing=" + button.isShowing()
+			+ ",enabled=" + button.isEnabled() + ",bounds=" + button.getBounds()
+			+ ",screenLocation=" + location + "}";
 	}
 
 	private static AbstractButton findFileChooserCancelButton(Window chooserWindow) {

@@ -102,6 +102,7 @@ public final class CriticalChainService {
 		private ResourceLevelingService.Order levelingOrder = ResourceLevelingService.Order.PRIORITY_STANDARD;
 		private boolean onlyWithinAvailableSlack;
 		private boolean allowTaskSplits = true;
+		private boolean levelAssignments = true;
 		private boolean includeProposedResources;
 		private boolean levelManuallyScheduledTasks;
 		private ResourceLevelingService.Sensitivity sensitivity = ResourceLevelingService.Sensitivity.DAY;
@@ -123,6 +124,8 @@ public final class CriticalChainService {
 		public void setOnlyWithinAvailableSlack(boolean onlyWithinAvailableSlack) { this.onlyWithinAvailableSlack = onlyWithinAvailableSlack; }
 		public boolean isAllowTaskSplits() { return allowTaskSplits; }
 		public void setAllowTaskSplits(boolean allowTaskSplits) { this.allowTaskSplits = allowTaskSplits; }
+		public boolean isLevelAssignments() { return levelAssignments; }
+		public void setLevelAssignments(boolean levelAssignments) { this.levelAssignments = levelAssignments; }
 		public boolean isIncludeProposedResources() { return includeProposedResources; }
 		public void setIncludeProposedResources(boolean includeProposedResources) { this.includeProposedResources = includeProposedResources; }
 		public boolean isLevelManuallyScheduledTasks() { return levelManuallyScheduledTasks; }
@@ -138,6 +141,7 @@ public final class CriticalChainService {
 			copy.levelingOrder = levelingOrder;
 			copy.onlyWithinAvailableSlack = onlyWithinAvailableSlack;
 			copy.allowTaskSplits = allowTaskSplits;
+			copy.levelAssignments = levelAssignments;
 			copy.includeProposedResources = includeProposedResources;
 			copy.levelManuallyScheduledTasks = levelManuallyScheduledTasks;
 			copy.sensitivity = sensitivity;
@@ -266,7 +270,7 @@ public final class CriticalChainService {
 		Objects.requireNonNull(settings, "settings");
 		ResourceLevelingService.Options options = new ResourceLevelingService.Options(settings.getLevelingOrder(),
 			settings.isOnlyWithinAvailableSlack(), settings.isAllowTaskSplits(), Long.MIN_VALUE, Long.MAX_VALUE,
-			settings.isIncludeProposedResources(), settings.getSensitivity(), settings.isLevelManuallyScheduledTasks());
+			settings.isIncludeProposedResources(), settings.getSensitivity(), settings.isLevelAssignments(), settings.isLevelManuallyScheduledTasks());
 		ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(project, resources, options);
 		return analyze(project, plan, settings, resources);
 	}
@@ -293,6 +297,7 @@ public final class CriticalChainService {
 			settings.setLevelingOrder(requestedSettings.getLevelingOrder());
 			settings.setOnlyWithinAvailableSlack(requestedSettings.isOnlyWithinAvailableSlack());
 			settings.setAllowTaskSplits(requestedSettings.isAllowTaskSplits());
+			settings.setLevelAssignments(requestedSettings.isLevelAssignments());
 			settings.setIncludeProposedResources(requestedSettings.isIncludeProposedResources());
 			settings.setLevelManuallyScheduledTasks(requestedSettings.isLevelManuallyScheduledTasks());
 			settings.setSensitivity(requestedSettings.getSensitivity());
@@ -301,7 +306,7 @@ public final class CriticalChainService {
 			}
 			ResourceLevelingService.Options options = new ResourceLevelingService.Options(settings.getLevelingOrder(),
 				settings.isOnlyWithinAvailableSlack(), settings.isAllowTaskSplits(), Long.MIN_VALUE, Long.MAX_VALUE,
-				settings.isIncludeProposedResources(), settings.getSensitivity(), settings.isLevelManuallyScheduledTasks());
+				settings.isIncludeProposedResources(), settings.getSensitivity(), settings.isLevelAssignments(), settings.isLevelManuallyScheduledTasks());
 			ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(project, resources, options);
 			plan.apply(editSupport);
 			Analysis analysis = analyze(project, plan, settings, resources);
@@ -399,7 +404,9 @@ public final class CriticalChainService {
 			result = 31L * result + settings.getLevelingOrder().ordinal();
 			result = 31L * result + (settings.isOnlyWithinAvailableSlack() ? 1L : 0L);
 			result = 31L * result + (settings.isAllowTaskSplits() ? 1L : 0L);
+			result = 31L * result + (settings.isLevelAssignments() ? 1L : 0L);
 			result = 31L * result + (settings.isIncludeProposedResources() ? 1L : 0L);
+			result = 31L * result + (settings.isLevelManuallyScheduledTasks() ? 1L : 0L);
 		}
 		for (Task task : ProjectHierarchyQueries.outline(project)) {
 			result = 31L * result + task.getUniqueId();
