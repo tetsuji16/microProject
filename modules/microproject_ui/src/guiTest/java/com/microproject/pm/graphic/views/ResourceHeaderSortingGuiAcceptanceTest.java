@@ -339,6 +339,34 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 				"Workspace restore should preserve the selected resource identity");
 			assertEquals(originalOrder, pool.getResourceList(), "Workspace sort restore must remain view-only");
 		});
+		// Multi-key: Name ascending, then Standard Rate descending breaks the former Alpha tie.
+		SwingUtilities.invokeAndWait(() -> tiedAlpha.setStandardRate(new Rate(75)));
+		click(robot, findShowingButtonByCommand(window, "RibbonChooseSort"));
+		GuiAcceptanceSupport.await(() -> findDialogWith(ResourceSortOrderPanel.class) != null,
+			"Resource Sort Order dialog did not reopen for the multi-key step");
+		JDialog multiKeyDialog = findDialogWith(ResourceSortOrderPanel.class);
+		JComboBox<?> secondField = (JComboBox<?>) flatten(multiKeyDialog).stream()
+			.filter(component -> "microproject.resourceSort.key2".equals(component.getName())).findFirst()
+			.orElseThrow(() -> new AssertionError("Second sort key control is missing"));
+		JComboBox<?> secondDirection = (JComboBox<?>) flatten(multiKeyDialog).stream()
+			.filter(component -> "microproject.resourceSort.direction2".equals(component.getName())).findFirst()
+			.orElseThrow(() -> new AssertionError("Second sort direction control is missing"));
+		// Item 0 of the optional keys is the empty choice, so fields are offset by one.
+		GuiAcceptanceSupport.selectComboBoxItem(robot, secondField, standardRateIndex + 1);
+		GuiAcceptanceSupport.selectComboBoxItem(robot, secondDirection, 1);
+		click(robot, findShowingButtonByText(multiKeyDialog, UIManager.getString("OptionPane.okButtonText")));
+		GuiAcceptanceSupport.await(() -> visibleTestResources(sheet, testResources)
+			.equals(List.of(emptyName, tiedAlpha, alpha, zulu)),
+			"the second key (Standard Rate descending) did not break the Name tie");
+		assertEquals(RibbonCommandResult.Status.CHANGED, manager.getLastRibbonCommandResult().status());
+		ResourceView.Workspace multiKeyWorkspace = (ResourceView.Workspace) resourceView.createWorkspace(0);
+		assertEquals("Field.name", multiKeyWorkspace.getSortedFieldId());
+		assertEquals(List.of("-Field.standardRate"), List.of(multiKeyWorkspace.getAdditionalSortKeys()));
+		assertEquals(originalOrder, pool.getResourceList(), "multi-key sorting must remain view-only");
+		SwingUtilities.invokeAndWait(() -> resourceView.restoreWorkspace(multiKeyWorkspace, 0));
+		GuiAcceptanceSupport.await(() -> visibleTestResources(sheet, testResources)
+			.equals(List.of(emptyName, tiedAlpha, alpha, zulu)),
+			"restoring the saved Workspace did not restore both sort keys");
 	}
 
 	@Test
