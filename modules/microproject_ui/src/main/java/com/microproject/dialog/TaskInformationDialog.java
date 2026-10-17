@@ -49,6 +49,7 @@ import com.microproject.menu.MenuActionConstants;
 import com.microproject.pm.graphic.frames.DocumentFrame;
 import com.microproject.pm.graphic.frames.DocumentSelectedEvent;
 import com.microproject.pm.graphic.frames.GraphicManager;
+import com.microproject.pm.graphic.collaboration.CollaborationHelper;
 import com.microproject.pm.graphic.gantt.Gantt;
 import com.microproject.pm.graphic.gantt.GanttRenderer;
 import com.microproject.graphic.configuration.GanttBarFormatOverrides.BarFormat;
@@ -70,6 +71,8 @@ import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.task.SubProj;
 import com.microproject.pm.task.Task;
+import com.microproject.pm.task.TaskInactivationService;
+import com.microproject.pm.graphic.undo.SwingUndoAdapter;
 import com.microproject.strings.Messages;
 import com.microproject.util.Alert;
 import com.microproject.util.FlatUiSupport;
@@ -137,7 +140,7 @@ public class TaskInformationDialog extends InformationDialog {
 		Task task = (Task) getObject();
 		if (task == null || generalPanel == null)
 			return;
-		generalPanel.refresh(currentBarFormat(task), task.isReadOnly());
+		generalPanel.refresh(currentBarFormat(task), task.isReadOnly(), task.isInactiveTask());
 	}
 
 	public void setObject(Object object) {
@@ -254,8 +257,24 @@ public class TaskInformationDialog extends InformationDialog {
 		Gantt gantt = getGantt();
 		GanttRenderer.DisplayedBarColors displayed = gantt == null
 				? new GanttRenderer.DisplayedBarColors(null, null, null) : gantt.getDisplayedBarColors(task);
-		generalPanel = new TaskGeneralPanel(this, map, task, currentBarFormat(task), displayed);
+		generalPanel = new TaskGeneralPanel(this, map, task, currentBarFormat(task), displayed,
+			this::setInactiveTaskFromGeneralTab);
 		return generalPanel.component();
+	}
+
+	private void setInactiveTaskFromGeneralTab(boolean inactive) {
+		Task task = (Task) getObject();
+		if (task == null || task.isReadOnly() || task.getOwningProject() == null) {
+			updateAll();
+			return;
+		}
+		if (!CollaborationHelper.tryLockNodes(task.getOwningProject(), List.of(task), this, "inactivate")) {
+			updateAll();
+			return;
+		}
+		var result = new TaskInactivationService().setInactive(List.of(task), inactive);
+		if (result.change().hasChanged())
+			SwingUndoAdapter.post(task.getOwningProject().getUndoController().getEditSupport(), result.change());
 	}
 
 	private JComponent createAdvancedPanel(){

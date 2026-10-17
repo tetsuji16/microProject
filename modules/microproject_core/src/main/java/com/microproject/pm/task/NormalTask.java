@@ -1199,13 +1199,13 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 
 	public double cost(long start, long end) {
 		if (isParentWithoutAssignments())
-			return TimeDistributedDataConsolidator.cost(start, end, rollupValues());
+			return TimeDistributedDataConsolidator.cost(start, end, activeRollupValues());
 		return ((TaskSnapshot) getCurrentSnapshot()).cost(start, end);
 	}
 
 	public long work(long start, long end) {
 		if (isParentWithoutAssignments())
-			return TimeDistributedDataConsolidator.work(start, end, rollupValues(), false);
+			return TimeDistributedDataConsolidator.work(start, end, activeRollupValues(), false);
 		return ((TaskSnapshot) getCurrentSnapshot()).work(start, end);
 	}
 
@@ -1396,7 +1396,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	 */
 	public double fixedCost(long start, long end) {
 		if (isParentWithoutAssignments()) {
-			return TimeDistributedDataConsolidator.fixedCost(start, end, rollupValues());
+			return TimeDistributedDataConsolidator.fixedCost(start, end, activeRollupValues());
 		}
 		return FixedCostAccrualCalculator.calculate(Accrual.Kind.fromCodeOrNull(getFixedCostAccrual()),
 			getFixedCost(), getStart(), getEnd(), getDurationMillis(), getEffectiveWorkCalendar(), start, end);
@@ -1707,6 +1707,13 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		// childrenToRollup returns either assignments or WBS tasks; both implement
 		// HasTimeDistributedData, preserving the existing unfiltered summary rollup.
 		return (Collection<? extends HasTimeDistributedData>) childrenToRollup();
+	}
+
+	@SuppressWarnings("unchecked")
+	private Collection<? extends HasTimeDistributedData> activeRollupValues() {
+		if (isInactiveTask()) return rollupValues(); // retain historical task-row totals
+		return (Collection<? extends HasTimeDistributedData>) childrenToRollup().stream()
+			.filter(value -> !(value instanceof Task child) || !child.isInactiveTask()).toList();
 	}
 
 	@SuppressWarnings("unchecked")
