@@ -133,6 +133,8 @@ public class MpxResourceConverter {
 			}
 		}
 		resource.setWorkCalendar(calendar);
+		MpxCustomFieldsConverter.from(mpxResource, resource,
+			com.microproject.server.data.CustomFieldsMapper.getInstance().resourceMaps, defaults);
 	}
 
 	private static Rate fromMpxRate(net.sf.mpxj.Rate rate, DurationDefaults defaults) {
