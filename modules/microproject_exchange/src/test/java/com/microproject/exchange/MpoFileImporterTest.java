@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -339,6 +340,53 @@ class MpoFileImporterTest {
 		restored.consumeIntervals(interval -> projected.add(interval.getStart() + ":" + interval.getEnd()));
 		assertTrue(projected.size() > 1, "reloaded task projection must render the split gap: " + projected
 			+ " / " + restored.getStart() + ".." + restored.getEnd() + " / " + expected);
+	}
+
+	@Test
+	void assignmentLevelingSplitStateSurvivesMpoSaveReloadAndClear() throws Exception {
+		Project original = projectForRoundTrip();
+		NormalTask task = (NormalTask) firstTask(original);
+		Resource resource = original.getResourcePool().newResourceInstance();
+		resource.setName("Leveling resource");
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, this);
+		long beforeDuration = assignment.getDurationMillis();
+		String beforeContour = assignment.getWorkContour().toString(beforeDuration);
+		long from = assignment.getStart() + com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		long to = from + com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		assertTrue(com.microproject.pm.scheduling.ScheduleService.getInstance().splitForLeveling(this, assignment, from, to));
+		ByteArrayOutputStream archive = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(original, archive));
+		Map<String, byte[]> entries = readEntries(archive.toByteArray());
+		com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+		com.fasterxml.jackson.databind.JsonNode sidecar = mapper.readTree(entries.get(MpoFileImporter.ASSIGNMENT_LEVELING_SPLITS_ENTRY));
+		assertEquals(1, sidecar.path("assignments").size());
+		long serializedAssignmentUid = sidecar.path("assignments").get(0).path("assignmentUid").longValue();
+		assertTrue(serializedAssignmentUid > 0L);
+
+		Project reopened = loadFromBytes(archive.toByteArray());
+		NormalTask restoredTask = (NormalTask) firstTask(reopened);
+		Assignment restored = null;
+		for (Object value : restoredTask.getAssignments()) {
+			Assignment candidate = (Assignment) value;
+			if (candidate.getUniqueId() == serializedAssignmentUid) restored = candidate;
+		}
+		assertNotNull(restored, "the sidecar must follow the serializer's native assignment UID mapping");
+		assertNotNull(restored.getLevelingSplitState());
+		new ResourceLevelingService().clear(reopened);
+		assertNull(restored.getLevelingSplitState());
+		assertEquals(beforeDuration, restored.getDurationMillis());
+		assertEquals(beforeContour, restored.getWorkContour().toString(beforeDuration));
+
+		Map<String, byte[]> malformed = new LinkedHashMap<>(entries);
+		com.fasterxml.jackson.databind.node.ObjectNode malformedSidecar = (com.fasterxml.jackson.databind.node.ObjectNode)
+			mapper.readTree(entries.get(MpoFileImporter.ASSIGNMENT_LEVELING_SPLITS_ENTRY));
+		((com.fasterxml.jackson.databind.node.ObjectNode) malformedSidecar.path("assignments").get(0))
+			.put("assignmentUid", Long.MAX_VALUE);
+		byte[] malformedBytes = mapper.writeValueAsBytes(malformedSidecar);
+		malformed.put(MpoFileImporter.ASSIGNMENT_LEVELING_SPLITS_ENTRY, malformedBytes);
+		updateManifestChecksum(malformed, MpoFileImporter.ASSIGNMENT_LEVELING_SPLITS_ENTRY, malformedBytes);
+		assertThrows(IOException.class, () -> loadFromBytes(zip(malformed).toByteArray()),
+			"unknown assignment identities are rejected before split ownership is restored");
 	}
 
 	@Test

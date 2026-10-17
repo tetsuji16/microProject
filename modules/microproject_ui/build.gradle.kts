@@ -148,6 +148,7 @@ tasks.register<Test>("guiTest") {
 		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.robotCalendarCommandOpensUsableCalendarDialog",
 		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.linkAndUnlinkSelectedTasksThroughRibbonRoundTripsDependency",
 		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.respectLinksRibbonRouteMovesTheSelectedManualTaskAndRoundTripsUndoRedoAndMpo",
+		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.inactivateTaskRibbonRouteKeepsTaskVisibleAndSupportsUndoRedoAndMpo",
 		"com.microproject.dialog.calendar.ChangeWorkingTimeDialogGuiAcceptanceTest.robotOpensWorkingTimeDialogAndCancelsWithoutCommit",
 		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.robotNetworkAndWbsRibbonRoutesRenderTheirDedicatedViews",
 		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.indentAndOutdentSelectedTaskThroughRibbonRoundTripsHierarchy",

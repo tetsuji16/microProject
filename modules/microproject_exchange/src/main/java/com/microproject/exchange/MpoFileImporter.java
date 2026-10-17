@@ -61,6 +61,7 @@ import com.microproject.pm.task.Task;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.BaselineAssignmentProfile;
+import com.microproject.pm.assignment.AssignmentLevelingSplitState;
 import com.microproject.pm.assignment.BaselineAssignmentProfile.Bucket;
 import com.microproject.pm.assignment.BaselineAssignmentProfile.Contour;
 import com.microproject.pm.calendar.CalendarDefinition;
@@ -110,6 +111,8 @@ public class MpoFileImporter extends FileImporter {
 	static final String TASK_SCHEDULES_ENTRY = "microproject/task-schedules.json";
 	/** Detached saved-baseline assignment profiles not representable in MSPDI assignments. */
 	static final String BASELINE_PROFILES_ENTRY = "microproject/baseline-profiles.json";
+	/** Assignment-level generated split ownership not represented by MSPDI. */
+	static final String ASSIGNMENT_LEVELING_SPLITS_ENTRY = "microproject/assignment-leveling-splits.json";
 	/** MPOF v1.0 container layout (ODF conventions). */
 	static final String FORMAT_ID = "mpof";
 	/** Container version this build writes; every save rewrites the file at this version. */
@@ -332,6 +335,8 @@ public class MpoFileImporter extends FileImporter {
 			restoreTaskSchedules(project, extensions.entries.get(TASK_SCHEDULES_ENTRY));
 		if (extensions.entries.containsKey(BASELINE_PROFILES_ENTRY))
 			restoreBaselineProfiles(project, extensions.entries.get(BASELINE_PROFILES_ENTRY));
+		if (extensions.entries.containsKey(ASSIGNMENT_LEVELING_SPLITS_ENTRY))
+			restoreAssignmentLevelingSplits(project, extensions.entries.get(ASSIGNMENT_LEVELING_SPLITS_ENTRY));
 		return project;
 	}
 
@@ -441,12 +446,13 @@ public class MpoFileImporter extends FileImporter {
 		}
 		// Merging may apply operations from a concurrent editor.  Serialize only
 		// after that merge so content.xml and the journal describe the same state.
-		byte[] snapshot = serializeProjectXml(outputProject);
+		SerializedProjectXml serialized = serializeProject(outputProject);
+		byte[] snapshot = serialized.xml();
 		operationState.remapTaskIds(readTaskIdentities(taskIdentitiesFor(outputProject, snapshot).getBytes(StandardCharsets.UTF_8)));
 		File temporary = createTemporaryFile(target);
 		boolean completed = false;
 		try (OutputStream out = new FileOutputStream(temporary)) {
-			writeMpo(outputProject, out, snapshot, operationState);
+			writeMpo(outputProject, out, snapshot, operationState, serialized.assignmentUids());
 			completed = true;
 		} finally {
 			if (!completed) {
@@ -511,18 +517,20 @@ public class MpoFileImporter extends FileImporter {
 
 	@Override
 	public boolean saveProject(Project project, OutputStream out) throws Exception {
-		byte[] projectXml = serializeProjectXml(project);
+		SerializedProjectXml serialized = serializeProject(project);
+		byte[] projectXml = serialized.xml();
 		MpoOperationState operationState = workingOperationStateFor(project);
 		operationState.appendChanges(project);
 		ensureOperationCount(operationState.operations);
 		String taskIdentities = taskIdentitiesFor(project, projectXml);
 		operationState.remapTaskIds(readTaskIdentities(taskIdentities.getBytes(StandardCharsets.UTF_8)));
-		boolean written = writeMpo(project, out, projectXml, operationState);
+		boolean written = writeMpo(project, out, projectXml, operationState, serialized.assignmentUids());
 		if (written) commitOperationState(project, operationState);
 		return written;
 	}
 
-	private boolean writeMpo(Project project, OutputStream out, byte[] projectXml, MpoOperationState operationState) throws Exception {
+	private boolean writeMpo(Project project, OutputStream out, byte[] projectXml, MpoOperationState operationState,
+		java.util.Map<Assignment, Integer> assignmentUids) throws Exception {
 		ensureOperationCount(operationState.operations);
 		java.util.List<EmbeddedProject> embeddedProjects = embeddedProjectsFor(project);
 		java.util.LinkedHashMap<String, byte[]> archiveEntries = new java.util.LinkedHashMap<>();
@@ -545,10 +553,11 @@ public class MpoFileImporter extends FileImporter {
 		archiveEntries.put(TASK_SCHEDULES_ENTRY, taskSchedulesJson(project, taskIdentities));
 		archiveEntries.put(BASELINE_PROFILES_ENTRY, baselineProfilesJson(project, taskIdentities,
 			resourceIdentitiesForMpo(project)));
+		archiveEntries.put(ASSIGNMENT_LEVELING_SPLITS_ENTRY, assignmentLevelingSplitsJson(project, assignmentUids));
 		archiveEntries.put(CCPM_HISTORY_ENTRY, ccpmHistoryJson(project));
 		MpoExtensions extensions = project.findTransientDocumentState(MpoExtensions.class);
 		if (extensions != null) for (java.util.Map.Entry<String, byte[]> extension : extensions.entries.entrySet()) {
-			if (MIMETYPE_ENTRY.equals(extension.getKey()) || MANIFEST_ENTRY.equals(extension.getKey()) || META_ENTRY.equals(extension.getKey()) || SETTINGS_ENTRY.equals(extension.getKey()) || CCPM_HISTORY_ENTRY.equals(extension.getKey()) || LAYOUT_ENTRY.equals(extension.getKey()) || VISIBILITY_ENTRY.equals(extension.getKey()) || TASK_SPLITS_ENTRY.equals(extension.getKey()) || TASK_LEVELING_OPTIONS_ENTRY.equals(extension.getKey()) || TASK_TEXT_STYLES_ENTRY.equals(extension.getKey()) || TASK_SCHEDULES_ENTRY.equals(extension.getKey()) || BASELINE_PROFILES_ENTRY.equals(extension.getKey()) || PROJECT_ENTRY.equals(extension.getKey()) || OPERATIONS_ENTRY.equals(extension.getKey()) || TASK_IDENTITIES_ENTRY.equals(extension.getKey()) || extension.getKey().startsWith(EMBEDDED_PROJECT_PREFIX)) continue;
+			if (MIMETYPE_ENTRY.equals(extension.getKey()) || MANIFEST_ENTRY.equals(extension.getKey()) || META_ENTRY.equals(extension.getKey()) || SETTINGS_ENTRY.equals(extension.getKey()) || CCPM_HISTORY_ENTRY.equals(extension.getKey()) || LAYOUT_ENTRY.equals(extension.getKey()) || VISIBILITY_ENTRY.equals(extension.getKey()) || TASK_SPLITS_ENTRY.equals(extension.getKey()) || TASK_LEVELING_OPTIONS_ENTRY.equals(extension.getKey()) || TASK_TEXT_STYLES_ENTRY.equals(extension.getKey()) || TASK_SCHEDULES_ENTRY.equals(extension.getKey()) || BASELINE_PROFILES_ENTRY.equals(extension.getKey()) || ASSIGNMENT_LEVELING_SPLITS_ENTRY.equals(extension.getKey()) || PROJECT_ENTRY.equals(extension.getKey()) || OPERATIONS_ENTRY.equals(extension.getKey()) || TASK_IDENTITIES_ENTRY.equals(extension.getKey()) || extension.getKey().startsWith(EMBEDDED_PROJECT_PREFIX)) continue;
 			archiveEntries.put(extension.getKey(), extension.getValue());
 		}
 		MpoArchiveSnapshot snapshot = snapshotForWrite(project, projectXml, archiveEntries, embeddedProjects);
@@ -692,17 +701,22 @@ public class MpoFileImporter extends FileImporter {
 	}
 
 	private static byte[] serializeProjectXml(Project project) throws IOException {
+		return serializeProject(project).xml();
+	}
+
+	private static SerializedProjectXml serializeProject(Project project) throws IOException {
 		ByteArrayOutputStream xml = new ByteArrayOutputStream();
-		MicrosoftImporter delegate = new MicrosoftImporter();
-		delegate.setFileName(PROJECT_ENTRY);
+		com.microproject.server.data.MSPDISerializer serializer = new com.microproject.server.data.MSPDISerializer();
 		try {
-			delegate.saveProjectOrThrow(project, xml);
+			serializer.saveProjectOrThrow(project, xml);
+			return new SerializedProjectXml(xml.toByteArray(), serializer.exportedAssignmentUniqueIds());
 		} catch (Exception exception) {
 			if (exception instanceof IOException io) throw io;
 			throw new IOException("Unable to serialize mpo project snapshot", exception);
 		}
-		return xml.toByteArray();
 	}
+
+	private record SerializedProjectXml(byte[] xml, java.util.Map<Assignment, Integer> assignmentUids) { }
 
 	private static String taskIdentitiesFor(Project project, byte[] projectXml) throws IOException {
 		ObjectNode root = JSON.createObjectNode();
@@ -978,6 +992,89 @@ public class MpoFileImporter extends FileImporter {
 			target.add(interval);
 		}
 	}
+
+	private static byte[] assignmentLevelingSplitsJson(Project project,
+		java.util.Map<Assignment, Integer> serializedAssignmentUids) throws IOException {
+		try {
+			ObjectNode root = JSON.createObjectNode();
+			root.put("version", 1);
+			var assignments = root.putArray("assignments");
+			for (java.util.Iterator<?> tasks = project.getTaskOutlineIterator(); tasks.hasNext();) {
+				Task task = (Task) tasks.next();
+				if (!(task instanceof NormalTask normalTask)) continue;
+				for (Object value : normalTask.getAssignments()) {
+					Assignment assignment = (Assignment) value;
+					AssignmentLevelingSplitState state = assignment.getLevelingSplitState();
+					if (state == null) continue;
+					Integer uid = serializedAssignmentUids.get(assignment);
+					if (uid == null) throw new IOException("Missing canonical MSPDI assignment identity for leveling split");
+					ObjectNode node = assignments.addObject();
+					node.put("assignmentUid", uid.intValue());
+					node.put("beforeDuration", state.beforeDuration());
+					node.put("generatedDuration", state.generatedDuration());
+					writeContour(node.putObject("beforeContour"), state.beforeContourSnapshot());
+					writeContour(node.putObject("generatedContour"), state.generatedContourSnapshot());
+					writeTaskSplitIntervals(node.putArray("generatedGaps"), state.generatedGaps());
+				}
+			}
+			return JSON.writeValueAsBytes(root);
+		} catch (IOException exception) {
+			throw exception;
+		} catch (Exception exception) {
+			throw new IOException("Unable to serialize mpo assignment leveling splits", exception);
+		}
+	}
+
+	private static void restoreAssignmentLevelingSplits(Project project, byte[] bytes) throws IOException {
+		JsonNode root = JSON.readTree(bytes);
+		JsonNode assignments = root.path("assignments");
+		if (requiredInt(root, "version") != 1 || !assignments.isArray() || assignments.size() > MAX_OPERATION_COUNT)
+			throw new IOException("Invalid mpo assignment leveling split data");
+		java.util.ArrayList<AssignmentSplitReplacement> replacements = new java.util.ArrayList<>();
+		java.util.HashSet<Long> seen = new java.util.HashSet<>();
+		int gapCount = 0;
+		for (JsonNode node : assignments) {
+			long uid = integralLong(node.path("assignmentUid"), "assignmentUid");
+			long beforeDuration = integralLong(node.path("beforeDuration"), "beforeDuration");
+			long generatedDuration = integralLong(node.path("generatedDuration"), "generatedDuration");
+			if (uid <= 0L || beforeDuration < 0L || generatedDuration < 0L || !seen.add(Long.valueOf(uid)))
+				throw new IOException("Invalid or duplicate MPO assignment leveling identity");
+			Assignment assignment = findAssignmentByUniqueId(project, uid);
+			if (assignment == null) throw new IOException("MPO assignment leveling split references an unknown assignment uid=" + uid);
+			BaselineAssignmentProfile.Contour before = readContour(node.path("beforeContour"));
+			BaselineAssignmentProfile.Contour generated = readContour(node.path("generatedContour"));
+			JsonNode gaps = node.path("generatedGaps");
+			if (!gaps.isArray() || gaps.isEmpty()) throw new IOException("MPO assignment leveling split has no generated gaps");
+			java.util.ArrayList<TaskSplitInterval> intervals = new java.util.ArrayList<>();
+			readTaskSplitIntervals(gaps, intervals, "generatedGaps");
+			gapCount += intervals.size();
+			if (gapCount > MAX_OPERATION_COUNT) throw new IOException("MPO contains too many assignment leveling gaps");
+			try {
+				AssignmentLevelingSplitState state = new AssignmentLevelingSplitState(
+					BaselineAssignmentProfile.restoreContour(before), beforeDuration,
+					BaselineAssignmentProfile.restoreContour(generated), generatedDuration, intervals);
+				replacements.add(new AssignmentSplitReplacement(assignment, state));
+			} catch (RuntimeException exception) {
+				throw new IOException("Invalid MPO assignment leveling split for uid=" + uid, exception);
+			}
+		}
+		for (AssignmentSplitReplacement replacement : replacements)
+			replacement.assignment().restoreLevelingSplitState(replacement.state());
+	}
+
+	private static Assignment findAssignmentByUniqueId(Project project, long uniqueId) {
+		for (java.util.Iterator<?> tasks = project.getTaskOutlineIterator(); tasks.hasNext();) {
+			Task task = (Task) tasks.next();
+			if (!(task instanceof NormalTask normalTask)) continue;
+			for (Object value : normalTask.getAssignments()) {
+				Assignment assignment = (Assignment) value;
+				if (assignment.getUniqueId() == uniqueId) return assignment;
+			}
+		}
+		return null;
+	}
+
+	private record AssignmentSplitReplacement(Assignment assignment, AssignmentLevelingSplitState state) { }
 
 	private static byte[] baselineProfilesJson(Project project, String taskIdentities,
 		java.util.Map<Long, Long> resourceIdentities) throws IOException {
@@ -1593,14 +1690,15 @@ public class MpoFileImporter extends FileImporter {
 		try {
 			recoveryState.json = new OperationLog().writeJsonl(recoveryState.documentId,
 				recoveryState.operations, recoveryState.appliedOperationIds);
-			byte[] projectXml = serializeProjectXml(recoveryProject);
+			SerializedProjectXml serialized = serializeProject(recoveryProject);
+			byte[] projectXml = serialized.xml();
 			recoveryState.remapTaskIds(readTaskIdentities(
 				taskIdentitiesFor(recoveryProject, projectXml).getBytes(StandardCharsets.UTF_8)));
 			File temporary = createTemporaryFile(target);
 			boolean moved = false;
 			try {
 				try (OutputStream out = new FileOutputStream(temporary)) {
-					writeMpo(recoveryProject, out, projectXml, recoveryState);
+					writeMpo(recoveryProject, out, projectXml, recoveryState, serialized.assignmentUids());
 				}
 				Path recovery = target.toPath().toAbsolutePath().resolveSibling(target.getName()
 					+ ".conflict-" + java.util.UUID.randomUUID() + ".mpo");

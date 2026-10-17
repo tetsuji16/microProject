@@ -6,6 +6,7 @@
 package com.microproject.pm.graphic;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Color;
@@ -36,5 +37,19 @@ class TaskFontStyleTest {
 		assertEquals(Font.BOLD | Font.ITALIC, resolved.getStyle());
 		assertEquals(TextAttribute.STRIKETHROUGH_ON, resolved.getAttributes().get(TextAttribute.STRIKETHROUGH));
 		assertEquals(new Color(0x123456), TaskFontStyle.resolveColor(task, Color.BLACK));
+	}
+
+	@Test
+	void inactiveTasksAreRenderedDimmedAndStruckThroughWithoutChangingSavedFormatting() {
+		Font fallback = new Font("Dialog", Font.PLAIN, 11);
+		NormalTask task = new NormalTask();
+		task.setInactiveTask(true);
+
+		Font inactive = TaskFontStyle.resolveFont(task, fallback);
+
+		assertEquals(TextAttribute.STRIKETHROUGH_ON,
+			inactive.getAttributes().get(TextAttribute.STRIKETHROUGH));
+		assertNotEquals(Color.BLACK, TaskFontStyle.resolveColor(task, Color.BLACK));
+		assertEquals(false, task.isFontStrikethrough(), "rendering must not mutate the user's font formatting");
 	}
 }

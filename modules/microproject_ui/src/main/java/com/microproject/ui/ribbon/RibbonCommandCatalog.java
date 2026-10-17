@@ -147,6 +147,7 @@ final class RibbonCommandCatalog {
 			"RibbonDelegateTasks", "RibbonTaskInformation", "RibbonTaskInspector", "RibbonNotes", "RibbonUpdateTasks", "RibbonMarkOnTrack", "RibbonDelete",
 			"RibbonCustomFields", "RibbonFind", "RibbonScrollToTask", "RibbonTaskModeManual", "RibbonTaskModeAutomatic",
 			"RibbonFormatPainter",
+			"RibbonInactivateTask",
 			"RibbonHideSelectedTasks", "RibbonShowAllTasks");
 		register(result, CommandScope.RESOURCE, RESOURCE,
 			"RibbonInsertResource", "RibbonResourceInformation", "RibbonTimesheet", "RibbonTeamFilter",

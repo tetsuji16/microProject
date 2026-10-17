@@ -196,6 +196,8 @@ public class ScheduleService {
 		long roundedTo = DateTime.hourFloor(to);
 		if (levelingGenerated && schedule instanceof NormalTask normalTask)
 			normalTask.splitForLeveling(eventSource, roundedFrom, roundedTo);
+		else if (levelingGenerated && schedule instanceof Assignment assignment)
+			assignment.splitForLeveling(eventSource, roundedFrom, roundedTo);
 		else
 			schedule.split(eventSource, roundedFrom, roundedTo);
 		boolean changed = didSplitChangeSchedule(schedule, detailBackup, intervalsBefore);
@@ -220,6 +222,10 @@ public class ScheduleService {
 	private List<String> splitIntervalState(Schedule schedule) {
 		List<String> state = new ArrayList<>();
 		appendSplitIntervals(state, "schedule", schedule);
+		if (schedule instanceof Assignment assignment && assignment.getLevelingSplitState() != null) {
+			for (com.microproject.pm.task.TaskSplitInterval interval : assignment.getLevelingSplitState().generatedGaps())
+				state.add("leveling:" + interval.startOffset() + ":" + interval.endOffset());
+		}
 		if (schedule instanceof NormalTask task) {
 			for (TaskSplitInterval interval : task.getManualTaskSplitIntervals())
 				state.add("manual:" + interval.startOffset() + ":" + interval.endOffset());
