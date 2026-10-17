@@ -351,9 +351,17 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 		JComboBox<?> secondDirection = (JComboBox<?>) flatten(multiKeyDialog).stream()
 			.filter(component -> "microproject.resourceSort.direction2".equals(component.getName())).findFirst()
 			.orElseThrow(() -> new AssertionError("Second sort direction control is missing"));
-		// Item 0 of the optional keys is the empty choice, so fields are offset by one.
-		GuiAcceptanceSupport.selectComboBoxItem(robot, secondField, standardRateIndex + 1);
+		// Resolve the row by its rendered label instead of index arithmetic over the optional "(none)" row.
+		String standardRateLabel = sortFields.get(standardRateIndex).getName();
+		int secondStandardRateRow = java.util.stream.IntStream.range(0, secondField.getItemCount())
+			.filter(row -> standardRateLabel.equals(String.valueOf(secondField.getItemAt(row)))).findFirst()
+			.orElseThrow(() -> new AssertionError("Standard Rate is missing from the second sort key"));
+		GuiAcceptanceSupport.selectComboBoxItem(robot, secondField, secondStandardRateRow);
+		ResourceSortOrderPanel multiKeyPanel = findComponent(multiKeyDialog, ResourceSortOrderPanel.class);
 		GuiAcceptanceSupport.selectComboBoxItem(robot, secondDirection, 1);
+		assertEquals(List.of(new ResourceView.SortKey("Field.name", true), new ResourceView.SortKey("Field.standardRate", false)),
+			multiKeyPanel.getKeys(), "dialog keys before OK; items=" + java.util.stream.IntStream.range(0, secondField.getItemCount())
+				.mapToObj(secondField::getItemAt).toList());
 		click(robot, findShowingButtonByText(multiKeyDialog, UIManager.getString("OptionPane.okButtonText")));
 		try { GuiAcceptanceSupport.await(() -> visibleTestResources(sheet, testResources)
 			.equals(List.of(emptyName, tiedAlpha, alpha, zulu)),
