@@ -3251,7 +3251,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				return;
 			}
 			ResourceSortOrderPanel panel = new ResourceSortOrderPanel(resourceView.getResourceSortFields(),
-				resourceView.getSortedFieldId(), resourceView.isSortAscending());
+				resourceView.getSortKeys());
 			int choice = PopupDialogSupport.showConfirmDialog(getFrame(), panel,
 				Messages.getString("ResourceSortOrder.Title"), JOptionPane.OK_CANCEL_OPTION,
 				JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION);
@@ -3260,14 +3260,13 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 					"dialog-cancelled").withActiveView(frame.getTopViewId()));
 				return;
 			}
-			String previousField = resourceView.getSortedFieldId();
-			boolean previousDirection = resourceView.isSortAscending();
-			boolean applied = resourceView.applySortOrder(panel.getFieldId(), panel.isAscending());
+			List<ResourceView.SortKey> previousKeys = resourceView.getSortKeys();
+			boolean applied = resourceView.applySortOrder(panel.getKeys());
 			if (!applied) {
 				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(commandId, "invalid-sort-field"));
 				return;
 			}
-			boolean changed = !Objects.equals(previousField, panel.getFieldId()) || previousDirection != panel.isAscending();
+			boolean changed = !previousKeys.equals(resourceView.getSortKeys());
 			publishTaskCommandOutcome(this, (changed ? RibbonCommandResult.changed(commandId) : RibbonCommandResult.noChange(commandId))
 				.withActiveView(frame.getTopViewId()));
 		}

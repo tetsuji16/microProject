@@ -89,7 +89,10 @@ public final class CustomFieldsDialogBox extends FlatLafDialog {
 		JPanel footer = new JPanel();
 		JButton apply = new JButton(UsabilityStrings.text("fields.applyLookup"));
 		apply.addActionListener(event -> saveLookup());
+		// Enter in the allowed-values field commits it, rather than reaching the default Close button and losing the edit.
+		lookupValues.addActionListener(event -> saveLookup());
 		JButton close = new JButton(UsabilityStrings.text("common.close")); close.addActionListener(event -> dispose());
+		getRootPane().setDefaultButton(close); // Enter presses the primary command (Windows/Office dialog rule)
 		footer.add(new JLabel(UsabilityStrings.text("fields.savedHint"))); footer.add(apply); footer.add(close);
 		add(footer, BorderLayout.SOUTH);
 		fieldChoice.addActionListener(event -> { loadLookup(); model.fireTableDataChanged(); });

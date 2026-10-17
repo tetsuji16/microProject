@@ -100,6 +100,7 @@ public final class TeamPlannerDialogBox extends FlatLafDialog {
 			(java.awt.Frame) getOwner(), project).setVisible(true));
 		toolbar.add(level);
 		JButton close = new JButton(UsabilityStrings.text("common.close"));
+		getRootPane().setDefaultButton(close); // Enter presses the primary command (Windows/Office dialog rule)
 		close.addActionListener(event -> dispose());
 		JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT));
 		footer.add(new JLabel(UsabilityStrings.text("team.hint") + " "));

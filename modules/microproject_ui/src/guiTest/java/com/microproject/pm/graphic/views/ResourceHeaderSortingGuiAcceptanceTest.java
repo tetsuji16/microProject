@@ -253,7 +253,7 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 			"Sort Order menu item did not use the existing resource sort dialog");
 		JDialog menuSortDialog = findDialogWith(ResourceSortOrderPanel.class);
 		ResourceSortOrderPanel menuOrderPanel = findComponent(menuSortDialog, ResourceSortOrderPanel.class);
-		assertEquals("Field.name", menuOrderPanel.getFieldId());
+		assertEquals("Field.name", menuOrderPanel.getKeys().get(0).fieldId());
 		List<Field> sortFields = resourceView.getResourceSortFields();
 		int standardRateIndex = java.util.stream.IntStream.range(0, sortFields.size())
 			.filter(index -> "Field.standardRate".equals(sortFields.get(index).getId())).findFirst()
@@ -287,7 +287,7 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 			"Resource Sort Order dialog did not open from the View ribbon");
 		JDialog sortDialog = findDialogWith(ResourceSortOrderPanel.class);
 		ResourceSortOrderPanel orderPanel = findComponent(sortDialog, ResourceSortOrderPanel.class);
-		assertEquals("Field.standardRate", orderPanel.getFieldId());
+		assertEquals("Field.standardRate", orderPanel.getKeys().get(0).fieldId());
 		click(robot, findShowingButtonByText(sortDialog, UIManager.getString("OptionPane.cancelButtonText")));
 		GuiAcceptanceSupport.await(() -> manager.getLastRibbonCommandResult() != null
 			&& manager.getLastRibbonCommandResult().status() == RibbonCommandResult.Status.NO_CHANGE
@@ -298,7 +298,7 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 			"Resource Sort Order dialog did not reopen after cancel");
 		sortDialog = findDialogWith(ResourceSortOrderPanel.class);
 		orderPanel = findComponent(sortDialog, ResourceSortOrderPanel.class);
-		assertEquals("Field.standardRate", orderPanel.getFieldId());
+		assertEquals("Field.standardRate", orderPanel.getKeys().get(0).fieldId());
 		JComboBox<?> ribbonFieldChoice = flatten(sortDialog).stream().filter(JComboBox.class::isInstance)
 			.map(JComboBox.class::cast).filter(combo -> combo.getItemCount() == sortFields.size()).findFirst()
 			.orElseThrow(() -> new AssertionError("Sort Order field control is missing"));
@@ -339,6 +339,47 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 				"Workspace restore should preserve the selected resource identity");
 			assertEquals(originalOrder, pool.getResourceList(), "Workspace sort restore must remain view-only");
 		});
+		// Multi-key: Name ascending, then Standard Rate descending breaks the former Alpha tie.
+		SwingUtilities.invokeAndWait(() -> tiedAlpha.setStandardRate(new Rate(75)));
+		click(robot, findShowingButtonByCommand(window, "RibbonChooseSort"));
+		GuiAcceptanceSupport.await(() -> findDialogWith(ResourceSortOrderPanel.class) != null,
+			"Resource Sort Order dialog did not reopen for the multi-key step");
+		JDialog multiKeyDialog = findDialogWith(ResourceSortOrderPanel.class);
+		JComboBox<?> secondField = (JComboBox<?>) flatten(multiKeyDialog).stream()
+			.filter(component -> "microproject.resourceSort.key2".equals(component.getName())).findFirst()
+			.orElseThrow(() -> new AssertionError("Second sort key control is missing"));
+		JComboBox<?> secondDirection = (JComboBox<?>) flatten(multiKeyDialog).stream()
+			.filter(component -> "microproject.resourceSort.direction2".equals(component.getName())).findFirst()
+			.orElseThrow(() -> new AssertionError("Second sort direction control is missing"));
+		// Resolve the row by its rendered label instead of index arithmetic over the optional "(none)" row.
+		String standardRateLabel = sortFields.get(standardRateIndex).getName();
+		int secondStandardRateRow = java.util.stream.IntStream.range(0, secondField.getItemCount())
+			.filter(row -> standardRateLabel.equals(String.valueOf(secondField.getItemAt(row)))).findFirst()
+			.orElseThrow(() -> new AssertionError("Standard Rate is missing from the second sort key"));
+		GuiAcceptanceSupport.selectComboBoxItem(robot, secondField, secondStandardRateRow);
+		ResourceSortOrderPanel multiKeyPanel = findComponent(multiKeyDialog, ResourceSortOrderPanel.class);
+		GuiAcceptanceSupport.selectComboBoxItem(robot, secondDirection, 1);
+		assertEquals(List.of(new ResourceView.SortKey("Field.name", true), new ResourceView.SortKey("Field.standardRate", false)),
+			multiKeyPanel.getKeys(), "dialog keys before OK; items=" + java.util.stream.IntStream.range(0, secondField.getItemCount())
+				.mapToObj(secondField::getItemAt).toList());
+		click(robot, findShowingButtonByText(multiKeyDialog, UIManager.getString("OptionPane.okButtonText")));
+		try { GuiAcceptanceSupport.await(() -> visibleTestResources(sheet, testResources)
+			.equals(List.of(emptyName, tiedAlpha, alpha, zulu)),
+			"the second key (Standard Rate descending) did not break the Name tie");
+		} catch (AssertionError failure) {
+			throw new AssertionError("multi-key sort mismatch: visible=" + visibleTestResources(sheet, testResources).stream().map(r -> r.getName() + "@" + r.getStandardRate()).toList()
+				+ " keys=" + resourceView.getSortKeys() + " result=" + manager.getLastRibbonCommandResult()
+				+ " key2=" + secondField.getSelectedItem() + " dir2=" + secondDirection.getSelectedIndex(), failure);
+		}
+		assertEquals(RibbonCommandResult.Status.CHANGED, manager.getLastRibbonCommandResult().status());
+		ResourceView.Workspace multiKeyWorkspace = (ResourceView.Workspace) resourceView.createWorkspace(0);
+		assertEquals("Field.name", multiKeyWorkspace.getSortedFieldId());
+		assertEquals(List.of("-Field.standardRate"), List.of(multiKeyWorkspace.getAdditionalSortKeys()));
+		assertEquals(originalOrder, pool.getResourceList(), "multi-key sorting must remain view-only");
+		SwingUtilities.invokeAndWait(() -> resourceView.restoreWorkspace(multiKeyWorkspace, 0));
+		GuiAcceptanceSupport.await(() -> visibleTestResources(sheet, testResources)
+			.equals(List.of(emptyName, tiedAlpha, alpha, zulu)),
+			"restoring the saved Workspace did not restore both sort keys");
 	}
 
 	@Test

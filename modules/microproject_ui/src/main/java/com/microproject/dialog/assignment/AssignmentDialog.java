@@ -153,7 +153,6 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
         });
         setEditorButtonsVisible(false);
         
-        documentFrame.getProject().addObjectListener(this);
         documentFrame.getGraphicManager().getPreferences().addObjectListener(this);
         
 	}
@@ -404,6 +403,7 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
 	private void detachDocumentFrame(DocumentFrame frame) {
 		if (frame != null && frame.getProject() != null) {
 			frame.getProject().removeObjectListener(this);
+			frame.getProject().getResourcePool().removeObjectListener(this);
 		}
 	}
 
@@ -412,7 +412,18 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
 			return;
 		}
 		Project project = frame.getProject();
+		// Mirror detachDocumentFrame exactly so switching documents never leaves a stale listener.
+		project.addObjectListener(this);
 		project.getResourcePool().addObjectListener(this);
+	}
+
+	@Override
+	public void dispose() {
+		// Unregister first: a later documentSelected would otherwise re-attach this disposed dialog.
+		DocumentSelectedEvent.removeListener(this);
+		detachDocumentFrame(documentFrame);
+		if (documentFrame != null) documentFrame.getGraphicManager().getPreferences().removeObjectListener(this);
+		super.dispose();
 	}
 	
 	private static final List<Node> emptyList = List.of();

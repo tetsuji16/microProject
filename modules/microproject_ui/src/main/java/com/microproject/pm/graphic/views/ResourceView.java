@@ -25,6 +25,7 @@
 package com.microproject.pm.graphic.views;
 
 import java.awt.Component;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
 
@@ -92,8 +93,11 @@ public class ResourceView extends JScrollPane implements BaseView {
 	FieldContext fieldContext;
 	CellStyle cellStyle;
 	boolean readOnly;
-	private String sortedFieldId;
-	private boolean sortAscending = true;
+	/** Microsoft Application.Sort allows Key1-Key3; the first entry is the primary key. */
+	public static final int MAX_SORT_KEYS = 3;
+	/** One view-only resource sort key. */
+	public record SortKey(String fieldId, boolean ascending) {}
+	private List<SortKey> sortKeys = List.of();
 	/**
 	 * @param master 
 	 * 
@@ -214,20 +218,38 @@ public class ResourceView extends JScrollPane implements BaseView {
 		List<Field> fields = spreadSheet.getFieldArray();
 		if (modelColumn < 0 || modelColumn >= fields.size()) return;
 		Field field = fields.get(modelColumn);
-		boolean ascending = !field.getId().equals(sortedFieldId) || !sortAscending;
-		applySort(field, ascending);
+		boolean ascending = !field.getId().equals(getSortedFieldId()) || !isSortAscending();
+		applySort(List.of(new SortKey(field.getId(), ascending)));
 	}
 
-	private void applySort(Field field, boolean ascending) {
-		if (field == null) return;
+	/** Resolves keys to fields, dropping unknown and duplicate fields, capped at {@link #MAX_SORT_KEYS}. */
+	private List<SortKey> resolveKeys(List<SortKey> requested) {
+		List<SortKey> resolved = new ArrayList<>();
+		for (SortKey key : requested) {
+			if (key == null || key.fieldId() == null || resolved.size() >= MAX_SORT_KEYS) continue;
+			boolean duplicate = resolved.stream().anyMatch(existing -> existing.fieldId().equals(key.fieldId()));
+			if (!duplicate && findField(key.fieldId()) != null) resolved.add(key);
+		}
+		return List.copyOf(resolved);
+	}
+
+	private Field findField(String fieldId) {
+		for (Field field : spreadSheet.getFieldArray()) if (field.getId().equals(fieldId)) return field;
+		return null;
+	}
+
+	private void applySort(List<SortKey> requested) {
+		List<SortKey> keys = resolveKeys(requested);
+		if (keys.isEmpty()) return;
 		List<GraphicNode> selected = spreadSheet.getSelectedGraphicNodes();
 		// Clear row indexes before the projection emits remove/insert events. JTable
 		// otherwise shifts the old selection during those events and can briefly
 		// address a row beyond the new projection, before we restore by node identity.
 		spreadSheet.clearSelection();
-		sortedFieldId = field.getId();
-		sortAscending = ascending;
-		NodeSorter sorter = new ResourceFieldSorter(field, ascending);
+		sortKeys = keys;
+		List<ResourceFieldSorter.Key> comparators = new ArrayList<>();
+		for (SortKey key : keys) comparators.add(new ResourceFieldSorter.Key(findField(key.fieldId()), key.ascending()));
+		NodeSorter sorter = new ResourceFieldSorter(comparators);
 		((NodeCacheTransformer) cache.getVisibleNodes().getTransformer()).getTransformer().setUserSorter(sorter);
 		for (GraphicNode selectedNode : selected) {
 			Object visible = cache.getGraphicNode(selectedNode.getNode());
@@ -238,33 +260,43 @@ public class ResourceView extends JScrollPane implements BaseView {
 
 	/** Applies the same stable, view-only single-key sort used by header clicks. */
 	public boolean applySortOrder(String fieldId, boolean ascending) {
-		if (fieldId == null) return false;
-		for (Field field : spreadSheet.getFieldArray()) {
-			if (fieldId.equals(field.getId())) {
-				applySort(field, ascending);
-				return true;
-			}
-		}
-		return false;
+		return applySortOrder(List.of(new SortKey(fieldId, ascending)));
+	}
+
+	/** Applies up to three keys (Microsoft Key1-Key3); false when the first key is not a visible field. */
+	public boolean applySortOrder(List<SortKey> requested) {
+		if (requested == null || requested.isEmpty() || requested.get(0) == null
+				|| requested.get(0).fieldId() == null || findField(requested.get(0).fieldId()) == null) return false;
+		applySort(requested);
+		return true;
 	}
 
 	public List<Field> getResourceSortFields() {
 		return List.copyOf(spreadSheet.getFieldArray());
 	}
 
-	public String getSortedFieldId() { return sortedFieldId; }
-	public boolean isSortAscending() { return sortAscending; }
+	public List<SortKey> getSortKeys() { return sortKeys; }
+	public String getSortedFieldId() { return sortKeys.isEmpty() ? null : sortKeys.get(0).fieldId(); }
+	public boolean isSortAscending() { return sortKeys.isEmpty() || sortKeys.get(0).ascending(); }
 	@Override public String getProjectionStateSignature() {
-		return "sortField=" + sortedFieldId + ",ascending=" + sortAscending;
+		if (sortKeys.size() <= 1) return "sortField=" + getSortedFieldId() + ",ascending=" + isSortAscending();
+		StringBuilder signature = new StringBuilder();
+		for (SortKey key : sortKeys) signature.append(signature.length() == 0 ? "sortKeys=" : ";")
+			.append(key.fieldId()).append(key.ascending() ? "+" : "-");
+		return signature.toString();
 	}
 
-	private static final class ResourceFieldSorter extends NodeSorter {
-		private final Field field;
-		private final boolean ascending;
+	/** Compares by each key in order; the stable list sort keeps equal rows in model order. */
+	static final class ResourceFieldSorter extends NodeSorter {
+		record Key(java.util.Comparator<Object> comparator, boolean ascending) {}
+		private final List<Key> keys;
 
-		private ResourceFieldSorter(Field field, boolean ascending) {
-			this.field = field;
-			this.ascending = ascending;
+		ResourceFieldSorter(java.util.Comparator<Object> field, boolean ascending) {
+			this(List.of(new Key(field, ascending)));
+		}
+
+		ResourceFieldSorter(List<Key> keys) {
+			this.keys = List.copyOf(keys);
 			setShowAssignments(false);
 			setPreserveHierarchy(true);
 		}
@@ -273,8 +305,11 @@ public class ResourceView extends JScrollPane implements BaseView {
 		public int compare(Object left, Object right) {
 			Object leftResource = left instanceof Node node ? node.getImpl() : left;
 			Object rightResource = right instanceof Node node ? node.getImpl() : right;
-			int result = field.compare(leftResource, rightResource);
-			return ascending ? result : Integer.compare(0, result);
+			for (Key key : keys) {
+				int result = Integer.signum(key.comparator().compare(leftResource, rightResource));
+				if (result != 0) return key.ascending() ? result : -result;
+			}
+			return 0;
 		}
 	}
 
@@ -326,19 +361,26 @@ public class ResourceView extends JScrollPane implements BaseView {
 		Workspace ws = (Workspace) w;
 		spreadSheet.restoreWorkspace(ws.spreadSheet, context);
 		if (ws.sortedFieldId != null) {
-			for (Field field : spreadSheet.getFieldArray()) {
-				if (ws.sortedFieldId.equals(field.getId())) {
-					applySort(field, ws.sortAscending);
-					break;
+			List<SortKey> keys = new ArrayList<>();
+			keys.add(new SortKey(ws.sortedFieldId, ws.sortAscending));
+			if (ws.additionalSortKeys != null) {
+				for (String encoded : ws.additionalSortKeys) {
+					if (encoded == null || encoded.length() < 2) continue;
+					char direction = encoded.charAt(0);
+					if (direction == '+' || direction == '-') keys.add(new SortKey(encoded.substring(1), direction == '+'));
 				}
 			}
+			applySortOrder(keys);
 		}
 	}
 	public WorkspaceSetting createWorkspace(int context) {
 		Workspace ws = new Workspace();
 		ws.spreadSheet = spreadSheet.createWorkspace(context);
-		ws.sortedFieldId = sortedFieldId;
-		ws.sortAscending = sortAscending;
+		ws.sortedFieldId = getSortedFieldId();
+		ws.sortAscending = isSortAscending();
+		// Secondary/tertiary keys use a separate field so the primary-key contract stays readable by older files.
+		ws.additionalSortKeys = sortKeys.stream().skip(1)
+			.map(key -> (key.ascending() ? "+" : "-") + key.fieldId()).toArray(String[]::new);
 		return ws;
 	}
 
@@ -347,6 +389,7 @@ public class ResourceView extends JScrollPane implements BaseView {
 		WorkspaceSetting spreadSheet;
 		private String sortedFieldId;
 		private boolean sortAscending = true;
+		private String[] additionalSortKeys = new String[0];
 		public WorkspaceSetting getSpreadSheet() {
 			return spreadSheet;
 		}
@@ -357,6 +400,8 @@ public class ResourceView extends JScrollPane implements BaseView {
 		public void setSortedFieldId(String sortedFieldId) { this.sortedFieldId = sortedFieldId; }
 		public boolean isSortAscending() { return sortAscending; }
 		public void setSortAscending(boolean sortAscending) { this.sortAscending = sortAscending; }
+		public String[] getAdditionalSortKeys() { return additionalSortKeys; }
+		public void setAdditionalSortKeys(String[] additionalSortKeys) { this.additionalSortKeys = additionalSortKeys; }
 	}
 
 	public boolean canScrollToTask() {

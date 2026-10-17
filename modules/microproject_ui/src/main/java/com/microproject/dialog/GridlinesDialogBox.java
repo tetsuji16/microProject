@@ -93,6 +93,7 @@ public final class GridlinesDialogBox extends FlatLafDialog {
 		c.gridx = 1; form.add(color, c);
 		JButton ok = new JButton(UsabilityStrings.text("common.apply"));
 		JButton cancel = new JButton(UsabilityStrings.text("common.close"));
+		getRootPane().setDefaultButton(ok); // Enter presses the primary command (Windows/Office dialog rule)
 		ok.addActionListener(event -> { apply(view, gantt, (Target) target.getSelectedItem(), visible.isSelected(), style.getSelectedIndex(), selectedColor[0]); dispose(); });
 		cancel.addActionListener(event -> dispose());
 		JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT)); buttons.add(ok); buttons.add(cancel);
