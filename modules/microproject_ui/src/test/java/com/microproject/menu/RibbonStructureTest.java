@@ -31,6 +31,7 @@ import static com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButt
 import static com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonTaskIds;
 import static com.microproject.menu.testsupport.MenuDefinitionSupport.toolBarButtonIds;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.LinkedHashMap;
@@ -81,13 +82,17 @@ class RibbonStructureTest {
 			ribbonButtonIds("FileRibbonBand"));
 		assertEquals("RecentProjectsAction",
 			menuInternalBundle().getString("RibbonRecentProjects.action"));
-		assertEquals(List.of("new", "open", "info", "save", "saveAs", "print", "export", "options", "locale", "close"),
+		assertEquals(List.of("new", "open", "info", "save", "saveAs", "print", "export", "options", "close"),
 			List.of(menuInternalBundle().getString("FileBackstagePages").split("\\s+")));
 		assertEquals("open", menuInternalBundle().getString("RibbonOpenProject.backstagePage"));
 		assertEquals("info", menuInternalBundle().getString("RibbonBackstageProjectInformation.backstagePage"));
 		assertEquals("options", menuInternalBundle().getString("RibbonBackstageOptions.backstagePage"));
 		assertEquals("save", menuInternalBundle().getString("RibbonSaveProject.backstagePage"));
 		assertEquals("true", menuInternalBundle().getString("RibbonSaveProject.backstageImmediate"));
+		assertEquals("options", menuInternalBundle().getString("RibbonLocale.backstagePage"),
+			"Microsoft documents application language under File > Options > Language");
+		assertFalse(menuInternalBundle().containsKey("RibbonLocale.backstageImmediate"),
+			"Language must be a visible action within the selected Options page");
 	}
 
 	@Test

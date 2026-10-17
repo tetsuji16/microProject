@@ -1899,7 +1899,6 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		String targetName = switch (commandId) {
 			case "RibbonSaveProject" -> "officeBackstageNav-save";
 			case "RibbonCloseProject" -> "officeBackstageNav-close";
-			case "RibbonLocale" -> "officeBackstageNav-locale";
 			default -> "officeBackstageCommand-" + commandId;
 		};
 		if (findNamedOnEdt(frame, "officeBackstageOverlay") == null) {
@@ -1945,12 +1944,12 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			case "RibbonNewProject", "RibbonNewMasterProject" -> "new";
 			case "RibbonOpenProject", "RibbonRecentProjects" -> "open";
 			case "RibbonBackstageProjectInformation" -> "info";
-			case "RibbonBackstageOptions" -> "options";
+			case "RibbonBackstageOptions", "RibbonLocale" -> "options";
 			case "RibbonSaveProject" -> null;
 			case "RibbonSaveProjectAs", "RibbonSaveMpoAs" -> "saveAs";
 			case "RibbonPrint", "RibbonPrintPreview", "RibbonPDF" -> "print";
 			case "RibbonImportProject", "RibbonExportProject" -> "export";
-			case "RibbonCloseProject", "RibbonLocale" -> null;
+			case "RibbonCloseProject" -> null;
 			default -> throw new IllegalArgumentException("Not a Backstage command: " + commandId);
 		};
 	}
