@@ -433,6 +433,28 @@ class ResourceLevelingServiceTest {
 	}
 
 	@Test
+	void singleAssignmentTaskDelayLivesOnItsAssignmentAndMovesTheAssignmentStart() {
+		// Document-derived decision (Microsoft Project "Level Assignments"): with the option on, the delay is
+		// stored per assignment even for a one-assignment task; the assignment's start follows it.
+		Fixture fixture = fixture();
+		NormalTask anchor = task(fixture.project, "Anchor", 1L);
+		NormalTask target = task(fixture.project, "Target", 1L);
+		anchor.setPriority(900);
+		AssignmentService.getInstance().newAssignment(anchor, fixture.resource, 1D, 0L, this);
+		Assignment assignment = AssignmentService.getInstance().newAssignment(target, fixture.resource, 1D, 0L, this);
+		long assignmentStart = assignment.getStart();
+		ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(fixture.project,
+			List.of(fixture.resource), ResourceLevelingService.Options.defaults());
+		assertTrue(plan.changes().isEmpty(), "no task-level delay is planned when assignments are leveled");
+		assertEquals(1, plan.assignmentChanges().size());
+		assertTrue(plan.hasChanges(), "an assignment-only plan must report changes");
+		plan.apply();
+		assertEquals(0L, target.getLevelingDelay());
+		assertTrue(com.microproject.datatype.Duration.millis(assignment.getLevelingDelay()) > 0L);
+		assertTrue(assignment.getStart() > assignmentStart, "the leveled assignment must start later");
+	}
+
+	@Test
 	void minuteSensitivityBoundsLongRangeBeforeBuildingPeriodBuckets() {
 		long minute = com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_MINUTE;
 		assertTrue(ResourceLevelingService.exceedsBucketLimit(0L, 100_001L * minute,

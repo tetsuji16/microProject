@@ -3325,7 +3325,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		AssignmentService.getInstance().newAssignment(fixed, shared, 1.0, 0L, getClass());
 		AssignmentService.getInstance().newAssignment(selected, shared, 1.0, 0L, getClass());
 		project.recalculate();
-		long originalStart = selected.getStart();
+		long originalStart = ((Assignment) selected.getAssignments().iterator().next()).getStart();
 		showProject(project);
 		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
@@ -3351,8 +3351,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> manager.getLastRibbonCommandResult() != before
 				&& manager.getLastRibbonCommandResult().status() == RibbonCommandResult.Status.CHANGED,
 			"Level Selection did not publish its changed result");
-		GuiAcceptanceSupport.await(() -> selected.getStart() > originalStart,
-			"the selected task's visible schedule start did not reflect the leveling change");
+		GuiAcceptanceSupport.await(() -> ((Assignment) selected.getAssignments().iterator().next()).getStart() > originalStart,
+			"the selected task's leveled assignment start did not move");
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(selected),
 			"Level Selection did not preserve the task selection after ribbon focus transfer");
 		ByteArrayOutputStream saved = new ByteArrayOutputStream();
