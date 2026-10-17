@@ -43,7 +43,7 @@ public final class MicrosoftProjectGanttTheme {
 	}
 
 	public static Color progressTrack() {
-		return dark() ? new Color(0x3A4A68) : TASK_TRACK;
+		return dark() ? new Color(0x4A6597) : TASK_TRACK;
 	}
 
 	public static Color progressFill() {
