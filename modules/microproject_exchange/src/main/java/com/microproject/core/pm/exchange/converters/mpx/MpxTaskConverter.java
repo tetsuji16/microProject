@@ -131,6 +131,8 @@ public class MpxTaskConverter {
 		}
 		if (mpxTask.getPhysicalPercentComplete() != null)
 			task.setPhysicalPercentComplete(toRatio(mpxTask.getPhysicalPercentComplete()));
+		MpxCustomFieldsConverter.from(mpxTask, task.getCustomFields(),
+			com.microproject.server.data.CustomFieldsMapper.getInstance().taskMaps, durationDefaults);
 		if (task instanceof NormalTask) {
 			NormalTask normalTask=(NormalTask)task;
 			normalTask.setEffortDriven(mpxTask.getEffortDriven());
