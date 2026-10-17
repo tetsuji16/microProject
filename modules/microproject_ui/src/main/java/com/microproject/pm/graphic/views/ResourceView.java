@@ -258,11 +258,11 @@ public class ResourceView extends JScrollPane implements BaseView {
 		return "sortField=" + sortedFieldId + ",ascending=" + sortAscending;
 	}
 
-	private static final class ResourceFieldSorter extends NodeSorter {
-		private final Field field;
+	static final class ResourceFieldSorter extends NodeSorter {
+		private final java.util.Comparator<Object> field;
 		private final boolean ascending;
 
-		private ResourceFieldSorter(Field field, boolean ascending) {
+		ResourceFieldSorter(java.util.Comparator<Object> field, boolean ascending) {
 			this.field = field;
 			this.ascending = ascending;
 			setShowAssignments(false);
