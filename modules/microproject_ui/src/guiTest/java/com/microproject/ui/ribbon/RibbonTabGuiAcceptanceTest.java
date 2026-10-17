@@ -194,9 +194,11 @@ class RibbonTabGuiAcceptanceTest {
 		// Backstage host, while document commands remain attached to the ribbon.
 		// Keep the fixture above the compact breakpoint so every command is a
 		// direct hit target; the overflow path is covered separately by the
-		// responsive ribbon tests.
+		// responsive ribbon tests. The Task tab now carries Inspector, Inactivate and
+		// Format Painter, so 1600px reaches the trailing-group collapse point; the
+		// GUI runner display is 1920x1080, which leaves room for a 1900px fixture.
 		SwingUtilities.invokeAndWait(() -> {
-			frame.setSize(1600, 700);
+			frame.setSize(1900, 700);
 			frame.setLocationByPlatform(true);
 			frame.setAlwaysOnTop(true);
 			frame.setVisible(true);

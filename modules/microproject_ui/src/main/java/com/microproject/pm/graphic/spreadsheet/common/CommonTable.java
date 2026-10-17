@@ -73,6 +73,7 @@ public class CommonTable extends Outline {
         super();
         FlatUiSupport.applySpreadsheetTableStyle(this);
         setRootVisible(false);
+        installEditorOnlyEscape();
     }
 
     /**
@@ -84,6 +85,7 @@ public class CommonTable extends Outline {
         setModel(new javax.swing.table.DefaultTableModel(numRows, numColumns));
         FlatUiSupport.applySpreadsheetTableStyle(this);
         setRootVisible(false);
+        installEditorOnlyEscape();
     }
 
     /**
@@ -94,6 +96,7 @@ public class CommonTable extends Outline {
         setModel(dm);
         FlatUiSupport.applySpreadsheetTableStyle(this);
         setRootVisible(false);
+        installEditorOnlyEscape();
     }
 
     /**
@@ -105,6 +108,7 @@ public class CommonTable extends Outline {
         setModel(new javax.swing.table.DefaultTableModel(rowData, columnNames));
         FlatUiSupport.applySpreadsheetTableStyle(this);
         setRootVisible(false);
+        installEditorOnlyEscape();
     }
 
     /**
@@ -116,6 +120,7 @@ public class CommonTable extends Outline {
         setModel(createDefaultTableModel(rowData, columnNames));
         FlatUiSupport.applySpreadsheetTableStyle(this);
         setRootVisible(false);
+        installEditorOnlyEscape();
     }
 
     /**
@@ -128,6 +133,7 @@ public class CommonTable extends Outline {
         setColumnModel(cm);
         FlatUiSupport.applySpreadsheetTableStyle(this);
         setRootVisible(false);
+        installEditorOnlyEscape();
     }
 
     /**
@@ -142,6 +148,41 @@ public class CommonTable extends Outline {
         setSelectionModel(sm);
         FlatUiSupport.applySpreadsheetTableStyle(this);
         setRootVisible(false);
+        installEditorOnlyEscape();
+    }
+
+    /**
+     * NetBeans ETable binds Escape (WHEN_FOCUSED) to an always-enabled
+     * "cancelEdit" action. When no editor is open it forwards only to the root
+     * pane's WHEN_ANCESTOR_OF_FOCUSED_COMPONENT map and still consumes the key, so
+     * the application's single root-pane WHEN_IN_FOCUSED_WINDOW shortcut layer
+     * (for example, Esc to stop Format Painter) never receives it. Keep editor
+     * cancellation, but report the action disabled when nothing is being edited
+     * so Swing passes Escape on to the window-level binding.
+     */
+    private void installEditorOnlyEscape() {
+        javax.swing.Action etableCancel = getActionMap().get("cancelEdit");
+        if (etableCancel == null || etableCancel instanceof EditorOnlyCancelAction) return;
+        getActionMap().put("cancelEdit", new EditorOnlyCancelAction(etableCancel));
+    }
+
+    private final class EditorOnlyCancelAction extends javax.swing.AbstractAction {
+        private static final long serialVersionUID = 1L;
+        private final javax.swing.Action delegate;
+
+        EditorOnlyCancelAction(javax.swing.Action delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public boolean isEnabled() {
+            return delegate.isEnabled() && (isEditing() || getEditorComponent() != null);
+        }
+
+        @Override
+        public void actionPerformed(java.awt.event.ActionEvent event) {
+            delegate.actionPerformed(event);
+        }
     }
 
     @Override

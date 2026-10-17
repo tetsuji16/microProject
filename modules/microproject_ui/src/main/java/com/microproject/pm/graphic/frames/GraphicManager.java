@@ -214,6 +214,7 @@ import com.microproject.ribbon.CommandId;
 public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowStateListener,  SelectionNodeListener, ObjectEvent.Listener, ProjectMenuActionMap, MenuActionConstants, SavableToWorkspace {
 	private static final Logger logger = Logger.getLogger(GraphicManager.class.getName());
 	private static final String UI_DEBUG_PROPERTY = "microproject.ui.debug";
+	private static final String ACTION_CANCEL_FORMAT_PAINTER = "CancelFormatPainter";
 	private RibbonCommandResult lastRibbonCommandResult;
 	private static final GraphicManagerRegistry MANAGER_REGISTRY = GraphicManagerRegistry.getInstance();
 	private final DocumentGeneration documentGeneration = new DocumentGeneration();
@@ -1945,6 +1946,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_COPY, new CopyAction());
 		actionsMap.addHandler(ACTION_PASTE, new PasteAction());
 		actionsMap.addHandler(ACTION_PASTE_INSERT, new PasteInsertAction());
+		actionsMap.addHandler("RibbonFormatPainter", new FormatPainterAction());
 		actionsMap.addHandler(ACTION_DELETE, new DeleteAction());
 
 		actionsMap.addHandler(ACTION_GANTT, new ViewAction(ACTION_GANTT));
@@ -3100,6 +3102,18 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			publishTaskCommandOutcome(this, isDocumentActive()
 				? dispatchTaskCommand(CommandId.COPY)
 				: RibbonCommandResult.rejected(CommandId.COPY.actionId(), "no-active-document"));
+		}
+	}
+	public class FormatPainterAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive() && getCurrentFrame() != null)
+				getCurrentFrame().startOrPromoteFormatPainter();
+		}
+		@Override protected boolean allowed(boolean enable) {
+			return !enable || isDocumentActive() && getCurrentFrame() != null
+				&& getCurrentFrame().canStartFormatPainter();
 		}
 	}
 	public class PasteAction extends MenuActionsMap.DocumentMenuAction {
@@ -4355,6 +4369,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled(ACTION_COPY,hasClipboardSelection&&(actions==null||actions.contains(ACTION_COPY)));
 		getMenuManager().setActionEnabled(ACTION_PASTE,!readOnly && (actions==null||actions.contains(ACTION_PASTE)));
 		getMenuManager().setActionEnabled(ACTION_DELETE,!readOnly && (actions==null||actions.contains(ACTION_DELETE)));
+		getMenuManager().setActionEnabled("RibbonFormatPainter", !readOnly && taskType && editFrame != null
+			&& editFrame.canStartFormatPainter());
 		// After hierarchy Undo/Redo the lead node supplied by the selection event
 		// may still describe the pre-mutation row.  Command enablement must use the
 		// same stable task selection that execution uses, not that stale singleton.
@@ -4772,6 +4788,15 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F3, 0), ACTION_CLEAR_FILTER, null);
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_INSERT, 0), ACTION_NEW, null);
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), ACTION_DELETE, null);
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), ACTION_CANCEL_FORMAT_PAINTER,
+			new AbstractAction() {
+				private static final long serialVersionUID = 1L;
+				@Override public void actionPerformed(ActionEvent event) {
+					DocumentFrame activeFrame = getCurrentFrame();
+					if (activeFrame != null)
+						activeFrame.cancelFormatPainter();
+				}
+			});
 		putShortcut(inputMap, actionMap,
 			KeyStroke.getKeyStroke(KeyEvent.VK_UP, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK),
 			ACTION_MOVE_TASK_UP, null);

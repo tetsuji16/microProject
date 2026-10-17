@@ -134,6 +134,7 @@ tasks.register<Test>("guiTest") {
 		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.physicalTaskRowHeaderDragReordersStableTasksAndSurvivesUndoAndReload",
 		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.physicalTaskSortSupportsAscendingStartAndDescendingFinishForViewAndOutline",
 		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.physicalTaskInspectorFollowsSelectionAndNavigatesOnlyVisiblePredecessors",
+		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.formatPainterCopiesTaskTextStyleOnceOrContinuouslyWithUndoAndMpoReload",
 		"com.microproject.pm.graphic.views.TaskTableGanttGridGuiAcceptanceTest.physicalTaskTableDurationEditDoesNotPanGanttViewport",
 		"com.microproject.pm.graphic.views.TaskTableGanttGridGuiAcceptanceTest.physicalTaskTableDateEditRepositionsBarWithoutPanningGanttViewport",
 		"com.microproject.pm.graphic.views.TaskTableGanttGridGuiAcceptanceTest.physicalGanttWheelScrollsByOneOwnerStep",

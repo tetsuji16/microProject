@@ -1325,6 +1325,7 @@ class RibbonButtonBehaviorTest {
 			"RibbonLink",
 			"RibbonUnlink",
 			"RibbonRespectLinks");
+		add(map, Strategy.STRUCTURAL_ONLY, "RibbonFormatPainter");
 		return map;
 	}
 

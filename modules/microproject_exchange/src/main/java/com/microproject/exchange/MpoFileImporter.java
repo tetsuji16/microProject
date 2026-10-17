@@ -105,6 +105,8 @@ public class MpoFileImporter extends FileImporter {
 	/** Task-owned Gantt split intervals not represented by the MSPDI schema. */
 	static final String TASK_SPLITS_ENTRY = "microproject/task-splits.json";
 	static final String TASK_LEVELING_OPTIONS_ENTRY = "microproject/task-leveling-options.json";
+	/** Per-task text style (Text Styles, Format Painter); MSPDI has no task-level font fields. */
+	static final String TASK_TEXT_STYLES_ENTRY = "microproject/task-text-styles.json";
 	/** Exact native schedule values needed when MSPDI import recalculates assignments. */
 	static final String TASK_SCHEDULES_ENTRY = "microproject/task-schedules.json";
 	/** Detached saved-baseline assignment profiles not representable in MSPDI assignments. */
@@ -327,6 +329,8 @@ public class MpoFileImporter extends FileImporter {
 			restoreTaskLevelingOptions(project, extensions.entries.get(TASK_LEVELING_OPTIONS_ENTRY));
 		else
 			resetLegacyTaskLevelingDefaults(project);
+		if (extensions.entries.containsKey(TASK_TEXT_STYLES_ENTRY))
+			restoreTaskTextStyles(project, extensions.entries.get(TASK_TEXT_STYLES_ENTRY));
 		if (extensions.entries.containsKey(TASK_SCHEDULES_ENTRY))
 			restoreTaskSchedules(project, extensions.entries.get(TASK_SCHEDULES_ENTRY));
 		if (extensions.entries.containsKey(BASELINE_PROFILES_ENTRY))
@@ -545,6 +549,7 @@ public class MpoFileImporter extends FileImporter {
 		archiveEntries.put(VISIBILITY_ENTRY, visibilityJson(project, taskIdentities));
 		archiveEntries.put(TASK_SPLITS_ENTRY, taskSplitsJson(project, taskIdentities));
 		archiveEntries.put(TASK_LEVELING_OPTIONS_ENTRY, taskLevelingOptionsJson(project, taskIdentities));
+		archiveEntries.put(TASK_TEXT_STYLES_ENTRY, taskTextStylesJson(project, taskIdentities));
 		archiveEntries.put(TASK_SCHEDULES_ENTRY, taskSchedulesJson(project, taskIdentities));
 		archiveEntries.put(BASELINE_PROFILES_ENTRY, baselineProfilesJson(project, taskIdentities,
 			resourceIdentitiesForMpo(project)));
@@ -552,7 +557,7 @@ public class MpoFileImporter extends FileImporter {
 		archiveEntries.put(CCPM_HISTORY_ENTRY, ccpmHistoryJson(project));
 		MpoExtensions extensions = project.findTransientDocumentState(MpoExtensions.class);
 		if (extensions != null) for (java.util.Map.Entry<String, byte[]> extension : extensions.entries.entrySet()) {
-			if (MIMETYPE_ENTRY.equals(extension.getKey()) || MANIFEST_ENTRY.equals(extension.getKey()) || META_ENTRY.equals(extension.getKey()) || SETTINGS_ENTRY.equals(extension.getKey()) || CCPM_HISTORY_ENTRY.equals(extension.getKey()) || LAYOUT_ENTRY.equals(extension.getKey()) || VISIBILITY_ENTRY.equals(extension.getKey()) || TASK_SPLITS_ENTRY.equals(extension.getKey()) || TASK_LEVELING_OPTIONS_ENTRY.equals(extension.getKey()) || TASK_SCHEDULES_ENTRY.equals(extension.getKey()) || BASELINE_PROFILES_ENTRY.equals(extension.getKey()) || ASSIGNMENT_LEVELING_SPLITS_ENTRY.equals(extension.getKey()) || PROJECT_ENTRY.equals(extension.getKey()) || OPERATIONS_ENTRY.equals(extension.getKey()) || TASK_IDENTITIES_ENTRY.equals(extension.getKey()) || extension.getKey().startsWith(EMBEDDED_PROJECT_PREFIX)) continue;
+			if (MIMETYPE_ENTRY.equals(extension.getKey()) || MANIFEST_ENTRY.equals(extension.getKey()) || META_ENTRY.equals(extension.getKey()) || SETTINGS_ENTRY.equals(extension.getKey()) || CCPM_HISTORY_ENTRY.equals(extension.getKey()) || LAYOUT_ENTRY.equals(extension.getKey()) || VISIBILITY_ENTRY.equals(extension.getKey()) || TASK_SPLITS_ENTRY.equals(extension.getKey()) || TASK_LEVELING_OPTIONS_ENTRY.equals(extension.getKey()) || TASK_TEXT_STYLES_ENTRY.equals(extension.getKey()) || TASK_SCHEDULES_ENTRY.equals(extension.getKey()) || BASELINE_PROFILES_ENTRY.equals(extension.getKey()) || ASSIGNMENT_LEVELING_SPLITS_ENTRY.equals(extension.getKey()) || PROJECT_ENTRY.equals(extension.getKey()) || OPERATIONS_ENTRY.equals(extension.getKey()) || TASK_IDENTITIES_ENTRY.equals(extension.getKey()) || extension.getKey().startsWith(EMBEDDED_PROJECT_PREFIX)) continue;
 			archiveEntries.put(extension.getKey(), extension.getValue());
 		}
 		MpoArchiveSnapshot snapshot = snapshotForWrite(project, projectXml, archiveEntries, embeddedProjects);
@@ -849,6 +854,68 @@ public class MpoFileImporter extends FileImporter {
 			if (task == null) throw new IOException("MPO task leveling options reference an unknown task");
 			task.setLevelingCanSplit(canSplit.booleanValue());
 			task.setLevelAssignments(levelAssignments.booleanValue());
+		}
+	}
+
+	private static byte[] taskTextStylesJson(Project project, String taskIdentities) throws IOException {
+		try {
+			JsonNode identities = JSON.readTree(taskIdentities);
+			ObjectNode root = JSON.createObjectNode();
+			root.put("version", 1);
+			var tasks = root.putArray("tasks");
+			for (java.util.Iterator<?> iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
+				Task task = (Task) iterator.next();
+				if (task.getFontFamily() == null && task.getFontSize() == 0 && task.getFontColor() == null
+						&& !task.isFontBold() && !task.isFontItalic() && !task.isFontStrikethrough()) continue;
+				JsonNode serializedUid = identities.path(String.valueOf(task.getUniqueId()));
+				if (!serializedUid.canConvertToLong()) throw new IOException("Missing serialized task identity for text style");
+				ObjectNode node = tasks.addObject();
+				node.put("taskUid", serializedUid.longValue());
+				if (task.getFontFamily() != null) node.put("fontFamily", task.getFontFamily());
+				node.put("fontSize", task.getFontSize());
+				if (task.getFontColor() != null) node.put("fontColor", task.getFontColor().intValue());
+				node.put("bold", task.isFontBold());
+				node.put("italic", task.isFontItalic());
+				node.put("strikethrough", task.isFontStrikethrough());
+			}
+			return JSON.writeValueAsBytes(root);
+		} catch (IOException exception) {
+			throw exception;
+		} catch (Exception exception) {
+			throw new IOException("Unable to serialize mpo task text styles", exception);
+		}
+	}
+
+	private static void restoreTaskTextStyles(Project project, byte[] bytes) throws IOException {
+		JsonNode root = JSON.readTree(bytes);
+		JsonNode tasks = root.path("tasks");
+		if (requiredInt(root, "version") != 1 || !tasks.isArray())
+			throw new IOException("Invalid mpo task text styles");
+		java.util.HashSet<Long> seen = new java.util.HashSet<>();
+		int count = 0;
+		for (JsonNode node : tasks) {
+			if (++count > MAX_OPERATION_COUNT) throw new IOException("MPO contains too many task text styles");
+			long serializedId = integralLong(node.path("taskUid"), "taskUid");
+			if (!seen.add(Long.valueOf(serializedId))) throw new IOException("Duplicate MPO task text style identity");
+			JsonNode family = node.get("fontFamily");
+			JsonNode size = node.get("fontSize");
+			JsonNode color = node.get("fontColor");
+			JsonNode bold = node.get("bold");
+			JsonNode italic = node.get("italic");
+			JsonNode strikethrough = node.get("strikethrough");
+			if ((family != null && !family.isTextual()) || size == null || !size.canConvertToInt() || size.intValue() < 0
+					|| (color != null && (!color.canConvertToInt() || color.intValue() < 0 || color.intValue() > 0xFFFFFF))
+					|| bold == null || !bold.isBoolean() || italic == null || !italic.isBoolean()
+					|| strikethrough == null || !strikethrough.isBoolean())
+				throw new IOException("Invalid MPO task text style values");
+			Task task = project.findByUniqueId(serializedId);
+			if (task == null) throw new IOException("MPO task text styles reference an unknown task");
+			task.setFontFamily(family == null ? null : family.textValue());
+			task.setFontSize(size.intValue());
+			task.setFontColor(color == null ? null : Integer.valueOf(color.intValue()));
+			task.setFontBold(bold.booleanValue());
+			task.setFontItalic(italic.booleanValue());
+			task.setFontStrikethrough(strikethrough.booleanValue());
 		}
 	}
 
