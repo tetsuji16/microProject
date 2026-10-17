@@ -75,6 +75,35 @@ class RecurringTaskDialogGuiAcceptanceTest {
 			"Cancel did not close recurring-task dialog; actionEvent=" + clicked.get() + " bounds=" + bounds);
 	}
 
+	/** Windows/Office rule: Enter on the focused Cancel button cancels instead of running the default OK. */
+	@Test
+	void robotEnterOnFocusedCancelPressesCancelNotOk() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		SwingUtilities.invokeAndWait(() -> {
+			dialog = RecurringTaskDialog.getInstance(null);
+			dialog.setAlwaysOnTop(true);
+			SwingUtilities.invokeLater(dialog::doModal);
+		});
+		GuiAcceptanceSupport.await(() -> dialog != null && dialog.isShowing(),
+				"recurring-task dialog did not become visible");
+		AbstractButton cancel = cancelButton(dialog);
+		AtomicBoolean cancelPressed = new AtomicBoolean();
+		cancel.addActionListener(event -> cancelPressed.set(true));
+		SwingUtilities.invokeAndWait(() -> {
+			dialog.toFront();
+			cancel.requestFocusInWindow();
+		});
+		GuiAcceptanceSupport.await(cancel::isFocusOwner, "Cancel did not take keyboard focus");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(40);
+		robot.keyPress(java.awt.event.KeyEvent.VK_ENTER);
+		robot.keyRelease(java.awt.event.KeyEvent.VK_ENTER);
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(() -> !dialog.isShowing(), "Enter on focused Cancel did not close the dialog");
+		assertTrue(cancelPressed.get(), "Enter on the focused Cancel button must press Cancel, not the default OK");
+		assertTrue(dialog.getDialogResult() != javax.swing.JOptionPane.OK_OPTION, "the dialog must not report OK");
+	}
+
 	private static JScrollPane findScrollPane(java.awt.Container root) {
 		for (java.awt.Component child : root.getComponents()) {
 			if (child instanceof JScrollPane pane)

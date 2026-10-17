@@ -119,8 +119,10 @@ public abstract class AbstractDialog extends FlatLafDialog {
 		};
 		ActionListener enterListener = new ActionListener() {
 			public void actionPerformed(ActionEvent actionEvent) {
-				onOk();
-
+				JButton focused = focusedButtonForEnter(
+					java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner(), AbstractDialog.this);
+				if (focused != null) focused.doClick();
+				else onOk();
 			}
 		};
 
@@ -140,6 +142,17 @@ public abstract class AbstractDialog extends FlatLafDialog {
 		bindWindowAction(rootPane, enterStroke, "dialog.enter", enterListener);
 		bindWindowAction(rootPane, f1Stroke, "dialog.help", helpListener);
 		return rootPane;
+	}
+
+	/**
+	 * Windows/Office dialog rule: Enter activates the focused push button (for example Cancel); otherwise it
+	 * activates the default command (OK). Toggle controls such as check boxes do not take Enter.
+	 */
+	static JButton focusedButtonForEnter(Component focusOwner, Component dialog) {
+		if (focusOwner instanceof JButton button && button.isEnabled()
+				&& javax.swing.SwingUtilities.isDescendingFrom(button, dialog))
+			return button;
+		return null;
 	}
 
 	private static void bindWindowAction(JRootPane rootPane, KeyStroke keyStroke, String actionKey,
