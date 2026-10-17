@@ -844,9 +844,15 @@ public class DocumentFrame extends NamedFrame implements
 
 	private RibbonCommandResult applyResourceLevelingPlan(CommandId command, ResourceLevelingService.Plan plan,
 		List<Long> selectedIds, List<Node> selectedNodes, SelectionSnapshot selectionSnapshot) {
-		List<Long> affectedIds = plan.changes().stream().map(ResourceLevelingService.Change::task)
+		// Level Assignments stores delays/splits on assignments, so a plan can mutate without any task-level change.
+		List<Task> changedTasks = java.util.stream.Stream.of(
+				plan.changes().stream().map(ResourceLevelingService.Change::task),
+				plan.assignmentChanges().stream().map(change -> change.assignment().getTask()),
+				plan.assignmentSplits().stream().map(split -> split.assignment().getTask()))
+			.flatMap(java.util.function.Function.identity()).filter(java.util.Objects::nonNull).distinct().toList();
+		List<Long> affectedIds = changedTasks.stream()
 			.map(Task::getUniqueId).filter(java.util.Objects::nonNull).toList();
-		if (plan.changes().isEmpty()) {
+		if (!plan.hasChanges()) {
 			if (plan.unresolved().isEmpty()) {
 				statusBar.setMessage(com.microproject.dialog.UsabilityStrings.text("leveling.noChanges"));
 				return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.NO_CHANGE,
@@ -865,7 +871,7 @@ public class DocumentFrame extends NamedFrame implements
 				return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.REJECTED,
 					"partial-leveling-cancelled", selectedIds, List.of(), getTopViewId());
 		}
-		List<Task> affectedTasks = plan.changes().stream().map(ResourceLevelingService.Change::task).distinct().toList();
+		List<Task> affectedTasks = changedTasks;
 		if (!CollaborationHelper.tryLockNodes(project, affectedTasks, this,
 			CommandId.RESOURCE_LEVEL_ALL == command ? "level all tasks" : "level selected tasks"))
 			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.REJECTED,
