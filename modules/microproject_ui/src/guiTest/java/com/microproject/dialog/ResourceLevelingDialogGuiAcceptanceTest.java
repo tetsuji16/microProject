@@ -213,17 +213,28 @@ class ResourceLevelingDialogGuiAcceptanceTest {
 		runOnEdt(() -> {
 			for (Object value : project.getTaskList()) {
 				NormalTask task = (NormalTask) value;
-				result.put(task, Long.valueOf(task.getStart()));
+				result.put(task, Long.valueOf(visibleLevelingPosition(task)));
 			}
 		});
 		return result;
+	}
+
+	/**
+	 * Start plus assignment leveling delays: a manually scheduled task keeps its user-owned start while leveling
+	 * stores the delay on its assignments (Level Assignments), so the delay is the observable leveling result.
+	 */
+	private static long visibleLevelingPosition(NormalTask task) {
+		long total = task.getStart();
+		for (Object value : task.getAssignments())
+			total += com.microproject.datatype.Duration.millis(((Assignment) value).getLevelingDelay());
+		return total;
 	}
 
 	private static boolean anyTaskStartDiffers(Project project, java.util.Map<NormalTask, Long> originalStarts) {
 		boolean[] changed = new boolean[1];
 		runOnEdt(() -> {
 			for (var entry : originalStarts.entrySet())
-				if (entry.getKey().getStart() != entry.getValue().longValue()) changed[0] = true;
+				if (visibleLevelingPosition(entry.getKey()) != entry.getValue().longValue()) changed[0] = true;
 		});
 		return changed[0];
 	}
@@ -371,6 +382,7 @@ class ResourceLevelingDialogGuiAcceptanceTest {
 		NormalTask task = new NormalTask(project);
 		task.setName(name);
 		project.connectTask(task);
+		project.getTaskOutlines().addToAll(task, null);
 		project.getSchedulingAlgorithm().addObject(task);
 		task.getCurrentSchedule().setStart(project.getStart());
 		task.setDuration(days * CalendarOption.getInstance().getMillisPerDay());

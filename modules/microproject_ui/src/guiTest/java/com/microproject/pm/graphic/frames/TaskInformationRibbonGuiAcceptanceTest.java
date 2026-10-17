@@ -262,6 +262,14 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			Locale.setDefault(Locale.Category.FORMAT, previousFormatLocale);
 	}
 
+	/** Leveling that adjusts individual assignments stores its delay on the assignments; the task start moves with it. */
+	private static long levelingDelay(com.microproject.pm.task.Task task) {
+		long total = com.microproject.datatype.Duration.millis(task.getLevelingDelay());
+		if (task instanceof NormalTask normal) for (Object value : normal.getAssignments())
+			total += com.microproject.datatype.Duration.millis(((com.microproject.pm.assignment.Assignment) value).getLevelingDelay());
+		return total;
+	}
+
 	@Test
 	void robotSaveShowsMpoRecoveryCopyAfterLockFailure() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
@@ -3337,9 +3345,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"Level Selection must be enabled for one selected editable task");
 		RibbonCommandResult before = manager.getLastRibbonCommandResult();
 		click(robot, levelSelection);
-		GuiAcceptanceSupport.await(() -> selected.getLevelingDelay() > 0,
+		GuiAcceptanceSupport.await(() -> levelingDelay(selected) > 0,
 			"Resource > Level Selection did not apply leveling delay to the selected task");
-		assertEquals(0L, fixed.getLevelingDelay(), "unselected task must remain a fixed leveling anchor");
+		assertEquals(0L, levelingDelay(fixed), "unselected task must remain a fixed leveling anchor");
 		GuiAcceptanceSupport.await(() -> manager.getLastRibbonCommandResult() != before
 				&& manager.getLastRibbonCommandResult().status() == RibbonCommandResult.Status.CHANGED,
 			"Level Selection did not publish its changed result");
@@ -3350,14 +3358,14 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		ByteArrayOutputStream saved = new ByteArrayOutputStream();
 		assertTrue(new MpoFileImporter().saveProject(project, saved), "MPO save rejected the leveled project");
 		Project reloaded = new MpoFileImporter().loadProject(new ByteArrayInputStream(saved.toByteArray()));
-		assertTrue(taskNamed(reloaded, "Selected leveling target").getLevelingDelay() > 0,
+		assertTrue(levelingDelay(taskNamed(reloaded, "Selected leveling target")) > 0,
 			"MPO reload lost selected-task leveling delay");
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
-		GuiAcceptanceSupport.await(() -> selected.getLevelingDelay() == 0L,
+		GuiAcceptanceSupport.await(() -> levelingDelay(selected) == 0L,
 			"one Ctrl+Z did not restore the selected task's leveling delay");
-		assertEquals(0L, fixed.getLevelingDelay(), "Undo must not mutate the unselected anchor");
+		assertEquals(0L, levelingDelay(fixed), "Undo must not mutate the unselected anchor");
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
-		GuiAcceptanceSupport.await(() -> selected.getLevelingDelay() > 0,
+		GuiAcceptanceSupport.await(() -> levelingDelay(selected) > 0,
 			"one Ctrl+Y did not restore selected-task leveling");
 	}
 
@@ -4080,8 +4088,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		AssignmentService.getInstance().newAssignment(anchorTwo, resourceTwo, 1.0, 0L, getClass());
 		AssignmentService.getInstance().newAssignment(targetTwo, resourceTwo, 1.0, 0L, getClass());
 		project.recalculate();
-		assertEquals(0L, targetOne.getLevelingDelay());
-		assertEquals(0L, targetTwo.getLevelingDelay());
+		assertEquals(0L, levelingDelay(targetOne));
+		assertEquals(0L, levelingDelay(targetTwo));
 		showProject(project);
 		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
@@ -4101,10 +4109,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"Level All must be enabled for a writable project with a selected task");
 		RibbonCommandResult before = manager.getLastRibbonCommandResult();
 		click(robot, levelAll);
-		GuiAcceptanceSupport.await(() -> targetOne.getLevelingDelay() > 0L && targetTwo.getLevelingDelay() > 0L,
+		GuiAcceptanceSupport.await(() -> levelingDelay(targetOne) > 0L && levelingDelay(targetTwo) > 0L,
 			"Resource > Level All did not level eligible tasks on both project resources");
-		assertEquals(0L, anchorOne.getLevelingDelay(), "Level All must retain the first resource's anchor");
-		assertEquals(0L, anchorTwo.getLevelingDelay(), "Level All must retain the second resource's anchor");
+		assertEquals(0L, levelingDelay(anchorOne), "Level All must retain the first resource's anchor");
+		assertEquals(0L, levelingDelay(anchorTwo), "Level All must retain the second resource's anchor");
 		GuiAcceptanceSupport.await(() -> manager.getLastRibbonCommandResult() != before
 				&& manager.getLastRibbonCommandResult().status() == RibbonCommandResult.Status.CHANGED,
 			"Level All did not publish its changed result");
@@ -4115,15 +4123,15 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		MpoFileImporter importer = new MpoFileImporter();
 		assertTrue(importer.saveProject(project, saved), "MPO save rejected the Level All project");
 		Project reloaded = importer.loadProject(new ByteArrayInputStream(saved.toByteArray()));
-		assertTrue(taskNamed(reloaded, "Level All resource one target").getLevelingDelay() > 0L,
+		assertTrue(levelingDelay(taskNamed(reloaded, "Level All resource one target")) > 0L,
 			"MPO reload lost Level All's first resource delay");
-		assertTrue(taskNamed(reloaded, "Level All resource two target").getLevelingDelay() > 0L,
+		assertTrue(levelingDelay(taskNamed(reloaded, "Level All resource two target")) > 0L,
 			"MPO reload lost Level All's second resource delay");
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
-		GuiAcceptanceSupport.await(() -> targetOne.getLevelingDelay() == 0L && targetTwo.getLevelingDelay() == 0L,
+		GuiAcceptanceSupport.await(() -> levelingDelay(targetOne) == 0L && levelingDelay(targetTwo) == 0L,
 			"one Ctrl+Z did not undo Level All across every resource");
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
-		GuiAcceptanceSupport.await(() -> targetOne.getLevelingDelay() > 0L && targetTwo.getLevelingDelay() > 0L,
+		GuiAcceptanceSupport.await(() -> levelingDelay(targetOne) > 0L && levelingDelay(targetTwo) > 0L,
 			"one Ctrl+Y did not redo Level All across every resource");
 	}
 
