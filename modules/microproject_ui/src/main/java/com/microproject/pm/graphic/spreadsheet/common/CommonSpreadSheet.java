@@ -492,18 +492,6 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 			return;
 		}
 		if (e != null && !isEditing()) {
-			// Swing's ToolTipManager consumes Escape to hide a visible cell tooltip, so a
-			// root-pane Escape command (Microsoft: "press Esc" to stop Format Painter)
-			// would need a second press while the pointer rests on a tooltip cell. Hide
-			// the tooltip first so the same key continues to the key-binding route.
-			if (e.getID() == KeyEvent.KEY_PRESSED && e.getKeyCode() == KeyEvent.VK_ESCAPE
-					&& e.getModifiersEx() == 0) {
-				javax.swing.ToolTipManager tooltips = javax.swing.ToolTipManager.sharedInstance();
-				if (tooltips.isEnabled()) {
-					tooltips.setEnabled(false);
-					tooltips.setEnabled(true);
-				}
-			}
 			if (e.getID() == KeyEvent.KEY_PRESSED && moveActiveCellWithArrowKey(e)) {
 				e.consume();
 				return;
