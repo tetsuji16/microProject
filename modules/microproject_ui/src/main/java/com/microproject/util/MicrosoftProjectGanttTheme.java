@@ -29,6 +29,52 @@ public final class MicrosoftProjectGanttTheme {
 	private MicrosoftProjectGanttTheme() {
 	}
 
+	private static boolean dark() {
+		return FlatUiSupport.isDarkTheme();
+	}
+
+	/** Chart surface: the workspace body color in the dark theme, white otherwise. */
+	public static Color background() {
+		return dark() ? FlatUiSupport.spreadsheetBodyBackground() : BACKGROUND;
+	}
+
+	public static Color gridLine() {
+		return dark() ? FlatUiSupport.ganttHeaderGridColor() : GRID_LINE;
+	}
+
+	public static Color progressTrack() {
+		return dark() ? new Color(0x3A4A68) : TASK_TRACK;
+	}
+
+	public static Color progressFill() {
+		return dark() ? new Color(0x6F9BE8) : TASK_PROGRESS;
+	}
+
+	public static Color summary() {
+		return dark() ? new Color(0xC8CCD2) : SUMMARY;
+	}
+
+	public static Color summaryBackground() {
+		return dark() ? new Color(0x4A4E55) : SUMMARY_BACKGROUND;
+	}
+
+	public static Color dependency() {
+		return dark() ? new Color(0xB4B9C0) : DEPENDENCY;
+	}
+
+	public static Color baseline() {
+		return dark() ? new Color(0x9AA0A8) : BASELINE;
+	}
+
+	/** Non-working day shading: a faint lift of the dark chart surface. */
+	public static Color nonWorkingFill() {
+		Color base = background();
+		return new Color(
+			Math.min(255, base.getRed() + 14),
+			Math.min(255, base.getGreen() + 14),
+			Math.min(255, base.getBlue() + 14));
+	}
+
 	public static Color statusColor(Schedule schedule, Object context) {
 		return TASK;
 	}
@@ -40,13 +86,13 @@ public final class MicrosoftProjectGanttTheme {
 		if ("Bar.assignment".equals(id))
 			return ASSIGNMENT;
 		if ("Bar.summary".equals(id))
-			return SUMMARY;
+			return summary();
 		if ("Bar.baseline".equals(id) || id.startsWith("Bar.baseline"))
-			return BASELINE;
+			return baseline();
 		if ("Bar.critical".equals(id))
 			return CRITICAL;
 		if ("Link.link1".equals(id))
-			return DEPENDENCY;
+			return dependency();
 		return statusColor == null ? TASK : statusColor;
 	}
 

@@ -103,6 +103,7 @@ import com.microproject.util.GanttColorPalette;
 import com.microproject.util.GanttProgress;
 import com.microproject.util.DateFieldSupport;
 import com.microproject.util.MicrosoftProjectGanttPalette;
+import com.microproject.util.MicrosoftProjectGanttTheme;
 import com.microproject.ui.privacy.PrivacyDisplayMode;
 
 public class GanttRenderer extends GraphRenderer implements Serializable {
@@ -1283,6 +1284,10 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 
 				PredefinedPaint paint=(PredefinedPaint)calFormat.getMiddle().getPaint();//new PredefinedPaint(PredefinedPaint.DOT_LINE,Colors.VERY_LIGHT_GRAY,Color.WHITE);
 				paint.applyPaint(g2, useTextures());
+				// The stored non-working paint is a light pattern; on a dark chart it
+				// glares, so draw a subtle lifted surface tint instead (issue #798).
+				if (FlatUiSupport.isDarkTheme())
+					g2.setColor(MicrosoftProjectGanttTheme.nonWorkingFill());
 				while (i.hasNext()){
 					TimeInterval interval=i.next();
 					long s=interval.getStart();
