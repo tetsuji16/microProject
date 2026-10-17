@@ -98,14 +98,12 @@ public abstract class AbstractDialog extends FlatLafDialog {
 
 	public AbstractDialog(Frame owner/*, MainFrame main*/, String title, boolean modal) {
 		super(owner, title, modal);
-		createRootPane();
 		this.owner = owner;
 		FlatUiSupport.styleDialogRoot(getRootPane());
 	}
 
 	public AbstractDialog(Dialog owner, String title, Dialog.ModalityType modalityType) {
 		super(owner, title, modalityType);
-		createRootPane();
 		this.owner = owner != null && owner.getOwner() instanceof Frame frame ? frame : null;
 		FlatUiSupport.styleDialogRoot(getRootPane());
 	}

@@ -1405,10 +1405,8 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		}
 	}
 
+	/** Callers gate this through {@link #popupTriggerController}, the single popup-trigger owner. */
 	private void handleTablePopupTrigger(MouseEvent e) {
-		if (!e.isPopupTrigger()) {
-			return;
-		}
 		int row = rowAtPoint(e.getPoint());
 		int col = columnAtPoint(e.getPoint());
 		if (row >= 0 && col >= 0) {
