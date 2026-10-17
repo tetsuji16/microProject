@@ -903,8 +903,12 @@ public class MpoFileImporter extends FileImporter {
 			JsonNode bold = node.get("bold");
 			JsonNode italic = node.get("italic");
 			JsonNode strikethrough = node.get("strikethrough");
-			if ((family != null && !family.isTextual()) || size == null || !size.canConvertToInt() || size.intValue() < 0
-					|| (color != null && (!color.canConvertToInt() || color.intValue() < 0 || color.intValue() > 0xFFFFFF))
+			// Task.setFontSize accepts 0 (inherit) through 72 points; a larger stored value
+			// is corrupted data, not a size to clamp silently.
+			if ((family != null && !family.isTextual()) || size == null || !size.isIntegralNumber()
+					|| !size.canConvertToInt() || size.intValue() < 0 || size.intValue() > 72
+					|| (color != null && (!color.isIntegralNumber() || !color.canConvertToInt()
+						|| color.intValue() < 0 || color.intValue() > 0xFFFFFF))
 					|| bold == null || !bold.isBoolean() || italic == null || !italic.isBoolean()
 					|| strikethrough == null || !strikethrough.isBoolean())
 				throw new IOException("Invalid MPO task text style values");

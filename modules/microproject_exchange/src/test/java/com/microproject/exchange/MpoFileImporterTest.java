@@ -175,6 +175,25 @@ class MpoFileImporterTest {
 	}
 
 	@Test
+	void mpoRejectsCorruptedTaskTextStyleInsteadOfClampingIt() throws Exception {
+		Project project = projectForRoundTrip();
+		firstTask(project).setFontBold(true);
+		ByteArrayOutputStream archive = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, archive));
+		Map<String, byte[]> entries = readEntries(archive.toByteArray());
+		String styles = new String(entries.get(MpoFileImporter.TASK_TEXT_STYLES_ENTRY), StandardCharsets.UTF_8);
+		assertTrue(styles.contains("\"fontSize\":0"), styles);
+		for (String corrupted : List.of("\"fontSize\":99", "\"fontSize\":1.5")) {
+			byte[] tampered = styles.replace("\"fontSize\":0", corrupted).getBytes(StandardCharsets.UTF_8);
+			entries.put(MpoFileImporter.TASK_TEXT_STYLES_ENTRY, tampered);
+			updateManifestChecksum(entries, MpoFileImporter.TASK_TEXT_STYLES_ENTRY, tampered);
+			byte[] mpo = zip(entries).toByteArray();
+			assertThrows(Exception.class, () -> loadFromBytes(mpo),
+				"MPO must reject a task text style outside the model's 0..72 point range: " + corrupted);
+		}
+	}
+
+	@Test
 	void loadProjectDoesNotCloseCallerOwnedInputStream() throws Exception {
 		Project project = projectForRoundTrip();
 		ByteArrayOutputStream archive = new ByteArrayOutputStream();
