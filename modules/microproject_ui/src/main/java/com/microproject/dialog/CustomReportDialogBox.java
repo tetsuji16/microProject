@@ -207,6 +207,7 @@ public final class CustomReportDialogBox extends FlatLafDialog implements Schedu
 		JButton export = new JButton(t("report.export")); export.addActionListener(event -> exportCsv());
 		JButton print = new JButton(t("report.print")); print.addActionListener(event -> print());
 		JButton close = new JButton(t("common.close")); close.addActionListener(event -> dispose());
+		getRootPane().setDefaultButton(generate); // Enter presses the primary command (Windows/Office dialog rule)
 		buttons.add(generate); buttons.add(export); buttons.add(print); buttons.add(close); result.add(buttons, BorderLayout.EAST); return result;
 	}
 

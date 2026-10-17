@@ -75,6 +75,7 @@ public final class CriticalChainStatusDialogBox extends FlatLafDialog {
 		}
 
 		JButton close = new JButton(UsabilityStrings.text("common.close"));
+		getRootPane().setDefaultButton(close); // Enter presses the primary command (Windows/Office dialog rule)
 		close.addActionListener(event -> dispose());
 		JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
 		boolean hasAppliedPlan = settings != null && settings.isEnabled() && service.findBaseline(project) != null;

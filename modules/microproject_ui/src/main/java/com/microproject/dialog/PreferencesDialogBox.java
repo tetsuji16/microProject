@@ -192,6 +192,7 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 			dispose();
 		});
 		JButton cancel = new JButton(UsabilityStrings.text("preferences.cancel"));
+		getRootPane().setDefaultButton(apply); // Enter presses the primary command (Windows/Office dialog rule)
 		cancel.addActionListener(event -> dispose());
 		JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
 		buttons.add(cancel); buttons.add(apply);

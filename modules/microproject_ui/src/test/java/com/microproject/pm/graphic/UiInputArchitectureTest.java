@@ -69,6 +69,21 @@ class UiInputArchitectureTest {
 		assertEquals(adds, removes, "a class that registers on GlobalPreferences must also unregister on cleanup/dispose");
 	}
 
+	/**
+	 * #414 / Windows-Office dialog rule: Enter presses the primary command. AbstractDialog does this centrally;
+	 * FlatLafDialog boxes declare a default button. CalendarViewDialogBox has only navigation buttons, so Escape
+	 * closes it and Enter is left to the focused control.
+	 */
+	@Test
+	void everyFlatLafDialogBoxDeclaresItsEnterDefaultButton() throws Exception {
+		List<String> dialogs = new ArrayList<>(sourcesMatching(Pattern.quote("extends FlatLafDialog")));
+		dialogs.remove("dialog/CalendarViewDialogBox.java");
+		dialogs.remove("dialog/AbstractDialog.java"); // binds Enter to the focused button or onOk itself
+		List<String> withDefault = sourcesMatching(Pattern.quote("getRootPane().setDefaultButton("));
+		assertEquals(List.of(), dialogs.stream().filter(path -> !withDefault.contains(path)).toList(),
+			"FlatLafDialog boxes without a default button for Enter");
+	}
+
 	private static List<String> sourcesMatching(String regex) throws Exception {
 		Pattern pattern = Pattern.compile(regex);
 		Path sourceRoot = findProjectRoot().resolve("modules/microproject_ui/src/main/java/com/microproject");

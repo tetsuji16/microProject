@@ -95,6 +95,7 @@ public final class TimelineDialogBox extends FlatLafDialog {
 			chooser.repaint(); canvas.refresh();
 		});
 		JButton close = new JButton(UsabilityStrings.text("common.close"));
+		getRootPane().setDefaultButton(close); // Enter presses the primary command (Windows/Office dialog rule)
 		close.addActionListener(event -> dispose());
 		buttons.add(selectMilestones); buttons.add(clear); buttons.add(close);
 		add(buttons, BorderLayout.SOUTH);
