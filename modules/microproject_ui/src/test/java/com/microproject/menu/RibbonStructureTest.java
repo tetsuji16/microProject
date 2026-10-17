@@ -96,6 +96,19 @@ class RibbonStructureTest {
 	}
 
 	@Test
+	void taskClipboardGroupUsesTheLocalizedClipboardTitle() {
+		assertEquals(List.of("RibbonPaste", "RibbonCopy", "RibbonCut", "RibbonFormatPainter"),
+			ribbonButtonIds("TaskClipboardRibbonBand"));
+		for (String tag : List.of("ar", "da", "de", "el", "es", "fr", "hi", "it", "ja", "ko", "nl", "pt", "ru",
+				"sv", "th", "tr", "ur", "vi", "zh", "zh-CN", "zh-TW")) {
+			Locale locale = Locale.forLanguageTag(tag);
+			assertEquals(menuBundle(locale).getString("ClipboardRibbonBand.title"),
+				menuBundle(locale).getString("TaskClipboardRibbonBand.title"),
+				() -> "Task tab Clipboard group must keep the localized title for " + tag);
+		}
+	}
+
+	@Test
 	void taskTabPlacesMicrosoftScheduleCommandsInScheduleGroup() {
 		assertEquals(List.of("RibbonExportProject", "RibbonImportProject"),
 			ribbonButtonIds("FileExchangeRibbonBand"));
