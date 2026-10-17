@@ -153,6 +153,7 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	protected long actualStart = 0;
 
 	protected long levelingDelay = 0L;
+	private transient LevelingManualDateState levelingManualDateState;
 	private transient boolean levelingCanSplit = true;
 	private transient boolean levelAssignments = true;
 	private transient boolean recurringTask;
@@ -1874,6 +1875,9 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	public final void setLevelingDelay(long levelingDelay) {
 		this.levelingDelay = levelingDelay;
 	}
+	public final LevelingManualDateState getLevelingManualDateState() { return levelingManualDateState; }
+	public final void setLevelingManualDateState(LevelingManualDateState state) { levelingManualDateState = state; }
+	public record LevelingManualDateState(long originalStart, long originalFinish, long generatedStart, long generatedFinish) { }
 	public final boolean isLevelingCanSplit() { return levelingCanSplit; }
 	public final void setLevelingCanSplit(boolean value) { levelingCanSplit = value; setDirty(true); }
 	public final boolean isLevelAssignments() { return levelAssignments; }

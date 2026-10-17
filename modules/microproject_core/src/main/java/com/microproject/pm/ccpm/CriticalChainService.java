@@ -104,6 +104,7 @@ public final class CriticalChainService {
 		private boolean allowTaskSplits = true;
 		private boolean levelAssignments = true;
 		private boolean includeProposedResources;
+		private boolean levelManuallyScheduledTasks;
 		private ResourceLevelingService.Sensitivity sensitivity = ResourceLevelingService.Sensitivity.DAY;
 
 		public boolean isEnabled() { return enabled; }
@@ -127,6 +128,8 @@ public final class CriticalChainService {
 		public void setLevelAssignments(boolean levelAssignments) { this.levelAssignments = levelAssignments; }
 		public boolean isIncludeProposedResources() { return includeProposedResources; }
 		public void setIncludeProposedResources(boolean includeProposedResources) { this.includeProposedResources = includeProposedResources; }
+		public boolean isLevelManuallyScheduledTasks() { return levelManuallyScheduledTasks; }
+		public void setLevelManuallyScheduledTasks(boolean levelManuallyScheduledTasks) { this.levelManuallyScheduledTasks = levelManuallyScheduledTasks; }
 		public ResourceLevelingService.Sensitivity getSensitivity() { return sensitivity; }
 		public void setSensitivity(ResourceLevelingService.Sensitivity sensitivity) {
 			this.sensitivity = Objects.requireNonNull(sensitivity, "sensitivity");
@@ -140,6 +143,7 @@ public final class CriticalChainService {
 			copy.allowTaskSplits = allowTaskSplits;
 			copy.levelAssignments = levelAssignments;
 			copy.includeProposedResources = includeProposedResources;
+			copy.levelManuallyScheduledTasks = levelManuallyScheduledTasks;
 			copy.sensitivity = sensitivity;
 			return copy;
 		}
@@ -266,7 +270,7 @@ public final class CriticalChainService {
 		Objects.requireNonNull(settings, "settings");
 		ResourceLevelingService.Options options = new ResourceLevelingService.Options(settings.getLevelingOrder(),
 			settings.isOnlyWithinAvailableSlack(), settings.isAllowTaskSplits(), Long.MIN_VALUE, Long.MAX_VALUE,
-			settings.isIncludeProposedResources(), settings.getSensitivity(), settings.isLevelAssignments());
+			settings.isIncludeProposedResources(), settings.getSensitivity(), settings.isLevelAssignments(), settings.isLevelManuallyScheduledTasks());
 		ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(project, resources, options);
 		return analyze(project, plan, settings, resources);
 	}
@@ -295,13 +299,14 @@ public final class CriticalChainService {
 			settings.setAllowTaskSplits(requestedSettings.isAllowTaskSplits());
 			settings.setLevelAssignments(requestedSettings.isLevelAssignments());
 			settings.setIncludeProposedResources(requestedSettings.isIncludeProposedResources());
+			settings.setLevelManuallyScheduledTasks(requestedSettings.isLevelManuallyScheduledTasks());
 			settings.setSensitivity(requestedSettings.getSensitivity());
 			if (!settings.isEnabled()) {
 				throw new IllegalStateException("Enable CCPM before applying a critical chain");
 			}
 			ResourceLevelingService.Options options = new ResourceLevelingService.Options(settings.getLevelingOrder(),
 				settings.isOnlyWithinAvailableSlack(), settings.isAllowTaskSplits(), Long.MIN_VALUE, Long.MAX_VALUE,
-				settings.isIncludeProposedResources(), settings.getSensitivity(), settings.isLevelAssignments());
+				settings.isIncludeProposedResources(), settings.getSensitivity(), settings.isLevelAssignments(), settings.isLevelManuallyScheduledTasks());
 			ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(project, resources, options);
 			plan.apply(editSupport);
 			Analysis analysis = analyze(project, plan, settings, resources);
@@ -401,6 +406,7 @@ public final class CriticalChainService {
 			result = 31L * result + (settings.isAllowTaskSplits() ? 1L : 0L);
 			result = 31L * result + (settings.isLevelAssignments() ? 1L : 0L);
 			result = 31L * result + (settings.isIncludeProposedResources() ? 1L : 0L);
+			result = 31L * result + (settings.isLevelManuallyScheduledTasks() ? 1L : 0L);
 		}
 		for (Task task : ProjectHierarchyQueries.outline(project)) {
 			result = 31L * result + task.getUniqueId();

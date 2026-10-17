@@ -88,23 +88,23 @@ public final class ResourceLevelingService {
 
 	public record Options(Order order, boolean onlyWithinAvailableSlack, boolean allowTaskSplits,
 		long rangeStart, long rangeEnd, boolean includeProposedResources, Sensitivity sensitivity,
-		boolean levelAssignments) {
+		boolean levelAssignments, boolean levelManuallyScheduledTasks) {
 		public Options(Order order, boolean onlyWithinAvailableSlack, long rangeStart, long rangeEnd) {
-			this(order, onlyWithinAvailableSlack, true, rangeStart, rangeEnd, false, Sensitivity.DAY, true);
+			this(order, onlyWithinAvailableSlack, true, rangeStart, rangeEnd, false, Sensitivity.DAY, true, false);
 		}
 		public Options(Order order, boolean onlyWithinAvailableSlack, boolean allowTaskSplits,
 			long rangeStart, long rangeEnd) {
-			this(order, onlyWithinAvailableSlack, allowTaskSplits, rangeStart, rangeEnd, false, Sensitivity.DAY, true);
+			this(order, onlyWithinAvailableSlack, allowTaskSplits, rangeStart, rangeEnd, false, Sensitivity.DAY, true, false);
 		}
 		public Options(Order order, boolean onlyWithinAvailableSlack, boolean allowTaskSplits,
 			long rangeStart, long rangeEnd, boolean includeProposedResources) {
 			this(order, onlyWithinAvailableSlack, allowTaskSplits, rangeStart, rangeEnd,
-				includeProposedResources, Sensitivity.DAY, true);
+				includeProposedResources, Sensitivity.DAY, true, false);
 		}
 		public Options(Order order, boolean onlyWithinAvailableSlack, boolean allowTaskSplits,
 			long rangeStart, long rangeEnd, boolean includeProposedResources, Sensitivity sensitivity) {
 			this(order, onlyWithinAvailableSlack, allowTaskSplits, rangeStart, rangeEnd,
-				includeProposedResources, sensitivity, true);
+				includeProposedResources, sensitivity, true, false);
 		}
 		public Options {
 			Objects.requireNonNull(order, "order");
@@ -141,6 +141,9 @@ public final class ResourceLevelingService {
 		private final List<NormalTask> clearGeneratedSplits;
 		private final List<Assignment> clearGeneratedAssignmentSplits;
 		private final Map<Task, Object> detailBackups;
+		private final Map<Task, ManualDates> manualDateChanges = new IdentityHashMap<>();
+		private record ManualDates(long oldStart, long oldFinish, long newStart, long newFinish,
+			Task.LevelingManualDateState oldState, Task.LevelingManualDateState newState, boolean changeDates) { }
 		private final Map<Assignment, Object> assignmentDetailBackups;
 		private final PlanSourceState sourceState;
 
@@ -173,6 +176,37 @@ public final class ResourceLevelingService {
 				+ assignmentChanges.size() + assignmentSplits.size() + clearGeneratedAssignmentSplits.size());
 			this.assignmentDetailBackups = new IdentityHashMap<>(assignmentSplits.size() + clearGeneratedAssignmentSplits.size());
 			this.sourceState = sourceState;
+			for (Change change : changes) {
+				Task task = change.task();
+				Task.LevelingManualDateState oldState = task.getLevelingManualDateState();
+				if (change.oldDelay() != change.newDelay()
+					|| (change.newDelay() == 0L && oldState != null)) {
+					long oldStart = task.getManualStart();
+					long oldFinish = task.getManualFinish();
+					if (change.newDelay() == 0L) {
+						boolean restoreDates = task.isManuallyScheduled() && oldState != null && oldStart == oldState.generatedStart()
+							&& oldFinish == oldState.generatedFinish();
+						manualDateChanges.put(task, new ManualDates(oldStart, oldFinish,
+							restoreDates ? oldState.originalStart() : oldStart,
+							restoreDates ? oldState.originalFinish() : oldFinish, oldState, null, restoreDates));
+					} else if (task.isManuallyScheduled()) {
+						long shift = Math.subtractExact(change.projectedStart(), change.oldStart());
+						boolean continuing = oldState != null && oldStart == oldState.generatedStart()
+							&& oldFinish == oldState.generatedFinish();
+						long originalStart = continuing ? oldState.originalStart() : oldStart;
+						long originalFinish = continuing ? oldState.originalFinish() : oldFinish;
+						long generatedStart = Math.addExact(oldStart, shift);
+						long generatedFinish = Math.addExact(oldFinish, shift);
+						Task.LevelingManualDateState newState = shift == 0L || oldStart <= 0L || oldFinish < oldStart ? oldState
+							: new Task.LevelingManualDateState(originalStart, originalFinish, generatedStart, generatedFinish);
+						manualDateChanges.put(task, new ManualDates(oldStart, oldFinish, generatedStart,
+							generatedFinish, oldState, newState, newState != oldState && oldStart > 0L && oldFinish >= oldStart));
+					} else if (oldState != null) {
+						manualDateChanges.put(task, new ManualDates(oldStart, oldFinish, oldStart, oldFinish,
+							oldState, null, false));
+					}
+				}
+			}
 		}
 
 		public List<Change> changes() {
@@ -374,9 +408,18 @@ public final class ResourceLevelingService {
 				}
 			}
 			for (Change change : changes) {
-				change.task().setLevelingDelay(forward ? change.newDelay() : change.oldDelay());
-				change.task().setDirty(true);
-				projects.add(change.task().getOwningProject());
+				Task task = change.task();
+				task.setLevelingDelay(forward ? change.newDelay() : change.oldDelay());
+				ManualDates manualDates = manualDateChanges.get(task);
+				if (manualDates != null) {
+					if (manualDates.changeDates()) {
+						task.setManualDates(forward ? manualDates.newStart() : manualDates.oldStart(),
+							forward ? manualDates.newFinish() : manualDates.oldFinish());
+					}
+					task.setLevelingManualDateState(forward ? manualDates.newState() : manualDates.oldState());
+				}
+				task.setDirty(true);
+				projects.add(task.getOwningProject());
 			}
 			for (AssignmentChange change : assignmentChanges) {
 				change.assignment().setLevelingDelay(forward ? change.newDelay() : change.oldDelay());
@@ -687,6 +730,7 @@ public final class ResourceLevelingService {
 
 	private static boolean hasLevelingState(Task task) {
 		if (Duration.millis(task.getLevelingDelay()) != 0L
+			|| task.getLevelingManualDateState() != null
 			|| task instanceof NormalTask normalTask && !normalTask.getLevelingTaskSplitIntervals().isEmpty()) return true;
 		if (task instanceof NormalTask normalTask) for (Object value : normalTask.getAssignments())
 			if (Duration.millis(((Assignment) value).getLevelingDelay()) != 0L
@@ -707,7 +751,7 @@ public final class ResourceLevelingService {
 		List<NormalTask> generatedSplits = new ArrayList<>();
 		List<Assignment> generatedAssignmentSplits = new ArrayList<>();
 		for (Task task : affected) {
-			if (Duration.millis(task.getLevelingDelay()) != 0L) {
+			if (Duration.millis(task.getLevelingDelay()) != 0L || task.getLevelingManualDateState() != null) {
 				changes.add(new Change(task, task.getLevelingDelay(), 0L, task.getStart(), task.getStart(), ""));
 			}
 			if (task instanceof NormalTask normalTask && !normalTask.getLevelingTaskSplitIntervals().isEmpty()) {
@@ -761,19 +805,15 @@ public final class ResourceLevelingService {
 			}
 		}
 		Comparator<Assignment> assignmentOrder = assignmentComparator(options.order());
-		if (selectedTasks != null) {
-			assignments.sort(Comparator
-				.comparing((Assignment assignment) -> selectedTasks.contains(assignment.getTask()))
-				.thenComparing(assignmentOrder));
-		} else {
-			assignments.sort(assignmentOrder);
-		}
+		assignments.sort(Comparator
+			.comparing((Assignment assignment) -> !isFixedConstraint(assignment.getTask(), selectedTasks, options))
+			.thenComparing(assignmentOrder));
 		List<Scheduled> accepted = scratch.accepted;
 		boolean changed = false;
 		for (Assignment assignment : assignments) {
 			Task task = assignment.getTask();
 			Assignment virtualAssignment = scratch.virtualAssignments.get(assignment);
-			if (selectedTasks != null && !selectedTasks.contains(task)) {
+			if (isFixedConstraint(task, selectedTasks, options)) {
 				Assignment schedule = virtualAssignment == null ? assignment : virtualAssignment;
 				Scheduled scheduled = new Scheduled(assignment, task, schedule.getStart(), schedule.getEnd(),
 					Math.max(0D, assignment.getUnits()));
@@ -878,6 +918,11 @@ public final class ResourceLevelingService {
 	private static boolean eligible(Task task, Assignment assignment, Options options) {
 		return task != null && !task.isSummary() && !task.isComplete() && !task.isInactiveTask() && !task.isReadOnly()
 			&& assignment.getEnd() > options.rangeStart() && assignment.getStart() < options.rangeEnd();
+	}
+
+	private static boolean isFixedConstraint(Task task, Set<Task> selectedTasks, Options options) {
+		return (selectedTasks != null && !selectedTasks.contains(task))
+			|| (task.isManuallyScheduled() && !options.levelManuallyScheduledTasks());
 	}
 
 	private static boolean canMove(Task task, Options options, long existingAdded,

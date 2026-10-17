@@ -396,6 +396,32 @@ class MpoFileImporterTest {
 	}
 
 	@Test
+	void mpoClearRestoresOptInLevelingManualDatesAfterReload() throws Exception {
+		Project original = projectForRoundTrip();
+		NormalTask task = (NormalTask) firstTask(original);
+		long start = task.getStart();
+		long finish = task.getEnd();
+		long shift = com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		task.setManuallyScheduled(true);
+		task.setManualDates(start + shift, finish + shift);
+		task.setLevelingDelay(com.microproject.datatype.Duration.millis(shift));
+		task.setLevelingManualDateState(new Task.LevelingManualDateState(start, finish, start + shift, finish + shift));
+
+		ByteArrayOutputStream archive = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(original, archive));
+		Project reopened = loadFromBytes(archive.toByteArray());
+		NormalTask restored = (NormalTask) firstTask(reopened);
+		assertEquals(start + shift, restored.getManualStart());
+		assertEquals(start, restored.getLevelingManualDateState().originalStart());
+
+		new com.microproject.pm.resource.ResourceLevelingService().clear(reopened);
+
+		assertEquals(start, restored.getManualStart(), "Clear after MPO reload restores the pre-leveling date");
+		assertEquals(finish, restored.getManualFinish());
+		org.junit.jupiter.api.Assertions.assertNull(restored.getLevelingManualDateState());
+	}
+
+	@Test
 	void mpoTaskSplitMetadataWithoutProvenanceTreatsExistingGapsAsManual() throws Exception {
 		Project original = projectForRoundTrip();
 		NormalTask task = (NormalTask) firstTask(original);
@@ -441,6 +467,9 @@ class MpoFileImporterTest {
 				|| field.getName().equals("levelAssignments")
 				|| field.getName().equals("recurringTask")),
 			"transient split and task-leveling options remain outside the immutable POD object descriptor");
+		assertTrue(java.util.Arrays.stream(ObjectStreamClass.lookup(Task.class).getFields())
+			.noneMatch(field -> field.getName().equals("levelingManualDateState")),
+			"manual-date provenance must stay outside the immutable POD task descriptor");
 	}
 
 	@Test
@@ -2525,6 +2554,7 @@ class MpoFileImporterTest {
 		ccpm.setEnabled(true);
 		ccpm.setBufferFraction(0.4D);
 		ccpm.setIncludeProposedResources(true);
+		ccpm.setLevelManuallyScheduledTasks(true);
 		ccpm.setLevelAssignments(false);
 		ccpm.setSensitivity(com.microproject.pm.resource.ResourceLevelingService.Sensitivity.HOUR);
 		new CriticalChainService().restoreBaseline(original, new CriticalChainService.Baseline(1L, 2L, 0.4D,
@@ -2550,6 +2580,7 @@ class MpoFileImporterTest {
 		org.junit.jupiter.api.Assertions.assertTrue(restored.isEnabled());
 		org.junit.jupiter.api.Assertions.assertEquals(0.4D, restored.getBufferFraction());
 		org.junit.jupiter.api.Assertions.assertTrue(restored.isIncludeProposedResources());
+		org.junit.jupiter.api.Assertions.assertTrue(restored.isLevelManuallyScheduledTasks());
 		org.junit.jupiter.api.Assertions.assertFalse(restored.isLevelAssignments());
 		org.junit.jupiter.api.Assertions.assertEquals(com.microproject.pm.resource.ResourceLevelingService.Sensitivity.HOUR,
 			restored.getSensitivity());
@@ -2566,6 +2597,7 @@ class MpoFileImporterTest {
 		CriticalChainService.Settings settings = new CriticalChainService().settings(original);
 		settings.setEnabled(true);
 		settings.setIncludeProposedResources(true);
+		settings.setLevelManuallyScheduledTasks(true);
 		File mpo = File.createTempFile("mpo-old-ccpm-options", ".mpo");
 		mpo.deleteOnExit();
 		MpoFileImporter writer = new MpoFileImporter();
@@ -2575,6 +2607,7 @@ class MpoFileImporterTest {
 		Map<String, byte[]> entries = readEntries(java.nio.file.Files.readAllBytes(mpo.toPath()));
 		String xml = new String(entries.get("settings.xml"), StandardCharsets.UTF_8);
 		String oldXml = xml.replace(" includeProposedResources=\"true\"", "")
+			.replace(" levelManuallyScheduledTasks=\"true\"", "")
 			.replace(" levelAssignments=\"true\"", "")
 			.replace(" sensitivity=\"DAY\"", "");
 		org.junit.jupiter.api.Assertions.assertNotEquals(xml, oldXml, "fixture must contain the new XML setting");
@@ -2584,6 +2617,8 @@ class MpoFileImporterTest {
 		Project reopened = loadFromBytes(zip(entries).toByteArray());
 		org.junit.jupiter.api.Assertions.assertFalse(new CriticalChainService().settings(reopened).isIncludeProposedResources(),
 			"MPO files written before the option existed must retain the safe excluded default");
+		org.junit.jupiter.api.Assertions.assertFalse(new CriticalChainService().settings(reopened).isLevelManuallyScheduledTasks(),
+			"MPO files written before the option existed must keep manual tasks fixed by default");
 		org.junit.jupiter.api.Assertions.assertTrue(new CriticalChainService().settings(reopened).isLevelAssignments(),
 			"MPO files written before the option existed default to individual assignment leveling");
 		org.junit.jupiter.api.Assertions.assertEquals(com.microproject.pm.resource.ResourceLevelingService.Sensitivity.DAY,

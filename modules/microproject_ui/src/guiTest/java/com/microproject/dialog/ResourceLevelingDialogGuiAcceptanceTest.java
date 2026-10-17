@@ -33,6 +33,7 @@ import com.microproject.pm.task.Project;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.resource.ResourceImpl;
+import com.microproject.pm.resource.BookingType;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.testsupport.GuiAcceptanceSupport;
@@ -170,6 +171,93 @@ class ResourceLevelingDialogGuiAcceptanceTest {
 		capture(robot, dialog);
 	}
 
+	@Test
+	void manualTasksStayFixedUntilRobotEnablesTheirLeveling() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Project project = newConflictProject();
+		for (Object value : project.getTaskList()) ((NormalTask) value).setManuallyScheduled(true);
+		for (Object value : project.getResourcePool().getResourceList())
+			((ResourceImpl) value).setBookingTypeKind(BookingType.Kind.COMMITTED);
+		ResourceLevelingDialogBox dialog = openDialog(project);
+		AbstractButton preview = findButton(dialog, UsabilityStrings.text("leveling.preview"));
+		AbstractButton includeManual = findButton(dialog, UsabilityStrings.text("leveling.includeManual"));
+		AbstractButton apply = findButton(dialog, UsabilityStrings.text("leveling.apply"));
+		assertTrue(preview != null && preview.isShowing(), "Preview button must be visible");
+		assertTrue(includeManual != null && includeManual.isShowing(), "Manual-task option must be visible");
+		assertTrue(apply != null && apply.isShowing(), "Apply button must be visible");
+		assertTrue(!isSelected(includeManual), "manual tasks must remain fixed by default");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(40);
+		click(robot, preview);
+		assertTrue(tableRowCount(dialog) == 0, "default preview must leave manual assignments fixed");
+		click(robot, includeManual);
+		click(robot, preview);
+		GuiAcceptanceSupport.await(() -> tableRowCountUnchecked(dialog) > 0,
+			"explicitly included manual assignments must appear in the preview");
+		assertTrue(isSelected(includeManual), "physical opt-in must remain selected while the plan is shown");
+		java.util.Map<NormalTask, Long> originalStarts = taskStarts(project);
+		click(robot, apply);
+		GuiAcceptanceSupport.await(() -> anyTaskStartDiffers(project, originalStarts),
+			"physical Apply must change at least one manual task's visible start");
+		SwingUtilities.invokeAndWait(() -> project.getUndoController().undo());
+		GuiAcceptanceSupport.await(() -> taskStarts(project).equals(originalStarts),
+			"Undo restores the manual task dates changed by the physical route");
+		SwingUtilities.invokeAndWait(() -> project.getUndoController().redo());
+		GuiAcceptanceSupport.await(() -> anyTaskStartDiffers(project, originalStarts),
+			"Redo restores the manual leveling result");
+		capture(robot, dialog);
+	}
+
+	private static java.util.Map<NormalTask, Long> taskStarts(Project project) {
+		java.util.Map<NormalTask, Long> result = new java.util.HashMap<>();
+		runOnEdt(() -> {
+			for (Object value : project.getTaskList()) {
+				NormalTask task = (NormalTask) value;
+				result.put(task, Long.valueOf(task.getStart()));
+			}
+		});
+		return result;
+	}
+
+	private static boolean anyTaskStartDiffers(Project project, java.util.Map<NormalTask, Long> originalStarts) {
+		boolean[] changed = new boolean[1];
+		runOnEdt(() -> {
+			for (var entry : originalStarts.entrySet())
+				if (entry.getKey().getStart() != entry.getValue().longValue()) changed[0] = true;
+		});
+		return changed[0];
+	}
+
+	private static void runOnEdt(Runnable operation) {
+		try {
+			SwingUtilities.invokeAndWait(operation);
+		} catch (InterruptedException exception) {
+			Thread.currentThread().interrupt();
+			throw new IllegalStateException("Interrupted while reading project state on the EDT", exception);
+		} catch (java.lang.reflect.InvocationTargetException exception) {
+			throw new IllegalStateException("Project state inspection failed on the EDT", exception.getCause());
+		}
+	}
+
+	private static ResourceLevelingDialogBox openDialog(Project project) throws Exception {
+		ResourceLevelingDialogBox[] dialog = new ResourceLevelingDialogBox[1];
+		SwingUtilities.invokeAndWait(() -> dialog[0] = ResourceLevelingDialogBox.getInstance(null, project));
+		AtomicReference<Throwable> showFailure = new AtomicReference<>();
+		SwingUtilities.invokeLater(() -> {
+			try { dialog[0].setVisible(true); }
+			catch (Throwable failure) { showFailure.set(failure); }
+		});
+		GuiAcceptanceSupport.await(() -> {
+			Throwable failure = showFailure.get();
+			if (failure != null) throw new IllegalStateException("Resource leveling dialog failed while showing", failure);
+			boolean[] visible = new boolean[1];
+			try { SwingUtilities.invokeAndWait(() -> visible[0] = dialog[0].isVisible()); }
+			catch (Exception invocationFailure) { throw new IllegalStateException("Could not inspect dialog visibility", invocationFailure); }
+			return visible[0];
+		}, "Resource leveling dialog did not become visible");
+		return dialog[0];
+	}
+
 	private static void click(Robot robot, Component component) throws Exception {
 		Rectangle bounds = new Rectangle();
 		SwingUtilities.invokeAndWait(() -> {
@@ -227,25 +315,6 @@ class ResourceLevelingDialogGuiAcceptanceTest {
 		return null;
 	}
 
-	private static ResourceLevelingDialogBox openDialog(Project project) throws Exception {
-		ResourceLevelingDialogBox[] dialog = new ResourceLevelingDialogBox[1];
-		SwingUtilities.invokeAndWait(() -> dialog[0] = ResourceLevelingDialogBox.getInstance(null, project));
-		AtomicReference<Throwable> showFailure = new AtomicReference<>();
-		SwingUtilities.invokeLater(() -> {
-			try { dialog[0].setVisible(true); }
-			catch (Throwable failure) { showFailure.set(failure); }
-		});
-		GuiAcceptanceSupport.await(() -> {
-			Throwable failure = showFailure.get();
-			if (failure != null) throw new IllegalStateException("Resource leveling dialog failed while showing", failure);
-			boolean[] visible = new boolean[1];
-			try { SwingUtilities.invokeAndWait(() -> visible[0] = dialog[0].isVisible()); }
-			catch (Exception invocationFailure) { throw new IllegalStateException("Could not inspect dialog visibility", invocationFailure); }
-			return visible[0];
-		}, "Resource leveling dialog did not become visible");
-		return dialog[0];
-	}
-
 	private static AbstractButton findButton(java.awt.Container container, String text) {
 		for (Component child : container.getComponents()) {
 			if (child instanceof AbstractButton button && text.equals(button.getText())) return button;
@@ -277,12 +346,14 @@ class ResourceLevelingDialogGuiAcceptanceTest {
 		project.initialize(false, false);
 		NormalTask first = new NormalTask(project);
 		first.setName("Conflict A");
+		first.setManuallyScheduled(false);
 		project.connectTask(first);
 		project.getSchedulingAlgorithm().addObject(first);
 		first.getCurrentSchedule().setStart(project.getStart());
 		first.setDuration(CalendarOption.getInstance().getMillisPerDay());
 		NormalTask second = new NormalTask(project);
 		second.setName("Conflict B");
+		second.setManuallyScheduled(false);
 		project.connectTask(second);
 		project.getSchedulingAlgorithm().addObject(second);
 		second.getCurrentSchedule().setStart(project.getStart());
