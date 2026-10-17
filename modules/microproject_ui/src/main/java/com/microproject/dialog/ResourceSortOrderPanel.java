@@ -36,7 +36,7 @@ public final class ResourceSortOrderPanel extends JPanel {
 			JComboBox<FieldChoice> choice = new JComboBox<>();
 			choice.setName("microproject.resourceSort.key" + (index + 1));
 			// Only the primary key is mandatory; later keys may be left empty.
-			if (index > 0) choice.addItem(null);
+			if (index > 0) choice.addItem(FieldChoice.NONE);
 			for (Field field : fields) choice.addItem(new FieldChoice(field));
 			JComboBox<String> direction = new JComboBox<>(new String[] {
 				Messages.getString("ResourceSortOrder.Ascending"), Messages.getString("ResourceSortOrder.Descending") });
@@ -45,7 +45,7 @@ public final class ResourceSortOrderPanel extends JPanel {
 				ResourceView.SortKey key = current.get(index);
 				for (int option = 0; option < choice.getItemCount(); option++) {
 					FieldChoice item = choice.getItemAt(option);
-					if (item != null && item.field.getId().equals(key.fieldId())) choice.setSelectedIndex(option);
+					if (item.field != null && item.field.getId().equals(key.fieldId())) choice.setSelectedIndex(option);
 				}
 				direction.setSelectedIndex(key.ascending() ? 0 : 1);
 			}
@@ -76,7 +76,7 @@ public final class ResourceSortOrderPanel extends JPanel {
 		List<ResourceView.SortKey> keys = new ArrayList<>();
 		for (int index = 0; index < fieldChoices.length; index++) {
 			FieldChoice selected = (FieldChoice) fieldChoices[index].getSelectedItem();
-			if (selected == null) continue;
+			if (selected == null || selected.field == null) continue;
 			String id = selected.field.getId();
 			if (keys.stream().noneMatch(key -> key.fieldId().equals(id)))
 				keys.add(new ResourceView.SortKey(id, directions[index].getSelectedIndex() == 0));
@@ -84,7 +84,11 @@ public final class ResourceSortOrderPanel extends JPanel {
 		return List.copyOf(keys);
 	}
 
+	/** A null field is the explicit "(none)" choice; a rendered label keeps every popup row selectable. */
 	private record FieldChoice(Field field) {
-		@Override public String toString() { return field.getName(); }
+		static final FieldChoice NONE = new FieldChoice(null);
+		@Override public String toString() {
+			return field == null ? Messages.getString("ResourceSortOrder.None") : field.getName();
+		}
 	}
 }
