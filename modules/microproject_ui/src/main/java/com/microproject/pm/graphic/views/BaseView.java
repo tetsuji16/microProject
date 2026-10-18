@@ -26,6 +26,7 @@ package com.microproject.pm.graphic.views;
 
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
+import com.microproject.print.GraphPageable;
 import com.microproject.graphic.configuration.SpreadSheetCategories;
 import com.microproject.undo.UndoController;
 import com.microproject.workspace.SavableToWorkspace;
@@ -48,6 +49,8 @@ public interface BaseView extends SpreadSheetCategories, SavableToWorkspace{
 	boolean showsResources();
 	void onActivate(boolean activate);
 	boolean isPrintable();
+	/** Optional specialized document that still participates in the shared print/export pipeline. */
+	default GraphPageable createPrintDocument(boolean printOnly, boolean pdfAsDefault) { return null; }
 	void cleanUp();
 	NodeModelCache getCache();
 }

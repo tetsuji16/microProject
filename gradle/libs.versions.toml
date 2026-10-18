@@ -18,7 +18,6 @@ javax-jaxb = "2.3.1"
 jaxb-runtime = "2.3.9"
 jackson = "2.22.0"
 jackson-annotations = "2.22"
-jasperreports = "6.21.5"
 jfreechart = "1.5.6"
 netbeans = "RELEASE290"
 mpxj = "11.5.4"
@@ -54,7 +53,6 @@ jaxb-runtime = { module = "org.glassfish.jaxb:jaxb-runtime", version.ref = "jaxb
 jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations", version.ref = "jackson-annotations" }
 jackson-core = { module = "com.fasterxml.jackson.core:jackson-core", version.ref = "jackson" }
 jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
-jasperreports = { module = "net.sf.jasperreports:jasperreports", version.ref = "jasperreports" }
 jfreechart = { module = "org.jfree:jfreechart", version.ref = "jfreechart" }
 org-netbeans-swing-outline = { module = "org.netbeans.api:org-netbeans-swing-outline", version.ref = "netbeans" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }

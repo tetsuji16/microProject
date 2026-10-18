@@ -41,6 +41,7 @@ import java.util.Locale;
 import java.time.Instant;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -55,6 +56,7 @@ import javax.swing.AbstractButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComponent;
 import javax.swing.JComboBox;
+import javax.swing.JFrame;
 import javax.swing.JTabbedPane;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
@@ -122,7 +124,12 @@ import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.resource.Resource;
 import com.microproject.options.CalendarOption;
 import com.microproject.pm.calendar.WorkingCalendar;
+import com.microproject.configuration.ReportDefinition;
 import com.microproject.pm.graphic.views.ResourceView;
+import com.microproject.print.GraphPageable;
+import com.microproject.print.PrintDocumentFactory;
+import com.microproject.reports.render.ReportPreview;
+import com.microproject.reports.view.ReportView;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectFactory;
@@ -140,6 +147,7 @@ import com.microproject.testsupport.DialogLayoutAssertions;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.Environment;
 import com.microproject.util.Alert;
+import com.microproject.util.UiServices;
 import com.microproject.util.UiDispatch;
 import com.microproject.ui.util.SwingAlertPresenter;
 
@@ -175,6 +183,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		@Override public void close() { }
 	};
 	private JobQueue previousJobQueue;
+	private UiServices.FileChooserProvider previousReportChooser;
+	private Path reportCsvOutput;
 	private Locale previousFormatLocale;
 	private RibbonDisplayMode previousShellDisplayMode;
 	private Logger diagnosticsLogger;
@@ -258,8 +268,145 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		else
 			System.setProperty("microproject.ui.debug", previousUiDebug);
 		SessionFactory.getInstance().setJobQueue(previousJobQueue);
+		if (previousReportChooser != null) {
+			UiServices.setFileChooserProvider(previousReportChooser);
+			previousReportChooser = null;
+		}
+		if (reportCsvOutput != null) {
+			Files.deleteIfExists(reportCsvOutput);
+			reportCsvOutput = null;
+		}
 		if (previousFormatLocale != null)
 			Locale.setDefault(Locale.Category.FORMAT, previousFormatLocale);
+	}
+
+	@Test
+	void physicalReportPrintPreviewShowsEveryPageThroughTheSharedGraphPageableRoute() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot report preview coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("report-preview-acceptance", undo), undo);
+		project.initialize(false, false);
+		for (int index = 1; index <= 45; index++) {
+			NormalTask task = (NormalTask)project.createLocalTaskNode(null).getImpl();
+			task.setName("Report task " + index);
+		}
+		project.recalculate();
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> manager.showReportView());
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
+			&& manager.getCurrentFrame().getActiveTopView() instanceof ReportView
+			&& manager.getCurrentFrame().getActiveTopView().isPrintable(),
+			"the Report view did not prepare printable content");
+		ReportView reportView = (ReportView)manager.getCurrentFrame().getActiveTopView();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		JComboBox<?> reportSelector = UiComponentWalker.flatten(reportView).stream()
+			.filter(JComboBox.class::isInstance).map(JComboBox.class::cast).findFirst()
+			.orElseThrow(() -> new AssertionError("Report selector was not rendered"));
+		int taskReportIndex = -1;
+		for (int index = 0; index < reportSelector.getItemCount(); index++) {
+			if ("Task Information".equals(((ReportDefinition)reportSelector.getItemAt(index)).getName())) {
+				taskReportIndex = index;
+				break;
+			}
+		}
+		assertTrue(taskReportIndex >= 0, "the rendered report selector must expose Task Information");
+		String taskReportName = ((ReportDefinition)reportSelector.getItemAt(taskReportIndex)).getName();
+		String alternateReport = ((ReportDefinition)reportSelector.getItemAt(reportSelector.getItemCount() - 1)).getName();
+		click(robot, reportSelector);
+		robot.keyPress(KeyEvent.VK_END);
+		robot.keyRelease(KeyEvent.VK_END);
+		robot.keyPress(KeyEvent.VK_ENTER);
+		robot.keyRelease(KeyEvent.VK_ENTER);
+		GuiAcceptanceSupport.await(() -> reportView.getPrintable().model().title().equals(alternateReport),
+			"physical report selection did not update the rendered report model");
+		click(robot, reportSelector);
+		robot.keyPress(KeyEvent.VK_HOME);
+		robot.keyRelease(KeyEvent.VK_HOME);
+		for (int index = 0; index < taskReportIndex; index++) {
+			robot.keyPress(KeyEvent.VK_DOWN);
+			robot.keyRelease(KeyEvent.VK_DOWN);
+		}
+		robot.keyPress(KeyEvent.VK_ENTER);
+		robot.keyRelease(KeyEvent.VK_ENTER);
+		GuiAcceptanceSupport.await(() -> reportView.getPrintable().model().title().equals(taskReportName),
+			"physical report selection did not select Task Information by its configured report name");
+
+		previousReportChooser = UiServices.getFileChooserProvider();
+		reportCsvOutput = Files.createTempFile("report-view-export-", ".csv");
+		Files.deleteIfExists(reportCsvOutput);
+		List<UiServices.FileChooserOptions> requestedOptions = new CopyOnWriteArrayList<>();
+		UiServices.setFileChooserProvider(new UiServices.FileChooserProvider() {
+			@Override public String chooseFileName(boolean save, String selectedFileName, Object parent) {
+				throw new AssertionError("Report View must use the shared save chooser contract");
+			}
+			@Override public String chooseFileName(UiServices.FileChooserOptions options, Object parent) {
+				requestedOptions.add(options);
+				return reportCsvOutput.toString();
+			}
+		});
+		String exportCsvLabel = com.microproject.strings.Messages.getString("ReportView.ExportCsv");
+		AbstractButton exportCsv = UiComponentWalker.flatten(reportView).stream()
+			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+			.filter(button -> exportCsvLabel.equals(button.getText()) && button.isShowing())
+			.findFirst().orElseThrow(() -> new AssertionError("Report View CSV button not visible: " + exportCsvLabel));
+		activateWindow(robot, window);
+		click(robot, exportCsv);
+		GuiAcceptanceSupport.await(() -> Files.exists(reportCsvOutput), "physical Report View CSV route did not create its file");
+		assertEquals(new UiServices.FileChooserOptions(true, "report.csv",
+			exportCsvLabel, "CSV (*.csv)", "csv"), requestedOptions.get(0));
+		String csv = Files.readString(reportCsvOutput, java.nio.charset.StandardCharsets.UTF_8);
+		var taskModel = manager.getCurrentFrame().getTaskModel();
+		var taskCache = manager.getCurrentFrame().createCache(true,
+			com.microproject.reports.adapter.DataSourceProvider.TASK_REPORT_VIEW);
+		taskCache.update();
+		var renderedModel = reportView.getPrintable().model();
+		String csvDiagnostics = "report=" + renderedModel.title() + " columns="
+			+ renderedModel.columns().stream().map(com.microproject.field.Field::getId).toList()
+			+ " reportRows=" + renderedModel.rows() + " taskRootChildren="
+			+ taskModel.getChildCount(taskModel.getRoot()) + " visibleTaskCache=" + taskCache.getSize();
+		assertTrue(renderedModel.rows().stream().anyMatch(row -> row.stream().anyMatch(value -> "Report task 1".equals(value))),
+			"the printable report must retain fixture rows before CSV export: " + csvDiagnostics);
+		assertTrue(csv.contains("Report task 1"), "Report View CSV must contain the selected fixture row: " + csvDiagnostics + " csv=" + csv);
+
+		GraphPageable pageable = PrintDocumentFactory.getInstance().createDocument(manager.getCurrentFrame(), false, false);
+		assertNotNull(pageable, "report view must create the shared GraphPageable document");
+		assertTrue(pageable.getNumberOfPages() >= 2, "fixture must exercise all-page preview rather than a single page");
+
+		AbstractButton fileTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+			.getString("FileRibbonTask.title"));
+		clickAndAwaitSelected(robot, fileTab, "Robot click did not select the File ribbon tab");
+		click(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+			.getString("RibbonPrint.text")));
+		AbstractButton preview = findShowingButtonByCommand("RibbonPrintPreview");
+		assertTrue(preview.isEnabled(), "report print preview must use the application's enabled Print Preview command");
+		click(robot, preview);
+		JFrame[] previewFrame = new JFrame[1];
+		GuiAcceptanceSupport.await(() -> {
+			for (Window candidate : Window.getWindows()) {
+				if (candidate instanceof JFrame frame && frame.isShowing()
+					&& UiComponentWalker.flatten(frame).stream().anyMatch(ReportPreview.class::isInstance)) {
+					previewFrame[0] = frame;
+					return true;
+				}
+			}
+			return false;
+		}, "physical Print Preview did not open the report preview");
+		try {
+			long pageLabels = UiComponentWalker.flatten(previewFrame[0]).stream()
+				.filter(JLabel.class::isInstance).map(JLabel.class::cast)
+				.filter(label -> label.getText() != null && label.getText().matches("Page \\d+"))
+				.count();
+			assertEquals(pageable.getNumberOfPages(), pageLabels,
+				"the visible report preview must include one labeled panel for every printable page");
+		} finally {
+			SwingUtilities.invokeAndWait(previewFrame[0]::dispose);
+		}
 	}
 
 	@Test
@@ -3559,7 +3706,12 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"the fixture must hide exactly the predecessor row before testing filtered navigation");
 		GuiAcceptanceSupport.await(() -> sheet.taskNodeToViewRow(DocumentFrame.findTaskNode(project, predecessor)) < 0,
 			"the hidden predecessor must be absent from visible view coordinates");
+		clickUntilSelected(robot, window, sheet, rowForTask(sheet, successor), nameColumn(sheet));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(successor)
+				&& sheet.getSelectedRow() == rowForTask(sheet, successor),
+			"the visible successor must be physically selected after the predecessor projection changes");
 		int selectionBeforeHiddenClick = sheet.getSelectedRow();
+		List<Object> selectedBeforeHiddenClick = manager.getCurrentFrame().getSelectedImpls(false);
 		boolean dirtyBeforeHiddenClick = project.needsSaving();
 		boolean undoBeforeHiddenClick = project.getUndoController().canUndo();
 		AbstractButton hiddenPredecessorLink = inspectorPredecessorButton("Inspector predecessor");
@@ -3579,6 +3731,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				+ "; " + inspectorNavigationDiagnostics(sheet, predecessor, DocumentFrame.findTaskNode(project, predecessor)), failure);
 		}
 		assertEquals(selectionBeforeHiddenClick, sheet.getSelectedRow(), "hidden predecessor navigation must preserve selection");
+		assertEquals(selectedBeforeHiddenClick, manager.getCurrentFrame().getSelectedImpls(false),
+			"hidden predecessor navigation must preserve the selected task identity");
 		assertEquals(dirtyBeforeHiddenClick, project.needsSaving(), "hidden navigation must not mutate the project");
 		assertEquals(undoBeforeHiddenClick, project.getUndoController().canUndo(), "hidden navigation must not change Undo history");
 	}
@@ -4382,6 +4536,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	private void showProject(Project project) throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			for (Window candidate : Window.getWindows()) {
+				if (candidate instanceof JFrame frame
+					&& UiComponentWalker.flatten(frame).stream().anyMatch(ReportPreview.class::isInstance))
+					frame.dispose();
 				if (candidate instanceof Dialog && candidate.isShowing())
 					candidate.dispose();
 				if (candidate instanceof MainRibbonFrame)

@@ -25,7 +25,6 @@ dependencies {
 	implementation(libs.forms)
 	implementation(libs.flatlaf)
 	implementation(libs.flatlaf.extras)
-	implementation(libs.groovy)
 	implementation(libs.openpdf)
 	implementation(libs.jfreechart)
 	implementation(libs.org.netbeans.swing.outline)
@@ -38,7 +37,6 @@ dependencies {
 	implementation(libs.jackson.annotations)
 	implementation(libs.jackson.core)
 	implementation(libs.jackson.databind)
-	implementation(libs.jasperreports)
 	implementation(libs.pdfbox)
 	implementation(libs.poi)
 	implementation(libs.poi.ooxml)
@@ -134,6 +132,7 @@ tasks.register<Test>("guiTest") {
 		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.physicalTaskRowHeaderDragReordersStableTasksAndSurvivesUndoAndReload",
 		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.physicalTaskSortSupportsAscendingStartAndDescendingFinishForViewAndOutline",
 		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.physicalTaskInspectorFollowsSelectionAndNavigatesOnlyVisiblePredecessors",
+		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.physicalReportPrintPreviewShowsEveryPageThroughTheSharedGraphPageableRoute",
 		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.formatPainterCopiesTaskTextStyleOnceOrContinuouslyWithUndoAndMpoReload",
 		"com.microproject.pm.graphic.views.TaskTableGanttGridGuiAcceptanceTest.physicalTaskTableDurationEditDoesNotPanGanttViewport",
 		"com.microproject.pm.graphic.views.TaskTableGanttGridGuiAcceptanceTest.physicalTaskTableDateEditRepositionsBarWithoutPanningGanttViewport",

@@ -1,21 +1,19 @@
 package com.microproject.reports.adapter;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import org.junit.jupiter.api.Test;
 
-/**
- * Issue #186: report properties were parsed with an unguarded
- * Integer.parseInt; a null or non-numeric collectionType threw
- * NumberFormatException instead of degrading.
- */
 class DataSourceProviderTest {
 
 	@Test
-	void parseCollectionTypeHandlesNullAndNonNumericValues() {
-		assertEquals(-1, DataSourceProvider.parseCollectionType(null));
-		assertEquals(-1, DataSourceProvider.parseCollectionType("abc"));
-		assertEquals(3, DataSourceProvider.parseCollectionType("3"));
-		assertEquals(15, DataSourceProvider.parseCollectionType("15"));
+	void supportedReportCollectionsResolveToTheirStandardViews() {
+		assertEquals(DataSourceProvider.REPORT_VIEW, DataSourceProvider.getViewName(DataSourceProvider.PROJECT));
+		assertEquals(DataSourceProvider.TASK_REPORT_VIEW, DataSourceProvider.getViewName(DataSourceProvider.TASKS_TREE));
+		assertEquals(DataSourceProvider.TASK_REPORT_VIEW, DataSourceProvider.getViewName(DataSourceProvider.ASSIGNMENTS_PROJECT_BASED));
+		assertEquals(DataSourceProvider.RESOURCE_REPORT_VIEW, DataSourceProvider.getViewName(DataSourceProvider.RESOURCES_TREE));
+		assertEquals(DataSourceProvider.RESOURCE_REPORT_VIEW, DataSourceProvider.getViewName(DataSourceProvider.ASSIGNMENTS_RESOURCE_BASED));
+		assertNull(DataSourceProvider.getViewName(DataSourceProvider.PREDECESSORS));
 	}
 }

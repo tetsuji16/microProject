@@ -1,0 +1,176 @@
+Issue #753 Jasper-free reports: measured migration baseline
+===========================================================
+
+The baseline source snapshot is commit
+`c42c38c16ec0f1e2e673206ffaff2e6bf5404ff1`, the parent commit of
+`fix/issue-753-report-renderer`.
+The pre-migration generated-PDF smoke test lived in
+modules/microproject_reports/src/test/java/com/microproject/reports/adapter/ReportUtilTest.java
+and exercised only the Project Details JRXML with synthetic data. It asserted
+non-empty PDF output and presence of Japanese/English strings in rendered
+JasperPrint text. This is an existence baseline, not a complete comparison of
+the four reports and must not be described as a parity run.
+
+Legacy report inputs in the baseline:
+- Task Information: collectionType=3, Spreadsheet.Task.entry
+- Resource Information: collectionType=5, Spreadsheet.Resource.entryWorkResources
+- Who Does What: collectionType=15, grouped by Field.assignmentResourceId,
+  detail fields Spreadsheet.ResourceAssignment.reportAssignmentTask
+- Project Details: projectDetails.jrxml (legacy JRXML, 1,790 lines)
+
+Layout constants from the dynamic ReportAdapter:
+- landscape letter, 1008 x 612 points
+- 20 point left/right margins, 30 point top/bottom
+- 968 point column width
+- 10 point row text, 12 point bold group header, centered page footer
+- no documented strategy for selected columns whose summed width exceeds 968
+
+Known pre-migration behavior gaps:
+- ReportView.isPrintable() returned false; standard print/PDF route did not
+  handle the report viewer.
+- Jasper PDF fonts used Helvetica/Cp1252, which cannot represent Japanese
+  reliably. Preview used Java Dialog composite font.
+- The old test did not assert page count, boundaries, grouping/subtotals,
+  clipping, or every report's Japanese/English data.
+
+Consequently a precise pixel/layout parity claim cannot be made from existing
+tests. Migration verification must add fixed report data and deterministic
+page/layout/content assertions, with intentional deviations recorded here.
+
+Measured four-report comparison fixture
+---------------------------------------
+
+`LegacyReportBaselineTest` now measures the old Jasper output against the new
+model from the same actual in-memory Project, Task, Resource, and Assignment
+objects. The fixture has a Japanese project name, 45 Japanese-named tasks,
+two Japanese-named resources, and 45 assignments. Both legacy and replacement
+data sources independently traverse those same objects; the test requires
+their input row counts, exact field values, group totals, and page boundaries.
+The field arrays for Who Does What are loaded from production `view.xml` and
+asserted to retain their configured field order; the test no longer inserts or
+repairs them.
+
+The captured legacy output was initialized with Japanese UI messages, which
+also supply localized resource role/type values. These captures have the
+following fixed page boundaries:
+
+| Report | Jasper pages | Measured boundary/content |
+|---|---:|---|
+| Task Information | 2 | Page 1 contains tasks 1–30; page 2 contains tasks 31–45. |
+| Resource Information | 1 | Both resources appear on the same page. |
+| Who Does What | 2 | Resource A (odd-numbered tasks) is on page 1; Resource B (even-numbered tasks) is on page 2. The measured work subtotals are 184 hours and 176 hours. |
+| Project Details | 1 | Project name and field values appear in the single legacy page. |
+
+The captured Jasper text pages are frozen in
+`modules/microproject_reports/src/test/resources/issue-753-legacy-pages.tsv`.
+The TSV stores the fixture row count and each old page's ordered text elements
+(UTF-8 base64, separated by U+001F); the test compares against that artifact
+without keeping Jasper in the test or runtime dependency graph. It was captured
+from the baseline commit above with the legacy adapters and the same real
+project fixture. The `ja` and `en` variants select report labels and formatting;
+both retain the Japanese startup/UI message bundle for resource role/type
+values. The regression fixture pins the user-configurable short date preference
+to `yyyy/MM/dd` in UTC and restores the process locale and date formatter
+afterward; it leaves the process message bundle cache untouched.
+The cross-locale comparison permits only the known localized enum values in
+`Field.userRole` (`Team Resource`), `Field.resourceType` (`Work`), and
+`Field.accrueAt` (`Prorated`) to match their frozen Japanese labels; each
+replacement value is checked against its raw enum text. The fixture also
+asserts that the project uses the built-in default calendar instance (whose
+display name is localized, such as `標準` in Japanese), and that both resources
+share that same instance, before accepting `Field.baseCalendar`'s Japanese
+label `標準`. All other text values remain exact comparisons, including
+user-defined calendar names.
+
+The replacement layout ranges are fixed in the test. Task Information uses
+four printed pages: rows 0–28 and 28–45 for each of two horizontal segments.
+The legacy first page ended after row 30; the native renderer's first page ends
+after row 28 because its header/footer reservation and actual wrapped row
+heights use the shared bundled Noto Sans JP regular face at 10 points. Resource Information uses
+three horizontal segments, each showing both rows. Who Does What uses two
+pages (rows 0–25 and 25–47): each resource group and subtotal remains together,
+with measured 184-hour and 176-hour totals assigned to page 1 and page 2. The
+legacy renderer also used two pages, split at a different group boundary.
+Project Details uses the legacy five-section structure (Dates, Duration, Work,
+Costs, Notes) and all 21 visible label/value items on one vertical page. Hidden
+project name, manager, and percent-work-complete fields are excluded; the
+project name remains the page title. These differences follow measured wrapping
+and column segmentation; no empty pages are inserted to mimic the old page count.
+Long Notes rows split at shared wrap-line ranges and continue on following
+pages; a PDF text-extraction test asserts the final Japanese sentinel survives.
+This is a content and boundary comparison, not a pixel-parity claim.
+
+Measured output differences are deliberately constrained by the comparison
+test:
+
+- Jasper exposed the raw resource rate/cost-per-use values as `0.0`; the new
+  report formatter displays them as `￥0/hour` and `￥0` in the `ja-JP` locale.
+  The underlying values are the same numeric zero.
+- Japanese project, task, and resource names remain present in both outputs.
+  Work subtotals retain the English duration unit `hours` in the legacy and
+  replacement values under this fixture's duration defaults.
+
+`PageablePdfWriterTest` additionally verifies that the shared PDF writer embeds
+the bundled Noto Sans JP Regular and Bold font streams and preserves Japanese text extraction. It also
+checks English `Page 1` and Japanese `ページ 1` footer output under `en` and
+`ja` locales. Table cells wrap at configured column widths, use a 10-point body
+font, and compute row heights from their wrapped lines rather than shrinking
+text to force the old page count. Renderer tests assert non-empty image ink and
+PDF text extraction, not only absence of exceptions.
+
+The generic Gantt PDF route is separately compared with a test-only recreation
+of the pre-change `PageablePdfWriter` path from the baseline commit. On this
+Windows host, both old and current GraphPageable output extract the Japanese
+suffix of the task name as `?` with OpenPDF's default font mapper. The report
+PDF path embeds a CJK face and extracts Japanese correctly. The replacement
+therefore scopes the new font mapper to ReportPrintable pages and preserves the
+legacy default mapper for ordinary graph PDFs; fixing the pre-existing Gantt
+text limitation is outside this report-renderer change.
+
+Workspace persistence remains on the established per-user collaboration
+sidecar. `Project.collaborationWorkspace` is transient, and the MPOF project
+archive stores schedule/configuration data rather than Swing view state;
+therefore this change does not add report fields to the MPO wire format.
+`ReportWorkspaceCompatibilityTest` exercises an actual MPO save/reopen together
+with `CollaborationSession.saveWorkspace/loadWorkspace`, asserting that the
+same user's report name, configured field array, and zoom ratio reattach.
+
+Runtime packaging evidence on 2026-10-18: `installDist` staged 86 jars under
+`modules/microproject_ui/build/install/microproject_ui/lib`; none is named for
+JasperReports or `projectlibre-reports`, and a ZIP-entry scan found no
+`net/sf/jasperreports/` classes. `stageAppDist verifyPackagedFileImports`
+passed, including its MPP and POD import fixtures. Separate dependency graph
+inspection found no JasperReports modules; `commons-collections4:4.5.0` is
+present while no legacy `commons-collections` 3.x module is present. The
+BeanUtils 1.8.0 transitive dependency via Commons Digester remains tracked by
+#752 and is outside this report-renderer change.
+
+The runtime still contains Groovy 2.4.21, but it is not a JasperReports
+transitive dependency in this build: `microproject_core` and
+`microproject_contrib` declare `implementation(libs.groovy)`. Core production
+code uses `GroovyClassLoader` in
+`modules/microproject_core/src/main/java/com/microproject/scripting/GroovyClassCompiler.java:61`
+and `GroovyObject` in `FormulaClass.java:27`; formula execution is used by
+ActionList, NodeFilter, NodeSorter, NodeTransformer, and CellStyle factories.
+Removing Groovy as part of #753 would break existing local formula/script
+behavior, so it remains a direct product dependency. The user approved revising
+the issue acceptance condition to retain this independently used scripting
+runtime. `dependencyInsight` reports Groovy 2.4.21, no ECJ module, and no
+JasperReports module in `microproject_ui:runtimeClasspath`.
+
+Physical Windows GUI evidence on 2026-10-18:
+`modules/microproject_ui/src/guiTest/java/com/microproject/pm/graphic/frames/TaskInformationRibbonGuiAcceptanceTest.java`
+test `physicalReportPrintPreviewShowsEveryPageThroughTheSharedGraphPageableRoute`
+passed with the command
+`.\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.physicalReportPrintPreviewShowsEveryPageThroughTheSharedGraphPageableRoute" --console=plain`.
+The Robot journey created 45 named tasks, physically changed the report selector
+to another configured report and back to `Task Information` by its definition
+name, asserted the printable model contained `Report task 1`, clicked the visible
+CSV export button, accepted the shared save-chooser contract, and verified the
+saved CSV contained that task value. It then physically opened Print Preview
+through the File/Print route and verified the preview showed a labeled panel for
+every page in the shared `GraphPageable` document. The first attempted journey
+exposed a test precondition error: the selector's persisted initial choice was
+`Project Details`, so treating the first item as Task Information selected a
+single project-summary row. The journey now selects the configured report by
+name; the production report scope and visible-cache behavior were not changed.

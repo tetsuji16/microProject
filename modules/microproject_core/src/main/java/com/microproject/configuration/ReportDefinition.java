@@ -25,8 +25,6 @@
 package com.microproject.configuration;
 
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
 
 import org.apache.commons.digester.Digester;
 
@@ -40,7 +38,6 @@ public class ReportDefinition implements NamedItem {
 	
 	private String name = null;
 	private String id = null;
-	private String file = null;
 	private boolean timeBased = false;
 
 	private int collectionType = 0;
@@ -56,8 +53,6 @@ public class ReportDefinition implements NamedItem {
 	public void setCollectionType(int collectionType) {
 		this.collectionType = collectionType;
 	}
-	private Object reportObject = null;
-	private Map<ArrayList<?>, Object> reportColumnDefinitions = new HashMap<>();
 	/**
 	 * @return Returns the columnsList.
 	 */
@@ -125,31 +120,7 @@ public class ReportDefinition implements NamedItem {
 		return columnsList.get(columnsList.size()-1).getFieldArray();
 		
 	}
-	public final Object getReportObject(ArrayList<?> columns) {
-		if (columns == null)
-			return reportObject;
-		return reportColumnDefinitions.get(columns);
-	}
-	public final void setReportObject(Object reportObject, ArrayList<?> columns) {
-		if (columns == null)
-			this.reportObject = reportObject;
-		else
-			reportColumnDefinitions.put(columns,reportObject);
-	}
-	
 	public String toString() {
 		return name;
-	}
-	/**
-	 * @return Returns the file.
-	 */
-	public String getFile() {
-		return file;
-	}
-	/**
-	 * @param file The file to set.
-	 */
-	public void setFile(String file) {
-		this.file = file;
 	}
 }

@@ -29,22 +29,15 @@ import java.awt.Cursor;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.ArrayList;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.io.OutputStream;
 import java.util.function.Consumer;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-
-import net.sf.jasperreports.engine.JRException;
-import net.sf.jasperreports.engine.JasperFillManager;
-import net.sf.jasperreports.engine.JasperPrint;
-import net.sf.jasperreports.engine.JasperReport;
-
 
 import com.microproject.help.HelpUtil;
 import com.microproject.pm.graphic.frames.DocumentFrame;
@@ -66,12 +59,17 @@ import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.grouping.core.transform.filtering.PredicatedNodeFilterIterator;
 import com.microproject.pm.task.Project;
 import com.microproject.ui.privacy.PrivacyDisplayMode;
-import com.microproject.reports.adapter.DataSource;
+import com.microproject.reports.adapter.ReportDataSource;
 import com.microproject.reports.adapter.DataSourceProvider;
-import com.microproject.reports.adapter.ReportUtil;
 import com.microproject.reports.adapter.ReportViewer;
+import com.microproject.reports.model.ReportModel;
+import com.microproject.reports.model.ReportModelFactory;
+import com.microproject.reports.model.ReportCsvWriter;
+import com.microproject.reports.render.ReportPrintable;
+import com.microproject.reports.render.ReportPreview;
 import com.microproject.strings.Messages;
 import com.microproject.undo.UndoController;
+import com.microproject.util.UiServices;
 import com.microproject.workspace.WorkspaceSetting;
 
 /**
@@ -79,10 +77,11 @@ import com.microproject.workspace.WorkspaceSetting;
  */
 public class ReportView extends JPanel implements BaseView, CacheListener {
 	private static final long serialVersionUID = 5457040745964404658L;
-	private static final Logger logger = Logger.getLogger(ReportView.class.getName());
 	protected JPanel report;
 	protected Project project;
-	private ReportViewer viewer = null;
+	private ReportPreview viewer = null;
+	private ReportPrintable printable;
+	private ReportModel reportModel;
 	private DocumentFrame documentFrame;
 	private boolean xmlFile = true;
 	private ReportDefinition reportDefinition = null;
@@ -158,15 +157,11 @@ public class ReportView extends JPanel implements BaseView, CacheListener {
 	
 	private void showReport() {
 		documentFrame.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
-		try {
-			makeViewer();
-		} catch (JRException e) {
-			logger.log(Level.SEVERE, "Failed to render report", e);
-		}
+		makeViewer();
 		documentFrame.setCursor(Cursor.getDefaultCursor());
 		
 	}
-	private void makeViewer() throws JRException{
+	private void makeViewer(){
 		if (!dirty)
 			return;
 		
@@ -180,16 +175,13 @@ public class ReportView extends JPanel implements BaseView, CacheListener {
 		    cache.removeNodeModelListener(this);
 		}
 				   
-        DataSource dataSource;
-
         SpreadSheetFieldArray fa = null;
         if (fieldArray != null) {
         	fa =(SpreadSheetFieldArray) fieldArray.clone();
             fa.removeIf(Field::isGraphical); // get rid of fields that can't be shown
         }
-        JasperReport report = ReportUtil.getReport(reportDefinition, coord.getProjectTimeIterator(), fa);
-
-        viewName = DataSourceProvider.getViewName(report);
+		int collectionType = reportDefinition.getCollectionType();
+        viewName = DataSourceProvider.getViewName(collectionType);
         documentFrame.setComboBoxesViewName(viewName); 
 
         NodeModel model = null;
@@ -207,24 +199,20 @@ public class ReportView extends JPanel implements BaseView, CacheListener {
             	iterator = GeneralFilteredIterator.instance(cache.getIterator());
             }
         }
-        dataSource = DataSourceProvider.createDataSource(report,project,iterator,model);
-
-        
-        // projet name is used as report's title
-        // and passed as a parameter
-		Map<String, Object> params = new HashMap<>(2);
-        params.put("projectName", PrivacyDisplayMode.projectName(project)); //$NON-NLS-1$
-		params.put("projectDurationDefaults", project.getDurationDefaults());
-        
-		JasperPrint jasperPrint = JasperFillManager.fillReport(report, params, dataSource);
+		ReportDataSource dataSource = collectionType == DataSourceProvider.PROJECT
+			? DataSourceProvider.createProjectDataSource(project, reportDefinition.isTimeBased())
+			: DataSourceProvider.createDataSource(collectionType, project, iterator, model, reportDefinition.isTimeBased());
+		reportModel = ReportModelFactory.create(reportDefinition, fa, dataSource,
+			PrivacyDisplayMode.projectName(project));
+		printable = new ReportPrintable(reportModel);
 		if (viewer != null) {
-			viewer.changeReport(jasperPrint);
+			viewer.setReport(printable);
 		} else {
-			viewer =  new ReportViewer(jasperPrint);
+			viewer = new ReportPreview(printable);
 			add(viewer,BorderLayout.CENTER);
 		}
 		if (zoomToApply != null) {
-			viewer.setZoomRatio(zoomToApply.floatValue());
+			viewer.setZoomRatio(ReportViewer.clampZoomRatio(zoomToApply.floatValue()));
 			pendingZoomRatio = null;
 		}
 		// add new listener
@@ -246,7 +234,23 @@ public class ReportView extends JPanel implements BaseView, CacheListener {
 		panel.add(reportChoice);
 		panel.add(columnsLabel);
 		panel.add(columnsChoice);
+		javax.swing.JButton csv = new javax.swing.JButton(Messages.getString("ReportView.ExportCsv"));
+		csv.addActionListener(event -> exportCsv());
+		panel.add(csv);
 		return panel;
+	}
+
+	private void exportCsv() {
+		String selectedFile = UiServices.getFileChooserProvider().chooseFileName(
+			new UiServices.FileChooserOptions(true, "report.csv", Messages.getString("ReportView.ExportCsv"),
+				"CSV (*.csv)", "csv"), this);
+		if (selectedFile == null) return;
+		try (OutputStream out = Files.newOutputStream(Path.of(selectedFile))) {
+			ReportCsvWriter.write(reportModel, out);
+		} catch (Exception error) {
+			javax.swing.JOptionPane.showMessageDialog(this, error.getMessage(),
+				Messages.getString("ReportView.ExportCsv"), javax.swing.JOptionPane.ERROR_MESSAGE);
+		}
 	}
 	
 	private void initColumns() {
@@ -267,7 +271,7 @@ public class ReportView extends JPanel implements BaseView, CacheListener {
 		this.coord = coord;
 		setLayout(layout);
 		reportLabel = new JLabel(Messages.getString("ReportView.Report")); //$NON-NLS-1$
-		reportChoice = new JComboBox(ReportUtil.getReportDefinitions());
+		reportChoice = new JComboBox(DataSourceProvider.getReportDefinitions());
 		reportChoice.setSelectedIndex(0);
 		reportDefinition = (ReportDefinition) reportChoice.getSelectedItem();
 		fieldArray = reportDefinition.getMainFieldArray();
@@ -354,14 +358,20 @@ public class ReportView extends JPanel implements BaseView, CacheListener {
 			showReport();
 	}
 	public boolean isPrintable() {
-		return false;
+		return printable != null;
 	}
+	@Override
+	public com.microproject.print.GraphPageable createPrintDocument(boolean printOnly, boolean pdfAsDefault) {
+		return printable == null ? null : new com.microproject.print.ReportPageable(printable, printOnly);
+	}
+
+	public ReportPrintable getPrintable() { return printable; }
 
 	public void restoreWorkspace(WorkspaceSetting w, int context) {
 		Workspace ws = (Workspace)w;
 		pendingZoomRatio = ws.zoomRatio;
 		if (ws.reportName != null) {
-			ReportDefinition def = ReportUtil.getFromName(ws.reportName);
+			ReportDefinition def = DataSourceProvider.getFromName(ws.reportName);
 			if (def != null)
 				reportChoice.setSelectedItem(def);
 		}

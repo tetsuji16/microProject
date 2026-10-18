@@ -5219,6 +5219,11 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	public void doFind(Searchable searchable, Field field) {
 		doFind(searchable, field, null);
 	}
+	public void showReportView() {
+		if (getCurrentFrame() != null) {
+			getCurrentFrame().activateView(MenuActionConstants.ACTION_REPORT);
+		}
+	}
 	public class TimelineAction extends MenuActionsMap.DocumentMenuAction {
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent event) {

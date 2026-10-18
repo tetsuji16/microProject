@@ -27,10 +27,8 @@ package com.microproject.reports.adapter;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.function.Predicate;
-import net.sf.jasperreports.engine.JRDataSource;
-import net.sf.jasperreports.engine.JRException;
-import net.sf.jasperreports.engine.JRField;
 
+import com.microproject.configuration.Configuration;
 import com.microproject.field.Field;
 import com.microproject.field.FieldContext;
 import com.microproject.field.ObjectRef;
@@ -42,15 +40,14 @@ import com.microproject.grouping.core.transform.filtering.PredicatedNodeFilterIt
 import com.microproject.pm.task.Project;
 import com.microproject.pm.time.MutableInterval;
 
-/**
- * A Data Source for Jasper Reports
- */
-public class DataSource implements JRDataSource, ObjectRef {
+/** Resolves configured project fields for report rows independently of a renderer. */
+public class DataSource implements ObjectRef {
 
 	private WalkersNodeModel nodeModel = null;
 	private FieldContext context = null;
 	private MutableInterval interval = null;
 	private Iterator<?> iterator;
+	private Object groupKey;
 	
 	boolean nodeBased = false;
 	
@@ -103,8 +100,15 @@ public class DataSource implements JRDataSource, ObjectRef {
 		if (context == null) context = new FieldContext();
 		context.setDurationDefaultsResolver(project == null ? null : project::getDurationDefaults);
 	}
+
+	public void setGroupKey(String fieldId) {
+		Field field = Configuration.getFieldFromId(fieldId);
+		groupKey = field == null || currentObject == null ? null : field.getValue(this, context);
+	}
+
+	public Object getGroupKey() { return groupKey; }
 	
-	public boolean next() throws JRException {
+	public boolean next() {
 		if (!iterator.hasNext()) {
 			currentObject = null;
 			return false;
@@ -113,9 +117,8 @@ public class DataSource implements JRDataSource, ObjectRef {
 		currentObject = iterator.next();
 		return true;
 	}
-public Object getFieldValue(JRField jrField) throws JRException {
-		// check if asked field must be converted to a String (field name begins whith Text_)
-		cleanField = new DecoratedField(jrField);
+public Object getFieldValue(String fieldName) {
+		cleanField = new DecoratedField(fieldName);
 		
 		// get ProjectLibre equiv. field
 		Field field = cleanField.fieldForReportField();
@@ -126,10 +129,14 @@ public Object getFieldValue(JRField jrField) throws JRException {
 		if(cleanField.isTextField()) {
 			result = field.getText(this, context);
 		} else {
-			// convert ProjectLibre type into jasper accepted types	
+			// Convert field domain values to stable primitive values for output and aggregation.
 			result = DataSourceProvider.fieldValueConverterToPrimitiveType(field,field.getValue(this,context));
 		}
 		return result;
+	}
+
+	public Object getRawFieldValue(Field field) {
+		return DataSourceProvider.fieldValueConverterToPrimitiveType(field, field.getValue(this, context));
 	}
 
 	public Node getNode() {

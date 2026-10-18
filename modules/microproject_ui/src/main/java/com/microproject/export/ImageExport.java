@@ -17,8 +17,11 @@ public class ImageExport {
 		new ImageExport().exportWithChooser(pageable, parentComponent);
 	}
 	void exportWithChooser(GraphPageable pageable, Component parentComponent) {
+		String projectName = pageable.getReportPrintable() == null
+			? PrivacyDisplayMode.projectName(pageable.getRenderer().getProject())
+			: pageable.getReportPrintable().model().projectName();
 		ExportJobScheduler.scheduleIfSelected(
-				fileChooser.choose(PrivacyDisplayMode.projectName(pageable.getRenderer().getProject()), parentComponent),
+				fileChooser.choose(projectName, parentComponent),
 				target -> PageableExportJob.schedule(pageable, parentComponent, target, "Image Export"));
 	}
 }

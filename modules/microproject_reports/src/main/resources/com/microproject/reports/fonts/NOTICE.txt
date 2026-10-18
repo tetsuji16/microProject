@@ -1,0 +1,9 @@
+Noto Sans JP Regular and Bold
+
+Source: https://github.com/notofonts/noto-cjk/tree/f8d157532fbfaeda587e826d4cd5b21a49186f7c/Sans/SubsetOTF/JP
+License: SIL Open Font License 1.1; see packaging/licenses/third-party/Noto-Sans-JP-OFL.txt
+Repository commit: f8d157532fbfaeda587e826d4cd5b21a49186f7c
+
+SHA-256:
+NotoSansJP-Regular.otf  1B0EDFB500B73A4FA8A4FCAAE1BBBD403994E08E73E3E0DA37E70D3853F42C5F
+NotoSansJP-Bold.otf     DFF723BA59D57D136764A04B9B2D03205544F7CD785A711442D6D2D085AC5073

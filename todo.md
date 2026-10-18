@@ -44,7 +44,7 @@
 
 - 旧ルートの `projectlibre_core` / `projectlibre_ui` などを削除し、`modules/*` に移す大規模な移行差分がワークツリーにある。Git の rename として確定しないまま進めると、レビュー・履歴追跡・CI の対象漏れが起きる。
 - `todo.md` の対象パスが旧レイアウトのままだった。誤ったファイルを調査・修正する直接的な原因になるため、本ファイル内の対象パスを現行レイアウトへ更新した。
-- `projectlibre_core` が `projectlibre_contrib` に依存している。`contrib` には JasperReports、Groovy、PDF、UI 関連を含む広いライブラリと複数の役割が集まり、core の依存閉包・クラスパス・変更影響を不必要に広げている。
+- `projectlibre_core` が `projectlibre_contrib` に依存している。`contrib` には Groovy、PDF、UI 関連を含む広いライブラリと複数の役割が集まり、core の依存閉包・クラスパス・変更影響を不必要に広げている。JasperReports は #753 で依存・実装を撤去済み。
 - `projectlibre_exchange` は外部 MPXJ 依存と、同系統の同梱ソース/bridge を併せ持つ。API の世代差を閉じ込めないまま利用箇所が増えると、import/export の挙動差やクラス衝突が再発しやすい。
 - `modules/*/build` とルート `build`、`samples`、旧配布資材の境界が移行期間中に混在しやすい。生成物をソース・サンプルとして誤認しないよう、生成先と検証対象を明文化する必要がある。
 

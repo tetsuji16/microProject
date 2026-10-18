@@ -857,10 +857,6 @@
 		<class name="java.lang.System" />
 
 		<!-- bsh -->
-		<class name="net.sf.jasperreports.engine.fill.JRCalculator" />
-		<class name="net.sf.jasperreports.engine.fill.JRFillParameter" />
-		<class name="net.sf.jasperreports.engine.fill.JRFillField" />
-		<class name="net.sf.jasperreports.engine.fill.JRFillVariable" />
 		<class name="java.util.Map" />
 		<class name="java.lang.Integer" />
 		<class name="java.lang.Double" />

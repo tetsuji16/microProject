@@ -1760,7 +1760,7 @@
 				<columns idSpreadSheet="Spreadsheet.ResourceAssignment.reportAssignmentResource" categorySpreadSheet="resourceAssignmentSpreadsheet" groupbyField="Field.assignmentResourceId"/>
 				<columns idSpreadSheet="Spreadsheet.ResourceAssignment.reportAssignmentTask" categorySpreadSheet="resourceAssignmentSpreadsheet"/>
 			</report>
-			<report name="Project Details" file="projectDetails.jrxml"/>
+			<report name="Project Details" collectionType="0"/>
 	</reports>
 
 </view>
