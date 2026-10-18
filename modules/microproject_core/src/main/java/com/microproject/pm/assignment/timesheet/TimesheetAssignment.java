@@ -27,7 +27,7 @@ package com.microproject.pm.assignment.timesheet;
 import java.util.Collection;
 import java.util.Date;
 
-import org.apache.commons.lang.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringBuilder;
 
 import com.microproject.datatype.Rate;
 import com.microproject.field.CanBeDirty;

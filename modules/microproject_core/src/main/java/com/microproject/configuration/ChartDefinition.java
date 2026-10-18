@@ -24,7 +24,7 @@
  *******************************************************************************/
 package com.microproject.configuration;
 
-import org.apache.commons.digester.Digester;
+import org.apache.commons.digester3.Digester;
 
 /**
  * Holds the definition of a report read in from the view config

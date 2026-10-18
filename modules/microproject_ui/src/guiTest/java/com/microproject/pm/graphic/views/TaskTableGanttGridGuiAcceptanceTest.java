@@ -1392,7 +1392,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			"task table and Gantt must be visible before date input");
 		Point viewportBefore = pane.getViewport().getViewPosition();
 		long originalStart = task.getStart();
-		Calendar expectedStart = Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"));
+		Calendar expectedStart = Calendar.getInstance(java.util.TimeZone.getTimeZone("GMT"));
 		expectedStart.setTimeInMillis(originalStart);
 		expectedStart.add(Calendar.DAY_OF_MONTH, 3);
 		// The standard project calendar does not schedule task starts on weekends.
@@ -1406,7 +1406,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			expectedStart.get(Calendar.YEAR), expectedStart.get(Calendar.MONTH) + 1,
 			expectedStart.get(Calendar.DAY_OF_MONTH));
 		editCellPhysically(robot, fixture.sheet, fixture.sheet.getCache().getRowAt(node), startColumn, inputDate);
-		Calendar committed = Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"));
+		Calendar committed = Calendar.getInstance(java.util.TimeZone.getTimeZone("GMT"));
 		committed.setTimeInMillis(task.getStart());
 		assertEquals(expectedStart.get(Calendar.YEAR), committed.get(Calendar.YEAR), "date input must commit the year");
 		assertEquals(expectedStart.get(Calendar.MONTH), committed.get(Calendar.MONTH), "date input must commit the month");

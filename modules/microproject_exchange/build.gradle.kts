@@ -3,7 +3,7 @@ dependencies {
     implementation(project(":microproject_core"))
     implementation(libs.mpxj)
     implementation(libs.bundles.jackson)
-    implementation(libs.commons.lang)
+    implementation(libs.commons.lang3)
     implementation(libs.bundles.poi)
     // Route MPXJ/POI's Log4j API calls to the existing SLF4J backend instead
     // of emitting "could not find a logging provider" on packaged imports.

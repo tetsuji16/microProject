@@ -24,7 +24,7 @@
  *******************************************************************************/
 package com.microproject.configuration;
 
-import org.apache.commons.digester.AbstractObjectCreationFactory;
+import org.apache.commons.digester3.AbstractObjectCreationFactory;
 import org.xml.sax.Attributes;
 
 /**

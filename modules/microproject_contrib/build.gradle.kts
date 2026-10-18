@@ -1,5 +1,5 @@
 dependencies {
-    implementation(libs.bundles.commons.legacy)
+    implementation(libs.commons.lang3)
     implementation(libs.commons.collections4)
     implementation(libs.bundles.jackson)
     implementation(libs.bundles.jaxb)

@@ -93,7 +93,7 @@ import javax.swing.text.StyleContext;
 import javax.swing.text.rtf.RTFEditorKit;
 
 import com.formdev.flatlaf.util.SystemFileChooser;
-import org.apache.commons.lang.StringEscapeUtils;
+import org.apache.commons.lang3.StringEscapeUtils;
 
 import com.jgoodies.forms.builder.DefaultFormBuilder;
 import com.jgoodies.forms.layout.CellConstraints;

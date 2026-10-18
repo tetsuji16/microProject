@@ -35,7 +35,7 @@ import javax.swing.JComponent;
 import javax.swing.SwingUtilities;
 import com.microproject.undo.EditSupport;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import com.jgoodies.forms.builder.DefaultFormBuilder;
 import com.jgoodies.forms.layout.FormLayout;

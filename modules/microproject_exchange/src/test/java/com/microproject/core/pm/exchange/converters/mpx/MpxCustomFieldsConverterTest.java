@@ -50,7 +50,7 @@ class MpxCustomFieldsConverterTest {
 			ResourceField.FINISH1);
 
 		TimeZone originalZone = TimeZone.getDefault();
-		TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+		TimeZone.setDefault(TimeZone.getTimeZone("GMT"));
 		try {
 			DurationDefaults defaults = new DurationDefaults(480, 2400, 20);
 			MpxImportState state = new MpxImportState();
@@ -153,7 +153,7 @@ class MpxCustomFieldsConverterTest {
 		xml = insertCustomValues(xml, "Tasks", "Task", "Task 1", taskFields);
 		xml = insertCustomValues(xml, "Resources", "Resource", "Resource 1", resourceFields);
 		TimeZone originalZone = TimeZone.getDefault();
-		TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+		TimeZone.setDefault(TimeZone.getTimeZone("GMT"));
 		try {
 			net.sf.mpxj.ProjectFile parsedSource = new net.sf.mpxj.mspdi.MSPDIReader()
 				.read(new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8)));

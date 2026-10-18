@@ -27,7 +27,7 @@ package com.microproject.timescale;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.apache.commons.digester.Digester;
+import org.apache.commons.digester3.Digester;
 
 import com.microproject.configuration.Configuration;
 

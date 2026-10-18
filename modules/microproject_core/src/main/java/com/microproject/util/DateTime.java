@@ -31,7 +31,7 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.Locale;
 
-import org.apache.commons.lang.time.DateUtils;
+import org.apache.commons.lang3.time.DateUtils;
 
 import com.microproject.timescale.ExtendedDateFormat;
 
@@ -42,7 +42,7 @@ public class DateTime {
 	
 	public static GregorianCalendar calendarInstance() {
 		GregorianCalendar cal = new GregorianCalendar();
-		cal.setTimeZone(DateUtils.UTC_TIME_ZONE);
+		cal.setTimeZone(java.util.TimeZone.getTimeZone("GMT"));
 		return cal;
 	}
 	public static GregorianCalendar calendarInstance(int year, int month, int day) {
@@ -65,7 +65,7 @@ public class DateTime {
 	}
 	public static SimpleDateFormat utcDateFormatInstance() {
 		SimpleDateFormat f = (SimpleDateFormat) DateFormat.getDateTimeInstance(DateFormat.DEFAULT, DateFormat.DEFAULT, Locale.getDefault());
-		f.setTimeZone(DateUtils.UTC_TIME_ZONE);
+		f.setTimeZone(java.util.TimeZone.getTimeZone("GMT"));
 		return f;
 	}
 	public static ExtendedDateFormat extendedUtcDateFormatInstance() {
@@ -74,19 +74,19 @@ public class DateTime {
 	public static ExtendedDateFormat extendedUtcDateFormatInstance(Locale locale) {
 		Locale effectiveLocale = locale == null ? Locale.getDefault() : locale;
 		ExtendedDateFormat f = new ExtendedDateFormat(((SimpleDateFormat) DateFormat.getDateTimeInstance(DateFormat.DEFAULT, DateFormat.DEFAULT, effectiveLocale)).toPattern(), effectiveLocale);
-		f.setTimeZone(DateUtils.UTC_TIME_ZONE);
+		f.setTimeZone(java.util.TimeZone.getTimeZone("GMT"));
 		return f;
 	}
 	
 	public static DateFormat utcShortDateFormatInstance() {
 		DateFormat f = DateFormat.getDateInstance(DateFormat.SHORT);
-		f.setTimeZone(DateUtils.UTC_TIME_ZONE);
+		f.setTimeZone(java.util.TimeZone.getTimeZone("GMT"));
 		return f;
 	}
 	public static SimpleDateFormat dateFormatInstance(String pattern) {
 		SimpleDateFormat f = new SimpleDateFormat(pattern, Locale.getDefault());
 //		SimpleDateFormat f = new SimpleDateFormat();
-		f.setTimeZone(DateUtils.UTC_TIME_ZONE);
+		f.setTimeZone(java.util.TimeZone.getTimeZone("GMT"));
 		return f;
 	}
 	

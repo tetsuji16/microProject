@@ -27,7 +27,7 @@ package com.microproject.configuration;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.apache.commons.digester.Digester;
+import org.apache.commons.digester3.Digester;
 
 import com.microproject.contrib.ClassResolverFilter;
 

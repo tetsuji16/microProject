@@ -277,7 +277,7 @@ class TaskDateDependencyGuiAcceptanceTest {
 	}
 
 	private static long standardCalendarStartAtOrAfter(long boundary) {
-		Calendar time = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+		Calendar time = Calendar.getInstance(TimeZone.getTimeZone("GMT"));
 		time.setTimeInMillis(boundary);
 		while (true) {
 			int day = time.get(Calendar.DAY_OF_WEEK);

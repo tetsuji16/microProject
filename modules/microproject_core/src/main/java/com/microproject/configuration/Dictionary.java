@@ -28,7 +28,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 
-import org.apache.commons.digester.Digester;
+import org.apache.commons.digester3.Digester;
 
 import com.microproject.graphic.configuration.ActionLists;
 import com.microproject.graphic.configuration.BarFormat;

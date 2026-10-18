@@ -25,7 +25,7 @@
 package com.microproject.options;
 import java.util.GregorianCalendar;
 
-import org.apache.commons.lang.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringBuilder;
 
 import com.microproject.datatype.Duration;
 import com.microproject.pm.calendar.WorkCalendar;

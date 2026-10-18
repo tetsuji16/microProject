@@ -24,7 +24,11 @@
  *******************************************************************************/
 package com.microproject.field;
 
-import org.apache.commons.lang.StringEscapeUtils;
+import org.apache.commons.text.translate.AggregateTranslator;
+import org.apache.commons.text.translate.CharSequenceTranslator;
+import org.apache.commons.text.translate.EntityArrays;
+import org.apache.commons.text.translate.LookupTranslator;
+import org.apache.commons.text.translate.NumericEntityEscaper;
 
 import com.microproject.strings.Messages;
 import com.microproject.util.ClassUtils;
@@ -34,6 +38,10 @@ import java.util.logging.Logger;
 
 
 public class SelectOption {
+	private static final CharSequenceTranslator LEGACY_XML_ESCAPE = new AggregateTranslator(
+			new LookupTranslator(EntityArrays.BASIC_ESCAPE),
+			new LookupTranslator(EntityArrays.APOS_ESCAPE),
+			NumericEntityEscaper.between(0x7f, Integer.MAX_VALUE));
 	private static final Logger logger = Logger.getLogger(SelectOption.class.getName());
 	String key;
 	Object value;
@@ -112,6 +120,6 @@ public class SelectOption {
 	}
 	
 	public static String toConfigurationXML(String key, String value) {
-		return "<option key=\"" + StringEscapeUtils.escapeXml(key) + "\" value=\"" + StringEscapeUtils.escapeXml(value) + "\"/>";
+		return "<option key=\"" + LEGACY_XML_ESCAPE.translate(key) + "\" value=\"" + LEGACY_XML_ESCAPE.translate(value) + "\"/>";
 	}
 }

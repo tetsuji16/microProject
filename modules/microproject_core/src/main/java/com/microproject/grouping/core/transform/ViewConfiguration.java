@@ -24,7 +24,7 @@
  *******************************************************************************/
 package com.microproject.grouping.core.transform;
 
-import org.apache.commons.digester.Digester;
+import org.apache.commons.digester3.Digester;
 
 import com.microproject.configuration.Dictionary;
 import com.microproject.configuration.NamedItem;

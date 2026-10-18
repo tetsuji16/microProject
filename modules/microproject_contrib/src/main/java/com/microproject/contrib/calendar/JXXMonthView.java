@@ -42,7 +42,7 @@ import javax.swing.Timer;
 import javax.swing.UIManager;
 import javax.swing.border.Border;
 
-import org.apache.commons.lang.time.DateUtils;
+import org.apache.commons.lang3.time.DateUtils;
 import org.jdesktop.swing.calendar.DateSpan;
 
 
@@ -2120,13 +2120,13 @@ public class JXXMonthView extends JComponent {
 
 	public static GregorianCalendar calendarInstance() {
 		GregorianCalendar cal = new GregorianCalendar();
-		cal.setTimeZone(DateUtils.UTC_TIME_ZONE);
+		cal.setTimeZone(java.util.TimeZone.getTimeZone("GMT"));
 		return cal;
 	}
 	public static SimpleDateFormat dateFormatInstance(String pattern) {
 		SimpleDateFormat f = new SimpleDateFormat(pattern);
 //		SimpleDateFormat f = new SimpleDateFormat();
-		f.setTimeZone(DateUtils.UTC_TIME_ZONE);
+		f.setTimeZone(java.util.TimeZone.getTimeZone("GMT"));
 		return f;
 	}
 	public static boolean isChinese(){

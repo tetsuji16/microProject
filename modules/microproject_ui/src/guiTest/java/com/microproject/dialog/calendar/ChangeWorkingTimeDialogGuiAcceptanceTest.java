@@ -316,7 +316,7 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 	}
 
 	private static Calendar dateTimeCalendar(long value) {
-		Calendar calendar = new GregorianCalendar(TimeZone.getTimeZone("UTC"));
+		Calendar calendar = new GregorianCalendar(TimeZone.getTimeZone("GMT"));
 		calendar.setTimeInMillis(value);
 		return calendar;
 	}

@@ -26,7 +26,7 @@ package com.microproject.configuration;
 
 import java.util.ArrayList;
 
-import org.apache.commons.digester.Digester;
+import org.apache.commons.digester3.Digester;
 
 import com.microproject.graphic.configuration.SpreadSheetFieldArray;
 import com.microproject.strings.Messages;

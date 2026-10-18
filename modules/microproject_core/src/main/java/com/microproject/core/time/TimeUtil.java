@@ -53,12 +53,12 @@ public class TimeUtil { //thread safe: no shared mutable state (issue #184)
 	
 	public static String toUTCString(long t){
 		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.ROOT);
-		format.setTimeZone(TimeZone.getTimeZone("UTC"));
+		format.setTimeZone(TimeZone.getTimeZone("GMT"));
 		return format.format(new Date(t));
 	}
 	
 	public static long toHoursAndMinutes(long date) { //corrects the problem of mpx giving hours in local timezone not utc
-		Calendar calendar=Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+		Calendar calendar=Calendar.getInstance(TimeZone.getTimeZone("GMT"));
 		calendar.setTimeInMillis(date);
 		int tz=getTimeZoneOffset(date);
 		long t=(60L * calendar.get(Calendar.HOUR_OF_DAY) + calendar.get(Calendar.MINUTE)) * MINUTE + tz;

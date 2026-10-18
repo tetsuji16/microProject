@@ -31,7 +31,7 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.logging.Logger;
 
-import org.apache.commons.lang.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringBuilder;
 
 import com.microproject.datatype.Duration;
 import com.microproject.grouping.core.Node;

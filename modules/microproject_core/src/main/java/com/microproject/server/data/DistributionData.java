@@ -26,7 +26,7 @@ package com.microproject.server.data;
 
 import java.io.Serializable;
 
-import org.apache.commons.lang.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringBuilder;
 
 public class DistributionData implements Serializable{
 	static final long serialVersionUID = 79362873984L;

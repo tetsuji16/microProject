@@ -30,7 +30,7 @@ import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
-import org.apache.commons.lang.time.DateUtils;
+import org.apache.commons.lang3.time.DateUtils;
 
 import com.microproject.strings.Messages;
 
@@ -53,13 +53,13 @@ public class SpecialDateFormat extends SimpleDateFormat {
 	 */
 	public static DateFormat getSpecialInstance() {
 		SpecialDateFormat instance = new SpecialDateFormat();
-		instance.setTimeZone(DateUtils.UTC_TIME_ZONE);
+		instance.setTimeZone(java.util.TimeZone.getTimeZone("GMT"));
 		return instance;
 	}
 	protected SpecialDateFormat() {
 		super(DATE_FORMAT);
 		defaultInstance = DateFormat.getDateTimeInstance(DateFormat.MEDIUM,DateFormat.SHORT);
-		defaultInstance.setTimeZone(DateUtils.UTC_TIME_ZONE);
+		defaultInstance.setTimeZone(java.util.TimeZone.getTimeZone("GMT"));
 	}
 	
 	public StringBuffer format(Date date, StringBuffer arg1, FieldPosition arg2) {

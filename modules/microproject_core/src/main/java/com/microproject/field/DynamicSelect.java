@@ -32,8 +32,8 @@ import java.util.logging.Logger;
 import java.util.Collection;
 import java.util.List;
 
-import org.apache.commons.lang.ObjectUtils;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import com.microproject.util.ClassUtils;
 

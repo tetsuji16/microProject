@@ -26,7 +26,7 @@ package com.microproject.configuration;
 
 import java.util.Collection;
 
-import org.apache.commons.digester.Digester;
+import org.apache.commons.digester3.Digester;
 
 import com.microproject.field.Field;
 import com.microproject.graphic.configuration.GraphicConfiguration;

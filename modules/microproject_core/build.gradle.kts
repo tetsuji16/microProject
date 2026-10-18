@@ -2,7 +2,8 @@ dependencies {
     implementation(project(":microproject_contrib"))
     // Core sources use these libraries directly; do not rely on contrib's
     // implementation classpath to leak them transitively.
-    implementation(libs.bundles.commons.legacy)
+    implementation(libs.bundles.commons.runtime)
+    implementation(libs.commons.text)
     implementation(libs.commons.collections4)
     implementation(libs.bundles.jackson)
     implementation(libs.bundles.jaxb)

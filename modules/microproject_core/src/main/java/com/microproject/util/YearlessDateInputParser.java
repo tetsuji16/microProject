@@ -30,7 +30,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
-import org.apache.commons.lang.time.DateUtils;
+import org.apache.commons.lang3.time.DateUtils;
 import java.time.DateTimeException;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -86,7 +86,7 @@ public final class YearlessDateInputParser {
 		// Schedule dates are stored and rendered against DateTime's canonical UTC
 		// calendar.  Parsing an explicit yyyy/MM/dd in the desktop's local zone
 		// shifts the stored day for zones east or west of UTC.
-		iso.setTimeZone(DateUtils.UTC_TIME_ZONE);
+		iso.setTimeZone(java.util.TimeZone.getTimeZone("GMT"));
 		return parseStrict(iso, normalized);
 	}
 

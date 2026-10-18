@@ -24,7 +24,7 @@
  *******************************************************************************/
 package com.microproject.graphic.configuration;
 
-import org.apache.commons.digester.Digester;
+import org.apache.commons.digester3.Digester;
 
 import com.microproject.configuration.Configuration;
 

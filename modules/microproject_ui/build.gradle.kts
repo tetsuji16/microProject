@@ -15,13 +15,10 @@ dependencies {
     implementation(libs.commons.csv)
     implementation(libs.imgscalr.lib)
 	implementation(libs.commons.collections4)
-	// UI owns these legacy Swing libraries explicitly; they are no longer
-	// injected into every subproject by the root build.
-	implementation(libs.commons.digester)
-	implementation(libs.commons.lang)
+	// UI uses these string libraries directly; other Commons dependencies come
+	// through the core module.
 	implementation(libs.commons.lang3)
-	implementation(libs.jcl.over.slf4j)
-	implementation(libs.commons.pool)
+	implementation(libs.commons.text)
 	implementation(libs.forms)
 	implementation(libs.flatlaf)
 	implementation(libs.flatlaf.extras)

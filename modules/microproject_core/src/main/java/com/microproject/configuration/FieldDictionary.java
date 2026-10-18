@@ -35,7 +35,7 @@ import java.util.List;
 
 import org.apache.commons.collections4.MapIterator;
 import org.apache.commons.collections4.map.HashedMap;
-import org.apache.commons.digester.Digester;
+import org.apache.commons.digester3.Digester;
 
 import com.microproject.field.Field;
 import com.microproject.pm.assignment.Assignment;
