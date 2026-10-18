@@ -50,8 +50,9 @@ The field arrays for Who Does What are loaded from production `view.xml` and
 asserted to retain their configured field order; the test no longer inserts or
 repairs them.
 
-The captured legacy output in the default `ja-JP` test locale has these fixed
-page boundaries:
+The captured legacy output was initialized with Japanese UI messages, which
+also supply localized resource role/type values. These captures have the
+following fixed page boundaries:
 
 | Report | Jasper pages | Measured boundary/content |
 |---|---:|---|
@@ -66,7 +67,11 @@ The TSV stores the fixture row count and each old page's ordered text elements
 (UTF-8 base64, separated by U+001F); the test compares against that artifact
 without keeping Jasper in the test or runtime dependency graph. It was captured
 from the baseline commit above with the legacy adapters and the same real
-project fixture under both JVM locales `ja-JP` (`ja`) and `en`.
+project fixture. The `ja` and `en` variants select report labels and formatting;
+both retain the Japanese startup/UI message bundle for resource role/type
+values. The regression fixture reproduces that baseline setup and pins the
+user-configurable short date preference to `yyyy/MM/dd` in UTC, restoring the
+process locale, message bundle, and date formatter afterward.
 
 The replacement layout ranges are fixed in the test. Task Information uses
 four printed pages: rows 0–28 and 28–45 for each of two horizontal segments.
