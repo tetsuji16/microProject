@@ -30,6 +30,7 @@ import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.grouping.core.transform.filtering.PredicatedNodeFilterIterator;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentService;
+import com.microproject.pm.calendar.CalendarService;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
@@ -223,7 +224,8 @@ class LegacyReportBaselineTest {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		Project project = Project.createProject(com.microproject.pm.resource.ResourcePool.createRourcePool("issue-753", undo), undo);
 		project.initialize(false, false);
-		assertEquals("Standard", project.getBaseCalendar().getName(), "fixture uses the built-in Standard calendar");
+		assertTrue(project.getBaseCalendar() == CalendarService.getInstance().getDefaultInstance(),
+			"fixture uses the built-in default calendar regardless of its localized display name");
 		project.setStartDate(java.time.LocalDate.of(2026, 10, 19)
 			.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli());
 		project.setName("fixture 日本語 project");

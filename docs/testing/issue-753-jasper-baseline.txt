@@ -76,9 +76,11 @@ The cross-locale comparison permits only the known localized enum values in
 `Field.userRole` (`Team Resource`), `Field.resourceType` (`Work`), and
 `Field.accrueAt` (`Prorated`) to match their frozen Japanese labels; each
 replacement value is checked against its raw enum text. The fixture also
-asserts that both resources use the project built-in `Standard` calendar before
-accepting `Field.baseCalendar`'s Japanese label `標準`. All other text values
-remain exact comparisons, including user-defined calendar names.
+asserts that the project uses the built-in default calendar instance (whose
+display name is localized, such as `標準` in Japanese), and that both resources
+share that same instance, before accepting `Field.baseCalendar`'s Japanese
+label `標準`. All other text values remain exact comparisons, including
+user-defined calendar names.
 
 The replacement layout ranges are fixed in the test. Task Information uses
 four printed pages: rows 0–28 and 28–45 for each of two horizontal segments.
