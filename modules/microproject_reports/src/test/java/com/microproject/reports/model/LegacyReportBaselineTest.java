@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.nio.charset.StandardCharsets;
+import java.text.DateFormat;
 import java.util.Base64;
 import java.util.Iterator;
 import java.util.List;
@@ -32,10 +33,13 @@ import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
+import com.microproject.options.EditOption;
 import com.microproject.reports.adapter.DataSourceProvider;
 import com.microproject.reports.adapter.ReportDataSource;
 import com.microproject.reports.render.ReportPrintable;
+import com.microproject.strings.Messages;
 import com.microproject.undo.DataFactoryUndoController;
+import com.microproject.util.DateTime;
 
 /** Compares replacement output and data against frozen pages captured from the legacy Jasper renderer. */
 class LegacyReportBaselineTest {
@@ -44,15 +48,20 @@ class LegacyReportBaselineTest {
 
 	@Test
 	void allFourLegacyReportsRenderRealProjectRowsThatReplacementRetains() throws Exception {
+		Locale originalLocale = Locale.getDefault();
+		EditOption editOption = EditOption.getInstance();
+		DateFormat originalShortDateFormat = (DateFormat) editOption.getShortDateFormat().clone();
+		Set<String> measuredDifferences = new TreeSet<>();
+		try {
+		Locale.setDefault(Locale.JAPANESE);
+		Messages.reset();
 		Configuration.getInstance();
 		Dictionary.getInstance();
 		installWhoDoesWhatFieldArrays();
 		Project project = fixtureProject();
-		Set<String> measuredDifferences = new TreeSet<>();
-		Locale originalLocale = Locale.getDefault();
-		try {
 		for (Locale locale : List.of(Locale.JAPANESE, Locale.ENGLISH)) {
 			Locale.setDefault(locale);
+			editOption.setShortDateFormat(DateTime.dateFormatInstance("yyyy/MM/dd"));
 			int reportCount = 0;
 		for (String name : EXPECTED_REPORTS) {
 			ReportDefinition definition = DataSourceProvider.getFromName(name);
@@ -152,7 +161,8 @@ class LegacyReportBaselineTest {
 						continue;
 					}
 					assertTrue(raw instanceof Number && oldText.stream().anyMatch(text -> text.contains(raw.toString())),
-					name + " frozen legacy output lacks model value: " + expected + " raw=" + raw + " pages=" + oldPages);
+					name + " frozen legacy output lacks model value: " + replacement.columns().get(column).getId()
+						+ " expected=" + expected + " raw=" + raw + " pages=" + oldPages);
 					measuredDifferences.add(name + " formatting delta " + replacement.columns().get(column).getId());
 				}
 				sourceRow++;
@@ -164,7 +174,11 @@ class LegacyReportBaselineTest {
 		assertEquals(Set.of("Resource Information formatting delta Field.standardRate",
 			"Resource Information formatting delta Field.overtimeRate",
 			"Resource Information formatting delta Field.costPerUse"), measuredDifferences);
-		} finally { Locale.setDefault(originalLocale); }
+		} finally {
+			Locale.setDefault(originalLocale);
+			Messages.reset();
+			editOption.setShortDateFormat(originalShortDateFormat);
+		}
 	}
 
 	private static List<List<String>> legacyPages(String report, String locale) throws Exception {
