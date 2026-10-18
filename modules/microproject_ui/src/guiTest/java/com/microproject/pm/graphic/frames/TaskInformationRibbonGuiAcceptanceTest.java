@@ -3706,7 +3706,12 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"the fixture must hide exactly the predecessor row before testing filtered navigation");
 		GuiAcceptanceSupport.await(() -> sheet.taskNodeToViewRow(DocumentFrame.findTaskNode(project, predecessor)) < 0,
 			"the hidden predecessor must be absent from visible view coordinates");
+		clickUntilSelected(robot, window, sheet, rowForTask(sheet, successor), nameColumn(sheet));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(successor)
+				&& sheet.getSelectedRow() == rowForTask(sheet, successor),
+			"the visible successor must be physically selected after the predecessor projection changes");
 		int selectionBeforeHiddenClick = sheet.getSelectedRow();
+		List<Object> selectedBeforeHiddenClick = manager.getCurrentFrame().getSelectedImpls(false);
 		boolean dirtyBeforeHiddenClick = project.needsSaving();
 		boolean undoBeforeHiddenClick = project.getUndoController().canUndo();
 		AbstractButton hiddenPredecessorLink = inspectorPredecessorButton("Inspector predecessor");
@@ -3726,6 +3731,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				+ "; " + inspectorNavigationDiagnostics(sheet, predecessor, DocumentFrame.findTaskNode(project, predecessor)), failure);
 		}
 		assertEquals(selectionBeforeHiddenClick, sheet.getSelectedRow(), "hidden predecessor navigation must preserve selection");
+		assertEquals(selectedBeforeHiddenClick, manager.getCurrentFrame().getSelectedImpls(false),
+			"hidden predecessor navigation must preserve the selected task identity");
 		assertEquals(dirtyBeforeHiddenClick, project.needsSaving(), "hidden navigation must not mutate the project");
 		assertEquals(undoBeforeHiddenClick, project.getUndoController().canUndo(), "hidden navigation must not change Undo history");
 	}
