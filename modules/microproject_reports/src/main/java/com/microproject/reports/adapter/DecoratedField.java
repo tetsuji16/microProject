@@ -24,7 +24,6 @@
  *******************************************************************************/
 package com.microproject.reports.adapter;
 
-import net.sf.jasperreports.engine.JRField;
 
 import com.microproject.configuration.Configuration;
 import com.microproject.field.Field;
@@ -143,9 +142,7 @@ public class DecoratedField {
 		this.clazz = clazz;
 	}
 	
-	public DecoratedField(JRField jrField) {
-
-		String name = jrField.getName();
+	public DecoratedField(String name) {
 		
 		String option = "MODText";
 		if (name.indexOf(option) >= 0) {

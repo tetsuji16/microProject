@@ -77,7 +77,7 @@ subprojects {
 		exclude(group = "ch.qos.logback", module = "logback-classic")
 		exclude(group = "commons-logging", module = "commons-logging")
 		// Also drop commons-logging by module name alone so transitive suppliers
-		// (e.g. jasperreports) cannot reintroduce it; jcl-over-slf4j provides the
+		// cannot reintroduce it; jcl-over-slf4j provides the
 		// org.apache.commons.logging API instead (issue #154).
 		exclude(module = "commons-logging")
 	}
@@ -263,7 +263,7 @@ tasks.register("verifyDependencyAllowlist") {
             "commons-codec",
             "commons-io", "commons-lang", "commons-logging", "commons-pool", "commons-digester",
             "io.reactivex.rxjava3", "javax.activation", "javax.xml.bind",
-            "net.sf.mpxj", "net.sf.jasperreports", "org.apache.commons",
+			"net.sf.mpxj", "org.apache.commons",
             "org.apache.logging.log4j", "org.apache.pdfbox", "org.apache.poi",
             "org.codehaus.groovy", "org.glassfish.jaxb", "org.imgscalr", "org.jfree", "org.slf4j", "org.pushingpixels", "org.pushing-pixels",
             "org.update4j", "com.github.librepdf",
@@ -287,6 +287,13 @@ tasks.register("verifyDependencyAllowlist") {
             }.toSet()
             require(resolved.intersect(forbiddenBackends).isEmpty()) {
                 "Forbidden logging backend resolved for ${module.name}: ${resolved.intersect(forbiddenBackends)}"
+            }
+            // Issue #753 removed JasperReports; keep it out of every runtime graph.
+            val forbiddenReportEngines = resolved.filter {
+                it.startsWith("net.sf.jasperreports:") || it.contains("projectlibre-reports")
+            }
+            require(forbiddenReportEngines.isEmpty()) {
+                "Removed Jasper report engine resolved for ${module.name}: $forbiddenReportEngines"
             }
             val simpleBackends = resolved.filter { it == "org.slf4j:slf4j-simple" }
             require(simpleBackends.size <= 1) { "Duplicate slf4j-simple backend in ${module.name}" }

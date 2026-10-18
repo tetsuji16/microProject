@@ -19,6 +19,18 @@ final class PageablePngWriter {
 	void write(GraphPageable pageable, File file, DoubleConsumer progress) throws Exception {
 		pageable.update();
 		if (pageable.getNumberOfPages() == 0) return;
+		com.microproject.reports.render.ReportPrintable report = pageable.getReportPrintable();
+		if (report != null) {
+			java.awt.print.PageFormat format = pageable.getPageFormat(0);
+			BufferedImage image = new BufferedImage((int)format.getWidth(), (int)format.getHeight(), BufferedImage.TYPE_INT_ARGB);
+			Graphics2D graphics = image.createGraphics();
+			try { report.print(graphics, format, 0); } finally { graphics.dispose(); }
+			try (FileOutputStream output = new FileOutputStream(file)) {
+				if (!ImageIO.write(image, "png", output)) throw new java.io.IOException("No PNG writer available");
+			}
+			progress.accept(0.9f);
+			return;
+		}
 		ViewPrintable printable = pageable.getSafePrintable();
 		ExtendedPageFormat pageFormat = pageable.getSafePageFormat();
 		BufferedImage image = new BufferedImage((int) pageFormat.getWidth(), (int) pageFormat.getHeight(), BufferedImage.TYPE_INT_ARGB);

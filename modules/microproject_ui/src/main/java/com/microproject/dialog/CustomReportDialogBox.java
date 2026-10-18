@@ -30,10 +30,7 @@ import java.awt.Dimension;
 import java.awt.Frame;
 import java.awt.GridLayout;
 import java.awt.print.PrinterException;
-import java.io.IOException;
 import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -63,10 +60,6 @@ import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
 import javax.swing.SpinnerDateModel;
 import javax.swing.table.DefaultTableModel;
-import javax.swing.table.TableModel;
-
-import org.apache.commons.csv.CSVFormat;
-import org.apache.commons.csv.CSVPrinter;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartPanel;
 import org.jfree.chart.JFreeChart;
@@ -86,6 +79,10 @@ import com.microproject.pm.task.Task;
 import com.microproject.util.Alert;
 import com.microproject.util.UiServices;
 import com.microproject.help.HelpUtil;
+import com.microproject.reports.model.ReportCsvWriter;
+import com.microproject.reports.model.ReportModel;
+import com.microproject.reports.render.ReportPrintable;
+import com.microproject.print.ReportPageable;
 import com.microproject.ui.util.PopupDialogSupport;
 import com.microproject.util.FlatUiSupport;
 import com.microproject.util.FlatLafDialog;
@@ -141,6 +138,7 @@ public final class CustomReportDialogBox extends FlatLafDialog implements Schedu
 	private final ChartPanel chartPreview = new ChartPanel(null);
 	private final JLabel summary = new JLabel(" ");
 	private ReportTemplate selectedTemplate = ReportTemplate.TABLE;
+	private ReportModel reportModel;
 
 	public CustomReportDialogBox(Frame owner, Project project) {
 		super(owner, t("report.title"), false);
@@ -158,7 +156,7 @@ public final class CustomReportDialogBox extends FlatLafDialog implements Schedu
 		setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 		setLayout(new BorderLayout(8, 8));
 		add(buildSettings(), BorderLayout.NORTH);
-		previewCards.add(new JScrollPane(preview), "table");
+		previewCards.add(new JPanel(), "table");
 		previewCards.add(chartPreview, "chart");
 		JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, new JScrollPane(columns), previewCards);
 		split.setResizeWeight(0.2D); add(split, BorderLayout.CENTER);
@@ -242,15 +240,33 @@ public final class CustomReportDialogBox extends FlatLafDialog implements Schedu
 		boolean grouped = group.getSelectedIndex() > 0;
 		List<String> names = new ArrayList<>(selected.size() + (grouped ? 1 : 0)); if (grouped) names.add(t("report.groupColumn")); selected.forEach(field -> names.add(field.getName()));
 		previewModel.setDataVector(new Object[0][0], names.toArray());
-		double totalCost = 0D; long totalWork = 0L;
+		List<List<Object>> reportRows = new ArrayList<>();
+		List<Object> groupKeys = new ArrayList<>();
+		TaskAggregation aggregation = aggregateTasks(tasks);
+		double totalCost = aggregation.summaryOwnFixedCost(); long totalWork = 0L;
 		for (Task task : tasks) {
 			List<Object> row = new ArrayList<>(selected.size() + (grouped ? 1 : 0)); if (grouped) row.add(groupValue(task));
 			for (Field field : selected) row.add(safeText(field, task));
 			previewModel.addRow(row.toArray());
+			reportRows.add(new ArrayList<>(row));
+			groupKeys.add(grouped ? groupValue(task) : null);
+		}
+		for (Task task : aggregation.tasks()) {
 			if (task instanceof com.microproject.pm.task.NormalTask normal) {
-				totalCost += normal.getCost(null); totalWork += normal.getWork(null);
+				totalCost += normal.getCost(null);
+				totalWork += normal.getWork(null);
 			}
 		}
+		List<Field> reportColumns = new ArrayList<>();
+		if (grouped) {
+			Field groupField = new Field();
+			groupField.setName(t("report.groupColumn"));
+			reportColumns.add(groupField);
+		}
+		reportColumns.addAll(selected);
+		int[] widths = reportColumns.stream().mapToInt(field -> Math.max(60, field.getColumnWidth())).toArray();
+		reportModel = new ReportModel(t("report.title"), reportColumns, reportRows, widths,
+			grouped ? 0 : -1, groupKeys, project.getName(), false, false, false);
 		summary.setText(tasks.size() + " tasks  |  Cost: " + String.format(Locale.getDefault(), "%,.2f", totalCost) + "  |  Work: " + totalWork);
 		if (selectedTemplate == ReportTemplate.CHART) {
 			chartPreview.setChart(createWorkChart(tasks));
@@ -264,11 +280,21 @@ public final class CustomReportDialogBox extends FlatLafDialog implements Schedu
 	}
 
 	private void showTablePreview() {
+		previewCards.removeAll();
+		previewCards.add(reportModel == null ? new JPanel()
+			: new com.microproject.reports.render.ReportPreview(new ReportPrintable(reportModel)), "table");
+		previewCards.add(chartPreview, "chart");
 		((CardLayout)previewCards.getLayout()).show(previewCards, "table");
+		previewCards.revalidate(); previewCards.repaint();
 	}
 
 	private void showChartPreview() {
+		previewCards.removeAll();
+		previewCards.add(reportModel == null ? new JPanel()
+			: new com.microproject.reports.render.ReportPreview(new ReportPrintable(reportModel)), "table");
+		previewCards.add(chartPreview, "chart");
 		((CardLayout)previewCards.getLayout()).show(previewCards, "chart");
+		previewCards.revalidate(); previewCards.repaint();
 	}
 
 	static JFreeChart createWorkChart(List<? extends Task> tasks) {
@@ -276,7 +302,7 @@ public final class CustomReportDialogBox extends FlatLafDialog implements Schedu
 		double work = 0D;
 		double actualWork = 0D;
 		double remainingWork = 0D;
-		for (Task task : tasks) {
+		for (Task task : aggregateTasks(tasks).tasks()) {
 			if (task instanceof com.microproject.pm.task.NormalTask normal) {
 				work += hours(normal.getWork(null));
 				actualWork += hours(normal.getActualWork(null));
@@ -289,6 +315,32 @@ public final class CustomReportDialogBox extends FlatLafDialog implements Schedu
 		return ChartFactory.createBarChart("Work", "", "Hours", dataset,
 			PlotOrientation.VERTICAL, true, true, false);
 	}
+
+	static TaskAggregation aggregateTasks(List<? extends Task> visibleTasks) {
+		List<Task> included = new ArrayList<>(visibleTasks.size());
+		java.util.Set<Task> visible = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+		visible.addAll(visibleTasks);
+		double summaryOwnFixedCost = 0D;
+		for (Task task : visibleTasks) {
+			if (task instanceof com.microproject.pm.task.NormalTask normal && task.isSummary()
+					&& !normal.hasRealAssignments() && hasVisibleDescendant(task, visible)) {
+				summaryOwnFixedCost += normal.getFixedCost(null);
+			} else {
+				included.add(task);
+			}
+		}
+		return new TaskAggregation(List.copyOf(included), summaryOwnFixedCost);
+	}
+
+	private static boolean hasVisibleDescendant(Task summary, java.util.Set<Task> visibleTasks) {
+		for (Task candidate : visibleTasks) {
+			for (Task parent = candidate.getWbsParentTask(); parent != null; parent = parent.getWbsParentTask())
+				if (parent == summary) return true;
+		}
+		return false;
+	}
+
+	record TaskAggregation(List<Task> tasks, double summaryOwnFixedCost) { }
 
 	/**
 	 * Shows the current and saved-baseline schedules on a common time line, just as
@@ -416,26 +468,14 @@ public final class CustomReportDialogBox extends FlatLafDialog implements Schedu
 		String selectedFile = UiServices.getFileChooserProvider().chooseFileName(
 			new UiServices.FileChooserOptions(true, "project-report.csv", "Export custom report", "CSV (*.csv)", "csv"), this);
 		if (selectedFile == null) return;
-		try (OutputStream out = Files.newOutputStream(Path.of(selectedFile))) { writeReportCsv(previewModel, out); }
+		try (OutputStream out = Files.newOutputStream(Path.of(selectedFile))) { ReportCsvWriter.write(reportModel, out); }
 		catch (Exception error) { Alert.error(t("report.exportError") + " " + error.getMessage()); }
 	}
 
-	/**
-	 * Writes a table model as CSV (RFC 4180), prefixed with a UTF-8 BOM so Excel opens it correctly.
-	 * Null cells are exported as empty fields.
-	 */
-	static void writeReportCsv(TableModel model, OutputStream out) throws IOException {
-		try (Writer writer = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
-			writer.write('\uFEFF');
-			try (CSVPrinter printer = new CSVPrinter(writer, CSVFormat.RFC4180)) {
-				List<String> header = new ArrayList<>(model.getColumnCount()); for (int column = 0; column < model.getColumnCount(); column++) header.add(model.getColumnName(column)); printer.printRecord(header);
-				for (int row = 0; row < model.getRowCount(); row++) {
-					List<String> values = new ArrayList<>(model.getColumnCount()); for (int column = 0; column < model.getColumnCount(); column++) { Object value = model.getValueAt(row, column); values.add(value == null ? "" : String.valueOf(value)); }
-					printer.printRecord(values);
-				}
-			}
-		}
-	}
 	private static String t(String key) { return UsabilityStrings.text(key); }
-	private void print() { try { preview.print(JTable.PrintMode.FIT_WIDTH, new java.text.MessageFormat(project.getName()), new java.text.MessageFormat("Page {0}")); } catch (PrinterException error) { Alert.error(error.getMessage()); } }
+	private void print() {
+		generate();
+		if (reportModel == null) return;
+		new ReportPageable(new ReportPrintable(reportModel), true).print();
+	}
 }

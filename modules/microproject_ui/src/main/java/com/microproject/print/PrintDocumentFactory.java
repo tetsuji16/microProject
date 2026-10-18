@@ -53,6 +53,8 @@ public class PrintDocumentFactory {
 	}
 	public GraphPageable createDocument(DocumentFrame frame,boolean printOnly,boolean pdfAsDefault){
 		BaseView view=frame.getActiveTopView();
+		GraphPageable specializedDocument = view.createPrintDocument(printOnly, pdfAsDefault);
+		if (specializedDocument != null) return specializedDocument;
 		SVGRenderer renderer;
 		NodeModelCache cache;
 		if (view instanceof GanttView){

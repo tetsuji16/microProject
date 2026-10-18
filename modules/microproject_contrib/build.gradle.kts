@@ -1,10 +1,7 @@
-import org.gradle.jvm.tasks.Jar
-
 dependencies {
     implementation(libs.bundles.commons.legacy)
     implementation(libs.commons.collections4)
     implementation(libs.bundles.jackson)
-    implementation(libs.jasperreports)
     implementation(libs.bundles.jaxb)
     implementation(libs.bundles.poi)
     implementation(libs.flatlaf)
@@ -27,17 +24,6 @@ tasks.jar {
     archiveFileName.set("projectlibre-contrib.jar")
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     from(sourceSets.main.get().output)
-    exclude("net/sf/jasperreports/compilers/**")
-    metaInf {
-        from(licenseDir)
-    }
-}
-
-val reportsJar by tasks.registering(Jar::class) {
-    archiveFileName.set("projectlibre-reports.jar")
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    from(sourceSets.main.get().output)
-    include("net/sf/jasperreports/compilers/**")
     metaInf {
         from(licenseDir)
     }
@@ -52,7 +38,7 @@ val scriptRadianceJar by tasks.registering(Jar::class) {
 }
 
 tasks.assemble {
-    dependsOn(reportsJar, scriptRadianceJar)
+	dependsOn(scriptRadianceJar)
 }
 
 tasks.test {

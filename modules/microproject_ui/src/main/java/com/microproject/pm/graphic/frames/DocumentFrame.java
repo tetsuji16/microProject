@@ -57,6 +57,7 @@ import com.microproject.dialog.TimelineDialogBox;
 import com.microproject.dialog.CalendarViewDialogBox;
 import com.microproject.dialog.CustomFieldsDialogBox;
 import com.microproject.dialog.CustomReportDialogBox;
+import com.microproject.reports.view.ReportView;
 import com.microproject.dialog.MoveProjectDialog;
 import com.microproject.dialog.StatusDateDialog;
 import com.microproject.dialog.TaskInspectorPanel;
@@ -175,7 +176,7 @@ public class DocumentFrame extends NamedFrame implements
 	protected UsageDetailView resourceUsageView;
 	protected DockableProjectToolView timelineView;
 	protected DockableProjectToolView teamPlannerView;
-	protected BaseView reportView;
+	protected ReportView reportView;
 	// Column selection belongs to this document frame.  Keeping it static leaks
 	// one document's tracking layout into every other open document.
 	private FindDialog findDialog = null;
@@ -567,7 +568,7 @@ public class DocumentFrame extends NamedFrame implements
 
 	void doCustomReportDialog() {
 		finishAnyOperations();
-		new CustomReportDialogBox(getGraphicManager().getFrame(), project).setVisible(true);
+		getGraphicManager().showReportView();
 	}
 
 	/**
@@ -1651,20 +1652,10 @@ public class DocumentFrame extends NamedFrame implements
 	}
 
 	public BaseView getReportView() {
-		try {
-			if (reportView == null) {
-				try {
-					ClassUtils.forName("net.sf.jasperreports.engine.JasperCompileManager");
-				} catch (ClassNotFoundException missingCompiler) {
-					return null;
-				}
-				Class<?> clazz=ClassUtils.forName("com.microproject.reports.view.ReportView");
-				reportView=(BaseView)clazz.getConstructor(DocumentFrame.class).newInstance(this);
-				clazz.getMethod("init", CoordinatesConverter.class).invoke(reportView, coord);
-				if (reportView!=null) restoreWorkspaceFor(reportView);
-			}
-		} catch (Exception e) {
-			reportView=null;
+		if (reportView == null) {
+			reportView = new ReportView(this);
+			reportView.init(coord);
+			restoreWorkspaceFor(reportView);
 		}
 		return reportView;
 	}

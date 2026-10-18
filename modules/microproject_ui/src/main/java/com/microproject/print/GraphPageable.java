@@ -38,6 +38,7 @@ import com.microproject.offline_graphics.SVGRenderer;
 import com.microproject.pm.graphic.graph.GraphParams;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetParams;
 import com.microproject.pm.graphic.spreadsheet.renderer.FontManager;
+import com.microproject.reports.render.ReportPrintable;
 import com.microproject.job.Job;
 import com.microproject.job.JobQueue;
 import com.microproject.job.JobRunnable;
@@ -48,12 +49,18 @@ import com.microproject.util.Alert;
 public class GraphPageable extends PrintDocument implements ViewPrintableParams{
 	private static final Logger logger = Logger.getLogger(GraphPageable.class.getName());
 	protected SVGRenderer renderer;
+	private ReportPrintable reportPrintable;
 	protected int documentRowCount,documentColCount;
 	protected ViewPrintable defaultPrintable;
 
 	public GraphPageable (SVGRenderer renderer,boolean printOnly,boolean pdfAsDefault,boolean localSettings) {
 		this(renderer,false,printOnly,pdfAsDefault,localSettings);
    }
+	/** Adapts report pages to the standard GraphPageable export pipeline. */
+	public GraphPageable(ReportPrintable reportPrintable, boolean printOnly) {
+		super(null, false, printOnly, false, true);
+		this.reportPrintable = java.util.Objects.requireNonNull(reportPrintable);
+	}
 	private GraphPageable (SVGRenderer renderer,boolean pdfOnly,boolean printOnly,boolean pdfAsDefault,boolean localSettings) {
 		   super(renderer.getProject(),pdfOnly,printOnly,pdfAsDefault,localSettings);
 		   FontManager.setOfflineDefaultFont(FontManager.getDefaultFont());
@@ -80,14 +87,18 @@ public class GraphPageable extends PrintDocument implements ViewPrintableParams{
 
 
 	public int getNumberOfPages() {
+		if (reportPrintable != null) return reportPrintable.getNumberOfPages();
 		return documentRowCount*documentColCount;
 	}
 	public PageFormat getPageFormat(int page) throws IndexOutOfBoundsException {
+		if (reportPrintable != null) return reportPrintable.getPageFormat(page);
 		return getPageFormat();
 	}
 	public Printable getPrintable(int page) throws IndexOutOfBoundsException {
+		if (reportPrintable != null) return reportPrintable.getPrintable(page);
 		return getDefaultPrintable();
 	}
+	public ReportPrintable getReportPrintable() { return reportPrintable; }
 	public ViewPrintable getSafePrintable(){
 		return new ViewPrintable(new ViewPrintableParamsImpl(getTransform(),renderer.createSafePrintCopy(),documentRowCount,documentColCount,getTotalZoomX(),getTotalZoomY()));
 	}
@@ -171,6 +182,7 @@ public class GraphPageable extends PrintDocument implements ViewPrintableParams{
 
 
 	public void update(){
+		if (reportPrintable != null) return;
 		PrintDocument.updatePageLayout(this,pageFormat);
 	}
 
