@@ -69,9 +69,16 @@ without keeping Jasper in the test or runtime dependency graph. It was captured
 from the baseline commit above with the legacy adapters and the same real
 project fixture. The `ja` and `en` variants select report labels and formatting;
 both retain the Japanese startup/UI message bundle for resource role/type
-values. The regression fixture reproduces that baseline setup and pins the
-user-configurable short date preference to `yyyy/MM/dd` in UTC, restoring the
-process locale, message bundle, and date formatter afterward.
+values. The regression fixture pins the user-configurable short date preference
+to `yyyy/MM/dd` in UTC and restores the process locale and date formatter
+afterward; it leaves the process message bundle cache untouched.
+The cross-locale comparison permits only the known localized enum values in
+`Field.userRole` (`Team Resource`), `Field.resourceType` (`Work`), and
+`Field.accrueAt` (`Prorated`) to match their frozen Japanese labels; each
+replacement value is checked against its raw enum text. The fixture also
+asserts that both resources use the project built-in `Standard` calendar before
+accepting `Field.baseCalendar`'s Japanese label `標準`. All other text values
+remain exact comparisons, including user-defined calendar names.
 
 The replacement layout ranges are fixed in the test. Task Information uses
 four printed pages: rows 0–28 and 28–45 for each of two horizontal segments.

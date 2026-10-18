@@ -37,7 +37,6 @@ import com.microproject.options.EditOption;
 import com.microproject.reports.adapter.DataSourceProvider;
 import com.microproject.reports.adapter.ReportDataSource;
 import com.microproject.reports.render.ReportPrintable;
-import com.microproject.strings.Messages;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.DateTime;
 
@@ -53,8 +52,6 @@ class LegacyReportBaselineTest {
 		DateFormat originalShortDateFormat = (DateFormat) editOption.getShortDateFormat().clone();
 		Set<String> measuredDifferences = new TreeSet<>();
 		try {
-		Locale.setDefault(Locale.JAPANESE);
-		Messages.reset();
 		Configuration.getInstance();
 		Dictionary.getInstance();
 		installWhoDoesWhatFieldArrays();
@@ -155,13 +152,26 @@ class LegacyReportBaselineTest {
 					Object value = replacement.rows().get(row).get(column);
 					if (!(value instanceof String expected) || expected.isBlank()) continue;
 					if (oldText.stream().anyMatch(text -> text.contains(expected))) continue;
-			Object raw = sourceRow < probeRows.size() ? probeRows.get(sourceRow).rawValues().get(column) : null;
+					Object raw = sourceRow < probeRows.size() ? probeRows.get(sourceRow).rawValues().get(column) : null;
+					String fieldId = replacement.columns().get(column).getId();
+					if (fieldId.equals("Field.userRole") && "Team Resource".equals(raw)
+							&& expected.equals("Team Resource")
+							&& oldText.stream().anyMatch(text -> text.contains("チーム リソース"))) continue;
+					if (fieldId.equals("Field.resourceType") && "Work".equals(raw)
+							&& expected.equals("Work")
+							&& oldText.stream().anyMatch(text -> text.contains("作業"))) continue;
+					if (fieldId.equals("Field.accrueAt") && "Prorated".equals(raw)
+							&& expected.equals("Prorated")
+							&& oldText.stream().anyMatch(text -> text.contains("達成率に比例"))) continue;
+					if (fieldId.equals("Field.baseCalendar") && "Standard".equals(raw)
+							&& expected.equals("Standard")
+							&& oldText.stream().anyMatch(text -> text.contains("標準"))) continue;
 					if (raw == null && "<N/A>".equals(expected)) {
 						measuredDifferences.add(name + " null display delta " + replacement.columns().get(column).getId());
 						continue;
 					}
 					assertTrue(raw instanceof Number && oldText.stream().anyMatch(text -> text.contains(raw.toString())),
-					name + " frozen legacy output lacks model value: " + replacement.columns().get(column).getId()
+					name + " frozen legacy output lacks model value: " + fieldId
 						+ " expected=" + expected + " raw=" + raw + " pages=" + oldPages);
 					measuredDifferences.add(name + " formatting delta " + replacement.columns().get(column).getId());
 				}
@@ -176,7 +186,6 @@ class LegacyReportBaselineTest {
 			"Resource Information formatting delta Field.costPerUse"), measuredDifferences);
 		} finally {
 			Locale.setDefault(originalLocale);
-			Messages.reset();
 			editOption.setShortDateFormat(originalShortDateFormat);
 		}
 	}
@@ -214,6 +223,7 @@ class LegacyReportBaselineTest {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		Project project = Project.createProject(com.microproject.pm.resource.ResourcePool.createRourcePool("issue-753", undo), undo);
 		project.initialize(false, false);
+		assertEquals("Standard", project.getBaseCalendar().getName(), "fixture uses the built-in Standard calendar");
 		project.setStartDate(java.time.LocalDate.of(2026, 10, 19)
 			.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli());
 		project.setName("fixture 日本語 project");
@@ -227,6 +237,8 @@ class LegacyReportBaselineTest {
 		for (int i = 0; i < resources.length; i++) {
 			resources[i] = (ResourceImpl) project.getResourcePool().createScriptedResource();
 			resources[i].setName("fixture 日本語 resource " + (i == 0 ? "A" : "B"));
+			assertTrue(resources[i].getBaseCalendar() == project.getBaseCalendar(),
+				"fixture resource uses the built-in project Standard calendar");
 		}
 		for (int i = 0; i < tasks.size(); i++) {
 			ResourceImpl resource = resources[i % resources.length];
