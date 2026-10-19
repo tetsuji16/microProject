@@ -449,6 +449,68 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			"task table was not ready for physical selection verification");
 		robot.delay(300);
 
+		// Microsoft documents Shift selection for adjacent tasks. The original
+		// anchor must survive an upward row-header extension followed by a cell
+		// extension; preserving it across these routes is a document-derived
+		// Office-consistent decision because the documentation does not specify
+		// cross-control anchor behavior. Source: https://support.microsoft.com/en-au/project/link-tasks-in-a-project
+		SpreadSheetRowHeader rowHeader = fixture.sheet.getRowHeader();
+		AtomicReference<UndoSnapshot> undoBeforeSelection = new AtomicReference<>();
+		AtomicReference<List<TaskSnapshot>> tasksBeforeSelection = new AtomicReference<>();
+		SwingUtilities.invokeAndWait(() -> {
+			undoBeforeSelection.set(UndoSnapshot.capture(fixture.project));
+			tasksBeforeSelection.set(TaskSnapshot.capture(fixture.project));
+		});
+		Set<Long> expectedTaskIds = Set.of(tasksBeforeSelection.get().get(1).uniqueId(),
+			tasksBeforeSelection.get().get(2).uniqueId());
+		Point middleHeaderPoint = screenCenter(rowHeader, rowHeader.getCellRect(1, 0, true));
+		robot.mouseMove(middleHeaderPoint.x, middleHeaderPoint.y);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.delay(100);
+		robot.keyPress(java.awt.event.KeyEvent.VK_SHIFT);
+		try {
+			Point firstHeaderPoint = screenCenter(rowHeader, rowHeader.getCellRect(0, 0, true));
+			robot.mouseMove(firstHeaderPoint.x, firstHeaderPoint.y);
+			robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+			robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+			robot.delay(100);
+			SwingUtilities.invokeAndWait(() -> {
+				assertEquals(Set.of(0, 1), java.util.Arrays.stream(fixture.sheet.getSelectedRows()).boxed()
+					.collect(java.util.stream.Collectors.toSet()),
+					"upward row-header Shift click must select the contiguous range from the middle-row anchor");
+				assertEquals(Set.of(0, 1), fixture.gantt.getHighlightedRows(),
+					"the Gantt must project the upward row-header range");
+			});
+			Point thirdCellPoint = screenCenter(fixture.sheet,
+				fixture.sheet.getCellRect(2, Math.min(1, fixture.sheet.getColumnCount() - 1), true));
+			robot.mouseMove(thirdCellPoint.x, thirdCellPoint.y);
+			robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+			robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+			robot.delay(150);
+			SwingUtilities.invokeAndWait(() -> {
+				assertEquals(Set.of(1, 2), java.util.Arrays.stream(fixture.sheet.getSelectedRows()).boxed()
+					.collect(java.util.stream.Collectors.toSet()),
+					"cell Shift click must extend from the original middle-row anchor after the upward header range");
+				assertEquals(expectedTaskIds,
+					fixture.sheet.getSelectedGraphicNodes().stream()
+						.map(node -> ((NormalTask) node.getNode().getImpl()).getUniqueId())
+						.collect(java.util.stream.Collectors.toSet()),
+					"cross-route selection must preserve the expected task identities");
+				assertEquals(2, fixture.sheet.getSelection().getActiveRow(), "the Shift-clicked cell row must remain active");
+				assertTrue(fixture.sheet.getSelection().isActiveCell(2, Math.min(1, fixture.sheet.getColumnCount() - 1)),
+					"the Shift-clicked cell must remain active within the row range");
+				assertEquals(Set.of(1, 2), fixture.gantt.getHighlightedRows(),
+					"the Gantt must project the same task rows as the cross-route selection");
+				assertEquals(tasksBeforeSelection.get(), TaskSnapshot.capture(fixture.project),
+					"selection gestures must preserve task IDs, names, start, duration, and progress");
+				assertEquals(undoBeforeSelection.get(), UndoSnapshot.capture(fixture.project),
+					"selection gestures must preserve the Undo/Redo edit list and available state");
+			});
+		} finally {
+			robot.keyRelease(java.awt.event.KeyEvent.VK_SHIFT);
+		}
+
 		final int row = 1;
 		final int column = Math.min(1, fixture.sheet.getColumnCount() - 1);
 		Point cellPoint = screenCenter(fixture.sheet, fixture.sheet.getCellRect(row, column, true));
@@ -1661,4 +1723,21 @@ class TaskTableGanttGridGuiAcceptanceTest {
 
 	private record Fixture(SpreadSheet sheet, Gantt gantt, Project project, int taskCount, int sequentialDependencyCount,
 		int independentTaskCount) { }
+
+	private record UndoSnapshot(List<String> editNames, boolean canUndo, boolean canRedo) {
+		private static UndoSnapshot capture(Project project) {
+			List<String> editNames = project.getUndoController().getEditNames();
+			return new UndoSnapshot(editNames == null ? List.of() : List.copyOf(editNames),
+				project.getUndoController().canUndo(), project.getUndoController().canRedo());
+		}
+	}
+
+	private record TaskSnapshot(long uniqueId, String name, long start, long duration, double percentComplete) {
+		private static List<TaskSnapshot> capture(Project project) {
+			return project.getTasks().stream()
+				.map(task -> new TaskSnapshot(task.getUniqueId(), task.getName(), task.getStart(), task.getDuration(),
+					task.getPercentComplete()))
+				.toList();
+		}
+	}
 }

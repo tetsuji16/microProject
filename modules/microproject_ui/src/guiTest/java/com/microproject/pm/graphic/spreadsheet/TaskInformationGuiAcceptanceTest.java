@@ -17,9 +17,11 @@ import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.Window;
 import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import javax.imageio.ImageIO;
 import javax.swing.JFrame;
@@ -84,10 +86,30 @@ class TaskInformationGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> findTaskInformationDialog() != null,
 			"double-clicking the task name did not open Task Information");
 		TaskInformationDialog dialog = findTaskInformationDialog();
-		assertTrue(dialog.isVisible());
-		assertEquals(Messages.getString("TaskInformationDialog.TaskInformation") + " - " + fixture.task.getId(), dialog.getTitle());
+		SwingUtilities.invokeAndWait(() -> {
+			assertTrue(dialog.isVisible());
+			assertEquals(Messages.getString("TaskInformationDialog.TaskInformation") + " - " + fixture.task.getId(), dialog.getTitle());
+		});
 		assertAllTabsFitTheirViewport(dialog);
 		captureDialog(robot, dialog);
+		SwingUtilities.invokeAndWait(() -> assertModelAndUndoUnchanged(fixture, "opening Task Information"));
+
+		robot.keyPress(KeyEvent.VK_ESCAPE);
+		robot.keyRelease(KeyEvent.VK_ESCAPE);
+		GuiAcceptanceSupport.await(() -> findTaskInformationDialog() == null,
+			"Escape did not close Task Information");
+		SwingUtilities.invokeAndWait(() -> {
+			assertTrue(frame.isVisible(), "closing Task Information must return to the project window");
+			assertModelAndUndoUnchanged(fixture, "closing Task Information");
+		});
+	}
+
+	private static void assertModelAndUndoUnchanged(Fixture fixture, String action) {
+		assertEquals(fixture.clickedTaskBefore, TaskState.capture(fixture.task), action + " must preserve the clicked task");
+		assertEquals(fixture.otherTaskBefore, TaskState.capture(fixture.otherTask), action + " must preserve the other task");
+		assertEquals(fixture.undoNamesBefore, undoNames(fixture.project), action + " must preserve the undo edit list");
+		assertEquals(fixture.canUndoBefore, fixture.project.getUndoController().canUndo(), action + " must preserve Undo state");
+		assertEquals(fixture.canRedoBefore, fixture.project.getUndoController().canRedo(), action + " must preserve Redo state");
 	}
 
 	private static void assertAllTabsFitTheirViewport(TaskInformationDialog dialog) throws Exception {
@@ -222,8 +244,10 @@ class TaskInformationGuiAcceptanceTest {
 		ResourcePool resourcePool = ResourcePool.createRourcePool("gui-task-information-test", undoController);
 		Project project = Project.createProject(resourcePool, undoController);
 		project.initialize(false, false);
+		NormalTask otherTask = project.createScriptedTask();
+		otherTask.setName("Other task");
 		NormalTask task = project.createScriptedTask();
-		task.setName("Task Information acceptance");
+		task.setName("Clicked task");
 		final Fixture[] fixture = new Fixture[1];
 		SwingUtilities.invokeAndWait(() -> {
 			SpreadSheet sheet = new SpreadSheet();
@@ -233,9 +257,16 @@ class TaskInformationGuiAcceptanceTest {
 			SpreadSheetUtils.setFieldsAndContext(sheet, cache, SpreadSheetCategories.taskSpreadsheetCategory, "Spreadsheet.Task.entry", true);
 			Node taskNode = (Node) cache.getModel().search(task);
 			int taskRow = ((SpreadSheetModel) sheet.getModel()).findGraphicNodeRow(cache.getGraphicNode(taskNode));
-			fixture[0] = new Fixture(sheet, task, taskRow, findNameColumn(sheet));
+			fixture[0] = new Fixture(sheet, project, task, otherTask, taskRow, findNameColumn(sheet),
+				TaskState.capture(task), TaskState.capture(otherTask), undoNames(project),
+				project.getUndoController().canUndo(), project.getUndoController().canRedo());
 		});
 		return fixture[0];
+	}
+
+	private static List<String> undoNames(Project project) {
+		List<String> editNames = project.getUndoController().getEditNames();
+		return editNames == null ? List.of() : List.copyOf(editNames);
 	}
 
 	private static int findNameColumn(SpreadSheet sheet) {
@@ -277,7 +308,15 @@ class TaskInformationGuiAcceptanceTest {
 		return null;
 	}
 
-	private record Fixture(SpreadSheet sheet, NormalTask task, int taskRow, int nameColumn) { }
+	private record Fixture(SpreadSheet sheet, Project project, NormalTask task, NormalTask otherTask,
+			int taskRow, int nameColumn, TaskState clickedTaskBefore, TaskState otherTaskBefore,
+			List<String> undoNamesBefore, boolean canUndoBefore, boolean canRedoBefore) { }
+
+	private record TaskState(String name, long start, long duration, double percentComplete) {
+		static TaskState capture(NormalTask task) {
+			return new TaskState(task.getName(), task.getStart(), task.getDuration(), task.getPercentComplete());
+		}
+	}
 
 	private static final class TestFrame extends JFrame implements FrameHolder {
 		private static final long serialVersionUID = 1L;
