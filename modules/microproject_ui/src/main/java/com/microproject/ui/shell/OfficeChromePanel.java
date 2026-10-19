@@ -217,8 +217,11 @@ final class OfficeChromePanel extends JPanel {
 				JComponent center = (JComponent) getComponent(1);
 				documentTitleLabel.setVisible(true);
 				center.setVisible(true);
-				if (!headerClustersFit(this)) documentTitleLabel.setVisible(false);
+				// Keep the document identity and native caption drag target available
+				// as long as the left and right clusters fit. Search is optional and
+				// yields first on compact desktop work areas.
 				if (!headerClustersFit(this)) center.setVisible(false);
+				if (!headerClustersFit(this)) documentTitleLabel.setVisible(false);
 				super.doLayout();
 			}
 		};

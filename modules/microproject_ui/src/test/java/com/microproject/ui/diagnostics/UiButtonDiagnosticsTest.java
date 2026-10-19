@@ -18,6 +18,7 @@ import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.List;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
@@ -186,6 +187,16 @@ class UiButtonDiagnosticsTest {
 		} finally {
 			logger.removeHandler(handler);
 		}
+	}
+
+	@Test
+	void intentionalModalCancelTakesPrecedenceOverGenericNoChangeClassification() {
+		RibbonCommandResult cancelled = new RibbonCommandResult("UpdateTasks",
+			RibbonCommandResult.Status.NO_CHANGE, "dialog-cancelled");
+		assertEquals("dialog-cancelled", UiButtonDiagnostics.noChangeDiagnosticReason(cancelled,
+			true, List.of("cancelled")));
+		assertEquals("command-no-change", UiButtonDiagnostics.noChangeDiagnosticReason(
+			RibbonCommandResult.noChange("UpdateTasks"), true, List.of()));
 	}
 
 	@Test

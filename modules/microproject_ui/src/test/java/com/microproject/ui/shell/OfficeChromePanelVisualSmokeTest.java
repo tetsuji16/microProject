@@ -167,7 +167,7 @@ class OfficeChromePanelVisualSmokeTest {
 	@Test
 	void rendersEveryTabAtOfficeReferenceWidthsInEnglishAndJapanese() throws IOException {
 		for (Locale locale : List.of(Locale.ROOT, Locale.JAPAN)) {
-			for (int width : List.of(320, 480, 720, 760, 1024, 1200, 1440)) {
+			for (int width : List.of(320, 480, 720, 760, 944, 1024, 1200, 1440)) {
 				renderTabContactSheet(locale, width);
 			}
 		}
@@ -215,6 +215,16 @@ class OfficeChromePanelVisualSmokeTest {
 				if (width == 320) {
 					assertTrue(!isVisibleInHierarchy(findNamedComponent(panel, OfficeChromePanel.SEARCH_BOX_NAME)),
 						"the title-bar search field should yield to the window controls at narrow widths");
+				}
+				if (width == 720 || width == 944) {
+					JComponent title = findNamedComponent(panel, OfficeChromePanel.DOCUMENT_TITLE_NAME);
+					assertTrue(isVisibleInHierarchy(title),
+						"the document title and draggable caption target must remain visible at compact desktop widths");
+					assertEquals(Boolean.TRUE, title.getClientProperty("JComponent.titleBarCaption"),
+						"the retained document title must remain a native caption drag target");
+					if (width == 720)
+					assertTrue(!isVisibleInHierarchy(findNamedComponent(panel, OfficeChromePanel.SEARCH_BOX_NAME)),
+						"the optional search field must yield before the document title at compact widths");
 				}
 				if (width >= 1024) {
 					assertTrue(findNamedComponent(panel, OfficeChromePanel.SEARCH_BOX_NAME).isVisible(),

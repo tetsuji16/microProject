@@ -180,6 +180,7 @@ public final class UiButtonDiagnostics {
 					+ " dialogOutcome=" + (dialogOutcomes.isEmpty() ? "none" : dialogOutcomes));
 				boolean unchanged = stateBefore.equals(stateAfter) && selectedBefore == selectedAfter
 					&& enabledBefore == enabledAfter && visibleBefore == visibleAfter;
+				String noChangeReason = noChangeDiagnosticReason(result, unchanged, dialogOutcomes);
 				if (result != null && (result.status() == RibbonCommandResult.Status.FAILED
 						|| result.status() == RibbonCommandResult.Status.REJECTED)) {
 					logger.warning("UI_COMMAND_FAILURE id=" + buttonId
@@ -187,13 +188,9 @@ public final class UiButtonDiagnostics {
 						+ " commandReason=" + result.reason()
 						+ " activeView=" + result.activeViewId()
 						+ " selection=" + result.selectedTaskIds());
-				} else if (result != null && result.status() == RibbonCommandResult.Status.NO_CHANGE) {
-					logger.fine("UI_COMMAND_RESULT id=" + buttonId + " reason=command-no-change"
-						+ " commandReason=" + result.reason());
-				} else if (unchanged && !dialogOutcomes.isEmpty()
-						&& "cancelled".equals(dialogOutcomes.get(dialogOutcomes.size() - 1))) {
-					logger.fine("UI_COMMAND_RESULT id=" + buttonId
-						+ " reason=dialog-cancelled");
+				} else if (noChangeReason != null) {
+					logger.fine("UI_COMMAND_RESULT id=" + buttonId + " reason=" + noChangeReason
+						+ (result == null || result.reason().isEmpty() ? "" : " commandReason=" + result.reason()));
 				} else if (unchanged) {
 					logger.warning("UI_COMMAND_FAILURE id=" + buttonId
 						+ " reason=no-observable-state-change activeView=" + stateAfter.activeView
@@ -222,6 +219,16 @@ public final class UiButtonDiagnostics {
 			RibbonCommandResult current = semanticResult();
 			return current != null && current != outcomeBefore && buttonId.equals(current.commandId()) ? current : null;
 		}
+	}
+
+	static String noChangeDiagnosticReason(RibbonCommandResult result, boolean unchanged,
+			List<String> dialogOutcomes) {
+		if (unchanged && dialogOutcomes != null && !dialogOutcomes.isEmpty()
+				&& "cancelled".equals(dialogOutcomes.get(dialogOutcomes.size() - 1)))
+			return "dialog-cancelled";
+		if (result != null && result.status() == RibbonCommandResult.Status.NO_CHANGE)
+			return "command-no-change";
+		return null;
 	}
 
 	private static final class DialogLifecycleObserver implements AWTEventListener {

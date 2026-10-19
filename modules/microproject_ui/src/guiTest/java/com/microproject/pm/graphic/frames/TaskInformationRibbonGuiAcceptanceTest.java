@@ -1018,6 +1018,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		press(robot, KeyEvent.VK_ESCAPE);
 		GuiAcceptanceSupport.await(() -> findUpdateTaskDialog() == null,
 			"Escape did not close Update Tasks after visual assertions");
+		GuiAcceptanceSupport.await(() -> ribbonCommandResult(update) != null
+				&& ribbonCommandResult(update).status() == RibbonCommandResult.Status.NO_CHANGE
+				&& "dialog-cancelled".equals(ribbonCommandResult(update).reason()),
+			"Escape did not publish the final Update Tasks dialog-cancelled command result");
 		GuiAcceptanceSupport.await(() -> diagnosticContains("UI_COMMAND_RESULT id=RibbonUpdateTasks reason=dialog-cancelled"),
 			"closing the Update Tasks dialog with Escape must be recorded as an intentional cancel outcome");
 		assertFalse(diagnosticContains("UI_COMMAND_FAILURE id=RibbonUpdateTasks reason=no-observable-state-change"),
