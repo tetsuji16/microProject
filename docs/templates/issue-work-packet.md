@@ -1,16 +1,16 @@
 # Issue #<number> — <short title>
 
-State: <OPEN / IN PROGRESS / BLOCKED>  
-Issue: <URL>  
-Contract frozen at: <date, issue revision or link>  
-Baseline HEAD: `<sha>`  
+State: <OPEN / IN PROGRESS / BLOCKED>
+Issue: <URL>
+Contract frozen at: <date, issue revision or link>
+Baseline HEAD: `<sha>`
 Baseline working tree: <clean / relevant pre-existing changes>
 
 ## Goal and scope
 
 <One concise statement.>
 
-Out of scope: <explicit exclusions>  
+Out of scope: <explicit exclusions>
 Blockers: <none or precise dependency>
 
 ## Acceptance
@@ -21,8 +21,8 @@ Blockers: <none or precise dependency>
 
 ## Current slice
 
-**Next slice:** <exactly one bounded action>  
-**Done when:** <observable result and evidence>  
+**Next slice:** <exactly one bounded action>
+**Done when:** <observable result and evidence>
 **Then:** <next unresolved criterion, or integration/close>
 
 ## Remaining blockers

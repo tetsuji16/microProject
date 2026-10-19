@@ -60,6 +60,9 @@ before another fix attempt; do not continue guessed patches.
 - Integrate against the exact candidate SHA required by the gate. Commit the
   reviewed slice and check CI for the pushed head before claiming completion.
   Report unrelated baseline failures honestly.
+- Stage only intended files before the final whitespace check so new files are
+  included. Run `git diff --cached --check` separately and stop the commit if it
+  fails; a later command must not mask its exit status.
 
 ## Keep work and context small
 
@@ -87,4 +90,3 @@ evidence; do not add review rounds or repeat acceptance checks without a
 changed relevant diff or a finding. Re-review only changed code or a finding's
 scope. Do not add monitoring, automation, validators, dependencies, dashboards,
 or another status layer to this workflow.
-

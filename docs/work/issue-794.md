@@ -1,9 +1,9 @@
 # Issue #794 — Roadmap gate M2: offline desktop workflow parity
 
-State: OPEN  
-Issue: https://github.com/tetsuji16/ProjectLibre/issues/794  
-Dependencies: #792 CLOSED; #793 CLOSED (met)  
-Baseline HEAD: `2769b09e78c779301a3fe26c4fe056a151a479c8`  
+State: OPEN
+Issue: https://github.com/tetsuji16/ProjectLibre/issues/794
+Dependencies: #792 CLOSED; #793 CLOSED (met)
+Baseline HEAD: `2769b09e78c779301a3fe26c4fe056a151a479c8`
 Contract frozen: 2026-10-20 from current #794 body; see four packages and common
 acceptance below. Closed children do not establish parent acceptance.
 
@@ -38,7 +38,7 @@ root-cause criterion, if any, and define the following slice. Retain the
 contract's three adversarial reviews; reuse completed reviews and repeat only
 for changed relevant code or a finding. **Done when:** each applicable #414
 criterion has an evidence link or explicit gap, and one evidence-backed next
-slice is named.  
+slice is named.
 **Then:** implement only that bounded #414 slice; continue M2.1 and remaining
 packages after their criteria are separately resolved.
 
