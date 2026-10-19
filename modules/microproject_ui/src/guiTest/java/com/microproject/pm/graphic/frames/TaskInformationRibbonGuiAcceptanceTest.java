@@ -1179,7 +1179,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			.getString("TaskRibbonTask.title"));
 		clickAndAwaitSelected(robot, taskTab, "Robot click did not select the Task ribbon tab");
 		GuiAcceptanceSupport.await(taskTab::isSelected, "Robot click did not select the Task ribbon tab");
-		AbstractButton information = findShowingButtonByCommand("RibbonTaskInformation");
+		AbstractButton information = RibbonGuiSupport.findVisibleOrExpand(robot, window, "RibbonTaskInformation");
 		GuiAcceptanceSupport.await(information::isEnabled,
 			"Task Properties > Information remained disabled after selecting a task");
 		RibbonCommandResult previousOutcome = manager.getLastRibbonCommandResult();
@@ -4889,7 +4889,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("TaskRibbonTask.title"));
 		clickAndAwaitSelected(robot, taskTab, "Robot click did not select the Task ribbon tab");
-		assertFalse(findShowingButtonByCommand("RibbonTaskInformation").isEnabled(),
+		assertFalse(RibbonGuiSupport.findVisibleOrExpand(robot, window, "RibbonTaskInformation").isEnabled(),
 			"Task Information must not stay enabled for a multi-task selection");
 		AbstractButton link = findVisibleOrOverflowButton(robot, "RibbonLink");
 		GuiAcceptanceSupport.await(link::isEnabled, "Link remained disabled for two selected tasks");

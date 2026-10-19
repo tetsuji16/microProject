@@ -2716,9 +2716,30 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
-			if (!beforeUpdateTasksRoute(getCurrentFrame())) return;
-			if (isDocumentActive())
-				getCurrentFrame().doUpdateTasksDialog();
+			DocumentFrame frame = getCurrentFrame();
+			if (!isDocumentActive() || frame == null) {
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected("RibbonUpdateTasks", "no-active-document"));
+				return;
+			}
+			if (!beforeUpdateTasksRoute(frame)) {
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected("RibbonUpdateTasks", "route-rejected"));
+				return;
+			}
+			List<Long> selectedTaskIds = frame.getSelectedTaskIds();
+			publishTaskCommandOutcome(this, RibbonCommandResult.dispatched("RibbonUpdateTasks")
+				.withSelectedTaskIds(selectedTaskIds));
+			try {
+				boolean accepted = frame.doUpdateTasksDialog();
+				RibbonCommandResult outcome = accepted
+					? RibbonCommandResult.dispatched("RibbonUpdateTasks")
+					: new RibbonCommandResult("RibbonUpdateTasks", RibbonCommandResult.Status.NO_CHANGE,
+						"dialog-cancelled");
+				publishTaskCommandOutcome(this, outcome.withSelectedTaskIds(selectedTaskIds));
+			} catch (RuntimeException | Error failure) {
+				publishTaskCommandOutcome(this, RibbonCommandResult.failed("RibbonUpdateTasks", failure)
+					.withSelectedTaskIds(selectedTaskIds));
+				throw failure;
+			}
 		}
 		protected boolean allowed(boolean enable) {
 			if (enable==false) return true;

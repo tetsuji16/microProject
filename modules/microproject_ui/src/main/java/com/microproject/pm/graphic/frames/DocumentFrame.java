@@ -478,16 +478,16 @@ public class DocumentFrame extends NamedFrame implements
 
 	}
 
-	void doUpdateTasksDialog() {
+	boolean doUpdateTasksDialog() {
 		finishAnyOperations();
 		List nodes = getSelectedNodes(true); //nodes, not impls!
 		if (nodes == null)
-			return;
+			return false;
 
 		UpdateTaskDialog dlg = UpdateTaskDialog.getInstance(getGraphicManager().getFrame(),
 				nodes);
 		dlg.setLocationRelativeTo(null);//to center on screen
-		dlg.doModal();
+		return dlg.doModal();
 
 	}
 

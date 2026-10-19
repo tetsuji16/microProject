@@ -244,6 +244,9 @@ class RibbonButtonBehaviorTest {
 		harness.resetCalls();
 		harness.invoke("RibbonUpdateTasks");
 		assertCall(harness, "updateTasks", harness.frame);
+		assertEquals(RibbonCommandResult.Status.REJECTED,
+			harness.manager.getLastRibbonCommandResult().status());
+		assertEquals("route-rejected", harness.manager.getLastRibbonCommandResult().reason());
 
 		harness.resetCalls();
 		harness.invoke("RibbonUpdateProject");

@@ -90,6 +90,18 @@ jobs:
               $requestedSuite = 'full'
             } else { $requestedSuite = 'smoke' }
           }
+          $requiredContext = 'Full GUI locale and DPI matrix'
+          $filter = '${{ inputs.gui_test_filter }}'
+          $runKind = if (-not [string]::IsNullOrWhiteSpace($filter)) { "targeted ($filter; suite=$requestedSuite)" } else { $requestedSuite }
+          $lines = @(
+            '## GUI acceptance gate',
+            '',
+            "- Required branch-protection context: ``$requiredContext`` (retained for compatibility).",
+            "- Actual run: ``$runKind``; event: ``$env:GITHUB_EVENT_NAME``.",
+            '- Smoke runs execute the Japanese 100% functional suite only. Full and visual runs also execute the locale/scale visual matrix.',
+            '- Display bounds are observed and recorded; the workflow does not change screen resolution.'
+          )
+          Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value ($lines -join [Environment]::NewLine)
           Write-Host "Selected GUI suite: $requestedSuite (event=$env:GITHUB_EVENT_NAME)"
           if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch' -and -not [string]::IsNullOrWhiteSpace($env:GUI_TEST_FILTER)) {
             $focusedLocale = if ([string]::IsNullOrWhiteSpace($env:GUI_TEST_LOCALE)) { 'ja' } else { $env:GUI_TEST_LOCALE }
@@ -121,7 +133,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: gui-audit-evidence-${{ github.run_id }}
-          if-no-files-found: warn
+          if-no-files-found: error
           path: |
             modules/microproject_ui/build/reports/tests/guiTest
             modules/microproject_ui/build/test-results/guiTest

@@ -19,6 +19,9 @@ $hostedWarningWatcher = $null
 New-Item -ItemType Directory -Force -Path $gateLogs | Out-Null
 $primaryDisplay = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
 Write-Host "GUI runner primary display bounds: $($primaryDisplay.Width)x$($primaryDisplay.Height)"
+if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_STEP_SUMMARY)) {
+  Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value "`n- Observed primary display bounds: ``$($primaryDisplay.Width)x$($primaryDisplay.Height)`` (unchanged).`n`n| Gate leg | Tests | Failures | Errors | Skips |`n|---|---:|---:|---:|---:|"
+}
 
 function Start-HostedWarningWatcher {
   if ($null -ne $script:hostedWarningWatcher -and -not $script:hostedWarningWatcher.HasExited) { return }
@@ -135,8 +138,23 @@ function Invoke-GuiGate([string]$label, [string[]]$arguments, [int]$timeoutSecon
   $evidenceDirectory = Join-Path $gateLogs "$safe-junit"
   New-Item -ItemType Directory -Force -Path $evidenceDirectory | Out-Null
   $resultFiles = @(Get-ChildItem -LiteralPath $testResults -Filter '*.xml' -File -ErrorAction SilentlyContinue)
+  $testCount = 0
+  $failureCount = 0
+  $errorCount = 0
+  $skipCount = 0
   foreach ($resultFile in $resultFiles) {
     Copy-Item -LiteralPath $resultFile.FullName -Destination $evidenceDirectory -Force
+    [xml]$countsXml = Get-Content -LiteralPath $resultFile.FullName -Raw
+    foreach ($suiteNode in @($countsXml.SelectNodes('//testsuite'))) {
+      $testCount += [int]$suiteNode.tests
+      $failureCount += [int]$suiteNode.failures
+      $errorCount += [int]$suiteNode.errors
+      $skipCount += [int]$suiteNode.skipped
+    }
+  }
+  Write-Host "GUI gate results: $label tests=$testCount failures=$failureCount errors=$errorCount skipped=$skipCount"
+  if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_STEP_SUMMARY)) {
+    Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value "| ``$label`` | $testCount | $failureCount | $errorCount | $skipCount |"
   }
   # Alert.error/Alert.warn intentionally logs expected validation cases. Detect
   # uncaught failures in process logs and deferred EDT exceptions in test XML.
