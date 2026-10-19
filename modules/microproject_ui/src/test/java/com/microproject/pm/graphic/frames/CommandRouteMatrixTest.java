@@ -85,6 +85,30 @@ class CommandRouteMatrixTest {
 	}
 
 	@Test
+	void semanticSelectedTaskIdsSurviveWhenTheyDifferFromPreRouteSelection() throws Exception {
+		TestFrame testFrame = frameWithResult(RibbonCommandResult.changed("Indent", List.of(42L))
+			.withSelectedTaskIds(List.of(99L)).withActiveView("task"));
+		RibbonCommandResult outcome = dispatch(testFrame, CommandId.INDENT);
+
+		assertEquals(RibbonCommandResult.Status.CHANGED, outcome.status());
+		assertEquals(List.of(99L), outcome.selectedTaskIds());
+		assertEquals(List.of(42L), outcome.affectedTaskIds());
+		assertEquals("task", outcome.activeViewId());
+	}
+
+	@Test
+	void legacyDispatchedResultFallsBackToPreRouteSelection() throws Exception {
+		TestFrame testFrame = frameWithResult(new RibbonCommandResult("Indent",
+			RibbonCommandResult.Status.DISPATCHED, "", List.of(42L), "task"));
+		RibbonCommandResult outcome = dispatch(testFrame, CommandId.INDENT);
+
+		assertEquals(RibbonCommandResult.Status.DISPATCHED, outcome.status());
+		assertEquals(List.of(7L), outcome.selectedTaskIds());
+		assertEquals(List.of(42L), outcome.affectedTaskIds());
+		assertEquals("task", outcome.activeViewId());
+	}
+
+	@Test
 	void legacyActionIdsResolveToOneStableCommandIdentity() {
 		for (CommandId command : CommandId.values())
 			assertEquals(command, CommandId.fromActionId(command.actionId()));
@@ -96,9 +120,28 @@ class CommandRouteMatrixTest {
 		return type.cast(((Unsafe) field.get(null)).allocateInstance(type));
 	}
 
+	private static TestFrame frameWithResult(RibbonCommandResult result) throws Exception {
+		TestFrame testFrame = allocate(TestFrame.class);
+		testFrame.routed = new ArrayList<>();
+		testFrame.invocations = new EnumMap<>(CommandId.class);
+		testFrame.routeResult = result;
+		return testFrame;
+	}
+
+	private static RibbonCommandResult dispatch(TestFrame testFrame, CommandId command) throws Exception {
+		GraphicManager manager = new GraphicManager(new JPanel()) {
+			@Override public boolean isDocumentActive() { return true; }
+			@Override public DocumentFrame getCurrentFrame() { return testFrame; }
+		};
+		Method dispatch = GraphicManager.class.getDeclaredMethod("dispatchTaskCommand", CommandId.class);
+		dispatch.setAccessible(true);
+		return (RibbonCommandResult) dispatch.invoke(manager, command);
+	}
+
 	private static final class TestFrame extends DocumentFrame {
 		private List<CommandId> routed;
 		private Map<CommandId, Integer> invocations;
+		private RibbonCommandResult routeResult;
 
 		private TestFrame() {
 			super(null, null, "test");
@@ -108,7 +151,10 @@ class CommandRouteMatrixTest {
 		@Override public RibbonCommandResult routeTaskCommand(CommandId command) {
 			routed.add(command);
 			invocations.merge(command, 1, Integer::sum);
-			return RibbonCommandResult.changed(command.actionId(), List.of(42L)).withActiveView("task");
+			return routeResult == null
+				? RibbonCommandResult.changed(command.actionId(), List.of(42L)).withSelectedTaskIds(List.of(7L))
+					.withActiveView("task")
+				: routeResult;
 		}
 
 		@Override List<Long> getSelectedTaskIds() { return List.of(7L); }

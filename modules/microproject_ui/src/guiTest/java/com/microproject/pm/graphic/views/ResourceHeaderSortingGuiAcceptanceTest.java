@@ -41,6 +41,7 @@ import javax.swing.table.JTableHeader;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.datatype.Rate;
@@ -49,6 +50,8 @@ import com.microproject.dialog.ResourceSortOrderPanel;
 import com.microproject.pm.graphic.frames.DocumentFrame;
 import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.pm.graphic.frames.MainRibbonFrame;
+import com.microproject.ui.ribbon.RibbonDisplayMode;
+import com.microproject.ui.ribbon.RibbonDisplayPreferences;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourcePool;
@@ -69,7 +72,14 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 	private String previousUiDebug;
 	private Level previousDiagnosticsLevel;
 	private Handler diagnosticsHandler;
+	private RibbonDisplayMode previousRibbonDisplayMode;
 	private final StringBuffer diagnostics = new StringBuffer();
+
+	@BeforeEach
+	void showRibbonCommandsForAcceptance() {
+		previousRibbonDisplayMode = RibbonDisplayPreferences.load();
+		RibbonDisplayPreferences.save(RibbonDisplayMode.ALWAYS_SHOW);
+	}
 
 	@AfterEach
 	void closeWindow() throws Exception {
@@ -87,6 +97,10 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 		}
 		if (previousUiDebug == null) System.clearProperty("microproject.ui.debug");
 		else System.setProperty("microproject.ui.debug", previousUiDebug);
+		if (previousRibbonDisplayMode != null) {
+			RibbonDisplayPreferences.save(previousRibbonDisplayMode);
+			previousRibbonDisplayMode = null;
+		}
 	}
 
 	@Test

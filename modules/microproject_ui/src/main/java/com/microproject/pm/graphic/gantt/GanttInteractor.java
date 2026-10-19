@@ -30,6 +30,7 @@ import java.awt.Point;
 import java.awt.Shape;
 import java.awt.geom.Rectangle2D;
 import java.awt.event.MouseEvent;
+import java.util.List;
 import java.util.function.Consumer;
 import java.util.logging.Logger;
 
@@ -48,6 +49,7 @@ import com.microproject.pm.graphic.model.cache.ProjectionRowKey;
 import com.microproject.pm.graphic.spreadsheet.command.TaskCommandGateway;
 import com.microproject.pm.graphic.spreadsheet.command.TaskCommandResult;
 import com.microproject.pm.graphic.spreadsheet.command.TaskScheduleEditIntent;
+import com.microproject.ribbon.RibbonCommandResult;
 import com.microproject.pm.graphic.timescale.CoordinatesConverter;
 import com.microproject.pm.graphic.views.synchro.ScrollPaneSynchronizer;
 import com.microproject.association.InvalidAssociationException;
@@ -409,8 +411,9 @@ public class GanttInteractor extends GraphInteractor{
 		case BAR_MOVE_END:
 		case PROGRESS_BAR_MOVE:
 		case SPLIT:
-			actionPerformed = executeScheduleEdit(x, undoSupport);
-			break;
+			RibbonCommandResult scheduleOutcome = executeScheduleEdit(x, undoSupport);
+			return refreshUndoState(scheduleOutcome != null
+				&& scheduleOutcome.status() == RibbonCommandResult.Status.CHANGED);
 		case LINK_CREATION:
 			actionPerformed = createDependencyLink();
 			break;
@@ -425,14 +428,14 @@ public class GanttInteractor extends GraphInteractor{
 		return refreshUndoState(actionPerformed);
     }
 
-	private boolean executeScheduleEdit(double x, EditSupport undoSupport) {
+	private RibbonCommandResult executeScheduleEdit(double x, EditSupport undoSupport) {
 		if (sourceNode == null || selectedInterval == null || !(getGraph() instanceof Gantt gantt)
 				|| gantt.getCache() == null || !(sourceNode.getNode().getImpl() instanceof Task task))
-			return false;
+			return null;
 		var projection = gantt.getCache().getVisibleNodes().getProjectionIndex();
 		int row = projection.rowForNode(sourceNode);
 		if (row < 0 || !(projection.keyAt(row) instanceof ProjectionRowKey.TaskRow taskRow))
-			return false;
+			return null;
 		TaskScheduleEditIntent.Operation operation;
 		Schedule schedule = getSourceSchedule();
 		long requestedStart = selectedInterval.getStart();
@@ -465,7 +468,7 @@ public class GanttInteractor extends GraphInteractor{
 			requestedValue = (long)getCoord().toTime(x);
 			break;
 		default:
-			return false;
+			return null;
 		}
 		TaskScheduleEditIntent intent = new TaskScheduleEditIntent(taskRow, projection.topologyRevision(), operation,
 			schedule.getStart(), schedule.getEnd(), schedule.getCompletedThrough(), selectedInterval.getStart(),
@@ -488,7 +491,18 @@ public class GanttInteractor extends GraphInteractor{
 		});
 		if (operation == TaskScheduleEditIntent.Operation.SPLIT)
 			LOGGER.info(() -> "Gantt split command result: " + result.status() + " reason=" + result.reason());
-		return result.status() == TaskCommandResult.Status.CHANGED;
+		long taskId = intent.task().taskKey().taskUniqueId();
+		RibbonCommandResult.Status status = switch (result.status()) {
+		case CHANGED -> RibbonCommandResult.Status.CHANGED;
+		case NO_CHANGE -> RibbonCommandResult.Status.NO_CHANGE;
+		default -> RibbonCommandResult.Status.REJECTED;
+		};
+		String commandId = "gantt.schedule." + operation.name().toLowerCase(java.util.Locale.ROOT);
+		RibbonCommandResult outcome = new RibbonCommandResult(commandId, status, result.reason(),
+			java.util.List.of(taskId), status == RibbonCommandResult.Status.CHANGED
+				? java.util.List.of(taskId) : java.util.List.of(), "");
+		GraphicManager graphicManager = GraphicManager.getInstance(getGraph());
+		return graphicManager == null ? outcome : graphicManager.recordUserCommandOutcome(outcome);
 	}
 
 	static boolean hasMeaningfulDrag(boolean linkCreation, double startX, double endX) {
@@ -505,18 +519,38 @@ public class GanttInteractor extends GraphInteractor{
 	private boolean createDependencyLink() {
 		DependencyLinkEndpoints endpoints = resolveDependencyLinkEndpoints();
 		if (endpoints == null) {
+			recordDependencyLinkOutcome(new TaskCommandResult(TaskCommandResult.Status.INVALID_INTENT,
+				"dependency-endpoint-unavailable"), null);
 			return false;
 		}
 		try {
 			// MS Project creates a Finish-to-Start link with zero lag when users drag between bars.
 			TaskCommandResult result = TaskCommandGateway.createDependency(getGraph().getModel().getCache(), endpoints.sourceNode(),
 				endpoints.destinationNode(), this, getGraph());
+			recordDependencyLinkOutcome(result, endpoints);
 			return result.status() == TaskCommandResult.Status.CHANGED
 				|| result.status() == TaskCommandResult.Status.NO_CHANGE;
 		} catch (InvalidAssociationException e) {
+			recordDependencyLinkOutcome(new TaskCommandResult(TaskCommandResult.Status.REJECTED, e.getMessage()), endpoints);
 			Alert.error(e.getMessage());
 			return false;
 		}
+	}
+
+	private void recordDependencyLinkOutcome(TaskCommandResult result, DependencyLinkEndpoints endpoints) {
+		List<Long> endpointTaskIds = endpoints == null ? List.of() : List.of(
+			((Task) endpoints.sourceNode().getNode().getImpl()).getUniqueId(),
+			((Task) endpoints.destinationNode().getNode().getImpl()).getUniqueId());
+		RibbonCommandResult.Status status = switch (result.status()) {
+		case CHANGED -> RibbonCommandResult.Status.CHANGED;
+		case NO_CHANGE -> RibbonCommandResult.Status.NO_CHANGE;
+		default -> RibbonCommandResult.Status.REJECTED;
+		};
+		RibbonCommandResult outcome = new RibbonCommandResult("gantt.dependency.create", status, result.reason(),
+			endpointTaskIds, status == RibbonCommandResult.Status.CHANGED ? endpointTaskIds : List.of(), "");
+		GraphicManager graphicManager = GraphicManager.getInstance(getGraph());
+		if (graphicManager != null)
+			graphicManager.recordUserCommandOutcome(outcome);
 	}
 
 	/**

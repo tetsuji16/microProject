@@ -42,6 +42,7 @@ import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.model.DefaultNodeModel;
 import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.grouping.core.transform.ViewTransformer;
+import com.microproject.grouping.core.transform.filtering.BaseFilter;
 import com.microproject.grouping.core.transform.sorting.TaskSortSpec;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.dependency.Dependency;
@@ -116,6 +117,60 @@ class ViewNodeModelCacheHierarchyDependencyTest {
 			assertTrue(reference.getGraphicNode(parentNode).isCollapsed(), "the view projection must not change collapse state");
 		} finally {
 			flatView.close();
+			reference.close();
+		}
+	}
+
+	@Test
+	void hiddenSummaryBranchesArePrunedWhileVisibleHierarchyPlaceholdersRemain() throws Exception {
+		Dictionary.getInstance();
+		Project project = createProject();
+		NormalTask hiddenSummary = createTask(project, "Hidden summary");
+		NormalTask hiddenDescendant = createTask(project, "Hidden descendant");
+		NormalTask visibleSummary = createTask(project, "Visible summary");
+		NormalTask hiddenChild = createTask(project, "Hidden child");
+		NormalTask placeholderSummary = createTask(project, "Filtered summary with visible child");
+		NormalTask visibleDescendant = createTask(project, "Visible descendant");
+		DefaultNodeModel model = (DefaultNodeModel) project.getTaskModel();
+		model.indent(List.of((Node) model.search(hiddenDescendant)), 1, NodeModel.SILENT);
+		model.indent(List.of((Node) model.search(hiddenChild)), 1, NodeModel.SILENT);
+		model.indent(List.of((Node) model.search(visibleDescendant)), 1, NodeModel.SILENT);
+		ReferenceNodeModelCache reference = NodeModelCacheFactory.createTaskNodeModelCache(project, model);
+		ViewNodeModelCache view = (ViewNodeModelCache) NodeModelCacheFactory.getInstance().createFilteredCache(
+			reference, "hidden-summary-branch-test", transformer -> {
+				ViewTransformer viewTransformer = (ViewTransformer) transformer;
+				viewTransformer.setHiddenFilter(new BaseFilter(""));
+			});
+		reference.update();
+		try {
+			assertTrue(visibleNames(view).containsAll(List.of("Hidden summary", "Hidden descendant", "Visible summary",
+					"Hidden child", "Filtered summary with visible child", "Visible descendant")),
+				"the initial projection includes every row before hidden filtering");
+
+			hiddenSummary.setHiddenTask(true);
+			hiddenDescendant.setHiddenTask(true);
+			hiddenChild.setHiddenTask(true);
+			placeholderSummary.setHiddenTask(true);
+			reference.update();
+			List<String> names = visibleNames(view);
+			assertFalse(names.contains("Hidden summary"), "a hidden summary with only hidden descendants is not a useful placeholder");
+			assertFalse(names.contains("Hidden descendant"), "hidden descendants stay out of the view");
+			assertTrue(names.contains("Visible summary"), "an unhidden empty summary remains visible by default");
+			assertFalse(names.contains("Hidden child"), "hidden children stay out of the view");
+			assertTrue(names.contains("Filtered summary with visible child"),
+				"a filtered summary remains as a hierarchy placeholder for a visible descendant");
+			assertTrue(names.contains("Visible descendant"));
+
+			hiddenSummary.setHiddenTask(false);
+			hiddenDescendant.setHiddenTask(false);
+			hiddenChild.setHiddenTask(false);
+			placeholderSummary.setHiddenTask(false);
+			reference.update();
+			assertTrue(visibleNames(view).containsAll(List.of("Hidden summary", "Hidden descendant", "Visible summary",
+					"Hidden child", "Filtered summary with visible child", "Visible descendant")),
+				"rebuilding the projection after unhide must restore every summary and descendant row");
+		} finally {
+			view.close();
 			reference.close();
 		}
 	}

@@ -578,6 +578,16 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	public boolean canScrollToTask() {
 		return true;
 	}
+	public boolean canZoomToSelectedTasks() {
+		return spreadSheet != null && SelectedTasksTimescaleZoom.canZoom(spreadSheet.getSelectedNodesImpl());
+	}
+	public void zoomToSelectedTasks() {
+		if (spreadSheet != null)
+			SelectedTasksTimescaleZoom.zoom(spreadSheet.getSelectedNodesImpl(), coord, ganttScrollPane);
+	}
+	public SelectedTasksTimescaleZoom.DateRange getVisibleDateRange() {
+		return SelectedTasksTimescaleZoom.visibleRange(coord, ganttScrollPane);
+	}
 	public void scrollToTask() {
 		List impls = spreadSheet.getSelectedNodesImpl();
 		if (impls.isEmpty() || !(impls.get(0) instanceof HasStartAndEnd interval)) {

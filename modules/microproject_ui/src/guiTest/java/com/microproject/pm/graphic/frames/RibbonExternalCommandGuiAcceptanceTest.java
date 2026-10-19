@@ -14,6 +14,7 @@ import java.awt.Component;
 import java.awt.Container;
 import java.awt.Color;
 import java.awt.GraphicsEnvironment;
+import java.awt.GraphicsConfiguration;
 import java.awt.IllegalComponentStateException;
 import java.awt.AWTEvent;
 import java.awt.Dialog;
@@ -60,6 +61,7 @@ import javax.swing.UIManager;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.formdev.flatlaf.ui.FlatNativeWindowsLibrary;
@@ -87,6 +89,9 @@ import com.microproject.testsupport.NativeChooserProbeCompletion;
 import com.microproject.testsupport.RibbonGuiButton;
 import com.microproject.testsupport.RibbonGuiSupport;
 import com.microproject.testsupport.DialogLayoutAssertions;
+import com.microproject.testsupport.DialogScreenshotArtifacts;
+import com.microproject.ui.ribbon.RibbonDisplayMode;
+import com.microproject.ui.ribbon.RibbonDisplayPreferences;
 import com.microproject.util.Environment;
 import com.microproject.util.Alert;
 import com.microproject.ui.util.SwingAlertPresenter;
@@ -124,6 +129,13 @@ class RibbonExternalCommandGuiAcceptanceTest {
 	private Locale previousDefaultLocale;
 	private Locale previousFormatLocale;
 	private Locale previousDisplayLocale;
+	private RibbonDisplayMode previousRibbonDisplayMode;
+
+	@BeforeEach
+	void showRibbonCommandsForAcceptance() {
+		previousRibbonDisplayMode = RibbonDisplayPreferences.load();
+		RibbonDisplayPreferences.save(RibbonDisplayMode.ALWAYS_SHOW);
+	}
 
 	@AfterEach
 	void closeWindow() throws Exception {
@@ -168,6 +180,10 @@ class RibbonExternalCommandGuiAcceptanceTest {
 				|| open instanceof HelpDialog || open instanceof AboutDialog) {
 				open.dispose();
 			}
+		}
+		if (previousRibbonDisplayMode != null) {
+			RibbonDisplayPreferences.save(previousRibbonDisplayMode);
+			previousRibbonDisplayMode = null;
 		}
 	}
 
@@ -371,6 +387,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		assertEquals(Instant.parse("2026-10-08T17:00:00Z").toEpochMilli(),
 			scalarAssignment.getBaselineValues(10).finish());
 		assertEquals(Long.valueOf(4L * 60L * 60L * 1000L), scalarAssignment.getBaselineValues(10).work());
+		DocumentFrame scalarFrame = manager.findFrameForProjectFile(scalarXml.toString());
 		SwingUtilities.invokeAndWait(() -> {
 			baselineTask.setName("Edited assignment baseline task");
 			baselineTask.setManuallyScheduled(true);
@@ -380,7 +397,25 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		saveWindowTrace = new WindowTrace();
 		saveWindowTrace.open();
 		activateWindowForRobot(robot);
-		click(robot, findCommandButton(window.getRibbonPanel(), "RibbonSaveProjectAs", robot));
+		SwingUtilities.invokeAndWait(() -> manager.getFrameManager().activateFrame(scalarFrame));
+		try {
+			GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() == scalarFrame
+					&& scalarFrame.getProject() == scalarProject
+					&& manager.getAction("SaveProjectAs").isEnabled(),
+				"the scalar XML document did not become active with Save As enabled");
+		} catch (AssertionError failure) {
+			DocumentFrame activeFrame = manager.getCurrentFrame();
+			boolean saveAsEnabled = manager.getAction("SaveProjectAs").isEnabled();
+			throw new AssertionError(failure.getMessage() + " (expectedFrame=" + scalarFrame
+				+ ", expectedProject=" + (scalarFrame == null ? null : scalarFrame.getProject())
+				+ ", registeredFrames=" + manager.getFrameManager().getAllFrames()
+				+ ", activeFrame=" + activeFrame + ", activeProject="
+				+ (activeFrame == null ? null : activeFrame.getProject()) + ", SaveAsEnabled=" + saveAsEnabled + ")", failure);
+		}
+		AbstractButton scalarSaveAs = findCommandButton(window.getRibbonPanel(), "RibbonSaveProjectAs", robot);
+		assertTrue(scalarSaveAs.isShowing() && scalarSaveAs.isEnabled(),
+			"Backstage Save As must be enabled and visible for the active scalar XML project");
+		click(robot, scalarSaveAs);
 		awaitWithWindowTrace(() -> visibleFileChooserDialog() != null,
 			"Save As of an MSPDI import did not open the file chooser");
 		Window scalarChooserWindow = visibleFileChooserDialog();
@@ -1092,6 +1127,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			String artifactName = "issue-398-native-" + route.toLowerCase(Locale.ROOT).replace(' ', '-')
 				+ "-before-escape.png";
 			captureNativeChooserScreen(robot, artifactName);
+			logNativeChooserForegroundAtKey(route, captureNativeWindowState(route + "-escape-key"));
 			robot.keyPress(java.awt.event.KeyEvent.VK_ESCAPE);
 			try {
 				robot.keyRelease(java.awt.event.KeyEvent.VK_ESCAPE);
@@ -1159,7 +1195,9 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			assertEquals(initialCancel.dialogHandle, activeCancel.dialogHandle,
 				route + " native chooser dialog identity must remain stable through activation");
 			captureNativeChooserScreen(robot, "issue-398-native-ribbon-open-before-cancel.png");
-			clickNativePoint(robot, centerX(activeCancel.cancelBounds), centerY(activeCancel.cancelBounds));
+			java.awt.Point cancelPoint = nativePointToRobot(activeCancel.cancelBounds,
+				captureNativeWindowState(route + "-cancel-coordinate-map"));
+			clickNativePoint(robot, cancelPoint.x, cancelPoint.y);
 			GuiAcceptanceSupport.await(chooserCallReturned::get,
 				route + " physical click on Win32 IDCANCEL did not return from the provider");
 			assertTrue(chooserCancelled.get(), route + " native chooser Cancel must report cancellation");
@@ -1261,6 +1299,45 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			if (equals > 0) fields.put(field.substring(0, equals), field.substring(equals + 1));
 		}
 		return fields;
+	}
+
+	private static java.awt.Point nativePointToRobot(Rectangle nativeControlBounds, String nativeSnapshot) {
+		String displayLine = nativeSnapshot.lines().filter(line -> line.startsWith("display primaryBounds=") )
+			.findFirst().orElseThrow(() -> new AssertionError("Native desktop snapshot omitted primary display bounds"));
+		Rectangle nativeScreen = parseBounds(displayLine.substring("display primaryBounds=".length()));
+		if (nativeScreen == null) throw new AssertionError("Invalid Win32 primary display bounds: " + displayLine);
+		GraphicsConfiguration graphics = GraphicsEnvironment.getLocalGraphicsEnvironment()
+			.getDefaultScreenDevice().getDefaultConfiguration();
+		Rectangle logicalScreen = graphics.getBounds();
+		if (logicalScreen.width <= 0 || logicalScreen.height <= 0 || !nativeScreen.contains(nativeControlBounds))
+			throw new AssertionError("Invalid display geometry: AWT logical bounds=" + logicalScreen
+				+ "; Win32 primary bounds=" + nativeScreen + "; native control=" + nativeControlBounds);
+		double scaleX = (double) nativeScreen.width / logicalScreen.width;
+		double scaleY = (double) nativeScreen.height / logicalScreen.height;
+		if (!Double.isFinite(scaleX) || !Double.isFinite(scaleY) || scaleX <= 0
+				|| Math.abs(scaleX - scaleY) > Math.max(scaleX, scaleY) * 0.01)
+			throw new AssertionError("Cannot map Win32 chooser coordinates to AWT Robot coordinates: native="
+				+ nativeScreen + ", logical=" + logicalScreen + ", scales=" + scaleX + "," + scaleY);
+		int nativeX = nativeControlBounds.x + nativeControlBounds.width / 2;
+		int nativeY = nativeControlBounds.y + nativeControlBounds.height / 2;
+		int robotX = logicalScreen.x + (int) Math.round((nativeX - nativeScreen.x) / scaleX);
+		int robotY = logicalScreen.y + (int) Math.round((nativeY - nativeScreen.y) / scaleY);
+		if (!logicalScreen.contains(robotX, robotY))
+			throw new AssertionError("Mapped IDCANCEL point is outside AWT screen: point=" + robotX + "," + robotY
+				+ ", logical=" + logicalScreen + ", native=" + nativeScreen);
+		System.err.println("Native IDCANCEL coordinate map: nativeScreen=" + nativeScreen + " logicalScreen="
+			+ logicalScreen + " scale=" + scaleX + "," + scaleY + " nativePoint=" + nativeX + "," + nativeY
+			+ " robotPoint=" + robotX + "," + robotY);
+		return new java.awt.Point(robotX, robotY);
+	}
+
+	private static void logNativeChooserForegroundAtKey(String route, String snapshot) {
+		String foregroundLine = snapshot.lines().filter(line -> line.startsWith("foreground ")).findFirst().orElse("foreground unavailable");
+		Map<String, String> foreground = parseFields(foregroundLine);
+		boolean chooserForeground = snapshot.lines().anyMatch(line -> line.equals("nativeChooserReady=True"));
+		System.err.println("Native chooser key-send focus: route=" + route + " chooserForeground=" + chooserForeground
+			+ " foregroundHwnd=" + foreground.get("hwnd") + " foregroundPid=" + foreground.get("pid")
+			+ " foregroundTitle=" + foreground.get("title") + "; snapshot follows\n" + snapshot);
 	}
 
 	private static NativeCancelControl requireNativeCancelControl(String snapshot, String route) {
@@ -1789,6 +1866,10 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			DialogLayoutAssertions.assertTextControlsAtPreferredHeight(dialog, "Locale Settings dialog (#590 body image 4)");
 		if (dialog instanceof HelpDialog)
 			DialogLayoutAssertions.assertTextControlsAtPreferredHeight(dialog, "Help dialog (#590 body image 3)");
+		if (dialog instanceof LocaleDialog)
+			DialogScreenshotArtifacts.capture((java.awt.Dialog) dialog, "issue-590-locale-settings");
+		if (dialog instanceof HelpDialog)
+			DialogScreenshotArtifacts.capture((java.awt.Dialog) dialog, "issue-590-help");
 		clickCancel(robot, dialog);
 		GuiAcceptanceSupport.await(() -> visibleDialog(dialogType) == null,
 			commandId + " did not close its dialog through the physical Cancel route");

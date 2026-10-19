@@ -25,6 +25,7 @@
 package com.microproject.dialog.calendar;
 
 import java.awt.Component;
+import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.Frame;
 import java.awt.GridLayout;
@@ -44,6 +45,7 @@ import java.util.Iterator;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Locale;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -63,6 +65,7 @@ import javax.swing.JRadioButton;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTextField;
+import javax.swing.JTextArea;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import com.microproject.undo.EditSupport;
@@ -94,6 +97,7 @@ import com.microproject.util.UiServices;
 import com.microproject.util.Alert;
 import com.microproject.util.DateTime;
 import com.microproject.util.FlatUiSupport;
+import com.microproject.util.AlternativeCalendarDisplay;
 
 
 /**
@@ -727,7 +731,18 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 		panel.setLeftComponent(createSettingsPanel());
 
 		calendarTabs = new JTabbedPane();
-		calendarTabs.addTab(Messages.getString("ChangeWorkingTimeDialogBox.CalendarTab"), sdCalendar);
+		JPanel calendarPanel = new JPanel(new BorderLayout(0, 6));
+		JTextArea calendarDateExplanation = new JTextArea(
+			AlternativeCalendarDisplay.calendarLegend(Locale.getDefault(Locale.Category.FORMAT)), 5, 40);
+		calendarDateExplanation.setLineWrap(true);
+		calendarDateExplanation.setWrapStyleWord(true);
+		calendarDateExplanation.setEditable(false);
+		calendarDateExplanation.setFocusable(false);
+		calendarDateExplanation.setOpaque(false);
+		calendarDateExplanation.setName("workingTimeCalendarDateExplanation");
+		calendarPanel.add(calendarDateExplanation, BorderLayout.NORTH);
+		calendarPanel.add(sdCalendar, BorderLayout.CENTER);
+		calendarTabs.addTab(Messages.getString("ChangeWorkingTimeDialogBox.CalendarTab"), calendarPanel);
 		workWeekEditor = new WorkWeekEditorPanel(this);
 		workWeekEditor.setEditable(isCalEditable(form.getCalendar()));
 		calendarTabs.addTab(Messages.getString("ChangeWorkingTimeDialogBox.WorkWeeksTab"), workWeekEditor);

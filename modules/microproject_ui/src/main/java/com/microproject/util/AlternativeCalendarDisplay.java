@@ -13,6 +13,7 @@ import java.time.chrono.Chronology;
 import java.time.chrono.IsoChronology;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
+import java.time.format.TextStyle;
 import java.time.temporal.ChronoField;
 import java.util.Locale;
 import java.util.regex.Matcher;
@@ -57,7 +58,55 @@ public final class AlternativeCalendarDisplay {
 		}
 	}
 
+	public static boolean hasAlternateCalendar(Locale locale) {
+		return !IsoChronology.INSTANCE.equals(chronology(locale));
+	}
+
+	public static String calendarLegend(Locale locale) {
+		if (!hasAlternateCalendar(locale)) {
+			if (isJapanese(locale)) {
+				return "グレゴリオ暦のみを表示しています。曜日・選択・稼働時間の編集はグレゴリオ暦の日付を基準にします。";
+			}
+			return "Gregorian calendar only. Weekdays, selection, and working-time edits use Gregorian dates.";
+		}
+		String calendarName = calendarName(locale);
+		String source = localeChronology(locale) != null
+			? (isJapanese(locale) ? "言語/地域設定" : "locale settings")
+			: (isJapanese(locale) ? "Windows の地域設定" : "Windows regional settings");
+		if (isJapanese(locale))
+			return "大きな数字はグレゴリオ暦、小さな数字は" + calendarName + "（" + source
+				+ "）の日付です。曜日・選択・稼働時間の編集はグレゴリオ暦の日付を基準にします。";
+		return "Large dates are Gregorian; small dates use " + calendarName + " (" + source
+			+ "). Weekdays, selection, and working-time edits use Gregorian dates.";
+	}
+
+	public static String calendarName(Locale locale) {
+		Chronology selected = chronology(locale);
+		return selected.getId() + " (" + selected.getDisplayName(TextStyle.FULL, locale) + ")";
+	}
+
+	public static String dayTooltip(LocalDate date, Locale locale) {
+		String gregorian = DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(locale).format(date);
+		if (!hasAlternateCalendar(locale))
+			return isJapanese(locale) ? "グレゴリオ暦: " + gregorian : "Gregorian date: " + gregorian;
+		Chronology selected = chronology(locale);
+		String alternate = DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(locale)
+			.withChronology(selected).format(date);
+		return isJapanese(locale) ? "グレゴリオ暦: " + gregorian + " / 選択中の別暦: " + alternate
+			: "Gregorian date: " + gregorian + " / Selected calendar: " + alternate;
+	}
+
+	private static boolean isJapanese(Locale locale) {
+		return locale != null && "ja".equals(locale.getLanguage());
+	}
+
 	private static Chronology chronology(Locale locale) {
+		Chronology selected = localeChronology(locale);
+		if (selected != null) return selected;
+		return WINDOWS_CALENDAR == null ? IsoChronology.INSTANCE : WINDOWS_CALENDAR;
+	}
+
+	private static Chronology localeChronology(Locale locale) {
 		try {
 			Chronology selected = Chronology.ofLocale(locale);
 			if (!IsoChronology.INSTANCE.equals(selected))
@@ -65,7 +114,7 @@ public final class AlternativeCalendarDisplay {
 		} catch (DateTimeException exception) {
 			// An unsupported locale calendar may still have a supported Windows selection.
 		}
-		return WINDOWS_CALENDAR == null ? IsoChronology.INSTANCE : WINDOWS_CALENDAR;
+		return null;
 	}
 
 	static Chronology chronologyForWindowsCalendarId(String calendarId) {

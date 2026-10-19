@@ -13,4 +13,9 @@ final class ExportJobScheduler {
 	static void scheduleIfSelected(Optional<ExportTarget> target, Consumer<ExportTarget> scheduler) {
 		target.ifPresent(scheduler);
 	}
+
+	static void scheduleIfSelected(Optional<ExportTarget> target, Consumer<ExportTarget> scheduler, Runnable onCancelled) {
+		if (target.isPresent()) scheduler.accept(target.get());
+		else onCancelled.run();
+	}
 }

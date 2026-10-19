@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
@@ -52,6 +53,7 @@ import com.microproject.exchange.LocalFileImporter;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.resource.ResourcePoolFactory;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.TaskSnapshot;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.workspace.WorkspaceSetting;
 
@@ -284,6 +286,99 @@ class CollaborationConflictTest {
 	@Test
 	void podBackgroundRefreshUpdatesOnlyUnlockedExistingTasks() throws Exception {
 		assertBackgroundRefreshUpdatesOnlyUnlockedExistingTasks("pod");
+	}
+
+	@Test
+	void backgroundRefreshPublishesOnlyAfterAllMatchedTasksAreUpdated() throws Exception {
+		File original = createProjectFile("xlsx", "Baseline Task", "Unchanged Task");
+		File changed = createProjectFile("xlsx", "Renamed Task", "Externally Changed Task");
+		ProjectMergeService mergeService = new ProjectMergeService();
+		Project target = mergeService.loadExternalProject(original.getAbsolutePath());
+		com.microproject.pm.task.Task first = (com.microproject.pm.task.Task) target.getTasks().get(0);
+		com.microproject.pm.task.Task second = (com.microproject.pm.task.Task) target.getTasks().get(1);
+		AtomicInteger publications = new AtomicInteger();
+		AtomicBoolean observerSawCompleteState = new AtomicBoolean(true);
+		target.addScheduleListener(event -> {
+			publications.incrementAndGet();
+			observerSawCompleteState.compareAndSet(true,
+				"Renamed Task".equals(first.getName()) && "Externally Changed Task".equals(second.getName()));
+		});
+		long revision = target.getMutationState().revision();
+
+		ProjectMergeService.ApplyResult result = mergeService.applyExternalTaskUpdates(target, changed.getAbsolutePath(), Set.of());
+
+		assertEquals(2, result.getUpdatedTaskCount());
+		assertEquals(revision + 1, target.getMutationState().revision());
+		assertTrue(publications.get() > 0);
+		assertTrue(observerSawCompleteState.get(), "Observers must see all matched tasks after the single commit");
+	}
+
+	@Test
+	void backgroundRefreshFailureRestoresTasksAndSuppressesPublication() throws Exception {
+		File original = createProjectFile("xlsx", "Baseline Task", "Unchanged Task");
+		File changed = createProjectFile("xlsx", "Renamed Task", "Externally Changed Task");
+		ProjectMergeService mergeService = new ProjectMergeService() {
+			@Override void afterExternalTaskUpdateApplied(int appliedCount) {
+				if (appliedCount == 1) throw new IllegalStateException("injected external refresh failure");
+			}
+		};
+		Project target = mergeService.loadExternalProject(original.getAbsolutePath());
+		com.microproject.pm.task.Task first = (com.microproject.pm.task.Task) target.getTasks().get(0);
+		com.microproject.pm.task.Task second = (com.microproject.pm.task.Task) target.getTasks().get(1);
+		first.setName("Original first name");
+		first.setNotes("Original first notes");
+		first.setUniqueIdPredecessors(Long.toString(second.getUniqueId()));
+		first.setDuration(first.getDuration() + 86400000L);
+		first.setEnd(first.getEnd() + 86400000L);
+		first.setPercentComplete(0.4D);
+		TaskSnapshot baseline = new TaskSnapshot();
+		baseline.setCurrentSchedule((com.microproject.pm.criticalpath.TaskSchedule) first.getCurrentSchedule().clone());
+		first.setSnapshot(Integer.valueOf(0), baseline);
+		String predecessor = first.getUniqueIdPredecessors();
+		long start = first.getStart();
+		long end = first.getEnd();
+		long duration = first.getDuration();
+		double percentComplete = first.getPercentComplete();
+		long baselineStart = baseline.getCurrentSchedule().getStart();
+		long baselineEnd = baseline.getCurrentSchedule().getEnd();
+		String secondName = second.getName();
+		first.setDirty(false);
+		second.setDirty(false);
+		target.setDirty(false);
+		target.setGroupDirty(false);
+		target.getUndoController().discardAllEdits();
+		boolean dirty = target.isDirty();
+		boolean groupDirty = target.isGroupDirty();
+		boolean canUndo = target.getUndoController().canUndo();
+		AtomicInteger publications = new AtomicInteger();
+		AtomicInteger objectPublications = new AtomicInteger();
+		target.addScheduleListener(event -> publications.incrementAndGet());
+		target.addObjectListener(event -> objectPublications.incrementAndGet());
+		long revision = target.getMutationState().revision();
+
+		assertThrows(IllegalStateException.class,
+			() -> mergeService.applyExternalTaskUpdates(target, changed.getAbsolutePath(), Set.of()));
+
+		assertEquals("Original first name", first.getName());
+		assertEquals("Original first notes", first.getNotes());
+		assertEquals(predecessor, first.getUniqueIdPredecessors());
+		assertEquals(start, first.getStart());
+		assertEquals(end, first.getEnd());
+		assertEquals(duration, first.getDuration());
+		assertEquals(percentComplete, first.getPercentComplete());
+		TaskSnapshot restoredBaseline = (TaskSnapshot) first.getSnapshot(Integer.valueOf(0));
+		assertEquals(baselineStart, restoredBaseline.getCurrentSchedule().getStart());
+		assertEquals(baselineEnd, restoredBaseline.getCurrentSchedule().getEnd());
+		assertEquals(secondName, second.getName());
+		assertFalse(first.isDirty());
+		assertFalse(second.isDirty());
+		assertEquals(dirty, target.isDirty());
+		assertEquals(groupDirty, target.isGroupDirty());
+		assertEquals(canUndo, target.getUndoController().canUndo());
+		assertFalse(canUndo, "The rollback fixture starts without undo history");
+		assertEquals(revision, target.getMutationState().revision());
+		assertEquals(0, publications.get());
+		assertEquals(0, objectPublications.get());
 	}
 
 	@Test

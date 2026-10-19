@@ -36,8 +36,10 @@ import java.util.Locale;
 
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
+import java.awt.event.MouseEvent;
 
 import javax.swing.UIManager;
+import javax.accessibility.AccessibleContext;
 
 import com.microproject.contrib.calendar.ContribIntervals;
 import com.microproject.contrib.calendar.JXXMonthView;
@@ -50,6 +52,7 @@ import com.microproject.util.AlternativeCalendarDisplay;
  */
 public class CalendarView extends JXXMonthView {
 	private final Font baseFont;
+	private AccessibleContext accessibleContext;
 	private static final float MAX_READABLE_SCALE = 2.0f;
 
 	/**
@@ -57,6 +60,12 @@ public class CalendarView extends JXXMonthView {
 	 */
 	public CalendarView() {
 		this(System.currentTimeMillis());
+	}
+
+	@Override
+	public AccessibleContext getAccessibleContext() {
+		if (accessibleContext == null) accessibleContext = new AccessibleJComponent() {};
+		return accessibleContext;
 	}
 
 	/**
@@ -74,12 +83,25 @@ public class CalendarView extends JXXMonthView {
 		setPreferredCols(1);
 		setPreferredRows(1);
 		setExpandToFitAvailableSpace(false);
+		setToolTipText("");
+		String legend = AlternativeCalendarDisplay.calendarLegend(Locale.getDefault(Locale.Category.FORMAT));
+		getAccessibleContext().setAccessibleName("Working-time calendar");
+		getAccessibleContext().setAccessibleDescription(legend);
 		addComponentListener(new ComponentAdapter() {
 			@Override
 			public void componentResized(ComponentEvent event) {
 				fitReadableMonth();
 			}
 		});
+	}
+
+	@Override
+	public String getToolTipText(MouseEvent event) {
+		long dateMillis = getDayAt(event.getX(), event.getY());
+		// JXXMonthView uses -1 for an empty cell and -100..-106 for weekday headers.
+		if (dateMillis == -1 || (dateMillis <= -100 && dateMillis >= -106)) return null;
+		LocalDate date = LocalDate.ofInstant(Instant.ofEpochMilli(dateMillis), ZoneId.of("GMT"));
+		return AlternativeCalendarDisplay.dayTooltip(date, Locale.getDefault(Locale.Category.FORMAT));
 	}
 
 	private void fitReadableMonth() {

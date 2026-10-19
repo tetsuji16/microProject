@@ -27,6 +27,7 @@ package com.microproject.pm.dependency;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -35,6 +36,8 @@ import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Proxy;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -44,17 +47,23 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.association.InvalidAssociationException;
+import com.microproject.association.Association;
+import com.microproject.association.AssociationList;
 import com.microproject.document.ObjectEvent;
 import com.microproject.field.FieldParseException;
 import com.microproject.options.CalendarOption;
 import com.microproject.grouping.core.NodeFactory;
 import com.microproject.grouping.core.Node;
+import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.pm.scheduling.ScheduleInterval;
 import com.microproject.pm.scheduling.ScheduleService;
+import com.microproject.pm.criticalpath.CriticalPath;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.SubProj;
+import com.microproject.pm.task.Task;
+import com.microproject.pm.task.ExternalTaskManager;
 import com.microproject.undo.DataFactoryUndoController;
 
 class DependencyServiceTest {
@@ -178,6 +187,293 @@ class DependencyServiceTest {
 	}
 
 	@Test
+	void externalTaskResolutionRebindsBothDirectionsWithoutUndo() {
+		Project placeholderProject = createProject("external-placeholder");
+		Project resolvedProject = createProject("external-resolved");
+		NormalTask placeholder = new NormalTask(placeholderProject);
+		NormalTask other = new NormalTask(placeholderProject);
+		NormalTask resolved = new NormalTask(resolvedProject);
+		placeholder.setExternal(true);
+		placeholderProject.connectTask(placeholder);
+		placeholderProject.connectTask(other);
+		resolvedProject.connectTask(resolved);
+		Dependency outgoing = Dependency.getInstance(placeholder, other);
+		placeholder.getSuccessorList().add(outgoing);
+		other.getPredecessorList().add(outgoing);
+		Dependency incoming = Dependency.getInstance(other, placeholder);
+		other.getSuccessorList().add(incoming);
+		placeholder.getPredecessorList().add(incoming);
+		placeholderProject.initializeProject();
+		resolvedProject.initializeProject();
+		addTaskToOutline(placeholderProject, placeholder);
+		addTaskToOutline(placeholderProject, other);
+		addTaskToOutline(resolvedProject, resolved);
+		placeholderProject.initialize(false, false);
+		resolvedProject.initialize(false, false);
+		DependencyService.getInstance().updateSentinels(outgoing);
+		DependencyService.getInstance().updateSentinels(incoming);
+		assertFalse(hasStartSentinel(placeholderProject, placeholder));
+		assertFalse(hasEndSentinel(placeholderProject, placeholder));
+		assertFalse(hasStartSentinel(placeholderProject, other));
+		assertFalse(hasEndSentinel(placeholderProject, other));
+		assertTrue(hasStartSentinel(resolvedProject, resolved));
+		assertTrue(hasEndSentinel(resolvedProject, resolved));
+		List<ObjectEvent> events = new ArrayList<>();
+		ObjectEvent.Listener listener = events::add;
+		placeholderProject.getObjectEventManager().addListener(listener);
+		resolvedProject.getObjectEventManager().addListener(listener);
+		long placeholderRevision = placeholderProject.getMutationState().revision();
+		long resolvedRevision = resolvedProject.getMutationState().revision();
+		placeholderProject.setDirty(false);
+		placeholderProject.setGroupDirty(false);
+		resolvedProject.setDirty(false);
+		resolvedProject.setGroupDirty(false);
+		try {
+			DependencyService.getInstance().resolveExternalTask(placeholder, resolved, this);
+		} finally {
+			placeholderProject.getObjectEventManager().removeListener(listener);
+			resolvedProject.getObjectEventManager().removeListener(listener);
+		}
+
+		assertFalse(placeholder.getSuccessorList().contains(outgoing));
+		assertFalse(placeholder.getPredecessorList().contains(incoming));
+		assertEquals(1, resolved.getSuccessorList().stream().filter(value -> value == outgoing).count());
+		assertEquals(1, resolved.getPredecessorList().stream().filter(value -> value == incoming).count());
+		assertSame(resolved, outgoing.getPredecessor());
+		assertSame(other, outgoing.getSuccessor());
+		assertSame(other, incoming.getPredecessor());
+		assertSame(resolved, incoming.getSuccessor());
+		assertEquals(4, events.size(), "each rebind publishes delete then create");
+		assertEquals(placeholderRevision + 1, placeholderProject.getMutationState().revision());
+		assertEquals(resolvedRevision + 1, resolvedProject.getMutationState().revision());
+		assertFalse(placeholderProject.getUndoController().canUndo());
+		assertFalse(resolvedProject.getUndoController().canUndo());
+		assertFalse(outgoing.isDirty());
+		assertFalse(incoming.isDirty());
+		assertFalse(placeholderProject.isDirty());
+		assertFalse(placeholderProject.isGroupDirty());
+		assertFalse(resolvedProject.isDirty());
+		assertFalse(resolvedProject.isGroupDirty());
+		assertFalse(hasStartSentinel(resolvedProject, resolved));
+		assertFalse(hasEndSentinel(resolvedProject, resolved));
+	}
+
+	@Test
+	void externalTaskResolutionRollsBackTheWholeBatchOnMidRebindFailure() {
+		Project placeholderProject = createProject("external-rollback-placeholder");
+		Project resolvedProject = createProject("external-rollback-resolved");
+		NormalTask placeholder = new NormalTask(placeholderProject);
+		NormalTask firstSuccessor = new NormalTask(placeholderProject);
+		NormalTask secondSuccessor = new NormalTask(placeholderProject);
+		FailingSuccessorListTask resolved = new FailingSuccessorListTask(resolvedProject);
+		placeholderProject.connectTask(placeholder);
+		placeholderProject.connectTask(firstSuccessor);
+		placeholderProject.connectTask(secondSuccessor);
+		resolvedProject.connectTask(resolved);
+		placeholder.setExternal(true);
+		Dependency first = Dependency.getInstance(placeholder, firstSuccessor);
+		Dependency second = Dependency.getInstance(placeholder, secondSuccessor);
+		for (Dependency dependency : List.of(first, second)) {
+			placeholder.getSuccessorList().add(dependency);
+			((Task) dependency.getSuccessor()).getPredecessorList().add(dependency);
+		}
+		placeholderProject.initializeProject();
+		resolvedProject.initializeProject();
+		for (Task task : List.of(placeholder, firstSuccessor, secondSuccessor)) addTaskToOutline(placeholderProject, task);
+		addTaskToOutline(resolvedProject, resolved);
+		placeholderProject.initialize(false, false);
+		resolvedProject.initialize(false, false);
+		List<ObjectEvent> events = new ArrayList<>();
+		ObjectEvent.Listener listener = events::add;
+		placeholderProject.getObjectEventManager().addListener(listener);
+		resolved.failOnSecondAdd();
+		long placeholderRevision = placeholderProject.getMutationState().revision();
+		long resolvedRevision = resolvedProject.getMutationState().revision();
+		try {
+			assertThrows(IllegalStateException.class,
+					() -> DependencyService.getInstance().resolveExternalTask(placeholder, resolved, this));
+		} finally {
+			placeholderProject.getObjectEventManager().removeListener(listener);
+		}
+
+		assertSame(placeholder, first.getPredecessor());
+		assertSame(placeholder, second.getPredecessor());
+		assertTrue(placeholder.getSuccessorList().contains(first));
+		assertTrue(placeholder.getSuccessorList().contains(second));
+		assertTrue(resolved.getSuccessorList().isEmpty());
+		assertTrue(hasStartSentinel(resolvedProject, resolved));
+		assertTrue(hasEndSentinel(resolvedProject, resolved));
+		assertTrue(events.isEmpty(), "failed rebind events must not be published");
+		assertEquals(placeholderRevision, placeholderProject.getMutationState().revision());
+		assertEquals(resolvedRevision, resolvedProject.getMutationState().revision());
+		assertFalse(placeholderProject.getUndoController().canUndo());
+		assertFalse(resolvedProject.getUndoController().canUndo());
+	}
+
+	@Test
+	void externalTaskManagerKeepsPlaceholderAndCachesOnRebindFailure() {
+		Project placeholderProject = createProject("external-manager-placeholder");
+		Project resolvedProject = createProject("external-manager-resolved");
+		NormalTask placeholder = new NormalTask(placeholderProject);
+		NormalTask firstSuccessor = new NormalTask(placeholderProject);
+		NormalTask secondSuccessor = new NormalTask(placeholderProject);
+		FailingSuccessorListTask resolved = new FailingSuccessorListTask(resolvedProject);
+		placeholder.setExternal(true);
+		placeholderProject.connectTask(placeholder);
+		placeholderProject.connectTask(firstSuccessor);
+		placeholderProject.connectTask(secondSuccessor);
+		resolvedProject.connectTask(resolved);
+		placeholder.setProjectId(resolvedProject.getUniqueId());
+		placeholder.setUniqueId(resolved.getUniqueId());
+		for (Task successor : List.of(firstSuccessor, secondSuccessor)) {
+			Dependency dependency = Dependency.getInstance(placeholder, successor);
+			placeholder.getSuccessorList().add(dependency);
+			successor.getPredecessorList().add(dependency);
+			DependencyService.getInstance().updateSentinels(dependency);
+		}
+		placeholderProject.initializeProject();
+		resolvedProject.initializeProject();
+		for (Task task : List.of(placeholder, firstSuccessor, secondSuccessor)) addTaskToOutline(placeholderProject, task);
+		addTaskToOutline(resolvedProject, resolved);
+		placeholderProject.initialize(false, false);
+		resolvedProject.initialize(false, false);
+		ExternalTaskManager manager = new ExternalTaskManager();
+		manager.add(placeholder);
+		assertEquals(resolvedProject.getUniqueId(), placeholder.getProjectId());
+		assertSame(resolved, resolvedProject.findByUniqueId(placeholder.getUniqueId()));
+		resolved.resetInvalidateCount();
+		resolved.failOnSecondAdd();
+		placeholderProject.setDirty(false);
+		placeholderProject.setGroupDirty(false);
+		resolvedProject.setDirty(false);
+		resolvedProject.setGroupDirty(false);
+
+		assertThrows(IllegalStateException.class, () -> manager.handleExternalTasks(resolvedProject, true, false));
+		assertTrue(placeholder.isExternal());
+		assertTrue(placeholderProject.getTaskList().contains(placeholder));
+		assertEquals(0, resolved.invalidateCount());
+		assertTrue(hasStartSentinel(resolvedProject, resolved));
+		assertTrue(hasEndSentinel(resolvedProject, resolved));
+		assertFalse(placeholderProject.isDirty());
+		assertFalse(placeholderProject.isGroupDirty());
+		assertFalse(resolvedProject.isDirty());
+		assertFalse(resolvedProject.isGroupDirty());
+
+		// A second open broadcast proves the failed attempt stayed registered and can retry.
+		manager.handleExternalTasks(resolvedProject, true, false);
+		assertFalse(placeholder.isExternal());
+		assertFalse(placeholderProject.getTaskList().contains(placeholder));
+		assertTrue(resolved.invalidateCount() > 0);
+		assertTrue(hasStartSentinel(resolvedProject, resolved), "the resolved task has no predecessors after outgoing-only rebind");
+		assertFalse(hasEndSentinel(resolvedProject, resolved));
+		assertNull(placeholderProject.getTaskOutline().search(placeholder), "successful retry removes the owner projection");
+	}
+
+	@Test
+	void externalTaskResolutionRemovesPlaceholderFromOwnerAndRootProjections() {
+		Project rootProject = createProject("external-root-removal");
+		Project ownerProject = createProject("external-owner-removal");
+		Project resolvedProject = createProject("external-resolved-removal");
+		SubprojectTask subproject = new SubprojectTask(rootProject, true);
+		rootProject.connectTask(subproject);
+		NormalTask placeholder = new NormalTask(ownerProject);
+		NormalTask resolved = new NormalTask(resolvedProject);
+		ownerProject.connectTask(placeholder);
+		resolvedProject.connectTask(resolved);
+		placeholder.setExternal(true);
+		placeholder.setWbsParent(subproject);
+		placeholder.setProjectId(resolvedProject.getUniqueId());
+		placeholder.setUniqueId(resolved.getUniqueId());
+		addTaskToOutline(ownerProject, placeholder);
+		addTaskToOutline(resolvedProject, resolved);
+		addTaskToOutline(rootProject, placeholder);
+		resolvedProject.initialize(false, false);
+		ownerProject.initialize(false, false);
+		rootProject.initialize(false, false);
+		ExternalTaskManager manager = new ExternalTaskManager();
+		manager.add(placeholder);
+
+		manager.handleExternalTasks(resolvedProject, true, false);
+
+		assertFalse(ownerProject.getTaskList().contains(placeholder));
+		assertNull(ownerProject.getTaskOutline().search(placeholder));
+		assertNull(rootProject.getTaskOutline().search(placeholder));
+		assertFalse(placeholder.isExternal());
+	}
+
+	@Test
+	void externalTaskResolutionRestoresOwnerWhenRootProjectionRemovalFails() {
+		Project rootProject = createProject("external-root-removal-failure");
+		Project ownerProject = createProject("external-owner-removal-failure");
+		Project resolvedProject = createProject("external-resolved-removal-failure");
+		SubprojectTask subproject = new SubprojectTask(rootProject, true);
+		rootProject.connectTask(subproject);
+		NormalTask placeholder = new NormalTask(ownerProject);
+		NormalTask resolved = new NormalTask(resolvedProject);
+		ownerProject.connectTask(placeholder);
+		resolvedProject.connectTask(resolved);
+		placeholder.setExternal(true);
+		placeholder.setWbsParent(subproject);
+		placeholder.setProjectId(resolvedProject.getUniqueId());
+		placeholder.setUniqueId(resolved.getUniqueId());
+		addTaskToOutline(ownerProject, placeholder);
+		addTaskToOutline(resolvedProject, resolved);
+		addTaskToOutline(rootProject, placeholder);
+		resolvedProject.initialize(false, false);
+		ownerProject.initialize(false, false);
+		rootProject.initialize(false, false);
+		NodeModel rootSecondaryOutline = rootProject.getTaskOutline(1);
+		rootSecondaryOutline.add(null, NodeFactory.getInstance().createNode(placeholder), NodeModel.SILENT);
+		NodeModel[] rootOutlines = ((com.microproject.grouping.core.OutlineCollectionImpl) rootProject.getTaskOutlines())
+				.getOutlines();
+		rootOutlines[1] = (NodeModel) Proxy.newProxyInstance(NodeModel.class.getClassLoader(),
+				new Class<?>[] { NodeModel.class }, (proxy, method, args) -> {
+					if (method.getName().equals("remove")) throw new IllegalStateException("injected root projection removal failure");
+					try { return method.invoke(rootSecondaryOutline, args); }
+					catch (InvocationTargetException failure) { throw failure.getCause(); }
+				});
+		ExternalTaskManager manager = new ExternalTaskManager();
+		manager.add(placeholder);
+		List<ObjectEvent> events = new ArrayList<>();
+		ObjectEvent.Listener listener = events::add;
+		ownerProject.getObjectEventManager().addListener(listener);
+		rootProject.getObjectEventManager().addListener(listener);
+		long ownerRevision = ownerProject.getMutationState().revision();
+		long rootRevision = rootProject.getMutationState().revision();
+		ownerProject.setDirty(false);
+		ownerProject.setGroupDirty(false);
+		rootProject.setDirty(false);
+		rootProject.setGroupDirty(false);
+
+		try {
+			assertThrows(IllegalStateException.class, () -> manager.handleExternalTasks(resolvedProject, true, false));
+		} finally {
+			ownerProject.getObjectEventManager().removeListener(listener);
+			rootProject.getObjectEventManager().removeListener(listener);
+		}
+
+		assertTrue(ownerProject.getTaskList().contains(placeholder));
+		assertSame(placeholder, ownerProject.getTaskOutline().search(placeholder).getImpl());
+		assertSame(placeholder, rootProject.getTaskOutline().search(placeholder).getImpl());
+		assertSame(placeholder, rootSecondaryOutline.search(placeholder).getImpl());
+		assertTrue(placeholder.isExternal());
+		assertTrue(events.isEmpty());
+		assertEquals(ownerRevision, ownerProject.getMutationState().revision());
+		assertEquals(rootRevision, rootProject.getMutationState().revision());
+		assertFalse(ownerProject.isDirty());
+		assertFalse(ownerProject.isGroupDirty());
+		assertFalse(rootProject.isDirty());
+		assertFalse(rootProject.isGroupDirty());
+
+		rootOutlines[1] = rootSecondaryOutline;
+		manager.handleExternalTasks(resolvedProject, true, false);
+		assertFalse(ownerProject.getTaskList().contains(placeholder));
+		assertNull(ownerProject.getTaskOutline().search(placeholder));
+		assertNull(rootProject.getTaskOutline().search(placeholder));
+		assertNull(rootSecondaryOutline.search(placeholder));
+	}
+
+	@Test
 	void kindApiRoundTripsThroughThePersistedIntegerBoundary() throws InvalidAssociationException {
 		Project project = createProject("kind-api-project");
 		NormalTask predecessor = new NormalTask(project);
@@ -217,6 +513,79 @@ class DependencyServiceTest {
 			assertEquals(predecessorRevision + 2, predecessorProject.getMutationState().revision());
 			assertEquals(successorRevision + 2, successorProject.getMutationState().revision());
 		}
+	}
+
+	@Test
+	void crossProjectLinkAndUnlinkCanRecordUndoInCommandProject() throws Exception {
+		Project predecessorProject = createProject("command-owner-predecessor");
+		Project commandProject = createProject("command-owner-successor");
+		NormalTask predecessor = new NormalTask(predecessorProject);
+		NormalTask successor = new NormalTask(commandProject);
+		predecessorProject.connectTask(predecessor);
+		commandProject.connectTask(successor);
+		predecessorProject.getUndoController().clear();
+		commandProject.getUndoController().clear();
+
+		DependencyService.getInstance().connect(List.of(predecessor, successor), this, null, commandProject);
+		assertEquals(1, predecessor.getSuccessorList().size());
+		assertEquals(1, successor.getPredecessorList().size());
+		assertFalse(predecessorProject.getUndoController().canUndo());
+		assertTrue(commandProject.getUndoController().canUndo());
+
+		commandProject.getUndoController().undo();
+		assertTrue(predecessor.getSuccessorList().isEmpty());
+		assertTrue(successor.getPredecessorList().isEmpty());
+		assertTrue(commandProject.getUndoController().canRedo());
+		commandProject.getUndoController().redo();
+		assertEquals(1, predecessor.getSuccessorList().size());
+		assertEquals(1, successor.getPredecessorList().size());
+		assertFalse(predecessorProject.getUndoController().canUndo());
+
+		predecessorProject.getUndoController().clear();
+		commandProject.getUndoController().clear();
+		DependencyService.getInstance().removeAnyDependencies(List.of(successor), this, commandProject);
+		assertTrue(predecessor.getSuccessorList().isEmpty());
+		assertTrue(successor.getPredecessorList().isEmpty());
+		assertFalse(predecessorProject.getUndoController().canUndo());
+		assertTrue(commandProject.getUndoController().canUndo());
+
+		commandProject.getUndoController().undo();
+		assertEquals(1, predecessor.getSuccessorList().size());
+		assertEquals(1, successor.getPredecessorList().size());
+		assertTrue(commandProject.getUndoController().canRedo());
+		commandProject.getUndoController().redo();
+		assertTrue(predecessor.getSuccessorList().isEmpty());
+		assertTrue(successor.getPredecessorList().isEmpty());
+		assertFalse(predecessorProject.getUndoController().canUndo());
+	}
+
+	@Test
+	void crossProjectNewDependencyCanRecordUndoInCommandProject() throws Exception {
+		Project predecessorProject = createProject("new-dependency-owner-predecessor");
+		Project commandProject = createProject("new-dependency-owner-command");
+		NormalTask predecessor = new NormalTask(predecessorProject);
+		NormalTask successor = new NormalTask(commandProject);
+		predecessorProject.connectTask(predecessor);
+		commandProject.connectTask(successor);
+		predecessorProject.getUndoController().clear();
+		commandProject.getUndoController().clear();
+
+		DependencyService.getInstance().newDependency(predecessor, successor, DependencyType.Kind.FS,
+				0L, this, commandProject);
+
+		assertEquals(1, predecessor.getSuccessorList().size());
+		assertEquals(1, successor.getPredecessorList().size());
+		assertFalse(predecessorProject.getUndoController().canUndo());
+		assertTrue(commandProject.getUndoController().canUndo());
+
+		commandProject.getUndoController().undo();
+		assertTrue(predecessor.getSuccessorList().isEmpty());
+		assertTrue(successor.getPredecessorList().isEmpty());
+		assertTrue(commandProject.getUndoController().canRedo());
+		commandProject.getUndoController().redo();
+		assertEquals(1, predecessor.getSuccessorList().size());
+		assertEquals(1, successor.getPredecessorList().size());
+		assertFalse(predecessorProject.getUndoController().canUndo());
 	}
 
 	@Test
@@ -332,6 +701,219 @@ class DependencyServiceTest {
 		assertTrue(second.getPredecessorList().isEmpty());
 		assertTrue(second.getSuccessorList().isEmpty());
 		assertTrue(third.getPredecessorList().isEmpty());
+	}
+
+	@Test
+	void failedBulkRemovalRestoresGraphEventsRevisionAndUndoState() throws InvalidAssociationException {
+		Project project = createProject("atomic-dependency-removal");
+		NormalTask first = new NormalTask(project);
+		FailingSentinelTask middle = new FailingSentinelTask(project);
+		NormalTask last = new NormalTask(project);
+		project.connectTask(first);
+		project.connectTask(middle);
+		project.connectTask(last);
+		Dependency firstLink = DependencyService.getInstance().newDependency(first, middle, DependencyType.FS, 0L, this);
+		Dependency secondLink = DependencyService.getInstance().newDependency(middle, last, DependencyType.SS, 0L, this);
+		List<Object> notifications = new ArrayList<>();
+		project.addObjectListener(event -> notifications.add(event.getObject()));
+		project.beginEventBatch();
+		project.getObjectEventManager().fireUpdateEvent(this, first);
+		int pendingBefore = project.getObjectEventManager().pendingEventCount();
+		project.fireScheduleChanged(this, com.microproject.pm.scheduling.ScheduleEvent.SCHEDULE);
+		int pendingProjectEventsBefore = project.pendingEventCount();
+		List<Association> firstPredecessors = new ArrayList<>(first.getPredecessorList());
+		List<Association> firstSuccessors = new ArrayList<>(first.getSuccessorList());
+		List<Association> middlePredecessors = new ArrayList<>(middle.getPredecessorList());
+		List<Association> middleSuccessors = new ArrayList<>(middle.getSuccessorList());
+		List<Association> lastPredecessors = new ArrayList<>(last.getPredecessorList());
+		List<Association> lastSuccessors = new ArrayList<>(last.getSuccessorList());
+		long revision = project.getMutationState().revision();
+		String undoName = project.getUndoController().getUndoPresentationName();
+
+		middle.failNextEndSentinelUpdate();
+		assertThrows(IllegalStateException.class,
+			() -> DependencyService.getInstance().remove(List.of(firstLink, secondLink), this, true));
+
+		assertEquals(firstPredecessors, new ArrayList<>(first.getPredecessorList()));
+		assertEquals(firstSuccessors, new ArrayList<>(first.getSuccessorList()));
+		assertEquals(middlePredecessors, new ArrayList<>(middle.getPredecessorList()));
+		assertEquals(middleSuccessors, new ArrayList<>(middle.getSuccessorList()));
+		assertEquals(lastPredecessors, new ArrayList<>(last.getPredecessorList()));
+		assertEquals(lastSuccessors, new ArrayList<>(last.getSuccessorList()));
+		assertTrue(first.getSuccessorList().contains(firstLink));
+		assertTrue(middle.getSuccessorList().contains(secondLink));
+		assertEquals(revision, project.getMutationState().revision());
+		assertEquals(pendingBefore, project.getObjectEventManager().pendingEventCount());
+		assertEquals(pendingProjectEventsBefore, project.pendingEventCount());
+		assertEquals(0, notifications.size());
+		assertEquals(undoName, project.getUndoController().getUndoPresentationName());
+		assertTrue(project.getUndoController().canUndo());
+		project.endEventBatch(false);
+		assertEquals(0, project.getObjectEventManager().pendingEventCount());
+		assertEquals(0, project.pendingEventCount());
+
+		project.getUndoController().undo();
+		assertTrue(first.getSuccessorList().contains(firstLink));
+		assertFalse(middle.getSuccessorList().contains(secondLink),
+			"the last history entry must remain the second link's creation, not a failed removal");
+	}
+
+	@Test
+	void failedBulkConnectRestoresGraphEventsRevisionAndUndoState() {
+		Project project = createProject("atomic-dependency-connect");
+		NormalTask first = new NormalTask(project);
+		FailingSentinelTask middle = new FailingSentinelTask(project);
+		NormalTask last = new NormalTask(project);
+		project.connectTask(first);
+		project.connectTask(middle);
+		project.connectTask(last);
+		List<Object> notifications = new ArrayList<>();
+		project.addObjectListener(event -> notifications.add(event.getObject()));
+		project.beginEventBatch();
+		project.getObjectEventManager().fireUpdateEvent(this, first);
+		int pendingBefore = project.getObjectEventManager().pendingEventCount();
+		project.fireScheduleChanged(this, com.microproject.pm.scheduling.ScheduleEvent.SCHEDULE);
+		int pendingProjectEventsBefore = project.pendingEventCount();
+		List<Association> firstPredecessors = new ArrayList<>(first.getPredecessorList());
+		List<Association> firstSuccessors = new ArrayList<>(first.getSuccessorList());
+		List<Association> middlePredecessors = new ArrayList<>(middle.getPredecessorList());
+		List<Association> middleSuccessors = new ArrayList<>(middle.getSuccessorList());
+		List<Association> lastPredecessors = new ArrayList<>(last.getPredecessorList());
+		List<Association> lastSuccessors = new ArrayList<>(last.getSuccessorList());
+		long revision = project.getMutationState().revision();
+		String undoName = project.getUndoController().getUndoPresentationName();
+		String redoName = project.getUndoController().getRedoPresentationName();
+		boolean canUndo = project.getUndoController().canUndo();
+		boolean canRedo = project.getUndoController().canRedo();
+
+		middle.failNextEndSentinelUpdate();
+		assertThrows(IllegalStateException.class,
+			() -> DependencyService.getInstance().connect(List.of(first, middle, last), this, null));
+
+		assertEquals(firstPredecessors, new ArrayList<>(first.getPredecessorList()));
+		assertEquals(firstSuccessors, new ArrayList<>(first.getSuccessorList()));
+		assertEquals(middlePredecessors, new ArrayList<>(middle.getPredecessorList()));
+		assertEquals(middleSuccessors, new ArrayList<>(middle.getSuccessorList()));
+		assertEquals(lastPredecessors, new ArrayList<>(last.getPredecessorList()));
+		assertEquals(lastSuccessors, new ArrayList<>(last.getSuccessorList()));
+		assertEquals(revision, project.getMutationState().revision());
+		assertEquals(pendingBefore, project.getObjectEventManager().pendingEventCount());
+		assertEquals(pendingProjectEventsBefore, project.pendingEventCount());
+		assertEquals(0, notifications.size());
+		assertEquals(undoName, project.getUndoController().getUndoPresentationName());
+		assertEquals(redoName, project.getUndoController().getRedoPresentationName());
+		assertEquals(canUndo, project.getUndoController().canUndo());
+		assertEquals(canRedo, project.getUndoController().canRedo());
+		project.endEventBatch(false);
+		assertEquals(0, project.getObjectEventManager().pendingEventCount());
+		assertEquals(0, project.pendingEventCount());
+	}
+
+	@Test
+	void failedSingleDependencyCreationRestoresGraphAndUndoState() {
+		Project project = createProject("atomic-single-dependency-creation");
+		FailingSentinelTask predecessor = new FailingSentinelTask(project);
+		NormalTask successor = new NormalTask(project);
+		project.connectTask(predecessor);
+		project.connectTask(successor);
+		long revision = project.getMutationState().revision();
+		String undoName = project.getUndoController().getUndoPresentationName();
+		predecessor.failNextEndSentinelUpdate();
+
+		assertThrows(IllegalStateException.class, () -> DependencyService.getInstance()
+			.newDependency(predecessor, successor, DependencyType.FS, 0L, this));
+
+		assertTrue(predecessor.getSuccessorList().isEmpty());
+		assertTrue(successor.getPredecessorList().isEmpty());
+		assertEquals(revision, project.getMutationState().revision());
+		assertEquals(undoName, project.getUndoController().getUndoPresentationName());
+	}
+
+	@Test
+	void failedSingleDependencyConnectRestoresGraphAndUndoState() {
+		Project project = createProject("atomic-single-dependency-connect");
+		FailingSentinelTask predecessor = new FailingSentinelTask(project);
+		NormalTask successor = new NormalTask(project);
+		project.connectTask(predecessor);
+		project.connectTask(successor);
+		Dependency dependency = Dependency.getInstance(predecessor, successor, DependencyType.FS, 0L);
+		long revision = project.getMutationState().revision();
+		String undoName = project.getUndoController().getUndoPresentationName();
+		predecessor.failNextEndSentinelUpdate();
+
+		assertThrows(IllegalStateException.class, () -> DependencyService.getInstance().connect(dependency, this));
+
+		assertTrue(predecessor.getSuccessorList().isEmpty());
+		assertTrue(successor.getPredecessorList().isEmpty());
+		assertEquals(revision, project.getMutationState().revision());
+		assertEquals(undoName, project.getUndoController().getUndoPresentationName());
+	}
+
+	@Test
+	void failedDependencyInitializationRestoresEndpointsGraphEventsAndUndoState() {
+		Project project = createProject("atomic-dependency-initialization");
+		NormalTask oldPredecessor = new NormalTask(project);
+		NormalTask oldSuccessor = new NormalTask(project);
+		FailingSentinelTask predecessor = new FailingSentinelTask(project);
+		NormalTask successor = new NormalTask(project);
+		project.connectTask(oldPredecessor);
+		project.connectTask(oldSuccessor);
+		project.connectTask(predecessor);
+		project.connectTask(successor);
+		Dependency dependency = Dependency.getInstance(oldPredecessor, oldSuccessor, DependencyType.FS, 0L);
+		List<Association> oldPredecessorSuccessors = new ArrayList<>(oldPredecessor.getSuccessorList());
+		List<Association> oldSuccessorPredecessors = new ArrayList<>(oldSuccessor.getPredecessorList());
+		List<Association> predecessorSuccessors = new ArrayList<>(predecessor.getSuccessorList());
+		List<Association> successorPredecessors = new ArrayList<>(successor.getPredecessorList());
+		long revision = project.getMutationState().revision();
+		String undoName = project.getUndoController().getUndoPresentationName();
+		List<Object> notifications = new ArrayList<>();
+		project.addObjectListener(event -> notifications.add(event.getObject()));
+		project.beginEventBatch();
+		project.getObjectEventManager().fireUpdateEvent(this, oldPredecessor);
+		int pendingObjectEvents = project.getObjectEventManager().pendingEventCount();
+		project.fireScheduleChanged(this, com.microproject.pm.scheduling.ScheduleEvent.SCHEDULE);
+		int pendingProjectEvents = project.pendingEventCount();
+		predecessor.failNextEndSentinelUpdate();
+
+		assertThrows(IllegalStateException.class, () -> DependencyService.getInstance()
+			.initDependency(dependency, predecessor, successor, this));
+
+		assertSame(oldPredecessor, dependency.getPredecessor());
+		assertSame(oldSuccessor, dependency.getSuccessor());
+		assertEquals(oldPredecessorSuccessors, new ArrayList<>(oldPredecessor.getSuccessorList()));
+		assertEquals(oldSuccessorPredecessors, new ArrayList<>(oldSuccessor.getPredecessorList()));
+		assertEquals(predecessorSuccessors, new ArrayList<>(predecessor.getSuccessorList()));
+		assertEquals(successorPredecessors, new ArrayList<>(successor.getPredecessorList()));
+		assertFalse(dependency.isDirty());
+		assertEquals(revision, project.getMutationState().revision());
+		assertEquals(pendingObjectEvents, project.getObjectEventManager().pendingEventCount());
+		assertEquals(pendingProjectEvents, project.pendingEventCount());
+		assertTrue(notifications.isEmpty());
+		assertEquals(undoName, project.getUndoController().getUndoPresentationName());
+		project.endEventBatch(false);
+	}
+
+	@Test
+	void failedSingleDependencyRemovalRestoresGraphAndUndoState() throws InvalidAssociationException {
+		Project project = createProject("atomic-single-dependency-removal");
+		FailingSentinelTask predecessor = new FailingSentinelTask(project);
+		NormalTask successor = new NormalTask(project);
+		project.connectTask(predecessor);
+		project.connectTask(successor);
+		Dependency dependency = DependencyService.getInstance()
+			.newDependency(predecessor, successor, DependencyType.FS, 0L, this);
+		long revision = project.getMutationState().revision();
+		String undoName = project.getUndoController().getUndoPresentationName();
+		predecessor.failNextEndSentinelUpdate();
+
+		assertThrows(IllegalStateException.class,
+			() -> DependencyService.getInstance().remove(dependency, this, true));
+
+		assertTrue(predecessor.getSuccessorList().contains(dependency));
+		assertTrue(successor.getPredecessorList().contains(dependency));
+		assertEquals(revision, project.getMutationState().revision());
+		assertEquals(undoName, project.getUndoController().getUndoPresentationName());
 	}
 
 	@Test
@@ -497,15 +1079,61 @@ class DependencyServiceTest {
 
 		Dependency dependency = DependencyService.getInstance().newDependency(predecessor, successor,
 				DependencyType.FS, 0L, this);
+		project.beginEventBatch();
+		project.getObjectEventManager().fireUpdateEvent(this, predecessor);
+		project.fireScheduleChanged(this, com.microproject.pm.scheduling.ScheduleEvent.SCHEDULE);
+		List<Association> predecessorPredecessors = new ArrayList<>(predecessor.getPredecessorList());
+		List<Association> predecessorSuccessors = new ArrayList<>(predecessor.getSuccessorList());
+		List<Association> successorPredecessors = new ArrayList<>(successor.getPredecessorList());
+		List<Association> successorSuccessors = new ArrayList<>(successor.getSuccessorList());
+		List<Association> childPredecessors = new ArrayList<>(child.getPredecessorList());
+		List<Association> childSuccessors = new ArrayList<>(child.getSuccessorList());
+		long dependencyLag = dependency.getLag();
+		int dependencyType = dependency.getDependencyType();
+		NormalTask dependencyPredecessor = (NormalTask) dependency.getPredecessor();
+		NormalTask dependencySuccessor = (NormalTask) dependency.getSuccessor();
+		boolean dependencyDirty = dependency.isDirty();
+		boolean predecessorDirty = predecessor.isDirty();
+		boolean successorDirty = successor.isDirty();
+		boolean childDirty = child.isDirty();
+		boolean projectDirty = project.isDirty();
+		boolean projectGroupDirty = project.isGroupDirty();
+		long revision = project.getMutationState().revision();
+		int pendingObjectEvents = project.getObjectEventManager().pendingEventCount();
+		int pendingProjectEvents = project.pendingEventCount();
+		String undoName = project.getUndoController().getUndoPresentationName();
+		String redoName = project.getUndoController().getRedoPresentationName();
+		boolean canUndo = project.getUndoController().canUndo();
+		boolean canRedo = project.getUndoController().canRedo();
 
 		assertThrows(InvalidAssociationException.class,
 				() -> DependencyService.getInstance().setFields(dependency, 2L * CalendarOption.getInstance().getMillisPerDay(),
 						DependencyType.FF, this));
 
-		assertEquals(0L, dependency.getLag());
-		assertEquals(DependencyType.FS, dependency.getDependencyType());
-		assertSame(predecessor, dependency.getPredecessor());
-		assertSame(successor, dependency.getSuccessor());
+		assertEquals(predecessorPredecessors, new ArrayList<>(predecessor.getPredecessorList()));
+		assertEquals(predecessorSuccessors, new ArrayList<>(predecessor.getSuccessorList()));
+		assertEquals(successorPredecessors, new ArrayList<>(successor.getPredecessorList()));
+		assertEquals(successorSuccessors, new ArrayList<>(successor.getSuccessorList()));
+		assertEquals(childPredecessors, new ArrayList<>(child.getPredecessorList()));
+		assertEquals(childSuccessors, new ArrayList<>(child.getSuccessorList()));
+		assertEquals(dependencyLag, dependency.getLag());
+		assertEquals(dependencyType, dependency.getDependencyType());
+		assertSame(dependencyPredecessor, dependency.getPredecessor());
+		assertSame(dependencySuccessor, dependency.getSuccessor());
+		assertEquals(dependencyDirty, dependency.isDirty());
+		assertEquals(predecessorDirty, predecessor.isDirty());
+		assertEquals(successorDirty, successor.isDirty());
+		assertEquals(childDirty, child.isDirty());
+		assertEquals(projectDirty, project.isDirty());
+		assertEquals(projectGroupDirty, project.isGroupDirty());
+		assertEquals(revision, project.getMutationState().revision());
+		assertEquals(pendingObjectEvents, project.getObjectEventManager().pendingEventCount());
+		assertEquals(pendingProjectEvents, project.pendingEventCount());
+		assertEquals(undoName, project.getUndoController().getUndoPresentationName());
+		assertEquals(redoName, project.getUndoController().getRedoPresentationName());
+		assertEquals(canUndo, project.getUndoController().canUndo());
+		assertEquals(canRedo, project.getUndoController().canRedo());
+		project.endEventBatch(false);
 	}
 
 	@Test
@@ -675,6 +1303,75 @@ class DependencyServiceTest {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
 		ResourcePool resourcePool = ResourcePool.createRourcePool(name, undoController);
 		return Project.createProject(resourcePool, undoController);
+	}
+
+	private static void addTaskToOutline(Project project, Task task) {
+		Node node = NodeFactory.getInstance().createNode(task);
+		project.addToDefaultOutline(null, node);
+	}
+
+	private static boolean hasStartSentinel(Project project, Task task) {
+		try {
+			var field = CriticalPath.class.getDeclaredField("startSentinel");
+			field.setAccessible(true);
+			Task sentinel = (Task) field.get(project.getSchedulingAlgorithm());
+			for (Association association : sentinel.getSuccessorList())
+				if (((Dependency) association).getSuccessor() == task) return true;
+			return false;
+		} catch (ReflectiveOperationException failure) {
+			throw new AssertionError(failure);
+		}
+	}
+
+	private static boolean hasEndSentinel(Project project, Task task) {
+		try {
+			var field = CriticalPath.class.getDeclaredField("finishSentinel");
+			field.setAccessible(true);
+			Task sentinel = (Task) field.get(project.getSchedulingAlgorithm());
+			for (Association association : sentinel.getPredecessorList())
+				if (((Dependency) association).getPredecessor() == task) return true;
+			return false;
+		} catch (ReflectiveOperationException failure) {
+			throw new AssertionError(failure);
+		}
+	}
+
+	private static final class FailingSuccessorListTask extends NormalTask {
+		private final AssociationList successorList;
+		private boolean failOnSecondAdd;
+		private int invalidateCount;
+		private FailingSuccessorListTask(Project project) {
+			super(project);
+			this.successorList = new AssociationList() {
+				private int additions;
+				@Override public boolean add(Association association) {
+					if (failOnSecondAdd && ++additions == 2)
+						throw new IllegalStateException("injected external dependency rebind failure");
+					return super.add(association);
+				}
+			};
+		}
+		private void failOnSecondAdd() { failOnSecondAdd = true; }
+		private int invalidateCount() { return invalidateCount; }
+		private void resetInvalidateCount() { invalidateCount = 0; }
+		@Override public void invalidateSchedules() { invalidateCount++; super.invalidateSchedules(); }
+		@Override public AssociationList getSuccessorList() { return successorList; }
+	}
+
+	private static final class FailingSentinelTask extends NormalTask {
+		private boolean failNextEndSentinelUpdate;
+
+		private FailingSentinelTask(Project project) { super(project); }
+
+		private void failNextEndSentinelUpdate() { failNextEndSentinelUpdate = true; }
+
+		@Override public void updateEndSentinel() {
+			if (failNextEndSentinelUpdate) {
+				failNextEndSentinelUpdate = false;
+				throw new IllegalStateException("injected sentinel update failure");
+			}
+			super.updateEndSentinel();
+		}
 	}
 
 	private static final class SubprojectTask extends NormalTask implements SubProj {

@@ -292,12 +292,35 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 			java.util.function.Predicate<? super T> changedResult,
 			java.util.function.UnaryOperator<T> resultWhenEventsWereEmitted,
 			Collection<AdditionalObjectEventManager> additionalManagers) throws E {
+		return runModelCommand(operation, changedResult, resultWhenEventsWereEmitted, additionalManagers, false);
+	}
+
+	/** Runs a model command that restores its own model changes when its operation fails. */
+	public <T, E extends Exception> T runAtomicModelCommand(ModelCommand<T, E> operation,
+			java.util.function.Predicate<? super T> changedResult,
+			java.util.function.UnaryOperator<T> resultWhenEventsWereEmitted) throws E {
+		return runModelCommand(operation, changedResult, resultWhenEventsWereEmitted, List.of(), true);
+	}
+
+	/** Runs an atomic model command while additional document observers join its event boundary. */
+	public <T, E extends Exception> T runAtomicModelCommand(ModelCommand<T, E> operation,
+			java.util.function.Predicate<? super T> changedResult,
+			java.util.function.UnaryOperator<T> resultWhenEventsWereEmitted,
+			Collection<AdditionalObjectEventManager> additionalManagers) throws E {
+		return runModelCommand(operation, changedResult, resultWhenEventsWereEmitted, additionalManagers, true);
+	}
+
+	private <T, E extends Exception> T runModelCommand(ModelCommand<T, E> operation,
+			java.util.function.Predicate<? super T> changedResult,
+			java.util.function.UnaryOperator<T> resultWhenEventsWereEmitted,
+			Collection<AdditionalObjectEventManager> additionalManagers, boolean atomicFailure) throws E {
 		java.util.Objects.requireNonNull(operation, "operation");
 		java.util.Objects.requireNonNull(changedResult, "changedResult");
 		java.util.Objects.requireNonNull(resultWhenEventsWereEmitted, "resultWhenEventsWereEmitted");
 		java.util.Objects.requireNonNull(additionalManagers, "additionalManagers");
 		ProjectMutationState state = getMutationState();
 		ProjectMutationState.Scope mutation = state.begin();
+		AtomicEventCheckpoint eventCheckpoint = atomicFailure ? atomicEventCheckpoint(additionalManagers) : null;
 		int initialPendingEvents = pendingEventCount();
 		beginEventBatch(additionalManagers);
 		boolean[] applied = { false };
@@ -306,10 +329,12 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		try {
 			result = operation.apply(() -> applied[0] = true);
 		} catch (RuntimeException | Error failure) {
-			finishModelCommandFailure(mutation, initialPendingEvents, applied[0], failure);
+			if (atomicFailure) rollbackAtomicModelCommand(mutation, eventCheckpoint, failure);
+			else finishModelCommandFailure(mutation, initialPendingEvents, applied[0], failure);
 			throw failure;
 		} catch (Exception failure) {
-			finishModelCommandFailure(mutation, initialPendingEvents, applied[0], failure);
+			if (atomicFailure) rollbackAtomicModelCommand(mutation, eventCheckpoint, failure);
+			else finishModelCommandFailure(mutation, initialPendingEvents, applied[0], failure);
 			@SuppressWarnings("unchecked") E typedFailure = (E) failure;
 			throw typedFailure;
 		}
@@ -321,6 +346,42 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		pending = commitEventBatch(mutation, changed);
 		publishEventBatch(pending);
 		return result;
+	}
+
+	private record AtomicEventCheckpoint(int objectEvents, int scheduleEvents,
+		java.util.IdentityHashMap<ObjectEventManager, Integer> additionalEvents) { }
+
+	private AtomicEventCheckpoint atomicEventCheckpoint(Collection<AdditionalObjectEventManager> requestedManagers) {
+		java.util.IdentityHashMap<ObjectEventManager, Integer> additional = new java.util.IdentityHashMap<>();
+		for (AdditionalObjectEventManager participant : additionalEventManagers)
+			additional.put(participant.manager(), participant.manager().pendingEventCount());
+		for (AdditionalObjectEventManager participant : requestedManagers)
+			additional.putIfAbsent(participant.manager(), participant.manager().pendingEventCount());
+		return new AtomicEventCheckpoint(objectEventManager.pendingEventCount(),
+			scheduleEventManager.pendingEventCount(), additional);
+	}
+
+	private void rollbackAtomicModelCommand(ProjectMutationState.Scope mutation,
+			AtomicEventCheckpoint checkpoint, Throwable failure) {
+		try {
+			objectEventManager.discardPendingEventsAfter(checkpoint.objectEvents());
+			scheduleEventManager.discardPendingEventsAfter(checkpoint.scheduleEvents());
+			for (var entry : checkpoint.additionalEvents().entrySet())
+				entry.getKey().discardPendingEventsAfter(entry.getValue());
+			synchronized (this) {
+				if (undoBatchActivation != null && !undoBatchCheckpoints.isEmpty())
+					undoController.getEditSupport().discardSince(undoBatchActivation.group(),
+						undoBatchCheckpoints.getLast());
+			}
+			endEventBatch(true);
+		} catch (Throwable cleanupFailure) {
+			if (cleanupFailure != failure) failure.addSuppressed(cleanupFailure);
+		} finally {
+			try { mutation.close(); }
+			catch (Throwable cleanupFailure) {
+				if (cleanupFailure != failure) failure.addSuppressed(cleanupFailure);
+			}
+		}
 	}
 
 	public record AdditionalObjectEventManager(ObjectEventManager manager, ResourcePool revisionOwner, Object source,
@@ -1041,6 +1102,38 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		taskOutlines.removeFromAll(toRemove,null); // update all node models except the one passed in
 		objectEventManager.fireDeleteEvent(this,toRemove);
 	}
+
+	/** Removes an external placeholder and returns a rollback action for an enclosing open-time transaction. */
+	public Runnable removeExternalForResolution(Task toRemove) {
+		int taskIndex = tasks.indexOf(toRemove);
+		List<ExternalOutlineEntry> outlineEntries = new ArrayList<>();
+		for (NodeModel model : taskOutlines.getOutlines()) {
+			if (model == null) continue;
+			Node node = model.search(toRemove);
+			if (node == null) continue;
+			Node parent = model.getParent(node);
+			int position = parent == null ? -1 : parent.getIndex(node);
+			outlineEntries.add(new ExternalOutlineEntry(model, node, parent, position));
+		}
+		Runnable rollback = () -> {
+			if (taskIndex >= 0 && !tasks.contains(toRemove))
+				tasks.add(Math.min(taskIndex, tasks.size()), toRemove);
+			for (ExternalOutlineEntry entry : outlineEntries) {
+				if (entry.model().search(toRemove) == null)
+					entry.model().add(entry.parent(), entry.node(), entry.position(), NodeModel.SILENT);
+			}
+		};
+		try {
+			removeExternal(toRemove);
+		} catch (RuntimeException | Error failure) {
+			try { rollback.run(); }
+			catch (RuntimeException | Error rollbackFailure) { failure.addSuppressed(rollbackFailure); }
+			throw failure;
+		}
+		return rollback;
+	}
+
+	private record ExternalOutlineEntry(NodeModel model, Node node, Node parent, int position) { }
 
 
 

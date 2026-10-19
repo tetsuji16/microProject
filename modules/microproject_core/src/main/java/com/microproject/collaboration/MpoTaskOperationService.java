@@ -177,6 +177,6 @@ public final class MpoTaskOperationService {
 		Object notes = payload.get("notes");
 		if (notes != null) { if (!(notes instanceof String)) throw new IOException("Invalid task notes"); task.setNotes((String) notes); }
 		Object complete = payload.get("percentComplete");
-		if (complete != null) { if (!(complete instanceof Number)) throw new IOException("Invalid task percentComplete"); double value = ((Number) complete).doubleValue(); if (!Double.isFinite(value) || value < 0D || value > 1D) throw new IOException("Invalid task percentComplete"); task.setPercentComplete(value); }
+		if (complete != null) { if (!(complete instanceof Number)) throw new IOException("Invalid task percentComplete"); double value = ((Number) complete).doubleValue(); if (!Double.isFinite(value) || value < 0D || value > 1D) throw new IOException("Invalid task percentComplete"); if (task instanceof NormalTask normalTask && !normalTask.isWbsParent()) normalTask.setImportedPercentComplete(value); else task.setPercentComplete(value); }
 	}
 }

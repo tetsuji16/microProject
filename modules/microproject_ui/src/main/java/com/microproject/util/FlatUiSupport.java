@@ -35,7 +35,8 @@ import java.awt.Graphics2D;
 import java.awt.Insets;
 import java.awt.RenderingHints;
 import java.awt.Window;
-import java.awt.event.KeyEvent;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 import javax.swing.Action;
@@ -66,6 +67,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.border.AbstractBorder;
 import javax.swing.border.Border;
+import javax.swing.plaf.UIResource;
 import javax.swing.text.JTextComponent;
 import javax.swing.plaf.FontUIResource;
 
@@ -968,6 +970,48 @@ public final class FlatUiSupport {
 		rootPane.setBorder(BorderFactory.createLineBorder(borderColor()));
 	}
 
+	static record RootPaneActionBinding(KeyStroke keyStroke, Object actionKey, Action action) { }
+
+	static List<RootPaneActionBinding> captureRootPaneActionBindings(JRootPane rootPane) {
+		if (rootPane == null)
+			return List.of();
+		InputMap inputMap = rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+		ActionMap actionMap = rootPane.getActionMap();
+		KeyStroke[] keyStrokes = inputMap.keys();
+		Object[] localActionKeys = actionMap.keys();
+		if (keyStrokes == null || localActionKeys == null)
+			return List.of();
+
+		List<RootPaneActionBinding> bindings = new ArrayList<>();
+		for (KeyStroke keyStroke : keyStrokes) {
+			Object actionKey = inputMap.get(keyStroke);
+			boolean hasLocalAction = false;
+			for (Object localActionKey : localActionKeys) {
+				if (Objects.equals(actionKey, localActionKey)) {
+					hasLocalAction = true;
+					break;
+				}
+			}
+			if (!hasLocalAction)
+				continue;
+			Action action = actionMap.get(actionKey);
+			if (action != null && !(action instanceof UIResource))
+				bindings.add(new RootPaneActionBinding(keyStroke, actionKey, action));
+		}
+		return List.copyOf(bindings);
+	}
+
+	static void restoreRootPaneActionBindings(JRootPane rootPane, List<RootPaneActionBinding> bindings) {
+		if (rootPane == null || bindings == null || bindings.isEmpty())
+			return;
+		InputMap inputMap = rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+		ActionMap actionMap = rootPane.getActionMap();
+		for (RootPaneActionBinding binding : bindings) {
+			inputMap.put(binding.keyStroke(), binding.actionKey());
+			actionMap.put(binding.actionKey(), binding.action());
+		}
+	}
+
 	/** Refreshes a Swing tree and its owned dialogs after a look-and-feel change. */
 	public static void updateComponentTreeUI(Component component) {
 		if (component == null)
@@ -981,17 +1025,10 @@ public final class FlatUiSupport {
 	private static void updateOwnedWindowTrees(Window owner) {
 		for (Window child : owner.getOwnedWindows()) {
 			JRootPane root = child instanceof JDialog dialog ? dialog.getRootPane() : null;
-			KeyStroke escape = KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0);
-			InputMap inputMap = root == null ? null : root.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
-			Object escapeKey = inputMap == null ? null : inputMap.get(escape);
-			ActionMap actionMap = root == null ? null : root.getActionMap();
-			Action escapeAction = actionMap == null || escapeKey == null ? null : actionMap.get(escapeKey);
+			List<RootPaneActionBinding> rootPaneBindings = captureRootPaneActionBindings(root);
 			SwingUtilities.updateComponentTreeUI(child);
 			if (child instanceof JDialog dialog) {
-				if (escapeKey != null && escapeAction != null) {
-					dialog.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(escape, escapeKey);
-					dialog.getRootPane().getActionMap().put(escapeKey, escapeAction);
-				}
+				restoreRootPaneActionBindings(dialog.getRootPane(), rootPaneBindings);
 				styleDialogRoot(dialog.getRootPane());
 				styleDialogComponents(dialog.getContentPane());
 			}

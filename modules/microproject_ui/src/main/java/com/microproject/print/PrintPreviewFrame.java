@@ -116,6 +116,9 @@ public class PrintPreviewFrame extends FlatLafFrame implements  ProjectMenuActio
 			public void windowClosing(WindowEvent e) {
 				if (pageSetup!=null) pageSetup.saveSettings(true,false);
 			}
+			@Override public void windowClosed(WindowEvent e) {
+				document.cleanUp();
+			}
 		});
 
 		menuManager = MenuManager.getInstance(this);

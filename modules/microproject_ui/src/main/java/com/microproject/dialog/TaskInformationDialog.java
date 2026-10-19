@@ -403,7 +403,7 @@ public class TaskInformationDialog extends InformationDialog {
 		return DependencyService.getInstance().newDependency(
 				predecessors ? selectedTask : task,
 				predecessors ? task : selectedTask,
-				dependencyType, lag, eventSource);
+				dependencyType, lag, eventSource, task.getProject());
 	}
 
 	static DependencyTypeChoice[] dependencyTypeChoices() {

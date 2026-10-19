@@ -31,6 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -95,6 +96,7 @@ class RibbonButtonBehaviorTest {
 		ROUTE_DIALOG,
 		ROUTE_CHOOSER,
 		ROUTE_VIEW,
+		VIEW_ONLY,
 		ROUTE_EXTERNAL,
 		STATE_TOGGLE,
 		STRUCTURAL_ONLY
@@ -193,6 +195,12 @@ class RibbonButtonBehaviorTest {
 		harness.selectSingle(harness.taskNode);
 		harness.invoke("RibbonTaskInformation");
 		assertCall(harness, "taskInfo", harness.task, Boolean.FALSE, Boolean.FALSE);
+		assertTaskInformationOutcome(harness, RibbonCommandResult.Status.REJECTED,
+			List.of(harness.task.getUniqueId()), List.of());
+
+		harness.selectNone();
+		harness.invoke("RibbonTaskInformation");
+		assertTaskInformationOutcome(harness, RibbonCommandResult.Status.REJECTED, List.of(), List.of());
 
 		harness.resetCalls();
 		harness.selectSingle(harness.resourceNode);
@@ -256,6 +264,53 @@ class RibbonButtonBehaviorTest {
 		assertEquals(1, harness.frame.baselineDialogCallCount(false));
 		assertNull(harness.task.getSnapshot(Snapshottable.BASELINE),
 			"Clearing a baseline must remove the project snapshot");
+	}
+
+	@Test
+	void taskInformationPresentationFailureRecordsFailedOutcome() throws Exception {
+		Harness harness = newHarness();
+		harness.selectSingle(harness.taskNode);
+		harness.manager.taskInformationRouteAccepted = true;
+
+		harness.invoke("RibbonTaskInformation");
+
+		RibbonCommandResult result = harness.manager.getLastRibbonCommandResult();
+		assertNotNull(result);
+		assertEquals(RibbonCommandResult.Status.FAILED, result.status());
+		assertEquals("dialog-not-visible", result.reason());
+		assertEquals(List.of(harness.task.getUniqueId()), result.selectedTaskIds());
+		assertTrue(result.affectedTaskIds().isEmpty());
+		assertEquals(harness.frame.getTopViewId(), result.activeViewId());
+	}
+
+	@Test
+	void taskInformationPresentationExceptionRecordsFailureBeforeRethrowing() throws Exception {
+		Harness harness = newHarness();
+		harness.selectSingle(harness.taskNode);
+		harness.manager.taskInformationRouteAccepted = true;
+		harness.manager.taskInformationFailure = new IllegalStateException("presentation failed");
+
+		Exception wrappedFailure = assertThrows(Exception.class,
+			() -> harness.invoke("RibbonTaskInformation"));
+
+		assertSame(harness.manager.taskInformationFailure, wrappedFailure.getCause());
+		RibbonCommandResult result = harness.manager.getLastRibbonCommandResult();
+		assertNotNull(result);
+		assertEquals(RibbonCommandResult.Status.FAILED, result.status());
+		assertEquals("IllegalStateException", result.reason());
+		assertEquals(List.of(harness.task.getUniqueId()), result.selectedTaskIds());
+		assertTrue(result.affectedTaskIds().isEmpty());
+		assertEquals(harness.frame.getTopViewId(), result.activeViewId());
+	}
+
+	private static void assertTaskInformationOutcome(Harness harness, RibbonCommandResult.Status status,
+			List<Long> selectedTaskIds, List<Long> affectedTaskIds) {
+		RibbonCommandResult result = harness.manager.getLastRibbonCommandResult();
+		assertNotNull(result);
+		assertEquals(status, result.status());
+		assertEquals(selectedTaskIds, result.selectedTaskIds());
+		assertEquals(affectedTaskIds, result.affectedTaskIds());
+		assertEquals(harness.frame.getTopViewId(), result.activeViewId());
 	}
 
 	@Test
@@ -382,6 +437,11 @@ class RibbonButtonBehaviorTest {
 		SwingUtilities.invokeAndWait(() -> {
 			harness.frame.getTopSpreadSheet().clearSelection();
 			harness.manager.setButtonState(harness.task, harness.project);
+			assertInformationButtons(harness, false, false, false);
+			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_LINK).isEnabled(),
+				"Link must be disabled without selected tasks");
+			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_UNLINK).isEnabled(),
+				"Unlink must be disabled without a selected task");
 			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_INDENT).isEnabled());
 			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_OUTDENT).isEnabled());
 			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_HIDE_SELECTED_TASKS).isEnabled());
@@ -435,8 +495,86 @@ class RibbonButtonBehaviorTest {
 			harness.frame.setExecuteIndentForSelectionTest(true);
 			RibbonCommandResult indent = harness.frame.routeTaskCommand(CommandId.INDENT);
 			assertEquals(RibbonCommandResult.Status.CHANGED, indent.status(), indent.reason());
+			assertEquals(List.of(harness.secondTask.getUniqueId()), indent.selectedTaskIds());
+			assertEquals(List.of(harness.secondTask.getUniqueId()), indent.affectedTaskIds());
 			assertSame(harness.task, harness.secondTask.getWbsParentTask(),
 				"Indent execution must use the active table row, not the stale frame selection");
+
+			harness.frame.getTopSpreadSheet().setRowSelectionInterval(0, 0);
+			RibbonCommandResult collapse = harness.frame.routeTaskCommand(CommandId.COLLAPSE);
+			assertEquals(RibbonCommandResult.Status.NO_CHANGE, collapse.status(), collapse.reason());
+			assertEquals(List.of(harness.task.getUniqueId()), collapse.selectedTaskIds());
+			assertEquals(List.of(harness.task.getUniqueId()), collapse.affectedTaskIds());
+			RibbonCommandResult expand = harness.frame.routeTaskCommand(CommandId.EXPAND);
+			assertEquals(RibbonCommandResult.Status.NO_CHANGE, expand.status(), expand.reason());
+			assertEquals(List.of(harness.task.getUniqueId()), expand.selectedTaskIds());
+			assertEquals(List.of(harness.task.getUniqueId()), expand.affectedTaskIds());
+		});
+	}
+
+	@Test
+	void hideSelectedUsesActiveBottomSpreadsheetRowInsteadOfStaleFrameSelection() throws Exception {
+		Harness harness = newHarness();
+		SwingUtilities.invokeAndWait(() -> {
+			harness.frame.activateView(MenuActionConstants.ACTION_WBS);
+			harness.frame.activateBottomView(harness.frame.getGanttView(), MenuActionConstants.ACTION_GANTT);
+			SpreadSheet bottomSheet = harness.frame.getActiveSpreadSheet();
+			assertSame(harness.frame.getGanttView().getSpreadSheet(), bottomSheet);
+			assertNull(harness.frame.getTopSpreadSheet(), "WBS top view has no task spreadsheet");
+
+			bottomSheet.setRowSelectionInterval(1, 1);
+			harness.frame.setSelection(List.of(harness.taskNode));
+			RibbonCommandResult result = harness.frame.routeTaskCommand(CommandId.HIDE_SELECTED);
+
+			assertEquals(RibbonCommandResult.Status.CHANGED, result.status(), result.reason());
+			assertEquals(List.of(harness.secondTask.getUniqueId()), result.selectedTaskIds(),
+				"selection IDs must come from the active bottom spreadsheet row");
+			assertEquals(List.of(harness.secondTask.getUniqueId()), result.affectedTaskIds(),
+				"Hide Selected must hide the bottom row, not stale frame selection");
+			assertTrue(harness.secondTask.isHiddenTask());
+			assertFalse(harness.task.isHiddenTask(), "stale frame selection must remain visible");
+		});
+	}
+
+	@Test
+	void hierarchyShortcutPublishesSemanticCommandResult() throws Exception {
+		Harness harness = newHarness();
+		harness.frame.setExecuteIndentForSelectionTest(true);
+		SwingUtilities.invokeAndWait(() -> {
+			harness.frame.getTopSpreadSheet().setRowSelectionInterval(1, 1);
+			InputMap shortcuts = new InputMap();
+			ActionMap actions = new ActionMap();
+			harness.manager.applyMicrosoftShortcuts(shortcuts, actions);
+			KeyStroke indentShortcut = KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT,
+				InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK);
+			Action indent = actions.get(shortcuts.get(indentShortcut));
+			assertNotNull(indent, "Alt+Shift+Right must resolve from the root-pane shortcut maps");
+
+			indent.actionPerformed(new ActionEvent(harness.manager, ActionEvent.ACTION_PERFORMED, "indent-shortcut"));
+
+			RibbonCommandResult result = harness.manager.getLastRibbonCommandResult();
+			assertNotNull(result);
+			assertEquals(CommandId.INDENT.actionId(), result.commandId());
+			assertEquals(RibbonCommandResult.Status.CHANGED, result.status(), result.reason());
+			assertEquals(List.of(harness.secondTask.getUniqueId()), result.selectedTaskIds());
+			assertEquals(List.of(harness.secondTask.getUniqueId()), result.affectedTaskIds());
+			assertEquals(harness.frame.getTopViewId(), result.activeViewId());
+			assertSame(harness.task, harness.secondTask.getWbsParentTask());
+		});
+	}
+
+	@Test
+	void dependencyCommandResultsReportOperationSelectionAndAffectedTasks() throws Exception {
+		Harness harness = newHarness();
+		harness.frame.setExecuteLinkForSelectionTest(true);
+		SwingUtilities.invokeAndWait(() -> {
+			harness.frame.getTopSpreadSheet().setRowSelectionInterval(0, 1);
+			RibbonCommandResult result = harness.frame.routeTaskCommand(CommandId.LINK);
+			List<Long> selectedIds = List.of(harness.task.getUniqueId(), harness.secondTask.getUniqueId());
+			assertEquals(RibbonCommandResult.Status.CHANGED, result.status(), result.reason());
+			assertEquals("", result.reason());
+			assertEquals(selectedIds, result.selectedTaskIds());
+			assertEquals(selectedIds, result.affectedTaskIds());
 		});
 	}
 
@@ -482,9 +620,61 @@ class RibbonButtonBehaviorTest {
 			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_TASK_MODE_AUTOMATIC).isEnabled(),
 				"Automatic scheduling must be disabled for a read-only selected task");
 			harness.frame.setExecuteUnlinkForSelectionTest(true);
-			assertEquals(RibbonCommandResult.Status.REJECTED,
-				harness.frame.routeTaskCommand(CommandId.UNLINK).status(),
+			harness.frame.setExecuteLinkForSelectionTest(true);
+			RibbonCommandResult unlinkResult = harness.frame.routeTaskCommand(CommandId.UNLINK);
+			assertEquals(RibbonCommandResult.Status.REJECTED, unlinkResult.status(),
 				"Unlink execution must use the same editable selection filter");
+			assertEquals("task-read-only", unlinkResult.reason());
+			assertEquals(List.of(readOnlySubproject.getUniqueId()), unlinkResult.selectedTaskIds());
+			assertTrue(unlinkResult.affectedTaskIds().isEmpty());
+			RibbonCommandResult linkResult = harness.frame.routeTaskCommand(CommandId.LINK);
+			assertEquals(RibbonCommandResult.Status.REJECTED, linkResult.status());
+			assertEquals("task-read-only", linkResult.reason());
+			assertEquals(List.of(readOnlySubproject.getUniqueId()), linkResult.selectedTaskIds());
+			assertTrue(linkResult.affectedTaskIds().isEmpty());
+			harness.frame.setExecuteIndentForSelectionTest(true);
+			var readOnlySheet = harness.frame.getTopSpreadSheet();
+			readOnlySheet.setRowSelectionInterval(1, 1);
+			assertEquals(RibbonCommandResult.Status.CHANGED,
+				harness.frame.routeTaskCommand(CommandId.INDENT).status());
+			assertSame(harness.task, harness.secondTask.getWbsParentTask());
+			readOnlySheet.setRowSelectionInterval(0, 0);
+			harness.project.setReadOnly(true);
+			RibbonCommandResult readOnlyProjectLink = harness.frame.routeTaskCommand(CommandId.LINK);
+			assertEquals("document-read-only", readOnlyProjectLink.reason());
+			assertEquals(List.of(harness.task.getUniqueId()), readOnlyProjectLink.selectedTaskIds());
+			assertTrue(readOnlyProjectLink.affectedTaskIds().isEmpty());
+			assertEquals(harness.frame.getTopViewId(), readOnlyProjectLink.activeViewId());
+			RibbonCommandResult readOnlyProjectUnlink = harness.frame.routeTaskCommand(CommandId.UNLINK);
+			assertEquals(readOnlyProjectLink.reason(), readOnlyProjectUnlink.reason());
+			assertEquals(List.of(harness.task.getUniqueId()), readOnlyProjectUnlink.selectedTaskIds());
+			assertTrue(readOnlyProjectUnlink.affectedTaskIds().isEmpty());
+			assertEquals(harness.frame.getTopViewId(), readOnlyProjectUnlink.activeViewId());
+			readOnlySheet.setRowSelectionInterval(0, 0);
+			int readOnlyHierarchyRows = readOnlySheet.getRowCount();
+			for (CommandId command : List.of(CommandId.EXPAND, CommandId.COLLAPSE)) {
+				RibbonCommandResult result = harness.frame.routeTaskCommand(command);
+				assertEquals(RibbonCommandResult.Status.REJECTED, result.status(), command.toString());
+				assertEquals("document-read-only", result.reason(), command.toString());
+				assertEquals(List.of(harness.task.getUniqueId()), result.selectedTaskIds(), command.toString());
+				assertTrue(result.affectedTaskIds().isEmpty(), command.toString());
+				assertEquals(harness.frame.getTopViewId(), result.activeViewId(), command.toString());
+				assertEquals(readOnlyHierarchyRows, readOnlySheet.getRowCount(), command.toString());
+			}
+			readOnlySheet.setRowSelectionInterval(1, 1);
+			int readOnlyRowsBefore = readOnlySheet.getRowCount();
+			var parentBeforeReadOnlyHierarchy = harness.secondTask.getWbsParentTask();
+			for (CommandId command : List.of(CommandId.INDENT, CommandId.OUTDENT)) {
+				RibbonCommandResult readOnlyHierarchy = harness.frame.routeTaskCommand(command);
+				assertEquals(RibbonCommandResult.Status.REJECTED, readOnlyHierarchy.status(), command.toString());
+				assertEquals("document-read-only", readOnlyHierarchy.reason(), command.toString());
+				assertEquals(List.of(harness.secondTask.getUniqueId()), readOnlyHierarchy.selectedTaskIds(), command.toString());
+				assertTrue(readOnlyHierarchy.affectedTaskIds().isEmpty(), command.toString());
+				assertEquals(harness.frame.getTopViewId(), readOnlyHierarchy.activeViewId(), command.toString());
+				assertEquals(readOnlyRowsBefore, readOnlySheet.getRowCount(), command.toString());
+				assertSame(parentBeforeReadOnlyHierarchy, harness.secondTask.getWbsParentTask(), command.toString());
+			}
+			harness.frame.setSelection(List.of(readOnlyNode));
 			assertEquals(RibbonCommandResult.Status.REJECTED,
 				harness.frame.routeTaskCommand(CommandId.TASK_MODE_MANUAL).status(),
 				"Task mode execution must not modify a read-only selected task");
@@ -528,8 +718,10 @@ class RibbonButtonBehaviorTest {
 			harness.manager.setButtonState(harness.task, harness.project);
 			Action action = harness.manager.getAction(MenuActionConstants.ACTION_INACTIVATE_TASK);
 			assertTrue(action.isEnabled());
-			assertEquals(RibbonCommandResult.Status.CHANGED,
-				harness.frame.routeTaskCommand(CommandId.INACTIVATE_TASK).status());
+			RibbonCommandResult firstOutcome = harness.frame.routeTaskCommand(CommandId.INACTIVATE_TASK);
+			assertEquals(RibbonCommandResult.Status.CHANGED, firstOutcome.status());
+			assertEquals(List.of(harness.task.getUniqueId()), firstOutcome.selectedTaskIds());
+			assertEquals(List.of(harness.task.getUniqueId()), firstOutcome.affectedTaskIds());
 			assertTrue(harness.task.isInactiveTask());
 			assertTrue(harness.undoController.canUndo());
 			harness.undoController.undo();
@@ -538,8 +730,10 @@ class RibbonButtonBehaviorTest {
 			assertTrue(harness.task.isInactiveTask());
 			harness.manager.setButtonState(harness.task, harness.project);
 			assertTrue(action.isEnabled(), "the command remains enabled so an all-inactive selection can be reactivated");
-			assertEquals(RibbonCommandResult.Status.CHANGED,
-				harness.frame.routeTaskCommand(CommandId.INACTIVATE_TASK).status());
+			RibbonCommandResult secondOutcome = harness.frame.routeTaskCommand(CommandId.INACTIVATE_TASK);
+			assertEquals(RibbonCommandResult.Status.CHANGED, secondOutcome.status());
+			assertEquals(List.of(harness.task.getUniqueId()), secondOutcome.selectedTaskIds());
+			assertEquals(List.of(harness.task.getUniqueId()), secondOutcome.affectedTaskIds());
 			assertFalse(harness.task.isInactiveTask(), "an all-inactive selection must reactivate");
 			harness.undoController.undo();
 			assertTrue(harness.task.isInactiveTask());
@@ -549,6 +743,19 @@ class RibbonButtonBehaviorTest {
 				harness.frame.routeTaskCommand(CommandId.INACTIVATE_TASK).status());
 			assertTrue(harness.task.isInactiveTask());
 			assertTrue(harness.secondTask.isInactiveTask(), "mixed selection should converge to inactive");
+		});
+	}
+
+	@Test
+	void respectLinksOutcomeRetainsSelectedTaskIds() throws Exception {
+		Harness harness = newHarness();
+		SwingUtilities.invokeAndWait(() -> {
+			harness.frame.setSelection(List.of(harness.taskNode));
+			RibbonCommandResult result = harness.frame.routeTaskCommand(CommandId.RESPECT_LINKS);
+			List<Long> selectedIds = List.of(harness.task.getUniqueId());
+			assertEquals(selectedIds, result.selectedTaskIds());
+			assertEquals(selectedIds, result.affectedTaskIds());
+			assertEquals(harness.frame.getTopViewId(), result.activeViewId());
 		});
 	}
 
@@ -569,9 +776,12 @@ class RibbonButtonBehaviorTest {
 				"the unfiltered selection demonstrates why the link enablement was wrong");
 			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_LINK).isEnabled(),
 				"Link must require two editable tasks, not count a read-only subproject task");
-			assertEquals(RibbonCommandResult.Status.REJECTED,
-				harness.frame.routeTaskCommand(CommandId.LINK).status(),
+			RibbonCommandResult result = harness.frame.routeTaskCommand(CommandId.LINK);
+			assertEquals(RibbonCommandResult.Status.REJECTED, result.status(),
 				"Link execution must use the same editable task selection as enablement");
+			assertEquals("task-read-only", result.reason());
+			assertEquals(List.of(readOnlySubproject.getUniqueId(), harness.secondTask.getUniqueId()), result.selectedTaskIds());
+			assertTrue(result.affectedTaskIds().isEmpty());
 		});
 	}
 
@@ -686,6 +896,69 @@ class RibbonButtonBehaviorTest {
 	}
 
 	@Test
+	void informationEnablementUsesOneTypedSelectionSnapshotForEverySelectionKind() throws Exception {
+		Harness harness = newHarness();
+		harness.setTaskInformation(true, false);
+		SwingUtilities.invokeAndWait(() -> {
+			harness.selectSingle(harness.taskNode);
+			harness.manager.setButtonState(harness.task, harness.project);
+			assertInformationButtons(harness, true, true, false);
+
+			harness.selectSingle(harness.assignmentNode);
+			harness.manager.setButtonState(harness.assignment, harness.project);
+			assertInformationButtons(harness, true, true, false);
+
+			harness.setTaskInformation(false, true);
+			harness.selectSingle(harness.resourceNode);
+			harness.manager.setButtonState(harness.resource, harness.project);
+			assertInformationButtons(harness, true, false, true);
+
+			harness.selectSingle(harness.assignmentNode);
+			harness.manager.setButtonState(harness.assignment, harness.project);
+			assertInformationButtons(harness, true, false, true);
+
+			harness.setTaskInformation(true, true);
+			harness.selectSingle(harness.projectNode);
+			harness.manager.setButtonState(harness.project, harness.project);
+			assertInformationButtons(harness, true, false, false);
+
+			harness.selectMultiple(harness.taskNode, harness.resourceNode);
+			harness.manager.setButtonState(harness.task, harness.project);
+			assertInformationButtons(harness, false, false, false);
+
+			harness.selectSingle(harness.taskNode);
+			SpreadSheet sheet = harness.frame.getActiveSpreadSheet();
+			sheet.setRowSelectionInterval(0, 0);
+			setHeaderColumnSelection(sheet, true);
+			harness.manager.setButtonState(harness.task, harness.project);
+			assertInformationButtons(harness, false, false, false);
+		});
+	}
+
+	private static void setHeaderColumnSelection(SpreadSheet sheet, boolean active) {
+		try {
+			var method = sheet.getClass().getSuperclass()
+				.getDeclaredMethod("setHeaderColumnSelectionActive", boolean.class);
+			method.setAccessible(true);
+			method.invoke(sheet, active);
+		} catch (ReflectiveOperationException exception) {
+			throw new AssertionError("Could not configure the spreadsheet header selection", exception);
+		}
+	}
+
+	private static void assertInformationButtons(Harness harness, boolean general,
+			boolean task, boolean resource) {
+		assertEquals(general, harness.manager.getAction(MenuActionConstants.ACTION_INFORMATION).isEnabled(),
+			"Information enablement should match the typed selection");
+		assertEquals(general, harness.manager.getAction(MenuActionConstants.ACTION_NOTES).isEnabled(),
+			"Notes enablement should match the typed selection");
+		assertEquals(task, harness.manager.getAction("RibbonTaskInformation").isEnabled(),
+			"Task Information enablement should match the typed selection");
+		assertEquals(resource, harness.manager.getAction("RibbonResourceInformation").isEnabled(),
+			"Resource Information enablement should match the typed selection");
+	}
+
+	@Test
 	void hideSelectedRemainsEnabledForVirtualGroupRows() throws Exception {
 		Harness harness = newHarness();
 		harness.setTaskInformation(true, false);
@@ -752,6 +1025,21 @@ class RibbonButtonBehaviorTest {
 		assertFalse(harness.task.isHiddenTask());
 		assertEquals(List.of(harness.task), requestedLocks.getLast(),
 				"Show All must lock the exact hidden tasks its visibility mutation will change");
+	}
+
+	@Test
+	void rejectedHideSelectedOutcomeIncludesSelectionAndActiveView() throws Exception {
+		Harness harness = newHarness();
+		SwingUtilities.invokeAndWait(() -> {
+			harness.frame.setSelection(List.of(harness.taskNode));
+			harness.project.setReadOnly(true);
+			RibbonCommandResult result = harness.frame.routeTaskCommand(CommandId.HIDE_SELECTED);
+			assertEquals(RibbonCommandResult.Status.REJECTED, result.status());
+			assertEquals("document-read-only", result.reason());
+			assertEquals(List.of(harness.task.getUniqueId()), result.selectedTaskIds());
+			assertTrue(result.affectedTaskIds().isEmpty());
+			assertEquals(harness.frame.getTopViewId(), result.activeViewId());
+		});
 	}
 
 	@Test
@@ -1158,6 +1446,51 @@ class RibbonButtonBehaviorTest {
 		assertEquals(1, harness.frame.structuralCallCount("RibbonUnlink"));
 	}
 
+	@Test
+	void hierarchyEnablementRejectsMixedSelectionWhileLinkAndUnlinkKeepTheirMixedContract() throws Exception {
+		Harness harness = newHarness();
+		harness.setTaskInformation(true, false);
+		SwingUtilities.invokeAndWait(() -> {
+			harness.frame.setExecuteIndentForSelectionTest(true);
+			harness.frame.getTopSpreadSheet().setRowSelectionInterval(1, 1);
+			assertEquals(RibbonCommandResult.Status.CHANGED,
+				harness.frame.routeTaskCommand(CommandId.INDENT).status());
+			assertSame(harness.task, harness.secondTask.getWbsParentTask(),
+				"fixture must make Outdent otherwise applicable to the selected task");
+
+			harness.frame.getTopSpreadSheet().clearSelection();
+			harness.frame.setSelection(List.of(harness.taskNode, harness.secondTaskNode, harness.resourceNode));
+			harness.setTaskInformation(true, true);
+			harness.manager.setButtonState(harness.secondTask, harness.project);
+
+			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_INDENT).isEnabled(),
+				"Indent execution rejects mixed task/resource selection, so enablement must reject it too");
+			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_OUTDENT).isEnabled(),
+				"Outdent execution rejects mixed task/resource selection even when a selected task has a parent");
+			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_EXPAND).isEnabled(),
+				"Expand execution rejects mixed task/resource selection");
+			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_COLLAPSE).isEnabled(),
+				"Collapse execution rejects mixed task/resource selection");
+			int rowsBeforeExpand = harness.frame.getTopSpreadSheet().getRowCount();
+			var parentBeforeExpand = harness.secondTask.getWbsParentTask();
+			for (CommandId command : List.of(CommandId.EXPAND, CommandId.COLLAPSE)) {
+				RibbonCommandResult hierarchyResult = harness.frame.routeTaskCommand(command);
+				assertEquals(RibbonCommandResult.Status.REJECTED, hierarchyResult.status(), command.toString());
+				assertEquals("mixed-selection", hierarchyResult.reason(), command.toString());
+				assertEquals(List.of(harness.task.getUniqueId(), harness.secondTask.getUniqueId()),
+					hierarchyResult.selectedTaskIds(), command.toString());
+				assertTrue(hierarchyResult.affectedTaskIds().isEmpty(), command.toString());
+				assertEquals(harness.frame.getTopViewId(), hierarchyResult.activeViewId(), command.toString());
+				assertEquals(rowsBeforeExpand, harness.frame.getTopSpreadSheet().getRowCount(), command.toString());
+				assertSame(parentBeforeExpand, harness.secondTask.getWbsParentTask(), command.toString());
+			}
+			assertTrue(harness.manager.getAction(MenuActionConstants.ACTION_LINK).isEnabled(),
+				"Link intentionally ignores non-task rows when two editable tasks remain");
+			assertTrue(harness.manager.getAction(MenuActionConstants.ACTION_UNLINK).isEnabled(),
+				"Unlink intentionally ignores non-task rows when an editable task remains");
+		});
+	}
+
 	private static void assertExternal(Harness harness, String buttonId, String routeId) throws Exception {
 		harness.resetCalls();
 		harness.invoke(buttonId);
@@ -1267,6 +1600,7 @@ class RibbonButtonBehaviorTest {
 			"RibbonDetails",
 			"RibbonResourceUsage",
 			"RibbonNoTextNoSubWindow");
+		add(map, Strategy.VIEW_ONLY, "RibbonZoomSelectedTasks");
 		add(map, Strategy.ROUTE_CHOOSER,
 			"RibbonChooseFilter",
 			"RibbonChooseSort",
@@ -1453,6 +1787,9 @@ class RibbonButtonBehaviorTest {
 		private final List<Call> calls;
 		private final FrameManager frameManager = new StubFrameManager();
 		private boolean interceptPaste = true;
+		private boolean taskInformationRouteAccepted;
+		private boolean taskInformationVisible;
+		private RuntimeException taskInformationFailure;
 
 		RecordingGraphicManager(JPanel panel, List<Call> calls) {
 			super(panel);
@@ -1510,7 +1847,14 @@ class RibbonButtonBehaviorTest {
 		@Override
 		protected boolean beforeTaskInformationRoute(Task task, boolean notes, boolean resourcesTab) {
 			calls.add(new Call("taskInfo", List.of(task, notes, resourcesTab)));
-			return false;
+			return taskInformationRouteAccepted;
+		}
+
+		@Override
+		protected boolean presentTaskInformationDialog(Task task, boolean notes, boolean resourcesTab) {
+			if (taskInformationFailure != null)
+				throw taskInformationFailure;
+			return taskInformationVisible;
 		}
 
 		@Override
@@ -1770,6 +2114,10 @@ class RibbonButtonBehaviorTest {
 
 		@Override
 		public void doOutdent() {
+			if (executeIndentForSelectionTest) {
+				super.doOutdent();
+				return;
+			}
 			recordStructuralCall("RibbonOutdent");
 		}
 

@@ -129,6 +129,7 @@ class TaskProgressServiceTest {
 		NormalTask task = project.createScriptedTask();
 		long start = task.getStart();
 		long end = task.getEnd();
+		task.setImportedPercentComplete(0.25D);
 		long statusDate = start + (end - start) / 2L;
 		project.setStatusDate(statusDate);
 		long normalizedStatusDate = project.getStatusDate();
@@ -140,7 +141,8 @@ class TaskProgressServiceTest {
 		assertEquals(expected, task.getPercentComplete(), 0.00001D,
 				"Scheduled completion must count task-calendar working time, not weekends or nonworking hours");
 		change.undo();
-		assertEquals(0D, task.getPercentComplete(), 0.00001D);
+		assertEquals(0.25D, task.getPercentComplete(), 0.00001D,
+			"Undo must restore the exact pre-existing task-level progress");
 		change.redo();
 		assertEquals(expected, task.getPercentComplete(), 0.00001D);
 	}

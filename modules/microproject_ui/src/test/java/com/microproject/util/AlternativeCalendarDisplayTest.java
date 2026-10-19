@@ -29,6 +29,41 @@ class AlternativeCalendarDisplayTest {
 	}
 
 	@Test
+	void legendAndTooltipsIdentifyGregorianAsTheWorkingDate() {
+		LocalDate date = LocalDate.of(2026, 10, 18);
+		String english = AlternativeCalendarDisplay.calendarLegend(Locale.US);
+		String japanese = AlternativeCalendarDisplay.calendarLegend(Locale.JAPAN);
+		assertTrue(english.contains("Gregorian calendar only"));
+		assertTrue(english.contains("working-time edits use Gregorian dates"));
+		assertTrue(japanese.contains("グレゴリオ暦のみ"));
+		assertTrue(AlternativeCalendarDisplay.dayTooltip(date, Locale.US).contains("Gregorian date:"));
+		assertTrue(AlternativeCalendarDisplay.dayTooltip(date, Locale.JAPAN).contains("グレゴリオ暦:"));
+	}
+
+	@Test
+	void activeAlternativeCalendarIsNamedInLegendAndFullDateTooltip() {
+		Locale japaneseCalendar = Locale.forLanguageTag("ja-JP-u-ca-japanese");
+		Locale englishCalendar = Locale.forLanguageTag("en-US-u-ca-islamic-umalqura");
+		LocalDate date = LocalDate.of(2026, 10, 18);
+		String legend = AlternativeCalendarDisplay.calendarLegend(japaneseCalendar);
+		String tooltip = AlternativeCalendarDisplay.dayTooltip(date, japaneseCalendar);
+		assertTrue(legend.contains("小さな数字"));
+		assertTrue(legend.contains(Chronology.ofLocale(japaneseCalendar)
+			.getDisplayName(java.time.format.TextStyle.FULL, japaneseCalendar)));
+		assertTrue(tooltip.contains("グレゴリオ暦:"));
+		assertTrue(tooltip.contains("選択中の別暦:"));
+		assertTrue(tooltip.contains("令和"));
+		assertTrue(legend.contains(Chronology.ofLocale(japaneseCalendar)
+			.getDisplayName(java.time.format.TextStyle.FULL, japaneseCalendar)));
+		assertTrue(legend.contains("言語/地域設定"));
+		String englishLegend = AlternativeCalendarDisplay.calendarLegend(englishCalendar);
+		assertTrue(englishLegend.contains(Chronology.ofLocale(englishCalendar)
+			.getDisplayName(java.time.format.TextStyle.FULL, englishCalendar)));
+		assertTrue(englishLegend.contains("locale settings"));
+		assertTrue(AlternativeCalendarDisplay.dayTooltip(date, englishCalendar).contains("Selected calendar:"));
+	}
+
+	@Test
 	void japaneseCalendarAddsEraAwareMonthAndDayLabels() {
 		Locale locale = Locale.forLanguageTag("ja-JP-u-ca-japanese");
 		YearMonth may2019 = YearMonth.of(2019, 5);

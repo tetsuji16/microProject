@@ -54,7 +54,9 @@ import com.microproject.pm.graphic.timescale.CoordinatesConverter;
 import com.microproject.pm.graphic.timescale.ScaledScrollPane;
 import com.microproject.pm.graphic.views.synchro.Synchronizer;
 import com.microproject.configuration.Dictionary;
+import com.microproject.configuration.FieldDictionary;
 import com.microproject.field.FieldContext;
+import com.microproject.field.Field;
 import com.microproject.graphic.configuration.CellStyle;
 import com.microproject.graphic.configuration.GraphicConfiguration;
 import com.microproject.graphic.configuration.SpreadSheetFieldArray;
@@ -208,7 +210,17 @@ public class UsageDetailView extends SplittedView implements BaseView, FieldArra
 	private SpreadSheetFieldArray getDistributionFields() {
 		SpreadSheetFieldArray fields = (SpreadSheetFieldArray) Dictionary.get(timeSpreadsheetCategory,
 				getUsageDistributionSpreadsheetId(taskUsage));
-		return fields != null ? fields : new SpreadSheetFieldArray();
+		return resolveDistributionFields(fields, FieldDictionary.getInstance().getAssignmentFields());
+	}
+
+	static SpreadSheetFieldArray resolveDistributionFields(SpreadSheetFieldArray configuredFields,
+			Collection<? extends Field> assignmentFields) {
+		if (configuredFields != null && !configuredFields.isEmpty())
+			return configuredFields;
+		SpreadSheetFieldArray fallback = new SpreadSheetFieldArray();
+		if (assignmentFields != null)
+			fallback.addAll(assignmentFields);
+		return fallback;
 	}
 
 	/**
@@ -285,6 +297,28 @@ public class UsageDetailView extends SplittedView implements BaseView, FieldArra
 	public void zoomOut() {
 		coord.zoomOut();
 	}
+
+	/**
+	 * Document-derived Microsoft Project behavior: ZoomTimescale with
+	 * Selection=True fits the selected tasks in Task Usage and Resource Usage.
+	 */
+	public boolean canZoomToSelectedTasks() {
+		return SelectedTasksTimescaleZoom.canZoom(selectedNodesForZoom());
+	}
+
+	public void zoomToSelectedTasks() {
+		SelectedTasksTimescaleZoom.zoom(selectedNodesForZoom(), coord, timeScrollPane);
+	}
+
+	public SelectedTasksTimescaleZoom.DateRange getVisibleDateRange() {
+		return SelectedTasksTimescaleZoom.visibleRange(coord, timeScrollPane);
+	}
+
+	private Collection<?> selectedNodesForZoom() {
+		return documentFrame == null || documentFrame.getTopSpreadSheet() == null
+				? java.util.List.of() : documentFrame.getTopSpreadSheet().getSelectedNodesImpl();
+	}
+
 	public boolean canZoomIn() {
 		return coord.canZoomIn();
 	}

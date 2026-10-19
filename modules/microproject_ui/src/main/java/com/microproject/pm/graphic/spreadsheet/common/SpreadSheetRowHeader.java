@@ -116,7 +116,9 @@ public class SpreadSheetRowHeader extends JTable {
 					private TaskHierarchyEditIntent dragIntent;
 					public void mousePressed(MouseEvent e) {
 						boolean popupTrigger = popupTriggers.mousePressed(e);
-						if (SwingUtilities.isLeftMouseButton(e)){
+						if (popupTrigger){
+							showTaskPopup(e);
+						}else if (SwingUtilities.isLeftMouseButton(e)){
 							int row = rowAtPoint(e.getPoint());
 							if (row < 0) {
 								return;
@@ -142,8 +144,6 @@ public class SpreadSheetRowHeader extends JTable {
 //								mainFrame.doInformationDialog(false);
 //
 							}
-						}else if (popupTrigger){
-							showTaskPopup(e);
 						}
 					}
 					public void mouseDragged(MouseEvent e) {

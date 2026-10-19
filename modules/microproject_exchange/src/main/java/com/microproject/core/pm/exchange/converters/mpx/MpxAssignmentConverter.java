@@ -381,8 +381,15 @@ public class MpxAssignmentConverter {
 		// Assignment Start can already include both manual Delay and LevelingDelay.
 		// Keep the independently published MSPDI fields authoritative instead of
 		// retaining their combined offset as the manual delay.
-		if (mpxAssignment.getDelay() != null)
+		if (mpxAssignment.getDelay() != null) {
 			assignment.setDelay(toLong(mpxAssignment.getDelay(), state));
+		} else if (mpxAssignment.getLevelingDelay() != null
+				&& toLong(mpxAssignment.getLevelingDelay(), state) != 0L) {
+			// MSPDI Start already includes LevelingDelay. If its independent Delay
+			// field is absent, discard the offset inferred from Start rather than
+			// recording the same leveling offset as a manual Delay as well.
+			assignment.setDelay(0L);
+		}
 		assignment.setLevelingDelay(toLong(mpxAssignment.getLevelingDelay(), state));
 	}
 

@@ -25,6 +25,7 @@
 package com.microproject.pm.graphic.spreadsheet;
 
 import java.util.LinkedList;
+import java.util.function.BiConsumer;
 
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
@@ -56,6 +57,7 @@ import org.netbeans.swing.outline.RowModel;
  */
 public class SpreadSheetModel extends CommonSpreadSheetModel implements OutlineModel, RowModel {
 	protected boolean readOnly;
+	private transient BiConsumer<TaskCommandResult, Task> taskEditOutcomeHandler;
 	private static final String DEPENDENCY_TYPE_FIELD_ID = "Field.dependencyType";
 	private static final String DEPENDENCY_LAG_FIELD_ID = "Field.lag";
 	/**
@@ -63,6 +65,10 @@ public class SpreadSheetModel extends CommonSpreadSheetModel implements OutlineM
 	 */
 	public SpreadSheetModel(NodeModelCache cache, SpreadSheetColumnModel colModel, CellStyle cellStyle, ActionList actionList) {
 		super(cache, colModel, cellStyle, actionList);
+	}
+
+	public void setTaskEditOutcomeHandler(BiConsumer<TaskCommandResult, Task> handler) {
+		taskEditOutcomeHandler = handler;
 	}
 
 
@@ -152,6 +158,8 @@ public class SpreadSheetModel extends CommonSpreadSheetModel implements OutlineM
 				TaskFieldEditIntent intent = new TaskFieldEditIntent(taskRow.taskKey(), taskRow.occurrence(),
 					projection.topologyRevision(), field, oldValue, value);
 				TaskCommandResult result = TaskCommandGateway.execute(this, intent, this);
+				if (taskEditOutcomeHandler != null)
+					taskEditOutcomeHandler.accept(result, (Task) rowNode.getImpl());
 				if (result.status() != TaskCommandResult.Status.CHANGED
 						&& result.status() != TaskCommandResult.Status.NO_CHANGE)
 					throw new IllegalStateException("Task field edit rejected: " + result.reason());

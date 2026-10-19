@@ -56,6 +56,7 @@ import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.resource.ResourcePoolFactory;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectFactory;
+import com.microproject.pm.task.ProjectTaskSnapshot;
 import com.microproject.pm.task.Task;
 import com.microproject.session.LocalSession;
 import com.microproject.undo.DataFactoryUndoController;
@@ -566,7 +567,37 @@ public class ProjectMergeService {
 		List<Node> changedNodes = new ArrayList<Node>(external.getTaskList().size());
 		try {
 			Environment.setImporting(true);
-			applyExternalTaskUpdates(target, external, lockedTaskIds, result, changedNodes);
+			List<ExternalTaskUpdate> updates = stageExternalTaskUpdates(target, external, lockedTaskIds, result);
+			if (!updates.isEmpty()) {
+				ProjectTaskSnapshot projectSnapshot = ProjectTaskSnapshot.capture(target);
+				// ProjectTaskSnapshot owns scheduling snapshots and dirty flags; it intentionally omits task identity metadata.
+				List<ExternalTaskMetadata> valueSnapshots = captureExternalTaskMetadata(updates);
+				target.runAtomicModelCommand(markApplied -> {
+					try {
+						for (int i = 0; i < updates.size(); i++) {
+							ExternalTaskUpdate update = updates.get(i);
+							TaskState before = TaskState.capture(update.localTask());
+							applyExternalTaskValues(update.localTask(), update.values());
+							TaskState after = TaskState.capture(update.localTask());
+							if (!before.matches(after)) {
+								result.updatedTaskCount++;
+								changedNodes.add(update.node());
+								markApplied.run();
+							}
+							afterExternalTaskUpdateApplied(i + 1);
+						}
+					} catch (RuntimeException | Error failure) {
+						try {
+							for (ExternalTaskMetadata values : valueSnapshots) values.restore();
+							projectSnapshot.restore(target, this);
+						} catch (Throwable rollbackFailure) {
+							failure.addSuppressed(rollbackFailure);
+						}
+						throw failure;
+					}
+					return Boolean.valueOf(result.updatedTaskCount > 0);
+				}, Boolean.TRUE::equals, changed -> Boolean.TRUE);
+			}
 		} finally {
 			Environment.setImporting(wasImporting);
 			if (!wasDirty) {
@@ -577,7 +608,8 @@ public class ProjectMergeService {
 		return result;
 	}
 
-	private void applyExternalTaskUpdates(Project target, Project external, Set<Long> lockedTaskIds, ApplyResult result, List<Node> changedNodes) {
+	private List<ExternalTaskUpdate> stageExternalTaskUpdates(Project target, Project external, Set<Long> lockedTaskIds, ApplyResult result) {
+		List<ExternalTaskUpdate> updates = new ArrayList<>();
 		for (Iterator i = external.getTaskOutlineIterator(); i.hasNext();) {
 			Task externalTask = (Task) i.next();
 			TaskState incoming = TaskState.capture(externalTask);
@@ -592,25 +624,41 @@ public class ProjectMergeService {
 				result.skippedLockedTaskIds.add(Long.valueOf(localTask.getUniqueId()));
 				continue;
 			}
-			Node changedNode = applyExternalTaskValues(target, localTask, externalTask, incoming);
-			if (changedNode != null) {
-				result.updatedTaskCount++;
-				changedNodes.add(changedNode);
-			}
+			ExternalTaskValues values = ExternalTaskValues.capture(externalTask);
+			if (!TaskState.capture(localTask).matches(incoming))
+				updates.add(new ExternalTaskUpdate(localTask, values, findTaskNode(target, localTask)));
+		}
+		return updates;
+	}
+
+	private List<ExternalTaskMetadata> captureExternalTaskMetadata(List<ExternalTaskUpdate> updates) {
+		List<ExternalTaskMetadata> snapshots = new ArrayList<>(updates.size());
+		for (ExternalTaskUpdate update : updates) snapshots.add(ExternalTaskMetadata.capture(update.localTask()));
+		return snapshots;
+	}
+
+	void afterExternalTaskUpdateApplied(int appliedCount) { }
+
+	private record ExternalTaskUpdate(Task localTask, ExternalTaskValues values, Node node) { }
+
+	private record ExternalTaskValues(String name, String notes, String predecessors, long duration,
+		long end, double percentComplete, boolean normalTask) {
+		static ExternalTaskValues capture(Task task) {
+			return new ExternalTaskValues(task.getName(), task.getNotes(), task.getUniqueIdPredecessors(),
+				task.getDuration(), task.getEnd(), task.getPercentComplete(), task instanceof NormalTask);
 		}
 	}
 
-	private Node applyExternalTaskValues(Project target, Task localTask, Task externalTask, TaskState incoming) {
-		TaskState before = TaskState.capture(localTask);
-		if (before == null || before.matches(incoming)) {
-			return null;
+	private record ExternalTaskMetadata(Task task, String name, String notes, String predecessors) {
+		static ExternalTaskMetadata capture(Task task) {
+			return new ExternalTaskMetadata(task, task.getName(), task.getNotes(), task.getUniqueIdPredecessors());
 		}
-		applyTaskValues(localTask, externalTask);
-		TaskState after = TaskState.capture(localTask);
-		if (before.matches(after)) {
-			return null;
+		void restore() {
+			task.setName(name);
+			task.setNotes(notes);
+			try { task.setUniqueIdPredecessors(predecessors); }
+			catch (FieldParseException failure) { throw new IllegalStateException("Could not restore task predecessors", failure); }
 		}
-		return findTaskNode(target, localTask);
 	}
 
 	private boolean isLocked(Task task, Set<Long> lockedTaskIds) {
@@ -628,18 +676,17 @@ public class ProjectMergeService {
 		return target == null || target.getTaskOutline() == null ? null : target.getTaskOutline().search(task);
 	}
 
-	private void applyTaskValues(Task localTask, Task externalTask) {
-		localTask.setName(externalTask.getName());
-		localTask.setNotes(externalTask.getNotes());
-		if (localTask instanceof NormalTask && externalTask instanceof NormalTask) {
+	private void applyExternalTaskValues(Task localTask, ExternalTaskValues values) {
+		localTask.setName(values.name());
+		localTask.setNotes(values.notes());
+		if (localTask instanceof NormalTask && values.normalTask()) {
 			NormalTask localNormal = (NormalTask) localTask;
-			NormalTask externalNormal = (NormalTask) externalTask;
-			localNormal.setDuration(externalNormal.getDuration());
-			localNormal.setEnd(externalNormal.getEnd());
-			localNormal.setPercentComplete(externalNormal.getPercentComplete());
+			localNormal.setDuration(values.duration());
+			localNormal.setEnd(values.end());
+			localNormal.setPercentComplete(values.percentComplete());
 		}
 		try {
-			localTask.setUniqueIdPredecessors(externalTask.getUniqueIdPredecessors());
+			localTask.setUniqueIdPredecessors(values.predecessors());
 		} catch (FieldParseException e) {
 			// Keep the refresh best-effort; malformed external links will still be caught on save.
 		}

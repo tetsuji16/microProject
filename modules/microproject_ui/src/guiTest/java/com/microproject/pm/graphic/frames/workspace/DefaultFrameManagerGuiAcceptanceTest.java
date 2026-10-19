@@ -140,6 +140,79 @@ class DefaultFrameManagerGuiAcceptanceTest {
 		});
 	}
 
+	@Test
+	void promotedPrimaryWindowFocusTracksTheCurrentDocumentAfterOriginalPrimaryCloses() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		DocumentFrame[] frames = new DocumentFrame[3];
+		DesktopWindowGraphicManager[] graphicManagers = new DesktopWindowGraphicManager[1];
+		SwingUtilities.invokeAndWait(() -> {
+			MainRibbonFrame mainWindow = new MainRibbonFrame("Promoted primary focus acceptance", null);
+			window = mainWindow;
+			DesktopWindowGraphicManager graphicManager = new DesktopWindowGraphicManager(mainWindow);
+			graphicManagers[0] = graphicManager;
+			mainWindow.setGraphicManager(graphicManager);
+			desktopWindowManager = new DefaultFrameManager(mainWindow, new JPanel(), graphicManager);
+			graphicManager.setFrameManager(desktopWindowManager);
+			frames[0] = createDocumentFrame(graphicManager, "Focus Primary");
+			frames[1] = createDocumentFrame(graphicManager, "Focus Promoted");
+			frames[2] = createDocumentFrame(graphicManager, "Focus Secondary");
+			desktopWindowManager.addFrame(frames[0]);
+			graphicManager.activateDocumentWindow(frames[0]);
+			mainWindow.setSize(800, 500);
+			mainWindow.setVisible(true);
+			desktopWindowManager.addFrame(frames[1]);
+			desktopWindowManager.addFrame(frames[2]);
+		});
+		GuiAcceptanceSupport.await(() -> desktopWindowManager.getIndependentWindowCount() == 2
+				&& desktopWindowManager.getIndependentWindow(frames[1]).isShowing()
+				&& desktopWindowManager.getIndependentWindow(frames[2]).isShowing(),
+				"the second and third projects did not receive independent windows");
+		SwingUtilities.invokeAndWait(() -> {
+			Dimension screen = java.awt.Toolkit.getDefaultToolkit().getScreenSize();
+			window.setBounds(20, 20, 400, 350);
+			desktopWindowManager.getIndependentWindow(frames[1]).setBounds(Math.max(430, screen.width - 420), 20, 400, 350);
+			desktopWindowManager.getIndependentWindow(frames[2]).setBounds(Math.max(430, screen.width - 420), 20, 400, 350);
+		});
+
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(40);
+		Rectangle primaryBounds = window.getBounds();
+		robot.mouseMove(primaryBounds.x + primaryBounds.width - 22, primaryBounds.y + 15);
+		robot.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		GuiAcceptanceSupport.await(() -> desktopWindowManager.getIndependentWindowCount() == 1
+				&& !desktopWindowManager.getAllFrames().contains(frames[0])
+				&& desktopWindowManager.getIndependentWindow(frames[2]) != null
+				&& frames[1].getParent() == window.getContentPane(),
+				"closing the original primary did not promote the remaining secondary project");
+		JFrame remainingSecondary = desktopWindowManager.getIndependentWindow(frames[2]);
+		clickWindowCenter(robot, remainingSecondary);
+		GuiAcceptanceSupport.await(() -> graphicManagers[0].getCurrentFrame() == frames[2]
+				&& desktopWindowManager.getActiveFrame() == frames[2],
+				"activating the other secondary project did not update both active-frame sources");
+
+		clickWindowCenter(robot, window);
+		GuiAcceptanceSupport.await(() -> graphicManagers[0].getCurrentFrame() == frames[1]
+				&& desktopWindowManager.getActiveFrame() == frames[1],
+				"refocusing the promoted primary did not update both active-frame sources");
+		SwingUtilities.invokeAndWait(() -> {
+			assertSame(frames[1], desktopWindowManager.getActiveFrame());
+			assertSame(frames[1], graphicManagers[0].getCurrentFrame());
+			assertTrue(window.getTitle().contains("Focus Promoted"),
+				"the primary window title must identify the promoted document");
+			assertTrue(remainingSecondary.getTitle().contains("Focus Secondary"));
+			assertTrue(frames[1].isActive());
+			assertFalse(frames[2].isActive());
+		});
+	}
+
+	private static void clickWindowCenter(Robot robot, JFrame target) {
+		Point location = target.getLocationOnScreen();
+		robot.mouseMove(location.x + target.getWidth() / 2, location.y + target.getHeight() / 2);
+		robot.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+	}
+
 	private static DocumentFrame createDocumentFrame(GraphicManager graphicManager, String name) {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		Project project = Project.createProject(ResourcePool.createRourcePool(name + " pool", undo), undo);

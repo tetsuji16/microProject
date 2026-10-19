@@ -9,6 +9,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.Locale;
+import java.awt.event.MouseEvent;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.LocalDate;
+import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
 
 import org.junit.jupiter.api.Test;
 
@@ -58,11 +64,28 @@ class CalendarViewRenderingTest {
 			InspectableCalendarView calendar = new InspectableCalendarView();
 			GregorianCalendar gregorianDate = new GregorianCalendar(2024, Calendar.MARCH, 11);
 			long dateMillis = gregorianDate.getTimeInMillis();
+			calendar.setFirstDisplayedDate(dateMillis);
+			calendar.setSize(665, 420);
 
 			assertTrue(calendar.monthTitle(dateMillis, "March 2024").startsWith("March 2024 ("),
 				"the Gregorian month remains primary and the selected calendar is appended");
 			assertTrue(!calendar.dayLabel(dateMillis).isEmpty(),
 				"a differing alternative-calendar day number is available for secondary rendering");
+			String tooltip = null;
+			for (int y = 0; y < calendar.getHeight() && tooltip == null; y++) {
+				for (int x = 0; x < calendar.getWidth(); x++) {
+					long cellDate = calendar.getDayAt(x, y);
+					if (cellDate > 0 && LocalDate.ofInstant(Instant.ofEpochMilli(cellDate), ZoneId.systemDefault())
+						.equals(LocalDate.of(2024, 3, 11))) {
+						tooltip = calendar.getToolTipText(new MouseEvent(calendar, MouseEvent.MOUSE_MOVED,
+							0L, 0, x, y, 0, false));
+						break;
+					}
+				}
+			}
+			assertTrue(tooltip != null && tooltip.contains("Gregorian date:")
+				&& tooltip.contains("March 11, 2024") && tooltip.contains("Selected calendar:"),
+				"a per-day tooltip must show both full dates while preserving Gregorian as primary");
 			gregorianDate.setTimeInMillis(dateMillis);
 			assertTrue(gregorianDate.get(Calendar.YEAR) == 2024
 					&& gregorianDate.get(Calendar.MONTH) == Calendar.MARCH
@@ -71,5 +94,32 @@ class CalendarViewRenderingTest {
 		} finally {
 			Locale.setDefault(Locale.Category.FORMAT, previousFormatLocale);
 		}
+	}
+
+	@Test
+	void calendarTooltipSupportsDatesBeforeUnixEpoch() {
+		GregorianCalendar date = new GregorianCalendar(java.util.TimeZone.getTimeZone("GMT"));
+		date.clear();
+		date.set(1969, Calendar.DECEMBER, 31);
+		CalendarView calendar = new CalendarView(date.getTimeInMillis());
+		calendar.setFirstDisplayedDate(date.getTimeInMillis());
+		calendar.setSize(665, 420);
+		BufferedImage image = new BufferedImage(calendar.getWidth(), calendar.getHeight(), BufferedImage.TYPE_INT_ARGB);
+		Graphics2D graphics = image.createGraphics();
+		calendar.printAll(graphics);
+		graphics.dispose();
+		String tooltip = null;
+		for (int y = 0; y < calendar.getHeight() && tooltip == null; y++) {
+			for (int x = 0; x < calendar.getWidth(); x++) {
+				long cellDate = calendar.getDayAt(x, y);
+				if (cellDate < -106) {
+					tooltip = calendar.getToolTipText(new MouseEvent(calendar, MouseEvent.MOUSE_MOVED,
+						0L, 0, x, y, 0, false));
+					break;
+				}
+			}
+		}
+		assertTrue(tooltip != null && tooltip.contains("1969"),
+			"a date before the Unix epoch must still produce a Gregorian date tooltip");
 	}
 }

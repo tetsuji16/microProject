@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import java.io.File;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.jupiter.api.Test;
 
@@ -17,10 +18,12 @@ class ExportJobSchedulerTest {
 	@Test
 	void cancelledChooserDoesNotScheduleAJob() {
 		AtomicReference<ExportTarget> scheduled = new AtomicReference<>();
+		AtomicBoolean cleanedUp = new AtomicBoolean();
 
-		ExportJobScheduler.scheduleIfSelected(Optional.empty(), scheduled::set);
+		ExportJobScheduler.scheduleIfSelected(Optional.empty(), scheduled::set, () -> cleanedUp.set(true));
 
 		assertFalse(scheduled.get() != null, "cancelled export must not enqueue a job");
+		assertEquals(true, cleanedUp.get(), "cancelled export must release the pageable");
 	}
 
 	@Test

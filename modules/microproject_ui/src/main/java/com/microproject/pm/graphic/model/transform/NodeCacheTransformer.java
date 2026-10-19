@@ -104,7 +104,6 @@ public class NodeCacheTransformer implements CacheTransformer<GraphicNode> {
         if (list==null) return;
 
         boolean preserveHierarchy=transformer.isPreserveHierarchy() && transformer.isKeepOutline();
-
         if (!transformer.isShowSummary()){
         	preserveHierarchy=false;
         	removeSummaries(list);
@@ -120,6 +119,7 @@ public class NodeCacheTransformer implements CacheTransformer<GraphicNode> {
         if (hiddenFilter instanceof BaseFilter && !((BaseFilter)hiddenFilter).isActive()) hiddenFilter=null; //to avoid useless filtering in case of BaseFilter
         NodeFilter userFilter=(transformer.isNoneFilter())?null:transformer.getUserFilter();
         boolean filtering=hiddenFilter!=null||userFilter!=null;
+        Set<GraphicNode> hiddenFilteredSummaries = new HashSet<>();
 
         NodeSorter sorter1=transformer.getHiddenSorter();
         NodeSorter sorter2=transformer.getUserSorter();
@@ -159,6 +159,7 @@ public class NodeCacheTransformer implements CacheTransformer<GraphicNode> {
 		                    continue;
 	                    }
                     	if (gnode.isSummary()&&preserveHierarchy) gnode.setFiltered(true);
+	                    if (gnode.isSummary()&&preserveHierarchy) hiddenFilteredSummaries.add(gnode);
                     	alreadyExcluded=true;
 	                }
 	            }
@@ -195,7 +196,8 @@ public class NodeCacheTransformer implements CacheTransformer<GraphicNode> {
         if (preserveHierarchy){
         	list.clear();
         	if (transformer.isShowEmptySummaries()){
-        		if ("TaskUsage".equals(viewName)) filterBadBranches(localList);
+			if ("TaskUsage".equals(viewName)) filterBadBranches(localList);
+			else filterHiddenSummaryBranches(localList, hiddenFilteredSummaries);
         	}else filterEmptySummaries(localList,false);
         }
 
@@ -257,6 +259,19 @@ public class NodeCacheTransformer implements CacheTransformer<GraphicNode> {
 
 	private void filterBadBranches(List<GraphicNode> list){
 		filterBadBranches(list, false);
+	}
+	private boolean filterHiddenSummaryBranches(List<GraphicNode> list, Set<GraphicNode> hiddenSummaries) {
+		boolean containsVisibleRow = false;
+		for (Iterator<GraphicNode> i = list.iterator(); i.hasNext();) {
+			GraphicNode node = i.next();
+			boolean hiddenSummary = hiddenSummaries.contains(node);
+			if (!node.isSummary() || filterHiddenSummaryBranches(node.getChildren(), hiddenSummaries) || !hiddenSummary) {
+				containsVisibleRow = true;
+			} else {
+				i.remove();
+			}
+		}
+		return containsVisibleRow;
 	}
 	private boolean filterBadBranches(List<GraphicNode> list,boolean cut){
 		boolean keep=false;

@@ -93,6 +93,7 @@ public interface MenuActionConstants {
 
 	public static final String ACTION_ZOOM_IN                 = "ZoomIn";
 	public static final String ACTION_ZOOM_OUT                = "ZoomOut";
+	public static final String ACTION_ZOOM_SELECTED_TASKS      = "ZoomSelectedTasks";
 	public static final String ACTION_SCROLL_TO_TASK          = "ScrollToTask";
 	public static final String ACTION_TOGGLE_PROGRESS_LINE    = "ToggleProgressLine";
 	public static final String ACTION_LABEL_RESOURCE_NAMES    = "LabelResourceNames";

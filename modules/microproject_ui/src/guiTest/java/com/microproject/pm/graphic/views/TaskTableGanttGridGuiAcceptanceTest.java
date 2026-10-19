@@ -52,6 +52,8 @@ import javax.swing.JTextField;
 import javax.swing.text.JTextComponent;
 import javax.swing.MenuElement;
 import javax.swing.MenuSelectionManager;
+import javax.swing.event.PopupMenuEvent;
+import javax.swing.event.PopupMenuListener;
 import javax.swing.border.LineBorder;
 import javax.swing.table.TableCellRenderer;
 
@@ -79,6 +81,8 @@ import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetColumnMenu;
+import com.microproject.pm.graphic.spreadsheet.SpreadSheetPopupMenu;
+import com.microproject.pm.graphic.spreadsheet.common.SpreadSheetRowHeader;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetUtils;
 import com.microproject.pm.graphic.spreadsheet.editor.DateEditor;
 import com.microproject.pm.graphic.spreadsheet.selection.SpreadSheetColumnsPopupMenu;
@@ -225,7 +229,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 	}
 
 	@Test
-	void physicalGanttWheelScrollsByOneOwnerStep() throws Exception {
+	void physicalGanttWheelModifiersHaveOneScrollOwnerAndOneStep() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Fixture fixture = createFixture(40);
 		showFixture(fixture);
@@ -253,19 +257,62 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			ScrollPaneSynchronizer.HORIZONTAL));
 
 		try {
-			int before = ganttScroll.getVerticalScrollBar().getValue();
 			int oneOwnerStep = fixture.gantt.getRowHeight() * 5;
 			Rectangle visibleGantt = new Rectangle();
 			SwingUtilities.invokeAndWait(() -> visibleGantt.setBounds(fixture.gantt.getVisibleRect()));
 			Point point = screenCenter(fixture.gantt, visibleGantt);
 			robot.mouseMove(point.x, point.y);
 			robot.delay(150);
+
+			int beforeX = ganttScroll.getHorizontalScrollBar().getValue();
+			int beforeY = ganttScroll.getVerticalScrollBar().getValue();
 			robot.mouseWheel(1);
-			GuiAcceptanceSupport.await(() -> ganttScroll.getVerticalScrollBar().getValue() > before,
-				"physical Gantt wheel did not scroll the visible chart (before=" + before + ", after="
+			GuiAcceptanceSupport.await(() -> ganttScroll.getVerticalScrollBar().getValue() != beforeY,
+				"plain physical Gantt wheel did not scroll vertically (before=" + beforeY + ", after="
 					+ ganttScroll.getVerticalScrollBar().getValue() + ", point=" + point + ")");
-			assertEquals(before + oneOwnerStep, ganttScroll.getVerticalScrollBar().getValue(),
-				"one physical Gantt wheel gesture in a synchronized view must be applied by one vertical-scroll owner");
+			assertEquals(beforeY + oneOwnerStep, ganttScroll.getVerticalScrollBar().getValue(),
+				"one plain wheel gesture must be applied by one vertical-scroll owner");
+			assertEquals(beforeX, ganttScroll.getHorizontalScrollBar().getValue(),
+				"plain wheel must not change horizontal position");
+			assertEquals(ganttScroll.getVerticalScrollBar().getValue(), tableScroll.getVerticalScrollBar().getValue(),
+				"plain wheel must keep the synchronized task table at the same vertical position");
+
+			SwingUtilities.invokeAndWait(() -> {
+				ganttScroll.getVerticalScrollBar().setValue(0);
+				tableScroll.getVerticalScrollBar().setValue(0);
+			});
+			robot.delay(150);
+			int horizontalBefore = ganttScroll.getHorizontalScrollBar().getValue();
+			int verticalBefore = ganttScroll.getVerticalScrollBar().getValue();
+			int horizontalStep = ganttScroll.getHorizontalScrollBar().getUnitIncrement(1);
+			robot.keyPress(KeyEvent.VK_SHIFT);
+			try {
+				robot.mouseWheel(1);
+			} finally {
+				robot.keyRelease(KeyEvent.VK_SHIFT);
+			}
+			GuiAcceptanceSupport.await(() -> ganttScroll.getHorizontalScrollBar().getValue() != horizontalBefore,
+				"Shift+wheel did not scroll horizontally");
+			assertEquals(horizontalBefore + horizontalStep, ganttScroll.getHorizontalScrollBar().getValue(),
+				"one Shift+wheel gesture must move one horizontal unit");
+			assertEquals(verticalBefore, ganttScroll.getVerticalScrollBar().getValue(),
+				"Shift+wheel must not change vertical position");
+			int zoomBefore = fixture.gantt.getCoord().getTimescaleManager().getCurrentScaleIndex();
+			int zoomCount = fixture.gantt.getCoord().getTimescaleManager().getScaleCount();
+			int zoomDirection = zoomBefore == zoomCount - 1 ? -1 : 1;
+			verticalBefore = ganttScroll.getVerticalScrollBar().getValue();
+			robot.keyPress(KeyEvent.VK_CONTROL);
+			try {
+				robot.mouseWheel(zoomDirection);
+			} finally {
+				robot.keyRelease(KeyEvent.VK_CONTROL);
+			}
+			GuiAcceptanceSupport.await(() -> fixture.gantt.getCoord().getTimescaleManager().getCurrentScaleIndex() != zoomBefore,
+				"Ctrl+wheel did not change Gantt zoom (index=" + zoomBefore + ", count=" + zoomCount + ")");
+			assertEquals(zoomBefore + zoomDirection, fixture.gantt.getCoord().getTimescaleManager().getCurrentScaleIndex(),
+				"one Ctrl+wheel gesture must apply exactly one zoom step");
+			assertEquals(verticalBefore, ganttScroll.getVerticalScrollBar().getValue(),
+				"Ctrl+wheel must not change vertical position");
 		} finally {
 			SwingUtilities.invokeAndWait(() -> synchronizer.removeSynchro(ganttScroll, tableScroll,
 				ScrollPaneSynchronizer.HORIZONTAL));
@@ -305,6 +352,52 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		robot.keyPress(KeyEvent.VK_ESCAPE);
 		robot.keyRelease(KeyEvent.VK_ESCAPE);
 		GuiAcceptanceSupport.await(() -> !ganttPopupIsSelected(), "Escape did not close the Gantt popup");
+	}
+
+	@Test
+	void physicalRowHeaderPopupSelectsTheClickedTaskAndOpensOnce() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Fixture fixture = createFixture(3);
+		showFixture(fixture);
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(40);
+		int row = 1;
+		GraphicNode targetNode = (GraphicNode) fixture.sheet.getCache().getElementAt(row);
+		NormalTask targetTask = (NormalTask) targetNode.getNode().getImpl();
+		SwingUtilities.invokeAndWait(() -> assertEquals(0, fixture.sheet.getSelectedRowCount(),
+			"the row-header popup journey must start without a selected task"));
+		SpreadSheetPopupMenu popup = fixture.sheet.getPopup();
+		int[] popupOpenCount = { 0 };
+		popup.addPopupMenuListener(new PopupMenuListener() {
+			@Override public void popupMenuWillBecomeVisible(PopupMenuEvent event) { popupOpenCount[0]++; }
+			@Override public void popupMenuWillBecomeInvisible(PopupMenuEvent event) { }
+			@Override public void popupMenuCanceled(PopupMenuEvent event) { }
+		});
+		SpreadSheetRowHeader rowHeader = fixture.sheet.getRowHeader();
+		Point target = screenCenter(rowHeader, rowHeader.getCellRect(row, 0, true));
+		SwingUtilities.invokeAndWait(() -> {
+			frame.toFront();
+			frame.requestFocus();
+		});
+		GuiAcceptanceSupport.await(() -> frame.isActive() && rowHeader.isShowing(),
+			"task table or row header was not ready for a physical popup operation");
+		robot.mouseMove(target.x, target.y);
+		robot.mousePress(InputEvent.BUTTON3_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
+		GuiAcceptanceSupport.await(() -> popup.isVisible(), "physical row-header right-click did not open the task popup");
+		SwingUtilities.invokeAndWait(() -> {
+			assertSame(rowHeader, popup.getInvoker(), "row-header popup must retain its physical invoker");
+			assertEquals(row, popup.getRow(), "popup context must resolve the clicked row");
+			assertEquals(0, popup.getCol(), "row-header popup must use the row identity column");
+			assertEquals(1, popupOpenCount[0], "one physical right-click must open the popup once");
+			assertEquals(1, fixture.sheet.getSelectedGraphicNodes().size(),
+				"right-clicking an unselected task must select exactly that task");
+			assertTrue(fixture.sheet.getSelectedGraphicNodes().contains(targetNode),
+				"selection must retain the clicked task's stable identity");
+			assertEquals(targetTask.getUniqueId(), ((NormalTask) fixture.sheet.getSelectedGraphicNodes().iterator().next()
+				.getNode().getImpl()).getUniqueId(), "selected task identity must match the task under the popup");
+			assertTrue(fixture.sheet.isRowFullySelected(row), "row-header popup selection must cover the complete task row");
+		});
 	}
 
 	private static boolean ganttPopupIsSelected() {

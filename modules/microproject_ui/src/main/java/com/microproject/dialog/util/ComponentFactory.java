@@ -80,6 +80,7 @@ import com.microproject.util.MathUtils;
  *
  */
 public class ComponentFactory {
+	private static final String DIRTY_GENERATION_PROPERTY = ComponentFactory.class.getName() + ".dirtyGeneration";
 	public static final int READ_ONLY = 1;
 	public static final int SOMETIMES_READ_ONLY = 2;
 	
@@ -121,8 +122,17 @@ public class ComponentFactory {
 	}
 	
 	static void  markComponentAsUnmodified(JComponent component) {
+		JComponent verified = verifiedComponent(component);
+		component.putClientProperty(DIRTY_GENERATION_PROPERTY, Integer.valueOf(dirtyGeneration(component) + 1));
+		if (verified != component)
+			verified.putClientProperty(DIRTY_GENERATION_PROPERTY, Integer.valueOf(dirtyGeneration(verified) + 1));
 		component.setForeground(FlatUiSupport.infoForeground());
-		verifiedComponent(component).setForeground(FlatUiSupport.infoForeground());
+		verified.setForeground(FlatUiSupport.infoForeground());
+	}
+
+	private static int dirtyGeneration(JComponent component) {
+		Object generation = component.getClientProperty(DIRTY_GENERATION_PROPERTY);
+		return generation instanceof Integer ? ((Integer) generation).intValue() : 0;
 	}
 
 	public static void setValueOfComponent(JComponent component, Object value, boolean readOnly) {
@@ -272,34 +282,41 @@ public class ComponentFactory {
 		}
 		if (!(component instanceof JCheckBox))
 			setValueOfComponent(component,value,readOnly);
-		if (text != null) {
-			final JTextComponent trackedText = text;
-			class FieldStateTracker {
-				void markDirtyIfCommitted() {
-					if (ImeTextInputSupport.isCompositionActive(trackedText)) return;
-					trackedText.setForeground(FlatUiSupport.accentColor());
-					FieldDialog parentFieldDialog = getParentFieldDialog(trackedText);
-					if (parentFieldDialog != null) parentFieldDialog.setDirtyComponent(trackedText);
-				}
-			}
-			FieldStateTracker stateTracker = new FieldStateTracker();
-			text.addInputMethodListener(new InputMethodListener() {
-				@Override public void inputMethodTextChanged(InputMethodEvent event) {
-					ImeTextInputSupport.updateCompositionState(trackedText, event);
-					if (!ImeTextInputSupport.isCompositionActive(trackedText))
-						SwingUtilities.invokeLater(stateTracker::markDirtyIfCommitted);
-				}
-				@Override public void caretPositionChanged(InputMethodEvent event) { }
-			});
-			text.getDocument().addDocumentListener(new DocumentListener() {
-				@Override public void insertUpdate(DocumentEvent event) { deferUpdate(); }
-				@Override public void removeUpdate(DocumentEvent event) { deferUpdate(); }
-				@Override public void changedUpdate(DocumentEvent event) { deferUpdate(); }
-				private void deferUpdate() { SwingUtilities.invokeLater(stateTracker::markDirtyIfCommitted); }
-			});
-		}
+		if (text != null) installTextStateTracker(text);
 		return component;
 		
+	}
+
+	static void installTextStateTracker(JTextComponent trackedText) {
+		class FieldStateTracker {
+			void markDirtyIfCommitted(int expectedGeneration) {
+				if (dirtyGeneration(trackedText) != expectedGeneration) return;
+				if (ImeTextInputSupport.isCompositionActive(trackedText)) return;
+				trackedText.setForeground(FlatUiSupport.accentColor());
+				FieldDialog parentFieldDialog = getParentFieldDialog(trackedText);
+				if (parentFieldDialog != null) parentFieldDialog.setDirtyComponent(trackedText);
+			}
+		}
+		FieldStateTracker stateTracker = new FieldStateTracker();
+		trackedText.addInputMethodListener(new InputMethodListener() {
+			@Override public void inputMethodTextChanged(InputMethodEvent event) {
+				ImeTextInputSupport.updateCompositionState(trackedText, event);
+				if (!ImeTextInputSupport.isCompositionActive(trackedText)) {
+					int expectedGeneration = dirtyGeneration(trackedText);
+					SwingUtilities.invokeLater(() -> stateTracker.markDirtyIfCommitted(expectedGeneration));
+				}
+			}
+			@Override public void caretPositionChanged(InputMethodEvent event) { }
+		});
+		trackedText.getDocument().addDocumentListener(new DocumentListener() {
+			@Override public void insertUpdate(DocumentEvent event) { deferUpdate(); }
+			@Override public void removeUpdate(DocumentEvent event) { deferUpdate(); }
+			@Override public void changedUpdate(DocumentEvent event) { deferUpdate(); }
+			private void deferUpdate() {
+				int expectedGeneration = dirtyGeneration(trackedText);
+				SwingUtilities.invokeLater(() -> stateTracker.markDirtyIfCommitted(expectedGeneration));
+			}
+		});
 	}
 	
 	public static FieldDialog getParentFieldDialog(Component c) {

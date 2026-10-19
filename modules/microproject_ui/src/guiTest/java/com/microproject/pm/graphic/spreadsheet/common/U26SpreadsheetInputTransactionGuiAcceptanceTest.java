@@ -118,9 +118,12 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 
 		SwingUtilities.invokeAndWait(() -> tabs.setSelectedIndex(1));
 		activate(fixture.trackingSheet, robot);
-		editWithPhysicalKeys(robot, fixture.trackingSheet, fixture.trackingRow, fixture.percentColumn, "10");
+		typePercentFromFirstPhysicalKey(robot, fixture.trackingSheet, fixture.trackingRow,
+			fixture.percentColumn, "10");
 		assertEquals(0.10d, fixture.task.getPercentComplete(), 0.00001d,
 			"physical multi-character percent input must commit the complete value");
+		assertEquals("10%", renderedCellText(fixture.trackingSheet, fixture.trackingRow, fixture.percentColumn),
+			"the committed progress value must render as 10% in the selected task cell");
 
 		assertTrue(fixture.task.getRemainingDuration() > 0L, "10% progress must leave a positive remaining duration");
 		assertEquals(DurationFormat.getProjectInstance().format(new Duration(fixture.task.getRemainingDuration()),
@@ -179,21 +182,23 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		assertEquals(10L * 60L * 60L * 1000L, Duration.millis(fixture.task.getRawDuration()),
 			"restore the bare project-hour duration for the structural save/reload assertions");
 		assertEquals(TimeUnit.HOURS, fixture.task.getDurationDisplayUnit());
+		SwingUtilities.invokeAndWait(() -> tabs.setSelectedIndex(1));
+		activate(fixture.trackingSheet, robot);
+		editWithPhysicalKeys(robot, fixture.trackingSheet, fixture.trackingRow, fixture.percentColumn, "100");
+		assertEquals(1.0d, fixture.task.getPercentComplete(), 0.00001d,
+			"the final physical progress input must commit 100% before the structural round-trip");
+		assertEquals("100%", renderedCellText(fixture.trackingSheet, fixture.trackingRow, fixture.percentColumn),
+			"the final physical progress input must render as 100% before the structural round-trip");
 
 		Project project = fixture.task.getProject();
-		NormalTask[] structuralTaskHolder = new NormalTask[1];
 		SwingUtilities.invokeAndWait(() -> {
 			NormalTask structuralParent = project.createScriptedTask();
 			structuralParent.setName("U-26 structural parent");
-			NormalTask structuralTask = project.createScriptedTask();
-			structuralTaskHolder[0] = structuralTask;
-			structuralTask.setName("U-26 structural round-trip");
-			project.setLocalParent(structuralTask, structuralParent);
-			assertEquals(structuralParent, structuralTask.getWbsParentTask(), "fixture must create a child before outdent");
-			project.setLocalParent(structuralTask, null);
-			assertEquals(null, structuralTask.getWbsParentTask(), "outdent must restore the task to the project root");
+			project.setLocalParent(fixture.task, structuralParent);
+			assertEquals(structuralParent, fixture.task.getWbsParentTask(), "fixture must make the edited task a child before outdent");
+			project.setLocalParent(fixture.task, null);
+			assertEquals(null, fixture.task.getWbsParentTask(), "outdent must restore the edited task to the project root");
 		});
-		NormalTask structuralTask = structuralTaskHolder[0];
 
 		ByteArrayOutputStream mpo = new ByteArrayOutputStream();
 		assertTrue(new MpoFileImporter().saveProject(project, mpo), "MPO save after structural change must succeed");
@@ -201,11 +206,19 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		reader.setProjectFactory(ProjectFactory.getInstance());
 		Project reopened = reader.loadProject(new ByteArrayInputStream(mpo.toByteArray()));
 		NormalTask restored = (NormalTask) reopened.findByUniqueId(fixture.task.getUniqueId());
-		NormalTask restoredStructuralTask = (NormalTask) reopened.findByUniqueId(structuralTask.getUniqueId());
+		assertEquals(fixture.task.getUniqueId(), restored.getUniqueId(),
+			"MPO reopen must restore the same physically edited task identity");
+		assertEquals(null, restored.getWbsParentTask(), "the edited task must remain at the project root after reload");
 		assertEquals(10L * 60L * 60L * 1000L, Duration.millis(restored.getRawDuration()),
-			"the project-unit duration must survive a structural edit and MPO reload");
-		assertEquals(null, restoredStructuralTask.getWbsParentTask(), "outdented task must remain at project root after reload");
-		assertEquals(TimeUnit.HOURS, reopened.getDurationDefaults().durationEnteredIn());
+			"the physically entered project-unit duration must survive a structural edit and MPO reload");
+		assertEquals(1.0d, restored.getPercentComplete(), 0.00001d,
+			"the physically entered 100% progress must survive a structural edit and MPO reload");
+		assertEquals(fixture.task.getStart(), restored.getStart(),
+			"the physically entered start date must survive a structural edit and MPO reload");
+		assertEquals(0L, restored.getRemainingDuration(),
+			"the 100% task's remaining duration must survive a structural edit and MPO reload");
+		assertEquals(new DurationDefaults(360.0D, 1800.0D, 20.0D, TimeUnit.HOURS, TimeUnit.HOURS),
+			reopened.getDurationDefaults(), "MPO reopen must retain the project's duration defaults");
 		FieldContext reopenedContext = new FieldContext();
 		reopenedContext.setDurationDefaults(reopened.getDurationDefaults());
 		assertEquals(TimeUnit.HOURS, restored.getDurationDisplayUnit(),
@@ -213,6 +226,10 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		assertEquals(DurationFormat.getProjectInstance().format(restored.getDurationForDisplay(),
 			reopened.getDurationDefaults()), durationText(restored, reopenedContext),
 			"MPO reopen must retain the project duration display unit for the task cell");
+		assertEquals("0 hours", FieldDictionary.getInstance().getFieldFromId("Field.remainingDuration")
+			.getText(restored, reopenedContext), "MPO reopen must render zero remaining duration using project defaults");
+		assertEquals("100%", FieldDictionary.getInstance().getFieldFromId("Field.percentComplete")
+			.getText(restored, reopenedContext), "MPO reopen must render the committed progress value as 100%");
 
 	}
 
@@ -265,6 +282,66 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 
 	private void editWithPhysicalKeys(Robot robot, SpreadSheet sheet, int row, int column, String value) throws Exception {
 		editWithPhysicalKeys(robot, sheet, row, column, value, null);
+	}
+
+	private void typePercentFromFirstPhysicalKey(Robot robot, SpreadSheet sheet, int row, int column, String value)
+			throws Exception {
+		cellOnScreen(sheet, row, column); // Bring the target into view before measuring its physical position.
+		Rectangle cell = currentCellOnScreen(sheet, row, column);
+		clickCell(robot, cell, 0);
+		robot.waitForIdle();
+		int[] selected = new int[2];
+		SwingUtilities.invokeAndWait(() -> {
+			selected[0] = sheet.getSelection().getActiveRow();
+			selected[1] = sheet.getSelection().getActiveColumn();
+		});
+		assertEquals(row, selected[0], "physical click must select the target task row before typing");
+		assertTrue(!sheet.isEditing(), "the progress cell must not already be editing before the first physical key");
+		for (int navigation = 0; navigation < sheet.getColumnCount() && selected[1] < column; navigation++) {
+			robot.keyPress(KeyEvent.VK_RIGHT);
+			robot.keyRelease(KeyEvent.VK_RIGHT);
+			robot.waitForIdle();
+			SwingUtilities.invokeAndWait(() -> selected[1] = sheet.getSelection().getActiveColumn());
+		}
+		assertEquals(column, selected[1], "physical arrow navigation must focus the progress cell before typing");
+
+		int firstKey = KeyEvent.getExtendedKeyCodeForChar(value.charAt(0));
+		robot.keyPress(firstKey);
+		robot.keyRelease(firstKey);
+		GuiAcceptanceSupport.await(sheet::isEditing, "the first physical character must start cell editing without F2");
+		GuiAcceptanceSupport.await(() -> editorTextEquals(sheet, value.substring(0, 1)),
+			"the spreadsheet editor must receive the first physical character");
+		JTextComponent input = editorInputComponent(sheet);
+		assertTrue(input.isFocusOwner(), "the first physical character must focus the active cell editor");
+		for (char character : value.substring(1).toCharArray()) {
+			int keyCode = KeyEvent.getExtendedKeyCodeForChar(character);
+			if (keyCode == KeyEvent.VK_UNDEFINED) throw new AssertionError("No key code for " + character);
+			robot.keyPress(keyCode);
+			robot.keyRelease(keyCode);
+		}
+		robot.waitForIdle();
+		assertEquals(value, activeEditorText(sheet),
+			"the editor must receive the complete multi-character value from physical key input");
+		robot.keyPress(KeyEvent.VK_ENTER);
+		robot.keyRelease(KeyEvent.VK_ENTER);
+		GuiAcceptanceSupport.await(() -> !sheet.isEditing(), "physical first-key input did not commit: " + value);
+	}
+
+	private static String renderedCellText(SpreadSheet sheet, int row, int column) throws Exception {
+		String[] text = new String[1];
+		SwingUtilities.invokeAndWait(() -> {
+			Component rendered = sheet.prepareRenderer(sheet.getCellRenderer(row, column), row, column);
+			text[0] = rendered instanceof javax.swing.JLabel label ? label.getText() : rendered.toString();
+		});
+		return text[0];
+	}
+
+	private static boolean editorTextEquals(SpreadSheet sheet, String expected) {
+		try {
+			return expected.equals(activeEditorText(sheet));
+		} catch (Exception exception) {
+			throw new AssertionError("could not inspect the active spreadsheet editor", exception);
+		}
 	}
 
 	private void editWithPhysicalKeys(Robot robot, SpreadSheet sheet, int row, int column, String value,
@@ -321,6 +398,16 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 			sheet.scrollRectToVisible(bounds);
 			if (!sheet.getVisibleRect().intersects(bounds))
 				throw new AssertionError("U-26 target cell is outside the laid-out spreadsheet viewport");
+			Point location = sheet.getLocationOnScreen();
+			result[0] = new Rectangle(location.x + bounds.x, location.y + bounds.y, bounds.width, bounds.height);
+		});
+		return result[0];
+	}
+
+	private Rectangle currentCellOnScreen(SpreadSheet sheet, int row, int column) throws Exception {
+		Rectangle[] result = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> {
+			Rectangle bounds = sheet.getCellRect(row, column, true);
 			Point location = sheet.getLocationOnScreen();
 			result[0] = new Rectangle(location.x + bounds.x, location.y + bounds.y, bounds.width, bounds.height);
 		});

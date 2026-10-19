@@ -20,6 +20,7 @@
 package com.microproject.pm.graphic.frames;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -27,10 +28,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JComponent;
+import javax.swing.InputMap;
 import javax.swing.JPanel;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
@@ -56,6 +60,67 @@ import com.microproject.workspace.WorkspaceSetting;
  * drives that seam directly so it runs headless.
  */
 class MicrosoftShortcutsRootPaneTest {
+
+	@Test
+	void shortcutRegistrationDoesNotOverwriteAKeyWithAnotherAction() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			ShortcutHarness harness = new ShortcutHarness();
+			RecordingInputMap inputMap = new RecordingInputMap();
+			harness.manager.applyMicrosoftShortcuts(inputMap, harness.panel.getActionMap());
+
+			assertTrue(inputMap.conflicts.isEmpty(),
+				"one keystroke must not be registered to multiple action IDs: " + inputMap.conflicts);
+		});
+	}
+
+	@Test
+	void eachShortcutKeyIsRegisteredOnlyOnce() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			ShortcutHarness harness = new ShortcutHarness();
+			RecordingInputMap inputMap = new RecordingInputMap();
+			harness.manager.applyMicrosoftShortcuts(inputMap, harness.panel.getActionMap());
+
+			assertTrue(inputMap.duplicateWrites.isEmpty(),
+				"the registration layer must write each KeyStroke once: " + inputMap.duplicateWrites);
+		});
+	}
+
+	@Test
+	void keypadZoomShortcutsAreRootPaneActionsAndNoOpWithoutAnActiveDocument() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			ShortcutHarness harness = new ShortcutHarness();
+			harness.manager.applyMicrosoftShortcuts(
+				harness.panel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW), harness.panel.getActionMap());
+			KeyStroke divide = KeyStroke.getKeyStroke(KeyEvent.VK_DIVIDE, InputEvent.CTRL_DOWN_MASK);
+			KeyStroke multiply = KeyStroke.getKeyStroke(KeyEvent.VK_MULTIPLY, InputEvent.CTRL_DOWN_MASK);
+			assertEquals("GanttKeypadZoomIn", harness.bindingFor(divide));
+			assertEquals("GanttKeypadZoomOut", harness.bindingFor(multiply));
+			assertNotNull(harness.actionFor(divide));
+			assertNotNull(harness.actionFor(multiply));
+			// No frame is active in this headless harness. Dispatch must safely do nothing.
+			assertFalse(harness.actionFor(divide).isEnabled());
+			assertFalse(harness.actionFor(multiply).isEnabled());
+			harness.actionFor(divide).actionPerformed(new ActionEvent(harness.panel, 0, "zoom-in"));
+			harness.actionFor(multiply).actionPerformed(new ActionEvent(harness.panel, 0, "zoom-out"));
+		});
+	}
+
+	@Test
+	void keypadZoomDispatchIsIgnoredWhenTheActiveTopViewIsNotGantt() {
+		java.util.concurrent.atomic.AtomicBoolean nonGanttViewCalled = new java.util.concurrent.atomic.AtomicBoolean();
+		com.microproject.pm.graphic.views.BaseView nonGanttView = (com.microproject.pm.graphic.views.BaseView)
+			java.lang.reflect.Proxy.newProxyInstance(
+				com.microproject.pm.graphic.views.BaseView.class.getClassLoader(),
+				new Class<?>[] {com.microproject.pm.graphic.views.BaseView.class},
+				(proxy, method, arguments) -> {
+					nonGanttViewCalled.set(true);
+					return null;
+				});
+
+		GraphicManager.dispatchGanttKeypadZoom(nonGanttView, true);
+		GraphicManager.dispatchGanttKeypadZoom(nonGanttView, false);
+		assertFalse(nonGanttViewCalled.get(), "a non-Gantt active view must be left untouched");
+	}
 
 	/** A plain Swing component supplies the InputMap/ActionMap without a window. */
 	private static final class ShortcutHarness {
@@ -86,6 +151,24 @@ class MicrosoftShortcutsRootPaneTest {
 
 		boolean dispatch(KeyStroke ks, KeyEvent e) {
 			return processKeyBinding(ks, e, WHEN_IN_FOCUSED_WINDOW, true);
+		}
+	}
+
+	/** Records registrations before InputMap's last-write-wins behavior can hide conflicts. */
+	private static final class RecordingInputMap extends InputMap {
+		private final Map<KeyStroke, Object> registrations = new HashMap<>();
+		private final java.util.List<String> conflicts = new java.util.ArrayList<>();
+		private final java.util.List<String> duplicateWrites = new java.util.ArrayList<>();
+
+		@Override
+		public void put(KeyStroke keyStroke, Object actionMapKey) {
+			if (registrations.containsKey(keyStroke))
+				duplicateWrites.add(keyStroke + " registered again as " + actionMapKey);
+			Object previous = registrations.put(keyStroke, actionMapKey);
+			if (previous != null && !previous.equals(actionMapKey)) {
+				conflicts.add(keyStroke + " was registered as both " + previous + " and " + actionMapKey);
+			}
+			super.put(keyStroke, actionMapKey);
 		}
 	}
 

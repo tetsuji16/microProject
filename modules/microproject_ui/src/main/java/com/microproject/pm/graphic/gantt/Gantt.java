@@ -30,20 +30,13 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Point;
 import java.awt.Rectangle;
-import java.awt.event.ActionEvent;
-import java.awt.event.InputEvent;
-import java.awt.event.KeyEvent;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
 
-import javax.swing.AbstractAction;
-import javax.swing.ActionMap;
-import javax.swing.InputMap;
 import javax.swing.JViewport;
-import javax.swing.KeyStroke;
 import javax.swing.undo.AbstractUndoableEdit;
 
 import com.microproject.graphic.configuration.GanttBarFormatOverrides;
@@ -79,8 +72,6 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 //    protected DependencyDialog dependencyPropertiesDialog;
 
 	private static final long serialVersionUID = -1806070019043393474L;
-	private static final String ZOOM_OUT_ACTION = "gantt.zoomOut";
-	private static final String ZOOM_IN_ACTION = "gantt.zoomIn";
 	private static final int AUTO_SCROLL_START_THRESHOLD = 150;
 	private static final int AUTO_SCROLL_LEFT_PADDING = 50;
 	private static final int BOTTOM_SCROLL_BUFFER_ROWS = 5;
@@ -134,7 +125,6 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 		super(model,project);
 		this.setToolTipText(Messages.getString("Text.rightClickForOptions"));
 		setFocusable(true);
-		installKeyboardActions();
 
 	}
 
@@ -467,30 +457,6 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 			super.redo();
 			gantt.setBarFormat(taskUniqueId, viewName, after);
 		}
-	}
-
-	private void installKeyboardActions() {
-		var inputMap = getInputMap(WHEN_IN_FOCUSED_WINDOW);
-		var actionMap = getActionMap();
-
-		// Microsoft Project Desktop documents Ctrl+/ (numeric keypad) for a
-		// finer timescale and Ctrl+* (numeric keypad) for a broader one.
-		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_DIVIDE, InputEvent.CTRL_DOWN_MASK), ZOOM_IN_ACTION);
-		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_MULTIPLY, InputEvent.CTRL_DOWN_MASK), ZOOM_OUT_ACTION);
-
-		actionMap.put(ZOOM_OUT_ACTION, createZoomAction(() -> ScrollPaneSynchronizer.zoomOut(Gantt.this)));
-		actionMap.put(ZOOM_IN_ACTION, createZoomAction(() -> ScrollPaneSynchronizer.zoomIn(Gantt.this)));
-	}
-
-	private static AbstractAction createZoomAction(Runnable zoomOperation) {
-		return new AbstractAction() {
-			private static final long serialVersionUID = 1L;
-
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				zoomOperation.run();
-			}
-		};
 	}
 
 	public void updateSize(){

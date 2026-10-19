@@ -81,6 +81,66 @@ class UpdateProjectRequestTest {
 		assertEquals(originalStatusDate, project.getStatusDate());
 	}
 
+	/**
+	 * Document-derived acceptance decision (not an empirical MSP run): the Update
+	 * Work command records a task complete through its scheduled finish; a separate
+	 * project Status Date remains unchanged. Microsoft sources:
+	 * https://support.microsoft.com/en-us/project/update-work-on-a-project-to-show-actual-progress
+	 * https://support.microsoft.com/en-us/project/project-status-date
+	 * https://support.microsoft.com/en-us/project/actual-finish-task-field
+	 */
+	@Test
+	void completingPartiallyWorkedAssignedTaskSetsExactActualsAndUndoRestoresThem() {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("update-actuals", undo), undo);
+		project.initialize(false, false);
+		NormalTask task = project.createScriptedTask();
+		task.setDuration(com.microproject.options.CalendarOption.getInstance().getMillisPerDay() * 4L);
+		var resource = project.getResourcePool().createScriptedResource();
+		var assignment = com.microproject.pm.assignment.AssignmentService.getInstance()
+			.newAssignment(task, resource, 1.0d, 0L, this);
+		assignment.setWork(com.microproject.options.CalendarOption.getInstance().getMillisPerDay() * 4L, null);
+		project.recalculate();
+		task.setPercentComplete(0.5d);
+		project.recalculate();
+		project.setStatusDate(task.getStart());
+		long fixedStatusDate = project.getStatusDate();
+		long updateDate = task.getEnd() + 86_400_000L;
+		TaskSnapshotValues before = capture(task);
+		long assignmentActualWorkBefore = assignment.getActualWork(null);
+		long assignmentRemainingWorkBefore = assignment.getRemainingWork();
+		assertTrue(assignmentActualWorkBefore > 0L);
+		assertTrue(assignmentRemainingWorkBefore > 0L);
+
+		EditSupport edits = new EditSupport();
+		UndoManager manager = new UndoManager();
+		edits.addEditListener(manager::addEdit);
+		new UpdateProjectCommand(project, new UpdateProjectRequest(updateDate, true, false, false))
+			.execute(java.util.List.of(task), edits);
+		assertEquals(1D, task.getPercentComplete(), 0.00001D);
+		assertEquals(task.getStart(), task.getActualStart());
+		assertEquals(task.getEnd(), task.getActualFinish());
+		assertEquals(task.getWork(null), task.getActualWork(null));
+		assertEquals(0L, task.getRemainingWork());
+		assertEquals(1D, assignment.getPercentComplete(), 0.00001D);
+		assertEquals(task.getActualStart(), assignment.getActualStart());
+		assertEquals(task.getActualFinish(), assignment.getActualFinish());
+		assertEquals(assignment.getWork(null), assignment.getActualWork(null));
+		assertEquals(0L, assignment.getRemainingWork());
+		assertEquals(task.getActualWork(null), assignment.getActualWork(null),
+			"single-assignment task actual work must reconcile with its assignment total");
+		assertEquals(fixedStatusDate, project.getStatusDate(), "through-date must not replace project Status Date");
+		TaskSnapshotValues complete = capture(task);
+
+		manager.undo();
+		assertTaskValues(before, task);
+		assertEquals(assignmentActualWorkBefore, assignment.getActualWork(null));
+		assertEquals(assignmentRemainingWorkBefore, assignment.getRemainingWork());
+		manager.redo();
+		assertTaskValues(complete, task);
+		assertEquals(task.getActualWork(null), assignment.getActualWork(null));
+	}
+
 	@Test
 	void selectedAndEntireProjectUpdatesRespectLinkedSummaryHierarchyAndUndo() throws Exception {
 		DataFactoryUndoController undo = new DataFactoryUndoController();

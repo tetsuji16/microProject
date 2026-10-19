@@ -18,6 +18,7 @@ import java.awt.Robot;
 import java.awt.Window;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
+import java.awt.event.MouseEvent;
 import java.io.File;
 import java.awt.image.BufferedImage;
 import java.awt.Graphics2D;
@@ -43,6 +44,7 @@ import javax.swing.JScrollPane;
 import javax.swing.text.JTextComponent;
 import javax.swing.SwingUtilities;
 import javax.swing.JTabbedPane;
+import javax.swing.JTextArea;
 import javax.swing.JFileChooser;
 import javax.imageio.ImageIO;
 
@@ -61,12 +63,14 @@ import com.microproject.pm.resource.Resource;
 import com.microproject.pm.task.Project;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.testsupport.DialogLayoutAssertions;
+import com.microproject.testsupport.DialogScreenshotArtifacts;
 import com.microproject.strings.Messages;
 import com.microproject.exchange.LocalFileImporter;
 import com.microproject.pm.task.ProjectFactory;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.SwingFileChooserProvider;
 import com.microproject.util.UiServices;
+import com.microproject.util.AlternativeCalendarDisplay;
 
 /** GUI-NC-07: open and cancel the working-time dialog through real mouse input. */
 class ChangeWorkingTimeDialogGuiAcceptanceTest {
@@ -74,14 +78,20 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 	private ChangeWorkingTimeDialogBox dialog;
 	private NewBaseCalendarDialog newBaseDialog;
 	private Locale originalFormatLocale;
+	private Locale originalDisplayLocale;
+	private Locale originalDefaultLocale;
 	private UiServices.FileChooserProvider previousChooser;
 	private String previousSystemChooserProperty;
 	private Path importFixture;
 
 	@AfterEach
 	void closeWindows() throws Exception {
+		if (originalDefaultLocale != null)
+			Locale.setDefault(originalDefaultLocale);
 		if (originalFormatLocale != null)
 			Locale.setDefault(Locale.Category.FORMAT, originalFormatLocale);
+		if (originalDisplayLocale != null)
+			Locale.setDefault(Locale.Category.DISPLAY, originalDisplayLocale);
 		UiServices.setFileChooserProvider(previousChooser);
 		if (previousSystemChooserProperty == null) System.clearProperty("flatlaf.useSystemFileChooser");
 		else System.setProperty("flatlaf.useSystemFileChooser", previousSystemChooserProperty);
@@ -201,6 +211,79 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 	}
 
 	@Test
+	void robotEnglishAlternativeCalendarExplainsGregorianEditDatesAndTooltips() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for calendar acceptance coverage.");
+		originalFormatLocale = Locale.getDefault(Locale.Category.FORMAT);
+		originalDisplayLocale = Locale.getDefault(Locale.Category.DISPLAY);
+		originalDefaultLocale = Locale.getDefault();
+		Locale.setDefault(Locale.US);
+		Locale.setDefault(Locale.Category.FORMAT, Locale.forLanguageTag("en-US-u-ca-islamic-umalqura"));
+		Locale.setDefault(Locale.Category.DISPLAY, Locale.US);
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("gui-working-time-english", undo);
+		Project project = Project.createProject(pool, undo);
+		project.initialize(false, false);
+		WorkingCalendar calendar = WorkingCalendar.getStandardBasedInstance();
+		calendar.setName("English calendar explanation");
+		project.setWorkCalendar(calendar);
+		SwingUtilities.invokeAndWait(() -> {
+			frame = new JFrame("English working-time calendar");
+			frame.setSize(1000, 650);
+			frame.setAlwaysOnTop(true);
+			frame.setVisible(true);
+			new GraphicManager(frame).getMenuManager();
+			dialog = ChangeWorkingTimeDialogBox.getInstance(frame, project, calendar, null, false, undo);
+			dialog.projectCalendars.add(calendar);
+			SwingUtilities.invokeLater(dialog::doModal);
+		});
+		GuiAcceptanceSupport.await(() -> dialog != null && dialog.isVisible(), "English working-time dialog did not open");
+		assertEquals("Calendar", dialog.calendarTabs.getTitleAt(0), "the acceptance route must use English UI labels");
+		JTextArea[] explanation = new JTextArea[1];
+		Point[] cellPoint = new Point[1];
+		String[] tooltip = new String[1];
+		SwingUtilities.invokeAndWait(() -> {
+			explanation[0] = allComponents(dialog).stream()
+				.filter(component -> "workingTimeCalendarDateExplanation".equals(component.getName()))
+				.filter(JTextArea.class::isInstance).map(JTextArea.class::cast).findFirst().orElseThrow();
+			for (int y = 0; y < dialog.sdCalendar.getHeight() && cellPoint[0] == null; y++) {
+				for (int x = 0; x < dialog.sdCalendar.getWidth(); x++) {
+					if (dialog.sdCalendar.getDayAt(x, y) > 0) {
+						cellPoint[0] = new Point(x, y);
+						tooltip[0] = dialog.sdCalendar.getToolTipText(new MouseEvent(dialog.sdCalendar,
+							MouseEvent.MOUSE_MOVED, System.currentTimeMillis(), 0, x, y, 0, false));
+						break;
+					}
+				}
+			}
+		});
+		assertTrue(explanation[0].isShowing(), "the English date legend must be visible");
+		assertTrue(explanation[0].getText().contains("Hijrah-umalqura")
+			&& explanation[0].getText().contains("locale settings")
+			&& explanation[0].getText().contains("working-time edits use Gregorian dates"),
+			"the legend must name Hijrah, identify locale settings, and explain the Gregorian edit date: "
+				+ explanation[0].getText());
+		String accessibleName = dialog.sdCalendar.getAccessibleContext().getAccessibleName();
+		String accessibleDescription = dialog.sdCalendar.getAccessibleContext().getAccessibleDescription();
+		assertTrue(accessibleName.contains("calendar"), "the calendar must have an accessible English name");
+		assertTrue(accessibleDescription.contains("Hijrah-umalqura")
+			&& accessibleDescription.contains("working-time edits use Gregorian dates"),
+			"the accessible description must communicate the same calendar and edit-date semantics");
+		assertTrue(cellPoint[0] != null && tooltip[0] != null && tooltip[0].contains("Gregorian date:")
+			&& tooltip[0].contains("Selected calendar:"), "a date cell tooltip must show both Gregorian and Hijrah dates");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		Point screenPoint = new Point();
+		SwingUtilities.invokeAndWait(() -> {
+			Point location = dialog.sdCalendar.getLocationOnScreen();
+			screenPoint.setLocation(location.x + cellPoint[0].x, location.y + cellPoint[0].y);
+		});
+		robot.mouseMove(screenPoint.x, screenPoint.y);
+		robot.delay(700);
+		click(robot, cancelButton(dialog));
+		GuiAcceptanceSupport.await(() -> !dialog.isVisible(), "Cancel did not close the English calendar dialog");
+		assertFalse(dialog.isCalendarCommitted(), "the English review route must close without committing calendar edits");
+	}
+
+	@Test
 	void robotOpensWorkingTimeDialogAndCancelsWithoutCommit() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		originalFormatLocale = Locale.getDefault(Locale.Category.FORMAT);
@@ -233,6 +316,7 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 		assertSingleReadableCalendarMonth();
 		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(dialog, "Change Working Time dialog (#590 body image 1)");
 		assertVisibleComponentsFit(dialog, "Change Working Time Calendar tab");
+		DialogScreenshotArtifacts.capture(dialog, "issue-590-change-working-time");
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(50);
 		clickTab(robot, dialog.calendarTabs, 1);
@@ -423,6 +507,8 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 	@Test
 	void robotAddsRecurringExceptionCommitsUndoesRedoesAndPersists() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		originalFormatLocale = Locale.getDefault(Locale.Category.FORMAT);
+		Locale.setDefault(Locale.Category.FORMAT, Locale.forLanguageTag("ja-JP-u-ca-japanese"));
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		ResourcePool pool = ResourcePool.createRourcePool("gui-calendar-exception", undo);
 		pool.setLocal(true);
@@ -460,6 +546,12 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 			SwingUtilities.invokeLater(dialog::doModal);
 		});
 		GuiAcceptanceSupport.await(() -> dialog != null && dialog.isVisible(), "working-time dialog did not open");
+		assertTrue(AlternativeCalendarDisplay.calendarLegend(Locale.getDefault(Locale.Category.FORMAT)).contains("小さな数字"),
+			"Japanese alternative-calendar mode must explain the smaller companion dates");
+		assertTrue(dialog.sdCalendar.getAccessibleContext().getAccessibleDescription().contains("曜日・選択・稼働時間の編集"),
+			"the calendar must expose its Gregorian selection rule to accessibility clients");
+		assertTrue(allComponents(dialog).stream().anyMatch(component -> "workingTimeCalendarDateExplanation".equals(component.getName())
+			&& component.isShowing()), "the date legend must be visible in the Calendar tab");
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		long selectedDate = selectDisplayedWorkingDate(robot, calendar);

@@ -23,6 +23,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.TimeUnit;
 
 import javax.imageio.ImageIO;
 import javax.swing.JFrame;
@@ -348,8 +349,7 @@ class MasterSubprojectMpoGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> graphicManager.findFrameForProjectFile(masterFile.getAbsolutePath()) != null,
 				"the master document did not open");
 		Project runtimeMaster = graphicManager.findFrameForProjectFile(masterFile.getAbsolutePath()).getProject();
-		GuiAcceptanceSupport.await(() -> findSubproject(runtimeMaster) != null && findSubproject(runtimeMaster).getSubproject() != null,
-				"the master child did not materialize before Open Subproject");
+		awaitAsyncChildLoad(runtimeMaster);
 		RuntimeGraphicManager manager = (RuntimeGraphicManager) graphicManager;
 		manager.openForTest(firstIndependentFile.getAbsolutePath());
 		GuiAcceptanceSupport.await(() -> graphicManager.findFrameForProjectFile(firstIndependentFile.getAbsolutePath()) != null,
@@ -379,6 +379,19 @@ class MasterSubprojectMpoGuiAcceptanceTest {
 				com.microproject.pm.graphic.frames.workspace.FrameManager.WindowArrangement.TILE));
 		assertDesktopWindowsAreTiled(4);
 		captureDesktop(new com.microproject.testsupport.GuiRobot(), "msp-master-four-window-navigation.png");
+	}
+
+	private static void awaitAsyncChildLoad(Project runtimeMaster) throws Exception {
+		long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(20);
+		while (System.nanoTime() < deadline) {
+			SubProj reference = findSubproject(runtimeMaster);
+			if (reference != null && reference.getSubproject() != null) return;
+			Thread.sleep(25);
+		}
+		SubProj reference = findSubproject(runtimeMaster);
+		assertTrue(reference != null && reference.getSubproject() != null,
+				"the master child async load did not materialize within 20 seconds (reference found: "
+						+ (reference != null) + ")");
 	}
 
 	/** GUI-MSP-SAVE-01: saving a clean master persists a dirty linked child. */

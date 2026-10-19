@@ -22,6 +22,6 @@ public class ImageExport {
 			: pageable.getReportPrintable().model().projectName();
 		ExportJobScheduler.scheduleIfSelected(
 				fileChooser.choose(projectName, parentComponent),
-				target -> PageableExportJob.schedule(pageable, parentComponent, target, "Image Export"));
+				target -> PageableExportJob.schedule(pageable, parentComponent, target, "Image Export"), pageable::cleanUp);
 	}
 }

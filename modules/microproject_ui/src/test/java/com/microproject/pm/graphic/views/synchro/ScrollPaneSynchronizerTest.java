@@ -26,7 +26,6 @@ package com.microproject.pm.graphic.views.synchro;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Component;
 import java.awt.Point;
@@ -46,7 +45,7 @@ import com.microproject.util.DateTime;
 
 class ScrollPaneSynchronizerTest {
 	@Test
-	void wheelTargetComponentsRegisterAndUnregisterTheirListener() throws Exception {
+	void eachScrollPaneOwnsOneWheelListenerAndDetachIsBalanced() throws Exception {
 		JPanel firstView = new JPanel();
 		JPanel firstRowHeader = new JPanel();
 		JPanel firstColumnHeader = new JPanel();
@@ -62,30 +61,49 @@ class ScrollPaneSynchronizerTest {
 		second.setColumnHeaderView(secondColumnHeader);
 		ScrollPaneSynchronizer synchronizer =
 				new ScrollPaneSynchronizer(first, second, ScrollPaneSynchronizer.HORIZONTAL);
-		List<Component> firstTargets = List.of(first, firstView, first.getRowHeader(), firstRowHeader,
+		List<Component> firstChildren = List.of(firstView, first.getRowHeader(), firstRowHeader,
 				first.getColumnHeader(), firstColumnHeader);
-		List<Component> secondTargets = List.of(second, secondView, second.getRowHeader(), secondRowHeader,
+		List<Component> secondChildren = List.of(secondView, second.getRowHeader(), secondRowHeader,
 				second.getColumnHeader(), secondColumnHeader);
 
 		SwingUtilities.invokeAndWait(() -> {
 			synchronizer.activateSynchro();
 			MouseWheelListener firstListener = synchronizer.scrollPane1WheelListener;
 			MouseWheelListener secondListener = synchronizer.scrollPane2WheelListener;
-			for (Component target : firstTargets) {
-				assertTrue(List.of(target.getMouseWheelListeners()).contains(firstListener));
-			}
-			for (Component target : secondTargets) {
-				assertTrue(List.of(target.getMouseWheelListeners()).contains(secondListener));
-			}
+			assertEquals(1, countListener(first, firstListener));
+			assertEquals(1, countListener(second, secondListener));
+			assertNoListener(firstChildren, firstListener);
+			assertNoListener(secondChildren, secondListener);
+
+			synchronizer.activateSynchro();
+			assertEquals(1, countListener(first, firstListener));
+			assertEquals(1, countListener(second, secondListener));
 
 			synchronizer.deactivateSynchro();
-			for (Component target : firstTargets) {
-				assertFalse(List.of(target.getMouseWheelListeners()).contains(firstListener));
-			}
-			for (Component target : secondTargets) {
-				assertFalse(List.of(target.getMouseWheelListeners()).contains(secondListener));
-			}
+			assertEquals(0, countListener(first, firstListener));
+			assertEquals(0, countListener(second, secondListener));
+			assertNoListener(firstChildren, firstListener);
+			assertNoListener(secondChildren, secondListener);
+
+			synchronizer.activateSynchro();
+			MouseWheelListener reactivatedFirstListener = synchronizer.scrollPane1WheelListener;
+			MouseWheelListener reactivatedSecondListener = synchronizer.scrollPane2WheelListener;
+			assertEquals(1, countListener(first, reactivatedFirstListener));
+			assertEquals(1, countListener(second, reactivatedSecondListener));
+			synchronizer.deactivateSynchro();
+			assertEquals(0, countListener(first, reactivatedFirstListener));
+			assertEquals(0, countListener(second, reactivatedSecondListener));
 		});
+	}
+
+	private static int countListener(Component component, MouseWheelListener listener) {
+		return (int) java.util.Arrays.stream(component.getMouseWheelListeners()).filter(candidate -> candidate == listener).count();
+	}
+
+	private static void assertNoListener(List<Component> components, MouseWheelListener listener) {
+		for (Component component : components) {
+			assertFalse(List.of(component.getMouseWheelListeners()).contains(listener));
+		}
 	}
 
 	@Test

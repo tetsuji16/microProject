@@ -14,11 +14,13 @@ import javax.swing.SwingUtilities;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.ui.ribbon.RibbonController;
 import com.microproject.ui.ribbon.RibbonDisplayMode;
+import com.microproject.ui.ribbon.RibbonDisplayPreferences;
 import com.microproject.util.Environment;
 
 /** Physical Ctrl+F1 coverage for the document root-pane shortcut. */
@@ -27,6 +29,13 @@ class RibbonCtrlF1GuiAcceptanceTest {
 	private GraphicManager manager;
 	private boolean previousRibbonUi;
 	private boolean previousNewLook;
+	private RibbonDisplayMode previousRibbonDisplayMode;
+
+	@BeforeEach
+	void useVisibleRibbonAsStartingState() {
+		previousRibbonDisplayMode = RibbonDisplayPreferences.load();
+		RibbonDisplayPreferences.save(RibbonDisplayMode.ALWAYS_SHOW);
+	}
 
 	@AfterEach
 	void closeWindow() throws Exception {
@@ -34,6 +43,7 @@ class RibbonCtrlF1GuiAcceptanceTest {
 		if (window != null) SwingUtilities.invokeAndWait(() -> window.dispose());
 		Environment.setRibbonUI(previousRibbonUi);
 		Environment.setNewLook(previousNewLook);
+		if (previousRibbonDisplayMode != null) RibbonDisplayPreferences.save(previousRibbonDisplayMode);
 	}
 
 	@Test

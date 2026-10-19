@@ -53,6 +53,13 @@ public class ObjectEventManager {
         return deferredEvents.size();
     }
 
+    /** Discards facts added after an atomic command's checkpoint without affecting its parent batch. */
+    public synchronized void discardPendingEventsAfter(int checkpoint) {
+        if (checkpoint < 0 || checkpoint > deferredEvents.size())
+            throw new IllegalArgumentException("Invalid object-event checkpoint");
+        deferredEvents.subList(checkpoint, deferredEvents.size()).clear();
+    }
+
     /** Whether this batch contains a fact for the exact object identity after the supplied checkpoint. */
     public synchronized boolean hasPendingEventFor(Object object, int afterCount) {
         int start = Math.max(0, afterCount);

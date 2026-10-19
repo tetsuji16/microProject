@@ -409,6 +409,54 @@ class MpoFileImporterTest {
 	}
 
 	@Test
+	void manualAssignmentSplitSurvivesMpoSaveAndReloadWithExactWorkAndGap() throws Exception {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("manual-assignment-split-mpo", undo);
+		pool.setLocal(true);
+		Project original = Project.createProject(pool, undo);
+		original.initialize(false, false);
+		NormalTask task = (NormalTask) original.createLocalTaskNode(null).getImpl();
+		task.setName("Manual split target");
+		long day = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		task.getCurrentSchedule().setStart(original.getStart());
+		task.setDuration(5L * day);
+		NormalTask blockerTask = (NormalTask) original.createLocalTaskNode(null).getImpl();
+		blockerTask.setName("Higher priority blocker");
+		blockerTask.setDuration(day);
+		blockerTask.setPriority(900);
+		blockerTask.setStart(original.getEffectiveWorkCalendar().add(original.getStart(), day, false));
+		Resource resource = pool.newResourceInstance();
+		resource.setName("Manual split resource");
+		((com.microproject.pm.resource.ResourceImpl) resource).setBookingTypeKind(
+			com.microproject.pm.resource.BookingType.Kind.COMMITTED);
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, this);
+		long durationBefore = assignment.getDurationMillis();
+		long from = assignment.getStart() + com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		long to = from + com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		Resource other = pool.newResourceInstance();
+		other.setName("Other resource");
+		AssignmentService.getInstance().newAssignment(task, other, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(blockerTask, resource, 1D, 0L, this);
+		original.recalculate();
+		assignment.split(this, from, to);
+		String expectedContour = assignment.getWorkContour().toString(assignment.getDurationMillis());
+		long expectedWork = assignment.getWork(null);
+		long contourWork = assignment.getWorkContour().calcTotalWork(assignment.getDurationMillis());
+		assertNotEquals(durationBefore, assignment.getDurationMillis(), "manual split must create a work contour gap");
+		assertEquals(expectedWork, contourWork,
+			"manual split contour work must equal assignment work before MPO export; contour=" + expectedContour);
+
+		ByteArrayOutputStream archive = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(original, archive));
+		Project reopened = loadFromBytes(archive.toByteArray());
+		NormalTask restoredTask = (NormalTask) firstTask(reopened);
+		Assignment restored = (Assignment) restoredTask.getAssignments().iterator().next();
+		assertEquals(expectedWork, restored.getWork(null), "MPO reload changed scalar assignment work");
+		assertEquals(expectedContour, restored.getWorkContour().toString(restored.getDurationMillis()),
+			"MPO reload must preserve the exact user-created assignment contour and gap");
+	}
+
+	@Test
 	void mpoPreservesManualAndLevelingSplitProvenanceForClearLeveling() throws Exception {
 		Project original = projectForRoundTrip();
 		NormalTask task = (NormalTask) firstTask(original);
@@ -1818,13 +1866,76 @@ class MpoFileImporterTest {
 		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl(); successor.setName("Successor");
 		MpoFileImporter writer = new MpoFileImporter();
 		ByteArrayOutputStream first = new ByteArrayOutputStream(); writer.saveProject(project, first);
-		DependencyService.getInstance().newDependency(predecessor, successor, DependencyType.FS, 0L, null);
+		Dependency dependency = DependencyService.getInstance().newDependency(predecessor, successor,
+			DependencyType.FS, 0L, null);
+		assertEquals(DependencyType.FS, dependency.getDependencyType());
+		assertEquals(0L, dependency.getLag());
+		ByteArrayOutputStream fsZeroLag = new ByteArrayOutputStream(); writer.saveProject(project, fsZeroLag);
+		MpoFileImporter fsReader = new MpoFileImporter(); fsReader.setProjectFactory(ProjectFactory.getInstance());
+		Project fsLoaded = fsReader.loadProject(new ByteArrayInputStream(fsZeroLag.toByteArray()));
+		Task fsPredecessor = findByName(fsLoaded, predecessor.getName());
+		Task fsSuccessor = findByName(fsLoaded, successor.getName());
+		Dependency fsDependency = (Dependency) fsPredecessor.getSuccessorList().iterator().next();
+		assertEquals(fsSuccessor, fsDependency.getSuccessor());
+		assertEquals(DependencyType.FS, fsDependency.getDependencyType());
+		assertEquals(0L, fsDependency.getLag());
+		long workingLag = 8L * 60L * 60L * 1000L;
+		DependencyService.getInstance().setFields(dependency, workingLag, DependencyType.Kind.SS, new Object());
+		project.getUndoController().undo();
+		assertEquals(DependencyType.FS, dependency.getDependencyType());
+		assertEquals(0L, dependency.getLag());
+		project.getUndoController().redo();
+		assertEquals(DependencyType.SS, dependency.getDependencyType());
+		assertEquals(workingLag, dependency.getLag());
+		project.recalculate();
+		long savedSuccessorStart = successor.getStart();
+		long savedSuccessorFinish = successor.getEnd();
 		ByteArrayOutputStream second = new ByteArrayOutputStream(); writer.saveProject(project, second);
 		java.util.List<OperationLog.Operation> operations = new OperationLog().readJsonl(readEntries(second.toByteArray()).get("operations/log.jsonl")).operations();
 		org.junit.jupiter.api.Assertions.assertEquals("dependency.add", operations.get(0).kind());
 		MpoFileImporter reader = new MpoFileImporter(); reader.setProjectFactory(ProjectFactory.getInstance());
 		Project loaded = reader.loadProject(new ByteArrayInputStream(second.toByteArray()));
-		org.junit.jupiter.api.Assertions.assertTrue(findByName(loaded, predecessor.getName()).getSuccessorList().iterator().hasNext());
+		Task loadedPredecessor = findByName(loaded, predecessor.getName());
+		Task loadedSuccessor = findByName(loaded, successor.getName());
+		Dependency loadedDependency = null;
+		for (java.util.Iterator<?> links = loadedPredecessor.getSuccessorList().iterator(); links.hasNext();) {
+			Dependency candidate = (Dependency) links.next();
+			if (candidate.getSuccessor() == loadedSuccessor) loadedDependency = candidate;
+		}
+		org.junit.jupiter.api.Assertions.assertNotNull(loadedDependency);
+		assertEquals(loadedSuccessor, loadedDependency.getSuccessor());
+		assertEquals(loadedPredecessor, loadedDependency.getPredecessor());
+		org.junit.jupiter.api.Assertions.assertTrue(loadedSuccessor.getPredecessorList().contains(loadedDependency));
+		assertEquals(DependencyType.SS, loadedDependency.getDependencyType());
+		assertEquals(workingLag, loadedDependency.getLag());
+		loaded.recalculate();
+		assertEquals(savedSuccessorStart, loadedSuccessor.getStart());
+		assertEquals(savedSuccessorFinish, loadedSuccessor.getEnd());
+		Dependency loadedLink = loadedDependency;
+		DependencyService.getInstance().remove(loadedLink, this, true);
+		org.junit.jupiter.api.Assertions.assertFalse(loadedPredecessor.getSuccessorList().contains(loadedLink));
+		org.junit.jupiter.api.Assertions.assertFalse(loadedSuccessor.getPredecessorList().contains(loadedLink));
+		loaded.getUndoController().undo();
+		org.junit.jupiter.api.Assertions.assertTrue(loadedPredecessor.getSuccessorList().contains(loadedLink));
+		org.junit.jupiter.api.Assertions.assertTrue(loadedSuccessor.getPredecessorList().contains(loadedLink));
+		loaded.getUndoController().redo();
+		org.junit.jupiter.api.Assertions.assertFalse(loadedPredecessor.getSuccessorList().contains(loadedLink));
+		org.junit.jupiter.api.Assertions.assertFalse(loadedSuccessor.getPredecessorList().contains(loadedLink));
+		loaded.recalculate();
+		long deletedSuccessorStart = loadedSuccessor.getStart();
+		long deletedSuccessorFinish = loadedSuccessor.getEnd();
+		ByteArrayOutputStream deleted = new ByteArrayOutputStream(); reader.saveProject(loaded, deleted);
+		java.util.List<OperationLog.Operation> deletedOperations = new OperationLog().readJsonl(readEntries(deleted.toByteArray()).get("operations/log.jsonl")).operations();
+		org.junit.jupiter.api.Assertions.assertTrue(deletedOperations.stream().anyMatch(operation -> operation.kind().equals("dependency.delete")));
+		MpoFileImporter deletedReader = new MpoFileImporter(); deletedReader.setProjectFactory(ProjectFactory.getInstance());
+		Project deletedLoaded = deletedReader.loadProject(new ByteArrayInputStream(deleted.toByteArray()));
+		Task deletedPredecessor = findByName(deletedLoaded, predecessor.getName());
+		Task deletedSuccessor = findByName(deletedLoaded, successor.getName());
+		org.junit.jupiter.api.Assertions.assertTrue(deletedPredecessor.getSuccessorList().isEmpty());
+		org.junit.jupiter.api.Assertions.assertTrue(deletedSuccessor.getPredecessorList().isEmpty());
+		deletedLoaded.recalculate();
+		assertEquals(deletedSuccessorStart, deletedSuccessor.getStart());
+		assertEquals(deletedSuccessorFinish, deletedSuccessor.getEnd());
 	}
 
 	@Test
@@ -2139,6 +2250,30 @@ class MpoFileImporterTest {
 			.collect(java.util.stream.Collectors.toSet()));
 		assertEquals(java.util.Set.of(), persisted.appliedOperationIds());
 		assertEquals("Mpo task", firstTask(load(target)).getName());
+	}
+
+	@Test
+	void mpoTaskPercentCompleteOperationReplayPreservesFractionalPrecision() throws Exception {
+		Project project = projectForRoundTrip();
+		assignPositiveUniqueIds(project);
+		MpoFileImporter writer = new MpoFileImporter();
+		ByteArrayOutputStream initial = new ByteArrayOutputStream();
+		writer.saveProject(project, initial);
+		Project base = new MpoFileImporter().loadProject(new ByteArrayInputStream(initial.toByteArray()));
+
+		Task source = firstTask(project);
+		((NormalTask) source).setImportedPercentComplete(2D / 3D);
+		ByteArrayOutputStream changed = new ByteArrayOutputStream();
+		writer.saveProject(project, changed);
+		java.util.List<OperationLog.Operation> operations = new OperationLog().readJsonl(
+				readEntries(changed.toByteArray()).get(MpoFileImporter.OPERATIONS_ENTRY)).operations();
+
+		new com.microproject.collaboration.MpoTaskOperationService().apply(base, operations);
+
+		Task replayed = base.findByUniqueId(source.getUniqueId());
+		assertEquals(2D / 3D, replayed.getPercentComplete(), 0D,
+			"MPO operation replay must preserve the explicit task percentage without duration rounding");
+		assertEquals(2D / 3D, ((NormalTask) replayed).getImportedPercentCompleteOverride(), 0D);
 	}
 
 	@Test
@@ -2947,6 +3082,45 @@ class MpoFileImporterTest {
 	}
 
 	@Test
+	void mpoRoundTripDoesNotDoubleCountAssignmentLevelingDelayWhenManualDelayIsAbsent() throws Exception {
+		Project original = projectForRoundTrip();
+		NormalTask task = (NormalTask) firstTask(original);
+		long fixtureStart = java.time.Instant.parse("2025-01-06T08:00:00Z").toEpochMilli();
+		original.setStartDate(fixtureStart);
+		task.getCurrentSchedule().setStart(fixtureStart);
+		task.getCurrentSchedule().setFinish(fixtureStart + 2L * 24L * 60L * 60L * 1000L);
+		task.getCurrentSchedule().setRawDuration(8L * 60L * 60L * 1000L);
+		Resource resource = original.getResourcePool().newResourceInstance();
+		resource.setName("Leveling-only resource");
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, this);
+		assignment.setWork(8L * 60L * 60L * 1000L, null);
+		assignment.setDelay(0L);
+		assignment.setLevelingDelay(8L * 60L * 60L * 1000L);
+		original.recalculate();
+		long expectedTaskStart = task.getStart();
+		long expectedAssignmentStart = assignment.getStart();
+		assertEquals(fixtureStart, expectedTaskStart);
+		assertEquals(assignment.getEffectiveWorkCalendar().add(expectedTaskStart,
+			8L * 60L * 60L * 1000L, false), expectedAssignmentStart);
+
+		File saved = writeTempMpo(original);
+		String mspdiXml = new String(readEntries(Files.readAllBytes(saved.toPath()))
+			.get(MpoFileImporter.PROJECT_ENTRY), StandardCharsets.UTF_8);
+		assertTrue(mspdiXml.contains("<LevelingDelay>4800</LevelingDelay>"),
+			"the fixture must serialize its eight-hour assignment LevelingDelay");
+		assertFalse(mspdiXml.contains("<Delay>"), "the fixture must omit an independent manual assignment Delay");
+
+		Project restoredProject = load(saved);
+		Assignment restored = firstRealAssignment(restoredProject);
+		assertEquals(0L, restored.getDelay(),
+			"MPO import must not infer a manual delay from a start already explained by LevelingDelay");
+		assertEquals(8L * 60L * 60L * 1000L, restored.getLevelingDelay());
+		assertEquals(expectedTaskStart, firstTask(restoredProject).getStart());
+		assertEquals(expectedAssignmentStart, restored.getStart(),
+			"MPO reopen must not apply the leveling offset twice to the assignment start");
+	}
+
+	@Test
 	void resourceSpreadsheetNameAndRateFieldsSurviveMpoRoundTrip() throws Exception {
 		// Document-derived interoperability rule: the Resource scalar StandardRate is the
 		// current-date rate when a rate table exists; RatesFrom/To delimit entries in
@@ -3047,6 +3221,274 @@ class MpoFileImporterTest {
 		assertEquals(45.0D / com.microproject.datatype.Duration.timeUnitFactor(com.microproject.datatype.TimeUnit.HOURS),
 			restoredFutureRate.getOvertimeRate().getValue(), 0.0000001D);
 		assertEquals(9.0D, restoredFutureRate.getCostPerUse(), 0.0000001D);
+	}
+
+	@Test
+	void unassignedLeafTaskWorkAndScheduleSurviveMpoSaveReloadAndNoOpSave() throws Exception {
+		Project original = projectForRoundTrip();
+		NormalTask unassigned = (NormalTask) firstTask(original);
+		unassigned.setName("Unassigned leaf");
+		unassigned.setDuration(3L * com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
+
+		NormalTask assigned = (NormalTask) original.createLocalTaskNode(null).getImpl();
+		assigned.setName("Assigned control");
+		assigned.setDuration(2L * com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
+		Resource resource = original.getResourcePool().newResourceInstance();
+		Assignment assignment = AssignmentService.getInstance().newAssignment(assigned, resource, 1D, 0L, this);
+
+		long expectedUnassignedWork = unassigned.getWork(null);
+		long expectedUnassignedStart = unassigned.getStart();
+		long expectedUnassignedFinish = unassigned.getEnd();
+		long expectedUnassignedDuration = unassigned.getDurationMillis();
+		long expectedAssignedWork = assigned.getWork(null);
+		long expectedAssignmentWork = assignment.getWork(null);
+		long expectedAssignedStart = assigned.getStart();
+		long expectedAssignedFinish = assigned.getEnd();
+
+		byte[] firstSave = saveProjectBytes(original);
+		String exportedMspdi = new String(readEntries(firstSave).get(MpoFileImporter.PROJECT_ENTRY),
+			StandardCharsets.UTF_8);
+		int taskName = exportedMspdi.indexOf("<Name>Unassigned leaf</Name>");
+		int taskStart = exportedMspdi.lastIndexOf("<Task>", taskName);
+		int taskFinish = exportedMspdi.indexOf("</Task>", taskName) + "</Task>".length();
+		String exportedTask = exportedMspdi.substring(taskStart, taskFinish);
+		java.util.regex.Matcher values = java.util.regex.Pattern
+			.compile("<(Work|Duration|Start|Finish|ResourceUID)>(.*?)</\\1>").matcher(exportedTask);
+		List<String> exportedValues = new ArrayList<>();
+		while (values.find()) exportedValues.add(values.group(1) + "=" + values.group(2));
+		int assignmentStart = exportedMspdi.indexOf("<Assignment>");
+		int assignmentFinish = exportedMspdi.indexOf("</Assignment>", assignmentStart) + "</Assignment>".length();
+		String exportedAssignment = exportedMspdi.substring(assignmentStart, assignmentFinish);
+		java.util.regex.Matcher assignmentValues = java.util.regex.Pattern
+			.compile("<(Work|Start|Finish|ResourceUID)>(.*?)</\\1>").matcher(exportedAssignment);
+		List<String> exportedAssignmentValues = new ArrayList<>();
+		while (assignmentValues.find())
+			exportedAssignmentValues.add(assignmentValues.group(1) + "=" + assignmentValues.group(2));
+		Project restored = loadFromBytes(firstSave);
+		NormalTask restoredUnassigned = (NormalTask) findByName(restored, "Unassigned leaf");
+		NormalTask restoredAssigned = (NormalTask) findByName(restored, "Assigned control");
+		assertEquals(expectedUnassignedWork, restoredUnassigned.getWork(null),
+			"MPO reload must preserve implicit Work for an unassigned normal leaf; exported fields=" + exportedValues
+				+ ", assigned control export=" + exportedAssignmentValues
+				+ ", before Work/Duration/Start/Finish=" + expectedUnassignedWork + "/" + expectedUnassignedDuration
+				+ "/" + expectedUnassignedStart + "/" + expectedUnassignedFinish + ", after Work/Duration/Start/Finish="
+				+ restoredUnassigned.getWork(null) + "/" + restoredUnassigned.getDurationMillis() + "/"
+				+ restoredUnassigned.getStart() + "/" + restoredUnassigned.getEnd()
+				+ "; assigned control before Work/Duration/Start/Finish=" + expectedAssignedWork + "/"
+				+ assigned.getDurationMillis() + "/" + expectedAssignedStart + "/" + expectedAssignedFinish
+				+ ", after=" + restoredAssigned.getWork(null) + "/" + restoredAssigned.getDurationMillis() + "/"
+				+ restoredAssigned.getStart() + "/" + restoredAssigned.getEnd());
+		assertEquals(expectedUnassignedStart, restoredUnassigned.getStart());
+		assertEquals(expectedUnassignedFinish, restoredUnassigned.getEnd());
+		assertEquals(expectedUnassignedDuration, restoredUnassigned.getDurationMillis());
+		assertEquals(expectedAssignedWork, restoredAssigned.getWork(null));
+		assertEquals(expectedAssignmentWork,
+			((Assignment) restoredAssigned.getAssignments().iterator().next()).getWork(null));
+		assertEquals(expectedAssignedStart, restoredAssigned.getStart());
+		assertEquals(expectedAssignedFinish, restoredAssigned.getEnd());
+
+		Project noOpReload = loadFromBytes(saveProjectBytes(restored));
+		NormalTask noOpUnassigned = (NormalTask) findByName(noOpReload, "Unassigned leaf");
+		NormalTask noOpAssigned = (NormalTask) findByName(noOpReload, "Assigned control");
+		assertEquals(expectedUnassignedWork, noOpUnassigned.getWork(null),
+			"a no-op MPO resave must not drift implicit Work for an unassigned normal leaf");
+		assertEquals(expectedUnassignedStart, noOpUnassigned.getStart());
+		assertEquals(expectedUnassignedFinish, noOpUnassigned.getEnd());
+		assertEquals(expectedUnassignedDuration, noOpUnassigned.getDurationMillis());
+		assertEquals(expectedAssignedWork, noOpAssigned.getWork(null));
+		assertEquals(expectedAssignmentWork,
+			((Assignment) noOpAssigned.getAssignments().iterator().next()).getWork(null));
+		assertEquals(expectedAssignedStart, noOpAssigned.getStart());
+		assertEquals(expectedAssignedFinish, noOpAssigned.getEnd());
+	}
+
+	@Test
+	void mpoTaskScheduleRejectsInvalidUnassignedWorkMetadata() throws Exception {
+		Project original = projectForRoundTrip();
+		Map<String, byte[]> saved = readEntries(saveProjectBytes(original));
+		com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+		com.fasterxml.jackson.databind.JsonNode source = mapper.readTree(saved.get(MpoFileImporter.TASK_SCHEDULES_ENTRY));
+		assertTrue(source.path("tasks").get(0).has("unassignedWork"),
+			"unassigned normal leaf must serialize its MPO work extension");
+
+		for (String invalid : List.of("-1", "1.5", "\"invalid\"", "null")) {
+			Map<String, byte[]> malformed = new LinkedHashMap<>(saved);
+			com.fasterxml.jackson.databind.node.ObjectNode root = (com.fasterxml.jackson.databind.node.ObjectNode)
+				mapper.readTree(malformed.get(MpoFileImporter.TASK_SCHEDULES_ENTRY));
+			((com.fasterxml.jackson.databind.node.ObjectNode) root.path("tasks").get(0))
+				.set("unassignedWork", mapper.readTree(invalid));
+			malformed.put(MpoFileImporter.TASK_SCHEDULES_ENTRY, mapper.writeValueAsBytes(root));
+			updateEntryChecksum(malformed, MpoFileImporter.TASK_SCHEDULES_ENTRY);
+			assertThrows(IOException.class, () -> loadFromBytes(zip(malformed).toByteArray()),
+				"invalid MPO unassigned work must fail to load: " + invalid);
+		}
+
+		NormalTask assigned = (NormalTask) original.createLocalTaskNode(null).getImpl();
+		Resource resource = original.getResourcePool().newResourceInstance();
+		AssignmentService.getInstance().newAssignment(assigned, resource, 1D, 0L, this);
+		Map<String, byte[]> assignedMetadata = readEntries(saveProjectBytes(original));
+		com.fasterxml.jackson.databind.node.ObjectNode assignedRoot = (com.fasterxml.jackson.databind.node.ObjectNode)
+			mapper.readTree(assignedMetadata.get(MpoFileImporter.TASK_SCHEDULES_ENTRY));
+		for (com.fasterxml.jackson.databind.JsonNode taskNode : assignedRoot.path("tasks"))
+			((com.fasterxml.jackson.databind.node.ObjectNode) taskNode).put("unassignedWork", 1L);
+		assignedMetadata.put(MpoFileImporter.TASK_SCHEDULES_ENTRY, mapper.writeValueAsBytes(assignedRoot));
+		updateEntryChecksum(assignedMetadata, MpoFileImporter.TASK_SCHEDULES_ENTRY);
+		assertThrows(IOException.class, () -> loadFromBytes(zip(assignedMetadata).toByteArray()),
+			"MPO unassigned work must not be applied to a task with a real assignment");
+
+		Project hierarchy = projectForRoundTrip();
+		NormalTask summary = (NormalTask) firstTask(hierarchy);
+		NormalTask child = hierarchy.createScriptedTask();
+		var model = hierarchy.getTaskModel();
+		var summaryNode = model.search(summary);
+		assertTrue(model.relocate(List.of(model.search(child)), summaryNode, 0,
+			com.microproject.grouping.core.model.NodeModel.SILENT));
+		summary.setWbsChildrenNodes(model.getHierarchy().getChildren(summaryNode));
+		child.setWbsParent(summary);
+		Map<String, byte[]> parentMetadata = readEntries(saveProjectBytes(hierarchy));
+		com.fasterxml.jackson.databind.node.ObjectNode parentRoot = (com.fasterxml.jackson.databind.node.ObjectNode)
+			mapper.readTree(parentMetadata.get(MpoFileImporter.TASK_SCHEDULES_ENTRY));
+		for (com.fasterxml.jackson.databind.JsonNode taskNode : parentRoot.path("tasks"))
+			((com.fasterxml.jackson.databind.node.ObjectNode) taskNode).put("unassignedWork", 1L);
+		parentMetadata.put(MpoFileImporter.TASK_SCHEDULES_ENTRY, mapper.writeValueAsBytes(parentRoot));
+		updateEntryChecksum(parentMetadata, MpoFileImporter.TASK_SCHEDULES_ENTRY);
+		assertThrows(IOException.class, () -> loadFromBytes(zip(parentMetadata).toByteArray()),
+			"MPO unassigned work must not be applied to a WBS parent");
+	}
+
+	@Test
+	void mpoWithoutUnassignedWorkExtensionLoadsWithLegacyComputedWork() throws Exception {
+		Project original = projectForRoundTrip();
+		NormalTask task = (NormalTask) firstTask(original);
+		task.setDuration(3L * com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
+		Map<String, byte[]> legacy = readEntries(saveProjectBytes(original));
+		com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+		com.fasterxml.jackson.databind.node.ObjectNode root = (com.fasterxml.jackson.databind.node.ObjectNode)
+			mapper.readTree(legacy.get(MpoFileImporter.TASK_SCHEDULES_ENTRY));
+		for (com.fasterxml.jackson.databind.JsonNode taskNode : root.path("tasks"))
+			((com.fasterxml.jackson.databind.node.ObjectNode) taskNode).remove("unassignedWork");
+		legacy.put(MpoFileImporter.TASK_SCHEDULES_ENTRY, mapper.writeValueAsBytes(root));
+		updateEntryChecksum(legacy, MpoFileImporter.TASK_SCHEDULES_ENTRY);
+
+		Project restored = loadFromBytes(zip(legacy).toByteArray());
+		assertEquals(28_800_000L, ((NormalTask) firstTask(restored)).getWork(null),
+			"an older MPO without the additive field must retain the legacy MSPDI-computed task Work");
+	}
+
+	@Test
+	void changingDurationClearsImportedUnassignedWorkOverride() throws Exception {
+		Project original = projectForRoundTrip();
+		NormalTask task = (NormalTask) firstTask(original);
+		task.setDuration(3L * com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
+		byte[] saved = saveProjectBytes(original);
+		Project withOverride = loadFromBytes(saved);
+		NormalTask restored = (NormalTask) firstTask(withOverride);
+		long importedWork = restored.getWork(null);
+		assertEquals(task.getWork(null), importedWork);
+
+		Map<String, byte[]> legacy = readEntries(saved);
+		com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+		com.fasterxml.jackson.databind.node.ObjectNode root = (com.fasterxml.jackson.databind.node.ObjectNode)
+			mapper.readTree(legacy.get(MpoFileImporter.TASK_SCHEDULES_ENTRY));
+		for (com.fasterxml.jackson.databind.JsonNode taskNode : root.path("tasks"))
+			((com.fasterxml.jackson.databind.node.ObjectNode) taskNode).remove("unassignedWork");
+		legacy.put(MpoFileImporter.TASK_SCHEDULES_ENTRY, mapper.writeValueAsBytes(root));
+		updateEntryChecksum(legacy, MpoFileImporter.TASK_SCHEDULES_ENTRY);
+		Project withoutOverride = loadFromBytes(zip(legacy).toByteArray());
+		NormalTask legacyTask = (NormalTask) firstTask(withoutOverride);
+
+		long newDuration = 2L * com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		restored.setDuration(newDuration);
+		legacyTask.setDuration(newDuration);
+		assertEquals(legacyTask.getWork(null), restored.getWork(null),
+			"after an ordinary duration edit, MPO-restored scalar Work must not mask the recalculated task Work");
+		assertNotEquals(importedWork, restored.getWork(null),
+			"a duration edit must clear the imported scalar Work override");
+	}
+
+	@Test
+	void addingAndRemovingRealAssignmentClearsImportedUnassignedWorkOverride() throws Exception {
+		Project original = projectForRoundTrip();
+		NormalTask task = (NormalTask) firstTask(original);
+		task.setDuration(3L * com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
+		byte[] saved = saveProjectBytes(original);
+		NormalTask restored = (NormalTask) firstTask(loadFromBytes(saved));
+
+		Map<String, byte[]> legacy = readEntries(saved);
+		com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+		com.fasterxml.jackson.databind.node.ObjectNode root = (com.fasterxml.jackson.databind.node.ObjectNode)
+			mapper.readTree(legacy.get(MpoFileImporter.TASK_SCHEDULES_ENTRY));
+		for (com.fasterxml.jackson.databind.JsonNode taskNode : root.path("tasks"))
+			((com.fasterxml.jackson.databind.node.ObjectNode) taskNode).remove("unassignedWork");
+		legacy.put(MpoFileImporter.TASK_SCHEDULES_ENTRY, mapper.writeValueAsBytes(root));
+		updateEntryChecksum(legacy, MpoFileImporter.TASK_SCHEDULES_ENTRY);
+		NormalTask legacyTask = (NormalTask) firstTask(loadFromBytes(zip(legacy).toByteArray()));
+
+		Assignment added = AssignmentService.getInstance().newAssignment(restored,
+			restored.getProject().getResourcePool().newResourceInstance(), 1D, 0L, this);
+		added.setWork(28_800_000L, null);
+		AssignmentService.getInstance().remove(added, this, true);
+		Assignment legacyAdded = AssignmentService.getInstance().newAssignment(legacyTask,
+			legacyTask.getProject().getResourcePool().newResourceInstance(), 1D, 0L, this);
+		legacyAdded.setWork(28_800_000L, null);
+		AssignmentService.getInstance().remove(legacyAdded, this, true);
+
+		assertEquals(legacyTask.getWork(null), restored.getWork(null),
+			"after a real assignment is added and removed, Work must match the legacy model without an MPO override");
+		java.lang.reflect.Field importedWorkField = NormalTask.class.getDeclaredField("importedUnassignedWork");
+		importedWorkField.setAccessible(true);
+		assertNull(importedWorkField.get(restored),
+			"adding and removing a real assignment must discard the imported scalar, even if its current value matches");
+	}
+
+	@Test
+	void leafTaskPercentCompleteSurvivesMpoSaveReloadAndNoOpSave() throws Exception {
+		Project original = projectForRoundTrip();
+		NormalTask task = (NormalTask) firstTask(original);
+		task.setImportedPercentComplete(2D / 3D);
+
+		Project restored = loadFromBytes(saveProjectBytes(original));
+		assertEquals(2D / 3D, firstTask(restored).getPercentComplete(), 0D,
+			"native MPO schedule metadata must retain fractional progress beyond MSPDI's integer percentage");
+
+		Project noOpReload = loadFromBytes(saveProjectBytes(restored));
+		assertEquals(2D / 3D, firstTask(noOpReload).getPercentComplete(), 0D,
+			"a no-op MPO save must preserve the exact task percentage on the next reload");
+	}
+
+	@Test
+	void mpoTaskScheduleWithoutPercentCompleteRetainsLegacyLoadBehavior() throws Exception {
+		Project original = projectForRoundTrip();
+		((NormalTask) firstTask(original)).setImportedPercentComplete(2D / 3D);
+		Map<String, byte[]> legacy = readEntries(saveProjectBytes(original));
+		String taskSchedules = new String(legacy.get(MpoFileImporter.TASK_SCHEDULES_ENTRY), StandardCharsets.UTF_8);
+		String withoutPercent = taskSchedules.replaceAll(",\\\"percentComplete\\\":[^,}]+", "");
+		assertNotEquals(taskSchedules, withoutPercent, "fixture must remove the additive native percent field");
+		legacy.put(MpoFileImporter.TASK_SCHEDULES_ENTRY, withoutPercent.getBytes(StandardCharsets.UTF_8));
+		updateEntryChecksum(legacy, MpoFileImporter.TASK_SCHEDULES_ENTRY);
+
+		Project restored = loadFromBytes(zip(legacy).toByteArray());
+		assertTrue(Double.isFinite(firstTask(restored).getPercentComplete()),
+			"archives written before native exact percentages must continue to load");
+	}
+
+	@Test
+	void mpoTaskScheduleRejectsInvalidLeafPercentCompleteMetadata() throws Exception {
+		Project original = projectForRoundTrip();
+		((NormalTask) firstTask(original)).setImportedPercentComplete(2D / 3D);
+		Map<String, byte[]> saved = readEntries(saveProjectBytes(original));
+		String taskSchedules = new String(saved.get(MpoFileImporter.TASK_SCHEDULES_ENTRY), StandardCharsets.UTF_8);
+		assertTrue(taskSchedules.contains("\"percentComplete\":"), "fixture must contain native precision metadata");
+
+		for (String invalid : List.of("null", "\"invalid\"", "-0.01", "1.01")) {
+			Map<String, byte[]> malformed = new LinkedHashMap<>(saved);
+			String corrupted = taskSchedules.replaceFirst("\\\"percentComplete\\\":[^,}]+",
+				java.util.regex.Matcher.quoteReplacement("\"percentComplete\":" + invalid));
+			malformed.put(MpoFileImporter.TASK_SCHEDULES_ENTRY, corrupted.getBytes(StandardCharsets.UTF_8));
+			updateEntryChecksum(malformed, MpoFileImporter.TASK_SCHEDULES_ENTRY);
+			assertThrows(IOException.class, () -> loadFromBytes(zip(malformed).toByteArray()),
+				"invalid native task percentage must fail to load: " + invalid);
+		}
 	}
 
 	@Test
@@ -3682,6 +4124,17 @@ class MpoFileImporterTest {
 			for (Map.Entry<String, byte[]> entry : entries.entrySet()) write(zip, entry.getKey(), entry.getValue());
 		}
 		return archive;
+	}
+
+	private static void updateEntryChecksum(Map<String, byte[]> entries, String path) {
+		String manifest = new String(entries.get(MpoFileImporter.MANIFEST_ENTRY), StandardCharsets.UTF_8);
+		String marker = "path=\"" + path + "\" sha256=\"";
+		int valueStart = manifest.indexOf(marker);
+		if (valueStart < 0) throw new AssertionError("Missing manifest checksum for " + path);
+		valueStart += marker.length();
+		int valueEnd = manifest.indexOf('"', valueStart);
+		manifest = manifest.substring(0, valueStart) + sha256(entries.get(path)) + manifest.substring(valueEnd);
+		entries.put(MpoFileImporter.MANIFEST_ENTRY, manifest.getBytes(StandardCharsets.UTF_8));
 	}
 
 	private static String sha256(File file) throws IOException {

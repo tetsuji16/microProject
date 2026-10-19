@@ -83,7 +83,7 @@ The following review covers all 34 open issues observed on 2026-10-12. It preser
 | [#411](https://github.com/tetsuji16/ProjectLibre/issues/411) Value projections | P1 / M2 | Final architecture gate: render/hit test from immutable values; prove no supported path uses legacy mutable row state. |
 | [#413](https://github.com/tetsuji16/ProjectLibre/issues/413) Alternative calendars | P3 / M5 | Product extension, not MSP parity. Define platform/calendar API, entry and display semantics; test DST, locale and persistence before UI. |
 | [#414](https://github.com/tetsuji16/ProjectLibre/issues/414) Input consolidation | P1 / M2 | Consolidate keyboard/mouse/dialog routes; renderer migration excluded by ADR-0002. One binding/action per gesture and physical route tests. |
-| [#453](https://github.com/tetsuji16/ProjectLibre/issues/453) Ribbon specification | P1 / M0-M2 | Keep normative functional inventory; date/version Microsoft sources, reconcile with #769, separate offline from licensed/service-conditional commands. CCPM is an extension. Zoom is PARTIAL: Entire Project works in Task Usage and Resource Usage; Selected Tasks only Gantt; Resource Graph is absent. |
+| [#453](https://github.com/tetsuji16/ProjectLibre/issues/453) Ribbon specification | P1 / M0-M2 | Keep normative functional inventory; date/version Microsoft sources, reconcile with #769, separate offline from licensed/service-conditional commands. CCPM is an extension. Zoom is PARTIAL: Entire Project and Selected Tasks are physically verified in Gantt, Tracking Gantt, Task Usage and Resource Usage; Resource Graph is absent. |
 | [#479](https://github.com/tetsuji16/ProjectLibre/issues/479) Windows shell | P2 / M5 | Keep native window/snap behavior isolated from ribbon. Verify packaged Windows build; shell polish does not establish ribbon compatibility. |
 | [#483](https://github.com/tetsuji16/ProjectLibre/issues/483) FlatLaf coverage | P2 / M1 | Audit screens/states; preserve semantic chart/print colors; record platform differences. Not a proxy for MSP visual parity. |
 | [#595](https://github.com/tetsuji16/ProjectLibre/issues/595) Java 25 modernization | P3 / M5 | Behavior-preserving slices; protect MPO, frozen POD and MPP/XML; measure reviewed batches and tests, not files reformatted. |
@@ -113,7 +113,9 @@ FAQ describe MPP as read-only; the pinned 11.5.4 release notes add no MPP writer
 The command inventory reports
 gaps or partial scope for Task Inspector,
 Format Painter, Select/Clear and insertion commands, resource leveling,
-Selected Tasks zoom in usage views, and report/timeline object formatting.
+report/timeline object formatting. Gantt, Tracking Gantt and Usage Selected
+Tasks zoom now share date-range resolution and have a physical four-view
+acceptance route.
 MPP read and current Microsoft UI-reference comparison require explicit
 inventory rows. MPP writing and the Microsoft Project-specific M4 automation
 surfaces are excluded by the 2026-10-12 product decision; this does not mark

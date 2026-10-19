@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.GraphicsEnvironment;
 import java.awt.Color;
@@ -21,6 +22,8 @@ import java.awt.Component;
 import java.awt.KeyboardFocusManager;
 import java.awt.Window;
 import java.awt.event.KeyEvent;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
@@ -35,9 +38,12 @@ import javax.swing.SwingUtilities;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.collaboration.CollaborationSession;
+import com.microproject.datatype.Rate;
+import com.microproject.exchange.MpoFileImporter;
 import com.microproject.grouping.core.Node;
 import com.microproject.options.CalendarOption;
 import com.microproject.pm.assignment.Assignment;
@@ -55,6 +61,8 @@ import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.testsupport.RibbonGuiButton;
+import com.microproject.ui.ribbon.RibbonDisplayMode;
+import com.microproject.ui.ribbon.RibbonDisplayPreferences;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.Environment;
 import com.microproject.util.FlatUiSupport;
@@ -65,6 +73,13 @@ class AssignmentDialogGuiAcceptanceTest {
 	private GraphicManager manager;
 	private boolean previousRibbonUi;
 	private boolean previousNewLook;
+	private RibbonDisplayMode previousRibbonDisplayMode;
+
+	@BeforeEach
+	void prepareRibbonDisplay() {
+		previousRibbonDisplayMode = RibbonDisplayPreferences.load();
+		RibbonDisplayPreferences.save(RibbonDisplayMode.ALWAYS_SHOW);
+	}
 
 	@AfterEach
 	void closeWindow() throws Exception {
@@ -78,6 +93,7 @@ class AssignmentDialogGuiAcceptanceTest {
 		});
 		Environment.setRibbonUI(previousRibbonUi);
 		Environment.setNewLook(previousNewLook);
+		RibbonDisplayPreferences.save(previousRibbonDisplayMode);
 	}
 
 	@Test
@@ -168,12 +184,15 @@ class AssignmentDialogGuiAcceptanceTest {
 		task.setDuration(2L * CalendarOption.getInstance().getMillisPerDay());
 		Resource original = project.getResourcePool().createScriptedResource();
 		original.setName("Original assignment resource");
+		original.setStandardRate(new Rate(20.0D, com.microproject.datatype.TimeUnit.HOURS));
 		Resource replacement = project.getResourcePool().createScriptedResource();
 		replacement.setName("Replacement assignment resource");
+		replacement.setStandardRate(new Rate(80.0D, com.microproject.datatype.TimeUnit.HOURS));
 		Assignment source = AssignmentService.getInstance().newAssignment(task, original, 1.0D, 0L, this);
 		source.setActualWork(source.getWork(null) / 2L, null);
 		long actualWork = source.getActualWork(null);
 		long remainingWork = source.getRemainingWork();
+		assertTaskAssignmentTotals(task, "initial assignment");
 		showProject(project);
 		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null
 				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
@@ -216,6 +235,7 @@ class AssignmentDialogGuiAcceptanceTest {
 		assertNotNull(replacementAssignment);
 		assertEquals(0L, replacementAssignment.getActualWork(null));
 		assertEquals(remainingWork, replacementAssignment.getRemainingWork());
+		assertTaskAssignmentTotals(task, "after Replace");
 
 		try {
 			GuiAcceptanceSupport.await(() -> hasKeyboardFocusWithin(assignmentDialog),
@@ -253,6 +273,7 @@ class AssignmentDialogGuiAcceptanceTest {
 		assertSame(source, task.findAssignment(original));
 		assertEquals(actualWork, source.getActualWork(null));
 		assertEquals(remainingWork, source.getRemainingWork());
+		assertTaskAssignmentTotals(task, "after physical Undo");
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
 		try {
 			GuiAcceptanceSupport.await(() -> task.findAssignment(replacement) != null
@@ -266,6 +287,64 @@ class AssignmentDialogGuiAcceptanceTest {
 		assertEquals(actualWork, source.getActualWork(null));
 		assertEquals(0L, source.getRemainingWork());
 		assertEquals(remainingWork, task.findAssignment(replacement).getRemainingWork());
+		assertTaskAssignmentTotals(task, "after physical Redo");
+
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		MpoFileImporter importer = new MpoFileImporter();
+		assertTrue(importer.saveProject(project, saved), "MPO save rejected the redone replacement state");
+		Project reloaded = importer.loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		NormalTask reloadedTask = null;
+		for (Object value : reloaded.getTaskList()) {
+			if (value instanceof NormalTask candidate && "Assignment replace task".equals(candidate.getName())) {
+				reloadedTask = candidate;
+				break;
+			}
+		}
+		assertNotNull(reloadedTask, "MPO reload lost the task identified by its stable name");
+		Resource reloadedOriginal = null;
+		Resource reloadedReplacement = null;
+		for (Object value : reloaded.getResourcePool().getResourceList()) {
+			if (value instanceof Resource candidate) {
+				if ("Original assignment resource".equals(candidate.getName())) reloadedOriginal = candidate;
+				if ("Replacement assignment resource".equals(candidate.getName())) reloadedReplacement = candidate;
+			}
+		}
+		assertNotNull(reloadedOriginal, "MPO reload lost the original resource identified by its stable name");
+		assertNotNull(reloadedReplacement, "MPO reload lost the replacement resource identified by its stable name");
+		Assignment reloadedSource = reloadedTask.findAssignment(reloadedOriginal);
+		Assignment reloadedReplacementAssignment = reloadedTask.findAssignment(reloadedReplacement);
+		assertNotNull(reloadedSource, "MPO reload lost the original task-resource assignment association");
+		assertNotNull(reloadedReplacementAssignment, "MPO reload lost the replacement task-resource assignment association");
+		assertEquals(2, reloadedTask.getAssignments().size(), "MPO reload changed the task's exact resource assignment set");
+		assertSame(reloadedTask, reloadedSource.getTask(), "reloaded source assignment must point to the reloaded task");
+		assertSame(reloadedOriginal, reloadedSource.getResource(), "reloaded source assignment must point to the named original resource");
+		assertSame(reloadedTask, reloadedReplacementAssignment.getTask(), "reloaded replacement assignment must point to the reloaded task");
+		assertSame(reloadedReplacement, reloadedReplacementAssignment.getResource(),
+			"reloaded replacement assignment must point to the named replacement resource");
+		assertEquals(actualWork, reloadedSource.getActualWork(null), "MPO reload changed source actual work");
+		assertEquals(0L, reloadedSource.getRemainingWork(), "MPO reload restored source remaining work");
+		assertEquals(0L, reloadedReplacementAssignment.getActualWork(null), "MPO reload added actual work to replacement");
+		assertEquals(remainingWork, reloadedReplacementAssignment.getRemainingWork(),
+			"MPO reload changed replacement remaining work");
+		assertTaskAssignmentTotals(reloadedTask, "after MPO reload");
+	}
+
+	private static void assertTaskAssignmentTotals(NormalTask task, String state) {
+		long assignmentWork = 0L;
+		long assignmentActualWork = 0L;
+		long assignmentRemainingWork = 0L;
+		double assignmentCost = 0.0D;
+		for (Object value : task.getAssignments()) {
+			Assignment assignment = (Assignment) value;
+			assignmentWork += assignment.getWork(null);
+			assignmentActualWork += assignment.getActualWork(null);
+			assignmentRemainingWork += assignment.getRemainingWork(null);
+			assignmentCost += assignment.getCost(null);
+		}
+		assertEquals(assignmentWork, task.getWork(null), state + ": task Work must equal assignment Work totals");
+		assertEquals(assignmentActualWork, task.getActualWork(null), state + ": task Actual Work must equal assignment Actual Work totals");
+		assertEquals(assignmentRemainingWork, task.getRemainingWork(null), state + ": task Remaining Work must equal assignment Remaining Work totals");
+		assertEquals(assignmentCost, task.getCost(null), 0.01D, state + ": task Cost must equal assignment Cost totals");
 	}
 
 	private String assignmentRedoDiagnostics(Project project, NormalTask task, Assignment source,

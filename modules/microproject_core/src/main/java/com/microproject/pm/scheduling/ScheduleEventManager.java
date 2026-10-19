@@ -49,6 +49,13 @@ public class ScheduleEventManager {
         return deferredEvents.size();
     }
 
+    /** Discards facts added after an atomic command's checkpoint without affecting its parent batch. */
+    public synchronized void discardPendingEventsAfter(int checkpoint) {
+        if (checkpoint < 0 || checkpoint > deferredEvents.size())
+            throw new IllegalArgumentException("Invalid schedule-event checkpoint");
+        deferredEvents.subList(checkpoint, deferredEvents.size()).clear();
+    }
+
     /** Publishes deferred events on commit, or drops them after rollback. */
     public void endBatch(boolean publish) {
         publishBatch(detachBatch(publish));

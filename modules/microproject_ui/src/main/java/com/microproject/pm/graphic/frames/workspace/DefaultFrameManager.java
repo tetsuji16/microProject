@@ -36,6 +36,7 @@ import java.awt.event.WindowEvent;
 import java.awt.GraphicsEnvironment;
 import java.awt.Window;
 import java.awt.Rectangle;
+import java.awt.event.WindowFocusListener;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.AbstractList;
@@ -53,6 +54,7 @@ import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.RootPaneContainer;
 import javax.swing.border.LineBorder;
+
 import javax.swing.ListCellRenderer;
 
 import com.microproject.pm.graphic.frames.DocumentFrame;
@@ -81,8 +83,11 @@ public class DefaultFrameManager implements FrameManager {
 	private JPanel arrangedFrames;
 	/** Independent desktop hosts for documents after the primary project. */
 	private final Map<NamedFrame, JFrame> documentWindows = new LinkedHashMap<>();
+	private final Map<Window, WindowFocusListener> documentWindowFocusListeners = new LinkedHashMap<>();
 	/** The document retained in the application's primary ribbon frame. */
 	private NamedFrame primaryFrame;
+	private Window primaryWindow;
+	private WindowFocusListener primaryWindowFocusListener;
 	private WindowArrangement currentArrangement = WindowArrangement.SINGLE;
 	public DefaultFrameManager(Container container, Container emptyPanel, GraphicManager graphicManager) {
 		this.container = container;
@@ -99,6 +104,10 @@ public class DefaultFrameManager implements FrameManager {
 			((DocumentFrame)frame).cleanUp();
 		}
 		projectComboBox.removeAll();
+		for (Map.Entry<Window, WindowFocusListener> entry : documentWindowFocusListeners.entrySet())
+			entry.getKey().removeWindowFocusListener(entry.getValue());
+		documentWindowFocusListeners.clear();
+		uninstallPrimaryWindowActivation();
 		for (JFrame documentWindow : documentWindows.values())
 			documentWindow.dispose();
 		documentWindows.clear();
@@ -244,15 +253,28 @@ public class DefaultFrameManager implements FrameManager {
 
 
 	public void activateFrame(NamedFrame frame) {
+		activateFrame(frame, true);
+	}
+
+	public void activateFrameFromWindow(NamedFrame frame) {
+		activateFrame(frame, false);
+	}
+
+	private void activateFrame(NamedFrame frame, boolean requestNativeFocus) {
+		if (!requestNativeFocus && frame == previous)
+			return;
+
 		JFrame documentWindow = documentWindows.get(frame);
 		if (documentWindow != null) {
 			if (previous != null && previous != frame)
 				previous.setActive(false);
 			previous = frame;
 			frame.setActive(true);
-			documentWindow.setVisible(true);
-			documentWindow.toFront();
-			documentWindow.requestFocus();
+			if (!documentWindow.isShowing()) documentWindow.setVisible(true);
+			if (requestNativeFocus && !documentWindow.isActive()) {
+				documentWindow.toFront();
+				documentWindow.requestFocus();
+			}
 			refreshContainer();
 			updateDesktopWindowTitles();
 			return;
@@ -451,8 +473,15 @@ public class DefaultFrameManager implements FrameManager {
 	public void addFrame(NamedFrame frame) {
 		getProjectComboBox().addItem(frame);
 		frame.setManager(this);
-		if (primaryFrame == null)
+		if (primaryFrame == null) {
 			primaryFrame = frame;
+			if (frame instanceof DocumentFrame documentFrame) {
+				Window window = container instanceof Window containerWindow
+					? containerWindow : javax.swing.SwingUtilities.getWindowAncestor(container);
+				if (window != null)
+					installPrimaryWindowActivation(window);
+			}
+		}
 		if (usesIndependentWindows() && frame instanceof DocumentFrame
 				&& getProjectComboBox().getItemCount() > 1)
 			createDocumentWindow(frame);
@@ -472,18 +501,77 @@ public class DefaultFrameManager implements FrameManager {
 		window.setGraphicManager(graphicManager);
 		window.setWindowCloseAction(() -> graphicManager.closeDocumentWindow((DocumentFrame) frame));
 		MicroProjectShell.installRibbonShell(window, graphicManager.getMenuManager(), graphicManager::showHelpDialog);
+		graphicManager.installDocumentShortcuts(window);
 		window.setSize(900, 650);
 		window.setLocationByPlatform(true);
 		window.getContentPane().add(frame, java.awt.BorderLayout.CENTER);
-		window.addWindowFocusListener(new WindowAdapter() {
-			@Override public void windowGainedFocus(WindowEvent event) { graphicManager.activateDocumentWindow((DocumentFrame)frame); }
-		});
+		documentWindowFocusListeners.put(window, installDocumentWindowActivation(window, (DocumentFrame)frame));
 		// Register before showing the window.  FlatLaf can deliver the initial
 		// focus event synchronously/asynchronously during setVisible(); without
 		// this ordering activateFrame() treats the secondary document as a
 		// primary child and briefly installs it in the wrong container.
 		documentWindows.put(frame, window);
 		window.setVisible(true);
+	}
+
+	private WindowFocusListener installDocumentWindowActivation(Window window, DocumentFrame frame) {
+		WindowFocusListener listener = new WindowAdapter() {
+			@Override public void windowGainedFocus(WindowEvent event) {
+				GraphicManager manager = graphicManager;
+				if (manager != null && canActivateDocumentWindow(frame)) manager.activateDocumentWindow(frame);
+			}
+		};
+		window.addWindowFocusListener(listener);
+		return listener;
+	}
+
+	private void installPrimaryWindowActivation(Window window) {
+		if (primaryWindow == window && primaryWindowFocusListener != null)
+			return;
+		uninstallPrimaryWindowActivation();
+		primaryWindow = window;
+		if (window instanceof MainRibbonFrame mainWindow) {
+			mainWindow.setWindowCloseAction(() -> {
+				NamedFrame closingFrame = primaryFrame;
+				GraphicManager manager = graphicManager;
+				if (manager == null)
+					return;
+				if (closingFrame instanceof DocumentFrame documentFrame && !documentWindows.isEmpty())
+					manager.closeDocumentWindow(documentFrame);
+				else
+					manager.closeApplication();
+			});
+		}
+		primaryWindowFocusListener = new WindowAdapter() {
+			@Override public void windowGainedFocus(WindowEvent event) {
+				NamedFrame frame = primaryFrame;
+				GraphicManager manager = graphicManager;
+				if (frame instanceof DocumentFrame documentFrame && manager != null
+						&& canActivateDocumentWindow(documentFrame))
+					manager.activateDocumentWindow(documentFrame);
+			}
+		};
+		primaryWindow.addWindowFocusListener(primaryWindowFocusListener);
+	}
+
+	private void uninstallPrimaryWindowActivation() {
+		if (primaryWindow instanceof MainRibbonFrame mainWindow)
+			mainWindow.setWindowCloseAction(null);
+		if (primaryWindow != null && primaryWindowFocusListener != null)
+			primaryWindow.removeWindowFocusListener(primaryWindowFocusListener);
+		primaryWindow = null;
+		primaryWindowFocusListener = null;
+	}
+
+	private void uninstallDocumentWindowActivation(Window window) {
+		WindowFocusListener listener = documentWindowFocusListeners.remove(window);
+		if (listener != null)
+			window.removeWindowFocusListener(listener);
+	}
+
+	boolean canActivateDocumentWindow(DocumentFrame frame) {
+		return graphicManager != null && isActive() && frame != null && frame.getProject() != null
+				&& getAllFrames().contains(frame);
 	}
 
 	private void promoteSecondaryWindowIfNeeded(NamedFrame removedFrame) {
@@ -493,6 +581,7 @@ public class DefaultFrameManager implements FrameManager {
 		JFrame replacementWindow = replacement.getValue();
 		replacementWindow.getContentPane().remove(replacement.getKey());
 		documentWindows.remove(replacement.getKey());
+		uninstallDocumentWindowActivation(replacementWindow);
 		replacementWindow.dispose();
 		primaryFrame = replacement.getKey();
 	}
@@ -534,13 +623,18 @@ public class DefaultFrameManager implements FrameManager {
 		promoteSecondaryWindowIfNeeded(frame);
 		getProjectComboBox().removeItem(frame);
 		JFrame documentWindow = documentWindows.remove(frame);
-		if (documentWindow != null) documentWindow.dispose();
+		if (documentWindow != null) {
+			uninstallDocumentWindowActivation(documentWindow);
+			documentWindow.dispose();
+		}
 		else container.remove(frame);
 		((DocumentFrame)frame).cleanUp();
 		if (wasPrevious)
 			previous = null;
-		if (frame == primaryFrame && documentWindows.isEmpty())
+		if (frame == primaryFrame && documentWindows.isEmpty()) {
 			primaryFrame = null;
+			uninstallPrimaryWindowActivation();
+		}
 		if (getProjectComboBox().getItemCount() == 0) {
 			previous = null;
 			container.add(emptyPanel,"Center");
@@ -573,6 +667,24 @@ public class DefaultFrameManager implements FrameManager {
 		if (documentWindow != null)
 			documentWindow.setTitle(describeWindow(frame));
 		updateDesktopWindowTitles();
+	}
+
+	@Override
+	public boolean setDocumentWindowTitle(DocumentFrame frame, String title) {
+		JFrame documentWindow = documentWindows.get(frame);
+		if (documentWindow != null) {
+			documentWindow.setTitle(title);
+			return true;
+		}
+		if (frame == primaryFrame) {
+			Window primaryWindow = container instanceof Window window
+				? window : javax.swing.SwingUtilities.getWindowAncestor(container);
+			if (primaryWindow instanceof JFrame primaryFrameWindow) {
+				primaryFrameWindow.setTitle(title);
+				return true;
+			}
+		}
+		return false;
 	}
 	public com.microproject.pm.graphic.frames.workspace.Workspace getWorkspace() {
 		return new com.microproject.pm.graphic.frames.workspace.Workspace();

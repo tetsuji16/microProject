@@ -206,6 +206,10 @@ public class NodeListTransferHandler extends TransferHandler {
 		}
 	}
 	    public boolean importData(JComponent c, Transferable t) {
+		return importData(c, t, false);
+	    }
+
+	    public boolean importData(JComponent c, Transferable t, boolean pasteInsert) {
 	    	SpreadSheet spreadSheet=getSpreadSheet(c);
 	    	if (spreadSheet==null) return false;
 	    	spreadSheet.finishCurrentOperations();
@@ -240,7 +244,7 @@ public class NodeListTransferHandler extends TransferHandler {
 							});
 	        			}
 
-					return spreadSheet.pasteNodesFromClipboard(nodes);
+					return spreadSheet.pasteNodesFromClipboard(nodes, pasteInsert);
 	        		}else if (data instanceof String){
 					if (!spreadSheet.prepareCellPaste()) return false;
 //	        			ArrayList fields =spreadSheet.getSelectedFields();

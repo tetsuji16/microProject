@@ -17,6 +17,11 @@ final class ActiveTaskSelectionResolver {
 	private ActiveTaskSelectionResolver() {
 	}
 
+	static List<Node> preferPhysicalRowSelection(boolean hasPhysicalRowSelection,
+			List<Node> physicalRows, List<Node> frameSelection) {
+		return hasPhysicalRowSelection ? physicalRows : frameSelection;
+	}
+
 	static Selection resolve(List<Node> selectedNodes, boolean headerColumnSelection,
 			boolean excludeReadOnly, boolean allowMixedSelection) {
 		if (headerColumnSelection)
@@ -25,38 +30,50 @@ final class ActiveTaskSelectionResolver {
 			return Selection.rejected("no-selection");
 
 		List<Node> tasks = new ArrayList<>(selectedNodes.size());
+		List<Long> selectedTaskIds = new ArrayList<>(selectedNodes.size());
+		boolean hasReadOnlyTask = false;
+		boolean hasMixedSelection = false;
 		for (Node node : selectedNodes) {
 			if (node == null)
 				continue;
 			Object implementation = node.getImpl();
 			if (implementation instanceof Task) {
-				if (!excludeReadOnly || !ClassUtils.isObjectReadOnly(implementation))
+				selectedTaskIds.add(((Task) implementation).getUniqueId());
+				if (excludeReadOnly && ClassUtils.isObjectReadOnly(implementation)) {
+					hasReadOnlyTask = true;
+				} else {
 					tasks.add(node);
+				}
 			} else if (!allowMixedSelection) {
-				return Selection.rejected("mixed-selection");
+				hasMixedSelection = true;
 			}
 		}
+		if (hasMixedSelection)
+			return Selection.rejected("mixed-selection", selectedTaskIds);
+		if (hasReadOnlyTask)
+			return Selection.rejected("task-read-only", selectedTaskIds);
 		if (tasks.isEmpty())
 			return Selection.rejected("no-task-selection");
-		return new Selection(tasks, "");
+		return new Selection(tasks, "", selectedTaskIds);
 	}
 
-	record Selection(List<Node> nodes, String rejectionReason) {
+	record Selection(List<Node> nodes, String rejectionReason, List<Long> stableTaskIds) {
 		Selection {
 			nodes = List.copyOf(nodes);
+			stableTaskIds = List.copyOf(stableTaskIds);
 		}
 
 		static Selection rejected(String reason) {
-			return new Selection(List.of(), reason);
+			return rejected(reason, List.of());
+		}
+
+		static Selection rejected(String reason, List<Long> selectedTaskIds) {
+			return new Selection(List.of(), reason, selectedTaskIds);
 		}
 
 		boolean isEligible(int minimumCount) {
 			return rejectionReason.isEmpty() && nodes.size() >= minimumCount;
 		}
 
-		List<Long> stableTaskIds() {
-		return nodes.stream().map(Node::getImpl).filter(Task.class::isInstance)
-			.map(Task.class::cast).map(Task::getUniqueId).toList();
-		}
 	}
 }

@@ -73,6 +73,7 @@ public abstract class GraphInteractor implements MouseListener, MouseMotionListe
 	private static final int SCROLL_THROTTLE_PX = 30;
 	private int lastScrollX = Integer.MIN_VALUE;
 	private int lastScrollY = Integer.MIN_VALUE;
+	private boolean disposed;
 	/**
 	 *
 	 */
@@ -89,6 +90,15 @@ public abstract class GraphInteractor implements MouseListener, MouseMotionListe
     	ui.getGraph().addMouseMotionListener(this);
     	defaultCursor=getGraph().getCursor();
     }
+
+	public void dispose() {
+		if (disposed) {
+			return;
+		}
+		disposed = true;
+		getGraph().removeMouseListener(this);
+		getGraph().removeMouseMotionListener(this);
+	}
 
     protected void reset(){
      	lastShadowX=-1;

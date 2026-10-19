@@ -122,8 +122,10 @@ public class GraphPageable extends PrintDocument implements ViewPrintableParams{
 	public void print() {
 		if (printService instanceof PDFPrintService){
 			Alert.error(Messages.getString("PageSetupDialog.NotValidPrinter"));
+			cleanUp();
 			return;
 		}
+		boolean jobScheduled = false;
 		try {
 			final PrinterJob printerJob=PrinterJob.getPrinterJob();
 			printerJob.setPrintService(printService);
@@ -165,14 +167,19 @@ public class GraphPageable extends PrintDocument implements ViewPrintableParams{
 							Alert.error(e.getMessage());
 						}catch (Exception e) {
 							logger.log(Level.WARNING, "Graph print job failed", e);
+						} finally {
+							cleanUp();
 						}
 						return null;
 					}
 				});
 				jobQueue.schedule(j);
+				jobScheduled = true;
 			}
 		} catch (PrinterException e) {
 			Alert.error(e.getMessage());
+		} finally {
+			if (!jobScheduled) cleanUp();
 		}
 	}
 
@@ -201,6 +208,12 @@ public class GraphPageable extends PrintDocument implements ViewPrintableParams{
 
 	public SVGRenderer getRenderer() {
 		return renderer;
+	}
+
+	/** Releases resources retained by the renderer after this pageable is no longer used. */
+	public void cleanUp() {
+		if (renderer instanceof com.microproject.offline_graphics.NetworkSVGRenderer networkRenderer)
+			networkRenderer.cleanUp();
 	}
 
 

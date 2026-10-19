@@ -52,6 +52,19 @@ import sun.misc.Unsafe;
 
 class GraphicManagerLinkRouteTest {
 	@Test
+	void selectedTasksZoomActionExistsButIsDisabledWithoutAnActiveUsageSelection() throws Exception {
+		GraphicManager manager = new GraphicManager(new JPanel());
+		try {
+			javax.swing.Action action = manager.getAction(com.microproject.menu.MenuActionConstants.ACTION_ZOOM_SELECTED_TASKS);
+			assertNotNull(action, "View ribbon selected-task zoom must resolve to the shared action pipeline");
+			action.actionPerformed(new ActionEvent(manager, ActionEvent.ACTION_PERFORMED, "ZoomSelectedTasks"));
+			assertFalse(action.isEnabled(), "selected-task zoom must remain disabled without an active Usage view and dated selection");
+		} finally {
+			manager.cleanUp();
+		}
+	}
+
+	@Test
 	void componentLookupResolvesBootstrapAppletManagerThroughItsStaticAccessor() {
 		GraphicManager manager = new GraphicManager(new JPanel());
 		BootstrapApplet applet = new BootstrapApplet();
@@ -332,6 +345,24 @@ class GraphicManagerLinkRouteTest {
 		assertEquals("selection-too-small",
 			link.getValue(RibbonCommandResult.REASON_ACTION_PROPERTY));
 		assertFalse(documentFrame.linkInvoked);
+	}
+
+	@Test
+	void unlinkWithoutSelectionPublishesNoSelectionOutcome() throws Exception {
+		TestDocumentFrame documentFrame = allocateWithoutConstructor(TestDocumentFrame.class);
+		documentFrame.setTaskSelectionCount(0);
+		GraphicManager graphicManager = new GraphicManager(new JPanel()) {
+			@Override public boolean isDocumentActive() { return true; }
+			@Override public DocumentFrame getCurrentFrame() { return documentFrame; }
+		};
+
+		javax.swing.Action unlink = graphicManager.new UnlinkAction();
+		unlink.actionPerformed(new ActionEvent(this, ActionEvent.ACTION_PERFORMED, "Unlink"));
+
+		assertEquals(RibbonCommandResult.Status.REJECTED,
+			unlink.getValue(RibbonCommandResult.STATUS_ACTION_PROPERTY));
+		assertEquals("no-selection", unlink.getValue(RibbonCommandResult.REASON_ACTION_PROPERTY));
+		assertFalse(documentFrame.unlinkInvoked);
 	}
 
 	@Test

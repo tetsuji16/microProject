@@ -1559,6 +1559,10 @@ public class MpoFileImporter extends FileImporter {
 				taskNode.put("start", normalTask.getStart());
 				taskNode.put("finish", normalTask.getEnd());
 				taskNode.put("actualStart", normalTask.getActualStart());
+				if (!normalTask.isWbsParent())
+					taskNode.put("percentComplete", normalTask.getPercentComplete());
+				if (normalTask.isNormal() && !normalTask.hasRealAssignments())
+					taskNode.put("unassignedWork", normalTask.getWork(null));
 			}
 			return JSON.writeValueAsBytes(root);
 		} catch (IOException exception) {
@@ -1589,6 +1593,24 @@ public class MpoFileImporter extends FileImporter {
 			long start = integralLong(startNode, "start");
 			long finish = integralLong(finishNode, "finish");
 			long actualStart = integralLong(actualStartNode, "actualStart");
+			Double percentComplete = null;
+			if (taskNode.has("percentComplete")) {
+				JsonNode percentNode = taskNode.get("percentComplete");
+				if (percentNode == null || !percentNode.isNumber())
+					throw new IOException("Invalid mpo task schedule percent complete");
+				double value = percentNode.doubleValue();
+				if (!Double.isFinite(value) || value < 0D || value > 1D)
+					throw new IOException("Invalid mpo task schedule percent complete");
+				percentComplete = Double.valueOf(value);
+			}
+			Long unassignedWork = null;
+			if (taskNode.has("unassignedWork")) {
+				JsonNode workNode = taskNode.get("unassignedWork");
+				if (workNode == null || !workNode.isIntegralNumber() || !workNode.canConvertToLong()
+						|| workNode.longValue() < 0L)
+					throw new IOException("Invalid mpo task schedule unassigned work");
+				unassignedWork = Long.valueOf(workNode.longValue());
+			}
 			if (!seen.add(serializedId)) throw new IOException("Duplicate task schedule record in MPO");
 			Task task = project.findByUniqueId(serializedId);
 			if (!(task instanceof NormalTask normalTask))
@@ -1597,16 +1619,30 @@ public class MpoFileImporter extends FileImporter {
 			if (com.microproject.pm.scheduling.ConstraintType.Kind.fromCodeOrNull(constraintType) == null)
 				throw new IOException("Invalid mpo task schedule constraint type");
 			if (finish < start) throw new IOException("Invalid mpo task schedule boundaries");
-			snapshots.add(new TaskScheduleSnapshot(normalTask, constraintType, constraintDate, start, finish, actualStart));
+			if (percentComplete != null && normalTask.isWbsParent())
+				throw new IOException("MPO task schedule percent complete is only valid for leaf tasks");
+			if (unassignedWork != null && (!normalTask.isNormal() || normalTask.hasRealAssignments()))
+				throw new IOException("MPO task schedule unassigned work is only valid for unassigned leaf tasks");
+			snapshots.add(new TaskScheduleSnapshot(normalTask, constraintType, constraintDate, start, finish, actualStart,
+				percentComplete, unassignedWork));
 		}
 		for (TaskScheduleSnapshot snapshot : snapshots) {
 			snapshot.task().restoreMpoScheduleSnapshot(snapshot.constraintType(), snapshot.constraintDate(),
 				snapshot.start(), snapshot.finish(), snapshot.actualStart());
+			if (snapshot.percentComplete() != null)
+				snapshot.task().setImportedPercentComplete(snapshot.percentComplete().doubleValue());
+			if (snapshot.unassignedWork() != null) {
+				try {
+					snapshot.task().restoreMpoUnassignedWork(snapshot.unassignedWork().longValue());
+				} catch (IllegalArgumentException exception) {
+					throw new IOException("Invalid mpo task schedule unassigned work target", exception);
+				}
+			}
 		}
 	}
 
 	private record TaskScheduleSnapshot(NormalTask task, int constraintType, long constraintDate, long start,
-		long finish, long actualStart) { }
+		long finish, long actualStart, Double percentComplete, Long unassignedWork) { }
 
 	private static void restoreVisibility(Project project, byte[] bytes) throws IOException {
 		JsonNode root = JSON.readTree(bytes);

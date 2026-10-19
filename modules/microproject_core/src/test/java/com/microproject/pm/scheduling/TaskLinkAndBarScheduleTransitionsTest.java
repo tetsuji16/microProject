@@ -49,6 +49,7 @@ import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.ScheduleDiagnosticsService;
 import com.microproject.undo.DataFactoryUndoController;
 
 /** Named schedule transitions for task links, bar edits, and task-sheet dates. */
@@ -132,6 +133,291 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		assertEquals(thursdayEight, successor.getStart(),
 			"one working day of FS lag skips Tuesday; the next task starts at the next working interval");
 		assertEquals(day(), dependency.getLag());
+	}
+
+	@Test
+	void zeroLagFinishToStartUsesSuccessorTaskCalendarException() throws Exception {
+		Fixture fixture = createFixture();
+		Project project = fixture.project;
+		long tuesdayEight = timestamp(2026, Calendar.NOVEMBER, 3, 8);
+		long tuesdaySeventeen = timestamp(2026, Calendar.NOVEMBER, 3, 17);
+		long wednesdayMidnight = timestamp(2026, Calendar.NOVEMBER, 4, 0);
+		long thursdayEight = timestamp(2026, Calendar.NOVEMBER, 5, 8);
+		long thursdaySeventeen = timestamp(2026, Calendar.NOVEMBER, 5, 17);
+		project.setStart(tuesdayEight);
+
+		NormalTask predecessor = createTask(project, "successor-calendar predecessor", 1);
+		NormalTask successor = createTask(project, "successor-calendar successor", 1);
+		NormalTask unrelated = createTask(project, "unrelated task", 1);
+		predecessor.setScheduleConstraint(ConstraintType.SNET, tuesdayEight);
+		successor.setScheduleConstraint(ConstraintType.SNET, tuesdayEight);
+		unrelated.setScheduleConstraint(ConstraintType.SNET, tuesdayEight);
+		WorkingCalendar successorCalendar = WorkingCalendar.getInstanceBasedOn(project.getWorkCalendar());
+		successorCalendar.setName("Successor Wednesday exception");
+		successorCalendar.addOrReplaceException(new WorkDay(wednesdayMidnight));
+		successor.setWorkCalendar(successorCalendar);
+		project.recalculate();
+		assertEquals(tuesdaySeventeen, predecessor.getEnd());
+		assertEquals(tuesdaySeventeen, unrelated.getEnd());
+
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.FS, 0L, this);
+		project.recalculate();
+
+		// Document-derived compatibility decision, not an empirical MSP observation:
+		// FS starts the successor at the predecessor's finish boundary, then the
+		// successor task calendar determines its next working time. Its Wednesday
+		// exception therefore moves the successor to Thursday 08:00. Microsoft documents
+		// FS boundary/task-calendar scheduling and task calendars superseding project
+		// calendar working times; the standard day runs 08:00-12:00 and 13:00-17:00.
+		// https://support.microsoft.com/en-us/project/how-project-schedules-tasks-behind-the-scenes
+		// https://support.microsoft.com/en-us/project/task-calendar-task-field
+		assertEquals(0L, dependency.getLag());
+		assertEquals(tuesdaySeventeen, predecessor.getEnd());
+		assertEquals(thursdayEight, successor.getStart());
+		assertEquals(thursdaySeventeen, successor.getEnd());
+		assertEquals(tuesdayEight, unrelated.getStart());
+		assertEquals(tuesdaySeventeen, unrelated.getEnd());
+	}
+
+	@TestFactory
+	Stream<DynamicTest> startNoEarlierThanConstraintAndFinishToStartLinkUseLaterBoundary() {
+		return Stream.of(
+			DynamicTest.dynamicTest("SNET-FS-predecessor-finishes-before-constraint", () ->
+				verifySnetAndFsBoundary(1, timestamp(2030, Calendar.JUNE, 4, 8),
+					timestamp(2030, Calendar.JUNE, 3, 17), timestamp(2030, Calendar.JUNE, 4, 8),
+				timestamp(2030, Calendar.JUNE, 4, 17))),
+			DynamicTest.dynamicTest("SNET-FS-predecessor-finishes-after-constraint", () ->
+				verifySnetAndFsBoundary(2, timestamp(2030, Calendar.JUNE, 4, 8),
+				timestamp(2030, Calendar.JUNE, 4, 17), timestamp(2030, Calendar.JUNE, 5, 8),
+				timestamp(2030, Calendar.JUNE, 5, 17))));
+	}
+
+	@TestFactory
+	Stream<DynamicTest> snetAndPositiveFsLagAcrossProjectCalendarExceptionUseLaterBoundary() {
+		long tuesdayEight = timestamp(2030, Calendar.JUNE, 4, 8);
+		long thursdayEight = timestamp(2030, Calendar.JUNE, 6, 8);
+		long thursdaySeventeen = timestamp(2030, Calendar.JUNE, 6, 17);
+		long fridayEight = timestamp(2030, Calendar.JUNE, 7, 8);
+		long fridaySeventeen = timestamp(2030, Calendar.JUNE, 7, 17);
+		return Stream.of(
+			DynamicTest.dynamicTest("SNET-FS-lag-boundary-later", () ->
+				verifySnetAndFsLagAcrossException(tuesdayEight, timestamp(2030, Calendar.JUNE, 5, 17),
+					thursdayEight, thursdaySeventeen)),
+			DynamicTest.dynamicTest("SNET-constraint-later", () ->
+				verifySnetAndFsLagAcrossException(fridayEight, fridaySeventeen, fridayEight, fridaySeventeen)));
+	}
+
+	private void verifySnetAndFsLagAcrossException(long snet, long expectedInitialSuccessorFinish,
+		long expectedSuccessorStart, long expectedSuccessorFinish) throws Exception {
+		Fixture fixture = createFixture();
+		Project project = fixture.project;
+		long mondayEight = timestamp(2030, Calendar.JUNE, 3, 8);
+		long mondaySeventeen = timestamp(2030, Calendar.JUNE, 3, 17);
+		long tuesdayMidnight = timestamp(2030, Calendar.JUNE, 4, 0);
+		project.setStart(mondayEight);
+		((WorkingCalendar) project.getWorkCalendar()).addOrReplaceException(new WorkDay(tuesdayMidnight));
+		NormalTask predecessor = createTask(project, "SNET lag predecessor", 1);
+		NormalTask successor = createTask(project, "SNET lag successor", 1);
+		NormalTask unrelated = createTask(project, "unrelated", 1);
+		predecessor.setScheduleConstraint(ConstraintType.SNET, mondayEight);
+		successor.setScheduleConstraint(ConstraintType.SNET, snet);
+		unrelated.setScheduleConstraint(ConstraintType.SNET, mondayEight);
+		project.recalculate();
+		assertEquals(mondayEight, predecessor.getStart());
+		assertEquals(mondaySeventeen, predecessor.getEnd());
+		assertEquals(snet, successor.getStart());
+		assertEquals(expectedInitialSuccessorFinish, successor.getEnd());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+
+		// Document-derived compatibility decision, not measured MSP behavior: Microsoft documents
+		// SNET as a lower bound against an FS link, and positive lag as a delay to the successor;
+		// the project calendar excludes the dated Tuesday exception. The later boundary wins.
+		// https://support.microsoft.com/en-us/project/how-project-schedules-tasks-behind-the-scenes
+		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.FS, day(), this);
+		project.recalculate();
+		ScheduleDiagnosticsService diagnostics = new ScheduleDiagnosticsService();
+		List<ScheduleDiagnosticsService.Type> linkedDiagnostics = diagnostics.diagnose(successor).stream()
+			.map(ScheduleDiagnosticsService.Issue::type).toList();
+		assertEquals(DependencyType.FS, dependency.getDependencyType());
+		assertEquals(day(), dependency.getLag());
+		assertEquals(mondayEight, predecessor.getStart());
+		assertEquals(timestamp(2030, Calendar.JUNE, 6, 8), dependency.getDate(true),
+			"the positive one-day lag skips the dated Tuesday exception");
+		assertEquals(mondaySeventeen, predecessor.getEnd());
+		assertEquals(expectedSuccessorStart, successor.getStart());
+		assertEquals(expectedSuccessorFinish, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+		assertTrue(linkedDiagnostics.contains(ScheduleDiagnosticsService.Type.HARD_CONSTRAINT));
+		assertFalse(linkedDiagnostics.contains(ScheduleDiagnosticsService.Type.DEPENDENCY_CONFLICT));
+
+		fixture.undo.undo();
+		project.recalculate();
+		assertFalse(predecessor.getSuccessorList().iterator().hasNext());
+		assertEquals(mondayEight, predecessor.getStart());
+		assertEquals(mondaySeventeen, predecessor.getEnd());
+		assertEquals(snet, successor.getStart());
+		assertEquals(expectedInitialSuccessorFinish, successor.getEnd());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+
+		fixture.undo.redo();
+		project.recalculate();
+		assertSame(dependency, predecessor.getSuccessorList().findRight(successor));
+		assertEquals(expectedSuccessorStart, successor.getStart());
+		assertEquals(expectedSuccessorFinish, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+		assertEquals(linkedDiagnostics, diagnostics.diagnose(successor).stream()
+			.map(ScheduleDiagnosticsService.Issue::type).toList());
+	}
+
+	@TestFactory
+	Stream<DynamicTest> startNoEarlierThanConstraintAndStartToStartLinkUseLaterBoundary() {
+		return Stream.of(
+			DynamicTest.dynamicTest("SNET-SS-predecessor-starts-before-constraint", () ->
+				verifySnetAndSsBoundary(timestamp(2030, Calendar.JUNE, 3, 8),
+					timestamp(2030, Calendar.JUNE, 4, 8), timestamp(2030, Calendar.JUNE, 3, 17),
+					timestamp(2030, Calendar.JUNE, 4, 8), timestamp(2030, Calendar.JUNE, 4, 17))),
+			DynamicTest.dynamicTest("SNET-SS-predecessor-starts-after-constraint", () ->
+				verifySnetAndSsBoundary(timestamp(2030, Calendar.JUNE, 4, 8),
+					timestamp(2030, Calendar.JUNE, 3, 8), timestamp(2030, Calendar.JUNE, 4, 17),
+					timestamp(2030, Calendar.JUNE, 4, 8), timestamp(2030, Calendar.JUNE, 4, 17))));
+	}
+
+	private void verifySnetAndSsBoundary(long predecessorStart, long snet, long expectedPredecessorFinish,
+		long expectedLinkedSuccessorStart, long expectedLinkedSuccessorFinish) throws Exception {
+		Fixture fixture = createFixture();
+		Project project = fixture.project;
+		long mondayEight = timestamp(2030, Calendar.JUNE, 3, 8);
+		long mondaySeventeen = timestamp(2030, Calendar.JUNE, 3, 17);
+		long initialSuccessorFinish = timestamp(2030, Calendar.JUNE, 4, 17);
+		project.setStart(mondayEight);
+		NormalTask predecessor = createTask(project, "SNET SS predecessor", 1);
+		NormalTask successor = createTask(project, "SNET SS successor", 1);
+		NormalTask unrelated = createTask(project, "unrelated", 1);
+		predecessor.setScheduleConstraint(ConstraintType.SNET, predecessorStart);
+		successor.setScheduleConstraint(ConstraintType.SNET, snet);
+		unrelated.setScheduleConstraint(ConstraintType.SNET, mondayEight);
+		project.recalculate();
+		assertEquals(predecessorStart, predecessor.getStart());
+		assertEquals(expectedPredecessorFinish, predecessor.getEnd());
+		assertEquals(snet, successor.getStart());
+		assertEquals(snet == mondayEight ? mondaySeventeen : initialSuccessorFinish, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+
+		// Document-derived Project desktop rule (not a measured MSP run): SS constrains
+		// the successor start against the predecessor start, while SNET is a lower bound.
+		// https://support.microsoft.com/en-us/project/how-project-schedules-tasks-behind-the-scenes
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.SS, 0L, this);
+		project.recalculate();
+		assertEquals(expectedPredecessorFinish, predecessor.getEnd(), "linking must not move the predecessor");
+		assertEquals(predecessorStart, dependency.getDate(true), "zero-lag SS boundary is predecessor start");
+		ScheduleDiagnosticsService diagnostics = new ScheduleDiagnosticsService();
+		List<ScheduleDiagnosticsService.Type> linkedDiagnostics = diagnostics.diagnose(successor).stream()
+			.map(ScheduleDiagnosticsService.Issue::type).toList();
+		assertEquals(expectedLinkedSuccessorStart, successor.getStart());
+		assertEquals(expectedLinkedSuccessorFinish, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+		assertTrue(linkedDiagnostics.contains(ScheduleDiagnosticsService.Type.HARD_CONSTRAINT));
+		assertFalse(linkedDiagnostics.contains(ScheduleDiagnosticsService.Type.DEPENDENCY_CONFLICT));
+
+		fixture.undo.undo();
+		project.recalculate();
+		assertFalse(predecessor.getSuccessorList().iterator().hasNext());
+		assertEquals(predecessorStart, predecessor.getStart());
+		assertEquals(expectedPredecessorFinish, predecessor.getEnd());
+		assertEquals(snet, successor.getStart());
+		assertEquals(snet == mondayEight ? mondaySeventeen : initialSuccessorFinish, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+		assertEquals(List.of(ScheduleDiagnosticsService.Type.HARD_CONSTRAINT),
+			diagnostics.diagnose(successor).stream().map(ScheduleDiagnosticsService.Issue::type).toList());
+
+		fixture.undo.redo();
+		project.recalculate();
+		assertSame(dependency, predecessor.getSuccessorList().findRight(successor));
+		assertEquals(expectedLinkedSuccessorStart, successor.getStart());
+		assertEquals(expectedLinkedSuccessorFinish, successor.getEnd());
+		assertEquals(expectedPredecessorFinish, predecessor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+		assertEquals(linkedDiagnostics, diagnostics.diagnose(successor).stream()
+			.map(ScheduleDiagnosticsService.Issue::type).toList());
+	}
+
+	private void verifySnetAndFsBoundary(int predecessorDurationDays, long snet, long expectedPredecessorFinish,
+		long expectedLinkedSuccessorStart, long expectedLinkedSuccessorFinish) throws Exception {
+		Fixture fixture = createFixture();
+		Project project = fixture.project;
+		long mondayEight = timestamp(2030, Calendar.JUNE, 3, 8);
+		long mondaySeventeen = timestamp(2030, Calendar.JUNE, 3, 17);
+		long initialSuccessorFinish = timestamp(2030, Calendar.JUNE, 4, 17);
+		project.setStart(mondayEight);
+		NormalTask predecessor = createTask(project, "SNET predecessor", predecessorDurationDays);
+		NormalTask successor = createTask(project, "SNET successor", 1);
+		NormalTask unrelated = createTask(project, "unrelated", 1);
+		predecessor.setScheduleConstraint(ConstraintType.SNET, mondayEight);
+		successor.setScheduleConstraint(ConstraintType.SNET, snet);
+		unrelated.setScheduleConstraint(ConstraintType.SNET, mondayEight);
+		project.recalculate();
+		assertEquals(mondayEight, predecessor.getStart());
+		assertEquals(expectedPredecessorFinish, predecessor.getEnd());
+		assertEquals(snet, successor.getStart());
+		assertEquals(initialSuccessorFinish, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+
+		// Document-derived Project desktop rule (not a measured MSP run): an SNET
+		// successor starts on its constraint date if its FS predecessor finishes by
+		// then, and starts later when the predecessor finishes after that date.
+		// https://support.microsoft.com/en-us/project/how-project-schedules-tasks-behind-the-scenes
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.FS, 0L, this);
+		project.recalculate();
+		assertEquals(expectedPredecessorFinish, predecessor.getEnd(), "linking must not move the predecessor");
+		assertEquals(expectedPredecessorFinish, dependency.getDate(true),
+			"a zero-lag FS link must retain the predecessor's finish as its boundary");
+		ScheduleDiagnosticsService diagnostics = new ScheduleDiagnosticsService();
+		List<ScheduleDiagnosticsService.Type> linkedDiagnostics = diagnostics.diagnose(successor).stream()
+			.map(ScheduleDiagnosticsService.Issue::type).toList();
+		assertEquals(expectedLinkedSuccessorStart, successor.getStart());
+		assertEquals(expectedLinkedSuccessorFinish, successor.getEnd());
+		assertEquals(expectedPredecessorFinish, predecessor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+		assertTrue(linkedDiagnostics.contains(ScheduleDiagnosticsService.Type.HARD_CONSTRAINT));
+		assertFalse(linkedDiagnostics.contains(ScheduleDiagnosticsService.Type.DEPENDENCY_CONFLICT));
+
+		fixture.undo.undo();
+		project.recalculate();
+		List<ScheduleDiagnosticsService.Type> undoneDiagnostics = diagnostics.diagnose(successor).stream()
+			.map(ScheduleDiagnosticsService.Issue::type).toList();
+		assertFalse(predecessor.getSuccessorList().iterator().hasNext());
+		assertEquals(mondayEight, predecessor.getStart());
+		assertEquals(expectedPredecessorFinish, predecessor.getEnd());
+		assertEquals(snet, successor.getStart());
+		assertEquals(initialSuccessorFinish, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+		assertEquals(List.of(ScheduleDiagnosticsService.Type.HARD_CONSTRAINT), undoneDiagnostics);
+
+		fixture.undo.redo();
+		project.recalculate();
+		assertSame(dependency, predecessor.getSuccessorList().findRight(successor));
+		assertEquals(expectedLinkedSuccessorStart, successor.getStart());
+		assertEquals(expectedLinkedSuccessorFinish, successor.getEnd());
+		assertEquals(expectedPredecessorFinish, predecessor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+		List<ScheduleDiagnosticsService.Type> redoneDiagnostics = diagnostics.diagnose(successor).stream()
+			.map(ScheduleDiagnosticsService.Issue::type).toList();
+		assertEquals(linkedDiagnostics, redoneDiagnostics);
 	}
 
 	@TestFactory
@@ -459,6 +745,7 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		ResourcePool pool = ResourcePool.createRourcePool("link-bar-test", undo);
 		Project project = Project.createProject(pool, undo);
 		project.initialize(false, false);
+		project.setWorkCalendar(((WorkingCalendar) project.getWorkCalendar()).makeScratchCopy());
 		return new Fixture(project, undo);
 	}
 

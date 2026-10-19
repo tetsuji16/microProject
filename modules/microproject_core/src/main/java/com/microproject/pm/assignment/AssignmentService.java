@@ -84,7 +84,7 @@ public class AssignmentService {
 		Project commandProject = firstTask.getProject();
 		ResourcePool commandPool = commandProject.getResourcePool();
 		if (commandProject != null && commandPool != null) {
-			commandProject.runModelCommand(markApplied -> newAssignmentsInternal(taskSnapshot, resourceSnapshot,
+			commandProject.runAtomicModelCommand(markApplied -> newAssignmentsInternal(taskSnapshot, resourceSnapshot,
 				units, delay, eventSource, undo, markApplied), Boolean.TRUE::equals, ignored -> Boolean.TRUE,
 				List.of(new Project.AdditionalObjectEventManager(commandPool.getObjectEventManager(), commandPool, commandPool,
 					resourceRefreshObjects(resourceSnapshot))));
@@ -118,6 +118,7 @@ public class AssignmentService {
 			}
 		}
 		BatchUpdate batchUpdate = new BatchUpdate();
+		AssignmentModelState before = AssignmentModelState.capture(tasks);
 		boolean changed = false;
 		try {
 			for (Object taskObject : tasks) {
@@ -130,6 +131,9 @@ public class AssignmentService {
 				batchUpdate.beginIfNeeded(task, tasks, transactionResourcePool, this, undo);
 				changed |= batchAssignResources(task, resources, units, delay, eventSource, undo, markApplied);
 			}
+		} catch (RuntimeException | Error failure) {
+			before.restore(failure);
+			throw failure;
 		} finally {
 			batchUpdate.endIfNeeded();
 		}
@@ -158,7 +162,7 @@ public class AssignmentService {
 		if (commandProject != null && commandPool != null) {
 			List<Object> refreshObjects = resourceRefreshObjects(replacementResources);
 			refreshObjects.add(source.getResource());
-			AssignmentMutationResult result = commandProject.runModelCommand(
+			AssignmentMutationResult result = commandProject.runAtomicModelCommand(
 				markApplied -> replaceAssignmentInternal(source, replacementResources, eventSource, undo,
 					markApplied),
 				AssignmentMutationResult::changed, AssignmentMutationResult::withFacts,
@@ -189,42 +193,52 @@ public class AssignmentService {
 		Map<Assignment, Object> detailBefore = LinkedHashMap.newLinkedHashMap(detailCapacity);
 		if (undo)
 			detailBefore.put(source, source.backupDetail());
+		AssignmentModelState modelBefore = AssignmentModelState.capture(List.of(task));
 		boolean sourceHasActualWork = source.getActualWork(null) > 0L;
 		long sourceActualWork = source.getActualWork(null);
 		long sourceRemainingWork = source.getRemainingWork();
 		boolean changed = false;
 		try {
-			// Assignment detail state is authoritative for replacement; the generic
-			// task snapshot would overwrite it during undo.
-			batchUpdate.beginIfNeeded(task, List.of(task), resourcePool, this, undo, false);
-			if (undo)
-				batchUpdate.postAssignmentDetailBefore(detailBefore);
-			if (markApplied != null) markApplied.run();
-			changed = true;
-			if (!sourceHasActualWork)
-				removeInternal(source, true, eventSource, new NodeUndoInfo(undo));
-			for (int index = 0; index < replacements.size(); index++) {
-				Assignment replacement = newAssignment(task, replacements.get(index), 1.0D, 0L,
-					eventSource, new NodeUndoInfo(undo));
-				if (replacement == null)
-					continue;
+			try {
+				// Assignment detail state is authoritative for replacement; the generic
+				// task snapshot would overwrite it during undo.
+				batchUpdate.beginIfNeeded(task, List.of(task), resourcePool, this, undo, false);
 				if (undo)
-					detailBefore.put(replacement, replacement.backupDetail());
+					batchUpdate.postAssignmentDetailBefore(detailBefore);
+				if (markApplied != null) markApplied.run();
+				changed = true;
+				if (!sourceHasActualWork)
+					removeInternal(source, true, eventSource, new NodeUndoInfo(undo));
+				for (int index = 0; index < replacements.size(); index++) {
+					Assignment replacement = newAssignment(task, replacements.get(index), 1.0D, 0L,
+						eventSource, new NodeUndoInfo(undo));
+					if (replacement == null)
+						continue;
+					if (undo)
+						detailBefore.put(replacement, replacement.backupDetail());
+					if (sourceHasActualWork)
+						// setRemainingWork derives actual work from total work.  A replacement
+						// starts at zero actuals, so set its total work directly instead.
+						replacement.setWork(replacementWorkShare(sourceRemainingWork,
+							replacements.size(), index), null);
+					created.add(replacement);
+				}
 				if (sourceHasActualWork)
-					// setRemainingWork derives actual work from total work.  A replacement
-					// starts at zero actuals, so set its total work directly instead.
-					replacement.setWork(replacementWorkShare(sourceRemainingWork,
-						replacements.size(), index), null);
-				created.add(replacement);
+					// Shrinking total work to the recorded actuals leaves the source's
+					// actual work intact and removes only its remaining allocation.
+					source.setWork(sourceActualWork, null);
+				if (undo)
+					batchUpdate.queueAssignmentDetailAfter(detailBefore.keySet());
+			} finally {
+				batchUpdate.endIfNeeded();
 			}
-			if (sourceHasActualWork)
-				// Shrinking total work to the recorded actuals leaves the source's
-				// actual work intact and removes only its remaining allocation.
-				source.setWork(sourceActualWork, null);
-			if (undo)
-				batchUpdate.queueAssignmentDetailAfter(detailBefore.keySet());
-		} finally {
-			batchUpdate.endIfNeeded();
+		} catch (RuntimeException | Error failure) {
+			try {
+				modelBefore.restore(failure);
+			} catch (RuntimeException | Error rollbackFailure) {
+				if (rollbackFailure != failure) failure.addSuppressed(rollbackFailure);
+			}
+			throw failure;
 		}
 		return new AssignmentMutationResult(List.copyOf(created), changed);
 	}
@@ -413,6 +427,68 @@ public class AssignmentService {
 		}
 	}
 
+	/** Captures the assignment graph and task state needed to compensate a failed batch. */
+	private static final class AssignmentModelState {
+		private final Map<NormalTask, AssignmentTaskState> tasks = new java.util.IdentityHashMap<>();
+		private final Map<Assignment, Object> assignmentDetails = new java.util.IdentityHashMap<>();
+		private final List<Assignment> originalAssignments = new ArrayList<>();
+		private final Set<Assignment> originalAssignmentIdentities = java.util.Collections.newSetFromMap(
+			new java.util.IdentityHashMap<>());
+
+		static AssignmentModelState capture(Collection<?> taskObjects) {
+			AssignmentModelState state = new AssignmentModelState();
+			for (Object value : taskObjects) {
+				NormalTask task = (NormalTask) value;
+				state.tasks.computeIfAbsent(task, current -> new AssignmentTaskState(current.backupDetail(),
+					(TaskSnapshot) current.getCurrentSnapshot()));
+				for (Object assignmentObject : task.getAssignments()) {
+					Assignment assignment = (Assignment) assignmentObject;
+					if (state.originalAssignmentIdentities.add(assignment)) state.originalAssignments.add(assignment);
+					state.assignmentDetails.putIfAbsent(assignment, assignment.backupDetail());
+				}
+			}
+			return state;
+		}
+
+		void restore(Throwable failure) {
+			Throwable rollbackFailure = null;
+			for (NormalTask task : tasks.keySet()) {
+				List<Assignment> current = new ArrayList<>();
+				for (Object value : task.getAssignments()) current.add((Assignment) value);
+				for (Assignment assignment : current) {
+					if (originalAssignmentIdentities.contains(assignment)) continue;
+					Resource resource = assignment.getResource();
+					try { if (task.findAssignment(resource) == assignment) task.removeAssignment(assignment); }
+					catch (RuntimeException | Error problem) { rollbackFailure = appendFailure(rollbackFailure, problem); }
+					try { if (resource.findAssignment(task) == assignment) resource.removeAssignment(assignment); }
+					catch (RuntimeException | Error problem) { rollbackFailure = appendFailure(rollbackFailure, problem); }
+				}
+			}
+			for (Assignment assignment : originalAssignments) {
+				NormalTask task = (NormalTask) assignment.getTask();
+				Resource resource = assignment.getResource();
+				try {
+					if (task.findAssignment(resource) != assignment || resource.findAssignment(task) != assignment)
+						assignment.setTaskAndResource(task, resource);
+					if (task.findAssignment(resource) != assignment) task.addAssignment(assignment);
+				} catch (RuntimeException | Error problem) { rollbackFailure = appendFailure(rollbackFailure, problem); }
+				try { if (resource.findAssignment(task) != assignment) resource.addAssignment(assignment); }
+				catch (RuntimeException | Error problem) { rollbackFailure = appendFailure(rollbackFailure, problem); }
+			}
+			for (Map.Entry<Assignment, Object> entry : assignmentDetails.entrySet()) {
+				try { entry.getKey().restoreDetail(entry.getValue()); }
+				catch (RuntimeException | Error problem) { rollbackFailure = appendFailure(rollbackFailure, problem); }
+			}
+			for (Map.Entry<NormalTask, AssignmentTaskState> entry : tasks.entrySet()) {
+				try { entry.getKey().restoreDetail(null, entry.getValue().detail(), true, entry.getValue().snapshot()); }
+				catch (RuntimeException | Error problem) { rollbackFailure = appendFailure(rollbackFailure, problem); }
+			}
+			if (rollbackFailure != null) appendFailure(failure, rollbackFailure);
+		}
+	}
+
+	private record AssignmentTaskState(Object detail, TaskSnapshot snapshot) { }
+
 
 /**
  * When importing, we don't update or recalculate duration
@@ -427,7 +503,7 @@ public class AssignmentService {
 		if (task == null || resource == null) throw new IllegalArgumentException("A task and resource are required");
 		Project project = task.getProject();
 		ResourcePool pool = resourcePoolOf(resource);
-		return runAssignmentCommand(project, pool, List.of(resource), project != null && project.isInitialized() || eventSource != null, markApplied -> {
+		return runAssignmentCommand(project, pool, List.of(task), List.of(resource), project != null && project.isInitialized() || eventSource != null, markApplied -> {
 			if (!task.isAssignable()) return null;
 			markApplied.run();
 			Assignment assignment = newAssignment(task, resource, units, delay, eventSource, new NodeUndoInfo(undo));
@@ -471,7 +547,7 @@ public class AssignmentService {
 		Project project = task.getProject();
 		Resource resource = assignment.getResource();
 		ResourcePool pool = resourcePoolOf(resource);
-		return runAssignmentCommand(project, pool, List.of(resource), project != null && project.isInitialized() || eventSource != null, markApplied -> {
+		return runAssignmentCommand(project, pool, List.of(task), List.of(resource), project != null && project.isInitialized() || eventSource != null, markApplied -> {
 			if (!task.isAssignable()) return false;
 			markApplied.run();
 			boolean connected = connectInternal(assignment, eventSource, undo);
@@ -542,7 +618,7 @@ public class AssignmentService {
 		List<Project.AdditionalObjectEventManager> additionalManagers = new ArrayList<>();
 		addPoolRefreshParticipant(additionalManagers, sourcePool, source);
 		addPoolRefreshParticipant(additionalManagers, replacementPool, replacement);
-		project.runModelCommand(markApplied -> {
+		project.runAtomicModelCommand(markApplied -> {
 			Object assignmentDetail = assignment.backupDetail();
 			Object taskDetail = task.backupDetail();
 			markApplied.run();
@@ -567,7 +643,6 @@ public class AssignmentService {
 						throw new IllegalStateException("Assignment source reverse links were not restored");
 					task.restoreDetail(eventSource, taskDetail, true, (TaskSnapshot)task.getCurrentSnapshot());
 					assignment.restoreDetail(assignmentDetail);
-					publishSharedPoolRefreshes(project, eventSource, task, additionalManagers);
 				} catch (RuntimeException | Error rollbackFailure) {
 					failure.addSuppressed(rollbackFailure);
 				}
@@ -614,7 +689,7 @@ public class AssignmentService {
 		Resource resource = assignment.getResource();
 		Project project = task.getProject();
 		ResourcePool pool = resourcePoolOf(resource);
-		runAssignmentCommand(project, pool, List.of(resource), project != null && project.isInitialized() || eventSource != null, markApplied -> {
+		runAssignmentCommand(project, pool, List.of(task), List.of(resource), project != null && project.isInitialized() || eventSource != null, markApplied -> {
 			if (task.findAssignment(resource) == null) return false;
 			markApplied.run();
 			removeInternal(assignment, cleanTaskLink, eventSource, undo);
@@ -710,6 +785,11 @@ public class AssignmentService {
 				if (pool != null) pools.add(pool);
 			}
 			boolean undoGroup = batchUndo && undo && group.project != null;
+			AssignmentModelState modelBefore = AssignmentModelState.capture(
+				attached.stream().map(Assignment::getTask).toList());
+			Map<Assignment, Object> assignmentDetailsBefore = new LinkedHashMap<>();
+			for (Assignment assignment : attached)
+				assignmentDetailsBefore.put(assignment, modelBefore.assignmentDetails.get(assignment));
 			int projectTransaction = 0;
 			List<ResourcePool> transactionPools = new ArrayList<>();
 			List<Integer> poolTransactions = new ArrayList<>();
@@ -725,10 +805,8 @@ public class AssignmentService {
 						transactionPools.add(pool);
 						poolTransactions.add(transaction);
 					}
-					Map<Assignment, Object> assignmentDetails = new LinkedHashMap<>();
-					for (Assignment assignment : attached) assignmentDetails.put(assignment, assignment.backupDetail());
 					group.project.getUndoController().getEditSupport().postEdit(
-						new AssignmentDetailStateEdit(assignmentDetails, Map.of()));
+						new AssignmentDetailStateEdit(assignmentDetailsBefore, Map.of()));
 				}
 				markApplied.run();
 				for (Assignment assignment : attached)
@@ -741,6 +819,7 @@ public class AssignmentService {
 				return true;
 			} catch (RuntimeException | Error failure) {
 				commandFailure = failure;
+				modelBefore.restore(failure);
 				throw failure;
 			} finally {
 				Throwable cleanupFailure = null;
@@ -758,15 +837,16 @@ public class AssignmentService {
 				}
 				if (cleanupFailure != null) {
 					if (commandFailure != null) appendFailure(commandFailure, cleanupFailure);
-					else if (cleanupFailure instanceof Error error) throw error;
-					else throw (RuntimeException) cleanupFailure;
+					else modelBefore.restore(cleanupFailure);
+					if (commandFailure == null && cleanupFailure instanceof Error error) throw error;
+					else if (commandFailure == null) throw (RuntimeException) cleanupFailure;
 				}
 			}
 		};
 		if (group.project == null || !published) {
 			operation.apply(() -> {});
 		} else {
-			group.project.runModelCommand(operation::apply, Boolean.TRUE::equals, result -> result, participants);
+			group.project.runAtomicModelCommand(operation::apply, Boolean.TRUE::equals, result -> result, participants);
 		}
 	}
 
@@ -782,14 +862,24 @@ public class AssignmentService {
 		return current;
 	}
 
-	private <T> T runAssignmentCommand(Project project, ResourcePool pool, Collection<?> refreshObjects, boolean published,
+	private <T> T runAssignmentCommand(Project project, ResourcePool pool, Collection<? extends NormalTask> affectedTasks,
+			Collection<?> refreshObjects, boolean published,
 			Function<Runnable, T> operation, Predicate<? super T> changed, UnaryOperator<T> resultWhenFactsExist) {
-		if (project == null || !published)
-			return operation.apply(() -> {});
 		List<Project.AdditionalObjectEventManager> participants = pool == null ? List.of()
 			: List.of(new Project.AdditionalObjectEventManager(pool.getObjectEventManager(), pool, pool,
 				List.copyOf(refreshObjects)));
-		return project.runModelCommand(operation::apply, changed, resultWhenFactsExist, participants);
+		java.util.function.Function<Runnable, T> compensatingOperation = markApplied -> {
+			AssignmentModelState before = AssignmentModelState.capture(affectedTasks);
+			try {
+				return operation.apply(markApplied);
+			} catch (RuntimeException | Error failure) {
+				before.restore(failure);
+				throw failure;
+			}
+		};
+		if (project == null || !published)
+			return compensatingOperation.apply(() -> {});
+		return project.runAtomicModelCommand(compensatingOperation::apply, changed, resultWhenFactsExist, participants);
 	}
 
 	private void publishSilentAssignmentRefresh(Project project, NormalTask task, ResourcePool pool, Resource resource) {

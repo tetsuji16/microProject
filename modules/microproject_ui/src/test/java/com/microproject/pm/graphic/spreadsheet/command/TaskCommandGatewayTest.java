@@ -27,6 +27,7 @@ import javax.swing.table.TableRowSorter;
 
 import org.junit.jupiter.api.Test;
 
+import com.microproject.collaboration.CollaborationSession;
 import com.microproject.configuration.FieldDictionary;
 import com.microproject.datatype.Duration;
 import com.microproject.datatype.PercentFormat;
@@ -361,8 +362,40 @@ class TaskCommandGatewayTest {
 	}
 
 	@Test
+	void taskPasteGatewayReturnsCommandAndStableSelectedAndAffectedIds() throws Exception {
+		Fixture fixture = createFixture();
+		DataFactoryUndoController sourceUndo = new DataFactoryUndoController();
+		Project sourceProject = Project.createProject(ResourcePool.createRourcePool("task-paste-metadata", sourceUndo), sourceUndo);
+		sourceProject.initialize(false, false);
+		NormalTask sourceTask = sourceProject.createScriptedTask();
+		sourceTask.setName("Metadata pasted");
+		sourceProject.connectTask(sourceTask);
+		sourceProject.getTaskOutlines().addToAll(sourceTask, null);
+		List<Node> copiedRoots = sourceProject.getTaskModel().copy(
+			List.of(sourceProject.getTaskModel().search(sourceTask)), NodeModel.SILENT);
+		RevisionedProjectionIndex projection = fixture.cache().getVisibleNodes().getProjectionIndex();
+		ProjectionRowKey.TaskRow selected = taskRowFor(projection, fixture.task());
+		fixture.sheet().restoreTaskRowSelection(List.of(fixture.project().getTaskModel().search(fixture.task())));
+
+		TaskCommandResult result = TaskCommandGateway.execute(fixture.sheet(), new TaskPasteIntent(copiedRoots,
+			List.of(selected), projection.topologyRevision(), TaskPasteIntent.PASTE_INSERT));
+
+		assertEquals(TaskCommandResult.Status.CHANGED, result.status());
+		assertEquals(TaskPasteIntent.PASTE_INSERT, result.commandId());
+		assertEquals(List.of(fixture.task().getUniqueId()), result.selectedTaskIds());
+		Task pasted = fixture.project().getTaskList().stream()
+			.filter(task -> "Metadata pasted".equals(task.getName())).findFirst().orElseThrow();
+		assertEquals(List.of(pasted.getUniqueId()), result.affectedTaskIds());
+	}
+
+	@Test
 	void spreadsheetModelRoutesTaskFieldInputThroughStableIntent() throws Exception {
 		Fixture fixture = createFixture();
+		List<TaskCommandResult> publishedOutcomes = new java.util.ArrayList<>();
+		fixture.model().setTaskEditOutcomeHandler((result, task) -> {
+			assertEquals(fixture.task(), task, "field outcome must retain the edited task identity");
+			publishedOutcomes.add(result);
+		});
 		var projection = fixture.cache().getVisibleNodes().getProjectionIndex();
 		int row = projection.rowForKey(new com.microproject.pm.graphic.model.cache.ProjectionRowKey.TaskRow(
 			fixture.taskKey(), 0));
@@ -379,8 +412,12 @@ class TaskCommandGatewayTest {
 		int committedColumn = nameColumn;
 
 		SwingUtilities.invokeAndWait(() -> fixture.model().setValueAt("After", committedRow, committedColumn));
+		SwingUtilities.invokeAndWait(() -> fixture.model().setValueAt("After", committedRow, committedColumn));
 
 		assertEquals("After", fixture.task().getName());
+		assertEquals(List.of(TaskCommandResult.Status.CHANGED, TaskCommandResult.Status.NO_CHANGE),
+			publishedOutcomes.stream().map(TaskCommandResult::status).toList(),
+			"the shared UI outcome hook must publish both a mutation and a no-op from the gateway");
 		assertTrue(fixture.project().getUndoController().canUndo(), "task field command must preserve the canonical Undo edit");
 		ByteArrayOutputStream saved = new ByteArrayOutputStream();
 		MpoFileImporter serializer = new MpoFileImporter();
@@ -567,6 +604,82 @@ class TaskCommandGatewayTest {
 			fixture.sheet(), () -> { mutationCalled.set(true); return true; })));
 		assertEquals(TaskCommandResult.Status.CHANGED, currentResult.get().status());
 		assertTrue(mutationCalled.get(), "a current, validated gesture must reach the single mutation callback");
+	}
+
+	@Test
+	void ganttScheduleIntentRejectsReadOnlyProjectWithoutMutationOrUndoChange() throws Exception {
+		Fixture fixture = createFixture();
+		fixture.task().setDuration(com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
+		TaskScheduleEditIntent intent = currentProgressIntent(fixture);
+		fixture.project().setReadOnly(true);
+		boolean canUndoBefore = fixture.project().getUndoController().canUndo();
+		String undoNameBefore = fixture.project().getUndoController().getUndoPresentationName();
+		long[] scheduleBefore = scheduleState(fixture.task());
+		AtomicReference<Boolean> mutationCalled = new AtomicReference<>(false);
+		AtomicReference<TaskCommandResult> result = new AtomicReference<>();
+
+		SwingUtilities.invokeAndWait(() -> result.set(TaskCommandGateway.executeScheduleEdit(fixture.cache(), intent,
+			fixture.sheet(), () -> { mutationCalled.set(true); return true; })));
+
+		assertEquals(TaskCommandResult.Status.REJECTED, result.get().status());
+		assertFalse(mutationCalled.get(), "read-only rejection must happen before the mutation callback");
+		assertArrayEquals(scheduleBefore, scheduleState(fixture.task()), "read-only rejection must preserve schedule and constraints");
+		assertEquals(canUndoBefore, fixture.project().getUndoController().canUndo());
+		assertEquals(undoNameBefore, fixture.project().getUndoController().getUndoPresentationName());
+	}
+
+	@Test
+	void ganttScheduleIntentRejectsCollaborationLockWithoutMutationOrUndoChange() throws Exception {
+		Fixture fixture = createFixture();
+		fixture.task().setDuration(com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
+		TaskScheduleEditIntent intent = currentProgressIntent(fixture);
+		fixture.project().setCollaborationSession(new RejectingCollaborationSession(fixture.project()));
+		boolean canUndoBefore = fixture.project().getUndoController().canUndo();
+		String undoNameBefore = fixture.project().getUndoController().getUndoPresentationName();
+		long[] scheduleBefore = scheduleState(fixture.task());
+		AtomicReference<Boolean> mutationCalled = new AtomicReference<>(false);
+		AtomicReference<TaskCommandResult> result = new AtomicReference<>();
+
+		SwingUtilities.invokeAndWait(() -> result.set(TaskCommandGateway.executeScheduleEdit(fixture.cache(), intent,
+			fixture.sheet(), () -> { mutationCalled.set(true); return true; })));
+
+		assertEquals(TaskCommandResult.Status.LOCKED, result.get().status());
+		assertFalse(mutationCalled.get(), "lock rejection must happen before the mutation callback");
+		assertArrayEquals(scheduleBefore, scheduleState(fixture.task()), "lock rejection must preserve schedule and constraints");
+		assertEquals(canUndoBefore, fixture.project().getUndoController().canUndo());
+		assertEquals(undoNameBefore, fixture.project().getUndoController().getUndoPresentationName());
+	}
+
+	private TaskScheduleEditIntent currentProgressIntent(Fixture fixture) {
+		RevisionedProjectionIndex projection = fixture.cache().getVisibleNodes().getProjectionIndex();
+		Schedule schedule = (Schedule) fixture.task();
+		return new TaskScheduleEditIntent(taskRowFor(projection, fixture.task()), projection.topologyRevision(),
+			TaskScheduleEditIntent.Operation.PROGRESS, schedule.getStart(), schedule.getEnd(),
+			schedule.getCompletedThrough(), schedule.getStart(), schedule.getEnd(), fixture.task().getConstraintType(),
+			fixture.task().getConstraintDate(), schedule.getStart(), schedule.getEnd(), schedule.getCompletedThrough() + 1);
+	}
+
+	private long[] scheduleState(Task task) {
+		Schedule schedule = (Schedule) task;
+		return new long[] { schedule.getStart(), schedule.getEnd(), schedule.getCompletedThrough(),
+			task.getConstraintType(), task.getConstraintDate() };
+	}
+
+	private static final class RejectingCollaborationSession extends CollaborationSession {
+		private RejectingCollaborationSession(Project project) {
+			super(project, new java.io.File(System.getProperty("java.io.tmpdir"),
+				"microproject-schedule-lock-test.mpo").getAbsolutePath(), "test-user");
+		}
+
+		@Override
+		public Task tryAcquireTasks(Iterable<Task> tasks) {
+			return tasks.iterator().next();
+		}
+
+		@Override
+		public String describeLockOwner(Task task) {
+			return "test-user";
+		}
 	}
 
 	@Test

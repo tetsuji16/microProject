@@ -171,6 +171,8 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	private Double importedPercentComplete;
 	/** Imported task work completion, distinct from assignment work completion. */
 	private Double importedPercentWorkComplete;
+	/** Scalar task work retained from MPO when no real assignment owns the work. */
+	private transient Long importedUnassignedWork;
 	/** Task-owned gaps; assignment contours remain the independent work record. */
 	private ArrayList<TaskSplitInterval> taskSplitIntervals = new ArrayList<>();
 	private transient ArrayList<TaskSplitInterval> manualTaskSplitIntervals;
@@ -320,6 +322,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	 * @param duration
 	 */
 	public void setDuration(long duration) {
+		importedUnassignedWork = null;
 		rememberDurationDisplayUnit(duration);
 		estimated = Duration.isEstimated(duration);
 		duration = Duration.millis(duration);
@@ -526,6 +529,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		return ass;
 	}
 	public void addAssignment(Assignment assignment) {
+		importedUnassignedWork = null;
 		//project.beginUndoUpdate();
 		boolean recalculateDuration = !assignment.isDefault()
 				&& assignment.isInitialized() && assignment.isLabor();
@@ -586,6 +590,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	 * @param assignment
 	 */
 	public void removeAssignment(Assignment assignment) {
+		importedUnassignedWork = null;
 		//project.beginUndoUpdate();
 		boolean recalculateDuration = !assignment.isDefault()
 				&& assignment.isInitialized(); // && assignment.isLabor();
@@ -1011,6 +1016,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	}
 
 	public void setWork(long work) {
+		importedUnassignedWork = null;
 		work = Duration.millis(work);
 		if (hasLaborAssignment() && work < 60000) {
 			work *= Duration.timeUnitFactor(TimeUnit.HOURS);
@@ -1204,6 +1210,9 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	}
 
 	public long work(long start, long end) {
+		if (importedUnassignedWork != null && isNormal() && !hasRealAssignments()
+				&& com.microproject.field.FieldContext.isScalar(start, end))
+			return importedUnassignedWork.longValue();
 		if (isParentWithoutAssignments())
 			return TimeDistributedDataConsolidator.work(start, end, activeRollupValues(), false);
 		return ((TaskSnapshot) getCurrentSnapshot()).work(start, end);
@@ -2034,6 +2043,18 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		getCurrentSchedule().setStart(start);
 		getCurrentSchedule().setFinish(finish);
 		setActualStartNoEvent(actualStart);
+	}
+
+	/**
+	 * Restores task-level Work from MPO without invoking the scheduling rule.
+	 * Normal {@link #setWork(long)} changes remaining work through that rule and
+	 * may adjust task dates or duration, while this MPO extension stores only a
+	 * scalar value for an unassigned leaf.
+	 */
+	public void restoreMpoUnassignedWork(long work) {
+		if (work < 0L || !isNormal() || hasRealAssignments())
+			throw new IllegalArgumentException("MPO unassigned work requires a nonnegative value on an unassigned normal leaf");
+		importedUnassignedWork = Long.valueOf(work);
 	}
 
 	protected transient static BarClosure barClosureInstance = new BarClosure();

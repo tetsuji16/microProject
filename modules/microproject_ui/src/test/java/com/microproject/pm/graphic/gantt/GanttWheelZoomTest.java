@@ -34,40 +34,35 @@ import com.microproject.undo.DataFactoryUndoController;
 class GanttWheelZoomTest {
 
 	@Test
-	void microsoftProjectKeypadShortcutsZoomTheTimescale() {
+	void keypadZoomShortcutsAreNotRegisteredOnTheGanttComponent() {
 		onEdt(() -> {
 		Gantt gantt = newGantt();
 		try {
-			CoordinatesConverter coord = new CoordinatesConverter(gantt.getProject());
-			gantt.setCoord(coord);
-			JScrollPane chartPane = chartPaneForTest(gantt);
-			JScrollPane otherPane = new JScrollPane(new JPanel());
-			Synchronizer synchronizer = new Synchronizer();
-			synchronizer.addSynchro(chartPane, otherPane, ScrollPaneSynchronizer.HORIZONTAL);
-
 			var inputMap = gantt.getInputMap(Gantt.WHEN_IN_FOCUSED_WINDOW);
 			var actionMap = gantt.getActionMap();
 			Object zoomIn = inputMap.get(KeyStroke.getKeyStroke(KeyEvent.VK_DIVIDE, InputEvent.CTRL_DOWN_MASK));
 			Object zoomOut = inputMap.get(KeyStroke.getKeyStroke(KeyEvent.VK_MULTIPLY, InputEvent.CTRL_DOWN_MASK));
-			assertTrue(zoomIn != null, "Ctrl+/ keypad shortcut must be registered");
-			assertTrue(zoomOut != null, "Ctrl+* keypad shortcut must be registered");
-
-			int initial = coord.getTimescaleManager().getCurrentScaleIndex();
-			if (coord.canZoomIn()) {
-				actionMap.get(zoomIn).actionPerformed(new java.awt.event.ActionEvent(gantt, 0, "zoom-in"));
-				assertTrue(coord.getTimescaleManager().getCurrentScaleIndex() < initial,
-						"Ctrl+/ must select a finer time scale");
-			}
-			if (coord.canZoomOut()) {
-				int beforeZoomOut = coord.getTimescaleManager().getCurrentScaleIndex();
-				actionMap.get(zoomOut).actionPerformed(new java.awt.event.ActionEvent(gantt, 0, "zoom-out"));
-				assertTrue(coord.getTimescaleManager().getCurrentScaleIndex() > beforeZoomOut,
-						"Ctrl+* must select a broader time scale");
-			}
+			assertFalse(hasLocalBinding(inputMap, KeyStroke.getKeyStroke(KeyEvent.VK_DIVIDE, InputEvent.CTRL_DOWN_MASK)),
+				"Ctrl+/ must be registered on the document root pane only");
+			assertFalse(hasLocalBinding(inputMap, KeyStroke.getKeyStroke(KeyEvent.VK_MULTIPLY, InputEvent.CTRL_DOWN_MASK)),
+				"Ctrl+* must be registered on the document root pane only");
+			assertFalse(hasLocalAction(actionMap, "GanttKeypadZoomIn"));
+			assertFalse(hasLocalAction(actionMap, "GanttKeypadZoomOut"));
 		} finally {
 			gantt.cleanUp();
 		}
 		});
+	}
+
+	private static boolean hasLocalAction(javax.swing.ActionMap actionMap, Object key) {
+		Object[] keys = actionMap.keys();
+		if (keys == null)
+			return false;
+		for (Object localKey : keys) {
+			if (key.equals(localKey))
+				return true;
+		}
+		return false;
 	}
 
 	@Test
@@ -99,7 +94,7 @@ class GanttWheelZoomTest {
 			synchronizer.addSynchro(chartPane, otherPane, ScrollPaneSynchronizer.HORIZONTAL);
 
 			int before = coord.getTimescaleManager().getCurrentScaleIndex();
-			dispatchCtrlWheel(gantt, 10, 1);
+			dispatchCtrlWheel(chartPane, gantt, 10, 1);
 
 			int after = coord.getTimescaleManager().getCurrentScaleIndex();
 			assertTrue(after > before, "Ctrl+wheel down should zoom out (increase scale index), was " + before + " -> " + after);
@@ -124,12 +119,12 @@ class GanttWheelZoomTest {
 
 			// Zoom out once so a zoom-in (which can anchor without left-edge clamping) is available.
 			assertTrue(coord.canZoomOut(), "default scale must allow zooming out");
-			dispatchCtrlWheel(gantt, 150, 1);
+			dispatchCtrlWheel(chartPane, gantt, 150, 1);
 			assertTrue(coord.canZoomIn(), "after zooming out a zoom-in must be available");
 
 			int cursorX = 150;
 			double anchorDate = coord.toTime(cursorX);
-			dispatchCtrlWheel(gantt, cursorX, -1);
+			dispatchCtrlWheel(chartPane, gantt, cursorX, -1);
 
 			int left = chartPane.getViewport().getViewPosition().x;
 			int expectedLeft = (int) Math.round(coord.toX(anchorDate)) - cursorX;
@@ -160,10 +155,7 @@ class GanttWheelZoomTest {
 			synchronizer.addSynchro(chartPane, otherPane, ScrollPaneSynchronizer.HORIZONTAL);
 
 			int before = coord.getTimescaleManager().getCurrentScaleIndex();
-			MouseWheelEvent wheel = new MouseWheelEvent(gantt, MouseEvent.MOUSE_WHEEL,
-					System.currentTimeMillis(), 0, 10, 10, 0, false,
-					MouseWheelEvent.WHEEL_UNIT_SCROLL, 1, 1);
-			gantt.dispatchEvent(wheel);
+			MouseWheelEvent wheel = dispatchWheel(chartPane, gantt, 10, 0, 1);
 
 			int after = coord.getTimescaleManager().getCurrentScaleIndex();
 			assertTrue(after == before, "plain wheel must scroll, not zoom (scale index " + before + " -> " + after + ")");
@@ -185,17 +177,18 @@ class GanttWheelZoomTest {
 			chartPane.getViewport().setViewSize(new Dimension(4000, 1200));
 			JScrollPane otherPane = new JScrollPane(new JPanel());
 			Synchronizer synchronizer = new Synchronizer();
+			int paneWheelListenersBefore = chartPane.getMouseWheelListeners().length;
+			int ganttWheelListenersBefore = gantt.getMouseWheelListeners().length;
 			synchronizer.addSynchro(chartPane, otherPane, ScrollPaneSynchronizer.HORIZONTAL);
-			assertEquals(1, gantt.getMouseWheelListeners().length,
-				"a synchronized Gantt must have exactly one wheel controller");
+			assertEquals(paneWheelListenersBefore + 1, chartPane.getMouseWheelListeners().length,
+				"a synchronized scroll pane must have exactly one wheel controller");
+			assertEquals(ganttWheelListenersBefore, gantt.getMouseWheelListeners().length,
+				"the Gantt view must not own a duplicate wheel controller");
 
 			JScrollBar vertical = chartPane.getVerticalScrollBar();
 			int before = vertical.getValue();
 			int oneOwnerStep = gantt.getRowHeight() * 5;
-			MouseWheelEvent wheel = new MouseWheelEvent(gantt, MouseEvent.MOUSE_WHEEL,
-					System.currentTimeMillis(), 0, 10, 10, 0, false,
-					MouseWheelEvent.WHEEL_UNIT_SCROLL, 1, 1);
-			gantt.dispatchEvent(wheel);
+			MouseWheelEvent wheel = dispatchWheel(chartPane, gantt, 10, 0, 1);
 
 			assertEquals(before + oneOwnerStep, vertical.getValue(),
 				"plain Gantt wheel must be consumed by one vertical-scroll owner");
@@ -250,11 +243,17 @@ class GanttWheelZoomTest {
 		return chartPane;
 	}
 
-	private static void dispatchCtrlWheel(Gantt gantt, int x, int rotation) {
-		MouseWheelEvent wheel = new MouseWheelEvent(gantt, MouseEvent.MOUSE_WHEEL,
-				System.currentTimeMillis(), InputEvent.CTRL_DOWN_MASK, x, 10, 0, false,
+	private static void dispatchCtrlWheel(JScrollPane chartPane, Gantt gantt, int x, int rotation) {
+		dispatchWheel(chartPane, gantt, x, InputEvent.CTRL_DOWN_MASK, rotation);
+	}
+
+	private static MouseWheelEvent dispatchWheel(JScrollPane chartPane, Gantt gantt, int x, int modifiers, int rotation) {
+		java.awt.Point panePoint = SwingUtilities.convertPoint(gantt, x, 10, chartPane);
+		MouseWheelEvent wheel = new MouseWheelEvent(chartPane, MouseEvent.MOUSE_WHEEL,
+				System.currentTimeMillis(), modifiers, panePoint.x, panePoint.y, 0, false,
 				MouseWheelEvent.WHEEL_UNIT_SCROLL, 1, rotation);
-		gantt.dispatchEvent(wheel);
+		chartPane.dispatchEvent(wheel);
+		return wheel;
 	}
 
 	private static boolean hasLocalBinding(javax.swing.InputMap inputMap, KeyStroke keyStroke) {

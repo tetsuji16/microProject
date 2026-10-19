@@ -55,11 +55,20 @@ public class NetworkSVGRenderer implements SVGRenderer, CacheListener, Cloneable
 	protected SpreadSheet spreadSheet;
 	protected NetworkRenderer renderer;
 	protected Project project;
+	private NodeModelCache cache;
 	public void init(Project project, ReferenceNodeModelCache refCache) {
 		init(project, NodeModelCacheFactory.getInstance().createFilteredCache((ReferenceNodeModelCache)refCache,"Network",null),PERT,-1);
 	}
+	/** Initializes this renderer with a dedicated cache that this renderer will close on cleanup. */
 	public void init(Project project, NodeModelCache cache,int type,int scale) {
+		if (this.cache == cache) {
+			cache.removeNodeModelListener(this);
+			this.cache = null;
+		} else {
+			cleanUp();
+		}
 		this.project=project;
+		this.cache=cache;
 		params=new NetworkParamsImpl();
 		params.setNetworkLayout(type==PERT?new PertLayout(params):new XbsLayout(params));
 		String viewName=null;
@@ -88,6 +97,15 @@ public class NetworkSVGRenderer implements SVGRenderer, CacheListener, Cloneable
 //		renderer.setVertical(false);
 		cache.update();
 		params.updateLayout();
+	}
+
+	/** Releases the cache listener owned by this renderer. Safe to call more than once. */
+	public void cleanUp() {
+		if (cache != null) {
+			cache.removeNodeModelListener(this);
+			cache.close();
+			cache = null;
+		}
 	}
 
 

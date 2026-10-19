@@ -98,6 +98,13 @@ public class SpreadSheetCorner extends GradientCorner implements ListSelectionLi
 				Messages.getString("Text.rightClickSelectToSpreadsheet"));
 	}
 
+	public void cleanUp() {
+		if (spreadSheet instanceof SpreadSheet) {
+			spreadSheet.getRowHeader().getSelectionModel().removeListSelectionListener(this);
+			spreadSheet.getColumnModel().getSelectionModel().removeListSelectionListener(this);
+		}
+	}
+
 
 	public void valueChanged(ListSelectionEvent e) {
 		boolean allRowsSelected = spreadSheet.getRowCount() > 0

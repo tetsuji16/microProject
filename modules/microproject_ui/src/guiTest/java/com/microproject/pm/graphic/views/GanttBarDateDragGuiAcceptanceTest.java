@@ -12,11 +12,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.GraphicsEnvironment;
+import java.awt.KeyboardFocusManager;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.Window;
 import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
+import java.awt.KeyEventDispatcher;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -27,6 +30,8 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.swing.JMenuItem;
+import javax.swing.AbstractAction;
+import javax.swing.Action;
 import javax.swing.MenuElement;
 import javax.swing.MenuSelectionManager;
 import javax.swing.JFrame;
@@ -48,6 +53,10 @@ import com.microproject.pm.dependency.DependencyType;
 import com.microproject.exchange.MpoFileImporter;
 import com.microproject.pm.graphic.gantt.Gantt;
 import com.microproject.pm.graphic.gantt.GanttUI;
+import com.microproject.pm.graphic.frames.GraphicManager;
+import com.microproject.pm.graphic.frames.MainRibbonFrame;
+import com.microproject.pm.graphic.frames.DocumentFrame;
+import com.microproject.pm.graphic.views.GanttView;
 import com.microproject.pm.graphic.graph.GraphZone;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
@@ -62,14 +71,25 @@ import com.microproject.strings.Messages;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.DateTime;
+import com.microproject.util.Environment;
 
 /** Robot coverage for moving a task bar and propagating an FS successor date. */
 class GanttBarDateDragGuiAcceptanceTest {
 	private JFrame frame;
 	private Gantt gantt;
+	private MainRibbonFrame projectWindow;
+	private GraphicManager projectManager;
+	private boolean previousRibbonUi;
+	private boolean previousNewLook;
+	private boolean environmentCaptured;
+	private KeyEventDispatcher activeKeyObserver;
 
 	@AfterEach
 	void closeWindow() throws Exception {
+		if (activeKeyObserver != null) {
+			KeyboardFocusManager.getCurrentKeyboardFocusManager().removeKeyEventDispatcher(activeKeyObserver);
+			activeKeyObserver = null;
+		}
 		if (frame != null) SwingUtilities.invokeAndWait(() -> {
 			frame.dispose();
 			frame = null;
@@ -78,6 +98,229 @@ class GanttBarDateDragGuiAcceptanceTest {
 			gantt.cleanUp();
 			gantt = null;
 		}
+		if (projectManager != null) SwingUtilities.invokeAndWait(() -> projectManager.cleanUp());
+		if (projectWindow != null) SwingUtilities.invokeAndWait(() -> projectWindow.dispose());
+		if (environmentCaptured) {
+			Environment.setRibbonUI(previousRibbonUi);
+			Environment.setNewLook(previousNewLook);
+		}
+	}
+
+	@Test
+	void robotCtrlNumpadDivideAndMultiplyZoomActiveGanttFromGanttAndSpreadsheetFocus() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		environmentCaptured = true;
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		Fixture fixture = createFixture(DependencyType.FS, false);
+		DocumentFrame[] document = new DocumentFrame[1];
+		SwingUtilities.invokeAndWait(() -> {
+			projectWindow = new MainRibbonFrame("Gantt keypad zoom GUI acceptance", null);
+			projectManager = new GraphicManager(projectWindow);
+			projectWindow.setGraphicManager(projectManager);
+			projectManager.initView();
+			document[0] = projectManager.addProjectFrame(fixture.project);
+			projectWindow.setSize(1050, 650);
+			projectWindow.setLocationByPlatform(true);
+			projectWindow.setAlwaysOnTop(true);
+			projectWindow.setVisible(true);
+			document[0].activateGanttView();
+		});
+		GuiAcceptanceSupport.await(() -> projectWindow.isShowing() && document[0].isShowing(),
+			"Gantt project window did not become visible");
+		GanttView[] view = new GanttView[1];
+		int[] initialScale = new int[1];
+		int[] shortcutInvocations = new int[1];
+		int[] divideScale = new int[1];
+		Point[] tableViewportPosition = new Point[1];
+		int[] ganttViewportY = new int[1];
+		long[] initialStart = new long[1];
+		long[] initialEnd = new long[1];
+		SwingUtilities.invokeAndWait(() -> {
+			view[0] = (GanttView) document[0].getActiveTopView();
+			if (!view[0].canZoomIn())
+				view[0].zoomOut();
+			initialScale[0] = view[0].getScale();
+			javax.swing.JViewport tableViewport = (javax.swing.JViewport) SwingUtilities.getAncestorOfClass(
+				javax.swing.JViewport.class, view[0].getSpreadSheet());
+			javax.swing.JViewport ganttViewport = (javax.swing.JViewport) SwingUtilities.getAncestorOfClass(
+				javax.swing.JViewport.class, view[0].getGantt());
+			assertTrue(tableViewport != null, "task table must be hosted by a viewport");
+			assertTrue(ganttViewport != null, "Gantt must be hosted by a viewport");
+			tableViewportPosition[0] = tableViewport.getViewPosition();
+			ganttViewportY[0] = ganttViewport.getViewPosition().y;
+			initialStart[0] = fixture.predecessor.getStart();
+			initialEnd[0] = fixture.predecessor.getEnd();
+			view[0].getGantt().requestFocusInWindow();
+			assertTrue(projectManager.isDocumentActive(), "project document must be the active frame");
+			assertEquals(document[0], projectManager.getCurrentFrame());
+			var divide = javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_DIVIDE, InputEvent.CTRL_DOWN_MASK);
+			Object actionKey = projectWindow.getRootPane()
+				.getInputMap(javax.swing.JComponent.WHEN_IN_FOCUSED_WINDOW).get(divide);
+			assertEquals("GanttKeypadZoomIn", actionKey);
+			Action zoomAction = projectWindow.getRootPane().getActionMap().get(actionKey);
+			projectWindow.getRootPane().getActionMap().put(actionKey, new AbstractAction() {
+				private static final long serialVersionUID = 1L;
+				@Override public void actionPerformed(java.awt.event.ActionEvent event) {
+					shortcutInvocations[0]++;
+					zoomAction.actionPerformed(event);
+				}
+			});
+			var multiply = javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_MULTIPLY, InputEvent.CTRL_DOWN_MASK);
+			Object multiplyActionKey = projectWindow.getRootPane()
+				.getInputMap(javax.swing.JComponent.WHEN_IN_FOCUSED_WINDOW).get(multiply);
+			assertEquals("GanttKeypadZoomOut", multiplyActionKey);
+			Action zoomOutAction = projectWindow.getRootPane().getActionMap().get(multiplyActionKey);
+			projectWindow.getRootPane().getActionMap().put(multiplyActionKey, new AbstractAction() {
+				private static final long serialVersionUID = 1L;
+				@Override public void actionPerformed(java.awt.event.ActionEvent event) {
+					shortcutInvocations[0]++;
+					zoomOutAction.actionPerformed(event);
+				}
+			});
+		});
+		assertTrue(view[0].canZoomIn(), "fixture must allow zooming in");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(40);
+		int[] observedDivideEvents = new int[1];
+		int[] observedMultiplyEvents = new int[1];
+		String[] observedMultiplyDetails = new String[1];
+		KeyEventDispatcher keyObserver = event -> {
+			if (event.getID() == KeyEvent.KEY_PRESSED) {
+				if (event.getKeyCode() == KeyEvent.VK_DIVIDE) observedDivideEvents[0]++;
+			if (event.getKeyCode() == KeyEvent.VK_MULTIPLY) {
+				observedMultiplyEvents[0]++;
+				javax.swing.KeyStroke stroke = javax.swing.KeyStroke.getKeyStrokeForEvent(event);
+				Object resolved = projectWindow.getRootPane()
+					.getInputMap(javax.swing.JComponent.WHEN_IN_FOCUSED_WINDOW).get(stroke);
+				javax.swing.InputMap focusedInputMap = view[0].getSpreadSheet()
+					.getInputMap(javax.swing.JComponent.WHEN_FOCUSED);
+				javax.swing.InputMap ancestorInputMap = view[0].getSpreadSheet()
+					.getInputMap(javax.swing.JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
+				observedMultiplyDetails[0] = "code=" + event.getKeyCode() + ", location=" + event.getKeyLocation()
+					+ ", modifiersEx=" + event.getModifiersEx() + ", char=" + event.getKeyChar()
+					+ ", source=" + event.getSource().getClass().getName() + ", stroke=" + stroke
+					+ ", resolvedAction=" + resolved + ", spreadsheetFocusedBinding=" + focusedInputMap.get(stroke)
+					+ ", spreadsheetAncestorBinding=" + ancestorInputMap.get(stroke);
+			}
+			}
+			return false;
+		};
+		KeyboardFocusManager.getCurrentKeyboardFocusManager().addKeyEventDispatcher(keyObserver);
+		activeKeyObserver = keyObserver;
+		projectWindow.toFront();
+		projectWindow.requestFocus();
+		robot.mouseMove(projectWindow.getX() + 35, projectWindow.getY() + 12);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(projectWindow::isActive, "Gantt project window did not become the active native window");
+		java.awt.Point ganttLocation = view[0].getGantt().getLocationOnScreen();
+		robot.mouseMove(ganttLocation.x + Math.max(20, view[0].getGantt().getWidth() / 2),
+			ganttLocation.y + Math.max(20, view[0].getGantt().getHeight() / 2));
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+		SwingUtilities.invokeAndWait(() -> {
+			view[0].getGantt().requestFocus();
+			view[0].getGantt().requestFocusInWindow();
+		});
+		GuiAcceptanceSupport.await(() -> projectWindow.isActive()
+			&& KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner() != null,
+			"Gantt project window did not acquire a keyboard focus owner");
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_DIVIDE);
+		robot.keyRelease(KeyEvent.VK_DIVIDE);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		GuiAcceptanceSupport.await(() -> shortcutInvocations[0] > 0,
+			"physical Ctrl+Numpad Divide did not dispatch through the document root pane (observed key events: "
+				+ observedDivideEvents[0] + ")");
+		assertEquals(1, shortcutInvocations[0], "physical shortcut must dispatch through the document root pane once");
+		assertTrue(view[0].getScale() != initialScale[0], "Ctrl+Numpad Divide must move one step toward zoom in");
+		assertViewportPositionsUnchanged(view[0], tableViewportPosition[0], ganttViewportY[0]);
+		assertEquals(initialStart[0], fixture.predecessor.getStart(), "zoom changed the task start date");
+		assertEquals(initialEnd[0], fixture.predecessor.getEnd(), "zoom changed the task end date");
+		divideScale[0] = view[0].getScale();
+		shortcutInvocations[0] = 0;
+		SwingUtilities.invokeAndWait(() -> {
+			view[0].getGantt().requestFocus();
+			view[0].getGantt().requestFocusInWindow();
+		});
+		GuiAcceptanceSupport.await(() -> KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner()
+			== view[0].getGantt(), "Gantt did not retain keyboard focus before Ctrl+Numpad Multiply");
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_MULTIPLY);
+		robot.keyRelease(KeyEvent.VK_MULTIPLY);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(() -> shortcutInvocations[0] > 0,
+			"physical Ctrl+Numpad Multiply did not dispatch through the document root pane (observed key events: "
+				+ observedMultiplyEvents[0] + ", details=" + observedMultiplyDetails[0] + ")");
+		assertEquals(1, shortcutInvocations[0], "physical Ctrl+Numpad Multiply must dispatch through the document root pane once");
+		assertEquals(initialScale[0], view[0].getScale(), "Ctrl+Numpad Multiply must reverse the prior zoom-in step");
+		assertTrue(view[0].getScale() != divideScale[0], "physical Ctrl+Numpad Multiply did not zoom out");
+		assertViewportPositionsUnchanged(view[0], tableViewportPosition[0], ganttViewportY[0]);
+		assertEquals(initialStart[0], fixture.predecessor.getStart(), "zoom out changed the task start date");
+		assertEquals(initialEnd[0], fixture.predecessor.getEnd(), "zoom out changed the task end date");
+
+		java.awt.Point sheetLocation = view[0].getSpreadSheet().getLocationOnScreen();
+		robot.mouseMove(sheetLocation.x + Math.max(20, view[0].getSpreadSheet().getWidth() / 2),
+			sheetLocation.y + Math.max(20, view[0].getSpreadSheet().getHeight() / 2));
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+		SwingUtilities.invokeAndWait(() -> {
+			view[0].getSpreadSheet().requestFocus();
+			view[0].getSpreadSheet().requestFocusInWindow();
+		});
+		GuiAcceptanceSupport.await(() -> KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner()
+			== view[0].getSpreadSheet(), "task table did not acquire keyboard focus before keypad zoom");
+		shortcutInvocations[0] = 0;
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_DIVIDE);
+		robot.keyRelease(KeyEvent.VK_DIVIDE);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(() -> shortcutInvocations[0] > 0,
+			"Ctrl+Numpad Divide did not dispatch from spreadsheet focus");
+		assertEquals(1, shortcutInvocations[0], "spreadsheet-focused Divide must dispatch exactly once");
+		assertTrue(view[0].getScale() != initialScale[0], "spreadsheet-focused Divide must zoom in");
+		assertViewportPositionsUnchanged(view[0], tableViewportPosition[0], ganttViewportY[0]);
+		assertEquals(initialStart[0], fixture.predecessor.getStart(), "spreadsheet-focused zoom changed the task start date");
+		assertEquals(initialEnd[0], fixture.predecessor.getEnd(), "spreadsheet-focused zoom changed the task end date");
+		shortcutInvocations[0] = 0;
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_MULTIPLY);
+		robot.keyRelease(KeyEvent.VK_MULTIPLY);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		robot.waitForIdle();
+		KeyboardFocusManager.getCurrentKeyboardFocusManager().removeKeyEventDispatcher(keyObserver);
+		activeKeyObserver = null;
+		GuiAcceptanceSupport.await(() -> shortcutInvocations[0] > 0,
+			"Ctrl+Numpad Multiply did not dispatch from spreadsheet focus; " + observedMultiplyDetails[0]);
+		assertEquals(1, shortcutInvocations[0], "spreadsheet-focused Multiply must dispatch exactly once");
+		assertEquals(initialScale[0], view[0].getScale(), "spreadsheet-focused Multiply must reverse Divide");
+		assertViewportPositionsUnchanged(view[0], tableViewportPosition[0], ganttViewportY[0]);
+		assertEquals(initialStart[0], fixture.predecessor.getStart(), "spreadsheet-focused zoom changed the task start date");
+		assertEquals(initialEnd[0], fixture.predecessor.getEnd(), "spreadsheet-focused zoom changed the task end date");
+	}
+
+	private void assertViewportPositionsUnchanged(GanttView view, Point expectedTablePosition, int expectedGanttY)
+			throws Exception {
+		Point[] tablePosition = new Point[1];
+		int[] ganttY = new int[1];
+		SwingUtilities.invokeAndWait(() -> {
+			javax.swing.JViewport tableViewport = (javax.swing.JViewport) SwingUtilities.getAncestorOfClass(
+				javax.swing.JViewport.class, view.getSpreadSheet());
+			javax.swing.JViewport ganttViewport = (javax.swing.JViewport) SwingUtilities.getAncestorOfClass(
+				javax.swing.JViewport.class, view.getGantt());
+			tablePosition[0] = tableViewport.getViewPosition();
+			ganttY[0] = ganttViewport.getViewPosition().y;
+		});
+		assertEquals(expectedTablePosition, tablePosition[0], "zoom changed the non-target task-table viewport position");
+		assertEquals(expectedGanttY, ganttY[0], "zoom changed the non-target Gantt vertical viewport position");
 	}
 
 	@Test
@@ -91,6 +334,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 	void robotDragMovesBarAndRecalculatesFfSuccessor() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Fixture fixture = createFixture(DependencyType.FF);
+		prepareOutcomeDocument(fixture);
 		dragBarAndAssertSuccessor(fixture);
 	}
 
@@ -111,6 +355,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Fixture fixture = createFixture(DependencyType.FS, false);
 		showFixture(fixture);
+		prepareOutcomeDocument(fixture);
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		SwingUtilities.invokeAndWait(() -> {
@@ -146,6 +391,14 @@ class GanttBarDateDragGuiAcceptanceTest {
 			"Gantt bar-to-bar drag did not create a dependency");
 		GuiAcceptanceSupport.await(() -> fixture.cache.getEdgesSize() == 1,
 			"Gantt projection did not publish the newly created dependency edge");
+		var outcome = projectManager.getLastRibbonCommandResult();
+		assertEquals("gantt.dependency.create", outcome.commandId());
+		assertEquals(com.microproject.ribbon.RibbonCommandResult.Status.CHANGED, outcome.status());
+		assertEquals(List.of(fixture.predecessor.getUniqueId(), fixture.successor.getUniqueId()),
+			outcome.selectedTaskIds());
+		assertEquals(List.of(fixture.predecessor.getUniqueId(), fixture.successor.getUniqueId()),
+			outcome.affectedTaskIds());
+		assertEquals("Gantt", outcome.activeViewId());
 		assertEquals(fixture.predecessor,
 			((Dependency) fixture.successor.getPredecessorList().iterator().next()).getPredecessor());
 		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().undo());
@@ -159,6 +412,82 @@ class GanttBarDateDragGuiAcceptanceTest {
 		assertEquals(1, reopened.getTaskList().stream().filter(task -> "Drag successor".equals(task.getName()))
 			.findFirst().orElseThrow().getPredecessorList().size(), "the Gantt-created dependency must survive MPO reload");
 		capture(robot);
+	}
+
+	@Test
+	void robotDragToChartEdgeAutoScrollsAndPersistsMovedTaskDate() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Fixture fixture = createFixture(DependencyType.FS, false);
+		NormalTask viewportExtent = task(fixture.project, "Viewport extent", 180L);
+		java.util.Calendar extentStart = java.util.Calendar.getInstance();
+		extentStart.setTimeInMillis(fixture.predecessor.getStart());
+		extentStart.add(java.util.Calendar.DAY_OF_MONTH, 45);
+		viewportExtent.getCurrentSchedule().setStart(extentStart.getTimeInMillis());
+		fixture.project.recalculate();
+		SwingUtilities.invokeAndWait(() -> gantt.updateSize());
+		showFixture(fixture);
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		activateGantt(robot);
+		javax.swing.JViewport viewport = (javax.swing.JViewport) SwingUtilities.getAncestorOfClass(
+			javax.swing.JViewport.class, gantt);
+		assertTrue(viewport != null, "Gantt must be hosted by a viewport for edge auto-scroll");
+		assertTrue(gantt.getWidth() > viewport.getExtentSize().width,
+			"fixture timeline must exceed the visible chart width to exercise horizontal auto-scroll");
+		SwingUtilities.invokeAndWait(() -> {
+			int taskStartX = (int) Math.round(gantt.getCoord().toX(fixture.predecessor.getStart()));
+			viewport.setViewPosition(new Point(Math.max(0, taskStartX - 120), 0));
+		});
+		Rectangle initialBar = barBounds(fixture);
+		Point origin = initialBar.getLocation();
+		origin.translate(initialBar.width / 2, initialBar.height / 2);
+		long originalStart = fixture.predecessor.getStart();
+		int originalViewX = viewportViewPosition(viewport).x;
+		Rectangle viewportBounds = viewportScreenBounds(viewport);
+		int edgeX = viewportBounds.x + viewportBounds.width - 3;
+		int edgeY = origin.y;
+		assertTaskBarHit(fixture, origin);
+		robot.mouseMove(origin.x, origin.y);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		for (int step = 1; step <= 12; step++) {
+			int x = origin.x + (edgeX - origin.x) * step / 12;
+			robot.mouseMove(x, edgeY);
+		}
+		for (int step = 0; step < 24; step++) {
+			robot.mouseMove(edgeX - (step % 2 == 0 ? 8 : 0), edgeY);
+			robot.delay(60);
+		}
+		robot.mouseMove(edgeX - 30, edgeY);
+		robot.delay(60);
+		int scrolledViewX = viewportViewPosition(viewport).x;
+		assertTrue(scrolledViewX > originalViewX,
+			"dragging at the visible chart edge must auto-scroll horizontally: before="
+				+ originalViewX + " after=" + scrolledViewX);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(() -> fixture.predecessor.getStart() > originalStart,
+			"edge auto-scroll drag must move the task to a later date");
+		long movedStart = fixture.predecessor.getStart();
+		assertTrue(movedStart > originalStart,
+			"the task model date must reflect the rightward edge drag: before=" + originalStart + " after=" + movedStart);
+		Rectangle movedBar = barBounds(fixture);
+		assertTrue(movedBar.width > 0, "the moved task bar must be rendered after edge auto-scroll");
+		Rectangle visibleChart = viewportScreenBounds(viewport);
+		assertTrue(visibleChart.intersects(movedBar),
+			"the moved task bar must remain inside the visible chart after releasing at the edge: bar="
+				+ movedBar + " viewport=" + visibleChart);
+		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().undo());
+		assertEquals(originalStart, fixture.predecessor.getStart(), "one Undo must restore the original task date");
+		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().redo());
+		assertEquals(movedStart, fixture.predecessor.getStart(), "one Redo must restore the auto-scrolled task date");
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		MpoFileImporter importer = new MpoFileImporter();
+		assertTrue(importer.saveProject(fixture.project, saved), "the auto-scrolled task move must be serializable");
+		Project reopened = importer.loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		assertEquals(movedStart, reopened.getTaskList().stream()
+			.filter(task -> "Drag predecessor".equals(task.getName())).findFirst().orElseThrow().getStart(),
+			"the moved task date must survive MPO reload");
+		capture(robot, "gantt-edge-auto-scroll.png");
 	}
 
 	@Test
@@ -414,6 +743,13 @@ class GanttBarDateDragGuiAcceptanceTest {
 			"Gantt bar drag did not move the predecessor: oldStart=" + oldStart
 				+ " actual=" + fixture.predecessor.getStart() + " delta=" + delta
 				+ " bar=" + bar + " gantt=" + gantt.getBounds());
+		if (projectManager != null) {
+			var outcome = projectManager.getLastRibbonCommandResult();
+			assertEquals(com.microproject.ribbon.RibbonCommandResult.Status.CHANGED, outcome.status());
+			assertEquals(List.of(fixture.predecessor.getUniqueId()), outcome.selectedTaskIds());
+			assertEquals(List.of(fixture.predecessor.getUniqueId()), outcome.affectedTaskIds());
+			assertEquals("Gantt", outcome.activeViewId());
+		}
 		SwingUtilities.invokeAndWait(fixture.project::recalculate);
 		if (fixture.dependency.getDependencyType() == DependencyType.FF) {
 			assertEquals(fixture.predecessor.getEnd(), fixture.successor.getEnd(),
@@ -501,6 +837,17 @@ class GanttBarDateDragGuiAcceptanceTest {
 			frame.setLocationByPlatform(true);
 			frame.setAlwaysOnTop(true);
 			frame.setVisible(true);
+		});
+	}
+
+	private void prepareOutcomeDocument(Fixture fixture) throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			projectWindow = new MainRibbonFrame("Gantt schedule outcome GUI acceptance", null);
+			projectManager = new GraphicManager(projectWindow);
+			projectWindow.setGraphicManager(projectManager);
+			projectManager.initView();
+			DocumentFrame document = projectManager.addProjectFrame(fixture.project);
+			document.activateGanttView();
 		});
 	}
 
@@ -675,6 +1022,19 @@ class GanttBarDateDragGuiAcceptanceTest {
 		return found[0];
 	}
 
+	private Point viewportViewPosition(javax.swing.JViewport viewport) throws Exception {
+		AtomicReference<Point> position = new AtomicReference<>();
+		SwingUtilities.invokeAndWait(() -> position.set(viewport.getViewPosition()));
+		return position.get();
+	}
+
+	private Rectangle viewportScreenBounds(javax.swing.JViewport viewport) throws Exception {
+		AtomicReference<Rectangle> bounds = new AtomicReference<>();
+		SwingUtilities.invokeAndWait(() -> bounds.set(
+			new Rectangle(viewport.getLocationOnScreen(), viewport.getExtentSize())));
+		return bounds.get();
+	}
+
 	private Point screenPointForTaskDate(Fixture fixture, long date) throws Exception {
 		Point[] result = new Point[1];
 		SwingUtilities.invokeAndWait(() -> {
@@ -793,7 +1153,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 			int rowHeight = gantt.getRowHeight();
 			Point location = gantt.getLocationOnScreen();
 			for (int y = 0; y < Math.min(gantt.getHeight(), rowHeight * 10) && result[0] == null; y += 2) {
-				for (int x = 0; x < Math.min(gantt.getWidth(), 1200) && result[0] == null; x += 2) {
+				for (int x = 0; x < gantt.getWidth() && result[0] == null; x += 2) {
 					GraphZone zone = gantt.getUI().getNodeAt(x, y);
 					if (zone != null && zone.getObject() instanceof GraphicNode node
 							&& node.getNode().getImpl() == task) {

@@ -30,7 +30,9 @@ has passed.
 
 **Exit gate:** a command inventory exists with route, required selection,
 expected model/view delta, Undo behavior, and issue owner for every reported
-failure.
+failure. The incident-focused inventory is maintained in
+[`gui-incident-command-inventory.md`](gui-incident-command-inventory.md);
+standard command coverage remains in `MSP_STANDARD_COMMAND_INVENTORY.md`.
 
 ## Phase 1 — Canonical command and selection foundation
 

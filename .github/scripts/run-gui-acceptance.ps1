@@ -9,6 +9,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.Windows.Forms
 if (-not [string]::IsNullOrWhiteSpace($TestFilter) -and $TestFilter -notmatch '^com\.microproject(?:\.[A-Za-z_$][A-Za-z0-9_$]*){2,}$') {
   throw 'TestFilter must be a fully qualified com.microproject test class or method name containing only Java identifier segments.'
 }
@@ -16,6 +17,8 @@ $gateLogs = 'modules/microproject_ui/build/reports/guiTest-artifacts'
 $gateFailures = [System.Collections.Generic.List[string]]::new()
 $hostedWarningWatcher = $null
 New-Item -ItemType Directory -Force -Path $gateLogs | Out-Null
+$primaryDisplay = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+Write-Host "GUI runner primary display bounds: $($primaryDisplay.Width)x$($primaryDisplay.Height)"
 
 function Start-HostedWarningWatcher {
   if ($null -ne $script:hostedWarningWatcher -and -not $script:hostedWarningWatcher.HasExited) { return }
@@ -199,20 +202,30 @@ function Invoke-GuiGate([string]$label, [string[]]$arguments, [int]$timeoutSecon
   }
 }
 
-# Stable-candidate PRs use the same ten visual acceptance classes and six
+# Stable-candidate PRs use the same twelve visual acceptance classes and six
 # locale/scale legs as the release matrix. Normal smoke/full retain their functional suites.
 $visualTests = @(
   'com.microproject.dialog.ProjectDialogGuiAcceptanceTest',
-  'com.microproject.dialog.ChangeWorkingTimeDialogGuiAcceptanceTest',
+  'com.microproject.dialog.calendar.ChangeWorkingTimeDialogGuiAcceptanceTest',
   'com.microproject.dialog.ProjectInformationDialogGuiAcceptanceTest',
+  'com.microproject.dialog.BaselineDialogGuiAcceptanceTest',
   'com.microproject.dialog.ResourceMappingDialogGuiAcceptanceTest',
   'com.microproject.pm.graphic.spreadsheet.TaskInformationGuiAcceptanceTest',
   'com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest',
   'com.microproject.pm.graphic.frames.workspace.DefaultFrameManagerGuiAcceptanceTest',
   'com.microproject.ui.shell.WindowShellNativeDecorationGuiAcceptanceTest',
   'com.microproject.ui.ribbon.RibbonTabGuiAcceptanceTest',
-  'com.microproject.dialog.FlatLafLegacyDialogRefreshGuiAcceptanceTest'
+  'com.microproject.dialog.FlatLafLegacyDialogRefreshGuiAcceptanceTest',
+  'com.microproject.pm.graphic.frames.RibbonExternalCommandGuiAcceptanceTest'
 )
+
+$guiTestSourceRoot = Join-Path $PWD 'modules/microproject_ui/src/guiTest/java'
+foreach ($testClass in $visualTests) {
+  $sourcePath = Join-Path $guiTestSourceRoot (($testClass.Replace('.', '\')) + '.java')
+  if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
+    throw "Visual GUI test class does not map to a source file: $testClass ($sourcePath)"
+  }
+}
 
 try {
   if (-not [string]::IsNullOrWhiteSpace($TestFilter)) {

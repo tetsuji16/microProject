@@ -183,13 +183,22 @@ public final class TaskCommandGateway {
 		}
 		if (!selectedNodes.isEmpty() && !CollaborationHelper.tryLockNodes(null, selectedNodes, sheet, "paste"))
 			return new TaskCommandResult(TaskCommandResult.Status.LOCKED, "collaboration-lock-denied");
+		List<Long> selectedTaskIds = intent.selectedRows().stream()
+			.filter(ProjectionRowKey.TaskRow.class::isInstance)
+			.map(ProjectionRowKey.TaskRow.class::cast)
+			.map(row -> row.taskKey().taskUniqueId()).distinct().toList();
+		Set<Task> tasksBeforePaste = Collections.newSetFromMap(new IdentityHashMap<>());
+		tasksBeforePaste.addAll(project.getTaskList());
 
 		Node anchor = selectedNodes.isEmpty() ? null : selectedNodes.getFirst();
 		Node parent = anchor == null ? null : (Node) anchor.getParent();
 		int position = anchor == null || parent == null ? 0 : ((com.microproject.grouping.core.NodeBridge) parent).getIndex(anchor);
 		progress.markApplied();
 		boolean pasted = sheetModel.getCache().pasteNodes(parent, new ArrayList<>(intent.copiedRoots()), position);
-		return TaskCommandResult.of(pasted ? TaskCommandResult.Status.CHANGED : TaskCommandResult.Status.REJECTED);
+		List<Long> affectedTaskIds = pasted ? project.getTaskList().stream()
+			.filter(task -> !tasksBeforePaste.contains(task)).map(Task::getUniqueId).distinct().toList() : List.of();
+		return new TaskCommandResult(pasted ? TaskCommandResult.Status.CHANGED : TaskCommandResult.Status.REJECTED,
+			"", intent.commandId(), selectedTaskIds, affectedTaskIds);
 	}
 
 	/** Validates the captured task projection and schedule values before a Gantt edit runs. */
@@ -343,11 +352,11 @@ public final class TaskCommandGateway {
 		try {
 			progress.markApplied();
 			if (intent.operation() == TaskDependencyIntent.Operation.LINK) {
-				service.connect(tasks, eventSource, null);
+				service.connect(tasks, eventSource, null, project);
 			} else if (intent.dependency() != null) {
-				service.remove(selectedDependency, eventSource, true);
+				service.remove(selectedDependency, eventSource, true, project);
 			} else {
-				service.removeAnyDependencies(tasks, eventSource);
+				service.removeAnyDependencies(tasks, eventSource, project);
 			}
 		} finally {
 			if (undoSupport != null)

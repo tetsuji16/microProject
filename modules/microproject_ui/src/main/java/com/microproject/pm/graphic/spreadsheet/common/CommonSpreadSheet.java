@@ -189,6 +189,8 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		return copy;
 	}
 	public void cleanUp() {
+		if (corner != null)
+			corner.cleanUp();
 		NodeModelCache currentCache = getCache();
 		if (currentCache != null && getModel() instanceof CacheListener listener) {
 			currentCache.removeNodeModelListener(listener);

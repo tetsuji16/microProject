@@ -25,12 +25,21 @@
 package com.microproject.pm.graphic.spreadsheet;
 
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.event.KeyEvent;
+import java.awt.event.ActionEvent;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import javax.swing.AbstractAction;
 import javax.swing.JComponent;
+import javax.swing.JRootPane;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
+
+import org.netbeans.swing.etable.TableColumnSelector;
 
 import org.junit.jupiter.api.Test;
 
@@ -46,6 +55,62 @@ class SpreadSheetEditingBindingsTest {
 			assertNull(sheet.getInputMap(JComponent.WHEN_FOCUSED).get(down));
 			assertNull(sheet.getRowHeader().getInputMap(JComponent.WHEN_FOCUSED).get(up));
 			assertNull(sheet.getRowHeader().getInputMap(JComponent.WHEN_FOCUSED).get(down));
+		});
+	}
+
+	@Test
+	void enabledRootPaneGanttZoomOutOwnsCtrlNumpadMultiply() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			SpreadSheet sheet = new SpreadSheet();
+			JRootPane rootPane = new JRootPane();
+			rootPane.getContentPane().add(sheet);
+			KeyStroke multiply = KeyStroke.getKeyStroke(KeyEvent.VK_MULTIPLY, KeyEvent.CTRL_DOWN_MASK);
+			rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(multiply, "GanttKeypadZoomOut");
+			rootPane.getActionMap().put("GanttKeypadZoomOut", new AbstractAction() {
+				private static final long serialVersionUID = 1L;
+				@Override public void actionPerformed(ActionEvent event) { }
+			});
+			KeyEvent event = new KeyEvent(sheet, KeyEvent.KEY_PRESSED, System.currentTimeMillis(),
+				KeyEvent.CTRL_DOWN_MASK, KeyEvent.VK_MULTIPLY, '*', KeyEvent.KEY_LOCATION_NUMPAD);
+
+			assertFalse(sheet.processKeyBinding(multiply, event, JComponent.WHEN_FOCUSED, true),
+				"the focused-table pass must yield the Gantt shortcut to the window root pane");
+			assertFalse(sheet.processKeyBinding(multiply, event, JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT, true),
+				"the ancestor-table pass must not let ETable consume the same Gantt shortcut");
+		});
+	}
+
+	@Test
+	void disabledRootPaneGanttZoomOutLeavesEtableCtrlMultiplyColumnSelectionAvailable() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			SpreadSheet sheet = new SpreadSheet();
+			AtomicInteger selectorCalls = new AtomicInteger();
+			sheet.setColumnSelector(new TableColumnSelector() {
+				@Override public String[] selectVisibleColumns(TreeNode root, String[] visibleColumns) {
+					selectorCalls.incrementAndGet();
+					return visibleColumns;
+				}
+				@Override public String[] selectVisibleColumns(String[] availableColumns, String[] visibleColumns) {
+					selectorCalls.incrementAndGet();
+					return visibleColumns;
+				}
+			});
+			JRootPane rootPane = new JRootPane();
+			rootPane.getContentPane().add(sheet);
+			KeyStroke multiply = KeyStroke.getKeyStroke(KeyEvent.VK_MULTIPLY, KeyEvent.CTRL_DOWN_MASK);
+			rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(multiply, "GanttKeypadZoomOut");
+			AbstractAction inactiveZoomAction = new AbstractAction() {
+				private static final long serialVersionUID = 1L;
+				@Override public void actionPerformed(ActionEvent event) { }
+			};
+			inactiveZoomAction.setEnabled(false);
+			rootPane.getActionMap().put("GanttKeypadZoomOut", inactiveZoomAction);
+			KeyEvent event = new KeyEvent(sheet, KeyEvent.KEY_PRESSED, System.currentTimeMillis(),
+				KeyEvent.CTRL_DOWN_MASK, KeyEvent.VK_MULTIPLY, '*', KeyEvent.KEY_LOCATION_NUMPAD);
+
+			assertTrue(sheet.processKeyBinding(multiply, event, JComponent.WHEN_FOCUSED, true),
+				"outside Gantt, ETable's existing Ctrl+* handler must keep owning the shortcut");
+			assertEquals(1, selectorCalls.get(), "the existing column-selection route must run once");
 		});
 	}
 }

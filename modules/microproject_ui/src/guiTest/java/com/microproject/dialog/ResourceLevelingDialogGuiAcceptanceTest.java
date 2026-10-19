@@ -7,6 +7,8 @@ package com.microproject.dialog;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.awt.Component;
 import java.awt.GraphicsEnvironment;
@@ -37,15 +39,24 @@ import com.microproject.pm.resource.BookingType;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.testsupport.GuiAcceptanceSupport;
+import com.microproject.pm.graphic.frames.GraphicManager;
+import com.microproject.pm.graphic.frames.MainRibbonFrame;
 
 /** GUI acceptance coverage for the same-resource conflict preview workflow. */
 class ResourceLevelingDialogGuiAcceptanceTest {
+	private MainRibbonFrame applicationFrame;
+	private GraphicManager applicationManager;
+
 	@AfterEach
 	void closeDialogs() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			for (Window window : Window.getWindows())
 				if (window instanceof ResourceLevelingDialogBox) window.dispose();
+			if (applicationManager != null) applicationManager.cleanUp();
+			if (applicationFrame != null) applicationFrame.dispose();
 		});
+		applicationManager = null;
+		applicationFrame = null;
 	}
 
 	@Test
@@ -111,11 +122,14 @@ class ResourceLevelingDialogGuiAcceptanceTest {
 		assertTrue(target.getEnd() > taskEndBefore, "the assignment contour must extend beyond the original finish");
 		assertTrue(!contourBefore.equals(target.getWorkContour().toString(target.getDurationMillis())),
 			"the physical route must change the assignment work contour");
+		long targetTaskId = targetTask.getUniqueId();
 		java.io.ByteArrayOutputStream saved = new java.io.ByteArrayOutputStream();
 		com.microproject.exchange.MpoFileImporter importer = new com.microproject.exchange.MpoFileImporter();
 		assertTrue(importer.saveProject(project, saved), "MPO save rejected assignment split state");
 		Project reloaded = importer.loadProject(new java.io.ByteArrayInputStream(saved.toByteArray()));
-		Assignment reloadedTarget = (Assignment) taskNamed(reloaded, "Split target").getAssignments().iterator().next();
+		NormalTask reloadedTask = taskWithUniqueId(reloaded, targetTaskId, targetTask);
+		assertEquals(targetTask.getName(), reloadedTask.getName(), "MPO reload changed the target task identity");
+		Assignment reloadedTarget = (Assignment) reloadedTask.getAssignments().iterator().next();
 		assertTrue(reloadedTarget.getLevelingSplitState() != null, "MPO reload lost generated assignment split ownership");
 		assertEquals(target.getWorkContour().toString(target.getDurationMillis()),
 			reloadedTarget.getWorkContour().toString(reloadedTarget.getDurationMillis()),
@@ -124,12 +138,172 @@ class ResourceLevelingDialogGuiAcceptanceTest {
 	}
 
 	@Test
+	void clearLevelingKeepsUserAssignmentSplitAndSupportsPhysicalUndoRedoAndMpo() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("resource-leveling-clear-user-split-gui", undo);
+		pool.setLocal(true);
+		Project project = Project.createProject(pool, undo);
+		project.initialize(false, false);
+		ResourceImpl shared = pool.newResourceInstance();
+		shared.setName("Shared committed resource");
+		shared.setBookingTypeKind(BookingType.Kind.COMMITTED);
+		NormalTask targetTask = task(project, "User split target", 5L);
+		NormalTask blockerTask = task(project, "Higher priority blocker", 1L);
+		blockerTask.setPriority(900);
+		blockerTask.setStart(project.getEffectiveWorkCalendar().add(project.getStart(),
+			CalendarOption.getInstance().getMillisPerDay(), false));
+		Assignment target = AssignmentService.getInstance().newAssignment(targetTask, shared, 1D, 0L, this);
+		long userGapStart = target.getStart() + com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		long userGapEnd = userGapStart + com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		ResourceImpl other = pool.newResourceInstance();
+		other.setName("Unrelated resource");
+		Assignment unrelated = AssignmentService.getInstance().newAssignment(targetTask, other, 1D, 0L, this);
+		Assignment blocker = AssignmentService.getInstance().newAssignment(blockerTask, shared, 1D, 0L, this);
+		project.recalculate();
+		target.split(this, userGapStart, userGapEnd);
+		long targetTaskStart = targetTask.getStart();
+		long blockerTaskStart = blockerTask.getStart();
+		long blockerTaskEnd = blockerTask.getEnd();
+		long blockerStart = blocker.getStart();
+		long blockerEnd = blocker.getEnd();
+		long unrelatedStart = unrelated.getStart();
+		long userContourDuration = target.getDurationMillis();
+		String userContour = target.getWorkContour().toString(userContourDuration);
+		assertTrue(userGapStart < userGapEnd, "the pre-existing user split must have a stable non-empty gap");
+		long contourWork = 0L;
+		for (var bucket : target.getWorkContour().getContourBuckets())
+			if (bucket != null) contourWork += (long) (bucket.getUnits() * bucket.getBucketDuration(target.getDurationMillis()));
+		assertEquals(target.getWork(null), contourWork, "MPO's contour work total must match assignment work; actual="
+			+ target.getActualWork(null) + " remaining=" + target.getRemainingWork() + " contour=" + userContour);
+		java.io.ByteArrayOutputStream beforeLevelingArchive = new java.io.ByteArrayOutputStream();
+		com.microproject.exchange.MpoFileImporter importer = new com.microproject.exchange.MpoFileImporter();
+		assertTrue(importer.saveProject(project, beforeLevelingArchive), "MPO save rejected the original user split");
+		Project beforeLevelingReload = importer.loadProject(new java.io.ByteArrayInputStream(beforeLevelingArchive.toByteArray()));
+		Assignment beforeLevelingTarget = (Assignment) taskNamed(beforeLevelingReload, "User split target").getAssignments().stream()
+			.filter(value -> "Shared committed resource".equals(((Assignment) value).getResource().getName()))
+			.findFirst().orElseThrow();
+		assertEquals(userContour, beforeLevelingTarget.getWorkContour().toString(beforeLevelingTarget.getDurationMillis()),
+			"MPO reload before leveling must preserve the original user-created contour and gap");
+
+		MainRibbonFrame owner = new MainRibbonFrame("Clear leveling user split acceptance", null);
+		GraphicManager manager = new GraphicManager(owner);
+		applicationFrame = owner;
+		applicationManager = manager;
+		SwingUtilities.invokeAndWait(() -> {
+			owner.setGraphicManager(manager);
+			manager.initView();
+			manager.addProjectFrame(project);
+			owner.setSize(1100, 700);
+			owner.setLocationByPlatform(true);
+			owner.setVisible(true);
+			manager.installDocumentShortcuts(owner);
+		});
+		GuiAcceptanceSupport.await(owner::isShowing, "owner application frame did not become visible");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(40);
+		GuiAcceptanceSupport.activateAndAwaitRenderedWindow(owner, owner.getContentPane(), robot, true,
+			"clear-leveling owner application frame");
+		// Adding the live document frame may settle schedules after the user split was
+		// created. Settle once more before the dialog captures its preview source state.
+		project.recalculate();
+		assertEquals(userContour, target.getWorkContour().toString(userContourDuration),
+			"opening the project frame must retain the pre-existing user contour before leveling");
+		ResourceLevelingDialogBox dialog = openDialog(project, owner);
+		AbstractButton preview = findButton(dialog, UsabilityStrings.text("leveling.preview"));
+		AbstractButton apply = findButton(dialog, UsabilityStrings.text("leveling.apply"));
+		AbstractButton clear = findButton(dialog, UsabilityStrings.text("leveling.clear"));
+		assertTrue(preview != null && preview.isShowing(), "Preview must be visible");
+		assertTrue(apply != null && apply.isShowing(), "Apply must be visible");
+		assertTrue(clear != null && clear.isShowing(), "Clear Leveling must be visible");
+		click(robot, preview);
+		GuiAcceptanceSupport.await(() -> tableRowCountUnchecked(dialog) > 0,
+			"physical preview must show the conflict eligible for an assignment split");
+		click(robot, apply);
+		GuiAcceptanceSupport.await(() -> target.getLevelingSplitState() != null,
+			"physical Apply must create a leveling-owned split on the already split assignment");
+		String leveledContour = target.getWorkContour().toString(target.getDurationMillis());
+		assertTrue(!userContour.equals(leveledContour), "Apply must add a distinct leveling-owned contour change");
+		assertEquals(targetTaskStart, targetTask.getStart(), "assignment leveling must preserve target task start");
+		assertEquals(blockerTaskStart, blockerTask.getStart(), "leveling must not move the competing task");
+		assertEquals(blockerTaskEnd, blockerTask.getEnd(), "leveling must not resize the competing task");
+		assertEquals(blockerStart, blocker.getStart(), "leveling must not move the blocking assignment");
+		assertEquals(blockerEnd, blocker.getEnd(), "leveling must not resize the blocking assignment");
+		assertEquals(unrelatedStart, unrelated.getStart(), "leveling must not change the target's other assignment");
+
+		click(robot, clear);
+		GuiAcceptanceSupport.await(() -> target.getLevelingSplitState() == null,
+			"physical Clear Leveling must remove ownership of the generated split");
+		assertEquals(userContourDuration, target.getDurationMillis(), "clear must restore the pre-leveling assignment duration");
+		assertEquals(userContour, target.getWorkContour().toString(userContourDuration),
+			"clear must preserve the exact pre-existing user-created contour and gap");
+		assertEquals(targetTaskStart, targetTask.getStart(), "clear must preserve the target task start");
+		assertEquals(blockerTaskStart, blockerTask.getStart(), "clear must preserve the competing task start");
+		assertEquals(blockerTaskEnd, blockerTask.getEnd(), "clear must preserve the competing task finish");
+		assertEquals(blockerStart, blocker.getStart(), "clear must preserve the blocking assignment start");
+		assertEquals(blockerEnd, blocker.getEnd(), "clear must preserve the blocking assignment finish");
+		assertEquals(unrelatedStart, unrelated.getStart(), "clear must preserve the unrelated assignment");
+		capture(robot, dialog);
+		click(robot, findButton(dialog, UsabilityStrings.text("common.close")));
+		GuiAcceptanceSupport.await(() -> !dialog.isShowing(), "leveling dialog did not close after Clear");
+		GuiAcceptanceSupport.activateAndAwaitRenderedWindow(owner, owner.getContentPane(), robot, true,
+			"owner application frame after closing clear-leveling dialog");
+		robot.keyPress(java.awt.event.KeyEvent.VK_CONTROL);
+		robot.keyPress(java.awt.event.KeyEvent.VK_Z);
+		robot.keyRelease(java.awt.event.KeyEvent.VK_Z);
+		robot.keyRelease(java.awt.event.KeyEvent.VK_CONTROL);
+		GuiAcceptanceSupport.await(() -> target.getLevelingSplitState() != null,
+			"physical Ctrl+Z must restore the leveling-owned split");
+		assertEquals(leveledContour, target.getWorkContour().toString(target.getDurationMillis()),
+			"Undo must restore the leveled contour without losing the user's prior split");
+		robot.keyPress(java.awt.event.KeyEvent.VK_CONTROL);
+		robot.keyPress(java.awt.event.KeyEvent.VK_Y);
+		robot.keyRelease(java.awt.event.KeyEvent.VK_Y);
+		robot.keyRelease(java.awt.event.KeyEvent.VK_CONTROL);
+		GuiAcceptanceSupport.await(() -> target.getLevelingSplitState() == null,
+			"physical Ctrl+Y must restore the cleared leveling state");
+		assertEquals(userContour, target.getWorkContour().toString(userContourDuration),
+			"Redo must preserve the exact pre-existing user-created contour and gap");
+		java.io.ByteArrayOutputStream saved = new java.io.ByteArrayOutputStream();
+		assertTrue(importer.saveProject(project, saved), "MPO save rejected the cleared leveling state");
+		Project reloaded = importer.loadProject(new java.io.ByteArrayInputStream(saved.toByteArray()));
+		NormalTask reloadedTargetTask = taskNamed(reloaded, "User split target");
+		Assignment reloadedTarget = (Assignment) reloadedTargetTask.getAssignments().stream()
+			.filter(value -> "Shared committed resource".equals(((Assignment) value).getResource().getName()))
+			.findFirst().orElseThrow();
+		assertNull(reloadedTarget.getLevelingSplitState(), "MPO reload must not resurrect a leveling-owned split");
+		assertEquals(userContourDuration, reloadedTarget.getDurationMillis(), "MPO reload changed the user-split assignment duration");
+		assertEquals(userContour, reloadedTarget.getWorkContour().toString(userContourDuration),
+			"MPO reload must preserve the exact user-created contour and gap");
+	}
+
+	@Test
 	void proposedResourcesStayOutOfPreviewUntilRobotEnablesThem() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Project project = newConflictProject();
-		ResourceLevelingDialogBox dialog = openDialog(project);
+		for (Object value : project.getTaskList()) ((NormalTask) value).setManuallyScheduled(true);
+		MainRibbonFrame owner = new MainRibbonFrame("Proposed resource leveling acceptance", null);
+		GraphicManager manager = new GraphicManager(owner);
+		applicationFrame = owner;
+		applicationManager = manager;
+		SwingUtilities.invokeAndWait(() -> {
+			owner.setGraphicManager(manager);
+			manager.initView();
+			manager.addProjectFrame(project);
+			owner.setSize(1100, 700);
+			owner.setLocationByPlatform(true);
+			owner.setVisible(true);
+			manager.installDocumentShortcuts(owner);
+		});
+		GuiAcceptanceSupport.await(owner::isShowing, "owner application frame did not become visible");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(40);
+		GuiAcceptanceSupport.activateAndAwaitRenderedWindow(owner, owner.getContentPane(), robot, true,
+			"proposed-resource owner application frame");
+		ResourceLevelingDialogBox dialog = openDialog(project, owner);
 		AbstractButton preview = findButton(dialog, UsabilityStrings.text("leveling.preview"));
 		AbstractButton includeProposed = findButton(dialog, UsabilityStrings.text("leveling.includeProposed"));
+		AbstractButton includeManual = findButton(dialog, UsabilityStrings.text("leveling.includeManual"));
 		JComboBox<?> order = findComboBox(dialog, 0);
 		JComboBox<?> sensitivity = findComboBox(dialog, 1);
 		assertTrue(preview != null && preview.isShowing(), "Preview button must be visible");
@@ -139,10 +313,16 @@ class ResourceLevelingDialogGuiAcceptanceTest {
 			"sensitivity must occupy a separate form row below leveling order");
 		assertTrue(selectedIndex(sensitivity, 2), "day must be the document-derived product default");
 		assertTrue(!isSelected(includeProposed), "Proposed resources must be excluded by default");
-		assertTrue(tableRowCount(dialog) == 0, "default preview must leave proposed-resource conflicts untouched");
+		assertTrue(includeManual != null && !isSelected(includeManual), "manual tasks must be excluded by default");
+		click(robot, includeManual);
+		click(robot, preview);
+		GuiAcceptanceSupport.await(() -> tableRowCountUnchecked(dialog) == 0,
+			"default preview must leave proposed-resource conflicts untouched even when manual tasks are enabled");
 
-		Robot robot = new com.microproject.testsupport.GuiRobot();
-		robot.setAutoDelay(40);
+		java.util.Map<NormalTask, Long> originalTaskStarts = taskStarts(project);
+		java.util.Map<NormalTask, Long> originalTaskEnds = taskEnds(project);
+		java.util.Map<Assignment, Long> originalAssignmentStarts = assignmentStarts(project);
+		java.util.Map<Assignment, Long> originalAssignmentDelays = assignmentDelays(project);
 		click(robot, includeProposed);
 		click(robot, preview);
 
@@ -168,7 +348,102 @@ class ResourceLevelingDialogGuiAcceptanceTest {
 		click(robot, preview);
 		GuiAcceptanceSupport.await(() -> tableRowCountUnchecked(dialog) > 0,
 			"daily sensitivity must detect the full-day conflict");
+		String changedTaskName = tableCell(dialog, 0, 0);
+		assertTrue("Conflict A".equals(changedTaskName) || "Conflict B".equals(changedTaskName),
+			"preview must identify one of the stable fixture tasks");
+		Assignment changedAssignment = (Assignment) taskNamed(project, changedTaskName).getAssignments().iterator().next();
+		assertTrue(originalAssignmentDelays.containsKey(changedAssignment), "preview assignment must belong to the original model");
+		click(robot, findButton(dialog, UsabilityStrings.text("leveling.apply")));
+		GuiAcceptanceSupport.await(() -> !assignmentDelays(project).equals(originalAssignmentDelays),
+			"physical Apply must level a proposed-resource assignment after opt-in");
+		assertEquals(originalTaskStarts, taskStarts(project), "assignment leveling must preserve both task starts");
+		assertTrue(com.microproject.datatype.Duration.millis(changedAssignment.getLevelingDelay()) > 0L,
+			"the assignment named by the preview must receive the leveling delay");
+		java.util.Map<NormalTask, Long> leveledTaskEnds = taskEnds(project);
+		NormalTask unchangedTask = taskNamed(project,
+			"Conflict A".equals(changedTaskName) ? "Conflict B" : "Conflict A");
+		assertEquals(originalTaskEnds.get(unchangedTask), leveledTaskEnds.get(unchangedTask),
+			"the unrelated task finish must remain unchanged");
+		assertEquals(originalTaskEnds.get(taskNamed(project, changedTaskName)),
+			leveledTaskEnds.get(taskNamed(project, changedTaskName)),
+			"assignment-level leveling must preserve the manual task finish");
+		java.util.Map<Assignment, Long> leveledStarts = assignmentStarts(project);
+		java.util.Map<Assignment, Long> leveledDelays = assignmentDelays(project);
+		assertEquals(1, changedEntryCount(originalAssignmentDelays, leveledDelays),
+			"only the previewed proposed-resource assignment may change");
+		assertEquals(1, changedEntryCount(originalAssignmentStarts, leveledStarts),
+			"only the previewed proposed-resource assignment may move");
+		assertEquals(BookingType.Kind.PROPOSED,
+			((ResourceImpl) changedAssignment.getResource()).getBookingTypeKind(),
+			"leveling must not change the resource booking type");
 		capture(robot, dialog);
+		click(robot, findButton(dialog, UsabilityStrings.text("common.close")));
+		GuiAcceptanceSupport.await(() -> !dialog.isShowing(), "leveling dialog did not close after Apply");
+		GuiAcceptanceSupport.activateAndAwaitRenderedWindow(owner, owner.getContentPane(), robot, true,
+			"owner application frame after closing leveling dialog");
+		robot.keyPress(java.awt.event.KeyEvent.VK_CONTROL);
+		robot.keyPress(java.awt.event.KeyEvent.VK_Z);
+		robot.keyRelease(java.awt.event.KeyEvent.VK_Z);
+		robot.keyRelease(java.awt.event.KeyEvent.VK_CONTROL);
+		GuiAcceptanceSupport.await(() -> assignmentStarts(project).equals(originalAssignmentStarts)
+				&& assignmentDelays(project).equals(originalAssignmentDelays),
+			"physical Ctrl+Z must undo proposed-resource assignment leveling");
+		assertEquals(originalTaskStarts, taskStarts(project), "Undo must preserve both task starts");
+		assertEquals(originalTaskEnds, taskEnds(project), "Undo must preserve both task finishes");
+		robot.keyPress(java.awt.event.KeyEvent.VK_CONTROL);
+		robot.keyPress(java.awt.event.KeyEvent.VK_Y);
+		robot.keyRelease(java.awt.event.KeyEvent.VK_Y);
+		robot.keyRelease(java.awt.event.KeyEvent.VK_CONTROL);
+		GuiAcceptanceSupport.await(() -> assignmentStarts(project).equals(leveledStarts)
+				&& assignmentDelays(project).equals(leveledDelays),
+			"physical Ctrl+Y must restore proposed-resource assignment leveling");
+		assertEquals(leveledTaskEnds, taskEnds(project), "Redo must restore the expected leveled task finish");
+		long changedTaskId = taskNamed(project, changedTaskName).getUniqueId();
+		java.io.ByteArrayOutputStream saved = new java.io.ByteArrayOutputStream();
+		com.microproject.exchange.MpoFileImporter importer = new com.microproject.exchange.MpoFileImporter();
+		assertTrue(importer.saveProject(project, saved), "MPO save rejected the redone proposed-resource leveling");
+		Project reloaded = importer.loadProject(new java.io.ByteArrayInputStream(saved.toByteArray()));
+		NormalTask restoredChangedTask = taskWithUniqueId(reloaded, changedTaskId, taskNamed(project, changedTaskName));
+		Assignment restoredChangedAssignment = (Assignment) restoredChangedTask.getAssignments().iterator().next();
+		assertEquals(changedTaskName, restoredChangedTask.getName(), "MPO reload changed the leveled task identity");
+		assertEquals("Shared resource", restoredChangedAssignment.getResource().getName(),
+			"MPO reload changed the redone assignment's resource association");
+		assertEquals(leveledDelays.get(changedAssignment), Long.valueOf(restoredChangedAssignment.getLevelingDelay()),
+			"MPO reload changed the redone assignment delay");
+		assertEquals(leveledStarts.get(changedAssignment), Long.valueOf(restoredChangedAssignment.getStart()),
+			"MPO reload changed the redone assignment start");
+		assertEquals(originalTaskStarts.get(taskNamed(project, "Conflict A")), Long.valueOf(taskNamed(reloaded, "Conflict A").getStart()),
+			"MPO reload changed Conflict A start");
+		assertEquals(originalTaskStarts.get(taskNamed(project, "Conflict B")), Long.valueOf(taskNamed(reloaded, "Conflict B").getStart()),
+			"MPO reload changed Conflict B start");
+		assertEquals(leveledTaskEnds.get(taskNamed(project, "Conflict A")), Long.valueOf(taskNamed(reloaded, "Conflict A").getEnd()),
+			"MPO reload changed Conflict A finish");
+		assertEquals(leveledTaskEnds.get(taskNamed(project, "Conflict B")), Long.valueOf(taskNamed(reloaded, "Conflict B").getEnd()),
+			"MPO reload changed Conflict B finish");
+	}
+
+	private static int changedEntryCount(java.util.Map<Assignment, Long> before, java.util.Map<Assignment, Long> after) {
+		int changed = 0;
+		for (Assignment assignment : before.keySet())
+			if (!before.get(assignment).equals(after.get(assignment))) changed++;
+		return changed;
+	}
+
+	private static java.util.Map<NormalTask, Long> taskEnds(Project project) {
+		java.util.Map<NormalTask, Long> result = new java.util.HashMap<>();
+		runOnEdt(() -> {
+			for (Object value : project.getTaskList()) {
+				NormalTask task = (NormalTask) value;
+				result.put(task, Long.valueOf(task.getEnd()));
+			}
+		});
+		return result;
+	}
+
+	private static String tableCell(ResourceLevelingDialogBox dialog, int row, int column) throws Exception {
+		Object[] value = new Object[1];
+		SwingUtilities.invokeAndWait(() -> value[0] = findTable(dialog).getValueAt(row, column));
+		return String.valueOf(value[0]);
 	}
 
 	@Test
@@ -188,23 +463,35 @@ class ResourceLevelingDialogGuiAcceptanceTest {
 		assertTrue(!isSelected(includeManual), "manual tasks must remain fixed by default");
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
+		java.util.Map<NormalTask, Long> originalStarts = taskStarts(project);
+		java.util.Map<Assignment, Long> originalAssignmentStarts = assignmentStarts(project);
+		java.util.Map<Assignment, Long> originalAssignmentDelays = assignmentDelays(project);
 		click(robot, preview);
 		assertTrue(tableRowCount(dialog) == 0, "default preview must leave manual assignments fixed");
+		assertEquals(originalStarts, taskStarts(project), "default preview must not change manual task dates");
+		assertEquals(originalAssignmentStarts, assignmentStarts(project), "default preview must not change assignment dates");
+		assertEquals(originalAssignmentDelays, assignmentDelays(project), "default preview must not change assignment delays");
 		click(robot, includeManual);
 		click(robot, preview);
 		GuiAcceptanceSupport.await(() -> tableRowCountUnchecked(dialog) > 0,
 			"explicitly included manual assignments must appear in the preview");
 		assertTrue(isSelected(includeManual), "physical opt-in must remain selected while the plan is shown");
-		java.util.Map<NormalTask, Long> originalStarts = taskStarts(project);
 		click(robot, apply);
-		GuiAcceptanceSupport.await(() -> anyTaskStartDiffers(project, originalStarts),
-			"physical Apply must change at least one manual task's visible start");
+		GuiAcceptanceSupport.await(() -> anyAssignmentDelayDiffers(project, originalAssignmentDelays),
+			"physical Apply must change at least one manual assignment's leveling delay");
+		assertEquals(originalStarts, taskStarts(project), "assignment-level leveling must leave manual task dates unchanged");
+		assertTrue(anyAssignmentStartDiffers(project, originalAssignmentStarts),
+			"physical Apply must change a leveled manual assignment's start");
 		SwingUtilities.invokeAndWait(() -> project.getUndoController().undo());
-		GuiAcceptanceSupport.await(() -> taskStarts(project).equals(originalStarts),
-			"Undo restores the manual task dates changed by the physical route");
+		GuiAcceptanceSupport.await(() -> assignmentStarts(project).equals(originalAssignmentStarts)
+				&& assignmentDelays(project).equals(originalAssignmentDelays),
+			"Undo restores the manual assignment dates and delays changed by the physical route");
+		assertEquals(originalStarts, taskStarts(project), "Undo must preserve manual task dates");
 		SwingUtilities.invokeAndWait(() -> project.getUndoController().redo());
-		GuiAcceptanceSupport.await(() -> anyTaskStartDiffers(project, originalStarts),
-			"Redo restores the manual leveling result");
+		GuiAcceptanceSupport.await(() -> anyAssignmentDelayDiffers(project, originalAssignmentDelays)
+				&& anyAssignmentStartDiffers(project, originalAssignmentStarts),
+			"Redo restores the manual assignment leveling result");
+		assertEquals(originalStarts, taskStarts(project), "Redo must preserve manual task dates");
 		capture(robot, dialog);
 	}
 
@@ -213,30 +500,42 @@ class ResourceLevelingDialogGuiAcceptanceTest {
 		runOnEdt(() -> {
 			for (Object value : project.getTaskList()) {
 				NormalTask task = (NormalTask) value;
-				result.put(task, Long.valueOf(visibleLevelingPosition(task)));
+				result.put(task, Long.valueOf(task.getStart()));
 			}
 		});
 		return result;
 	}
 
-	/**
-	 * Start plus assignment leveling delays: a manually scheduled task keeps its user-owned start while leveling
-	 * stores the delay on its assignments (Level Assignments), so the delay is the observable leveling result.
-	 */
-	private static long visibleLevelingPosition(NormalTask task) {
-		long total = task.getStart();
-		for (Object value : task.getAssignments())
-			total += com.microproject.datatype.Duration.millis(((Assignment) value).getLevelingDelay());
-		return total;
+	private static java.util.Map<Assignment, Long> assignmentStarts(Project project) {
+		java.util.Map<Assignment, Long> result = new java.util.HashMap<>();
+		runOnEdt(() -> {
+			for (Object value : project.getTaskList())
+				for (Object assignmentValue : ((NormalTask) value).getAssignments()) {
+					Assignment assignment = (Assignment) assignmentValue;
+					result.put(assignment, Long.valueOf(assignment.getStart()));
+				}
+		});
+		return result;
 	}
 
-	private static boolean anyTaskStartDiffers(Project project, java.util.Map<NormalTask, Long> originalStarts) {
-		boolean[] changed = new boolean[1];
+	private static java.util.Map<Assignment, Long> assignmentDelays(Project project) {
+		java.util.Map<Assignment, Long> result = new java.util.HashMap<>();
 		runOnEdt(() -> {
-			for (var entry : originalStarts.entrySet())
-				if (visibleLevelingPosition(entry.getKey()) != entry.getValue().longValue()) changed[0] = true;
+			for (Object value : project.getTaskList())
+				for (Object assignmentValue : ((NormalTask) value).getAssignments()) {
+					Assignment assignment = (Assignment) assignmentValue;
+					result.put(assignment, Long.valueOf(assignment.getLevelingDelay()));
+				}
 		});
-		return changed[0];
+		return result;
+	}
+
+	private static boolean anyAssignmentDelayDiffers(Project project, java.util.Map<Assignment, Long> originalDelays) {
+		return !assignmentDelays(project).equals(originalDelays);
+	}
+
+	private static boolean anyAssignmentStartDiffers(Project project, java.util.Map<Assignment, Long> originalStarts) {
+		return !assignmentStarts(project).equals(originalStarts);
 	}
 
 	private static void runOnEdt(Runnable operation) {
@@ -251,8 +550,12 @@ class ResourceLevelingDialogGuiAcceptanceTest {
 	}
 
 	private static ResourceLevelingDialogBox openDialog(Project project) throws Exception {
+		return openDialog(project, null);
+	}
+
+	private static ResourceLevelingDialogBox openDialog(Project project, MainRibbonFrame owner) throws Exception {
 		ResourceLevelingDialogBox[] dialog = new ResourceLevelingDialogBox[1];
-		SwingUtilities.invokeAndWait(() -> dialog[0] = ResourceLevelingDialogBox.getInstance(null, project));
+		SwingUtilities.invokeAndWait(() -> dialog[0] = ResourceLevelingDialogBox.getInstance(owner, project));
 		AtomicReference<Throwable> showFailure = new AtomicReference<>();
 		SwingUtilities.invokeLater(() -> {
 			try { dialog[0].setVisible(true); }
@@ -355,20 +658,8 @@ class ResourceLevelingDialogGuiAcceptanceTest {
 		Project project = Project.createProject(pool, undo);
 		project.setName("Resource leveling GUI acceptance");
 		project.initialize(false, false);
-		NormalTask first = new NormalTask(project);
-		first.setName("Conflict A");
-		first.setManuallyScheduled(false);
-		project.connectTask(first);
-		project.getSchedulingAlgorithm().addObject(first);
-		first.getCurrentSchedule().setStart(project.getStart());
-		first.setDuration(CalendarOption.getInstance().getMillisPerDay());
-		NormalTask second = new NormalTask(project);
-		second.setName("Conflict B");
-		second.setManuallyScheduled(false);
-		project.connectTask(second);
-		project.getSchedulingAlgorithm().addObject(second);
-		second.getCurrentSchedule().setStart(project.getStart());
-		second.setDuration(CalendarOption.getInstance().getMillisPerDay());
+		NormalTask first = task(project, "Conflict A", 1L);
+		NormalTask second = task(project, "Conflict B", 1L);
 		ResourceImpl resource = pool.newResourceInstance();
 		resource.setName("Shared resource");
 		resource.setBookingTypeKind(com.microproject.pm.resource.BookingType.Kind.PROPOSED);
@@ -379,11 +670,8 @@ class ResourceLevelingDialogGuiAcceptanceTest {
 	}
 
 	private static NormalTask task(Project project, String name, long days) {
-		NormalTask task = new NormalTask(project);
+		NormalTask task = (NormalTask) project.createLocalTaskNode(null).getImpl();
 		task.setName(name);
-		project.connectTask(task);
-		project.getTaskOutlines().addToAll(task, null);
-		project.getSchedulingAlgorithm().addObject(task);
 		task.getCurrentSchedule().setStart(project.getStart());
 		task.setDuration(days * CalendarOption.getInstance().getMillisPerDay());
 		return task;
@@ -392,6 +680,25 @@ class ResourceLevelingDialogGuiAcceptanceTest {
 	private static NormalTask taskNamed(Project project, String name) {
 		return (NormalTask) project.getTaskList().stream().filter(task -> name.equals(((NormalTask) task).getName()))
 			.findFirst().orElseThrow();
+	}
+
+	private static NormalTask taskWithUniqueId(Project project, long uniqueId, NormalTask savedTask) {
+		for (java.util.Iterator<com.microproject.pm.task.Task> tasks = project.getTaskOutlineIterator(); tasks.hasNext();) {
+			com.microproject.pm.task.Task task = tasks.next();
+			if (task.getUniqueId() == uniqueId) return (NormalTask) task;
+		}
+		java.util.List<String> outline = new java.util.ArrayList<>();
+		for (java.util.Iterator<com.microproject.pm.task.Task> tasks = project.getTaskOutlineIterator(); tasks.hasNext();) {
+			com.microproject.pm.task.Task task = tasks.next();
+			outline.add("id=" + task.getUniqueId() + ",name=" + task.getName());
+		}
+		java.util.List<String> taskList = new java.util.ArrayList<>();
+		for (Object value : project.getTaskList()) {
+			com.microproject.pm.task.Task task = (com.microproject.pm.task.Task) value;
+			taskList.add("id=" + task.getUniqueId() + ",name=" + task.getName());
+		}
+		throw new AssertionError("MPO reload omitted target task id=" + uniqueId + ", name=" + savedTask.getName()
+			+ "; reloaded outline=" + outline + "; reloaded task list=" + taskList);
 	}
 
 	private static void capture(Robot robot, ResourceLevelingDialogBox dialog) throws Exception {

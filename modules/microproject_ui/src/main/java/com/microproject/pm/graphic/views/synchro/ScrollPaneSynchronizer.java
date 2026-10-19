@@ -32,7 +32,6 @@ import java.awt.event.AdjustmentEvent;
 import java.awt.event.AdjustmentListener;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
-import java.util.ArrayList;
 import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.function.DoubleUnaryOperator;
@@ -77,10 +76,6 @@ public class ScrollPaneSynchronizer {
 	protected MouseWheelListener scrollPane1WheelListener = null;
 
 	protected MouseWheelListener scrollPane2WheelListener = null;
-
-	protected ArrayList<Component> scrollPane1WheelTargets = new ArrayList<>(6);
-
-	protected ArrayList<Component> scrollPane2WheelTargets = new ArrayList<>(6);
 
 	protected int defaultScrollBarPolicy1;
 
@@ -221,8 +216,8 @@ public class ScrollPaneSynchronizer {
 
 			scrollPane1WheelListener = createWheelListener(scrollPane1);
 			scrollPane2WheelListener = createWheelListener(scrollPane2);
-			registerMouseWheelTargets(scrollPane1, scrollPane1WheelListener, scrollPane1WheelTargets);
-			registerMouseWheelTargets(scrollPane2, scrollPane2WheelListener, scrollPane2WheelTargets);
+			scrollPane1.addMouseWheelListener(scrollPane1WheelListener);
+			scrollPane2.addMouseWheelListener(scrollPane2WheelListener);
 
 		} else if (orientation == VERTICAL) {
 			defaultScrollBarPolicy1 = scrollPane1.getHorizontalScrollBarPolicy();
@@ -287,8 +282,12 @@ public class ScrollPaneSynchronizer {
 				scrollPane2.getHorizontalScrollBar().removeAdjustmentListener(scrollPane2HorizontalAdjustmentListener);
 				scrollPane2HorizontalAdjustmentListener = null;
 			}
-			unregisterMouseWheelTargets(scrollPane1WheelTargets, scrollPane1WheelListener);
-			unregisterMouseWheelTargets(scrollPane2WheelTargets, scrollPane2WheelListener);
+			if (scrollPane1WheelListener != null) {
+				scrollPane1.removeMouseWheelListener(scrollPane1WheelListener);
+			}
+			if (scrollPane2WheelListener != null) {
+				scrollPane2.removeMouseWheelListener(scrollPane2WheelListener);
+			}
 			scrollPane1WheelListener = null;
 			scrollPane2WheelListener = null;
 			scrollPane1.setWheelScrollingEnabled(defaultWheelScrollingEnabled1);
@@ -727,29 +726,6 @@ public class ScrollPaneSynchronizer {
 		}
 	}
 
-	private void registerMouseWheelTargets(JScrollPane scrollPane, MouseWheelListener listener,
-			ArrayList<Component> targets) {
-		if (scrollPane == null || listener == null) {
-			return;
-		}
-		registerMouseWheelTarget(scrollPane, listener, targets);
-		JViewport viewport = scrollPane.getViewport();
-		registerMouseWheelTarget(viewport == null ? null : viewport.getView(), listener, targets);
-		registerMouseWheelTarget(scrollPane.getRowHeader(), listener, targets);
-		registerMouseWheelTarget(scrollPane.getRowHeader() == null ? null : scrollPane.getRowHeader().getView(), listener, targets);
-		registerMouseWheelTarget(scrollPane.getColumnHeader(), listener, targets);
-		registerMouseWheelTarget(scrollPane.getColumnHeader() == null ? null : scrollPane.getColumnHeader().getView(), listener, targets);
-	}
-
-	private void registerMouseWheelTarget(Component component, MouseWheelListener listener,
-			ArrayList<Component> targets) {
-		if (component == null) {
-			return;
-		}
-		component.addMouseWheelListener(listener);
-		targets.add(component);
-	}
-
 	private MouseWheelListener createWheelListener(JScrollPane scrollPane) {
 		return new MouseWheelListener() {
 			@Override
@@ -769,17 +745,6 @@ public class ScrollPaneSynchronizer {
 				event.consume();
 			}
 		};
-	}
-
-	private void unregisterMouseWheelTargets(ArrayList<Component> targets, MouseWheelListener listener) {
-		if (listener == null) {
-			targets.clear();
-			return;
-		}
-		for (Component component : targets) {
-			component.removeMouseWheelListener(listener);
-		}
-		targets.clear();
 	}
 
 	private static ScrollPaneSynchronizer findSynchronizer(Component component) {

@@ -290,6 +290,49 @@ class SpreadSheetMouseInteractionTest {
 	}
 
 	@Test
+	void leftButtonPopupTriggerTakesPrecedenceOverRowSelectionAndDispatchesOnce() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createFixture();
+			RecordingSpreadSheet sheet = fixture.sheet();
+			int row = findRow(sheet, fixture.secondTask());
+			SpreadSheetRowHeader header = sheet.getRowHeader();
+			header.setUI(null);
+
+			header.dispatchEvent(rowHeaderLeftPopupPress(header, row));
+
+			assertEquals(1, sheet.popupShowCount,
+				"a BUTTON1 popup trigger on press must open the task popup instead of starting row selection");
+			assertEquals(row, sheet.shownPopup.getRow());
+			assertEquals(header, sheet.popupInvoker);
+		});
+	}
+
+	@Test
+	void leftButtonPopupTriggerOnReleaseAndBothEventsDispatchOnce() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture releaseFixture = createFixture();
+			RecordingSpreadSheet releaseSheet = releaseFixture.sheet();
+			int releaseRow = findRow(releaseSheet, releaseFixture.secondTask());
+			SpreadSheetRowHeader releaseHeader = releaseSheet.getRowHeader();
+			releaseHeader.setUI(null);
+			releaseHeader.dispatchEvent(rowHeaderMousePress(releaseHeader, releaseRow, 1));
+			releaseHeader.dispatchEvent(rowHeaderLeftPopupRelease(releaseHeader, releaseRow));
+			assertEquals(1, releaseSheet.popupShowCount, "release-only popup trigger must dispatch once");
+			assertEquals(releaseRow, releaseSheet.shownPopup.getRow());
+
+			Fixture bothFixture = createFixture();
+			RecordingSpreadSheet bothSheet = bothFixture.sheet();
+			int bothRow = findRow(bothSheet, bothFixture.secondTask());
+			SpreadSheetRowHeader bothHeader = bothSheet.getRowHeader();
+			bothHeader.setUI(null);
+			bothHeader.dispatchEvent(rowHeaderLeftPopupPress(bothHeader, bothRow));
+			bothHeader.dispatchEvent(rowHeaderLeftPopupRelease(bothHeader, bothRow));
+			assertEquals(1, bothSheet.popupShowCount, "press and release popup triggers must dispatch once");
+			assertEquals(bothRow, bothSheet.shownPopup.getRow());
+		});
+	}
+
+	@Test
 	void taskPopupStartsWithTaskInformationCommand() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			Fixture fixture = createFixture();
@@ -888,11 +931,26 @@ class SpreadSheetMouseInteractionTest {
 			1, true, MouseEvent.BUTTON3);
 	}
 
+	private MouseEvent rowHeaderLeftPopupRelease(SpreadSheetRowHeader header, int row) {
+		Rectangle bounds = header.getCellRect(row, 0, true);
+		return new MouseEvent(header, MouseEvent.MOUSE_RELEASED, System.currentTimeMillis(), 0,
+			bounds.x + Math.max(1, bounds.width / 2), bounds.y + Math.max(1, bounds.height / 2),
+			1, true, MouseEvent.BUTTON1);
+	}
+
 	private MouseEvent rowHeaderPopupPress(SpreadSheetRowHeader header, int row) {
 		Rectangle bounds = header.getCellRect(row, 0, true);
 		return new MouseEvent(header, MouseEvent.MOUSE_PRESSED, System.currentTimeMillis(),
 			MouseEvent.BUTTON3_DOWN_MASK, bounds.x + Math.max(1, bounds.width / 2),
 			bounds.y + Math.max(1, bounds.height / 2), 1, true, MouseEvent.BUTTON3);
+	}
+
+	private MouseEvent rowHeaderLeftPopupPress(SpreadSheetRowHeader header, int row) {
+		Rectangle bounds = header.getCellRect(row, 0, true);
+		return new MouseEvent(header, MouseEvent.MOUSE_PRESSED, System.currentTimeMillis(),
+			MouseEvent.BUTTON1_DOWN_MASK | MouseEvent.CTRL_DOWN_MASK,
+			bounds.x + Math.max(1, bounds.width / 2), bounds.y + Math.max(1, bounds.height / 2),
+			1, true, MouseEvent.BUTTON1);
 	}
 
 	private MouseEvent rowHeaderMousePress(SpreadSheetRowHeader rowHeader, int row, int clickCount) {

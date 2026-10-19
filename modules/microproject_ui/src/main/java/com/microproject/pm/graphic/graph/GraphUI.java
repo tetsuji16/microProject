@@ -67,6 +67,14 @@ public class GraphUI extends ComponentUI implements Serializable {
 		return graph;
 	}
 
+	@Override
+	public void uninstallUI(JComponent component) {
+		if (interactor != null) {
+			interactor.dispose();
+		}
+		super.uninstallUI(component);
+	}
+
 	public GraphInteractor getInteractor() {
 		return interactor;
 	}

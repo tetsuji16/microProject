@@ -86,14 +86,14 @@ final class TaskDependencySpreadsheet extends SpreadSheet {
 		sheet.setActions(new String[] { MenuActionConstants.ACTION_DELETE });
 		SpreadSheetUtils.createCollectionSpreadSheet(sheet, assignments(task, direction),
 				 direction.viewId, TaskInformationDialog.DEPENDENCY_SPREADSHEET, direction.fieldsId,
-				 direction.predecessors, new DependencyNodeModelDataFactory(), 0);
+				 direction.predecessors, new DependencyNodeModelDataFactory(task == null ? null : task.getProject()), 0);
 		return sheet;
 	}
 
 	static void update(TaskDependencySpreadsheet sheet, Task task, Direction direction) {
 		if (sheet != null)
 			SpreadSheetUtils.updateCollectionSpreadSheet(sheet, assignments(task, direction),
-					new DependencyNodeModelDataFactory(), 0);
+					new DependencyNodeModelDataFactory(task == null ? null : task.getProject()), 0);
 	}
 
 	private static AssociationList assignments(Task task, Direction direction) {

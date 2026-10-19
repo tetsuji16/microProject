@@ -73,6 +73,7 @@ public static class GuiDesktopWindowProbe {
     }
 
     [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] private static extern int GetSystemMetrics(int index);
     [DllImport("user32.dll")] private static extern bool IsChild(IntPtr parent, IntPtr child);
     [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr handle, out uint processId);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowText(IntPtr handle, StringBuilder text, int capacity);
@@ -177,6 +178,7 @@ public static class GuiDesktopWindowProbe {
         }, IntPtr.Zero);
 
         var result = new StringBuilder().Append("snapshotUtc=").Append(DateTime.UtcNow.ToString("o")).AppendLine();
+        result.Append("display primaryBounds=0,0,").Append(GetSystemMetrics(0)).Append(',').Append(GetSystemMetrics(1)).AppendLine();
         uint foregroundPid;
         uint foregroundThread = GetWindowThreadProcessId(foreground, out foregroundPid);
         string foregroundProcess = "unavailable";
@@ -416,6 +418,23 @@ if ($Watch) {
     $logWriter.WriteLine("monitorStarted=" + [DateTime]::UtcNow.ToString('o'))
     $lastOverlap = ''
     while ($true) {
+      $targetProcess = $null
+      $targetRunning = $true
+      try {
+        $targetProcess = [System.Diagnostics.Process]::GetProcessById($TargetPid)
+        $targetProcess.Refresh()
+        $targetRunning = -not $targetProcess.HasExited
+      } catch [System.ArgumentException] {
+        $targetRunning = $false
+      } catch [System.InvalidOperationException] {
+        $targetRunning = $false
+      } finally {
+        if ($null -ne $targetProcess) { $targetProcess.Dispose() }
+      }
+      if (-not $targetRunning) {
+        $logWriter.WriteLine("monitorStopped=" + [DateTime]::UtcNow.ToString('o') + " reason=target-exited")
+        break
+      }
       $overlap = [GuiDesktopWindowProbe]::CaptureForegroundOverlap($TargetPid)
       if ($overlap -ne $lastOverlap -and -not [string]::IsNullOrEmpty($overlap)) {
         $logWriter.WriteLine("GUI_ENVIRONMENT_CONTENDED observed=" + [DateTime]::UtcNow.ToString('o') + " " + $overlap)

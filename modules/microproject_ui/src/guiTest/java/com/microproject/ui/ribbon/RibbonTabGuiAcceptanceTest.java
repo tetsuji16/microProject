@@ -192,14 +192,13 @@ class RibbonTabGuiAcceptanceTest {
 		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
 		// Use the production Office shell so File commands are exercised in their
 		// Backstage host, while document commands remain attached to the ribbon.
-		// Keep the fixture above the compact breakpoint so every command is a
-		// direct hit target; the overflow path is covered separately by the
-		// responsive ribbon tests. The Task tab now carries Inspector, Inactivate and
-		// Format Painter, so 1600px reaches the trailing-group collapse point; the
-		// GUI runner display is 1920x1080, which leaves room for a 1900px fixture.
+		// Use the current desktop work area without changing its resolution. Commands
+		// that collapse at this width are dispatched through their responsive group
+		// proxies below, so the sweep remains complete on smaller CI desktops.
 		SwingUtilities.invokeAndWait(() -> {
-			frame.setSize(1900, 700);
-			frame.setLocationByPlatform(true);
+			Rectangle usable = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
+			frame.setSize(usable.width, Math.min(700, usable.height));
+			frame.setLocation(usable.x, usable.y);
 			frame.setAlwaysOnTop(true);
 			frame.setVisible(true);
 			frame.toFront();
@@ -225,15 +224,16 @@ class RibbonTabGuiAcceptanceTest {
 					if ("FileRibbonTask".equals(tabId))
 						openFileCommandDestination(robot, frame, tab, buttonId);
 					try {
-						GuiAcceptanceSupport.await(() -> hasAttachedButtonByCommand(frame, buttonId),
-							"Selected ribbon tab " + tabId + " did not expose visible command " + buttonId);
+						GuiAcceptanceSupport.await(() -> hasPhysicalButtonForCommand(frame, buttonId),
+							"Selected ribbon tab " + tabId + " did not expose command or responsive group proxy " + buttonId);
 					} catch (AssertionError failure) {
 						throw new AssertionError(failure.getMessage() + "; "
 							+ ribbonCommandDiagnostic(frame, buttonId), failure);
 					}
 					AbstractButton button = findAttachedButtonByCommand(frame, buttonId);
-					assertTrue(button.isShowing(), () -> buttonId + " is not visible in " + tabId);
-					assertTrue(button.isEnabled(), () -> buttonId + " is disabled in " + bandId);
+					AbstractButton proxy = button == null ? findCollapsedProxyForCommand(frame, buttonId) : null;
+					assertTrue(button != null || proxy != null, () -> buttonId + " has no physical route in " + tabId);
+					assertTrue(button == null || button.isEnabled(), () -> buttonId + " is disabled in " + bandId);
 					String actionId = manager.getToolBarFactory().getActionStringFromId(buttonId);
 					try {
 						physicalTaskCommands.add(CommandId.fromActionId(actionId));
@@ -252,10 +252,22 @@ class RibbonTabGuiAcceptanceTest {
 						}
 					}
 					int before = actions.count(actionId);
-					Point clickPoint = clickCommand(robot, button);
+					Point clickPoint;
+					if (button != null) {
+						clickPoint = clickCommand(robot, button);
+					} else {
+						JPopupMenu popup = (JPopupMenu) proxy.getClientProperty(ModernRibbonPanel.COLLAPSED_POPUP_PROPERTY);
+						clickPoint = clickCommand(robot, proxy);
+						GuiAcceptanceSupport.await(popup::isVisible,
+							"responsive group proxy did not open for " + buttonId);
+						AbstractButton popupCommand = findPopupCommand(popup, buttonId);
+						assertTrue(popupCommand.isEnabled(), () -> buttonId + " is disabled in responsive popup " + bandId);
+						clickPoint = clickCommand(robot, popupCommand);
+					}
 					GuiAcceptanceSupport.await(() -> actions.count(actionId) == before + 1,
 						"Robot click did not dispatch " + buttonId + " (" + actionId + ") at " + clickPoint
-							+ " bounds=" + button.getBounds() + " screen=" + safeScreenBounds(button));
+							+ (button == null ? " through responsive group popup" : " bounds=" + button.getBounds()
+								+ " screen=" + safeScreenBounds(button)));
 				}
 			}
 		}
@@ -909,8 +921,30 @@ class RibbonTabGuiAcceptanceTest {
 			.filter(AbstractButton::isShowing)
 			.filter(button -> command.equals(button.getActionCommand())
 				|| ("officeBackstageCommand-" + command).equals(button.getName()))
-			.findFirst()
-			.orElseThrow(() -> new AssertionError("Ribbon command not found: " + command));
+			.findFirst().orElse(null);
+	}
+
+	private static AbstractButton findCollapsedProxyForCommand(Component root, String command) {
+		return UiComponentWalker.flatten(root).stream()
+			.filter(AbstractButton.class::isInstance)
+			.map(AbstractButton.class::cast)
+			.filter(AbstractButton::isShowing)
+			.filter(button -> button.getClientProperty(ModernRibbonPanel.COLLAPSED_POPUP_PROPERTY) instanceof JPopupMenu popup
+				&& findPopupCommand(popup, command) != null)
+			.findFirst().orElse(null);
+	}
+
+	private static AbstractButton findPopupCommand(JPopupMenu popup, String command) {
+		return UiComponentWalker.flatten(popup).stream()
+			.filter(AbstractButton.class::isInstance)
+			.map(AbstractButton.class::cast)
+			.filter(button -> command.equals(button.getActionCommand()))
+			.findFirst().orElse(null);
+	}
+
+	private static boolean hasPhysicalButtonForCommand(Component root, String command) {
+		return findAttachedButtonByCommand(root, command) != null
+			|| findCollapsedProxyForCommand(root, command) != null;
 	}
 
 	private static boolean hasAttachedButtonByCommand(Component root, String command) {

@@ -43,15 +43,18 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.Test;
 
+import com.microproject.pm.resource.EnterpriseResource;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.TaskSnapshot;
 import com.microproject.document.ObjectEvent;
 import com.microproject.options.CalendarOption;
 import com.microproject.transaction.MultipleTransaction;
 import com.microproject.transaction.MultipleTransactionManager;
 import com.microproject.undo.DataFactoryUndoController;
+import com.microproject.undo.NodeUndoInfo;
 
 class AssignmentServiceTest {
 	@Test
@@ -137,6 +140,89 @@ class AssignmentServiceTest {
 	}
 
 	@Test
+	void collectionRemovalFailureRestoresAssignmentsAndDiscardsAtomicCommandState() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		ResourcePool pool = project.getResourcePool();
+		ResourceImpl firstResource = pool.newResourceInstance();
+		FailingResource secondResource = failingResource(pool, FailureMode.AFTER_REMOVE);
+		Assignment first = AssignmentService.getInstance().newAssignment(task, firstResource, 1.0D, 0L, this);
+		Assignment second = AssignmentService.getInstance().newAssignment(task, secondResource, 1.0D, 0L, this);
+		first.setWork(12L * 60L * 60L * 1000L, null);
+		second.setWork(8L * 60L * 60L * 1000L, null);
+		long firstWork = first.getWork(null);
+		long secondWork = second.getWork(null);
+		long taskDuration = task.getDuration();
+		TaskSnapshot snapshot = (TaskSnapshot) task.getCurrentSnapshot();
+		project.getUndoController().clear();
+		long projectRevision = project.getMutationState().revision();
+		long poolRevision = pool.getCoordinationRevision();
+		List<ObjectEvent> projectEvents = new ArrayList<>();
+		List<ObjectEvent> poolEvents = new ArrayList<>();
+		project.addObjectListener(event -> { if (event.isCreate() || event.isDelete()) projectEvents.add(event); });
+		pool.addObjectListener(event -> { if (event.isCreate() || event.isDelete()) poolEvents.add(event); });
+
+		assertThrows(IllegalStateException.class,
+			() -> AssignmentService.getInstance().remove(List.of(first, second), this));
+
+		assertSame(first, task.findAssignment(firstResource));
+		assertSame(first, firstResource.findAssignment(task));
+		assertSame(second, task.findAssignment(secondResource));
+		assertSame(second, secondResource.findAssignment(task));
+		assertEquals(List.of(first, second), new ArrayList<>(task.getAssignments()));
+		assertEquals(firstWork, first.getWork(null));
+		assertEquals(secondWork, second.getWork(null));
+		assertEquals(taskDuration, task.getDuration());
+		assertSame(snapshot, task.getCurrentSnapshot());
+		assertFalse(project.getUndoController().canUndo());
+		assertEquals(projectRevision, project.getMutationState().revision());
+		assertEquals(poolRevision, pool.getCoordinationRevision());
+		assertTrue(projectEvents.isEmpty());
+		assertTrue(poolEvents.isEmpty());
+	}
+
+	@Test
+	void collectionRemovalObserverFailureAfterCommitKeepsCommittedState() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		ResourcePool pool = project.getResourcePool();
+		ResourceImpl firstResource = pool.newResourceInstance();
+		ResourceImpl secondResource = pool.newResourceInstance();
+		Assignment first = AssignmentService.getInstance().newAssignment(task, firstResource, 1.0D, 0L, this);
+		Assignment second = AssignmentService.getInstance().newAssignment(task, secondResource, 1.0D, 0L, this);
+		project.getUndoController().clear();
+		AtomicBoolean failOnce = new AtomicBoolean(true);
+		AtomicBoolean publicationSawReleasedBarrier = new AtomicBoolean();
+		IllegalStateException observerFailure = new IllegalStateException("injected object-event observer failure");
+		ObjectEvent.Listener listener = event -> {
+			if (event.isDelete()) {
+				publicationSawReleasedBarrier.set(!project.getMutationState().isHeldByCurrentThread());
+				if (failOnce.compareAndSet(true, false)) throw observerFailure;
+			}
+		};
+		pool.addObjectListener(listener);
+		long projectRevision = project.getMutationState().revision();
+		long poolRevision = pool.getCoordinationRevision();
+		try {
+			assertSame(observerFailure, assertThrows(IllegalStateException.class,
+				() -> AssignmentService.getInstance().remove(List.of(first, second), this)));
+
+			assertNull(task.findAssignment(firstResource));
+			assertNull(firstResource.findAssignment(task));
+			assertNull(task.findAssignment(secondResource));
+			assertNull(secondResource.findAssignment(task));
+			assertFalse(project.getUndoController().canUndo());
+			assertEquals(projectRevision + 1, project.getMutationState().revision());
+			assertEquals(poolRevision + 1, pool.getCoordinationRevision());
+			assertTrue(publicationSawReleasedBarrier.get());
+			assertEquals(0, project.getObjectEventManager().pendingEventCount());
+			assertEquals(0, pool.getObjectEventManager().pendingEventCount());
+		} finally {
+			pool.removeObjectListener(listener);
+		}
+	}
+
+	@Test
 	void mixedProjectCollectionRemovalKeepsPerProjectUndoAndOneSharedPoolRevision() {
 		Project firstProject = createProject();
 		ResourcePool pool = firstProject.getResourcePool();
@@ -171,6 +257,51 @@ class AssignmentServiceTest {
 		assertNotNull(secondTask.findAssignment(secondResource));
 		assertSame(firstTask.findAssignment(firstResource), firstResource.findAssignment(firstTask));
 		assertSame(secondTask.findAssignment(secondResource), secondResource.findAssignment(secondTask));
+	}
+
+	@Test
+	void mixedProjectCollectionRemovalKeepsEarlierCommitWhenLaterProjectFails() {
+		Project firstProject = createProject();
+		ResourcePool pool = firstProject.getResourcePool();
+		DataFactoryUndoController secondUndo = new DataFactoryUndoController();
+		Project secondProject = Project.createProject(pool, secondUndo);
+		secondProject.initialize(false, false);
+		pool.addProject(secondProject);
+		NormalTask firstTask = createTask(firstProject);
+		NormalTask secondTask = createTask(secondProject);
+		ResourceImpl firstResource = pool.newResourceInstance();
+		FailingResource secondResource = failingResource(pool, FailureMode.AFTER_REMOVE);
+		Assignment first = AssignmentService.getInstance().newAssignment(firstTask, firstResource, 1.0D, 0L, this);
+		Assignment second = AssignmentService.getInstance().newAssignment(secondTask, secondResource, 1.0D, 0L, this);
+		firstProject.getUndoController().clear();
+		secondUndo.clear();
+		long firstRevision = firstProject.getMutationState().revision();
+		long secondRevision = secondProject.getMutationState().revision();
+		long poolRevision = pool.getCoordinationRevision();
+		List<ObjectEvent> firstProjectEvents = new ArrayList<>();
+		List<ObjectEvent> secondProjectEvents = new ArrayList<>();
+		List<ObjectEvent> poolEvents = new ArrayList<>();
+		firstProject.addObjectListener(event -> { if (event.isCreate() || event.isDelete()) firstProjectEvents.add(event); });
+		secondProject.addObjectListener(event -> { if (event.isCreate() || event.isDelete()) secondProjectEvents.add(event); });
+		pool.addObjectListener(event -> { if (event.isCreate() || event.isDelete()) poolEvents.add(event); });
+
+		assertThrows(IllegalStateException.class,
+			() -> AssignmentService.getInstance().remove(List.of(first, second), this, true));
+
+		assertNull(firstTask.findAssignment(firstResource), "the first project group remains committed");
+		assertNull(firstResource.findAssignment(firstTask));
+		assertSame(second, secondTask.findAssignment(secondResource), "the failed second group is restored");
+		assertSame(second, secondResource.findAssignment(secondTask));
+		assertEquals(firstRevision + 1, firstProject.getMutationState().revision());
+		assertEquals(secondRevision, secondProject.getMutationState().revision());
+		assertEquals(poolRevision + 1, pool.getCoordinationRevision());
+		assertTrue(firstProject.getUndoController().canUndo(), "the committed first group keeps its Undo edit");
+		assertFalse(secondUndo.canUndo(), "the failed second group publishes no Undo edit");
+		assertEquals(List.of(first), firstProjectEvents.stream().filter(ObjectEvent::isDelete)
+			.map(ObjectEvent::getObject).toList());
+		assertTrue(secondProjectEvents.isEmpty(), "the failed group publishes no project events");
+		assertEquals(List.of(first), poolEvents.stream().filter(ObjectEvent::isDelete)
+			.map(ObjectEvent::getObject).toList(), "the shared pool publishes only the committed assignment");
 	}
 
 	@Test
@@ -209,9 +340,10 @@ class AssignmentServiceTest {
 			failEnd.set(true);
 			assertThrows(IllegalStateException.class,
 				() -> AssignmentService.getInstance().remove(List.of(assignment), this, true));
-			assertNull(task.findAssignment(resource), "end observer failure follows the committed model change");
-			assertEquals(projectRevision + 1, project.getMutationState().revision());
-			assertEquals(poolRevision + 1, pool.getCoordinationRevision());
+			assertSame(assignment, task.findAssignment(resource), "failed transaction closure restores the model change");
+			assertSame(assignment, resource.findAssignment(task));
+			assertEquals(projectRevision, project.getMutationState().revision());
+			assertEquals(poolRevision, pool.getCoordinationRevision());
 			assertEquals(initialDepth, MultipleTransactionManager.depth,
 				"end failures do not strand other pool/project transactions");
 		} finally {
@@ -585,7 +717,7 @@ class AssignmentServiceTest {
 	}
 
 	@Test
-	void failedSharedPoolReconnectRestoresSourceAssociationAndPublishesBothPoolRefreshes() {
+	void failedSharedPoolReconnectRestoresSourceAssociationAndDiscardsPublication() {
 		Project taskProject = createProject();
 		Project destinationProject = createProject();
 		NormalTask task = createTask(taskProject);
@@ -633,14 +765,64 @@ class AssignmentServiceTest {
 		assertEquals(totalWork - actualWork, assignment.getRemainingWork());
 		assertEquals(taskStart, task.getStart());
 		assertEquals(taskFinish, task.getEnd());
-		assertEquals(projectRevision + 1, taskProject.getMutationState().revision(),
-			"the failed mutation publishes one conservative committed refresh revision");
-		assertEquals(sourcePoolRevision + 1, sourcePool.getCoordinationRevision());
-		assertEquals(destinationPoolRevision + 1, destinationPool.getCoordinationRevision());
-		assertEquals(List.of(sourcePoolRevision + 1), sourceRevisions);
-		assertEquals(List.of(destinationPoolRevision + 1), destinationRevisions);
+		assertEquals(projectRevision, taskProject.getMutationState().revision());
+		assertEquals(sourcePoolRevision, sourcePool.getCoordinationRevision());
+		assertEquals(destinationPoolRevision, destinationPool.getCoordinationRevision());
+		assertTrue(sourceRevisions.isEmpty());
+		assertTrue(destinationRevisions.isEmpty());
 		assertFalse(taskProject.getUndoController().canUndo(),
 			() -> "failed reconnect must not create an Undo edit: " + taskProject.getUndoController().getEditNames());
+	}
+
+	@Test
+	void failedSharedPoolReconnectAfterResourceAttachRestoresStateAndDiscardsPublication() {
+		Project taskProject = createProject();
+		Project destinationProject = createProject();
+		NormalTask task = createTask(taskProject);
+		ResourceImpl source = taskProject.getResourcePool().newResourceInstance();
+		FailingResource destination = failingResource(destinationProject.getResourcePool(), FailureMode.AFTER_ATTACH);
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task, source, 1.0D, 0L, this, false);
+		assignment.setWork(8L * 60L * 60L * 1000L, null);
+		assignment.setActualWork(2L * 60L * 60L * 1000L, null);
+		long taskStart = task.getStart();
+		long taskFinish = task.getEnd();
+		long assignmentWork = assignment.getWork(null);
+		long assignmentActualWork = assignment.getActualWork(null);
+		TaskSnapshot taskSnapshot = (TaskSnapshot) task.getCurrentSnapshot();
+		long projectRevision = taskProject.getMutationState().revision();
+		ResourcePool sourcePool = taskProject.getResourcePool();
+		ResourcePool destinationPool = destinationProject.getResourcePool();
+		long sourcePoolRevision = sourcePool.getCoordinationRevision();
+		long destinationPoolRevision = destinationPool.getCoordinationRevision();
+		List<ObjectEvent> projectEvents = new ArrayList<>();
+		List<ObjectEvent> sourceEvents = new ArrayList<>();
+		List<ObjectEvent> destinationEvents = new ArrayList<>();
+		taskProject.addObjectListener(projectEvents::add);
+		sourcePool.addObjectListener(sourceEvents::add);
+		destinationPool.addObjectListener(destinationEvents::add);
+
+		assertThrows(IllegalStateException.class,
+			() -> AssignmentService.getInstance().rewireSharedPoolAssignment(assignment, destination, this));
+
+		assertSame(assignment, task.findAssignment(source));
+		assertSame(assignment, source.findAssignment(task));
+		assertNull(task.findAssignment(destination));
+		assertNull(destination.findAssignment(task));
+		assertSame(task, assignment.getTask());
+		assertSame(source, assignment.getResource());
+		assertEquals(taskStart, task.getStart());
+		assertEquals(taskFinish, task.getEnd());
+		assertEquals(assignmentWork, assignment.getWork(null));
+		assertEquals(assignmentActualWork, assignment.getActualWork(null));
+		assertSame(taskSnapshot, task.getCurrentSnapshot());
+		assertEquals(projectRevision, taskProject.getMutationState().revision());
+		assertEquals(sourcePoolRevision, sourcePool.getCoordinationRevision());
+		assertEquals(destinationPoolRevision, destinationPool.getCoordinationRevision());
+		assertTrue(projectEvents.isEmpty());
+		assertTrue(sourceEvents.isEmpty());
+		assertTrue(destinationEvents.isEmpty());
+		assertFalse(taskProject.getUndoController().canUndo());
+		assertNotNull(destination.attemptedAssignment);
 	}
 
 	@Test
@@ -727,6 +909,140 @@ class AssignmentServiceTest {
 	}
 
 	@Test
+	void newAssignmentsFailureAfterResourceAttachRestoresModelAndDiscardsPublication() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		ResourcePool pool = project.getResourcePool();
+		ResourceImpl originalResource = pool.newResourceInstance();
+		Assignment original = AssignmentService.getInstance().newAssignment(task, originalResource, 1.0D, 0L, this, false);
+		ResourceImpl firstResource = pool.newResourceInstance();
+		FailingResource failingResource = failingResource(pool, FailureMode.AFTER_ATTACH);
+		TaskSnapshot originalSnapshot = (TaskSnapshot) task.getCurrentSnapshot();
+		List<Assignment> originalSnapshotAssignments = new ArrayList<>();
+		for (Object value : originalSnapshot.getAssignments()) originalSnapshotAssignments.add((Assignment) value);
+		List<ObjectEvent> projectEvents = new ArrayList<>();
+		List<ObjectEvent> poolEvents = new ArrayList<>();
+		project.addObjectListener(projectEvents::add);
+		pool.addObjectListener(poolEvents::add);
+		project.getUndoController().clear();
+		long projectRevision = project.getMutationState().revision();
+		long poolRevision = pool.getCoordinationRevision();
+		long duration = task.getDuration();
+		int schedulingType = task.getSchedulingType();
+		boolean effortDriven = task.isEffortDriven();
+
+		assertThrows(IllegalStateException.class, () -> AssignmentService.getInstance().newAssignments(
+			List.of(task), List.of(firstResource, failingResource), 1.0D, 0L, this, true));
+
+		assertSame(original, task.findAssignment(originalResource));
+		assertSame(original, originalResource.findAssignment(task));
+		assertNull(task.findAssignment(firstResource));
+		assertNull(firstResource.findAssignment(task));
+		assertNull(task.findAssignment(failingResource));
+		assertNull(failingResource.findAssignment(task));
+		assertNotNull(failingResource.attemptedAssignment);
+		assertEquals(1, task.getAssignments().size());
+		assertEquals(duration, task.getDuration());
+		assertEquals(schedulingType, task.getSchedulingType());
+		assertEquals(effortDriven, task.isEffortDriven());
+		assertSame(originalSnapshot, task.getCurrentSnapshot());
+		List<Assignment> restoredSnapshotAssignments = new ArrayList<>();
+		for (Object value : ((TaskSnapshot) task.getCurrentSnapshot()).getAssignments()) restoredSnapshotAssignments.add((Assignment) value);
+		assertEquals(originalSnapshotAssignments, restoredSnapshotAssignments);
+		assertFalse(project.getUndoController().canUndo());
+		assertEquals(projectRevision, project.getMutationState().revision());
+		assertEquals(poolRevision, pool.getCoordinationRevision());
+		assertTrue(projectEvents.isEmpty());
+		assertTrue(poolEvents.isEmpty());
+	}
+
+	@Test
+	void singleNewAssignmentFailureRestoresTaskSideAttachment() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		ResourcePool pool = project.getResourcePool();
+		ResourceImpl originalResource = pool.newResourceInstance();
+		Assignment original = AssignmentService.getInstance().newAssignment(task, originalResource, 1.0D, 0L, this, false);
+		FailingResource failingResource = failingResource(pool, FailureMode.AFTER_ATTACH);
+		List<ObjectEvent> projectEvents = new ArrayList<>();
+		List<ObjectEvent> poolEvents = new ArrayList<>();
+		project.addObjectListener(projectEvents::add);
+		pool.addObjectListener(poolEvents::add);
+		project.getUndoController().clear();
+		long projectRevision = project.getMutationState().revision();
+		long poolRevision = pool.getCoordinationRevision();
+
+		assertThrows(IllegalStateException.class, () -> AssignmentService.getInstance().newAssignment(
+			task, failingResource, 1.0D, 0L, this, true));
+
+		assertSame(original, task.findAssignment(originalResource));
+		assertSame(original, originalResource.findAssignment(task));
+		assertNull(task.findAssignment(failingResource));
+		assertNull(failingResource.findAssignment(task));
+		assertNotNull(failingResource.attemptedAssignment);
+		assertFalse(project.getUndoController().canUndo());
+		assertEquals(projectRevision, project.getMutationState().revision());
+		assertEquals(poolRevision, pool.getCoordinationRevision());
+		assertTrue(projectEvents.isEmpty());
+		assertTrue(poolEvents.isEmpty());
+	}
+
+	@Test
+	void connectFailureRestoresTaskSideAttachment() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		ResourcePool pool = project.getResourcePool();
+		FailingResource failingResource = failingResource(pool, FailureMode.AFTER_ATTACH);
+		Assignment assignment = Assignment.getInstance(task, failingResource, 1.0D, 0L);
+		List<ObjectEvent> projectEvents = new ArrayList<>();
+		List<ObjectEvent> poolEvents = new ArrayList<>();
+		project.addObjectListener(projectEvents::add);
+		pool.addObjectListener(poolEvents::add);
+		project.getUndoController().clear();
+		long projectRevision = project.getMutationState().revision();
+		long poolRevision = pool.getCoordinationRevision();
+
+		assertThrows(IllegalStateException.class, () -> AssignmentService.getInstance().connect(
+			assignment, this, new NodeUndoInfo(true)));
+
+		assertNull(task.findAssignment(failingResource));
+		assertNull(failingResource.findAssignment(task));
+		assertNotNull(failingResource.attemptedAssignment);
+		assertFalse(project.getUndoController().canUndo());
+		assertEquals(projectRevision, project.getMutationState().revision());
+		assertEquals(poolRevision, pool.getCoordinationRevision());
+		assertTrue(projectEvents.isEmpty());
+		assertTrue(poolEvents.isEmpty());
+	}
+
+	@Test
+	void singleRemoveFailureAfterResourceDetachRestoresBothLinks() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		ResourcePool pool = project.getResourcePool();
+		FailingResource resource = failingResource(pool, FailureMode.AFTER_REMOVE);
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1.0D, 0L, this, false);
+		List<ObjectEvent> projectEvents = new ArrayList<>();
+		List<ObjectEvent> poolEvents = new ArrayList<>();
+		project.addObjectListener(projectEvents::add);
+		pool.addObjectListener(poolEvents::add);
+		project.getUndoController().clear();
+		long projectRevision = project.getMutationState().revision();
+		long poolRevision = pool.getCoordinationRevision();
+
+		assertThrows(IllegalStateException.class, () -> AssignmentService.getInstance().remove(
+			assignment, true, this, new NodeUndoInfo(true)));
+
+		assertSame(assignment, task.findAssignment(resource));
+		assertSame(assignment, resource.findAssignment(task));
+		assertFalse(project.getUndoController().canUndo());
+		assertEquals(projectRevision, project.getMutationState().revision());
+		assertEquals(poolRevision, pool.getCoordinationRevision());
+		assertTrue(projectEvents.isEmpty());
+		assertTrue(poolEvents.isEmpty());
+	}
+
+	@Test
 	void replaceAssignmentWithActualWorkRetainsSourceAndTransfersRemainingWork() {
 		Project project = createProject();
 		NormalTask task = createTask(project);
@@ -782,6 +1098,115 @@ class AssignmentServiceTest {
 		assertEquals(1, replacements.size());
 		assertNull(task.findAssignment(original));
 		assertSame(replacements.get(0), task.findAssignment(replacement));
+	}
+
+	@Test
+	void replaceAssignmentFailureAfterSourceRemovalRestoresLinksDetailsUndoAndEvents() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		ResourceImpl original = project.getResourcePool().newResourceInstance();
+		Assignment source = AssignmentService.getInstance().newAssignment(task, original, 1.0D, 0L, this, false);
+		long sourceWork = source.getWork(null);
+		FailingResource replacement = failingResource(project.getResourcePool(), FailureMode.BEFORE_ATTACH);
+		List<ObjectEvent> projectEvents = new ArrayList<>();
+		List<ObjectEvent> poolEvents = new ArrayList<>();
+		project.addObjectListener(event -> { if (event.isCreate() || event.isDelete()) projectEvents.add(event); });
+		project.getResourcePool().addObjectListener(event -> {
+			if (event.isCreate() || event.isDelete()) poolEvents.add(event);
+		});
+
+		assertThrows(IllegalStateException.class, () -> AssignmentService.getInstance().replaceAssignment(source,
+				List.of(replacement), this, true));
+
+		assertSame(source, task.findAssignment(original));
+		assertSame(source, original.findAssignment(task));
+		assertNull(task.findAssignment(replacement));
+		assertNull(replacement.findAssignment(task));
+		assertEquals(sourceWork, source.getWork(null));
+		assertFalse(project.getUndoController().canUndo());
+		assertTrue(projectEvents.isEmpty());
+		assertTrue(poolEvents.isEmpty());
+	}
+
+	@Test
+	void replaceAssignmentFailureAfterFirstReplacementRestoresActualWorkAndDiscardsEvents() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		task.setDuration(2L * day);
+		ResourceImpl original = project.getResourcePool().newResourceInstance();
+		Assignment source = AssignmentService.getInstance().newAssignment(task, original, 1.0D, 0L, this, false);
+		source.setActualWork(source.getWork(null) / 2L, null);
+		long sourceWork = source.getWork(null);
+		long sourceActualWork = source.getActualWork(null);
+		long taskDuration = task.getDuration();
+		ResourceImpl firstReplacement = project.getResourcePool().newResourceInstance();
+		FailingResource secondReplacement = failingResource(project.getResourcePool(), FailureMode.AFTER_ATTACH);
+		List<ObjectEvent> projectEvents = new ArrayList<>();
+		List<ObjectEvent> poolEvents = new ArrayList<>();
+		project.addObjectListener(event -> { if (event.isCreate() || event.isDelete()) projectEvents.add(event); });
+		project.getResourcePool().addObjectListener(event -> {
+			if (event.isCreate() || event.isDelete()) poolEvents.add(event);
+		});
+
+		assertThrows(IllegalStateException.class, () -> AssignmentService.getInstance().replaceAssignment(source,
+				List.of(firstReplacement, secondReplacement), this, true));
+
+		assertSame(source, task.findAssignment(original));
+		assertSame(source, original.findAssignment(task));
+		assertNull(task.findAssignment(firstReplacement));
+		assertNull(firstReplacement.findAssignment(task));
+		assertNull(task.findAssignment(secondReplacement));
+		assertNull(secondReplacement.findAssignment(task));
+		assertNotNull(secondReplacement.attemptedAssignment);
+		assertEquals(sourceWork, source.getWork(null));
+		assertEquals(sourceActualWork, source.getActualWork(null));
+		assertEquals(taskDuration, task.getDuration());
+		assertFalse(project.getUndoController().canUndo());
+		assertTrue(projectEvents.isEmpty());
+		assertTrue(poolEvents.isEmpty());
+	}
+
+	private FailingResource failingResource(ResourcePool pool, FailureMode failureMode) {
+		FailingResource resource = new FailingResource(new EnterpriseResource(pool), failureMode);
+		pool.addAndInitializeId(resource);
+		return resource;
+	}
+
+	private enum FailureMode { BEFORE_ATTACH, AFTER_ATTACH, AFTER_REMOVE }
+
+	private static final class FailingResource extends ResourceImpl {
+		private final FailureMode failureMode;
+		private boolean failed;
+		private Assignment attemptedAssignment;
+
+		private FailingResource(EnterpriseResource delegate, FailureMode failureMode) {
+			super(delegate);
+			this.failureMode = failureMode;
+		}
+
+		@Override
+		public void addAssignment(Assignment assignment) {
+			if (!failed && (failureMode == FailureMode.BEFORE_ATTACH || failureMode == FailureMode.AFTER_ATTACH)) {
+				failed = true;
+				attemptedAssignment = assignment;
+				if (failureMode == FailureMode.BEFORE_ATTACH)
+					throw new IllegalStateException("Injected failure before resource attach");
+				super.addAssignment(assignment);
+				if (failureMode == FailureMode.AFTER_ATTACH)
+					throw new IllegalStateException("Injected failure after resource attach");
+			}
+			super.addAssignment(assignment);
+		}
+
+		@Override
+		public void removeAssignment(Assignment assignment) {
+			super.removeAssignment(assignment);
+			if (!failed && failureMode == FailureMode.AFTER_REMOVE) {
+				failed = true;
+				throw new IllegalStateException("Injected failure after resource detach");
+			}
+		}
 	}
 
 	@Test

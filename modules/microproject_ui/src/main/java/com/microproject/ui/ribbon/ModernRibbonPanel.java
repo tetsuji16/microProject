@@ -50,6 +50,7 @@ import java.util.Map;
 import java.util.MissingResourceException;
 import java.util.Objects;
 import java.util.ResourceBundle;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 import javax.swing.AbstractButton;
@@ -81,6 +82,7 @@ import com.microproject.ribbon.RibbonCommandResult;
 import com.microproject.ribbon.SwingRibbonModel;
 import com.microproject.ribbon.RibbonTheme;
 import com.microproject.dialog.UsabilityStrings;
+import com.microproject.ui.input.PopupTriggerController;
 
 public final class ModernRibbonPanel extends JPanel implements RibbonController {
 	/** @deprecated Use {@link RibbonController#CONTEXTUAL_TABS_PROPERTY}. */
@@ -182,6 +184,8 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	private boolean updatingTabOverflow;
 	private RibbonDisplayMode displayMode = RibbonDisplayMode.ALWAYS_SHOW;
 	private boolean autoHideRevealed;
+	private BiConsumer<JPopupMenu, MouseEvent> displayModePopupPresenter =
+		(popup, event) -> popup.show(event.getComponent(), event.getX(), event.getY());
 
 	ModernRibbonPanel(SwingRibbonModel model, RibbonCommandSource commandSource, ResourceBundle[] bundles, Runnable helpAction) {
 		super(new BorderLayout());
@@ -891,8 +895,15 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 			else showTab(tab.getId());
 		});
 		button.addMouseListener(new java.awt.event.MouseAdapter() {
-			@Override public void mousePressed(java.awt.event.MouseEvent event) { showDisplayModePopup(event); }
-			@Override public void mouseReleased(java.awt.event.MouseEvent event) { showDisplayModePopup(event); }
+			private final PopupTriggerController popupTriggers = new PopupTriggerController();
+			@Override public void mousePressed(java.awt.event.MouseEvent event) {
+				if (popupTriggers.mousePressed(event)) showDisplayModePopup(event);
+			}
+			@Override public void mouseReleased(java.awt.event.MouseEvent event) {
+				if (popupTriggers.mouseReleased(event) == PopupTriggerController.ReleaseOutcome.SHOW) {
+					showDisplayModePopup(event);
+				}
+			}
 			@Override public void mouseClicked(java.awt.event.MouseEvent event) {
 				if (event.getClickCount() == 2 && javax.swing.SwingUtilities.isLeftMouseButton(event)) {
 					toggleRibbonCollapseMode();
@@ -1572,7 +1583,15 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 			? "chrome.ribbonShow" : "chrome.ribbonCollapse"));
 		item.addActionListener(action -> toggleRibbonCollapseMode());
 		popup.add(item);
-		popup.show(event.getComponent(), event.getX(), event.getY());
+		presentDisplayModePopup(popup, event);
+	}
+
+	void presentDisplayModePopup(JPopupMenu popup, java.awt.event.MouseEvent event) {
+		displayModePopupPresenter.accept(popup, event);
+	}
+
+	void setDisplayModePopupPresenter(BiConsumer<JPopupMenu, MouseEvent> presenter) {
+		displayModePopupPresenter = Objects.requireNonNull(presenter);
 	}
 
 	private String getStringOrNull(String key) {

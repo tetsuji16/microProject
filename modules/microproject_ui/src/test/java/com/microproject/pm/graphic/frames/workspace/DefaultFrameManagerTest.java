@@ -76,6 +76,48 @@ class DefaultFrameManagerTest {
 	}
 
 	@Test
+	void repeatedModelOnlyActivationOfCurrentFrameDoesNotRebuildContainer() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			TrackingPanel container = new TrackingPanel();
+			container.setLayout(new BorderLayout());
+			DefaultFrameManager manager = new DefaultFrameManager(container, new JPanel(), new GraphicManager(container));
+			TestNamedFrame current = new TestNamedFrame("current", "Current");
+			manager.addFrame(current);
+			int adds = container.addCount;
+			int removes = container.removeCount;
+			container.resetRepaintCount();
+
+			manager.activateFrameFromWindow(current);
+
+			assertSame(current, manager.getActiveFrame());
+			assertSame(current, container.getComponent(0));
+			assertEquals(adds, container.addCount, "Repeated model-only activation must not reparent the frame");
+			assertEquals(removes, container.removeCount, "Repeated model-only activation must not remove the frame");
+			assertEquals(0, container.repaintCount, "Repeated model-only activation must not refresh the container");
+		});
+	}
+
+	@Test
+	void disposedFrameManagerRejectsQueuedDocumentWindowFocusCallbacks() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			TrackingPanel container = new TrackingPanel();
+			GraphicManager graphicManager = new GraphicManager(container);
+			DefaultFrameManager manager = new DefaultFrameManager(container, new JPanel(), graphicManager);
+			try {
+				java.lang.reflect.Method selector = DefaultFrameManager.class.getDeclaredMethod("getProjectComboBox");
+				selector.setAccessible(true);
+				selector.invoke(manager);
+			} catch (ReflectiveOperationException failure) {
+				throw new AssertionError(failure);
+			}
+			manager.cleanUp();
+
+			assertFalse(manager.canActivateDocumentWindow(null),
+				"a queued native focus callback must be ignored after its frame manager is disposed");
+		});
+	}
+
+	@Test
 	void arrangeAllTilesOpenProjectsAndProjectSelectionReturnsToSingleFrame() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			TrackingPanel container = new TrackingPanel();
@@ -128,6 +170,20 @@ class DefaultFrameManagerTest {
 
 	private static final class TrackingPanel extends JPanel {
 		private int repaintCount;
+		private int addCount;
+		private int removeCount;
+
+		@Override
+		protected void addImpl(java.awt.Component component, Object constraints, int index) {
+			addCount++;
+			super.addImpl(component, constraints, index);
+		}
+
+		@Override
+		public void remove(java.awt.Component component) {
+			removeCount++;
+			super.remove(component);
+		}
 
 		@Override
 		public void repaint() {

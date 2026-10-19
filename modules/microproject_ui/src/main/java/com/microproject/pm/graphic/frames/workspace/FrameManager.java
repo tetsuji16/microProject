@@ -48,6 +48,9 @@ public interface FrameManager extends Serializable, SavableToWorkspace {
 	void removeFrame(NamedFrame frame);
 	Workspace getWorkspace();
 	void activateFrame(NamedFrame frame);
+	default void activateFrameFromWindow(NamedFrame frame) {
+		activateFrame(frame);
+	}
 	default void arrangeAll() { arrangeAll(WindowArrangement.TILE); }
 	default void arrangeAll(WindowArrangement arrangement) { }
 	Component getSelectedFrame();
@@ -90,6 +93,10 @@ public interface FrameManager extends Serializable, SavableToWorkspace {
 		return null;
 	}
 	void setTabTitle(NamedFrame frame, String tabTitle);
+	/** Updates the native host that owns the document frame, when one is available. */
+	default boolean setDocumentWindowTitle(DocumentFrame frame, String title) {
+		return false;
+	}
 	void update();
 	/** Releases resources owned by this frame manager when its workspace closes. */
 	void cleanUp();

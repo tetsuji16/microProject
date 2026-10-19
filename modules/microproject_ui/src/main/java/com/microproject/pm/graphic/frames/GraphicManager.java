@@ -89,6 +89,7 @@ import javax.swing.KeyStroke;
 import javax.swing.LookAndFeel;
 import javax.swing.JOptionPane;
 import javax.swing.RootPaneContainer;
+import javax.swing.JRootPane;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.border.EmptyBorder;
@@ -164,9 +165,11 @@ import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.selection.event.SelectionNodeEvent;
 import com.microproject.pm.graphic.spreadsheet.selection.event.SelectionNodeListener;
 import com.microproject.pm.graphic.views.GanttView;
+import com.microproject.pm.graphic.views.BaseView;
 import com.microproject.ui.privacy.PrivacyDisplayMode;
 import com.microproject.pm.graphic.views.ProjectsDialog;
 import com.microproject.pm.graphic.views.ResourceView;
+import com.microproject.pm.graphic.views.UsageDetailView;
 import com.microproject.pm.graphic.views.Searchable;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourcePool;
@@ -764,18 +767,32 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	}
 
 	protected void setCurrentFrame(DocumentFrame frame){
+		setCurrentFrame(frame, true);
+	}
+
+	private void setCurrentFrame(DocumentFrame frame, boolean requestNativeFocus){
 		if (frame instanceof DocumentFrame) {
 			DocumentFrame previousFrame = getCurrentFrame();
 			if (previousFrame != frame)
 				documentGeneration.advance();
+
+			if (requestNativeFocus)
+				getFrameManager().activateFrame(frame);
+			else
+				getFrameManager().activateFrameFromWindow(frame);
+			// Native window focus callbacks can repeat while this document is already
+			// selected. Keep the host's active/title state current, but avoid replaying
+			// document-selection listeners and the expensive ribbon/menu/view refresh.
+			if (!requestNativeFocus && previousFrame == frame) {
+				setTitle(false);
+				return;
+			}
 			if (previousFrame != null && projectListMenu != null&&!Environment.isPlugin()) {
 				previousFrame.getMenuItem().setSelected(false);
 			}
 
 			if (previousFrame != null&&!Environment.isPlugin())
 				previousFrame.refreshViewButtons(false); // disable buttons for old view
-
-			getFrameManager().activateFrame(frame);
 			if (projectListMenu != null&&!Environment.isPlugin()) {
 				frame.getMenuItem().setSelected(true);
 			}
@@ -826,8 +843,11 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			if (!isSaving && dframe.getProject().needsSaving())
 				title += " *"; // modified; //$NON-NLS-1$
 		}
+		FrameManager frameManager = getFrameManager();
+		if (dframe != null && frameManager != null && frameManager.setDocumentWindowTitle(dframe, title))
+			return;
 		Frame f=getFrame();
-		if (frame!=null) frame.setTitle(title);
+		if (f != null) f.setTitle(title);
 
 	}
     /**
@@ -1334,7 +1354,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 	/** Called by an independent project window when it receives desktop focus. */
 	public void activateDocumentWindow(DocumentFrame frame) {
-		if (frame != null) setCurrentFrame(frame);
+		if (frame != null) setCurrentFrame(frame, false);
 	}
 
 	/** Routes a secondary desktop window close request through normal project close handling. */
@@ -1448,6 +1468,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	}
 
 	private enum InformationTargetKind { TASK, RESOURCE, PROJECT }
+	private enum InformationSelectionKind { NONE, TASK, RESOURCE, ASSIGNMENT, PROJECT, OTHER, MULTIPLE, HEADER }
 
 	/** Immutable target snapshot shared by every Information entry route. */
 	private record InformationTarget(InformationTargetKind kind, Task task,
@@ -1466,91 +1487,88 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		}
 	}
 
+	/** Immutable, typed view of the one selection used by both enablement and dispatch. */
+	private record InformationSelection(InformationSelectionKind kind, Task task,
+			Resource resource, Assignment assignment, Project project) {
+		static InformationSelection empty(InformationSelectionKind kind) {
+			return new InformationSelection(kind, null, null, null, null);
+		}
+		static InformationSelection of(Object impl) {
+			if (impl instanceof Task task)
+				return new InformationSelection(InformationSelectionKind.TASK, task, null, null, null);
+			if (impl instanceof Resource resource)
+				return new InformationSelection(InformationSelectionKind.RESOURCE, null, resource, null, null);
+			if (impl instanceof Assignment assignment)
+				return new InformationSelection(InformationSelectionKind.ASSIGNMENT, null, null, assignment, null);
+			if (impl instanceof Project project)
+				return new InformationSelection(InformationSelectionKind.PROJECT, null, null, null, project);
+			return empty(InformationSelectionKind.OTHER);
+		}
+		InformationTarget targetFor(boolean allowProject, boolean allowTask, boolean allowResource,
+				boolean taskMode, boolean resourceMode) {
+			return switch (kind) {
+			case TASK -> allowTask ? InformationTarget.task(task, false) : null;
+			case ASSIGNMENT -> {
+				if (allowTask && taskMode)
+					yield InformationTarget.task(assignment.getTask(), true);
+				if (allowResource && resourceMode)
+					yield InformationTarget.resource(assignment.getResource());
+				yield null;
+			}
+			case RESOURCE -> allowResource ? InformationTarget.resource(resource) : null;
+			case PROJECT -> allowProject ? InformationTarget.project(project) : null;
+			default -> null;
+			};
+		}
+	}
+
 	/**
 	 * Resolves one selected node before ending an active cell edit.  The caller
 	 * receives an immutable model target, so ribbon focus changes and editor
 	 * teardown cannot silently redirect the Information command.
 	 */
+	private InformationSelection informationSelectionSnapshot() {
+		if (!isDocumentActive() || getCurrentFrame() == null)
+			return InformationSelection.empty(InformationSelectionKind.NONE);
+		DocumentFrame frame = getCurrentFrame();
+		SpreadSheet activeSheet = frame.getActiveSpreadSheet();
+		if (activeSheet != null && activeSheet.isHeaderColumnSelectionActive())
+			return InformationSelection.empty(InformationSelectionKind.HEADER);
+		if (activeSheet != null && activeSheet.getSelectedRows().length > 0) {
+			List<com.microproject.grouping.core.Node> activeSelection = activeSheet.getSelectedNodes();
+			if (activeSelection == null || activeSelection.isEmpty())
+				return InformationSelection.empty(InformationSelectionKind.NONE);
+			if (activeSelection.size() != 1)
+				return InformationSelection.empty(InformationSelectionKind.MULTIPLE);
+			Object impl = activeSelection.get(0).getImpl();
+			if (impl instanceof Task) {
+				List<com.microproject.grouping.core.Node> selectedTasks = frame.getSelectedTaskNodes(false, false);
+				if (selectedTasks.size() != 1 || selectedTasks.get(0).getImpl() != impl)
+					return InformationSelection.empty(InformationSelectionKind.NONE);
+			}
+			return InformationSelection.of(impl);
+		}
+		List<?> nodes = frame.getSelectedNodes(false);
+		if (isEmptySelection(nodes))
+			return InformationSelection.empty(InformationSelectionKind.NONE);
+		if (nodes.size() != 1)
+			return InformationSelection.empty(InformationSelectionKind.MULTIPLE);
+		if (!(nodes.get(0) instanceof Node node))
+			return InformationSelection.empty(InformationSelectionKind.NONE);
+		return InformationSelection.of(node.getImpl());
+	}
+
+	/** Execution-only wrapper; enablement calls the pure snapshot directly. */
 	private InformationTarget resolveInformationTarget(boolean allowProject,
 			boolean allowTask, boolean allowResource) {
-		if (!isDocumentActive())
-			return null;
-		var activeSheet = getCurrentFrame().getActiveSpreadSheet();
-		if (allowTask && taskType && activeSheet != null && activeSheet.getSelectedRows().length > 0) {
-			if (activeSheet.isHeaderColumnSelectionActive())
-				return null;
-			List<com.microproject.grouping.core.Node> activeNodes = activeSheet.getSelectedNodes();
-			if (activeNodes == null || activeNodes.size() != 1) {
-				if (activeNodes != null && activeNodes.size() > 1)
-					Alert.warn(Messages.getString("Message.onlySelectOneElement"), getContainer()); //$NON-NLS-1$
-				return null;
-			}
-			Object selectedImpl = activeNodes.get(0).getImpl();
-			if (selectedImpl instanceof Task) {
-				List<com.microproject.grouping.core.Node> selectedTasks = getCurrentFrame()
-					.getSelectedTaskNodes(false, false);
-				if (selectedTasks.size() != 1 || selectedTasks.get(0).getImpl() != selectedImpl)
-					return null;
-			}
-			return informationTargetFor(selectedImpl, allowProject, allowTask, allowResource);
-		}
-		List nodes = getCurrentFrame().getSelectedNodes(false);
-		if (isEmptySelection(nodes))
-			return null;
-		if (nodes.size() > 1) {
+		InformationSelection selection = informationSelectionSnapshot();
+		if (selection.kind() == InformationSelectionKind.MULTIPLE)
 			Alert.warn(Messages.getString("Message.onlySelectOneElement"), getContainer()); //$NON-NLS-1$
-			return null;
-		}
-		Object impl = ((Node) nodes.get(0)).getImpl();
-		InformationTarget target = informationTargetFor(impl, allowProject, allowTask,
-			allowResource);
+		InformationTarget target = selection.targetFor(allowProject, allowTask, allowResource,
+			taskType, resourceType);
 		if (target != null)
 			traceUi("information.selection snapshot kind=" + target.kind());
 		return target;
-	}
-
-	private InformationTarget informationTargetFor(Object impl, boolean allowProject,
-			boolean allowTask, boolean allowResource) {
-		if (impl instanceof Task && allowTask)
-			return InformationTarget.task((Task) impl, false);
-		if (impl instanceof Assignment) {
-			Assignment assignment = (Assignment) impl;
-			if (allowTask && taskType)
-				return InformationTarget.task(assignment.getTask(), true);
-			if (allowResource && resourceType)
-				return InformationTarget.resource(assignment.getResource());
-		}
-		if (impl instanceof Resource && allowResource)
-			return InformationTarget.resource((Resource) impl);
-		if (impl instanceof Project && allowProject)
-			return InformationTarget.project((Project) impl);
-		return null;
-	}
-
-	private Object selectedInformationImpl() {
-		if (!isDocumentActive() || getCurrentFrame() == null)
-			return null;
-		SpreadSheet activeSheet = getCurrentFrame().getActiveSpreadSheet();
-		if (activeSheet != null && activeSheet.getSelectedRows().length > 0) {
-			if (activeSheet.isHeaderColumnSelectionActive())
-				return null;
-			List<com.microproject.grouping.core.Node> activeSelection = activeSheet.getSelectedNodes();
-			if (activeSelection == null || activeSelection.size() != 1)
-				return null;
-			Object impl = activeSelection.get(0).getImpl();
-			if (impl instanceof Task) {
-				List<com.microproject.grouping.core.Node> selectedTasks = getCurrentFrame()
-					.getSelectedTaskNodes(false, false);
-				if (selectedTasks.size() != 1 || selectedTasks.get(0).getImpl() != impl)
-					return null;
-			}
-			return impl;
-		}
-		List nodes = getCurrentFrame().getSelectedNodes(false);
-		if (nodes == null || nodes.size() != 1
-				|| !(nodes.get(0) instanceof com.microproject.grouping.core.Node node))
-			return null;
-		return node.getImpl();
 	}
 
 	/** Canonical Information command: target snapshot, edit teardown, route, view. */
@@ -1597,21 +1615,26 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	 * commands acquire locks at the point where they change the model.
 	 */
 	private void openTaskInformation(Task task, boolean notes, boolean resourcesTab) {
-		if (task != null)
-			showTaskInformationDialog(task, notes, resourcesTab);
+		if (task != null && !showTaskInformationDialog(task, notes, resourcesTab))
+			logger.warning("UI_BUTTON_FAILURE id=TaskInformation reason=dialog-not-visible taskId=" + task.getId());
 	}
 
 	/** Delegates task information dialog presentation to its lifecycle owner. */
-	private void showTaskInformationDialog(Task task, boolean notes, boolean resourcesTab) {
+	private boolean showTaskInformationDialog(Task task, boolean notes, boolean resourcesTab) {
 		traceUi("task-information.dialog requested taskId=" + task.getId()
 			+ " existingDialog=" + (informationDialogCoordinator.hasTaskDialog())
 			+ " notes=" + notes + " resourcesTab=" + resourcesTab);
 		informationDialogCoordinator.showTask(getFrame(), getCurrentFrame(), task, notes, resourcesTab);
-		if (informationDialogCoordinator.isTaskDialogVisible()) {
+		boolean visible = informationDialogCoordinator.isTaskDialogVisible();
+		if (visible) {
 			traceUi("task-information.dialog visible taskId=" + task.getId());
-		} else {
-			logger.warning("UI_BUTTON_FAILURE id=RibbonTaskInformation reason=dialog-not-visible taskId=" + task.getId());
 		}
+		return visible;
+	}
+
+	/** Presents Task Information and reports whether its lifecycle owner made it visible. */
+	protected boolean presentTaskInformationDialog(Task task, boolean notes, boolean resourcesTab) {
+		return showTaskInformationDialog(task, notes, resourcesTab);
 	}
 
 	private void showTaskInformationForSelection(Action action, boolean notes) {
@@ -1627,13 +1650,23 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		if (!beforeTaskInformationRoute(target.task(), notes, target.assignmentResourcesTab())) {
 			publishTaskCommandOutcome(action, new RibbonCommandResult("RibbonTaskInformation",
 				RibbonCommandResult.Status.REJECTED, "route-rejected", List.of(target.task().getUniqueId()),
-				List.of(target.task().getUniqueId()), ""));
+				List.of(), ""));
 			return;
 		}
-		publishTaskCommandOutcome(action, new RibbonCommandResult("RibbonTaskInformation",
-			RibbonCommandResult.Status.DISPATCHED, "", List.of(target.task().getUniqueId()),
-			List.of(target.task().getUniqueId()), ""));
-		openTaskInformation(target.task(), notes, target.assignmentResourcesTab());
+		List<Long> selectedTaskIds = List.of(target.task().getUniqueId());
+		try {
+			boolean visible = presentTaskInformationDialog(target.task(), notes, target.assignmentResourcesTab());
+			RibbonCommandResult outcome = visible
+				? new RibbonCommandResult("RibbonTaskInformation", RibbonCommandResult.Status.DISPATCHED,
+					"", selectedTaskIds, List.of(), "")
+				: new RibbonCommandResult("RibbonTaskInformation", RibbonCommandResult.Status.FAILED,
+					"dialog-not-visible", selectedTaskIds, List.of(), "");
+			publishTaskCommandOutcome(action, outcome);
+		} catch (RuntimeException | Error failure) {
+			publishTaskCommandOutcome(action, RibbonCommandResult.failed("RibbonTaskInformation", failure)
+				.withSelectedTaskIds(selectedTaskIds));
+			throw failure;
+		}
 	}
 
 	private void showResourceInformationForSelection(boolean notes) {
@@ -1655,7 +1688,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			return RibbonCommandResult.rejected(command.actionId(), "no-active-document");
 		DocumentFrame frame = getCurrentFrame();
 		List<Long> selectedTaskIds = frame.getSelectedTaskIds();
-		return frame.routeTaskCommand(command).withSelectedTaskIds(selectedTaskIds);
+		RibbonCommandResult result = frame.routeTaskCommand(command);
+		if (result.status() == RibbonCommandResult.Status.DISPATCHED && result.selectedTaskIds().isEmpty())
+			return result.withSelectedTaskIds(selectedTaskIds);
+		return result;
 	}
 
 	private List<Long> selectedTaskIdsForActiveFrame() {
@@ -1727,6 +1763,16 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 	public RibbonCommandResult getLastRibbonCommandResult() {
 		return lastRibbonCommandResult;
+	}
+
+	/** Records a semantic outcome for a user gesture that has no Swing Action route. */
+	public RibbonCommandResult recordUserCommandOutcome(RibbonCommandResult result) {
+		Objects.requireNonNull(result, "result");
+		DocumentFrame frame = getCurrentFrame();
+		if (frame != null)
+			result = result.withActiveView(frame.getTopViewId());
+		recordRibbonCommandResult(result);
+		return result;
 	}
 
 	private void recordRibbonCommandResult(RibbonCommandResult result) {
@@ -1926,6 +1972,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_UNLINK, new UnlinkAction());
 		actionsMap.addHandler(ACTION_ZOOM_IN, new ZoomInAction());
 		actionsMap.addHandler(ACTION_ZOOM_OUT, new ZoomOutAction());
+		actionsMap.addHandler(ACTION_ZOOM_SELECTED_TASKS, new ZoomSelectedTasksAction());
 		actionsMap.addHandler(ACTION_SCROLL_TO_TASK, new ScrollToTaskAction());
 		actionsMap.addHandler(ACTION_TOGGLE_PROGRESS_LINE, new ToggleProgressLineAction());
 		actionsMap.addHandler(ACTION_LABEL_RESOURCE_NAMES, new LabelResourceNamesAction());
@@ -2962,6 +3009,20 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			setMeAsLastGraphicManager();
 			if (isDocumentActive())
 				getCurrentFrame().doZoomOut();
+			setZoomButtons();
+		}
+	}
+	public class ZoomSelectedTasksAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive()) {
+				BaseView activeView = getCurrentFrame().getActiveTopView();
+				if (activeView instanceof UsageDetailView usageView && usageView.canZoomToSelectedTasks())
+					usageView.zoomToSelectedTasks();
+				else if (activeView instanceof GanttView ganttView && ganttView.canZoomToSelectedTasks())
+					ganttView.zoomToSelectedTasks();
+			}
 			setZoomButtons();
 		}
 	}
@@ -4344,10 +4405,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 	void setButtonState(Object currentImpl, Project project) {
 		Set actions=getActionSet();
-		Object selectedInfoImpl = selectedInformationImpl();
-		boolean infoEnabled = informationTargetFor(selectedInfoImpl, true, true, true) != null;
-		boolean taskInfoEnabled = informationTargetFor(selectedInfoImpl, false, true, false) != null;
-		boolean resourceInfoEnabled = informationTargetFor(selectedInfoImpl, false, false, true) != null;
+		InformationSelection informationSelection = informationSelectionSnapshot();
+		boolean infoEnabled = informationSelection.targetFor(true, true, true, taskType, resourceType) != null;
+		boolean taskInfoEnabled = informationSelection.targetFor(false, true, false, taskType, resourceType) != null;
+		boolean resourceInfoEnabled = informationSelection.targetFor(false, false, true, taskType, resourceType) != null;
 		DocumentFrame editFrame = getCurrentFrame();
 		SpreadSheet editSheet = editFrame == null ? null : editFrame.getActiveSpreadSheet();
 		boolean hasClipboardSelection = editSheet != null && !editSheet.getSelectedNodes().isEmpty();
@@ -4377,15 +4438,16 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			? java.util.List.of() : getCurrentFrame().getSelectedTaskNodes(false, true);
 		List<com.microproject.grouping.core.Node> hierarchyTaskNodes = getCurrentFrame() == null
 			? java.util.List.of() : getCurrentFrame().getSelectedTaskNodes(true, true);
+		List<com.microproject.grouping.core.Node> pureHierarchyTaskNodes = getCurrentFrame() == null
+			? java.util.List.of() : getCurrentFrame().getSelectedTaskNodes(true, false);
 		boolean isTask = currentImpl instanceof Task || !selectedTaskNodes.isEmpty();
 		boolean isLinkedSubproject = selectedSubprojectReference() != null;
 		boolean hasEditableTaskSelection = !hierarchyTaskNodes.isEmpty();
 		boolean hasOutlineTaskSelection = getCurrentFrame() != null
 			&& getCurrentFrame().hasTaskSelection(false, 1, false);
-		boolean hierarchySelection = !hierarchyTaskNodes.isEmpty();
-		boolean canOutdent = hierarchyTaskNodes.stream()
-			.anyMatch(node -> node != null && node.getImpl() instanceof Task task
-					&& task.getWbsParentTask() != null);
+		boolean hasPureHierarchySelection = getCurrentFrame() != null
+			&& getCurrentFrame().hasTaskSelection(true, 1, false);
+		boolean canOutdent = pureHierarchyTaskNodes.stream().anyMatch(DocumentFrame::canOutdent);
 		// The task table owns both hierarchy commands even while its model cache is
 		// being rebuilt after an indent/undo/redo.  Consulting the transient action
 		// list here caused the ribbon and root shortcut to remain disabled although
@@ -4393,9 +4455,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		boolean hierarchyCommandsAvailable = isTask || actions == null
 			|| actions.contains(ACTION_INDENT) || actions.contains(ACTION_OUTDENT);
 		getMenuManager().setActionEnabled(ACTION_INDENT,
-				!readOnly && hierarchySelection && hierarchyCommandsAvailable);
+				!readOnly && hasPureHierarchySelection && hierarchyCommandsAvailable);
 		getMenuManager().setActionEnabled(ACTION_OUTDENT,
-				!readOnly && hierarchySelection && canOutdent && hierarchyCommandsAvailable);
+				!readOnly && hasPureHierarchySelection && canOutdent && hierarchyCommandsAvailable);
 		getMenuManager().setActionEnabled(ACTION_MOVE_TASK_UP,!readOnly && isTask && getCurrentFrame() != null && getCurrentFrame().canMoveSelectedTasks(-1));
 		getMenuManager().setActionEnabled(ACTION_MOVE_TASK_DOWN,!readOnly && isTask && getCurrentFrame() != null && getCurrentFrame().canMoveSelectedTasks(1));
 		getMenuManager().setActionEnabled(ACTION_EXPAND,
@@ -4499,22 +4561,23 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		StatusDateControlUpdater.refresh(getMenuManager(), getFrame(), project);
 	}
 
-	private static boolean canOutdent(Node node) {
-		if (node == null || node.isRoot() || !(node.getImpl() instanceof Task task))
-			return false;
-		return task.getOutlineLevel() > 1;
-	}
-
 	public void setZoomButtons() {
-		getMenuManager().setActionEnabled(ACTION_ZOOM_IN,getCurrentFrame() != null && getCurrentFrame().canZoomIn());
-		getMenuManager().setActionEnabled(ACTION_ZOOM_OUT,getCurrentFrame() != null && getCurrentFrame().canZoomOut());
+		DocumentFrame frame = getCurrentFrame();
+		getMenuManager().setActionEnabled(ACTION_ZOOM_IN,frame != null && frame.canZoomIn());
+		getMenuManager().setActionEnabled(ACTION_ZOOM_OUT,frame != null && frame.canZoomOut());
+		BaseView activeView = frame == null ? null : frame.getActiveTopView();
+		boolean canZoomSelection = activeView instanceof UsageDetailView usageView
+				? usageView.canZoomToSelectedTasks()
+				: activeView instanceof GanttView ganttView && ganttView.canZoomToSelectedTasks();
+		getMenuManager().setActionEnabled(ACTION_ZOOM_SELECTED_TASKS, canZoomSelection);
 
 	}
 
 	private boolean isActiveGanttView() {
-		if (getCurrentFrame() == null)
+		DocumentFrame currentFrame = getCurrentFrame();
+		if (currentFrame == null || currentFrame.getProject() == null)
 			return false;
-		String topViewId = getCurrentFrame().getTopViewId();
+		String topViewId = currentFrame.getTopViewId();
 		return ACTION_GANTT.equals(topViewId) || ACTION_TRACKING_GANTT.equals(topViewId);
 	}
 
@@ -4551,6 +4614,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	 */
 	protected Node lastNode=null;
 	public void selectionChanged(SelectionNodeEvent e) {
+		setZoomButtons();
 		assignmentDialogCoordinator.selectionChanged(e);
 
 		Node currentNode=e.getCurrentNode();
@@ -4580,7 +4644,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	}
 
 	void refreshSaveStatus(boolean isSaving) {
-		getMenuManager().setActionEnabled(ACTION_SAVE_PROJECT,getCurrentFrame() != null && !isSaving && getCurrentFrame().getProject().needsSaving());
+		DocumentFrame frame = getCurrentFrame();
+		Project project = frame == null ? null : frame.getProject();
+		getMenuManager().setActionEnabled(ACTION_SAVE_PROJECT, project != null && !isSaving && project.needsSaving());
 		setTitle(isSaving);
 
 		FrameManager dm=getFrameManager();
@@ -4685,11 +4751,15 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			projectListMenu = handles.getProjectListMenu();
 		}
 
-		RootPaneContainer shortcutRoot = (RootPaneContainer)container;
-		applyMicrosoftShortcuts(
-			shortcutRoot.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW),
-			shortcutRoot.getRootPane().getActionMap());
+		installDocumentShortcuts((RootPaneContainer) container);
     }
+
+	/** Installs this document manager's shortcuts on one native document window. */
+	public void installDocumentShortcuts(RootPaneContainer shortcutRoot) {
+		JRootPane rootPane = shortcutRoot.getRootPane();
+		applyMicrosoftShortcuts(rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW),
+			rootPane.getActionMap(), shortcutRoot instanceof MainRibbonFrame mainFrame ? mainFrame : null);
+	}
 
     /**
      * Installs every document-wide shortcut onto the supplied root-pane maps. Extracted
@@ -4699,8 +4769,14 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
      * all of which already exist elsewhere in the app.
      */
 	private static final String DELETE_ROW_ACTION = "DeleteRow";
+	private static final String GANTT_KEYPAD_ZOOM_IN = "GanttKeypadZoomIn";
+	private static final String GANTT_KEYPAD_ZOOM_OUT = "GanttKeypadZoomOut";
 
 	void applyMicrosoftShortcuts(InputMap inputMap, ActionMap actionMap) {
+		applyMicrosoftShortcuts(inputMap, actionMap, container instanceof MainRibbonFrame mainFrame ? mainFrame : null);
+	}
+
+	private void applyMicrosoftShortcuts(InputMap inputMap, ActionMap actionMap, MainRibbonFrame shortcutFrame) {
 		Action expandAction = new ExpandAction();
 		Action collapseAction = new CollapseAction();
 		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_G, ACTION_GOTO, 0, null);
@@ -4712,6 +4788,13 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_O, ACTION_OPEN_PROJECT, 0, null);
 		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_S, ACTION_SAVE_PROJECT, 0, null);
 		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_P, ACTION_PRINT, 0, null);
+		// Microsoft Project uses the numeric keypad divide/multiply keys to zoom
+		// the active Gantt timescale. Keep this on the document root pane so there
+		// is one keyboard registration layer, and ignore it in non-Gantt views.
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_DIVIDE, GANTT_KEYPAD_ZOOM_IN, 0,
+			new GanttKeypadZoomAction(true));
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_MULTIPLY, GANTT_KEYPAD_ZOOM_OUT, 0,
+			new GanttKeypadZoomAction(false));
 		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_I, ACTION_INSERT_TASK, 0, null);
 		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_PERIOD, ACTION_INDENT, 0, null);
 		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_COMMA, ACTION_OUTDENT, 0, null);
@@ -4776,8 +4859,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			"ToggleRibbonDisplayMode", new AbstractAction() {
 				private static final long serialVersionUID = 1L;
 				@Override public void actionPerformed(ActionEvent event) {
-					if (!(container instanceof MainRibbonFrame mainFrame) || mainFrame.getRibbonPanel() == null) return;
-					Object controller = mainFrame.getRibbonPanel()
+					if (shortcutFrame == null || shortcutFrame.getRibbonPanel() == null) return;
+					Object controller = shortcutFrame.getRibbonPanel()
 						.getClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY);
 					if (controller instanceof RibbonController ribbon) ribbon.toggleRibbonCollapseMode();
 				}
@@ -4819,12 +4902,16 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_INDENT,
 			new SpreadSheetDispatchAction(ACTION_INDENT) {
 				private static final long serialVersionUID = 1L;
-				@Override protected void runOnSpreadSheet(SpreadSheet sheet) { getCurrentFrame().doIndent(); }
+				@Override protected void runOnSpreadSheet(SpreadSheet sheet) {
+					publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.INDENT));
+				}
 			});
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_LEFT, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_OUTDENT,
 			new SpreadSheetDispatchAction(ACTION_OUTDENT) {
 				private static final long serialVersionUID = 1L;
-				@Override protected void runOnSpreadSheet(SpreadSheet sheet) { getCurrentFrame().doOutdent(); }
+				@Override protected void runOnSpreadSheet(SpreadSheet sheet) {
+					publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.OUTDENT));
+				}
 			});
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_EQUALS, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_EXPAND, expandAction);
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_ADD, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_EXPAND, expandAction);
@@ -4867,6 +4954,38 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
     private void putCtrlAccel(InputMap inputMap, ActionMap actionMap, int vk, String actionConstant, int extraModifiers, Action action) {
 		int modifiers = menuShortcutMask() | extraModifiers;
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(vk, modifiers), actionConstant, action);
+	}
+
+	private final class GanttKeypadZoomAction extends AbstractAction {
+		private static final long serialVersionUID = 1L;
+		private final boolean zoomIn;
+
+		private GanttKeypadZoomAction(boolean zoomIn) {
+			this.zoomIn = zoomIn;
+		}
+
+		@Override
+		public boolean isEnabled() {
+			DocumentFrame frame = getCurrentFrame();
+			return frame != null && isDocumentActive() && frame.getActiveTopView() instanceof GanttView;
+		}
+
+		@Override
+		public void actionPerformed(ActionEvent event) {
+			if (!isEnabled())
+				return;
+			DocumentFrame frame = getCurrentFrame();
+			dispatchGanttKeypadZoom(frame.getActiveTopView(), zoomIn);
+		}
+	}
+
+	static void dispatchGanttKeypadZoom(BaseView activeTopView, boolean zoomIn) {
+		if (!(activeTopView instanceof GanttView ganttView))
+			return;
+		if (zoomIn)
+			ganttView.zoomIn();
+		else
+			ganttView.zoomOut();
 	}
 
 	/**

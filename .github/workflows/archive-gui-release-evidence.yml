@@ -89,10 +89,20 @@ jobs:
             'GUI acceptance Step 2/2: run the visual matrix after the 100% suite passed.',
             'GUI visual gate: locale=ja scale=1.25', 'GUI visual gate: locale=ja scale=1.5',
             'GUI visual gate: locale=en scale=1.0', 'GUI visual gate: locale=en scale=1.25',
-            'GUI visual gate: locale=en scale=1.5', 'Windows Server 2025', '1920x1080'
+            'GUI visual gate: locale=en scale=1.5', 'Windows Server 2025'
           )
           foreach ($line in $requiredLogLines) {
             if (-not $logText.Contains($line)) { throw "Source release log does not contain required full-GUI evidence: $line" }
+          }
+          $displayMatch = [regex]::Match($logText, 'GUI runner primary display bounds: (?<width>\d+)x(?<height>\d+)')
+          if ($displayMatch.Success) {
+            $displayResolution = "$($displayMatch.Groups['width'].Value)x$($displayMatch.Groups['height'].Value)"
+            $displayProvenance = 'Measured by run-gui-acceptance.ps1 from the current primary display bounds; no resolution change was requested.'
+          } elseif ($logText.Contains('Configure a full-size desktop') -and $logText.Contains('1920x1080')) {
+            $displayResolution = '1920x1080'
+            $displayProvenance = 'Historical source workflow configured 1920x1080 before GUI acceptance; this is configured CI fact, not a newly measured display.'
+          } else {
+            throw 'Source release log has no measured primary display bounds or recognized historical resolution configuration.'
           }
           $jobLog | Set-Content -Path source-job.log -Encoding utf8
           python scripts/archive_gui_release_evidence.py --validate-source-log source-job.log
@@ -121,7 +131,7 @@ jobs:
             source_artifact_digest = $artifactDigest
             source_gui_job_id = [string]$releaseJob[0].id
             operating_system = @{ value = 'Windows Server 2025'; provenance = 'Source GUI release-job log; historical CI fact, not newly measured.' }
-            display_resolution = @{ value = '1920x1080'; provenance = 'Source release workflow configures this resolution before GUI acceptance; configured CI fact, not per-window bounds.' }
+            primary_display_bounds = @{ value = $displayResolution; provenance = $displayProvenance }
             gui_matrix_legs = @('functional-full-ja-100', 'visual-ja-1.25', 'visual-ja-1.5', 'visual-en-1.0', 'visual-en-1.25', 'visual-en-1.5')
             bounds_note = 'The source test asserts layout bounds; the historical run artifact contains no numeric bounds sidecar.'
           }

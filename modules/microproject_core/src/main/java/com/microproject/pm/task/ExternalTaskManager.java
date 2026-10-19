@@ -28,9 +28,6 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import com.microproject.association.Association;
-import com.microproject.association.InvalidAssociationException;
-import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.util.FilePathUtils;
 
@@ -64,56 +61,13 @@ public class ExternalTaskManager {
 	}
 
 	private void treatOpenedTask(Task externalTask, Task realTask, boolean opening) {
-		externalTask.setExternal(!opening);
 		if (opening) {
-			Iterator<Association> i = externalTask.getSuccessorList().iterator();
-			Dependency dep;
+			DependencyService.getInstance().resolveExternalTaskAndRemovePlaceholder(externalTask, realTask, this);
+			externalTask.setExternal(false);
 			realTask.invalidateSchedules();
-			while (i.hasNext()) {
-				dep = (Dependency) i.next();
-				dep.fireDeleteEvent(this);
-				dep.replace(realTask, true);
-				try {
-					dep.testValid(false);
-				} catch (InvalidAssociationException e) {
-					dep.setDisabled(true);
-					DependencyService.warnCircularCrossProjectLinkMessage(dep.getPredecessor(), dep.getSuccessor());
-				}
-				realTask.getSuccessorList().add(dep);
-				// to fix a bug, I am invalidating both early and late schedules
-//				
-//				successor.invalidateSchedules();
-//				successor.markTaskAsDirty();
-
-				dep.fireCreateEvent(this);
-			}
-			// The historical resolver only replaced an unloaded task used as a
-			// predecessor.  A persisted cross-project link may just as validly use
-			// the unloaded task as its successor; keep the graph symmetric so both
-			// directions resolve when the referenced project is opened.
-			i = externalTask.getPredecessorList().iterator();
-			while (i.hasNext()) {
-				dep = (Dependency) i.next();
-				dep.fireDeleteEvent(this);
-				dep.replace(realTask, false);
-				try {
-					dep.testValid(false);
-				} catch (InvalidAssociationException e) {
-					dep.setDisabled(true);
-					DependencyService.warnCircularCrossProjectLinkMessage(dep.getPredecessor(), dep.getSuccessor());
-				}
-				realTask.getPredecessorList().add(dep);
-				dep.fireCreateEvent(this);
-			}
-			externalTask.getProject().removeExternal(externalTask);
-			if (externalTask.liesInSubproject()) {
-				externalTask.getRootProject().removeExternal(externalTask);
-			}
-
-//			externalTask.getSuccessorList().replaceAll(realTask, true);
 			realTask.markAllDependentTasksAsNeedingRecalculation(true);
 		} else {
-//			externalTask.getProject().d
+			externalTask.setExternal(true);
 		}
 	}
 

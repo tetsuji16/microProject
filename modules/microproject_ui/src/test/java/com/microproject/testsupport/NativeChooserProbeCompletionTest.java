@@ -29,12 +29,25 @@ class NativeChooserProbeCompletionTest {
 	private static final String TIMELY_READY_LATE_EXIT = "nativeChooserFirstReadyObservedUtc=2026-10-15T16:25:52.110Z hwnd=0x1\n"
 		+ "nativeChooserProbe completedUtc=2026-10-15T16:25:52.500Z reason=ready ready=True\n";
 	private static final String PARTIAL_READY = "nativeChooserFirstReadyObservedUtc=2026-10-15T16:25:52.110Z hwnd=0x1\n";
+	private static final String READY_WITHOUT_STAGE_TIMESTAMP =
+		"nativeChooserProbe completedUtc=2026-10-15T16:25:52.143Z reason=ready ready=True\n";
 
 	@Test
 	void acceptsReadinessObservedBeforeDeadlineWhenProbeExitIsDelayed() throws Exception {
 		FakeProcess process = new FakeProcess(0, false, true);
 		Supplier<String> output = () -> TIMELY_READY;
 		var result = NativeChooserProbeCompletion.await(process, output, System.nanoTime() + TimeUnit.SECONDS.toNanos(1), DEADLINE,
+			Duration.ofMillis(300), Duration.ofMillis(25));
+
+		assertEquals(NativeChooserProbeCompletion.Status.COMPLETE, result.status());
+		assertEquals(0, result.exitCode());
+	}
+
+	@Test
+	void acceptsAuthoritativeReadyResultWhenStageSamplerMissedTheTransition() throws Exception {
+		FakeProcess process = new FakeProcess(0, false, true);
+		var result = NativeChooserProbeCompletion.await(process, () -> READY_WITHOUT_STAGE_TIMESTAMP,
+			System.nanoTime() + TimeUnit.SECONDS.toNanos(1), DEADLINE,
 			Duration.ofMillis(300), Duration.ofMillis(25));
 
 		assertEquals(NativeChooserProbeCompletion.Status.COMPLETE, result.status());

@@ -60,7 +60,9 @@ import javax.swing.DefaultComboBoxModel;
 import javax.swing.InputMap;
 import javax.swing.JComponent;
 import javax.swing.JFrame;
+import javax.swing.JRootPane;
 import javax.swing.KeyStroke;
+import javax.swing.RootPaneContainer;
 import javax.swing.SwingUtilities;
 import javax.swing.table.JTableHeader;
 import javax.swing.table.TableCellEditor;
@@ -93,6 +95,7 @@ import com.microproject.pm.graphic.spreadsheet.command.TaskCommandGateway;
 import com.microproject.pm.graphic.spreadsheet.command.TaskCommandResult;
 import com.microproject.pm.graphic.spreadsheet.command.TaskHierarchyEditIntent;
 import com.microproject.pm.graphic.spreadsheet.command.TaskPasteIntent;
+import com.microproject.ribbon.RibbonCommandResult;
 import com.microproject.pm.graphic.spreadsheet.editor.SimpleComboBoxEditor;
 import com.microproject.pm.graphic.spreadsheet.renderer.NameCellComponent;
 import com.microproject.pm.graphic.spreadsheet.selection.SpreadSheetListSelectionModel;
@@ -143,6 +146,20 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	private boolean tableMouseHandlerInstalled;
 	private final PopupTriggerController popupTriggerController = new PopupTriggerController();
 	private transient IntConsumer headerClickHandler;
+	private transient RibbonCommandResult lastTaskPasteOutcome;
+	private transient boolean deferTaskPasteOutcomePublication;
+
+	public RibbonCommandResult getLastTaskPasteOutcome() {
+		return lastTaskPasteOutcome;
+	}
+
+	public void clearLastTaskPasteOutcome() {
+		lastTaskPasteOutcome = null;
+	}
+
+	public void setTaskPasteOutcomePublicationDeferred(boolean deferred) {
+		deferTaskPasteOutcomePublication = deferred;
+	}
 
 	public void setHeaderClickHandler(IntConsumer handler) {
 		headerClickHandler = handler;
@@ -178,6 +195,40 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		focused.remove(KeyStroke.getKeyStroke("ctrl X"));
 	}
 
+	@Override
+	protected boolean processKeyBinding(KeyStroke keyStroke, KeyEvent event, int condition, boolean pressed) {
+		if (shouldYieldMultiplyToRootPane(keyStroke, event, condition, pressed)) {
+			// NetBeans ETable consumes Ctrl+* in processKeyBinding before Swing reaches
+			// the window-level bindings. When Gantt zoom-out is the active root action,
+			// yield this one chord so the document root pane remains its only owner.
+			return false;
+		}
+		return super.processKeyBinding(keyStroke, event, condition, pressed);
+	}
+
+	private boolean shouldYieldMultiplyToRootPane(KeyStroke keyStroke, KeyEvent event, int condition, boolean pressed) {
+		if (pressed && (condition == JComponent.WHEN_FOCUSED
+				|| condition == JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT) && event != null
+				&& event.getKeyCode() == KeyEvent.VK_MULTIPLY
+				&& event.getKeyLocation() == KeyEvent.KEY_LOCATION_NUMPAD
+				&& event.isControlDown() && hasEnabledRootPaneBinding(keyStroke)) {
+			return true;
+		}
+		return false;
+	}
+
+	private boolean hasEnabledRootPaneBinding(KeyStroke keyStroke) {
+		java.awt.Window window = SwingUtilities.getWindowAncestor(this);
+		JRootPane rootPane = window instanceof RootPaneContainer rootPaneContainer
+			? rootPaneContainer.getRootPane() : getRootPane();
+		if (rootPane == null || keyStroke == null)
+			return false;
+		InputMap inputMap = rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+		Object actionKey = inputMap == null ? null : inputMap.get(keyStroke);
+		javax.swing.Action action = actionKey == null ? null : rootPane.getActionMap().get(actionKey);
+		return action != null && action.isEnabled();
+	}
+
 	/**
 	 * Canonical task-row move command shared by the Alt+Shift+Up/Down shortcut
 	 * and the ribbon/menu route.  Keeping this as the one entry point ensures
@@ -205,7 +256,9 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		TaskHierarchyEditIntent intent = captureMoveIntent(direction);
 		if (nodes.isEmpty() || intent == null)
 			return false;
-		boolean moved = TaskCommandGateway.execute(this, intent).status() == TaskCommandResult.Status.CHANGED;
+		TaskCommandResult commandResult = TaskCommandGateway.execute(this, intent);
+		publishTaskHierarchyEditOutcome(commandResult, intent);
+		boolean moved = commandResult.status() == TaskCommandResult.Status.CHANGED;
 		if (moved) {
 			refreshTaskMoveViews();
 			restoreTaskRowSelection(nodes);
@@ -261,12 +314,43 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		finishCurrentOperations();
 		if (intent == null)
 			return false;
-		boolean moved = TaskCommandGateway.execute(this, intent).status() == TaskCommandResult.Status.CHANGED;
+		TaskCommandResult commandResult = TaskCommandGateway.execute(this, intent);
+		publishTaskHierarchyEditOutcome(commandResult, intent);
+		boolean moved = commandResult.status() == TaskCommandResult.Status.CHANGED;
 		if (moved) {
 			refreshTaskMoveViews();
 			restoreTaskRowSelectionByKeys(intent.tasks());
 		}
 		return moved;
+	}
+
+	private void publishTaskHierarchyEditOutcome(TaskCommandResult taskResult, TaskHierarchyEditIntent intent) {
+		List<Long> taskIds = intent.tasks().stream()
+			.map(taskRow -> taskRow.taskKey().taskUniqueId())
+			.distinct()
+			.toList();
+		publishTaskCommandOutcome("TaskRowMove", taskResult, taskIds, taskIds);
+	}
+
+	private RibbonCommandResult publishTaskCommandOutcome(String commandId, TaskCommandResult taskResult,
+		List<Long> selectedTaskIds, List<Long> changedTaskIds) {
+		return publishTaskCommandOutcome(commandId, taskResult, selectedTaskIds, changedTaskIds, true);
+	}
+
+	private RibbonCommandResult publishTaskCommandOutcome(String commandId, TaskCommandResult taskResult,
+		List<Long> selectedTaskIds, List<Long> changedTaskIds, boolean recordResult) {
+		RibbonCommandResult.Status status = switch (taskResult.status()) {
+			case CHANGED -> RibbonCommandResult.Status.CHANGED;
+			case NO_CHANGE -> RibbonCommandResult.Status.NO_CHANGE;
+			default -> RibbonCommandResult.Status.REJECTED;
+		};
+		List<Long> affectedTaskIds = status == RibbonCommandResult.Status.CHANGED ? changedTaskIds : List.of();
+		RibbonCommandResult result = new RibbonCommandResult(commandId, status,
+			taskResult.reason(), selectedTaskIds, affectedTaskIds, "");
+		if (!recordResult)
+			return result;
+		GraphicManager manager = GraphicManager.getInstance(this);
+		return manager == null ? result : manager.recordUserCommandOutcome(result);
 	}
 
 	private TaskHierarchyEditIntent captureMoveIntent(int direction) {
@@ -467,7 +551,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	}
 
 	public boolean pasteClipboardContents() {
-		return getClipboardContents().map(this::pasteClipboardContents).orElse(false);
+		return getClipboardContents().map(transferable -> pasteClipboardContents(transferable, false)).orElse(false);
 	}
 
 	public boolean pasteClipboardInsertedContents() {
@@ -475,11 +559,15 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	}
 
 	private boolean pasteClipboardContents(Transferable transferable) {
+		return pasteClipboardContents(transferable, false);
+	}
+
+	private boolean pasteClipboardContents(Transferable transferable, boolean pasteInsert) {
 		if (transferable == null) {
 			return false;
 		}
 		if (getTransferHandler() instanceof NodeListTransferHandler transferHandler) {
-			if (!transferHandler.importData(this, transferable)) {
+			if (!transferHandler.importData(this, transferable, pasteInsert)) {
 				Alert.error(Messages.getString("Message.invalidInput"));
 				return false;
 			}
@@ -497,7 +585,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			return false;
 		}
 		if (hasNodeListFlavor(transferable)) {
-			return pasteClipboardContents(transferable);
+			return pasteClipboardContents(transferable, true);
 		}
 		var text = getClipboardText(transferable);
 		if (text.isEmpty()) {
@@ -511,7 +599,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		}
 		List<Node> nodes = NodeListTransferable.stringToNodeList(text.get(), this,
 			fields, model.getDataFactory());
-		if (nodes.isEmpty() || !pasteNodesFromClipboard(nodes)) {
+		if (nodes.isEmpty() || !pasteNodesFromClipboard(nodes, true)) {
 			Alert.error(Messages.getString("Message.invalidInput"));
 			return false;
 		}
@@ -559,6 +647,12 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	}
 
 	public boolean pasteNodesFromClipboard(List<Node> pastedNodes) {
+		return pasteNodesFromClipboard(pastedNodes, false);
+	}
+
+	public boolean pasteNodesFromClipboard(List<Node> pastedNodes, boolean pasteInsert) {
+		String commandId = pasteInsert ? TaskPasteIntent.PASTE_INSERT : TaskPasteIntent.PASTE;
+		lastTaskPasteOutcome = null;
 		if (pastedNodes == null || pastedNodes.isEmpty() || isClipboardTargetReadOnly()) {
 			return false;
 		}
@@ -573,8 +667,13 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		boolean pasted;
 		if (taskModel) {
 			var projection = ((CommonSpreadSheetModel)getModel()).getCache().getVisibleNodes().getProjectionIndex();
-			TaskPasteIntent intent = new TaskPasteIntent(pastedNodes, selectedRowKeys, projection.topologyRevision());
-			pasted = TaskCommandGateway.execute(this, intent).status() == TaskCommandResult.Status.CHANGED;
+			TaskPasteIntent intent = new TaskPasteIntent(pastedNodes, selectedRowKeys,
+				projection.topologyRevision(), commandId);
+			TaskCommandResult result = TaskCommandGateway.execute(this, intent);
+			pasted = result.status() == TaskCommandResult.Status.CHANGED;
+			lastTaskPasteOutcome = publishTaskCommandOutcome(
+				result.commandId().isEmpty() ? commandId : result.commandId(), result,
+				result.selectedTaskIds(), result.affectedTaskIds(), !deferTaskPasteOutcomePublication);
 		} else {
 			List<Node> selectedNodes = getSelectedNodes();
 			if (!CollaborationHelper.tryLockNodes(null, selectedNodes, this, "paste"))
@@ -1186,6 +1285,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			return;
 		makeCustomTableHeader(spreadSheetColumnModel);
 		var oldModel = getModel();
+		spreadSheetModel.setTaskEditOutcomeHandler(this::publishTaskFieldEditOutcome);
 		setModel(spreadSheetModel);
 		
 		if (spreadSheetColumnModel != null) {
@@ -1228,6 +1328,17 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			spreadSheetModel.getCache().addNodeModelListener(this);
 		}
 
+	}
+
+	private void publishTaskFieldEditOutcome(TaskCommandResult taskResult, Task task) {
+		List<Long> selectedTaskIds = new ArrayList<>();
+		for (Node selected : getSelectedNodes()) {
+			if (selected != null && selected.getImpl() instanceof Task selectedTask
+					&& !selectedTaskIds.contains(selectedTask.getUniqueId()))
+				selectedTaskIds.add(selectedTask.getUniqueId());
+		}
+		publishTaskCommandOutcome("SpreadsheetCellEdit", taskResult, selectedTaskIds,
+			List.of(task.getUniqueId()));
 	}
 
 	private void installTableMouseHandler() {

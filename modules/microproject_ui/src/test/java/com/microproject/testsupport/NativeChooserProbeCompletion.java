@@ -75,7 +75,11 @@ public final class NativeChooserProbeCompletion {
 
 	private static boolean firstReadyWasObservedBy(String output, Instant deadlineUtc) {
 		Instant firstReady = timestamp(READY_OBSERVED, output);
-		return firstReady != null && !firstReady.isAfter(deadlineUtc);
+		if (firstReady != null) return !firstReady.isAfter(deadlineUtc);
+		// The native probe's final ready marker is emitted only after its bounded
+		// readiness check succeeds before the supplied deadline. The staged HWND
+		// sampler can miss that transition, so accept the authoritative result.
+		return COMPLETED_READY.matcher(output).find();
 	}
 
 	private static boolean completeReadyWasObservedBy(String output, Instant deadlineUtc) {

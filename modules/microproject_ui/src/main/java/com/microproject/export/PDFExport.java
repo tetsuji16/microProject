@@ -19,6 +19,6 @@ public class PDFExport {
 	void exportWithChooser(GraphPageable pageable, Component parentComponent) {
 		ExportJobScheduler.scheduleIfSelected(
 				fileChooser.choose(PrivacyDisplayMode.projectName(pageable.getRenderer().getProject()), parentComponent),
-				target -> PageableExportJob.schedule(pageable, parentComponent, target, "PDF Export"));
+				target -> PageableExportJob.schedule(pageable, parentComponent, target, "PDF Export"), pageable::cleanUp);
 	}
 }

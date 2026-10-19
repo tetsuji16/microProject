@@ -335,9 +335,11 @@ class CcpmSampleProgressGuiAcceptanceTest {
 			java.awt.Point point = sheet.getLocationOnScreen();
 			cell.setBounds(point.x + bounds.x, point.y + bounds.y, bounds.width, bounds.height);
 		});
+		GuiAcceptanceSupport.await(frame::isFocused, "the sample Gantt window did not become active before the spreadsheet click");
 		robot.mouseMove(cell.x + cell.width / 2, cell.y + cell.height / 2);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK); robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-		GuiAcceptanceSupport.await(sheet::isFocusOwner, "the duration cell did not receive focus");
+		GuiAcceptanceSupport.await(() -> frame.isFocused() && sheet.isFocusOwner(),
+			"the spreadsheet click did not leave the sample Gantt window and sheet focused");
 		SwingUtilities.invokeAndWait(() -> KeyboardFocusManager.getCurrentKeyboardFocusManager().dispatchEvent(
 			new KeyEvent(sheet, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_F2, KeyEvent.CHAR_UNDEFINED)));
 		GuiAcceptanceSupport.await(sheet::isEditing, "F2 did not start visible duration editing");

@@ -30,17 +30,24 @@ import java.util.logging.Logger;
 import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.grouping.core.model.NodeModelDataFactory;
 import com.microproject.undo.DataFactoryUndoController;
+import com.microproject.pm.task.Project;
 
 /**
  * Used by TaskInformation dialog
  */
 public class DependencyNodeModelDataFactory implements NodeModelDataFactory {
 	private static final Logger logger = Logger.getLogger(DependencyNodeModelDataFactory.class.getName());
+	private final Project undoProject;
 
 	/**
 	 * 
 	 */
 	public DependencyNodeModelDataFactory() {
+		this(null);
+	}
+
+	public DependencyNodeModelDataFactory(Project undoProject) {
+		this.undoProject = undoProject;
 	}
 
 	public Object createUnvalidatedObject(NodeModel nodeModel, Object parent) {
@@ -60,7 +67,7 @@ public class DependencyNodeModelDataFactory implements NodeModelDataFactory {
 
 
 	public void remove(Object toRemove, NodeModel nodeModel, boolean deep,boolean undo,boolean removeDependencies){
-		DependencyService.getInstance().remove((Dependency)toRemove,this,undo);
+		DependencyService.getInstance().remove((Dependency)toRemove,this,undo,undoProject);
 		logger.log(Level.FINE, "DependencyNodeModelDataFactory.remove");
 	}
 

@@ -92,6 +92,9 @@ public abstract class Graph extends JComponent implements GraphListener, GraphPa
 		return project;
 	}
 	public void cleanUp() {
+		if (ui != null) {
+			ui.uninstallUI(this);
+		}
 		if (this.model!=null) {
 			model.removeGraphListener(this);
 			model.close();

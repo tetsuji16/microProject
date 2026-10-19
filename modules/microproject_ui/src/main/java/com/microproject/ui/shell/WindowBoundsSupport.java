@@ -73,13 +73,29 @@ public final class WindowBoundsSupport {
 	private static final class UsableBoundsGuard extends ComponentAdapter {
 		private static final int SETTLE_DELAY_MILLIS = 160;
 		private final Window window;
+		private final NormalBoundsSnapshot normalBounds;
 		private final Timer settleTimer;
 
 		private UsableBoundsGuard(Window window) {
 			this.window = window;
+			normalBounds = new NormalBoundsSnapshot(window.getBounds(), isMaximized(window));
 			settleTimer = new Timer(SETTLE_DELAY_MILLIS,
-				ignored -> WindowBoundsSupport.fitWithinUsableScreen(this.window));
+				ignored -> settleGeometry());
 			settleTimer.setRepeats(false);
+			if (window instanceof Frame frame) {
+				frame.addWindowStateListener(event -> {
+					normalBounds.stateChanged(isMaximized(frame));
+					settleTimer.restart();
+				});
+			}
+		}
+
+		private void settleGeometry() {
+			Rectangle restoreBounds = normalBounds.settled(isMaximized(window), window.getBounds());
+			if (restoreBounds != null) {
+				window.setBounds(restoreBounds);
+			}
+			WindowBoundsSupport.fitWithinUsableScreen(window);
 		}
 
 		@Override
@@ -94,12 +110,63 @@ public final class WindowBoundsSupport {
 		public void componentResized(ComponentEvent event) {
 			// Native maximize/restore transitions may publish temporary full-work-area
 			// bounds; clamp only after the window manager's geometry has settled.
+			normalBounds.geometryChanged(isMaximized(window), window.getBounds());
 			settleTimer.restart();
 		}
 
 		@Override
 		public void componentMoved(ComponentEvent event) {
+			normalBounds.geometryChanged(isMaximized(window), window.getBounds());
 			settleTimer.restart();
+		}
+	}
+
+	static final class NormalBoundsSnapshot {
+		private Rectangle bounds;
+		private boolean maximized;
+		private boolean restorePending;
+
+		NormalBoundsSnapshot(Rectangle initialBounds, boolean initiallyMaximized) {
+			bounds = new Rectangle(initialBounds);
+			maximized = initiallyMaximized;
+		}
+
+		void stateChanged(boolean nowMaximized) {
+			if (nowMaximized && !maximized) {
+				restorePending = false;
+			} else if (!nowMaximized && maximized) {
+				restorePending = true;
+			}
+			maximized = nowMaximized;
+		}
+
+		void geometryChanged(boolean nowMaximized, Rectangle currentBounds) {
+			if (nowMaximized) {
+				maximized = true;
+				return;
+			}
+			if (maximized) {
+				restorePending = true;
+				maximized = false;
+			}
+			if (!restorePending) {
+				bounds = new Rectangle(currentBounds);
+			}
+		}
+
+		Rectangle settled(boolean nowMaximized, Rectangle currentBounds) {
+			if (nowMaximized) {
+				maximized = true;
+				return null;
+			}
+			if (restorePending) {
+				restorePending = false;
+				maximized = false;
+				return new Rectangle(bounds);
+			}
+			maximized = false;
+			bounds = new Rectangle(currentBounds);
+			return null;
 		}
 	}
 

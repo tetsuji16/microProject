@@ -591,8 +591,10 @@ public class DocumentFrame extends NamedFrame implements
 		case UNLINK -> doUnlinkTasks();
 		case INDENT -> doIndent();
 		case OUTDENT -> doOutdent();
-		case EXPAND -> lastTaskCommandResult = executeTaskTableMutation(command, this::doExpand, true);
-		case COLLAPSE -> lastTaskCommandResult = executeTaskTableMutation(command, this::doCollapse, true);
+		case EXPAND -> lastTaskCommandResult = executeTaskTableMutation(command, this::doExpand, true,
+			resolveTaskSelection(false, false));
+		case COLLAPSE -> lastTaskCommandResult = executeTaskTableMutation(command, this::doCollapse, true,
+			resolveTaskSelection(false, false));
 		case HIDE_SELECTED -> lastTaskCommandResult = applyTaskVisibility(command, true);
 		case SHOW_ALL -> lastTaskCommandResult = applyTaskVisibility(command, false);
 		case TASK_MODE_MANUAL -> lastTaskCommandResult = applyTaskMode(command, com.microproject.pm.task.TaskModeService.Mode.MANUAL);
@@ -610,6 +612,7 @@ public class DocumentFrame extends NamedFrame implements
 		}
 		if (lastTaskCommandResult == null)
 			lastTaskCommandResult = RibbonCommandResult.dispatched(command.actionId());
+		lastTaskCommandResult = lastTaskCommandResult.withActiveView(getTopViewId());
 		return lastTaskCommandResult;
 	}
 
@@ -617,10 +620,10 @@ public class DocumentFrame extends NamedFrame implements
 		List<Long> selectedTaskIds = getSelectedTaskIds();
 		if (project == null)
 			return RibbonCommandResult.rejected(command.actionId(), "no-active-document")
-				.withSelectedTaskIds(selectedTaskIds);
+				.withSelectedTaskIds(selectedTaskIds).withActiveView(getTopViewId());
 		if (project.isReadOnly())
 			return RibbonCommandResult.rejected(command.actionId(), "document-read-only")
-				.withSelectedTaskIds(selectedTaskIds);
+				.withSelectedTaskIds(selectedTaskIds).withActiveView(getTopViewId());
 
 		List<Node> selectedNodes = hide ? getSelectedVisibilityTaskNodes() : List.of();
 		List<Task> affectedTasks = hide
@@ -630,10 +633,10 @@ public class DocumentFrame extends NamedFrame implements
 			.filter(id -> id != null).toList();
 		if (hide && affectedTasks.isEmpty())
 			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.REJECTED,
-				"no-selection", selectedTaskIds, List.of(), "");
+				"no-selection", selectedTaskIds, List.of(), getTopViewId());
 		if (!CollaborationHelper.tryLockNodes(project, affectedTasks, this, hide ? "hide" : "show"))
 			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.REJECTED,
-				"lock-failed", selectedTaskIds, List.of(), "");
+				"lock-failed", selectedTaskIds, List.of(), getTopViewId());
 
 		int changed = hide
 			? TaskVisibilityService.hideTasks(project, affectedTasks, getUndoController())
@@ -694,8 +697,13 @@ public class DocumentFrame extends NamedFrame implements
 		SwingUndoAdapter.post(project.getUndoController().getEditSupport(), result.change());
 		getActiveSpreadSheet().restoreTaskRowSelection(selection);
 		if (!result.change().hasChanged())
-			return RibbonCommandResult.noChange(command.actionId(), taskIds(selection)).withActiveView("task");
-		return RibbonCommandResult.changed(command.actionId(), taskIds(selection)).withActiveView("task");
+			return taskSelectionOutcome(command, RibbonCommandResult.Status.NO_CHANGE, taskIds(selection));
+		return taskSelectionOutcome(command, RibbonCommandResult.Status.CHANGED, taskIds(selection));
+	}
+
+	private RibbonCommandResult taskSelectionOutcome(CommandId command, RibbonCommandResult.Status status,
+			List<Long> selectedTaskIds) {
+		return new RibbonCommandResult(command.actionId(), status, "", selectedTaskIds, selectedTaskIds, getTopViewId());
 	}
 
 	private RibbonCommandResult applyInactivateTask(CommandId command) {
@@ -711,10 +719,10 @@ public class DocumentFrame extends NamedFrame implements
 				"collaboration-lock-denied", selectedIds, List.of(), getTopViewId());
 		var result = new com.microproject.pm.task.TaskInactivationService().toggle(tasks);
 		if (!result.change().hasChanged())
-			return RibbonCommandResult.noChange(command.actionId(), selectedIds).withActiveView("task");
+			return taskSelectionOutcome(command, RibbonCommandResult.Status.NO_CHANGE, selectedIds);
 		SwingUndoAdapter.post(project.getUndoController().getEditSupport(), result.change());
 		getActiveSpreadSheet().restoreTaskRowSelection(selection);
-		return RibbonCommandResult.changed(command.actionId(), selectedIds).withActiveView("task");
+		return taskSelectionOutcome(command, RibbonCommandResult.Status.CHANGED, selectedIds);
 	}
 
 	private RibbonCommandResult applyRespectLinks(CommandId command) {
@@ -727,10 +735,10 @@ public class DocumentFrame extends NamedFrame implements
 		try {
 			var result = new com.microproject.pm.task.RespectLinksService().apply(project, tasks);
 			if (!result.change().hasChanged())
-				return RibbonCommandResult.noChange(command.actionId(), selectedIds).withActiveView("task");
+				return taskSelectionOutcome(command, RibbonCommandResult.Status.NO_CHANGE, selectedIds);
 			SwingUndoAdapter.post(project.getUndoController().getEditSupport(), result.change());
 			getActiveSpreadSheet().restoreTaskRowSelection(selection);
-			return RibbonCommandResult.changed(command.actionId(), selectedIds).withActiveView("task");
+			return taskSelectionOutcome(command, RibbonCommandResult.Status.CHANGED, selectedIds);
 		} catch (RuntimeException failure) {
 			return RibbonCommandResult.failed(command.actionId(), failure).withSelectedTaskIds(selectedIds);
 		}
@@ -846,13 +854,15 @@ public class DocumentFrame extends NamedFrame implements
 	private RibbonCommandResult applyResourceLevelingPlan(CommandId command, ResourceLevelingService.Plan plan,
 		List<Long> selectedIds, List<Node> selectedNodes, SelectionSnapshot selectionSnapshot) {
 		// Level Assignments stores delays/splits on assignments, so a plan can mutate without any task-level change.
-		List<Task> changedTasks = java.util.stream.Stream.of(
-				plan.changes().stream().map(ResourceLevelingService.Change::task),
-				plan.assignmentChanges().stream().map(change -> change.assignment().getTask()),
-				plan.assignmentSplits().stream().map(split -> split.assignment().getTask()))
-			.flatMap(java.util.function.Function.identity()).filter(java.util.Objects::nonNull).distinct().toList();
-		List<Long> affectedIds = changedTasks.stream()
-			.map(Task::getUniqueId).filter(java.util.Objects::nonNull).toList();
+		List<Task> affectedTasks = new ArrayList<>();
+		plan.changes().stream().map(ResourceLevelingService.Change::task).forEach(task -> addIdentity(affectedTasks, task));
+		plan.splits().stream().map(ResourceLevelingService.Split::task).forEach(task -> addIdentity(affectedTasks, task));
+		plan.assignmentChanges().stream().map(ResourceLevelingService.AssignmentChange::assignment)
+			.map(com.microproject.pm.assignment.Assignment::getTask).forEach(task -> addIdentity(affectedTasks, task));
+		plan.assignmentSplits().stream().map(ResourceLevelingService.AssignmentSplit::assignment)
+			.map(com.microproject.pm.assignment.Assignment::getTask).forEach(task -> addIdentity(affectedTasks, task));
+		List<Long> affectedIds = affectedTasks.stream().map(Task::getUniqueId)
+			.filter(java.util.Objects::nonNull).distinct().toList();
 		if (!plan.hasChanges()) {
 			if (plan.unresolved().isEmpty()) {
 				statusBar.setMessage(com.microproject.dialog.UsabilityStrings.text("leveling.noChanges"));
@@ -872,7 +882,6 @@ public class DocumentFrame extends NamedFrame implements
 				return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.REJECTED,
 					"partial-leveling-cancelled", selectedIds, List.of(), getTopViewId());
 		}
-		List<Task> affectedTasks = changedTasks;
 		if (!CollaborationHelper.tryLockNodes(project, affectedTasks, this,
 			CommandId.RESOURCE_LEVEL_ALL == command ? "level all tasks" : "level selected tasks"))
 			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.REJECTED,
@@ -893,13 +902,18 @@ public class DocumentFrame extends NamedFrame implements
 			}
 			refreshUndoButtonsSafely();
 			statusBar.setMessage(java.text.MessageFormat.format(
-				com.microproject.dialog.UsabilityStrings.text("leveling.applied"), affectedIds.size(), plan.splits().size()));
+				com.microproject.dialog.UsabilityStrings.text("leveling.applied"), affectedIds.size(),
+				plan.splits().size() + plan.assignmentSplits().size()));
 			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.CHANGED,
 				"", selectedIds, affectedIds, getTopViewId());
 		} catch (RuntimeException failure) {
 			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.FAILED,
 				failure.getClass().getSimpleName(), selectedIds, List.of(), getTopViewId());
 		}
+	}
+
+	private static void addIdentity(List<Task> tasks, Task candidate) {
+		if (candidate != null && tasks.stream().noneMatch(task -> task == candidate)) tasks.add(candidate);
 	}
 
 	private RibbonCommandResult clearResourceLeveling(CommandId command, boolean selectedOnly) {
@@ -997,14 +1011,27 @@ public class DocumentFrame extends NamedFrame implements
 	 */
 	private RibbonCommandResult executeTaskTableMutation(CommandId command, Runnable operation,
 			boolean requiresSelection) {
+		return executeTaskTableMutation(command, operation, requiresSelection, null);
+	}
+
+	private RibbonCommandResult executeTaskTableMutation(CommandId command, Runnable operation,
+			boolean requiresSelection, ActiveTaskSelectionResolver.Selection commandSelection) {
 		SpreadSheet sheet = getActiveSpreadSheet();
+		if (commandSelection != null && requiresSelection && !commandSelection.isEligible(1))
+			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.REJECTED,
+				commandSelection.rejectionReason(), commandSelection.stableTaskIds(), List.of(), getTopViewId());
 		if (sheet == null)
 			return executeLegacyWithoutTable(command, operation);
-		List<Node> selection = new ArrayList<>(getSelectedTaskNodes(false, true));
+		List<Node> selection = new ArrayList<>(commandSelection == null
+			? getSelectedTaskNodes(false, true) : commandSelection.nodes());
 		if (requiresSelection && selection.isEmpty())
 			return RibbonCommandResult.rejected(command.actionId(), "no-selection");
-		if (project == null || project.isReadOnly())
-			return RibbonCommandResult.rejected(command.actionId(), "document-read-only");
+		if (project == null || project.isReadOnly()) {
+			List<Long> selectedIds = commandSelection == null
+				? taskIds(selection) : commandSelection.stableTaskIds();
+			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.REJECTED,
+				"document-read-only", selectedIds, List.of(), getTopViewId());
+		}
 		int beforeRows = sheet.getRowCount();
 		int beforeTasks = project.getTaskList().size();
 		try {
@@ -1017,11 +1044,14 @@ public class DocumentFrame extends NamedFrame implements
 		if (lastTaskCommandResult != null)
 			return lastTaskCommandResult;
 		List<Long> ids = taskIds(selection);
-		return beforeRows != afterRows || beforeTasks != afterTasks
+		RibbonCommandResult result = beforeRows != afterRows || beforeTasks != afterTasks
 			? RibbonCommandResult.changed(command.actionId(), ids)
 			: command == CommandId.COPY
 				? RibbonCommandResult.dispatched(command.actionId())
 				: RibbonCommandResult.noChange(command.actionId(), ids);
+		return command == CommandId.EXPAND || command == CommandId.COLLAPSE
+			? result.withSelectedTaskIds(ids)
+			: result;
 	}
 
 	/**
@@ -1075,9 +1105,18 @@ public class DocumentFrame extends NamedFrame implements
 
 	private void publishTaskCommandResult(CommandId command, RibbonCommandResult.Status status,
 			String reason, List<Node> nodes) {
-		List<Long> affectedTaskIds = ActiveTaskSelectionResolver.resolve(nodes, false, false, true)
+		List<Long> selectedTaskIds = ActiveTaskSelectionResolver.resolve(nodes, false, false, true)
 			.stableTaskIds();
-		lastTaskCommandResult = new RibbonCommandResult(command.actionId(), status, reason, affectedTaskIds);
+		List<Long> affectedTaskIds = status == RibbonCommandResult.Status.REJECTED
+			|| status == RibbonCommandResult.Status.FAILED ? List.of() : selectedTaskIds;
+		lastTaskCommandResult = new RibbonCommandResult(command.actionId(), status, reason,
+			selectedTaskIds, affectedTaskIds, getTopViewId());
+	}
+
+	private void publishTaskCommandResultWithSelectedIds(CommandId command, RibbonCommandResult.Status status,
+			String reason, List<Long> selectedTaskIds) {
+		lastTaskCommandResult = new RibbonCommandResult(command.actionId(), status, reason,
+			selectedTaskIds, List.of(), getTopViewId());
 	}
 
 	public void doLinkTasks() {
@@ -1088,8 +1127,10 @@ public class DocumentFrame extends NamedFrame implements
 		List<Node> taskNodes = new ArrayList<>(selection.nodes());
 		SpreadSheet sheet = getActiveSpreadSheet();
 		TaskHierarchyEditIntent.SelectionSnapshot snapshot = sheet == null ? null : sheet.captureTaskDependencySelection();
-		publishTaskCommandResult(CommandId.LINK, RibbonCommandResult.Status.REJECTED,
-			"selection-too-small", taskNodes);
+		String selectionReason = selection.rejectionReason().isEmpty()
+			? "selection-too-small" : selection.rejectionReason();
+		publishTaskCommandResultWithSelectedIds(CommandId.LINK, RibbonCommandResult.Status.REJECTED,
+			selectionReason, selection.stableTaskIds());
 		if (taskNodes.size() > 1)
 			undoRedoSelection = new ArrayList<>(taskNodes);
 		getGraphicManager().traceUi("link start selectedTasks=" + taskNodes.size()
@@ -1097,13 +1138,15 @@ public class DocumentFrame extends NamedFrame implements
 		finishAnyOperations();
 		try {
 			if (project == null || project.isReadOnly()) {
-				publishTaskCommandResult(CommandId.LINK, RibbonCommandResult.Status.REJECTED,
-					"document-read-only", taskNodes);
+				publishTaskCommandResultWithSelectedIds(CommandId.LINK, RibbonCommandResult.Status.REJECTED,
+					"document-read-only", selection.stableTaskIds());
 				getGraphicManager().traceUi("link rejected reason=document-read-only");
 				return;
 			}
 			if (!selection.isEligible(2)) {
-				getGraphicManager().traceUi("link rejected reason=selection-too-small selectedTasks=" + taskNodes.size());
+				publishTaskCommandResultWithSelectedIds(CommandId.LINK, RibbonCommandResult.Status.REJECTED,
+					selectionReason, selection.stableTaskIds());
+				getGraphicManager().traceUi("link rejected reason=" + selectionReason + " selectedTasks=" + taskNodes.size());
 				return;
 			}
 			if (snapshot == null) {
@@ -1134,21 +1177,25 @@ public class DocumentFrame extends NamedFrame implements
 		List<Node> taskNodes = new ArrayList<>(selection.nodes());
 		SpreadSheet sheet = getActiveSpreadSheet();
 		TaskHierarchyEditIntent.SelectionSnapshot snapshot = sheet == null ? null : sheet.captureTaskDependencySelection();
-		publishTaskCommandResult(CommandId.UNLINK, RibbonCommandResult.Status.REJECTED,
-			"no-selection", taskNodes);
+		String selectionReason = selection.rejectionReason().isEmpty()
+			? "no-selection" : selection.rejectionReason();
+		publishTaskCommandResultWithSelectedIds(CommandId.UNLINK, RibbonCommandResult.Status.REJECTED,
+			selectionReason, selection.stableTaskIds());
 		if (taskNodes.size() > 1)
 			undoRedoSelection = new ArrayList<>(taskNodes);
 		getGraphicManager().traceUi("unlink start selectedTasks=" + taskNodes.size()
 				+ " undo=" + canUndoState() + " redo=" + canRedoState());
 		finishAnyOperations();
-		if (!selection.isEligible(1)) {
-			getGraphicManager().traceUi("unlink rejected reason=no-selection");
+		if (project == null || project.isReadOnly()) {
+			publishTaskCommandResultWithSelectedIds(CommandId.UNLINK, RibbonCommandResult.Status.REJECTED,
+				"document-read-only", selection.stableTaskIds());
+			getGraphicManager().traceUi("unlink rejected reason=document-read-only");
 			return;
 		}
-		if (project == null || project.isReadOnly()) {
-			publishTaskCommandResult(CommandId.UNLINK, RibbonCommandResult.Status.REJECTED,
-				"document-read-only", taskNodes);
-			getGraphicManager().traceUi("unlink rejected reason=document-read-only");
+		if (!selection.isEligible(1)) {
+			publishTaskCommandResultWithSelectedIds(CommandId.UNLINK, RibbonCommandResult.Status.REJECTED,
+				selectionReason, selection.stableTaskIds());
+			getGraphicManager().traceUi("unlink rejected reason=" + selectionReason);
 			return;
 		}
 		if (snapshot == null) {
@@ -1447,15 +1494,16 @@ public class DocumentFrame extends NamedFrame implements
 			int[] selectedRows = ss.nodesToRows(taskNodes);
 			getGraphicManager().traceUi(diagnosticId + " start selectedTasks=" + taskNodes.size()
 				+ " rows=" + selectedRows.length + " undo=" + canUndoState() + " redo=" + canRedoState());
-			publishTaskCommandResult(command, RibbonCommandResult.Status.REJECTED, "no-selection", taskNodes);
 			if (project == null || project.isReadOnly()) {
-				publishTaskCommandResult(command, RibbonCommandResult.Status.REJECTED,
-					"document-read-only", taskNodes);
+				publishTaskCommandResultWithSelectedIds(command, RibbonCommandResult.Status.REJECTED,
+					"document-read-only", selection.stableTaskIds());
 				getGraphicManager().traceUi(diagnosticId + " rejected reason=document-read-only");
 				return;
 			}
 			if (!selection.isEligible(1)) {
-				getGraphicManager().traceUi(diagnosticId + " rejected reason=no-selection");
+				publishTaskCommandResultWithSelectedIds(command, RibbonCommandResult.Status.REJECTED,
+					selection.rejectionReason(), selection.stableTaskIds());
+				getGraphicManager().traceUi(diagnosticId + " rejected reason=" + selection.rejectionReason());
 				return;
 			}
 			if (selectedRows.length != taskNodes.size()) {
@@ -1492,9 +1540,6 @@ public class DocumentFrame extends NamedFrame implements
 	public void doExpand() {
 		SpreadSheet ss = getActiveSpreadSheet();
 		if (ss !=null) {
-			ActiveTaskSelectionResolver.Selection selection = resolveTaskSelection(false, false);
-			if (!selection.isEligible(1))
-				return;
 			focusSingleTaskSelectionAnchor(ss);
 			ss.executeAction(MenuActionConstants.ACTION_EXPAND);
 		}
@@ -1502,9 +1547,6 @@ public class DocumentFrame extends NamedFrame implements
 	public void doCollapse() {
 		SpreadSheet ss = getActiveSpreadSheet();
 		if (ss !=null) {
-			ActiveTaskSelectionResolver.Selection selection = resolveTaskSelection(false, false);
-			if (!selection.isEligible(1))
-				return;
 			focusSingleTaskSelectionAnchor(ss);
 			ss.executeAction(MenuActionConstants.ACTION_COLLAPSE);
 		}
@@ -1579,16 +1621,38 @@ public class DocumentFrame extends NamedFrame implements
 			//ss.executeAction(SpreadSheet.COPY);
 	}
 	public void doPaste() {
-		boolean changed = EditCommandPipeline.execute(this, MenuActionConstants.ACTION_PASTE);
-		lastTaskCommandResult = changed
+		SpreadSheet spreadSheet = getActiveSpreadSheet();
+		if (spreadSheet != null) {
+			spreadSheet.clearLastTaskPasteOutcome();
+			spreadSheet.setTaskPasteOutcomePublicationDeferred(true);
+		}
+		boolean changed;
+		try {
+			changed = EditCommandPipeline.execute(this, MenuActionConstants.ACTION_PASTE);
+		} finally {
+			if (spreadSheet != null) spreadSheet.setTaskPasteOutcomePublicationDeferred(false);
+		}
+		RibbonCommandResult outcome = spreadSheet == null ? null : spreadSheet.getLastTaskPasteOutcome();
+		lastTaskCommandResult = outcome != null ? outcome : changed
 			? RibbonCommandResult.changed(CommandId.PASTE.actionId())
 			: RibbonCommandResult.rejected(CommandId.PASTE.actionId(), "paste-not-applied");
 			//NodeListTransferHandler.getPasteAction(ss).actionPerformed(new ActionEvent(this,0,null));
 			//ss.executeAction(SpreadSheet.PASTE);
 	}
 	public void doPasteInsert() {
-		boolean changed = EditCommandPipeline.execute(this, MenuActionConstants.ACTION_PASTE_INSERT);
-		lastTaskCommandResult = changed
+		SpreadSheet spreadSheet = getActiveSpreadSheet();
+		if (spreadSheet != null) {
+			spreadSheet.clearLastTaskPasteOutcome();
+			spreadSheet.setTaskPasteOutcomePublicationDeferred(true);
+		}
+		boolean changed;
+		try {
+			changed = EditCommandPipeline.execute(this, MenuActionConstants.ACTION_PASTE_INSERT);
+		} finally {
+			if (spreadSheet != null) spreadSheet.setTaskPasteOutcomePublicationDeferred(false);
+		}
+		RibbonCommandResult outcome = spreadSheet == null ? null : spreadSheet.getLastTaskPasteOutcome();
+		lastTaskCommandResult = outcome != null ? outcome : changed
 			? RibbonCommandResult.changed(CommandId.PASTE_INSERT.actionId())
 			: RibbonCommandResult.rejected(CommandId.PASTE_INSERT.actionId(), "paste-not-applied");
 	}
@@ -2175,17 +2239,28 @@ public class DocumentFrame extends NamedFrame implements
 
 	private ActiveTaskSelectionResolver.Selection resolveTaskSelection(boolean excludeReadOnly,
 			boolean allowMixedSelection) {
-		SpreadSheet activeSheet = getActiveSpreadSheet();
+		TaskSelectionOwner owner = activeTaskSelectionOwner(excludeReadOnly);
 		// The active table owns the user's physical row selection whenever it has
 		// one. The frame-level provider can lag during editor commit or projection
 		// refresh, so consulting it first made command enablement disagree with the
 		// rows the command would mutate. Keep this as the one resolver used by both
 		// enablement and execution.
-		List<Node> nodes = activeSheet != null && activeSheet.getSelectedRows().length > 0
-			? activeSheet.getSelectedNodes() : getSelectedNodes(excludeReadOnly);
-		return ActiveTaskSelectionResolver.resolve(nodes,
-			activeSheet != null && activeSheet.isHeaderColumnSelectionActive(),
+		return ActiveTaskSelectionResolver.resolve(owner.nodes(), owner.headerColumnSelectionActive(),
 			excludeReadOnly, allowMixedSelection);
+	}
+
+	private TaskSelectionOwner activeTaskSelectionOwner(boolean excludeReadOnly) {
+		SpreadSheet activeSheet = getActiveSpreadSheet();
+		List<Node> nodes = ActiveTaskSelectionResolver.preferPhysicalRowSelection(
+			activeSheet != null && activeSheet.getSelectedRows().length > 0,
+			activeSheet == null ? null : activeSheet.getSelectedNodes(),
+			getSelectedNodes(excludeReadOnly));
+		return new TaskSelectionOwner(activeSheet, nodes,
+			activeSheet != null && activeSheet.isHeaderColumnSelectionActive());
+	}
+
+	private record TaskSelectionOwner(SpreadSheet spreadSheet, List<Node> nodes,
+			boolean headerColumnSelectionActive) {
 	}
 
 	/**
@@ -2194,16 +2269,16 @@ public class DocumentFrame extends NamedFrame implements
 	 * resolved before applying the persistent visibility state.
 	 */
 	protected List<Node> getSelectedVisibilityTaskNodes() {
-		SpreadSheet spreadSheet = getTopSpreadSheet();
-		if (spreadSheet != null && spreadSheet.isHeaderColumnSelectionActive())
+		TaskSelectionOwner owner = activeTaskSelectionOwner(true);
+		SpreadSheet spreadSheet = owner.spreadSheet();
+		if (owner.headerColumnSelectionActive())
 			return Collections.emptyList();
 		// Visibility is also valid for a virtual grouping row.  Do not filter it
 		// through getSelectedTaskNodes() first: that would discard the group before
 		// TaskVisibilitySelectionResolver can expand its member tasks.
 		// Match ordinary task commands: the active spreadsheet owns a physical
 		// row selection even while the frame-level selection event is stale.
-		List<Node> selected = spreadSheet != null && spreadSheet.getSelectedRows().length > 0
-			? spreadSheet.getSelectedNodes() : getSelectedNodes(true);
+		List<Node> selected = owner.nodes();
 		if (selected == null || selected.isEmpty()) return Collections.emptyList();
 		if (spreadSheet == null || !(spreadSheet.getModel() instanceof SpreadSheetModel model))
 			return TaskVisibilitySelectionResolver.resolve(selected, null);

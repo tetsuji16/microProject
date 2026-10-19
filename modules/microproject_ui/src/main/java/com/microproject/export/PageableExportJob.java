@@ -25,6 +25,7 @@ final class PageableExportJob {
 				return null;
 			}
 		});
+		job.addCompletionRunnable(pageable::cleanUp);
 		jobQueue.schedule(job);
 	}
 }

@@ -236,10 +236,6 @@ jobs:
           .\gradlew.bat clean build packageWindowsAppImage packageWindowsMsi packageWindowsZip verifyPackagedFileImports "-PreleaseVersion=${{ steps.version.outputs.release_version }}" "-PreleaseChannel=${{ steps.version.outputs.prerelease == 'true' && 'beta' || 'stable' }}" --console=plain
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Configure a full-size desktop
-        shell: pwsh
-        run: .\.github\scripts\set-gui-display-resolution.ps1 -Width 1920 -Height 1080
-
       - name: Run Windows GUI acceptance gate
         shell: pwsh
         timeout-minutes: 110

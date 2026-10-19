@@ -53,7 +53,10 @@ jobs:
   full-gui-matrix:
     name: Full GUI locale and DPI matrix
     runs-on: windows-latest
-    timeout-minutes: 120
+    # A full GUI run has a 45-minute functional watchdog plus five additional
+    # 20-minute visual legs; Japanese 100% visual coverage is in the full run.
+    # Leave time outside the GUI step for build/setup and failure evidence upload.
+    timeout-minutes: 210
     steps:
       - uses: actions/checkout@v5
 
@@ -64,13 +67,13 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Configure a full-size desktop for HiDPI checks
-        shell: pwsh
-        run: .\.github\scripts\set-gui-display-resolution.ps1 -Width 1920 -Height 1080
-
       - name: Build fresh desktop install
         shell: pwsh
         run: .\gradlew.bat installDist --console=plain
+
+      - name: Verify desktop monitor watcher lifecycle
+        shell: pwsh
+        run: .\.github\scripts\test-gui-desktop-monitor-lifecycle.ps1
 
       - name: Run selected GUI acceptance suite and visual matrix
         shell: pwsh
@@ -78,7 +81,7 @@ jobs:
           GUI_TEST_FILTER: ${{ inputs.gui_test_filter }}
           GUI_TEST_LOCALE: ${{ inputs.gui_test_locale }}
           GUI_TEST_SCALE: ${{ inputs.gui_test_scale }}
-        timeout-minutes: 110
+        timeout-minutes: 175
         run: |
           $requestedSuite = '${{ inputs.gui_suite }}'
           if ([string]::IsNullOrWhiteSpace($requestedSuite)) {

@@ -6,24 +6,32 @@
 package com.microproject.dialog;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Component;
 import java.awt.GraphicsEnvironment;
 import java.awt.Rectangle;
 import java.awt.Robot;
+import java.awt.Toolkit;
 import java.awt.Window;
+import java.awt.event.KeyEvent;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.Stream;
 
 import javax.swing.AbstractButton;
+import javax.swing.Action;
 import javax.swing.JComboBox;
+import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JTabbedPane;
 import javax.swing.SwingUtilities;
 import javax.swing.JTextField;
+import javax.swing.KeyStroke;
 import javax.imageio.ImageIO;
 
 import org.junit.jupiter.api.AfterEach;
@@ -31,8 +39,9 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import com.microproject.grouping.core.Node;
+import com.microproject.exchange.MpoFileImporter;
 import com.microproject.pm.dependency.Dependency;
+import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.graphic.frames.DocumentFrame;
 import com.microproject.pm.graphic.frames.GraphicManager;
@@ -69,11 +78,17 @@ class TaskInformationCrossProjectGuiAcceptanceTest {
 		Fixture fixture = fixture();
 		SwingUtilities.invokeAndWait(() -> {
 			frame = new TestFrame(fixture);
-			frame.manager.setDocumentFrame(new DocumentFrame(frame.manager, fixture.first, "cross-project-dependency-gui-test") {
+			frame.manager.installDocumentShortcuts(frame);
+			DocumentFrame documentFrame = new DocumentFrame(frame.manager, fixture.first, "cross-project-dependency-gui-test") {
 				private static final long serialVersionUID = 1L;
+				@Override public com.microproject.undo.UndoController getUndoController() {
+					return fixture.first.getUndoController();
+				}
 				@Override public void activateGanttView() { }
 				@Override public void activateResourceView() { }
-			});
+			};
+			documentFrame.setActive(true);
+			frame.manager.setDocumentFrame(documentFrame);
 			frame.setSize(720, 420);
 			frame.setLocationByPlatform(true);
 			frame.setVisible(true);
@@ -126,8 +141,45 @@ class TaskInformationCrossProjectGuiAcceptanceTest {
 		assertTrue(dependency.getLag() != 0L, "the visible lag prompt must persist the selected lead/lag");
 		SwingUtilities.invokeAndWait(() -> dialog.updateAll());
 		SpreadSheet predecessors = dialog.predecessorsSpreadSheet;
-		GuiAcceptanceSupport.await(() -> predecessors != null && predecessors.getRowCount() == 1,
+		SpreadSheet createdPredecessors = predecessors;
+		GuiAcceptanceSupport.await(() -> createdPredecessors != null && createdPredecessors.getRowCount() == 1,
 			"Task Information did not refresh the created predecessor link");
+		assertTrue(fixture.first.getUndoController().canUndo(), "link creation must be recorded in the successor project's Undo history");
+		assertEquals("DependencyCreation", fixture.first.getUndoController().getUndoName(),
+			"successor project Undo history must identify cross-project link creation");
+		assertTrue(!fixture.second.getUndoController().canUndo(),
+			"link creation must not be recorded in the predecessor project's Undo history");
+		closeWindowWithRobot(robot, dialog);
+		GuiAcceptanceSupport.await(() -> !dialog.isVisible(), "physical close did not return focus before creation Undo");
+		awaitProjectFrameFocus();
+		frame.manager.getMenuManager().setActionEnabled("Undo", true);
+		KeyStroke undoKey = KeyStroke.getKeyStroke(KeyEvent.VK_Z, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx());
+		Object undoBinding = frame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).get(undoKey);
+		assertTrue(undoBinding != null, "physical Ctrl+Z must resolve through the active window root pane");
+		Action undoAction = frame.getRootPane().getActionMap().get(undoBinding);
+		assertTrue(undoAction != null && undoAction.isEnabled(), "root-pane Ctrl+Z must resolve to an enabled Undo action");
+		press(robot, java.awt.event.KeyEvent.VK_CONTROL, java.awt.event.KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> !fixture.current.getPredecessorList().contains(dependency)
+			&& !fixture.crossProjectTask.getSuccessorList().contains(dependency),
+			"physical Ctrl+Z did not undo cross-project link creation from the successor project");
+		assertEquals(1, fixture.current.getSuccessorList().size(), "creation Undo must preserve the unrelated dependency");
+		dialog = showTaskInformation(robot, fixture);
+		SpreadSheet undoneCreationPredecessors = dialog.predecessorsSpreadSheet;
+		GuiAcceptanceSupport.await(() -> undoneCreationPredecessors != null && undoneCreationPredecessors.getRowCount() == 0,
+			"creation Undo did not remove the rendered Task Information predecessor row");
+		closeWindowWithRobot(robot, dialog);
+		GuiAcceptanceSupport.await(() -> !dialog.isVisible(), "physical close did not return focus before creation Redo");
+		awaitProjectFrameFocus();
+		frame.manager.getMenuManager().setActionEnabled("Redo", true);
+		press(robot, java.awt.event.KeyEvent.VK_CONTROL, java.awt.event.KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> fixture.current.getPredecessorList().contains(dependency)
+			&& fixture.crossProjectTask.getSuccessorList().contains(dependency),
+			"physical Ctrl+Y did not redo cross-project link creation from the successor project");
+		dialog = showTaskInformation(robot, fixture);
+		predecessors = dialog.predecessorsSpreadSheet;
+		SpreadSheet redoneCreationPredecessors = predecessors;
+		GuiAcceptanceSupport.await(() -> redoneCreationPredecessors != null && redoneCreationPredecessors.getRowCount() == 1,
+			"creation Redo did not restore the rendered Task Information predecessor row");
 		assertTrue(predecessors.getColumnCount() > 1,
 			"Task Information dependency grid must expose a selectable non-link column");
 		// The first column is an endpoint hyperlink and intentionally navigates to
@@ -138,8 +190,51 @@ class TaskInformationCrossProjectGuiAcceptanceTest {
 			"Task Information predecessor Remove button must enable for a selected link; selectedRows="
 				+ predecessors.getSelectedRowCount());
 		click(robot, removePredecessor);
+		assertEquals(1, fixture.current.getSuccessorList().size(), "the unrelated outgoing link must remain present");
 		GuiAcceptanceSupport.await(() -> fixture.current.getPredecessorList().isEmpty(),
 			"Task Information predecessor Remove did not remove the selected dependency");
+		assertTrue(fixture.crossProjectTask.getSuccessorList().isEmpty(), "Remove must clear the link at its external endpoint");
+		assertEquals(1, fixture.current.getSuccessorList().size(), "Remove must preserve the unrelated dependency");
+		assertEquals(0, predecessors.getRowCount(), "removed predecessor row must disappear from Task Information");
+		assertSame(fixture.current, dependency.getSuccessor(), "Remove must preserve the successor task");
+		assertSame(fixture.crossProjectTask, dependency.getPredecessor(), "Remove must preserve the predecessor task");
+		closeWindowWithRobot(robot, dialog);
+		GuiAcceptanceSupport.await(() -> !dialog.isVisible(), "physical close did not return focus from Task Information to the project frame");
+		awaitProjectFrameFocus();
+		frame.manager.getMenuManager().setActionEnabled("Undo", true);
+		press(robot, java.awt.event.KeyEvent.VK_CONTROL, java.awt.event.KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> fixture.current.getPredecessorList().contains(dependency)
+			&& fixture.crossProjectTask.getSuccessorList().contains(dependency),
+			"physical Ctrl+Z did not restore the selected cross-project dependency");
+		dialog = showTaskInformation(robot, fixture);
+		SpreadSheet restoredPredecessors = dialog.predecessorsSpreadSheet;
+		GuiAcceptanceSupport.await(() -> restoredPredecessors != null && restoredPredecessors.getRowCount() == 1,
+			"Ctrl+Z did not restore the rendered Task Information predecessor row");
+		assertEquals(kind.code(), dependency.getDependencyType(), "Undo changed the selected dependency type");
+		assertTrue(dependency.getLag() != 0L, "Undo lost the selected dependency lag");
+		assertEquals(1, fixture.current.getSuccessorList().size(), "Undo must preserve the unrelated dependency");
+		closeWindowWithRobot(robot, dialog);
+		GuiAcceptanceSupport.await(() -> !dialog.isVisible(), "physical close did not return focus before Redo");
+		awaitProjectFrameFocus();
+		frame.manager.getMenuManager().setActionEnabled("Redo", true);
+		press(robot, java.awt.event.KeyEvent.VK_CONTROL, java.awt.event.KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> !fixture.current.getPredecessorList().contains(dependency)
+			&& !fixture.crossProjectTask.getSuccessorList().contains(dependency),
+			"physical Ctrl+Y did not remove the cross-project dependency again");
+		dialog = showTaskInformation(robot, fixture);
+		SpreadSheet redonePredecessors = dialog.predecessorsSpreadSheet;
+		GuiAcceptanceSupport.await(() -> redonePredecessors != null && redonePredecessors.getRowCount() == 0,
+			"Ctrl+Y did not remove the rendered Task Information predecessor row again");
+		assertEquals(1, fixture.current.getSuccessorList().size(), "Redo must preserve the unrelated dependency");
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		MpoFileImporter importer = new MpoFileImporter();
+		assertTrue(importer.saveProject(fixture.first, saved), "MPO save rejected the removed cross-project link state");
+		Project reloaded = importer.loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		NormalTask reloadedCurrent = findTask(reloaded, fixture.current.getName());
+		NormalTask reloadedUnrelated = findTask(reloaded, fixture.unrelatedTask.getName());
+		assertTrue(reloadedCurrent.getPredecessorList().isEmpty(), "MPO reload restored the removed cross-project dependency");
+		assertEquals(1, reloadedCurrent.getSuccessorList().size(), "MPO reload lost the unrelated dependency");
+		assertEquals(reloadedUnrelated, ((Dependency) reloadedCurrent.getSuccessorList().iterator().next()).getSuccessor());
 		Path artifact = Path.of(System.getProperty("microproject.gui.artifacts.dir", "build/guiTest-artifacts"),
 				"cross-project-link-" + kind.name().toLowerCase(java.util.Locale.ROOT) + ".png");
 		Files.createDirectories(artifact.getParent());
@@ -284,12 +379,70 @@ class TaskInformationCrossProjectGuiAcceptanceTest {
 		return null;
 	}
 
-	private Fixture fixture() {
+	private Fixture fixture() throws Exception {
 		Project first = newProject("First project");
 		Project second = newProject("Second project");
 		NormalTask current = task(first, "Current task");
 		NormalTask cross = task(second, "Cross project task");
-		return new Fixture(first, second, current, cross);
+		NormalTask unrelated = task(first, "Unrelated successor task");
+		DependencyService.getInstance().newDependency(current, unrelated, DependencyType.SS, 0L, this);
+		first.getUndoController().clear();
+		second.getUndoController().clear();
+		return new Fixture(first, second, current, cross, unrelated);
+	}
+
+	private static NormalTask findTask(Project project, String name) {
+		for (Task task : project.getTasks())
+			if (task instanceof NormalTask normalTask && name.equals(normalTask.getName())) return normalTask;
+		throw new AssertionError("task not found after MPO reload: " + name);
+	}
+
+	private static void press(Robot robot, int... keys) {
+		for (int key : keys) robot.keyPress(key);
+		for (int index = keys.length - 1; index >= 0; index--) robot.keyRelease(keys[index]);
+		robot.waitForIdle();
+	}
+
+	private TaskInformationDialog showTaskInformation(Robot robot, Fixture fixture) throws Exception {
+		TaskInformationDialog[] result = new TaskInformationDialog[1];
+		SwingUtilities.invokeAndWait(() -> {
+			result[0] = TaskInformationDialog.getInstance(frame, fixture.current, false);
+			result[0].setModal(false);
+			result[0].pack();
+			result[0].setLocationByPlatform(true);
+			result[0].setAlwaysOnTop(true);
+			result[0].setVisible(true);
+			result[0].toFront();
+			result[0].updateAll();
+		});
+		GuiAcceptanceSupport.await(() -> result[0].isShowing(), "Task Information did not reopen after the physical history command");
+		JTabbedPane tabs = findTabbedPane(result[0].getContentPane());
+		if (tabs != null && result[0].predecessorsSpreadSheet != null) {
+			for (int index = 0; index < tabs.getTabCount() && !result[0].predecessorsSpreadSheet.isShowing(); index++) {
+				final int selectedIndex = index;
+				SwingUtilities.invokeAndWait(() -> tabs.setSelectedIndex(selectedIndex));
+			}
+		}
+		GuiAcceptanceSupport.await(() -> result[0].predecessorsSpreadSheet != null
+			&& result[0].predecessorsSpreadSheet.isShowing(),
+			"reopened Task Information did not show its predecessor dependency grid");
+		return result[0];
+	}
+
+	private static void closeWindowWithRobot(Robot robot, Window target) throws Exception {
+		Rectangle bounds = new Rectangle();
+		SwingUtilities.invokeAndWait(() -> bounds.setBounds(target.getBounds()));
+		robot.mouseMove(bounds.x + bounds.width - 14, bounds.y + 12);
+		robot.waitForIdle();
+		robot.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+		robot.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+	}
+
+	private void awaitProjectFrameFocus() throws Exception {
+		GuiAcceptanceSupport.await(() -> frame != null && frame.isActive() && frame.isFocused(),
+			"the project frame did not regain native focus after closing Task Information");
 	}
 
 	private Project newProject(String name) {
@@ -306,7 +459,8 @@ class TaskInformationCrossProjectGuiAcceptanceTest {
 		return task;
 	}
 
-	private record Fixture(Project first, Project second, NormalTask current, NormalTask crossProjectTask) { }
+	private record Fixture(Project first, Project second, NormalTask current, NormalTask crossProjectTask,
+			NormalTask unrelatedTask) { }
 
 	private static final class TestFrame extends javax.swing.JFrame implements FrameHolder {
 		private static final long serialVersionUID = 1L;
