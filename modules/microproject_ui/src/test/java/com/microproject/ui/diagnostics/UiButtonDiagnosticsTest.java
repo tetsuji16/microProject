@@ -194,7 +194,7 @@ class UiButtonDiagnosticsTest {
 		RibbonCommandResult cancelled = new RibbonCommandResult("UpdateTasks",
 			RibbonCommandResult.Status.NO_CHANGE, "dialog-cancelled");
 		assertEquals("dialog-cancelled", UiButtonDiagnostics.noChangeDiagnosticReason(cancelled,
-			true, List.of("cancelled")));
+		false, List.of()));
 		assertEquals("command-no-change", UiButtonDiagnostics.noChangeDiagnosticReason(
 			RibbonCommandResult.noChange("UpdateTasks"), true, List.of()));
 	}

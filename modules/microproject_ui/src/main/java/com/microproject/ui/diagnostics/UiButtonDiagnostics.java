@@ -223,6 +223,9 @@ public final class UiButtonDiagnostics {
 
 	static String noChangeDiagnosticReason(RibbonCommandResult result, boolean unchanged,
 			List<String> dialogOutcomes) {
+		if (result != null && result.status() == RibbonCommandResult.Status.NO_CHANGE
+				&& "dialog-cancelled".equals(result.reason()))
+			return "dialog-cancelled";
 		if (unchanged && dialogOutcomes != null && !dialogOutcomes.isEmpty()
 				&& "cancelled".equals(dialogOutcomes.get(dialogOutcomes.size() - 1)))
 			return "dialog-cancelled";
