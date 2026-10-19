@@ -42,6 +42,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -159,6 +160,96 @@ class DependencyServiceTest {
 		revision = project.getMutationState().revision();
 		DependencyService.getInstance().remove(dependency, this, true);
 		assertEquals(revision, project.getMutationState().revision(), "removing a detached dependency is a no-op");
+	}
+
+	@Test
+	void setFieldsPublicationFailureKeepsCommittedFieldsAndUndoRedoHistory() throws InvalidAssociationException {
+		Project project = createProject("dependency-set-fields-publication-failure");
+		NormalTask predecessor = new NormalTask(project);
+		NormalTask successor = new NormalTask(project);
+		project.connectTask(predecessor);
+		project.connectTask(successor);
+		Dependency dependency = DependencyService.getInstance()
+			.newDependency(predecessor, successor, DependencyType.FS, 0L, this);
+		long revision = project.getMutationState().revision();
+		RuntimeException publicationFailure = new IllegalStateException("listener failure");
+		AtomicReference<Object> publishedObject = new AtomicReference<>();
+		AtomicReference<Long> publicationRevision = new AtomicReference<>();
+		AtomicInteger listenerCalls = new AtomicInteger();
+		ObjectEvent.Listener listener = throwingPublicationObserver(publicationFailure, publishedObject,
+			publicationRevision, listenerCalls);
+		project.getObjectEventManager().addListener(listener);
+		try {
+			assertSame(publicationFailure, assertThrows(RuntimeException.class,
+				() -> DependencyService.getInstance().setFields(dependency,
+					2L * CalendarOption.getInstance().getMillisPerDay(), DependencyType.Kind.SS, this)));
+		} finally {
+			project.getObjectEventManager().removeListener(listener);
+		}
+
+		long committedLag = 2L * CalendarOption.getInstance().getMillisPerDay();
+		assertEquals(committedLag, dependency.getLag());
+		assertEquals(DependencyType.SS, dependency.getDependencyType());
+		assertEquals(revision + 1, project.getMutationState().revision());
+		assertSame(dependency, publishedObject.get());
+		assertEquals(revision + 1, publicationRevision.get());
+		assertTrue(project.getUndoController().canUndo());
+
+		project.getObjectEventManager().fireUpdateEvent(this, dependency);
+		assertEquals(1, listenerCalls.get(), "listener was removed in finally");
+		project.getUndoController().undo();
+		assertEquals(0L, dependency.getLag());
+		assertEquals(DependencyType.FS, dependency.getDependencyType());
+		assertTrue(project.getUndoController().canRedo());
+		project.getUndoController().redo();
+		assertEquals(committedLag, dependency.getLag());
+		assertEquals(DependencyType.SS, dependency.getDependencyType());
+	}
+
+	@Test
+	void legacyUpdateServicePublicationFailureKeepsCommittedDirtyStateAndRevision() throws InvalidAssociationException {
+		Project project = createProject("dependency-legacy-update-publication-failure");
+		NormalTask predecessor = new NormalTask(project);
+		NormalTask successor = new NormalTask(project);
+		project.connectTask(predecessor);
+		project.connectTask(successor);
+		Dependency dependency = DependencyService.getInstance()
+			.newDependency(predecessor, successor, DependencyType.FS, 0L, this);
+		dependency.setDirty(false);
+		long revision = project.getMutationState().revision();
+		RuntimeException publicationFailure = new IllegalStateException("listener failure");
+		AtomicReference<Object> publishedObject = new AtomicReference<>();
+		AtomicReference<Long> publicationRevision = new AtomicReference<>();
+		AtomicInteger listenerCalls = new AtomicInteger();
+		ObjectEvent.Listener listener = throwingPublicationObserver(publicationFailure, publishedObject,
+			publicationRevision, listenerCalls);
+		project.getObjectEventManager().addListener(listener);
+		try {
+			assertSame(publicationFailure, assertThrows(RuntimeException.class,
+				() -> dependency.doUpdateService(this)));
+		} finally {
+			project.getObjectEventManager().removeListener(listener);
+		}
+
+		assertTrue(dependency.isDirty());
+		assertEquals(revision + 1, project.getMutationState().revision());
+		assertEquals(1, listenerCalls.get(), "one update event was published");
+		assertSame(dependency, publishedObject.get());
+		assertEquals(revision + 1, publicationRevision.get());
+
+		project.getObjectEventManager().fireUpdateEvent(this, dependency);
+		assertEquals(1, listenerCalls.get(), "listener was removed in finally");
+	}
+
+	private static ObjectEvent.Listener throwingPublicationObserver(RuntimeException failure,
+		AtomicReference<Object> publishedObject, AtomicReference<Long> publicationRevision,
+		AtomicInteger listenerCalls) {
+		return event -> {
+			listenerCalls.incrementAndGet();
+			publishedObject.set(event.getObject());
+			publicationRevision.set(event.getPublicationRevision());
+			throw failure;
+		};
 	}
 
 	@Test
@@ -1061,6 +1152,42 @@ class DependencyServiceTest {
 
 		assertEquals(successorStartBeforeResize, successor.getStart());
 		assertEquals(successorEndAfterResize, successor.getEnd());
+	}
+
+	@Test
+	void setFieldsRollsBackPartialMutationWhenTypeApplicationFailsAtRuntime() throws InvalidAssociationException {
+		Project project = createProject("dependency-set-fields-apply-failure");
+		NormalTask predecessor = new NormalTask(project);
+		NormalTask successor = new NormalTask(project);
+		project.connectTask(predecessor);
+		project.connectTask(successor);
+		Dependency dependency = DependencyService.getInstance()
+			.newDependency(predecessor, successor, DependencyType.FS, 0L, this);
+		long revision = project.getMutationState().revision();
+		String undoName = project.getUndoController().getUndoPresentationName();
+		String redoName = project.getUndoController().getRedoPresentationName();
+		boolean canUndo = project.getUndoController().canUndo();
+		boolean canRedo = project.getUndoController().canRedo();
+		List<ObjectEvent> events = new ArrayList<>();
+		ObjectEvent.Listener listener = events::add;
+		project.getObjectEventManager().addListener(listener);
+		try {
+			assertThrows(NullPointerException.class,
+				() -> DependencyService.getInstance().setFields(dependency, 123L, null, this));
+		} finally {
+			project.getObjectEventManager().removeListener(listener);
+		}
+
+		assertEquals(0L, dependency.getLag());
+		assertEquals(DependencyType.FS, dependency.getDependencyType());
+		assertSame(predecessor, dependency.getPredecessor());
+		assertSame(successor, dependency.getSuccessor());
+		assertEquals(revision, project.getMutationState().revision());
+		assertTrue(events.isEmpty());
+		assertEquals(undoName, project.getUndoController().getUndoPresentationName());
+		assertEquals(redoName, project.getUndoController().getRedoPresentationName());
+		assertEquals(canUndo, project.getUndoController().canUndo());
+		assertEquals(canRedo, project.getUndoController().canRedo());
 	}
 
 	@Test

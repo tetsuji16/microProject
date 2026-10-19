@@ -30,8 +30,9 @@ import java.util.List;
 import javax.swing.undo.UndoableEdit;
 import com.microproject.undo.EditSupport;
 
-import com.microproject.pm.scheduling.IntervalConsumer;
+import com.microproject.configuration.Configuration;
 import com.microproject.association.Association;
+import com.microproject.pm.scheduling.IntervalConsumer;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.task.Project;
@@ -110,10 +111,21 @@ public class ScheduleService {
 			return false;
 		}
 
-		task.setScheduleConstraintAndUpdate(constraintType, constraintDate);
+		try {
+			task.setScheduleConstraint(constraintType, constraintDate);
+		} catch (RuntimeException | Error failure) {
+			try {
+				task.setScheduleConstraint(oldConstraintType, oldConstraintDate);
+			} catch (RuntimeException | Error rollbackFailure) {
+				failure.addSuppressed(rollbackFailure);
+			}
+			throw failure;
+		}
 		if (undoableEditSupport != null && !(eventSource instanceof UndoableEdit)) {
 			undoableEditSupport.postEdit(new TaskConstraintEdit(task, oldConstraintType, oldConstraintDate, constraintType, constraintDate, eventSource));
 		}
+		task.getDocument().getObjectEventManager().fireUpdateEvent(task, task,
+			Configuration.getFieldFromId("Field.constraintType"));
 		return true;
 	}
 

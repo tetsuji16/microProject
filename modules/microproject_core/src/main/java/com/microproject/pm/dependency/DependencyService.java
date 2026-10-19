@@ -365,6 +365,10 @@ public class DependencyService {
 			dependency.setLag(oldLag);
 			dependency.setDependencyType(oldType);
 			throw e;
+		} catch (RuntimeException | Error failure) {
+			dependency.setLag(oldLag);
+			dependency.setDependencyType(oldType);
+			throw failure;
 		}
 		context.markApplied(dependency);
 		if (eventSource != null) dependency.fireUpdateEvent(eventSource);

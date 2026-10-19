@@ -26,9 +26,12 @@ package com.microproject.pm.scheduling;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
+
+import com.microproject.document.ObjectEvent;
 
 import com.microproject.options.CalendarOption;
 import com.microproject.pm.resource.ResourcePool;
@@ -39,6 +42,75 @@ import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.undo.TaskConstraintEdit;
 
 class ScheduleServiceConstraintTest {
+	@Test
+	void applicationFailureRestoresConstraintWithoutPublishingOrUndo() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		NormalTask task = new NormalTask(project) {
+			private boolean fail = true;
+			@Override
+			public void setStartNoEarlierThan(long date) {
+				super.setStartNoEarlierThan(date);
+				if (fail) {
+					fail = false;
+					throw new IllegalStateException("constraint application failed");
+				}
+			}
+		};
+		project.connectTask(task);
+		int oldType = task.getConstraintType();
+		long oldDate = task.getConstraintDate();
+		long revision = project.getMutationState().revision();
+		long targetDate = task.getStart() + CalendarOption.getInstance().getMillisPerDay();
+		java.util.concurrent.atomic.AtomicInteger eventCount = new java.util.concurrent.atomic.AtomicInteger();
+		ObjectEvent.Listener listener = event -> eventCount.incrementAndGet();
+		project.addObjectListener(listener);
+		IllegalStateException failure;
+		try {
+			failure = assertThrows(IllegalStateException.class, () -> ScheduleService.getInstance().setConstraint(this,
+				task, ConstraintType.Kind.SNET, targetDate, undoController.getEditSupport()));
+		} finally {
+			project.removeObjectListener(listener);
+		}
+		assertEquals("constraint application failed", failure.getMessage());
+		assertEquals(oldType, task.getConstraintType());
+		assertEquals(oldDate, task.getConstraintDate());
+		assertFalse(undoController.canUndo());
+		assertEquals(revision, project.getMutationState().revision());
+		assertEquals(0, eventCount.get());
+	}
+
+	@Test
+	void publicationFailureLeavesCommittedConstraintWithUndoRedo() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		NormalTask task = new NormalTask(project);
+		project.connectTask(task);
+		long targetDate = task.getEffectiveWorkCalendar().add(task.getStart(),
+			CalendarOption.getInstance().getMillisPerDay(), false);
+		ObjectEvent.Listener throwingListener = event -> { throw new IllegalStateException("publication failed"); };
+		project.addObjectListener(throwingListener);
+
+		try {
+			assertThrows(IllegalStateException.class, () -> ScheduleService.getInstance().setConstraint(this,
+				task, ConstraintType.Kind.SNET, targetDate, undoController.getEditSupport()));
+		} finally {
+			project.removeObjectListener(throwingListener);
+		}
+
+		assertEquals(ConstraintType.SNET, task.getConstraintType());
+		assertEquals(targetDate, task.getConstraintDate());
+		assertTrue(undoController.canUndo());
+		undoController.undo();
+		assertEquals(ConstraintType.ASAP, task.getConstraintType());
+		assertEquals(0L, task.getConstraintDate());
+		undoController.redo();
+		assertEquals(ConstraintType.SNET, task.getConstraintType());
+		assertEquals(targetDate, task.getConstraintDate());
+	}
+
 	@Test
 	void setConstraintUpdatesTypeDateAndUndoRedo() {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();

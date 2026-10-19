@@ -5,6 +5,8 @@
 package com.microproject.pm.task;
 
 import java.util.List;
+import java.util.IdentityHashMap;
+import java.util.Map;
 import java.util.Objects;
 
 /** Applies MSP-style manual/automatic scheduling and returns its reversible model change. */
@@ -16,11 +18,44 @@ public final class TaskModeService {
 		Objects.requireNonNull(mode, "mode");
 		List<Task> selected = tasks.stream().filter(Objects::nonNull).map(task -> (Task) task).toList();
 		boolean[] before = new boolean[selected.size()];
-		for (int i = 0; i < before.length; i++) before[i] = selected.get(i).isManuallyScheduled();
+		long[] manualStarts = new long[selected.size()];
+		long[] manualFinishes = new long[selected.size()];
+		Map<Project, ProjectTaskSnapshot> projectSnapshots = new IdentityHashMap<>();
+		for (int i = 0; i < before.length; i++) {
+			Task task = selected.get(i);
+			Project project = task.getProject();
+			if (project != null) projectSnapshots.computeIfAbsent(project, ProjectTaskSnapshot::capture);
+			before[i] = task.isManuallyScheduled();
+			manualStarts[i] = task.manualStart;
+			manualFinishes[i] = task.manualFinish;
+		}
 		boolean target = mode == Mode.MANUAL;
 		boolean changed = false;
 		for (boolean value : before) changed |= value != target;
-		for (Task task : selected) task.setManuallyScheduled(target);
+		int attempted = 0;
+		try {
+			for (Task task : selected) {
+				attempted++;
+				task.setManuallyScheduled(target);
+			}
+		} catch (RuntimeException | Error failure) {
+			for (Map.Entry<Project, ProjectTaskSnapshot> entry : projectSnapshots.entrySet()) {
+				try {
+					entry.getValue().restore(entry.getKey(), this);
+				} catch (RuntimeException | Error compensationFailure) {
+					failure.addSuppressed(compensationFailure);
+				}
+			}
+			for (int i = attempted - 1; i >= 0; i--) {
+				Task task = selected.get(i);
+				try {
+					task.restoreManualSchedulingState(before[i], manualStarts[i], manualFinishes[i]);
+				} catch (RuntimeException | Error compensationFailure) {
+					failure.addSuppressed(compensationFailure);
+				}
+			}
+			throw failure;
+		}
 		ReversibleModelChange change = changed
 			? ReversibleModelChange.changed(() -> restore(selected, before), () -> restoreTarget(selected, target))
 			: ReversibleModelChange.unchanged();

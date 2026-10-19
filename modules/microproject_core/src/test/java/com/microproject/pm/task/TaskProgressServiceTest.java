@@ -14,6 +14,8 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.assignment.Assignment;
+import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.util.DateTime;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.grouping.core.Node;
@@ -145,6 +147,44 @@ class TaskProgressServiceTest {
 			"Undo must restore the exact pre-existing task-level progress");
 		change.redo();
 		assertEquals(expected, task.getPercentComplete(), 0.00001D);
+	}
+
+	@Test
+	void markOnTrackPreservesImportedAssignmentProgressAndWorkAcrossUndoRedo() {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("assigned-progress", undo), undo);
+		project.initialize(false, false);
+		NormalTask task = project.createScriptedTask();
+		var resource = project.getResourcePool().newResourceInstance();
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1.0D, 0L, this);
+		long totalWork = assignment.getWork(null);
+		assignment.setActualWork(totalWork / 4L, null);
+		task.setImportedPercentComplete(0.10D);
+		double assignmentPercent = assignment.getPercentComplete();
+		long actualWork = assignment.getActualWork(null);
+		long remainingWork = assignment.getRemainingWork();
+		long statusDate = task.getStart() + (task.getEnd() - task.getStart()) / 2L;
+		project.setStatusDate(statusDate);
+		long normalizedStatusDate = project.getStatusDate();
+		long scheduledDuration = task.getEffectiveWorkCalendar().compare(task.getEnd(), task.getStart(), false);
+		long scheduledElapsed = task.getEffectiveWorkCalendar().compare(normalizedStatusDate, task.getStart(), false);
+		double expected = Math.max(0D, Math.min(1D, (double) scheduledElapsed / scheduledDuration));
+
+		ReversibleModelChange change = new TaskProgressService().markOnTrack(project, List.of(task)).change();
+		assertEquals(expected, task.getPercentComplete(), 0.00001D);
+		assertEquals(assignmentPercent, assignment.getPercentComplete(), 0.00001D);
+		assertEquals(actualWork, assignment.getActualWork(null));
+		assertEquals(remainingWork, assignment.getRemainingWork());
+		change.undo();
+		assertEquals(0.10D, task.getPercentComplete(), 0.00001D);
+		assertEquals(assignmentPercent, assignment.getPercentComplete(), 0.00001D);
+		assertEquals(actualWork, assignment.getActualWork(null));
+		assertEquals(remainingWork, assignment.getRemainingWork());
+		change.redo();
+		assertEquals(expected, task.getPercentComplete(), 0.00001D);
+		assertEquals(assignmentPercent, assignment.getPercentComplete(), 0.00001D);
+		assertEquals(actualWork, assignment.getActualWork(null));
+		assertEquals(remainingWork, assignment.getRemainingWork());
 	}
 
 	@Test
