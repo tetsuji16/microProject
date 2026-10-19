@@ -178,21 +178,14 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		super();
 		NodeListTransferHandler.registerWith(this);
 		// Issue #47: prevent the TransferHandler from also binding ctrl C/X/V on the
-		// component's WHEN_FOCUSED input map. Those keys are wired globally to
+		// component input maps. Those keys are wired globally to
 		// ACTION_COPY/CUT/PASTE on the root-pane WHEN_IN_FOCUSED_WINDOW by
 		// GraphicManager.applyMicrosoftShortcuts. Leaving both layers bound makes
 		// ctrl+V non-deterministic ("paste doesn't work well"). The real paste logic
 		// (NodeListTransferHandler.importData) stays reachable via ACTION_PASTE, so we
 		// only remove the duplicate keyboard bindings here.
-		removeDuplicateClipboardKeyBindings(this);
+		removeRootPaneShortcutDuplicates(this);
 		installClipboardPasteBindings();
-	}
-
-	private static void removeDuplicateClipboardKeyBindings(JComponent c) {
-		InputMap focused = c.getInputMap(JComponent.WHEN_FOCUSED);
-		focused.remove(KeyStroke.getKeyStroke("ctrl V"));
-		focused.remove(KeyStroke.getKeyStroke("ctrl C"));
-		focused.remove(KeyStroke.getKeyStroke("ctrl X"));
 	}
 
 	@Override
@@ -1285,7 +1278,18 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			return;
 		makeCustomTableHeader(spreadSheetColumnModel);
 		var oldModel = getModel();
-		spreadSheetModel.setTaskEditOutcomeHandler(this::publishTaskFieldEditOutcome);
+		spreadSheetModel.setTaskFieldEditOutcomeHandler(new SpreadSheetModel.TaskFieldEditOutcomeHandler() {
+			@Override
+			public SpreadSheetModel.TaskFieldEditOutcomeContext capture() {
+				return new SpreadSheetModel.TaskFieldEditOutcomeContext(selectedTaskIds());
+			}
+
+			@Override
+			public void publish(TaskCommandResult result, Task task,
+					SpreadSheetModel.TaskFieldEditOutcomeContext context) {
+				publishTaskFieldEditOutcome(result, task, context);
+			}
+		});
 		setModel(spreadSheetModel);
 		
 		if (spreadSheetColumnModel != null) {
@@ -1330,14 +1334,19 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 
 	}
 
-	private void publishTaskFieldEditOutcome(TaskCommandResult taskResult, Task task) {
+	private List<Long> selectedTaskIds() {
 		List<Long> selectedTaskIds = new ArrayList<>();
 		for (Node selected : getSelectedNodes()) {
 			if (selected != null && selected.getImpl() instanceof Task selectedTask
 					&& !selectedTaskIds.contains(selectedTask.getUniqueId()))
 				selectedTaskIds.add(selectedTask.getUniqueId());
 		}
-		publishTaskCommandOutcome("SpreadsheetCellEdit", taskResult, selectedTaskIds,
+		return List.copyOf(selectedTaskIds);
+	}
+
+	private void publishTaskFieldEditOutcome(TaskCommandResult taskResult, Task task,
+			SpreadSheetModel.TaskFieldEditOutcomeContext outcomeContext) {
+		publishTaskCommandOutcome("SpreadsheetCellEdit", taskResult, outcomeContext.selectedTaskIds(),
 			List.of(task.getUniqueId()));
 	}
 

@@ -3546,6 +3546,114 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	@Test
+	void recaptureBaselineOneSelectedTasksPreservesUnselectedAndBaselineZeroAcrossUndoRedoAndMpo() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Baseline Robot coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		NormalTask selected = createTask();
+		Project project = selected.getOwningProject();
+		NormalTask other = project.createScriptedTask();
+		other.setName("Baseline 1 unselected peer");
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		selected.setDuration(day);
+		other.setDuration(day);
+		selected.setFixedCost(10.0d);
+		other.setFixedCost(70.0d);
+		project.recalculate();
+		project.saveCurrentToSnapshot(Snapshottable.BASELINE, true, null);
+		long selectedBaselineZero = selected.getBaselineStart(Snapshottable.BASELINE);
+		long otherBaselineZero = other.getBaselineStart(Snapshottable.BASELINE);
+		long oldSelectedOne = project.getEffectiveWorkCalendar().add(selected.getStart(), day, false);
+		long oldOtherOne = project.getEffectiveWorkCalendar().add(other.getStart(), 2L * day, false);
+		selected.setStart(oldSelectedOne);
+		other.setStart(oldOtherOne);
+		project.recalculate();
+		project.saveCurrentToSnapshot(Snapshottable.BASELINE_1, true, null);
+		long oldSelectedBaselineOne = selected.getBaselineStart(Snapshottable.BASELINE_1);
+		long otherBaselineOne = other.getBaselineStart(Snapshottable.BASELINE_1);
+		long recapturedStart = project.getEffectiveWorkCalendar().add(selected.getStart(), day, false);
+		selected.setStart(recapturedStart);
+		project.recalculate();
+		long currentStart = selected.getStart();
+		long currentWork = selected.getWork(null);
+		double currentCost = selected.getCost();
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"Selected-task Baseline 1 project did not become visible");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, selected), nameColumn(sheet)));
+		click(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+			.getString("ProjectRibbonTask.title")));
+		click(robot, findShowingButtonByCommand("RibbonSaveBaseline"));
+		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
+				.anyMatch(candidate -> candidate instanceof BaselineDialog && candidate.isShowing()),
+			"Save Baseline dialog did not open for selected-task recapture");
+		BaselineDialog dialog = java.util.Arrays.stream(Window.getWindows())
+			.filter(candidate -> candidate instanceof BaselineDialog && candidate.isShowing())
+			.map(BaselineDialog.class::cast).findFirst().orElseThrow();
+		JComboBox<?> baselineSelector = UiComponentWalker.flatten(dialog).stream()
+			.filter(JComboBox.class::isInstance).map(JComboBox.class::cast).findFirst().orElseThrow();
+		GuiAcceptanceSupport.selectComboBoxItem(robot, baselineSelector, Snapshottable.BASELINE_1);
+		AbstractButton selectedTasks = findShowingButtonByText(dialog, Messages.getString("Text.SelectedTasks"));
+		click(robot, selectedTasks);
+		assertEquals(Snapshottable.BASELINE_1.intValue(), baselineSelector.getSelectedIndex(),
+			"Physical chooser selection must target Baseline 1");
+		assertTrue(selectedTasks.isSelected(), "Physical scope selection must target Selected Tasks");
+		ResourceBundle labels = ResourceBundle.getBundle("com.microproject.dialog.usability");
+		click(robot, findShowingButtonByText(dialog, Messages.getString("ButtonText.OK")));
+		GuiAcceptanceSupport.await(() -> isActiveDialogOwnedBy(dialog, labels.getString("baseline.overwriteTitle")),
+			"Overwriting occupied Baseline 1 must ask for confirmation");
+		click(robot, findShowingButtonByText(activeDialogOwnedBy(dialog), labels.getString("dialog.yes")));
+		GuiAcceptanceSupport.await(() -> !dialog.isShowing()
+				&& selected.getBaselineStart(Snapshottable.BASELINE_1) == recapturedStart,
+			"Confirmed Selected Tasks save did not recapture the selected task");
+		assertEquals(recapturedStart, selected.getBaselineStart(Snapshottable.BASELINE_1));
+		assertEquals(otherBaselineOne, other.getBaselineStart(Snapshottable.BASELINE_1),
+			"Selected Tasks recapture must preserve the non-selected task's Baseline 1");
+		assertEquals(selectedBaselineZero, selected.getBaselineStart(Snapshottable.BASELINE),
+			"Baseline 1 recapture must preserve selected task Baseline 0");
+		assertEquals(otherBaselineZero, other.getBaselineStart(Snapshottable.BASELINE));
+		assertEquals(currentStart, selected.getStart());
+		assertEquals(currentWork, selected.getWork(null));
+		assertEquals(currentCost, selected.getCost(), 0.001d);
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> selected.getBaselineStart(Snapshottable.BASELINE_1) == oldSelectedBaselineOne,
+			"Undo did not restore selected task Baseline 1");
+		assertEquals(otherBaselineOne, other.getBaselineStart(Snapshottable.BASELINE_1));
+		assertEquals(selectedBaselineZero, selected.getBaselineStart(Snapshottable.BASELINE));
+		MpoFileImporter importer = new MpoFileImporter();
+		ByteArrayOutputStream undoBytes = new ByteArrayOutputStream();
+		assertTrue(importer.saveProject(project, undoBytes), "MPO save must accept undone selected-task state");
+		Project undoReload = importer.loadProject(new ByteArrayInputStream(undoBytes.toByteArray()));
+		assertEquals(oldSelectedBaselineOne, taskNamed(undoReload, selected.getName()).getBaselineStart(Snapshottable.BASELINE_1));
+		assertEquals(otherBaselineOne, taskNamed(undoReload, other.getName()).getBaselineStart(Snapshottable.BASELINE_1));
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> selected.getBaselineStart(Snapshottable.BASELINE_1) == recapturedStart,
+			"Redo did not restore selected task Baseline 1");
+		assertEquals(otherBaselineOne, other.getBaselineStart(Snapshottable.BASELINE_1));
+		assertEquals(selectedBaselineZero, selected.getBaselineStart(Snapshottable.BASELINE));
+		assertEquals(currentStart, selected.getStart());
+		assertEquals(currentWork, selected.getWork(null));
+		assertEquals(currentCost, selected.getCost(), 0.001d);
+		ByteArrayOutputStream redoBytes = new ByteArrayOutputStream();
+		assertTrue(importer.saveProject(project, redoBytes), "MPO save must accept redone selected-task state");
+		Project redoReload = importer.loadProject(new ByteArrayInputStream(redoBytes.toByteArray()));
+		assertEquals(recapturedStart, taskNamed(redoReload, selected.getName()).getBaselineStart(Snapshottable.BASELINE_1));
+		assertEquals(otherBaselineOne, taskNamed(redoReload, other.getName()).getBaselineStart(Snapshottable.BASELINE_1));
+		assertEquals(selectedBaselineZero, taskNamed(redoReload, selected.getName()).getBaselineStart(Snapshottable.BASELINE));
+		assertEquals(currentStart, taskNamed(redoReload, selected.getName()).getStart());
+		assertEquals(currentWork, taskNamed(redoReload, selected.getName()).getWork(null));
+		assertEquals(currentCost, taskNamed(redoReload, selected.getName()).getCost(), 0.001d);
+	}
+
+	@Test
 	void clearBaselineRibbonRouteUndoRedoAndMpoRoundTripPreserveCurrentValues() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Clear Baseline Robot coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
@@ -6303,7 +6411,14 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
-		clickUntilSelected(robot, window, sheet, rowForTask(sheet, source), 0);
+		int sourceRow = rowForTask(sheet, source);
+		clickUntilSelected(robot, window, sheet, sourceRow, nameColumn(sheet));
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_SPACE);
+		GuiAcceptanceSupport.await(() -> sheet.isRowHeaderSelectionActive() && sheet.isRowFullySelected(sourceRow),
+			"Ctrl+Space did not dispatch through the root pane to select the active task row");
+		click(robot, cellOnScreen(sheet, sourceRow, nameColumn(sheet)));
+		GuiAcceptanceSupport.await(() -> !sheet.isRowHeaderSelectionActive() && sheetHasOnlySelectedTask(sheet, source),
+			"a physical task-name click did not restore ordinary row selection after Ctrl+Space");
 		AbstractButton painter = findShowingButtonByCommand("RibbonFormatPainter");
 		assertTrue(painter.isEnabled(), "Format Painter must be enabled for one editable task source");
 		robot.keyPress(KeyEvent.VK_SHIFT);
@@ -6370,6 +6485,12 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> secondTarget.isFontBold() && secondTarget.getFontSize() == 15,
 			"continuous Format Painter did not format its first target");
 		assertTrue(painter.isSelected(), "continuous Format Painter must remain armed after a target selection");
+		clickUntilSelected(robot, window, sheet, rowForTask(sheet, source), nameColumn(sheet));
+		press(robot, KeyEvent.VK_F2);
+		GuiAcceptanceSupport.await(sheet::isEditing, "F2 did not open the source cell editor");
+		press(robot, KeyEvent.VK_ESCAPE);
+		GuiAcceptanceSupport.await(() -> !sheet.isEditing(), "Escape did not cancel the active cell editor");
+		assertTrue(painter.isSelected(), "Escape cancelling a cell edit must leave continuous Format Painter armed");
 		clickUntilSelected(robot, window, sheet, rowForTask(sheet, thirdTarget), 0);
 		GuiAcceptanceSupport.await(() -> thirdTarget.isFontBold() && thirdTarget.getFontSize() == 15,
 			"continuous Format Painter did not format its next target");

@@ -35,8 +35,10 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
-import com.microproject.pm.graphic.frames.GraphicManager;
+import com.microproject.document.ObjectEvent;
+import com.microproject.preference.GlobalPreferences;
 import com.microproject.pm.graphic.frames.DocumentFrame;
+import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.pm.graphic.frames.MainRibbonFrame;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.Project;
@@ -224,6 +226,38 @@ class DefaultFrameManagerGuiAcceptanceTest {
 		return frame;
 	}
 
+	@Test
+	void cleanedUpDocumentFrameNoLongerReceivesGlobalPreferenceUpdates() throws Exception {
+		TestDocumentFrame[] frames = new TestDocumentFrame[2];
+		GlobalPreferences[] preferences = new GlobalPreferences[1];
+		JFrame[] oldOwner = new JFrame[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				MainRibbonFrame mainWindow = new MainRibbonFrame("Preference listener lifecycle", null);
+				window = mainWindow;
+				DesktopWindowGraphicManager graphicManager = new DesktopWindowGraphicManager(mainWindow);
+				mainWindow.setGraphicManager(graphicManager);
+				preferences[0] = graphicManager.getPreferences();
+				frames[0] = (TestDocumentFrame) createDocumentFrame(graphicManager, "Preference Old");
+				frames[1] = (TestDocumentFrame) createDocumentFrame(graphicManager, "Preference Live");
+				oldOwner[0] = new JFrame("Closed document owner");
+				oldOwner[0].setContentPane(frames[0]);
+				frames[0].callbackCount = 0;
+				frames[1].callbackCount = 0;
+				frames[0].cleanUp();
+				oldOwner[0].dispose();
+				preferences[0].fireUpdateEvent(this, preferences[0]);
+			});
+			SwingUtilities.invokeAndWait(() -> {
+				assertEquals(0, frames[0].callbackCount, "cleaned-up document must be removed from global preference listeners");
+				assertEquals(1, frames[1].callbackCount, "the live document must receive the preference update once");
+			});
+		} finally {
+			if (frames[1] != null) SwingUtilities.invokeAndWait(frames[1]::cleanUp);
+			if (oldOwner[0] != null) SwingUtilities.invokeAndWait(oldOwner[0]::dispose);
+		}
+	}
+
 	private static final class DesktopWindowGraphicManager extends GraphicManager {
 		private DocumentFrame currentFrame;
 
@@ -243,6 +277,7 @@ class DefaultFrameManagerGuiAcceptanceTest {
 
 	private static final class TestDocumentFrame extends DocumentFrame {
 		private static final long serialVersionUID = 1L;
+		private int callbackCount;
 
 		TestDocumentFrame(GraphicManager manager, Project project, String id) {
 			super(manager, project, id);
@@ -253,6 +288,10 @@ class DefaultFrameManagerGuiAcceptanceTest {
 
 		@Override public void activateGanttView() {
 			// The window-management test deliberately does not construct a full ribbon toolbar.
+		}
+
+		@Override public void objectChanged(ObjectEvent event) {
+			callbackCount++;
 		}
 	}
 

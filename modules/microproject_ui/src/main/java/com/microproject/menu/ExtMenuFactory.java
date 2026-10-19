@@ -31,7 +31,9 @@ import java.util.ResourceBundle;
 
 import javax.swing.Action;
 import javax.swing.ImageIcon;
+import javax.swing.InputMap;
 import javax.swing.JMenuItem;
+import javax.swing.KeyStroke;
 
 import com.microproject.menu.resource.MenuFactory;
 import com.microproject.menu.resource.MissingListenerException;
@@ -47,6 +49,7 @@ public class ExtMenuFactory extends MenuFactory {
 	public final static String ICON_SUFFIX        = ".icon";
     public final static String ACTION_SUFFIX      = ".action";
     private final ProjectMenuActionMap actions;
+	private InputMap documentShortcuts;
 	/**
 	 * @param rb
 	 * @param am
@@ -54,6 +57,10 @@ public class ExtMenuFactory extends MenuFactory {
 	ExtMenuFactory(ProjectMenuActionMap actionMap, ResourceBundle...rb) {
 		super(new BatikActionMapAdapter(actionMap), rb);
 		actions = actionMap;
+	}
+
+	void setDocumentShortcuts(InputMap inputMap) {
+		documentShortcuts = inputMap;
 	}
 	
 	JMenuItem getMenuItemFromId(String id) {
@@ -83,6 +90,10 @@ public class ExtMenuFactory extends MenuFactory {
 		throws ResourceFormatException,
 	       MissingListenerException {
     	super.initializeJMenuItem(item,name);
+		KeyStroke accelerator = item.getAccelerator();
+		if (accelerator != null && hasDocumentShortcut(accelerator)) {
+			item.setAccelerator(null);
+		}
     	String actionName = getActionStringFromId(name);
     	if (actionName != null)
     		menuItems.put(actionName,item);
@@ -94,7 +105,20 @@ public class ExtMenuFactory extends MenuFactory {
 		    	item.setIcon(icon);
 		} catch (MissingResourceException e) {
 		}
-    }
+	}
+
+	private boolean hasDocumentShortcut(KeyStroke accelerator) {
+		if (documentShortcuts == null)
+			return false;
+		KeyStroke[] owned = documentShortcuts.keys();
+		if (owned == null)
+			return false;
+		for (KeyStroke key : owned) {
+			if (accelerator.equals(key))
+				return true;
+		}
+		return false;
+	}
     
 
     public Action getActionFromId(String id) {

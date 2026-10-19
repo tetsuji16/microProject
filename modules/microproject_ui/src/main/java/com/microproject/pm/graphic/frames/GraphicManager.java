@@ -4745,13 +4745,17 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
     }
     
     public void setToolBarAndMenus(final Container contentPane) {
+		MenuManager documentMenuManager = getMenuManager();
+		installDocumentShortcuts((RootPaneContainer) container);
+		documentMenuManager.setDocumentShortcuts(((RootPaneContainer) container).getRootPane()
+			.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW));
     	if (Environment.isRibbonUI()){
-			MicroProjectShell.installRibbonShell((MainRibbonFrame) container, getMenuManager(), this::showHelpDialog,
+			MicroProjectShell.installRibbonShell((MainRibbonFrame) container, documentMenuManager, this::showHelpDialog,
 				autoRecoveryManager);
     	} else if (Environment.isNewLook()) {
 			MicroProjectShell.ShellHandles handles = MicroProjectShell.installNewLookShell(
 				contentPane,
-				getMenuManager(),
+				documentMenuManager,
 				getLafManager(),
 				getFrameManager(),
 				isApplet(),
@@ -4764,15 +4768,13 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		} else {
 			MicroProjectShell.ShellHandles handles = MicroProjectShell.installClassicShell(
 				contentPane,
-				getMenuManager(),
+				documentMenuManager,
 				Environment.getStandAlone(),
 				Environment.isMac(),
 				menuBar -> ((JFrame) container).setJMenuBar(menuBar));
 			filterToolBarManager = handles.getFilterToolBarManager();
 			projectListMenu = handles.getProjectListMenu();
 		}
-
-		installDocumentShortcuts((RootPaneContainer) container);
     }
 
 	/** Installs this document manager's shortcuts on one native document window. */
@@ -4896,8 +4898,14 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				private static final long serialVersionUID = 1L;
 				@Override public void actionPerformed(ActionEvent event) {
 					DocumentFrame activeFrame = getCurrentFrame();
-					if (activeFrame != null)
-						activeFrame.cancelFormatPainter();
+					if (activeFrame == null)
+						return;
+					SpreadSheet sheet = activeFrame.getActiveSpreadSheet();
+					if (sheet != null && sheet.isEditing()) {
+						sheet.getCellEditor().cancelCellEditing();
+						return;
+					}
+					activeFrame.cancelFormatPainter();
 				}
 			});
 		putShortcut(inputMap, actionMap,

@@ -42,6 +42,7 @@ import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JToolBar;
+import javax.swing.InputMap;
 
 import org.pushingpixels.flamingo.api.common.RichTooltip;
 import org.pushingpixels.flamingo.api.common.AbstractCommandButton;
@@ -101,6 +102,10 @@ public class MenuManager {
 
 	public static MenuManager getInstance(ProjectMenuActionMap rootActionMap) {
 		return new MenuManager(rootActionMap);
+	}
+
+	public void setDocumentShortcuts(InputMap inputMap) {
+		menuFactory.setDocumentShortcuts(inputMap);
 	}
 
 	public JMenuBar getMenu(String name) {

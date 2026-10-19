@@ -155,6 +155,11 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		// can dispatch EditField, so it may edit a different field than the clicked
 		// cell. F2 is registered exclusively by GraphicManager on the root pane.
 		removeAncestorShortcut(KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0));
+		// The document root pane gives Escape priority to cancelling an active
+		// sheet editor, then to stopping Format Painter. ETable's enabled ancestor
+		// cancel action would consume Escape before that document command.
+		removeAncestorShortcut(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0));
+		removeRootPaneShortcutDuplicates(this);
 		// ETable can also consume MSP's outline shortcuts from this ancestor map
 		// while a cell editor owns focus. The document root pane is the sole
 		// registration layer for these commands.
@@ -172,6 +177,20 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 	private void removeAncestorShortcut(KeyStroke shortcut) {
 		setInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT,
 			copyInputMapWithout(getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT), shortcut));
+	}
+
+	/** Removes spreadsheet-level copies of document shortcuts from both local maps. */
+	protected static void removeRootPaneShortcutDuplicates(JComponent component) {
+		KeyStroke[] shortcuts = {KeyStroke.getKeyStroke("ctrl V"), KeyStroke.getKeyStroke("ctrl C"),
+			KeyStroke.getKeyStroke("ctrl X"),
+			KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, java.awt.event.InputEvent.CTRL_DOWN_MASK),
+			KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, java.awt.event.InputEvent.SHIFT_DOWN_MASK),
+			KeyStroke.getKeyStroke(KeyEvent.VK_SPACE,
+					java.awt.event.InputEvent.CTRL_DOWN_MASK | java.awt.event.InputEvent.SHIFT_DOWN_MASK)};
+		for (int condition : new int[] {JComponent.WHEN_FOCUSED,
+				JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT}) {
+			component.setInputMap(condition, copyInputMapWithout(component.getInputMap(condition), shortcuts));
+		}
 	}
 
 	private static InputMap copyInputMapWithout(InputMap source, KeyStroke... shortcuts) {
@@ -663,7 +682,16 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 	}
 
 	private void reconvert(JTextComponent text) {
-		ImeTextInputSupport.reconvert(text);
+		if (ImeTextInputSupport.reconvert(text) == ImeTextInputSupport.ReconversionResult.UNSUPPORTED)
+			reportImeUnsupported(com.microproject.dialog.UsabilityStrings.text("spreadsheet.imeReconversionUnsupported"));
+	}
+
+	public void reportImeUnsupported(String message) {
+		java.awt.Component parent = this;
+		while (parent != null && !(parent instanceof com.microproject.pm.graphic.frames.DocumentFrame))
+			parent = parent.getParent();
+		if (parent instanceof com.microproject.pm.graphic.frames.DocumentFrame frame)
+			frame.showStatusMessage(message);
 	}
 
 	private boolean shouldClearFieldOnTypedDigit(int row, int column, char typedChar) {

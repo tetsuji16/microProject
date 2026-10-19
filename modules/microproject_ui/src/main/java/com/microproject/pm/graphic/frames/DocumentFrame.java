@@ -2054,6 +2054,10 @@ public class DocumentFrame extends NamedFrame implements
 		return (SpreadSheet) ss;
 	}
 
+	public void showStatusMessage(String message) {
+		statusBar.setMessage(message);
+	}
+
 	/**
 	 * @return Returns the topSpreadSheet.
 	 */

@@ -307,6 +307,81 @@ class GanttBarDateDragGuiAcceptanceTest {
 		assertEquals(initialEnd[0], fixture.predecessor.getEnd(), "spreadsheet-focused zoom changed the task end date");
 	}
 
+	@Test
+	void robotCtrlNumpadZoomIsNoOpWhenResourceViewIsActive() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		environmentCaptured = true;
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		Fixture fixture = createFixture(DependencyType.FS, false);
+		DocumentFrame[] document = new DocumentFrame[1];
+		SwingUtilities.invokeAndWait(() -> {
+			projectWindow = new MainRibbonFrame("Non-Gantt keypad zoom GUI acceptance", null);
+			projectManager = new GraphicManager(projectWindow);
+			projectWindow.setGraphicManager(projectManager);
+			projectManager.initView();
+			document[0] = projectManager.addProjectFrame(fixture.project);
+			projectWindow.setSize(1050, 650);
+			projectWindow.setLocationByPlatform(true);
+			projectWindow.setAlwaysOnTop(true);
+			projectWindow.setVisible(true);
+			document[0].activateGanttView();
+		});
+		GuiAcceptanceSupport.await(() -> projectWindow.isShowing() && document[0].isShowing(),
+			"project window did not become visible");
+		GanttView[] ganttView = new GanttView[1];
+		Point[] ganttViewportPosition = new Point[1];
+		int[] scale = new int[1];
+		long[] start = new long[1];
+		long[] end = new long[1];
+		long[] successorStart = new long[1];
+		long[] successorEnd = new long[1];
+		SwingUtilities.invokeAndWait(() -> {
+			ganttView[0] = (GanttView) document[0].getActiveTopView();
+			javax.swing.JViewport viewport = (javax.swing.JViewport) SwingUtilities.getAncestorOfClass(
+				javax.swing.JViewport.class, ganttView[0].getGantt());
+			assertTrue(viewport != null, "Gantt must have a viewport before switching views");
+			ganttViewportPosition[0] = viewport.getViewPosition();
+			scale[0] = ganttView[0].getScale();
+			start[0] = fixture.predecessor.getStart();
+			end[0] = fixture.predecessor.getEnd();
+			successorStart[0] = fixture.successor.getStart();
+			successorEnd[0] = fixture.successor.getEnd();
+			document[0].activateResourceView();
+			assertTrue(document[0].getActiveTopView() instanceof ResourceView,
+				"Resource View must be the active non-Gantt view before keypad input");
+		});
+		GuiAcceptanceSupport.await(() -> document[0].getResourceView().getSpreadSheet().isShowing(),
+			"Resource View spreadsheet did not become visible");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(40);
+		projectWindow.toFront();
+		projectWindow.requestFocus();
+		robot.delay(250);
+		for (int key : new int[] { KeyEvent.VK_DIVIDE, KeyEvent.VK_MULTIPLY }) {
+			robot.keyPress(KeyEvent.VK_CONTROL);
+			robot.keyPress(key);
+			robot.keyRelease(key);
+			robot.keyRelease(KeyEvent.VK_CONTROL);
+			robot.waitForIdle();
+		}
+		SwingUtilities.invokeAndWait(() -> {
+			assertTrue(document[0].getActiveTopView() instanceof ResourceView,
+				"keypad input must not switch away from Resource View");
+			assertEquals(scale[0], ganttView[0].getScale(), "non-Gantt keypad zoom changed the Gantt scale");
+			javax.swing.JViewport viewport = (javax.swing.JViewport) SwingUtilities.getAncestorOfClass(
+				javax.swing.JViewport.class, ganttView[0].getGantt());
+			assertEquals(ganttViewportPosition[0], viewport.getViewPosition(),
+				"non-Gantt keypad zoom changed the hidden Gantt viewport");
+			assertEquals(start[0], fixture.predecessor.getStart(), "non-Gantt keypad zoom changed predecessor start");
+			assertEquals(end[0], fixture.predecessor.getEnd(), "non-Gantt keypad zoom changed predecessor end");
+			assertEquals(successorStart[0], fixture.successor.getStart(), "non-Gantt keypad zoom changed successor start");
+			assertEquals(successorEnd[0], fixture.successor.getEnd(), "non-Gantt keypad zoom changed successor end");
+		});
+	}
+
 	private void assertViewportPositionsUnchanged(GanttView view, Point expectedTablePosition, int expectedGanttY)
 			throws Exception {
 		Point[] tablePosition = new Point[1];

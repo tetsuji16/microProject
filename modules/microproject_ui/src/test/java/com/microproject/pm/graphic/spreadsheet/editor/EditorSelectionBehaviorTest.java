@@ -34,6 +34,8 @@ import java.awt.event.InputMethodListener;
 import java.awt.event.KeyEvent;
 import java.text.AttributedString;
 import java.text.SimpleDateFormat;
+import java.awt.im.InputContext;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.swing.DefaultCellEditor;
 import javax.swing.Action;
@@ -124,8 +126,27 @@ class EditorSelectionBehaviorTest {
 			assertEquals("spreadsheet.imeReconvert", actionKey);
 			Action action = field.getActionMap().get(actionKey);
 			assertNotNull(action);
+			AtomicReference<String> status = new AtomicReference<>();
+			ImeTextInputSupport.installReconversionAction(field, () -> null, status::set);
+			action = field.getActionMap().get(actionKey);
 			action.actionPerformed(new java.awt.event.ActionEvent(field, java.awt.event.ActionEvent.ACTION_PERFORMED, "convert"));
+			ImeTextInputSupport.ReconversionResult result = ImeTextInputSupport.reconvert(field, () -> null);
 
+			assertEquals(ImeTextInputSupport.ReconversionResult.UNSUPPORTED, result);
+			assertEquals(com.microproject.dialog.UsabilityStrings.text("spreadsheet.imeReconversionUnsupported"), status.get());
+			assertEquals("確定済みの文字", field.getText());
+			assertEquals("済みの", field.getSelectedText());
+
+			InputContext throwingContext = new InputContext() {
+				@Override public void reconvert() { throw new UnsupportedOperationException(); }
+			};
+			ImeTextInputSupport.installReconversionAction(field, () -> throwingContext, status::set);
+			field.getActionMap().get(actionKey).actionPerformed(new java.awt.event.ActionEvent(field,
+					java.awt.event.ActionEvent.ACTION_PERFORMED, "convert"));
+			assertEquals(ImeTextInputSupport.ReconversionResult.UNSUPPORTED,
+				ImeTextInputSupport.reconvert(field, () -> throwingContext));
+			assertEquals(com.microproject.dialog.UsabilityStrings.text("spreadsheet.imeReconversionUnsupported"), status.get());
+			assertEquals("確定済みの文字", field.getText());
 			assertEquals("済みの", field.getSelectedText());
 		});
 	}

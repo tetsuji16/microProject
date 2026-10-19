@@ -17,18 +17,16 @@ import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.event.KeyEvent;
 import java.util.Calendar;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 import java.awt.event.InputEvent;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 
-import javax.swing.AbstractAction;
-import javax.swing.ActionMap;
-import javax.swing.JFrame;
-import javax.swing.JComponent;
 import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JSplitPane;
-import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import javax.swing.text.JTextComponent;
 
@@ -47,18 +45,29 @@ import com.microproject.graphic.configuration.SpreadSheetCategories;
 import com.microproject.configuration.Dictionary;
 import com.microproject.graphic.configuration.BarStyles;
 import com.microproject.pm.graphic.gantt.Gantt;
+import com.microproject.pm.graphic.frames.GraphicManager;
+import com.microproject.pm.graphic.frames.MainRibbonFrame;
+import com.microproject.menu.MenuActionConstants;
 import com.microproject.grouping.core.Node;
 import com.microproject.pm.graphic.timescale.CoordinatesConverter;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
+import com.microproject.pm.graphic.model.cache.GraphicNode;
+import com.microproject.pm.graphic.model.cache.RevisionedProjectionIndex;
+import com.microproject.pm.graphic.model.transform.NodeCacheTransformer;
+import com.microproject.grouping.core.transform.ViewTransformer;
+import com.microproject.grouping.core.transform.sorting.TaskSortSpec;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetUtils;
+import com.microproject.pm.graphic.spreadsheet.renderer.NameCellComponent;
+import com.microproject.ribbon.RibbonCommandResult;
 import com.microproject.pm.graphic.spreadsheet.editor.DateEditor;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectFactory;
+import com.microproject.pm.task.Task;
 import com.microproject.exchange.MpoFileImporter;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.undo.DataFactoryUndoController;
@@ -66,14 +75,17 @@ import com.microproject.util.DateTime;
 
 /** U-26 physical multi-character spreadsheet input transaction coverage. */
 class U26SpreadsheetInputTransactionGuiAcceptanceTest {
-	private JFrame frame;
+	private MainRibbonFrame frame;
+	private GraphicManager graphicManager;
 	private JTabbedPane tabs;
 
 	@AfterEach
 	void closeWindow() throws Exception {
 		if (frame != null) SwingUtilities.invokeAndWait(() -> {
+			if (graphicManager != null) graphicManager.cleanUp();
 			frame.dispose();
 			frame = null;
+			graphicManager = null;
 		});
 	}
 
@@ -99,7 +111,8 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 			((SpreadSheetModel) fixture.entrySheet.getModel()).getFieldContext()),
 			"the committed duration cell must render using the owning project's Hours default");
 
-		editWithPhysicalKeys(robot, fixture.entrySheet, fixture.entryRow, fixture.startColumn, "2026/9/25");
+		editWithPhysicalKeys(robot, fixture.entrySheet, fixture.entryRow, fixture.startColumn, "2026/9/25", null,
+			KeyEvent.VK_ENTER, false);
 		Calendar committedStart = DateTime.calendarInstance();
 		committedStart.setTimeInMillis(fixture.task.getStart());
 		int startModelColumn = fixture.entrySheet.convertColumnIndexToModel(fixture.startColumn);
@@ -118,12 +131,32 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 
 		SwingUtilities.invokeAndWait(() -> tabs.setSelectedIndex(1));
 		activate(fixture.trackingSheet, robot);
-		typePercentFromFirstPhysicalKey(robot, fixture.trackingSheet, fixture.trackingRow,
+		List<Long> selectedTaskIdsBeforeTyping = typePercentFromFirstPhysicalKey(robot, fixture.trackingSheet, fixture.trackingRow,
 			fixture.percentColumn, "10");
+		RibbonCommandResult ribbonOutcome = graphicManager.getLastRibbonCommandResult();
+		assertTrue(ribbonOutcome != null, "physical cell edit must publish through the active application GraphicManager");
+		assertEquals("SpreadsheetCellEdit", ribbonOutcome.commandId());
+		assertEquals(RibbonCommandResult.Status.CHANGED, ribbonOutcome.status());
+		assertEquals(selectedTaskIdsBeforeTyping, ribbonOutcome.selectedTaskIds(),
+			"the physical cell edit must publish the selection scope observed immediately before typing");
+		assertEquals(java.util.List.of(fixture.task.getUniqueId()), ribbonOutcome.affectedTaskIds());
+		assertEquals(graphicManager.getTopViewId(), ribbonOutcome.activeViewId(),
+			"cell edit outcome must identify the actual document frame's active top view");
+		assertEquals(1, selectedTabIndex(), "the tracking tab must remain the active view after field commit");
 		assertEquals(0.10d, fixture.task.getPercentComplete(), 0.00001d,
 			"physical multi-character percent input must commit the complete value");
 		assertEquals("10%", renderedCellText(fixture.trackingSheet, fixture.trackingRow, fixture.percentColumn),
 			"the committed progress value must render as 10% in the selected task cell");
+		SwingUtilities.invokeAndWait(() -> fixture.task.getProject().getUndoController().undo());
+		assertEquals(0.0d, fixture.task.getPercentComplete(), 0.00001d,
+			"Undo must restore the progress model value before later progress edits");
+		assertEquals("0%", renderedCellText(fixture.trackingSheet, fixture.trackingRow, fixture.percentColumn),
+			"Undo must restore the rendered tracking cell value");
+		SwingUtilities.invokeAndWait(() -> fixture.task.getProject().getUndoController().redo());
+		assertEquals(0.10d, fixture.task.getPercentComplete(), 0.00001d,
+			"Redo must restore the progress model value before later progress edits");
+		assertEquals("10%", renderedCellText(fixture.trackingSheet, fixture.trackingRow, fixture.percentColumn),
+			"Redo must restore the rendered tracking cell value");
 
 		assertTrue(fixture.task.getRemainingDuration() > 0L, "10% progress must leave a positive remaining duration");
 		assertEquals(DurationFormat.getProjectInstance().format(new Duration(fixture.task.getRemainingDuration()),
@@ -233,37 +266,240 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 
 	}
 
+	@Test
+	void robotFirstKeyEditsStableTaskThroughFilteredGroupedSortedProjection() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(),
+			"A desktop session is required for U-26 physical input coverage.");
+		Fixture fixture = createFixture();
+		Project project = fixture.task.getProject();
+		NormalTask target = fixture.task;
+		target.setName("Alpha short");
+		target.setDuration(Duration.getInstance(1.0D, TimeUnit.DAYS, project.getDurationDefaults()));
+		NormalTask zulu = project.createScriptedTask();
+		zulu.setName("Zulu short");
+		zulu.setDuration(Duration.getInstance(1.0D, TimeUnit.DAYS, project.getDurationDefaults()));
+		NormalTask bravo = project.createScriptedTask();
+		bravo.setName("Bravo long");
+		bravo.setDuration(Duration.getInstance(2.0D, TimeUnit.DAYS, project.getDurationDefaults()));
+		NormalTask completed = project.createScriptedTask();
+		completed.setName("Hidden complete");
+		completed.setDuration(Duration.getInstance(1.0D, TimeUnit.DAYS, project.getDurationDefaults()));
+		completed.setPercentComplete(1.0d);
+		List<Task> modelOrder = List.copyOf(project.getTaskList());
+		SwingUtilities.invokeAndWait(() -> {
+			configureProjection(((SpreadSheetModel) fixture.entrySheet.getModel()).getCache());
+			configureProjection(((SpreadSheetModel) fixture.trackingSheet.getModel()).getCache());
+			((SpreadSheetModel) fixture.entrySheet.getModel()).getCache().update();
+			((SpreadSheetModel) fixture.trackingSheet.getModel()).getCache().update();
+			fixture.entrySheet.revalidate();
+			fixture.trackingSheet.revalidate();
+			fixture.gantt.setCache(((SpreadSheetModel) fixture.entrySheet.getModel()).getCache());
+			fixture.gantt.updateSize();
+		});
+		showFixture(fixture);
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(35);
+		SwingUtilities.invokeAndWait(() -> tabs.setSelectedIndex(1));
+		activate(fixture.trackingSheet, robot);
+		int targetRow = findTaskRow(fixture.trackingSheet, target);
+		List<String> projectedNames = visibleTaskNames(((SpreadSheetModel) fixture.trackingSheet.getModel()).getCache());
+		assertEquals(List.of("Bravo long", "Alpha short", "Zulu short"), projectedNames,
+			"the physical fixture must keep duration buckets and sort names within each bucket");
+		assertTrue(!visibleTaskNames(((SpreadSheetModel) fixture.trackingSheet.getModel()).getCache())
+			.contains("Hidden complete"), "the incomplete-task filter must hide completed tasks");
+		Node targetNode = (Node) project.getTaskModel().search(target);
+		long stableId = target.getUniqueId();
+		long originalDuration = target.getDuration();
+		long originalStart = target.getStart();
+		String originalName = target.getName();
+		long durationBeforeProjectionStartEdit = target.getDuration();
+		double percentBeforeProjectionStartEdit = target.getPercentComplete();
+		long zuluStartBeforeProjectionEdit = zulu.getStart();
+		long bravoStartBeforeProjectionEdit = bravo.getStart();
+		int startColumn = findColumn(fixture.entrySheet, "Field.start");
+		int visibleStartRow = findTaskRow(fixture.entrySheet, target);
+		assertEquals(stableId, taskIdAtVisibleRow(fixture.entrySheet, visibleStartRow),
+			"the physical Start edit target must be resolved from its visible row stable ID");
+		SwingUtilities.invokeAndWait(() -> tabs.setSelectedIndex(0));
+		activate(fixture.entrySheet, robot);
+		editWithPhysicalKeys(robot, fixture.entrySheet, visibleStartRow, startColumn, "2026/9/25", null,
+			KeyEvent.VK_TAB, true);
+		Calendar committedStart = DateTime.calendarInstance();
+		committedStart.setTimeInMillis(target.getStart());
+		assertEquals(2026, committedStart.get(Calendar.YEAR));
+		assertEquals(Calendar.SEPTEMBER, committedStart.get(Calendar.MONTH));
+		assertEquals(25, committedStart.get(Calendar.DAY_OF_MONTH),
+			"physical Start input must commit the exact date to the stable projected task");
+		assertEquals(stableId, selectedStableTaskId(fixture.entrySheet),
+			"the selected task identity must survive redraw after the Start edit");
+		int committedStartRow = findTaskRow(fixture.entrySheet, target);
+		assertEquals(stableId, taskIdAtVisibleRow(fixture.entrySheet, committedStartRow));
+		int startModelColumn = fixture.entrySheet.convertColumnIndexToModel(startColumn);
+		Field startField = ((SpreadSheetModel) fixture.entrySheet.getModel()).getFieldInColumn(startModelColumn);
+		assertEquals(startField.getText(target,
+			((SpreadSheetModel) fixture.entrySheet.getModel()).getFieldContext()),
+			renderedCellText(fixture.entrySheet, committedStartRow, startColumn),
+			"the committed date must be rendered in the Start cell after redraw");
+		int startTableProjectionRow = ((SpreadSheetModel) fixture.entrySheet.getModel()).getCache()
+			.getVisibleNodes().getProjectionIndex().rowForNode((GraphicNode)
+				((SpreadSheetModel) fixture.entrySheet.getModel()).getCache().getGraphicNode(targetNode));
+		int startGanttProjectionRow = fixture.gantt.getModel().getCache().getVisibleNodes().getProjectionIndex()
+			.rowForNode((GraphicNode) fixture.gantt.getModel().getCache().getGraphicNode(targetNode));
+		assertEquals(committedStartRow, startTableProjectionRow);
+		assertEquals(startTableProjectionRow, startGanttProjectionRow,
+			"table and Gantt must map the Start-edited task to the same projection row");
+		assertEquals(zuluStartBeforeProjectionEdit, zulu.getStart(), "editing Start must preserve unrelated task values");
+		assertEquals(bravoStartBeforeProjectionEdit, bravo.getStart(), "editing Start must preserve unrelated task values");
+		assertEquals(durationBeforeProjectionStartEdit, target.getDuration());
+		assertEquals(percentBeforeProjectionStartEdit, target.getPercentComplete(), 0.00001d);
+		assertEquals("Bravo long", bravo.getName());
+		assertEquals("Zulu short", zulu.getName());
+		assertEquals("Hidden complete", completed.getName());
+		SwingUtilities.invokeAndWait(() -> project.getUndoController().undo());
+		assertEquals(originalStart, target.getStart(), "Undo must restore the projected task Start");
+		assertEquals(startField.getText(target,
+			((SpreadSheetModel) fixture.entrySheet.getModel()).getFieldContext()),
+			renderedCellText(fixture.entrySheet, findTaskRow(fixture.entrySheet, target), startColumn));
+		SwingUtilities.invokeAndWait(() -> project.getUndoController().redo());
+		Calendar redoneStart = DateTime.calendarInstance();
+		redoneStart.setTimeInMillis(target.getStart());
+		assertEquals(25, redoneStart.get(Calendar.DAY_OF_MONTH), "Redo must restore the projected Start date");
+		long committedProjectionStart = target.getStart();
+		SwingUtilities.invokeAndWait(() -> tabs.setSelectedIndex(1));
+		activate(fixture.trackingSheet, robot);
+
+		List<Long> selectedBefore = typePercentFromFirstPhysicalKey(robot, fixture.trackingSheet, targetRow,
+			fixture.percentColumn, "25", KeyEvent.VK_TAB, true);
+		assertEquals(List.of(stableId), selectedBefore,
+			"the physical click on the sorted visible row must resolve to the intended stable task");
+		RibbonCommandResult outcome = graphicManager.getLastRibbonCommandResult();
+		assertEquals("SpreadsheetCellEdit", outcome.commandId());
+		assertEquals(RibbonCommandResult.Status.CHANGED, outcome.status());
+		assertEquals(List.of(stableId), outcome.selectedTaskIds());
+		assertEquals(List.of(stableId), outcome.affectedTaskIds());
+		assertEquals(graphicManager.getTopViewId(), outcome.activeViewId());
+		assertEquals(0.25d, target.getPercentComplete(), 0.00001d);
+		assertEquals(originalName, target.getName());
+		assertEquals(originalDuration, target.getDuration());
+		assertEquals(committedProjectionStart, target.getStart(),
+			"progress edit must preserve the Start date committed before work began");
+		assertEquals(modelOrder, project.getTaskList(), "view projection and input must preserve project outline order");
+		assertEquals(List.of("Bravo long", "Alpha short", "Zulu short"), projectedNames,
+			"editing progress must leave the visible grouped and sorted task order stable");
+		assertEquals(stableId, selectedStableTaskId(fixture.trackingSheet),
+			"the selected task identity must survive redraw after commit");
+		assertEquals(targetRow, findTaskRow(fixture.trackingSheet, target),
+			"the task must remain at its correct sorted table row after redraw");
+		int tableProjectionRow = ((SpreadSheetModel) fixture.trackingSheet.getModel()).getCache()
+			.getVisibleNodes().getProjectionIndex().rowForNode(
+				(GraphicNode) ((SpreadSheetModel) fixture.trackingSheet.getModel()).getCache().getGraphicNode(targetNode));
+		int ganttProjectionRow = fixture.gantt.getModel().getCache().getVisibleNodes().getProjectionIndex()
+			.rowForNode((GraphicNode) fixture.gantt.getModel().getCache().getGraphicNode(targetNode));
+		assertEquals(targetRow, tableProjectionRow, "table row must map through the visible projection");
+		assertEquals(tableProjectionRow, ganttProjectionRow,
+			"table and Gantt must resolve the stable task to the same visible projection row");
+		assertEquals("25%", renderedCellText(fixture.trackingSheet, targetRow, fixture.percentColumn));
+
+		int nameColumn = findColumn(fixture.trackingSheet, "Field.name");
+		int visibleRowById = findTaskRow(fixture.trackingSheet, target);
+		assertEquals(stableId, taskIdAtVisibleRow(fixture.trackingSheet, visibleRowById),
+			"the physical name edit target must be resolved from its visible row stable ID");
+		List<Long> nameSelection = typePercentFromFirstPhysicalKey(robot, fixture.trackingSheet,
+			visibleRowById, nameColumn, "Aardvark short", KeyEvent.VK_TAB, true);
+		assertEquals(List.of(stableId), nameSelection);
+		RibbonCommandResult nameOutcome = graphicManager.getLastRibbonCommandResult();
+		assertEquals("SpreadsheetCellEdit", nameOutcome.commandId());
+		assertEquals(RibbonCommandResult.Status.CHANGED, nameOutcome.status());
+		assertEquals(List.of(stableId), nameOutcome.selectedTaskIds());
+		assertEquals(List.of(stableId), nameOutcome.affectedTaskIds());
+		assertEquals("Aardvark short", target.getName(), "the physical Name edit must commit to the intended task");
+		assertEquals(committedProjectionStart, target.getStart(), "the physical Name edit must not change the task start");
+		assertEquals(originalDuration, target.getDuration(), "the physical Name edit must not change task duration");
+		assertEquals(0.25d, target.getPercentComplete(), 0.00001d,
+			"the physical Name edit must not change progress committed by the earlier transaction");
+		assertEquals("Aardvark short", renderedCellText(fixture.trackingSheet,
+			findTaskRow(fixture.trackingSheet, target), nameColumn));
+		assertEquals(stableId, selectedStableTaskId(fixture.trackingSheet),
+			"the selected stable task identity must survive the sort reorder after redraw");
+		int renamedRow = findTaskRow(fixture.trackingSheet, target);
+		assertEquals(renamedRow, fixture.gantt.getModel().getCache().getVisibleNodes().getProjectionIndex()
+			.rowForNode((GraphicNode) fixture.gantt.getModel().getCache().getGraphicNode(targetNode)),
+			"table and Gantt must remain aligned after the edited name changes sort position");
+		assertEquals(List.of("Bravo long", "Aardvark short", "Zulu short"),
+			visibleTaskNames(((SpreadSheetModel) fixture.trackingSheet.getModel()).getCache()));
+		assertEquals("Zulu short", zulu.getName(), "editing the projected task must not mutate another task");
+		assertEquals("Bravo long", bravo.getName(), "editing the projected task must not mutate another task");
+		SwingUtilities.invokeAndWait(() -> project.getUndoController().undo());
+		assertEquals("Alpha short", target.getName(), "Undo must restore the original task name");
+		assertEquals("Alpha short", renderedCellText(fixture.trackingSheet,
+			findTaskRow(fixture.trackingSheet, target), nameColumn));
+		SwingUtilities.invokeAndWait(() -> project.getUndoController().redo());
+		assertEquals("Aardvark short", target.getName(), "Redo must restore the edited task name");
+		assertEquals("Aardvark short", renderedCellText(fixture.trackingSheet,
+			findTaskRow(fixture.trackingSheet, target), nameColumn));
+
+		ByteArrayOutputStream projectionMpo = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, projectionMpo), "MPO save of projected Start edit must succeed");
+		MpoFileImporter projectionReader = new MpoFileImporter();
+		projectionReader.setProjectFactory(ProjectFactory.getInstance());
+		Project projectionReopened = projectionReader.loadProject(new ByteArrayInputStream(projectionMpo.toByteArray()));
+		assertEquals("Aardvark short", ((NormalTask) projectionReopened.findByUniqueId(stableId)).getName(),
+			"MPO reload must retain the physical Name edit on the same stable task");
+		NormalTask reopenedTarget = (NormalTask) projectionReopened.findByUniqueId(stableId);
+		Calendar reopenedStart = DateTime.calendarInstance();
+		reopenedStart.setTimeInMillis(reopenedTarget.getStart());
+		assertEquals(2026, reopenedStart.get(Calendar.YEAR));
+		assertEquals(Calendar.SEPTEMBER, reopenedStart.get(Calendar.MONTH));
+		assertEquals(25, reopenedStart.get(Calendar.DAY_OF_MONTH),
+			"MPO reload must retain the physical Start edit on the same stable task");
+	}
+
 	private void showFixture(Fixture fixture) throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
-			frame = new JFrame("U-26 spreadsheet input transaction");
-			JComponent root = frame.getRootPane();
-			root.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0), "EditField");
-			ActionMap actions = root.getActionMap();
-			actions.put("EditField", new AbstractAction() {
-				@Override public void actionPerformed(java.awt.event.ActionEvent event) {
-					fixture.entrySheet.editActiveCell();
-				}
-			});
+			frame = new MainRibbonFrame("microProject — U-26 spreadsheet input transaction", null);
+			graphicManager = new GraphicManager(frame);
+			frame.setGraphicManager(graphicManager);
+			graphicManager.initView();
+			graphicManager.addProjectFrame(fixture.task.getProject());
 			tabs = new JTabbedPane();
 			tabs.addTab("Entry", new JScrollPane(fixture.entrySheet));
 			tabs.addTab("Tracking", new JScrollPane(fixture.trackingSheet));
-			frame.add(new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, tabs, new JScrollPane(fixture.gantt)));
+			tabs.addChangeListener(event -> {
+				if (graphicManager.getCurrentFrame() != null)
+					graphicManager.getCurrentFrame().activateView(tabs.getSelectedIndex() == 0
+						? MenuActionConstants.ACTION_GANTT : MenuActionConstants.ACTION_TRACKING_GANTT);
+			});
+			JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, tabs, new JScrollPane(fixture.gantt));
+			frame.add(split);
 			frame.setPreferredSize(new Dimension(1400, 560));
 			frame.pack();
+			split.setDividerLocation(0.58d);
+			frame.validate();
 			frame.setLocationByPlatform(true);
 			frame.setAlwaysOnTop(true);
 			frame.setVisible(true);
 		});
 	}
 
+	private int selectedTabIndex() throws Exception {
+		int[] selected = new int[1];
+		SwingUtilities.invokeAndWait(() -> selected[0] = tabs.getSelectedIndex());
+		return selected[0];
+	}
+
 	private void activate(SpreadSheet sheet, Robot robot) throws Exception {
-		GuiAcceptanceSupport.await(() -> isSelectedSheetReady(sheet, false),
-			"selected U-26 task table did not finish showing and laying out");
+		awaitSelectedSheetReady(sheet, false);
+		assertTrue(selectedSpreadsheetViewportWidth() >= 500,
+			"selected U-26 spreadsheet viewport must have a usable width of at least 500 px");
 		GuiAcceptanceSupport.activateAndAwaitRenderedWindow(frame, tabs, robot, true,
 			"U-26 spreadsheet window");
 		SwingUtilities.invokeAndWait(sheet::requestFocusInWindow);
-		GuiAcceptanceSupport.await(() -> isSelectedSheetReady(sheet, true),
-			"selected U-26 task table was not laid out, visible, and focused");
+		awaitSelectedSheetReady(sheet, true);
+	}
+
+	private void awaitSelectedSheetReady(SpreadSheet sheet, boolean requireFocus) throws Exception {
+		GuiAcceptanceSupport.await(() -> isSelectedSheetReady(sheet, requireFocus),
+			"selected U-26 task table did not finish showing and laying out");
 	}
 
 	private boolean isSelectedSheetReady(SpreadSheet sheet, boolean requireFocus) {
@@ -280,12 +516,26 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		return ready[0];
 	}
 
-	private void editWithPhysicalKeys(Robot robot, SpreadSheet sheet, int row, int column, String value) throws Exception {
-		editWithPhysicalKeys(robot, sheet, row, column, value, null);
+	private int selectedSpreadsheetViewportWidth() throws Exception {
+		int[] width = new int[1];
+		SwingUtilities.invokeAndWait(() -> {
+			JScrollPane selectedScrollPane = (JScrollPane) tabs.getSelectedComponent();
+			width[0] = selectedScrollPane.getViewport().getExtentSize().width;
+		});
+		return width[0];
 	}
 
-	private void typePercentFromFirstPhysicalKey(Robot robot, SpreadSheet sheet, int row, int column, String value)
+	private void editWithPhysicalKeys(Robot robot, SpreadSheet sheet, int row, int column, String value) throws Exception {
+		editWithPhysicalKeys(robot, sheet, row, column, value, null, KeyEvent.VK_ENTER, false);
+	}
+
+	private List<Long> typePercentFromFirstPhysicalKey(Robot robot, SpreadSheet sheet, int row, int column, String value)
 			throws Exception {
+		return typePercentFromFirstPhysicalKey(robot, sheet, row, column, value, KeyEvent.VK_ENTER, false);
+	}
+
+	private List<Long> typePercentFromFirstPhysicalKey(Robot robot, SpreadSheet sheet, int row, int column, String value,
+			int commitKey, boolean shiftCommit) throws Exception {
 		cellOnScreen(sheet, row, column); // Bring the target into view before measuring its physical position.
 		Rectangle cell = currentCellOnScreen(sheet, row, column);
 		clickCell(robot, cell, 0);
@@ -296,42 +546,67 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 			selected[1] = sheet.getSelection().getActiveColumn();
 		});
 		assertEquals(row, selected[0], "physical click must select the target task row before typing");
-		assertTrue(!sheet.isEditing(), "the progress cell must not already be editing before the first physical key");
+		assertTrue(!sheet.isEditing(), "the target cell must not already be editing before the first physical key");
 		for (int navigation = 0; navigation < sheet.getColumnCount() && selected[1] < column; navigation++) {
 			robot.keyPress(KeyEvent.VK_RIGHT);
 			robot.keyRelease(KeyEvent.VK_RIGHT);
 			robot.waitForIdle();
 			SwingUtilities.invokeAndWait(() -> selected[1] = sheet.getSelection().getActiveColumn());
 		}
-		assertEquals(column, selected[1], "physical arrow navigation must focus the progress cell before typing");
+		assertEquals(column, selected[1], "physical arrow navigation must focus the target cell before typing");
+		List<Long> selectedTaskIdsBeforeTyping = stableSelectedTaskIds(sheet);
 
 		int firstKey = KeyEvent.getExtendedKeyCodeForChar(value.charAt(0));
+		boolean firstUppercase = Character.isUpperCase(value.charAt(0));
+		if (firstUppercase) robot.keyPress(KeyEvent.VK_SHIFT);
 		robot.keyPress(firstKey);
 		robot.keyRelease(firstKey);
+		if (firstUppercase) robot.keyRelease(KeyEvent.VK_SHIFT);
 		GuiAcceptanceSupport.await(sheet::isEditing, "the first physical character must start cell editing without F2");
-		GuiAcceptanceSupport.await(() -> editorTextEquals(sheet, value.substring(0, 1)),
-			"the spreadsheet editor must receive the first physical character");
 		JTextComponent input = editorInputComponent(sheet);
 		assertTrue(input.isFocusOwner(), "the first physical character must focus the active cell editor");
 		for (char character : value.substring(1).toCharArray()) {
 			int keyCode = KeyEvent.getExtendedKeyCodeForChar(character);
 			if (keyCode == KeyEvent.VK_UNDEFINED) throw new AssertionError("No key code for " + character);
+			boolean uppercase = Character.isUpperCase(character);
+			if (uppercase) robot.keyPress(KeyEvent.VK_SHIFT);
 			robot.keyPress(keyCode);
 			robot.keyRelease(keyCode);
+			if (uppercase) robot.keyRelease(KeyEvent.VK_SHIFT);
 		}
 		robot.waitForIdle();
-		assertEquals(value, activeEditorText(sheet),
+		assertEquals(value, editorInputComponent(sheet).getText(),
 			"the editor must receive the complete multi-character value from physical key input");
-		robot.keyPress(KeyEvent.VK_ENTER);
-		robot.keyRelease(KeyEvent.VK_ENTER);
+		assertEquals(selectedTaskIdsBeforeTyping, stableSelectedTaskIds(sheet),
+			"the stable selected task scope must survive all physical digits up to commit");
+		if (shiftCommit) robot.keyPress(KeyEvent.VK_SHIFT);
+		robot.keyPress(commitKey);
+		robot.keyRelease(commitKey);
+		if (shiftCommit) robot.keyRelease(KeyEvent.VK_SHIFT);
 		GuiAcceptanceSupport.await(() -> !sheet.isEditing(), "physical first-key input did not commit: " + value);
+		return selectedTaskIdsBeforeTyping;
+	}
+
+	private static List<Long> stableSelectedTaskIds(SpreadSheet sheet) throws Exception {
+		AtomicReference<List<Long>> selectedTaskIds = new AtomicReference<>(List.of());
+		SwingUtilities.invokeAndWait(() -> {
+			List<Long> ids = new ArrayList<>();
+			for (Node selectedNode : sheet.getSelectedNodes()) {
+				if (selectedNode != null && selectedNode.getImpl() instanceof Task selectedTask
+						&& !ids.contains(selectedTask.getUniqueId()))
+					ids.add(selectedTask.getUniqueId());
+			}
+			selectedTaskIds.set(List.copyOf(ids));
+		});
+		return selectedTaskIds.get();
 	}
 
 	private static String renderedCellText(SpreadSheet sheet, int row, int column) throws Exception {
 		String[] text = new String[1];
 		SwingUtilities.invokeAndWait(() -> {
 			Component rendered = sheet.prepareRenderer(sheet.getCellRenderer(row, column), row, column);
-			text[0] = rendered instanceof javax.swing.JLabel label ? label.getText() : rendered.toString();
+			text[0] = rendered instanceof NameCellComponent nameCell ? nameCell.getText()
+				: rendered instanceof javax.swing.JLabel label ? label.getText() : rendered.toString();
 		});
 		return text[0];
 	}
@@ -346,6 +621,11 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 
 	private void editWithPhysicalKeys(Robot robot, SpreadSheet sheet, int row, int column, String value,
 			String expectedEditorSeed) throws Exception {
+		editWithPhysicalKeys(robot, sheet, row, column, value, expectedEditorSeed, KeyEvent.VK_ENTER, false);
+	}
+
+	private void editWithPhysicalKeys(Robot robot, SpreadSheet sheet, int row, int column, String value,
+			String expectedEditorSeed, int commitKey, boolean shiftCommit) throws Exception {
 		Rectangle anchor = cellOnScreen(sheet, row, Math.min(1, column));
 		clickCell(robot, anchor, 0);
 		robot.waitForIdle();
@@ -378,8 +658,10 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		}
 		robot.waitForIdle();
 		assertEquals(value, activeEditorText(sheet), "physical keys must reach the active editor before commit");
-		robot.keyPress(KeyEvent.VK_ENTER);
-		robot.keyRelease(KeyEvent.VK_ENTER);
+		if (shiftCommit) robot.keyPress(KeyEvent.VK_SHIFT);
+		robot.keyPress(commitKey);
+		robot.keyRelease(commitKey);
+		if (shiftCommit) robot.keyRelease(KeyEvent.VK_SHIFT);
 		GuiAcceptanceSupport.await(() -> !sheet.isEditing(), "physical input did not commit: " + value);
 	}
 
@@ -506,6 +788,48 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		SpreadSheetModel model = (SpreadSheetModel) setup.sheet().getModel();
 		Node node = (Node) setup.cache().getModel().search(task);
 		return model.findGraphicNodeRow(setup.cache().getGraphicNode(node));
+	}
+
+	private static int findTaskRow(SpreadSheet sheet, NormalTask task) {
+		SpreadSheetModel model = (SpreadSheetModel) sheet.getModel();
+		Node node = (Node) model.getCache().getModel().search(task);
+		return model.findGraphicNodeRow(model.getCache().getGraphicNode(node));
+	}
+
+	private static void configureProjection(NodeModelCache cache) {
+		ViewTransformer transformer = ((NodeCacheTransformer) cache.getVisibleNodes().getTransformer()).getTransformer();
+		transformer.setUserFilterId("Filter.IncompleteTasks");
+		transformer.setUserGrouperId("Grouper.Duration");
+		transformer.setTaskSortSpec(new TaskSortSpec(
+			List.of(new TaskSortSpec.Key("Sorter.Name", true)), true));
+	}
+
+	private static List<String> visibleTaskNames(NodeModelCache cache) {
+		return cache.getVisibleNodes().getElements().stream().filter(GraphicNode.class::isInstance)
+			.map(GraphicNode.class::cast).filter(node -> !node.isGroup() && node.getNode().getImpl() instanceof NormalTask)
+			.map(node -> ((NormalTask) node.getNode().getImpl()).getName()).toList();
+	}
+
+	private static long selectedStableTaskId(SpreadSheet sheet) throws Exception {
+		long[] result = {-1L};
+		SwingUtilities.invokeAndWait(() -> {
+			for (Node node : sheet.getSelectedNodes()) {
+				if (node != null && node.getImpl() instanceof Task task) {
+					result[0] = task.getUniqueId();
+					return;
+				}
+			}
+		});
+		return result[0];
+	}
+
+	private static long taskIdAtVisibleRow(SpreadSheet sheet, int row) throws Exception {
+		long[] result = {-1L};
+		SwingUtilities.invokeAndWait(() -> {
+			Node node = ((SpreadSheetModel) sheet.getModel()).getNodeForDisplayRow(row);
+			if (node != null && node.getImpl() instanceof Task task) result[0] = task.getUniqueId();
+		});
+		return result[0];
 	}
 
 	private static int findColumn(SpreadSheet sheet, String fieldId) {

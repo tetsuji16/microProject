@@ -17,6 +17,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.List;
@@ -28,6 +29,7 @@ import javax.swing.table.TableRowSorter;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.collaboration.CollaborationSession;
+import com.microproject.document.ObjectEvent;
 import com.microproject.configuration.FieldDictionary;
 import com.microproject.datatype.Duration;
 import com.microproject.datatype.PercentFormat;
@@ -43,6 +45,9 @@ import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetUtils;
 import com.microproject.exchange.MpoFileImporter;
 import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.resource.ResourceImpl;
+import com.microproject.pm.assignment.Assignment;
+import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectTaskKey;
@@ -50,6 +55,8 @@ import com.microproject.pm.task.Task;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.scheduling.Schedule;
 import com.microproject.pm.scheduling.ScheduleEvent;
+import com.microproject.pm.scheduling.ScheduleEventListener;
+import com.microproject.pm.scheduling.ScheduleService;
 import com.microproject.undo.DataFactoryUndoController;
 
 class TaskCommandGatewayTest {
@@ -392,9 +399,25 @@ class TaskCommandGatewayTest {
 	void spreadsheetModelRoutesTaskFieldInputThroughStableIntent() throws Exception {
 		Fixture fixture = createFixture();
 		List<TaskCommandResult> publishedOutcomes = new java.util.ArrayList<>();
-		fixture.model().setTaskEditOutcomeHandler((result, task) -> {
-			assertEquals(fixture.task(), task, "field outcome must retain the edited task identity");
-			publishedOutcomes.add(result);
+		List<List<Long>> publishedSelectionSnapshots = new java.util.ArrayList<>();
+		List<Long> selectedBeforeEdit = List.of(fixture.task().getUniqueId());
+		fixture.model().setTaskFieldEditOutcomeHandler(new SpreadSheetModel.TaskFieldEditOutcomeHandler() {
+			private int captureCount;
+
+			@Override
+			public SpreadSheetModel.TaskFieldEditOutcomeContext capture() {
+				assertEquals(captureCount++ == 0 ? "Before" : "After", fixture.task().getName(),
+					"field outcome selection must be captured before gateway mutation");
+				return new SpreadSheetModel.TaskFieldEditOutcomeContext(selectedBeforeEdit);
+			}
+
+			@Override
+			public void publish(TaskCommandResult result, Task task,
+					SpreadSheetModel.TaskFieldEditOutcomeContext context) {
+				assertEquals(fixture.task(), task, "field outcome must retain the edited task identity");
+				publishedSelectionSnapshots.add(context.selectedTaskIds());
+				publishedOutcomes.add(result);
+			}
 		});
 		var projection = fixture.cache().getVisibleNodes().getProjectionIndex();
 		int row = projection.rowForKey(new com.microproject.pm.graphic.model.cache.ProjectionRowKey.TaskRow(
@@ -418,6 +441,8 @@ class TaskCommandGatewayTest {
 		assertEquals(List.of(TaskCommandResult.Status.CHANGED, TaskCommandResult.Status.NO_CHANGE),
 			publishedOutcomes.stream().map(TaskCommandResult::status).toList(),
 			"the shared UI outcome hook must publish both a mutation and a no-op from the gateway");
+		assertEquals(List.of(selectedBeforeEdit, selectedBeforeEdit), publishedSelectionSnapshots,
+			"field edit outcomes must retain the immutable selection snapshot captured before gateway execution");
 		assertTrue(fixture.project().getUndoController().canUndo(), "task field command must preserve the canonical Undo edit");
 		ByteArrayOutputStream saved = new ByteArrayOutputStream();
 		MpoFileImporter serializer = new MpoFileImporter();
@@ -466,49 +491,96 @@ class TaskCommandGatewayTest {
 	}
 
 	@Test
-	void scheduleApplyFailurePublishesInvalidationAfterReleasingProjectBarrier() throws Exception {
+	void scheduleApplyFailureRestoresProgressUndoAndObserversBeforeReleasingProjectBarrier() throws Exception {
 		Fixture fixture = createFixture();
-		fixture.task().setDuration(com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
+		long day = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		fixture.task().setDuration(8L * day);
+		ResourceImpl resource = fixture.project().getResourcePool().newResourceInstance();
+		resource.setName("Schedule atomicity resource");
+		AssignmentService.getInstance().newAssignment(fixture.task(), resource, 1.0d, 0L, this);
+		Assignment assignment = (Assignment) fixture.task().getAssignments().iterator().next();
+		SwingUtilities.invokeAndWait(() -> fixture.cache().update());
+
+		var nameField = FieldDictionary.getInstance().getFieldFromId("Field.name");
+		RevisionedProjectionIndex seedProjection = fixture.cache().getVisibleNodes().getProjectionIndex();
+		AtomicReference<TaskCommandResult> seedEdit = new AtomicReference<>();
+		SwingUtilities.invokeAndWait(() -> {
+			try {
+				seedEdit.set(TaskCommandGateway.execute(fixture.model(), new TaskFieldEditIntent(fixture.taskKey(), 0,
+					seedProjection.topologyRevision(), nameField, "Before", "Undo/Redo seed"), this));
+			} catch (com.microproject.field.FieldParseException failure) {
+				throw new RuntimeException(failure);
+			}
+		});
+		assertEquals(TaskCommandResult.Status.CHANGED, seedEdit.get().status());
+		SwingUtilities.invokeAndWait(() -> fixture.project().getUndoController().undo());
+		SwingUtilities.invokeAndWait(() -> fixture.cache().update());
+		assertTrue(fixture.project().getUndoController().canUndo());
+		assertTrue(fixture.project().getUndoController().canRedo(), "the failure must preserve a pre-existing Redo state");
+
 		RevisionedProjectionIndex projection = fixture.cache().getVisibleNodes().getProjectionIndex();
 		Schedule schedule = (Schedule) fixture.task();
 		ProjectionRowKey.TaskRow row = taskRowFor(projection, fixture.task());
+		long completedThrough = fixture.task().getEffectiveWorkCalendar().add(schedule.getStart(), 4L * day, false);
+		long[] scheduleBefore = scheduleState(fixture.task());
+		double progressBefore = fixture.task().getPercentComplete();
+		long[] assignmentBefore = { assignment.getCompletedThrough(), assignment.getActualStart() };
+		double assignmentProgressBefore = assignment.getPercentComplete();
 		TaskScheduleEditIntent intent = new TaskScheduleEditIntent(row, projection.topologyRevision(),
 			TaskScheduleEditIntent.Operation.PROGRESS, schedule.getStart(), schedule.getEnd(),
 			schedule.getCompletedThrough(), schedule.getStart(), schedule.getEnd(), fixture.task().getConstraintType(),
-			fixture.task().getConstraintDate(), schedule.getStart(), schedule.getEnd(), schedule.getCompletedThrough() + 1);
+			fixture.task().getConstraintDate(), schedule.getStart(), schedule.getEnd(), completedThrough);
 		long revisionBefore = fixture.project().getMutationState().revision();
-		AtomicReference<ScheduleEvent> published = new AtomicReference<>();
-		CountDownLatch barrierAvailable = new CountDownLatch(1);
-		fixture.project().addScheduleListener(event -> {
-			published.set(event);
+		List<String> undoNamesBefore = undoNames(fixture.project());
+		boolean canUndoBefore = fixture.project().getUndoController().canUndo();
+		boolean canRedoBefore = fixture.project().getUndoController().canRedo();
+		String undoNameBefore = fixture.project().getUndoController().getUndoName();
+		String redoNameBefore = fixture.project().getUndoController().getRedoName();
+		int pendingEventsBefore = fixture.project().pendingEventCount();
+		AtomicInteger publishedObjects = new AtomicInteger();
+		AtomicInteger publishedSchedules = new AtomicInteger();
+		AtomicReference<Boolean> mutationChanged = new AtomicReference<>(false);
+		ObjectEvent.Listener objectListener = event -> publishedObjects.incrementAndGet();
+		ScheduleEventListener scheduleListener = event -> publishedSchedules.incrementAndGet();
+		fixture.project().addObjectListener(objectListener);
+		fixture.project().addScheduleListener(scheduleListener);
+		try {
+			assertThrows(IllegalStateException.class, () -> TaskCommandGateway.executeScheduleEdit(fixture.cache(), intent,
+				fixture.sheet(), () -> {
+					mutationChanged.set(ScheduleService.getInstance().setCompleted(this, schedule, completedThrough,
+						fixture.project().getUndoController().getEditSupport()));
+					throw new IllegalStateException("injected after progress mutation");
+				}));
+			assertTrue(mutationChanged.get(), "the injected exception must follow a real progress mutation");
+			assertArrayEquals(scheduleBefore, scheduleState(fixture.task()), "schedule rollback must restore task dates and completion");
+			assertEquals(progressBefore, fixture.task().getPercentComplete(), 0.00001d,
+				"schedule rollback must restore task progress");
+			assertArrayEquals(assignmentBefore, new long[] { assignment.getCompletedThrough(), assignment.getActualStart() },
+				"schedule rollback must restore assignment completion dates");
+			assertEquals(assignmentProgressBefore, assignment.getPercentComplete(), 0.00001d,
+				"schedule rollback must restore assignment progress");
+			assertEquals(undoNamesBefore, undoNames(fixture.project()), "failed schedule edits must not append Undo history");
+			assertEquals(canUndoBefore, fixture.project().getUndoController().canUndo());
+			assertEquals(canRedoBefore, fixture.project().getUndoController().canRedo());
+			assertEquals(undoNameBefore, fixture.project().getUndoController().getUndoName());
+			assertEquals(redoNameBefore, fixture.project().getUndoController().getRedoName());
+			assertEquals(revisionBefore, fixture.project().getMutationState().revision(), "failed schedule edits must not publish a revision");
+			assertEquals(pendingEventsBefore, fixture.project().pendingEventCount(), "failed schedule edits must clear their deferred events");
+			assertEquals(0, publishedObjects.get(), "failed schedule edits must not notify object observers");
+			assertEquals(0, publishedSchedules.get(), "failed schedule edits must not notify schedule observers");
+			CountDownLatch barrierAvailable = new CountDownLatch(1);
 			Thread writer = new Thread(() -> {
-				try (var ignored = fixture.project().getMutationState().begin()) {
-					barrierAvailable.countDown();
-				}
-			}, "gateway-publication-barrier-check");
+				try (var ignored = fixture.project().getMutationState().begin()) { barrierAvailable.countDown(); }
+			}, "gateway-failed-schedule-barrier-check");
+			writer.setDaemon(true);
 			writer.start();
-			try {
-				if (!barrierAvailable.await(2, TimeUnit.SECONDS))
-					throw new AssertionError("publication ran before the project barrier was released");
-				writer.join(2_000);
-			} catch (InterruptedException interrupted) {
-				Thread.currentThread().interrupt();
-				throw new AssertionError(interrupted);
-			}
-		});
-
-		assertThrows(IllegalStateException.class, () -> TaskCommandGateway.executeScheduleEdit(fixture.cache(), intent,
-			fixture.sheet(), () -> {
-				fixture.task().setName("Applied before failure");
-				throw new IllegalStateException("injected after apply started");
-			}));
-		assertEquals("Applied before failure", fixture.task().getName(),
-			"the gateway must not silently discard an applied mutation it cannot roll back");
-		assertEquals(revisionBefore + 1, fixture.project().getMutationState().revision());
-		assertEquals(0, barrierAvailable.getCount(), "a listener must run after the project mutation lock is released");
-		assertTrue(published.get() != null, "a failed apply without its own event still requires cache invalidation");
-		assertEquals(ScheduleEvent.SCHEDULE, published.get().getType());
-		assertEquals(revisionBefore + 1, published.get().getPublicationRevision());
+			assertTrue(barrierAvailable.await(2, TimeUnit.SECONDS), "failed schedule edit must release the project barrier");
+			writer.join(2_000);
+			assertFalse(writer.isAlive(), "barrier probe must complete");
+		} finally {
+			fixture.project().removeObjectListener(objectListener);
+			fixture.project().removeScheduleListener(scheduleListener);
+		}
 	}
 
 	@Test
@@ -662,7 +734,12 @@ class TaskCommandGatewayTest {
 	private long[] scheduleState(Task task) {
 		Schedule schedule = (Schedule) task;
 		return new long[] { schedule.getStart(), schedule.getEnd(), schedule.getCompletedThrough(),
-			task.getConstraintType(), task.getConstraintDate() };
+			task.getActualStart(), task.getConstraintType(), task.getConstraintDate() };
+	}
+
+	private List<String> undoNames(Project project) {
+		List<String> editNames = project.getUndoController().getEditNames();
+		return editNames == null ? List.of() : List.copyOf(editNames);
 	}
 
 	private static final class RejectingCollaborationSession extends CollaborationSession {

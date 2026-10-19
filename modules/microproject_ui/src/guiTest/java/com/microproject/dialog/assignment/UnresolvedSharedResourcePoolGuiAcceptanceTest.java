@@ -5,6 +5,7 @@
 package com.microproject.dialog.assignment;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Component;
@@ -68,6 +69,41 @@ class UnresolvedSharedResourcePoolGuiAcceptanceTest {
 				"button must explain pool recovery in the active locale");
 		}
 		capture(new com.microproject.testsupport.GuiRobot());
+	}
+
+	@Test
+	void disposedDialogStopsReceivingPreferenceUpdates() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for GUI acceptance coverage.");
+		Project project = project();
+		AssignmentDialog[] dialogs = new AssignmentDialog[2];
+		String[] disposedLabel = new String[1];
+		String[] liveLabel = new String[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				frame = new TestFrame(project);
+				frame.manager.getPreferences().setShowProjectResourcesOnly(false);
+				dialogs[0] = new AssignmentDialog(frame.manager.documentFrame);
+				frame.add(dialogs[0].createContentPanel());
+				dialogs[1] = new AssignmentDialog(frame.manager.documentFrame);
+				frame.add(dialogs[1].createContentPanel());
+				assertTrue(dialogs[0].showingTeamAll != null, "first dialog must initialize its preference-bound label");
+				assertTrue(dialogs[1].showingTeamAll != null, "second dialog must initialize its preference-bound label");
+				disposedLabel[0] = dialogs[0].showingTeamAll.getText();
+				liveLabel[0] = dialogs[1].showingTeamAll.getText();
+				dialogs[0].dispose();
+				frame.manager.getPreferences().setShowProjectResourcesOnly(true);
+			});
+			SwingUtilities.invokeAndWait(() -> {
+				assertEquals(disposedLabel[0], dialogs[0].showingTeamAll.getText(),
+					"disposed dialog must not receive preference updates");
+				assertFalse(liveLabel[0].equals(dialogs[1].showingTeamAll.getText()),
+					"live dialog must receive preference updates");
+			});
+		} finally {
+			SwingUtilities.invokeAndWait(() -> {
+				for (AssignmentDialog dialog : dialogs) if (dialog != null) dialog.dispose();
+			});
+		}
 	}
 
 	private static Project project() {

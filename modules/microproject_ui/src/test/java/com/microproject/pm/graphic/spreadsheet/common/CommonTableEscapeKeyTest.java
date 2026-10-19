@@ -23,6 +23,7 @@
  *******************************************************************************/
 package com.microproject.pm.graphic.spreadsheet.common;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -44,16 +45,38 @@ class CommonTableEscapeKeyTest {
 	 * shortcut never runs.
 	 */
 	@Test
-	void escapeIsOnlyConsumedWhileEditing() throws Exception {
+	void escapeMapChainsExposeEnabledAncestorCancelOutsideEditing() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			javax.swing.tree.DefaultMutableTreeNode root = new javax.swing.tree.DefaultMutableTreeNode("root");
 			root.add(new javax.swing.tree.DefaultMutableTreeNode("task"));
 			CommonTable table = new CommonTable(org.netbeans.swing.outline.DefaultOutlineModel.createOutlineModel(
 				new javax.swing.tree.DefaultTreeModel(root), new EditableTextRowModel(), true, "Name"));
 			KeyStroke escape = KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0);
+			java.util.List<Action> escapeActions = new java.util.ArrayList<>();
+			java.util.List<String> bindings = new java.util.ArrayList<>();
+			for (int condition : new int[] {JComponent.WHEN_FOCUSED,
+					JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT}) {
+				for (javax.swing.InputMap map = table.getInputMap(condition); map != null; map = map.getParent()) {
+					Object key = map.get(escape);
+					if (key != null) {
+						Action action = table.getActionMap().get(key);
+						bindings.add("condition=" + condition + " key=" + key + " action="
+								+ (action == null ? "<none>" : action.getClass().getName() + ":enabled=" + action.isEnabled()));
+						if (action != null)
+							escapeActions.add(action);
+					}
+				}
+			}
+			assertTrue(!bindings.isEmpty(), "expected an Escape binding in the table map chains");
 			Object key = table.getInputMap(JComponent.WHEN_FOCUSED).get(escape);
 			Action cancel = key == null ? null : table.getActionMap().get(key);
 			assertNotNull(cancel, "the table keeps an Escape editor-cancel action");
+			assertEquals(3, bindings.size(), "record focused plus ancestor Escape entries: " + bindings);
+			assertFalse(escapeActions.get(0).isEnabled(), "focused cancelEdit wrapper is disabled outside editing");
+			assertTrue(escapeActions.get(1).isEnabled(),
+				"ancestor cancel action is enabled outside editing and can consume root-pane Escape");
+			assertTrue(escapeActions.get(2).isEnabled(),
+				"ancestor parent cancel action is enabled outside editing and can consume root-pane Escape");
 			assertFalse(cancel.isEnabled(), "Escape must pass to the window when no cell editor is open");
 
 			assertTrue(table.editCellAt(0, 1), "fixture cell must be editable");

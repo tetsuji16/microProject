@@ -25,6 +25,7 @@ import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.scheduling.Schedule;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.ProjectTaskSnapshot;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.graphic.model.cache.ProjectionRowKey;
 import com.microproject.pm.graphic.model.cache.RevisionedProjectionIndex;
@@ -209,8 +210,12 @@ public final class TaskCommandGateway {
 		Objects.requireNonNull(mutation, "mutation");
 		if (!(cache.getModel().getDataFactory() instanceof Project project))
 			return new TaskCommandResult(TaskCommandResult.Status.INVALID_INTENT, "schedule-edit-requires-project-model");
-		return withProjectMutation(project, progress -> executeScheduleEditInProject(cache, intent, lockParent,
-			mutation, project, progress));
+		return project.runAtomicModelCommand(
+			markApplied -> executeScheduleEditInProject(cache, intent, lockParent, mutation, project,
+				new MutationProgress(markApplied)),
+			result -> result.status() == TaskCommandResult.Status.CHANGED,
+			result -> result.status() == TaskCommandResult.Status.CHANGED ? result
+				: TaskCommandResult.of(TaskCommandResult.Status.CHANGED));
 	}
 
 	private static TaskCommandResult executeScheduleEditInProject(NodeModelCache cache, TaskScheduleEditIntent intent,
@@ -249,9 +254,19 @@ public final class TaskCommandGateway {
 			return TaskCommandResult.of(TaskCommandResult.Status.NO_CHANGE);
 		if (!CollaborationHelper.tryLockNodes(null, List.of(node), lockParent, "edit"))
 			return new TaskCommandResult(TaskCommandResult.Status.LOCKED, "collaboration-lock-denied");
+		ProjectTaskSnapshot before = ProjectTaskSnapshot.capture(project);
 		progress.markApplied();
-		return TaskCommandResult.of(mutation.getAsBoolean()
-			? TaskCommandResult.Status.CHANGED : TaskCommandResult.Status.NO_CHANGE);
+		try {
+			return TaskCommandResult.of(mutation.getAsBoolean()
+				? TaskCommandResult.Status.CHANGED : TaskCommandResult.Status.NO_CHANGE);
+		} catch (RuntimeException | Error failure) {
+			try {
+				before.restore(project, lockParent == null ? TaskCommandGateway.class : lockParent);
+			} catch (Throwable restoreFailure) {
+				if (restoreFailure != failure) failure.addSuppressed(restoreFailure);
+			}
+			throw failure;
+		}
 	}
 
 	private static boolean containsScheduleInterval(Schedule schedule, long expectedStart, long expectedEnd,

@@ -38,6 +38,8 @@ import javax.swing.InputMap;
 import javax.swing.JPanel;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
+import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
+import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet;
 
 import org.junit.jupiter.api.Test;
 
@@ -60,6 +62,52 @@ import com.microproject.workspace.WorkspaceSetting;
  * drives that seam directly so it runs headless.
  */
 class MicrosoftShortcutsRootPaneTest {
+
+	@Test
+	void documentShortcutsAreNotOwnedBySpreadsheetInputMaps() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			ShortcutHarness harness = new ShortcutHarness();
+			InputMap rootMap = harness.panel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+			harness.manager.applyMicrosoftShortcuts(rootMap, harness.panel.getActionMap());
+			SpreadSheet sheet = new SpreadSheet();
+			CommonSpreadSheet commonSheet = new CommonSpreadSheet();
+			java.util.List<String> conflicts = new java.util.ArrayList<>();
+			checkRootPaneOwnedMapConflicts(rootMap, sheet, "SpreadSheet", conflicts);
+			checkRootPaneOwnedMapConflicts(rootMap, commonSheet, "CommonSpreadSheet", conflicts);
+			checkNoAncestorEscapeBinding(sheet, "SpreadSheet", conflicts);
+			checkNoAncestorEscapeBinding(commonSheet, "CommonSpreadSheet", conflicts);
+			assertTrue(conflicts.isEmpty(), "root-pane shortcuts must have one owner: " + conflicts);
+		});
+	}
+
+	private static void checkNoAncestorEscapeBinding(JComponent child, String name,
+			java.util.List<String> conflicts) {
+		KeyStroke escape = KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0);
+		for (InputMap map = child.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
+				map != null; map = map.getParent()) {
+			Object key = map.get(escape);
+			if (key != null)
+				conflicts.add(name + " ancestor Escape action=" + key);
+		}
+	}
+
+	private static void checkRootPaneOwnedMapConflicts(InputMap rootMap, JComponent child, String name,
+			java.util.List<String> conflicts) {
+		KeyStroke escape = KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0);
+		KeyStroke[] rootOwnedKeys = rootMap.keys();
+		for (int condition : new int[] {JComponent.WHEN_FOCUSED, JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT}) {
+			for (InputMap map = child.getInputMap(condition); map != null; map = map.getParent()) {
+				for (KeyStroke key : rootOwnedKeys)
+					if (map.get(key) != null) {
+						Object localAction = map.get(key);
+						boolean editorEscape = condition == JComponent.WHEN_FOCUSED && key.equals(escape)
+							&& "cancelEdit".equals(localAction);
+						if (!editorEscape)
+							conflicts.add(name + " condition=" + condition + " key=" + key + " action=" + localAction);
+					}
+			}
+		}
+	}
 
 	@Test
 	void shortcutRegistrationDoesNotOverwriteAKeyWithAnotherAction() throws Exception {

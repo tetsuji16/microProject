@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.GraphicsEnvironment;
+import java.awt.Component;
 import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.event.KeyEvent;
@@ -18,6 +19,8 @@ import java.nio.file.Path;
 
 import javax.imageio.ImageIO;
 import javax.swing.SwingUtilities;
+import javax.swing.JLabel;
+import javax.swing.JTextField;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
@@ -228,6 +231,87 @@ class CanonicalProjectWindowGuiAcceptanceTest {
 		robot.keyRelease(KeyEvent.VK_Y);
 		robot.keyRelease(KeyEvent.VK_CONTROL);
 		GuiAcceptanceSupport.await(() -> "".equals(task.getName()), "Ctrl+Y did not reapply clear");
+	}
+
+	@Test
+	void robotConvertShowsUnsupportedImeStatusWithoutChangingEditedTextOrSelection() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		Project project = project("IME reconversion", null);
+		NormalTask task = project.createScriptedTask();
+		task.setName("Initial name");
+		DocumentFrame[] document = new DocumentFrame[1];
+		SpreadSheet[] sheets = new SpreadSheet[1];
+		int[] cell = new int[2];
+		SwingUtilities.invokeAndWait(() -> {
+			window = new MainRibbonFrame("microProject — IME reconversion GUI acceptance", null);
+			graphicManager = new GraphicManager(window);
+			window.setGraphicManager(graphicManager);
+			graphicManager.initView();
+			document[0] = graphicManager.addProjectFrame(project);
+			window.setSize(920, 560);
+			window.setLocationByPlatform(true);
+			window.setAlwaysOnTop(true);
+			window.setVisible(true);
+		});
+		GuiAcceptanceSupport.await(() -> window.isShowing() && document[0].isShowing(), "project document did not become visible");
+		SwingUtilities.invokeAndWait(() -> {
+			sheets[0] = document[0].getActiveSpreadSheet();
+			cell[0] = findTaskRow(sheets[0], task);
+			cell[1] = findNameColumn(sheets[0]);
+		});
+		GuiAcceptanceSupport.await(() -> sheets[0].isShowing(), "task spreadsheet did not become visible");
+		assertTrue(cell[0] >= 0 && cell[1] >= 0, "fixture task Name cell was not visible");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		Rectangle[] bounds = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> bounds[0] = sheets[0].getCellRect(cell[0], cell[1], true));
+		java.awt.Point origin = sheets[0].getLocationOnScreen();
+		robot.mouseMove(origin.x + bounds[0].x + Math.max(2, bounds[0].width / 2), origin.y + bounds[0].y + bounds[0].height / 2);
+		robot.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		robot.keyPress(KeyEvent.VK_F2);
+		robot.keyRelease(KeyEvent.VK_F2);
+		GuiAcceptanceSupport.await(() -> sheets[0].isEditing(), "physical F2 did not start cell editing");
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_A);
+		robot.keyRelease(KeyEvent.VK_A);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		for (char character : "committed text".toCharArray()) {
+			robot.keyPress(KeyEvent.getExtendedKeyCodeForChar(character));
+			robot.keyRelease(KeyEvent.getExtendedKeyCodeForChar(character));
+		}
+		robot.keyPress(KeyEvent.VK_HOME);
+		robot.keyRelease(KeyEvent.VK_HOME);
+		for (int i = 0; i < 9; i++) {
+			robot.keyPress(KeyEvent.VK_SHIFT);
+			robot.keyPress(KeyEvent.VK_RIGHT);
+			robot.keyRelease(KeyEvent.VK_RIGHT);
+			robot.keyRelease(KeyEvent.VK_SHIFT);
+		}
+		GuiAcceptanceSupport.await(() -> {
+			Component focus = java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
+			return focus instanceof JTextField field && "committed".equals(field.getSelectedText());
+		}, "could not select the known substring in the active spreadsheet editor");
+		robot.keyPress(KeyEvent.VK_CONVERT);
+		robot.keyRelease(KeyEvent.VK_CONVERT);
+		String expected = com.microproject.dialog.UsabilityStrings.text("spreadsheet.imeReconversionUnsupported");
+		GuiAcceptanceSupport.await(() -> expected.equals(statusMessage(document[0])), "unsupported IME feedback did not appear in the document status bar");
+		SwingUtilities.invokeAndWait(() -> {
+			Component focus = java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
+			assertTrue(focus instanceof JTextField, "editor focus was lost after reconversion");
+			JTextField field = (JTextField) focus;
+			assertEquals("committed text", field.getText());
+			assertEquals("committed", field.getSelectedText());
+		});
+	}
+
+	private static String statusMessage(DocumentFrame frame) {
+		Component[] components = frame.statusBar.getComponents();
+		return components.length > 2 && components[2] instanceof JLabel label ? label.getText() : "";
 	}
 
 	private static int findTaskRow(SpreadSheet sheet, NormalTask task) {
