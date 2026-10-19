@@ -5,6 +5,11 @@ remaining work against [the roadmap](msp-compatibility-roadmap.md).
 **The complete compatibility objective is not achieved.** Gate issues remain
 open; an inventory or passing narrow test does not close an entire milestone.
 
+For an issue's latest execution state and next slice, use its current-state
+packet as described in [issue execution](issue-execution.md). Entries below
+remain supporting historical evidence; the packet does not replace these
+compatibility gates or the GUI recovery order.
+
 ## Implemented changes
 
 - Standalone scope excludes connected Microsoft server/cloud services. MPO is

@@ -2,6 +2,11 @@
 
 ## Operating rule
 
+For issue-specific current state, acceptance evidence, and the next bounded
+slice, use the packet described in [`issue-execution.md`](issue-execution.md).
+Historical incident logs support that packet; they do not replace its current
+state. The recovery phases and exit gates below remain authoritative.
+
 Do not implement new GUI features while a preceding recovery phase is open.
 Each phase fixes a shared cause, adds/reuses one command-contract fixture, and
 passes its exit gate before the next phase begins.  The order intentionally

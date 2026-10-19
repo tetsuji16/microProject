@@ -51,6 +51,19 @@ shared-cause phase for a later cosmetic symptom.
 
 ## Start here
 
+For issue execution, follow [`docs/issue-execution.md`](docs/issue-execution.md)
+and keep one current-state packet per issue in `docs/work/`. Freeze the full
+acceptance contract at intake; work one finite slice at a time and never close
+by deferring a failed original criterion. Sol owns planning, integration, and
+review. Normally assign one bounded task to Luna; use a compact self-contained
+packet and a fork without history. Use explorers only for a specific unknown,
+and parallelize only independent ownership. Keep worker reports to about 12
+lines; review the diff and evidence rather than rereading full investigation
+history. Record tested SHA and reuse matching evidence. Capture GUI failure
+artifacts and model state before edits; after two failed fixes to the same
+failure, require root-cause review and a reproducer/diagnostic before trying
+another fix. Do not change display resolution or weaken visual assertions.
+
 Read only what the task needs:
 
 1. `README.md` for the current build, release, and repository layout.
