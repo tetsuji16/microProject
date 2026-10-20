@@ -31,6 +31,7 @@ import javax.swing.SwingUtilities;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.graphic.timescale.CoordinatesConverter;
 import com.microproject.pm.graphic.timescale.ScaledScrollPane;
+import com.microproject.pm.resource.Resource;
 import com.microproject.pm.task.Task;
 
 /** Shared view-only range resolution and zoom behavior for selected tasks. */
@@ -43,21 +44,32 @@ public final class SelectedTasksTimescaleZoom {
 	static DateRange resolve(Collection<?> selected) {
 		if (selected == null || selected.isEmpty())
 			return null;
-		long start = Long.MAX_VALUE;
-		long end = Long.MIN_VALUE;
-		for (Object value : selected) {
-			Task task = value instanceof Task selectedTask ? selectedTask
-					: value instanceof Assignment assignment ? assignment.getTask() : null;
-			if (task == null)
-				continue;
-			long taskStart = task.getStart();
-			long taskEnd = task.getEnd();
-			if (taskStart <= 0 || taskEnd < taskStart)
-				continue;
-			start = Math.min(start, taskStart);
-			end = Math.max(end, taskEnd);
+		long[] span = { Long.MAX_VALUE, Long.MIN_VALUE };
+		for (Object value : selected)
+			accumulate(value, span);
+		return span[0] == Long.MAX_VALUE ? null : new DateRange(span[0], span[1]);
+	}
+
+	/** Document-derived: task rows use task dates, assignment rows their own dates, resource rows their assignments' span. */
+	private static void accumulate(Object value, long[] span) {
+		if (value instanceof Task task) {
+			include(task.getStart(), task.getEnd(), span);
+		} else if (value instanceof Assignment assignment) {
+			if (!include(assignment.getStart(), assignment.getEnd(), span) && assignment.getTask() != null)
+				include(assignment.getTask().getStart(), assignment.getTask().getEnd(), span);
+		} else if (value instanceof Resource resource && resource.getAssignments() != null) {
+			for (Object assigned : resource.getAssignments())
+				if (assigned instanceof Assignment assignment)
+					accumulate(assignment, span);
 		}
-		return start == Long.MAX_VALUE ? null : new DateRange(start, end);
+	}
+
+	private static boolean include(long start, long end, long[] span) {
+		if (start <= 0 || end < start)
+			return false;
+		span[0] = Math.min(span[0], start);
+		span[1] = Math.max(span[1], end);
+		return true;
 	}
 
 	static boolean canZoom(Collection<?> selected) {
