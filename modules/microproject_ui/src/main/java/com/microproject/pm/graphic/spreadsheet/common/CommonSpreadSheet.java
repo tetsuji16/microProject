@@ -180,13 +180,15 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 	}
 
 	/** Removes spreadsheet-level copies of document shortcuts from both local maps. */
-	protected static void removeRootPaneShortcutDuplicates(JComponent component) {
-		KeyStroke[] shortcuts = {KeyStroke.getKeyStroke("ctrl V"), KeyStroke.getKeyStroke("ctrl C"),
+	protected static void removeRootPaneShortcutDuplicates(JComponent component, KeyStroke... extraShortcuts) {
+		KeyStroke[] baseShortcuts = {KeyStroke.getKeyStroke("ctrl V"), KeyStroke.getKeyStroke("ctrl C"),
 			KeyStroke.getKeyStroke("ctrl X"),
 			KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, java.awt.event.InputEvent.CTRL_DOWN_MASK),
 			KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, java.awt.event.InputEvent.SHIFT_DOWN_MASK),
 			KeyStroke.getKeyStroke(KeyEvent.VK_SPACE,
 					java.awt.event.InputEvent.CTRL_DOWN_MASK | java.awt.event.InputEvent.SHIFT_DOWN_MASK)};
+		KeyStroke[] shortcuts = java.util.stream.Stream.concat(java.util.Arrays.stream(baseShortcuts),
+				java.util.Arrays.stream(extraShortcuts)).toArray(KeyStroke[]::new);
 		for (int condition : new int[] {JComponent.WHEN_FOCUSED,
 				JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT}) {
 			component.setInputMap(condition, copyInputMapWithout(component.getInputMap(condition), shortcuts));

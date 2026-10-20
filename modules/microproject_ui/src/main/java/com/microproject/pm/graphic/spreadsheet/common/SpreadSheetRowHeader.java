@@ -76,7 +76,11 @@ public class SpreadSheetRowHeader extends JTable {
 		setShowVerticalLines(false);
 		setIntercellSpacing(new Dimension(0, 0));
 		setRowMargin(0);
-
+		// #414: the row header has no editor; document keys (clipboard, Space selection, F2, Escape)
+		// resolve only through the root-pane map, not through JTable defaults.
+		CommonSpreadSheet.removeRootPaneShortcutDuplicates(this,
+			KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_F2, 0),
+			KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ESCAPE, 0));
 	}
 
 	public SpreadSheetPopupMenu getPopup(){

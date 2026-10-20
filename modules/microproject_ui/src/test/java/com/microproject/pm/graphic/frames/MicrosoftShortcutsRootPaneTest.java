@@ -109,6 +109,67 @@ class MicrosoftShortcutsRootPaneTest {
 		}
 	}
 
+	/**
+	 * #414: a document shortcut KeyStroke has exactly one owner, the root-pane WHEN_IN_FOCUSED_WINDOW map.
+	 * Walks spreadsheet, row header, time spreadsheet and Gantt plus every ancestor up to (not including)
+	 * the root map, across WHEN_FOCUSED and WHEN_ANCESTOR_OF_FOCUSED_COMPONENT.
+	 */
+	@Test
+	void noDocumentShortcutIsAlsoBoundInAnyComponentOrAncestorScope() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			ShortcutHarness harness = new ShortcutHarness();
+			InputMap rootMap = harness.panel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+			harness.manager.applyMicrosoftShortcuts(rootMap, harness.panel.getActionMap());
+			com.microproject.undo.DataFactoryUndoController undo = new com.microproject.undo.DataFactoryUndoController();
+			com.microproject.pm.task.Project project = com.microproject.pm.task.Project.createProject(
+				com.microproject.pm.resource.ResourcePool.createRourcePool("input-scope-test", undo), undo);
+			SpreadSheet sheet = new SpreadSheet();
+			com.microproject.pm.graphic.spreadsheet.time.TimeSpreadSheet timeSheet =
+				new com.microproject.pm.graphic.spreadsheet.time.TimeSpreadSheet(project);
+			com.microproject.pm.graphic.gantt.Gantt gantt = new com.microproject.pm.graphic.gantt.Gantt(project, "Gantt");
+			try {
+				java.util.List<JComponent> scopes = new java.util.ArrayList<>();
+				javax.swing.JScrollPane sheetPane = new javax.swing.JScrollPane(sheet);
+				javax.swing.JScrollPane ganttPane = new javax.swing.JScrollPane(gantt);
+				JPanel host = new JPanel();
+				host.add(sheetPane);
+				host.add(ganttPane);
+				harness.panel.add(host);
+				scopes.add(sheet);
+				scopes.add(sheet.getRowHeader());
+				scopes.add(timeSheet);
+				scopes.add(gantt);
+				// Editor-local allowlist: key -> {WHEN_FOCUSED action names that are cell-editor only}.
+				// Escape/cancelEdit: aborts the in-cell editor; the root-pane Escape is for the document.
+				java.util.Map<KeyStroke, java.util.Set<String>> allowed = java.util.Map.of(
+					KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), java.util.Set.of("cancelEdit"));
+				KeyStroke[] rootKeys = rootMap.keys();
+				java.util.List<String> conflicts = new java.util.ArrayList<>();
+				for (JComponent leaf : scopes) {
+					for (java.awt.Component c = leaf; c instanceof JComponent jc && c != harness.panel; c = c.getParent()) {
+						for (int condition : new int[] {JComponent.WHEN_FOCUSED,
+								JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT}) {
+							for (InputMap map = jc.getInputMap(condition); map != null; map = map.getParent())
+								for (KeyStroke key : rootKeys) {
+									Object action = map.get(key);
+									if (action == null)
+										continue;
+									boolean editorLocal = condition == JComponent.WHEN_FOCUSED
+										&& allowed.getOrDefault(key, java.util.Set.of()).contains(String.valueOf(action));
+									if (!editorLocal)
+										conflicts.add(jc.getClass().getSimpleName() + " (from " + leaf.getClass().getSimpleName()
+											+ ") condition=" + condition + " key=" + key + " action=" + action);
+								}
+						}
+					}
+				}
+				assertTrue(conflicts.isEmpty(), "root-pane shortcuts must have one owner: " + conflicts);
+			} finally {
+				gantt.cleanUp();
+			}
+		});
+	}
+
 	@Test
 	void shortcutRegistrationDoesNotOverwriteAKeyWithAnotherAction() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
