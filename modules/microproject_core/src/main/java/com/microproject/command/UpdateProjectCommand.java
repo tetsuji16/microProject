@@ -70,6 +70,7 @@ public class UpdateProjectCommand extends Command {
 			try {
 			ModelTransaction.execute(new ModelTransaction.Steps<ProjectTaskSnapshot, List<Long>>() {
 				@Override public void validate() {
+					stageReached(ModelTransaction.Stage.VALIDATE);
 					java.util.Objects.requireNonNull(targets, "targets");
 					java.util.Objects.requireNonNull(edits, "edits");
 					java.util.Set<Task> projectTasks = java.util.Collections.newSetFromMap(
@@ -90,10 +91,12 @@ public class UpdateProjectCommand extends Command {
 				}
 				@Override public ProjectTaskSnapshot capture() {
 					beforeSnapshot = ProjectTaskSnapshot.capture(project);
+					stageReached(ModelTransaction.Stage.CAPTURE);
 					return beforeSnapshot;
 				}
 				@Override public ModelTransaction.Mutation<List<Long>> apply() {
 					for (Task task : targets) accept(task);
+					stageReached(ModelTransaction.Stage.APPLY);
 					List<Long> changed = affectedTaskIds();
 					return changed.isEmpty()
 						? ModelTransaction.Mutation.unchanged(changed)
@@ -103,6 +106,7 @@ public class UpdateProjectCommand extends Command {
 					// Each task update recalculates incrementally. Finish the batch from one
 					// project-wide pass so dependent schedules and the captured Undo state agree.
 					project.recalculate();
+					stageReached(ModelTransaction.Stage.SCHEDULE);
 				}
 				@Override public void checkInvariants() {
 					for (Long taskId : affectedTaskIds) {
@@ -112,6 +116,7 @@ public class UpdateProjectCommand extends Command {
 						if (task == null)
 							throw new IllegalStateException("Updated task was detached from the project");
 					}
+					stageReached(ModelTransaction.Stage.INVARIANT);
 				}
 				@Override public void restore(ProjectTaskSnapshot before) {
 					before.restore(project, UpdateProjectCommand.this);
@@ -156,6 +161,10 @@ public class UpdateProjectCommand extends Command {
 			}
 		}
 		return affectedTaskIds();
+	}
+
+	/** Test seam: invoked when each transaction stage has completed its own work (AUTHORIZE and COMMIT need no seam). */
+	protected void stageReached(ModelTransaction.Stage stage) {
 	}
 
 	protected void applyToTask(Task task) {

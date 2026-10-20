@@ -472,4 +472,76 @@ class UpdateProjectRequestTest {
 		assertEquals(revisionBeforeCommitFailure + 1, project.getMutationState().revision(),
 			"a commit publication failure does not roll back the applied model revision");
 	}
+
+	/** One injection per pre-commit stage (ModelTransaction.Stage); COMMIT is covered by undoPublicationFailure.... */
+	@org.junit.jupiter.params.ParameterizedTest
+	@org.junit.jupiter.params.provider.EnumSource(value = com.microproject.transaction.ModelTransaction.Stage.class,
+		names = { "VALIDATE", "AUTHORIZE", "CAPTURE", "APPLY", "SCHEDULE", "INVARIANT" })
+	void failureAtEachPreCommitStageLeavesModelHistoryRevisionAndObserversUnchanged(
+			com.microproject.transaction.ModelTransaction.Stage failingStage) throws Exception {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("update-stage-" + failingStage, undo), undo);
+		project.initialize(false, false);
+		Node summaryNode = project.createLocalTaskNode(null);
+		Task summary = (Task) summaryNode.getImpl();
+		NormalTask first = (NormalTask) project.createLocalTaskNode(summaryNode).getImpl();
+		NormalTask second = (NormalTask) project.createLocalTaskNode(summaryNode).getImpl();
+		DependencyService.getInstance().newDependency(first, second, DependencyType.FS, 0L, this);
+		project.recalculate();
+		first.setDirty(false);
+		second.setDirty(false);
+		project.setDirty(false);
+		project.setGroupDirty(false);
+		long updateDate = Math.max(first.getEnd(), second.getEnd()) + 86_400_000L;
+		TaskSnapshotValues firstBefore = capture(first);
+		TaskSnapshotValues secondBefore = capture(second);
+		TaskSnapshotValues summaryBefore = capture(summary);
+		int firstSuccessors = first.getSuccessorList().size();
+		int secondPredecessors = second.getPredecessorList().size();
+		assertEquals(summary, first.getWbsParentTask());
+		long revisionBefore = project.getMutationState().revision();
+		boolean projectDirty = project.isDirty();
+		int pendingBefore = project.pendingEventCount();
+		EditSupport editSupport = new EditSupport();
+		UndoManager undoManager = new UndoManager();
+		editSupport.addEditListener(undoManager::addEdit);
+		AtomicInteger publishedScheduleEvents = new AtomicInteger();
+		AtomicInteger publishedObjectEvents = new AtomicInteger();
+		project.addScheduleListener(event -> publishedScheduleEvents.incrementAndGet());
+		project.addObjectListener(event -> publishedObjectEvents.incrementAndGet());
+		java.util.List<Task> targets = java.util.List.of(first, second);
+		if (failingStage == com.microproject.transaction.ModelTransaction.Stage.VALIDATE)
+			targets = java.util.List.of(first, second, first);
+		if (failingStage == com.microproject.transaction.ModelTransaction.Stage.AUTHORIZE)
+			project.setReadOnly(true);
+		UpdateProjectCommand command = new UpdateProjectCommand(project,
+			new UpdateProjectRequest(updateDate, true, false, false)) {
+			@Override protected void stageReached(com.microproject.transaction.ModelTransaction.Stage stage) {
+				if (stage == failingStage)
+					throw new IllegalStateException("injected failure at " + stage);
+			}
+		};
+		java.util.List<Task> failingTargets = targets;
+
+		IllegalStateException failure = assertThrows(IllegalStateException.class,
+			() -> command.execute(failingTargets, editSupport));
+
+		assertEquals(failingStage,
+			((com.microproject.transaction.ModelTransaction.ModelTransactionException) failure.getCause()).failedStage());
+		assertTaskValues(firstBefore, first);
+		assertTaskValues(secondBefore, second);
+		assertTaskValues(summaryBefore, summary);
+		assertEquals(firstSuccessors, first.getSuccessorList().size());
+		assertEquals(secondPredecessors, second.getPredecessorList().size());
+		assertSame(summary, first.getWbsParentTask());
+		assertSame(summary, second.getWbsParentTask());
+		assertNull(first.getImportedPercentCompleteOverride());
+		assertEquals(projectDirty, project.isDirty());
+		assertTrue(command.affectedTaskIds().isEmpty());
+		assertFalse(undoManager.canUndo(), "a failed " + failingStage + " must not publish an Undo edit");
+		assertEquals(revisionBefore, project.getMutationState().revision());
+		assertEquals(pendingBefore, project.pendingEventCount());
+		assertEquals(0, publishedScheduleEvents.get());
+		assertEquals(0, publishedObjectEvents.get());
+	}
 }
