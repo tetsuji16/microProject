@@ -285,8 +285,11 @@ MPO persistence, Undo/Redo, Show All, and preservation of unrelated/read-only
 tasks. A separate physical virtual-group route covers group member IDs and
 MPO persistence. The test clicks away from the disclosure icon and asserts
 that Hide/Undo preserves the expanded view state. The earlier reported
-summary-row case is reproduced with a real outline summary; Phase 2 remains
-open for wider M2 gates and original-project-data comparison.
+summary-row case is reproduced with a real outline summary. The current-head
+Phase 2 exit gate passed as recorded below (UI suite plus physical GUI suite);
+no original-project comparison file was supplied, so that comparison is not a
+remaining Phase 2 gate. Broader M2 acceptance and the full locale/scale matrix
+remain open.
 This is local ja/100% evidence; the full locale/scale workflow matrix and
 overall M2 acceptance remain open.
 The remaining #266 multi-link Task ribbon Unlink gap now has a focused physical
@@ -1609,9 +1612,9 @@ Re-ran `GanttWheelZoomTest` on the current worktree. All 6 tests passed,
 including the single synchronized-wheel owner, no duplicate Gantt wheel
 listener, Ctrl+wheel zoom direction/anchor behavior, and confirmation that
 keypad zoom shortcuts are not registered on the Gantt component. No display
-resolution or physical input was used. The U-32 Robot route for keypad input
-from both Gantt and spreadsheet focus, and physical plain/Shift/Ctrl wheel
-scrolling, remains pending while Windows keyboard input is unavailable.
+resolution was changed. U-32 physical keypad input from both Gantt and
+spreadsheet focus is now verified in the 2026-10-20 re-run below. Physical
+plain/Shift/Ctrl wheel scrolling remains a separate pending route.
 
 ### M2 shared workflow module regression run (2026-10-19)
 
@@ -1937,3 +1940,448 @@ Display resolution was not changed.
 Focused verification passed:
 `.\gradlew.bat :microproject_core:test --tests "com.microproject.pm.dependency.DependencyServiceTest" --console=plain`
 (42 tests; 0 failures, 0 errors, 0 skipped). `git diff --check` passed.
+
+### M2.2 SNET + FF zero-lag boundary (#794, 2026-10-20)
+
+Extended `TaskLinkAndBarScheduleTransitionsTest` with fixed-date SNET + FF
+cases where the predecessor finishes before and after the successor's SNET
+date. The common FS/FF fixture verifies exact schedules, unchanged unrelated
+task, diagnostics, and link Undo/Redo. Microsoft documents SNET as a lower bound
+and FF as a finish dependency; this is a document-derived compatibility
+decision, not an empirical MSP result. Source: [How Project schedules tasks:
+Behind the scenes](https://support.microsoft.com/en-us/project/how-project-schedules-tasks-behind-the-scenes).
+The FF contract is asserted through the successor finish boundary because
+`Dependency.getDate(true)` represents the calculated successor start for FF.
+
+Focused verification passed:
+`.\gradlew.bat :microproject_core:test --tests "com.microproject.pm.scheduling.TaskLinkAndBarScheduleTransitionsTest" --console=plain --no-daemon --max-workers=1`
+(49 tests; 0 failures, 0 errors, 0 skipped). Further SNET + SF coverage,
+varied calendars/lags, persistence and mutation-family cases remain; this one
+boundary slice does not close M2.2.
+
+MPO persistence follow-up (2026-10-20): added a fixed-date save/reopen/recalculate
+regression family to `MpoFileImporterTest`, porting both cases: predecessor
+finishes before SNET (Monday 17:00 vs Tuesday 08:00) and after SNET (Tuesday
+17:00 vs Tuesday 08:00). Both check exact schedules before and after reload,
+restored successor SNET date, FF zero lag, and reciprocal endpoint identity.
+This extends the document-derived boundary coverage above; it is not an
+empirical MSP result.
+
+### M2.2 SNET + SF zero-lag boundary (#794, 2026-10-20)
+
+Added two fixed-date SNET + SF boundary cases to
+`TaskLinkAndBarScheduleTransitionsTest`: predecessor start before and after the
+successor's SNET date. The cases assert exact schedules, unrelated-task
+preservation, diagnostics, and dependency Undo/Redo. This is a document-derived
+decision from Microsoft's Project scheduling documentation, not a measured MSP
+run. Verification: the focused core test class passed 51 tests with 0 failures,
+errors, or skips. The remaining constraint/link combinations, varied calendars,
+lag types, and MPO persistence remain open.
+
+### M2.2 constraint publication failure after commit (#794, 2026-10-20)
+
+`ScheduleService.setConstraint` now records `TaskConstraintEdit` before
+dispatching the ObjectEvent. Previously, an observer exception escaped after
+changing the task but before adding Undo history. A deterministic throwing
+listener verifies the commit-stage policy: publication failure propagates while
+the changed constraint remains undoable and redoable. The listener is removed
+in `finally`. A failure during constraint application now restores the captured
+type/date before any edit or event is published; the regression checks revision,
+Undo state, and event count. Post-commit observer failure behavior is unchanged.
+This covers one writer family; broader public/legacy mutation inventory and
+observer consistency remain open.
+
+### M2.2 SNET + SF MPO persistence (#794, 2026-10-20)
+
+Added a fixed-date MPO save/reopen/recalculate regression combining a successor
+SNET constraint with a predecessor-to-successor zero-lag SF dependency. It
+asserts exact task dates before and after reload, constraint kind/date,
+dependency kind/lag and reciprocal endpoint adjacency. The initial fixture's
+calendar-derived expected finish did not match the scheduled workday; the
+fixture now uses explicit start constraints and validates its exact schedule
+before saving. Focused `MpoFileImporterTest` passed 1 test with 0 failures,
+errors, or skips. Other mutation-family MPO round trips and M2.2 acceptance
+remain open.
+
+### M2.2 dependency field-edit publication failure (#794/#409, 2026-10-20)
+
+`DependencyService.setFields` now has a deterministic commit-failure test:
+after a valid lag/type edit, an ObjectEvent listener throws during publication.
+The original exception propagates after the new fields and revision are
+committed; the test verifies the event revision, Undo/Redo, and listener
+detachment. This exercises the established post-commit publication policy, not
+pre-commit model rollback. The listener test copies event facts while the pooled
+event is live. Focused `DependencyServiceTest` passed 43 tests with 0 failures,
+errors, or skips. Remaining writer families, failure rollback, MPO round trips,
+and M2.2 acceptance remain open.
+
+### M2.2 legacy dependency update publication failure (#794/#409, 2026-10-20)
+
+Added a focused test through `Dependency.doUpdateService`: a throwing observer
+receives the committed dependency update, then the original exception
+propagates. The test verifies the dependency's dirty state, one revision-tagged
+event, and listener detachment. `setFields` and legacy `update` tests share a
+small listener helper that copies event facts before the pooled event is
+recycled. Focused `DependencyServiceTest` passed 44 tests with 0 failures,
+errors, or skips. This does not complete the writer inventory.
+
+### M2.2 edited dependency fields through MPO (#794, 2026-10-20)
+
+Added `MpoFileImporterTest.mpoRoundTripPreservesSetFieldsSsWorkingLagAndRecalculatedSchedule`.
+It changes a created FS/0 dependency through `DependencyService.setFields` to SS
+with one working-day lag, then verifies type, lag, endpoint identity, and exact
+Tuesday 08:00–13:00 successor schedule before and after MPO save/reopen/recalculate
+on the standard calendar. Focused command `./gradlew.bat :microproject_exchange:test
+--tests "com.microproject.exchange.MpoFileImporterTest.mpoRoundTripPreservesSetFieldsSsWorkingLagAndRecalculatedSchedule"
+--console=plain` passed (1 test, 0 failures/errors/skips).
+
+MPO schedule metadata now carries the project calendar and only explicitly
+assigned task calendars, including each calendar's local differences and base
+relationship; a task based on the project calendar is rebound to that restored
+project calendar object. The sidecar version remains 1. Restore tolerates absent
+calendar fields so older MPO files retain their `content.xml` calendar behavior. Regression
+`mpoRoundTripPreservesProjectAndExplicitTaskCalendarsForSetFieldsSsLag` ports
+the fixture from `TaskLinkAndBarScheduleTransitionsTest.workingDayLagUsesPredecessorTaskCalendarAcrossNonworkingDays`:
+project Tuesday exception, predecessor Wednesday exception, 4h tasks, Monday
+SNET, and FS/0 changed by `setFields` to SS + 8h. It checks Thursday
+08:00–13:00 before save and after reopen/recalculate, the restored local
+Wednesday exception and task-to-project base identity, project-calendar Tuesday
+exception, inheritance for the successor (no explicit calendar metadata), and
+dependency kind, lag, and endpoint identity. Microsoft documents dependency
+endpoints, task calendars, and lag but not the lag-owning calendar; this remains
+the existing document-derived predecessor-calendar rule, not measured MSP
+behavior ([link tasks](https://support.microsoft.com/en-us/project/link-tasks-in-a-project),
+[scheduling tasks](https://support.microsoft.com/en-us/project/how-project-schedules-tasks-behind-the-scenes),
+[lead/lag](https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task)).
+The focused calendar regression and `releasedMpoWriterBaselineCostFixtureKeepsItsModelCurrencyAndUpgradesOnSave`
+(which loads the checked-in `legacy-assignment-baseline-cost-probe.mpo` released
+fixture and verifies its pre-calendar-metadata path) passed 2 tests with 0
+failures/errors/skips. This closes only the custom-calendar MPO
+persistence slice; M2.2 remains open.
+
+Integrated MPO focused rerun after inheritance review (2026-10-20):
+`./gradlew.bat :microproject_exchange:test --tests "com.microproject.exchange.MpoFileImporterTest.mpoRoundTripPreservesProjectAndExplicitTaskCalendarsForSetFieldsSsLag" --tests "com.microproject.exchange.MpoFileImporterTest.releasedMpoWriterBaselineCostFixtureKeepsItsModelCurrencyAndUpgradesOnSave" --tests "com.microproject.exchange.MpoFileImporterTest.mpoRoundTripPreservesSetFieldsSsWorkingLagAndRecalculatedSchedule" --tests "com.microproject.exchange.MpoFileImporterTest.mpoRoundTripPreservesSfDependencyAndSuccessorStartConstraint" --console=plain --no-daemon --max-workers=1`
+passed 4 tests with 0 failures/errors/skips. The calendar test also asserts the explicit predecessor calendar's restored base is the same restored project-calendar instance. `git diff --check` passed; only the existing LF-to-CRLF warnings for the two edited documentation files were reported.
+
+### M2.2 SNET + FF MPO persistence (#794, 2026-10-20)
+
+Ported both fixed-date cases from `TaskLinkAndBarScheduleTransitionsTest`:
+predecessor finish before and after successor SNET. The MPO test asserts exact
+predecessor/successor dates before and after reload/recalculation, successor
+SNET kind/date, FF/zero lag, and reciprocal endpoint identity. Focused command
+`./gradlew.bat :microproject_exchange:test --tests "com.microproject.exchange.MpoFileImporterTest.mpoRoundTripPreservesSnetAndFinishToFinishBoundary" --tests "com.microproject.exchange.MpoFileImporterTest.releasedMpoWriterBaselineCostFixtureKeepsItsModelCurrencyAndUpgradesOnSave" --console=plain --no-daemon --max-workers=1`
+passed both tests with 0 failures/errors/skips. A second Sol-run of the same
+command reported BUILD SUCCESSFUL; `git diff --check` passed.
+
+The subsequent `mpoRoundTripPreservesSnetAndFinishToFinishBoundary` regression ports both SNET+FF zero-lag cases: predecessor finishes Monday before Tuesday SNET, and Tuesday 17:00 after the Tuesday 08:00 SNET. It asserts exact schedules before and after MPO reload, SNET kind/date, FF/zero lag, and reciprocal endpoint identity. Focused MPO plus old released fixture tests passed 2 tests; the full `MpoFileImporterTest` class passed 118 tests with 0 failures/errors/skips.
+
+### M2.2 SNET + SS zero-lag MPO persistence (#794, 2026-10-20)
+
+Ported both fixed-date SNET + SS cases from
+`TaskLinkAndBarScheduleTransitionsTest` into an MPO save/reopen/recalculate
+regression. It checks exact schedules on each side of the round trip, the
+successor SNET kind/date, SS/zero lag, and reciprocal endpoint identity. The
+compatibility rule remains document-derived: SS compares starts and SNET is a
+lower bound, as described by Microsoft's [task scheduling documentation](https://support.microsoft.com/en-us/project/how-project-schedules-tasks-behind-the-scenes).
+
+### M2.2 SNET + SS MPO persistence (#794, 2026-10-20)
+
+Ported both fixed-date cases from `TaskLinkAndBarScheduleTransitionsTest`:
+predecessor starts before successor SNET (Mon start, Tue SNET) and starts after
+it (Tue start, Mon SNET). The MPO regression compares exact pre-link and linked
+schedules, then verifies exact post-reload/recalculate dates, successor SNET
+kind/date, SS/zero lag, and reciprocal endpoints. Focused command
+`./gradlew.bat :microproject_exchange:test --tests "com.microproject.exchange.MpoFileImporterTest.mpoRoundTripPreservesSnetAndStartToStartBoundary" --tests "com.microproject.exchange.MpoFileImporterTest.releasedMpoWriterBaselineCostFixtureKeepsItsModelCurrencyAndUpgradesOnSave" --console=plain --no-daemon --max-workers=1`
+passed both tests with 0 failures/errors/skips. Sol independently reran the
+same command after correcting the second boundary to Tue predecessor / Mon SNET;
+BUILD SUCCESSFUL. `git diff --check` passed.
+
+After adding SNET+FF and corrected SNET+SS MPO boundary families, the full
+`MpoFileImporterTest` class was rerun on the current worktree:
+`./gradlew.bat :microproject_exchange:test --tests "com.microproject.exchange.MpoFileImporterTest" --console=plain --no-daemon --max-workers=1`
+passed 119 tests with 0 failures/errors/skips. `git diff --check` passed, with
+only the expected LF-to-CRLF warnings for the edited docs.
+
+### M2.2 MPO inherited project calendar restoration (#794, 2026-10-20)
+
+When the schedule sidecar contains `projectCalendar`, task records without an
+explicit `calendar` now restore as inherited (`null`) calendars. Older sidecars
+without `projectCalendar` keep the content.xml-derived task calendar behavior;
+explicit task calendars still restore against the restored project calendar.
+This prevents content.xml's materialized default task calendar from overriding
+the sidecar's project-calendar exception. The SNET + positive-FS-lag cases keep
+their original Thursday schedule expectations and verify inheritance before
+and after reload. The focused lag, explicit/inherited calendar, and released
+legacy fixture tests passed (3 tests); the full `MpoFileImporterTest` class
+passed 120 tests with 0 failures/errors/skips.
+
+### M2.2 SNET + positive FS lag across MPO calendar restore (#794, 2026-10-20)
+
+A two-case MPO regression ports the core SNET/positive-FS-lag/project-Tuesday-
+exception fixture. It verifies dates, lag, SNET, calendar exception, and endpoints
+before and after reload/recalculation. First run exposed actual import behavior:
+source tasks had null explicit calendars (inheriting the project calendar), but
+after `content.xml` import they held an explicit default calendar, so Tuesday was
+counted as working. When new schedule-sidecar `projectCalendar` metadata exists,
+restore now treats a missing per-task calendar field as intentionally inherited
+and clears the imported explicit calendar. Old sidecars without project-calendar
+metadata retain their prior `content.xml` task-calendar behavior; explicitly
+stored task calendars remain restored. The original Thursday expectation was
+kept. Focused calendar/inheritance/legacy tests passed 3 tests, and full
+`MpoFileImporterTest` passed 120 tests with 0 failures/errors/skips. Sol reran
+the three focused tests successfully. Before explicit recalculation the imported
+dependency boundary may reflect stale schedule dates; the tested contract is the
+schedule after recalculation, which matches the source fixture.
+
+### M2.2 constraint application rollback (#794, 2026-10-20)
+
+`ScheduleService.setConstraint` now compensates when `setScheduleConstraint`
+throws during application, restoring the captured type/date before rethrowing
+the original failure (a compensation failure is suppressed on it). A regression
+injects a one-time failure after the SNET date setter mutates state and verifies
+the prior constraint, undo availability, mutation revision, and ObjectEvent
+count are unchanged. The post-commit observer-failure/Undo behavior remains
+covered separately. `./gradlew.bat :microproject_core:test --tests
+"com.microproject.pm.scheduling.ScheduleServiceConstraintTest" --console=plain`
+passed 7 tests; `git diff --check` passed.
+
+### M2.2 dependency field application rollback (#794, 2026-10-20)
+
+`DependencyService.setFields` now restores lag and type when applying the type
+fails with a runtime exception or error after lag has been assigned. The focused
+regression passes a null kind to fail deterministically at that point and checks
+fields/endpoints, revision, Undo state, and the ObjectEvent stream remain
+unchanged. Existing publication-failure behavior remains a separate post-commit
+contract.
+
+`TaskModeService.apply` now captures each affected project's `ProjectTaskSnapshot`
+and restores project schedule/model state if applying a selection fails,
+including the task whose setter throws after changing its mode. It also restores
+the exact pre-apply manual date fields and rethrows the original failure. The
+focused two-project regression checks task modes, schedule values, manual dates,
+and dirty flags after the second project's recalculation fails; no result/change
+object is returned. Successful Undo/Redo remains covered by the existing test.
+
+Sol reran the three recent M2.2 rollback families together on the integrated
+worktree: `./gradlew.bat :microproject_core:test --tests
+"com.microproject.pm.scheduling.ScheduleServiceConstraintTest" --tests
+"com.microproject.pm.dependency.DependencyServiceTest" --tests
+"com.microproject.pm.task.TaskModeServiceTest" --console=plain --no-daemon
+--max-workers=1` passed (56 tests total; 0 failures/errors). `git diff --check`
+passed; only expected documentation LF-to-CRLF notices were reported.
+
+### M2.2 FF lead across project-calendar exception (#794, 2026-10-20)
+
+`TaskLinkAndBarScheduleTransitionsTest.finishToFinishTwelveHourLeadUsesBoundaryAcrossDatedCalendarException`
+uses a Wednesday 08:00–17:00 predecessor, Tuesday project-calendar exception,
+and one-day successor. Microsoft documents negative lag as lead/overlap but not
+the exact dated-calendar boundary, so the rule is recorded as a document-derived
+compatibility inference, not an MSP result. A -12h FF lead resolves to Monday
+12:00; with successor SNET Monday 08:00, the schedule is Monday 08:00–17:00.
+Predecessor and unrelated-task dates remain fixed. The earlier -8h candidate was
+rejected as an invalid oracle: the strict chronological finish boundary placed
+Monday 17:00 before required Wednesday 08:00. The focused test and full
+`TaskLinkAndBarScheduleTransitionsTest` class passed (52 tests); `git diff --check`
+passed. Source: https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
+
+MPO persistence coverage: `MpoFileImporterTest.mpoRoundTripPreservesFinishToFinishLeadAcrossProjectCalendarException`
+asserts the Wednesday predecessor, Monday constrained successor, unrelated
+Monday task, Tuesday nonworking exception, SNET/FF/-12h values, and reciprocal
+dependency endpoints before save and after reload/recalculation. The focused
+exchange test passed (1 test, 0 failures/errors/skips); this verifies MPO
+round-trip behavior and does not constitute a physical MSP experiment.
+Sol also reran the full importer class:
+`./gradlew.bat :microproject_exchange:test --tests
+"com.microproject.exchange.MpoFileImporterTest" --console=plain --no-daemon
+--max-workers=1` passed 121 tests with 0 failures/errors/skips.
+
+Negative-lag MPP READ interoperability remains unverified: MPXJ 11.5.4's
+published runtime JAR contains no `MPPWriter`, so its test APIs cannot create a
+valid deterministic MPP fixture. The smallest next step is to create one fixed
+MPP fixture with an eight-hour workday, two fixed-date tasks, and a negative-lag
+link using Microsoft Project or another independent MPP producer; pin its raw
+relation type, lag sign/value/unit, endpoint IDs, and task dates in a manifest.
+Then verify those raw fields with MPXJ `MPPReader`, import/recalculate and
+round-trip through MPO, and assert the same manifest. Microsoft documents lead
+time as overlap, but the selected dates would remain a document-derived
+compatibility decision, not a measured MSP outcome:
+https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
+
+### M2.2 TaskModeService success through MPO (#794, 2026-10-20)
+
+`MpoFileImporterTest.successfulManualModeChangeSurvivesUndoRedoAndMpoRecalculation`
+uses `TaskModeService.apply` to switch a scheduled task to MANUAL, verifies the
+captured manual dates, exercises Undo/Redo, then saves/reopens/recalculates MPO
+and asserts manual mode, manual dates, and effective start/finish remain exact.
+The focused test passed (1 test, 0 failures/errors/skips). This combines the
+service success path with MPO persistence; the existing `taskSchedulingModeSurvivesMpoRoundTrip`
+test remains the direct model-field persistence case.
+
+Negative-lag MPP READ interoperability is not testable with current checked-in
+fixtures: both repository MPP samples lack negative lag, and MPXJ 11.5.4's
+published runtime JAR contains no `MPPWriter`. The next step is a fixed MPP
+fixture created by an independent producer, with its raw relation type, lag,
+endpoint IDs, and dates pinned in a manifest. No production MPP writer is in
+scope per the recorded 2026-10-12 decision above. Microsoft documents lead time
+as overlap; the fixture's selected scheduling dates remain a document-derived
+compatibility decision, not a measured MSP outcome.
+
+### M2.3 Baseline 1 Selected Tasks Robot route (#794, 2026-10-20)
+
+Added `TaskInformationRibbonGuiAcceptanceTest.recaptureBaselineOneSelectedTasksPreservesUnselectedAndBaselineZeroAcrossUndoRedoAndMpo`. It physically selects Baseline 1 + Selected Tasks, confirms overwrite, checks selected and non-selected scope, Baseline 0/current values, Ctrl+Z/Ctrl+Y, and MPO reload for undone/redone state. `compileGuiTestJava` passed in the GUI runner; both physical attempts were stopped before route input by the pre-existing `ProjectLibre へようこそ` window (PID 52244, Java, bounds overlap the test window). The guarded runner retained failure and did not retry/suppress it. Exact targeted command: `.\.github\scripts\run-gui-acceptance.ps1 -Suite full -TestFilter com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.recaptureBaselineOneSelectedTasksPreservesUnselectedAndBaselineZeroAcrossUndoRedoAndMpo -Locale ja -Scale 1.0`. JUnit: `modules/microproject_ui/build/test-results/guiTest/TEST-com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.xml`; latest overlap evidence: `modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.recaptureBaselineOneSelectedTasksPreservesUnselectedAndBaselineZeroAcrossUndoRedoAndMpo-ja-1-0-bda2a5fbeb294a4d9f9065ed9a71901c/`. On a later run, after normally closing the welcome dialog and minimizing the empty workspace app frame, the test passed (1 test, 0 failures/errors/skips); no display setting was changed. Artifacts: `modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.recaptureBaselineOneSelectedTasksPreservesUnselectedAndBaselineZeroAcrossUndoRedoAndMpo-ja-1-0-57326019b2774286821f2e7dc0c54624/`. Physical route verified overwrite confirmation, Undo/Redo, and MPO reload.
+
+Supporting model check: `ProjectScheduleBehaviorTest.overwritingSelectedBaselineRestoresPriorAndAbsentTaskSnapshotsOnUndoRedo` passed via `.\gradlew.bat :microproject_core:test --tests "com.microproject.pm.task.ProjectScheduleBehaviorTest.overwritingSelectedBaselineRestoresPriorAndAbsentTaskSnapshotsOnUndoRedo" --console=plain --no-daemon --max-workers=1`. It covers selected-scope overwrite, outside-selection and unrelated-slot preservation, assignment baselines, and Undo/Redo; it does not substitute for the blocked Robot route.
+
+### M2.3 Mark on Track assigned-task progress preservation (#794, 2026-10-20)
+
+`TaskProgressServiceTest.markOnTrackPreservesImportedAssignmentProgressAndWorkAcrossUndoRedo` confirms that Status Date updates task-level percent-complete while independent assignment percent, Actual Work, and Remaining Work stay unchanged before/after apply, Undo, and Redo. The focused `TaskProgressServiceTest` class passed via `.\gradlew.bat :microproject_core:test --tests "com.microproject.pm.task.TaskProgressServiceTest" --console=plain --no-daemon --max-workers=1`. This is the Mark on Track command contract; Update Project has separate assigned-actuals coverage. No product code changed.
+
+The physical run later passed after clearing that verified workspace-app interference: the welcome dialog was normally closed and the empty app frame was minimized; no display setting changed. Exact command `.\.github\scripts\run-gui-acceptance.ps1 -Suite full -TestFilter com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.recaptureBaselineOneSelectedTasksPreservesUnselectedAndBaselineZeroAcrossUndoRedoAndMpo -Locale ja -Scale 1.0` passed (1 test, 0 failures/errors/skips). JUnit is `modules/microproject_ui/build/test-results/guiTest/TEST-com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.xml`; run artifacts are under `modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.recaptureBaselineOneSelectedTasksPreservesUnselectedAndBaselineZeroAcrossUndoRedoAndMpo-ja-1-0-57326019b2774286821f2e7dc0c54624/`. The Robot route passed the overwrite confirmation and physical Undo/Redo; both MPO reload states preserve selected Baseline 1, the non-selected task's slot, Baseline 0, and selected current values.
+
+
+### M2.3 Mark on Track assignment persistence through MPO (#794, 2026-10-20)
+
+MpoFileImporterTest.markOnTrackPreservesIndependentAssignmentProgressAndWorkAcrossMpoRoundTrip applies Mark on Track to an assigned task with independent assignment percent, Actual Work, and Remaining Work, then saves/reopens MPO. It asserts task progress changes, assignment state and task/assignment work totals persist, and project Status Date reloads exactly. Focused command \.\gradlew.bat :microproject_exchange:test --tests "com.microproject.exchange.MpoFileImporterTest.markOnTrackPreservesIndependentAssignmentProgressAndWorkAcrossMpoRoundTrip" --console=plain passed (1 test).
+
+### M2.1 #414 input-path ownership audit (#794, 2026-10-20)
+
+Focused source checks passed on worktree HEAD `40f5ee8d575a3327e727b9f62182c07aa55d2178` (working changes present): `UiInputArchitectureTest`, `MicrosoftShortcutsRootPaneTest`, and `GanttWheelZoomTest` (20 tests; 0 failures/errors/skips). They confirm no production KeyListener path, unique root-pane shortcut writes, one Gantt wheel owner, and balanced GlobalPreferences listener registration.
+
+A deeper route trace found `MenuFactory.initializeJMenuItem` installs `.accelerator` values on real menu items; `MenuManager` uses `ExtMenuFactory`, and `GraphicManager` installs root-pane bindings for overlapping Ctrl+N/O/S/P/X/C/V/F/Z/Y. The classic document menu is attached by `MicroProjectShell`; duplicate registration is therefore present when those menus are active. Actual double-dispatch ordering was not measured. The bounded fix removes only exact overlaps from document menus using the root-pane InputMap, preserving unrelated accelerators and PrintPreview's separate toolbar use.
+
+`DocumentMenuAcceleratorTest` verifies exact-overlap removal, unrelated and
+parent-only keys, null-map behavior, and MenuManager forwarding (3 tests).
+Focused architecture tests passed (20 tests); the UI suite passed 1,186 tests
+before the third focused test was added, which passed separately. Exact commands:
+`.\gradlew.bat :microproject_ui:test --tests "com.microproject.menu.DocumentMenuAcceleratorTest" --console=plain` and
+`.\gradlew.bat :microproject_ui:test --console=plain --no-daemon --max-workers=1`.
+`git diff --check` passed. The physical classic-menu shortcut route is recorded
+in the succeeding section; no display-resolution change was made.
+
+The first Robot attempt used the new `ClassicMenuRootPaneShortcutGuiAcceptanceTest`
+fixture and failed before route input while awaiting the task spreadsheet; its
+captured screen showed WindowsTerminal covering the application, and the runner
+recorded `GUI_ENVIRONMENT_CONTENDED` (PID 72400). Artifact directory:
+`modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.pm.graphic.frames.ClassicMenuRootPaneShortcutGuiAcceptanceTest.physicalIndentShortcutMutatesOnceWithClassicDocumentMenuAndUndoRedo-en-1-0-adf16515bfd74283a815e0905d317235/`.
+Review found the fixture read `getCurrentFrame()` immediately after adding the
+project; it now retains the returned `DocumentFrame`, awaits visibility, and
+passes its root-pane map to `MenuManager` before constructing the menu. The
+corrected test compiled with `.\gradlew.bat :microproject_ui:compileGuiTestJava --console=plain --no-daemon --max-workers=1`; GUI was not rerun because contention remained. The original command was
+`.\.github\scripts\run-gui-acceptance.ps1 -TestFilter com.microproject.pm.graphic.frames.ClassicMenuRootPaneShortcutGuiAcceptanceTest.physicalIndentShortcutMutatesOnceWithClassicDocumentMenuAndUndoRedo -Locale en -Scale 1.0`; it is not physical route evidence.
+
+### M2.1 #414 physical classic-menu shortcut route (#794, 2026-10-20)
+
+After correcting the fixture's menu creation and retaining the returned
+`DocumentFrame`, the physical Robot journey passed at 2560×1440, English, 100%:
+`.\.github\scripts\run-gui-acceptance.ps1 -TestFilter com.microproject.menu.ClassicMenuRootPaneShortcutGuiAcceptanceTest.physicalIndentShortcutMutatesOnceWithClassicDocumentMenuAndUndoRedo -Locale en -Scale 1.0`.
+Result: 1 test, 0 failures/errors/skips. The real root-pane Ctrl+. Indent
+shortcut ran after physical task selection; model hierarchy changed, one
+physical Ctrl+Z restored the original parent state, and Ctrl+Y reapplied it.
+The fixture menu items come from `ExtMenuFactory` after the same root-pane map
+is supplied, and the overlapping Ctrl+N accelerator is absent. Test result:
+`modules/microproject_ui/build/test-results/guiTest/TEST-com.microproject.menu.ClassicMenuRootPaneShortcutGuiAcceptanceTest.xml`.
+Run logs are under
+`modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.menu.ClassicMenuRootPaneShortcutGuiAcceptanceTest.physicalIndentShortcutMutatesOnceWithClassicDocumentMenuAndUndoRedo-en-1-0-1453d4908fe84754a23850789dfbb698/`.
+No display setting changed. The runner reported a passing GUI gate; my outer
+PowerShell wrapper then returned 1 because its `$LASTEXITCODE` guard was null
+after invoking a PowerShell script, not because the test failed.
+
+### M2.1 #414 spreadsheet/root-pane shortcut ownership (#794, 2026-10-20)
+
+At worktree HEAD `40f5ee8d575a3327e727b9f62182c07aa55d2178` (working changes
+present), `CommonSpreadSheet` now removes exact root-owned Ctrl+X/C/V,
+Ctrl+Space, Shift+Space, and Ctrl+Shift+Space bindings from its focused and
+ancestor InputMap chains. `SpreadSheet` repeats that cleanup after registering
+its transfer handler. The spreadsheet also removes ETable's ancestor Escape
+action; the root Escape command cancels an active editor first and otherwise
+stops Format Painter. Generic `CommonTable` retains its editor-local Escape
+cancellation, disabled outside editing.
+
+The root ownership inventory initially exposed duplicate ancestor clipboard,
+selection, and Escape mappings. A read-only review and focused map/action test
+confirmed Escape's two ancestor entries resolved to enabled
+`BasicTableUI$Actions` (`cancel`) even with no editor. The regression now checks
+all root-pane keys against both spreadsheet map chains; only focused Escape to
+`cancelEdit` is allowed for in-editor cancellation, and ancestor Escape must be
+absent. Focused UI verification passed 30 tests (0 failures/errors/skips):
+`.\gradlew.bat :microproject_ui:test --tests "com.microproject.pm.graphic.frames.MicrosoftShortcutsRootPaneTest" --tests "com.microproject.pm.graphic.UiInputArchitectureTest" --tests "com.microproject.pm.graphic.spreadsheet.SpreadSheetEditingBindingsTest" --tests "com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheetSelectionStateTest" --tests "com.microproject.pm.graphic.spreadsheet.common.CommonTableEscapeKeyTest" --console=plain --no-daemon --max-workers=1`.
+`compileGuiTestJava` passed, and `git diff --check` passed.
+
+Physical verification used the existing
+`TaskInformationRibbonGuiAcceptanceTest.formatPainterCopiesTaskTextStyleOnceOrContinuouslyWithUndoAndMpoReload`
+journey at English/100%, 2560×1440. Ctrl+Space selected the full source row;
+a physical Name-cell click restored ordinary row selection. With continuous
+Format Painter active, F2 opened the Name editor; Escape canceled editing and
+left Format Painter armed; a later Escape stopped it. Final run passed 1/1:
+`.\.github\scripts\run-gui-acceptance.ps1 -TestFilter com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.formatPainterCopiesTaskTextStyleOnceOrContinuouslyWithUndoAndMpoReload -Locale en -Scale 1.0`.
+JUnit: `modules/microproject_ui/build/test-results/guiTest/TEST-com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.xml`;
+run directory:
+`modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.formatPainterCopiesTaskTextStyleOnceOrContinuouslyWithUndoAndMpoReload-en-1-0-f7f23b720c4242ee88cfeed2b1023050/`.
+
+The first focused Robot attempt was stopped before input by a foreign
+WindowsTerminal window (PID 72400); the overlapping attempt artifacts remain
+under `modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.formatPainterCopiesTaskTextStyleOnceOrContinuouslyWithUndoAndMpoReload-en-1-0-5b60afed4e4648d9b883bdaf608bbc04/`. An uncontended run then exposed a
+fixture mistake: it selected the non-editable Indicator column before F2. The
+failure screenshot showed the selected source row; the fixture was corrected
+to click Name and then passed. That diagnostic run is retained under
+`modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.formatPainterCopiesTaskTextStyleOnceOrContinuouslyWithUndoAndMpoReload-en-1-0-a16f9b1bc09a4a31a722b9b3a62ed7e2/`. No resolution or display scale changed.
+
+### U-32 physical keypad zoom re-verification (2026-10-20)
+
+On the current worktree, the focused Robot case passed in Japanese at UI scale
+1.0 on the unchanged 2560×1440 desktop. It physically sent Ctrl+Numpad Divide
+and Multiply from both Gantt and spreadsheet focus, observed one root-pane
+dispatch per chord and inverse zoom steps, and verified unchanged task dates,
+task-table viewport, and Gantt vertical viewport. The GUI runner regenerated
+`installDist`. Command:
+
+`& .\.github\scripts\run-gui-acceptance.ps1 -Suite full -TestFilter com.microproject.pm.graphic.views.GanttBarDateDragGuiAcceptanceTest.robotCtrlNumpadDivideAndMultiplyZoomActiveGanttFromGanttAndSpreadsheetFocus -Locale ja -Scale 1.0`
+
+Result: 1 test, 0 failures/errors/skips. JUnit:
+`modules/microproject_ui/build/test-results/guiTest/TEST-com.microproject.pm.graphic.views.GanttBarDateDragGuiAcceptanceTest.xml`.
+Artifact:
+`modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.pm.graphic.views.GanttBarDateDragGuiAcceptanceTest.robotCtrlNumpadDivideAndMultiplyZoomActiveGanttFromGanttAndSpreadsheetFocus-ja-1-0-fd8c8336e33c45fbb36f2b86aa46ebc6/`.
+The run temporarily minimized and restored the overlapping WindowsTerminal
+window (PID 72400); no screen geometry or UI scale changed.
+
+The complementary non-Gantt no-op journey was added to the same GUI acceptance
+class. On worktree HEAD `40f5ee8d575a3327e727b9f62182c07aa55d2178`,
+`robotCtrlNumpadZoomIsNoOpWhenResourceViewIsActive` switched the active top view
+to Resource View, physically sent Ctrl+Numpad Divide and Multiply, and verified
+that the active view stayed Resource View, Gantt zoom and viewport were
+unchanged, and predecessor/successor start/end values were preserved. Windows
+11, 2560×1440, Japanese/100% UI scale; no display settings changed. Command:
+
+`.\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.views.GanttBarDateDragGuiAcceptanceTest" --console=plain`
+
+Result: GUI compilation succeeded; 9 tests passed, 0 failures/errors/skips.
+JUnit: `modules/microproject_ui/build/test-results/guiTest/TEST-com.microproject.pm.graphic.views.GanttBarDateDragGuiAcceptanceTest.xml`.
+
+### M2.1 #408 U-26 GraphicManager physical outcome and reversibility (2026-10-20)
+
+The existing `U26SpreadsheetInputTransactionGuiAcceptanceTest` physical
+transaction now observes the actual application owner, `GraphicManager`, and
+asserts its `RibbonCommandResult`: command ID `SpreadsheetCellEdit`, status
+`CHANGED`, `selectedTaskIds` equal the natural selected row IDs captured before
+input, `affectedTaskIds` equal the target task, and `activeViewId` equal the
+active top view. The physical field transaction commits 10%; model and rendered
+value show 10%, Undo/Redo show 0%/10%, and the existing MPO reload assertions
+remain in the journey.
+
+Verification passed: `compileGuiTestJava`; full GUI runner command
+`& .\.github\scripts\run-gui-acceptance.ps1 -Suite full -TestFilter com.microproject.pm.graphic.spreadsheet.common.U26SpreadsheetInputTransactionGuiAcceptanceTest -Locale ja -Scale 1.0`;
+JUnit 1 passed, 0 failures/errors/skips. The run was Japanese at 100% on the
+unchanged 2560×1440 desktop. Artifact:
+`modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.pm.graphic.spreadsheet.common.U26SpreadsheetInputTransactionGuiAcceptanceTest-ja-1-0-ec8e471d416547cd83318f64f2c8fcfe/`.
+The first attempt contended with WindowsTerminal PID 72400; the window was
+minimized/restored before the successful rerun. No display change was made.
+
+The filtered/grouped/sorted physical edit slice is complete; its exact current
+worktree evidence and remaining M2.1 criteria are tracked in
+[docs/work/issue-794.md](work/issue-794.md).
+
+### M2.1 #414 two-document shortcut isolation (2026-10-20)
+
+Added `TwoDocumentShortcutIsolationGuiAcceptanceTest.physicalCtrlDeleteAndUndoStayWithEachActiveDocument` and U-36 in `TEST_PLAN.md`. With two independent project windows open, Robot physically selected each task Name cell and sent the document-root Ctrl+Delete, Ctrl+Z, and Ctrl+Y routes. Assertions prove the inactive document's task value is preserved after clear, undo and redo, and the selected row still resolves to its own task after switching back. Uses the existing GraphicManager shortcut/action pipeline; no duplicate command wiring was added.
+
+Verification passed: `compileGuiTestJava`; `.\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.frames.TwoDocumentShortcutIsolationGuiAcceptanceTest" --console=plain` (1 test passed, 0 failures/errors/skips). Worktree HEAD `40f5ee8d575a3327e727b9f62182c07aa55d2178`; Windows 11, Java 25.0.4.1, ja-JP, 100% UI scale, 2560×1440, unchanged resolution. The first attempt failed because the two windows overlapped and the click intended for Alpha landed without activating it; the failure artifact showed Beta covering it. The passing run places windows apart before physical interaction. #414 and M2.1 remain open for their other routes and gates.
