@@ -346,7 +346,7 @@ public class MspImporter {
 				Integer durationFormat = null;
 				if (rawFormat != null && rawDuration != null) {
 					int parsedFormat = Integer.parseInt(rawFormat);
-					if (elapsedDurationUnit(parsedFormat) != com.microproject.datatype.TimeUnit.NONE) {
+					if (declaredDurationUnit(parsedFormat) != com.microproject.datatype.TimeUnit.NONE) {
 						long parsedDuration = parseMspdiDuration(rawDuration);
 						if (parsedDuration < 0L)
 							throw new IllegalArgumentException("MSPDI baseline duration cannot be negative");
@@ -561,22 +561,30 @@ public class MspImporter {
 		return Long.valueOf(Math.addExact(total, millis));
 	}
 
-	private static int elapsedDurationUnit(int durationFormat) {
+	private static int declaredDurationUnit(int durationFormat) {
 		return switch (durationFormat) {
 			case 4, 36 -> com.microproject.datatype.TimeUnit.ELAPSED_MINUTES;
 			case 6, 38 -> com.microproject.datatype.TimeUnit.ELAPSED_HOURS;
 			case 8, 40 -> com.microproject.datatype.TimeUnit.ELAPSED_DAYS;
 			case 10, 42 -> com.microproject.datatype.TimeUnit.ELAPSED_WEEKS;
 			case 12, 44 -> com.microproject.datatype.TimeUnit.ELAPSED_MONTHS;
+			// Working units: MPXJ would otherwise re-express the value in the task's duration unit,
+			// changing the encoded unit (and the displayed text) across an MPO save/reload.
+			case 3, 35 -> com.microproject.datatype.TimeUnit.MINUTES;
+			case 5, 37 -> com.microproject.datatype.TimeUnit.HOURS;
+			case 7, 39 -> com.microproject.datatype.TimeUnit.DAYS;
+			case 9, 41 -> com.microproject.datatype.TimeUnit.WEEKS;
+			case 11, 43 -> com.microproject.datatype.TimeUnit.MONTHS;
 			default -> com.microproject.datatype.TimeUnit.NONE;
 		};
 	}
 
-	private static long toRawBaselineDuration(MpxImportState.RawMspdiTaskBaseline baseline) {
-		int unit = elapsedDurationUnit(baseline.durationFormat().intValue());
+	private static long toRawBaselineDuration(MpxImportState.RawMspdiTaskBaseline baseline,
+		com.microproject.datatype.DurationDefaults defaults) {
+		int unit = declaredDurationUnit(baseline.durationFormat().intValue());
 		double value = baseline.durationMillis().longValue()
-			/ com.microproject.datatype.Duration.timeUnitFactor(unit);
-		long duration = com.microproject.datatype.Duration.getInstance(value, unit);
+			/ com.microproject.datatype.Duration.timeUnitFactor(unit, defaults);
+		long duration = com.microproject.datatype.Duration.getInstance(value, unit, defaults);
 		if (baseline.durationFormat().intValue() >= 35)
 			duration = com.microproject.datatype.Duration.setAsEstimated(duration, true);
 		return duration;
@@ -865,7 +873,7 @@ public class MspImporter {
 			if (finish != null)
 				schedule.setFinish(DateUTCConverter.toModelTime(finish));
 			if (rawBaseline != null && rawBaseline.durationMillis() != null && rawBaseline.durationFormat() != null) {
-				schedule.setRawDuration(toRawBaselineDuration(rawBaseline));
+				schedule.setRawDuration(toRawBaselineDuration(rawBaseline, task.getProject().getDurationDefaults()));
 			} else if (duration != null) {
 				schedule.setRawDuration(MpxUtils.toProjectDuration(duration, task.getProject().getDurationDefaults()));
 			}

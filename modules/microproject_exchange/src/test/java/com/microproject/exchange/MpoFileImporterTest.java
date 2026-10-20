@@ -3477,6 +3477,52 @@ class MpoFileImporterTest {
 		}
 	}
 
+	@Test
+	void mpoRoundTripPreservesTaskAndBaselineDurationMillisUnitAndText() throws Exception {
+		// A baseline saved while the unit is the project default is re-imported through MSPDI with that
+		// default made explicit in the unit bits. The encoded long may differ, but the milliseconds, the
+		// effective unit, the formatted text and the exported MSPDI/MPP duration must not.
+		for (int enteredIn : new int[] { com.microproject.datatype.TimeUnit.DAYS, com.microproject.datatype.TimeUnit.HOURS }) {
+			Project original = projectForRoundTrip();
+			com.microproject.datatype.DurationDefaults defaults = new com.microproject.datatype.DurationDefaults(480.0D,
+				2400.0D, 20.0D, enteredIn, com.microproject.datatype.TimeUnit.HOURS);
+			original.setDurationDefaults(defaults);
+			NormalTask task = (NormalTask) firstTask(original);
+			task.setDuration(8L * 60L * 60L * 1000L);
+			original.recalculate();
+			task.saveCurrentToSnapshot(Integer.valueOf(Snapshottable.BASELINE));
+			task.saveCurrentToSnapshot(Integer.valueOf(10));
+			Project reopened = loadFromBytes(saveProjectBytes(original));
+			NormalTask restored = (NormalTask) firstTask(reopened);
+			assertEquals(defaults, reopened.getDurationDefaults());
+
+			com.microproject.field.FieldContext liveContext = new com.microproject.field.FieldContext();
+			liveContext.setDurationDefaultsResolver(original::getDurationDefaults);
+			com.microproject.field.FieldContext restoredContext = new com.microproject.field.FieldContext();
+			restoredContext.setDurationDefaultsResolver(reopened::getDurationDefaults);
+			assertEquals(task.getDuration(), restored.getDuration(), "current encoded duration");
+			com.microproject.field.Field duration = com.microproject.configuration.Configuration.getFieldFromId("Field.duration");
+			assertEquals(duration.getText(task, liveContext), duration.getText(restored, restoredContext));
+			for (int slot : new int[] { 0, 10 }) {
+				String id = "Field.baseline" + (slot == 0 ? "" : Integer.toString(slot)) + "Duration";
+				com.microproject.field.Field field = com.microproject.configuration.Configuration.getFieldFromId(id);
+				long live = task.getBaselineDuration(slot);
+				long back = restored.getBaselineDuration(slot);
+				String label = " slot " + slot + " entered-in " + enteredIn;
+				assertEquals(com.microproject.datatype.Duration.millis(live), com.microproject.datatype.Duration.millis(back),
+					"baseline milliseconds" + label);
+				assertEquals(com.microproject.datatype.Duration.getType(live) == com.microproject.datatype.TimeUnit.NONE
+					? enteredIn : com.microproject.datatype.Duration.getType(live),
+					com.microproject.datatype.Duration.getType(back), "baseline effective unit" + label);
+				assertEquals(field.getText(task, liveContext), field.getText(restored, restoredContext),
+					"formatted baseline duration" + label);
+				net.sf.mpxj.Duration liveExport = com.microproject.server.data.MPXConverter.toMPXDuration(live, defaults);
+				net.sf.mpxj.Duration backExport = com.microproject.server.data.MPXConverter.toMPXDuration(back, defaults);
+				assertEquals(liveExport, backExport, "exported baseline duration" + label);
+			}
+		}
+	}
+
 	private static Project projectForRoundTrip() {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		Project project = Project.createProject(ResourcePool.createRourcePool("mpo-test", undo), undo);
