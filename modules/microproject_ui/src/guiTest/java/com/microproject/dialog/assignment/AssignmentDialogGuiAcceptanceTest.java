@@ -125,7 +125,7 @@ class AssignmentDialogGuiAcceptanceTest {
 		AbstractButton taskTab = buttonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("TaskRibbonTask.title"));
 		click(robot, bounds(taskTab));
-		AbstractButton assignResources = buttonByCommand("RibbonAssignResources");
+		AbstractButton assignResources = com.microproject.testsupport.RibbonGuiSupport.findVisibleOrExpand(robot, window, "RibbonAssignResources");
 		GuiAcceptanceSupport.await(assignResources::isEnabled, "Assign Resources remained disabled for a selected task");
 		click(robot, bounds(assignResources));
 		AssignmentDialog dialog = awaitDialog();
@@ -206,7 +206,7 @@ class AssignmentDialogGuiAcceptanceTest {
 			"Robot click did not select the replacement task");
 		click(robot, bounds(buttonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("TaskRibbonTask.title"))));
-		AbstractButton assignResources = buttonByCommand("RibbonAssignResources");
+		AbstractButton assignResources = com.microproject.testsupport.RibbonGuiSupport.findVisibleOrExpand(robot, window, "RibbonAssignResources");
 		GuiAcceptanceSupport.await(assignResources::isEnabled, "Assign Resources remained disabled for the replacement task");
 		click(robot, bounds(assignResources));
 		AssignmentDialog assignmentDialog = awaitDialog();
@@ -463,16 +463,6 @@ class AssignmentDialogGuiAcceptanceTest {
 			return false;
 		}, "Replace did not open its resource-selection dialog");
 		return dialog[0];
-	}
-
-	private AbstractButton buttonByCommand(String command) throws Exception {
-		final AbstractButton[] button = new AbstractButton[1];
-		SwingUtilities.invokeAndWait(() -> button[0] = com.microproject.menu.testsupport.UiComponentWalker.flatten(window).stream()
-			.filter(component -> component instanceof AbstractButton || component instanceof org.pushingpixels.flamingo.api.common.AbstractCommandButton)
-			.map(RibbonGuiButton::adapt)
-			.filter(AbstractButton::isShowing).filter(value -> command.equals(value.getActionCommand()))
-			.findFirst().orElseThrow(() -> new AssertionError("Visible command not found: " + command)));
-		return button[0];
 	}
 
 	private AbstractButton buttonByText(String text) throws Exception {

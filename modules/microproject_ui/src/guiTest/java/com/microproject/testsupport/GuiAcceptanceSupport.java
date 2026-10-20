@@ -41,6 +41,16 @@ public final class GuiAcceptanceSupport {
 	private GuiAcceptanceSupport() {
 	}
 
+	/**
+	 * Waits past the platform double-click interval so the next physical click on the same
+	 * point is an independent single click. Two fast clicks on one task cell are a genuine
+	 * double-click, which opens Task Information (MSP behavior).
+	 */
+	public static void awaitMultiClickIntervalElapsed(Robot robot) {
+		Object interval = Toolkit.getDefaultToolkit().getDesktopProperty("awt.multiClickInterval");
+		robot.delay((interval instanceof Integer millis ? millis.intValue() : 500) + 100);
+	}
+
 	public static void await(BooleanSupplier condition, String message) throws Exception {
 		long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
 		while (System.nanoTime() < deadline) {

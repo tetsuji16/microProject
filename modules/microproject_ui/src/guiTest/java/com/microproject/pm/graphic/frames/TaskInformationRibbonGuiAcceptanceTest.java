@@ -4456,9 +4456,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"Indent must be disabled without a selected task");
 		assertFalse(findVisibleOrOverflowButton(robot, "RibbonOutdent").isEnabled(),
 			"Outdent must be disabled without a selected task");
-		assertFalse(findShowingButtonByCommand("RibbonCollapse").isEnabled(),
+		assertFalse(findVisibleOrOverflowButton(robot, "RibbonCollapse").isEnabled(),
 			"Collapse must be disabled without a selected task");
-		assertFalse(findShowingButtonByCommand("RibbonExpand").isEnabled(),
+		assertFalse(findVisibleOrOverflowButton(robot, "RibbonExpand").isEnabled(),
 			"Expand must be disabled without a selected task");
 		AbstractButton hide = findVisibleOrOverflowButton(robot, "RibbonHideSelectedTasks");
 		AbstractButton show = findVisibleOrOverflowButton(robot, "RibbonShowAllTasks");
@@ -4500,7 +4500,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("TaskRibbonTask.title"));
 		clickAndAwaitSelected(robot, taskTab, "Robot click did not select the Task ribbon tab");
-		AbstractButton collapse = findShowingButtonByCommand("RibbonCollapse");
+		AbstractButton collapse = findVisibleOrOverflowButton(robot, "RibbonCollapse");
 		GuiAcceptanceSupport.await(collapse::isEnabled, "Collapse remained disabled for a selected summary");
 		RibbonCommandResult previousCollapseOutcome = manager.getLastRibbonCommandResult();
 		click(robot, collapse);
@@ -4523,7 +4523,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				"view-only Collapse must preserve the hierarchy after MPO save/reload");
 		assertFalse(reloadedChild.isHiddenTask(), "view-only Collapse must not persist as a hidden-task mutation");
 
-		AbstractButton expand = findShowingButtonByCommand("RibbonExpand");
+		AbstractButton expand = findVisibleOrOverflowButton(robot, "RibbonExpand");
 		RibbonCommandResult previousExpandOutcome = manager.getLastRibbonCommandResult();
 		click(robot, expand);
 		GuiAcceptanceSupport.await(() -> isTaskVisible(sheet, child), "Expand did not restore the child row");
@@ -6773,6 +6773,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_SPACE);
 		GuiAcceptanceSupport.await(() -> sheet.isRowHeaderSelectionActive() && sheet.isRowFullySelected(sourceRow),
 			"Ctrl+Space did not dispatch through the root pane to select the active task row");
+		// The source cell was clicked moments ago; a second click inside the double-click interval
+		// would open Task Information instead of restoring ordinary row selection.
+		GuiAcceptanceSupport.awaitMultiClickIntervalElapsed(robot);
 		click(robot, cellOnScreen(sheet, sourceRow, nameColumn(sheet)));
 		GuiAcceptanceSupport.await(() -> !sheet.isRowHeaderSelectionActive() && sheetHasOnlySelectedTask(sheet, source),
 			"a physical task-name click did not restore ordinary row selection after Ctrl+Space");
