@@ -228,6 +228,13 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		assertTrue(tableScroll.getVerticalScrollBar().getValue() > 0, "table must remain scrollable with 20 tasks");
 	}
 
+	/**
+	 * Wheel gestures over the Gantt chart. Microsoft Project documents Ctrl+wheel as the Gantt zoom gesture
+	 * (https://support.microsoft.com/en-us/project/zoom-in-or-out-of-a-gantt-chart); plain-wheel vertical scrolling
+	 * and Shift+wheel horizontal timescale scrolling follow the standard Office scroll convention. Those two are
+	 * document-derived compatibility decisions, not measured MSP results. {@code ScrollPaneSynchronizer} is the
+	 * sole wheel owner. Whatever the gesture, the task model, selection and Undo history must stay unchanged.
+	 */
 	@Test
 	void physicalGanttWheelModifiersHaveOneScrollOwnerAndOneStep() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
@@ -264,6 +271,11 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			robot.mouseMove(point.x, point.y);
 			robot.delay(150);
 
+			SwingUtilities.invokeAndWait(() -> fixture.sheet.getSelectionModel().setSelectionInterval(2, 2));
+			List<String> modelBefore = wheelModelSnapshot(fixture);
+			List<Integer> selectionBefore = wheelSelectionSnapshot(fixture);
+			assertEquals(List.of(2), selectionBefore, "fixture row 2 must be selected before the wheel gestures");
+			UndoSnapshot undoBefore = UndoSnapshot.capture(fixture.project);
 			int beforeX = ganttScroll.getHorizontalScrollBar().getValue();
 			int beforeY = ganttScroll.getVerticalScrollBar().getValue();
 			robot.mouseWheel(1);
@@ -276,6 +288,9 @@ class TaskTableGanttGridGuiAcceptanceTest {
 				"plain wheel must not change horizontal position");
 			assertEquals(ganttScroll.getVerticalScrollBar().getValue(), tableScroll.getVerticalScrollBar().getValue(),
 				"plain wheel must keep the synchronized task table at the same vertical position");
+			assertEquals(firstVisibleRow(tableScroll, fixture.gantt.getRowHeight()),
+				firstVisibleRow(ganttScroll, fixture.gantt.getRowHeight()),
+				"table and Gantt must show the same first visible task after the plain wheel");
 
 			SwingUtilities.invokeAndWait(() -> {
 				ganttScroll.getVerticalScrollBar().setValue(0);
@@ -313,6 +328,9 @@ class TaskTableGanttGridGuiAcceptanceTest {
 				"one Ctrl+wheel gesture must apply exactly one zoom step");
 			assertEquals(verticalBefore, ganttScroll.getVerticalScrollBar().getValue(),
 				"Ctrl+wheel must not change vertical position");
+			assertEquals(modelBefore, wheelModelSnapshot(fixture), "wheel gestures must not change the task model");
+			assertEquals(selectionBefore, wheelSelectionSnapshot(fixture), "wheel gestures must not change the selection");
+			assertEquals(undoBefore, UndoSnapshot.capture(fixture.project), "wheel gestures must not touch Undo history");
 		} finally {
 			SwingUtilities.invokeAndWait(() -> synchronizer.removeSynchro(ganttScroll, tableScroll,
 				ScrollPaneSynchronizer.HORIZONTAL));
@@ -1719,6 +1737,30 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			case 2 -> day;
 			default -> day * 3;
 		};
+	}
+
+	private static int firstVisibleRow(JScrollPane pane, int rowHeight) {
+		return pane.getViewport().getViewPosition().y / rowHeight;
+	}
+
+	private static List<String> wheelModelSnapshot(Fixture fixture) throws Exception {
+		List<String> snapshot = new ArrayList<>();
+		SwingUtilities.invokeAndWait(() -> {
+			for (Object task : fixture.project.getTaskList()) {
+				NormalTask normal = (NormalTask) task;
+				snapshot.add(normal.getName() + "|" + normal.getStart() + "|" + normal.getRawDuration() + "|"
+					+ normal.getPredecessorList().size());
+			}
+		});
+		return snapshot;
+	}
+
+	private static List<Integer> wheelSelectionSnapshot(Fixture fixture) throws Exception {
+		List<Integer> rows = new ArrayList<>();
+		SwingUtilities.invokeAndWait(() -> {
+			for (int row : fixture.sheet.getSelectedRows()) rows.add(row);
+		});
+		return rows;
 	}
 
 	private record Fixture(SpreadSheet sheet, Gantt gantt, Project project, int taskCount, int sequentialDependencyCount,

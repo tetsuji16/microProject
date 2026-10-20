@@ -476,10 +476,40 @@ class GanttBarDateDragGuiAcceptanceTest {
 		assertEquals("Gantt", outcome.activeViewId());
 		assertEquals(fixture.predecessor,
 			((Dependency) fixture.successor.getPredecessorList().iterator().next()).getPredecessor());
-		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().undo());
-		assertTrue(fixture.successor.getPredecessorList().isEmpty(), "Undo must restore the pre-drag model state");
-		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().redo());
-		assertEquals(1, fixture.successor.getPredecessorList().size(), "Redo must restore the dependency");
+		assertEquals(DependencyType.FS,
+			((Dependency) fixture.successor.getPredecessorList().iterator().next()).getDependencyType(),
+			"Gantt drag must create a Finish-to-Start link");
+		assertEquals(1, fixture.successor.getPredecessorList().size(), "drag must create exactly one link");
+		// Physical Ctrl+Z / Ctrl+Y (Office Undo/Redo shortcuts) through the shared key route.
+		// The document root pane owns Undo/Redo, so give the project window the native keyboard focus first.
+		SwingUtilities.invokeAndWait(() -> {
+			projectWindow.setSize(1050, 650);
+			projectWindow.setLocation(frame.getX() + 30, frame.getY() + 30);
+			projectWindow.setAlwaysOnTop(true);
+			projectWindow.setVisible(true);
+			projectWindow.toFront();
+			projectWindow.requestFocus();
+		});
+		GuiAcceptanceSupport.await(projectWindow::isShowing, "project window was not visible for physical Undo");
+		robot.mouseMove(projectWindow.getX() + 35, projectWindow.getY() + 12);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(projectWindow::isActive, "project window did not become the active native window");
+		robot.keyPress(java.awt.event.KeyEvent.VK_CONTROL);
+		robot.keyPress(java.awt.event.KeyEvent.VK_Z);
+		robot.keyRelease(java.awt.event.KeyEvent.VK_Z);
+		robot.keyRelease(java.awt.event.KeyEvent.VK_CONTROL);
+		GuiAcceptanceSupport.await(() -> fixture.successor.getPredecessorList().isEmpty(),
+			"one Ctrl+Z must remove the Gantt-created dependency");
+		GuiAcceptanceSupport.await(() -> fixture.cache.getEdgesSize() == 0, "Undo must remove the Gantt edge");
+		robot.keyPress(java.awt.event.KeyEvent.VK_CONTROL);
+		robot.keyPress(java.awt.event.KeyEvent.VK_Y);
+		robot.keyRelease(java.awt.event.KeyEvent.VK_Y);
+		robot.keyRelease(java.awt.event.KeyEvent.VK_CONTROL);
+		GuiAcceptanceSupport.await(() -> fixture.successor.getPredecessorList().size() == 1,
+			"Ctrl+Y must restore the dependency");
+		GuiAcceptanceSupport.await(() -> fixture.cache.getEdgesSize() == 1, "Redo must restore the Gantt edge");
 		ByteArrayOutputStream saved = new ByteArrayOutputStream();
 		MpoFileImporter importer = new MpoFileImporter();
 		assertTrue(importer.saveProject(fixture.project, saved), "the Gantt-created dependency must be serializable");
