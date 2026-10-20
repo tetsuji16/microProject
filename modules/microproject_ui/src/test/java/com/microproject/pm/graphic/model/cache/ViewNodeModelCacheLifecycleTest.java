@@ -121,6 +121,92 @@ class ViewNodeModelCacheLifecycleTest {
 	}
 
 	@Test
+	void publicationsCompletingOutOfOrderInstallOnlyTheNewestRevisionOnce() throws Exception {
+		for (boolean newestFirst : new boolean[] { true, false }) {
+			Project project = createProject();
+			NormalTask task = createTask(project, "Out of order " + newestFirst);
+			ReferenceNodeModelCache reference = NodeModelCacheFactory.createTaskNodeModelCache(project,
+					project.getTaskModel());
+			ViewNodeModelCache view = (ViewNodeModelCache) NodeModelCacheFactory.getInstance()
+					.createFilteredCache(reference, "out-of-order-" + newestFirst, null);
+			AtomicInteger notifications = new AtomicInteger();
+			view.addNodeModelListener(event -> notifications.incrementAndGet());
+			long older = project.getMutationState().revision();
+			try (var mutation = project.getMutationState().begin()) {
+				mutation.commit(true);
+			}
+			long newer = project.getMutationState().revision();
+			assertTrue(newer > older);
+			SwingUtilities.invokeAndWait(() -> {
+				reference.getGraphicNode(project.getTaskModel().search(task)).setDirty(true);
+				notifications.set(0);
+			});
+			// Both publications are produced off the EDT and queued in the given completion order.
+			long[] order = newestFirst ? new long[] { newer, older } : new long[] { older, newer };
+			for (long revision : order) {
+				com.microproject.pm.scheduling.ScheduleEvent event = new com.microproject.pm.scheduling.ScheduleEvent(
+						"out-of-order", com.microproject.pm.scheduling.ScheduleEvent.SCHEDULE);
+				event.setPublicationRevision(revision);
+				Thread publisher = new Thread(() -> reference.scheduleChanged(event));
+				publisher.start();
+				publisher.join();
+			}
+			SwingUtilities.invokeAndWait(() -> { });
+			assertEquals(newer, view.getVisibleNodes().getProjectionIndex().modelRevision(),
+					"only the newest revision may be installed");
+			assertEquals(1, notifications.get(), "the superseded publication must not install or notify again");
+			view.close();
+			reference.close();
+		}
+	}
+
+	@Test
+	void structuralChangesKeepTableAndGanttProjectionsOnTheSameStableRows() throws Exception {
+		Project project = createProject();
+		NormalTask first = createTask(project, "First");
+		NormalTask second = createTask(project, "Second");
+		ReferenceNodeModelCache reference = NodeModelCacheFactory.createTaskNodeModelCache(project,
+				project.getTaskModel());
+		ViewNodeModelCache table = (ViewNodeModelCache) NodeModelCacheFactory.getInstance()
+				.createFilteredCache(reference, "structure-table", null);
+		ViewNodeModelCache gantt = (ViewNodeModelCache) NodeModelCacheFactory.getInstance()
+				.createFilteredCache(reference, "structure-gantt", null);
+		var model = (com.microproject.grouping.core.model.DefaultNodeModel) project.getTaskModel();
+		SwingUtilities.invokeAndWait(() -> {
+			reference.update();
+			assertProjectionsAgree(table, gantt, "First", "Second");
+			NormalTask inserted = createTask(project, "Inserted");
+			reference.update();
+			assertProjectionsAgree(table, gantt, "First", "Second", "Inserted");
+			model.indent(java.util.List.of(model.search(second)), 1,
+					com.microproject.grouping.core.model.NodeModel.SILENT);
+			reference.update();
+			assertProjectionsAgree(table, gantt, "First", "Second", "Inserted");
+			model.remove(model.search(inserted), com.microproject.grouping.core.model.NodeModel.SILENT);
+			reference.update();
+			assertProjectionsAgree(table, gantt, "First", "Second");
+		});
+		table.close();
+		gantt.close();
+		reference.close();
+	}
+
+	private static void assertProjectionsAgree(ViewNodeModelCache table, ViewNodeModelCache gantt,
+			String... expectedTaskNames) {
+		RevisionedProjectionIndex left = table.getVisibleNodes().getProjectionIndex();
+		RevisionedProjectionIndex right = gantt.getVisibleNodes().getProjectionIndex();
+		java.util.List<String> names = new java.util.ArrayList<>();
+		for (GraphicNode node : left.nodes())
+			if (node.getNode().getImpl() instanceof NormalTask task && task.getName() != null
+					&& Arrays.asList(expectedTaskNames).contains(task.getName()))
+				names.add(task.getName());
+		assertEquals(Arrays.asList(expectedTaskNames), names);
+		assertEquals(left.rowKeys(), right.rowKeys(), "table and Gantt must show the same stable task ids in order");
+		assertEquals(left.modelRevision(), right.modelRevision());
+		assertEquals(left.topologyRevision(), right.topologyRevision());
+	}
+
+	@Test
 	void queuedRefreshFromAnOldBindingIsDiscardedAfterRebind() throws Exception {
 		Project project = createProject();
 		ReferenceNodeModelCache reference = NodeModelCacheFactory.createTaskNodeModelCache(project,
