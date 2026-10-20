@@ -3545,8 +3545,83 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertEquals(currentCost, redoReloadTask.getCost(), 0.001d);
 	}
 
+	/**
+	 * Selected Tasks Save Baseline into a numbered slot, physical route.
+	 * Source (document-derived compatibility decision): Microsoft "Set and save a baseline in Project"
+	 * https://support.microsoft.com/en-us/project/set-and-save-a-baseline-in-project
+	 * lists Baseline through Baseline 10 and the "Selected tasks" scope; only the selected tasks
+	 * receive the saved Start/Finish/Duration/Work/Cost in that slot.
+	 */
 	@Test
 	void recaptureBaselineOneSelectedTasksPreservesUnselectedAndBaselineZeroAcrossUndoRedoAndMpo() throws Exception {
+		runSelectedTasksBaselineJourney(Snapshottable.BASELINE_1, false, true);
+	}
+
+	@Test
+	void saveBaselineTwoSelectedTasksIntoEmptySlotPreservesOthersAcrossUndoRedoAndMpo() throws Exception {
+		runSelectedTasksBaselineJourney(Snapshottable.BASELINE_2, false, false);
+	}
+
+	@Test
+	void saveBaselineTenSelectedTasksIntoEmptySlotPreservesOthersAcrossUndoRedoAndMpo() throws Exception {
+		runSelectedTasksBaselineJourney(Snapshottable.BASELINE_10, false, false);
+	}
+
+	/**
+	 * Selected Tasks Clear Baseline for a numbered slot, physical route.
+	 * Source (document-derived compatibility decision): Microsoft "Clear a baseline"
+	 * https://support.microsoft.com/en-us/project/clear-a-baseline
+	 * clears the chosen baseline for the selected tasks only; current values are untouched.
+	 */
+	@Test
+	void clearBaselineTenSelectedTasksPreservesOthersAcrossUndoRedoAndMpo() throws Exception {
+		runSelectedTasksBaselineJourney(Snapshottable.BASELINE_10, true, true);
+	}
+
+	private record BaselineSlotState(boolean present, long start, long finish, long duration, double work,
+			double cost, Object assignmentValues) {
+		static BaselineSlotState capture(NormalTask task, Integer slot) {
+			Assignment assignment = (Assignment) task.getAssignments().iterator().next();
+			if (task.getSnapshot(slot) == null) {
+				return new BaselineSlotState(false, 0L, 0L, 0L, 0d, 0d, assignment.getBaselineValues(slot));
+			}
+			return new BaselineSlotState(true, task.getBaselineStart(slot), task.getBaselineFinish(slot),
+				com.microproject.datatype.Duration.millis(task.getBaselineDuration(slot)), task.getBaselineWork(slot), task.getBaselineCost(slot),
+				assignment.getBaselineValues(slot));
+		}
+	}
+
+	private static java.util.Map<Integer, BaselineSlotState> captureBaselineSlots(NormalTask task, Integer... slots) {
+		java.util.Map<Integer, BaselineSlotState> states = new java.util.LinkedHashMap<>();
+		for (Integer slot : slots) states.put(slot, BaselineSlotState.capture(task, slot));
+		return states;
+	}
+
+	private static void assertBaselineSlots(String message, java.util.Map<Integer, BaselineSlotState> expected,
+			java.util.Map<Integer, BaselineSlotState> actual) {
+		assertEquals(expected.keySet(), actual.keySet(), message);
+		for (Integer slot : expected.keySet()) {
+			BaselineSlotState e = expected.get(slot);
+			BaselineSlotState a = actual.get(slot);
+			String where = message + " (slot " + slot + ")";
+			assertEquals(e.present(), a.present(), where + " presence");
+			assertEquals(e.start(), a.start(), where + " start");
+			assertEquals(e.finish(), a.finish(), where + " finish");
+			assertEquals(e.duration(), a.duration(), where + " duration");
+			assertEquals(e.work(), a.work(), 0.001d, where + " work");
+			assertEquals(e.cost(), a.cost(), 0.001d, where + " cost");
+			assertEquals(e.assignmentValues(), a.assignmentValues(), where + " assignment baseline values");
+		}
+	}
+
+	/**
+	 * One physical journey for Selected Tasks Save/Clear Baseline in {@code slot}: ribbon Project tab,
+	 * Set/Clear Baseline dialog, slot combo and Selected Tasks radio driven by Robot, then one Ctrl+Z,
+	 * one Ctrl+Y and MPO save/reload after each. Only the selected task's {@code slot} may change;
+	 * Baseline 0, Baseline 1, the other slots and the unselected task must stay identical, and current
+	 * values must never change.
+	 */
+	private void runSelectedTasksBaselineJourney(Integer slot, boolean clear, boolean occupied) throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Baseline Robot coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
@@ -3555,35 +3630,51 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		NormalTask selected = createTask();
 		Project project = selected.getOwningProject();
 		NormalTask other = project.createScriptedTask();
-		other.setName("Baseline 1 unselected peer");
+		other.setName("Baseline " + slot + " unselected peer");
 		long day = CalendarOption.getInstance().getMillisPerDay();
-		selected.setDuration(day);
-		other.setDuration(day);
-		selected.setFixedCost(10.0d);
-		other.setFixedCost(70.0d);
-		project.recalculate();
+		Resource resource = project.getResourcePool().createScriptedResource();
+		Assignment selectedAssignment = AssignmentService.getInstance().newAssignment(selected, resource, 1.0d, 0L, this);
+		Assignment otherAssignment = AssignmentService.getInstance().newAssignment(other, resource, 1.0d, 0L, this);
+		SwingUtilities.invokeAndWait(() -> {
+			selected.setDuration(day);
+			other.setDuration(day);
+			selected.setFixedCost(10.0d);
+			other.setFixedCost(70.0d);
+			selectedAssignment.setWork(day, null);
+			otherAssignment.setWork(day, null);
+			project.recalculate();
+		});
 		project.saveCurrentToSnapshot(Snapshottable.BASELINE, true, null);
-		long selectedBaselineZero = selected.getBaselineStart(Snapshottable.BASELINE);
-		long otherBaselineZero = other.getBaselineStart(Snapshottable.BASELINE);
-		long oldSelectedOne = project.getEffectiveWorkCalendar().add(selected.getStart(), day, false);
-		long oldOtherOne = project.getEffectiveWorkCalendar().add(other.getStart(), 2L * day, false);
-		selected.setStart(oldSelectedOne);
-		other.setStart(oldOtherOne);
-		project.recalculate();
+		shiftBothStarts(project, selected, other, day, 1L, 2L);
 		project.saveCurrentToSnapshot(Snapshottable.BASELINE_1, true, null);
-		long oldSelectedBaselineOne = selected.getBaselineStart(Snapshottable.BASELINE_1);
-		long otherBaselineOne = other.getBaselineStart(Snapshottable.BASELINE_1);
-		long recapturedStart = project.getEffectiveWorkCalendar().add(selected.getStart(), day, false);
-		selected.setStart(recapturedStart);
-		project.recalculate();
+		if (occupied && !slot.equals(Snapshottable.BASELINE_1)) {
+			shiftBothStarts(project, selected, other, day, 1L, 1L);
+			project.saveCurrentToSnapshot(slot, true, null);
+		}
+		// Current values diverge from every stored slot for both tasks, so a leaked scope would be visible.
+		shiftBothStarts(project, selected, other, day, 1L, 1L);
+		SwingUtilities.invokeAndWait(() -> {
+			selected.setFixedCost(35.0d);
+			selectedAssignment.setWork(3L * day, null);
+			project.recalculate();
+		});
 		long currentStart = selected.getStart();
+		long currentFinish = selected.getEnd();
+		long currentDuration = selected.getCurrentSchedule().getRawDuration();
 		long currentWork = selected.getWork(null);
 		double currentCost = selected.getCost();
+		long otherCurrentStart = other.getStart();
+		Integer[] tracked = {Snapshottable.BASELINE, Snapshottable.BASELINE_1, Snapshottable.BASELINE_2,
+			Snapshottable.BASELINE_10};
+		java.util.Map<Integer, BaselineSlotState> selectedBefore = captureBaselineSlots(selected, tracked);
+		java.util.Map<Integer, BaselineSlotState> otherBefore = captureBaselineSlots(other, tracked);
+		assertEquals(occupied, selectedBefore.get(slot).present(), "Fixture slot occupancy must match the journey");
+
 		showProject(project);
 		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
 		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null
 				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
-			"Selected-task Baseline 1 project did not become visible");
+			"Selected-task Baseline " + slot + " project did not become visible");
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
@@ -3591,66 +3682,98 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, selected), nameColumn(sheet)));
 		click(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("ProjectRibbonTask.title")));
-		click(robot, findShowingButtonByCommand("RibbonSaveBaseline"));
+		click(robot, findShowingButtonByCommand(clear ? "RibbonClearBaseline" : "RibbonSaveBaseline"));
 		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
 				.anyMatch(candidate -> candidate instanceof BaselineDialog && candidate.isShowing()),
-			"Save Baseline dialog did not open for selected-task recapture");
+			"Baseline dialog did not open for selected-task journey");
 		BaselineDialog dialog = java.util.Arrays.stream(Window.getWindows())
 			.filter(candidate -> candidate instanceof BaselineDialog && candidate.isShowing())
 			.map(BaselineDialog.class::cast).findFirst().orElseThrow();
 		JComboBox<?> baselineSelector = UiComponentWalker.flatten(dialog).stream()
 			.filter(JComboBox.class::isInstance).map(JComboBox.class::cast).findFirst().orElseThrow();
-		GuiAcceptanceSupport.selectComboBoxItem(robot, baselineSelector, Snapshottable.BASELINE_1);
+		GuiAcceptanceSupport.selectComboBoxItem(robot, baselineSelector, slot);
 		AbstractButton selectedTasks = findShowingButtonByText(dialog, Messages.getString("Text.SelectedTasks"));
 		click(robot, selectedTasks);
-		assertEquals(Snapshottable.BASELINE_1.intValue(), baselineSelector.getSelectedIndex(),
-			"Physical chooser selection must target Baseline 1");
+		assertEquals(slot.intValue(), baselineSelector.getSelectedIndex(),
+			"Physical chooser selection must target Baseline " + slot);
 		assertTrue(selectedTasks.isSelected(), "Physical scope selection must target Selected Tasks");
 		ResourceBundle labels = ResourceBundle.getBundle("com.microproject.dialog.usability");
 		click(robot, findShowingButtonByText(dialog, Messages.getString("ButtonText.OK")));
-		GuiAcceptanceSupport.await(() -> isActiveDialogOwnedBy(dialog, labels.getString("baseline.overwriteTitle")),
-			"Overwriting occupied Baseline 1 must ask for confirmation");
-		click(robot, findShowingButtonByText(activeDialogOwnedBy(dialog), labels.getString("dialog.yes")));
-		GuiAcceptanceSupport.await(() -> !dialog.isShowing()
-				&& selected.getBaselineStart(Snapshottable.BASELINE_1) == recapturedStart,
-			"Confirmed Selected Tasks save did not recapture the selected task");
-		assertEquals(recapturedStart, selected.getBaselineStart(Snapshottable.BASELINE_1));
-		assertEquals(otherBaselineOne, other.getBaselineStart(Snapshottable.BASELINE_1),
-			"Selected Tasks recapture must preserve the non-selected task's Baseline 1");
-		assertEquals(selectedBaselineZero, selected.getBaselineStart(Snapshottable.BASELINE),
-			"Baseline 1 recapture must preserve selected task Baseline 0");
-		assertEquals(otherBaselineZero, other.getBaselineStart(Snapshottable.BASELINE));
-		assertEquals(currentStart, selected.getStart());
-		assertEquals(currentWork, selected.getWork(null));
-		assertEquals(currentCost, selected.getCost(), 0.001d);
+		if (!clear && occupied) {
+			GuiAcceptanceSupport.await(() -> isActiveDialogOwnedBy(dialog, labels.getString("baseline.overwriteTitle")),
+				"Overwriting occupied Baseline " + slot + " must ask for confirmation");
+			click(robot, findShowingButtonByText(activeDialogOwnedBy(dialog), labels.getString("dialog.yes")));
+		}
+		java.util.Map<Integer, BaselineSlotState> selectedAfter = new java.util.LinkedHashMap<>(selectedBefore);
+		if (clear) {
+			GuiAcceptanceSupport.await(() -> !dialog.isShowing() && selected.getSnapshot(slot) == null,
+				"Selected Tasks clear did not remove the selected task's Baseline " + slot);
+			selectedAfter.put(slot, BaselineSlotState.capture(selected, slot));
+			assertFalse(selectedAfter.get(slot).present());
+			assertNull(selectedAfter.get(slot).assignmentValues(), "Clear must remove assignment Baseline values");
+		} else {
+			GuiAcceptanceSupport.await(() -> !dialog.isShowing() && selected.getSnapshot(slot) != null
+					&& selected.getBaselineStart(slot) == currentStart,
+				"Selected Tasks save did not capture the selected task into Baseline " + slot);
+			BaselineSlotState saved = BaselineSlotState.capture(selected, slot);
+			assertEquals(currentFinish, saved.finish(), "Saved baseline finish must equal the current finish");
+			// Duration unit bits are a display attribute that MPO reload normalizes; compare the millisecond value.
+			assertEquals(com.microproject.datatype.Duration.millis(currentDuration), saved.duration(), "Saved baseline duration must equal the current duration");
+			assertEquals((double) currentWork, saved.work(), 0.001d, "Saved baseline work must equal the current work");
+			assertEquals(currentCost, saved.cost(), 0.001d, "Saved baseline cost must equal the current cost");
+			assertNotNull(saved.assignmentValues(), "Saved baseline must include the selected assignment values");
+			selectedAfter.put(slot, saved);
+		}
+		Runnable assertLive = () -> {
+			assertBaselineSlots("Selected task", selectedAfter, captureBaselineSlots(selected, tracked));
+			assertBaselineSlots("Unselected task", otherBefore, captureBaselineSlots(other, tracked));
+			assertEquals(currentStart, selected.getStart(), "Baseline command must not change the current start");
+			assertEquals(currentWork, selected.getWork(null), "Baseline command must not change current work");
+			assertEquals(currentCost, selected.getCost(), 0.001d, "Baseline command must not change current cost");
+			assertEquals(otherCurrentStart, other.getStart(), "Baseline command must not touch the unselected task");
+		};
+		assertLive.run();
+		assertReloadedBaselines("post-command", project, selected, other, tracked, selectedAfter, otherBefore, currentStart);
+
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
-		GuiAcceptanceSupport.await(() -> selected.getBaselineStart(Snapshottable.BASELINE_1) == oldSelectedBaselineOne,
-			"Undo did not restore selected task Baseline 1");
-		assertEquals(otherBaselineOne, other.getBaselineStart(Snapshottable.BASELINE_1));
-		assertEquals(selectedBaselineZero, selected.getBaselineStart(Snapshottable.BASELINE));
-		MpoFileImporter importer = new MpoFileImporter();
-		ByteArrayOutputStream undoBytes = new ByteArrayOutputStream();
-		assertTrue(importer.saveProject(project, undoBytes), "MPO save must accept undone selected-task state");
-		Project undoReload = importer.loadProject(new ByteArrayInputStream(undoBytes.toByteArray()));
-		assertEquals(oldSelectedBaselineOne, taskNamed(undoReload, selected.getName()).getBaselineStart(Snapshottable.BASELINE_1));
-		assertEquals(otherBaselineOne, taskNamed(undoReload, other.getName()).getBaselineStart(Snapshottable.BASELINE_1));
-		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
-		GuiAcceptanceSupport.await(() -> selected.getBaselineStart(Snapshottable.BASELINE_1) == recapturedStart,
-			"Redo did not restore selected task Baseline 1");
-		assertEquals(otherBaselineOne, other.getBaselineStart(Snapshottable.BASELINE_1));
-		assertEquals(selectedBaselineZero, selected.getBaselineStart(Snapshottable.BASELINE));
+		GuiAcceptanceSupport.await(() -> (selected.getSnapshot(slot) != null) == occupied
+				&& (!occupied || selected.getBaselineStart(slot) == selectedBefore.get(slot).start()),
+			"Undo did not restore the selected task's Baseline " + slot);
+		assertBaselineSlots("Undo selected task", selectedBefore, captureBaselineSlots(selected, tracked));
+		assertBaselineSlots("Undo unselected task", otherBefore, captureBaselineSlots(other, tracked));
 		assertEquals(currentStart, selected.getStart());
 		assertEquals(currentWork, selected.getWork(null));
-		assertEquals(currentCost, selected.getCost(), 0.001d);
-		ByteArrayOutputStream redoBytes = new ByteArrayOutputStream();
-		assertTrue(importer.saveProject(project, redoBytes), "MPO save must accept redone selected-task state");
-		Project redoReload = importer.loadProject(new ByteArrayInputStream(redoBytes.toByteArray()));
-		assertEquals(recapturedStart, taskNamed(redoReload, selected.getName()).getBaselineStart(Snapshottable.BASELINE_1));
-		assertEquals(otherBaselineOne, taskNamed(redoReload, other.getName()).getBaselineStart(Snapshottable.BASELINE_1));
-		assertEquals(selectedBaselineZero, taskNamed(redoReload, selected.getName()).getBaselineStart(Snapshottable.BASELINE));
-		assertEquals(currentStart, taskNamed(redoReload, selected.getName()).getStart());
-		assertEquals(currentWork, taskNamed(redoReload, selected.getName()).getWork(null));
-		assertEquals(currentCost, taskNamed(redoReload, selected.getName()).getCost(), 0.001d);
+		assertReloadedBaselines("undone", project, selected, other, tracked, selectedBefore, otherBefore, currentStart);
+
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> clear ? selected.getSnapshot(slot) == null
+				: selected.getSnapshot(slot) != null && selected.getBaselineStart(slot) == currentStart,
+			"Redo did not reapply the selected task's Baseline " + slot + " change");
+		assertLive.run();
+		assertReloadedBaselines("redone", project, selected, other, tracked, selectedAfter, otherBefore, currentStart);
+	}
+
+	private static void assertReloadedBaselines(String stage, Project project, NormalTask selected, NormalTask other,
+			Integer[] tracked, java.util.Map<Integer, BaselineSlotState> expectedSelected,
+			java.util.Map<Integer, BaselineSlotState> expectedOther, long currentStart) throws Exception {
+		MpoFileImporter importer = new MpoFileImporter();
+		ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+		assertTrue(importer.saveProject(project, bytes), "MPO save must accept the " + stage + " state");
+		Project reloaded = importer.loadProject(new ByteArrayInputStream(bytes.toByteArray()));
+		assertBaselineSlots(stage + " reloaded selected task", expectedSelected,
+			captureBaselineSlots(taskNamed(reloaded, selected.getName()), tracked));
+		assertBaselineSlots(stage + " reloaded unselected task", expectedOther,
+			captureBaselineSlots(taskNamed(reloaded, other.getName()), tracked));
+		assertEquals(currentStart, taskNamed(reloaded, selected.getName()).getStart());
+	}
+
+	private static void shiftBothStarts(Project project, NormalTask selected, NormalTask other, long day,
+			long selectedDays, long otherDays) throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			selected.setStart(project.getEffectiveWorkCalendar().add(selected.getStart(), selectedDays * day, false));
+			other.setStart(project.getEffectiveWorkCalendar().add(other.getStart(), otherDays * day, false));
+			project.recalculate();
+		});
 	}
 
 	@Test
