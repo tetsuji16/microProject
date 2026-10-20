@@ -3871,6 +3871,44 @@ class MpoFileImporterTest {
 		assertEquals(expectedAssignedFinish, noOpAssigned.getEnd());
 	}
 
+	/**
+	 * Provenance for #868 (document-derived compatibility decision, see
+	 * https://support.microsoft.com/en-us/project/work-task-field): the Work field of a
+	 * task is user-editable; MPXJ/MSPDI/MPP task Work is not imported (task Work derives
+	 * from assignments), so the only production route producing an unassigned leaf whose
+	 * Work differs from its duration-derived default is editing Work on the task itself
+	 * (NormalTask.setWork). The value reached through that route must survive MPO
+	 * save, reload and a no-op resave together with Duration, Start and Finish.
+	 */
+	@Test
+	void unassignedLeafWorkEditedThroughTaskFieldSurvivesMpoRoundTrip() throws Exception {
+		Project original = projectForRoundTrip();
+		NormalTask task = (NormalTask) firstTask(original);
+		task.setName("Edited unassigned leaf");
+		long defaultWork = task.getWork(null);
+		long editedWork = defaultWork + 4L * 3_600_000L;
+		task.setWork(editedWork);
+		long work = task.getWork(null);
+		long start = task.getStart();
+		long finish = task.getEnd();
+		long duration = task.getDurationMillis();
+		assertNotEquals(defaultWork, work, "editing Work on an unassigned leaf must diverge from the default");
+
+		Project restored = loadFromBytes(saveProjectBytes(original));
+		NormalTask reloaded = (NormalTask) findByName(restored, "Edited unassigned leaf");
+		assertEquals(work, reloaded.getWork(null));
+		assertEquals(start, reloaded.getStart());
+		assertEquals(finish, reloaded.getEnd());
+		assertEquals(duration, reloaded.getDurationMillis());
+
+		Project resaved = loadFromBytes(saveProjectBytes(restored));
+		NormalTask again = (NormalTask) findByName(resaved, "Edited unassigned leaf");
+		assertEquals(work, again.getWork(null));
+		assertEquals(start, again.getStart());
+		assertEquals(finish, again.getEnd());
+		assertEquals(duration, again.getDurationMillis());
+	}
+
 	@Test
 	void mpoTaskScheduleRejectsInvalidUnassignedWorkMetadata() throws Exception {
 		Project original = projectForRoundTrip();
