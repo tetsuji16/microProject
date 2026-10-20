@@ -483,14 +483,21 @@ class CollaborationConflictTest {
 
 		ProjectFile project = new ProjectFile();
 		project.addDefaultBaseCalendar();
+		// Pin a Monday start: an unpinned project starts "today", so weekday-sensitive schedule assertions
+		// (for example end + 1 day) would depend on the calendar day the suite runs.
+		java.util.Date monday = java.util.Date.from(java.time.LocalDateTime.of(2026, 10, 19, 8, 0)
+			.atZone(java.time.ZoneId.systemDefault()).toInstant());
+		project.getProjectProperties().setStartDate(monday);
 		Task first = project.addTask();
 		first.setName(firstTaskName);
 		first.setUniqueID(Integer.valueOf(1));
+		first.setStart(monday);
 		first.setNotes("Locked notes");
 
 		Task second = project.addTask();
 		second.setName(secondTaskName);
 		second.setUniqueID(Integer.valueOf(2));
+		second.setStart(monday);
 
 		ProjectWriter writer = ProjectWriterFactory.forFile(file.getAbsolutePath());
 		writer.write(project, file);

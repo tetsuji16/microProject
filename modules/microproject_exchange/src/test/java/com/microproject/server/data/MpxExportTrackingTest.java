@@ -938,6 +938,70 @@ class MpxExportTrackingTest {
 			"MPP assignment work, bounds, and progress must survive MPO persistence");
 	}
 
+	/**
+	 * Microsoft Project Desktop documents negative lead as overlapping work between a task and its predecessor;
+	 * this MPP9 import contract is document-derived, not a modern MSP run. Preserve the source's signed FS lead
+	 * through import and MPO so the successor's overlap date remains unchanged.
+	 * Source: https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
+	 * (Project Online Desktop Client, Project Standard/Professional 2016–2024).
+	 */
+	@Test
+	void mpp9NegativeLeadLinkUsesEightHourWorkdayAndSurvivesMpoReload() throws Exception {
+		Path sample = Path.of("modules", "microproject_exchange", "testdata", "New Product.mpp");
+		if (!Files.isRegularFile(sample)) sample = Path.of("testdata", "New Product.mpp");
+		assertTrue(Files.isRegularFile(sample), sample.toString());
+
+		net.sf.mpxj.ProjectFile oracle = new net.sf.mpxj.mpp.MPPReader().read(sample.toFile());
+		assertEquals(Integer.valueOf(480), oracle.getProjectProperties().getMinutesPerDay(),
+			"MPP9 project uses an eight-hour workday");
+		assertEquals(Integer.valueOf(2400), oracle.getProjectProperties().getMinutesPerWeek(),
+			"MPP9 project uses a forty-hour workweek");
+		net.sf.mpxj.Task rawPredecessor = oracle.getTaskByUniqueID(Integer.valueOf(24));
+		net.sf.mpxj.Task rawSuccessor = oracle.getTaskByUniqueID(Integer.valueOf(27));
+		assertNotNull(rawPredecessor);
+		assertNotNull(rawSuccessor);
+		assertEquals(modelWallTime("2001-03-12T08:00:00"), DateUTCConverter.toModelTime(rawPredecessor.getStart()));
+		assertEquals(modelWallTime("2001-04-13T17:00:00"), DateUTCConverter.toModelTime(rawPredecessor.getFinish()));
+		assertEquals(modelWallTime("2001-03-26T08:00:00"), DateUTCConverter.toModelTime(rawSuccessor.getStart()));
+		assertEquals(modelWallTime("2001-04-13T17:00:00"), DateUTCConverter.toModelTime(rawSuccessor.getFinish()));
+		net.sf.mpxj.Relation rawLink = rawSuccessor.getPredecessors().stream()
+			.filter(link -> link.getTargetTask().getUniqueID().intValue() == 24).findFirst()
+			.orElseThrow(() -> new AssertionError("Missing MPXJ predecessor UID 24 for task UID 27"));
+		assertEquals(net.sf.mpxj.RelationType.FINISH_START, rawLink.getType());
+		assertEquals(-15.0d, rawLink.getLag().getDuration(), 0.00001d, "raw MPXJ lead duration");
+		assertEquals(net.sf.mpxj.TimeUnit.DAYS, rawLink.getLag().getUnits(), "raw MPXJ lead units");
+
+		Project imported = importMppFixture(sample);
+		assertNegativeLeadProject(imported);
+		Project reopened = roundTripMpo(imported);
+		assertNegativeLeadProject(reopened);
+	}
+
+	private void assertNegativeLeadProject(Project project) {
+		assertEquals(8.0d, project.getCalendarOption().getHoursPerDay(), 0.00001d,
+			"the imported project keeps its 480-minute workday");
+		assertEquals(40.0d, project.getCalendarOption().getHoursPerWeek(), 0.00001d,
+			"the imported project keeps its 2400-minute workweek");
+		Task predecessor = project.findByUniqueId(24);
+		Task successor = project.findByUniqueId(27);
+		assertNotNull(predecessor, "MPP9 task UID 24");
+		assertNotNull(successor, "MPP9 task UID 27");
+		assertEquals(720_000_000L, predecessor.getDurationMillis(), "predecessor duration");
+		assertEquals(modelWallTime("2001-03-12T08:00:00"), predecessor.getStart(), "predecessor start");
+		assertEquals(modelWallTime("2001-04-13T17:00:00"), predecessor.getEnd(), "predecessor finish");
+		assertEquals(432_000_000L, successor.getDurationMillis(), "successor duration");
+		assertEquals(modelWallTime("2001-03-26T08:00:00"), successor.getStart(), "successor start");
+		assertEquals(modelWallTime("2001-04-13T17:00:00"), successor.getEnd(), "successor finish");
+		assertEquals(1, successor.getPredecessorList().size(), "task UID 27 has one imported dependency");
+		Dependency dependency = (Dependency) successor.getPredecessorList().get(0);
+		assertEquals(24L, ((Task) dependency.getPredecessor()).getUniqueId(), "imported predecessor UID");
+		assertEquals(DependencyType.Kind.FS.code(), dependency.getDependencyType(), "imported dependency type");
+		assertEquals(-432_000_000L, dependency.getLag(), "15 eight-hour workdays of lead");
+		assertEquals(successor.getStart(),
+			dependency.calcForwardDependencyDate(predecessor.getStart(), predecessor.getEnd(), true),
+			"the imported FS lead schedules the successor at its fixture date");
+	}
+
 	@Test
 	void mpp9CustomAssignmentContourMatchesIndependentManifestAndMpoReload() throws Exception {
 		Path sample = Path.of("modules", "microproject_exchange", "testdata", "mpxj", "mpp9timephasedsegments.mpp");

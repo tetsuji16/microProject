@@ -1376,6 +1376,10 @@ public class MpoFileImporter extends FileImporter {
 	}
 
 	private static WorkingCalendar readCalendar(JsonNode node) throws IOException {
+		return readCalendarDefinition(node, "baseline").copyForBaselineSnapshot();
+	}
+
+	private static WorkingCalendar readCalendarDefinition(JsonNode node, String context) throws IOException {
 		JsonNode weekNode = node.path("week");
 		JsonNode exceptionsNode = node.path("exceptions");
 		JsonNode periodsNode = node.path("workWeeks");
@@ -1385,7 +1389,7 @@ public class MpoFileImporter extends FileImporter {
 				|| exceptionsNode.size() > MAX_OPERATION_COUNT || !periodsNode.isArray()
 				|| periodsNode.size() > MAX_OPERATION_COUNT || !recurringNode.isArray()
 				|| recurringNode.size() > MAX_OPERATION_COUNT)
-			throw new IOException("Invalid mpo baseline calendar");
+			throw new IOException("Invalid mpo " + context + " calendar");
 		WorkingCalendar calendar = WorkingCalendar.getInstance();
 		calendar.setName(node.path("name").textValue());
 		for (int day = 0; day < WorkWeek.DAYS_IN_WEEK; day++)
@@ -1395,7 +1399,7 @@ public class MpoFileImporter extends FileImporter {
 			JsonNode periodWeek = periodNode.path("week");
 			if (!periodNode.path("name").isTextual() || !periodWeek.isArray()
 					|| periodWeek.size() != WorkWeek.DAYS_IN_WEEK)
-				throw new IOException("Invalid mpo baseline work-week period");
+				throw new IOException("Invalid mpo " + context + " work-week period");
 			long periodStart = integralLong(periodNode.path("start"), "start");
 			long periodEnd = integralLong(periodNode.path("end"), "end");
 			WorkWeek week = new WorkWeek();
@@ -1408,7 +1412,7 @@ public class MpoFileImporter extends FileImporter {
 			CalendarRecurrence rule = readRecurrence(recurring.path("recurrence"));
 			calendar.addOrReplaceRecurringException(new RecurringCalendarException(template, rule));
 		}
-		return calendar.copyForBaselineSnapshot();
+		return calendar;
 	}
 
 	private static WorkDay readCalendarDay(JsonNode node) throws IOException {
@@ -1542,6 +1546,8 @@ public class MpoFileImporter extends FileImporter {
 			JsonNode identities = JSON.readTree(taskIdentities);
 			ObjectNode root = JSON.createObjectNode();
 			root.put("version", 1);
+			root.set("projectCalendar", scheduleCalendarJson(
+				(WorkingCalendar) project.getWorkCalendar(), null));
 			com.fasterxml.jackson.databind.node.ArrayNode tasks = root.putArray("tasks");
 			java.util.Set<Long> seenSerializedIds = new java.util.HashSet<>();
 			java.util.Iterator<java.util.Map.Entry<String, JsonNode>> identityIterator = identities.fields();
@@ -1559,6 +1565,9 @@ public class MpoFileImporter extends FileImporter {
 				taskNode.put("start", normalTask.getStart());
 				taskNode.put("finish", normalTask.getEnd());
 				taskNode.put("actualStart", normalTask.getActualStart());
+				if (normalTask.getWorkCalendar() != null)
+					taskNode.set("calendar", scheduleCalendarJson((WorkingCalendar) normalTask.getWorkCalendar(),
+						project.getWorkCalendar()));
 				if (!normalTask.isWbsParent())
 					taskNode.put("percentComplete", normalTask.getPercentComplete());
 				if (normalTask.isNormal() && !normalTask.hasRealAssignments())
@@ -1572,11 +1581,81 @@ public class MpoFileImporter extends FileImporter {
 		}
 	}
 
+	private static ObjectNode scheduleCalendarJson(WorkingCalendar calendar,
+		com.microproject.pm.calendar.WorkCalendar projectCalendar) {
+		ObjectNode node = JSON.createObjectNode();
+		node.put("name", calendar.getName());
+		node.put("uniqueId", calendar.getUniqueId());
+		if (calendar.getBaseCalendar() == projectCalendar && projectCalendar != null)
+			node.put("baseProjectCalendar", true);
+		else if (calendar.getBaseCalendar() != null)
+			node.set("baseCalendar", scheduleCalendarJson((WorkingCalendar) calendar.getBaseCalendar(), projectCalendar));
+		var week = node.putArray("week");
+		for (int day = 0; day < WorkWeek.DAYS_IN_WEEK; day++)
+			writeCalendarDay(week.addObject(), calendar.getWeekDay(day));
+		var exceptions = node.putArray("exceptions");
+		for (WorkDay day : calendar.getExceptionDays()) writeCalendarDay(exceptions.addObject(), day);
+		var periods = node.putArray("workWeeks");
+		for (WorkWeekPeriod period : calendar.getWorkWeekPeriods()) {
+			ObjectNode item = periods.addObject();
+			item.put("name", period.getName());
+			item.put("start", period.getStart());
+			item.put("end", period.getEnd());
+			var days = item.putArray("week");
+			for (int day = 0; day < WorkWeek.DAYS_IN_WEEK; day++)
+				writeCalendarDay(days.addObject(), period.getWeekDay(day));
+		}
+		var recurring = node.putArray("recurringExceptions");
+		for (RecurringCalendarException exception : calendar.getRecurringExceptions()) {
+			ObjectNode item = recurring.addObject();
+			writeCalendarDay(item.putObject("template"), exception.getTemplate());
+			writeRecurrence(item.putObject("recurrence"), exception.getRecurrence());
+		}
+		return node;
+	}
+
+	private static WorkingCalendar readScheduleCalendar(JsonNode node,
+		ScheduleCalendarReadState state, int depth) throws IOException {
+		if (depth > 64) throw new IOException("MPO calendar inheritance exceeds maximum depth");
+		JsonNode uniqueIdNode = node.get("uniqueId");
+		Long uniqueId = null;
+		if (uniqueIdNode != null) uniqueId = Long.valueOf(integralLong(uniqueIdNode, "uniqueId"));
+		if (uniqueId != null && state.byId.containsKey(uniqueId)) {
+			if (!state.definitions.get(uniqueId).equals(node))
+				throw new IOException("Conflicting MPO schedule calendar definitions for uniqueId=" + uniqueId);
+			return state.byId.get(uniqueId);
+		}
+		com.microproject.pm.calendar.WorkCalendar base = null;
+		boolean hasProjectBase = node.has("baseProjectCalendar");
+		boolean hasNestedBase = node.has("baseCalendar");
+		if (hasProjectBase && hasNestedBase)
+			throw new IOException("MPO schedule calendar declares multiple base calendars");
+		if (hasProjectBase) {
+			JsonNode projectBaseNode = node.get("baseProjectCalendar");
+			if (!projectBaseNode.isBoolean() || !projectBaseNode.booleanValue() || state.projectCalendar == null)
+				throw new IOException("Invalid mpo schedule calendar project base");
+			base = state.projectCalendar;
+		}
+		WorkingCalendar calendar = readCalendarDefinition(node, "schedule");
+		if (uniqueId != null) {
+			calendar.setUniqueId(uniqueId.longValue());
+			state.byId.put(uniqueId, calendar);
+			state.definitions.put(uniqueId, node.deepCopy());
+		}
+		if (hasNestedBase) base = readScheduleCalendar(node.path("baseCalendar"), state, depth + 1);
+		state.pendingBases.add(new PendingCalendarBase(calendar, base));
+		return calendar;
+	}
+
 	private static void restoreTaskSchedules(Project project, byte[] bytes) throws IOException {
 		JsonNode root = JSON.readTree(bytes);
 		JsonNode tasks = root.path("tasks");
 		if (requiredInt(root, "version") != 1 || !tasks.isArray())
 			throw new IOException("Invalid mpo task schedule data");
+		ScheduleCalendarReadState calendarState = new ScheduleCalendarReadState();
+		WorkingCalendar projectCalendar = root.has("projectCalendar")
+			? readScheduleCalendar(root.path("projectCalendar"), calendarState, 0) : null;
+		calendarState.projectCalendar = projectCalendar;
 		java.util.Set<Long> seen = new java.util.HashSet<>();
 		java.util.ArrayList<TaskScheduleSnapshot> snapshots = new java.util.ArrayList<>();
 		for (JsonNode taskNode : tasks) {
@@ -1623,10 +1702,24 @@ public class MpoFileImporter extends FileImporter {
 				throw new IOException("MPO task schedule percent complete is only valid for leaf tasks");
 			if (unassignedWork != null && (!normalTask.isNormal() || normalTask.hasRealAssignments()))
 				throw new IOException("MPO task schedule unassigned work is only valid for unassigned leaf tasks");
+			WorkingCalendar taskCalendar = taskNode.has("calendar")
+				? readScheduleCalendar(taskNode.path("calendar"), calendarState, 0) : null;
 			snapshots.add(new TaskScheduleSnapshot(normalTask, constraintType, constraintDate, start, finish, actualStart,
-				percentComplete, unassignedWork));
+				percentComplete, unassignedWork, taskCalendar, taskNode.has("calendar") || projectCalendar != null));
 		}
+		validateCalendarBaseGraph(calendarState.pendingBases);
+		for (PendingCalendarBase pending : calendarState.pendingBases) {
+			if (pending.base() != null) {
+				try {
+					pending.calendar().setBaseCalendar(pending.base());
+				} catch (com.microproject.configuration.CircularDependencyException exception) {
+					throw new IOException("Invalid MPO schedule calendar inheritance", exception);
+				}
+			}
+		}
+		if (projectCalendar != null) project.setWorkCalendar(projectCalendar);
 		for (TaskScheduleSnapshot snapshot : snapshots) {
+			if (snapshot.hasCalendar()) snapshot.task().setWorkCalendar(snapshot.calendar());
 			snapshot.task().restoreMpoScheduleSnapshot(snapshot.constraintType(), snapshot.constraintDate(),
 				snapshot.start(), snapshot.finish(), snapshot.actualStart());
 			if (snapshot.percentComplete() != null)
@@ -1641,8 +1734,34 @@ public class MpoFileImporter extends FileImporter {
 		}
 	}
 
+	private static void validateCalendarBaseGraph(java.util.List<PendingCalendarBase> pendingBases) throws IOException {
+		java.util.IdentityHashMap<WorkingCalendar, WorkingCalendar> bases = new java.util.IdentityHashMap<>();
+		for (PendingCalendarBase pending : pendingBases) bases.put(pending.calendar(), (WorkingCalendar) pending.base());
+		java.util.Set<WorkingCalendar> complete = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+		for (WorkingCalendar start : bases.keySet()) {
+			java.util.Set<WorkingCalendar> path = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+			WorkingCalendar current = start;
+			while (current != null && !complete.contains(current)) {
+				if (!path.add(current)) throw new IOException("Circular MPO schedule calendar inheritance");
+				current = bases.get(current);
+			}
+			complete.addAll(path);
+		}
+	}
+
+	private static final class ScheduleCalendarReadState {
+		private WorkingCalendar projectCalendar;
+		private final java.util.Map<Long, WorkingCalendar> byId = new java.util.HashMap<>();
+		private final java.util.Map<Long, JsonNode> definitions = new java.util.HashMap<>();
+		private final java.util.List<PendingCalendarBase> pendingBases = new java.util.ArrayList<>();
+	}
+
+	private record PendingCalendarBase(WorkingCalendar calendar,
+		com.microproject.pm.calendar.WorkCalendar base) { }
+
 	private record TaskScheduleSnapshot(NormalTask task, int constraintType, long constraintDate, long start,
-		long finish, long actualStart, Double percentComplete, Long unassignedWork) { }
+		long finish, long actualStart, Double percentComplete, Long unassignedWork,
+		WorkingCalendar calendar, boolean hasCalendar) { }
 
 	private static void restoreVisibility(Project project, byte[] bytes) throws IOException {
 		JsonNode root = JSON.readTree(bytes);

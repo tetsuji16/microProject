@@ -44,6 +44,8 @@ import com.microproject.pm.task.BaselineRollupOptions;
 import com.microproject.pm.task.TaskSnapshot;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.task.TaskSplitInterval;
+import com.microproject.pm.task.TaskModeService;
+import com.microproject.pm.task.TaskProgressService;
 import com.microproject.pm.task.DefaultSubProj;
 import com.microproject.pm.task.ScheduleDiagnosticsService;
 import com.microproject.pm.task.UpdateProjectRequest;
@@ -71,6 +73,525 @@ import org.junit.jupiter.api.Test;
 
 class MpoFileImporterTest {
 	@Test
+	void mpoRoundTripPreservesSfDependencyAndSuccessorStartConstraint() throws Exception {
+		Project original = projectForRoundTrip();
+		NormalTask predecessor = (NormalTask) firstTask(original);
+		predecessor.setName("SF predecessor");
+		NormalTask successor = (NormalTask) original.createLocalTaskNode(null).getImpl();
+		successor.setName("SNET successor");
+		long start = java.time.Instant.parse("2030-06-03T08:00:00Z").toEpochMilli();
+		long successorStart = java.time.Instant.parse("2030-06-04T08:00:00Z").toEpochMilli();
+		long eightHours = 8L * 60L * 60L * 1000L;
+		long fourHours = 4L * 60L * 60L * 1000L;
+		original.setStartDate(start);
+		predecessor.setDuration(eightHours);
+		successor.setDuration(fourHours);
+		predecessor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, start);
+		DependencyService.getInstance().newDependency(predecessor, successor, DependencyType.SF, 0L, this);
+		successor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, successorStart);
+		original.recalculate();
+		long predecessorEnd = java.time.Instant.parse("2030-06-03T17:00:00Z").toEpochMilli();
+		long successorEnd = java.time.Instant.parse("2030-06-04T13:00:00Z").toEpochMilli();
+		assertEquals(start, predecessor.getStart());
+		assertEquals(predecessorEnd, predecessor.getEnd());
+		assertEquals(successorStart, successor.getStart());
+		assertEquals(successorEnd, successor.getEnd());
+
+		byte[] archive = saveProjectBytes(original);
+		Project reopened = loadFromBytes(archive);
+		reopened.recalculate();
+		NormalTask restoredPredecessor = null;
+		NormalTask restoredSuccessor = null;
+		for (java.util.Iterator<?> tasks = reopened.getTaskOutlineIterator(); tasks.hasNext();) {
+			Task candidate = (Task) tasks.next();
+			if ("SF predecessor".equals(candidate.getName())) restoredPredecessor = (NormalTask) candidate;
+			if ("SNET successor".equals(candidate.getName())) restoredSuccessor = (NormalTask) candidate;
+		}
+		assertNotNull(restoredPredecessor);
+		assertNotNull(restoredSuccessor);
+		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, restoredSuccessor.getConstraintTypeKind());
+		assertEquals(successorStart, restoredSuccessor.getConstraintDate());
+		assertEquals(start, restoredPredecessor.getStart());
+		assertEquals(predecessorEnd, restoredPredecessor.getEnd());
+		assertEquals(successorStart, restoredSuccessor.getStart());
+		assertEquals(successorEnd, restoredSuccessor.getEnd());
+		assertEquals(1, restoredPredecessor.getSuccessorList().size());
+		Dependency restoredDependency = (Dependency) restoredPredecessor.getSuccessorList().iterator().next();
+		assertEquals(DependencyType.Kind.SF, restoredDependency.getDependencyKind());
+		assertEquals(0L, restoredDependency.getLag());
+		assertSame(restoredSuccessor, restoredDependency.getSuccessor());
+		assertEquals(1, restoredSuccessor.getPredecessorList().size());
+		assertSame(restoredPredecessor, ((Dependency) restoredSuccessor.getPredecessorList().iterator().next()).getPredecessor());
+	}
+
+	@Test
+	void mpoRoundTripPreservesSnetAndFinishToFinishBoundary() throws Exception {
+		verifySnetFfMpoRoundTrip(1,
+			mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 17),
+			mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 8),
+			mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 17));
+		verifySnetFfMpoRoundTrip(2,
+			mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 17),
+			mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 8),
+			mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 17));
+	}
+
+	@Test
+	void mpoRoundTripPreservesSnetAndStartToStartBoundary() throws Exception {
+		verifySnetSsMpoRoundTrip(mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8),
+			mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 8),
+			mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 17));
+		verifySnetSsMpoRoundTrip(mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 8),
+			mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8),
+			mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 17));
+	}
+
+	@Test
+	void mpoRoundTripPreservesSnetAndPositiveFsLagAcrossProjectCalendarException() throws Exception {
+		long tuesdayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 8);
+		long thursdayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 6, 8);
+		long thursdaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 6, 17);
+		long fridayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 7, 8);
+		long fridaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 7, 17);
+		verifySnetFsLagAcrossProjectException(tuesdayEight,
+			mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 5, 17), thursdayEight, thursdaySeventeen);
+		verifySnetFsLagAcrossProjectException(fridayEight, fridaySeventeen, fridayEight, fridaySeventeen);
+	}
+
+	@Test
+	void mpoRoundTripPreservesFinishToFinishLeadAcrossProjectCalendarException() throws Exception {
+		Project project = projectForRoundTrip();
+		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
+		long mondaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 17);
+		long tuesdayMidnight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 0);
+		long wednesdayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 5, 8);
+		long wednesdaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 5, 17);
+		long eightHours = 8L * 60L * 60L * 1000L;
+		long twelveHourLead = -12L * 60L * 60L * 1000L;
+		var calendar = (com.microproject.pm.calendar.WorkingCalendar) project.getWorkCalendar();
+		calendar.addOrReplaceException(new com.microproject.pm.calendar.WorkDay(tuesdayMidnight));
+		project.setStart(mondayEight);
+		NormalTask predecessor = (NormalTask) firstTask(project);
+		predecessor.setName("MPO FF lead predecessor");
+		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		successor.setName("MPO FF lead successor");
+		NormalTask unrelated = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		unrelated.setName("MPO FF lead unrelated");
+		predecessor.setDuration(eightHours);
+		successor.setDuration(eightHours);
+		unrelated.setDuration(eightHours);
+		predecessor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, wednesdayEight);
+		successor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, mondayEight);
+		unrelated.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, mondayEight);
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.FF, twelveHourLead, this);
+		project.recalculate();
+		assertEquals(wednesdayEight, predecessor.getStart());
+		assertEquals(wednesdaySeventeen, predecessor.getEnd());
+		assertEquals(mondayEight, successor.getStart());
+		assertEquals(mondaySeventeen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+		assertEquals(DependencyType.FF, dependency.getDependencyType());
+		assertEquals(twelveHourLead, dependency.getLag());
+		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, successor.getConstraintTypeKind());
+		assertEquals(mondayEight, successor.getConstraintDate());
+		assertFalse(calendar.getConcreteInstance().getWorkDay(tuesdayMidnight).isWorking(),
+			"Tuesday remains a nonworking project-calendar exception");
+
+		assignPositiveUniqueIds(project);
+		Project reopened = loadFromBytes(saveProjectBytes(project));
+		reopened.recalculate();
+		NormalTask restoredPredecessor = (NormalTask) findByName(reopened, "MPO FF lead predecessor");
+		NormalTask restoredSuccessor = (NormalTask) findByName(reopened, "MPO FF lead successor");
+		NormalTask restoredUnrelated = (NormalTask) findByName(reopened, "MPO FF lead unrelated");
+		assertNotNull(restoredPredecessor);
+		assertNotNull(restoredSuccessor);
+		assertNotNull(restoredUnrelated);
+		assertEquals(wednesdayEight, restoredPredecessor.getStart());
+		assertEquals(wednesdaySeventeen, restoredPredecessor.getEnd());
+		assertEquals(mondayEight, restoredSuccessor.getStart());
+		assertEquals(mondaySeventeen, restoredSuccessor.getEnd());
+		assertEquals(mondayEight, restoredUnrelated.getStart());
+		assertEquals(mondaySeventeen, restoredUnrelated.getEnd());
+		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, restoredSuccessor.getConstraintTypeKind());
+		assertEquals(mondayEight, restoredSuccessor.getConstraintDate());
+		assertFalse(((com.microproject.pm.calendar.WorkingCalendar) reopened.getWorkCalendar())
+			.getConcreteInstance().getWorkDay(tuesdayMidnight).isWorking(),
+			"MPO reload preserves the Tuesday nonworking exception");
+		assertEquals(1, restoredPredecessor.getSuccessorList().size());
+		Dependency restoredDependency = (Dependency) restoredPredecessor.getSuccessorList().iterator().next();
+		assertEquals(DependencyType.FF, restoredDependency.getDependencyType());
+		assertEquals(twelveHourLead, restoredDependency.getLag());
+		assertSame(restoredPredecessor, restoredDependency.getPredecessor());
+		assertSame(restoredSuccessor, restoredDependency.getSuccessor());
+		assertEquals(1, restoredSuccessor.getPredecessorList().size());
+		assertSame(restoredDependency, restoredSuccessor.getPredecessorList().iterator().next());
+	}
+
+	private void verifySnetFsLagAcrossProjectException(long snet, long expectedInitialSuccessorFinish,
+		long expectedSuccessorStart, long expectedSuccessorFinish) throws Exception {
+		Project project = projectForRoundTrip();
+		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
+		long mondaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 17);
+		long tuesdayMidnight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 0);
+		project.setWorkCalendar(((com.microproject.pm.calendar.WorkingCalendar) project.getWorkCalendar()).makeScratchCopy());
+		((com.microproject.pm.calendar.WorkingCalendar) project.getWorkCalendar()).setName(
+			"MPO project Tuesday exception");
+		((com.microproject.pm.calendar.WorkingCalendar) project.getWorkCalendar()).addOrReplaceException(
+			new com.microproject.pm.calendar.WorkDay(tuesdayMidnight));
+		project.setStart(mondayEight);
+		NormalTask predecessor = (NormalTask) firstTask(project);
+		predecessor.setName("MPO SNET lag predecessor");
+		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		successor.setName("MPO SNET lag successor");
+		long oneDay = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		predecessor.setDuration(oneDay);
+		successor.setDuration(oneDay);
+		predecessor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, mondayEight);
+		successor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, snet);
+		project.recalculate();
+		assertEquals(mondayEight, predecessor.getStart());
+		assertEquals(mondaySeventeen, predecessor.getEnd());
+		assertEquals(snet, successor.getStart());
+		assertEquals(expectedInitialSuccessorFinish, successor.getEnd());
+		var originalEffectiveCalendar = predecessor.getEffectiveWorkCalendar();
+		String originalTuesdayWorkDay = originalEffectiveCalendar.getConcreteInstance().getWorkDay(tuesdayMidnight).toString();
+		long originalLagBoundary = originalEffectiveCalendar.add(mondaySeventeen, oneDay, true);
+
+		long positiveLag = oneDay;
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.FS, positiveLag, this);
+		project.recalculate();
+		assertEquals(DependencyType.FS, dependency.getDependencyType());
+		assertEquals(positiveLag, dependency.getLag());
+		assertEquals(mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 6, 8), dependency.getDate(true));
+		assertEquals(mondayEight, predecessor.getStart());
+		assertEquals(mondaySeventeen, predecessor.getEnd());
+		assertEquals(expectedSuccessorStart, successor.getStart());
+		assertEquals(expectedSuccessorFinish, successor.getEnd());
+		assertNull(predecessor.getWorkCalendar(), "source predecessor inherits the project calendar");
+		assertNull(successor.getWorkCalendar(), "source successor inherits the project calendar");
+
+		assignPositiveUniqueIds(project);
+		Project reopened = loadFromBytes(saveProjectBytes(project));
+		NormalTask restoredPredecessor = (NormalTask) findByName(reopened, "MPO SNET lag predecessor");
+		NormalTask restoredSuccessor = (NormalTask) findByName(reopened, "MPO SNET lag successor");
+		assertNotNull(restoredPredecessor);
+		assertNotNull(restoredSuccessor);
+		assertEquals(1, restoredPredecessor.getSuccessorList().size());
+		Dependency restoredDependency = (Dependency) restoredPredecessor.getSuccessorList().iterator().next();
+		long restoredDependencyBoundaryBeforeRecalculation = restoredDependency.getDate(true);
+		org.junit.jupiter.api.Assertions.assertAll("restored calendar and dependency diagnostics before recalculation",
+			() -> assertNull(restoredPredecessor.getWorkCalendar(), "restored predecessor inherits project calendar"),
+			() -> assertNull(restoredSuccessor.getWorkCalendar(), "restored successor inherits project calendar"),
+			() -> assertEquals(originalEffectiveCalendar.getName(),
+				restoredPredecessor.getEffectiveWorkCalendar().getName(), "effective calendar owner/name"),
+			() -> assertEquals(originalTuesdayWorkDay, restoredPredecessor.getEffectiveWorkCalendar()
+				.getConcreteInstance().getWorkDay(tuesdayMidnight).toString(), "date-specific Tuesday lookup"),
+			() -> assertEquals(originalLagBoundary, restoredPredecessor.getEffectiveWorkCalendar()
+				.add(mondaySeventeen, oneDay, true), "positive-lag add result"),
+			() -> assertEquals("MPO project Tuesday exception", reopened.getWorkCalendar().getName()));
+		reopened.recalculate();
+		assertEquals(mondayEight, restoredPredecessor.getStart());
+		assertEquals(mondaySeventeen, restoredPredecessor.getEnd());
+		assertEquals(expectedSuccessorStart, restoredSuccessor.getStart(),
+			"recalculated schedule after pre-recalculation dependency boundary "
+				+ restoredDependencyBoundaryBeforeRecalculation);
+		assertEquals(expectedSuccessorFinish, restoredSuccessor.getEnd());
+		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET,
+			restoredSuccessor.getConstraintTypeKind());
+		assertEquals(snet, restoredSuccessor.getConstraintDate());
+		assertEquals("MPO project Tuesday exception", reopened.getWorkCalendar().getName());
+		assertTrue(java.util.Arrays.stream(((com.microproject.pm.calendar.WorkingCalendar)
+			reopened.getWorkCalendar()).getExceptionDays())
+			.anyMatch(exception -> exception.getStart() == tuesdayMidnight));
+		assertEquals(DependencyType.FS, restoredDependency.getDependencyType());
+		assertEquals(positiveLag, restoredDependency.getLag());
+		assertSame(restoredPredecessor, restoredDependency.getPredecessor());
+		assertSame(restoredSuccessor, restoredDependency.getSuccessor());
+		assertEquals(1, restoredSuccessor.getPredecessorList().size());
+		assertSame(restoredDependency, restoredSuccessor.getPredecessorList().iterator().next());
+	}
+
+	private void verifySnetSsMpoRoundTrip(long predecessorStart, long snet, long expectedPredecessorFinish)
+		throws Exception {
+		Project project = projectForRoundTrip();
+		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
+		long mondaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 17);
+		long tuesdayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 8);
+		long tuesdaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 17);
+		NormalTask predecessor = (NormalTask) firstTask(project);
+		predecessor.setName("MPO SNET SS predecessor");
+		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		successor.setName("MPO SNET SS successor");
+		project.setStart(mondayEight);
+		long oneDay = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		predecessor.setDuration(oneDay);
+		successor.setDuration(oneDay);
+		predecessor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, predecessorStart);
+		successor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, snet);
+		project.recalculate();
+		assertEquals(predecessorStart, predecessor.getStart());
+		assertEquals(expectedPredecessorFinish, predecessor.getEnd());
+		assertEquals(snet, successor.getStart());
+		assertEquals(snet == mondayEight ? mondaySeventeen : tuesdaySeventeen, successor.getEnd());
+
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.SS, 0L, this);
+		project.recalculate();
+		assertEquals(predecessorStart, dependency.getDate(true));
+		long expectedSuccessorFinish = tuesdaySeventeen;
+		assertEquals(predecessorStart, predecessor.getStart());
+		assertEquals(expectedPredecessorFinish, predecessor.getEnd());
+		assertEquals(tuesdayEight, successor.getStart());
+		assertEquals(expectedSuccessorFinish, successor.getEnd());
+
+		assignPositiveUniqueIds(project);
+		Project reopened = loadFromBytes(saveProjectBytes(project));
+		reopened.recalculate();
+		NormalTask restoredPredecessor = (NormalTask) findByName(reopened, "MPO SNET SS predecessor");
+		NormalTask restoredSuccessor = (NormalTask) findByName(reopened, "MPO SNET SS successor");
+		assertNotNull(restoredPredecessor);
+		assertNotNull(restoredSuccessor);
+		assertEquals(predecessorStart, restoredPredecessor.getStart());
+		assertEquals(expectedPredecessorFinish, restoredPredecessor.getEnd());
+		assertEquals(tuesdayEight, restoredSuccessor.getStart());
+		assertEquals(expectedSuccessorFinish, restoredSuccessor.getEnd());
+		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET,
+			restoredSuccessor.getConstraintTypeKind());
+		assertEquals(snet, restoredSuccessor.getConstraintDate());
+		assertEquals(1, restoredPredecessor.getSuccessorList().size());
+		Dependency restoredDependency = (Dependency) restoredPredecessor.getSuccessorList().iterator().next();
+		assertEquals(DependencyType.SS, restoredDependency.getDependencyType());
+		assertEquals(0L, restoredDependency.getLag());
+		assertSame(restoredPredecessor, restoredDependency.getPredecessor());
+		assertSame(restoredSuccessor, restoredDependency.getSuccessor());
+		assertEquals(1, restoredSuccessor.getPredecessorList().size());
+		assertSame(restoredDependency, restoredSuccessor.getPredecessorList().iterator().next());
+	}
+
+	private void verifySnetFfMpoRoundTrip(int predecessorDurationDays, long expectedPredecessorFinish,
+		long expectedSuccessorStart, long expectedSuccessorFinish) throws Exception {
+		Project project = projectForRoundTrip();
+		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
+		long tuesdayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 8);
+		NormalTask predecessor = (NormalTask) firstTask(project);
+		predecessor.setName("MPO SNET FF predecessor");
+		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		successor.setName("MPO SNET FF successor");
+		project.setStart(mondayEight);
+		predecessor.setDuration(predecessorDurationDays
+			* com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
+		successor.setDuration(com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
+		predecessor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, mondayEight);
+		successor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, tuesdayEight);
+		project.recalculate();
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.FF, 0L, this);
+		project.recalculate();
+		assertEquals(mondayEight, predecessor.getStart());
+		assertEquals(expectedPredecessorFinish, predecessor.getEnd());
+		assertEquals(expectedSuccessorStart, successor.getStart());
+		assertEquals(expectedSuccessorFinish, successor.getEnd());
+		assertEquals(DependencyType.FF, dependency.getDependencyType());
+		assertEquals(0L, dependency.getLag());
+
+		assignPositiveUniqueIds(project);
+		Project reopened = loadFromBytes(saveProjectBytes(project));
+		reopened.recalculate();
+		NormalTask restoredPredecessor = (NormalTask) findByName(reopened, "MPO SNET FF predecessor");
+		NormalTask restoredSuccessor = (NormalTask) findByName(reopened, "MPO SNET FF successor");
+		assertNotNull(restoredPredecessor);
+		assertNotNull(restoredSuccessor);
+		assertEquals(mondayEight, restoredPredecessor.getStart());
+		assertEquals(expectedPredecessorFinish, restoredPredecessor.getEnd());
+		assertEquals(expectedSuccessorStart, restoredSuccessor.getStart());
+		assertEquals(expectedSuccessorFinish, restoredSuccessor.getEnd());
+		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET,
+			restoredSuccessor.getConstraintTypeKind());
+		assertEquals(tuesdayEight, restoredSuccessor.getConstraintDate());
+		assertEquals(1, restoredPredecessor.getSuccessorList().size());
+		Dependency restoredDependency = (Dependency) restoredPredecessor.getSuccessorList().iterator().next();
+		assertEquals(DependencyType.FF, restoredDependency.getDependencyType());
+		assertEquals(0L, restoredDependency.getLag());
+		assertSame(restoredPredecessor, restoredDependency.getPredecessor());
+		assertSame(restoredSuccessor, restoredDependency.getSuccessor());
+		assertEquals(1, restoredSuccessor.getPredecessorList().size());
+		assertSame(restoredDependency, restoredSuccessor.getPredecessorList().iterator().next());
+	}
+
+	@Test
+	void mpoRoundTripPreservesSetFieldsSsWorkingLagAndRecalculatedSchedule() throws Exception {
+		long mondayEight = java.time.Instant.parse("2030-06-03T08:00:00Z").toEpochMilli();
+		long tuesdayEight = java.time.Instant.parse("2030-06-04T08:00:00Z").toEpochMilli();
+		long tuesdayThirteen = java.time.Instant.parse("2030-06-04T13:00:00Z").toEpochMilli();
+		long fourWorkingHours = 4L * 60L * 60L * 1000L;
+		long workingDayLag = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("set-fields-mpo", undo), undo);
+		project.initialize(false, false);
+		project.setStart(mondayEight);
+
+		NormalTask predecessor = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		predecessor.setName("SetFields SS predecessor");
+		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		successor.setName("SetFields SS successor");
+		predecessor.setDuration(fourWorkingHours);
+		successor.setDuration(fourWorkingHours);
+		predecessor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, mondayEight);
+		successor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, mondayEight);
+		predecessor.getCurrentSchedule().setStart(mondayEight);
+		successor.getCurrentSchedule().setStart(mondayEight);
+		project.recalculate();
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.FS, 0L, this);
+		project.recalculate();
+		DependencyService.getInstance().setFields(
+			dependency, workingDayLag, DependencyType.Kind.SS, this);
+		assertEquals(DependencyType.SS, dependency.getDependencyType());
+		assertEquals(workingDayLag, dependency.getLag());
+		assertEquals(tuesdayEight, dependency.getDate(true), "the converted SS link's standard-calendar date");
+		project.recalculate();
+		assertEquals(tuesdayEight, successor.getStart());
+		assertEquals(tuesdayThirteen, successor.getEnd());
+
+		assignPositiveUniqueIds(project);
+		Project reopened = loadFromBytes(saveProjectBytes(project));
+		reopened.recalculate();
+		Task restoredPredecessor = findByName(reopened, "SetFields SS predecessor");
+		Task restoredSuccessor = findByName(reopened, "SetFields SS successor");
+		assertNotNull(restoredPredecessor);
+		assertNotNull(restoredSuccessor);
+		assertEquals(1, restoredPredecessor.getSuccessorList().size());
+		Dependency restoredDependency = (Dependency) restoredPredecessor.getSuccessorList().iterator().next();
+		assertEquals(DependencyType.SS, restoredDependency.getDependencyType());
+		assertEquals(workingDayLag, restoredDependency.getLag());
+		assertSame(restoredPredecessor, restoredDependency.getPredecessor());
+		assertSame(restoredSuccessor, restoredDependency.getSuccessor());
+		assertEquals(1, restoredSuccessor.getPredecessorList().size());
+		assertSame(restoredDependency, restoredSuccessor.getPredecessorList().iterator().next());
+		assertEquals(tuesdayEight, restoredSuccessor.getStart());
+		assertEquals(tuesdayThirteen, restoredSuccessor.getEnd());
+	}
+
+	@Test
+	void mpoRoundTripPreservesProjectAndExplicitTaskCalendarsForSetFieldsSsLag() throws Exception {
+		// Match TaskLinkAndBarScheduleTransitionsTest's document-derived predecessor-calendar contract;
+		// Microsoft defines dependency endpoints and documents calendars/lag, but not which calendar owns lag.
+		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
+		// https://support.microsoft.com/en-us/project/how-project-schedules-tasks-behind-the-scenes
+		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
+		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
+		long tuesday = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 0);
+		long wednesday = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 5, 0);
+		long thursdayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 6, 8);
+		long thursdayThirteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 6, 13);
+		long fourHours = 4L * 60L * 60L * 1000L;
+		long eightHours = 8L * 60L * 60L * 1000L;
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("calendar-mpo", undo), undo);
+		project.initialize(false, false);
+		project.setWorkCalendar(((com.microproject.pm.calendar.WorkingCalendar) project.getWorkCalendar()).makeScratchCopy());
+		((com.microproject.pm.calendar.WorkingCalendar) project.getWorkCalendar()).setName("MPO project Tuesday exception");
+		((com.microproject.pm.calendar.WorkingCalendar) project.getWorkCalendar()).addOrReplaceException(
+			new com.microproject.pm.calendar.WorkDay(tuesday));
+		project.setStart(mondayEight);
+		NormalTask predecessor = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		predecessor.setName("Calendar SS predecessor");
+		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		successor.setName("Calendar SS successor");
+		var predecessorCalendar = com.microproject.pm.calendar.WorkingCalendar.getInstanceBasedOn(project.getWorkCalendar());
+		predecessorCalendar.setName("MPO predecessor Wednesday exception");
+		predecessorCalendar.addOrReplaceException(new com.microproject.pm.calendar.WorkDay(wednesday));
+		predecessor.setWorkCalendar(predecessorCalendar);
+		predecessor.setDuration(fourHours);
+		successor.setDuration(fourHours);
+		predecessor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, mondayEight);
+		successor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, mondayEight);
+		assertNull(successor.getWorkCalendar(), "source successor inherits the project calendar");
+		predecessor.getCurrentSchedule().setStart(mondayEight);
+		successor.getCurrentSchedule().setStart(mondayEight);
+		Dependency dependency = DependencyService.getInstance().newDependency(predecessor, successor,
+			DependencyType.FS, 0L, this);
+		DependencyService.getInstance().setFields(dependency, eightHours, DependencyType.Kind.SS, this);
+		project.recalculate();
+		assertEquals(thursdayEight, successor.getStart());
+		assertEquals(thursdayThirteen, successor.getEnd());
+
+		assignPositiveUniqueIds(project);
+		Map<String, byte[]> saved = readEntries(saveProjectBytes(project));
+		com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+		var metadata = mapper.readTree(saved.get(MpoFileImporter.TASK_SCHEDULES_ENTRY));
+		assertEquals("MPO project Tuesday exception", metadata.path("projectCalendar").path("name").asText());
+		var serializedTaskCalendar = metadata.path("tasks").findValues("calendar").stream()
+			.filter(value -> value.path("name").asText().equals("MPO predecessor Wednesday exception"))
+			.findFirst().orElseThrow();
+		assertTrue(serializedTaskCalendar.path("baseProjectCalendar").asBoolean(),
+			"explicit task calendar must retain its project-calendar base reference");
+		assertMalformedTaskCalendarInheritanceRejected(saved, mapper,
+			"MPO predecessor Wednesday exception");
+		Map<String, byte[]> lateMalformed = new LinkedHashMap<>(saved);
+		var lateRoot = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree(
+			lateMalformed.get(MpoFileImporter.TASK_SCHEDULES_ENTRY));
+		((com.fasterxml.jackson.databind.node.ObjectNode) lateRoot.path("tasks")
+			.get(lateRoot.path("tasks").size() - 1)).put("constraintType", Integer.MAX_VALUE);
+		lateMalformed.put(MpoFileImporter.TASK_SCHEDULES_ENTRY, mapper.writeValueAsBytes(lateRoot));
+		updateEntryChecksum(lateMalformed, MpoFileImporter.TASK_SCHEDULES_ENTRY);
+		Map<String, byte[]> noScheduleSidecar = new LinkedHashMap<>(lateMalformed);
+		var emptySchedule = mapper.createObjectNode();
+		emptySchedule.put("version", 1);
+		emptySchedule.putArray("tasks");
+		noScheduleSidecar.put(MpoFileImporter.TASK_SCHEDULES_ENTRY, mapper.writeValueAsBytes(emptySchedule));
+		updateEntryChecksum(noScheduleSidecar, MpoFileImporter.TASK_SCHEDULES_ENTRY);
+		int calendarsBefore = com.microproject.pm.calendar.CalendarService.getInstance().getDerivedCalendars().size();
+		loadFromBytes(zip(noScheduleSidecar).toByteArray());
+		int calendarsAfterWithoutSidecar = com.microproject.pm.calendar.CalendarService.getInstance()
+			.getDerivedCalendars().size();
+		assertThrows(IOException.class, () -> loadFromBytes(zip(lateMalformed).toByteArray()),
+			"a late malformed task must reject the complete schedule sidecar");
+		int calendarsAfterMalformed = com.microproject.pm.calendar.CalendarService.getInstance()
+			.getDerivedCalendars().size();
+		assertEquals(calendarsAfterWithoutSidecar - calendarsBefore,
+			calendarsAfterMalformed - calendarsAfterWithoutSidecar,
+			"malformed schedule metadata must not register calendars beyond ordinary MPO loading");
+		Project reopened = loadFromBytes(zip(saved).toByteArray());
+		reopened.recalculate();
+		NormalTask restoredPredecessor = (NormalTask) findByName(reopened, "Calendar SS predecessor");
+		NormalTask restoredSuccessor = (NormalTask) findByName(reopened, "Calendar SS successor");
+		assertEquals("MPO project Tuesday exception", reopened.getWorkCalendar().getName());
+		assertEquals("MPO predecessor Wednesday exception", restoredPredecessor.getWorkCalendar().getName());
+		assertNull(restoredSuccessor.getWorkCalendar(), "restored successor inherits the project calendar");
+		assertSame(reopened.getWorkCalendar(), restoredPredecessor.getWorkCalendar().getBaseCalendar(),
+			"explicit task calendar must inherit from the restored project calendar instance");
+		assertTrue(java.util.Arrays.stream(((com.microproject.pm.calendar.WorkingCalendar)
+			reopened.getWorkCalendar()).getExceptionDays()).anyMatch(day -> day.getStart() == tuesday));
+		assertTrue(java.util.Arrays.stream(((com.microproject.pm.calendar.WorkingCalendar)
+			restoredPredecessor.getWorkCalendar()).getExceptionDays()).anyMatch(day -> day.getStart() == wednesday));
+		assertFalse(metadata.path("tasks").findValues("taskUid").isEmpty());
+		assertFalse(metadata.path("tasks").findParents("calendar").stream()
+			.anyMatch(taskNode -> taskNode.path("taskUid").asLong() == successor.getUniqueId()),
+			"an inherited task must not acquire explicit calendar metadata");
+		assertEquals(thursdayEight, restoredSuccessor.getStart());
+		assertEquals(thursdayThirteen, restoredSuccessor.getEnd());
+		Dependency restoredDependency = (Dependency) restoredPredecessor.getSuccessorList().iterator().next();
+		assertEquals(DependencyType.SS, restoredDependency.getDependencyType());
+		assertEquals(eightHours, restoredDependency.getLag());
+		assertSame(restoredPredecessor, restoredDependency.getPredecessor());
+		assertSame(restoredSuccessor, restoredDependency.getSuccessor());
+		Map<String, byte[]> legacy = new LinkedHashMap<>(saved);
+		var legacyMetadata = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree(
+			legacy.get(MpoFileImporter.TASK_SCHEDULES_ENTRY));
+		legacyMetadata.remove("projectCalendar");
+		for (var taskNode : legacyMetadata.path("tasks"))
+			((com.fasterxml.jackson.databind.node.ObjectNode) taskNode).remove("calendar");
+		legacy.put(MpoFileImporter.TASK_SCHEDULES_ENTRY, mapper.writeValueAsBytes(legacyMetadata));
+		updateEntryChecksum(legacy, MpoFileImporter.TASK_SCHEDULES_ENTRY);
+		assertDoesNotThrow(() -> loadFromBytes(zip(legacy).toByteArray()),
+			"old MPO without optional calendar metadata must retain content.xml-derived calendars");
+	}
+
+	@Test
 	void releasedMpoWriterBaselineCostFixtureKeepsItsModelCurrencyAndUpgradesOnSave() throws Exception {
 		Path fixture = Path.of("modules", "microproject_exchange", "testdata", "mpo",
 			"legacy-assignment-baseline-cost-probe.mpo");
@@ -79,6 +600,13 @@ class MpoFileImporterTest {
 		byte[] archive = Files.readAllBytes(fixture);
 		assertEquals("f13568bbcae62cfa4973d3bf471c1c5a0a2eff6be2dec24fc4e122369d95d3ad", sha256(archive));
 		Map<String, byte[]> entries = readEntries(archive);
+		byte[] oldSchedules = entries.get(MpoFileImporter.TASK_SCHEDULES_ENTRY);
+		if (oldSchedules != null) {
+			var oldMetadata = new com.fasterxml.jackson.databind.ObjectMapper().readTree(oldSchedules);
+			assertFalse(oldMetadata.has("projectCalendar"), "released fixture predates optional project calendar data");
+			assertTrue(oldMetadata.path("tasks").findValues("calendar").isEmpty(),
+				"released fixture predates optional task calendar data");
+		}
 		String meta = new String(entries.get(MpoFileImporter.META_ENTRY), StandardCharsets.UTF_8);
 		assertTrue(meta.contains("applicationVersion=\"0.0.24\""));
 		assertFalse(meta.contains("assignmentBaselineCostUnit"), "Released archive predates the unit marker");
@@ -2969,6 +3497,40 @@ class MpoFileImporterTest {
 	}
 
 	@Test
+	void successfulManualModeChangeSurvivesUndoRedoAndMpoRecalculation() throws Exception {
+		Project original = projectForRoundTrip();
+		Task task = firstTask(original);
+		long projectStart = java.time.Instant.parse("2030-06-03T08:00:00Z").toEpochMilli();
+		original.setStartDate(projectStart);
+		((NormalTask) task).setDuration(8L * 60L * 60L * 1000L);
+		original.recalculate();
+		long expectedStart = task.getStart();
+		long expectedFinish = task.getEnd();
+
+		TaskModeService.Result result = new TaskModeService().apply(
+				List.of(task), TaskModeService.Mode.MANUAL);
+		assertTrue(result.manual());
+		assertTrue(task.isManuallyScheduled());
+		assertEquals(expectedStart, task.getManualStart());
+		assertEquals(expectedFinish, task.getManualFinish());
+		result.change().undo();
+		assertFalse(task.isManuallyScheduled());
+		result.change().redo();
+		assertTrue(task.isManuallyScheduled());
+		assertEquals(expectedStart, task.getManualStart());
+		assertEquals(expectedFinish, task.getManualFinish());
+
+		Project reopened = loadFromBytes(saveProjectBytes(original));
+		reopened.recalculate();
+		Task restored = firstTask(reopened);
+		assertTrue(restored.isManuallyScheduled());
+		assertEquals(expectedStart, restored.getManualStart());
+		assertEquals(expectedFinish, restored.getManualFinish());
+		assertEquals(expectedStart, restored.getStart());
+		assertEquals(expectedFinish, restored.getEnd());
+	}
+
+	@Test
 	void clearingAssignmentLevelingAfterMpoReloadPreservesManualAssignmentDelay() throws Exception {
 		// Document-derived MSPDI contract: Assignment Delay is waiting time after the
 		// task start, while Assignment LevelingDelay is the leveler-imposed offset.
@@ -3228,7 +3790,14 @@ class MpoFileImporterTest {
 		Project original = projectForRoundTrip();
 		NormalTask unassigned = (NormalTask) firstTask(original);
 		unassigned.setName("Unassigned leaf");
-		unassigned.setDuration(3L * com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
+		long expectedUnassignedWork = 57_600_000L;
+		long start = original.getStartDate();
+		long finish = unassigned.getEffectiveWorkCalendar().add(start, expectedUnassignedWork, false);
+		unassigned.getCurrentSchedule().setStart(start);
+		unassigned.getCurrentSchedule().setFinish(finish);
+		unassigned.getCurrentSchedule().setRawDuration(expectedUnassignedWork);
+		unassigned.setFixedCost(17.5d);
+		unassigned.restoreMpoUnassignedWork(expectedUnassignedWork);
 
 		NormalTask assigned = (NormalTask) original.createLocalTaskNode(null).getImpl();
 		assigned.setName("Assigned control");
@@ -3236,7 +3805,7 @@ class MpoFileImporterTest {
 		Resource resource = original.getResourcePool().newResourceInstance();
 		Assignment assignment = AssignmentService.getInstance().newAssignment(assigned, resource, 1D, 0L, this);
 
-		long expectedUnassignedWork = unassigned.getWork(null);
+		assertEquals(57_600_000L, unassigned.getWork(null), "fixture must reproduce the reported pre-save Work");
 		long expectedUnassignedStart = unassigned.getStart();
 		long expectedUnassignedFinish = unassigned.getEnd();
 		long expectedUnassignedDuration = unassigned.getDurationMillis();
@@ -3499,6 +4068,46 @@ class MpoFileImporterTest {
 		Project restored = load(writeTempMpo(original));
 		assertTrue(restored.isStatusDateSet());
 		assertEquals(original.getStatusDate(), restored.getStatusDate());
+	}
+
+	@Test
+	void markOnTrackPreservesIndependentAssignmentProgressAndWorkAcrossMpoRoundTrip() throws Exception {
+		Project original = projectForRoundTrip();
+		NormalTask task = (NormalTask) firstTask(original);
+		var resource = original.getResourcePool().newResourceInstance();
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, this);
+		long totalWork = assignment.getWork(null);
+		assignment.setActualWork(totalWork / 4L, null);
+		assignment.setRemainingWork(totalWork * 3L / 4L, null);
+		assignment.setPercentComplete(0.37D);
+		task.setImportedPercentComplete(0.10D);
+		long statusDate = task.getStart() + (task.getEnd() - task.getStart()) / 2L;
+		original.setStatusDate(statusDate);
+		long expectedStatusDate = original.getStatusDate();
+		double assignmentPercent = assignment.getPercentComplete();
+		long actualWork = assignment.getActualWork(null);
+		long remainingWork = assignment.getRemainingWork();
+		long assignmentWork = assignment.getWork(null);
+		long taskWork = task.getWork(null);
+
+		new TaskProgressService().markOnTrack(original, List.of(task));
+		double markedTaskPercent = task.getPercentComplete();
+		assertNotEquals(0.10D, markedTaskPercent, 0.00001D);
+		assertEquals(assignmentPercent, assignment.getPercentComplete(), 0.00001D);
+		assertEquals(actualWork, assignment.getActualWork(null));
+		assertEquals(remainingWork, assignment.getRemainingWork());
+
+		Project reopened = loadFromBytes(saveProjectBytes(original));
+		NormalTask reopenedTask = (NormalTask) firstTask(reopened);
+		Assignment reopenedAssignment = (Assignment) reopenedTask.getAssignments().iterator().next();
+		assertTrue(reopened.isStatusDateSet());
+		assertEquals(expectedStatusDate, reopened.getStatusDate());
+		assertEquals(markedTaskPercent, reopenedTask.getPercentComplete(), 0.00001D);
+		assertEquals(assignmentPercent, reopenedAssignment.getPercentComplete(), 0.00001D);
+		assertEquals(actualWork, reopenedAssignment.getActualWork(null));
+		assertEquals(remainingWork, reopenedAssignment.getRemainingWork());
+		assertEquals(assignmentWork, reopenedAssignment.getWork(null));
+		assertEquals(taskWork, reopenedTask.getWork(null));
 	}
 
 	@Test
@@ -3889,6 +4498,56 @@ class MpoFileImporterTest {
 		ByteArrayOutputStream output = new ByteArrayOutputStream();
 		new MpoFileImporter().saveProject(project, output);
 		return output.toByteArray();
+	}
+
+	private static long mpoCalendarTimestamp(int year, int month, int dayOfMonth, int hourOfDay) {
+		java.util.Calendar calendar = com.microproject.util.DateTime.calendarInstance(year, month, dayOfMonth);
+		calendar.set(java.util.Calendar.HOUR_OF_DAY, hourOfDay);
+		return calendar.getTimeInMillis();
+	}
+
+	private static void assertMalformedTaskCalendarInheritanceRejected(Map<String, byte[]> saved,
+		com.fasterxml.jackson.databind.ObjectMapper mapper, String calendarName) throws Exception {
+		for (String invalidMarker : List.of("\"true\"", "1", "null", "false")) {
+			Map<String, byte[]> malformed = new LinkedHashMap<>(saved);
+			com.fasterxml.jackson.databind.node.ObjectNode root = (com.fasterxml.jackson.databind.node.ObjectNode)
+				mapper.readTree(malformed.get(MpoFileImporter.TASK_SCHEDULES_ENTRY));
+			com.fasterxml.jackson.databind.node.ObjectNode taskCalendar = findScheduleCalendar(root, calendarName);
+			taskCalendar.set("baseProjectCalendar", mapper.readTree(invalidMarker));
+			malformed.put(MpoFileImporter.TASK_SCHEDULES_ENTRY, mapper.writeValueAsBytes(root));
+			updateEntryChecksum(malformed, MpoFileImporter.TASK_SCHEDULES_ENTRY);
+			assertThrows(IOException.class, () -> loadFromBytes(zip(malformed).toByteArray()),
+				"invalid task calendar project-base marker must be rejected: " + invalidMarker);
+		}
+
+		Map<String, byte[]> malformed = new LinkedHashMap<>(saved);
+		com.fasterxml.jackson.databind.node.ObjectNode root = (com.fasterxml.jackson.databind.node.ObjectNode)
+			mapper.readTree(malformed.get(MpoFileImporter.TASK_SCHEDULES_ENTRY));
+		com.fasterxml.jackson.databind.node.ObjectNode taskCalendar = findScheduleCalendar(root, calendarName);
+		taskCalendar.set("baseCalendar", root.path("projectCalendar").deepCopy());
+		malformed.put(MpoFileImporter.TASK_SCHEDULES_ENTRY, mapper.writeValueAsBytes(root));
+		updateEntryChecksum(malformed, MpoFileImporter.TASK_SCHEDULES_ENTRY);
+		assertThrows(IOException.class, () -> loadFromBytes(zip(malformed).toByteArray()),
+			"task calendar must not declare both project and nested base calendars");
+
+		Map<String, byte[]> conflictingIdentity = new LinkedHashMap<>(saved);
+		com.fasterxml.jackson.databind.node.ObjectNode conflictRoot = (com.fasterxml.jackson.databind.node.ObjectNode)
+			mapper.readTree(conflictingIdentity.get(MpoFileImporter.TASK_SCHEDULES_ENTRY));
+		com.fasterxml.jackson.databind.node.ObjectNode conflictCalendar = findScheduleCalendar(conflictRoot, calendarName);
+		conflictCalendar.set("baseCalendar", conflictCalendar.deepCopy());
+		conflictingIdentity.put(MpoFileImporter.TASK_SCHEDULES_ENTRY, mapper.writeValueAsBytes(conflictRoot));
+		updateEntryChecksum(conflictingIdentity, MpoFileImporter.TASK_SCHEDULES_ENTRY);
+		assertThrows(IOException.class, () -> loadFromBytes(zip(conflictingIdentity).toByteArray()),
+			"a nested calendar must not redefine an ancestor uniqueId");
+	}
+
+	private static com.fasterxml.jackson.databind.node.ObjectNode findScheduleCalendar(
+		com.fasterxml.jackson.databind.JsonNode root, String name) {
+		for (com.fasterxml.jackson.databind.JsonNode taskNode : root.path("tasks")) {
+			if (name.equals(taskNode.path("calendar").path("name").asText()))
+				return (com.fasterxml.jackson.databind.node.ObjectNode) taskNode.path("calendar");
+		}
+		throw new AssertionError("No task schedule calendar named " + name);
 	}
 
 	private static void changeDependencyLag(Project project, long predecessorId, long successorId, long lag)

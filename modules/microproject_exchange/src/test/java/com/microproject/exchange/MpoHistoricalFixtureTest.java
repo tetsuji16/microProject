@@ -7,6 +7,7 @@ package com.microproject.exchange;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayInputStream;
@@ -123,6 +124,8 @@ class MpoHistoricalFixtureTest {
 		assertEquals(monday0800, predecessor.getConstraintDate());
 		assertFalse(predecessor.isManuallyScheduled());
 		assertEquals(42L, predecessor.getWorkCalendar().getUniqueId());
+		assertSame(project.getWorkCalendar(), predecessor.getWorkCalendar(),
+			"previous-writer tasks sharing the project calendar must retain one calendar instance");
 		assertFixtureAssignment(predecessor, 0L, 8L, 8L);
 
 		NormalTask successor = (NormalTask) taskByUid(project, 4202L);
@@ -137,6 +140,8 @@ class MpoHistoricalFixtureTest {
 		assertEquals(tuesday0800, successor.getConstraintDate());
 		assertFalse(successor.isManuallyScheduled());
 		assertEquals(42L, successor.getWorkCalendar().getUniqueId());
+		assertSame(project.getWorkCalendar(), successor.getWorkCalendar(),
+			"previous-writer tasks sharing the project calendar must retain one calendar instance");
 		assertFixtureAssignment(successor, 2L, 6L, 8L);
 
 		assertEquals(1, successor.getPredecessorList().size());
