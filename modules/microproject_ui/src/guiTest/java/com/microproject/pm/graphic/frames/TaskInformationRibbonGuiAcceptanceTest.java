@@ -2608,6 +2608,240 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			});
 	}
 
+	/**
+	 * Task &gt; Schedule percent-complete buttons through the physical ribbon route.
+	 * Source (document-derived compatibility decision): Microsoft Support,
+	 * "Update progress using percent complete",
+	 * https://support.microsoft.com/en-us/project/update-progress-using-percent-complete :
+	 * the 0/25/50/75/100% Complete commands set the selected tasks' progress.
+	 * Selection scope, one Undo edit and MPO persistence follow the microProject
+	 * command contract; with no task selected the buttons are disabled.
+	 */
+	@Test
+	void percentCompleteRibbonRouteSetsSelectedTasksWithUndoRedoAndMpo() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for % Complete Robot coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		Project project = createFlatTaskProject("percent-complete-ribbon-acceptance", "Percent task ", 3, 0.1d);
+		NormalTask first = taskNamed(project, "Percent task 1");
+		NormalTask second = taskNamed(project, "Percent task 2");
+		NormalTask third = taskNamed(project, "Percent task 3");
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> window.setExtendedState(java.awt.Frame.MAXIMIZED_BOTH));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"percent-complete project did not become visible");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		Gantt gantt = manager.getCurrentFrame().getGanttView().getGantt();
+		GuiAcceptanceSupport.await(() -> sheet.isShowing() && isTaskVisible(sheet, first) && isTaskVisible(sheet, third),
+			"percent-complete task rows were not rendered");
+		clickAndAwaitSelected(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+			.getString("TaskRibbonTask.title")), "Robot click did not select the Task ribbon tab for % Complete");
+
+		// No selection: the command is disabled and a physical click leaves every task unchanged.
+		SwingUtilities.invokeAndWait(() -> {
+			sheet.clearSelection();
+			manager.setButtonState(null, project);
+		});
+		AbstractButton disabled50 = findVisibleOrOverflowButton(robot, "RibbonPercentComplete50");
+		GuiAcceptanceSupport.await(() -> !disabled50.isEnabled(), "% Complete must be disabled with no task selected");
+		clickDisabled(robot, disabled50);
+		assertEquals(0.1d, first.getPercentComplete(), 0.00001d, "A disabled % Complete click changed a task");
+		assertEquals(0.1d, second.getPercentComplete(), 0.00001d, "A disabled % Complete click changed a task");
+
+		// Two leaf tasks selected physically (click + Shift-click on the row header).
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, first), nameColumn(sheet)));
+		robot.keyPress(KeyEvent.VK_SHIFT);
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, second), 0));
+		robot.keyRelease(KeyEvent.VK_SHIFT);
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).containsAll(List.of(first, second))
+				&& !manager.getCurrentFrame().getSelectedImpls(false).contains(third),
+			"Shift-click did not select exactly the two leaf tasks");
+		AbstractButton fifty = findVisibleOrOverflowButton(robot, "RibbonPercentComplete50");
+		GuiAcceptanceSupport.await(fifty::isEnabled, "50% Complete stayed disabled for two selected tasks");
+		project.getUndoController().clear();
+		click(robot, fifty);
+		GuiAcceptanceSupport.await(() -> first.getPercentComplete() == 0.5d && second.getPercentComplete() == 0.5d,
+			"50% Complete did not set both selected tasks");
+		assertEquals(0.1d, third.getPercentComplete(), 0.00001d, "50% Complete changed an unselected task");
+		assertTrue(isTaskVisibleInGantt(gantt, first) && isTaskVisibleInGantt(gantt, second),
+			"Gantt rows for the updated tasks are absent");
+		assertTrue(ganttRowMatchesSheetRow(sheet, gantt, first) && ganttRowMatchesSheetRow(sheet, gantt, second),
+			"Gantt progress rows are not aligned with the task table after 50% Complete");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> first.getPercentComplete() == 0.1d && second.getPercentComplete() == 0.1d,
+			"One Ctrl+Z did not restore both tasks' progress");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> first.getPercentComplete() == 0.5d && second.getPercentComplete() == 0.5d,
+			"Ctrl+Y did not re-apply 50% Complete to both tasks");
+		assertEquals(0.1d, third.getPercentComplete(), 0.00001d, "Redo changed an unselected task");
+
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, saved), "MPO save rejected 50% Complete");
+		Project reloaded = new MpoFileImporter().loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		assertEquals(0.5d, taskNamed(reloaded, first.getName()).getPercentComplete(), 0.00001d, "MPO reload lost 50% (first)");
+		assertEquals(0.5d, taskNamed(reloaded, second.getName()).getPercentComplete(), 0.00001d, "MPO reload lost 50% (second)");
+		assertEquals(0.1d, taskNamed(reloaded, third.getName()).getPercentComplete(), 0.00001d,
+			"MPO reload changed the unselected task");
+
+		// 100% Complete on a single task.
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, third), nameColumn(sheet)));
+		GuiAcceptanceSupport.await(() -> sheetHasOnlySelectedTask(sheet, third), "single-task selection for 100% failed");
+		AbstractButton hundred = findVisibleOrOverflowButton(robot, "RibbonPercentComplete100");
+		GuiAcceptanceSupport.await(hundred::isEnabled, "100% Complete stayed disabled for a selected task");
+		click(robot, hundred);
+		GuiAcceptanceSupport.await(() -> third.getPercentComplete() == 1.0d, "100% Complete did not complete the selected task");
+		assertEquals(0.5d, first.getPercentComplete(), 0.00001d, "100% Complete changed an unselected task");
+	}
+
+	/**
+	 * Task &gt; Insert Summary and Milestone through the physical ribbon route.
+	 * Sources: Microsoft Support, "Create a summary task",
+	 * https://support.microsoft.com/en-us/project/create-a-summary-task , and
+	 * "Add a milestone to your project",
+	 * https://support.microsoft.com/en-us/project/add-a-milestone-to-your-project .
+	 * Document-derived compatibility decisions: Summary inserts a new row above the
+	 * selected tasks and indents them beneath it; Milestone inserts a zero-duration
+	 * milestone row above the selected task. Each is one Undo edit.
+	 */
+	@Test
+	void insertSummaryAndMilestoneRibbonRoutesInsertRowsWithUndoRedoAndMpo() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Insert Summary/Milestone Robot coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		Project project = createFlatTaskProject("insert-summary-ribbon-acceptance", "Insert task ", 3, 0d);
+		NormalTask first = taskNamed(project, "Insert task 1");
+		NormalTask second = taskNamed(project, "Insert task 2");
+		NormalTask third = taskNamed(project, "Insert task 3");
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> window.setExtendedState(java.awt.Frame.MAXIMIZED_BOTH));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"insert-summary project did not become visible");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		Gantt gantt = manager.getCurrentFrame().getGanttView().getGantt();
+		GuiAcceptanceSupport.await(() -> sheet.isShowing() && isTaskVisible(sheet, first) && isTaskVisible(sheet, third),
+			"insert-summary task rows were not rendered");
+		clickAndAwaitSelected(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+			.getString("TaskRibbonTask.title")), "Robot click did not select the Task ribbon tab for Insert Summary");
+		java.util.Set<Task> existing = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+		existing.addAll(project.getTaskList());
+
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, first), nameColumn(sheet)));
+		robot.keyPress(KeyEvent.VK_SHIFT);
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, second), 0));
+		robot.keyRelease(KeyEvent.VK_SHIFT);
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).containsAll(List.of(first, second)),
+			"Shift-click did not select the two adjacent tasks");
+		AbstractButton summaryButton = findVisibleOrOverflowButton(robot, "RibbonInsertSummary");
+		GuiAcceptanceSupport.await(summaryButton::isEnabled, "Insert Summary stayed disabled for two selected tasks");
+		project.getUndoController().clear();
+		click(robot, summaryButton);
+		GuiAcceptanceSupport.await(() -> first.getWbsParentTask() != null,
+			"Insert Summary did not indent the selected tasks under a new summary");
+		Task summary = first.getWbsParentTask();
+		assertFalse(existing.contains(summary), "The summary parent must be a newly inserted task");
+		assertSame(summary, second.getWbsParentTask(), "Both selected tasks must share the new summary");
+		assertNull(third.getWbsParentTask(), "The unselected task must stay top level");
+		GuiAcceptanceSupport.await(() -> summaryProjectionMatches(sheet, gantt, summary, first, second, third),
+			"Insert Summary did not render summary/children/outline levels with aligned table and Gantt rows");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> first.getWbsParentTask() == null && second.getWbsParentTask() == null,
+			"One Ctrl+Z did not restore the original hierarchy");
+		assertFalse(isTaskVisible(sheet, (NormalTask) summary), "Undo must remove the inserted summary row");
+		assertEquals(0, first.getOutlineLevel(), "Undo must restore outline level of the first task");
+		assertEquals(0, second.getOutlineLevel(), "Undo must restore outline level of the second task");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> first.getWbsParentTask() == summary && second.getWbsParentTask() == summary,
+			"Ctrl+Y did not re-apply the summary");
+		GuiAcceptanceSupport.await(() -> summaryProjectionMatches(sheet, gantt, summary, first, second, third),
+			"Redo Insert Summary did not render the expected outline and aligned Gantt rows");
+
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, saved), "MPO save rejected the summary hierarchy");
+		Project reloaded = new MpoFileImporter().loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		Task reloadedParent = taskNamed(reloaded, first.getName()).getWbsParentTask();
+		assertNotNull(reloadedParent, "MPO reload lost the inserted summary parent");
+		assertSame(reloadedParent, taskNamed(reloaded, second.getName()).getWbsParentTask(), "MPO reload split the children");
+		assertTrue(reloadedParent.isWbsParent(), "MPO reload parent is not a summary");
+		assertEquals(1, taskNamed(reloaded, first.getName()).getOutlineLevel(), "MPO reload lost the child outline level");
+		assertNull(taskNamed(reloaded, third.getName()).getWbsParentTask(), "MPO reload indented the unselected task");
+
+		// Milestone above the selected third task.
+		java.util.Set<Task> beforeMilestone = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+		beforeMilestone.addAll(project.getTaskList());
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, third), nameColumn(sheet)));
+		GuiAcceptanceSupport.await(() -> sheetHasOnlySelectedTask(sheet, third), "single-task selection for Milestone failed");
+		AbstractButton milestoneButton = findVisibleOrOverflowButton(robot, "RibbonInsertMilestone");
+		GuiAcceptanceSupport.await(milestoneButton::isEnabled, "Insert Milestone stayed disabled for a selected task");
+		project.getUndoController().clear();
+		click(robot, milestoneButton);
+		GuiAcceptanceSupport.await(() -> project.getTaskList().stream().anyMatch(t -> !beforeMilestone.contains(t)),
+			"Insert Milestone did not add a task");
+		NormalTask milestone = (NormalTask) project.getTaskList().stream().filter(t -> !beforeMilestone.contains(t))
+			.findFirst().orElseThrow();
+		assertTrue(milestone.isMilestone(), "The inserted task must be a milestone");
+		assertEquals(0L, milestone.getDuration(), "The inserted milestone must have zero duration");
+		GuiAcceptanceSupport.await(() -> isTaskVisible(sheet, milestone)
+				&& rowForTask(sheet, milestone) + 1 == rowForTask(sheet, third),
+			"The milestone row must be rendered directly above the selected task");
+		assertTrue(isTaskVisibleInGantt(gantt, milestone) && ganttRowMatchesSheetRow(sheet, gantt, milestone),
+			"The milestone must have an aligned Gantt row");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> !isTaskVisible(sheet, milestone), "One Ctrl+Z did not remove the milestone row");
+		assertSame(summary, first.getWbsParentTask(), "Undoing the milestone must keep the earlier summary");
+	}
+
+	private static Project createFlatTaskProject(String pool, String prefix, int count, double percentComplete) {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool(pool, undo), undo);
+		project.initialize(false, false);
+		for (int index = 1; index <= count; index++) {
+			NormalTask task = project.createScriptedTask();
+			task.setName(prefix + index);
+			task.setDuration(4L * CalendarOption.getInstance().getMillisPerDay());
+			if (percentComplete > 0d)
+				task.setPercentComplete(percentComplete);
+		}
+		project.recalculate();
+		undo.clear();
+		return project;
+	}
+
+	private static boolean ganttRowMatchesSheetRow(SpreadSheet sheet, Gantt gantt, NormalTask task) {
+		int row = rowForTask(sheet, task);
+		CommonSpreadSheetModel model = (CommonSpreadSheetModel) sheet.getModel();
+		GraphicNode node = (GraphicNode) sheet.getCache().getGraphicNode(model.getNode(row).getNode());
+		return gantt.getCache().getVisibleNodes().getProjectionIndex().rowForNode(node) == row;
+	}
+
+	private static boolean summaryProjectionMatches(SpreadSheet sheet, Gantt gantt, Task summary, NormalTask first,
+			NormalTask second, NormalTask third) {
+		try {
+			NormalTask parent = (NormalTask) summary;
+			if (!isTaskVisible(sheet, parent) || !parent.isWbsParent() || parent.getOutlineLevel() != 0
+					|| first.getOutlineLevel() != 1 || second.getOutlineLevel() != 1 || third.getOutlineLevel() != 0)
+				return false;
+			int parentRow = rowForTask(sheet, parent);
+			return rowForTask(sheet, first) == parentRow + 1 && rowForTask(sheet, second) == parentRow + 2
+				&& rowForTask(sheet, third) == parentRow + 3
+				&& ganttRowMatchesSheetRow(sheet, gantt, parent) && ganttRowMatchesSheetRow(sheet, gantt, first)
+				&& ganttRowMatchesSheetRow(sheet, gantt, second) && ganttRowMatchesSheetRow(sheet, gantt, third);
+		} catch (AssertionError absent) {
+			return false;
+		}
+	}
+
 	@Test
 	void inactivateTaskRibbonRouteKeepsTaskVisibleAndSupportsUndoRedoAndMpo() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Inactivate Task Robot coverage.");
