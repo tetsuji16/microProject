@@ -711,6 +711,206 @@ class RibbonButtonBehaviorTest {
 		});
 	}
 
+	// ----- Task tab commands added for #769 / #453: one shared fixture, one Action per command. -----
+
+	private static Task newTaskSince(Project project, Set<Task> existing) {
+		return project.getTaskList().stream().filter(candidate -> !existing.contains(candidate)).findFirst().orElseThrow();
+	}
+
+	private static Set<Task> identitySnapshot(Project project) {
+		Set<Task> snapshot = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+		snapshot.addAll(project.getTaskList());
+		return snapshot;
+	}
+
+	private static Project mpoRoundTrip(Project source) throws Exception {
+		java.io.ByteArrayOutputStream encoded = new java.io.ByteArrayOutputStream();
+		assertTrue(new com.microproject.exchange.MpoFileImporter().saveProject(source, encoded), "MPO save must succeed");
+		try (var input = new java.io.ByteArrayInputStream(encoded.toByteArray())) {
+			return new com.microproject.exchange.MpoFileImporter().loadProject(input);
+		}
+	}
+
+	private static Task findByName(Project project, String name) {
+		return project.getTaskList().stream().filter(candidate -> name.equals(candidate.getName()))
+			.findFirst().orElseThrow(() -> new AssertionError("task not found after reload: " + name));
+	}
+
+	private static RibbonCommandResult.Status statusOf(Harness harness, String actionId) {
+		return (RibbonCommandResult.Status) harness.manager.getAction(actionId)
+			.getValue(RibbonCommandResult.STATUS_ACTION_PROPERTY);
+	}
+
+	/** Every disabled precondition shared by the Task-tab commands that mutate selected rows. */
+	private static void assertTaskTabCommandsDisabledWithoutEditableSelection(Harness harness, List<String> actionIds)
+			throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			harness.frame.getTopSpreadSheet().clearSelection();
+			harness.frame.setSelection(null);
+			harness.manager.setButtonState(null, harness.project);
+			for (String actionId : actionIds) {
+				if (MenuActionConstants.ACTION_INSERT_MILESTONE.equals(actionId))
+					continue; // Milestone may insert at the current row without a selection.
+				assertFalse(harness.manager.getAction(actionId).isEnabled(), actionId + " needs a selection");
+			}
+			harness.frame.getTopSpreadSheet().setRowSelectionInterval(0, 0);
+			harness.project.setReadOnly(true);
+			harness.manager.setButtonState(harness.task, harness.project);
+			for (String actionId : actionIds)
+				assertFalse(harness.manager.getAction(actionId).isEnabled(), actionId + " must be disabled when read-only");
+			harness.project.setReadOnly(false);
+		});
+	}
+
+	@Test
+	void percentCompleteButtonsSetSelectedTasksWithOneUndoEditAndSurviveMpoReload() throws Exception {
+		Harness harness = newHarness();
+		harness.setTaskInformation(true, false);
+		double[] percents = { 25, 50, 75, 100, 0 };
+		for (double percent : percents) {
+			String actionId = "PercentComplete" + (int) percent;
+			SwingUtilities.invokeAndWait(() -> {
+				harness.undoController.clear();
+				harness.frame.getTopSpreadSheet().setRowSelectionInterval(0, 1);
+				harness.manager.setButtonState(harness.task, harness.project);
+				Action action = harness.manager.getAction(actionId);
+				assertTrue(action.isEnabled(), actionId);
+				double before = harness.task.getPercentComplete();
+				action.actionPerformed(new ActionEvent(harness.frame, ActionEvent.ACTION_PERFORMED, actionId));
+				assertEquals(RibbonCommandResult.Status.CHANGED, statusOf(harness, actionId), actionId);
+				assertEquals(percent / 100D, harness.task.getPercentComplete(), 1e-6);
+				assertEquals(percent / 100D, harness.secondTask.getPercentComplete(), 1e-6);
+				harness.undoController.undo();
+				assertEquals(before, harness.task.getPercentComplete(), 1e-6, "one Undo reverts both tasks");
+				assertEquals(before, harness.secondTask.getPercentComplete(), 1e-6);
+				assertFalse(harness.undoController.canUndo(), "the command must be exactly one Undo edit");
+				harness.undoController.redo();
+				assertEquals(percent / 100D, harness.task.getPercentComplete(), 1e-6);
+				assertEquals(percent / 100D, harness.secondTask.getPercentComplete(), 1e-6);
+			});
+		}
+		// Persist an intermediate value and verify it reloads from MPO.
+		SwingUtilities.invokeAndWait(() -> {
+			harness.frame.getTopSpreadSheet().setRowSelectionInterval(0, 1);
+			harness.manager.setButtonState(harness.task, harness.project);
+			harness.manager.getAction("PercentComplete50").actionPerformed(
+				new ActionEvent(harness.frame, ActionEvent.ACTION_PERFORMED, "PercentComplete50"));
+		});
+		Project reloaded = mpoRoundTrip(harness.project);
+		assertEquals(0.5D, findByName(reloaded, "Ribbon Task").getPercentComplete(), 1e-6);
+		assertEquals(0.5D, findByName(reloaded, "Ribbon Task 2").getPercentComplete(), 1e-6);
+
+		assertTaskTabCommandsDisabledWithoutEditableSelection(harness, List.of("PercentComplete0",
+			"PercentComplete25", "PercentComplete50", "PercentComplete75", "PercentComplete100"));
+	}
+
+	@Test
+	void insertMilestoneAddsOneZeroDurationTaskAboveTheSelectionAsOneUndoEdit() throws Exception {
+		Harness harness = newHarness();
+		harness.setTaskInformation(true, false);
+		Set<Task> existing = identitySnapshot(harness.project);
+		var taskModel = harness.project.getTaskModel();
+		Object root = taskModel.getRoot();
+		int beforeNodes = taskModel.getChildCount(root);
+		SwingUtilities.invokeAndWait(() -> {
+			harness.undoController.clear();
+			harness.frame.getTopSpreadSheet().setRowSelectionInterval(1, 1);
+			harness.manager.setButtonState(harness.secondTask, harness.project);
+			Action action = harness.manager.getAction(MenuActionConstants.ACTION_INSERT_MILESTONE);
+			assertTrue(action.isEnabled());
+			action.actionPerformed(new ActionEvent(harness.frame, ActionEvent.ACTION_PERFORMED,
+				MenuActionConstants.ACTION_INSERT_MILESTONE));
+			assertEquals(RibbonCommandResult.Status.CHANGED, statusOf(harness, MenuActionConstants.ACTION_INSERT_MILESTONE));
+			Task milestone = newTaskSince(harness.project, existing);
+			assertTrue(milestone.isMilestone());
+			assertEquals(beforeNodes + 1, taskModel.getChildCount(root));
+			assertSame(milestone, ((Node) taskModel.getChild(root, 1)).getImpl(), "inserted directly above the selected row");
+			assertSame(harness.secondTask, ((Node) taskModel.getChild(root, 2)).getImpl());
+			harness.undoController.undo();
+			assertEquals(beforeNodes, taskModel.getChildCount(root), "one Undo removes the milestone");
+			assertFalse(harness.undoController.canUndo(), "the command must be exactly one Undo edit");
+			harness.undoController.redo();
+			assertEquals(beforeNodes + 1, taskModel.getChildCount(root));
+			assertTrue(milestone.isMilestone(), "Redo keeps zero duration");
+		});
+		Project reloaded = mpoRoundTrip(harness.project);
+		assertEquals(harness.project.getTaskList().stream().filter(Task::isMilestone).count(),
+			reloaded.getTaskList().stream().filter(Task::isMilestone).count(), "milestone survives MPO reload");
+		assertTaskTabCommandsDisabledWithoutEditableSelection(harness, List.of(MenuActionConstants.ACTION_INSERT_MILESTONE));
+	}
+
+	@Test
+	void insertSummaryAddsATaskAboveAndIndentsTheSelectionAsOneUndoEdit() throws Exception {
+		Harness harness = newHarness();
+		harness.setTaskInformation(true, false);
+		Set<Task> existing = identitySnapshot(harness.project);
+		var taskModel = harness.project.getTaskModel();
+		Object root = taskModel.getRoot();
+		int beforeNodes = taskModel.getChildCount(root);
+		SwingUtilities.invokeAndWait(() -> {
+			harness.undoController.clear();
+			harness.frame.getTopSpreadSheet().setRowSelectionInterval(0, 1);
+			harness.manager.setButtonState(harness.task, harness.project);
+			Action action = harness.manager.getAction(MenuActionConstants.ACTION_INSERT_SUMMARY);
+			assertTrue(action.isEnabled());
+			action.actionPerformed(new ActionEvent(harness.frame, ActionEvent.ACTION_PERFORMED,
+				MenuActionConstants.ACTION_INSERT_SUMMARY));
+			assertEquals(RibbonCommandResult.Status.CHANGED, statusOf(harness, MenuActionConstants.ACTION_INSERT_SUMMARY),
+				String.valueOf(action.getValue(RibbonCommandResult.REASON_ACTION_PROPERTY)));
+			Task summary = newTaskSince(harness.project, existing);
+			assertSame(summary, harness.task.getWbsParentTask());
+			assertSame(summary, harness.secondTask.getWbsParentTask());
+			assertTrue(summary.isWbsParent());
+			assertEquals(beforeNodes - 1, taskModel.getChildCount(root));
+			assertSame(summary, ((Node) taskModel.getChild(root, 0)).getImpl(), "summary inserted above the selection");
+			harness.undoController.undo();
+			assertEquals(beforeNodes, taskModel.getChildCount(root), "one Undo removes the summary and the indent");
+			assertNull(harness.task.getWbsParentTask());
+			assertNull(harness.secondTask.getWbsParentTask());
+			assertFalse(harness.undoController.canUndo(), "the command must be exactly one Undo edit");
+			harness.undoController.redo();
+			assertSame(summary, harness.task.getWbsParentTask());
+			assertSame(summary, harness.secondTask.getWbsParentTask());
+		});
+		Project reloaded = mpoRoundTrip(harness.project);
+		Task reloadedParent = findByName(reloaded, "Ribbon Task").getWbsParentTask();
+		assertNotNull(reloadedParent, "hierarchy survives MPO reload");
+		assertSame(reloadedParent, findByName(reloaded, "Ribbon Task 2").getWbsParentTask());
+		assertTaskTabCommandsDisabledWithoutEditableSelection(harness, List.of(MenuActionConstants.ACTION_INSERT_SUMMARY));
+	}
+
+	@Test
+	void clearSelectAllAndTaskDetailsReuseTheExistingActions() throws Exception {
+		Harness harness = newHarness();
+		harness.setTaskInformation(true, false);
+		SwingUtilities.invokeAndWait(() -> {
+			assertEquals("ClearContents", harness.actionId("RibbonClear"));
+			assertEquals("SelectAll", harness.actionId("RibbonSelectAll"));
+			assertSame(harness.manager.getAction(harness.actionId("RibbonDetails")),
+				harness.manager.getAction(harness.actionId("RibbonTaskDetails")),
+				"Task > Properties > Details and View > Details are one Action");
+			ActionMap shortcuts = new ActionMap();
+			harness.manager.applyMicrosoftShortcuts(new InputMap(), shortcuts);
+			assertSame(harness.manager.getAction("ClearContents"), shortcuts.get(MenuActionConstants.ACTION_CLEAR_CONTENTS),
+				"Ctrl+Delete and the ribbon button share one Action instance");
+			assertSame(harness.manager.getAction("SelectAll"), shortcuts.get(MenuActionConstants.ACTION_SELECT_ALL),
+				"Ctrl+Shift+Space and the ribbon button share one Action instance");
+
+			SpreadSheet sheet = harness.frame.getTopSpreadSheet();
+			sheet.clearSelection();
+			harness.manager.setButtonState(null, harness.project);
+			Action selectAll = harness.manager.getAction("SelectAll");
+			assertTrue(selectAll.isEnabled());
+			selectAll.actionPerformed(new ActionEvent(harness.frame, ActionEvent.ACTION_PERFORMED, "SelectAll"));
+			assertEquals(sheet.getRowCount(), sheet.getSelectedRowCount());
+			assertTrue(harness.manager.getAction("ClearContents").isEnabled());
+			harness.project.setReadOnly(true);
+			harness.manager.setButtonState(null, harness.project);
+			assertFalse(harness.manager.getAction("ClearContents").isEnabled(), "Clear is disabled for a read-only project");
+			harness.project.setReadOnly(false);
+		});
+	}
+
 	@Test
 	void inactivateTaskRibbonRouteUsesSelectedRowsAndOneUndoEdit() throws Exception {
 		Harness harness = newHarness();
@@ -1663,6 +1863,11 @@ class RibbonButtonBehaviorTest {
 			"RibbonUnlink",
 			"RibbonRespectLinks");
 		add(map, Strategy.STRUCTURAL_ONLY, "RibbonFormatPainter");
+		// Task-tab commands added for #769/#453; behavior is asserted in TaskTabRibbonCommandsTest.
+		add(map, Strategy.STRUCTURAL_ONLY,
+			"RibbonInsertMilestone", "RibbonInsertSummary", "RibbonClear", "RibbonSelectAll", "RibbonTaskDetails",
+			"RibbonPercentComplete0", "RibbonPercentComplete25", "RibbonPercentComplete50",
+			"RibbonPercentComplete75", "RibbonPercentComplete100");
 		return map;
 	}
 

@@ -74,6 +74,35 @@ public final class TaskProgressService {
 		return new Result(changed, statusDate, change);
 	}
 
+	/**
+	 * Sets the selected leaf tasks to a fixed percent complete (Task &gt; Schedule
+	 * 0/25/50/75/100% Complete). Summary tasks are skipped because their progress
+	 * is derived from their subtasks, matching {@link #markOnTrack}.
+	 *
+	 * @param fraction progress as a fraction in [0, 1]
+	 */
+	public Result setPercentComplete(Project project, List<? extends Task> tasks, double fraction) {
+		Objects.requireNonNull(project, "project");
+		Objects.requireNonNull(tasks, "tasks");
+		if (Double.isNaN(fraction) || fraction < 0D || fraction > 1D)
+			throw new IllegalArgumentException("Percent complete must be within 0..1");
+		List<Task> selected = tasks.stream().filter(Objects::nonNull).map(task -> (Task) task)
+			.filter(task -> !task.isWbsParent()).toList();
+		double[] before = selected.stream().mapToDouble(Task::getPercentComplete).toArray();
+		int changed = 0;
+		for (Task task : selected) {
+			if (Double.compare(task.getPercentComplete(), fraction) != 0) {
+				setProgress(task, fraction);
+				changed++;
+			}
+		}
+		double[] after = selected.stream().mapToDouble(Task::getPercentComplete).toArray();
+		ReversibleModelChange change = changed == 0 ? ReversibleModelChange.unchanged()
+			: ReversibleModelChange.changed(() -> restoreProgress(selected, before),
+				() -> restoreProgress(selected, after));
+		return new Result(changed, project.isStatusDateSet() ? project.getStatusDate() : 0L, change);
+	}
+
 	private static void restoreProgress(List<Task> tasks, double[] values) {
 		for (int i = 0; i < tasks.size(); i++) setProgress(tasks.get(i), values[i]);
 	}

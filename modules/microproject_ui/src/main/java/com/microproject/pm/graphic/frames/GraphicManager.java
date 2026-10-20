@@ -1908,6 +1908,15 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(CommandId.RESPECT_LINKS.actionId(), new RespectLinksAction());
 		actionsMap.addHandler(ACTION_STATUS_DATE, new StatusDateAction());
 		actionsMap.addHandler(ACTION_MARK_ON_TRACK, new MarkOnTrackAction());
+		actionsMap.addHandler(ACTION_PERCENT_COMPLETE_0, new PercentCompleteAction(CommandId.PERCENT_COMPLETE_0));
+		actionsMap.addHandler(ACTION_PERCENT_COMPLETE_25, new PercentCompleteAction(CommandId.PERCENT_COMPLETE_25));
+		actionsMap.addHandler(ACTION_PERCENT_COMPLETE_50, new PercentCompleteAction(CommandId.PERCENT_COMPLETE_50));
+		actionsMap.addHandler(ACTION_PERCENT_COMPLETE_75, new PercentCompleteAction(CommandId.PERCENT_COMPLETE_75));
+		actionsMap.addHandler(ACTION_PERCENT_COMPLETE_100, new PercentCompleteAction(CommandId.PERCENT_COMPLETE_100));
+		actionsMap.addHandler(ACTION_INSERT_MILESTONE, new InsertTaskKindAction(CommandId.INSERT_MILESTONE));
+		actionsMap.addHandler(ACTION_INSERT_SUMMARY, new InsertTaskKindAction(CommandId.INSERT_SUMMARY));
+		actionsMap.addHandler(ACTION_CLEAR_CONTENTS, new ClearContentsAction());
+		actionsMap.addHandler(ACTION_SELECT_ALL, new SelectAllAction());
 		actionsMap.addHandler(ACTION_INSERT_RESOURCE, new InsertResourceAction());
 		actionsMap.addHandler(ACTION_SAVE_PROJECT, new SaveProjectAction());
 		actionsMap.addHandler(ACTION_SAVE_PROJECT_AS, new SaveProjectAsAction());
@@ -2928,6 +2937,41 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	private final class MarkOnTrackAction extends MenuActionsMap.DocumentMenuAction {
 		private static final long serialVersionUID = 1L;
 		@Override public void actionPerformed(ActionEvent event) { setMeAsLastGraphicManager(); publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.MARK_ON_TRACK)); }
+	}
+
+	/** Task &gt; Schedule 0/25/50/75/100% Complete; one Action per value, shared by every presentation. */
+	private final class PercentCompleteAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		private final CommandId command;
+		private PercentCompleteAction(CommandId command) { this.command = command; }
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			publishTaskCommandOutcome(this, dispatchTaskCommand(command));
+		}
+	}
+	/** Task &gt; Insert Milestone / Summary Task. */
+	private final class InsertTaskKindAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		private final CommandId command;
+		private InsertTaskKindAction(CommandId command) { this.command = command; }
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			publishTaskCommandOutcome(this, dispatchTaskCommand(command));
+		}
+		@Override protected boolean allowed(boolean enable) {
+			return !enable || isDocumentWritable();
+		}
+	}
+	/** Task &gt; Editing &gt; Select (Ctrl+Shift+Space): the one Select All action for ribbon and shortcut. */
+	private final class SelectAllAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (!isDocumentActive()) return;
+			DocumentFrame frame = getCurrentFrame();
+			SpreadSheet sheet = frame == null ? null : frame.getActiveSpreadSheet();
+			if (sheet != null) sheet.selectAll();
+		}
 	}
 
 	public class MoveProjectAction extends MenuActionsMap.DocumentMenuAction {
@@ -4532,6 +4576,17 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		// enablement aligned with the typed selection snapshot used by dispatch.
 		getMenuManager().setActionEnabled(ACTION_MARK_ON_TRACK,
 				!readOnly && taskType && hasEditableTaskSelection);
+		// Task > Schedule % Complete uses the same typed selection as Mark on Track.
+		for (String percentAction : List.of(ACTION_PERCENT_COMPLETE_0, ACTION_PERCENT_COMPLETE_25,
+				ACTION_PERCENT_COMPLETE_50, ACTION_PERCENT_COMPLETE_75, ACTION_PERCENT_COMPLETE_100))
+			getMenuManager().setActionEnabled(percentAction, !readOnly && taskType && hasEditableTaskSelection);
+		// Milestone / Summary insert at the task table selection like Insert.
+		getMenuManager().setActionEnabled(ACTION_INSERT_MILESTONE, !readOnly && taskType && getCurrentFrame() != null);
+		getMenuManager().setActionEnabled(ACTION_INSERT_SUMMARY, !readOnly && taskType && hasEditableTaskSelection);
+		getMenuManager().setActionEnabled(ACTION_CLEAR_CONTENTS, !readOnly && getCurrentFrame() != null
+				&& getCurrentFrame().getActiveSpreadSheet() != null);
+		getMenuManager().setActionEnabled(ACTION_SELECT_ALL, getCurrentFrame() != null
+				&& getCurrentFrame().getActiveSpreadSheet() != null);
 		getMenuManager().setActionEnabled(ACTION_CALENDAR_OPTIONS,getCurrentFrame() != null);
 		refreshStatusDateControl(project);
 
@@ -4862,7 +4917,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_C, ACTION_COPY, 0, null);
 		// MSP Ctrl+Delete clears selected field values. Keep this distinct from plain
 		// Delete (row deletion) and bind it only on the document root pane.
-		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_DELETE, ACTION_CLEAR_CONTENTS, 0, new ClearContentsAction());
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_DELETE, ACTION_CLEAR_CONTENTS, 0, null);
 		// Clipboard and task-edit commands must reuse the menu actions.  Those actions
 		// perform the document-level writability, collaboration-routing, and history
 		// checks; spreadsheet-local implementations would make keyboard behavior differ
@@ -4964,11 +5019,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 							sheet.selectColumnAndAllRows(column);
 					}
 				});
-		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), "SelectAll",
-				new SpreadSheetDispatchAction("SelectAll") {
-					private static final long serialVersionUID = 1L;
-					@Override protected void runOnSpreadSheet(SpreadSheet sheet) { sheet.selectAll(); }
-				});
+		// Select All resolves to the single menu/ribbon Action registered in actionsMap.
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_SELECT_ALL, null);
 		// Microsoft Project "Ctrl+Minus" deletes the selected row (MS sheet-view behavior).
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_MINUS, InputEvent.CTRL_DOWN_MASK), DELETE_ROW_ACTION,
 				new SpreadSheetDispatchAction("DeleteRow") {

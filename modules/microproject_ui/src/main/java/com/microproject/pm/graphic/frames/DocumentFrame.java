@@ -582,6 +582,8 @@ public class DocumentFrame extends NamedFrame implements
 		lastTaskCommandResult = null;
 		switch (command) {
 		case INSERT -> lastTaskCommandResult = insertTaskRows(command);
+		case INSERT_MILESTONE -> lastTaskCommandResult = insertTaskKind(command, false);
+		case INSERT_SUMMARY -> lastTaskCommandResult = insertTaskKind(command, true);
 		case DELETE -> lastTaskCommandResult = executeTaskTableMutation(command, this::doDelete, true);
 		case CUT -> lastTaskCommandResult = executeSpreadsheetClipboardCommand(command, this::doCut);
 		case COPY -> lastTaskCommandResult = executeSpreadsheetClipboardCommand(command, this::doCopy);
@@ -608,6 +610,11 @@ public class DocumentFrame extends NamedFrame implements
 		case NEXT_OVERALLOCATION -> lastTaskCommandResult = selectNextOverallocatedTask(command);
 		case STATUS_DATE -> lastTaskCommandResult = applyStatusDate(command);
 		case MARK_ON_TRACK -> lastTaskCommandResult = applyMarkOnTrack(command);
+		case PERCENT_COMPLETE_0 -> lastTaskCommandResult = applyPercentComplete(command, 0D);
+		case PERCENT_COMPLETE_25 -> lastTaskCommandResult = applyPercentComplete(command, 0.25D);
+		case PERCENT_COMPLETE_50 -> lastTaskCommandResult = applyPercentComplete(command, 0.5D);
+		case PERCENT_COMPLETE_75 -> lastTaskCommandResult = applyPercentComplete(command, 0.75D);
+		case PERCENT_COMPLETE_100 -> lastTaskCommandResult = applyPercentComplete(command, 1D);
 		case UPDATE_PROJECT -> lastTaskCommandResult = openUpdateProject(command);
 		}
 		if (lastTaskCommandResult == null)
@@ -685,6 +692,102 @@ public class DocumentFrame extends NamedFrame implements
 		sheet.restoreTaskRowSelection(inserted);
 		refreshUndoButtonsSafely();
 		return RibbonCommandResult.changed(command.actionId(), taskIds(selected)).withActiveView("task");
+	}
+
+	/**
+	 * Task &gt; Insert &gt; Milestone / Summary Task. Milestone inserts one zero-duration
+	 * task directly above the selected row; Summary inserts a task above the selected
+	 * contiguous sibling rows and indents those rows under it. Both use the canonical
+	 * Insert row path and the canonical Indent path, grouped as one Undo edit.
+	 */
+	private RibbonCommandResult insertTaskKind(CommandId command, boolean summary) {
+		SpreadSheet sheet = getActiveSpreadSheet();
+		if (sheet == null || project == null)
+			return RibbonCommandResult.rejected(command.actionId(), "no-task-view");
+		if (project.isReadOnly())
+			return RibbonCommandResult.rejected(command.actionId(), "document-read-only");
+		finishAnyOperations();
+		if (sheet.isHeaderColumnSelectionActive())
+			return RibbonCommandResult.rejected(command.actionId(), "task-row-selection-required");
+		List<Node> selected = new ArrayList<>(sheet.getSelectedNodes());
+		if (summary && selected.isEmpty())
+			return RibbonCommandResult.rejected(command.actionId(), "no-selection");
+		if (!selected.isEmpty()) {
+			if (selected.stream().anyMatch(node -> !(node.getImpl() instanceof Task task) || task.isReadOnly()))
+				return RibbonCommandResult.rejected(command.actionId(), "invalid-task-row-selection");
+			Node parent = (Node) selected.get(0).getParent();
+			if (parent == null || selected.stream().anyMatch(node -> node.getParent() != parent))
+				return RibbonCommandResult.rejected(command.actionId(), "selection-spans-task-groups");
+			if (summary) {
+				int[] rows = sheet.nodesToRows(selected);
+				if (rows.length != selected.size())
+					return RibbonCommandResult.rejected(command.actionId(), "selection-not-visible");
+				int[] sorted = rows.clone();
+				java.util.Arrays.sort(sorted);
+				for (int i = 1; i < sorted.length; i++)
+					if (sorted[i] != sorted[i - 1] + 1)
+						return RibbonCommandResult.rejected(command.actionId(), "selection-not-contiguous");
+			}
+		}
+		List<Long> selectedIds = taskIds(selected);
+		if (!selected.isEmpty() && !CollaborationHelper.tryLockNodes(project, selected, this,
+				summary ? "insert summary" : "insert milestone"))
+			return RibbonCommandResult.rejected(command.actionId(), "lock-failed").withSelectedTaskIds(selectedIds);
+		var editSupport = project.getUndoController() == null ? null : project.getUndoController().getEditSupport();
+		if (editSupport != null)
+			editSupport.beginUpdate();
+		Node inserted;
+		try {
+			if (selected.isEmpty()) {
+				inserted = sheet.insertOneTaskRowAtCurrentRow();
+				if (inserted == null)
+					return RibbonCommandResult.rejected(command.actionId(), "insertion-not-allowed");
+			} else {
+				inserted = sheet.insertTaskRowBefore(selected.get(0));
+				if (inserted == null)
+					return RibbonCommandResult.rejected(command.actionId(), "insertion-not-allowed")
+						.withSelectedTaskIds(selectedIds);
+			}
+			// Insert creates a placeholder row; committing the name through the cell-edit
+			// route is what turns it into a real task, as when a user types into the row.
+			if (inserted.isVoid() && !sheet.commitTaskNameAtRow(inserted, com.microproject.dialog.UsabilityStrings.text(
+					summary ? "insert.summary.name" : "insert.milestone.name")))
+				throw new IllegalStateException("inserted row could not be turned into a task");
+			if (summary) {
+				sheet.restoreTaskRowSelection(selected);
+				int[] rows = sheet.nodesToRows(selected);
+				if (rows.length != selected.size())
+					throw new IllegalStateException("selection lost after insertion");
+				sheet.executeAction(MenuActionConstants.ACTION_INDENT, rows);
+			} else {
+				((Task) inserted.getImpl()).setDuration(0L);
+			}
+		} catch (RuntimeException failure) {
+			return RibbonCommandResult.failed(command.actionId(), failure).withSelectedTaskIds(selectedIds);
+		} finally {
+			if (editSupport != null)
+				editSupport.endUpdate();
+		}
+		sheet.restoreTaskRowSelection(List.of(inserted));
+		refreshUndoButtonsSafely();
+		Long newId = ((Task) inserted.getImpl()).getUniqueId();
+		return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.CHANGED, "", selectedIds,
+			List.of(newId), getTopViewId());
+	}
+
+	/** Task &gt; Schedule 0/25/50/75/100% Complete on the selected editable tasks. */
+	private RibbonCommandResult applyPercentComplete(CommandId command, double fraction) {
+		List<Node> selection = new ArrayList<>(getSelectedTaskNodes(true, true));
+		if (project == null || project.isReadOnly()) return RibbonCommandResult.rejected(command.actionId(), "document-read-only");
+		if (selection.isEmpty()) return RibbonCommandResult.rejected(command.actionId(), "no-selection");
+		List<Task> tasks = selection.stream().map(Node::getImpl).filter(Task.class::isInstance).map(Task.class::cast).toList();
+		if (tasks.isEmpty()) return RibbonCommandResult.rejected(command.actionId(), "no-task-selection");
+		var result = new com.microproject.pm.task.TaskProgressService().setPercentComplete(project, tasks, fraction);
+		SwingUndoAdapter.post(project.getUndoController().getEditSupport(), result.change());
+		getActiveSpreadSheet().restoreTaskRowSelection(selection);
+		List<Long> affectedTaskIds = tasks.stream().map(Task::getUniqueId).toList();
+		return (result.changedCount() > 0 ? RibbonCommandResult.changed(command.actionId(), affectedTaskIds)
+				: RibbonCommandResult.noChange(command.actionId(), affectedTaskIds)).withActiveView("task");
 	}
 
 	private RibbonCommandResult applyTaskMode(CommandId command, com.microproject.pm.task.TaskModeService.Mode mode) {

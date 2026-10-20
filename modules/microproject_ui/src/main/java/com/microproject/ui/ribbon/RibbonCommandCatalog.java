@@ -148,6 +148,8 @@ final class RibbonCommandCatalog {
 			"RibbonCustomFields", "RibbonFind", "RibbonScrollToTask", "RibbonTaskModeManual", "RibbonTaskModeAutomatic",
 			"RibbonFormatPainter",
 			"RibbonInactivateTask",
+			"RibbonInsertMilestone", "RibbonInsertSummary", "RibbonClear", "RibbonSelectAll", "RibbonTaskDetails",
+			"RibbonPercentComplete0", "RibbonPercentComplete25", "RibbonPercentComplete50", "RibbonPercentComplete75", "RibbonPercentComplete100",
 			"RibbonHideSelectedTasks", "RibbonShowAllTasks");
 		register(result, CommandScope.RESOURCE, RESOURCE,
 			"RibbonInsertResource", "RibbonResourceInformation", "RibbonTimesheet", "RibbonTeamFilter",

@@ -125,7 +125,8 @@ class RibbonStructureTest {
 		assertEquals(List.of("RibbonAssignResources", "RibbonDelegateTasks"),
 			ribbonButtonIds("TaskDependenciesRibbonBand"));
 		assertEquals(List.of("RibbonMarkOnTrack", "RibbonUpdateTasks", "RibbonLink", "RibbonUnlink", "RibbonRespectLinks",
-			"RibbonIndent", "RibbonOutdent", "RibbonTaskModeManual", "RibbonTaskModeAutomatic", "RibbonInactivateTask"),
+			"RibbonIndent", "RibbonOutdent", "RibbonTaskModeManual", "RibbonTaskModeAutomatic", "RibbonInactivateTask",
+			"RibbonPercentComplete0", "RibbonPercentComplete25", "RibbonPercentComplete50", "RibbonPercentComplete75", "RibbonPercentComplete100"),
 			ribbonButtonIds("TaskTrackingRibbonBand"));
 		assertEquals(List.of("RibbonProjectInformation", "RibbonChangeWorkingTime", "RibbonCalendarOptions", "RibbonProjectsDialog"),
 			ribbonButtonIds("ProjectInfoRibbonBand"));

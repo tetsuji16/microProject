@@ -105,6 +105,14 @@ public interface MenuActionConstants {
 	public static final String ACTION_INACTIVATE_TASK        = "InactivateTask";
 	public static final String ACTION_STATUS_DATE             = "StatusDate";
 	public static final String ACTION_MARK_ON_TRACK           = "MarkOnTrack";
+	public static final String ACTION_PERCENT_COMPLETE_0 = "PercentComplete0";
+	public static final String ACTION_PERCENT_COMPLETE_25 = "PercentComplete25";
+	public static final String ACTION_PERCENT_COMPLETE_50 = "PercentComplete50";
+	public static final String ACTION_PERCENT_COMPLETE_75 = "PercentComplete75";
+	public static final String ACTION_PERCENT_COMPLETE_100 = "PercentComplete100";
+	public static final String ACTION_INSERT_MILESTONE       = "InsertMilestone";
+	public static final String ACTION_INSERT_SUMMARY         = "InsertSummary";
+	public static final String ACTION_SELECT_ALL             = "SelectAll";
 	public static final String ACTION_INSERT_RESOURCE         = "InsertResource";
 	public static final String ACTION_INSERT_RECURRING        = "InsertRecurring";
 	public static final String ACTION_INSERT_PROJECT          = "InsertProject";

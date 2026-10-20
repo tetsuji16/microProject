@@ -80,6 +80,33 @@ class TaskProgressServiceTest {
 	}
 
 	@Test
+	void setPercentCompleteIsUndoableBoundedAndSkipsSummaries() {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("percent", undo), undo);
+		project.initialize(false, false);
+		NormalTask first = project.createScriptedTask();
+		NormalTask second = project.createScriptedTask();
+		TaskProgressService service = new TaskProgressService();
+
+		for (double fraction : new double[] { 0.25D, 0.5D, 0.75D, 1D }) {
+			TaskProgressService.Result result = service.setPercentComplete(project, List.of(first, second), fraction);
+			assertEquals(2, result.changedCount());
+			assertEquals(fraction, first.getPercentComplete(), 0.00001D);
+			assertEquals(fraction, second.getPercentComplete(), 0.00001D);
+			result.change().undo();
+			assertEquals(0D, first.getPercentComplete(), 0.00001D);
+			assertEquals(0D, second.getPercentComplete(), 0.00001D);
+			result.change().redo();
+			assertEquals(fraction, first.getPercentComplete(), 0.00001D);
+			result.change().undo();
+		}
+		assertFalse(service.setPercentComplete(project, List.of(first), 0D).change().hasChanged(),
+			"0% on an unstarted task is a no-op");
+		assertThrows(IllegalArgumentException.class, () -> service.setPercentComplete(project, List.of(first), 1.01D));
+		assertThrows(IllegalArgumentException.class, () -> service.setPercentComplete(project, List.of(first), -0.01D));
+	}
+
+	@Test
 	void clearingStatusDateIsUndoableAndRestoresTheExplicitDate() {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		Project project = Project.createProject(ResourcePool.createRourcePool("clear-status", undo), undo);

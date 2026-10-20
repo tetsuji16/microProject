@@ -1,0 +1,146 @@
+tab,group,command,ribbonId,status,source
+File,New,New,RibbonNewProject,REQUIRED,S12
+File,New,New Master Project,RibbonNewMasterProject,EXTENSION,product shortcut for a linked master project (S29 covers Insert Subproject)
+File,Open,Open,RibbonOpenProject,REQUIRED,S33
+File,Open,Recent,RibbonRecentProjects,REQUIRED,S33
+File,Save,Save,RibbonSaveProject,REQUIRED,S33
+File,Info,Project Information,RibbonBackstageProjectInformation,REQUIRED,S17
+File,Options,Options,RibbonBackstageOptions,REQUIRED,S5
+File,Save,Save As,RibbonSaveProjectAs,REQUIRED,S33
+File,Save,Save As MPO,RibbonSaveMpoAs,EXTENSION,microProject native MPO format
+File,Close,Close,RibbonCloseProject,REQUIRED,S33
+File,Export,Export,RibbonExportProject,REQUIRED,S33
+File,Import,Import,RibbonImportProject,REQUIRED,S33
+File,Print,Print,RibbonPrint,REQUIRED,S25
+File,Print,Print Preview,RibbonPrintPreview,REQUIRED,S25
+File,Export,Export to PDF,RibbonPDF,REQUIRED,S33
+File,Options,Language,RibbonLocale,EXTENSION,language switch shortcut; MSP uses Options > Language
+Quick Access,Quick Access,Save,RibbonTopBarSaveProject,REQUIRED,S5
+Quick Access,Quick Access,Undo,RibbonTopBarUndo,REQUIRED,S5
+Quick Access,Quick Access,Redo,RibbonTopBarRedo,REQUIRED,S5
+Task,View,Gantt Chart dropdown,RibbonTaskViewGantt,REQUIRED,S32
+Task,Clipboard,Paste,RibbonPaste,REQUIRED,S13
+Task,Clipboard,Copy,RibbonCopy,REQUIRED,S13
+Task,Clipboard,Cut,RibbonCut,REQUIRED,S13
+Task,Clipboard,Format Painter,RibbonFormatPainter,REQUIRED,S14
+Task,Font,Font,RibbonFont,REQUIRED,S24
+Task,Insert,Task,RibbonInsert,REQUIRED,S12
+Task,Insert,Milestone,RibbonInsertMilestone,REQUIRED,S23
+Task,Insert,Summary,RibbonInsertSummary,REQUIRED,S12
+Task,Insert,Recurring Task,RibbonInsertRecurring,REQUIRED,S28
+Task,Insert,Subproject,RibbonInsertProject,REQUIRED,S29
+Task,Schedule,Move Up,RibbonMoveTaskUp,REQUIRED,S27
+Task,Schedule,Move Down,RibbonMoveTaskDown,REQUIRED,S27
+Task,Schedule,Expand,RibbonExpand,REQUIRED,S27
+Task,Schedule,Collapse,RibbonCollapse,REQUIRED,S27
+Task,Tasks,Assign Resources,RibbonAssignResources,REQUIRED,S16
+Task,Tasks,Delegate Tasks,RibbonDelegateTasks,EXTENSION,delegation needs Project Server/Online in MSP; local product feature
+Task,Properties,Information,RibbonTaskInformation,REQUIRED,S12
+Task,Tasks,Inspect,RibbonTaskInspector,REQUIRED,S19
+Task,Properties,Notes,RibbonNotes,REQUIRED,S30
+Task,Properties,Details,RibbonTaskDetails,REQUIRED,S32
+Task,Properties,Add to Timeline,RibbonAddToTimeline,REQUIRED,S26
+Task,Properties,Custom Fields,RibbonCustomFields,REQUIRED,S34
+Task,Schedule,Mark on Track,RibbonMarkOnTrack,REQUIRED,S3
+Task,Schedule,Update Tasks,RibbonUpdateTasks,REQUIRED,S3
+Task,Schedule,Link Tasks,RibbonLink,REQUIRED,S6
+Task,Schedule,Unlink Tasks,RibbonUnlink,REQUIRED,S6
+Task,Schedule,Respect Links,RibbonRespectLinks,REQUIRED,S7
+Task,Schedule,Indent,RibbonIndent,REQUIRED,S27
+Task,Schedule,Outdent,RibbonOutdent,REQUIRED,S27
+Task,Tasks,Manually Schedule,RibbonTaskModeManual,REQUIRED,S21
+Task,Tasks,Auto Schedule,RibbonTaskModeAutomatic,REQUIRED,S21
+Task,Schedule,Inactivate,RibbonInactivateTask,REQUIRED,S8
+Task,Schedule,0% Complete,RibbonPercentComplete0,REQUIRED,S3
+Task,Schedule,25% Complete,RibbonPercentComplete25,REQUIRED,S3
+Task,Schedule,50% Complete,RibbonPercentComplete50,REQUIRED,S3
+Task,Schedule,75% Complete,RibbonPercentComplete75,REQUIRED,S3
+Task,Schedule,100% Complete,RibbonPercentComplete100,REQUIRED,S3
+Task,Editing,Delete,RibbonDelete,REQUIRED,S12
+Task,Editing,Clear,RibbonClear,REQUIRED,S24
+Task,Editing,Select All,RibbonSelectAll,REQUIRED,S24
+Task,Editing,Fill,RibbonFill,REQUIRED,S24
+Task,Editing,Find,RibbonFind,REQUIRED,S24
+Task,Editing,Scroll to Task,RibbonScrollToTask,REQUIRED,S24
+Task,Editing,Hide Selected,RibbonHideSelectedTasks,EXTENSION,product-only hide command (AGENTS.md product extension contract)
+Task,Editing,Show All,RibbonShowAllTasks,EXTENSION,product-only counterpart of Hide Selected
+Resource,Insert,Resource,RibbonInsertResource,REQUIRED,S16
+Resource,Properties,Resource Information,RibbonResourceInformation,REQUIRED,S16
+Resource,Assignments,Timesheet,RibbonTimesheet,EXTENSION,MSP timesheets require Project Server/Online
+Resource,Assignments,Team Filter,RibbonTeamFilter,EXTENSION,local team filter; no desktop MSP equivalent
+Resource,Level,Level Selection,RibbonLevelSelection,REQUIRED,S2
+Resource,Level,Level All,RibbonLevelAll,REQUIRED,S2
+Resource,Level,Clear Leveling (selection),RibbonClearLevelSelection,REQUIRED,S2
+Resource,Level,Clear Leveling (all),RibbonClearLevelAll,REQUIRED,S2
+Resource,Level,Leveling Options,RibbonLevelResources,REQUIRED,S2
+Resource,Level,Next Overallocation,RibbonNextOverallocation,REQUIRED,S4
+Resource,Pool,Share Resources / Use Resource Pool,RibbonUseResourcePool,REQUIRED,S18
+Resource,Pool,Create Resource Pool,RibbonCreateResourcePool,REQUIRED,S18
+Resource,Pool,Refresh Resource Pool,RibbonRefreshResourcePool,REQUIRED,S18
+Report,Reports,Reports,RibbonReport,REQUIRED,S25
+Report,Reports,Custom Report,RibbonCustomReport,REQUIRED,S25
+Report,Reports,Resource Histogram,RibbonHistogram,REQUIRED,S32
+Report,Reports,Charts,RibbonCharts,REQUIRED,S25
+Report,Analysis,Task Usage,RibbonTaskUsage,REQUIRED,S32
+Report,Analysis,Resource Usage,RibbonResourceUsage,REQUIRED,S32
+Report,Analysis,CCPM Buffer Status,RibbonCCPMBufferStatus,EXTENSION,CCPM is a product feature (#453 section 5)
+Report,Reports,Visual Reports,RibbonVisualReports,EXCLUDED,requires external Excel/Visio; see Visual Reports row in MSP_STANDARD_COMMAND_INVENTORY.md
+Project,Properties,Project Information,RibbonProjectInformation,REQUIRED,S17
+Project,Properties,Change Working Time,RibbonChangeWorkingTime,REQUIRED,S17
+Project,Properties,Calendar Options,RibbonCalendarOptions,REQUIRED,S17
+Project,Properties,Projects Dialog,RibbonProjectsDialog,EXTENSION,local open-projects overview; no desktop MSP command
+Project,Properties,Links Between Projects,RibbonLinksBetweenProjects,REQUIRED,S29
+Project,Properties,WBS Define Code,RibbonDefineWbs,REQUIRED,S35
+Project,Schedule,Move Project,RibbonMoveProject,REQUIRED,S17
+Project,Schedule,Calculate Project,RibbonRecalculate,REQUIRED,S22
+Project,Insert,Refresh Subprojects,RibbonRefreshSubprojects,REQUIRED,S29
+Project,Insert,Open Subproject,RibbonOpenSubproject,REQUIRED,S29
+Project,Insert,Remove Subproject,RibbonRemoveSubproject,REQUIRED,S29
+Project,Status,Status Date,RibbonStatusDate,REQUIRED,S3
+Project,Status,Update Project,RibbonUpdateProject,REQUIRED,S3
+Project,Schedule,Set Baseline,RibbonSaveBaseline,REQUIRED,S17
+Project,Schedule,Clear Baseline,RibbonClearBaseline,REQUIRED,S17
+Project,Proofing,Spelling,RibbonSpelling,REQUIRED,S15
+Project,CCPM,CCPM Settings,RibbonCCPMSettings,EXTENSION,CCPM is a product feature (#453 section 5)
+Project,CCPM,CCPM Clear,RibbonCCPMClear,EXTENSION,CCPM is a product feature (#453 section 5)
+Project,Server,Project Online / Project Server publish,RibbonProjectServerPublish,EXCLUDED,Project Server/Online are outside the standalone desktop goal
+Project,Server,Microsoft Planner link,RibbonPlannerLink,EXCLUDED,Microsoft Planner cloud service is outside the standalone desktop goal
+Project,Share,Share,RibbonShare,EXCLUDED,cloud sharing/Teams are outside the standalone desktop goal
+View,Task Views,Gantt Chart,RibbonGantt,REQUIRED,S32
+View,Task Views,Tracking Gantt,RibbonTrackingGantt,REQUIRED,S32
+View,Split View,Timeline,RibbonTimeline,REQUIRED,S26
+View,Task Views,Calendar,RibbonCalendarView,REQUIRED,S32
+View,Task Views,Network Diagram,RibbonNetwork,REQUIRED,S32
+View,Task Views,WBS Chart,RibbonWBS,EXTENSION,product WBS chart view; no desktop MSP view
+View,Task Views,CCPM Network,RibbonCCPMNetwork,EXTENSION,CCPM is a product feature (#453 section 5)
+View,Resource Views,Resource Sheet,RibbonResources,REQUIRED,S32
+View,Resource Views,Resource Breakdown (RBS),RibbonRBS,EXTENSION,product RBS view; no desktop MSP view
+View,Resource Views,Projects,RibbonProjects,EXTENSION,product multi-project view
+View,Task Views,Task Usage,RibbonTaskUsageDetail,REQUIRED,S32
+View,Resource Views,Resource Usage,RibbonResourceUsageDetail,REQUIRED,S32
+View,Window,Arrange All,RibbonArrangeAll,REQUIRED,S36
+View,Window,New Window,RibbonNewWindow,REQUIRED,S36
+View,Split View,Details,RibbonDetails,REQUIRED,S32
+View,Window,Privacy Mask,RibbonPrivacyMask,EXTENSION,product-only privacy display toggle
+View,Data,Filter,RibbonChooseFilter,REQUIRED,S9a
+View,Data,Sort,RibbonChooseSort,REQUIRED,S9c
+View,Data,Group,RibbonChooseGroup,REQUIRED,S9b
+View,Data,Outline,RibbonOutline,REQUIRED,S27
+View,Data,Tables,RibbonTables,REQUIRED,S32
+View,Data,Highlight,RibbonHighlight,REQUIRED,S9a
+View,Zoom,Zoom In,RibbonZoomIn,REQUIRED,S20
+View,Zoom,Zoom Out,RibbonZoomOut,REQUIRED,S20
+View,Zoom,Selected Tasks,RibbonZoomSelectedTasks,REQUIRED,S20
+View,Macros,Macros,RibbonMacros,EXCLUDED,VBA/macros excluded by the 2026-10-12 scope decision (#797)
+View,Macros,Visual Basic,RibbonVisualBasic,EXCLUDED,VBA/macros excluded by the 2026-10-12 scope decision (#797)
+Help,Help,Documentation,RibbonProjectLibreDocumentation,REQUIRED,S37
+Help,Help,About,RibbonAboutProjectLibre,EXTENSION,product About dialog
+Format,Gantt Chart Format,Progress Line,RibbonToggleProgressLine,REQUIRED,S38
+Format,Gantt Chart Format,Label Resource Names,RibbonLabelResourceNames,EXTENSION,one-click bar text toggle; MSP uses the Bar Styles text tab
+Format,Gantt Chart Format,Label Task Name,RibbonLabelTaskName,EXTENSION,one-click bar text toggle; MSP uses the Bar Styles text tab
+Format,Format,Gridlines,RibbonGridlines,REQUIRED,S38
+Format,Gantt Chart Format,Critical Chain,RibbonToggleCriticalChain,EXTENSION,CCPM is a product feature (#453 section 5)
+Format,Format,Timescale,RibbonTimescale,REQUIRED,S20
+Format,Bar Styles,Bar Styles,RibbonBarStyles,REQUIRED,S38
+Format,Format,Text Styles,RibbonTextStyles,REQUIRED,S38
+Format,Format,Layout,RibbonLayout,REQUIRED,S38

@@ -20,6 +20,8 @@ import java.util.stream.Collectors;
  */
 public enum CommandId {
 	INSERT("InsertTask"),
+	INSERT_MILESTONE("InsertMilestone"),
+	INSERT_SUMMARY("InsertSummary"),
 	DELETE("Delete"),
 	CUT("Cut"),
 	COPY("Copy"),
@@ -44,6 +46,11 @@ public enum CommandId {
 	NEXT_OVERALLOCATION("NextOverallocation"),
 	STATUS_DATE("StatusDate"),
 	MARK_ON_TRACK("MarkOnTrack"),
+	PERCENT_COMPLETE_0("PercentComplete0"),
+	PERCENT_COMPLETE_25("PercentComplete25"),
+	PERCENT_COMPLETE_50("PercentComplete50"),
+	PERCENT_COMPLETE_75("PercentComplete75"),
+	PERCENT_COMPLETE_100("PercentComplete100"),
 	UPDATE_PROJECT("UpdateProject");
 
 	private static final Map<String, CommandId> BY_ACTION_ID = Arrays.stream(values())

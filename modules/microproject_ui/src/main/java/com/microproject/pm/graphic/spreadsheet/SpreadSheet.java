@@ -453,6 +453,35 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		return ((CommonSpreadSheetModel) getModel()).getCache().newNodesAfter(anchor, count);
 	}
 
+	/** Inserts one task row directly above {@code anchor}; null when the anchor cannot take a new row. */
+	public Node insertTaskRowBefore(Node anchor) {
+		if (anchor == null)
+			return null;
+		finishCurrentOperations();
+		return ((CommonSpreadSheetModel) getModel()).getCache().newNodeBefore(anchor);
+	}
+
+	/**
+	 * Turns an inserted placeholder row into a task by committing its name through the
+	 * normal cell-edit route (the same replace-and-set-field edit a typed name produces).
+	 */
+	public boolean commitTaskNameAtRow(Node placeholder, String name) {
+		if (placeholder == null || !(getModel() instanceof SpreadSheetModel model))
+			return false;
+		int column = -1;
+		for (int candidate = 1; candidate < model.getColumnCount(); candidate++) {
+			if ("Field.name".equals(model.getFieldInColumn(candidate).getId())) {
+				column = candidate;
+				break;
+			}
+		}
+		int viewRow = taskNodeToViewRow(placeholder);
+		if (column < 0 || viewRow < 0)
+			return false;
+		model.setValueAt(name, convertRowIndexToModel(viewRow), column);
+		return !placeholder.isVoid();
+	}
+
 	public Node insertOneTaskRowAtCurrentRow() {
 		Node anchor = getCurrentRowNode();
 		if (anchor == null || !(anchor.getImpl() instanceof Task)) {

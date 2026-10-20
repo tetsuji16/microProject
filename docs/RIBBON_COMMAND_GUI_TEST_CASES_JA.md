@@ -48,6 +48,12 @@ microProjectの標準リボンに表示される全コマンドボタンを、�
 | RibbonLink / RibbonUnlink | タスク間の先行関係を作成／解除 | 矢印と先行タスク列が更新される |
 | RibbonRespectLinks | 先行リンクと競合する手動スケジュールのタスクを選び、Task > Schedule の「リンクを反映」を実行する | 選択タスクの表示日程とガントバーがリンク制約に沿って変わり、手動モードと他タスクを維持する。対象外タスクでは操作が無効、制約を満たせない場合は変更なしで理由を表示する。Undo/RedoとMPO保存再読込で日程を確認する。根拠: [Microsoftのタスクリンク定義](https://support.microsoft.com/en-us/project/link-tasks-in-a-project)。 |
 | RibbonInactivateTask | Task > Tracking の「非アクティブ化」を選択タスクに実行する | Active フィールドが false になり、タスク行・依存関係・進捗は保持される。タスク行とガント投影に残り、Undo/RedoとMPO保存再読込で状態を確認する。非アクティブな選択だけなら無効。根拠: [Microsoft Active task field](https://support.microsoft.com/en-us/project/active-task-field)。 |
+| RibbonInsertMilestone | Task > Insert の「マイルストーン」を選択タスク行に実行する | 選択行の上に期間 0 のタスクが 1 件挿入され、Undo/Redo は 1 回で元に戻る。MPO 保存再読込後もマイルストーンのまま。読み取り専用では無効。根拠: [Microsoft Add a milestone](https://support.microsoft.com/en-us/project/add-a-milestone-to-your-project)。 |
+| RibbonInsertSummary | 連続したタスク行を選び、Task > Insert の「要約タスク」を実行する | 選択行の上に要約タスクが挿入され、選択タスクがその下位に設定される。Undo/Redo は 1 回で一括して戻る。読み取り専用・未選択では無効。根拠: [Microsoft Create a summary task](https://support.microsoft.com/en-us/project/create-a-summary-task)。 |
+| RibbonClear | Task > Editing の「クリア」を選択セルに実行する | 選択セルの内容だけが消え、行は削除されない。Ctrl+Delete と同一の ClearContents Action。 |
+| RibbonSelectAll | Task > Editing の「すべて選択」を実行する | 作業中の表の全行・全列が選択される。Ctrl+Shift+Space と同一の Action。 |
+| RibbonTaskDetails | Task > Properties の「詳細」を実行する | View の「詳細」と同一の Action で詳細ペインを表示／非表示し、両ボタンの選択状態が一致する。 |
+| RibbonPercentComplete0 / RibbonPercentComplete25 / RibbonPercentComplete50 / RibbonPercentComplete75 / RibbonPercentComplete100 | Task > Schedule の達成率ボタンを選択タスクに実行する | 選択した編集可能タスクの達成率が 0/25/50/75/100% になり、要約タスクは変更されない。Undo/Redo は 1 回で戻り、MPO 保存再読込で保持される。未選択・読み取り専用では無効。根拠: [Microsoft Update progress using percent complete](https://support.microsoft.com/en-us/project/update-progress-using-percent-complete)。 |
 | RibbonAssignResources | リソースを割り当てる | 割当ダイアログとタスクのリソース表示が更新される |
 | RibbonDelegateTasks | タスクを委任する | 委任操作または結果ダイアログが表示される |
 | RibbonTaskInformation | タスク情報を開く | タスク情報ダイアログが表示される |
