@@ -6,6 +6,7 @@ $logFile = Join-Path $tempDirectory 'monitor.log'
 $diagnosticLogFile = Join-Path $tempDirectory 'monitor.diagnostic.log'
 $targetProcess = $null
 $monitorProcess = $null
+$monitorReadyObservedUtc = $null
 $targetExitObservedUtc = $null
 $monitorWaitStartedUtc = $null
 $preserveArtifacts = $false
@@ -14,14 +15,45 @@ New-Item -ItemType Directory -Path $tempDirectory | Out-Null
 try {
   $powerShellExe = (Get-Process -Id $PID).Path
   $targetProcess = Start-Process -FilePath $powerShellExe `
-    -ArgumentList '-NoProfile -NonInteractive -Command', '"Start-Sleep -Seconds 2"' `
+    -ArgumentList '-NoProfile -NonInteractive -Command', '"Start-Sleep -Seconds 60"' `
     -PassThru -WindowStyle Hidden
   $monitorArguments = '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "{0}" -TargetPid {1} -Watch -LogFile "{2}" -DiagnosticLogFile "{3}"' -f `
     $monitorScript, $targetProcess.Id, $logFile, $diagnosticLogFile
   $monitorProcess = Start-Process -FilePath $powerShellExe -ArgumentList $monitorArguments `
     -PassThru -WindowStyle Hidden
+
+  $startupDeadlineUtc = [DateTime]::UtcNow.AddSeconds(30)
+  $monitorReady = $false
+  while ([DateTime]::UtcNow -lt $startupDeadlineUtc) {
+    $targetProcess.Refresh()
+    if ($targetProcess.HasExited) {
+      throw 'The dedicated monitor target exited before monitor startup was observed.'
+    }
+    $monitorProcess.Refresh()
+    if ($monitorProcess.HasExited) {
+      throw "The desktop monitor exited before startup was observed (exit code $($monitorProcess.ExitCode))."
+    }
+    if (Test-Path -LiteralPath $diagnosticLogFile) {
+      $diagnosticLogText = Get-Content -LiteralPath $diagnosticLogFile -Raw
+      if ($diagnosticLogText -match '(?m)^monitorStarted=.*monitorPid=\d+ targetPid=\d+') {
+        $monitorReady = $true
+        $monitorReadyObservedUtc = [DateTime]::UtcNow.ToString('o')
+        break
+      }
+    }
+    Start-Sleep -Milliseconds 50
+  }
+  if (-not $monitorReady) {
+    throw 'The desktop monitor did not report startup within 30 seconds.'
+  }
+
+  $targetProcess.Refresh()
+  if ($targetProcess.HasExited) {
+    throw 'The dedicated monitor target exited before it could be stopped after monitor startup.'
+  }
+  Stop-Process -Id $targetProcess.Id -Force
   if (-not $targetProcess.WaitForExit(10000)) {
-    throw 'The short-lived monitor target did not exit within 10 seconds.'
+    throw 'The dedicated monitor target did not exit within 10 seconds after it was stopped.'
   }
   $targetExitObservedUtc = [DateTime]::UtcNow.ToString('o')
   $monitorWaitStartedUtc = [DateTime]::UtcNow.ToString('o')
@@ -84,6 +116,7 @@ try {
   }
   $diagnostic = @"
 Desktop monitor lifecycle failure diagnostics:
+  monitorReadyObservedUtc=$monitorReadyObservedUtc
   targetExitObservedUtc=$targetExitObservedUtc
   monitorWaitStartedUtc=$monitorWaitStartedUtc
   monitor=$monitorState cpu=$monitorCpu
