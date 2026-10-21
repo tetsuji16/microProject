@@ -533,7 +533,8 @@ class GanttBarDateDragGuiAcceptanceTest {
 	@Test
 	void robotDragMovesBarAndRecalculatesFsSuccessor() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
-		Fixture fixture = createFixture(DependencyType.FS);
+		Fixture fixture = createFixture(DependencyType.FS, true, false,
+			DateTime.calendarInstance(2026, java.util.Calendar.JUNE, 10).getTimeInMillis());
 		dragBarAndAssertSuccessor(fixture);
 	}
 
@@ -1012,10 +1013,27 @@ class GanttBarDateDragGuiAcceptanceTest {
 					+ "predecessor=" + fixture.predecessor.getStart() + ".." + fixture.predecessor.getEnd()
 					+ " successor=" + fixture.successor.getStart() + ".." + fixture.successor.getEnd()
 					+ " fixtureLatestFinish=" + fixtureLatestFinish);
+		} else if (fixture.dependency.getDependencyType() == DependencyType.FS && fixture.fridayFsFixture) {
+			long expected = fixture.dependency.calcForwardDependencyDate(fixture.predecessor.getStart(), fixture.predecessor.getEnd(), true);
+			java.util.Calendar fridaySeventeen = DateTime.calendarInstance(2026, java.util.Calendar.JUNE, 12);
+			fridaySeventeen.set(java.util.Calendar.HOUR_OF_DAY, 17);
+			java.util.Calendar mondayEight = DateTime.calendarInstance(2026, java.util.Calendar.JUNE, 15);
+			mondayEight.set(java.util.Calendar.HOUR_OF_DAY, 8);
+			// Microsoft defines FS as a minimum start boundary; task calendars move
+			// an ASAP successor to the next available work time. Here Friday 17:00
+			// therefore schedules Monday 08:00. This is document-derived, not MSP-measured.
+			// https://support.microsoft.com/en-us/project/how-project-schedules-tasks-behind-the-scenes
+			assertEquals(fridaySeventeen.getTimeInMillis(), fixture.predecessor.getEnd(),
+				"dragged predecessor must finish Friday at the Standard workday end");
+			assertTrue(fixture.successor.getStart() >= expected,
+				"FS successor must not start before the predecessor finish: boundary=" + expected
+					+ " predecessor=" + fixture.predecessor.getStart() + ".." + fixture.predecessor.getEnd());
+			assertEquals(mondayEight.getTimeInMillis(), fixture.successor.getStart(),
+				"Standard-calendar ASAP successor must start Monday after Friday's finish boundary");
 		} else {
 			long expected = fixture.dependency.calcForwardDependencyDate(fixture.predecessor.getStart(), fixture.predecessor.getEnd(), true);
 			assertEquals(expected, fixture.successor.getStart(), "Successor must match " + DependencyType.toLongString(fixture.dependency.getDependencyType())
-				+ " date implied by the dragged bar (expected=" + expected + ", actual=" + fixture.successor.getStart() + ")");
+				+ " date implied by the dragged bar");
 		}
 		capture(robot);
 	}
@@ -1434,14 +1452,26 @@ class GanttBarDateDragGuiAcceptanceTest {
 
 	private Fixture createFixture(int dependencyType, boolean includeDependency, boolean assignPredecessor)
 			throws Exception {
+		return createFixture(dependencyType, includeDependency, assignPredecessor, null);
+	}
+
+	private Fixture createFixture(int dependencyType, boolean includeDependency, boolean assignPredecessor,
+			Long projectStart) throws Exception {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		ResourcePool pool = ResourcePool.createRourcePool("gui-gantt-date-drag", undo);
 		Project project = Project.createProject(pool, undo);
 		project.initialize(false, false);
+		if (projectStart != null) {
+			project.setStart(projectStart);
+			project.setStartConstraint(projectStart);
+		}
 		NormalTask predecessor = task(project, "Drag predecessor", 3L);
 		NormalTask successor = task(project, "Drag successor", 1L);
-		long predecessorStart = DateTime.calendarInstance(2026, java.util.Calendar.JUNE, 8).getTimeInMillis();
+		long predecessorStart = projectStart != null ? projectStart
+			: DateTime.calendarInstance(2026, java.util.Calendar.JUNE, 8).getTimeInMillis();
 		predecessor.getCurrentSchedule().setStart(predecessorStart);
+		if (projectStart != null) predecessor.setScheduleConstraint(
+			com.microproject.pm.scheduling.ConstraintType.Kind.SNET, predecessorStart);
 		predecessor.setDuration(3L * com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
 		if (assignPredecessor) {
 			var resource = project.getResourcePool().newResourceInstance();
@@ -1462,7 +1492,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 			gantt.setCoord(new CoordinatesConverter(project));
 			gantt.setBarStyles((BarStyles) Dictionary.get(BarStyles.category, "standard"));
 			gantt.updateSize();
-			result[0] = new Fixture(project, predecessor, successor, dependency, cache);
+			result[0] = new Fixture(project, predecessor, successor, dependency, cache, projectStart != null);
 		});
 		return result[0];
 	}
@@ -1503,5 +1533,6 @@ class GanttBarDateDragGuiAcceptanceTest {
 		}
 	}
 
-	private record Fixture(Project project, NormalTask predecessor, NormalTask successor, Dependency dependency, NodeModelCache cache) { }
+	private record Fixture(Project project, NormalTask predecessor, NormalTask successor, Dependency dependency,
+		NodeModelCache cache, boolean fridayFsFixture) { }
 }

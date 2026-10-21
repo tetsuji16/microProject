@@ -885,3 +885,35 @@ Next finite slice: fixed-date SS negative elapsed lag (-4 hours), reusing this s
   ` .\gradlew.bat :microproject_ui:test --console=plain --no-daemon --max-workers=1`.
 - Next finite slice: investigate the remaining Gantt bar-drag failure; broader
   M2.2/M2.3/M2.4/Common and integrated exact-head/release gates remain open.
+
+## M2.2 Gantt FS bar-drag date oracle (2026-10-21)
+
+- Baseline `77aa8e23a7eb6e1ff6ea4bb1d78400e7c5389e8b` reproduced the reported
+  failure in `GanttBarDateDragGuiAcceptanceTest.robotDragMovesBarAndRecalculatesFsSuccessor`.
+  The predecessor ended Friday 2026-10-23 17:00Z (`1792774800000`); the
+  Standard-calendar ASAP successor began Monday 2026-10-26 08:00Z
+  (`1793001600000`). The failed oracle equated successor start to the raw FS
+  finish boundary. Independent calendar normalization returned Monday 08:00.
+- This matches the earlier confirmed calendar-oracle finding in
+  `docs/testing/regression-investigation-notes.md`. Microsoft documents that
+  tasks are scheduled according to calendars and that FS is a predecessor-finish
+  minimum; the Friday-to-Monday fixture expectation is a narrow
+  document-derived interpretation, not an MSP measurement. Source:
+  https://support.microsoft.com/en-us/project/how-project-schedules-tasks-behind-the-scenes
+- Only this FS journey uses a fixed June 2026 project start; the shared helper's
+  other callers retain their existing expectations. It asserts the dragged
+  predecessor ends Friday 2026-06-12 17:00Z, then checks the successor does not
+  precede the FS boundary and starts Monday 2026-06-15 08:00Z. Existing
+  assertion that the physical drag moves the predecessor remains in place. No
+  production code changed; traced drag route
+  is `GanttInteractor.applyIntervalDrag` → `ScheduleService.setInterval` →
+  project dependency recalculation, with interval/constraint history grouped by
+  `EditSupport`.
+- The first fixed-date attempt omitted the project scheduling start constraint
+  and therefore did not anchor the task timeline. The fixture now sets both the
+  project start and start constraint, and the predecessor's SNET. A later
+  no-movement diagnostic coincided with the user's report of accidental mouse
+  input; its desktop capture found no foreign foreground window, but it is
+  classified as possible desktop contention and not product evidence. A clean
+  focused rerun passed 1/1 on Windows 11, ja-JP, 100% / 2560×1440.
+- Focused command: ` .\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.views.GanttBarDateDragGuiAcceptanceTest.robotDragMovesBarAndRecalculatesFsSuccessor" --console=plain --no-daemon --max-workers=1` — BUILD SUCCESSFUL, 1 passed. Full-class command: ` .\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.views.GanttBarDateDragGuiAcceptanceTest" --console=plain --no-daemon --max-workers=1` — BUILD SUCCESSFUL, 9/9 passed. No display resolution or visual assertion was changed. Undo/Redo and MPO were not changed or re-verified in this oracle-only correction; broader acceptance gates remain open.
