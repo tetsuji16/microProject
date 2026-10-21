@@ -5,6 +5,7 @@
 package com.microproject.pm.graphic.spreadsheet.editor;
 
 import java.awt.event.ActionEvent;
+import java.awt.event.KeyEvent;
 import java.awt.event.InputMethodEvent;
 import java.awt.im.InputContext;
 import java.util.function.Supplier;
@@ -12,14 +13,18 @@ import java.util.function.Consumer;
 import java.text.AttributedCharacterIterator;
 
 import javax.swing.AbstractAction;
-import javax.swing.ActionMap;
 import javax.swing.JComponent;
-import javax.swing.InputMap;
 import javax.swing.KeyStroke;
+import javax.swing.SwingUtilities;
+
+import com.microproject.dialog.UsabilityStrings;
+import com.microproject.pm.graphic.frames.DocumentFrame;
 
 /** Shared boundary between Swing commands and text-input methods. */
 public final class ImeTextInputSupport {
 	public static final String COMPOSITION_PROPERTY = "projectlibre.input.composing";
+	public static final String RECONVERT_ACTION_KEY = "spreadsheet.imeReconvert";
+	/** {@code REQUESTED} means the input method accepted the request, not that text changed. */
 	public enum ReconversionResult { REQUESTED, UNSUPPORTED }
 	private ImeTextInputSupport() {
 	}
@@ -41,33 +46,44 @@ public final class ImeTextInputSupport {
 
 	/** Installs only an editor-local Convert binding; no document-wide key is consumed. */
 	public static void installReconversionAction(JComponent editor) {
-		installReconversionAction(editor, editor == null ? null : editor::getInputContext, message -> {
-			java.awt.Component parent = editor == null ? null : editor.getParent();
-			while (parent != null && !(parent instanceof com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet)) parent = parent.getParent();
-			if (parent instanceof com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet sheet)
-				sheet.reportImeUnsupported(message);
-		});
-	}
-
-	static void installReconversionAction(JComponent editor, Supplier<InputContext> inputContextSupplier, Consumer<String> unsupportedHandler) {
 		if (editor == null) return;
-		InputMap inputMap = editor.getInputMap(JComponent.WHEN_FOCUSED);
-		ActionMap actionMap = editor.getActionMap();
-		String actionKey = "spreadsheet.imeReconvert";
-		inputMap.put(KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_CONVERT, 0), actionKey);
-		actionMap.put(actionKey, new AbstractAction() {
+		editor.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_CONVERT, 0), RECONVERT_ACTION_KEY);
+		editor.getActionMap().put(RECONVERT_ACTION_KEY, new AbstractAction() {
 			private static final long serialVersionUID = 1L;
 			@Override public void actionPerformed(ActionEvent event) {
-				if (reconvert(editor, inputContextSupplier) == ReconversionResult.UNSUPPORTED && unsupportedHandler != null)
-					unsupportedHandler.accept(com.microproject.dialog.UsabilityStrings.text("spreadsheet.imeReconversionUnsupported"));
+				requestReconversion(editor);
 			}
 		});
 	}
 
-	public static ReconversionResult reconvert(JComponent editor) { return reconvert(editor, editor == null ? null : editor::getInputContext); }
+	/**
+	 * The single Convert-key reconversion route, shared by the editor-local
+	 * binding and the spreadsheet's start-editing-for-Convert path.  Native
+	 * reconversion is requested from the editor's input context; when the
+	 * platform cannot provide it the edited text and selection are left
+	 * untouched and the owning document reports that reconversion is
+	 * unavailable instead of silently claiming success.
+	 * <p>
+	 * The JDK's Windows input-method adapter ({@code sun.awt.windows.WInputMethod})
+	 * does not override {@code InputMethodAdapter.reconvert()}, so on Windows
+	 * {@link InputContext#reconvert()} always throws
+	 * {@link UnsupportedOperationException} regardless of the active IME (#866).
+	 */
+	public static ReconversionResult requestReconversion(JComponent editor) {
+		return requestReconversion(editor, editor == null ? null : editor::getInputContext,
+			message -> reportToDocument(editor, message));
+	}
 
-	static ReconversionResult reconvert(JComponent editor, Supplier<InputContext> inputContextSupplier) {
-		if (editor == null) return ReconversionResult.UNSUPPORTED;
+	static ReconversionResult requestReconversion(JComponent editor, Supplier<InputContext> inputContextSupplier,
+			Consumer<String> unsupportedHandler) {
+		ReconversionResult result = reconvert(editor, inputContextSupplier);
+		if (result == ReconversionResult.UNSUPPORTED && unsupportedHandler != null)
+			unsupportedHandler.accept(UsabilityStrings.text("spreadsheet.imeReconversionUnsupported"));
+		return result;
+	}
+
+	private static ReconversionResult reconvert(JComponent editor, Supplier<InputContext> inputContextSupplier) {
+		if (editor == null || inputContextSupplier == null) return ReconversionResult.UNSUPPORTED;
 		try {
 			InputContext inputContext = inputContextSupplier.get();
 			if (inputContext != null) {
@@ -78,5 +94,10 @@ public final class ImeTextInputSupport {
 			// Input methods are optional; keep the selection and editor intact.
 		}
 		return ReconversionResult.UNSUPPORTED;
+	}
+
+	private static void reportToDocument(JComponent editor, String message) {
+		if (SwingUtilities.getAncestorOfClass(DocumentFrame.class, editor) instanceof DocumentFrame frame)
+			frame.showStatusMessage(message);
 	}
 }

@@ -234,15 +234,20 @@ class CanonicalProjectWindowGuiAcceptanceTest {
 	}
 
 	@Test
-	void robotConvertShowsUnsupportedImeStatusWithoutChangingEditedTextOrSelection() throws Exception {
+	void robotConvertReportsUnsupportedImeOnBothSpreadsheetRoutesWithoutChangingText() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		// Environment-dependent oracle (#866): the JDK Windows input-method adapter
+		// never implements reconvert(), so "unsupported" is the Windows contract.
+		// Other platforms may support native reconversion and need their own oracle.
+		Assumptions.assumeTrue(System.getProperty("os.name", "").startsWith("Windows"),
+			"The unsupported-reconversion oracle applies to the Windows JDK input-method adapter.");
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
 		Project project = project("IME reconversion", null);
 		NormalTask task = project.createScriptedTask();
-		task.setName("Initial name");
+		task.setName("とうきょう");
 		DocumentFrame[] document = new DocumentFrame[1];
 		SpreadSheet[] sheets = new SpreadSheet[1];
 		int[] cell = new int[2];
@@ -276,36 +281,48 @@ class CanonicalProjectWindowGuiAcceptanceTest {
 		robot.keyPress(KeyEvent.VK_F2);
 		robot.keyRelease(KeyEvent.VK_F2);
 		GuiAcceptanceSupport.await(() -> sheets[0].isEditing(), "physical F2 did not start cell editing");
-		robot.keyPress(KeyEvent.VK_CONTROL);
-		robot.keyPress(KeyEvent.VK_A);
-		robot.keyRelease(KeyEvent.VK_A);
-		robot.keyRelease(KeyEvent.VK_CONTROL);
-		for (char character : "committed text".toCharArray()) {
-			robot.keyPress(KeyEvent.getExtendedKeyCodeForChar(character));
-			robot.keyRelease(KeyEvent.getExtendedKeyCodeForChar(character));
-		}
 		robot.keyPress(KeyEvent.VK_HOME);
 		robot.keyRelease(KeyEvent.VK_HOME);
-		for (int i = 0; i < 9; i++) {
-			robot.keyPress(KeyEvent.VK_SHIFT);
-			robot.keyPress(KeyEvent.VK_RIGHT);
-			robot.keyRelease(KeyEvent.VK_RIGHT);
-			robot.keyRelease(KeyEvent.VK_SHIFT);
-		}
+		robot.keyPress(KeyEvent.VK_SHIFT);
+		robot.keyPress(KeyEvent.VK_END);
+		robot.keyRelease(KeyEvent.VK_END);
+		robot.keyRelease(KeyEvent.VK_SHIFT);
 		GuiAcceptanceSupport.await(() -> {
 			Component focus = java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
-			return focus instanceof JTextField field && "committed".equals(field.getSelectedText());
-		}, "could not select the known substring in the active spreadsheet editor");
+			return focus instanceof JTextField field && "とうきょう".equals(field.getSelectedText());
+		}, "could not physically select the existing Japanese text in the active spreadsheet editor");
 		robot.keyPress(KeyEvent.VK_CONVERT);
 		robot.keyRelease(KeyEvent.VK_CONVERT);
 		String expected = com.microproject.dialog.UsabilityStrings.text("spreadsheet.imeReconversionUnsupported");
-		GuiAcceptanceSupport.await(() -> expected.equals(statusMessage(document[0])), "unsupported IME feedback did not appear in the document status bar");
+		GuiAcceptanceSupport.await(() -> expected.equals(statusMessage(document[0])), "editor-route unsupported IME feedback did not appear in the document status bar");
+		assertUnsupportedReconversionKeptText(task, sheets[0], cell, "editor route");
+
+		// Route 2: Convert on a selected, non-editing cell starts editing, selects the
+		// committed text and must reach the same reconversion outcome.
+		robot.keyPress(KeyEvent.VK_ESCAPE);
+		robot.keyRelease(KeyEvent.VK_ESCAPE);
+		GuiAcceptanceSupport.await(() -> !sheets[0].isEditing(), "physical Escape did not end cell editing");
+		SwingUtilities.invokeAndWait(() -> document[0].showStatusMessage(""));
+		robot.keyPress(KeyEvent.VK_CONVERT);
+		robot.keyRelease(KeyEvent.VK_CONVERT);
+		GuiAcceptanceSupport.await(() -> sheets[0].isEditing(), "physical Convert on a selected cell did not start editing");
+		GuiAcceptanceSupport.await(() -> expected.equals(statusMessage(document[0])), "cell-route unsupported IME feedback did not appear in the document status bar");
+		assertUnsupportedReconversionKeptText(task, sheets[0], cell, "selected-cell route");
+		robot.keyPress(KeyEvent.VK_ESCAPE);
+		robot.keyRelease(KeyEvent.VK_ESCAPE);
+		GuiAcceptanceSupport.await(() -> !sheets[0].isEditing(), "physical Escape did not end cell editing");
+		SwingUtilities.invokeAndWait(() -> assertEquals("とうきょう", task.getName(), "cancelling after unsupported reconversion changed the model"));
+	}
+
+	private static void assertUnsupportedReconversionKeptText(NormalTask task, SpreadSheet sheet, int[] cell, String route) throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			Component focus = java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
-			assertTrue(focus instanceof JTextField, "editor focus was lost after reconversion");
+			assertTrue(focus instanceof JTextField, route + ": editor focus was lost after unsupported reconversion");
 			JTextField field = (JTextField) focus;
-			assertEquals("committed text", field.getText());
-			assertEquals("committed", field.getSelectedText());
+			assertEquals("とうきょう", field.getText(), route + ": unsupported reconversion changed the edited text");
+			assertEquals("とうきょう", field.getSelectedText(), route + ": unsupported reconversion lost the selection");
+			assertEquals("とうきょう", task.getName(), route + ": unsupported reconversion changed the committed model value");
+			assertEquals("とうきょう", sheet.getValueAt(cell[0], cell[1]), route + ": unsupported reconversion changed the rendered cell");
 		});
 	}
 

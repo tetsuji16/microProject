@@ -63,6 +63,11 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 		lastTable = null;
 	}
 
+	/**
+	 * Swing's table editing path can consume VK_CONVERT before the active text
+	 * component reaches the input method, so the editor gets a local Convert
+	 * binding routed through {@link ImeTextInputSupport#requestReconversion}.
+	 */
 	protected void prepareEditorComponent(JComponent edit) {
 		activeEditorComponent = edit;
 		edit.enableInputMethods(true);
@@ -70,12 +75,6 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 		installCompositionTracking(edit);
 	}
 
-	/**
-	 * Swing's table editing path can consume VK_CONVERT before the active text
-	 * component reaches the input method.  Route it explicitly to the editor's
-	 * input context so a selected, already committed string can be reconverted
-	 * by Microsoft IME.
-	 */
 	protected void clearActiveEditorComponent() {
 		if (activeEditorComponent != null) {
 			activeEditorComponent.putClientProperty(COMPOSITION_PROPERTY, Boolean.FALSE);
