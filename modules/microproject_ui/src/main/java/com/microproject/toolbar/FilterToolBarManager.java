@@ -91,14 +91,6 @@ public class FilterToolBarManager implements MenuActionConstants{
 		sortersComboBox.addActionListener(menuManager.getActionFromId(sortersComboBox.getActionCommand()));
 		groupersComboBox.addActionListener(menuManager.getActionFromId(groupersComboBox.getActionCommand()));
 	}
-	public void addButtonsInRibbonBand(JComponent component) {
-		component.add(filtersComboBox);
-		component.add(sortersComboBox);
-		component.add(groupersComboBox);
-		filtersComboBox.addActionListener(menuManager.getActionFromId(filtersComboBox.getActionCommand()));
-		sortersComboBox.addActionListener(menuManager.getActionFromId(sortersComboBox.getActionCommand()));
-		groupersComboBox.addActionListener(menuManager.getActionFromId(groupersComboBox.getActionCommand()));
-	}
 
 	public void removeButtons(JComponent bar) {
 		if (bar != null) {
