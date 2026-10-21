@@ -77,11 +77,15 @@ class AssignmentDialogGuiAcceptanceTest {
 	private GraphicManager manager;
 	private boolean previousRibbonUi;
 	private boolean previousNewLook;
+	private boolean previousClientSide;
+	private boolean previousBatchMode;
 	private RibbonDisplayMode previousRibbonDisplayMode;
 
 	@BeforeEach
 	void prepareRibbonDisplay() {
 		previousRibbonDisplayMode = RibbonDisplayPreferences.load();
+		previousClientSide = Environment.isClientSide();
+		previousBatchMode = Environment.isBatchMode();
 		RibbonDisplayPreferences.save(RibbonDisplayMode.ALWAYS_SHOW);
 	}
 
@@ -97,6 +101,8 @@ class AssignmentDialogGuiAcceptanceTest {
 		});
 		Environment.setRibbonUI(previousRibbonUi);
 		Environment.setNewLook(previousNewLook);
+		Environment.setClientSide(previousClientSide);
+		Environment.setBatchMode(previousBatchMode);
 		RibbonDisplayPreferences.save(previousRibbonDisplayMode);
 		Alert.setPresenter(null);
 	}
@@ -141,6 +147,9 @@ class AssignmentDialogGuiAcceptanceTest {
 			"Robot click did not select the replacement resource in Assign Resources");
 
 		Alert.setPresenter(new SwingAlertPresenter());
+		Environment.setClientSide(true);
+		Environment.setBatchMode(false);
+		assertTrue(Alert.allowPopups(), "the physical lock-warning journey requires the production popup gate");
 		project.setCollaborationSession(new RejectingCollaborationSession(project));
 		click(robot, bounds(dialog.assignButton));
 		robot.waitForIdle();
