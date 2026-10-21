@@ -34,6 +34,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import javax.swing.AbstractButton;
+import javax.swing.JDialog;
+import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 
 import org.junit.jupiter.api.AfterEach;
@@ -139,6 +141,9 @@ class AssignmentDialogGuiAcceptanceTest {
 		click(robot, bounds(dialog.assignButton));
 		robot.waitForIdle();
 		assertNull(task.findAssignment(resource), "a rejected collaboration lock must leave the task unchanged");
+		acknowledgeLockWarning(robot, dialog, task);
+		assertTrue(dialog.isShowing(), "the rejected assignment warning must return to the still-open Assign Resources dialog");
+		assertNull(task.findAssignment(resource), "acknowledging the lock warning must not assign the resource");
 
 		project.setCollaborationSession(null);
 		click(robot, bounds(dialog.assignButton));
@@ -448,6 +453,39 @@ class AssignmentDialogGuiAcceptanceTest {
 			return false;
 		}, "Ribbon Assign Resources did not open the assignment dialog");
 		return dialog[0];
+	}
+
+	private void acknowledgeLockWarning(Robot robot, AssignmentDialog owner, NormalTask task) throws Exception {
+		final JDialog[] warning = new JDialog[1];
+		final AbstractButton[] acknowledge = new AbstractButton[1];
+		final String[] message = new String[1];
+		GuiAcceptanceSupport.await(() -> {
+			try {
+				SwingUtilities.invokeAndWait(() -> {
+					for (Window candidate : Window.getWindows()) {
+						if (!(candidate instanceof JDialog dialog) || !dialog.isShowing() || dialog.getOwner() != owner) continue;
+						for (Component component : com.microproject.menu.testsupport.UiComponentWalker.flatten(dialog)) {
+							if (component instanceof JOptionPane optionPane) {
+								Object value = optionPane.getMessage();
+								message[0] = value == null ? "null" : value.toString();
+								warning[0] = dialog;
+								acknowledge[0] = dialog.getRootPane().getDefaultButton();
+								return;
+							}
+						}
+					}
+				});
+				return warning[0] != null && acknowledge[0] != null;
+			} catch (Exception exception) {
+				throw new AssertionError("Could not inspect the lock warning dialog", exception);
+			}
+		}, "lock rejection warning did not open under the assignment dialog; owner=" + describeWindow(owner));
+		assertTrue(message[0].contains(task.getName()) && message[0].contains("locked by"),
+			"unexpected lock warning text: " + message[0]);
+		assertTrue(owner.isShowing(), "assignment dialog closed while its lock warning was open");
+		click(robot, bounds(acknowledge[0]));
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(() -> !warning[0].isShowing(), "physical acknowledgement did not close the lock warning");
 	}
 
 	private ReplaceAssignmentDialog awaitReplaceDialog() throws Exception {
