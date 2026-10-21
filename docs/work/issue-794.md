@@ -56,7 +56,9 @@ Frozen acceptance detail: M2.1 covers text/date/numeric fields, ties and empty v
 
 ## Next finite slice
 
-Current finite slice: U-26 physical Task Sheet duration input now reaches dependent schedule/model/render assertions, but physical Ctrl+Z does not leave redo available (`canRedo=false`, `redoName=null`) in a clean ja-JP/default 100% run. The app's `undo start` and `undo complete` trace both report `canUndo=true canRedo=false`; the cell editor is finished before the shortcut. A separate later run was blocked before input by a foreground Docker Desktop overlap and is environmental contention, not the product result. Root cause is under review; do not close this gate until physical Ctrl+Y and MPO reload pass. Evidence/artifact names and comparison run are in [the archive](issue-794-evidence.md). No layout constraints changed, so the DPI matrix remains at final release gate. M2.2/M2.3/M2.4/Common and exact-candidate CI/release gates remain open.
+Completed finite slice: Task Sheet duration history used `UndoController.editPosted` directly, bypassing EditSupport's active compound and recording-suppression behavior. Replaying the duration field during Undo inserted a fresh edit into UndoManager, killed a remaining paste child edit, and removed Redo. The workflow now publishes through `EditSupport.postEdit`; the multi-cell paste test verifies one Undo and Redo. The physical U-26 duration journey passed model/render, Ctrl+Z/Ctrl+Y, and MPO save/reload checks at Windows 11, ja-JP, default 100% (2560x1440) on the uncommitted candidate based on `ccc9db6ed7d5b2108593c10ef462780fbffe4edd`. Commands and counts are in [the archive](issue-794-evidence.md).
+
+Next finite slice: investigate the remaining Gantt bar-drag failure from the frozen acceptance matrix, capture its exact route/model/view/history evidence before editing, and resolve that shared cause. M2.2/M2.3/M2.4/Common and exact-candidate CI/release gates remain open. No layout constraints changed, so the DPI matrix remains at the final release gate.
 
 ## Blockers and release gates
 

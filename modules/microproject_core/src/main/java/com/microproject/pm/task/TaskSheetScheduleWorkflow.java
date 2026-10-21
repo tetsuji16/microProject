@@ -233,7 +233,7 @@ public final class TaskSheetScheduleWorkflow {
 		runAtomicScheduleEdit(task, () -> {
 			applyDurationMutation(task, duration);
 			if (project != null && project.getTasks().contains(task))
-				project.getUndoController().editPosted(new ScheduleWorkflowEdit(project, before, beforeCalculationStates,
+				project.getUndoController().getEditSupport().postEdit(new ScheduleWorkflowEdit(project, before, beforeCalculationStates,
 					captureCalculationStates(project), TaskSheetScheduleWorkflow.class));
 		});
 	}

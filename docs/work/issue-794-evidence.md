@@ -854,3 +854,34 @@ Next finite slice: fixed-date SS negative elapsed lag (-4 hours), reusing this s
 - Later U-26 reruns for added EditSupport event tracing were blocked before Robot input by `GUI_ENVIRONMENT_CONTENDED`: foreground Docker Desktop overlapped the test window. These are separate environment failures, not repetitions of the clean-window product assertion. Captures: `modules/microproject_ui/build/reports/guiTest-artifacts/U26SpreadsheetInputTransactionGuiAcceptanceTest-robotTypesDurationAndPercentAsOneInputTransaction__.failure.png`, `.environment.txt`, `.windows.txt`, `.native-desktop.txt`, `.desktop-session.txt`, `.foreground-overlap...`, and `gui-test-contended-1792535940579-78108.txt` / `gui-test-contended-1792535965316-88256.txt`. Root inspected the earlier clean-window screenshot and environment captures: ja-JP/default 100%, test window foreground, no modal error dialog, and no overlapping window at that time. The later contended capture records Docker Desktop as the foreground overlap.
 - No production edit was made from this bounded review. Comparison source: the passing Gantt journey uses the same physical root-pane Ctrl+Z/Ctrl+Y route; duration Undo is distinct because it restores a project snapshot and recalculates. Without a clean rerun carrying EditSupport listener diagnostics, the suspected post-Undo history mutation remains unproven. Keep the acceptance gate open until physical Ctrl+Y, model/render assertions, and MPO reload pass. No display resolution or GUI assertion was changed.
 - Commands: focused U-26 ` .\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.spreadsheet.common.U26SpreadsheetInputTransactionGuiAcceptanceTest.robotTypesDurationAndPercentAsOneInputTransaction" --console=plain --no-daemon --max-workers=1` — clean-window assertion failure above; subsequent diagnostics reruns aborted at pre-dispatch desktop-contended check. Comparator Gantt command above — pass. `git diff --check` — pass, with existing LF/CRLF warnings in shared docs.
+
+## M2.2 duration history replay and paste compound Undo/Redo slice (2026-10-21)
+
+- Confirmed cause: `TaskSheetScheduleWorkflow.applyDuration` called
+  `UndoController.editPosted` directly. During `ModelFieldEdit.undo`, replaying
+  the task-sheet duration setter entered that workflow and inserted a new
+  top-level edit while `CompoundEdit.undo` was still traversing its children.
+  The new edit trimmed the active history; diagnostic `die()` tracing showed
+  the paste's remaining `Field.name` edit was killed before its undo, and the
+  physical U-26 route lost Redo. Routed the workflow edit through
+  `EditSupport.postEdit`, which joins the active command group and honors replay
+  suppression. Search found no other production callers of `editPosted` beyond
+  the EditSupport listener and `DataFactoryUndoController` override.
+- Extended `NodeListTransferablePasteFailureTest.multiCellValuePasteIsUndoneAsOneOperation`
+  to assert that one Undo restores both pasted cells and one Redo reapplies both.
+  The U-26 Robot journey now passes its existing Ctrl+Z/Ctrl+Y model, Task Sheet,
+  dependent Gantt, and MPO save/reload assertions.
+- Baseline: `ccc9db6ed7d5b2108593c10ef462780fbffe4edd`; working tree contained only
+  the pre-existing untracked `.codex-remote-attachments/` before this slice.
+  Tested the uncommitted candidate at that baseline. Focused paste test passed
+  1/1; focused `TaskSheetScheduleWorkflowTest` passed 3/3; full
+  `:microproject_ui:test` passed 1,258/1,258 (198 XML reports, zero
+  failures/errors/skips). Physical U-26 passed 1/1 on Windows 11, ja-JP,
+  default 100%/2560x1440. `git diff --check` passed.
+- Commands:
+  ` .\gradlew.bat :microproject_ui:test --tests "com.microproject.pm.graphic.spreadsheet.common.transfer.NodeListTransferablePasteFailureTest.multiCellValuePasteIsUndoneAsOneOperation" --console=plain --no-daemon --max-workers=1`;
+  ` .\gradlew.bat :microproject_core:test --tests "com.microproject.pm.task.TaskSheetScheduleWorkflowTest" --console=plain --no-daemon --max-workers=1`;
+  ` .\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.spreadsheet.common.U26SpreadsheetInputTransactionGuiAcceptanceTest.robotTypesDurationAndPercentAsOneInputTransaction" --console=plain --no-daemon --max-workers=1`;
+  ` .\gradlew.bat :microproject_ui:test --console=plain --no-daemon --max-workers=1`.
+- Next finite slice: investigate the remaining Gantt bar-drag failure; broader
+  M2.2/M2.3/M2.4/Common and integrated exact-head/release gates remain open.
