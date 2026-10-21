@@ -20,11 +20,14 @@ import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.Component;
 import java.awt.KeyboardFocusManager;
+import java.awt.Dialog;
+import java.awt.Frame;
 import java.awt.Window;
 import java.awt.event.KeyEvent;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
@@ -151,6 +154,7 @@ class AssignmentDialogGuiAcceptanceTest {
 		Environment.setBatchMode(false);
 		assertTrue(Alert.allowPopups(), "the physical lock-warning journey requires the production popup gate");
 		project.setCollaborationSession(new RejectingCollaborationSession(project));
+		logPhase("rejected-assignment-click", dialog.assignButton);
 		click(robot, bounds(dialog.assignButton));
 		robot.waitForIdle();
 		assertNull(task.findAssignment(resource), "a rejected collaboration lock must leave the task unchanged");
@@ -159,6 +163,7 @@ class AssignmentDialogGuiAcceptanceTest {
 		assertNull(task.findAssignment(resource), "acknowledging the lock warning must not assign the resource");
 
 		project.setCollaborationSession(null);
+		logPhase("accepted-assignment-click", dialog.assignButton);
 		click(robot, bounds(dialog.assignButton));
 		GuiAcceptanceSupport.await(() -> task.findAssignment(resource) != null,
 			"Assign Resources did not create the assignment after lock acceptance");
@@ -171,6 +176,7 @@ class AssignmentDialogGuiAcceptanceTest {
 
 		SwingUtilities.invokeAndWait(dialog::dispose);
 		activateWindow(robot);
+		logPhase("reopen-assignment-dialog-click", assignResources);
 		click(robot, bounds(assignResources));
 		AssignmentDialog reopenedDialog = awaitDialog();
 		assertNotSame(dialog, reopenedDialog, "disposed assignment dialogs must be recreated");
@@ -504,6 +510,7 @@ class AssignmentDialogGuiAcceptanceTest {
 		assertTrue(message[0].contains(task.getName()) && message[0].contains("locked by"),
 			"unexpected lock warning text: " + message[0]);
 		assertTrue(owner.isShowing(), "assignment dialog closed while its lock warning was open");
+		logPhase("acknowledge-lock-warning-click", acknowledge[0]);
 		click(robot, bounds(acknowledge[0]));
 		robot.waitForIdle();
 		GuiAcceptanceSupport.await(() -> !warning[0].isShowing(), "physical acknowledgement did not close the lock warning");
@@ -582,8 +589,48 @@ class AssignmentDialogGuiAcceptanceTest {
 
 	private static Rectangle bounds(java.awt.Component component) throws Exception {
 		final Rectangle[] result = new Rectangle[1];
-		SwingUtilities.invokeAndWait(() -> result[0] = new Rectangle(component.getLocationOnScreen(), component.getSize()));
+		final String[] state = new String[1];
+		String caller = boundsCaller();
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				state[0] = describeComponentState(component);
+				result[0] = new Rectangle(component.getLocationOnScreen(), component.getSize());
+			});
+		} catch (InvocationTargetException failure) {
+			if (failure.getCause() instanceof java.awt.IllegalComponentStateException cause) {
+				java.awt.IllegalComponentStateException diagnostic = new java.awt.IllegalComponentStateException(
+					"Robot bounds lookup failed at " + caller + "; component=" + state[0]);
+				diagnostic.initCause(cause);
+				throw diagnostic;
+			}
+			throw failure;
+		}
 		return result[0];
+	}
+
+	private static String boundsCaller() {
+		return StackWalker.getInstance().walk(frames -> frames
+			.filter(frame -> frame.getClassName().equals(AssignmentDialogGuiAcceptanceTest.class.getName()))
+			.filter(frame -> !frame.getMethodName().equals("bounds") && !frame.getMethodName().equals("boundsCaller"))
+			.findFirst().map(frame -> frame.getMethodName() + ":" + frame.getLineNumber()).orElse("unknown caller"));
+	}
+
+	private static void logPhase(String phase, Component component) throws Exception {
+		final String[] state = new String[1];
+		SwingUtilities.invokeAndWait(() -> state[0] = describeComponentState(component));
+		System.out.println("[ASSIGNMENT_DIALOG_PHASE] " + phase + " " + state[0]);
+	}
+
+	private static String describeComponentState(Component component) {
+		Window owner = SwingUtilities.getWindowAncestor(component);
+		String title = owner instanceof Dialog dialog ? dialog.getTitle()
+				: owner instanceof Frame frame ? frame.getTitle() : String.valueOf(owner);
+		String button = component instanceof AbstractButton abstractButton
+				? ",text=" + abstractButton.getText() + ",action=" + abstractButton.getActionCommand() : "";
+		return component.getClass().getSimpleName() + "[name=" + component.getName() + button
+				+ ",showing=" + component.isShowing() + ",displayable=" + component.isDisplayable()
+				+ ",visible=" + component.isVisible() + ",enabled=" + component.isEnabled()
+				+ ",window=" + title + "]";
 	}
 
 	private static void click(Robot robot, Rectangle bounds) {
