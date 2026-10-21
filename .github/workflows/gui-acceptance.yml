@@ -71,6 +71,10 @@ jobs:
         shell: pwsh
         run: .\gradlew.bat installDist --console=plain
 
+      - name: Verify GUI gate exit-code handoff
+        shell: pwsh
+        run: .\.github\scripts\test-gui-gate-exit-code.ps1
+
       - name: Verify desktop monitor watcher lifecycle
         shell: pwsh
         run: .\.github\scripts\test-gui-desktop-monitor-lifecycle.ps1
