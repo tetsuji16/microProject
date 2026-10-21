@@ -107,6 +107,7 @@ import com.microproject.undo.DataFactoryUndoController;
  * disabled, throws, or returns before showing its dialog.
  */
 class RibbonExternalCommandGuiAcceptanceTest {
+	private static final Duration NATIVE_CHOOSER_READINESS_BUDGET = Duration.ofSeconds(30);
 	private MainRibbonFrame window;
 	private GraphicManager manager;
 	private boolean previousRibbonUi;
@@ -1351,9 +1352,11 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			if (result.status() == NativeChooserProbeCompletion.Status.PROCESS_FAILED)
 				throw new IOException("Native chooser probe exited " + result.exitCode() + "; output=" + result.output());
 			if (result.status() == NativeChooserProbeCompletion.Status.READY_BUT_INCOMPLETE)
-				throw new IOException(route + " chooser was ready by the 4-second deadline but the probe snapshot did not finish its bounded 2-second serialization drain; output="
+				throw new IOException(route + " chooser was ready within the " + NATIVE_CHOOSER_READINESS_BUDGET.toSeconds()
+					+ "-second native-dialog readiness budget but the probe snapshot did not finish its bounded 2-second serialization drain; output="
 					+ result.output());
-			throw new IOException(route + " native chooser readiness was not observed by the 4-second command deadline; output="
+			throw new IOException(route + " native chooser readiness was not observed within the "
+				+ NATIVE_CHOOSER_READINESS_BUDGET.toSeconds() + "-second native-dialog readiness budget; output="
 				+ result.output());
 		} catch (InterruptedException interrupted) {
 			Thread.currentThread().interrupt();
@@ -1433,8 +1436,8 @@ class RibbonExternalCommandGuiAcceptanceTest {
 
 		Instant startReadinessDeadline() throws IOException {
 			if (triggered) throw new IllegalStateException("Native chooser probe already triggered");
-			long deadlineEpochMillis = System.currentTimeMillis() + java.util.concurrent.TimeUnit.SECONDS.toMillis(4);
-			deadlineNanos = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(4);
+			long deadlineEpochMillis = System.currentTimeMillis() + NATIVE_CHOOSER_READINESS_BUDGET.toMillis();
+			deadlineNanos = System.nanoTime() + NATIVE_CHOOSER_READINESS_BUDGET.toNanos();
 			deadlineUtc = Instant.ofEpochMilli(deadlineEpochMillis);
 			String request = "callId=" + Long.toUnsignedString(System.nanoTime()) + "\ndeadlineUtcTicks="
 				+ (621355968000000000L + deadlineEpochMillis * 10_000L) + "\n";

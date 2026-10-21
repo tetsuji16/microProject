@@ -1922,11 +1922,18 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"physical selection must contain both stable task IDs");
 		AbstractButton zoomSelected = findShowingButtonByCommand("RibbonZoomSelectedTasks");
 		GuiAcceptanceSupport.await(zoomSelected::isEnabled, "Selected Tasks zoom remained disabled for two dated Gantt rows");
+		logSelectedZoomState("Gantt before", selectedSheet, selectedView.getGantt(),
+			selectedView::getVisibleDateRange, selectedView::getScale, first, second);
 		click(robot, zoomSelected);
-		GuiAcceptanceSupport.await(() -> {
-			var visible = selectedView.getVisibleDateRange();
-			return visible != null && visible.start() <= firstStart && visible.end() >= secondEnd;
-		}, "Selected Tasks zoom did not fit the full two-task date span");
+		try {
+			GuiAcceptanceSupport.await(() -> {
+				var visible = selectedView.getVisibleDateRange();
+				return visible != null && visible.start() <= firstStart && visible.end() >= secondEnd;
+			}, "Selected Tasks zoom did not fit the full two-task date span");
+		} finally {
+			logSelectedZoomState("Gantt after", selectedSheet, selectedView.getGantt(),
+				selectedView::getVisibleDateRange, selectedView::getScale, first, second);
+		}
 		assertEquals(firstStart, first.getStart(), "zoom must not change the first selected task start");
 		assertEquals(firstEnd, first.getEnd(), "zoom must not change the first selected task finish");
 		assertEquals(secondStart, second.getStart(), "zoom must not change the second selected task start");
@@ -1960,11 +1967,18 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		AbstractButton usageZoomSelected = findShowingButtonByCommand("RibbonZoomSelectedTasks");
 		GuiAcceptanceSupport.await(usageZoomSelected::isEnabled,
 			"Selected Tasks zoom remained disabled for two dated Task Usage rows");
+		logSelectedZoomState("Task Usage before", usageSheet, usageView.getTimeSpreadSheet(),
+			usageView::getVisibleDateRange, usageView::getScale, first, second);
 		click(robot, usageZoomSelected);
-		GuiAcceptanceSupport.await(() -> {
-			var visible = usageView.getVisibleDateRange();
-			return visible != null && visible.start() <= firstStart && visible.end() >= secondEnd;
-		}, "Task Usage Selected Tasks zoom did not fit the full two-task date span");
+		try {
+			GuiAcceptanceSupport.await(() -> {
+				var visible = usageView.getVisibleDateRange();
+				return visible != null && visible.start() <= firstStart && visible.end() >= secondEnd;
+			}, "Task Usage Selected Tasks zoom did not fit the full two-task date span");
+		} finally {
+			logSelectedZoomState("Task Usage after", usageSheet, usageView.getTimeSpreadSheet(),
+				usageView::getVisibleDateRange, usageView::getScale, first, second);
+		}
 		assertEquals(firstStart, first.getStart(), "Task Usage zoom must not change first task start");
 		assertEquals(firstEnd, first.getEnd(), "Task Usage zoom must not change first task finish");
 		assertEquals(secondStart, second.getStart(), "Task Usage zoom must not change second task start");
@@ -1999,11 +2013,18 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		AbstractButton trackingZoomSelected = findShowingButtonByCommand("RibbonZoomSelectedTasks");
 		GuiAcceptanceSupport.await(trackingZoomSelected::isEnabled,
 			"Selected Tasks zoom remained disabled for two dated Tracking Gantt rows");
+		logSelectedZoomState("Tracking Gantt before", trackingSheet, trackingView.getGantt(),
+			trackingView::getVisibleDateRange, trackingView::getScale, first, second);
 		click(robot, trackingZoomSelected);
-		GuiAcceptanceSupport.await(() -> {
-			var visible = trackingView.getVisibleDateRange();
-			return visible != null && visible.start() <= firstStart && visible.end() >= secondEnd;
-		}, "Tracking Gantt Selected Tasks zoom did not fit the full two-task date span");
+		try {
+			GuiAcceptanceSupport.await(() -> {
+				var visible = trackingView.getVisibleDateRange();
+				return visible != null && visible.start() <= firstStart && visible.end() >= secondEnd;
+			}, "Tracking Gantt Selected Tasks zoom did not fit the full two-task date span");
+		} finally {
+			logSelectedZoomState("Tracking Gantt after", trackingSheet, trackingView.getGantt(),
+				trackingView::getVisibleDateRange, trackingView::getScale, first, second);
+		}
 		assertEquals(firstStart, first.getStart(), "Tracking Gantt zoom must not change first task start");
 		assertEquals(firstEnd, first.getEnd(), "Tracking Gantt zoom must not change first task finish");
 		assertEquals(secondStart, second.getStart(), "Tracking Gantt zoom must not change second task start");
@@ -2038,16 +2059,86 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		AbstractButton resourceZoomSelected = findShowingButtonByCommand("RibbonZoomSelectedTasks");
 		GuiAcceptanceSupport.await(resourceZoomSelected::isEnabled,
 			"Selected Tasks zoom remained disabled for two dated Resource Usage assignment rows");
+		logSelectedZoomState("Resource Usage before", resourceUsageSheet, resourceUsageView.getTimeSpreadSheet(),
+			resourceUsageView::getVisibleDateRange, resourceUsageView::getScale, first, second);
 		click(robot, resourceZoomSelected);
-		GuiAcceptanceSupport.await(() -> {
-			var visible = resourceUsageView.getVisibleDateRange();
-			return visible != null && visible.start() <= firstStart && visible.end() >= secondEnd;
-		}, "Resource Usage Selected Tasks zoom did not fit the full two-task date span");
+		try {
+			GuiAcceptanceSupport.await(() -> {
+				var visible = resourceUsageView.getVisibleDateRange();
+				return visible != null && visible.start() <= firstStart && visible.end() >= secondEnd;
+			}, "Resource Usage Selected Tasks zoom did not fit the full two-task date span");
+		} finally {
+			logSelectedZoomState("Resource Usage after", resourceUsageSheet, resourceUsageView.getTimeSpreadSheet(),
+				resourceUsageView::getVisibleDateRange, resourceUsageView::getScale, first, second);
+		}
 		assertEquals(firstStart, first.getStart(), "Resource Usage zoom must not change first task start");
 		assertEquals(firstEnd, first.getEnd(), "Resource Usage zoom must not change first task finish");
 		assertEquals(secondStart, second.getStart(), "Resource Usage zoom must not change second task start");
 		assertEquals(secondEnd, second.getEnd(), "Resource Usage zoom must not change second task finish");
 		assertFalse(project.getUndoController().canUndo(), "Resource Usage view-only zoom must not add project undo history");
+	}
+
+	private void logSelectedZoomState(String label, SpreadSheet sheet, Component timeline,
+			java.util.function.Supplier<com.microproject.pm.graphic.views.SelectedTasksTimescaleZoom.DateRange> visibleRange,
+			java.util.function.IntSupplier scale, Task first, Task second) throws Exception {
+		java.util.concurrent.atomic.AtomicReference<String> diagnostic = new java.util.concurrent.atomic.AtomicReference<>();
+		SwingUtilities.invokeAndWait(() -> {
+			long[] resolved = { Long.MAX_VALUE, Long.MIN_VALUE };
+			List<String> selected = new ArrayList<>();
+			for (Object node : sheet.getSelectedNodesImpl())
+				appendSelectedZoomNode(node, selected, resolved);
+			java.awt.Container parent = timeline.getParent();
+			javax.swing.JScrollPane scrollPane = null;
+			while (parent != null) {
+				if (parent instanceof javax.swing.JScrollPane found) {
+					scrollPane = found;
+					break;
+				}
+				parent = parent.getParent();
+			}
+			String viewport = scrollPane == null ? "none" : "extent=" + scrollPane.getViewport().getExtentSize()
+				+ ",position=" + scrollPane.getViewport().getViewPosition()
+				+ ",view=" + scrollPane.getViewport().getViewSize()
+				+ ",horizontal=" + scrollPane.getHorizontalScrollBar().getValue()
+				+ "/" + scrollPane.getHorizontalScrollBar().getMaximum();
+			String resolvedRange = resolved[0] == Long.MAX_VALUE ? "none" : resolved[0] + ".." + resolved[1];
+			var visible = visibleRange.get();
+			Object activeView = manager.getCurrentFrame() == null ? null : manager.getCurrentFrame().getActiveTopView();
+			diagnostic.set("active=" + (activeView == null ? "none" : activeView.getClass().getSimpleName())
+				+ ",selected=" + selected + ",resolved=" + resolvedRange
+				+ ",expected=" + first.getUniqueId() + ":" + first.getStart() + ".." + first.getEnd()
+				+ ";" + second.getUniqueId() + ":" + second.getStart() + ".." + second.getEnd()
+				+ ",visible=" + visible + ",scale=" + scale.getAsInt() + ",viewport=" + viewport);
+		});
+		System.out.println("SELECTED_TASKS_ZOOM " + label + " " + diagnostic.get());
+	}
+
+	private static void appendSelectedZoomNode(Object node, List<String> selected, long[] resolved) {
+		if (node instanceof Task task) {
+			selected.add("Task(" + task.getUniqueId() + "," + task.getStart() + ".." + task.getEnd() + ")");
+			includeSelectedZoomDates(task.getStart(), task.getEnd(), resolved);
+		} else if (node instanceof Assignment assignment) {
+			Task task = assignment.getTask();
+			selected.add("Assignment(" + (task == null ? "?" : task.getUniqueId()) + ","
+				+ assignment.getStart() + ".." + assignment.getEnd() + ")");
+			if (!includeSelectedZoomDates(assignment.getStart(), assignment.getEnd(), resolved) && task != null)
+				includeSelectedZoomDates(task.getStart(), task.getEnd(), resolved);
+		} else if (node instanceof Resource resource && resource.getAssignments() != null) {
+			selected.add("Resource");
+			for (Object assignment : resource.getAssignments())
+				if (assignment instanceof Assignment)
+					appendSelectedZoomNode(assignment, selected, resolved);
+		} else {
+			selected.add(node == null ? "null" : node.getClass().getName());
+		}
+	}
+
+	private static boolean includeSelectedZoomDates(long start, long end, long[] resolved) {
+		if (start <= 0 || end < start)
+			return false;
+		resolved[0] = Math.min(resolved[0], start);
+		resolved[1] = Math.max(resolved[1], end);
+		return true;
 	}
 
 	private void assertUsageSelectedTaskZoom(Robot robot, UsageDetailView view, NormalTask task) throws Exception {
@@ -3911,7 +4002,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, task), nameColumn(sheet)));
 		click(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("ProjectRibbonTask.title")));
-		AbstractButton saveBaseline = findShowingButtonByCommand("RibbonSaveBaseline");
+		AbstractButton saveBaseline = findVisibleOrOverflowButton(robot, "RibbonSaveBaseline");
 		GuiAcceptanceSupport.await(saveBaseline::isEnabled, "Save Baseline remained disabled");
 		click(robot, saveBaseline);
 		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
@@ -3962,7 +4053,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, task), nameColumn(sheet)));
 		long overwrittenBaselineStart = task.getStart();
 		long currentAssignmentWork = assignment.getWork(null);
-		click(robot, findShowingButtonByCommand("RibbonSaveBaseline"));
+		click(robot, findVisibleOrOverflowButton(robot, "RibbonSaveBaseline"));
 		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
 				.anyMatch(candidate -> candidate instanceof BaselineDialog && candidate.isShowing()),
 			"Overwrite Save Baseline dialog did not open");
@@ -4180,7 +4271,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		activateWindow(robot, window);
 		click(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("ProjectRibbonTask.title")));
-		click(robot, findShowingButtonByCommand("RibbonSaveBaseline"));
+		click(robot, findVisibleOrOverflowButton(robot, "RibbonSaveBaseline"));
 		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
 				.anyMatch(candidate -> candidate instanceof BaselineDialog && candidate.isShowing()),
 			"Save Baseline dialog did not open for Baseline 1 recapture");
@@ -4405,7 +4496,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, selected), nameColumn(sheet)));
 		click(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("ProjectRibbonTask.title")));
-		click(robot, findShowingButtonByCommand(clear ? "RibbonClearBaseline" : "RibbonSaveBaseline"));
+		click(robot, findVisibleOrOverflowButton(robot, clear ? "RibbonClearBaseline" : "RibbonSaveBaseline"));
 		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
 				.anyMatch(candidate -> candidate instanceof BaselineDialog && candidate.isShowing()),
 			"Baseline dialog did not open for selected-task journey");
@@ -4537,7 +4628,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		AbstractButton projectTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("ProjectRibbonTask.title"));
 		click(robot, projectTab);
-		click(robot, findShowingButtonByCommand("RibbonClearBaseline"));
+		click(robot, findVisibleOrOverflowButton(robot, "RibbonClearBaseline"));
 		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
 				.anyMatch(candidate -> candidate instanceof BaselineDialog && candidate.isShowing()),
 			"Clear Baseline chooser did not open");
