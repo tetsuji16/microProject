@@ -176,8 +176,12 @@ class AssignmentDialogGuiAcceptanceTest {
 
 		SwingUtilities.invokeAndWait(dialog::dispose);
 		activateWindow(robot);
-		logPhase("reopen-assignment-dialog-click", assignResources);
-		click(robot, bounds(assignResources));
+		AbstractButton reopenedAssignResources = com.microproject.testsupport.RibbonGuiSupport
+			.findVisibleOrExpand(robot, window, "RibbonAssignResources");
+		GuiAcceptanceSupport.await(reopenedAssignResources::isEnabled,
+			"Assign Resources remained disabled when reopening the assignment dialog");
+		logPhase("reopen-assignment-dialog-click", reopenedAssignResources);
+		click(robot, bounds(reopenedAssignResources));
 		AssignmentDialog reopenedDialog = awaitDialog();
 		assertNotSame(dialog, reopenedDialog, "disposed assignment dialogs must be recreated");
 		SwingUtilities.invokeAndWait(reopenedDialog::dispose);
