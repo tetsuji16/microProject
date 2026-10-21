@@ -16,6 +16,7 @@ if (-not [string]::IsNullOrWhiteSpace($TestFilter) -and $TestFilter -notmatch '^
 $gateLogs = 'modules/microproject_ui/build/reports/guiTest-artifacts'
 $gateFailures = [System.Collections.Generic.List[string]]::new()
 $hostedWarningWatcher = $null
+$isGitHubActions = $env:GITHUB_ACTIONS -eq 'true'
 New-Item -ItemType Directory -Force -Path $gateLogs | Out-Null
 $primaryDisplay = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
 Write-Host "GUI runner primary display bounds: $($primaryDisplay.Width)x$($primaryDisplay.Height)"
@@ -102,8 +103,10 @@ namespace MicroProject {
 }
 
 function Invoke-GuiGate([string]$label, [string[]]$arguments, [int]$timeoutSeconds) {
-  Start-HostedWarningWatcher
-  Minimize-HostedRunnerConsole
+  if ($script:isGitHubActions) {
+    Start-HostedWarningWatcher
+    Minimize-HostedRunnerConsole
+  }
   $safe = ($label -replace '[^A-Za-z0-9_.-]', '_')
   $attempt = [Guid]::NewGuid().ToString('N')
   $guiArtifacts = Join-Path $PWD "modules/microproject_ui/build/reports/guiTest-artifacts/$safe-$attempt"
