@@ -73,6 +73,7 @@ import com.microproject.pm.task.SubProj;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.task.TaskLinkReference;
 import com.microproject.pm.task.TaskLinkReferenceImpl;
+import com.microproject.transaction.ProjectMutationState;
 import com.microproject.undo.ModelFieldEdit;
 import com.microproject.undo.NodeCreationEdit;
 import com.microproject.undo.NodeDeletionEdit;
@@ -129,11 +130,11 @@ public class DefaultNodeModel implements NodeModel {
 
 	public void addBefore(LinkedList<Node> siblings,Node newNode,int actionType){
 		if (siblings.isEmpty()) return;
-		runProjectMutation(actionType, markApplied -> {
+		ProjectMutationState.coordinated(() -> runProjectMutation(actionType, markApplied -> {
 			markApplied.run();
 			addBeforeWithinBoundary(siblings, newNode, actionType);
 			return true;
-		});
+		}));
 	}
 
 	private void addBeforeWithinBoundary(LinkedList<Node> siblings, Node newNode, int actionType) {
@@ -275,14 +276,14 @@ public class DefaultNodeModel implements NodeModel {
 
 	public void move(Node parent,List<Node> nodes,int position,int actionType){
 		if (nodes.isEmpty()) return;
-		runProjectMutation(actionType, markApplied -> {
+		ProjectMutationState.coordinated(() -> runProjectMutation(actionType, markApplied -> {
 			if (!testAncestorOrDescendant(parent,nodes)) // don't allow circular
 				return false;
 			markApplied.run();
 			List<Node> cutNodes=cut(nodes,false,actionType);
 			paste(parent,cutNodes,position,actionType);
 			return true;
-		});
+		}));
 	}
 
 	/**
@@ -1178,20 +1179,22 @@ public class DefaultNodeModel implements NodeModel {
 	private List<NodeImplChangeAndValueSetEdit.Position> repositionPreviousNodes(Node node, LinkedList<Node> previous, int actionType) {
 		if (previous == null)
 			return null;
-		LinkedList<Node> p=new LinkedList<>(previous);
-		Node sibling=p.removeFirst();
-		Node parent=(Node)sibling.getParent();
-		p.add(node);
-		List<NodeImplChangeAndValueSetEdit.Position> previousPosition = null;
-		if (getUndoableEditSupport()!=null&isUndo(actionType)){
-			previousPosition=new ArrayList<>(p.size());
-			for (Node n : p) {
-				previousPosition.add(new NodeImplChangeAndValueSetEdit.Position((Node)n.getParent(),n,n.getParent().getIndex(n)));
+		return ProjectMutationState.coordinated(() -> {
+			LinkedList<Node> p=new LinkedList<>(previous);
+			Node sibling=p.removeFirst();
+			Node parent=(Node)sibling.getParent();
+			p.add(node);
+			List<NodeImplChangeAndValueSetEdit.Position> previousPosition = null;
+			if (getUndoableEditSupport()!=null&isUndo(actionType)){
+				previousPosition=new ArrayList<>(p.size());
+				for (Node n : p) {
+					previousPosition.add(new NodeImplChangeAndValueSetEdit.Position((Node)n.getParent(),n,n.getParent().getIndex(n)));
+				}
 			}
-		}
-		remove(p, NodeModel.SILENT);
-		add(parent,p,parent.getIndex(sibling)+1,NodeModel.SILENT);
-		return previousPosition;
+			remove(p, NodeModel.SILENT);
+			add(parent,p,parent.getIndex(sibling)+1,NodeModel.SILENT);
+			return previousPosition;
+		});
 	}
 	/**
 	 * @param dataFactory The dataFactory to set.

@@ -506,9 +506,6 @@ public class ResourcePool implements Document, NodeModelDataFactory {
 		Resource parent = (Resource) (parentNode == null ? null : parentNode.getImpl());
 		if (getRbsParentResource(child) == parent)
 			return;
-		Node oldParentNode = getResourceOutline().search(getRbsParentResource(child));
-		if (oldParentNode != null)
-			oldParentNode.getChildren().remove(childNode);
 		ArrayList<Node> temp = new ArrayList<>(1);
 		temp.add(childNode);
 		getResourceOutline().move(parentNode, temp, -1,NodeModel.NORMAL);
