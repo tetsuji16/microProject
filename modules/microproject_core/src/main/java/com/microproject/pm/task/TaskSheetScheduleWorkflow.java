@@ -27,15 +27,12 @@ package com.microproject.pm.task;
 import java.util.IdentityHashMap;
 import java.util.Map;
 
-import javax.swing.undo.AbstractUndoableEdit;
-import javax.swing.undo.CannotRedoException;
-import javax.swing.undo.CannotUndoException;
-
 import com.microproject.datatype.Duration;
 import com.microproject.field.FieldContext;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.scheduling.ConstraintType;
 import com.microproject.pm.scheduling.ScheduleInterval;
+import com.microproject.undo.ScheduleEdit;
 import com.microproject.util.DateTime;
 
 public final class TaskSheetScheduleWorkflow {
@@ -233,8 +230,8 @@ public final class TaskSheetScheduleWorkflow {
 		runAtomicScheduleEdit(task, () -> {
 			applyDurationMutation(task, duration);
 			if (project != null && project.getTasks().contains(task))
-				project.getUndoController().getEditSupport().postEdit(new ScheduleWorkflowEdit(project, before, beforeCalculationStates,
-					captureCalculationStates(project), TaskSheetScheduleWorkflow.class));
+				ScheduleEdit.postProjectSnapshotEdit(project, before, beforeCalculationStates,
+					captureCalculationStates(project), TaskSheetScheduleWorkflow.class);
 		});
 	}
 
@@ -243,40 +240,6 @@ public final class TaskSheetScheduleWorkflow {
 		if (project != null)
 			for (Task affected : project.getTaskList()) states.put(affected, affected.getCalculationStateCount());
 		return states;
-	}
-
-	private static final class ScheduleWorkflowEdit extends AbstractUndoableEdit {
-		private final Project project;
-		private final ProjectTaskSnapshot before;
-		private final Map<Task, Integer> beforeCalculationStates;
-		private ProjectTaskSnapshot after;
-		private Map<Task, Integer> afterCalculationStates;
-		private final Object source;
-
-		private ScheduleWorkflowEdit(Project project, ProjectTaskSnapshot before,
-				Map<Task, Integer> beforeCalculationStates, Map<Task, Integer> afterCalculationStates, Object source) {
-			this.project = project;
-			this.before = before;
-			this.beforeCalculationStates = beforeCalculationStates;
-			this.after = ProjectTaskSnapshot.capture(project);
-			this.afterCalculationStates = afterCalculationStates;
-			this.source = source;
-		}
-
-		@Override public void undo() throws CannotUndoException {
-			super.undo();
-			restore(before, beforeCalculationStates);
-		}
-
-		@Override public void redo() throws CannotRedoException {
-			super.redo();
-			restore(after, afterCalculationStates);
-		}
-
-		private void restore(ProjectTaskSnapshot snapshot, Map<Task, Integer> calculationStates) {
-			snapshot.restore(project, source);
-			calculationStates.forEach(Task::setCalculationStateCount);
-		}
 	}
 
 	private static void applyDurationMutation(NormalTask task, long duration) {
