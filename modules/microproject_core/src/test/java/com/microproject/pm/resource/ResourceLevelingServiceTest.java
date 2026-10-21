@@ -33,6 +33,8 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -766,6 +768,102 @@ class ResourceLevelingServiceTest {
 	}
 
 	@Test
+	void failedApplyRestoresGeneratedAssignmentSplitAndManualProvenance() {
+		Fixture fixture = fixture();
+		ThrowingRecalculateTask longTask = new ThrowingRecalculateTask(fixture.project);
+		longTask.setName("Long task");
+		fixture.project.connectTask(longTask);
+		fixture.project.getSchedulingAlgorithm().addObject(longTask);
+		longTask.getCurrentSchedule().setStart(fixture.project.getStart());
+		longTask.setDuration(5L * CalendarOption.getInstance().getMillisPerDay());
+		NormalTask blocker = task(fixture.project, "Priority work", 1L);
+		blocker.setPriority(900);
+		blocker.setStart(fixture.project.getEffectiveWorkCalendar().add(
+			fixture.project.getStart(), CalendarOption.getInstance().getMillisPerDay(), false));
+		Assignment target = AssignmentService.getInstance().newAssignment(longTask, fixture.resource, 1D, 0L, this);
+		Assignment blockerAssignment = AssignmentService.getInstance().newAssignment(blocker, fixture.resource, 1D, 0L, this);
+		ResourceImpl otherResource = fixture.project.getResourcePool().newResourceInstance();
+		otherResource.setName("Manual split resource");
+		NormalTask manuallySplitTask = task(fixture.project, "Manual work", 3L);
+		Assignment manuallySplitAssignment = AssignmentService.getInstance().newAssignment(
+			manuallySplitTask, otherResource, 1D, 0L, this);
+		long otherGap = manuallySplitTask.getStart() + 3L * com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		manuallySplitTask.split(this, otherGap, otherGap + com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR);
+		long assignmentGap = manuallySplitAssignment.getStart() + 2L * com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		manuallySplitAssignment.split(this, assignmentGap,
+			assignmentGap + com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR);
+		String manualAssignmentContour = manuallySplitAssignment.getWorkContour()
+			.toString(manuallySplitAssignment.getDurationMillis());
+		long manualAssignmentDuration = manuallySplitAssignment.getDurationMillis();
+		List<com.microproject.pm.task.TaskSplitInterval> unrelatedManualSplits = manuallySplitTask.getManualTaskSplitIntervals();
+		String originalContour = target.getWorkContour().toString(target.getDurationMillis());
+		long originalDuration = target.getDurationMillis();
+		long assignmentStart = target.getStart();
+		long assignmentEnd = target.getEnd();
+		List<com.microproject.pm.task.TaskSplitInterval> manualTaskSplits = longTask.getManualTaskSplitIntervals();
+		long taskStart = longTask.getStart();
+		long taskEnd = longTask.getEnd();
+		long taskDuration = longTask.getDuration();
+		boolean taskDirty = longTask.isDirty();
+		boolean assignmentDirty = target.isDirty();
+		boolean projectDirty = fixture.project.isDirty();
+		var undo = fixture.project.getUndoController();
+		undo.clear();
+		undo.getEditSupport().postEdit(new javax.swing.undo.AbstractUndoableEdit() {
+			private static final long serialVersionUID = 1L;
+			@Override public String getPresentationName() { return "existing checkpoint"; }
+		});
+		undo.undo();
+		List<String> undoNames = undo.getEditNames();
+		String redoName = undo.getRedoName();
+		long revision = fixture.project.getMutationState().revision();
+		AtomicInteger objectEvents = new AtomicInteger();
+		AtomicInteger scheduleEvents = new AtomicInteger();
+		RuntimeException injected = new IllegalStateException("injected after assignment leveling split");
+		longTask.failure = injected;
+
+		ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(fixture.project,
+			List.of(fixture.resource), new ResourceLevelingService.Options(
+				ResourceLevelingService.Order.PRIORITY_STANDARD, false, true, Long.MIN_VALUE, Long.MAX_VALUE,
+				false, ResourceLevelingService.Sensitivity.HOUR, true, false));
+		assertEquals(1, plan.assignmentSplits().size(), "fixture must exercise assignment-level Apply: "
+			+ plan.unresolved() + " / " + plan.assignmentSplits());
+		fixture.project.addObjectListener(event -> objectEvents.incrementAndGet());
+		fixture.project.addScheduleListener(event -> scheduleEvents.incrementAndGet());
+		longTask.failNextRecalculate.set(true);
+
+		RuntimeException failure = assertThrows(RuntimeException.class, () -> plan.apply(undo.getEditSupport()));
+		assertSame(injected, failure.getCause().getCause(), "Apply must preserve the original exception in its cause chain");
+		assertNull(target.getLevelingSplitState(), "rollback must remove generated split ownership");
+		assertEquals(originalContour, target.getWorkContour().toString(target.getDurationMillis()),
+			"rollback must restore the assignment contour from before Apply");
+		assertEquals(originalDuration, target.getDurationMillis());
+		assertEquals(assignmentStart, target.getStart());
+		assertEquals(assignmentEnd, target.getEnd());
+		assertEquals(manualTaskSplits, longTask.getManualTaskSplitIntervals(), "user-owned task split must remain");
+		assertTrue(longTask.getLevelingTaskSplitIntervals().isEmpty());
+		assertEquals(taskStart, longTask.getStart());
+		assertEquals(taskEnd, longTask.getEnd());
+		assertEquals(taskDuration, longTask.getDuration());
+		assertEquals(unrelatedManualSplits, manuallySplitTask.getManualTaskSplitIntervals(),
+			"rollback must preserve pre-existing user-owned task split provenance");
+		assertEquals(manualAssignmentDuration, manuallySplitAssignment.getDurationMillis());
+		assertEquals(manualAssignmentContour, manuallySplitAssignment.getWorkContour()
+			.toString(manuallySplitAssignment.getDurationMillis()),
+			"rollback must preserve pre-existing user-owned assignment contour provenance");
+		assertEquals(taskDirty, longTask.isDirty());
+		assertEquals(assignmentDirty, target.isDirty());
+		assertEquals(projectDirty, fixture.project.isDirty());
+		assertEquals(revision, fixture.project.getMutationState().revision());
+		assertEquals(undoNames, undo.getEditNames());
+		assertEquals(redoName, undo.getRedoName());
+		assertFalse(undo.canUndo());
+		assertTrue(undo.canRedo());
+		assertEquals(0, objectEvents.get());
+		assertEquals(0, scheduleEvents.get());
+	}
+
+	@Test
 	void failedApplyRestoresEveryAssignmentDelayAndDoesNotPublishUndo() {
 		Fixture fixture = fixture();
 		ResourceImpl secondResource = fixture.project.getResourcePool().newResourceInstance();
@@ -1101,6 +1199,74 @@ class ResourceLevelingServiceTest {
 	}
 
 	@Test
+	void clearingAppliedLevelingPreservesActualWorkAndUnselectedState() {
+		Fixture fixture = fixture();
+		NormalTask targetTask = task(fixture.project, "Leveled task", 5L);
+		NormalTask blockerTask = task(fixture.project, "Unselected blocker", 1L);
+		blockerTask.setPriority(900);
+		blockerTask.setStart(fixture.project.getEffectiveWorkCalendar().add(
+			fixture.project.getStart(), CalendarOption.getInstance().getMillisPerDay(), false));
+		Assignment target = AssignmentService.getInstance().newAssignment(targetTask, fixture.resource, 1D, 0L, this);
+		Assignment blocker = AssignmentService.getInstance().newAssignment(blockerTask, fixture.resource, 1D, 0L, this);
+		String beforeContour = target.getWorkContour().toString(target.getDurationMillis());
+		ResourceLevelingService service = new ResourceLevelingService();
+		var undo = fixture.project.getUndoController();
+		ResourceLevelingService.Plan plan = service.previewSelectedTasks(fixture.project, List.of(fixture.resource),
+			new ResourceLevelingService.Options(ResourceLevelingService.Order.PRIORITY_STANDARD, false, true,
+				Long.MIN_VALUE, Long.MAX_VALUE, false, ResourceLevelingService.Sensitivity.HOUR, true, false),
+			List.of(targetTask));
+		assertEquals(1, plan.assignmentSplits().size(), "the unselected blocker must remain fixed while target splits");
+		plan.apply(undo.getEditSupport());
+		assertNotNull(target.getLevelingSplitState());
+
+		long totalWork = target.getWork(null);
+		long actualWork = com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		target.setImportedTimephasedWork(
+			com.microproject.pm.assignment.contour.PersonalContour.getInstance(new com.microproject.pm.assignment.contour.AbstractContourBucket[] {
+				com.microproject.pm.assignment.contour.PersonalContourBucket.getInstance(actualWork, 1.0D) }),
+			com.microproject.pm.assignment.contour.PersonalContour.getInstance(new com.microproject.pm.assignment.contour.AbstractContourBucket[] {
+				com.microproject.pm.assignment.contour.PersonalContourBucket.getInstance(totalWork - actualWork, 1.0D) }));
+		assertTrue(target.hasImportedTimephasedWork());
+		fixture.project.setStatusDate(targetTask.getStart() + com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR);
+		long expectedActual = target.getActualWork(null);
+		long expectedRemaining = target.getRemainingWork();
+		long expectedWork = target.getWork(null);
+		String generatedContour = target.getWorkContour().toString(target.getDurationMillis());
+		long blockerStart = blocker.getStart();
+		long blockerEnd = blocker.getEnd();
+		long blockerDelay = blocker.getLevelingDelay();
+
+		service.clear(fixture.project, List.of(targetTask), undo.getEditSupport());
+		assertNull(target.getLevelingSplitState());
+		assertEquals(expectedActual, target.getActualWork(null));
+		assertEquals(expectedRemaining, target.getRemainingWork());
+		assertEquals(expectedWork, target.getWork(null));
+		assertEquals(beforeContour, target.getWorkContour().toString(target.getDurationMillis()),
+			"Clear restores the pre-leveling contour");
+		assertEquals(blockerStart, blocker.getStart());
+		assertEquals(blockerEnd, blocker.getEnd());
+		assertEquals(blockerDelay, blocker.getLevelingDelay());
+		assertEquals(expectedActual, target.getActualWork(null), "actual work must remain stable after clear");
+		assertTrue(fixture.project.isStatusDateSet());
+		long statusDate = fixture.project.getStatusDate();
+		undo.undo();
+		assertNotNull(target.getLevelingSplitState(), "Undo Clear restores the generated split provenance");
+		assertEquals(generatedContour, target.getWorkContour().toString(target.getDurationMillis()));
+		assertEquals(expectedActual, target.getActualWork(null));
+		assertEquals(expectedRemaining, target.getRemainingWork());
+		assertEquals(statusDate, fixture.project.getStatusDate());
+		undo.redo();
+		assertNull(target.getLevelingSplitState(), "Redo Clear removes only the generated split provenance");
+		assertEquals(expectedActual, target.getActualWork(null));
+		assertEquals(expectedRemaining, target.getRemainingWork());
+		assertEquals(expectedWork, target.getWork(null));
+		assertEquals(beforeContour, target.getWorkContour().toString(target.getDurationMillis()));
+		assertEquals(statusDate, fixture.project.getStatusDate());
+		assertEquals(blockerStart, blocker.getStart());
+		assertEquals(blockerEnd, blocker.getEnd());
+	}
+
+	@Test
 	void clearingLevelingPreservesAssignmentStartEditedByTheUser() {
 		Fixture fixture = fixture();
 		NormalTask longTask = task(fixture.project, "Long task", 3L);
@@ -1170,6 +1336,16 @@ class ResourceLevelingServiceTest {
 		@Override public void splitForLeveling(Object eventSource, long from, long to) {
 			super.splitForLeveling(eventSource, from, to);
 			if (failAfterSplit) throw new IllegalStateException("injected apply failure");
+		}
+	}
+
+	private static final class ThrowingRecalculateTask extends NormalTask {
+		private final AtomicBoolean failNextRecalculate = new AtomicBoolean();
+		private RuntimeException failure;
+		private ThrowingRecalculateTask(Project project) { super(project); }
+		@Override public void recalculate(Object eventSource) {
+			if (failNextRecalculate.compareAndSet(true, false)) throw failure;
+			super.recalculate(eventSource);
 		}
 	}
 

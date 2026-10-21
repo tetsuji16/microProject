@@ -65,7 +65,7 @@ public class ScheduleService {
 	/**
 	 * Private constructor 
 	 */
-	private ScheduleService() {
+	ScheduleService() {
 		super();
 	}
 	
@@ -170,14 +170,70 @@ public class ScheduleService {
 		if (detailBackup == null && undoableEditSupport!=null&&!(eventSource instanceof UndoableEdit)){
 			detailBackup=schedule.backupDetail();
 		}
-		
-		schedule.moveInterval(eventSource,start,end,interval, false);
+		if (schedule instanceof NormalTask task) {
+			Project project = task.getProject();
+			final long targetStart = start;
+			final long targetEnd = end;
+			final Object editDetail = detailBackup;
+			Object rollbackDetail = editDetail != null ? editDetail : task.backupDetail();
+			boolean taskDirty = task.isDirty();
+			boolean projectDirty = project.isDirty();
+			runAtomicIntervalEdit(project, schedule, eventSource, targetStart, targetEnd, interval, editDetail,
+				undoableEditSupport, () -> {
+					task.restoreDetail(eventSource, rollbackDetail, false);
+					task.setDirty(taskDirty);
+					project.setDirty(projectDirty);
+				});
+			return true;
+		}
+		if (schedule instanceof Assignment assignment && assignment.getTask() instanceof NormalTask task) {
+			Project project = task.getProject();
+			final long targetStart = start;
+			final long targetEnd = end;
+			final Object editDetail = detailBackup;
+			Object assignmentRollbackDetail = editDetail != null ? editDetail : assignment.backupDetail();
+			Object taskRollbackDetail = task.backupDetail();
+			boolean assignmentDirty = assignment.isDirty();
+			boolean taskDirty = task.isDirty();
+			boolean projectDirty = project.isDirty();
+			runAtomicIntervalEdit(project, schedule, eventSource, targetStart, targetEnd, interval, editDetail,
+				undoableEditSupport, () -> {
+					task.restoreDetail(eventSource, taskRollbackDetail, false);
+					assignment.restoreDetail(eventSource, assignmentRollbackDetail, false);
+					assignment.setDirty(assignmentDirty);
+					task.setDirty(taskDirty);
+					project.setDirty(projectDirty);
+				});
+			return true;
+		}
+		applyInterval(schedule, eventSource, start, end, interval);
 		//Undo
 		if (detailBackup!=null){
 			undoableEditSupport.postEdit(new ScheduleEdit(schedule,detailBackup,start,end,interval,false,eventSource));
 		}
 		return true;
 
+	}
+
+	void applyInterval(Schedule schedule, Object eventSource, long start, long end, ScheduleInterval interval) {
+		schedule.moveInterval(eventSource, start, end, interval, false);
+	}
+
+	private void runAtomicIntervalEdit(Project project, Schedule schedule, Object eventSource, long start, long end,
+			ScheduleInterval interval, Object editDetail, EditSupport undoableEditSupport, Runnable rollback) {
+		project.runAtomicModelCommand(markApplied -> {
+			try {
+				markApplied.run();
+				applyInterval(schedule, eventSource, start, end, interval);
+				if (editDetail != null)
+					undoableEditSupport.postEdit(new ScheduleEdit(schedule, editDetail, start, end, interval, false, eventSource));
+			} catch (RuntimeException | Error failure) {
+				try { rollback.run(); }
+				catch (RuntimeException | Error rollbackFailure) { failure.addSuppressed(rollbackFailure); }
+				throw failure;
+			}
+			return null;
+		}, ignored -> true, ignored -> null);
 	}
 
 	/**
@@ -206,6 +262,65 @@ public class ScheduleService {
 		List<String> intervalsBefore = splitIntervalState(schedule);
 		long roundedFrom = DateTime.hourFloor(from);
 		long roundedTo = DateTime.hourFloor(to);
+		if (!levelingGenerated && schedule instanceof NormalTask task) {
+			Project project = task.getProject();
+			boolean taskDirty = task.isDirty();
+			boolean projectDirty = project.isDirty();
+			return project.runAtomicModelCommand(markApplied -> {
+				try {
+					markApplied.run();
+					task.split(eventSource, roundedFrom, roundedTo);
+					boolean changed = didSplitChangeSchedule(task, detailBackup, intervalsBefore);
+					if (!changed && detailBackup != null)
+						task.restoreDetail(eventSource, detailBackup, false);
+					if (changed && recordUndo)
+						undoableEditSupport.postEdit(new SplitEdit(task, detailBackup, from, to, eventSource));
+					return changed;
+				} catch (RuntimeException | Error failure) {
+					try {
+						task.restoreDetail(eventSource, detailBackup, false);
+						task.setDirty(taskDirty);
+						project.setDirty(projectDirty);
+					} catch (RuntimeException | Error rollbackFailure) {
+						failure.addSuppressed(rollbackFailure);
+					}
+					throw failure;
+				}
+			}, Boolean.TRUE::equals, ignored -> Boolean.TRUE);
+		}
+		if (!levelingGenerated && schedule instanceof Assignment assignment
+				&& assignment.getTask() instanceof NormalTask task) {
+			Project project = task.getProject();
+			Object taskDetailBackup = task.backupDetail();
+			boolean assignmentDirty = assignment.isDirty();
+			boolean taskDirty = task.isDirty();
+			boolean projectDirty = project.isDirty();
+			return project.runAtomicModelCommand(markApplied -> {
+				try {
+					markApplied.run();
+					applyOrdinarySplit(assignment, eventSource, roundedFrom, roundedTo);
+					boolean changed = didSplitChangeSchedule(assignment, detailBackup, intervalsBefore);
+					if (!changed && detailBackup != null) {
+						assignment.restoreDetail(eventSource, detailBackup, false);
+						task.restoreDetail(eventSource, taskDetailBackup, false);
+					}
+					if (changed && recordUndo)
+						undoableEditSupport.postEdit(new SplitEdit(assignment, detailBackup, from, to, eventSource));
+					return changed;
+				} catch (RuntimeException | Error failure) {
+					try {
+						assignment.restoreDetail(eventSource, detailBackup, false);
+						task.restoreDetail(eventSource, taskDetailBackup, false);
+						assignment.setDirty(assignmentDirty);
+						task.setDirty(taskDirty);
+						project.setDirty(projectDirty);
+					} catch (RuntimeException | Error rollbackFailure) {
+						failure.addSuppressed(rollbackFailure);
+					}
+					throw failure;
+				}
+			}, Boolean.TRUE::equals, ignored -> Boolean.TRUE);
+		}
 		if (levelingGenerated && schedule instanceof NormalTask normalTask)
 			normalTask.splitForLeveling(eventSource, roundedFrom, roundedTo);
 		else if (levelingGenerated && schedule instanceof Assignment assignment)
@@ -220,6 +335,10 @@ public class ScheduleService {
 			undoableEditSupport.postEdit(new SplitEdit(schedule,detailBackup,from,to,eventSource));
 		}
 		return changed;
+	}
+
+	void applyOrdinarySplit(Schedule schedule, Object eventSource, long from, long to) {
+		schedule.split(eventSource, from, to);
 	}
 
 	private boolean didSplitChangeSchedule(Schedule schedule, Object detailBackup, List<String> intervalsBefore) {

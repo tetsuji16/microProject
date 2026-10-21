@@ -182,11 +182,45 @@ class DefaultFrameManagerGuiAcceptanceTest {
 		robot.mouseMove(primaryBounds.x + primaryBounds.width - 22, primaryBounds.y + 15);
 		robot.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
-		GuiAcceptanceSupport.await(() -> desktopWindowManager.getIndependentWindowCount() == 1
-				&& !desktopWindowManager.getAllFrames().contains(frames[0])
-				&& desktopWindowManager.getIndependentWindow(frames[2]) != null
-				&& frames[1].getParent() == window.getContentPane(),
-				"closing the original primary did not promote the remaining secondary project");
+		try {
+			GuiAcceptanceSupport.await(() -> desktopWindowManager.getIndependentWindowCount() == 1
+					&& !desktopWindowManager.getAllFrames().contains(frames[0])
+					&& desktopWindowManager.getIndependentWindow(frames[2]) != null
+					&& frames[1].getParent() == window.getContentPane(),
+					"closing the original primary did not promote the remaining secondary project");
+		} catch (AssertionError failure) {
+			String[] diagnostics = new String[1];
+			SwingUtilities.invokeAndWait(() -> {
+				JFrame secondary = desktopWindowManager.getIndependentWindow(frames[2]);
+				String windows = java.util.Arrays.stream(java.awt.Window.getWindows())
+						.map(candidate -> candidate.getClass().getSimpleName() + "[title="
+								+ (candidate instanceof JFrame ? ((JFrame) candidate).getTitle() : "n/a")
+								+ ", showing=" + candidate.isShowing() + "]")
+							.collect(java.util.stream.Collectors.joining(", "));
+				StringBuilder activeFrames = new StringBuilder();
+				for (Object candidate : desktopWindowManager.getAllFrames()) {
+					DocumentFrame documentFrame = (DocumentFrame) candidate;
+					if (activeFrames.length() > 0) activeFrames.append(", ");
+					activeFrames.append(documentFrame.getProject().getName()).append("[active=")
+							.append(documentFrame.isActive()).append(", parent=")
+							.append(documentFrame.getParent() == window.getContentPane()
+									? "primary" : String.valueOf(documentFrame.getParent())).append("]");
+				}
+				diagnostics[0] = "Promotion predicates: independentWindowCount==1: "
+						+ (desktopWindowManager.getIndependentWindowCount() == 1)
+						+ "; original frame removed from getAllFrames: "
+						+ !desktopWindowManager.getAllFrames().contains(frames[0])
+						+ "; secondary mapping exists and is showing: " + (secondary != null)
+						+ "/" + (secondary != null && secondary.isShowing())
+						+ "; promoted frame parent is primary content pane: "
+						+ (frames[1].getParent() == window.getContentPane())
+						+ "; current windows: [" + windows + "]; active frames: [" + activeFrames
+						+ "]; selected=" + desktopWindowManager.getSelectedFrame()
+						+ "; active=" + desktopWindowManager.getActiveFrame()
+						+ "; graphic current=" + graphicManagers[0].getCurrentFrame();
+			});
+			throw new AssertionError(failure.getMessage() + "\n" + diagnostics[0], failure);
+		}
 		JFrame remainingSecondary = desktopWindowManager.getIndependentWindow(frames[2]);
 		clickWindowCenter(robot, remainingSecondary);
 		GuiAcceptanceSupport.await(() -> graphicManagers[0].getCurrentFrame() == frames[2]

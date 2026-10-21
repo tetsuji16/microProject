@@ -307,6 +307,138 @@ class GanttBarDateDragGuiAcceptanceTest {
 		assertEquals(initialEnd[0], fixture.predecessor.getEnd(), "spreadsheet-focused zoom changed the task end date");
 	}
 
+	/** Physical wheel coverage from both synchronized panes; each gesture has one observable owner. */
+	@Test
+	void robotWheelModifiersHaveOneOwnerFromGanttAndTaskTable() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		environmentCaptured = true;
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		Fixture fixture = createFixture(DependencyType.FS, false);
+		for (int index = 0; index < 40; index++) task(fixture.project, "Wheel task " + index, 1L);
+		fixture.project.recalculate();
+		DocumentFrame[] document = new DocumentFrame[1];
+		SwingUtilities.invokeAndWait(() -> {
+			projectWindow = new MainRibbonFrame("Gantt wheel GUI acceptance", null);
+			projectManager = new GraphicManager(projectWindow);
+			projectWindow.setGraphicManager(projectManager);
+			projectManager.initView();
+			document[0] = projectManager.addProjectFrame(fixture.project);
+			projectWindow.setSize(760, 650);
+			projectWindow.setLocation(20, 20);
+			projectWindow.setAlwaysOnTop(true);
+			projectWindow.setVisible(true);
+			document[0].activateGanttView();
+		});
+		GuiAcceptanceSupport.await(() -> projectWindow.isShowing() && document[0].isShowing(),
+			"Gantt wheel project window did not become visible");
+		GanttView[] view = new GanttView[1];
+		javax.swing.JViewport[] tableViewport = new javax.swing.JViewport[1];
+		javax.swing.JViewport[] ganttViewport = new javax.swing.JViewport[1];
+		javax.swing.JScrollPane[] tableScroll = new javax.swing.JScrollPane[1];
+		javax.swing.JScrollPane[] ganttScroll = new javax.swing.JScrollPane[1];
+		long[] taskStart = new long[1];
+		long[] taskEnd = new long[1];
+		SwingUtilities.invokeAndWait(() -> {
+			view[0] = (GanttView) document[0].getActiveTopView();
+			tableViewport[0] = (javax.swing.JViewport) SwingUtilities.getAncestorOfClass(
+				javax.swing.JViewport.class, view[0].getSpreadSheet());
+			tableScroll[0] = (javax.swing.JScrollPane) SwingUtilities.getAncestorOfClass(
+				javax.swing.JScrollPane.class, view[0].getSpreadSheet());
+			ganttViewport[0] = (javax.swing.JViewport) SwingUtilities.getAncestorOfClass(
+				javax.swing.JViewport.class, view[0].getGantt());
+			ganttScroll[0] = (javax.swing.JScrollPane) SwingUtilities.getAncestorOfClass(
+				javax.swing.JScrollPane.class, view[0].getGantt());
+			assertTrue(tableViewport[0] != null && ganttViewport[0] != null, "both panes must have viewports");
+			while (!view[0].canZoomIn()) view[0].zoomOut();
+			assertTrue(ganttViewport[0].getViewSize().height > ganttViewport[0].getExtentSize().height,
+				"fixture must provide vertical scroll range");
+			assertTrue(tableScroll[0].getHorizontalScrollBar().getMaximum()
+				> tableScroll[0].getHorizontalScrollBar().getVisibleAmount(),
+				"fixture must provide task-table horizontal scroll range");
+			taskStart[0] = fixture.predecessor.getStart();
+			taskEnd[0] = fixture.predecessor.getEnd();
+		});
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(40);
+		projectWindow.toFront();
+		projectWindow.requestFocus();
+		robot.delay(250);
+		for (boolean overGantt : new boolean[] { true, false }) {
+			SwingUtilities.invokeAndWait(() -> {
+				ganttViewport[0].setViewPosition(new Point(0, 0));
+				tableViewport[0].setViewPosition(new Point(0, 0));
+			});
+			java.awt.Component target = overGantt ? view[0].getGantt() : view[0].getSpreadSheet();
+			java.awt.Component hitRegion = overGantt ? ganttViewport[0] : tableViewport[0];
+			Point location = hitRegion.getLocationOnScreen();
+			int x = location.x + Math.max(15, hitRegion.getWidth() / 2);
+			int y = location.y + Math.max(15, hitRegion.getHeight() / 2);
+			robot.mouseMove(x, y);
+			robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+			robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+			SwingUtilities.invokeAndWait(() -> {
+				target.requestFocus();
+				target.requestFocusInWindow();
+			});
+			GuiAcceptanceSupport.await(target::isFocusOwner,
+				(overGantt ? "Gantt" : "task table") + " did not acquire focus before wheel route");
+			Point ganttLocation = ganttViewport[0].getLocationOnScreen();
+			robot.mouseMove(ganttLocation.x + Math.max(15, ganttViewport[0].getWidth() / 2),
+				ganttLocation.y + Math.max(15, ganttViewport[0].getHeight() / 2));
+			int initialGanttX = ganttViewport[0].getViewPosition().x;
+			int initialTableX = tableViewport[0].getViewPosition().x;
+			int beforeY = ganttViewport[0].getViewPosition().y;
+			int rowStep = view[0].getGantt().getRowHeight() * 5;
+			robot.mouseWheel(1);
+			GuiAcceptanceSupport.await(() -> ganttViewport[0].getViewPosition().y != beforeY,
+				"plain wheel from " + (overGantt ? "Gantt" : "task table") + " did not scroll");
+			assertEquals(beforeY + rowStep, ganttViewport[0].getViewPosition().y,
+				"plain wheel must advance exactly one owner step");
+			assertEquals(ganttViewport[0].getViewPosition().y, tableViewport[0].getViewPosition().y,
+				"plain wheel must keep task table and Gantt vertically synchronized");
+			assertEquals(initialGanttX, ganttViewport[0].getViewPosition().x, "plain wheel must preserve Gantt horizontal position");
+			assertEquals(initialTableX, tableViewport[0].getViewPosition().x, "plain wheel must preserve table horizontal position");
+			assertEquals(taskStart[0], fixture.predecessor.getStart(), "wheel must preserve task start");
+			assertEquals(taskEnd[0], fixture.predecessor.getEnd(), "wheel must preserve task end");
+
+			javax.swing.JScrollPane targetScroll = ganttScroll[0];
+			javax.swing.JViewport targetViewport = ganttViewport[0];
+			javax.swing.JViewport otherViewport = tableViewport[0];
+			int beforeX = targetViewport.getViewPosition().x;
+			int otherX = otherViewport.getViewPosition().x;
+			int beforeVertical = ganttViewport[0].getViewPosition().y;
+			int horizontalStep = targetScroll.getHorizontalScrollBar().getUnitIncrement(1);
+			int beforeHorizontalWheel = beforeX;
+			robot.keyPress(KeyEvent.VK_SHIFT);
+			try { robot.mouseWheel(1); } finally { robot.keyRelease(KeyEvent.VK_SHIFT); }
+			GuiAcceptanceSupport.await(() -> targetViewport.getViewPosition().x != beforeHorizontalWheel,
+				"Shift+wheel from " + (overGantt ? "Gantt" : "task table") + " did not scroll horizontally");
+			assertEquals(beforeX + horizontalStep, targetViewport.getViewPosition().x,
+				"Shift+wheel must move one horizontal unit");
+			assertEquals(otherX, otherViewport.getViewPosition().x, "Shift+wheel must not scroll the other pane horizontally");
+			assertEquals(beforeVertical, ganttViewport[0].getViewPosition().y, "Shift+wheel must not scroll vertically");
+			assertEquals(tableViewport[0].getViewPosition().y, ganttViewport[0].getViewPosition().y,
+				"Shift+wheel must preserve synchronized vertical positions");
+
+			int beforeScale = view[0].getScale();
+			int direction = beforeScale == view[0].getScaleCount() - 1 ? -1 : 1;
+			beforeVertical = ganttViewport[0].getViewPosition().y;
+			Point tableBeforeZoom = tableViewport[0].getViewPosition();
+			robot.keyPress(KeyEvent.VK_CONTROL);
+			try { robot.mouseWheel(direction); } finally { robot.keyRelease(KeyEvent.VK_CONTROL); }
+			GuiAcceptanceSupport.await(() -> view[0].getScale() != beforeScale,
+				"Ctrl+wheel from " + (overGantt ? "Gantt" : "task table") + " did not zoom");
+			assertEquals(beforeScale + direction, view[0].getScale(), "Ctrl+wheel must change zoom by one step");
+			assertEquals(beforeVertical, ganttViewport[0].getViewPosition().y, "Ctrl+wheel must preserve vertical position");
+			assertEquals(tableBeforeZoom, tableViewport[0].getViewPosition(), "Ctrl+wheel must preserve table viewport position");
+			assertEquals(taskStart[0], fixture.predecessor.getStart(), "wheel zoom must preserve task start");
+			assertEquals(taskEnd[0], fixture.predecessor.getEnd(), "wheel zoom must preserve task end");
+		}
+	}
+
 	@Test
 	void robotCtrlNumpadZoomIsNoOpWhenResourceViewIsActive() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");

@@ -37,7 +37,37 @@ especially after GUI failure. After two failed fix attempts against the same
 failure, review root-cause evidence and establish a reproducer or diagnostic
 before another fix attempt; do not continue guessed patches.
 
+For repeated cases on one code path, define the matrix as one finite slice and
+resolve expected calendar/date outcomes before expanding cases. Run focused
+checks while iterating, then run the broad suite once after the matrix or
+integration is complete. Serialize writers that share files.
+
+Before enabling successful publication from a low-level setter, inventory its
+callers, including initialization and detached/internal objects, and gate
+project revisions on canonical project ownership where appropriate.
+
 ## Evidence and integration
+
+### Classify GUI evidence before diagnosis
+
+- Name the evidence layer explicitly: direct setter/model probe, headless
+  verifier, physical Robot route, MPO save/reload, and CI on the exact candidate
+  SHA prove different things. Do not substitute one layer for another or
+  describe an earlier SHA as exact-candidate CI.
+- Before interpreting an error screen, decide whether it is an expected
+  application dialog under test or a test failure. Capture the screen/log and
+  relevant model state first; for expected dialogs verify message, dismissal,
+  and state outcome. Keep diagnostic artifacts for actual failures.
+- Record detected foreground overlap or other pre-dispatch desktop contention
+  separately from product assertions, with its artifacts and command result.
+  Retry only after the desktop is clear; preserve display resolution and do
+  not close other apps to force a GUI run.
+- Persistence assertions use canonical persisted identity keys (for example,
+  task UID plus resource UID for assignments); never assume in-memory object
+  identity or generated IDs survive save/reload.
+- Run screenshot/DPI matrices when visual constraints change and at the final
+  release gate. Continue physical tests for changed GUI routes regardless of
+  whether layout changed. Preserve resolution and visual assertions.
 
 - Choose the narrowest existing test/fixture that covers the criterion. Reuse
   it; do not multiply mirrored cases. Compilation is not physical GUI proof.

@@ -315,17 +315,35 @@ class RespectLinksServiceTest {
 		Project project = project();
 		NormalTask predecessor = task(project, "Predecessor", 2);
 		NormalTask successor = task(project, "Successor", 1);
+		NormalTask unrelated = task(project, "Unrelated", 1);
 		long day = day();
 		long base = project.getWorkCalendar().adjustInsideCalendar(project.getStart(), false);
 		long start = project.getWorkCalendar().add(base, 5L * day, false);
 		predecessor.setManualDates(start, project.getWorkCalendar().add(start, 2L * day, true));
 		long early = base;
 		successor.setManualDates(early, project.getWorkCalendar().add(early, day, true));
+		unrelated.setManualDates(start, project.getWorkCalendar().add(start, day, true));
+		var resource = project.getResourcePool().newResourceInstance();
+		var assignment = AssignmentService.getInstance().newAssignment(successor, resource, 1.0d, 0L, this);
 		successor.setScheduleConstraint(ConstraintType.Kind.MSO, early);
 		DependencyService.getInstance().newDependency(predecessor, successor, DependencyType.FS, 0L, this);
 		long oldStart = successor.getStart();
 		long oldFinish = successor.getEnd();
 		boolean oldDirty = successor.isDirty();
+		long oldAssignmentStart = assignment.getStart();
+		long oldAssignmentEnd = assignment.getEnd();
+		long oldAssignmentWork = assignment.getWork(null);
+		double oldAssignmentCost = assignment.getCost();
+		long unrelatedStart = unrelated.getStart();
+		long unrelatedFinish = unrelated.getEnd();
+		boolean unrelatedDirty = unrelated.isDirty();
+		long revision = project.getMutationState().revision();
+		project.setDirty(false);
+		project.getUndoController().clear();
+		AtomicInteger schedules = new AtomicInteger();
+		AtomicInteger objects = new AtomicInteger();
+		project.addScheduleListener(event -> schedules.incrementAndGet());
+		project.addObjectListener(event -> objects.incrementAndGet());
 
 		IllegalStateException failure = assertThrows(IllegalStateException.class,
 			() -> new RespectLinksService().apply(project, List.of(successor)));
@@ -336,6 +354,19 @@ class RespectLinksServiceTest {
 		assertTrue(successor.isManuallyScheduled());
 		assertEquals(ConstraintType.Kind.MSO, successor.getConstraintTypeKind());
 		assertEquals(oldDirty, successor.isDirty());
+		assertEquals(oldAssignmentStart, assignment.getStart());
+		assertEquals(oldAssignmentEnd, assignment.getEnd());
+		assertEquals(oldAssignmentWork, assignment.getWork(null));
+		assertEquals(oldAssignmentCost, assignment.getCost(), 0.00001d);
+		assertEquals(unrelatedStart, unrelated.getStart());
+		assertEquals(unrelatedFinish, unrelated.getEnd());
+		assertEquals(unrelatedDirty, unrelated.isDirty());
+		assertFalse(project.isDirty());
+		assertEquals(revision, project.getMutationState().revision());
+		assertFalse(project.getUndoController().canUndo());
+		assertFalse(project.getUndoController().canRedo());
+		assertEquals(0, schedules.get());
+		assertEquals(0, objects.get());
 	}
 
 	@Test

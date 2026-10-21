@@ -27,12 +27,16 @@ package com.microproject.pm.task;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ListIterator;
 import java.text.ParsePosition;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.MutableTreeNode;
@@ -299,6 +303,31 @@ class NormalTaskDurationTest {
 	}
 
 	@Test
+	void successfulDurationChangePublishesOneProjectRevision() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		long revision = project.getMutationState().revision();
+		long duration = 3L * day();
+
+		task.setDuration(duration);
+
+		assertEquals(duration, task.getDuration());
+		assertEquals(revision + 1, project.getMutationState().revision());
+	}
+
+	@Test
+	void detachedInternalTaskDurationChangeDoesNotPublishProjectRevision() {
+		Project project = createProject();
+		NormalTask detachedInternalTask = new NormalTask(true, project);
+		long revision = project.getMutationState().revision();
+
+		detachedInternalTask.setDuration(day());
+
+		assertEquals(day(), detachedInternalTask.getDuration());
+		assertEquals(revision, project.getMutationState().revision());
+	}
+
+	@Test
 	void finishAnchoredDurationInputKeepsFinishAndMovesStart() {
 		Project project = createProject();
 		NormalTask task = createTask(project);
@@ -329,6 +358,116 @@ class NormalTaskDurationTest {
 	}
 
 	@Test
+	void durationFailureAfterScheduleMutationRestoresProjectStateAtomically() throws InvalidAssociationException {
+		Project project = createProject();
+		AtomicBoolean injectFailure = new AtomicBoolean();
+		AtomicBoolean observedPartialSchedule = new AtomicBoolean();
+		AtomicBoolean observedMetadataDelta = new AtomicBoolean();
+		AtomicBoolean observedDependentInvalidation = new AtomicBoolean();
+		AtomicReference<NormalTask> successorRef = new AtomicReference<>();
+		AtomicReference<NormalTask> downstreamRef = new AtomicReference<>();
+		RuntimeException injected = new IllegalStateException("injected after duration schedule mutation");
+		class FailingTask extends NormalTask {
+			long originalStart;
+			long originalEnd;
+			int originalCalculationState;
+			int originalSuccessorCalculationState;
+			int originalDownstreamCalculationState;
+			FailingTask(Project owner) { super(owner); }
+			@Override public void markAllDependentTasksAsNeedingRecalculation(boolean doSelf) {
+				super.markAllDependentTasksAsNeedingRecalculation(doSelf);
+				if (injectFailure.compareAndSet(true, false)) {
+					observedPartialSchedule.set(getDuration() == day()
+						&& (getStart() != originalStart || getEnd() != originalEnd));
+					observedMetadataDelta.set(!isEstimated() && getDurationDisplayUnit() == TimeUnit.HOURS);
+					NormalTask linkedSuccessor = successorRef.get();
+					NormalTask linkedDownstream = downstreamRef.get();
+					observedDependentInvalidation.set(getCalculationStateCount() > originalCalculationState
+						&& linkedSuccessor.getCalculationStateCount() > originalSuccessorCalculationState
+						&& linkedDownstream.getCalculationStateCount() > originalDownstreamCalculationState);
+					throw injected;
+				}
+			}
+		}
+		FailingTask task = new FailingTask(project);
+		project.connectTask(task);
+		project.getSchedulingAlgorithm().addObject(task);
+		NormalTask successor = createTask(project);
+		successorRef.set(successor);
+		NormalTask downstream = createTask(project);
+		downstreamRef.set(downstream);
+		task.setDuration(3L * day());
+		task.setActualDuration(2L * day());
+		successor.setDuration(day());
+		downstream.setDuration(day());
+		DependencyService.getInstance().newDependency(task, successor, DependencyType.FS, 0L, this);
+		DependencyService.getInstance().newDependency(successor, downstream, DependencyType.FS, 0L, this);
+		project.recalculate();
+		long start = task.getStart();
+		long finish = task.getEnd();
+		int taskCalculationState = task.getCalculationStateCount();
+		int successorCalculationState = successor.getCalculationStateCount();
+		int downstreamCalculationState = downstream.getCalculationStateCount();
+		long successorStart = successor.getStart();
+		long downstreamStart = downstream.getStart();
+		long duration = task.getDuration();
+		long actualDuration = task.getActualDuration();
+		double progress = task.getPercentComplete();
+		boolean estimated = task.isEstimated();
+		int displayUnit = task.getDurationDisplayUnit();
+		boolean taskDirty = task.isDirty();
+		boolean successorDirty = successor.isDirty();
+		boolean downstreamDirty = downstream.isDirty();
+		boolean projectDirty = project.isDirty();
+		long revision = project.getMutationState().revision();
+		var undo = project.getUndoController();
+		List<String> undoNames = List.copyOf(undo.getEditNames());
+		boolean canUndo = undo.canUndo();
+		boolean canRedo = undo.canRedo();
+		String redoName = undo.getRedoName();
+		AtomicInteger objectEvents = new AtomicInteger();
+		AtomicInteger scheduleEvents = new AtomicInteger();
+		project.addObjectListener(event -> objectEvents.incrementAndGet());
+		project.addScheduleListener(event -> scheduleEvents.incrementAndGet());
+		task.originalStart = start;
+		task.originalEnd = finish;
+		task.originalCalculationState = taskCalculationState;
+		task.originalSuccessorCalculationState = successorCalculationState;
+		task.originalDownstreamCalculationState = downstreamCalculationState;
+		injectFailure.set(true);
+
+		assertSame(injected, assertThrows(RuntimeException.class,
+			() -> task.setDuration(Duration.setAsTimeUnit(Duration.setAsEstimated(day(), false), TimeUnit.HOURS))));
+
+		assertTrue(observedPartialSchedule.get(), "injected failure must follow changed task dates and duration");
+		assertTrue(observedMetadataDelta.get(), "estimated/display-unit metadata must change before injection");
+		assertTrue(observedDependentInvalidation.get(), "task and transitive dependent calculation states must advance before injection");
+		assertEquals(start, task.getStart());
+		assertEquals(finish, task.getEnd());
+		assertEquals(duration, task.getDuration());
+		assertEquals(actualDuration, task.getActualDuration());
+		assertEquals(progress, task.getPercentComplete());
+		assertEquals(estimated, task.isEstimated());
+		assertEquals(displayUnit, task.getDurationDisplayUnit());
+		assertEquals(successorStart, successor.getStart());
+		assertEquals(downstreamStart, downstream.getStart());
+		assertEquals(taskCalculationState, task.getCalculationStateCount());
+		assertEquals(successorCalculationState, successor.getCalculationStateCount());
+		assertEquals(downstreamCalculationState, downstream.getCalculationStateCount());
+		assertEquals(taskDirty, task.isDirty());
+		assertEquals(successorDirty, successor.isDirty());
+		assertEquals(downstreamDirty, downstream.isDirty());
+		assertEquals(projectDirty, project.isDirty());
+		assertEquals(revision, project.getMutationState().revision());
+		assertEquals(canUndo, undo.canUndo());
+		assertEquals(canRedo, undo.canRedo());
+		assertEquals(undoNames, undo.getEditNames());
+		assertEquals(redoName, undo.getRedoName());
+		assertEquals(0, objectEvents.get());
+		assertEquals(0, scheduleEvents.get());
+	}
+
+	@Test
 	void taskSheetStartEditKeepsDurationAndMovesFinish() {
 		Project project = createProject();
 		NormalTask task = createTask(project);
@@ -338,11 +477,143 @@ class NormalTaskDurationTest {
 		long newStart = task.getEffectiveWorkCalendar().add(task.getStart(), day(), false);
 		long expectedFinish = task.getEffectiveWorkCalendar().add(newStart, 2L * day(), false);
 
+		long revision = project.getMutationState().revision();
 		task.setStart(newStart, context);
 
 		assertEquals(newStart, task.getStart());
 		assertEquals(expectedFinish, task.getEnd());
 		assertEquals(2L * day(), task.getDuration());
+		assertEquals(revision + 1, project.getMutationState().revision());
+	}
+
+	@Test
+	void taskSheetStartFailureRestoresDependentScheduleAndPublicationState() throws InvalidAssociationException {
+		Project project = createProject();
+		AtomicBoolean injectFailure = new AtomicBoolean();
+		AtomicBoolean observedMutation = new AtomicBoolean();
+		RuntimeException injected = new IllegalStateException("injected after start schedule mutation");
+		class FailingTask extends NormalTask {
+			long originalStart;
+			FailingTask(Project owner) { super(owner); }
+			@Override public void markAllDependentTasksAsNeedingRecalculation(boolean doSelf) {
+				super.markAllDependentTasksAsNeedingRecalculation(doSelf);
+				if (injectFailure.compareAndSet(true, false)) {
+					observedMutation.set(getStart() != originalStart);
+					throw injected;
+				}
+			}
+		}
+		FailingTask task = new FailingTask(project);
+		project.connectTask(task);
+		project.getSchedulingAlgorithm().addObject(task);
+		NormalTask successor = createTask(project);
+		task.setDuration(day());
+		successor.setDuration(day());
+		DependencyService.getInstance().newDependency(task, successor, DependencyType.FS, 0L, this);
+		project.recalculate();
+		long start = task.getStart();
+		long finish = task.getEnd();
+		long successorStart = successor.getStart();
+		boolean taskDirty = task.isDirty();
+		boolean successorDirty = successor.isDirty();
+		boolean projectDirty = project.isDirty();
+		long revision = project.getMutationState().revision();
+		var undo = project.getUndoController();
+		List<String> undoNames = List.copyOf(undo.getEditNames());
+		boolean canUndo = undo.canUndo();
+		boolean canRedo = undo.canRedo();
+		AtomicInteger objectEvents = new AtomicInteger();
+		AtomicInteger scheduleEvents = new AtomicInteger();
+		project.addObjectListener(event -> objectEvents.incrementAndGet());
+		project.addScheduleListener(event -> scheduleEvents.incrementAndGet());
+		task.originalStart = start;
+		injectFailure.set(true);
+		long newStart = task.getEffectiveWorkCalendar().add(start, day(), false);
+
+		assertSame(injected, assertThrows(RuntimeException.class, () -> task.setStart(newStart, taskSheetContext())));
+		assertTrue(observedMutation.get());
+		assertEquals(start, task.getStart());
+		assertEquals(finish, task.getEnd());
+		assertEquals(successorStart, successor.getStart());
+		assertEquals(taskDirty, task.isDirty());
+		assertEquals(successorDirty, successor.isDirty());
+		assertEquals(projectDirty, project.isDirty());
+		assertEquals(revision, project.getMutationState().revision());
+		assertEquals(canUndo, undo.canUndo());
+		assertEquals(canRedo, undo.canRedo());
+		assertEquals(undoNames, undo.getEditNames());
+		assertEquals(0, objectEvents.get());
+		assertEquals(0, scheduleEvents.get());
+	}
+
+	@Test
+	void taskSheetFinishFailureRestoresDependentScheduleAndPublicationState() throws InvalidAssociationException {
+		Project project = createProject();
+		AtomicBoolean injectFailure = new AtomicBoolean();
+		AtomicBoolean observedMutation = new AtomicBoolean();
+		RuntimeException injected = new IllegalStateException("injected after finish schedule mutation");
+		class FailingTask extends NormalTask {
+			long originalFinish;
+			FailingTask(Project owner) { super(owner); }
+			@Override public void markAllDependentTasksAsNeedingRecalculation(boolean doSelf) {
+				super.markAllDependentTasksAsNeedingRecalculation(doSelf);
+				if (injectFailure.compareAndSet(true, false)) {
+					observedMutation.set(getEnd() != originalFinish);
+					throw injected;
+				}
+			}
+		}
+		FailingTask task = new FailingTask(project);
+		project.connectTask(task);
+		project.getSchedulingAlgorithm().addObject(task);
+		NormalTask successor = createTask(project);
+		task.setDuration(day());
+		successor.setDuration(day());
+		DependencyService.getInstance().newDependency(task, successor, DependencyType.FS, 0L, this);
+		project.recalculate();
+		long start = task.getStart();
+		long finish = task.getEnd();
+		long successorStart = successor.getStart();
+		int taskCalculationState = task.getCalculationStateCount();
+		int successorCalculationState = successor.getCalculationStateCount();
+		long duration = task.getDuration();
+		boolean estimated = task.isEstimated();
+		int displayUnit = task.getDurationDisplayUnit();
+		boolean taskDirty = task.isDirty();
+		boolean successorDirty = successor.isDirty();
+		boolean projectDirty = project.isDirty();
+		long revision = project.getMutationState().revision();
+		var undo = project.getUndoController();
+		List<String> undoNames = List.copyOf(undo.getEditNames());
+		boolean canUndo = undo.canUndo();
+		boolean canRedo = undo.canRedo();
+		AtomicInteger objectEvents = new AtomicInteger();
+		AtomicInteger scheduleEvents = new AtomicInteger();
+		project.addObjectListener(event -> objectEvents.incrementAndGet());
+		project.addScheduleListener(event -> scheduleEvents.incrementAndGet());
+		task.originalFinish = finish;
+		injectFailure.set(true);
+		long newFinish = task.getEffectiveWorkCalendar().add(finish, day(), false);
+
+		assertSame(injected, assertThrows(RuntimeException.class, () -> task.setEnd(newFinish, taskSheetContext())));
+		assertTrue(observedMutation.get());
+		assertEquals(start, task.getStart());
+		assertEquals(finish, task.getEnd());
+		assertEquals(duration, task.getDuration());
+		assertEquals(estimated, task.isEstimated());
+		assertEquals(displayUnit, task.getDurationDisplayUnit());
+		assertEquals(successorStart, successor.getStart());
+		assertEquals(taskCalculationState, task.getCalculationStateCount());
+		assertEquals(successorCalculationState, successor.getCalculationStateCount());
+		assertEquals(taskDirty, task.isDirty());
+		assertEquals(successorDirty, successor.isDirty());
+		assertEquals(projectDirty, project.isDirty());
+		assertEquals(revision, project.getMutationState().revision());
+		assertEquals(canUndo, undo.canUndo());
+		assertEquals(canRedo, undo.canRedo());
+		assertEquals(undoNames, undo.getEditNames());
+		assertEquals(0, objectEvents.get());
+		assertEquals(0, scheduleEvents.get());
 	}
 
 	@Test
@@ -354,12 +625,14 @@ class NormalTaskDurationTest {
 
 		long newFinish = task.getEffectiveWorkCalendar().add(task.getEnd(), day(), false);
 		long expectedStart = task.getEffectiveWorkCalendar().add(newFinish, -(2L * day()), true);
+		long revision = project.getMutationState().revision();
 
 		task.setEnd(newFinish, context);
 
 		assertEquals(expectedStart, task.getStart());
 		assertEquals(newFinish, task.getEnd());
 		assertEquals(2L * day(), task.getDuration());
+		assertEquals(revision + 1L, project.getMutationState().revision());
 	}
 
 	@Test

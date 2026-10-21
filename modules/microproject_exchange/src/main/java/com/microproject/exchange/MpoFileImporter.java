@@ -1026,7 +1026,7 @@ public class MpoFileImporter extends FileImporter {
 		java.util.Map<Assignment, Integer> serializedAssignmentUids) throws IOException {
 		try {
 			ObjectNode root = JSON.createObjectNode();
-			root.put("version", 1);
+			root.put("version", 2);
 			var assignments = root.putArray("assignments");
 			for (java.util.Iterator<?> tasks = project.getTaskOutlineIterator(); tasks.hasNext();) {
 				Task task = (Task) tasks.next();
@@ -1041,6 +1041,8 @@ public class MpoFileImporter extends FileImporter {
 					node.put("assignmentUid", uid.intValue());
 					node.put("beforeDuration", state.beforeDuration());
 					node.put("generatedDuration", state.generatedDuration());
+					node.put("sourceContourMatchesGenerated",
+						state.matchesGenerated(assignment.getWorkContour(), assignment.getDurationMillis()));
 					writeContour(node.putObject("beforeContour"), state.beforeContourSnapshot());
 					writeContour(node.putObject("generatedContour"), state.generatedContourSnapshot());
 					writeTaskSplitIntervals(node.putArray("generatedGaps"), state.generatedGaps());
@@ -1057,7 +1059,8 @@ public class MpoFileImporter extends FileImporter {
 	private static void restoreAssignmentLevelingSplits(Project project, byte[] bytes) throws IOException {
 		JsonNode root = JSON.readTree(bytes);
 		JsonNode assignments = root.path("assignments");
-		if (requiredInt(root, "version") != 1 || !assignments.isArray() || assignments.size() > MAX_OPERATION_COUNT)
+		int version = requiredInt(root, "version");
+		if ((version != 1 && version != 2) || !assignments.isArray() || assignments.size() > MAX_OPERATION_COUNT)
 			throw new IOException("Invalid mpo assignment leveling split data");
 		java.util.ArrayList<AssignmentSplitReplacement> replacements = new java.util.ArrayList<>();
 		java.util.HashSet<Long> seen = new java.util.HashSet<>();
@@ -1079,9 +1082,19 @@ public class MpoFileImporter extends FileImporter {
 			gapCount += intervals.size();
 			if (gapCount > MAX_OPERATION_COUNT) throw new IOException("MPO contains too many assignment leveling gaps");
 			try {
+				var beforeContour = BaselineAssignmentProfile.restoreContour(before);
+				var generatedContour = BaselineAssignmentProfile.restoreContour(generated);
 				AssignmentLevelingSplitState state = new AssignmentLevelingSplitState(
-					BaselineAssignmentProfile.restoreContour(before), beforeDuration,
-					BaselineAssignmentProfile.restoreContour(generated), generatedDuration, intervals);
+					beforeContour, beforeDuration, generatedContour, generatedDuration, intervals);
+				boolean sourceContourMatchesGenerated = version >= 2
+					&& node.path("sourceContourMatchesGenerated").isBoolean()
+					&& node.path("sourceContourMatchesGenerated").booleanValue();
+				if (sourceContourMatchesGenerated
+					&& !state.matchesGenerated(assignment.getWorkContour(), assignment.getDurationMillis())
+					&& assignment.importedProfilesMatchWorkTotal(generatedContour, generatedDuration)) {
+					state = new AssignmentLevelingSplitState(beforeContour, beforeDuration,
+						assignment.getWorkContour(), assignment.getDurationMillis(), intervals);
+				}
 				replacements.add(new AssignmentSplitReplacement(assignment, state));
 			} catch (RuntimeException exception) {
 				throw new IOException("Invalid MPO assignment leveling split for uid=" + uid, exception);

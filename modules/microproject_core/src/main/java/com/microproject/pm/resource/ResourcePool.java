@@ -263,8 +263,31 @@ public class ResourcePool implements Document, NodeModelDataFactory {
 		return ProjectMutationState.coordinated(this::advanceCoordinationRevisionCoordinated);
 	}
 	private long advanceCoordinationRevisionCoordinated() {
-		return ProjectMutationState.coordinatedRevision(this, () -> ++coordinationRevision);
+		return ProjectMutationState.coordinatedRevision(this, () -> ++coordinationRevision,
+			value -> coordinationRevision = value);
 	}
+
+	/** Captures the identity-preserving mutable state needed by a shared-pool transaction. */
+	public PoolState captureSharedPoolState() {
+		return ProjectMutationState.coordinated(() -> new PoolState(List.copyOf(resourceList), List.copyOf(projects),
+			resourceIdCounter, coordinationRevision));
+	}
+
+	/** Restores a previously captured shared-pool state without publishing intermediate revisions. */
+	public void restoreSharedPoolState(PoolState state) {
+		ProjectMutationState.coordinated(() -> {
+			resourceList.clear(); resourceList.addAll(state.resources());
+			projects.clear(); projects.addAll(state.projects());
+			resourceIdCounter = state.resourceIdCounter();
+			coordinationRevision = state.coordinationRevision();
+			idMap = null;
+			for (Resource resource : resourceList)
+				if (resource instanceof ResourceImpl implementation) implementation.getGlobalResource().setResourcePool(this);
+		});
+	}
+
+	public record PoolState(List<Resource> resources, List<Project> projects, long resourceIdCounter,
+		long coordinationRevision) { }
 	private boolean containsResourceIdentity(Resource expected) {
 		for (Resource resource : resourceList)
 			if (resource == expected) return true;

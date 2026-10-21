@@ -2,119 +2,62 @@
 
 State: OPEN. Issue: https://github.com/tetsuji16/ProjectLibre/issues/794
 Dependencies: #792 CLOSED; #793 CLOSED (met). Contract frozen 2026-10-20.
-Contract evidence began at dirty worktree `40f5ee8d575a3327e727b9f62182c07aa55d2178`;
-current HEAD: `37c07cbf8092389afc2f995ee95640b6764b3a41`, with extensive dirty
-changes. Evidence is scoped local evidence, not full exact-head release proof.
-Closed children do not establish parent acceptance.
+Baseline/current HEAD: `1ca2b41485e4403e1d3b76d2fa0d8dd903c20217`; candidate changes remain uncommitted. Working tree includes unrelated/shared edits and untracked `.codex-remote-attachments/`; preserve them. Detailed history, commands and artifacts: [issue-794-evidence.md](issue-794-evidence.md). Do not release until all frozen criteria, Phase 6, and exact-candidate CI pass.
 
-## Goal and frozen acceptance
+## Frozen acceptance
 
-Complete offline desktop parity, verify all evidence, and release last.
-
-| ID | Required evidence | State |
+| Gate | Required evidence | State |
 |---|---|---|
-| M2.1 | #408/#414 physical routes; text/date/numeric edits, sort/filter/group/projection; #750 Sort Order; #761 permanent renumber confirmation/Undo/persistence | Open; #750/#761 closed. |
-| M2.2 | #403/#409/#410/#411/#453/#769 scheduling, links/lags, transactions, diagnostics, Undo/Redo, MPO reopen, failure atomicity | Open. |
-| M2.3 | #453/#769/#772 resource/assignment/progress/baseline scope, provenance, totals, actuals, splits, outcomes, Undo/Redo, MPO reopen | Open; #772 closed. |
-| M2.4 | #453/#765/#769/#770 command/view/report/print source, enablement, physical route/result, model purity, persistence, locale/DPI | Open. |
-| Common | Focused tests; physical route when changed; atomicity; unrelated-state preservation; exact build/fixture/test/screenshot/log | Open. |
+| M2.1 (#408/#414) | Physical edit/sort/filter/group/projection and applicable command routes; stable selection/view; #750/#761 confirmation, Undo, persistence | Partial; #750/#761 closed; #414 routes, Java net-reduction metric, three hostile reviews and gate open |
+| M2.2 (#403/#409/#410/#411/#453/#769) | Scheduling dates/dependencies/lags, intended mutation, diagnostics, Undo/Redo, MPO reopen, failure atomicity | Partial; many atomicity/dependency routes verified; remaining families open |
+| M2.3 (#453/#769/#772) | Resource/assignment/progress/baseline scope, provenance/defaults, totals, actuals/splits, outcomes, Undo/Redo, MPO | Open; #772 closed |
+| M2.4 (#453/#765/#769/#770) | Command/view/report/print source, enablement, physical route/result, purity, persistence, ja/en/DPI | Open |
+| Common | Focused tests, physical changed route, atomicity/unrelated-state preservation, exact-head build/fixture/test/log and release gate | Open |
 
-Frozen detail: M2.1 includes text/date/numeric fields, ties/empty values, both
-sort directions, filter/group, selection identity, table/Gantt alignment, and
-unchanged model; display sort is separate from #761 permanent renumber. M2.2
-requires Microsoft-rule literal dates, FS/SS/FF/SF, intended mutations,
-diagnostics, Undo/Redo/MPO and injected-failure atomicity. M2.3 requires
-selected/all scope, proposed resources, leveling defaults/provenance, assignment
-totals, status date/actuals/baseline slots, outcome/selection, manual split
-preservation, Undo/Redo/MPO. M2.4 requires view-only model purity, relevant
-persistence and locale/DPI; reports compare rendered fixture values and print
-pages in ja/en. Unsupported operations remain absent, never dummy-enabled.
-For GUI failures, preserve artifacts and model state; classify product, fixture,
-or environment before edits, and require root-cause review after two failed fixes.
+Display sorting must not mutate outline order and is distinct from #761. Compatibility claims cite Microsoft source/version scope and label document-derived inference vs empirical evidence. Keep frozen criteria intact.
+Frozen acceptance detail: M2.1 covers text/date/numeric fields, ties and empty values, both sort directions, filter/group, stable selection identity, table/Gantt alignment, and unchanged model; display sort remains separate from #761 permanent renumber. M2.2 covers Microsoft-rule literal dates, FS/SS/FF/SF, intended mutations, diagnostics, Undo/Redo/MPO, and injected-failure atomicity. M2.3 covers selected/all scope, proposed resources, leveling defaults/provenance, assignment totals, status date/actuals/baseline slots, outcome/selection, manual split preservation, Undo/Redo/MPO. M2.4 covers view-only model purity, relevant persistence, locale/DPI; reports compare rendered fixture values and print pages in Japanese/English. Unsupported operations remain absent, never dummy-enabled. Common requires focused tests, physical routes for changed GUI behavior, atomicity and unrelated-state preservation, and exact build/fixture/test/screenshot/log evidence. Microsoft compatibility decisions must cite the applicable published source and distinguish document-derived decisions from empirical MSP evidence.
 
-## Current verified evidence
+## Verified current state
 
-- #408 U-26 base and filtered/grouped/sorted projection routes pass physical
-  edits with stable identity, unrelated-state checks, Undo/Redo and MPO reload.
-  Exact commands, JUnit and artifacts: [status log](../msp-implementation-status.md)
-  sections 2362 onward. Projection is document-derived, not measured MSP behavior.
-- #414 U-32 Gantt/table keypad zoom, Resource View keypad no-op, U-33 bar-edge
-  auto-scroll/Undo/Redo/MPO, and two-document shortcut isolation pass. Exact
-  command/SHA/environment/evidence: [status log](../msp-implementation-status.md)
-  sections 2332–2387. Other #414 gates remain open.
-- #414 task Name-cell double-click opens Task Information for the clicked task
-  among two; names/start/duration/progress and Undo list/state + Redo state are
-  unchanged before and after Escape; project window remains visible. Microsoft
-  documents this route for Project Online Desktop Client and Project Standard /
-  Professional 2016–2024: [Link tasks in a project](https://support.microsoft.com/en-au/project/link-tasks-in-a-project),
-  lines 197–203, checked 2026-10-20. This is document-derived, not an empirical
-  MSP run. Command passed 1/1, zero failures/errors/skips:
-  `.\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.spreadsheet.TaskInformationGuiAcceptanceTest.taskNameDoubleClickOpensTaskInformationForTheClickedTask" --console=plain`
-  JUnit: `modules/microproject_ui/build/test-results/guiTest/TEST-com.microproject.pm.graphic.spreadsheet.TaskInformationGuiAcceptanceTest.xml`;
-  captures: `modules/microproject_ui/build/reports/guiTest-artifacts/task-information-tab-00.png` … `task-information-tab-07.png`.
-  SHA above; Windows 11 Pro, ja-JP, default 100%, 2560×1440 unchanged.
-- #868: 57,600,000 ms Work survives MPO reload; provenance and MPP task import
-  remain open. Remaining detailed M2.2/M2.3 evidence and limits are in the
-  [status log](../msp-implementation-status.md).
-- Phase 2 structural gate passed (218 UI unit/ja-100% GUI cases, one permitted
-  conditional high-DPI skip); exact-head locale/DPI, acceptance and release gates
-  remain open.
-- #414 fixed-anchor range selection passed physically: row-header Shift range
-  upward `{0,1}`, then cell Shift range downward `{1,2}`; stable IDs, table/Gantt
-  selection coordinates, model and Undo/Redo stayed unchanged. No product defect
-  reproduced or production change made. Command:
-  `.\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.views.TaskTableGanttGridGuiAcceptanceTest.physicalCellAndColumnHeaderClicksKeepSelectionHighlightCoordinatesAligned" --console=plain --max-workers=1`
-  passed 1/1, zero errors/failures/skips. JUnit:
-  `modules/microproject_ui/build/test-results/guiTest/TEST-com.microproject.pm.graphic.views.TaskTableGanttGridGuiAcceptanceTest.xml`
-  (`2026-10-19T22:48:45.365Z`). Worktree SHA above; Windows 11, ja-JP, 100%,
-  2560×1440 unchanged. Microsoft cross-control selection scope is a
-  document-derived decision using the same Microsoft source above, not a
-  measured MSP outcome.
+- Physical constraint-date Advanced field slice complete: Robot drove valid later SNET entry and invalid Tab rejection at ja-JP/100% and 2560x1440; target and FS successor moved, disconnected task remained unchanged, exact constraint type/date Undo/Redo and MPO identity reload passed. Headless transaction class passed 4/4; full UI suite passed 1,258/1,258. Production fixes address normalization-only no-op edits, exact off-hours SNET undo, and unchanged blank date fields. See evidence archive.
+- Constraint-date FieldVerifier transaction slice complete: `TaskConstraintFieldVerifierTransactionTest` covers injected observer failure rollback of constraint type/date, task schedule, dirty/revision/Undo/Redo, unrelated task state, plus successful edit Undo/Redo and MPO reload by task UID/name. It exposed and fixed schedule drift during rollback. Focused test passed 2/2; after the production change, `:microproject_ui:test` passed 1,253/1,253. Working-tree candidate on HEAD `1ca2b41485e4403e1d3b76d2fa0d8dd903c20217`; see evidence archive for commands. Not exact-candidate CI.
+- Deadline FieldVerifier transaction slice complete: focused `TaskDeadlineFieldVerifierTransactionTest` covers observer-failure rollback and successful edit Undo/Redo plus MPO save/reload. Focused XML reports 2/2, 0 failures/errors/skips; current `:microproject_ui:test` XML aggregates report 1,251 tests, 0 failures/errors/skips. Tested with working candidate at baseline HEAD above; no commit exists.
+- Constraint-type Advanced field slice complete: `TaskConstraintTypeFieldVerifierTransactionTest` verifies the configured Advanced combo through its installed `FieldVerifier`, observer-failure rollback, successful Undo/Redo, and MPO reload by UID/name. The physical Advanced route now verifies SNET→ASAP with a deterministic date, target/successor scheduling, unrelated-task preservation, Ctrl+Z/Ctrl+Y, and MPO reload. It exposed that generic option `FieldEdit` restored SNET's type but lost its prior constraint date after ASAP correctly cleared it; the single-task `Field.constraintType` path now posts `TaskConstraintEdit` with both type and date while other option fields keep `FieldEdit`. Focused transaction tests passed 3/3, focused Robot passed 1/1, and full `:microproject_ui:test` passed 1,256/1,256 (zero failures/errors/skips). Tested candidate at HEAD `1ca2b41485e4403e1d3b76d2fa0d8dd903c20217`; no exact-candidate CI.
+- Earlier M2.1 field/sort, GUI routes, M2.2 dependency/cycle/linked-child and atomicity, M2.3 leveling/baseline/progress, and Phase 6 evidence are indexed in [evidence archive](issue-794-evidence.md). Fresh Phase 6 matrix passed after diagnostics; initial en/125 promotion failure was not reproduced. Expected full-width sweep skip is documented there.
+- M2.2 SS negative lag with successor SNET across a project-calendar exception is now covered by core schedule/Undo/Redo and MPO save/reload tests. Full core + exchange tests passed 1,443/1,443, 0 failures/errors/skips on working candidate at HEAD `1ca2b41485e4403e1d3b76d2fa0d8dd903c20217`; compatibility boundary is document-derived, not measured. Details and Microsoft sources are in the evidence archive.
+- M2.2 SF negative lag with successor SNET across a project-calendar exception is now covered by core schedule/Undo/Redo and MPO save/reload tests. SF's finish boundary is Wednesday 12:00; the one-day successor schedules Monday 13:00–Wednesday 13:00 across Tuesday's exception. This is document-derived, not measured. Focused tests and full core/exchange suites pass after isolating the MPO fixture's project calendar. Details are in the evidence archive.
+- M2.2 FS negative lag with successor SNET across a project-calendar exception is now covered by core schedule/Undo/Redo and MPO save/reload tests. FS's negative-lag boundary is Thursday 12:00; successor SNET normalization schedules Thursday 13:00–Friday 13:00. This is document-derived, not measured. Full core/exchange suites passed (1,447 total, zero failures/errors/skips). Details and Microsoft sources are in the evidence archive.
+- M2.2 FF negative lag with successor SNET across a project-calendar exception is now covered by core schedule/Undo/Redo and MPO save/reopen/recalculate tests. FF's Monday 12:00 finish boundary across Tuesday's exception moves a two-hour successor from 08:00–10:00 to a calendar-normalized 10:00–13:00 interval. Document-derived, not measured; focused tests pass and full core/exchange results are in the evidence archive.
+- M2.2 fixed-date FS with +4 elapsed hours is now covered by exact core schedule/Undo/Redo and MPO save/reopen/recalculate checks. Successor starts Monday 2030-06-03 16:00 and finishes Tuesday 2030-06-04 16:00; unrelated task remains unchanged. MPO retains endpoint unique IDs, FS type, and elapsed 4-hour lag encoding/value. Microsoft documents lag as delaying an FS successor; the exact 4-hour wall-clock interpretation is document-derived, not measured. Core 1,133/1,133 and exchange 318/318 passed. Details and first-run fixture diagnosis are in the evidence archive.
+- M2.2 fixed-date SS with +4 elapsed hours is now covered by exact core schedule/Undo/Redo and MPO save/reopen/recalculate checks. The dependency boundary is Monday 2030-06-03 12:00 from predecessor start 08:00; standard-calendar lunch normalization places the one-day successor at Monday 13:00–Tuesday 13:00. The unrelated task remains unchanged. MPO retains endpoint unique IDs, reciprocal links, SS type, and elapsed 4-hour lag encoding/value. Exact elapsed-time arithmetic is document-derived, not measured. Core 1,134/1,134 and exchange 319/319 passed. Details are in the evidence archive.
+- M2.2 fixed-date FF with +4 elapsed hours is now covered by exact core schedule/Undo/Redo and MPO save/reopen/recalculate checks. Predecessor finish Monday 2030-06-03 12:00 yields a document-derived 16:00 FF finish boundary; the explicit two-hour successor schedules 14:00–16:00, and the unrelated task is unchanged. MPO preserves endpoint IDs/reciprocal links, FF type, and elapsed 4-hour lag representation/value. Full core/exchange suites passed: 1,135/1,135 and 320/320, zero failures/errors/skips. Details and Microsoft sources are in the evidence archive.
+- M2.2 fixed-date SF with +4 elapsed hours is now covered by exact core schedule/Undo/Redo and MPO save/reopen/recalculate checks. Predecessor start Monday 2030-06-03 08:00 yields a document-derived 12:00 SF finish boundary; the explicit two-hour successor schedules 10:00–13:00 across the standard-calendar lunch break, and the unrelated task is unchanged. MPO preserves endpoint IDs/reciprocal links, SF type, and elapsed 4-hour lag representation/value. Core/exchange suites passed 1,136/1,136 and 321/321, zero failures/errors/skips. Details and Microsoft sources are in the evidence archive.
+- M2.2 fixed-date FS with +50% predecessor-duration lag is covered by core schedule/Undo/Redo and MPO save/reopen/recalculate checks. The explicit one-workday predecessor matches its Monday 2030-06-03 08:00–17:00 schedule; its 4-work-hour lag reaches Tuesday 13:00, and the one-day successor schedules Tuesday 13:00–Wednesday 13:00. The unrelated task remains unchanged. MPO preserves endpoint IDs/reciprocal links, FS type, percent flag/value. This exact percentage arithmetic is document-derived, not measured. On tested working-tree candidate at HEAD `1ca2b41485e4403e1d3b76d2fa0d8dd903c20217`, focused core/MPO tests passed 1/1 each; full core/exchange suites passed 1,137/1,137 and 322/322, zero failures/errors/skips. See evidence archive for sources and fixture details.
+- M2.2 fixed-date FS with −50% predecessor-duration lead is covered by core schedule/Undo/Redo and MPO save/reopen/recalculate checks. A one-workday predecessor runs Monday 2030-06-03 08:00–17:00; the encoded lead resolves to −4 working hours and the FS required-start boundary is Monday 12:00. The standard-calendar lunch interval normalizes the automatic one-day successor to Monday 13:00–Tuesday 13:00, overlapping the predecessor's final four working hours. The unrelated task is unchanged. MPO preserves endpoint IDs/reciprocal links, FS type, negative percentage flag/fraction, and dates. This exact percentage and boundary arithmetic is document-derived, not measured. Fresh full core/exchange suites passed 1,139/1,139 and 324/324 (zero failures/errors/skips); see evidence archive.
+- M2.2 fixed-date SS with +50% predecessor-duration lag is covered by core schedule/Undo/Redo and MPO save/reopen/recalculate checks. The one-workday predecessor is Monday 2030-06-03 08:00–17:00; 50% is four working hours from the predecessor start, yielding a 13:00 boundary and moving the one-day successor to Monday 13:00–Tuesday 13:00. Unrelated task dates remain unchanged. MPO preserves endpoint IDs/reciprocal links, SS type, percent flag/fraction, and dates. Exact arithmetic is document-derived, not measured. Full core/exchange suites passed 1,143/1,143 and 328/328 (zero failures/errors/skips); see evidence archive.
+- M2.2 fixed-date SS with −50% predecessor-duration lead is covered by core schedule/Undo/Redo and MPO save/reopen/recalculate checks. The one-workday predecessor is Tuesday 2030-06-04 08:00–17:00; the negative half-duration from predecessor start yields a Monday 2030-06-03 12:00 required-start boundary, normalized to a Monday 13:00 successor start. The one-day successor ends Tuesday 13:00; the unrelated Monday 08:00–17:00 task remains unchanged. MPO preserves endpoint IDs/reciprocal links, SS type, negative percentage flag/fraction, and dates. Exact percentage arithmetic and boundary are document-derived, not measured. Focused tests passed; fresh serial full-suite XML totals: core 1,147/1,147 and exchange 332/332, zero failures/errors/skips. See evidence archive.
 
-## M2.2 schedule failure atomicity — verified slice
+- M2.2 fixed-date FF with +50% predecessor-duration lag is covered by core schedule/Undo/Redo and MPO save/reopen/recalculate checks. The one-workday predecessor is Monday 2030-06-03 08:00–17:00; 50% is four working hours from predecessor finish, yielding a Tuesday 2030-06-04 13:00 FF boundary and moving the one-day successor to Monday 13:00–Tuesday 13:00. Unrelated task dates remain unchanged. MPO preserves endpoint IDs/reciprocal links, FF type, percent flag/fraction, and dates. Exact arithmetic is document-derived, not measured; full-suite totals are recorded in the evidence archive.
 
-`executeScheduleEdit` now uses the existing project atomic boundary and restores
-the existing schedule snapshot only when its callback throws during apply.
-Regression calls real `ScheduleService.setCompleted`, then injects failure;
-task/assignment schedule+progress, Undo+Redo, revision, pending events,
-observers and mutation barrier remain unchanged. Post-commit publication and
-other gateway policies are untouched. Before-fix test failed on task
-completed-through (`expected 1792396800000`, actual `1792688400000`); JUnit:
-`build/task-evidence/issue-794-schedule-pre-fix/TEST-com.microproject.pm.graphic.spreadsheet.command.TaskCommandGatewayTest.xml`
-(SHA256 `3E2D225BC5A93E92EE7A52D40F29CC202FD374A4DD03D75E3B0EEF75A57AE4A0`).
-After fix: TaskCommandGatewayTest 14/14, GanttInteractorDragTest 4/4, and full
-`:microproject_ui:test` 1188/1188. Intermediate suite failure was fixture-only
-Swing cache update off EDT; moving setup to EDT fixed it. Physical progress /
-resize / split Robot passed 1/1, zero failures/errors/skips using
-`\.github\scripts\run-gui-acceptance.ps1 -TestFilter com.microproject.pm.graphic.views.GanttBarDateDragGuiAcceptanceTest.robotResizeProgressAndSplitUseTypedScheduleGatewayWithUndoAndPersistence -Locale ja -Scale 1.0`.
-JUnit:
-`modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.pm.graphic.views.GanttBarDateDragGuiAcceptanceTest.robotResizeProgressAndSplitUseTypedScheduleGatewayWithUndoAndPersistence-ja-1-0-junit/TEST-com.microproject.pm.graphic.views.GanttBarDateDragGuiAcceptanceTest.xml`;
-screenshots are in sibling `...-6fa634b0e2d4440285ae9034ab26050d/`. Head
-`37c07cbf8092389afc2f995ee95640b6764b3a41`, dirty worktree; Windows 11, ja-JP,
-100%, 2560×1440. Barrier probe daemonization focused rerun: 1/1. Broader M2.2
-remains open. M2.2 MPO calendar inheritance now rejects invalid
-`baseProjectCalendar` markers (including null, numeric, string, and false), a
-missing project base, and contradictory nested + project bases. Regression uses
-the existing explicit task-calendar round-trip fixture and checksum rewrite;
-before the fix, the focused test failed because a string marker was silently
-accepted. Pre-fix JUnit: `build/task-evidence/issue-794-mpo-calendar-prefx/TEST-com.microproject.exchange.MpoFileImporterTest.xml`
-(1 test, 1 failure, timestamp `2026-10-19T23:00:04.752Z`). After the fix, the
-focused round-trip passed; full `MpoFileImporterTest` passed 123/123 (0
-failures/errors, timestamp `2026-10-19T23:00:29.474Z`). Tested HEAD
-`038e27c216d8845fd82b2055b8ab237ad6157b0b`, dirty worktree; importer/test/packet
-edits plus pre-existing core changes remain uncommitted. This malformed-input
-rule is an MPO rejection decision; no Microsoft source applies. Next:
-independently authored negative-lag MPP READ fixture (candidate `New Product.mpp`,
-UID 24→27 FS−15 days).
+- M2.2 fixed-date FF with −50% predecessor-duration lead is covered by core schedule/Undo/Redo and MPO save/reopen/recalculate checks. The explicit one-workday predecessor is Wednesday 2030-06-05 08:00–17:00; the lead is −4 working hours and the document-derived minimum-finish boundary is Wednesday 12:00. The automatic one-day successor moves from Monday 08:00–17:00 to Tuesday 13:00–Wednesday 13:00 under standard-calendar finish normalization; the unrelated task remains unchanged. MPO preserves endpoint IDs/reciprocal links, FF type, negative percentage flag/fraction, and dates. Microsoft semantics and exact arithmetic are document-derived, not MSP-measured. Focused core/MPO tests passed 1/1 each; fresh serial full-suite XML totals: core 1,148/1,148 and exchange 333/333, zero failures/errors/skips. Details are in the evidence archive.
 
-## Remaining gates
+- M2.2 fixed-date FS with −4 elapsed hours is covered by core schedule/Undo/Redo and MPO save/reopen/recalculate checks. The predecessor runs Monday 2030-06-03 08:00–14:00 for an explicit 5 work hours across lunch; subtracting four wall-clock hours gives a Monday 10:00 boundary. The successor moves from Monday 08:00 to 10:00, then finishes Monday 14:00 at its explicit 3-hour duration across lunch; the unrelated task remains unchanged. MPO preserves endpoint IDs/reciprocal links, FS type, negative elapsed flag/value, and dates. Exact clock arithmetic is document-derived, not measured. Microsoft sources: https://support.microsoft.com/en-us/project/link-tasks-in-a-project and https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task. Focused core and MPO tests passed 1/1 each; fresh full-suite XML totals were core 1,138/1,138 and exchange 323/323 (zero failures/errors/skips). `git diff --check` passed. Tested at HEAD `1ca2b41485e4403e1d3b76d2fa0d8dd903c20217`; details are in the evidence archive.
+- M2.2 fixed-date SS with −4 elapsed hours is covered by core schedule/Undo/Redo and MPO save/reopen/recalculate checks. The explicit 5-hour predecessor runs Tuesday 2030-06-04 08:00–14:00. Its start minus four wall-clock hours is Tuesday 04:00; standard-calendar normalization moves the explicit 3-hour successor from Monday 08:00 to Tuesday 08:00–11:00. The unrelated task remains unchanged. MPO preserves endpoint unique IDs/reciprocal links, SS type, negative elapsed flag/value, and dates. Exact clock arithmetic and normalization are document-derived, not measured. Microsoft sources: https://support.microsoft.com/en-us/project/link-tasks-in-a-project and https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task. Focused core schedule and MPO tests passed; fresh full-suite XML totals were core 1,140/1,140 and exchange 325/325 (zero failures/errors/skips). `git diff --check` passed. Tested at HEAD `1ca2b41485e4403e1d3b76d2fa0d8dd903c20217`; details are in the evidence archive.
+- M2.2 fixed-date FF with −4 elapsed hours is covered by core schedule/Undo/Redo and MPO save/reopen/recalculate checks. The explicit 5-hour predecessor runs Tuesday 2030-06-04 08:00–14:00; subtracting four wall-clock hours yields a 10:00 finish boundary. The explicit 2-hour successor moves from Monday 08:00–17:00 to standard-calendar Tuesday 08:00–10:00; predecessor and unrelated task dates remain unchanged. MPO preserves endpoint unique IDs/reciprocal links, FF type, negative elapsed flag/value, and dates. Exact clock arithmetic and calendar normalization are document-derived, not measured. Microsoft sources: https://support.microsoft.com/en-us/project/link-tasks-in-a-project and https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task. Focused core/MPO tests passed; fresh full-suite XML totals were core 1,141/1,141 and exchange 326/326 (zero failures/errors/skips). `git diff --check` passed. Tested at HEAD `1ca2b41485e4403e1d3b76d2fa0d8dd903c20217`; details are in the evidence archive.
+- Sol integration verification after merging the FS negative-elapsed and FS negative-percent slices: `.\gradlew.bat :microproject_core:test :microproject_exchange:test --rerun-tasks --console=plain --no-daemon --max-workers=1` — BUILD SUCCESSFUL; fresh XML: core 1,139 tests, exchange 324 tests, zero failures/errors/skips. `git diff --check` passed; shared docs retain existing LF/CRLF warnings. This verifies the combined working tree at baseline HEAD `1ca2b41485e4403e1d3b76d2fa0d8dd903c20217`, not exact-candidate CI.
 
-M2.1–M2.4 and Common remain OPEN. #414 also requires all available
-Ribbon/menu/toolbar/popup routes, production Java net-reduction metrics, three
-hostile reviews, and exact-head locale/DPI GUI acceptance. Other gaps include
-M2.1 field types/boundaries; M2.2 independent negative-lag MPP READ fixture;
-M2.3/#868 provenance and remaining resource/baseline scope; M2.4
-command/view/report/print/locale coverage. Run candidate-SHA CI, fresh
-installDist, full functional GUI and ja/en 100/125/150 visual gates, applicable
-packaging checks, and final status/diff review. Preserve
-`.codex-remote-attachments/`; release only after all acceptance/release checks.
+- M2.2 `NormalTask.setDuration(long)` failure atomicity passed: post-schedule/dependency-invalidation failure restores schedule, metadata, all project-task calculation-state counters, dirty/revision/Undo state and observers. Registered project tasks publish one revision on success; detached internal tasks publish none. Focused tests passed; fresh serial core suite passed 1,154/1,154 (240 XML reports; 0 failures/errors/skips). Tested on uncommitted candidate based on HEAD `1ca2b41485e4403e1d3b76d2fa0d8dd903c20217`; see evidence archive.
+
+- M2.2 Task Sheet manual start-date failure atomicity passed: deterministic post-mutation failure restores target/dependent schedule, dirty/revision/Undo state and observer silence. Registered task success publishes one revision. Focused test passed 30/30; after this production change, fresh serial core suite passed 1,155/1,155 across 240 XML reports (0 failures/errors/skips). Uncommitted candidate based on HEAD `1ca2b41485e4403e1d3b76d2fa0d8dd903c20217`; see evidence archive.
+
+- M2.2 Task Sheet manual finish-date failure atomicity passed: `applyStart` and `applyFinish` share one snapshot/rollback helper. Focused 31-test class and fresh serial core suite passed 1,156/1,156 across 240 XML reports (0 failures/errors/skips). Exact finish evidence is in the archive.
+- M2.2 Task Sheet duration transaction passed: duration, manual dates, dependent recalculation, and parent rollup run inside one atomic workflow. One focused core fixture verifies one success revision, successor schedule, Undo/Redo, late-failure rollback through parent rollup, and silent observers; the MPO fixture verifies identity, dates, duration, dependency endpoint, and successor schedule after reopen/recalculate. Focused core (3 tests) and MPO (1 test) passed; exact commands and scope are in the evidence archive.
+- Integration follow-up: the MPO test assigns positive IDs with the established round-trip helper. Fresh serial core suite passed 1,159/1,159 across 241 XML reports; fresh full exchange suite passed 334/334 across 35 reports, zero failures/errors/skips. The earlier exchange-wide null lookup was not reproduced; its original XML was overwritten before inspection. See evidence archive.
+
+## Next finite slice
+
+Current finite slice: U-26 physical Task Sheet duration input now reaches dependent schedule/model/render assertions, but physical Ctrl+Z does not leave redo available (`canRedo=false`, `redoName=null`) in a clean ja-JP/default 100% run. The app's `undo start` and `undo complete` trace both report `canUndo=true canRedo=false`; the cell editor is finished before the shortcut. A separate later run was blocked before input by a foreground Docker Desktop overlap and is environmental contention, not the product result. Root cause is under review; do not close this gate until physical Ctrl+Y and MPO reload pass. Evidence/artifact names and comparison run are in [the archive](issue-794-evidence.md). No layout constraints changed, so the DPI matrix remains at final release gate. M2.2/M2.3/M2.4/Common and exact-candidate CI/release gates remain open.
+
+## Blockers and release gates
+
+M2.1–M2.4/Common and required child issues remain open. After all acceptance rows pass: review/integrate candidate, run fresh `installDist` and full GUI acceptance at the integrated exact SHA, complete applicable packaging checks, and obtain exact-candidate CI. Preserve unrelated working-tree changes and artifacts; then close #794 and release.
