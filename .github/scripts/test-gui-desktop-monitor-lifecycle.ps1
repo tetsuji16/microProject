@@ -5,6 +5,9 @@ $tempDirectory = Join-Path ([System.IO.Path]::GetTempPath()) ("microproject-gui-
 $logFile = Join-Path $tempDirectory 'monitor.log'
 $targetProcess = $null
 $monitorProcess = $null
+$targetExitObservedUtc = $null
+$monitorWaitStartedUtc = $null
+$preserveArtifacts = $false
 
 New-Item -ItemType Directory -Path $tempDirectory | Out-Null
 try {
@@ -19,6 +22,8 @@ try {
   if (-not $targetProcess.WaitForExit(10000)) {
     throw 'The short-lived monitor target did not exit within 10 seconds.'
   }
+  $targetExitObservedUtc = [DateTime]::UtcNow.ToString('o')
+  $monitorWaitStartedUtc = [DateTime]::UtcNow.ToString('o')
   if (-not $monitorProcess.WaitForExit(10000)) {
     throw 'The desktop monitor did not stop within 10 seconds after its target exited.'
   }
@@ -38,6 +43,38 @@ try {
     [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::None)
   $exclusiveStream.Dispose()
   Write-Output 'PASS: desktop monitor exits after its target and releases the log file.'
+} catch {
+  $preserveArtifacts = $true
+  $monitorState = 'unavailable'
+  $monitorCpu = 'unavailable'
+  if ($null -ne $monitorProcess) {
+    try {
+      $monitorProcess.Refresh()
+      $monitorState = "pid=$($monitorProcess.Id) hasExited=$($monitorProcess.HasExited)"
+      $monitorCpu = $monitorProcess.TotalProcessorTime.ToString()
+    } catch {
+      $monitorState = "pid=$($monitorProcess.Id) state-unavailable=$($_.Exception.Message)"
+    }
+  }
+  $logTail = '(monitor log not created)'
+  if (Test-Path -LiteralPath $logFile) {
+    try {
+      $logTail = (Get-Content -LiteralPath $logFile -Tail 40 -ErrorAction Stop) -join [Environment]::NewLine
+    } catch {
+      $logTail = "(unable to read monitor log: $($_.Exception.Message))"
+    }
+  }
+  $diagnostic = @"
+Desktop monitor lifecycle failure diagnostics:
+  targetExitObservedUtc=$targetExitObservedUtc
+  monitorWaitStartedUtc=$monitorWaitStartedUtc
+  monitor=$monitorState cpu=$monitorCpu
+  tempDirectory=$tempDirectory
+  monitorLogTail:
+$logTail
+"@
+  Write-Error -Message $diagnostic -ErrorAction Continue
+  throw
 } finally {
   if ($null -ne $monitorProcess -and -not $monitorProcess.HasExited) {
     Stop-Process -Id $monitorProcess.Id -Force -ErrorAction SilentlyContinue
@@ -45,5 +82,7 @@ try {
   if ($null -ne $targetProcess -and -not $targetProcess.HasExited) {
     Stop-Process -Id $targetProcess.Id -Force -ErrorAction SilentlyContinue
   }
-  Remove-Item -LiteralPath $tempDirectory -Recurse -Force -ErrorAction SilentlyContinue
+  if (-not $preserveArtifacts) {
+    Remove-Item -LiteralPath $tempDirectory -Recurse -Force -ErrorAction SilentlyContinue
+  }
 }

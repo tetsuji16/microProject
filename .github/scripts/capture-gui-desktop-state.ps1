@@ -415,9 +415,15 @@ if ($Watch) {
   $logWriter = [System.IO.StreamWriter]::new($logStream, [System.Text.UTF8Encoding]::new($false))
   $logWriter.AutoFlush = $true
   try {
-    $logWriter.WriteLine("monitorStarted=" + [DateTime]::UtcNow.ToString('o'))
+    $logWriter.WriteLine("monitorStarted=" + [DateTime]::UtcNow.ToString('o') + " monitorPid=$PID targetPid=$TargetPid")
     $lastOverlap = ''
+    $firstTargetCheck = $true
+    $firstOverlapProbe = $true
     while ($true) {
+      $targetCheckStarted = [System.Diagnostics.Stopwatch]::StartNew()
+      if ($firstTargetCheck) {
+        $logWriter.WriteLine("monitorFirstTargetCheckEntered=" + [DateTime]::UtcNow.ToString('o'))
+      }
       $targetProcess = $null
       $targetRunning = $true
       try {
@@ -431,11 +437,28 @@ if ($Watch) {
       } finally {
         if ($null -ne $targetProcess) { $targetProcess.Dispose() }
       }
+      $targetCheckStarted.Stop()
+      if ($firstTargetCheck) {
+        $logWriter.WriteLine("monitorFirstTargetCheckExited=" + [DateTime]::UtcNow.ToString('o') + " elapsedMs=$([int]$targetCheckStarted.ElapsedMilliseconds) running=$targetRunning")
+        $firstTargetCheck = $false
+      }
       if (-not $targetRunning) {
         $logWriter.WriteLine("monitorStopped=" + [DateTime]::UtcNow.ToString('o') + " reason=target-exited")
         break
       }
+      $probeStarted = [System.Diagnostics.Stopwatch]::StartNew()
+      if ($firstOverlapProbe) {
+        $logWriter.WriteLine("monitorFirstOverlapProbeEntered=" + [DateTime]::UtcNow.ToString('o'))
+      }
       $overlap = [GuiDesktopWindowProbe]::CaptureForegroundOverlap($TargetPid)
+      $probeStarted.Stop()
+      if ($firstOverlapProbe) {
+        $logWriter.WriteLine("monitorFirstOverlapProbeExited=" + [DateTime]::UtcNow.ToString('o') + " elapsedMs=$([int]$probeStarted.ElapsedMilliseconds)")
+        $firstOverlapProbe = $false
+      }
+      if ($probeStarted.ElapsedMilliseconds -ge 1000) {
+        $logWriter.WriteLine("monitorSlowOverlapProbe=" + [DateTime]::UtcNow.ToString('o') + " elapsedMs=$([int]$probeStarted.ElapsedMilliseconds)")
+      }
       if ($overlap -ne $lastOverlap -and -not [string]::IsNullOrEmpty($overlap)) {
         $logWriter.WriteLine("GUI_ENVIRONMENT_CONTENDED observed=" + [DateTime]::UtcNow.ToString('o') + " " + $overlap)
       }
