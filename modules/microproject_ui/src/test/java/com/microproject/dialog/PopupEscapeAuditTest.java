@@ -40,9 +40,9 @@ class PopupEscapeAuditTest {
 		String source = source("modules/microproject_ui/src/main/java/com/microproject/dialog/AbstractDialog.java");
 
 		assertTrue(source.contains("KeyEvent.VK_ESCAPE"));
-		assertTrue(source.contains("bindWindowAction(rootPane, escapeStroke"));
-		assertTrue(source.contains("getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)"));
-		assertTrue(source.contains("getActionMap().put(actionKey"));
+		assertTrue(source.contains("PopupDialogSupport.bindRootPaneAction(rootPane, escapeStroke, \"dialog.escape\""));
+		assertFalse(source.contains("bindWindowAction("));
+		assertFalse(source.contains("getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)"));
 	}
 
 	@Test

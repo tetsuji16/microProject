@@ -12,14 +12,12 @@ import java.awt.GraphicsEnvironment;
 import java.awt.KeyboardFocusManager;
 import java.awt.Point;
 import java.awt.Robot;
-import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
@@ -34,6 +32,7 @@ import javax.swing.UIManager;
 import com.formdev.flatlaf.FlatDarkLaf;
 import com.formdev.flatlaf.FlatLightLaf;
 import com.microproject.testsupport.GuiRobot;
+import com.microproject.ui.util.PopupDialogSupport;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
@@ -149,13 +148,8 @@ class FlatUiSupportDialogBindingsGuiAcceptanceTest {
 
 	private static void bind(JDialog dialog, Map<KeyStroke, Action> expected, KeyStroke keyStroke, String actionKey,
 			Runnable handler) {
-		Action action = new AbstractAction() {
-			private static final long serialVersionUID = 1L;
-			@Override public void actionPerformed(ActionEvent event) { handler.run(); }
-		};
-		dialog.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(keyStroke, actionKey);
-		dialog.getRootPane().getActionMap().put(actionKey, action);
-		expected.put(keyStroke, action);
+		PopupDialogSupport.bindRootPaneAction(dialog.getRootPane(), keyStroke, actionKey, event -> handler.run());
+		expected.put(keyStroke, dialog.getRootPane().getActionMap().get(actionKey));
 	}
 
 	private static void bind(JDialog dialog, Map<KeyStroke, Action> expected, KeyStroke keyStroke, String actionKey) {
