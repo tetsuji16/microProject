@@ -950,6 +950,9 @@ class GanttBarDateDragGuiAcceptanceTest {
 
 	private void dragBarAndAssertSuccessor(Fixture fixture) throws Exception {
 		long oldStart = fixture.predecessor.getStart();
+		long oldEnd = fixture.predecessor.getEnd();
+		long oldSuccessorStart = fixture.successor.getStart();
+		long oldSuccessorEnd = fixture.successor.getEnd();
 		showFixture(fixture);
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
@@ -961,6 +964,8 @@ class GanttBarDateDragGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(gantt::isShowing, "Gantt was not visible");
 		activateWindow(robot);
 		Rectangle bar = barBounds(fixture);
+		Rectangle oldPredecessorBar = fixture.fridayFsFixture ? barBounds(fixture, fixture.predecessor) : null;
+		Rectangle oldSuccessorBar = fixture.fridayFsFixture ? barBounds(fixture, fixture.successor) : null;
 		capture(robot);
 		SwingUtilities.invokeAndWait(() -> assertTrue(gantt.getUI().getNodeAt(
 			bar.x - gantt.getLocationOnScreen().x + bar.width / 2,
@@ -1030,6 +1035,89 @@ class GanttBarDateDragGuiAcceptanceTest {
 					+ " predecessor=" + fixture.predecessor.getStart() + ".." + fixture.predecessor.getEnd());
 			assertEquals(mondayEight.getTimeInMillis(), fixture.successor.getStart(),
 				"Standard-calendar ASAP successor must start Monday after Friday's finish boundary");
+			long movedStart = fixture.predecessor.getStart();
+			long movedEnd = fixture.predecessor.getEnd();
+			long movedSuccessorStart = fixture.successor.getStart();
+			long movedSuccessorEnd = fixture.successor.getEnd();
+			Rectangle movedPredecessorBar = barBounds(fixture, fixture.predecessor);
+			Rectangle movedSuccessorBar = barBounds(fixture, fixture.successor);
+			long predecessorId = fixture.predecessor.getUniqueId();
+			long successorId = fixture.successor.getUniqueId();
+			assertTrue(predecessorId > 0 && successorId > 0,
+				"the MPO replay check needs stable positive task IDs");
+			assertTrue(fixture.dependency != null && fixture.dependency.getDependencyType() == DependencyType.FS,
+				"the existing FS link must remain part of the dragged-date transaction");
+
+			// The Robot above proves the physical drag route. Exercise its one history
+			// entry through the project controller, matching the neighboring auto-scroll
+			// test's history layer without inventing a separate keyboard binding path.
+			SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().undo());
+			assertEquals(oldStart, fixture.predecessor.getStart(), "one Undo must restore predecessor start");
+			assertEquals(oldEnd, fixture.predecessor.getEnd(), "one Undo must restore predecessor finish");
+			assertEquals(oldSuccessorStart, fixture.successor.getStart(), "one Undo must restore FS successor start");
+			assertEquals(oldSuccessorEnd, fixture.successor.getEnd(), "one Undo must restore FS successor finish");
+			assertTrue(fixture.predecessor.getSuccessorList().contains(fixture.dependency),
+				"Undo of a date drag must keep the FS link attached to the predecessor");
+			assertTrue(fixture.successor.getPredecessorList().contains(fixture.dependency),
+				"Undo of a date drag must keep the FS link attached to the successor");
+			SwingUtilities.invokeAndWait(() -> {
+				gantt.updateSize();
+				gantt.revalidate();
+				gantt.repaint();
+				frame.repaint();
+			});
+			SwingUtilities.invokeAndWait(() -> { });
+			assertEquals(oldPredecessorBar, barBounds(fixture, fixture.predecessor),
+				"redrawn predecessor bar must return to its original position after Undo");
+			assertEquals(oldSuccessorBar, barBounds(fixture, fixture.successor),
+				"redrawn FS successor bar must return to its original position after Undo");
+			SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().redo());
+			assertEquals(movedStart, fixture.predecessor.getStart(), "one Redo must restore dragged predecessor start");
+			assertEquals(movedEnd, fixture.predecessor.getEnd(), "one Redo must restore dragged predecessor finish");
+			assertEquals(movedSuccessorStart, fixture.successor.getStart(), "one Redo must restore FS successor start");
+			assertEquals(movedSuccessorEnd, fixture.successor.getEnd(), "one Redo must restore FS successor finish");
+			assertTrue(fixture.predecessor.getSuccessorList().contains(fixture.dependency),
+				"Redo must retain the FS link attached to the predecessor");
+			assertTrue(fixture.successor.getPredecessorList().contains(fixture.dependency),
+				"Redo must retain the FS link attached to the successor");
+			SwingUtilities.invokeAndWait(() -> {
+				gantt.updateSize();
+				gantt.revalidate();
+				gantt.repaint();
+				frame.repaint();
+			});
+			SwingUtilities.invokeAndWait(() -> { });
+			assertEquals(movedPredecessorBar, barBounds(fixture, fixture.predecessor),
+				"redrawn predecessor bar must return to the dragged position after Redo");
+			assertEquals(movedSuccessorBar, barBounds(fixture, fixture.successor),
+				"redrawn FS successor bar must return to its recalculated position after Redo");
+
+			ByteArrayOutputStream saved = new ByteArrayOutputStream();
+			MpoFileImporter importer = new MpoFileImporter();
+			assertTrue(importer.saveProject(fixture.project, saved), "dragged linked schedules must be serializable");
+			Project reopened = importer.loadProject(new ByteArrayInputStream(saved.toByteArray()));
+			assertTrue(reopened != null, "MPO must reopen the dragged linked schedule");
+			reopened.recalculate();
+			NormalTask reopenedPredecessor = reopened.getTaskList().stream()
+				.map(NormalTask.class::cast)
+				.filter(task -> task.getUniqueId() == predecessorId).findFirst().orElseThrow();
+			NormalTask reopenedSuccessor = reopened.getTaskList().stream()
+				.map(NormalTask.class::cast)
+				.filter(task -> task.getUniqueId() == successorId).findFirst().orElseThrow();
+			assertEquals(movedStart, reopenedPredecessor.getStart(), "MPO reload must preserve dragged predecessor start");
+			assertEquals(movedEnd, reopenedPredecessor.getEnd(), "MPO reload must preserve dragged predecessor finish");
+			assertEquals(movedSuccessorStart, reopenedSuccessor.getStart(), "MPO reload must preserve FS successor start");
+			assertEquals(movedSuccessorEnd, reopenedSuccessor.getEnd(), "MPO reload must preserve FS successor finish");
+			Dependency reopenedLink = reopenedSuccessor.getPredecessorList().stream()
+				.map(Dependency.class::cast)
+				.filter(link -> ((NormalTask) link.getPredecessor()).getUniqueId() == predecessorId)
+				.findFirst().orElseThrow();
+			assertEquals(DependencyType.FS, reopenedLink.getDependencyType(),
+				"MPO reload must preserve the predecessor endpoint and FS link type");
+			assertTrue(reopenedPredecessor.getSuccessorList().contains(reopenedLink),
+				"MPO reload must retain the reciprocal predecessor association");
+			assertTrue(reopenedSuccessor.getPredecessorList().contains(reopenedLink),
+				"MPO reload must retain the reciprocal successor association");
 		} else {
 			long expected = fixture.dependency.calcForwardDependencyDate(fixture.predecessor.getStart(), fixture.predecessor.getEnd(), true);
 			assertEquals(expected, fixture.successor.getStart(), "Successor must match " + DependencyType.toLongString(fixture.dependency.getDependencyType())

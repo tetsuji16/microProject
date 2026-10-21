@@ -30,7 +30,7 @@ frozen M2 criterion, Phase 6, and exact-SHA CI pass.
 
 | Gate | Required evidence | State |
 |---|---|---|
-| M2.1 (#408/#414) | Physical text/date/numeric edit, sort/filter/group/projection, applicable ribbon/menu/toolbar/popup routes, stable selection/table/Gantt; #750 Sort Order and #761 permanent renumber confirmation/Undo/persistence | Partial; #750/#761 closed; #414 routes, Java net-reduction metric, three hostile reviews/release gate open |
+| M2.1 (#408/#414) | Physical text/date/numeric edit, sort/filter/group/projection, applicable ribbon/menu/toolbar/popup routes, stable selection/table/Gantt; #750 Sort Order and #761 permanent renumber confirmation/Undo/persistence | Scoped behavior evidence recorded; #750/#761 closed; global #414 metric and exact-candidate release/full GUI gates remain open |
 | M2.2 (#403/#409/#410/#411/#453/#769) | Scheduling dates, FS/SS/FF/SF/lags, intended mutations, diagnostics, Undo/Redo, MPO reopen, failure atomicity | Partial; atomicity and dependency routes below; remaining families open |
 | M2.3 (#453/#769/#772) | Resource/assignment/progress/baseline scope, provenance/defaults, totals, actuals/splits, outcomes, Undo/Redo and MPO reopen | Open; #772 closed |
 | M2.4 (#453/#765/#769/#770) | Command/view/report/print source, enablement, physical route/result, model purity, persistence, ja/en/DPI | Open |
@@ -65,7 +65,7 @@ and a reproducer/diagnostic before another fix.
   Start/Finish sort+selection, popup Expand/Collapse, Indent/Outdent, and
   Task-ribbon Move Up/Down focused Robot journeys passed. #408 U-26 and #414
   U-32/U-33/range evidence: `docs/msp-implementation-status.md` sections
-  2332 onward. Remaining #414 route/review/release gates are open.
+  2332 onward. Global #414 metric and release gates remain open.
 - M2.2 failure atomicity: real `ScheduleService.setCompleted` with injected
   apply failure preserved task/assignment state, Undo/Redo, revision/events,
   observers and barrier. Focused/full UI suites passed at recorded SHA. MPO
@@ -143,15 +143,16 @@ and a reproducer/diagnostic before another fix.
   passed 1/1, 0 failures/errors/skips (JUnit `2026-10-20T14:40:55.144Z`,
   Windows 11, 2560×1440, existing resolution). See
   `modules/microproject_ui/build/reports/tests/guiTest/index.html`.
-- M2.1 U-34/#866 unsupported-IME fallback: the existing physical Convert
+- M2.1 U-34/#866 unsupported-IME outcome: the existing physical Convert
   journey now starts with existing Japanese text `とうきょう`, selects it in
   the cell editor, sends VK_CONVERT, and verifies the unavailable status plus
   unchanged editor selection, committed task name, and rendered cell. Focused
   ja/100% Robot passed 1/1, 0 failures/errors/skips (JUnit
   `2026-10-20T14:45:46.320Z`); artifact
   `modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.pm.graphic.frames.CanonicalProjectWindowGuiAcceptanceTest.robotConvertShowsUnsupportedImeStatusWithoutChangingEditedTextOrSelection-ja-1-0-8b75e6d51d0e499a9d6f886c268d6b0f/`.
-  This verifies safe unsupported behavior only; successful native reconversion
-  remains unproven and tracked by #866.
+  This is the accepted deterministic Windows/JDK 25 outcome. `TEST_PLAN.md`
+  U-34 explicitly says this unsupported result satisfies U-26's reconversion
+  criterion on this platform; a native bridge is not a remaining #794 gate.
 - M2.2 linked-child replacement failure atomicity: `ProjectFactory` now restores
   the pre-call projection if replacement fails after the old child is detached
   and the replacement is projected, preserving the original exception and
@@ -195,11 +196,15 @@ and a reproducer/diagnostic before another fix.
 
 ## Remaining release gates
 
-M2.1–M2.4/Common and required child issues remain open. Finish every original
-criterion, review/integrate candidate, rerun the full GUI suite from fresh
-`installDist` at the integrated SHA, complete applicable packaging checks, and
-obtain candidate-SHA CI. Only then close #794 and release; preserve all
-untracked files.
+Remaining: M2.1 global #414 net-reduction evidence; M2.3 and M2.4 acceptance;
+Common and exact-candidate integration/release gates. Explicit dependencies
+#792 and #793 are closed, and GitHub reports no registered required subissues;
+references to related epics do not imply their full closure. Next slice:
+reconcile one frozen M2.3 acceptance row against current tests and physical
+evidence. After every frozen row passes, review/integrate the candidate, rerun
+the full GUI suite from fresh `installDist` at the exact integrated SHA,
+complete applicable packaging checks, and obtain candidate-SHA CI. Preserve
+all untracked files.
 
 ## Phase 6 fresh-install evidence (2026-10-20)
 
@@ -918,7 +923,7 @@ Next finite slice: fixed-date SS negative elapsed lag (-4 hours), reusing this s
   input; its desktop capture found no foreign foreground window, but it is
   classified as possible desktop contention and not product evidence. A clean
   focused rerun passed 1/1 on Windows 11, ja-JP, 100% / 2560×1440.
-- Focused command: ` .\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.views.GanttBarDateDragGuiAcceptanceTest.robotDragMovesBarAndRecalculatesFsSuccessor" --console=plain --no-daemon --max-workers=1` — BUILD SUCCESSFUL, 1 passed. Full-class command: ` .\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.views.GanttBarDateDragGuiAcceptanceTest" --console=plain --no-daemon --max-workers=1` — BUILD SUCCESSFUL, 9/9 passed. No display resolution or visual assertion was changed. Undo/Redo and MPO were not changed or re-verified in this oracle-only correction; broader acceptance gates remain open.
+- M2.2 composite-transition follow-up: extended the existing FS journey after its physical drag and literal Friday→Monday checks. One project `UndoController.undo()` restores predecessor and dependent successor dates while retaining the same attached FS link; one `redo()` restores both moved schedules. After repaint/EDT drain, the existing bar-bounds helper confirms both Gantt rows render their original and restored positions. MPO save/reload/recalculate resolves predecessor/successor by positive unique IDs and checks dates plus reciprocal endpoint/link type. Undo/Redo here is the model-history layer, not physical Ctrl+Z/Ctrl+Y; the Robot physical route remains the bar drag. ` .\gradlew.bat :microproject_ui:compileGuiTestJava --console=plain --no-daemon --max-workers=1` passed. Focused Robot passed 1/1; full Gantt class passed 10/10 after initial extension. After the render-bound assertions, GUI compilation passed again and the final focused Robot rerun passed 1/1. No production code changed; no display resolution or assertion was weakened. No further M2.2 behavior gap was identified in this frozen-row reconciliation; M2.3 leveling defaults/provenance and broader progress transitions remain open in existing evidence, and exact integrated-head/release gates remain.
 
 ### #414 Escape binder consolidation (candidate based on `699ce1ef6`)
 
@@ -928,10 +933,11 @@ Next finite slice: fixed-date SS negative elapsed lag (-4 hours), reusing this s
 - Candidate production-file snapshot (`AbstractDialog.java`, `PopupDialogSupport.java`): 683→673 LOC, 3→3 class declarations, 6→6 textual `.add*Listener(...)` occurrences; `git diff --numstat 699ce1ef6 -- <two files>` +18/−28. Net −10 LOC for this slice only; this does not settle #414's historical net-reduction requirement.
 - Focused command: ` .\gradlew.bat :microproject_ui:test --tests "com.microproject.ui.util.PopupDialogSupportTest" --tests "com.microproject.dialog.AbstractDialogEnterKeyTest" --tests "com.microproject.dialog.PopupEscapeAuditTest" --tests "com.microproject.util.FlatUiSupportRootPaneBindingsTest" --console=plain --no-daemon --max-workers=1` — 9 tests passed. The initial run failed only because `PopupEscapeAuditTest` asserted the removed private helper/direct map writes; after updating the audit to require canonical delegation and forbid the old implementation, rerun passed.
 - ` .\gradlew.bat :microproject_ui:compileGuiTestJava --console=plain --no-daemon --max-workers=1` — BUILD SUCCESSFUL. ` .\gradlew.bat :microproject_ui:test --console=plain --no-daemon --max-workers=1` — BUILD SUCCESSFUL; fresh XML reported 1,258 tests, 0 failures/errors/skips. Notified physical command ` .\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.util.FlatUiSupportDialogBindingsGuiAcceptanceTest.parentLookAndFeelRefreshPreservesOwnedDialogActions" --console=plain --no-daemon --max-workers=1` — 1/1 passed; its fixture uses the canonical binder and verifies Enter/Escape/F1 exact-once outcomes and action identity after parent LAF refresh. `git diff --check` passed with only existing line-ending warnings.
-- The proposed extra U-26 click→UID assertion was audited and found redundant; see the following M2.1 selection-transition audit for the concrete remaining filter-route gap.
+- The proposed extra U-26 click→UID assertion was audited and found redundant; see the following M2.1 selection-transition audit.
 
 ### M2.1 selection-transition audit
 
 - No additional click→UID test was added: `U26SpreadsheetInputTransactionGuiAcceptanceTest.robotFirstKeyEditsStableTaskThroughFilteredGroupedSortedProjection` already physically clicks the visible row in `typePercentFromFirstPhysicalKey`, captures selected task IDs before sending the first character, and asserts that the snapshot equals the target's stable UID. It separately checks table/Gantt projection alignment and unchanged project task order.
 - Added `TaskInformationRibbonGuiAcceptanceTest.physicalIncompleteTaskFilterPreservesDomainAndSelectsVisibleTaskByStableId`: physical View tab → `RibbonChooseFilter` → Incomplete Tasks chooser → OK; completed task excluded from table and Gantt; visible row selection resolves to the target UID and aligned Gantt row; task IDs, dates, durations, progress, outline order, and project dirty state remain unchanged. Fixture gives the completed task one workday duration before setting 100%, and asserts effective percent 1.0.
-- Initial physical run failed because the test created a zero-duration unassigned task. Diagnostic rerun captured pre-filter `Gantt / Filter.None`, selected combo item Incomplete Tasks, applied `Filter.IncompleteTasks`, matching cache/view transformer identity, and the completed task's effective percent/schedule percent both 0.0; compiled predicate consequently returned true. `NormalTask.getPercentComplete()` returns 0 for unassigned zero-duration tasks, so this was a fixture defect, not a UI/filter production failure. No production code changed. After anchoring nonzero duration, ` .\gradlew.bat :microproject_ui:compileGuiTestJava --console=plain --no-daemon --max-workers=1` passed and final notified ` .\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.physicalIncompleteTaskFilterPreservesDomainAndSelectsVisibleTaskByStableId" --console=plain --no-daemon --max-workers=1` passed 1/1. `git diff --check` passed. Next exact M2.1 route gap: physical selection via the toolbar `FilterToolBarManager` `TransformComboBox` (`ACTION_FILTER`); the completed journey covers the ribbon chooser (`ACTION_CHOOSE_FILTER`).
+- Initial physical run failed because the test created a zero-duration unassigned task. Diagnostic rerun captured pre-filter `Gantt / Filter.None`, selected combo item Incomplete Tasks, applied `Filter.IncompleteTasks`, matching cache/view transformer identity, and the completed task's effective percent/schedule percent both 0.0; compiled predicate consequently returned true. `NormalTask.getPercentComplete()` returns 0 for unassigned zero-duration tasks, so this was a fixture defect, not a UI/filter production failure. No production code changed. After anchoring nonzero duration, ` .\gradlew.bat :microproject_ui:compileGuiTestJava --console=plain --no-daemon --max-workers=1` passed and final notified ` .\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.physicalIncompleteTaskFilterPreservesDomainAndSelectsVisibleTaskByStableId" --console=plain --no-daemon --max-workers=1` passed 1/1. `git diff --check` passed.
+- Classic-toolbar route reachability check: `Main.main` fixes `newLook=true` (`modules/microproject_ui/src/main/java/com/microproject/pm/graphic/gantt/Main.java:75`); `Environment.ribbonUI` defaults true and no production code calls `setRibbonUI` (`modules/microproject_core/src/main/java/com/microproject/util/Environment.java:47,223`); `GraphicManager` installs `MicroProjectShell.installRibbonShell` at `:4808`, while the classic branch is `:4824`. `ACTION_FILTER` is an action-map alias (`GraphicManager.java:1969-1970`), not a separate current user control; the ribbon maps to `ACTION_CHOOSE_FILTER`. `StandardToolBar` is absent from the default bundle and found only in legacy zh_CN/ru bundles, so a test-only classic-shell attempt failed during construction before any input. No toolbar Robot test or production route was added. Filter selection is view-only runtime state (`ViewTransformer.userFilterId`, `:63,172-174`) and is not part of the workspace/MPO contract; no filter persistence requirement applies. U-34 is not an open native-bridge requirement: `TEST_PLAN.md:204` explicitly accepts deterministic unsupported behavior on Windows/JDK 25; `EditorSelectionBehaviorTest.spreadsheetEditorAcceptsConvertKeyForReconversion` and `CanonicalProjectWindowGuiAcceptanceTest.robotConvertReportsUnsupportedImeOnBothSpreadsheetRoutesWithoutChangingText` cover the status, unchanged text/selection/model/render values, and both spreadsheet entry routes (the physical journey's exact artifact/run is recorded above). No M2.1 behavior gap is identified by this delta; global #414 historical net-reduction evidence and exact-candidate release/full GUI gates remain open.
