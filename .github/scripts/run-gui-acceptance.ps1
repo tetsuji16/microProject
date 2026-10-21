@@ -110,6 +110,7 @@ function Invoke-GuiGate([string]$label, [string[]]$arguments, [int]$timeoutSecon
   $safe = ($label -replace '[^A-Za-z0-9_.-]', '_')
   $attempt = [Guid]::NewGuid().ToString('N')
   $guiArtifacts = Join-Path $PWD "modules/microproject_ui/build/reports/guiTest-artifacts/$safe-$attempt"
+  New-Item -ItemType Directory -Force -Path $guiArtifacts | Out-Null
   $contentionMarker = Join-Path $guiArtifacts 'environment-contended.marker'
   $gradleExitCodeFile = Join-Path $guiArtifacts 'gradle-exit-code.txt'
   $gradleInvocationFile = Join-Path $guiArtifacts 'gradle-invocation.json'
