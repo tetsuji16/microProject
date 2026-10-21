@@ -199,6 +199,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	private Level previousGraphicManagerDiagnosticsLevel;
 	private ViewConfiguration taskSortViewToRestore;
 	private TaskSortSpec previousTaskSortSpec;
+	private ViewConfiguration taskFilterViewToRestore;
+	private String previousTaskFilterId;
 	private final ConcurrentLinkedQueue<String> diagnosticMessages = new ConcurrentLinkedQueue<>();
 	private volatile boolean failUpdateTasksRoute;
 
@@ -252,6 +254,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				taskSortViewToRestore.getTransform().setTaskSortSpec(previousTaskSortSpec);
 			taskSortViewToRestore = null;
 			previousTaskSortSpec = null;
+			if (taskFilterViewToRestore != null && previousTaskFilterId != null)
+				taskFilterViewToRestore.getTransform().setUserFilterId(previousTaskFilterId);
+			taskFilterViewToRestore = null;
+			previousTaskFilterId = null;
 			if (manager != null)
 				manager.cleanUp();
 			for (Window candidate : Window.getWindows()) {
@@ -7114,6 +7120,94 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				if (result[0] != null) return;
 			}
 		}
+	}
+
+	@Test
+	void physicalIncompleteTaskFilterPreservesDomainAndSelectsVisibleTaskByStableId() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for physical filter coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("task-filter-acceptance", undo), undo);
+		project.initialize(false, false);
+		NormalTask alpha = project.createScriptedTask();
+		alpha.setName("Filter Target Alpha");
+		NormalTask zulu = project.createScriptedTask();
+		zulu.setName("Filter Target Zulu");
+		NormalTask completed = project.createScriptedTask();
+		completed.setName("Filter Hidden Complete");
+		completed.setDuration(CalendarOption.getInstance().getMillisPerDay());
+		completed.setPercentComplete(1.0d);
+		assertEquals(1.0d, completed.getPercentComplete(), "the completed filter fixture must retain 100% progress");
+		List<NormalTask> tasks = List.of(alpha, zulu, completed);
+		List<String> originalOutline = taskOrder(project);
+		List<Long> originalIds = tasks.stream().map(NormalTask::getUniqueId).toList();
+		List<Long> originalStarts = tasks.stream().map(NormalTask::getStart).toList();
+		List<Long> originalFinishes = tasks.stream().map(NormalTask::getEnd).toList();
+		List<Long> originalDurations = tasks.stream().map(NormalTask::getDuration).toList();
+		List<Double> originalProgress = tasks.stream().map(NormalTask::getPercentComplete).toList();
+
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> window.setSize(1120, 700));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"task filter project did not become visible");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		GanttView ganttView = manager.getCurrentFrame().getGanttView();
+		assertSame(sheet.getCache(), ganttView.getCache(), "task table and Gantt must share the live filter projection");
+		taskFilterViewToRestore = ViewConfiguration.getView(manager.getCurrentFrame().getTopViewId());
+		previousTaskFilterId = taskFilterViewToRestore.getTransform().getUserFilterId();
+		boolean dirtyBeforeFilter = project.needsSaving();
+		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+			.getString("ViewRibbonTask.title"));
+		clickAndAwaitSelected(robot, viewTab, "Robot click did not select the View ribbon tab for filtering");
+		click(robot, findShowingButtonByCommand("RibbonChooseFilter"));
+		JComboBox<?> filterChoice = findShowingTransformCombo("Filter.IncompleteTasks");
+		int incompleteIndex = -1;
+		for (int index = 0; index < filterChoice.getItemCount(); index++) {
+			if (filterChoice.getItemAt(index) instanceof CommonTransformFactory factory
+					&& "Filter.IncompleteTasks".equals(factory.getId())) incompleteIndex = index;
+		}
+		assertTrue(incompleteIndex >= 0, "the shared task filter list must expose Incomplete Tasks");
+		GuiAcceptanceSupport.selectComboBoxItem(robot, filterChoice, incompleteIndex);
+		Dialog chooser = java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow() instanceof Dialog dialog
+			? dialog : null;
+		assertNotNull(chooser, "the generic task Filter chooser must remain open after selecting Incomplete Tasks");
+		click(robot, findShowingButtonByText(chooser, javax.swing.UIManager.getString("OptionPane.okButtonText")));
+		GuiAcceptanceSupport.await(() -> "Filter.IncompleteTasks".equals(
+			ViewConfiguration.getView(manager.getCurrentFrame().getTopViewId()).getTransform().getUserFilterId()),
+			"the physical View > Filter route did not retain Incomplete Tasks");
+		GuiAcceptanceSupport.await(() -> visibleTaskOrder(sheet).equals(List.of(alpha.getName(), zulu.getName())),
+			"the incomplete-task filter did not hide the completed task from the table: " + visibleTaskOrder(sheet));
+		assertFalse(isTaskVisibleInGantt(ganttView.getGantt(), completed),
+			"the completed task must also be absent from the filtered Gantt projection");
+		assertTrue(isTaskVisibleInGantt(ganttView.getGantt(), alpha));
+		assertTrue(isTaskVisibleInGantt(ganttView.getGantt(), zulu));
+		assertEquals(originalOutline, taskOrder(project), "filtering must preserve project outline order");
+		assertEquals(originalIds, tasks.stream().map(NormalTask::getUniqueId).toList(), "filtering must preserve task identities");
+		assertEquals(originalStarts, tasks.stream().map(NormalTask::getStart).toList(), "filtering must not change task starts");
+		assertEquals(originalFinishes, tasks.stream().map(NormalTask::getEnd).toList(), "filtering must not change task finishes");
+		assertEquals(originalDurations, tasks.stream().map(NormalTask::getDuration).toList(), "filtering must not change task durations");
+		assertEquals(originalProgress, tasks.stream().map(NormalTask::getPercentComplete).toList(), "filtering must not change task progress");
+		assertEquals(dirtyBeforeFilter, project.needsSaving(), "view-only filtering must not dirty project data");
+
+		int selectedRow = rowForTask(sheet, zulu);
+		clickUntilSelected(robot, window, sheet, selectedRow, nameColumn(sheet));
+		assertEquals(List.of(zulu.getUniqueId()), sheet.getSelectedNodes().stream()
+			.filter(node -> node.getImpl() instanceof Task)
+			.map(node -> ((Task) node.getImpl()).getUniqueId()).toList(),
+			"physical selection in the filtered table must resolve to the visible task's stable ID");
+		GraphicNode selectedNode = (GraphicNode) sheet.getCache().getGraphicNode(
+			((CommonSpreadSheetModel) sheet.getModel()).getNode(selectedRow).getNode());
+		int ganttRow = ganttView.getGantt().getCache().getVisibleNodes().getProjectionIndex().rowForNode(selectedNode);
+		assertEquals(selectedRow, ganttRow, "the selected filtered table task must stay aligned with its Gantt row");
+		assertEquals(originalOutline, taskOrder(project), "physical selection after filtering must remain view-only");
+		assertEquals(dirtyBeforeFilter, project.needsSaving(), "filter selection must not dirty project data");
 	}
 
 	@Test
