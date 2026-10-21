@@ -66,6 +66,8 @@ import com.microproject.testsupport.RibbonGuiButton;
 import com.microproject.ui.ribbon.RibbonDisplayMode;
 import com.microproject.ui.ribbon.RibbonDisplayPreferences;
 import com.microproject.undo.DataFactoryUndoController;
+import com.microproject.ui.util.SwingAlertPresenter;
+import com.microproject.util.Alert;
 import com.microproject.util.Environment;
 import com.microproject.util.FlatUiSupport;
 
@@ -96,6 +98,7 @@ class AssignmentDialogGuiAcceptanceTest {
 		Environment.setRibbonUI(previousRibbonUi);
 		Environment.setNewLook(previousNewLook);
 		RibbonDisplayPreferences.save(previousRibbonDisplayMode);
+		Alert.setPresenter(null);
 	}
 
 	@Test
@@ -137,6 +140,7 @@ class AssignmentDialogGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> dialog.getSelectedResources().contains(resource),
 			"Robot click did not select the replacement resource in Assign Resources");
 
+		Alert.setPresenter(new SwingAlertPresenter());
 		project.setCollaborationSession(new RejectingCollaborationSession(project));
 		click(robot, bounds(dialog.assignButton));
 		robot.waitForIdle();
