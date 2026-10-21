@@ -3,6 +3,7 @@ $ErrorActionPreference = 'Stop'
 $monitorScript = Join-Path $PSScriptRoot 'capture-gui-desktop-state.ps1'
 $tempDirectory = Join-Path ([System.IO.Path]::GetTempPath()) ("microproject-gui-monitor-" + [Guid]::NewGuid().ToString('N'))
 $logFile = Join-Path $tempDirectory 'monitor.log'
+$diagnosticLogFile = Join-Path $tempDirectory 'monitor.diagnostic.log'
 $targetProcess = $null
 $monitorProcess = $null
 $targetExitObservedUtc = $null
@@ -15,8 +16,8 @@ try {
   $targetProcess = Start-Process -FilePath $powerShellExe `
     -ArgumentList '-NoProfile -NonInteractive -Command', '"Start-Sleep -Seconds 2"' `
     -PassThru -WindowStyle Hidden
-  $monitorArguments = '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "{0}" -TargetPid {1} -Watch -LogFile "{2}"' -f `
-    $monitorScript, $targetProcess.Id, $logFile
+  $monitorArguments = '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "{0}" -TargetPid {1} -Watch -LogFile "{2}" -DiagnosticLogFile "{3}"' -f `
+    $monitorScript, $targetProcess.Id, $logFile, $diagnosticLogFile
   $monitorProcess = Start-Process -FilePath $powerShellExe -ArgumentList $monitorArguments `
     -PassThru -WindowStyle Hidden
   if (-not $targetProcess.WaitForExit(10000)) {
@@ -32,16 +33,25 @@ try {
   }
 
   $logText = Get-Content -LiteralPath $logFile -Raw
-  if ($logText -notmatch '(?m)^monitorStarted=') {
-    throw 'The desktop monitor did not write its start record.'
+  if (-not [string]::IsNullOrWhiteSpace($logText)) {
+    throw "The desktop monitor wrote a non-overlap record to the overlap event log. Log: $logText"
   }
-  if ($logText -notmatch '(?m)^monitorStopped=.*reason=target-exited\r?$') {
-    throw "The desktop monitor did not record target-process shutdown. Log: $logText"
+  $diagnosticLogText = Get-Content -LiteralPath $diagnosticLogFile -Raw
+  if ($diagnosticLogText -notmatch '(?m)^monitorStarted=.*monitorPid=\d+ targetPid=\d+') {
+    throw 'The desktop monitor did not write its process identity to the diagnostic log.'
+  }
+  if ($diagnosticLogText -notmatch '(?m)^monitorStopped=.*reason=target-exited\r?$') {
+    throw "The desktop monitor did not record target-process shutdown. Diagnostic log: $diagnosticLogText"
+  }
+  if ($diagnosticLogText -notmatch '(?m)^monitorFirstTargetCheckExited=') {
+    throw 'The desktop monitor did not write its first target-check diagnostic.'
   }
 
-  $exclusiveStream = [System.IO.FileStream]::new($logFile, [System.IO.FileMode]::Open,
-    [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::None)
-  $exclusiveStream.Dispose()
+  foreach ($releasedLog in @($logFile, $diagnosticLogFile)) {
+    $exclusiveStream = [System.IO.FileStream]::new($releasedLog, [System.IO.FileMode]::Open,
+      [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::None)
+    $exclusiveStream.Dispose()
+  }
   Write-Output 'PASS: desktop monitor exits after its target and releases the log file.'
 } catch {
   $preserveArtifacts = $true
@@ -64,6 +74,14 @@ try {
       $logTail = "(unable to read monitor log: $($_.Exception.Message))"
     }
   }
+  $diagnosticLogTail = '(monitor diagnostic log not created)'
+  if (Test-Path -LiteralPath $diagnosticLogFile) {
+    try {
+      $diagnosticLogTail = (Get-Content -LiteralPath $diagnosticLogFile -Tail 40 -ErrorAction Stop) -join [Environment]::NewLine
+    } catch {
+      $diagnosticLogTail = "(unable to read monitor diagnostic log: $($_.Exception.Message))"
+    }
+  }
   $diagnostic = @"
 Desktop monitor lifecycle failure diagnostics:
   targetExitObservedUtc=$targetExitObservedUtc
@@ -72,6 +90,8 @@ Desktop monitor lifecycle failure diagnostics:
   tempDirectory=$tempDirectory
   monitorLogTail:
 $logTail
+  monitorDiagnosticLogTail:
+$diagnosticLogTail
 "@
   Write-Error -Message $diagnostic -ErrorAction Continue
   throw

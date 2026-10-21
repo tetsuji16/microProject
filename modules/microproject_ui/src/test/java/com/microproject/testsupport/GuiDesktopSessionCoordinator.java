@@ -108,15 +108,17 @@ public final class GuiDesktopSessionCoordinator {
 		String processId = Long.toString(ProcessHandle.current().pid());
 		String sessionId = processId + "-" + UUID.randomUUID();
 		Path eventLog = artifactDirectory.resolve("desktop-overlap-" + sessionId + ".log");
+		Path diagnosticLog = artifactDirectory.resolve("desktop-overlap-" + sessionId + ".diagnostic.log");
 		Path processLog = artifactDirectory.resolve("desktop-monitor-process-" + sessionId + ".log");
 		long startupStarted = System.nanoTime();
 		Process monitor = new ProcessBuilder("powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden",
 			"-ExecutionPolicy", "Bypass", "-File", script.toString(), "-TargetPid", processId,
-			"-Watch", "-LogFile", eventLog.toString()).redirectErrorStream(true)
+			"-Watch", "-LogFile", eventLog.toString(), "-DiagnosticLogFile", diagnosticLog.toString()).redirectErrorStream(true)
 			.redirectOutput(processLog.toFile()).start();
 		long deadline = startupStarted + TimeUnit.SECONDS.toNanos(30);
 		while (System.nanoTime() < deadline && monitor.isAlive()) {
-			if (Files.exists(eventLog) && Files.readString(eventLog, StandardCharsets.UTF_8).contains("monitorStarted=")) {
+			if (Files.exists(diagnosticLog)
+				&& Files.readString(diagnosticLog, StandardCharsets.UTF_8).contains("monitorStarted=")) {
 				return new ForegroundMonitor(monitor, eventLog, processLog);
 			}
 			Thread.sleep(50);
