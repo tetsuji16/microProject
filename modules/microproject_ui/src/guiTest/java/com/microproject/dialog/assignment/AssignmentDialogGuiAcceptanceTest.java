@@ -472,6 +472,7 @@ class AssignmentDialogGuiAcceptanceTest {
 		final JDialog[] warning = new JDialog[1];
 		final AbstractButton[] acknowledge = new AbstractButton[1];
 		final String[] message = new String[1];
+		final String[] buttonState = new String[1];
 		GuiAcceptanceSupport.await(() -> {
 			try {
 				SwingUtilities.invokeAndWait(() -> {
@@ -482,7 +483,13 @@ class AssignmentDialogGuiAcceptanceTest {
 								Object value = optionPane.getMessage();
 								message[0] = value == null ? "null" : value.toString();
 								warning[0] = dialog;
-								acknowledge[0] = dialog.getRootPane().getDefaultButton();
+								AbstractButton defaultButton = dialog.getRootPane().getDefaultButton();
+								acknowledge[0] = com.microproject.menu.testsupport.UiComponentWalker.flatten(dialog).stream()
+									.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+									.filter(button -> button.isShowing() && "OK".equals(button.getText()))
+									.findFirst().orElse(null);
+								buttonState[0] = "default=" + describeButton(defaultButton)
+										+ ", visibleAcknowledge=" + describeButton(acknowledge[0]);
 								return;
 							}
 						}
@@ -492,13 +499,19 @@ class AssignmentDialogGuiAcceptanceTest {
 			} catch (Exception exception) {
 				throw new AssertionError("Could not inspect the lock warning dialog", exception);
 			}
-		}, "lock rejection warning did not open under the assignment dialog; owner=" + describeWindow(owner));
+		}, "lock rejection warning did not open with a visible OK button under the assignment dialog; owner="
+				+ describeWindow(owner) + "; buttons=" + buttonState[0]);
 		assertTrue(message[0].contains(task.getName()) && message[0].contains("locked by"),
 			"unexpected lock warning text: " + message[0]);
 		assertTrue(owner.isShowing(), "assignment dialog closed while its lock warning was open");
 		click(robot, bounds(acknowledge[0]));
 		robot.waitForIdle();
 		GuiAcceptanceSupport.await(() -> !warning[0].isShowing(), "physical acknowledgement did not close the lock warning");
+	}
+
+	private static String describeButton(AbstractButton button) {
+		return button == null ? "null" : "text=" + button.getText() + "/showing=" + button.isShowing()
+				+ "/visible=" + button.isVisible() + "/enabled=" + button.isEnabled();
 	}
 
 	private ReplaceAssignmentDialog awaitReplaceDialog() throws Exception {
