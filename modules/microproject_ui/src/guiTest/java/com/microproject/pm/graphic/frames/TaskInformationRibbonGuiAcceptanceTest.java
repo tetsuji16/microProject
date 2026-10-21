@@ -6059,7 +6059,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		com.microproject.pm.graphic.model.cache.GraphicDependency graphicLink =
 			(com.microproject.pm.graphic.model.cache.GraphicDependency) gantt.getModel().getCache().getEdgeElementAt(0);
 		GuiAcceptanceSupport.await(() -> !graphicLink.getPath().getBounds2D().isEmpty(), "Gantt dependency edge did not render");
-		Rectangle edgeTarget = ganttDependencyEdgeTarget(gantt, graphicLink);
+		Rectangle edgeTarget = ganttDependencyEdgeTarget(robot, gantt, graphicLink);
 		click(robot, edgeTarget);
 		click(robot, edgeTarget);
 		GuiAcceptanceSupport.await(() -> findDependencyDialog() != null, "physical Gantt dependency edge did not open DependencyDialog");
@@ -6121,7 +6121,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				(com.microproject.pm.graphic.model.cache.GraphicDependency) gantt.getModel().getCache().getEdgeElementAt(0);
 			GuiAcceptanceSupport.await(() -> !currentGraphicDependency.getPath().getBounds2D().isEmpty(),
 				"Gantt dependency edge did not render for " + targetKind);
-			Rectangle currentEdgeTarget = ganttDependencyEdgeTarget(gantt, currentGraphicDependency);
+			Rectangle currentEdgeTarget = ganttDependencyEdgeTarget(robot, gantt, currentGraphicDependency);
 			click(robot, currentEdgeTarget);
 			click(robot, currentEdgeTarget);
 			GuiAcceptanceSupport.await(() -> findDependencyDialog() != null,
@@ -6181,7 +6181,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			(com.microproject.pm.graphic.model.cache.GraphicDependency) gantt.getModel().getCache().getEdgeElementAt(0);
 		GuiAcceptanceSupport.await(() -> !lagGraphicDependency.getPath().getBounds2D().isEmpty(),
 			"Gantt dependency edge did not render for lag editing");
-		Rectangle lagEdgeTarget = ganttDependencyEdgeTarget(gantt, lagGraphicDependency);
+		Rectangle lagEdgeTarget = ganttDependencyEdgeTarget(robot, gantt, lagGraphicDependency);
 		click(robot, lagEdgeTarget);
 		click(robot, lagEdgeTarget);
 		GuiAcceptanceSupport.await(() -> findDependencyDialog() != null,
@@ -6240,7 +6240,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			(com.microproject.pm.graphic.model.cache.GraphicDependency) gantt.getModel().getCache().getEdgeElementAt(0);
 		GuiAcceptanceSupport.await(() -> !fsGraphicDependency.getPath().getBounds2D().isEmpty(),
 			"Gantt dependency edge did not render for FS lead setup");
-		Rectangle fsEdgeTarget = ganttDependencyEdgeTarget(gantt, fsGraphicDependency);
+		Rectangle fsEdgeTarget = ganttDependencyEdgeTarget(robot, gantt, fsGraphicDependency);
 		click(robot, fsEdgeTarget);
 		click(robot, fsEdgeTarget);
 		GuiAcceptanceSupport.await(() -> findDependencyDialog() != null,
@@ -6280,7 +6280,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			(com.microproject.pm.graphic.model.cache.GraphicDependency) gantt.getModel().getCache().getEdgeElementAt(0);
 		GuiAcceptanceSupport.await(() -> !leadGraphicDependency.getPath().getBounds2D().isEmpty(),
 			"Gantt dependency edge did not render for negative lag editing");
-		Rectangle leadEdgeTarget = ganttDependencyEdgeTarget(gantt, leadGraphicDependency);
+		Rectangle leadEdgeTarget = ganttDependencyEdgeTarget(robot, gantt, leadGraphicDependency);
 		click(robot, leadEdgeTarget);
 		click(robot, leadEdgeTarget);
 		GuiAcceptanceSupport.await(() -> findDependencyDialog() != null,
@@ -8990,30 +8990,80 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		return null;
 	}
 
-	private static Rectangle ganttDependencyEdgeTarget(Gantt gantt,
+	private record DependencyEdgeSegment(double startX, double startY, double endX, double endY,
+			double length, int order) { }
+
+	private record DependencyEdgeTarget(Rectangle screenBounds, Point localPoint) { }
+
+	private static Rectangle ganttDependencyEdgeTarget(Robot robot, Gantt gantt,
 			com.microproject.pm.graphic.model.cache.GraphicDependency dependency) throws Exception {
-		java.awt.geom.PathIterator iterator = dependency.getPath().getPathIterator(null, 0.5d);
-		double[] coordinates = new double[6];
-		double startX = 0d, startY = 0d, targetX = 0d, targetY = 0d, longestLength = 0d;
-		while (!iterator.isDone()) {
-			int segment = iterator.currentSegment(coordinates);
-			if (segment == java.awt.geom.PathIterator.SEG_MOVETO) {
-				startX = coordinates[0]; startY = coordinates[1];
-			} else if (segment == java.awt.geom.PathIterator.SEG_LINETO) {
-				double endX = coordinates[0], endY = coordinates[1];
-				double length = Math.hypot(endX - startX, endY - startY);
-				if (length > longestLength) {
-					longestLength = length;
-					targetX = (startX + endX) / 2d;
-					targetY = (startY + endY) / 2d;
+		Task predecessor = (Task) dependency.getDependency().getPredecessor();
+		Task successor = (Task) dependency.getDependency().getSuccessor();
+		SwingUtilities.invokeAndWait(() -> {
+			gantt.scrollToTask(successor, false);
+			gantt.repaint();
+		});
+		robot.waitForIdle();
+
+		java.util.concurrent.atomic.AtomicReference<DependencyEdgeTarget> resolved =
+			new java.util.concurrent.atomic.AtomicReference<>();
+		java.util.concurrent.atomic.AtomicReference<String> diagnostic = new java.util.concurrent.atomic.AtomicReference<>();
+		SwingUtilities.invokeAndWait(() -> {
+			java.awt.geom.PathIterator iterator = dependency.getPath().getPathIterator(null, 0.5d);
+			double[] coordinates = new double[6];
+			double startX = 0d, startY = 0d;
+			int order = 0;
+			List<DependencyEdgeSegment> segments = new ArrayList<>();
+			while (!iterator.isDone()) {
+				int segment = iterator.currentSegment(coordinates);
+				if (segment == java.awt.geom.PathIterator.SEG_MOVETO) {
+					startX = coordinates[0]; startY = coordinates[1];
+				} else if (segment == java.awt.geom.PathIterator.SEG_LINETO) {
+					double endX = coordinates[0], endY = coordinates[1];
+					double length = Math.hypot(endX - startX, endY - startY);
+					if (length > 0d)
+						segments.add(new DependencyEdgeSegment(startX, startY, endX, endY, length, order++));
+					startX = endX; startY = endY;
 				}
-				startX = endX; startY = endY;
+				iterator.next();
 			}
-			iterator.next();
-		}
-		if (longestLength == 0d) throw new AssertionError("Dependency path has no non-zero straight segment");
-		Point location = gantt.getLocationOnScreen();
-		return new Rectangle(location.x + (int) Math.round(targetX), location.y + (int) Math.round(targetY), 1, 1);
+			segments.sort(java.util.Comparator.comparingDouble(DependencyEdgeSegment::length).reversed()
+				.thenComparingInt(DependencyEdgeSegment::order));
+			Rectangle clip = gantt.getVisibleRect();
+			java.awt.GraphicsConfiguration graphicsConfiguration = gantt.getGraphicsConfiguration();
+			Rectangle screenBounds = graphicsConfiguration == null
+				? new Rectangle(Toolkit.getDefaultToolkit().getScreenSize()) : graphicsConfiguration.getBounds();
+			Point location = gantt.getLocationOnScreen();
+			java.awt.geom.Rectangle2D pathBounds = dependency.getPath().getBounds2D();
+			diagnostic.set("dependency=" + predecessor.getUniqueId() + "->" + successor.getUniqueId()
+				+ " dates=" + predecessor.getStart() + ".." + predecessor.getEnd() + "/"
+				+ successor.getStart() + ".." + successor.getEnd()
+				+ " path=" + pathBounds + " visibleClip=" + clip + " screen=" + screenBounds);
+			for (DependencyEdgeSegment edge : segments) {
+				for (double fraction : new double[] { 0.5d, 0.25d, 0.75d, 0.125d, 0.875d }) {
+					Point local = new Point((int) Math.round(edge.startX() + (edge.endX() - edge.startX()) * fraction),
+						(int) Math.round(edge.startY() + (edge.endY() - edge.startY()) * fraction));
+					if (!clip.contains(local))
+						continue;
+					Point screenPoint = new Point(location.x + local.x, location.y + local.y);
+					if (!screenBounds.contains(screenPoint))
+						continue;
+					com.microproject.pm.graphic.graph.GraphZone hit = gantt.getUI().getObjectAt(local.x, local.y);
+					if (hit != null && hit.getObject() == dependency) {
+						resolved.set(new DependencyEdgeTarget(
+							new Rectangle(screenPoint.x, screenPoint.y, 1, 1), local));
+						return;
+					}
+				}
+			}
+		});
+		DependencyEdgeTarget target = resolved.get();
+		if (target == null)
+			throw new AssertionError("No visible physical hit point resolves to the expected Gantt dependency; "
+				+ diagnostic.get());
+		System.out.println("[GANTT_DEPENDENCY_EDGE_TARGET] " + diagnostic.get()
+			+ " localPoint=" + target.localPoint() + " screenPoint=" + target.screenBounds());
+		return target.screenBounds();
 	}
 
 	private static AbstractButton findVisibleButton(java.awt.Container container, String text) {
