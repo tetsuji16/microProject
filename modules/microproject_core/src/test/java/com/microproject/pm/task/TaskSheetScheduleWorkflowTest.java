@@ -5,6 +5,7 @@
 package com.microproject.pm.task;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -22,6 +23,21 @@ import com.microproject.pm.resource.ResourcePool;
 import com.microproject.undo.DataFactoryUndoController;
 
 class TaskSheetScheduleWorkflowTest {
+	@Test
+	void durationEditSucceedsWithoutUndoController() {
+		Project project = Project.createProject(ResourcePool.createRourcePool("task sheet test", null), null);
+		project.initialize(false, false);
+		NormalTask task = createTask(project);
+		long oldFinish = task.getEnd();
+		long newDuration = 2L * day();
+
+		task.setDuration(newDuration, taskSheetContext());
+
+		assertNull(project.getUndoController());
+		assertEquals(newDuration, task.getDuration());
+		assertTrue(task.getEnd() > oldFinish);
+	}
+
 	@Test
 	void durationEditRecalculatesSuccessorAsOneUndoableTransaction() throws Exception {
 		Project project = createProject();
