@@ -1045,3 +1045,5 @@ Next finite slice: fixed-date SS negative elapsed lag (-4 hours), reusing this s
 - Build run [39703929395](https://github.com/tetsuji16/ProjectLibre/actions/runs/39703929395) passed (including maintenance checks, Gradle build/tests, install distribution).
 - Full GUI locale and DPI matrix run [39703929344](https://github.com/tetsuji16/ProjectLibre/actions/runs/39703929344) passed; fresh desktop install, GUI wrapper checks, full physical GUI suite, and evidence upload all succeeded. The failure-diagnostics step was skipped because the suite passed.
 - Both checks target the exact PR head above. No merge or issue closure has occurred; integration remains pending review.
+
+- Follow-up exact-head CI also passed on 7820c93fd7acdb4e3158ed114e8f7dadbabe6bfd: Build [39704720604](https://github.com/tetsuji16/ProjectLibre/actions/runs/39704720604) and full GUI audit [39704720651](https://github.com/tetsuji16/ProjectLibre/actions/runs/39704720651). The only change from the already-passing parent was evidence-document metadata.
