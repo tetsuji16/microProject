@@ -19,6 +19,7 @@ import java.awt.datatransfer.Transferable;
 import java.awt.image.BufferedImage;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -159,29 +160,63 @@ class MultipleLocalProjectOpenGuiAcceptanceTest {
 		existing = manager.findFrameForProjectFile(existingFile.toString());
 		Project existingProject = existing.getProject();
 		existingProject.setDirty(true);
+		AtomicBoolean chooserCancelled = new AtomicBoolean();
+		AtomicReference<Throwable> chooserFailure = new AtomicReference<>();
+		AtomicReference<Instant> providerStartedAt = new AtomicReference<>();
+		AtomicReference<Instant> providerReturnedAt = new AtomicReference<>();
+		AtomicReference<String> ownerAtProviderEntry = new AtomicReference<>("not-entered");
+		AtomicReference<Window> ownerWindowAtProviderEntry = new AtomicReference<>();
 		UiServices.setFileChooserProvider(new UiServices.FileChooserProvider() {
 			@Override public String chooseFileName(boolean save, String selectedFileName, Object parent) { return null; }
 			@Override public List<String> chooseFileNames(boolean save, String selectedFileName, Object parent) {
 				chooserStarted.set(true);
+				providerStartedAt.set(Instant.now());
+				ownerAtProviderEntry.set(parent == null ? "null" : parent.getClass().getName() + "@"
+					+ Integer.toHexString(System.identityHashCode(parent)));
+				ownerWindowAtProviderEntry.set(parent instanceof Window owner ? owner : null);
 				try {
 					List<String> selected = nativeProvider.chooseFileNames(save, selectedFileName, parent);
 					nativeSelection.set(selected == null ? List.of() : List.copyOf(selected));
 					return selected;
-				} finally { chooserReturned.set(true); }
+				} catch (RuntimeException | Error failure) {
+					chooserFailure.set(failure);
+					throw failure;
+				} finally {
+					providerReturnedAt.set(Instant.now());
+					chooserReturned.set(true);
+				}
 			}
 		});
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		nativeChooserRobot = robot;
 		robot.setAutoDelay(45);
-		activateMainWindow(robot);
-		clickFileOpen(robot);
-		GuiAcceptanceSupport.await(chooserStarted::get, "the native File/Open chooser was not invoked");
-		robot.delay(700);
-		pasteNativeChooserText(robot, "\"" + firstFile + "\" \"" + secondFile + "\"");
-		robot.keyPress(java.awt.event.KeyEvent.VK_ENTER);
-		robot.keyRelease(java.awt.event.KeyEvent.VK_ENTER);
-		robot.waitForIdle();
-		GuiAcceptanceSupport.await(chooserReturned::get, "the native multi-file chooser did not return");
+		RibbonExternalCommandGuiAcceptanceTest.PreparedNativeChooserProbe probe = null;
+		Instant chooserInvokedAt = null;
+		BufferedImage beforeOpen = robot.createScreenCapture(new Rectangle(Toolkit.getDefaultToolkit().getScreenSize()));
+		String windowsBeforeOpen = RibbonExternalCommandGuiAcceptanceTest.snapshotNativeChooserWindows();
+		try {
+			probe = RibbonExternalCommandGuiAcceptanceTest.PreparedNativeChooserProbe.start("multi-file-open");
+			probe.awaitPrepared();
+			activateMainWindow(robot);
+			clickFileOpen(robot);
+			GuiAcceptanceSupport.await(chooserStarted::get, "the native File/Open chooser was not invoked");
+			chooserInvokedAt = probe.startReadinessDeadline();
+			RibbonExternalCommandGuiAcceptanceTest.requireNativeCancelControl(
+				RibbonExternalCommandGuiAcceptanceTest.awaitNativeChooserSnapshot(probe, "multi-file-open"), "multi-file-open");
+			pasteNativeChooserText(robot, "\"" + firstFile + "\" \"" + secondFile + "\"");
+			robot.keyPress(java.awt.event.KeyEvent.VK_ENTER);
+			robot.keyRelease(java.awt.event.KeyEvent.VK_ENTER);
+			robot.waitForIdle();
+			GuiAcceptanceSupport.await(chooserReturned::get, "the native multi-file chooser did not return");
+		} catch (Exception | Error failure) {
+			RibbonExternalCommandGuiAcceptanceTest.captureNativeChooserFailureDiagnostics("multi-file-open", robot,
+				beforeOpen, chooserStarted, chooserReturned, chooserCancelled, chooserFailure, windowsBeforeOpen,
+				chooserInvokedAt == null ? Instant.now() : chooserInvokedAt, failure, providerStartedAt,
+				providerReturnedAt, ownerAtProviderEntry, ownerWindowAtProviderEntry.get(), probe);
+			throw failure;
+		} finally {
+			if (probe != null) probe.close();
+		}
 		List<String> selectedPaths = nativeSelection.get();
 		assertEquals(2, selectedPaths.size(), "the native chooser must return a two-file selection");
 		assertTrue(selectedPaths.stream().anyMatch(path -> FilePathUtils.sameFileIdentity(path, firstFile.toString())),
