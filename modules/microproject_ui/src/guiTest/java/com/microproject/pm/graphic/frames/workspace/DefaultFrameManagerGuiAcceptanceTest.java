@@ -17,6 +17,8 @@ import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.event.KeyEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -179,7 +181,12 @@ class DefaultFrameManagerGuiAcceptanceTest {
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		Rectangle primaryBounds = window.getBounds();
-		robot.mouseMove(primaryBounds.x + primaryBounds.width - 22, primaryBounds.y + 15);
+		Point closeClick = new Point(primaryBounds.x + primaryBounds.width - 22, primaryBounds.y + 15);
+		boolean[] windowClosingReached = new boolean[1];
+		SwingUtilities.invokeAndWait(() -> window.addWindowListener(new WindowAdapter() {
+			@Override public void windowClosing(WindowEvent event) { windowClosingReached[0] = true; }
+		}));
+		robot.mouseMove(closeClick.x, closeClick.y);
 		robot.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
 		try {
@@ -217,7 +224,15 @@ class DefaultFrameManagerGuiAcceptanceTest {
 						+ "; current windows: [" + windows + "]; active frames: [" + activeFrames
 						+ "]; selected=" + desktopWindowManager.getSelectedFrame()
 						+ "; active=" + desktopWindowManager.getActiveFrame()
-						+ "; graphic current=" + graphicManagers[0].getCurrentFrame();
+					+ "; graphic current=" + graphicManagers[0].getCurrentFrame()
+					+ "; closeClick=" + closeClick + "; primaryBounds=" + primaryBounds
+					+ "; screen=" + window.getGraphicsConfiguration().getBounds()
+					+ "; defaultTransform=" + window.getGraphicsConfiguration().getDefaultTransform()
+					+ "; physical windowClosing reached JFrame=" + windowClosingReached[0]
+					+ "; promotion predicates={independentWindowCount==1:" + (desktopWindowManager.getIndependentWindowCount() == 1)
+					+ ", originalRemoved:" + !desktopWindowManager.getAllFrames().contains(frames[0])
+					+ ", secondaryMapping:" + (secondary != null)
+					+ ", promotedParent:" + (frames[1].getParent() == window.getContentPane()) + "}";
 			});
 			throw new AssertionError(failure.getMessage() + "\n" + diagnostics[0], failure);
 		}

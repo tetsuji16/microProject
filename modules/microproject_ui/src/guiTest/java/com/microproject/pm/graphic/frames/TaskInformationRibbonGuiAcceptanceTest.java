@@ -3534,9 +3534,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			GuiAcceptanceSupport.await(() -> RibbonGuiButton.adapt(RibbonGuiButton.findCommand(window, "RibbonStatusDate"))
 					.getText().startsWith("NA "), "Status Date ribbon value did not refresh to NA");
 			return null;
-		}, () -> !contextProject().isStatusDateSet() && statusDateRibbonMatchesModel(),
-			() -> contextProject().isStatusDateSet() && statusDateRibbonMatchesModel(),
-			"StatusDate");
+		}, () -> !contextProject().isStatusDateSet(), this::statusDateRibbonMatchesModel,
+			() -> contextProject().isStatusDateSet() && statusDateRibbonMatchesModel(), "StatusDate");
 	}
 	@Test
 	void statusDateRibbonCanSetSpecificDatePhysically() throws Exception {
@@ -3571,18 +3570,18 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			assertTrue(initialStatusDate != contextProject().getStatusDate(),
 					"Accepting the selected date must update the project model");
 			return null;
-		}, () -> contextProject().isStatusDateSet() && contextProject().getStatusDate() != initialStatusDate
-				&& statusDateRibbonMatchesModel(),
+		}, () -> contextProject().isStatusDateSet() && contextProject().getStatusDate() != initialStatusDate,
+			this::statusDateRibbonMatchesModel,
 			() -> contextProject().isStatusDateSet() && contextProject().getStatusDate() == initialStatusDate
 				&& statusDateRibbonMatchesModel(), "StatusDate");
 	}
 	@Test
 	void statusDatePopupRouteUsesSharedMutationFixture() throws Exception {
-		runProgressPhysicalRoute("status-popup", c -> { rightClick(c.robot(), c.cell()); SpreadSheetPopupMenu p=c.sheet().getPopup(); GuiAcceptanceSupport.await(p::isVisible,"Status popup absent"); click(c.robot(), GuiPhysicalRouteAdapter.visiblePopupItem(p,"popup.StatusDate")); chooseStatusDateNotSet(c.robot()); return null; }, () -> !contextProject().isStatusDateSet() && statusDateRibbonMatchesModel(), () -> contextProject().isStatusDateSet() && statusDateRibbonMatchesModel(), "StatusDate");
+		runProgressPhysicalRoute("status-popup", c -> { rightClick(c.robot(), c.cell()); SpreadSheetPopupMenu p=c.sheet().getPopup(); GuiAcceptanceSupport.await(p::isVisible,"Status popup absent"); click(c.robot(), GuiPhysicalRouteAdapter.visiblePopupItem(p,"popup.StatusDate")); chooseStatusDateNotSet(c.robot()); return null; }, () -> !contextProject().isStatusDateSet(), this::statusDateRibbonMatchesModel, () -> contextProject().isStatusDateSet() && statusDateRibbonMatchesModel(), "StatusDate");
 	}
 	@Test
 	void statusDateShortcutRouteUsesSharedMutationFixture() throws Exception {
-		runProgressPhysicalRoute("status-shortcut", c -> { GuiPhysicalRouteAdapter.assertRootPaneBinding(window.getRootPane(),javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_S,InputEvent.CTRL_DOWN_MASK|InputEvent.ALT_DOWN_MASK),"StatusDate"); press(c.robot(),KeyEvent.VK_CONTROL,KeyEvent.VK_ALT,KeyEvent.VK_S); chooseStatusDateNotSet(c.robot()); return null; }, () -> !contextProject().isStatusDateSet() && statusDateRibbonMatchesModel(), () -> contextProject().isStatusDateSet() && statusDateRibbonMatchesModel(), "StatusDate");
+		runProgressPhysicalRoute("status-shortcut", c -> { GuiPhysicalRouteAdapter.assertRootPaneBinding(window.getRootPane(),javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_S,InputEvent.CTRL_DOWN_MASK|InputEvent.ALT_DOWN_MASK),"StatusDate"); press(c.robot(),KeyEvent.VK_CONTROL,KeyEvent.VK_ALT,KeyEvent.VK_S); chooseStatusDateNotSet(c.robot()); return null; }, () -> !contextProject().isStatusDateSet(), this::statusDateRibbonMatchesModel, () -> contextProject().isStatusDateSet() && statusDateRibbonMatchesModel(), "StatusDate");
 	}
 
 	@Test
@@ -3974,9 +3973,25 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		String label = manager.getMenuManager().getStringOrNull("RibbonStatusDate.text");
 		String expectedDisplay = value + " " + (label == null ? "Status Date" : label) + ":";
 		Object actionName = manager.getMenuManager().getActionFromId("StatusDate").getValue(javax.swing.Action.NAME);
-		return text.startsWith(value + " ") && text.endsWith(":")
+		boolean matches = text.startsWith(value + " ") && text.endsWith(":")
 				&& expectedDisplay.equals(button.getAccessibleContext().getAccessibleName())
 				&& expectedDisplay.equals(actionName);
+		if (!matches) throw new AssertionError(statusDateViewFailure());
+		return true;
+	}
+
+	private String statusDateViewFailure() {
+		AbstractButton button = RibbonGuiButton.adapt(RibbonGuiButton.findCommand(window, "RibbonStatusDate"));
+		Project project = contextProject();
+		Object actionName = manager.getMenuManager().getActionFromId("StatusDate").getValue(javax.swing.Action.NAME);
+		String text = button.getText().replaceAll("(?i)<br\\s*/?>", " ").replaceAll("<[^>]*>", "");
+		return "Status Date ribbon did not match model: isStatusDateSet=" + project.isStatusDateSet()
+				+ ", statusDate=" + project.getStatusDate() + "; button="
+				+ button.getClass().getName() + "@" + Integer.toHexString(System.identityHashCode(button)) + " " + button
+				+ "[actionCommand=" + button.getActionCommand() + ", showing=" + button.isShowing()
+				+ ", bounds=" + button.getBounds() + ", text=" + text
+				+ ", accessibleName=" + button.getAccessibleContext().getAccessibleName()
+				+ "]; StatusDate Action.NAME=" + actionName;
 	}
 
 	@Test
@@ -4705,8 +4720,20 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	private void runProgressPhysicalRoute(String routeName, TaskModeRoute route,
+			java.util.function.BooleanSupplier after, java.util.function.BooleanSupplier viewAfter,
+			java.util.function.BooleanSupplier before, String commandId) throws Exception {
+		runProgressPhysicalRoute(routeName, route, after, viewAfter, before, commandId, true);
+	}
+
+	private void runProgressPhysicalRoute(String routeName, TaskModeRoute route,
 			java.util.function.BooleanSupplier after, java.util.function.BooleanSupplier before, String commandId,
 			boolean selectTask) throws Exception {
+		runProgressPhysicalRoute(routeName, route, after, () -> true, before, commandId, selectTask);
+	}
+
+	private void runProgressPhysicalRoute(String routeName, TaskModeRoute route,
+			java.util.function.BooleanSupplier after, java.util.function.BooleanSupplier viewAfter,
+			java.util.function.BooleanSupplier before, String commandId, boolean selectTask) throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for progress Robot coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
@@ -4742,7 +4769,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		}
 		GuiCommandAcceptanceFixture.verifyMutation(commandId, () -> route.run(context),
 			() -> manager.getCurrentFrame().getLastTaskCommandResult(), after,
-			() -> rowForTask(sheet, progressTask) >= 0,
+			() -> rowForTask(sheet, progressTask) >= 0 && viewAfter.getAsBoolean(),
 			() -> { press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z); return null; }, before,
 			() -> { press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y); return null; }, after,
 			() -> {

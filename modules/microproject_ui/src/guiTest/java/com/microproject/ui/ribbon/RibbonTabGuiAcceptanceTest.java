@@ -163,8 +163,14 @@ class RibbonTabGuiAcceptanceTest {
 				assertEquals(1, tabs.stream().filter(AbstractButton::isSelected).count(), "exactly one ribbon tab must be selected");
 				assertTrue(tab.isSelected());
 				assertEquals(FlatUiSupport.tabSelectedForeground(), tab.getForeground());
-				assertTrue(host.isShowing() && host.getWidth() > 900 && host.getHeight() > 100 && host.getHeight() < 250,
-					"ribbon command surface height is invalid after selecting " + tab.getText());
+				Rectangle usable = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
+				Rectangle hostBounds = new Rectangle(host.getLocationOnScreen(), host.getSize());
+				assertTrue(frame.isShowing() && usable.contains(frame.getBounds())
+						&& host.isShowing() && usable.contains(hostBounds)
+						&& host.getHeight() > 100 && host.getHeight() < 250,
+					"ribbon must fit the usable viewport and retain its command-surface height after selecting "
+						+ tab.getText() + ": frame=" + frame.getBounds() + ", host=" + hostBounds
+						+ ", usable=" + usable + ", height=" + host.getHeight());
 			});
 		}
 	}
