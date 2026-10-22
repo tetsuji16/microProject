@@ -6890,18 +6890,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	private AbstractButton findShowingButtonByCommand(String command) throws Exception {
-		AbstractButton[] result = new AbstractButton[1];
-		SwingUtilities.invokeAndWait(() -> result[0] = UiComponentWalker.flatten(window).stream()
-			.filter(AbstractButton.class::isInstance)
-			.map(RibbonGuiButton::adapt)
-			.filter(AbstractButton::isShowing).filter(button -> command.equals(button.getActionCommand()))
-			.findFirst().orElseThrow(() -> new AssertionError("Visible ribbon command not found: " + command
-				+ " visibleCommands=" + UiComponentWalker.flatten(window).stream()
-					.filter(AbstractButton.class::isInstance)
-					.map(RibbonGuiButton::adapt)
-					.filter(AbstractButton::isShowing).map(AbstractButton::getActionCommand)
-					.filter(java.util.Objects::nonNull).collect(Collectors.joining(",")))));
-		return result[0];
+		return RibbonGuiSupport.findVisibleOrExpand(new com.microproject.testsupport.GuiRobot(), window, command);
 	}
 
 	private AbstractButton findVisibleOrOverflowButton(Robot robot, String command) throws Exception {

@@ -76,11 +76,11 @@ class WindowShellNativeDecorationGuiAcceptanceTest {
 			usable.y += screenInsets.top;
 			usable.width -= screenInsets.left + screenInsets.right;
 			usable.height -= screenInsets.top + screenInsets.bottom;
-			int width = Math.min(1200, usable.width - 160);
-			if (width < 760 || usable.height < 360)
-				throw new IllegalStateException("Native caption fixture needs a usable desktop of at least 920x360: " + usable);
+			int width = Math.min(1200, usable.width - 24);
+			if (width < 480 || usable.height < 360)
+				throw new IllegalStateException("Native caption fixture needs a usable desktop of at least 480x360: " + usable);
 			frame.setSize(width, 240);
-			frame.setLocation(usable.x + Math.min(40, (usable.width - width) / 2), usable.y + 80);
+			frame.setLocation(usable.x + Math.max(0, (usable.width - width) / 2), usable.y + 80);
 			frame.setAlwaysOnTop(true);
 			frame.setVisible(true);
 			frame.toFront();

@@ -5,6 +5,7 @@
 package com.microproject.testsupport;
 
 import java.awt.Component;
+import java.awt.Container;
 import java.awt.Rectangle;
 import java.awt.Robot;
 import java.util.concurrent.atomic.AtomicReference;
@@ -12,6 +13,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import javax.swing.AbstractButton;
 import javax.swing.JComponent;
 import javax.swing.JPopupMenu;
+import javax.swing.JViewport;
 import javax.swing.SwingUtilities;
 
 import com.microproject.menu.testsupport.UiComponentWalker;
@@ -28,7 +30,7 @@ public final class RibbonGuiSupport {
 		AtomicReference<AbstractButton> popupCommand = new AtomicReference<>();
 		SwingUtilities.invokeAndWait(() -> {
 			for (Component component : UiComponentWalker.flatten(root)) {
-				if (component instanceof AbstractButton button && button.isShowing()
+				if (component instanceof AbstractButton button && button.isShowing() && fullyVisibleInViewport(button)
 					&& commandId.equals(buttonId(button))) {
 					visible.set(button);
 					return;
@@ -49,8 +51,11 @@ public final class RibbonGuiSupport {
 			}
 		});
 		if (visible.get() != null) return visible.get();
+		AbstractButton viewportCommand = findCommand(root, commandId) instanceof AbstractButton button ? button : null;
+		if (viewportCommand != null && scrollIntoRibbonViewport(robot, root, commandId))
+			return visibleCommand(root, commandId);
 		if (collapsedTrigger.get() == null)
-			throw new AssertionError("Ribbon command is neither visible nor in a Swing overflow group: " + commandId);
+			throw new AssertionError("Ribbon command is neither visible nor reachable through a ribbon viewport or Swing overflow group: " + commandId);
 
 		WindowAcceptanceAssertions.clickComponent(robot, collapsedTrigger.get());
 		GuiAcceptanceSupport.await(() -> {
@@ -60,6 +65,80 @@ public final class RibbonGuiSupport {
 			return collapsedPopup.get().isVisible();
 		}, "Swing ribbon overflow did not expose a current visible command after its physical click: " + commandId);
 		return popupCommand.get();
+	}
+
+	private static boolean scrollIntoRibbonViewport(Robot robot, Component root, String commandId) throws Exception {
+		for (int attempt = 0; attempt < 32; attempt++) {
+			AtomicReference<AbstractButton> target = new AtomicReference<>();
+			AtomicReference<JViewport> viewport = new AtomicReference<>();
+			AtomicReference<AbstractButton> arrow = new AtomicReference<>();
+			AtomicReference<Boolean> fullyVisible = new AtomicReference<>(false);
+			SwingUtilities.invokeAndWait(() -> {
+				for (Component component : UiComponentWalker.flatten(root)) {
+					if (!(component instanceof AbstractButton button) || !commandId.equals(buttonId(button))) continue;
+					target.set(button);
+					Container parent = button.getParent();
+					while (parent != null && !(parent instanceof JViewport)) parent = parent.getParent();
+					if (!(parent instanceof JViewport candidate) || candidate.getView() == null) return;
+					viewport.set(candidate);
+					Rectangle bounds = SwingUtilities.convertRectangle(button.getParent(), button.getBounds(), candidate.getView());
+					Rectangle visible = candidate.getViewRect();
+					if (visible.contains(bounds)) {
+						fullyVisible.set(true);
+						return;
+					}
+					String property = bounds.x < visible.x ? ModernRibbonPanel.SCROLL_PREVIOUS_PROPERTY
+						: ModernRibbonPanel.SCROLL_NEXT_PROPERTY;
+					for (Component candidateButton : UiComponentWalker.flatten(root)) {
+						if (candidateButton instanceof AbstractButton scrollButton && scrollButton.isShowing()
+							&& scrollButton instanceof JComponent swingButton
+							&& Boolean.TRUE.equals(swingButton.getClientProperty(property))) {
+							arrow.set(scrollButton);
+							break;
+						}
+					}
+					return;
+				}
+			});
+			if (target.get() == null) return false;
+			if (fullyVisible.get()) return true;
+			if (viewport.get() == null || arrow.get() == null)
+				throw new AssertionError("Ribbon command is outside its viewport and no visible scroll arrow can reach it: " + commandId);
+			Rectangle before = viewportPosition(viewport.get());
+			WindowAcceptanceAssertions.clickComponent(robot, arrow.get());
+			Rectangle after = viewportPosition(viewport.get());
+			if (before.equals(after))
+				throw new AssertionError("Ribbon viewport scroll arrow did not move toward command: " + commandId);
+		}
+		throw new AssertionError("Ribbon viewport did not fully expose command after bounded physical scrolling: " + commandId);
+	}
+
+	private static Rectangle viewportPosition(JViewport viewport) throws Exception {
+		Rectangle[] position = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> position[0] = new Rectangle(viewport.getViewPosition(), viewport.getExtentSize()));
+		return position[0];
+	}
+
+	private static boolean fullyVisibleInViewport(Component component) {
+		Container parent = component.getParent();
+		while (parent != null && !(parent instanceof JViewport)) parent = parent.getParent();
+		if (!(parent instanceof JViewport viewport) || viewport.getView() == null) return true;
+		Rectangle bounds = SwingUtilities.convertRectangle(component.getParent(), component.getBounds(), viewport.getView());
+		return viewport.getViewRect().contains(bounds);
+	}
+
+	private static AbstractButton visibleCommand(Component root, String commandId) throws Exception {
+		AtomicReference<AbstractButton> result = new AtomicReference<>();
+		SwingUtilities.invokeAndWait(() -> {
+			for (Component component : UiComponentWalker.flatten(root)) {
+				if (component instanceof AbstractButton button && button.isShowing() && commandId.equals(buttonId(button))) {
+					result.set(button);
+					return;
+				}
+			}
+		});
+		if (result.get() == null) throw new AssertionError("Ribbon command did not remain visible after viewport scroll: " + commandId);
+		return result.get();
 	}
 
 	private static AbstractButton visiblePopupCommand(JPopupMenu popup, String commandId) {

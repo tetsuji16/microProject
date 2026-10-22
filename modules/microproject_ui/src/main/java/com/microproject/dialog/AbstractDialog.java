@@ -52,6 +52,7 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JRadioButton;
 import javax.swing.JRootPane;
+import javax.swing.JScrollPane;
 import javax.swing.JToolTip;
 import javax.swing.KeyStroke;
 import javax.swing.plaf.ButtonUI;
@@ -88,6 +89,7 @@ public abstract class AbstractDialog extends FlatLafDialog {
     private int dialogResult = JOptionPane.CANCEL_OPTION;
 
 	protected JComponent contentPanel = null;
+    private JScrollPane contentViewport;
     protected ButtonPanel buttonPanel = null;
     private String helpAddress = null;
 	private boolean packedOnce;
@@ -234,18 +236,30 @@ public abstract class AbstractDialog extends FlatLafDialog {
 		if (getContentPane() instanceof JComponent content) {
 			FlatUiSupport.styleDialogContent(content);
 		}
-		if (contentPanel != null)
-			getContentPane().add(contentPanel, BorderLayout.CENTER);
+		if (contentPanel != null) {
+			contentViewport = contentPanel instanceof JScrollPane scrollPane
+				? scrollPane : createContentViewport(contentPanel);
+			getContentPane().add(contentViewport, BorderLayout.CENTER);
+		}
 		if (buttonPanel != null)
 			getContentPane().add(buttonPanel, BorderLayout.AFTER_LAST_LINE);
 
 	}
 	protected void clearComponents() {
-		if (contentPanel != null)
-			getContentPane().remove(contentPanel);
+		if (contentViewport != null) {
+			getContentPane().remove(contentViewport);
+			contentViewport = null;
+		}
 		if (buttonPanel != null)
 			getContentPane().remove(buttonPanel);
 		
+	}
+
+	static JScrollPane createContentViewport(JComponent content) {
+		JScrollPane viewport = new JScrollPane(content,
+			JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+		viewport.setBorder(null);
+		return viewport;
 	}
     public void pack() {
 		initComponents();

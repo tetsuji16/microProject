@@ -18,6 +18,7 @@ import java.awt.Insets;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Robot;
+import java.awt.Toolkit;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
@@ -1202,12 +1203,27 @@ class RibbonTabGuiAcceptanceTest {
 
 	private void captureVisibleRibbon(Robot robot, String fileName, int minimumWidth) throws Exception {
 		Rectangle[] bounds = new Rectangle[1];
-		SwingUtilities.invokeAndWait(() -> bounds[0] = new Rectangle(frame.getRootPane().getLocationOnScreen(), frame.getRootPane().getSize()));
+		Rectangle[] usableBounds = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> {
+			JComponent rootPane = frame.getRootPane();
+			bounds[0] = new Rectangle(rootPane.getLocationOnScreen(), rootPane.getSize());
+			Rectangle usable = new Rectangle(rootPane.getGraphicsConfiguration().getBounds());
+			Insets screenInsets = Toolkit.getDefaultToolkit().getScreenInsets(rootPane.getGraphicsConfiguration());
+			usable.x += screenInsets.left;
+			usable.y += screenInsets.top;
+			usable.width -= screenInsets.left + screenInsets.right;
+			usable.height -= screenInsets.top + screenInsets.bottom;
+			usableBounds[0] = usable;
+		});
 		BufferedImage screenshot = robot.createScreenCapture(bounds[0]);
 		Path directory = Path.of(System.getProperty("microproject.gui.artifacts.dir", "build/guiTest-artifacts"));
 		Files.createDirectories(directory);
 		ImageIO.write(screenshot, "png", directory.resolve(fileName).toFile());
-		assertTrue(screenshot.getWidth() >= minimumWidth && screenshot.getHeight() > 120,
+		int screenAwareMinimumWidth = Math.min(minimumWidth, Math.max(0, usableBounds[0].width - 20));
+		assertTrue(usableBounds[0].contains(bounds[0]),
+			"captured ribbon root pane must fit the usable work area: bounds=" + bounds[0] + " usable=" + usableBounds[0]);
+		assertTrue(screenshot.getWidth() == bounds[0].width && screenshot.getHeight() == bounds[0].height
+			&& screenshot.getWidth() >= screenAwareMinimumWidth && screenshot.getHeight() > 120,
 			"captured ribbon is unexpectedly small: " + screenshot.getWidth() + "x" + screenshot.getHeight());
 	}
 

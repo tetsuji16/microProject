@@ -3,9 +3,9 @@
 State: OPEN. Issue: https://github.com/tetsuji16/ProjectLibre/issues/794
 Dependencies: #792 CLOSED; #793 CLOSED (met). Contract frozen 2026-10-20.
 Contract evidence began at dirty worktree `40f5ee8d575a3327e727b9f62182c07aa55d2178`;
-current HEAD: `37c07cbf8092389afc2f995ee95640b6764b3a41`, with extensive dirty
-changes. Evidence is scoped local evidence, not full exact-head release proof.
-Closed children do not establish parent acceptance.
+current HEAD: `1ca2b41485e4403e1d3b76d2fa0d8dd903c20217`, with three local commits
+ahead and three origin commits not yet integrated. This is scoped local evidence,
+not full exact-head release proof. Closed children do not establish parent acceptance.
 
 ## Goal and frozen acceptance
 
@@ -109,9 +109,27 @@ UID 24→27 FS−15 days).
 
 ## Remaining gates
 
+Latest release attempt: tag `v0.0.24.1250`, workflow
+[39774952702](https://github.com/tetsuji16/ProjectLibre/actions/runs/39774952702),
+did not publish binaries because the visual GUI matrix failed. Functional-ja-100
+and visual-ja/en-100 passed; at 125% failures were 28/28, and at 150% failures
+were 42/43 (one conditional
+skip). The runner's 1024x768 physical screen becomes 819x614 / 683x512 logical.
+Confirmed causes include text-button overflow in the shared dialog button area,
+dialogs shrinking below their preferred content, and ribbon tests locating only
+currently visible commands instead of physically scrolling the viewport. A local
+Robot rerun was blocked by Chrome overlap (`GUI_ENVIRONMENT_CONTENDED`); no input
+was dispatched. Current fixes have 1,251 UI unit tests passing and GUI test sources
+compiling, but need exact-head CI physical proof.
+
+Current slice: validate the shared responsive dialog/button changes and physical
+ribbon viewport scrolling in the 125/150% CI legs; repair any remaining product or
+fixture defect, then rerun the full release matrix before considering a new tag.
+
 M2.1–M2.4 and Common remain OPEN. #414 also requires all available
-Ribbon/menu/toolbar/popup routes, production Java net-reduction metrics, three
-hostile reviews, and exact-head locale/DPI GUI acceptance. Other gaps include
+Ribbon/menu/toolbar/popup routes, three hostile reviews, and exact-head
+locale/DPI GUI acceptance. Production Java net-reduction is an effort goal, not
+a release gate, per the user's instruction. Other gaps include
 M2.1 field types/boundaries; M2.2 independent negative-lag MPP READ fixture;
 M2.3/#868 provenance and remaining resource/baseline scope; M2.4
 command/view/report/print/locale coverage. Run candidate-SHA CI, fresh

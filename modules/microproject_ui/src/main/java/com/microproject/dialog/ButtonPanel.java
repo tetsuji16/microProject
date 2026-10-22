@@ -24,18 +24,19 @@
  *******************************************************************************/
 package com.microproject.dialog;
 
+import java.awt.FlowLayout;
+
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JPanel;
 import javax.swing.UIManager;
-import javax.swing.plaf.basic.BasicOptionPaneUI;
 
 import com.microproject.util.FlatUiSupport;
 
 public class ButtonPanel extends JPanel {
 	private static final long serialVersionUID = 1L;
 	public ButtonPanel() {
-	    super(new BasicOptionPaneUI.ButtonAreaLayout(true, 6));
+	    super(new FlowLayout(FlowLayout.RIGHT, 6, 0));
 	    javax.swing.border.Border border = UIManager.getBorder("OptionPane.border");
 	    setBorder(border != null ? border : BorderFactory.createEmptyBorder());
 	    FlatUiSupport.styleButtonPanel(this);
