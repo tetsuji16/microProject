@@ -1177,7 +1177,12 @@ class GanttBarDateDragGuiAcceptanceTest {
 			frame.add(new JScrollPane(gantt));
 			frame.setPreferredSize(new Dimension(1100, 520));
 			frame.pack();
-			frame.setLocationByPlatform(true);
+			Rectangle usableBounds = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
+			Dimension packedSize = frame.getSize();
+			frame.setSize(Math.min(packedSize.width, usableBounds.width),
+				Math.min(packedSize.height, usableBounds.height));
+			frame.setLocation(usableBounds.x + (usableBounds.width - frame.getWidth()) / 2,
+				usableBounds.y + (usableBounds.height - frame.getHeight()) / 2);
 			frame.setAlwaysOnTop(true);
 			frame.setVisible(true);
 		});
