@@ -1341,11 +1341,11 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			+ " foregroundTitle=" + foreground.get("title") + "; snapshot follows\n" + snapshot);
 	}
 
-	private static NativeCancelControl requireNativeCancelControl(String snapshot, String route) {
+	static NativeCancelControl requireNativeCancelControl(String snapshot, String route) {
 		return parseNativeCancelControl(snapshot, route, ProcessHandle.current().pid());
 	}
 
-	private static String awaitNativeChooserSnapshot(PreparedNativeChooserProbe probe, String route) throws IOException {
+	static String awaitNativeChooserSnapshot(PreparedNativeChooserProbe probe, String route) throws IOException {
 		try {
 			NativeChooserProbeCompletion.Result result = probe.awaitReadiness();
 			if (result.status() == NativeChooserProbeCompletion.Status.COMPLETE) return result.output();
@@ -1388,7 +1388,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		}
 	}
 
-	private static final class PreparedNativeChooserProbe implements AutoCloseable {
+	static final class PreparedNativeChooserProbe implements AutoCloseable {
 		private final Process process;
 		private final Path output;
 		private final Path trigger;
@@ -1500,7 +1500,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		return Path.of(System.getProperty("microproject.gui.artifacts.dir", "build/reports/guiTest-artifacts"));
 	}
 
-	private static void captureNativeChooserFailureDiagnostics(String route, Robot robot, BufferedImage beforeOpen,
+	static void captureNativeChooserFailureDiagnostics(String route, Robot robot, BufferedImage beforeOpen,
 			AtomicBoolean chooserCallStarted, AtomicBoolean chooserCallReturned, AtomicBoolean chooserCancelled,
 			AtomicReference<Throwable> chooserFailure, String windowsBeforeOpen, Instant chooserInvokedAt,
 			Throwable originalFailure, AtomicReference<Instant> providerStartedAt,
@@ -1770,7 +1770,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		return new Rectangle(minX, minY, maxX - minX + 1, maxY - minY + 1);
 	}
 
-	private static String snapshotNativeChooserWindows() throws Exception {
+	static String snapshotNativeChooserWindows() throws Exception {
 		String[] snapshot = new String[1];
 		SwingUtilities.invokeAndWait(() -> snapshot[0] = describeNativeChooserWindows());
 		return snapshot[0];
