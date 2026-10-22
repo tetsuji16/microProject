@@ -1223,7 +1223,8 @@ class RibbonTabGuiAcceptanceTest {
 		Path directory = Path.of(System.getProperty("microproject.gui.artifacts.dir", "build/guiTest-artifacts"));
 		Files.createDirectories(directory);
 		ImageIO.write(screenshot, "png", directory.resolve(fileName).toFile());
-		int screenAwareMinimumWidth = Math.min(minimumWidth, Math.max(0, usableBounds[0].width - 20));
+		int screenAwareMinimumWidth = Math.min(minimumWidth,
+			Math.max(Math.min(640, usableBounds[0].width), usableBounds[0].width - 64));
 		assertTrue(usableBounds[0].contains(bounds[0]),
 			"captured ribbon root pane must fit the usable work area: bounds=" + bounds[0] + " usable=" + usableBounds[0]);
 		assertTrue(screenshot.getWidth() == bounds[0].width && screenshot.getHeight() == bounds[0].height

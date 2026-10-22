@@ -5,10 +5,16 @@
 package com.microproject.dialog.calendar;
 
 import java.awt.BorderLayout;
+import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.GraphicsConfiguration;
+import java.awt.GraphicsEnvironment;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.awt.Rectangle;
+import java.awt.Toolkit;
+import java.awt.Window;
 import java.text.DateFormatSymbols;
 import java.time.LocalTime;
 import java.util.BitSet;
@@ -30,6 +36,7 @@ import javax.swing.JSpinner;
 import javax.swing.JTextField;
 import javax.swing.SpinnerDateModel;
 import javax.swing.SpinnerNumberModel;
+import javax.swing.SwingUtilities;
 import javax.swing.ListSelectionModel;
 import javax.swing.event.ListSelectionEvent;
 
@@ -131,8 +138,9 @@ final class ExceptionEditorPanel extends JPanel {
 	private void editException(Entry source) {
 		if (source == null) return;
 		DetailsEditor editor = new DetailsEditor(source);
+		JScrollPane detailsPane = createDetailsScrollPane(editor.panel, usableScreenSize());
 		while (true) {
-			int choice = JOptionPane.showConfirmDialog(this, new JScrollPane(editor.panel),
+			int choice = JOptionPane.showConfirmDialog(this, detailsPane,
 				Messages.getString("ChangeWorkingTimeDialogBox.ExceptionDetailsTitle"),
 				JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
 			if (choice != JOptionPane.OK_OPTION) return;
@@ -151,6 +159,30 @@ final class ExceptionEditorPanel extends JPanel {
 					Messages.getString("ChangeWorkingTimeDialogBox.ExceptionDetailsTitle"), JOptionPane.ERROR_MESSAGE);
 			}
 		}
+	}
+
+	static Dimension boundedDetailsViewportSize(Dimension editorSize, Dimension usableSize) {
+		int widthLimit = usableSize.width - 80;
+		int heightLimit = usableSize.height - 160;
+		if (widthLimit < 240) widthLimit = usableSize.width;
+		if (heightLimit < 160) heightLimit = usableSize.height;
+		return new Dimension(Math.min(editorSize.width, Math.max(1, widthLimit)),
+			Math.min(editorSize.height, Math.max(1, heightLimit)));
+	}
+
+	static JScrollPane createDetailsScrollPane(JPanel editorPanel, Dimension usableSize) {
+		JScrollPane pane = new JScrollPane(editorPanel);
+		pane.setPreferredSize(boundedDetailsViewportSize(editorPanel.getPreferredSize(), usableSize));
+		return pane;
+	}
+
+	private Dimension usableScreenSize() {
+		Window window = SwingUtilities.getWindowAncestor(this);
+		GraphicsConfiguration configuration = window == null ? null : window.getGraphicsConfiguration();
+		if (configuration == null) return GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds().getSize();
+		Rectangle bounds = configuration.getBounds();
+		Insets insets = Toolkit.getDefaultToolkit().getScreenInsets(configuration);
+		return new Dimension(bounds.width - insets.left - insets.right, bounds.height - insets.top - insets.bottom);
 	}
 
 	private void removeException() {

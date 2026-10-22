@@ -4,9 +4,11 @@
  */
 package com.microproject.dialog;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.awt.Dimension;
 import java.awt.Rectangle;
 import java.util.List;
 
@@ -23,7 +25,12 @@ class ButtonPanelLayoutTest {
 			List<JButton> buttons = List.of(
 				new JButton("OK"), new JButton("Cancel"), new JButton("Help"), new JButton("Apply"));
 			buttons.forEach(panel::addButton);
-			panel.setSize(190, 120);
+			int oneRowHeight = panel.getPreferredSize().height;
+			panel.setSize(190, oneRowHeight);
+			Dimension wrappedPreferredSize = panel.getPreferredSize();
+			assertTrue(wrappedPreferredSize.height > oneRowHeight,
+				"preferred height must grow when the constrained width wraps buttons");
+			panel.setSize(190, wrappedPreferredSize.height);
 			panel.doLayout();
 
 			boolean multipleRows = false;
@@ -40,6 +47,25 @@ class ButtonPanelLayoutTest {
 				}
 			}
 			assertTrue(multipleRows, "constrained width must wrap buttons onto multiple rows");
+		});
+	}
+
+	@Test
+	void keepsButtonsOnOneRowAtPreferredWidth() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			ButtonPanel panel = new ButtonPanel();
+			List<JButton> buttons = List.of(
+				new JButton("OK"), new JButton("Cancel"), new JButton("Help"), new JButton("Apply"));
+			buttons.forEach(panel::addButton);
+			Dimension preferredSize = panel.getPreferredSize();
+			panel.setSize(preferredSize);
+			panel.doLayout();
+
+			int y = buttons.get(0).getY();
+			for (JButton button : buttons) {
+				assertEquals(y, button.getY(), "preferred width should keep buttons on one row");
+				assertTrue(button.getBounds().y + button.getHeight() <= panel.getHeight());
+			}
 		});
 	}
 }
