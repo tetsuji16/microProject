@@ -6067,6 +6067,17 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"Task Information must not stay enabled for a multi-task selection");
 		AbstractButton link = findVisibleOrOverflowButton(robot, "RibbonLink");
 		GuiAcceptanceSupport.await(link::isEnabled, "Link remained disabled for two selected tasks");
+		JPopupMenu[] linkOverflow = new JPopupMenu[1];
+		SwingUtilities.invokeAndWait(() -> {
+			for (Component current = link; current != null; current = current.getParent()) {
+				if (current instanceof JPopupMenu popup) {
+					linkOverflow[0] = popup;
+					break;
+				}
+			}
+		});
+		assertTrue(linkOverflow[0] != null && linkOverflow[0].isShowing(),
+				"Ribbon Link must be obtained from the visible Task overflow popup");
 		Environment.setClientSide(true);
 		Environment.setBatchMode(false);
 		Alert.setPresenter(new SwingAlertPresenter());
@@ -6105,6 +6116,11 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				"Link did not create a dependency between the selected tasks");
 		GuiAcceptanceSupport.await(() -> gantt.getModel().getCache().getEdgesSize() == 1,
 				"Link did not create one visible Gantt dependency");
+		robot.keyPress(KeyEvent.VK_ESCAPE);
+		robot.keyRelease(KeyEvent.VK_ESCAPE);
+		click(robot, taskTab);
+		GuiAcceptanceSupport.await(() -> !linkOverflow[0].isShowing(),
+				"Dismissing the Task ribbon overflow after Link did not close its popup");
 		assertRibbonOutcome(manager, previousLinkOutcome, RibbonCommandResult.Status.CHANGED,
 			predecessor.getUniqueId(), successor.getUniqueId());
 		assertCommandDiagnostics("RibbonLink", "Link", List.of(predecessor.getUniqueId(), successor.getUniqueId()),
