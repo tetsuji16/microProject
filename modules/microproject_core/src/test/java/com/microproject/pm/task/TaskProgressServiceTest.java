@@ -6,10 +6,13 @@ package com.microproject.pm.task;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
 
@@ -21,6 +24,103 @@ import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.grouping.core.Node;
 
 class TaskProgressServiceTest {
+	@Test
+	void markOnTrackRollsBackWholeBatchWhenLaterTaskUpdateFails() {
+		assertProgressBatchFailure(true);
+	}
+
+	@Test
+	void setPercentCompleteRollsBackWholeBatchWhenLaterTaskUpdateFails() {
+		assertProgressBatchFailure(false);
+	}
+
+	private void assertProgressBatchFailure(boolean markOnTrack) {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("atomic-progress", undo), undo);
+		project.initialize(false, false);
+		NormalTask first = project.createScriptedTask();
+		first.setImportedPercentComplete(0.25D);
+		if (markOnTrack) project.setStatusDate(first.getEnd() + 7L * 86_400_000L);
+		long firstStart = first.getStart();
+		long firstEnd = first.getEnd();
+		var firstAssignment = (Assignment) first.getAssignments().get(0);
+		double assignmentPercent = firstAssignment.getPercentComplete();
+		long assignmentWork = firstAssignment.getWork(null);
+		long assignmentActualWork = firstAssignment.getActualWork(null);
+		long assignmentRemainingWork = firstAssignment.getRemainingWork();
+		var baselineValues = firstAssignment.getBaselineValues(0);
+		Long assignmentBaselineWork = baselineValues == null ? null : baselineValues.work();
+		double firstProgress = first.getPercentComplete();
+		boolean firstDirty = first.isDirty();
+		AtomicBoolean failOnce = new AtomicBoolean(false);
+		RuntimeException injected = new IllegalStateException("injected later progress failure");
+		NormalTask failing = new NormalTask(project) {
+			@Override public void setImportedPercentComplete(double value) {
+				super.setImportedPercentComplete(value);
+				if (failOnce.compareAndSet(true, false)) throw injected;
+			}
+		};
+		failing.setImportedPercentComplete(0.10D);
+		failOnce.set(true);
+		Assignment failingAssignment = (Assignment) failing.getAssignments().get(0);
+		double failingAssignmentPercent = failingAssignment.getPercentComplete();
+		long failingAssignmentWork = failingAssignment.getWork(null);
+		long failingAssignmentActualWork = failingAssignment.getActualWork(null);
+		long failingAssignmentRemainingWork = failingAssignment.getRemainingWork();
+		var failingBaseline = failingAssignment.getBaselineValues(0);
+		Long failingBaselineWork = failingBaseline == null ? null : failingBaseline.work();
+		long failingStart = failing.getStart();
+		long failingEnd = failing.getEnd();
+		boolean failingDirty = failing.isDirty();
+		first.setName("undo checkpoint");
+		undo.undo();
+		List<String> undoNames = undo.getEditNames();
+		String redoName = undo.getRedoName();
+		boolean canUndo = undo.canUndo();
+		boolean canRedo = undo.canRedo();
+		long revision = project.getMutationState().revision();
+		boolean projectDirty = project.isDirty();
+		AtomicInteger objectEvents = new AtomicInteger();
+		AtomicInteger scheduleEvents = new AtomicInteger();
+		project.addObjectListener(event -> objectEvents.incrementAndGet());
+		project.addScheduleListener(event -> scheduleEvents.incrementAndGet());
+		TaskProgressService service = new TaskProgressService();
+
+		RuntimeException failure = assertThrows(RuntimeException.class, () -> {
+			if (markOnTrack) service.markOnTrack(project, List.of(first, failing));
+			else service.setPercentComplete(project, List.of(first, failing), 0.75D);
+		});
+		assertSame(injected, failure);
+		assertEquals(firstProgress, first.getPercentComplete(), 0.00001D);
+		assertEquals(0.10D, failing.getPercentComplete(), 0.00001D);
+		assertEquals(firstStart, first.getStart());
+		assertEquals(firstEnd, first.getEnd());
+		assertEquals(failingStart, failing.getStart());
+		assertEquals(failingEnd, failing.getEnd());
+		assertEquals(firstDirty, first.isDirty());
+		assertEquals(failingDirty, failing.isDirty());
+		assertEquals(assignmentPercent, firstAssignment.getPercentComplete(), 0.00001D);
+		assertEquals(assignmentWork, firstAssignment.getWork(null));
+		assertEquals(assignmentActualWork, firstAssignment.getActualWork(null));
+		assertEquals(assignmentRemainingWork, firstAssignment.getRemainingWork());
+		var restoredBaseline = firstAssignment.getBaselineValues(0);
+		assertEquals(assignmentBaselineWork, restoredBaseline == null ? null : restoredBaseline.work());
+		assertEquals(failingAssignmentPercent, failingAssignment.getPercentComplete(), 0.00001D);
+		assertEquals(failingAssignmentWork, failingAssignment.getWork(null));
+		assertEquals(failingAssignmentActualWork, failingAssignment.getActualWork(null));
+		assertEquals(failingAssignmentRemainingWork, failingAssignment.getRemainingWork());
+		var restoredFailingBaseline = failingAssignment.getBaselineValues(0);
+		assertEquals(failingBaselineWork, restoredFailingBaseline == null ? null : restoredFailingBaseline.work());
+		assertEquals(projectDirty, project.isDirty());
+		assertEquals(revision, project.getMutationState().revision());
+		assertEquals(canUndo, undo.canUndo());
+		assertEquals(canRedo, undo.canRedo());
+		assertEquals(undoNames, undo.getEditNames());
+		assertEquals(redoName, undo.getRedoName());
+		assertEquals(0, objectEvents.get());
+		assertEquals(0, scheduleEvents.get());
+	}
+
 	@Test
 	void persistedStatusDateRestoresExactlyAndRejectsOutOfRangeValues() {
 		DataFactoryUndoController undo = new DataFactoryUndoController();

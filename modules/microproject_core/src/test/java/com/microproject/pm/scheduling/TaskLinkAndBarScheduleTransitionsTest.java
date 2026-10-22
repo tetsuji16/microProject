@@ -103,12 +103,1084 @@ class TaskLinkAndBarScheduleTransitionsTest {
 	}
 
 	@Test
-	void finishToStartWorkingDayLagSkipsDatedNonworkingException() throws Exception {
+	void finishToStartElapsedFourHourLagUsesFixedWallClockDatesAndUndoRedo() throws Exception {
+		Fixture fixture = createFixture();
+		Project project = fixture.project;
+		long mondayEight = timestamp(2030, Calendar.JUNE, 3, 8);
+		long mondayTwelve = timestamp(2030, Calendar.JUNE, 3, 12);
+		long mondaySixteen = timestamp(2030, Calendar.JUNE, 3, 16);
+		long mondaySeventeen = timestamp(2030, Calendar.JUNE, 3, 17);
+		long tuesdaySixteen = timestamp(2030, Calendar.JUNE, 4, 16);
+		long fourElapsedHours = com.microproject.datatype.Duration.setAsElapsed(4L * 60L * 60L * 1000L);
+		// Document-derived contract: Microsoft describes positive lag as delaying an
+		// FS successor and elapsed time as duration units; exact four-hour wall-clock
+		// arithmetic is the narrow deterministic interpretation under this fixture.
+		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
+		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
+		project.setStart(mondayEight);
+		NormalTask predecessor = createTask(project, "Elapsed FS predecessor", 1);
+		NormalTask successor = createTask(project, "Elapsed FS successor", 1);
+		NormalTask unrelated = createTask(project, "Elapsed FS unrelated", 1);
+		predecessor.setManualDates(mondayEight, mondayTwelve);
+		successor.setManualDates(mondayEight, mondaySeventeen);
+		unrelated.setManualDates(mondayEight, mondaySeventeen);
+		successor.setManuallyScheduled(false);
+		project.recalculate();
+		long unlinkedSuccessorStart = successor.getStart();
+		long unlinkedSuccessorFinish = successor.getEnd();
+		fixture.undo.clear();
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.FS, fourElapsedHours, this);
+		project.recalculate();
+
+		assertEquals(DependencyType.FS, dependency.getDependencyType());
+		assertEquals(fourElapsedHours, dependency.getLag());
+		assertEquals(mondayEight, predecessor.getStart());
+		assertEquals(mondayTwelve, predecessor.getEnd());
+		assertEquals(mondaySixteen, successor.getStart());
+		assertEquals(tuesdaySixteen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+
+		fixture.undo.undo();
+		project.recalculate();
+		assertTrue(predecessor.getSuccessorList().isEmpty());
+		assertEquals(unlinkedSuccessorStart, successor.getStart());
+		assertEquals(unlinkedSuccessorFinish, successor.getEnd());
+		fixture.undo.redo();
+		project.recalculate();
+		assertSame(dependency, predecessor.getSuccessorList().findRight(successor));
+		assertEquals(mondaySixteen, successor.getStart());
+		assertEquals(tuesdaySixteen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+	}
+
+	@Test
+	void finishToStartNegativeElapsedFourHourLagUsesFixedWallClockDatesAndUndoRedo() throws Exception {
+		Fixture fixture = createFixture();
+		Project project = fixture.project;
+		long mondayEight = timestamp(2030, Calendar.JUNE, 3, 8);
+		long mondayFourteen = timestamp(2030, Calendar.JUNE, 3, 14);
+		long mondayTen = timestamp(2030, Calendar.JUNE, 3, 10);
+		long mondaySeventeen = timestamp(2030, Calendar.JUNE, 3, 17);
+		long fourElapsedHours = com.microproject.datatype.Duration.setAsElapsed(4L * 60L * 60L * 1000L);
+		// Document-derived: Microsoft defines FS endpoints and negative lag as lead/overlap.
+		// The exact predecessor-finish minus four wall-clock hours boundary is inferred,
+		// not an MSP measurement; standard-calendar normalization leaves it at Monday 10:00.
+		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
+		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
+		project.setStart(mondayEight);
+		NormalTask predecessor = createTask(project, "Negative elapsed FS predecessor", 1);
+		NormalTask successor = createTask(project, "Negative elapsed FS successor", 1);
+		NormalTask unrelated = createTask(project, "Negative elapsed FS unrelated", 1);
+		predecessor.setManualDates(mondayEight, mondayFourteen);
+		predecessor.setDuration(5L * 60L * 60L * 1000L);
+		successor.setManualDates(mondayEight, mondaySeventeen);
+		successor.setDuration(3L * 60L * 60L * 1000L);
+		unrelated.setManualDates(mondayEight, mondaySeventeen);
+		successor.setManuallyScheduled(false);
+		project.recalculate();
+		long unlinkedStart = successor.getStart();
+		long unlinkedFinish = successor.getEnd();
+		fixture.undo.clear();
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.FS, -fourElapsedHours, this);
+		project.recalculate();
+
+		assertEquals(DependencyType.FS, dependency.getDependencyType());
+		assertEquals(-fourElapsedHours, dependency.getLag());
+		assertTrue(com.microproject.datatype.Duration.isElapsed(dependency.getLag()));
+		assertEquals(mondayTen, predecessor.getEnd() + com.microproject.datatype.Duration.millis(dependency.getLag()),
+			"negative elapsed FS boundary is predecessor finish minus four wall-clock hours");
+		assertEquals(mondayTen, successor.getStart());
+		assertEquals(mondayFourteen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+
+		fixture.undo.undo();
+		project.recalculate();
+		assertTrue(predecessor.getSuccessorList().isEmpty());
+		assertEquals(unlinkedStart, successor.getStart());
+		assertEquals(unlinkedFinish, successor.getEnd());
+		fixture.undo.redo();
+		project.recalculate();
+		assertSame(dependency, predecessor.getSuccessorList().findRight(successor));
+		assertEquals(mondayTen, successor.getStart());
+		assertEquals(mondayFourteen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+	}
+
+	@Test
+	void startToStartNegativeElapsedFourHourLagUsesFixedWallClockDatesAndUndoRedo() throws Exception {
+		Fixture fixture = createFixture();
+		Project project = fixture.project;
+		long mondayEight = timestamp(2030, Calendar.JUNE, 3, 8);
+		long mondayTwelve = timestamp(2030, Calendar.JUNE, 3, 12);
+		long mondaySeventeen = timestamp(2030, Calendar.JUNE, 3, 17);
+		long tuesdayFour = timestamp(2030, Calendar.JUNE, 4, 4);
+		long tuesdayEight = timestamp(2030, Calendar.JUNE, 4, 8);
+		long tuesdayEleven = timestamp(2030, Calendar.JUNE, 4, 11);
+		long tuesdayFourteen = timestamp(2030, Calendar.JUNE, 4, 14);
+		long fourElapsedHours = com.microproject.datatype.Duration.setAsElapsed(4L * 60L * 60L * 1000L);
+		// Document-derived: Microsoft defines SS endpoints and negative lag as lead/overlap.
+		// The exact start-minus-four-wall-clock-hours boundary and normalization from Tuesday
+		// 04:00 to the standard-calendar Tuesday 08:00 boundary are inferred, not measured.
+		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
+		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
+		project.setStart(mondayEight);
+		NormalTask predecessor = createTask(project, "Negative elapsed SS predecessor", 1);
+		NormalTask successor = createTask(project, "Negative elapsed SS successor", 1);
+		NormalTask unrelated = createTask(project, "Negative elapsed SS unrelated", 1);
+		predecessor.setManualDates(tuesdayEight, tuesdayFourteen);
+		predecessor.setDuration(5L * 60L * 60L * 1000L);
+		successor.setManualDates(mondayEight, mondaySeventeen);
+		successor.setDuration(3L * 60L * 60L * 1000L);
+		unrelated.setManualDates(mondayEight, mondaySeventeen);
+		successor.setManuallyScheduled(false);
+		project.recalculate();
+		long unlinkedStart = successor.getStart();
+		long unlinkedFinish = successor.getEnd();
+		fixture.undo.clear();
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.SS, -fourElapsedHours, this);
+		project.recalculate();
+
+		assertEquals(DependencyType.SS, dependency.getDependencyType());
+		assertEquals(-fourElapsedHours, dependency.getLag());
+		assertTrue(com.microproject.datatype.Duration.isElapsed(dependency.getLag()));
+		assertEquals(tuesdayFour, predecessor.getStart() + com.microproject.datatype.Duration.millis(dependency.getLag()),
+			"negative elapsed SS boundary is predecessor start minus four wall-clock hours");
+		assertEquals(tuesdayEight, successor.getStart(), "non-working boundary normalizes forward to Tuesday 08:00");
+		assertTrue(successor.getStart() > unlinkedStart, "successor must move later than its initial Monday schedule");
+		assertEquals(tuesdayEleven, successor.getEnd());
+		assertEquals(tuesdayEight, predecessor.getStart());
+		assertEquals(tuesdayFourteen, predecessor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+
+		fixture.undo.undo();
+		project.recalculate();
+		assertTrue(predecessor.getSuccessorList().isEmpty());
+		assertEquals(unlinkedStart, successor.getStart());
+		assertEquals(unlinkedFinish, successor.getEnd());
+		fixture.undo.redo();
+		project.recalculate();
+		assertSame(dependency, predecessor.getSuccessorList().findRight(successor));
+		assertEquals(tuesdayEight, successor.getStart());
+		assertEquals(tuesdayEleven, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+	}
+
+	@Test
+	void finishToFinishNegativeElapsedFourHourLagUsesFixedWallClockDatesAndUndoRedo() throws Exception {
+		Fixture fixture = createFixture();
+		Project project = fixture.project;
+		long mondayEight = timestamp(2030, Calendar.JUNE, 3, 8);
+		long mondaySeventeen = timestamp(2030, Calendar.JUNE, 3, 17);
+		long tuesdayFour = timestamp(2030, Calendar.JUNE, 4, 4);
+		long tuesdayEight = timestamp(2030, Calendar.JUNE, 4, 8);
+		long tuesdayTen = timestamp(2030, Calendar.JUNE, 4, 10);
+		long tuesdayFourteen = timestamp(2030, Calendar.JUNE, 4, 14);
+		long fourElapsedHours = com.microproject.datatype.Duration.setAsElapsed(4L * 60L * 60L * 1000L);
+		// Document-derived: Microsoft defines FF endpoints and negative lag as lead/overlap.
+		// Exact finish-minus-four-wall-clock-hours and calendar normalization are inferred,
+		// not an MSP measurement.
+		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
+		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
+		project.setStart(mondayEight);
+		NormalTask predecessor = createTask(project, "Negative elapsed FF predecessor", 1);
+		NormalTask successor = createTask(project, "Negative elapsed FF successor", 1);
+		NormalTask unrelated = createTask(project, "Negative elapsed FF unrelated", 1);
+		predecessor.setManualDates(tuesdayEight, tuesdayFourteen);
+		predecessor.setDuration(5L * 60L * 60L * 1000L);
+		successor.setManualDates(mondayEight, mondaySeventeen);
+		successor.setDuration(2L * 60L * 60L * 1000L);
+		unrelated.setManualDates(mondayEight, mondaySeventeen);
+		successor.setManuallyScheduled(false);
+		project.recalculate();
+		long unlinkedStart = successor.getStart();
+		long unlinkedFinish = successor.getEnd();
+		fixture.undo.clear();
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.FF, -fourElapsedHours, this);
+		project.recalculate();
+
+		assertEquals(DependencyType.FF, dependency.getDependencyType());
+		assertEquals(-fourElapsedHours, dependency.getLag());
+		assertTrue(com.microproject.datatype.Duration.isElapsed(dependency.getLag()));
+		assertEquals(tuesdayTen, predecessor.getEnd() + com.microproject.datatype.Duration.millis(dependency.getLag()),
+			"negative elapsed FF boundary is predecessor finish minus four wall-clock hours");
+		assertEquals(tuesdayEight, successor.getStart());
+		assertTrue(successor.getStart() > unlinkedStart, "successor must move from its initial Monday schedule");
+		assertEquals(tuesdayTen, successor.getEnd());
+		assertEquals(tuesdayEight, predecessor.getStart());
+		assertEquals(tuesdayFourteen, predecessor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+
+		fixture.undo.undo();
+		project.recalculate();
+		assertTrue(predecessor.getSuccessorList().isEmpty());
+		assertEquals(unlinkedStart, successor.getStart());
+		assertEquals(unlinkedFinish, successor.getEnd());
+		fixture.undo.redo();
+		project.recalculate();
+		assertSame(dependency, predecessor.getSuccessorList().findRight(successor));
+		assertEquals(tuesdayEight, successor.getStart());
+		assertEquals(tuesdayTen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+	}
+
+	@Test
+	void startToStartFiftyPercentLagUsesPredecessorDurationAndUndoRedo() throws Exception {
+		Fixture fixture = createFixture();
+		Project project = fixture.project;
+		long mondayEight = timestamp(2030, Calendar.JUNE, 3, 8);
+		long mondayThirteen = timestamp(2030, Calendar.JUNE, 3, 13);
+		long mondaySeventeen = timestamp(2030, Calendar.JUNE, 3, 17);
+		long tuesdayThirteen = timestamp(2030, Calendar.JUNE, 4, 13);
+		long oneDay = CalendarOption.getInstance().getMillisPerDay();
+		long halfDurationPercent = com.microproject.datatype.Duration.setAsPercent(
+			com.microproject.datatype.Duration.setPercentAsDecimal(0L, 0.5F));
+		// Microsoft defines SS as start-to-start and positive lag as delaying the
+		// successor. The 50% duration arithmetic and exact boundary are document-derived.
+		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
+		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
+		project.setStart(mondayEight);
+		NormalTask predecessor = createTask(project, "Percent SS predecessor", 1);
+		NormalTask successor = createTask(project, "Percent SS successor", 1);
+		NormalTask unrelated = createTask(project, "Percent SS unrelated", 1);
+		predecessor.setDuration(oneDay);
+		successor.setDuration(oneDay);
+		unrelated.setDuration(oneDay);
+		predecessor.setManualDates(mondayEight, mondaySeventeen);
+		successor.setManualDates(mondayEight, mondaySeventeen);
+		unrelated.setManualDates(mondayEight, mondaySeventeen);
+		successor.setManuallyScheduled(false);
+		project.recalculate();
+		long unlinkedStart = successor.getStart();
+		long unlinkedFinish = successor.getEnd();
+		fixture.undo.clear();
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.SS, halfDurationPercent, this);
+		project.recalculate();
+		assertEquals(oneDay / 2, com.microproject.datatype.Duration.millis(dependency.getLeadValue()));
+		long requiredStart = dependency.calcForwardDependencyDate(
+			predecessor.getStart(), predecessor.getEnd(), true);
+		assertEquals(mondayThirteen, requiredStart, "SS percentage boundary is based on predecessor start");
+		assertEquals(DependencyType.SS, dependency.getDependencyType());
+		assertEquals(halfDurationPercent, dependency.getLag());
+		assertTrue(com.microproject.datatype.Duration.isPercent(dependency.getLag()));
+		assertEquals(0.5F, com.microproject.datatype.Duration.getPercentAsDecimal(dependency.getLag()));
+		assertEquals(mondayEight, predecessor.getStart());
+		assertEquals(mondaySeventeen, predecessor.getEnd());
+		assertEquals(mondayThirteen, successor.getStart());
+		assertTrue(successor.getStart() >= requiredStart);
+		assertEquals(tuesdayThirteen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+		fixture.undo.undo();
+		project.recalculate();
+		assertTrue(predecessor.getSuccessorList().isEmpty());
+		assertEquals(unlinkedStart, successor.getStart());
+		assertEquals(unlinkedFinish, successor.getEnd());
+		fixture.undo.redo();
+		project.recalculate();
+		assertSame(dependency, predecessor.getSuccessorList().findRight(successor));
+		assertEquals(mondayThirteen, successor.getStart());
+		assertEquals(tuesdayThirteen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+	}
+
+	@Test
+	void startToStartNegativeFiftyPercentLagUsesPredecessorDurationAndUndoRedo() throws Exception {
+		Fixture fixture = createFixture();
+		Project project = fixture.project;
+		long mondayEight = timestamp(2030, Calendar.JUNE, 3, 8);
+		long mondayTwelve = timestamp(2030, Calendar.JUNE, 3, 12);
+		long mondayThirteen = timestamp(2030, Calendar.JUNE, 3, 13);
+		long mondaySeventeen = timestamp(2030, Calendar.JUNE, 3, 17);
+		long tuesdayEight = timestamp(2030, Calendar.JUNE, 4, 8);
+		long tuesdaySeventeen = timestamp(2030, Calendar.JUNE, 4, 17);
+		long tuesdayThirteen = timestamp(2030, Calendar.JUNE, 4, 13);
+		long oneDay = CalendarOption.getInstance().getMillisPerDay();
+		long negativeHalfDurationPercent = com.microproject.datatype.Duration.setAsPercent(
+			com.microproject.datatype.Duration.setPercentAsDecimal(0L, -0.5F));
+		// Microsoft documents SS endpoint ordering and negative lag as lead time.
+		// The percentage arithmetic and exact boundary are document-derived, not measured MSP behavior.
+		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
+		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
+		project.setStart(mondayEight);
+		NormalTask predecessor = createTask(project, "Negative percent SS predecessor", 1);
+		NormalTask successor = createTask(project, "Negative percent SS successor", 1);
+		NormalTask unrelated = createTask(project, "Negative percent SS unrelated", 1);
+		predecessor.setDuration(oneDay);
+		successor.setDuration(oneDay);
+		unrelated.setDuration(oneDay);
+		predecessor.setManualDates(tuesdayEight, tuesdaySeventeen);
+		successor.setManualDates(mondayEight, mondaySeventeen);
+		unrelated.setManualDates(mondayEight, mondaySeventeen);
+		successor.setManuallyScheduled(false);
+		project.recalculate();
+		long unlinkedStart = successor.getStart();
+		long unlinkedFinish = successor.getEnd();
+		fixture.undo.clear();
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.SS, negativeHalfDurationPercent, this);
+		project.recalculate();
+
+		assertEquals(-oneDay / 2, com.microproject.datatype.Duration.millis(dependency.getLeadValue()),
+			"negative SS percentage lag must be half the predecessor's duration");
+		long requiredStart = dependency.calcForwardDependencyDate(
+			predecessor.getStart(), predecessor.getEnd(), true);
+		assertEquals(mondayTwelve, requiredStart,
+			"SS lead boundary is half a workday before predecessor start");
+		assertEquals(DependencyType.SS, dependency.getDependencyType());
+		assertEquals(negativeHalfDurationPercent, dependency.getLag());
+		assertTrue(com.microproject.datatype.Duration.isPercent(dependency.getLag()));
+		assertEquals(-0.5F, com.microproject.datatype.Duration.getPercentAsDecimal(dependency.getLag()));
+		assertEquals(tuesdayEight, predecessor.getStart());
+		assertEquals(tuesdaySeventeen, predecessor.getEnd());
+		assertTrue(successor.getStart() > unlinkedStart, "successor must move to the normalized SS boundary");
+		assertEquals(mondayThirteen, successor.getStart());
+		assertEquals(tuesdayThirteen, successor.getEnd());
+		assertTrue(successor.getStart() >= requiredStart);
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+
+		fixture.undo.undo();
+		project.recalculate();
+		assertTrue(predecessor.getSuccessorList().isEmpty());
+		assertEquals(unlinkedStart, successor.getStart());
+		assertEquals(unlinkedFinish, successor.getEnd());
+		fixture.undo.redo();
+		project.recalculate();
+		assertSame(dependency, predecessor.getSuccessorList().findRight(successor));
+		assertEquals(mondayThirteen, successor.getStart());
+		assertEquals(tuesdayThirteen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+	}
+
+	@Test
+	void finishToFinishFiftyPercentLagUsesPredecessorDurationAndUndoRedo() throws Exception {
+		Fixture fixture = createFixture();
+		Project project = fixture.project;
+		long mondayEight = timestamp(2030, Calendar.JUNE, 3, 8);
+		long mondayThirteen = timestamp(2030, Calendar.JUNE, 3, 13);
+		long mondaySeventeen = timestamp(2030, Calendar.JUNE, 3, 17);
+		long tuesdayThirteen = timestamp(2030, Calendar.JUNE, 4, 13);
+		long oneDay = CalendarOption.getInstance().getMillisPerDay();
+		long halfDurationPercent = com.microproject.datatype.Duration.setAsPercent(
+			com.microproject.datatype.Duration.setPercentAsDecimal(0L, 0.5F));
+		// Microsoft defines FF as finish-to-finish and positive lag as delaying the
+		// successor. The 50% duration arithmetic and exact boundary are document-derived.
+		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
+		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
+		project.setStart(mondayEight);
+		NormalTask predecessor = createTask(project, "Percent FF predecessor", 1);
+		NormalTask successor = createTask(project, "Percent FF successor", 1);
+		NormalTask unrelated = createTask(project, "Percent FF unrelated", 1);
+		predecessor.setDuration(oneDay);
+		successor.setDuration(oneDay);
+		unrelated.setDuration(oneDay);
+		predecessor.setManualDates(mondayEight, mondaySeventeen);
+		successor.setManualDates(mondayEight, mondaySeventeen);
+		unrelated.setManualDates(mondayEight, mondaySeventeen);
+		successor.setManuallyScheduled(false);
+		project.recalculate();
+		long unlinkedStart = successor.getStart();
+		long unlinkedFinish = successor.getEnd();
+		fixture.undo.clear();
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.FF, halfDurationPercent, this);
+		project.recalculate();
+
+		assertEquals(oneDay / 2, com.microproject.datatype.Duration.millis(dependency.getLeadValue()));
+		assertEquals(tuesdayThirteen, predecessor.getEffectiveWorkCalendar().add(
+			predecessor.getEnd(), dependency.getLeadValue(), true), "FF percentage boundary from predecessor finish");
+		assertEquals(DependencyType.FF, dependency.getDependencyType());
+		assertEquals(halfDurationPercent, dependency.getLag());
+		assertTrue(com.microproject.datatype.Duration.isPercent(dependency.getLag()));
+		assertEquals(0.5F, com.microproject.datatype.Duration.getPercentAsDecimal(dependency.getLag()));
+		assertEquals(mondayEight, predecessor.getStart());
+		assertEquals(mondaySeventeen, predecessor.getEnd());
+		assertEquals(tuesdayThirteen, successor.getEnd());
+		assertTrue(successor.getEnd() > unlinkedFinish, "successor must move to the FF finish boundary");
+		assertEquals(mondayThirteen, successor.getStart());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+
+		fixture.undo.undo();
+		project.recalculate();
+		assertTrue(predecessor.getSuccessorList().isEmpty());
+		assertEquals(unlinkedStart, successor.getStart());
+		assertEquals(unlinkedFinish, successor.getEnd());
+		fixture.undo.redo();
+		project.recalculate();
+		assertSame(dependency, predecessor.getSuccessorList().findRight(successor));
+		assertEquals(mondayThirteen, successor.getStart());
+		assertEquals(tuesdayThirteen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+	}
+
+	@Test
+	void finishToFinishNegativeFiftyPercentLagUsesPredecessorDurationAndUndoRedo() throws Exception {
+		Fixture fixture = createFixture();
+		Project project = fixture.project;
+		long mondayEight = timestamp(2030, Calendar.JUNE, 3, 8);
+		long mondaySeventeen = timestamp(2030, Calendar.JUNE, 3, 17);
+		long tuesdayThirteen = timestamp(2030, Calendar.JUNE, 4, 13);
+		long wednesdayEight = timestamp(2030, Calendar.JUNE, 5, 8);
+		long wednesdayTwelve = timestamp(2030, Calendar.JUNE, 5, 12);
+		long wednesdayThirteen = timestamp(2030, Calendar.JUNE, 5, 13);
+		long wednesdaySeventeen = timestamp(2030, Calendar.JUNE, 5, 17);
+		long oneDay = CalendarOption.getInstance().getMillisPerDay();
+		long negativeHalfDurationPercent = com.microproject.datatype.Duration.setAsPercent(
+			com.microproject.datatype.Duration.setPercentAsDecimal(0L, -0.5F));
+		// Microsoft documents FF endpoint ordering and negative lag as lead/overlap.
+		// The exact half-duration arithmetic and calendar boundary are document-derived,
+		// not measured MSP behavior.
+		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
+		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
+		project.setStart(mondayEight);
+		NormalTask predecessor = createTask(project, "Negative percent FF predecessor", 1);
+		NormalTask successor = createTask(project, "Negative percent FF successor", 1);
+		NormalTask unrelated = createTask(project, "Negative percent FF unrelated", 1);
+		predecessor.setDuration(oneDay);
+		successor.setDuration(oneDay);
+		unrelated.setDuration(oneDay);
+		predecessor.setManualDates(wednesdayEight, wednesdaySeventeen);
+		successor.setManualDates(mondayEight, mondaySeventeen);
+		unrelated.setManualDates(mondayEight, mondaySeventeen);
+		successor.setManuallyScheduled(false);
+		project.recalculate();
+		assertEquals(oneDay, predecessor.getDuration(), "predecessor duration before link");
+		long unlinkedStart = successor.getStart();
+		long unlinkedFinish = successor.getEnd();
+		fixture.undo.clear();
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.FF, negativeHalfDurationPercent, this);
+		project.recalculate();
+
+		assertEquals(-oneDay / 2, com.microproject.datatype.Duration.millis(dependency.getLeadValue()),
+			"negative FF percentage lag must be half the predecessor's duration");
+		long requiredFinish = predecessor.getEffectiveWorkCalendar().add(
+			predecessor.getEnd(), dependency.getLeadValue(), true);
+		assertEquals(wednesdayTwelve, requiredFinish,
+			"FF lead boundary is half a workday before predecessor finish");
+		assertEquals(DependencyType.FF, dependency.getDependencyType());
+		assertEquals(negativeHalfDurationPercent, dependency.getLag());
+		assertTrue(com.microproject.datatype.Duration.isPercent(dependency.getLag()));
+		assertEquals(-0.5F, com.microproject.datatype.Duration.getPercentAsDecimal(dependency.getLag()));
+		assertEquals(wednesdayEight, predecessor.getStart());
+		assertEquals(wednesdaySeventeen, predecessor.getEnd());
+		assertTrue(successor.getEnd() > unlinkedFinish, "successor must move to the FF lead boundary");
+		assertEquals(tuesdayThirteen, successor.getStart());
+		assertEquals(wednesdayThirteen, successor.getEnd());
+		assertTrue(successor.getEnd() >= requiredFinish,
+			"the automatic successor's canonical finish must meet the FF lead boundary");
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+
+		fixture.undo.undo();
+		project.recalculate();
+		assertTrue(predecessor.getSuccessorList().isEmpty());
+		assertEquals(unlinkedStart, successor.getStart());
+		assertEquals(unlinkedFinish, successor.getEnd());
+		fixture.undo.redo();
+		project.recalculate();
+		assertSame(dependency, predecessor.getSuccessorList().findRight(successor));
+		assertEquals(tuesdayThirteen, successor.getStart());
+		assertEquals(wednesdayThirteen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+	}
+
+	@Test
+	void finishToStartFiftyPercentLagUsesPredecessorDurationAndUndoRedo() throws Exception {
+		Fixture fixture = createFixture();
+		Project project = fixture.project;
+		long mondayEight = timestamp(2030, Calendar.JUNE, 3, 8);
+		long mondaySeventeen = timestamp(2030, Calendar.JUNE, 3, 17);
+		long tuesdayThirteen = timestamp(2030, Calendar.JUNE, 4, 13);
+		long wednesdayThirteen = timestamp(2030, Calendar.JUNE, 5, 13);
+		long oneDay = CalendarOption.getInstance().getMillisPerDay();
+		long halfDurationPercent = com.microproject.datatype.Duration.setAsPercent(
+			com.microproject.datatype.Duration.setPercentAsDecimal(0L, 0.5F));
+		// Microsoft documents FS endpoint ordering and that positive lag delays the
+		// successor. The 50% of predecessor-duration interpretation is the narrow
+		// document-derived rule here; these exact clock dates are not MSP measurements.
+		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
+		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
+		project.setStart(mondayEight);
+		NormalTask predecessor = createTask(project, "Percent FS predecessor", 1);
+		NormalTask successor = createTask(project, "Percent FS successor", 1);
+		NormalTask unrelated = createTask(project, "Percent FS unrelated", 1);
+		predecessor.setDuration(oneDay);
+		successor.setDuration(oneDay);
+		unrelated.setDuration(oneDay);
+		predecessor.setManualDates(mondayEight, mondaySeventeen);
+		successor.setManualDates(mondayEight, mondaySeventeen);
+		unrelated.setManualDates(mondayEight, mondaySeventeen);
+		successor.setManuallyScheduled(false);
+		project.recalculate();
+		assertEquals(oneDay, predecessor.getDuration(), "predecessor duration before link");
+		long unlinkedStart = successor.getStart();
+		long unlinkedFinish = successor.getEnd();
+		fixture.undo.clear();
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.FS, halfDurationPercent, this);
+		project.recalculate();
+		assertEquals(oneDay / 2, com.microproject.datatype.Duration.millis(dependency.getLeadValue()),
+			"percentage lag must be half the predecessor's duration; raw lag=" + dependency.getLag()
+				+ ", lead=" + dependency.getLeadValue() + ", predecessor duration=" + predecessor.getDuration());
+		assertEquals(tuesdayThirteen, predecessor.getEffectiveWorkCalendar().add(
+			predecessor.getEnd(), dependency.getLeadValue(), true), "FS lag boundary from predecessor finish");
+
+		assertEquals(DependencyType.FS, dependency.getDependencyType());
+		assertEquals(halfDurationPercent, dependency.getLag());
+		assertTrue(com.microproject.datatype.Duration.isPercent(dependency.getLag()));
+		assertEquals(0.5F, com.microproject.datatype.Duration.getPercentAsDecimal(dependency.getLag()));
+		assertEquals(mondayEight, predecessor.getStart());
+		assertEquals(mondaySeventeen, predecessor.getEnd());
+		assertEquals(tuesdayThirteen, successor.getStart());
+		assertEquals(wednesdayThirteen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+
+		fixture.undo.undo();
+		project.recalculate();
+		assertTrue(predecessor.getSuccessorList().isEmpty());
+		assertEquals(unlinkedStart, successor.getStart());
+		assertEquals(unlinkedFinish, successor.getEnd());
+		fixture.undo.redo();
+		project.recalculate();
+		assertSame(dependency, predecessor.getSuccessorList().findRight(successor));
+		assertEquals(tuesdayThirteen, successor.getStart());
+		assertEquals(wednesdayThirteen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+	}
+
+	@Test
+	void startToFinishFiftyPercentLagUsesPredecessorDurationAndUndoRedo() throws Exception {
+		Fixture fixture = createFixture();
+		Project project = fixture.project;
+		long mondayEight = timestamp(2030, Calendar.JUNE, 3, 8);
+		long mondayThirteen = timestamp(2030, Calendar.JUNE, 3, 13);
+		long tuesdayEight = timestamp(2030, Calendar.JUNE, 4, 8);
+		long tuesdayThirteen = timestamp(2030, Calendar.JUNE, 4, 13);
+		long tuesdaySeventeen = timestamp(2030, Calendar.JUNE, 4, 17);
+		long oneDay = CalendarOption.getInstance().getMillisPerDay();
+		long halfDurationPercent = com.microproject.datatype.Duration.setAsPercent(
+			com.microproject.datatype.Duration.setPercentAsDecimal(0L, 0.5F));
+		// Microsoft documents SF endpoint ordering and positive lag delaying the
+		// successor. The 50% duration arithmetic and exact boundary are document-derived,
+		// not measured MSP behavior.
+		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
+		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
+		project.setStart(mondayEight);
+		NormalTask predecessor = createTask(project, "Percent SF predecessor", 1);
+		NormalTask successor = createTask(project, "Percent SF successor", 1);
+		NormalTask unrelated = createTask(project, "Percent SF unrelated", 1);
+		predecessor.setDuration(oneDay);
+		successor.setDuration(oneDay);
+		unrelated.setDuration(oneDay);
+		predecessor.setManualDates(tuesdayEight, tuesdaySeventeen);
+		successor.setManualDates(mondayEight, timestamp(2030, Calendar.JUNE, 3, 17));
+		unrelated.setManualDates(mondayEight, timestamp(2030, Calendar.JUNE, 3, 17));
+		successor.setManuallyScheduled(false);
+		project.recalculate();
+		long unlinkedStart = successor.getStart();
+		long unlinkedFinish = successor.getEnd();
+		fixture.undo.clear();
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.SF, halfDurationPercent, this);
+		project.recalculate();
+
+		assertEquals(oneDay / 2, com.microproject.datatype.Duration.millis(dependency.getLeadValue()));
+		long requiredFinish = predecessor.getEffectiveWorkCalendar().add(
+			predecessor.getStart(), dependency.getLeadValue(), false);
+		assertEquals(tuesdayThirteen, requiredFinish,
+			"SF half-duration from predecessor start reaches lunch and normalizes to 13:00");
+		assertEquals(DependencyType.SF, dependency.getDependencyType());
+		assertEquals(halfDurationPercent, dependency.getLag());
+		assertTrue(com.microproject.datatype.Duration.isPercent(dependency.getLag()));
+		assertEquals(0.5F, com.microproject.datatype.Duration.getPercentAsDecimal(dependency.getLag()));
+		assertEquals(tuesdayEight, predecessor.getStart());
+		assertEquals(tuesdaySeventeen, predecessor.getEnd());
+		assertTrue(successor.getStart() > unlinkedStart, "successor must move from its initial Monday schedule");
+		assertEquals(mondayThirteen, successor.getStart());
+		assertEquals(tuesdayThirteen, successor.getEnd());
+		assertTrue(successor.getEnd() >= requiredFinish);
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(timestamp(2030, Calendar.JUNE, 3, 17), unrelated.getEnd());
+
+		fixture.undo.undo();
+		project.recalculate();
+		assertTrue(predecessor.getSuccessorList().isEmpty());
+		assertEquals(unlinkedStart, successor.getStart());
+		assertEquals(unlinkedFinish, successor.getEnd());
+		fixture.undo.redo();
+		project.recalculate();
+		assertSame(dependency, predecessor.getSuccessorList().findRight(successor));
+		assertEquals(mondayThirteen, successor.getStart());
+		assertEquals(tuesdayThirteen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(timestamp(2030, Calendar.JUNE, 3, 17), unrelated.getEnd());
+	}
+
+	@Test
+	void startToFinishNegativeFiftyPercentLagUsesPredecessorDurationAndUndoRedo() throws Exception {
+		Fixture fixture = createFixture();
+		Project project = fixture.project;
+		long mondayEight = timestamp(2030, Calendar.JUNE, 3, 8);
+		long mondaySeventeen = timestamp(2030, Calendar.JUNE, 3, 17);
+		long mondayThirteen = timestamp(2030, Calendar.JUNE, 3, 13);
+		long tuesdayTwelve = timestamp(2030, Calendar.JUNE, 4, 12);
+		long tuesdayThirteen = timestamp(2030, Calendar.JUNE, 4, 13);
+		long wednesdayEight = timestamp(2030, Calendar.JUNE, 5, 8);
+		long wednesdaySeventeen = timestamp(2030, Calendar.JUNE, 5, 17);
+		long oneDay = CalendarOption.getInstance().getMillisPerDay();
+		long negativeHalfDurationPercent = com.microproject.datatype.Duration.setAsPercent(
+			com.microproject.datatype.Duration.setPercentAsDecimal(0L, -0.5F));
+		// Microsoft documents SF endpoint ordering and negative lag as lead/overlap.
+		// The percentage arithmetic and exact calendar boundary are document-derived,
+		// not measured MSP behavior.
+		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
+		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
+		project.setStart(mondayEight);
+		NormalTask predecessor = createTask(project, "Negative percent SF predecessor", 1);
+		NormalTask successor = createTask(project, "Negative percent SF successor", 1);
+		NormalTask unrelated = createTask(project, "Negative percent SF unrelated", 1);
+		predecessor.setDuration(oneDay);
+		successor.setDuration(oneDay);
+		unrelated.setDuration(oneDay);
+		predecessor.setManualDates(wednesdayEight, wednesdaySeventeen);
+		successor.setManualDates(mondayEight, mondaySeventeen);
+		unrelated.setManualDates(mondayEight, mondaySeventeen);
+		successor.setManuallyScheduled(false);
+		project.recalculate();
+		long unlinkedStart = successor.getStart();
+		long unlinkedFinish = successor.getEnd();
+		fixture.undo.clear();
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.SF, negativeHalfDurationPercent, this);
+		project.recalculate();
+
+		assertEquals(-oneDay / 2, com.microproject.datatype.Duration.millis(dependency.getLeadValue()),
+			"negative SF percentage lag must be half the predecessor's duration");
+		long requiredFinish = predecessor.getEffectiveWorkCalendar().add(
+			predecessor.getStart(), dependency.getLeadValue(), false);
+		assertEquals(tuesdayTwelve, requiredFinish,
+			"SF lead boundary is half a workday before predecessor start");
+		assertEquals(DependencyType.SF, dependency.getDependencyType());
+		assertEquals(negativeHalfDurationPercent, dependency.getLag());
+		assertTrue(com.microproject.datatype.Duration.isPercent(dependency.getLag()));
+		assertEquals(-0.5F, com.microproject.datatype.Duration.getPercentAsDecimal(dependency.getLag()));
+		assertEquals(wednesdayEight, predecessor.getStart());
+		assertEquals(wednesdaySeventeen, predecessor.getEnd());
+		assertTrue(successor.getStart() > unlinkedStart, "successor must move from its initial Monday schedule");
+		assertEquals(mondayThirteen, successor.getStart());
+		assertEquals(tuesdayThirteen, successor.getEnd());
+		assertTrue(successor.getEnd() >= requiredFinish);
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+
+		fixture.undo.undo();
+		project.recalculate();
+		assertTrue(predecessor.getSuccessorList().isEmpty());
+		assertEquals(unlinkedStart, successor.getStart());
+		assertEquals(unlinkedFinish, successor.getEnd());
+		fixture.undo.redo();
+		project.recalculate();
+		assertSame(dependency, predecessor.getSuccessorList().findRight(successor));
+		assertEquals(mondayThirteen, successor.getStart());
+		assertEquals(tuesdayThirteen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+	}
+
+	@Test
+	void finishToStartNegativeFiftyPercentLagUsesPredecessorDurationAndUndoRedo() throws Exception {
+		Fixture fixture = createFixture();
+		Project project = fixture.project;
+		long mondayEight = timestamp(2030, Calendar.JUNE, 3, 8);
+		long mondayTwelve = timestamp(2030, Calendar.JUNE, 3, 12);
+		long mondayThirteen = timestamp(2030, Calendar.JUNE, 3, 13);
+		long mondaySeventeen = timestamp(2030, Calendar.JUNE, 3, 17);
+		long tuesdayThirteen = timestamp(2030, Calendar.JUNE, 4, 13);
+		long oneDay = CalendarOption.getInstance().getMillisPerDay();
+		long negativeHalfDurationPercent = com.microproject.datatype.Duration.setAsPercent(
+			com.microproject.datatype.Duration.setPercentAsDecimal(0L, -0.5F));
+		// Microsoft documents negative lag as lead/overlap. The 50% predecessor-
+		// duration arithmetic and these exact dates are a document-derived decision,
+		// not measured MSP behavior.
+		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
+		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
+		project.setStart(mondayEight);
+		NormalTask predecessor = createTask(project, "Negative percent FS predecessor", 1);
+		NormalTask successor = createTask(project, "Negative percent FS successor", 1);
+		NormalTask unrelated = createTask(project, "Negative percent FS unrelated", 1);
+		predecessor.setDuration(oneDay);
+		successor.setDuration(oneDay);
+		unrelated.setDuration(oneDay);
+		predecessor.setManualDates(mondayEight, mondaySeventeen);
+		successor.setManualDates(mondayEight, mondaySeventeen);
+		unrelated.setManualDates(mondayEight, mondaySeventeen);
+		successor.setManuallyScheduled(false);
+		project.recalculate();
+		long unlinkedStart = successor.getStart();
+		long unlinkedFinish = successor.getEnd();
+		fixture.undo.clear();
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.FS, negativeHalfDurationPercent, this);
+		project.recalculate();
+		assertEquals(-oneDay / 2, com.microproject.datatype.Duration.millis(dependency.getLeadValue()),
+			"negative percentage lag must be half the predecessor's duration");
+		long requiredStart = dependency.calcForwardDependencyDate(
+			predecessor.getStart(), predecessor.getEnd(), true);
+		assertEquals(mondayTwelve, requiredStart,
+			"negative FS boundary is the standard calendar's noon endpoint");
+		assertEquals(DependencyType.FS, dependency.getDependencyType());
+		assertEquals(negativeHalfDurationPercent, dependency.getLag());
+		assertTrue(com.microproject.datatype.Duration.isPercent(dependency.getLag()));
+		assertEquals(-0.5F, com.microproject.datatype.Duration.getPercentAsDecimal(dependency.getLag()));
+		assertEquals(mondayEight, predecessor.getStart());
+		assertEquals(mondaySeventeen, predecessor.getEnd());
+		assertEquals(mondayThirteen, successor.getStart());
+		assertTrue(successor.getStart() >= requiredStart,
+			"the successor normalizes the noon boundary to the next working instant");
+		assertEquals(tuesdayThirteen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+
+		fixture.undo.undo();
+		project.recalculate();
+		assertTrue(predecessor.getSuccessorList().isEmpty());
+		assertEquals(unlinkedStart, successor.getStart());
+		assertEquals(unlinkedFinish, successor.getEnd());
+		fixture.undo.redo();
+		project.recalculate();
+		assertSame(dependency, predecessor.getSuccessorList().findRight(successor));
+		assertEquals(mondayThirteen, successor.getStart());
+		assertEquals(tuesdayThirteen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+	}
+
+	@Test
+	void startToStartElapsedFourHourLagUsesFixedWallClockDatesAndUndoRedo() throws Exception {
+		Fixture fixture = createFixture();
+		Project project = fixture.project;
+		long mondayEight = timestamp(2030, Calendar.JUNE, 3, 8);
+		long mondayTwelve = timestamp(2030, Calendar.JUNE, 3, 12);
+		long mondayThirteen = timestamp(2030, Calendar.JUNE, 3, 13);
+		long mondaySeventeen = timestamp(2030, Calendar.JUNE, 3, 17);
+		long tuesdayThirteen = timestamp(2030, Calendar.JUNE, 4, 13);
+		long fourElapsedHours = com.microproject.datatype.Duration.setAsElapsed(4L * 60L * 60L * 1000L);
+		// Document-derived contract: Microsoft defines SS as a start-to-start
+		// dependency and positive lag as delaying the successor. The exact four-hour
+		// wall-clock arithmetic is this fixture's narrow inference, not measured MSP behavior.
+		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
+		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
+		project.setStart(mondayEight);
+		NormalTask predecessor = createTask(project, "Elapsed SS predecessor", 1);
+		NormalTask successor = createTask(project, "Elapsed SS successor", 1);
+		NormalTask unrelated = createTask(project, "Elapsed SS unrelated", 1);
+		predecessor.setManualDates(mondayEight, mondayTwelve);
+		successor.setManualDates(mondayEight, mondaySeventeen);
+		unrelated.setManualDates(mondayEight, mondaySeventeen);
+		successor.setManuallyScheduled(false);
+		project.recalculate();
+		long unlinkedSuccessorStart = successor.getStart();
+		long unlinkedSuccessorFinish = successor.getEnd();
+		fixture.undo.clear();
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.SS, fourElapsedHours, this);
+		project.recalculate();
+
+		assertEquals(DependencyType.SS, dependency.getDependencyType());
+		assertEquals(fourElapsedHours, dependency.getLag());
+		assertTrue(com.microproject.datatype.Duration.isElapsed(dependency.getLag()));
+		assertEquals(mondayEight, predecessor.getStart());
+		assertEquals(mondayTwelve, predecessor.getEnd());
+		assertEquals(mondayThirteen, successor.getStart());
+		assertEquals(tuesdayThirteen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+
+		fixture.undo.undo();
+		project.recalculate();
+		assertTrue(predecessor.getSuccessorList().isEmpty());
+		assertEquals(unlinkedSuccessorStart, successor.getStart());
+		assertEquals(unlinkedSuccessorFinish, successor.getEnd());
+		fixture.undo.redo();
+		project.recalculate();
+		assertSame(dependency, predecessor.getSuccessorList().findRight(successor));
+		assertEquals(mondayThirteen, successor.getStart());
+		assertEquals(tuesdayThirteen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+	}
+
+	@Test
+	void finishToFinishElapsedFourHourLagUsesFixedWallClockDatesAndUndoRedo() throws Exception {
+		Fixture fixture = createFixture();
+		Project project = fixture.project;
+		long mondayEight = timestamp(2030, Calendar.JUNE, 3, 8);
+		long mondayTwelve = timestamp(2030, Calendar.JUNE, 3, 12);
+		long mondayFourteen = timestamp(2030, Calendar.JUNE, 3, 14);
+		long mondaySixteen = timestamp(2030, Calendar.JUNE, 3, 16);
+		long mondaySeventeen = timestamp(2030, Calendar.JUNE, 3, 17);
+		long fourElapsedHours = com.microproject.datatype.Duration.setAsElapsed(4L * 60L * 60L * 1000L);
+		// Microsoft documents FF endpoint semantics and positive lag delay; the exact
+		// elapsed-hour boundary arithmetic below is document-derived, not measured.
+		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
+		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
+		project.setStart(mondayEight);
+		NormalTask predecessor = createTask(project, "Elapsed FF predecessor", 1);
+		NormalTask successor = createTask(project, "Elapsed FF successor", 1);
+		NormalTask unrelated = createTask(project, "Elapsed FF unrelated", 1);
+		successor.setDuration(day() / 4);
+		predecessor.setManualDates(mondayEight, mondayTwelve);
+		successor.setManualDates(mondayEight, mondayTwelve);
+		unrelated.setManualDates(mondayEight, mondaySeventeen);
+		successor.setManuallyScheduled(false);
+		project.recalculate();
+		long unlinkedSuccessorStart = successor.getStart();
+		long unlinkedSuccessorFinish = successor.getEnd();
+		fixture.undo.clear();
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.FF, fourElapsedHours, this);
+		project.recalculate();
+
+		assertEquals(DependencyType.FF, dependency.getDependencyType());
+		assertEquals(fourElapsedHours, dependency.getLag());
+		assertTrue(com.microproject.datatype.Duration.isElapsed(dependency.getLag()));
+		assertEquals(mondayEight, predecessor.getStart());
+		assertEquals(mondayTwelve, predecessor.getEnd());
+		assertEquals(mondayFourteen, successor.getStart());
+		assertEquals(mondaySixteen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+
+		fixture.undo.undo();
+		project.recalculate();
+		assertTrue(predecessor.getSuccessorList().isEmpty());
+		assertEquals(unlinkedSuccessorStart, successor.getStart());
+		assertEquals(unlinkedSuccessorFinish, successor.getEnd());
+		fixture.undo.redo();
+		project.recalculate();
+		assertSame(dependency, predecessor.getSuccessorList().findRight(successor));
+		assertEquals(mondayFourteen, successor.getStart());
+		assertEquals(mondaySixteen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+	}
+
+	@Test
+	void startToFinishElapsedFourHourLagUsesFixedWallClockDatesAndUndoRedo() throws Exception {
+		Fixture fixture = createFixture();
+		Project project = fixture.project;
+		long mondayEight = timestamp(2030, Calendar.JUNE, 3, 8);
+		long mondayTen = timestamp(2030, Calendar.JUNE, 3, 10);
+		long mondayTwelve = timestamp(2030, Calendar.JUNE, 3, 12);
+		long mondayThirteen = timestamp(2030, Calendar.JUNE, 3, 13);
+		long mondaySeventeen = timestamp(2030, Calendar.JUNE, 3, 17);
+		long fourElapsedHours = com.microproject.datatype.Duration.setAsElapsed(4L * 60L * 60L * 1000L);
+		// Microsoft documents SF endpoint semantics and positive lag delaying the
+		// successor; the exact elapsed-hour boundary below is document-derived, not measured.
+		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
+		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
+		project.setStart(mondayEight);
+		NormalTask predecessor = createTask(project, "Elapsed SF predecessor", 1);
+		NormalTask successor = createTask(project, "Elapsed SF successor", 1);
+		NormalTask unrelated = createTask(project, "Elapsed SF unrelated", 1);
+		successor.setDuration(day() / 4);
+		predecessor.setManualDates(mondayEight, mondayTwelve);
+		successor.setManualDates(mondayEight, mondayTen);
+		unrelated.setManualDates(mondayEight, mondaySeventeen);
+		successor.setManuallyScheduled(false);
+		project.recalculate();
+		long unlinkedSuccessorStart = successor.getStart();
+		long unlinkedSuccessorFinish = successor.getEnd();
+		fixture.undo.clear();
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.SF, fourElapsedHours, this);
+		project.recalculate();
+
+		assertEquals(DependencyType.SF, dependency.getDependencyType());
+		assertEquals(fourElapsedHours, dependency.getLag());
+		assertTrue(com.microproject.datatype.Duration.isElapsed(dependency.getLag()));
+		assertEquals(mondayEight, predecessor.getStart());
+		assertEquals(mondayTwelve, predecessor.getEnd());
+		assertEquals(mondayTwelve, predecessor.getStart()
+			+ com.microproject.datatype.Duration.millis(dependency.getLag()),
+			"SF constrains the successor finish from predecessor start plus elapsed lag");
+		assertEquals(mondayTen, successor.getStart());
+		assertEquals(mondayThirteen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+
+		fixture.undo.undo();
+		project.recalculate();
+		assertTrue(predecessor.getSuccessorList().isEmpty());
+		assertEquals(unlinkedSuccessorStart, successor.getStart());
+		assertEquals(unlinkedSuccessorFinish, successor.getEnd());
+		fixture.undo.redo();
+		project.recalculate();
+		assertSame(dependency, predecessor.getSuccessorList().findRight(successor));
+		assertEquals(mondayTen, successor.getStart());
+		assertEquals(mondayThirteen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+	}
+
+	@Test
+	void startToFinishNegativeElapsedFourHourLagUsesFixedWallClockDatesAndUndoRedo() throws Exception {
+		Fixture fixture = createFixture();
+		Project project = fixture.project;
+		long mondayEight = timestamp(2030, Calendar.JUNE, 3, 8);
+		long mondayTwelve = timestamp(2030, Calendar.JUNE, 3, 12);
+		long mondaySeventeen = timestamp(2030, Calendar.JUNE, 3, 17);
+		long tuesdayFour = timestamp(2030, Calendar.JUNE, 4, 4);
+		long tuesdayEight = timestamp(2030, Calendar.JUNE, 4, 8);
+		long tuesdayEleven = timestamp(2030, Calendar.JUNE, 4, 11);
+		long tuesdayFourteen = timestamp(2030, Calendar.JUNE, 4, 14);
+		long fourElapsedHours = com.microproject.datatype.Duration.setAsElapsed(4L * 60L * 60L * 1000L);
+		// Document-derived: Microsoft defines SF endpoint ordering and negative lag as lead/overlap.
+		// The exact predecessor-start-minus-four-wall-clock-hours boundary and calendar normalization
+		// below are inferred, not an MSP measurement.
+		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
+		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
+		project.setStart(mondayEight);
+		NormalTask predecessor = createTask(project, "Negative elapsed SF predecessor", 1);
+		NormalTask successor = createTask(project, "Negative elapsed SF successor", 1);
+		NormalTask unrelated = createTask(project, "Negative elapsed SF unrelated", 1);
+		predecessor.setManualDates(tuesdayEight, tuesdayFourteen);
+		predecessor.setDuration(5L * 60L * 60L * 1000L);
+		successor.setManualDates(mondayEight, mondaySeventeen);
+		successor.setDuration(3L * 60L * 60L * 1000L);
+		unrelated.setManualDates(mondayEight, mondaySeventeen);
+		successor.setManuallyScheduled(false);
+		project.recalculate();
+		long unlinkedStart = successor.getStart();
+		long unlinkedFinish = successor.getEnd();
+		fixture.undo.clear();
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.SF, -fourElapsedHours, this);
+		project.recalculate();
+
+		assertEquals(DependencyType.SF, dependency.getDependencyType());
+		assertEquals(-fourElapsedHours, dependency.getLag());
+		assertTrue(com.microproject.datatype.Duration.isElapsed(dependency.getLag()));
+		assertEquals(tuesdayFour, predecessor.getStart() + com.microproject.datatype.Duration.millis(dependency.getLag()),
+			"negative elapsed SF boundary is predecessor start minus four wall-clock hours");
+		assertEquals(tuesdayEight, successor.getStart(), "non-working finish boundary normalizes to Tuesday 08:00");
+		assertEquals(tuesdayEleven, successor.getEnd());
+		assertTrue(successor.getStart() > unlinkedStart, "successor must move later to satisfy its finish boundary");
+		assertEquals(tuesdayEight, predecessor.getStart());
+		assertEquals(tuesdayFourteen, predecessor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+
+		fixture.undo.undo();
+		project.recalculate();
+		assertTrue(predecessor.getSuccessorList().isEmpty());
+		assertEquals(unlinkedStart, successor.getStart());
+		assertEquals(unlinkedFinish, successor.getEnd());
+		fixture.undo.redo();
+		project.recalculate();
+		assertSame(dependency, predecessor.getSuccessorList().findRight(successor));
+		assertEquals(tuesdayEight, successor.getStart());
+		assertEquals(tuesdayEleven, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+	}
+
+	@Test
+	void finishToStartTwelveHourLeadRespectsSuccessorSnetAcrossDatedCalendarException() throws Exception {
 		Fixture fixture = createFixture();
 		Project project = fixture.project;
 		long mondayEight = timestamp(2030, Calendar.JUNE, 3, 8);
 		long mondaySeventeen = timestamp(2030, Calendar.JUNE, 3, 17);
 		long tuesdayMidnight = timestamp(2030, Calendar.JUNE, 4, 0);
+		long thursdayTwelve = timestamp(2030, Calendar.JUNE, 6, 12);
+		long fridayEight = timestamp(2030, Calendar.JUNE, 7, 8);
+		long fridaySeventeen = timestamp(2030, Calendar.JUNE, 7, 17);
+		long thursdayThirteen = timestamp(2030, Calendar.JUNE, 6, 13);
+		long fridayThirteen = timestamp(2030, Calendar.JUNE, 7, 13);
+		long twelveHours = 12L * 60L * 60L * 1000L;
+		project.setStart(mondayEight);
+		((WorkingCalendar) project.getWorkCalendar()).addOrReplaceException(new WorkDay(tuesdayMidnight));
+
+		NormalTask predecessor = createTask(project, "FS lead predecessor", 1);
+		NormalTask successor = createTask(project, "FS lead successor", 1);
+		NormalTask unrelated = createTask(project, "FS lead unrelated", 1);
+		predecessor.setScheduleConstraint(ConstraintType.SNET, fridayEight);
+		successor.setScheduleConstraint(ConstraintType.SNET, mondayEight);
+		unrelated.setScheduleConstraint(ConstraintType.SNET, mondayEight);
+		project.recalculate();
+		assertEquals(fridayEight, predecessor.getStart());
+		assertEquals(fridaySeventeen, predecessor.getEnd());
+		assertEquals(mondayEight, successor.getStart());
+		assertEquals(mondaySeventeen, successor.getEnd());
+
+		// Document-derived inference, not measured MSP behavior: Microsoft documents FS
+		// endpoints, working calendars, and negative lag as lead/overlap, but not lag-calendar
+		// ownership or exception-boundary arithmetic. Under the established predecessor-effective
+		// calendar policy, the existing calendar arithmetic places the lead boundary at
+		// Thursday 12:00 across Tuesday's exception; successor normalization places it at 13:00.
+		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
+		// https://support.microsoft.com/en-us/project/how-project-schedules-tasks-behind-the-scenes
+		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.FS, -twelveHours, this);
+		assertEquals(thursdayTwelve,
+			dependency.getEffectiveWorkCalendar().add(fridaySeventeen, dependency.getLeadValue(), false));
+		project.recalculate();
+
+		assertEquals(DependencyType.FS, dependency.getDependencyType());
+		assertEquals(-twelveHours, dependency.getLag());
+		assertEquals(fridayEight, predecessor.getStart());
+		assertEquals(fridaySeventeen, predecessor.getEnd());
+		assertEquals(thursdayThirteen, successor.getStart());
+		assertEquals(fridayThirteen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+
+		fixture.undo.undo();
+		project.recalculate();
+		assertTrue(predecessor.getSuccessorList().isEmpty());
+		assertEquals(mondayEight, successor.getStart());
+		assertEquals(mondaySeventeen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		fixture.undo.redo();
+		project.recalculate();
+		assertSame(dependency, predecessor.getSuccessorList().findRight(successor));
+		assertEquals(thursdayThirteen, successor.getStart());
+		assertEquals(fridayThirteen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+	}
+
+	@Test
+	void finishToStartWorkingDayLagSkipsDatedNonworkingException() throws Exception {
+		Fixture fixture = createFixture();
+		Project project = fixture.project;
+		long mondayEight = timestamp(2030, Calendar.JUNE, 3, 8);
+		long mondayThirteen = timestamp(2030, Calendar.JUNE, 3, 13);
+		long mondaySeventeen = timestamp(2030, Calendar.JUNE, 3, 17);
+		long tuesdayMidnight = timestamp(2030, Calendar.JUNE, 4, 0);
+		long tuesdayEight = timestamp(2030, Calendar.JUNE, 4, 8);
 		long thursdayEight = timestamp(2030, Calendar.JUNE, 6, 8);
 		project.setStart(mondayEight);
 		((WorkingCalendar) project.getWorkCalendar()).addOrReplaceException(new WorkDay(tuesdayMidnight));
@@ -133,6 +1205,74 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		assertEquals(thursdayEight, successor.getStart(),
 			"one working day of FS lag skips Tuesday; the next task starts at the next working interval");
 		assertEquals(day(), dependency.getLag());
+	}
+
+	@Test
+	void startToFinishWorkingDayLagRespectsSuccessorSnetAcrossProjectException() throws Exception {
+		Fixture fixture = createFixture();
+		Project project = fixture.project;
+		long mondayEight = timestamp(2030, Calendar.JUNE, 3, 8);
+		long mondayThirteen = timestamp(2030, Calendar.JUNE, 3, 13);
+		long mondaySeventeen = timestamp(2030, Calendar.JUNE, 3, 17);
+		long tuesdayMidnight = timestamp(2030, Calendar.JUNE, 4, 0);
+		long wednesdayEight = timestamp(2030, Calendar.JUNE, 5, 8);
+		long wednesdayThirteen = timestamp(2030, Calendar.JUNE, 5, 13);
+		long fourHours = day() / 2;
+		project.setStart(mondayEight);
+		((WorkingCalendar) project.getWorkCalendar()).addOrReplaceException(new WorkDay(tuesdayMidnight));
+
+		NormalTask predecessor = createTask(project, "SF lag predecessor", 1);
+		NormalTask successor = createTask(project, "SF lag successor", 1);
+		NormalTask unrelated = createTask(project, "SF lag unrelated", 1);
+		predecessor.setDuration(fourHours);
+		successor.setDuration(fourHours);
+		unrelated.setDuration(fourHours);
+		predecessor.setScheduleConstraint(ConstraintType.SNET, mondayThirteen);
+		successor.setScheduleConstraint(ConstraintType.SNET, mondayEight);
+		unrelated.setScheduleConstraint(ConstraintType.SNET, mondayEight);
+		project.recalculate();
+		assertEquals(mondayThirteen, predecessor.getStart());
+		assertEquals(mondaySeventeen, predecessor.getEnd());
+		assertEquals(mondayEight, successor.getStart());
+		assertEquals(mondayThirteen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondayThirteen, unrelated.getEnd());
+
+		// Document-derived product rule, not measured MSP behavior: Microsoft documents
+		// SF endpoint semantics, working calendars, and lead/lag, but not which calendar
+		// owns lag. This fixture retains the established predecessor-effective-calendar
+		// policy. One working day from Monday 13:00 crosses Tuesday's project exception
+		// and reaches Wednesday 13:00; the successor's Monday SNET remains its lower bound.
+		// Sources: https://support.microsoft.com/en-us/project/link-tasks-in-a-project
+		// https://support.microsoft.com/en-us/project/how-project-schedules-tasks-behind-the-scenes
+		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.SF, day(), this);
+		project.recalculate();
+		assertEquals(wednesdayThirteen,
+			dependency.getEffectiveWorkCalendar().add(mondayThirteen, day(), false));
+		assertEquals(DependencyType.SF, dependency.getDependencyType());
+		assertEquals(day(), dependency.getLag());
+		assertEquals(mondayThirteen, predecessor.getStart());
+		assertEquals(mondaySeventeen, predecessor.getEnd());
+		assertEquals(wednesdayEight, successor.getStart());
+		assertEquals(timestamp(2030, Calendar.JUNE, 5, 13), successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondayThirteen, unrelated.getEnd());
+
+		fixture.undo.undo();
+		project.recalculate();
+		assertTrue(predecessor.getSuccessorList().isEmpty());
+		assertEquals(mondayEight, successor.getStart());
+		assertEquals(mondayThirteen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		fixture.undo.redo();
+		project.recalculate();
+		assertSame(dependency, predecessor.getSuccessorList().findRight(successor));
+		assertEquals(wednesdayEight, successor.getStart());
+		assertEquals(timestamp(2030, Calendar.JUNE, 5, 13), successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondayThirteen, unrelated.getEnd());
 	}
 
 	@Test
@@ -176,6 +1316,221 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		assertEquals(wednesdaySeventeen, predecessor.getEnd());
 		assertEquals(mondayEight, successor.getStart());
 		assertEquals(mondaySeventeen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+	}
+
+	@Test
+	void finishToFinishTwelveHourLeadRespectsSuccessorSnetAcrossDatedCalendarException() throws Exception {
+		Fixture fixture = createFixture();
+		Project project = fixture.project;
+		long mondayEight = timestamp(2030, Calendar.JUNE, 3, 8);
+		long mondayTen = timestamp(2030, Calendar.JUNE, 3, 10);
+		long mondaySeventeen = timestamp(2030, Calendar.JUNE, 3, 17);
+		long tuesdayMidnight = timestamp(2030, Calendar.JUNE, 4, 0);
+		long mondayTwelve = timestamp(2030, Calendar.JUNE, 3, 12);
+		long mondayThirteen = timestamp(2030, Calendar.JUNE, 3, 13);
+		long wednesdayEight = timestamp(2030, Calendar.JUNE, 5, 8);
+		long wednesdaySeventeen = timestamp(2030, Calendar.JUNE, 5, 17);
+		long twelveHours = 12L * 60L * 60L * 1000L;
+		long twoHours = 2L * 60L * 60L * 1000L;
+		project.setStart(mondayEight);
+		((WorkingCalendar) project.getWorkCalendar()).addOrReplaceException(new WorkDay(tuesdayMidnight));
+
+		NormalTask predecessor = createTask(project, "FF lead predecessor SNET", 1);
+		NormalTask successor = createTask(project, "FF lead successor SNET", 1);
+		NormalTask unrelated = createTask(project, "FF lead unrelated SNET", 1);
+		successor.setDuration(twoHours);
+		predecessor.setScheduleConstraint(ConstraintType.SNET, wednesdayEight);
+		successor.setScheduleConstraint(ConstraintType.SNET, mondayEight);
+		unrelated.setScheduleConstraint(ConstraintType.SNET, mondayEight);
+		project.recalculate();
+		assertEquals(wednesdayEight, predecessor.getStart());
+		assertEquals(wednesdaySeventeen, predecessor.getEnd());
+		assertEquals(mondayEight, successor.getStart());
+		assertEquals(mondayTen, successor.getEnd());
+
+		// Document-derived inference, not measured MSP behavior: Microsoft documents FF
+		// endpoints, calendar scheduling, and negative lag as lead/overlap. The precise
+		// exception-boundary calculation uses the existing predecessor-calendar policy.
+		// Subtracting 12 work hours from Wednesday 17:00 crosses Tuesday's exception
+		// and yields Monday 12:00. The two-hour successor's Monday SNET permits 08:00–10:00.
+		// Its 10:00–12:00 working interval is represented with a 13:00 finish timestamp
+		// because noon–13:00 is nonworking; this satisfies the required 12:00 finish boundary.
+		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
+		// https://support.microsoft.com/en-us/project/how-project-schedules-tasks-behind-the-scenes
+		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.FF, -twelveHours, this);
+		assertEquals(mondayTwelve,
+			dependency.getEffectiveWorkCalendar().add(wednesdaySeventeen, dependency.getLeadValue(), false));
+		project.recalculate();
+
+		assertEquals(DependencyType.FF, dependency.getDependencyType());
+		assertEquals(-twelveHours, dependency.getLag());
+		assertEquals(ConstraintType.Kind.SNET, successor.getConstraintTypeKind());
+		assertEquals(mondayEight, successor.getConstraintDate());
+		assertEquals(wednesdayEight, predecessor.getStart());
+		assertEquals(wednesdaySeventeen, predecessor.getEnd());
+		assertEquals(mondayTen, successor.getStart());
+		assertEquals(mondayThirteen, successor.getEnd(), "FF successor finish meets the required Monday 12:00 boundary");
+		assertTrue(successor.getEnd() >= mondayTwelve);
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+
+		fixture.undo.undo();
+		project.recalculate();
+		assertTrue(predecessor.getSuccessorList().isEmpty());
+		assertEquals(mondayEight, successor.getStart());
+		assertEquals(mondayTen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		fixture.undo.redo();
+		project.recalculate();
+		assertSame(dependency, predecessor.getSuccessorList().findRight(successor));
+		assertEquals(mondayTen, successor.getStart());
+		assertEquals(mondayThirteen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+	}
+
+	@Test
+	void startToStartTwelveHourLeadRespectsSuccessorSnetAcrossDatedCalendarException() throws Exception {
+		Fixture fixture = createFixture();
+		Project project = fixture.project;
+		long mondayEight = timestamp(2030, Calendar.JUNE, 3, 8);
+		long mondaySeventeen = timestamp(2030, Calendar.JUNE, 3, 17);
+		long tuesdayMidnight = timestamp(2030, Calendar.JUNE, 4, 0);
+		long wednesdayEight = timestamp(2030, Calendar.JUNE, 5, 8);
+		long wednesdayTwelve = timestamp(2030, Calendar.JUNE, 5, 12);
+		long wednesdayThirteen = timestamp(2030, Calendar.JUNE, 5, 13);
+		long thursdayThirteen = timestamp(2030, Calendar.JUNE, 6, 13);
+		long wednesdaySeventeen = timestamp(2030, Calendar.JUNE, 5, 17);
+		long fridayEight = timestamp(2030, Calendar.JUNE, 7, 8);
+		long fridaySeventeen = timestamp(2030, Calendar.JUNE, 7, 17);
+		long twelveHours = 12L * 60L * 60L * 1000L;
+		project.setStart(mondayEight);
+		((WorkingCalendar) project.getWorkCalendar()).addOrReplaceException(new WorkDay(tuesdayMidnight));
+
+		NormalTask predecessor = createTask(project, "SS lead predecessor", 1);
+		NormalTask successor = createTask(project, "SS lead successor", 1);
+		NormalTask unrelated = createTask(project, "SS lead unrelated", 1);
+		predecessor.setScheduleConstraint(ConstraintType.SNET, fridayEight);
+		successor.setScheduleConstraint(ConstraintType.SNET, mondayEight);
+		unrelated.setScheduleConstraint(ConstraintType.SNET, mondayEight);
+		project.recalculate();
+		assertEquals(fridayEight, predecessor.getStart());
+		assertEquals(fridaySeventeen, predecessor.getEnd());
+		assertEquals(mondayEight, successor.getStart());
+		assertEquals(mondaySeventeen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+
+		// Document-derived inference, not measured MSP behavior: Microsoft's published
+		// guidance defines SS endpoints, working calendars, and negative lag as lead, but
+		// does not specify lag-calendar ownership or this exception-boundary calculation.
+		// Keep the established predecessor-effective-calendar policy. Subtracting 12
+		// working hours backward from Friday 08:00 crosses Tuesday's exception to
+		// Wednesday 12:00. Its earlier SNET remains a lower bound and does not override
+		// the later link boundary; successor normalization places it at Wednesday 13:00.
+		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
+		// https://support.microsoft.com/en-us/project/how-project-schedules-tasks-behind-the-scenes
+		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.SS, -twelveHours, this);
+		assertEquals(wednesdayTwelve,
+			dependency.getEffectiveWorkCalendar().add(fridayEight, dependency.getLeadValue(), false));
+		project.recalculate();
+
+		assertEquals(DependencyType.SS, dependency.getDependencyType());
+		assertEquals(-twelveHours, dependency.getLag());
+		assertEquals(fridayEight, predecessor.getStart());
+		assertEquals(fridaySeventeen, predecessor.getEnd());
+		assertEquals(wednesdayThirteen, successor.getStart());
+		assertEquals(thursdayThirteen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+
+		fixture.undo.undo();
+		project.recalculate();
+		assertTrue(predecessor.getSuccessorList().isEmpty());
+		assertEquals(mondayEight, successor.getStart());
+		assertEquals(mondaySeventeen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+		fixture.undo.redo();
+		project.recalculate();
+		assertSame(dependency, predecessor.getSuccessorList().findRight(successor));
+		assertEquals(wednesdayThirteen, successor.getStart());
+		assertEquals(thursdayThirteen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+	}
+
+	@Test
+	void startToFinishTwelveHourLeadRespectsSuccessorSnetAcrossDatedCalendarException() throws Exception {
+		Fixture fixture = createFixture();
+		Project project = fixture.project;
+		long mondayEight = timestamp(2030, Calendar.JUNE, 3, 8);
+		long mondayThirteen = timestamp(2030, Calendar.JUNE, 3, 13);
+		long mondaySeventeen = timestamp(2030, Calendar.JUNE, 3, 17);
+		long tuesdayMidnight = timestamp(2030, Calendar.JUNE, 4, 0);
+		long wednesdayTwelve = timestamp(2030, Calendar.JUNE, 5, 12);
+		long wednesdayThirteen = timestamp(2030, Calendar.JUNE, 5, 13);
+		long thursdayThirteen = timestamp(2030, Calendar.JUNE, 6, 13);
+		long fridayEight = timestamp(2030, Calendar.JUNE, 7, 8);
+		long fridaySeventeen = timestamp(2030, Calendar.JUNE, 7, 17);
+		long twelveHours = 12L * 60L * 60L * 1000L;
+		project.setStart(mondayEight);
+		((WorkingCalendar) project.getWorkCalendar()).addOrReplaceException(new WorkDay(tuesdayMidnight));
+
+		NormalTask predecessor = createTask(project, "SF lead predecessor", 1);
+		NormalTask successor = createTask(project, "SF lead successor", 1);
+		NormalTask unrelated = createTask(project, "SF lead unrelated", 1);
+		predecessor.setScheduleConstraint(ConstraintType.SNET, fridayEight);
+		successor.setScheduleConstraint(ConstraintType.SNET, mondayEight);
+		unrelated.setScheduleConstraint(ConstraintType.SNET, mondayEight);
+		project.recalculate();
+		assertEquals(fridayEight, predecessor.getStart());
+		assertEquals(fridaySeventeen, predecessor.getEnd());
+		assertEquals(mondayEight, successor.getStart());
+		assertEquals(mondaySeventeen, successor.getEnd());
+
+		// Document-derived inference, not measured MSP behavior: Microsoft documents SF
+		// endpoints, project calendars, and negative lag as lead/overlap, but not lag-calendar
+		// ownership or exception-boundary arithmetic. With the existing predecessor-effective
+		// calendar policy, 12 working hours backward from Friday 08:00 crosses Tuesday's
+		// exception and reaches Wednesday 12:00. SF constrains the successor finish, so its
+		// one-day duration starts Monday 13:00 and ends Wednesday 13:00 across the exception.
+		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
+		// https://support.microsoft.com/en-us/project/how-project-schedules-tasks-behind-the-scenes
+		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.SF, -twelveHours, this);
+		assertEquals(wednesdayTwelve,
+			dependency.getEffectiveWorkCalendar().add(fridayEight, dependency.getLeadValue(), false));
+		project.recalculate();
+
+		assertEquals(DependencyType.SF, dependency.getDependencyType());
+		assertEquals(-twelveHours, dependency.getLag());
+		assertEquals(fridayEight, predecessor.getStart());
+		assertEquals(fridaySeventeen, predecessor.getEnd());
+		assertEquals(mondayThirteen, successor.getStart());
+		assertEquals(wednesdayThirteen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+
+		fixture.undo.undo();
+		project.recalculate();
+		assertTrue(predecessor.getSuccessorList().isEmpty());
+		assertEquals(mondayEight, successor.getStart());
+		assertEquals(mondaySeventeen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+		fixture.undo.redo();
+		project.recalculate();
+		assertSame(dependency, predecessor.getSuccessorList().findRight(successor));
+		assertEquals(mondayThirteen, successor.getStart());
+		assertEquals(wednesdayThirteen, successor.getEnd());
 		assertEquals(mondayEight, unrelated.getStart());
 		assertEquals(mondaySeventeen, unrelated.getEnd());
 	}

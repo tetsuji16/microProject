@@ -15,7 +15,9 @@ import java.awt.Frame;
 import java.awt.GraphicsConfiguration;
 import java.awt.Insets;
 import java.awt.GraphicsEnvironment;
+import java.awt.MouseInfo;
 import java.awt.Point;
+import java.awt.PointerInfo;
 import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.Toolkit;
@@ -169,6 +171,23 @@ class WindowShellNativeDecorationGuiAcceptanceTest {
 		int edgeX = beforeResize.x + beforeResize.width - 1;
 		int edgeY = beforeResize.y + beforeResize.height / 2;
 		robot.mouseMove(edgeX, edgeY);
+		robot.waitForIdle();
+		GraphicsConfiguration resizeConfiguration = frame.getGraphicsConfiguration();
+		Rectangle resizeScreen = resizeConfiguration == null ? null : resizeConfiguration.getBounds();
+		Insets resizeInsets = frame.getInsets();
+		Insets screenInsets = resizeConfiguration == null ? null
+			: Toolkit.getDefaultToolkit().getScreenInsets(resizeConfiguration);
+		PointerInfo pointer = MouseInfo.getPointerInfo();
+		Point actualCursor = pointer == null ? null : pointer.getLocation();
+		Rectangle usableBounds = resizeScreen == null || screenInsets == null ? null
+			: new Rectangle(resizeScreen.x + screenInsets.left, resizeScreen.y + screenInsets.top,
+				resizeScreen.width - screenInsets.left - screenInsets.right,
+				resizeScreen.height - screenInsets.top - screenInsets.bottom);
+		System.out.println("[WINDOW_NATIVE_RESIZE_DIAGNOSTIC] frame=" + frame.getClass().getName()
+			+ ",resizable=" + frame.isResizable() + ",bounds=" + beforeResize + ",insets=" + resizeInsets
+			+ ",graphicsConfiguration=" + resizeConfiguration + ",screenBounds=" + resizeScreen
+			+ ",usableBounds=" + usableBounds + ",target=" + new Point(edgeX, edgeY)
+			+ ",actualCursor=" + actualCursor);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseMove(edgeX - 60, edgeY);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);

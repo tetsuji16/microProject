@@ -108,17 +108,26 @@ class UnsavedSubprojectRefreshGuiAcceptanceTest {
 		assertSame(fixture.child, fixture.reference.getSubproject(), "save fixture must retain its open child");
 		AtomicBoolean completed = new AtomicBoolean();
 		AtomicReference<Boolean> result = new AtomicReference<>();
+		AtomicReference<Throwable> callbackFailure = new AtomicReference<>();
 		SwingUtilities.invokeLater(() -> {
-			restoreFixtureChild(fixture);
-			fixture.manager.selectForTest(fixture.document);
-			result.set(fixture.manager.refreshLinkedSubproject(fixture.reference));
-			completed.set(true);
+			try {
+				restoreFixtureChild(fixture);
+				fixture.manager.selectForTest(fixture.document);
+				result.set(fixture.manager.refreshLinkedSubproject(fixture.reference));
+			} catch (Throwable failure) {
+				callbackFailure.set(failure);
+			} finally {
+				completed.set(true);
+			}
 		});
 		GuiAcceptanceSupport.await(() -> findRefreshDialog() != null || completed.get(),
 				"refresh did not show its decision dialog or complete");
 		assertTrue(!completed.get(), "Save refresh returned before prompting; child dirty=" + fixture.child.needsSaving());
 		clickRefreshChoice("Save");
-		awaitCompletion(completed, "Save did not complete the refresh decision");
+		awaitCompletion(completed, "Save did not complete the refresh decision; callbackFailure="
+				+ callbackFailure.get() + "; EDT=" + edtStackTrace());
+		assertTrue(callbackFailure.get() == null, "Save refresh callback threw: " + callbackFailure.get()
+				+ "; stack=" + (callbackFailure.get() == null ? "" : java.util.Arrays.toString(callbackFailure.get().getStackTrace())));
 		assertTrue(Boolean.TRUE.equals(result.get()), "Save refresh must succeed");
 		assertTrue(!fixture.child.needsSaving(), "Save refresh must clear the dirty child state");
 		Project persisted = loadProject(new File(fixture.child.getFileName()));
@@ -236,6 +245,13 @@ class UnsavedSubprojectRefreshGuiAcceptanceTest {
 		long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(20);
 		while (!completed.get() && System.nanoTime() < deadline) Thread.sleep(25);
 		assertTrue(completed.get(), message);
+	}
+
+	private static String edtStackTrace() {
+		return Thread.getAllStackTraces().entrySet().stream()
+			.filter(entry -> entry.getKey().getName().startsWith("AWT-EventQueue"))
+			.map(entry -> entry.getKey().getName() + " " + java.util.Arrays.toString(entry.getValue()))
+			.findFirst().orElse("EDT thread not found");
 	}
 
 	private static void restoreFixtureChild(Fixture fixture) {

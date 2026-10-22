@@ -44,6 +44,7 @@ import com.microproject.session.SessionFactory;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.Environment;
+import com.microproject.util.FilePathUtils;
 import com.microproject.util.UiDispatch;
 import com.microproject.util.UiServices;
 import com.microproject.util.SwingFileChooserProvider;
@@ -181,9 +182,12 @@ class MultipleLocalProjectOpenGuiAcceptanceTest {
 		robot.keyRelease(java.awt.event.KeyEvent.VK_ENTER);
 		robot.waitForIdle();
 		GuiAcceptanceSupport.await(chooserReturned::get, "the native multi-file chooser did not return");
-		assertEquals(2, nativeSelection.get().size(), "the native chooser must return a two-file selection");
-		assertTrue(nativeSelection.get().contains(firstFile.toString()), "native chooser selection omitted Alpha: " + nativeSelection.get());
-		assertTrue(nativeSelection.get().contains(secondFile.toString()), "native chooser selection omitted Beta: " + nativeSelection.get());
+		List<String> selectedPaths = nativeSelection.get();
+		assertEquals(2, selectedPaths.size(), "the native chooser must return a two-file selection");
+		assertTrue(selectedPaths.stream().anyMatch(path -> FilePathUtils.sameFileIdentity(path, firstFile.toString())),
+			"native chooser selection omitted Alpha; expected " + firstFile + ", actual " + selectedPaths);
+		assertTrue(selectedPaths.stream().anyMatch(path -> FilePathUtils.sameFileIdentity(path, secondFile.toString())),
+			"native chooser selection omitted Beta; expected " + secondFile + ", actual " + selectedPaths);
 		FrameManager frames = manager.getFrameManager();
 		GuiAcceptanceSupport.await(() -> frames.getAllFrames().size() == 3,
 			"native multi-file Open did not add two independent projects");

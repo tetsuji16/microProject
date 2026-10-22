@@ -237,7 +237,8 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 			SwingUtilities.invokeLater(dialog::doModal);
 		});
 		GuiAcceptanceSupport.await(() -> dialog != null && dialog.isVisible(), "English working-time dialog did not open");
-		assertEquals("Calendar", dialog.calendarTabs.getTitleAt(0), "the acceptance route must use English UI labels");
+		assertEquals(Messages.getString("ChangeWorkingTimeDialogBox.CalendarTab"), dialog.calendarTabs.getTitleAt(0),
+			"the calendar tab label must match the application UI locale while the calendar uses English locale settings");
 		JTextArea[] explanation = new JTextArea[1];
 		Point[] cellPoint = new Point[1];
 		String[] tooltip = new String[1];

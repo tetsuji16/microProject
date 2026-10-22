@@ -44,6 +44,7 @@ import com.microproject.grouping.core.NodeFactory;
 import com.microproject.grouping.core.model.AssignmentNodeModel;
 import com.microproject.graphic.configuration.SpreadSheetFieldArray;
 import com.microproject.options.CalendarOption;
+import com.microproject.pm.criticalpath.SchedulingAlgorithm;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.resource.ResourceImpl;
@@ -240,6 +241,26 @@ class ProjectScheduleBehaviorTest {
 	}
 
 	@Test
+	void changingBackwardProjectFinishRecalculatesUnconstrainedTasks() {
+		Project project = createProject();
+		project.setForward(false);
+		NormalTask task = project.createScriptedTask();
+		task.setName("Move with project finish");
+		task.setDuration(day());
+		project.connectTask(task);
+		project.getTaskOutlines().addToAll(task, null);
+		task.setForward(false);
+		project.recalculate();
+		assertFalse(task.getCurrentSchedule().isForward(), "Finish-date case must use backward task scheduling");
+
+		long originalTaskFinish = task.getEnd();
+		long newProjectFinish = project.getEffectiveWorkCalendar().add(project.getFinishDate(), day(), false);
+		project.setFinishDate(newProjectFinish);
+
+		assertTrue(task.getEnd() > originalTaskFinish, "Backward scheduling should move the task with the later project finish");
+	}
+
+	@Test
 	void moveProjectUndoEditRestoresAndReappliesTheProjectBoundary() {
 		Project project = createProject();
 		long before = project.getStartDate();
@@ -251,6 +272,101 @@ class ProjectScheduleBehaviorTest {
 		assertEquals(before, project.getStartDate());
 		edit.redo();
 		assertEquals(after, project.getStartDate());
+	}
+
+	@Test
+	void failedProjectStartDateRecalculationRestoresBoundaryTasksAndObservers() {
+		assertProjectDateFailureAtomic(true);
+	}
+
+	@Test
+	void failedProjectFinishDateRecalculationRestoresBoundaryTasksAndObservers() {
+		assertProjectDateFailureAtomic(false);
+	}
+
+	private void assertProjectDateFailureAtomic(boolean startDate) {
+		Project project = createProject();
+		if (!startDate) project.setForward(false);
+		NormalTask task = project.createScriptedTask();
+		task.setName("Scheduled task");
+		task.setDuration(day());
+		project.connectTask(task);
+		project.getTaskOutlines().addToAll(task, null);
+		if (!startDate) task.setForward(false);
+		project.recalculate();
+		if (!startDate) assertFalse(task.getCurrentSchedule().isForward(), "Finish-date case must use backward task scheduling");
+		assertSame(task.getCurrentSchedule(), ((TaskSnapshot) task.getSnapshot(Snapshottable.CURRENT)).getCurrentSchedule(),
+			"The backup helper must capture the task's live current schedule");
+		long oldTaskStart = task.getStart();
+		long oldTaskFinish = task.getEnd();
+		java.util.concurrent.atomic.AtomicBoolean fail = new java.util.concurrent.atomic.AtomicBoolean();
+		java.util.concurrent.atomic.AtomicBoolean scheduleDeltaObserved = new java.util.concurrent.atomic.AtomicBoolean();
+		java.util.concurrent.atomic.AtomicLong trackedStartConstraint = new java.util.concurrent.atomic.AtomicLong(project.getStartConstraint());
+		java.util.concurrent.atomic.AtomicLong trackedEndConstraint = new java.util.concurrent.atomic.AtomicLong(project.getFinishDate());
+		RuntimeException injected = new IllegalStateException("injected project date recalculation failure");
+		SchedulingAlgorithm delegate = project.getSchedulingAlgorithm();
+		SchedulingAlgorithm failingAlgorithm = (SchedulingAlgorithm) java.lang.reflect.Proxy.newProxyInstance(
+			SchedulingAlgorithm.class.getClassLoader(), new Class<?>[] { SchedulingAlgorithm.class }, (proxy, method, args) -> {
+				if (method.getName().equals("setStartConstraint")) trackedStartConstraint.set((Long) args[0]);
+				if (method.getName().equals("setEndConstraint")) trackedEndConstraint.set((Long) args[0]);
+				try {
+					Object result = method.invoke(delegate, args);
+					if (method.getName().equals("calculate") && fail.compareAndSet(true, false)) {
+						scheduleDeltaObserved.set(task.getStart() != oldTaskStart || task.getEnd() != oldTaskFinish);
+						throw injected;
+					}
+					return result;
+				} catch (java.lang.reflect.InvocationTargetException failure) {
+					throw failure.getCause();
+				}
+			});
+		project.setSchedulingAlgorithm(failingAlgorithm);
+		long oldBoundary = startDate ? project.getStartDate() : project.getFinishDate();
+		long newBoundary = project.getEffectiveWorkCalendar().add(oldBoundary, day(), false);
+		long oldStartConstraint = project.getStartConstraint();
+		long oldEndConstraint = project.getFinishDate();
+		long oldProjectStart = project.getStartDate();
+		long oldProjectFinish = project.getFinishDate();
+		boolean taskDirty = task.isDirty();
+		boolean projectDirty = project.isDirty();
+		long revision = project.getMutationState().revision();
+		DataFactoryUndoController undo = project.getUndoController();
+		List<String> undoNames = List.copyOf(undo.getEditNames());
+		String redoName = undo.getRedoName();
+		boolean canUndo = undo.canUndo();
+		boolean canRedo = undo.canRedo();
+		java.util.concurrent.atomic.AtomicInteger objectEvents = new java.util.concurrent.atomic.AtomicInteger();
+		java.util.concurrent.atomic.AtomicInteger scheduleEvents = new java.util.concurrent.atomic.AtomicInteger();
+		project.addObjectListener(event -> objectEvents.incrementAndGet());
+		project.addScheduleListener(event -> scheduleEvents.incrementAndGet());
+		fail.set(true);
+
+		RuntimeException failure = assertThrows(RuntimeException.class, () -> {
+			if (startDate) project.setStartDate(newBoundary);
+			else project.setFinishDate(newBoundary);
+		});
+
+		assertSame(injected, failure);
+		assertTrue(scheduleDeltaObserved.get(), "The injected calculation must first change the task schedule");
+		assertEquals(oldBoundary, startDate ? project.getStartDate() : project.getFinishDate());
+		assertEquals(oldProjectStart, project.getStartDate());
+		assertEquals(oldProjectFinish, project.getFinishDate());
+		assertEquals(oldStartConstraint, project.getStartConstraint());
+		assertEquals(oldStartConstraint, trackedStartConstraint.get());
+		assertEquals(oldEndConstraint, trackedEndConstraint.get());
+		assertEquals(oldTaskStart, task.getStart());
+		assertEquals(oldTaskFinish, task.getEnd(), "rawScheduleStart=" + task.getCurrentSchedule().getStart()
+			+ " rawScheduleFinish=" + task.getCurrentSchedule().getFinish() + " scheduleForward="
+			+ task.getCurrentSchedule().isForward());
+		assertEquals(taskDirty, task.isDirty());
+		assertEquals(projectDirty, project.isDirty());
+		assertEquals(revision, project.getMutationState().revision());
+		assertEquals(canUndo, undo.canUndo());
+		assertEquals(canRedo, undo.canRedo());
+		assertEquals(undoNames, undo.getEditNames());
+		assertEquals(redoName, undo.getRedoName());
+		assertEquals(0, objectEvents.get());
+		assertEquals(0, scheduleEvents.get());
 	}
 
 	@Test
@@ -406,6 +522,15 @@ class ProjectScheduleBehaviorTest {
 
 	@Test
 	void overwritingSelectedBaselineRestoresPriorAndAbsentTaskSnapshotsOnUndoRedo() {
+		assertSelectedBaselineOverwriteRestoresPriorAndAbsentTaskSnapshotsOnUndoRedo(Snapshottable.BASELINE_1);
+	}
+
+	@Test
+	void overwritingSelectedBaseline10RestoresPriorAndAbsentTaskSnapshotsOnUndoRedo() {
+		assertSelectedBaselineOverwriteRestoresPriorAndAbsentTaskSnapshotsOnUndoRedo(Snapshottable.BASELINE_10);
+	}
+
+	private void assertSelectedBaselineOverwriteRestoresPriorAndAbsentTaskSnapshotsOnUndoRedo(int baselineSlot) {
 		Project project = createProject();
 		NormalTask existing = project.createScriptedTask();
 		NormalTask previouslyUnbaselined = project.createScriptedTask();
@@ -429,20 +554,24 @@ class ProjectScheduleBehaviorTest {
 		outsideSelection.setStart(project.getEffectiveWorkCalendar().add(start, 2L * day(), false));
 		outsideSelection.setDuration(day());
 
-		Integer slot = Integer.valueOf(Snapshottable.BASELINE_1);
-		Integer unrelatedSlot = Integer.valueOf(Snapshottable.BASELINE);
+		Integer slot = Integer.valueOf(baselineSlot);
+		int otherNumberedSlot = baselineSlot == Snapshottable.BASELINE_1
+			? Snapshottable.BASELINE_10 : Snapshottable.BASELINE_1;
+		Integer unrelatedSlot = Integer.valueOf(otherNumberedSlot);
 		existing.saveCurrentToSnapshot(slot);
+		existing.saveCurrentToSnapshot(Integer.valueOf(Snapshottable.BASELINE));
 		existing.saveCurrentToSnapshot(unrelatedSlot);
 		outsideSelection.saveCurrentToSnapshot(slot);
-		long oldExistingStart = existing.getBaselineStart(Snapshottable.BASELINE_1);
+		long oldExistingStart = existing.getBaselineStart(baselineSlot);
 		double originalFixedCost = ((TaskSnapshot) existing.getSnapshot(slot)).fixedCost;
 		Assignment.BaselineValues importedOverride = new Assignment.BaselineValues(oldExistingStart,
-			Long.valueOf(existing.getBaselineFinish(Snapshottable.BASELINE_1)), Long.valueOf(5L * day()));
-		existingAssignment.importBaselineValues(Snapshottable.BASELINE_1, importedOverride.start(),
+			Long.valueOf(existing.getBaselineFinish(baselineSlot)), Long.valueOf(5L * day()));
+		existingAssignment.importBaselineValues(baselineSlot, importedOverride.start(),
 			importedOverride.finish(), importedOverride.work());
-		double oldExistingCost = existingAssignment.getBaselineCost(Snapshottable.BASELINE_1, null);
-		long unrelatedStart = outsideSelection.getBaselineStart(Snapshottable.BASELINE_1);
+		double oldExistingCost = existingAssignment.getBaselineCost(baselineSlot, null);
+		long unrelatedStart = outsideSelection.getBaselineStart(baselineSlot);
 		long unrelatedOtherSlotStart = existing.getBaselineStart(Snapshottable.BASELINE);
+		long unrelatedNumberedSlotStart = existing.getBaselineStart(otherNumberedSlot);
 
 		existing.setStart(project.getEffectiveWorkCalendar().add(start, 3L * day(), false));
 		existing.setDuration(3L * day());
@@ -459,27 +588,30 @@ class ProjectScheduleBehaviorTest {
 
 		ReversibleModelChange change = project.saveCurrentToSnapshot(slot, false,
 			List.of(existing, previouslyUnbaselined));
-		Assignment.BaselineValues replacementExistingValues = existingAssignment.getBaselineValues(Snapshottable.BASELINE_1);
-		Assignment.BaselineValues replacementNewValues = newAssignment.getBaselineValues(Snapshottable.BASELINE_1);
-		double replacementExistingCost = existingAssignment.getBaselineCost(Snapshottable.BASELINE_1, null);
+		Assignment.BaselineValues replacementExistingValues = existingAssignment.getBaselineValues(baselineSlot);
+		Assignment.BaselineValues replacementNewValues = newAssignment.getBaselineValues(baselineSlot);
+		double replacementExistingCost = existingAssignment.getBaselineCost(baselineSlot, null);
 		double replacementFixedCost = ((TaskSnapshot) existing.getSnapshot(slot)).fixedCost;
-		assertEquals(replacementExistingStart, existing.getBaselineStart(Snapshottable.BASELINE_1));
-		assertEquals(replacementExistingValues, existingAssignment.getBaselineValues(Snapshottable.BASELINE_1));
-		assertEquals(replacementExistingCost, existingAssignment.getBaselineCost(Snapshottable.BASELINE_1, null));
+		assertEquals(replacementExistingStart, existing.getBaselineStart(baselineSlot));
+		assertEquals(replacementExistingValues, existingAssignment.getBaselineValues(baselineSlot));
+		assertEquals(replacementExistingCost, existingAssignment.getBaselineCost(baselineSlot, null));
 		assertTrue(!importedOverride.equals(replacementExistingValues),
 			"Overwrite must replace the imported assignment baseline values");
-		assertEquals(replacementNewStart, previouslyUnbaselined.getBaselineStart(Snapshottable.BASELINE_1));
-		assertEquals(replacementNewValues, newAssignment.getBaselineValues(Snapshottable.BASELINE_1));
-		assertEquals(unrelatedStart, outsideSelection.getBaselineStart(Snapshottable.BASELINE_1));
+		assertEquals(replacementNewStart, previouslyUnbaselined.getBaselineStart(baselineSlot));
+		assertEquals(replacementNewValues, newAssignment.getBaselineValues(baselineSlot));
+		assertEquals(unrelatedStart, outsideSelection.getBaselineStart(baselineSlot));
+		assertEquals(unrelatedOtherSlotStart, existing.getBaselineStart(Snapshottable.BASELINE));
+		assertEquals(unrelatedNumberedSlotStart, existing.getBaselineStart(otherNumberedSlot));
 
 		change.undo();
-		assertEquals(oldExistingStart, existing.getBaselineStart(Snapshottable.BASELINE_1));
-		assertEquals(importedOverride, existingAssignment.getBaselineValues(Snapshottable.BASELINE_1));
-		assertEquals(importedOverride, existingAssignment.getImportedBaselineValues(Snapshottable.BASELINE_1));
-		assertEquals(oldExistingCost, existingAssignment.getBaselineCost(Snapshottable.BASELINE_1, null));
+		assertEquals(oldExistingStart, existing.getBaselineStart(baselineSlot));
+		assertEquals(importedOverride, existingAssignment.getBaselineValues(baselineSlot));
+		assertEquals(importedOverride, existingAssignment.getImportedBaselineValues(baselineSlot));
+		assertEquals(oldExistingCost, existingAssignment.getBaselineCost(baselineSlot, null));
 		assertNull(previouslyUnbaselined.getSnapshot(slot));
-		assertEquals(unrelatedStart, outsideSelection.getBaselineStart(Snapshottable.BASELINE_1));
+		assertEquals(unrelatedStart, outsideSelection.getBaselineStart(baselineSlot));
 		assertEquals(unrelatedOtherSlotStart, existing.getBaselineStart(Snapshottable.BASELINE));
+		assertEquals(unrelatedNumberedSlotStart, existing.getBaselineStart(otherNumberedSlot));
 		assertEquals(currentExistingStart, existing.getStart(), "Undo must leave the current task schedule untouched");
 		assertEquals(currentExistingWork, existingAssignment.getWork(null), "Undo must leave current assignment work untouched");
 		assertEquals(currentNewStart, previouslyUnbaselined.getStart());
@@ -487,13 +619,15 @@ class ProjectScheduleBehaviorTest {
 		((TaskSnapshot) existing.getSnapshot(slot)).fixedCost = 77.0d;
 
 		change.redo();
-		assertEquals(replacementExistingStart, existing.getBaselineStart(Snapshottable.BASELINE_1));
-		assertEquals(replacementExistingValues, existingAssignment.getBaselineValues(Snapshottable.BASELINE_1));
-		assertEquals(replacementExistingCost, existingAssignment.getBaselineCost(Snapshottable.BASELINE_1, null));
-		assertEquals(replacementNewStart, previouslyUnbaselined.getBaselineStart(Snapshottable.BASELINE_1));
-		assertEquals(replacementNewValues, newAssignment.getBaselineValues(Snapshottable.BASELINE_1));
-		assertEquals(unrelatedStart, outsideSelection.getBaselineStart(Snapshottable.BASELINE_1));
-		assertNull(existingAssignment.getImportedBaselineValues(Snapshottable.BASELINE_1),
+		assertEquals(replacementExistingStart, existing.getBaselineStart(baselineSlot));
+		assertEquals(replacementExistingValues, existingAssignment.getBaselineValues(baselineSlot));
+		assertEquals(replacementExistingCost, existingAssignment.getBaselineCost(baselineSlot, null));
+		assertEquals(replacementNewStart, previouslyUnbaselined.getBaselineStart(baselineSlot));
+		assertEquals(replacementNewValues, newAssignment.getBaselineValues(baselineSlot));
+		assertEquals(unrelatedStart, outsideSelection.getBaselineStart(baselineSlot));
+		assertEquals(unrelatedOtherSlotStart, existing.getBaselineStart(Snapshottable.BASELINE));
+		assertEquals(unrelatedNumberedSlotStart, existing.getBaselineStart(otherNumberedSlot));
+		assertNull(existingAssignment.getImportedBaselineValues(baselineSlot),
 			"Redo must restore the replacement slot without the overwritten imported override");
 		assertEquals(currentExistingStart, existing.getStart());
 		assertEquals(currentExistingWork, existingAssignment.getWork(null));
@@ -502,6 +636,66 @@ class ProjectScheduleBehaviorTest {
 		change.undo();
 		assertEquals(originalFixedCost, ((TaskSnapshot) existing.getSnapshot(slot)).fixedCost,
 			"Undo state must remain isolated from later edits to the live baseline snapshot");
+	}
+
+	@Test
+	void failedSelectedBaselineOverwriteRestoresEarlierTaskAndPublishesNothing() {
+		Project project = createProject();
+		NormalTask existing = project.createScriptedTask();
+		project.connectTask(existing);
+		java.util.concurrent.atomic.AtomicBoolean failOnce = new java.util.concurrent.atomic.AtomicBoolean();
+		RuntimeException injected = new IllegalStateException("injected baseline overwrite failure");
+		NormalTask failing = new NormalTask(project) {
+			@Override public void saveCurrentToSnapshot(Object snapshotId) {
+				super.saveCurrentToSnapshot(snapshotId);
+				if (failOnce.compareAndSet(true, false)) throw injected;
+			}
+		};
+		project.connectTask(failing);
+		ResourceImpl resource = project.getResourcePool().newResourceInstance();
+		resource.getStandardRate().setValue(10.0d);
+		Assignment assignment = AssignmentService.getInstance().newAssignment(existing, resource, 1.0d, 0L, this);
+		Integer slot = Integer.valueOf(Snapshottable.BASELINE_1);
+		existing.saveCurrentToSnapshot(slot);
+		long priorStart = existing.getBaselineStart(Snapshottable.BASELINE_1);
+		double priorFixedCost = ((TaskSnapshot) existing.getSnapshot(slot)).fixedCost;
+		Assignment.BaselineValues imported = new Assignment.BaselineValues(priorStart,
+			Long.valueOf(existing.getBaselineFinish(Snapshottable.BASELINE_1)), Long.valueOf(day()));
+		assignment.importBaselineValues(Snapshottable.BASELINE_1, imported.start(), imported.finish(), imported.work());
+		double priorCost = assignment.getBaselineCost(Snapshottable.BASELINE_1, null);
+		boolean existingDirty = existing.isDirty();
+		boolean failingDirty = failing.isDirty();
+		DataFactoryUndoController undo = project.getUndoController();
+		String[] undoNames = undo.getEditNames().toArray(String[]::new);
+		String redoName = undo.getRedoName();
+		boolean canUndo = undo.canUndo();
+		boolean canRedo = undo.canRedo();
+		long revision = project.getMutationState().revision();
+		java.util.concurrent.atomic.AtomicInteger objectEvents = new java.util.concurrent.atomic.AtomicInteger();
+		java.util.concurrent.atomic.AtomicInteger scheduleEvents = new java.util.concurrent.atomic.AtomicInteger();
+		project.addObjectListener(event -> objectEvents.incrementAndGet());
+		project.addScheduleListener(event -> scheduleEvents.incrementAndGet());
+		failOnce.set(true);
+
+		RuntimeException failure = assertThrows(RuntimeException.class,
+			() -> project.saveCurrentToSnapshot(slot, false, List.of(existing, failing)));
+
+		assertSame(injected, failure);
+		assertEquals(priorStart, existing.getBaselineStart(Snapshottable.BASELINE_1));
+		assertEquals(priorFixedCost, ((TaskSnapshot) existing.getSnapshot(slot)).fixedCost);
+		assertEquals(imported, assignment.getBaselineValues(Snapshottable.BASELINE_1));
+		assertEquals(imported, assignment.getImportedBaselineValues(Snapshottable.BASELINE_1));
+		assertEquals(priorCost, assignment.getBaselineCost(Snapshottable.BASELINE_1, null));
+		assertNull(failing.getSnapshot(slot));
+		assertEquals(existingDirty, existing.isDirty());
+		assertEquals(failingDirty, failing.isDirty());
+		assertEquals(revision, project.getMutationState().revision());
+		assertEquals(canUndo, undo.canUndo());
+		assertEquals(canRedo, undo.canRedo());
+		assertEquals(List.of(undoNames), undo.getEditNames());
+		assertEquals(redoName, undo.getRedoName());
+		assertEquals(0, objectEvents.get());
+		assertEquals(0, scheduleEvents.get());
 	}
 
 	@Test

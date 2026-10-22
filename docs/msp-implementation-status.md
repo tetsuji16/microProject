@@ -64,6 +64,12 @@ compatibility gates or the GUI recovery order.
   calendar and lead/lag guidance, not an empirical Project run. The full
   link/lag matrix still needs independent expected-date coverage under varied
   calendars and constraints.
+  The #794 M2.2 GUI slice now physically enters FS `-1d` through the Gantt
+  edge `DependencyDialog`, checks the calendar-adjusted successor date with
+  the project-start constraint, unaffected task dates/adjacency, Undo/Redo,
+  and MPO reload. Focused ja/100% Robot journey passed at SHA
+  `1ca2b41485e4403e1d3b76d2fa0d8dd903c20217`; negative-lag semantics remain a
+  document-derived decision based on Microsoft's lead/lag guidance.
   See [transaction scope](architecture/model-transaction-slice.md).
 - Diagnostic trace generation tolerates an uninitialized scheduling engine or
   absent trace task. A calendar warning no longer becomes an unrelated
@@ -125,7 +131,7 @@ and result.
 |---|---|---|
 | #793 M1 | Swing renderer/ADR retained. The public v2 archive has 48 PNGs, per-image manifest hashes/source paths/dimensions and six locale/scale legs; all images were reviewed 2026-10-14. The dated document-derived source comparison is in the [ribbon audit](RIBBON_MSP_PARITY_AUDIT_JA.md); Microsoft references do not supply observed client build/environment facts, and no pixel-parity claim is made. Test [GUI run 531](https://github.com/tetsuji16/ProjectLibre/actions/runs/38500386903) passed physical keyboard and AccessibleContext assertions; #816's next-arrow/caption/proxy/popup Robot method passed GUI run [38505114590](https://github.com/tetsuji16/ProjectLibre/actions/runs/38505114590). The narrow row is partially cropped before scrolling and fully reachable afterward. | **COMPLETE for visual-only M1 via document-derived comparison**, following the user-authorized `AGENTS.md` evidence rule. Report/Chart/Table Tools functionality and corresponding command implementation remain tracked by #794/#453/#769, not claimed as ribbon parity here. Numeric bounds are asserted by test where applicable; the historical screenshot archive has no serialized numeric bounds. |
 | #794 M2.1 Editing/hierarchy/sorting | Resource name header toggle and numeric Standard Rate sort in both directions; empty names and equal keys retain stable order; selected resource identity and unchanged model order; Sort Order menu route; physical ja/100% evidence. Issue #750 closed for this reviewed scope; the later Windows GUI run [38728563004](https://github.com/tetsuji16/ProjectLibre/actions/runs/38728563004) passed both resource header/menu acceptance and `TaskInformationRibbonGuiAcceptanceTest.physicalTaskSortSupportsAscendingStartAndDescendingFinishForViewAndOutline`. Task sort PRs [#815](https://github.com/tetsuji16/ProjectLibre/pull/815)/[#827](https://github.com/tetsuji16/ProjectLibre/pull/827) cover task multi-key directions, stable ties, missing/empty values, flat Keep Outline projection, selection/Gantt alignment, unchanged model/schedule, and separately confirmed permanent ordering with renumber, Undo/Redo and MPO evidence. New `ViewNodeModelCacheHierarchyDependencyTest.taskSortAppliesToFilteredRowsWithinConfiguredGroupsWithoutChangingModelOrder` checks that active filtering excludes completed tasks, two nonempty Duration buckets remain visible in configured order, visible task names sort inside each bucket, selection maps through the filtered projection, and project task order remains unchanged. This composition is an Office-consistent product rule derived from Microsoft sort/filter/group documentation, not measured MSP behavior. The focused UI test passed on the current patch. #761 is ready for primary closure review after this fixture merges; broader resource sort parity remains M2.1/#794 work. [Microsoft `Application.Sort`](https://learn.microsoft.com/en-us/office/vba/api/project.application.sort) documents its `Renumber` argument for task sorting, so permanent resource renumbering is not an applicable requirement. PR [#855](https://github.com/tetsuji16/ProjectLibre/pull/855) merged as `735a49c3d` and adds resource Key1–Key3 sorting through the single `ResourceView.applySortOrder` pipeline (dialog, header, Workspace), unit coverage for text/number/date, empty and equal values in both directions, a filter→group→sort resource projection fixture, and a physical Key1+Key2 Robot journey (dialog, visible order breaks the Name tie, Workspace save/restore of both keys, unchanged model). PR evidence covers Windows ja/100%, en/100%, ja/125%, ja/150%, en/125%, and en/150%; all six locale/scale legs now have physical journey evidence, with screen resolution held at 2560×1440. It also makes structural paste atomic (journaled rollback of hierarchy, task registration and the multiple-transaction bracket, with an injected-failure test) and fixes listener add/remove symmetry and Windows/Office Enter/default-button behavior in dialogs. | Resource multi-key implementation/tests are merged. Remaining M2.1 work includes #414 input-path consolidation. The installed-layout blank-project open/edit/save/reload path has now been manually verified at 2560×1440 and recorded in U-30. The current final-head full GUI gate passed the Japanese 100% full functional suite and the selected Japanese/English visual classes across all six locale/UI-scale conditions, but does not close these narrower M2.1 gaps. The final-head GUI audit also includes M2.3 leveling findings. |
-| #794 M2.2 Scheduling/dependencies/transactions | Update Project prevalidation/rollback, linked-task Undo/Redo, and project-local observer batching have evidence. On apply rollback, neither ScheduleEvent nor ObjectEvent observers see transient state; success and COMMIT-stage failure publish committed schedule state. `ModelTransactionTest` verifies VALIDATE/AUTHORIZE/CAPTURE/APPLY stage reporting and no partial state/commit, plus SCHEDULE/INVARIANT rollback and COMMIT semantics. Core full tests passed and the Japanese physical Project-menu route passed on Windows (session 8861). PR [#813](https://github.com/tetsuji16/ProjectLibre/pull/813) adds six fixed-date dependency cases: FS/SS with 8h lag and FS/SS/FF/SF with positive 4h lag across Tuesday/Wednesday calendar exceptions; 40 core tests passed with Build and GUI checks. This is focused coverage, not the full varied-calendar/constraint matrix. #409 has partial evidence: project mutation scopes detach revision-tagged event facts before dispatch, the UI cache reconciles the current dependency graph before notifying views, `DefaultNodeModel` hierarchy commands use the shared Project mutation boundary, and single-project/single-pool `AssignmentService.newAssignments`/`replaceAssignment` enlist pool facts in that same revisioned publication. `replaceAssignment` now compensates partially attached replacements and restores source/task/assignment details on RuntimeException/Error inside `runAtomicModelCommand` with the pool event manager enlisted; the deterministic failure tests cover failure after source removal and after the first replacement, including before/after resource-link attach. Exact verification on 2026-10-19: `.\gradlew.bat :microproject_core:test --tests "com.microproject.pm.assignment.AssignmentServiceTest" --console=plain --no-daemon --max-workers=1` passed 24 tests (0 failures/errors/skips), and `git diff --check` passed (one existing LF-to-CRLF warning for this status file). Undo groups are reserved in model commit order and activated during post-unlock publication, so delayed assignment edits remain one command and overlapping publications cannot merge or reorder history. `NodeIndentEdit` routes Undo/Redo through `NodeModel`. The focused `DefaultNodeModelTest` and full core/UI module tests passed on 2026-10-13. GUI run 38339764343 (GUI486) passed task link/unlink and drag-between-bars dependency journeys; its assignment replace/Redo timeout was from the pre-fix head. This remains partial: targeted shared-pool/multi-project assignment writers now have focused core coverage, but the remaining public/legacy writer inventory, coherent immutable snapshots across every published model, and physical structural/assignment Undo evidence on the final head remain open. | Independent expected dates for remaining FS/SS/FF/SF lag combinations under varied calendars/constraints; verify only intended tasks move; warning/result behavior; Undo/Redo and MPO reopen for remaining mutation families; inject failures across mutation callers and prove model, Undo history and observers are unchanged. #409 remains partial: inventory and route every remaining public model writer through the shared barrier, verify coherent immutable snapshots for every published value, and complete physical structural/assignment Undo evidence on the final head. #403 architecture-child reconciliation remains open. |
+| #794 M2.2 Scheduling/dependencies/transactions | Update Project prevalidation/rollback, linked-task Undo/Redo, and project-local observer batching have evidence. On apply rollback, neither ScheduleEvent nor ObjectEvent observers see transient state; success and COMMIT-stage failure publish committed schedule state. `ModelTransactionTest` verifies VALIDATE/AUTHORIZE/CAPTURE/APPLY stage reporting and no partial state/commit, plus SCHEDULE/INVARIANT rollback and COMMIT semantics. Core full tests passed and the Japanese physical Project-menu route passed on Windows (session 8861). PR [#813](https://github.com/tetsuji16/ProjectLibre/pull/813) adds six fixed-date dependency cases: FS/SS with 8h lag and FS/SS/FF/SF with positive 4h lag across Tuesday/Wednesday calendar exceptions; 40 core tests passed with Build and GUI checks. This is focused coverage, not the full varied-calendar/constraint matrix. #409 has partial evidence: project mutation scopes detach revision-tagged event facts before dispatch, the UI cache reconciles the current dependency graph before notifying views, `DefaultNodeModel` hierarchy commands use the shared Project mutation boundary, and single-project/single-pool `AssignmentService.newAssignments`/`replaceAssignment` enlist pool facts in that same revisioned publication. `replaceAssignment` now compensates partially attached replacements and restores source/task/assignment details on RuntimeException/Error inside `runAtomicModelCommand` with the pool event manager enlisted; the deterministic failure tests cover failure after source removal and after the first replacement, including before/after resource-link attach. Exact verification on 2026-10-19: `.\gradlew.bat :microproject_core:test --tests "com.microproject.pm.assignment.AssignmentServiceTest" --console=plain --no-daemon --max-workers=1` passed 24 tests (0 failures/errors/skips), and `git diff --check` passed (one existing LF-to-CRLF warning for this status file). Undo groups are reserved in model commit order and activated during post-unlock publication, so delayed assignment edits remain one command and overlapping publications cannot merge or reorder history. `NodeIndentEdit` routes Undo/Redo through `NodeModel`. The focused `DefaultNodeModelTest` and full core/UI module tests passed on 2026-10-13. GUI run 38339764343 (GUI486) passed task link/unlink and drag-between-bars dependency journeys; its assignment replace/Redo timeout was from the pre-fix head. This remains partial: targeted shared-pool/multi-project assignment writers now have focused core coverage, but the remaining public/legacy writer inventory, coherent immutable snapshots across every published model, and physical structural/assignment Undo evidence on the final head remain open. | Independent expected dates for remaining FS/SS/FF/SF lag combinations under varied calendars/constraints; verify only intended tasks move; warning/result behavior; Undo/Redo and MPO reopen for remaining mutation families; inject failures across mutation callers and prove model, Undo history and observers are unchanged. #409 remains partial: inventory and route every remaining public model writer through the shared barrier, verify coherent immutable snapshots for every published value, and complete physical structural/assignment Undo evidence on the final head. #403 linked-child replacement has focused success, injected-rollback, and updated-child MPO save/reopen coverage. `ProjectFactorySubprojectReplacementTest.setAfterProjectMembershipReplacement` verifies rollback when `Portfolio.replaceProject` fails after membership changes. |
 | #794 M2.3 Resources/assignments/progress/baselines | Resource sort is view-only. Assignment work/cost and baseline work/cost import, edit/persistence slices have core/exchange evidence, including MPO reopen. Whole-project Clear Baseline now has physical route, Undo/Redo and MPO evidence. Baseline 1 Entire Project recapture now verifies the overwrite prompt, Baseline 0/current-value preservation, Undo/Redo and MPO in both states. Proposed-resource leveling has physical opt-in, Apply, Undo/Redo and exact assignment-start MPO round trip. Assignment Replace now verifies task Work/Actual Work/Remaining Work/Cost against assignment totals before and after Replace, physical Undo/Redo, and MPO reopen. Manual assignment split preservation across Clear Leveling now has physical GUI, Undo/Redo, and MPO round-trip evidence. Mark on Track now uses an explicit mid-task status date and verifies exact work-calendar progress, physical Undo/Redo and exact MPO persistence. Update Project now covers an assigned partial-progress task completed through a fixed date, with task/assignment actuals, Undo/Redo and MPO checks. Level Selection and Level All have separate physical scope, selection, Undo/Redo, and MPO coverage. | Remaining leveling sensitivity default/provenance; other status-date/actual-progress transitions; other numbered baseline slots and field/scope combinations; Undo/Redo and MPO reopen for each changed workflow. |
 | #794 M2.4 Views/ribbon/context/reports/print/files | Current sort and Save As physical routes; Task Information report physical selection, CSV equality to every rendered row, distinct date/duration values, nonblank rendering of every pageable page, no model mutation, and date/duration/cost MPO reload checks. Project Details now verifies rendered Work/Cost labels and values against the project fields, physical CSV row equality, printable page rendering, and no model mutation. | Reconcile each #453/#769 command inventory row to source/status/enablement/physical route/visible result; view-only commands must preserve model; persistence where applicable; locale/DPI for changed routes; report coverage for other definitions, print page-boundary plus English/Japanese labels. Task Information has no Work/Cost columns. Newly observed unassigned-task Work drift across MPO reload is tracked by [#868](https://github.com/tetsuji16/ProjectLibre/issues/868). Unsupported commands must be absent and documented. |
 
@@ -2162,6 +2168,16 @@ focused two-project regression checks task modes, schedule values, manual dates,
 and dirty flags after the second project's recalculation fails; no result/change
 object is returned. Successful Undo/Redo remains covered by the existing test.
 
+The regression now also checks both project revisions, shared Undo/Redo
+availability and names, zero ObjectEvent/ScheduleEvent notifications, and the
+identity of an injected later-project exception. Its first run exposed three
+leaked schedule notifications. `TaskModeService` now batches events and revision
+scopes for affected projects and discards pending publications/history on
+failure. Focused `TaskModeServiceTest` passed 2/2; full
+`:microproject_core:test --console=plain --no-daemon --max-workers=1` passed
+1,117 tests across 240 XML suites (0 failures/errors/skips). Details and next
+gap are recorded in `docs/work/issue-794.md`.
+
 Sol reran the three recent M2.2 rollback families together on the integrated
 worktree: `./gradlew.bat :microproject_core:test --tests
 "com.microproject.pm.scheduling.ScheduleServiceConstraintTest" --tests
@@ -2195,16 +2211,12 @@ Sol also reran the full importer class:
 "com.microproject.exchange.MpoFileImporterTest" --console=plain --no-daemon
 --max-workers=1` passed 121 tests with 0 failures/errors/skips.
 
-Negative-lag MPP READ interoperability remains unverified: MPXJ 11.5.4's
-published runtime JAR contains no `MPPWriter`, so its test APIs cannot create a
-valid deterministic MPP fixture. The smallest next step is to create one fixed
-MPP fixture with an eight-hour workday, two fixed-date tasks, and a negative-lag
-link using Microsoft Project or another independent MPP producer; pin its raw
-relation type, lag sign/value/unit, endpoint IDs, and task dates in a manifest.
-Then verify those raw fields with MPXJ `MPPReader`, import/recalculate and
-round-trip through MPO, and assert the same manifest. Microsoft documents lead
-time as overlap, but the selected dates would remain a document-derived
-compatibility decision, not a measured MSP outcome:
+Superseded by the focused MPP READ proof recorded in
+[`docs/work/issue-794.md`](work/issue-794.md): fixed `New Product.mpp` contains
+UID 24→27 FS−15 days, verified with raw MPXJ fields, imported schedule
+semantics, and MPO save/reload. The OpenProj 1.4-derived fixture is independent
+of the product writer, but was not newly authored for this test. The Microsoft
+lead/overlap rule is document-derived, not a measured MSP result:
 https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
 
 ### M2.2 TaskModeService success through MPO (#794, 2026-10-20)
@@ -2217,14 +2229,15 @@ The focused test passed (1 test, 0 failures/errors/skips). This combines the
 service success path with MPO persistence; the existing `taskSchedulingModeSurvivesMpoRoundTrip`
 test remains the direct model-field persistence case.
 
-Negative-lag MPP READ interoperability is not testable with current checked-in
-fixtures: both repository MPP samples lack negative lag, and MPXJ 11.5.4's
-published runtime JAR contains no `MPPWriter`. The next step is a fixed MPP
-fixture created by an independent producer, with its raw relation type, lag,
-endpoint IDs, and dates pinned in a manifest. No production MPP writer is in
-scope per the recorded 2026-10-12 decision above. Microsoft documents lead time
-as overlap; the fixture's selected scheduling dates remain a document-derived
-compatibility decision, not a measured MSP outcome.
+The older MPP READ gap note is superseded by the verified fixture and evidence
+in [`docs/work/issue-794.md`](work/issue-794.md). No production MPP writer is in
+scope per the recorded 2026-10-12 decision above.
+
+### M2.2 #403 linked-child replacement reconciliation (2026-10-21)
+
+`ProjectFactorySubprojectReplacementTest` verifies success reconciliation, rollback after projection failure, and rollback after portfolio node/resource-pool membership has changed. Success exposes revisions on master/old/new child only after reconciliation and publishes parent/portfolio events. Failure restores the projection, portfolio node and membership, pool membership, revisions, Undo state, and observers. The portfolio update is deferred until the mutation scopes commit. Core full tests passed: 1,112 tests across 240 XML suites, 0 failures/errors/skips.
+
+`MpoFileImporterTest.masterMpoPersistsLinkedChildReplacementFromUpdatedChildFile` updates the linked child MPO on disk, loads the replacement, replaces the current child projection, saves/reopens the master MPO, and verifies stable reference ID, identical embedded/extracted child bytes, replacement task identity, and no stale task. Focused test passed 1/1; full `:microproject_exchange:test --console=plain --no-daemon --max-workers=1` passed 308 tests, 0 failures. The master embeds linked-file bytes; this does not persist unsaved in-memory child changes. External-task and shared-resource-pool mutations were not present in the rollback fixture and remain unverified.
 
 ### M2.3 Baseline 1 Selected Tasks Robot route (#794, 2026-10-20)
 
@@ -2385,3 +2398,45 @@ worktree evidence and remaining M2.1 criteria are tracked in
 Added `TwoDocumentShortcutIsolationGuiAcceptanceTest.physicalCtrlDeleteAndUndoStayWithEachActiveDocument` and U-36 in `TEST_PLAN.md`. With two independent project windows open, Robot physically selected each task Name cell and sent the document-root Ctrl+Delete, Ctrl+Z, and Ctrl+Y routes. Assertions prove the inactive document's task value is preserved after clear, undo and redo, and the selected row still resolves to its own task after switching back. Uses the existing GraphicManager shortcut/action pipeline; no duplicate command wiring was added.
 
 Verification passed: `compileGuiTestJava`; `.\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.frames.TwoDocumentShortcutIsolationGuiAcceptanceTest" --console=plain` (1 test passed, 0 failures/errors/skips). Worktree HEAD `40f5ee8d575a3327e727b9f62182c07aa55d2178`; Windows 11, Java 25.0.4.1, ja-JP, 100% UI scale, 2560×1440, unchanged resolution. The first attempt failed because the two windows overlapped and the click intended for Alpha landed without activating it; the failure artifact showed Beta covering it. The passing run places windows apart before physical interaction. #414 and M2.1 remain open for their other routes and gates.
+
+### M2.2 Task progress batch failure atomicity (#794, 2026-10-21)
+
+`TaskProgressService.markOnTrack` and `setPercentComplete` now apply through
+`Project.runAtomicModelCommand`, with project and selected-task detail snapshots
+restored on a later-task exception. New deterministic tests exercise failure
+after the second task has already changed and verify task/assignment progress,
+work, actuals, remaining work, baseline state, dates, dirty flags, revision,
+Undo/Redo state and names, zero object/schedule notifications, and original
+exception identity.
+
+Focused `.\gradlew.bat :microproject_core:test --tests
+"com.microproject.pm.task.TaskProgressServiceTest" --console=plain --no-daemon
+--max-workers=1` passed 10 tests. Full `.\gradlew.bat :microproject_core:test
+--console=plain --no-daemon --max-workers=1` passed 1,119 tests across 240
+suites (0 failures/errors/skips); `git diff --check` passed. Tested HEAD:
+`1ca2b41485e4403e1d3b76d2fa0d8dd903c20217` (working tree changes included).
+The selected-task baseline overwrite failure path now restores prior and absent
+snapshot slots, assignment imported baseline overrides/cost, dirty flags, and
+discards revisions, Undo state, and object/schedule notifications. Focused
+`ProjectScheduleBehaviorTest` and full core test run passed; details and tested
+SHA are in [`docs/work/issue-794.md`](work/issue-794.md). Baseline rollback MPO
+reopen coverage was added in a later 2026-10-21 slice in the issue packet;
+broader M2.2 and #794 gates remain open.
+### M2.2 SNET + SF working-time lag across project-calendar exception (#794, 2026-10-21)
+
+Added a fixed-date SF + 8h lag case with a Tuesday project-calendar exception,
+successor SNET, and an unrelated task. The predecessor starts Monday 13:00 and
+finishes Monday 17:00; the lag boundary is Wednesday 13:00, and the successor
+is Wednesday 08:00–13:00 after recalculation. The core regression verifies
+pre-link state, exact linked state, intended-task-only changes, and link
+Undo/Redo. The MPO regression verifies dates, SNET kind/date, SF type/lag,
+reciprocal endpoint identity, unrelated-task stability, and the calendar
+exception after save/reopen/recalculate.
+
+This is a document-derived compatibility decision, not measured MSP behavior:
+Microsoft documents SF dependency endpoints, working calendars, and lead/lag,
+but does not specify which calendar owns lag. We retain the existing
+predecessor-effective-calendar product rule. Sources:
+[Link tasks in a project](https://support.microsoft.com/en-us/project/link-tasks-in-a-project),
+[How Project schedules tasks](https://support.microsoft.com/en-us/project/how-project-schedules-tasks-behind-the-scenes),
+and [Add lead or lag time to a task](https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task).

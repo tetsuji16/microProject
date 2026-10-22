@@ -522,6 +522,11 @@ class NodeListTransferablePasteFailureTest {
 		assertEquals("Original", task.getName());
 		assertEquals(com.microproject.datatype.Duration.millis(originalDuration),
 			com.microproject.datatype.Duration.millis(task.getRawDuration()));
+		assertTrue(project.getUndoController().canRedo());
+
+		SwingUtilities.invokeAndWait(() -> project.getUndoController().redo());
+		assertEquals("Changed", task.getName());
+		assertEquals(3L * com.microproject.options.CalendarOption.getInstance().getMillisPerDay(), task.getRawDuration());
 	}
 
 	@Test

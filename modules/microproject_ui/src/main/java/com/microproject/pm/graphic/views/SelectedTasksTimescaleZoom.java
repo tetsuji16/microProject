@@ -84,10 +84,16 @@ public final class SelectedTasksTimescaleZoom {
 		if (viewportWidth <= 0)
 			return false;
 		var manager = coord.getTimescaleManager();
-		long duration = Math.max(MINIMUM_RANGE_MILLIS, range.end() - range.start());
+		long minimumEnd = range.start() + MINIMUM_RANGE_MILLIS;
+		long fitEnd = Math.max(range.end(), minimumEnd);
 		int targetScale = manager.getScaleCount() - 1;
 		for (int scale = 0; scale < manager.getScaleCount(); scale++) {
-			if (manager.getScale(scale).toX(duration) <= viewportWidth) {
+			var candidate = manager.getScale(scale);
+			double startX = candidate.toX(range.start() - coord.getOrigin());
+			double endX = candidate.toX(fitEnd - coord.getOrigin());
+			int left = (int) Math.floor(startX);
+			int firstLeftThatCoversEnd = (int) Math.ceil(endX - viewportWidth);
+			if (firstLeftThatCoversEnd <= left) {
 				targetScale = scale;
 				break;
 			}
@@ -96,10 +102,9 @@ public final class SelectedTasksTimescaleZoom {
 			coord.zoomIn();
 		while (manager.getCurrentScaleIndex() < targetScale && coord.canZoomOut())
 			coord.zoomOut();
-		long start = range.start();
 		SwingUtilities.invokeLater(() -> {
 			if (scrollPane.getViewport() != null)
-				scrollPane.getHorizontalScrollBar().setValue(Math.max(0, (int) Math.round(coord.toX(start))));
+				scrollPane.getHorizontalScrollBar().setValue(Math.max(0, (int) Math.floor(coord.toX(range.start()))));
 		});
 		return true;
 	}

@@ -693,12 +693,18 @@ public class ProjectMergeService {
 		localTask.markTaskAsNeedingRecalculation();
 	}
 
-	private void fireTaskUpdates(Project target, List<Node> changedNodes) {
+	void fireTaskUpdates(Project target, List<Node> changedNodes) {
 		if (changedNodes == null || changedNodes.isEmpty()) {
 			return;
 		}
 		NodeModel model = target.getTaskOutline();
-		model.getHierarchy().fireUpdate((Node[]) changedNodes.toArray(new Node[changedNodes.size()]));
+		List<Node> visibleChangedNodes = new ArrayList<>(changedNodes.size());
+		for (Node node : changedNodes) {
+			if (node != null) visibleChangedNodes.add(node);
+		}
+		if (!visibleChangedNodes.isEmpty()) {
+			model.getHierarchy().fireUpdate(visibleChangedNodes.toArray(new Node[visibleChangedNodes.size()]));
+		}
 		target.fireScheduleChanged(this, null);
 	}
 }

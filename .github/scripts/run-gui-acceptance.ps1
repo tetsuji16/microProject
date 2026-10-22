@@ -16,6 +16,7 @@ if (-not [string]::IsNullOrWhiteSpace($TestFilter) -and $TestFilter -notmatch '^
 $gateLogs = 'modules/microproject_ui/build/reports/guiTest-artifacts'
 $gateFailures = [System.Collections.Generic.List[string]]::new()
 $hostedWarningWatcher = $null
+$isGitHubActions = $env:GITHUB_ACTIONS -eq 'true'
 New-Item -ItemType Directory -Force -Path $gateLogs | Out-Null
 $primaryDisplay = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
 Write-Host "GUI runner primary display bounds: $($primaryDisplay.Width)x$($primaryDisplay.Height)"
@@ -102,20 +103,38 @@ namespace MicroProject {
 }
 
 function Invoke-GuiGate([string]$label, [string[]]$arguments, [int]$timeoutSeconds) {
-  Start-HostedWarningWatcher
-  Minimize-HostedRunnerConsole
+  if ($script:isGitHubActions) {
+    Start-HostedWarningWatcher
+    Minimize-HostedRunnerConsole
+  }
   $safe = ($label -replace '[^A-Za-z0-9_.-]', '_')
   $attempt = [Guid]::NewGuid().ToString('N')
   $guiArtifacts = Join-Path $PWD "modules/microproject_ui/build/reports/guiTest-artifacts/$safe-$attempt"
+  New-Item -ItemType Directory -Force -Path $guiArtifacts | Out-Null
   $contentionMarker = Join-Path $guiArtifacts 'environment-contended.marker'
+  $gradleExitCodeFile = Join-Path $guiArtifacts 'gradle-exit-code.txt'
+  $gradleInvocationFile = Join-Path $guiArtifacts 'gradle-invocation.json'
   $stdout = Join-Path $gateLogs "$safe.stdout.log"
   $stderr = Join-Path $gateLogs "$safe.stderr.log"
   $testResults = Join-Path $PWD 'modules/microproject_ui/build/test-results/guiTest'
   New-Item -ItemType Directory -Force -Path $testResults | Out-Null
   Get-ChildItem -LiteralPath $testResults -Filter '*.xml' -File -ErrorAction SilentlyContinue |
     Remove-Item -Force
-  $process = Start-Process -FilePath (Join-Path $PWD 'gradlew.bat') `
-    -ArgumentList ($arguments + "-PguiTestArtifactsDir=$guiArtifacts" + "-PguiTestContentionMarker=$contentionMarker") `
+  $gradleArguments = @($arguments + "-PguiTestArtifactsDir=$guiArtifacts" + "-PguiTestContentionMarker=$contentionMarker")
+  $gradleInvocation = @{
+    WorkingDirectory = $PWD.Path
+    GradleWrapper = Join-Path $PWD 'gradlew.bat'
+    Arguments = $gradleArguments
+    ExitCodeFile = $gradleExitCodeFile
+  } | ConvertTo-Json -Depth 4
+  [System.IO.File]::WriteAllText($gradleInvocationFile, $gradleInvocation,
+    [System.Text.UTF8Encoding]::new($false))
+  $childScript = Join-Path $PSScriptRoot 'run-gui-gate-child.ps1'
+  $childArguments = '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "{0}" -ConfigurationFile "{1}"' -f `
+    $childScript, $gradleInvocationFile
+  $windowsPowerShell = (Get-Command powershell.exe -ErrorAction Stop).Source
+  $process = Start-Process -FilePath $windowsPowerShell `
+    -ArgumentList $childArguments `
     -PassThru -RedirectStandardOutput $stdout `
     -RedirectStandardError $stderr -WindowStyle Hidden
   $timer = [System.Diagnostics.Stopwatch]::StartNew()
@@ -171,9 +190,18 @@ function Invoke-GuiGate([string]$label, [string[]]$arguments, [int]$timeoutSecon
     $markerText = if (Test-Path -LiteralPath $contentionMarker) { Get-Content -LiteralPath $contentionMarker -Raw } else { '' }
     throw "GUI_ENVIRONMENT_CONTENDED: desktop interference stopped $label. The original JUnit results remain failed and were not retried or suppressed. Marker=$markerText Evidence=$files"
   }
-  if ($process.ExitCode -ne 0) {
+  $gradleExitCodeText = '(status file missing)'
+  if (Test-Path -LiteralPath $gradleExitCodeFile) {
+    $gradleExitCodeText = (Get-Content -LiteralPath $gradleExitCodeFile -Raw -ErrorAction Stop).Trim()
+  }
+  $gradleExitCode = 0
+  if (-not [int]::TryParse($gradleExitCodeText, [ref]$gradleExitCode)) {
     Save-GuiFailureScreenshot $label
-    throw "GUI gate failed: $label exit=$($process.ExitCode)"
+    throw "GUI gate did not produce a valid Gradle exit status: $label file=$gradleExitCodeFile value=$gradleExitCodeText"
+  }
+  if ($gradleExitCode -ne 0) {
+    Save-GuiFailureScreenshot $label
+    throw "GUI gate failed: $label exit=$gradleExitCode"
   }
   $deferredExceptions = @()
   foreach ($resultFile in $resultFiles) {

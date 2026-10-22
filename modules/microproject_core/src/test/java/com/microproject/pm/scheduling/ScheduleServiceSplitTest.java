@@ -35,6 +35,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
 
+import com.microproject.document.ObjectEvent;
+
 import com.microproject.options.CalendarOption;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentService;
@@ -46,6 +48,237 @@ import com.microproject.pm.scheduling.IntervalConsumer;
 import com.microproject.undo.DataFactoryUndoController;
 
 class ScheduleServiceSplitTest {
+	@Test
+	void failedOrdinaryTaskSplitRestoresModelAndDiscardsEventsAndUndo() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		project.initialize(false, false);
+		NormalTask task = new NormalTask(project) {
+			@Override
+			public void split(Object source, long from, long to) {
+				super.split(source, from, to);
+				throw new IllegalStateException("split application failed");
+			}
+		};
+		project.connectTask(task);
+		task.setDuration(3L * CalendarOption.getInstance().getMillisPerDay());
+		undoController.discardAllEdits();
+		task.setDirty(false);
+		project.setDirty(false);
+		long originalStart = task.getStart();
+		long originalEnd = task.getEnd();
+		long originalDuration = task.getDurationMillis();
+		List<com.microproject.pm.task.TaskSplitInterval> originalDetails = task.getTaskSplitIntervals();
+		long splitFrom = task.getEffectiveWorkCalendar().add(originalStart,
+			CalendarOption.getInstance().getMillisPerDay(), false);
+		long splitTo = task.getEffectiveWorkCalendar().add(splitFrom,
+			CalendarOption.getInstance().getMillisPerDay(), false);
+		long revision = project.getMutationState().revision();
+		AtomicInteger objectEvents = new AtomicInteger();
+		AtomicInteger scheduleEvents = new AtomicInteger();
+		ObjectEvent.Listener objectListener = event -> objectEvents.incrementAndGet();
+		com.microproject.pm.scheduling.ScheduleEventListener scheduleListener = event -> scheduleEvents.incrementAndGet();
+		project.addObjectListener(objectListener);
+		project.addScheduleListener(scheduleListener);
+		try {
+			assertEquals("split application failed", assertThrows(IllegalStateException.class,
+				() -> ScheduleService.getInstance().split(this, task, splitFrom, splitTo,
+					undoController.getEditSupport())).getMessage());
+		} finally {
+			project.removeObjectListener(objectListener);
+			project.removeScheduleListener(scheduleListener);
+		}
+
+		assertEquals(originalDetails, task.getTaskSplitIntervals());
+		assertTrue(task.getManualTaskSplitIntervals().isEmpty());
+		assertTrue(task.getLevelingTaskSplitIntervals().isEmpty());
+		assertEquals(originalStart, task.getStart());
+		assertEquals(originalEnd, task.getEnd());
+		assertEquals(originalDuration, task.getDurationMillis());
+		assertFalse(task.isDirty());
+		assertFalse(project.isDirty());
+		assertEquals(revision, project.getMutationState().revision());
+		assertFalse(undoController.canUndo());
+		assertFalse(undoController.canRedo());
+		assertEquals(0, objectEvents.get());
+		assertEquals(0, scheduleEvents.get());
+	}
+
+	@Test
+	void failedOrdinaryAssignmentSplitRestoresAssignmentAndTaskAndDiscardsEventsAndUndo() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		project.initialize(false, false);
+		NormalTask task = new NormalTask(project);
+		project.connectTask(task);
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		task.setDuration(3L * day);
+		Assignment sourceAssignment = AssignmentService.getInstance().newAssignment(task,
+			resourcePool.newResourceInstance(), 1.0D, 0L, this);
+		Assignment assignment = sourceAssignment;
+		ScheduleService failingService = new ScheduleService() {
+			@Override
+			void applyOrdinarySplit(com.microproject.pm.scheduling.Schedule schedule, Object source, long from, long to) {
+				super.applyOrdinarySplit(schedule, source, from, to);
+				throw new IllegalStateException("assignment split application failed");
+			}
+		};
+		undoController.discardAllEdits();
+		assignment.setDirty(false);
+		task.setDirty(false);
+		project.setDirty(false);
+		long originalStart = assignment.getStart();
+		long originalEnd = assignment.getEnd();
+		long originalTaskStart = task.getStart();
+		long originalTaskEnd = task.getEnd();
+		long originalDuration = task.getDurationMillis();
+		List<String> originalAssignmentIntervals = assignmentIntervals(assignment);
+		List<String> originalTaskIntervals = taskIntervals(task);
+		long splitFrom = assignment.getEffectiveWorkCalendar().add(originalStart, day, false);
+		long splitTo = assignment.getEffectiveWorkCalendar().add(splitFrom, day, false);
+		long revision = project.getMutationState().revision();
+		AtomicInteger objectEvents = new AtomicInteger();
+		AtomicInteger scheduleEvents = new AtomicInteger();
+		ObjectEvent.Listener objectListener = event -> objectEvents.incrementAndGet();
+		com.microproject.pm.scheduling.ScheduleEventListener scheduleListener = event -> scheduleEvents.incrementAndGet();
+		project.addObjectListener(objectListener);
+		project.addScheduleListener(scheduleListener);
+		try {
+			assertEquals("assignment split application failed", assertThrows(IllegalStateException.class,
+				() -> failingService.split(this, assignment, splitFrom, splitTo,
+					undoController.getEditSupport())).getMessage());
+		} finally {
+			project.removeObjectListener(objectListener);
+			project.removeScheduleListener(scheduleListener);
+		}
+
+		assertEquals(originalAssignmentIntervals, assignmentIntervals(assignment));
+		assertEquals(originalTaskIntervals, taskIntervals(task));
+		assertEquals(originalStart, assignment.getStart());
+		assertEquals(originalEnd, assignment.getEnd());
+		assertEquals(originalTaskStart, task.getStart());
+		assertEquals(originalTaskEnd, task.getEnd());
+		assertEquals(originalDuration, task.getDurationMillis());
+		assertFalse(assignment.isDirty());
+		assertFalse(task.isDirty());
+		assertFalse(project.isDirty());
+		assertEquals(revision, project.getMutationState().revision());
+		assertFalse(undoController.canUndo());
+		assertFalse(undoController.canRedo());
+		assertEquals(0, objectEvents.get());
+		assertEquals(0, scheduleEvents.get());
+	}
+
+	@Test
+	void failedIntervalMoveRestoresTaskAndDiscardsEventsAndUndo() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		project.initialize(false, false);
+		NormalTask task = new NormalTask(project) {
+			@Override
+			public void moveInterval(Object source, long start, long end, ScheduleInterval oldInterval, boolean isChild) {
+				super.moveInterval(source, start, end, oldInterval, isChild);
+				throw new IllegalStateException("interval application failed");
+			}
+		};
+		project.connectTask(task);
+		task.setDuration(2L * CalendarOption.getInstance().getMillisPerDay());
+		undoController.discardAllEdits();
+		task.setDirty(false);
+		project.setDirty(false);
+		long originalStart = task.getStart();
+		long originalEnd = task.getEnd();
+		long revision = project.getMutationState().revision();
+		AtomicInteger objectEvents = new AtomicInteger();
+		AtomicInteger scheduleEvents = new AtomicInteger();
+		ObjectEvent.Listener objectListener = event -> objectEvents.incrementAndGet();
+		com.microproject.pm.scheduling.ScheduleEventListener scheduleListener = event -> scheduleEvents.incrementAndGet();
+		project.addObjectListener(objectListener);
+		project.addScheduleListener(scheduleListener);
+		try {
+			assertEquals("interval application failed", assertThrows(IllegalStateException.class,
+				() -> ScheduleService.getInstance().setInterval(this, task, originalStart + CalendarOption.getInstance().getMillisPerDay(),
+					originalEnd + CalendarOption.getInstance().getMillisPerDay(), new ScheduleInterval(originalStart, originalEnd),
+					undoController.getEditSupport())).getMessage());
+		} finally {
+			project.removeObjectListener(objectListener);
+			project.removeScheduleListener(scheduleListener);
+		}
+
+		assertEquals(originalStart, task.getStart());
+		assertEquals(originalEnd, task.getEnd());
+		assertFalse(task.isDirty());
+		assertFalse(project.isDirty());
+		assertEquals(revision, project.getMutationState().revision());
+		assertFalse(undoController.canUndo());
+		assertFalse(undoController.canRedo());
+		assertEquals(0, objectEvents.get());
+		assertEquals(0, scheduleEvents.get());
+	}
+
+	@Test
+	void failedAssignmentIntervalMoveRestoresAssignmentTaskAndDiscardsEventsAndUndo() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		project.initialize(false, false);
+		NormalTask task = new NormalTask(project);
+		project.connectTask(task);
+		task.setDuration(2L * CalendarOption.getInstance().getMillisPerDay());
+		Assignment original = AssignmentService.getInstance().newAssignment(task, resourcePool.newResourceInstance(), 1.0D, 0L, this);
+		Assignment assignment = original;
+		ScheduleService failingService = new ScheduleService() {
+			@Override
+			protected void applyInterval(com.microproject.pm.scheduling.Schedule schedule, Object source,
+					long start, long end, ScheduleInterval interval) {
+				super.applyInterval(schedule, source, start, end, interval);
+				if (schedule == assignment) throw new IllegalStateException("assignment interval application failed");
+			}
+		};
+		undoController.discardAllEdits();
+		assignment.setDirty(false);
+		task.setDirty(false);
+		project.setDirty(false);
+		long originalStart = original.getStart();
+		long originalEnd = original.getEnd();
+		long taskStart = task.getStart();
+		long taskEnd = task.getEnd();
+		long revision = project.getMutationState().revision();
+		AtomicInteger objectEvents = new AtomicInteger();
+		AtomicInteger scheduleEvents = new AtomicInteger();
+		ObjectEvent.Listener objectListener = event -> objectEvents.incrementAndGet();
+		com.microproject.pm.scheduling.ScheduleEventListener scheduleListener = event -> scheduleEvents.incrementAndGet();
+		project.addObjectListener(objectListener);
+		project.addScheduleListener(scheduleListener);
+		try {
+			assertEquals("assignment interval application failed", assertThrows(IllegalStateException.class,
+				() -> failingService.setInterval(this, assignment,
+					originalStart + CalendarOption.getInstance().getMillisPerDay(),
+					originalEnd + CalendarOption.getInstance().getMillisPerDay(), new ScheduleInterval(originalStart, originalEnd),
+					undoController.getEditSupport())).getMessage());
+		} finally {
+			project.removeObjectListener(objectListener);
+			project.removeScheduleListener(scheduleListener);
+		}
+
+		assertEquals(originalStart, original.getStart());
+		assertEquals(originalEnd, original.getEnd());
+		assertEquals(taskStart, task.getStart());
+		assertEquals(taskEnd, task.getEnd());
+		assertFalse(assignment.isDirty());
+		assertFalse(original.isDirty());
+		assertFalse(task.isDirty());
+		assertFalse(project.isDirty());
+		assertEquals(revision, project.getMutationState().revision());
+		assertFalse(undoController.canUndo());
+		assertFalse(undoController.canRedo());
+		assertEquals(0, objectEvents.get());
+		assertEquals(0, scheduleEvents.get());
+	}
+
 	@Test
 	void splittingProjectDoesNotCreateUndoEditWhenNothingChanges() {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();

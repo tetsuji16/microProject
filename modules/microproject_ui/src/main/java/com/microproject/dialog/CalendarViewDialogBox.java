@@ -27,6 +27,7 @@ package com.microproject.dialog;
 import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics;
@@ -56,6 +57,7 @@ import com.microproject.contrib.calendar.CalendarRenderingSupport;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
 import com.microproject.ui.privacy.PrivacyDisplayMode;
+import com.microproject.ui.shell.WindowBoundsSupport;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.HasDependencies;
@@ -104,6 +106,12 @@ public final class CalendarViewDialogBox extends FlatLafDialog {
 		setLocationRelativeTo(owner);
 		FlatUiSupport.styleDialogRoot(getRootPane());
 		FlatUiSupport.styleDialogComponents(getContentPane());
+	}
+
+	@Override
+	public void setLocationRelativeTo(Component reference) {
+		super.setLocationRelativeTo(reference);
+		WindowBoundsSupport.fitWithinUsableScreen(this);
 	}
 
 	private void setMonth(YearMonth value) {
