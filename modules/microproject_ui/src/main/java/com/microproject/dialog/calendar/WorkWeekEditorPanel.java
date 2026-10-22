@@ -131,8 +131,10 @@ final class WorkWeekEditorPanel extends JPanel {
 
 	private void editPeriod(WorkWeekPeriod source) {
 		PeriodEditor editor = new PeriodEditor(source);
+		JScrollPane detailsPane = CalendarEditorViewport.createScrollPane(editor.panel,
+			CalendarEditorViewport.usableScreenSize(this));
 		while (true) {
-			int choice = JOptionPane.showConfirmDialog(this, editor.panel,
+			int choice = JOptionPane.showConfirmDialog(this, detailsPane,
 				Messages.getString("ChangeWorkingTimeDialogBox.WorkWeekDetails"),
 				JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
 			if (choice != JOptionPane.OK_OPTION) return;

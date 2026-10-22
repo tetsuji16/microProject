@@ -24,24 +24,71 @@
  *******************************************************************************/
 package com.microproject.dialog;
 
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Insets;
+
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JPanel;
 import javax.swing.UIManager;
-import javax.swing.plaf.basic.BasicOptionPaneUI;
 
 import com.microproject.util.FlatUiSupport;
 
 public class ButtonPanel extends JPanel {
 	private static final long serialVersionUID = 1L;
 	public ButtonPanel() {
-	    super(new BasicOptionPaneUI.ButtonAreaLayout(true, 6));
+	    super(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+	    addComponentListener(new java.awt.event.ComponentAdapter() {
+			@Override
+			public void componentResized(java.awt.event.ComponentEvent event) {
+				if (getParent() != null) {
+					getParent().revalidate();
+				}
+			}
+	    });
 	    javax.swing.border.Border border = UIManager.getBorder("OptionPane.border");
 	    setBorder(border != null ? border : BorderFactory.createEmptyBorder());
 	    FlatUiSupport.styleButtonPanel(this);
 	}
 	public void addButton(JButton button) {
 		add(button);
+	}
+	@Override
+	public Dimension getPreferredSize() {
+		Dimension preferred = super.getPreferredSize();
+		if (getWidth() <= 0 || getWidth() >= preferred.width) {
+			return preferred;
+		}
+		Insets insets = getInsets();
+		int availableWidth = Math.max(0, getWidth() - insets.left - insets.right - 12);
+		int rowWidth = 0;
+		int rowHeight = 0;
+		int contentHeight = 0;
+		int rows = 0;
+		for (Component component : getComponents()) {
+			if (!component.isVisible()) {
+				continue;
+			}
+			Dimension size = component.getPreferredSize();
+			int nextWidth = rowWidth == 0 ? size.width : rowWidth + 6 + size.width;
+			if (rowWidth > 0 && nextWidth > availableWidth) {
+				contentHeight += rowHeight;
+				rows++;
+				rowWidth = size.width;
+				rowHeight = size.height;
+			} else {
+				rowWidth = nextWidth;
+				rowHeight = Math.max(rowHeight, size.height);
+			}
+		}
+		if (rowWidth > 0) {
+			contentHeight += rowHeight;
+			rows++;
+		}
+		return new Dimension(preferred.width,
+			Math.max(preferred.height, contentHeight + insets.top + insets.bottom));
 	}
 }
 

@@ -79,6 +79,10 @@ jobs:
         shell: pwsh
         run: .\.github\scripts\test-gui-desktop-monitor-lifecycle.ps1
 
+      - name: Verify native chooser trigger lock retry
+        shell: pwsh
+        run: .\.github\scripts\test-native-chooser-probe-trigger-retry.ps1
+
       - name: Run selected GUI acceptance suite and visual matrix
         shell: pwsh
         env:

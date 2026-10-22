@@ -18,6 +18,19 @@ function Write-NativeChooserProbeLine([string]$Line) {
   [Console]::Out.Flush()
 }
 
+function Read-NativeChooserProbeTrigger([string]$Path) {
+  $maximumAttempts = 20
+  for ($attempt = 1; $attempt -le $maximumAttempts; $attempt++) {
+    try {
+      return [System.IO.File]::ReadAllText($Path)
+    } catch {
+      if ($_.Exception.GetBaseException() -isnot [System.IO.IOException] -or $attempt -eq $maximumAttempts) { throw }
+      Start-Sleep -Milliseconds 25
+    }
+  }
+  throw 'Native chooser probe trigger could not be read.'
+}
+
 if ($PrepareNativeChooser) {
   Write-NativeChooserProbeLine("nativeChooserProbe processStartedUtc=$($probeScriptStartedUtc.ToString('o'))")
 }
@@ -494,7 +507,7 @@ if ($Watch) {
       [GuiDesktopWindowProbe]::PumpNativeChooserLifecycle()
       Start-Sleep -Milliseconds 10
     }
-    $triggerText = [System.IO.File]::ReadAllText($ProbeTriggerFile)
+    $triggerText = Read-NativeChooserProbeTrigger $ProbeTriggerFile
     if ($triggerText -notmatch '(?m)^deadlineUtcTicks=(\d+)$') { throw 'Probe trigger lacks deadlineUtcTicks.' }
     $DeadlineUtcTicks = [long]$Matches[1]
     if ($DeadlineUtcTicks -le 0) { throw 'Probe trigger deadlineUtcTicks must be positive.' }

@@ -131,8 +131,10 @@ final class ExceptionEditorPanel extends JPanel {
 	private void editException(Entry source) {
 		if (source == null) return;
 		DetailsEditor editor = new DetailsEditor(source);
+		JScrollPane detailsPane = CalendarEditorViewport.createScrollPane(editor.panel,
+			CalendarEditorViewport.usableScreenSize(this));
 		while (true) {
-			int choice = JOptionPane.showConfirmDialog(this, new JScrollPane(editor.panel),
+			int choice = JOptionPane.showConfirmDialog(this, detailsPane,
 				Messages.getString("ChangeWorkingTimeDialogBox.ExceptionDetailsTitle"),
 				JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
 			if (choice != JOptionPane.OK_OPTION) return;

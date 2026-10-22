@@ -78,11 +78,11 @@ class WindowShellNativeDecorationGuiAcceptanceTest {
 			usable.y += screenInsets.top;
 			usable.width -= screenInsets.left + screenInsets.right;
 			usable.height -= screenInsets.top + screenInsets.bottom;
-			int width = Math.min(1200, usable.width - 160);
-			if (width < 760 || usable.height < 360)
-				throw new IllegalStateException("Native caption fixture needs a usable desktop of at least 920x360: " + usable);
+			int width = Math.min(1200, usable.width - 24);
+			if (width < 480 || usable.height < 360)
+				throw new IllegalStateException("Native caption fixture needs a usable desktop of at least 480x360: " + usable);
 			frame.setSize(width, 240);
-			frame.setLocation(usable.x + Math.min(40, (usable.width - width) / 2), usable.y + 80);
+			frame.setLocation(usable.x + Math.max(0, (usable.width - width) / 2), usable.y + 80);
 			frame.setAlwaysOnTop(true);
 			frame.setVisible(true);
 			frame.toFront();
@@ -122,13 +122,16 @@ class WindowShellNativeDecorationGuiAcceptanceTest {
 		robot.waitForIdle();
 		robot.mouseMove(start.x, start.y);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-		robot.mouseMove(start.x + 60, start.y + 35);
+		// Keep the saved restore bounds valid: the desktop window manager clamps a
+		// restore rectangle that a larger drag would move beyond the usable work area.
+		robot.mouseMove(start.x + 10, start.y + 10);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 		robot.waitForIdle();
 		GuiAcceptanceSupport.await(() -> !before.equals(frame.getLocation()), "native caption drag did not move the window: before="
 			+ before + ", after=" + frame.getLocation() + ", dragTarget=" + start
 			+ ", windowBounds=" + frame.getBounds());
 		assertNotEquals(before, frame.getLocation());
+		WindowAcceptanceAssertions.assertWithinUsableWorkArea(frame, "caption-dragged native window");
 
 		Rectangle normalBounds = frame.getBounds();
 		WindowAcceptanceAssertions.hoverNativeTitleButton(robot, frame, "Maximize", 1_200);

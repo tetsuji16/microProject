@@ -2499,8 +2499,14 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			&& manager.getCurrentFrame().getCalendarViewDialog().isShowing(),
 			"Calendar command did not show CalendarViewDialogBox");
 		CalendarViewDialogBox dialog = manager.getCurrentFrame().getCalendarViewDialog();
-		assertTrue(dialog.getWidth() >= 900 && dialog.getHeight() >= 600,
-			"calendar dialog must honor its minimum usable size");
+		java.awt.Rectangle usableBounds = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
+		java.awt.Rectangle dialogBounds = new java.awt.Rectangle(dialog.getLocationOnScreen(), dialog.getSize());
+		assertTrue(usableBounds.contains(dialogBounds),
+			"calendar dialog must fit the usable work area: dialog=" + dialogBounds + " usable=" + usableBounds);
+		assertTrue(dialog.getWidth() >= Math.min(900, usableBounds.width - 40)
+			&& dialog.getHeight() >= Math.min(600, usableBounds.height - 80),
+			"calendar dialog must use the available screen area while preserving its usable layout: dialog="
+				+ dialog.getSize() + " usable=" + usableBounds);
 		JScrollPane scrollPane = UiComponentWalker.flatten(dialog).stream()
 			.filter(JScrollPane.class::isInstance).map(JScrollPane.class::cast).findFirst()
 			.orElseThrow(() -> new AssertionError("calendar canvas scroll pane is missing"));
@@ -3677,7 +3683,16 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		runProgressPhysicalRoute("mark-on-track-no-selection", c -> {
 			// Keep the tracking band in overflow regardless of label width differences
 			// between supported locales and the desktop's native resolution.
-			SwingUtilities.invokeAndWait(() -> { window.setSize(720, 700); window.validate(); });
+			int[] requestedWidth = new int[1];
+			SwingUtilities.invokeAndWait(() -> {
+				GraphicsConfiguration configuration = window.getGraphicsConfiguration();
+				Rectangle usable = new Rectangle(configuration.getBounds());
+				Insets insets = Toolkit.getDefaultToolkit().getScreenInsets(configuration);
+				usable.width -= insets.left + insets.right;
+				requestedWidth[0] = Math.min(720, usable.width);
+				window.setSize(requestedWidth[0], 700);
+				window.validate();
+			});
 			AbstractButton markOnTrack = GuiPhysicalRouteAdapter.visibleButton(c.robot(), window, "RibbonMarkOnTrack");
 			JPopupMenu[] popupAncestor = new JPopupMenu[1];
 			boolean[] popupVisible = new boolean[1];
@@ -3694,7 +3709,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				}
 				commandEnabled[0] = markOnTrack.isEnabled();
 			});
-			assertEquals(720, actualWindowWidth[0], "The responsive fixture must keep its requested width");
+			assertEquals(requestedWidth[0], actualWindowWidth[0], "The responsive fixture must keep its screen-aware requested width");
 			assertTrue(popupAncestor[0] != null && popupVisible[0],
 				"The narrow disabled-command fixture must exercise the visible ribbon overflow popup");
 			assertFalse(commandEnabled[0], "MSP Mark on Track requires selected tasks");
@@ -8373,18 +8388,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	private AbstractButton findShowingButtonByCommand(String command) throws Exception {
-		AbstractButton[] result = new AbstractButton[1];
-		SwingUtilities.invokeAndWait(() -> result[0] = UiComponentWalker.flatten(window).stream()
-			.filter(AbstractButton.class::isInstance)
-			.map(RibbonGuiButton::adapt)
-			.filter(AbstractButton::isShowing).filter(button -> command.equals(button.getActionCommand()))
-			.findFirst().orElseThrow(() -> new AssertionError("Visible ribbon command not found: " + command
-				+ " visibleCommands=" + UiComponentWalker.flatten(window).stream()
-					.filter(AbstractButton.class::isInstance)
-					.map(RibbonGuiButton::adapt)
-					.filter(AbstractButton::isShowing).map(AbstractButton::getActionCommand)
-					.filter(java.util.Objects::nonNull).collect(Collectors.joining(",")))));
-		return result[0];
+		return RibbonGuiSupport.findVisibleOrExpand(new com.microproject.testsupport.GuiRobot(), window, command);
 	}
 
 	private AbstractButton findVisibleOrOverflowButton(Robot robot, String command) throws Exception {
