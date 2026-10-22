@@ -41,6 +41,7 @@ import javax.swing.JList;
 import javax.swing.JLabel;
 import javax.swing.JSpinner;
 import javax.swing.JScrollPane;
+import javax.swing.JScrollBar;
 import javax.swing.JViewport;
 import javax.swing.text.JTextComponent;
 import javax.swing.SwingUtilities;
@@ -98,6 +99,12 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 		else System.setProperty("flatlaf.useSystemFileChooser", previousSystemChooserProperty);
 		if (importFixture != null) Files.deleteIfExists(importFixture);
 		SwingUtilities.invokeAndWait(() -> {
+			if (dialog != null) {
+				java.util.Arrays.stream(Window.getWindows())
+					.filter(window -> window != dialog && isOwnedBy(window, dialog))
+					.sorted(java.util.Comparator.comparingInt(ChangeWorkingTimeDialogGuiAcceptanceTest::ownerDepth).reversed())
+					.forEach(Window::dispose);
+			}
 			for (Window window : Window.getWindows())
 				if (window instanceof ChangeWorkingTimeDialogBox || window instanceof NewBaseCalendarDialog) window.dispose();
 			if (frame != null) frame.dispose();
@@ -323,7 +330,9 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 		robot.setAutoDelay(50);
 		clickTab(robot, dialog.calendarTabs, 1);
 		assertVisibleComponentsFit(dialog, "Change Working Time Work Weeks tab");
-		click(robot, findButton(dialog.workWeekEditor, "workWeekAddButton"));
+		AbstractButton workWeekAdd = findButton(dialog.workWeekEditor, "workWeekAddButton");
+		physicallyScrollIntoView(robot, workWeekAdd, "Work Week Add button");
+		click(robot, workWeekAdd);
 		GuiAcceptanceSupport.await(() -> visibleChildDialog() != null, "Work Week Details visual editor did not open");
 		JDialog workWeekDetails = visibleChildDialog();
 		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(workWeekDetails, "Work Week Details visual matrix");
@@ -362,6 +371,8 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 		JDialog exceptionDetails = visibleChildDialog();
 		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(exceptionDetails, "Exception Details visual matrix");
 		assertVisibleComponentsFit(exceptionDetails, "Exception Details visual matrix");
+		JSpinner lowerExceptionControl = findNamedSpinner(exceptionDetails, "calendarExceptionOccurrences");
+		physicallyScrollIntoView(robot, lowerExceptionControl, "Exception occurrence count");
 		pressEscape(robot);
 		GuiAcceptanceSupport.await(() -> visibleChildDialog() == null, "Escape did not close Exception Details");
 		AbstractButton cancel = cancelButton(dialog);
@@ -678,13 +689,7 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 					continue;
 				Point location = component.getLocationOnScreen();
 				Rectangle screenBounds = new Rectangle(location.x, location.y, bounds.width, bounds.height);
-				if (!dialogBounds.contains(new Point(screenBounds.x, screenBounds.y))
-						|| !dialogBounds.contains(new Point(screenBounds.x + screenBounds.width - 1,
-							screenBounds.y + screenBounds.height - 1))) {
-					violation[0] = component.getClass().getSimpleName() + " bounds=" + screenBounds
-							+ " dialog=" + dialogBounds;
-						return;
-				}
+				boolean clippedByScrollableViewport = false;
 				for (Container parent = component.getParent(); parent != null && parent != value; parent = parent.getParent()) {
 					if (parent instanceof JViewport viewport) {
 						Point viewportLocation = viewport.getLocationOnScreen();
@@ -694,21 +699,33 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 								instanceof JScrollPane candidate ? candidate : null;
 							java.awt.Dimension viewSize = viewport.getViewSize();
 							java.awt.Dimension extent = viewport.getExtentSize();
+							Component view = viewport.getView();
+							Rectangle viewBounds = new Rectangle(0, 0, viewSize.width, viewSize.height);
+							Rectangle componentInView = SwingUtilities.convertRectangle(component.getParent(), bounds, view);
+							boolean withinView = viewBounds.contains(componentInView);
 							boolean scrollableX = viewSize.width > extent.width
 								&& (screenBounds.x < viewportBounds.x
 									|| screenBounds.x + screenBounds.width > viewportBounds.x + viewportBounds.width);
 							boolean scrollableY = viewSize.height > extent.height
 								&& (screenBounds.y < viewportBounds.y
 									|| screenBounds.y + screenBounds.height > viewportBounds.y + viewportBounds.height);
-							boolean scrollable = scroll != null && (scrollableX || scrollableY);
+							boolean scrollable = scroll != null && withinView && (scrollableX || scrollableY);
 							if (!scrollable) {
 								violation[0] = component.getClass().getSimpleName() + " escapes a non-scrollable viewport bounds="
 									+ screenBounds + " viewport=" + viewportBounds;
 								return;
 							}
+							Point scrollLocation = scroll.getLocationOnScreen();
+							Rectangle scrollBounds = new Rectangle(scrollLocation, scroll.getSize());
+							if (!dialogBounds.contains(scrollBounds)) {
+								violation[0] = "scroll pane escapes dialog bounds=" + scrollBounds + " dialog=" + dialogBounds;
+								return;
+							}
+							clippedByScrollableViewport = true;
 							break;
 						}
 					}
+					if (clippedByScrollableViewport) break;
 					if (parent instanceof JScrollPane)
 						break;
 					Point parentLocation = parent.getLocationOnScreen();
@@ -722,6 +739,13 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 								+ " parent=" + parentBounds;
 						return;
 					}
+				}
+				if (!clippedByScrollableViewport && (!dialogBounds.contains(new Point(screenBounds.x, screenBounds.y))
+						|| !dialogBounds.contains(new Point(screenBounds.x + screenBounds.width - 1,
+							screenBounds.y + screenBounds.height - 1)))) {
+					violation[0] = component.getClass().getSimpleName() + " bounds=" + screenBounds
+						+ " dialog=" + dialogBounds;
+					return;
 				}
 			}
 			for (Component parentComponent : allComponents(value)) {
@@ -749,6 +773,9 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 	}
 
 	private static boolean isLayoutProbe(Component component) {
+		if (component instanceof AbstractButton
+				&& SwingUtilities.getAncestorOfClass(JScrollBar.class, component) != null)
+			return false;
 		return component instanceof JLabel || component instanceof AbstractButton
 				|| component instanceof JTextComponent || component instanceof JComboBox
 				|| component instanceof JSpinner;
@@ -1067,6 +1094,18 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 		});
 		assertTrue(visible[0].contains(target[0]), () -> description + " remained clipped after physical scrolling: target="
 			+ target[0] + " viewport=" + visible[0]);
+	}
+
+	private static boolean isOwnedBy(Window window, Window owner) {
+		for (Window current = window.getOwner(); current != null; current = current.getOwner())
+			if (current == owner) return true;
+		return false;
+	}
+
+	private static int ownerDepth(Window window) {
+		int depth = 0;
+		for (Window current = window.getOwner(); current != null; current = current.getOwner()) depth++;
+		return depth;
 	}
 
 	private JDialog visibleChildDialog() {

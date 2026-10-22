@@ -27,11 +27,11 @@ class ExceptionEditorPanelViewportTest {
 			finalField.setBounds(10, 1_150, 200, 30);
 			editor.add(finalField);
 
-			JScrollPane pane = ExceptionEditorPanel.createDetailsScrollPane(editor, new Dimension(900, 800));
+			JScrollPane pane = CalendarEditorViewport.createScrollPane(editor, new Dimension(900, 800));
 			assertEquals(new Dimension(700, 640), pane.getPreferredSize());
-			assertEquals(new Dimension(603, 320), ExceptionEditorPanel.boundedDetailsViewportSize(
-				new Dimension(700, 1_200), new Dimension(683, 480)),
-				"the 150% runner work area must leave room for the JOptionPane title and command row");
+			assertEquals(new Dimension(603, 320), CalendarEditorViewport.boundedSize(
+				new Dimension(1_000, 1_200), new Dimension(683, 480)),
+				"the 150% runner work area must bound both editor axes and leave room for the JOptionPane title and command row");
 			assertSame(editor, pane.getViewport().getView());
 			assertEquals(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, pane.getVerticalScrollBarPolicy());
 
@@ -42,6 +42,20 @@ class ExceptionEditorPanelViewportTest {
 			assertTrue(pane.getVerticalScrollBar().getMaximum()
 				> pane.getVerticalScrollBar().getVisibleAmount(),
 				"fields below the viewport must remain reachable by scrolling");
+
+			JPanel wideEditor = new JPanel(null);
+			wideEditor.setPreferredSize(new Dimension(1_000, 1_200));
+			JScrollPane boundedPane = CalendarEditorViewport.createScrollPane(wideEditor, new Dimension(683, 480));
+			assertEquals(new Dimension(603, 320), boundedPane.getPreferredSize());
+			boundedPane.setSize(boundedPane.getPreferredSize());
+			boundedPane.doLayout();
+			boundedPane.getViewport().doLayout();
+			assertTrue(boundedPane.getHorizontalScrollBar().getMaximum()
+				> boundedPane.getHorizontalScrollBar().getVisibleAmount(),
+				"content wider than the bounded viewport must remain horizontally reachable");
+			assertTrue(boundedPane.getVerticalScrollBar().getMaximum()
+				> boundedPane.getVerticalScrollBar().getVisibleAmount(),
+				"content below the bounded viewport must remain vertically reachable");
 		});
 	}
 }
