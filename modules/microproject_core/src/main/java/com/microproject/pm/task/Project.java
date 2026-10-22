@@ -739,6 +739,23 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
         com.microproject.transaction.ProjectMutationState.coordinated(() -> this.resourcePool = resourcePool);
     }
 
+	/** Shared-pool metadata snapshot used only while atomically resolving a stored pool reference. */
+	public SharedPoolState captureSharedPoolState() {
+		return new SharedPoolState(resourcePool, sharedResourcePoolFile, sharedResourcePoolProjectId,
+			sharedResourcePoolUnresolved, resourcePoolTakesPrecedence);
+	}
+	public void restoreSharedPoolState(SharedPoolState state) {
+		com.microproject.transaction.ProjectMutationState.coordinated(() -> {
+			resourcePool = state.resourcePool();
+			sharedResourcePoolFile = state.file();
+			sharedResourcePoolProjectId = state.projectId();
+			sharedResourcePoolUnresolved = state.unresolved();
+			resourcePoolTakesPrecedence = state.poolTakesPrecedence();
+		});
+	}
+	public record SharedPoolState(ResourcePool resourcePool, String file, long projectId, boolean unresolved,
+		boolean poolTakesPrecedence) { }
+
 	public String getSharedResourcePoolFile() {
 		return sharedResourcePoolFile;
 	}
@@ -1157,31 +1174,47 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 			selectedSnapshots = prepareSelectedBaselineSnapshots(selectedTasks);
 			preparedRollups = prepareBaselineRollups(snapshotId, selectedTasks, scope.rollupSummaries(), selectedSnapshots);
 		}
-		if (entireProject) forTasks(new SnapshottableImpl.SaveCurrentToSnapshotClosure(snapshotId));
-		else if (rollsUp) {
-			for (NormalTask task : selectedTasks) {
-				task.setSnapshot(snapshotId, selectedSnapshots.get(task));
-				task.markTaskAsNeedingRecalculation();
-				task.setDirty(true);
+		Map<NormalTask, TaskSnapshot> stagedSelectedSnapshots = selectedSnapshots;
+		List<PreparedBaselineRollup> stagedRollups = preparedRollups;
+		Map<NormalTask, Boolean> dirtyBefore = new java.util.IdentityHashMap<>();
+		for (NormalTask task : affectedTasks) dirtyBefore.put(task, task.isDirty());
+		return runAtomicModelCommand(markApplied -> {
+			markApplied.run();
+			try {
+				if (entireProject) forTasks(new SnapshottableImpl.SaveCurrentToSnapshotClosure(snapshotId));
+				else if (rollsUp) {
+					for (NormalTask task : selectedTasks) {
+						task.setSnapshot(snapshotId, stagedSelectedSnapshots.get(task));
+						task.markTaskAsNeedingRecalculation();
+						task.setDirty(true);
+					}
+					for (PreparedBaselineRollup prepared : stagedRollups) {
+						prepared.summary().setSnapshot(snapshotId, prepared.snapshot());
+						for (Assignment assignment : prepared.assignments())
+							prepared.snapshot().addBaselineRollupAssignment(prepared.summary(),
+								((Integer) snapshotId).intValue(), assignment);
+						prepared.summary().markTaskAsNeedingRecalculation();
+						prepared.summary().setDirty(true);
+					}
+				} else DataUtils.forAllDo(selection.iterator(), new SnapshottableImpl.SaveCurrentToSnapshotClosure(snapshotId));
+				// Summary snapshots changed by roll-up must be included in the redo state too.
+				SnapshotState after = !affectedTasks.isEmpty() && !entireProject
+					? captureSnapshotState(snapshotId, false, new ArrayList<>(affectedTasks))
+					: captureSnapshotState(snapshotId, entireProject, selection);
+				fireCurrentBaselineRowState(snapshotId);
+				return ReversibleModelChange.changed(
+					() -> restoreSnapshotState(snapshotId, before),
+					() -> restoreSnapshotState(snapshotId, after));
+			} catch (RuntimeException | Error failure) {
+				try {
+					restoreSnapshotState(snapshotId, before);
+					dirtyBefore.forEach(NormalTask::setDirty);
+				} catch (RuntimeException | Error rollbackFailure) {
+					if (rollbackFailure != failure) failure.addSuppressed(rollbackFailure);
+				}
+				throw failure;
 			}
-			for (PreparedBaselineRollup prepared : preparedRollups) {
-				prepared.summary().setSnapshot(snapshotId, prepared.snapshot());
-				for (Assignment assignment : prepared.assignments())
-					prepared.snapshot().addBaselineRollupAssignment(prepared.summary(),
-						((Integer) snapshotId).intValue(), assignment);
-				prepared.summary().markTaskAsNeedingRecalculation();
-				prepared.summary().setDirty(true);
-			}
-		} else DataUtils.forAllDo(selection.iterator(), new SnapshottableImpl.SaveCurrentToSnapshotClosure(snapshotId));
-		// Summary snapshots changed by roll-up must be included in the redo state too.
-		SnapshotState after = !affectedTasks.isEmpty() && !entireProject
-			? captureSnapshotState(snapshotId, false, new ArrayList<>(affectedTasks))
-			: captureSnapshotState(snapshotId, entireProject, selection);
-
-		fireCurrentBaselineRowState(snapshotId);
-		return ReversibleModelChange.changed(
-			() -> restoreSnapshotState(snapshotId, before),
-			() -> restoreSnapshotState(snapshotId, after));
+		}, ReversibleModelChange::hasChanged, change -> change);
 	}
 
 	private BaselineMutationScope resolveBaselineMutationScope(Object snapshotId, boolean entireProject,
@@ -2361,12 +2394,22 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 	public final void setStartDate(long start) {
 		start = getEffectiveWorkCalendar().adjustInsideCalendar(start,false);
-		setStart(start);
-		getSchedulingAlgorithm().setStartConstraint(start);
-		// Project Information edits are direct field mutations rather than task
-		// sheet updates. Recalculate here so changing the project boundary has the
-		// same immediate visible scheduling effect as Microsoft Project.
-		recalculate();
+		long newStart = start;
+		runAtomicModelCommand(markApplied -> {
+			Object projectState = backupDetail();
+			List<TaskScheduleState> taskStates = captureTaskScheduleStates();
+			try {
+				markApplied.run();
+				setStart(newStart);
+				getSchedulingAlgorithm().setStartConstraint(newStart);
+				// Project Information edits recalculate immediately after changing the boundary.
+				recalculate();
+				return null;
+			} catch (RuntimeException | Error failure) {
+				restoreScheduleState(projectState, taskStates, failure);
+				throw failure;
+			}
+		}, ignored -> true, value -> value);
 	}
 
 	public final boolean isReadOnlyStartDate(FieldContext fieldContext) {
@@ -2378,10 +2421,50 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	}
 	public void setFinishDate(long finish) {
 		finish = getEffectiveWorkCalendar().adjustInsideCalendar(finish,true);
-		setEnd(finish);
-		getSchedulingAlgorithm().setEndConstraint(finish);
-		recalculate();
+		long newFinish = finish;
+		runAtomicModelCommand(markApplied -> {
+			Object projectState = backupDetail();
+			List<TaskScheduleState> taskStates = captureTaskScheduleStates();
+			try {
+				markApplied.run();
+				setEnd(newFinish);
+				getSchedulingAlgorithm().setEndConstraint(newFinish);
+				recalculate();
+				return null;
+			} catch (RuntimeException | Error failure) {
+				restoreScheduleState(projectState, taskStates, failure);
+				throw failure;
+			}
+		}, ignored -> true, value -> value);
 	}
+
+	private List<TaskScheduleState> captureTaskScheduleStates() {
+		List<TaskScheduleState> states = new ArrayList<>(tasks.size());
+		for (Task task : tasks) {
+			TaskSchedule schedule = task.getCurrentSchedule();
+			states.add(new TaskScheduleState(task, task.backupDetail(), task.isDirty(),
+				schedule.getStart(), schedule.getFinish(), schedule.isForward()));
+		}
+		return states;
+	}
+
+	private void restoreScheduleState(Object projectState, List<TaskScheduleState> taskStates, Throwable failure) {
+		try {
+			restoreDetail(this, projectState, false);
+			for (TaskScheduleState state : taskStates) {
+				state.task().restoreDetail(this, state.detail(), false);
+				TaskSchedule schedule = state.task().getCurrentSchedule();
+				schedule.setForward(state.forward());
+				schedule.setStart(state.start());
+				schedule.setFinish(state.finish());
+				state.task().setDirty(state.dirty());
+			}
+		} catch (RuntimeException | Error rollbackFailure) {
+			if (rollbackFailure != failure) failure.addSuppressed(rollbackFailure);
+		}
+	}
+
+	private record TaskScheduleState(Task task, Object detail, boolean dirty, long start, long finish, boolean forward) { }
 
 	public boolean isReadOnlyFinishDate(FieldContext fieldContext) {
 		return getSchedulingAlgorithm() == null || getSchedulingAlgorithm().isForward();
@@ -2664,6 +2747,10 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 			externalTaskManager = new ExternalTaskManager();
 		return externalTaskManager;
 	}
+	int beginExternalTaskResolutionTransaction() { return getExternalTaskManager().beginResolutionTransaction(); }
+	void commitExternalTaskResolutionTransaction(int checkpoint) { getExternalTaskManager().commitResolutionTransaction(checkpoint); }
+	void rollbackExternalTaskResolutionTransaction(int checkpoint) { getExternalTaskManager().rollbackResolutionTransaction(checkpoint); }
+	int retainedExternalTaskResolutionCount() { return getExternalTaskManager().retainedResolutionCount(); }
 	public void addExternalTask(Task task) {
 		getExternalTaskManager().add(task);
 		task.markTaskAsNeedingRecalculation();

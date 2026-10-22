@@ -66,13 +66,63 @@ public final class ProjectMutationState {
 
 	/** Advances an independent shared-state revision at most once per coordinated operation. */
 	public static long coordinatedRevision(Object owner, java.util.function.LongSupplier advanceRevision) {
+		return coordinatedRevision(owner, advanceRevision, ignored -> { });
+	}
+
+	public static long coordinatedRevision(Object owner, java.util.function.LongSupplier advanceRevision,
+			java.util.function.LongConsumer restoreRevision) {
 		if (!COORDINATOR.isHeldByCurrentThread())
 			throw new IllegalStateException("A coordinated revision requires the mutation coordinator");
 		CoordinatorContext context = CONTEXT.get();
 		if (context == null)
 			throw new IllegalStateException("A coordinated revision requires an active context");
-		return context.revisions.computeIfAbsent(java.util.Objects.requireNonNull(owner, "owner"),
-			ignored -> advanceRevision.getAsLong());
+		Object key = java.util.Objects.requireNonNull(owner, "owner");
+		context.revisionRestorers.putIfAbsent(key, java.util.Objects.requireNonNull(restoreRevision, "restoreRevision"));
+		return context.revisions.computeIfAbsent(key, ignored -> advanceRevision.getAsLong());
+	}
+
+	/** Checkpoint for a coordinated operation that may need to retract deferred work. */
+	public static Checkpoint checkpoint() {
+		if (!COORDINATOR.isHeldByCurrentThread() || CONTEXT.get() == null)
+			throw new IllegalStateException("A transaction checkpoint requires the mutation coordinator");
+		CoordinatorContext context = CONTEXT.get();
+		return new Checkpoint(context.publications.size(), new java.util.IdentityHashMap<>(context.revisions));
+	}
+
+	/** Discards deferred publications and restores coordinated revision owners changed since a checkpoint. */
+	public static void rollback(Checkpoint checkpoint) {
+		if (!COORDINATOR.isHeldByCurrentThread() || CONTEXT.get() == null)
+			throw new IllegalStateException("A transaction rollback requires the mutation coordinator");
+		CoordinatorContext context = CONTEXT.get();
+		context.publications.subList(checkpoint.publications, context.publications.size()).clear();
+		for (var entry : context.revisions.entrySet()) {
+			Long before = checkpoint.revisions.get(entry.getKey());
+			long value = before == null ? entry.getValue().longValue() - 1L : before.longValue();
+			context.revisionRestorers.get(entry.getKey()).accept(value);
+		}
+		context.revisions.clear();
+		context.revisions.putAll(checkpoint.revisions);
+		context.revisionRestorers.keySet().retainAll(checkpoint.revisions.keySet());
+	}
+
+	public record Checkpoint(int publications, java.util.IdentityHashMap<Object, Long> revisions) { }
+
+	/**
+	 * Closes scopes opened in list order, innermost (last) first.  Every scope is
+	 * closed even when an earlier close fails, so one failure cannot leave the
+	 * process-wide coordinator held; the first failure is rethrown with the rest
+	 * suppressed.
+	 */
+	public static void closeAll(List<Scope> openedInOrder) {
+		Throwable failure = null;
+		for (int i = openedInOrder.size() - 1; i >= 0; i--) {
+			try {
+				openedInOrder.get(i).close();
+			} catch (Throwable current) {
+				failure = combine(failure, current);
+			}
+		}
+		throwIfFailed(failure);
 	}
 
 	private long finish(Scope scope) {
@@ -147,6 +197,7 @@ public final class ProjectMutationState {
 	private static final class CoordinatorContext {
 		private final List<Runnable> publications = new ArrayList<>();
 		private final java.util.IdentityHashMap<Object, Long> revisions = new java.util.IdentityHashMap<>();
+		private final java.util.IdentityHashMap<Object, java.util.function.LongConsumer> revisionRestorers = new java.util.IdentityHashMap<>();
 	}
 
 	private static void enqueuePublication(Runnable publication) {

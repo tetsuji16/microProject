@@ -45,8 +45,7 @@ public final class TaskProgressService {
 		List<Task> selected = tasks.stream().filter(Objects::nonNull).map(task -> (Task) task)
 			.filter(task -> !task.isWbsParent()).toList();
 		double[] before = selected.stream().mapToDouble(Task::getPercentComplete).toArray();
-		int changed = 0;
-		for (Task task : selected) {
+		return applyProgressBatch(project, selected, statusDate, task -> {
 			long start = task.getStart();
 			long end = task.getEnd();
 			double target;
@@ -62,16 +61,8 @@ public final class TaskProgressService {
 				target = scheduledDuration <= 0L ? 0D
 					: Math.max(0D, Math.min(1D, (double) scheduledThroughDate / scheduledDuration));
 			}
-			if (Double.compare(task.getPercentComplete(), target) != 0) {
-				setProgress(task, target);
-				changed++;
-			}
-		}
-		double[] after = selected.stream().mapToDouble(Task::getPercentComplete).toArray();
-		ReversibleModelChange change = changed == 0 ? ReversibleModelChange.unchanged()
-			: ReversibleModelChange.changed(() -> restoreProgress(selected, before),
-				() -> restoreProgress(selected, after));
-		return new Result(changed, statusDate, change);
+			return target;
+		}, before);
 	}
 
 	/**
@@ -89,18 +80,56 @@ public final class TaskProgressService {
 		List<Task> selected = tasks.stream().filter(Objects::nonNull).map(task -> (Task) task)
 			.filter(task -> !task.isWbsParent()).toList();
 		double[] before = selected.stream().mapToDouble(Task::getPercentComplete).toArray();
-		int changed = 0;
-		for (Task task : selected) {
-			if (Double.compare(task.getPercentComplete(), fraction) != 0) {
-				setProgress(task, fraction);
-				changed++;
-			}
+		return applyProgressBatch(project, selected, project.isStatusDateSet() ? project.getStatusDate() : 0L,
+			task -> fraction, before);
+	}
+
+	private static Result applyProgressBatch(Project project, List<Task> selected, long statusDate,
+		java.util.function.ToDoubleFunction<Task> targetForTask, double[] before) {
+		ProjectTaskSnapshot snapshot = ProjectTaskSnapshot.capture(project);
+		Object[] taskDetails = new Object[selected.size()];
+		boolean[] taskDirty = new boolean[selected.size()];
+		Double[] importedOverrides = new Double[selected.size()];
+		for (int i = 0; i < selected.size(); i++) {
+			Task task = selected.get(i);
+			taskDetails[i] = task.backupDetail();
+			taskDirty[i] = task.isDirty();
+			if (task instanceof NormalTask normal) importedOverrides[i] = normal.getImportedPercentCompleteOverride();
 		}
+		int[] changed = { 0 };
+		project.runAtomicModelCommand(markApplied -> {
+			try {
+				for (Task task : selected) {
+					double target = targetForTask.applyAsDouble(task);
+					if (Double.compare(task.getPercentComplete(), target) != 0) {
+						markApplied.run();
+						setProgress(task, target);
+						changed[0]++;
+					}
+				}
+			} catch (RuntimeException | Error failure) {
+				try {
+					snapshot.restore(project, TaskProgressService.class);
+				} catch (RuntimeException | Error compensationFailure) {
+					failure.addSuppressed(compensationFailure);
+				}
+				for (int i = 0; i < selected.size(); i++) {
+					Task task = selected.get(i);
+					try {
+						task.restoreDetail(TaskProgressService.class, taskDetails[i], true);
+						if (task instanceof NormalTask normal) normal.restoreImportedPercentCompleteOverride(importedOverrides[i]);
+						task.setDirty(taskDirty[i]);
+					} catch (RuntimeException | Error compensationFailure) { failure.addSuppressed(compensationFailure); }
+				}
+				throw failure;
+			}
+			return null;
+		}, ignored -> changed[0] > 0, ignored -> null);
 		double[] after = selected.stream().mapToDouble(Task::getPercentComplete).toArray();
-		ReversibleModelChange change = changed == 0 ? ReversibleModelChange.unchanged()
+		ReversibleModelChange change = changed[0] == 0 ? ReversibleModelChange.unchanged()
 			: ReversibleModelChange.changed(() -> restoreProgress(selected, before),
 				() -> restoreProgress(selected, after));
-		return new Result(changed, project.isStatusDateSet() ? project.getStatusDate() : 0L, change);
+		return new Result(changed[0], statusDate, change);
 	}
 
 	private static void restoreProgress(List<Task> tasks, double[] values) {

@@ -654,7 +654,7 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		requestEditorFocus();
 		if (isCurrentReconversionTarget(text, generation)
 				&& KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner() == text) {
-			reconvert(text);
+			ImeTextInputSupport.requestReconversion(text);
 			return;
 		}
 
@@ -666,7 +666,7 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 				if (timeout[0] != null)
 					timeout[0].stop();
 				if (isCurrentReconversionTarget(text, generation))
-					reconvert(text);
+					ImeTextInputSupport.requestReconversion(text);
 			}
 		};
 		timeout[0] = new Timer(RECONVERSION_FOCUS_TIMEOUT_MILLIS, event -> {
@@ -681,19 +681,6 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 
 	private boolean isCurrentReconversionTarget(JTextComponent text, long generation) {
 		return generation == editingGeneration && isEditing() && getEditorTextComponent() == text;
-	}
-
-	private void reconvert(JTextComponent text) {
-		if (ImeTextInputSupport.reconvert(text) == ImeTextInputSupport.ReconversionResult.UNSUPPORTED)
-			reportImeUnsupported(com.microproject.dialog.UsabilityStrings.text("spreadsheet.imeReconversionUnsupported"));
-	}
-
-	public void reportImeUnsupported(String message) {
-		java.awt.Component parent = this;
-		while (parent != null && !(parent instanceof com.microproject.pm.graphic.frames.DocumentFrame))
-			parent = parent.getParent();
-		if (parent instanceof com.microproject.pm.graphic.frames.DocumentFrame frame)
-			frame.showStatusMessage(message);
 	}
 
 	private boolean shouldClearFieldOnTypedDigit(int row, int column, char typedChar) {

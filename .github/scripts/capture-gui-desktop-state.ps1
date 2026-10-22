@@ -3,6 +3,7 @@ param(
   [int]$TargetPid,
   [switch]$Watch,
   [string]$LogFile,
+  [string]$DiagnosticLogFile,
   [switch]$PrepareNativeChooser,
   [string]$ProbeTriggerFile,
   [string]$LifecycleLogFile
@@ -410,14 +411,29 @@ public static class GuiDesktopWindowProbe {
 
 if ($Watch) {
   if ([string]::IsNullOrWhiteSpace($LogFile)) { throw 'LogFile is required with Watch.' }
+  if ([string]::IsNullOrWhiteSpace($DiagnosticLogFile)) {
+    $DiagnosticLogFile = [System.IO.Path]::ChangeExtension($LogFile, '.diagnostic.log')
+  }
   $logStream = [System.IO.FileStream]::new($LogFile, [System.IO.FileMode]::Append,
     [System.IO.FileAccess]::Write, [System.IO.FileShare]::ReadWrite)
   $logWriter = [System.IO.StreamWriter]::new($logStream, [System.Text.UTF8Encoding]::new($false))
   $logWriter.AutoFlush = $true
+  $diagnosticWriter = $null
+  $diagnosticStream = $null
   try {
-    $logWriter.WriteLine("monitorStarted=" + [DateTime]::UtcNow.ToString('o'))
+    $diagnosticStream = [System.IO.FileStream]::new($DiagnosticLogFile, [System.IO.FileMode]::Append,
+      [System.IO.FileAccess]::Write, [System.IO.FileShare]::ReadWrite)
+    $diagnosticWriter = [System.IO.StreamWriter]::new($diagnosticStream, [System.Text.UTF8Encoding]::new($false))
+    $diagnosticWriter.AutoFlush = $true
+    $diagnosticWriter.WriteLine("monitorStarted=" + [DateTime]::UtcNow.ToString('o') + " monitorPid=$PID targetPid=$TargetPid")
     $lastOverlap = ''
+    $firstTargetCheck = $true
+    $firstOverlapProbe = $true
     while ($true) {
+      $targetCheckStarted = [System.Diagnostics.Stopwatch]::StartNew()
+      if ($firstTargetCheck) {
+        $diagnosticWriter.WriteLine("monitorFirstTargetCheckEntered=" + [DateTime]::UtcNow.ToString('o'))
+      }
       $targetProcess = $null
       $targetRunning = $true
       try {
@@ -431,11 +447,28 @@ if ($Watch) {
       } finally {
         if ($null -ne $targetProcess) { $targetProcess.Dispose() }
       }
+      $targetCheckStarted.Stop()
+      if ($firstTargetCheck) {
+        $diagnosticWriter.WriteLine("monitorFirstTargetCheckExited=" + [DateTime]::UtcNow.ToString('o') + " elapsedMs=$([int]$targetCheckStarted.ElapsedMilliseconds) running=$targetRunning")
+        $firstTargetCheck = $false
+      }
       if (-not $targetRunning) {
-        $logWriter.WriteLine("monitorStopped=" + [DateTime]::UtcNow.ToString('o') + " reason=target-exited")
+        $diagnosticWriter.WriteLine("monitorStopped=" + [DateTime]::UtcNow.ToString('o') + " reason=target-exited")
         break
       }
+      $probeStarted = [System.Diagnostics.Stopwatch]::StartNew()
+      if ($firstOverlapProbe) {
+        $diagnosticWriter.WriteLine("monitorFirstOverlapProbeEntered=" + [DateTime]::UtcNow.ToString('o'))
+      }
       $overlap = [GuiDesktopWindowProbe]::CaptureForegroundOverlap($TargetPid)
+      $probeStarted.Stop()
+      if ($firstOverlapProbe) {
+        $diagnosticWriter.WriteLine("monitorFirstOverlapProbeExited=" + [DateTime]::UtcNow.ToString('o') + " elapsedMs=$([int]$probeStarted.ElapsedMilliseconds)")
+        $firstOverlapProbe = $false
+      }
+      if ($probeStarted.ElapsedMilliseconds -ge 1000) {
+        $diagnosticWriter.WriteLine("monitorSlowOverlapProbe=" + [DateTime]::UtcNow.ToString('o') + " elapsedMs=$([int]$probeStarted.ElapsedMilliseconds)")
+      }
       if ($overlap -ne $lastOverlap -and -not [string]::IsNullOrEmpty($overlap)) {
         $logWriter.WriteLine("GUI_ENVIRONMENT_CONTENDED observed=" + [DateTime]::UtcNow.ToString('o') + " " + $overlap)
       }
@@ -443,7 +476,12 @@ if ($Watch) {
       Start-Sleep -Milliseconds 50
     }
   } finally {
-    $logWriter.Dispose()
+    try {
+      if ($null -ne $diagnosticWriter) { $diagnosticWriter.Dispose() }
+      elseif ($null -ne $diagnosticStream) { $diagnosticStream.Dispose() }
+    } finally {
+      $logWriter.Dispose()
+    }
   }
 } else {
   if ($PrepareNativeChooser) {

@@ -26,10 +26,12 @@ package com.microproject.ui.util;
 
 import java.awt.Component;
 import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 
 import javax.swing.Icon;
+import javax.swing.AbstractAction;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
@@ -44,21 +46,17 @@ public final class PopupDialogSupport {
 	}
 
 	public static void bindEscapeToDispose(JDialog dialog) {
-		bindEscape(dialog.getRootPane(), new Runnable() {
-			public void run() {
-				dialog.setVisible(false);
-				dialog.dispose();
-			}
+		bindRootPaneAction(dialog.getRootPane(), KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), ESCAPE_ACTION_KEY, event -> {
+			dialog.setVisible(false);
+			dialog.dispose();
 		});
 	}
 
 	public static void bindEscapeToOptionPane(JDialog dialog, JOptionPane optionPane, int escapeResult) {
-		bindEscape(dialog.getRootPane(), new Runnable() {
-			public void run() {
-				optionPane.setValue(Integer.valueOf(escapeResult));
-				dialog.setVisible(false);
-				dialog.dispose();
-			}
+		bindRootPaneAction(dialog.getRootPane(), KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), ESCAPE_ACTION_KEY, event -> {
+			optionPane.setValue(Integer.valueOf(escapeResult));
+			dialog.setVisible(false);
+			dialog.dispose();
 		});
 	}
 
@@ -192,13 +190,14 @@ public final class PopupDialogSupport {
 		dialog.dispose();
 	}
 
-	static void bindEscape(JRootPane rootPane, Runnable onEscape) {
-		rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), ESCAPE_ACTION_KEY);
-		rootPane.getActionMap().put(ESCAPE_ACTION_KEY, new javax.swing.AbstractAction() {
+	public static void bindRootPaneAction(JRootPane rootPane, KeyStroke keyStroke, String actionKey,
+			ActionListener listener) {
+		rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(keyStroke, actionKey);
+		rootPane.getActionMap().put(actionKey, new AbstractAction() {
 			private static final long serialVersionUID = 1L;
 
 			public void actionPerformed(ActionEvent e) {
-				onEscape.run();
+				listener.actionPerformed(e);
 			}
 		});
 	}

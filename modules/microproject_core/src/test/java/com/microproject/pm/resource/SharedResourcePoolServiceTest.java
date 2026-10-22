@@ -104,6 +104,129 @@ class SharedResourcePoolServiceTest {
 	}
 
 	@Test
+	void failedResolveAfterFirstAssignmentRewireRestoresAllSharedState() {
+		Project poolProject = newProject("pool", "C:/plans/atomic-resources.pod");
+		Project sharer = newProject("sharer", "C:/plans/atomic-sharer.pod");
+		Resource poolResource = addResource(poolProject, "Alex");
+		Resource sharerResource = addResource(sharer, "Alex");
+		poolResource.setUniqueId(901L);
+		sharerResource.setUniqueId(901L);
+		NormalTask taskOne = new NormalTask(sharer);
+		NormalTask taskTwo = new NormalTask(sharer);
+		sharer.connectTask(taskOne);
+		sharer.connectTask(taskTwo);
+		Assignment first = AssignmentService.getInstance().newAssignment(taskOne, sharerResource, 1.0D, 0L, this, false);
+		Assignment second = AssignmentService.getInstance().newAssignment(taskTwo, sharerResource, 2.0D, 0L, this, false);
+		ResourcePool originalPool = sharer.getResourcePool();
+		boolean sharerWasRegistered = originalPool.getProjects().contains(sharer);
+		long sharerRevision = sharer.getMutationState().revision();
+		long poolProjectRevision = poolProject.getMutationState().revision();
+		long sharerPoolRevision = originalPool.getCoordinationRevision();
+		long destinationRevision = poolProject.getResourcePool().getCoordinationRevision();
+		long firstWork = first.getWork(null);
+		long secondWork = second.getWork(null);
+		int[] events = { 0 };
+		ObjectEvent.Listener listener = event -> events[0]++;
+		originalPool.addObjectListener(listener);
+		poolProject.getResourcePool().addObjectListener(listener);
+		SharedResourcePoolService.failAfterFirstRewireForTest(() -> { throw new IllegalStateException("injected"); });
+
+		try {
+			IllegalStateException failure = assertThrows(IllegalStateException.class, () ->
+				SharedResourcePoolService.getInstance().share(sharer, poolProject,
+					SharedResourcePoolService.ConflictPolicy.POOL_TAKES_PRECEDENCE));
+			assertEquals("injected", failure.getMessage());
+		} finally {
+			SharedResourcePoolService.failAfterFirstRewireForTest(null);
+			originalPool.removeObjectListener(listener);
+			poolProject.getResourcePool().removeObjectListener(listener);
+		}
+
+		assertSame(originalPool, sharer.getResourcePool());
+		assertSame(sharerResource, first.getResource());
+		assertSame(sharerResource, second.getResource());
+		assertEquals(firstWork, first.getWork(null));
+		assertEquals(secondWork, second.getWork(null));
+		assertTrue(taskOne.findAssignment(sharerResource) == first);
+		assertTrue(taskTwo.findAssignment(sharerResource) == second);
+		assertTrue(originalPool.getResourceList().contains(sharerResource));
+		assertTrue(poolProject.getResourcePool().getResourceList().contains(poolResource));
+		assertEquals(sharerWasRegistered, originalPool.getProjects().contains(sharer));
+		assertEquals(sharerRevision, sharer.getMutationState().revision());
+		assertEquals(poolProjectRevision, poolProject.getMutationState().revision());
+		assertEquals(sharerPoolRevision, originalPool.getCoordinationRevision());
+		assertEquals(destinationRevision, poolProject.getResourcePool().getCoordinationRevision());
+		assertEquals(0, events[0]);
+		assertTrue(!sharer.getUndoController().canUndo());
+		assertTrue(!poolProject.getUndoController().canUndo());
+	}
+
+	@Test
+	void sharerPrecedenceFailureRestoresPoolOwnedAssignmentsAndUndoState() {
+		Project poolProject = newProject("pool", "C:/plans/sharer-precedence-resources.pod");
+		Project sharer = newProject("sharer", "C:/plans/sharer-precedence-client.pod");
+		Resource poolResource = addResource(poolProject, "Alex");
+		Resource sharerResource = addResource(sharer, "Alex");
+		poolResource.setUniqueId(902L);
+		sharerResource.setUniqueId(902L);
+		NormalTask poolTask = new NormalTask(poolProject);
+		NormalTask sharerTask = new NormalTask(sharer);
+		poolProject.connectTask(poolTask);
+		sharer.connectTask(sharerTask);
+		Assignment poolAssignment = AssignmentService.getInstance().newAssignment(poolTask, poolResource, 1.0D, 0L, this, false);
+		Assignment sharerAssignment = AssignmentService.getInstance().newAssignment(sharerTask, sharerResource, 2.0D, 0L, this, false);
+		poolAssignment.importBaselineValues(0, Long.valueOf(10_000L), Long.valueOf(20_000L), Long.valueOf(10L));
+		Assignment.BaselineValues baselineValues = poolAssignment.getBaselineValues(0);
+		long poolWork = poolAssignment.getWork(null);
+		ResourcePool sourcePool = sharer.getResourcePool();
+		ResourcePool destinationPool = poolProject.getResourcePool();
+		long sharerRevision = sharer.getMutationState().revision();
+		long poolProjectRevision = poolProject.getMutationState().revision();
+		long sourcePoolRevision = sourcePool.getCoordinationRevision();
+		long destinationPoolRevision = destinationPool.getCoordinationRevision();
+		boolean[] wasRegistered = { sourcePool.getProjects().contains(sharer), destinationPool.getProjects().contains(poolProject) };
+		int[] events = { 0 };
+		ObjectEvent.Listener listener = event -> events[0]++;
+		sourcePool.addObjectListener(listener);
+		destinationPool.addObjectListener(listener);
+		sharer.getObjectEventManager().addListener(listener);
+		poolProject.getObjectEventManager().addListener(listener);
+		SharedResourcePoolService.failAfterFirstRewireForTest(() -> { throw new IllegalStateException("injected"); });
+
+		try {
+			IllegalStateException failure = assertThrows(IllegalStateException.class, () ->
+				SharedResourcePoolService.getInstance().share(sharer, poolProject,
+					SharedResourcePoolService.ConflictPolicy.SHARER_TAKES_PRECEDENCE));
+			assertEquals("injected", failure.getMessage());
+		} finally {
+			SharedResourcePoolService.failAfterFirstRewireForTest(null);
+			sourcePool.removeObjectListener(listener);
+			destinationPool.removeObjectListener(listener);
+			sharer.getObjectEventManager().removeListener(listener);
+			poolProject.getObjectEventManager().removeListener(listener);
+		}
+
+		assertSame(sourcePool, sharer.getResourcePool());
+		assertSame(poolResource, poolAssignment.getResource());
+		assertSame(sharerResource, sharerAssignment.getResource());
+		assertSame(poolAssignment, poolTask.findAssignment(poolResource));
+		assertSame(poolAssignment, poolResource.findAssignment(poolTask));
+		assertEquals(poolWork, poolAssignment.getWork(null));
+		assertEquals(baselineValues, poolAssignment.getBaselineValues(0));
+		assertTrue(destinationPool.getResourceList().contains(poolResource));
+		assertTrue(sourcePool.getResourceList().contains(sharerResource));
+		assertEquals(wasRegistered[0], sourcePool.getProjects().contains(sharer));
+		assertEquals(wasRegistered[1], destinationPool.getProjects().contains(poolProject));
+		assertEquals(sharerRevision, sharer.getMutationState().revision());
+		assertEquals(poolProjectRevision, poolProject.getMutationState().revision());
+		assertEquals(sourcePoolRevision, sourcePool.getCoordinationRevision());
+		assertEquals(destinationPoolRevision, destinationPool.getCoordinationRevision());
+		assertEquals(0, events[0]);
+		assertTrue(!sharer.getUndoController().canUndo());
+		assertTrue(!poolProject.getUndoController().canUndo());
+	}
+
+	@Test
 	void resolvesNegativePoolIdentityAfterItsFileHasMoved() {
 		Project pool = newProject("pool", "C:/moved/resources.pod");
 		pool.setUniqueId(-1001L);

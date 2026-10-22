@@ -47,6 +47,7 @@ import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.assignment.HasAssignments;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
+import com.microproject.transaction.ProjectMutationState;
 import com.microproject.undo.AssignmentCreationEdit;
 import com.microproject.undo.AssignmentDeletionEdit;
 
@@ -212,26 +213,28 @@ public class AssignmentNodeModel extends DefaultNodeModel implements ObjectEvent
 
 
 	public void paste(Node parent,List<Node> nodes,int position,int actionType){
-		super.paste(parent, nodes, position, actionType);
-		List<Node> roots = new ArrayList<>(nodes.size());
-		HierarchyUtils.extractParents(nodes, roots);
-		List<Node> freeAssignments = new ArrayList<>();
-		for (Node root : roots) {
-			hierarchy.visitLeaves(root, value -> {
-				Node node = (Node) value;
-				if (node.getImpl() instanceof Assignment assignment) {
-					Node owner = (Node) node.getParent();
-					if (owner.getImpl() instanceof NormalTask task
-							&& task.findAssignment(assignment.getResource()) == null) {
-						freeAssignments.add(node);
+		ProjectMutationState.coordinated(() -> {
+			super.paste(parent, nodes, position, actionType);
+			List<Node> roots = new ArrayList<>(nodes.size());
+			HierarchyUtils.extractParents(nodes, roots);
+			List<Node> freeAssignments = new ArrayList<>();
+			for (Node root : roots) {
+				hierarchy.visitLeaves(root, value -> {
+					Node node = (Node) value;
+					if (node.getImpl() instanceof Assignment assignment) {
+						Node owner = (Node) node.getParent();
+						if (owner.getImpl() instanceof NormalTask task
+								&& task.findAssignment(assignment.getResource()) == null) {
+							freeAssignments.add(node);
+						}
 					}
-				}
-			});
-		}
-		for (Node node : freeAssignments) {
-			node.removeFromParent();
-			AssignmentService.getInstance().connect(node,this,isUndo(actionType));
-		}
+				});
+			}
+			for (Node node : freeAssignments) {
+				node.removeFromParent();
+				AssignmentService.getInstance().connect(node,this,isUndo(actionType));
+			}
+		});
 
 	}
 

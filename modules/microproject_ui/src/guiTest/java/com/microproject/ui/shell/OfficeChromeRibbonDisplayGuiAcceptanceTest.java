@@ -14,7 +14,6 @@ import java.awt.GraphicsEnvironment;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Robot;
-import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
 import java.nio.file.Files;
@@ -44,6 +43,7 @@ import com.microproject.menu.testsupport.UiComponentWalker;
 import com.microproject.pm.graphic.frames.MainRibbonFrame;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.testsupport.RibbonGuiEnvironment;
+import com.microproject.testsupport.WindowAcceptanceAssertions;
 import com.microproject.ui.ribbon.RibbonController;
 import com.microproject.ui.ribbon.RibbonDisplayMode;
 import com.microproject.ui.ribbon.RibbonDisplayPreferences;
@@ -106,6 +106,7 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 			frame.toFront();
 			frame.requestFocus();
 		});
+		positionFrameForPhysicalHits(frame);
 		OfficeChromePanel chrome = (OfficeChromePanel) ((MainRibbonFrame) frame).getRibbonPanel();
 		AbstractButton options = findShowingButton(chrome, OfficeChromePanel.RIBBON_DISPLAY_OPTIONS_NAME);
 		Robot robot = new com.microproject.testsupport.GuiRobot();
@@ -240,6 +241,7 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 			frame.setVisible(true);
 			frame.toFront();
 		});
+		positionFrameForPhysicalHits(frame);
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		GuiAcceptanceSupport.await(frame::isActive, "Quick Access acceptance window did not become active");
@@ -321,6 +323,7 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 			created[0] = next;
 		});
 		GuiAcceptanceSupport.await(created[0]::isShowing, "production ribbon shell did not become visible");
+		positionFrameForPhysicalHits(created[0]);
 		return created[0];
 	}
 
@@ -447,12 +450,13 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 		return result[0];
 	}
 
-	private static void click(Robot robot, java.awt.Component button) {
-		robot.waitForIdle();
-		Point point = button.getLocationOnScreen();
-		robot.mouseMove(point.x + button.getWidth() / 2, point.y + button.getHeight() / 2);
-		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+	private static void click(Robot robot, java.awt.Component button) throws Exception {
+		WindowAcceptanceAssertions.clickComponent(robot, button);
+	}
+
+	private static void positionFrameForPhysicalHits(JFrame target) throws Exception {
+		SwingUtilities.invokeAndWait(() -> WindowBoundsSupport.fitWithinUsableScreen(target));
+		WindowAcceptanceAssertions.assertWithinUsableWorkArea(target, "office chrome ribbon display window");
 	}
 
 	private static void pressAlt(Robot robot) {

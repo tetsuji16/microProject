@@ -46,6 +46,7 @@ import com.microproject.pm.task.Task;
 import com.microproject.pm.task.TaskSplitInterval;
 import com.microproject.pm.task.TaskModeService;
 import com.microproject.pm.task.TaskProgressService;
+import com.microproject.pm.task.RespectLinksService;
 import com.microproject.pm.task.DefaultSubProj;
 import com.microproject.pm.task.ScheduleDiagnosticsService;
 import com.microproject.pm.task.UpdateProjectRequest;
@@ -72,6 +73,1151 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 class MpoFileImporterTest {
+	@Test
+	void taskSheetDurationEditSurvivesMpoSaveReloadAndRecalculate() throws Exception {
+		Project project = projectForRoundTrip();
+		project.setStartDate(java.time.Instant.parse("2030-06-03T08:00:00Z").toEpochMilli());
+		NormalTask predecessor = (NormalTask) firstTask(project);
+		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		predecessor.setName("Task Sheet duration predecessor");
+		successor.setName("Task Sheet duration successor");
+		long day = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		predecessor.setDuration(day);
+		successor.setDuration(day);
+		DependencyService.getInstance().newDependency(predecessor, successor, DependencyType.FS, 0L, this);
+		project.recalculate();
+		assignPositiveUniqueIds(project);
+		long predecessorId = predecessor.getUniqueId();
+		long successorId = successor.getUniqueId();
+		long start = predecessor.getStart();
+		long newDuration = 2L * day;
+		com.microproject.field.FieldContext context = new com.microproject.field.FieldContext();
+		context.setTaskSheetUpdate(true);
+		predecessor.setDuration(newDuration, context);
+		long finish = predecessor.getEnd();
+		long successorStart = successor.getStart();
+
+		Project reopened = loadFromBytes(saveProjectBytes(project));
+		reopened.recalculate();
+		NormalTask restoredPredecessor = (NormalTask) reopened.findByUniqueId(predecessorId);
+		NormalTask restoredSuccessor = (NormalTask) reopened.findByUniqueId(successorId);
+		assertNotNull(restoredPredecessor, "predecessor ID " + predecessorId + " missing after MPO reload; outline="
+			+ taskOutlineIdentitySummary(reopened));
+		assertNotNull(restoredSuccessor, "successor ID " + successorId + " missing after MPO reload; outline="
+			+ taskOutlineIdentitySummary(reopened));
+		assertEquals(newDuration, restoredPredecessor.getDuration());
+		assertEquals(start, restoredPredecessor.getStart());
+		assertEquals(finish, restoredPredecessor.getEnd());
+		assertEquals(successorStart, restoredSuccessor.getStart());
+		assertTrue(restoredSuccessor.getStart() >= restoredPredecessor.getEnd());
+		assertEquals(List.of(restoredSuccessor), restoredPredecessor.getSuccessorList().stream()
+			.map(association -> (Task) ((Dependency) association).getSuccessor()).toList());
+	}
+
+	@Test
+	void mpoRoundTripPreservesFixedDateSsFiftyPercentDurationLag() throws Exception {
+		Project project = projectForRoundTrip();
+		project.setWorkCalendar(com.microproject.pm.calendar.CalendarService.getInstance().getStandardInstance()
+			.copyForBaselineSnapshot());
+		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
+		long mondaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 17);
+		long mondayThirteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 13);
+		long tuesdayThirteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 13);
+		long halfDurationPercent = com.microproject.datatype.Duration.setAsPercent(
+			com.microproject.datatype.Duration.setPercentAsDecimal(0L, 0.5F));
+		NormalTask predecessor = (NormalTask) firstTask(project);
+		predecessor.setName("MPO percent SS predecessor");
+		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		successor.setName("MPO percent SS successor");
+		NormalTask unrelated = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		unrelated.setName("MPO percent SS unrelated");
+		long oneDay = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		predecessor.setDuration(oneDay);
+		successor.setDuration(oneDay);
+		unrelated.setDuration(oneDay);
+		predecessor.setManualDates(mondayEight, mondaySeventeen);
+		successor.setManualDates(mondayEight, mondaySeventeen);
+		unrelated.setManualDates(mondayEight, mondaySeventeen);
+		DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.SS, halfDurationPercent, this);
+		successor.setManuallyScheduled(false);
+		project.setStart(mondayEight);
+		project.recalculate();
+		assertEquals(mondayThirteen, successor.getStart());
+		assertEquals(tuesdayThirteen, successor.getEnd());
+
+		assignPositiveUniqueIds(project);
+		long predecessorId = predecessor.getUniqueId();
+		long successorId = successor.getUniqueId();
+		Project reopened = loadFromBytes(saveProjectBytes(project));
+		reopened.recalculate();
+		NormalTask restoredPredecessor = (NormalTask) findByName(reopened, "MPO percent SS predecessor");
+		NormalTask restoredSuccessor = (NormalTask) findByName(reopened, "MPO percent SS successor");
+		NormalTask restoredUnrelated = (NormalTask) findByName(reopened, "MPO percent SS unrelated");
+		assertNotNull(restoredPredecessor);
+		assertNotNull(restoredSuccessor);
+		assertNotNull(restoredUnrelated);
+		assertEquals(predecessorId, restoredPredecessor.getUniqueId());
+		assertEquals(successorId, restoredSuccessor.getUniqueId());
+		assertEquals(mondayEight, restoredPredecessor.getStart());
+		assertEquals(mondaySeventeen, restoredPredecessor.getEnd());
+		assertEquals(mondayThirteen, restoredSuccessor.getStart());
+		assertEquals(tuesdayThirteen, restoredSuccessor.getEnd());
+		assertEquals(mondayEight, restoredUnrelated.getStart());
+		assertEquals(mondaySeventeen, restoredUnrelated.getEnd());
+		assertEquals(1, restoredPredecessor.getSuccessorList().size());
+		Dependency restoredDependency = (Dependency) restoredPredecessor.getSuccessorList().iterator().next();
+		assertEquals(DependencyType.SS, restoredDependency.getDependencyType());
+		assertEquals(halfDurationPercent, restoredDependency.getLag());
+		assertTrue(com.microproject.datatype.Duration.isPercent(restoredDependency.getLag()));
+		assertEquals(0.5F, com.microproject.datatype.Duration.getPercentAsDecimal(restoredDependency.getLag()));
+		assertSame(restoredPredecessor, restoredDependency.getPredecessor());
+		assertSame(restoredSuccessor, restoredDependency.getSuccessor());
+		assertSame(restoredDependency, restoredSuccessor.getPredecessorList().iterator().next());
+	}
+
+	@Test
+	void mpoRoundTripPreservesFixedDateSsNegativeFiftyPercentDurationLag() throws Exception {
+		Project project = projectForRoundTrip();
+		project.setWorkCalendar(com.microproject.pm.calendar.CalendarService.getInstance().getStandardInstance()
+			.copyForBaselineSnapshot());
+		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
+		long mondayTwelve = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 12);
+		long mondayThirteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 13);
+		long mondaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 17);
+		long tuesdayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 8);
+		long tuesdaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 17);
+		long tuesdayThirteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 13);
+		long negativeHalfDurationPercent = com.microproject.datatype.Duration.setAsPercent(
+			com.microproject.datatype.Duration.setPercentAsDecimal(0L, -0.5F));
+		NormalTask predecessor = (NormalTask) firstTask(project);
+		predecessor.setName("MPO negative percent SS predecessor");
+		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		successor.setName("MPO negative percent SS successor");
+		NormalTask unrelated = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		unrelated.setName("MPO negative percent SS unrelated");
+		long oneDay = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		predecessor.setDuration(oneDay);
+		successor.setDuration(oneDay);
+		unrelated.setDuration(oneDay);
+		predecessor.setManualDates(tuesdayEight, tuesdaySeventeen);
+		successor.setManualDates(mondayEight, mondaySeventeen);
+		unrelated.setManualDates(mondayEight, mondaySeventeen);
+		DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.SS, negativeHalfDurationPercent, this);
+		successor.setManuallyScheduled(false);
+		project.setStart(mondayEight);
+		project.recalculate();
+		assertEquals(mondayThirteen, successor.getStart());
+		assertEquals(tuesdayThirteen, successor.getEnd());
+
+		assignPositiveUniqueIds(project);
+		long predecessorId = predecessor.getUniqueId();
+		long successorId = successor.getUniqueId();
+		Project reopened = loadFromBytes(saveProjectBytes(project));
+		reopened.recalculate();
+		NormalTask restoredPredecessor = (NormalTask) findByName(reopened, "MPO negative percent SS predecessor");
+		NormalTask restoredSuccessor = (NormalTask) findByName(reopened, "MPO negative percent SS successor");
+		NormalTask restoredUnrelated = (NormalTask) findByName(reopened, "MPO negative percent SS unrelated");
+		assertNotNull(restoredPredecessor);
+		assertNotNull(restoredSuccessor);
+		assertNotNull(restoredUnrelated);
+		assertEquals(predecessorId, restoredPredecessor.getUniqueId());
+		assertEquals(successorId, restoredSuccessor.getUniqueId());
+		assertEquals(tuesdayEight, restoredPredecessor.getStart());
+		assertEquals(tuesdaySeventeen, restoredPredecessor.getEnd());
+		assertEquals(mondayThirteen, restoredSuccessor.getStart());
+		assertEquals(tuesdayThirteen, restoredSuccessor.getEnd());
+		assertEquals(mondayEight, restoredUnrelated.getStart());
+		assertEquals(mondaySeventeen, restoredUnrelated.getEnd());
+		assertEquals(1, restoredPredecessor.getSuccessorList().size());
+		Dependency restoredDependency = (Dependency) restoredPredecessor.getSuccessorList().iterator().next();
+		assertEquals(DependencyType.SS, restoredDependency.getDependencyType());
+		assertEquals(negativeHalfDurationPercent, restoredDependency.getLag());
+		assertTrue(com.microproject.datatype.Duration.isPercent(restoredDependency.getLag()));
+		assertEquals(-0.5F, com.microproject.datatype.Duration.getPercentAsDecimal(restoredDependency.getLag()));
+		assertEquals(-oneDay / 2, com.microproject.datatype.Duration.millis(restoredDependency.getLeadValue()));
+		assertEquals(mondayTwelve, restoredDependency.calcForwardDependencyDate(
+			restoredPredecessor.getStart(), restoredPredecessor.getEnd(), true));
+		assertSame(restoredPredecessor, restoredDependency.getPredecessor());
+		assertSame(restoredSuccessor, restoredDependency.getSuccessor());
+		assertSame(restoredDependency, restoredSuccessor.getPredecessorList().iterator().next());
+	}
+
+	@Test
+	void mpoRoundTripPreservesFixedDateFsFiftyPercentDurationLag() throws Exception {
+		Project project = projectForRoundTrip();
+		project.setWorkCalendar(com.microproject.pm.calendar.CalendarService.getInstance().getStandardInstance()
+			.copyForBaselineSnapshot());
+		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
+		long mondaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 17);
+		long tuesdayThirteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 13);
+		long wednesdayThirteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 5, 13);
+		long halfDurationPercent = com.microproject.datatype.Duration.setAsPercent(
+			com.microproject.datatype.Duration.setPercentAsDecimal(0L, 0.5F));
+		NormalTask predecessor = (NormalTask) firstTask(project);
+		predecessor.setName("MPO percent FS predecessor");
+		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		successor.setName("MPO percent FS successor");
+		NormalTask unrelated = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		unrelated.setName("MPO percent FS unrelated");
+		long oneDay = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		predecessor.setDuration(oneDay);
+		successor.setDuration(oneDay);
+		unrelated.setDuration(oneDay);
+		predecessor.setManualDates(mondayEight, mondaySeventeen);
+		successor.setManualDates(mondayEight, mondaySeventeen);
+		unrelated.setManualDates(mondayEight, mondaySeventeen);
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.FS, halfDurationPercent, this);
+		successor.setManuallyScheduled(false);
+		project.setStart(mondayEight);
+		project.recalculate();
+		assertEquals(tuesdayThirteen, successor.getStart());
+		assertEquals(wednesdayThirteen, successor.getEnd());
+
+		assignPositiveUniqueIds(project);
+		long predecessorId = predecessor.getUniqueId();
+		long successorId = successor.getUniqueId();
+		Project reopened = loadFromBytes(saveProjectBytes(project));
+		reopened.recalculate();
+		NormalTask restoredPredecessor = (NormalTask) findByName(reopened, "MPO percent FS predecessor");
+		NormalTask restoredSuccessor = (NormalTask) findByName(reopened, "MPO percent FS successor");
+		NormalTask restoredUnrelated = (NormalTask) findByName(reopened, "MPO percent FS unrelated");
+		assertNotNull(restoredPredecessor);
+		assertNotNull(restoredSuccessor);
+		assertNotNull(restoredUnrelated);
+		assertEquals(predecessorId, restoredPredecessor.getUniqueId());
+		assertEquals(successorId, restoredSuccessor.getUniqueId());
+		assertEquals(mondayEight, restoredPredecessor.getStart());
+		assertEquals(mondaySeventeen, restoredPredecessor.getEnd());
+		assertEquals(tuesdayThirteen, restoredSuccessor.getStart());
+		assertEquals(wednesdayThirteen, restoredSuccessor.getEnd());
+		assertEquals(mondayEight, restoredUnrelated.getStart());
+		assertEquals(mondaySeventeen, restoredUnrelated.getEnd());
+		assertEquals(1, restoredPredecessor.getSuccessorList().size());
+		Dependency restoredDependency = (Dependency) restoredPredecessor.getSuccessorList().iterator().next();
+		assertEquals(DependencyType.FS, restoredDependency.getDependencyType());
+		assertEquals(halfDurationPercent, restoredDependency.getLag());
+		assertTrue(com.microproject.datatype.Duration.isPercent(restoredDependency.getLag()));
+		assertEquals(0.5F, com.microproject.datatype.Duration.getPercentAsDecimal(restoredDependency.getLag()));
+		assertSame(restoredPredecessor, restoredDependency.getPredecessor());
+		assertSame(restoredSuccessor, restoredDependency.getSuccessor());
+		assertSame(restoredDependency, restoredSuccessor.getPredecessorList().iterator().next());
+	}
+
+	@Test
+	void mpoRoundTripPreservesFixedDateFfFiftyPercentDurationLag() throws Exception {
+		Project project = projectForRoundTrip();
+		project.setWorkCalendar(com.microproject.pm.calendar.CalendarService.getInstance().getStandardInstance()
+			.copyForBaselineSnapshot());
+		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
+		long mondayThirteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 13);
+		long mondaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 17);
+		long tuesdayThirteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 13);
+		long halfDurationPercent = com.microproject.datatype.Duration.setAsPercent(
+			com.microproject.datatype.Duration.setPercentAsDecimal(0L, 0.5F));
+		NormalTask predecessor = (NormalTask) firstTask(project);
+		predecessor.setName("MPO percent FF predecessor");
+		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		successor.setName("MPO percent FF successor");
+		NormalTask unrelated = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		unrelated.setName("MPO percent FF unrelated");
+		long oneDay = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		predecessor.setDuration(oneDay);
+		successor.setDuration(oneDay);
+		unrelated.setDuration(oneDay);
+		predecessor.setManualDates(mondayEight, mondaySeventeen);
+		successor.setManualDates(mondayEight, mondaySeventeen);
+		unrelated.setManualDates(mondayEight, mondaySeventeen);
+		DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.FF, halfDurationPercent, this);
+		successor.setManuallyScheduled(false);
+		project.setStart(mondayEight);
+		project.recalculate();
+		assertEquals(mondayThirteen, successor.getStart());
+		assertEquals(tuesdayThirteen, successor.getEnd());
+
+		assignPositiveUniqueIds(project);
+		long predecessorId = predecessor.getUniqueId();
+		long successorId = successor.getUniqueId();
+		Project reopened = loadFromBytes(saveProjectBytes(project));
+		reopened.recalculate();
+		NormalTask restoredPredecessor = (NormalTask) findByName(reopened, "MPO percent FF predecessor");
+		NormalTask restoredSuccessor = (NormalTask) findByName(reopened, "MPO percent FF successor");
+		NormalTask restoredUnrelated = (NormalTask) findByName(reopened, "MPO percent FF unrelated");
+		assertNotNull(restoredPredecessor);
+		assertNotNull(restoredSuccessor);
+		assertNotNull(restoredUnrelated);
+		assertEquals(predecessorId, restoredPredecessor.getUniqueId());
+		assertEquals(successorId, restoredSuccessor.getUniqueId());
+		assertEquals(mondayEight, restoredPredecessor.getStart());
+		assertEquals(mondaySeventeen, restoredPredecessor.getEnd());
+		assertEquals(mondayThirteen, restoredSuccessor.getStart());
+		assertEquals(tuesdayThirteen, restoredSuccessor.getEnd());
+		assertEquals(mondayEight, restoredUnrelated.getStart());
+		assertEquals(mondaySeventeen, restoredUnrelated.getEnd());
+		assertEquals(1, restoredPredecessor.getSuccessorList().size());
+		Dependency restoredDependency = (Dependency) restoredPredecessor.getSuccessorList().iterator().next();
+		assertEquals(DependencyType.FF, restoredDependency.getDependencyType());
+		assertEquals(halfDurationPercent, restoredDependency.getLag());
+		assertTrue(com.microproject.datatype.Duration.isPercent(restoredDependency.getLag()));
+		assertEquals(0.5F, com.microproject.datatype.Duration.getPercentAsDecimal(restoredDependency.getLag()));
+		assertSame(restoredPredecessor, restoredDependency.getPredecessor());
+		assertSame(restoredSuccessor, restoredDependency.getSuccessor());
+		assertSame(restoredDependency, restoredSuccessor.getPredecessorList().iterator().next());
+	}
+
+	@Test
+	void mpoRoundTripPreservesFixedDateFfNegativeFiftyPercentDurationLag() throws Exception {
+		Project project = projectForRoundTrip();
+		project.setWorkCalendar(com.microproject.pm.calendar.CalendarService.getInstance().getStandardInstance()
+			.copyForBaselineSnapshot());
+		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
+		long mondaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 17);
+		long tuesdayThirteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 13);
+		long wednesdayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 5, 8);
+		long wednesdayTwelve = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 5, 12);
+		long wednesdayThirteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 5, 13);
+		long wednesdaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 5, 17);
+		long negativeHalfDurationPercent = com.microproject.datatype.Duration.setAsPercent(
+			com.microproject.datatype.Duration.setPercentAsDecimal(0L, -0.5F));
+		NormalTask predecessor = (NormalTask) firstTask(project);
+		predecessor.setName("MPO negative percent FF predecessor");
+		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		successor.setName("MPO negative percent FF successor");
+		NormalTask unrelated = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		unrelated.setName("MPO negative percent FF unrelated");
+		long oneDay = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		predecessor.setDuration(oneDay);
+		successor.setDuration(oneDay);
+		unrelated.setDuration(oneDay);
+		predecessor.setManualDates(wednesdayEight, wednesdaySeventeen);
+		successor.setManualDates(mondayEight, mondaySeventeen);
+		unrelated.setManualDates(mondayEight, mondaySeventeen);
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.FF, negativeHalfDurationPercent, this);
+		successor.setManuallyScheduled(false);
+		project.setStart(mondayEight);
+		project.recalculate();
+		assertEquals(wednesdayTwelve, predecessor.getEffectiveWorkCalendar().add(
+			predecessor.getEnd(), dependency.getLeadValue(), true));
+		assertEquals(tuesdayThirteen, successor.getStart());
+		assertEquals(wednesdayThirteen, successor.getEnd());
+
+		assignPositiveUniqueIds(project);
+		long predecessorId = predecessor.getUniqueId();
+		long successorId = successor.getUniqueId();
+		Project reopened = loadFromBytes(saveProjectBytes(project));
+		reopened.recalculate();
+		NormalTask restoredPredecessor = (NormalTask) findByName(reopened, "MPO negative percent FF predecessor");
+		NormalTask restoredSuccessor = (NormalTask) findByName(reopened, "MPO negative percent FF successor");
+		NormalTask restoredUnrelated = (NormalTask) findByName(reopened, "MPO negative percent FF unrelated");
+		assertNotNull(restoredPredecessor);
+		assertNotNull(restoredSuccessor);
+		assertNotNull(restoredUnrelated);
+		assertEquals(predecessorId, restoredPredecessor.getUniqueId());
+		assertEquals(successorId, restoredSuccessor.getUniqueId());
+		assertEquals(wednesdayEight, restoredPredecessor.getStart());
+		assertEquals(wednesdaySeventeen, restoredPredecessor.getEnd());
+		assertEquals(tuesdayThirteen, restoredSuccessor.getStart());
+		assertEquals(wednesdayThirteen, restoredSuccessor.getEnd());
+		assertEquals(mondayEight, restoredUnrelated.getStart());
+		assertEquals(mondaySeventeen, restoredUnrelated.getEnd());
+		assertEquals(1, restoredPredecessor.getSuccessorList().size());
+		Dependency restoredDependency = (Dependency) restoredPredecessor.getSuccessorList().iterator().next();
+		assertEquals(DependencyType.FF, restoredDependency.getDependencyType());
+		assertEquals(negativeHalfDurationPercent, restoredDependency.getLag());
+		assertTrue(com.microproject.datatype.Duration.isPercent(restoredDependency.getLag()));
+		assertEquals(-0.5F, com.microproject.datatype.Duration.getPercentAsDecimal(restoredDependency.getLag()));
+		assertEquals(-oneDay / 2, com.microproject.datatype.Duration.millis(restoredDependency.getLeadValue()));
+		assertEquals(wednesdayTwelve, restoredPredecessor.getEffectiveWorkCalendar().add(
+			restoredPredecessor.getEnd(), restoredDependency.getLeadValue(), true));
+		assertSame(restoredPredecessor, restoredDependency.getPredecessor());
+		assertSame(restoredSuccessor, restoredDependency.getSuccessor());
+		assertSame(restoredDependency, restoredSuccessor.getPredecessorList().iterator().next());
+	}
+
+	@Test
+	void mpoRoundTripPreservesFixedDateFsNegativeFiftyPercentDurationLag() throws Exception {
+		Project project = projectForRoundTrip();
+		project.setWorkCalendar(com.microproject.pm.calendar.CalendarService.getInstance().getStandardInstance()
+			.copyForBaselineSnapshot());
+		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
+		long mondayTwelve = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 12);
+		long mondayThirteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 13);
+		long mondaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 17);
+		long tuesdayThirteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 13);
+		long negativeHalfDurationPercent = com.microproject.datatype.Duration.setAsPercent(
+			com.microproject.datatype.Duration.setPercentAsDecimal(0L, -0.5F));
+		NormalTask predecessor = (NormalTask) firstTask(project);
+		predecessor.setName("MPO negative percent FS predecessor");
+		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		successor.setName("MPO negative percent FS successor");
+		NormalTask unrelated = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		unrelated.setName("MPO negative percent FS unrelated");
+		long oneDay = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		predecessor.setDuration(oneDay);
+		successor.setDuration(oneDay);
+		unrelated.setDuration(oneDay);
+		predecessor.setManualDates(mondayEight, mondaySeventeen);
+		successor.setManualDates(mondayEight, mondaySeventeen);
+		unrelated.setManualDates(mondayEight, mondaySeventeen);
+		DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.FS, negativeHalfDurationPercent, this);
+		successor.setManuallyScheduled(false);
+		project.setStart(mondayEight);
+		project.recalculate();
+		assertEquals(mondayThirteen, successor.getStart());
+		assertEquals(tuesdayThirteen, successor.getEnd());
+
+		assignPositiveUniqueIds(project);
+		long predecessorId = predecessor.getUniqueId();
+		long successorId = successor.getUniqueId();
+		Project reopened = loadFromBytes(saveProjectBytes(project));
+		reopened.recalculate();
+		NormalTask restoredPredecessor = (NormalTask) findByName(reopened, "MPO negative percent FS predecessor");
+		NormalTask restoredSuccessor = (NormalTask) findByName(reopened, "MPO negative percent FS successor");
+		NormalTask restoredUnrelated = (NormalTask) findByName(reopened, "MPO negative percent FS unrelated");
+		assertNotNull(restoredPredecessor);
+		assertNotNull(restoredSuccessor);
+		assertNotNull(restoredUnrelated);
+		assertEquals(predecessorId, restoredPredecessor.getUniqueId());
+		assertEquals(successorId, restoredSuccessor.getUniqueId());
+		assertEquals(mondayEight, restoredPredecessor.getStart());
+		assertEquals(mondaySeventeen, restoredPredecessor.getEnd());
+		assertEquals(mondayThirteen, restoredSuccessor.getStart());
+		assertEquals(tuesdayThirteen, restoredSuccessor.getEnd());
+		assertEquals(mondayEight, restoredUnrelated.getStart());
+		assertEquals(mondaySeventeen, restoredUnrelated.getEnd());
+		assertEquals(1, restoredPredecessor.getSuccessorList().size());
+		Dependency restoredDependency = (Dependency) restoredPredecessor.getSuccessorList().iterator().next();
+		assertEquals(DependencyType.FS, restoredDependency.getDependencyType());
+		assertEquals(negativeHalfDurationPercent, restoredDependency.getLag());
+		assertTrue(com.microproject.datatype.Duration.isPercent(restoredDependency.getLag()));
+		assertEquals(-0.5F, com.microproject.datatype.Duration.getPercentAsDecimal(restoredDependency.getLag()));
+		assertEquals(-oneDay / 2, com.microproject.datatype.Duration.millis(restoredDependency.getLeadValue()));
+		assertEquals(mondayTwelve, restoredDependency.calcForwardDependencyDate(
+			restoredPredecessor.getStart(), restoredPredecessor.getEnd(), true));
+		assertSame(restoredPredecessor, restoredDependency.getPredecessor());
+		assertSame(restoredSuccessor, restoredDependency.getSuccessor());
+		assertSame(restoredDependency, restoredSuccessor.getPredecessorList().iterator().next());
+	}
+
+	@Test
+	void mpoRoundTripPreservesFixedDateSfFiftyPercentDurationLag() throws Exception {
+		Project project = projectForRoundTrip();
+		project.setWorkCalendar(com.microproject.pm.calendar.CalendarService.getInstance().getStandardInstance()
+			.copyForBaselineSnapshot());
+		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
+		long mondayThirteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 13);
+		long mondaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 17);
+		long tuesdayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 8);
+		long tuesdayThirteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 13);
+		long tuesdaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 17);
+		long halfDurationPercent = com.microproject.datatype.Duration.setAsPercent(
+			com.microproject.datatype.Duration.setPercentAsDecimal(0L, 0.5F));
+		NormalTask predecessor = (NormalTask) firstTask(project);
+		predecessor.setName("MPO percent SF predecessor");
+		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		successor.setName("MPO percent SF successor");
+		NormalTask unrelated = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		unrelated.setName("MPO percent SF unrelated");
+		long oneDay = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		predecessor.setDuration(oneDay);
+		successor.setDuration(oneDay);
+		unrelated.setDuration(oneDay);
+		predecessor.setManualDates(tuesdayEight, tuesdaySeventeen);
+		successor.setManualDates(mondayEight, mondaySeventeen);
+		unrelated.setManualDates(mondayEight, mondaySeventeen);
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.SF, halfDurationPercent, this);
+		successor.setManuallyScheduled(false);
+		project.setStart(mondayEight);
+		project.recalculate();
+		assertEquals(tuesdayThirteen, predecessor.getEffectiveWorkCalendar().add(
+			predecessor.getStart(), dependency.getLeadValue(), false));
+		assertEquals(mondayThirteen, successor.getStart());
+		assertEquals(tuesdayThirteen, successor.getEnd());
+
+		assignPositiveUniqueIds(project);
+		long predecessorId = predecessor.getUniqueId();
+		long successorId = successor.getUniqueId();
+		Project reopened = loadFromBytes(saveProjectBytes(project));
+		reopened.recalculate();
+		NormalTask restoredPredecessor = (NormalTask) findByName(reopened, "MPO percent SF predecessor");
+		NormalTask restoredSuccessor = (NormalTask) findByName(reopened, "MPO percent SF successor");
+		NormalTask restoredUnrelated = (NormalTask) findByName(reopened, "MPO percent SF unrelated");
+		assertNotNull(restoredPredecessor);
+		assertNotNull(restoredSuccessor);
+		assertNotNull(restoredUnrelated);
+		assertEquals(predecessorId, restoredPredecessor.getUniqueId());
+		assertEquals(successorId, restoredSuccessor.getUniqueId());
+		assertEquals(tuesdayEight, restoredPredecessor.getStart());
+		assertEquals(tuesdaySeventeen, restoredPredecessor.getEnd());
+		assertEquals(mondayThirteen, restoredSuccessor.getStart());
+		assertEquals(tuesdayThirteen, restoredSuccessor.getEnd());
+		assertEquals(mondayEight, restoredUnrelated.getStart());
+		assertEquals(mondaySeventeen, restoredUnrelated.getEnd());
+		assertEquals(1, restoredPredecessor.getSuccessorList().size());
+		Dependency restoredDependency = (Dependency) restoredPredecessor.getSuccessorList().iterator().next();
+		assertEquals(DependencyType.SF, restoredDependency.getDependencyType());
+		assertEquals(halfDurationPercent, restoredDependency.getLag());
+		assertTrue(com.microproject.datatype.Duration.isPercent(restoredDependency.getLag()));
+		assertEquals(0.5F, com.microproject.datatype.Duration.getPercentAsDecimal(restoredDependency.getLag()));
+		assertSame(restoredPredecessor, restoredDependency.getPredecessor());
+		assertSame(restoredSuccessor, restoredDependency.getSuccessor());
+		assertSame(restoredDependency, restoredSuccessor.getPredecessorList().iterator().next());
+	}
+
+	@Test
+	void mpoRoundTripPreservesFixedDateSfNegativeFiftyPercentDurationLag() throws Exception {
+		Project project = projectForRoundTrip();
+		project.setWorkCalendar(com.microproject.pm.calendar.CalendarService.getInstance().getStandardInstance()
+			.copyForBaselineSnapshot());
+		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
+		long mondayThirteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 13);
+		long mondaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 17);
+		long tuesdayTwelve = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 12);
+		long tuesdayThirteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 13);
+		long wednesdayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 5, 8);
+		long wednesdaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 5, 17);
+		long negativeHalfDurationPercent = com.microproject.datatype.Duration.setAsPercent(
+			com.microproject.datatype.Duration.setPercentAsDecimal(0L, -0.5F));
+		NormalTask predecessor = (NormalTask) firstTask(project);
+		predecessor.setName("MPO negative percent SF predecessor");
+		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		successor.setName("MPO negative percent SF successor");
+		NormalTask unrelated = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		unrelated.setName("MPO negative percent SF unrelated");
+		long oneDay = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		predecessor.setDuration(oneDay);
+		successor.setDuration(oneDay);
+		unrelated.setDuration(oneDay);
+		predecessor.setManualDates(wednesdayEight, wednesdaySeventeen);
+		successor.setManualDates(mondayEight, mondaySeventeen);
+		unrelated.setManualDates(mondayEight, mondaySeventeen);
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.SF, negativeHalfDurationPercent, this);
+		successor.setManuallyScheduled(false);
+		project.setStart(mondayEight);
+		project.recalculate();
+		assertEquals(-oneDay / 2, com.microproject.datatype.Duration.millis(dependency.getLeadValue()));
+		assertEquals(tuesdayTwelve, predecessor.getEffectiveWorkCalendar().add(
+			predecessor.getStart(), dependency.getLeadValue(), false));
+		assertEquals(mondayThirteen, successor.getStart());
+		assertEquals(tuesdayThirteen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+
+		assignPositiveUniqueIds(project);
+		long predecessorId = predecessor.getUniqueId();
+		long successorId = successor.getUniqueId();
+		Project reopened = loadFromBytes(saveProjectBytes(project));
+		reopened.recalculate();
+		NormalTask restoredPredecessor = (NormalTask) findByName(reopened, "MPO negative percent SF predecessor");
+		NormalTask restoredSuccessor = (NormalTask) findByName(reopened, "MPO negative percent SF successor");
+		NormalTask restoredUnrelated = (NormalTask) findByName(reopened, "MPO negative percent SF unrelated");
+		assertNotNull(restoredPredecessor);
+		assertNotNull(restoredSuccessor);
+		assertNotNull(restoredUnrelated);
+		assertEquals(predecessorId, restoredPredecessor.getUniqueId());
+		assertEquals(successorId, restoredSuccessor.getUniqueId());
+		assertEquals(wednesdayEight, restoredPredecessor.getStart());
+		assertEquals(wednesdaySeventeen, restoredPredecessor.getEnd());
+		assertEquals(mondayThirteen, restoredSuccessor.getStart());
+		assertEquals(tuesdayThirteen, restoredSuccessor.getEnd());
+		assertEquals(mondayEight, restoredUnrelated.getStart());
+		assertEquals(mondaySeventeen, restoredUnrelated.getEnd());
+		assertEquals(1, restoredPredecessor.getSuccessorList().size());
+		Dependency restoredDependency = (Dependency) restoredPredecessor.getSuccessorList().iterator().next();
+		assertEquals(DependencyType.SF, restoredDependency.getDependencyType());
+		assertEquals(negativeHalfDurationPercent, restoredDependency.getLag());
+		assertTrue(com.microproject.datatype.Duration.isPercent(restoredDependency.getLag()));
+		assertEquals(-0.5F, com.microproject.datatype.Duration.getPercentAsDecimal(restoredDependency.getLag()));
+		assertEquals(-oneDay / 2, com.microproject.datatype.Duration.millis(restoredDependency.getLeadValue()));
+		assertSame(restoredPredecessor, restoredDependency.getPredecessor());
+		assertSame(restoredSuccessor, restoredDependency.getSuccessor());
+		assertSame(restoredDependency, restoredSuccessor.getPredecessorList().iterator().next());
+	}
+
+	@Test
+	void mpoRoundTripPreservesFixedDateFsFourElapsedHourLag() throws Exception {
+		Project project = projectForRoundTrip();
+		project.setWorkCalendar(com.microproject.pm.calendar.CalendarService.getInstance().getStandardInstance()
+			.copyForBaselineSnapshot());
+		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
+		long mondayTwelve = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 12);
+		long mondaySixteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 16);
+		long mondaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 17);
+		long tuesdaySixteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 16);
+		long fourElapsedHours = com.microproject.datatype.Duration.setAsElapsed(4L * 60L * 60L * 1000L);
+		NormalTask predecessor = (NormalTask) firstTask(project);
+		predecessor.setName("MPO elapsed FS predecessor");
+		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		successor.setName("MPO elapsed FS successor");
+		NormalTask unrelated = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		unrelated.setName("MPO elapsed FS unrelated");
+		long oneDay = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		predecessor.setDuration(oneDay);
+		successor.setDuration(oneDay);
+		unrelated.setDuration(oneDay);
+		predecessor.setManualDates(mondayEight, mondayTwelve);
+		successor.setManualDates(mondayEight, mondaySeventeen);
+		unrelated.setManualDates(mondayEight, mondaySeventeen);
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.FS, fourElapsedHours, this);
+		successor.setManuallyScheduled(false);
+		project.setStart(mondayEight);
+		project.recalculate();
+		assertEquals(mondaySixteen, successor.getStart());
+		assertEquals(tuesdaySixteen, successor.getEnd());
+
+		assignPositiveUniqueIds(project);
+		long predecessorId = predecessor.getUniqueId();
+		long successorId = successor.getUniqueId();
+		Project reopened = loadFromBytes(saveProjectBytes(project));
+		reopened.recalculate();
+		NormalTask restoredPredecessor = (NormalTask) findByName(reopened, "MPO elapsed FS predecessor");
+		NormalTask restoredSuccessor = (NormalTask) findByName(reopened, "MPO elapsed FS successor");
+		NormalTask restoredUnrelated = (NormalTask) findByName(reopened, "MPO elapsed FS unrelated");
+		assertNotNull(restoredPredecessor);
+		assertNotNull(restoredSuccessor);
+		assertNotNull(restoredUnrelated);
+		assertEquals(predecessorId, restoredPredecessor.getUniqueId());
+		assertEquals(successorId, restoredSuccessor.getUniqueId());
+		assertEquals(mondayEight, restoredPredecessor.getStart());
+		assertEquals(mondayTwelve, restoredPredecessor.getEnd());
+		assertEquals(mondaySixteen, restoredSuccessor.getStart());
+		assertEquals(tuesdaySixteen, restoredSuccessor.getEnd());
+		assertEquals(mondayEight, restoredUnrelated.getStart());
+		assertEquals(mondaySeventeen, restoredUnrelated.getEnd());
+		assertEquals(1, restoredPredecessor.getSuccessorList().size());
+		Dependency restoredDependency = (Dependency) restoredPredecessor.getSuccessorList().iterator().next();
+		assertEquals(DependencyType.FS, restoredDependency.getDependencyType());
+		assertEquals(fourElapsedHours, restoredDependency.getLag());
+		assertTrue(com.microproject.datatype.Duration.isElapsed(restoredDependency.getLag()));
+		assertSame(restoredPredecessor, restoredDependency.getPredecessor());
+		assertSame(restoredSuccessor, restoredDependency.getSuccessor());
+		assertSame(restoredDependency, restoredSuccessor.getPredecessorList().iterator().next());
+	}
+
+	@Test
+	void mpoRoundTripPreservesFixedDateFsNegativeFourElapsedHourLag() throws Exception {
+		Project project = projectForRoundTrip();
+		project.setWorkCalendar(com.microproject.pm.calendar.CalendarService.getInstance().getStandardInstance()
+			.copyForBaselineSnapshot());
+		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
+		long mondayFourteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 14);
+		long mondayTen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 10);
+		long mondaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 17);
+		long fourElapsedHours = com.microproject.datatype.Duration.setAsElapsed(4L * 60L * 60L * 1000L);
+		NormalTask predecessor = (NormalTask) firstTask(project);
+		predecessor.setName("MPO negative elapsed FS predecessor");
+		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		successor.setName("MPO negative elapsed FS successor");
+		NormalTask unrelated = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		unrelated.setName("MPO negative elapsed FS unrelated");
+		long oneDay = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		predecessor.setDuration(oneDay);
+		successor.setDuration(3L * 60L * 60L * 1000L);
+		unrelated.setDuration(oneDay);
+		predecessor.setManualDates(mondayEight, mondayFourteen);
+		predecessor.setDuration(5L * 60L * 60L * 1000L);
+		successor.setManualDates(mondayEight, mondaySeventeen);
+		successor.setDuration(3L * 60L * 60L * 1000L);
+		unrelated.setManualDates(mondayEight, mondaySeventeen);
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.FS, -fourElapsedHours, this);
+		successor.setManuallyScheduled(false);
+		project.recalculate();
+		long successorFinish = mondayFourteen;
+		assertEquals(mondayTen, predecessor.getEnd() + com.microproject.datatype.Duration.millis(dependency.getLag()));
+		assertEquals(mondayTen, successor.getStart());
+		assertEquals(successorFinish, successor.getEnd());
+
+		assignPositiveUniqueIds(project);
+		long predecessorId = predecessor.getUniqueId();
+		long successorId = successor.getUniqueId();
+		Project reopened = loadFromBytes(saveProjectBytes(project));
+		reopened.recalculate();
+		NormalTask restoredPredecessor = (NormalTask) findByName(reopened, "MPO negative elapsed FS predecessor");
+		NormalTask restoredSuccessor = (NormalTask) findByName(reopened, "MPO negative elapsed FS successor");
+		NormalTask restoredUnrelated = (NormalTask) findByName(reopened, "MPO negative elapsed FS unrelated");
+		assertNotNull(restoredPredecessor);
+		assertNotNull(restoredSuccessor);
+		assertNotNull(restoredUnrelated);
+		assertEquals(predecessorId, restoredPredecessor.getUniqueId());
+		assertEquals(successorId, restoredSuccessor.getUniqueId());
+		assertEquals(mondayEight, restoredPredecessor.getStart());
+		assertEquals(mondayFourteen, restoredPredecessor.getEnd());
+		assertEquals(mondayTen, restoredSuccessor.getStart());
+		assertEquals(successorFinish, restoredSuccessor.getEnd());
+		assertEquals(mondayEight, restoredUnrelated.getStart());
+		assertEquals(mondaySeventeen, restoredUnrelated.getEnd());
+		assertEquals(1, restoredPredecessor.getSuccessorList().size());
+		Dependency restoredDependency = (Dependency) restoredPredecessor.getSuccessorList().iterator().next();
+		assertEquals(DependencyType.FS, restoredDependency.getDependencyType());
+		assertEquals(-fourElapsedHours, restoredDependency.getLag());
+		assertTrue(com.microproject.datatype.Duration.isElapsed(restoredDependency.getLag()));
+		assertSame(restoredPredecessor, restoredDependency.getPredecessor());
+		assertSame(restoredSuccessor, restoredDependency.getSuccessor());
+		assertSame(restoredDependency, restoredSuccessor.getPredecessorList().iterator().next());
+	}
+
+	@Test
+	void mpoRoundTripPreservesFixedDateSsNegativeFourElapsedHourLag() throws Exception {
+		Project project = projectForRoundTrip();
+		project.setWorkCalendar(com.microproject.pm.calendar.CalendarService.getInstance().getStandardInstance()
+			.copyForBaselineSnapshot());
+		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
+		long mondaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 17);
+		long tuesdayFour = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 4);
+		long tuesdayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 8);
+		long tuesdayEleven = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 11);
+		long tuesdayFourteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 14);
+		long fourElapsedHours = com.microproject.datatype.Duration.setAsElapsed(4L * 60L * 60L * 1000L);
+		// Document-derived: Microsoft defines SS endpoints and negative lag as lead/overlap.
+		// Exact subtraction and standard-calendar normalization are inferred, not measured.
+		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
+		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
+		NormalTask predecessor = (NormalTask) firstTask(project);
+		predecessor.setName("MPO negative elapsed SS predecessor");
+		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		successor.setName("MPO negative elapsed SS successor");
+		NormalTask unrelated = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		unrelated.setName("MPO negative elapsed SS unrelated");
+		predecessor.setDuration(5L * 60L * 60L * 1000L);
+		successor.setDuration(3L * 60L * 60L * 1000L);
+		unrelated.setDuration(3L * 60L * 60L * 1000L);
+		predecessor.setManualDates(tuesdayEight, tuesdayFourteen);
+		successor.setManualDates(mondayEight, mondaySeventeen);
+		unrelated.setManualDates(mondayEight, mondaySeventeen);
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.SS, -fourElapsedHours, this);
+		successor.setManuallyScheduled(false);
+		project.setStart(mondayEight);
+		project.recalculate();
+		assertEquals(tuesdayFour, predecessor.getStart() + com.microproject.datatype.Duration.millis(dependency.getLag()));
+		assertEquals(tuesdayEight, successor.getStart());
+		assertEquals(tuesdayEleven, successor.getEnd());
+		assertTrue(successor.getStart() > mondayEight);
+		assertEquals(tuesdayEight, predecessor.getStart());
+		assertEquals(tuesdayFourteen, predecessor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+
+		assignPositiveUniqueIds(project);
+		long predecessorId = predecessor.getUniqueId();
+		long successorId = successor.getUniqueId();
+		Project reopened = loadFromBytes(saveProjectBytes(project));
+		reopened.recalculate();
+		NormalTask restoredPredecessor = (NormalTask) findByName(reopened, "MPO negative elapsed SS predecessor");
+		NormalTask restoredSuccessor = (NormalTask) findByName(reopened, "MPO negative elapsed SS successor");
+		NormalTask restoredUnrelated = (NormalTask) findByName(reopened, "MPO negative elapsed SS unrelated");
+		assertNotNull(restoredPredecessor);
+		assertNotNull(restoredSuccessor);
+		assertNotNull(restoredUnrelated);
+		assertEquals(predecessorId, restoredPredecessor.getUniqueId());
+		assertEquals(successorId, restoredSuccessor.getUniqueId());
+		assertEquals(tuesdayEight, restoredPredecessor.getStart());
+		assertEquals(tuesdayFourteen, restoredPredecessor.getEnd());
+		assertEquals(tuesdayEight, restoredSuccessor.getStart());
+		assertEquals(tuesdayEleven, restoredSuccessor.getEnd());
+		assertEquals(mondayEight, restoredUnrelated.getStart());
+		assertEquals(mondaySeventeen, restoredUnrelated.getEnd());
+		assertEquals(1, restoredPredecessor.getSuccessorList().size());
+		Dependency restoredDependency = (Dependency) restoredPredecessor.getSuccessorList().iterator().next();
+		assertEquals(DependencyType.SS, restoredDependency.getDependencyType());
+		assertEquals(-fourElapsedHours, restoredDependency.getLag());
+		assertTrue(com.microproject.datatype.Duration.isElapsed(restoredDependency.getLag()));
+		assertSame(restoredPredecessor, restoredDependency.getPredecessor());
+		assertSame(restoredSuccessor, restoredDependency.getSuccessor());
+		assertSame(restoredDependency, restoredSuccessor.getPredecessorList().iterator().next());
+	}
+
+	@Test
+	void mpoRoundTripPreservesFixedDateFfNegativeFourElapsedHourLag() throws Exception {
+		Project project = projectForRoundTrip();
+		project.setWorkCalendar(com.microproject.pm.calendar.CalendarService.getInstance().getStandardInstance()
+			.copyForBaselineSnapshot());
+		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
+		long mondaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 17);
+		long tuesdayFour = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 4);
+		long tuesdayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 8);
+		long tuesdayTen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 10);
+		long tuesdayFourteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 14);
+		long fourElapsedHours = com.microproject.datatype.Duration.setAsElapsed(4L * 60L * 60L * 1000L);
+		// Document-derived: Microsoft defines FF endpoint ordering and negative lag as lead.
+		// The precise wall-clock boundary and calendar normalization here are inferred.
+		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
+		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
+		NormalTask predecessor = (NormalTask) firstTask(project);
+		predecessor.setName("MPO negative elapsed FF predecessor");
+		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		successor.setName("MPO negative elapsed FF successor");
+		NormalTask unrelated = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		unrelated.setName("MPO negative elapsed FF unrelated");
+		predecessor.setDuration(5L * 60L * 60L * 1000L);
+		successor.setDuration(2L * 60L * 60L * 1000L);
+		unrelated.setDuration(3L * 60L * 60L * 1000L);
+		predecessor.setManualDates(tuesdayEight, tuesdayFourteen);
+		successor.setManualDates(mondayEight, mondaySeventeen);
+		unrelated.setManualDates(mondayEight, mondaySeventeen);
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.FF, -fourElapsedHours, this);
+		successor.setManuallyScheduled(false);
+		project.setStart(mondayEight);
+		project.recalculate();
+		assertEquals(tuesdayTen, predecessor.getEnd() + com.microproject.datatype.Duration.millis(dependency.getLag()));
+		assertEquals(tuesdayEight, successor.getStart());
+		assertEquals(tuesdayTen, successor.getEnd());
+		assertTrue(successor.getStart() > mondayEight);
+		assertEquals(tuesdayEight, predecessor.getStart());
+		assertEquals(tuesdayFourteen, predecessor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+
+		assignPositiveUniqueIds(project);
+		long predecessorId = predecessor.getUniqueId();
+		long successorId = successor.getUniqueId();
+		Project reopened = loadFromBytes(saveProjectBytes(project));
+		reopened.recalculate();
+		NormalTask restoredPredecessor = (NormalTask) findByName(reopened, "MPO negative elapsed FF predecessor");
+		NormalTask restoredSuccessor = (NormalTask) findByName(reopened, "MPO negative elapsed FF successor");
+		NormalTask restoredUnrelated = (NormalTask) findByName(reopened, "MPO negative elapsed FF unrelated");
+		assertNotNull(restoredPredecessor);
+		assertNotNull(restoredSuccessor);
+		assertNotNull(restoredUnrelated);
+		assertEquals(predecessorId, restoredPredecessor.getUniqueId());
+		assertEquals(successorId, restoredSuccessor.getUniqueId());
+		assertEquals(tuesdayEight, restoredPredecessor.getStart());
+		assertEquals(tuesdayFourteen, restoredPredecessor.getEnd());
+		assertEquals(tuesdayEight, restoredSuccessor.getStart());
+		assertEquals(tuesdayTen, restoredSuccessor.getEnd());
+		assertEquals(mondayEight, restoredUnrelated.getStart());
+		assertEquals(mondaySeventeen, restoredUnrelated.getEnd());
+		assertEquals(1, restoredPredecessor.getSuccessorList().size());
+		Dependency restoredDependency = (Dependency) restoredPredecessor.getSuccessorList().iterator().next();
+		assertEquals(DependencyType.FF, restoredDependency.getDependencyType());
+		assertEquals(-fourElapsedHours, restoredDependency.getLag());
+		assertTrue(com.microproject.datatype.Duration.isElapsed(restoredDependency.getLag()));
+		assertSame(restoredPredecessor, restoredDependency.getPredecessor());
+		assertSame(restoredSuccessor, restoredDependency.getSuccessor());
+		assertSame(restoredDependency, restoredSuccessor.getPredecessorList().iterator().next());
+	}
+
+	@Test
+	void mpoRoundTripPreservesFixedDateSfNegativeFourElapsedHourLag() throws Exception {
+		Project project = projectForRoundTrip();
+		project.setWorkCalendar(com.microproject.pm.calendar.CalendarService.getInstance().getStandardInstance()
+			.copyForBaselineSnapshot());
+		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
+		long mondaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 17);
+		long tuesdayFour = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 4);
+		long tuesdayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 8);
+		long tuesdayEleven = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 11);
+		long tuesdayFourteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 14);
+		long fourElapsedHours = com.microproject.datatype.Duration.setAsElapsed(4L * 60L * 60L * 1000L);
+		// Document-derived: Microsoft defines SF endpoint ordering and negative lag as lead/overlap.
+		// The exact wall-clock boundary and standard-calendar normalization below are inferred.
+		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
+		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
+		NormalTask predecessor = (NormalTask) firstTask(project);
+		predecessor.setName("MPO negative elapsed SF predecessor");
+		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		successor.setName("MPO negative elapsed SF successor");
+		NormalTask unrelated = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		unrelated.setName("MPO negative elapsed SF unrelated");
+		predecessor.setDuration(5L * 60L * 60L * 1000L);
+		successor.setDuration(3L * 60L * 60L * 1000L);
+		unrelated.setDuration(3L * 60L * 60L * 1000L);
+		predecessor.setManualDates(tuesdayEight, tuesdayFourteen);
+		successor.setManualDates(mondayEight, mondaySeventeen);
+		unrelated.setManualDates(mondayEight, mondaySeventeen);
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.SF, -fourElapsedHours, this);
+		successor.setManuallyScheduled(false);
+		project.setStart(mondayEight);
+		project.recalculate();
+		assertEquals(tuesdayFour, predecessor.getStart() + com.microproject.datatype.Duration.millis(dependency.getLag()));
+		assertEquals(tuesdayEight, successor.getStart());
+		assertEquals(tuesdayEleven, successor.getEnd());
+		assertEquals(tuesdayEight, predecessor.getStart());
+		assertEquals(tuesdayFourteen, predecessor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+
+		assignPositiveUniqueIds(project);
+		long predecessorId = predecessor.getUniqueId();
+		long successorId = successor.getUniqueId();
+		Project reopened = loadFromBytes(saveProjectBytes(project));
+		reopened.recalculate();
+		NormalTask restoredPredecessor = (NormalTask) findByName(reopened, "MPO negative elapsed SF predecessor");
+		NormalTask restoredSuccessor = (NormalTask) findByName(reopened, "MPO negative elapsed SF successor");
+		NormalTask restoredUnrelated = (NormalTask) findByName(reopened, "MPO negative elapsed SF unrelated");
+		assertNotNull(restoredPredecessor);
+		assertNotNull(restoredSuccessor);
+		assertNotNull(restoredUnrelated);
+		assertEquals(predecessorId, restoredPredecessor.getUniqueId());
+		assertEquals(successorId, restoredSuccessor.getUniqueId());
+		assertEquals(tuesdayEight, restoredPredecessor.getStart());
+		assertEquals(tuesdayFourteen, restoredPredecessor.getEnd());
+		assertEquals(tuesdayEight, restoredSuccessor.getStart());
+		assertEquals(tuesdayEleven, restoredSuccessor.getEnd());
+		assertEquals(mondayEight, restoredUnrelated.getStart());
+		assertEquals(mondaySeventeen, restoredUnrelated.getEnd());
+		assertEquals(1, restoredPredecessor.getSuccessorList().size());
+		Dependency restoredDependency = (Dependency) restoredPredecessor.getSuccessorList().iterator().next();
+		assertEquals(DependencyType.SF, restoredDependency.getDependencyType());
+		assertEquals(-fourElapsedHours, restoredDependency.getLag());
+		assertTrue(com.microproject.datatype.Duration.isElapsed(restoredDependency.getLag()));
+		assertSame(restoredPredecessor, restoredDependency.getPredecessor());
+		assertSame(restoredSuccessor, restoredDependency.getSuccessor());
+		assertSame(restoredDependency, restoredSuccessor.getPredecessorList().iterator().next());
+	}
+
+	@Test
+	void mpoRoundTripPreservesFixedDateSsFourElapsedHourLag() throws Exception {
+		Project project = projectForRoundTrip();
+		project.setWorkCalendar(com.microproject.pm.calendar.CalendarService.getInstance().getStandardInstance()
+			.copyForBaselineSnapshot());
+		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
+		long mondayTwelve = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 12);
+		long mondayThirteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 13);
+		long mondaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 17);
+		long tuesdayThirteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 13);
+		long fourElapsedHours = com.microproject.datatype.Duration.setAsElapsed(4L * 60L * 60L * 1000L);
+		NormalTask predecessor = (NormalTask) firstTask(project);
+		predecessor.setName("MPO elapsed SS predecessor");
+		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		successor.setName("MPO elapsed SS successor");
+		NormalTask unrelated = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		unrelated.setName("MPO elapsed SS unrelated");
+		long oneDay = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		predecessor.setDuration(oneDay);
+		successor.setDuration(oneDay);
+		unrelated.setDuration(oneDay);
+		predecessor.setManualDates(mondayEight, mondayTwelve);
+		successor.setManualDates(mondayEight, mondaySeventeen);
+		unrelated.setManualDates(mondayEight, mondaySeventeen);
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.SS, fourElapsedHours, this);
+		successor.setManuallyScheduled(false);
+		project.setStart(mondayEight);
+		project.recalculate();
+		assertEquals(mondayThirteen, successor.getStart());
+		assertEquals(tuesdayThirteen, successor.getEnd());
+
+		assignPositiveUniqueIds(project);
+		long predecessorId = predecessor.getUniqueId();
+		long successorId = successor.getUniqueId();
+		Project reopened = loadFromBytes(saveProjectBytes(project));
+		reopened.recalculate();
+		NormalTask restoredPredecessor = (NormalTask) findByName(reopened, "MPO elapsed SS predecessor");
+		NormalTask restoredSuccessor = (NormalTask) findByName(reopened, "MPO elapsed SS successor");
+		NormalTask restoredUnrelated = (NormalTask) findByName(reopened, "MPO elapsed SS unrelated");
+		assertNotNull(restoredPredecessor);
+		assertNotNull(restoredSuccessor);
+		assertNotNull(restoredUnrelated);
+		assertEquals(predecessorId, restoredPredecessor.getUniqueId());
+		assertEquals(successorId, restoredSuccessor.getUniqueId());
+		assertEquals(mondayEight, restoredPredecessor.getStart());
+		assertEquals(mondayTwelve, restoredPredecessor.getEnd());
+		assertEquals(mondayThirteen, restoredSuccessor.getStart());
+		assertEquals(tuesdayThirteen, restoredSuccessor.getEnd());
+		assertEquals(mondayEight, restoredUnrelated.getStart());
+		assertEquals(mondaySeventeen, restoredUnrelated.getEnd());
+		assertEquals(1, restoredPredecessor.getSuccessorList().size());
+		Dependency restoredDependency = (Dependency) restoredPredecessor.getSuccessorList().iterator().next();
+		assertEquals(DependencyType.SS, restoredDependency.getDependencyType());
+		assertEquals(fourElapsedHours, restoredDependency.getLag());
+		assertTrue(com.microproject.datatype.Duration.isElapsed(restoredDependency.getLag()));
+		assertSame(restoredPredecessor, restoredDependency.getPredecessor());
+		assertSame(restoredSuccessor, restoredDependency.getSuccessor());
+		assertSame(restoredDependency, restoredSuccessor.getPredecessorList().iterator().next());
+	}
+
+	@Test
+	void mpoRoundTripPreservesFixedDateFfFourElapsedHourLag() throws Exception {
+		Project project = projectForRoundTrip();
+		project.setWorkCalendar(com.microproject.pm.calendar.CalendarService.getInstance().getStandardInstance()
+			.copyForBaselineSnapshot());
+		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
+		long mondayTwelve = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 12);
+		long mondayFourteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 14);
+		long mondaySixteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 16);
+		long mondaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 17);
+		long fourElapsedHours = com.microproject.datatype.Duration.setAsElapsed(4L * 60L * 60L * 1000L);
+		NormalTask predecessor = (NormalTask) firstTask(project);
+		predecessor.setName("MPO elapsed FF predecessor");
+		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		successor.setName("MPO elapsed FF successor");
+		NormalTask unrelated = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		unrelated.setName("MPO elapsed FF unrelated");
+		long oneDay = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		long twoHours = oneDay / 4;
+		predecessor.setDuration(oneDay);
+		successor.setDuration(twoHours);
+		unrelated.setDuration(oneDay);
+		predecessor.setManualDates(mondayEight, mondayTwelve);
+		successor.setManualDates(mondayEight, mondayTwelve);
+		unrelated.setManualDates(mondayEight, mondaySeventeen);
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.FF, fourElapsedHours, this);
+		successor.setManuallyScheduled(false);
+		project.setStart(mondayEight);
+		project.recalculate();
+		assertEquals(mondayFourteen, successor.getStart());
+		assertEquals(mondaySixteen, successor.getEnd());
+
+		assignPositiveUniqueIds(project);
+		long predecessorId = predecessor.getUniqueId();
+		long successorId = successor.getUniqueId();
+		Project reopened = loadFromBytes(saveProjectBytes(project));
+		reopened.recalculate();
+		NormalTask restoredPredecessor = (NormalTask) findByName(reopened, "MPO elapsed FF predecessor");
+		NormalTask restoredSuccessor = (NormalTask) findByName(reopened, "MPO elapsed FF successor");
+		NormalTask restoredUnrelated = (NormalTask) findByName(reopened, "MPO elapsed FF unrelated");
+		assertNotNull(restoredPredecessor);
+		assertNotNull(restoredSuccessor);
+		assertNotNull(restoredUnrelated);
+		assertEquals(predecessorId, restoredPredecessor.getUniqueId());
+		assertEquals(successorId, restoredSuccessor.getUniqueId());
+		assertEquals(mondayEight, restoredPredecessor.getStart());
+		assertEquals(mondayTwelve, restoredPredecessor.getEnd());
+		assertEquals(mondayFourteen, restoredSuccessor.getStart());
+		assertEquals(mondaySixteen, restoredSuccessor.getEnd());
+		assertEquals(mondayEight, restoredUnrelated.getStart());
+		assertEquals(mondaySeventeen, restoredUnrelated.getEnd());
+		assertEquals(1, restoredPredecessor.getSuccessorList().size());
+		Dependency restoredDependency = (Dependency) restoredPredecessor.getSuccessorList().iterator().next();
+		assertEquals(DependencyType.FF, restoredDependency.getDependencyType());
+		assertEquals(fourElapsedHours, restoredDependency.getLag());
+		assertTrue(com.microproject.datatype.Duration.isElapsed(restoredDependency.getLag()));
+		assertSame(restoredPredecessor, restoredDependency.getPredecessor());
+		assertSame(restoredSuccessor, restoredDependency.getSuccessor());
+		assertSame(restoredDependency, restoredSuccessor.getPredecessorList().iterator().next());
+	}
+
+	@Test
+	void mpoRoundTripPreservesFixedDateSfFourElapsedHourLag() throws Exception {
+		Project project = projectForRoundTrip();
+		project.setWorkCalendar(com.microproject.pm.calendar.CalendarService.getInstance().getStandardInstance()
+			.copyForBaselineSnapshot());
+		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
+		long mondayTen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 10);
+		long mondayTwelve = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 12);
+		long mondayThirteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 13);
+		long mondaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 17);
+		long fourElapsedHours = com.microproject.datatype.Duration.setAsElapsed(4L * 60L * 60L * 1000L);
+		NormalTask predecessor = (NormalTask) firstTask(project);
+		predecessor.setName("MPO elapsed SF predecessor");
+		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		successor.setName("MPO elapsed SF successor");
+		NormalTask unrelated = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		unrelated.setName("MPO elapsed SF unrelated");
+		long oneDay = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		long twoHours = oneDay / 4;
+		predecessor.setDuration(oneDay);
+		successor.setDuration(twoHours);
+		unrelated.setDuration(oneDay);
+		predecessor.setManualDates(mondayEight, mondayTwelve);
+		successor.setManualDates(mondayEight, mondayTen);
+		unrelated.setManualDates(mondayEight, mondaySeventeen);
+		DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.SF, fourElapsedHours, this);
+		successor.setManuallyScheduled(false);
+		project.setStart(mondayEight);
+		project.recalculate();
+		assertEquals(mondayTen, successor.getStart());
+		assertEquals(mondayThirteen, successor.getEnd());
+
+		assignPositiveUniqueIds(project);
+		long predecessorId = predecessor.getUniqueId();
+		long successorId = successor.getUniqueId();
+		Project reopened = loadFromBytes(saveProjectBytes(project));
+		reopened.recalculate();
+		NormalTask restoredPredecessor = (NormalTask) findByName(reopened, "MPO elapsed SF predecessor");
+		NormalTask restoredSuccessor = (NormalTask) findByName(reopened, "MPO elapsed SF successor");
+		NormalTask restoredUnrelated = (NormalTask) findByName(reopened, "MPO elapsed SF unrelated");
+		assertNotNull(restoredPredecessor);
+		assertNotNull(restoredSuccessor);
+		assertNotNull(restoredUnrelated);
+		assertEquals(predecessorId, restoredPredecessor.getUniqueId());
+		assertEquals(successorId, restoredSuccessor.getUniqueId());
+		assertEquals(mondayEight, restoredPredecessor.getStart());
+		assertEquals(mondayTwelve, restoredPredecessor.getEnd());
+		assertEquals(mondayTen, restoredSuccessor.getStart());
+		assertEquals(mondayThirteen, restoredSuccessor.getEnd());
+		assertEquals(mondayEight, restoredUnrelated.getStart());
+		assertEquals(mondaySeventeen, restoredUnrelated.getEnd());
+		assertEquals(1, restoredPredecessor.getSuccessorList().size());
+		Dependency restoredDependency = (Dependency) restoredPredecessor.getSuccessorList().iterator().next();
+		assertEquals(DependencyType.SF, restoredDependency.getDependencyType());
+		assertEquals(fourElapsedHours, restoredDependency.getLag());
+		assertTrue(com.microproject.datatype.Duration.isElapsed(restoredDependency.getLag()));
+		assertEquals(mondayTwelve, restoredPredecessor.getStart()
+			+ com.microproject.datatype.Duration.millis(restoredDependency.getLag()),
+			"reloaded SF boundary is predecessor start plus the persisted elapsed lag");
+		assertSame(restoredPredecessor, restoredDependency.getPredecessor());
+		assertSame(restoredSuccessor, restoredDependency.getSuccessor());
+		assertSame(restoredDependency, restoredSuccessor.getPredecessorList().iterator().next());
+	}
+
+	@Test
+	void successfulRespectLinksManualFsWorkingLagSurvivesMpoRoundTrip() throws Exception {
+		Project original = projectForRoundTrip();
+		NormalTask predecessor = (NormalTask) firstTask(original);
+		predecessor.setName("Respect Links predecessor");
+		NormalTask successor = (NormalTask) original.createLocalTaskNode(null).getImpl();
+		successor.setName("Respect Links successor");
+		long projectStart = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
+		long staleFinish = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 17);
+		long predecessorFinish = staleFinish;
+		long predecessorStart = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
+		long successorStart = predecessorStart;
+		long successorFinish = staleFinish;
+		long eightHours = 8L * 60L * 60L * 1000L;
+		original.setStartDate(projectStart);
+		predecessor.setDuration(eightHours);
+		predecessor.setManualDates(predecessorStart, predecessorFinish);
+		predecessor.setManuallyScheduled(true);
+		successor.setDuration(eightHours);
+		successor.setManualDates(successorStart, successorFinish);
+		successor.setManuallyScheduled(true);
+		DependencyService.getInstance().newDependency(predecessor, successor, DependencyType.FS, eightHours, this);
+
+		RespectLinksService.Result result = new RespectLinksService().apply(original, List.of(successor));
+
+		assertEquals(1, result.movedCount());
+		assertTrue(successor.isManuallyScheduled(), "Respect Links preserves manual scheduling mode");
+		long expectedStart = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 5, 8);
+		long expectedFinish = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 5, 17);
+		assertEquals(expectedStart, successor.getStart());
+		assertEquals(expectedFinish, successor.getEnd());
+
+		Project reopened = loadFromBytes(saveProjectBytes(original));
+		NormalTask restoredPredecessor = null;
+		NormalTask restoredSuccessor = null;
+		for (java.util.Iterator<?> tasks = reopened.getTaskOutlineIterator(); tasks.hasNext();) {
+			Task candidate = (Task) tasks.next();
+			if ("Respect Links predecessor".equals(candidate.getName())) restoredPredecessor = (NormalTask) candidate;
+			if ("Respect Links successor".equals(candidate.getName())) restoredSuccessor = (NormalTask) candidate;
+		}
+		assertNotNull(restoredPredecessor);
+		assertNotNull(restoredSuccessor);
+		assertTrue(restoredSuccessor.isManuallyScheduled());
+		assertEquals(expectedStart, restoredSuccessor.getStart());
+		assertEquals(expectedFinish, restoredSuccessor.getEnd());
+		assertEquals(1, restoredSuccessor.getPredecessorList().size());
+		Dependency restoredDependency = (Dependency) restoredSuccessor.getPredecessorList().iterator().next();
+		assertEquals(DependencyType.Kind.FS, restoredDependency.getDependencyKind());
+		assertEquals(eightHours, restoredDependency.getLag());
+		assertSame(restoredPredecessor, restoredDependency.getPredecessor());
+		assertSame(restoredSuccessor, restoredDependency.getSuccessor());
+	}
+
 	@Test
 	void mpoRoundTripPreservesSfDependencyAndSuccessorStartConstraint() throws Exception {
 		Project original = projectForRoundTrip();
@@ -125,6 +1271,76 @@ class MpoFileImporterTest {
 	}
 
 	@Test
+	void mpoRoundTripPreservesSnetAndPositiveSfLagAcrossProjectCalendarException() throws Exception {
+		Project project = projectForRoundTrip();
+		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
+		long mondayThirteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 13);
+		long mondaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 17);
+		long tuesdayMidnight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 0);
+		long wednesdayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 5, 8);
+		long wednesdayThirteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 5, 13);
+		long fourHours = 4L * 60L * 60L * 1000L;
+		long eightHours = 8L * 60L * 60L * 1000L;
+		project.setStartDate(mondayEight);
+		var calendar = (com.microproject.pm.calendar.WorkingCalendar) project.getWorkCalendar();
+		calendar.addOrReplaceException(new com.microproject.pm.calendar.WorkDay(tuesdayMidnight));
+		NormalTask predecessor = (NormalTask) firstTask(project);
+		predecessor.setName("MPO SF lag predecessor");
+		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		successor.setName("MPO SF lag successor");
+		NormalTask unrelated = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		unrelated.setName("MPO SF lag unrelated");
+		predecessor.setDuration(fourHours);
+		successor.setDuration(fourHours);
+		unrelated.setDuration(fourHours);
+		predecessor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, mondayThirteen);
+		successor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, mondayEight);
+		unrelated.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, mondayEight);
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.SF, eightHours, this);
+		project.recalculate();
+		assertEquals(mondayThirteen, predecessor.getStart());
+		assertEquals(mondaySeventeen, predecessor.getEnd());
+		assertEquals(wednesdayEight, successor.getStart());
+		assertEquals(wednesdayThirteen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondayThirteen, unrelated.getEnd());
+		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, successor.getConstraintTypeKind());
+		assertEquals(mondayEight, successor.getConstraintDate());
+		assertEquals(DependencyType.SF, dependency.getDependencyType());
+		assertEquals(eightHours, dependency.getLag());
+		assertFalse(calendar.getConcreteInstance().getWorkDay(tuesdayMidnight).isWorking());
+
+		assignPositiveUniqueIds(project);
+		Project reopened = loadFromBytes(saveProjectBytes(project));
+		reopened.recalculate();
+		NormalTask restoredPredecessor = (NormalTask) findByName(reopened, "MPO SF lag predecessor");
+		NormalTask restoredSuccessor = (NormalTask) findByName(reopened, "MPO SF lag successor");
+		NormalTask restoredUnrelated = (NormalTask) findByName(reopened, "MPO SF lag unrelated");
+		assertNotNull(restoredPredecessor);
+		assertNotNull(restoredSuccessor);
+		assertNotNull(restoredUnrelated);
+		assertEquals(mondayThirteen, restoredPredecessor.getStart());
+		assertEquals(mondaySeventeen, restoredPredecessor.getEnd());
+		assertEquals(wednesdayEight, restoredSuccessor.getStart());
+		assertEquals(wednesdayThirteen, restoredSuccessor.getEnd());
+		assertEquals(mondayEight, restoredUnrelated.getStart());
+		assertEquals(mondayThirteen, restoredUnrelated.getEnd());
+		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, restoredSuccessor.getConstraintTypeKind());
+		assertEquals(mondayEight, restoredSuccessor.getConstraintDate());
+		assertFalse(((com.microproject.pm.calendar.WorkingCalendar) reopened.getWorkCalendar())
+			.getConcreteInstance().getWorkDay(tuesdayMidnight).isWorking());
+		assertEquals(1, restoredPredecessor.getSuccessorList().size());
+		Dependency restoredDependency = (Dependency) restoredPredecessor.getSuccessorList().iterator().next();
+		assertEquals(DependencyType.SF, restoredDependency.getDependencyType());
+		assertEquals(eightHours, restoredDependency.getLag());
+		assertSame(restoredPredecessor, restoredDependency.getPredecessor());
+		assertSame(restoredSuccessor, restoredDependency.getSuccessor());
+		assertEquals(1, restoredSuccessor.getPredecessorList().size());
+		assertSame(restoredDependency, restoredSuccessor.getPredecessorList().iterator().next());
+	}
+
+	@Test
 	void mpoRoundTripPreservesSnetAndFinishToFinishBoundary() throws Exception {
 		verifySnetFfMpoRoundTrip(1,
 			mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 17),
@@ -156,6 +1372,82 @@ class MpoFileImporterTest {
 		verifySnetFsLagAcrossProjectException(tuesdayEight,
 			mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 5, 17), thursdayEight, thursdaySeventeen);
 		verifySnetFsLagAcrossProjectException(fridayEight, fridaySeventeen, fridayEight, fridaySeventeen);
+	}
+
+	@Test
+	void mpoRoundTripPreservesFinishToStartLeadAndSnetAcrossProjectCalendarException() throws Exception {
+		Project project = projectForRoundTrip();
+		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
+		long mondaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 17);
+		long tuesdayMidnight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 0);
+		long thursdayTwelve = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 6, 12);
+		long thursdayThirteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 6, 13);
+		long fridayThirteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 7, 13);
+		long fridayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 7, 8);
+		long fridaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 7, 17);
+		long oneDay = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		long twelveHourLead = -12L * 60L * 60L * 1000L;
+		project.setWorkCalendar(((com.microproject.pm.calendar.WorkingCalendar) project.getWorkCalendar()).makeScratchCopy());
+		var calendar = (com.microproject.pm.calendar.WorkingCalendar) project.getWorkCalendar();
+		calendar.setName("MPO project FS Tuesday exception");
+		calendar.addOrReplaceException(new com.microproject.pm.calendar.WorkDay(tuesdayMidnight));
+		project.setStart(mondayEight);
+		NormalTask predecessor = (NormalTask) firstTask(project);
+		predecessor.setName("MPO FS lead predecessor");
+		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		successor.setName("MPO FS lead successor");
+		NormalTask unrelated = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		unrelated.setName("MPO FS lead unrelated");
+		predecessor.setDuration(oneDay);
+		successor.setDuration(oneDay);
+		unrelated.setDuration(oneDay);
+		predecessor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, fridayEight);
+		successor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, mondayEight);
+		unrelated.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, mondayEight);
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.FS, twelveHourLead, this);
+		project.recalculate();
+		assertEquals(fridayEight, predecessor.getStart());
+		assertEquals(fridaySeventeen, predecessor.getEnd());
+		assertEquals(thursdayTwelve,
+			dependency.getEffectiveWorkCalendar().add(fridaySeventeen, dependency.getLeadValue(), false));
+		assertEquals(thursdayThirteen, successor.getStart());
+		assertEquals(fridayThirteen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, successor.getConstraintTypeKind());
+		assertEquals(mondayEight, successor.getConstraintDate());
+		assertEquals(DependencyType.FS, dependency.getDependencyType());
+		assertEquals(twelveHourLead, dependency.getLag());
+		assertFalse(calendar.getConcreteInstance().getWorkDay(tuesdayMidnight).isWorking());
+
+		assignPositiveUniqueIds(project);
+		Project reopened = loadFromBytes(saveProjectBytes(project));
+		reopened.recalculate();
+		NormalTask restoredPredecessor = (NormalTask) findByName(reopened, "MPO FS lead predecessor");
+		NormalTask restoredSuccessor = (NormalTask) findByName(reopened, "MPO FS lead successor");
+		NormalTask restoredUnrelated = (NormalTask) findByName(reopened, "MPO FS lead unrelated");
+		assertNotNull(restoredPredecessor);
+		assertNotNull(restoredSuccessor);
+		assertNotNull(restoredUnrelated);
+		assertEquals(fridayEight, restoredPredecessor.getStart());
+		assertEquals(fridaySeventeen, restoredPredecessor.getEnd());
+		assertEquals(thursdayThirteen, restoredSuccessor.getStart());
+		assertEquals(fridayThirteen, restoredSuccessor.getEnd());
+		assertEquals(mondayEight, restoredUnrelated.getStart());
+		assertEquals(mondaySeventeen, restoredUnrelated.getEnd());
+		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, restoredSuccessor.getConstraintTypeKind());
+		assertEquals(mondayEight, restoredSuccessor.getConstraintDate());
+		assertFalse(((com.microproject.pm.calendar.WorkingCalendar) reopened.getWorkCalendar())
+			.getConcreteInstance().getWorkDay(tuesdayMidnight).isWorking());
+		assertEquals(1, restoredPredecessor.getSuccessorList().size());
+		Dependency restoredDependency = (Dependency) restoredPredecessor.getSuccessorList().iterator().next();
+		assertEquals(DependencyType.FS, restoredDependency.getDependencyType());
+		assertEquals(twelveHourLead, restoredDependency.getLag());
+		assertSame(restoredPredecessor, restoredDependency.getPredecessor());
+		assertSame(restoredSuccessor, restoredDependency.getSuccessor());
+		assertEquals(1, restoredSuccessor.getPredecessorList().size());
+		assertSame(restoredDependency, restoredSuccessor.getPredecessorList().iterator().next());
 	}
 
 	@Test
@@ -222,6 +1514,237 @@ class MpoFileImporterTest {
 		assertEquals(1, restoredPredecessor.getSuccessorList().size());
 		Dependency restoredDependency = (Dependency) restoredPredecessor.getSuccessorList().iterator().next();
 		assertEquals(DependencyType.FF, restoredDependency.getDependencyType());
+		assertEquals(twelveHourLead, restoredDependency.getLag());
+		assertSame(restoredPredecessor, restoredDependency.getPredecessor());
+		assertSame(restoredSuccessor, restoredDependency.getSuccessor());
+		assertEquals(1, restoredSuccessor.getPredecessorList().size());
+		assertSame(restoredDependency, restoredSuccessor.getPredecessorList().iterator().next());
+	}
+
+	@Test
+	void mpoRoundTripPreservesFinishToFinishLeadAndSnetAcrossProjectCalendarException() throws Exception {
+		Project project = projectForRoundTrip();
+		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
+		long mondayTen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 10);
+		long mondayTwelve = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 12);
+		long mondayThirteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 13);
+		long mondaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 17);
+		long tuesdayMidnight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 0);
+		long wednesdayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 5, 8);
+		long wednesdaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 5, 17);
+		long oneDay = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		long twelveHourLead = -12L * 60L * 60L * 1000L;
+		long twoHours = 2L * 60L * 60L * 1000L;
+		project.setWorkCalendar(((com.microproject.pm.calendar.WorkingCalendar) project.getWorkCalendar()).makeScratchCopy());
+		var calendar = (com.microproject.pm.calendar.WorkingCalendar) project.getWorkCalendar();
+		calendar.setName("MPO project FF Tuesday exception with SNET");
+		calendar.addOrReplaceException(new com.microproject.pm.calendar.WorkDay(tuesdayMidnight));
+		project.setStart(mondayEight);
+		NormalTask predecessor = (NormalTask) firstTask(project);
+		predecessor.setName("MPO FF lead SNET predecessor");
+		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		successor.setName("MPO FF lead SNET successor");
+		NormalTask unrelated = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		unrelated.setName("MPO FF lead SNET unrelated");
+		predecessor.setDuration(oneDay);
+		successor.setDuration(oneDay);
+		unrelated.setDuration(oneDay);
+		predecessor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, wednesdayEight);
+		successor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, mondayEight);
+		unrelated.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, mondayEight);
+		successor.setDuration(twoHours);
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.FF, twelveHourLead, this);
+		project.recalculate();
+		assertEquals(wednesdayEight, predecessor.getStart());
+		assertEquals(wednesdaySeventeen, predecessor.getEnd());
+		assertEquals(mondayTwelve,
+			dependency.getEffectiveWorkCalendar().add(wednesdaySeventeen, dependency.getLeadValue(), false));
+		assertEquals(mondayTen, successor.getStart());
+		assertEquals(mondayThirteen, successor.getEnd());
+		assertTrue(successor.getEnd() >= mondayTwelve, "FF successor finish meets the required Monday 12:00 boundary");
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, successor.getConstraintTypeKind());
+		assertEquals(mondayEight, successor.getConstraintDate());
+		assertEquals(DependencyType.FF, dependency.getDependencyType());
+		assertEquals(twelveHourLead, dependency.getLag());
+		assertFalse(calendar.getConcreteInstance().getWorkDay(tuesdayMidnight).isWorking());
+
+		assignPositiveUniqueIds(project);
+		Project reopened = loadFromBytes(saveProjectBytes(project));
+		reopened.recalculate();
+		NormalTask restoredPredecessor = (NormalTask) findByName(reopened, "MPO FF lead SNET predecessor");
+		NormalTask restoredSuccessor = (NormalTask) findByName(reopened, "MPO FF lead SNET successor");
+		NormalTask restoredUnrelated = (NormalTask) findByName(reopened, "MPO FF lead SNET unrelated");
+		assertNotNull(restoredPredecessor);
+		assertNotNull(restoredSuccessor);
+		assertNotNull(restoredUnrelated);
+		assertEquals(wednesdayEight, restoredPredecessor.getStart());
+		assertEquals(wednesdaySeventeen, restoredPredecessor.getEnd());
+		assertEquals(mondayTen, restoredSuccessor.getStart());
+		assertEquals(mondayThirteen, restoredSuccessor.getEnd());
+		assertEquals(mondayEight, restoredUnrelated.getStart());
+		assertEquals(mondaySeventeen, restoredUnrelated.getEnd());
+		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, restoredSuccessor.getConstraintTypeKind());
+		assertEquals(mondayEight, restoredSuccessor.getConstraintDate());
+		assertFalse(((com.microproject.pm.calendar.WorkingCalendar) reopened.getWorkCalendar())
+			.getConcreteInstance().getWorkDay(tuesdayMidnight).isWorking());
+		assertEquals(1, restoredPredecessor.getSuccessorList().size());
+		Dependency restoredDependency = (Dependency) restoredPredecessor.getSuccessorList().iterator().next();
+		assertEquals(DependencyType.FF, restoredDependency.getDependencyType());
+		assertEquals(twelveHourLead, restoredDependency.getLag());
+		assertSame(restoredPredecessor, restoredDependency.getPredecessor());
+		assertSame(restoredSuccessor, restoredDependency.getSuccessor());
+		assertEquals(1, restoredSuccessor.getPredecessorList().size());
+		assertSame(restoredDependency, restoredSuccessor.getPredecessorList().iterator().next());
+	}
+
+	@Test
+	void mpoRoundTripPreservesStartToFinishLeadAndSnetAcrossProjectCalendarException() throws Exception {
+		Project project = projectForRoundTrip();
+		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
+		long mondayThirteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 13);
+		long mondaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 17);
+		long tuesdayMidnight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 0);
+		long wednesdayTwelve = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 5, 12);
+		long wednesdayThirteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 5, 13);
+		long fridayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 7, 8);
+		long fridaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 7, 17);
+		long oneDay = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		long twelveHourLead = -12L * 60L * 60L * 1000L;
+		project.setWorkCalendar(((com.microproject.pm.calendar.WorkingCalendar) project.getWorkCalendar()).makeScratchCopy());
+		var calendar = (com.microproject.pm.calendar.WorkingCalendar) project.getWorkCalendar();
+		calendar.setName("MPO project SF Tuesday exception");
+		calendar.addOrReplaceException(new com.microproject.pm.calendar.WorkDay(tuesdayMidnight));
+		project.setStart(mondayEight);
+		NormalTask predecessor = (NormalTask) firstTask(project);
+		predecessor.setName("MPO SF lead predecessor");
+		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		successor.setName("MPO SF lead successor");
+		NormalTask unrelated = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		unrelated.setName("MPO SF lead unrelated");
+		predecessor.setDuration(oneDay);
+		successor.setDuration(oneDay);
+		unrelated.setDuration(oneDay);
+		predecessor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, fridayEight);
+		successor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, mondayEight);
+		unrelated.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, mondayEight);
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.SF, twelveHourLead, this);
+		project.recalculate();
+		assertEquals(fridayEight, predecessor.getStart());
+		assertEquals(fridaySeventeen, predecessor.getEnd());
+		assertEquals(wednesdayTwelve,
+			dependency.getEffectiveWorkCalendar().add(fridayEight, dependency.getLeadValue(), false));
+		assertEquals(mondayThirteen, successor.getStart());
+		assertEquals(wednesdayThirteen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, successor.getConstraintTypeKind());
+		assertEquals(mondayEight, successor.getConstraintDate());
+		assertEquals(DependencyType.SF, dependency.getDependencyType());
+		assertEquals(twelveHourLead, dependency.getLag());
+		assertFalse(calendar.getConcreteInstance().getWorkDay(tuesdayMidnight).isWorking());
+
+		assignPositiveUniqueIds(project);
+		Project reopened = loadFromBytes(saveProjectBytes(project));
+		reopened.recalculate();
+		NormalTask restoredPredecessor = (NormalTask) findByName(reopened, "MPO SF lead predecessor");
+		NormalTask restoredSuccessor = (NormalTask) findByName(reopened, "MPO SF lead successor");
+		NormalTask restoredUnrelated = (NormalTask) findByName(reopened, "MPO SF lead unrelated");
+		assertNotNull(restoredPredecessor);
+		assertNotNull(restoredSuccessor);
+		assertNotNull(restoredUnrelated);
+		assertEquals(fridayEight, restoredPredecessor.getStart());
+		assertEquals(fridaySeventeen, restoredPredecessor.getEnd());
+		assertEquals(mondayThirteen, restoredSuccessor.getStart());
+		assertEquals(wednesdayThirteen, restoredSuccessor.getEnd());
+		assertEquals(mondayEight, restoredUnrelated.getStart());
+		assertEquals(mondaySeventeen, restoredUnrelated.getEnd());
+		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, restoredSuccessor.getConstraintTypeKind());
+		assertEquals(mondayEight, restoredSuccessor.getConstraintDate());
+		assertFalse(((com.microproject.pm.calendar.WorkingCalendar) reopened.getWorkCalendar())
+			.getConcreteInstance().getWorkDay(tuesdayMidnight).isWorking());
+		assertEquals(1, restoredPredecessor.getSuccessorList().size());
+		Dependency restoredDependency = (Dependency) restoredPredecessor.getSuccessorList().iterator().next();
+		assertEquals(DependencyType.SF, restoredDependency.getDependencyType());
+		assertEquals(twelveHourLead, restoredDependency.getLag());
+		assertSame(restoredPredecessor, restoredDependency.getPredecessor());
+		assertSame(restoredSuccessor, restoredDependency.getSuccessor());
+		assertEquals(1, restoredSuccessor.getPredecessorList().size());
+		assertSame(restoredDependency, restoredSuccessor.getPredecessorList().iterator().next());
+	}
+
+	@Test
+	void mpoRoundTripPreservesStartToStartLeadAndSnetAcrossProjectCalendarException() throws Exception {
+		Project project = projectForRoundTrip();
+		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
+		long mondaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 17);
+		long tuesdayMidnight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 0);
+		long wednesdayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 5, 8);
+		long wednesdayTwelve = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 5, 12);
+		long wednesdayThirteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 5, 13);
+		long wednesdaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 5, 17);
+		long thursdayThirteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 6, 13);
+		long fridayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 7, 8);
+		long fridaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 7, 17);
+		long oneDay = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		long twelveHourLead = -12L * 60L * 60L * 1000L;
+		var calendar = (com.microproject.pm.calendar.WorkingCalendar) project.getWorkCalendar();
+		calendar.addOrReplaceException(new com.microproject.pm.calendar.WorkDay(tuesdayMidnight));
+		project.setStart(mondayEight);
+		NormalTask predecessor = (NormalTask) firstTask(project);
+		predecessor.setName("MPO SS lead predecessor");
+		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		successor.setName("MPO SS lead successor");
+		NormalTask unrelated = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		unrelated.setName("MPO SS lead unrelated");
+		predecessor.setDuration(oneDay);
+		successor.setDuration(oneDay);
+		unrelated.setDuration(oneDay);
+		predecessor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, fridayEight);
+		successor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, mondayEight);
+		unrelated.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, mondayEight);
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.SS, twelveHourLead, this);
+		project.recalculate();
+		assertEquals(fridayEight, predecessor.getStart());
+		assertEquals(fridaySeventeen, predecessor.getEnd());
+		assertEquals(wednesdayTwelve,
+			dependency.getEffectiveWorkCalendar().add(fridayEight, dependency.getLeadValue(), false));
+		assertEquals(wednesdayThirteen, successor.getStart());
+		assertEquals(thursdayThirteen, successor.getEnd());
+		assertEquals(mondayEight, unrelated.getStart());
+		assertEquals(mondaySeventeen, unrelated.getEnd());
+		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, successor.getConstraintTypeKind());
+		assertEquals(mondayEight, successor.getConstraintDate());
+		assertEquals(DependencyType.SS, dependency.getDependencyType());
+		assertEquals(twelveHourLead, dependency.getLag());
+		assertFalse(calendar.getConcreteInstance().getWorkDay(tuesdayMidnight).isWorking());
+
+		assignPositiveUniqueIds(project);
+		Project reopened = loadFromBytes(saveProjectBytes(project));
+		reopened.recalculate();
+		NormalTask restoredPredecessor = (NormalTask) findByName(reopened, "MPO SS lead predecessor");
+		NormalTask restoredSuccessor = (NormalTask) findByName(reopened, "MPO SS lead successor");
+		NormalTask restoredUnrelated = (NormalTask) findByName(reopened, "MPO SS lead unrelated");
+		assertNotNull(restoredPredecessor);
+		assertNotNull(restoredSuccessor);
+		assertNotNull(restoredUnrelated);
+		assertEquals(fridayEight, restoredPredecessor.getStart());
+		assertEquals(fridaySeventeen, restoredPredecessor.getEnd());
+		assertEquals(wednesdayThirteen, restoredSuccessor.getStart());
+		assertEquals(thursdayThirteen, restoredSuccessor.getEnd());
+		assertEquals(mondayEight, restoredUnrelated.getStart());
+		assertEquals(mondaySeventeen, restoredUnrelated.getEnd());
+		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, restoredSuccessor.getConstraintTypeKind());
+		assertEquals(mondayEight, restoredSuccessor.getConstraintDate());
+		assertFalse(((com.microproject.pm.calendar.WorkingCalendar) reopened.getWorkCalendar())
+			.getConcreteInstance().getWorkDay(tuesdayMidnight).isWorking());
+		assertEquals(1, restoredPredecessor.getSuccessorList().size());
+		Dependency restoredDependency = (Dependency) restoredPredecessor.getSuccessorList().iterator().next();
+		assertEquals(DependencyType.SS, restoredDependency.getDependencyType());
 		assertEquals(twelveHourLead, restoredDependency.getLag());
 		assertSame(restoredPredecessor, restoredDependency.getPredecessor());
 		assertSame(restoredSuccessor, restoredDependency.getSuccessor());
@@ -893,14 +2416,30 @@ class MpoFileImporterTest {
 	void assignmentLevelingSplitStateSurvivesMpoSaveReloadAndClear() throws Exception {
 		Project original = projectForRoundTrip();
 		NormalTask task = (NormalTask) firstTask(original);
+		boolean manuallyScheduled = task.isManuallyScheduled();
 		Resource resource = original.getResourcePool().newResourceInstance();
 		resource.setName("Leveling resource");
 		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, this);
+		long manualFrom = assignment.getEffectiveWorkCalendar().add(assignment.getStart(),
+			com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR, false);
+		long manualTo = assignment.getEffectiveWorkCalendar().add(manualFrom,
+			com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR, false);
+		assertTrue(com.microproject.pm.scheduling.ScheduleService.getInstance().split(this, assignment, manualFrom,
+			manualTo, null));
+		assertEquals(assignment.getWork(null), assignment.getWorkContour().calcTotalWork(assignment.getDurationMillis()),
+			"manual assignment contour must match scalar work before leveling");
 		long beforeDuration = assignment.getDurationMillis();
 		String beforeContour = assignment.getWorkContour().toString(beforeDuration);
-		long from = assignment.getStart() + com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
-		long to = from + com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		long beforeStart = assignment.getStart();
+		long beforeEnd = assignment.getEnd();
+		List<com.microproject.pm.task.TaskSplitInterval> manualTaskSplits = task.getManualTaskSplitIntervals();
+		long from = assignment.getEffectiveWorkCalendar().add(assignment.getStart(),
+			5L * com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR, false);
+		long to = assignment.getEffectiveWorkCalendar().add(from,
+			com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR, false);
 		assertTrue(com.microproject.pm.scheduling.ScheduleService.getInstance().splitForLeveling(this, assignment, from, to));
+		assertEquals(assignment.getWork(null), assignment.getWorkContour().calcTotalWork(assignment.getDurationMillis()),
+			"manual and generated split contours must match scalar work before MPO export");
 		ByteArrayOutputStream archive = new ByteArrayOutputStream();
 		assertTrue(new MpoFileImporter().saveProject(original, archive));
 		Map<String, byte[]> entries = readEntries(archive.toByteArray());
@@ -909,6 +2448,29 @@ class MpoFileImporterTest {
 		assertEquals(1, sidecar.path("assignments").size());
 		long serializedAssignmentUid = sidecar.path("assignments").get(0).path("assignmentUid").longValue();
 		assertTrue(serializedAssignmentUid > 0L);
+		Map<String, byte[]> legacyEntries = new LinkedHashMap<>(entries);
+		com.fasterxml.jackson.databind.node.ObjectNode legacySidecar = (com.fasterxml.jackson.databind.node.ObjectNode)
+			mapper.readTree(entries.get(MpoFileImporter.ASSIGNMENT_LEVELING_SPLITS_ENTRY));
+		legacySidecar.put("version", 1);
+		for (com.fasterxml.jackson.databind.JsonNode record : legacySidecar.path("assignments"))
+			((com.fasterxml.jackson.databind.node.ObjectNode) record).remove("sourceContourMatchesGenerated");
+		byte[] legacySidecarBytes = mapper.writeValueAsBytes(legacySidecar);
+		legacyEntries.put(MpoFileImporter.ASSIGNMENT_LEVELING_SPLITS_ENTRY, legacySidecarBytes);
+		updateManifestChecksum(legacyEntries, MpoFileImporter.ASSIGNMENT_LEVELING_SPLITS_ENTRY, legacySidecarBytes);
+		Project legacyReopened = loadFromBytes(zip(legacyEntries).toByteArray());
+		NormalTask legacyTask = (NormalTask) firstTask(legacyReopened);
+		Assignment legacyAssignment = null;
+		for (Object value : legacyTask.getAssignments()) {
+			Assignment candidate = (Assignment) value;
+			if (candidate.getUniqueId() == serializedAssignmentUid) legacyAssignment = candidate;
+		}
+		assertNotNull(legacyAssignment, "v1 sidecar must still load and restore assignment provenance");
+		assertNotNull(legacyAssignment.getLevelingSplitState(), "v1 provenance must remain available for Clear");
+		legacyAssignment.extend(legacyAssignment.getStart(), legacyAssignment.getEnd(),
+			com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR);
+		assertThrows(IllegalStateException.class,
+			() -> new ResourceLevelingService().clear(legacyReopened, null, null),
+			"v1 sidecars without the normalization marker must retain strict contour-edit rejection");
 
 		Project reopened = loadFromBytes(archive.toByteArray());
 		NormalTask restoredTask = (NormalTask) firstTask(reopened);
@@ -919,10 +2481,48 @@ class MpoFileImporterTest {
 		}
 		assertNotNull(restored, "the sidecar must follow the serializer's native assignment UID mapping");
 		assertNotNull(restored.getLevelingSplitState());
-		new ResourceLevelingService().clear(reopened);
+		assertTrue(restored.hasImportedTimephasedWork(), "MPO reload must exercise imported split work profiles");
+		assertEquals(manuallyScheduled, restoredTask.isManuallyScheduled(), "MPO reload must preserve task scheduling mode");
+		assertEquals(manualTaskSplits, restoredTask.getManualTaskSplitIntervals(),
+			"MPO reload must preserve task-owned manual split state");
+		new ResourceLevelingService().clear(reopened, reopened.getUndoController().getEditSupport());
 		assertNull(restored.getLevelingSplitState());
+		assertFalse(restored.hasImportedTimephasedWork(),
+			"clearing generated splits must discard stale imported profiles when no actual work exists");
 		assertEquals(beforeDuration, restored.getDurationMillis());
 		assertEquals(beforeContour, restored.getWorkContour().toString(beforeDuration));
+		assertEquals(beforeStart, restored.getStart(), "clear must retain the pre-leveling assignment start");
+		assertEquals(beforeEnd, restored.getEnd(), "clear must retain the pre-leveling assignment finish");
+		assertEquals(manuallyScheduled, restoredTask.isManuallyScheduled(), "clear must retain the task scheduling mode");
+		assertEquals(manualTaskSplits, restoredTask.getManualTaskSplitIntervals(),
+			"clear must retain task-owned manual split state");
+
+		reopened.getUndoController().undo();
+		assertNotNull(restored.getLevelingSplitState(), "Undo Clear Leveling must restore generated split provenance");
+		assertEquals(beforeContour, restored.getLevelingSplitState().beforeContourCopy()
+			.toString(restored.getLevelingSplitState().beforeDuration()),
+			"Undo must retain the manual assignment contour as the generated split's baseline");
+		reopened.getUndoController().redo();
+		assertNull(restored.getLevelingSplitState(), "Redo Clear Leveling must remove generated provenance again");
+		assertEquals(beforeContour, restored.getWorkContour().toString(restored.getDurationMillis()),
+			"Redo must preserve the user-created assignment split");
+
+		ByteArrayOutputStream clearedArchive = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(reopened, clearedArchive));
+		Project clearedReload = loadFromBytes(clearedArchive.toByteArray());
+		NormalTask clearedTask = (NormalTask) firstTask(clearedReload);
+		Assignment clearedAssignment = null;
+		for (Object value : clearedTask.getAssignments()) {
+			Assignment candidate = (Assignment) value;
+			if (candidate.getUniqueId() == serializedAssignmentUid) clearedAssignment = candidate;
+		}
+		assertNotNull(clearedAssignment, "cleared MPO must preserve the native assignment identity");
+		assertNull(clearedAssignment.getLevelingSplitState(), "cleared MPO must not restore generated provenance");
+		assertEquals(beforeDuration, clearedAssignment.getDurationMillis());
+		assertEquals(beforeContour, clearedAssignment.getWorkContour().toString(beforeDuration),
+			"cleared MPO must preserve the manual assignment contour");
+		assertEquals(manuallyScheduled, clearedTask.isManuallyScheduled());
+		assertEquals(manualTaskSplits, clearedTask.getManualTaskSplitIntervals());
 
 		Map<String, byte[]> malformed = new LinkedHashMap<>(entries);
 		com.fasterxml.jackson.databind.node.ObjectNode malformedSidecar = (com.fasterxml.jackson.databind.node.ObjectNode)
@@ -934,6 +2534,132 @@ class MpoFileImporterTest {
 		updateManifestChecksum(malformed, MpoFileImporter.ASSIGNMENT_LEVELING_SPLITS_ENTRY, malformedBytes);
 		assertThrows(IOException.class, () -> loadFromBytes(zip(malformed).toByteArray()),
 			"unknown assignment identities are rejected before split ownership is restored");
+	}
+
+	@Test
+	void clearingAppliedLevelingAfterImportedActualWorkPreservesMpoState() throws Exception {
+		Project original = projectForRoundTrip();
+		NormalTask targetTask = (NormalTask) firstTask(original);
+		targetTask.setManuallyScheduled(false);
+		targetTask.setDuration(5L * com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
+		Resource resource = original.getResourcePool().newResourceInstance();
+		resource.setName("Selected leveling resource");
+		Assignment target = AssignmentService.getInstance().newAssignment(targetTask, resource, 1D, 0L, this);
+		NormalTask blockerTask = (NormalTask) original.createLocalTaskNode(null).getImpl();
+		blockerTask.setName("Unselected blocker");
+		blockerTask.setManuallyScheduled(false);
+		blockerTask.setDuration(com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
+		blockerTask.setPriority(900);
+		blockerTask.setStart(original.getEffectiveWorkCalendar().add(original.getStartDate(),
+			com.microproject.options.CalendarOption.getInstance().getMillisPerDay(), false));
+		Assignment blocker = AssignmentService.getInstance().newAssignment(blockerTask, resource, 1D, 0L, this);
+		String beforeContour = target.getWorkContour().toString(target.getDurationMillis());
+		long blockerStart = blocker.getStart();
+		long blockerEnd = blocker.getEnd();
+		long blockerDelay = blocker.getLevelingDelay();
+		long actualWork = com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		long totalWork = target.getWork(null);
+		long remainingWork = totalWork - actualWork;
+		ResourceLevelingService service = new ResourceLevelingService();
+		var undo = original.getUndoController();
+		ResourceLevelingService.Plan plan = service.previewSelectedTasks(original, List.of(resource),
+			new ResourceLevelingService.Options(ResourceLevelingService.Order.PRIORITY_STANDARD, false, true,
+				Long.MIN_VALUE, Long.MAX_VALUE, false, ResourceLevelingService.Sensitivity.HOUR, true, false),
+			List.of(targetTask));
+		assertEquals(1, plan.assignmentSplits().size(), "Apply must split the selected assignment around the fixed blocker");
+		plan.apply(undo.getEditSupport());
+		assertNotNull(target.getLevelingSplitState());
+		var actualProfile = com.microproject.pm.assignment.contour.PersonalContour.getInstance(
+			new com.microproject.pm.assignment.contour.AbstractContourBucket[] {
+				com.microproject.pm.assignment.contour.PersonalContourBucket.getInstance(actualWork, 1.0D) });
+		var remainingProfile = com.microproject.pm.assignment.contour.PersonalContour.getInstance(
+			new com.microproject.pm.assignment.contour.AbstractContourBucket[] {
+				com.microproject.pm.assignment.contour.PersonalContourBucket.getInstance(remainingWork, 1.0D) });
+		target.setImportedTimephasedWork(actualProfile, remainingProfile);
+		long statusDate = targetTask.getEnd();
+		original.setStatusDate(statusDate);
+		long expectedStatusDate = original.getStatusDate();
+
+		byte[] appliedArchive = saveProjectBytes(original);
+		com.fasterxml.jackson.databind.JsonNode appliedSplit = new com.fasterxml.jackson.databind.ObjectMapper()
+			.readTree(readEntries(appliedArchive).get(MpoFileImporter.ASSIGNMENT_LEVELING_SPLITS_ENTRY))
+			.path("assignments").get(0);
+		assertTrue(appliedSplit.path("sourceContourMatchesGenerated").booleanValue());
+		Project reopened = loadFromBytes(appliedArchive);
+		NormalTask restoredTask = (NormalTask) findByName(reopened, targetTask.getName());
+		assertEquals(1, restoredTask.getAssignments().size());
+		Assignment restored = (Assignment) restoredTask.getAssignments().iterator().next();
+		assertNotNull(restored.getLevelingSplitState(), "MPO reload must retain generated split ownership");
+		assertTrue(restored.hasImportedTimephasedWork());
+		assertEquals(actualWork, restored.getActualWork(null));
+		assertEquals(remainingWork, restored.getRemainingWork());
+		assertEquals(totalWork, restored.getWork(null));
+		assertTrue(reopened.isStatusDateSet());
+		assertEquals(expectedStatusDate, reopened.getStatusDate());
+		assertTrue(restored.importedProfilesMatchWorkTotal(restored.getLevelingSplitState().generatedContourCopy(),
+			restored.getLevelingSplitState().generatedDuration()),
+			"imported profiles, persisted leveling contour, and current work must agree on the exact total");
+		String generatedContour = restored.getWorkContour().toString(restored.getDurationMillis());
+		var restoredUndo = reopened.getUndoController();
+		Project editedContourProject = loadFromBytes(appliedArchive);
+		NormalTask editedContourTask = (NormalTask) findByName(editedContourProject, targetTask.getName());
+		Assignment editedContourAssignment = (Assignment) editedContourTask.getAssignments().iterator().next();
+		var editedBuckets = editedContourAssignment.getWorkContour().getContourBuckets();
+		assertEquals(2, editedBuckets.length);
+		var firstBucket = (com.microproject.pm.assignment.contour.PersonalContourBucket) editedBuckets[0];
+		var lastBucket = (com.microproject.pm.assignment.contour.PersonalContourBucket) editedBuckets[1];
+		long redistributedWork = firstBucket.calcWork() - firstBucket.getDuration();
+		editedBuckets[0] = com.microproject.pm.assignment.contour.PersonalContourBucket.getInstance(
+			firstBucket.getDuration(), 1.0D);
+		editedBuckets[1] = com.microproject.pm.assignment.contour.PersonalContourBucket.getInstance(
+			lastBucket.getDuration(), lastBucket.getUnits() + (double) redistributedWork / lastBucket.getDuration());
+		assertNotEquals(restored.getWorkContour().toString(restored.getDurationMillis()),
+			editedContourAssignment.getWorkContour().toString(editedContourAssignment.getDurationMillis()));
+		assertEquals(restored.getLevelingSplitState().generatedContourCopy().calcTotalWork(
+			restored.getLevelingSplitState().generatedDuration()),
+			editedContourAssignment.getWorkContour().calcTotalWork(editedContourAssignment.getDurationMillis()),
+			"the rejection regression must change contour shape without changing total work");
+		assertThrows(IllegalStateException.class,
+			() -> service.clear(editedContourProject, List.of(editedContourTask), null),
+			"a same-total contour shape edit after MPO reload must still reject Clear");
+
+		service.clear(reopened, List.of(restoredTask), restoredUndo.getEditSupport());
+		assertNull(restored.getLevelingSplitState());
+		assertTrue(restored.hasImportedTimephasedWork(), "Clear retains imported actual and remaining profiles");
+		assertEquals(actualWork, restored.getActualWork(null));
+		assertEquals(remainingWork, restored.getRemainingWork());
+		assertEquals(totalWork, restored.getWork(null));
+		assertEquals(beforeContour, restored.getWorkContour().toString(restored.getDurationMillis()));
+		assertEquals(expectedStatusDate, reopened.getStatusDate());
+		NormalTask restoredBlockerTask = (NormalTask) findByName(reopened, blockerTask.getName());
+		Assignment restoredBlocker = (Assignment) restoredBlockerTask.getAssignments().iterator().next();
+		assertEquals(blockerStart, restoredBlocker.getStart());
+		assertEquals(blockerEnd, restoredBlocker.getEnd());
+		assertEquals(blockerDelay, restoredBlocker.getLevelingDelay());
+
+		restoredUndo.undo();
+		assertNotNull(restored.getLevelingSplitState(), "Undo Clear restores generated split provenance");
+		assertEquals(generatedContour, restored.getWorkContour().toString(restored.getDurationMillis()));
+		assertEquals(actualWork, restored.getActualWork(null));
+		assertEquals(remainingWork, restored.getRemainingWork());
+		assertEquals(expectedStatusDate, reopened.getStatusDate());
+		restoredUndo.redo();
+		assertNull(restored.getLevelingSplitState(), "Redo Clear removes generated split provenance");
+		assertEquals(actualWork, restored.getActualWork(null));
+		assertEquals(remainingWork, restored.getRemainingWork());
+		assertEquals(totalWork, restored.getWork(null));
+		assertEquals(beforeContour, restored.getWorkContour().toString(restored.getDurationMillis()));
+		assertEquals(expectedStatusDate, reopened.getStatusDate());
+
+		Project clearedReload = loadFromBytes(saveProjectBytes(reopened));
+		NormalTask clearedTask = (NormalTask) findByName(clearedReload, targetTask.getName());
+		assertEquals(1, clearedTask.getAssignments().size());
+		Assignment cleared = (Assignment) clearedTask.getAssignments().iterator().next();
+		assertNull(cleared.getLevelingSplitState());
+		assertEquals(actualWork, cleared.getActualWork(null));
+		assertEquals(remainingWork, cleared.getRemainingWork());
+		assertEquals(totalWork, cleared.getWork(null));
+		assertEquals(expectedStatusDate, clearedReload.getStatusDate());
 	}
 
 	@Test
@@ -1699,6 +3425,87 @@ class MpoFileImporterTest {
 		org.junit.jupiter.api.Assertions.assertTrue(new File(restored.getSubprojectFile()).isFile());
 		org.junit.jupiter.api.Assertions.assertArrayEquals(java.nio.file.Files.readAllBytes(childFile.toPath()),
 				java.nio.file.Files.readAllBytes(new File(restored.getSubprojectFile()).toPath()));
+	}
+
+	@Test
+	void masterMpoPersistsLinkedChildReplacementFromUpdatedChildFile() throws Exception {
+		File childFile = File.createTempFile("mpo-replaced-child-", ".mpo");
+		childFile.deleteOnExit();
+		ProjectFactory factory = ProjectFactory.getInstance();
+		java.lang.reflect.Field portfolioField = ProjectFactory.class.getDeclaredField("portfolio");
+		portfolioField.setAccessible(true);
+		Object originalPortfolio = portfolioField.get(factory);
+		com.microproject.pm.resource.ResourcePoolFactory resourcePoolFactory = com.microproject.pm.resource.ResourcePoolFactory.getInstance();
+		List<com.microproject.pm.resource.ResourcePool> originalPools = new ArrayList<>(resourcePoolFactory.getResourcePools());
+		Project originalChild = null;
+		Project master = null;
+		Project replacement = null;
+		try {
+			portfolioField.set(factory, new com.microproject.pm.task.Portfolio(factory));
+			originalChild = projectForRoundTrip();
+			master = projectForRoundTrip();
+			originalChild.setUniqueId(java.util.UUID.randomUUID().getMostSignificantBits() & Long.MAX_VALUE);
+			master.setUniqueId(java.util.UUID.randomUUID().getMostSignificantBits() & Long.MAX_VALUE);
+			originalChild.setFileName(childFile.getAbsolutePath());
+			NormalTask staleTask = (NormalTask) originalChild.createLocalTaskNode(null).getImpl();
+			staleTask.setName("Stale child task");
+			try (java.io.FileOutputStream output = new java.io.FileOutputStream(childFile)) {
+				new MpoFileImporter().saveProject(originalChild, output);
+			}
+
+			master.setMaster(true);
+			DefaultSubProj reference = new DefaultSubProj(master, originalChild.getUniqueId());
+			reference.setReferenceId("00000000-0000-0000-0000-000000000082");
+			reference.setLoadStatus(com.microproject.pm.task.SubProj.LoadStatus.INVALID);
+			reference.setSubprojectFile(childFile.getAbsolutePath());
+			master.connectTask(reference);
+			com.microproject.grouping.core.Node referenceNode = NodeFactory.getInstance().createNode(reference);
+			master.addToDefaultOutline(null, referenceNode);
+			factory.addProject(master, false, false);
+			factory.addProject(originalChild, false, false);
+			master.getSubprojectHandler().addSubproject(originalChild, referenceNode, true, false);
+			reference.setLoadStatus(com.microproject.pm.task.SubProj.LoadStatus.INVALID);
+
+			Project diskChild = projectForRoundTrip();
+			diskChild.setFileName(childFile.getAbsolutePath());
+			NormalTask replacementTask = (NormalTask) diskChild.createLocalTaskNode(null).getImpl();
+			replacementTask.setName("Replacement child task");
+			try (java.io.FileOutputStream output = new java.io.FileOutputStream(childFile)) {
+				new MpoFileImporter().saveProject(diskChild, output);
+			}
+			byte[] updatedChildBytes = Files.readAllBytes(childFile.toPath());
+			replacement = loadFromBytes(updatedChildBytes);
+
+			assertSame(originalChild, factory.getPortfolio().findByUniqueId(originalChild.getUniqueId()));
+			assertTrue(factory.replaceOpenSubproject(master, reference, replacement));
+			assertSame(replacement, reference.getSubproject());
+			Task loadedReplacementTask = findByName(replacement, "Replacement child task");
+			assertNotNull(loadedReplacementTask);
+			assertFalse(master.getTasks().stream().anyMatch(task -> "Stale child task".equals(task.getName())));
+
+			ByteArrayOutputStream savedMaster = new ByteArrayOutputStream();
+			new MpoFileImporter().saveProject(master, savedMaster);
+			Project restoredMaster = loadFromBytes(savedMaster.toByteArray());
+			DefaultSubProj restoredReference = findSubproject(restoredMaster);
+			assertEquals(reference.getReferenceId(), restoredReference.getReferenceId());
+			File extractedChild = new File(restoredReference.getSubprojectFile());
+			assertTrue(extractedChild.isFile());
+			assertArrayEquals(updatedChildBytes, Files.readAllBytes(extractedChild.toPath()),
+					"master MPO embeds the child MPO already written to the linked file");
+			Project restoredChild = loadFromBytes(Files.readAllBytes(extractedChild.toPath()));
+			Task restoredReplacementTask = findByName(restoredChild, "Replacement child task");
+			assertNotNull(restoredReplacementTask);
+			assertEquals(loadedReplacementTask.getUniqueId(), restoredReplacementTask.getUniqueId());
+			assertFalse(restoredChild.getTasks().stream().anyMatch(task -> "Stale child task".equals(task.getName())));
+		} finally {
+			MpoExtractionOwnershipRegistry.closeAll();
+			if (originalChild != null) originalChild.getResourcePool().removeProject(originalChild);
+			if (master != null) master.getResourcePool().removeProject(master);
+			if (replacement != null) replacement.getResourcePool().removeProject(replacement);
+			portfolioField.set(factory, originalPortfolio);
+			resourcePoolFactory.getResourcePools().removeIf(pool -> !originalPools.contains(pool));
+			Files.deleteIfExists(childFile.toPath());
+		}
 	}
 
 	@Test
@@ -3577,6 +5384,100 @@ class MpoFileImporterTest {
 	}
 
 	@Test
+	void selectedBaseline10OverwriteSurvivesMpoRoundTripWithoutChangingOtherSlotsOrTasks() throws Exception {
+		Project original = projectForRoundTrip();
+		NormalTask selected = (NormalTask) firstTask(original);
+		selected.setName("Selected Baseline 10 task");
+		NormalTask outside = new NormalTask(original);
+		outside.setName("Outside selection");
+		original.connectTask(outside);
+		original.addToDefaultOutline(null, NodeFactory.getInstance().createNode(outside));
+		long start = original.getStartDate();
+		selected.setStart(start);
+		selected.setDuration(8L * 60L * 60L * 1000L);
+		outside.setStart(start + 2L * 24L * 60L * 60L * 1000L);
+		outside.setDuration(8L * 60L * 60L * 1000L);
+		Integer baseline0 = Integer.valueOf(Snapshottable.BASELINE);
+		Integer baseline1 = Integer.valueOf(Snapshottable.BASELINE_1);
+		Integer baseline10 = Integer.valueOf(Snapshottable.BASELINE_10);
+		selected.saveCurrentToSnapshot(baseline0);
+		selected.saveCurrentToSnapshot(baseline1);
+		selected.saveCurrentToSnapshot(baseline10);
+		outside.saveCurrentToSnapshot(baseline10);
+		long baseline0Start = selected.getBaselineStart(Snapshottable.BASELINE);
+		long baseline1Start = selected.getBaselineStart(Snapshottable.BASELINE_1);
+		long replacementStart = start + 4L * 24L * 60L * 60L * 1000L;
+		selected.setStart(replacementStart);
+		selected.setDuration(16L * 60L * 60L * 1000L);
+		selected.setFixedCost(125.0d);
+		long outsideBaseline10Start = outside.getBaselineStart(Snapshottable.BASELINE_10);
+		long outsideCurrentStart = outside.getStart();
+
+		original.saveCurrentToSnapshot(baseline10, false, List.of(selected));
+		long selectedBaseline10Start = selected.getBaselineStart(Snapshottable.BASELINE_10);
+		double selectedBaseline10Cost = selected.getBaselineCost(Snapshottable.BASELINE_10);
+		Project reopened = loadFromBytes(saveProjectBytes(original));
+		NormalTask restoredSelected = (NormalTask) findByName(reopened, "Selected Baseline 10 task");
+		NormalTask restoredOutside = (NormalTask) findByName(reopened, "Outside selection");
+		assertEquals(selectedBaseline10Start, restoredSelected.getBaselineStart(Snapshottable.BASELINE_10));
+		assertEquals(selectedBaseline10Cost, restoredSelected.getBaselineCost(Snapshottable.BASELINE_10), 0.00001d);
+		assertEquals(baseline0Start, restoredSelected.getBaselineStart(Snapshottable.BASELINE));
+		assertEquals(baseline1Start, restoredSelected.getBaselineStart(Snapshottable.BASELINE_1));
+		assertEquals(outsideBaseline10Start, restoredOutside.getBaselineStart(Snapshottable.BASELINE_10));
+		assertEquals(outsideCurrentStart, restoredOutside.getStart());
+	}
+
+	@Test
+	void failedBaselineOverwriteRollbackSurvivesMpoRoundTrip() throws Exception {
+		Project original = projectForRoundTrip();
+		NormalTask existing = (NormalTask) firstTask(original);
+		existing.setName("Existing baseline");
+		java.util.concurrent.atomic.AtomicBoolean failOnce = new java.util.concurrent.atomic.AtomicBoolean();
+		RuntimeException injected = new IllegalStateException("injected baseline overwrite failure");
+		NormalTask failing = new NormalTask(original) {
+			@Override public void saveCurrentToSnapshot(Object snapshotId) {
+				super.saveCurrentToSnapshot(snapshotId);
+				if (failOnce.compareAndSet(true, false)) throw injected;
+			}
+		};
+		failing.setName("Previously unbaselined task");
+		original.connectTask(failing);
+		original.addToDefaultOutline(null, NodeFactory.getInstance().createNode(failing));
+		Resource resource = original.getResourcePool().newResourceInstance();
+		resource.getStandardRate().setValue(10.0d);
+		Assignment assignment = AssignmentService.getInstance()
+			.newAssignment(existing, resource, 1.0d, 0L, this);
+		Integer slot = Integer.valueOf(Snapshottable.BASELINE_1);
+		existing.saveCurrentToSnapshot(slot);
+		long priorStart = existing.getBaselineStart(Snapshottable.BASELINE_1);
+		Assignment.BaselineValues imported = new Assignment.BaselineValues(priorStart,
+			Long.valueOf(existing.getBaselineFinish(Snapshottable.BASELINE_1)), Long.valueOf(1_800_000L));
+		assignment.importBaselineValues(Snapshottable.BASELINE_1,
+			imported.start(), imported.finish(), imported.work());
+		double priorCost = assignment.getBaselineCost(Snapshottable.BASELINE_1, null);
+		double priorTaskCost = existing.getBaselineCost(Snapshottable.BASELINE_1);
+		failOnce.set(true);
+
+		assertSame(injected, assertThrows(RuntimeException.class,
+			() -> original.saveCurrentToSnapshot(slot, false, List.of(existing, failing))));
+		assertNull(failing.getSnapshot(slot));
+		assertEquals(imported, assignment.getBaselineValues(Snapshottable.BASELINE_1));
+		assertEquals(imported, assignment.getImportedBaselineValues(Snapshottable.BASELINE_1));
+		assertEquals(priorCost, assignment.getBaselineCost(Snapshottable.BASELINE_1, null));
+
+		Project reopened = loadFromBytes(saveProjectBytes(original));
+		NormalTask restoredExisting = (NormalTask) findByName(reopened, "Existing baseline");
+		NormalTask restoredFailing = (NormalTask) findByName(reopened, "Previously unbaselined task");
+		Assignment restoredAssignment = (Assignment) restoredExisting.getAssignments().iterator().next();
+		assertNotNull(restoredExisting.getSnapshot(slot), "the pre-failure baseline slot must survive reload");
+		assertEquals(priorStart, restoredExisting.getBaselineStart(Snapshottable.BASELINE_1));
+		assertEquals(priorTaskCost, restoredExisting.getBaselineCost(Snapshottable.BASELINE_1), 0.00001d);
+		assertEquals(imported, restoredAssignment.getBaselineValues(Snapshottable.BASELINE_1));
+		assertEquals(priorCost, restoredAssignment.getBaselineCost(Snapshottable.BASELINE_1, null), 0.00001d);
+		assertNull(restoredFailing.getSnapshot(slot));
+	}
+
+	@Test
 	void clearingAssignmentLevelingAfterMpoReloadPreservesManualAssignmentDelay() throws Exception {
 		// Document-derived MSPDI contract: Assignment Delay is waiting time after the
 		// task start, while Assignment LevelingDelay is the leveler-imposed offset.
@@ -4261,6 +6162,15 @@ class MpoFileImporterTest {
 			count++;
 		}
 		return count;
+	}
+
+	private static String taskOutlineIdentitySummary(Project project) {
+		List<String> identities = new ArrayList<>();
+		for (java.util.Iterator<?> tasks = project.getTaskOutlineIterator(); tasks.hasNext();) {
+			Task task = (Task) tasks.next();
+			identities.add(task.getUniqueId() + ":" + task.getName());
+		}
+		return identities.toString();
 	}
 
 	private static Project load(File mpo) throws Exception {

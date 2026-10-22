@@ -285,6 +285,23 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 		return detail.hasImportedTimephasedWork();
 	}
 
+	/**
+	 * Verifies that imported actual and remaining profiles account for the persisted
+	 * leveling contour's total work and the current assignment's work total.
+	 */
+	public boolean importedProfilesMatchWorkTotal(AbstractContour persistedContour, long persistedDuration) {
+		if (!detail.hasImportedTimephasedWork() || persistedContour == null || persistedDuration < 0L) return false;
+		long importedWork;
+		try {
+			importedWork = Math.addExact(getActualWork(null), getRemainingWork());
+			return persistedContour.calcTotalWork(persistedDuration) == importedWork
+				&& getWork(null) == importedWork
+				&& detail.getWorkContour().calcTotalWork(getDurationMillis()) == importedWork;
+		} catch (ArithmeticException exception) {
+			return false;
+		}
+	}
+
 /**
  * Constructor adapted to mpx
  * @param task

@@ -109,6 +109,9 @@ class ResourceLevelingDialogGuiAcceptanceTest {
 		long taskEndBefore = targetTask.getEnd();
 		String contourBefore = target.getWorkContour().toString(target.getDurationMillis());
 		ResourceLevelingDialogBox dialog = openDialog(project);
+		AbstractButton allowSplitting = findButton(dialog, UsabilityStrings.text("leveling.splits"));
+		assertTrue(allowSplitting != null && allowSplitting.isShowing(), "Allow task splitting option must be visible");
+		assertTrue(isSelected(allowSplitting), "Allow task splitting defaults on before the physical workflow");
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		click(robot, findButton(dialog, UsabilityStrings.text("leveling.preview")));

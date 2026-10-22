@@ -63,6 +63,7 @@ import com.microproject.pm.task.SubProj;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.task.TaskLinkReference;
 import com.microproject.pm.task.TaskSnapshot;
+import com.microproject.transaction.ProjectMutationState;
 import com.microproject.undo.NodeIndentEdit;
 import com.microproject.undo.NodeUndoInfo;
 import com.microproject.util.Alert;
@@ -113,6 +114,10 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     }
 
     public void add(Node parent,List<Node> children,int position,int actionType){
+        ProjectMutationState.coordinated(() -> addCoordinated(parent, children, position, actionType));
+    }
+
+    private void addCoordinated(Node parent,List<Node> children,int position,int actionType){
     	Node p=(parent==null)?root:parent;
 		if (children.size()==0) return;
 		Map<Object, Object[]> previousParentChildren = new java.util.IdentityHashMap<>();
@@ -166,6 +171,10 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
      * so views never keep rows for nodes that were silently detached.
      */
     public void paste(Node parent,List<Node> children,int position,NodeModel model,int actionType){
+        ProjectMutationState.coordinated(() -> pasteCoordinated(parent, children, position, model, actionType));
+    }
+
+    private void pasteCoordinated(Node parent,List<Node> children,int position,NodeModel model,int actionType){
     	java.util.Objects.requireNonNull(children, "children");
     	for (Node child : children) java.util.Objects.requireNonNull(child, "pasted node");
     	PasteJournal journal = new PasteJournal();
@@ -418,7 +427,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     }
 
     public void cleanVoidChildren(){
-    	cleanVoidChildren(root);
+        ProjectMutationState.coordinated(() -> cleanVoidChildren(root));
     }
     private void cleanVoidChildren(Node node){
 	for (Iterator<TreeNode> i=node.childrenIterator();i.hasNext();){
@@ -467,6 +476,10 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
   *
   */
     public void remove(List<Node> nodes,NodeModel model,int actionType,boolean removeDependencies){
+        ProjectMutationState.coordinated(() -> removeCoordinated(nodes, model, actionType, removeDependencies));
+    }
+
+    private void removeCoordinated(List<Node> nodes,NodeModel model,int actionType,boolean removeDependencies){
         if (nodes!=null) {
 
         	boolean doTransaction = model.getDocument() != null && nodes.size() > 0 && isEvent(actionType);
@@ -519,6 +532,10 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 	}
 
     public void move(Node node,Node newParent,int actionType){
+		ProjectMutationState.coordinated(() -> moveCoordinated(node, newParent, actionType));
+    }
+
+    private void moveCoordinated(Node node,Node newParent,int actionType){
 		setSubprojectLevel(node,getChildrenSubprojectLevel(newParent));
     	newParent.add(node);
 			ArrayList<Node> change = new ArrayList<>(1);
@@ -534,6 +551,10 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 	 * index after the moving branches have been detached.
 	 */
 	public boolean relocate(Node parent,List nodes,int position,int actionType){
+		return ProjectMutationState.coordinated(() -> relocateCoordinated(parent, nodes, position, actionType));
+	}
+
+	private boolean relocateCoordinated(Node parent,List nodes,int position,int actionType){
 		if (nodes==null||nodes.isEmpty()) return false;
 		Node destination=(parent==null)?root:parent;
 		ArrayList<Node> branches=new ArrayList<Node>(nodes.size());
@@ -567,6 +588,10 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 
 
     public void indent(List<Node> nodes,int deltaLevel, NodeModel model,int actionType){
+		ProjectMutationState.coordinated(() -> indentCoordinated(nodes, deltaLevel, model, actionType));
+	}
+
+	private void indentCoordinated(List<Node> nodes,int deltaLevel, NodeModel model,int actionType){
     	boolean doTransaction = model.getDocument() != null;
     	int transactionId = 0;
 	Map<Node, NodeIndentEdit.Position> beforePositions = null;
@@ -950,6 +975,10 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 	 * @param event
 	 */
 	public void checkEndVoidNodes(boolean subproject,int actionType){
+		ProjectMutationState.coordinated(() -> checkEndVoidNodesCoordinated(subproject, actionType));
+	}
+
+	private void checkEndVoidNodesCoordinated(boolean subproject,int actionType){
 		ArrayList<Node> inserted = new ArrayList<>();
 
 		if (!subproject) checkSubprojectEndVoidNodes(root,inserted);

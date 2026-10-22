@@ -184,17 +184,17 @@ public class DependencyService {
 	}
 
 	/** Resolves every dependency touching an unloaded external task as one open-time mutation. */
-	public void resolveExternalTask(Task externalTask, Task realTask, Object eventSource) {
-		resolveExternalTask(externalTask, realTask, eventSource, false);
+	public Runnable resolveExternalTask(Task externalTask, Task realTask, Object eventSource) {
+		return resolveExternalTask(externalTask, realTask, eventSource, false);
 	}
 
 	/** Resolves an external task and removes its placeholder from its owner and root projections atomically. */
-	public void resolveExternalTaskAndRemovePlaceholder(Task externalTask, Task realTask, Object eventSource) {
-		resolveExternalTask(externalTask, realTask, eventSource, true);
+	public Runnable resolveExternalTaskAndRemovePlaceholder(Task externalTask, Task realTask, Object eventSource) {
+		return resolveExternalTask(externalTask, realTask, eventSource, true);
 	}
 
-	private void resolveExternalTask(Task externalTask, Task realTask, Object eventSource, boolean removePlaceholder) {
-		if (externalTask == null || realTask == null || externalTask == realTask) return;
+	private Runnable resolveExternalTask(Task externalTask, Task realTask, Object eventSource, boolean removePlaceholder) {
+		if (externalTask == null || realTask == null || externalTask == realTask) return () -> {};
 		List<Dependency> dependencies = getIncidentDependencies(externalTask);
 		List<Task> endpoints = new ArrayList<>();
 		Map<Task, Boolean> unique = new IdentityHashMap<>();
@@ -213,9 +213,9 @@ public class DependencyService {
 			if (owner != null) removalProjects.add(owner);
 			if (root != null && root != owner) removalProjects.add(root);
 		}
+		List<Runnable> removalRollbacks = new ArrayList<>();
 		runDependencyMutation(endpoints, eventSource,
 			(context, mutationSource) -> {
-				List<Runnable> removalRollbacks = new ArrayList<>();
 				try {
 					for (Dependency dependency : dependencies) {
 						boolean predecessor = dependency.getPredecessor() == externalTask;
@@ -260,6 +260,11 @@ public class DependencyService {
 			}, true, removalProjects);
 		for (Dependency dependency : invalid)
 			warnCircularCrossProjectLinkMessage(dependency.getPredecessor(), dependency.getSuccessor());
+		return () -> {
+			for (int i = removalRollbacks.size() - 1; i >= 0; i--) removalRollbacks.get(i).run();
+			snapshot.restore();
+			for (Task endpoint : endpoints) refreshTaskSentinels(endpoint);
+		};
 	}
 
 	private boolean connectInternal(Dependency dependency, Object eventSource, MutationContext context) {

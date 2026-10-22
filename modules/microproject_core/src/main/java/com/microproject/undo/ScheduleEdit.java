@@ -24,10 +24,15 @@
  *******************************************************************************/
 package com.microproject.undo;
 
+import java.util.Map;
+
 import javax.swing.undo.AbstractUndoableEdit;
 import javax.swing.undo.CannotRedoException;
 import javax.swing.undo.CannotUndoException;
 
+import com.microproject.pm.task.Project;
+import com.microproject.pm.task.ProjectTaskSnapshot;
+import com.microproject.pm.task.Task;
 import com.microproject.pm.scheduling.Schedule;
 import com.microproject.pm.scheduling.ScheduleInterval;
 import com.microproject.pm.scheduling.ScheduleService;
@@ -67,6 +72,47 @@ public class ScheduleEdit extends AbstractUndoableEdit{
 		this.afterDetailBackup = afterDetailBackup;
 		this.source = source;
 	}
+	/** Posts one project-wide task-state edit through the normal compound/suppression path. */
+	public static void postProjectSnapshotEdit(Project project, ProjectTaskSnapshot before,
+			Map<Task, Integer> beforeCalculationStates, Map<Task, Integer> afterCalculationStates, Object source) {
+		project.getUndoController().getEditSupport().postEdit(new ProjectTaskSnapshotEdit(project, before,
+			beforeCalculationStates, afterCalculationStates, source));
+	}
+
+	private static final class ProjectTaskSnapshotEdit extends AbstractUndoableEdit {
+		private final Project project;
+		private final ProjectTaskSnapshot before;
+		private final Map<Task, Integer> beforeCalculationStates;
+		private final ProjectTaskSnapshot after;
+		private final Map<Task, Integer> afterCalculationStates;
+		private final Object source;
+
+		private ProjectTaskSnapshotEdit(Project project, ProjectTaskSnapshot before,
+				Map<Task, Integer> beforeCalculationStates, Map<Task, Integer> afterCalculationStates, Object source) {
+			this.project = project;
+			this.before = before;
+			this.beforeCalculationStates = beforeCalculationStates;
+			this.after = ProjectTaskSnapshot.capture(project);
+			this.afterCalculationStates = afterCalculationStates;
+			this.source = source;
+		}
+
+		@Override public void undo() throws CannotUndoException {
+			super.undo();
+			restore(before, beforeCalculationStates);
+		}
+
+		@Override public void redo() throws CannotRedoException {
+			super.redo();
+			restore(after, afterCalculationStates);
+		}
+
+		private void restore(ProjectTaskSnapshot snapshot, Map<Task, Integer> calculationStates) {
+			snapshot.restore(project, source);
+			calculationStates.forEach(Task::setCalculationStateCount);
+		}
+	}
+
 	public boolean canRedo() {
 		return super.canRedo();
 	}

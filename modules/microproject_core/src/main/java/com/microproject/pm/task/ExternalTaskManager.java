@@ -25,6 +25,8 @@
 package com.microproject.pm.task;
 
 import java.util.ArrayList;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.Iterator;
 import java.util.List;
 
@@ -33,6 +35,9 @@ import com.microproject.util.FilePathUtils;
 
 public class ExternalTaskManager {
 	private final List<Task> externalTasks = new ArrayList<>();
+	private final List<Resolution> resolutions = new ArrayList<>();
+	private final Deque<Integer> resolutionTransactions = new ArrayDeque<>();
+	private record Resolution(Task placeholder, int index, Runnable rollback) { }
 	
 	public void add(Task task) {
 		externalTasks.add(task);
@@ -53,22 +58,63 @@ public class ExternalTaskManager {
 					// never dereference null during a project-open broadcast.
 					continue;
 				}
-				treatOpenedTask(externalTask,realTask,opening);
-				if (opening)
+				int index = externalTasks.indexOf(externalTask);
+				Runnable rollback = treatOpenedTask(externalTask,realTask,opening);
+				if (opening) {
+					if (!resolutionTransactions.isEmpty())
+						resolutions.add(new Resolution(externalTask, index, rollback));
 					i.remove();
+				}
 			}
 		}
 	}
 
-	private void treatOpenedTask(Task externalTask, Task realTask, boolean opening) {
+	private Runnable treatOpenedTask(Task externalTask, Task realTask, boolean opening) {
 		if (opening) {
-			DependencyService.getInstance().resolveExternalTaskAndRemovePlaceholder(externalTask, realTask, this);
+			Runnable rollback = DependencyService.getInstance().resolveExternalTaskAndRemovePlaceholder(externalTask, realTask, this);
 			externalTask.setExternal(false);
 			realTask.invalidateSchedules();
 			realTask.markAllDependentTasksAsNeedingRecalculation(true);
+			return rollback;
 		} else {
 			externalTask.setExternal(true);
+			return () -> externalTask.setExternal(false);
 		}
 	}
+
+	int beginResolutionTransaction() {
+		int checkpoint = resolutions.size();
+		resolutionTransactions.push(checkpoint);
+		return checkpoint;
+	}
+	void commitResolutionTransaction(int checkpoint) {
+		finishResolutionTransaction(checkpoint);
+		if (resolutionTransactions.isEmpty()) resolutions.clear();
+	}
+	void rollbackResolutionTransaction(int checkpoint) {
+		finishResolutionTransaction(checkpoint);
+		Throwable failure = null;
+		for (int i = resolutions.size() - 1; i >= checkpoint; i--) {
+			Resolution resolution = resolutions.remove(i);
+			try { resolution.rollback().run(); }
+			catch (RuntimeException | Error rollbackFailure) {
+				if (failure == null) failure = rollbackFailure; else failure.addSuppressed(rollbackFailure);
+			}
+			try {
+				resolution.placeholder().setExternal(true);
+				externalTasks.add(Math.min(resolution.index(), externalTasks.size()), resolution.placeholder());
+			} catch (RuntimeException | Error restoreFailure) {
+				if (failure == null) failure = restoreFailure; else failure.addSuppressed(restoreFailure);
+			}
+		}
+		if (failure instanceof Error error) throw error;
+		if (failure instanceof RuntimeException runtime) throw runtime;
+	}
+	private void finishResolutionTransaction(int checkpoint) {
+		if (resolutionTransactions.isEmpty() || resolutionTransactions.peek() != checkpoint)
+			throw new IllegalStateException("External task resolution transactions must finish in LIFO order");
+		resolutionTransactions.pop();
+	}
+	int retainedResolutionCount() { return resolutions.size(); }
 
 }

@@ -657,6 +657,38 @@ public class AssignmentService {
 		return connectInternal(assignment, null, new NodeUndoInfo(false));
 	}
 
+	/** Restores one assignment and its task baseline/detail after a shared-pool transaction aborts. */
+	public void restoreSharedPoolAssignment(Assignment assignment, Resource originalResource,
+			Object assignmentDetail, Object taskDetail) {
+		restoreSharedPoolAssignments(java.util.List.of(new SharedPoolAssignmentState(assignment, originalResource,
+			assignmentDetail, (NormalTask) assignment.getTask(), taskDetail)));
+	}
+
+	/** Restores a set of rewired assignments, restoring each task snapshot only once. */
+	public void restoreSharedPoolAssignments(java.util.List<SharedPoolAssignmentState> states) {
+		java.util.IdentityHashMap<NormalTask, Object> taskDetails = new java.util.IdentityHashMap<>();
+		for (SharedPoolAssignmentState state : states) {
+			Assignment assignment = state.assignment();
+			NormalTask task = state.task();
+			Resource resource = assignment.getResource();
+			if (task.findAssignment(resource) == assignment || resource.findAssignment(task) == assignment)
+				removeInternal(assignment, true, null, new NodeUndoInfo(false));
+			taskDetails.putIfAbsent(task, state.taskDetail());
+		}
+		for (SharedPoolAssignmentState state : states) {
+			state.assignment().setTaskAndResource(state.task(), state.resource());
+			if (!connectInternal(state.assignment(), null, new NodeUndoInfo(false)))
+				throw new IllegalStateException("Could not restore assignment after shared-pool rollback");
+		}
+		taskDetails.forEach((task, detail) -> task.restoreDetail(this, detail, true,
+			(TaskSnapshot) task.getCurrentSnapshot()));
+		for (SharedPoolAssignmentState state : states)
+			state.assignment().restoreDetail(state.assignmentDetail());
+	}
+
+	public record SharedPoolAssignmentState(Assignment assignment, Resource resource, Object assignmentDetail,
+		NormalTask task, Object taskDetail) { }
+
 	private void publishSharedPoolRefreshes(Project project, Object eventSource, NormalTask task,
 			List<Project.AdditionalObjectEventManager> additionalManagers) {
 		project.fireUpdateEvent(eventSource, task);

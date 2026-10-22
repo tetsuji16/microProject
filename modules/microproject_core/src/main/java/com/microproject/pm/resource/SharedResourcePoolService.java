@@ -25,6 +25,8 @@ public final class SharedResourcePoolService {
 	}
 
 	private static final SharedResourcePoolService INSTANCE = new SharedResourcePoolService();
+	private static volatile Runnable afterFirstRewireForTest;
+	private static final ThreadLocal<ResolutionTransaction> RESOLUTION_TRANSACTION = new ThreadLocal<>();
 
 	public static SharedResourcePoolService getInstance() {
 		return INSTANCE;
@@ -47,21 +49,66 @@ public final class SharedResourcePoolService {
 			throw new IllegalArgumentException("Both projects must have a resource pool");
 		if (canonicalFileName(poolProject.getFileName()) == null)
 			throw new IllegalStateException("Save the resource-pool project before sharing resources");
-		if (pool != sharerPool)
-			mergeResources(sharerPool, pool, effectivePolicy);
-		if (sharerPool != pool)
-			sharerPool.removeProject(sharer);
-		sharer.setResourcePool(pool);
-		// The owner also contributes assignments.  Keep it in the same registry
-		// as every client so pool views can aggregate the complete workload.
-		if (!containsIdentity(pool.getProjects(), poolProject))
-			pool.addProject(poolProject);
-		if (!containsIdentity(pool.getProjects(), sharer))
-			pool.addProject(sharer);
-		sharer.setSharedResourcePoolFile(canonicalFileName(poolProject.getFileName()));
-		sharer.setSharedResourcePoolProjectId(poolProject.getUniqueId());
-		sharer.setResourcePoolTakesPrecedence(effectivePolicy != ConflictPolicy.SHARER_TAKES_PRECEDENCE);
-		sharer.setSharedResourcePoolUnresolved(false);
+		ArrayList<Project.AdditionalObjectEventManager> participants = new ArrayList<>();
+		addEventParticipant(participants, sharerPool);
+		addEventParticipant(participants, pool);
+		ProjectMutationState.Checkpoint coordinatorCheckpoint = ProjectMutationState.checkpoint();
+		SharedPoolSnapshot snapshot = SharedPoolSnapshot.capture(sharer, poolProject, sharerPool, pool);
+		ResolutionTransaction transaction = RESOLUTION_TRANSACTION.get();
+		poolProject.runAtomicModelCommand(poolMarkApplied -> {
+			poolMarkApplied.run();
+			return sharer.runAtomicModelCommand(markApplied -> {
+				markApplied.run();
+				try {
+					if (pool != sharerPool) mergeResources(sharerPool, pool, effectivePolicy);
+					if (sharerPool != pool) sharerPool.removeProject(sharer);
+					sharer.setResourcePool(pool);
+					if (!containsIdentity(pool.getProjects(), poolProject)) pool.addProject(poolProject);
+					if (!containsIdentity(pool.getProjects(), sharer)) pool.addProject(sharer);
+					sharer.setSharedResourcePoolFile(canonicalFileName(poolProject.getFileName()));
+					sharer.setSharedResourcePoolProjectId(poolProject.getUniqueId());
+					sharer.setResourcePoolTakesPrecedence(effectivePolicy != ConflictPolicy.SHARER_TAKES_PRECEDENCE);
+					sharer.setSharedResourcePoolUnresolved(false);
+					return Boolean.TRUE;
+				} catch (RuntimeException | Error failure) {
+					try {
+						snapshot.restore();
+						ProjectMutationState.rollback(coordinatorCheckpoint);
+					} catch (RuntimeException | Error rollbackFailure) { failure.addSuppressed(rollbackFailure); }
+					throw failure;
+				}
+			}, Boolean.TRUE::equals, result -> result, participants);
+		}, Boolean.TRUE::equals, result -> result, participants);
+		if (transaction != null) transaction.snapshots.add(snapshot);
+	}
+
+	/** Groups successful pool resolutions so an enclosing replacement can undo them as a unit. */
+	public ResolutionScope beginResolutionTransaction() {
+		if (RESOLUTION_TRANSACTION.get() != null) throw new IllegalStateException("A shared-pool resolution transaction is already active");
+		ResolutionTransaction transaction = new ResolutionTransaction();
+		RESOLUTION_TRANSACTION.set(transaction);
+		return new ResolutionScope(transaction);
+	}
+	private static final class ResolutionTransaction { final java.util.ArrayList<SharedPoolSnapshot> snapshots = new java.util.ArrayList<>(); }
+	public static final class ResolutionScope implements AutoCloseable {
+		private final ResolutionTransaction transaction;
+		private boolean complete;
+		private ResolutionScope(ResolutionTransaction transaction) { this.transaction = transaction; }
+		public void commit() { complete = true; }
+		public void rollback() {
+			for (int i = transaction.snapshots.size() - 1; i >= 0; i--) transaction.snapshots.get(i).restore();
+			complete = true;
+		}
+		@Override public void close() {
+			if (RESOLUTION_TRANSACTION.get() == transaction) RESOLUTION_TRANSACTION.remove();
+			if (!complete) rollback();
+		}
+	}
+
+	static void failAfterFirstRewireForTest(Runnable failure) { afterFirstRewireForTest = failure; }
+	private static void addEventParticipant(ArrayList<Project.AdditionalObjectEventManager> participants, ResourcePool pool) {
+		if (pool != null) participants.add(new Project.AdditionalObjectEventManager(pool.getObjectEventManager(), pool,
+			pool, pool.getResourceList()));
 	}
 
 	/** Returns whether the project is the persisted resource-pool target of a sharer. */
@@ -152,6 +199,38 @@ public final class SharedResourcePoolService {
 		for (Object candidate : new ArrayList<Object>(source.getAssignments())) {
 			Assignment assignment = (Assignment) candidate;
 			AssignmentService.getInstance().rewireSharedPoolAssignment(assignment, destination, this);
+			Runnable failure = afterFirstRewireForTest;
+			if (failure != null) { afterFirstRewireForTest = null; failure.run(); }
+		}
+	}
+
+	private record SharedPoolSnapshot(Project sharer, Project poolProject, Project.SharedPoolState sharerState,
+		Project.SharedPoolState poolProjectState, ResourcePool sharerPool, ResourcePool.PoolState sharerPoolState,
+		ResourcePool pool, ResourcePool.PoolState poolState,
+		java.util.List<AssignmentService.SharedPoolAssignmentState> assignments) {
+		static SharedPoolSnapshot capture(Project sharer, Project poolProject, ResourcePool sharerPool, ResourcePool pool) {
+			java.util.IdentityHashMap<com.microproject.pm.task.NormalTask, Object> tasks = new java.util.IdentityHashMap<>();
+			java.util.ArrayList<AssignmentService.SharedPoolAssignmentState> assignments = new java.util.ArrayList<>();
+			java.util.IdentityHashMap<Assignment, Boolean> seen = new java.util.IdentityHashMap<>();
+			for (ResourcePool sourcePool : pool == sharerPool ? java.util.List.of(sharerPool) : java.util.List.of(sharerPool, pool))
+			for (Resource resource : sourcePool.getResourceList())
+				for (Object value : resource.getAssignments()) {
+					Assignment assignment = (Assignment)value;
+					if (seen.put(assignment, Boolean.TRUE) != null
+							|| !(assignment.getTask() instanceof com.microproject.pm.task.NormalTask task)) continue;
+					tasks.computeIfAbsent(task, ignored -> task.backupDetail());
+					assignments.add(new AssignmentService.SharedPoolAssignmentState(assignment, resource,
+						assignment.backupDetail(), task, tasks.get(task)));
+				}
+			return new SharedPoolSnapshot(sharer, poolProject, sharer.captureSharedPoolState(), poolProject.captureSharedPoolState(),
+				sharerPool, sharerPool.captureSharedPoolState(), pool, pool.captureSharedPoolState(), assignments);
+		}
+		void restore() {
+			sharerPool.restoreSharedPoolState(sharerPoolState);
+			if (pool != sharerPool) pool.restoreSharedPoolState(poolState);
+			sharer.restoreSharedPoolState(sharerState);
+			poolProject.restoreSharedPoolState(poolProjectState);
+			AssignmentService.getInstance().restoreSharedPoolAssignments(assignments);
 		}
 	}
 

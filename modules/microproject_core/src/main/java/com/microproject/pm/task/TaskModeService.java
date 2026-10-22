@@ -4,10 +4,13 @@
  ******************************************************************************/
 package com.microproject.pm.task;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Objects;
+
+import com.microproject.transaction.ProjectMutationState;
 
 /** Applies MSP-style manual/automatic scheduling and returns its reversible model change. */
 public final class TaskModeService {
@@ -32,6 +35,12 @@ public final class TaskModeService {
 		boolean target = mode == Mode.MANUAL;
 		boolean changed = false;
 		for (boolean value : before) changed |= value != target;
+		List<Project> projects = List.copyOf(projectSnapshots.keySet());
+		Map<Project, ProjectMutationState.Scope> mutations = new IdentityHashMap<>();
+		for (Project project : projects) {
+			mutations.put(project, project.getMutationState().begin());
+			project.beginEventBatch();
+		}
 		int attempted = 0;
 		try {
 			for (Task task : selected) {
@@ -54,8 +63,32 @@ public final class TaskModeService {
 					failure.addSuppressed(compensationFailure);
 				}
 			}
+			for (int i = projects.size() - 1; i >= 0; i--) {
+				Project project = projects.get(i);
+				try {
+					project.endEventBatch(false);
+				} catch (RuntimeException | Error compensationFailure) {
+					failure.addSuppressed(compensationFailure);
+				}
+				try {
+					mutations.get(project).commit(false);
+					mutations.get(project).close();
+				} catch (RuntimeException | Error compensationFailure) {
+					failure.addSuppressed(compensationFailure);
+				}
+			}
 			throw failure;
 		}
+		List<Project.PendingEventBatch> pendingEvents = new ArrayList<>();
+		for (int i = projects.size() - 1; i >= 0; i--) {
+			Project project = projects.get(i);
+			boolean projectChanged = false;
+			for (int taskIndex = 0; taskIndex < selected.size(); taskIndex++)
+				if (selected.get(taskIndex).getProject() == project && before[taskIndex] != target) projectChanged = true;
+			pendingEvents.add(project.commitEventBatch(mutations.get(project), projectChanged));
+		}
+		for (int i = 0; i < pendingEvents.size(); i++)
+			projects.get(projects.size() - 1 - i).publishEventBatch(pendingEvents.get(i));
 		ReversibleModelChange change = changed
 			? ReversibleModelChange.changed(() -> restore(selected, before), () -> restoreTarget(selected, target))
 			: ReversibleModelChange.unchanged();

@@ -32,6 +32,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.swing.Action;
 import javax.swing.JButton;
@@ -44,24 +45,21 @@ import org.junit.jupiter.api.Test;
 
 class PopupDialogSupportTest {
 	@Test
-	void bindEscapeRegistersFocusedWindowKeyBindingAndRunsCallback() {
+	void bindRootPaneActionRegistersFocusedWindowKeyAndRunsCallbackExactlyOnce() {
 		JRootPane rootPane = new JRootPane();
-		AtomicBoolean invoked = new AtomicBoolean(false);
+		AtomicInteger invocationCount = new AtomicInteger();
 
-		PopupDialogSupport.bindEscape(rootPane, new Runnable() {
-			public void run() {
-				invoked.set(true);
-			}
-		});
+		PopupDialogSupport.bindRootPaneAction(rootPane, KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
+			PopupDialogSupport.ESCAPE_ACTION_KEY, event -> invocationCount.incrementAndGet());
 
 		Object bindingKey = rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).get(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0));
 		assertEquals(PopupDialogSupport.ESCAPE_ACTION_KEY, bindingKey);
 
 		Action action = rootPane.getActionMap().get(PopupDialogSupport.ESCAPE_ACTION_KEY);
 		assertNotNull(action);
+		assertEquals(0, invocationCount.get());
 		action.actionPerformed(new ActionEvent(rootPane, ActionEvent.ACTION_PERFORMED, "escape"));
-
-		assertTrue(invoked.get());
+		assertEquals(1, invocationCount.get());
 	}
 
 	@Test

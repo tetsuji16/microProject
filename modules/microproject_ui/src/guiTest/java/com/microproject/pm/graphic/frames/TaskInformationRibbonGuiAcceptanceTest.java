@@ -56,6 +56,7 @@ import javax.swing.AbstractButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComponent;
 import javax.swing.JComboBox;
+import javax.swing.JTextField;
 import javax.swing.JFrame;
 import javax.swing.JTabbedPane;
 import javax.swing.JScrollPane;
@@ -198,6 +199,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	private Level previousGraphicManagerDiagnosticsLevel;
 	private ViewConfiguration taskSortViewToRestore;
 	private TaskSortSpec previousTaskSortSpec;
+	private ViewConfiguration taskFilterViewToRestore;
+	private String previousTaskFilterId;
 	private final ConcurrentLinkedQueue<String> diagnosticMessages = new ConcurrentLinkedQueue<>();
 	private volatile boolean failUpdateTasksRoute;
 
@@ -251,6 +254,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				taskSortViewToRestore.getTransform().setTaskSortSpec(previousTaskSortSpec);
 			taskSortViewToRestore = null;
 			previousTaskSortSpec = null;
+			if (taskFilterViewToRestore != null && previousTaskFilterId != null)
+				taskFilterViewToRestore.getTransform().setUserFilterId(previousTaskFilterId);
+			taskFilterViewToRestore = null;
+			previousTaskFilterId = null;
 			if (manager != null)
 				manager.cleanUp();
 			for (Window candidate : Window.getWindows()) {
@@ -618,7 +625,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		long projectStart = project.getStart();
 		long projectFinish = project.getEnd();
 		long projectWork = project.getWork(null);
-		int projectTaskCount = project.getTaskModel().getChildCount(project.getTaskModel().getRoot());
+		List<Long> projectTaskIds = project.getTasks().stream().map(Task::getId).toList();
 		boolean projectDirty = project.isDirty();
 		assertFalse(undo.canUndo(), "Who Does What fixture must start with empty Undo history");
 		showProject(project);
@@ -657,6 +664,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> reportView.getPrintable().model().title().equals("Who Does What"),
 			"physical report selection did not render Who Does What");
 		var model = reportView.getPrintable().model();
+		assertEquals(projectTaskIds, project.getTasks().stream().map(Task::getId).toList(),
+			"opening/selecting Who Does What must not mutate the task tree");
 		int taskColumn = reportColumn(model, "Field.assignmentTaskName");
 		int workColumn = reportColumn(model, "Field.work");
 		assertEquals(6, model.rows().size(), "two resource groups must each render two tasks and one summary row");
@@ -712,16 +721,20 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			.findFirst().orElseThrow(() -> new AssertionError("CSV export button was not rendered"));
 		click(robot, export);
 		GuiAcceptanceSupport.await(() -> Files.exists(reportCsvOutput), "physical CSV export did not create a file");
+		assertEquals(projectTaskIds, project.getTasks().stream().map(Task::getId).toList(),
+			"CSV export must not mutate the task tree");
 		assertEquals(new UiServices.FileChooserOptions(true, "report.csv", exportLabel, "CSV (*.csv)", "csv"), requestedOptions.get(0));
 		String csv = Files.readString(reportCsvOutput, java.nio.charset.StandardCharsets.UTF_8);
 		assertReportRowsMatchCsv(model, csv, "Who Does What resource groups, tasks, and Work totals");
 		GraphPageable pageable = PrintDocumentFactory.getInstance().createDocument(manager.getCurrentFrame(), false, false);
 		assertNotNull(pageable, "Who Does What must prepare a printable document");
+		assertEquals(projectTaskIds, project.getTasks().stream().map(Task::getId).toList(),
+			"print document preparation must not mutate the task tree");
 		assertEveryReportPageRenders(pageable);
 		assertEquals(projectWork, project.getWork(null), "report route must not mutate project Work");
 		assertEquals(projectStart, project.getStart(), "report route must not mutate project start");
 		assertEquals(projectFinish, project.getEnd(), "report route must not mutate project finish");
-		assertEquals(projectTaskCount, project.getTaskModel().getChildCount(project.getTaskModel().getRoot()),
+		assertEquals(projectTaskIds, project.getTasks().stream().map(Task::getId).toList(),
 			"report route must not change project task count");
 		assertEquals(projectDirty, project.isDirty(), "report route must not change project dirty state");
 		assertEquals(taskStarts, tasks.stream().map(NormalTask::getStart).toList(), "report route must not change task starts");
@@ -1212,6 +1225,394 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		DialogScreenshotArtifacts.capture(dialog, "issue-460-task-information");
 	}
 
+	@Test
+	void advancedConstraintTypePhysicalRouteUndoRedoAndMpoRecomputesFsSuccessor() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		beginCommandDiagnosticCapture();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+
+		NormalTask task = createTask();
+		Project project = task.getOwningProject();
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		long constraintDate = CalendarOption.getInstance().makeValidEnd(project.getStart() + 5L * day, false);
+		task.setDuration(day);
+		task.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, constraintDate);
+		NormalTask successor = project.createScriptedTask();
+		successor.setName("Constraint successor acceptance");
+		successor.setDuration(2L * day);
+		project.connectTask(successor);
+		NormalTask unrelated = project.createScriptedTask();
+		unrelated.setName("Constraint unrelated acceptance");
+		unrelated.setDuration(3L * day);
+		project.connectTask(unrelated);
+		DependencyService.getInstance().newDependency(task, successor, DependencyType.FS, 0L, this);
+		project.recalculate();
+		project.getUndoController().clear();
+		long beforeTargetStart = task.getStart();
+		long beforeTargetFinish = task.getEnd();
+		long beforeSuccessorStart = successor.getStart();
+		long beforeSuccessorFinish = successor.getEnd();
+		long beforeUnrelatedStart = unrelated.getStart();
+		long beforeUnrelatedFinish = unrelated.getEnd();
+		long taskUid = task.getUniqueId();
+		assertTrue(beforeTargetStart >= constraintDate, "SNET fixture must schedule target no earlier than its explicit constraint date");
+		assertEquals(successor.getEffectiveWorkCalendar().adjustInsideCalendar(beforeTargetFinish, false), beforeSuccessorStart,
+			"FS successor must start at the next working interval in its effective task calendar");
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"full ribbon task window did not become visible");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		clickUntilSelected(robot, window, sheet, rowForTask(sheet, task), nameColumn(sheet));
+		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+			.getString("TaskRibbonTask.title"));
+		clickAndAwaitSelected(robot, taskTab, "Robot click did not select the Task ribbon tab");
+		AbstractButton information = RibbonGuiSupport.findVisibleOrExpand(robot, window, "RibbonTaskInformation");
+		click(robot, information);
+		GuiAcceptanceSupport.await(() -> findTaskInformationDialog() != null,
+			"Task Properties > Information did not open Task Information after a Robot click");
+		TaskInformationDialog dialog = findTaskInformationDialog();
+		JTabbedPane tabs = findTabbedPane(dialog);
+		int advancedIndex = tabs.indexOfTab(Messages.getString("TaskInformationDialog.Advanced"));
+		assertTrue(advancedIndex >= 0, "Task Information must expose its Advanced tab");
+		Rectangle tabsBounds = boundsOnScreen(tabs);
+		Rectangle advancedBounds = tabs.getBoundsAt(advancedIndex);
+		click(robot, new Rectangle(tabsBounds.x + advancedBounds.x, tabsBounds.y + advancedBounds.y,
+			advancedBounds.width, advancedBounds.height));
+		GuiAcceptanceSupport.await(() -> tabs.getSelectedIndex() == advancedIndex,
+			"Robot click did not open Task Information Advanced");
+		JComboBox<?> constraintType = findConstraintTypeCombo(dialog);
+		assertNotNull(constraintType, "Advanced must expose the constraint type combo");
+		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET.code(), task.getConstraintType());
+		assertEquals(constraintDate, task.getConstraintDate(), "fixture constraint date must be deterministic");
+		DialogScreenshotArtifacts.capture(dialog, "issue-794-constraint-type-advanced-before-edit");
+		click(robot, constraintType);
+		press(robot, KeyEvent.VK_HOME);
+		int asapIndex = -1;
+		for (int index = 0; index < constraintType.getItemCount(); index++)
+			if (Messages.getString("ConstraintType.ASAP").equals(String.valueOf(constraintType.getItemAt(index)))) asapIndex = index;
+		assertTrue(asapIndex >= 0, "Advanced constraint options must include As Soon As Possible");
+		for (int index = 0; index < asapIndex; index++) press(robot, KeyEvent.VK_DOWN);
+		press(robot, KeyEvent.VK_ENTER);
+		press(robot, KeyEvent.VK_TAB);
+		GuiAcceptanceSupport.await(() -> task.getConstraintType()
+			== com.microproject.pm.scheduling.ConstraintType.Kind.ASAP.code(),
+			"physical Advanced combo selection did not apply As Soon As Possible");
+		GuiAcceptanceSupport.await(() -> Messages.getString("ConstraintType.ASAP")
+			.equals(String.valueOf(constraintType.getSelectedItem())),
+			"Advanced constraint type control did not render As Soon As Possible after verification");
+		DialogScreenshotArtifacts.capture(dialog, "issue-794-constraint-type-advanced-after-edit");
+		long afterTargetStart = task.getStart();
+		long afterTargetFinish = task.getEnd();
+		long afterSuccessorStart = successor.getStart();
+		long afterSuccessorFinish = successor.getEnd();
+		long afterUnrelatedStart = unrelated.getStart();
+		long afterUnrelatedFinish = unrelated.getEnd();
+		assertEquals(0L, task.getConstraintDate(), "ASAP must clear the inapplicable SNET constraint date");
+		assertTrue(afterTargetStart < beforeTargetStart, "ASAP must move the future-SNET target earlier");
+		assertTrue(afterTargetFinish < beforeTargetFinish, "ASAP must move the target finish earlier");
+		assertEquals(successor.getEffectiveWorkCalendar().adjustInsideCalendar(afterTargetFinish, false), afterSuccessorStart,
+			"explicit FS successor start must be recomputed at the next working interval in its effective calendar");
+		assertTrue(afterSuccessorFinish < beforeSuccessorFinish, "explicit FS successor finish must follow the target's earlier schedule");
+		assertEquals(beforeUnrelatedStart, afterUnrelatedStart, "constraint edit must preserve disconnected task start");
+		assertEquals(beforeUnrelatedFinish, afterUnrelatedFinish, "constraint edit must preserve disconnected task finish");
+		assertTrue(project.getUndoController().canUndo(), "constraint type edit must register Undo");
+		closeWindowWithRobot(robot, dialog);
+		GuiAcceptanceSupport.await(() -> !dialog.isVisible(), "Robot did not close Task Information before project Undo");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> task.getConstraintType()
+			== com.microproject.pm.scheduling.ConstraintType.Kind.SNET.code(), "Ctrl+Z did not restore SNET");
+		assertEquals(constraintDate, task.getConstraintDate(), "Undo must restore the SNET constraint date");
+		assertEquals(beforeTargetStart, task.getStart());
+		assertEquals(beforeTargetFinish, task.getEnd());
+		assertEquals(successor.getEffectiveWorkCalendar().adjustInsideCalendar(beforeTargetFinish, false), successor.getStart());
+		assertEquals(beforeSuccessorFinish, successor.getEnd());
+		assertEquals(beforeUnrelatedStart, unrelated.getStart());
+		assertEquals(beforeUnrelatedFinish, unrelated.getEnd());
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> task.getConstraintType()
+			== com.microproject.pm.scheduling.ConstraintType.Kind.ASAP.code(), "Ctrl+Y did not restore ASAP");
+		assertEquals(0L, task.getConstraintDate());
+		assertEquals(afterTargetStart, task.getStart());
+		assertEquals(afterTargetFinish, task.getEnd());
+		assertEquals(afterSuccessorStart, successor.getStart());
+		assertEquals(afterSuccessorFinish, successor.getEnd());
+		assertEquals(afterUnrelatedStart, unrelated.getStart());
+		assertEquals(afterUnrelatedFinish, unrelated.getEnd());
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		MpoFileImporter importer = new MpoFileImporter();
+		assertTrue(importer.saveProject(project, saved), "MPO save rejected physical constraint type edit");
+		Project reopened = importer.loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		NormalTask reopenedTask = (NormalTask) reopened.getTaskList().stream()
+			.filter(candidate -> candidate.getUniqueId() == taskUid && task.getName().equals(candidate.getName()))
+			.findFirst().orElseThrow();
+		NormalTask reopenedSuccessor = taskNamed(reopened, successor.getName());
+		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.ASAP.code(), reopenedTask.getConstraintType());
+		assertEquals(0L, reopenedTask.getConstraintDate());
+		assertEquals(afterTargetStart, reopenedTask.getStart());
+		assertEquals(afterTargetFinish, reopenedTask.getEnd());
+		assertEquals(afterSuccessorStart, reopenedSuccessor.getStart());
+		assertEquals(afterSuccessorFinish, reopenedSuccessor.getEnd());
+		assertEquals(beforeUnrelatedStart, taskNamed(reopened, unrelated.getName()).getStart());
+		assertEquals(beforeUnrelatedFinish, taskNamed(reopened, unrelated.getName()).getEnd());
+	}
+
+	@Test
+	void advancedConstraintDatePhysicalRouteRejectsInvalidTextAndPersistsUndoRedo() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		Environment.setClientSide(true);
+		Alert.setPresenter(new SwingAlertPresenter());
+
+		NormalTask task = createTask();
+		Project project = task.getOwningProject();
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		long originalConstraintDate = CalendarOption.getInstance().makeValidEnd(project.getStart() + 5L * day, false);
+		java.text.DateFormat dateFormat = com.microproject.options.EditOption.getInstance().getDateFormat();
+		long intendedConstraintDate = CalendarOption.getInstance().makeValidEnd(originalConstraintDate + 14L * day, false);
+		long[] editedConstraintDate = { intendedConstraintDate };
+		task.setDuration(day);
+		task.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, originalConstraintDate);
+		NormalTask successor = project.createScriptedTask();
+		successor.setName("Constraint date successor acceptance");
+		successor.setDuration(2L * day);
+		project.connectTask(successor);
+		NormalTask unrelated = project.createScriptedTask();
+		unrelated.setName("Constraint date unrelated acceptance");
+		unrelated.setDuration(3L * day);
+		project.connectTask(unrelated);
+		DependencyService.getInstance().newDependency(task, successor, DependencyType.FS, 0L, this);
+		project.recalculate();
+		project.getUndoController().clear();
+		long beforeTargetStart = task.getStart();
+		long beforeTargetFinish = task.getEnd();
+		long beforeSuccessorStart = successor.getStart();
+		long beforeSuccessorFinish = successor.getEnd();
+		long beforeUnrelatedStart = unrelated.getStart();
+		long beforeUnrelatedFinish = unrelated.getEnd();
+		long taskUid = task.getUniqueId();
+		assertTrue(beforeTargetStart >= originalConstraintDate, "SNET fixture must honor its initial constraint date");
+		assertEquals(successor.getEffectiveWorkCalendar().adjustInsideCalendar(beforeTargetFinish, false), beforeSuccessorStart);
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"full ribbon task window did not become visible");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		clickUntilSelected(robot, window, sheet, rowForTask(sheet, task), nameColumn(sheet));
+		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+			.getString("TaskRibbonTask.title"));
+		clickAndAwaitSelected(robot, taskTab, "Robot click did not select the Task ribbon tab");
+		AbstractButton information = RibbonGuiSupport.findVisibleOrExpand(robot, window, "RibbonTaskInformation");
+		click(robot, information);
+		GuiAcceptanceSupport.await(() -> findTaskInformationDialog() != null,
+			"Task Properties > Information did not open Task Information after a Robot click");
+		TaskInformationDialog dialog = findTaskInformationDialog();
+		JTabbedPane tabs = findTabbedPane(dialog);
+		int advancedIndex = tabs.indexOfTab(Messages.getString("TaskInformationDialog.Advanced"));
+		assertTrue(advancedIndex >= 0, "Task Information must expose its Advanced tab");
+		Rectangle tabsBounds = boundsOnScreen(tabs);
+		Rectangle advancedBounds = tabs.getBoundsAt(advancedIndex);
+		click(robot, new Rectangle(tabsBounds.x + advancedBounds.x, tabsBounds.y + advancedBounds.y,
+			advancedBounds.width, advancedBounds.height));
+		GuiAcceptanceSupport.await(() -> tabs.getSelectedIndex() == advancedIndex,
+			"Robot click did not open Task Information Advanced");
+		com.microproject.dialog.util.ExtDateField dateField = UiComponentWalker.flatten(tabs.getComponentAt(advancedIndex)).stream()
+			.filter(com.microproject.dialog.util.ExtDateField.class::isInstance)
+			.map(com.microproject.dialog.util.ExtDateField.class::cast).findFirst().orElseThrow();
+		JTextComponent dateInput = dateField.getFormattedTextField();
+		java.util.List<com.microproject.dialog.util.ExtDateField> advancedDateFields = UiComponentWalker.flatten(tabs.getComponentAt(advancedIndex)).stream()
+			.filter(com.microproject.dialog.util.ExtDateField.class::isInstance)
+			.map(com.microproject.dialog.util.ExtDateField.class::cast).toList();
+		JTextComponent deadlineInput = advancedDateFields.get(1).getFormattedTextField();
+		assertEquals(originalConstraintDate, task.getConstraintDate());
+		DialogScreenshotArtifacts.capture(dialog, "issue-794-constraint-date-advanced-before-edit");
+		String committedText = dateFormat.format(new java.util.Date(intendedConstraintDate));
+		click(robot, dateInput);
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_A);
+		typeAscii(robot, committedText);
+		press(robot, KeyEvent.VK_TAB);
+		GuiAcceptanceSupport.await(() -> committedText.equals(dateInput.getText()),
+			"Advanced constraint date field did not render its committed value");
+		editedConstraintDate[0] = task.getConstraintDate();
+		assertEquals(committedText, dateFormat.format(new java.util.Date(editedConstraintDate[0])),
+			"physical Advanced constraint date entry must match the model's displayed date");
+		assertNotEquals(originalConstraintDate, editedConstraintDate[0]);
+		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET.code(), task.getConstraintType());
+		assertTrue(task.getStart() >= editedConstraintDate[0], "SNET target must honor its edited constraint date");
+		assertEquals(task.getEffectiveWorkCalendar().adjustInsideCalendar(task.getConstraintDate(), false), task.getStart(),
+			"SNET task start must be normalized to the first effective-calendar working time at or after its constraint");
+		assertTrue(task.getStart() > beforeTargetStart, "later SNET date must move the target later");
+		assertTrue(task.getEnd() > beforeTargetFinish,
+			"later SNET date must move the target finish later; originalConstraint=" + originalConstraintDate
+				+ ", enteredConstraint=" + editedConstraintDate[0] + ", beforeStart=" + beforeTargetStart
+				+ ", beforeFinish=" + beforeTargetFinish + ", afterStart=" + task.getStart()
+				+ ", afterFinish=" + task.getEnd());
+		assertEquals(successor.getEffectiveWorkCalendar().adjustInsideCalendar(task.getEnd(), false), successor.getStart(),
+			"FS successor must follow the target's edited finish");
+		assertTrue(successor.getEnd() > beforeSuccessorFinish, "FS successor finish must follow the target's later schedule");
+		assertEquals(beforeUnrelatedStart, unrelated.getStart(), "disconnected task start must remain unchanged");
+		assertEquals(beforeUnrelatedFinish, unrelated.getEnd(), "disconnected task finish must remain unchanged");
+		assertTrue(project.getUndoController().canUndo(), "constraint date edit must register Undo");
+		String constraintDateUndoName = project.getUndoController().getUndoName();
+		assertFalse(project.getUndoController().canRedo(), "fresh constraint date edit must not leave a stale Redo");
+		long editedTargetStart = task.getStart();
+		long editedTargetFinish = task.getEnd();
+		long editedSuccessorStart = successor.getStart();
+		long editedSuccessorFinish = successor.getEnd();
+
+		String undoBeforeInvalidEntry = project.getUndoController().getUndoName();
+		long deadlineBeforeInvalidEntry = task.getDeadline();
+		click(robot, dateInput);
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_A);
+		typeAscii(robot, "invalid");
+		String undoBeforeInvalidTab = project.getUndoController().getUndoName();
+		long deadlineBeforeInvalidTab = task.getDeadline();
+		press(robot, KeyEvent.VK_TAB);
+		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
+			.anyMatch(candidate -> candidate instanceof Dialog && candidate.isShowing()
+				&& !(candidate instanceof TaskInformationDialog)),
+			"invalid constraint date must show validation feedback on focus traversal");
+		Dialog validationDialog = java.util.Arrays.stream(Window.getWindows())
+			.filter(candidate -> candidate instanceof Dialog && candidate.isShowing()
+				&& !(candidate instanceof TaskInformationDialog)).map(Dialog.class::cast).findFirst().orElseThrow();
+		JOptionPane validationPane = UiComponentWalker.flatten(validationDialog).stream()
+			.filter(JOptionPane.class::isInstance).map(JOptionPane.class::cast).findFirst().orElseThrow();
+		assertNotNull(validationPane.getMessage(), "validation feedback must explain the rejected date");
+		String invalidTabState = "undoBeforeInvalidEntry=" + undoBeforeInvalidEntry + ", deadlineBeforeInvalidEntry=" + deadlineBeforeInvalidEntry
+			+ ", undoBeforeInvalidTab=" + undoBeforeInvalidTab + ", deadlineBeforeInvalidTab=" + deadlineBeforeInvalidTab
+			+ ", deadline=" + task.getDeadline() + ", deadlineText=" + deadlineInput.getText()
+			+ ", focusOwner=" + java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner()
+			+ ", constraintText=" + dateInput.getText() + ", canUndo=" + project.getUndoController().canUndo()
+			+ ", undo=" + project.getUndoController().getUndoName() + ", canRedo=" + project.getUndoController().canRedo()
+			+ ", redo=" + project.getUndoController().getRedoName();
+		DialogScreenshotArtifacts.capture(validationDialog, "issue-794-constraint-date-invalid-feedback");
+		assertEquals(editedConstraintDate[0], task.getConstraintDate(), "invalid input must preserve committed constraint date");
+		assertEquals(editedTargetStart, task.getStart());
+		assertEquals(editedTargetFinish, task.getEnd());
+		assertEquals(editedSuccessorStart, successor.getStart());
+		assertEquals(editedSuccessorFinish, successor.getEnd());
+		assertEquals(beforeUnrelatedStart, unrelated.getStart());
+		assertEquals(beforeUnrelatedFinish, unrelated.getEnd());
+		assertTrue(project.getUndoController().canUndo(), "rejected input must leave the committed Undo state available");
+		long deadlineWhileAlertOpen = task.getDeadline();
+		String undoWhileAlertOpen = project.getUndoController().getUndoName();
+		boolean redoWhileAlertOpen = project.getUndoController().canRedo();
+		AbstractButton ok = findShowingButtonByText(validationDialog, Messages.getString("ButtonText.OK"));
+		click(robot, ok);
+		GuiAcceptanceSupport.await(() -> !validationDialog.isShowing(), "Robot did not dismiss invalid-date validation feedback");
+		GuiAcceptanceSupport.await(() -> java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner() != null,
+			"focus did not return after dismissing invalid-date validation feedback");
+		String focusAfterAlert = "focusAfterAlert=" + java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner()
+			+ ", deadline=" + task.getDeadline() + ", deadlineText=" + deadlineInput.getText()
+			+ ", constraintText=" + dateInput.getText() + ", canUndo=" + project.getUndoController().canUndo()
+			+ ", undo=" + project.getUndoController().getUndoName() + ", canRedo=" + project.getUndoController().canRedo()
+			+ ", redo=" + project.getUndoController().getRedoName();
+		assertEquals(0L, deadlineWhileAlertOpen, "invalid Tab must not commit an unrelated Deadline while validation is open; " + invalidTabState);
+		assertEquals(0L, task.getDeadline(), "invalid Tab must not change Deadline after feedback dismissal; " + focusAfterAlert);
+		assertEquals(constraintDateUndoName, undoWhileAlertOpen, "invalid Tab must preserve Undo while validation is open; " + invalidTabState);
+		assertEquals(constraintDateUndoName, project.getUndoController().getUndoName(),
+			"invalid Tab must preserve Undo after feedback dismissal; " + focusAfterAlert);
+		assertFalse(redoWhileAlertOpen, "invalid Tab must preserve Redo while validation is open; " + invalidTabState);
+		assertFalse(project.getUndoController().canRedo(), "invalid Tab must preserve Redo after feedback dismissal; " + focusAfterAlert);
+		String undoBeforeReset = project.getUndoController().getUndoName();
+		assertEquals(constraintDateUndoName, undoBeforeReset, "closing validation feedback itself must not add an edit; " + focusAfterAlert);
+		press(robot, KeyEvent.VK_ESCAPE);
+		String afterReset = "focus=" + java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner()
+			+ ", deadline=" + task.getDeadline() + ", deadlineText=" + deadlineInput.getText()
+			+ ", constraintText=" + dateInput.getText() + ", constraintInputValue=" + ((javax.swing.JFormattedTextField) dateInput).getValue()
+			+ ", constraintModel=" + task.getConstraintDate() + ", canUndo=" + project.getUndoController().canUndo()
+			+ ", undo=" + project.getUndoController().getUndoName() + ", canRedo=" + project.getUndoController().canRedo()
+			+ ", redo=" + project.getUndoController().getRedoName();
+		DialogScreenshotArtifacts.capture(dialog, "issue-794-constraint-date-invalid-dismissed");
+		assertEquals(constraintDateUndoName, project.getUndoController().getUndoName(),
+			"canceling the rejected text must not add an edit; " + afterReset);
+		AbstractButton closeButton = findShowingButtonByText(dialog, Messages.getString("ButtonText.Close"));
+		click(robot, closeButton);
+		String afterCloseClick = "focus=" + java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner()
+			+ ", deadline=" + task.getDeadline() + ", deadlineText=" + deadlineInput.getText()
+			+ ", constraintText=" + dateInput.getText() + ", constraintInputValue=" + ((javax.swing.JFormattedTextField) dateInput).getValue()
+			+ ", constraintModel=" + task.getConstraintDate() + ", canUndo=" + project.getUndoController().canUndo()
+			+ ", undo=" + project.getUndoController().getUndoName() + ", canRedo=" + project.getUndoController().canRedo()
+			+ ", redo=" + project.getUndoController().getRedoName();
+		GuiAcceptanceSupport.await(() -> !dialog.isVisible(), "Robot did not close Task Information before project Undo");
+		String undoNameBefore = project.getUndoController().getUndoName();
+		assertEquals(constraintDateUndoName, undoNameBefore,
+			"closing after rejected input must leave constraint date as the next Undo; afterReset=" + afterReset
+				+ "; afterCloseClick=" + afterCloseClick);
+		assertFalse(project.getUndoController().canRedo(), "closing after rejected input must preserve Redo availability");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		try {
+			GuiAcceptanceSupport.await(() -> task.getConstraintDate() == originalConstraintDate,
+				"Ctrl+Z did not restore the original constraint date");
+		} catch (AssertionError failure) {
+			throw new AssertionError(failure.getMessage() + "; original=" + originalConstraintDate
+				+ ", current=" + task.getConstraintDate() + ", currentText="
+				+ dateFormat.format(new java.util.Date(task.getConstraintDate())) + ", canUndo="
+				+ project.getUndoController().canUndo() + ", canRedo=" + project.getUndoController().canRedo()
+				+ ", undoNameBefore=" + undoNameBefore + ", undoNameAfter="
+				+ project.getUndoController().getUndoName() + ", redoNameAfter="
+				+ project.getUndoController().getRedoName(), failure);
+		}
+		assertEquals(beforeTargetStart, task.getStart());
+		assertEquals(beforeTargetFinish, task.getEnd());
+		assertEquals(beforeSuccessorStart, successor.getStart());
+		assertEquals(beforeSuccessorFinish, successor.getEnd());
+		assertEquals(beforeUnrelatedStart, unrelated.getStart());
+		assertEquals(beforeUnrelatedFinish, unrelated.getEnd());
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> task.getConstraintDate() == editedConstraintDate[0],
+			"Ctrl+Y did not restore the edited constraint date");
+		assertEquals(editedTargetStart, task.getStart());
+		assertEquals(editedTargetFinish, task.getEnd());
+		assertEquals(editedSuccessorStart, successor.getStart());
+		assertEquals(editedSuccessorFinish, successor.getEnd());
+		assertEquals(beforeUnrelatedStart, unrelated.getStart());
+		assertEquals(beforeUnrelatedFinish, unrelated.getEnd());
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		MpoFileImporter importer = new MpoFileImporter();
+		assertTrue(importer.saveProject(project, saved), "MPO save rejected physical constraint date edit");
+		Project reopened = importer.loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		NormalTask reopenedTask = (NormalTask) reopened.getTaskList().stream()
+			.filter(candidate -> candidate.getUniqueId() == taskUid && task.getName().equals(candidate.getName()))
+			.findFirst().orElseThrow();
+		assertEquals(editedConstraintDate[0], reopenedTask.getConstraintDate());
+		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET.code(), reopenedTask.getConstraintType());
+		assertEquals(editedTargetStart, reopenedTask.getStart());
+		assertEquals(editedTargetFinish, reopenedTask.getEnd());
+		NormalTask reopenedSuccessor = taskNamed(reopened, successor.getName());
+		assertEquals(editedSuccessorStart, reopenedSuccessor.getStart());
+		assertEquals(editedSuccessorFinish, reopenedSuccessor.getEnd());
+		NormalTask reopenedUnrelated = taskNamed(reopened, unrelated.getName());
+		assertEquals(beforeUnrelatedStart, reopenedUnrelated.getStart());
+		assertEquals(beforeUnrelatedFinish, reopenedUnrelated.getEnd());
+	}
+
+	private static JComboBox<?> findConstraintTypeCombo(Component component) {
+		if (component instanceof JComboBox<?> combo)
+			for (int index = 0; index < combo.getItemCount(); index++)
+				if (Messages.getString("ConstraintType.ASAP").equals(String.valueOf(combo.getItemAt(index)))) return combo;
+		if (component instanceof java.awt.Container container)
+			for (Component child : container.getComponents()) {
+				JComboBox<?> match = findConstraintTypeCombo(child);
+				if (match != null) return match;
+			}
+		return null;
+	}
+
 	private static JTextComponent findTextComponent(Component component, String value) {
 		if (component instanceof JTextComponent text && value.equals(text.getText())) return text;
 		if (component instanceof java.awt.Container container)
@@ -1521,11 +1922,18 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"physical selection must contain both stable task IDs");
 		AbstractButton zoomSelected = findShowingButtonByCommand("RibbonZoomSelectedTasks");
 		GuiAcceptanceSupport.await(zoomSelected::isEnabled, "Selected Tasks zoom remained disabled for two dated Gantt rows");
+		logSelectedZoomState("Gantt before", selectedSheet, selectedView.getGantt(),
+			selectedView::getVisibleDateRange, selectedView::getScale, first, second);
 		click(robot, zoomSelected);
-		GuiAcceptanceSupport.await(() -> {
-			var visible = selectedView.getVisibleDateRange();
-			return visible != null && visible.start() <= firstStart && visible.end() >= secondEnd;
-		}, "Selected Tasks zoom did not fit the full two-task date span");
+		try {
+			GuiAcceptanceSupport.await(() -> {
+				var visible = selectedView.getVisibleDateRange();
+				return visible != null && visible.start() <= firstStart && visible.end() >= secondEnd;
+			}, "Selected Tasks zoom did not fit the full two-task date span");
+		} finally {
+			logSelectedZoomState("Gantt after", selectedSheet, selectedView.getGantt(),
+				selectedView::getVisibleDateRange, selectedView::getScale, first, second);
+		}
 		assertEquals(firstStart, first.getStart(), "zoom must not change the first selected task start");
 		assertEquals(firstEnd, first.getEnd(), "zoom must not change the first selected task finish");
 		assertEquals(secondStart, second.getStart(), "zoom must not change the second selected task start");
@@ -1559,11 +1967,18 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		AbstractButton usageZoomSelected = findShowingButtonByCommand("RibbonZoomSelectedTasks");
 		GuiAcceptanceSupport.await(usageZoomSelected::isEnabled,
 			"Selected Tasks zoom remained disabled for two dated Task Usage rows");
+		logSelectedZoomState("Task Usage before", usageSheet, usageView.getTimeSpreadSheet(),
+			usageView::getVisibleDateRange, usageView::getScale, first, second);
 		click(robot, usageZoomSelected);
-		GuiAcceptanceSupport.await(() -> {
-			var visible = usageView.getVisibleDateRange();
-			return visible != null && visible.start() <= firstStart && visible.end() >= secondEnd;
-		}, "Task Usage Selected Tasks zoom did not fit the full two-task date span");
+		try {
+			GuiAcceptanceSupport.await(() -> {
+				var visible = usageView.getVisibleDateRange();
+				return visible != null && visible.start() <= firstStart && visible.end() >= secondEnd;
+			}, "Task Usage Selected Tasks zoom did not fit the full two-task date span");
+		} finally {
+			logSelectedZoomState("Task Usage after", usageSheet, usageView.getTimeSpreadSheet(),
+				usageView::getVisibleDateRange, usageView::getScale, first, second);
+		}
 		assertEquals(firstStart, first.getStart(), "Task Usage zoom must not change first task start");
 		assertEquals(firstEnd, first.getEnd(), "Task Usage zoom must not change first task finish");
 		assertEquals(secondStart, second.getStart(), "Task Usage zoom must not change second task start");
@@ -1598,11 +2013,18 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		AbstractButton trackingZoomSelected = findShowingButtonByCommand("RibbonZoomSelectedTasks");
 		GuiAcceptanceSupport.await(trackingZoomSelected::isEnabled,
 			"Selected Tasks zoom remained disabled for two dated Tracking Gantt rows");
+		logSelectedZoomState("Tracking Gantt before", trackingSheet, trackingView.getGantt(),
+			trackingView::getVisibleDateRange, trackingView::getScale, first, second);
 		click(robot, trackingZoomSelected);
-		GuiAcceptanceSupport.await(() -> {
-			var visible = trackingView.getVisibleDateRange();
-			return visible != null && visible.start() <= firstStart && visible.end() >= secondEnd;
-		}, "Tracking Gantt Selected Tasks zoom did not fit the full two-task date span");
+		try {
+			GuiAcceptanceSupport.await(() -> {
+				var visible = trackingView.getVisibleDateRange();
+				return visible != null && visible.start() <= firstStart && visible.end() >= secondEnd;
+			}, "Tracking Gantt Selected Tasks zoom did not fit the full two-task date span");
+		} finally {
+			logSelectedZoomState("Tracking Gantt after", trackingSheet, trackingView.getGantt(),
+				trackingView::getVisibleDateRange, trackingView::getScale, first, second);
+		}
 		assertEquals(firstStart, first.getStart(), "Tracking Gantt zoom must not change first task start");
 		assertEquals(firstEnd, first.getEnd(), "Tracking Gantt zoom must not change first task finish");
 		assertEquals(secondStart, second.getStart(), "Tracking Gantt zoom must not change second task start");
@@ -1637,16 +2059,86 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		AbstractButton resourceZoomSelected = findShowingButtonByCommand("RibbonZoomSelectedTasks");
 		GuiAcceptanceSupport.await(resourceZoomSelected::isEnabled,
 			"Selected Tasks zoom remained disabled for two dated Resource Usage assignment rows");
+		logSelectedZoomState("Resource Usage before", resourceUsageSheet, resourceUsageView.getTimeSpreadSheet(),
+			resourceUsageView::getVisibleDateRange, resourceUsageView::getScale, first, second);
 		click(robot, resourceZoomSelected);
-		GuiAcceptanceSupport.await(() -> {
-			var visible = resourceUsageView.getVisibleDateRange();
-			return visible != null && visible.start() <= firstStart && visible.end() >= secondEnd;
-		}, "Resource Usage Selected Tasks zoom did not fit the full two-task date span");
+		try {
+			GuiAcceptanceSupport.await(() -> {
+				var visible = resourceUsageView.getVisibleDateRange();
+				return visible != null && visible.start() <= firstStart && visible.end() >= secondEnd;
+			}, "Resource Usage Selected Tasks zoom did not fit the full two-task date span");
+		} finally {
+			logSelectedZoomState("Resource Usage after", resourceUsageSheet, resourceUsageView.getTimeSpreadSheet(),
+				resourceUsageView::getVisibleDateRange, resourceUsageView::getScale, first, second);
+		}
 		assertEquals(firstStart, first.getStart(), "Resource Usage zoom must not change first task start");
 		assertEquals(firstEnd, first.getEnd(), "Resource Usage zoom must not change first task finish");
 		assertEquals(secondStart, second.getStart(), "Resource Usage zoom must not change second task start");
 		assertEquals(secondEnd, second.getEnd(), "Resource Usage zoom must not change second task finish");
 		assertFalse(project.getUndoController().canUndo(), "Resource Usage view-only zoom must not add project undo history");
+	}
+
+	private void logSelectedZoomState(String label, SpreadSheet sheet, Component timeline,
+			java.util.function.Supplier<com.microproject.pm.graphic.views.SelectedTasksTimescaleZoom.DateRange> visibleRange,
+			java.util.function.IntSupplier scale, Task first, Task second) throws Exception {
+		java.util.concurrent.atomic.AtomicReference<String> diagnostic = new java.util.concurrent.atomic.AtomicReference<>();
+		SwingUtilities.invokeAndWait(() -> {
+			long[] resolved = { Long.MAX_VALUE, Long.MIN_VALUE };
+			List<String> selected = new ArrayList<>();
+			for (Object node : sheet.getSelectedNodesImpl())
+				appendSelectedZoomNode(node, selected, resolved);
+			java.awt.Container parent = timeline.getParent();
+			javax.swing.JScrollPane scrollPane = null;
+			while (parent != null) {
+				if (parent instanceof javax.swing.JScrollPane found) {
+					scrollPane = found;
+					break;
+				}
+				parent = parent.getParent();
+			}
+			String viewport = scrollPane == null ? "none" : "extent=" + scrollPane.getViewport().getExtentSize()
+				+ ",position=" + scrollPane.getViewport().getViewPosition()
+				+ ",view=" + scrollPane.getViewport().getViewSize()
+				+ ",horizontal=" + scrollPane.getHorizontalScrollBar().getValue()
+				+ "/" + scrollPane.getHorizontalScrollBar().getMaximum();
+			String resolvedRange = resolved[0] == Long.MAX_VALUE ? "none" : resolved[0] + ".." + resolved[1];
+			var visible = visibleRange.get();
+			Object activeView = manager.getCurrentFrame() == null ? null : manager.getCurrentFrame().getActiveTopView();
+			diagnostic.set("active=" + (activeView == null ? "none" : activeView.getClass().getSimpleName())
+				+ ",selected=" + selected + ",resolved=" + resolvedRange
+				+ ",expected=" + first.getUniqueId() + ":" + first.getStart() + ".." + first.getEnd()
+				+ ";" + second.getUniqueId() + ":" + second.getStart() + ".." + second.getEnd()
+				+ ",visible=" + visible + ",scale=" + scale.getAsInt() + ",viewport=" + viewport);
+		});
+		System.out.println("SELECTED_TASKS_ZOOM " + label + " " + diagnostic.get());
+	}
+
+	private static void appendSelectedZoomNode(Object node, List<String> selected, long[] resolved) {
+		if (node instanceof Task task) {
+			selected.add("Task(" + task.getUniqueId() + "," + task.getStart() + ".." + task.getEnd() + ")");
+			includeSelectedZoomDates(task.getStart(), task.getEnd(), resolved);
+		} else if (node instanceof Assignment assignment) {
+			Task task = assignment.getTask();
+			selected.add("Assignment(" + (task == null ? "?" : task.getUniqueId()) + ","
+				+ assignment.getStart() + ".." + assignment.getEnd() + ")");
+			if (!includeSelectedZoomDates(assignment.getStart(), assignment.getEnd(), resolved) && task != null)
+				includeSelectedZoomDates(task.getStart(), task.getEnd(), resolved);
+		} else if (node instanceof Resource resource && resource.getAssignments() != null) {
+			selected.add("Resource");
+			for (Object assignment : resource.getAssignments())
+				if (assignment instanceof Assignment)
+					appendSelectedZoomNode(assignment, selected, resolved);
+		} else {
+			selected.add(node == null ? "null" : node.getClass().getName());
+		}
+	}
+
+	private static boolean includeSelectedZoomDates(long start, long end, long[] resolved) {
+		if (start <= 0 || end < start)
+			return false;
+		resolved[0] = Math.min(resolved[0], start);
+		resolved[1] = Math.max(resolved[1], end);
+		return true;
 	}
 
 	private void assertUsageSelectedTaskZoom(Robot robot, UsageDetailView view, NormalTask task) throws Exception {
@@ -2608,6 +3100,240 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			});
 	}
 
+	/**
+	 * Task &gt; Schedule percent-complete buttons through the physical ribbon route.
+	 * Source (document-derived compatibility decision): Microsoft Support,
+	 * "Update progress using percent complete",
+	 * https://support.microsoft.com/en-us/project/update-progress-using-percent-complete :
+	 * the 0/25/50/75/100% Complete commands set the selected tasks' progress.
+	 * Selection scope, one Undo edit and MPO persistence follow the microProject
+	 * command contract; with no task selected the buttons are disabled.
+	 */
+	@Test
+	void percentCompleteRibbonRouteSetsSelectedTasksWithUndoRedoAndMpo() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for % Complete Robot coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		Project project = createFlatTaskProject("percent-complete-ribbon-acceptance", "Percent task ", 3, 0.1d);
+		NormalTask first = taskNamed(project, "Percent task 1");
+		NormalTask second = taskNamed(project, "Percent task 2");
+		NormalTask third = taskNamed(project, "Percent task 3");
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> window.setExtendedState(java.awt.Frame.MAXIMIZED_BOTH));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"percent-complete project did not become visible");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		Gantt gantt = manager.getCurrentFrame().getGanttView().getGantt();
+		GuiAcceptanceSupport.await(() -> sheet.isShowing() && isTaskVisible(sheet, first) && isTaskVisible(sheet, third),
+			"percent-complete task rows were not rendered");
+		clickAndAwaitSelected(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+			.getString("TaskRibbonTask.title")), "Robot click did not select the Task ribbon tab for % Complete");
+
+		// No selection: the command is disabled and a physical click leaves every task unchanged.
+		SwingUtilities.invokeAndWait(() -> {
+			sheet.clearSelection();
+			manager.setButtonState(null, project);
+		});
+		AbstractButton disabled50 = findVisibleOrOverflowButton(robot, "RibbonPercentComplete50");
+		GuiAcceptanceSupport.await(() -> !disabled50.isEnabled(), "% Complete must be disabled with no task selected");
+		clickDisabled(robot, disabled50);
+		assertEquals(0.1d, first.getPercentComplete(), 0.00001d, "A disabled % Complete click changed a task");
+		assertEquals(0.1d, second.getPercentComplete(), 0.00001d, "A disabled % Complete click changed a task");
+
+		// Two leaf tasks selected physically (click + Shift-click on the row header).
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, first), nameColumn(sheet)));
+		robot.keyPress(KeyEvent.VK_SHIFT);
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, second), 0));
+		robot.keyRelease(KeyEvent.VK_SHIFT);
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).containsAll(List.of(first, second))
+				&& !manager.getCurrentFrame().getSelectedImpls(false).contains(third),
+			"Shift-click did not select exactly the two leaf tasks");
+		AbstractButton fifty = findVisibleOrOverflowButton(robot, "RibbonPercentComplete50");
+		GuiAcceptanceSupport.await(fifty::isEnabled, "50% Complete stayed disabled for two selected tasks");
+		project.getUndoController().clear();
+		click(robot, fifty);
+		GuiAcceptanceSupport.await(() -> first.getPercentComplete() == 0.5d && second.getPercentComplete() == 0.5d,
+			"50% Complete did not set both selected tasks");
+		assertEquals(0.1d, third.getPercentComplete(), 0.00001d, "50% Complete changed an unselected task");
+		assertTrue(isTaskVisibleInGantt(gantt, first) && isTaskVisibleInGantt(gantt, second),
+			"Gantt rows for the updated tasks are absent");
+		assertTrue(ganttRowMatchesSheetRow(sheet, gantt, first) && ganttRowMatchesSheetRow(sheet, gantt, second),
+			"Gantt progress rows are not aligned with the task table after 50% Complete");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> first.getPercentComplete() == 0.1d && second.getPercentComplete() == 0.1d,
+			"One Ctrl+Z did not restore both tasks' progress");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> first.getPercentComplete() == 0.5d && second.getPercentComplete() == 0.5d,
+			"Ctrl+Y did not re-apply 50% Complete to both tasks");
+		assertEquals(0.1d, third.getPercentComplete(), 0.00001d, "Redo changed an unselected task");
+
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, saved), "MPO save rejected 50% Complete");
+		Project reloaded = new MpoFileImporter().loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		assertEquals(0.5d, taskNamed(reloaded, first.getName()).getPercentComplete(), 0.00001d, "MPO reload lost 50% (first)");
+		assertEquals(0.5d, taskNamed(reloaded, second.getName()).getPercentComplete(), 0.00001d, "MPO reload lost 50% (second)");
+		assertEquals(0.1d, taskNamed(reloaded, third.getName()).getPercentComplete(), 0.00001d,
+			"MPO reload changed the unselected task");
+
+		// 100% Complete on a single task.
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, third), nameColumn(sheet)));
+		GuiAcceptanceSupport.await(() -> sheetHasOnlySelectedTask(sheet, third), "single-task selection for 100% failed");
+		AbstractButton hundred = findVisibleOrOverflowButton(robot, "RibbonPercentComplete100");
+		GuiAcceptanceSupport.await(hundred::isEnabled, "100% Complete stayed disabled for a selected task");
+		click(robot, hundred);
+		GuiAcceptanceSupport.await(() -> third.getPercentComplete() == 1.0d, "100% Complete did not complete the selected task");
+		assertEquals(0.5d, first.getPercentComplete(), 0.00001d, "100% Complete changed an unselected task");
+	}
+
+	/**
+	 * Task &gt; Insert Summary and Milestone through the physical ribbon route.
+	 * Sources: Microsoft Support, "Create a summary task",
+	 * https://support.microsoft.com/en-us/project/create-a-summary-task , and
+	 * "Add a milestone to your project",
+	 * https://support.microsoft.com/en-us/project/add-a-milestone-to-your-project .
+	 * Document-derived compatibility decisions: Summary inserts a new row above the
+	 * selected tasks and indents them beneath it; Milestone inserts a zero-duration
+	 * milestone row above the selected task. Each is one Undo edit.
+	 */
+	@Test
+	void insertSummaryAndMilestoneRibbonRoutesInsertRowsWithUndoRedoAndMpo() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Insert Summary/Milestone Robot coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		Project project = createFlatTaskProject("insert-summary-ribbon-acceptance", "Insert task ", 3, 0d);
+		NormalTask first = taskNamed(project, "Insert task 1");
+		NormalTask second = taskNamed(project, "Insert task 2");
+		NormalTask third = taskNamed(project, "Insert task 3");
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> window.setExtendedState(java.awt.Frame.MAXIMIZED_BOTH));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"insert-summary project did not become visible");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		Gantt gantt = manager.getCurrentFrame().getGanttView().getGantt();
+		GuiAcceptanceSupport.await(() -> sheet.isShowing() && isTaskVisible(sheet, first) && isTaskVisible(sheet, third),
+			"insert-summary task rows were not rendered");
+		clickAndAwaitSelected(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+			.getString("TaskRibbonTask.title")), "Robot click did not select the Task ribbon tab for Insert Summary");
+		java.util.Set<Task> existing = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+		existing.addAll(project.getTaskList());
+
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, first), nameColumn(sheet)));
+		robot.keyPress(KeyEvent.VK_SHIFT);
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, second), 0));
+		robot.keyRelease(KeyEvent.VK_SHIFT);
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).containsAll(List.of(first, second)),
+			"Shift-click did not select the two adjacent tasks");
+		AbstractButton summaryButton = findVisibleOrOverflowButton(robot, "RibbonInsertSummary");
+		GuiAcceptanceSupport.await(summaryButton::isEnabled, "Insert Summary stayed disabled for two selected tasks");
+		project.getUndoController().clear();
+		click(robot, summaryButton);
+		GuiAcceptanceSupport.await(() -> first.getWbsParentTask() != null,
+			"Insert Summary did not indent the selected tasks under a new summary");
+		Task summary = first.getWbsParentTask();
+		assertFalse(existing.contains(summary), "The summary parent must be a newly inserted task");
+		assertSame(summary, second.getWbsParentTask(), "Both selected tasks must share the new summary");
+		assertNull(third.getWbsParentTask(), "The unselected task must stay top level");
+		GuiAcceptanceSupport.await(() -> summaryProjectionMatches(sheet, gantt, summary, first, second, third),
+			"Insert Summary did not render summary/children/outline levels with aligned table and Gantt rows");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> first.getWbsParentTask() == null && second.getWbsParentTask() == null,
+			"One Ctrl+Z did not restore the original hierarchy");
+		assertFalse(isTaskVisible(sheet, (NormalTask) summary), "Undo must remove the inserted summary row");
+		assertEquals(0, first.getOutlineLevel(), "Undo must restore outline level of the first task");
+		assertEquals(0, second.getOutlineLevel(), "Undo must restore outline level of the second task");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> first.getWbsParentTask() == summary && second.getWbsParentTask() == summary,
+			"Ctrl+Y did not re-apply the summary");
+		GuiAcceptanceSupport.await(() -> summaryProjectionMatches(sheet, gantt, summary, first, second, third),
+			"Redo Insert Summary did not render the expected outline and aligned Gantt rows");
+
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, saved), "MPO save rejected the summary hierarchy");
+		Project reloaded = new MpoFileImporter().loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		Task reloadedParent = taskNamed(reloaded, first.getName()).getWbsParentTask();
+		assertNotNull(reloadedParent, "MPO reload lost the inserted summary parent");
+		assertSame(reloadedParent, taskNamed(reloaded, second.getName()).getWbsParentTask(), "MPO reload split the children");
+		assertTrue(reloadedParent.isWbsParent(), "MPO reload parent is not a summary");
+		assertEquals(1, taskNamed(reloaded, first.getName()).getOutlineLevel(), "MPO reload lost the child outline level");
+		assertNull(taskNamed(reloaded, third.getName()).getWbsParentTask(), "MPO reload indented the unselected task");
+
+		// Milestone above the selected third task.
+		java.util.Set<Task> beforeMilestone = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+		beforeMilestone.addAll(project.getTaskList());
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, third), nameColumn(sheet)));
+		GuiAcceptanceSupport.await(() -> sheetHasOnlySelectedTask(sheet, third), "single-task selection for Milestone failed");
+		AbstractButton milestoneButton = findVisibleOrOverflowButton(robot, "RibbonInsertMilestone");
+		GuiAcceptanceSupport.await(milestoneButton::isEnabled, "Insert Milestone stayed disabled for a selected task");
+		project.getUndoController().clear();
+		click(robot, milestoneButton);
+		GuiAcceptanceSupport.await(() -> project.getTaskList().stream().anyMatch(t -> !beforeMilestone.contains(t)),
+			"Insert Milestone did not add a task");
+		NormalTask milestone = (NormalTask) project.getTaskList().stream().filter(t -> !beforeMilestone.contains(t))
+			.findFirst().orElseThrow();
+		assertTrue(milestone.isMilestone(), "The inserted task must be a milestone");
+		assertEquals(0L, milestone.getDuration(), "The inserted milestone must have zero duration");
+		GuiAcceptanceSupport.await(() -> isTaskVisible(sheet, milestone)
+				&& rowForTask(sheet, milestone) + 1 == rowForTask(sheet, third),
+			"The milestone row must be rendered directly above the selected task");
+		assertTrue(isTaskVisibleInGantt(gantt, milestone) && ganttRowMatchesSheetRow(sheet, gantt, milestone),
+			"The milestone must have an aligned Gantt row");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> !isTaskVisible(sheet, milestone), "One Ctrl+Z did not remove the milestone row");
+		assertSame(summary, first.getWbsParentTask(), "Undoing the milestone must keep the earlier summary");
+	}
+
+	private static Project createFlatTaskProject(String pool, String prefix, int count, double percentComplete) {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool(pool, undo), undo);
+		project.initialize(false, false);
+		for (int index = 1; index <= count; index++) {
+			NormalTask task = project.createScriptedTask();
+			task.setName(prefix + index);
+			task.setDuration(4L * CalendarOption.getInstance().getMillisPerDay());
+			if (percentComplete > 0d)
+				task.setPercentComplete(percentComplete);
+		}
+		project.recalculate();
+		undo.clear();
+		return project;
+	}
+
+	private static boolean ganttRowMatchesSheetRow(SpreadSheet sheet, Gantt gantt, NormalTask task) {
+		int row = rowForTask(sheet, task);
+		CommonSpreadSheetModel model = (CommonSpreadSheetModel) sheet.getModel();
+		GraphicNode node = (GraphicNode) sheet.getCache().getGraphicNode(model.getNode(row).getNode());
+		return gantt.getCache().getVisibleNodes().getProjectionIndex().rowForNode(node) == row;
+	}
+
+	private static boolean summaryProjectionMatches(SpreadSheet sheet, Gantt gantt, Task summary, NormalTask first,
+			NormalTask second, NormalTask third) {
+		try {
+			NormalTask parent = (NormalTask) summary;
+			if (!isTaskVisible(sheet, parent) || !parent.isWbsParent() || parent.getOutlineLevel() != 0
+					|| first.getOutlineLevel() != 1 || second.getOutlineLevel() != 1 || third.getOutlineLevel() != 0)
+				return false;
+			int parentRow = rowForTask(sheet, parent);
+			return rowForTask(sheet, first) == parentRow + 1 && rowForTask(sheet, second) == parentRow + 2
+				&& rowForTask(sheet, third) == parentRow + 3
+				&& ganttRowMatchesSheetRow(sheet, gantt, parent) && ganttRowMatchesSheetRow(sheet, gantt, first)
+				&& ganttRowMatchesSheetRow(sheet, gantt, second) && ganttRowMatchesSheetRow(sheet, gantt, third);
+		} catch (AssertionError absent) {
+			return false;
+		}
+	}
+
 	@Test
 	void inactivateTaskRibbonRouteKeepsTaskVisibleAndSupportsUndoRedoAndMpo() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Inactivate Task Robot coverage.");
@@ -3038,23 +3764,51 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		NormalTask task = createTask();
 		task.setDuration(CalendarOption.getInstance().getMillisPerDay() * 4L);
 		Project project = task.getOwningProject();
+		NormalTask selectedPeer = project.createScriptedTask();
+		selectedPeer.setName("Update Project selected peer");
+		selectedPeer.setDuration(CalendarOption.getInstance().getMillisPerDay() * 4L);
+		NormalTask unselected = project.createScriptedTask();
+		unselected.setName("Update Project unselected peer");
+		unselected.setDuration(CalendarOption.getInstance().getMillisPerDay() * 4L);
 		Resource resource = project.getResourcePool().createScriptedResource();
 		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1.0d, 0L, this);
 		assignment.setWork(CalendarOption.getInstance().getMillisPerDay() * 4L, null);
+		Assignment peerAssignment = AssignmentService.getInstance().newAssignment(selectedPeer, resource, 1.0d, 0L, this);
+		peerAssignment.setWork(CalendarOption.getInstance().getMillisPerDay() * 4L, null);
+		Assignment unselectedAssignment = AssignmentService.getInstance().newAssignment(unselected, resource, 1.0d, 0L, this);
+		unselectedAssignment.setWork(CalendarOption.getInstance().getMillisPerDay() * 4L, null);
 		project.recalculate();
 		task.setPercentComplete(0.5d);
+		selectedPeer.setPercentComplete(0.5d);
+		unselected.setPercentComplete(0.5d);
 		project.recalculate();
 		project.setStatusDate(task.getStart());
 		long taskActualWorkBefore = task.getActualWork(null);
 		long taskRemainingWorkBefore = task.getRemainingWork();
 		long assignmentActualWorkBefore = assignment.getActualWork(null);
 		long assignmentRemainingWorkBefore = assignment.getRemainingWork();
+		long peerActualWorkBefore = selectedPeer.getActualWork(null);
+		long peerRemainingWorkBefore = selectedPeer.getRemainingWork();
+		long peerAssignmentActualWorkBefore = peerAssignment.getActualWork(null);
+		long peerAssignmentRemainingWorkBefore = peerAssignment.getRemainingWork();
+		long unselectedActualWorkBefore = unselected.getActualWork(null);
+		long unselectedRemainingWorkBefore = unselected.getRemainingWork();
+		long unselectedAssignmentActualWorkBefore = unselectedAssignment.getActualWork(null);
+		long unselectedAssignmentRemainingWorkBefore = unselectedAssignment.getRemainingWork();
 		long updateThroughDate = task.getEnd() + 86_400_000L;
 		showProject(project);
 		long statusDateBeforeUpdate = project.getStatusDate();
 		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
 		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null, "Update Project menu project did not become visible");
 		Robot robot = new com.microproject.testsupport.GuiRobot(); robot.setAutoDelay(45); activateWindow(robot, window);
+		SpreadSheet selectionSheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		click(robot, cellOnScreen(selectionSheet, rowForTask(selectionSheet, task), nameColumn(selectionSheet)));
+		robot.keyPress(KeyEvent.VK_SHIFT);
+		click(robot, cellOnScreen(selectionSheet, rowForTask(selectionSheet, selectedPeer), 0));
+		robot.keyRelease(KeyEvent.VK_SHIFT);
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).containsAll(List.of(task, selectedPeer))
+				&& !manager.getCurrentFrame().getSelectedImpls(false).contains(unselected),
+			"Physical multi-selection did not select only the two Update Project target tasks");
 		JMenuBar bar = new JMenuBar(); JMenu root = new JMenu("Project");
 		JMenuItem item = new JMenuItem(manager.getMenuManager().getActionFromId("UpdateProject"));
 		item.setActionCommand("UpdateProject"); root.add(item); bar.add(root); window.setJMenuBar(bar); window.validate();
@@ -3067,8 +3821,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			() -> java.util.Arrays.stream(Window.getWindows()).anyMatch(w -> w instanceof UpdateProjectDialogBox && w.isShowing()),
 			() -> {
 				UpdateProjectDialogBox dialog = java.util.Arrays.stream(Window.getWindows()).filter(w -> w instanceof UpdateProjectDialogBox && w.isShowing()).map(UpdateProjectDialogBox.class::cast).findFirst().orElseThrow();
-				assertTrue(findShowingButtonByText(dialog, Messages.getString("UpdateProjectDialogBox.EntireProject")).isSelected(),
-					"no selected task rows must default Update Project to Entire Project");
+				assertTrue(findShowingButtonByText(dialog, Messages.getString("UpdateProjectDialogBox.SelectedTasks")).isSelected(),
+					"an existing physical multi-task selection must default Update Project to Selected Tasks");
 				assertEquals(statusDateBeforeUpdate, dialog.getForm().getUpdateDate().getTime(),
 					"Update Project date defaults to the fixed project Status Date");
 				com.microproject.dialog.util.ExtDateField updateDate = UiComponentWalker.flatten(dialog).stream()
@@ -3080,47 +3834,69 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				click(robot, findShowingButtonByText(dialog,
 					Messages.getString("UpdateProjectDialogBox.SetZeroOrHundredOnly")));
 				click(robot, findShowingButtonByText(dialog, Messages.getString("ButtonText.OK"))); return null;
-			}, () -> manager.getLastRibbonCommandResult(), () -> task.getPercentComplete() == 1D
+			}, () -> manager.getLastRibbonCommandResult(), () -> {
+				boolean changed = task.getPercentComplete() == 1D
+					&& selectedPeer.getPercentComplete() == 1D
 					&& task.getActualStart() == task.getStart() && task.getActualFinish() == task.getEnd()
 					&& task.getActualWork(null) == task.getWork(null) && task.getRemainingWork() == 0L
 					&& assignment.getActualStart() == task.getActualStart()
 					&& assignment.getActualFinish() == task.getActualFinish()
 					&& assignment.getActualWork(null) == assignment.getWork(null)
-					&& assignment.getRemainingWork() == 0L,
+					&& assignment.getRemainingWork() == 0L
+					&& selectedPeer.getActualWork(null) == selectedPeer.getWork(null)
+					&& selectedPeer.getRemainingWork() == 0L
+					&& peerAssignment.getActualWork(null) == peerAssignment.getWork(null)
+					&& peerAssignment.getRemainingWork() == 0L
+					&& unselected.getPercentComplete() == 0.5D
+					&& unselected.getActualWork(null) == unselectedActualWorkBefore
+					&& unselected.getRemainingWork() == unselectedRemainingWorkBefore
+					&& unselectedAssignment.getActualWork(null) == unselectedAssignmentActualWorkBefore
+					&& unselectedAssignment.getRemainingWork() == unselectedAssignmentRemainingWorkBefore;
+				if (!changed) return false;
+				assertEquals("", mpoProgressDiagnostic(project, List.of(task, selectedPeer, unselected),
+					List.of(assignment, peerAssignment, unselectedAssignment), "Applied"));
+				return true;
+			},
 			() -> { press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z); return null; },
-				() -> task.getPercentComplete() == 0.5D && task.getActualWork(null) == taskActualWorkBefore
+				() -> {
+				boolean undone = task.getPercentComplete() == 0.5D && task.getActualWork(null) == taskActualWorkBefore
 					&& task.getRemainingWork() == taskRemainingWorkBefore
 					&& assignment.getActualWork(null) == assignmentActualWorkBefore
 					&& assignment.getRemainingWork() == assignmentRemainingWorkBefore
-					&& project.getStatusDate() == statusDateBeforeUpdate,
+					&& selectedPeer.getPercentComplete() == 0.5D
+					&& selectedPeer.getActualWork(null) == peerActualWorkBefore
+					&& selectedPeer.getRemainingWork() == peerRemainingWorkBefore
+					&& peerAssignment.getActualWork(null) == peerAssignmentActualWorkBefore
+					&& peerAssignment.getRemainingWork() == peerAssignmentRemainingWorkBefore
+					&& unselected.getActualWork(null) == unselectedActualWorkBefore
+					&& unselected.getRemainingWork() == unselectedRemainingWorkBefore
+					&& unselectedAssignment.getActualWork(null) == unselectedAssignmentActualWorkBefore
+					&& unselectedAssignment.getRemainingWork() == unselectedAssignmentRemainingWorkBefore
+					&& project.getStatusDate() == statusDateBeforeUpdate;
+				if (!undone) return false;
+				assertEquals("", mpoProgressDiagnostic(project, List.of(task, selectedPeer, unselected),
+					List.of(assignment, peerAssignment, unselectedAssignment), "Undo"));
+				return true;
+				},
 			() -> { press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y); return null; },
-				() -> task.getPercentComplete() == 1D && task.getActualStart() == task.getStart()
+				() -> task.getPercentComplete() == 1D && selectedPeer.getPercentComplete() == 1D && task.getActualStart() == task.getStart()
 					&& task.getActualFinish() == task.getEnd() && task.getActualWork(null) == task.getWork(null)
 					&& task.getRemainingWork() == 0L && assignment.getActualStart() == task.getActualStart()
 					&& assignment.getActualFinish() == task.getActualFinish()
 					&& assignment.getActualWork(null) == assignment.getWork(null)
 					&& task.getActualWork(null) == assignment.getActualWork(null)
-					&& project.getStatusDate() == statusDateBeforeUpdate,
+					&& project.getStatusDate() == statusDateBeforeUpdate
+					&& unselected.getPercentComplete() == 0.5D
+					&& unselected.getActualWork(null) == unselectedActualWorkBefore
+					&& unselected.getRemainingWork() == unselectedRemainingWorkBefore
+					&& unselectedAssignment.getActualWork(null) == unselectedAssignmentActualWorkBefore
+					&& unselectedAssignment.getRemainingWork() == unselectedAssignmentRemainingWorkBefore,
 			() -> {
-				ByteArrayOutputStream saved = new ByteArrayOutputStream();
-				MpoFileImporter importer = new MpoFileImporter();
-				if (!importer.saveProject(project, saved)) return false;
-				Project reloaded = importer.loadProject(new java.io.ByteArrayInputStream(saved.toByteArray()));
-				Task reloadedTask = reloaded.getTaskList().stream()
-					.filter(candidate -> candidate.getUniqueId() == task.getUniqueId()).findFirst().orElse(null);
-				if (!(reloadedTask instanceof NormalTask reloadedNormal) || reloadedNormal.getPercentComplete() != 1D
-					|| reloadedNormal.getActualStart() != task.getActualStart()
-					|| reloadedNormal.getActualFinish() != task.getActualFinish()
-					|| reloadedNormal.getActualWork(null) != task.getActualWork(null)
-					|| reloadedNormal.getRemainingWork() != task.getRemainingWork()
-					|| reloaded.getStatusDate() != statusDateBeforeUpdate) return false;
-				Assignment reloadedAssignment = (Assignment) reloadedNormal.getAssignments().get(0);
-				return reloadedAssignment.getActualStart() == assignment.getActualStart()
-					&& reloadedAssignment.getActualFinish() == assignment.getActualFinish()
-					&& reloadedAssignment.getActualWork(null) == assignment.getActualWork(null)
-					&& reloadedAssignment.getRemainingWork() == assignment.getRemainingWork()
-					&& reloadedNormal.getActualWork(null) == reloadedAssignment.getActualWork(null)
-					&& isTaskVisible(manager.getCurrentFrame().getActiveSpreadSheet(), task);
+				assertTrue(isTaskVisible(manager.getCurrentFrame().getActiveSpreadSheet(), task),
+					"Updated task row did not render after the physical Update Project route");
+				assertEquals("", mpoProgressDiagnostic(project, List.of(task, selectedPeer, unselected),
+					List.of(assignment, peerAssignment, unselectedAssignment), "Redo"));
+				return true;
 			});
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
 		GuiAcceptanceSupport.await(() -> isTaskVisible(sheet, task),
@@ -3128,6 +3904,44 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Rectangle taskNameCell = sheet.getCellRect(rowForTask(sheet, task), nameColumn(sheet), true);
 		assertTrue(sheet.getVisibleRect().contains(taskNameCell),
 			"Updated task row must be inside the rendered spreadsheet viewport");
+	}
+
+	private static String mpoProgressDiagnostic(Project project, List<NormalTask> tasks, List<Assignment> assignments,
+			String stage) {
+		try {
+			ByteArrayOutputStream saved = new ByteArrayOutputStream();
+			MpoFileImporter importer = new MpoFileImporter();
+			if (!importer.saveProject(project, saved)) return stage + ": saveProject returned false";
+			Project reloaded = importer.loadProject(new ByteArrayInputStream(saved.toByteArray()));
+			if (reloaded.getStatusDate() != project.getStatusDate()) return stage + ": project Status Date mismatch";
+			for (NormalTask task : tasks) {
+				Task found = reloaded.getTaskList().stream()
+					.filter(candidate -> candidate.getUniqueId() == task.getUniqueId()).findFirst().orElse(null);
+				if (!(found instanceof NormalTask copy)) return stage + ": missing task uid=" + task.getUniqueId();
+				if (copy.getPercentComplete() != task.getPercentComplete()) return stage + ": percent mismatch task=" + task.getName();
+				if (copy.getActualWork(null) != task.getActualWork(null)) return stage + ": task actual work mismatch task=" + task.getName();
+				if (copy.getRemainingWork() != task.getRemainingWork()) return stage + ": task remaining work mismatch task=" + task.getName();
+			}
+			for (Assignment assignment : assignments) {
+				NormalTask task = (NormalTask) reloaded.getTaskList().stream()
+					.filter(candidate -> candidate.getUniqueId() == assignment.getTask().getUniqueId())
+					.findFirst().orElse(null);
+				if (task == null) return stage + ": missing owning task for assignment=" + assignment.getUniqueId();
+				Assignment copy = (Assignment) task.getAssignments().stream()
+				.filter(candidate -> {
+					Assignment candidateAssignment = (Assignment) candidate;
+					return !candidateAssignment.isDefault()
+						&& candidateAssignment.getResource().getUniqueId() == assignment.getResource().getUniqueId();
+				}).map(Assignment.class::cast).findFirst().orElse(null);
+				if (copy == null) return stage + ": missing task/resource assignment taskUid="
+					+ assignment.getTask().getUniqueId() + " resourceUid=" + assignment.getResource().getUniqueId();
+				if (copy.getActualWork(null) != assignment.getActualWork(null)) return stage + ": assignment actual work mismatch uid=" + assignment.getUniqueId();
+				if (copy.getRemainingWork() != assignment.getRemainingWork()) return stage + ": assignment remaining work mismatch uid=" + assignment.getUniqueId();
+			}
+			return "";
+		} catch (Exception exception) {
+			return stage + ": " + exception;
+		}
 	}
 
 	private NormalTask progressTask;
@@ -3188,7 +4002,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, task), nameColumn(sheet)));
 		click(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("ProjectRibbonTask.title")));
-		AbstractButton saveBaseline = findShowingButtonByCommand("RibbonSaveBaseline");
+		AbstractButton saveBaseline = findVisibleOrOverflowButton(robot, "RibbonSaveBaseline");
 		GuiAcceptanceSupport.await(saveBaseline::isEnabled, "Save Baseline remained disabled");
 		click(robot, saveBaseline);
 		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
@@ -3239,7 +4053,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, task), nameColumn(sheet)));
 		long overwrittenBaselineStart = task.getStart();
 		long currentAssignmentWork = assignment.getWork(null);
-		click(robot, findShowingButtonByCommand("RibbonSaveBaseline"));
+		click(robot, findVisibleOrOverflowButton(robot, "RibbonSaveBaseline"));
 		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
 				.anyMatch(candidate -> candidate instanceof BaselineDialog && candidate.isShowing()),
 			"Overwrite Save Baseline dialog did not open");
@@ -3457,7 +4271,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		activateWindow(robot, window);
 		click(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("ProjectRibbonTask.title")));
-		click(robot, findShowingButtonByCommand("RibbonSaveBaseline"));
+		click(robot, findVisibleOrOverflowButton(robot, "RibbonSaveBaseline"));
 		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
 				.anyMatch(candidate -> candidate instanceof BaselineDialog && candidate.isShowing()),
 			"Save Baseline dialog did not open for Baseline 1 recapture");
@@ -3682,7 +4496,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, selected), nameColumn(sheet)));
 		click(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("ProjectRibbonTask.title")));
-		click(robot, findShowingButtonByCommand(clear ? "RibbonClearBaseline" : "RibbonSaveBaseline"));
+		click(robot, findVisibleOrOverflowButton(robot, clear ? "RibbonClearBaseline" : "RibbonSaveBaseline"));
 		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
 				.anyMatch(candidate -> candidate instanceof BaselineDialog && candidate.isShowing()),
 			"Baseline dialog did not open for selected-task journey");
@@ -3814,7 +4628,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		AbstractButton projectTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("ProjectRibbonTask.title"));
 		click(robot, projectTab);
-		click(robot, findShowingButtonByCommand("RibbonClearBaseline"));
+		click(robot, findVisibleOrOverflowButton(robot, "RibbonClearBaseline"));
 		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
 				.anyMatch(candidate -> candidate instanceof BaselineDialog && candidate.isShowing()),
 			"Clear Baseline chooser did not open");
@@ -4222,9 +5036,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"Indent must be disabled without a selected task");
 		assertFalse(findVisibleOrOverflowButton(robot, "RibbonOutdent").isEnabled(),
 			"Outdent must be disabled without a selected task");
-		assertFalse(findShowingButtonByCommand("RibbonCollapse").isEnabled(),
+		assertFalse(findVisibleOrOverflowButton(robot, "RibbonCollapse").isEnabled(),
 			"Collapse must be disabled without a selected task");
-		assertFalse(findShowingButtonByCommand("RibbonExpand").isEnabled(),
+		assertFalse(findVisibleOrOverflowButton(robot, "RibbonExpand").isEnabled(),
 			"Expand must be disabled without a selected task");
 		AbstractButton hide = findVisibleOrOverflowButton(robot, "RibbonHideSelectedTasks");
 		AbstractButton show = findVisibleOrOverflowButton(robot, "RibbonShowAllTasks");
@@ -4266,7 +5080,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("TaskRibbonTask.title"));
 		clickAndAwaitSelected(robot, taskTab, "Robot click did not select the Task ribbon tab");
-		AbstractButton collapse = findShowingButtonByCommand("RibbonCollapse");
+		AbstractButton collapse = findVisibleOrOverflowButton(robot, "RibbonCollapse");
 		GuiAcceptanceSupport.await(collapse::isEnabled, "Collapse remained disabled for a selected summary");
 		RibbonCommandResult previousCollapseOutcome = manager.getLastRibbonCommandResult();
 		click(robot, collapse);
@@ -4289,7 +5103,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				"view-only Collapse must preserve the hierarchy after MPO save/reload");
 		assertFalse(reloadedChild.isHiddenTask(), "view-only Collapse must not persist as a hidden-task mutation");
 
-		AbstractButton expand = findShowingButtonByCommand("RibbonExpand");
+		AbstractButton expand = findVisibleOrOverflowButton(robot, "RibbonExpand");
 		RibbonCommandResult previousExpandOutcome = manager.getLastRibbonCommandResult();
 		click(robot, expand);
 		GuiAcceptanceSupport.await(() -> isTaskVisible(sheet, child), "Expand did not restore the child row");
@@ -4298,6 +5112,40 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertFalse(undo.canUndo(), "view-only Expand must not add a project undo edit");
 		assertRibbonOutcome(manager, previousExpandOutcome, RibbonCommandResult.Status.CHANGED, parent.getUniqueId());
 		assertCommandDiagnostics("RibbonExpand", "Expand", List.of(parent.getUniqueId()), List.of(parent.getUniqueId()), List.of(parent.getUniqueId()));
+
+		// Exercise the task-row popup as a physical entry point to the shared view-only command.
+		JTable outlineRowHeader = sheet.getRowHeader();
+		RowHeaderTarget popupParentTarget = rowHeaderTargetOnScreen(outlineRowHeader, rowForTask(sheet, parent), false);
+		Rectangle parentRowHeaderPoint = new Rectangle(popupParentTarget.screenPoint().x, popupParentTarget.screenPoint().y, 1, 1);
+		assertTrue(manager.getCurrentFrame().getSelectedImpls(false).contains(parent),
+				"the summary row must be selected before opening its task popup");
+		rightClick(robot, parentRowHeaderPoint);
+		SpreadSheetPopupMenu popup = sheet.getPopup();
+		GuiAcceptanceSupport.await(() -> popup != null && popup.isVisible(),
+				"physical right click did not open the selected summary task popup");
+		JMenuItem popupCollapse = popupItem(popup, "popup." + com.microproject.menu.MenuActionConstants.ACTION_COLLAPSE);
+		GuiAcceptanceSupport.await(popupCollapse::isEnabled, "popup Collapse remained disabled for the selected summary");
+		RibbonCommandResult previousPopupCollapseOutcome = manager.getLastRibbonCommandResult();
+		click(robot, popupCollapse);
+		GuiAcceptanceSupport.await(() -> !isTaskVisible(sheet, child), "popup Collapse did not hide the child table row");
+		GuiAcceptanceSupport.await(() -> !isTaskVisibleInGantt(gantt, child), "popup Collapse did not hide the child Gantt row");
+		assertTrue(isTaskVisibleInGantt(gantt, parent), "popup Collapse must keep the summary visible in Gantt");
+		assertSame(parent, child.getWbsParentTask(), "popup Collapse must preserve the parent-child hierarchy");
+		assertFalse(undo.canUndo(), "popup Collapse must not add a project undo edit");
+		assertRibbonOutcome(manager, previousPopupCollapseOutcome, RibbonCommandResult.Status.CHANGED, parent.getUniqueId());
+
+		rightClick(robot, parentRowHeaderPoint);
+		GuiAcceptanceSupport.await(popup::isVisible, "physical right click did not reopen the summary task popup");
+		JMenuItem popupExpand = popupItem(popup, "popup." + com.microproject.menu.MenuActionConstants.ACTION_EXPAND);
+		GuiAcceptanceSupport.await(popupExpand::isEnabled, "popup Expand remained disabled for the collapsed selected summary");
+		RibbonCommandResult previousPopupExpandOutcome = manager.getLastRibbonCommandResult();
+		click(robot, popupExpand);
+		GuiAcceptanceSupport.await(() -> isTaskVisible(sheet, child), "popup Expand did not restore the child table row");
+		GuiAcceptanceSupport.await(() -> isTaskVisibleInGantt(gantt, child), "popup Expand did not restore the child Gantt row");
+		assertTrue(isTaskVisibleInGantt(gantt, parent), "popup Expand must keep the summary visible in Gantt");
+		assertSame(parent, child.getWbsParentTask(), "popup Expand must preserve the parent-child hierarchy");
+		assertFalse(undo.canUndo(), "popup Expand must not add a project undo edit");
+		assertRibbonOutcome(manager, previousPopupExpandOutcome, RibbonCommandResult.Status.CHANGED, parent.getUniqueId());
 
 		// The keyboard shortcuts must reach the same view-only command pipeline.
 		SwingUtilities.invokeAndWait(sheet::requestFocusInWindow);
@@ -4496,6 +5344,44 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		NormalTask reloadedTarget = taskNamed(reloaded, "Adjacent last");
 		assertEquals(reloadedPredecessor, reloadedTarget.getWbsParentTask(),
 			"MPO reload lost the hierarchy created through the physical popup command");
+
+		Gantt gantt = manager.getCurrentFrame().getGanttView().getGantt();
+		assertTrue(manager.getCurrentFrame().getSelectedImpls(false).contains(target),
+				"the indented task must remain selected before opening its popup for Outdent");
+		Rectangle outdentTargetCell = cellOnScreen(sheet, rowForTask(sheet, target), nameColumn(sheet));
+		rightClick(robot, outdentTargetCell);
+		GuiAcceptanceSupport.await(popup::isVisible, "physical right click did not reopen the indented task popup");
+		JMenuItem outdent = popupItem(popup, "popup." + com.microproject.menu.MenuActionConstants.ACTION_OUTDENT);
+		GuiAcceptanceSupport.await(outdent::isEnabled, "popup Outdent remained disabled for the selected child task");
+		assertSame(manager.getAction(com.microproject.menu.MenuActionConstants.ACTION_OUTDENT), outdent.getAction(),
+				"the physical task popup must use the canonical GraphicManager Outdent Action");
+		RibbonCommandResult previousOutdentOutcome = manager.getLastRibbonCommandResult();
+		click(robot, outdent);
+		GuiAcceptanceSupport.await(() -> target.getWbsParentTask() == null,
+				"popup Outdent did not make the selected task a root task");
+		GuiAcceptanceSupport.await(() -> outlineProjectionMatches(sheet, gantt, predecessor, target, 0, 0),
+				"popup Outdent did not render aligned root rows in the table and Gantt");
+		assertTrue(manager.getCurrentFrame().getSelectedImpls(false).contains(target),
+				"popup Outdent did not preserve the selected task identity");
+		assertRibbonOutcome(manager, previousOutdentOutcome, RibbonCommandResult.Status.CHANGED, target.getUniqueId());
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> target.getWbsParentTask() == predecessor,
+				"one Undo did not restore the task parent after popup Outdent");
+		assertTrue(outlineProjectionMatches(sheet, gantt, predecessor, target, 0, 1),
+				"one Undo did not restore the parent and aligned child rows after popup Outdent");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> target.getWbsParentTask() == null,
+				"one Redo did not restore the root task state after popup Outdent");
+		assertTrue(outlineProjectionMatches(sheet, gantt, predecessor, target, 0, 0),
+				"one Redo did not restore aligned root rows after popup Outdent");
+		ByteArrayOutputStream outdented = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, outdented),
+				"MPO save rejected the hierarchy restored through physical popup Outdent");
+		Project outdentReload = new MpoFileImporter().loadProject(new ByteArrayInputStream(outdented.toByteArray()));
+		NormalTask outdentReloadTarget = taskNamed(outdentReload, "Adjacent last");
+		assertNotNull(outdentReloadTarget, "MPO reload lost the Outdent target");
+		assertNull(outdentReloadTarget.getWbsParentTask(), "MPO reload retained the parent after physical popup Outdent");
+		assertEquals(0, outdentReloadTarget.getOutlineLevel(), "MPO reload changed the root outline depth after popup Outdent");
 	}
 
 	@Test
@@ -4771,6 +5657,59 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
 		GuiAcceptanceSupport.await(() -> rowForTask(sheet, second) < rowForTask(sheet, first),
 			"Ctrl+Y did not reapply the task order after the move shortcut");
+		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+			.getString("TaskRibbonTask.title"));
+		clickAndAwaitSelected(robot, taskTab, "Robot click did not select the Task ribbon tab for task movement");
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, first), nameColumn(sheet)));
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, second), nameColumn(sheet)));
+		GuiAcceptanceSupport.await(() -> sheet.isRowFullySelected(rowForTask(sheet, second)),
+			"Move Down must start from a physically selected whole task row");
+		AbstractButton moveDown = findVisibleOrOverflowButton(robot, "RibbonMoveTaskDown");
+		GuiAcceptanceSupport.await(moveDown::isEnabled, "Move Down remained disabled for the selected whole task row");
+		assertEquals("RibbonMoveTaskDown", moveDown.getActionCommand(),
+			"the physical Move Down button must dispatch its declared ribbon command");
+		click(robot, moveDown);
+		GuiAcceptanceSupport.await(() -> rowForTask(sheet, first) < rowForTask(sheet, second),
+			"physical Task-ribbon Move Down did not move the selected task below its sibling");
+		assertEquals(RibbonCommandResult.Status.CHANGED, manager.getLastRibbonCommandResult().status(),
+			"the physical Move Down button must publish a changed semantic outcome");
+		assertEquals("TaskRowMove", manager.getLastRibbonCommandResult().commandId(),
+			"Move Down must reach the shared task-row move command");
+		assertEquals(List.of(second.getUniqueId()), manager.getLastRibbonCommandResult().selectedTaskIds(),
+			"Move Down outcome must retain the selected task identity");
+		assertEquals(List.of(second.getUniqueId()), manager.getLastRibbonCommandResult().affectedTaskIds(),
+			"Move Down outcome must identify the changed task");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> rowForTask(sheet, second) < rowForTask(sheet, first),
+			"one Undo must restore the order before physical Move Down");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> rowForTask(sheet, first) < rowForTask(sheet, second),
+			"one Redo must reapply physical Move Down");
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, first), nameColumn(sheet)));
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, second), nameColumn(sheet)));
+		GuiAcceptanceSupport.await(() -> sheet.isRowFullySelected(rowForTask(sheet, second)),
+			"Move Up must start from a physically selected whole task row");
+		moveDown = findVisibleOrOverflowButton(robot, "RibbonMoveTaskUp");
+		GuiAcceptanceSupport.await(moveDown::isEnabled, "Move Up remained disabled for the selected whole task row");
+		assertEquals("RibbonMoveTaskUp", moveDown.getActionCommand(),
+			"the physical Move Up button must dispatch its declared ribbon command");
+		click(robot, moveDown);
+		GuiAcceptanceSupport.await(() -> rowForTask(sheet, second) < rowForTask(sheet, first),
+			"physical Task-ribbon Move Up did not move the selected task above its sibling");
+		assertEquals(RibbonCommandResult.Status.CHANGED, manager.getLastRibbonCommandResult().status(),
+			"the physical Move Up button must publish a changed semantic outcome");
+		assertEquals("TaskRowMove", manager.getLastRibbonCommandResult().commandId(),
+			"Move Up must reach the shared task-row move command");
+		assertEquals(List.of(second.getUniqueId()), manager.getLastRibbonCommandResult().selectedTaskIds(),
+			"Move Up outcome must retain the selected task identity");
+		assertEquals(List.of(second.getUniqueId()), manager.getLastRibbonCommandResult().affectedTaskIds(),
+			"Move Up outcome must identify the changed task");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> rowForTask(sheet, first) < rowForTask(sheet, second),
+			"one Undo must restore the order before physical Move Up");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> rowForTask(sheet, second) < rowForTask(sheet, first),
+			"one Redo must reapply physical Move Up");
 		ByteArrayOutputStream saved = new ByteArrayOutputStream();
 		MpoFileImporter importer = new MpoFileImporter();
 		assertTrue(importer.saveProject(project, saved), "MPO save rejected the moved task order");
@@ -5128,6 +6067,17 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"Task Information must not stay enabled for a multi-task selection");
 		AbstractButton link = findVisibleOrOverflowButton(robot, "RibbonLink");
 		GuiAcceptanceSupport.await(link::isEnabled, "Link remained disabled for two selected tasks");
+		JPopupMenu[] linkOverflow = new JPopupMenu[1];
+		SwingUtilities.invokeAndWait(() -> {
+			for (Component current = link; current != null; current = current.getParent()) {
+				if (current instanceof JPopupMenu popup) {
+					linkOverflow[0] = popup;
+					break;
+				}
+			}
+		});
+		assertTrue(linkOverflow[0] != null && linkOverflow[0].isShowing(),
+				"Ribbon Link must be obtained from the visible Task overflow popup");
 		Environment.setClientSide(true);
 		Environment.setBatchMode(false);
 		Alert.setPresenter(new SwingAlertPresenter());
@@ -5166,6 +6116,11 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				"Link did not create a dependency between the selected tasks");
 		GuiAcceptanceSupport.await(() -> gantt.getModel().getCache().getEdgesSize() == 1,
 				"Link did not create one visible Gantt dependency");
+		robot.keyPress(KeyEvent.VK_ESCAPE);
+		robot.keyRelease(KeyEvent.VK_ESCAPE);
+		click(robot, taskTab);
+		GuiAcceptanceSupport.await(() -> !linkOverflow[0].isShowing(),
+				"Dismissing the Task ribbon overflow after Link did not close its popup");
 		assertRibbonOutcome(manager, previousLinkOutcome, RibbonCommandResult.Status.CHANGED,
 			predecessor.getUniqueId(), successor.getUniqueId());
 		assertCommandDiagnostics("RibbonLink", "Link", List.of(predecessor.getUniqueId(), successor.getUniqueId()),
@@ -5198,12 +6153,327 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		robot.waitForIdle();
 		GuiAcceptanceSupport.await(() -> successor.getPredecessorList().size() == 1
 				&& gantt.getModel().getCache().getEdgesSize() == 1, "Ctrl+Y did not redo the link");
+		Dependency linkedDependency = (Dependency) successor.getPredecessorList().iterator().next();
+		// Microsoft Project Online Desktop Client and Project Standard/Professional 2016–2024
+		// document double-clicking a Gantt link line to edit its Type. This is a
+		// document-derived compatibility decision, not an observed MSP run:
+		// https://support.microsoft.com/en-gb/project/change-a-task-link
+		// The scheduler consequence is judged against Microsoft's scheduling guidance:
+		// https://support.microsoft.com/en-us/project/how-project-schedules-tasks-behind-the-scenes
+		int originalType = linkedDependency.getDependencyType();
+		long originalSuccessorStart = successor.getStart();
+		long originalSuccessorFinish = successor.getEnd();
+		com.microproject.pm.graphic.model.cache.GraphicDependency graphicLink =
+			(com.microproject.pm.graphic.model.cache.GraphicDependency) gantt.getModel().getCache().getEdgeElementAt(0);
+		GuiAcceptanceSupport.await(() -> !graphicLink.getPath().getBounds2D().isEmpty(), "Gantt dependency edge did not render");
+		Rectangle edgeTarget = ganttDependencyEdgeTarget(robot, gantt, graphicLink);
+		click(robot, edgeTarget);
+		click(robot, edgeTarget);
+		GuiAcceptanceSupport.await(() -> findDependencyDialog() != null, "physical Gantt dependency edge did not open DependencyDialog");
+		DependencyDialog edgeDialog = findDependencyDialog();
+		JComboBox<?> typeChoice = UiComponentWalker.flatten(edgeDialog).stream()
+			.filter(JComboBox.class::isInstance).map(JComboBox.class::cast).findFirst()
+			.orElseThrow(() -> new AssertionError("DependencyDialog type list is missing"));
+		com.microproject.pm.dependency.DependencyType.Kind initialTargetKind =
+			com.microproject.pm.dependency.DependencyType.Kind.SS;
+		int targetTypeIndex = java.util.stream.IntStream.range(0, typeChoice.getItemCount())
+			.filter(index -> Integer.valueOf(initialTargetKind.code()).equals(
+				com.microproject.pm.dependency.DependencyType.mapStringToValue(
+					String.valueOf(typeChoice.getItemAt(index)))))
+			.findFirst().orElseThrow(() -> new AssertionError("DependencyDialog has no SS link type"));
+		click(robot, typeChoice);
+		press(robot, KeyEvent.VK_HOME);
+		for (int index = 0; index < targetTypeIndex; index++) press(robot, KeyEvent.VK_DOWN);
+		press(robot, KeyEvent.VK_ENTER);
+		click(robot, findVisibleButton(edgeDialog, Messages.getString("ButtonText.OK")));
+		GuiAcceptanceSupport.await(() -> linkedDependency.getDependencyType() != originalType,
+			"applying a changed type from the physical Gantt edge dialog did not update the dependency");
+		int changedType = linkedDependency.getDependencyType();
+		long changedSuccessorStart = successor.getStart();
+		long changedSuccessorFinish = successor.getEnd();
+		com.microproject.pm.dependency.DependencyType.Kind changedKind =
+			com.microproject.pm.dependency.DependencyType.Kind.fromCode(changedType);
+		assertEquals(changedKind.code(), changedType, "the selected alternate must resolve to an exact dependency kind");
+		if (changedKind == com.microproject.pm.dependency.DependencyType.Kind.SS
+				|| changedKind == com.microproject.pm.dependency.DependencyType.Kind.FS) {
+			assertNotEquals(originalSuccessorStart, changedSuccessorStart,
+				"changing to SS/FS must recalculate the successor start");
+		} else {
+			assertNotEquals(originalSuccessorFinish, changedSuccessorFinish,
+				"changing to FF/SF must recalculate the successor finish");
+		}
+		assertEquals(1, gantt.getModel().getCache().getEdgesSize(), "changing a dependency type must retain its Gantt edge");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> linkedDependency.getDependencyType() == originalType
+			&& successor.getStart() == originalSuccessorStart, "one Undo did not restore the dependency type and schedule");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> linkedDependency.getDependencyType() == changedType
+			&& successor.getStart() == changedSuccessorStart, "one Redo did not restore the changed dependency type and schedule");
+		ByteArrayOutputStream changedTypeSnapshot = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, changedTypeSnapshot), "MPO save rejected the changed dependency type");
+		Project changedTypeReload = new MpoFileImporter().loadProject(new ByteArrayInputStream(changedTypeSnapshot.toByteArray()));
+		Dependency reloadedChangedType = (Dependency) taskNamed(changedTypeReload, "Adjacent last").getPredecessorList().iterator().next();
+		assertEquals(changedType, reloadedChangedType.getDependencyType(), "MPO reload lost the dependency type edited from the Gantt edge");
 
+		// Exercise the remaining documented FF and SF link types through the same
+		// physical Gantt edge and DependencyDialog route. Link scheduling rules are
+		// derived from Microsoft Project Desktop documentation, not an MSP run.
+		for (com.microproject.pm.dependency.DependencyType.Kind targetKind : List.of(
+				com.microproject.pm.dependency.DependencyType.Kind.FF,
+				com.microproject.pm.dependency.DependencyType.Kind.SF)) {
+			long priorStart = successor.getStart();
+			long priorFinish = successor.getEnd();
+			int priorType = linkedDependency.getDependencyType();
+			com.microproject.pm.graphic.model.cache.GraphicDependency currentGraphicDependency =
+				(com.microproject.pm.graphic.model.cache.GraphicDependency) gantt.getModel().getCache().getEdgeElementAt(0);
+			GuiAcceptanceSupport.await(() -> !currentGraphicDependency.getPath().getBounds2D().isEmpty(),
+				"Gantt dependency edge did not render for " + targetKind);
+			Rectangle currentEdgeTarget = ganttDependencyEdgeTarget(robot, gantt, currentGraphicDependency);
+			click(robot, currentEdgeTarget);
+			click(robot, currentEdgeTarget);
+			GuiAcceptanceSupport.await(() -> findDependencyDialog() != null,
+				"physical Gantt dependency edge did not open DependencyDialog for " + targetKind);
+			DependencyDialog typeDialog = findDependencyDialog();
+			JComboBox<?> typeCombo = UiComponentWalker.flatten(typeDialog).stream()
+				.filter(JComboBox.class::isInstance).map(JComboBox.class::cast).findFirst()
+				.orElseThrow(() -> new AssertionError("DependencyDialog type list is missing for " + targetKind));
+			int targetIndex = java.util.stream.IntStream.range(0, typeCombo.getItemCount())
+				.filter(index -> Integer.valueOf(targetKind.code()).equals(
+					com.microproject.pm.dependency.DependencyType.mapStringToValue(
+						String.valueOf(typeCombo.getItemAt(index)))))
+				.findFirst().orElseThrow(() -> new AssertionError("DependencyDialog is missing " + targetKind));
+			click(robot, typeCombo);
+			press(robot, KeyEvent.VK_HOME);
+			for (int index = 0; index < targetIndex; index++) press(robot, KeyEvent.VK_DOWN);
+			press(robot, KeyEvent.VK_ENTER);
+			click(robot, findVisibleButton(typeDialog, Messages.getString("ButtonText.OK")));
+			GuiAcceptanceSupport.await(() -> linkedDependency.getDependencyType() == targetKind.code(),
+				"physical DependencyDialog edit did not apply " + targetKind);
+			long targetStart = successor.getStart();
+			long targetFinish = successor.getEnd();
+			assertEquals(targetKind.code(), linkedDependency.getDependencyType(), "dependency kind code mismatch for " + targetKind);
+			if (targetKind == com.microproject.pm.dependency.DependencyType.Kind.FF
+					|| targetKind == com.microproject.pm.dependency.DependencyType.Kind.SF) {
+				long requiredPredecessorDate = targetKind == com.microproject.pm.dependency.DependencyType.Kind.FF
+					? predecessor.getEnd() : predecessor.getStart();
+				assertTrue(targetFinish >= requiredPredecessorDate,
+					targetKind + " successor finish must be on or after the predecessor's "
+						+ (targetKind == com.microproject.pm.dependency.DependencyType.Kind.FF ? "finish" : "start"));
+			} else {
+				assertNotEquals(priorStart, targetStart, targetKind + " must recalculate successor start");
+			}
+			assertEquals(1, gantt.getModel().getCache().getEdgesSize(), "editing " + targetKind + " must retain its Gantt edge");
+			press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+			GuiAcceptanceSupport.await(() -> linkedDependency.getDependencyType() == priorType
+				&& successor.getStart() == priorStart && successor.getEnd() == priorFinish,
+				"one Undo did not restore the dependency and schedule for " + targetKind);
+			press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
+			GuiAcceptanceSupport.await(() -> linkedDependency.getDependencyType() == targetKind.code()
+				&& successor.getStart() == targetStart && successor.getEnd() == targetFinish,
+				"one Redo did not restore the dependency and schedule for " + targetKind);
+			ByteArrayOutputStream typeSnapshot = new ByteArrayOutputStream();
+			assertTrue(new MpoFileImporter().saveProject(project, typeSnapshot), "MPO save rejected " + targetKind);
+			Project typeReload = new MpoFileImporter().loadProject(new ByteArrayInputStream(typeSnapshot.toByteArray()));
+			Dependency reloadedType = (Dependency) taskNamed(typeReload, "Adjacent last").getPredecessorList().iterator().next();
+			assertEquals(targetKind.code(), reloadedType.getDependencyType(), "MPO reload lost " + targetKind);
+		}
+
+		long typeChangedSuccessorStart = successor.getStart();
+		long typeChangedSuccessorFinish = successor.getEnd();
+		long originalLag = linkedDependency.getLag();
+		assertEquals(0L, com.microproject.datatype.Duration.millis(originalLag),
+			"the fixture dependency must start with semantically zero lag");
+		long workdayMillis = Math.round(project.getDurationDefaults().minutesPerDay() * 60_000.0d);
+		com.microproject.pm.graphic.model.cache.GraphicDependency lagGraphicDependency =
+			(com.microproject.pm.graphic.model.cache.GraphicDependency) gantt.getModel().getCache().getEdgeElementAt(0);
+		GuiAcceptanceSupport.await(() -> !lagGraphicDependency.getPath().getBounds2D().isEmpty(),
+			"Gantt dependency edge did not render for lag editing");
+		Rectangle lagEdgeTarget = ganttDependencyEdgeTarget(robot, gantt, lagGraphicDependency);
+		click(robot, lagEdgeTarget);
+		click(robot, lagEdgeTarget);
+		GuiAcceptanceSupport.await(() -> findDependencyDialog() != null,
+			"physical Gantt dependency edge did not reopen DependencyDialog for lag editing");
+		DependencyDialog lagDialog = findDependencyDialog();
+		JTextField lagField = UiComponentWalker.flatten(lagDialog).stream()
+			.filter(JTextField.class::isInstance).map(JTextField.class::cast).findFirst()
+			.orElseThrow(() -> new AssertionError("DependencyDialog lag field is missing"));
+		click(robot, lagField);
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_A);
+		press(robot, KeyEvent.VK_1);
+		press(robot, KeyEvent.VK_D);
+		click(robot, findVisibleButton(lagDialog, Messages.getString("ButtonText.OK")));
+		GuiAcceptanceSupport.await(() -> com.microproject.datatype.Duration.millis(linkedDependency.getLag()) != 0L,
+			"applying a positive lag from the physical Gantt edge dialog did not update the dependency");
+		long changedLag = linkedDependency.getLag();
+		long laggedSuccessorStart = successor.getStart();
+		long laggedSuccessorFinish = successor.getEnd();
+		assertEquals(workdayMillis, com.microproject.datatype.Duration.millis(changedLag),
+			"entering 1d must set one project workday of lag");
+		assertNotEquals(typeChangedSuccessorStart, laggedSuccessorStart,
+			"a positive one-day dependency lag must recalculate the successor schedule");
+		assertEquals(1, gantt.getModel().getCache().getEdgesSize(), "changing dependency lag must retain its Gantt edge");
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, predecessor), nameColumn(sheet)));
+		String beforeLagUndoDiagnostic = lagUndoDiagnostic(project, linkedDependency, successor);
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		String immediatelyAfterLagUndoDiagnostic = lagUndoDiagnostic(project, linkedDependency, successor);
+		System.out.println("[lag Undo diagnostic] before Ctrl+Z: " + beforeLagUndoDiagnostic);
+		System.out.println("[lag Undo diagnostic] immediately after Ctrl+Z: " + immediatelyAfterLagUndoDiagnostic);
+		awaitLagUndoDiagnostic("dependency lag", () -> com.microproject.datatype.Duration.millis(linkedDependency.getLag())
+				== com.microproject.datatype.Duration.millis(originalLag),
+			project, linkedDependency, successor);
+		awaitLagUndoDiagnostic("successor start", () -> successor.getStart() == typeChangedSuccessorStart,
+			project, linkedDependency, successor);
+		awaitLagUndoDiagnostic("successor finish", () -> successor.getEnd() == typeChangedSuccessorFinish,
+			project, linkedDependency, successor);
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> com.microproject.datatype.Duration.millis(linkedDependency.getLag())
+				== com.microproject.datatype.Duration.millis(changedLag)
+			&& successor.getStart() == laggedSuccessorStart && successor.getEnd() == laggedSuccessorFinish,
+			"one Redo did not restore the dependency lag and schedule");
+		ByteArrayOutputStream changedLagSnapshot = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, changedLagSnapshot), "MPO save rejected the changed dependency lag");
+		Project changedLagReload = new MpoFileImporter().loadProject(new ByteArrayInputStream(changedLagSnapshot.toByteArray()));
+		Dependency reloadedChangedLag = (Dependency) taskNamed(changedLagReload, "Adjacent last").getPredecessorList().iterator().next();
+		assertEquals(com.microproject.datatype.Duration.millis(changedLag),
+			com.microproject.datatype.Duration.millis(reloadedChangedLag.getLag()),
+			"MPO reload lost the dependency lag edited from the Gantt edge");
+		assertEquals(linkedDependency.getDependencyType(), reloadedChangedLag.getDependencyType(),
+			"MPO reload changed the dependency type after lag editing");
+
+		// Microsoft defines negative lag as lead/overlap. This is a
+		// document-derived compatibility decision, not an observed MSP run:
+		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
+		com.microproject.pm.graphic.model.cache.GraphicDependency fsGraphicDependency =
+			(com.microproject.pm.graphic.model.cache.GraphicDependency) gantt.getModel().getCache().getEdgeElementAt(0);
+		GuiAcceptanceSupport.await(() -> !fsGraphicDependency.getPath().getBounds2D().isEmpty(),
+			"Gantt dependency edge did not render for FS lead setup");
+		Rectangle fsEdgeTarget = ganttDependencyEdgeTarget(robot, gantt, fsGraphicDependency);
+		click(robot, fsEdgeTarget);
+		click(robot, fsEdgeTarget);
+		GuiAcceptanceSupport.await(() -> findDependencyDialog() != null,
+			"physical Gantt dependency edge did not reopen DependencyDialog for FS lead setup");
+		DependencyDialog fsDialog = findDependencyDialog();
+		JComboBox<?> fsTypeChoice = UiComponentWalker.flatten(fsDialog).stream()
+			.filter(JComboBox.class::isInstance).map(JComboBox.class::cast).findFirst()
+			.orElseThrow(() -> new AssertionError("DependencyDialog type list is missing for FS lead setup"));
+		int fsTypeIndex = java.util.stream.IntStream.range(0, fsTypeChoice.getItemCount())
+			.filter(index -> Integer.valueOf(com.microproject.pm.dependency.DependencyType.Kind.FS.code()).equals(
+				com.microproject.pm.dependency.DependencyType.mapStringToValue(
+					String.valueOf(fsTypeChoice.getItemAt(index)))))
+			.findFirst().orElseThrow(() -> new AssertionError("DependencyDialog is missing FS for lead setup"));
+		click(robot, fsTypeChoice);
+		press(robot, KeyEvent.VK_HOME);
+		for (int index = 0; index < fsTypeIndex; index++) press(robot, KeyEvent.VK_DOWN);
+		press(robot, KeyEvent.VK_ENTER);
+		click(robot, findVisibleButton(fsDialog, Messages.getString("ButtonText.OK")));
+		GuiAcceptanceSupport.await(() -> linkedDependency.getDependencyType()
+			== com.microproject.pm.dependency.DependencyType.Kind.FS.code(),
+			"physical DependencyDialog did not apply FS before lead editing");
+		long positiveSuccessorStart = successor.getStart();
+		long positiveSuccessorFinish = successor.getEnd();
+		long leadBoundary = linkedDependency.getEffectiveWorkCalendar()
+			.add(predecessor.getEnd(), -workdayMillis, false);
+		long expectedLeadSuccessorStart = Math.max(project.getStart(), successor.calcOffsetFrom(
+			leadBoundary, leadBoundary, false, false, successor.isMilestone()));
+		java.util.Map<Long, int[]> dependencyCounts = project.getTaskList().stream()
+			.collect(java.util.stream.Collectors.toMap(Task::getUniqueId,
+				task -> new int[] { task.getDependencyList(true).size(), task.getDependencyList(false).size() }));
+		java.util.Map<Long, long[]> unrelatedTaskDates = project.getTaskList().stream()
+			.map(Task.class::cast)
+			.filter(task -> task != predecessor && task != successor)
+			.collect(java.util.stream.Collectors.toMap(Task::getUniqueId,
+				task -> new long[] { task.getStart(), task.getEnd() }));
+		com.microproject.pm.graphic.model.cache.GraphicDependency leadGraphicDependency =
+			(com.microproject.pm.graphic.model.cache.GraphicDependency) gantt.getModel().getCache().getEdgeElementAt(0);
+		GuiAcceptanceSupport.await(() -> !leadGraphicDependency.getPath().getBounds2D().isEmpty(),
+			"Gantt dependency edge did not render for negative lag editing");
+		Rectangle leadEdgeTarget = ganttDependencyEdgeTarget(robot, gantt, leadGraphicDependency);
+		click(robot, leadEdgeTarget);
+		click(robot, leadEdgeTarget);
+		GuiAcceptanceSupport.await(() -> findDependencyDialog() != null,
+			"physical Gantt dependency edge did not reopen DependencyDialog for negative lag editing");
+		DependencyDialog leadDialog = findDependencyDialog();
+		JTextField leadField = UiComponentWalker.flatten(leadDialog).stream()
+			.filter(JTextField.class::isInstance).map(JTextField.class::cast).findFirst()
+			.orElseThrow(() -> new AssertionError("DependencyDialog lag field is missing for negative lag"));
+		click(robot, leadField);
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_A);
+		press(robot, KeyEvent.VK_MINUS);
+		press(robot, KeyEvent.VK_1);
+		press(robot, KeyEvent.VK_D);
+		click(robot, findVisibleButton(leadDialog, Messages.getString("ButtonText.OK")));
+		GuiAcceptanceSupport.await(() -> com.microproject.datatype.Duration.millis(linkedDependency.getLag()) < 0L,
+			"applying -1d from the physical Gantt edge dialog did not create a lead");
+		long leadLag = linkedDependency.getLag();
+		long leadSuccessorStart = successor.getStart();
+		long leadSuccessorFinish = successor.getEnd();
+		assertEquals(com.microproject.pm.dependency.DependencyType.Kind.FS.code(), linkedDependency.getDependencyType(),
+			"the physical lead edit must retain FS type");
+		assertEquals(-workdayMillis, com.microproject.datatype.Duration.millis(leadLag),
+			"entering -1d must set one project workday of lead");
+		assertNotEquals(positiveSuccessorStart, leadSuccessorStart,
+			"a negative one-day dependency lag must recalculate the successor start");
+		assertNotEquals(positiveSuccessorFinish, leadSuccessorFinish,
+			"a negative one-day dependency lag must recalculate the successor finish");
+		assertEquals(expectedLeadSuccessorStart, leadSuccessorStart,
+			"FS -1d must schedule at the later of the calendar-adjusted lead boundary and project start");
+		assertEquals(1, gantt.getModel().getCache().getEdgesSize(), "negative lag must retain its Gantt edge");
+		assertEquals(predecessor, linkedDependency.getPredecessor(), "lead edit changed the predecessor identity");
+		assertEquals(successor, linkedDependency.getSuccessor(), "lead edit changed the successor identity");
+		for (Task task : project.getTaskList().stream().map(Task.class::cast).toList()) {
+			if (task == predecessor || task == successor) continue;
+			long[] priorDates = unrelatedTaskDates.get(task.getUniqueId());
+			assertNotNull(priorDates, "the fixture's unrelated task set changed");
+			assertEquals(priorDates[0], task.getStart(), "lead edit changed unrelated task start: " + task.getName());
+			assertEquals(priorDates[1], task.getEnd(), "lead edit changed unrelated task finish: " + task.getName());
+		}
+		for (Task task : project.getTaskList()) {
+			int[] priorCounts = dependencyCounts.get(task.getUniqueId());
+			assertNotNull(priorCounts, "the fixture's task graph changed during lead edit");
+			assertEquals(priorCounts[0], task.getDependencyList(true).size(),
+				"lead edit changed predecessor adjacency count: " + task.getName());
+			assertEquals(priorCounts[1], task.getDependencyList(false).size(),
+				"lead edit changed successor adjacency count: " + task.getName());
+		}
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> com.microproject.datatype.Duration.millis(linkedDependency.getLag())
+				== com.microproject.datatype.Duration.millis(changedLag)
+			&& linkedDependency.getDependencyType() == com.microproject.pm.dependency.DependencyType.Kind.FS.code()
+			&& successor.getStart() == positiveSuccessorStart && successor.getEnd() == positiveSuccessorFinish,
+			"one Undo did not restore the prior dependency type, lag, and successor schedule");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> com.microproject.datatype.Duration.millis(linkedDependency.getLag())
+				== com.microproject.datatype.Duration.millis(leadLag)
+			&& linkedDependency.getDependencyType() == com.microproject.pm.dependency.DependencyType.Kind.FS.code()
+			&& successor.getStart() == leadSuccessorStart && successor.getEnd() == leadSuccessorFinish,
+			"one Redo did not restore the FS negative lag and successor schedule");
+		ByteArrayOutputStream leadSnapshot = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, leadSnapshot), "MPO save rejected the negative dependency lag");
+		Project leadReload = new MpoFileImporter().loadProject(new ByteArrayInputStream(leadSnapshot.toByteArray()));
+		NormalTask reloadedLeadPredecessor = taskNamed(leadReload, "Adjacent first");
+		NormalTask reloadedLeadSuccessor = taskNamed(leadReload, "Adjacent last");
+		assertEquals(1, reloadedLeadSuccessor.getPredecessorList().size(), "MPO reload lost the lead dependency");
+		Dependency reloadedLead = (Dependency) reloadedLeadSuccessor.getPredecessorList().iterator().next();
+		assertEquals(reloadedLeadPredecessor, reloadedLead.getPredecessor(), "MPO reload changed the lead predecessor identity");
+		assertEquals(reloadedLeadSuccessor, reloadedLead.getSuccessor(), "MPO reload changed the lead successor identity");
+		assertEquals(com.microproject.datatype.Duration.millis(leadLag),
+			com.microproject.datatype.Duration.millis(reloadedLead.getLag()), "MPO reload lost the negative lag");
+		assertEquals(com.microproject.pm.dependency.DependencyType.Kind.FS.code(), reloadedLead.getDependencyType(),
+			"MPO reload changed the lead dependency type");
+		assertEquals(leadSuccessorStart, reloadedLeadSuccessor.getStart(), "MPO reload changed the lead successor start");
+		assertEquals(leadSuccessorFinish, reloadedLeadSuccessor.getEnd(), "MPO reload changed the lead successor finish");
+
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, predecessor), nameColumn(sheet)));
+		robot.keyPress(KeyEvent.VK_SHIFT);
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, successor), nameColumn(sheet)));
+		robot.keyRelease(KeyEvent.VK_SHIFT);
+		GuiAcceptanceSupport.await(() -> {
+			java.util.Set<Long> selectedIds = manager.getCurrentFrame().getSelectedImpls(false).stream()
+				.map(Task.class::cast).map(Task::getUniqueId).collect(java.util.stream.Collectors.toSet());
+			return selectedIds.contains(predecessor.getUniqueId()) && selectedIds.contains(successor.getUniqueId());
+		}, "physical Shift-click did not select both stable task IDs before Unlink");
 		AbstractButton unlink = findVisibleOrOverflowButton(robot, "RibbonUnlink");
-		GuiAcceptanceSupport.await(unlink::isEnabled, "Unlink became disabled after link creation");
-		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(predecessor)
-				&& manager.getCurrentFrame().getSelectedImpls(false).contains(successor),
-			"Undo/Redo did not preserve both selected tasks for Unlink");
+		GuiAcceptanceSupport.await(unlink::isEnabled, "Unlink became disabled for the two selected tasks");
 		RibbonCommandResult previousUnlinkOutcome = manager.getLastRibbonCommandResult();
 		click(robot, unlink);
 		GuiAcceptanceSupport.await(() -> successor.getPredecessorList().isEmpty(),
@@ -5226,6 +6496,280 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
 		GuiAcceptanceSupport.await(() -> successor.getPredecessorList().isEmpty()
 				&& gantt.getModel().getCache().getEdgesSize() == 0, "Ctrl+Y did not redo Unlink");
+
+		// Microsoft documents Ctrl+F2 for Link and Ctrl+Shift+F2 for Unlink.
+		// Exercise those root-pane routes physically against the same selected tasks
+		// and canonical actions used by the ribbon buttons above.
+		SwingUtilities.invokeAndWait(sheet::requestFocusInWindow);
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(predecessor)
+				&& manager.getCurrentFrame().getSelectedImpls(false).contains(successor),
+			"the ribbon routes must leave both intended task IDs selected for keyboard Link");
+		RibbonCommandResult beforeShortcutLink = manager.getLastRibbonCommandResult();
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_F2);
+		GuiAcceptanceSupport.await(() -> successor.getPredecessorList().size() == 1
+				&& gantt.getModel().getCache().getEdgesSize() == 1, "Ctrl+F2 did not link the selected tasks");
+		assertRibbonOutcome(manager, beforeShortcutLink, RibbonCommandResult.Status.CHANGED,
+			predecessor.getUniqueId(), successor.getUniqueId());
+		assertEquals("Link", manager.getLastRibbonCommandResult().commandId(),
+			"Ctrl+F2 must reach the canonical Link action used by Ribbon Link");
+		assertTrue(manager.getCurrentFrame().getSelectedImpls(false).contains(predecessor)
+				&& manager.getCurrentFrame().getSelectedImpls(false).contains(successor),
+			"Ctrl+F2 must preserve the selected task identities");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> successor.getPredecessorList().isEmpty()
+				&& gantt.getModel().getCache().getEdgesSize() == 0, "one Undo did not revert Ctrl+F2 Link");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> successor.getPredecessorList().size() == 1
+				&& gantt.getModel().getCache().getEdgesSize() == 1, "one Redo did not restore Ctrl+F2 Link");
+		ByteArrayOutputStream shortcutLinkedSnapshot = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, shortcutLinkedSnapshot),
+			"MPO save rejected the dependency created through Ctrl+F2");
+		Project shortcutLinkedReload = new MpoFileImporter().loadProject(
+			new ByteArrayInputStream(shortcutLinkedSnapshot.toByteArray()));
+		Dependency shortcutReloadedDependency = (Dependency) taskNamed(shortcutLinkedReload, "Adjacent last")
+				.getPredecessorList().iterator().next();
+		assertEquals("Adjacent first", ((Task) shortcutReloadedDependency.getPredecessor()).getName(),
+			"MPO reload changed the dependency endpoint created through Ctrl+F2");
+
+		RibbonCommandResult beforeShortcutUnlink = manager.getLastRibbonCommandResult();
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_SHIFT, KeyEvent.VK_F2);
+		GuiAcceptanceSupport.await(() -> successor.getPredecessorList().isEmpty()
+				&& gantt.getModel().getCache().getEdgesSize() == 0, "Ctrl+Shift+F2 did not unlink the selected tasks");
+		assertRibbonOutcome(manager, beforeShortcutUnlink, RibbonCommandResult.Status.CHANGED,
+			predecessor.getUniqueId(), successor.getUniqueId());
+		assertEquals("Unlink", manager.getLastRibbonCommandResult().commandId(),
+			"Ctrl+Shift+F2 must reach the canonical Unlink action used by Ribbon Unlink");
+		assertTrue(manager.getCurrentFrame().getSelectedImpls(false).contains(predecessor)
+				&& manager.getCurrentFrame().getSelectedImpls(false).contains(successor),
+			"Ctrl+Shift+F2 must preserve the selected task identities");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> successor.getPredecessorList().size() == 1
+				&& gantt.getModel().getCache().getEdgesSize() == 1, "one Undo did not revert Ctrl+Shift+F2 Unlink");
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> successor.getPredecessorList().isEmpty()
+				&& gantt.getModel().getCache().getEdgesSize() == 0, "one Redo did not restore Ctrl+Shift+F2 Unlink");
+		ByteArrayOutputStream shortcutUnlinkedSnapshot = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, shortcutUnlinkedSnapshot),
+			"MPO save rejected the dependency removal through Ctrl+Shift+F2");
+		Project shortcutUnlinkedReload = new MpoFileImporter().loadProject(
+			new ByteArrayInputStream(shortcutUnlinkedSnapshot.toByteArray()));
+		assertEquals(0, taskNamed(shortcutUnlinkedReload, "Adjacent last").getPredecessorList().size(),
+			"MPO reload restored the dependency removed through Ctrl+Shift+F2");
+	}
+
+	@Test
+	void ribbonLinkRejectsCycleWithoutChangingExistingDependenciesOrSchedules() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		beginCommandDiagnosticCapture();
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		previousClientSide = Environment.isClientSide();
+		previousBatchMode = Environment.isBatchMode();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		Environment.setClientSide(true);
+		Environment.setBatchMode(false);
+		Alert.setPresenter(new SwingAlertPresenter());
+		OutlineFixture fixture = createOutlineFixture("ribbon-link-cycle-acceptance");
+		DataFactoryUndoController undo = fixture.undo();
+		Project project = fixture.project();
+		NormalTask a = project.createScriptedTask();
+		a.setName("Cycle A");
+		NormalTask b = project.createScriptedTask();
+		b.setName("Cycle B");
+		NormalTask c = project.createScriptedTask();
+		c.setName("Cycle C");
+		NormalTask unrelated = project.createScriptedTask();
+		unrelated.setName("Cycle unrelated");
+		project.recalculate();
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"cycle test project did not become visible");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		Gantt gantt = manager.getCurrentFrame().getGanttView().getGantt();
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		assertTrue(isTaskVisible(sheet, a) && isTaskVisible(sheet, b) && isTaskVisible(sheet, c),
+			"the three independent cycle tasks must be visible in the spreadsheet");
+		assertEquals(0, gantt.getModel().getCache().getEdgesSize(), "cycle fixture must start without Gantt dependencies");
+		undo.clear();
+		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+			.getString("TaskRibbonTask.title"));
+		clickAndAwaitSelected(robot, taskTab, "Robot click did not select the Task ribbon tab for cycle links");
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, a), nameColumn(sheet)));
+		robot.keyPress(KeyEvent.VK_SHIFT);
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, b), nameColumn(sheet)));
+		robot.keyRelease(KeyEvent.VK_SHIFT);
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(a)
+				&& manager.getCurrentFrame().getSelectedImpls(false).contains(b),
+			"physical selection did not include Cycle A and Cycle B");
+		AbstractButton link = findVisibleOrOverflowButton(robot, "RibbonLink");
+		GuiAcceptanceSupport.await(link::isEnabled, "Link remained disabled for Cycle A and Cycle B");
+		RibbonCommandResult previous = manager.getLastRibbonCommandResult();
+		click(robot, link);
+		GuiAcceptanceSupport.await(() -> b.getPredecessorList().size() == 1
+				&& gantt.getModel().getCache().getEdgesSize() == 1, "physical Ribbon Link did not create A→B");
+		assertRibbonOutcome(manager, previous, RibbonCommandResult.Status.CHANGED, a.getUniqueId(), b.getUniqueId());
+
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, b), nameColumn(sheet)));
+		robot.keyPress(KeyEvent.VK_SHIFT);
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, c), nameColumn(sheet)));
+		robot.keyRelease(KeyEvent.VK_SHIFT);
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(b)
+				&& manager.getCurrentFrame().getSelectedImpls(false).contains(c),
+			"physical selection did not include Cycle B and Cycle C");
+		link = findVisibleOrOverflowButton(robot, "RibbonLink");
+		GuiAcceptanceSupport.await(link::isEnabled, "Link remained disabled for Cycle B and Cycle C");
+		previous = manager.getLastRibbonCommandResult();
+		click(robot, link);
+		GuiAcceptanceSupport.await(() -> c.getPredecessorList().size() == 1
+				&& gantt.getModel().getCache().getEdgesSize() == 2, "physical Ribbon Link did not create B→C");
+		assertRibbonOutcome(manager, previous, RibbonCommandResult.Status.CHANGED, b.getUniqueId(), c.getUniqueId());
+		assertSame(a, ((Dependency) b.getPredecessorList().iterator().next()).getPredecessor(), "the first link must be A→B");
+		assertSame(b, ((Dependency) c.getPredecessorList().iterator().next()).getPredecessor(), "the second link must be B→C");
+
+		long aStart = a.getStart(), aFinish = a.getEnd();
+		long bStart = b.getStart(), bFinish = b.getEnd();
+		long cStart = c.getStart(), cFinish = c.getEnd();
+		long unrelatedStart = unrelated.getStart(), unrelatedFinish = unrelated.getEnd();
+		boolean undoAvailable = undo.canUndo(), redoAvailable = undo.canRedo();
+		String undoName = undo.getUndoName(), redoName = undo.getRedoName();
+		assertTrue(undoAvailable, "the successful chain links must be undoable before the cycle attempt");
+
+		// Link orders its endpoints by visible row order, not by Ctrl-click order.
+		// Put C before A in the active projection so the physical ribbon command
+		// actually attempts C→A and exercises the cycle guard.
+		taskSortViewToRestore = ViewConfiguration.getView(manager.getCurrentFrame().getTopViewId());
+		previousTaskSortSpec = taskSortViewToRestore.getTransform().getTaskSortSpec();
+		SwingUtilities.invokeAndWait(() -> taskSortViewToRestore.getTransform().setTaskSortSpec(new TaskSortSpec(
+			List.of(new TaskSortSpec.Key("Sorter.Name", false)), false)));
+		GuiAcceptanceSupport.await(() -> visibleTaskOrder(sheet).indexOf("Cycle C")
+				< visibleTaskOrder(sheet).indexOf("Cycle A"),
+			"descending Name projection did not place Cycle C before Cycle A; rows=" + visibleTaskOrder(sheet));
+
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, c), nameColumn(sheet)));
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, a), nameColumn(sheet)));
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		GuiAcceptanceSupport.await(() -> {
+			java.util.Set<NormalTask> selected = manager.getCurrentFrame().getSelectedImpls(false).stream()
+				.map(NormalTask.class::cast).collect(java.util.stream.Collectors.toSet());
+			return selected.size() == 2 && selected.contains(a) && selected.contains(c);
+		}, "physical Ctrl-click did not select exactly Cycle C and Cycle A");
+		link = findVisibleOrOverflowButton(robot, "RibbonLink");
+		GuiAcceptanceSupport.await(link::isEnabled, "Link remained disabled for Cycle C and Cycle A");
+		previous = manager.getLastRibbonCommandResult();
+		click(robot, link);
+		String circularWarning = Messages.getString("Message.circularDependency");
+		Dialog warningDialog = awaitCircularWarning(circularWarning);
+		assertTrue(dialogText(warningDialog).contains(circularWarning),
+			"cycle rejection must display the localized circular-dependency warning");
+		captureDialog(robot, warningDialog, "ribbon-link-cycle-warning.png");
+		dismissDialog(robot, warningDialog);
+		RibbonCommandResult previousCycleAttempt = previous;
+		GuiAcceptanceSupport.await(() -> manager.getLastRibbonCommandResult() != previousCycleAttempt
+				&& manager.getLastRibbonCommandResult().status() == RibbonCommandResult.Status.REJECTED
+				&& "invalid-association".equals(manager.getLastRibbonCommandResult().reason()),
+			"physical Ribbon Link did not publish a command result; selected="
+				+ manager.getCurrentFrame().getSelectedImpls(false).stream()
+					.map(NormalTask.class::cast).map(NormalTask::getName).toList()
+				+ "; view=" + visibleTaskOrder(sheet) + "; result=" + manager.getLastRibbonCommandResult());
+		RibbonCommandResult rejected = manager.getLastRibbonCommandResult();
+		assertEquals(RibbonCommandResult.Status.REJECTED, rejected.status(), "cycle Link must publish a semantic rejection");
+		assertEquals("invalid-association", rejected.reason(), "cycle Link must report the association validation rejection");
+		assertEquals(List.of(c.getUniqueId(), a.getUniqueId()), rejected.selectedTaskIds(),
+			"cycle rejection must identify the selected endpoint tasks");
+		assertEquals(1, b.getPredecessorList().size(), "cycle rejection changed B's predecessor adjacency");
+		assertEquals(1, c.getPredecessorList().size(), "cycle rejection changed C's predecessor adjacency");
+		assertTrue(a.getPredecessorList().isEmpty(), "cycle rejection inserted C→A into A's predecessor adjacency");
+		assertTrue(c.getSuccessorList().isEmpty(), "cycle rejection inserted C→A into C's successor adjacency");
+		assertSame(a, ((Dependency) b.getPredecessorList().iterator().next()).getPredecessor(), "cycle rejection changed A→B");
+		assertSame(b, ((Dependency) c.getPredecessorList().iterator().next()).getPredecessor(), "cycle rejection changed B→C");
+		assertEquals(2, gantt.getModel().getCache().getEdgesSize(), "cycle rejection changed the existing Gantt edge count");
+		java.util.Set<String> renderedEdges = java.util.stream.IntStream.range(0, gantt.getModel().getCache().getEdgesSize())
+			.mapToObj(index -> (com.microproject.pm.graphic.model.cache.GraphicDependency)
+				gantt.getModel().getCache().getEdgeElementAt(index))
+			.map(edge -> ((Task) edge.getPredecessor().getNode().getImpl()).getName() + "→"
+				+ ((Task) edge.getSuccessor().getNode().getImpl()).getName())
+			.collect(java.util.stream.Collectors.toSet());
+		assertEquals(java.util.Set.of("Cycle A→Cycle B", "Cycle B→Cycle C"), renderedEdges,
+			"Gantt must retain exactly the two original directed dependency edges");
+		assertEquals(aStart, a.getStart()); assertEquals(aFinish, a.getEnd());
+		assertEquals(bStart, b.getStart()); assertEquals(bFinish, b.getEnd());
+		assertEquals(cStart, c.getStart()); assertEquals(cFinish, c.getEnd());
+		assertEquals(unrelatedStart, unrelated.getStart()); assertEquals(unrelatedFinish, unrelated.getEnd());
+		assertEquals(undoAvailable, undo.canUndo(), "cycle rejection changed Undo availability");
+		assertEquals(redoAvailable, undo.canRedo(), "cycle rejection changed Redo availability");
+		assertEquals(undoName, undo.getUndoName(), "cycle rejection changed the Undo edit name");
+		assertEquals(redoName, undo.getRedoName(), "cycle rejection changed the Redo edit name");
+
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		MpoFileImporter importer = new MpoFileImporter();
+		assertTrue(importer.saveProject(project, saved), "MPO save rejected the cycle-safe dependency chain");
+		Project reloaded = importer.loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		reloaded.recalculate();
+		NormalTask reloadedA = taskNamed(reloaded, "Cycle A");
+		NormalTask reloadedB = taskNamed(reloaded, "Cycle B");
+		NormalTask reloadedC = taskNamed(reloaded, "Cycle C");
+		assertEquals(0, reloadedA.getPredecessorList().size(), "MPO reload added an incoming cycle edge to A");
+		assertEquals(1, reloadedB.getPredecessorList().size(), "MPO reload lost A→B");
+		assertEquals(1, reloadedC.getPredecessorList().size(), "MPO reload lost B→C");
+		assertSame(reloadedA, ((Dependency) reloadedB.getPredecessorList().iterator().next()).getPredecessor(),
+			"MPO reload changed the first dependency endpoint");
+		assertSame(reloadedB, ((Dependency) reloadedC.getPredecessorList().iterator().next()).getPredecessor(),
+			"MPO reload changed the second dependency endpoint");
+		assertEquals(1, reloadedA.getSuccessorList().size(), "MPO reload added a second successor to A");
+		assertEquals(1, reloadedB.getSuccessorList().size(), "MPO reload added the rejected C→A edge");
+		assertTrue(reloadedC.getSuccessorList().isEmpty(), "MPO reload retained the rejected C→A edge");
+	}
+
+	private static Dialog awaitCircularWarning(String message) throws Exception {
+		Dialog[] found = new Dialog[1];
+		GuiAcceptanceSupport.await(() -> {
+			for (Window candidate : Window.getWindows()) {
+				if (candidate instanceof Dialog dialog && dialog.isShowing() && dialogText(dialog).contains(message)) {
+					found[0] = dialog;
+					return true;
+				}
+			}
+			return false;
+		}, "cycle command did not display its circular-dependency warning");
+		return found[0];
+	}
+
+	private static String dialogText(Dialog dialog) {
+		String[] text = new String[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> text[0] = componentText(dialog));
+		} catch (Exception failure) {
+			throw new AssertionError("could not inspect cycle warning dialog", failure);
+		}
+		return text[0];
+	}
+
+	private static void captureDialog(Robot robot, Dialog dialog, String fileName) throws Exception {
+		Rectangle[] bounds = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> bounds[0] = new Rectangle(dialog.getBounds()));
+		Path artifact = Path.of(System.getProperty("microproject.gui.artifacts.dir", "build/guiTest-artifacts"), fileName);
+		Files.createDirectories(artifact.getParent());
+		ImageIO.write(robot.createScreenCapture(bounds[0]), "png", artifact.toFile());
+	}
+
+	private static void dismissDialog(Robot robot, Dialog dialog) throws Exception {
+		Rectangle[] bounds = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> {
+			AbstractButton button = UiComponentWalker.flatten(dialog).stream()
+				.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast).findFirst()
+				.orElseThrow(() -> new AssertionError("warning dialog has no dismissal button"));
+			java.awt.Point point = button.getLocationOnScreen();
+			bounds[0] = new Rectangle(point.x, point.y, button.getWidth(), button.getHeight());
+		});
+		robot.mouseMove(bounds[0].x + bounds[0].width / 2, bounds[0].y + bounds[0].height / 2);
+		robot.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		GuiAcceptanceSupport.await(() -> !dialog.isShowing(), "physical click did not dismiss cycle warning");
 	}
 
 	@Test
@@ -5686,6 +7230,94 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	@Test
+	void physicalIncompleteTaskFilterPreservesDomainAndSelectsVisibleTaskByStableId() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for physical filter coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("task-filter-acceptance", undo), undo);
+		project.initialize(false, false);
+		NormalTask alpha = project.createScriptedTask();
+		alpha.setName("Filter Target Alpha");
+		NormalTask zulu = project.createScriptedTask();
+		zulu.setName("Filter Target Zulu");
+		NormalTask completed = project.createScriptedTask();
+		completed.setName("Filter Hidden Complete");
+		completed.setDuration(CalendarOption.getInstance().getMillisPerDay());
+		completed.setPercentComplete(1.0d);
+		assertEquals(1.0d, completed.getPercentComplete(), "the completed filter fixture must retain 100% progress");
+		List<NormalTask> tasks = List.of(alpha, zulu, completed);
+		List<String> originalOutline = taskOrder(project);
+		List<Long> originalIds = tasks.stream().map(NormalTask::getUniqueId).toList();
+		List<Long> originalStarts = tasks.stream().map(NormalTask::getStart).toList();
+		List<Long> originalFinishes = tasks.stream().map(NormalTask::getEnd).toList();
+		List<Long> originalDurations = tasks.stream().map(NormalTask::getDuration).toList();
+		List<Double> originalProgress = tasks.stream().map(NormalTask::getPercentComplete).toList();
+
+		showProject(project);
+		SwingUtilities.invokeAndWait(() -> window.setSize(1120, 700));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
+				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"task filter project did not become visible");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		GanttView ganttView = manager.getCurrentFrame().getGanttView();
+		assertSame(sheet.getCache(), ganttView.getCache(), "task table and Gantt must share the live filter projection");
+		taskFilterViewToRestore = ViewConfiguration.getView(manager.getCurrentFrame().getTopViewId());
+		previousTaskFilterId = taskFilterViewToRestore.getTransform().getUserFilterId();
+		boolean dirtyBeforeFilter = project.needsSaving();
+		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+			.getString("ViewRibbonTask.title"));
+		clickAndAwaitSelected(robot, viewTab, "Robot click did not select the View ribbon tab for filtering");
+		click(robot, findShowingButtonByCommand("RibbonChooseFilter"));
+		JComboBox<?> filterChoice = findShowingTransformCombo("Filter.IncompleteTasks");
+		int incompleteIndex = -1;
+		for (int index = 0; index < filterChoice.getItemCount(); index++) {
+			if (filterChoice.getItemAt(index) instanceof CommonTransformFactory factory
+					&& "Filter.IncompleteTasks".equals(factory.getId())) incompleteIndex = index;
+		}
+		assertTrue(incompleteIndex >= 0, "the shared task filter list must expose Incomplete Tasks");
+		GuiAcceptanceSupport.selectComboBoxItem(robot, filterChoice, incompleteIndex);
+		Dialog chooser = java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow() instanceof Dialog dialog
+			? dialog : null;
+		assertNotNull(chooser, "the generic task Filter chooser must remain open after selecting Incomplete Tasks");
+		click(robot, findShowingButtonByText(chooser, javax.swing.UIManager.getString("OptionPane.okButtonText")));
+		GuiAcceptanceSupport.await(() -> "Filter.IncompleteTasks".equals(
+			ViewConfiguration.getView(manager.getCurrentFrame().getTopViewId()).getTransform().getUserFilterId()),
+			"the physical View > Filter route did not retain Incomplete Tasks");
+		GuiAcceptanceSupport.await(() -> visibleTaskOrder(sheet).equals(List.of(alpha.getName(), zulu.getName())),
+			"the incomplete-task filter did not hide the completed task from the table: " + visibleTaskOrder(sheet));
+		assertFalse(isTaskVisibleInGantt(ganttView.getGantt(), completed),
+			"the completed task must also be absent from the filtered Gantt projection");
+		assertTrue(isTaskVisibleInGantt(ganttView.getGantt(), alpha));
+		assertTrue(isTaskVisibleInGantt(ganttView.getGantt(), zulu));
+		assertEquals(originalOutline, taskOrder(project), "filtering must preserve project outline order");
+		assertEquals(originalIds, tasks.stream().map(NormalTask::getUniqueId).toList(), "filtering must preserve task identities");
+		assertEquals(originalStarts, tasks.stream().map(NormalTask::getStart).toList(), "filtering must not change task starts");
+		assertEquals(originalFinishes, tasks.stream().map(NormalTask::getEnd).toList(), "filtering must not change task finishes");
+		assertEquals(originalDurations, tasks.stream().map(NormalTask::getDuration).toList(), "filtering must not change task durations");
+		assertEquals(originalProgress, tasks.stream().map(NormalTask::getPercentComplete).toList(), "filtering must not change task progress");
+		assertEquals(dirtyBeforeFilter, project.needsSaving(), "view-only filtering must not dirty project data");
+
+		int selectedRow = rowForTask(sheet, zulu);
+		clickUntilSelected(robot, window, sheet, selectedRow, nameColumn(sheet));
+		assertEquals(List.of(zulu.getUniqueId()), sheet.getSelectedNodes().stream()
+			.filter(node -> node.getImpl() instanceof Task)
+			.map(node -> ((Task) node.getImpl()).getUniqueId()).toList(),
+			"physical selection in the filtered table must resolve to the visible task's stable ID");
+		GraphicNode selectedNode = (GraphicNode) sheet.getCache().getGraphicNode(
+			((CommonSpreadSheetModel) sheet.getModel()).getNode(selectedRow).getNode());
+		int ganttRow = ganttView.getGantt().getCache().getVisibleNodes().getProjectionIndex().rowForNode(selectedNode);
+		assertEquals(selectedRow, ganttRow, "the selected filtered table task must stay aligned with its Gantt row");
+		assertEquals(originalOutline, taskOrder(project), "physical selection after filtering must remain view-only");
+		assertEquals(dirtyBeforeFilter, project.needsSaving(), "filter selection must not dirty project data");
+	}
+
+	@Test
 	void physicalTaskSortSupportsAscendingStartAndDescendingFinishForViewAndOutline() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
@@ -5701,6 +7333,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		earlier.setName("Date sort earlier");
 		NormalTask tiedEarlier = project.createScriptedTask();
 		tiedEarlier.setName("Date sort tied earlier");
+		NormalTask emptyDate = project.createScriptedTask();
+		emptyDate.setName("Date sort empty");
 		long day = CalendarOption.getInstance().getMillisPerDay();
 		long start = project.getStart();
 		later.setDuration(day / 2);
@@ -5710,13 +7344,17 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		earlier.setStart(start + day);
 		tiedEarlier.setStart(start + day);
 		project.recalculate();
+		// Zero is the task-date empty sentinel; keep it after the scheduling pass.
+		emptyDate.getCurrentSchedule().setStart(0);
+		emptyDate.getCurrentSchedule().setEnd(0);
 		List<String> originalOutline = taskOrder(project);
-		assertEquals(List.of("Date sort later", "Date sort earlier", "Date sort tied earlier"), originalOutline,
+		assertEquals(List.of("Date sort later", "Date sort earlier", "Date sort tied earlier", "Date sort empty"), originalOutline,
 			"fixture must begin in outline order rather than date order");
 		assertTrue(earlier.getStart() < later.getStart(), "fixture must retain distinct scheduled start dates after recalculation");
 		assertEquals(earlier.getStart(), tiedEarlier.getStart(), "fixture must retain an equal-date tie after recalculation");
-		long[] originalStarts = { later.getStart(), earlier.getStart(), tiedEarlier.getStart() };
-		long[] originalFinishes = { later.getEnd(), earlier.getEnd(), tiedEarlier.getEnd() };
+		assertEquals(0, emptyDate.getStart(), "fixture empty Start Date must retain the zero sentinel");
+		long[] originalStarts = { later.getStart(), earlier.getStart(), tiedEarlier.getStart(), emptyDate.getStart() };
+		long[] originalFinishes = { later.getEnd(), earlier.getEnd(), tiedEarlier.getEnd(), emptyDate.getEnd() };
 		assertTrue(earlier.getEnd() > later.getEnd() && later.getEnd() > tiedEarlier.getEnd(),
 			"fixture must distinguish Finish Date descending from Start Date ordering");
 
@@ -5761,7 +7399,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertEquals(0, startDirection.getSelectedIndex(), "Start Date begins in ascending order");
 		click(robot, findShowingButtonByText(chooser, javax.swing.UIManager.getString("OptionPane.okButtonText")));
 		GuiAcceptanceSupport.await(() -> visibleTaskOrder(sheet).equals(
-			List.of("Date sort earlier", "Date sort tied earlier", "Date sort later")),
+			List.of("Date sort earlier", "Date sort tied earlier", "Date sort later", "Date sort empty")),
 			"the physical View > Sort route did not apply the Start Date ordering stably; rows="
 				+ visibleTaskOrder(sheet) + ", selectedSorter="
 				+ ViewConfiguration.getView(manager.getCurrentFrame().getTopViewId()).getTransform().getUserSorterId());
@@ -5769,10 +7407,40 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			ViewConfiguration.getView(manager.getCurrentFrame().getTopViewId()).getTransform().getUserSorterId()),
 			"the active task-view configuration did not retain Start Date as its selected sorter");
 		assertEquals(originalOutline, taskOrder(project), "date sorting must remain view-only");
-		assertArrayEquals(originalStarts, new long[] { later.getStart(), earlier.getStart(), tiedEarlier.getStart() },
+		assertArrayEquals(originalStarts, new long[] { later.getStart(), earlier.getStart(), tiedEarlier.getStart(), emptyDate.getStart() },
 			"date sorting must not change task schedules");
-		assertArrayEquals(originalFinishes, new long[] { later.getEnd(), earlier.getEnd(), tiedEarlier.getEnd() },
+		assertArrayEquals(originalFinishes, new long[] { later.getEnd(), earlier.getEnd(), tiedEarlier.getEnd(), emptyDate.getEnd() },
 			"date sorting must not change task finishes");
+		for (NormalTask task : List.of(earlier, tiedEarlier, later, emptyDate)) {
+			int sheetRow = rowForTask(sheet, task);
+			GraphicNode graphicNode = (GraphicNode) sheet.getCache().getGraphicNode(
+				((CommonSpreadSheetModel) sheet.getModel()).getNode(sheetRow).getNode());
+			int ganttRow = ganttView.getGantt().getCache().getVisibleNodes().getProjectionIndex().rowForNode(graphicNode);
+			assertEquals(sheetRow, ganttRow, "sorted Start Date must keep table and Gantt rows aligned");
+		}
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, tiedEarlier), nameColumn(sheet)));
+		GuiAcceptanceSupport.await(() -> ganttView.getGantt().getHighlightedRows()
+				.equals(java.util.Set.of(rowForTask(sheet, tiedEarlier))),
+			"visible-row selection identity must follow the tied task after ascending Start Date sorting");
+
+		click(robot, findShowingButtonByCommand("RibbonChooseSort"));
+		JComboBox<?> descendingStartChoice = findShowingTransformCombo("Sorter.StartDate");
+		int descendingStartIndex = -1;
+		for (int index = 0; index < descendingStartChoice.getItemCount(); index++) {
+			if (descendingStartChoice.getItemAt(index) instanceof CommonTransformFactory factory
+					&& "Sorter.StartDate".equals(factory.getId())) descendingStartIndex = index;
+		}
+		assertTrue(descendingStartIndex >= 0, "the shared task-view sorter list must expose Start Date");
+		GuiAcceptanceSupport.selectComboBoxItem(robot, descendingStartChoice, descendingStartIndex);
+		Dialog descendingStartChooser = (Dialog) java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow();
+		JComboBox<?> descendingStartDirection = findTaskSortDirection(descendingStartChooser);
+		GuiAcceptanceSupport.selectComboBoxItem(robot, descendingStartDirection, 1);
+		click(robot, findShowingButtonByText(descendingStartChooser, javax.swing.UIManager.getString("OptionPane.okButtonText")));
+		GuiAcceptanceSupport.await(() -> visibleTaskOrder(sheet).equals(
+				List.of("Date sort later", "Date sort earlier", "Date sort tied earlier", "Date sort empty")),
+			"descending Start Date must reverse distinct dates, preserve ties, and leave empty dates last; rows="
+				+ visibleTaskOrder(sheet));
+		assertEquals(originalOutline, taskOrder(project), "descending Start Date remains view-only");
 
 		// Microsoft Project's Application.Sort documents Ascending1=False for a
 		// selected field (https://learn.microsoft.com/en-us/office/vba/api/project.application.sort).
@@ -5794,16 +7462,32 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.selectComboBoxItem(robot, finishDirection, 1);
 		assertEquals(1, finishDirection.getSelectedIndex(), "Finish Date must be explicitly set to descending");
 		click(robot, findShowingButtonByText(finishChooser, javax.swing.UIManager.getString("OptionPane.okButtonText")));
-		List<String> descendingFinishOrder = List.of("Date sort earlier", "Date sort later", "Date sort tied earlier");
+		List<String> descendingFinishOrder = List.of("Date sort earlier", "Date sort later", "Date sort tied earlier", "Date sort empty");
 		GuiAcceptanceSupport.await(() -> visibleTaskOrder(sheet).equals(descendingFinishOrder),
 			"descending Finish Date must order by task finish, independently of Start Date; rows=" + visibleTaskOrder(sheet));
 		assertEquals("Sorter.FinishDate", taskSortViewToRestore.getTransform().getUserSorterId());
 		assertFalse(taskSortViewToRestore.getTransform().isUserSorterAscending());
 		assertEquals(originalOutline, taskOrder(project), "descending view sort must not reorder the task model");
-		assertArrayEquals(originalStarts, new long[] { later.getStart(), earlier.getStart(), tiedEarlier.getStart() },
+		assertArrayEquals(originalStarts, new long[] { later.getStart(), earlier.getStart(), tiedEarlier.getStart(), emptyDate.getStart() },
 			"descending view sort must not change task starts");
-		assertArrayEquals(originalFinishes, new long[] { later.getEnd(), earlier.getEnd(), tiedEarlier.getEnd() },
+		assertArrayEquals(originalFinishes, new long[] { later.getEnd(), earlier.getEnd(), tiedEarlier.getEnd(), emptyDate.getEnd() },
 			"descending view sort must not change task finishes");
+		NormalTask selectedAfterFinishSort = later;
+		int finishSortSelectedRow = rowForTask(sheet, selectedAfterFinishSort);
+		assertTrue(finishSortSelectedRow >= 0, "the selected Finish Date task must remain visible");
+		click(robot, cellOnScreen(sheet, finishSortSelectedRow, nameColumn(sheet)));
+		GuiAcceptanceSupport.await(() -> ganttView.getGantt().getHighlightedRows()
+				.equals(java.util.Set.of(rowForTask(sheet, selectedAfterFinishSort))),
+			"selecting a visible task after descending Finish Date must highlight its matching Gantt row");
+		int selectedFinishSheetRow = rowForTask(sheet, selectedAfterFinishSort);
+		GraphicNode selectedFinishGraphicNode = (GraphicNode) sheet.getCache().getGraphicNode(
+			((CommonSpreadSheetModel) sheet.getModel()).getNode(selectedFinishSheetRow).getNode());
+		assertSame(selectedAfterFinishSort, selectedFinishGraphicNode.getNode().getImpl(),
+			"Finish Date selection must retain the selected task identity");
+		int selectedFinishGanttRow = ganttView.getGantt().getCache().getVisibleNodes().getProjectionIndex()
+			.rowForNode(selectedFinishGraphicNode);
+		assertEquals(selectedFinishSheetRow, selectedFinishGanttRow,
+			"selected Finish Date task must occupy the same visible table and Gantt row");
 
 		// Microsoft Project's Sort dialog permits a secondary field with its own direction.
 		// Keep Outline off is view-only here; this product contract does not rewrite WBS.
@@ -5850,13 +7534,13 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			taskSortViewToRestore.getTransform().getTaskSortSpec().keys(),
 			"confirming the dialog must atomically commit both selected keys and directions");
 		GuiAcceptanceSupport.await(() -> visibleTaskOrder(sheet).equals(
-				List.of("Date sort tied earlier", "Date sort earlier", "Date sort later")),
+				List.of("Date sort tied earlier", "Date sort earlier", "Date sort later", "Date sort empty")),
 			"the physical sort route must apply the secondary descending Name key; rows=" + visibleTaskOrder(sheet));
 		assertFalse(taskSortViewToRestore.getTransform().isKeepOutline());
 		assertEquals(List.of(new TaskSortSpec.Key("Sorter.StartDate", true), new TaskSortSpec.Key("Sorter.Name", false)),
 			taskSortViewToRestore.getTransform().getTaskSortSpec().keys());
 		assertEquals(originalOutline, taskOrder(project), "flat view sorting must not mutate task outline/WBS order");
-		for (NormalTask task : List.of(earlier, tiedEarlier, later)) {
+		for (NormalTask task : List.of(earlier, tiedEarlier, later, emptyDate)) {
 			int sheetRow = rowForTask(sheet, task);
 			GraphicNode graphicNode = (GraphicNode) sheet.getCache().getGraphicNode(
 					((CommonSpreadSheetModel) sheet.getModel()).getNode(sheetRow).getNode());
@@ -5864,13 +7548,13 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			int ganttRow = ganttView.getGantt().getCache().getVisibleNodes().getProjectionIndex().rowForNode(graphicNode);
 			assertEquals(sheetRow, ganttRow, "flat view sort must keep table and Gantt rows aligned");
 		}
-		for (NormalTask task : List.of(earlier, tiedEarlier, later)) {
+		for (NormalTask task : List.of(earlier, tiedEarlier, later, emptyDate)) {
 			int sheetRow = rowForTask(sheet, task);
 			var graphicNode = sheet.getCache().getGraphicNode(((CommonSpreadSheetModel) sheet.getModel()).getNode(sheetRow).getNode());
 			int ganttRow = ganttView.getGantt().getCache().getVisibleNodes().getProjectionIndex().rowForNode((GraphicNode) graphicNode);
 			assertEquals(sheetRow, ganttRow, "Gantt must paint the task at the same visible row as its table row");
 		}
-		List<Long> flatModeIds = List.of(later.getId(), earlier.getId(), tiedEarlier.getId());
+		List<Long> flatModeIds = List.of(later.getId(), earlier.getId(), tiedEarlier.getId(), emptyDate.getId());
 		click(robot, findShowingButtonByCommand("RibbonChooseSort"));
 		Dialog flatSortChooser = (Dialog) java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow();
 		JCheckBox flatPermanent = UiComponentWalker.flatten(flatSortChooser).stream()
@@ -5897,7 +7581,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, findShowingButtonByText(flatSortChooser, javax.swing.UIManager.getString("OptionPane.cancelButtonText")));
 		GuiAcceptanceSupport.await(() -> !flatSortChooser.isShowing(), "flat sort review dialog did not close");
 		assertEquals(originalOutline, taskOrder(project), "flat mode must never mutate WBS order");
-		assertEquals(flatModeIds, List.of(later.getId(), earlier.getId(), tiedEarlier.getId()),
+		assertEquals(flatModeIds, List.of(later.getId(), earlier.getId(), tiedEarlier.getId(), emptyDate.getId()),
 			"flat mode must never permanently renumber task IDs");
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, tiedEarlier), nameColumn(sheet)));
 		GuiAcceptanceSupport.await(() -> ganttView.getGantt().getHighlightedRows()
@@ -5908,7 +7592,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(tiedEarlier),
 			"the task row-header selection precondition was not established before permanent sorting");
 
-		List<Long> originalIds = List.of(later.getId(), earlier.getId(), tiedEarlier.getId());
+		List<Long> originalIds = List.of(later.getId(), earlier.getId(), tiedEarlier.getId(), emptyDate.getId());
 		boolean undoBeforeCancel = project.getUndoController().canUndo();
 		boolean dirtyBeforeCancel = project.needsSaving();
 		click(robot, findShowingButtonByCommand("RibbonChooseSort"));
@@ -5930,7 +7614,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, findShowingButtonByText(confirmation, javax.swing.UIManager.getString("OptionPane.noButtonText")));
 		GuiAcceptanceSupport.await(() -> !confirmation.isShowing(), "No did not cancel permanent task sorting");
 		assertEquals(originalOutline, taskOrder(project), "confirmation cancel must leave task order unchanged");
-		assertEquals(originalIds, List.of(later.getId(), earlier.getId(), tiedEarlier.getId()),
+		assertEquals(originalIds, List.of(later.getId(), earlier.getId(), tiedEarlier.getId(), emptyDate.getId()),
 			"confirmation cancel must leave task IDs unchanged");
 		assertEquals(undoBeforeCancel, project.getUndoController().canUndo(), "confirmation cancel must not add an Undo edit");
 		assertEquals(dirtyBeforeCancel, project.needsSaving(), "confirmation cancel must not dirty the project");
@@ -5971,12 +7655,12 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"confirmed permanent Finish Date descending sort did not change outline order");
 		assertTrue(manager.getCurrentFrame().getSelectedImpls(false).contains(tiedEarlier),
 			"permanent sorting must preserve selected task identity");
-		assertTrue(earlier.getId() < later.getId() && later.getId() < tiedEarlier.getId(),
+		assertTrue(earlier.getId() < later.getId() && later.getId() < tiedEarlier.getId() && tiedEarlier.getId() < emptyDate.getId(),
 			"permanent descending task sort must renumber IDs in outline order");
 		assertEquals(ViewTransformer.SORTER_NONE_ID,
 			ViewConfiguration.getView(manager.getCurrentFrame().getTopViewId()).getTransform().getUserSorterId(),
 			"permanent ordering must clear the view-only sorter after applying it to the model");
-		for (NormalTask task : List.of(earlier, tiedEarlier, later)) {
+		for (NormalTask task : List.of(earlier, tiedEarlier, later, emptyDate)) {
 			int sheetRow = rowForTask(sheet, task);
 			var graphicNode = sheet.getCache().getGraphicNode(((CommonSpreadSheetModel) sheet.getModel()).getNode(sheetRow).getNode());
 			int ganttRow = ganttView.getGantt().getCache().getVisibleNodes().getProjectionIndex().rowForNode((GraphicNode) graphicNode);
@@ -5987,15 +7671,16 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Project permanentReload = new MpoFileImporter().loadProject(new ByteArrayInputStream(permanentMpo.toByteArray()));
 		assertEquals(descendingFinishOrder,
 			taskOrder(permanentReload), "MPO reload must preserve permanent task ordering");
-		assertEquals(List.of(earlier.getId(), later.getId(), tiedEarlier.getId()),
+		assertEquals(List.of(earlier.getId(), later.getId(), tiedEarlier.getId(), emptyDate.getId()),
 			List.of(taskNamed(permanentReload, "Date sort earlier").getId(),
 				taskNamed(permanentReload, "Date sort later").getId(),
-				taskNamed(permanentReload, "Date sort tied earlier").getId()),
+				taskNamed(permanentReload, "Date sort tied earlier").getId(),
+				taskNamed(permanentReload, "Date sort empty").getId()),
 			"MPO reload must preserve renumbered task IDs");
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
 		GuiAcceptanceSupport.await(() -> taskOrder(project).equals(originalOutline),
 			"one Undo must restore the previous task order");
-		assertEquals(originalIds, List.of(later.getId(), earlier.getId(), tiedEarlier.getId()),
+		assertEquals(originalIds, List.of(later.getId(), earlier.getId(), tiedEarlier.getId(), emptyDate.getId()),
 			"one Undo must restore the previous task IDs");
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
 		GuiAcceptanceSupport.await(() -> taskOrder(project).equals(descendingFinishOrder),
@@ -6379,6 +8064,38 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				&& label.getText() != null && label.getText().contains(expected));
 	}
 
+	private static void awaitLagUndoDiagnostic(String label, java.util.function.BooleanSupplier condition,
+		Project project, Dependency dependency, NormalTask successor) throws Exception {
+		long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+		while (System.nanoTime() < deadline) {
+			if (condition.getAsBoolean()) return;
+			Thread.sleep(25);
+		}
+		assertTrue(condition.getAsBoolean(), "lag Undo did not restore " + label + "; final state: "
+			+ lagUndoDiagnostic(project, dependency, successor));
+	}
+
+	private static String lagUndoDiagnostic(Project project, Dependency dependency, NormalTask successor) {
+		java.awt.Component focused = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
+		javax.swing.JRootPane rootPane = SwingUtilities.getRootPane(focused);
+		javax.swing.KeyStroke ctrlZ = javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_Z, InputEvent.CTRL_DOWN_MASK);
+		Object actionKey = rootPane == null ? null
+			: rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).get(ctrlZ);
+		javax.swing.Action action = rootPane == null || actionKey == null ? null
+			: rootPane.getActionMap().get(actionKey);
+		com.microproject.undo.UndoController undo = project.getUndoController();
+		return "lag=" + dependency.getLag() + ", type=" + dependency.getDependencyType()
+			+ ", successorStart=" + successor.getStart() + ", successorFinish=" + successor.getEnd()
+			+ ", canUndo=" + undo.canUndo() + ", canRedo=" + undo.canRedo()
+			+ ", undoName=" + undo.getUndoName() + ", redoName=" + undo.getRedoName()
+			+ ", focus=" + (focused == null ? "null" : focused.getClass().getName() + "@"
+				+ Integer.toHexString(System.identityHashCode(focused)))
+			+ ", rootPane=" + (rootPane == null ? "null" : rootPane.getClass().getName())
+			+ ", ctrlZKey=" + ctrlZ + ", ctrlZActionKey=" + actionKey
+			+ ", ctrlZAction=" + (action == null ? "null" : action.getClass().getName() + "@"
+				+ Integer.toHexString(System.identityHashCode(action)));
+	}
+
 	private record OutlineFixture(Project project, DataFactoryUndoController undo, NormalTask parent,
 			NormalTask firstSibling, NormalTask lastSibling, NormalTask leaf,
 			NormalTask adjacentFirst, NormalTask adjacentLast, NormalTask readOnlyTask) {}
@@ -6539,6 +8256,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_SPACE);
 		GuiAcceptanceSupport.await(() -> sheet.isRowHeaderSelectionActive() && sheet.isRowFullySelected(sourceRow),
 			"Ctrl+Space did not dispatch through the root pane to select the active task row");
+		// The source cell was clicked moments ago; a second click inside the double-click interval
+		// would open Task Information instead of restoring ordinary row selection.
+		GuiAcceptanceSupport.awaitMultiClickIntervalElapsed(robot);
 		click(robot, cellOnScreen(sheet, sourceRow, nameColumn(sheet)));
 		GuiAcceptanceSupport.await(() -> !sheet.isRowHeaderSelectionActive() && sheetHasOnlySelectedTask(sheet, source),
 			"a physical task-name click did not restore ordinary row selection after Ctrl+Space");
@@ -7314,6 +9034,19 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		robot.waitForIdle();
 	}
 
+	private static void typeAscii(Robot robot, String text) {
+		for (char character : text.toCharArray()) {
+			int keyCode = KeyEvent.getExtendedKeyCodeForChar(character);
+			if (keyCode == KeyEvent.VK_UNDEFINED)
+				throw new IllegalArgumentException("Unsupported Robot character: " + character);
+			if (Character.isUpperCase(character)) robot.keyPress(KeyEvent.VK_SHIFT);
+			robot.keyPress(keyCode);
+			robot.keyRelease(keyCode);
+			if (Character.isUpperCase(character)) robot.keyRelease(KeyEvent.VK_SHIFT);
+		}
+		robot.waitForIdle();
+	}
+
 	private static void closeWindowWithRobot(Robot robot, Window target) throws Exception {
 		Rectangle bounds = new Rectangle();
 		SwingUtilities.invokeAndWait(() -> bounds.setBounds(target.getBounds()));
@@ -7362,6 +9095,82 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		for (Window candidate : Window.getWindows())
 			if (candidate instanceof DependencyDialog dialog && dialog.isVisible()) return dialog;
 		return null;
+	}
+
+	private record DependencyEdgeSegment(double startX, double startY, double endX, double endY,
+			double length, int order) { }
+
+	private record DependencyEdgeTarget(Rectangle screenBounds, Point localPoint) { }
+
+	private static Rectangle ganttDependencyEdgeTarget(Robot robot, Gantt gantt,
+			com.microproject.pm.graphic.model.cache.GraphicDependency dependency) throws Exception {
+		Task predecessor = (Task) dependency.getDependency().getPredecessor();
+		Task successor = (Task) dependency.getDependency().getSuccessor();
+		SwingUtilities.invokeAndWait(() -> {
+			gantt.scrollToTask(successor, false);
+			gantt.repaint();
+		});
+		robot.waitForIdle();
+
+		java.util.concurrent.atomic.AtomicReference<DependencyEdgeTarget> resolved =
+			new java.util.concurrent.atomic.AtomicReference<>();
+		java.util.concurrent.atomic.AtomicReference<String> diagnostic = new java.util.concurrent.atomic.AtomicReference<>();
+		SwingUtilities.invokeAndWait(() -> {
+			java.awt.geom.PathIterator iterator = dependency.getPath().getPathIterator(null, 0.5d);
+			double[] coordinates = new double[6];
+			double startX = 0d, startY = 0d;
+			int order = 0;
+			List<DependencyEdgeSegment> segments = new ArrayList<>();
+			while (!iterator.isDone()) {
+				int segment = iterator.currentSegment(coordinates);
+				if (segment == java.awt.geom.PathIterator.SEG_MOVETO) {
+					startX = coordinates[0]; startY = coordinates[1];
+				} else if (segment == java.awt.geom.PathIterator.SEG_LINETO) {
+					double endX = coordinates[0], endY = coordinates[1];
+					double length = Math.hypot(endX - startX, endY - startY);
+					if (length > 0d)
+						segments.add(new DependencyEdgeSegment(startX, startY, endX, endY, length, order++));
+					startX = endX; startY = endY;
+				}
+				iterator.next();
+			}
+			segments.sort(java.util.Comparator.comparingDouble(DependencyEdgeSegment::length).reversed()
+				.thenComparingInt(DependencyEdgeSegment::order));
+			Rectangle clip = gantt.getVisibleRect();
+			java.awt.GraphicsConfiguration graphicsConfiguration = gantt.getGraphicsConfiguration();
+			Rectangle screenBounds = graphicsConfiguration == null
+				? new Rectangle(Toolkit.getDefaultToolkit().getScreenSize()) : graphicsConfiguration.getBounds();
+			Point location = gantt.getLocationOnScreen();
+			java.awt.geom.Rectangle2D pathBounds = dependency.getPath().getBounds2D();
+			diagnostic.set("dependency=" + predecessor.getUniqueId() + "->" + successor.getUniqueId()
+				+ " dates=" + predecessor.getStart() + ".." + predecessor.getEnd() + "/"
+				+ successor.getStart() + ".." + successor.getEnd()
+				+ " path=" + pathBounds + " visibleClip=" + clip + " screen=" + screenBounds);
+			for (DependencyEdgeSegment edge : segments) {
+				for (double fraction : new double[] { 0.5d, 0.25d, 0.75d, 0.125d, 0.875d }) {
+					Point local = new Point((int) Math.round(edge.startX() + (edge.endX() - edge.startX()) * fraction),
+						(int) Math.round(edge.startY() + (edge.endY() - edge.startY()) * fraction));
+					if (!clip.contains(local))
+						continue;
+					Point screenPoint = new Point(location.x + local.x, location.y + local.y);
+					if (!screenBounds.contains(screenPoint))
+						continue;
+					com.microproject.pm.graphic.graph.GraphZone hit = gantt.getUI().getObjectAt(local.x, local.y);
+					if (hit != null && hit.getObject() == dependency) {
+						resolved.set(new DependencyEdgeTarget(
+							new Rectangle(screenPoint.x, screenPoint.y, 1, 1), local));
+						return;
+					}
+				}
+			}
+		});
+		DependencyEdgeTarget target = resolved.get();
+		if (target == null)
+			throw new AssertionError("No visible physical hit point resolves to the expected Gantt dependency; "
+				+ diagnostic.get());
+		System.out.println("[GANTT_DEPENDENCY_EDGE_TARGET] " + diagnostic.get()
+			+ " localPoint=" + target.localPoint() + " screenPoint=" + target.screenBounds());
+		return target.screenBounds();
 	}
 
 	private static AbstractButton findVisibleButton(java.awt.Container container, String text) {

@@ -24,11 +24,15 @@
  *******************************************************************************/
 package com.microproject.pm.task;
 
+import java.util.IdentityHashMap;
+import java.util.Map;
+
 import com.microproject.datatype.Duration;
 import com.microproject.field.FieldContext;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.scheduling.ConstraintType;
 import com.microproject.pm.scheduling.ScheduleInterval;
+import com.microproject.undo.ScheduleEdit;
 import com.microproject.util.DateTime;
 
 public final class TaskSheetScheduleWorkflow {
@@ -138,6 +142,38 @@ public final class TaskSheetScheduleWorkflow {
 	}
 
 	static void applyStart(Task task, long start) {
+		runAtomicScheduleEdit(task, () -> applyStartMutation(task, start));
+	}
+
+	private static void runAtomicScheduleEdit(Task task, Runnable edit) {
+		Project project = task.getProject();
+		if (project == null) {
+			edit.run();
+			return;
+		}
+		ProjectTaskSnapshot snapshot = ProjectTaskSnapshot.capture(project);
+		java.util.Map<Task, Integer> calculationStates = new java.util.IdentityHashMap<>();
+		for (Task affected : project.getTaskList())
+			calculationStates.put(affected, affected.getCalculationStateCount());
+		project.runAtomicModelCommand(markApplied -> {
+			markApplied.run();
+			try {
+				edit.run();
+			} catch (RuntimeException | Error failure) {
+				try {
+					snapshot.restore(project, TaskSheetScheduleWorkflow.class);
+					for (var entry : calculationStates.entrySet())
+						entry.getKey().setCalculationStateCount(entry.getValue());
+				} catch (RuntimeException | Error rollbackFailure) {
+					failure.addSuppressed(rollbackFailure);
+				}
+				throw failure;
+			}
+			return null;
+		}, ignored -> project.getTasks().contains(task), ignored -> null);
+	}
+
+	private static void applyStartMutation(Task task, long start) {
 		if (task.isWbsParent()) {
 			task.getSummaryEnvelope().setManualStart(task.getEffectiveWorkCalendar().adjustInsideCalendar(start, false));
 			return;
@@ -161,6 +197,10 @@ public final class TaskSheetScheduleWorkflow {
 	}
 
 	static void applyFinish(Task task, long finish) {
+		runAtomicScheduleEdit(task, () -> applyFinishMutation(task, finish));
+	}
+
+	private static void applyFinishMutation(Task task, long finish) {
 		if (task.isWbsParent()) {
 			task.getSummaryEnvelope().setManualFinish(DateTime.closestDate(finish));
 			return;
@@ -184,6 +224,25 @@ public final class TaskSheetScheduleWorkflow {
 	}
 
 	static void applyDuration(NormalTask task, long duration) {
+		Project project = task.getProject();
+		ProjectTaskSnapshot before = project == null ? null : ProjectTaskSnapshot.capture(project);
+		Map<Task, Integer> beforeCalculationStates = captureCalculationStates(project);
+		runAtomicScheduleEdit(task, () -> {
+			applyDurationMutation(task, duration);
+			if (project != null && project.getTasks().contains(task))
+				ScheduleEdit.postProjectSnapshotEdit(project, before, beforeCalculationStates,
+					captureCalculationStates(project), TaskSheetScheduleWorkflow.class);
+		});
+	}
+
+	private static Map<Task, Integer> captureCalculationStates(Project project) {
+		Map<Task, Integer> states = new IdentityHashMap<>();
+		if (project != null)
+			for (Task affected : project.getTaskList()) states.put(affected, affected.getCalculationStateCount());
+		return states;
+	}
+
+	private static void applyDurationMutation(NormalTask task, long duration) {
 		if (task.isWbsParent()) {
 			task.getSummaryEnvelope().setManualDuration(Duration.millis(duration));
 			return;
@@ -203,6 +262,7 @@ public final class TaskSheetScheduleWorkflow {
 			task.setManualDates(start, normalizedDuration == 0L ? start : calendar.add(start, normalizedDuration, false));
 			task.markAllDependentTasksAsNeedingRecalculation(true);
 			task.assignParentActualDatesFromChildren();
+			task.getProject().recalculate();
 		}
 	}
 

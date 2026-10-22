@@ -901,8 +901,12 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 		if (levelingSplitState == null) return false;
 		if (!levelingSplitState.matchesGenerated(workContour, duration))
 			throw new IllegalStateException("Assignment contour changed after leveling; refusing to overwrite the later edit");
-		workContour = levelingSplitState.beforeContourCopy();
-		duration = levelingSplitState.beforeDuration();
+		AbstractContour beforeContour = levelingSplitState.beforeContourCopy();
+		long beforeDuration = levelingSplitState.beforeDuration();
+		workContour = beforeContour;
+		duration = beforeDuration;
+		if (hasImportedTimephasedWork() && importedActualWorkContour.calcTotalWork(0L) == 0L)
+			clearImportedTimephasedWork();
 		levelingSplitState = null;
 		return true;
 	}

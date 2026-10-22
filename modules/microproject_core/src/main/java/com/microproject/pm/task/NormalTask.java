@@ -34,7 +34,9 @@ import java.util.Date;
 import java.util.function.Consumer;
 import java.util.Iterator;
 import java.util.ArrayList;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 
 
@@ -322,6 +324,42 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	 * @param duration
 	 */
 	public void setDuration(long duration) {
+		Project project = getProject();
+		if (project == null) {
+			applyDuration(duration);
+			return;
+		}
+		ProjectTaskSnapshot taskSnapshot = ProjectTaskSnapshot.capture(project);
+		Map<Task, Integer> calculationStates = new IdentityHashMap<>();
+		for (Task task : project.getTaskList())
+			calculationStates.put(task, task.getCalculationStateCount());
+		boolean priorEstimated = estimated;
+		int priorDisplayUnit = durationDisplayUnit;
+		int priorSnapshotDisplayUnit = ((TaskSnapshot) getCurrentSnapshot()).getDurationDisplayUnit();
+		Long priorImportedUnassignedWork = importedUnassignedWork;
+		project.runAtomicModelCommand(markApplied -> {
+			markApplied.run();
+			try {
+				applyDuration(duration);
+			} catch (RuntimeException | Error failure) {
+				try {
+					estimated = priorEstimated;
+					durationDisplayUnit = priorDisplayUnit;
+					((TaskSnapshot) getCurrentSnapshot()).setDurationDisplayUnit(priorSnapshotDisplayUnit);
+					importedUnassignedWork = priorImportedUnassignedWork;
+					taskSnapshot.restore(project, NormalTask.class);
+					for (Map.Entry<Task, Integer> entry : calculationStates.entrySet())
+						entry.getKey().setCalculationStateCount(entry.getValue());
+				} catch (RuntimeException | Error compensationFailure) {
+					failure.addSuppressed(compensationFailure);
+				}
+				throw failure;
+			}
+			return null;
+		}, ignored -> project.getTasks().contains(this), ignored -> null);
+	}
+
+	private void applyDuration(long duration) {
 		importedUnassignedWork = null;
 		rememberDurationDisplayUnit(duration);
 		estimated = Duration.isEstimated(duration);

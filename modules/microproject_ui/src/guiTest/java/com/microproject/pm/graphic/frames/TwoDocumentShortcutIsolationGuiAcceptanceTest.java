@@ -27,6 +27,7 @@ import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.testsupport.GuiAcceptanceSupport;
+import com.microproject.testsupport.WindowAcceptanceAssertions;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.Environment;
 
@@ -79,8 +80,10 @@ class TwoDocumentShortcutIsolationGuiAcceptanceTest {
 			.map(MainRibbonFrame.class::cast).toArray(MainRibbonFrame[]::new);
 		assertEquals(1, secondary.length, "expected exactly one independent secondary project window");
 		SwingUtilities.invokeAndWait(() -> {
-			int screenWidth = java.awt.Toolkit.getDefaultToolkit().getScreenSize().width;
-			secondary[0].setBounds(Math.max(1000, screenWidth - 960), 40, 920, 650);
+			// Keep both physical targets in the same usable screen area. The active
+			// document is raised before each real Robot click so the other window
+			// cannot cover its task row on narrow desktops.
+			secondary[0].setBounds(window.getBounds());
 			for (int i = 0; i < 2; i++) {
 				sheets[i] = documents[i].getActiveSpreadSheet();
 				cells[i][0] = findTaskRow(sheets[i], tasks[i]);
@@ -123,9 +126,26 @@ class TwoDocumentShortcutIsolationGuiAcceptanceTest {
 
 	private void selectAndClear(Robot robot, int index, DocumentFrame[] documents, SpreadSheet[] sheets, int[][] cells) throws Exception {
 		Rectangle[] cell = new Rectangle[1];
-		SwingUtilities.invokeAndWait(() -> cell[0] = sheets[index].getCellRect(cells[index][0], cells[index][1], true));
+		SwingUtilities.invokeAndWait(() -> {
+			manager.activateDocumentWindow(documents[index]);
+			java.awt.Window owner = SwingUtilities.getWindowAncestor(documents[index]);
+			owner.setVisible(true);
+			owner.toFront();
+			owner.requestFocus();
+			cell[0] = sheets[index].getCellRect(cells[index][0], cells[index][1], true);
+		});
+		java.awt.Window owner = SwingUtilities.getWindowAncestor(documents[index]);
+		GuiAcceptanceSupport.await(() -> owner.isActive() && manager.getCurrentFrame() == documents[index],
+			"requested document window did not become active before its physical task click");
+		WindowAcceptanceAssertions.assertWithinUsableWorkArea((javax.swing.JFrame) owner,
+			"document window " + documents[index].getTitle());
 		Point origin = sheets[index].getLocationOnScreen();
-		robot.mouseMove(origin.x + cell[0].x + Math.max(2, cell[0].width / 2), origin.y + cell[0].y + Math.max(2, cell[0].height / 2));
+		Point target = new Point(origin.x + cell[0].x + Math.max(2, cell[0].width / 2),
+			origin.y + cell[0].y + Math.max(2, cell[0].height / 2));
+		Rectangle ownerBounds = new Rectangle(owner.getLocationOnScreen(), owner.getSize());
+		assertTrue(ownerBounds.contains(target), "physical task hit point must be inside its document window: point=" + target
+			+ ", window=" + ownerBounds + ", document=" + documents[index].getTitle());
+		robot.mouseMove(target.x, target.y);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() == documents[index], "physical task selection did not activate document " + index);

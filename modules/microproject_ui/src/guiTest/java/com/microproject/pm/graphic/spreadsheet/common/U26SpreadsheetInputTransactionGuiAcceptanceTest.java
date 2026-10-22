@@ -6,6 +6,7 @@
 package com.microproject.pm.graphic.spreadsheet.common;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Dimension;
@@ -20,6 +21,11 @@ import java.util.Calendar;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 import java.awt.event.InputEvent;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -64,6 +70,8 @@ import com.microproject.pm.graphic.spreadsheet.renderer.NameCellComponent;
 import com.microproject.ribbon.RibbonCommandResult;
 import com.microproject.pm.graphic.spreadsheet.editor.DateEditor;
 import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.dependency.DependencyService;
+import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectFactory;
@@ -71,6 +79,8 @@ import com.microproject.pm.task.Task;
 import com.microproject.exchange.MpoFileImporter;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.undo.DataFactoryUndoController;
+import com.microproject.undo.EditListener;
+import com.microproject.undo.EditSupport;
 import com.microproject.util.DateTime;
 
 /** U-26 physical multi-character spreadsheet input transaction coverage. */
@@ -78,6 +88,14 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 	private MainRibbonFrame frame;
 	private GraphicManager graphicManager;
 	private JTabbedPane tabs;
+	private String previousUiDebug;
+	private Logger undoTraceLogger;
+	private Level previousUndoTraceLevel;
+	private Handler undoTraceHandler;
+	private final ConcurrentLinkedQueue<String> undoTrace = new ConcurrentLinkedQueue<>();
+	private EditListener undoHistoryListener;
+	private EditSupport undoHistorySupport;
+	private final ConcurrentLinkedQueue<String> undoHistoryTrace = new ConcurrentLinkedQueue<>();
 
 	@AfterEach
 	void closeWindow() throws Exception {
@@ -87,6 +105,14 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 			frame = null;
 			graphicManager = null;
 		});
+		if (undoTraceLogger != null) undoTraceLogger.removeHandler(undoTraceHandler);
+		if (undoHistoryListener != null && undoHistorySupport != null)
+			undoHistorySupport.removeEditListener(undoHistoryListener);
+		if (undoTraceLogger != null) undoTraceLogger.setLevel(previousUndoTraceLevel);
+		if (previousUiDebug == null) System.clearProperty("microproject.ui.debug");
+		else System.setProperty("microproject.ui.debug", previousUiDebug);
+		undoTraceLogger = null;
+		undoTraceHandler = null;
 	}
 
 	@Test
@@ -110,6 +136,100 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 			fixture.task.getProject().getDurationDefaults()), durationText(fixture.task,
 			((SpreadSheetModel) fixture.entrySheet.getModel()).getFieldContext()),
 			"the committed duration cell must render using the owning project's Hours default");
+		NormalTask successor = fixture.task.getProject().createScriptedTask();
+		successor.setName("U-26 duration successor");
+		successor.setDuration(Duration.getInstance(8.0D, TimeUnit.HOURS,
+			fixture.task.getProject().getDurationDefaults()));
+		DependencyService.getInstance().newDependency(fixture.task, successor, DependencyType.FS, 0L, this);
+		fixture.task.getProject().recalculate();
+		SwingUtilities.invokeAndWait(() -> {
+			((SpreadSheetModel) fixture.entrySheet.getModel()).getCache().update();
+			fixture.entrySheet.revalidate();
+			fixture.gantt.updateSize();
+		});
+		long predecessorStartBeforeDurationTransaction = fixture.task.getStart();
+		long predecessorFinishBeforeDurationTransaction = fixture.task.getEnd();
+		long successorStartBeforeDurationTransaction = successor.getStart();
+		long successorFinishBeforeDurationTransaction = successor.getEnd();
+		String predecessorDurationBeforeTransaction = renderedCellText(fixture.entrySheet,
+			findTaskRow(fixture.entrySheet, fixture.task), fixture.durationColumn);
+		BarGeometry predecessorBarBeforeDurationTransaction = ganttBarGeometry(fixture, fixture.task);
+		BarGeometry successorBarBeforeDurationTransaction = ganttBarGeometry(fixture, successor);
+		int successorRow = findTaskRow(fixture.entrySheet, successor);
+		editWithPhysicalKeys(robot, fixture.entrySheet, fixture.entryRow, fixture.durationColumn, "12", "10 hours");
+		long predecessorFinishAfterDurationTransaction = fixture.task.getEnd();
+		long successorStartAfterDurationTransaction = successor.getStart();
+		long successorFinishAfterDurationTransaction = successor.getEnd();
+		assertEquals(predecessorStartBeforeDurationTransaction, fixture.task.getStart());
+		assertTrue(predecessorFinishAfterDurationTransaction > predecessorFinishBeforeDurationTransaction,
+			"physical duration commit must move the predecessor finish");
+		assertTrue(successorStartAfterDurationTransaction > successorStartBeforeDurationTransaction,
+			"physical duration commit must recalculate the dependent successor");
+		assertTrue(successorFinishAfterDurationTransaction > successorFinishBeforeDurationTransaction);
+		String predecessorDurationAfterTransaction = renderedCellText(fixture.entrySheet,
+			findTaskRow(fixture.entrySheet, fixture.task), fixture.durationColumn);
+		assertEquals("1.5 days", predecessorDurationAfterTransaction,
+			"duration cell must redraw 12 hours using the project's six-hour day");
+		int successorStartColumn = findColumn(fixture.entrySheet, "Field.start");
+		Field successorStartField = ((SpreadSheetModel) fixture.entrySheet.getModel()).getFieldInColumn(
+			fixture.entrySheet.convertColumnIndexToModel(successorStartColumn));
+		assertEquals(successorStartField.getText(successor,
+			((SpreadSheetModel) fixture.entrySheet.getModel()).getFieldContext()),
+			renderedCellText(fixture.entrySheet, successorRow, successorStartColumn),
+			"successor Start cell must redraw after dependent scheduling");
+		assertTrue(!ganttBarGeometry(fixture, fixture.task).equals(predecessorBarBeforeDurationTransaction),
+			"predecessor Gantt bar must redraw for its committed duration");
+		assertTrue(!ganttBarGeometry(fixture, successor).equals(successorBarBeforeDurationTransaction),
+			"successor Gantt bar must redraw for its recalculated schedule");
+		assertFalse(fixture.entrySheet.isEditing(), "physical duration commit must finish the cell editor before Undo");
+		beginUndoTraceCapture();
+		undoHistoryListener = new EditListener() {
+			@Override public void editPosted(javax.swing.undo.UndoableEdit edit) {
+				undoHistoryTrace.add("posted=" + edit.getPresentationName());
+			}
+			@Override public void historySettled() { undoHistoryTrace.add("history-settled"); }
+		};
+		undoHistorySupport = fixture.task.getProject().getUndoController().getEditSupport();
+		undoHistorySupport.addEditListener(undoHistoryListener);
+		physicalUndoRedo(robot, KeyEvent.VK_Z);
+		assertEquals(predecessorFinishBeforeDurationTransaction, fixture.task.getEnd(),
+			"physical Ctrl+Z must restore the predecessor model schedule");
+		assertEquals(successorStartBeforeDurationTransaction, successor.getStart(),
+			"physical Ctrl+Z must restore the successor model schedule");
+		assertEquals(successorFinishBeforeDurationTransaction, successor.getEnd());
+		assertEquals(predecessorDurationBeforeTransaction,
+			renderedCellText(fixture.entrySheet, findTaskRow(fixture.entrySheet, fixture.task), fixture.durationColumn),
+			"physical Ctrl+Z must redraw the predecessor duration");
+		assertEquals(successorStartField.getText(successor,
+			((SpreadSheetModel) fixture.entrySheet.getModel()).getFieldContext()),
+			renderedCellText(fixture.entrySheet, findTaskRow(fixture.entrySheet, successor), successorStartColumn),
+			"physical Ctrl+Z must redraw the successor schedule");
+		assertEquals(predecessorBarBeforeDurationTransaction, ganttBarGeometry(fixture, fixture.task));
+		assertEquals(successorBarBeforeDurationTransaction, ganttBarGeometry(fixture, successor));
+		assertTrue(fixture.task.getProject().getUndoController().canRedo(),
+			"Undo must leave this edit available for physical Redo; pending="
+				+ fixture.task.getProject().getUndoController().getEditSupport().hasPendingHistory()
+				+ " edits=" + fixture.task.getProject().getUndoController().getEditNames()
+				+ " redoName=" + fixture.task.getProject().getUndoController().getRedoName()
+				+ " trace=" + List.copyOf(undoTrace)
+				+ " historyTrace=" + List.copyOf(undoHistoryTrace));
+		activate(fixture.entrySheet, robot);
+		physicalUndoRedo(robot, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> fixture.task.getEnd() == predecessorFinishAfterDurationTransaction,
+			"physical Ctrl+Y did not restore the predecessor finish");
+		assertEquals(predecessorFinishAfterDurationTransaction, fixture.task.getEnd(),
+			"physical Ctrl+Y must reapply the predecessor model schedule");
+		assertEquals(successorStartAfterDurationTransaction, successor.getStart(),
+			"physical Ctrl+Y must reapply the successor model schedule");
+		assertEquals(successorFinishAfterDurationTransaction, successor.getEnd());
+		assertEquals(predecessorDurationAfterTransaction,
+			renderedCellText(fixture.entrySheet, findTaskRow(fixture.entrySheet, fixture.task), fixture.durationColumn));
+		assertEquals(successorStartField.getText(successor,
+			((SpreadSheetModel) fixture.entrySheet.getModel()).getFieldContext()),
+			renderedCellText(fixture.entrySheet, findTaskRow(fixture.entrySheet, successor), successorStartColumn));
+		assertTrue(!ganttBarGeometry(fixture, fixture.task).equals(predecessorBarBeforeDurationTransaction));
+		assertTrue(!ganttBarGeometry(fixture, successor).equals(successorBarBeforeDurationTransaction));
+		editWithPhysicalKeys(robot, fixture.entrySheet, fixture.entryRow, fixture.durationColumn, "10", "12 hours");
 
 		editWithPhysicalKeys(robot, fixture.entrySheet, fixture.entryRow, fixture.startColumn, "2026/9/25", null,
 			KeyEvent.VK_ENTER, false);
@@ -239,6 +359,7 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		reader.setProjectFactory(ProjectFactory.getInstance());
 		Project reopened = reader.loadProject(new ByteArrayInputStream(mpo.toByteArray()));
 		NormalTask restored = (NormalTask) reopened.findByUniqueId(fixture.task.getUniqueId());
+		NormalTask restoredSuccessor = (NormalTask) reopened.findByUniqueId(successor.getUniqueId());
 		assertEquals(fixture.task.getUniqueId(), restored.getUniqueId(),
 			"MPO reopen must restore the same physically edited task identity");
 		assertEquals(null, restored.getWbsParentTask(), "the edited task must remain at the project root after reload");
@@ -248,6 +369,16 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 			"the physically entered 100% progress must survive a structural edit and MPO reload");
 		assertEquals(fixture.task.getStart(), restored.getStart(),
 			"the physically entered start date must survive a structural edit and MPO reload");
+		assertEquals(fixture.task.getEnd(), restored.getEnd(),
+			"the physically entered duration's finish must survive MPO reload");
+		assertTrue(restored.getUniqueIdSuccessors().contains(Long.toString(restoredSuccessor.getUniqueId())),
+			"MPO reload must retain the duration task's dependent successor link");
+		assertTrue(restoredSuccessor.getUniqueIdPredecessors().contains(Long.toString(restored.getUniqueId())),
+			"MPO reload must retain the successor's predecessor link");
+		assertEquals(successor.getStart(), restoredSuccessor.getStart(),
+			"MPO reload must retain the dependent successor's recalculated Start");
+		assertEquals(successor.getEnd(), restoredSuccessor.getEnd(),
+			"MPO reload must retain the dependent successor's recalculated Finish");
 		assertEquals(0L, restored.getRemainingDuration(),
 			"the 100% task's remaining duration must survive a structural edit and MPO reload");
 		assertEquals(new DurationDefaults(360.0D, 1800.0D, 20.0D, TimeUnit.HOURS, TimeUnit.HOURS),
@@ -862,6 +993,41 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 			result[0] = new GanttGeometry(viewport, new BarGeometry((int) Math.round(start), (int) Math.round(width)));
 		});
 		return result[0];
+	}
+
+	private static BarGeometry ganttBarGeometry(Fixture fixture, NormalTask task) throws Exception {
+		BarGeometry[] result = new BarGeometry[1];
+		SwingUtilities.invokeAndWait(() -> {
+			double start = fixture.gantt.getCoord().toX(task.getStart());
+			double width = fixture.gantt.getCoord().toX(task.getEnd()) - start;
+			result[0] = new BarGeometry((int) Math.round(start), (int) Math.round(width));
+		});
+		return result[0];
+	}
+
+	private static void physicalUndoRedo(Robot robot, int key) throws Exception {
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(key);
+		robot.keyRelease(key);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		robot.waitForIdle();
+		SwingUtilities.invokeAndWait(() -> { });
+	}
+
+	private void beginUndoTraceCapture() {
+		previousUiDebug = System.getProperty("microproject.ui.debug");
+		System.setProperty("microproject.ui.debug", "true");
+		undoTraceLogger = Logger.getLogger(GraphicManager.class.getName());
+		previousUndoTraceLevel = undoTraceLogger.getLevel();
+		undoTraceLogger.setLevel(Level.FINE);
+		undoTraceHandler = new Handler() {
+			@Override public void publish(LogRecord record) {
+				if (record != null && record.getMessage() != null) undoTrace.add(record.getMessage());
+			}
+			@Override public void flush() { }
+			@Override public void close() { }
+		};
+		undoTraceLogger.addHandler(undoTraceHandler);
 	}
 
 	private record BarGeometry(int startX, int width) { }

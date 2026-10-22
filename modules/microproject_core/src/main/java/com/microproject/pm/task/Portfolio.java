@@ -64,6 +64,9 @@ public class Portfolio implements Document, NodeModelDataFactory {
 	private transient ObjectSelectionEventManager objectSelectionEventManager = new ObjectSelectionEventManager();
 	boolean creating = false;
 	private transient boolean dirty;
+	private Runnable afterProjectMembershipReplacement = () -> {};
+	private Runnable afterExternalTaskRebinding = () -> {};
+	private Runnable afterSharedResourcePoolResolution = () -> {};
 	ProjectFactory projectFactory = null;
 	/**
 	 *
@@ -166,23 +169,100 @@ public class Portfolio implements Document, NodeModelDataFactory {
 	 * document or from invalidating the master reference.
 	 */
 	boolean replaceProject(Project previous, Project replacement) {
-		return com.microproject.transaction.ProjectMutationState.coordinated(
-			() -> replaceProjectCoordinated(previous, replacement));
+		return replaceProject(previous, replacement, true);
 	}
-	private boolean replaceProjectCoordinated(Project previous, Project replacement) {
+	boolean replaceProject(Project previous, Project replacement, boolean publishUpdate) {
+		return com.microproject.transaction.ProjectMutationState.coordinated(
+			() -> replaceProjectCoordinated(previous, replacement, publishUpdate));
+	}
+	void setAfterProjectMembershipReplacement(Runnable hook) {
+		afterProjectMembershipReplacement = hook == null ? () -> {} : hook;
+	}
+	void setAfterExternalTaskRebinding(Runnable hook) {
+		afterExternalTaskRebinding = hook == null ? () -> {} : hook;
+	}
+	void setAfterSharedResourcePoolResolution(Runnable hook) {
+		afterSharedResourcePoolResolution = hook == null ? () -> {} : hook;
+	}
+	private boolean replaceProjectCoordinated(Project previous, Project replacement, boolean publishUpdate) {
 		if (previous == null || replacement == null)
 			return false;
 		Node node = nodeModel.search(previous, comparator);
 		if (node == null)
 			return false;
-		previous.getResourcePool().removeProject(previous);
-		nodeModel.replaceImpl(node, replacement, this, NodeModel.SILENT);
-		com.microproject.pm.resource.ResourcePoolFactory.getInstance().registerPool(replacement.getResourcePool());
-		replacement.getResourcePool().addProject(replacement);
-		handleExternalTasks(replacement, true, false);
-		resolveSharedResourcePools();
-		objectEventManager.fireUpdateEvent(this, replacement);
+		com.microproject.transaction.ProjectMutationState.Checkpoint mutationCheckpoint =
+			com.microproject.transaction.ProjectMutationState.checkpoint();
+		// One entry per project, not per node: a project reachable through more than
+		// one portfolio node must open exactly one mutation scope, or the extra scope
+		// is never closed and the process-wide coordinator stays held.
+		List<Project> projectsBeforeReplacement = new ArrayList<>(distinctProjects());
+		java.util.IdentityHashMap<Project, Integer> externalResolutionCheckpoints = new java.util.IdentityHashMap<>();
+		java.util.IdentityHashMap<Project, com.microproject.transaction.ProjectMutationState.Scope> externalMutationScopes = new java.util.IdentityHashMap<>();
+		List<com.microproject.transaction.ProjectMutationState.Scope> openedScopes = new ArrayList<>(projectsBeforeReplacement.size());
+		try {
+			for (Project project : projectsBeforeReplacement) {
+				externalResolutionCheckpoints.put(project, project.beginExternalTaskResolutionTransaction());
+				com.microproject.transaction.ProjectMutationState.Scope scope = project.getMutationState().begin();
+				openedScopes.add(scope);
+				externalMutationScopes.put(project, scope);
+			}
+		} catch (RuntimeException | Error failure) {
+			try { com.microproject.transaction.ProjectMutationState.closeAll(openedScopes); }
+			catch (RuntimeException | Error closeFailure) { failure.addSuppressed(closeFailure); }
+			throw failure;
+		}
+		com.microproject.pm.resource.ResourcePoolFactory pools = com.microproject.pm.resource.ResourcePoolFactory.getInstance();
+		com.microproject.pm.resource.SharedResourcePoolService.ResolutionScope sharedPoolTransaction =
+			com.microproject.pm.resource.SharedResourcePoolService.getInstance().beginResolutionTransaction();
+		boolean replacementPoolRegistered = pools.getResourcePools().contains(replacement.getResourcePool());
+		try {
+			previous.getResourcePool().removeProject(previous);
+			nodeModel.replaceImpl(node, replacement, this, NodeModel.SILENT);
+			com.microproject.pm.resource.ResourcePoolFactory.getInstance().registerPool(replacement.getResourcePool());
+			replacement.getResourcePool().addProject(replacement);
+			afterProjectMembershipReplacement.run();
+			handleExternalTasks(replacement, true, false);
+			afterExternalTaskRebinding.run();
+			resolveSharedResourcePools();
+			afterSharedResourcePoolResolution.run();
+			sharedPoolTransaction.commit();
+			for (Project project : projectsBeforeReplacement)
+				if (project.retainedExternalTaskResolutionCount() > externalResolutionCheckpoints.get(project))
+					externalMutationScopes.get(project).commit(true);
+			for (Project project : projectsBeforeReplacement)
+				project.commitExternalTaskResolutionTransaction(externalResolutionCheckpoints.get(project));
+		} catch (RuntimeException | Error failure) {
+			try { sharedPoolTransaction.rollback(); }
+			catch (RuntimeException | Error rollbackFailure) { failure.addSuppressed(rollbackFailure); }
+			for (Project project : projectsBeforeReplacement) {
+				try { project.rollbackExternalTaskResolutionTransaction(externalResolutionCheckpoints.get(project)); }
+				catch (RuntimeException | Error rollbackFailure) { failure.addSuppressed(rollbackFailure); }
+			}
+			try {
+				replacement.getResourcePool().removeProject(replacement);
+				nodeModel.replaceImpl(node, previous, this, NodeModel.SILENT);
+				previous.getResourcePool().addProject(previous);
+				if (!replacementPoolRegistered)
+					pools.getResourcePools().remove(replacement.getResourcePool());
+			} catch (RuntimeException | Error rollbackFailure) {
+				failure.addSuppressed(rollbackFailure);
+			}
+			try { com.microproject.transaction.ProjectMutationState.rollback(mutationCheckpoint); }
+			catch (RuntimeException | Error rollbackFailure) { failure.addSuppressed(rollbackFailure); }
+			throw failure;
+		} finally {
+			try {
+				sharedPoolTransaction.close();
+			} finally {
+				com.microproject.transaction.ProjectMutationState.closeAll(openedScopes);
+			}
+		}
+		if (publishUpdate)
+			publishProjectReplacement(replacement);
 		return true;
+	}
+	void publishProjectReplacement(Project replacement) {
+		objectEventManager.fireUpdateEvent(this, replacement);
 	}
 
 	private void resolveSharedResourcePools() {
@@ -293,6 +373,13 @@ public class Portfolio implements Document, NodeModelDataFactory {
 
 	public NodeModel getNodeModel() {
 		return nodeModel;
+	}
+
+	private java.util.Collection<Project> distinctProjects() {
+		java.util.Set<Project> projects = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+		List<Project> ordered = new ArrayList<>();
+		forProjects(project -> { if (projects.add(project)) ordered.add(project); });
+		return ordered;
 	}
 
 	public void forProjects(Consumer<? super Project> c){

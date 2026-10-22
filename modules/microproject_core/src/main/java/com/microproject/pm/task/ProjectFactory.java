@@ -79,6 +79,7 @@ import com.microproject.util.UiDispatch;
 public class ProjectFactory {
 	private static final Logger logger = Logger.getLogger(ProjectFactory.class.getName());
 	private static int untitledCount = 0;
+	private Runnable afterSubprojectProjection = () -> {};
 	Portfolio portfolio; // for now just one portfolio.  Perhaps portfolio should reference project factory and not like this
 	private static ProjectFactory projectFactory;
 	public static ProjectFactory getInstance() {
@@ -91,6 +92,10 @@ public class ProjectFactory {
 
 	private ProjectFactory() {
 		portfolio = new Portfolio(this);
+	}
+
+	void setAfterSubprojectProjection(Runnable hook) {
+		afterSubprojectProjection = hook == null ? () -> {} : hook;
 	}
 
 	public Project createProject() {
@@ -548,19 +553,54 @@ public class ProjectFactory {
 		Node referenceNode = parent.getTaskOutline().search(reference);
 		if (previous == null || referenceNode == null)
 			return false;
-		replacement.setUniqueId(previous.getUniqueId());
-		replacement.setLocal(previous.isLocal());
-		replacement.setFileName(previous.getFileName());
-		replacement.setReadOnly(previous.isReadOnly());
-		parent.getSubprojectHandler().replaceSubproject(previous, replacement, referenceNode);
-		if (!portfolio.replaceProject(previous, replacement)) {
-			parent.getSubprojectHandler().replaceSubproject(replacement, previous, referenceNode);
-			return false;
+		List<com.microproject.transaction.ProjectMutationState.Scope> mutations = new ArrayList<>(3);
+		boolean replaced = false;
+		try {
+			mutations.add(parent.getMutationState().begin());
+			mutations.add(previous.getMutationState().begin());
+			mutations.add(replacement.getMutationState().begin());
+			replacement.setUniqueId(previous.getUniqueId());
+			replacement.setLocal(previous.isLocal());
+			replacement.setFileName(previous.getFileName());
+			replacement.setReadOnly(previous.isReadOnly());
+			parent.getSubprojectHandler().replaceSubproject(previous, replacement, referenceNode);
+			try {
+				afterSubprojectProjection.run();
+			} catch (RuntimeException | Error failure) {
+				try {
+					parent.getSubprojectHandler().replaceSubproject(replacement, previous, referenceNode);
+				} catch (RuntimeException | Error rollbackFailure) {
+					failure.addSuppressed(rollbackFailure);
+				}
+				throw failure;
+			}
+			boolean portfolioReplaced;
+			try {
+				portfolioReplaced = portfolio.replaceProject(previous, replacement, false);
+			} catch (RuntimeException | Error failure) {
+				try {
+					parent.getSubprojectHandler().replaceSubproject(replacement, previous, referenceNode);
+				} catch (RuntimeException | Error rollbackFailure) {
+					failure.addSuppressed(rollbackFailure);
+				}
+				throw failure;
+			}
+			if (!portfolioReplaced) {
+				parent.getSubprojectHandler().replaceSubproject(replacement, previous, referenceNode);
+				return false;
+			}
+			reference.setLoadStatus(SubProj.LoadStatus.OPEN);
+			for (com.microproject.transaction.ProjectMutationState.Scope mutation : mutations)
+				mutation.commit(true);
+			replaced = true;
+		} finally {
+			com.microproject.transaction.ProjectMutationState.closeAll(mutations);
 		}
-		portfolio.handleExternalTasks(replacement, true, false);
-		reference.setLoadStatus(SubProj.LoadStatus.OPEN);
-		parent.fireUpdateEvent(this, reference);
-		return true;
+		if (replaced) {
+			parent.fireUpdateEvent(this, reference);
+			portfolio.publishProjectReplacement(replacement);
+		}
+		return replaced;
 	}
 
 	static LoadOptions subprojectLoadOptions(Project parent, long id) {

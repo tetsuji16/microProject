@@ -393,4 +393,29 @@ class ProjectMutationStateTest {
 		assertNull(delivered.getFirst().getObject(), "rolled-back facts must be replaced, not replayed");
 		assertEquals(1L, delivered.getFirst().getPublicationRevision());
 	}
+
+	@Test
+	void closeAllReleasesEveryScopeWhenAnInnerCloseFails() throws Exception {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project outer = Project.createProject(ResourcePool.createRourcePool("close-all-outer", undo), undo);
+		Project inner = Project.createProject(ResourcePool.createRourcePool("close-all-inner", undo), undo);
+		RuntimeException expected = new RuntimeException("inner publication failed");
+		List<ProjectMutationState.Scope> scopes = new ArrayList<>();
+		scopes.add(outer.getMutationState().begin());
+		scopes.add(inner.getMutationState().begin());
+		scopes.get(1).afterCommitRevision(revision -> { throw expected; });
+
+		RuntimeException actual = assertThrows(RuntimeException.class, () -> ProjectMutationState.closeAll(scopes));
+
+		assertTrue(actual == expected, "the first close failure must be rethrown");
+		assertFalse(outer.getMutationState().isHeldByCurrentThread(),
+			"a failed inner close must not leave the outer scope holding the coordinator");
+		ExecutorService worker = Executors.newSingleThreadExecutor();
+		try {
+			assertTrue(worker.submit(() -> ProjectMutationState.coordinated(() -> Boolean.TRUE)).get(2, TimeUnit.SECONDS),
+				"another thread must acquire the coordinator after closeAll");
+		} finally {
+			worker.shutdownNow();
+		}
+	}
 }

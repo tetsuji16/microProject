@@ -5,12 +5,17 @@
  ******************************************************************************/
 package com.microproject.testsupport;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -42,6 +47,72 @@ class GuiDesktopSessionCoordinatorTest {
 			() -> GuiDesktopSessionCoordinator.failIfEnvironmentContended(marker));
 		assertTrue(failure.getMessage().contains("later Robot tests were stopped before their setup"));
 		assertTrue(failure.getMessage().contains("foreign foreground window overlapped"));
+	}
+
+	@Test
+	void monitorDiagnosticsDoNotBecomeForegroundOverlapEvents() throws Exception {
+		assumeTrue(System.getProperty("os.name", "").toLowerCase().contains("windows"));
+		Path projectDirectory = Path.of("").toAbsolutePath();
+		while (projectDirectory != null
+			&& !Files.isRegularFile(projectDirectory.resolve(".github/scripts/capture-gui-desktop-state.ps1"))) {
+			projectDirectory = projectDirectory.getParent();
+		}
+		assertTrue(projectDirectory != null, "could not find the repository root for the desktop monitor script");
+		String previousProjectDirectory = System.getProperty("microproject.project.dir");
+		System.setProperty("microproject.project.dir", projectDirectory.toString());
+		Path eventLog;
+		try {
+			try (GuiDesktopSessionCoordinator.ForegroundMonitor monitor =
+					GuiDesktopSessionCoordinator.monitorForegroundOverlaps(temporaryDirectory)) {
+				long eventMark = GuiDesktopSessionCoordinator.beginRobotTest(monitor);
+				try {
+					try (var files = Files.list(temporaryDirectory)) {
+						eventLog = files.filter(path -> path.getFileName().toString().startsWith("desktop-overlap-")
+							&& path.getFileName().toString().endsWith(".log")
+							&& !path.getFileName().toString().endsWith(".diagnostic.log"))
+							.findFirst().orElseThrow(() -> new AssertionError("desktop event log was not created"));
+					}
+					Path diagnosticLog = eventLog.resolveSibling(eventLog.getFileName().toString()
+						.replaceFirst("\\.log$", ".diagnostic.log"));
+					long probeDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+					while (System.nanoTime() < probeDeadline && (!Files.exists(diagnosticLog)
+						|| !Files.readString(diagnosticLog, StandardCharsets.UTF_8)
+							.contains("monitorFirstOverlapProbeExited="))) {
+						Thread.sleep(50);
+					}
+					assertTrue(Files.readString(diagnosticLog, StandardCharsets.UTF_8)
+						.contains("monitorFirstOverlapProbeExited="),
+						"monitor did not complete its first overlap probe before the test deadline");
+					assertTrue(monitor.eventsSince(eventMark).isBlank(),
+						"monitor diagnostics must not be treated as foreground-overlap events");
+					Files.writeString(eventLog, "GUI_ENVIRONMENT_CONTENDED observed=" + Instant.now()
+						+ " foreground pid=42 process=foreign class=Window title=foreign bounds=0,0,1,1 "
+						+ "overlaps=testWindow=fixture testBounds=0,0,1,1" + System.lineSeparator(),
+						StandardCharsets.UTF_8, StandardOpenOption.APPEND);
+					GuiDesktopSessionCoordinator.DesktopContendedException failure = assertThrows(
+						GuiDesktopSessionCoordinator.DesktopContendedException.class,
+						GuiDesktopSessionCoordinator::verifyDesktopBeforeRobotInput);
+					assertTrue(failure.getMessage().contains("Robot input blocked before dispatch"), failure.getMessage());
+				} finally {
+					GuiDesktopSessionCoordinator.endRobotTest(monitor);
+				}
+			}
+		} finally {
+			if (previousProjectDirectory == null) System.clearProperty("microproject.project.dir");
+			else System.setProperty("microproject.project.dir", previousProjectDirectory);
+		}
+		String eventText = Files.readString(eventLog, StandardCharsets.UTF_8);
+		assertTrue(eventText.contains("GUI_ENVIRONMENT_CONTENDED observed="), eventText);
+		assertFalse(eventText.contains("monitorFirst") || eventText.contains("monitorSlow")
+			|| eventText.contains("monitorPid=") || eventText.contains("monitorStarted=")
+			|| eventText.contains("monitorStopped="), eventText);
+		Path diagnosticLog = eventLog.resolveSibling(eventLog.getFileName().toString()
+			.replaceFirst("\\.log$", ".diagnostic.log"));
+		String diagnosticText = Files.readString(diagnosticLog, StandardCharsets.UTF_8);
+		assertTrue(diagnosticText.contains("monitorPid="), diagnosticText);
+		assertTrue(diagnosticText.contains("monitorStarted="), diagnosticText);
+		assertTrue(diagnosticText.contains("monitorFirstTargetCheckExited="), diagnosticText);
+		assertTrue(diagnosticText.contains("monitorFirstOverlapProbeExited="), diagnosticText);
 	}
 
 	private static String runProbe(Path lockFile, String waitMillis) throws Exception {

@@ -1,120 +1,40 @@
 # Issue #794 — Roadmap gate M2: offline desktop workflow parity
 
-State: OPEN. Issue: https://github.com/tetsuji16/ProjectLibre/issues/794
-Dependencies: #792 CLOSED; #793 CLOSED (met). Contract frozen 2026-10-20.
-Contract evidence began at dirty worktree `40f5ee8d575a3327e727b9f62182c07aa55d2178`;
-current HEAD: `37c07cbf8092389afc2f995ee95640b6764b3a41`, with extensive dirty
-changes. Evidence is scoped local evidence, not full exact-head release proof.
-Closed children do not establish parent acceptance.
+State: OPEN pending PR integration. Issue: https://github.com/tetsuji16/ProjectLibre/issues/794
+PR #872: ready for review; exact-head Build and full GUI CI passed. Referenced dependencies #792 and #793 are closed; they are not registered subissues. Contract frozen from [original acceptance comment](https://github.com/tetsuji16/ProjectLibre/issues/794#issuecomment-6313928977).
+Current PR head `7820c93fd7acdb4e3158ed114e8f7dadbabe6bfd`; latest production-source SHA `23c00ceed030ffc2107a54191fcc348690f78010`. The PR head adds only GUI acceptance fixture correction and evidence updates. Preserve `.codex-remote-attachments/`.
+Long-form evidence and older failures: [issue-794-evidence.md](issue-794-evidence.md). Follow [issue execution](../issue-execution.md); reuse earlier SHA evidence only when the scoped diff confirms relevant production code, fixture, and dependencies unchanged.
 
-## Goal and frozen acceptance
+## Frozen acceptance and current status
 
-Complete offline desktop parity, verify all evidence, and release last.
-
-| ID | Required evidence | State |
+| Gate | Original requirement | Current evidence / remaining status |
 |---|---|---|
-| M2.1 | #408/#414 physical routes; text/date/numeric edits, sort/filter/group/projection; #750 Sort Order; #761 permanent renumber confirmation/Undo/persistence | Open; #750/#761 closed. |
-| M2.2 | #403/#409/#410/#411/#453/#769 scheduling, links/lags, transactions, diagnostics, Undo/Redo, MPO reopen, failure atomicity | Open. |
-| M2.3 | #453/#769/#772 resource/assignment/progress/baseline scope, provenance, totals, actuals, splits, outcomes, Undo/Redo, MPO reopen | Open; #772 closed. |
-| M2.4 | #453/#765/#769/#770 command/view/report/print source, enablement, physical route/result, model purity, persistence, locale/DPI | Open. |
-| Common | Focused tests; physical route when changed; atomicity; unrelated-state preservation; exact build/fixture/test/screenshot/log | Open. |
+| M2.1 (#408/#414/#750/#761) | Physical text/date/numeric edits, ties/empty, both sort directions, filter/group, stable selection and table/Gantt alignment, unchanged model. Add Sort Order to Sort menu. Keep display sorting separate from explicit permanent renumber with confirmation, Undo, persistence. | Previously scoped evidence plus final full local GUI matrix passed on source tree committed as `dc67d1d8`; #750/#761 closed. Code reduction is an effort goal, not a completion gate. Retained #414 metrics are context only. |
+| M2.2 (#403/#409/#410/#411/#453/#769) | Microsoft-rule date fixtures; FS/SS/FF/SF and lag; intended-only mutation/diagnostics; Undo/Redo/MPO reopen; injected post-mutation failure leaves model, Undo and observers unchanged; confirm #403 phase dependencies. | Scoped scheduling/rollback/exchange evidence remains applicable; final full GUI functional and locale/DPI matrix passed on candidate content. |
+| M2.3 (#453/#769/#772) | Selected/all resource scope, proposed resources, leveling defaults/provenance, assignment totals, status date/actuals/baselines; outcome/selection; preserve manual splits; Undo/Redo/MPO reopen. | Scoped resource/assignment/progress/baseline/MPO evidence and final full GUI gate passed. Day is the selected product default; Microsoft source conflict remains recorded. |
+| M2.4 (#453/#765/#769/#770) | Command source/enablement and physical result; view-only purity and relevant persistence; locale/DPI. Reports compare fixture values/rendered output; print checks pagination and Japanese/English labels. Unsupported commands absent. | Scoped view/ribbon/report/print evidence plus all five visual legs passed on candidate content; the functional Japanese/100% leg also passed. |
+| Common | Focused tests; physical GUI route when changed; failure atomicity and unrelated-state preservation; exact build, fixture, test and screenshot/log evidence. | Local full gate passed: 241 functional tests (0 failures/errors, 1 allowed skip); five visual legs each 116 tests (0 failures/errors, 1 allowed skip). Build/installDist rerun passed. Exact-head PR CI passed at `7820c93fd7acdb4e3158ed114e8f7dadbabe6bfd`: Build run [39704720604](https://github.com/tetsuji16/ProjectLibre/actions/runs/39704720604) and full GUI locale/DPI matrix run [39704720651](https://github.com/tetsuji16/ProjectLibre/actions/runs/39704720651). The parent SHA `74c69713d` also passed both checks; this latest commit only updates evidence documents. PR is ready for review; issue remains open pending integration. |
 
-Frozen detail: M2.1 includes text/date/numeric fields, ties/empty values, both
-sort directions, filter/group, selection identity, table/Gantt alignment, and
-unchanged model; display sort is separate from #761 permanent renumber. M2.2
-requires Microsoft-rule literal dates, FS/SS/FF/SF, intended mutations,
-diagnostics, Undo/Redo/MPO and injected-failure atomicity. M2.3 requires
-selected/all scope, proposed resources, leveling defaults/provenance, assignment
-totals, status date/actuals/baseline slots, outcome/selection, manual split
-preservation, Undo/Redo/MPO. M2.4 requires view-only model purity, relevant
-persistence and locale/DPI; reports compare rendered fixture values and print
-pages in ja/en. Unsupported operations remain absent, never dummy-enabled.
-For GUI failures, preserve artifacts and model state; classify product, fixture,
-or environment before edits, and require root-cause review after two failed fixes.
+Display sorting does not mutate outline order. The supported Windows/JDK 25 U-34 outcome is deterministic unsupported IME reconversion: preserve text/selection and report unsupported behavior; no native bridge requirement. See `TEST_PLAN.md` U-34 and #866 evidence.
 
-## Current verified evidence
+Contract revision (2026-10-22, user instruction): code/LOC/listener-count net reduction for #414 is an effort goal, not a mandatory #794 completion criterion. This explicit revision supersedes the earlier code-reduction requirement; historical metrics remain context. All other frozen acceptance criteria remain required, including behavior, physical routes, Undo/Redo, MPO persistence, failure atomicity, and locale/DPI coverage.
 
-- #408 U-26 base and filtered/grouped/sorted projection routes pass physical
-  edits with stable identity, unrelated-state checks, Undo/Redo and MPO reload.
-  Exact commands, JUnit and artifacts: [status log](../msp-implementation-status.md)
-  sections 2362 onward. Projection is document-derived, not measured MSP behavior.
-- #414 U-32 Gantt/table keypad zoom, Resource View keypad no-op, U-33 bar-edge
-  auto-scroll/Undo/Redo/MPO, and two-document shortcut isolation pass. Exact
-  command/SHA/environment/evidence: [status log](../msp-implementation-status.md)
-  sections 2332–2387. Other #414 gates remain open.
-- #414 task Name-cell double-click opens Task Information for the clicked task
-  among two; names/start/duration/progress and Undo list/state + Redo state are
-  unchanged before and after Escape; project window remains visible. Microsoft
-  documents this route for Project Online Desktop Client and Project Standard /
-  Professional 2016–2024: [Link tasks in a project](https://support.microsoft.com/en-au/project/link-tasks-in-a-project),
-  lines 197–203, checked 2026-10-20. This is document-derived, not an empirical
-  MSP run. Command passed 1/1, zero failures/errors/skips:
-  `.\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.spreadsheet.TaskInformationGuiAcceptanceTest.taskNameDoubleClickOpensTaskInformationForTheClickedTask" --console=plain`
-  JUnit: `modules/microproject_ui/build/test-results/guiTest/TEST-com.microproject.pm.graphic.spreadsheet.TaskInformationGuiAcceptanceTest.xml`;
-  captures: `modules/microproject_ui/build/reports/guiTest-artifacts/task-information-tab-00.png` … `task-information-tab-07.png`.
-  SHA above; Windows 11 Pro, ja-JP, default 100%, 2560×1440 unchanged.
-- #868: 57,600,000 ms Work survives MPO reload; provenance and MPP task import
-  remain open. Remaining detailed M2.2/M2.3 evidence and limits are in the
-  [status log](../msp-implementation-status.md).
-- Phase 2 structural gate passed (218 UI unit/ja-100% GUI cases, one permitted
-  conditional high-DPI skip); exact-head locale/DPI, acceptance and release gates
-  remain open.
-- #414 fixed-anchor range selection passed physically: row-header Shift range
-  upward `{0,1}`, then cell Shift range downward `{1,2}`; stable IDs, table/Gantt
-  selection coordinates, model and Undo/Redo stayed unchanged. No product defect
-  reproduced or production change made. Command:
-  `.\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.views.TaskTableGanttGridGuiAcceptanceTest.physicalCellAndColumnHeaderClicksKeepSelectionHighlightCoordinatesAligned" --console=plain --max-workers=1`
-  passed 1/1, zero errors/failures/skips. JUnit:
-  `modules/microproject_ui/build/test-results/guiTest/TEST-com.microproject.pm.graphic.views.TaskTableGanttGridGuiAcceptanceTest.xml`
-  (`2026-10-19T22:48:45.365Z`). Worktree SHA above; Windows 11, ja-JP, 100%,
-  2560×1440 unchanged. Microsoft cross-control selection scope is a
-  document-derived decision using the same Microsoft source above, not a
-  measured MSP outcome.
+## Scoped evidence reusable by source equivalence
 
-## M2.2 schedule failure atomicity — verified slice
+- `clean build installDist` passed at `569f729b0` (65 tasks; 2,825 tests). The later `CollaborationHelperTest` was added after that local clean build; it passed in the later `5ff818dd` build CI. Build CI on `a70c372` passed (`39630731121`).
+- Task Information GUI passed 72/72 (`39621984170`, `569f729b0`); OfficeChrome passed 3/3 (`39622025547`, `569f729b0`); selected zoom passed focused 1/1 (`39621461859`, `569f729b0`). Two-document shortcut passed on `da29adba1` (`39624763058`); window resize passed 1/1 on `37dc04802` (`39620097168`). Assignment warning/assign/reopen journey passed 2/2 on `5ff818dd` (`39629323260`).
+- The six-file #414 comparison and three reviews are recorded above and in the archive. Product changes cover transaction-backed schedule/dependency/assignment/resource/progress/baseline workflows and snapshot Undo/Redo; pixel-boundary-safe selected-task zoom; usable-bounds Calendar dialog placement; canonical dialog key bindings and the accepted unsupported-IME outcome.
+- User chose Day sensitivity as a document-derived product default. Microsoft's [Resource Leveling dialog box](https://support.microsoft.com/en-us/project/resource-leveling-dialog-box) states Month while [Distribute project work evenly by resource level](https://support.microsoft.com/en-us/project/distribute-project-work-evenly-level-resource-assignments) states Day. This is a product decision, not empirical MSP evidence.
+- Installed startup at `e92ae81af0f2435793169712e8afbe0b595be7a9` loaded the installDist jars and rendered eight sample task rows plus Gantt. That evidence is limited to startup/rendering. No later distribution/runtime dependency changes require refreshing that scoped startup evidence; no fresh manual startup is an original frozen criterion.
+- Packaging is not applicable: no distribution/runtime inputs, dependencies, icons, associations or release behavior changed. Publication was not requested.
 
-`executeScheduleEdit` now uses the existing project atomic boundary and restores
-the existing schedule snapshot only when its callback throws during apply.
-Regression calls real `ScheduleService.setCompleted`, then injects failure;
-task/assignment schedule+progress, Undo+Redo, revision, pending events,
-observers and mutation barrier remain unchanged. Post-commit publication and
-other gateway policies are untouched. Before-fix test failed on task
-completed-through (`expected 1792396800000`, actual `1792688400000`); JUnit:
-`build/task-evidence/issue-794-schedule-pre-fix/TEST-com.microproject.pm.graphic.spreadsheet.command.TaskCommandGatewayTest.xml`
-(SHA256 `3E2D225BC5A93E92EE7A52D40F29CC202FD374A4DD03D75E3B0EEF75A57AE4A0`).
-After fix: TaskCommandGatewayTest 14/14, GanttInteractorDragTest 4/4, and full
-`:microproject_ui:test` 1188/1188. Intermediate suite failure was fixture-only
-Swing cache update off EDT; moving setup to EDT fixed it. Physical progress /
-resize / split Robot passed 1/1, zero failures/errors/skips using
-`\.github\scripts\run-gui-acceptance.ps1 -TestFilter com.microproject.pm.graphic.views.GanttBarDateDragGuiAcceptanceTest.robotResizeProgressAndSplitUseTypedScheduleGatewayWithUndoAndPersistence -Locale ja -Scale 1.0`.
-JUnit:
-`modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.pm.graphic.views.GanttBarDateDragGuiAcceptanceTest.robotResizeProgressAndSplitUseTypedScheduleGatewayWithUndoAndPersistence-ja-1-0-junit/TEST-com.microproject.pm.graphic.views.GanttBarDateDragGuiAcceptanceTest.xml`;
-screenshots are in sibling `...-6fa634b0e2d4440285ae9034ab26050d/`. Head
-`37c07cbf8092389afc2f995ee95640b6764b3a41`, dirty worktree; Windows 11, ja-JP,
-100%, 2560×1440. Barrier probe daemonization focused rerun: 1/1. Broader M2.2
-remains open. M2.2 MPO calendar inheritance now rejects invalid
-`baseProjectCalendar` markers (including null, numeric, string, and false), a
-missing project base, and contradictory nested + project bases. Regression uses
-the existing explicit task-calendar round-trip fixture and checksum rewrite;
-before the fix, the focused test failed because a string marker was silently
-accepted. Pre-fix JUnit: `build/task-evidence/issue-794-mpo-calendar-prefx/TEST-com.microproject.exchange.MpoFileImporterTest.xml`
-(1 test, 1 failure, timestamp `2026-10-19T23:00:04.752Z`). After the fix, the
-focused round-trip passed; full `MpoFileImporterTest` passed 123/123 (0
-failures/errors, timestamp `2026-10-19T23:00:29.474Z`). Tested HEAD
-`038e27c216d8845fd82b2055b8ab237ad6157b0b`, dirty worktree; importer/test/packet
-edits plus pre-existing core changes remain uncommitted. This malformed-input
-rule is an MPO rejection decision; no Microsoft source applies. Next:
-independently authored negative-lag MPP READ fixture (candidate `New Product.mpp`,
-UID 24→27 FS−15 days).
+## Latest integrated evidence and remaining action
 
-## Remaining gates
+- Earlier hosted desktop-monitor and Azure Arc contention runs remain historical evidence in `issue-794-evidence.md`; they are superseded for local acceptance by today's unobstructed local full run. No hosted notification was suppressed, no unrelated window was closed, and the 2560×1440 resolution was preserved.
+- On candidate source tree `dc67d1d8`, `.github/scripts/run-gui-acceptance.ps1 -Suite full` passed the Japanese/100% functional leg (241 tests, 0 failures/errors, 1 permitted high-DPI skip) and all five visual legs (116 tests each, 0 failures/errors, 1 permitted skip each). Matrix legs: ja/125%, ja/150%, en/100%, en/125%, en/150%. The modified dependency-edge physical test also passed focused in all six locale/scale combinations. No resolution changes or desktop-contention markers occurred.
+- The repeated dependency dialog failure was a fixture-route defect: `RibbonGuiSupport.findVisibleOrExpand` opened the responsive Task overflow; transient command controls are `JButton`s in a `JPopupMenu`, which remained open after Link. The selected edge click fell under that popup and was intercepted. The test now asserts the popup is present and dismisses it with a physical Escape plus click on the already-selected Task tab before double-clicking the Gantt edge. Focused reproduction passed 6/6 and the subsequent full matrix passed. See `docs/testing/regression-investigation-notes.md` and the latest evidence entry in `issue-794-evidence.md`.
+- `clean build installDist` compiled and tested all modules, but the first UI pass had one `FlatLafSupportTest.dialogComponentStylingCoversLegacySwingTree` assertion (`expected 30, got 0`). The focused test passed alone; an immediate full `build installDist` rerun passed (56 tasks, 5 executed, 51 up-to-date). Treat the isolated first failure as a test-order/global Swing state flake; do not hide it. Exact-head PR Build and GUI smoke CI are pending push.
 
-M2.1–M2.4 and Common remain OPEN. #414 also requires all available
-Ribbon/menu/toolbar/popup routes, production Java net-reduction metrics, three
-hostile reviews, and exact-head locale/DPI GUI acceptance. Other gaps include
-M2.1 field types/boundaries; M2.2 independent negative-lag MPP READ fixture;
-M2.3/#868 provenance and remaining resource/baseline scope; M2.4
-command/view/report/print/locale coverage. Run candidate-SHA CI, fresh
-installDist, full functional GUI and ja/en 100/125/150 visual gates, applicable
-packaging checks, and final status/diff review. Preserve
-`.codex-remote-attachments/`; release only after all acceptance/release checks.
+## Next slice
+
+Push candidate `dc67d1d8`, verify exact-head Build and GUI smoke CI, then prepare PR #872 for review. Do not merge without the user's approval; keep issue #794 open until the PR is integrated.

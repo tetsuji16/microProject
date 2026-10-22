@@ -18,10 +18,29 @@ import java.nio.file.NoSuchFileException;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Set;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.task.Project;
+import com.microproject.undo.DataFactoryUndoController;
 
 import org.junit.jupiter.api.Test;
 
 class ProjectMergeServiceLoadResultTest {
+	@Test
+	void changedTaskWithoutOutlineNodeStillPublishesScheduleRefresh() {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("refresh-target", undo), undo);
+		project.initialize(false, false);
+		AtomicInteger scheduleEvents = new AtomicInteger();
+		project.addScheduleListener(event -> scheduleEvents.incrementAndGet());
+
+		new ProjectMergeService().fireTaskUpdates(project, Arrays.asList((com.microproject.grouping.core.Node) null));
+
+		assertEquals(1, scheduleEvents.get());
+	}
+
 	@Test
 	void embeddedXmlIsStreamedWhenSeparatorCrossesTheReadBuffer() throws Exception {
 		byte[] separator = "@@@@@@@@@@ProjectLibreSeparator_MSXML@@@@@@@@@@".getBytes(StandardCharsets.UTF_8);

@@ -41,7 +41,6 @@ import java.awt.event.MouseListener;
 import java.util.logging.Logger;
 
 import javax.swing.BoxLayout;
-import javax.swing.AbstractAction;
 import javax.swing.ComboBoxModel;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.ImageIcon;
@@ -73,6 +72,7 @@ import com.microproject.util.BrowserControl;
 import com.microproject.util.FlatUiSupport;
 import com.microproject.util.FlatLafDialog;
 import com.microproject.ui.shell.WindowBoundsSupport;
+import com.microproject.ui.util.PopupDialogSupport;
 
 /**
  *
@@ -136,9 +136,9 @@ public abstract class AbstractDialog extends FlatLafDialog {
 		KeyStroke escapeStroke = KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0);
 		KeyStroke enterStroke = KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0);
 		KeyStroke f1Stroke = KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0);
-		bindWindowAction(rootPane, escapeStroke, "dialog.escape", escapeListener);
-		bindWindowAction(rootPane, enterStroke, "dialog.enter", enterListener);
-		bindWindowAction(rootPane, f1Stroke, "dialog.help", helpListener);
+		PopupDialogSupport.bindRootPaneAction(rootPane, escapeStroke, "dialog.escape", escapeListener);
+		PopupDialogSupport.bindRootPaneAction(rootPane, enterStroke, "dialog.enter", enterListener);
+		PopupDialogSupport.bindRootPaneAction(rootPane, f1Stroke, "dialog.help", helpListener);
 		return rootPane;
 	}
 
@@ -151,15 +151,6 @@ public abstract class AbstractDialog extends FlatLafDialog {
 				&& javax.swing.SwingUtilities.isDescendingFrom(button, dialog))
 			return button;
 		return null;
-	}
-
-	private static void bindWindowAction(JRootPane rootPane, KeyStroke keyStroke, String actionKey,
-			ActionListener listener) {
-		rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(keyStroke, actionKey);
-		rootPane.getActionMap().put(actionKey, new AbstractAction() {
-			private static final long serialVersionUID = 1L;
-			@Override public void actionPerformed(ActionEvent event) { listener.actionPerformed(event); }
-		});
 	}
 
 	protected boolean hasHelp() {
