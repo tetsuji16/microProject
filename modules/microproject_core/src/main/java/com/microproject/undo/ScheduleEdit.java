@@ -75,8 +75,12 @@ public class ScheduleEdit extends AbstractUndoableEdit{
 	/** Posts one project-wide task-state edit through the normal compound/suppression path. */
 	public static void postProjectSnapshotEdit(Project project, ProjectTaskSnapshot before,
 			Map<Task, Integer> beforeCalculationStates, Map<Task, Integer> afterCalculationStates, Object source) {
-		project.getUndoController().getEditSupport().postEdit(new ProjectTaskSnapshotEdit(project, before,
-			beforeCalculationStates, afterCalculationStates, source));
+		DataFactoryUndoController undoController = project.getUndoController();
+		EditSupport editSupport = undoController == null ? null : undoController.getEditSupport();
+		if (editSupport != null) {
+			editSupport.postEdit(new ProjectTaskSnapshotEdit(project, before,
+				beforeCalculationStates, afterCalculationStates, source));
+		}
 	}
 
 	private static final class ProjectTaskSnapshotEdit extends AbstractUndoableEdit {
