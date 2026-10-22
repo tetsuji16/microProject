@@ -833,9 +833,13 @@ class RibbonTabGuiAcceptanceTest {
 			if (!center) {
 				frame.add(new JPanel(), BorderLayout.CENTER);
 			}
-			frame.setPreferredSize(new Dimension(width, 360));
+			Rectangle usable = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
+			int boundedWidth = Math.min(width, Math.max(320, usable.width - 32));
+			int boundedHeight = Math.min(360, usable.height);
+			frame.setPreferredSize(new Dimension(boundedWidth, boundedHeight));
 			frame.pack();
-			frame.setLocationByPlatform(true);
+			frame.setBounds(usable.x + Math.max(0, (usable.width - boundedWidth) / 2),
+				usable.y + Math.max(0, (usable.height - boundedHeight) / 2), boundedWidth, boundedHeight);
 			frame.setAlwaysOnTop(true);
 			frame.setVisible(true);
 			frame.toFront();

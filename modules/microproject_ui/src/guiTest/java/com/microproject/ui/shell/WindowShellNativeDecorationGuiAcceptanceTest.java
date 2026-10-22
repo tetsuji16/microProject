@@ -122,13 +122,16 @@ class WindowShellNativeDecorationGuiAcceptanceTest {
 		robot.waitForIdle();
 		robot.mouseMove(start.x, start.y);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-		robot.mouseMove(start.x + 60, start.y + 35);
+		// Keep the saved restore bounds valid: the desktop window manager clamps a
+		// restore rectangle that a larger drag would move beyond the usable work area.
+		robot.mouseMove(start.x + 10, start.y + 10);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 		robot.waitForIdle();
 		GuiAcceptanceSupport.await(() -> !before.equals(frame.getLocation()), "native caption drag did not move the window: before="
 			+ before + ", after=" + frame.getLocation() + ", dragTarget=" + start
 			+ ", windowBounds=" + frame.getBounds());
 		assertNotEquals(before, frame.getLocation());
+		WindowAcceptanceAssertions.assertWithinUsableWorkArea(frame, "caption-dragged native window");
 
 		Rectangle normalBounds = frame.getBounds();
 		WindowAcceptanceAssertions.hoverNativeTitleButton(robot, frame, "Maximize", 1_200);
