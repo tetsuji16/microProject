@@ -32,7 +32,8 @@
 <link rel="alternate" hreflang="es" href="https://o-server.main.jp/micro-project/index-es.html">
 <link rel="alternate" hreflang="zh-Hans" href="https://o-server.main.jp/micro-project/index-zh.html">
 <link rel="alternate" hreflang="x-default" href="https://o-server.main.jp/micro-project/">
-  <title>microProject — ダウンロード・使い方</title>
+  <title>microProject — デスクトップ向けプロジェクト計画アプリ</title>
+  <meta name="description" content="microProject はタスク表と Gantt チャートを一画面で扱うデスクトップのプロジェクト計画アプリです。Windows・Linux・macOS 向けに配布しています。">
   <style>
     :root {
       --bg: #f3f5f8;
@@ -391,6 +392,56 @@
       color: var(--muted);
     }
 
+    .notice {
+      margin: 0 0 22px;
+      padding: 18px 22px;
+      border: 1px solid rgba(31, 94, 255, 0.24);
+      border-radius: var(--radius-md);
+      background: var(--accent-soft);
+      color: var(--ink);
+      line-height: 1.75;
+      font-size: 15px;
+    }
+
+    .notice a,
+    .panel p a,
+    .footnote a {
+      color: var(--accent-ink);
+      text-decoration: underline;
+    }
+
+    .content-grid + .content-grid {
+      margin-top: 24px;
+    }
+
+    .format-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .format-table th,
+    .format-table td {
+      padding: 10px 8px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .format-table th {
+      color: var(--ink);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+    }
+
+    .format-table td:first-child {
+      white-space: nowrap;
+      color: var(--ink);
+      font-weight: 700;
+    }
+
     @media (max-width: 980px) {
       .hero,
       .content-grid,
@@ -434,7 +485,7 @@
         <div class="brand-badge" aria-hidden="true"></div>
         <div class="brand-copy">
           <div class="brand-title">microProject</div>
-          <div class="brand-subtitle">タスク表と Gantt を一画面で扱うデスクトップ計画ツール</div>
+          <div class="brand-subtitle">タスク表と Gantt を一画面で扱うプロジェクト計画アプリ</div>
         </div>
       </div>
       <div class="top-actions">
@@ -442,7 +493,6 @@
         <a class="button secondary" href="index-es.html" onclick="try{localStorage.setItem('microProjectLanguage','es')}catch(e){}">Español</a>
         <a class="button secondary" href="index-zh.html" onclick="try{localStorage.setItem('microProjectLanguage','zh')}catch(e){}">中文</a>
         <a class="button secondary" href="usage-guide-ja.html">オンライン ヘルプ</a>
-        <a class="button secondary" href="ccpm-sample-guide-ja.html">CCPM サンプルガイド</a>
         <a class="button secondary" href="https://github.com/tetsuji16/microProject">Repository</a>
         <a class="button secondary" href="https://github.com/tetsuji16/microProject/releases">Releases</a>
       </div>
@@ -452,23 +502,19 @@
       <div class="hero-copy">
         <div class="eyebrow">Desktop Project Planning</div>
         <div class="stack-text">
-          <h1>タスク表と Gantt を、ひとつの計画画面に。</h1>
+          <h1>計画も日程も進捗も、ひとつの画面で。</h1>
           <p>
-            microProject は、階層化したタスク表と Gantt チャートを並べて扱うデスクトップ計画ツールです。
-            工程の開始日・終了日、依存関係、進捗、担当作業を、同じタイムラインで確認できます。
+            microProject は、タスク表と Gantt チャートを並べて扱うデスクトップのプロジェクト計画アプリです。
+            WBS のアウトライン、開始日・終了日、依存関係、リソース、進捗を同じタイムラインで確認しながら編集できます。
           </p>
           <p>
-            表のアウトラインで WBS を整理しながら、右側の Gantt でマイルストーン、並行作業、後続タスクへのつながりを確認できます。
-            建設・開発・イベントなど、複数の工程を持つ計画を見通しよく管理できます。
-          </p>
-          <p>
-            作成・保存に加え、インポート、エクスポート、印刷、PDF 出力をデスクトップ画面から利用できます。
-            Windows 向けには自己完結型の MSI と Portable ZIP を提供しています。Linux x64 と macOS Apple Silicon 向けの ZIP は大きな更新時に追加し、各 OS の最新配布版を案内します。
+            Microsoft 365 風のリボン、Microsoft Project 形式のショートカット、CCPM（クリティカルチェーン）によるバッファ管理、
+            印刷・PDF 出力を備えています。Java ランタイム同梱のため、ダウンロードしてすぐに使えます。
           </p>
         </div>
         <div class="hero-actions">
-          <a class="button primary" href="https://github.com/tetsuji16/microProject/releases/latest/download/microProject-latest.msi">Windows MSI をダウンロード</a>
-          <a class="button secondary" href="https://github.com/tetsuji16/microProject/releases/latest">最新リリースを見る</a>
+          <a class="button primary" href="https://github.com/tetsuji16/microProject/releases/latest/download/microProject-latest.msi">Windows 版をダウンロード</a>
+          <a class="button secondary" href="usage-guide-ja.html">使い方を見る</a>
         </div>
       </div>
 
@@ -481,18 +527,24 @@
       </div>
     </section>
 
+    <section class="notice" aria-label="名称変更のお知らせ">
+      <strong>名称を microProject に統一しました。</strong>
+      GitHub リポジトリは <a href="https://github.com/tetsuji16/microProject">tetsuji16/microProject</a> に移りました（旧 URL は自動で転送されます）。
+      既存の <code>.mpo</code> ファイルはそのまま開けます。
+    </section>
+
     <section class="stats" aria-label="Release facts">
       <article class="stat">
-        <div class="stat-label">Current Release</div>
-        <div class="stat-value">Latest</div>
+        <div class="stat-label">Platforms</div>
+        <div class="stat-value">Windows / Linux / macOS</div>
       </article>
       <article class="stat">
-        <div class="stat-label">Runtime Target</div>
+        <div class="stat-label">Native Format</div>
+        <div class="stat-value">.mpo</div>
+      </article>
+      <article class="stat">
+        <div class="stat-label">Runtime</div>
         <div class="stat-value">Java 同梱</div>
-      </article>
-      <article class="stat">
-        <div class="stat-label">Distribution</div>
-        <div class="stat-value">MSI / ZIP</div>
       </article>
     </section>
 
@@ -501,45 +553,44 @@
         <div class="section-head">
           <div>
             <div class="section-kicker">Download</div>
-            <h2>必要な配布物だけをまっすぐ取得</h2>
+            <h2>環境に合わせて選べる配布物</h2>
           </div>
         </div>
         <div class="download-list">
-                    <section class="download-item">
-            <h3>Windows Installer</h3>
-            <p>通常利用向けの自己完結型インストーラーです。GitHub Releases 上の最新 MSI をそのまま案内しています。</p>
+          <section class="download-item">
+            <h3>Windows インストーラー（推奨）</h3>
+            <p>通常利用向けの自己完結型 MSI です。英語・日本語のインストーラー画面に対応しています。</p>
             <div class="download-actions">
               <a class="button primary" href="https://github.com/tetsuji16/microProject/releases/latest/download/microProject-latest.msi">最新 MSI をダウンロード</a>
             </div>
-            <div class="download-meta">推奨: Windows クライアント環境</div>
+            <div class="download-meta">最新の安定版</div>
           </section>
           <section class="download-item">
             <h3>Windows Portable</h3>
-            <p>インストールせずに展開先から起動できる自己完結型 app-image です。ZIP を展開して microProject.cmd（または microProject.exe）を実行します。</p>
+            <p>インストール不要の app-image です。ZIP を展開して microProject.exe（または microProject.cmd）を実行します。</p>
             <div class="download-actions">
               <a class="button secondary" href="https://github.com/tetsuji16/microProject/releases/latest/download/microProject-latest-app-image.zip">最新 Portable ZIP をダウンロード</a>
             </div>
-            <div class="download-meta">最新リリースの portable app-image</div>
-          </section>
-          <section class="download-item">
-            <h3>Release Notes</h3>
-              <p>変更内容と配布物の詳細は、GitHub Releases の最新リリースノートで確認できます。</p>
-            <div class="download-actions">
-              <a class="button secondary" href="https://github.com/tetsuji16/microProject/releases/latest">最新リリースの詳細を見る</a>
-            </div>
-            <div class="download-meta">Release assets: MSI / app-image ZIP</div>
+            <div class="download-meta">最新の安定版</div>
           </section>
           <section class="download-item" data-platform-download="linux-x64">
             <h3>Linux x64</h3>
-            <p>大きな更新時に提供する self-contained app-image です。</p>
+            <p>大きな更新時に提供する自己完結型 app-image です。</p>
             <div class="download-actions"><a class="button secondary" href="https://github.com/tetsuji16/microProject/releases">Linux ZIP を探す</a></div>
             <div class="download-meta" data-platform-version>安定版の配布物を確認しています</div>
           </section>
           <section class="download-item" data-platform-download="macos-aarch64">
             <h3>macOS Apple Silicon</h3>
-            <p>大きな更新時に提供する self-contained app-image です。</p>
+            <p>大きな更新時に提供する自己完結型 app-image です。</p>
             <div class="download-actions"><a class="button secondary" href="https://github.com/tetsuji16/microProject/releases">macOS ZIP を探す</a></div>
             <div class="download-meta" data-platform-version>安定版の配布物を確認しています</div>
+          </section>
+          <section class="download-item">
+            <h3>リリースノート</h3>
+            <p>変更内容と配布物の一覧は GitHub Releases で確認できます。</p>
+            <div class="download-actions">
+              <a class="button secondary" href="https://github.com/tetsuji16/microProject/releases/latest">最新リリースの詳細を見る</a>
+            </div>
           </section>
         </div>
       </article>
@@ -547,29 +598,76 @@
       <article class="panel">
         <div class="section-head">
           <div>
-            <div class="section-kicker">Why This Fork</div>
+            <div class="section-kicker">Features</div>
             <h2>工程の全体像と、日々の更新をつなげる。</h2>
           </div>
         </div>
         <div class="feature-list">
           <section class="feature-item">
             <h3>タスク表と Gantt を同期</h3>
-            <p>WBS 形式のタスク階層を編集すると、対応する工程を Gantt 上で確認できます。表とタイムラインを行き来せずに、計画の構造と日程を見比べられます。</p>
+            <p>WBS 形式のタスク階層を表で編集すると、日程・リンク・マイルストーン・進捗がそのまま Gantt に反映されます。</p>
           </section>
           <section class="feature-item">
-            <h3>依存関係と進捗を見える化</h3>
-            <p>後続タスクへのつながり、マイルストーン、並行する作業をタイムラインに表示し、工程の順序と進み具合を把握しやすくします。</p>
+            <h3>スケジューリング</h3>
+            <p>依存関係、カレンダー、制約、ベースライン、リソース割り当てをもとに日程を自動で再計算します。</p>
           </section>
           <section class="feature-item">
-            <h3>ファイルをやりとりしやすく</h3>
-            <p>デスクトップ画面からプロジェクトを作成・保存し、インポート、エクスポート、印刷、PDF 出力へ進めます。Windows では MSI または Portable ZIP を選べます。</p>
+            <h3>CCPM（クリティカルチェーン）</h3>
+            <p>リソースを考慮した平準化をプレビューしてから適用し、ネットワーク図とプロジェクト／合流バッファの消費状況を追跡できます。<a href="ccpm-sample-guide-ja.html">CCPM サンプルガイド</a></p>
           </section>
-        </div>
-        <div class="footnote">
-          使い方とダウンロード案内は o-server.main.jp/micro-project/ で公開しています。配布ファイルは GitHub Releases から取得できます。
+          <section class="feature-item">
+            <h3>Office と同じ操作感</h3>
+            <p>Microsoft 365 風のリボン、Microsoft Project 形式のショートカット、元に戻す／やり直し、印刷と PDF 出力に対応します。</p>
+          </section>
         </div>
       </article>
     </section>
+
+    <section class="content-grid">
+      <article class="panel" id="formats">
+        <div class="section-head">
+          <div>
+            <div class="section-kicker">File Formats</div>
+            <h2>ファイル形式</h2>
+          </div>
+        </div>
+        <table class="format-table">
+          <thead><tr><th>形式</th><th>対応</th></tr></thead>
+          <tbody>
+            <tr><td><code>.mpo</code></td><td>microProject の正式なネイティブ形式で、標準の保存形式です。以前の版で保存したファイルも読み込めます。</td></tr>
+            <tr><td><code>.mpp</code></td><td>Microsoft Project ファイルの読込に対応します（書出しは対象外。<code>.mpo</code> で保存してください）。</td></tr>
+            <tr><td>Project XML / XLSX</td><td>読込と保存の両方に対応します。</td></tr>
+            <tr><td>MPX</td><td>読込に対応します。</td></tr>
+            <tr><td><code>.pod</code></td><td>ProjectLibre の標準形式です。開いて保存できますが、CCPM の設定は保存されません。CCPM を使う場合は <code>.mpo</code> で保存してください。</td></tr>
+          </tbody>
+        </table>
+      </article>
+
+      <article class="panel" id="compatibility">
+        <div class="section-head">
+          <div>
+            <div class="section-kicker">Compatibility</div>
+            <h2>Microsoft Project 互換への取り組み</h2>
+          </div>
+        </div>
+        <div class="stack-text">
+          <p>
+            microProject は、スタンドアロンの Microsoft Project デスクトップ版との互換性を目標に、スケジューリングの考え方、ビュー、コマンド、
+            キーボード・マウス操作、プロジェクトファイルを段階的に整えています。<strong>現時点で完全な互換性は達成していません。</strong>
+            進捗は <a href="https://github.com/tetsuji16/microProject/blob/master/docs/msp-compatibility-roadmap.md">互換性ロードマップ</a> で公開しています。
+          </p>
+          <p>
+            Project Server、Project Web App、Project Online、Microsoft Planner などのクラウド連携と、VBA／マクロ、COM、VSTO、Office アドインは対象外です。
+          </p>
+        </div>
+      </article>
+    </section>
+
+    <footer class="footnote">
+      microProject は、公開仕様と独自のテストデータに基づくクリーンルーム実装を進めています。
+      ライセンスとサードパーティーの表記は配布物に同梱しています。
+      ソースコードは <a href="https://github.com/tetsuji16/microProject">GitHub</a>、配布ファイルは <a href="https://github.com/tetsuji16/microProject/releases">GitHub Releases</a> で公開しています。
+    </footer>
   </main>
   <script>
     (function () {
