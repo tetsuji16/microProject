@@ -248,28 +248,69 @@ function Invoke-GuiGate([string]$label, [string[]]$arguments, [int]$timeoutSecon
   }
 }
 
-# Stable-candidate PRs use the same twelve visual acceptance classes and six
-# locale/scale legs as the release matrix. Normal smoke/full retain their functional suites.
-$visualTests = @(
+# Stable-candidate PRs use these visual acceptance selectors at 100% and in
+# each locale/scale leg. Full ja/100% remains the complete functional suite.
+$visualClasses = @(
   'com.microproject.dialog.ProjectDialogGuiAcceptanceTest',
   'com.microproject.dialog.calendar.ChangeWorkingTimeDialogGuiAcceptanceTest',
   'com.microproject.dialog.ProjectInformationDialogGuiAcceptanceTest',
   'com.microproject.dialog.BaselineDialogGuiAcceptanceTest',
   'com.microproject.dialog.ResourceMappingDialogGuiAcceptanceTest',
   'com.microproject.pm.graphic.spreadsheet.TaskInformationGuiAcceptanceTest',
-  'com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest',
   'com.microproject.pm.graphic.frames.workspace.DefaultFrameManagerGuiAcceptanceTest',
   'com.microproject.ui.shell.WindowShellNativeDecorationGuiAcceptanceTest',
   'com.microproject.ui.ribbon.RibbonTabGuiAcceptanceTest',
   'com.microproject.dialog.FlatLafLegacyDialogRefreshGuiAcceptanceTest',
   'com.microproject.pm.graphic.frames.RibbonExternalCommandGuiAcceptanceTest'
 )
+$taskInformationTestClass = 'com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest'
+# Keep scale-sensitive report/view surfaces, viewport and dialog-fit checks,
+# and physical routes whose coordinates or available screen area are asserted.
+# The remaining functional/mutation and route-variant cases still run in full ja/100%.
+$taskInformationVisualMethods = @(
+  'physicalReportPrintPreviewShowsEveryPageThroughTheSharedGraphPageableRoute',
+  'physicalProjectDetailsReportShowsProjectWorkAndCostAndExportsTheSameValues',
+  'physicalWhoDoesWhatReportShowsResourceGroupsTasksAndWorkTotalsWithoutMutatingProject',
+  'robotOpensIssue590DialogsWithoutClippedText',
+  'robotClickOnTaskPropertiesInformationOpensTaskInformation',
+  'usageDetailViewRouteConstructsWithoutRuntimeFailure',
+  'physicalSelectedTasksZoomFitsBothSeparatedGanttTasksWithoutChangingModelOrUndo',
+  'robotBottomViewSelectionRemainsVisibleUntilExplicitNoSubWindow',
+  'robotCalendarOptionsRibbonRouteOpensUsableDialog',
+  'robotChangeWorkingTimeProjectRibbonRouteOpensAndCancels',
+  'robotIssue592StatusDateAndUpdateProjectDialogsFitVisualMatrix',
+  'robotCalendarCommandOpensUsableCalendarDialog',
+  'robotNetworkAndWbsRibbonRoutesRenderTheirDedicatedViews',
+  'calendarDependencyMarkerOpensTheLinkDialogAndCanRemoveTheLink',
+  'timesheetRouteConstructsItsDedicatedSpreadsheet',
+  'statusDateRibbonRouteUsesSharedMutationFixture',
+  'physicalTaskInspectorFollowsSelectionAndNavigatesOnlyVisiblePredecessors',
+  'physicalIncompleteTaskFilterPreservesDomainAndSelectsVisibleTaskByStableId',
+  'physicalTaskSortSupportsAscendingStartAndDescendingFinishForViewAndOutline',
+  'physicalTaskRowHeaderDragReordersStableTasksAndSurvivesUndoAndReload',
+  'secondaryDocumentWindowUsesTheSameRibbonShell'
+)
+$visualTests = @($visualClasses + @($taskInformationVisualMethods | ForEach-Object { "$taskInformationTestClass.$_" }))
 
 $guiTestSourceRoot = Join-Path $PWD 'modules/microproject_ui/src/guiTest/java'
-foreach ($testClass in $visualTests) {
+foreach ($testSelector in $visualTests) {
+  $testClass = $testSelector
+  $methodName = $null
+  $methodPrefix = "$taskInformationTestClass."
+  if ($testSelector.StartsWith($methodPrefix, [StringComparison]::Ordinal)) {
+    $testClass = $taskInformationTestClass
+    $methodName = $testSelector.Substring($methodPrefix.Length)
+  }
   $sourcePath = Join-Path $guiTestSourceRoot (($testClass.Replace('.', '\')) + '.java')
   if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
-    throw "Visual GUI test class does not map to a source file: $testClass ($sourcePath)"
+    throw "Visual GUI test selector does not map to a source file: $testSelector ($sourcePath)"
+  }
+  if ($null -ne $methodName) {
+    $methodPattern = '(?m)^\s*@Test\s*(?:\r?\n\s*)+void\s+' + [regex]::Escape($methodName) + '\s*\('
+    $methodMatches = [regex]::Matches([System.IO.File]::ReadAllText($sourcePath), $methodPattern)
+    if ($methodMatches.Count -ne 1) {
+      throw "Visual GUI test method must map to exactly one @Test source method: $testSelector ($sourcePath)"
+    }
   }
 }
 

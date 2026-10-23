@@ -181,14 +181,17 @@ class DefaultFrameManagerGuiAcceptanceTest {
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		Rectangle primaryBounds = window.getBounds();
-		Point closeClick = new Point(primaryBounds.x + primaryBounds.width - 22, primaryBounds.y + 15);
 		boolean[] windowClosingReached = new boolean[1];
 		SwingUtilities.invokeAndWait(() -> window.addWindowListener(new WindowAdapter() {
 			@Override public void windowClosing(WindowEvent event) { windowClosingReached[0] = true; }
 		}));
-		robot.mouseMove(closeClick.x, closeClick.y);
-		robot.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
-		robot.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		SwingUtilities.invokeAndWait(() -> {
+			window.toFront();
+			window.requestFocus();
+		});
+		GuiAcceptanceSupport.await(window::isActive,
+			"original primary window did not become active before its physical close route");
+		WindowAcceptanceAssertions.clickNativeTitleButton(robot, window, "Close");
 		try {
 			GuiAcceptanceSupport.await(() -> desktopWindowManager.getIndependentWindowCount() == 1
 					&& !desktopWindowManager.getAllFrames().contains(frames[0])
@@ -225,7 +228,7 @@ class DefaultFrameManagerGuiAcceptanceTest {
 						+ "]; selected=" + desktopWindowManager.getSelectedFrame()
 						+ "; active=" + desktopWindowManager.getActiveFrame()
 					+ "; graphic current=" + graphicManagers[0].getCurrentFrame()
-					+ "; closeClick=" + closeClick + "; primaryBounds=" + primaryBounds
+					+ "; primaryBounds=" + primaryBounds
 					+ "; screen=" + window.getGraphicsConfiguration().getBounds()
 					+ "; defaultTransform=" + window.getGraphicsConfiguration().getDefaultTransform()
 					+ "; physical windowClosing reached JFrame=" + windowClosingReached[0]

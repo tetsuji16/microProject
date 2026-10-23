@@ -64,6 +64,19 @@ public final class DialogLayoutAssertions {
 			}
 		});
 		assertTrue(viewport[0] != null, description + " must be hosted by a scrollable dialog viewport");
+		String[] visibility = new String[1];
+		boolean[] viewportShowing = new boolean[1];
+		SwingUtilities.invokeAndWait(() -> {
+			StringBuilder state = new StringBuilder("component=").append(component.getClass().getName())
+				.append(" showing=").append(component.isShowing())
+				.append(" viewportShowing=").append(viewport[0].isShowing());
+			for (Component current = component; current != null; current = current.getParent())
+				state.append(" <- ").append(current.getClass().getSimpleName()).append("[showing=")
+					.append(current.isShowing()).append(",visible=").append(current.isVisible()).append(']');
+			visibility[0] = state.toString();
+			viewportShowing[0] = viewport[0].isShowing();
+		});
+		assertTrue(viewportShowing[0], () -> description + " viewport is not showing before physical scroll: " + visibility[0]);
 		for (int attempt = 0; attempt < 20; attempt++) {
 			Rectangle[] target = new Rectangle[1];
 			Rectangle[] visible = new Rectangle[1];

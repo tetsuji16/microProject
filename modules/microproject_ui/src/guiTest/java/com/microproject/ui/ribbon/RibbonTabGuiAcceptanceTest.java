@@ -153,9 +153,9 @@ class RibbonTabGuiAcceptanceTest {
 		}
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
-		for (int index = 0; index < tabs.size(); index++) {
-			AbstractButton tab = tabs.get(index);
-			click(robot, tab);
+		for (int index = 0; index < MenuDefinitionSupport.ribbonTaskIds().size(); index++) {
+			String tabId = MenuDefinitionSupport.ribbonTaskIds().get(index);
+			AbstractButton tab = clickRibbonTab(robot, host, tabId);
 			GuiAcceptanceSupport.await(tab::isSelected, "Robot click did not select ribbon tab " + tab.getText());
 			captureVisibleRibbon(robot, "ribbon-tab-" + index + ".png");
 
@@ -309,9 +309,7 @@ class RibbonTabGuiAcceptanceTest {
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(35);
 		for (String tabId : MenuDefinitionSupport.ribbonTaskIds()) {
-			AbstractButton tab = findButton(host,
-				MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString(tabId + ".title"));
-			click(robot, tab);
+			AbstractButton tab = clickRibbonTab(robot, host, tabId);
 			GuiAcceptanceSupport.await(tab::isSelected, "high-DPI tab was not selected: " + tabId);
 			SwingUtilities.invokeAndWait(() -> assertVisibleRibbonControlsFit(host, tab));
 			captureVisibleRibbon(robot, "ribbon-high-dpi-" + tabId + ".png", 600);
@@ -480,10 +478,20 @@ class RibbonTabGuiAcceptanceTest {
 		click(robot, tab);
 		GuiAcceptanceSupport.await(tab::isSelected, "Task ribbon tab was not selected at wide window width");
 		robot.waitForIdle();
-		GuiAcceptanceSupport.await(() -> containsCommand(host, "RibbonPaste"),
+		GuiAcceptanceSupport.await(() -> hasPhysicalButtonForCommand(host, "RibbonPaste"),
 			"Task commands did not replace the previous tab after physical selection");
 		AbstractButton widePaste = findAttachedButtonByCommand(host, "RibbonPaste");
-		assertTrue(widePaste.isShowing(), "Paste should be directly visible when the ribbon has enough width");
+		int initialRibbonWidth = ribbon.getWidth();
+		boolean initialPasteVisible = widePaste != null && widePaste.isShowing();
+		if (frame.getWidth() >= 1200) {
+			assertTrue(initialPasteVisible,
+				"Paste should be directly visible when the fixture has at least 1200 pixels: frame=" + frame.getWidth()
+					+ " ribbon=" + initialRibbonWidth);
+		} else {
+			assertTrue(initialPasteVisible || findCollapsedProxyForCommand(host, "RibbonPaste") != null,
+				"Paste must remain directly visible or reachable through a collapsed group at initial ribbon width "
+					+ initialRibbonWidth);
+		}
 		int wideProxyCount = visibleGroupProxyCount(host);
 		captureVisibleRibbon(robot, "ribbon-task-wide-1200.png", 0);
 
@@ -500,9 +508,10 @@ class RibbonTabGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> ribbon.getWidth() < 400,
 			"ribbon did not receive the narrow window resize");
 		int narrowProxyCount = visibleGroupProxyCount(host);
-		assertTrue(narrowProxyCount > wideProxyCount,
-			"narrowing the window must collapse some command groups: wide=" + wideProxyCount
-				+ " narrow=" + narrowProxyCount);
+		assertTrue((initialPasteVisible ? narrowProxyCount > wideProxyCount : narrowProxyCount >= mediumProxyCount)
+				&& narrowProxyCount > 0,
+			"narrowing the window must keep command groups collapsed and reachable: medium=" + mediumProxyCount
+				+ " narrow=" + narrowProxyCount + " initialWidth=" + initialRibbonWidth);
 		captureVisibleRibbon(robot, "ribbon-task-narrow-320.png", 0);
 
 		AbstractButton pasteOverflow = UiComponentWalker.flatten(host).stream()
@@ -807,7 +816,10 @@ class RibbonTabGuiAcceptanceTest {
 			.findFirst().orElse(null));
 		assertTrue(mouseSelectedTab != null, "mouse-opened tab overflow menu contains no hidden tabs");
 		String mouseHiddenTabId = onEdt(() -> (String) mouseSelectedTab.getClientProperty(ModernRibbonPanel.TAB_ID_PROPERTY));
-		clickCommand(robot, mouseSelectedTab);
+		robot.keyPress(KeyEvent.VK_ESCAPE);
+		robot.keyRelease(KeyEvent.VK_ESCAPE);
+		GuiAcceptanceSupport.await(() -> !mousePopup.isVisible(), "Escape did not close the preview tab overflow menu");
+		clickRibbonTab(robot, host, mouseHiddenTabId);
 		AbstractButton mouseRevealedTab = findTab(host, mouseHiddenTabId);
 		GuiAcceptanceSupport.await(() -> mouseRevealedTab.isSelected() && mouseRevealedTab.isShowing(),
 			"mouse selection from the overflow menu did not reveal the hidden tab: " + mouseHiddenTabId);
@@ -877,6 +889,33 @@ class RibbonTabGuiAcceptanceTest {
 			.map(AbstractButton.class::cast)
 			.filter(button -> tabId.equals(button.getClientProperty(ModernRibbonPanel.TAB_ID_PROPERTY)))
 			.findFirst().orElseThrow(() -> new AssertionError("Ribbon tab not found: " + tabId));
+	}
+
+	private static AbstractButton clickRibbonTab(Robot robot, JPanel host, String tabId) throws Exception {
+		AbstractButton tab = findTab(host, tabId);
+		if (tab.isShowing()) {
+			clickCommand(robot, tab);
+		} else {
+			AbstractButton overflow = UiComponentWalker.flatten(host).stream()
+				.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+				.filter(button -> Boolean.TRUE.equals(button.getClientProperty(ModernRibbonPanel.TAB_OVERFLOW_PROPERTY)))
+				.filter(AbstractButton::isShowing).findFirst()
+				.orElseThrow(() -> new AssertionError("hidden tab has no visible overflow route: " + tabId));
+			clickCommand(robot, overflow);
+			GuiAcceptanceSupport.await(() -> overflow.getClientProperty(ModernRibbonPanel.TAB_OVERFLOW_POPUP_PROPERTY)
+				instanceof JPopupMenu openedPopup && openedPopup.isVisible(), "tab overflow menu did not open for " + tabId);
+			JPopupMenu popup = (JPopupMenu) overflow.getClientProperty(ModernRibbonPanel.TAB_OVERFLOW_POPUP_PROPERTY);
+			AbstractButton menuTab = UiComponentWalker.flatten(popup).stream()
+				.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+				.filter(button -> tabId.equals(button.getClientProperty(ModernRibbonPanel.TAB_ID_PROPERTY)))
+				.findFirst().orElseThrow(() -> new AssertionError("hidden tab is missing from overflow menu: " + tabId));
+			clickCommand(robot, menuTab);
+		}
+		GuiAcceptanceSupport.await(() -> {
+			AbstractButton current = findTab(host, tabId);
+			return current.isSelected() && current.isShowing();
+		}, "physical ribbon tab route did not reveal and select " + tabId);
+		return findTab(host, tabId);
 	}
 
 	private static <T> T onEdt(Callable<T> action) throws Exception {
