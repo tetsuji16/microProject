@@ -5339,6 +5339,38 @@ class MpoFileImporterTest {
 		return project;
 	}
 
+	/**
+	 * Microsoft Project keeps a duration's estimated "?" marker until the user
+	 * clears it; saving and reopening a file does not confirm it.  A new task's
+	 * default "1 day?" and an explicit firm duration must both survive MPO
+	 * save/reload and a no-op resave unchanged.
+	 */
+	@Test
+	void estimatedDurationSurvivesMpoRoundTripAndResave() throws Exception {
+		Project project = projectForRoundTrip();
+		NormalTask estimated = (NormalTask) findByName(project, "Mpo task");
+		NormalTask firm = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		firm.setName("Mpo firm task");
+		firm.setDuration(2L * 8L * 60L * 60L * 1000L);
+		assertTrue(estimated.isEstimated(), "fixture: a new task starts as an estimated duration");
+		long estimatedDuration = estimated.getDuration();
+		assertTrue(com.microproject.datatype.Duration.isEstimated(estimatedDuration), "fixture: the estimated bit is set");
+		assertFalse(firm.isEstimated(), "fixture: an explicit duration is firm");
+		long firmDuration = firm.getDuration();
+
+		Project reopened = loadFromBytes(saveProjectBytes(project));
+		Project resaved = loadFromBytes(saveProjectBytes(reopened));
+		for (Project restored : List.of(reopened, resaved)) {
+			NormalTask restoredEstimated = (NormalTask) findByName(restored, "Mpo task");
+			NormalTask restoredFirm = (NormalTask) findByName(restored, "Mpo firm task");
+			assertTrue(restoredEstimated.isEstimated(), "MPO reload must keep the estimated flag");
+			assertEquals(estimatedDuration, restoredEstimated.getDuration(),
+				"MPO reload must keep the estimated 1 day? duration");
+			assertFalse(restoredFirm.isEstimated(), "MPO reload must not mark a firm duration estimated");
+			assertEquals(firmDuration, restoredFirm.getDuration(), "MPO reload must keep the firm duration");
+		}
+	}
+
 	@Test
 	void taskSchedulingModeSurvivesMpoRoundTrip() throws Exception {
 		Project original = projectForRoundTrip();
