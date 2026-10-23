@@ -6,6 +6,15 @@ on:
   push:
     branches: [main, master]
   workflow_dispatch:
+    inputs:
+      runner_os:
+        description: 'Runner for manual diagnostic builds'
+        required: true
+        default: ubuntu-latest
+        type: choice
+        options:
+          - ubuntu-latest
+          - macos-latest
 
 permissions:
   contents: read
@@ -16,12 +25,13 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'workflow_dispatch' && inputs.runner_os || 'ubuntu-latest' }}
 
     steps:
       - uses: actions/checkout@v5
 
       - name: Install fonts used by report rendering tests
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install --yes fonts-noto-cjk
