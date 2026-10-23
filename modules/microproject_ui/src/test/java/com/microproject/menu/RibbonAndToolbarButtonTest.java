@@ -553,6 +553,40 @@ class RibbonAndToolbarButtonTest {
 	}
 
 	@Test
+	void transientRibbonButtonsTrackSharedActionSelectionWithoutRegisteringOrRecursing() throws Exception {
+		java.util.concurrent.atomic.AtomicInteger calls = new java.util.concurrent.atomic.AtomicInteger();
+		AbstractAction command = new AbstractAction("LinkAction") {
+			@Override public void actionPerformed(java.awt.event.ActionEvent event) { calls.incrementAndGet(); }
+		};
+		command.putValue(Action.SELECTED_KEY, Boolean.TRUE);
+		ProjectMenuActionMap actions = new ProjectMenuActionMap() {
+			@Override public Action getAction(String key) { return command; }
+			@Override public String getStringFromAction(Action action) { return "LinkAction"; }
+		};
+		MenuRibbonCommandSource source = new MenuRibbonCommandSource(
+			new ExtToolBarFactory(actions, ribbonBundles(Locale.ROOT)));
+		SwingUtilities.invokeAndWait(() -> {
+			AbstractButton registered = source.createButton("RibbonLink");
+			AbstractButton firstTransient = source.createTransientButton("RibbonLink");
+			assertTrue(firstTransient.isSelected(), "transient button starts from the command's selected state");
+			command.putValue(Action.SELECTED_KEY, Boolean.FALSE);
+			assertFalse(firstTransient.isSelected());
+			command.putValue(Action.SELECTED_KEY, Boolean.TRUE);
+			assertEquals(Boolean.TRUE, registered.getAction().getValue(Action.SELECTED_KEY));
+			assertTrue(firstTransient.isSelected());
+			AbstractButton secondTransient = source.createTransientButton("RibbonLink");
+			assertTrue(secondTransient.isSelected(), "each transient button receives the current shared state");
+			command.putValue(Action.SELECTED_KEY, Boolean.FALSE);
+			assertFalse(firstTransient.isSelected());
+			assertFalse(secondTransient.isSelected());
+			assertTrue(source.getButtons("LinkAction").contains(registered));
+			assertFalse(source.getButtons("LinkAction").contains(firstTransient));
+			firstTransient.doClick(0);
+			assertEquals(1, calls.get(), "a transient button dispatches once without recursing");
+		});
+	}
+
+	@Test
 	void buttonLookupReturnsStableSnapshotDuringRibbonRebuild() throws Exception {
 		ExtToolBarFactory factory = new ExtToolBarFactory(
 			MenuActionMapSupport.noopActionMap(), ribbonBundles(Locale.ROOT));

@@ -13,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static com.microproject.testsupport.DialogLayoutAssertions.physicallyScrollIntoView;
 
 import java.awt.GraphicsEnvironment;
 import java.awt.GraphicsConfiguration;
@@ -2459,6 +2460,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			.map(AbstractButton.class::cast).filter(button -> "calendarExceptionAddButton".equals(button.getName()))
 			.findFirst().orElseThrow(() -> new AssertionError("resource exception Add button is absent"));
 		assertTrue(add.isEnabled(), "resource-specific calendar exceptions must be editable");
+		physicallyScrollIntoView(robot, add, "Resource calendar Exception Add button");
 		click(robot, add);
 		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
 			.anyMatch(candidate -> candidate instanceof Dialog && candidate.isShowing() && candidate != dialog),
@@ -6198,9 +6200,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				"Link did not create a dependency between the selected tasks");
 		GuiAcceptanceSupport.await(() -> gantt.getModel().getCache().getEdgesSize() == 1,
 				"Link did not create one visible Gantt dependency");
-		robot.keyPress(KeyEvent.VK_ESCAPE);
-		robot.keyRelease(KeyEvent.VK_ESCAPE);
-		click(robot, taskTab);
+		dismissTaskRibbonOverflow(robot, link,
+			() -> successor.getPredecessorList().size() == 1 && gantt.getModel().getCache().getEdgesSize() == 1,
+			"Dismissing the Task ribbon overflow after Link must preserve the dependency");
 		GuiAcceptanceSupport.await(() -> !linkOverflow[0].isShowing(),
 				"Dismissing the Task ribbon overflow after Link did not close its popup");
 		assertRibbonOutcome(manager, previousLinkOutcome, RibbonCommandResult.Status.CHANGED,
