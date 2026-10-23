@@ -4,7 +4,7 @@
 
 ## 配布経路
 
-`.github/workflows/release-and-pages.yml` の **Release** workflow で、`release/stable-0.0.24` branch 上のレビュー済み最終 commit を選び、`release_channel=stable`、`gui_suite=full` を指定して手動実行します。workflow は run number から `v0.0.24.<run number>` と package version `0.0.24.<run number>` を割り当てます。Windows の build・全 module tests・package・import・full GUI acceptance・package contents・launcher 検証が成功した場合に stable release を公開します。大きな cross-platform 更新の場合だけ `build_unix_packages=true` を指定し、その場合は Linux と macOS の両方の build 成功も公開条件です。Pages deployment は公開後の別 job です。checksum はその release に含む assets を対象に生成します。
+PR reviewでは exact-head Build、GUI smoke、変更した物理操作の重点的な証拠を確認します。merge 前の重複 full GUI は必須にしません。merge後、`.github/workflows/release-and-pages.yml` の **Release** workflow を `release/stable-0.0.24` branch のレビュー済み commit から開始します。branch push または `release_channel=stable` の手動実行が使え、stable gate は常に `gui_suite=full` を要求します。workflow は run number から `v0.0.24.<run number>` と package version `0.0.24.<run number>` を割り当て、build・全 module tests・package・import・full GUI acceptance・package contents・launcher 検証が成功した後だけ tag と stable release を作成します。stable tag を事前作成しないでください。大きな cross-platform 更新の場合だけ `build_unix_packages=true` を指定し、その場合は Linux と macOS の両方の build 成功も公開条件です。Pages deployment は公開後の別 job です。checksum はその release に含む assets を対象に生成します。
 
 通常リリースは Windows を毎回ビルドします。Linux と macOS の配布物は大きな更新時だけ作成し、手動実行時に `build_unix_packages=true` を選びます。既定値は `false` で、tag / release branch の push も Windows のみです。選択した Unix build が失敗した場合は、そのリリース全体を公開しません。公開サイトは OS ごとの stable Release assets を確認し、Linux と macOS は各 OS の最新 stable 配布 tag を個別に表示します。各 OS の配布版は異なる場合があります。
 
@@ -12,7 +12,7 @@
 
 手動 workflow は GitHub 上の選択 ref を checkout します。作業ツリーの未コミット変更は入りません。試用対象の修正を含む最終 SHA をレビューしてから、その SHA が含まれる branch を push し、その branch を選んで workflow を実行します。
 
-GitHub Actions UI を使わず push で開始する場合は、`release/stable-0.0.24` branch への push で同じ full release workflow が実行されます。stable branch は `master` に統合済みの最終レビュー済み commit から作成し、push する SHA をその候補に固定します。stable tag と package version は workflow が run number から生成します。
+GitHub Actions UI を使わず push で開始する場合は、`release/stable-0.0.24` branch への push で同じ full release workflow が実行されます。stable branch は `master` に統合済みの最終レビュー済み commit から作成し、push する SHA をその候補に固定します。stable tag と package version は workflow が run number から生成します。Tag push は `v*-beta.*` の beta prerelease に限定し、stable release は stable branch push または matching branch からの stable dispatch のみです。
 
 ## 試用者向け 10〜15 分チェック
 
