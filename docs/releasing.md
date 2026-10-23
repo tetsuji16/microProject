@@ -136,4 +136,6 @@ if ($manifestHashes["microProject-$version-app-image.zip"] -ne $manifestHashes['
 
 tag refがannotated tagなら、ref objectをGit tag APIで解決し、commit SHAが対象runの`headSha`と同じことを確認します。安定版Release、versioned/latest Windows aliasとLinux/macOS assets、`SHA256SUMS`のmanifest/API digestを記録します。workflow内のWindows packaged launch/import checksも成功していることを確認してください。
 
+成功済みexact-SHA runでplatform package生成まで成功し、Releaseへのasset追加だけ漏れた場合は、同じrunの`package-linux-x64` / `package-macos-aarch64` artifactを補充元として使えます。このasset-only修復ではfull GUIを繰り返しません。補充前にrun ID・head SHA・artifact名を照合し、追加した各ファイルの名前とSHA-256を記録します。最終asset set全体から`SHA256SUMS`を作り直し、Release API digestとlatest aliasの一致を再確認して、検証結果を同じrun ID/SHAに結び付けます。
+
 issueを閉じる場合は公開後、凍結した各acceptance criterionをevidence packetと照合します。参照issueがopenであることだけを未達の根拠にしません。

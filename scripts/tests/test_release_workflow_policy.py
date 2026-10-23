@@ -51,6 +51,21 @@ class ReleaseWorkflowPolicyTest(unittest.TestCase):
 		self.assertNotIn("release/beta-", condition)
 		self.assertNotIn("github.ref_type == 'tag'", condition)
 
+	def test_release_assets_follow_unix_job_result_not_dispatch_event(self):
+		download = re.search(
+			r"(?ms)^      - name: Download Linux and macOS packages\r?\n(.*?)(?=^      - name: )",
+			self.release,
+		).group(1)
+		stage = re.search(
+			r"(?ms)^      - name: Stage release assets\r?\n(.*?)(?=^      - name: )",
+			self.release,
+		).group(1)
+		self.assertIn("if: ${{ needs.unix-packages.result == 'success' }}", download)
+		self.assertIn("if ('${{ needs.unix-packages.result }}' -eq 'success')", stage)
+		self.assertNotIn("inputs.build_unix_packages", download + stage)
+		release_job = re.search(r"(?ms)^  release:\r?\n(.*?)(?=^  [a-z][a-z-]*:\r?$)", self.release).group(1)
+		self.assertIn("needs.unix-packages.result == 'success' || needs.unix-packages.result == 'skipped'", release_job)
+
 	def test_visual_gate_keeps_all_classes_and_only_the_reviewed_task_information_methods(self):
 		runner = (REPO_ROOT / ".github" / "scripts" / "run-gui-acceptance.ps1").read_text(encoding="utf-8")
 		class_block = re.search(r"\$visualClasses = @\((.*?)\n\)", runner, re.S).group(1)
