@@ -1900,6 +1900,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, ganttButton);
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getActiveTopView() instanceof GanttView gantt
 			&& !gantt.isTracking(), "Gantt did not become the active view after a Robot click");
+		dismissRibbonOverflow(robot, ganttButton, viewTab,
+			() -> manager.getCurrentFrame().getActiveTopView() instanceof GanttView gantt && !gantt.isTracking(),
+			"Closing the View ribbon overflow must preserve the Gantt view");
 		view = (GanttView)manager.getCurrentFrame().getActiveTopView();
 		sheet = view.getSpreadSheet();
 		firstRow = rowForTask(sheet, first);
@@ -1937,6 +1940,11 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			logSelectedZoomState("Gantt after", selectedSheet, selectedView.getGantt(),
 				selectedView::getVisibleDateRange, selectedView::getScale, first, second);
 		}
+		dismissRibbonOverflow(robot, zoomSelected, viewTab, () -> {
+			var visible = selectedView.getVisibleDateRange();
+			return visible != null && visible.start() <= firstStart && visible.end() >= secondEnd
+				&& java.util.Arrays.equals(selectedSheet.getSelectedRows(), new int[] { selectedFirstRow, selectedSecondRow });
+		}, "Closing the View ribbon overflow must preserve Gantt zoom and selection");
 		assertEquals(firstStart, first.getStart(), "zoom must not change the first selected task start");
 		assertEquals(firstEnd, first.getEnd(), "zoom must not change the first selected task finish");
 		assertEquals(secondStart, second.getStart(), "zoom must not change the second selected task start");
@@ -1947,6 +1955,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, taskUsageButton);
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getActiveTopView() instanceof UsageDetailView,
 			"Task Usage did not become the active view after a Robot click");
+		dismissRibbonOverflow(robot, taskUsageButton, viewTab,
+			() -> manager.getCurrentFrame().getActiveTopView() instanceof UsageDetailView,
+			"Closing the View ribbon overflow must preserve Task Usage");
 		UsageDetailView usageView = (UsageDetailView)manager.getCurrentFrame().getActiveTopView();
 		SpreadSheet usageSheet = usageView.getSpreadSheet();
 		int usageFirstRow = rowForUsageTask(usageView, first);
@@ -1982,6 +1993,16 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			logSelectedZoomState("Task Usage after", usageSheet, usageView.getTimeSpreadSheet(),
 				usageView::getVisibleDateRange, usageView::getScale, first, second);
 		}
+		dismissRibbonOverflow(robot, usageZoomSelected, viewTab, () -> {
+			var visible = usageView.getVisibleDateRange();
+			return visible != null && visible.start() <= firstStart && visible.end() >= secondEnd
+				&& java.util.Arrays.equals(new long[] { first.getUniqueId(), second.getUniqueId() },
+					java.util.Arrays.stream(usageSheet.getSelectedRows()).mapToLong(row -> {
+					Object implementation = ((SpreadSheetModel)usageSheet.getModel()).getNodeForDisplayRow(row).getImpl();
+					return implementation instanceof Assignment assignment
+						? assignment.getTask().getUniqueId() : ((Task)implementation).getUniqueId();
+					}).distinct().sorted().toArray());
+		}, "Closing the View ribbon overflow must preserve Task Usage zoom and selection");
 		assertEquals(firstStart, first.getStart(), "Task Usage zoom must not change first task start");
 		assertEquals(firstEnd, first.getEnd(), "Task Usage zoom must not change first task finish");
 		assertEquals(secondStart, second.getStart(), "Task Usage zoom must not change second task start");
@@ -1992,6 +2013,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, trackingGanttButton);
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getActiveTopView() instanceof GanttView gantt
 			&& gantt.isTracking(), "Tracking Gantt did not become active after a Robot click");
+		dismissRibbonOverflow(robot, trackingGanttButton, viewTab,
+			() -> manager.getCurrentFrame().getActiveTopView() instanceof GanttView gantt && gantt.isTracking(),
+			"Closing the View ribbon overflow must preserve Tracking Gantt");
 		GanttView trackingView = (GanttView)manager.getCurrentFrame().getActiveTopView();
 		SpreadSheet trackingSheet = trackingView.getSpreadSheet();
 		int trackingFirstRow = rowForTask(trackingSheet, first);
@@ -2028,6 +2052,11 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			logSelectedZoomState("Tracking Gantt after", trackingSheet, trackingView.getGantt(),
 				trackingView::getVisibleDateRange, trackingView::getScale, first, second);
 		}
+		dismissRibbonOverflow(robot, trackingZoomSelected, viewTab, () -> {
+			var visible = trackingView.getVisibleDateRange();
+			return visible != null && visible.start() <= firstStart && visible.end() >= secondEnd
+				&& java.util.Arrays.equals(trackingSheet.getSelectedRows(), new int[] { trackingFirstRow, trackingSecondRow });
+		}, "Closing the View ribbon overflow must preserve Tracking Gantt zoom and selection");
 		assertEquals(firstStart, first.getStart(), "Tracking Gantt zoom must not change first task start");
 		assertEquals(firstEnd, first.getEnd(), "Tracking Gantt zoom must not change first task finish");
 		assertEquals(secondStart, second.getStart(), "Tracking Gantt zoom must not change second task start");
@@ -2038,6 +2067,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, resourceUsageButton);
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getActiveTopView() instanceof UsageDetailView,
 			"Resource Usage did not become active after a Robot click");
+		dismissRibbonOverflow(robot, resourceUsageButton, viewTab,
+			() -> manager.getCurrentFrame().getActiveTopView() instanceof UsageDetailView,
+			"Closing the View ribbon overflow must preserve Resource Usage");
 		UsageDetailView resourceUsageView = (UsageDetailView)manager.getCurrentFrame().getActiveTopView();
 		SpreadSheet resourceUsageSheet = resourceUsageView.getSpreadSheet();
 		int resourceFirstRow = rowForUsageTask(resourceUsageView, first);
@@ -2074,6 +2106,16 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			logSelectedZoomState("Resource Usage after", resourceUsageSheet, resourceUsageView.getTimeSpreadSheet(),
 				resourceUsageView::getVisibleDateRange, resourceUsageView::getScale, first, second);
 		}
+		dismissRibbonOverflow(robot, resourceZoomSelected, viewTab, () -> {
+			var visible = resourceUsageView.getVisibleDateRange();
+			return visible != null && visible.start() <= firstStart && visible.end() >= secondEnd
+				&& java.util.Arrays.equals(new long[] { first.getUniqueId(), second.getUniqueId() },
+					java.util.Arrays.stream(resourceUsageSheet.getSelectedRows()).mapToLong(row -> {
+					Object implementation = ((SpreadSheetModel)resourceUsageSheet.getModel()).getNodeForDisplayRow(row).getImpl();
+					return implementation instanceof Assignment assignment
+						? assignment.getTask().getUniqueId() : ((Task)implementation).getUniqueId();
+					}).distinct().sorted().toArray());
+		}, "Closing the View ribbon overflow must preserve Resource Usage zoom and selection");
 		assertEquals(firstStart, first.getStart(), "Resource Usage zoom must not change first task start");
 		assertEquals(firstEnd, first.getEnd(), "Resource Usage zoom must not change first task finish");
 		assertEquals(secondStart, second.getStart(), "Resource Usage zoom must not change second task start");
@@ -8481,6 +8523,13 @@ class TaskInformationRibbonGuiAcceptanceTest {
 
 	private void dismissTaskRibbonOverflow(Robot robot, Component command, BooleanSupplier preservedState,
 			String preservedStateMessage) throws Exception {
+		dismissRibbonOverflow(robot, command,
+			findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu").getString("TaskRibbonTask.title")),
+			preservedState, preservedStateMessage);
+	}
+
+	private void dismissRibbonOverflow(Robot robot, Component command, AbstractButton selectedTab,
+			BooleanSupplier preservedState, String preservedStateMessage) throws Exception {
 		JPopupMenu[] overflow = new JPopupMenu[1];
 		SwingUtilities.invokeAndWait(() -> {
 			for (Component current = command; current != null; current = current.getParent()) {
@@ -8494,14 +8543,12 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			GuiAcceptanceSupport.await(preservedState::getAsBoolean, preservedStateMessage);
 			return;
 		}
-		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
-			.getString("TaskRibbonTask.title"));
-		assertTrue(taskTab.isSelected(), "Task ribbon tab must already be selected before dismissing its overflow");
-		click(robot, taskTab);
-		GuiAcceptanceSupport.await(taskTab::isSelected, "Task ribbon tab lost selection while dismissing its overflow");
+		assertTrue(selectedTab.isSelected(), "The selected ribbon tab must already be active before dismissing its overflow");
+		click(robot, selectedTab);
+		GuiAcceptanceSupport.await(selectedTab::isSelected, "Ribbon tab lost selection while dismissing its overflow");
 		if (overflow[0] != null) {
 			GuiAcceptanceSupport.await(() -> !overflow[0].isShowing(),
-				"Clicking the selected Task tab did not close its ribbon overflow popup");
+				"Clicking the selected ribbon tab did not close its overflow popup");
 		}
 		GuiAcceptanceSupport.await(preservedState::getAsBoolean, preservedStateMessage);
 	}
