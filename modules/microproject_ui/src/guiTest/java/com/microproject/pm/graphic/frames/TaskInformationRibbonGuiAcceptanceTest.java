@@ -2602,9 +2602,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("ViewRibbonTask.title"));
 		clickAndAwaitSelected(robot, viewTab, "Robot click did not select the View ribbon tab for Calendar");
-		GuiAcceptanceSupport.await(() -> hasShowingCommand("RibbonCalendarView"),
-			"View ribbon did not expose RibbonCalendarView after selecting its tab; " + componentInputDiagnostics(viewTab));
-		click(robot, findShowingButtonByCommand("RibbonCalendarView"));
+		AbstractButton calendarView = findShowingButtonByCommand("RibbonCalendarView");
+		click(robot, calendarView);
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getCalendarViewDialog() != null
 			&& manager.getCurrentFrame().getCalendarViewDialog().isShowing(), "calendar link dialog did not open");
 		CalendarViewDialogBox calendar = manager.getCurrentFrame().getCalendarViewDialog();
