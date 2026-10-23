@@ -46,6 +46,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import java.util.function.BooleanSupplier;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
@@ -4949,6 +4950,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		AbstractButton copy = findShowingButtonByCommand("RibbonCopy");
 		GuiAcceptanceSupport.await(copy::isEnabled, "Copy remained disabled after selecting source task");
 		click(robot, copy);
+		dismissTaskRibbonOverflow(robot, copy,
+			() -> sheet.getSelectedRow() == rowForTask(sheet, source) && sheet.isRowHeaderSelectionActive(),
+			"the physical Copy must preserve its selected source row");
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, target), nameColumn(sheet)));
 		// Paste Insert is intentionally popup-only in the ribbon shell.  Exercise
 		// its real physical route as part of the same clipboard fixture so every
@@ -8342,6 +8346,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"a physical task-name click did not restore ordinary row selection after Ctrl+Space");
 		AbstractButton painter = findShowingButtonByCommand("RibbonFormatPainter");
 		assertTrue(painter.isEnabled(), "Format Painter must be enabled for one editable task source");
+		dismissTaskRibbonOverflow(robot, painter, () -> sheetHasOnlySelectedTask(sheet, source),
+			"the Format Painter source selection must remain intact");
 		robot.keyPress(KeyEvent.VK_SHIFT);
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, firstTarget), 0));
 		robot.keyRelease(KeyEvent.VK_SHIFT);
@@ -8349,6 +8355,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				.containsAll(List.of(source, firstTarget)), "Shift-click must create the mixed multi-task selection fixture");
 		painter = findShowingButtonByCommand("RibbonFormatPainter");
 		assertFalse(painter.isEnabled(), "Format Painter must reject a multiple-task source selection");
+		dismissTaskRibbonOverflow(robot, painter,
+			() -> manager.getCurrentFrame().getSelectedImpls(false).containsAll(List.of(source, firstTarget)),
+			"the mixed task selection must remain intact");
 		// The lead row can already be the source while Shift-click has extended the selection.
 		// clickUntilSelected only checks that lead row, so issue an unmodified physical click
 		// here to collapse the multi-selection before asserting single-source enablement.
@@ -8362,6 +8371,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(this::formatPainterActionSelected, "one-shot Format Painter did not enter its armed state");
 		painter = findShowingButtonByCommand("RibbonFormatPainter");
 		assertTrue(painter.isSelected(), "the current Format Painter control must show its armed state");
+		dismissTaskRibbonOverflow(robot, painter, this::formatPainterActionSelected,
+			"Format Painter must remain armed after dismissing its overflow");
 		clickUntilSelected(robot, window, sheet, rowForTask(sheet, firstTarget), 0);
 		GuiAcceptanceSupport.await(() -> firstTarget.isFontBold() && firstTarget.isFontItalic()
 				&& firstTarget.isFontStrikethrough() && firstTarget.getFontSize() == 15
@@ -8372,6 +8383,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"one-shot Format Painter must disarm after one target selection");
 		painter = findShowingButtonByCommand("RibbonFormatPainter");
 		assertFalse(painter.isSelected(), "the current Format Painter control must show its disarmed state");
+		dismissTaskRibbonOverflow(robot, painter, () -> !formatPainterActionSelected(),
+			"one-shot Format Painter must remain disarmed");
 		assertTrue(undo.canUndo(), "one target application must create one undoable mutation");
 		assertEquals("Format first target", firstTarget.getName(), "format painting must preserve task data");
 		assertArrayEquals(originalDates, new long[] { firstTarget.getStart(), firstTarget.getEnd(), secondTarget.getStart(),
@@ -8417,6 +8430,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"second Format Painter activation must promote to continuous mode");
 		painter = findShowingButtonByCommand("RibbonFormatPainter");
 		assertTrue(painter.isSelected(), "the current Format Painter control must remain armed in continuous mode");
+		dismissTaskRibbonOverflow(robot, painter, this::formatPainterActionSelected,
+			"continuous Format Painter must remain armed after dismissing its overflow");
 		clickUntilSelected(robot, window, sheet, rowForTask(sheet, secondTarget), 0);
 		GuiAcceptanceSupport.await(() -> secondTarget.isFontBold() && secondTarget.getFontSize() == 15,
 			"continuous Format Painter did not format its first target");
@@ -8424,6 +8439,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"continuous Format Painter must remain armed after a target selection");
 		painter = findShowingButtonByCommand("RibbonFormatPainter");
 		assertTrue(painter.isSelected(), "the current Format Painter control must remain armed after a target selection");
+		dismissTaskRibbonOverflow(robot, painter, this::formatPainterActionSelected,
+			"continuous Format Painter must remain armed before selecting its source again");
 		clickUntilSelected(robot, window, sheet, rowForTask(sheet, source), nameColumn(sheet));
 		press(robot, KeyEvent.VK_F2);
 		GuiAcceptanceSupport.await(sheet::isEditing, "F2 did not open the source cell editor");
@@ -8433,6 +8450,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"Escape cancelling a cell edit must leave continuous Format Painter armed");
 		painter = findShowingButtonByCommand("RibbonFormatPainter");
 		assertTrue(painter.isSelected(), "the current Format Painter control must remain armed after Escape cancels an edit");
+		dismissTaskRibbonOverflow(robot, painter, this::formatPainterActionSelected,
+			"continuous Format Painter must remain armed after dismissing its overflow");
 		clickUntilSelected(robot, window, sheet, rowForTask(sheet, thirdTarget), 0);
 		GuiAcceptanceSupport.await(() -> thirdTarget.isFontBold() && thirdTarget.getFontSize() == 15,
 			"continuous Format Painter did not format its next target");
@@ -8440,6 +8459,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> !formatPainterActionSelected(), "Escape must stop continuous Format Painter mode");
 		painter = findShowingButtonByCommand("RibbonFormatPainter");
 		assertFalse(painter.isSelected(), "the current Format Painter control must show continuous mode stopped");
+		dismissTaskRibbonOverflow(robot, painter, () -> !formatPainterActionSelected(),
+			"continuous Format Painter must remain disarmed");
 		clickUntilSelected(robot, window, sheet, rowForTask(sheet, untouched), 0);
 		assertFalse(untouched.isFontBold() || untouched.isFontItalic() || untouched.isFontStrikethrough()
 			|| untouched.getFontSize() != 0 || untouched.getFontFamily() != null || untouched.getFontColor() != null,
@@ -8454,6 +8475,33 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	private boolean formatPainterActionSelected() {
 		Action action = manager.getMenuManager().getActionFromId("RibbonFormatPainter");
 		return action != null && Boolean.TRUE.equals(action.getValue(Action.SELECTED_KEY));
+	}
+
+	private void dismissTaskRibbonOverflow(Robot robot, Component command, BooleanSupplier preservedState,
+			String preservedStateMessage) throws Exception {
+		JPopupMenu[] overflow = new JPopupMenu[1];
+		SwingUtilities.invokeAndWait(() -> {
+			for (Component current = command; current != null; current = current.getParent()) {
+				if (current instanceof JPopupMenu popup) {
+					overflow[0] = popup;
+					break;
+				}
+			}
+		});
+		if (overflow[0] == null || !overflow[0].isShowing()) {
+			GuiAcceptanceSupport.await(preservedState::getAsBoolean, preservedStateMessage);
+			return;
+		}
+		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+			.getString("TaskRibbonTask.title"));
+		assertTrue(taskTab.isSelected(), "Task ribbon tab must already be selected before dismissing its overflow");
+		click(robot, taskTab);
+		GuiAcceptanceSupport.await(taskTab::isSelected, "Task ribbon tab lost selection while dismissing its overflow");
+		if (overflow[0] != null) {
+			GuiAcceptanceSupport.await(() -> !overflow[0].isShowing(),
+				"Clicking the selected Task tab did not close its ribbon overflow popup");
+		}
+		GuiAcceptanceSupport.await(preservedState::getAsBoolean, preservedStateMessage);
 	}
 
 	private static boolean sheetHasOnlySelectedTask(SpreadSheet sheet, Task expected) {
