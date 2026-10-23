@@ -33,6 +33,8 @@ import javax.swing.text.JTextComponent;
 
 /** Shared visual invariants for text-bearing controls in dialogs. */
 public final class DialogLayoutAssertions {
+	private static final int MAX_SCROLL_ATTEMPTS = 40;
+
 	private DialogLayoutAssertions() {
 	}
 
@@ -102,7 +104,7 @@ public final class DialogLayoutAssertions {
 
 	private static void scrollTargetWithinViewport(Robot robot, Component component, Rectangle localTarget,
 			JViewport viewport, String description) throws Exception {
-		for (int attempt = 0; attempt < 20; attempt++) {
+		for (int attempt = 0; attempt < MAX_SCROLL_ATTEMPTS; attempt++) {
 			Rectangle[] target = new Rectangle[1];
 			Rectangle[] visible = new Rectangle[1];
 			boolean[] showing = new boolean[1];
@@ -228,8 +230,18 @@ public final class DialogLayoutAssertions {
 			.append(" localTarget=").append(localTarget).append(" visibleRect=").append(componentVisibleRect(component));
 		for (JViewport viewport : viewports) {
 			Rectangle target = SwingUtilities.convertRectangle(component, localTarget, viewport.getView());
+			JScrollPane pane = scrollPaneFor(viewport);
+			JScrollBar vertical = pane.getVerticalScrollBar();
+			JScrollBar horizontal = pane.getHorizontalScrollBar();
 			state.append("; viewportView=").append(viewport.getView().getClass().getSimpleName())
-				.append(" target=").append(target).append(" viewRect=").append(viewport.getViewRect());
+				.append(" target=").append(target).append(" viewRect=").append(viewport.getViewRect())
+				.append(" viewSize=").append(viewport.getView().getSize())
+				.append(" verticalScroll={value=").append(vertical.getValue()).append(",maximum=")
+				.append(vertical.getMaximum()).append(",extent=").append(vertical.getVisibleAmount())
+				.append(",unitIncrement=").append(vertical.getUnitIncrement()).append('}')
+				.append(" horizontalScroll={value=").append(horizontal.getValue()).append(",maximum=")
+				.append(horizontal.getMaximum()).append(",extent=").append(horizontal.getVisibleAmount())
+				.append(",unitIncrement=").append(horizontal.getUnitIncrement()).append('}');
 		}
 		Window window = SwingUtilities.getWindowAncestor(component);
 		if (window != null) state.append("; window=").append(window.getBounds());

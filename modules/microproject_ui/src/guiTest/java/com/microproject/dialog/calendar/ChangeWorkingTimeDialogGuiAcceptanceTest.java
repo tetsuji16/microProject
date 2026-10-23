@@ -372,6 +372,7 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 		physicallyClick(robot, details, "Exception Details button");
 		GuiAcceptanceSupport.await(() -> visibleChildDialog() != null, "Exception Details editor did not open");
 		JDialog exceptionDetails = visibleChildDialog();
+		constrainExceptionDetailsForScrollableViewport(exceptionDetails);
 		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(exceptionDetails, "Exception Details visual matrix");
 		assertVisibleComponentsFit(exceptionDetails, "Exception Details visual matrix");
 		JSpinner lowerExceptionControl = findNamedSpinner(exceptionDetails, "calendarExceptionOccurrences");
@@ -987,6 +988,13 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 			Rectangle usable = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
 			dialog.setSize(Math.min(650, Math.min(dialog.getWidth(), usable.width)), Math.min(480, usable.height));
 			dialog.validate();
+		});
+	}
+
+	private static void constrainExceptionDetailsForScrollableViewport(JDialog details) throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			details.setSize(Math.min(636, details.getWidth()), Math.min(415, details.getHeight()));
+			details.validate();
 		});
 	}
 
