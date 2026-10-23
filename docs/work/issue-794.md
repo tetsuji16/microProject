@@ -3,6 +3,17 @@
 State: OPEN. Issue: https://github.com/tetsuji16/ProjectLibre/issues/794
 PR #872 and follow-up fixes #873/#874 are integrated in `origin/master`. Referenced dependencies #792 and #793 are closed; they are not registered subissues. Contract frozen from [original acceptance comment](https://github.com/tetsuji16/ProjectLibre/issues/794#issuecomment-6313928977).
 PR #880 is merged as `48bff2bf9bb53525a66c7e8f7fef341a45b11a0a`. On candidate `aec3a037246ac43a40bf9fb33214886dd040b8d2`, focused Task Information GUI passed 72/72, and PR Build, GUI smoke, and focused physical evidence passed. Master Build `39900129546` and smoke `39900129331` passed. Stable release attempt `39900156976` passed build/package verification but stopped in the first full GUI leg after Explorer's system-tray overflow window overlapped the test window; all 12 resulting failures were `GUI_ENVIRONMENT_CONTENDED`, with no independent product assertion failure. No release was published. Replacement stable run `39911364047` failed in the ja/150% and en/150% GUI matrix; no release was published. Keep every original M2.1–M2.4/Common criterion and #794 open until publication. Preserve `.codex-remote-attachments/`.
+
+Release run `39945722163` on stable candidate `v0.0.24.1262` passed Linux
+build/package/upload but its macOS UI unit task failed 2 of 1,268 tests:
+`MicrosoftShortcutsRootPaneTest.documentShortcutsAreNotOwnedBySpreadsheetInputMaps`
+and `noDocumentShortcutIsAlsoBoundInAnyComponentOrAncestorScope`. The job log
+and run artifacts did not retain assertion conflict details or test reports, so
+the failure source is unconfirmed; do not change production shortcut behavior
+from this evidence. Build workflow manual dispatch can now target `macos-latest`
+to reproduce the test natively and upload XML/HTML reports on failure. Keep the
+single-root-pane ownership contract and use those reports to choose the next
+slice.
 Long-form evidence and older failures: [issue-794-evidence.md](issue-794-evidence.md). Follow [issue execution](../issue-execution.md); reuse earlier SHA evidence only when the scoped diff confirms relevant production code, fixture, and dependencies unchanged.
 
 ## Frozen acceptance and current status
