@@ -36,14 +36,14 @@ use the localized text (XLSX writes millis, MPX/MSPDI go through MPXJ).
 |---|---|---|---|
 | A1 | ja shows minute/hour/day/week/month/elapsed units in Japanese; `?` kept | pass (unit) | `DurationUnitNamesTest` |
 | A2 | ja accepts Japanese names and English abbreviations with the same value | pass (unit) | `DurationUnitNamesTest`; U-26 types `1 day`/`6 hours` physically in ja |
-| A3 | Display-only: MPO/MPP values unchanged; save/reload shows the same text | pending | U-26 MPO reopen assertions (ja) |
+| A3 | Display-only: MPO/MPP values unchanged; save/reload shows the same text | pass (GUI) | U-26 MPO reopen assertions, ja and en |
 | A4 | No English display/input regression | pass (unit) | `DurationUnitNamesTest.englishNamesAreUnchanged`; module tests pinned to en-US |
 
 ## Current slice
 
-**Next slice:** run U-26 physical GUI journey in ja and en.
-**Done when:** both pass on this branch's SHA.
-**Then:** integration (PR) and close.
+**Next slice:** integration (PR) and close.
+**Done when:** CI is green on the PR head.
+**Then:** close #893.
 
 ## Remaining blockers
 
@@ -51,6 +51,7 @@ use the localized text (XLSX writes millis, MPX/MSPDI go through MPXJ).
 
 ## Latest evidence
 
-- Tests/build: pending
-- Physical GUI/manual: pending
+- Tests/build: `gradlew build` passed at `d8930bf99` (all module tests; unit JVM pinned to en-US).
+- Physical GUI/manual: `guiTest` U26SpreadsheetInputTransactionGuiAcceptanceTest passed in ja and en
+  (0 skipped); TaskTableGanttGridGuiAcceptanceTest (ja) capture shows `3 日` / `0.5 日`.
 - CI: pending
