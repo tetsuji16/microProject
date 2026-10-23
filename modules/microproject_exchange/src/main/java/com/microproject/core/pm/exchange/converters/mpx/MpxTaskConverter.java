@@ -42,8 +42,7 @@ import net.sf.mpxj.TaskMode;
 /**
  * Converts an MPXJ Task into a microproject Task.
  * Only fields that exist on the microproject Task model are mapped; fields that
- * the microproject model does not carry (estimated, effortDriven, schedulingType,
- * priority, cost, fixedCost, fixedCostAccrual, external, ...) are intentionally
+ * the microproject model does not carry (cost, external, ...) are intentionally
  * skipped. See issue #154 for the model-extension discussion.
  * @author Laurent Chretienneau
  */
@@ -117,7 +116,9 @@ public class MpxTaskConverter {
 			if (mpxTask.getDuration() != null) {
 				long duration = MpxUtils.toProjectDuration(mpxTask.getDuration(), durationDefaults);
 				normalTask.setRawDuration(duration);
-				normalTask.setEstimated(com.microproject.datatype.Duration.isEstimated(duration));
+				// An MPXJ Duration never carries the estimated bit; the stored MSPDI
+				// Estimated field is authoritative (issue #887).
+				normalTask.setEstimated(mpxTask.getEstimated());
 			}
 			if (mpxTask.getPercentageComplete() != null)
 				normalTask.setImportedPercentComplete(toRatio(mpxTask.getPercentageComplete()));
