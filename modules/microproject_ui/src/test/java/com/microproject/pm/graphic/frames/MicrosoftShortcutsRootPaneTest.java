@@ -22,6 +22,7 @@ package com.microproject.pm.graphic.frames;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -62,6 +63,32 @@ import com.microproject.workspace.WorkspaceSetting;
  * drives that seam directly so it runs headless.
  */
 class MicrosoftShortcutsRootPaneTest {
+
+	@Test
+	void documentF2IsRemovedWhenTableSetupBindsItToTheFocusedMap() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			FocusedF2BindingSpreadSheet.bindingSeeded = false;
+			KeyStroke f2 = KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0);
+			SpreadSheet sheet = new FocusedF2BindingSpreadSheet();
+			assertTrue(FocusedF2BindingSpreadSheet.bindingSeeded,
+				"the test must install an ETable macOS-style focused F2 binding during UI setup");
+			assertNull(sheet.getInputMap(JComponent.WHEN_FOCUSED).get(f2),
+				"the spreadsheet must leave document F2 ownership on the root pane");
+		});
+	}
+
+	private static final class FocusedF2BindingSpreadSheet extends SpreadSheet {
+		private static final long serialVersionUID = 1L;
+		private static boolean bindingSeeded;
+
+		@Override
+		public void updateUI() {
+			super.updateUI();
+			getInputMap(JComponent.WHEN_FOCUSED)
+				.put(KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0), "startEditing");
+			bindingSeeded = true;
+		}
+	}
 
 	@Test
 	void documentShortcutsAreNotOwnedBySpreadsheetInputMaps() throws Exception {

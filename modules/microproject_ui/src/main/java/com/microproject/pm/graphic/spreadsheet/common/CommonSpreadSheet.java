@@ -150,11 +150,10 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		putClientProperty("terminateEditOnFocusLost", Boolean.TRUE);
 		//setSurrendersFocusOnKeystroke(true); //has the side effect of selecting the first character of cell after ENTER keystroke
 		setAutoCreateColumnsFromModel(false);
-		// ETable installs F2 on its ancestor input map. It starts editing the
-		// lead column of an all-column row selection before the document root-pane
+		// ETable installs F2 on its focused input map on macOS. It starts editing
+		// the lead column of an all-column row selection before the document root-pane
 		// can dispatch EditField, so it may edit a different field than the clicked
 		// cell. F2 is registered exclusively by GraphicManager on the root pane.
-		removeAncestorShortcut(KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0));
 		// The document root pane gives Escape priority to cancelling an active
 		// sheet editor, then to stopping Format Painter. ETable's enabled ancestor
 		// cancel action would consume Escape before that document command.
@@ -181,7 +180,8 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 
 	/** Removes spreadsheet-level copies of document shortcuts from both local maps. */
 	protected static void removeRootPaneShortcutDuplicates(JComponent component, KeyStroke... extraShortcuts) {
-		KeyStroke[] baseShortcuts = {KeyStroke.getKeyStroke("ctrl V"), KeyStroke.getKeyStroke("ctrl C"),
+		KeyStroke[] baseShortcuts = {KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0),
+			KeyStroke.getKeyStroke("ctrl V"), KeyStroke.getKeyStroke("ctrl C"),
 			KeyStroke.getKeyStroke("ctrl X"),
 			KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, java.awt.event.InputEvent.CTRL_DOWN_MASK),
 			KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, java.awt.event.InputEvent.SHIFT_DOWN_MASK),

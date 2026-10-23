@@ -5,15 +5,21 @@ PR #872 and follow-up fixes #873/#874 are integrated in `origin/master`. Referen
 PR #880 is merged as `48bff2bf9bb53525a66c7e8f7fef341a45b11a0a`. On candidate `aec3a037246ac43a40bf9fb33214886dd040b8d2`, focused Task Information GUI passed 72/72, and PR Build, GUI smoke, and focused physical evidence passed. Master Build `39900129546` and smoke `39900129331` passed. Stable release attempt `39900156976` passed build/package verification but stopped in the first full GUI leg after Explorer's system-tray overflow window overlapped the test window; all 12 resulting failures were `GUI_ENVIRONMENT_CONTENDED`, with no independent product assertion failure. No release was published. Replacement stable run `39911364047` failed in the ja/150% and en/150% GUI matrix; no release was published. Keep every original M2.1–M2.4/Common criterion and #794 open until publication. Preserve `.codex-remote-attachments/`.
 
 Release run `39945722163` on stable candidate `v0.0.24.1262` passed Linux
-build/package/upload but its macOS UI unit task failed 2 of 1,268 tests:
-`MicrosoftShortcutsRootPaneTest.documentShortcutsAreNotOwnedBySpreadsheetInputMaps`
-and `noDocumentShortcutIsAlsoBoundInAnyComponentOrAncestorScope`. The job log
-and run artifacts did not retain assertion conflict details or test reports, so
-the failure source is unconfirmed; do not change production shortcut behavior
-from this evidence. Build workflow manual dispatch can now target `macos-latest`
-to reproduce the test natively and upload XML/HTML reports on failure. Keep the
-single-root-pane ownership contract and use those reports to choose the next
-slice.
+build/package/upload but its macOS UI unit task failed 2 of 1,268 tests.
+Diagnostic Build run `39946950533` on `macos-latest`, HEAD
+`0be3796c6c08968ab4ca4a62ed65ea26c6a7e69d`, reproduced both failures and
+captured the test reports in [artifact 12498099889](https://github.com/tetsuji16/ProjectLibre/actions/runs/39946950533/artifacts/12498099889).
+Both conflicts are bare F2 mapped to `startEditing` in `WHEN_FOCUSED` on
+`SpreadSheet`; the first also sees it on `CommonSpreadSheet`, and the second on
+`TimeSpreadSheet`. NetBeans ETable installs this focused F2 mapping when its
+macOS check is true, while `CommonSpreadSheet` previously removed F2 only from
+the ancestor map. The source-backed fix routes bare F2 through the existing
+cleanup of both focused and ancestor maps. A new UI-bootstrap-seeded regression
+fails before the fix and passes after it. Existing Windows physical F2/IME
+journey `CanonicalProjectWindowGuiAcceptanceTest.robotConvertReportsUnsupportedImeOnBothSpreadsheetRoutesWithoutChangingText`
+also passed on the local FlatLaf desktop. This confirms the macOS headless test
+map conflict; physical macOS app behavior remains unmeasured. Keep the original
+M2.1–M2.4/Common criteria and #794 open until publication.
 Long-form evidence and older failures: [issue-794-evidence.md](issue-794-evidence.md). Follow [issue execution](../issue-execution.md); reuse earlier SHA evidence only when the scoped diff confirms relevant production code, fixture, and dependencies unchanged.
 
 ## Frozen acceptance and current status
