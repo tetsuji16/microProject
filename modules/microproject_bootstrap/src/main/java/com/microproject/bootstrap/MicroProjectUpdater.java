@@ -55,7 +55,7 @@ public final class MicroProjectUpdater {
 
     /** Default update feed: signed configuration.xml published with each GitHub Release. */
     static final URI DEFAULT_CONFIG_URI = URI.create(
-            "https://github.com/tetsuji16/ProjectLibre/releases/latest/download/configuration.xml");
+            "https://github.com/tetsuji16/microProject/releases/latest/download/configuration.xml");
 
     /** Preferences node holding the auto-update settings (mirrors the plan A key table). */
     private static final String PREFS_NODE = "com/microproject/bootstrap";

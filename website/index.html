@@ -443,8 +443,8 @@
         <a class="button secondary" href="index-zh.html" onclick="try{localStorage.setItem('microProjectLanguage','zh')}catch(e){}">中文</a>
         <a class="button secondary" href="usage-guide-ja.html">オンライン ヘルプ</a>
         <a class="button secondary" href="ccpm-sample-guide-ja.html">CCPM サンプルガイド</a>
-        <a class="button secondary" href="https://github.com/tetsuji16/ProjectLibre">Repository</a>
-        <a class="button secondary" href="https://github.com/tetsuji16/ProjectLibre/releases">Releases</a>
+        <a class="button secondary" href="https://github.com/tetsuji16/microProject">Repository</a>
+        <a class="button secondary" href="https://github.com/tetsuji16/microProject/releases">Releases</a>
       </div>
     </header>
 
@@ -467,8 +467,8 @@
           </p>
         </div>
         <div class="hero-actions">
-          <a class="button primary" href="https://github.com/tetsuji16/ProjectLibre/releases/latest/download/microProject-latest.msi">Windows MSI をダウンロード</a>
-          <a class="button secondary" href="https://github.com/tetsuji16/ProjectLibre/releases/latest">最新リリースを見る</a>
+          <a class="button primary" href="https://github.com/tetsuji16/microProject/releases/latest/download/microProject-latest.msi">Windows MSI をダウンロード</a>
+          <a class="button secondary" href="https://github.com/tetsuji16/microProject/releases/latest">最新リリースを見る</a>
         </div>
       </div>
 
@@ -509,7 +509,7 @@
             <h3>Windows Installer</h3>
             <p>通常利用向けの自己完結型インストーラーです。GitHub Releases 上の最新 MSI をそのまま案内しています。</p>
             <div class="download-actions">
-              <a class="button primary" href="https://github.com/tetsuji16/ProjectLibre/releases/latest/download/microProject-latest.msi">最新 MSI をダウンロード</a>
+              <a class="button primary" href="https://github.com/tetsuji16/microProject/releases/latest/download/microProject-latest.msi">最新 MSI をダウンロード</a>
             </div>
             <div class="download-meta">推奨: Windows クライアント環境</div>
           </section>
@@ -517,7 +517,7 @@
             <h3>Windows Portable</h3>
             <p>インストールせずに展開先から起動できる自己完結型 app-image です。ZIP を展開して microProject.cmd（または microProject.exe）を実行します。</p>
             <div class="download-actions">
-              <a class="button secondary" href="https://github.com/tetsuji16/ProjectLibre/releases/latest/download/microProject-latest-app-image.zip">最新 Portable ZIP をダウンロード</a>
+              <a class="button secondary" href="https://github.com/tetsuji16/microProject/releases/latest/download/microProject-latest-app-image.zip">最新 Portable ZIP をダウンロード</a>
             </div>
             <div class="download-meta">最新リリースの portable app-image</div>
           </section>
@@ -525,20 +525,20 @@
             <h3>Release Notes</h3>
               <p>変更内容と配布物の詳細は、GitHub Releases の最新リリースノートで確認できます。</p>
             <div class="download-actions">
-              <a class="button secondary" href="https://github.com/tetsuji16/ProjectLibre/releases/latest">最新リリースの詳細を見る</a>
+              <a class="button secondary" href="https://github.com/tetsuji16/microProject/releases/latest">最新リリースの詳細を見る</a>
             </div>
             <div class="download-meta">Release assets: MSI / app-image ZIP</div>
           </section>
           <section class="download-item" data-platform-download="linux-x64">
             <h3>Linux x64</h3>
             <p>大きな更新時に提供する self-contained app-image です。</p>
-            <div class="download-actions"><a class="button secondary" href="https://github.com/tetsuji16/ProjectLibre/releases">Linux ZIP を探す</a></div>
+            <div class="download-actions"><a class="button secondary" href="https://github.com/tetsuji16/microProject/releases">Linux ZIP を探す</a></div>
             <div class="download-meta" data-platform-version>安定版の配布物を確認しています</div>
           </section>
           <section class="download-item" data-platform-download="macos-aarch64">
             <h3>macOS Apple Silicon</h3>
             <p>大きな更新時に提供する self-contained app-image です。</p>
-            <div class="download-actions"><a class="button secondary" href="https://github.com/tetsuji16/ProjectLibre/releases">macOS ZIP を探す</a></div>
+            <div class="download-actions"><a class="button secondary" href="https://github.com/tetsuji16/microProject/releases">macOS ZIP を探す</a></div>
             <div class="download-meta" data-platform-version>安定版の配布物を確認しています</div>
           </section>
         </div>
@@ -573,7 +573,7 @@
   </main>
   <script>
     (function () {
-      var repo = 'https://api.github.com/repos/tetsuji16/ProjectLibre/releases?per_page=100&page=';
+      var repo = 'https://api.github.com/repos/tetsuji16/microProject/releases?per_page=100&page=';
       var platforms = [
         { id: 'linux-x64', suffix: '-linux-x64.zip' },
         { id: 'macos-aarch64', suffix: '-macos-aarch64.zip' }
@@ -617,7 +617,7 @@
             var version = card.querySelector('[data-platform-version]');
             if (!match) {
               version.textContent = '安定版の配布物は未公開です';
-              link.href = 'https://github.com/tetsuji16/ProjectLibre/releases';
+              link.href = 'https://github.com/tetsuji16/microProject/releases';
               return;
             }
             link.href = match.asset.browser_download_url;
@@ -629,7 +629,7 @@
             version.textContent = '配布一覧で利用可能な版をご確認ください';
           });
           document.querySelectorAll('[data-platform-download] a').forEach(function (link) {
-            link.href = 'https://github.com/tetsuji16/ProjectLibre/releases';
+            link.href = 'https://github.com/tetsuji16/microProject/releases';
           });
         });
     })();

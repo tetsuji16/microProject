@@ -33,7 +33,7 @@ Microsoft Planner のクラウド認証・同期はこの製品目標の対象�
 
 Quick links:
 
-- [Stable releases and downloads](https://github.com/tetsuji16/ProjectLibre/releases/latest)
+- [Stable releases and downloads](https://github.com/tetsuji16/microProject/releases/latest)
 - [Stable release operator runbook](docs/releasing.md)
 - [Trial release checklist](docs/trial-release-plan.md) — prerelease route, basic user journey, and known limits
 - [microProject documentation](https://o-server.main.jp/micro-project/)
@@ -43,12 +43,12 @@ Quick links:
 
 | Gate | Scope | Status |
 |---|---|---|
-| M0 | Target and complete coverage inventory | Open — [#792](https://github.com/tetsuji16/ProjectLibre/issues/792) |
-| M1 | Current Office-style ribbon visuals | Open — [#793](https://github.com/tetsuji16/ProjectLibre/issues/793) |
-| M2 | Offline desktop workflow parity | Open — [#794](https://github.com/tetsuji16/ProjectLibre/issues/794) |
-| M3 | MPP reading and other file interoperability (MPP writing out of scope) | Open — [#796](https://github.com/tetsuji16/ProjectLibre/issues/796) |
-| M4 | Microsoft Project-specific automation and extensions | Excluded by product scope — [#797](https://github.com/tetsuji16/ProjectLibre/issues/797) |
-| M5 | Release compatibility acceptance | Open — [#795](https://github.com/tetsuji16/ProjectLibre/issues/795) |
+| M0 | Target and complete coverage inventory | Open — [#792](https://github.com/tetsuji16/microProject/issues/792) |
+| M1 | Current Office-style ribbon visuals | Open — [#793](https://github.com/tetsuji16/microProject/issues/793) |
+| M2 | Offline desktop workflow parity | Open — [#794](https://github.com/tetsuji16/microProject/issues/794) |
+| M3 | MPP reading and other file interoperability (MPP writing out of scope) | Open — [#796](https://github.com/tetsuji16/microProject/issues/796) |
+| M4 | Microsoft Project-specific automation and extensions | Excluded by product scope — [#797](https://github.com/tetsuji16/microProject/issues/797) |
+| M5 | Release compatibility acceptance | Open — [#795](https://github.com/tetsuji16/microProject/issues/795) |
 
 ![microProject commercial construction project plan in the Gantt view](docs/images/demo_gannt.png)
 
