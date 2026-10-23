@@ -326,7 +326,7 @@ jobs:
           }
 
       - name: Download Linux and macOS packages
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_unix_packages }}
+        if: ${{ needs.unix-packages.result == 'success' }}
         uses: actions/download-artifact@v4
         with:
           pattern: package-*
@@ -341,7 +341,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $version = '${{ steps.version.outputs.release_version }}'
           New-Item -ItemType Directory -Path release-assets | Out-Null
-          if ('${{ github.event_name == 'workflow_dispatch' && inputs.build_unix_packages }}' -eq 'true') {
+          if ('${{ needs.unix-packages.result }}' -eq 'success') {
             foreach ($platform in @('linux-x64', 'macos-aarch64')) {
               $packageDir = Join-Path $PWD "unix-packages/package-$platform"
               $package = @(Get-ChildItem -LiteralPath $packageDir -File -Filter "microProject-$version-$platform.zip" -ErrorAction SilentlyContinue)

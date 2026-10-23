@@ -34,6 +34,7 @@ Microsoft Planner のクラウド認証・同期はこの製品目標の対象�
 Quick links:
 
 - [Stable releases and downloads](https://github.com/tetsuji16/ProjectLibre/releases/latest)
+- [Stable release operator runbook](docs/releasing.md)
 - [Trial release checklist](docs/trial-release-plan.md) — prerelease route, basic user journey, and known limits
 - [microProject documentation](https://o-server.main.jp/micro-project/)
 - [Microsoft Project desktop compatibility roadmap](docs/msp-compatibility-roadmap.md) — goal, phased acceptance gates, and review of every currently open issue
@@ -214,7 +215,7 @@ Files under `docs/downloads/` are scratch space and must not be committed. Publi
 
 ## Automated Release and Documentation Deployment
 
-The release workflow packages Windows MSI and portable ZIP artifacts and also builds Linux x64 and macOS Apple Silicon app-image ZIPs on their native GitHub Actions runners. The Windows GUI and packaged-launch gates remain required; release publication waits for every platform package job. A `release/beta-0.0.24-2` branch publishes `v0.0.24-beta.2` as a prerelease; beta releases do not replace stable `latest` assets or the unattended update feed.
+The Release workflow packages Windows MSI and portable ZIP artifacts and builds Linux x64 and macOS Apple Silicon app-image ZIPs for stable branch releases. Stable publication requires the full GUI gate and all platform package jobs. See the [stable release operator runbook](docs/releasing.md) for the single release procedure and verification steps. Beta releases remain prereleases and do not replace stable `latest` assets or the unattended update feed.
 
 The canonical documentation and download entry point is [o-server.main.jp/micro-project/](https://o-server.main.jp/micro-project/), built from `website/` by the o-server documentation workflow. GitHub Pages publishes redirect stubs from `pages-redirect/`; `docs/*.html` are legacy redirects.
 
