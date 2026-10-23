@@ -14,11 +14,13 @@ import java.util.Set;
 
 import javax.swing.AbstractButton;
 import javax.swing.Action;
+import javax.swing.JComponent;
 
 import com.microproject.menu.MenuActionConstants;
 import com.microproject.menu.MenuManager;
 import com.microproject.options.EditOption;
 import com.microproject.pm.task.Project;
+import com.microproject.ui.ribbon.ModernRibbonPanel;
 
 /** Updates registered, visible, and transient Status Date controls from the project state. */
 final class StatusDateControlUpdater {
@@ -56,16 +58,23 @@ final class StatusDateControlUpdater {
 			}
 		}
 		if (root != null)
-			collectVisibleComponents(root, buttons);
+			collectComponents(root, buttons, Collections.newSetFromMap(new IdentityHashMap<>()));
 		return buttons;
 	}
 
-	private static void collectVisibleComponents(Container parent, Set<AbstractButton> buttons) {
+	private static void collectComponents(Container parent, Set<AbstractButton> buttons, Set<Component> visited) {
+		if (!visited.add(parent))
+			return;
 		for (Component child : parent.getComponents()) {
 			if (child instanceof AbstractButton button && RIBBON_BUTTON_ID.equals(button.getActionCommand()))
 				buttons.add(button);
 			if (child instanceof Container nested)
-				collectVisibleComponents(nested, buttons);
+				collectComponents(nested, buttons, visited);
+			if (child instanceof JComponent swingComponent) {
+				Object popup = swingComponent.getClientProperty(ModernRibbonPanel.COLLAPSED_POPUP_PROPERTY);
+				if (popup instanceof Container nestedPopup)
+					collectComponents(nestedPopup, buttons, visited);
+			}
 		}
 	}
 

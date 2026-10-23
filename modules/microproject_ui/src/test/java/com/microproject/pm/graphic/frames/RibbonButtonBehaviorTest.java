@@ -54,6 +54,8 @@ import javax.swing.ActionMap;
 import javax.swing.AbstractButton;
 import javax.swing.JButton;
 import javax.swing.InputMap;
+import javax.swing.JMenuItem;
+import javax.swing.JPopupMenu;
 import javax.swing.KeyStroke;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
@@ -67,6 +69,7 @@ import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeFactory;
 import com.microproject.grouping.core.transform.grouping.NodeGroup;
 import com.microproject.menu.MenuActionConstants;
+import com.microproject.menu.MenuActionMapSupport;
 import com.microproject.menu.MenuManager;
 import com.microproject.options.CalendarOption;
 import com.microproject.collaboration.CollaborationSession;
@@ -90,6 +93,7 @@ import com.microproject.pm.graphic.frames.workspace.Workspace;
 import com.microproject.workspace.WorkspaceSetting;
 import com.microproject.ribbon.RibbonCommandResult;
 import com.microproject.ribbon.CommandId;
+import com.microproject.ui.ribbon.ModernRibbonPanel;
 
 class RibbonButtonBehaviorTest {
 	private enum Strategy {
@@ -128,6 +132,28 @@ class RibbonButtonBehaviorTest {
 		assertTrue(targets.contains(registered));
 		assertTrue(targets.contains(toolbarCompatibility));
 		assertTrue(targets.contains(transientRibbon));
+	}
+
+	@Test
+	void refreshUpdatesTransientStatusDateCommandsInCollapsedRibbonPopups() throws Exception {
+		JButton overflow = new JButton("…");
+		JPopupMenu popup = new JPopupMenu();
+		JMenuItem transientStatusDate = new JMenuItem("stale Status Date");
+		transientStatusDate.setActionCommand("RibbonStatusDate");
+		popup.add(transientStatusDate);
+		popup.putClientProperty(ModernRibbonPanel.COLLAPSED_POPUP_PROPERTY, popup);
+		overflow.putClientProperty(ModernRibbonPanel.COLLAPSED_POPUP_PROPERTY, popup);
+		JPanel root = new JPanel();
+		root.add(overflow);
+		MenuManager menuManager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
+		String label = menuManager.getStringOrNull("RibbonStatusDate.text");
+		String expectedDisplay = "NA " + (label == null ? "Status Date" : label) + ":";
+
+		SwingUtilities.invokeAndWait(() -> {
+			StatusDateControlUpdater.refresh(menuManager, root, null);
+			assertEquals(expectedDisplay, transientStatusDate.getText());
+			assertEquals(expectedDisplay, transientStatusDate.getAccessibleContext().getAccessibleName());
+		});
 	}
 
 	private static JButton equalButton(String actionCommand) {

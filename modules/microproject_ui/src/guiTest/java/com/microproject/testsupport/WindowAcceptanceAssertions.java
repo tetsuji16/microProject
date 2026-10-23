@@ -106,6 +106,8 @@ public final class WindowAcceptanceAssertions {
 		}
 		if (last == null || !last.showing() || last.enabled() != expectedEnabled || last.bounds() == null || last.bounds().isEmpty()
 			|| !isInside(last.localMouse(), last.size())) {
+			Point requestedLogicalTarget = last == null || last.bounds() == null ? null
+				: new Point(last.bounds().x + last.bounds().width / 2, last.bounds().y + last.bounds().height / 2);
 			throw new AssertionError("Robot pointer did not enter the current component before click dispatch; target={"
 				+ (last == null ? "unavailable" : last.identity()) + "}; bounds="
 				+ (last == null ? null : last.bounds()) + "; size=" + (last == null ? null : last.size())
@@ -115,6 +117,7 @@ public final class WindowAcceptanceAssertions {
 				+ "}; transitions=" + (observedTransitions.isEmpty() ? "none" : String.join(" -> ", observedTransitions)
 					+ (observedTransitions.size() == 20 ? " (first 20 transitions; further transitions omitted)" : ""))
 				+ "; test=" + currentTestCaller() + "; windows={" + showingWindows() + "}"
+				+ "; coordinateDiagnostic={" + coordinateDiagnostic(component, requestedLogicalTarget) + "}"
 				+ diagnosticDetails(expectedEnabled, lastRobotTarget, popupAncestors));
 		}
 		System.out.println("[GUI_PHYSICAL_CLICK] test=" + currentTestCaller() + " target=" + last.identity()
@@ -126,6 +129,26 @@ public final class WindowAcceptanceAssertions {
 		}
 		robot.waitForIdle();
 		robot.delay(150);
+	}
+
+	private static String coordinateDiagnostic(Component component, Point logicalTarget) throws Exception {
+		Point awtPointer = null;
+		try {
+			if (MouseInfo.getPointerInfo() != null) awtPointer = MouseInfo.getPointerInfo().getLocation();
+		} catch (java.awt.HeadlessException ignored) { }
+		String[] device = new String[1];
+		SwingUtilities.invokeAndWait(() -> {
+			GraphicsConfiguration configuration = component.getGraphicsConfiguration();
+			device[0] = configuration == null ? "unavailable" : "bounds=" + configuration.getBounds()
+				+ ",defaultTransform=" + configuration.getDefaultTransform();
+		});
+		int dpi = Toolkit.getDefaultToolkit().getScreenResolution();
+		Point dpiScaledCandidate = logicalTarget == null ? null : robotPointFor(
+			new Rectangle(logicalTarget.x, logicalTarget.y, 0, 0));
+		return "componentLogicalScreenTarget=" + logicalTarget + ",awtPointerAfterMove=" + awtPointer
+			+ ",toolkitDpi=" + dpi + ",robotPointForDpiScaledCandidate=" + dpiScaledCandidate
+			+ ",sun.java2d.uiScale=" + System.getProperty("sun.java2d.uiScale", "default")
+			+ ",componentDevice={" + device[0] + "}";
 	}
 
 	private static List<JPopupMenu> popupAncestors(Component component) throws Exception {

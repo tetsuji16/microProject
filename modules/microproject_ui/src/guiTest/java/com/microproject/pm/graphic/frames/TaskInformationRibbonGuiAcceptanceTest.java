@@ -53,6 +53,7 @@ import java.util.logging.Logger;
 
 import javax.imageio.ImageIO;
 import javax.swing.AbstractButton;
+import javax.swing.Action;
 import javax.swing.JCheckBox;
 import javax.swing.JComponent;
 import javax.swing.JComboBox;
@@ -2153,9 +2154,12 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		});
 		assertFalse(zoomSelected.isEnabled(), "Selected Tasks zoom must be disabled without a Usage row selection");
 		click(robot, cellOnScreen(view.getSpreadSheet(), row, 0));
-		GuiAcceptanceSupport.await(zoomSelected::isEnabled,
+		GuiAcceptanceSupport.await(() -> manager.getMenuManager()
+				.getActionFromId(com.microproject.menu.MenuActionConstants.ACTION_ZOOM_SELECTED_TASKS).isEnabled(),
 			"Selected Tasks zoom must enable for a dated task row in a Usage view");
-		click(robot, zoomSelected);
+		// Selecting the row closes any responsive ribbon overflow that was opened
+		// while checking the disabled state; reacquire its current physical route.
+		click(robot, findShowingButtonByCommand("RibbonZoomSelectedTasks"));
 		GuiAcceptanceSupport.await(() -> {
 			com.microproject.pm.graphic.views.SelectedTasksTimescaleZoom.DateRange visible = view.getVisibleDateRange();
 			return visible != null && visible.start() <= start && visible.end() >= end;
@@ -2177,9 +2181,12 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		});
 		assertFalse(zoomSelected.isEnabled(), "Selected Tasks zoom must be disabled without a Gantt row selection");
 		click(robot, cellOnScreen(sheet, row, nameColumn(sheet)));
-		GuiAcceptanceSupport.await(zoomSelected::isEnabled,
+		GuiAcceptanceSupport.await(() -> manager.getMenuManager()
+				.getActionFromId(com.microproject.menu.MenuActionConstants.ACTION_ZOOM_SELECTED_TASKS).isEnabled(),
 			"Selected Tasks zoom must enable for a dated selection in Gantt or Tracking Gantt");
-		click(robot, zoomSelected);
+		// A row click closes the overflow popup; the earlier transient menu item
+		// is no longer a showing physical target after that selection transition.
+		click(robot, findShowingButtonByCommand("RibbonZoomSelectedTasks"));
 		GuiAcceptanceSupport.await(() -> {
 			var visible = view.getVisibleDateRange();
 			return visible != null && visible.start() <= start && visible.end() >= end;
@@ -3531,8 +3538,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			assertEquals(initialStatusDate, contextProject().getStatusDate(), "Cancel must not change status date");
 			click(context.robot(), GuiPhysicalRouteAdapter.visibleButton(context.robot(), window, "RibbonStatusDate"));
 			chooseStatusDateNotSet(context.robot());
-			GuiAcceptanceSupport.await(() -> RibbonGuiButton.adapt(RibbonGuiButton.findCommand(window, "RibbonStatusDate"))
-					.getText().startsWith("NA "), "Status Date ribbon value did not refresh to NA");
+			awaitStatusDateRibbonMatchesModel();
 			return null;
 		}, () -> !contextProject().isStatusDateSet(), this::statusDateRibbonMatchesModel,
 			() -> contextProject().isStatusDateSet() && statusDateRibbonMatchesModel(), "StatusDate");
@@ -3962,36 +3968,67 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	private Project progressProject;
 	private long initialStatusDate;
 	private double initialPercentComplete;
+	private String lastStatusDateViewDiagnostic;
 	private Project contextProject() { return progressProject; }
 	private NormalTask contextTask() { return progressTask; }
 	private boolean statusDateRibbonMatchesModel() {
-		AbstractButton button = RibbonGuiButton.adapt(RibbonGuiButton.findCommand(window, "RibbonStatusDate"));
-		String text = button.getText().replaceAll("(?i)<br\\s*/?>", " ").replaceAll("<[^>]*>", "");
+		List<AbstractButton> candidates = new ArrayList<>(StatusDateControlUpdater.collectStatusDateButtons(window));
 		String value = !contextProject().isStatusDateSet() ? "NA"
 				: com.microproject.options.EditOption.getInstance().getDateFormat()
 					.format(new java.util.Date(contextProject().getStatusDate()));
 		String label = manager.getMenuManager().getStringOrNull("RibbonStatusDate.text");
 		String expectedDisplay = value + " " + (label == null ? "Status Date" : label) + ":";
 		Object actionName = manager.getMenuManager().getActionFromId("StatusDate").getValue(javax.swing.Action.NAME);
-		boolean matches = text.startsWith(value + " ") && text.endsWith(":")
+		List<AbstractButton> showingButtons = candidates.stream().filter(AbstractButton::isShowing).toList();
+		List<AbstractButton> controlsToVerify = showingButtons.isEmpty()
+			? candidates.stream().filter(button -> expectedDisplay.equals(
+				button.getAccessibleContext() == null ? null : button.getAccessibleContext().getAccessibleName())).toList()
+			: showingButtons;
+		boolean matches = controlsToVerify.stream().anyMatch(button -> {
+			String text = button.getText().replaceAll("(?i)<br\\s*/?>", " ").replaceAll("<[^>]*>", "");
+			return text.startsWith(value + " ") && text.endsWith(":")
+				&& button.getAccessibleContext() != null
 				&& expectedDisplay.equals(button.getAccessibleContext().getAccessibleName())
 				&& expectedDisplay.equals(actionName);
-		if (!matches) throw new AssertionError(statusDateViewFailure());
-		return true;
+		});
+		if (!matches) {
+			String diagnostic = statusDateViewFailure(candidates, controlsToVerify.isEmpty() ? null : controlsToVerify.get(0));
+			if (!diagnostic.equals(lastStatusDateViewDiagnostic))
+				System.err.println("[GUI_STATUS_DATE_VIEW] " + diagnostic);
+			lastStatusDateViewDiagnostic = diagnostic;
+		}
+		else lastStatusDateViewDiagnostic = null;
+		return matches;
 	}
 
-	private String statusDateViewFailure() {
-		AbstractButton button = RibbonGuiButton.adapt(RibbonGuiButton.findCommand(window, "RibbonStatusDate"));
+	private void awaitStatusDateRibbonMatchesModel() throws Exception {
+		long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(5);
+		while (System.nanoTime() < deadline) {
+			if (statusDateRibbonMatchesModel()) return;
+			Thread.sleep(25);
+		}
+		if (statusDateRibbonMatchesModel()) return;
+		throw new AssertionError("Status Date ribbon did not refresh to match the model after bounded polling: "
+			+ lastStatusDateViewDiagnostic);
+	}
+
+	private String statusDateViewFailure(List<AbstractButton> candidates, AbstractButton button) {
 		Project project = contextProject();
 		Object actionName = manager.getMenuManager().getActionFromId("StatusDate").getValue(javax.swing.Action.NAME);
-		String text = button.getText().replaceAll("(?i)<br\\s*/?>", " ").replaceAll("<[^>]*>", "");
+		String text = button == null ? "<no showing Status Date button>"
+			: button.getText().replaceAll("(?i)<br\\s*/?>", " ").replaceAll("<[^>]*>", "");
 		return "Status Date ribbon did not match model: isStatusDateSet=" + project.isStatusDateSet()
 				+ ", statusDate=" + project.getStatusDate() + "; button="
-				+ button.getClass().getName() + "@" + Integer.toHexString(System.identityHashCode(button)) + " " + button
-				+ "[actionCommand=" + button.getActionCommand() + ", showing=" + button.isShowing()
-				+ ", bounds=" + button.getBounds() + ", text=" + text
-				+ ", accessibleName=" + button.getAccessibleContext().getAccessibleName()
-				+ "]; StatusDate Action.NAME=" + actionName;
+				+ (button == null ? "none" : button.getClass().getName() + "@"
+					+ Integer.toHexString(System.identityHashCode(button)) + " " + button
+					+ "[actionCommand=" + button.getActionCommand() + ", showing=" + button.isShowing()
+					+ ", bounds=" + button.getBounds() + ", text=" + text
+					+ ", accessibleName=" + button.getAccessibleContext().getAccessibleName())
+				+ "]; matching candidates=" + candidates.stream().map(candidate -> candidate.getClass().getSimpleName()
+					+ "@" + Integer.toHexString(System.identityHashCode(candidate)) + "[showing="
+					+ candidate.isShowing() + ",visible=" + candidate.isVisible() + ",bounds=" + candidate.getBounds()
+					+ ",text=" + candidate.getText() + "]").toList()
+				+ "; StatusDate Action.NAME=" + actionName;
 	}
 
 	@Test
@@ -8311,6 +8348,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		robot.keyRelease(KeyEvent.VK_SHIFT);
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false)
 				.containsAll(List.of(source, firstTarget)), "Shift-click must create the mixed multi-task selection fixture");
+		painter = findShowingButtonByCommand("RibbonFormatPainter");
 		assertFalse(painter.isEnabled(), "Format Painter must reject a multiple-task source selection");
 		// The lead row can already be the source while Shift-click has extended the selection.
 		// clickUntilSelected only checks that lead row, so issue an unmodified physical click
@@ -8318,16 +8356,23 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, source), 0));
 		GuiAcceptanceSupport.await(() -> sheetHasOnlySelectedTask(sheet, source),
 			"an unmodified source-row click did not collapse the Format Painter source selection");
+		painter = findShowingButtonByCommand("RibbonFormatPainter");
 		GuiAcceptanceSupport.await(painter::isEnabled, "Format Painter must re-enable for a single source task");
+		painter = findShowingButtonByCommand("RibbonFormatPainter");
 		click(robot, painter);
-		GuiAcceptanceSupport.await(painter::isSelected, "one-shot Format Painter did not enter its armed state");
+		GuiAcceptanceSupport.await(this::formatPainterActionSelected, "one-shot Format Painter did not enter its armed state");
+		painter = findShowingButtonByCommand("RibbonFormatPainter");
+		assertTrue(painter.isSelected(), "the current Format Painter control must show its armed state");
 		clickUntilSelected(robot, window, sheet, rowForTask(sheet, firstTarget), 0);
 		GuiAcceptanceSupport.await(() -> firstTarget.isFontBold() && firstTarget.isFontItalic()
 				&& firstTarget.isFontStrikethrough() && firstTarget.getFontSize() == 15
 				&& java.util.Objects.equals(firstTarget.getFontFamily(), "Dialog")
 				&& java.util.Objects.equals(firstTarget.getFontColor(), 0x2457A6),
 			"the physical target-row selection did not receive all six source text-style properties");
-		GuiAcceptanceSupport.await(() -> !painter.isSelected(), "one-shot Format Painter must disarm after one target selection");
+		GuiAcceptanceSupport.await(() -> !formatPainterActionSelected(),
+			"one-shot Format Painter must disarm after one target selection");
+		painter = findShowingButtonByCommand("RibbonFormatPainter");
+		assertFalse(painter.isSelected(), "the current Format Painter control must show its disarmed state");
 		assertTrue(undo.canUndo(), "one target application must create one undoable mutation");
 		assertEquals("Format first target", firstTarget.getName(), "format painting must preserve task data");
 		assertArrayEquals(originalDates, new long[] { firstTarget.getStart(), firstTarget.getEnd(), secondTarget.getStart(),
@@ -8362,25 +8407,40 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertEquals(Integer.valueOf(0x2457A6), reloadedFirst.getFontColor());
 
 		clickUntilSelected(robot, window, sheet, rowForTask(sheet, source), 0);
+		painter = findShowingButtonByCommand("RibbonFormatPainter");
 		click(robot, painter);
-		GuiAcceptanceSupport.await(painter::isSelected, "Format Painter did not arm before continuous mode");
+		GuiAcceptanceSupport.await(this::formatPainterActionSelected, "Format Painter did not arm before continuous mode");
+		painter = findShowingButtonByCommand("RibbonFormatPainter");
+		assertTrue(painter.isSelected(), "the current Format Painter control must show its armed state");
+		painter = findShowingButtonByCommand("RibbonFormatPainter");
 		click(robot, painter);
-		GuiAcceptanceSupport.await(painter::isSelected, "second Format Painter activation must promote to continuous mode");
+		GuiAcceptanceSupport.await(this::formatPainterActionSelected,
+			"second Format Painter activation must promote to continuous mode");
+		painter = findShowingButtonByCommand("RibbonFormatPainter");
+		assertTrue(painter.isSelected(), "the current Format Painter control must remain armed in continuous mode");
 		clickUntilSelected(robot, window, sheet, rowForTask(sheet, secondTarget), 0);
 		GuiAcceptanceSupport.await(() -> secondTarget.isFontBold() && secondTarget.getFontSize() == 15,
 			"continuous Format Painter did not format its first target");
-		assertTrue(painter.isSelected(), "continuous Format Painter must remain armed after a target selection");
+		GuiAcceptanceSupport.await(this::formatPainterActionSelected,
+			"continuous Format Painter must remain armed after a target selection");
+		painter = findShowingButtonByCommand("RibbonFormatPainter");
+		assertTrue(painter.isSelected(), "the current Format Painter control must remain armed after a target selection");
 		clickUntilSelected(robot, window, sheet, rowForTask(sheet, source), nameColumn(sheet));
 		press(robot, KeyEvent.VK_F2);
 		GuiAcceptanceSupport.await(sheet::isEditing, "F2 did not open the source cell editor");
 		press(robot, KeyEvent.VK_ESCAPE);
 		GuiAcceptanceSupport.await(() -> !sheet.isEditing(), "Escape did not cancel the active cell editor");
-		assertTrue(painter.isSelected(), "Escape cancelling a cell edit must leave continuous Format Painter armed");
+		GuiAcceptanceSupport.await(this::formatPainterActionSelected,
+			"Escape cancelling a cell edit must leave continuous Format Painter armed");
+		painter = findShowingButtonByCommand("RibbonFormatPainter");
+		assertTrue(painter.isSelected(), "the current Format Painter control must remain armed after Escape cancels an edit");
 		clickUntilSelected(robot, window, sheet, rowForTask(sheet, thirdTarget), 0);
 		GuiAcceptanceSupport.await(() -> thirdTarget.isFontBold() && thirdTarget.getFontSize() == 15,
 			"continuous Format Painter did not format its next target");
 		press(robot, KeyEvent.VK_ESCAPE);
-		GuiAcceptanceSupport.await(() -> !painter.isSelected(), "Escape must stop continuous Format Painter mode");
+		GuiAcceptanceSupport.await(() -> !formatPainterActionSelected(), "Escape must stop continuous Format Painter mode");
+		painter = findShowingButtonByCommand("RibbonFormatPainter");
+		assertFalse(painter.isSelected(), "the current Format Painter control must show continuous mode stopped");
 		clickUntilSelected(robot, window, sheet, rowForTask(sheet, untouched), 0);
 		assertFalse(untouched.isFontBold() || untouched.isFontItalic() || untouched.isFontStrikethrough()
 			|| untouched.getFontSize() != 0 || untouched.getFontFamily() != null || untouched.getFontColor() != null,
@@ -8390,6 +8450,11 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertArrayEquals(originalDates, new long[] { firstTarget.getStart(), firstTarget.getEnd(), secondTarget.getStart(),
 			secondTarget.getEnd(), thirdTarget.getStart(), thirdTarget.getEnd(), untouched.getStart(), untouched.getEnd() },
 			"continuous text formatting must leave all target schedules unchanged");
+	}
+
+	private boolean formatPainterActionSelected() {
+		Action action = manager.getMenuManager().getActionFromId("RibbonFormatPainter");
+		return action != null && Boolean.TRUE.equals(action.getValue(Action.SELECTED_KEY));
 	}
 
 	private static boolean sheetHasOnlySelectedTask(SpreadSheet sheet, Task expected) {
