@@ -110,6 +110,13 @@ subprojects {
         enabled = false
     }
 
+    // Unit tests assert English display text; pin the JVM locale so a Japanese
+    // desktop does not localize it (issue #893). guiTest chooses its own locale.
+    tasks.withType<Test>().matching { it.name == "test" }.configureEach {
+        systemProperty("user.language", "en")
+        systemProperty("user.country", "US")
+    }
+
 }
 
 tasks.register("stageAppDist") {
