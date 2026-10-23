@@ -831,7 +831,7 @@ tasks.register<JavaExec>("generateUpdateConfiguration") {
             "--output", windowsReleaseRoot.get().file("release-assets/configuration.xml").asFile.absolutePath,
             "--private-key", keyFile,
             "--version", releaseVersion,
-            "--asset-base", "https://github.com/tetsuji16/ProjectLibre/releases/download/$releaseLabel/"
+            "--asset-base", "https://github.com/tetsuji16/microProject/releases/download/$releaseLabel/"
         )
     }
 }
