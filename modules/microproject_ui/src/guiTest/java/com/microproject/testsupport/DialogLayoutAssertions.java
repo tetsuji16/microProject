@@ -46,6 +46,14 @@ public final class DialogLayoutAssertions {
 
 	/** Scrolls a dialog body with physical wheel input until a clipped control is fully reachable. */
 	public static void physicallyScrollIntoView(Robot robot, Component component, String description) throws Exception {
+		Rectangle[] target = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> target[0] = new Rectangle(0, 0, component.getWidth(), component.getHeight()));
+		physicallyScrollIntoView(robot, component, target[0], description);
+	}
+
+	/** Scrolls a component's local target rectangle fully into its nearest viewport with physical wheel input. */
+	public static void physicallyScrollIntoView(Robot robot, Component component, Rectangle localTarget,
+			String description) throws Exception {
 		JViewport[] viewport = new JViewport[1];
 		SwingUtilities.invokeAndWait(() -> {
 			for (Container parent = component.getParent(); parent != null; parent = parent.getParent()) {
@@ -64,7 +72,7 @@ public final class DialogLayoutAssertions {
 			SwingUtilities.invokeAndWait(() -> {
 				JViewport current = viewport[0];
 				Component view = current.getView();
-				target[0] = SwingUtilities.convertRectangle(component.getParent(), component.getBounds(), view);
+				target[0] = SwingUtilities.convertRectangle(component, localTarget, view);
 				visible[0] = current.getViewRect();
 				viewportLocation[0] = current.getLocationOnScreen();
 				wheelPoint[0] = new Point(viewportLocation[0].x + visible[0].width / 2,
@@ -72,7 +80,18 @@ public final class DialogLayoutAssertions {
 			});
 			if (visible[0].contains(target[0])) return;
 			robot.mouseMove(wheelPoint[0].x, wheelPoint[0].y);
-			robot.mouseWheel(target[0].y < visible[0].y ? -3 : 3);
+			boolean scrollVertically = target[0].y < visible[0].y
+				|| target[0].y + target[0].height > visible[0].y + visible[0].height;
+			if (scrollVertically) {
+				robot.mouseWheel(target[0].y < visible[0].y ? -3 : 3);
+			} else {
+				robot.keyPress(java.awt.event.KeyEvent.VK_SHIFT);
+				try {
+					robot.mouseWheel(target[0].x < visible[0].x ? -3 : 3);
+				} finally {
+					robot.keyRelease(java.awt.event.KeyEvent.VK_SHIFT);
+				}
+			}
 			robot.waitForIdle();
 			robot.delay(100);
 		}
@@ -80,7 +99,7 @@ public final class DialogLayoutAssertions {
 		Rectangle[] visible = new Rectangle[1];
 		SwingUtilities.invokeAndWait(() -> {
 			JViewport current = viewport[0];
-			target[0] = SwingUtilities.convertRectangle(component.getParent(), component.getBounds(), current.getView());
+			target[0] = SwingUtilities.convertRectangle(component, localTarget, current.getView());
 			visible[0] = current.getViewRect();
 		});
 		assertTrue(visible[0].contains(target[0]), () -> description + " remained clipped after physical scrolling: target="

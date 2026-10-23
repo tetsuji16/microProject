@@ -556,7 +556,10 @@ class RibbonAndToolbarButtonTest {
 	void transientRibbonButtonsTrackSharedActionSelectionWithoutRegisteringOrRecursing() throws Exception {
 		java.util.concurrent.atomic.AtomicInteger calls = new java.util.concurrent.atomic.AtomicInteger();
 		AbstractAction command = new AbstractAction("LinkAction") {
-			@Override public void actionPerformed(java.awt.event.ActionEvent event) { calls.incrementAndGet(); }
+			@Override public void actionPerformed(java.awt.event.ActionEvent event) {
+				calls.incrementAndGet();
+				putValue(Action.SELECTED_KEY, Boolean.TRUE);
+			}
 		};
 		command.putValue(Action.SELECTED_KEY, Boolean.TRUE);
 		ProjectMenuActionMap actions = new ProjectMenuActionMap() {
@@ -583,6 +586,13 @@ class RibbonAndToolbarButtonTest {
 			assertFalse(source.getButtons("LinkAction").contains(firstTransient));
 			firstTransient.doClick(0);
 			assertEquals(1, calls.get(), "a transient button dispatches once without recursing");
+			firstTransient.setSelected(false);
+			assertFalse(firstTransient.isSelected(), "toggle interaction can temporarily clear its own model");
+			RibbonCommandResult result = source.dispatch(new RibbonCommandInvocation("RibbonLink",
+				RibbonCommandInvocation.Origin.RIBBON_BUTTON, firstTransient));
+			assertEquals(RibbonCommandResult.Status.DISPATCHED, result.status());
+			assertTrue(firstTransient.isSelected(), "dispatch restores selection even when the action reasserts the same value");
+			assertEquals(2, calls.get(), "resynchronizing selection does not dispatch again");
 		});
 	}
 

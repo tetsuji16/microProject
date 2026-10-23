@@ -262,6 +262,7 @@ public final class MenuRibbonCommandSource implements RibbonCommandSource {
 		}
 
 		private void publishResult(RibbonCommandResult result) {
+			updateSelectedState(command == null ? null : command.getValue(Action.SELECTED_KEY));
 			dispatchAction.putValue(RibbonCommandResult.STATUS_ACTION_PROPERTY, result.status());
 			dispatchAction.putValue(RibbonCommandResult.REASON_ACTION_PROPERTY, result.reason());
 			dispatchAction.putValue(RibbonCommandResult.SELECTED_TASK_IDS_ACTION_PROPERTY, result.selectedTaskIds());

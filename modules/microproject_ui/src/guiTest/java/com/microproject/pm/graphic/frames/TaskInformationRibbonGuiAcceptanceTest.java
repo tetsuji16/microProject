@@ -2659,6 +2659,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> calendar.getDependencyMarkerBounds(predecessor) != null,
 			"calendar dependency marker did not render");
 		Rectangle marker = new Rectangle(calendar.getDependencyMarkerBounds(predecessor));
+		physicallyScrollIntoView(robot, canvas, marker, "Calendar predecessor dependency marker");
+		marker = new Rectangle(calendar.getDependencyMarkerBounds(predecessor));
 		Point canvasLocation = canvas.getLocationOnScreen();
 		click(robot, new Rectangle(canvasLocation.x + marker.x, canvasLocation.y + marker.y, marker.width, marker.height));
 		GuiAcceptanceSupport.await(() -> findDependencyDialog() != null, "calendar marker did not open dependency dialog");
