@@ -25,10 +25,13 @@
 package com.microproject.pm.graphic.spreadsheet.renderer;
 
 import java.awt.Component;
+import java.awt.Graphics;
 
+import javax.swing.Icon;
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JTable;
+import javax.swing.UIManager;
 import javax.swing.border.Border;
 import javax.swing.plaf.UIResource;
 
@@ -72,6 +75,9 @@ public class OfflineCapableBooleanRenderer extends JCheckBox implements OfflineR
 			? bool
 			: value instanceof String text && Boolean.parseBoolean(text);
 		setSelected(selected);
+		// A row without a task has no value (null): keep the cell's background and
+		// border but draw no check box, as for every other empty cell (issue #894).
+		setIcon(value == null ? blankCheckBoxIcon() : null);
 
 		if (table != null && table.isEditing() && table.getEditingRow() == row && table.getEditingColumn() == column) {
 			setBorder(FlatUiSupport.spreadsheetEditingCellBorder());
@@ -82,6 +88,25 @@ public class OfflineCapableBooleanRenderer extends JCheckBox implements OfflineR
 		}
 
 		return this;
+	}
+
+	/** Transparent icon with the check box's size, so empty and filled rows keep one height. */
+	static Icon blankCheckBoxIcon() {
+		Icon checkBox = UIManager.getIcon("CheckBox.icon");
+		int width = checkBox == null ? 0 : checkBox.getIconWidth();
+		int height = checkBox == null ? 0 : checkBox.getIconHeight();
+		return new Icon() {
+			public void paintIcon(Component c, Graphics g, int x, int y) {
+			}
+
+			public int getIconWidth() {
+				return width;
+			}
+
+			public int getIconHeight() {
+				return height;
+			}
+		};
 	}
 
 	public Component getComponent(Object value, GraphicNode node, Field field,
