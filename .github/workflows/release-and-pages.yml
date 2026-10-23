@@ -2,7 +2,7 @@ name: Release
 
 on:
   push:
-    tags: ['v*']
+    tags: ['v*-beta.*']
     branches: ['release/beta-*', 'release/stable-*']
   workflow_dispatch:
     inputs:
@@ -127,8 +127,7 @@ jobs:
     if: ${{ always() && !cancelled() && (needs.unix-packages.result == 'success' || needs.unix-packages.result == 'skipped') }}
     name: Build and publish Windows release
     runs-on: windows-latest
-    # Stable candidates run the full GUI locale/DPI matrix, which can take
-    # longer than the efficient beta smoke suite.
+    # Stable candidates run the full GUI locale/DPI matrix once, at publication.
     timeout-minutes: 180
     outputs:
       release_version: ${{ steps.version.outputs.release_version }}
@@ -243,7 +242,6 @@ jobs:
           $isStableCandidate = $false
           if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch' -and '${{ inputs.release_channel }}' -eq 'stable') { $isStableCandidate = $true }
           if ($env:GITHUB_REF_TYPE -eq 'branch' -and $env:GITHUB_REF_NAME -like 'release/stable-*') { $isStableCandidate = $true }
-          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -notmatch '-beta\.') { $isStableCandidate = $true }
           $requestedSuite = '${{ inputs.gui_suite }}'
           if ([string]::IsNullOrWhiteSpace($requestedSuite)) {
             $requestedSuite = if ($isStableCandidate) { 'full' } else { 'smoke' }

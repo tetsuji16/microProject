@@ -7,6 +7,7 @@ package com.microproject.dialog.calendar;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static com.microproject.testsupport.DialogLayoutAssertions.physicallyScrollIntoView;
 
 import java.awt.Dimension;
 import java.awt.GraphicsEnvironment;
@@ -1051,49 +1052,6 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 					return;
 				}
 		});
-	}
-
-	/** Scrolls the dialog body with physical wheel input until a clipped control is fully reachable. */
-	private static void physicallyScrollIntoView(Robot robot, Component component, String description) throws Exception {
-		JViewport[] viewport = new JViewport[1];
-		SwingUtilities.invokeAndWait(() -> {
-			for (Container parent = component.getParent(); parent != null; parent = parent.getParent()) {
-				if (parent instanceof JViewport candidate) {
-					viewport[0] = candidate;
-					return;
-				}
-			}
-		});
-		assertTrue(viewport[0] != null, description + " must be hosted by a scrollable dialog viewport");
-		for (int attempt = 0; attempt < 20; attempt++) {
-			Rectangle[] target = new Rectangle[1];
-			Rectangle[] visible = new Rectangle[1];
-			Point[] viewportLocation = new Point[1];
-			Point[] wheelPoint = new Point[1];
-			SwingUtilities.invokeAndWait(() -> {
-				JViewport current = viewport[0];
-				Component view = current.getView();
-				target[0] = SwingUtilities.convertRectangle(component.getParent(), component.getBounds(), view);
-				visible[0] = current.getViewRect();
-				viewportLocation[0] = current.getLocationOnScreen();
-				wheelPoint[0] = new Point(viewportLocation[0].x + visible[0].width / 2,
-					viewportLocation[0].y + visible[0].height / 2);
-			});
-			if (visible[0].contains(target[0])) return;
-			robot.mouseMove(wheelPoint[0].x, wheelPoint[0].y);
-			robot.mouseWheel(target[0].y < visible[0].y ? -3 : 3);
-			robot.waitForIdle();
-			robot.delay(100);
-		}
-		Rectangle[] target = new Rectangle[1];
-		Rectangle[] visible = new Rectangle[1];
-		SwingUtilities.invokeAndWait(() -> {
-			JViewport current = viewport[0];
-			target[0] = SwingUtilities.convertRectangle(component.getParent(), component.getBounds(), current.getView());
-			visible[0] = current.getViewRect();
-		});
-		assertTrue(visible[0].contains(target[0]), () -> description + " remained clipped after physical scrolling: target="
-			+ target[0] + " viewport=" + visible[0]);
 	}
 
 	private static boolean isOwnedBy(Window window, Window owner) {

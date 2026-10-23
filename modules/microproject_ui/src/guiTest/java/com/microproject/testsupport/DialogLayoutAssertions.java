@@ -11,7 +11,9 @@ import java.awt.Component;
 import java.awt.Container;
 import java.awt.GraphicsConfiguration;
 import java.awt.Insets;
+import java.awt.Point;
 import java.awt.Rectangle;
+import java.awt.Robot;
 import java.awt.Toolkit;
 import java.awt.Window;
 
@@ -19,6 +21,7 @@ import javax.swing.AbstractButton;
 import javax.swing.JComboBox;
 import javax.swing.JSpinner;
 import javax.swing.JLabel;
+import javax.swing.JViewport;
 import javax.swing.SwingUtilities;
 import javax.swing.text.JTextComponent;
 
@@ -39,6 +42,68 @@ public final class DialogLayoutAssertions {
 		else
 			SwingUtilities.invokeAndWait(inspect);
 		assertTrue(clipping[0] == null, () -> context + " clips a text control: " + clipping[0]);
+	}
+
+	/** Scrolls a dialog body with physical wheel input until a clipped control is fully reachable. */
+	public static void physicallyScrollIntoView(Robot robot, Component component, String description) throws Exception {
+		Rectangle[] target = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> target[0] = new Rectangle(0, 0, component.getWidth(), component.getHeight()));
+		physicallyScrollIntoView(robot, component, target[0], description);
+	}
+
+	/** Scrolls a component's local target rectangle fully into its nearest viewport with physical wheel input. */
+	public static void physicallyScrollIntoView(Robot robot, Component component, Rectangle localTarget,
+			String description) throws Exception {
+		JViewport[] viewport = new JViewport[1];
+		SwingUtilities.invokeAndWait(() -> {
+			for (Container parent = component.getParent(); parent != null; parent = parent.getParent()) {
+				if (parent instanceof JViewport candidate) {
+					viewport[0] = candidate;
+					return;
+				}
+			}
+		});
+		assertTrue(viewport[0] != null, description + " must be hosted by a scrollable dialog viewport");
+		for (int attempt = 0; attempt < 20; attempt++) {
+			Rectangle[] target = new Rectangle[1];
+			Rectangle[] visible = new Rectangle[1];
+			Point[] viewportLocation = new Point[1];
+			Point[] wheelPoint = new Point[1];
+			SwingUtilities.invokeAndWait(() -> {
+				JViewport current = viewport[0];
+				Component view = current.getView();
+				target[0] = SwingUtilities.convertRectangle(component, localTarget, view);
+				visible[0] = current.getViewRect();
+				viewportLocation[0] = current.getLocationOnScreen();
+				wheelPoint[0] = new Point(viewportLocation[0].x + visible[0].width / 2,
+					viewportLocation[0].y + visible[0].height / 2);
+			});
+			if (visible[0].contains(target[0])) return;
+			robot.mouseMove(wheelPoint[0].x, wheelPoint[0].y);
+			boolean scrollVertically = target[0].y < visible[0].y
+				|| target[0].y + target[0].height > visible[0].y + visible[0].height;
+			if (scrollVertically) {
+				robot.mouseWheel(target[0].y < visible[0].y ? -3 : 3);
+			} else {
+				robot.keyPress(java.awt.event.KeyEvent.VK_SHIFT);
+				try {
+					robot.mouseWheel(target[0].x < visible[0].x ? -3 : 3);
+				} finally {
+					robot.keyRelease(java.awt.event.KeyEvent.VK_SHIFT);
+				}
+			}
+			robot.waitForIdle();
+			robot.delay(100);
+		}
+		Rectangle[] target = new Rectangle[1];
+		Rectangle[] visible = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> {
+			JViewport current = viewport[0];
+			target[0] = SwingUtilities.convertRectangle(component, localTarget, current.getView());
+			visible[0] = current.getViewRect();
+		});
+		assertTrue(visible[0].contains(target[0]), () -> description + " remained clipped after physical scrolling: target="
+			+ target[0] + " viewport=" + visible[0]);
 	}
 
 	/**

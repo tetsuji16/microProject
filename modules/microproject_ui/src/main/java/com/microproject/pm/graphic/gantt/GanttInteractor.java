@@ -238,6 +238,15 @@ public class GanttInteractor extends GraphInteractor{
 
 		select(e.getX(), e.getY());
 		notifyBarSelection(e);
+		if (selected instanceof GraphicDependency dependency) {
+			// Dependency inspection is a Gantt double-click action. Clear the
+			// generic link action state before release can dispatch it.
+			state = NOTHING_SELECTED;
+			if (e.getClickCount() == 2) {
+				showDependencyPropertiesDialog(dependency);
+			}
+			return;
+		}
 		if (selected == null) {
 			// MSP selects the task row when the user clicks the calendar portion
 			// of that row, even when no task bar occupies that particular pixel.

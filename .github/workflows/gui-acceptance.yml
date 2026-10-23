@@ -1,4 +1,4 @@
-name: GUI acceptance audit
+name: GUI acceptance
 
 on:
   push:
@@ -12,7 +12,7 @@ on:
       gui_suite:
         description: 'GUI suite (scheduled audits always use full)'
         required: false
-        default: full
+        default: smoke
         type: choice
         options:
           - smoke
@@ -50,8 +50,8 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  full-gui-matrix:
-    name: Full GUI locale and DPI matrix
+  gui-acceptance:
+    name: GUI acceptance
     runs-on: windows-latest
     # A full GUI run has a 45-minute functional watchdog plus five additional
     # 20-minute visual legs; Japanese 100% visual coverage is in the full run.
@@ -94,17 +94,15 @@ jobs:
           $requestedSuite = '${{ inputs.gui_suite }}'
           if ([string]::IsNullOrWhiteSpace($requestedSuite)) {
             if ($env:GITHUB_EVENT_NAME -eq 'schedule') { $requestedSuite = 'full' }
-            elseif ($env:GITHUB_EVENT_NAME -eq 'pull_request' -and '${{ github.head_ref }}' -like 'codex/stable-*') {
-              $requestedSuite = 'full'
-            } else { $requestedSuite = 'smoke' }
+            else { $requestedSuite = 'smoke' }
           }
-          $requiredContext = 'Full GUI locale and DPI matrix'
+          $requiredContext = 'GUI acceptance'
           $filter = '${{ inputs.gui_test_filter }}'
           $runKind = if (-not [string]::IsNullOrWhiteSpace($filter)) { "targeted ($filter; suite=$requestedSuite)" } else { $requestedSuite }
           $lines = @(
             '## GUI acceptance gate',
             '',
-            "- Required branch-protection context: ``$requiredContext`` (retained for compatibility).",
+            "- Required branch-protection context: ``$requiredContext``.",
             "- Actual run: ``$runKind``; event: ``$env:GITHUB_EVENT_NAME``.",
             '- Smoke runs execute the Japanese 100% functional suite only. Full and visual runs also execute the locale/scale visual matrix.',
             '- Display bounds are observed and recorded; the workflow does not change screen resolution.'

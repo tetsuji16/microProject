@@ -13,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static com.microproject.testsupport.DialogLayoutAssertions.physicallyScrollIntoView;
 
 import java.awt.GraphicsEnvironment;
 import java.awt.GraphicsConfiguration;
@@ -46,6 +47,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import java.util.function.BooleanSupplier;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
@@ -53,6 +55,7 @@ import java.util.logging.Logger;
 
 import javax.imageio.ImageIO;
 import javax.swing.AbstractButton;
+import javax.swing.Action;
 import javax.swing.JCheckBox;
 import javax.swing.JComponent;
 import javax.swing.JComboBox;
@@ -1897,6 +1900,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, ganttButton);
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getActiveTopView() instanceof GanttView gantt
 			&& !gantt.isTracking(), "Gantt did not become the active view after a Robot click");
+		dismissRibbonOverflow(robot, ganttButton, viewTab,
+			() -> manager.getCurrentFrame().getActiveTopView() instanceof GanttView gantt && !gantt.isTracking(),
+			"Closing the View ribbon overflow must preserve the Gantt view");
 		view = (GanttView)manager.getCurrentFrame().getActiveTopView();
 		sheet = view.getSpreadSheet();
 		firstRow = rowForTask(sheet, first);
@@ -1934,6 +1940,11 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			logSelectedZoomState("Gantt after", selectedSheet, selectedView.getGantt(),
 				selectedView::getVisibleDateRange, selectedView::getScale, first, second);
 		}
+		dismissRibbonOverflow(robot, zoomSelected, viewTab, () -> {
+			var visible = selectedView.getVisibleDateRange();
+			return visible != null && visible.start() <= firstStart && visible.end() >= secondEnd
+				&& java.util.Arrays.equals(selectedSheet.getSelectedRows(), new int[] { selectedFirstRow, selectedSecondRow });
+		}, "Closing the View ribbon overflow must preserve Gantt zoom and selection");
 		assertEquals(firstStart, first.getStart(), "zoom must not change the first selected task start");
 		assertEquals(firstEnd, first.getEnd(), "zoom must not change the first selected task finish");
 		assertEquals(secondStart, second.getStart(), "zoom must not change the second selected task start");
@@ -1944,6 +1955,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, taskUsageButton);
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getActiveTopView() instanceof UsageDetailView,
 			"Task Usage did not become the active view after a Robot click");
+		dismissRibbonOverflow(robot, taskUsageButton, viewTab,
+			() -> manager.getCurrentFrame().getActiveTopView() instanceof UsageDetailView,
+			"Closing the View ribbon overflow must preserve Task Usage");
 		UsageDetailView usageView = (UsageDetailView)manager.getCurrentFrame().getActiveTopView();
 		SpreadSheet usageSheet = usageView.getSpreadSheet();
 		int usageFirstRow = rowForUsageTask(usageView, first);
@@ -1979,6 +1993,16 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			logSelectedZoomState("Task Usage after", usageSheet, usageView.getTimeSpreadSheet(),
 				usageView::getVisibleDateRange, usageView::getScale, first, second);
 		}
+		dismissRibbonOverflow(robot, usageZoomSelected, viewTab, () -> {
+			var visible = usageView.getVisibleDateRange();
+			return visible != null && visible.start() <= firstStart && visible.end() >= secondEnd
+				&& java.util.Arrays.equals(new long[] { first.getUniqueId(), second.getUniqueId() },
+					java.util.Arrays.stream(usageSheet.getSelectedRows()).mapToLong(row -> {
+					Object implementation = ((SpreadSheetModel)usageSheet.getModel()).getNodeForDisplayRow(row).getImpl();
+					return implementation instanceof Assignment assignment
+						? assignment.getTask().getUniqueId() : ((Task)implementation).getUniqueId();
+					}).distinct().sorted().toArray());
+		}, "Closing the View ribbon overflow must preserve Task Usage zoom and selection");
 		assertEquals(firstStart, first.getStart(), "Task Usage zoom must not change first task start");
 		assertEquals(firstEnd, first.getEnd(), "Task Usage zoom must not change first task finish");
 		assertEquals(secondStart, second.getStart(), "Task Usage zoom must not change second task start");
@@ -1989,6 +2013,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, trackingGanttButton);
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getActiveTopView() instanceof GanttView gantt
 			&& gantt.isTracking(), "Tracking Gantt did not become active after a Robot click");
+		dismissRibbonOverflow(robot, trackingGanttButton, viewTab,
+			() -> manager.getCurrentFrame().getActiveTopView() instanceof GanttView gantt && gantt.isTracking(),
+			"Closing the View ribbon overflow must preserve Tracking Gantt");
 		GanttView trackingView = (GanttView)manager.getCurrentFrame().getActiveTopView();
 		SpreadSheet trackingSheet = trackingView.getSpreadSheet();
 		int trackingFirstRow = rowForTask(trackingSheet, first);
@@ -2025,6 +2052,11 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			logSelectedZoomState("Tracking Gantt after", trackingSheet, trackingView.getGantt(),
 				trackingView::getVisibleDateRange, trackingView::getScale, first, second);
 		}
+		dismissRibbonOverflow(robot, trackingZoomSelected, viewTab, () -> {
+			var visible = trackingView.getVisibleDateRange();
+			return visible != null && visible.start() <= firstStart && visible.end() >= secondEnd
+				&& java.util.Arrays.equals(trackingSheet.getSelectedRows(), new int[] { trackingFirstRow, trackingSecondRow });
+		}, "Closing the View ribbon overflow must preserve Tracking Gantt zoom and selection");
 		assertEquals(firstStart, first.getStart(), "Tracking Gantt zoom must not change first task start");
 		assertEquals(firstEnd, first.getEnd(), "Tracking Gantt zoom must not change first task finish");
 		assertEquals(secondStart, second.getStart(), "Tracking Gantt zoom must not change second task start");
@@ -2035,6 +2067,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, resourceUsageButton);
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getActiveTopView() instanceof UsageDetailView,
 			"Resource Usage did not become active after a Robot click");
+		dismissRibbonOverflow(robot, resourceUsageButton, viewTab,
+			() -> manager.getCurrentFrame().getActiveTopView() instanceof UsageDetailView,
+			"Closing the View ribbon overflow must preserve Resource Usage");
 		UsageDetailView resourceUsageView = (UsageDetailView)manager.getCurrentFrame().getActiveTopView();
 		SpreadSheet resourceUsageSheet = resourceUsageView.getSpreadSheet();
 		int resourceFirstRow = rowForUsageTask(resourceUsageView, first);
@@ -2071,6 +2106,16 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			logSelectedZoomState("Resource Usage after", resourceUsageSheet, resourceUsageView.getTimeSpreadSheet(),
 				resourceUsageView::getVisibleDateRange, resourceUsageView::getScale, first, second);
 		}
+		dismissRibbonOverflow(robot, resourceZoomSelected, viewTab, () -> {
+			var visible = resourceUsageView.getVisibleDateRange();
+			return visible != null && visible.start() <= firstStart && visible.end() >= secondEnd
+				&& java.util.Arrays.equals(new long[] { first.getUniqueId(), second.getUniqueId() },
+					java.util.Arrays.stream(resourceUsageSheet.getSelectedRows()).mapToLong(row -> {
+					Object implementation = ((SpreadSheetModel)resourceUsageSheet.getModel()).getNodeForDisplayRow(row).getImpl();
+					return implementation instanceof Assignment assignment
+						? assignment.getTask().getUniqueId() : ((Task)implementation).getUniqueId();
+					}).distinct().sorted().toArray());
+		}, "Closing the View ribbon overflow must preserve Resource Usage zoom and selection");
 		assertEquals(firstStart, first.getStart(), "Resource Usage zoom must not change first task start");
 		assertEquals(firstEnd, first.getEnd(), "Resource Usage zoom must not change first task finish");
 		assertEquals(secondStart, second.getStart(), "Resource Usage zoom must not change second task start");
@@ -2153,9 +2198,12 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		});
 		assertFalse(zoomSelected.isEnabled(), "Selected Tasks zoom must be disabled without a Usage row selection");
 		click(robot, cellOnScreen(view.getSpreadSheet(), row, 0));
-		GuiAcceptanceSupport.await(zoomSelected::isEnabled,
+		GuiAcceptanceSupport.await(() -> manager.getMenuManager()
+				.getActionFromId(com.microproject.menu.MenuActionConstants.ACTION_ZOOM_SELECTED_TASKS).isEnabled(),
 			"Selected Tasks zoom must enable for a dated task row in a Usage view");
-		click(robot, zoomSelected);
+		// Selecting the row closes any responsive ribbon overflow that was opened
+		// while checking the disabled state; reacquire its current physical route.
+		click(robot, findShowingButtonByCommand("RibbonZoomSelectedTasks"));
 		GuiAcceptanceSupport.await(() -> {
 			com.microproject.pm.graphic.views.SelectedTasksTimescaleZoom.DateRange visible = view.getVisibleDateRange();
 			return visible != null && visible.start() <= start && visible.end() >= end;
@@ -2177,9 +2225,12 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		});
 		assertFalse(zoomSelected.isEnabled(), "Selected Tasks zoom must be disabled without a Gantt row selection");
 		click(robot, cellOnScreen(sheet, row, nameColumn(sheet)));
-		GuiAcceptanceSupport.await(zoomSelected::isEnabled,
+		GuiAcceptanceSupport.await(() -> manager.getMenuManager()
+				.getActionFromId(com.microproject.menu.MenuActionConstants.ACTION_ZOOM_SELECTED_TASKS).isEnabled(),
 			"Selected Tasks zoom must enable for a dated selection in Gantt or Tracking Gantt");
-		click(robot, zoomSelected);
+		// A row click closes the overflow popup; the earlier transient menu item
+		// is no longer a showing physical target after that selection transition.
+		click(robot, findShowingButtonByCommand("RibbonZoomSelectedTasks"));
 		GuiAcceptanceSupport.await(() -> {
 			var visible = view.getVisibleDateRange();
 			return visible != null && visible.start() <= start && visible.end() >= end;
@@ -2451,6 +2502,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			.map(AbstractButton.class::cast).filter(button -> "calendarExceptionAddButton".equals(button.getName()))
 			.findFirst().orElseThrow(() -> new AssertionError("resource exception Add button is absent"));
 		assertTrue(add.isEnabled(), "resource-specific calendar exceptions must be editable");
+		physicallyScrollIntoView(robot, add, "Resource calendar Exception Add button");
 		click(robot, add);
 		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
 			.anyMatch(candidate -> candidate instanceof Dialog && candidate.isShowing() && candidate != dialog),
@@ -2595,9 +2647,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("ViewRibbonTask.title"));
 		clickAndAwaitSelected(robot, viewTab, "Robot click did not select the View ribbon tab for Calendar");
-		GuiAcceptanceSupport.await(() -> hasShowingCommand("RibbonCalendarView"),
-			"View ribbon did not expose RibbonCalendarView after selecting its tab; " + componentInputDiagnostics(viewTab));
-		click(robot, findShowingButtonByCommand("RibbonCalendarView"));
+		AbstractButton calendarView = findShowingButtonByCommand("RibbonCalendarView");
+		click(robot, calendarView);
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getCalendarViewDialog() != null
 			&& manager.getCurrentFrame().getCalendarViewDialog().isShowing(), "calendar link dialog did not open");
 		CalendarViewDialogBox calendar = manager.getCurrentFrame().getCalendarViewDialog();
@@ -2608,6 +2659,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> calendar.getDependencyMarkerBounds(predecessor) != null,
 			"calendar dependency marker did not render");
 		Rectangle marker = new Rectangle(calendar.getDependencyMarkerBounds(predecessor));
+		physicallyScrollIntoView(robot, canvas, marker, "Calendar predecessor dependency marker");
+		marker = new Rectangle(calendar.getDependencyMarkerBounds(predecessor));
 		Point canvasLocation = canvas.getLocationOnScreen();
 		click(robot, new Rectangle(canvasLocation.x + marker.x, canvasLocation.y + marker.y, marker.width, marker.height));
 		GuiAcceptanceSupport.await(() -> findDependencyDialog() != null, "calendar marker did not open dependency dialog");
@@ -3531,12 +3584,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			assertEquals(initialStatusDate, contextProject().getStatusDate(), "Cancel must not change status date");
 			click(context.robot(), GuiPhysicalRouteAdapter.visibleButton(context.robot(), window, "RibbonStatusDate"));
 			chooseStatusDateNotSet(context.robot());
-			GuiAcceptanceSupport.await(() -> RibbonGuiButton.adapt(RibbonGuiButton.findCommand(window, "RibbonStatusDate"))
-					.getText().startsWith("NA "), "Status Date ribbon value did not refresh to NA");
+			awaitStatusDateRibbonMatchesModel();
 			return null;
-		}, () -> !contextProject().isStatusDateSet() && statusDateRibbonMatchesModel(),
-			() -> contextProject().isStatusDateSet() && statusDateRibbonMatchesModel(),
-			"StatusDate");
+		}, () -> !contextProject().isStatusDateSet(), this::statusDateRibbonMatchesModel,
+			() -> contextProject().isStatusDateSet() && statusDateRibbonMatchesModel(), "StatusDate");
 	}
 	@Test
 	void statusDateRibbonCanSetSpecificDatePhysically() throws Exception {
@@ -3571,18 +3622,18 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			assertTrue(initialStatusDate != contextProject().getStatusDate(),
 					"Accepting the selected date must update the project model");
 			return null;
-		}, () -> contextProject().isStatusDateSet() && contextProject().getStatusDate() != initialStatusDate
-				&& statusDateRibbonMatchesModel(),
+		}, () -> contextProject().isStatusDateSet() && contextProject().getStatusDate() != initialStatusDate,
+			this::statusDateRibbonMatchesModel,
 			() -> contextProject().isStatusDateSet() && contextProject().getStatusDate() == initialStatusDate
 				&& statusDateRibbonMatchesModel(), "StatusDate");
 	}
 	@Test
 	void statusDatePopupRouteUsesSharedMutationFixture() throws Exception {
-		runProgressPhysicalRoute("status-popup", c -> { rightClick(c.robot(), c.cell()); SpreadSheetPopupMenu p=c.sheet().getPopup(); GuiAcceptanceSupport.await(p::isVisible,"Status popup absent"); click(c.robot(), GuiPhysicalRouteAdapter.visiblePopupItem(p,"popup.StatusDate")); chooseStatusDateNotSet(c.robot()); return null; }, () -> !contextProject().isStatusDateSet() && statusDateRibbonMatchesModel(), () -> contextProject().isStatusDateSet() && statusDateRibbonMatchesModel(), "StatusDate");
+		runProgressPhysicalRoute("status-popup", c -> { rightClick(c.robot(), c.cell()); SpreadSheetPopupMenu p=c.sheet().getPopup(); GuiAcceptanceSupport.await(p::isVisible,"Status popup absent"); click(c.robot(), GuiPhysicalRouteAdapter.visiblePopupItem(p,"popup.StatusDate")); chooseStatusDateNotSet(c.robot()); return null; }, () -> !contextProject().isStatusDateSet(), this::statusDateRibbonMatchesModel, () -> contextProject().isStatusDateSet() && statusDateRibbonMatchesModel(), "StatusDate");
 	}
 	@Test
 	void statusDateShortcutRouteUsesSharedMutationFixture() throws Exception {
-		runProgressPhysicalRoute("status-shortcut", c -> { GuiPhysicalRouteAdapter.assertRootPaneBinding(window.getRootPane(),javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_S,InputEvent.CTRL_DOWN_MASK|InputEvent.ALT_DOWN_MASK),"StatusDate"); press(c.robot(),KeyEvent.VK_CONTROL,KeyEvent.VK_ALT,KeyEvent.VK_S); chooseStatusDateNotSet(c.robot()); return null; }, () -> !contextProject().isStatusDateSet() && statusDateRibbonMatchesModel(), () -> contextProject().isStatusDateSet() && statusDateRibbonMatchesModel(), "StatusDate");
+		runProgressPhysicalRoute("status-shortcut", c -> { GuiPhysicalRouteAdapter.assertRootPaneBinding(window.getRootPane(),javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_S,InputEvent.CTRL_DOWN_MASK|InputEvent.ALT_DOWN_MASK),"StatusDate"); press(c.robot(),KeyEvent.VK_CONTROL,KeyEvent.VK_ALT,KeyEvent.VK_S); chooseStatusDateNotSet(c.robot()); return null; }, () -> !contextProject().isStatusDateSet(), this::statusDateRibbonMatchesModel, () -> contextProject().isStatusDateSet() && statusDateRibbonMatchesModel(), "StatusDate");
 	}
 
 	@Test
@@ -3963,20 +4014,67 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	private Project progressProject;
 	private long initialStatusDate;
 	private double initialPercentComplete;
+	private String lastStatusDateViewDiagnostic;
 	private Project contextProject() { return progressProject; }
 	private NormalTask contextTask() { return progressTask; }
 	private boolean statusDateRibbonMatchesModel() {
-		AbstractButton button = RibbonGuiButton.adapt(RibbonGuiButton.findCommand(window, "RibbonStatusDate"));
-		String text = button.getText().replaceAll("(?i)<br\\s*/?>", " ").replaceAll("<[^>]*>", "");
+		List<AbstractButton> candidates = new ArrayList<>(StatusDateControlUpdater.collectStatusDateButtons(window));
 		String value = !contextProject().isStatusDateSet() ? "NA"
 				: com.microproject.options.EditOption.getInstance().getDateFormat()
 					.format(new java.util.Date(contextProject().getStatusDate()));
 		String label = manager.getMenuManager().getStringOrNull("RibbonStatusDate.text");
 		String expectedDisplay = value + " " + (label == null ? "Status Date" : label) + ":";
 		Object actionName = manager.getMenuManager().getActionFromId("StatusDate").getValue(javax.swing.Action.NAME);
-		return text.startsWith(value + " ") && text.endsWith(":")
+		List<AbstractButton> showingButtons = candidates.stream().filter(AbstractButton::isShowing).toList();
+		List<AbstractButton> controlsToVerify = showingButtons.isEmpty()
+			? candidates.stream().filter(button -> expectedDisplay.equals(
+				button.getAccessibleContext() == null ? null : button.getAccessibleContext().getAccessibleName())).toList()
+			: showingButtons;
+		boolean matches = controlsToVerify.stream().anyMatch(button -> {
+			String text = button.getText().replaceAll("(?i)<br\\s*/?>", " ").replaceAll("<[^>]*>", "");
+			return text.startsWith(value + " ") && text.endsWith(":")
+				&& button.getAccessibleContext() != null
 				&& expectedDisplay.equals(button.getAccessibleContext().getAccessibleName())
 				&& expectedDisplay.equals(actionName);
+		});
+		if (!matches) {
+			String diagnostic = statusDateViewFailure(candidates, controlsToVerify.isEmpty() ? null : controlsToVerify.get(0));
+			if (!diagnostic.equals(lastStatusDateViewDiagnostic))
+				System.err.println("[GUI_STATUS_DATE_VIEW] " + diagnostic);
+			lastStatusDateViewDiagnostic = diagnostic;
+		}
+		else lastStatusDateViewDiagnostic = null;
+		return matches;
+	}
+
+	private void awaitStatusDateRibbonMatchesModel() throws Exception {
+		long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(5);
+		while (System.nanoTime() < deadline) {
+			if (statusDateRibbonMatchesModel()) return;
+			Thread.sleep(25);
+		}
+		if (statusDateRibbonMatchesModel()) return;
+		throw new AssertionError("Status Date ribbon did not refresh to match the model after bounded polling: "
+			+ lastStatusDateViewDiagnostic);
+	}
+
+	private String statusDateViewFailure(List<AbstractButton> candidates, AbstractButton button) {
+		Project project = contextProject();
+		Object actionName = manager.getMenuManager().getActionFromId("StatusDate").getValue(javax.swing.Action.NAME);
+		String text = button == null ? "<no showing Status Date button>"
+			: button.getText().replaceAll("(?i)<br\\s*/?>", " ").replaceAll("<[^>]*>", "");
+		return "Status Date ribbon did not match model: isStatusDateSet=" + project.isStatusDateSet()
+				+ ", statusDate=" + project.getStatusDate() + "; button="
+				+ (button == null ? "none" : button.getClass().getName() + "@"
+					+ Integer.toHexString(System.identityHashCode(button)) + " " + button
+					+ "[actionCommand=" + button.getActionCommand() + ", showing=" + button.isShowing()
+					+ ", bounds=" + button.getBounds() + ", text=" + text
+					+ ", accessibleName=" + button.getAccessibleContext().getAccessibleName())
+				+ "]; matching candidates=" + candidates.stream().map(candidate -> candidate.getClass().getSimpleName()
+					+ "@" + Integer.toHexString(System.identityHashCode(candidate)) + "[showing="
+					+ candidate.isShowing() + ",visible=" + candidate.isVisible() + ",bounds=" + candidate.getBounds()
+					+ ",text=" + candidate.getText() + "]").toList()
+				+ "; StatusDate Action.NAME=" + actionName;
 	}
 
 	@Test
@@ -4705,8 +4803,20 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	private void runProgressPhysicalRoute(String routeName, TaskModeRoute route,
+			java.util.function.BooleanSupplier after, java.util.function.BooleanSupplier viewAfter,
+			java.util.function.BooleanSupplier before, String commandId) throws Exception {
+		runProgressPhysicalRoute(routeName, route, after, viewAfter, before, commandId, true);
+	}
+
+	private void runProgressPhysicalRoute(String routeName, TaskModeRoute route,
 			java.util.function.BooleanSupplier after, java.util.function.BooleanSupplier before, String commandId,
 			boolean selectTask) throws Exception {
+		runProgressPhysicalRoute(routeName, route, after, () -> true, before, commandId, selectTask);
+	}
+
+	private void runProgressPhysicalRoute(String routeName, TaskModeRoute route,
+			java.util.function.BooleanSupplier after, java.util.function.BooleanSupplier viewAfter,
+			java.util.function.BooleanSupplier before, String commandId, boolean selectTask) throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for progress Robot coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
@@ -4742,7 +4852,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		}
 		GuiCommandAcceptanceFixture.verifyMutation(commandId, () -> route.run(context),
 			() -> manager.getCurrentFrame().getLastTaskCommandResult(), after,
-			() -> rowForTask(sheet, progressTask) >= 0,
+			() -> rowForTask(sheet, progressTask) >= 0 && viewAfter.getAsBoolean(),
 			() -> { press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z); return null; }, before,
 			() -> { press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y); return null; }, after,
 			() -> {
@@ -4886,6 +4996,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		AbstractButton copy = findShowingButtonByCommand("RibbonCopy");
 		GuiAcceptanceSupport.await(copy::isEnabled, "Copy remained disabled after selecting source task");
 		click(robot, copy);
+		dismissTaskRibbonOverflow(robot, copy,
+			() -> sheet.getSelectedRow() == rowForTask(sheet, source) && sheet.isRowHeaderSelectionActive(),
+			"the physical Copy must preserve its selected source row");
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, target), nameColumn(sheet)));
 		// Paste Insert is intentionally popup-only in the ribbon shell.  Exercise
 		// its real physical route as part of the same clipboard fixture so every
@@ -6131,9 +6244,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				"Link did not create a dependency between the selected tasks");
 		GuiAcceptanceSupport.await(() -> gantt.getModel().getCache().getEdgesSize() == 1,
 				"Link did not create one visible Gantt dependency");
-		robot.keyPress(KeyEvent.VK_ESCAPE);
-		robot.keyRelease(KeyEvent.VK_ESCAPE);
-		click(robot, taskTab);
+		dismissTaskRibbonOverflow(robot, link,
+			() -> successor.getPredecessorList().size() == 1 && gantt.getModel().getCache().getEdgesSize() == 1,
+			"Dismissing the Task ribbon overflow after Link must preserve the dependency");
 		GuiAcceptanceSupport.await(() -> !linkOverflow[0].isShowing(),
 				"Dismissing the Task ribbon overflow after Link did not close its popup");
 		assertRibbonOutcome(manager, previousLinkOutcome, RibbonCommandResult.Status.CHANGED,
@@ -8279,28 +8392,45 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"a physical task-name click did not restore ordinary row selection after Ctrl+Space");
 		AbstractButton painter = findShowingButtonByCommand("RibbonFormatPainter");
 		assertTrue(painter.isEnabled(), "Format Painter must be enabled for one editable task source");
+		dismissTaskRibbonOverflow(robot, painter, () -> sheetHasOnlySelectedTask(sheet, source),
+			"the Format Painter source selection must remain intact");
 		robot.keyPress(KeyEvent.VK_SHIFT);
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, firstTarget), 0));
 		robot.keyRelease(KeyEvent.VK_SHIFT);
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false)
 				.containsAll(List.of(source, firstTarget)), "Shift-click must create the mixed multi-task selection fixture");
+		painter = findShowingButtonByCommand("RibbonFormatPainter");
 		assertFalse(painter.isEnabled(), "Format Painter must reject a multiple-task source selection");
+		dismissTaskRibbonOverflow(robot, painter,
+			() -> manager.getCurrentFrame().getSelectedImpls(false).containsAll(List.of(source, firstTarget)),
+			"the mixed task selection must remain intact");
 		// The lead row can already be the source while Shift-click has extended the selection.
 		// clickUntilSelected only checks that lead row, so issue an unmodified physical click
 		// here to collapse the multi-selection before asserting single-source enablement.
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, source), 0));
 		GuiAcceptanceSupport.await(() -> sheetHasOnlySelectedTask(sheet, source),
 			"an unmodified source-row click did not collapse the Format Painter source selection");
+		painter = findShowingButtonByCommand("RibbonFormatPainter");
 		GuiAcceptanceSupport.await(painter::isEnabled, "Format Painter must re-enable for a single source task");
+		painter = findShowingButtonByCommand("RibbonFormatPainter");
 		click(robot, painter);
-		GuiAcceptanceSupport.await(painter::isSelected, "one-shot Format Painter did not enter its armed state");
+		GuiAcceptanceSupport.await(this::formatPainterActionSelected, "one-shot Format Painter did not enter its armed state");
+		painter = findShowingButtonByCommand("RibbonFormatPainter");
+		assertTrue(painter.isSelected(), "the current Format Painter control must show its armed state");
+		dismissTaskRibbonOverflow(robot, painter, this::formatPainterActionSelected,
+			"Format Painter must remain armed after dismissing its overflow");
 		clickUntilSelected(robot, window, sheet, rowForTask(sheet, firstTarget), 0);
 		GuiAcceptanceSupport.await(() -> firstTarget.isFontBold() && firstTarget.isFontItalic()
 				&& firstTarget.isFontStrikethrough() && firstTarget.getFontSize() == 15
 				&& java.util.Objects.equals(firstTarget.getFontFamily(), "Dialog")
 				&& java.util.Objects.equals(firstTarget.getFontColor(), 0x2457A6),
 			"the physical target-row selection did not receive all six source text-style properties");
-		GuiAcceptanceSupport.await(() -> !painter.isSelected(), "one-shot Format Painter must disarm after one target selection");
+		GuiAcceptanceSupport.await(() -> !formatPainterActionSelected(),
+			"one-shot Format Painter must disarm after one target selection");
+		painter = findShowingButtonByCommand("RibbonFormatPainter");
+		assertFalse(painter.isSelected(), "the current Format Painter control must show its disarmed state");
+		dismissTaskRibbonOverflow(robot, painter, () -> !formatPainterActionSelected(),
+			"one-shot Format Painter must remain disarmed");
 		assertTrue(undo.canUndo(), "one target application must create one undoable mutation");
 		assertEquals("Format first target", firstTarget.getName(), "format painting must preserve task data");
 		assertArrayEquals(originalDates, new long[] { firstTarget.getStart(), firstTarget.getEnd(), secondTarget.getStart(),
@@ -8335,25 +8465,48 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertEquals(Integer.valueOf(0x2457A6), reloadedFirst.getFontColor());
 
 		clickUntilSelected(robot, window, sheet, rowForTask(sheet, source), 0);
+		painter = findShowingButtonByCommand("RibbonFormatPainter");
 		click(robot, painter);
-		GuiAcceptanceSupport.await(painter::isSelected, "Format Painter did not arm before continuous mode");
+		GuiAcceptanceSupport.await(this::formatPainterActionSelected, "Format Painter did not arm before continuous mode");
+		painter = findShowingButtonByCommand("RibbonFormatPainter");
+		assertTrue(painter.isSelected(), "the current Format Painter control must show its armed state");
+		painter = findShowingButtonByCommand("RibbonFormatPainter");
 		click(robot, painter);
-		GuiAcceptanceSupport.await(painter::isSelected, "second Format Painter activation must promote to continuous mode");
+		GuiAcceptanceSupport.await(this::formatPainterActionSelected,
+			"second Format Painter activation must promote to continuous mode");
+		painter = findShowingButtonByCommand("RibbonFormatPainter");
+		assertTrue(painter.isSelected(), "the current Format Painter control must remain armed in continuous mode");
+		dismissTaskRibbonOverflow(robot, painter, this::formatPainterActionSelected,
+			"continuous Format Painter must remain armed after dismissing its overflow");
 		clickUntilSelected(robot, window, sheet, rowForTask(sheet, secondTarget), 0);
 		GuiAcceptanceSupport.await(() -> secondTarget.isFontBold() && secondTarget.getFontSize() == 15,
 			"continuous Format Painter did not format its first target");
-		assertTrue(painter.isSelected(), "continuous Format Painter must remain armed after a target selection");
+		GuiAcceptanceSupport.await(this::formatPainterActionSelected,
+			"continuous Format Painter must remain armed after a target selection");
+		painter = findShowingButtonByCommand("RibbonFormatPainter");
+		assertTrue(painter.isSelected(), "the current Format Painter control must remain armed after a target selection");
+		dismissTaskRibbonOverflow(robot, painter, this::formatPainterActionSelected,
+			"continuous Format Painter must remain armed before selecting its source again");
 		clickUntilSelected(robot, window, sheet, rowForTask(sheet, source), nameColumn(sheet));
 		press(robot, KeyEvent.VK_F2);
 		GuiAcceptanceSupport.await(sheet::isEditing, "F2 did not open the source cell editor");
 		press(robot, KeyEvent.VK_ESCAPE);
 		GuiAcceptanceSupport.await(() -> !sheet.isEditing(), "Escape did not cancel the active cell editor");
-		assertTrue(painter.isSelected(), "Escape cancelling a cell edit must leave continuous Format Painter armed");
+		GuiAcceptanceSupport.await(this::formatPainterActionSelected,
+			"Escape cancelling a cell edit must leave continuous Format Painter armed");
+		painter = findShowingButtonByCommand("RibbonFormatPainter");
+		assertTrue(painter.isSelected(), "the current Format Painter control must remain armed after Escape cancels an edit");
+		dismissTaskRibbonOverflow(robot, painter, this::formatPainterActionSelected,
+			"continuous Format Painter must remain armed after dismissing its overflow");
 		clickUntilSelected(robot, window, sheet, rowForTask(sheet, thirdTarget), 0);
 		GuiAcceptanceSupport.await(() -> thirdTarget.isFontBold() && thirdTarget.getFontSize() == 15,
 			"continuous Format Painter did not format its next target");
 		press(robot, KeyEvent.VK_ESCAPE);
-		GuiAcceptanceSupport.await(() -> !painter.isSelected(), "Escape must stop continuous Format Painter mode");
+		GuiAcceptanceSupport.await(() -> !formatPainterActionSelected(), "Escape must stop continuous Format Painter mode");
+		painter = findShowingButtonByCommand("RibbonFormatPainter");
+		assertFalse(painter.isSelected(), "the current Format Painter control must show continuous mode stopped");
+		dismissTaskRibbonOverflow(robot, painter, () -> !formatPainterActionSelected(),
+			"continuous Format Painter must remain disarmed");
 		clickUntilSelected(robot, window, sheet, rowForTask(sheet, untouched), 0);
 		assertFalse(untouched.isFontBold() || untouched.isFontItalic() || untouched.isFontStrikethrough()
 			|| untouched.getFontSize() != 0 || untouched.getFontFamily() != null || untouched.getFontColor() != null,
@@ -8363,6 +8516,43 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertArrayEquals(originalDates, new long[] { firstTarget.getStart(), firstTarget.getEnd(), secondTarget.getStart(),
 			secondTarget.getEnd(), thirdTarget.getStart(), thirdTarget.getEnd(), untouched.getStart(), untouched.getEnd() },
 			"continuous text formatting must leave all target schedules unchanged");
+	}
+
+	private boolean formatPainterActionSelected() {
+		Action action = manager.getMenuManager().getActionFromId("RibbonFormatPainter");
+		return action != null && Boolean.TRUE.equals(action.getValue(Action.SELECTED_KEY));
+	}
+
+	private void dismissTaskRibbonOverflow(Robot robot, Component command, BooleanSupplier preservedState,
+			String preservedStateMessage) throws Exception {
+		dismissRibbonOverflow(robot, command,
+			findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu").getString("TaskRibbonTask.title")),
+			preservedState, preservedStateMessage);
+	}
+
+	private void dismissRibbonOverflow(Robot robot, Component command, AbstractButton selectedTab,
+			BooleanSupplier preservedState, String preservedStateMessage) throws Exception {
+		JPopupMenu[] overflow = new JPopupMenu[1];
+		SwingUtilities.invokeAndWait(() -> {
+			for (Component current = command; current != null; current = current.getParent()) {
+				if (current instanceof JPopupMenu popup) {
+					overflow[0] = popup;
+					break;
+				}
+			}
+		});
+		if (overflow[0] == null || !overflow[0].isShowing()) {
+			GuiAcceptanceSupport.await(preservedState::getAsBoolean, preservedStateMessage);
+			return;
+		}
+		assertTrue(selectedTab.isSelected(), "The selected ribbon tab must already be active before dismissing its overflow");
+		click(robot, selectedTab);
+		GuiAcceptanceSupport.await(selectedTab::isSelected, "Ribbon tab lost selection while dismissing its overflow");
+		if (overflow[0] != null) {
+			GuiAcceptanceSupport.await(() -> !overflow[0].isShowing(),
+				"Clicking the selected ribbon tab did not close its overflow popup");
+		}
+		GuiAcceptanceSupport.await(preservedState::getAsBoolean, preservedStateMessage);
 	}
 
 	private static boolean sheetHasOnlySelectedTask(SpreadSheet sheet, Task expected) {

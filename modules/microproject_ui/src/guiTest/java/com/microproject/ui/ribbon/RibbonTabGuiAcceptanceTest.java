@@ -163,8 +163,23 @@ class RibbonTabGuiAcceptanceTest {
 				assertEquals(1, tabs.stream().filter(AbstractButton::isSelected).count(), "exactly one ribbon tab must be selected");
 				assertTrue(tab.isSelected());
 				assertEquals(FlatUiSupport.tabSelectedForeground(), tab.getForeground());
-				assertTrue(host.isShowing() && host.getWidth() > 900 && host.getHeight() > 100 && host.getHeight() < 250,
-					"ribbon command surface height is invalid after selecting " + tab.getText());
+				Rectangle usable = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
+				Rectangle hostBounds = null;
+				if (host.isShowing()) {
+					try {
+						hostBounds = new Rectangle(host.getLocationOnScreen(), host.getSize());
+					} catch (IllegalComponentStateException ignored) {
+						// A native host can stop showing between the visibility check and screen lookup.
+					}
+				}
+				assertTrue(frame.isShowing() && usable.contains(frame.getBounds())
+						&& host.isShowing() && hostBounds != null && usable.contains(hostBounds)
+						&& host.getHeight() > 100 && host.getHeight() < 250,
+					"ribbon must fit the usable viewport and retain its command-surface height after selecting "
+						+ tab.getText() + ": frame=" + frame.getBounds()
+						+ ", hostShowing=" + host.isShowing()
+						+ (host.isShowing() ? ", host=" + hostBounds : ", host=not-showing")
+						+ ", usable=" + usable + ", height=" + host.getHeight());
 			});
 		}
 	}

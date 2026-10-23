@@ -9,10 +9,13 @@ import java.awt.EventQueue;
 import java.awt.event.ActionEvent;
 import java.beans.PropertyChangeListener;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -81,7 +84,9 @@ public final class MenuRibbonCommandSource implements RibbonCommandSource {
 	@Override
 	public AbstractButton createTransientButton(String commandId) {
 		try {
-			return bind(factory.createUnregisteredJButton(commandId), commandId);
+			AbstractButton button = bind(factory.createUnregisteredJButton(commandId), commandId);
+			bindingsById.get(commandId).addTransientButton(button);
+			return button;
 		} catch (Exception exception) {
 			throw new IllegalStateException("Unable to create transient ribbon command " + commandId, exception);
 		}
@@ -215,6 +220,7 @@ public final class MenuRibbonCommandSource implements RibbonCommandSource {
 		private final Action dispatchAction;
 		private Action command;
 		private PropertyChangeListener enabledListener;
+		private final Set<AbstractButton> transientButtons = Collections.newSetFromMap(new WeakHashMap<>());
 
 		private CommandBinding(String commandId) {
 			this.commandId = commandId;
@@ -234,17 +240,29 @@ public final class MenuRibbonCommandSource implements RibbonCommandSource {
 				enabledListener = event -> {
 				if ("enabled".equals(event.getPropertyName())) dispatchAction.setEnabled(command.isEnabled());
 				if (Action.NAME.equals(event.getPropertyName())) dispatchAction.putValue(Action.NAME, event.getNewValue());
-				if (Action.SELECTED_KEY.equals(event.getPropertyName())) dispatchAction.putValue(Action.SELECTED_KEY, event.getNewValue());
+				if (Action.SELECTED_KEY.equals(event.getPropertyName())) updateSelectedState(event.getNewValue());
 				if (Action.SHORT_DESCRIPTION.equals(event.getPropertyName())) dispatchAction.putValue(Action.SHORT_DESCRIPTION, event.getNewValue());
 			};
 			command.addPropertyChangeListener(enabledListener);
 			dispatchAction.setEnabled(command.isEnabled());
 			dispatchAction.putValue(Action.NAME, command.getValue(Action.NAME));
-			dispatchAction.putValue(Action.SELECTED_KEY, command.getValue(Action.SELECTED_KEY));
+			updateSelectedState(command.getValue(Action.SELECTED_KEY));
 			dispatchAction.putValue(Action.SHORT_DESCRIPTION, command.getValue(Action.SHORT_DESCRIPTION));
 		}
 
+		private void addTransientButton(AbstractButton button) {
+			transientButtons.add(button);
+			button.setSelected(Boolean.TRUE.equals(dispatchAction.getValue(Action.SELECTED_KEY)));
+		}
+
+		private void updateSelectedState(Object selected) {
+			dispatchAction.putValue(Action.SELECTED_KEY, selected);
+			boolean isSelected = Boolean.TRUE.equals(selected);
+			for (AbstractButton button : transientButtons) button.setSelected(isSelected);
+		}
+
 		private void publishResult(RibbonCommandResult result) {
+			updateSelectedState(command == null ? null : command.getValue(Action.SELECTED_KEY));
 			dispatchAction.putValue(RibbonCommandResult.STATUS_ACTION_PROPERTY, result.status());
 			dispatchAction.putValue(RibbonCommandResult.REASON_ACTION_PROPERTY, result.reason());
 			dispatchAction.putValue(RibbonCommandResult.SELECTED_TASK_IDS_ACTION_PROPERTY, result.selectedTaskIds());
