@@ -2,6 +2,7 @@
 
 State: OPEN. Issue: https://github.com/tetsuji16/ProjectLibre/issues/794
 PR #872 and follow-up fixes #873/#874 are integrated in `origin/master`. Referenced dependencies #792 and #793 are closed; they are not registered subissues. Contract frozen from [original acceptance comment](https://github.com/tetsuji16/ProjectLibre/issues/794#issuecomment-6313928977).
+Current release slice: stable candidate `v0.0.24.1264` stopped before publication on Windows full GUI at ja/en 150%, where the Change Working Time exception row and Details editor were clipped by nested list/body viewports. The shared Robot reveal helper now scrolls every ancestor viewport physically and the affected exception-row/Details/tab clicks use that route. The complete eight-test Change Working Time GUI class passed locally at ja/150% and en/150%; the resource-calendar caller journey passed ja/150%. Exact-head hosted GUI/full release gate and publication remain pending. Keep every frozen M2.1–M2.4/Common criterion and #794 open until publication; preserve `.codex-remote-attachments/`.
 PR #880 is merged as `48bff2bf9bb53525a66c7e8f7fef341a45b11a0a`. On candidate `aec3a037246ac43a40bf9fb33214886dd040b8d2`, focused Task Information GUI passed 72/72, and PR Build, GUI smoke, and focused physical evidence passed. Master Build `39900129546` and smoke `39900129331` passed. Stable release attempt `39900156976` passed build/package verification but stopped in the first full GUI leg after Explorer's system-tray overflow window overlapped the test window; all 12 resulting failures were `GUI_ENVIRONMENT_CONTENDED`, with no independent product assertion failure. No release was published. Replacement stable run `39911364047` failed in the ja/150% and en/150% GUI matrix; no release was published. Keep every original M2.1–M2.4/Common criterion and #794 open until publication. Preserve `.codex-remote-attachments/`.
 
 Release run `39945722163` on stable candidate `v0.0.24.1262` passed Linux
@@ -67,4 +68,4 @@ Contract revision (2026-10-22, user instruction): code/LOC/listener-count net re
 
 ## Next slice
 
-Next, run the required PR checks on the integrated fixture and release-workflow changes. If they pass, run one stable full GUI/package gate and verify publication, package launch/import/checksums, and platform artifacts before closing #794. The original ja/en 150% failures have not yet been cleared by hosted CI, so a local GUI pass is not release evidence.
+Run exact-head PR checks, then the stable full GUI/package gate. If all gates pass, verify publication, package launch/import/checksums, and platform artifacts before closing #794. Local ja/en 150% physical passes do not replace hosted exact-head release evidence.

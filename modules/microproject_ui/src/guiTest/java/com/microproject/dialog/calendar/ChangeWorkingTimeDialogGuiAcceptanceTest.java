@@ -7,6 +7,7 @@ package com.microproject.dialog.calendar;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static com.microproject.testsupport.DialogLayoutAssertions.physicallyClick;
 import static com.microproject.testsupport.DialogLayoutAssertions.physicallyScrollIntoView;
 
 import java.awt.Dimension;
@@ -358,20 +359,17 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 		click(robot, buttonNamed(addEditor, Messages.getString("ButtonText.OK")));
 		GuiAcceptanceSupport.await(() -> visibleChildDialog() == null, "Add Exception editor did not close");
 		JList<?> exceptions = findNamedList(dialog.exceptionEditor, "calendarExceptionsList");
-		Point exceptionCell = new Point();
+		Rectangle[] exceptionCell = new Rectangle[1];
 		SwingUtilities.invokeAndWait(() -> {
-			Rectangle cell = exceptions.getCellBounds(0, 0);
-			Point location = exceptions.getLocationOnScreen();
-			exceptionCell.setLocation(location.x + cell.x + cell.width / 2, location.y + cell.y + cell.height / 2);
+			exceptionCell[0] = new Rectangle(exceptions.getCellBounds(0, 0));
 		});
-		robot.mouseMove(exceptionCell.x, exceptionCell.y);
-		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK); robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		physicallyClick(robot, exceptions, exceptionCell[0], "First exception row");
 		GuiAcceptanceSupport.await(() -> exceptions.getSelectedIndex() == 0,
 			"physical exception-row click did not select the first exception");
 		AbstractButton details = findButton(dialog.exceptionEditor, "calendarExceptionDetailsButton");
 		GuiAcceptanceSupport.await(details::isEnabled,
 			"Details must be enabled after selecting an editable exception");
-		click(robot, details);
+		physicallyClick(robot, details, "Exception Details button");
 		GuiAcceptanceSupport.await(() -> visibleChildDialog() != null, "Exception Details editor did not open");
 		JDialog exceptionDetails = visibleChildDialog();
 		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(exceptionDetails, "Exception Details visual matrix");
@@ -600,15 +598,13 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 		click(robot, buttonNamed(addDialog, Messages.getString("ButtonText.OK")));
 		GuiAcceptanceSupport.await(() -> visibleChildDialog() == null, "Add Exception editor did not close");
 		JList<?> list = findNamedList(dialog.exceptionEditor, "calendarExceptionsList");
-		Point listPoint = new Point();
+		Rectangle[] exceptionCell = new Rectangle[1];
 		SwingUtilities.invokeAndWait(() -> {
-			Rectangle cell = list.getCellBounds(0, 0);
-			Point location = list.getLocationOnScreen();
-			listPoint.setLocation(location.x + cell.x + cell.width / 2, location.y + cell.y + cell.height / 2);
+			exceptionCell[0] = new Rectangle(list.getCellBounds(0, 0));
 		});
-		robot.mouseMove(listPoint.x, listPoint.y);
-		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK); robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-		click(robot, findButton(dialog.exceptionEditor, "calendarExceptionDetailsButton"));
+		physicallyClick(robot, list, exceptionCell[0], "First exception row");
+		physicallyClick(robot, findButton(dialog.exceptionEditor, "calendarExceptionDetailsButton"),
+			"Exception Details button");
 		GuiAcceptanceSupport.await(() -> visibleChildDialog() != null, "Exception Details editor did not open");
 		JDialog details = visibleChildDialog();
 		assertVisibleComponentsFit(details, "Exception Details editor");
@@ -982,29 +978,14 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 
 	private static void clickTab(Robot robot, JTabbedPane tabs, int index) throws Exception {
 		Rectangle[] tabBounds = new Rectangle[1];
-		SwingUtilities.invokeAndWait(() -> {
-			tabBounds[0] = new Rectangle(tabs.getBoundsAt(index));
-		});
-		physicallyScrollIntoView(robot, tabs, tabBounds[0], "Change Working Time tab header " + index);
-		Point[] center = new Point[1];
-		SwingUtilities.invokeAndWait(() -> {
-			assertTrue(tabs.isShowing() && tabs.getVisibleRect().contains(tabBounds[0]),
-				"Change Working Time tab header must be inside the visible dialog viewport before Robot click: bounds="
-					+ tabBounds[0] + ", visible=" + tabs.getVisibleRect());
-			Point location = tabs.getLocationOnScreen();
-			center[0] = new Point(location.x + tabBounds[0].x + tabBounds[0].width / 2,
-				location.y + tabBounds[0].y + tabBounds[0].height / 2);
-		});
-		robot.mouseMove(center[0].x, center[0].y);
-		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-		robot.waitForIdle();
+		SwingUtilities.invokeAndWait(() -> tabBounds[0] = new Rectangle(tabs.getBoundsAt(index)));
+		physicallyClick(robot, tabs, tabBounds[0], "Change Working Time tab header " + index);
 	}
 
 	private void constrainDialogHeightForScrollableTabs() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			Rectangle usable = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
-			dialog.setSize(dialog.getWidth(), Math.min(480, usable.height));
+			dialog.setSize(Math.min(650, Math.min(dialog.getWidth(), usable.width)), Math.min(480, usable.height));
 			dialog.validate();
 		});
 	}
