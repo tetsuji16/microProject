@@ -54,6 +54,7 @@ public class CalendarView extends JXXMonthView {
 	private final Font baseFont;
 	private AccessibleContext accessibleContext;
 	private static final float MAX_READABLE_SCALE = 2.0f;
+	private static final ZoneId CALENDAR_ZONE = ZoneId.of("GMT");
 
 	/**
 	 *
@@ -100,7 +101,7 @@ public class CalendarView extends JXXMonthView {
 		long dateMillis = getDayAt(event.getX(), event.getY());
 		// JXXMonthView uses -1 for an empty cell and -100..-106 for weekday headers.
 		if (dateMillis == -1 || (dateMillis <= -100 && dateMillis >= -106)) return null;
-		LocalDate date = LocalDate.ofInstant(Instant.ofEpochMilli(dateMillis), ZoneId.of("GMT"));
+		LocalDate date = calendarDate(dateMillis);
 		return AlternativeCalendarDisplay.dayTooltip(date, Locale.getDefault(Locale.Category.FORMAT));
 	}
 
@@ -130,7 +131,7 @@ public class CalendarView extends JXXMonthView {
 
 	@Override
 	protected String getCalendarMonthTitle(long firstDayOfMonth, String primaryTitle) {
-		LocalDate date = LocalDate.ofInstant(Instant.ofEpochMilli(firstDayOfMonth), ZoneId.systemDefault());
+		LocalDate date = calendarDate(firstDayOfMonth);
 		String companion = AlternativeCalendarDisplay.companionMonth(YearMonth.from(date),
 			Locale.getDefault(Locale.Category.FORMAT));
 		return companion.isEmpty() ? primaryTitle : primaryTitle + " (" + companion + ")";
@@ -138,7 +139,7 @@ public class CalendarView extends JXXMonthView {
 
 	@Override
 	protected String getSecondaryDayLabel(long dateMillis) {
-		LocalDate date = LocalDate.ofInstant(Instant.ofEpochMilli(dateMillis), ZoneId.systemDefault());
+		LocalDate date = calendarDate(dateMillis);
 		String companion = AlternativeCalendarDisplay.companionDay(date,
 			Locale.getDefault(Locale.Category.FORMAT));
 		return companion.equals(Integer.toString(date.getDayOfMonth())) ? "" : companion;
@@ -148,7 +149,8 @@ public class CalendarView extends JXXMonthView {
 		return new Intervals(super.getSelectedIntervals());
 	}
 
-
-
+	private static LocalDate calendarDate(long millis) {
+		return LocalDate.ofInstant(Instant.ofEpochMilli(millis), CALENDAR_ZONE);
+	}
 
 }
