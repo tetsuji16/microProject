@@ -67,6 +67,7 @@ import com.microproject.pm.task.Project;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.testsupport.DialogLayoutAssertions;
 import com.microproject.testsupport.DialogScreenshotArtifacts;
+import com.microproject.testsupport.WindowAcceptanceAssertions;
 import com.microproject.strings.Messages;
 import com.microproject.exchange.LocalFileImporter;
 import com.microproject.pm.task.ProjectFactory;
@@ -320,6 +321,7 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 			SwingUtilities.invokeLater(dialog::doModal);
 		});
 		GuiAcceptanceSupport.await(() -> dialog != null && dialog.isVisible(), "working-time dialog did not open");
+		constrainDialogHeightForScrollableTabs();
 		long displayedMonth = dialog.sdCalendar.getFirstDisplayedDate();
 		assertTrue(dialog.sdCalendar.getCalendarMonthTitle(displayedMonth, "Gregorian").contains("("),
 			"the working-time calendar should display the selected alternative calendar month");
@@ -329,6 +331,7 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 		DialogScreenshotArtifacts.capture(dialog, "issue-590-change-working-time");
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(50);
+		scrollCalendarBodyToBottom(robot, dialog.calendarTabs);
 		clickTab(robot, dialog.calendarTabs, 1);
 		assertVisibleComponentsFit(dialog, "Change Working Time Work Weeks tab");
 		AbstractButton workWeekAdd = findButton(dialog.workWeekEditor, "workWeekAddButton");
@@ -343,7 +346,8 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 		clickTab(robot, dialog.calendarTabs, 2);
 		GuiAcceptanceSupport.await(() -> dialog.calendarTabs.getSelectedIndex() == 2, "Exceptions tab did not become active");
 		assertVisibleComponentsFit(dialog, "Change Working Time Exceptions tab");
-		click(robot, findButton(dialog.exceptionEditor, "calendarExceptionAddButton"));
+		clickScrolled(robot, findButton(dialog.exceptionEditor, "calendarExceptionAddButton"),
+			"Add Exception button");
 		GuiAcceptanceSupport.await(() -> visibleChildDialog() != null, "Add Exception editor did not open");
 		JDialog addEditor = visibleChildDialog();
 		JTextComponent exceptionName = findNamedText(addEditor, "calendarExceptionName");
@@ -562,6 +566,7 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 			SwingUtilities.invokeLater(dialog::doModal);
 		});
 		GuiAcceptanceSupport.await(() -> dialog != null && dialog.isVisible(), "working-time dialog did not open");
+		constrainDialogHeightForScrollableTabs();
 		assertTrue(AlternativeCalendarDisplay.calendarLegend(Locale.getDefault(Locale.Category.FORMAT)).contains("小さな数字"),
 			"Japanese alternative-calendar mode must explain the smaller companion dates");
 		assertTrue(dialog.sdCalendar.getAccessibleContext().getAccessibleDescription().contains("曜日・選択・稼働時間の編集"),
@@ -571,6 +576,7 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		long selectedDate = selectDisplayedWorkingDate(robot, calendar);
+		scrollCalendarBodyToBottom(robot, dialog.calendarTabs);
 		clickTab(robot, dialog.calendarTabs, 2);
 		GuiAcceptanceSupport.await(() -> dialog.calendarTabs.getSelectedIndex() == 2, "Exceptions tab did not become active");
 		AbstractButton addException = findButton(dialog.exceptionEditor, "calendarExceptionAddButton");
@@ -614,7 +620,8 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 		assertEquals(1, dialog.getScratchCalendar().getRecurringExceptions().size(), "recurrence edit is staged until parent OK");
 		assertTrue(calendar.getRecurringExceptions().isEmpty(), "the live calendar must remain unchanged before parent OK");
 		selectCalendarWithRobot(robot, dialog, projectCalendar);
-		click(robot, findButton(dialog.exceptionEditor, "calendarExceptionAddButton"));
+		clickScrolled(robot, findButton(dialog.exceptionEditor, "calendarExceptionAddButton"),
+			"Add Exception button");
 		GuiAcceptanceSupport.await(() -> visibleChildDialog() != null, "project calendar Add Exception editor did not open");
 		JDialog projectAddDialog = visibleChildDialog();
 		JTextComponent projectExceptionName = findNamedText(projectAddDialog, "calendarExceptionName");
@@ -626,7 +633,8 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> visibleChildDialog() == null, "project calendar exception Add editor did not close");
 		assertTrue(projectCalendar.getExceptionDays().length == 0, "project-calendar edits must remain staged before parent OK");
 		selectCalendarWithRobot(robot, dialog, taskCalendar);
-		click(robot, findButton(dialog.exceptionEditor, "calendarExceptionAddButton"));
+		clickScrolled(robot, findButton(dialog.exceptionEditor, "calendarExceptionAddButton"),
+			"Add Exception button");
 		GuiAcceptanceSupport.await(() -> visibleChildDialog() != null, "task calendar Add Exception editor did not open");
 		JDialog taskAddDialog = visibleChildDialog();
 		JTextComponent taskExceptionName = findNamedText(taskAddDialog, "calendarExceptionName");
@@ -909,7 +917,7 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 			}
 		});
 		assertTrue(targetIndex[0] >= 0, "target calendar must be present in For calendar");
-		clickComponent(robot, value.calendarType);
+		clickScrolled(robot, value.calendarType, "For calendar selector");
 		robot.keyPress(KeyEvent.VK_HOME);
 		robot.keyRelease(KeyEvent.VK_HOME);
 		for (int index = 0; index < targetIndex[0]; index++) {
@@ -921,6 +929,10 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 		robot.waitForIdle();
 		GuiAcceptanceSupport.await(() -> value.calendarType.getSelectedItem() == calendar,
 			"physical For calendar selection did not choose the project calendar");
+		boolean[] selectionState = new boolean[1];
+		SwingUtilities.invokeAndWait(() -> selectionState[0] = value.isVisible() && value.calendarTabs.isShowing()
+			&& value.calendarTabs.getSelectedIndex() == 2);
+		assertTrue(selectionState[0], "physical For calendar selection must keep the dialog open on the Exceptions tab");
 	}
 
 	private static AbstractButton cancelButton(ChangeWorkingTimeDialogBox value) throws Exception {
@@ -969,15 +981,60 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 	}
 
 	private static void clickTab(Robot robot, JTabbedPane tabs, int index) throws Exception {
+		Rectangle[] tabBounds = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> {
+			tabBounds[0] = new Rectangle(tabs.getBoundsAt(index));
+		});
+		physicallyScrollIntoView(robot, tabs, tabBounds[0], "Change Working Time tab header " + index);
 		Point[] center = new Point[1];
 		SwingUtilities.invokeAndWait(() -> {
-			Rectangle bounds = tabs.getBoundsAt(index);
+			assertTrue(tabs.isShowing() && tabs.getVisibleRect().contains(tabBounds[0]),
+				"Change Working Time tab header must be inside the visible dialog viewport before Robot click: bounds="
+					+ tabBounds[0] + ", visible=" + tabs.getVisibleRect());
 			Point location = tabs.getLocationOnScreen();
-			center[0] = new Point(location.x + bounds.x + bounds.width / 2, location.y + bounds.y + bounds.height / 2);
+			center[0] = new Point(location.x + tabBounds[0].x + tabBounds[0].width / 2,
+				location.y + tabBounds[0].y + tabBounds[0].height / 2);
 		});
 		robot.mouseMove(center[0].x, center[0].y);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+	}
+
+	private void constrainDialogHeightForScrollableTabs() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Rectangle usable = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
+			dialog.setSize(dialog.getWidth(), Math.min(480, usable.height));
+			dialog.validate();
+		});
+	}
+
+	private static void scrollCalendarBodyToBottom(Robot robot, JTabbedPane tabs) throws Exception {
+		Component[] scrollView = new Component[1];
+		SwingUtilities.invokeAndWait(() -> {
+			for (Container parent = tabs.getParent(); parent != null; parent = parent.getParent())
+				if (parent instanceof JViewport viewport) {
+					scrollView[0] = viewport.getView();
+					return;
+				}
+		});
+		assertTrue(scrollView[0] != null, "Change Working Time dialog must have a scrollable body");
+		Rectangle[] bottom = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> bottom[0] = new Rectangle(0,
+			Math.max(0, scrollView[0].getHeight() - 1), Math.max(1, scrollView[0].getWidth()), 1));
+		physicallyScrollIntoView(robot, scrollView[0], bottom[0], "Change Working Time dialog lower content");
+		Rectangle[] header = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> header[0] = new Rectangle(tabs.getBoundsAt(0)));
+		SwingUtilities.invokeAndWait(() -> assertTrue(!tabs.getVisibleRect().intersects(header[0]),
+			"scroll fixture must move the tab strip above the viewport before the physical tab route"));
+	}
+
+	private static void clickScrolled(Robot robot, Component component, String description) throws Exception {
+		Rectangle[] bounds = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> bounds[0] = new Rectangle(0, 0,
+			Math.max(1, component.getWidth()), Math.max(1, component.getHeight())));
+		physicallyScrollIntoView(robot, component, bounds[0], description);
+		WindowAcceptanceAssertions.clickComponent(robot, component);
 	}
 
 	private static AbstractButton findButton(Container root, String name) {

@@ -39,7 +39,7 @@ concurrency:
 
 jobs:
   unix-packages:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_unix_packages }}
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.build_unix_packages) || (github.event_name == 'push' && github.ref_type == 'branch' && startsWith(github.ref_name, 'release/stable-')) }}
     name: Build ${{ matrix.os }} release package
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
