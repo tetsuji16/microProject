@@ -13,6 +13,7 @@ import java.awt.Rectangle;
 import java.awt.Robot;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Locale;
 
 import javax.swing.JLabel;
 import javax.swing.SwingUtilities;
@@ -63,6 +64,11 @@ class WelcomeDialogGuiAcceptanceTest {
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(30);
 		SwingUtilities.invokeAndWait(() -> {
+			assertTrue(dialog.isShowing(), "the welcome dialog must be visible");
+			assertTrue(dialog.getTitle().contains("microProject") && !dialog.getTitle().contains("ProjectLibre"),
+				"the visible welcome title must use the microProject product name: " + dialog.getTitle());
+			if (Locale.JAPANESE.getLanguage().equals(Locale.getDefault().getLanguage()))
+				assertEquals("microProject へようこそ", dialog.getTitle());
 			int entryIndex = findEntryIndex();
 			assertTrue(entryIndex >= 0, "the visible welcome list must contain the recorded project");
 			RecentProjectStore.Entry entry = dialog.recentProjects.getModel().getElementAt(entryIndex);
