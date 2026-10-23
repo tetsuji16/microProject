@@ -16,17 +16,25 @@ import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.Toolkit;
 import java.awt.Window;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.swing.AbstractButton;
 import javax.swing.JComboBox;
+import javax.swing.JComponent;
 import javax.swing.JSpinner;
 import javax.swing.JLabel;
+import javax.swing.JScrollBar;
+import javax.swing.JScrollPane;
+import javax.swing.JRootPane;
 import javax.swing.JViewport;
 import javax.swing.SwingUtilities;
 import javax.swing.text.JTextComponent;
 
 /** Shared visual invariants for text-bearing controls in dialogs. */
 public final class DialogLayoutAssertions {
+	private static final int MAX_SCROLL_ATTEMPTS = 40;
+
 	private DialogLayoutAssertions() {
 	}
 
@@ -51,51 +59,69 @@ public final class DialogLayoutAssertions {
 		physicallyScrollIntoView(robot, component, target[0], description);
 	}
 
-	/** Scrolls a component's local target rectangle fully into its nearest viewport with physical wheel input. */
+	/** Scrolls a component's local target rectangle into every enclosing viewport with physical wheel input. */
 	public static void physicallyScrollIntoView(Robot robot, Component component, Rectangle localTarget,
 			String description) throws Exception {
-		JViewport[] viewport = new JViewport[1];
+		List<JViewport> viewports = new ArrayList<>();
 		SwingUtilities.invokeAndWait(() -> {
 			for (Container parent = component.getParent(); parent != null; parent = parent.getParent()) {
-				if (parent instanceof JViewport candidate) {
-					viewport[0] = candidate;
-					return;
-				}
+				if (parent instanceof JViewport candidate) viewports.add(candidate);
 			}
 		});
-		assertTrue(viewport[0] != null, description + " must be hosted by a scrollable dialog viewport");
-		String[] visibility = new String[1];
-		boolean[] viewportShowing = new boolean[1];
+		assertTrue(!viewports.isEmpty(), description + " must be hosted by a scrollable dialog viewport");
+		for (int pass = 0; pass <= viewports.size(); pass++) {
+			for (int index = viewports.size() - 1; index >= 0; index--)
+				scrollTargetWithinViewport(robot, component, localTarget, viewports.get(index), description);
+			if (targetInsideAllViewports(component, localTarget, viewports)) return;
+		}
+		assertTargetFullyVisible(component, localTarget, viewports, description);
+	}
+
+	/** Scrolls a target into view and clicks its center through the physical Robot route. */
+	public static void physicallyClick(Robot robot, Component component, Rectangle localTarget,
+			String description) throws Exception {
+		physicallyScrollIntoView(robot, component, localTarget, description);
+		Point[] screenPoint = new Point[1];
 		SwingUtilities.invokeAndWait(() -> {
-			StringBuilder state = new StringBuilder("component=").append(component.getClass().getName())
-				.append(" showing=").append(component.isShowing())
-				.append(" viewportShowing=").append(viewport[0].isShowing());
-			for (Component current = component; current != null; current = current.getParent())
-				state.append(" <- ").append(current.getClass().getSimpleName()).append("[showing=")
-					.append(current.isShowing()).append(",visible=").append(current.isVisible()).append(']');
-			visibility[0] = state.toString();
-			viewportShowing[0] = viewport[0].isShowing();
+			assertTargetVisibleOnEdt(component, localTarget, ancestorViewports(component), description);
+			Point location = component.getLocationOnScreen();
+			screenPoint[0] = new Point(location.x + localTarget.x + localTarget.width / 2,
+				location.y + localTarget.y + localTarget.height / 2);
 		});
-		assertTrue(viewportShowing[0], () -> description + " viewport is not showing before physical scroll: " + visibility[0]);
-		for (int attempt = 0; attempt < 20; attempt++) {
+		robot.mouseMove(screenPoint[0].x, screenPoint[0].y);
+		robot.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+	}
+
+	/** Scrolls a component fully into view and clicks its physical center. */
+	public static void physicallyClick(Robot robot, Component component, String description) throws Exception {
+		Rectangle[] target = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> target[0] = new Rectangle(0, 0,
+			Math.max(1, component.getWidth()), Math.max(1, component.getHeight())));
+		physicallyClick(robot, component, target[0], description);
+	}
+
+	private static void scrollTargetWithinViewport(Robot robot, Component component, Rectangle localTarget,
+			JViewport viewport, String description) throws Exception {
+		for (int attempt = 0; attempt < MAX_SCROLL_ATTEMPTS; attempt++) {
 			Rectangle[] target = new Rectangle[1];
 			Rectangle[] visible = new Rectangle[1];
-			Point[] viewportLocation = new Point[1];
-			Point[] wheelPoint = new Point[1];
+			boolean[] showing = new boolean[1];
+			String[] diagnostic = new String[1];
 			SwingUtilities.invokeAndWait(() -> {
-				JViewport current = viewport[0];
-				Component view = current.getView();
-				target[0] = SwingUtilities.convertRectangle(component, localTarget, view);
-				visible[0] = current.getViewRect();
-				viewportLocation[0] = current.getLocationOnScreen();
-				wheelPoint[0] = new Point(viewportLocation[0].x + visible[0].width / 2,
-					viewportLocation[0].y + visible[0].height / 2);
+				target[0] = SwingUtilities.convertRectangle(component, localTarget, viewport.getView());
+				visible[0] = viewport.getViewRect();
+				showing[0] = viewport.isShowing();
+				diagnostic[0] = visibilityDiagnostic(component, localTarget, ancestorViewports(component));
 			});
+			assertTrue(showing[0], description + " viewport is not showing: " + diagnostic[0]);
 			if (visible[0].contains(target[0])) return;
-			robot.mouseMove(wheelPoint[0].x, wheelPoint[0].y);
-			boolean scrollVertically = target[0].y < visible[0].y
+			boolean vertical = target[0].y < visible[0].y
 				|| target[0].y + target[0].height > visible[0].y + visible[0].height;
-			if (scrollVertically) {
+			Point wheelPoint = scrollBarWheelPoint(viewport, vertical, description);
+			robot.mouseMove(wheelPoint.x, wheelPoint.y);
+			if (vertical) {
 				robot.mouseWheel(target[0].y < visible[0].y ? -3 : 3);
 			} else {
 				robot.keyPress(java.awt.event.KeyEvent.VK_SHIFT);
@@ -110,13 +136,121 @@ public final class DialogLayoutAssertions {
 		}
 		Rectangle[] target = new Rectangle[1];
 		Rectangle[] visible = new Rectangle[1];
+		String[] diagnostic = new String[1];
 		SwingUtilities.invokeAndWait(() -> {
-			JViewport current = viewport[0];
-			target[0] = SwingUtilities.convertRectangle(component, localTarget, current.getView());
-			visible[0] = current.getViewRect();
+			target[0] = SwingUtilities.convertRectangle(component, localTarget, viewport.getView());
+			visible[0] = viewport.getViewRect();
+			diagnostic[0] = visibilityDiagnostic(component, localTarget, ancestorViewports(component));
 		});
-		assertTrue(visible[0].contains(target[0]), () -> description + " remained clipped after physical scrolling: target="
-			+ target[0] + " viewport=" + visible[0]);
+		assertTrue(visible[0].contains(target[0]), description + " remained clipped after physical scrolling: target="
+			+ target[0] + " viewport=" + visible[0] + "; "
+			+ diagnostic[0]);
+	}
+
+	private static Point scrollBarWheelPoint(JViewport viewport, boolean vertical, String description) throws Exception {
+		Point[] point = new Point[1];
+		String[] diagnostic = new String[1];
+		SwingUtilities.invokeAndWait(() -> {
+			JScrollPane scrollPane = scrollPaneFor(viewport);
+			JScrollBar bar = vertical ? scrollPane.getVerticalScrollBar() : scrollPane.getHorizontalScrollBar();
+			Rectangle visible = bar.getVisibleRect();
+			boolean showing = bar.isShowing() && !visible.isEmpty();
+			diagnostic[0] = "scrollbar=" + (vertical ? "vertical" : "horizontal") + " showing=" + bar.isShowing()
+				+ " visibleRect=" + visible + "; "
+				+ visibilityDiagnostic(viewport, new Rectangle(0, 0, viewport.getWidth(), viewport.getHeight()),
+					ancestorViewports(viewport));
+			if (showing) {
+				Point location = bar.getLocationOnScreen();
+				point[0] = new Point(location.x + visible.x + visible.width / 2,
+					location.y + visible.y + visible.height / 2);
+			}
+		});
+		assertTrue(point[0] != null, () -> description + " cannot reach the " + (vertical ? "vertical" : "horizontal")
+			+ " scrollbar for physical wheel input: " + diagnostic[0]);
+		return point[0];
+	}
+
+	private static JScrollPane scrollPaneFor(JViewport viewport) {
+		for (Container parent = viewport.getParent(); parent != null; parent = parent.getParent())
+			if (parent instanceof JScrollPane scrollPane && scrollPane.getViewport() == viewport) return scrollPane;
+		throw new AssertionError("viewport is not owned by a JScrollPane: " + viewport);
+	}
+
+	private static List<JViewport> ancestorViewports(Component component) {
+		List<JViewport> viewports = new ArrayList<>();
+		for (Container parent = component.getParent(); parent != null; parent = parent.getParent())
+			if (parent instanceof JViewport viewport) viewports.add(viewport);
+		return viewports;
+	}
+
+	private static void assertTargetFullyVisible(Component component, Rectangle localTarget, List<JViewport> viewports,
+			String description) throws Exception {
+		SwingUtilities.invokeAndWait(() -> assertTargetVisibleOnEdt(component, localTarget, viewports, description));
+	}
+
+	private static boolean targetInsideAllViewports(Component component, Rectangle localTarget,
+			List<JViewport> viewports) throws Exception {
+		boolean[] visible = new boolean[1];
+		SwingUtilities.invokeAndWait(() -> {
+			Rectangle componentVisible = componentVisibleRect(component);
+			visible[0] = component.isShowing() && componentVisible.contains(localTarget);
+			for (JViewport viewport : viewports) {
+				Rectangle target = SwingUtilities.convertRectangle(component, localTarget, viewport.getView());
+				visible[0] &= viewport.isShowing() && viewport.getViewRect().contains(target);
+			}
+		});
+		return visible[0];
+	}
+
+	private static void assertTargetVisibleOnEdt(Component component, Rectangle localTarget, List<JViewport> viewports,
+			String description) {
+		Rectangle visible = componentVisibleRect(component);
+		assertTrue(component.isShowing() && visible.contains(localTarget),
+			() -> description + " target is not fully visible within its component ancestors: "
+				+ visibilityDiagnostic(component, localTarget, viewports));
+		for (JViewport viewport : viewports) {
+			Rectangle target = SwingUtilities.convertRectangle(component, localTarget, viewport.getView());
+			assertTrue(viewport.isShowing() && viewport.getViewRect().contains(target),
+				() -> description + " target is outside an ancestor viewport: "
+					+ visibilityDiagnostic(component, localTarget, viewports));
+		}
+		Window window = SwingUtilities.getWindowAncestor(component);
+		JRootPane rootPane = window instanceof javax.swing.RootPaneContainer rootPaneContainer
+			? rootPaneContainer.getRootPane() : null;
+		if (rootPane != null) {
+			Rectangle target = SwingUtilities.convertRectangle(component, localTarget, rootPane);
+			assertTrue(rootPane.isShowing() && rootPane.getVisibleRect().contains(target),
+				() -> description + " target is outside its window content: "
+					+ visibilityDiagnostic(component, localTarget, viewports));
+		}
+	}
+
+	private static String visibilityDiagnostic(Component component, Rectangle localTarget, List<JViewport> viewports) {
+		StringBuilder state = new StringBuilder("component=").append(component.getClass().getName())
+			.append(" localTarget=").append(localTarget).append(" visibleRect=").append(componentVisibleRect(component));
+		for (JViewport viewport : viewports) {
+			Rectangle target = SwingUtilities.convertRectangle(component, localTarget, viewport.getView());
+			JScrollPane pane = scrollPaneFor(viewport);
+			JScrollBar vertical = pane.getVerticalScrollBar();
+			JScrollBar horizontal = pane.getHorizontalScrollBar();
+			state.append("; viewportView=").append(viewport.getView().getClass().getSimpleName())
+				.append(" target=").append(target).append(" viewRect=").append(viewport.getViewRect())
+				.append(" viewSize=").append(viewport.getView().getSize())
+				.append(" verticalScroll={value=").append(vertical.getValue()).append(",maximum=")
+				.append(vertical.getMaximum()).append(",extent=").append(vertical.getVisibleAmount())
+				.append(",unitIncrement=").append(vertical.getUnitIncrement()).append('}')
+				.append(" horizontalScroll={value=").append(horizontal.getValue()).append(",maximum=")
+				.append(horizontal.getMaximum()).append(",extent=").append(horizontal.getVisibleAmount())
+				.append(",unitIncrement=").append(horizontal.getUnitIncrement()).append('}');
+		}
+		Window window = SwingUtilities.getWindowAncestor(component);
+		if (window != null) state.append("; window=").append(window.getBounds());
+		return state.toString();
+	}
+
+	private static Rectangle componentVisibleRect(Component component) {
+		return component instanceof JComponent swingComponent
+			? swingComponent.getVisibleRect() : new Rectangle(0, 0, component.getWidth(), component.getHeight());
 	}
 
 	/**
