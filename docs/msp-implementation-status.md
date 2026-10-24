@@ -480,7 +480,7 @@ passed all 3 physical GUI tests, then passed again inside the complete full
 gate; the gate's deferred-exception scan also passed. This was a test setup
 defect, not evidence of a production application exception. The exact-head
 installed-layout launch check also succeeded with
-`.\scripts\run_projectlibre.ps1 -SkipBuild -LogRoot .\build\logs\projectlibre-phase6`:
+`.\scripts\run_microproject.ps1 -SkipBuild -LogRoot .\build\logs\microproject-phase6`:
 the Java process was responsive, the main window title was `microProject`, and
 the Japanese welcome dialog appeared. The screenshot is
 `build/logs/projectlibre-phase6/20261019-025702/installDist-launch.png`; the

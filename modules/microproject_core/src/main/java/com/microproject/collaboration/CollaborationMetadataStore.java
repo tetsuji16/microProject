@@ -60,11 +60,13 @@ public class CollaborationMetadataStore {
 
 	private final File projectFile;
 	private final File sidecarFile;
+	private final File legacySidecarFile;
 	private final File lockFile;
 
 	public CollaborationMetadataStore(File projectFile) {
 		this.projectFile = projectFile;
 		this.sidecarFile = buildSidecarFile(projectFile);
+		this.legacySidecarFile = buildLegacySidecarFile(projectFile);
 		this.lockFile = buildLockFile(sidecarFile);
 	}
 
@@ -86,11 +88,19 @@ public class CollaborationMetadataStore {
 	}
 
 	public static File buildSidecarFile(File projectFile) {
+		return buildMetadataFile(projectFile, ".microproject-sync.json");
+	}
+
+	private static File buildLegacySidecarFile(File projectFile) {
+		return buildMetadataFile(projectFile, ".projectlibre-sync.json");
+	}
+
+	private static File buildMetadataFile(File projectFile, String suffix) {
 		String name = projectFile.getName();
 		int dot = name.lastIndexOf('.');
 		String base = dot >= 0 ? name.substring(0, dot) : name;
 		File parent = projectFile.getParentFile();
-		return parent != null ? new File(parent, base + ".projectlibre-sync.json") : new File(base + ".projectlibre-sync.json");
+		return parent != null ? new File(parent, base + suffix) : new File(base + suffix);
 	}
 
 	public File getSidecarFile() {
@@ -260,6 +270,8 @@ public class CollaborationMetadataStore {
 	private <T> T withLockedMetadataUnderJvmLock(MetadataCallback<T> callback) {
 		FileChannel channel = null;
 		FileLock lock = null;
+		FileChannel legacyChannel = null;
+		FileLock legacyLock = null;
 		try {
 			File parent = sidecarFile.getParentFile();
 			if (parent != null) {
@@ -267,7 +279,17 @@ public class CollaborationMetadataStore {
 			}
 			channel = FileChannel.open(lockFile.toPath(), StandardOpenOption.CREATE, StandardOpenOption.WRITE);
 			lock = channel.lock();
-			byte[] originalBytes = readAllBytes();
+			// The canonical path is authoritative once present. During one-time
+			// migration, hold the legacy marker too so older local writers cannot
+			// change the source while it is copied; all new writers serialize on
+			// the canonical marker.
+			boolean useLegacy = !sidecarFile.exists() && legacySidecarFile.exists();
+			if (useLegacy) {
+				File legacyLockFile = buildLockFile(legacySidecarFile);
+				legacyChannel = FileChannel.open(legacyLockFile.toPath(), StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+				legacyLock = legacyChannel.lock();
+			}
+			byte[] originalBytes = useLegacy ? readAllBytes(legacySidecarFile) : readAllBytes(sidecarFile);
 			Metadata metadata;
 			try {
 				metadata = originalBytes.length == 0 ? createDefaultMetadata() : parseMetadata(originalBytes);
@@ -280,11 +302,21 @@ public class CollaborationMetadataStore {
 			}
 			normalize(metadata);
 			T result = callback.execute(metadata);
-			writeMetadataIfChanged(originalBytes, metadata);
+			writeMetadataIfChanged(useLegacy ? null : originalBytes, metadata);
 			return result;
 		} catch (Exception e) {
 			return callback.onError(e);
 		} finally {
+			try {
+				if (legacyLock != null) legacyLock.release();
+			} catch (IOException e) {
+				logger.log(Level.FINE, "Failed to release legacy file lock on {0}", legacySidecarFile);
+			}
+			try {
+				if (legacyChannel != null) legacyChannel.close();
+			} catch (IOException e) {
+				logger.log(Level.FINE, "Failed to close legacy file channel on {0}", legacySidecarFile);
+			}
 			try {
 				if (lock != null) {
 					lock.release();
@@ -302,12 +334,12 @@ public class CollaborationMetadataStore {
 		}
 	}
 
-	private byte[] readAllBytes() throws IOException {
-		if (!sidecarFile.exists()) {
+	private byte[] readAllBytes(File source) throws IOException {
+		if (!source.exists()) {
 			return new byte[0];
 		}
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
-		try (java.io.InputStream input = Files.newInputStream(sidecarFile.toPath())) {
+		try (java.io.InputStream input = Files.newInputStream(source.toPath())) {
 			byte[] buf = new byte[4096];
 			int read;
 			int total = 0;

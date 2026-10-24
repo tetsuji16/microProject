@@ -46,7 +46,6 @@ public class ApplicationStartupFactory extends StartupFactory {
 	public ApplicationStartupFactory(HashMap<String, Object> opts) {
 		this.opts=opts;
 		ensureSupportedOptions(opts);
-		Environment.setStandAlone(true);
 		dumpOpts();
 
 		String font=(String)getOpt("font");

@@ -49,10 +49,7 @@ import javax.swing.table.JTableHeader;
 import javax.swing.table.TableColumn;
 
 import com.jgoodies.forms.builder.DefaultFormBuilder;
-import com.jgoodies.forms.layout.CellConstraints;
 import com.jgoodies.forms.layout.FormLayout;
-import com.microproject.help.HelpUtil;
-import com.microproject.configuration.Settings;
 import com.microproject.exchange.ResourceMappingForm;
 import com.microproject.strings.Messages;
 import com.microproject.util.ClassUtils;
@@ -66,10 +63,9 @@ public final class ResourceMappingDialog extends AbstractDialog {
 
 	protected AssociationTable associationTable;
 	protected JComboBox field1,editorCombo;
-	protected JLabel field1Label,accessControlLabel;
+	protected JLabel field1Label;
 	protected JCheckBox localProject;
 	protected JCheckBox masterProject=null;
-	protected JComboBox accessControl;
 
 	public static ResourceMappingDialog getInstance( ResourceMappingForm form) {
 		return new ResourceMappingDialog(form);
@@ -108,17 +104,8 @@ public final class ResourceMappingDialog extends AbstractDialog {
 			}
 		});
 		field1Label=new JLabel(Messages.getString("ResourceMappingDialog.MergeResourcesUsingField")); //$NON-NLS-1$
-		localProject=new JCheckBox(Messages.getString("ResourceMappingDialog.DontMergeOpenProjectReadOnly")); //$NON-NLS-1$
-		accessControlLabel=new JLabel(Messages.getString("ResourceMappingDialog.ProjectTeam")); //$NON-NLS-1$
-		accessControl=new JComboBox(new Object[]{Messages.getString("ResourceMappingDialog.AllResourcesExceptCustomerPartner"),Messages.getString("ResourceMappingDialog.BasedOnProjectRoleInResourcesView")}); //$NON-NLS-1$ //$NON-NLS-2$
-		HelpUtil.addDocHelp(accessControl,"Project_Team");
-		//		localProject.addItemListener(new ItemListener(){
-//			public void itemStateChanged(ItemEvent e) {
-//				accessControl.setEnabled(!accessControl.isEnabled());
-//			}
-//		});
-//
-		localProject.addActionListener(new ActionListener(){
+		localProject=new JCheckBox(Messages.getString("ResourceMappingDialog.OpenReadOnlyWithoutMerging")); //$NON-NLS-1$
+				localProject.addActionListener(new ActionListener(){
 			public void actionPerformed(ActionEvent e) {
 				setLocal(localProject.isSelected());
 				if (masterProject!=null&&localProject.isSelected()){
@@ -136,9 +123,6 @@ public final class ResourceMappingDialog extends AbstractDialog {
 		field1Label.setEnabled(!local);
 		field1.setEnabled(!local);
 		associationTable.setEnabled(!local);
-		//accessControl.setEnabled(!accessControl.isEnabled());
-		accessControlLabel.setEnabled(!local);
-		accessControl.setEnabled(!local);
 	}
 
 
@@ -151,7 +135,6 @@ public final class ResourceMappingDialog extends AbstractDialog {
 			editorCombo.setModel(new DefaultComboBoxModel(resources().toArray()));
 			editorCombo.setSelectedIndex(0);
 
-			accessControl.setSelectedIndex(form.getAccessControlType());
 			localProject.setSelected(form.isLocal());
 			setLocal(form.isLocal());
 
@@ -159,7 +142,6 @@ public final class ResourceMappingDialog extends AbstractDialog {
 			AssociationTableModel tableModel=(AssociationTableModel)associationTable.getModel();
 			tableModel.update();
 		} else {
-			form.setAccessControlType(accessControl.getSelectedIndex());
 			//associationTable.finishCurrentOperations();
 		}
 		return true;
@@ -184,7 +166,6 @@ public final class ResourceMappingDialog extends AbstractDialog {
 		// Wrap the panel with a standardized border.
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		builder.setDefaultDialogBorder();
-		CellConstraints cc = new CellConstraints();
 		builder.append(createFieldPanel());
 		builder.nextLine(2);
 		builder.add(new JScrollPane(associationTable));
@@ -194,8 +175,6 @@ public final class ResourceMappingDialog extends AbstractDialog {
 		}
 		builder.nextLine(2);
 		builder.append(localProject);
-		builder.nextLine(2);
-		builder.append(createFooterPanel());
 		return builder.getPanel();
 	}
 	public JComponent createFieldPanel(){
@@ -203,22 +182,8 @@ public final class ResourceMappingDialog extends AbstractDialog {
 		"p"); // rows //$NON-NLS-1$
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		builder.setDefaultDialogBorder();
-		CellConstraints cc = new CellConstraints();
 		builder.append(field1Label);
 		builder.append(field1);
-		return builder.getPanel();
-	}
-	public JComponent createFooterPanel(){
-		FormLayout layout = new FormLayout("p,3dlu,p",// cols //$NON-NLS-1$
-		"p"); // rows //$NON-NLS-1$
-		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
-		builder.setDefaultDialogBorder();
-		CellConstraints cc = new CellConstraints();
-
-		builder.append(accessControlLabel); //$NON-NLS-1$
-		builder.add(accessControl, cc.xy(builder.getColumn(), builder.getRow(),
-			"left,default")); //$NON-NLS-1$
-
 		return builder.getPanel();
 	}
 
@@ -379,7 +344,7 @@ public final class ResourceMappingDialog extends AbstractDialog {
 				tc.setHeaderValue(Messages.getString("ResourceMappingDialog.ImportedResources")); //$NON-NLS-1$
 				tc.setPreferredWidth(150);
 			}else{
-				tc.setHeaderValue(Messages.getString("ResourceMappingDialog.ServerResources")); //$NON-NLS-1$
+				tc.setHeaderValue(Messages.getString("ResourceMappingDialog.ProjectResources")); //$NON-NLS-1$
 				tc.setPreferredWidth(150);
 
 //				tc.setCellEditor(new ListComboBoxCellEditor(new DefaultComboBoxModel(form.getResources())));

@@ -37,7 +37,6 @@ import java.util.logging.Logger;
 
 import com.microproject.preference.ConfigurationFile;
 import com.microproject.util.ClassLoaderUtils;
-import com.microproject.util.Environment;
 
 /**
  *
@@ -220,13 +219,6 @@ public class Messages {
 	public static String getContextString(String key) {
 		if ("Text.ApplicationTitle".equals(key) || "Text.ShortTitle".equals(key)) {
 			return "microProject";
-		}
-		if (Environment.isProjectLibre()) {
-			String result = getStringFromBundles("Open_" + key);
-			if (result == null) {
-				logger.fine("getContextString not found Open_" + key);
-			} else
-				return result;
 		}
 		return getStringFromBundles(key);
 	}

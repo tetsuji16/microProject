@@ -25,7 +25,7 @@
 package com.microproject.pm.scheduling;
 
 import com.microproject.datatype.Duration;
-import com.microproject.server.access.ErrorLogger;
+import com.microproject.util.ErrorLogger;
 
 public class DelayableImpl implements Delayable, Cloneable {
 	private long delay = 0L;

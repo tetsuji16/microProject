@@ -28,8 +28,6 @@ import java.awt.Dimension;
 import java.awt.Frame;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.Random;
-import java.util.prefs.Preferences;
 
 import javax.swing.JComponent;
 import javax.swing.JEditorPane;
@@ -44,7 +42,6 @@ import com.jgoodies.forms.layout.FormLayout;
 import com.microproject.strings.Messages;
 import com.microproject.util.Alert;
 import com.microproject.util.BrowserControl;
-import com.microproject.util.Environment;
 import com.microproject.util.FlatUiSupport;
 
 public final class LicenseDialog extends AbstractDialog {
@@ -52,30 +49,15 @@ public final class LicenseDialog extends AbstractDialog {
 	JEditorPane license = null;
 	JEditorPane thirdParty = null;
 	private boolean init = false;
-	private static boolean validated = Preferences.userNodeForPackage(LicenseDialog.class).getBoolean("validatedLicense",false); //$NON-NLS-1$
-	private static boolean resetData;
-	public static boolean showDialog(Frame owner, boolean force) {
-		resetData=!force;
-		if (!Environment.isProjectLibre() && !force)
-			return false;
-		if (!validated || force) {
-			LicenseDialog dlg = new LicenseDialog(owner);
-			if (!validated)
-				dlg.setDefaultCloseOperation(DO_NOTHING_ON_CLOSE); // force user to click a button
-			dlg.doModal();
-			return true;
-		}
-		if (Environment.isProjectLibre())
-			System.setProperty("projectlibre.validation", Preferences.userNodeForPackage(LicenseDialog.class).get("licenseValidationDate","0"));
-		return false;
+	public static void showDialog(Frame owner) {
+		LicenseDialog dlg = new LicenseDialog(owner);
+		dlg.doModal();
 	}
 
 	private LicenseDialog(Frame owner) {
 		super(owner, buildDialogTitle(
 			Messages.getContextString("Text.ApplicationTitle"),
 			Messages.getString("LicenseDialog.License")), true); //$NON-NLS-1$ //$NON-NLS-2$
-		if (!Environment.isProjectLibre())
-			validated = true; // POD validation is on web
 	}
 
 	static String buildDialogTitle(String applicationTitle, String licenseTitle) {
@@ -101,16 +83,8 @@ public final class LicenseDialog extends AbstractDialog {
 			configureReadableHtml(pane);
 			pane.setPage(url);
 		} catch (Exception e) {
-			if (!validated) {
-				Alert.error(Messages.getString("LicenseDialog.CouldNotLoadExiting")); //$NON-NLS-1$
-				System.exit(-1);
-			} else {
-				Alert.error(Messages.getString("LicenseDialog.CouldNotLoadLater")); //$NON-NLS-1$
-				return null;
-
-			}
+			Alert.error(Messages.getString("LicenseDialog.CouldNotLoadLater")); //$NON-NLS-1$
 		}
-
 		pane.setEditable(false);
 		pane.setAutoscrolls(true);
 		pane.setSize(new Dimension(600, Short.MAX_VALUE));
@@ -134,14 +108,8 @@ public final class LicenseDialog extends AbstractDialog {
 		if (init)
 			return;
 		init = true;
-		if (Environment.isProjectLibre()) {
-			license = createEditorPane(getClass().getClassLoader().getResource("license/index.html"),7500); //$NON-NLS-1$
-			thirdParty = createEditorPane(resolveThirdPartyLicenseUrl(),1200); //$NON-NLS-1$
-		} else {
-			thirdParty = createEditorPane(resolveThirdPartyLicenseUrl(),1200); //$NON-NLS-1$
-			
-		}
-		
+		license = createEditorPane(getClass().getClassLoader().getResource("license/index.html"),7500); //$NON-NLS-1$
+		thirdParty = createEditorPane(resolveThirdPartyLicenseUrl(),1200); //$NON-NLS-1$
 		
 		super.initComponents();
 	}
@@ -165,51 +133,16 @@ public final class LicenseDialog extends AbstractDialog {
 		// Wrap the panel with a standardized border.
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		builder.setDefaultDialogBorder();
-		if (!Environment.isProjectLibre()) {
-			builder.append(new JScrollPane(thirdParty));
-		} else {
-			JTabbedPane tabbed= new JTabbedPane();
-			FlatUiSupport.styleTabbedPane(tabbed);
-			tabbed.addTab(Messages.getString("LicenseDialog.License"),new JScrollPane(license));
-			tabbed.addTab(Messages.getString("LicenseDialog.ThirdParty"),new JScrollPane(thirdParty));
-			builder.append(tabbed);
-		}
+		JTabbedPane tabbed= new JTabbedPane();
+		FlatUiSupport.styleTabbedPane(tabbed);
+		tabbed.addTab(Messages.getString("LicenseDialog.License"),new JScrollPane(license));
+		tabbed.addTab(Messages.getString("LicenseDialog.ThirdParty"),new JScrollPane(thirdParty));
+		builder.append(tabbed);
 
 		JComponent result =  builder.getPanel();
 		return result;
 	}
 
-
-	@Override
-	public ButtonPanel createButtonPanel() {
-		ButtonPanel bp = super.createButtonPanel();
-		if (!validated)
-			ok.setText(Messages.getString("ButtonText.IAccept")); //$NON-NLS-1$
-		return bp;
-	}
-
-	@Override
-	protected boolean hasCloseButton() {
-		return validated;
-	}
-
-	@Override
-	protected void onCancel() {
-		if (!validated)
-			System.exit(-1);
-		super.onCancel();
-	}
-
-	@Override
-	public void onOk() {
-		validated = true;
-		if (resetData){//About dialog shouldn't reset data
-			Preferences.userNodeForPackage(LicenseDialog.class).put("licenseValidationDate",System.currentTimeMillis()+"."+(new Random()).nextInt(1000)); //$NON-NLS-1$
-			Preferences.userNodeForPackage(LicenseDialog.class).putBoolean("validatedLicense",validated); //$NON-NLS-1$
-			System.setProperty("projectlibre.validation", Preferences.userNodeForPackage(LicenseDialog.class).get("licenseValidationDate","0"));
-		}
-		super.onOk();
-	}
 
 }
 

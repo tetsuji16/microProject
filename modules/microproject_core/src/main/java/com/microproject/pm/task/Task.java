@@ -92,7 +92,8 @@ import com.microproject.pm.scheduling.Schedule;
 import com.microproject.pm.scheduling.ScheduleUtil;
 import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.pm.snapshot.SnapshottableImpl;
-import com.microproject.server.access.ErrorLogger;
+import com.microproject.collaboration.CollaborationUserIdentity;
+import com.microproject.util.ErrorLogger;
 import com.microproject.server.data.DataObject;
 import com.microproject.strings.Messages;
 import com.microproject.util.Alert;
@@ -1137,7 +1138,7 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	}
 
 	private void _cloneTo(Task task){
-		task.hasKey=new HasKeyImpl(isLocal()&&Environment.getStandAlone(),task);
+		task.hasKey=new HasKeyImpl(isLocal(),task);
 		task.setName(getName());
 		task.setRawDuration(getRawDuration());
 
@@ -2247,7 +2248,7 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	}
 	public boolean isDelegatedToUser() {
 		Resource del = getDelegatedTo();
-		return del != null && Environment.getLogin().equals(del.getUserAccount());
+		return del != null && CollaborationUserIdentity.isCurrentUser(del.getUserAccount());
 	}
 	public String getDelegatedToName() {
 		Resource del = getDelegatedTo();

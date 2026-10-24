@@ -164,7 +164,7 @@ class IconManagerRibbonIconTest {
 	static Stream<String> auxiliaryRibbonIconKeys() {
 		Set<String> standardKeys = standardRibbonKeys();
 		return Stream.of("ribbon.save", "ribbon.open", "ribbon.print", "ribbon.pdf", "ribbon.insertRecurring",
-			"application.icon", "application.icon.small", "logo.microProject", "logo.ProjectLibre.ribbon")
+			"application.icon", "application.icon.small", "logo.microProject", "logo.microProject.ribbon")
 			.filter(key -> !standardKeys.contains(key));
 	}
 

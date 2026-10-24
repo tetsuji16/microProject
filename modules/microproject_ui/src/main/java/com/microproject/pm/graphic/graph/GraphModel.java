@@ -43,7 +43,6 @@ import com.microproject.pm.graphic.model.event.CompositeCacheEvent;
 import com.microproject.configuration.Configuration;
 import com.microproject.field.Field;
 import com.microproject.graphic.configuration.BarStyles;
-import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
@@ -235,8 +234,7 @@ public class GraphModel implements Serializable, /*ScheduleEventListener,*/ Cach
        }
 	
     public boolean isReadOnly(){
-    	NodeModel nodeModel=cache.getModel();
-    	return !nodeModel.isLocal()&&!nodeModel.isMaster()&&!Environment.getStandAlone();
+		return false;
     }
 	
 

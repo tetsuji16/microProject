@@ -53,23 +53,23 @@ import com.microproject.dialog.UsabilityStrings;
 import com.microproject.util.DateFieldSupport;
 
 /**
- * Lightweight date input component that keeps the old ProjectLibre API
+ * Lightweight date input component that keeps the established date-field API
  * surface without depending on NachoCalendar.
  */
-public class ProjectLibreDateField extends JPanel {
+public class MicroProjectDateField extends JPanel {
 	private final DateFormat dateFormat;
 	private final JFormattedTextField textField;
 	private final JButton popupButton;
 
-	public ProjectLibreDateField() {
+	public MicroProjectDateField() {
 		this(EditOption.getInstance().getDateFormat());
 	}
 
-	public ProjectLibreDateField(boolean showWeekNumbers) {
+	public MicroProjectDateField(boolean showWeekNumbers) {
 		this();
 	}
 
-	public ProjectLibreDateField(DateFormatter formatter) {
+	public MicroProjectDateField(DateFormatter formatter) {
 		this(formatter != null && formatter.getFormat() instanceof DateFormat
 			? (DateFormat) formatter.getFormat()
 			: EditOption.getInstance().getDateFormat());
@@ -78,7 +78,7 @@ public class ProjectLibreDateField extends JPanel {
 		}
 	}
 
-	public ProjectLibreDateField(DateFormat dateFormat) {
+	public MicroProjectDateField(DateFormat dateFormat) {
 		super(new BorderLayout(4, 0));
 		this.dateFormat = dateFormat;
 		this.textField = new PhysicalInputFormattedTextField(new DateFormatter(dateFormat));
@@ -87,7 +87,7 @@ public class ProjectLibreDateField extends JPanel {
 		initialize();
 	}
 
-	public ProjectLibreDateField(Locale locale) {
+	public MicroProjectDateField(Locale locale) {
 		this(DateFormat.getDateInstance(DateFormat.SHORT, locale));
 	}
 

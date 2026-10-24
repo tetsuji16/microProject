@@ -87,7 +87,6 @@ class MasterSubprojectMpoGuiAcceptanceTest {
 	private Gantt gantt;
 	private SpreadSheet sheet;
 	private boolean previousClientSide;
-	private boolean previousStandalone;
 	private boolean previousRibbonUi;
 	private boolean previousNewLook;
 	private UiServices.FileChooserProvider previousChooser;
@@ -106,7 +105,6 @@ class MasterSubprojectMpoGuiAcceptanceTest {
 			gantt.cleanUp();
 		SessionFactory.getInstance().setJobQueue(previousJobQueue);
 		Environment.setClientSide(previousClientSide);
-		Environment.setStandAlone(previousStandalone);
 		Environment.setRibbonUI(previousRibbonUi);
 		Environment.setNewLook(previousNewLook);
 		UiServices.setFileChooserProvider(previousChooser);
@@ -118,11 +116,9 @@ class MasterSubprojectMpoGuiAcceptanceTest {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		previousChooser = UiServices.getFileChooserProvider();
 		previousClientSide = Environment.isClientSide();
-		previousStandalone = Environment.getStandAlone();
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
 		Environment.setClientSide(true);
-		Environment.setStandAlone(true);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
 		Project child = newProject("Explicit MPO save child");
@@ -179,11 +175,9 @@ class MasterSubprojectMpoGuiAcceptanceTest {
 	void realMpoChildIsVisibleInPersistedReadOnlyMasterGantt() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		previousClientSide = Environment.isClientSide();
-		previousStandalone = Environment.getStandAlone();
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
 		Environment.setClientSide(true);
-		Environment.setStandAlone(true);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
 		Project child = newProject("Read-only MPO child");
@@ -312,11 +306,9 @@ class MasterSubprojectMpoGuiAcceptanceTest {
 	void masterTwoIndependentProjectsAndOpenedChildProduceFourDocumentWindows() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		previousClientSide = Environment.isClientSide();
-		previousStandalone = Environment.getStandAlone();
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
 		Environment.setClientSide(true);
-		Environment.setStandAlone(true);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
 		Project child = newProject("Window navigation child");
@@ -399,11 +391,9 @@ class MasterSubprojectMpoGuiAcceptanceTest {
 	void saveActionPersistsDirtyLinkedChildWhenMasterIsClean() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		previousClientSide = Environment.isClientSide();
-		previousStandalone = Environment.getStandAlone();
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
 		Environment.setClientSide(true);
-		Environment.setStandAlone(true);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
 		Project child = newProject("Dirty child save source");

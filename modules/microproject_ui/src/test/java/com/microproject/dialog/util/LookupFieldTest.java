@@ -1,7 +1,6 @@
 /*******************************************************************************
  * MIT License
  *
- * Copyright (c) 2012-2019 ProjectLibre, Inc.  (Previous Copyright Holder)
  * Copyright (c) 2026 microProject
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -22,35 +21,29 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *******************************************************************************/
-package com.microproject.server.data;
+package com.microproject.dialog.util;
 
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
-import com.microproject.strings.Messages;
+import javax.swing.JButton;
+import javax.swing.SwingUtilities;
 
-public class TypeSystemConverterFactory {
-	protected static TypeSystemConverterFactory instance;
-	protected TypeSystemConverter converter;
-	private static final Logger logger = Logger.getLogger(TypeSystemConverterFactory.class.getName());
-	public static TypeSystemConverterFactory getInstance(){
-		if (instance==null){
-			instance=new TypeSystemConverterFactory();
-		}
-		return instance;
-	}
-	public TypeSystemConverter getConverter(){
-		if (converter==null){
-			String className=Messages.getMetaString("TypeSystemConverter");
-			if (className!=null&&className.length()>0){
-				try {
-					converter = Class.forName(className).asSubclass(TypeSystemConverter.class)
-						.getDeclaredConstructor().newInstance();
-				} catch (ReflectiveOperationException | ClassCastException e) {
-					logger.log(Level.WARNING, "Failed to create type system converter " + className, e);
-				}
-			}
-		}
-		return converter;
+import org.junit.jupiter.api.Test;
+
+class LookupFieldTest {
+	@Test
+	void preservesLegacyLookupValueAndRendersItsLabelWithoutServerSearch() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			LookupField field = new LookupField("legacy\\Task name");
+
+			assertEquals("legacy\\Task name", field.getValue());
+			assertEquals("Task name", field.getDisplay().getText());
+			assertFalse(java.util.Arrays.stream(field.getComponents()).anyMatch(JButton.class::isInstance));
+
+			field.setText("Updated task");
+			assertEquals("Updated task", field.getValue());
+			assertEquals("Updated task", field.getDisplay().getText());
+		});
 	}
 }

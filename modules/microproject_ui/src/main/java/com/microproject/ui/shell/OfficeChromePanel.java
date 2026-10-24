@@ -647,7 +647,7 @@ final class OfficeChromePanel extends JPanel {
 	private AbstractButton createHelpButton() {
 		String help = UsabilityStrings.text("chrome.help");
 		OfficeIconButton button = new OfficeIconButton(resolveActionIcon(
-			"RibbonProjectLibreDocumentation", QUICK_ACCESS_ICON_SIZE, ActionIconPresentation.PRESERVE_SOURCE_COLORS), help, false);
+			"RibbonMicroProjectDocumentation", QUICK_ACCESS_ICON_SIZE, ActionIconPresentation.PRESERVE_SOURCE_COLORS), help, false);
 		button.setName(HELP_BUTTON_NAME);
 		button.setToolTipText(help);
 		button.addActionListener(event -> {

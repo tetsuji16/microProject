@@ -252,7 +252,7 @@ Choose the narrowest command that exercises the change, then widen verification 
 .\scripts\run_microproject_clean.bat
 ```
 
-For a faster logged incremental launch, use `scripts\run_projectlibre.ps1`; see `docs/build-and-run.md` for its options. The authoritative runnable layout is:
+For a faster logged incremental launch, use `scripts\run_microproject.ps1`; see `docs/build-and-run.md` for its options. The authoritative runnable layout is:
 
 ```text
 modules\microproject_ui\build\install\microproject_ui

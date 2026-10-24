@@ -132,9 +132,6 @@ public class SpreadSheetModel extends CommonSpreadSheetModel implements OutlineM
 		Field field=getFieldInColumn(col);
 		boolean roleField="Field.userRole".equals(field.getId()); //an exception for roles
 		NodeModel nodeModel=getCache().getModel();
-		if (!nodeModel.isLocal()&&!nodeModel.isMaster()&&!Environment.getStandAlone()&&!roleField) return;
-		
-		
 		// "setValueAt("+value+","+row+","+col+")");
 
 		Object oldValue = getValueAt(row, col);
@@ -223,7 +220,6 @@ public class SpreadSheetModel extends CommonSpreadSheetModel implements OutlineM
 	public boolean isRowEditable(int row) {
 		if (isReadOnly()) return false;
 		NodeModel nodeModel=getCache().getModel();
-		//if (!nodeModel.isLocal()&&!nodeModel.isMaster()&&!Environment.getStandAlone()) return false;
 		Node node = getNodeInRow(row);
 		if (node.isVoid())
 			return true;
@@ -239,7 +235,6 @@ public class SpreadSheetModel extends CommonSpreadSheetModel implements OutlineM
 			return false;
 		Node node = getNodeInRow(row);
 		NodeModel nodeModel=getCache().getModel();
-// 		if (!nodeModel.isLocal()&&!nodeModel.isMaster()&&!Environment.getStandAlone()) return false;
 		
 		if (node.isVoid()&&!(nodeModel.isLocal()||nodeModel.isMaster())&&"Field.userRole".equals(field.getId()))
 			return false;

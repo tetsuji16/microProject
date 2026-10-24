@@ -136,7 +136,7 @@ final class RibbonCommandCatalog {
 			"RibbonNewProject", "RibbonNewMasterProject", "RibbonOpenProject", "RibbonRecentProjects", "RibbonImportProject",
 			"RibbonBackstageOptions", "RibbonLocale");
 		register(result, CommandScope.GLOBAL, HELP,
-			"RibbonProjectLibreDocumentation", "RibbonAboutProjectLibre");
+			"RibbonMicroProjectDocumentation", "RibbonAboutMicroProject");
 		register(result, CommandScope.DOCUMENT, FILE,
 			"RibbonSaveProject", "RibbonSaveProjectAs", "RibbonSaveMpoAs", "RibbonCloseProject", "RibbonExportProject",
 			"RibbonBackstageProjectInformation", "RibbonPrint", "RibbonPrintPreview", "RibbonPDF");

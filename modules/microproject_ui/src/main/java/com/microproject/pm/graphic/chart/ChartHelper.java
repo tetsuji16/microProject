@@ -153,7 +153,6 @@ public class ChartHelper implements TimeDistributedConstants {
 					Map<Object, Color> m = new HashMap<>();
 					m.put(PERCENT_ALLOC, OFFICE_BLUE);
 					m.put(OVERALLOCATED, OFFICE_RED);
-					if (!Environment.getStandAlone()) m.put(OTHER_PROJECTS, OFFICE_GRAY);
 					m.put(AVAILABILITY, new Color(0x404040));
 					m.put(SELECTED, OFFICE_LIGHT_BLUE);
 					m.put(THIS_PROJECT, OFFICE_GREEN);

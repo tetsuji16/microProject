@@ -46,7 +46,6 @@ import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.strings.Messages;
 import com.microproject.util.ClassUtils;
-import com.microproject.util.Environment;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 
@@ -58,7 +57,6 @@ public class FieldDictionary {
 	private HashedMap map = new HashedMap();
 	private HashMap<String, Field> actionsMap = new HashMap<>();
 	public void addField(Field field) {
-		if (field.isServer()&&Environment.getStandAlone()) return;
 		field.setClass(clazz);
 		if (field.build() || true) {
 			if (field.isIndexed()) {

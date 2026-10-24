@@ -136,7 +136,7 @@ import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.pm.snapshot.SnapshottableImpl;
 import com.microproject.pm.time.MutableHasStartAndEnd;
 import com.microproject.print.PrintSettings;
-import com.microproject.server.access.ErrorLogger;
+import com.microproject.util.ErrorLogger;
 import com.microproject.server.data.DataObject;
 import com.microproject.server.data.DistributionComparator;
 import com.microproject.server.data.DistributionConverter;
@@ -2676,7 +2676,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	}
 
 	public boolean isSavable() {
-		return Environment.isProjectLibre() || (!isLocal() && !isReadOnly());
+		return true;
 	}
 
 

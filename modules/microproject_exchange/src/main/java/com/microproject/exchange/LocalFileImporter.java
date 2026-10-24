@@ -59,7 +59,7 @@ import com.microproject.temporary.TemporaryCleanupQueue;
 public class LocalFileImporter extends FileImporter {
 	private static final Logger logger = Logger.getLogger(LocalFileImporter.class.getName());
 	public static final String VERSION="1.0.0"; //$NON-NLS-1$
-	private static final String PROJECT_LIBRE_FILE_SEPARATOR="@@@@@@@@@@ProjectLibreSeparator_MSXML@@@@@@@@@@";
+	private static final String MICRO_PROJECT_FILE_SEPARATOR="@@@@@@@@@@ProjectLibreSeparator_MSXML@@@@@@@@@@";
 	private static final String XML_FILE_START="<?xml";
 	/**
 	 *
@@ -107,7 +107,7 @@ public class LocalFileImporter extends FileImporter {
 				//using xml
 				logger.info("Trying to recover with XML...");
 				fin=new FileInputStream(f);
-				byte[] keyBuf=PROJECT_LIBRE_FILE_SEPARATOR.getBytes();
+				byte[] keyBuf=MICRO_PROJECT_FILE_SEPARATOR.getBytes();
 				byte[] startXmlKeyBuf=XML_FILE_START.getBytes();
 				int bufSize=100;
 				if (bufSize<keyBuf.length) bufSize=keyBuf.length;
@@ -120,7 +120,7 @@ public class LocalFileImporter extends FileImporter {
 				boolean first=true;
 				in.mark(bufSize);
 				while ( (n=in.read( buf, 0, bufSize )) != -1 ){
-					// testing if it's xml without PROJECT_LIBRE_FILE_SEPARATOR
+					// testing if it's xml without MICRO_PROJECT_FILE_SEPARATOR
 					if (first && n>startXmlKeyBuf.length) {
 						 for (int i=0; i<startXmlKeyBuf.length; i++ ){
 							 if (startXmlKeyBuf[i]!=buf[i]) {
@@ -241,7 +241,7 @@ public class LocalFileImporter extends FileImporter {
 					// POD document above is complete and remains directly readable.
 					logger.info("Skipping optional MSPDI recovery payload for an empty project");
 				} else {
-					bout.write(PROJECT_LIBRE_FILE_SEPARATOR.getBytes());
+					bout.write(MICRO_PROJECT_FILE_SEPARATOR.getBytes());
 					bout.flush();
 					com.microproject.port.SessionImporter importer=LocalSession.getImporter(LocalSession.MICROSOFT_PROJECT_IMPORTER);
 					if (importer == null) {

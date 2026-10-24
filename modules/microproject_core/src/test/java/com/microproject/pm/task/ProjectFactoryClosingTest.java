@@ -98,46 +98,34 @@ class ProjectFactoryClosingTest {
 
 	@Test
 	void cancellingMppCloseSaveKeepsTheSourceAssociationAndDirtyState() {
-		boolean previousStandalone = Environment.getStandAlone();
-		try {
-			Environment.setStandAlone(true);
-			Project project = localMppProject();
-			assertTrue(project.needsSaving(), "fixture must be savable and dirty before cancellation");
+		Project project = localMppProject();
+		assertTrue(project.needsSaving(), "fixture must be savable and dirty before cancellation");
 
-			SaveOptions options = ProjectFactory.prepareLocalCloseSaveOptions(project, suggested -> {
-				assertEquals("plan.mpo", suggested);
-				return null;
-			});
+		SaveOptions options = ProjectFactory.prepareLocalCloseSaveOptions(project, suggested -> {
+			assertEquals("plan.mpo", suggested);
+			return null;
+		});
 
-			assertNull(options, "cancelled Save As must not enqueue a close save");
-			assertEquals("plan.mpp", project.getFileName());
-			assertTrue(project.needsSaving(), "cancellation must preserve the dirty state");
-		} finally {
-			Environment.setStandAlone(previousStandalone);
-		}
+		assertNull(options, "cancelled Save As must not enqueue a close save");
+		assertEquals("plan.mpp", project.getFileName());
+		assertTrue(project.needsSaving(), "cancellation must preserve the dirty state");
 	}
 
 	@Test
 	void preparingMppCloseSaveKeepsTheSourceUntilTheWriteCompletes() {
-		boolean previousStandalone = Environment.getStandAlone();
-		try {
-			Environment.setStandAlone(true);
-			Project project = localMppProject();
-			assertTrue(project.needsSaving(), "fixture must be savable and dirty before target selection");
+		Project project = localMppProject();
+		assertTrue(project.needsSaving(), "fixture must be savable and dirty before target selection");
 
-			SaveOptions options = ProjectFactory.prepareLocalCloseSaveOptions(project, suggested -> {
-				assertEquals("plan.mpo", suggested);
-				return "plan.mpo";
-			});
+		SaveOptions options = ProjectFactory.prepareLocalCloseSaveOptions(project, suggested -> {
+			assertEquals("plan.mpo", suggested);
+			return "plan.mpo";
+		});
 
-			assertEquals("plan.mpo", options.getFileName());
-			assertEquals(LocalSession.MPO_PROJECT_IMPORTER, options.getImporter());
-			assertTrue(options.isSaveAs());
-			assertEquals("plan.mpp", project.getFileName(), "target selection must not change association before write success");
-			assertTrue(project.needsSaving(), "target selection must not clear dirty state before write success");
-		} finally {
-			Environment.setStandAlone(previousStandalone);
-		}
+		assertEquals("plan.mpo", options.getFileName());
+		assertEquals(LocalSession.MPO_PROJECT_IMPORTER, options.getImporter());
+		assertTrue(options.isSaveAs());
+		assertEquals("plan.mpp", project.getFileName(), "target selection must not change association before write success");
+		assertTrue(project.needsSaving(), "target selection must not clear dirty state before write success");
 	}
 
 	private static Project localMppProject() {

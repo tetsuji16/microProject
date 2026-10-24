@@ -56,6 +56,10 @@ Dates are planning windows, not permission to skip a gate. If a foundational sli
 
 ## Work started with this plan
 
-The ordinary Open Project path previously selected `ServerLocalFileImporter` for POD files whenever the caller reported a non-standalone session. The current desktop startup no longer has an active server session, so this preserved a dead server branch in the normal load decision. POD files now always select `LocalFileImporter`, and a regression test verifies both values of the old mode flag produce the same local route. The flag overload remains temporarily as a forwarding adapter while its large UI caller is simplified. The server importer registration remains temporarily available as a legacy adapter until its serialized-data and caller audit is complete; this change does not delete it or alter POD bytes.
+At plan creation, the ordinary Open Project path still had a `ServerLocalFileImporter` route and a temporary standalone-flag overload. This historical status was superseded by #903/#904: ordinary local opening uses `LocalFileImporter`, the dead importer classes and typed registration are removed, and the fixed environment-mode API is removed. Legacy saved importer-option strings remain aliases to `LocalFileImporter`; POD wire descriptors remain unchanged. See `docs/work/issue-903.md` and `docs/work/issue-904.md` for caller/persistence evidence.
 
-Verification for this first slice is pending the focused application/exchange tests and Windows GUI acceptance on the proposed change. This plan does not claim Beta 3 readiness.
+The original first-slice verification is recorded in those packets. Final integration tests/GUI evidence for the complete #774 candidate are still pending; this plan does not claim Beta 3 readiness.
+
+## #774 implementation status update (2026-10-24)
+
+The eight bounded #774 children are being integrated from the shared `issue-774-remaining-cleanup` worktree. #902 is merged and its fixed POD descriptor/MPO historical-read checks passed; #903 removed the unused importer implementation while keeping old-option aliases; #904 has removed fixed mode flags and the now-unregistered server-only task-filter bean/configuration. #905 session cleanup and #907/#908 naming/data migration are still being finalized. Their packets and the #909 final audit are the current source of status; this addendum does not claim parent acceptance or integrated CI completion.

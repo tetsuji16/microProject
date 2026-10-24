@@ -46,7 +46,6 @@ import com.jgoodies.forms.builder.DefaultFormBuilder;
 import com.jgoodies.forms.layout.CellConstraints;
 import com.jgoodies.forms.layout.FormLayout;
 import com.microproject.dialog.util.FieldComponentMap;
-import com.microproject.help.HelpUtil;
 import com.microproject.configuration.Configuration;
 import com.microproject.configuration.FieldDictionary;
 import com.microproject.configuration.Settings;
@@ -76,7 +75,7 @@ public final class ProjectDialog extends FieldDialog { // extends FieldDialog fo
 		ResourcePool resourcePool = null;
 		boolean resourcePoolProject;
 		boolean forward = true;
-		boolean local=Environment.getStandAlone();
+		boolean local=true;
 		int projectType;
 		int projectStatus;
 		int expenseType;
@@ -261,7 +260,6 @@ public final class ProjectDialog extends FieldDialog { // extends FieldDialog fo
 	JComboBox expenseType;
 	JTextField group;
 	JTextField division;
-	JComboBox accessControl;
 
 	public static ProjectDialog getInstance(Frame owner, Form project) {
 		return new ProjectDialog(owner, project);
@@ -305,10 +303,6 @@ public final class ProjectDialog extends FieldDialog { // extends FieldDialog fo
 		    }});
 		
 //		remote = new JCheckBox(Messages.getString("Text.newServerProject"));
-		if (!Environment.getStandAlone()){
-			accessControl=new JComboBox(new Object[]{Messages.getString("ProjectDialog.AllResourcesExceptCustomerPartner"),Messages.getString("ProjectDialog.BasedOnProjectRole")}); //$NON-NLS-1$ //$NON-NLS-2$
-			HelpUtil.addDocHelp(accessControl,"Project_Team");
-		}
 		projectType = new JComboBox(Configuration.getFieldFromId("Field.projectType").getOptions(null)); //$NON-NLS-1$
 		projectStatus = new JComboBox(Configuration.getFieldFromId("Field.projectStatus").getOptions(null)); //$NON-NLS-1$
 		expenseType = new JComboBox(Configuration.getFieldFromId("Field.expenseType").getOptions(null)); //$NON-NLS-1$
@@ -345,7 +339,6 @@ public final class ProjectDialog extends FieldDialog { // extends FieldDialog fo
 			division.setText(form.getDivision());
 			setDateLabel();
 			
-			if (!Environment.getStandAlone()) accessControl.setSelectedIndex(0);
 		} else {
 			form.setNotes(notes.getText());
 			form.setManager(manager.getText());
@@ -372,7 +365,6 @@ public final class ProjectDialog extends FieldDialog { // extends FieldDialog fo
 			form.setExpenseKind(ExpenseType.Kind.fromCode(expenseType.getSelectedIndex()));
 			form.setGroup(group.getText());
 			form.setDivision(division.getText());
-			if (!Environment.getStandAlone()) form.setAccessControlType(accessControl.getSelectedIndex());
 		}
 		return true;
 	}
@@ -414,12 +406,6 @@ public final class ProjectDialog extends FieldDialog { // extends FieldDialog fo
 		builder.append(Messages.getString("Field.resourcePool"), resourcePool, 3); //$NON-NLS-1$
 		builder.nextLine(2);
 
-		if (!Environment.getStandAlone()) {
-			builder.append(Messages.getString("ProjectDialog.ProjectTeam")); //$NON-NLS-1$
-			builder.add(accessControl, cc.xy(builder.getColumn(), builder.getRow(),
-			"left,default")); //$NON-NLS-1$
-		}
-		HelpUtil.addDocHelp(accessControl,"Project_Team");
 //		builder.nextLine(2);
 //		builder.append("Project Status:",projectStatus);
 //		builder.nextLine(2);

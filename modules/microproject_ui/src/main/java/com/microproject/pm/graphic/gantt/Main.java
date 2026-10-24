@@ -47,7 +47,7 @@ public class Main {
 	public static void main(String[] args) {
 		FlatLafSupport.ensureInitialized();
 
-		System.setProperty("apple.awt.application.name","ProjectLibre");
+		System.setProperty("apple.awt.application.name","microProject");
 		System.setProperty("apple.laf.useScreenMenuBar","true");
 		Locale.setDefault(ConfigurationFile.getLocale());
 		new GlobalPreferences().applyFormatPreferences();
@@ -60,7 +60,7 @@ public class Main {
 			if (Environment.compareJavaVersion(javaVersion,"1.5")<0){
 				String message=Messages.getStringWithParam("Text.badJavaVersion", javaVersion);
 				if (javaExec!=null&&javaExec.length()>0) message+="\n"+Messages.getStringWithParam("Text.javaExecutable", new Object[]{javaExec,"JAVA_EXE","$HOME/.projectlibre/run.conf"});
-				if (!opts.containsKey("silentlyFail")) PopupDialogSupport.showMessageDialog(null,message, Messages.getContextString("Title.ProjectLibreError"),JOptionPane.ERROR_MESSAGE);
+				if (!opts.containsKey("silentlyFail")) PopupDialogSupport.showMessageDialog(null,message, Messages.getString("Title.MicroProjectError"),JOptionPane.ERROR_MESSAGE);
 				System.exit(64);
 			}
 			//claur -  now assuming that now all vendors have correct implementation
@@ -68,7 +68,7 @@ public class Main {
 //			if (javaVendor==null || !(javaVendor.startsWith("Sun")||javaVendor.startsWith("IBM"))){
 //				String message=Messages.getStringWithParam("Text.badJavaVendor", javaVendor);
 //				if (javaExec!=null&&javaExec.length()>0) message+="\n"+Messages.getStringWithParam("Text.javaExecutable", new Object[]{javaExec,"JAVA_EXE","$HOME/.projectlibre/run.conf"});
-//				if (!opts.containsKey("silentlyFail")) PopupDialogSupport.showMessageDialog(null,message, Messages.getContextString("Title.ProjectLibreError"),JOptionPane.ERROR_MESSAGE);
+//				if (!opts.containsKey("silentlyFail")) PopupDialogSupport.showMessageDialog(null,message, Messages.getString("Title.MicroProjectError"),JOptionPane.ERROR_MESSAGE);
 //				System.exit(64);
 //			}
 		}

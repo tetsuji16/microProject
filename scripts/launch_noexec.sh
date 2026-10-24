@@ -5,9 +5,9 @@
 set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
 LIB_DIR="$ROOT/modules/microproject_ui/build/install/microproject_ui/lib"
-ARG_FILE_RAW="$(mktemp -t projectlibre-java-args.XXXXXX.txt)"
+ARG_FILE_RAW="$(mktemp -t microproject-java-args.XXXXXX.txt)"
 ARG_FILE="$(cygpath -w "$ARG_FILE_RAW")"
-LOG="${PROJECTLIBRE_LOG:-$ROOT/build/gui_dbg.log}"
+LOG="${MICROPROJECT_LOG:-$ROOT/build/gui_dbg.log}"
 trap 'rm -f "$ARG_FILE_RAW"' EXIT
 
 JAVA_EXE="$(command -v java)"

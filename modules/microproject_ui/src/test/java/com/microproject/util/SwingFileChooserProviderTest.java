@@ -26,19 +26,57 @@ package com.microproject.util;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import com.formdev.flatlaf.util.SystemFileChooser;
 import com.formdev.flatlaf.util.SystemFileChooser.FileNameExtensionFilter;
-import com.microproject.strings.Messages;
 
 class SwingFileChooserProviderTest {
+	@TempDir
+	Path userHome;
+
+	@Test
+	void initialDirectoryKeepsTheUsersLastDirectory() throws Exception {
+		Path canonical = Files.createDirectories(userHome.resolve("microProject"));
+		Path lastDirectory = Files.createDirectories(userHome.resolve("last-selected"));
+
+		assertEquals(lastDirectory.toFile(),
+			SwingFileChooserProvider.initialProjectDirectory(userHome.toFile(), lastDirectory.toString()));
+		assertTrue(Files.isDirectory(canonical));
+	}
+
+	@Test
+	void initialDirectoryPrefersExistingCanonicalFolderToLegacyFolder() throws Exception {
+		Path canonical = Files.createDirectories(userHome.resolve("microProject"));
+		Files.createDirectories(userHome.resolve("ProjectLibre"));
+
+		assertEquals(canonical.toFile(), SwingFileChooserProvider.initialProjectDirectory(userHome.toFile(), null));
+	}
+
+	@Test
+	void initialDirectoryUsesExistingLegacyFolderAsReadOnlyFallback() throws Exception {
+		Path legacy = Files.createDirectories(userHome.resolve("ProjectLibre"));
+
+		assertEquals(legacy.toFile(), SwingFileChooserProvider.initialProjectDirectory(userHome.toFile(), null));
+	}
+
+	@Test
+	void initialDirectoryFallsBackToHomeWithoutCreatingApplicationFolders() {
+		assertEquals(userHome.toFile(), SwingFileChooserProvider.initialProjectDirectory(userHome.toFile(), null));
+		assertFalse(Files.exists(userHome.resolve("microProject")));
+		assertFalse(Files.exists(userHome.resolve("ProjectLibre")));
+	}
+
 	@Test
 	void fileDialogsDefaultToNativeSystemDialogsUnlessDisabled() {
 		new SwingFileChooserProvider();
@@ -76,29 +114,23 @@ class SwingFileChooserProviderTest {
 	}
 
 	@Test
-	void openDialogDefaultsToProjectLibreAndKeepsOtherFormatsAvailable() {
-		boolean previousStandalone = Environment.getStandAlone();
-		try {
-			Environment.setStandAlone(true);
-			SwingFileChooserProvider provider = new SwingFileChooserProvider();
-			SystemFileChooser chooser = new SystemFileChooser();
-			provider.configureFileChooser(chooser, false);
-			provider.selectOpenFileFilter(chooser);
+	void openDialogDefaultsToMicroProjectAndKeepsOtherFormatsAvailable() {
+		SwingFileChooserProvider provider = new SwingFileChooserProvider();
+		SystemFileChooser chooser = new SystemFileChooser();
+		provider.configureFileChooser(chooser, false);
+		provider.selectOpenFileFilter(chooser);
 
-			assertTrue(chooser.isMultiSelectionEnabled(), "open dialogs must allow selecting multiple projects");
-			assertTrue(chooser.getFileFilter().getDescription().contains("*.mpo"));
-			assertArrayEquals(new String[] { "mpo" },
-				((FileNameExtensionFilter) chooser.getFileFilter()).getExtensions());
-			assertTrue(chooser.isAcceptAllFileFilterUsed());
-			assertEquals(8, chooser.getChoosableFileFilters().length);
-			assertTrue(findFilter(chooser, "pod").getDescription().contains("*.pod"));
+		assertTrue(chooser.isMultiSelectionEnabled(), "open dialogs must allow selecting multiple projects");
+		assertTrue(chooser.getFileFilter().getDescription().contains("*.mpo"));
+		assertArrayEquals(new String[] { "mpo" },
+			((FileNameExtensionFilter) chooser.getFileFilter()).getExtensions());
+		assertTrue(chooser.isAcceptAllFileFilterUsed());
+		assertEquals(8, chooser.getChoosableFileFilters().length);
+		assertTrue(findFilter(chooser, "pod").getDescription().contains("*.pod"));
 
-			chooser.setFileFilter(chooser.getAcceptAllFileFilter());
-			provider.selectOpenFileFilter(chooser);
-			assertTrue(chooser.getFileFilter().getDescription().contains("*.mpo"));
-		} finally {
-			Environment.setStandAlone(previousStandalone);
-		}
+		chooser.setFileFilter(chooser.getAcceptAllFileFilter());
+		provider.selectOpenFileFilter(chooser);
+		assertTrue(chooser.getFileFilter().getDescription().contains("*.mpo"));
 	}
 
 	private static FileNameExtensionFilter findFilter(SystemFileChooser chooser, String extension) {
@@ -112,65 +144,31 @@ class SwingFileChooserProviderTest {
 
 	@Test
 	void openKeepsTheSelectedFileNameWhileSaveAsUsesTheDefaultMpoFormat() {
-		boolean previousStandalone = Environment.getStandAlone();
-		try {
-			Environment.setStandAlone(true);
-			SwingFileChooserProvider provider = new SwingFileChooserProvider();
+		SwingFileChooserProvider provider = new SwingFileChooserProvider();
 
-			SystemFileChooser openChooser = provider.prepareFileChooser(false, "C:\\projects\\imported.mpp");
-			assertEquals(new File("C:\\projects\\imported.mpp"), openChooser.getSelectedFile());
-			assertTrue(openChooser.getFileFilter().getDescription().contains("*.mpo"));
+		SystemFileChooser openChooser = provider.prepareFileChooser(false, "C:\\projects\\imported.mpp");
+		assertEquals(new File("C:\\projects\\imported.mpp"), openChooser.getSelectedFile());
+		assertTrue(openChooser.getFileFilter().getDescription().contains("*.mpo"));
 
-			SystemFileChooser saveChooser = provider.prepareFileChooser(true, "C:\\projects\\imported.mpp");
-			assertEquals(new File("C:\\projects\\imported.mpo"), saveChooser.getSelectedFile());
-			assertTrue(!saveChooser.isMultiSelectionEnabled(), "save dialogs must remain single-selection");
-			assertTrue(saveChooser.getFileFilter().getDescription().contains("*.mpo"));
-		} finally {
-			Environment.setStandAlone(previousStandalone);
-		}
-	}
-
-	@Test
-	void hostedOpenDialogDefaultsToAllSupportedProjectFormats() {
-		boolean previousStandalone = Environment.getStandAlone();
-		try {
-			Environment.setStandAlone(false);
-			SwingFileChooserProvider provider = new SwingFileChooserProvider();
-			SystemFileChooser chooser = new SystemFileChooser();
-			provider.configureFileChooser(chooser, false);
-			provider.selectOpenFileFilter(chooser);
-
-			assertEquals(Messages.getString("File.projects"), chooser.getFileFilter().getDescription());
-			assertTrue(chooser.isMultiSelectionEnabled());
-			assertArrayEquals(new String[] { "mpo", "pod", "xml", "xlsx", "planner", "mpp", "mpx" },
-				((FileNameExtensionFilter) chooser.getFileFilter()).getExtensions());
-		} finally {
-			Environment.setStandAlone(previousStandalone);
-		}
+		SystemFileChooser saveChooser = provider.prepareFileChooser(true, "C:\\projects\\imported.mpp");
+		assertEquals(new File("C:\\projects\\imported.mpo"), saveChooser.getSelectedFile());
+		assertTrue(!saveChooser.isMultiSelectionEnabled(), "save dialogs must remain single-selection");
+		assertTrue(saveChooser.getFileFilter().getDescription().contains("*.mpo"));
 	}
 
 	@Test
 	void saveAsDefaultsLegacyPodSourcesToMpoAndKeepsExplicitExchangeFormats() {
-		assertEquals("mpo", SwingFileChooserProvider.preferredSaveExtension("original.pod", true));
-		assertEquals("mpo", SwingFileChooserProvider.preferredSaveExtension("original.POD", true));
-		assertEquals("xml", SwingFileChooserProvider.preferredSaveExtension("original.xml", true));
-		assertEquals("xlsx", SwingFileChooserProvider.preferredSaveExtension("original.xlsx", true));
-	}
-
-	@Test
-	void hostedSaveConvertsLegacyPodToXmlRegardlessOfExtensionCase() {
-		assertEquals("C:\\projects\\original.xml",
-			SwingFileChooserProvider.normalizeHostedSelectedFileName("C:\\projects\\original.POD", false));
-		assertEquals("C:\\projects\\original.POD",
-			SwingFileChooserProvider.normalizeHostedSelectedFileName("C:\\projects\\original.POD", true));
-		assertNull(SwingFileChooserProvider.normalizeHostedSelectedFileName(null, false));
+		assertEquals("mpo", SwingFileChooserProvider.preferredSaveExtension("original.pod"));
+		assertEquals("mpo", SwingFileChooserProvider.preferredSaveExtension("original.POD"));
+		assertEquals("xml", SwingFileChooserProvider.preferredSaveExtension("original.xml"));
+		assertEquals("xlsx", SwingFileChooserProvider.preferredSaveExtension("original.xlsx"));
 	}
 
 	@Test
 	void saveAsFallsBackToAnEditableFormat() {
-		assertEquals("mpo", SwingFileChooserProvider.preferredSaveExtension("imported.mpp", true));
-		assertEquals("mpo", SwingFileChooserProvider.preferredSaveExtension("project.mpo", false));
-		assertEquals("xml", SwingFileChooserProvider.preferredSaveExtension("project.pod", false));
+		assertEquals("mpo", SwingFileChooserProvider.preferredSaveExtension("imported.mpp"));
+		assertEquals("mpo", SwingFileChooserProvider.preferredSaveExtension("project.mpo"));
+		assertEquals("mpo", SwingFileChooserProvider.preferredSaveExtension("project.pod"));
 	}
 
 	@Test

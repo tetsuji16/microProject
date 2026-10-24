@@ -30,9 +30,9 @@ import java.util.Locale;
 import javax.swing.text.DateFormatter;
 
 /**
- * Backwards-compatible name for ProjectLibre date fields used by dialogs.
+ * Backwards-compatible date-field name used by dialogs.
  */
-public class ExtDateField extends ProjectLibreDateField {
+public class ExtDateField extends MicroProjectDateField {
 	public ExtDateField(boolean showWeekNumbers) {
 		super(showWeekNumbers);
 	}

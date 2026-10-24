@@ -89,7 +89,7 @@ public class CollaborationSession {
 	public CollaborationSession(Project project, String fileName, String userKey) {
 		this.project = project;
 		this.projectFile = fileName == null ? null : new File(fileName);
-		this.userKey = userKey == null || userKey.trim().length() == 0 ? "unknown" : userKey.trim();
+		this.userKey = CollaborationUserIdentity.normalize(userKey);
 		this.displayName = this.userKey;
 		this.clientInstanceId = UUID.randomUUID().toString();
 		this.store = new CollaborationMetadataStore(projectFile);

@@ -125,12 +125,4 @@ public abstract class CommonTransform {
         }
     }
 
-    protected boolean server;
-	public boolean isServer() {
-		return server;
-	}
-	public void setServer(boolean server) {
-		this.server = server;
-	}
-
 }

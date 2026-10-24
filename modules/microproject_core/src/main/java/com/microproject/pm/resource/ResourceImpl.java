@@ -920,10 +920,7 @@ public class ResourceImpl implements Resource, HasAvailability, HasResourceIndic
 		setRole(UserUtil.toNormalRole(role));
 	}
 	public boolean isReadOnlyExtendedRole(FieldContext fieldContext) { // moved out of spreadsheet model
-		if (Environment.getStandAlone())
-			return true;
-		ApplicationUser user = Environment.getUser();
-		return user == null || user.getResourceId() == getUniqueId(); // fail closed without a current user
+		return true;
 	}
 
 	public int getLicense(){

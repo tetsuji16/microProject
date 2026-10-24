@@ -982,7 +982,7 @@
 		<actionList id="ActionList.resource" type="nodeModel">
 			<formulaText>
 				<![CDATA[
-				return (Environment.standAlone||nodeModel.local||nodeModel.master)?"Indent,Outdent,InsertTask,InsertResource,Delete,Copy,Cut,Paste,Expand,Collapse":"Copy";
+				return "Indent,Outdent,InsertTask,InsertResource,Delete,Copy,Cut,Paste,Expand,Collapse";
 				]]>
 			</formulaText>
 		</actionList>
@@ -1028,7 +1028,7 @@
 	<views>
 		<view id="View.Gantt">
 			<transform
-				filters="Filter.None,Filter.MyTasks,Filter.DateRange,Filter.CompletedTasks,Filter.CostOverbudgetTasks,Filter.CriticalTasks,Filter.InProgressTasks,Filter.IncompleteTasks,Filter.LateOrOverbudgetTasks,Filter.NormalTasks,Filter.Milestones,Filter.SlippedTasks,Filter.SummaryTasks,Filter.Flag1,Filter.Flag2,Filter.Flag3,Filter.TasksWithEstimatedDurations,Filter.UnstartedTasks,Filter.StartingWithinWeek,Filter.StartingWithinTwoWeeks"
+				filters="Filter.None,Filter.DateRange,Filter.CompletedTasks,Filter.CostOverbudgetTasks,Filter.CriticalTasks,Filter.InProgressTasks,Filter.IncompleteTasks,Filter.LateOrOverbudgetTasks,Filter.NormalTasks,Filter.Milestones,Filter.SlippedTasks,Filter.SummaryTasks,Filter.Flag1,Filter.Flag2,Filter.Flag3,Filter.TasksWithEstimatedDurations,Filter.UnstartedTasks,Filter.StartingWithinWeek,Filter.StartingWithinTwoWeeks"
 				sorters="Sorter.None,Sorter.Name,Sorter.DurationThenCost,Sorter.StartDate,Sorter.FinishDate,Sorter.Duration,Sorter.Cost,Sorter.PercentComplete,Sorter.CostOverbudget,Sorter.CompleteIncomplete,Sorter.Critical,Field.priority"
 				groupers="Grouper.None,Grouper.CriticalThenDuration,Grouper.CompleteIncomplete,Grouper.Critical,Grouper.Duration,Grouper.ResourceNames"
 				>
@@ -1037,7 +1037,7 @@
 		</view>
 		<view id="View.OfflineGantt">
 			<transform
-				filters="Filter.None,Filter.MyTasks,Filter.DateRange,Filter.CompletedTasks,Filter.CostOverbudgetTasks,Filter.CriticalTasks,Filter.InProgressTasks,Filter.IncompleteTasks,Filter.LateOrOverbudgetTasks,Filter.NormalTasks,Filter.Milestones,Filter.SlippedTasks,Filter.SummaryTasks,Filter.Flag1,Filter.Flag2,Filter.Flag3,Filter.TasksWithEstimatedDurations,Filter.UnstartedTasks"
+				filters="Filter.None,Filter.DateRange,Filter.CompletedTasks,Filter.CostOverbudgetTasks,Filter.CriticalTasks,Filter.InProgressTasks,Filter.IncompleteTasks,Filter.LateOrOverbudgetTasks,Filter.NormalTasks,Filter.Milestones,Filter.SlippedTasks,Filter.SummaryTasks,Filter.Flag1,Filter.Flag2,Filter.Flag3,Filter.TasksWithEstimatedDurations,Filter.UnstartedTasks"
 				sorters="Sorter.None,Sorter.Name,Sorter.DurationThenCost,Sorter.StartDate,Sorter.FinishDate,Sorter.Duration,Sorter.Cost,Sorter.PercentComplete,Sorter.CostOverbudget,Sorter.CompleteIncomplete,Sorter.Critical,Field.priority"
 				groupers="Grouper.None,Grouper.CriticalThenDuration,Grouper.CompleteIncomplete,Grouper.Critical,Grouper.Duration,Grouper.ResourceNames"
 				>
@@ -1090,7 +1090,7 @@
 		</view>
 		<view id="View.Network">
 			<transform
-				filters="Filter.None,Filter.MyTasks,Filter.CompletedTasks,Filter.CostOverbudgetTasks,Filter.CriticalTasks,Filter.InProgressTasks,Filter.IncompleteTasks,Filter.LateOrOverbudgetTasks,Filter.NormalTasksOrMilestones,Filter.Milestones,Filter.SlippedTasks,Filter.SummaryTasks,Filter.Flag1,Filter.Flag2,Filter.Flag3,Filter.TasksWithEstimatedDurations,Filter.UnstartedTasks,Filter.StartingWithinWeek,Filter.StartingWithinTwoWeeks"
+				filters="Filter.None,Filter.CompletedTasks,Filter.CostOverbudgetTasks,Filter.CriticalTasks,Filter.InProgressTasks,Filter.IncompleteTasks,Filter.LateOrOverbudgetTasks,Filter.NormalTasksOrMilestones,Filter.Milestones,Filter.SlippedTasks,Filter.SummaryTasks,Filter.Flag1,Filter.Flag2,Filter.Flag3,Filter.TasksWithEstimatedDurations,Filter.UnstartedTasks,Filter.StartingWithinWeek,Filter.StartingWithinTwoWeeks"
 				sorters="Sorter.None,Sorter.Name,Sorter.DurationThenCost,Sorter.StartDate,Sorter.FinishDate,Sorter.Duration,Sorter.Cost,Sorter.PercentComplete,Sorter.CostOverbudget,Sorter.CompleteIncomplete,Sorter.Critical,Field.priority"
 				groupers="Grouper.None"
 				>
@@ -1117,7 +1117,7 @@
 		</view>
 		<view id="View.TaskUsageDetail">
 			<transform
-				filters="Filter.None,Filter.,Filter.MyTasks,CompletedTasks,Filter.CostOverbudgetTasks,Filter.CriticalTasks,Filter.InProgressTasks,Filter.IncompleteTasks,Filter.LateOrOverbudgetTasks,Filter.NormalTasks,Filter.Milestones,Filter.SlippedTasks,Filter.SummaryTasks,Filter.Flag1,Filter.Flag2,Filter.Flag3,Filter.TasksWithEstimatedDurations,Filter.UnstartedTasks,Filter.StartingWithinWeek,Filter.StartingWithinTwoWeeks"
+				filters="Filter.None,Filter.,CompletedTasks,Filter.CostOverbudgetTasks,Filter.CriticalTasks,Filter.InProgressTasks,Filter.IncompleteTasks,Filter.LateOrOverbudgetTasks,Filter.NormalTasks,Filter.Milestones,Filter.SlippedTasks,Filter.SummaryTasks,Filter.Flag1,Filter.Flag2,Filter.Flag3,Filter.TasksWithEstimatedDurations,Filter.UnstartedTasks,Filter.StartingWithinWeek,Filter.StartingWithinTwoWeeks"
 				sorters="Sorter.None,Sorter.Name,Sorter.DurationThenCost,Sorter.StartDate,Sorter.FinishDate,Sorter.Duration,Sorter.Cost,Sorter.PercentComplete,Sorter.CostOverbudget,Sorter.CompleteIncomplete,Sorter.Critical,Field.priority"
 				groupers="Grouper.None,Grouper.CriticalThenDuration,Grouper.CompleteIncomplete,Grouper.Critical,Grouper.Duration"
 				>
@@ -1182,7 +1182,7 @@
 		</view>
 		<view id="View.TaskReport">
 			<transform
-				filters="Filter.None,Filter.MyTasks,Filter.DateRange,Filter.CompletedTasks,Filter.CostOverbudgetTasks,Filter.CriticalTasks,Filter.InProgressTasks,Filter.IncompleteTasks,Filter.LateOrOverbudgetTasks,Filter.NormalTasks,Filter.Milestones,Filter.SlippedTasks,Filter.SummaryTasks,Filter.Flag1,Filter.Flag2,Filter.Flag3,Filter.TasksWithEstimatedDurations,Filter.UnstartedTasks"
+				filters="Filter.None,Filter.DateRange,Filter.CompletedTasks,Filter.CostOverbudgetTasks,Filter.CriticalTasks,Filter.InProgressTasks,Filter.IncompleteTasks,Filter.LateOrOverbudgetTasks,Filter.NormalTasks,Filter.Milestones,Filter.SlippedTasks,Filter.SummaryTasks,Filter.Flag1,Filter.Flag2,Filter.Flag3,Filter.TasksWithEstimatedDurations,Filter.UnstartedTasks"
 				sorters="Sorter.None,Sorter.Name,Sorter.DurationThenCost,Sorter.StartDate,Sorter.FinishDate,Sorter.Duration,Sorter.Cost,Sorter.PercentComplete,Sorter.CostOverbudget,Sorter.CompleteIncomplete,Sorter.Critical"
 				groupers="Grouper.None,Grouper.CriticalThenDuration,Grouper.CompleteIncomplete,Grouper.Critical,Grouper.Duration"
 				>
@@ -1383,22 +1383,6 @@
 				<param id="TransformParameter.StartDate"/>
 				<param id="TransformParameter.FinishDate"/>
 			</filter>
-			<filter id="Filter.MyTasks" type="task" showEmptySummaries="false" server="true">
-				<formulaText>
-					<![CDATA[
-						return !task.assignment && task.assignedToMe;
-					]]>
-				</formulaText>
-			</filter>
-<!--
-			<filter id="Filter.MyDelegatedTasks" type="task" showEmptySummaries="false" server="true">
-				<formulaText>
-					<![CDATA[
-						return !task.assignment && task.delegatedToUser;
-					]]>
-				</formulaText>
-			</filter>
--->
 			<filter id="Filter.ResourcesMaterial" type="resource" showEmptySummaries="false">
 				<formulaText>
 					<![CDATA[

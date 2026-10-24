@@ -60,7 +60,6 @@ class ResourcePoolInitialViewGuiAcceptanceTest {
 	private GraphicManager manager;
 	private boolean previousRibbonUi;
 	private boolean previousNewLook;
-	private boolean previousStandalone;
 	private boolean previousClientSide;
 	private boolean previousBatchMode;
 	private RibbonDisplayMode previousRibbonDisplayMode;
@@ -86,7 +85,6 @@ class ResourcePoolInitialViewGuiAcceptanceTest {
 			SessionFactory.getInstance().setJobQueue(previousJobQueue);
 		Environment.setRibbonUI(previousRibbonUi);
 		Environment.setNewLook(previousNewLook);
-		Environment.setStandAlone(previousStandalone);
 		Environment.setClientSide(previousClientSide);
 		Environment.setBatchMode(previousBatchMode);
 		com.microproject.util.Alert.setPresenter(null);
@@ -147,10 +145,8 @@ class ResourcePoolInitialViewGuiAcceptanceTest {
 				"A desktop session is required for Robot acceptance coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
-		previousStandalone = Environment.getStandAlone();
 		previousClientSide = Environment.isClientSide();
 		previousBatchMode = Environment.isBatchMode();
-		Environment.setStandAlone(true);
 		Environment.setClientSide(true);
 		Environment.setBatchMode(false);
 		UiDispatch.setDispatcher(new SwingUiDispatcher());

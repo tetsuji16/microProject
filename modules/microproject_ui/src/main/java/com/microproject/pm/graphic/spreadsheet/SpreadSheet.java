@@ -43,7 +43,6 @@ import java.io.StringWriter;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
-import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -77,7 +76,6 @@ import javax.swing.undo.CannotUndoException;
 
 import org.netbeans.swing.outline.RenderDataProvider;
 
-import com.microproject.dialog.ResourceAdditionDialog;
 import com.microproject.help.HelpUtil;
 import com.microproject.menu.MenuActionConstants;
 import com.microproject.pm.graphic.IconManager;
@@ -116,18 +114,11 @@ import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeBridge;
 import com.microproject.grouping.core.NodeFactory;
 import com.microproject.grouping.core.model.NodeModel;
-import com.microproject.job.Job;
-import com.microproject.job.JobRunnable;
 import com.microproject.options.GeneralOption;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
-import com.microproject.server.data.EnterpriseResourceData;
-import com.microproject.server.data.ProjectData;
-import com.microproject.server.data.Serializer;
-import com.microproject.session.Session;
-import com.microproject.session.SessionFactory;
 import com.microproject.strings.Messages;
 import com.microproject.undo.UndoController;
 import com.microproject.util.Alert;
@@ -2224,16 +2215,6 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		return model instanceof SpreadSheetModel spreadSheetModel ? spreadSheetModel : null;
 	}
 
-	private void removeExistingResources(ResourcePool resourcePool, HashMap<Long, EnterpriseResourceData> resourceMap) {
-		List<com.microproject.pm.resource.Resource> currentResources = resourcePool.getResourceList();
-		for (com.microproject.pm.resource.Resource resource : currentResources){
-			Long key = Long.valueOf(resource.getUniqueId());
-			if (resourceMap.containsKey(key)) {
-				resourceMap.remove(key);
-			}
-		}
-	}
-
 	public CommonSpreadSheetAction getAction(String actionId) {
 		if (actionId == null) {
 			return null;
@@ -2377,58 +2358,6 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		}
 	};
 	
-	//will be used later
-	protected SpreadSheetAction newResourceAction=new SpreadSheetAction("Spreadsheet.Action.new",this){
-		public void execute(){
-			List<GraphicNode> selectedNodes = getSelected();
-			ResourcePool resourcePool = (ResourcePool) getCache().getModel().getDataFactory();
-			Project project = (Project) resourcePool.getProjects().get(0);
-			if (selectedNodes == null || selectedNodes.isEmpty()) return;
-			final ArrayList<ProjectData> descriptors = new ArrayList<>();
-			Session session = SessionFactory.getInstance().getSession(false);
-			Job job = (Job) SessionFactory.callNoEx(session, "getLoadProjectDescriptorsJob", new Class<?>[]{boolean.class, java.util.List.class, boolean.class}, new Object[]{true, descriptors, true});
-			job.addSwingRunnable(new JobRunnable("Local: addNodes"){
-				public Object run() throws Exception{
-					final Consumer<Object> setter = new Consumer<Object>() { public void accept(Object obj) {
-						}
-					};
-					final Consumer<Object> getter = new Consumer<Object>() { public void accept(Object obj) {
-							ResourceAdditionDialog.Form form = (ResourceAdditionDialog.Form) obj;
-							List<Node> nodes = new ArrayList<>(form.getSelectedResources().size());
-							for (Object selectedResource : form.getSelectedResources()){
-								try {
-									nodes.add(NodeFactory.getInstance().createNode(Serializer.deserializeResourceAndAddToPool((EnterpriseResourceData) selectedResource, resourcePool, null)));
-								} catch (IOException e) {
-									logger.log(Level.WARNING, "Failed to deserialize enterprise resource", e);
-								} catch (ClassNotFoundException e) {
-									logger.log(Level.WARNING, "Failed to deserialize enterprise resource class", e);
-								}
-							}
-							getCache().addNodes(selectedNodes.get(0).getNode(), nodes);
-							getCache().update();
-						}
-					};
-					ResourceAdditionDialog.Form form = new ResourceAdditionDialog.Form();
-					try{
-						List<EnterpriseResourceData> resources = (List<EnterpriseResourceData>) SessionFactory.call(SessionFactory.getInstance().getSession(false), "retrieveResourceDescriptors", null, null);
-						HashMap<Long, EnterpriseResourceData> resourceMap = new HashMap<>(resources.size());
-						for (EnterpriseResourceData data : resources){
-							resourceMap.put(Long.valueOf(data.getUniqueId()), data);
-						}
-						removeExistingResources(resourcePool, resourceMap);
-						form.getSelectedResources().addAll(resourceMap.values());
-					}catch(Exception e){
-						logger.log(java.util.logging.Level.WARNING, "Failed to process resource selection", e);
-					}
-					
-					ResourceAdditionDialog.getInstance((JFrame)SwingUtilities.getRoot(SpreadSheet.this),form).execute(setter,getter);
-					return null;
-				}
-			});
-			session.schedule(job);
-		}
-	};
-
 	protected SpreadSheetAction deleteAction = new SpreadSheetAction("Spreadsheet.Action.delete",this) {
 		private static final long serialVersionUID = 1561847977122331970L;
 

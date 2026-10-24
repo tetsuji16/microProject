@@ -60,15 +60,29 @@ import com.microproject.server.data.DocumentData;
 import com.microproject.server.data.Serializer;
 import com.microproject.util.SafeObjectInput;
 
-public class ProjectLibreXlsxReader extends AbstractProjectReader {
-	private static final Logger logger = Logger.getLogger(ProjectLibreXlsxReader.class.getName());
-	private static final String META_SHEET = "_PL_META";
-	private static final String DATA_SHEET = "_PL_DATA";
-	private static final String NATIVE_DATA_SHEET = "_PL_NATIVE";
+public class MicroProjectXlsxReader extends AbstractProjectReader {
+	private static final Logger logger = Logger.getLogger(MicroProjectXlsxReader.class.getName());
+	private static final String META_SHEET = "_MicroProject_META";
+	private static final String DATA_SHEET = "_MicroProject_MSPDI";
+	private static final String NATIVE_DATA_SHEET = "_MicroProject_NATIVE";
+	private static final String LEGACY_META_SHEET = "_PL_META";
+	private static final String LEGACY_DATA_SHEET = "_PL_DATA";
+	private static final String LEGACY_NATIVE_DATA_SHEET = "_PL_NATIVE";
+	private static final String LEGACY_EMBEDDED_MSPDI_SHEET = "_ProjectLibre_MSPDI";
 	private static final String TASKS_SHEET = "Tasks";
 	private static final String RESOURCES_SHEET = "Resources";
 	private static final String ASSIGNMENTS_SHEET = "Assignments";
 	private static final String DEPENDENCIES_SHEET = "Dependencies";
+
+	private static final class WorkbookMetadata {
+		private final String kind;
+		private final boolean canonical;
+
+		private WorkbookMetadata(String kind, boolean canonical) {
+			this.kind = kind;
+			this.canonical = canonical;
+		}
+	}
 
 	public ProjectFile read(String fileName) throws MPXJException {
 		return read(new File(fileName));
@@ -82,7 +96,7 @@ public class ProjectLibreXlsxReader extends AbstractProjectReader {
 		try (FileInputStream in = new FileInputStream(file)) {
 			return read(in);
 		} catch (Exception e) {
-			throw new MPXJException("Failed to read ProjectLibre XLSX file", e);
+			throw new MPXJException("Failed to read microProject XLSX file", e);
 		}
 	}
 
@@ -94,13 +108,14 @@ public class ProjectLibreXlsxReader extends AbstractProjectReader {
 		try {
 			XSSFWorkbook workbook = new XSSFWorkbook(in);
 			try {
-				ProjectFile payload = readPayload(workbook);
+				WorkbookMetadata metadata = readWorkbookMetadata(workbook);
+				ProjectFile payload = readPayload(workbook, metadata);
 				if (payload != null) {
 					addListenersToProject(payload);
 					return payload;
 				}
 
-				ProjectFile embeddedProject = readEmbeddedMspdi(workbook);
+				ProjectFile embeddedProject = readEmbeddedMspdi(workbook, metadata);
 				if (embeddedProject != null) {
 					addListenersToProject(embeddedProject);
 					return embeddedProject;
@@ -115,7 +130,7 @@ public class ProjectLibreXlsxReader extends AbstractProjectReader {
 		} catch (MPXJException e) {
 			throw e;
 		} catch (Exception e) {
-			throw new MPXJException("Failed to read ProjectLibre XLSX stream", e);
+			throw new MPXJException("Failed to read microProject XLSX stream", e);
 		}
 	}
 
@@ -123,46 +138,109 @@ public class ProjectLibreXlsxReader extends AbstractProjectReader {
 		return Collections.singletonList(read(in));
 	}
 
-	public static Project readProjectLibreProject(File file) throws Exception {
+	private WorkbookMetadata readWorkbookMetadata(XSSFWorkbook workbook) throws MPXJException {
+		Sheet sheet = workbook.getSheet(META_SHEET);
+		boolean canonical = sheet != null;
+		if (sheet == null) {
+			sheet = workbook.getSheet(LEGACY_META_SHEET);
+		}
+		if (sheet == null) {
+			return new WorkbookMetadata(null, false);
+		}
+		String kind = stringCell(sheet.getRow(0), 1);
+		String version = stringCell(sheet.getRow(1), 1);
+		String kindLabel = stringCell(sheet.getRow(0), 0);
+		String versionLabel = stringCell(sheet.getRow(1), 0);
+		boolean supported = canonical
+			? ("microproject".equals(kind) && "3".equals(version))
+				|| ("projectfile".equals(kind) && "2".equals(version))
+			: ("projectlibre".equals(kind) && "3".equals(version))
+				|| ("projectfile".equals(kind) && "2".equals(version));
+		boolean validLabels = "WorkbookKind".equals(kindLabel) && "SchemaVersion".equals(versionLabel);
+		boolean legacyWriterLabelsMissing = !canonical && kindLabel.isEmpty() && versionLabel.isEmpty();
+		if ((!validLabels && !legacyWriterLabelsMissing) || !supported) {
+			throw new MPXJException("Invalid " + (canonical ? "canonical" : "legacy") + " XLSX metadata");
+		}
+		return new WorkbookMetadata(kind, canonical);
+	}
+
+	public static Project readMicroProjectProject(File file) throws Exception {
 		try (FileInputStream in = new FileInputStream(file)) {
-			return readProjectLibreProject(in);
+			return readMicroProjectProject(in);
 		}
 	}
 
-	public static Project readProjectLibreProject(InputStream in) throws Exception {
+	public static Project readMicroProjectProject(InputStream in) throws Exception {
 		try (XSSFWorkbook workbook = new XSSFWorkbook(in)) {
+			MicroProjectXlsxReader reader = new MicroProjectXlsxReader();
+			WorkbookMetadata metadata = reader.readWorkbookMetadata(workbook);
 			Sheet sheet = workbook.getSheet(NATIVE_DATA_SHEET);
+			boolean canonicalPayload = sheet != null;
+			if (sheet == null && !metadata.canonical) {
+				sheet = workbook.getSheet(LEGACY_NATIVE_DATA_SHEET);
+			}
 			if (sheet == null) {
 				return null;
 			}
-			StringBuilder encoded = new StringBuilder();
-			for (int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
-				Row row = sheet.getRow(rowIndex);
-				if (row != null && row.getCell(0) != null) {
-					encoded.append(row.getCell(0).getStringCellValue());
-				}
+			if (canonicalPayload && metadata.canonical && !"microproject".equals(metadata.kind)) {
+				throw new MPXJException("Canonical native XLSX payload conflicts with workbook metadata");
 			}
-			if (encoded.length() == 0) {
+			try {
+				String expectedMarker = canonicalPayload ? "MicroProjectNativeData" : "ProjectLibreNativeData";
+				if (!expectedMarker.equals(reader.stringCell(sheet.getRow(0), 0))) {
+					throw new MPXJException("Invalid native XLSX payload marker");
+				}
+				StringBuilder encoded = new StringBuilder();
+				for (int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
+					Row row = sheet.getRow(rowIndex);
+					if (row != null && row.getCell(0) != null) {
+						encoded.append(reader.stringCell(row, 0));
+					}
+				}
+				if (encoded.length() == 0) {
+					throw new MPXJException("Empty native XLSX payload");
+				}
+				byte[] serialized = Base64.getDecoder().decode(encoded.toString());
+				try (var objectIn = SafeObjectInput.create(new ByteArrayInputStream(serialized))) {
+					Object value = objectIn.readObject();
+					if (!(value instanceof DocumentData)) {
+						throw new MPXJException("Invalid native XLSX payload");
+					}
+					return new Serializer().deserializeLocalDocument((DocumentData) value);
+				}
+			} catch (Exception e) {
+				if (canonicalPayload) {
+					throw new MPXJException("Failed to read canonical MicroProject XLSX payload", e);
+				}
+				logger.log(Level.WARNING, "Ignoring unusable legacy native XLSX payload", e);
 				return null;
-			}
-			byte[] serialized = Base64.getDecoder().decode(encoded.toString());
-			try (var objectIn = SafeObjectInput.create(new ByteArrayInputStream(serialized))) {
-				Object value = objectIn.readObject();
-				if (!(value instanceof DocumentData)) {
-					throw new MPXJException("Invalid ProjectLibre native XLSX payload");
+			} catch (LinkageError e) {
+				if (canonicalPayload) {
+					throw new MPXJException("Failed to read canonical MicroProject XLSX payload", new Exception(e));
 				}
-				return new Serializer().deserializeLocalDocument((DocumentData) value);
-			} catch (Exception | LinkageError e) {
-				logger.log(Level.WARNING, "Ignoring unusable ProjectLibre native XLSX payload", e);
+				logger.log(Level.WARNING, "Ignoring unusable legacy native XLSX payload", e);
 				return null;
 			}
 		}
 	}
 
-	private ProjectFile readPayload(XSSFWorkbook workbook) throws Exception {
+	private ProjectFile readPayload(XSSFWorkbook workbook, WorkbookMetadata metadata) throws Exception {
 		Sheet sheet = workbook.getSheet(DATA_SHEET);
+		boolean canonicalPayload = sheet != null;
+		if (sheet == null && !metadata.canonical) {
+			sheet = workbook.getSheet(LEGACY_DATA_SHEET);
+		}
 		if (sheet == null) {
 			return null;
+		}
+		if (canonicalPayload) {
+			String payloadKind = stringCell(sheet.getRow(0), 1);
+			boolean validKind = "microproject".equals(payloadKind) || "projectfile".equals(payloadKind);
+			if (!"PayloadKind".equals(stringCell(sheet.getRow(0), 0))
+					|| !"Payload".equals(stringCell(sheet.getRow(1), 0)) || !validKind
+					|| (metadata.canonical && !payloadKind.equals(metadata.kind))) {
+				throw new MPXJException("Invalid canonical MSPDI XLSX payload metadata");
+			}
 		}
 		StringBuilder xml = new StringBuilder();
 		for (int rowIndex = 2; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
@@ -173,14 +251,20 @@ public class ProjectLibreXlsxReader extends AbstractProjectReader {
 			xml.append(row.getCell(0).getStringCellValue());
 		}
 		if (xml.length() == 0) {
+			if (canonicalPayload) {
+				throw new MPXJException("Empty canonical MSPDI XLSX payload");
+			}
 			return null;
 		}
 		ByteArrayInputStream in = new ByteArrayInputStream(xml.toString().getBytes(StandardCharsets.UTF_8));
 		return new MSPDIReader().read(in);
 	}
 
-	private ProjectFile readEmbeddedMspdi(XSSFWorkbook workbook) throws Exception {
-		Sheet sheet = workbook.getSheet("_ProjectLibre_MSPDI");
+	private ProjectFile readEmbeddedMspdi(XSSFWorkbook workbook, WorkbookMetadata metadata) throws Exception {
+		if (metadata.canonical) {
+			return null;
+		}
+		Sheet sheet = workbook.getSheet(LEGACY_EMBEDDED_MSPDI_SHEET);
 		if (sheet == null) {
 			return null;
 		}
@@ -379,7 +463,7 @@ public class ProjectLibreXlsxReader extends AbstractProjectReader {
 	/**
 	 * Reads the Dependencies sheet Lag cell (issue #162). Supported forms:
 	 * <ul>
-	 * <li>plain milliseconds (current ProjectLibreXlsxWriter format)</li>
+	 * <li>plain milliseconds (current MicroProjectXlsxWriter format)</li>
 	 * <li>the old encoded long (unit flags in bits 57+) for backward compatibility</li>
 	 * <li>{@code %<fraction>} / {@code e%<fraction>} percent lags</li>
 	 * <li>MPXJ {@code Duration#toString()} form (e.g. {@code 2.0d}, {@code -1.0h}, {@code 90.0m})</li>
@@ -442,7 +526,7 @@ public class ProjectLibreXlsxReader extends AbstractProjectReader {
 	}
 
 	/**
-	 * Decodes the old ProjectLibreXlsxWriter format: a datatype Duration encoded
+	 * Decodes the old MicroProjectXlsxWriter format: a datatype Duration encoded
 	 * long (millis in the low bits, unit flags in bits 57+).
 	 */
 	private static Duration decodeEncodedLag(long encoded) {
@@ -480,6 +564,9 @@ public class ProjectLibreXlsxReader extends AbstractProjectReader {
 	}
 
 	private String stringCell(Row row, int column) {
+		if (row == null) {
+			return "";
+		}
 		Cell cell = row.getCell(column);
 		if (cell == null) {
 			return "";

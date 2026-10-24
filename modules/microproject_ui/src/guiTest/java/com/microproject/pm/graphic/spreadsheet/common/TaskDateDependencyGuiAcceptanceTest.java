@@ -177,8 +177,8 @@ class TaskDateDependencyGuiAcceptanceTest {
 
 	private static boolean isAlertDialog(Dialog dialog) {
 		String title = dialog.getTitle();
-		return Messages.getContextString("Title.ProjectLibreWarning").equals(title)
-			|| Messages.getContextString("Title.ProjectLibreError").equals(title);
+		return Messages.getString("Title.MicroProjectWarning").equals(title)
+			|| Messages.getString("Title.MicroProjectError").equals(title);
 	}
 
 	private void runRobotDateEdit(int type, long lagDays) throws Exception {

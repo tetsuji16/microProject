@@ -70,7 +70,7 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 	private SystemFileChooser fileChooser;
 	private String chooserConfigurationSignature;
 	private Boolean chooserConfigurationSaveMode;
-	private FileFilter projectlibreFilter;
+	private FileFilter nativeProjectFilter;
 	private FileFilter legacyPodFilter;
 	private FileFilter microsoftFilter;
 	private FileFilter microsoftXMLFilter;
@@ -81,14 +81,11 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 	@Override
 	public synchronized String chooseFileName(boolean save, String selectedFileName, Object parent) {
 		Component fileChooserParent = parent instanceof Component ? (Component) parent : null;
-		if (save) {
-			selectedFileName = normalizeHostedSelectedFileName(selectedFileName, Environment.getStandAlone());
-		}
 		SystemFileChooser chooser = prepareFileChooser(save, selectedFileName);
 		if (selectedFileName == null) {
 			try {
-				String initialDirName = Preferences.userNodeForPackage(FileHelper.class).get("lastDirectory", System.getProperty("user.home") + File.separator + "ProjectLibre");
-				chooser.setCurrentDirectory(new File(initialDirName));
+				String lastDirectory = Preferences.userNodeForPackage(FileHelper.class).get("lastDirectory", null);
+				chooser.setCurrentDirectory(initialProjectDirectory(new File(System.getProperty("user.home")), lastDirectory));
 			} catch (Exception e) {
 			}
 		}
@@ -114,6 +111,18 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 		}
 		Preferences.userNodeForPackage(FileHelper.class).put("lastDirectory", file.getParent());
 		return fileName;
+	}
+
+	static File initialProjectDirectory(File userHome, String lastDirectory) {
+		if (lastDirectory != null && !lastDirectory.isBlank()) {
+			return new File(lastDirectory);
+		}
+		File canonical = new File(userHome, "microProject");
+		if (canonical.isDirectory()) {
+			return canonical;
+		}
+		File legacy = new File(userHome, "ProjectLibre");
+		return legacy.isDirectory() ? legacy : userHome;
 	}
 
 	@Override
@@ -199,13 +208,6 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 		return List.copyOf(names);
 	}
 
-	static String normalizeHostedSelectedFileName(String selectedFileName, boolean standalone) {
-		if (!standalone && LEGACY_POD_FILE_EXTENSION.equals(FileHelper.getFileExtension(selectedFileName))) {
-			return FileHelper.changeFileExtension(selectedFileName, "xml");
-		}
-		return selectedFileName;
-	}
-
 	SystemFileChooser prepareFileChooser(boolean save, String selectedFileName) {
 		SystemFileChooser chooser = getFileChooser();
 		chooser.setSelectedFile(initialSelectedFile(selectedFileName));
@@ -244,8 +246,8 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 
 	void configureFileChooser(SystemFileChooser chooser, final boolean save) {
 		chooser.setMultiSelectionEnabled(!save);
-		projectlibreFilter = new FileNameExtensionFilter(
-			formatFilterLabel(Messages.getString("File.projectlibre"), "*." + DEFAULT_FILE_EXTENSION),
+		nativeProjectFilter = new FileNameExtensionFilter(
+			formatFilterLabel(Messages.getString("File.nativeProject"), "*." + DEFAULT_FILE_EXTENSION),
 			DEFAULT_FILE_EXTENSION);
 		legacyPodFilter = new FileNameExtensionFilter(
 			formatFilterLabel(Messages.getString("File.projectlibrePod"), "*." + LEGACY_POD_FILE_EXTENSION),
@@ -269,17 +271,13 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 		chooser.resetChoosableFileFilters();
 		chooser.setAcceptAllFileFilterUsed(true);
 		if (save) {
-			if (Environment.getStandAlone()) {
-				chooser.addChoosableFileFilter(projectlibreFilter);
-				chooser.addChoosableFileFilter(legacyPodFilter);
-			}
+			chooser.addChoosableFileFilter(nativeProjectFilter);
+			chooser.addChoosableFileFilter(legacyPodFilter);
 			chooser.addChoosableFileFilter(microsoftXMLFilter);
 			chooser.addChoosableFileFilter(microsoftXlsxFilter);
 		} else {
-			if (Environment.getStandAlone()) {
-				chooser.addChoosableFileFilter(projectlibreFilter);
-				chooser.addChoosableFileFilter(legacyPodFilter);
-			}
+			chooser.addChoosableFileFilter(nativeProjectFilter);
+			chooser.addChoosableFileFilter(legacyPodFilter);
 			chooser.addChoosableFileFilter(microsoftFilter);
 			chooser.addChoosableFileFilter(microsoftXMLFilter);
 			chooser.addChoosableFileFilter(microsoftXlsxFilter);
@@ -293,13 +291,13 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 	}
 
 	void selectOpenFileFilter(SystemFileChooser chooser) {
-		chooser.setFileFilter(Environment.getStandAlone() ? projectlibreFilter : projectFilter);
+		chooser.setFileFilter(nativeProjectFilter);
 	}
 
 	private void selectSaveFileFilter(SystemFileChooser chooser, String selectedFileName) {
-		String extension = preferredSaveExtension(selectedFileName, Environment.getStandAlone());
-		if (DEFAULT_FILE_EXTENSION.equals(extension) && projectlibreFilter != null) {
-			chooser.setFileFilter(projectlibreFilter);
+		String extension = preferredSaveExtension(selectedFileName);
+		if (DEFAULT_FILE_EXTENSION.equals(extension) && nativeProjectFilter != null) {
+			chooser.setFileFilter(nativeProjectFilter);
 		} else if (LEGACY_POD_FILE_EXTENSION.equals(extension)) {
 			chooser.setFileFilter(legacyPodFilter);
 		} else if ("xlsx".equals(extension)) {
@@ -309,7 +307,7 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 		}
 	}
 
-	static String preferredSaveExtension(String selectedFileName, boolean standalone) {
+	static String preferredSaveExtension(String selectedFileName) {
 		String extension = selectedFileName == null ? null : FileHelper.getFileExtension(selectedFileName);
 		if ("xlsx".equals(extension)) {
 			return "xlsx";
@@ -320,7 +318,7 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 		if (DEFAULT_FILE_EXTENSION.equals(extension)) {
 			return DEFAULT_FILE_EXTENSION;
 		}
-		return standalone ? DEFAULT_FILE_EXTENSION : "xml";
+		return DEFAULT_FILE_EXTENSION;
 	}
 
 	private void ensureFileChooserConfigured(final boolean save) {
@@ -345,7 +343,7 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 		if (filter == microsoftXMLFilter) {
 			return changeFileExtension(baseFileName, "xml");
 		}
-		if (filter == projectlibreFilter) {
+		if (filter == nativeProjectFilter) {
 			return changeFileExtension(baseFileName, DEFAULT_FILE_EXTENSION);
 		}
 		if (filter == legacyPodFilter) {
@@ -373,7 +371,7 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 		if (filter == microsoftXMLFilter) {
 			return "xml";
 		}
-		if (filter == projectlibreFilter) {
+		if (filter == nativeProjectFilter) {
 			return DEFAULT_FILE_EXTENSION;
 		}
 		if (filter == legacyPodFilter) {

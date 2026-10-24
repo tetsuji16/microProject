@@ -165,15 +165,12 @@ public class ChartModel implements TimeDistributedConstants, Serializable {
 	}
 
 	public void computeHistogram(Project project, List<?> tasks, List<Resource> resources,Object[] traces) {
-		boolean stackCurrentOnTop = traces == (Environment.getStandAlone()?HasTimeDistributedData.histogramTypes:HasTimeDistributedData.serverHistogramTypes);
+		boolean stackCurrentOnTop = traces == HasTimeDistributedData.histogramTypes;
 
 		// Availability
 		GroupedCalculatedValues availabilityCalculatedValues = (GroupedCalculatedValues) computeAvailability(resources);
-
-		// Other Projects
 		GroupedCalculatedValues otherProjectsCalculatedValues = null;
-		if (!Environment.getStandAlone()) otherProjectsCalculatedValues=(GroupedCalculatedValues) computeOtherProjects(tasks,resources);
-		
+
 		//This Project
 		GroupedCalculatedValues thisProjectCalculatedValues = (GroupedCalculatedValues) computeTrace(project.getTaskOutlineIterator(), resources, WORK,  true, false);
 

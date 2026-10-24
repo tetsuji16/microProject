@@ -1364,8 +1364,8 @@ class RibbonButtonBehaviorTest {
 		assertExternal(harness, "RibbonPrintPreview", "printPreview");
 		assertExternal(harness, "RibbonPDF", "pdf");
 		assertExternal(harness, "RibbonLocale", "locale");
-		assertExternal(harness, "RibbonProjectLibreDocumentation", "help");
-		assertExternal(harness, "RibbonAboutProjectLibre", "about");
+		assertExternal(harness, "RibbonMicroProjectDocumentation", "help");
+		assertExternal(harness, "RibbonAboutMicroProject", "about");
 		assertExternal(harness, "RibbonInsertProject", "insertProject");
 
 		assertChooser(harness, "RibbonChooseFilter", MenuActionConstants.ACTION_CHOOSE_FILTER);
@@ -1473,7 +1473,7 @@ class RibbonButtonBehaviorTest {
 	void primaryExternalRibbonRoutesRecordRejectedOutcomeWhenGuardBlocksThem() throws Exception {
 		Harness harness = newHarness();
 		for (String buttonId : List.of("RibbonNewProject", "RibbonRecentProjects", "RibbonLocale",
-			"RibbonProjectLibreDocumentation", "RibbonAboutProjectLibre")) {
+			"RibbonMicroProjectDocumentation", "RibbonAboutMicroProject")) {
 			harness.resetCalls();
 			harness.invoke(buttonId);
 			assertEquals(RibbonCommandResult.Status.REJECTED,
@@ -1779,8 +1779,8 @@ class RibbonButtonBehaviorTest {
 			"RibbonPrintPreview",
 			"RibbonPDF",
 			"RibbonLocale",
-			"RibbonProjectLibreDocumentation",
-			"RibbonAboutProjectLibre",
+			"RibbonMicroProjectDocumentation",
+			"RibbonAboutMicroProject",
 			"RibbonInsertProject");
 		add(map, Strategy.STRUCTURAL_ONLY,
 			"RibbonDelegateTasks",

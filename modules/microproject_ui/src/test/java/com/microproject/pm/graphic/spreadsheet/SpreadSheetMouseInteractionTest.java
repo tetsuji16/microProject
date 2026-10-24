@@ -456,10 +456,10 @@ class SpreadSheetMouseInteractionTest {
 			int row = findRow(sheet, fixture.secondTask());
 			SpreadSheetRowHeader rowHeader = sheet.getRowHeader();
 
-			fireProjectLibreRowHeaderPress(rowHeader, row, 1);
+			fireRowHeaderPress(rowHeader, row, 1);
 			assertTrue(sheet.isRowFullySelected(row));
 
-			fireProjectLibreRowHeaderPress(rowHeader, row, 1);
+			fireRowHeaderPress(rowHeader, row, 1);
 			assertTrue(sheet.isRowFullySelected(row));
 		});
 	}
@@ -535,7 +535,7 @@ class SpreadSheetMouseInteractionTest {
 			RecordingSpreadSheet sheet = fixture.sheet();
 			int row = findRow(sheet, fixture.firstTask());
 
-			fireProjectLibreRowHeaderPress(sheet.getRowHeader(), row, 1);
+			fireRowHeaderPress(sheet.getRowHeader(), row, 1);
 
 			assertEquals(1, sheet.focusRequestCount,
 					"selecting a row from its header must return keyboard input to the task table");
@@ -574,8 +574,8 @@ class SpreadSheetMouseInteractionTest {
 			int secondRow = findRow(sheet, fixture.secondTask());
 			SpreadSheetRowHeader rowHeader = sheet.getRowHeader();
 
-			fireProjectLibreRowHeaderPress(rowHeader, firstRow, 1);
-			fireProjectLibreRowHeaderPress(rowHeader, secondRow, 1, true);
+			fireRowHeaderPress(rowHeader, firstRow, 1);
+			fireRowHeaderPress(rowHeader, secondRow, 1, true);
 
 			assertEquals(2, sheet.getSelectedRowCount());
 			assertEquals(sheet.getColumnCount(), sheet.getSelectedColumnCount());
@@ -592,7 +592,7 @@ class SpreadSheetMouseInteractionTest {
 			int row = findRow(sheet, fixture.secondTask());
 			SpreadSheetRowHeader rowHeader = sheet.getRowHeader();
 
-			fireProjectLibreRowHeaderPress(rowHeader, row, 2);
+			fireRowHeaderPress(rowHeader, row, 2);
 
 			assertTrue(sheet.isRowFullySelected(row));
 			assertEquals(1, sheet.informationOpenCount);
@@ -611,7 +611,7 @@ class SpreadSheetMouseInteractionTest {
 			long uniqueId = fixture.firstTask().getUniqueId();
 
 			// Drag the selected ID row below the next task, as in MS Project.
-			dispatchProjectLibreRowHeaderDrag(rowHeader, firstRow, secondRow, true, false);
+			dispatchRowHeaderDrag(rowHeader, firstRow, secondRow, true, false);
 
 			// The dragged task remains the sole selected row until drop.
 			int[] selected = sheet.getSelectedRows();
@@ -644,7 +644,7 @@ class SpreadSheetMouseInteractionTest {
 
 			// The target would change the outline level, so MS Project-compatible
 			// drag/drop must reject it without mutating the task hierarchy.
-			dispatchProjectLibreRowHeaderDrag(rowHeader, firstRow, secondRow, false, false);
+			dispatchRowHeaderDrag(rowHeader, firstRow, secondRow, false, false);
 			dispatchRowHeaderRelease(rowHeader, secondRow, false);
 
 			assertTrue(((Node) firstNode.getParent()).isRoot());
@@ -970,20 +970,20 @@ class SpreadSheetMouseInteractionTest {
 			MouseEvent.BUTTON1);
 	}
 
-	private void fireProjectLibreRowHeaderPress(SpreadSheetRowHeader rowHeader, int row, int clickCount) {
-		fireProjectLibreRowHeaderPress(rowHeader, row, clickCount, false);
+	private void fireRowHeaderPress(SpreadSheetRowHeader rowHeader, int row, int clickCount) {
+		fireRowHeaderPress(rowHeader, row, clickCount, false);
 	}
 
-	private void fireProjectLibreRowHeaderPress(SpreadSheetRowHeader rowHeader, int row, int clickCount, boolean controlDown) {
+	private void fireRowHeaderPress(SpreadSheetRowHeader rowHeader, int row, int clickCount, boolean controlDown) {
 		rowHeader.setUI(null);
 		rowHeader.dispatchEvent(rowHeaderMousePress(rowHeader,row,clickCount,controlDown));
 	}
 
-	private void fireProjectLibreRowHeaderDrag(SpreadSheetRowHeader rowHeader, int sourceRow, int targetRow, boolean after) {
-		dispatchProjectLibreRowHeaderDrag(rowHeader,sourceRow,targetRow,after,true);
+	private void fireRowHeaderDrag(SpreadSheetRowHeader rowHeader, int sourceRow, int targetRow, boolean after) {
+		dispatchRowHeaderDrag(rowHeader,sourceRow,targetRow,after,true);
 	}
 
-	private void dispatchProjectLibreRowHeaderDrag(SpreadSheetRowHeader rowHeader,int sourceRow,int targetRow,boolean after,boolean release) {
+	private void dispatchRowHeaderDrag(SpreadSheetRowHeader rowHeader,int sourceRow,int targetRow,boolean after,boolean release) {
 		rowHeader.setUI(null);
 		rowHeader.dispatchEvent(rowHeaderMousePress(rowHeader,sourceRow,1));
 		Rectangle target = rowHeader.getCellRect(targetRow, 0, true);

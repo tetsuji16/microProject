@@ -58,7 +58,7 @@ class AbstractSessionTest {
 		}
 
 		@Override
-		public Job getLoadProjectDescriptorsJob(boolean includeProjects, List<ProjectData> descriptors, boolean allowOpenAs) {
+		public Job getLoadProjectDescriptorsJob(List<ProjectData> descriptors) {
 			return null;
 		}
 

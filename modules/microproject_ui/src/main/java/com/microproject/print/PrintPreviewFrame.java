@@ -185,11 +185,6 @@ public class PrintPreviewFrame extends FlatLafFrame implements  ProjectMenuActio
 	}
 	public class PDFAction extends MenuActionsMap.GlobalMenuAction {
 		public void actionPerformed(ActionEvent arg0) {
-//claur - PDF enabled
-//			if (Environment.isProjectLibre()) {
-//				PODOnlyFeature.doDialog(PrintPreviewFrame.this);
-//				return;
-//			}
 			try {
 				Class<?> generator=ClassLoaderUtils.forName("com.microproject.export.ImageExport");
 				generator.getMethod("export", GraphPageable.class, Component.class).invoke(null, document, PrintPreviewFrame.this);

@@ -41,13 +41,6 @@ public class Init {
 		instance = this;
 		if (loadConfiguration) loadConfiguration();
 		FieldConverter.getInstance();
-		if (!Environment.getStandAlone()){
-			try {
-				Class.forName("org.codehaus.groovy.control.ResolveVisitor").getMethod("setClassResolverFilter", ClassResolverFilter.class).invoke(null, ScriptConfiguration.getInstance());
-			} catch (Exception e) {
-				logger.log(Level.FINE, "Groovy resolver filtering hook is unavailable", e);
-			}
-		}
 	}
 	/**
 	 *

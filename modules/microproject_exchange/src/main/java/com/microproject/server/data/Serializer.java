@@ -87,7 +87,7 @@ import com.microproject.pm.task.ProjectHierarchyQueries;
 import com.microproject.pm.task.SubProj;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.task.TaskSnapshot;
-import com.microproject.server.access.ErrorLogger;
+import com.microproject.util.ErrorLogger;
 import com.microproject.session.LocalSession;
 import com.microproject.session.Session;
 import com.microproject.session.SessionFactory;

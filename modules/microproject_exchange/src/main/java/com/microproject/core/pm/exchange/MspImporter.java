@@ -48,7 +48,7 @@ import net.sf.mpxj.mspdi.schema.TimephasedDataType;
 import net.sf.mpxj.reader.AbstractProjectReader;
 import net.sf.mpxj.reader.UniversalProjectReader;
 import net.sf.mpxj.planner.PlannerReader;
-import com.microproject.exchange.xlsx.ProjectLibreXlsxReader;
+import com.microproject.exchange.xlsx.MicroProjectXlsxReader;
 
 import com.microproject.core.pm.exchange.converters.mpx.MpxAssignmentConverter;
 import com.microproject.core.pm.exchange.converters.mpx.type.MpxAccrueTypeConverter;
@@ -93,7 +93,7 @@ public class MspImporter {
 	protected ProjectFile mpxProjectFile;
 	protected MpxImportState state=new MpxImportState();
 	protected AbstractProjectReader reader;
-	/** Native ProjectLibre XLSX payload, when present and valid. */
+	/** Native microProject XLSX payload, when present and valid. */
 	protected Project nativeProject;
 	protected long earliestTaskStart=-1L;
 	protected net.sf.mpxj.Task mpxRootTask=null;
@@ -196,12 +196,12 @@ public class MspImporter {
 		try {
 			InputStream source;
 			if ("xlsx".equalsIgnoreCase(extension)) {
-				// ProjectLibre XLSX contains both a lossless native payload and an
+				// microProject XLSX contains both a lossless native payload and an
 				// MSPDI payload. Keep a replayable copy so native failure can use the
 				// established MSPDI fallback reader.
 				byte[] data = BoundedInput.readXlsxImport(in);
 				try {
-					nativeProject = ProjectLibreXlsxReader.readProjectLibreProject(
+					nativeProject = MicroProjectXlsxReader.readMicroProjectProject(
 						new ByteArrayInputStream(data));
 				} catch (Exception e) {
 					// Non-ZIP XML supplied with an XLSX extension is an existing
@@ -254,7 +254,7 @@ public class MspImporter {
 		if (extension.equals("planner"))
 			return new PlannerReader();
 		if (extension.equals("xlsx"))
-			return new ProjectLibreXlsxReader();
+			return new MicroProjectXlsxReader();
 		throw new IllegalArgumentException("Unsupported import extension: " + extension);
 	}
 

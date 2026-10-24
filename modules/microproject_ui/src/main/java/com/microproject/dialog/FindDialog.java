@@ -86,7 +86,7 @@ public final class FindDialog extends AbstractDialog implements ObjectEvent.List
 	private Searchable searchable;
 
 	private FindDialog(DocumentFrame documentFrame, Searchable searchable, Field field) {
-		super(documentFrame.getGraphicManager().getFrame(), Messages.getString("LookupDialog.Find"), false); //$NON-NLS-1$ //$NON-NLS-2$
+		super(documentFrame.getGraphicManager().getFrame(), Messages.getString("FindDialog.Find"), false); //$NON-NLS-1$ //$NON-NLS-2$
 		DocumentSelectedEvent.addListener(this);
 		init(searchable,field);
 
@@ -161,7 +161,7 @@ public final class FindDialog extends AbstractDialog implements ObjectEvent.List
 
 
 
-		builder.append(Messages.getString("LookupDialog.Find"),search); //$NON-NLS-1$
+		builder.append(Messages.getString("FindDialog.Find"),search); //$NON-NLS-1$
 		builder.nextLine(2);
 		builder.append(Messages.getString("Text.Field"),combo); //$NON-NLS-1$
 		builder.nextLine(2);
@@ -185,8 +185,8 @@ public final class FindDialog extends AbstractDialog implements ObjectEvent.List
 	@Override
 	public ButtonPanel createButtonPanel() {
 		ButtonPanel buttonPanel = new ButtonPanel();
-		next = new JButton(Messages.getString("LookupDialog.Find"),IconManager.getIcon("image.down"));
-		previous = new JButton(Messages.getString("LookupDialog.Find"),IconManager.getIcon("image.up"));
+		next = new JButton(Messages.getString("FindDialog.Find"),IconManager.getIcon("image.down"));
+		previous = new JButton(Messages.getString("FindDialog.Find"),IconManager.getIcon("image.up"));
 		FlatUiSupport.styleDialogButton(next, false);
 		FlatUiSupport.styleDialogButton(previous, false);
 		buttonPanel.add(next);

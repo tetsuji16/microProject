@@ -61,11 +61,9 @@ import com.microproject.pm.resource.Resource;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
-import com.microproject.preference.GlobalPreferences;
 import com.microproject.strings.Messages;
 import com.microproject.util.Alert;
 import com.microproject.util.DataUtils;
-import com.microproject.util.Environment;
 
 @SuppressWarnings("unchecked")
 public final class AssignmentDialog extends AbstractDialog implements DocumentSelectedEvent.Listener, SelectionNodeListener, ResourceAssigner, ObjectEvent.Listener, CommonAssignmentDialog  {
@@ -79,7 +77,6 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
 	JButton stopEditorButton;
 	JButton cancelEditorButton;
 	JPanel editorsButtons=null;
-	JLabel showingTeamAll = null;
 	List<NormalTask> selectedTasks = null;
 
 	@FunctionalInterface
@@ -313,27 +310,13 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
 	 * @return the built panel
 	 */
 
-	private JLabel getTeamOrAllLabel() {
-		if (showingTeamAll == null)
-			showingTeamAll = new JLabel(Messages.getString("AssignmentDialog.ShowingAllResources"), IconManager.getIcon("menu24.showAllResources"),JLabel.LEFT); //$NON-NLS-1$ //$NON-NLS-2$
-
-		if (documentFrame.getGraphicManager().getPreferences().isShowProjectResourcesOnly()) {
-			showingTeamAll.setIcon(IconManager.getIcon("menu24.showTeamResources")); //$NON-NLS-1$
-			showingTeamAll.setText(Messages.getString("AssignmentDialog.ShowingOnlyResourcesOnTheProjectTeam")); //$NON-NLS-1$
-		} else {
-			showingTeamAll.setIcon(IconManager.getIcon("menu24.showAllResources")); //$NON-NLS-1$
-			showingTeamAll.setText(Messages.getString("AssignmentDialog.ShowingAllResources")); //$NON-NLS-1$
-		}
-		HelpUtil.addDocHelp(showingTeamAll,"Project_Team");
-		return showingTeamAll;
-	}
 	public JComponent createContentPanel() {
         
 		// Separating the component initialization and configuration
 		// from the layout code makes both parts easier to read.
 		initControls();
 		FormLayout layout = new FormLayout("p, 1dlu, default ,3dlu, default", // cols //$NON-NLS-1$
-		"p, 3dlu,"+(Environment.getStandAlone()?"":"p, 3dlu,")+"fill:200dlu:grow"); // rows //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$ //$NON-NLS-4$
+		"p, 3dlu,fill:200dlu:grow"); // rows //$NON-NLS-1$ //$NON-NLS-2$
 
 		// Create a builder that assists in adding components to the container.
 		// Wrap the panel with a standardized border.
@@ -344,12 +327,6 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
 		builder.add(taskNames,cc.xyw(builder.getColumn(), builder.getRow(), builder.getColumnCount()));
 		builder.nextLine(2);
 		
-		if (!Environment.getStandAlone()){
-			if (!Environment.isExternal())
-				builder.add(getTeamOrAllLabel(),cc.xyw(builder.getColumn(), builder.getRow(), builder.getColumnCount()));
-			builder.nextLine(2);
-		}
-
 		builder.append(spreadSheetPane, createEditorsButtons(), createButtons());
 		return builder.getPanel();
 	}
@@ -483,8 +460,5 @@ public final class AssignmentDialog extends AbstractDialog implements DocumentSe
 			spreadSheetPane.setProject(documentFrame.getProject());	
 		else if (objectEvent.getObject() instanceof Assignment)
 			spreadSheetPane.updateTable(); // Undo and spreadsheet changes still funnel through the table refresh path.
-		else if (objectEvent.getObject() instanceof GlobalPreferences)
-			getTeamOrAllLabel();
-			
 	}
 }

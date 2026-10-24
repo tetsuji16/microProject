@@ -13,7 +13,6 @@ import java.awt.Color;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.pm.assignment.TimeDistributedConstants;
-import com.microproject.util.Environment;
 
 /**
  * Microsoft documents blue and red Resource Graph bars for in-capacity and
@@ -29,8 +28,6 @@ class ChartHelperColorTest implements TimeDistributedConstants {
 	void usesOfficeThemeColorsForChartSeriesAndResourceGraphStates() {
 		assertEquals(new Color(0x4472C4), ChartHelper.getColorForField(PERCENT_ALLOC));
 		assertEquals(new Color(0xC00000), ChartHelper.getColorForField(OVERALLOCATED));
-		if (!Environment.getStandAlone())
-			assertEquals(new Color(0xA5A5A5), ChartHelper.getColorForField(OTHER_PROJECTS));
 		assertEquals(new Color(0x404040), ChartHelper.getColorForField(AVAILABILITY));
 		assertEquals(new Color(0x5B9BD5), ChartHelper.getColorForField(SELECTED));
 		assertEquals(new Color(0x70AD47), ChartHelper.getColorForField(THIS_PROJECT));

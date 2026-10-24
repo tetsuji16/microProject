@@ -29,7 +29,6 @@ class DefaultFileImporterProviderTest {
 		new DefaultFileImporterProvider().register(registry);
 
 		assertInstanceOf(MpoFileImporter.class, registry.create(LocalSession.MPO_PROJECT_IMPORTER));
-		assertInstanceOf(ServerLocalFileImporter.class, registry.create(LocalSession.SERVER_LOCAL_PROJECT_IMPORTER));
 		assertInstanceOf(MicrosoftImporter.class, registry.create(LocalSession.MICROSOFT_PROJECT_IMPORTER));
 		assertInstanceOf(LocalFileImporter.class, registry.create(LocalSession.LOCAL_PROJECT_IMPORTER));
 		assertNotSame(registry.create(LocalSession.MPO_PROJECT_IMPORTER),
@@ -56,15 +55,18 @@ class DefaultFileImporterProviderTest {
 		provider.registerPorts(portRegistry);
 
 		Set<String> stableKeys = Set.of(LocalSession.LOCAL_PROJECT_IMPORTER, LocalSession.MPO_PROJECT_IMPORTER,
-				LocalSession.SERVER_LOCAL_PROJECT_IMPORTER, LocalSession.MICROSOFT_PROJECT_IMPORTER);
+				LocalSession.MICROSOFT_PROJECT_IMPORTER);
 		assertEquals(stableKeys, portRegistry.importKeys());
 		assertEquals(stableKeys, portRegistry.exportKeys());
 		Set<String> registeredSessionKeys = new HashSet<>(sessionRegistry.keys());
-		registeredSessionKeys.removeAll(Set.of("com.microproject.exchange.LocalFileImporter",
+		registeredSessionKeys.removeAll(Set.of("server-local", "com.microproject.exchange.LocalFileImporter",
 				"com.microproject.exchange.MpoFileImporter", "com.microproject.exchange.ServerLocalFileImporter",
 				"com.microproject.exchange.MicrosoftImporter", "com.projectlibre1.exchange.LocalFileImporter",
 				"com.projectlibre.exchange.LocalFileImporter"));
 		assertEquals(stableKeys, registeredSessionKeys);
+		assertInstanceOf(LocalFileImporter.class, sessionRegistry.create("server-local"));
+		assertInstanceOf(LocalFileImporter.class,
+				sessionRegistry.create("com.microproject.exchange.ServerLocalFileImporter"));
 		assertInstanceOf(LocalFileImporter.class,
 				sessionRegistry.create("com.projectlibre.exchange.LocalFileImporter"));
 		assertInstanceOf(MicrosoftImporter.class,

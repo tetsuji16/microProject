@@ -18,7 +18,11 @@ $r = New-Object WA+RECT
 [WA]::GetWindowRect($h, [ref]$r) | Out-Null
 Write-Output "RECT L=$($r.L) T=$($r.T) R=$($r.R) B=$($r.B) W=$($r.R-$r.L) H=$($r.B-$r.T)"
 $ts = Get-Date -Format "yyyyMMdd-HHmmss"
-$out = "C:/Users/tetsu/vscode/ProjectLibre/build/gui-shot-$ts.png"
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$projectRoot = (Resolve-Path (Join-Path $scriptDir "..")).Path
+$outputDirectory = Join-Path $projectRoot "build\gui-shots"
+New-Item -ItemType Directory -Force -Path $outputDirectory | Out-Null
+$out = Join-Path $outputDirectory "gui-shot-$ts.png"
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 $s = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds

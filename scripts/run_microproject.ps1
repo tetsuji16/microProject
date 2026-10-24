@@ -1,4 +1,4 @@
-# ProjectLibre incremental launcher
+# microProject incremental launcher
 #
 # Preferred one-step verification flow:
 #   .\scripts\run_microproject_clean.bat
@@ -7,17 +7,17 @@
 # refresh it without switching to the clean build wrapper.
 #
 # Usage:
-#   .\scripts\run_projectlibre.ps1
-#   .\scripts\run_projectlibre.ps1 -SkipBuild
-#   .\scripts\run_projectlibre.ps1 -Clean
-#   .\scripts\run_projectlibre.ps1 -UiDebug
+#   .\scripts\run_microproject.ps1
+#   .\scripts\run_microproject.ps1 -SkipBuild
+#   .\scripts\run_microproject.ps1 -Clean
+#   .\scripts\run_microproject.ps1 -UiDebug
 
 [CmdletBinding()]
 param(
     [switch]$SkipBuild,
     [switch]$Clean,
     [switch]$UiDebug,
-    [string]$LogRoot = ".\build\logs\projectlibre"
+    [string]$LogRoot = ".\build\logs\microproject"
 )
 
 $ErrorActionPreference = "Stop"
@@ -46,7 +46,7 @@ function Write-Status {
     Add-Content -LiteralPath $launcherLog -Value $line
 }
 
-function Get-ProjectLibreJavaProcesses {
+function Get-MicroProjectJavaProcesses {
     $javaProcessNames = @("java", "javaw")
     $javaProcesses = Get-CimInstance Win32_Process -Filter "Name = 'java.exe' OR Name = 'javaw.exe'" |
         Where-Object { $_.CommandLine -match "(?i)microproject|projectlibre" }
@@ -65,13 +65,13 @@ function Get-ProjectLibreJavaProcesses {
     }
 }
 
-function Stop-ExistingProjectLibre {
-    $running = @(Get-ProjectLibreJavaProcesses)
+function Stop-ExistingMicroProject {
+    $running = @(Get-MicroProjectJavaProcesses)
     if (-not $running) {
         return
     }
 
-    Write-Status "Stopping existing ProjectLibre Java processes: $($running.Id -join ', ')" "Yellow"
+    Write-Status "Stopping existing microProject Java processes: $($running.Id -join ', ')" "Yellow"
     foreach ($proc in $running) {
         Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
     }
@@ -121,7 +121,7 @@ if (-not (Test-Path -LiteralPath $launcherPath)) {
     throw "Launcher not found after build: $launcherPath"
 }
 
-Stop-ExistingProjectLibre
+Stop-ExistingMicroProject
 
 if ($UiDebug) {
     $uiDebugLog = Join-Path $sessionLogDir "ui-debug.log"
@@ -134,7 +134,7 @@ if ($UiDebug) {
     Write-Status "UI debug tracing enabled: $uiDebugLog" "Cyan"
 }
 
-Write-Status "Launching ProjectLibre from installDist." "Cyan"
+Write-Status "Launching microProject from installDist." "Cyan"
 $process = Start-Process `
     -FilePath $launcherPath `
     -WorkingDirectory $projectRoot `
@@ -144,18 +144,18 @@ $process = Start-Process `
 
 Start-Sleep -Seconds 6
 
-$running = @(Get-ProjectLibreJavaProcesses)
+$running = @(Get-MicroProjectJavaProcesses)
 if (-not $running) {
     Update-LatestLogs
-    Write-Status "ProjectLibre did not appear to start. Check logs in $sessionLogDir" "Red"
-    throw "ProjectLibre launch could not be verified."
+    Write-Status "microProject did not appear to start. Check logs in $sessionLogDir" "Red"
+    throw "microProject launch could not be verified."
 }
 
 $windowed = $running | Where-Object { $_.MainWindowHandle -ne 0 -or $_.MainWindowTitle }
 if ($windowed) {
-    Write-Status "ProjectLibre is running. Window title: $($windowed[0].MainWindowTitle)" "Green"
+    Write-Status "microProject is running. Window title: $($windowed[0].MainWindowTitle)" "Green"
 } else {
-    Write-Status "ProjectLibre Java process is running, but no window title was detected yet." "Yellow"
+    Write-Status "microProject Java process is running, but no window title was detected yet." "Yellow"
 }
 
 Write-Status "Launcher PID: $($process.Id)"

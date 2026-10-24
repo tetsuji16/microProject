@@ -31,20 +31,13 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.util.Environment;
 
 class DistributionConverterTest {
 	@Test
 	void standaloneConverterReturnsAnEmptyResultInsteadOfNull() {
-		boolean previous = Environment.getStandAlone();
-		Environment.setStandAlone(true);
-		try {
-			DistributionConverter converter = new DistributionConverter();
-			List<DistributionData> distributions = converter.createDistributionData(null, false);
-			assertNotNull(distributions);
-			assertTrue(distributions.isEmpty());
-		} finally {
-			Environment.setStandAlone(previous);
-		}
+		DistributionConverter converter = new DistributionConverter();
+		List<DistributionData> distributions = converter.createDistributionData(null, false);
+		assertNotNull(distributions);
+		assertTrue(distributions.isEmpty());
 	}
 }

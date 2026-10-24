@@ -54,7 +54,10 @@ import javax.swing.AbstractButton;
 import javax.swing.JComboBox;
 import javax.swing.JDialog;
 import javax.swing.JFileChooser;
+import javax.swing.JEditorPane;
 import javax.swing.JLabel;
+import javax.swing.JScrollPane;
+import javax.swing.JTabbedPane;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
@@ -69,6 +72,7 @@ import com.microproject.dialog.AbstractDialog;
 import com.microproject.dialog.AboutDialog;
 import com.microproject.dialog.HelpDialog;
 import com.microproject.dialog.LocaleDialog;
+import com.microproject.dialog.LicenseDialog;
 import com.microproject.dialog.ProjectDialog;
 import com.microproject.dialog.ProjectInformationDialog;
 import com.microproject.dialog.PreferencesDialogBox;
@@ -112,7 +116,6 @@ class RibbonExternalCommandGuiAcceptanceTest {
 	private GraphicManager manager;
 	private boolean previousRibbonUi;
 	private boolean previousNewLook;
-	private boolean previousStandalone;
 	private boolean previousClientSide;
 	private UiServices.FileChooserProvider previousChooser;
 	private String previousSystemChooserProperty;
@@ -146,7 +149,6 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		Alert.setPresenter(null);
 		Environment.setRibbonUI(previousRibbonUi);
 		Environment.setNewLook(previousNewLook);
-		Environment.setStandAlone(previousStandalone);
 		Environment.setClientSide(previousClientSide);
 		UiServices.setFileChooserProvider(previousChooser);
 		if (previousSystemChooserProperty == null)
@@ -195,10 +197,8 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			"A desktop session is required for Robot acceptance coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
-		previousStandalone = Environment.getStandAlone();
 		previousClientSide = Environment.isClientSide();
 		previousChooser = UiServices.getFileChooserProvider();
-		Environment.setStandAlone(true);
 		Environment.setClientSide(true);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
@@ -228,11 +228,9 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			"A desktop session is required for Robot acceptance coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
-		previousStandalone = Environment.getStandAlone();
 		previousClientSide = Environment.isClientSide();
 		previousChooser = UiServices.getFileChooserProvider();
 		previousSystemChooserProperty = System.getProperty("flatlaf.useSystemFileChooser");
-		Environment.setStandAlone(true);
 		Environment.setClientSide(true);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
@@ -455,10 +453,8 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			"A desktop session is required for Robot acceptance coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
-		previousStandalone = Environment.getStandAlone();
 		previousClientSide = Environment.isClientSide();
 		previousChooser = UiServices.getFileChooserProvider();
-		Environment.setStandAlone(true);
 		Environment.setClientSide(true);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
@@ -491,9 +487,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			"A desktop session is required for Robot acceptance coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
-		previousStandalone = Environment.getStandAlone();
 		previousClientSide = Environment.isClientSide();
-		Environment.setStandAlone(true);
 		Environment.setClientSide(true);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
@@ -521,8 +515,8 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		click(robot, helpTab);
 		robot.waitForIdle();
 		GuiAcceptanceSupport.await(helpTab::isSelected, "Help ribbon tab did not become selected");
-		clickAndClose(robot, "RibbonProjectLibreDocumentation", HelpDialog.class);
-		clickAndClose(robot, "RibbonAboutProjectLibre", AboutDialog.class);
+		clickAndClose(robot, "RibbonMicroProjectDocumentation", HelpDialog.class);
+		clickAndClose(robot, "RibbonAboutMicroProject", AboutDialog.class);
 	}
 
 	@Test
@@ -531,9 +525,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			"A desktop session is required for Robot acceptance coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
-		previousStandalone = Environment.getStandAlone();
 		previousClientSide = Environment.isClientSide();
-		Environment.setStandAlone(true);
 		Environment.setClientSide(true);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
@@ -565,11 +557,9 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			"A desktop session is required for Robot acceptance coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
-		previousStandalone = Environment.getStandAlone();
 		previousClientSide = Environment.isClientSide();
 		previousChooser = UiServices.getFileChooserProvider();
 		previousSystemChooserProperty = System.getProperty("flatlaf.useSystemFileChooser");
-		Environment.setStandAlone(true);
 		Environment.setClientSide(true);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
@@ -636,12 +626,10 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			"The Windows native chooser acceptance route requires FlatLaf's loaded Windows native library.");
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
-		previousStandalone = Environment.getStandAlone();
 		previousClientSide = Environment.isClientSide();
 		previousChooser = UiServices.getFileChooserProvider();
 		previousSystemChooserProperty = System.getProperty("flatlaf.useSystemFileChooser");
 		System.clearProperty("flatlaf.useSystemFileChooser");
-		Environment.setStandAlone(true);
 		Environment.setClientSide(true);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
@@ -759,9 +747,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		localePreferences.flush();
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
-		previousStandalone = Environment.getStandAlone();
 		previousClientSide = Environment.isClientSide();
-		Environment.setStandAlone(true);
 		Environment.setClientSide(true);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
@@ -809,8 +795,6 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			"A desktop session is required for Robot acceptance coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
-		previousStandalone = Environment.getStandAlone();
-		Environment.setStandAlone(true);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
 
@@ -865,9 +849,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			"A desktop session is required for Robot acceptance coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
-		previousStandalone = Environment.getStandAlone();
 		previousClientSide = Environment.isClientSide();
-		Environment.setStandAlone(true);
 		Environment.setClientSide(true);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
@@ -949,9 +931,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			"A desktop session is required for Robot acceptance coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
-		previousStandalone = Environment.getStandAlone();
 		previousClientSide = Environment.isClientSide();
-		Environment.setStandAlone(true);
 		Environment.setClientSide(true);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
@@ -1026,9 +1006,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			"A desktop session is required for Robot acceptance coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
-		previousStandalone = Environment.getStandAlone();
 		previousClientSide = Environment.isClientSide();
-		Environment.setStandAlone(true);
 		Environment.setClientSide(true);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
@@ -1864,6 +1842,12 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> visibleDialog(dialogType) != null,
 			commandId + " did not open " + dialogType.getSimpleName());
 		Window dialog = visibleDialog(dialogType);
+		if (dialog instanceof HelpDialog || dialog instanceof AboutDialog) {
+			String productName = Messages.getContextString("Text.ApplicationTitle");
+			String title = ((java.awt.Dialog) dialog).getTitle();
+			assertTrue(title.contains(productName), commandId + " dialog title did not render " + productName);
+			assertFalse(title.contains("ProjectLibre"), commandId + " dialog title still renders the upstream product name");
+		}
 		assertDialogBodyIsRendered(dialog, commandId);
 		if (dialog instanceof LocaleDialog)
 			DialogLayoutAssertions.assertTextControlsAtPreferredHeight(dialog, "Locale Settings dialog (#590 body image 4)");
@@ -1873,9 +1857,77 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			DialogScreenshotArtifacts.capture((java.awt.Dialog) dialog, "issue-590-locale-settings");
 		if (dialog instanceof HelpDialog)
 			DialogScreenshotArtifacts.capture((java.awt.Dialog) dialog, "issue-590-help");
+		if (dialog instanceof HelpDialog)
+			openAndVerifyLicenseDialog(robot);
 		clickCancel(robot, dialog);
 		GuiAcceptanceSupport.await(() -> visibleDialog(dialogType) == null,
 			commandId + " did not close its dialog through the physical Cancel route");
+	}
+
+	private void openAndVerifyLicenseDialog(Robot robot) throws Exception {
+		HelpDialog help = (HelpDialog) visibleDialog(HelpDialog.class);
+		AbstractButton showLicense = findButton(help, Messages.getString("HelpDialog.ShowLicense"),
+			"Help dialog has no visible License button");
+		assertTrue(showLicense.isShowing(), "License button is not physically visible in Help");
+		click(robot, showLicense);
+		GuiAcceptanceSupport.await(() -> visibleDialog(LicenseDialog.class) != null,
+			"Help dialog License button did not open LicenseDialog");
+		LicenseDialog license = (LicenseDialog) visibleDialog(LicenseDialog.class);
+		String productName = Messages.getContextString("Text.ApplicationTitle");
+		String title = ((Dialog) license).getTitle();
+		assertTrue(title.contains(productName), "License dialog title did not render " + productName + ": " + title);
+		assertFalse(title.contains("ProjectLibre"), "License dialog title still renders the upstream product name");
+		assertDialogBodyIsRendered(license, "Help → License");
+		JTabbedPane tabs = flatten(license).stream().filter(JTabbedPane.class::isInstance)
+			.map(JTabbedPane.class::cast).findFirst()
+			.orElseThrow(() -> new AssertionError("License dialog has no tabbed license content"));
+		assertEquals(2, tabs.getTabCount(), "License dialog must show both license tabs");
+		assertEquals(Messages.getString("LicenseDialog.License"), tabs.getTitleAt(0));
+		assertEquals(Messages.getString("LicenseDialog.ThirdParty"), tabs.getTitleAt(1));
+		for (int index = 0; index < tabs.getTabCount(); index++) {
+			final int tabIndex = index;
+			JScrollPane scrollPane = (JScrollPane) tabs.getComponentAt(index);
+			JEditorPane pane = flatten(scrollPane).stream().filter(JEditorPane.class::isInstance)
+				.map(JEditorPane.class::cast).findFirst()
+				.orElseThrow(() -> new AssertionError("License tab has no readable content: " + tabs.getTitleAt(tabIndex)));
+			GuiAcceptanceSupport.await(() -> pane.getPage() != null && pane.getDocument().getLength() > 0,
+				"License tab content did not load: " + tabs.getTitleAt(tabIndex));
+			clickTab(robot, tabs, tabIndex);
+			GuiAcceptanceSupport.await(() -> tabs.getSelectedIndex() == tabIndex,
+				"Robot could not select license tab " + tabs.getTitleAt(tabIndex));
+		}
+		AbstractButton ok = findButton(license, Messages.getString("ButtonText.OK"),
+			"License dialog has no OK button");
+		click(robot, ok);
+		GuiAcceptanceSupport.await(() -> visibleDialog(LicenseDialog.class) == null,
+			"OK did not close LicenseDialog");
+		click(robot, findButton(help, Messages.getString("HelpDialog.ShowLicense"),
+			"Help dialog License button disappeared after closing LicenseDialog"));
+		GuiAcceptanceSupport.await(() -> visibleDialog(LicenseDialog.class) != null,
+			"Help dialog License button did not reopen LicenseDialog");
+		Window reopenedLicense = visibleDialog(LicenseDialog.class);
+		clickCancel(robot, reopenedLicense);
+		GuiAcceptanceSupport.await(() -> visibleDialog(LicenseDialog.class) == null,
+			"Escape did not close LicenseDialog");
+	}
+
+	private static AbstractButton findButton(Component root, String text, String failureMessage) {
+		return flatten(root).stream().filter(AbstractButton.class::isInstance)
+			.map(AbstractButton.class::cast).filter(button -> text.equals(button.getText()))
+			.findFirst().orElseThrow(() -> new AssertionError(failureMessage));
+	}
+
+	private static void clickTab(Robot robot, JTabbedPane tabs, int index) throws Exception {
+		Point[] screenLocation = new Point[1];
+		Rectangle[] bounds = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> {
+			screenLocation[0] = tabs.getLocationOnScreen();
+			bounds[0] = tabs.getBoundsAt(index);
+		});
+		robot.mouseMove(screenLocation[0].x + bounds[0].x + bounds[0].width / 2,
+			screenLocation[0].y + bounds[0].y + bounds[0].height / 2);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 	}
 
 	private static void clickCancel(Robot robot, Window dialog) throws Exception {

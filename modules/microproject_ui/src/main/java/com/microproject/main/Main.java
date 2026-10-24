@@ -51,20 +51,22 @@ import com.microproject.util.FlatLafSupport;
 public class Main {
 	private static final String UI_DEBUG_PROPERTY = "microproject.ui.debug";
 	private static final String UI_DEBUG_LOG_FILE_PROPERTY = "microproject.ui.debug.logFile";
+	private static final String RUN_NUMBER_KEY = "microprojectRunNumber";
+	private static final String LEGACY_RUN_NUMBER_KEY = "projectlibreRunNumber";
+	private static final String FIRST_RUN_KEY = "microprojectFirstRun";
+	private static final String LEGACY_FIRST_RUN_READ_KEY = "projectlibreFirstRun";
+	private static final String LEGACY_FIRST_RUN_WRITE_KEY = "projectlibrefirstRun";
 	private static final DateTimeFormatter UI_DEBUG_LOG_TIMESTAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
 
 	public static void main(String[] args) {
 		configureRuntimeLogging();
 		FlatLafSupport.initialize();
 
-		int runNumber=getRunNumber()+1;
-		long firstRun=getFirstRun();
-		Preferences.userNodeForPackage(Main.class).putInt("projectlibreRunNumber",runNumber);
-		Preferences.userNodeForPackage(Main.class).putLong("projectlibrefirstRun",firstRun);		
+		Preferences preferences = Preferences.userNodeForPackage(Main.class);
+		incrementRunNumber(preferences);
+		initializeFirstRun(preferences, System.currentTimeMillis());
 		
 //		System.setProperty("file.encoding", "UTF-8");
-
-		Environment.setStandAlone(true);
 		// Desktop startup uses the local-document path in StartupFactory.  Keep
 		// client-side mode explicit; its default is false for server/plugin hosts.
 		Environment.setClientSide(true);
@@ -159,10 +161,79 @@ public class Main {
 			|| lowerCasePath.endsWith(".mpp") || lowerCasePath.endsWith(".xml");
 	}
 	public static int getRunNumber() {
-		return Preferences.userNodeForPackage(Main.class).getInt("projectlibreRunNumber",0);
+		return getRunNumber(Preferences.userNodeForPackage(Main.class));
 	}
+
+	static int getRunNumber(Preferences preferences) {
+		String canonicalValue = preferences.get(RUN_NUMBER_KEY, null);
+		if (canonicalValue != null) {
+			return parseRunNumber(canonicalValue, 0);
+		}
+		return parseRunNumber(preferences.get(LEGACY_RUN_NUMBER_KEY, null), 0);
+	}
+
+	static int incrementRunNumber(Preferences preferences) {
+		int runNumber = getRunNumber(preferences) + 1;
+		preferences.putInt(RUN_NUMBER_KEY, runNumber);
+		return runNumber;
+	}
+
+	private static int parseRunNumber(String value, int defaultValue) {
+		if (value == null) {
+			return defaultValue;
+		}
+		try {
+			return Integer.parseInt(value);
+		} catch (NumberFormatException ignored) {
+			return defaultValue;
+		}
+	}
+
 	public static long getFirstRun() {
-		return Preferences.userNodeForPackage(Main.class).getLong("projectlibreFirstRun",System.currentTimeMillis());
+		return getFirstRun(Preferences.userNodeForPackage(Main.class), System.currentTimeMillis());
+	}
+
+	static long getFirstRun(Preferences preferences, long defaultValue) {
+		String canonicalValue = preferences.get(FIRST_RUN_KEY, null);
+		if (canonicalValue != null) {
+			return parseFirstRun(canonicalValue, defaultValue);
+		}
+		Long legacyValue = parseFirstRun(preferences.get(LEGACY_FIRST_RUN_READ_KEY, null));
+		if (legacyValue == null) {
+			legacyValue = parseFirstRun(preferences.get(LEGACY_FIRST_RUN_WRITE_KEY, null));
+		}
+		return legacyValue == null ? defaultValue : legacyValue.longValue();
+	}
+
+	static long initializeFirstRun(Preferences preferences, long defaultValue) {
+		String canonicalValue = preferences.get(FIRST_RUN_KEY, null);
+		if (canonicalValue != null) {
+			Long parsed = parseFirstRun(canonicalValue);
+			if (parsed != null) {
+				return parsed.longValue();
+			}
+			preferences.putLong(FIRST_RUN_KEY, defaultValue);
+			return defaultValue;
+		}
+		long firstRun = getFirstRun(preferences, defaultValue);
+		preferences.putLong(FIRST_RUN_KEY, firstRun);
+		return firstRun;
+	}
+
+	private static Long parseFirstRun(String value) {
+		if (value == null) {
+			return null;
+		}
+		try {
+			return Long.valueOf(value);
+		} catch (NumberFormatException ignored) {
+			return null;
+		}
+	}
+
+	private static long parseFirstRun(String value, long defaultValue) {
+		Long parsed = parseFirstRun(value);
+		return parsed == null ? defaultValue : parsed.longValue();
 	}
 	private static void configureRuntimeLogging() {
 		Logger.getLogger("com.microproject.pm.calendar.WorkWeek").setLevel(Level.WARNING);

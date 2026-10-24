@@ -202,7 +202,7 @@ public class ChartLegend  implements SelectionNodeListener, Serializable , Savab
 		workTraces = getListInstance(false);
 		tracesList = workTraces; // start off work
 		tracesScrollPane = new JScrollPane(workTraces);
-		workTraces.setVisibleRowCount(Environment.getStandAlone()?HasTimeDistributedData.tracesCount:HasTimeDistributedData.serverTracesCount);
+		workTraces.setVisibleRowCount(HasTimeDistributedData.tracesCount);
 
 //		final ViewTransformer transformer=ViewConfiguration.getView(MenuActionConstants.ACTION_CHARTS).getTransform();
 //		final ResourceInTeamFilter hiddenFilter=(ResourceInTeamFilter)transformer.getHiddenFilter();		
@@ -229,7 +229,7 @@ public class ChartLegend  implements SelectionNodeListener, Serializable , Savab
 			    	chartInfo.setTraces(traces);
 					workTraces = getListInstance(false);
 					tracesScrollPane.getViewport().add(workTraces);
-					workTraces.setVisibleRowCount(Environment.getStandAlone()?HasTimeDistributedData.tracesCount:HasTimeDistributedData.serverTracesCount);
+					workTraces.setVisibleRowCount(HasTimeDistributedData.tracesCount);
 				}
 			});
 			selectedOnTop.setSelected(chartInfo.isSelectedOnTop()); // start off as histogram
@@ -398,7 +398,7 @@ public class ChartLegend  implements SelectionNodeListener, Serializable , Savab
 	}
  	private Object[] getFields(boolean cost) {
  		if (simple) {
- 			return chartInfo.isSelectedOnTop() ? (Environment.getStandAlone()?HasTimeDistributedData.histogramTypes:HasTimeDistributedData.serverHistogramTypes)  : (Environment.getStandAlone()?HasTimeDistributedData.reverseHistogramTypes:HasTimeDistributedData.serverReverseHistogramTypes);
+			return chartInfo.isSelectedOnTop() ? HasTimeDistributedData.histogramTypes : HasTimeDistributedData.reverseHistogramTypes;
  		}
  		return cost ? HasTimeDistributedData.costTypes : HasTimeDistributedData.workTypes;
  	}

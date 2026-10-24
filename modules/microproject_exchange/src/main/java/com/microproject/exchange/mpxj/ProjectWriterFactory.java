@@ -28,7 +28,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 
-import com.microproject.exchange.xlsx.ProjectLibreXlsxWriter;
+import com.microproject.exchange.xlsx.MicroProjectXlsxWriter;
 
 import net.sf.mpxj.json.JsonWriter;
 import net.sf.mpxj.mpx.MPXWriter;
@@ -38,7 +38,7 @@ import net.sf.mpxj.primavera.PrimaveraPMFileWriter;
 import net.sf.mpxj.sdef.SDEFWriter;
 import net.sf.mpxj.writer.ProjectWriter;
 
-/** Selects the ProjectLibre-compatible writer for an output file extension. */
+/** Selects the microProject-compatible writer for an output file extension. */
 public final class ProjectWriterFactory {
 	private static final Map<String, Supplier<? extends ProjectWriter>> WRITERS = Map.of(
 		"MPX", MPXWriter::new,
@@ -47,7 +47,7 @@ public final class ProjectWriterFactory {
 		"PLANNER", PlannerWriter::new,
 		"JSON", JsonWriter::new,
 		"SDEF", SDEFWriter::new,
-		"XLSX", ProjectLibreXlsxWriter::new);
+		"XLSX", MicroProjectXlsxWriter::new);
 
 	private ProjectWriterFactory() {
 	}

@@ -61,7 +61,7 @@ public class SpreadSheetColumnMenu extends JPopupMenu {
 	private JMenuItem hide = new JMenuItem(Messages.getString("SpreadSheetColumnMenu.HideColumn")); //$NON-NLS-1$
 	private JMenuItem rename = new JMenuItem(Messages.getString("RenameDialog.Rename")); //$NON-NLS-1$
 	private JCheckBoxMenuItem headerWrap = new JCheckBoxMenuItem(Messages.getString("SpreadSheetColumnMenu.HeaderWrap")); //$NON-NLS-1$
-	private JMenuItem find = new JMenuItem(Messages.getString("LookupDialog.Find")); //$NON-NLS-1$
+	private JMenuItem find = new JMenuItem(Messages.getString("FindDialog.Find")); //$NON-NLS-1$
 	private JMenuItem autoFilter = new JMenuItem(Messages.getString("SpreadSheetColumnMenu.AutoFilter")); //$NON-NLS-1$
 
 	/**

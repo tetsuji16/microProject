@@ -61,7 +61,6 @@ class MultipleLocalProjectOpenGuiAcceptanceTest {
 	private Path existingFile;
 	private Path fixtureDirectory;
 	private UiServices.FileChooserProvider previousChooser;
-	private boolean previousStandalone;
 	private boolean previousClientSide;
 	private boolean previousRibbonUi;
 	private boolean previousNewLook;
@@ -105,7 +104,6 @@ class MultipleLocalProjectOpenGuiAcceptanceTest {
 			}
 		}
 		if (previousJobQueueCaptured) SessionFactory.getInstance().setJobQueue(previousJobQueue);
-		Environment.setStandAlone(previousStandalone);
 		Environment.setClientSide(previousClientSide);
 		Environment.setRibbonUI(previousRibbonUi);
 		Environment.setNewLook(previousNewLook);
@@ -118,12 +116,10 @@ class MultipleLocalProjectOpenGuiAcceptanceTest {
 		Assumptions.assumeTrue(FlatNativeWindowsLibrary.isLoaded(), "The real Windows native chooser requires FlatLaf's Windows native library.");
 		previousChooser = UiServices.getFileChooserProvider();
 		previousSystemChooserProperty = System.getProperty("flatlaf.useSystemFileChooser");
-		previousStandalone = Environment.getStandAlone();
 		previousClientSide = Environment.isClientSide();
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
 		System.clearProperty("flatlaf.useSystemFileChooser");
-		Environment.setStandAlone(true);
 		Environment.setClientSide(true);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
@@ -332,11 +328,9 @@ class MultipleLocalProjectOpenGuiAcceptanceTest {
 	void oneGuiOpenSelectionCreatesTwoIndependentMpoDocuments() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		previousChooser = UiServices.getFileChooserProvider();
-		previousStandalone = Environment.getStandAlone();
 		previousClientSide = Environment.isClientSide();
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
-		Environment.setStandAlone(true);
 		Environment.setClientSide(true);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
@@ -382,11 +376,9 @@ class MultipleLocalProjectOpenGuiAcceptanceTest {
 	void commandLineProjectListCreatesTwoIndependentMpoDocuments() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		previousChooser = UiServices.getFileChooserProvider();
-		previousStandalone = Environment.getStandAlone();
 		previousClientSide = Environment.isClientSide();
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
-		Environment.setStandAlone(true);
 		Environment.setClientSide(true);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
@@ -425,11 +417,9 @@ class MultipleLocalProjectOpenGuiAcceptanceTest {
 	void recentProjectSelectionKeepsExistingDirtyDocumentOpen() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		previousChooser = UiServices.getFileChooserProvider();
-		previousStandalone = Environment.getStandAlone();
 		previousClientSide = Environment.isClientSide();
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
-		Environment.setStandAlone(true);
 		Environment.setClientSide(true);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
@@ -507,10 +497,8 @@ class MultipleLocalProjectOpenGuiAcceptanceTest {
 	void fileDropCreatesTwoIndependentMpoDocuments() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		previousChooser = UiServices.getFileChooserProvider();
-		previousStandalone = Environment.getStandAlone();
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
-		Environment.setStandAlone(true);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
 		firstFile = Files.createTempFile("msp-file-drop-alpha-", ".mpo");
@@ -637,8 +625,11 @@ class MultipleLocalProjectOpenGuiAcceptanceTest {
 		Files.deleteIfExists(Path.of(file + ".lock"));
 		String filename = file.getFileName().toString();
 		int extension = filename.lastIndexOf('.');
-		Path syncMetadata = file.resolveSibling(filename.substring(0, extension) + ".projectlibre-sync.json");
+		Path syncMetadata = file.resolveSibling(filename.substring(0, extension) + ".microproject-sync.json");
 		Files.deleteIfExists(syncMetadata);
 		Files.deleteIfExists(Path.of(syncMetadata + ".lock"));
+		Path legacySyncMetadata = file.resolveSibling(filename.substring(0, extension) + ".projectlibre-sync.json");
+		Files.deleteIfExists(legacySyncMetadata);
+		Files.deleteIfExists(Path.of(legacySyncMetadata + ".lock"));
 	}
 }

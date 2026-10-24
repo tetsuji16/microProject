@@ -27,7 +27,7 @@ package com.microproject.menu;
 import javax.swing.Action;
 
 /**
- * ProjectLibre-local abstraction for resolving menu actions and action ids.
+ * Application-local abstraction for resolving menu actions and action IDs.
  */
 public interface ProjectMenuActionMap {
 	Action getAction(String key);

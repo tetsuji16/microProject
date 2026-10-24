@@ -66,8 +66,8 @@ class StartupFactoryCommandStateTest {
 		createFileCommands(menuManager);
 
 		graphicManager.setConnected(true);
-		for (String id : List.of("RibbonNewProject", "RibbonLocale", "RibbonProjectLibreDocumentation",
-				"RibbonAboutProjectLibre")) {
+		for (String id : List.of("RibbonNewProject", "RibbonLocale", "RibbonMicroProjectDocumentation",
+				"RibbonAboutMicroProject")) {
 			AbstractButton button = menuManager.getToolButtonsFromId(id).stream()
 				.map(AbstractButton.class::cast)
 				.filter(candidate -> id.equals(candidate.getActionCommand()))

@@ -33,7 +33,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.microproject.configuration.Configuration;
-import com.microproject.server.access.ErrorLogger;
+import com.microproject.util.ErrorLogger;
 
 
 /**

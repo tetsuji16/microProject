@@ -206,7 +206,7 @@ public class ComponentFactory {
 			text = (JTextComponent) verifiedComponent(component);
 //			text.setEnabled(false);
 		} else if (field.getLookupTypes() != null) {
-			component = new LookupField(field,null);
+			component = new LookupField(null);
 		} else if (field.hasOptions()) {
 			final JComboBox combo = new JComboBox(field.getOptions(object) == null ? new Object[0] : field.getOptions(object));
 //			if ("Field.accessControlPolicy".equals(field.getId())){
@@ -417,9 +417,7 @@ public class ComponentFactory {
 		if (sometimesReadOnly)
 			readOnly = false;
 		JComponent component = componentFor(field,value,readOnly, objectRef.getObject());
-		if (component instanceof LookupField) { //checkboxes update immediately on clicking
-			((LookupField)component).addChangeListener(new FieldChangeListener(field,objectRef));
-		} else if (!readOnly) {
+		if (!readOnly) {
 			if (component instanceof JCheckBox) { //checkboxes update immediately on clicking
 				((JCheckBox)component).addItemListener(new FieldChangeListener(field,objectRef));
 			} else {

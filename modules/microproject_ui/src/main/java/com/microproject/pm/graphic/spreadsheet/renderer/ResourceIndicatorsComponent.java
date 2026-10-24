@@ -92,7 +92,7 @@ public class ResourceIndicatorsComponent extends IndicatorsComponent{
 					UserUtil.licenseToLabel(license),
 					Messages.format("Format.join",
 					indicators.isAdministrator() ? Messages.getString("ResourceIndicatorsComponent.Administrator") : "",
-					indicators.isExternal() ? Messages.getString("ResourceIndicatorsComponent.PartnerCustomer") : "") + "<br>")); //$NON-NLS-1$
+					indicators.isExternal() ? Messages.getString("ResourceIndicatorsComponent.ExternalResource") : "") + "<br>")); //$NON-NLS-1$
 			}
 		}
 	}

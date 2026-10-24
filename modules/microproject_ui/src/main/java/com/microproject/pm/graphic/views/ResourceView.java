@@ -31,7 +31,6 @@ import java.util.function.Predicate;
 
 import javax.swing.JScrollPane;
 import javax.swing.JViewport;
-import javax.swing.SwingUtilities;
 import javax.swing.table.TableCellRenderer;
 
 import com.microproject.help.HelpUtil;
@@ -55,7 +54,6 @@ import com.microproject.pm.resource.ResourcePool;
 import com.microproject.strings.Messages;
 import com.microproject.undo.UndoController;
 import com.microproject.util.Alert;
-import com.microproject.util.Environment;
 import com.microproject.workspace.WorkspaceSetting;
 
 /**
@@ -128,10 +126,6 @@ public class ResourceView extends JScrollPane implements BaseView {
 		setColumnHeaderView(spreadSheet.getTableHeader());
 		
 		cache.update(); //this is not required by certain views 
-		if (!master && !Environment.isProjectLibre()) {
-			SwingUtilities.invokeLater(() ->
-					Alert.warnWithOnceOption(Messages.getString("Info.resourceView"), "warnedResourceView"));
-		}
 	}
 
 	public void cleanUp() {

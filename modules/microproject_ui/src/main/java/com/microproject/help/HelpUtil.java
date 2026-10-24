@@ -45,7 +45,6 @@ import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.configuration.Settings;
 import com.microproject.field.Field;
 import com.microproject.util.BrowserControl;
-import com.microproject.util.Environment;
 import com.microproject.util.UiLinkTargets;
 
 public class HelpUtil implements KeyEventDispatcher {
@@ -62,7 +61,7 @@ public class HelpUtil implements KeyEventDispatcher {
 		return instance;
 	}
 	private HelpUtil() {
-		noHelp=Environment.getOs()==Environment.MAC&&Environment.isApplet();
+		noHelp=false;
 		if (noHelp) logger.info("no help");
 		if (noHelp) return;
 		KeyboardFocusManager.getCurrentKeyboardFocusManager().addKeyEventDispatcher(this);

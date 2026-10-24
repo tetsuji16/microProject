@@ -40,6 +40,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Consumer;
 
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -51,13 +52,13 @@ import net.sf.mpxj.Task;
 import net.sf.mpxj.mspdi.MSPDIWriter;
 import net.sf.mpxj.writer.ProjectWriter;
 import com.microproject.exchange.mpxj.ProjectWriterFactory;
-import com.microproject.exchange.xlsx.ProjectLibreXlsxReader;
+import com.microproject.exchange.xlsx.MicroProjectXlsxReader;
 
 import com.microproject.collaboration.ProjectMergeService;
 import com.microproject.exchange.MicrosoftImporter;
 import com.microproject.exchange.BoundedInput;
 import com.microproject.exchange.LocalFileImporter;
-import com.microproject.exchange.xlsx.ProjectLibreXlsxWriter;
+import com.microproject.exchange.xlsx.MicroProjectXlsxWriter;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.core.pm.exchange.MspImporter;
 import com.microproject.collaboration.CollaborationMetadataStore;
@@ -253,7 +254,7 @@ public class XlsxSupportTest {
 	void xlsxDependencyLagRoundTrip() throws Exception {
 		// Issue #162: the Dependencies sheet Lag column was written but never read,
 		// silently dropping every dependency lag on the summary-sheet fallback path.
-		// Build a workbook containing only the summary sheets (no _PL_DATA payload)
+		// Build a workbook containing only the summary sheets (no MSPDI payload)
 		// so the reader must use readDependencies().
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
 		try (XSSFWorkbook workbook = new XSSFWorkbook()) {
@@ -277,7 +278,7 @@ public class XlsxSupportTest {
 			workbook.write(out);
 		}
 
-		ProjectFile reloaded = new ProjectLibreXlsxReader().read(new ByteArrayInputStream(out.toByteArray()));
+		ProjectFile reloaded = new MicroProjectXlsxReader().read(new ByteArrayInputStream(out.toByteArray()));
 		Map<String, Task> byName = new HashMap<String, Task>();
 		for (Task task : reloaded.getTasks()) {
 			if (task.getName() != null) {
@@ -342,7 +343,7 @@ public class XlsxSupportTest {
 		assertEquals(3, parent.getWbsChildrenNodes().size());
 
 		ByteArrayOutputStream exported = new ByteArrayOutputStream();
-		new ProjectLibreXlsxWriter().writeProjectLibreProject(imported, exported);
+		new MicroProjectXlsxWriter().writeMicroProjectProject(imported, exported);
 		String resourceUid = Long.toString(((com.microproject.pm.assignment.Assignment) child.getAssignments().get(0))
 			.getResource().getUniqueId());
 		try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(exported.toByteArray()))) {
@@ -377,10 +378,10 @@ public class XlsxSupportTest {
 
 		ByteArrayOutputStream summaryOnly = new ByteArrayOutputStream();
 		try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(exported.toByteArray()))) {
-			int payloadIndex = workbook.getSheetIndex("_PL_DATA");
+			int payloadIndex = workbook.getSheetIndex("_MicroProject_MSPDI");
 			assertTrue("writer output contains its higher-priority MSPDI payload", payloadIndex >= 0);
 			workbook.removeSheetAt(payloadIndex);
-			int nativePayloadIndex = workbook.getSheetIndex("_PL_NATIVE");
+			int nativePayloadIndex = workbook.getSheetIndex("_MicroProject_NATIVE");
 			assertTrue("writer output contains its native project payload", nativePayloadIndex >= 0);
 			workbook.removeSheetAt(nativePayloadIndex);
 			workbook.write(summaryOnly);
@@ -419,7 +420,7 @@ public class XlsxSupportTest {
 			workbook.write(out);
 		}
 		try {
-			new ProjectLibreXlsxReader().read(new ByteArrayInputStream(out.toByteArray()));
+			new MicroProjectXlsxReader().read(new ByteArrayInputStream(out.toByteArray()));
 			fail("Malformed ParentUniqueID references must be rejected");
 		} catch (net.sf.mpxj.MPXJException expected) {
 			assertTrue(expected.getCause() instanceof IllegalArgumentException);
@@ -438,6 +439,93 @@ public class XlsxSupportTest {
 			} else {
 				row.createCell(i).setCellValue(String.valueOf(values[i]));
 			}
+		}
+	}
+
+	private static byte[] writeNativeWorkbook(String taskName) throws Exception {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		com.microproject.pm.task.Project project = com.microproject.pm.task.Project.createProject(
+			ResourcePool.createRourcePool("native-xlsx", undo), undo);
+		NormalTask task = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		task.setName(taskName);
+		project.initialize(false, false);
+		ByteArrayOutputStream output = new ByteArrayOutputStream();
+		new MicroProjectXlsxWriter().writeMicroProjectProject(project, output);
+		return output.toByteArray();
+	}
+
+	private static byte[] toLegacyNativeWorkbook(byte[] canonicalBytes) throws Exception {
+		return rewriteWorkbook(canonicalBytes, workbook -> {
+			workbook.setSheetName(workbook.getSheetIndex("_MicroProject_META"), "_PL_META");
+			workbook.setSheetName(workbook.getSheetIndex("_MicroProject_MSPDI"), "_PL_DATA");
+			workbook.setSheetName(workbook.getSheetIndex("_MicroProject_NATIVE"), "_PL_NATIVE");
+			Row kindRow = workbook.getSheet("_PL_META").getRow(0);
+			kindRow.removeCell(kindRow.getCell(0));
+			kindRow.getCell(1).setCellValue("projectlibre");
+			Row versionRow = workbook.getSheet("_PL_META").getRow(1);
+			versionRow.removeCell(versionRow.getCell(0));
+			workbook.getSheet("_PL_DATA").getRow(0).getCell(1).setCellValue("projectlibre");
+			workbook.getSheet("_PL_NATIVE").getRow(0).getCell(0).setCellValue("ProjectLibreNativeData");
+		});
+	}
+
+	private static byte[] addLegacyPayload(byte[] canonicalBytes, byte[] legacyBytes) throws Exception {
+		return rewriteWorkbook(canonicalBytes, canonical -> {
+			try (XSSFWorkbook legacy = new XSSFWorkbook(new ByteArrayInputStream(legacyBytes))) {
+				copySheet(legacy.getSheet("_PL_META"), canonical, "_PL_META");
+				copySheet(legacy.getSheet("_PL_DATA"), canonical, "_PL_DATA");
+				copySheet(legacy.getSheet("_PL_NATIVE"), canonical, "_PL_NATIVE");
+			} catch (Exception error) {
+				throw new RuntimeException(error);
+			}
+		});
+	}
+
+	private static void copySheet(org.apache.poi.ss.usermodel.Sheet source,
+			XSSFWorkbook destination, String name) {
+		org.apache.poi.ss.usermodel.Sheet copy = destination.createSheet(name);
+		for (int rowIndex = 0; rowIndex <= source.getLastRowNum(); rowIndex++) {
+			Row sourceRow = source.getRow(rowIndex);
+			if (sourceRow == null) continue;
+			Row targetRow = copy.createRow(rowIndex);
+			for (int column = 0; column < sourceRow.getLastCellNum(); column++) {
+				org.apache.poi.ss.usermodel.Cell sourceCell = sourceRow.getCell(column);
+				if (sourceCell == null) continue;
+				org.apache.poi.ss.usermodel.Cell targetCell = targetRow.createCell(column);
+				switch (sourceCell.getCellType()) {
+				case STRING -> targetCell.setCellValue(sourceCell.getStringCellValue());
+				case NUMERIC -> targetCell.setCellValue(sourceCell.getNumericCellValue());
+				case BOOLEAN -> targetCell.setCellValue(sourceCell.getBooleanCellValue());
+				default -> { }
+				}
+			}
+		}
+	}
+
+	private static byte[] rewriteWorkbook(byte[] source, Consumer<XSSFWorkbook> edit) throws Exception {
+		ByteArrayOutputStream output = new ByteArrayOutputStream();
+		try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(source))) {
+			edit.accept(workbook);
+			workbook.write(output);
+		}
+		return output.toByteArray();
+	}
+
+	private static void assertNativeReadFails(byte[] workbook) throws Exception {
+		try {
+			MicroProjectXlsxReader.readMicroProjectProject(new ByteArrayInputStream(workbook));
+			fail("Corrupt canonical XLSX metadata or payload must not fall back to a legacy payload");
+		} catch (net.sf.mpxj.MPXJException expected) {
+			// The canonical workbook metadata or payload is corrupt.
+		}
+	}
+
+	private static void assertProjectFileReadFails(byte[] workbook) throws Exception {
+		try {
+			new MicroProjectXlsxReader().read(new ByteArrayInputStream(workbook));
+			fail("Corrupt canonical MSPDI payload must not fall back to a legacy payload");
+		} catch (net.sf.mpxj.MPXJException expected) {
+			// The canonical MSPDI payload is corrupt.
 		}
 	}
 
@@ -482,6 +570,21 @@ public class XlsxSupportTest {
 		try (FileOutputStream out = new FileOutputStream(tempFile)) {
 			assertTrue(exporter.saveProject(source, out));
 		}
+		try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(
+				java.nio.file.Files.readAllBytes(tempFile.toPath())))) {
+			org.apache.poi.ss.usermodel.Sheet metadata = workbook.getSheet("_MicroProject_META");
+			assertNotNull(metadata);
+			assertEquals("WorkbookKind", metadata.getRow(0).getCell(0).getStringCellValue());
+			assertEquals("microproject", metadata.getRow(0).getCell(1).getStringCellValue());
+			assertEquals("SchemaVersion", metadata.getRow(1).getCell(0).getStringCellValue());
+			assertEquals("3", metadata.getRow(1).getCell(1).getStringCellValue());
+			org.apache.poi.ss.usermodel.Sheet mspdi = workbook.getSheet("_MicroProject_MSPDI");
+			assertNotNull(mspdi);
+			assertEquals("microproject", mspdi.getRow(0).getCell(1).getStringCellValue());
+			org.apache.poi.ss.usermodel.Sheet nativeData = workbook.getSheet("_MicroProject_NATIVE");
+			assertNotNull(nativeData);
+			assertEquals("MicroProjectNativeData", nativeData.getRow(0).getCell(0).getStringCellValue());
+		}
 
 		MicrosoftImporter microsoftImporter = new MicrosoftImporter();
 		microsoftImporter.setFileName(tempFile.getAbsolutePath());
@@ -507,6 +610,11 @@ public class XlsxSupportTest {
 
 		assertEquals(microsoftProject.getDocumentId(), directProject.getDocumentId());
 		assertEquals(microsoftProject.getTasks().size(), directProject.getTasks().size());
+		com.microproject.pm.task.Project directNative = MicroProjectXlsxReader.readMicroProjectProject(
+			new ByteArrayInputStream(nativeWorkbook));
+		assertEquals(source.getDocumentId(), directNative.getDocumentId());
+		assertEquals(java.util.Set.of("Native first task", "Native second task"), directNative.getTaskList().stream()
+			.map(com.microproject.pm.task.Task::getName).collect(java.util.stream.Collectors.toSet()));
 		for (int i = 0; i < microsoftProject.getTasks().size(); i++) {
 			com.microproject.pm.task.Task microsoftTask =
 				(com.microproject.pm.task.Task) microsoftProject.getTasks().get(i);
@@ -515,6 +623,30 @@ public class XlsxSupportTest {
 			assertEquals(microsoftTask.getUniqueId(), directTask.getUniqueId());
 			assertEquals(microsoftTask.getName(), directTask.getName());
 		}
+	}
+
+	@Test
+	void legacyNativeXlsxNamesReadAndCanonicalPayloadWinsOrFailsClosed() throws Exception {
+		byte[] legacyBytes = toLegacyNativeWorkbook(writeNativeWorkbook("Legacy task"));
+		com.microproject.pm.task.Project legacy = MicroProjectXlsxReader.readMicroProjectProject(
+			new ByteArrayInputStream(legacyBytes));
+		assertTrue(legacy.getTaskList().stream().anyMatch(task -> "Legacy task".equals(task.getName())));
+		ProjectFile legacyMspdi = new MicroProjectXlsxReader().read(new ByteArrayInputStream(legacyBytes));
+		assertEquals("Legacy task", legacyMspdi.getTasks().stream()
+			.filter(task -> "Legacy task".equals(task.getName())).findFirst().orElseThrow().getName());
+
+		byte[] canonicalBytes = writeNativeWorkbook("Canonical task");
+		byte[] bothNames = addLegacyPayload(canonicalBytes, legacyBytes);
+		com.microproject.pm.task.Project preferred = MicroProjectXlsxReader.readMicroProjectProject(
+			new ByteArrayInputStream(bothNames));
+		assertEquals("Canonical task", ((com.microproject.pm.task.Task) preferred.getTaskList().get(0)).getName());
+
+		assertNativeReadFails(rewriteWorkbook(bothNames, workbook ->
+			workbook.getSheet("_MicroProject_META").getRow(1).getCell(1).setCellValue("999")));
+		assertNativeReadFails(rewriteWorkbook(bothNames, workbook ->
+			workbook.getSheet("_MicroProject_NATIVE").getRow(1).getCell(0).setCellValue("!")));
+		assertProjectFileReadFails(rewriteWorkbook(bothNames, workbook ->
+			workbook.getSheet("_MicroProject_MSPDI").getRow(2).getCell(0).setCellValue("not XML")));
 	}
 
 	@Test
@@ -593,7 +725,7 @@ public class XlsxSupportTest {
 			out.close();
 		}
 		assertTrue(tempFile.length() > 0);
-		assertNotNull(ProjectLibreXlsxReader.readProjectLibreProject(tempFile));
+		assertNotNull(MicroProjectXlsxReader.readMicroProjectProject(tempFile));
 		ProjectMergeService mergeService = new ProjectMergeService();
 		com.microproject.pm.task.Project reloaded = mergeService.loadExternalProject(tempFile.getAbsolutePath());
 		assertNotNull(reloaded);
@@ -640,7 +772,7 @@ public class XlsxSupportTest {
 			workbook.write(out);
 		}
 
-		ProjectFile reloaded = new ProjectLibreXlsxReader().read(new ByteArrayInputStream(out.toByteArray()));
+		ProjectFile reloaded = new MicroProjectXlsxReader().read(new ByteArrayInputStream(out.toByteArray()));
 		assertNotNull(reloaded);
 	}
 

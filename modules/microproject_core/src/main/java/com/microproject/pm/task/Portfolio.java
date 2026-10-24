@@ -115,7 +115,7 @@ public class Portfolio implements Document, NodeModelDataFactory {
 				job=getRemoveProjectJob((Project)oldNode.getImpl(),true);
 				if (job!=null&&!createJob){
 					// Do not wait synchronously here; it deadlocks the shared job queue.
-			    	SessionFactory.getInstance().getSession(project.isLocal()).schedule(job);
+					SessionFactory.getInstance().getLocalSession().schedule(job);
 				}
 			}
 		}
@@ -125,7 +125,7 @@ public class Portfolio implements Document, NodeModelDataFactory {
 			return;
 		}
 
-	   	Job addProjectJob=new Job(SessionFactory.getInstance().getSession(project.isLocal()).getJobQueue(),"addProject","Adding project...",false);
+		Job addProjectJob=new Job(SessionFactory.getInstance().getLocalSession().getJobQueue(),"addProject","Adding project...",false);
 	   	addProjectJob.addSwingRunnable(new JobRunnable("Local: addProject",1.0f){
     		public Object run() throws Exception{
     			_addProject(project);
@@ -135,13 +135,12 @@ public class Portfolio implements Document, NodeModelDataFactory {
     	});
 //    	job.addExceptionRunnable(new JobRunnable("Local: exception"){
 //    		public Object run() throws Exception{
-//    			Alert.error(Messages.getString("Message.serverError"));
 //    			return null;
 //    		}
 //    	});
 	   	if (job==null) job=addProjectJob;
 	   	else job.addJob(addProjectJob);
-    	SessionFactory.getInstance().getSession(project.isLocal()).schedule(job);
+		SessionFactory.getInstance().getLocalSession().schedule(job);
 
 	}
 
@@ -322,7 +321,7 @@ public class Portfolio implements Document, NodeModelDataFactory {
 	public Job getRemoveAllProjectsJob(JobRunnable exitRunnable,boolean calledFromSwing,boolean[] closeStatus){
 		boolean exitOnClose=true;
 		if (closeStatus!=null&&closeStatus.length>0) closeStatus[0]=true;
-    	final Job job=new Job(SessionFactory.getInstance().getLocalSession().getJobQueue(),"removeAllProjects","Removing projects...",true);
+	final Job job=new Job(SessionFactory.getInstance().getLocalSession().getJobQueue(),"removeAllProjects","Removing projects...",true);
 		List<Node> toRemove = new ArrayList<>();
 		for (Iterator<Node> i=nodeModel.iterator(); i.hasNext();){
 			Node node=i.next();

@@ -47,7 +47,8 @@ import org.junit.jupiter.api.Test;
  */
 class ClientBundleProductNameTest {
 	private static final List<String> PRODUCT_TITLE_KEYS = List.of(
-		"Text.welcomeToPod", "Title.ProjectLibreError", "Title.ProjectLibreWarning");
+		"Text.welcomeToPod", "Text.ApplicationTitle", "Text.ShortTitle",
+		"Title.MicroProjectError", "Title.MicroProjectWarning");
 
 	@Test
 	void everyClientLocaleNamesTheCurrentProductInWelcomeAndMessageTitles() throws Exception {
@@ -66,11 +67,17 @@ class ClientBundleProductNameTest {
 				values = new PropertyResourceBundle(input);
 			}
 			for (String key : PRODUCT_TITLE_KEYS) {
-				if (!values.containsKey(key))
-					continue;
+				assertTrue(values.containsKey(key), bundle.getFileName() + " is missing " + key);
 				String value = values.getString(key);
 				if (value.contains("ProjectLibre") || !value.contains("microProject"))
 					stale.add(bundle.getFileName() + ": " + key + "=" + value);
+			}
+			assertFalse(values.containsKey("File.projectlibre"),
+				bundle.getFileName() + " retains the obsolete native file-filter key");
+			if (values.containsKey("File.nativeProject")) {
+				String nativeProjectLabel = values.getString("File.nativeProject");
+				if (nativeProjectLabel.contains("ProjectLibre") || !nativeProjectLabel.contains("microProject"))
+					stale.add(bundle.getFileName() + ": File.nativeProject=" + nativeProjectLabel);
 			}
 		}
 		assertTrue(stale.isEmpty(), "product titles must use microProject: " + stale);
@@ -83,8 +90,8 @@ class ClientBundleProductNameTest {
 
 		assertEquals("Welcome to microProject", base.getString("Text.welcomeToPod"));
 		assertEquals("microProject へようこそ", japanese.getString("Text.welcomeToPod"));
-		assertEquals("microProject エラー", japanese.getString("Title.ProjectLibreError"));
-		assertEquals("microProject 警告", japanese.getString("Title.ProjectLibreWarning"));
+		assertEquals("microProject エラー", japanese.getString("Title.MicroProjectError"));
+		assertEquals("microProject 警告", japanese.getString("Title.MicroProjectWarning"));
 		assertFalse(japanese.getString("Text.welcomeToPod").contains("ProjectLibre"));
 	}
 }

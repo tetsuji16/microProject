@@ -44,7 +44,7 @@ import org.apache.commons.pool.impl.GenericObjectPool;
 
 import com.microproject.datatype.Duration;
 import com.microproject.pm.criticalpath.CriticalPath;
-import com.microproject.server.access.ErrorLogger;
+import com.microproject.util.ErrorLogger;
 import com.microproject.util.DateTime;
 
 /**

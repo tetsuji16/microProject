@@ -26,7 +26,6 @@ package com.microproject.pm.task;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.lang.reflect.InvocationTargetException;
 import java.nio.file.AccessDeniedException;
 import java.text.MessageFormat;
 import java.util.ArrayList;
@@ -57,7 +56,6 @@ import com.microproject.job.Job;
 import com.microproject.job.JobRunnable;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.resource.ResourcePoolFactory;
-import com.microproject.server.data.DataUtil;
 import com.microproject.util.FilePathUtils;
 import com.microproject.session.CreateOptions;
 import com.microproject.session.FileHelper;
@@ -100,7 +98,7 @@ public class ProjectFactory {
 
 	public Project createProject() {
 		CreateOptions opt=new CreateOptions();
-		opt.setLocal(Environment.getStandAlone());
+		opt.setLocal(true);
 		opt.setName(Messages.format("Format.words", Messages.getString("Text.Untitled"), ++untitledCount));
 		return createProject(opt);
 	}
@@ -116,33 +114,6 @@ public class ProjectFactory {
 		project.setName(opt.getName());
 		if (opt.isLocal()) project.setMaster(true);
 
-		//Don't forget to modify Serializer.deserialize too
-		if (opt.isAddResources() &&!project.isLocal()){
-			try {
-				Session session=SessionFactory.getInstance().getSession(false);
-				Object localAccess = hasSessionMethod(session, "isLocalAccess")
-					? SessionFactory.callNoEx(session,"isLocalAccess",null,null) : null;
-				List<?> resources;
-				if (Boolean.TRUE.equals(localAccess))
-					resources=(List<?>)SessionFactory.call(session,"retrieveResourceHierarchy",null,null);
-				else if (hasSessionMethod(session, "getLoadResourceHierarchyJob", boolean.class, List.class)){
-					resources=new ArrayList<>();
-
-					Job job=(Job)SessionFactory.callNoEx(session,"getLoadResourceHierarchyJob", new Class<?>[]{boolean.class,List.class},new Object[]{true,resources});
-					if (job != null) {
-						job.addSync();
-						session.schedule(job);
-					}
-					//job.waitResult();
-				} else {
-					resources=new ArrayList<>();
-				}
-				DataUtil.setEnterpriseResources(resources,resourcePool);
-			} catch (Exception e) {
-				logger.log(Level.SEVERE, "Unexpected error", e);
-			}
-		}
-
 		project.setInitialized(true);
 		//two following lines inverted to have a NodeModel with dataFactory set in DocumentFrame
 		((DefaultNodeModel)project.getTaskOutline()).setDataFactory(project);
@@ -151,15 +122,6 @@ public class ProjectFactory {
 		return project;
 	}
 
-	private static boolean hasSessionMethod(Session session, String methodName, Class<?>... parameterTypes) {
-		if (session == null) return false;
-		try {
-			session.getClass().getMethod(methodName, parameterTypes);
-			return true;
-		} catch (NoSuchMethodException | SecurityException ignored) {
-			return false;
-		}
-	}
 	public Project createProject(final CreateOptions opt) {
 		JobRunnable runnable=new JobRunnable("Local: create Project"){
 			public Object run() throws Exception{
@@ -273,7 +235,7 @@ public class ProjectFactory {
 
 
 	public Project openProject(final LoadOptions opt) {
-		Session session=SessionFactory.getInstance().getSession(opt.isLocal());
+		Session session=SessionFactory.getInstance().getLocalSession();
 		Job job=null;
 		final boolean recover;
 		if (opt.getId()>0){
@@ -424,7 +386,7 @@ public class ProjectFactory {
 			return openSubproject;
 		}
 
-		final Session session=SessionFactory.getInstance().getSession(parent.isLocal());
+		final Session session=SessionFactory.getInstance().getLocalSession();
 		if (!session.projectExists(id)) {
 			subprojectTask.setLoadStatus(SubProj.LoadStatus.MISSING);
 			Alert.error(Messages.getString("Error.projectDoesNotExist"));
@@ -621,7 +583,7 @@ public class ProjectFactory {
 
 	public void saveProject(final Project project, final SaveOptions opt) {
 		Job job=getSaveProjectJob(project,opt);
-		Session session=SessionFactory.getInstance().getSession(opt.isLocal());
+		Session session=SessionFactory.getInstance().getLocalSession();
 		if (job!=null){
 			if (opt.isSync()) job.addSync();
 			session.schedule(job);
@@ -658,7 +620,7 @@ public class ProjectFactory {
 		// dirty child that is visible in the consolidated Gantt.
 		collectLinkedProjectsForSave(project, opt, projects, new HashSet<>());
 		if (projects.size()>0){
-			Session session=SessionFactory.getInstance().getSession(opt.isLocal());
+			Session session=SessionFactory.getInstance().getLocalSession();
 			final SaveOptions o=(SaveOptions)opt.clone();
 			// A master-save job can contain only a dirty child, or both the
 			// master and several children.  In either case each member must retain
@@ -719,7 +681,7 @@ public class ProjectFactory {
 			}
 		});
 		if (projects.size()>0){
-			Session session=SessionFactory.getInstance().getSession(project.isLocal()); //assume same type for subprojets
+			Session session=SessionFactory.getInstance().getLocalSession();
 			Job job=session.getCloseProjectsJob(projects);
 			return job;
 		}
@@ -739,7 +701,7 @@ public class ProjectFactory {
 		Job job=null;
 		if (localProjects.size()>0) job=SessionFactory.getInstance().getLocalSession().getCloseProjectsJob(projects);
 		if (serverProjects.size()>0){
-			Job j=SessionFactory.getInstance().getSession(false).getCloseProjectsJob(projects);
+			Job j=SessionFactory.getInstance().getLocalSession().getCloseProjectsJob(projects);
 			if (job==null) job=j;
 			else job.addJob(j);
 		}
@@ -823,9 +785,7 @@ public class ProjectFactory {
 			if (!(impl instanceof Project p))
 				return;
 			toRemove.add(node);
-			if (Environment.getStandAlone()||project.isLockable()){
-				projects.add(p);
-			}
+			projects.add(p);
 		});
 
 
@@ -894,7 +854,7 @@ public class ProjectFactory {
 				else
 					complete.run();
 			});
-			Session session=SessionFactory.getInstance().getSession(project.isLocal());
+			Session session=SessionFactory.getInstance().getLocalSession();
 			try {
 				session.schedule(job);
 			} catch (RuntimeException e) {
@@ -928,7 +888,7 @@ public class ProjectFactory {
 	public void doRemoveProject(Project project,boolean calledFromSwing) {
 		Job job=projectFactory.getPortfolio().getRemoveProjectJob(project,calledFromSwing);
 		if (job!=null) {
-			SessionFactory.getInstance().getSession(project.isLocal()).schedule(job);
+			SessionFactory.getInstance().getLocalSession().schedule(job);
 			com.microproject.transaction.ProjectMutationState.coordinated(
 				() -> portfolio.handleExternalTasks(project,false, false)); // external link handling
 		}
@@ -946,14 +906,6 @@ public class ProjectFactory {
 	}
 	public Collection<Project> getWritableProjectsList() {
 		return portfolio.getWritableProjectList();
-	}
-	public static Object getProjectData(long projectId) {
-		Session session = SessionFactory.getInstance().getSession(false);
-		return SessionFactory.callNoEx(session, "getProjectData", new Class<?>[] {Long.class}, new Object[] {projectId});
-
-
-	//	getProjectData(projectId);
-
 	}
 	public boolean isResourcePoolOpenAndWritable() {
 		return portfolio.isResourcePoolOpenAndWritable();
