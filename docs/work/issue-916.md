@@ -1,8 +1,8 @@
 # Issue #916 — M3 format inventory
 
 **Issue:** [#916](https://github.com/tetsuji16/ProjectLibre/issues/916), frozen
-2026-10-25. **State:** IN_PROGRESS; inventory slice recorded, pending #917–#922
-and parent integration. **Parent:** #796, split into finite child slices.
+2026-10-25. **State:** CLOSED; PR #924 merged as `ed276d5a497b93640079ed72562cafc625fe24cb`.
+Later format verification remains with sibling issues #917–#922 and parent #796.
 **Owner:** Sol. **This slice:** documentation/inventory only (no production,
 test, or dependency edits). **Baseline:** branch `docs/issue-916-format-contracts`,
 HEAD `a2af8b1a65d44cd9d54c204c3cb4ef569101bfd5`; tested source tree
@@ -35,5 +35,6 @@ had no tracked modifications; unrelated untracked entries were `.codex-remote-at
 
 ## Current checks
 
-- `git diff --check` — pending review of this follow-up.
+- `git diff --cached --check` — passed after reviewing and staging all intended files.
 - Tests/build — not run; documentation-only slice, reuse scoped source evidence above.
+- Exact PR head `b96f1819e6ea5c7d557b506dd13257ffeb4b1183`: required [Build 40111547722](https://github.com/tetsuji16/microProject/actions/runs/40111547722) and [GUI smoke 40111547703](https://github.com/tetsuji16/microProject/actions/runs/40111547703) passed. Integrated `ed276d5a4` has the same tree. Inventory acceptance is complete; no broader format-compatibility completion is inferred. Luna prepared the inventory; Sol reviewed and integrated it.

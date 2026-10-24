@@ -27,15 +27,17 @@ Owner/reviewer: Sol; bounded investigation/implementation/verification: Luna.
 
 ## Current slice
 
-**Next slice:** #916 freezes the finite format/field/version evidence matrix.
-**Done when:** every advertised direction has an implementation/version/fixture/
-actual-assertion/evidence/loss row and a named remaining owner, and stale XML
-timephased-cost statements are reconciled without claiming untested parity.
-**Then:** #917, #918, #919, #920, #921, #922, one active implementation at a time.
+**Next slice:** #917 fills the named MPP-read evidence gaps from #916.
+**Done when:** independent MPP8/12 link manifests and existing MPP9/14 rows
+pass import/MPO reload; MPP-derived baseline persistence, actual calendar
+working periods and malformed/unknown-family rejection are directly asserted,
+with remaining unsupported fields/builds explicitly listed.
+**Then:** #918 XML/MSPDI, then #919/#920/#921/#922, one active implementation at a time.
 
 ## Children and closure
 
 Native GitHub sub-issue relationships verified for #916–#922 on 2026-10-24.
+Inventory child #916 is closed via PR #924 / `ed276d5a4`; #917 is active.
 Parent body has the ordered checklist; each child contains scope/dependencies/
 acceptance/verification rules. No child status alone proves parent acceptance.
 Do not remove or defer an original failing criterion to close a child or parent.

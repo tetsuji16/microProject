@@ -12,7 +12,7 @@ register, see [MSP standard command and format inventory](MSP_STANDARD_COMMAND_I
 
 | Format / direction | Handler | Contract, concrete evidence/version, and remaining gap (owner) |
 |---|---|---|
-| MPP read | MPXJ `MPPReader` via [`MspImporter`](../modules/microproject_exchange/src/main/java/com/microproject/core/pm/exchange/MspImporter.java) | Fixed inputs: [`mpp9timephasedsegments.mpp`](../modules/microproject_exchange/testdata/mpxj/mpp9timephasedsegments.mpp) ([source/provenance README](../modules/microproject_exchange/testdata/mpxj/README.md)); [`mpp14task-from2013.mpp`](../modules/microproject_exchange/testdata/mpxj/project2013/mpp14task-from2013.mpp) ([provenance README](../modules/microproject_exchange/testdata/mpxj/project2013/README.md)); Project 2019 MPP14 files [`task-links`](../modules/microproject_exchange/testdata/mpxj/project2019/task-links-project2019-mpp14.mpp), [`task-baselines`](../modules/microproject_exchange/testdata/mpxj/project2019/task-baselines-project2019-mpp14.mpp), [`calendar-calendars`](../modules/microproject_exchange/testdata/mpxj/project2019/calendar-calendars-project2019-mpp14.mpp), and [`assignment-assignments`](../modules/microproject_exchange/testdata/mpxj/project2019/assignment-assignments-project2019-mpp14.mpp) paired with MSPDI manifests ([provenance README](../modules/microproject_exchange/testdata/mpxj/project2019/README.md)). Assertions: [`MpxExportTrackingTest`](../modules/microproject_exchange/src/test/java/com/microproject/server/data/MpxExportTrackingTest.java) methods `mpp9CustomAssignmentContourMatchesIndependentManifestAndMpoReload`, `project2019Mpp14FixturesMatchIndependentManifestAndMpoReload`, and `project2013Mpp14TaskConstraintMatchesUpstreamManifestAndMpoReload`. MPP9 contour is 10 daily intervals/55h; Project 2019 editor build is 16.0.10730.20102; Project 2013 asserts `MUST_START_ON` (2006-08-23). Claims are limited to asserted manifest fields; other editions/builds (including Microsoft 365 and Project 2024) are unverified. Owner: #917. |
+| MPP read | MPXJ `MPPReader` via [`MspImporter`](../modules/microproject_exchange/src/main/java/com/microproject/core/pm/exchange/MspImporter.java) | Fixed Project-origin fixtures cover MPP8/9/12/14: MPP9 ten-interval/55h contour, Project 2003/2007 eight task-link pairs, Project 2013 `MUST_START_ON` (2006-08-23), and Project 2019 links, assignments, calendars, and baseline slots 0/1/10 ([fixture manifests](../modules/microproject_exchange/testdata/mpxj/README.md)). `MpxExportTrackingTest` compares those literal contracts after MPP import and MPO reload, including MPP-derived baseline reload. It also asserts clear failure for truncated OLE and valid OLE with unsupported MPP99 token before parsed/model publication. Calendar periods are document-derived from Microsoft DayType/DayWorking/WorkingTime documentation, not measured in MSP. Derived DayType.WORKING over a nonworking parent with no effective intervals, calendar exceptions, and constructs absent from these fixtures remain unverified. Other builds (including Microsoft 365 and Project 2024) are also unverified. Owner: #917. |
 | MPP write | No writer registered; [`ProjectWriterFactory`](../modules/microproject_exchange/src/main/java/com/microproject/exchange/mpxj/ProjectWriterFactory.java) rejects `.mpp` | **OUT OF SCOPE** by user decision (2026-10-12); MPO is native/default. [`ProjectWriterFactoryTest`](../modules/microproject_exchange/src/test/java/com/microproject/exchange/ProjectWriterFactoryTest.java) method `mppIsNotAdvertisedOrWrittenAsAnotherFormat` fixes rejection behavior. Do not relabel MSPDI XML as MPP. |
 | MPX read | MPXJ `MPXReader` via `MspImporter` | Registered reader; no fixed semantic manifest identified. Coverage unverified. Owner: #921. |
 | MPX write | MPXJ `MPXWriter` via `ProjectWriterFactory` | Registered writer; no fixed semantic manifest identified. Coverage unverified. Owner: #921. |
@@ -67,20 +67,16 @@ cannot silently select another writer.
 
 ## Current semantic coverage and known losses
 
-- The pinned [MPXJ 11.5.4 MPPReader dispatch](https://github.com/joniles/mpxj/blob/v11.5.4/src/main/java/net/sf/mpxj/mpp/MPPReader.java#L410-L424) registers MPP/MPT/GLOBAL format families 8, 9, 12 and 14; unknown format tokens fail `INVALID_FILE`. This describes dependency decoding, not proven application semantics. Fixed semantic fixtures currently cover MPP9 and MPP14; MPP8/12 and explicit unknown-token/malformed-input failure behavior need their own application evidence in #917.
-- MPP read: `MpxExportTrackingTest` compares three fixture groups with fixed
-  manifests: MPP9 contour (10 daily intervals/55h), Project 2019 MPP14 (editor
-  build 16.0.10730.20102; paired MSPDI manifests include links, assignment
-  progress and calendar names), and Project 2013 MPP14 task constraint
-  (`MUST_START_ON`, 2006-08-23). Claims are limited to asserted manifest fields;
-  this is not broad MSP parity. Microsoft 365/Project 2024 editions and other
-  builds remain unverified. No authoring provenance is inferred beyond the
-  checked-in fixture README/header.
-  Calendar-name assertions do not prove working-week/exception semantics.
-  `project2019TaskBaselineSlotsMatchIndependentManifestAndMpoReload` checks
-  imported MPP baseline duration/cost slots 0/1/10, but its later MPO assertions
-  use the MSPDI-derived project. MPP-derived baseline persistence therefore
-  remains a missing assertion owned by #917, not a passing round-trip claim.
+- The pinned [MPXJ 11.5.4 MPPReader dispatch](https://github.com/joniles/mpxj/blob/v11.5.4/src/main/java/net/sf/mpxj/mpp/MPPReader.java#L410-L424) registers MPP/MPT/GLOBAL format families 8, 9, 12 and 14; unknown format tokens fail `INVALID_FILE`. This describes dependency decoding, not semantic proof. Fixed application tests cover Project 2003 MPP8, Project 2007 MPP12, MPP9, and MPP14; valid-OLE MPP99 and truncated OLE failures are tested at the importer boundary.
+- MPP read: fixed tests cover MPP8/9/12/14 fixture families and selected task,
+  hierarchy, calendar working periods, resource assignment, dependency/lag,
+  baseline, and custom contour fields, limited to their literal fixture
+  assertions. Project 2019 MPP-derived baseline duration/cost slots 0/1/10 are
+  checked after MPO reload. Failure behavior covers a truncated OLE header and
+  a valid OLE file with an unsupported MPP99 format token. Microsoft
+  365/Project 2024 editions, other builds, calendar exceptions, and other
+  constructs not represented in the fixtures remain unverified; these are
+  not broad MSP parity claims.
 - MPP write: unsupported and explicitly outside product scope; MPO is the native
   save format. MPP read/import remains in scope.
 - XML: import/export supports task baselines 0–10 for start, finish, and

@@ -34,7 +34,10 @@ checks baseline values from the paired MSPDI fixture, standard MSPDI output, and
   is 0, 20, and 40 hours, with remaining work and assignment progress matching
   the MSPDI companion.
 - `calendar-calendars`: the two named resources retain their correspondingly
-  named resource calendars.
+  named resource calendars. Their source MSPDI has Monday–Friday working
+  periods 08:00–12:00 and 13:00–17:00, with Sunday and Saturday marked
+  nonworking; the MPP-imported calendar is checked for eight work hours on
+  Monday, a nonworking lunch interval, and zero Saturday work after MPO reload.
 - `task-baselines`: baseline duration slots 0, 1, and 10 import as 11, 12, and
   21 eight-hour workdays from the paired MPP and the MSPDI `PT88H`, `PT96H`, and
   `PT168H`. MPXJ v11.5.4's upstream `TaskBaselinesTest` expects normalized MPP
@@ -49,6 +52,26 @@ checks baseline values from the paired MSPDI fixture, standard MSPDI output, and
   use use the same pinned MPXJ currency conversion. Output preserves fractional
   hundredths; `CurrencyDigits` affects display only and does not cap stored
   precision.
+
+The paired MSPDI omits all `<Baseline>` records for `Baseline Fixed Cost -
+Task` and its numbered siblings, while the MPP fixture carries task baseline
+fixed costs 11, 12, and 21 at slots 0, 1, and 10. Pinned MPXJ v11.5.4
+[`TaskBaselinesTest`](https://github.com/joniles/mpxj/blob/c75014d0a7e310315ce46c426dc3108dc6e73f09/src/test/java/net/sf/mpxj/junit/task/TaskBaselinesTest.java)
+expects the MPP values; the MPP import contract checks them again after MPO
+reload. The MSPDI absence assertion remains specific to the paired XML import
+and is not used as the MPP oracle. This is a fixture-specific representation
+difference, not a general MPP/MSPDI equivalence claim.
+
+The calendar rule follows Microsoft's [DayType element](https://learn.microsoft.com/en-us/office-project/xml-data-interchange/daytype-element?view=project-client-2016),
+[DayWorking element](https://learn.microsoft.com/en-us/office-project/xml-data-interchange/dayworking-element-calendar?view=project-client-2016),
+and [WorkingTime element](https://learn.microsoft.com/en-us/office-project/xml-data-interchange/workingtime-element-calendar?view=project-client-2016).
+These calendar expectations are document-derived from the companion MSPDI,
+not observed in a Microsoft Project desktop run. The MPP-derived task
+baseline duration/cost manifest is checked again after MPO save/reload; this
+claim remains limited to slots 0, 1, and 10 in these fixtures.
+This calendar fixture has no dated exceptions. An explicit `DayType=WORKING`
+on a nonworking parent day with no effective MPXJ intervals is not represented
+and remains unverified; the importer does not invent an eight-hour schedule.
 
 These tests cover only the listed fields and this Project 2019 MPP14 fixture
 set. They do not establish general MPP parity or a measured Project 365/2024
