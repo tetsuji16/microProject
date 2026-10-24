@@ -1,6 +1,6 @@
 # Issue #917 — MPP import semantic contracts
 
-State: IN PROGRESS
+State: CLOSED
 Issue: https://github.com/tetsuji16/microProject/issues/917
 Contract frozen at: 2026-10-25, issue body plus finite matrix
 Baseline HEAD: `ed276d5a497b93640079ed72562cafc625fe24cb`
@@ -23,8 +23,8 @@ connected services, POD wire behavior, and broad parity claims are excluded.
 
 ## Current slice
 
-**Next slice:** Sol reviews and integrates this bounded implementation.
-**Done when:** all A1–A4 evidence is reviewed and the issue is closed by its owner.
+**Completed:** Sol reviewed and merged PR #925; issue #917 is closed.
+**Integration:** squash `565998a34ad2e04057d35b30b95616e4503b695c` has the same tree as tested head `8ac404dcfb67f50004ce97ea29149f02ad2079e7`.
 **Then:** no further #917 implementation slice remains.
 
 ## Evidence limits (not blockers for the frozen matrix)
@@ -51,3 +51,5 @@ connected services, POD wire behavior, and broad parity claims are excluded.
 - PASS: final `.\gradlew.bat :microproject_exchange:test --console=plain` (`BUILD SUCCESSFUL` in 57s; 1 test task executed, 9 tasks up-to-date).
 - PASS: final `.\gradlew.bat :microproject_exchange:test --console=plain` after mechanical calendar-loop consolidation and typed malformed-input assertions (`BUILD SUCCESSFUL` in 49s; 339 tests, 0 failures, 0 errors, 0 skipped).
 - No GUI route changed; no physical GUI run applies. Physical Microsoft Project comparison was not used; compatibility rules are source/document-derived.
+
+- Required CI on tested head: Build 40116689195 and GUI acceptance 40116689198 passed. PR: https://github.com/tetsuji16/microProject/pull/925
