@@ -25,6 +25,11 @@
 package com.microproject.pm.graphic.views;
 
 import java.awt.Dimension;
+import java.awt.Component;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.util.logging.Logger;
@@ -32,6 +37,8 @@ import java.util.logging.Logger;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JViewport;
+import javax.swing.SwingUtilities;
+import javax.swing.plaf.basic.BasicSplitPaneUI;
 
 import com.microproject.pm.graphic.views.synchro.ScrollPaneSynchronizer;
 import com.microproject.pm.graphic.views.synchro.Synchronizer;
@@ -54,6 +61,11 @@ public abstract class SplittedView extends JSplitPane {
     //protected boolean scaled=true;
     protected boolean needVoidBar=true;
     private Synchronizer synchronizer;
+	private boolean dividerLocationManuallyAdjusted;
+	private boolean responsiveDividerUpdatePending;
+	private Component trackedDivider;
+	private MouseAdapter dividerGestureListener;
+	private int dividerPressLocation = -1;
 	private final PropertyChangeListener dividerLocationListener = this::dividerLocationChanged;
 
 	public SplittedView(Synchronizer synchronizer) {
@@ -65,6 +77,14 @@ public abstract class SplittedView extends JSplitPane {
 		getAccessibleContext().setAccessibleName(Messages.getString("SplitView.accessibleName"));
 		getAccessibleContext().setAccessibleDescription(Messages.getString("SplitView.accessibleDescription"));
 		addPropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, dividerLocationListener);
+		addComponentListener(new ComponentAdapter() {
+			@Override
+			public void componentResized(ComponentEvent event) {
+				requestResponsiveDividerLayout();
+			}
+		});
+		addPropertyChangeListener("UI", event -> installDividerGestureTracker());
+		installDividerGestureTracker();
 	}
 	public void cleanUp() {
 		disposeSplitView();
@@ -77,6 +97,7 @@ public abstract class SplittedView extends JSplitPane {
 	 * inside the panes should release those resources before calling this method.
 	 */
 	protected void disposeSplitView() {
+		detachDividerGestureTracker();
 		if (sync && synchronizer != null && leftScrollPane != null && rightScrollPane != null) {
 			synchronizer.removeSynchro(leftScrollPane, rightScrollPane,
 					ScrollPaneSynchronizer.HORIZONTAL);
@@ -107,6 +128,7 @@ public abstract class SplittedView extends JSplitPane {
 		configurePaneAccessibility(rightScrollPane, "SplitView.rightPaneAccessibleName");
 		setLeftComponent(leftScrollPane);
 		setRightComponent(rightScrollPane);
+		installDividerGestureTracker();
 
 		if (sync)
 			synchronizer.addSynchro(leftScrollPane, rightScrollPane,
@@ -146,12 +168,106 @@ public abstract class SplittedView extends JSplitPane {
 	 */
 	protected final void restoreDividerLocation(int location) {
 		int availableWidth = getWidth() - getDividerSize();
-		if (availableWidth < MINIMUM_RESTORED_PANE_WIDTH * 2) {
-			setDividerLocation(location);
-			return;
+		int boundedLocation = location;
+		if (availableWidth >= MINIMUM_RESTORED_PANE_WIDTH * 2) {
+			int maximumLocation = availableWidth - MINIMUM_RESTORED_PANE_WIDTH;
+			boundedLocation = Math.max(MINIMUM_RESTORED_PANE_WIDTH, Math.min(location, maximumLocation));
 		}
-		int maximumLocation = availableWidth - MINIMUM_RESTORED_PANE_WIDTH;
-		setDividerLocation(Math.max(MINIMUM_RESTORED_PANE_WIDTH, Math.min(location, maximumLocation)));
+		setDividerLocationSilently(boundedLocation);
+		markDividerLocationManuallyAdjusted();
+		if (parentView != null) {
+			parentView.setChildrenDividerLocation(this, boundedLocation);
+			parentView.markChildrenDividerLocationManuallyAdjusted(this);
+		}
+	}
+
+	/** Requests an adaptive divider update for views that provide a content-based default. */
+	protected final void requestResponsiveDividerLayout() {
+		if (preferredLeftPaneWidth() < 0 || dividerLocationManuallyAdjusted || responsiveDividerUpdatePending)
+			return;
+		responsiveDividerUpdatePending = true;
+		javax.swing.SwingUtilities.invokeLater(() -> {
+			responsiveDividerUpdatePending = false;
+			if (preferredLeftPaneWidth() < 0 || dividerLocationManuallyAdjusted || getWidth() <= getDividerSize())
+				return;
+			int availableWidth = getWidth() - getDividerSize();
+			int maximumLeftWidth = availableWidth - minimumResponsiveRightPaneWidth();
+			if (maximumLeftWidth < MINIMUM_RESTORED_PANE_WIDTH)
+				return;
+			int location = Math.max(MINIMUM_RESTORED_PANE_WIDTH,
+					Math.min(preferredLeftPaneWidth(), maximumLeftWidth));
+			setDividerLocationSilently(location);
+			if (parentView != null)
+				parentView.setChildrenDividerLocation(this, location);
+		});
+	}
+
+	protected int preferredLeftPaneWidth() {
+		return -1;
+	}
+
+	protected int minimumResponsiveRightPaneWidth() {
+		return MINIMUM_RESTORED_PANE_WIDTH;
+	}
+
+	final boolean isDividerLocationManuallyAdjusted() {
+		return dividerLocationManuallyAdjusted;
+	}
+
+	final void markDividerLocationManuallyAdjusted() {
+		dividerLocationManuallyAdjusted = true;
+	}
+
+	private void installDividerGestureTracker() {
+		SwingUtilities.invokeLater(() -> {
+			Component component = getUI() instanceof BasicSplitPaneUI splitPaneUI ? splitPaneUI.getDivider() : null;
+			if (component == trackedDivider)
+				return;
+			detachDividerGestureTracker();
+			if (component == null)
+				return;
+			trackedDivider = component;
+			dividerGestureListener = new MouseAdapter() {
+				@Override
+				public void mousePressed(MouseEvent event) {
+					dividerPressLocation = getDividerLocation();
+				}
+
+				@Override
+				public void mouseDragged(MouseEvent event) {
+					markDividerGestureIfMoved();
+				}
+
+				@Override
+				public void mouseReleased(MouseEvent event) {
+					if (dividerPressLocation >= 0 && dividerPressLocation != getDividerLocation()) {
+						markDividerGestureIfMoved();
+						if (parentView != null) {
+							parentView.setChildrenDividerLocation(SplittedView.this, getDividerLocation());
+							parentView.markChildrenDividerLocationManuallyAdjusted(SplittedView.this);
+						}
+					}
+					dividerPressLocation = -1;
+				}
+			};
+			component.addMouseListener(dividerGestureListener);
+			component.addMouseMotionListener(dividerGestureListener);
+		});
+	}
+
+	private void markDividerGestureIfMoved() {
+		if (dividerPressLocation >= 0 && dividerPressLocation != getDividerLocation())
+			dividerLocationManuallyAdjusted = true;
+	}
+
+	private void detachDividerGestureTracker() {
+		if (trackedDivider != null && dividerGestureListener != null) {
+			trackedDivider.removeMouseListener(dividerGestureListener);
+			trackedDivider.removeMouseMotionListener(dividerGestureListener);
+		}
+		trackedDivider = null;
+		dividerGestureListener = null;
+		dividerPressLocation = -1;
 	}
 	
 
@@ -170,9 +286,19 @@ public abstract class SplittedView extends JSplitPane {
 	}
 	
 	public void setDividerLocationSilent(int location){
-		if (getLastDividerLocation()!=location){
-			silent=true;
+		if (getDividerLocation()!=location){
+			setDividerLocationSilently(location);
+		}
+	}
+
+	private void setDividerLocationSilently(int location) {
+		if (getDividerLocation() == location)
+			return;
+		silent = true;
+		try {
 			super.setDividerLocation(location);
+		} finally {
+			silent = false;
 		}
 	}
 	

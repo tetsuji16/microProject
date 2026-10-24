@@ -47,6 +47,7 @@ import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
 import com.microproject.pm.graphic.model.cache.ReferenceNodeModelCache;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
+import com.microproject.pm.graphic.spreadsheet.SpreadSheetColumnModel;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetUtils;
 import com.microproject.pm.graphic.timescale.CoordinatesConverter;
@@ -113,6 +114,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		this.documentFrame = documentFrame;
 		this.project = documentFrame.getProject();
 		this.currentAnnotationFieldId = documentFrame.getGraphicManager().getPreferences().getDefaultGanttBarText();
+		setResizeWeight(0.0);
 		HelpUtil.addDocHelp(this,"Gantt_Chart");
 		setNeedVoidBar(true);
 		//setScaled(true);
@@ -145,6 +147,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		installSpreadsheetViewportListener();
 		installTaskSelectionController();
 		cache.update();
+		requestResponsiveDividerLayout();
 
 		//Call this last to be sure everything is initialized
 		//gantt.insertCacheData(); //useless?
@@ -211,7 +214,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		spreadSheet.setCache(cache, fields, fields.getCellStyle(), fields.getActionList());
 		if (project.getFieldArray() != null) {
 			spreadSheet.setFieldArrayWithWidths(fields);
-			ensureTaskColumnsReadable();
+			((SpreadSheetColumnModel) spreadSheet.getColumnModel()).ensureMinimumReadableWidths();
 		}
 		((SpreadSheetModel) spreadSheet.getModel()).setFieldContext(fieldContext);
 		project.removeScheduleListener(this); // in case was already attached and recreating (applet)
@@ -220,32 +223,12 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 			spreadSheet.setReadOnly(true);
 		}
 		applySpreadsheetGridStyle();
-		SwingUtilities.invokeLater(this::ensureTaskColumnsReadable);
+		SwingUtilities.invokeLater(() -> {
+			if (spreadSheet != null)
+				((SpreadSheetColumnModel) spreadSheet.getColumnModel()).ensureMinimumReadableWidths();
+		});
 		return SpreadSheetUtils.makeSpreadsheetScrollPane(spreadSheet);
    }
-
-	private void ensureTaskColumnsReadable() {
-		// The deferred sizing pass can run after the containing document is
-		// closed.  cleanUp() deliberately releases the sheet first, so treating
-		// that queued pass as a no-op prevents an EDT exception during New/Open
-		// document replacement.
-		if (spreadSheet == null) return;
-		var columns = spreadSheet.getColumnModel();
-		for (int index = 0; index < columns.getColumnCount(); index++) {
-			var column = columns.getColumn(index);
-			if (!(column.getIdentifier() instanceof com.microproject.field.Field field)) continue;
-			int minimum = switch (field.getId()) {
-				case "Field.name" -> 140;
-				case "Field.start", "Field.finish" -> 100;
-				case "Field.duration" -> 60;
-				default -> 0;
-			};
-			if (minimum > 0 && column.getWidth() < minimum) {
-				column.setPreferredWidth(minimum);
-				column.setWidth(minimum);
-			}
-		}
-	}
    protected JScrollPane createRightScrollPane() {
 		gantt = new Gantt(project, "Gantt");
 		gantt.setCache(cache);
@@ -256,10 +239,27 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		gantt.setTrackingView(tracking);
 		gantt.setBarStyles((BarStyles) Dictionary.get(BarStyles.category, DEFAULT_GANTT_BAR_STYLE));
 		ganttScrollPane = new ScaledScrollPane(gantt, coord, documentFrame, spreadSheet.getRowHeight());
+		ganttScrollPane.preserveCenterDateOnWidthResize();
 		ganttScrollPane.getViewport().setScrollMode(JViewport.SIMPLE_SCROLL_MODE);
 		applySpreadsheetGridStyle();
 		return ganttScrollPane;
     }
+
+	@Override
+	protected int preferredLeftPaneWidth() {
+		if (spreadSheet == null || leftScrollPane == null)
+			return -1;
+		int viewportWidth = leftScrollPane.getViewport().getExtentSize().width;
+		int paneChrome = Math.max(0, leftScrollPane.getWidth() - viewportWidth);
+		return spreadSheet.getPreferredSize().width + paneChrome;
+	}
+
+	@Override
+	protected int minimumResponsiveRightPaneWidth() {
+		if (gantt == null || gantt.getFont() == null)
+			return 96;
+		return gantt.getFontMetrics(gantt.getFont()).charWidth('M') * 16;
+	}
 
    public void activateEmptyRowHeader(boolean activate){
     ganttScrollPane.activateEmptyRowHeader(activate);
@@ -460,6 +460,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		installSpreadsheetViewportListener();
 		installTaskSelectionController();
 		synchronizeGanttHeightWithSpreadsheet(leftScrollPane.getViewport().getViewSize());
+		requestResponsiveDividerLayout();
 	}
 	public void restoreWorkspace(WorkspaceSetting w, int context) {
 		Workspace ws = (Workspace) w;

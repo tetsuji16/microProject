@@ -32,6 +32,7 @@ import java.util.List;
 
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.SwingUtilities;
 
 import org.junit.jupiter.api.Test;
 
@@ -77,6 +78,33 @@ class SplittedViewLifecycleTest {
 			view.getRightScrollPane().getAccessibleContext().getAccessibleName());
 	}
 
+	@Test
+	void restoredDividerChoiceLocksBothMainViewChildrenAgainstResponsiveDefaults() throws Exception {
+		TestView[] views = new TestView[2];
+		int[] restoredLocation = new int[1];
+		SwingUtilities.invokeAndWait(() -> {
+			MainView mainView = new MainView();
+			mainView.setSize(1000, 600);
+			views[0] = new TestView(new Synchronizer(), 180);
+			views[1] = new TestView(new Synchronizer());
+			views[0].init();
+			views[1].init();
+			views[0].setSize(1000, 260);
+			views[1].setSize(1000, 260);
+			views[0].setParentView(mainView);
+			views[1].setParentView(mainView);
+			mainView.setTopComponent(views[0]);
+			mainView.setBottomComponent(views[1]);
+			views[1].restoreForTest(360);
+			restoredLocation[0] = views[0].getDividerLocation();
+			assertTrue(views[0].isDividerLocationManuallyAdjusted());
+			assertTrue(views[1].isDividerLocationManuallyAdjusted());
+		});
+		SwingUtilities.invokeAndWait(views[0]::requestResponsiveForTest);
+		assertEquals(restoredLocation[0], views[0].getDividerLocation(),
+			"the responsive sibling must preserve the divider restored through its peer");
+	}
+
 	private static int synchronizerCount(Synchronizer synchronizer) throws ReflectiveOperationException {
 		Field field = Synchronizer.class.getDeclaredField("scrollPaneSynchronizers");
 		field.setAccessible(true);
@@ -86,9 +114,15 @@ class SplittedViewLifecycleTest {
 	private static final class TestView extends SplittedView {
 		private int leftCreated;
 		private int rightCreated;
+		private final int preferredLeftWidth;
 
 		private TestView(Synchronizer synchronizer) {
+			this(synchronizer, -1);
+		}
+
+		private TestView(Synchronizer synchronizer, int preferredLeftWidth) {
 			super(synchronizer);
+			this.preferredLeftWidth = preferredLeftWidth;
 		}
 
 		@Override
@@ -105,6 +139,15 @@ class SplittedViewLifecycleTest {
 
 		private void restoreForTest(int location) {
 			restoreDividerLocation(location);
+		}
+
+		@Override
+		protected int preferredLeftPaneWidth() {
+			return preferredLeftWidth;
+		}
+
+		private void requestResponsiveForTest() {
+			requestResponsiveDividerLayout();
 		}
 	}
 }

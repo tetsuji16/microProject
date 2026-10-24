@@ -226,6 +226,17 @@ public class MainView extends JSplitPane implements TimeScaleListener, SavableTo
         	else top.setDividerLocationSilent(pos+delta);
         }
     }
+
+	void markChildrenDividerLocationManuallyAdjusted(Object source) {
+		if (!(source instanceof SplittedView splitView) || !splitView.isDividerLocationManuallyAdjusted())
+			return;
+		Component top = getTopComponent();
+		Component bottom = getBottomComponent();
+		if (source == top && bottom instanceof SplittedView bottomView)
+			bottomView.markDividerLocationManuallyAdjusted();
+		else if (source == bottom && top instanceof SplittedView topView)
+			topView.markDividerLocationManuallyAdjusted();
+	}
     
     
     
