@@ -2317,6 +2317,10 @@ class TaskTableGanttGridGuiAcceptanceTest {
 
 	private static void editCellPhysically(Robot robot, SpreadSheet sheet, int row, int column, String value) throws Exception {
 		Rectangle bounds = new Rectangle();
+		// A user scrolls a cell into view before clicking it; at 150% the narrow
+		// task-table pane does not show every column.
+		SwingUtilities.invokeAndWait(() -> sheet.scrollRectToVisible(sheet.getCellRect(row, column, true)));
+		robot.waitForIdle();
 		SwingUtilities.invokeAndWait(() -> {
 			Rectangle cell = sheet.getCellRect(row, column, true);
 			Point location = sheet.getLocationOnScreen();
