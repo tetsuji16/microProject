@@ -978,7 +978,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			return false;
 		}, "physical header right-click did not open the custom-column popup");
 
-		JMenuItem rename = (JMenuItem) popup[0].getComponent(2);
+		JMenuItem rename = menuItemWithText(popup[0], com.microproject.strings.Messages.getString("RenameDialog.Rename"));
 		clickComponent(robot, rename);
 		Window dialog = awaitWindowWith(JTextField.class, "Rename dialog did not open from the physical custom-column popup");
 		JTextField input = findComponent(dialog, JTextField.class);
@@ -1677,7 +1677,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> assertHeaderHighlight(fixture.sheet, column));
 		robot.mouseMove(0, 0);
 		robot.delay(300);
-		assertClosedHeaderOutline(robot, fixture.sheet, column);
+		assertActiveHeaderOutlineClosedOnScreen(robot, fixture.sheet, column);
 
 		int wrappedHeight = headerHeight(fixture);
 		openHeaderPopupAndToggleWrap(robot, fixture, column, true);
@@ -1785,35 +1785,6 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		});
 	}
 
-	/** All four edges of the active header cell carry the outline colour on screen (a closed rectangle). */
-	private static void assertClosedHeaderOutline(Robot robot, SpreadSheet sheet, int column) throws Exception {
-		Rectangle[] area = new Rectangle[1];
-		SwingUtilities.invokeAndWait(() -> {
-			Rectangle cell = sheet.getTableHeader().getHeaderRect(column);
-			Point location = sheet.getTableHeader().getLocationOnScreen();
-			area[0] = new Rectangle(location.x + cell.x, location.y + cell.y, cell.width, sheet.getTableHeader().getHeight());
-		});
-		BufferedImage image = robot.createScreenCapture(area[0]);
-		java.awt.Color outline = FlatUiSupport.spreadsheetActiveCellBorderColor();
-		int midX = image.getWidth() / 2;
-		int midY = image.getHeight() / 2;
-		assertTrue(edgeHasColor(image, outline, midX, 0, 0, 1), "outline is missing on the top edge of the taller header cell");
-		assertTrue(edgeHasColor(image, outline, midX, image.getHeight() - 1, 0, -1), "outline is missing on the bottom edge of the taller header cell");
-		assertTrue(edgeHasColor(image, outline, 0, midY, 1, 0), "outline is missing on the left edge of the taller header cell");
-		assertTrue(edgeHasColor(image, outline, image.getWidth() - 1, midY, -1, 0), "outline is missing on the right edge of the taller header cell");
-	}
-
-	private static boolean edgeHasColor(BufferedImage image, java.awt.Color expected, int x, int y, int dx, int dy) {
-		for (int step = 0; step < 3; step++) {
-			int px = x + dx * step;
-			int py = y + dy * step;
-			if (px < 0 || py < 0 || px >= image.getWidth() || py >= image.getHeight()) break;
-			java.awt.Color actual = new java.awt.Color(image.getRGB(px, py));
-			if (Math.abs(actual.getRed() - expected.getRed()) + Math.abs(actual.getGreen() - expected.getGreen())
-					+ Math.abs(actual.getBlue() - expected.getBlue()) < 60) return true;
-		}
-		return false;
-	}
 
 	private void openHeaderPopupAndToggleWrap(Robot robot, Fixture fixture, int column, boolean expectChecked) throws Exception {
 		Point headerPoint = screenCenter(fixture.sheet.getTableHeader(), fixture.sheet.getTableHeader().getHeaderRect(column));
@@ -1854,6 +1825,14 @@ class TaskTableGanttGridGuiAcceptanceTest {
 				assertTrue(((javax.swing.JComponent) component).getBorder() instanceof LineBorder,
 					"active header must retain its visible focus border");
 		}
+	}
+
+	/** The popup item with this text, so tests do not depend on menu order. */
+	private static JMenuItem menuItemWithText(JPopupMenu menu, String text) {
+		for (java.awt.Component component : menu.getComponents())
+			if (component instanceof JMenuItem item && text.equals(item.getText()))
+				return item;
+		throw new AssertionError("popup has no item " + text);
 	}
 
 	/**

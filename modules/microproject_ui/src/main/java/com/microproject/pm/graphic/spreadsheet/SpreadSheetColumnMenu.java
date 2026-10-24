@@ -142,14 +142,14 @@ public class SpreadSheetColumnMenu extends JPopupMenu {
 		
 		add(insert);
 		add(hide);
+		if (f.isCustom())
+			add(rename);
 		if (sp instanceof SpreadSheet sheet) {
 			// Microsoft Project "Header Wrapping" (Table Definition): default on, per column.
 			headerWrap.setSelected(sheet.isColumnHeaderWrap(col));
 			headerWrap.addActionListener(event -> sheet.setColumnHeaderWrap(col, !sheet.isColumnHeaderWrap(col)));
 			add(headerWrap);
 		}
-		if (f.isCustom())
-			add(rename);
 		add(find);
 		add(autoFilter);
 	}
