@@ -49,6 +49,10 @@ public class CommonTableHeader extends JTableHeader {
     		setDefaultRenderer(new SafeHeaderRenderer());
     	}
     	FlatUiSupport.applyTableHeaderStyle(this);
+    	// Each header cell renderer owns its own edges. A container border is painted
+    	// after the cells and would draw the separator over the active column's
+    	// bottom outline (#860); FlatTableHeaderUI still paints the trailing separator.
+    	setBorder(null);
     	resizeAndRepaint();
     	invalidate();//PENDING
         }
