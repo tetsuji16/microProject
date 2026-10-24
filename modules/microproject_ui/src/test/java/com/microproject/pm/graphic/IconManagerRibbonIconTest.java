@@ -25,18 +25,18 @@
 package com.microproject.pm.graphic;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Color;
+import java.awt.Image;
+import java.awt.image.ImageObserver;
 import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.awt.image.PixelGrabber;
 import java.util.LinkedHashSet;
 import java.util.ArrayList;
 import java.util.List;
@@ -44,12 +44,12 @@ import java.util.Set;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import javax.imageio.ImageIO;
 import javax.accessibility.AccessibleRole;
+import javax.swing.Icon;
+import javax.swing.ImageIcon;
 import javax.swing.JLabel;
 import javax.swing.SwingUtilities;
 
-import com.formdev.flatlaf.extras.FlatSVGIcon;
 import com.microproject.pm.graphic.spreadsheet.renderer.IndicatorsRenderer;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -60,7 +60,7 @@ import com.microproject.menu.testsupport.RibbonInventory;
 
 class IconManagerRibbonIconTest {
 	@Test
-	void informationIconsRetainVectorRenderingAtCommonScaleFactors() throws Exception {
+	void informationIconsRenderScaleSpecificDetailAtCommonScaleFactors() throws Exception {
 		var taskHeader = IconManager.getIcon("infomation.icon");
 		var ribbon = IconManager.getRibbonIcon("ribbon.information", 16, 16);
 		JLabel[] header = new JLabel[1];
@@ -72,39 +72,27 @@ class IconManagerRibbonIconTest {
 		assertNotNull(taskHeader);
 		assertNotNull(ribbon);
 
-		captureScaleEvidence("task-header", taskHeader);
-		captureScaleEvidence("ribbon-information", ribbon);
-
-		assertInstanceOf(FlatSVGIcon.class, taskHeader,
-			"the task-table information header must remain vector-backed for HiDPI painting");
-		assertInstanceOf(FlatSVGIcon.class, ribbon,
-			"the ribbon information icon must remain vector-backed for HiDPI painting");
 		for (var icon : List.of(taskHeader, ribbon)) {
 			assertEquals(16, icon.getIconWidth());
 			assertEquals(16, icon.getIconHeight());
-			BufferedImage rasterAtLogicalSize = paint(icon, 16, 16);
 			for (double scale : new double[] {1.0, 1.25, 1.5}) {
 				BufferedImage scaled = paintAtScale(icon, scale);
 				assertTrue(hasVisiblePixel(scaled),
 					() -> "information icon must render at " + scale + "x");
 				if (scale > 1.0) {
-					BufferedImage enlargedRaster = enlarge(rasterAtLogicalSize, scaled.getWidth(), scaled.getHeight());
-					assertTrue(differingPixelCount(scaled, enlargedRaster) > 0,
-						() -> "" + scale + "x rendering must contain detail beyond a 16px raster enlargement");
+					assertScaleSpecificRendering(icon, scale,
+						"information icon");
 				}
 			}
 		}
 	}
 
 	@Test
-	void taskRibbonBandIconsRemainVectorBackedAcrossScaleAndStateVariants() {
+	void taskRibbonBandIconsPaintScaleSpecificNormalAndStateVariants() throws InterruptedException {
 		Color tint = new Color(0x5b, 0x6f, 0x91);
 		for (String key : List.of("ribbon.moveTaskUp", "ribbon.markOnTrack", "ribbon.delete")) {
-			for (int size : new int[] {16, 20, 32}) {
-				assertInstanceOf(FlatSVGIcon.class, IconManager.getRibbonIcon(key, size, size),
-					() -> key + " must use its SVG source at " + size + " logical pixels");
-			}
-
+			assertTrue(standardRibbonKeys().contains(key),
+				() -> key + " must remain covered by the shared 16/20/32px icon-size matrix");
 			var normal = IconManager.getRibbonIcon(key, 32, 32);
 			var disabled = IconManager.getRibbonIconDisabled(key, 32, 32);
 			var tinted = IconManager.getRibbonIconTinted(key, 32, 32, tint);
@@ -118,13 +106,16 @@ class IconManagerRibbonIconTest {
 			BufferedImage logicalNormal = paint(normal, 32, 32);
 			BufferedImage logicalDisabled = paint(disabled, 32, 32);
 			BufferedImage logicalTinted = paint(tinted, 32, 32);
-			assertEquals(Math.round(maxAlpha(logicalNormal) * 0.38f), maxAlpha((BufferedImage) disabled.getImage()),
+			BufferedImage disabledImage = copyImagePixels(disabled.getImage());
+			BufferedImage tintedImage = copyImagePixels(tinted.getImage());
+			assertTrue(hasVisiblePixel(disabledImage),
+				key + " disabled ImageIcon image must retain visible pixels");
+			assertTrue(hasVisiblePixel(tintedImage),
+				key + " tinted ImageIcon image must retain visible pixels");
+			assertEquals(Math.round(maxAlpha(logicalNormal) * 0.38f), maxAlpha(disabledImage),
 				key + " disabled getImage must preserve its opacity semantics");
-			assertTrue(opaquePixelsMatchRgbWithin((BufferedImage) tinted.getImage(), tint, 0),
+			assertTrue(opaquePixelsMatchRgbWithin(tintedImage, tint, 0),
 				key + " tinted getImage must retain the exact requested interior colour");
-			captureScaleEvidence(key + "-normal", normal);
-			captureScaleEvidence(key + "-disabled", disabled);
-			captureScaleEvidence(key + "-tinted", tinted);
 			for (double scale : new double[] {1.0, 1.25, 1.5}) {
 				int scaledSize = (int) Math.ceil(32 * scale);
 				BufferedImage normalAtScale = paintAtScale(normal, scale);
@@ -145,26 +136,50 @@ class IconManagerRibbonIconTest {
 				assertEquals(maxAlpha(normalAtScale), maxAlpha(tintedAtScale),
 					key + " tinting must preserve source opacity at " + scale + "x");
 				if (scale > 1.0) {
-					BufferedImage enlargedRaster = enlarge(logicalNormal, scaledSize, scaledSize);
-					assertTrue(differingPixelCount(normalAtScale, enlargedRaster) > 0,
-						key + " " + scale + "x vector render must add detail beyond raster enlargement");
-					assertTrue(differingPixelCount(disabledAtScale, enlarge(logicalDisabled, scaledSize, scaledSize)) > 0,
-						key + " " + scale + "x disabled render must add detail beyond raster enlargement");
-					assertTrue(differingPixelCount(tintedAtScale, enlarge(logicalTinted, scaledSize, scaledSize)) > 0,
-						key + " " + scale + "x tinted render must add detail beyond raster enlargement");
+					assertScaleSpecificRendering(normal, scale, key + " normal");
+					assertScaleSpecificRendering(disabled, scale, key + " disabled");
+					assertScaleSpecificRendering(tinted, scale, key + " tinted");
 				}
 			}
 		}
 	}
 
 	@Test
-	void rasterizedRibbonIconsAreCachedByNameAndSize() {
+	void pngOnlyRibbonIconUsesFallbackForNormalDisabledAndTintedStates() {
+		String key = "ribbon.saveAll";
+		Color tint = new Color(0x5b, 0x6f, 0x91);
+		assertEquals("document-save-all.png", IconManager.getConfiguredIconName(key));
+		assertFalse(IconManager.hasSvgResource(key), "the fallback fixture must remain PNG-only");
+		assertFalse(IconManager.hasSizeSpecificRibbonResource(key, 32),
+			"the fallback fixture must not gain an optically sized SVG");
+
+		var normal = IconManager.getRibbonIcon(key, 32, 32);
+		var disabled = IconManager.getRibbonIconDisabled(key, 32, 32);
+		var tinted = IconManager.getRibbonIconTinted(key, 32, 32, tint);
+		assertNotNull(normal);
+		assertNotNull(disabled);
+		assertNotNull(tinted);
+		BufferedImage normalImage = paint(normal, 32, 32);
+		BufferedImage disabledImage = paint(disabled, 32, 32);
+		BufferedImage tintedImage = paint(tinted, 32, 32);
+		assertTrue(hasVisiblePixel(normalImage), "PNG fallback should remain visible");
+		assertTrue(allVisiblePixelsAreGray(disabledImage), "PNG fallback disabled state should remain grayscale");
+		assertEquals(Math.round(maxAlpha(normalImage) * 0.38f), maxAlpha(disabledImage),
+			"PNG fallback disabled state should retain its 38% source opacity");
+		assertTrue(opaquePixelsMatchRgbWithin(tintedImage, tint, 0),
+			"PNG fallback tinted state should retain the exact requested interior color");
+		assertEquals(maxAlpha(normalImage), maxAlpha(tintedImage),
+			"PNG fallback tinting should preserve source opacity");
+	}
+
+	@Test
+	void ribbonIconsAreCachedByNameAndSize() {
 		var first = IconManager.getRibbonIcon("ribbon.open", 20, 20);
 		var repeated = IconManager.getRibbonIcon("ribbon.open", 20, 20);
 		var otherSize = IconManager.getRibbonIcon("ribbon.open", 32, 32);
 
-		assertSame(first, repeated, "rebuilding the same ribbon group should reuse its rasterized icon");
-		assertNotSame(first, otherSize, "each optical size needs its own cached raster");
+		assertSame(first, repeated, "the same ribbon key and size should reuse its cached icon");
+		assertNotSame(first, otherSize, "each optical size needs its own cached icon");
 	}
 
 	@Test
@@ -360,6 +375,20 @@ class IconManagerRibbonIconTest {
 		return canvas;
 	}
 
+	private static BufferedImage copyImagePixels(Image image) throws InterruptedException {
+		int width = image.getWidth(null);
+		int height = image.getHeight(null);
+		assertTrue(width > 0 && height > 0, "ImageIcon image must have a known natural size");
+		int[] pixels = new int[width * height];
+		PixelGrabber grabber = new PixelGrabber(image, 0, 0, width, height, pixels, 0, width);
+		assertTrue(grabber.grabPixels(5_000), "ImageIcon image pixels must be available within five seconds");
+		assertEquals(0, grabber.getStatus() & (ImageObserver.ERROR | ImageObserver.ABORT),
+			"ImageIcon image pixel extraction must not fail or abort");
+		BufferedImage canvas = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+		canvas.setRGB(0, 0, width, height, pixels, 0, width);
+		return canvas;
+	}
+
 	private static BufferedImage paintAtScale(javax.swing.Icon icon, double scale) {
 		int width = (int) Math.ceil(icon.getIconWidth() * scale);
 		int height = (int) Math.ceil(icon.getIconHeight() * scale);
@@ -368,19 +397,6 @@ class IconManagerRibbonIconTest {
 		try {
 			g2.scale(scale, scale);
 			icon.paintIcon(null, g2, 0, 0);
-		} finally {
-			g2.dispose();
-		}
-		return image;
-	}
-
-	private static BufferedImage enlarge(BufferedImage source, int width, int height) {
-		BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
-		var g2 = image.createGraphics();
-		try {
-			g2.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION,
-				java.awt.RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-			g2.drawImage(source, 0, 0, width, height, null);
 		} finally {
 			g2.dispose();
 		}
@@ -398,21 +414,30 @@ class IconManagerRibbonIconTest {
 		return count;
 	}
 
-	private static void captureScaleEvidence(String iconName, javax.swing.Icon icon) {
-		String evidenceDirectory = System.getProperty("microproject.issue861.evidenceDir");
-		if (evidenceDirectory == null || evidenceDirectory.isBlank())
-			return;
-		try {
-			Path directory = Path.of(evidenceDirectory);
-			Files.createDirectories(directory);
-			for (double scale : new double[] {1.0, 1.25, 1.5}) {
-				String scaleName = (int) Math.round(scale * 100) + "";
-				Path output = directory.resolve(iconName + "-" + scaleName + ".png");
-				ImageIO.write(paintAtScale(icon, scale), "png", output.toFile());
-			}
-		} catch (IOException ex) {
-			throw new UncheckedIOException("Unable to save issue #861 icon evidence", ex);
-		}
+	private static void assertScaleSpecificRendering(Icon icon, double scale, String description) {
+		int width = icon.getIconWidth();
+		int height = icon.getIconHeight();
+		BufferedImage logicalRaster = paint(icon, width, height);
+		Icon fixedRaster = new ImageIcon(logicalRaster);
+		assertThrows(AssertionError.class,
+			() -> assertScaleDetailCriterion(fixedRaster, scale, description + " fixed-raster negative control"),
+			description + " fixed-raster negative control must be rejected");
+		assertScaleDetailCriterion(icon, scale, description);
+	}
+
+	private static void assertScaleDetailCriterion(Icon icon, double scale, String description) {
+		BufferedImage logicalRaster = paint(icon, icon.getIconWidth(), icon.getIconHeight());
+		BufferedImage scaledRender = paintAtScale(icon, scale);
+		BufferedImage fixedRasterRender = paintAtScale(new ImageIcon(logicalRaster), scale);
+		int outputPixels = scaledRender.getWidth() * scaledRender.getHeight();
+		// Observed differences are at least 11%; 1% excludes isolated noise while
+		// keeping ample headroom for platform-specific antialiasing.
+		int minimumDifference = Math.max(2, (int) Math.ceil(outputPixels * 0.01));
+		int differentPixels = differingPixelCount(scaledRender, fixedRasterRender);
+		assertTrue(differentPixels >= minimumDifference,
+			() -> description + " at " + scale + "x must resolve detail beyond the fixed-raster control: "
+				+ differentPixels + "/" + outputPixels + " differing pixels (minimum "
+				+ minimumDifference + ", 1% of output pixels)");
 	}
 
 	private static int visibleColorCount(BufferedImage image) {

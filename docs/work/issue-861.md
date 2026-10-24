@@ -1,10 +1,11 @@
 # Issue #861 — HiDPI information and ribbon icons
 
-State: IN PROGRESS (candidate CI pending)
+State: CLOSED (PR #913 merged; issue closed)
 Issue: https://github.com/tetsuji16/microProject/issues/861
 Contract frozen: 2026-10-24
 Integration base: `7cbc3beba28adc16f46b1a8bcd9af2c0e20e9ef9`
 Candidate commit: `24ceaa220d468b7afe42437bb4910b0956b66691`
+Merged PR: [#913](https://github.com/tetsuji16/microProject/pull/913), head `70027b6fa803fc8ab40b6ab84e0d04f069f399f7`, merged 2026-10-24.
 
 ## Goal and scope
 
@@ -32,9 +33,8 @@ wrappers preserve `ImageIcon.getImage()` and non-Graphics2D behavior.
 
 ## Current slice
 
-Only candidate CI remains. After CI passes, Sol can integrate the packet and
-evidence, then close the issue. The user's original physical scale is restored
-to 100%.
+All acceptance criteria passed. The user's original physical scale is restored
+to 100%, and issue #861 is closed.
 
 ## Verification
 
@@ -43,7 +43,10 @@ to 100%.
 - `:microproject_ui:test --console=plain` — 1,293 tests, 0 failures. The run started while Windows was at 150% and finished after the user restored 100%; the module tests are not physical GUI acceptance.
 - `:microproject_ui:installDist --console=plain` — pass; candidate distribution was relaunched for physical captures.
 - The help-icon test now paints the `Icon` into a buffer rather than assuming `ImageIcon.getImage()` is a `BufferedImage`; its white-fill, green-stroke, and multicolor assertions remain. Baseline-only test passed; candidate initially exposed this changed vector-image contract; targeted and full reruns pass after the test update.
-- Candidate commit `24ceaa220d468b7afe42437bb4910b0956b66691` has PR CI pending.
+- PR #913 Build [run 40092934809](https://github.com/tetsuji16/microProject/actions/runs/40092934809) — success.
+- PR #913 GUI acceptance [run 40092934821](https://github.com/tetsuji16/microProject/actions/runs/40092934821) — success.
+- Post-merge local test review at base `bd09807853d9981cd24a7a2c327c68f3aa8f9956`: focused icon and help-icon tests pass; `:microproject_ui:test --console=plain` passes (1,294 tests, 0 failures/errors). Changes are uncommitted test-only follow-ups separate from merged PR #913.
+- The review removes implementation-class assertions, compares scaled rendering to a same-painter fixed-raster control and proves that control is rejected, checks PNG-only fallback states, and preserves `getImage()` pixel semantics through bounded `PixelGrabber` extraction.
 
 ## Physical evidence
 
