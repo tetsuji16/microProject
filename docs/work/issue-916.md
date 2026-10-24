@@ -21,6 +21,7 @@ had no tracked modifications; unrelated untracked entries were `.codex-remote-at
 
 ## Evidence boundaries
 
+- MPXJ's accepted binary families are 8/9/12/14; app fixtures cover 9/14. #917 owns missing 8/12 application semantics, malformed/unknown-token failure proof, working-calendar semantics beyond names, and the MPP-derived baseline MPO assertion (the existing case later persists its MSPDI-derived project).
 - MPP manifests assert only listed fields for checked-in MPP9/2013/2019 fixtures; Microsoft 365 Project and Project 2024 authored files/builds are unverified. Fixture README provenance is linked in the inventory.
 - XML assignment baseline timephased work **and cost** have literal XML/MPO round-trip evidence, including zero/missing distinctions. This does not establish general XML parity.
 - MPO fixtures establish selected prior-release 0.0.23 reads and a previous-writer schedule/work reopen, not arbitrary future-version compatibility.

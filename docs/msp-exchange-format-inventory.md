@@ -67,14 +67,20 @@ cannot silently select another writer.
 
 ## Current semantic coverage and known losses
 
+- The pinned [MPXJ 11.5.4 MPPReader dispatch](https://github.com/joniles/mpxj/blob/v11.5.4/src/main/java/net/sf/mpxj/mpp/MPPReader.java#L410-L424) registers MPP/MPT/GLOBAL format families 8, 9, 12 and 14; unknown format tokens fail `INVALID_FILE`. This describes dependency decoding, not proven application semantics. Fixed semantic fixtures currently cover MPP9 and MPP14; MPP8/12 and explicit unknown-token/malformed-input failure behavior need their own application evidence in #917.
 - MPP read: `MpxExportTrackingTest` compares three fixture groups with fixed
   manifests: MPP9 contour (10 daily intervals/55h), Project 2019 MPP14 (editor
   build 16.0.10730.20102; paired MSPDI manifests include links, assignment
-  progress and calendars), and Project 2013 MPP14 task constraint
+  progress and calendar names), and Project 2013 MPP14 task constraint
   (`MUST_START_ON`, 2006-08-23). Claims are limited to asserted manifest fields;
   this is not broad MSP parity. Microsoft 365/Project 2024 editions and other
   builds remain unverified. No authoring provenance is inferred beyond the
   checked-in fixture README/header.
+  Calendar-name assertions do not prove working-week/exception semantics.
+  `project2019TaskBaselineSlotsMatchIndependentManifestAndMpoReload` checks
+  imported MPP baseline duration/cost slots 0/1/10, but its later MPO assertions
+  use the MSPDI-derived project. MPP-derived baseline persistence therefore
+  remains a missing assertion owned by #917, not a passing round-trip claim.
 - MPP write: unsupported and explicitly outside product scope; MPO is the native
   save format. MPP read/import remains in scope.
 - XML: import/export supports task baselines 0–10 for start, finish, and
