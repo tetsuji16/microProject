@@ -1316,7 +1316,6 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		if (!isCanModifyColumns() || !(getFieldArray() instanceof SpreadSheetFieldArray fields)
 				|| fieldIndex < 1 || fieldIndex >= fields.size() || fields.isHeaderWrap(fieldIndex) == wrap)
 			return false;
-		// Snapshot the widths on screen: switching wrapping must not undo a dragged column width.
 		SpreadSheetFieldArray before = (SpreadSheetFieldArray) getFieldArrayWithWidths(fields).clone();
 		SpreadSheetFieldArray after = ((SpreadSheetFieldArray) before.clone()).withHeaderWrap(fieldIndex, wrap);
 		applyColumnLayoutChange(before, after, fieldIndex - 1, Messages.getString("SpreadSheetColumnMenu.HeaderWrap"));
@@ -1717,7 +1716,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			return false;
 		}
 
-		SpreadSheetFieldArray before = (SpreadSheetFieldArray) fields.clone();
+		SpreadSheetFieldArray before = (SpreadSheetFieldArray) getFieldArrayWithWidths(fields).clone();
 		SpreadSheetFieldArray after = fields.removeField(fieldIndex);
 		applyColumnLayoutChange(before, after, viewColumn, Messages.getString("SpreadSheetColumnMenu.HideColumn"));
 		return true;
@@ -1783,7 +1782,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			}
 		}
 		int insertionIndex = Math.max(1, Math.min(fieldIndex, fields.size()));
-		SpreadSheetFieldArray before = (SpreadSheetFieldArray) fields.clone();
+		SpreadSheetFieldArray before = (SpreadSheetFieldArray) getFieldArrayWithWidths(fields).clone();
 		SpreadSheetFieldArray after = fields.insertField(insertionIndex, field);
 		applyColumnLayoutChange(before, after, insertionIndex - 1,
 				Messages.getString("SpreadSheetColumnMenu.InsertColumn"));
@@ -1798,12 +1797,17 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	public boolean applyColumnLayoutPreset(SpreadSheetFieldArray fields, String presentationName) {
 		if (!isCanModifyColumns() || fields == null || !(getFieldArray() instanceof SpreadSheetFieldArray current))
 			return false;
-		SpreadSheetFieldArray before = (SpreadSheetFieldArray) current.clone();
+		SpreadSheetFieldArray before = (SpreadSheetFieldArray) getFieldArrayWithWidths(current).clone();
 		SpreadSheetFieldArray after = (SpreadSheetFieldArray) fields.clone();
 		applyColumnLayoutChange(before, after, 0, presentationName);
 		return true;
 	}
 
+	/**
+	 * Applies a column layout as one undoable edit. Callers snapshot the layout with
+	 * {@link #getFieldArrayWithWidths}, and both directions apply it with its widths,
+	 * so a column width the user dragged survives the change and its Undo/Redo (#895).
+	 */
 	private void applyColumnLayoutChange(SpreadSheetFieldArray before, SpreadSheetFieldArray after,
 			int preferredColumn, String presentationName) {
 		Project project = getLayoutProject();
@@ -1811,7 +1815,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			project.setFieldArray(after);
 			project.setDirty(true);
 		}
-		setFieldArray(after);
+		setFieldArrayWithWidths(after);
 		selectColumnAfterColumnChange(Math.min(preferredColumn, getColumnCount() - 1));
 
 		var cache = getCache();
@@ -1886,7 +1890,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			SpreadSheet target = findLayoutTarget(model.get(), category, source.get());
 			if (target == null)
 				return;
-			target.setFieldArray(restoredFields);
+			target.setFieldArrayWithWidths(restoredFields);
 			target.selectColumnAfterColumnChange(Math.min(preferredColumn, target.getColumnCount() - 1));
 		}
 
