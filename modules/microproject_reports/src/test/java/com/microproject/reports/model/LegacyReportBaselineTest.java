@@ -167,6 +167,11 @@ class LegacyReportBaselineTest {
 					if (fieldId.equals("Field.baseCalendar") && "Standard".equals(raw)
 							&& expected.equals("Standard")
 							&& oldText.stream().anyMatch(text -> text.contains("標準"))) continue;
+					if (raw instanceof Boolean bool && oldText.stream().anyMatch(text -> text.contains(bool.toString()))) {
+						// #899: Yes/No fields print Microsoft Project's text where the frozen report printed true/false.
+						measuredDifferences.add(name + " Yes/No display delta " + fieldId);
+						continue;
+					}
 					if (raw == null && "<N/A>".equals(expected)) {
 						measuredDifferences.add(name + " null display delta " + replacement.columns().get(column).getId());
 						continue;
@@ -182,7 +187,8 @@ class LegacyReportBaselineTest {
 		}
 		assertEquals(EXPECTED_REPORTS.size(), reportCount);
 		}
-		assertEquals(Set.of("Resource Information formatting delta Field.standardRate",
+		assertEquals(Set.of("Task Information Yes/No display delta Field.manuallyScheduled",
+			"Resource Information formatting delta Field.standardRate",
 			"Resource Information formatting delta Field.overtimeRate",
 			"Resource Information formatting delta Field.costPerUse"), measuredDifferences);
 		} finally {

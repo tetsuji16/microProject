@@ -1407,6 +1407,10 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	protected void processMouseEvent(MouseEvent e) {
 		int[] taskRowsBeforePress = e.getID() == MouseEvent.MOUSE_PRESSED && isTaskTable()
 				&& SwingUtilities.isLeftMouseButton(e) ? getSelectedRows() : null;
+		// Microsoft Project: "click in the field" of the active Yes/No cell opens its
+		// list. BasicTableUI moves the selection while handling the press, so the
+		// active-cell test must run first.
+		boolean openYesNoList = isClickOnActiveYesNoCell(e);
 		super.processMouseEvent(e);
 		if (!tableMouseHandlerInstalled)
 			return;
@@ -1423,6 +1427,8 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			if (taskRowsBeforePress != null && (e.isControlDown() || e.isMetaDown() || e.isShiftDown()))
 				restoreTaskRowSelection(taskRowsBeforePress, getSelection().getActiveRow(), getSelection().getActiveColumn());
 			handleTableMousePressed(e);
+			if (openYesNoList)
+				startListEditing(rowAtPoint(e.getPoint()), columnAtPoint(e.getPoint()), null);
 			if (popupTriggerController.mousePressed(e))
 				handleTablePopupTrigger(e);
 			if (isTaskTable() && SwingUtilities.isLeftMouseButton(e)) {
@@ -1494,6 +1500,19 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 				cellRangeActiveColumn = getSelection().getActiveColumn();
 			}
 		}
+	}
+
+	/** A single plain left click on the already active, single selected Yes/No cell. */
+	private boolean isClickOnActiveYesNoCell(MouseEvent e) {
+		if (e.getID() != MouseEvent.MOUSE_PRESSED || !SwingUtilities.isLeftMouseButton(e) || e.getClickCount() != 1
+				|| e.isControlDown() || e.isMetaDown() || e.isShiftDown() || e.isPopupTrigger() || isEditing()
+				|| !tableMouseHandlerInstalled || getSelection() == null || getSelectedRowCount() != 1
+				|| isHeaderColumnSelectionActive() || isRowHeaderSelectionActive())
+			return false;
+		int row = rowAtPoint(e.getPoint());
+		int column = columnAtPoint(e.getPoint());
+		return row >= 0 && column >= 0 && getSelection().isActiveCell(row, column)
+				&& isYesNoListCell(row, column);
 	}
 
 	void handleTableMousePressed(MouseEvent e) {

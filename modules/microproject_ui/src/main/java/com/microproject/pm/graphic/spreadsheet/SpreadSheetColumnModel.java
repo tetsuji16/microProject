@@ -46,10 +46,11 @@ import com.microproject.pm.graphic.spreadsheet.editor.SimpleEditor;
 import com.microproject.pm.graphic.spreadsheet.editor.SpinEditor;
 import com.microproject.pm.graphic.spreadsheet.editor.SpreadSheetCellEditorAdapter;
 import com.microproject.pm.graphic.spreadsheet.editor.SpreadSheetNameCellEditor;
+import com.microproject.pm.graphic.spreadsheet.editor.YesNoComboBoxEditor;
 import com.microproject.pm.graphic.spreadsheet.renderer.DateRenderer;
 import com.microproject.pm.graphic.spreadsheet.renderer.IndicatorsRenderer;
 import com.microproject.pm.graphic.spreadsheet.renderer.LookupRenderer;
-import com.microproject.pm.graphic.spreadsheet.renderer.OfflineCapableBooleanRenderer;
+import com.microproject.pm.graphic.spreadsheet.renderer.YesNoRenderer;
 import com.microproject.pm.graphic.spreadsheet.renderer.PercentRenderer;
 import com.microproject.pm.graphic.spreadsheet.renderer.RateRenderer;
 import com.microproject.pm.graphic.spreadsheet.renderer.SimpleRenderer;
@@ -57,6 +58,7 @@ import com.microproject.pm.graphic.spreadsheet.renderer.SpreadSheetCellRendererA
 import com.microproject.pm.graphic.spreadsheet.renderer.SpreadSheetColumnHeaderRenderer;
 import com.microproject.pm.graphic.spreadsheet.renderer.SpreadSheetNameCellRenderer;
 import com.microproject.configuration.Configuration;
+import com.microproject.field.BooleanText;
 import com.microproject.field.Field;
 import com.microproject.graphic.configuration.SpreadSheetFieldArray;
 
@@ -240,7 +242,9 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 				} else if (field.isDate()) {
 					tc.setCellRenderer(new SpreadSheetCellRendererAdapter(new DateRenderer()));
 				} else if (field.isBoolean()){
-					tc.setCellRenderer(new SpreadSheetCellRendererAdapter(new OfflineCapableBooleanRenderer()));
+					// Microsoft Project has no check boxes: Yes/No text, chosen from a list (#899).
+					tc.setCellRenderer(new SpreadSheetCellRendererAdapter(new YesNoRenderer(field.getId())));
+					tc.setCellEditor(new SpreadSheetCellEditorAdapter(new YesNoComboBoxEditor(field.getId())));
 				} else {
 					//SimpleRenderer in other cases, LC 8/2006
 					tc.setCellRenderer(new SpreadSheetCellRendererAdapter(new SimpleRenderer()));
@@ -266,6 +270,7 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 		if ("Field.name".equals(fieldId)) return 140;
 		if ("Field.start".equals(fieldId) || "Field.finish".equals(fieldId)) return 100;
 		if ("Field.duration".equals(fieldId)) return 60;
+		if (BooleanText.isTaskMode(fieldId)) return 110; // icon + 手動スケジュール (#899)
 		return 1;
 	}
 
