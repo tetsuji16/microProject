@@ -46,10 +46,11 @@ import com.microproject.pm.graphic.spreadsheet.editor.SimpleEditor;
 import com.microproject.pm.graphic.spreadsheet.editor.SpinEditor;
 import com.microproject.pm.graphic.spreadsheet.editor.SpreadSheetCellEditorAdapter;
 import com.microproject.pm.graphic.spreadsheet.editor.SpreadSheetNameCellEditor;
+import com.microproject.pm.graphic.spreadsheet.editor.YesNoComboBoxEditor;
 import com.microproject.pm.graphic.spreadsheet.renderer.DateRenderer;
 import com.microproject.pm.graphic.spreadsheet.renderer.IndicatorsRenderer;
 import com.microproject.pm.graphic.spreadsheet.renderer.LookupRenderer;
-import com.microproject.pm.graphic.spreadsheet.renderer.OfflineCapableBooleanRenderer;
+import com.microproject.pm.graphic.spreadsheet.renderer.YesNoRenderer;
 import com.microproject.pm.graphic.spreadsheet.renderer.PercentRenderer;
 import com.microproject.pm.graphic.spreadsheet.renderer.RateRenderer;
 import com.microproject.pm.graphic.spreadsheet.renderer.SimpleRenderer;
@@ -57,6 +58,7 @@ import com.microproject.pm.graphic.spreadsheet.renderer.SpreadSheetCellRendererA
 import com.microproject.pm.graphic.spreadsheet.renderer.SpreadSheetColumnHeaderRenderer;
 import com.microproject.pm.graphic.spreadsheet.renderer.SpreadSheetNameCellRenderer;
 import com.microproject.configuration.Configuration;
+import com.microproject.field.BooleanText;
 import com.microproject.field.Field;
 import com.microproject.graphic.configuration.SpreadSheetFieldArray;
 
@@ -73,6 +75,8 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 	private Map<String,Integer> colWidthMap;
 	private final Set<String> configuredWidthFields = new HashSet<>();
 	private final Set<String> manuallyAdjustedWidthFields = new HashSet<>();
+	/** Field ids whose heading must stay on one line (wrapping is the default). */
+	private final Set<String> unwrappedHeaderFields = new HashSet<>();
 	private boolean applyingSavedWidths;
 
 	boolean svg;
@@ -126,8 +130,12 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 				continue;
 			}
 
-			int width = preferredWidth(column.getHeaderRenderer()
-					.getTableCellRendererComponent(table, field.getName(), false, false, -1, viewColumn));
+			// The content width of a heading is its single-line width, whatever the
+			// current column width or wrapping state.
+			int width = column.getHeaderRenderer() instanceof SpreadSheetColumnHeaderRenderer headerRenderer
+					? headerRenderer.singleLineWidth(table, field.getName(), viewColumn)
+					: preferredWidth(column.getHeaderRenderer()
+						.getTableCellRendererComponent(table, field.getName(), false, false, -1, viewColumn));
 			for (int row = 0; row < table.getRowCount(); row++) {
 				Component component = table.prepareRenderer(table.getCellRenderer(row, viewColumn), row, viewColumn);
 				width = Math.max(width, component.getPreferredSize().width);
@@ -240,7 +248,9 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 				} else if (field.isDate()) {
 					tc.setCellRenderer(new SpreadSheetCellRendererAdapter(new DateRenderer()));
 				} else if (field.isBoolean()){
-					tc.setCellRenderer(new SpreadSheetCellRendererAdapter(new OfflineCapableBooleanRenderer()));
+					// Microsoft Project has no check boxes: Yes/No text, chosen from a list (#899).
+					tc.setCellRenderer(new SpreadSheetCellRendererAdapter(new YesNoRenderer(field.getId())));
+					tc.setCellEditor(new SpreadSheetCellEditorAdapter(new YesNoComboBoxEditor(field.getId())));
 				} else {
 					//SimpleRenderer in other cases, LC 8/2006
 					tc.setCellRenderer(new SpreadSheetCellRendererAdapter(new SimpleRenderer()));
@@ -266,6 +276,7 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 		if ("Field.name".equals(fieldId)) return 140;
 		if ("Field.start".equals(fieldId) || "Field.finish".equals(fieldId)) return 100;
 		if ("Field.duration".equals(fieldId)) return 60;
+		if (BooleanText.isTaskMode(fieldId)) return 110; // icon + 手動スケジュール (#899)
 		return 1;
 	}
 
@@ -296,6 +307,24 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 	public void setFieldArray(ArrayList<Field> fieldArray) {
 		this.fieldArray = fieldArray;
 		originalFieldArray = new ArrayList<>(fieldArray);
+		unwrappedHeaderFields.clear();
+		if (fieldArray instanceof SpreadSheetFieldArray fields) {
+			for (int index = 0; index < fields.size(); index++) {
+				Field field = fields.get(index);
+				if (field != null && !fields.isHeaderWrap(index))
+					unwrappedHeaderFields.add(field.getId());
+			}
+		}
+	}
+
+	/** Whether the heading of the given view column may wrap onto several lines. */
+	public boolean isHeaderWrap(int viewColumn) {
+		Field field = getFieldInViewColumn(viewColumn);
+		return field == null || !unwrappedHeaderFields.contains(field.getId());
+	}
+
+	public boolean isHeaderWrap(String fieldId) {
+		return !unwrappedHeaderFields.contains(fieldId);
 	}
 
 	public int getColWidth() {

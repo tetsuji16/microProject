@@ -110,6 +110,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 	private JFrame frame;
 	private Gantt gantt;
 	private TaskSelectionController selectionController;
+	private com.microproject.pm.graphic.timescale.ScaledScrollPane ganttTimescalePane;
 	private GraphicManager popupGraphicManager;
 	@AfterEach
 	void closeWindow() throws Exception {
@@ -583,6 +584,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			assertEquals(Set.of(retainedRow[0]), fixture.gantt.getHighlightedRows(),
 				"a presentation-only column selection must not select every Gantt task row");
 		});
+		assertActiveHeaderOutlineClosedOnScreen(robot, fixture.sheet, column);
 
 		int cellRow = 0;
 		Point cellAfterHeader = screenCenter(fixture.sheet, fixture.sheet.getCellRect(cellRow, column, true));
@@ -958,6 +960,17 @@ class TaskTableGanttGridGuiAcceptanceTest {
 
 		int fieldIndex = fixture.sheet.getFieldArray().indexOf(customField);
 		assertTrue(fieldIndex > 0, "custom field must be visible after the hidden ID field");
+		StringBuilder layout = new StringBuilder("fieldArray=");
+		SwingUtilities.invokeAndWait(() -> {
+			for (Object field : fixture.sheet.getFieldArray())
+				layout.append(((Field) field).getId().replace("Field.", "")).append(' ');
+			layout.append("columns=");
+			for (int index = 0; index < fixture.sheet.getColumnModel().getColumnCount(); index++)
+				layout.append(fixture.sheet.getColumnModel().getColumn(index).getIdentifier() instanceof Field field
+					? field.getId().replace("Field.", "") : "?").append(' ');
+		});
+		assertTrue(fieldIndex - 1 < fixture.sheet.getColumnCount(),
+			"the field array and the visible columns disagree: " + layout);
 		int customColumn = fieldIndex - 1;
 		SwingUtilities.invokeAndWait(() -> fixture.sheet.scrollRectToVisible(fixture.sheet.getCellRect(0, customColumn, true)));
 		Point headerPoint = screenCenter(fixture.sheet.getTableHeader(), fixture.sheet.getTableHeader().getHeaderRect(customColumn));
@@ -976,7 +989,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			return false;
 		}, "physical header right-click did not open the custom-column popup");
 
-		JMenuItem rename = (JMenuItem) popup[0].getComponent(2);
+		JMenuItem rename = menuItemWithText(popup[0], com.microproject.strings.Messages.getString("RenameDialog.Rename"));
 		clickComponent(robot, rename);
 		Window dialog = awaitWindowWith(JTextField.class, "Rename dialog did not open from the physical custom-column popup");
 		JTextField input = findComponent(dialog, JTextField.class);
@@ -996,6 +1009,18 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		clickComponent(robot, ok);
 		GuiAcceptanceSupport.await(() -> "gui alias".equals(customField.getName()),
 			"physical Rename did not update the custom column alias");
+		StringBuilder after = new StringBuilder("fieldArray=");
+		SwingUtilities.invokeAndWait(() -> {
+			for (Object field : fixture.sheet.getFieldArray())
+				after.append(((Field) field).getId().replace("Field.", "")).append(' ');
+			after.append("columns=");
+			for (int index = 0; index < fixture.sheet.getColumnModel().getColumnCount(); index++)
+				after.append(fixture.sheet.getColumnModel().getColumn(index).getIdentifier() instanceof Field field
+					? field.getId().replace("Field.", "") : "?").append(' ');
+			after.append("undo=").append(fixture.project.getUndoController().getEditNames());
+		});
+		assertTrue(customColumn < fixture.sheet.getColumnCount(), "the custom column vanished after Rename. before: "
+			+ layout + " after: " + after);
 		assertEquals("gui alias", fixture.sheet.getColumnName(customColumn),
 			"spreadsheet header did not redraw the alias entered through Rename");
 		// Fields are dictionary singletons. Restore the fixture-independent alias
@@ -1062,6 +1087,302 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		List<String> selectedIds = fixture.sheet.getFieldArray().stream().map(Field::getId).toList();
 		List<String> reloadedIds = reloaded.getFieldArray().stream().map(Field::getId).toList();
 		assertEquals(selectedIds, reloadedIds, "MPO reload lost the field layout selected by preset " + selectedPreset);
+	}
+
+	/**
+	 * Issue #899 (with #894): the Task Mode column has no check boxes. A task row shows the icon and the Auto
+	 * Scheduled / Manually Scheduled text, a void row shows nothing, a click on the active cell opens the list,
+	 * choosing an item (mouse, or Alt+Down plus arrow and Enter) commits through the one field-edit Undo path.
+	 * Rendered pixels come from the screen.
+	 */
+	@Test
+	void physicalTaskModeColumnShowsTextAndIsChosenFromAList() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		final String fieldId = "Field.manuallyScheduled";
+		final String manualLabel = com.microproject.strings.Messages.getString("TaskMode.manual");
+		final String autoLabel = com.microproject.strings.Messages.getString("TaskMode.auto");
+		Fixture fixture = createFixture(3);
+		showFixture(fixture, true);
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(40);
+		SwingUtilities.invokeAndWait(() -> {
+			frame.toFront();
+			frame.requestFocus();
+			boolean present = fixture.sheet.getFieldArray().stream().anyMatch(field -> fieldId.equals(field.getId()));
+			if (!present) {
+				Field manual = fixture.sheet.getAvailableFields().stream().filter(field -> fieldId.equals(field.getId()))
+					.findFirst().orElseThrow(() -> new AssertionError("task field catalog lacks " + fieldId));
+				fixture.sheet.setFieldArray(((SpreadSheetFieldArray) fixture.sheet.getFieldArray())
+					.insertField(fixture.sheet.getFieldArray().size(), manual));
+			}
+		});
+		GuiAcceptanceSupport.await(() -> fixture.sheet.isShowing() && fixture.sheet.getColumnCount() > 1,
+			"task table was not ready for the Task Mode column check");
+		int column = findColumn(fixture.sheet, fieldId);
+		assertEquals(com.microproject.strings.Messages.getString("Field.manuallyScheduled"), fixture.sheet.getColumnName(column),
+			"the column header is the localized Task Mode");
+		GraphicNode node = (GraphicNode) fixture.gantt.getModel().getCache().getElementAt(0);
+		NormalTask task = (NormalTask) node.getNode().getImpl();
+		long taskUid = task.getUniqueId();
+		int taskRow = fixture.sheet.getCache().getRowAt(node);
+		int emptyRow = fixture.taskCount + 1;
+		int[] rowCount = new int[1];
+		SwingUtilities.invokeAndWait(() -> rowCount[0] = fixture.sheet.getRowCount());
+		assertTrue(rowCount[0] > emptyRow, "the sheet must expose void rows below the last task, rows=" + rowCount[0]);
+		assertFalse(task.isManuallyScheduled(), "fixture task must start auto-scheduled");
+
+		// Rendering: label text and icon on a task row, nothing on a void row, never a check box.
+		assertEquals(autoLabel, renderedText(fixture.sheet, taskRow, column), "a task row shows Auto Scheduled");
+		assertTrue(renderedHasIcon(fixture.sheet, taskRow, column), "a task row shows the Task Mode icon");
+		assertEquals("", renderedText(fixture.sheet, emptyRow, column), "a void row shows no text");
+		assertFalse(renderedHasIcon(fixture.sheet, emptyRow, column), "a void row shows no icon");
+		BufferedImage emptyBefore = captureCellInterior(robot, fixture.sheet, emptyRow, column);
+		BufferedImage taskBefore = captureCellInterior(robot, fixture.sheet, taskRow, column);
+		assertEquals(0, countDifferentPixels(emptyBefore), "an empty row must paint nothing in " + fieldId);
+		assertTrue(countDifferentPixels(taskBefore) > 0, "a real task row must paint its icon and label in " + fieldId);
+		captureVisibleLayout(robot, "task-table-task-mode.png");
+
+		// A first click only selects the row; a second click on the active cell opens the list.
+		UndoSnapshot undoBefore = UndoSnapshot.capture(fixture.project);
+		clickCell(robot, fixture.sheet, taskRow, column);
+		GuiAcceptanceSupport.await(() -> fixture.sheet.getSelectedRow() == taskRow, "clicking the cell did not select its row");
+		assertFalse(fixture.sheet.isEditing(), "a click on a cell that is not active only selects it");
+		Thread.sleep(900); // past the multi-click interval so the next click is a new single click
+		clickCell(robot, fixture.sheet, taskRow, column);
+		JComboBox<?> list = awaitTaskModeList(fixture.sheet);
+		GuiAcceptanceSupport.await(list::isPopupVisible, "a click on the active Task Mode cell did not open the list");
+		assertEquals(List.of(manualLabel, autoLabel), comboItems(list), "the list offers Manually Scheduled then Auto Scheduled");
+		captureVisibleLayout(robot, "task-table-task-mode-popup.png");
+		assertFalse(task.isManuallyScheduled(), "opening the list must not change the task");
+		clickListItem(robot, list, 0);
+		GuiAcceptanceSupport.await(() -> task.isManuallyScheduled(), "choosing Manually Scheduled did not set manual scheduling");
+		GuiAcceptanceSupport.await(() -> !fixture.sheet.isEditing(), "the list editor stayed active after choosing");
+		assertEquals(manualLabel, renderedText(fixture.sheet, taskRow, column), "the cell shows Manually Scheduled");
+		assertTrue(renderedHasIcon(fixture.sheet, taskRow, column), "the manual cell keeps its icon");
+		BufferedImage taskManual = captureCellInterior(robot, fixture.sheet, taskRow, column);
+		assertTrue(countDifferent(taskBefore, taskManual) > 0, "the task cell must repaint for the new mode");
+		assertEquals(0, countDifferentPixels(captureCellInterior(robot, fixture.sheet, emptyRow, column)),
+			"empty rows must still paint nothing after a task row changed");
+		assertTrue(!undoBefore.equals(UndoSnapshot.capture(fixture.project)), "choosing must add an Undo edit");
+
+		// Undo / Redo through the physical shortcuts.
+		SwingUtilities.invokeAndWait(() -> fixture.sheet.requestFocusInWindow());
+		GuiAcceptanceSupport.await(fixture.sheet::isFocusOwner, "task table did not regain focus before physical Undo");
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_Z);
+		robot.keyRelease(KeyEvent.VK_Z);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		GuiAcceptanceSupport.await(() -> !task.isManuallyScheduled(), "physical Ctrl+Z did not restore auto scheduling");
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_Y);
+		robot.keyRelease(KeyEvent.VK_Y);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		GuiAcceptanceSupport.await(() -> task.isManuallyScheduled(), "physical Ctrl+Y did not reapply manual scheduling");
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_Z);
+		robot.keyRelease(KeyEvent.VK_Z);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		GuiAcceptanceSupport.await(() -> !task.isManuallyScheduled(), "second physical Ctrl+Z did not restore auto scheduling");
+
+		// Keyboard route: Alt+Down opens the list of the active cell, Down+Enter chooses the first item.
+		SwingUtilities.invokeAndWait(() -> {
+			fixture.sheet.requestFocusInWindow();
+			fixture.sheet.changeSelection(taskRow, column, false, false);
+		});
+		GuiAcceptanceSupport.await(fixture.sheet::isFocusOwner, "task table did not regain focus before Alt+Down");
+		robot.keyPress(KeyEvent.VK_ALT);
+		robot.keyPress(KeyEvent.VK_DOWN);
+		robot.keyRelease(KeyEvent.VK_DOWN);
+		robot.keyRelease(KeyEvent.VK_ALT);
+		JComboBox<?> keyboardList = awaitTaskModeList(fixture.sheet);
+		GuiAcceptanceSupport.await(keyboardList::isPopupVisible, "Alt+Down did not open the Task Mode list");
+		// The highlight starts on the current value (Auto Scheduled, second item): Up moves to Manually Scheduled.
+		robot.keyPress(KeyEvent.VK_UP);
+		robot.keyRelease(KeyEvent.VK_UP);
+		Thread.sleep(200);
+		robot.keyPress(KeyEvent.VK_ENTER);
+		robot.keyRelease(KeyEvent.VK_ENTER);
+		GuiAcceptanceSupport.await(() -> task.isManuallyScheduled(), "arrow plus Enter did not choose Manually Scheduled");
+		GuiAcceptanceSupport.await(() -> !fixture.sheet.isEditing(), "the list editor stayed active after Enter");
+
+		// Typed route: 'n' highlights the second item of a Yes/No style list; for Task Mode the first letter of
+		// "Auto" / the generic n selects Auto Scheduled, Enter commits it.
+		SwingUtilities.invokeAndWait(() -> {
+			fixture.sheet.requestFocusInWindow();
+			fixture.sheet.changeSelection(taskRow, column, false, false);
+		});
+		GuiAcceptanceSupport.await(fixture.sheet::isFocusOwner, "task table did not regain focus before typing");
+		robot.keyPress(KeyEvent.VK_N);
+		robot.keyRelease(KeyEvent.VK_N);
+		JComboBox<?> typedList = awaitTaskModeList(fixture.sheet);
+		GuiAcceptanceSupport.await(typedList::isPopupVisible, "a typed character did not open the Task Mode list");
+		Thread.sleep(300);
+		robot.keyPress(KeyEvent.VK_ENTER);
+		robot.keyRelease(KeyEvent.VK_ENTER);
+		GuiAcceptanceSupport.await(() -> !task.isManuallyScheduled(), "typing n plus Enter did not choose Auto Scheduled");
+		GuiAcceptanceSupport.await(() -> !fixture.sheet.isEditing(), "the list editor stayed active after typed Enter");
+
+		// Cancelling the editor leaves the task unchanged.
+		SwingUtilities.invokeAndWait(() -> {
+			fixture.sheet.requestFocusInWindow();
+			fixture.sheet.changeSelection(taskRow, column, false, false);
+		});
+		robot.keyPress(KeyEvent.VK_ALT);
+		robot.keyPress(KeyEvent.VK_DOWN);
+		robot.keyRelease(KeyEvent.VK_DOWN);
+		robot.keyRelease(KeyEvent.VK_ALT);
+		JComboBox<?> cancelList = awaitTaskModeList(fixture.sheet);
+		GuiAcceptanceSupport.await(cancelList::isPopupVisible, "Alt+Down did not reopen the Task Mode list");
+		// The document root-pane Escape action (GraphicManager) cancels the active sheet's editor; this fixture's
+		// DocumentFrame does not own fixture.sheet, so cancel through that same editor call instead of the key.
+		SwingUtilities.invokeAndWait(() -> fixture.sheet.getCellEditor().cancelCellEditing());
+		GuiAcceptanceSupport.await(() -> !fixture.sheet.isEditing(), "cancelling did not close the Task Mode editor");
+		assertFalse(task.isManuallyScheduled(), "cancelling must not change the task");
+
+		// Save / reload with a manual task; identify the task by UID.
+		SwingUtilities.invokeAndWait(() -> fixture.sheet.setValueAt(manualLabel, taskRow, column));
+		GuiAcceptanceSupport.await(() -> task.isManuallyScheduled(), "the label text did not set manual scheduling");
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(fixture.project, saved), "MPO save rejected the Task Mode change");
+		Project reloaded = new MpoFileImporter().loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		NormalTask restored = reloaded.getTasks().stream()
+			.filter(value -> value instanceof NormalTask && value.getUniqueId() == taskUid)
+			.map(value -> (NormalTask) value).findFirst().orElseThrow();
+		assertTrue(restored.isManuallyScheduled(), "MPO reload lost the manual-scheduling flag");
+
+		// Clicking a void row's cell: record today's behaviour (must not throw, must not create a task).
+		int tasksBefore = fixture.project.getTasks().size();
+		Throwable[] uncaught = new Throwable[1];
+		Thread.UncaughtExceptionHandler previous = Thread.getDefaultUncaughtExceptionHandler();
+		Thread.setDefaultUncaughtExceptionHandler((thread, error) -> uncaught[0] = error);
+		try {
+			clickCell(robot, fixture.sheet, emptyRow, column);
+			SwingUtilities.invokeAndWait(() -> { });
+			GuiAcceptanceSupport.await(() -> !fixture.sheet.isEditing(), "void-row click left an editor open");
+		} finally {
+			Thread.setDefaultUncaughtExceptionHandler(previous);
+		}
+		assertEquals(null, uncaught[0], "clicking a void row's Task Mode cell must not throw");
+		assertEquals(tasksBefore, fixture.project.getTasks().size(),
+			"a single click on a void row selects it; it does not create a task");
+		assertEquals(0, countDifferentPixels(captureCellInterior(robot, fixture.sheet, emptyRow, column)),
+			"a void row must still paint nothing after being clicked");
+	}
+
+	private static String renderedText(SpreadSheet sheet, int row, int column) throws Exception {
+		String[] text = new String[1];
+		SwingUtilities.invokeAndWait(() -> {
+			Component component = sheet.getCellRenderer(row, column).getTableCellRendererComponent(
+				sheet, sheet.getValueAt(row, column), false, false, row, column);
+			text[0] = ((javax.swing.JLabel) component).getText();
+		});
+		return text[0];
+	}
+
+	private static boolean renderedHasIcon(SpreadSheet sheet, int row, int column) throws Exception {
+		boolean[] icon = new boolean[1];
+		SwingUtilities.invokeAndWait(() -> {
+			Component component = sheet.getCellRenderer(row, column).getTableCellRendererComponent(
+				sheet, sheet.getValueAt(row, column), false, false, row, column);
+			icon[0] = ((javax.swing.JLabel) component).getIcon() != null;
+		});
+		return icon[0];
+	}
+
+	private static JComboBox<?> awaitTaskModeList(SpreadSheet sheet) throws Exception {
+		JComboBox<?>[] combo = new JComboBox<?>[1];
+		GuiAcceptanceSupport.await(() -> {
+			boolean[] found = new boolean[1];
+			try {
+				SwingUtilities.invokeAndWait(() -> {
+					if (sheet.isEditing() && sheet.getEditorComponent() instanceof JComboBox<?> editor) {
+						combo[0] = editor;
+						found[0] = true;
+					}
+				});
+			} catch (Exception e) {
+				throw new AssertionError(e);
+			}
+			return found[0];
+		}, "no list editor became active in the Task Mode cell");
+		return combo[0];
+	}
+
+	private static List<String> comboItems(JComboBox<?> combo) throws Exception {
+		List<String> items = new ArrayList<>();
+		SwingUtilities.invokeAndWait(() -> {
+			for (int index = 0; index < combo.getItemCount(); index++) items.add(String.valueOf(combo.getItemAt(index)));
+		});
+		return items;
+	}
+
+	/** Physical click on one item of the open list popup. */
+	private static void clickListItem(Robot robot, JComboBox<?> combo, int index) throws Exception {
+		Point[] target = new Point[1];
+		SwingUtilities.invokeAndWait(() -> {
+			javax.swing.plaf.basic.ComboPopup popup =
+				(javax.swing.plaf.basic.ComboPopup) combo.getUI().getAccessibleChild(combo, 0);
+			javax.swing.JList<?> items = popup.getList();
+			Rectangle bounds = items.getCellBounds(index, index);
+			Point origin = items.getLocationOnScreen();
+			// An item can be wider than the popup (narrow column): aim at the visible part.
+			int visibleWidth = Math.min(bounds.width, combo.getWidth());
+			target[0] = new Point(origin.x + bounds.x + visibleWidth / 2, origin.y + bounds.y + bounds.height / 2);
+		});
+		robot.mouseMove(target[0].x, target[0].y);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+	}
+
+	private static void clickCell(Robot robot, SpreadSheet sheet, int row, int column) throws Exception {
+		Point[] center = new Point[1];
+		SwingUtilities.invokeAndWait(() -> {
+			Rectangle cell = sheet.getCellRect(row, column, true);
+			Point location = sheet.getLocationOnScreen();
+			center[0] = new Point(location.x + cell.x + cell.width / 2, location.y + cell.y + cell.height / 2);
+		});
+		robot.mouseMove(center[0].x, center[0].y);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+	}
+
+	/** Screen pixels of a cell's interior, inset past the grid line. */
+	private static BufferedImage captureCellInterior(Robot robot, SpreadSheet sheet, int row, int column) throws Exception {
+		Rectangle[] area = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> {
+			Rectangle cell = sheet.getCellRect(row, column, false);
+			Point location = sheet.getLocationOnScreen();
+			area[0] = new Rectangle(location.x + cell.x + 3, location.y + cell.y + 3, cell.width - 6, cell.height - 6);
+		});
+		assertTrue(area[0].width > 4 && area[0].height > 4, "cell is too small to inspect");
+		robot.mouseMove(0, 0);
+		// Wait until the screen is repainted and two consecutive captures agree.
+		BufferedImage previous = robot.createScreenCapture(area[0]);
+		for (int attempt = 0; attempt < 30; attempt++) {
+			Thread.sleep(100);
+			BufferedImage current = robot.createScreenCapture(area[0]);
+			if (countDifferent(previous, current) == 0) return current;
+			previous = current;
+		}
+		throw new AssertionError("cell pixels never settled at row " + row + ", column " + column);
+	}
+
+	/** Pixels differing from the interior's own background (its top-left pixel). */
+	private static int countDifferentPixels(BufferedImage image) {
+		int background = image.getRGB(0, 0);
+		int count = 0;
+		for (int y = 0; y < image.getHeight(); y++)
+			for (int x = 0; x < image.getWidth(); x++)
+				if (image.getRGB(x, y) != background) count++;
+		return count;
+	}
+
+	private static int countDifferent(BufferedImage before, BufferedImage after) {
+		int count = 0;
+		for (int y = 0; y < Math.min(before.getHeight(), after.getHeight()); y++)
+			for (int x = 0; x < Math.min(before.getWidth(), after.getWidth()); x++)
+				if (before.getRGB(x, y) != after.getRGB(x, y)) count++;
+		return count;
 	}
 
 	private static void clickComponent(Robot robot, Component component) throws Exception {
@@ -1323,6 +1644,229 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		});
 	}
 
+	/**
+	 * Microsoft Project "Header Wrapping" (Table Definition): a heading that does not fit wraps by default and
+	 * the header row grows to the tallest wrapped heading; the Gantt timescale header, the row-header corner and
+	 * the first rows of both halves stay aligned; the switch is on the column popup, undoable and saved in MPO.
+	 */
+	@Test
+	void physicalHeaderWrapGrowsTheHeaderRowKeepsGanttAlignedAndCanBeSwitchedOffFromThePopup() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Fixture fixture = createFixture(3);
+		showFixture(fixture, true, true);
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(40);
+		SwingUtilities.invokeAndWait(() -> {
+			frame.toFront();
+			frame.requestFocus();
+		});
+		GuiAcceptanceSupport.await(() -> hasVisibleColumns(fixture.sheet, 3), "task table was not ready for header wrapping");
+		int baseHeight = com.microproject.graphic.configuration.GraphicConfiguration.getInstance().getColumnHeaderHeight();
+		String fieldId = "Field.percentWorkComplete";
+		int[] columnValue = new int[1];
+		SwingUtilities.invokeAndWait(() -> {
+			columnValue[0] = findColumn(fixture.sheet, fieldId);
+			var column = fixture.sheet.getColumnModel().getColumn(columnValue[0]);
+			column.setPreferredWidth(44);
+			column.setWidth(44);
+		});
+		int column = columnValue[0];
+		GuiAcceptanceSupport.await(() -> headerHeightsAgree(fixture, baseHeight, true),
+			"a narrow column with a long heading did not grow the header row, the corner and the Gantt timescale together");
+		robot.delay(300);
+
+		SwingUtilities.invokeAndWait(() -> {
+			var tableColumn = fixture.sheet.getColumnModel().getColumn(column);
+			var renderer = (com.microproject.pm.graphic.spreadsheet.renderer.SpreadSheetColumnHeaderRenderer) tableColumn.getHeaderRenderer();
+			renderer.getTableCellRendererComponent(fixture.sheet, tableColumn.getHeaderValue(), false, false, -1, column);
+			List<String> lines = renderer.getWrappedLines();
+			assertTrue(lines.size() > 1, "the heading must wrap onto several lines, lines=" + lines);
+			assertEquals(String.valueOf(tableColumn.getHeaderValue()).replace(" ", ""),
+				String.join("", lines).replace(" ", ""), "wrapping must show the full heading text");
+			assertFalse(String.join("", lines).contains("…"), "a wrapped heading must not end in an ellipsis");
+			java.awt.FontMetrics metrics = fixture.sheet.getTableHeader().getFontMetrics(renderer.getFont());
+			assertTrue(fixture.sheet.getTableHeader().getHeight() >= lines.size() * metrics.getHeight(),
+				"the header row must be tall enough for every wrapped line");
+		});
+		captureVisibleLayout(robot, "task-table-header-wrap.png");
+		assertRowsAndHeadersAligned(fixture);
+
+		// Physical click selects the column; the outline must stay a closed rectangle on the taller header.
+		Point headerPoint = screenCenter(fixture.sheet.getTableHeader(), fixture.sheet.getTableHeader().getHeaderRect(column));
+		robot.mouseMove(headerPoint.x, headerPoint.y);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		GuiAcceptanceSupport.await(() -> activeHeaderColumn(fixture.sheet) == column, "header click did not select the wrapped column");
+		SwingUtilities.invokeAndWait(() -> assertHeaderHighlight(fixture.sheet, column));
+		robot.mouseMove(0, 0);
+		robot.delay(300);
+		assertActiveHeaderOutlineClosedOnScreen(robot, fixture.sheet, column, "task-table-header-wrap-outline.png");
+
+		int wrappedHeight = headerHeight(fixture);
+		String stateBeforeToggle = headerState(fixture, column);
+		openHeaderPopupAndToggleWrap(robot, fixture, column, true);
+		GuiAcceptanceSupport.await(() -> !isHeaderWrapped(fixture, column) && headerHeight(fixture) < wrappedHeight
+				&& headerHeightsAgree(fixture, baseHeight, false),
+			"Header Text Wrapping off must show one line, shrink the header row and let the Gantt timescale follow");
+		assertRowsAndHeadersAligned(fixture);
+		SwingUtilities.invokeAndWait(() -> assertFalse(fixture.sheet.isColumnHeaderWrap(column + 1),
+			"the column must record that its heading no longer wraps"));
+
+		SwingUtilities.invokeAndWait(() -> fixture.sheet.requestFocusInWindow());
+		GuiAcceptanceSupport.await(fixture.sheet::isFocusOwner, "task table did not regain focus before physical Undo");
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_Z);
+		robot.keyRelease(KeyEvent.VK_Z);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		try {
+			GuiAcceptanceSupport.await(() -> isHeaderWrapped(fixture, column) && headerHeight(fixture) == wrappedHeight
+					&& headerHeightsAgree(fixture, baseHeight, true),
+				"physical Ctrl+Z did not restore the wrapped heading and the taller header row");
+		} catch (AssertionError failure) {
+			throw new AssertionError(failure.getMessage() + "; before toggle: " + stateBeforeToggle
+				+ "; after Ctrl+Z: " + headerState(fixture, column), failure);
+		}
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_Y);
+		robot.keyRelease(KeyEvent.VK_Y);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		GuiAcceptanceSupport.await(() -> !isHeaderWrapped(fixture, column) && headerHeightsAgree(fixture, baseHeight, false),
+			"physical Ctrl+Y did not switch wrapping off again");
+
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(fixture.project, saved), "MPO save rejected the header wrap switch");
+		Project reloaded = new MpoFileImporter().loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		SpreadSheetFieldArray restored = reloaded.getFieldArray();
+		for (int index = 0; index < restored.size(); index++)
+			assertEquals(!fieldId.equals(restored.get(index).getId()), restored.isHeaderWrap(index),
+				"MPO reload must keep exactly the switched-off column unwrapped: " + restored.get(index).getId());
+	}
+
+	private static int headerHeight(Fixture fixture) {
+		int[] height = new int[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> height[0] = fixture.sheet.getTableHeader().getHeight());
+		} catch (Exception exception) {
+			throw new AssertionError("Could not read the header height", exception);
+		}
+		return height[0];
+	}
+
+	private static int activeHeaderColumn(SpreadSheet sheet) {
+		int[] column = new int[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> column[0] = sheet.getActiveHeaderColumn());
+		} catch (Exception exception) {
+			throw new AssertionError("Could not read the active header column", exception);
+		}
+		return column[0];
+	}
+
+	/** Diagnostic snapshot of the wrapped column, the header heights and the Undo history. */
+	private String headerState(Fixture fixture, int column) {
+		String[] state = new String[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				var tableColumn = fixture.sheet.getColumnModel().getColumn(column);
+				var renderer = (com.microproject.pm.graphic.spreadsheet.renderer.SpreadSheetColumnHeaderRenderer) tableColumn.getHeaderRenderer();
+				renderer.getTableCellRendererComponent(fixture.sheet, tableColumn.getHeaderValue(), false, false, -1, column);
+				JScrollPane sheetPane = (JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class, fixture.sheet);
+				java.awt.Component corner = sheetPane.getCorner(JScrollPane.UPPER_LEFT_CORNER);
+				state[0] = "field=" + ((com.microproject.field.Field) tableColumn.getIdentifier()).getId()
+					+ " wrapFlag=" + fixture.sheet.isColumnHeaderWrap(column + 1)
+					+ " width=" + tableColumn.getWidth() + " lines=" + renderer.getWrappedLines()
+					+ " header=" + fixture.sheet.getTableHeader().getHeight()
+					+ " headerPreferred=" + fixture.sheet.getTableHeader().getPreferredSize().height
+					+ " sheetHeaderHeight=" + fixture.sheet.getColumnHeaderHeight()
+					+ " corner=" + (corner == null ? "none" : corner.getHeight())
+					+ " timescale=" + ganttTimescalePane.getTimeScaleComponent().getHeight()
+					+ " undo=" + fixture.project.getUndoController().getEditNames();
+			});
+		} catch (Exception exception) {
+			return "unavailable: " + exception;
+		}
+		return state[0];
+	}
+
+	private static boolean isHeaderWrapped(Fixture fixture, int column) {
+		boolean[] wrapped = new boolean[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				var tableColumn = fixture.sheet.getColumnModel().getColumn(column);
+				var renderer = (com.microproject.pm.graphic.spreadsheet.renderer.SpreadSheetColumnHeaderRenderer) tableColumn.getHeaderRenderer();
+				renderer.getTableCellRendererComponent(fixture.sheet, tableColumn.getHeaderValue(), false, false, -1, column);
+				wrapped[0] = renderer.getWrappedLines().size() > 1;
+			});
+		} catch (Exception exception) {
+			throw new AssertionError("Could not inspect the header renderer", exception);
+		}
+		return wrapped[0];
+	}
+
+	/** Sheet header, row-header corner and Gantt timescale have one on-screen height (taller than a single line when expected). */
+	private boolean headerHeightsAgree(Fixture fixture, int baseHeight, boolean expectTaller) {
+		boolean[] agree = new boolean[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				JScrollPane sheetPane = (JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class, fixture.sheet);
+				if (!fixture.sheet.isShowing() || !ganttTimescalePane.getTimeScaleComponent().isShowing()
+						|| sheetPane.getCorner(JScrollPane.UPPER_LEFT_CORNER) == null
+						|| !sheetPane.getCorner(JScrollPane.UPPER_LEFT_CORNER).isShowing()) return;
+				int header = fixture.sheet.getTableHeader().getHeight();
+				int corner = sheetPane.getCorner(JScrollPane.UPPER_LEFT_CORNER).getHeight();
+				int timescale = ganttTimescalePane.getTimeScaleComponent().getHeight();
+				agree[0] = header == corner && header == timescale && header == fixture.sheet.getColumnHeaderHeight()
+					&& (expectTaller ? header > baseHeight : header >= baseHeight);
+			});
+		} catch (Exception exception) {
+			throw new AssertionError("Could not compare the header heights", exception);
+		}
+		return agree[0];
+	}
+
+	private void assertRowsAndHeadersAligned(Fixture fixture) throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			JScrollPane sheetPane = (JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class, fixture.sheet);
+			int sheetHeaderTop = fixture.sheet.getTableHeader().getLocationOnScreen().y;
+			int timescaleTop = ganttTimescalePane.getTimeScaleComponent().getLocationOnScreen().y;
+			int cornerTop = sheetPane.getCorner(JScrollPane.UPPER_LEFT_CORNER).getLocationOnScreen().y;
+			assertEquals(sheetHeaderTop, timescaleTop, "the sheet header and the Gantt timescale must start on the same line");
+			assertEquals(sheetHeaderTop, cornerTop, "the corner must sit on the header row");
+			assertEquals(fixture.sheet.getTableHeader().getHeight(), ganttTimescalePane.getTimeScaleComponent().getHeight(),
+				"production code must keep the Gantt timescale as tall as the sheet header");
+			int sheetFirstRow = fixture.sheet.getLocationOnScreen().y + fixture.sheet.getCellRect(0, 0, true).y;
+			int ganttFirstRow = fixture.gantt.getLocationOnScreen().y;
+			assertEquals(sheetFirstRow, ganttFirstRow, "the first task-table row and the first Gantt row must start on the same line");
+		});
+	}
+
+
+	private void openHeaderPopupAndToggleWrap(Robot robot, Fixture fixture, int column, boolean expectChecked) throws Exception {
+		Point headerPoint = screenCenter(fixture.sheet.getTableHeader(), fixture.sheet.getTableHeader().getHeaderRect(column));
+		robot.mouseMove(headerPoint.x, headerPoint.y);
+		robot.mousePress(InputEvent.BUTTON3_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
+		final SpreadSheetColumnMenu[] popup = new SpreadSheetColumnMenu[1];
+		GuiAcceptanceSupport.await(() -> {
+			for (MenuElement element : MenuSelectionManager.defaultManager().getSelectedPath()) {
+				if (element instanceof SpreadSheetColumnMenu menu) {
+					popup[0] = menu;
+					return true;
+				}
+			}
+			return false;
+		}, "physical header right-click did not open the column popup");
+		javax.swing.JCheckBoxMenuItem[] item = new javax.swing.JCheckBoxMenuItem[1];
+		SwingUtilities.invokeAndWait(() -> {
+			for (Component component : popup[0].getComponents())
+				if (component instanceof javax.swing.JCheckBoxMenuItem check) item[0] = check;
+			assertTrue(item[0] != null, "the column popup must offer the Header Text Wrapping check box");
+			assertEquals(com.microproject.strings.Messages.getString("SpreadSheetColumnMenu.HeaderWrap"), item[0].getText());
+			assertEquals(expectChecked, item[0].isSelected(), "the check box must show the column's current wrapping");
+		});
+		clickComponent(robot, item[0]);
+	}
+
 	private static void assertHeaderHighlight(SpreadSheet sheet, int activeColumn) {
 		for (int column = 0; column < sheet.getColumnCount(); column++) {
 			TableCellRenderer renderer = sheet.getColumnModel().getColumn(column).getHeaderRenderer();
@@ -1336,6 +1880,135 @@ class TaskTableGanttGridGuiAcceptanceTest {
 				assertTrue(((javax.swing.JComponent) component).getBorder() instanceof LineBorder,
 					"active header must retain its visible focus border");
 		}
+	}
+
+	/** The popup item with this text, so tests do not depend on menu order. */
+	private static JMenuItem menuItemWithText(JPopupMenu menu, String text) {
+		for (java.awt.Component component : menu.getComponents())
+			if (component instanceof JMenuItem item && text.equals(item.getText()))
+				return item;
+		throw new AssertionError("popup has no item " + text);
+	}
+
+	/**
+	 * Issue #860: the selected column header must show a closed outline on the
+	 * physical screen. Each edge is scanned along its full length, skipping the
+	 * corners; within its outermost two pixels it must contain a pixel closer to
+	 * the active outline colour than to the header fill, because fractional UI
+	 * scales blend the 1px line with the fill. The device-resolution capture is
+	 * used so that downsampling to user space cannot drop a fractional-scale
+	 * edge. The screen is sampled until the asynchronous repaint settles, and
+	 * the last capture is kept as evidence.
+	 */
+	private static void assertActiveHeaderOutlineClosedOnScreen(Robot robot, SpreadSheet sheet, int column) throws Exception {
+		assertActiveHeaderOutlineClosedOnScreen(robot, sheet, column, "task-table-active-column-header.png");
+	}
+
+	private static void assertActiveHeaderOutlineClosedOnScreen(Robot robot, SpreadSheet sheet, int column,
+			String artifactName) throws Exception {
+		Rectangle[] bounds = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> {
+			Rectangle cell = sheet.getTableHeader().getHeaderRect(column);
+			Point origin = sheet.getTableHeader().getLocationOnScreen();
+			// One logical pixel of margin on every side: at fractional scales the cell's
+			// edges fall between device pixels, and a capture of exactly the cell can
+			// round inward and miss the outline's last device pixel (seen at 150%).
+			bounds[0] = new Rectangle(origin.x + cell.x - 1, origin.y + cell.y - 1, cell.width + 2, cell.height + 2);
+		});
+		java.awt.Color outline = FlatUiSupport.spreadsheetActiveCellBorderColor();
+		long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(3);
+		BufferedImage capture;
+		String openEdge;
+		do {
+			robot.waitForIdle();
+			robot.delay(100);
+			capture = deviceResolutionCapture(robot, bounds[0]);
+			openEdge = findOpenOutlineEdge(capture, outline);
+		} while (openEdge != null && System.nanoTime() < deadline);
+		Path directory = Path.of(System.getProperty("microproject.gui.artifacts.dir", "build/guiTest-artifacts"));
+		Files.createDirectories(directory);
+		ImageIO.write(capture, "png", directory.resolve(artifactName).toFile());
+		assertTrue(openEdge == null, "selected column header outline is open: " + openEdge + " capture="
+			+ capture.getWidth() + "x" + capture.getHeight() + " bounds=" + bounds[0] + " outline="
+			+ Integer.toHexString(outline.getRGB() & 0xFFFFFF) + " rightBand=" + rowHex(capture, Math.min(3, capture.getHeight() - 1), 6)
+			+ " headerRectNow=" + headerRectOnScreen(sheet, column) + " activeHeaderColumn=" + sheet.getActiveHeaderColumn());
+	}
+
+	private static Rectangle headerRectOnScreen(SpreadSheet sheet, int column) {
+		Rectangle[] rect = new Rectangle[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				Rectangle cell = sheet.getTableHeader().getHeaderRect(column);
+				Point origin = sheet.getTableHeader().getLocationOnScreen();
+				rect[0] = new Rectangle(origin.x + cell.x, origin.y + cell.y, cell.width, cell.height);
+			});
+		} catch (Exception exception) {
+			return null;
+		}
+		return rect[0];
+	}
+
+	/** Hex colours of the last {@code count} pixels of a capture row (failure diagnostics). */
+	private static String rowHex(BufferedImage capture, int y, int count) {
+		StringBuilder hex = new StringBuilder();
+		for (int x = Math.max(0, capture.getWidth() - count); x < capture.getWidth(); x++)
+			hex.append(Integer.toHexString(capture.getRGB(x, y) & 0xFFFFFF)).append(' ');
+		return hex.toString().trim();
+	}
+
+	private static String findOpenOutlineEdge(BufferedImage capture, java.awt.Color outline) {
+		int width = capture.getWidth();
+		int height = capture.getHeight();
+		int band = 3;
+		java.awt.Color fill = new java.awt.Color(capture.getRGB(band + 1, band + 1));
+		for (int x = band; x < width - band; x++) {
+			if (!nearColor(capture, x, 0, x, band - 1, outline, fill))
+				return "top edge at x=" + x;
+			if (!nearColor(capture, x, height - band, x, height - 1, outline, fill))
+				return "bottom edge at x=" + x;
+		}
+		for (int y = band; y < height - band; y++) {
+			if (!nearColor(capture, 0, y, band - 1, y, outline, fill))
+				return "left edge at y=" + y;
+			if (!nearColor(capture, width - band, y, width - 1, y, outline, fill))
+				return "right edge at y=" + y;
+		}
+		return null;
+	}
+
+	private static BufferedImage deviceResolutionCapture(Robot robot, Rectangle bounds) {
+		java.awt.Image largest = null;
+		for (java.awt.Image variant : robot.createMultiResolutionScreenCapture(bounds).getResolutionVariants()) {
+			if (largest == null || variant.getWidth(null) > largest.getWidth(null))
+				largest = variant;
+		}
+		if (largest instanceof BufferedImage buffered)
+			return buffered;
+		BufferedImage copy = new BufferedImage(largest.getWidth(null), largest.getHeight(null), BufferedImage.TYPE_INT_RGB);
+		java.awt.Graphics2D graphics = copy.createGraphics();
+		try {
+			graphics.drawImage(largest, 0, 0, null);
+		} finally {
+			graphics.dispose();
+		}
+		return copy;
+	}
+
+	private static boolean nearColor(BufferedImage image, int x0, int y0, int x1, int y1, java.awt.Color expected,
+			java.awt.Color fill) {
+		for (int x = x0; x <= x1; x++) {
+			for (int y = y0; y <= y1; y++) {
+				java.awt.Color actual = new java.awt.Color(image.getRGB(x, y));
+				if (colorDistance(actual, expected) < colorDistance(actual, fill))
+					return true;
+			}
+		}
+		return false;
+	}
+
+	private static int colorDistance(java.awt.Color a, java.awt.Color b) {
+		return Math.abs(a.getRed() - b.getRed()) + Math.abs(a.getGreen() - b.getGreen())
+			+ Math.abs(a.getBlue() - b.getBlue());
 	}
 
 	private static Point screenCenter(javax.swing.JComponent component, Rectangle bounds) throws Exception {
@@ -1381,6 +2054,14 @@ class TaskTableGanttGridGuiAcceptanceTest {
 	}
 
 	private void showFixture(Fixture fixture, boolean installDocumentShortcuts) throws Exception {
+		showFixture(fixture, installDocumentShortcuts, false);
+	}
+
+	/**
+	 * @param productionTimescale lay the chart out like GanttView does: a real ScaledScrollPane timescale
+	 *            bound to the sheet by production code, instead of a fixed-height stand-in header
+	 */
+	private void showFixture(Fixture fixture, boolean installDocumentShortcuts, boolean productionTimescale) throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			if (installDocumentShortcuts) {
 				FixtureFrame fixtureFrame = new FixtureFrame();
@@ -1394,15 +2075,27 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			} else {
 				frame = new JFrame("Task table and Gantt GUI acceptance");
 			}
-			JScrollPane ganttPane = new JScrollPane(fixture.gantt);
-			// The production GanttView puts a time-scale header above the chart.
-			// Keep this lightweight fixture's row origin aligned with the table.
-			int headerHeight = fixture.sheet.getTableHeader().getPreferredSize().height;
-			JPanel header = new JPanel();
-			header.setPreferredSize(new Dimension(980, headerHeight));
-			ganttPane.setColumnHeaderView(header);
+			JScrollPane ganttPane;
+			JScrollPane sheetPane;
+			if (productionTimescale) {
+				// Nothing here aligns the two header rows: the production binding must do it.
+				ganttTimescalePane = new com.microproject.pm.graphic.timescale.ScaledScrollPane(fixture.gantt,
+					new CoordinatesConverter(fixture.project), null, fixture.sheet.getRowHeight());
+				ganttTimescalePane.followColumnHeaderHeight(fixture.sheet);
+				ganttPane = ganttTimescalePane;
+				sheetPane = SpreadSheetUtils.makeSpreadsheetScrollPane(fixture.sheet);
+			} else {
+				ganttPane = new JScrollPane(fixture.gantt);
+				// The production GanttView puts a time-scale header above the chart.
+				// Keep this lightweight fixture's row origin aligned with the table.
+				int headerHeight = fixture.sheet.getTableHeader().getPreferredSize().height;
+				JPanel header = new JPanel();
+				header.setPreferredSize(new Dimension(980, headerHeight));
+				ganttPane.setColumnHeaderView(header);
+				sheetPane = new JScrollPane(fixture.sheet);
+			}
 			JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
-				new JScrollPane(fixture.sheet), ganttPane);
+				sheetPane, ganttPane);
 			splitPane.setResizeWeight(0.45);
 			frame.add(splitPane);
 			frame.setPreferredSize(new Dimension(1100, 520));
@@ -1641,17 +2334,50 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			"MPO reload lost the physical duration unit");
 	}
 
+	/** Sheet origin and header height on screen (failure diagnostics). */
+	private static String sheetLayout(SpreadSheet sheet) {
+		String[] layout = new String[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				StringBuilder columns = new StringBuilder();
+				for (int index = 0; index < sheet.getColumnModel().getColumnCount(); index++) {
+					var tableColumn = sheet.getColumnModel().getColumn(index);
+					columns.append(tableColumn.getIdentifier() instanceof com.microproject.field.Field field
+						? field.getId().replace("Field.", "") : "?").append('=').append(tableColumn.getWidth()).append(' ');
+				}
+				layout[0] = "sheetOnScreen=" + sheet.getLocationOnScreen()
+					+ " header=" + sheet.getTableHeader().getHeight() + " headerPreferred="
+					+ sheet.getTableHeader().getPreferredSize().height + " visible=" + sheet.getVisibleRect()
+					+ " columns=[" + columns.toString().trim() + "]";
+			});
+		} catch (Exception exception) {
+			return "unavailable: " + exception;
+		}
+		return layout[0];
+	}
+
 	private static void editCellPhysically(Robot robot, SpreadSheet sheet, int row, int column, String value) throws Exception {
 		Rectangle bounds = new Rectangle();
+		// A user scrolls a cell into view before clicking it; at 150% the narrow
+		// task-table pane does not show every column.
+		SwingUtilities.invokeAndWait(() -> sheet.scrollRectToVisible(sheet.getCellRect(row, column, true)));
+		robot.waitForIdle();
 		SwingUtilities.invokeAndWait(() -> {
 			Rectangle cell = sheet.getCellRect(row, column, true);
 			Point location = sheet.getLocationOnScreen();
 			bounds.setBounds(location.x + cell.x, location.y + cell.y, cell.width, cell.height);
 		});
+		String layoutBeforeClick = sheetLayout(sheet);
 		robot.mouseMove(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-		GuiAcceptanceSupport.await(sheet::isFocusOwner, "duration cell did not receive focus");
+		try {
+			GuiAcceptanceSupport.await(sheet::isFocusOwner, "duration cell did not receive focus");
+		} catch (AssertionError failure) {
+			throw new AssertionError(failure.getMessage() + "; clicked=" + bounds + " before: " + layoutBeforeClick
+				+ " after: " + sheetLayout(sheet) + " focusOwner="
+				+ java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner(), failure);
+		}
 		SwingUtilities.invokeAndWait(() -> assertTrue(sheet.editCellAt(row, column, null),
 			"duration cell editor did not start"));
 		GuiAcceptanceSupport.await(sheet::isEditing, "duration editor did not start");

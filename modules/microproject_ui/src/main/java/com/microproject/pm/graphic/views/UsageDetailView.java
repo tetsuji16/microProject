@@ -85,6 +85,7 @@ public class UsageDetailView extends SplittedView implements BaseView, FieldArra
 	protected boolean taskUsage;
 	FieldContext fieldContext;
 	protected ScaledScrollPane timeScrollPane;
+	private Runnable columnHeaderHeightBinding;
 	protected CellStyle cellStyle;
 	protected String viewName;
 	protected boolean hasEmptyRows;
@@ -129,6 +130,10 @@ public class UsageDetailView extends SplittedView implements BaseView, FieldArra
 	}
 	public void cleanUp() {
 		super.cleanUp();
+		if (columnHeaderHeightBinding != null) {
+			columnHeaderHeightBinding.run();
+			columnHeaderHeightBinding = null;
+		}
 		if (coord != null && timeScrollPane != null) {
 			coord.removeTimeScaleListener(timeScrollPane);
 		}
@@ -181,6 +186,8 @@ public class UsageDetailView extends SplittedView implements BaseView, FieldArra
 		((TimeSpreadSheetModel) timeSpreadSheet.getModel()).addFieldArrayListener(this);
 
 		timeScrollPane = new ScaledScrollPane(timeSpreadSheet, coord, documentFrame,timeSpreadSheet.getRowHeight());
+		// Wrapped column headers grow the sheet header; the timescale follows (#895).
+		columnHeaderHeightBinding = timeScrollPane.followColumnHeaderHeight(spreadSheet);
 		timeSpreadSheet.createDefaultColumnsFromModel();
 		forceUpdateOfTimeSpreadSheet();
 //		timeSpreadSheet.revalidate();

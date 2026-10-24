@@ -68,10 +68,12 @@ public class SimpleRenderer extends DefaultTableCellRenderer/*ContextSensitiveCe
 		}
 		else{
 			component=(JLabel)super.getTableCellRendererComponent(table, value, isSelected,hasFocus, row, column);
-			CommonSpreadSheetModel model=(CommonSpreadSheetModel)table.getModel();
-		    FontManager.setComponentFont(model.getCellProperties(model.getNode(row)),component);
-		    GraphicNode node = model.getNode(row);
-		    TaskFontStyle.apply(component, node == null || node.getNode() == null ? null : node.getNode().getImpl(), isSelected);
+			// Plain tables (dialogs) have no cell properties or task rows to style.
+			if (table.getModel() instanceof CommonSpreadSheetModel model) {
+				FontManager.setComponentFont(model.getCellProperties(model.getNode(row)),component);
+				GraphicNode node = model.getNode(row);
+				TaskFontStyle.apply(component, node == null || node.getNode() == null ? null : node.getNode().getImpl(), isSelected);
+			}
 		}
 				
 		
