@@ -1677,7 +1677,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> assertHeaderHighlight(fixture.sheet, column));
 		robot.mouseMove(0, 0);
 		robot.delay(300);
-		assertActiveHeaderOutlineClosedOnScreen(robot, fixture.sheet, column);
+		assertActiveHeaderOutlineClosedOnScreen(robot, fixture.sheet, column, "task-table-header-wrap-outline.png");
 
 		int wrappedHeight = headerHeight(fixture);
 		String stateBeforeToggle = headerState(fixture, column);
@@ -1878,6 +1878,11 @@ class TaskTableGanttGridGuiAcceptanceTest {
 	 * the last capture is kept as evidence.
 	 */
 	private static void assertActiveHeaderOutlineClosedOnScreen(Robot robot, SpreadSheet sheet, int column) throws Exception {
+		assertActiveHeaderOutlineClosedOnScreen(robot, sheet, column, "task-table-active-column-header.png");
+	}
+
+	private static void assertActiveHeaderOutlineClosedOnScreen(Robot robot, SpreadSheet sheet, int column,
+			String artifactName) throws Exception {
 		Rectangle[] bounds = new Rectangle[1];
 		SwingUtilities.invokeAndWait(() -> {
 			Rectangle cell = sheet.getTableHeader().getHeaderRect(column);
@@ -1896,8 +1901,18 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		} while (openEdge != null && System.nanoTime() < deadline);
 		Path directory = Path.of(System.getProperty("microproject.gui.artifacts.dir", "build/guiTest-artifacts"));
 		Files.createDirectories(directory);
-		ImageIO.write(capture, "png", directory.resolve("task-table-active-column-header.png").toFile());
-		assertTrue(openEdge == null, "selected column header outline is open: " + openEdge);
+		ImageIO.write(capture, "png", directory.resolve(artifactName).toFile());
+		assertTrue(openEdge == null, "selected column header outline is open: " + openEdge + " capture="
+			+ capture.getWidth() + "x" + capture.getHeight() + " bounds=" + bounds[0] + " outline="
+			+ Integer.toHexString(outline.getRGB() & 0xFFFFFF) + " rightBand=" + rowHex(capture, Math.min(3, capture.getHeight() - 1), 6));
+	}
+
+	/** Hex colours of the last {@code count} pixels of a capture row (failure diagnostics). */
+	private static String rowHex(BufferedImage capture, int y, int count) {
+		StringBuilder hex = new StringBuilder();
+		for (int x = Math.max(0, capture.getWidth() - count); x < capture.getWidth(); x++)
+			hex.append(Integer.toHexString(capture.getRGB(x, y) & 0xFFFFFF)).append(' ');
+		return hex.toString().trim();
 	}
 
 	private static String findOpenOutlineEdge(BufferedImage capture, java.awt.Color outline) {
@@ -2278,6 +2293,19 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			"MPO reload lost the physical duration unit");
 	}
 
+	/** Sheet origin and header height on screen (failure diagnostics). */
+	private static String sheetLayout(SpreadSheet sheet) {
+		String[] layout = new String[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> layout[0] = "sheetOnScreen=" + sheet.getLocationOnScreen()
+				+ " header=" + sheet.getTableHeader().getHeight() + " headerPreferred="
+				+ sheet.getTableHeader().getPreferredSize().height);
+		} catch (Exception exception) {
+			return "unavailable: " + exception;
+		}
+		return layout[0];
+	}
+
 	private static void editCellPhysically(Robot robot, SpreadSheet sheet, int row, int column, String value) throws Exception {
 		Rectangle bounds = new Rectangle();
 		SwingUtilities.invokeAndWait(() -> {
@@ -2285,10 +2313,17 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			Point location = sheet.getLocationOnScreen();
 			bounds.setBounds(location.x + cell.x, location.y + cell.y, cell.width, cell.height);
 		});
+		String layoutBeforeClick = sheetLayout(sheet);
 		robot.mouseMove(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-		GuiAcceptanceSupport.await(sheet::isFocusOwner, "duration cell did not receive focus");
+		try {
+			GuiAcceptanceSupport.await(sheet::isFocusOwner, "duration cell did not receive focus");
+		} catch (AssertionError failure) {
+			throw new AssertionError(failure.getMessage() + "; clicked=" + bounds + " before: " + layoutBeforeClick
+				+ " after: " + sheetLayout(sheet) + " focusOwner="
+				+ java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner(), failure);
+		}
 		SwingUtilities.invokeAndWait(() -> assertTrue(sheet.editCellAt(row, column, null),
 			"duration cell editor did not start"));
 		GuiAcceptanceSupport.await(sheet::isEditing, "duration editor did not start");
