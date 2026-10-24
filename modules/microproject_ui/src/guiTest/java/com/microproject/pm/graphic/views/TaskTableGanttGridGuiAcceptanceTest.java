@@ -1680,6 +1680,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		assertActiveHeaderOutlineClosedOnScreen(robot, fixture.sheet, column);
 
 		int wrappedHeight = headerHeight(fixture);
+		String stateBeforeToggle = headerState(fixture, column);
 		openHeaderPopupAndToggleWrap(robot, fixture, column, true);
 		GuiAcceptanceSupport.await(() -> !isHeaderWrapped(fixture, column) && headerHeight(fixture) < wrappedHeight
 				&& headerHeightsAgree(fixture, baseHeight, false),
@@ -1694,9 +1695,14 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		robot.keyPress(KeyEvent.VK_Z);
 		robot.keyRelease(KeyEvent.VK_Z);
 		robot.keyRelease(KeyEvent.VK_CONTROL);
-		GuiAcceptanceSupport.await(() -> isHeaderWrapped(fixture, column) && headerHeight(fixture) == wrappedHeight
-				&& headerHeightsAgree(fixture, baseHeight, true),
-			"physical Ctrl+Z did not restore the wrapped heading and the taller header row");
+		try {
+			GuiAcceptanceSupport.await(() -> isHeaderWrapped(fixture, column) && headerHeight(fixture) == wrappedHeight
+					&& headerHeightsAgree(fixture, baseHeight, true),
+				"physical Ctrl+Z did not restore the wrapped heading and the taller header row");
+		} catch (AssertionError failure) {
+			throw new AssertionError(failure.getMessage() + "; before toggle: " + stateBeforeToggle
+				+ "; after Ctrl+Z: " + headerState(fixture, column), failure);
+		}
 		robot.keyPress(KeyEvent.VK_CONTROL);
 		robot.keyPress(KeyEvent.VK_Y);
 		robot.keyRelease(KeyEvent.VK_Y);
@@ -1731,6 +1737,32 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			throw new AssertionError("Could not read the active header column", exception);
 		}
 		return column[0];
+	}
+
+	/** Diagnostic snapshot of the wrapped column, the header heights and the Undo history. */
+	private String headerState(Fixture fixture, int column) {
+		String[] state = new String[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				var tableColumn = fixture.sheet.getColumnModel().getColumn(column);
+				var renderer = (com.microproject.pm.graphic.spreadsheet.renderer.SpreadSheetColumnHeaderRenderer) tableColumn.getHeaderRenderer();
+				renderer.getTableCellRendererComponent(fixture.sheet, tableColumn.getHeaderValue(), false, false, -1, column);
+				JScrollPane sheetPane = (JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class, fixture.sheet);
+				java.awt.Component corner = sheetPane.getCorner(JScrollPane.UPPER_LEFT_CORNER);
+				state[0] = "field=" + ((com.microproject.field.Field) tableColumn.getIdentifier()).getId()
+					+ " wrapFlag=" + fixture.sheet.isColumnHeaderWrap(column + 1)
+					+ " width=" + tableColumn.getWidth() + " lines=" + renderer.getWrappedLines()
+					+ " header=" + fixture.sheet.getTableHeader().getHeight()
+					+ " headerPreferred=" + fixture.sheet.getTableHeader().getPreferredSize().height
+					+ " sheetHeaderHeight=" + fixture.sheet.getColumnHeaderHeight()
+					+ " corner=" + (corner == null ? "none" : corner.getHeight())
+					+ " timescale=" + ganttTimescalePane.getTimeScaleComponent().getHeight()
+					+ " undo=" + fixture.project.getUndoController().getEditNames();
+			});
+		} catch (Exception exception) {
+			return "unavailable: " + exception;
+		}
+		return state[0];
 	}
 
 	private static boolean isHeaderWrapped(Fixture fixture, int column) {
