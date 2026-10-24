@@ -1,0 +1,6 @@
+<!-- MIT License. Copyright (c) 2026 microProject. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+	<path d="M8 2.7 13.4 13H2.6z" fill="#FFE8E8" stroke="#E5484D" stroke-width="1.2" stroke-linejoin="round"/>
+	<path d="M8 5.3v4.1" stroke="#E5484D" stroke-width="1.5" stroke-linecap="round"/>
+	<circle cx="8" cy="11.2" r="0.8" fill="#E5484D"/>
+</svg>

@@ -25,6 +25,7 @@
 package com.microproject.pm.graphic;
 
 import java.awt.Component;
+import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
@@ -259,7 +260,8 @@ public class IconManager {
 			URL url = iconName == null ? null : getIconResource(iconName);
 			if (url == null)
 				return null;
-			icon = "infomation.icon".equals(key) ? createScalableIcon(url, 16, 16) : null;
+			Dimension logicalSize = getSvgLogicalSize(iconName, url);
+			icon = createScalableIcon(url, logicalSize.width, logicalSize.height);
 			if (icon == null)
 				icon = createImageIcon(url);
 			if (icon == null || icon.getIconWidth() <= 0 || icon.getIconHeight() <= 0) {
@@ -270,6 +272,32 @@ public class IconManager {
 			icons.put(key, icon);
 		}
 		return icon;
+	}
+
+	private static Dimension getSvgLogicalSize(String iconName, URL iconUrl) {
+		if (iconUrl.getPath() == null || !iconUrl.getPath().toLowerCase(Locale.ROOT).endsWith(".svg"))
+			return new Dimension(16, 16);
+
+		URL rasterUrl = getIconResourceWithExtension(iconName, null);
+		if (rasterUrl == null || rasterUrl.equals(iconUrl)
+				|| (rasterUrl.getPath() != null && rasterUrl.getPath().toLowerCase(Locale.ROOT).endsWith(".svg"))) {
+			rasterUrl = null;
+			for (String extension : new String[] {".png", ".gif", ".jpg", ".jpeg"}) {
+				URL candidate = getIconResourceWithExtension(iconName, extension);
+				if (candidate != null && !candidate.equals(iconUrl)) {
+					rasterUrl = candidate;
+					break;
+				}
+			}
+		}
+		if (rasterUrl != null) {
+			ImageIcon rasterFallback = new ImageIcon(rasterUrl);
+			int width = rasterFallback.getIconWidth();
+			int height = rasterFallback.getIconHeight();
+			if (width > 0 && height > 0 && width <= 16 && height <= 16)
+				return new Dimension(width, height);
+		}
+		return new Dimension(16, 16);
 	}
 	public static ImageIcon getRibbonIcon(String key) {
 		return getRibbonIcon(key,48,48);
@@ -434,6 +462,8 @@ public class IconManager {
 
 	public static ImageIcon getHalfSizedIcon(String key) {
 		ImageIcon icon = getIcon(key);
+		if (icon instanceof FlatSVGIcon svgIcon)
+			return svgIcon.derive(Math.max(1, icon.getIconWidth() / 2), Math.max(1, icon.getIconHeight() / 2));
 		BufferedImage image = toBufferedImage(icon.getImage());
 		if (image == null)
 			return null;

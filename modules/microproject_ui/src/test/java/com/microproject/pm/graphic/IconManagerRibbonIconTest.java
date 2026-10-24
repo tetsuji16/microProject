@@ -33,10 +33,16 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Color;
+import java.awt.Graphics2D;
 import java.awt.Image;
+import java.awt.Rectangle;
+import java.awt.RenderingHints;
 import java.awt.image.ImageObserver;
 import java.awt.image.BufferedImage;
 import java.awt.image.PixelGrabber;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.LinkedHashSet;
 import java.util.ArrayList;
 import java.util.List;
@@ -45,6 +51,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import javax.accessibility.AccessibleRole;
+import javax.imageio.ImageIO;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
 import javax.swing.JLabel;
@@ -59,6 +66,8 @@ import org.junit.jupiter.params.provider.MethodSource;
 import com.microproject.menu.testsupport.RibbonInventory;
 
 class IconManagerRibbonIconTest {
+	private record VectorIconFixture(String key, String rasterName, int primaryRgb, int accentRgb) { }
+
 	@Test
 	void informationIconsRenderScaleSpecificDetailAtCommonScaleFactors() throws Exception {
 		var taskHeader = IconManager.getIcon("infomation.icon");
@@ -220,6 +229,8 @@ class IconManagerRibbonIconTest {
 		assertEquals("histogram.svg", IconManager.getConfiguredIconName("view.histogram"));
 		var icon = IconManager.getIcon("view.histogram");
 		assertNotNull(icon);
+		assertEquals(16, icon.getIconWidth(), "paired 32x24 PNG fallback keeps the existing 16px logical size");
+		assertEquals(16, icon.getIconHeight());
 		BufferedImage image = paint(icon, icon.getIconWidth(), icon.getIconHeight());
 		assertTrue(containsRgb(image, 0x4472C4), "first histogram bar should use the task blue");
 		assertTrue(containsRgb(image, 0xED7D31), "second histogram bar should use the Office orange");
@@ -228,8 +239,122 @@ class IconManagerRibbonIconTest {
 		assertEquals("chart.svg", IconManager.getConfiguredIconName("view.charts"));
 		var chartIcon = IconManager.getIcon("view.charts");
 		assertNotNull(chartIcon);
+		assertEquals(16, chartIcon.getIconWidth(), "paired 32x24 PNG fallback keeps the existing 16px logical size");
+		assertEquals(16, chartIcon.getIconHeight());
 		BufferedImage chartImage = paint(chartIcon, chartIcon.getIconWidth(), chartIcon.getIconHeight());
 		assertEquals(2, accentColorCount(chartImage), "chart view icon should use the Office blue and orange accents");
+	}
+
+	@Test
+	void nonRibbonSvgIconsRenderScaleSpecificDetailAtCommonScaleFactors() {
+		for (String key : List.of("menu.filter", "view.resources")) {
+			assertTrue(IconManager.hasSvgResource(key), key + " must keep its existing SVG source");
+			var icon = IconManager.getIcon(key);
+			assertNotNull(icon, key + " icon");
+			assertEquals(16, icon.getIconWidth(), key + " logical width");
+			assertEquals(16, icon.getIconHeight(), key + " logical height");
+			for (double scale : new double[] {1.25, 1.5}) {
+				assertScaleSpecificRendering(icon, scale, key);
+			}
+		}
+	}
+
+	@Test
+	void halfSizedViewIconKeepsVectorDetailAndItsEightPixelLogicalSize() {
+		var icon = IconManager.getHalfSizedIcon("view.gantt");
+		assertNotNull(icon);
+		assertEquals(8, icon.getIconWidth());
+		assertEquals(8, icon.getIconHeight());
+		for (double scale : new double[] {1.25, 1.5}) {
+			assertScaleSpecificRendering(icon, scale, "half-sized view.gantt");
+		}
+	}
+
+	@Test
+	void taskTreeExpandersPreserveTheirNinePixelRasterShapeAndScaleAsVectors() throws IOException {
+		for (String[] fixture : List.of(new String[] {"spreadsheet.collapsed.icon", "plus.png"},
+				new String[] {"spreadsheet.expanded.icon", "moins.png"})) {
+			String key = fixture[0];
+			assertTrue(IconManager.hasSvgResource(key), key + " must resolve its faithful SVG companion");
+			var icon = IconManager.getIcon(key);
+			assertNotNull(icon);
+			assertEquals(9, icon.getIconWidth(), key + " keeps the source logical width");
+			assertEquals(9, icon.getIconHeight(), key + " keeps the source logical height");
+			BufferedImage original = ImageIO.read(IconManager.class.getResource("images/" + fixture[1]));
+			assertEquals(0, differingPixelCount(original, paint(icon, 9, 9)),
+				key + " vector art must match every opaque and transparent source pixel at 100%");
+			for (double scale : new double[] {1.25, 1.5}) {
+				assertScaleSpecificRendering(icon, scale, key);
+			}
+		}
+	}
+
+	@Test
+	void modernTaskIndicatorVectorsKeepSourceMeaningAndRenderAtHiDpi() throws IOException {
+		List<VectorIconFixture> fixtures = List.of(
+			new VectorIconFixture("indicator.calendar", "indicator-calendar-modern.png", 0x4C7DDA, 0x13B86A),
+			new VectorIconFixture("indicator.constraint", "indicator-constraint-modern.png", 0xFFF3D8, 0xA96700),
+			new VectorIconFixture("indicator.completed", "indicator-completed-modern.png", 0x13B86A, 0xFFFFFF),
+			new VectorIconFixture("indicator.note", "indicator-note-modern.png", 0xF4B740, 0x6B4A00),
+			new VectorIconFixture("indicator.parentAssignment", "indicator-assignment-modern.png", 0x5B8DEF, 0x13B86A),
+			new VectorIconFixture("indicator.invalidCalendar", "indicator-warning-modern.png", 0xFFE8E8, 0xE5484D),
+			new VectorIconFixture("indicator.subproject", "indicator-project-modern.png", 0xEAF2FF, 0x4C7DDA),
+			new VectorIconFixture("indicator.delegated", "indicator-delegated-modern.png", 0x5B8DEF, 0x2F5FB8),
+			new VectorIconFixture("indicator.delegatedMe", "indicator-delegated-me-modern.png", 0x13B86A, 0xD9F8E9));
+
+		assertVectorFixtures(fixtures, "task-indicators-before-after.png");
+		assertEquals("indicator-warning-modern.png", IconManager.getConfiguredIconName("indicator.missedDeadline"));
+		assertEquals("indicator-warning-modern.png", IconManager.getConfiguredIconName("indicator.invalidProject"));
+	}
+
+	@Test
+	void resourceIndicatorsKeepTheirRoleAndRenderAtHiDpi() throws IOException {
+		List<VectorIconFixture> fixtures = List.of(
+			new VectorIconFixture("indicator.user.external_pm", "user_external_pm.gif", 0xFF8D8D, 0),
+			new VectorIconFixture("indicator.user.external_tm", "user_external_tm.gif", 0x777777, 0),
+			new VectorIconFixture("indicator.user.pm", "user_pm.gif", 0xEE0000, 0),
+			new VectorIconFixture("indicator.user.tm", "user_tm.gif", 0x000000, 0),
+			new VectorIconFixture("indicator.user.admin", "user_admin.gif", 0xEE0000, 0),
+			new VectorIconFixture("indicator.user.inactive", "user_inactive.gif", 0x888888, 0xFF8C00),
+			new VectorIconFixture("indicator.team", "gear.png", 0xC1C1C1, 0xB70C2F));
+
+		assertVectorFixtures(fixtures, "resource-indicators-before-after.png");
+	}
+
+	private static void assertVectorFixtures(List<VectorIconFixture> fixtures, String comparisonName) throws IOException {
+		writeIconComparison(fixtures, comparisonName);
+		for (VectorIconFixture fixture : fixtures)
+			assertVectorFixture(fixture);
+	}
+
+	private static void assertVectorFixture(VectorIconFixture fixture) throws IOException {
+		assertEquals(fixture.rasterName(), IconManager.getConfiguredIconName(fixture.key()),
+			fixture.key() + " keeps its raster fallback mapping");
+		BufferedImage original = ImageIO.read(IconManager.class.getResource("images/" + fixture.rasterName()));
+		assertNotNull(original, fixture.key() + " keeps its original raster fallback asset");
+		assertTrue(IconManager.hasSvgResource(fixture.key()), fixture.key() + " resolves a vector companion");
+		var icon = IconManager.getIcon(fixture.key());
+		assertNotNull(icon, fixture.key() + " icon");
+		BufferedImage rendered = paint(icon, icon.getIconWidth(), icon.getIconHeight());
+		assertEquals(16, icon.getIconWidth(), fixture.key() + " logical width");
+		assertEquals(16, icon.getIconHeight(), fixture.key() + " logical height");
+		assertVisibleBoundsMatch(original, rendered, fixture.key());
+		assertTrue(containsRgb(rendered, fixture.primaryRgb()), fixture.key() + " keeps its primary color");
+		if (fixture.key().equals("indicator.constraint")) {
+			// The thin clock hand is anti-aliased into the warm face at 16px. Require
+			// near-brown coverage in the hand area instead of thickening it to satisfy an exact anchor.
+			assertTrue(hasRgbCoverageWithin(rendered, fixture.accentRgb(), 32, 6, 4, 12, 12, 1),
+				() -> fixture.key() + " keeps a visible hand in the clock face: " + visibleRgbSummary(rendered));
+		} else if (fixture.key().equals("indicator.team")) {
+			// The centered red gear hub covers only a few pixels at its 16px logical size.
+			assertTrue(hasRgbCoverageWithin(rendered, fixture.accentRgb(), 64, 6, 6, 10, 11, 1),
+				() -> fixture.key() + " keeps a red hub at the center: " + visibleRgbSummary(rendered));
+		} else if (fixture.accentRgb() != 0) {
+			assertTrue(containsRgbWithin(rendered, fixture.accentRgb(), 4),
+				() -> fixture.key() + " keeps its distinguishing accent: " + visibleRgbSummary(rendered));
+		}
+		for (double scale : new double[] {1.25, 1.5})
+			assertScaleSpecificRendering(icon, scale, fixture.key());
 	}
 
 	@Test
@@ -362,6 +487,112 @@ class IconManagerRibbonIconTest {
 			}
 		}
 		return false;
+	}
+
+	private static boolean containsRgbWithin(BufferedImage image, int rgb, int tolerance) {
+		return hasRgbCoverageWithin(image, rgb, tolerance, 0, 0, image.getWidth(), image.getHeight(), 1);
+	}
+
+	private static boolean hasRgbCoverageWithin(BufferedImage image, int rgb, int tolerance,
+			int minX, int minY, int maxX, int maxY, int minimumPixels) {
+		int expectedRed = (rgb >>> 16) & 0xFF;
+		int expectedGreen = (rgb >>> 8) & 0xFF;
+		int expectedBlue = rgb & 0xFF;
+		int matchingPixels = 0;
+		for (int y = minY; y < Math.min(maxY, image.getHeight()); y++) {
+			for (int x = minX; x < Math.min(maxX, image.getWidth()); x++) {
+				int pixel = image.getRGB(x, y);
+				if (((pixel >>> 24) & 0xFF) < 128) continue;
+				int red = (pixel >>> 16) & 0xFF;
+				int green = (pixel >>> 8) & 0xFF;
+				int blue = pixel & 0xFF;
+				if (Math.abs(red - expectedRed) <= tolerance && Math.abs(green - expectedGreen) <= tolerance
+						&& Math.abs(blue - expectedBlue) <= tolerance)
+					matchingPixels++;
+			}
+		}
+		return matchingPixels >= minimumPixels;
+	}
+
+	private static void assertVisibleBoundsMatch(BufferedImage source, BufferedImage rendered, String description) {
+		Rectangle sourceBounds = visibleBounds(source);
+		Rectangle renderedBounds = visibleBounds(rendered);
+		assertTrue(Math.abs(sourceBounds.x - renderedBounds.x) <= 1
+				&& Math.abs(sourceBounds.y - renderedBounds.y) <= 1
+				&& Math.abs(sourceBounds.x + sourceBounds.width - renderedBounds.x - renderedBounds.width) <= 1
+				&& Math.abs(sourceBounds.y + sourceBounds.height - renderedBounds.y - renderedBounds.height) <= 1,
+			description + " vector silhouette stays within one logical pixel of the source bounds: source="
+				+ sourceBounds + ", vector=" + renderedBounds);
+	}
+
+	private static Rectangle visibleBounds(BufferedImage image) {
+		int minX = image.getWidth();
+		int minY = image.getHeight();
+		int maxX = -1;
+		int maxY = -1;
+		for (int y = 0; y < image.getHeight(); y++) {
+			for (int x = 0; x < image.getWidth(); x++) {
+				if (((image.getRGB(x, y) >>> 24) & 0xFF) >= 32) {
+					minX = Math.min(minX, x);
+					minY = Math.min(minY, y);
+					maxX = Math.max(maxX, x);
+					maxY = Math.max(maxY, y);
+				}
+			}
+		}
+		return maxX < 0 ? new Rectangle() : new Rectangle(minX, minY, maxX - minX + 1, maxY - minY + 1);
+	}
+
+	private static void writeIconComparison(List<VectorIconFixture> fixtures, String comparisonName) throws IOException {
+		int labelWidth = 186;
+		int cellWidth = 60;
+		int headerHeight = 28;
+		int rowHeight = 60;
+		BufferedImage sheet = new BufferedImage(labelWidth + 6 * cellWidth,
+			headerHeight + fixtures.size() * rowHeight, BufferedImage.TYPE_INT_ARGB);
+		Graphics2D graphics = sheet.createGraphics();
+		try {
+			graphics.setColor(Color.WHITE);
+			graphics.fillRect(0, 0, sheet.getWidth(), sheet.getHeight());
+			graphics.setColor(Color.BLACK);
+			graphics.setFont(new java.awt.Font(java.awt.Font.DIALOG, java.awt.Font.PLAIN, 9));
+			double[] scales = {1.0, 1.25, 1.5};
+			for (int scaleIndex = 0; scaleIndex < scales.length; scaleIndex++) {
+				int x = labelWidth + scaleIndex * 2 * cellWidth;
+				String scaleName = (int) Math.round(scales[scaleIndex] * 100) + "%";
+				graphics.drawString(scaleName + " raster", x, 18);
+				graphics.drawString(scaleName + " vector", x + cellWidth, 18);
+			}
+			graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+			for (int row = 0; row < fixtures.size(); row++) {
+				VectorIconFixture fixture = fixtures.get(row);
+				BufferedImage source = ImageIO.read(IconManager.class.getResource("images/" + fixture.rasterName()));
+				Icon rasterIcon = new ImageIcon(source);
+				Icon vectorIcon = IconManager.getIcon(fixture.key());
+				int y = headerHeight + row * rowHeight;
+				graphics.setColor(Color.BLACK);
+				graphics.drawString(fixture.key(), 4, y + 31);
+				for (int scaleIndex = 0; scaleIndex < scales.length; scaleIndex++) {
+					BufferedImage raster = paintAtScale(rasterIcon, scales[scaleIndex]);
+					BufferedImage vector = paintAtScale(vectorIcon, scales[scaleIndex]);
+					drawContactCell(graphics, raster, labelWidth + scaleIndex * 2 * cellWidth, y, cellWidth);
+					drawContactCell(graphics, vector, labelWidth + (scaleIndex * 2 + 1) * cellWidth, y, cellWidth);
+				}
+			}
+		} finally {
+			graphics.dispose();
+		}
+		Path output = Path.of("build", "reports", "non-ribbon-hidpi", comparisonName);
+		Files.createDirectories(output.getParent());
+		assertTrue(ImageIO.write(sheet, "png", output.toFile()), "status icon contact sheet must be written");
+	}
+
+	private static void drawContactCell(Graphics2D graphics, BufferedImage rendered, int x, int y, int cellWidth) {
+		int previewSize = 2;
+		int width = rendered.getWidth() * previewSize;
+		int height = rendered.getHeight() * previewSize;
+		graphics.drawImage(rendered, x + (cellWidth - width) / 2, y + (60 - height) / 2,
+			width, height, null);
 	}
 
 	private static BufferedImage paint(javax.swing.Icon icon, int width, int height) {

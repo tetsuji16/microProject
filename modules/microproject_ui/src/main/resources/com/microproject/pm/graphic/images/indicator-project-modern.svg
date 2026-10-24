@@ -1,0 +1,5 @@
+<!-- MIT License. Copyright (c) 2026 microProject. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+	<rect x="2.5" y="3.5" width="11" height="9" rx="0.5" fill="#EAF2FF" stroke="#4C7DDA" stroke-width="1"/>
+	<path d="M2.75 6h10.5" stroke="#4C7DDA" stroke-width="1.5"/>
+</svg>
