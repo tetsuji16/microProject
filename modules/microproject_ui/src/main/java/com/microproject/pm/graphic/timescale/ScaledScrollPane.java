@@ -195,6 +195,34 @@ public class ScaledScrollPane extends JScrollPane implements TimeScaleListener, 
 		getColumnHeader().setViewSize(new Dimension(dmain.width,getColumnHeader().getViewSize().height));
 	}
 	
+	/**
+	 * Makes this timescale header follow a sheet's column header height, so the
+	 * sheet and the chart beside it keep one header height and aligned rows (#895).
+	 *
+	 * @return a task that removes the binding again
+	 */
+	public Runnable followColumnHeaderHeight(com.microproject.pm.graphic.spreadsheet.SpreadSheet sheet) {
+		java.beans.PropertyChangeListener listener = event -> setTimeScaleHeight(sheet.getColumnHeaderHeight());
+		sheet.addPropertyChangeListener(com.microproject.pm.graphic.spreadsheet.SpreadSheet.COLUMN_HEADER_HEIGHT_PROPERTY,
+			listener);
+		setTimeScaleHeight(sheet.getColumnHeaderHeight());
+		return () -> sheet.removePropertyChangeListener(
+			com.microproject.pm.graphic.spreadsheet.SpreadSheet.COLUMN_HEADER_HEIGHT_PROPERTY, listener);
+	}
+
+	/** Sets the timescale header height (kept equal to the task-table header height by the owning view). */
+	public void setTimeScaleHeight(int height) {
+		if (timeScaleComponent.getPreferredSize().height == height)
+			return;
+		Dimension size = new Dimension(timeScaleComponent.getPreferredSize().width, height);
+		timeScaleComponent.setPreferredSize(size);
+		if (getColumnHeader() != null)
+			getColumnHeader().setViewSize(new Dimension(getColumnHeader().getViewSize().width, height));
+		timeScaleComponent.revalidate();
+		revalidate();
+		repaint();
+	}
+
 	public Component getTimeScaleComponent() {
 		return timeScaleComponent;
 	}

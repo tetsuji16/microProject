@@ -30,6 +30,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.List;
 
+import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import javax.swing.SwingUtilities;
@@ -59,6 +60,7 @@ public class SpreadSheetColumnMenu extends JPopupMenu {
 
 	private JMenuItem hide = new JMenuItem(Messages.getString("SpreadSheetColumnMenu.HideColumn")); //$NON-NLS-1$
 	private JMenuItem rename = new JMenuItem(Messages.getString("RenameDialog.Rename")); //$NON-NLS-1$
+	private JCheckBoxMenuItem headerWrap = new JCheckBoxMenuItem(Messages.getString("SpreadSheetColumnMenu.HeaderWrap")); //$NON-NLS-1$
 	private JMenuItem find = new JMenuItem(Messages.getString("LookupDialog.Find")); //$NON-NLS-1$
 	private JMenuItem autoFilter = new JMenuItem(Messages.getString("SpreadSheetColumnMenu.AutoFilter")); //$NON-NLS-1$
 
@@ -140,6 +142,12 @@ public class SpreadSheetColumnMenu extends JPopupMenu {
 		
 		add(insert);
 		add(hide);
+		if (sp instanceof SpreadSheet sheet) {
+			// Microsoft Project "Header Wrapping" (Table Definition): default on, per column.
+			headerWrap.setSelected(sheet.isColumnHeaderWrap(col));
+			headerWrap.addActionListener(event -> sheet.setColumnHeaderWrap(col, !sheet.isColumnHeaderWrap(col)));
+			add(headerWrap);
+		}
 		if (f.isCustom())
 			add(rename);
 		add(find);

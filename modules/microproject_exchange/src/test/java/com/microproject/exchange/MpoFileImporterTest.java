@@ -2403,6 +2403,38 @@ class MpoFileImporterTest {
 	}
 
 	@Test
+	void headerWrapOffSurvivesMpoSaveAndReloadWhileDefaultLayoutsStayUnchanged() throws Exception {
+		FieldDictionary dictionary = FieldDictionary.getInstance();
+		Project defaults = projectForRoundTrip();
+		SpreadSheetFieldArray plain = new SpreadSheetFieldArray();
+		plain.add(dictionary.getFieldFromId("Field.name"));
+		plain.add(dictionary.getFieldFromId("Field.duration"));
+		defaults.setFieldArray(plain);
+		ByteArrayOutputStream defaultArchive = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(defaults, defaultArchive));
+		String defaultLayout = new String(readEntries(defaultArchive.toByteArray()).get(MpoFileImporter.LAYOUT_ENTRY),
+			StandardCharsets.UTF_8);
+		assertFalse(defaultLayout.contains("wrapHeader"), "default layouts keep the previous bytes");
+		assertTrue(loadFromBytes(defaultArchive.toByteArray()).getFieldArray().isHeaderWrap(1),
+			"a layout without the key loads with wrapping on");
+
+		Project original = projectForRoundTrip();
+		SpreadSheetFieldArray layout = new SpreadSheetFieldArray();
+		layout.add(dictionary.getFieldFromId("Field.name"));
+		layout.add(dictionary.getFieldFromId("Field.duration"));
+		layout.add(dictionary.getFieldFromId("Field.percentComplete"));
+		layout.setWidths(new ArrayList<>(List.of(240, 88, 72)));
+		layout.setHeaderWraps(new ArrayList<>(List.of(true, false, true)));
+		original.setFieldArray(layout);
+		ByteArrayOutputStream archive = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(original, archive));
+		SpreadSheetFieldArray restored = loadFromBytes(archive.toByteArray()).getFieldArray();
+		assertTrue(restored.isHeaderWrap(0));
+		assertFalse(restored.isHeaderWrap(1));
+		assertTrue(restored.isHeaderWrap(2));
+	}
+
+	@Test
 	void mpoPreservesUnknownExtensionBytesAcrossLoadAndSave() throws Exception {
 		Project project = projectForRoundTrip();
 		ByteArrayOutputStream generated = new ByteArrayOutputStream();

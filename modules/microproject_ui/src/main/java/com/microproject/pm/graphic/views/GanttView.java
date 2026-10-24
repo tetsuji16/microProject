@@ -98,6 +98,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	private ChangeListener spreadsheetViewportListener;
 	private TaskSelectionController taskSelectionController;
 	private boolean synchronizingRowGeometry;
+	private Runnable columnHeaderHeightBinding;
 	public static final String spreadsheetCategory=taskSpreadsheetCategory;
 
 
@@ -138,6 +139,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		setSpreadsheetGridVisible(spreadsheetGridVisible);
 		updateHeight(project);
 		updateSize();
+		installColumnHeaderHeightSync();
 
 		//sync the height of spreadsheet and gantt
 		installSpreadsheetViewportListener();
@@ -148,7 +150,22 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		//gantt.insertCacheData(); //useless?
 
 	}
+	/**
+	 * The task table owns the header row height (wrapped headings make it grow); the Gantt
+	 * timescale header follows so both halves and their rows stay aligned.
+	 */
+	private void installColumnHeaderHeightSync() {
+		if (spreadSheet == null || ganttScrollPane == null)
+			return;
+		if (columnHeaderHeightBinding != null)
+			columnHeaderHeightBinding.run();
+		columnHeaderHeightBinding = ganttScrollPane.followColumnHeaderHeight(spreadSheet);
+	}
 	public void cleanUp() {
+		if (columnHeaderHeightBinding != null) {
+			columnHeaderHeightBinding.run();
+			columnHeaderHeightBinding = null;
+		}
 		removeSpreadsheetViewportListener();
 		removeTaskSelectionController();
 		if (gantt != null) {

@@ -75,6 +75,8 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 	private Map<String,Integer> colWidthMap;
 	private final Set<String> configuredWidthFields = new HashSet<>();
 	private final Set<String> manuallyAdjustedWidthFields = new HashSet<>();
+	/** Field ids whose heading must stay on one line (wrapping is the default). */
+	private final Set<String> unwrappedHeaderFields = new HashSet<>();
 	private boolean applyingSavedWidths;
 
 	boolean svg;
@@ -128,8 +130,12 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 				continue;
 			}
 
-			int width = preferredWidth(column.getHeaderRenderer()
-					.getTableCellRendererComponent(table, field.getName(), false, false, -1, viewColumn));
+			// The content width of a heading is its single-line width, whatever the
+			// current column width or wrapping state.
+			int width = column.getHeaderRenderer() instanceof SpreadSheetColumnHeaderRenderer headerRenderer
+					? headerRenderer.singleLineWidth(table, field.getName(), viewColumn)
+					: preferredWidth(column.getHeaderRenderer()
+						.getTableCellRendererComponent(table, field.getName(), false, false, -1, viewColumn));
 			for (int row = 0; row < table.getRowCount(); row++) {
 				Component component = table.prepareRenderer(table.getCellRenderer(row, viewColumn), row, viewColumn);
 				width = Math.max(width, component.getPreferredSize().width);
@@ -301,6 +307,24 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 	public void setFieldArray(ArrayList<Field> fieldArray) {
 		this.fieldArray = fieldArray;
 		originalFieldArray = new ArrayList<>(fieldArray);
+		unwrappedHeaderFields.clear();
+		if (fieldArray instanceof SpreadSheetFieldArray fields) {
+			for (int index = 0; index < fields.size(); index++) {
+				Field field = fields.get(index);
+				if (field != null && !fields.isHeaderWrap(index))
+					unwrappedHeaderFields.add(field.getId());
+			}
+		}
+	}
+
+	/** Whether the heading of the given view column may wrap onto several lines. */
+	public boolean isHeaderWrap(int viewColumn) {
+		Field field = getFieldInViewColumn(viewColumn);
+		return field == null || !unwrappedHeaderFields.contains(field.getId());
+	}
+
+	public boolean isHeaderWrap(String fieldId) {
+		return !unwrappedHeaderFields.contains(fieldId);
 	}
 
 	public int getColWidth() {
