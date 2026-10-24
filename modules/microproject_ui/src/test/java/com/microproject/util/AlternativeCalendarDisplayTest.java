@@ -112,4 +112,21 @@ class AlternativeCalendarDisplayTest {
 		assertFalse(AlternativeCalendarDisplay.monthLabel(YearMonth.of(2026, 1), locale).equals("January 2026"));
 		assertTrue(AlternativeCalendarDisplay.monthLabel(YearMonth.of(2026, 1), locale).contains(expectedMonth));
 	}
+
+	@Test
+	void hijrahLabelsFollowGregorianDatesAcrossLeapDayMonthAndYearBoundaries() {
+		Locale locale = Locale.forLanguageTag("en-US-u-ca-islamic-umalqura");
+		Chronology chronology = Chronology.ofLocale(locale);
+		for (LocalDate isoDate : new LocalDate[] {
+			LocalDate.of(2024, 2, 28), LocalDate.of(2024, 2, 29), LocalDate.of(2024, 3, 1),
+			LocalDate.of(2026, 12, 31), LocalDate.of(2027, 1, 1)
+		}) {
+			var alternateDate = chronology.date(isoDate);
+			assertEquals(Integer.toString(alternateDate.get(ChronoField.DAY_OF_MONTH)),
+				AlternativeCalendarDisplay.companionDay(isoDate, locale));
+			String expectedMonth = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
+				.withLocale(locale).withChronology(chronology).format(YearMonth.from(isoDate).atDay(1));
+			assertEquals(expectedMonth, AlternativeCalendarDisplay.companionMonth(YearMonth.from(isoDate), locale));
+		}
+	}
 }
