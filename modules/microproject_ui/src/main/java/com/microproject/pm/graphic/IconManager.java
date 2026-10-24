@@ -24,10 +24,13 @@
  *******************************************************************************/
 package com.microproject.pm.graphic;
 
+import java.awt.Component;
+import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.RenderingHints;
 import java.awt.Color;
+import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.awt.image.BufferedImageOp;
 import java.io.InputStream;
@@ -139,12 +142,14 @@ public class IconManager {
 		return new ImageIcon(url);
 	}
 
-	private static ImageIcon createScalableInformationIcon(URL url, int width, int height) {
+	private static ImageIcon createScalableIcon(URL url, int width, int height) {
 		if (url == null || url.getPath() == null || !url.getPath().toLowerCase(Locale.ROOT).endsWith(".svg"))
 			return null;
 		try {
 			FlatSVGIcon icon = new FlatSVGIcon(url);
-			return icon.hasFound() ? icon.derive(width, height) : null;
+			if (!icon.hasFound())
+				return null;
+			return icon.derive(width, height);
 		} catch (Exception ex) {
 			return null;
 		}
@@ -254,7 +259,7 @@ public class IconManager {
 			URL url = iconName == null ? null : getIconResource(iconName);
 			if (url == null)
 				return null;
-			icon = "infomation.icon".equals(key) ? createScalableInformationIcon(url, 16, 16) : null;
+			icon = "infomation.icon".equals(key) ? createScalableIcon(url, 16, 16) : null;
 			if (icon == null)
 				icon = createImageIcon(url);
 			if (icon == null || icon.getIconWidth() <= 0 || icon.getIconHeight() <= 0) {
@@ -281,11 +286,9 @@ public class IconManager {
 			if (preferredUrl == null)
 				preferredUrl = getIconResourceWithExtension(iconName, ".svg");
 			URL fallbackUrl = getIconResourceWithExtension(iconName, null);
-			if ("ribbon.information".equals(name)) {
-				ImageIcon vectorIcon = createScalableInformationIcon(preferredUrl, width, height);
-				if (vectorIcon != null)
-					return vectorIcon;
-			}
+			ImageIcon vectorIcon = createScalableIcon(preferredUrl, width, height);
+			if (vectorIcon != null)
+				return vectorIcon;
 			BufferedImage image = createRibbonImage(preferredUrl, width, height);
 			if (image == null)
 				image = createRibbonImage(fallbackUrl, width, height);
@@ -297,64 +300,117 @@ public class IconManager {
 	public static ImageIcon getRibbonIconTinted(String name, int width, int height, Color color) {
 		if (name == null || color == null || width <= 0 || height <= 0)
 			return null;
-		String iconName = getConfiguredIconName(name);
-		if (iconName == null)
-			return null;
-		URL preferredUrl = width == height ? getSizeSpecificRibbonResource(iconName, width) : null;
-		if (preferredUrl == null)
-			preferredUrl = getIconResourceWithExtension(iconName, ".svg");
-		URL fallbackUrl = getIconResourceWithExtension(iconName, null);
-		BufferedImage image = createRibbonImage(preferredUrl, width, height);
-		if (image == null && fallbackUrl != null && !fallbackUrl.equals(preferredUrl))
-			image = createRibbonImage(fallbackUrl, width, height);
+		ImageIcon source = getRibbonIcon(name, width, height);
+		if (source instanceof FlatSVGIcon svgIcon)
+			return new ScalableRibbonStateIcon(svgIcon, color);
+		BufferedImage image = source == null ? null : toBufferedImage(source.getImage());
 		if (image == null)
 			return null;
-		BufferedImage tinted = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
-		for (int y = 0; y < height; y++) {
-			for (int x = 0; x < width; x++) {
-				int argb = image.getRGB(x, y);
-				int alpha = (argb >>> 24) & 0xff;
-				if (alpha == 0)
-					continue;
-				tinted.setRGB(x, y, (alpha << 24) | (color.getRed() << 16) | (color.getGreen() << 8) | color.getBlue());
-			}
-		}
-		return new ImageIcon(tinted);
+		return new ImageIcon(transformRibbonIconState(image, color));
 	}
 
 	/** Creates an Office-style disabled variant without replacing enabled SVG colours. */
 	public static ImageIcon getRibbonIconDisabled(String name, int width, int height) {
 		if (name == null || width <= 0 || height <= 0)
 			return null;
-		String iconName = getConfiguredIconName(name);
-		if (iconName == null)
-			return null;
-		URL preferredUrl = width == height ? getSizeSpecificRibbonResource(iconName, width) : null;
-		if (preferredUrl == null)
-			preferredUrl = getIconResourceWithExtension(iconName, ".svg");
-		URL fallbackUrl = getIconResourceWithExtension(iconName, null);
-		BufferedImage image = createRibbonImage(preferredUrl, width, height);
-		if (image == null && fallbackUrl != null && !fallbackUrl.equals(preferredUrl))
-			image = createRibbonImage(fallbackUrl, width, height);
+		ImageIcon source = getRibbonIcon(name, width, height);
+		if (source instanceof FlatSVGIcon svgIcon)
+			return new ScalableRibbonStateIcon(svgIcon, null);
+		BufferedImage image = source == null ? null : toBufferedImage(source.getImage());
 		if (image == null)
 			return null;
-		BufferedImage disabled = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
-		for (int y = 0; y < height; y++) {
-			for (int x = 0; x < width; x++) {
-				int argb = image.getRGB(x, y);
+		return new ImageIcon(transformRibbonIconState(image, null));
+	}
+
+	private static BufferedImage transformRibbonIconState(BufferedImage source, Color tint) {
+		BufferedImage transformed = new BufferedImage(source.getWidth(), source.getHeight(), BufferedImage.TYPE_INT_ARGB);
+		for (int y = 0; y < source.getHeight(); y++) {
+			for (int x = 0; x < source.getWidth(); x++) {
+				int argb = source.getRGB(x, y);
 				int alpha = (argb >>> 24) & 0xff;
 				if (alpha == 0)
 					continue;
+				if (tint != null) {
+					transformed.setRGB(x, y, (alpha << 24) | (tint.getRed() << 16) | (tint.getGreen() << 8) | tint.getBlue());
+					continue;
+				}
 				int red = (argb >>> 16) & 0xff;
 				int green = (argb >>> 8) & 0xff;
 				int blue = argb & 0xff;
 				int luminance = (red * 30 + green * 59 + blue * 11) / 100;
 				int gray = Math.min(210, 128 + luminance / 3);
 				int disabledAlpha = Math.round(alpha * 0.38f);
-				disabled.setRGB(x, y, (disabledAlpha << 24) | (gray << 16) | (gray << 8) | gray);
+				transformed.setRGB(x, y, (disabledAlpha << 24) | (gray << 16) | (gray << 8) | gray);
 			}
 		}
-		return new ImageIcon(disabled);
+		return transformed;
+	}
+
+	private static final class ScalableRibbonStateIcon extends ImageIcon {
+		private final FlatSVGIcon source;
+		private final Color tint;
+		private volatile BufferedImage logicalImage;
+
+		private ScalableRibbonStateIcon(FlatSVGIcon source, Color tint) {
+			this.source = source;
+			this.tint = tint;
+		}
+
+		@Override
+		public int getIconWidth() {
+			return source.getIconWidth();
+		}
+
+		@Override
+		public int getIconHeight() {
+			return source.getIconHeight();
+		}
+
+		@Override
+		public Image getImage() {
+			BufferedImage image = logicalImage;
+			if (image != null)
+				return image;
+			synchronized (this) {
+				image = logicalImage;
+				if (image == null) {
+					BufferedImage rendered = new BufferedImage(getIconWidth(), getIconHeight(), BufferedImage.TYPE_INT_ARGB);
+					Graphics2D renderer = rendered.createGraphics();
+					try {
+						source.paintIcon(null, renderer, 0, 0);
+					} finally {
+						renderer.dispose();
+					}
+					logicalImage = image = transformRibbonIconState(rendered, tint);
+				}
+			}
+			return image;
+		}
+
+		@Override
+		public void paintIcon(Component component, Graphics graphics, int x, int y) {
+			if (!(graphics instanceof Graphics2D graphics2D)) {
+				graphics.drawImage(getImage(), x, y, component);
+				return;
+			}
+			AffineTransform transform = graphics2D.getTransform();
+			double scaleX = Math.hypot(transform.getScaleX(), transform.getShearY());
+			double scaleY = Math.hypot(transform.getShearX(), transform.getScaleY());
+			if (!Double.isFinite(scaleX) || scaleX <= 0d) scaleX = 1d;
+			if (!Double.isFinite(scaleY) || scaleY <= 0d) scaleY = 1d;
+			int pixelWidth = Math.max(1, (int) Math.ceil(getIconWidth() * scaleX));
+			int pixelHeight = Math.max(1, (int) Math.ceil(getIconHeight() * scaleY));
+			BufferedImage surface = new BufferedImage(pixelWidth, pixelHeight, BufferedImage.TYPE_INT_ARGB);
+			Graphics2D renderer = surface.createGraphics();
+			try {
+				renderer.setRenderingHints(graphics2D.getRenderingHints());
+				renderer.scale((double) pixelWidth / getIconWidth(), (double) pixelHeight / getIconHeight());
+				source.paintIcon(component, renderer, 0, 0);
+			} finally {
+				renderer.dispose();
+			}
+			graphics2D.drawImage(transformRibbonIconState(surface, tint), x, y, getIconWidth(), getIconHeight(), null);
+		}
 	}
 
 	private static BufferedImage toBufferedImage(Image image) {

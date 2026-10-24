@@ -31,6 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -96,6 +97,67 @@ class IconManagerRibbonIconTest {
 	}
 
 	@Test
+	void taskRibbonBandIconsRemainVectorBackedAcrossScaleAndStateVariants() {
+		Color tint = new Color(0x5b, 0x6f, 0x91);
+		for (String key : List.of("ribbon.moveTaskUp", "ribbon.markOnTrack", "ribbon.delete")) {
+			for (int size : new int[] {16, 20, 32}) {
+				assertInstanceOf(FlatSVGIcon.class, IconManager.getRibbonIcon(key, size, size),
+					() -> key + " must use its SVG source at " + size + " logical pixels");
+			}
+
+			var normal = IconManager.getRibbonIcon(key, 32, 32);
+			var disabled = IconManager.getRibbonIconDisabled(key, 32, 32);
+			var tinted = IconManager.getRibbonIconTinted(key, 32, 32, tint);
+			assertNotNull(disabled, key + " disabled state");
+			assertNotNull(tinted, key + " tinted state");
+			assertNotSame(normal, disabled, "disabled filtering must not mutate the cached normal icon");
+			assertNotSame(normal, tinted, "tint filtering must not mutate the cached normal icon");
+			assertNotNull(disabled.getImage(), "disabled ImageIcon consumers need a filtered logical raster");
+			assertNotNull(tinted.getImage(), "tinted ImageIcon consumers need a filtered logical raster");
+
+			BufferedImage logicalNormal = paint(normal, 32, 32);
+			BufferedImage logicalDisabled = paint(disabled, 32, 32);
+			BufferedImage logicalTinted = paint(tinted, 32, 32);
+			assertEquals(Math.round(maxAlpha(logicalNormal) * 0.38f), maxAlpha((BufferedImage) disabled.getImage()),
+				key + " disabled getImage must preserve its opacity semantics");
+			assertTrue(opaquePixelsMatchRgbWithin((BufferedImage) tinted.getImage(), tint, 0),
+				key + " tinted getImage must retain the exact requested interior colour");
+			captureScaleEvidence(key + "-normal", normal);
+			captureScaleEvidence(key + "-disabled", disabled);
+			captureScaleEvidence(key + "-tinted", tinted);
+			for (double scale : new double[] {1.0, 1.25, 1.5}) {
+				int scaledSize = (int) Math.ceil(32 * scale);
+				BufferedImage normalAtScale = paintAtScale(normal, scale);
+				BufferedImage disabledAtScale = paintAtScale(disabled, scale);
+				BufferedImage tintedAtScale = paintAtScale(tinted, scale);
+				for (BufferedImage image : List.of(normalAtScale, disabledAtScale, tintedAtScale)) {
+					assertEquals(scaledSize, image.getWidth(), key + " output width at " + scale + "x");
+					assertEquals(scaledSize, image.getHeight(), key + " output height at " + scale + "x");
+					assertTrue(hasVisiblePixel(image), key + " state must remain visible at " + scale + "x");
+				}
+				assertTrue(allVisiblePixelsAreGray(disabledAtScale),
+					key + " disabled state must retain its gray appearance at " + scale + "x");
+				assertEquals(Math.round(maxAlpha(normalAtScale) * 0.38f), maxAlpha(disabledAtScale),
+					key + " disabled state must retain its 38% source opacity at " + scale + "x");
+				assertTrue(opaquePixelsMatchRgbWithin(tintedAtScale, tint, 8),
+					() -> key + " tinted state must retain its requested color on opaque pixels at " + scale + "x: "
+						+ visibleRgbSummary(tintedAtScale));
+				assertEquals(maxAlpha(normalAtScale), maxAlpha(tintedAtScale),
+					key + " tinting must preserve source opacity at " + scale + "x");
+				if (scale > 1.0) {
+					BufferedImage enlargedRaster = enlarge(logicalNormal, scaledSize, scaledSize);
+					assertTrue(differingPixelCount(normalAtScale, enlargedRaster) > 0,
+						key + " " + scale + "x vector render must add detail beyond raster enlargement");
+					assertTrue(differingPixelCount(disabledAtScale, enlarge(logicalDisabled, scaledSize, scaledSize)) > 0,
+						key + " " + scale + "x disabled render must add detail beyond raster enlargement");
+					assertTrue(differingPixelCount(tintedAtScale, enlarge(logicalTinted, scaledSize, scaledSize)) > 0,
+						key + " " + scale + "x tinted render must add detail beyond raster enlargement");
+				}
+			}
+		}
+	}
+
+	@Test
 	void rasterizedRibbonIconsAreCachedByNameAndSize() {
 		var first = IconManager.getRibbonIcon("ribbon.open", 20, 20);
 		var repeated = IconManager.getRibbonIcon("ribbon.open", 20, 20);
@@ -121,7 +183,8 @@ class IconManagerRibbonIconTest {
 		}
 		assertTrue(visibleColorCount(normalCanvas) >= 3, "enabled SVG should retain semantic colours");
 		assertTrue(hasHighSaturationPixel(normalCanvas), "enabled SVG should retain a high-contrast source colour");
-		assertTrue(maxAlpha(disabledCanvas) <= 100, "disabled SVG should use approximately 38% opacity");
+		assertTrue(maxAlpha(disabledCanvas) <= 100,
+			"disabled SVG should use approximately 38% opacity; max alpha=" + maxAlpha(disabledCanvas));
 	}
 
 	@Test
@@ -371,6 +434,50 @@ class IconManagerRibbonIconTest {
 			}
 		}
 		return max;
+	}
+
+	private static boolean allVisiblePixelsAreGray(BufferedImage image) {
+		for (int y = 0; y < image.getHeight(); y++) {
+			for (int x = 0; x < image.getWidth(); x++) {
+				int argb = image.getRGB(x, y);
+				if (((argb >>> 24) & 0xff) == 0) continue;
+				int red = (argb >>> 16) & 0xff;
+				int green = (argb >>> 8) & 0xff;
+				int blue = argb & 0xff;
+				if (red != green || green != blue) return false;
+			}
+		}
+		return true;
+	}
+
+	private static boolean opaquePixelsMatchRgbWithin(BufferedImage image, Color color, int tolerance) {
+		boolean foundOpaquePixel = false;
+		for (int y = 0; y < image.getHeight(); y++) {
+			for (int x = 0; x < image.getWidth(); x++) {
+				int argb = image.getRGB(x, y);
+				if (((argb >>> 24) & 0xff) < 0xf0) continue;
+				foundOpaquePixel = true;
+				int red = (argb >>> 16) & 0xff;
+				int green = (argb >>> 8) & 0xff;
+				int blue = argb & 0xff;
+				if (Math.abs(red - color.getRed()) > tolerance
+					|| Math.abs(green - color.getGreen()) > tolerance
+					|| Math.abs(blue - color.getBlue()) > tolerance) return false;
+			}
+		}
+		return foundOpaquePixel;
+	}
+
+	private static String visibleRgbSummary(BufferedImage image) {
+		Set<Integer> colors = new LinkedHashSet<>();
+		for (int y = 0; y < image.getHeight(); y++) {
+			for (int x = 0; x < image.getWidth(); x++) {
+				int argb = image.getRGB(x, y);
+				if (((argb >>> 24) & 0xff) > 0)
+					colors.add(argb & 0x00ffffff);
+			}
+		}
+		return colors.stream().limit(8).map(color -> String.format("#%06x", color)).toList().toString();
 	}
 
 	private static int accentColorCount(BufferedImage image) {
