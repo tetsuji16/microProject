@@ -25,8 +25,6 @@
 package com.microproject.pm.graphic.spreadsheet.common;
 
 import java.awt.Component;
-import java.awt.Graphics;
-import java.awt.Rectangle;
 
 import javax.swing.JLabel;
 import javax.swing.table.JTableHeader;
@@ -73,23 +71,6 @@ public class CommonTableHeader extends JTableHeader {
     		label.setHorizontalAlignment(CENTER);
     		return label;
     	}
-    }
-
-    /**
-     * Draws the active column's outline again after every header cell. At fractional
-     * UI scales a 1px edge covers part of a device pixel that the next cell then
-     * paints over, which left the outline open on the right (#860, #895).
-     */
-    @Override
-    protected void paintComponent(Graphics g) {
-    	super.paintComponent(g);
-    	if (!(getTable() instanceof CommonSpreadSheet sheet))
-    		return;
-    	int column = sheet.getActiveHeaderColumn();
-    	if (column < 0 || column >= getColumnModel().getColumnCount())
-    		return;
-    	Rectangle cell = getHeaderRect(column);
-    	FlatUiSupport.spreadsheetActiveCellBorder().paintBorder(this, g, cell.x, cell.y, cell.width, cell.height);
     }
 
 }

@@ -1910,7 +1910,10 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> {
 			Rectangle cell = sheet.getTableHeader().getHeaderRect(column);
 			Point origin = sheet.getTableHeader().getLocationOnScreen();
-			bounds[0] = new Rectangle(origin.x + cell.x, origin.y + cell.y, cell.width, cell.height);
+			// One logical pixel of margin on every side: at fractional scales the cell's
+			// edges fall between device pixels, and a capture of exactly the cell can
+			// round inward and miss the outline's last device pixel (seen at 150%).
+			bounds[0] = new Rectangle(origin.x + cell.x - 1, origin.y + cell.y - 1, cell.width + 2, cell.height + 2);
 		});
 		java.awt.Color outline = FlatUiSupport.spreadsheetActiveCellBorderColor();
 		long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(3);
