@@ -8,11 +8,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.time.Instant;
 import java.util.Date;
+import java.util.ArrayList;
 import java.util.TimeZone;
 import java.util.zip.ZipInputStream;
 
@@ -33,6 +35,112 @@ import net.sf.mpxj.AvailabilityTable;
 import net.sf.mpxj.ProjectFile;
 
 class MpxResourceConverterTest {
+	@Test
+	void literalMspdiAvailabilityPeriodsRoundTripThroughModelMpoAndMspdi() throws Exception {
+		TimeZone originalZone = TimeZone.getDefault();
+		TimeZone.setDefault(TimeZone.getTimeZone("GMT+09:00"));
+		try {
+			String sourceXml = """
+				<Project xmlns="http://schemas.microsoft.com/project">
+				  <Name>Literal availability contract</Name><ScheduleFromStart>1</ScheduleFromStart>
+				  <StartDate>2030-06-03T08:00:00</StartDate><MinutesPerDay>480</MinutesPerDay>
+				  <MinutesPerWeek>2400</MinutesPerWeek><DaysPerMonth>20</DaysPerMonth><DurationFormat>7</DurationFormat>
+				  <Resources><Resource><UID>1</UID><ID>1</ID><Name>Availability resource</Name><Type>1</Type><MaxUnits>0.75</MaxUnits>
+				    <AvailabilityPeriods>
+			      <AvailabilityPeriod><AvailableTo>2030-06-03T08:59:59</AvailableTo><AvailableUnits>1.0</AvailableUnits></AvailabilityPeriod>
+				      <AvailabilityPeriod><AvailableFrom>2030-06-03T09:00:00</AvailableFrom><AvailableTo>2030-06-03T09:00:03</AvailableTo><AvailableUnits>0.25</AvailableUnits></AvailabilityPeriod>
+				      <AvailabilityPeriod><AvailableFrom>2030-06-03T09:00:04</AvailableFrom><AvailableTo>2030-06-03T09:00:04</AvailableTo><AvailableUnits>0.0</AvailableUnits></AvailabilityPeriod>
+				      <AvailabilityPeriod><AvailableFrom>2030-06-03T09:00:08</AvailableFrom><AvailableTo>2030-06-03T09:00:10</AvailableTo><AvailableUnits>0.5</AvailableUnits></AvailabilityPeriod>
+			      <AvailabilityPeriod><AvailableFrom>2030-06-03T09:00:12</AvailableFrom><AvailableUnits>1.5</AvailableUnits></AvailabilityPeriod>
+				    </AvailabilityPeriods>
+			  </Resource><Resource><UID>2</UID><ID>2</ID><Name>MaxUnits fallback only</Name><Type>1</Type><MaxUnits>0.75</MaxUnits></Resource></Resources>
+			</Project>
+			""";
+			Project imported = importMspdi(sourceXml);
+			Resource fallback = ResourcePool.findResourceByName("MaxUnits fallback only", imported.getResourcePool());
+			assertNotNull(fallback);
+			assertAvailabilityManifest(fallback, 0.75D);
+			Resource resource = ResourcePool.findResourceByName("Availability resource", imported.getResourcePool());
+			assertNotNull(resource);
+			assertAvailabilityManifest(resource, null);
+
+			ByteArrayOutputStream mpo = new ByteArrayOutputStream();
+			assertTrue(new MpoFileImporter().saveProject(imported, mpo));
+			Project reopened = new MpoFileImporter().loadProject(new ByteArrayInputStream(mpo.toByteArray()));
+			Resource reopenedResource = ResourcePool.findResourceByName("Availability resource", reopened.getResourcePool());
+			assertNotNull(reopenedResource);
+			assertAvailabilityManifest(reopenedResource, null);
+			Resource reopenedFallback = ResourcePool.findResourceByName("MaxUnits fallback only", reopened.getResourcePool());
+			assertNotNull(reopenedFallback);
+			assertAvailabilityManifest(reopenedFallback, 0.75D);
+
+			ByteArrayOutputStream exported = new ByteArrayOutputStream();
+			assertTrue(new com.microproject.exchange.MicrosoftImporter().saveProject(reopened, exported));
+			ProjectFile parsed = new net.sf.mpxj.mspdi.MSPDIReader().read(
+				new ByteArrayInputStream(exported.toByteArray()));
+			net.sf.mpxj.Resource parsedResource = parsed.getResources().stream()
+				.filter(candidate -> "Availability resource".equals(candidate.getName())).findFirst().orElseThrow();
+			assertEquals(7, parsedResource.getAvailability().size(),
+				"writer emits the five source periods and explicit zero ranges for two source gaps");
+			assertEquals(25.0D, parsedResource.getAvailability().stream()
+				.filter(period -> period.getUnits().doubleValue() == 25.0D).findFirst().orElseThrow()
+				.getUnits().doubleValue());
+			assertEquals(150.0D, parsedResource.getAvailability().stream()
+				.filter(period -> period.getUnits().doubleValue() == 150.0D).findFirst().orElseThrow()
+				.getUnits().doubleValue());
+			assertEquals(50.0D, parsedResource.getAvailability().stream()
+				.filter(period -> period.getUnits().doubleValue() == 50.0D).findFirst().orElseThrow()
+				.getUnits().doubleValue());
+			Project reimported = importMspdi(exported.toString(java.nio.charset.StandardCharsets.UTF_8));
+			Resource finalResource = ResourcePool.findResourceByName("Availability resource", reimported.getResourcePool());
+			assertNotNull(finalResource);
+			assertAvailabilityManifest(finalResource, null);
+			Resource finalFallback = ResourcePool.findResourceByName("MaxUnits fallback only", reimported.getResourcePool());
+			assertNotNull(finalFallback);
+			assertAvailabilityManifest(finalFallback, 0.75D);
+
+			String missingUnits = sourceXml.replace("<AvailableUnits>0.25</AvailableUnits>", "");
+			assertMspdiRejectedWithoutPublication(missingUnits);
+			String overlapping = sourceXml.replace("2030-06-03T09:00:12", "2030-06-03T09:00:03");
+			assertMspdiRejectedWithoutPublication(overlapping);
+		} finally {
+			TimeZone.setDefault(originalZone);
+		}
+	}
+
+	private static void assertAvailabilityManifest(Resource resource, Double scalarExpected) {
+		if (scalarExpected != null) {
+			assertAvailability(resource, modelTime("2030-06-03T08:59:59Z"), scalarExpected.doubleValue());
+			assertAvailability(resource, modelTime("2030-06-03T09:00:00Z"), scalarExpected.doubleValue());
+			assertAvailability(resource, modelTime("2030-06-03T09:00:15Z"), scalarExpected.doubleValue());
+			return;
+		}
+		assertAvailability(resource, instant("2030-06-03T08:59:59Z"), 1.0D);
+		assertAvailability(resource, instant("2030-06-03T09:00:00Z"), 0.25D);
+		assertAvailability(resource, instant("2030-06-03T09:00:03Z"), 0.25D);
+		assertAvailability(resource, instant("2030-06-03T09:00:04Z"), 0.0D,
+			"inclusive AvailableTo 09:00:03 maps to a half-open end at 09:00:04");
+		assertAvailability(resource, instant("2030-06-03T09:00:05Z"), 0.0D);
+		assertAvailability(resource, instant("2030-06-03T09:00:07Z"), 0.0D);
+		assertAvailability(resource, instant("2030-06-03T09:00:08Z"), 0.5D);
+		assertAvailability(resource, instant("2030-06-03T09:00:10Z"), 0.5D);
+		assertAvailability(resource, instant("2030-06-03T09:00:11Z"), 0.0D);
+		assertAvailability(resource, instant("2030-06-03T09:00:12Z"), 1.5D);
+		assertAvailability(resource, instant("2030-06-03T09:00:14Z"), 1.5D);
+		assertAvailability(resource, instant("2030-06-03T09:00:15Z"), 1.5D,
+			"omitted AvailableTo is unbounded through the end of the domain");
+	}
+
+	private static void assertMspdiRejectedWithoutPublication(String xml) {
+		byte[] original = xml.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+		byte[] inputBytes = original.clone();
+		ArrayList<String> progressLabels = new ArrayList<>();
+		assertThrows(IllegalArgumentException.class, () -> new com.microproject.core.pm.exchange.MspImporter().importProject(
+			new ByteArrayInputStream(inputBytes), "xml", (progress, label) -> progressLabels.add(label)));
+		assertTrue(java.util.Arrays.equals(original, inputBytes), "rejection must not mutate caller input");
+		assertFalse(progressLabels.contains("Completed"), "rejected MSPDI must not publish completed progress");
+	}
+
 	@Test
 	void importsMaximumUnitsAsPercentAndPreservesAbsentValue() {
 		Project project = project();
@@ -209,8 +317,19 @@ class MpxResourceConverterTest {
 	}
 
 	private static void assertAvailability(Resource resource, long time, double units) {
+		assertAvailability(resource, time, units, "availability at " + Instant.ofEpochMilli(time));
+	}
+
+	private static Project importMspdi(String xml) throws Exception {
+		return new com.microproject.core.pm.exchange.MspImporter().importProject(
+			new ByteArrayInputStream(xml.getBytes(java.nio.charset.StandardCharsets.UTF_8)), "xml",
+			(progress, label) -> {});
+	}
+
+	private static void assertAvailability(Resource resource, long time, double units, String message) {
 		Availability value = (Availability) resource.getAvailabilityTable().findActive(time);
-		assertEquals(units, value.getMaximumUnits(), 0.000001D, "availability at " + Instant.ofEpochMilli(time));
+		assertNotNull(value, message);
+		assertEquals(units, value.getMaximumUnits(), message);
 	}
 
 	private static Date date(String value) {

@@ -2690,7 +2690,7 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 				setDurationMillis(getDurationMillis() + extraDuration);
 				AbstractContour contour = PersonalContour.addEmptyBucket(getWorkContour(), extraDuration, true);
 				newDetail().setWorkContour(contour);
-				if (end > getTask().getEnd())
+				if (!detail.isBaseline() && end > getTask().getEnd())
 					getTask().setEnd(end);
 			} else if (start < assignmentStart) {
 				long taskStart = getTask().getStart();
@@ -2700,8 +2700,10 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 					if (!getWorkContour().isPersonal())
 						makeContourPersonal();
 					newDetail().setWorkContour(PersonalContour.addEmptyBucket(getWorkContour(), shiftAmount, false));
-					getTask().setScheduleConstraintAndUpdate(ConstraintType.Kind.SNLT, start);
-					taskStart = getTask().getStart();
+					if (!detail.isBaseline()) {
+						getTask().setScheduleConstraintAndUpdate(ConstraintType.Kind.SNLT, start);
+						taskStart = getTask().getStart();
+					}
 				}
 				assignmentStart = taskStart;
 			}
@@ -2719,7 +2721,8 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 			extractDelayFromContour(newContour);
 			newDetail().setWorkContour(newContour);
 			newDetail().recalculateDuration();
-			getTask().updateCachedDuration();
+			if (!detail.isBaseline())
+				getTask().updateCachedDuration();
 		}
 
 		void moveRemainingToDate(long date) {
