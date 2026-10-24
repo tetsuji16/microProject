@@ -52,6 +52,7 @@ import javax.swing.CellEditor;
 import javax.swing.AbstractAction;
 import javax.swing.ActionMap;
 import javax.swing.JScrollPane;
+import javax.swing.JComboBox;
 import javax.swing.JTable;
 import javax.swing.JComponent;
 import javax.swing.JTextField;
@@ -65,6 +66,7 @@ import javax.swing.border.Border;
 import javax.swing.event.EventListenerList;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.plaf.UIResource;
+import javax.swing.plaf.basic.ComboPopup;
 import javax.swing.table.TableCellEditor;
 import javax.swing.table.TableModel;
 import javax.swing.text.JTextComponent;
@@ -86,6 +88,8 @@ import com.microproject.pm.graphic.spreadsheet.SpreadSheetSearchContext;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetUtils;
 import com.microproject.pm.graphic.spreadsheet.editor.DateEditor;
 import com.microproject.pm.graphic.spreadsheet.editor.KeyboardFocusable;
+import com.microproject.pm.graphic.spreadsheet.editor.SpreadSheetCellEditorAdapter;
+import com.microproject.pm.graphic.spreadsheet.editor.YesNoComboBoxEditor;
 import com.microproject.pm.graphic.spreadsheet.editor.ImeTextInputSupport;
 import com.microproject.pm.graphic.spreadsheet.renderer.NameCellComponent;
 import com.microproject.pm.graphic.spreadsheet.selection.SpreadSheetSelectionModel;
@@ -392,6 +396,10 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		EditableCellTarget target = resolveEditableCellTarget();
 		if (target == null)
 			return;
+		if (isYesNoListCell(target.row, target.column)) {
+			startListEditing(target, e.getKeyChar());
+			return;
+		}
 		inputMethodEditingSessionActive = false;
 		final boolean clearTextOnStart = shouldClearFieldOnTypedDigit(target.row, target.column, e.getKeyChar());
 		final char typedChar = e.getKeyChar();
@@ -406,6 +414,14 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		EditableCellTarget target = resolveEditableCellTarget();
 		if (target == null)
 			return;
+		if (isYesNoListEditor()) {
+			openListPopup((JComboBox<?>) editorComp, text.charAt(0));
+			return;
+		}
+		if (!isEditing() && isYesNoListCell(target.row, target.column)) {
+			startListEditing(target, text.charAt(0));
+			return;
+		}
 		final boolean startNewEdit = !isEditing();
 		pendingReceivedText.append(text);
 		if (startNewEdit) {
@@ -428,6 +444,10 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		EditableCellTarget target = resolveEditableCellTarget();
 		if (target == null)
 			return;
+		if (isYesNoListCell(target.row, target.column)) {
+			startListEditing(target, null);
+			return;
+		}
 		inputMethodEditingSessionActive = true;
 		startEditingAtTarget(target, new StartEditEvent(this, false, null, false, false), text -> {
 			dispatchInputMethodEvent(text, e);
@@ -518,6 +538,16 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 			if (e.getID() == KeyEvent.KEY_PRESSED && moveActiveCellWithArrowKey(e)) {
 				e.consume();
 				return;
+			}
+			if (e.getID() == KeyEvent.KEY_PRESSED && e.getKeyCode() == KeyEvent.VK_DOWN && e.isAltDown()
+					&& !e.isControlDown() && !e.isShiftDown() && !e.isMetaDown()) {
+				// Alt+Down opens the list of a Yes/No cell, as for any Office drop-down.
+				EditableCellTarget listTarget = resolveEditableCellTarget();
+				if (listTarget != null && isYesNoListCell(listTarget.row, listTarget.column)
+						&& startListEditing(listTarget, null)) {
+					e.consume();
+					return;
+				}
 			}
 			if (e.getID() == KeyEvent.KEY_PRESSED && handleHierarchyNavigationKeyEvent(e)) {
 				e.consume();
@@ -970,6 +1000,8 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 				CellEditor editor = getCellEditor();
 				if (editor == null)
 					return;
+				if (isYesNoListEditor())
+					adoptPopupSelection((JComboBox<?>) editorComp);
 				boolean stopped = editor.stopCellEditing();
 				if (stopped) {
 					moveSelectionDownAfterCommit(row, column);
@@ -1031,6 +1063,95 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 			this.typedChar = typedChar;
 			this.clearTextOnStart = clearTextOnStart;
 			this.selectAllOnStart = selectAllOnStart;
+		}
+	}
+
+	// ---------------------------------------------------------------------
+	// Yes/No list editing (issue #899)
+	// ---------------------------------------------------------------------
+
+	/** Keys typed before the list popup is shown; they only move its highlight. */
+	private final StringBuilder pendingListKeys = new StringBuilder();
+
+	/** True when the cell is edited by choosing Yes/No (or Task Mode) from a list. */
+	protected boolean isYesNoListCell(int row, int column) {
+		if (row < 0 || column < 0 || row >= getRowCount() || column >= getColumnModel().getColumnCount()
+				|| !isCellEditable(row, column))
+			return false;
+		TableCellEditor editor = getCellEditor(row, column);
+		if (editor instanceof SpreadSheetCellEditorAdapter adapter)
+			editor = adapter.getDelegate();
+		return editor instanceof YesNoComboBoxEditor;
+	}
+
+	/**
+	 * Starts editing a Yes/No cell and shows its list. A click on the active cell,
+	 * F2, Alt+Down and typed characters all arrive here, so the popup rule has one
+	 * owner; a typed character only moves the highlight to its item.
+	 */
+	protected boolean startListEditing(int row, int column, Character typedChar) {
+		inputMethodEditingSessionActive = false;
+		return editCellAt(row, column, new StartEditEvent(this, false, typedChar, false, false));
+	}
+
+	private boolean startListEditing(EditableCellTarget target, Character typedChar) {
+		return target != null && startListEditing(target.row, target.column, typedChar);
+	}
+
+	private boolean isYesNoListEditor() {
+		return isEditing() && editorComp instanceof JComboBox<?> combo
+				&& Boolean.TRUE.equals(combo.getClientProperty(YesNoComboBoxEditor.LIST_CLIENT_PROPERTY));
+	}
+
+	/** Shows the list of the editor that was just started and applies queued typed keys. */
+	private void openListPopup(JComboBox<?> combo, Character typedChar) {
+		if (typedChar != null)
+			pendingListKeys.append(typedChar);
+		SwingUtilities.invokeLater(() -> {
+			if (!isEditing() || editorComp != combo) {
+				pendingListKeys.setLength(0);
+				return;
+			}
+			combo.requestFocusInWindow();
+			if (!combo.isShowing()) {
+				pendingListKeys.setLength(0);
+				return;
+			}
+			if (!combo.isPopupVisible())
+				combo.showPopup();
+			applyPendingListKeys(combo);
+		});
+	}
+
+	private void applyPendingListKeys(JComboBox<?> combo) {
+		String keys = pendingListKeys.toString();
+		pendingListKeys.setLength(0);
+		for (int i = 0; i < keys.length(); i++) {
+			int index = listIndexForKey(combo, keys.charAt(i));
+			if (index >= 0 && combo.getUI().getAccessibleChild(combo, 0) instanceof ComboPopup popup) {
+				popup.getList().setSelectedIndex(index);
+				popup.getList().ensureIndexIsVisible(index);
+			}
+		}
+	}
+
+	/** The item a typed character selects: the label's first letter, else y/n/1/0 as Yes/No. */
+	static int listIndexForKey(JComboBox<?> combo, char key) {
+		String typed = String.valueOf(key).toLowerCase(java.util.Locale.ROOT);
+		for (int i = 0; i < combo.getItemCount(); i++) {
+			if (String.valueOf(combo.getItemAt(i)).toLowerCase(java.util.Locale.ROOT).startsWith(typed))
+				return i;
+		}
+		Boolean value = com.microproject.field.BooleanText.parse(null, typed);
+		return value == null ? -1 : value ? 0 : 1;
+	}
+
+	/** Makes the highlighted item of an open list the editor value before an Enter commit. */
+	private static void adoptPopupSelection(JComboBox<?> combo) {
+		if (combo.isPopupVisible() && combo.getUI().getAccessibleChild(combo, 0) instanceof ComboPopup popup) {
+			Object item = popup.getList().getSelectedValue();
+			if (item != null)
+				combo.setSelectedItem(item);
 		}
 	}
 
@@ -1183,6 +1304,8 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		var editingStarted = super.editCellAt(row, column, e);
     	if (editingStarted && editorComp != null) {
     		configureEditorComponentAfterStart(row, column, e);
+		if (e instanceof StartEditEvent start && isYesNoListEditor())
+			openListPopup((JComboBox<?>) editorComp, start.typedChar);
 		// JTable attaches the editor synchronously, but the real F2/click route
 		// must transfer keyboard focus before the next physical key arrives.
 		SwingUtilities.invokeLater(this::requestEditorFocus);

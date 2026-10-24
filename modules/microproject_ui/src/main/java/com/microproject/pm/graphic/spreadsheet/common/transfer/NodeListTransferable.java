@@ -44,7 +44,9 @@ import javax.swing.tree.TreeNode;
 
 
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
+import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheetModel;
+import com.microproject.field.BooleanText;
 import com.microproject.field.Field;
 import com.microproject.field.FieldContext;
 import com.microproject.field.FieldParseException;
@@ -168,7 +170,7 @@ public class NodeListTransferable implements Transferable {
 			value=field.getValue(node,model.getCache().getWalkersModel(),model.getFieldContext());
 			if (first) first=false;
 			else sb.append('\t');
-			sb.append((value==null)?"":value.toString());
+			sb.append(clipboardText(value, field));
 			//s=sb.toString();
 		}
 		sb.append('\n');
@@ -178,6 +180,15 @@ public class NodeListTransferable implements Transferable {
 	
 	
 	
+	/** Yes/No cells copy as the text the sheet shows (Microsoft Project copies Yes/No, not true/false). */
+	private static String clipboardText(Object value, Field field) {
+		if (value == null)
+			return "";
+		if (value instanceof Boolean bool)
+			return BooleanText.label(field == null ? null : field.getId(), bool);
+		return value.toString();
+	}
+
 	public static String selectionToString(SpreadSheet spreadsheet,int[] rows, int[] cols){
 		StringBuilder sb = new StringBuilder();
 		Object value;
@@ -187,7 +198,8 @@ public class NodeListTransferable implements Transferable {
 				if (value!=null&&!(value instanceof Task))
 					if (value instanceof Date)
 						sb.append(EditOption.getInstance().getDateFormat().format((Date)value));
-					else sb.append(value.toString());
+					else sb.append(clipboardText(value, spreadsheet.getModel() instanceof SpreadSheetModel model
+						? model.getFieldInViewColumn(cols[c]) : null));
 				if (c<cols.length-1) sb.append('\t');
 				else sb.append('\n');
 			}

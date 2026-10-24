@@ -146,6 +146,9 @@ public class SpreadSheetModel extends CommonSpreadSheetModel implements OutlineM
 		//Field field = getFieldInColumn(col);
 
 		try {
+			// A Yes/No cell commits its displayed text (list, typing, paste): one conversion, here.
+			if (field.isBoolean() && value instanceof String text)
+				value = field.parseYesNo(text);
 			if (rowNode.isVoid()) {
 				if (value == null) { // null means parse error, so generate error here
 					getCache().getModel().setFieldValue(field, rowNode, this, value, fieldContext, NodeModel.NORMAL);

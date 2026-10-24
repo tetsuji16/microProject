@@ -473,6 +473,8 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 		} else {
 			if (isHyperlink())
 				return ((Hyperlink)value).toString();
+			if (value instanceof Boolean bool)
+				return BooleanText.label(getId(), bool); // Yes/No as Microsoft Project shows it
 			return FieldConverter.toString(value, getDisplayType(), null); // Convert
 																			// to
 																			// string
@@ -1233,11 +1235,19 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 			if (value == null && (!select.isAllowNull() || textValue != Select.EMPTY))
 				throw new FieldParseException(invalidChoiceMessage(textValue));
 		} else if (this.isBoolean()) {
-			value = Boolean.valueOf(textValue);
+			// A cleared cell means No, the default of a Yes/No field.
+			value = textValue == null || textValue.isBlank() ? Boolean.FALSE : BooleanText.parse(getId(), textValue);
+			if (value == null)
+				throw new FieldParseException(invalidChoiceMessage(textValue));
 		} else {
 			value = textValue;
 		}
 		return value;
+	}
+
+	/** Converts the displayed Yes/No text of a Boolean field to its value; unknown text is an invalid choice. */
+	public Boolean parseYesNo(String text) throws FieldParseException {
+		return (Boolean) preprocessText(null, text, null);
 	}
 
 	private static String invalidChoiceMessage(String value) {
@@ -1369,7 +1379,7 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 		} else if (isRate()) {
 			return 75;
 		} else if (getDisplayType() == Boolean.class) {
-			return 40;
+			return BooleanText.isTaskMode(getId()) ? 120 : 40; // Task Mode shows "Manually Scheduled"
 		} else {
 			return 150;
 		}

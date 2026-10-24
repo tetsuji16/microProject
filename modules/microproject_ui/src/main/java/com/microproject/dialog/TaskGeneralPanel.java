@@ -61,6 +61,9 @@ final class TaskGeneralPanel {
 		addField(fields, "Field.percentComplete", ComponentFactory.SOMETIMES_READ_ONLY, row, 0, 2);
 		addField(fields, "Field.priority", 0, row++, 2, 2);
 		addField(fields, "Field.manuallyScheduled", 0, row, 0, 2);
+		// The field is named Task Mode (as in the sheet); the check box means Manually Scheduled.
+		if (fields.getComponent("Field.manuallyScheduled", 0) instanceof javax.swing.JCheckBox manual)
+			manual.setText(Messages.getString("TaskMode.manual"));
 		inactiveTask = new JCheckBox(Messages.getString("Field.inactiveTask"), task.isInactiveTask());
 		GridBagConstraints inactiveConstraints = constraints(2, row++);
 		inactiveConstraints.gridwidth = 2;

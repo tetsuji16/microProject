@@ -26,6 +26,9 @@ package com.microproject.pm.graphic.spreadsheet.renderer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Color;
@@ -35,7 +38,9 @@ import java.awt.image.BufferedImage;
 import java.util.Date;
 
 import javax.swing.JComponent;
+import javax.swing.JLabel;
 import javax.swing.JTable;
+import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.border.Border;
 import javax.swing.border.CompoundBorder;
@@ -44,6 +49,7 @@ import javax.swing.table.DefaultTableModel;
 
 import org.junit.jupiter.api.Test;
 
+import com.microproject.field.BooleanText;
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.common.SpreadSheetRowHeader;
 import com.microproject.util.FlatUiSupport;
@@ -146,14 +152,14 @@ class SpreadsheetGridBorderTest {
 	}
 
 	@Test
-	void booleanRendererLeavesGridPaintingToTable() throws Exception {
+	void yesNoRendererLeavesGridPaintingToTable() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			PlainTable table = new PlainTable();
 			table.setModel(new DefaultTableModel(new Object[][] { { Boolean.TRUE } }, new Object[] { "Done" }));
 			FlatUiSupport.applySpreadsheetTableStyle(table);
 			Color separatorColor = table.getGridColor();
 
-			JComponent component = (JComponent) new OfflineCapableBooleanRenderer()
+			JComponent component = (JComponent) new YesNoRenderer()
 				.getTableCellRendererComponent(table, Boolean.TRUE, false, false, 0, 0);
 
 			assertFalse(hasBottomSeparator(component.getBorder(), separatorColor));
@@ -161,37 +167,65 @@ class SpreadsheetGridBorderTest {
 	}
 
 	@Test
-	void booleanRendererAcceptsSerializedBooleanValuesWithoutThrowing() throws Exception {
-		SwingUtilities.invokeAndWait(() -> {
-			PlainTable table = new PlainTable();
-			table.setModel(new DefaultTableModel(new Object[][] { { "true" } }, new Object[] { "Done" }));
-			JComponent component = (JComponent) new OfflineCapableBooleanRenderer()
-				.getTableCellRendererComponent(table, "true", false, false, 0, 0);
-
-			assertTrue(((OfflineCapableBooleanRenderer) component).isSelected());
-		});
-	}
-
-	@Test
-	void booleanRendererPaintsNoCheckBoxForAnEmptyRow() throws Exception {
-		// Issue #894: a row without a task has no value (null); the shared renderer
-		// must draw nothing there and still draw the box again for a real task row.
+	void yesNoRendererShowsTheFieldLabelNotACheckBox() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			PlainTable table = new PlainTable();
 			table.setModel(new DefaultTableModel(1, 1));
 			FlatUiSupport.applySpreadsheetTableStyle(table);
-			OfflineCapableBooleanRenderer renderer = new OfflineCapableBooleanRenderer();
+
+			YesNoRenderer yesNo = new YesNoRenderer("Field.marked");
+			JLabel yes = (JLabel) yesNo.getTableCellRendererComponent(table, Boolean.TRUE, false, false, 0, 0);
+			assertEquals(BooleanText.label("Field.marked", Boolean.TRUE), yes.getText());
+			assertNull(yes.getIcon(), "an ordinary Yes/No cell has no icon");
+			assertEquals(SwingConstants.CENTER, yes.getHorizontalAlignment());
+			assertEquals(BooleanText.label("Field.marked", Boolean.FALSE),
+				((JLabel) yesNo.getTableCellRendererComponent(table, Boolean.FALSE, false, false, 0, 0)).getText());
+
+			YesNoRenderer taskMode = new YesNoRenderer(BooleanText.TASK_MODE_FIELD_ID);
+			JLabel manual = (JLabel) taskMode.getTableCellRendererComponent(table, Boolean.TRUE, false, false, 0, 0);
+			assertEquals(BooleanText.label(BooleanText.TASK_MODE_FIELD_ID, Boolean.TRUE), manual.getText());
+			assertNotNull(manual.getIcon(), "Task Mode shows an icon before the text");
+			assertEquals(SwingConstants.LEFT, manual.getHorizontalAlignment());
+			String manualText = manual.getText(); // the renderer reuses one label
+			JLabel auto = (JLabel) taskMode.getTableCellRendererComponent(table, Boolean.FALSE, false, false, 0, 0);
+			assertEquals(BooleanText.label(BooleanText.TASK_MODE_FIELD_ID, Boolean.FALSE), auto.getText());
+			assertNotNull(auto.getIcon());
+			assertNotEquals(manualText, auto.getText());
+		});
+	}
+
+	@Test
+	void yesNoRendererAcceptsSerializedBooleanValuesWithoutThrowing() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			PlainTable table = new PlainTable();
+			table.setModel(new DefaultTableModel(new Object[][] { { "true" } }, new Object[] { "Done" }));
+			JLabel component = (JLabel) new YesNoRenderer()
+				.getTableCellRendererComponent(table, "true", false, false, 0, 0);
+
+			assertEquals(BooleanText.label(null, Boolean.TRUE), component.getText());
+		});
+	}
+
+	@Test
+	void yesNoRendererPaintsNothingForAnEmptyRow() throws Exception {
+		// Issue #894: a row without a task has no value (null); the shared renderer
+		// must draw nothing there and still draw the label again for a real task row.
+		SwingUtilities.invokeAndWait(() -> {
+			PlainTable table = new PlainTable();
+			table.setModel(new DefaultTableModel(1, 1));
+			FlatUiSupport.applySpreadsheetTableStyle(table);
+			YesNoRenderer renderer = new YesNoRenderer(BooleanText.TASK_MODE_FIELD_ID);
 
 			JComponent taskRow = (JComponent) renderer.getTableCellRendererComponent(table, Boolean.FALSE, false, false, 0, 0);
-			int taskRowHeight = taskRow.getPreferredSize().height;
-			assertTrue(foregroundPixels(taskRow, table.getBackground()) > 0, "a task row draws its unchecked box");
+			assertTrue(foregroundPixels(taskRow, table.getBackground()) > 0, "a task row draws its icon and label");
 
-			JComponent emptyRow = (JComponent) renderer.getTableCellRendererComponent(table, null, false, false, 0, 0);
-			assertEquals(0, foregroundPixels(emptyRow, table.getBackground()), "an empty row draws no box");
-			assertEquals(taskRowHeight, emptyRow.getPreferredSize().height, "empty and task rows keep one height");
+			JLabel emptyRow = (JLabel) renderer.getTableCellRendererComponent(table, null, false, false, 0, 0);
+			assertEquals("", emptyRow.getText());
+			assertNull(emptyRow.getIcon());
+			assertEquals(0, foregroundPixels(emptyRow, table.getBackground()), "an empty row draws nothing");
 
-			JComponent checked = (JComponent) renderer.getTableCellRendererComponent(table, Boolean.TRUE, false, false, 0, 0);
-			assertTrue(foregroundPixels(checked, table.getBackground()) > 0, "the reused renderer draws the box again");
+			JComponent again = (JComponent) renderer.getTableCellRendererComponent(table, Boolean.TRUE, false, false, 0, 0);
+			assertTrue(foregroundPixels(again, table.getBackground()) > 0, "the reused renderer draws the cell again");
 		});
 	}
 

@@ -1066,13 +1066,17 @@ class TaskTableGanttGridGuiAcceptanceTest {
 	}
 
 	/**
-	 * Issue #894: void rows below the last task must not draw a check box in a boolean column, while real
-	 * task rows keep the box and its physical click / Undo / MPO round trip. Rendered pixels come from the screen.
+	 * Issue #899 (with #894): the Task Mode column has no check boxes. A task row shows the icon and the Auto
+	 * Scheduled / Manually Scheduled text, a void row shows nothing, a click on the active cell opens the list,
+	 * choosing an item (mouse, or Alt+Down plus arrow and Enter) commits through the one field-edit Undo path.
+	 * Rendered pixels come from the screen.
 	 */
 	@Test
-	void physicalManualSchedulingCheckBoxIsAbsentOnEmptyRowsAndStillTogglesTaskRows() throws Exception {
+	void physicalTaskModeColumnShowsTextAndIsChosenFromAList() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		final String fieldId = "Field.manuallyScheduled";
+		final String manualLabel = com.microproject.strings.Messages.getString("TaskMode.manual");
+		final String autoLabel = com.microproject.strings.Messages.getString("TaskMode.auto");
 		Fixture fixture = createFixture(3);
 		showFixture(fixture, true);
 		Robot robot = new com.microproject.testsupport.GuiRobot();
@@ -1089,8 +1093,10 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			}
 		});
 		GuiAcceptanceSupport.await(() -> fixture.sheet.isShowing() && fixture.sheet.getColumnCount() > 1,
-			"task table was not ready for the manual-scheduling column check");
+			"task table was not ready for the Task Mode column check");
 		int column = findColumn(fixture.sheet, fieldId);
+		assertEquals(com.microproject.strings.Messages.getString("Field.manuallyScheduled"), fixture.sheet.getColumnName(column),
+			"the column header is the localized Task Mode");
 		GraphicNode node = (GraphicNode) fixture.gantt.getModel().getCache().getElementAt(0);
 		NormalTask task = (NormalTask) node.getNode().getImpl();
 		long taskUid = task.getUniqueId();
@@ -1101,31 +1107,39 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		assertTrue(rowCount[0] > emptyRow, "the sheet must expose void rows below the last task, rows=" + rowCount[0]);
 		assertFalse(task.isManuallyScheduled(), "fixture task must start auto-scheduled");
 
+		// Rendering: label text and icon on a task row, nothing on a void row, never a check box.
+		assertEquals(autoLabel, renderedText(fixture.sheet, taskRow, column), "a task row shows Auto Scheduled");
+		assertTrue(renderedHasIcon(fixture.sheet, taskRow, column), "a task row shows the Task Mode icon");
+		assertEquals("", renderedText(fixture.sheet, emptyRow, column), "a void row shows no text");
+		assertFalse(renderedHasIcon(fixture.sheet, emptyRow, column), "a void row shows no icon");
 		BufferedImage emptyBefore = captureCellInterior(robot, fixture.sheet, emptyRow, column);
 		BufferedImage taskBefore = captureCellInterior(robot, fixture.sheet, taskRow, column);
-		assertEquals(0, countDifferentPixels(emptyBefore), "an empty row must paint no check box in " + fieldId);
-		assertTrue(countDifferentPixels(taskBefore) > 0, "a real task row must paint its check box in " + fieldId);
-		captureVisibleLayout(robot, "task-table-empty-row-boolean.png");
+		assertEquals(0, countDifferentPixels(emptyBefore), "an empty row must paint nothing in " + fieldId);
+		assertTrue(countDifferentPixels(taskBefore) > 0, "a real task row must paint its icon and label in " + fieldId);
+		captureVisibleLayout(robot, "task-table-task-mode.png");
 
-		// Observed route today: a click only selects the task row (it does not toggle the box, and F2 does not
-		// start an editor there); the first Space starts the check box editor and the second Space toggles and commits.
+		// A first click only selects the row; a second click on the active cell opens the list.
 		UndoSnapshot undoBefore = UndoSnapshot.capture(fixture.project);
 		clickCell(robot, fixture.sheet, taskRow, column);
 		GuiAcceptanceSupport.await(() -> fixture.sheet.getSelectedRow() == taskRow, "clicking the cell did not select its row");
-		assertFalse(task.isManuallyScheduled(), "a click only selects the row today; update this route if a click starts toggling the box");
-		for (int index = 0; index < 2; index++) {
-			robot.keyPress(KeyEvent.VK_SPACE);
-			robot.keyRelease(KeyEvent.VK_SPACE);
-			Thread.sleep(300);
-		}
-		GuiAcceptanceSupport.await(() -> task.isManuallyScheduled(), "the check box editor did not set manual scheduling");
-		SwingUtilities.invokeAndWait(() -> fixture.sheet.clearSelection());
-		GuiAcceptanceSupport.await(() -> !fixture.sheet.isEditing(), "the check box editor stayed active");
-		BufferedImage taskChecked = captureCellInterior(robot, fixture.sheet, taskRow, column);
-		assertTrue(countDifferent(taskBefore, taskChecked) > 0, "the task cell must repaint as checked");
+		assertFalse(fixture.sheet.isEditing(), "a click on a cell that is not active only selects it");
+		Thread.sleep(900); // past the multi-click interval so the next click is a new single click
+		clickCell(robot, fixture.sheet, taskRow, column);
+		JComboBox<?> list = awaitTaskModeList(fixture.sheet);
+		GuiAcceptanceSupport.await(list::isPopupVisible, "a click on the active Task Mode cell did not open the list");
+		assertEquals(List.of(manualLabel, autoLabel), comboItems(list), "the list offers Manually Scheduled then Auto Scheduled");
+		captureVisibleLayout(robot, "task-table-task-mode-popup.png");
+		assertFalse(task.isManuallyScheduled(), "opening the list must not change the task");
+		clickListItem(robot, list, 0);
+		GuiAcceptanceSupport.await(() -> task.isManuallyScheduled(), "choosing Manually Scheduled did not set manual scheduling");
+		GuiAcceptanceSupport.await(() -> !fixture.sheet.isEditing(), "the list editor stayed active after choosing");
+		assertEquals(manualLabel, renderedText(fixture.sheet, taskRow, column), "the cell shows Manually Scheduled");
+		assertTrue(renderedHasIcon(fixture.sheet, taskRow, column), "the manual cell keeps its icon");
+		BufferedImage taskManual = captureCellInterior(robot, fixture.sheet, taskRow, column);
+		assertTrue(countDifferent(taskBefore, taskManual) > 0, "the task cell must repaint for the new mode");
 		assertEquals(0, countDifferentPixels(captureCellInterior(robot, fixture.sheet, emptyRow, column)),
-			"empty rows must still paint nothing after a task row toggled");
-		assertTrue(!undoBefore.equals(UndoSnapshot.capture(fixture.project)), "toggling must add an Undo edit");
+			"empty rows must still paint nothing after a task row changed");
+		assertTrue(!undoBefore.equals(UndoSnapshot.capture(fixture.project)), "choosing must add an Undo edit");
 
 		// Undo / Redo through the physical shortcuts.
 		SwingUtilities.invokeAndWait(() -> fixture.sheet.requestFocusInWindow());
@@ -1140,17 +1154,79 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		robot.keyRelease(KeyEvent.VK_Y);
 		robot.keyRelease(KeyEvent.VK_CONTROL);
 		GuiAcceptanceSupport.await(() -> task.isManuallyScheduled(), "physical Ctrl+Y did not reapply manual scheduling");
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_Z);
+		robot.keyRelease(KeyEvent.VK_Z);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		GuiAcceptanceSupport.await(() -> !task.isManuallyScheduled(), "second physical Ctrl+Z did not restore auto scheduling");
 
-		// Save / reload with the toggle applied; identify the task by UID.
+		// Keyboard route: Alt+Down opens the list of the active cell, Down+Enter chooses the first item.
+		SwingUtilities.invokeAndWait(() -> {
+			fixture.sheet.requestFocusInWindow();
+			fixture.sheet.changeSelection(taskRow, column, false, false);
+		});
+		GuiAcceptanceSupport.await(fixture.sheet::isFocusOwner, "task table did not regain focus before Alt+Down");
+		robot.keyPress(KeyEvent.VK_ALT);
+		robot.keyPress(KeyEvent.VK_DOWN);
+		robot.keyRelease(KeyEvent.VK_DOWN);
+		robot.keyRelease(KeyEvent.VK_ALT);
+		JComboBox<?> keyboardList = awaitTaskModeList(fixture.sheet);
+		GuiAcceptanceSupport.await(keyboardList::isPopupVisible, "Alt+Down did not open the Task Mode list");
+		// The highlight starts on the current value (Auto Scheduled, second item): Up moves to Manually Scheduled.
+		robot.keyPress(KeyEvent.VK_UP);
+		robot.keyRelease(KeyEvent.VK_UP);
+		Thread.sleep(200);
+		robot.keyPress(KeyEvent.VK_ENTER);
+		robot.keyRelease(KeyEvent.VK_ENTER);
+		GuiAcceptanceSupport.await(() -> task.isManuallyScheduled(), "arrow plus Enter did not choose Manually Scheduled");
+		GuiAcceptanceSupport.await(() -> !fixture.sheet.isEditing(), "the list editor stayed active after Enter");
+
+		// Typed route: 'n' highlights the second item of a Yes/No style list; for Task Mode the first letter of
+		// "Auto" / the generic n selects Auto Scheduled, Enter commits it.
+		SwingUtilities.invokeAndWait(() -> {
+			fixture.sheet.requestFocusInWindow();
+			fixture.sheet.changeSelection(taskRow, column, false, false);
+		});
+		GuiAcceptanceSupport.await(fixture.sheet::isFocusOwner, "task table did not regain focus before typing");
+		robot.keyPress(KeyEvent.VK_N);
+		robot.keyRelease(KeyEvent.VK_N);
+		JComboBox<?> typedList = awaitTaskModeList(fixture.sheet);
+		GuiAcceptanceSupport.await(typedList::isPopupVisible, "a typed character did not open the Task Mode list");
+		Thread.sleep(300);
+		robot.keyPress(KeyEvent.VK_ENTER);
+		robot.keyRelease(KeyEvent.VK_ENTER);
+		GuiAcceptanceSupport.await(() -> !task.isManuallyScheduled(), "typing n plus Enter did not choose Auto Scheduled");
+		GuiAcceptanceSupport.await(() -> !fixture.sheet.isEditing(), "the list editor stayed active after typed Enter");
+
+		// Cancelling the editor leaves the task unchanged.
+		SwingUtilities.invokeAndWait(() -> {
+			fixture.sheet.requestFocusInWindow();
+			fixture.sheet.changeSelection(taskRow, column, false, false);
+		});
+		robot.keyPress(KeyEvent.VK_ALT);
+		robot.keyPress(KeyEvent.VK_DOWN);
+		robot.keyRelease(KeyEvent.VK_DOWN);
+		robot.keyRelease(KeyEvent.VK_ALT);
+		JComboBox<?> cancelList = awaitTaskModeList(fixture.sheet);
+		GuiAcceptanceSupport.await(cancelList::isPopupVisible, "Alt+Down did not reopen the Task Mode list");
+		// The document root-pane Escape action (GraphicManager) cancels the active sheet's editor; this fixture's
+		// DocumentFrame does not own fixture.sheet, so cancel through that same editor call instead of the key.
+		SwingUtilities.invokeAndWait(() -> fixture.sheet.getCellEditor().cancelCellEditing());
+		GuiAcceptanceSupport.await(() -> !fixture.sheet.isEditing(), "cancelling did not close the Task Mode editor");
+		assertFalse(task.isManuallyScheduled(), "cancelling must not change the task");
+
+		// Save / reload with a manual task; identify the task by UID.
+		SwingUtilities.invokeAndWait(() -> fixture.sheet.setValueAt(manualLabel, taskRow, column));
+		GuiAcceptanceSupport.await(() -> task.isManuallyScheduled(), "the label text did not set manual scheduling");
 		ByteArrayOutputStream saved = new ByteArrayOutputStream();
-		assertTrue(new MpoFileImporter().saveProject(fixture.project, saved), "MPO save rejected the manual-scheduling toggle");
+		assertTrue(new MpoFileImporter().saveProject(fixture.project, saved), "MPO save rejected the Task Mode change");
 		Project reloaded = new MpoFileImporter().loadProject(new ByteArrayInputStream(saved.toByteArray()));
 		NormalTask restored = reloaded.getTasks().stream()
 			.filter(value -> value instanceof NormalTask && value.getUniqueId() == taskUid)
 			.map(value -> (NormalTask) value).findFirst().orElseThrow();
 		assertTrue(restored.isManuallyScheduled(), "MPO reload lost the manual-scheduling flag");
 
-		// Clicking a void row's cell: record today's behaviour (must not throw).
+		// Clicking a void row's cell: record today's behaviour (must not throw, must not create a task).
 		int tasksBefore = fixture.project.getTasks().size();
 		Throwable[] uncaught = new Throwable[1];
 		Thread.UncaughtExceptionHandler previous = Thread.getDefaultUncaughtExceptionHandler();
@@ -1162,11 +1238,76 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		} finally {
 			Thread.setDefaultUncaughtExceptionHandler(previous);
 		}
-		assertEquals(null, uncaught[0], "clicking a void row's boolean cell must not throw");
+		assertEquals(null, uncaught[0], "clicking a void row's Task Mode cell must not throw");
 		assertEquals(tasksBefore, fixture.project.getTasks().size(),
-			"a single click on a void row selects it; it does not create a task (unchanged by #894)");
+			"a single click on a void row selects it; it does not create a task");
 		assertEquals(0, countDifferentPixels(captureCellInterior(robot, fixture.sheet, emptyRow, column)),
-			"a void row must still paint no check box after being clicked");
+			"a void row must still paint nothing after being clicked");
+	}
+
+	private static String renderedText(SpreadSheet sheet, int row, int column) throws Exception {
+		String[] text = new String[1];
+		SwingUtilities.invokeAndWait(() -> {
+			Component component = sheet.getCellRenderer(row, column).getTableCellRendererComponent(
+				sheet, sheet.getValueAt(row, column), false, false, row, column);
+			text[0] = ((javax.swing.JLabel) component).getText();
+		});
+		return text[0];
+	}
+
+	private static boolean renderedHasIcon(SpreadSheet sheet, int row, int column) throws Exception {
+		boolean[] icon = new boolean[1];
+		SwingUtilities.invokeAndWait(() -> {
+			Component component = sheet.getCellRenderer(row, column).getTableCellRendererComponent(
+				sheet, sheet.getValueAt(row, column), false, false, row, column);
+			icon[0] = ((javax.swing.JLabel) component).getIcon() != null;
+		});
+		return icon[0];
+	}
+
+	private static JComboBox<?> awaitTaskModeList(SpreadSheet sheet) throws Exception {
+		JComboBox<?>[] combo = new JComboBox<?>[1];
+		GuiAcceptanceSupport.await(() -> {
+			boolean[] found = new boolean[1];
+			try {
+				SwingUtilities.invokeAndWait(() -> {
+					if (sheet.isEditing() && sheet.getEditorComponent() instanceof JComboBox<?> editor) {
+						combo[0] = editor;
+						found[0] = true;
+					}
+				});
+			} catch (Exception e) {
+				throw new AssertionError(e);
+			}
+			return found[0];
+		}, "no list editor became active in the Task Mode cell");
+		return combo[0];
+	}
+
+	private static List<String> comboItems(JComboBox<?> combo) throws Exception {
+		List<String> items = new ArrayList<>();
+		SwingUtilities.invokeAndWait(() -> {
+			for (int index = 0; index < combo.getItemCount(); index++) items.add(String.valueOf(combo.getItemAt(index)));
+		});
+		return items;
+	}
+
+	/** Physical click on one item of the open list popup. */
+	private static void clickListItem(Robot robot, JComboBox<?> combo, int index) throws Exception {
+		Point[] target = new Point[1];
+		SwingUtilities.invokeAndWait(() -> {
+			javax.swing.plaf.basic.ComboPopup popup =
+				(javax.swing.plaf.basic.ComboPopup) combo.getUI().getAccessibleChild(combo, 0);
+			javax.swing.JList<?> items = popup.getList();
+			Rectangle bounds = items.getCellBounds(index, index);
+			Point origin = items.getLocationOnScreen();
+			// An item can be wider than the popup (narrow column): aim at the visible part.
+			int visibleWidth = Math.min(bounds.width, combo.getWidth());
+			target[0] = new Point(origin.x + bounds.x + visibleWidth / 2, origin.y + bounds.y + bounds.height / 2);
+		});
+		robot.mouseMove(target[0].x, target[0].y);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 	}
 
 	private static void clickCell(Robot robot, SpreadSheet sheet, int row, int column) throws Exception {
