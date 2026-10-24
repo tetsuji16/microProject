@@ -1,0 +1,243 @@
+/*******************************************************************************
+ * MIT License
+ * Copyright (c) 2026 microProject
+ ******************************************************************************/
+package com.microproject.exchange;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.TimeZone;
+
+import org.junit.jupiter.api.Test;
+
+import com.microproject.pm.assignment.Assignment;
+import com.microproject.pm.assignment.AssignmentService;
+import com.microproject.pm.calendar.CalendarService;
+import com.microproject.pm.calendar.WorkingCalendar;
+import com.microproject.pm.calendar.WorkingHours;
+import com.microproject.pm.dependency.Dependency;
+import com.microproject.pm.dependency.DependencyService;
+import com.microproject.pm.dependency.DependencyType;
+import com.microproject.pm.resource.Resource;
+import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.scheduling.ConstraintType;
+import com.microproject.pm.task.NormalTask;
+import com.microproject.pm.task.Project;
+import com.microproject.pm.task.Task;
+import com.microproject.pm.task.TaskSplitInterval;
+import com.microproject.pm.snapshot.Snapshottable;
+import com.microproject.configuration.FieldDictionary;
+import com.microproject.graphic.configuration.SpreadSheetFieldArray;
+import com.microproject.undo.DataFactoryUndoController;
+
+/**
+ * Reproduction-only generator for the historical fixture. Copy this class into
+ * the old revision's exchange test source tree and run it there; it is not part
+ * of the production source or the current regression test suite.
+ */
+class V024TaggedWriterGeneratorTest {
+	private static final long HOUR = 60L * 60L * 1000L;
+
+	@Test
+	void generateFixtureUsingPreviousWriter() throws Exception {
+		TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+		System.setProperty("user.timezone", "UTC");
+		Project project = createSourceProject();
+		assertSourceManifest(project);
+
+		Path output = Path.of(System.getProperty("fixed.schedule.fixture.output",
+			Files.createTempFile("fixed-schedule-previous-writer-", ".mpo").toString()));
+		Files.createDirectories(output.toAbsolutePath().getParent());
+		try (OutputStream stream = Files.newOutputStream(output)) {
+			assertTrue(new MpoFileImporter().saveProject(project, stream));
+		}
+		System.out.println("Generated previous-writer fixture: " + output.toAbsolutePath());
+	}
+
+	private static Project createSourceProject() throws Exception {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("fixed-schedule-fixture", undo), undo);
+		project.initialize(false, false);
+		project.setName("Fixed schedule native fixture");
+
+		WorkingCalendar calendar = CalendarService.getInstance().getStandardBasedInstance();
+		calendar.setName("Fixture Mon-Fri 08:00-12:00 13:00-17:00");
+		calendar.setUniqueId(42L);
+		WorkingHours workingHours = new WorkingHours();
+		workingHours.setInterval(0, WorkingHours.hourTime(8), WorkingHours.hourTime(12));
+		workingHours.setInterval(1, WorkingHours.hourTime(13), WorkingHours.hourTime(17));
+		for (int day = 2; day <= 6; day++) {
+			CalendarService.getInstance().setWeekDayWorkingHours(calendar, day, workingHours);
+		}
+		project.setWorkCalendar(calendar);
+		SpreadSheetFieldArray layout = new SpreadSheetFieldArray();
+		layout.add(FieldDictionary.getInstance().getFieldFromId("Field.name"));
+		layout.add(FieldDictionary.getInstance().getFieldFromId("Field.duration"));
+		layout.add(FieldDictionary.getInstance().getFieldFromId("Field.percentComplete"));
+		layout.setWidths(new java.util.ArrayList<>(java.util.List.of(240, 88, 72)));
+		layout.setManualWidths(new java.util.ArrayList<>(java.util.List.of(true, false, true)));
+		project.setFieldArray(layout);
+
+		Resource resource = project.getResourcePool().newResourceInstance();
+		resource.setName("Fixture resource");
+		resource.setUniqueId(7L);
+		resource.setExternalId(7L);
+		resource.getAvailabilityTable().setMaximumUnits(0.5D);
+		resource.setWorkCalendar(null);
+
+		NormalTask predecessor = addTask(project, 4201L, "Predecessor — 8h", "2030-06-03T08:00:00", calendar);
+		NormalTask successor = addTask(project, 4202L, "Successor — partial progress", "2030-06-04T08:00:00", calendar);
+		Dependency dependency = DependencyService.getInstance().newDependency(
+			predecessor, successor, DependencyType.FS, 0L, null);
+		assertEquals(0L, dependency.getLag());
+
+		assign(resource, predecessor, 0L, 8L);
+		Assignment successorAssignment = assign(resource, successor, 2L, 6L);
+		successor.setPercentComplete(0.25D);
+		predecessor.setHiddenTask(true);
+		successor.setFontFamily("Dialog");
+		successor.setFontSize(15);
+		successor.setFontColor(Integer.valueOf(0x2457A6));
+		successor.setFontBold(true);
+		successor.setFontItalic(true);
+		successor.setFontStrikethrough(true);
+		successor.setLevelingCanSplit(false);
+		successor.setLevelAssignments(false);
+		successor.restoreTaskSplitIntervals(V024TaggedWriterGeneratorTest.class,
+			java.util.List.of(new TaskSplitInterval(4L * HOUR, 5L * HOUR)));
+		successor.saveCurrentToSnapshot(Integer.valueOf(Snapshottable.BASELINE));
+		assertEquals(8L * HOUR, successorAssignment.getWork(null));
+		assertEquals(2L * HOUR, successorAssignment.getActualWork(null));
+		assertEquals(6L * HOUR, successorAssignment.getRemainingWork(null));
+
+		project.recalculate();
+		// Add tasks first; task construction/recalculation can move the project's default start.
+		project.setStart(modelTime("2030-06-03T08:00:00"));
+		project.setEnd(modelTime("2030-06-04T17:00:00"));
+		return project;
+	}
+
+	private static NormalTask addTask(Project project, long uid, String name, String start,
+		WorkingCalendar calendar) {
+		NormalTask task = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		task.setId(uid == 4201L ? 1L : 2L);
+		task.setUniqueId(uid);
+		task.setName(name);
+		task.setWorkCalendar(calendar);
+		task.setManuallyScheduled(false);
+		task.setScheduleConstraintAndUpdate(ConstraintType.SNET, modelTime(start));
+		task.setDuration(8L * HOUR);
+		return task;
+	}
+
+	private static Assignment assign(Resource resource, NormalTask task, long actualHours, long remainingHours) {
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1.0D, 0L, null, false);
+		assignment.setWork(8L * HOUR, null);
+		assignment.setActualWork(actualHours * HOUR, null);
+		assignment.setRemainingWork(remainingHours * HOUR, null);
+		return assignment;
+	}
+
+	private static void assertSourceManifest(Project project) {
+		long mon08 = modelTime("2030-06-03T08:00:00");
+		long mon17 = modelTime("2030-06-03T17:00:00");
+		long tue08 = modelTime("2030-06-04T08:00:00");
+		long tue17 = modelTime("2030-06-04T17:00:00");
+		assertEquals("Fixed schedule native fixture", project.getName());
+		assertEquals(mon08, project.getStart());
+		assertEquals(tue17, project.getEnd());
+		assertEquals(42L, project.getWorkCalendar().getUniqueId());
+		assertEquals(java.util.List.of("Field.name", "Field.duration", "Field.percentComplete"),
+			project.getFieldArray().stream().map(com.microproject.field.Field::getId).toList());
+		assertEquals(240, project.getFieldArray().getWidth(0));
+		assertEquals(88, project.getFieldArray().getWidth(1));
+		assertEquals(72, project.getFieldArray().getWidth(2));
+		assertTrue(project.getFieldArray().isManualWidth(0));
+		assertFalse(project.getFieldArray().isManualWidth(1));
+		assertTrue(project.getFieldArray().isManualWidth(2));
+		assertEquals("Fixture Mon-Fri 08:00-12:00 13:00-17:00", project.getWorkCalendar().getName());
+		Resource resource = project.getResourcePool().getResourceList().stream()
+			.filter(candidate -> candidate.getUniqueId() == 7L).findFirst()
+			.orElseThrow(() -> new AssertionError("Missing fixture resource"));
+		assertEquals("Fixture resource", resource.getName());
+		assertEquals(0.5D, resource.getMaximumUnits(), 0.00001D);
+		WorkingCalendar projectCalendar = (WorkingCalendar) project.getWorkCalendar();
+		assertEquals(WorkingHours.hourTime(8), projectCalendar.getWeekDay(2).getWorkingHours()
+			.getInterval(0).getStart());
+		assertEquals(WorkingHours.hourTime(12), projectCalendar.getWeekDay(2).getWorkingHours()
+			.getInterval(0).getEnd());
+		assertEquals(WorkingHours.hourTime(13), projectCalendar.getWeekDay(2).getWorkingHours()
+			.getInterval(1).getStart());
+		assertEquals(WorkingHours.hourTime(17), projectCalendar.getWeekDay(2).getWorkingHours()
+			.getInterval(1).getEnd());
+		NormalTask predecessor = task(project, 4201L);
+		NormalTask successor = task(project, 4202L);
+		assertEquals(1, predecessor.getId());
+		assertEquals("Predecessor — 8h", predecessor.getName());
+		assertEquals(mon08, predecessor.getStart());
+		assertEquals(mon17, predecessor.getEnd());
+		assertEquals(8L * HOUR, predecessor.getDuration());
+		assertEquals(0.0D, predecessor.getPercentComplete(), 0.00001D);
+		assertEquals(ConstraintType.SNET, predecessor.getConstraintType());
+		assertEquals(mon08, predecessor.getConstraintDate());
+		assertFalse(predecessor.isManuallyScheduled());
+		assertEquals(42L, predecessor.getWorkCalendar().getUniqueId());
+		assertTrue(predecessor.isHiddenTask());
+		assertEquals(2, successor.getId());
+		assertEquals("Successor — partial progress", successor.getName());
+		assertEquals(tue08, successor.getStart());
+		assertEquals(tue17, successor.getEnd());
+		assertEquals(8L * HOUR, successor.getDuration());
+		assertEquals(0.25D, successor.getPercentComplete(), 0.00001D);
+		assertEquals(ConstraintType.SNET, successor.getConstraintType());
+		assertEquals(tue08, successor.getConstraintDate());
+		assertFalse(successor.isManuallyScheduled());
+		assertEquals(42L, successor.getWorkCalendar().getUniqueId());
+		assertEquals("Dialog", successor.getFontFamily());
+		assertEquals(15, successor.getFontSize());
+		assertEquals(Integer.valueOf(0x2457A6), successor.getFontColor());
+		assertTrue(successor.isFontBold() && successor.isFontItalic() && successor.isFontStrikethrough());
+		assertFalse(successor.isLevelingCanSplit());
+		assertFalse(successor.isLevelAssignments());
+		assertEquals(java.util.List.of(new TaskSplitInterval(4L * HOUR, 5L * HOUR)),
+			successor.getTaskSplitIntervals());
+		assertTrue(successor.getSnapshot(Integer.valueOf(Snapshottable.BASELINE)) != null);
+		assertEquals(1, successor.getPredecessorList().size());
+		Dependency dependency = (Dependency) successor.getPredecessorList().iterator().next();
+		assertEquals(DependencyType.FS, dependency.getDependencyType());
+		assertEquals(0L, dependency.getLag());
+		assertAssignment(predecessor, 0L, 8L);
+		assertAssignment(successor, 2L, 6L);
+	}
+
+	private static void assertAssignment(NormalTask task, long actualHours, long remainingHours) {
+		assertEquals(1, task.getAssignments().size());
+		Assignment assignment = (Assignment) task.getAssignments().get(0);
+		assertEquals(7L, assignment.getResource().getUniqueId());
+		assertEquals("Fixture resource", assignment.getResource().getName());
+		assertNull(assignment.getResource().getWorkCalendar());
+		assertEquals(1.0D, assignment.getUnits(), 0.00001D);
+		assertEquals(8L * HOUR, assignment.getWork(null));
+		assertEquals(actualHours * HOUR, assignment.getActualWork(null));
+		assertEquals(remainingHours * HOUR, assignment.getRemainingWork(null));
+	}
+
+	private static NormalTask task(Project project, long uid) {
+		for (Task task : project.getTaskList()) {
+			if (task.getUniqueId() == uid) return (NormalTask) task;
+		}
+		throw new AssertionError("Missing task UID " + uid);
+	}
+
+	private static long modelTime(String value) {
+		return LocalDateTime.parse(value).toInstant(ZoneOffset.UTC).toEpochMilli();
+	}
+}
