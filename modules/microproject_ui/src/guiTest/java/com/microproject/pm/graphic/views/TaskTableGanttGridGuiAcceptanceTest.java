@@ -1009,6 +1009,18 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		clickComponent(robot, ok);
 		GuiAcceptanceSupport.await(() -> "gui alias".equals(customField.getName()),
 			"physical Rename did not update the custom column alias");
+		StringBuilder after = new StringBuilder("fieldArray=");
+		SwingUtilities.invokeAndWait(() -> {
+			for (Object field : fixture.sheet.getFieldArray())
+				after.append(((Field) field).getId().replace("Field.", "")).append(' ');
+			after.append("columns=");
+			for (int index = 0; index < fixture.sheet.getColumnModel().getColumnCount(); index++)
+				after.append(fixture.sheet.getColumnModel().getColumn(index).getIdentifier() instanceof Field field
+					? field.getId().replace("Field.", "") : "?").append(' ');
+			after.append("undo=").append(fixture.project.getUndoController().getEditNames());
+		});
+		assertTrue(customColumn < fixture.sheet.getColumnCount(), "the custom column vanished after Rename. before: "
+			+ layout + " after: " + after);
 		assertEquals("gui alias", fixture.sheet.getColumnName(customColumn),
 			"spreadsheet header did not redraw the alias entered through Rename");
 		// Fields are dictionary singletons. Restore the fixture-independent alias
