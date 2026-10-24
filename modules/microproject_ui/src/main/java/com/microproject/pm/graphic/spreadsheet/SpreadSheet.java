@@ -1316,8 +1316,9 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		if (!isCanModifyColumns() || !(getFieldArray() instanceof SpreadSheetFieldArray fields)
 				|| fieldIndex < 1 || fieldIndex >= fields.size() || fields.isHeaderWrap(fieldIndex) == wrap)
 			return false;
-		SpreadSheetFieldArray before = (SpreadSheetFieldArray) fields.clone();
-		SpreadSheetFieldArray after = fields.withHeaderWrap(fieldIndex, wrap);
+		// Snapshot the widths on screen: switching wrapping must not undo a dragged column width.
+		SpreadSheetFieldArray before = (SpreadSheetFieldArray) getFieldArrayWithWidths(fields).clone();
+		SpreadSheetFieldArray after = ((SpreadSheetFieldArray) before.clone()).withHeaderWrap(fieldIndex, wrap);
 		applyColumnLayoutChange(before, after, fieldIndex - 1, Messages.getString("SpreadSheetColumnMenu.HeaderWrap"));
 		return true;
 	}
