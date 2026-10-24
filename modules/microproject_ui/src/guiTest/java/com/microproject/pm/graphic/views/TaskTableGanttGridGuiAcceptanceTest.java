@@ -960,6 +960,17 @@ class TaskTableGanttGridGuiAcceptanceTest {
 
 		int fieldIndex = fixture.sheet.getFieldArray().indexOf(customField);
 		assertTrue(fieldIndex > 0, "custom field must be visible after the hidden ID field");
+		StringBuilder layout = new StringBuilder("fieldArray=");
+		SwingUtilities.invokeAndWait(() -> {
+			for (Object field : fixture.sheet.getFieldArray())
+				layout.append(((Field) field).getId().replace("Field.", "")).append(' ');
+			layout.append("columns=");
+			for (int index = 0; index < fixture.sheet.getColumnModel().getColumnCount(); index++)
+				layout.append(fixture.sheet.getColumnModel().getColumn(index).getIdentifier() instanceof Field field
+					? field.getId().replace("Field.", "") : "?").append(' ');
+		});
+		assertTrue(fieldIndex - 1 < fixture.sheet.getColumnCount(),
+			"the field array and the visible columns disagree: " + layout);
 		int customColumn = fieldIndex - 1;
 		SwingUtilities.invokeAndWait(() -> fixture.sheet.scrollRectToVisible(fixture.sheet.getCellRect(0, customColumn, true)));
 		Point headerPoint = screenCenter(fixture.sheet.getTableHeader(), fixture.sheet.getTableHeader().getHeaderRect(customColumn));
@@ -1904,7 +1915,22 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		ImageIO.write(capture, "png", directory.resolve(artifactName).toFile());
 		assertTrue(openEdge == null, "selected column header outline is open: " + openEdge + " capture="
 			+ capture.getWidth() + "x" + capture.getHeight() + " bounds=" + bounds[0] + " outline="
-			+ Integer.toHexString(outline.getRGB() & 0xFFFFFF) + " rightBand=" + rowHex(capture, Math.min(3, capture.getHeight() - 1), 6));
+			+ Integer.toHexString(outline.getRGB() & 0xFFFFFF) + " rightBand=" + rowHex(capture, Math.min(3, capture.getHeight() - 1), 6)
+			+ " headerRectNow=" + headerRectOnScreen(sheet, column) + " activeHeaderColumn=" + sheet.getActiveHeaderColumn());
+	}
+
+	private static Rectangle headerRectOnScreen(SpreadSheet sheet, int column) {
+		Rectangle[] rect = new Rectangle[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				Rectangle cell = sheet.getTableHeader().getHeaderRect(column);
+				Point origin = sheet.getTableHeader().getLocationOnScreen();
+				rect[0] = new Rectangle(origin.x + cell.x, origin.y + cell.y, cell.width, cell.height);
+			});
+		} catch (Exception exception) {
+			return null;
+		}
+		return rect[0];
 	}
 
 	/** Hex colours of the last {@code count} pixels of a capture row (failure diagnostics). */
