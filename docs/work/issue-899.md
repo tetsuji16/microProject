@@ -41,18 +41,18 @@ Document-derived compatibility decision (not a measured MSP run):
 
 | ID | Required result/evidence | State | Evidence (SHA + link) |
 |---|---|---|---|
-| A1 | Yes/No text instead of check boxes; empty rows blank | pass (unit, GUI pending CI) | `SpreadsheetGridBorderTest.yesNoRenderer*` |
-| A2 | Physical click / F2 / Alt+Down / typing open one list; one Undo/Redo step | pending CI | `physicalTaskModeColumnShowsTextAndIsChosenFromAList` (passed locally before the width fix) |
+| A1 | Yes/No text instead of check boxes; empty rows blank | pass | `SpreadsheetGridBorderTest.yesNoRenderer*` |
+| A2 | Physical click / F2 / Alt+Down / typing open one list; one Undo/Redo step | pass (CI) | `physicalTaskModeColumnShowsTextAndIsChosenFromAList`, runs 40046218176 / 40046671754 / 40046952733 on `066a8fb0f` |
 | A3 | Task Mode column: header, icon + mode text, two choices | core pass | `BooleanTextTest` |
 | A4 | Stored Boolean unchanged; MPO/MPP/MPX/XML/XLSX no regression | pass | `gradlew build` (all module tests) |
 | A5 | Text input accepts labels and true/false; others rejected | core pass | `BooleanTextTest` |
-| A6 | ja/en, UI scale 1.0/1.5 physical GUI | pending CI | targeted gui-acceptance dispatches |
+| A6 | ja/en, UI scale 1.0/1.5 physical GUI | pass (CI) | grid test 21/21 in ja 1.0, ja 1.5 and en; U-26 ja 2/2 (run 40046225036); 0 skipped; `066a8fb0f` |
 
 ## Current slice
 
-**Next slice:** targeted CI GUI runs (ja 1.0, ja 1.5, en; U-26 ja) on the PR head.
-**Done when:** all pass with 0 skipped.
-**Then:** integration (PR) and close.
+**Next slice:** merge #898, then #900 (retargets to master).
+**Done when:** #900 is merged.
+**Then:** close #899.
 
 ## Remaining blockers
 
@@ -63,4 +63,4 @@ Document-derived compatibility decision (not a measured MSP run):
 - Tests/build: `gradlew build` passed. The legacy report baseline records the Yes/No text delta (Task Information Field.manuallyScheduled: frozen true/false → MSP text). The Task Mode default width is 120 (spreadsheet minimum 110) so the text does not wrap.
 - Physical GUI/manual: the subagent's run before the width/popup fix passed 21/21 in ja 1.0, ja 1.5 and en, and U-26 2/2. The local rerun after the fix was blocked by GUI_ENVIRONMENT_CONTENDED (the Claude desktop window overlapped the test window); this is not a product failure.
 - Known gap: the physical Escape key is not covered in the grid fixture (its DocumentFrame does not own the test sheet); cancel is tested through `cancelCellEditing`, the call the Escape handler makes.
-- CI: pending
+- CI: targeted gui-acceptance on `066a8fb0f` passed: ja 1.0, ja 1.5 and en, 21 tests each; U-26 ja, 2 tests; 0 skipped.
