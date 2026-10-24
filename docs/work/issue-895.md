@@ -40,16 +40,16 @@ in the product, the per-column switch is a check item in the header popup menu
 
 | ID | Required result/evidence | State | Evidence (SHA + link) |
 |---|---|---|---|
-| A1 | Default: headers wrap to full text; header height fits | open | |
-| A2 | Per-column off switch; saved/reloaded with the layout; undoable | open | |
-| A3 | Corner, sheet header and Gantt timescale share one height; #860 outline closed | open | |
-| A4 | ja/en, UI scale 1.0/1.5 physical GUI | open | |
+| A1 | Default: headers wrap to full text; header height fits | pass | `SpreadSheetColumnHeaderWrapTest`; Robot test on `2d64bdc86` |
+| A2 | Per-column off switch; saved/reloaded with the layout; undoable | pass | popup toggle, Ctrl+Z/Ctrl+Y, MPO reload in the Robot test; `MpoFileImporterTest` |
+| A3 | Corner, sheet header and Gantt timescale share one height; #860 outline closed | pass | Robot test; `CommonTableHeaderActiveOutlineTest` (1.0–1.75) |
+| A4 | ja/en, UI scale 1.0/1.5 physical GUI | pass (CI) | runs 40056187083, 40056321554, 40056506982 and 40056708131 on `2d64bdc86`: 22/22 each, 0 skipped |
 
 ## Current slice
 
-**Next slice:** implementation and tests (delegated).
-**Done when:** build passes; the grid GUI test passes in ja 1.0/1.5 and en.
-**Then:** integration (PR) and close.
+**Next slice:** merge #896, #898, #900, then #901.
+**Done when:** #901 is merged.
+**Then:** close #895.
 
 ## Remaining blockers
 
@@ -57,6 +57,10 @@ in the product, the per-column switch is a check item in the header popup menu
 
 ## Latest evidence
 
-- Tests/build: pending
-- Physical GUI/manual: pending
-- CI: pending
+- Tests/build: `gradlew build` passed on `2d64bdc86`.
+- CI: targeted grid class on `2d64bdc86` passed in ja 1.0, ja 1.5 (twice) and en.
+- Root causes found on the way:
+  - Column layout commands reset dragged widths; Undo/Redo now apply widths, via `setFieldArrayWithWidths`. A diagnostic showed 44 → 98.
+  - The #896 on-screen outline capture rounded inward at 150%. The capture now has a margin; a headless reproducer showed the painted outline is closed.
+  - The date-cell click test clicked an off-screen cell at 150%. This also fails on #899 when run alone; the test now scrolls the cell into view.
+- Open, not reproduced: `physicalCustomColumnRenameUsesTheHeaderPopupDialog` intermittently lost 1–3 columns after Rename (3 full-class runs on 83da3187a–30a74f1d6, and once in 5 runs alone on #895; never in 4 runs alone on #899). It did not recur in the last 4 full-class runs or 3 single runs. The diagnostic in the test now reports the layout and Undo history if it recurs.
