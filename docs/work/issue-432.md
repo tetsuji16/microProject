@@ -11,7 +11,7 @@
 ## Intake and root cause
 
 - Fetched #432 body and all comments once on 2026-10-24. Latest comment: https://github.com/tetsuji16/microProject/issues/432#issuecomment-6385062529.
-- Baseline HEAD: `043a0a85834f49c7eb46bb45ddb17c3ad09d262e`; changes remain uncommitted.
+- Baseline HEAD: `043a0a85834f49c7eb46bb45ddb17c3ad09d262e`; reviewed implementation: `6361740bb6b4727ef07e6863ab820e0ad553e256`.
 - Baseline production journey at 1009×762 rendered the name, duration, start, and finish columns at 26 px despite null project/template width metadata. The pre-fix Robot assertion failed on the live GanttView.
 - Root cause: `autoSizeColumnsToContent()` set preferred widths to 26 before JTable's first `doLayout`; GanttView's deferred floor checked actual width (then 150) and skipped. JTable subsequently materialized the 26 px preferred widths.
 - The old column-width property heuristic also treated first Swing layout changes as user widths. Physical header-boundary gestures now establish manual provenance; ordinary layout does not. Configured manual widths bypass readable floors/autosizing.
@@ -30,7 +30,7 @@
 - Final full UI module command passed on the stable production diff: `.\gradlew.bat :microproject_ui:test --max-workers=1 --no-daemon --console=plain` (`BUILD SUCCESSFUL`, 20 actionable tasks, one executed and 19 up-to-date; 1m16s).
 - Final focused Robot artifacts: `modules/microproject_ui/build/reports/guiTest-artifacts/issue-432-layout.txt`, latest wide/narrow/wide screenshots `issue-432-1300x820-1692.png`, `issue-432-1009x762-3244.png`, `issue-432-1300x820-4797.png`, plus `issue-432-manual-width-after-rebuild.png` and `issue-432-manual-width-after-resize.png`. Baseline failure screenshots and column event log remain alongside them in that ignored build artifact directory.
 - A separate installed launcher was started from `modules/microproject_ui/build/install/microproject_ui/bin/microproject_ui.bat` with `MICROPROJECT_UI_OPTS` setting `-Duser.home` and `-Djava.util.prefs.userRoot` to `modules/microproject_ui/build/reports/guiTest-artifacts/isolated-user-profile`, opening the disposable copy `modules/microproject_ui/build/reports/guiTest-artifacts/issue432-installed-launch.mpo` of `samples/CCPM sample English.mpo`. The visible title was `microProject - CCPM Visualization Sample [Master]` and the rendered table/Gantt were inspected. The user profile and source sample were not used or changed.
-- Final source tested against baseline HEAD above plus the current uncommitted worktree diff. `git diff --check` passed.
+- Final source was tested against the baseline plus the reviewed implementation diff. Commit `62619e5ff` captured that tree; rebasing onto the identical-tree upstream HiDPI merge produced `6361740bb` with no tree difference (`git diff 62619e5ff 6361740bb --stat` empty). This documentation-only update does not change tested production/fixtures/dependencies. `git diff --cached --check` passed before committing.
 
 ## Remaining acceptance
 
