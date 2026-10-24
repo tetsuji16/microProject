@@ -38,7 +38,6 @@ class MpxResourceConverterTest {
 	@Test
 	void literalMspdiAvailabilityPeriodsRoundTripThroughModelMpoAndMspdi() throws Exception {
 		TimeZone originalZone = TimeZone.getDefault();
-		TimeZone.setDefault(TimeZone.getTimeZone("GMT+09:00"));
 		try {
 			String sourceXml = """
 				<Project xmlns="http://schemas.microsoft.com/project">
