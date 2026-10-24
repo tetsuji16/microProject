@@ -455,6 +455,7 @@ public class PodRoundTripTest {
 	public void samplePodRoundTripPreservesTaskLayoutAndDependencies() throws Exception {
 		assertRoundTrip("June_1_sample.pod");
 		assertRoundTrip("Commercial construction project plan.pod");
+		assertRoundTrip("Commercial construction project plan2.pod");
 	}
 
 	@Test
