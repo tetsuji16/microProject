@@ -1,42 +1,44 @@
 # Exchange format inventory
 
-**Reviewed:** 2026-10-16 at master `d4381676f`. This records implemented code paths and
-their current verification scope; it is not a claim of full Microsoft Project
-interoperability.
+**Reviewed:** 2026-10-25 at tested source tree `8481f4dfc`. This inventory
+records each advertised direction, fixture/version evidence, and gaps; it is
+not a claim of full Microsoft Project interoperability. Tests below are named
+as evidence, not re-reported as run during this documentation-only slice.
 
 For the canonical M0 status, owner, source/applicability, and remaining-gap
 register, see [MSP standard command and format inventory](MSP_STANDARD_COMMAND_INVENTORY.md).
 
 ## Reader and writer paths
 
-| Format / direction | Handler | Current contract and evidence |
-|---|---|---|---|
-| MPP read | MPXJ `MPPReader` via `MspImporter` | Import is supported by the code path; semantics remain partial and fixture authoring provenance is incomplete. |
-| MPP write | No writer registered; `ProjectWriterFactory` rejects `.mpp` | Explicitly outside product scope: MPO is the native save format. Do not relabel MSPDI XML as MPP. |
-| MPX read | MPXJ `MPXReader` via `MspImporter` | Reader exists; import semantic coverage is partial and must be reported by field. |
-| MPX write | MPXJ `MPXWriter` via `ProjectWriterFactory` | Writer exists; export semantic coverage is partial; no reverse-round-trip equivalence claim. |
-| Microsoft Project XML / MSPDI read | MPXJ `MSPDIReader` through `MspImporter`; `.xml` also has the established `.pod` fallback path | Primary external exchange path; tests cover selected task identity, links, scheduling and tracking. |
-| Microsoft Project XML / MSPDI write | `MSPDISerializer` → MPXJ `MSPDIWriter` | Task baseline dates/duration and assignment scalar Start/Finish/Work plus baseline timephased work (slots 0–10) have focused evidence. Assignment-only values do not manufacture task baselines; explicit zero and missing baseline work remain distinct. Baseline timephased cost and broader semantics remain partial. |
-| POD (legacy) read | `LocalFileImporter`: frozen Java object stream first, then legacy embedded/plain XML recovery | Preserve fixed `.pod` import fixtures and wire layout; this remains distinct from ordinary MSPDI XML despite the fallback reader. |
-| POD (legacy) write | Existing `LocalFileImporter` can still write frozen POD payloads | New write behavior is not in scope; current chooser/writer exposure is a source/target-policy discrepancy. |
-| MPO (`.mpo`) read | `MpoFileImporter` archive validation/extraction; content decoded through `MicrosoftImporter` | Backward-read files from earlier supported MPO versions; versioned container, merge, checksum and recovery tests exist. |
-| MPO (`.mpo`) write | `MpoFileImporter` archive/container writer | Authoritative native format and default save target (`FileHelper.DEFAULT_FILE_EXTENSION`); container, checksum and transaction behavior have dedicated tests. |
-| XLSX read | `MicroProjectXlsxReader`; native payload first, MSPDI sheet fallback through MPXJ | Native payload and external MSPDI fallback are distinct contracts; malformed/oversized input and representative reads are covered by `XlsxSupportTest`. Historical `_PL_*` / `_ProjectLibre_MSPDI` names remain read-only workbook compatibility markers. |
-| XLSX write | `MicroProjectXlsxWriter`; native payload plus MSPDI worksheet | Native payload supports microProject round trips; representative output is covered by `XlsxSupportTest`. New writes use canonical `_MicroProject_*` sheets/metadata; no MPO/POD wire contract changes. |
-| GNOME Planner (`.planner`) read | MPXJ `PlannerReader` via `MspImporter` | GNOME Planner file exchange, not Microsoft Planner; semantic import coverage is not established. |
-| GNOME Planner (`.planner`) write | MPXJ `PlannerWriter` via factory | Writer is wired; semantic export coverage is not established. |
-| PMXML read | No reader path found in `MspImporter` | Import is not supported by the current importer. |
-| PMXML write | MPXJ `PrimaveraPMFileWriter` via factory | Export-only writer registration. |
-| JSON read | No reader path found in `MspImporter` | Import is not supported; this is distinct from MPO container JSON. |
-| JSON write | MPXJ `JsonWriter` via factory | Export-only writer registration. |
-| SDEF read | No reader path found in `MspImporter` | Import is not supported by the current importer. |
-| SDEF write | MPXJ `SDEFWriter` via factory | Export-only writer registration. |
+| Format / direction | Handler | Contract, concrete evidence/version, and remaining gap (owner) |
+|---|---|---|
+| MPP read | MPXJ `MPPReader` via [`MspImporter`](../modules/microproject_exchange/src/main/java/com/microproject/core/pm/exchange/MspImporter.java) | Fixed inputs: [`mpp9timephasedsegments.mpp`](../modules/microproject_exchange/testdata/mpxj/mpp9timephasedsegments.mpp) ([source/provenance README](../modules/microproject_exchange/testdata/mpxj/README.md)); [`mpp14task-from2013.mpp`](../modules/microproject_exchange/testdata/mpxj/project2013/mpp14task-from2013.mpp) ([provenance README](../modules/microproject_exchange/testdata/mpxj/project2013/README.md)); Project 2019 MPP14 files [`task-links`](../modules/microproject_exchange/testdata/mpxj/project2019/task-links-project2019-mpp14.mpp), [`task-baselines`](../modules/microproject_exchange/testdata/mpxj/project2019/task-baselines-project2019-mpp14.mpp), [`calendar-calendars`](../modules/microproject_exchange/testdata/mpxj/project2019/calendar-calendars-project2019-mpp14.mpp), and [`assignment-assignments`](../modules/microproject_exchange/testdata/mpxj/project2019/assignment-assignments-project2019-mpp14.mpp) paired with MSPDI manifests ([provenance README](../modules/microproject_exchange/testdata/mpxj/project2019/README.md)). Assertions: [`MpxExportTrackingTest`](../modules/microproject_exchange/src/test/java/com/microproject/server/data/MpxExportTrackingTest.java) methods `mpp9CustomAssignmentContourMatchesIndependentManifestAndMpoReload`, `project2019Mpp14FixturesMatchIndependentManifestAndMpoReload`, and `project2013Mpp14TaskConstraintMatchesUpstreamManifestAndMpoReload`. MPP9 contour is 10 daily intervals/55h; Project 2019 editor build is 16.0.10730.20102; Project 2013 asserts `MUST_START_ON` (2006-08-23). Claims are limited to asserted manifest fields; other editions/builds (including Microsoft 365 and Project 2024) are unverified. Owner: #917. |
+| MPP write | No writer registered; [`ProjectWriterFactory`](../modules/microproject_exchange/src/main/java/com/microproject/exchange/mpxj/ProjectWriterFactory.java) rejects `.mpp` | **OUT OF SCOPE** by user decision (2026-10-12); MPO is native/default. [`ProjectWriterFactoryTest`](../modules/microproject_exchange/src/test/java/com/microproject/exchange/ProjectWriterFactoryTest.java) method `mppIsNotAdvertisedOrWrittenAsAnotherFormat` fixes rejection behavior. Do not relabel MSPDI XML as MPP. |
+| MPX read | MPXJ `MPXReader` via `MspImporter` | Registered reader; no fixed semantic manifest identified. Coverage unverified. Owner: #921. |
+| MPX write | MPXJ `MPXWriter` via `ProjectWriterFactory` | Registered writer; no fixed semantic manifest identified. Coverage unverified. Owner: #921. |
+| Microsoft Project XML / MSPDI read | MPXJ `MSPDIReader` through `MspImporter`; `.xml` also has the established `.pod` fallback path | Specific test sources: [`MpxExportTrackingTest`](../modules/microproject_exchange/src/test/java/com/microproject/server/data/MpxExportTrackingTest.java) and [`MpxCustomFieldsConverterTest`](../modules/microproject_exchange/src/test/java/com/microproject/core/pm/exchange/converters/mpx/MpxCustomFieldsConverterTest.java). Baseline scalar input is checked-in [`Assignment Baseline Scalars.xml`](../modules/microproject_exchange/testdata/Assignment%20Baseline%20Scalars.xml); elapsed-duration and timephased cases are literals/generated within tests, not separate external golden files. Broader schema/version coverage remains incomplete. Owner: #918. |
+| Microsoft Project XML / MSPDI write | `MSPDISerializer` → MPXJ `MSPDIWriter` | [`MpxExportTrackingTest`](../modules/microproject_exchange/src/test/java/com/microproject/server/data/MpxExportTrackingTest.java) covers task/assignment scalar baselines 0–10. `literalMspdiElapsedBaselineDurationUsesTaskDurationFormat` and `assignmentBaselineTimephasedWorkRoundTripsThroughMpoAndMspdi` additionally assert elapsed duration, selected assignment timephased work **and cost**, zero/missing distinctions, and MPO reload. Timephased case is a literal/generated in-test document, not an external golden file; do not infer all slot/contour combinations from selected fixtures. Not general XML parity. Owner: #918. |
+| POD (legacy) read | [`LocalFileImporter`](../modules/microproject_exchange/src/main/java/com/microproject/exchange/LocalFileImporter.java): frozen Java object stream first, then legacy embedded/plain XML recovery | Fixed samples: [`June_1_sample.pod`](../samples/June_1_sample.pod), [`Commercial construction project plan.pod`](../samples/Commercial%20construction%20project%20plan.pod), and [`Commercial construction project plan2.pod`](../samples/Commercial%20construction%20project%20plan2.pod). [`PodDescriptorInventoryTest`](../modules/microproject_exchange/src/test/java/com/microproject/exchange/PodDescriptorInventoryTest.java) compares these descriptors with [`pod-descriptors.txt`](../modules/microproject_exchange/src/test/resources/com/microproject/exchange/pod-descriptors.txt); [`PodRoundTripTest`](../modules/microproject_exchange/src/test/java/com/microproject/exchange/PodRoundTripTest.java) has fixed sample import assertions. Frozen import-only wire contract. Owner: #920. |
+| POD (legacy) write | Existing `LocalFileImporter` can still write frozen POD payloads | No new write contract: frozen legacy import-only policy. Existing chooser/writer exposure conflicts with that policy; discrepancy assigned to #920. |
+| MPO (`.mpo`) read | [`MpoFileImporter`](../modules/microproject_exchange/src/main/java/com/microproject/exchange/MpoFileImporter.java) archive validation/extraction; content decoded through `MicrosoftImporter` | Fixed files [`ccpm-sample-previous-release.mpo`](../modules/microproject_exchange/testdata/mpo/ccpm-sample-previous-release.mpo) (prior microProject release 0.0.23) and [`fixed-schedule-previous-writer.mpo`](../modules/microproject_exchange/testdata/mpo/fixed-schedule-previous-writer.mpo) ([fixture provenance README](../modules/microproject_exchange/testdata/mpo/README.md)). [`MpoHistoricalFixtureTest`](../modules/microproject_exchange/src/test/java/com/microproject/exchange/MpoHistoricalFixtureTest.java) asserts selected historical fields and literal schedule/work after reopen. Do not infer arbitrary future minor-version support. Owner: #919. |
+| MPO (`.mpo`) write | [`MpoFileImporter`](../modules/microproject_exchange/src/main/java/com/microproject/exchange/MpoFileImporter.java) archive/container writer | Authoritative native format and default save target. Current writer format version is MPO 1.0. Container/checksum/transaction and persisted column-layout/manual-flag assertions are in [`MpoFileImporterTest`](../modules/microproject_exchange/src/test/java/com/microproject/exchange/MpoFileImporterTest.java), including `taskColumnLayoutSurvivesMpoSaveAndReload`. Owner: #919. |
+| XLSX read | `MicroProjectXlsxReader`; native payload first, MSPDI sheet fallback through MPXJ | [`externalXlsxSummaryFallbackPreservesHierarchyUnitsAndProgress`](../modules/microproject_exchange/src/test/java/com/microproject/exchange/XlsxSupportTest.java) asserts hierarchy, progress, units, zero/omitted units; [`microsoftAndDirectMspImportUseTheSameNativeXlsxPayload`](../modules/microproject_exchange/src/test/java/com/microproject/exchange/XlsxSupportTest.java) asserts schema-3 native payload equivalence. These are in-test fixture constructions, not separate checked-in external golden files; no general XLSX parity claim. Owner: #921. |
+| XLSX write | `MicroProjectXlsxWriter`; native payload plus MSPDI worksheet | Native microProject payload schema 3 has focused same-payload/import assertions in [`XlsxSupportTest`](../modules/microproject_exchange/src/test/java/com/microproject/exchange/XlsxSupportTest.java); fixtures are constructed in-test, not separate external golden files. No general external XLSX parity claim. Owner: #921. |
+| GNOME Planner (`.planner`) read | MPXJ `PlannerReader` via `MspImporter` | GNOME Planner, not Microsoft Planner; reader is registered but no fixed semantic manifest found. Owner: #921. |
+| GNOME Planner (`.planner`) write | MPXJ `PlannerWriter` via factory | Writer is registered but no fixed semantic manifest found. Owner: #921. |
+| PMXML read | No reader path found in `MspImporter` | Unsupported/unverified import; not advertised by desktop Open chooser. Owner: #921 (classify). |
+| PMXML write | MPXJ `PrimaveraPMFileWriter` via factory | Internal factory registration only; not advertised by desktop Save chooser and no semantic contract found. Owner: #921 (classify). |
+| JSON read | No reader path found in `MspImporter` | Unsupported/unverified import; distinct from MPO container JSON and not advertised by desktop Open chooser. Owner: #921 (classify). |
+| JSON write | MPXJ `JsonWriter` via factory | Internal factory registration only; not advertised by desktop Save chooser and no semantic contract found. Owner: #921 (classify). |
+| SDEF read | No reader path found in `MspImporter` | Unsupported/unverified import; not advertised by desktop Open chooser. Owner: #921 (classify). |
+| SDEF write | MPXJ `SDEFWriter` via factory | Internal factory registration only; not advertised by desktop Save chooser and no semantic contract found. Owner: #921 (classify). |
 
-The desktop Open chooser advertises native MPO plus legacy POD and external MPP,
-MPX, XML, XLSX and GNOME Planner. The Save chooser currently advertises MPO and
-POD plus XML and XLSX; MPO is selected as the default native save format. Lower
-level writer factory registrations for MPX, PMXML, Planner, JSON and SDEF are
-separate from the desktop Save UI and do not imply that the UI advertises them.
+The desktop Open chooser advertises MPO, POD, MPP, MPX, XML, XLSX, and GNOME
+Planner; the Save chooser advertises MPO, POD, XML, and XLSX. MPO is the
+default/native save format. Lower-level factory registrations for MPX, PMXML,
+Planner, JSON, and SDEF are not desktop-advertised contracts. In particular,
+the existing POD write exposure is recorded as a policy discrepancy, not as a
+new POD write guarantee.
 
 Ordinary Save and close-time Save for import-only MPP/MPX/Planner sources now
 ask for a writable target and suggest MPO. Cancelling retains the source path
@@ -65,15 +67,14 @@ cannot silently select another writer.
 
 ## Current semantic coverage and known losses
 
-- MPP read: implementation path exists. `New Product.mpp` identifies itself in
-  its file header as `Microsoft Project 9.0` / `MSProject.MPP9`; no editor
-  edition/build provenance is recorded, and no Microsoft 365 Project or
-  Project 2024 authored fixture is currently registered. The fixed-file regression test records
-  one task and assignment's imported name, start, finish, work, actual work,
-  remaining work, and units through MPO save/reload. This is regression
-  evidence for that checked-in file, not an independent Microsoft Project
-  semantic manifest or MSP parity evidence; the independent MPP-read manifest
-  remains incomplete.
+- MPP read: `MpxExportTrackingTest` compares three fixture groups with fixed
+  manifests: MPP9 contour (10 daily intervals/55h), Project 2019 MPP14 (editor
+  build 16.0.10730.20102; paired MSPDI manifests include links, assignment
+  progress and calendars), and Project 2013 MPP14 task constraint
+  (`MUST_START_ON`, 2006-08-23). Claims are limited to asserted manifest fields;
+  this is not broad MSP parity. Microsoft 365/Project 2024 editions and other
+  builds remain unverified. No authoring provenance is inferred beyond the
+  checked-in fixture README/header.
 - MPP write: unsupported and explicitly outside product scope; MPO is the native
   save format. MPP read/import remains in scope.
 - XML: import/export supports task baselines 0–10 for start, finish, and
@@ -93,15 +94,21 @@ cannot silently select another writer.
   records in ascending slot order, then local custom fields. It checks only
   direct same-namespace Work children and accepts any XML duration whose value
   is zero.
-  Assignment timephased distributions and work contour details remain
-  unsupported. This is a partial scalar contract, not full baseline
+  `MpxExportTrackingTest.assignmentBaselineTimephasedWorkRoundTripsThroughMpoAndMspdi`
+  also asserts assignment baseline timephased work and cost (XML types 4/5 and
+  17/22/23), zero/missing distinctions, cost-only baselines, and MPO reload.
+  This is a bounded timephased contract, not full baseline
   interoperability. See Microsoft [Baseline
   element](https://learn.microsoft.com/en-us/office-project/xml-data-interchange/baseline-element?view=project-client-2016)
   and [Work element](https://learn.microsoft.com/en-us/office-project/xml-data-interchange/work-element?view=project-client-2016).
   Assignment ordering follows Microsoft's [XML Schema for the Assignments
   Element](https://learn.microsoft.com/en-us/office-project/xml-data-interchange/xml-schema-for-the-assignments-element?view=project-client-2016),
   which places assignment Baseline records after ExtendedAttribute and before
-  the local custom-field sequence.
+  the local custom-field sequence. Microsoft's [Type element](https://learn.microsoft.com/en-us/office-project/xml-data-interchange/type-element-multiple-parents?view=project-client-2016)
+  defines the timephased Type enumeration; for this bounded mapping, work types
+  are 4 for slot 0, 16 for slot 1, then +6 per slot, with adjacent cost types.
+  Sources accessed 2026-10-13; these compatibility choices are document-derived,
+  not results from a physical MSP run.
 - MSPDI indexed custom fields: `ExtendedAttribute/FieldID` is the identity used
   for local task/resource values; `FieldName` and `Alias` are not persisted by
   the current model. Microsoft distinguishes literal `Value` from lookup
@@ -127,16 +134,31 @@ cannot silently select another writer.
   independent of UTC, Tokyo, and Mexico City JVM defaults. The contract is
   tested against a hand-authored MSPDI date fixture and MPXJ 11.5.4's
   host-local `DateHelper.getDayStartDate` behavior.
-- MPX: both directions are wired, but broad semantic preservation is unverified.
-- XLSX: ProjectLibre-native payload supports a native round trip. The MSPDI
-  worksheet fallback follows XML/MSPDI limitations.
-- GNOME Planner, PMXML, JSON and SDEF: writer presence is not evidence of semantic
-  completeness; reader support is absent for PMXML, JSON and SDEF.
-- MPO: the established native archive/default save format; retain backward-read
-  coverage and its fixed compatibility fixtures.
-- POD: legacy import-only target with frozen serialization; preserve fixed import
-  fixtures. The current POD save chooser/writer is a discrepancy to resolve
-  separately; do not use it to broaden the target contract. External-format tests
+- MPX: both directions are wired; no fixed semantic manifest or end-to-end
+  contract was identified. Read/write semantics and supported version are
+  unverified (#921).
+- XLSX: native embedded payload schema 3 supports microProject round trips.
+  `XlsxSupportTest.externalXlsxSummaryFallbackPreservesHierarchyUnitsAndProgress`
+  asserts hierarchy, 40% progress, 50% assignment/resource units, and zero vs
+  omitted units; `microsoftAndDirectMspImportUseTheSameNativeXlsxPayload`
+  asserts schema-3 payload and equivalent task/document IDs. General XLSX
+  parity and other versions are unverified (#921).
+- GNOME Planner: reader and factory writer are wired, but no fixed semantic
+  contract/version was found (#921). This is GNOME Planner, not Microsoft
+  Planner; Microsoft Planner and cloud services are outside product scope.
+- PMXML, JSON and SDEF: factory writers are internal registrations, not
+  advertised Save formats; no readers or semantic contracts were found. Keep
+  them classified as unadvertised/unverified, not supported product promises
+  (#921).
+- MPO: native/default save is format version 1.0. `MpoHistoricalFixtureTest`
+  verifies selected fields from prior release 0.0.23 and literal schedule/work
+  from a previous writer after reopen; `MpoFileImporterTest` covers persisted
+  column widths/manual flags. These fixed fixtures do not prove acceptance of
+  arbitrary future minor versions (#919).
+- POD: legacy import-only target with frozen serialization; descriptor and
+  import assertions are in `PodDescriptorInventoryTest` and `PodRoundTripTest`.
+  Existing chooser/writer exposure is a policy discrepancy assigned to #920;
+  do not treat it as a write contract. External-format tests
   must not replace native MPO or legacy POD fixtures.
 ## Recent verification evidence
 
@@ -148,4 +170,4 @@ cannot silently select another writer.
 - Focused lifecycle and assignment-only XML/MPO round-trip tests passed after implementation. Full verification command `:microproject_core:test :microproject_exchange:test --no-daemon --max-workers=1 --console=plain` completed successfully on 2026-10-12 (`BUILD SUCCESSFUL`, 43s).
 - Physical Windows Robot acceptance passed on 2026-10-12 with JDK 25, Japanese locale, and UI scale 1. Command: `gradlew.bat :microproject_ui:installDist :microproject_ui:guiTest --tests "com.microproject.pm.graphic.frames.RibbonExternalCommandGuiAcceptanceTest.robotSavesImportedMppAsMpoAndCancellationOrOverwriteRefusalKeepsSource" -PguiTestLocale=ja -PguiTestUiScale=1 --no-daemon --max-workers=1 --console=plain`. The route imports the checked-in MPP copy, verifies cancellation and overwrite refusal preserve the source, saves MPO, reopens it, then opens a fixed MSPDI XML copy and verifies assignment baseline slots 0/9/10 survive Save As MPO and reopen. The checked-in New Product MPP currently has no assignment baseline scalars, so its round trip is not counted as scalar baseline evidence. The test report is `modules/microproject_ui/build/reports/tests/guiTest/index.html`.
 - The physical test first failed because it expected ordinary Save on an XML source to prompt for Save As; XML is a supported explicit export format and ordinary Save remains associated with that XML path. A later Save As attempt timed out at the save-completion assertion; the run did not record a modal owner/title, so it is not evidence of a window-ownership defect. The corrected route uses the explicit Save As command and native MPO default, and passed.
-- No Microsoft Project desktop application (Microsoft 365 Project or Project 2024) is installed on this host. The MSPDI behavior above is document-derived from the linked Microsoft schema references, not an empirical MSP comparison. Assignment baseline contours remain an open interoperability gate. MPP writing is explicitly out of scope by product decision; MPO is the native replacement.
+- No Microsoft Project desktop application (Microsoft 365 Project or Project 2024) is installed on this host. The MSPDI behavior above is document-derived from the linked Microsoft schema references, not an empirical MSP comparison. Broader assignment baseline contour semantics remain an open interoperability gate beyond the bounded work/cost fixture contract above. MPP writing is explicitly out of scope by product decision; MPO is the native replacement.
