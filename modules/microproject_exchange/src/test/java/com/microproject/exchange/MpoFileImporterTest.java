@@ -114,6 +114,41 @@ class MpoFileImporterTest {
 			.map(association -> (Task) ((Dependency) association).getSuccessor()).toList());
 	}
 
+	/**
+	 * Issue #887: MSP Estimated is a stored task field (MSPDI {@code Estimated}).
+	 * A default "1 day?" task must stay estimated after MPO reload and a no-op
+	 * resave, and an explicit firm duration must stay firm.
+	 */
+	@Test
+	void mpoRoundTripPreservesEstimatedAndFirmDurations() throws Exception {
+		Project project = projectForRoundTrip();
+		project.setStartDate(java.time.Instant.parse("2030-06-03T08:00:00Z").toEpochMilli());
+		NormalTask estimated = (NormalTask) firstTask(project);
+		NormalTask firm = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		estimated.setName("Estimated default duration");
+		firm.setName("Firm explicit duration");
+		long day = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		firm.setDuration(2L * day);
+		project.recalculate();
+		assignPositiveUniqueIds(project);
+		long estimatedDuration = estimated.getDuration();
+		long firmDuration = firm.getDuration();
+		assertTrue(estimated.isEstimated());
+		assertTrue(com.microproject.datatype.Duration.isEstimated(estimatedDuration));
+		assertFalse(firm.isEstimated());
+
+		Project reopened = loadFromBytes(saveProjectBytes(project));
+		Project resaved = loadFromBytes(saveProjectBytes(reopened));
+		for (Project restored : List.of(reopened, resaved)) {
+			NormalTask restoredEstimated = (NormalTask) restored.findByUniqueId(estimated.getUniqueId());
+			NormalTask restoredFirm = (NormalTask) restored.findByUniqueId(firm.getUniqueId());
+			assertTrue(restoredEstimated.isEstimated());
+			assertEquals(estimatedDuration, restoredEstimated.getDuration());
+			assertFalse(restoredFirm.isEstimated());
+			assertEquals(firmDuration, restoredFirm.getDuration());
+		}
+	}
+
 	@Test
 	void mpoRoundTripPreservesFixedDateSsFiftyPercentDurationLag() throws Exception {
 		Project project = projectForRoundTrip();

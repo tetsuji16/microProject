@@ -27,8 +27,10 @@ package com.microproject.datatype;
 import java.text.FieldPosition;
 import java.text.NumberFormat;
 import java.text.ParsePosition;
-import java.util.regex.Pattern;
+import java.util.StringJoiner;
+import java.util.function.UnaryOperator;
 import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import com.microproject.options.EditOption;
 import com.microproject.options.ScheduleOption;
@@ -81,47 +83,78 @@ public class DurationFormat extends Format {
 		return nonTemporalWorkInstance;
 	}
 	
-	// these strings are themselves parts of string ids in properties file and as such must be hard coded as below
-	private static final String[] types = {"minute", "hour", "day", "week", "month",
-			"year", "percent", "eminute", "ehour", "eday", "eweek", "emonth",
-			"eyear", "epercent"};
-	
 	private static final int SINGULAR = 0;
 	private static final int PLURAL = 1;
-	private static final String[] multiple = {".singular", ".plural"};
-	private static final int TYPE_COUNT = types.length;
-	private static final int NAME_COUNT = 4;
-	private static final String[][][] typesArray = new String[NAME_COUNT][multiple.length][TYPE_COUNT];
-	private static final Pattern[] pattern = new Pattern[TYPE_COUNT];
-	private static final String estimatedSymbol = Messages.getString("Units.estimatedSymbol");
-	
-	
-	//private constructor initializes values.
+
+	/** Unit suffix recognized after the number: a TimeUnit index (NONE when absent) and the estimated flag. */
+	record UnitMatch(int timeUnit, boolean estimated) {}
+
+	/**
+	 * Localized duration unit names read from the {@code Units.<type>.singular|plural} keys.
+	 * The first four '|'-separated entries are the display styles indexed by
+	 * {@link EditOption#getViewAs(int)}; any further entries are input-only aliases, so a
+	 * locale can display its own unit names while still accepting the English abbreviations.
+	 */
+	static final class UnitNames {
+		// these strings are themselves parts of string ids in properties file and as such must be hard coded as below
+		private static final String[] TYPES = {"minute", "hour", "day", "week", "month",
+				"year", "percent", "eminute", "ehour", "eday", "eweek", "emonth",
+				"eyear", "epercent"};
+		private static final String[] MULTIPLE = {".singular", ".plural"};
+		static final int DISPLAY_STYLE_COUNT = 4;
+
+		private final String[][][] display = new String[DISPLAY_STYLE_COUNT][MULTIPLE.length][TYPES.length];
+		private final Pattern[] patterns = new Pattern[TYPES.length];
+		private final String estimatedSymbol;
+
+		UnitNames(UnaryOperator<String> lookup) {
+			estimatedSymbol = lookup.apply("Units.estimatedSymbol");
+			String estimatedRegex = lookup.apply("Units.estimatedSymbolRegex"); // Like ?
+			for (int type = 0; type < TYPES.length; type++) {
+				StringJoiner aliases = new StringJoiner("|");
+				for (int j = 0; j < MULTIPLE.length; j++) {
+					String key = "Units." + TYPES[type] + MULTIPLE[j];
+					String[] names = lookup.apply(key).split("\\|", -1);
+					if (names.length < DISPLAY_STYLE_COUNT)
+						throw new IllegalStateException(key + " needs " + DISPLAY_STYLE_COUNT + " display names");
+					for (int style = 0; style < DISPLAY_STYLE_COUNT; style++)
+						display[style][j][type] = names[style];
+					for (String name : names)
+						if (!name.isEmpty())
+							aliases.add(Pattern.quote(name));
+				}
+				// Group 1 is the optional unit, group 2 the optional estimated symbol (?) after white space
+				patterns[type] = Pattern.compile("(" + aliases + ")?(\\s*" + estimatedRegex + "?)");
+			}
+		}
+
+		String display(int style, boolean singular, int type) {
+			return display[style][singular ? SINGULAR : PLURAL][type];
+		}
+
+		String estimatedSymbol() {
+			return estimatedSymbol;
+		}
+
+		/** Returns the unit of a trimmed suffix such as "d", "days?" or "", or null when it is not a unit. */
+		UnitMatch match(String suffix) {
+			for (int type = 0; type < TYPES.length; type++) {
+				Matcher matcher = patterns[type].matcher(suffix);
+				if (matcher.matches())
+					return new UnitMatch(matcher.group(1) != null ? type : TimeUnit.NONE, !matcher.group(2).isEmpty());
+			}
+			return null;
+		}
+	}
+
+	private static final class LocalizedUnits {
+		static final UnitNames NAMES = new UnitNames(Messages::getString);
+	}
+
 	private DurationFormat(boolean showPlusSign, boolean isWork, boolean canBeNonTemporal) {
 		this.showPlusSign = showPlusSign;
 		this.isWork = isWork;
 		this.canBeNonTemporal = canBeNonTemporal;
-		String estimated = Messages.getString("Units.estimatedSymbolRegex"); // Like ?
-		
-		// a bunch of init code which reads the possible  values for durations from localized messages
-		for (int i = 0; i < TYPE_COUNT; i++) {
-			String singularNames=null;
-			String pluralNames=null;
-			for (int j = 0; j < multiple.length; j++) {
-				String names = Messages.getString("Units." + types[i] + multiple[j]);
-				if (j==SINGULAR) singularNames=names;
-				if (j==PLURAL) pluralNames=names;
-				String[] units = names.split("\\|", -1); // index into the names list, getting string
-				//split has a big memory cost so names are pre-splited 
-				for (int k = 0; k < NAME_COUNT; k++) typesArray[k][j][i]=units[k];
-			}
-			// The pattern represents the following:
-			// Singular type OR Plural type, optinally followed by white space and the estimated symbol (?)
-			// Two groups are saved: Group 1 is the type, Group 2 is the estimated symbol
-			pattern[i] = Pattern.compile("((?:" + singularNames+ ")"
-					+ "|(?:" + pluralNames + "))?" 
-					+ "(\\s*" + estimated + "?)");
-		}
 	}
 	
 	
@@ -137,7 +170,6 @@ public class DurationFormat extends Format {
 
 	/** Parses using an explicit project's unit defaults; null preserves legacy preference behavior. */
 	public Object parseObject(String durationString, ParsePosition pos, DurationDefaults defaults) {
-		Object result = null;
 		if (durationString.isEmpty() || pos.getIndex() < 0 || pos.getIndex() >= durationString.length())
 			return null;
 		
@@ -150,40 +182,31 @@ public class DurationFormat extends Format {
 			return null;
 		String durationPart = durationString.substring(pos.getIndex());
 		durationPart = durationPart.trim();
-		Matcher matcher;
-		for (int i = 0; i < TYPE_COUNT; i++) { // find hte appropriate units
-			matcher = pattern[i].matcher(durationPart);
-			if (matcher.matches()) {
-				int timeUnit = (matcher.group(1) != null) ? i : TimeUnit.NONE; // first group is units.  If no units, then it will match, but should use default: NONE
-				double value = numberResult.doubleValue();
-				if (timeUnit == TimeUnit.PERCENT || timeUnit == TimeUnit.ELAPSED_PERCENT)
-					value /= 100.0;
-				if (timeUnit == TimeUnit.NONE && isWork) {
-					if (canBeNonTemporal)
-						timeUnit = TimeUnit.NON_TEMPORAL;
-					else
-						timeUnit = defaults == null ? ScheduleOption.getInstance().getWorkUnit()
-							: defaults.workUnit(); // use project work unit when available
-				}
-				if (timeUnit == TimeUnit.NONE)
-					timeUnit = defaults == null ? ScheduleOption.getInstance().getDurationEnteredIn()
-						: defaults.durationEnteredIn();
-				long longResult = defaults == null ? Duration.getInstance(value, timeUnit)
-					: Duration.getInstance(value, timeUnit, defaults);
-				if (Duration.millis(longResult) > Duration.MAX_DURATION) // check for too big
-					return null;
-				if (matcher.group(2).length() != 0) { // second group is estimated				
-					longResult = Duration.setAsEstimated(longResult,true);
-				}
-
-				result = new Duration(longResult);
-				pos.setIndex(durationString.length());
-				
-				return result;
-			}
+		UnitMatch unit = LocalizedUnits.NAMES.match(durationPart);
+		if (unit == null)
+			return null;
+		int timeUnit = unit.timeUnit(); // NONE when no unit was typed: use the default below
+		double value = numberResult.doubleValue();
+		if (timeUnit == TimeUnit.PERCENT || timeUnit == TimeUnit.ELAPSED_PERCENT)
+			value /= 100.0;
+		if (timeUnit == TimeUnit.NONE && isWork) {
+			if (canBeNonTemporal)
+				timeUnit = TimeUnit.NON_TEMPORAL;
+			else
+				timeUnit = defaults == null ? ScheduleOption.getInstance().getWorkUnit()
+					: defaults.workUnit(); // use project work unit when available
 		}
-		
-		return null;
+		if (timeUnit == TimeUnit.NONE)
+			timeUnit = defaults == null ? ScheduleOption.getInstance().getDurationEnteredIn()
+				: defaults.durationEnteredIn();
+		long longResult = defaults == null ? Duration.getInstance(value, timeUnit)
+			: Duration.getInstance(value, timeUnit, defaults);
+		if (Duration.millis(longResult) > Duration.MAX_DURATION) // check for too big
+			return null;
+		if (unit.estimated())
+			longResult = Duration.setAsEstimated(longResult,true);
+		pos.setIndex(durationString.length());
+		return new Duration(longResult);
 	}
 	public StringBuffer format(Object durationObject, StringBuffer toAppendTo, FieldPosition pos) {
 		return format(durationObject, toAppendTo, pos, null);
@@ -266,15 +289,13 @@ public class DurationFormat extends Format {
 		if (addSpace && !isPercent) {
 			toAppendTo.append(" ");
 		}
-		String unit = typesArray[displayIndex][isSingular ? SINGULAR : PLURAL][type]; // get either singular or plural names list
-		toAppendTo.append(unit);
+		toAppendTo.append(LocalizedUnits.NAMES.display(displayIndex, isSingular, type));
 		if (isEstimated)
-			toAppendTo.append(estimatedSymbol);
+			toAppendTo.append(LocalizedUnits.NAMES.estimatedSymbol());
 		return toAppendTo.toString();
 	}	
 	
 	public static String formatTypeUnit(int type) {
-		DurationFormat.getInstance(); // make sure it is initialized
 		return formatTypeUnit(type,true,false,false,false,EditOption.getInstance().getViewAs(type));
 	}
 	

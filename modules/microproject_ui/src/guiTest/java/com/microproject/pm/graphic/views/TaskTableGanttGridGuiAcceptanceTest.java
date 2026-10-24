@@ -1065,6 +1065,161 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		assertEquals(selectedIds, reloadedIds, "MPO reload lost the field layout selected by preset " + selectedPreset);
 	}
 
+	/**
+	 * Issue #894: void rows below the last task must not draw a check box in a boolean column, while real
+	 * task rows keep the box and its physical click / Undo / MPO round trip. Rendered pixels come from the screen.
+	 */
+	@Test
+	void physicalManualSchedulingCheckBoxIsAbsentOnEmptyRowsAndStillTogglesTaskRows() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		final String fieldId = "Field.manuallyScheduled";
+		Fixture fixture = createFixture(3);
+		showFixture(fixture, true);
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(40);
+		SwingUtilities.invokeAndWait(() -> {
+			frame.toFront();
+			frame.requestFocus();
+			boolean present = fixture.sheet.getFieldArray().stream().anyMatch(field -> fieldId.equals(field.getId()));
+			if (!present) {
+				Field manual = fixture.sheet.getAvailableFields().stream().filter(field -> fieldId.equals(field.getId()))
+					.findFirst().orElseThrow(() -> new AssertionError("task field catalog lacks " + fieldId));
+				fixture.sheet.setFieldArray(((SpreadSheetFieldArray) fixture.sheet.getFieldArray())
+					.insertField(fixture.sheet.getFieldArray().size(), manual));
+			}
+		});
+		GuiAcceptanceSupport.await(() -> fixture.sheet.isShowing() && fixture.sheet.getColumnCount() > 1,
+			"task table was not ready for the manual-scheduling column check");
+		int column = findColumn(fixture.sheet, fieldId);
+		GraphicNode node = (GraphicNode) fixture.gantt.getModel().getCache().getElementAt(0);
+		NormalTask task = (NormalTask) node.getNode().getImpl();
+		long taskUid = task.getUniqueId();
+		int taskRow = fixture.sheet.getCache().getRowAt(node);
+		int emptyRow = fixture.taskCount + 1;
+		int[] rowCount = new int[1];
+		SwingUtilities.invokeAndWait(() -> rowCount[0] = fixture.sheet.getRowCount());
+		assertTrue(rowCount[0] > emptyRow, "the sheet must expose void rows below the last task, rows=" + rowCount[0]);
+		assertFalse(task.isManuallyScheduled(), "fixture task must start auto-scheduled");
+
+		BufferedImage emptyBefore = captureCellInterior(robot, fixture.sheet, emptyRow, column);
+		BufferedImage taskBefore = captureCellInterior(robot, fixture.sheet, taskRow, column);
+		assertEquals(0, countDifferentPixels(emptyBefore), "an empty row must paint no check box in " + fieldId);
+		assertTrue(countDifferentPixels(taskBefore) > 0, "a real task row must paint its check box in " + fieldId);
+		captureVisibleLayout(robot, "task-table-empty-row-boolean.png");
+
+		// Observed route today: a click only selects the task row (it does not toggle the box, and F2 does not
+		// start an editor there); the first Space starts the check box editor and the second Space toggles and commits.
+		UndoSnapshot undoBefore = UndoSnapshot.capture(fixture.project);
+		clickCell(robot, fixture.sheet, taskRow, column);
+		GuiAcceptanceSupport.await(() -> fixture.sheet.getSelectedRow() == taskRow, "clicking the cell did not select its row");
+		assertFalse(task.isManuallyScheduled(), "a click only selects the row today; update this route if a click starts toggling the box");
+		for (int index = 0; index < 2; index++) {
+			robot.keyPress(KeyEvent.VK_SPACE);
+			robot.keyRelease(KeyEvent.VK_SPACE);
+			Thread.sleep(300);
+		}
+		GuiAcceptanceSupport.await(() -> task.isManuallyScheduled(), "the check box editor did not set manual scheduling");
+		SwingUtilities.invokeAndWait(() -> fixture.sheet.clearSelection());
+		GuiAcceptanceSupport.await(() -> !fixture.sheet.isEditing(), "the check box editor stayed active");
+		BufferedImage taskChecked = captureCellInterior(robot, fixture.sheet, taskRow, column);
+		assertTrue(countDifferent(taskBefore, taskChecked) > 0, "the task cell must repaint as checked");
+		assertEquals(0, countDifferentPixels(captureCellInterior(robot, fixture.sheet, emptyRow, column)),
+			"empty rows must still paint nothing after a task row toggled");
+		assertTrue(!undoBefore.equals(UndoSnapshot.capture(fixture.project)), "toggling must add an Undo edit");
+
+		// Undo / Redo through the physical shortcuts.
+		SwingUtilities.invokeAndWait(() -> fixture.sheet.requestFocusInWindow());
+		GuiAcceptanceSupport.await(fixture.sheet::isFocusOwner, "task table did not regain focus before physical Undo");
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_Z);
+		robot.keyRelease(KeyEvent.VK_Z);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		GuiAcceptanceSupport.await(() -> !task.isManuallyScheduled(), "physical Ctrl+Z did not restore auto scheduling");
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_Y);
+		robot.keyRelease(KeyEvent.VK_Y);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		GuiAcceptanceSupport.await(() -> task.isManuallyScheduled(), "physical Ctrl+Y did not reapply manual scheduling");
+
+		// Save / reload with the toggle applied; identify the task by UID.
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(fixture.project, saved), "MPO save rejected the manual-scheduling toggle");
+		Project reloaded = new MpoFileImporter().loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		NormalTask restored = reloaded.getTasks().stream()
+			.filter(value -> value instanceof NormalTask && value.getUniqueId() == taskUid)
+			.map(value -> (NormalTask) value).findFirst().orElseThrow();
+		assertTrue(restored.isManuallyScheduled(), "MPO reload lost the manual-scheduling flag");
+
+		// Clicking a void row's cell: record today's behaviour (must not throw).
+		int tasksBefore = fixture.project.getTasks().size();
+		Throwable[] uncaught = new Throwable[1];
+		Thread.UncaughtExceptionHandler previous = Thread.getDefaultUncaughtExceptionHandler();
+		Thread.setDefaultUncaughtExceptionHandler((thread, error) -> uncaught[0] = error);
+		try {
+			clickCell(robot, fixture.sheet, emptyRow, column);
+			SwingUtilities.invokeAndWait(() -> { });
+			GuiAcceptanceSupport.await(() -> !fixture.sheet.isEditing(), "void-row click left an editor open");
+		} finally {
+			Thread.setDefaultUncaughtExceptionHandler(previous);
+		}
+		assertEquals(null, uncaught[0], "clicking a void row's boolean cell must not throw");
+		assertEquals(tasksBefore, fixture.project.getTasks().size(),
+			"a single click on a void row selects it; it does not create a task (unchanged by #894)");
+		assertEquals(0, countDifferentPixels(captureCellInterior(robot, fixture.sheet, emptyRow, column)),
+			"a void row must still paint no check box after being clicked");
+	}
+
+	private static void clickCell(Robot robot, SpreadSheet sheet, int row, int column) throws Exception {
+		Point[] center = new Point[1];
+		SwingUtilities.invokeAndWait(() -> {
+			Rectangle cell = sheet.getCellRect(row, column, true);
+			Point location = sheet.getLocationOnScreen();
+			center[0] = new Point(location.x + cell.x + cell.width / 2, location.y + cell.y + cell.height / 2);
+		});
+		robot.mouseMove(center[0].x, center[0].y);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+	}
+
+	/** Screen pixels of a cell's interior, inset past the grid line. */
+	private static BufferedImage captureCellInterior(Robot robot, SpreadSheet sheet, int row, int column) throws Exception {
+		Rectangle[] area = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> {
+			Rectangle cell = sheet.getCellRect(row, column, false);
+			Point location = sheet.getLocationOnScreen();
+			area[0] = new Rectangle(location.x + cell.x + 3, location.y + cell.y + 3, cell.width - 6, cell.height - 6);
+		});
+		assertTrue(area[0].width > 4 && area[0].height > 4, "cell is too small to inspect");
+		robot.mouseMove(0, 0);
+		// Wait until the screen is repainted and two consecutive captures agree.
+		BufferedImage previous = robot.createScreenCapture(area[0]);
+		for (int attempt = 0; attempt < 30; attempt++) {
+			Thread.sleep(100);
+			BufferedImage current = robot.createScreenCapture(area[0]);
+			if (countDifferent(previous, current) == 0) return current;
+			previous = current;
+		}
+		throw new AssertionError("cell pixels never settled at row " + row + ", column " + column);
+	}
+
+	/** Pixels differing from the interior's own background (its top-left pixel). */
+	private static int countDifferentPixels(BufferedImage image) {
+		int background = image.getRGB(0, 0);
+		int count = 0;
+		for (int y = 0; y < image.getHeight(); y++)
+			for (int x = 0; x < image.getWidth(); x++)
+				if (image.getRGB(x, y) != background) count++;
+		return count;
+	}
+
+	private static int countDifferent(BufferedImage before, BufferedImage after) {
+		int count = 0;
+		for (int y = 0; y < Math.min(before.getHeight(), after.getHeight()); y++)
+			for (int x = 0; x < Math.min(before.getWidth(), after.getWidth()); x++)
+				if (before.getRGB(x, y) != after.getRGB(x, y)) count++;
+		return count;
+	}
+
 	private static void clickComponent(Robot robot, Component component) throws Exception {
 		Point location = new Point();
 		SwingUtilities.invokeAndWait(() -> location.setLocation(component.getLocationOnScreen()));
