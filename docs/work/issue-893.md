@@ -1,6 +1,6 @@
 # Issue #893 — 日本語UIの期間単位を日本語で表示する
 
-State: IN PROGRESS
+State: CLOSED (PR #897 merged as 9b7f2be8d)
 Issue: https://github.com/tetsuji16/microProject/issues/893
 Contract frozen at: 2026-10-24, issue body as filed 2026-10-23
 Baseline HEAD: `821f3d57e` (origin/master)

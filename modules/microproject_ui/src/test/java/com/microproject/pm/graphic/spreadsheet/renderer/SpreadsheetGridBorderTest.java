@@ -173,6 +173,53 @@ class SpreadsheetGridBorderTest {
 	}
 
 	@Test
+	void booleanRendererPaintsNoCheckBoxForAnEmptyRow() throws Exception {
+		// Issue #894: a row without a task has no value (null); the shared renderer
+		// must draw nothing there and still draw the box again for a real task row.
+		SwingUtilities.invokeAndWait(() -> {
+			PlainTable table = new PlainTable();
+			table.setModel(new DefaultTableModel(1, 1));
+			FlatUiSupport.applySpreadsheetTableStyle(table);
+			OfflineCapableBooleanRenderer renderer = new OfflineCapableBooleanRenderer();
+
+			JComponent taskRow = (JComponent) renderer.getTableCellRendererComponent(table, Boolean.FALSE, false, false, 0, 0);
+			int taskRowHeight = taskRow.getPreferredSize().height;
+			assertTrue(foregroundPixels(taskRow, table.getBackground()) > 0, "a task row draws its unchecked box");
+
+			JComponent emptyRow = (JComponent) renderer.getTableCellRendererComponent(table, null, false, false, 0, 0);
+			assertEquals(0, foregroundPixels(emptyRow, table.getBackground()), "an empty row draws no box");
+			assertEquals(taskRowHeight, emptyRow.getPreferredSize().height, "empty and task rows keep one height");
+
+			JComponent checked = (JComponent) renderer.getTableCellRendererComponent(table, Boolean.TRUE, false, false, 0, 0);
+			assertTrue(foregroundPixels(checked, table.getBackground()) > 0, "the reused renderer draws the box again");
+		});
+	}
+
+	/** Counts pixels inside the border that differ from the cell background. */
+	private static int foregroundPixels(JComponent component, Color background) {
+		int width = 40;
+		int height = 20;
+		component.setSize(width, height);
+		component.doLayout();
+		BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+		Graphics2D graphics = image.createGraphics();
+		try {
+			graphics.setColor(background);
+			graphics.fillRect(0, 0, width, height);
+			component.paint(graphics);
+		} finally {
+			graphics.dispose();
+		}
+		Insets insets = component.getInsets();
+		int count = 0;
+		for (int y = insets.top; y < height - insets.bottom; y++)
+			for (int x = insets.left; x < width - insets.right; x++)
+				if ((image.getRGB(x, y) & 0xFFFFFF) != (background.getRGB() & 0xFFFFFF))
+					count++;
+		return count;
+	}
+
+	@Test
 	void specialRendererOverlayPaintsGridWithoutShrinkingSelectionBorder() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			PlainTable table = new PlainTable();
