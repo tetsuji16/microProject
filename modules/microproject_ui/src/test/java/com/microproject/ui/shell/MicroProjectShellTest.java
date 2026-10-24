@@ -26,6 +26,7 @@ package com.microproject.ui.shell;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -40,7 +41,7 @@ import java.util.prefs.Preferences;
 import javax.swing.AbstractButton;
 import javax.swing.Action;
 import javax.swing.Box;
-import javax.swing.ImageIcon;
+import javax.swing.Icon;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
@@ -193,15 +194,15 @@ class MicroProjectShellTest {
 
 	@Test
 	void officeChromeHelpButtonPreservesItsMulticolorQuestionMarkIcon() throws Exception {
-		AtomicReference<ImageIcon> iconReference = new AtomicReference<>();
+		AtomicReference<Icon> iconReference = new AtomicReference<>();
 		SwingUtilities.invokeAndWait(() -> {
 			OfficeChromePanel panel = new OfficeChromePanel(MenuManager.getInstance(MenuActionMapSupport.noopActionMap()), new JPanel(), () -> {});
 			AbstractButton help = (AbstractButton) findComponent(panel, OfficeChromePanel.HELP_BUTTON_NAME);
-			assertTrue(help.getIcon() instanceof ImageIcon, "help uses the mapped scalable ribbon icon");
-			iconReference.set((ImageIcon) help.getIcon());
+			assertNotNull(help.getIcon(), "help uses the mapped ribbon icon");
+			iconReference.set(help.getIcon());
 		});
 
-		ImageIcon icon = iconReference.get();
+		Icon icon = iconReference.get();
 		BufferedImage image = paint(icon);
 		Set<Integer> visibleColors = new HashSet<>();
 		int whitePixels = 0;
