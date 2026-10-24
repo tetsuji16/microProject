@@ -27,6 +27,7 @@ package com.microproject.pm.task;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -56,6 +57,9 @@ import com.microproject.grouping.core.NodeException;
 import com.microproject.grouping.core.NodeVisitor;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentService;
+import com.microproject.pm.calendar.WorkDay;
+import com.microproject.pm.calendar.WorkingCalendar;
+import com.microproject.pm.calendar.WorkingHours;
 import com.microproject.pm.costing.Accrual;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;
@@ -107,6 +111,44 @@ class NormalTaskPercentCompleteTest {
 			() -> currentAssignment.importBaselineValues(Long.valueOf(task.getStart()), null, null));
 		assertEquals(currentStart, currentAssignment.getStart());
 		assertEquals(currentFinish, currentAssignment.getFinish());
+	}
+
+	@Test
+	void newBaselineAssignmentSnapshotsTheCurrentEffectiveCalendar() throws Exception {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		WorkingCalendar taskCalendar = WorkingCalendar.getInstanceBasedOn(project.getWorkCalendar());
+		taskCalendar.setName("Task baseline calendar");
+		WorkingHours taskHours = new WorkingHours();
+		taskHours.setInterval(0, WorkingHours.hourTime(9), WorkingHours.hourTime(11));
+		WorkDay taskDay = new WorkDay();
+		taskDay.setWorkingHours(taskHours);
+		taskCalendar.setWeekDay(1, taskDay);
+		task.setWorkCalendar(taskCalendar);
+		Assignment current = assignWork(project, task, 2L * 60L * 60L * 1000L);
+		TaskSnapshot snapshot = new TaskSnapshot();
+		TaskSchedule schedule = new TaskSchedule(task, TaskSchedule.Kind.CURRENT);
+		schedule.setStart(task.getStart());
+		schedule.setFinish(task.getEnd());
+		snapshot.setCurrentSchedule(schedule);
+		task.setSnapshot(Snapshottable.BASELINE, snapshot);
+
+		Assignment baseline = task.getBaselineAssignment(current.getResource(), Snapshottable.BASELINE, true);
+		WorkingCalendar baselineCalendar = (WorkingCalendar) baseline.getEffectiveWorkCalendar();
+		assertNotSame(taskCalendar, baselineCalendar);
+		assertEquals(current.getEffectiveWorkCalendar().getName(), baselineCalendar.getName());
+		assertEquals(WorkingHours.hourTime(9), baselineCalendar.getWeekDay(1).getWorkingHours()
+			.getInterval(0).getStart());
+		assertEquals(WorkingHours.hourTime(11), baselineCalendar.getWeekDay(1).getWorkingHours()
+			.getInterval(0).getEnd());
+
+		WorkingHours changedHours = new WorkingHours();
+		changedHours.setInterval(0, WorkingHours.hourTime(13), WorkingHours.hourTime(15));
+		WorkDay changedDay = new WorkDay();
+		changedDay.setWorkingHours(changedHours);
+		taskCalendar.setWeekDay(1, changedDay);
+		assertEquals(WorkingHours.hourTime(9), baselineCalendar.getWeekDay(1).getWorkingHours()
+			.getInterval(0).getStart(), "a saved baseline keeps the copied source calendar after live edits");
 	}
 
 	@Test
