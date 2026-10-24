@@ -455,7 +455,7 @@ public class ChangeWorkingTimeDialogBox extends AbstractDialog{
 	private void importNonWorkingDays() {
 		String selectedFile = UiServices.getFileChooserProvider().chooseFileName(
 			new UiServices.FileChooserOptions(false, null,
-				Messages.getString("ChangeWorkingTimeDialogBox.ImportNonWorkingDays"), "CSV or iCalendar (*.csv, *.ics)",
+				Messages.getString("ChangeWorkingTimeDialogBox.ImportNonWorkingDays"), Messages.getString("ChangeWorkingTimeDialogBox.ImportNonWorkingDaysFilter"),
 				List.of("csv", "ics"), "csv"), this);
 		if (selectedFile == null)
 			return;
