@@ -258,7 +258,10 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	protected int minimumResponsiveRightPaneWidth() {
 		if (gantt == null || gantt.getFont() == null)
 			return 96;
-		return gantt.getFontMetrics(gantt.getFont()).charWidth('M') * 16;
+		int minimumViewportWidth = gantt.getFontMetrics(gantt.getFont()).charWidth('M') * 16;
+		int viewportWidth = ganttScrollPane == null ? 0 : ganttScrollPane.getViewport().getExtentSize().width;
+		int paneChrome = ganttScrollPane == null ? 0 : Math.max(0, ganttScrollPane.getWidth() - viewportWidth);
+		return minimumViewportWidth + paneChrome;
 	}
 
    public void activateEmptyRowHeader(boolean activate){
@@ -461,6 +464,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		installTaskSelectionController();
 		synchronizeGanttHeightWithSpreadsheet(leftScrollPane.getViewport().getViewSize());
 		requestResponsiveDividerLayout();
+		requestSplitHierarchyValidation();
 	}
 	public void restoreWorkspace(WorkspaceSetting w, int context) {
 		Workspace ws = (Workspace) w;

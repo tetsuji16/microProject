@@ -26,6 +26,8 @@ package com.microproject.pm.graphic.views;
 
 import java.awt.Dimension;
 import java.awt.Component;
+import java.awt.Insets;
+import java.awt.Container;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.ComponentAdapter;
@@ -36,6 +38,7 @@ import java.util.logging.Logger;
 
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
+import javax.swing.JComponent;
 import javax.swing.JViewport;
 import javax.swing.SwingUtilities;
 import javax.swing.plaf.basic.BasicSplitPaneUI;
@@ -115,7 +118,26 @@ public abstract class SplittedView extends JSplitPane {
 	public void reinitialize() {
 		disposeSplitView();
 		init();
+		requestSplitHierarchyValidation();
 	}
+
+	/**
+	 * A nested split pane is its own Swing validation root. After replacing this
+	 * pane's children, request validation from the outermost attached Swing
+	 * validation root so its ancestors become valid with the rebuilt subtree.
+	 */
+	protected final void requestSplitHierarchyValidation() {
+		JComponent outermostValidationRoot = null;
+		for (Container ancestor = this; ancestor != null; ancestor = ancestor.getParent()) {
+			if (ancestor instanceof JComponent swingAncestor && swingAncestor.isValidateRoot())
+				outermostValidationRoot = swingAncestor;
+		}
+		if (outermostValidationRoot == null)
+			revalidate();
+		else
+			outermostValidationRoot.revalidate();
+	}
+
 	public void init() {
 		if (leftScrollPane != null || rightScrollPane != null) {
 			disposeSplitView();
@@ -158,8 +180,7 @@ public abstract class SplittedView extends JSplitPane {
 		int dividerLocation = ((Integer) event.getNewValue()).intValue();
 		logger.info(() -> getClass().getSimpleName() + " divider changed to " + dividerLocation
 			+ " source=" + (event.getSource() == null ? "null" : event.getSource().getClass().getSimpleName()));
-		if (parentView != null)
-			parentView.setChildrenDividerLocation(event.getSource(), dividerLocation);
+		publishDividerLocationAndRequestValidation(event.getSource(), dividerLocation);
 	}
 
 	/**
@@ -167,18 +188,19 @@ public abstract class SplittedView extends JSplitPane {
 	 * either pane to disappear off-screen.
 	 */
 	protected final void restoreDividerLocation(int location) {
-		int availableWidth = getWidth() - getDividerSize();
+		Insets insets = getInsets();
+		int availableWidth = getWidth() - insets.left - insets.right - getDividerSize();
 		int boundedLocation = location;
 		if (availableWidth >= MINIMUM_RESTORED_PANE_WIDTH * 2) {
 			int maximumLocation = availableWidth - MINIMUM_RESTORED_PANE_WIDTH;
-			boundedLocation = Math.max(MINIMUM_RESTORED_PANE_WIDTH, Math.min(location, maximumLocation));
+			boundedLocation = insets.left + Math.max(MINIMUM_RESTORED_PANE_WIDTH,
+				Math.min(location - insets.left, maximumLocation));
 		}
 		setDividerLocationSilently(boundedLocation);
 		markDividerLocationManuallyAdjusted();
-		if (parentView != null) {
-			parentView.setChildrenDividerLocation(this, boundedLocation);
+		publishDividerLocationAndRequestValidation(this, boundedLocation);
+		if (parentView != null)
 			parentView.markChildrenDividerLocationManuallyAdjusted(this);
-		}
 	}
 
 	/** Requests an adaptive divider update for views that provide a content-based default. */
@@ -188,18 +210,24 @@ public abstract class SplittedView extends JSplitPane {
 		responsiveDividerUpdatePending = true;
 		javax.swing.SwingUtilities.invokeLater(() -> {
 			responsiveDividerUpdatePending = false;
-			if (preferredLeftPaneWidth() < 0 || dividerLocationManuallyAdjusted || getWidth() <= getDividerSize())
+			if (preferredLeftPaneWidth() < 0 || dividerLocationManuallyAdjusted)
 				return;
-			int availableWidth = getWidth() - getDividerSize();
+			Insets insets = getInsets();
+			int availableWidth = getWidth() - insets.left - insets.right - getDividerSize();
 			int maximumLeftWidth = availableWidth - minimumResponsiveRightPaneWidth();
 			if (maximumLeftWidth < MINIMUM_RESTORED_PANE_WIDTH)
 				return;
-			int location = Math.max(MINIMUM_RESTORED_PANE_WIDTH,
+			int location = insets.left + Math.max(MINIMUM_RESTORED_PANE_WIDTH,
 					Math.min(preferredLeftPaneWidth(), maximumLeftWidth));
 			setDividerLocationSilently(location);
-			if (parentView != null)
-				parentView.setChildrenDividerLocation(this, location);
+			publishDividerLocationAndRequestValidation(this, location);
 		});
+	}
+
+	private void publishDividerLocationAndRequestValidation(Object source, int location) {
+		if (parentView != null)
+			parentView.setChildrenDividerLocation(source, location);
+		requestSplitHierarchyValidation();
 	}
 
 	protected int preferredLeftPaneWidth() {

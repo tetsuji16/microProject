@@ -270,9 +270,11 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		});
 		GuiAcceptanceSupport.await(() -> frame.isShowing() && document[0].isShowing(),
 			"production Gantt task view did not become visible");
-		GanttView view = taskLayoutView[0];
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(35);
+		GuiAcceptanceSupport.activateAndAwaitRenderedWindow(frame, frame.getContentPane(), robot, true,
+			"Issue 432 production task layout");
+		GanttView view = taskLayoutView[0];
 		Path directory = Path.of(System.getProperty("microproject.gui.artifacts.dir", "build/guiTest-artifacts"));
 		Files.createDirectories(directory);
 		StringBuilder evidence = new StringBuilder("Issue #432 production layout diagnostic\n")
@@ -296,6 +298,8 @@ class TaskTableGanttGridGuiAcceptanceTest {
 				"window resize did not reach " + size.width + "x" + size.height
 					+ " usable=" + windowSizes.usableWorkArea() + " scale=" + windowSizes.displayScale()
 					+ " actual=" + frame.getBounds());
+			GuiAcceptanceSupport.await(() -> frame.getContentPane().isValid() && document[0].getContentPane().isValid(),
+				"visible task layout content did not validate after resize: " + size);
 			robot.delay(350);
 			String layout = issue432LayoutSnapshot(view, fixture.project);
 			evidence.append(size.width).append('x').append(size.height).append('\n').append(layout).append('\n');
@@ -333,6 +337,14 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		});
 		GuiAcceptanceSupport.await(() -> view.getSpreadSheet().isShowing() && view.getGantt().isShowing(),
 			"the production task view did not return after a saved-width rebuild");
+		try {
+			GuiAcceptanceSupport.await(() -> frame.getContentPane().isValid() && document[0].getContentPane().isValid(),
+				"visible task layout content did not validate after rebuild");
+		} catch (AssertionError readinessFailure) {
+			String readinessState = issue432ReadinessSnapshot(document[0], view);
+			Files.writeString(directory.resolve("issue-432-readiness-after-rebuild.txt"), readinessState);
+			throw new AssertionError(readinessFailure.getMessage() + "\n" + readinessState, readinessFailure);
+		}
 		assertEquals(manuallySavedNameWidth,
 			view.getSpreadSheet().getColumnModel().getColumn(findColumn(view.getSpreadSheet(), "Field.name")).getWidth(),
 			"an explicitly saved manual width must survive the production view rebuild");
@@ -348,6 +360,8 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> frame.getWidth() == windowSizes.narrow().width
 				&& frame.getHeight() == windowSizes.narrow().height,
 			"window resize after width restore did not settle: " + windowSizes);
+		GuiAcceptanceSupport.await(() -> frame.getContentPane().isValid() && document[0].getContentPane().isValid(),
+			"visible task layout content did not validate after saved-width resize");
 		robot.delay(350);
 		assertEquals(manuallySavedNameWidth,
 			view.getSpreadSheet().getColumnModel().getColumn(findColumn(view.getSpreadSheet(), "Field.name")).getWidth(),
@@ -375,6 +389,8 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> frame.getWidth() == windowSizes.wide().width
 				&& frame.getHeight() == windowSizes.wide().height,
 			"window resize after explicit divider drag did not settle: " + windowSizes);
+		GuiAcceptanceSupport.await(() -> frame.getContentPane().isValid() && document[0].getContentPane().isValid(),
+			"visible task layout content did not validate after restored-divider resize");
 		robot.delay(350);
 		assertEquals(restoredDividerLocation, view.getDividerLocation(),
 			"resizing must preserve the explicitly restored divider location");
@@ -423,10 +439,15 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			details.append("autoResizeMode=").append(sheet.getAutoResizeMode())
 				.append(" sheet=").append(sheet.getWidth()).append('x').append(sheet.getHeight())
 				.append(" tableViewport=").append(tableScroll.getViewport().getExtentSize())
+				.append(" ganttScrollPane=").append(ganttScroll.getWidth()).append('x').append(ganttScroll.getHeight())
+				.append(" ganttScrollInsets=").append(ganttScroll.getInsets())
 				.append(" ganttViewport=").append(ganttScroll.getViewport().getExtentSize())
+				.append(" ganttPaneChrome=")
+				.append(ganttScroll.getWidth() - ganttScroll.getViewport().getExtentSize().width)
 				.append(" ganttPosition=").append(ganttScroll.getViewport().getViewPosition())
 				.append(" ganttCenterDate=").append(ganttVisibleCenterDate(view))
 				.append(" split=").append(view.getWidth()).append('x').append(view.getHeight())
+				.append(" splitInsets=").append(view.getInsets())
 				.append(" divider=").append(view.getDividerLocation())
 				.append(" coordOrigin=").append(view.coord.getOrigin())
 				.append(" gantt=").append(view.getGantt().getWidth()).append('x').append(view.getGantt().getHeight())
@@ -457,6 +478,52 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			snapshot[0] = details.toString();
 		});
 		return snapshot[0];
+	}
+
+	private String issue432ReadinessSnapshot(DocumentFrame document, GanttView view) throws Exception {
+		String[] snapshot = new String[1];
+		SwingUtilities.invokeAndWait(() -> {
+			StringBuilder state = new StringBuilder("Issue #432 content readiness after rebuild\n")
+				.append("frame=").append(frame.getBounds()).append(" showing=").append(frame.isShowing())
+				.append(" valid=").append(frame.isValid()).append(" content=")
+				.append(frame.getContentPane().getClass().getName()).append(' ')
+				.append(frame.getContentPane().getBounds()).append(" showing=").append(frame.getContentPane().isShowing())
+				.append(" valid=").append(frame.getContentPane().isValid()).append('\n')
+				.append("document=").append(document.getBounds()).append(" showing=").append(document.isShowing())
+				.append(" valid=").append(document.isValid()).append(" content=")
+				.append(document.getContentPane().getClass().getName()).append(' ')
+				.append(document.getContentPane().getBounds()).append(" showing=")
+				.append(document.getContentPane().isShowing()).append(" valid=")
+				.append(document.getContentPane().isValid()).append('\n')
+				.append("view=").append(view.getBounds()).append(" showing=").append(view.isShowing())
+				.append(" valid=").append(view.isValid()).append(" divider=").append(view.getDividerLocation())
+				.append(" splitInsets=").append(view.getInsets()).append('\n');
+			appendComponentAncestors(state, "frameContentAncestors", frame.getContentPane());
+			appendComponentAncestors(state, "documentContentAncestors", document.getContentPane());
+			appendComponentAncestors(state, "viewAncestors", view);
+			for (JScrollPane pane : List.of(view.getLeftScrollPane(), view.getRightScrollPane())) {
+				JViewport viewport = pane.getViewport();
+				state.append(pane.getClass().getSimpleName()).append(" pane=").append(pane.getBounds())
+					.append(" showing=").append(pane.isShowing()).append(" valid=").append(pane.isValid())
+					.append(" viewport=").append(viewport.getBounds()).append(" showing=").append(viewport.isShowing())
+					.append(" valid=").append(viewport.isValid()).append(" view=")
+					.append(viewport.getView() == null ? "null" : viewport.getView().getClass().getSimpleName())
+					.append(" viewValid=").append(viewport.getView() != null && viewport.getView().isValid()).append('\n');
+			}
+			snapshot[0] = state.toString();
+		});
+		return snapshot[0];
+	}
+
+	private static void appendComponentAncestors(StringBuilder state, String label, Component component) {
+		state.append(label).append('=');
+		for (Component current = component; current != null; current = current.getParent()) {
+			state.append(current.getClass().getSimpleName()).append("[valid=").append(current.isValid())
+				.append(",showing=").append(current.isShowing()).append(",validateRoot=")
+				.append(current instanceof JComponent swingComponent && swingComponent.isValidateRoot())
+				.append(",bounds=").append(current.getBounds()).append("] ");
+		}
+		state.append('\n');
 	}
 
 	private static void assertIssue432ReadableLayout(GanttView view, Project project) throws Exception {
