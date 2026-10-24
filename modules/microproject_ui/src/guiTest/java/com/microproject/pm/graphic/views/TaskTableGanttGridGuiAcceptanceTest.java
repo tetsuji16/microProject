@@ -12,12 +12,16 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Dimension;
+import java.awt.GraphicsConfiguration;
+import java.awt.GraphicsDevice;
 import java.awt.GraphicsEnvironment;
+import java.awt.Insets;
 import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.Point;
 import java.awt.Component;
 import java.awt.Container;
+import java.awt.Toolkit;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.Window;
@@ -239,6 +243,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 	@Test
 	void productionTaskColumnsReportReadableLayoutAtCommonWindowSizes() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Issue432WindowSizes windowSizes = issue432WindowSizes();
 		Fixture fixture = createFixture(10);
 		SpreadSheetFieldArray taskTemplate = SpreadsheetViewSupport.getTaskFields();
 		String templateBeforeView = "defaultWidths=" + taskTemplate.getWidths()
@@ -255,8 +260,9 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			mainWindow.setGraphicManager(productionGraphicManager);
 			productionGraphicManager.initView();
 			document[0] = productionGraphicManager.addProjectFrame(fixture.project);
-			mainWindow.setSize(1300, 820);
-			mainWindow.setLocation(20, 20);
+			mainWindow.setExtendedState(JFrame.NORMAL);
+			mainWindow.setBounds(windowSizes.usableWorkArea().x, windowSizes.usableWorkArea().y,
+				windowSizes.wide().width, windowSizes.wide().height);
 			mainWindow.setAlwaysOnTop(true);
 			mainWindow.setVisible(true);
 			document[0].activateGanttView();
@@ -271,12 +277,25 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		Files.createDirectories(directory);
 		StringBuilder evidence = new StringBuilder("Issue #432 production layout diagnostic\n")
 			.append("taskTemplateBeforeView=").append(templateBeforeView).append('\n')
-			.append("projectFieldArrayBeforeView=").append(fixture.project.getFieldArray()).append('\n');
+			.append("projectFieldArrayBeforeView=").append(fixture.project.getFieldArray()).append('\n')
+			.append("usableWorkArea=").append(windowSizes.usableWorkArea())
+			.append(" displayScale=").append(windowSizes.displayScale()).append('\n')
+			.append("wideWindowSize=").append(windowSizes.wide())
+			.append(" narrowWindowSize=").append(windowSizes.narrow()).append('\n');
+		Files.writeString(directory.resolve("issue-432-layout.txt"), evidence.toString());
 		double[] previousGanttCenterDate = { Double.NaN };
-		for (Dimension size : List.of(new Dimension(1300, 820), new Dimension(1009, 762), new Dimension(1300, 820))) {
-			SwingUtilities.invokeAndWait(() -> frame.setSize(size));
+		for (Dimension size : List.of(windowSizes.wide(), windowSizes.narrow(), windowSizes.wide())) {
+			evidence.append("requestedWindowSize=").append(size).append(" frameBeforeResize=")
+				.append(frame.getBounds()).append('\n');
+			Files.writeString(directory.resolve("issue-432-layout.txt"), evidence.toString());
+			SwingUtilities.invokeAndWait(() -> {
+				frame.setExtendedState(JFrame.NORMAL);
+				frame.setBounds(windowSizes.usableWorkArea().x, windowSizes.usableWorkArea().y, size.width, size.height);
+			});
 			GuiAcceptanceSupport.await(() -> frame.getWidth() == size.width && frame.getHeight() == size.height,
-				"window resize did not reach " + size.width + "x" + size.height);
+				"window resize did not reach " + size.width + "x" + size.height
+					+ " usable=" + windowSizes.usableWorkArea() + " scale=" + windowSizes.displayScale()
+					+ " actual=" + frame.getBounds());
 			robot.delay(350);
 			String layout = issue432LayoutSnapshot(view, fixture.project);
 			evidence.append(size.width).append('x').append(size.height).append('\n').append(layout).append('\n');
@@ -321,9 +340,14 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			"the rebuilt column must retain its manual-width provenance");
 		assertColumnHeadersAligned(view.getSpreadSheet());
 		captureVisibleLayout(robot, "issue-432-manual-width-after-rebuild.png");
-		SwingUtilities.invokeAndWait(() -> frame.setSize(1009, 762));
-		GuiAcceptanceSupport.await(() -> frame.getWidth() == 1009 && frame.getHeight() == 762,
-			"window resize after width restore did not settle");
+		SwingUtilities.invokeAndWait(() -> {
+			frame.setExtendedState(JFrame.NORMAL);
+			frame.setBounds(windowSizes.usableWorkArea().x, windowSizes.usableWorkArea().y,
+				windowSizes.narrow().width, windowSizes.narrow().height);
+		});
+		GuiAcceptanceSupport.await(() -> frame.getWidth() == windowSizes.narrow().width
+				&& frame.getHeight() == windowSizes.narrow().height,
+			"window resize after width restore did not settle: " + windowSizes);
 		robot.delay(350);
 		assertEquals(manuallySavedNameWidth,
 			view.getSpreadSheet().getColumnModel().getColumn(findColumn(view.getSpreadSheet(), "Field.name")).getWidth(),
@@ -343,9 +367,14 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> view.restoreDividerLocation(restoredDividerLocation));
 		assertEquals(restoredDividerLocation, view.getDividerLocation(),
 			"restoring a saved divider location must apply the saved pixel position");
-		SwingUtilities.invokeAndWait(() -> frame.setSize(1300, 820));
-		GuiAcceptanceSupport.await(() -> frame.getWidth() == 1300 && frame.getHeight() == 820,
-			"window resize after explicit divider drag did not settle");
+		SwingUtilities.invokeAndWait(() -> {
+			frame.setExtendedState(JFrame.NORMAL);
+			frame.setBounds(windowSizes.usableWorkArea().x, windowSizes.usableWorkArea().y,
+				windowSizes.wide().width, windowSizes.wide().height);
+		});
+		GuiAcceptanceSupport.await(() -> frame.getWidth() == windowSizes.wide().width
+				&& frame.getHeight() == windowSizes.wide().height,
+			"window resize after explicit divider drag did not settle: " + windowSizes);
 		robot.delay(350);
 		assertEquals(restoredDividerLocation, view.getDividerLocation(),
 			"resizing must preserve the explicitly restored divider location");
@@ -353,6 +382,26 @@ class TaskTableGanttGridGuiAcceptanceTest {
 	}
 
 	private final GanttView[] taskLayoutView = new GanttView[1];
+
+	private record Issue432WindowSizes(Rectangle usableWorkArea, Dimension wide, Dimension narrow, String displayScale) {
+	}
+
+	private static Issue432WindowSizes issue432WindowSizes() {
+		GraphicsDevice device = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice();
+		GraphicsConfiguration configuration = device.getDefaultConfiguration();
+		Rectangle screen = configuration.getBounds();
+		Insets insets = Toolkit.getDefaultToolkit().getScreenInsets(configuration);
+		Rectangle usable = new Rectangle(screen.x + insets.left, screen.y + insets.top,
+			screen.width - insets.left - insets.right, screen.height - insets.top - insets.bottom);
+		Dimension wide = new Dimension(Math.min(1300, usable.width - 16), Math.min(820, usable.height - 16));
+		Dimension narrow = new Dimension(Math.min(1009, wide.width - 64), Math.min(762, wide.height - 32));
+		String scale = configuration.getDefaultTransform().getScaleX() + "x"
+			+ configuration.getDefaultTransform().getScaleY();
+		Assumptions.assumeTrue(wide.width >= 994 && narrow.width >= 930 && wide.height >= 650 && narrow.height >= 620,
+			"Issue #432 needs two distinct usable desktop sizes; usable=" + usable + " scale=" + scale
+				+ " requestedWide=" + wide + " requestedNarrow=" + narrow);
+		return new Issue432WindowSizes(usable, wide, narrow, scale);
+	}
 
 	private static String issue432LayoutSnapshot(GanttView view, Project project) throws Exception {
 		String[] snapshot = new String[1];
