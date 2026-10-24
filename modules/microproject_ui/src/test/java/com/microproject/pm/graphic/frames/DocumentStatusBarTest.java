@@ -114,7 +114,7 @@ class DocumentStatusBarTest {
 		assertEquals("{0}日", japanese.getString("StatusBar.Interval.Days"));
 		assertEquals("四半期", japanese.getString("StatusBar.Scale.Quarterly"));
 		assertEquals("半年", japanese.getString("StatusBar.Scale.HalfYearly"));
-		assertEquals("microProject エラー", japanese.getString("Title.ProjectLibreError"));
+		assertEquals("microProject エラー", japanese.getString("Title.MicroProjectError"));
 		assertTrue(japanese.getString("Message.invalidDuration").contains("3ed"));
 	}
 }

@@ -937,7 +937,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 					CountDownLatch removalComplete = new CountDownLatch(1);
 					removal.setName("gui-acceptance-remove-" + System.nanoTime());
 					removal.addCompletionRunnable(removalComplete::countDown);
-					SessionFactory.getInstance().getSession(cleanupProject[0].isLocal()).schedule(removal);
+					SessionFactory.getInstance().getLocalSession().schedule(removal);
 					assertTrue(removalComplete.await(30, TimeUnit.SECONDS),
 						"the project removal job did not finish before the GUI manager closed");
 				}

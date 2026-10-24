@@ -40,7 +40,7 @@ import com.jgoodies.forms.layout.CellConstraints;
 import com.jgoodies.forms.layout.FormLayout;
 
 /**
- * ProjectLibre compatibility shim for the older JGoodies DefaultFormBuilder API.
+ * microProject compatibility shim for the older JGoodies DefaultFormBuilder API.
  */
 public class DefaultFormBuilder {
 	private final JPanel panel;

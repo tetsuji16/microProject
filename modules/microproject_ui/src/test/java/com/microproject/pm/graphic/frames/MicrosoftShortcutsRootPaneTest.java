@@ -381,7 +381,7 @@ class MicrosoftShortcutsRootPaneTest {
 					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_F5,
 						InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
 					"Ctrl+Shift+F5 must scroll to the selected task");
-			assertEquals(MenuActionConstants.ACTION_PROJECTLIBRE_DOCUMENTATION,
+			assertEquals(MenuActionConstants.ACTION_MICROPROJECT_DOCUMENTATION,
 				harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0)), "F1 must open help");
 			assertEquals("ToggleRibbonDisplayMode",
 				harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_F1, InputEvent.CTRL_DOWN_MASK)),
@@ -504,7 +504,7 @@ class MicrosoftShortcutsRootPaneTest {
 					"Delete must use the same delete action as the menu");
 			assertNotNull(harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, InputEvent.CTRL_DOWN_MASK)),
 					"Ctrl+Delete must install its dedicated clear-contents command action");
-			assertSame(harness.manager.getMenuManager().getActionFromId(MenuActionConstants.ACTION_PROJECTLIBRE_DOCUMENTATION),
+			assertSame(harness.manager.getMenuManager().getActionFromId(MenuActionConstants.ACTION_MICROPROJECT_DOCUMENTATION),
 				harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0)),
 				"F1 must use the same help action as the ribbon and menu");
 			assertSame(harness.manager.getMenuManager().getActionFromId(MenuActionConstants.ACTION_CLEAR_FILTER),
@@ -586,7 +586,7 @@ class MicrosoftShortcutsRootPaneTest {
 			harness.panel.getActionMap().put(MenuActionConstants.ACTION_CUT, recordingSpy(cut));
 			harness.panel.getActionMap().put(MenuActionConstants.ACTION_COPY, recordingSpy(copy));
 			harness.panel.getActionMap().put(MenuActionConstants.ACTION_PASTE, recordingSpy(paste));
-			harness.panel.getActionMap().put(MenuActionConstants.ACTION_PROJECTLIBRE_DOCUMENTATION, recordingSpy(help));
+			harness.panel.getActionMap().put(MenuActionConstants.ACTION_MICROPROJECT_DOCUMENTATION, recordingSpy(help));
 
 			int ctrl = InputEvent.CTRL_DOWN_MASK;
 

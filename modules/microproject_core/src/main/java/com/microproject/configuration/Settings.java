@@ -38,13 +38,9 @@ import com.microproject.strings.Messages;
  * Stores global constants related to the application settings. Some are also read in from config
  */
 public class Settings {
-	public static final boolean CLUSTERED=true;
-	public static final String CLUSTER_NODES="jnp://localhost:1100";
 	public static final String SITE_HOME = "https://o-server.main.jp/micro-project/";
 	/** Canonical public documentation and download site. */
 	public static final String HELP_HOME = "https://o-server.main.jp/micro-project/";
-	public static final String WEB_APP= "web";
-	public static final String WEB_HOME = SITE_HOME + "/" + WEB_APP;
 	
 	public static int NUM_ARRAY_BASELINES = 11; // should get set from config file 
 	public static int NUM_COST_RATES = 5;
@@ -63,7 +59,6 @@ public class Settings {
 	public static int STRING_LIST_LIMIT = 20; // maximum item names shown in multi-selection messages
     public static boolean SHOW_HELP_LINKS = true;
     public static String VERSION_TYPE_STANDALONE="standalone";
-    public static String VERSION_TYPE_SERVER="server";
     
     public static String LANGUAGES = "default"; //defaults are set in configuration.xml
  }

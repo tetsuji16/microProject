@@ -99,7 +99,7 @@ import com.microproject.pm.snapshot.BaselineScheduleFields;
 import com.microproject.pm.snapshot.DataSnapshot;
 import com.microproject.pm.snapshot.SnapshottableImpl;
 import com.microproject.pm.snapshot.Snapshottable;
-import com.microproject.server.access.ErrorLogger;
+import com.microproject.util.ErrorLogger;
 import com.microproject.strings.Messages;
 import com.microproject.util.DateTime;
 import com.microproject.util.DisplayMath;

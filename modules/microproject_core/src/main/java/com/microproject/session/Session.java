@@ -27,29 +27,19 @@ package com.microproject.session;
 import java.util.Collection;
 import java.util.List;
 
-import com.microproject.company.ApplicationUser;
 import com.microproject.job.Job;
 import com.microproject.job.JobQueue;
 import com.microproject.pm.task.Project;
 import com.microproject.server.data.ProjectData;
 
 public interface Session {
-	public static final long MASTER = -2;
-	public static final String EXPIRED="EXPIRED";
-	
 	public void init(Object o);
     public JobQueue getJobQueue();
 	public void setJobQueue(JobQueue jobQueue);
 	public void schedule(Job job);
 	public long getId();
-	public ApplicationUser getUser() ;
-	public void setUser(ApplicationUser user);
-	public void logException(Exception e);
-	public void logString(String s);
-	
-	
     public Job getLoadProjectJob(final LoadOptions opt);
-    public Job getLoadProjectDescriptorsJob(final boolean includeProjects, final List<ProjectData> descriptors, final boolean allowOpenAs);
+    public Job getLoadProjectDescriptorsJob(final List<ProjectData> descriptors);
     public Job getSaveProjectJob(final Project project, final SaveOptions opt);
     public Job getSaveProjectJob(final List<Project> projects, final SaveOptions opt);
     public Job getEmptyJob(String name,Object result);

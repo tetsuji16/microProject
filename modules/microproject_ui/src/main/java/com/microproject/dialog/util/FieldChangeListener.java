@@ -26,12 +26,8 @@ package com.microproject.dialog.util;
 
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import javax.swing.JComponent;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
 
 import com.microproject.field.Field;
 import com.microproject.field.FieldContext;
@@ -42,8 +38,7 @@ import com.microproject.util.Alert;
 /**
  * Currently only supports Buttons!
  */
-public class FieldChangeListener implements ItemListener,ChangeListener {
-	private static final Logger logger = Logger.getLogger(FieldChangeListener.class.getName());
+public class FieldChangeListener implements ItemListener {
 	private FieldContext context = null;
 	private Field field;
 	private ObjectRef objectRef = null;
@@ -67,16 +62,6 @@ public class FieldChangeListener implements ItemListener,ChangeListener {
 			((JComponent)source).requestFocus();
 		}
 		
-	}
-
-	public void stateChanged(ChangeEvent e) {
-		if (e.getSource() instanceof LookupField f) {
-			try {
-				field.setText(objectRef,f.getValue(),context);
-			} catch (FieldParseException e1) {
-				logger.log(Level.WARNING, "Failed to update field from lookup value", e1);
-			}
-		}
 	}
 
 }

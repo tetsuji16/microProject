@@ -84,7 +84,7 @@ public class CommonDataObject implements DataObject{
         return uniqueId<1000000000L;
     }
     public static void makeGlobal(DataObject data) throws UniqueIdException{
-    	if (isLocal(data)) data.setUniqueId(SessionFactory.getInstance().getSession(false).getId());
+		if (isLocal(data)) data.setUniqueId(SessionFactory.getInstance().getLocalSession().getId());
     }
 
     public void renumber(IDGenerator idGenerator){

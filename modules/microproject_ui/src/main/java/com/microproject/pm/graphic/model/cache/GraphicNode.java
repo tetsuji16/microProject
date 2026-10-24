@@ -44,8 +44,6 @@ import com.microproject.pm.scheduling.Schedule;
 import com.microproject.pm.scheduling.ScheduleInterval;
 import com.microproject.pm.scheduling.ScheduleService;
 import com.microproject.pm.task.Task;
-import com.microproject.server.data.CommonDataObject;
-import com.microproject.server.data.DataObject;
 import com.microproject.util.GanttProgress;
 /**
  *
@@ -205,13 +203,6 @@ public class GraphicNode implements HierarchicObject<GraphicNode>{
 			return false;
 		return true;
 	}
-	public boolean isServer(){
-	    Object impl=getNode().getImpl();
-	    if (!(impl instanceof DataObject)) return false;
-	    return !CommonDataObject.isLocal((DataObject)impl);
-	}
-
-
 	public boolean isDirty() {
 		return dirty;
 	}

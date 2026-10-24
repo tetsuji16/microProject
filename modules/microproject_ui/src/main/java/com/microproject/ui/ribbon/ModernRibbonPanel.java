@@ -89,8 +89,8 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	@Deprecated(forRemoval = false)
 	public static final String CONTEXTUAL_TABS_PROPERTY = RibbonController.CONTEXTUAL_TABS_PROPERTY;
 	public static final String DISPLAY_MODE_POPUP_NAME = "microproject.ribbon.displayModePopup";
-	static final String RIBBON_SURFACE_COMPONENT_NAME = "projectLibreRibbonSurface";
-	static final String RIBBON_BAND_COMPONENT_NAME = "projectLibreRibbonBand";
+	static final String RIBBON_SURFACE_COMPONENT_NAME = "microProjectRibbonSurface";
+	static final String RIBBON_BAND_COMPONENT_NAME = "microProjectRibbonBand";
 	public static final String COLLAPSED_POPUP_PROPERTY = "MicroProject.ribbonCollapsedPopup";
 	public static final String TAB_OVERFLOW_POPUP_PROPERTY = "MicroProject.ribbonTabOverflowPopup";
 	public static final String COLLAPSED_TAB_LAUNCHER_PROPERTY = "MicroProject.ribbonCollapsedTabLauncher";
@@ -696,7 +696,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 
 	private JComponent buildTabRow() {
 		JPanel row = new JPanel(new GridBagLayout());
-		row.setName("projectLibreRibbonTabRow");
+		row.setName("microProjectRibbonTabRow");
 		row.setOpaque(true);
 		row.setBackground(theme.chromeBackground());
 		row.setPreferredSize(new Dimension(0, theme.tabHeight()));
@@ -764,7 +764,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 
 	private AbstractButton createTabOverflowButton() {
 		JButton button = new JButton("…");
-		button.setName("projectLibreRibbonTabOverflow");
+		button.setName("microProjectRibbonTabOverflow");
 		button.putClientProperty(TAB_OVERFLOW_PROPERTY, Boolean.TRUE);
 		button.setFont(theme.tabFont());
 		button.setToolTipText(UsabilityStrings.text("chrome.ribbonMoreTabs"));
@@ -880,7 +880,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 
 	private AbstractButton createTabButton(SwingRibbonModel.RibbonTab tab) {
 		JToggleButton button = new JToggleButton(tabTitle(tab));
-		button.setName("projectLibreRibbonTab-" + tab.getId());
+		button.setName("microProjectRibbonTab-" + tab.getId());
 		button.putClientProperty(TAB_ID_PROPERTY, tab.getId());
 		button.putClientProperty("JComponent.titleBarCaption", Boolean.FALSE);
 		tabButtons.put(tab.getId(), button);
@@ -1033,7 +1033,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 
 		JPanel shell = new JPanel(new BorderLayout());
 		shell.setOpaque(true);
-		shell.setName("projectLibreRibbonTabBody");
+		shell.setName("microProjectRibbonTabBody");
 		shell.setBackground(theme.surfaceColor());
 		// Use FlatLaf's rounded panel painter for the white Office ribbon surface.
 		// Its gray chrome remains visible around the corners; commands stay in the

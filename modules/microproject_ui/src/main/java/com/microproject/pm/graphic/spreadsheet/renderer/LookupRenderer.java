@@ -49,7 +49,7 @@ public class LookupRenderer extends DefaultTableCellRenderer implements OfflineR
 		SpreadSheetModel model  = (SpreadSheetModel) table.getModel();
 		Object rowObject = model.getObjectInRow(row);
 		Field field = model.getFieldInViewColumn(column);
-		JComponent c = new LookupField(field,value).getDisplay(); // not bothering with button for now
+		JComponent c = new LookupField(value).getDisplay();
 		return c;
 	}
 	

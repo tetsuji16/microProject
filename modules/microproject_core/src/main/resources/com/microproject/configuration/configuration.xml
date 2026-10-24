@@ -604,7 +604,7 @@
 
 		</class>
 		<class name="com.microproject.pm.resource.ResourceImpl">
-			<field property="extendedRole" id="Field.userRole" server="true">
+			<field property="extendedRole" id="Field.userRole">
 				<select name="userRole">
 					<option key="ClientRole.Inactive" value="0" />
 					<option key="ClientRole.TeamMember" value="8" />

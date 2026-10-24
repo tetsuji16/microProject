@@ -15,8 +15,7 @@ class SessionFactoryDesktopTest {
 		factory.setJobQueue(first);
 		LocalSession session = factory.getLocalSession();
 		assertTrue(session.isInitialized());
-		assertSame(session, factory.getSession(true));
-		assertSame(session, factory.getSession(false));
+		assertSame(session, factory.getLocalSession());
 		assertSame(first, session.getJobQueue());
 		JobQueue replacement = new JobQueue("replacement", false);
 		factory.setJobQueue(replacement);

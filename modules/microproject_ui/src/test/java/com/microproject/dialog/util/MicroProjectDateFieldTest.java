@@ -16,10 +16,10 @@ import javax.swing.JButton;
 
 import org.junit.jupiter.api.Test;
 
-class ProjectLibreDateFieldTest {
+class MicroProjectDateFieldTest {
 	@Test
 	void calendarPopupProvidesASevenColumnMonthTable() {
-		ProjectLibreDateField field = new ProjectLibreDateField();
+		MicroProjectDateField field = new MicroProjectDateField();
 		field.setValue(new Date());
 		JPopupMenu popup = new JPopupMenu();
 		java.awt.Container panel = field.createCalendarPanel(popup);
@@ -32,7 +32,7 @@ class ProjectLibreDateFieldTest {
 
 	@Test
 	void selectingADayButtonWritesTheDateBackToTheField() {
-		ProjectLibreDateField field = new ProjectLibreDateField();
+		MicroProjectDateField field = new MicroProjectDateField();
 		JPopupMenu popup = new JPopupMenu();
 		java.awt.Container panel = field.createCalendarPanel(popup);
 		java.awt.Container days = (java.awt.Container) panel.getComponent(1);
@@ -50,7 +50,7 @@ class ProjectLibreDateFieldTest {
 
 	@Test
 	void calendarButtonsUseFlatLafToolbarButtonStyle() {
-		ProjectLibreDateField field = new ProjectLibreDateField();
+		MicroProjectDateField field = new MicroProjectDateField();
 		java.awt.Container panel = field.createCalendarPanel(new JPopupMenu());
 		java.awt.Container header = (java.awt.Container) panel.getComponent(0);
 		for (Component component : header.getComponents()) {

@@ -40,7 +40,7 @@ import javax.swing.JRootPane;
 import javax.swing.KeyStroke;
 
 public final class PopupDialogSupport {
-	static final String ESCAPE_ACTION_KEY = "projectlibre.closeOnEscape";
+	static final String ESCAPE_ACTION_KEY = "microproject.closeOnEscape";
 
 	private PopupDialogSupport() {
 	}

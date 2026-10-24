@@ -28,7 +28,6 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.Map;
 
-import com.microproject.company.ApplicationUser;
 import com.microproject.configuration.Configuration;
 import com.microproject.datatype.ImageLink;
 import com.microproject.field.DelegatesFields;
@@ -37,7 +36,6 @@ import com.microproject.field.FieldContext;
 import com.microproject.pm.costing.EarnedValueCalculator;
 import com.microproject.pm.costing.EarnedValueIndicatorFields;
 import com.microproject.pm.key.HasName;
-import com.microproject.session.SessionFactory;
 
 /**
  *
@@ -178,10 +176,7 @@ public class ProjectData extends DocumentData implements HasName,DelegatesFields
     }
 
     public boolean canBeUsed(){
-    	if (lockedById<=0) return true;
-    	ApplicationUser user=SessionFactory.getInstance().getSession(false).getUser();
-    	if (user==null/*for offline gantt*/||lockedById==user.getUniqueId()) return true;
-    	return (idleTime>allowedIdleTime);
+		return true; // Offline projects have no session identity to enforce server lock ownership.
     }
     public boolean isLocked() {
     	return lockedByName != null && lockedByName.length() > 0;

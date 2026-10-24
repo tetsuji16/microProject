@@ -148,7 +148,6 @@ public abstract class StartupFactory {
 			logger.log(Level.SEVERE, "Failed to create GraphicManager", e);
 		}
 		Environment.setUser(new com.microproject.company.DefaultUser());
-		Environment.setStandAlone(true);
 		graphicManager.setConnected(true);
 		//if (Environment.isNewLook())
 			graphicManager.initLookAndFeel();
@@ -246,7 +245,7 @@ public abstract class StartupFactory {
 						return;
 					}
 					if (welcome&&!Environment.isPlugin()) {
-						if (!Environment.isProjectLibre() && !LafManagerImpl.isLafOk()) // for startup glitch - we don't want people to work until restarting.
+						if (!true && !LafManagerImpl.isLafOk()) // for startup glitch - we don't want people to work until restarting.
 							return;
 						gm.doWelcomeDialog();
 					}

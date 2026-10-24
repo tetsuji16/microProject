@@ -44,7 +44,6 @@ import com.microproject.util.ClassUtils;
 		protected ArrayList<Object> resources;
 		protected List<Object> selectedResources;
 		protected boolean local=false,master=false;
-		protected int accessControlType;
 		
 		public static final MergeField NO_MERGE=new MergeField(null,null,"");
 		protected ArrayList<MergeField> mergeFields=new ArrayList<>();
@@ -96,14 +95,6 @@ import com.microproject.util.ClassUtils;
 
 		public void setMaster(boolean master) {
 			this.master = master;
-		}
-
-		public int getAccessControlType() {
-			return accessControlType;
-		}
-
-		public void setAccessControlType(int accessControlType) {
-			this.accessControlType = accessControlType;
 		}
 
 		public abstract boolean execute();

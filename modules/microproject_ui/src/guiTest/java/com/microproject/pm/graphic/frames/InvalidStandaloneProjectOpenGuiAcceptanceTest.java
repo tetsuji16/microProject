@@ -43,7 +43,6 @@ class InvalidStandaloneProjectOpenGuiAcceptanceTest {
 	private GraphicManager graphicManager;
 	private Path invalidFile;
 	private boolean previousClientSide;
-	private boolean previousStandalone;
 	private boolean previousRibbonUi;
 	private boolean previousNewLook;
 	private boolean previousBatchMode;
@@ -54,7 +53,6 @@ class InvalidStandaloneProjectOpenGuiAcceptanceTest {
 		if (window != null) SwingUtilities.invokeAndWait(() -> window.dispose());
 		if (invalidFile != null) Files.deleteIfExists(invalidFile);
 		Environment.setClientSide(previousClientSide);
-		Environment.setStandAlone(previousStandalone);
 		Environment.setRibbonUI(previousRibbonUi);
 		Environment.setNewLook(previousNewLook);
 		Environment.setBatchMode(previousBatchMode);
@@ -64,12 +62,10 @@ class InvalidStandaloneProjectOpenGuiAcceptanceTest {
 	void robotReportsInvalidStandaloneFileAndLeavesExistingDocumentUntouched() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		previousClientSide = Environment.isClientSide();
-		previousStandalone = Environment.getStandAlone();
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
 		previousBatchMode = Environment.isBatchMode();
 		Environment.setClientSide(true);
-		Environment.setStandAlone(true);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
 		Environment.setBatchMode(false);
@@ -117,12 +113,10 @@ class InvalidStandaloneProjectOpenGuiAcceptanceTest {
 	void robotReportsMissingStandaloneFileAndLeavesExistingDocumentUntouched() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for GUI acceptance coverage.");
 		previousClientSide = Environment.isClientSide();
-		previousStandalone = Environment.getStandAlone();
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
 		previousBatchMode = Environment.isBatchMode();
 		Environment.setClientSide(true);
-		Environment.setStandAlone(true);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
 		Environment.setBatchMode(false);
@@ -163,12 +157,10 @@ class InvalidStandaloneProjectOpenGuiAcceptanceTest {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for GUI acceptance coverage.");
 		Assumptions.assumeTrue(System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win"), "ACL test requires Windows.");
 		previousClientSide = Environment.isClientSide();
-		previousStandalone = Environment.getStandAlone();
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
 		previousBatchMode = Environment.isBatchMode();
 		Environment.setClientSide(true);
-		Environment.setStandAlone(true);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
 		Environment.setBatchMode(false);

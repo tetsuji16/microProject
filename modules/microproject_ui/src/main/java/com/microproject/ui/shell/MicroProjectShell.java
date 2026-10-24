@@ -116,21 +116,13 @@ public final class MicroProjectShell {
 		MenuManager menuManager,
 		LafManager lafManager,
 		FrameManager frameManager,
-		boolean applet,
-		boolean external,
-		boolean standAlone,
 		boolean mac,
 		JMenuBarTarget menuBarTarget) {
 		JToolBar toolBar = menuManager.getToolBar(MenuManager.BIG_TOOL_BAR);
 		if (!lafManager.isToolbarOpaque()) {
 			toolBar.setOpaque(false);
 		}
-		if (!applet) {
-			menuManager.setActionVisible("FullScreen", false);
-		}
-		if (external) {
-			menuManager.setActionVisible("TeamFilter", false);
-		}
+		menuManager.setActionVisible("FullScreen", false);
 
 		toolBar.addSeparator(new Dimension(20, 20));
 		toolBar.add(new Box.Filler(new Dimension(0, 0), new Dimension(0, 0), new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE)));
@@ -148,7 +140,7 @@ public final class MicroProjectShell {
 
 		JMenu projectListMenu = null;
 		if (mac && menuBarTarget != null) {
-			JMenuBar menu = menuManager.getMenu(standAlone ? MenuManager.MAC_STANDARD_MENU : MenuManager.SERVER_STANDARD_MENU);
+			JMenuBar menu = menuManager.getMenu(MenuManager.MAC_STANDARD_MENU);
 			menuBarTarget.setMenuBar(menu);
 			projectListMenu = (JMenu) menu.getComponent(5);
 		}
@@ -159,7 +151,6 @@ public final class MicroProjectShell {
 	public static ShellHandles installClassicShell(
 		Container contentPane,
 		MenuManager menuManager,
-		boolean standAlone,
 		boolean mac,
 		JMenuBarTarget menuBarTarget) {
 		JToolBar toolBar = menuManager.getToolBar(mac ? MenuManager.MAC_STANDARD_TOOL_BAR : MenuManager.STANDARD_TOOL_BAR);
@@ -171,7 +162,7 @@ public final class MicroProjectShell {
 		viewToolBar.setRollover(true);
 		contentPane.add(viewToolBar, BorderLayout.WEST);
 
-		JMenuBar menu = menuManager.getMenu(standAlone ? (mac ? MenuManager.MAC_STANDARD_MENU : MenuManager.STANDARD_MENU) : MenuManager.SERVER_STANDARD_MENU);
+		JMenuBar menu = menuManager.getMenu(mac ? MenuManager.MAC_STANDARD_MENU : MenuManager.STANDARD_MENU);
 		JMenu projectListMenu;
 		if (!mac) {
 			((JComponent) menu).setBorder(javax.swing.BorderFactory.createEmptyBorder());

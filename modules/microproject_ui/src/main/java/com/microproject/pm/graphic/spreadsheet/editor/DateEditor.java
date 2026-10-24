@@ -54,7 +54,7 @@ public class DateEditor extends AbstractCellEditor implements TableCellEditor {
 	private String initialFormattedText = null;
 	public DateEditor() {
 	}
-	public static class ExtDateField extends com.microproject.dialog.util.ProjectLibreDateField implements KeyboardFocusable {
+	public static class ExtDateField extends com.microproject.dialog.util.MicroProjectDateField implements KeyboardFocusable {
 		public ExtDateField(DateFormat df) {
 			super(df);
 			addMouseListener();

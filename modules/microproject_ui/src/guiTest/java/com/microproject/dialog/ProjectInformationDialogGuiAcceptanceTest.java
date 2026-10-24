@@ -40,7 +40,6 @@ class ProjectInformationDialogGuiAcceptanceTest {
 	private ProjectInformationDialog dialog;
 	private MainRibbonFrame window;
 	private GraphicManager manager;
-	private boolean previousStandalone;
 	private boolean previousRibbonUi;
 	private boolean previousNewLook;
 	private boolean previousClientSide;
@@ -51,7 +50,6 @@ class ProjectInformationDialogGuiAcceptanceTest {
 		if (dialog != null) SwingUtilities.invokeAndWait(dialog::dispose);
 		if (manager != null) SwingUtilities.invokeAndWait(manager::cleanUp);
 		if (window != null) SwingUtilities.invokeAndWait(window::dispose);
-		Environment.setStandAlone(previousStandalone);
 		Environment.setRibbonUI(previousRibbonUi);
 		Environment.setNewLook(previousNewLook);
 		Environment.setClientSide(previousClientSide);
@@ -60,7 +58,6 @@ class ProjectInformationDialogGuiAcceptanceTest {
 
 	@Test
 	void projectInformationShowsAllTabsAndButtonsAfterResize() throws Exception {
-		previousStandalone = com.microproject.util.Environment.getStandAlone();
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
 		previousClientSide = Environment.isClientSide();
@@ -68,7 +65,6 @@ class ProjectInformationDialogGuiAcceptanceTest {
 		RibbonDisplayPreferences.save(RibbonDisplayMode.ALWAYS_SHOW);
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for layout acceptance coverage.");
 		DataFactoryUndoController undo = new DataFactoryUndoController();
-		Environment.setStandAlone(true);
 		Environment.setClientSide(true);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);

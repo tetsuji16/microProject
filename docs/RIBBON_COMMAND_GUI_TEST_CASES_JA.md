@@ -23,8 +23,8 @@ microProjectの標準リボンに表示される全コマンドボタンを、�
 | RibbonBackstageOptions | File > Options を開く | アプリケーション設定が表示され、既存の設定保存経路を使える |
 | RibbonImportProject | MSP等の外部プロジェクトをインポート | インポート結果が表示され、エラー時は説明が出る |
 | RibbonLocale | 表示言語を切り替える | 選択した言語が反映される |
-| RibbonProjectLibreDocumentation | ドキュメントを開く | ヘルプ操作が開始される（外部画面は証跡外） |
-| RibbonAboutProjectLibre | バージョン情報を開く | Aboutダイアログが表示される |
+| RibbonMicroProjectDocumentation | ドキュメントを開く | ヘルプ操作が開始される（外部画面は証跡外） |
+| RibbonAboutMicroProject | バージョン情報を開く | Aboutダイアログが表示される |
 | RibbonSaveProject | 現在のプロジェクトを保存 | 保存完了後に保存エラーが表示されない |
 | RibbonSaveProjectAs | 名前を付けて保存 | 指定名で保存できる |
 | RibbonSaveMpoAs | MPOとして保存 | マスターをMPOアーカイブとして保存できる |

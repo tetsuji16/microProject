@@ -5,14 +5,14 @@ set "SCRIPT_DIR=%~dp0"
 for %%I in ("%SCRIPT_DIR%..") do set "PROJECT_ROOT=%%~fI"
 set "GRADLEW=%PROJECT_ROOT%\gradlew.bat"
 set "LIB_DIR=%PROJECT_ROOT%\modules\microproject_ui\build\install\microproject_ui\lib"
-set "ARG_FILE=%TEMP%\projectlibre-java-args-%RANDOM%.txt"
+set "ARG_FILE=%TEMP%\microproject-java-args-%RANDOM%.txt"
 
 if not exist "%GRADLEW%" (
   echo ERROR: Gradle wrapper not found at "%GRADLEW%".
   exit /b 1
 )
 
-call :StopProjectLibreProcesses
+call :StopMicroProjectProcesses
 
 pushd "%PROJECT_ROOT%"
 call "%GRADLEW%" clean build installDist --console=plain
@@ -47,7 +47,7 @@ set "EXIT_CODE=%ERRORLEVEL%"
 del "%ARG_FILE%" >nul 2>&1
 exit /b %EXIT_CODE%
 
-:StopProjectLibreProcesses
+:StopMicroProjectProcesses
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$procs = Get-CimInstance Win32_Process -Filter \"Name = 'java.exe' OR Name = 'javaw.exe'\" | Where-Object { $_.CommandLine -match '(?i)microproject|projectlibre' };" ^
   "foreach ($proc in $procs) { Stop-Process -Id $proc.ProcessId -Force -ErrorAction SilentlyContinue }"

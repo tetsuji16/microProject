@@ -71,8 +71,8 @@ import com.microproject.util.Environment;
 
 import net.sf.mpxj.writer.ProjectWriter;
 import com.microproject.exchange.mpxj.ProjectWriterFactory;
-import com.microproject.exchange.xlsx.ProjectLibreXlsxWriter;
-import com.microproject.exchange.xlsx.ProjectLibreXlsxReader;
+import com.microproject.exchange.xlsx.MicroProjectXlsxWriter;
+import com.microproject.exchange.xlsx.MicroProjectXlsxReader;
 import java.util.logging.Logger;
 /**
  * This class is based on the project mpxj http://www.tapsterrock.com/mpxj/
@@ -193,7 +193,7 @@ public class MicrosoftImporter extends FileImporter {
 			try (InputStream source = in) {
 				data = BoundedInput.readXlsxImport(source);
 			}
-			Project nativeProject = ProjectLibreXlsxReader.readProjectLibreProject(new java.io.ByteArrayInputStream(data));
+			Project nativeProject = MicroProjectXlsxReader.readMicroProjectProject(new java.io.ByteArrayInputStream(data));
 			if (nativeProject != null) {
 				project = nativeProject;
 				plProject = null;
@@ -243,7 +243,7 @@ public class MicrosoftImporter extends FileImporter {
 			try (InputStream input = Files.newInputStream(Path.of(fileName))) {
 				data = BoundedInput.readXlsxImport(input);
 			}
-			Project nativeProject = ProjectLibreXlsxReader.readProjectLibreProject(
+			Project nativeProject = MicroProjectXlsxReader.readMicroProjectProject(
 				new java.io.ByteArrayInputStream(data));
 			if (nativeProject != null) {
 				project = nativeProject;
@@ -288,7 +288,7 @@ public class MicrosoftImporter extends FileImporter {
 
 		errorDescription = null;
     	lastException = null;
-    	Session session=SessionFactory.getInstance().getSession(resourceMapping==null);
+		Session session=SessionFactory.getInstance().getLocalSession();
 		Job job=new Job(session.getJobQueue(),"importFile",Messages.getString("MicrosoftImporter.Importing"),true); //$NON-NLS-1$ //$NON-NLS-2$
 
 		
@@ -308,7 +308,7 @@ public class MicrosoftImporter extends FileImporter {
 				logger.info("BEGIN: Import resources");
 				ResourceMappingForm form=getResourceMapping();
 				if (form!=null&&form.isLocal()) //if form==null we are in a case were have no server access. popup not needed
-					if (!job.okCancel(Messages.getString("Message.ServerUnreacheableReadOnlyProject"),true)){ //$NON-NLS-1$
+					if (!job.okCancel(Messages.getString("Message.OpenImportedProjectReadOnlyWithoutMerging"),true)){ //$NON-NLS-1$
 						setProgress(1.0f);
 						errorDescription = ABORT;
 						Environment.setImporting(false); // will avoid certain popups
@@ -356,7 +356,7 @@ public class MicrosoftImporter extends FileImporter {
 	private void saveProjectOrThrow(Project project, OutputStream out, String targetFileName) throws Exception {
 		String extension = getFileExtension(targetFileName);
 		if ("xlsx".equals(extension)) {
-			new ProjectLibreXlsxWriter().writeProjectLibreProject(project, out);
+			new MicroProjectXlsxWriter().writeMicroProjectProject(project, out);
 			return;
 		}
 		MSPDISerializer serializer = new MSPDISerializer();
@@ -467,7 +467,7 @@ public class MicrosoftImporter extends FileImporter {
 
 	/** Creates the standard queued export job for the active importer. */
 	public Job getExportFileJob(){
-    	Session session=SessionFactory.getInstance().getLocalSession();
+	Session session=SessionFactory.getInstance().getLocalSession();
 		Job job=new Job(session.getJobQueue(),"exportFile","Exporting...",true); //$NON-NLS-1$ //$NON-NLS-2$
     	job.addRunnable(new JobRunnable("Local: export",1.0f){ //$NON-NLS-1$
     		public Object run() throws Exception{

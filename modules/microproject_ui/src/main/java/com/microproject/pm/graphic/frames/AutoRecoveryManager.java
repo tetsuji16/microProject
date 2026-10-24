@@ -267,7 +267,7 @@ final class AutoRecoveryManager implements AutoSaveControl {
 			// Job completion runs once for success, failure, and cancellation.  It
 			// is the sole release point for the in-flight claim after scheduling.
 			job.addCompletionRunnable(() -> completeSave(projectId));
-			SessionFactory.getInstance().getSession(options.isLocal()).schedule(job);
+			SessionFactory.getInstance().getLocalSession().schedule(job);
 		} catch (RuntimeException | IOException ex) {
 			// Covers job construction and queue admission failures.  If admission
 			// succeeded, Job's completion callback owns the release; this path is

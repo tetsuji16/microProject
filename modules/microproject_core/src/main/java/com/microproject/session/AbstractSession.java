@@ -27,7 +27,6 @@ package com.microproject.session;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.microproject.company.ApplicationUser;
 import com.microproject.job.Job;
 import com.microproject.job.JobQueue;
 import com.microproject.job.JobRunnable;
@@ -52,15 +51,6 @@ public abstract class AbstractSession implements Session{
 	public void init(Object o){
 		initialized=true;
 	}
-
-	public ApplicationUser getUser() {
-		return null;
-	}
-	public void setUser(ApplicationUser user){
-		
-	}
-	public void logException(Exception e){}
-	public void logString(String s){}
 
     public Job getSaveProjectJob(final Project project, SaveOptions opt){
 		List<Project> projects = new ArrayList<>(1);

@@ -63,7 +63,7 @@ import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.Environment;
 
 public class ProjectMergeService {
-	private static final String PROJECT_LIBRE_FILE_SEPARATOR = "@@@@@@@@@@ProjectLibreSeparator_MSXML@@@@@@@@@@";
+	private static final String MICRO_PROJECT_FILE_SEPARATOR = "@@@@@@@@@@ProjectLibreSeparator_MSXML@@@@@@@@@@";
 	private static final Logger logger = Logger.getLogger(ProjectMergeService.class.getName());
 
 	public enum LoadStatus {
@@ -352,7 +352,7 @@ public class ProjectMergeService {
 		long startedAt = System.nanoTime();
 		EmbeddedPodXmlInputStream stream = new EmbeddedPodXmlInputStream(
 			new BufferedInputStream(new FileInputStream(fileName), EmbeddedPodXmlInputStream.BUFFER_SIZE),
-			PROJECT_LIBRE_FILE_SEPARATOR.getBytes(StandardCharsets.UTF_8));
+			MICRO_PROJECT_FILE_SEPARATOR.getBytes(StandardCharsets.UTF_8));
 		if (!stream.locateSeparator()) {
 			stream.close();
 			logger.log(Level.FINE, "POD XML separator not found: {0} bytes scanned in {1} ms",

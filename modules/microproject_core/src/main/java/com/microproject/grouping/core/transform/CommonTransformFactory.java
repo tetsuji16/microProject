@@ -31,7 +31,6 @@ import org.apache.commons.collections4.Transformer;
 
 import com.microproject.field.InvalidFormulaException;
 import com.microproject.strings.Messages;
-import com.microproject.util.Environment;
 
 /**
  *
@@ -46,7 +45,6 @@ public abstract class CommonTransformFactory extends CommonTransform{
 	protected String definition=null;
 	protected String arguments=null;
 	protected Transformer composition=null;
-	protected boolean server;
 	
 	public abstract CommonTransform getTransform() throws InvalidFormulaException;
 	
@@ -151,14 +149,6 @@ public abstract class CommonTransformFactory extends CommonTransform{
 
     
 
-	public boolean isServer() {
-		return server;
-	}
-
-	public void setServer(boolean server) {
-		this.server = server;
-	}
-
 	public Transformer getComposition() {
         return composition;
     }
@@ -192,8 +182,7 @@ public abstract class CommonTransformFactory extends CommonTransform{
     public void setRedefinitionCallBack(Consumer<Object> callback){}
     
     
-    public void addFactory(CommonTransformFactory factory){
-    	if (factory.isServer()&&Environment.getStandAlone()) return;
+	public void addFactory(CommonTransformFactory factory){
         if (subTransforms==null) subTransforms=new ArrayList<>();
         subTransforms.add(factory);
     }

@@ -46,7 +46,7 @@ For the quickest repeatable Windows workflow, use the repository launcher instea
 Or double-click:
 
 ```text
-scripts\run_projectlibre.bat
+scripts\run_microproject.bat
 ```
 
 That launcher:
@@ -67,19 +67,19 @@ To avoid that trap:
 
 ## Incremental Launcher
 
-Use `scripts\run_projectlibre.ps1` when you want a logged incremental run instead of a clean rebuild:
+Use `scripts\run_microproject.ps1` when you want a logged incremental run instead of a clean rebuild:
 
 ```powershell
-.\scripts\run_projectlibre.ps1
-.\scripts\run_projectlibre.ps1 -SkipBuild
-.\scripts\run_projectlibre.ps1 -Clean
-.\scripts\run_projectlibre.ps1 -UiDebug
+.\scripts\run_microproject.ps1
+.\scripts\run_microproject.ps1 -SkipBuild
+.\scripts\run_microproject.ps1 -Clean
+.\scripts\run_microproject.ps1 -UiDebug
 ```
 
 It writes per-run logs under:
 
-- `build\logs\projectlibre\yyyyMMdd-HHmmss\`
-- `build\logs\projectlibre\latest\`
+- `build\logs\microproject\yyyyMMdd-HHmmss\`
+- `build\logs\microproject\latest\`
 - `launcher.log`
 - `app.stdout.log`
 - `app.stderr.log`
@@ -114,7 +114,7 @@ Task command semantics and the per-surface evidence mapping are maintained in
 `W-464-DPI-FULLWIDTH` waiver の範囲内に限る。高DPIの視覚検査・対象別
 Robot操作・モデル／Undo検査は省略しない。
 
-Use `run_projectlibre.ps1` when you want to reuse an existing `installDist` output or capture logs. Use `run_microproject_clean.bat` when you want the safest one-step clean rebuild and launch.
+Use `run_microproject.ps1` when you want to reuse an existing `installDist` output or capture logs. Use `run_microproject_clean.bat` when you want the safest one-step clean rebuild and launch.
 
 ## Quick Checks
 

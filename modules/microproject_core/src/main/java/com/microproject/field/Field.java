@@ -185,7 +185,6 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 	private boolean graphical = false; // to flag for fields like indicator
 	private FieldContext specialFieldContext = null; // for web to set exact context
 	public String lookupTypes = null; // types separated by semicolons
-	private boolean server;
 	private String help = null;
 	private String alias = null;
 	private boolean custom = false;
@@ -2330,13 +2329,6 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 		this.lookupTypes = lookupTypes;
 	}
 
-	public boolean isServer() {
-		return server;
-	}
-
-	public void setServer(boolean server) {
-		this.server = server;
-	}
 
 	public static String getMetadataStringHeader() {
 		return "Name"

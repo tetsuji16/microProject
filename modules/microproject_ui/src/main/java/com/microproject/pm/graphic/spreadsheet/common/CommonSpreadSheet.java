@@ -107,7 +107,7 @@ import com.microproject.graphic.configuration.SpreadSheetFieldArray;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeFactory;
 import com.microproject.grouping.core.model.NodeModel;
-import com.microproject.server.access.ErrorLogger;
+import com.microproject.util.ErrorLogger;
 import com.microproject.strings.Messages;
 import com.microproject.util.Alert;
 import com.microproject.workspace.SavableToWorkspace;

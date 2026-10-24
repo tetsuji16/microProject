@@ -93,7 +93,7 @@ class OfficeChromeSearchGuiAcceptanceTest {
 			box[0] = find(panel[0], OfficeChromePanel.SEARCH_BOX_NAME, Component.class);
 			assertTrue(SwingUtilities.isDescendingFrom(box[0], find(panel[0], "officeChromeHeader", Component.class)),
 				"search control must be hosted by the title/header chrome");
-			assertFalse(SwingUtilities.isDescendingFrom(box[0], find(panel[0], "projectLibreRibbonTabRow", Component.class)),
+			assertFalse(SwingUtilities.isDescendingFrom(box[0], find(panel[0], "microProjectRibbonTabRow", Component.class)),
 				"search control must not occupy the ribbon tab row");
 			save[0] = find(panel[0], "RibbonTopBarSaveProject", Component.class);
 			help[0] = find(panel[0], OfficeChromePanel.HELP_BUTTON_NAME, Component.class);

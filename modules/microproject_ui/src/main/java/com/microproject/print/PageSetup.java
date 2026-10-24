@@ -65,7 +65,6 @@ import com.microproject.offline_graphics.SVGRenderer;
 import com.microproject.pm.graphic.graph.GraphParams;
 import com.microproject.strings.Messages;
 import com.microproject.util.Alert;
-import com.microproject.util.Environment;
 import com.microproject.util.FlatUiSupport;
 /**
  *
@@ -580,20 +579,6 @@ public class PageSetup{
 		}
 		printSettings.setViewSettings(viewSettings);
 
-		if (!Environment.getStandAlone()){
-			ArrayList<ScalingSettings> scalingSettings = new ArrayList<>(2);
-			ScaleToSettings scaleToSettings=new ScaleToSettings();
-			scaleToSettings.setWidth(((Number)scaleToWidth.getValue()).doubleValue());
-			scaleToSettings.setHeight(((Number)scaleToHeight.getValue()).doubleValue());
-			scaleToSettings.setConstrainProportions(constrainProportions.isSelected());
-			FitToSettings fitToSettings=new FitToSettings();
-			fitToSettings.setColumns(((Number)fitToWidth.getValue()).intValue());
-			fitToSettings.setRows(isFitHeightAutomatic()?FitToSettings.AUTOMATIC:((Number)fitToHeight.getValue()).intValue());
-			scalingSettings.add(scaleToSettings);
-			scalingSettings.add(fitToSettings);
-			printSettings.setScalingSettings(scalingSettings);
-			printSettings.setScalingIndex(scaleTo.isSelected()?0:1);
-		}
 		if (!local) printSettings.setFieldArray(document.getRenderer().getProject().getFieldArray());
 		printSettings.updateWorkspace();
 

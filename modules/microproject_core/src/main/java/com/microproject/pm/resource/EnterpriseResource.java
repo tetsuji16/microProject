@@ -62,6 +62,7 @@ import com.microproject.pm.availability.AvailabilityTable;
 import com.microproject.pm.calendar.CalendarService;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.calendar.WorkingCalendar;
+import com.microproject.collaboration.CollaborationUserIdentity;
 import com.microproject.pm.costing.Accrual;
 import com.microproject.pm.costing.CostRateTable;
 import com.microproject.pm.costing.CostRateTables;
@@ -69,7 +70,6 @@ import com.microproject.pm.costing.EarnedValueCalculator;
 import com.microproject.pm.key.HasKeyImpl;
 import com.microproject.pm.task.Task;
 import com.microproject.strings.Messages;
-import com.microproject.util.Environment;
 
 /**
  * A global resource that belongs to the enterprise resource pool
@@ -850,7 +850,7 @@ public class EnterpriseResource implements Resource {
 	public Object clone(){
 		try {
 			EnterpriseResource resource=(EnterpriseResource)super.clone();
-			resource.hasKey=new HasKeyImpl(isLocal()&&Environment.getStandAlone(),resource);
+			resource.hasKey=new HasKeyImpl(isLocal(),resource);
 			resource.setName(getName());
 			if (notes!=null) resource.notes = notes;
 			if (group!=null)resource.group = group;
@@ -988,8 +988,7 @@ public class EnterpriseResource implements Resource {
 	}
 
 	public boolean isMe() {
-		if (userAccount==null) return false;
-		return userAccount.equals(Environment.getLogin());
+		return CollaborationUserIdentity.isCurrentUser(userAccount);
 	}
 
 	public boolean isParent() {
@@ -1086,7 +1085,7 @@ public class EnterpriseResource implements Resource {
 	}
 
 	public boolean isReadOnly() {
-		return !master && !isLocal() && !Environment.getStandAlone();
+		return false;
 	}
 
 	protected transient boolean master;

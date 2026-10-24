@@ -201,9 +201,9 @@ public interface MenuActionConstants {
 	public static final String ACTION_LEVEL9                  = "Level9";
 
 
-	public static final String ACTION_ABOUT_PROJECTLIBRE           = "AboutProjectLibre";
-	public static final String ACTION_PROJECTLIBRE_DOCUMENTATION   = "ProjectLibreDocumentation";
-	public static final String ACTION_PROJECTLIBRE	  	  = "ProjectLibre";
+	public static final String ACTION_ABOUT_MICROPROJECT           = "AboutMicroProject";
+	public static final String ACTION_MICROPROJECT_DOCUMENTATION   = "MicroProjectDocumentation";
+	public static final String ACTION_MICROPROJECT	  	  = "MicroProject";
 
 
 	public static final String ACTION_CHOOSE_FILTER			  = "ChooseFilter";

@@ -57,11 +57,11 @@ class RibbonStructureTest {
 	void helpCommandsLiveOnTheStandardHelpTabAndShareTheirCanonicalActions() {
 		assertEquals(List.of("HelpRibbonBand"), ribbonBandIds("HelpRibbonTask"));
 		assertTrue(!ribbonBandIds("FileRibbonTask").contains("HelpRibbonBand"));
-		assertEquals(List.of("RibbonProjectLibreDocumentation", "RibbonAboutProjectLibre"),
+		assertEquals(List.of("RibbonMicroProjectDocumentation", "RibbonAboutMicroProject"),
 			ribbonButtonIds("HelpRibbonBand"));
-		assertEquals("ProjectLibreDocumentationAction",
-			menuInternalBundle().getString("RibbonProjectLibreDocumentation.action"));
-		assertEquals("AboutProjectLibreAction", menuInternalBundle().getString("RibbonAboutProjectLibre.action"));
+		assertEquals("MicroProjectDocumentationAction",
+			menuInternalBundle().getString("RibbonMicroProjectDocumentation.action"));
+		assertEquals("AboutMicroProjectAction", menuInternalBundle().getString("RibbonAboutMicroProject.action"));
 		assertEquals("Help", menuBundle(Locale.ROOT).getString("HelpRibbonTask.title"));
 		assertEquals("ヘルプ", menuBundle(Locale.JAPANESE).getString("HelpRibbonTask.title"));
 	}

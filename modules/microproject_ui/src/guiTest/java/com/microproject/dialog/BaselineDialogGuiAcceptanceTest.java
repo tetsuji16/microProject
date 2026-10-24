@@ -53,7 +53,6 @@ class BaselineDialogGuiAcceptanceTest {
 	private MainRibbonFrame window;
 	private GraphicManager manager;
 	private Font originalDefaultFont;
-	private boolean previousStandalone;
 	private boolean previousRibbonUi;
 	private boolean previousNewLook;
 	private boolean previousClientSide;
@@ -69,7 +68,6 @@ class BaselineDialogGuiAcceptanceTest {
 			MicroProjectTheme.installLight();
 			if (originalDefaultFont != null) UIManager.put("defaultFont", originalDefaultFont);
 		});
-		Environment.setStandAlone(previousStandalone);
 		Environment.setRibbonUI(previousRibbonUi);
 		Environment.setNewLook(previousNewLook);
 		Environment.setClientSide(previousClientSide);
@@ -81,13 +79,11 @@ class BaselineDialogGuiAcceptanceTest {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(),
 			"A desktop session is required for baseline dialog layout acceptance coverage.");
 		originalDefaultFont = UIManager.getFont("defaultFont");
-		previousStandalone = Environment.getStandAlone();
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
 		previousClientSide = Environment.isClientSide();
 		previousRibbonDisplayMode = RibbonDisplayPreferences.load();
 		RibbonDisplayPreferences.save(RibbonDisplayMode.TABS_ONLY);
-		Environment.setStandAlone(true);
 		Environment.setClientSide(true);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);

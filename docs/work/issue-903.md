@@ -1,6 +1,6 @@
 # Issue #903 — Remove the unused server-local importer route
 
-State: IMPLEMENTED — focused regression suites pass; application suite has one concurrent unrelated failure
+State: IMPLEMENTED — frozen local verification passed; final CI/closure status in [integration record](https://github.com/tetsuji16/microProject/issues/774#issuecomment-6382996503)
 Issue: https://github.com/tetsuji16/microProject/issues/903
 Parent: #774, phase 2/8
 Contract frozen at: 2026-10-24, delegated slice request
@@ -58,3 +58,11 @@ Out of scope: `com.microproject.server.data` DTOs and the separate
 **Next:** parent review/integration; re-run application suite once the concurrent
 sidecar change is stable. Do not close #903 until the application failure is
 resolved or proven unrelated on a stable candidate.
+
+## Final integration gate
+
+The frozen candidate passed architecture/naming gates, maintenance 20/20,
+source inventory, clean build/installDist (2,880 tests; no failures/errors/skips),
+and GUI source compilation. This supersedes earlier slice-time pending local
+checks above. Candidate SHA, Windows Robot outcomes and closure are maintained
+in the linked integration record; physical acceptance is required before close.

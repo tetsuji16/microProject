@@ -1,7 +1,7 @@
 /*******************************************************************************
  * MIT License
  *
- * Copyright (c) 2012-2019 ProjectLibre, Inc.  (Previous Copyright Holder)
+ * Copyright (c) 2012-2019 MicroProject, Inc.  (Previous Copyright Holder)
  * Copyright (c) 2026 microProject
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -63,10 +63,10 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-public class ProjectLibreXlsxWriter implements ProjectWriter {
-	private static final String META_SHEET = "_PL_META";
-	private static final String DATA_SHEET = "_PL_DATA";
-	private static final String NATIVE_DATA_SHEET = "_PL_NATIVE";
+public class MicroProjectXlsxWriter implements ProjectWriter {
+	private static final String META_SHEET = "_MicroProject_META";
+	private static final String DATA_SHEET = "_MicroProject_MSPDI";
+	private static final String NATIVE_DATA_SHEET = "_MicroProject_NATIVE";
 	private static final String TASKS_SHEET = "Tasks";
 	private static final String RESOURCES_SHEET = "Resources";
 	private static final String ASSIGNMENTS_SHEET = "Assignments";
@@ -90,8 +90,8 @@ public class ProjectLibreXlsxWriter implements ProjectWriter {
 		writeWorkbookFromProjectFile(projectFile, out);
 	}
 
-	public void writeProjectLibreProject(Project project, OutputStream out) throws IOException {
-		writeWorkbookFromProjectLibreProject(project, out);
+	public void writeMicroProjectProject(Project project, OutputStream out) throws IOException {
+		writeWorkbookFromMicroProjectProject(project, out);
 	}
 
 	private void writeWorkbookFromProjectFile(ProjectFile projectFile, OutputStream out) throws IOException {
@@ -102,22 +102,22 @@ public class ProjectLibreXlsxWriter implements ProjectWriter {
 			writeProjectFileSummarySheets(workbook, projectFile);
 			workbook.write(out);
 		} catch (Exception e) {
-			throw wrap("Failed to write ProjectLibre XLSX workbook", e);
+			throw wrap("Failed to write MicroProject XLSX workbook", e);
 		} finally {
 			workbook.close();
 		}
 	}
 
-	private void writeWorkbookFromProjectLibreProject(Project project, OutputStream out) throws IOException {
+	private void writeWorkbookFromMicroProjectProject(Project project, OutputStream out) throws IOException {
 		XSSFWorkbook workbook = new XSSFWorkbook();
 		try {
-			writeMeta(workbook, "projectlibre", "3");
-			writePayload(workbook, serializeProjectLibreXml(project), "projectlibre");
+			writeMeta(workbook, "microproject", "3");
+			writePayload(workbook, serializeMicroProjectXml(project), "microproject");
 			writeNativePayload(workbook, project);
-			writeProjectLibreSummarySheets(workbook, project);
+			writeMicroProjectSummarySheets(workbook, project);
 			workbook.write(out);
 		} catch (Exception e) {
-			throw wrap("Failed to write ProjectLibre project to XLSX workbook", e);
+			throw wrap("Failed to write MicroProject project to XLSX workbook", e);
 		} finally {
 			workbook.close();
 		}
@@ -130,7 +130,7 @@ public class ProjectLibreXlsxWriter implements ProjectWriter {
 		}
 		String payload = Base64.getEncoder().encodeToString(bytes.toByteArray());
 		Sheet sheet = workbook.createSheet(NATIVE_DATA_SHEET);
-		sheet.createRow(0).createCell(0).setCellValue("ProjectLibreNativeData");
+		sheet.createRow(0).createCell(0).setCellValue("MicroProjectNativeData");
 		int rowIndex = 1;
 		for (int offset = 0; offset < payload.length(); offset += PAYLOAD_CHUNK_SIZE) {
 			int end = Math.min(offset + PAYLOAD_CHUNK_SIZE, payload.length());
@@ -147,10 +147,12 @@ public class ProjectLibreXlsxWriter implements ProjectWriter {
 
 	private void writeMeta(XSSFWorkbook workbook, String workbookKind, String version) {
 		Sheet sheet = workbook.createSheet(META_SHEET);
-		sheet.createRow(0).createCell(0).setCellValue("WorkbookKind");
-		sheet.createRow(0).createCell(1).setCellValue(workbookKind);
-		sheet.createRow(1).createCell(0).setCellValue("SchemaVersion");
-		sheet.createRow(1).createCell(1).setCellValue(version);
+		Row kindRow = sheet.createRow(0);
+		kindRow.createCell(0).setCellValue("WorkbookKind");
+		kindRow.createCell(1).setCellValue(workbookKind);
+		Row versionRow = sheet.createRow(1);
+		versionRow.createCell(0).setCellValue("SchemaVersion");
+		versionRow.createCell(1).setCellValue(version);
 	}
 
 	private String serializeProjectFileXml(ProjectFile projectFile) throws Exception {
@@ -159,7 +161,7 @@ public class ProjectLibreXlsxWriter implements ProjectWriter {
 		return xml.toString(StandardCharsets.UTF_8.name());
 	}
 
-	private String serializeProjectLibreXml(Project project) throws Exception {
+	private String serializeMicroProjectXml(Project project) throws Exception {
 		ByteArrayOutputStream xml = new ByteArrayOutputStream();
 		ProjectFile projectFile = new com.microproject.server.data.MSPDISerializer().serializeProject(project);
 		new MSPDIWriter().write(projectFile, xml);
@@ -188,13 +190,13 @@ public class ProjectLibreXlsxWriter implements ProjectWriter {
 		writeProjectFileTimephased(workbook, projectFile);
 	}
 
-	private void writeProjectLibreSummarySheets(XSSFWorkbook workbook, Project project) {
-		writeProjectLibreTasks(workbook, project);
-		writeProjectLibreResources(workbook, project);
-		writeProjectLibreAssignments(workbook, project);
-		writeProjectLibreDependencies(workbook, project);
-		writeProjectLibreCalendars(workbook, project);
-		writeProjectLibreTimephased(workbook, project);
+	private void writeMicroProjectSummarySheets(XSSFWorkbook workbook, Project project) {
+		writeMicroProjectTasks(workbook, project);
+		writeMicroProjectResources(workbook, project);
+		writeMicroProjectAssignments(workbook, project);
+		writeMicroProjectDependencies(workbook, project);
+		writeMicroProjectCalendars(workbook, project);
+		writeMicroProjectTimephased(workbook, project);
 	}
 
 	private void writeProjectFileTasks(XSSFWorkbook workbook, ProjectFile projectFile) {
@@ -220,7 +222,7 @@ public class ProjectLibreXlsxWriter implements ProjectWriter {
 		autoSize(sheet, 9);
 	}
 
-	private void writeProjectLibreTasks(XSSFWorkbook workbook, Project project) {
+	private void writeMicroProjectTasks(XSSFWorkbook workbook, Project project) {
 		Sheet sheet = workbook.createSheet(TASKS_SHEET);
 		writeRow(sheet, 0, "UniqueID", "ID", "ParentUniqueID", "Name", "Notes", "Start", "Finish", "PercentComplete", "WBS");
 		int rowIndex = 1;
@@ -264,7 +266,7 @@ public class ProjectLibreXlsxWriter implements ProjectWriter {
 		autoSize(sheet, 6);
 	}
 
-	private void writeProjectLibreResources(XSSFWorkbook workbook, Project project) {
+	private void writeMicroProjectResources(XSSFWorkbook workbook, Project project) {
 		Sheet sheet = workbook.createSheet(RESOURCES_SHEET);
 		writeRow(sheet, 0, "UniqueID", "ID", "Name", "Notes", "Group", "Email", "MaxUnits");
 		int rowIndex = 1;
@@ -310,7 +312,7 @@ public class ProjectLibreXlsxWriter implements ProjectWriter {
 		autoSize(sheet, 5);
 	}
 
-	private void writeProjectLibreAssignments(XSSFWorkbook workbook, Project project) {
+	private void writeMicroProjectAssignments(XSSFWorkbook workbook, Project project) {
 		Sheet sheet = workbook.createSheet(ASSIGNMENTS_SHEET);
 		writeRow(sheet, 0, "TaskUniqueID", "ResourceUniqueID", "Units", "Delay", "LevelingDelay", "WorkContour");
 		int rowIndex = 1;
@@ -353,7 +355,7 @@ public class ProjectLibreXlsxWriter implements ProjectWriter {
 		autoSize(sheet, 4);
 	}
 
-	private void writeProjectLibreDependencies(XSSFWorkbook workbook, Project project) {
+	private void writeMicroProjectDependencies(XSSFWorkbook workbook, Project project) {
 		Sheet sheet = workbook.createSheet(DEPENDENCIES_SHEET);
 		writeRow(sheet, 0, "SuccessorUniqueID", "PredecessorUniqueID", "Type", "Lag");
 		int rowIndex = 1;
@@ -391,7 +393,7 @@ public class ProjectLibreXlsxWriter implements ProjectWriter {
 		autoSize(sheet, 5);
 	}
 
-	private void writeProjectLibreCalendars(XSSFWorkbook workbook, Project project) {
+	private void writeMicroProjectCalendars(XSSFWorkbook workbook, Project project) {
 		Sheet sheet = workbook.createSheet(CALENDARS_SHEET);
 		writeRow(sheet, 0, "UniqueID", "Name", "BaseCalendar", "WorkingSpec", "Exceptions");
 		int rowIndex = 1;
@@ -493,10 +495,10 @@ public class ProjectLibreXlsxWriter implements ProjectWriter {
 		autoSize(sheet, 6);
 	}
 
-	private void writeProjectLibreTimephased(XSSFWorkbook workbook, Project project) {
+	private void writeMicroProjectTimephased(XSSFWorkbook workbook, Project project) {
 		Sheet sheet = workbook.createSheet(TIMEPHASED_SHEET);
 		writeRow(sheet, 0, "TaskUniqueID", "ResourceUniqueID", "Kind", "Start", "Finish", "Value");
-		writeRow(sheet, 1, "", "", "payload", "", "", "see _PL_DATA for full timephased data");
+		writeRow(sheet, 1, "", "", "payload", "", "", "see _MicroProject_MSPDI for full timephased data");
 		autoSize(sheet, 6);
 	}
 

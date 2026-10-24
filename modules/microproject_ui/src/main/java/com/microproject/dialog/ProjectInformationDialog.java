@@ -46,7 +46,6 @@ import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
 import com.microproject.strings.Messages;
 import com.microproject.util.FlatUiSupport;
-import com.microproject.util.Environment;
 import com.microproject.util.PhysicalButtonRoute;
 /**
  *
@@ -170,10 +169,6 @@ public class ProjectInformationDialog extends InformationDialog {
 		map.append(builder,"Field.risk"); //$NON-NLS-1$
 		builder.nextLine(2);
 
-		if (!Environment.getStandAlone()){
-			map.append(builder,"Field.accessControlPolicy",3); //$NON-NLS-1$
-			builder.nextLine(2);
-		}
 		Collection extraFields = FieldDictionary.extractExtraFields(FieldDictionary.getInstance().getProjectFields(),false);
 		JComponent extra = createFieldsPanel(map, extraFields);
 		if (extra != null) {

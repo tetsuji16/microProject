@@ -5,6 +5,8 @@
  ******************************************************************************/
 package com.microproject.dialog;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.GraphicsEnvironment;
@@ -19,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import javax.imageio.ImageIO;
+import javax.swing.JTable;
 import javax.swing.SwingUtilities;
 
 import org.junit.jupiter.api.AfterEach;
@@ -26,6 +29,7 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.exchange.ResourceMappingForm;
+import com.microproject.strings.Messages;
 import com.microproject.testsupport.DialogLayoutAssertions;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 
@@ -49,6 +53,11 @@ class ResourceMappingDialogGuiAcceptanceTest {
 			dialog.pack();
 			dialog.bind(true);
 			dialog.setLocationRelativeTo(null);
+			JTable associationTable = dialog.associationTable;
+			assertEquals(Messages.getString("ResourceMappingDialog.ProjectResources"),
+				associationTable.getColumnModel().getColumn(1).getHeaderValue());
+			assertEquals(Messages.getString("ResourceMappingDialog.OpenReadOnlyWithoutMerging"),
+				dialog.localProject.getText());
 		});
 		SwingUtilities.invokeLater(() -> dialog.setVisible(true));
 		GuiAcceptanceSupport.await(() -> dialog.isShowing(), "Resource Mapping dialog did not render");
@@ -66,6 +75,19 @@ class ResourceMappingDialogGuiAcceptanceTest {
 		Path artifactDirectory = Path.of(System.getProperty("microproject.gui.artifacts.dir", "build/guiTest-artifacts"));
 		Files.createDirectories(artifactDirectory);
 		ImageIO.write(screenshot, "png", artifactDirectory.resolve("resource-mapping-dialog.png").toFile());
+
+		Point readOnlyLocation = dialog.localProject.getLocationOnScreen();
+		robot.mouseMove(readOnlyLocation.x + dialog.localProject.getWidth() / 2,
+			readOnlyLocation.y + dialog.localProject.getHeight() / 2);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+		SwingUtilities.invokeAndWait(() -> {
+			JTable associationTable = dialog.associationTable;
+			assertTrue(form.isLocal(), "The read-only choice must stay on the local project route");
+			assertFalse(dialog.field1.isEnabled(), "Read-only mode must disable resource merge-field editing");
+			assertFalse(associationTable.isEnabled(), "Read-only mode must disable resource associations");
+		});
 
 		Point cancelLocation = dialog.cancel.getLocationOnScreen();
 		robot.mouseMove(cancelLocation.x + dialog.cancel.getWidth() / 2,

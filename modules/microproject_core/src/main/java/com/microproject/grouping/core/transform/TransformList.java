@@ -37,7 +37,6 @@ import com.microproject.field.InvalidFormulaException;
 import com.microproject.grouping.core.transform.filtering.NodeFilter;
 import com.microproject.grouping.core.transform.filtering.NotVoidFilter;
 import com.microproject.strings.Messages;
-import com.microproject.util.Environment;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 
@@ -61,7 +60,6 @@ public class TransformList implements NamedItem {
 	
 	
 	public void addFactory(CommonTransformFactory factory) {
-    	if (factory.isServer()&&Environment.getStandAlone()) return;
 		factories.add(factory);
 		if (factory.getId() != null) {
 			factoryMap.put(factory.getId(),factory);

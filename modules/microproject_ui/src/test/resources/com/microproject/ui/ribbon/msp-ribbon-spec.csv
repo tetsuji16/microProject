@@ -133,8 +133,8 @@ View,Zoom,Zoom Out,RibbonZoomOut,REQUIRED,S20
 View,Zoom,Selected Tasks,RibbonZoomSelectedTasks,REQUIRED,S20
 View,Macros,Macros,RibbonMacros,EXCLUDED,VBA/macros excluded by the 2026-10-12 scope decision (#797)
 View,Macros,Visual Basic,RibbonVisualBasic,EXCLUDED,VBA/macros excluded by the 2026-10-12 scope decision (#797)
-Help,Help,Documentation,RibbonProjectLibreDocumentation,REQUIRED,S37
-Help,Help,About,RibbonAboutProjectLibre,EXTENSION,product About dialog
+Help,Help,Documentation,RibbonMicroProjectDocumentation,REQUIRED,S37
+Help,Help,About,RibbonAboutMicroProject,EXTENSION,product About dialog
 Format,Gantt Chart Format,Progress Line,RibbonToggleProgressLine,REQUIRED,S38
 Format,Gantt Chart Format,Label Resource Names,RibbonLabelResourceNames,EXTENSION,one-click bar text toggle; MSP uses the Bar Styles text tab
 Format,Gantt Chart Format,Label Task Name,RibbonLabelTaskName,EXTENSION,one-click bar text toggle; MSP uses the Bar Styles text tab

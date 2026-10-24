@@ -70,7 +70,6 @@ public class LocalSession extends AbstractSession{
 	public static final String MICROSOFT_PROJECT_IMPORTER = "mspdi";
 	private static final SessionImporterRegistry IMPORTER_REGISTRY = createImporterRegistry();
 	private static final PortRegistry PORT_REGISTRY = createPortRegistry();
-	private static final String DESCRIPTOR_FILE_NAME = "projectlibre.fileName";
 	private static final int DESCRIPTOR_SCAN_DEPTH = 2;
 
 	private static SessionImporterRegistry createImporterRegistry() {
@@ -142,14 +141,14 @@ public class LocalSession extends AbstractSession{
     	job.addExceptionRunnable(new JobRunnable("Local: exception"){
     		public Object run() throws Exception{
 			logJobFailure("Failed to close local projects", job.getFailureException());
-    			Alert.error(Messages.getString("Message.serverError"));
+				Alert.error(Messages.getString("Message.LocalOperationError"));
     			return null;
     		}
     	});
     	return job;
     }
 
-    public Job getLoadProjectDescriptorsJob(final boolean includeProjects, final List<ProjectData> descriptors, final boolean allowOpenAs) {
+    public Job getLoadProjectDescriptorsJob(final List<ProjectData> descriptors) {
     	final Job job = new Job(jobQueue, "loadProjectDescriptors", "Loading...", false);
     	job.addRunnable(new JobRunnable("LocalAccess: loadProjectDescriptors", 1.0f) {
     		public Object run() throws Exception {
@@ -209,11 +208,26 @@ public class LocalSession extends AbstractSession{
     	addDescriptorRoot(roots, Preferences.userNodeForPackage(FileHelper.class).get("lastDirectory", null));
     	addDescriptorRoot(roots, System.getProperty("user.dir"));
     	File userHome = new File(System.getProperty("user.home"));
-    	addDescriptorRoot(roots, new File(userHome, "ProjectLibre").getAbsolutePath());
+	for (File root : getHomeProjectDescriptorRoots(userHome)) {
+		addDescriptorRoot(roots, root.getAbsolutePath());
+	}
     	addDescriptorRoot(roots, new File(userHome, "Documents").getAbsolutePath());
     	addDescriptorRoot(roots, new File(System.getProperty("user.dir"), "samples").getAbsolutePath());
     	return new ArrayList<File>(roots);
     }
+
+	static List<File> getHomeProjectDescriptorRoots(File userHome) {
+		List<File> roots = new ArrayList<File>();
+		addExistingDescriptorRoot(roots, new File(userHome, "microProject"));
+		addExistingDescriptorRoot(roots, new File(userHome, "ProjectLibre"));
+		return roots;
+	}
+
+	private static void addExistingDescriptorRoot(List<File> roots, File root) {
+		if (root.exists() && root.isDirectory()) {
+			roots.add(root);
+		}
+	}
 
     private void addDescriptorRoot(Collection<File> roots, String path) {
     	if (path == null || path.length() == 0) {
@@ -291,12 +305,6 @@ public class LocalSession extends AbstractSession{
     }
 
     private void rememberDescriptor(ProjectData descriptor, String fileName) {
-        Map<String, Object> attributes = descriptor.getAttributes();
-        if (attributes == null) {
-            attributes = new HashMap<>();
-    		descriptor.setAttributes(attributes);
-    	}
-    	attributes.put(DESCRIPTOR_FILE_NAME, fileName);
     	synchronized (descriptorFiles) {
     		descriptorFiles.put(Long.valueOf(descriptor.getUniqueId()), fileName);
     	}
@@ -373,10 +381,8 @@ public class LocalSession extends AbstractSession{
 					project.setUniqueId(opt.getId());
 					if (MICROSOFT_PROJECT_IMPORTER.equals(opt.getImporter()))
 	    				project.getResourcePool().setName(project.getName());
-	    			if (Environment.getStandAlone()){ //force local in this case
-	    				project.setMaster(true); //local project is always master
-	    				project.setLocal(true);
-	    			}
+					project.setMaster(true); //local project is always master
+					project.setLocal(true);
 					// Importers may mark the model dirty while normalizing serialized
 					// metadata. Those changes are part of opening the document, not edits
 					// made by the user; establish the clean baseline after all load-time

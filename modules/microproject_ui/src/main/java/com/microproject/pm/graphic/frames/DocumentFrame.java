@@ -1855,7 +1855,7 @@ public class DocumentFrame extends NamedFrame implements
 	public ResourceView getResourceView() {
 		if (resourceView == null) {
 			resourceView = new ResourceView(getResourceNodeModelCache(),
-					getResourceModel(), project.getResourcePool(),!Environment.isProjectLibre() &&project.isReadOnly(),graphicManager.isEditingMasterProject());
+					getResourceModel(), project.getResourcePool(),!true &&project.isReadOnly(),graphicManager.isEditingMasterProject());
 			restoreWorkspaceFor(resourceView);
 		}
 		return resourceView;

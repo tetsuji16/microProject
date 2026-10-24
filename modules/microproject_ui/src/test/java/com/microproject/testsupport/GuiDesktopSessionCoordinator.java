@@ -144,7 +144,7 @@ public final class GuiDesktopSessionCoordinator {
 					return new Lease(channel, lock, lockFile);
 				}
 				if (System.nanoTime() >= deadline) {
-					throw new DesktopContendedException("GUI environment contended: another ProjectLibre Robot session "
+					throw new DesktopContendedException("GUI environment contended: another microProject Robot session "
 						+ "owns the desktop lock " + lockFile + ". Current owner: " + readOwner(lockFile));
 				}
 				Thread.sleep(Math.min(RETRY_MILLIS,

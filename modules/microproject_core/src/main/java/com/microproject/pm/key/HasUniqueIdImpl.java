@@ -70,7 +70,7 @@ public class HasUniqueIdImpl implements Serializable{
 	}
 	public void setLocal(boolean local) {
 		this.local=local;
-		session = SessionFactory.getInstance().getSession(local);
+		session = SessionFactory.getInstance().getLocalSession();
 	}
 
 	public boolean equals(Object other) {

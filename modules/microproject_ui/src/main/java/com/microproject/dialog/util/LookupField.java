@@ -25,42 +25,23 @@
 package com.microproject.dialog.util;
 
 
-import java.awt.Component;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-
 import javax.swing.BoxLayout;
-import javax.swing.ImageIcon;
-import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
-
-import com.microproject.dialog.LookupDialog;
-import com.microproject.pm.graphic.IconManager;
-import com.microproject.field.Field;
-import com.microproject.strings.Messages;
 
 public class LookupField extends JPanel {
-	JLabel display;
-	JButton button;
-	String value;
-	public LookupField(Field field,Object value) {
-		super();
+	private static final long serialVersionUID = 1L;
+	private final JLabel display;
+	private String value;
+
+	public LookupField(Object value) {
 		setLayout(new BoxLayout(this, BoxLayout.X_AXIS));
-		
-		this.value = (String)value;
-		add(button = createLookupButton(field));
-		button.setAlignmentY(Component.CENTER_ALIGNMENT);
-		button.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-//		button.setHorizontalAlignment(SwingConstants.LEFT);
 		add(display = new JLabel());
-		setText(this.value);
-
+		setText((String) value);
 	}
+
 	public void setText(String value) {
+		this.value = value;
 		if (value == null)
 			display.setText(""); //$NON-NLS-1$
 		else {
@@ -69,28 +50,6 @@ public class LookupField extends JPanel {
 			display.setText(label);
 		}
 	}
-
-  	private JButton createLookupButton(final Field f) {
-  		JButton lookup= new JButton();
-  		lookup.setToolTipText(Messages.getString("LookupField.LookupAValue")); //$NON-NLS-1$
-		ImageIcon icon = IconManager.getIcon("menu.find"); //$NON-NLS-1$
-		lookup.setIcon(icon);
-		lookup.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent arg0) {
-				//route message to main frame
-				String keyAndValuePair[]=LookupDialog.getKeyAndValue(f);
-				if (keyAndValuePair == null)
-					return; // no change
-				if (keyAndValuePair[0] == null)
-					value = null;
-				else
-					value = keyAndValuePair[0] + "\\" + keyAndValuePair[1]; //$NON-NLS-1$
-				setText(value);
-				fire();
-				
-			}});
-  		return lookup;
-  	}
 	public String getValue() {
 		return value;
 	}
@@ -100,30 +59,5 @@ public class LookupField extends JPanel {
 	public JLabel getDisplay() {
 		return display;
 	}
-	public void setDisplay(JLabel display) {
-		this.display = display;
-	}
-    protected javax.swing.event.EventListenerList listenerList =
-        new javax.swing.event.EventListenerList();
-
-    // This methods allows classes to register for ObjectEvents
-    public void addChangeListener(ChangeListener listener) {
-        listenerList.add(ChangeListener.class, listener);
-    }
-
-    // This methods allows classes to unregister for ObjectEvents
-    public void removeChangeListener(ChangeListener listener) {
-        listenerList.remove(ChangeListener.class, listener);
-    }
-    private void fire() {
-    	ChangeEvent evt = new ChangeEvent(this);
-        Object[] listeners = listenerList.getListenerList();
-        for (int i=0; i<listeners.length; i+=2) {
-            if (listeners[i]==ChangeListener.class) {
-                ((ChangeListener)listeners[i+1]).stateChanged(evt);
-            }
-        }
-    }
-	
 }
 

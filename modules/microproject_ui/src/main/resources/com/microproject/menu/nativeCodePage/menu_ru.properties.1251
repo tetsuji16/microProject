@@ -99,7 +99,7 @@ Refresh.icon        = menu24.refresh
 Refresh.action      = RefreshAction
 
 
-StandardMenuBar =  ProjectLibre File Edit View Insert Tools Project Help
+StandardMenuBar =  MicroProject File Edit View Insert Tools Project Help
 ServerStandardMenuBar = ServerFile Edit View ServerInsert ServerTools Project Help
 SFMenuBar = SFTracking
 
@@ -146,11 +146,11 @@ CloseProject.text        = �������
 CloseProject.mnemonic    = C
 CloseProject.action      = CloseProjectAction
 
-ProjectLibre.type= ITEM
-ProjectLibre.text =
-ProjectLibre.action = ProjectLibreAction
-ProjectLibre.icon=logo.microProject
-ProjectLibre.tooltip=Go to github.com/tetsuji16/ProjectLibre
+MicroProject.type= ITEM
+MicroProject.text =
+MicroProject.action = MicroProjectAction
+MicroProject.icon=logo.microProject
+MicroProject.tooltip=microProject website
 
 SaveProject.type        = ITEM
 SaveProject.text        = ���������
@@ -746,22 +746,22 @@ EnterpriseResources.mnemonic    = E
 EnterpriseResources.action      = EnterpriseResourcesAction
 
 
-Help = AboutProjectLibre ProjectLibreDocumentation
+Help = AboutMicroProject MicroProjectDocumentation
 Help.type        = MENU
 Help.text        = ������
 Help.mnemonic    = H
 
-AboutProjectLibre.type        = ITEM
-AboutProjectLibre.text        = � ProjectLibre...
-AboutProjectLibre.mnemonic    = A
-AboutProjectLibre.action      = AboutProjectLibreAction
-AboutProjectLibre.icon=infomation.icon
+AboutMicroProject.type        = ITEM
+AboutMicroProject.text        = � microProject...
+AboutMicroProject.mnemonic    = A
+AboutMicroProject.action      = AboutMicroProjectAction
+AboutMicroProject.icon=infomation.icon
 
-ProjectLibreDocumentation.type        = ITEM
-ProjectLibreDocumentation.text        = ������ ProjectLibre...
-ProjectLibreDocumentation.mnemonic    = H
-ProjectLibreDocumentation.action      = ProjectLibreDocumentationAction
-ProjectLibreDocumentation.icon=menu.Help
+MicroProjectDocumentation.type        = ITEM
+MicroProjectDocumentation.text        = ������ microProject...
+MicroProjectDocumentation.mnemonic    = H
+MicroProjectDocumentation.action      = MicroProjectDocumentationAction
+MicroProjectDocumentation.icon=menu.Help
 
 #
 # Definition of the tool bar
@@ -1003,7 +1003,7 @@ Tool24ExportMSProject.action      = ExportMSProjectAction
 Tool24ExportMSProject.tooltip   = ������� � MS Project
 
 Tool24Help.icon      = menu24.help
-Tool24Help.action      = ProjectLibreDocumentationAction
+Tool24Help.action      = MicroProjectDocumentationAction
 Tool24Help.tooltip   = ������
 
 Tool24Outdent.icon		=menu24.outdent

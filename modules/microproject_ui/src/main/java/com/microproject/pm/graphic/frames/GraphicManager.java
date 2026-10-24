@@ -109,6 +109,7 @@ import com.microproject.application.ProjectPortCoordinator;
 import com.microproject.application.ProjectArtifactLifecycleCoordinator;
 import com.microproject.application.RecentProjectStore;
 import com.microproject.collaboration.CollaborationMetadataStore;
+import com.microproject.collaboration.CollaborationUserIdentity;
 import com.microproject.collaboration.CollaborationSession;
 import com.microproject.collaboration.ProjectMergeService;
 import com.microproject.util.ClassLoaderUtils;
@@ -906,11 +907,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	}
 
 	private String getCollaborationUserKey() {
-		String user = System.getProperty("user.name");
-		if (user == null || user.trim().length() == 0) {
-			return "unknown";
-		}
-		return user.trim();
+		return CollaborationUserIdentity.currentUserKey();
 	}
 
 	private void initializeCollaboration(Project project) {
@@ -1883,9 +1880,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_EXIT, new ExitAction());
 		actionsMap.addHandler(ACTION_IMPORT_MSPROJECT, new ImportMSProjectAction());
 		actionsMap.addHandler(ACTION_EXPORT_MSPROJECT, new ExportMSProjectAction());
-		actionsMap.addHandler(ACTION_ABOUT_PROJECTLIBRE, new AboutAction());
-		actionsMap.addHandler(ACTION_PROJECTLIBRE, new ProjectLibreAction());
-		actionsMap.addHandler(ACTION_PROJECTLIBRE_DOCUMENTATION, new HelpAction());
+		actionsMap.addHandler(ACTION_ABOUT_MICROPROJECT, new AboutAction());
+		actionsMap.addHandler(ACTION_MICROPROJECT, new MicroProjectAction());
+		actionsMap.addHandler(ACTION_MICROPROJECT_DOCUMENTATION, new HelpAction());
 		actionsMap.addHandler(ACTION_PROJECT_INFORMATION, new ProjectInformationAction());
 		actionsMap.addHandler(ACTION_DEFINE_CODE, new DefineCodeAction());
 		actionsMap.addHandler(ACTION_PROJECTS_DIALOG, new ProjectsDialogAction());
@@ -2149,11 +2146,11 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			executeExternalRibbonCommand("about", GraphicManager.this::showAboutDialog);		}
 	}
 
-	public class ProjectLibreAction extends MenuActionsMap.GlobalMenuAction {
+	public class MicroProjectAction extends MenuActionsMap.GlobalMenuAction {
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
-			executeExternalRibbonCommand("projectLibre",
+			executeExternalRibbonCommand("microProject",
 				() -> BrowserControl.displayURL(UiLinkTargets.PROJECT_HOME));
 		}
 	}
@@ -2405,21 +2402,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
-			executeExternalRibbonCommand("saveProject", () -> {
-				if (Environment.getStandAlone()) saveLocalProject(false);
-				else if (isDocumentActive()) {
-					final DocumentFrame frame=getCurrentFrame();
-					final Project project = frame.getProject();
-					SaveOptions opt=new SaveOptions();
-					opt.setPostSaving(new Consumer<Object>() { public void accept(Object arg0) {
-							refreshSaveStatus(true);
-						}
-					});
-					opt.setPreSaving(getSavingClosure());
-					addHistory("saveProject", new Object[]{project.getName(),project.getUniqueId()});
-					projectFactory.saveProject(project,opt);
-				}
-			});
+				executeExternalRibbonCommand("saveProject", () -> saveLocalProject(false));
 
 		}
 		protected boolean allowed(boolean enable) {
@@ -2428,7 +2411,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			if (frame==null) return false;
 			Project project=getCurrentFrame().getProject();
 			if (project==null) return false;
-			return Environment.isProjectLibre() || (!project.isLocal()&&project.needsSaving());
+			return true;
 		}
 	}
 
@@ -2436,22 +2419,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
-			executeExternalRibbonCommand("saveAsProject", () -> {
-				if (Environment.getStandAlone()) saveLocalProject(true);
-				else if (isDocumentActive()) {
-					final DocumentFrame frame=getCurrentFrame();
-					final Project project = frame.getProject();
-					SaveOptions opt=new SaveOptions();
-					opt.setPostSaving(new Consumer<Object>() { public void accept(Object arg0) {
-							frame.setId(project.getUniqueId()+""); //$NON-NLS-1$
-							refreshSaveStatus(true);
-						}
-					});
-					opt.setSaveAs(true);
-					opt.setPreSaving(getSavingClosure());
-					projectFactory.saveProject(project,opt);
-				}
-			});
+				executeExternalRibbonCommand("saveAsProject", () -> saveLocalProject(true));
 		}
 		protected boolean allowed(boolean enable) {
 			if (enable==false) return true;
@@ -2459,9 +2427,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			if (frame==null) return false;
 			Project project=getCurrentFrame().getProject();
 			if (project==null) return false;
-			if (project.isMaster() && !Environment.getStandAlone() && !Environment.isProjectLibre())
-				return false;
-
 			return (project.isSavable());
 //			return true;//!project.isLocal()&&!project.isMaster();
 		}
@@ -2495,7 +2460,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 //claur - PDF enabled
-//			if (Environment.isProjectLibre()) {
+//			if (true) {
 //				PODOnlyFeature.doDialog(getFrame());
 //				return;
 //			}
@@ -3402,7 +3367,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	public void closeApplication(){
 		addHistory("closeApplication");
 		quitting = true;
-//		if (Environment.getStandAlone()) {
+//		if (true) {
 //			Frame frame=getFrame();
 //			if (frame!=null)
 //				frame.dispose();
@@ -3583,9 +3548,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			project = projectFactory.createProject();
 
 		} else {
-			LoadOptions opt=ProjectLoadWorkflow.prepareLoadOptions(fileName, Environment.getStandAlone() || Environment.getUser() == null, getCollaborationUserKey());
-			if (Environment.getStandAlone())
-				opt.setId(SessionFactory.getInstance().getLocalSession().registerProjectFile(fileName));
+			LoadOptions opt=ProjectLoadWorkflow.prepareLoadOptions(fileName, true, getCollaborationUserKey());
+			opt.setId(SessionFactory.getInstance().getLocalSession().registerProjectFile(fileName));
 			opt.setEndSwingClosure(new Consumer<Object>() { public void accept(Object arg0) {
 					Runnable completion = () -> {
 						// Some loads intentionally survive a project-frame switch, but no
@@ -3619,13 +3583,11 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 					return resourceMappingDialogCoordinator.show(this, getCurrentFrame());
 				}
 			});
-			if (Environment.getStandAlone()) {
-				Exception preflightFailure = ProjectLoadWorkflow.preflightStandaloneFile(fileName);
-				if (preflightFailure != null) {
-					String message = ProjectFactory.projectLoadFailureMessage(fileName, preflightFailure);
-					SwingUtilities.invokeLater(() -> Alert.error(message));
-					return false;
-				}
+			Exception preflightFailure = ProjectLoadWorkflow.preflightStandaloneFile(fileName);
+			if (preflightFailure != null) {
+				String message = ProjectFactory.projectLoadFailureMessage(fileName, preflightFailure);
+				SwingUtilities.invokeLater(() -> Alert.error(message));
+				return false;
 			}
 
 			project=projectFactory.openProject(opt);
@@ -3792,13 +3754,14 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			String fileName = fileNames.get(current);
 			if (fileName == null || fileName.isBlank())
 				continue;
-			if (!Environment.getStandAlone() || findFrameForProjectFile(fileName) == null) {
+			DocumentFrame existingFrame = findFrameForProjectFile(fileName);
+			if (existingFrame == null) {
 				final int next = current + 1;
-				loadLocalDocument(fileName, !Environment.getStandAlone(),
+				loadLocalDocument(fileName, false,
 					ignored -> openLocalProjectsSequentially(fileNames, next), true);
 				return;
 			}
-			setCurrentFrame(findFrameForProjectFile(fileName));
+			setCurrentFrame(existingFrame);
 		}
 	}
 
@@ -4794,11 +4757,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
     }
 
 
-    public boolean isApplet() {
-    	return false;
-		//return container instanceof Applet;
-    }
-    
     public void setToolBarAndMenus(final Container contentPane) {
 		MenuManager documentMenuManager = getMenuManager();
 		installDocumentShortcuts((RootPaneContainer) container);
@@ -4813,9 +4771,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				documentMenuManager,
 				getLafManager(),
 				getFrameManager(),
-				isApplet(),
-				Environment.isExternal(),
-				Environment.getStandAlone(),
 				Environment.isMac(),
 				menuBar -> ((JFrame) container).setJMenuBar(menuBar));
 			topTabs = handles.getTopTabs();
@@ -4824,7 +4779,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			MicroProjectShell.ShellHandles handles = MicroProjectShell.installClassicShell(
 				contentPane,
 				documentMenuManager,
-				Environment.getStandAlone(),
 				Environment.isMac(),
 				menuBar -> ((JFrame) container).setJMenuBar(menuBar));
 			filterToolBarManager = handles.getFilterToolBarManager();
@@ -4932,7 +4886,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F5, InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_SCROLL_TO_TASK, null);
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0), ACTION_GOTO, null);
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F5, InputEvent.SHIFT_DOWN_MASK), ACTION_FIND, null);
-		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0), ACTION_PROJECTLIBRE_DOCUMENTATION, null);
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0), ACTION_MICROPROJECT_DOCUMENTATION, null);
 		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F1, InputEvent.CTRL_DOWN_MASK),
 			"ToggleRibbonDisplayMode", new AbstractAction() {
 				private static final long serialVersionUID = 1L;
@@ -5480,8 +5434,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				});
 			}
 
-			if (Environment.getStandAlone() &&
-			desktop.isSupported(Desktop.Action.APP_OPEN_FILE)) {
+			if (desktop.isSupported(Desktop.Action.APP_OPEN_FILE)) {
 				desktop.setOpenFileHandler(new OpenFilesHandler() {
 					@Override
 					public void openFiles(OpenFilesEvent e){
@@ -5498,7 +5451,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
     protected String lastFileName;
     public void openFile(String fileName){
     	lastFileName=fileName;
-    	if (fileName!=null&&initialized) loadLocalDocument(fileName,!Environment.getStandAlone());
+		if (fileName!=null&&initialized) loadLocalDocument(fileName,false);
     }
 
 	public String getLastFileName() {

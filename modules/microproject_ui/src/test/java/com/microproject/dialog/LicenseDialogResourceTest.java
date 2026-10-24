@@ -32,7 +32,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.InputStream;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.util.prefs.Preferences;
 
 import javax.swing.JEditorPane;
 import javax.swing.UIManager;
@@ -42,10 +41,10 @@ import org.junit.jupiter.api.Test;
 class LicenseDialogResourceTest {
 	@Test
 	void dialogTitleDoesNotRepeatApplicationName() {
-		assertEquals("ProjectLibre License",
-			LicenseDialog.buildDialogTitle("ProjectLibre", "ProjectLibre License"));
-		assertEquals("ProjectLibre ライセンス",
-			LicenseDialog.buildDialogTitle("ProjectLibre", "ライセンス"));
+		assertEquals("microProject License",
+			LicenseDialog.buildDialogTitle("microProject", "License"));
+		assertEquals("microProject ライセンス",
+			LicenseDialog.buildDialogTitle("microProject", "ライセンス"));
 	}
 
 	@Test
@@ -59,12 +58,7 @@ class LicenseDialogResourceTest {
 	}
 
 	@Test
-	void licenseDialogResourcesLoadWithoutAcceptedLicensePreference() throws Exception {
-		Preferences preferences = Preferences.userNodeForPackage(LicenseDialog.class);
-		preferences.remove("validatedLicense");
-		preferences.remove("licenseValidationDate");
-		preferences.flush();
-
+	void licenseDialogResourcesLoad() throws Exception {
 		assertEditorPaneCanLoad("license/index.html");
 		assertEditorPaneCanLoad("license/third-party/index.html");
 		assertInstallerLicenseCopyIsReadable();

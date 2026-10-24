@@ -813,7 +813,7 @@ class RibbonAndToolbarButtonTest {
 
 	private static Component findRibbonBand(Component component) {
 		for (Component current = component; current != null; current = current.getParent()) {
-			if ("projectLibreRibbonBand".equals(current.getName())) {
+			if ("microProjectRibbonBand".equals(current.getName())) {
 				return current;
 			}
 		}

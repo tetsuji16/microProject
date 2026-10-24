@@ -110,13 +110,13 @@ class OfficeChromePanelVisualSmokeTest {
 		JComponent surface = UiComponentWalker.flatten(panel).stream()
 			.filter(JComponent.class::isInstance)
 			.map(JComponent.class::cast)
-			.filter(component -> "projectLibreRibbonSurface".equals(component.getName()))
+			.filter(component -> "microProjectRibbonSurface".equals(component.getName()))
 			.findFirst()
 			.orElseThrow(() -> new AssertionError("ribbon surface was not created"));
 		int rightEdge = UiComponentWalker.flatten(surface).stream()
 			.filter(JComponent.class::isInstance)
 			.map(JComponent.class::cast)
-			.filter(component -> "projectLibreRibbonBand".equals(component.getName()))
+			.filter(component -> "microProjectRibbonBand".equals(component.getName()))
 			.mapToInt(component -> component.getX() + component.getWidth())
 			.max()
 			.orElse(0);
@@ -129,7 +129,7 @@ class OfficeChromePanelVisualSmokeTest {
 		UiComponentWalker.flatten(panel).stream()
 			.filter(JComponent.class::isInstance)
 			.map(JComponent.class::cast)
-			.filter(component -> "projectLibreRibbonBand".equals(component.getName()))
+			.filter(component -> "microProjectRibbonBand".equals(component.getName()))
 			.forEach(band -> {
 				int leftmostCommand = UiComponentWalker.flatten(band).stream()
 					.filter(AbstractButton.class::isInstance)
@@ -146,7 +146,7 @@ class OfficeChromePanelVisualSmokeTest {
 	}
 
 	private static void assertTaskCommandsUseOneLeadingSurfaceInset(JPanel panel) {
-		JComponent tabBody = findNamedComponent(panel, "projectLibreRibbonTabBody");
+		JComponent tabBody = findNamedComponent(panel, "microProjectRibbonTabBody");
 		AbstractButton paste = UiComponentWalker.flatten(tabBody).stream()
 			.filter(AbstractButton.class::isInstance)
 			.map(AbstractButton.class::cast)
@@ -257,7 +257,7 @@ class OfficeChromePanelVisualSmokeTest {
 	private static void assertSearchIsAttachedToChromeHeader(JPanel panel) {
 		JComponent searchBox = findNamedComponent(panel, OfficeChromePanel.SEARCH_BOX_NAME);
 		JComponent header = findNamedComponent(panel, "officeChromeHeader");
-		JComponent tabRow = findNamedComponent(panel, "projectLibreRibbonTabRow");
+		JComponent tabRow = findNamedComponent(panel, "microProjectRibbonTabRow");
 		assertTrue(javax.swing.SwingUtilities.isDescendingFrom(searchBox, header),
 			"the search field belongs in the top title-bar row");
 		assertTrue(!javax.swing.SwingUtilities.isDescendingFrom(searchBox, tabRow),
@@ -290,11 +290,11 @@ class OfficeChromePanelVisualSmokeTest {
 	private static void assertRibbonColorsArePresentInRenderedPixels(BufferedImage image, JPanel panel) {
 		assertEquals(MicroProjectTheme.tokens().ribbonChromeBackground().getRGB(), image.getRGB(512, 10),
 			"the rendered Office title/tab chrome must use the reference gray");
-		JComponent surface = findNamedComponent(panel, "projectLibreRibbonSurface");
+		JComponent surface = findNamedComponent(panel, "microProjectRibbonSurface");
 		assertTrue(surface.isOpaque(), "the ribbon command surface must paint its own background");
 		assertEquals(MicroProjectTheme.tokens().ribbonSurfaceBackground(), surface.getBackground(),
 			"the expanded ribbon command surface must use the white theme token");
-		JComponent tabBody = findNamedComponent(panel, "projectLibreRibbonTabBody");
+		JComponent tabBody = findNamedComponent(panel, "microProjectRibbonTabBody");
 		assertEquals(MicroProjectTheme.tokens().ribbonSurfaceBackground(), tabBody.getBackground(),
 			"the expanded tab body around command groups must not introduce a second gray tone");
 		assertEquals("arc: 18", tabBody.getClientProperty(com.formdev.flatlaf.FlatClientProperties.STYLE),

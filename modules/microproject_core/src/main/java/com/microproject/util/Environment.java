@@ -33,23 +33,19 @@ import java.util.logging.Logger;
 
 import com.microproject.company.ApplicationUser;
 import com.microproject.util.ClassLoaderUtils;
-import com.microproject.session.SessionFactory;
 
 public class Environment {
 	private static final Logger logger = Logger.getLogger(Environment.class.getName());
 	private static boolean clientSide = false;
-	private static boolean standAlone = false;
 	private static boolean batchMode = false;
 	private static ApplicationUser user = null;
 	private static String partnerId = null;
-	private static String login = null;
 	private static boolean importing = false;
 	private static boolean ribbonUI = true;
 	private static boolean newLook = false;
 	private static boolean newLaf = false;
 	private static boolean scripting = false;
 	private static boolean visible = true;
-	private static boolean applet = false;
 	private static boolean outOfMemory = false;
 	public static int LINUX=1;
 	public static int MAC=2;
@@ -65,11 +61,6 @@ public class Environment {
 	public Environment() {
 		super();
 	}
-	public static String getLogin() {
-		if (login == null)
-		   login = SessionFactory.getInstance().getLogin();
-		return login;
-	}
 	public static final boolean isClientSide() {
 		return clientSide;
 	}
@@ -80,12 +71,6 @@ public class Environment {
 	public static float getJavaVersionNumber() {
 		String javaVersion = System.getProperty("java.specification.version");
 		return Float.parseFloat(javaVersion);
-	}
-	public static final boolean getStandAlone() {
-		return standAlone;
-	}
-	public static final void setStandAlone(boolean standAlone) {
-		Environment.standAlone = standAlone;
 	}
 	public static final ApplicationUser getUser() {
 		return user;
@@ -139,15 +124,6 @@ public class Environment {
 	}
 	public static void setVisible(boolean visible) {
 		Environment.visible = visible;
-	}
-	public static boolean isProjectLibre() {
-		return getStandAlone();
-	}
-	public static boolean isApplet() {
-		return applet;
-	}
-	public static void setApplet(boolean applet) {
-		Environment.applet = applet;
 	}
 	public static int getOs() {
 		if (os==-1){
