@@ -670,6 +670,8 @@ public class MpoFileImporter extends FileImporter {
 			serialized.put("id", TimeDistributedHelper.getIdForObject(field));
 			serialized.put("width", fields.getWidth(index));
 			serialized.put("manual", fields.isManualWidth(index));
+			// Optional key, written only when wrapping is switched off so default layouts stay byte-identical.
+			if (!fields.isHeaderWrap(index)) serialized.put("wrapHeader", false);
 		}
 		return JSON.writeValueAsBytes(root);
 	}
@@ -682,6 +684,7 @@ public class MpoFileImporter extends FileImporter {
 		SpreadSheetFieldArray fields = new SpreadSheetFieldArray();
 		var widths = new java.util.ArrayList<Integer>();
 		var manualWidths = new java.util.ArrayList<Boolean>();
+		var headerWraps = new java.util.ArrayList<Boolean>();
 		for (JsonNode entry : entries) {
 			String id = entry.path("id").asText(null);
 			if (id == null || id.isBlank()) throw new IOException("Invalid MPO layout field id");
@@ -692,9 +695,11 @@ public class MpoFileImporter extends FileImporter {
 			fields.add((Field) field);
 			widths.add(width);
 			manualWidths.add(entry.path("manual").asBoolean(false));
+			headerWraps.add(entry.path("wrapHeader").asBoolean(true));
 		}
 		fields.setWidths(widths);
 		fields.setManualWidths(manualWidths);
+		fields.setHeaderWraps(headerWraps);
 		fields.setCategory(com.microproject.graphic.configuration.SpreadSheetCategories.taskSpreadsheetCategory);
 		fields.setName(project.getName());
 		project.setFieldArray(fields);

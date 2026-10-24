@@ -110,6 +110,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 	private JFrame frame;
 	private Gantt gantt;
 	private TaskSelectionController selectionController;
+	private com.microproject.pm.graphic.timescale.ScaledScrollPane ganttTimescalePane;
 	private GraphicManager popupGraphicManager;
 	@AfterEach
 	void closeWindow() throws Exception {
@@ -959,6 +960,17 @@ class TaskTableGanttGridGuiAcceptanceTest {
 
 		int fieldIndex = fixture.sheet.getFieldArray().indexOf(customField);
 		assertTrue(fieldIndex > 0, "custom field must be visible after the hidden ID field");
+		StringBuilder layout = new StringBuilder("fieldArray=");
+		SwingUtilities.invokeAndWait(() -> {
+			for (Object field : fixture.sheet.getFieldArray())
+				layout.append(((Field) field).getId().replace("Field.", "")).append(' ');
+			layout.append("columns=");
+			for (int index = 0; index < fixture.sheet.getColumnModel().getColumnCount(); index++)
+				layout.append(fixture.sheet.getColumnModel().getColumn(index).getIdentifier() instanceof Field field
+					? field.getId().replace("Field.", "") : "?").append(' ');
+		});
+		assertTrue(fieldIndex - 1 < fixture.sheet.getColumnCount(),
+			"the field array and the visible columns disagree: " + layout);
 		int customColumn = fieldIndex - 1;
 		SwingUtilities.invokeAndWait(() -> fixture.sheet.scrollRectToVisible(fixture.sheet.getCellRect(0, customColumn, true)));
 		Point headerPoint = screenCenter(fixture.sheet.getTableHeader(), fixture.sheet.getTableHeader().getHeaderRect(customColumn));
@@ -977,7 +989,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			return false;
 		}, "physical header right-click did not open the custom-column popup");
 
-		JMenuItem rename = (JMenuItem) popup[0].getComponent(2);
+		JMenuItem rename = menuItemWithText(popup[0], com.microproject.strings.Messages.getString("RenameDialog.Rename"));
 		clickComponent(robot, rename);
 		Window dialog = awaitWindowWith(JTextField.class, "Rename dialog did not open from the physical custom-column popup");
 		JTextField input = findComponent(dialog, JTextField.class);
@@ -997,6 +1009,18 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		clickComponent(robot, ok);
 		GuiAcceptanceSupport.await(() -> "gui alias".equals(customField.getName()),
 			"physical Rename did not update the custom column alias");
+		StringBuilder after = new StringBuilder("fieldArray=");
+		SwingUtilities.invokeAndWait(() -> {
+			for (Object field : fixture.sheet.getFieldArray())
+				after.append(((Field) field).getId().replace("Field.", "")).append(' ');
+			after.append("columns=");
+			for (int index = 0; index < fixture.sheet.getColumnModel().getColumnCount(); index++)
+				after.append(fixture.sheet.getColumnModel().getColumn(index).getIdentifier() instanceof Field field
+					? field.getId().replace("Field.", "") : "?").append(' ');
+			after.append("undo=").append(fixture.project.getUndoController().getEditNames());
+		});
+		assertTrue(customColumn < fixture.sheet.getColumnCount(), "the custom column vanished after Rename. before: "
+			+ layout + " after: " + after);
 		assertEquals("gui alias", fixture.sheet.getColumnName(customColumn),
 			"spreadsheet header did not redraw the alias entered through Rename");
 		// Fields are dictionary singletons. Restore the fixture-independent alias
@@ -1620,6 +1644,229 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		});
 	}
 
+	/**
+	 * Microsoft Project "Header Wrapping" (Table Definition): a heading that does not fit wraps by default and
+	 * the header row grows to the tallest wrapped heading; the Gantt timescale header, the row-header corner and
+	 * the first rows of both halves stay aligned; the switch is on the column popup, undoable and saved in MPO.
+	 */
+	@Test
+	void physicalHeaderWrapGrowsTheHeaderRowKeepsGanttAlignedAndCanBeSwitchedOffFromThePopup() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Fixture fixture = createFixture(3);
+		showFixture(fixture, true, true);
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(40);
+		SwingUtilities.invokeAndWait(() -> {
+			frame.toFront();
+			frame.requestFocus();
+		});
+		GuiAcceptanceSupport.await(() -> hasVisibleColumns(fixture.sheet, 3), "task table was not ready for header wrapping");
+		int baseHeight = com.microproject.graphic.configuration.GraphicConfiguration.getInstance().getColumnHeaderHeight();
+		String fieldId = "Field.percentWorkComplete";
+		int[] columnValue = new int[1];
+		SwingUtilities.invokeAndWait(() -> {
+			columnValue[0] = findColumn(fixture.sheet, fieldId);
+			var column = fixture.sheet.getColumnModel().getColumn(columnValue[0]);
+			column.setPreferredWidth(44);
+			column.setWidth(44);
+		});
+		int column = columnValue[0];
+		GuiAcceptanceSupport.await(() -> headerHeightsAgree(fixture, baseHeight, true),
+			"a narrow column with a long heading did not grow the header row, the corner and the Gantt timescale together");
+		robot.delay(300);
+
+		SwingUtilities.invokeAndWait(() -> {
+			var tableColumn = fixture.sheet.getColumnModel().getColumn(column);
+			var renderer = (com.microproject.pm.graphic.spreadsheet.renderer.SpreadSheetColumnHeaderRenderer) tableColumn.getHeaderRenderer();
+			renderer.getTableCellRendererComponent(fixture.sheet, tableColumn.getHeaderValue(), false, false, -1, column);
+			List<String> lines = renderer.getWrappedLines();
+			assertTrue(lines.size() > 1, "the heading must wrap onto several lines, lines=" + lines);
+			assertEquals(String.valueOf(tableColumn.getHeaderValue()).replace(" ", ""),
+				String.join("", lines).replace(" ", ""), "wrapping must show the full heading text");
+			assertFalse(String.join("", lines).contains("…"), "a wrapped heading must not end in an ellipsis");
+			java.awt.FontMetrics metrics = fixture.sheet.getTableHeader().getFontMetrics(renderer.getFont());
+			assertTrue(fixture.sheet.getTableHeader().getHeight() >= lines.size() * metrics.getHeight(),
+				"the header row must be tall enough for every wrapped line");
+		});
+		captureVisibleLayout(robot, "task-table-header-wrap.png");
+		assertRowsAndHeadersAligned(fixture);
+
+		// Physical click selects the column; the outline must stay a closed rectangle on the taller header.
+		Point headerPoint = screenCenter(fixture.sheet.getTableHeader(), fixture.sheet.getTableHeader().getHeaderRect(column));
+		robot.mouseMove(headerPoint.x, headerPoint.y);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		GuiAcceptanceSupport.await(() -> activeHeaderColumn(fixture.sheet) == column, "header click did not select the wrapped column");
+		SwingUtilities.invokeAndWait(() -> assertHeaderHighlight(fixture.sheet, column));
+		robot.mouseMove(0, 0);
+		robot.delay(300);
+		assertActiveHeaderOutlineClosedOnScreen(robot, fixture.sheet, column, "task-table-header-wrap-outline.png");
+
+		int wrappedHeight = headerHeight(fixture);
+		String stateBeforeToggle = headerState(fixture, column);
+		openHeaderPopupAndToggleWrap(robot, fixture, column, true);
+		GuiAcceptanceSupport.await(() -> !isHeaderWrapped(fixture, column) && headerHeight(fixture) < wrappedHeight
+				&& headerHeightsAgree(fixture, baseHeight, false),
+			"Header Text Wrapping off must show one line, shrink the header row and let the Gantt timescale follow");
+		assertRowsAndHeadersAligned(fixture);
+		SwingUtilities.invokeAndWait(() -> assertFalse(fixture.sheet.isColumnHeaderWrap(column + 1),
+			"the column must record that its heading no longer wraps"));
+
+		SwingUtilities.invokeAndWait(() -> fixture.sheet.requestFocusInWindow());
+		GuiAcceptanceSupport.await(fixture.sheet::isFocusOwner, "task table did not regain focus before physical Undo");
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_Z);
+		robot.keyRelease(KeyEvent.VK_Z);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		try {
+			GuiAcceptanceSupport.await(() -> isHeaderWrapped(fixture, column) && headerHeight(fixture) == wrappedHeight
+					&& headerHeightsAgree(fixture, baseHeight, true),
+				"physical Ctrl+Z did not restore the wrapped heading and the taller header row");
+		} catch (AssertionError failure) {
+			throw new AssertionError(failure.getMessage() + "; before toggle: " + stateBeforeToggle
+				+ "; after Ctrl+Z: " + headerState(fixture, column), failure);
+		}
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_Y);
+		robot.keyRelease(KeyEvent.VK_Y);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		GuiAcceptanceSupport.await(() -> !isHeaderWrapped(fixture, column) && headerHeightsAgree(fixture, baseHeight, false),
+			"physical Ctrl+Y did not switch wrapping off again");
+
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(fixture.project, saved), "MPO save rejected the header wrap switch");
+		Project reloaded = new MpoFileImporter().loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		SpreadSheetFieldArray restored = reloaded.getFieldArray();
+		for (int index = 0; index < restored.size(); index++)
+			assertEquals(!fieldId.equals(restored.get(index).getId()), restored.isHeaderWrap(index),
+				"MPO reload must keep exactly the switched-off column unwrapped: " + restored.get(index).getId());
+	}
+
+	private static int headerHeight(Fixture fixture) {
+		int[] height = new int[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> height[0] = fixture.sheet.getTableHeader().getHeight());
+		} catch (Exception exception) {
+			throw new AssertionError("Could not read the header height", exception);
+		}
+		return height[0];
+	}
+
+	private static int activeHeaderColumn(SpreadSheet sheet) {
+		int[] column = new int[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> column[0] = sheet.getActiveHeaderColumn());
+		} catch (Exception exception) {
+			throw new AssertionError("Could not read the active header column", exception);
+		}
+		return column[0];
+	}
+
+	/** Diagnostic snapshot of the wrapped column, the header heights and the Undo history. */
+	private String headerState(Fixture fixture, int column) {
+		String[] state = new String[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				var tableColumn = fixture.sheet.getColumnModel().getColumn(column);
+				var renderer = (com.microproject.pm.graphic.spreadsheet.renderer.SpreadSheetColumnHeaderRenderer) tableColumn.getHeaderRenderer();
+				renderer.getTableCellRendererComponent(fixture.sheet, tableColumn.getHeaderValue(), false, false, -1, column);
+				JScrollPane sheetPane = (JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class, fixture.sheet);
+				java.awt.Component corner = sheetPane.getCorner(JScrollPane.UPPER_LEFT_CORNER);
+				state[0] = "field=" + ((com.microproject.field.Field) tableColumn.getIdentifier()).getId()
+					+ " wrapFlag=" + fixture.sheet.isColumnHeaderWrap(column + 1)
+					+ " width=" + tableColumn.getWidth() + " lines=" + renderer.getWrappedLines()
+					+ " header=" + fixture.sheet.getTableHeader().getHeight()
+					+ " headerPreferred=" + fixture.sheet.getTableHeader().getPreferredSize().height
+					+ " sheetHeaderHeight=" + fixture.sheet.getColumnHeaderHeight()
+					+ " corner=" + (corner == null ? "none" : corner.getHeight())
+					+ " timescale=" + ganttTimescalePane.getTimeScaleComponent().getHeight()
+					+ " undo=" + fixture.project.getUndoController().getEditNames();
+			});
+		} catch (Exception exception) {
+			return "unavailable: " + exception;
+		}
+		return state[0];
+	}
+
+	private static boolean isHeaderWrapped(Fixture fixture, int column) {
+		boolean[] wrapped = new boolean[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				var tableColumn = fixture.sheet.getColumnModel().getColumn(column);
+				var renderer = (com.microproject.pm.graphic.spreadsheet.renderer.SpreadSheetColumnHeaderRenderer) tableColumn.getHeaderRenderer();
+				renderer.getTableCellRendererComponent(fixture.sheet, tableColumn.getHeaderValue(), false, false, -1, column);
+				wrapped[0] = renderer.getWrappedLines().size() > 1;
+			});
+		} catch (Exception exception) {
+			throw new AssertionError("Could not inspect the header renderer", exception);
+		}
+		return wrapped[0];
+	}
+
+	/** Sheet header, row-header corner and Gantt timescale have one on-screen height (taller than a single line when expected). */
+	private boolean headerHeightsAgree(Fixture fixture, int baseHeight, boolean expectTaller) {
+		boolean[] agree = new boolean[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				JScrollPane sheetPane = (JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class, fixture.sheet);
+				if (!fixture.sheet.isShowing() || !ganttTimescalePane.getTimeScaleComponent().isShowing()
+						|| sheetPane.getCorner(JScrollPane.UPPER_LEFT_CORNER) == null
+						|| !sheetPane.getCorner(JScrollPane.UPPER_LEFT_CORNER).isShowing()) return;
+				int header = fixture.sheet.getTableHeader().getHeight();
+				int corner = sheetPane.getCorner(JScrollPane.UPPER_LEFT_CORNER).getHeight();
+				int timescale = ganttTimescalePane.getTimeScaleComponent().getHeight();
+				agree[0] = header == corner && header == timescale && header == fixture.sheet.getColumnHeaderHeight()
+					&& (expectTaller ? header > baseHeight : header >= baseHeight);
+			});
+		} catch (Exception exception) {
+			throw new AssertionError("Could not compare the header heights", exception);
+		}
+		return agree[0];
+	}
+
+	private void assertRowsAndHeadersAligned(Fixture fixture) throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			JScrollPane sheetPane = (JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class, fixture.sheet);
+			int sheetHeaderTop = fixture.sheet.getTableHeader().getLocationOnScreen().y;
+			int timescaleTop = ganttTimescalePane.getTimeScaleComponent().getLocationOnScreen().y;
+			int cornerTop = sheetPane.getCorner(JScrollPane.UPPER_LEFT_CORNER).getLocationOnScreen().y;
+			assertEquals(sheetHeaderTop, timescaleTop, "the sheet header and the Gantt timescale must start on the same line");
+			assertEquals(sheetHeaderTop, cornerTop, "the corner must sit on the header row");
+			assertEquals(fixture.sheet.getTableHeader().getHeight(), ganttTimescalePane.getTimeScaleComponent().getHeight(),
+				"production code must keep the Gantt timescale as tall as the sheet header");
+			int sheetFirstRow = fixture.sheet.getLocationOnScreen().y + fixture.sheet.getCellRect(0, 0, true).y;
+			int ganttFirstRow = fixture.gantt.getLocationOnScreen().y;
+			assertEquals(sheetFirstRow, ganttFirstRow, "the first task-table row and the first Gantt row must start on the same line");
+		});
+	}
+
+
+	private void openHeaderPopupAndToggleWrap(Robot robot, Fixture fixture, int column, boolean expectChecked) throws Exception {
+		Point headerPoint = screenCenter(fixture.sheet.getTableHeader(), fixture.sheet.getTableHeader().getHeaderRect(column));
+		robot.mouseMove(headerPoint.x, headerPoint.y);
+		robot.mousePress(InputEvent.BUTTON3_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
+		final SpreadSheetColumnMenu[] popup = new SpreadSheetColumnMenu[1];
+		GuiAcceptanceSupport.await(() -> {
+			for (MenuElement element : MenuSelectionManager.defaultManager().getSelectedPath()) {
+				if (element instanceof SpreadSheetColumnMenu menu) {
+					popup[0] = menu;
+					return true;
+				}
+			}
+			return false;
+		}, "physical header right-click did not open the column popup");
+		javax.swing.JCheckBoxMenuItem[] item = new javax.swing.JCheckBoxMenuItem[1];
+		SwingUtilities.invokeAndWait(() -> {
+			for (Component component : popup[0].getComponents())
+				if (component instanceof javax.swing.JCheckBoxMenuItem check) item[0] = check;
+			assertTrue(item[0] != null, "the column popup must offer the Header Text Wrapping check box");
+			assertEquals(com.microproject.strings.Messages.getString("SpreadSheetColumnMenu.HeaderWrap"), item[0].getText());
+			assertEquals(expectChecked, item[0].isSelected(), "the check box must show the column's current wrapping");
+		});
+		clickComponent(robot, item[0]);
+	}
+
 	private static void assertHeaderHighlight(SpreadSheet sheet, int activeColumn) {
 		for (int column = 0; column < sheet.getColumnCount(); column++) {
 			TableCellRenderer renderer = sheet.getColumnModel().getColumn(column).getHeaderRenderer();
@@ -1635,6 +1882,14 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		}
 	}
 
+	/** The popup item with this text, so tests do not depend on menu order. */
+	private static JMenuItem menuItemWithText(JPopupMenu menu, String text) {
+		for (java.awt.Component component : menu.getComponents())
+			if (component instanceof JMenuItem item && text.equals(item.getText()))
+				return item;
+		throw new AssertionError("popup has no item " + text);
+	}
+
 	/**
 	 * Issue #860: the selected column header must show a closed outline on the
 	 * physical screen. Each edge is scanned along its full length, skipping the
@@ -1646,11 +1901,19 @@ class TaskTableGanttGridGuiAcceptanceTest {
 	 * the last capture is kept as evidence.
 	 */
 	private static void assertActiveHeaderOutlineClosedOnScreen(Robot robot, SpreadSheet sheet, int column) throws Exception {
+		assertActiveHeaderOutlineClosedOnScreen(robot, sheet, column, "task-table-active-column-header.png");
+	}
+
+	private static void assertActiveHeaderOutlineClosedOnScreen(Robot robot, SpreadSheet sheet, int column,
+			String artifactName) throws Exception {
 		Rectangle[] bounds = new Rectangle[1];
 		SwingUtilities.invokeAndWait(() -> {
 			Rectangle cell = sheet.getTableHeader().getHeaderRect(column);
 			Point origin = sheet.getTableHeader().getLocationOnScreen();
-			bounds[0] = new Rectangle(origin.x + cell.x, origin.y + cell.y, cell.width, cell.height);
+			// One logical pixel of margin on every side: at fractional scales the cell's
+			// edges fall between device pixels, and a capture of exactly the cell can
+			// round inward and miss the outline's last device pixel (seen at 150%).
+			bounds[0] = new Rectangle(origin.x + cell.x - 1, origin.y + cell.y - 1, cell.width + 2, cell.height + 2);
 		});
 		java.awt.Color outline = FlatUiSupport.spreadsheetActiveCellBorderColor();
 		long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(3);
@@ -1664,8 +1927,33 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		} while (openEdge != null && System.nanoTime() < deadline);
 		Path directory = Path.of(System.getProperty("microproject.gui.artifacts.dir", "build/guiTest-artifacts"));
 		Files.createDirectories(directory);
-		ImageIO.write(capture, "png", directory.resolve("task-table-active-column-header.png").toFile());
-		assertTrue(openEdge == null, "selected column header outline is open: " + openEdge);
+		ImageIO.write(capture, "png", directory.resolve(artifactName).toFile());
+		assertTrue(openEdge == null, "selected column header outline is open: " + openEdge + " capture="
+			+ capture.getWidth() + "x" + capture.getHeight() + " bounds=" + bounds[0] + " outline="
+			+ Integer.toHexString(outline.getRGB() & 0xFFFFFF) + " rightBand=" + rowHex(capture, Math.min(3, capture.getHeight() - 1), 6)
+			+ " headerRectNow=" + headerRectOnScreen(sheet, column) + " activeHeaderColumn=" + sheet.getActiveHeaderColumn());
+	}
+
+	private static Rectangle headerRectOnScreen(SpreadSheet sheet, int column) {
+		Rectangle[] rect = new Rectangle[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				Rectangle cell = sheet.getTableHeader().getHeaderRect(column);
+				Point origin = sheet.getTableHeader().getLocationOnScreen();
+				rect[0] = new Rectangle(origin.x + cell.x, origin.y + cell.y, cell.width, cell.height);
+			});
+		} catch (Exception exception) {
+			return null;
+		}
+		return rect[0];
+	}
+
+	/** Hex colours of the last {@code count} pixels of a capture row (failure diagnostics). */
+	private static String rowHex(BufferedImage capture, int y, int count) {
+		StringBuilder hex = new StringBuilder();
+		for (int x = Math.max(0, capture.getWidth() - count); x < capture.getWidth(); x++)
+			hex.append(Integer.toHexString(capture.getRGB(x, y) & 0xFFFFFF)).append(' ');
+		return hex.toString().trim();
 	}
 
 	private static String findOpenOutlineEdge(BufferedImage capture, java.awt.Color outline) {
@@ -1766,6 +2054,14 @@ class TaskTableGanttGridGuiAcceptanceTest {
 	}
 
 	private void showFixture(Fixture fixture, boolean installDocumentShortcuts) throws Exception {
+		showFixture(fixture, installDocumentShortcuts, false);
+	}
+
+	/**
+	 * @param productionTimescale lay the chart out like GanttView does: a real ScaledScrollPane timescale
+	 *            bound to the sheet by production code, instead of a fixed-height stand-in header
+	 */
+	private void showFixture(Fixture fixture, boolean installDocumentShortcuts, boolean productionTimescale) throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			if (installDocumentShortcuts) {
 				FixtureFrame fixtureFrame = new FixtureFrame();
@@ -1779,15 +2075,27 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			} else {
 				frame = new JFrame("Task table and Gantt GUI acceptance");
 			}
-			JScrollPane ganttPane = new JScrollPane(fixture.gantt);
-			// The production GanttView puts a time-scale header above the chart.
-			// Keep this lightweight fixture's row origin aligned with the table.
-			int headerHeight = fixture.sheet.getTableHeader().getPreferredSize().height;
-			JPanel header = new JPanel();
-			header.setPreferredSize(new Dimension(980, headerHeight));
-			ganttPane.setColumnHeaderView(header);
+			JScrollPane ganttPane;
+			JScrollPane sheetPane;
+			if (productionTimescale) {
+				// Nothing here aligns the two header rows: the production binding must do it.
+				ganttTimescalePane = new com.microproject.pm.graphic.timescale.ScaledScrollPane(fixture.gantt,
+					new CoordinatesConverter(fixture.project), null, fixture.sheet.getRowHeight());
+				ganttTimescalePane.followColumnHeaderHeight(fixture.sheet);
+				ganttPane = ganttTimescalePane;
+				sheetPane = SpreadSheetUtils.makeSpreadsheetScrollPane(fixture.sheet);
+			} else {
+				ganttPane = new JScrollPane(fixture.gantt);
+				// The production GanttView puts a time-scale header above the chart.
+				// Keep this lightweight fixture's row origin aligned with the table.
+				int headerHeight = fixture.sheet.getTableHeader().getPreferredSize().height;
+				JPanel header = new JPanel();
+				header.setPreferredSize(new Dimension(980, headerHeight));
+				ganttPane.setColumnHeaderView(header);
+				sheetPane = new JScrollPane(fixture.sheet);
+			}
 			JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
-				new JScrollPane(fixture.sheet), ganttPane);
+				sheetPane, ganttPane);
 			splitPane.setResizeWeight(0.45);
 			frame.add(splitPane);
 			frame.setPreferredSize(new Dimension(1100, 520));
@@ -2026,17 +2334,50 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			"MPO reload lost the physical duration unit");
 	}
 
+	/** Sheet origin and header height on screen (failure diagnostics). */
+	private static String sheetLayout(SpreadSheet sheet) {
+		String[] layout = new String[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				StringBuilder columns = new StringBuilder();
+				for (int index = 0; index < sheet.getColumnModel().getColumnCount(); index++) {
+					var tableColumn = sheet.getColumnModel().getColumn(index);
+					columns.append(tableColumn.getIdentifier() instanceof com.microproject.field.Field field
+						? field.getId().replace("Field.", "") : "?").append('=').append(tableColumn.getWidth()).append(' ');
+				}
+				layout[0] = "sheetOnScreen=" + sheet.getLocationOnScreen()
+					+ " header=" + sheet.getTableHeader().getHeight() + " headerPreferred="
+					+ sheet.getTableHeader().getPreferredSize().height + " visible=" + sheet.getVisibleRect()
+					+ " columns=[" + columns.toString().trim() + "]";
+			});
+		} catch (Exception exception) {
+			return "unavailable: " + exception;
+		}
+		return layout[0];
+	}
+
 	private static void editCellPhysically(Robot robot, SpreadSheet sheet, int row, int column, String value) throws Exception {
 		Rectangle bounds = new Rectangle();
+		// A user scrolls a cell into view before clicking it; at 150% the narrow
+		// task-table pane does not show every column.
+		SwingUtilities.invokeAndWait(() -> sheet.scrollRectToVisible(sheet.getCellRect(row, column, true)));
+		robot.waitForIdle();
 		SwingUtilities.invokeAndWait(() -> {
 			Rectangle cell = sheet.getCellRect(row, column, true);
 			Point location = sheet.getLocationOnScreen();
 			bounds.setBounds(location.x + cell.x, location.y + cell.y, cell.width, cell.height);
 		});
+		String layoutBeforeClick = sheetLayout(sheet);
 		robot.mouseMove(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-		GuiAcceptanceSupport.await(sheet::isFocusOwner, "duration cell did not receive focus");
+		try {
+			GuiAcceptanceSupport.await(sheet::isFocusOwner, "duration cell did not receive focus");
+		} catch (AssertionError failure) {
+			throw new AssertionError(failure.getMessage() + "; clicked=" + bounds + " before: " + layoutBeforeClick
+				+ " after: " + sheetLayout(sheet) + " focusOwner="
+				+ java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner(), failure);
+		}
 		SwingUtilities.invokeAndWait(() -> assertTrue(sheet.editCellAt(row, column, null),
 			"duration cell editor did not start"));
 		GuiAcceptanceSupport.await(sheet::isEditing, "duration editor did not start");

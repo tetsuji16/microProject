@@ -64,6 +64,8 @@ import javax.swing.JRootPane;
 import javax.swing.KeyStroke;
 import javax.swing.RootPaneContainer;
 import javax.swing.SwingUtilities;
+import javax.swing.event.TableColumnModelEvent;
+import javax.swing.event.TableColumnModelListener;
 import javax.swing.table.JTableHeader;
 import javax.swing.table.TableCellEditor;
 import javax.swing.table.TableColumn;
@@ -107,6 +109,7 @@ import com.microproject.field.FieldContext;
 import com.microproject.graphic.configuration.ActionList;
 import com.microproject.graphic.configuration.CellStyle;
 import com.microproject.graphic.configuration.GraphicConfiguration;
+import com.microproject.pm.graphic.spreadsheet.renderer.SpreadSheetColumnHeaderRenderer;
 import com.microproject.graphic.configuration.SpreadSheetFieldArray;
 import com.microproject.graphic.configuration.SpreadSheetCategories;
 import com.microproject.grouping.core.Node;
@@ -1242,7 +1245,81 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 										// colWidth isn't enough why?
 		header.setPreferredSize(new Dimension(colWidth, header.getPreferredSize().height));
 		header.resizeAndRepaint();
-		
+		updateColumnHeaderHeight();
+	}
+
+	/** Property fired when {@link #getColumnHeaderHeight()} changes; the Gantt timescale follows it. */
+	public static final String COLUMN_HEADER_HEIGHT_PROPERTY = "columnHeaderHeight";
+	private int columnHeaderHeight = GraphicConfiguration.getInstance().getColumnHeaderHeight();
+	private boolean updatingColumnHeaderHeight;
+	private final TableColumnModelListener columnHeaderHeightListener = new TableColumnModelListener() {
+		public void columnAdded(TableColumnModelEvent e) { updateColumnHeaderHeight(); }
+		public void columnRemoved(TableColumnModelEvent e) { updateColumnHeaderHeight(); }
+		public void columnMoved(TableColumnModelEvent e) { updateColumnHeaderHeight(); }
+		public void columnMarginChanged(javax.swing.event.ChangeEvent e) { updateColumnHeaderHeight(); }
+		public void columnSelectionChanged(javax.swing.event.ListSelectionEvent e) { }
+	};
+
+	/**
+	 * The one source of truth for the height of this sheet's column header row: tall enough
+	 * for the tallest wrapped heading, never below the configured single-line height.  The
+	 * Gantt timescale header and the row-header corner follow it.
+	 */
+	public int getColumnHeaderHeight() {
+		return columnHeaderHeight;
+	}
+
+	private int computeColumnHeaderHeight() {
+		int height = GraphicConfiguration.getInstance().getColumnHeaderHeight();
+		TableColumnModel columns = getColumnModel();
+		for (int view = 0; view < columns.getColumnCount(); view++) {
+			TableColumn column = columns.getColumn(view);
+			if (column.getHeaderRenderer() instanceof SpreadSheetColumnHeaderRenderer renderer)
+				height = Math.max(height, renderer.preferredHeightFor(this, column.getHeaderValue(), view));
+		}
+		return height;
+	}
+
+	/** Recomputes the header height from the column widths, wrap flags and font; call on the EDT, never from paint. */
+	public void updateColumnHeaderHeight() {
+		JTableHeader header = getTableHeader();
+		if (updatingColumnHeaderHeight || header == null)
+			return;
+		updatingColumnHeaderHeight = true;
+		try {
+			int height = computeColumnHeaderHeight();
+			Dimension current = header.getPreferredSize();
+			if (current.height != height) {
+				header.setPreferredSize(new Dimension(current.width, height));
+				header.revalidate();
+				header.repaint();
+			}
+			int old = columnHeaderHeight;
+			columnHeaderHeight = height;
+			if (old != height)
+				firePropertyChange(COLUMN_HEADER_HEIGHT_PROPERTY, old, height);
+		} finally {
+			updatingColumnHeaderHeight = false;
+		}
+	}
+
+	/** True when the heading of this field-array column (index 0 is the hidden ID field) wraps. */
+	public boolean isColumnHeaderWrap(int fieldIndex) {
+		return !(getFieldArray() instanceof SpreadSheetFieldArray fields) || fields.isHeaderWrap(fieldIndex);
+	}
+
+	/**
+	 * Switches heading wrapping of one column through the shared column-layout path, so the
+	 * choice is saved with the project and can be undone.
+	 */
+	public boolean setColumnHeaderWrap(int fieldIndex, boolean wrap) {
+		if (!isCanModifyColumns() || !(getFieldArray() instanceof SpreadSheetFieldArray fields)
+				|| fieldIndex < 1 || fieldIndex >= fields.size() || fields.isHeaderWrap(fieldIndex) == wrap)
+			return false;
+		SpreadSheetFieldArray before = (SpreadSheetFieldArray) getFieldArrayWithWidths(fields).clone();
+		SpreadSheetFieldArray after = ((SpreadSheetFieldArray) before.clone()).withHeaderWrap(fieldIndex, wrap);
+		applyColumnLayoutChange(before, after, fieldIndex - 1, Messages.getString("SpreadSheetColumnMenu.HeaderWrap"));
+		return true;
 	}
 
 	public void createDefaultColumnsFromModel(ArrayList fieldArray) {
@@ -1347,6 +1424,9 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		setTableHeader(createDefaultTableHeader());
 		JTableHeader header = getTableHeader();
 		header.setPreferredSize(new Dimension((int) header.getPreferredSize().getWidth(), config.getColumnHeaderHeight()));
+		getColumnModel().removeColumnModelListener(columnHeaderHeightListener);
+		getColumnModel().addColumnModelListener(columnHeaderHeightListener);
+		updateColumnHeaderHeight();
 		header.addMouseListener(new HeaderMouseListener(this));
 
 		installTableMouseHandler();
@@ -1636,7 +1716,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			return false;
 		}
 
-		SpreadSheetFieldArray before = (SpreadSheetFieldArray) fields.clone();
+		SpreadSheetFieldArray before = (SpreadSheetFieldArray) getFieldArrayWithWidths(fields).clone();
 		SpreadSheetFieldArray after = fields.removeField(fieldIndex);
 		applyColumnLayoutChange(before, after, viewColumn, Messages.getString("SpreadSheetColumnMenu.HideColumn"));
 		return true;
@@ -1702,7 +1782,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			}
 		}
 		int insertionIndex = Math.max(1, Math.min(fieldIndex, fields.size()));
-		SpreadSheetFieldArray before = (SpreadSheetFieldArray) fields.clone();
+		SpreadSheetFieldArray before = (SpreadSheetFieldArray) getFieldArrayWithWidths(fields).clone();
 		SpreadSheetFieldArray after = fields.insertField(insertionIndex, field);
 		applyColumnLayoutChange(before, after, insertionIndex - 1,
 				Messages.getString("SpreadSheetColumnMenu.InsertColumn"));
@@ -1717,12 +1797,17 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	public boolean applyColumnLayoutPreset(SpreadSheetFieldArray fields, String presentationName) {
 		if (!isCanModifyColumns() || fields == null || !(getFieldArray() instanceof SpreadSheetFieldArray current))
 			return false;
-		SpreadSheetFieldArray before = (SpreadSheetFieldArray) current.clone();
+		SpreadSheetFieldArray before = (SpreadSheetFieldArray) getFieldArrayWithWidths(current).clone();
 		SpreadSheetFieldArray after = (SpreadSheetFieldArray) fields.clone();
 		applyColumnLayoutChange(before, after, 0, presentationName);
 		return true;
 	}
 
+	/**
+	 * Applies a column layout as one undoable edit. Callers snapshot the layout with
+	 * {@link #getFieldArrayWithWidths}, and both directions apply it with its widths,
+	 * so a column width the user dragged survives the change and its Undo/Redo (#895).
+	 */
 	private void applyColumnLayoutChange(SpreadSheetFieldArray before, SpreadSheetFieldArray after,
 			int preferredColumn, String presentationName) {
 		Project project = getLayoutProject();
@@ -1730,7 +1815,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			project.setFieldArray(after);
 			project.setDirty(true);
 		}
-		setFieldArray(after);
+		setFieldArrayWithWidths(after);
 		selectColumnAfterColumnChange(Math.min(preferredColumn, getColumnCount() - 1));
 
 		var cache = getCache();
@@ -1805,7 +1890,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			SpreadSheet target = findLayoutTarget(model.get(), category, source.get());
 			if (target == null)
 				return;
-			target.setFieldArray(restoredFields);
+			target.setFieldArrayWithWidths(restoredFields);
 			target.selectColumnAfterColumnChange(Math.min(preferredColumn, target.getColumnCount() - 1));
 		}
 
