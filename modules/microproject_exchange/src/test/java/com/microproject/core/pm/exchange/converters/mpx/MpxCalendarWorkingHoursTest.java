@@ -252,6 +252,32 @@ class MpxCalendarWorkingHoursTest {
 		assertEquals(end, roundTripped.getEffectiveWorkWeekPeriods().getFirst().getEnd());
 	}
 
+	@Test
+	void explicitNonWorkingDayOverridesRetainedHoursInWeeklyAndDatedCalendars() {
+		ProjectFile file = new ProjectFile();
+		ProjectCalendar msp = file.addCalendar();
+		Day monday = Day.getInstance(2);
+		ProjectCalendarHours weeklyHours = msp.addCalendarHours(monday);
+		weeklyHours.add(new DateRange(localTime(9), localTime(17)));
+		msp.setWorkingDay(monday, false);
+
+		long start = day(2024, Calendar.JUNE, 3);
+		var period = msp.addWorkWeek();
+		period.setName("Explicit non-working with hours");
+		period.setDateRange(new DateRange(mspDate(start), mspDate(start)));
+		ProjectCalendarHours periodHours = period.addCalendarHours(monday);
+		periodHours.add(new DateRange(localTime(9), localTime(17)));
+		period.setWorkingDay(monday, false);
+
+		WorkingCalendar imported = WorkingCalendar.getStandardBasedInstance();
+		new MpxCalendarConverter().from(msp, imported, new MpxImportState());
+		assertFalse(imported.getWeekDay(1).isWorking(), "declared weekly non-working overrides hours");
+		assertFalse(CalendarService.getInstance().getDay(imported, start).isWorking(),
+			"dated non-working overrides retained hours");
+		assertEquals(0L, CalendarService.getInstance().getDay(imported, start)
+			.getWorkingHours().getDuration());
+	}
+
 	private static Date localTime(int hour) {
 		java.util.GregorianCalendar calendar = new java.util.GregorianCalendar();
 		calendar.clear();
