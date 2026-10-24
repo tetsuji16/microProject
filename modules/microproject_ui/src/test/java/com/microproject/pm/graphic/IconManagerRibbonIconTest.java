@@ -25,12 +25,17 @@
 package com.microproject.pm.graphic;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.LinkedHashSet;
 import java.util.ArrayList;
 import java.util.List;
@@ -38,6 +43,13 @@ import java.util.Set;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import javax.imageio.ImageIO;
+import javax.accessibility.AccessibleRole;
+import javax.swing.JLabel;
+import javax.swing.SwingUtilities;
+
+import com.formdev.flatlaf.extras.FlatSVGIcon;
+import com.microproject.pm.graphic.spreadsheet.renderer.IndicatorsRenderer;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.api.Test;
@@ -46,6 +58,43 @@ import org.junit.jupiter.params.provider.MethodSource;
 import com.microproject.menu.testsupport.RibbonInventory;
 
 class IconManagerRibbonIconTest {
+	@Test
+	void informationIconsRetainVectorRenderingAtCommonScaleFactors() throws Exception {
+		var taskHeader = IconManager.getIcon("infomation.icon");
+		var ribbon = IconManager.getRibbonIcon("ribbon.information", 16, 16);
+		JLabel[] header = new JLabel[1];
+		SwingUtilities.invokeAndWait(() -> {
+			header[0] = IndicatorsRenderer.getCellHeader();
+			assertNotNull(header[0].getIcon(), "the Indicators header must keep its visible icon");
+			assertEquals(AccessibleRole.ICON, header[0].getAccessibleContext().getAccessibleRole());
+		});
+		assertNotNull(taskHeader);
+		assertNotNull(ribbon);
+
+		captureScaleEvidence("task-header", taskHeader);
+		captureScaleEvidence("ribbon-information", ribbon);
+
+		assertInstanceOf(FlatSVGIcon.class, taskHeader,
+			"the task-table information header must remain vector-backed for HiDPI painting");
+		assertInstanceOf(FlatSVGIcon.class, ribbon,
+			"the ribbon information icon must remain vector-backed for HiDPI painting");
+		for (var icon : List.of(taskHeader, ribbon)) {
+			assertEquals(16, icon.getIconWidth());
+			assertEquals(16, icon.getIconHeight());
+			BufferedImage rasterAtLogicalSize = paint(icon, 16, 16);
+			for (double scale : new double[] {1.0, 1.25, 1.5}) {
+				BufferedImage scaled = paintAtScale(icon, scale);
+				assertTrue(hasVisiblePixel(scaled),
+					() -> "information icon must render at " + scale + "x");
+				if (scale > 1.0) {
+					BufferedImage enlargedRaster = enlarge(rasterAtLogicalSize, scaled.getWidth(), scaled.getHeight());
+					assertTrue(differingPixelCount(scaled, enlargedRaster) > 0,
+						() -> "" + scale + "x rendering must contain detail beyond a 16px raster enlargement");
+				}
+			}
+		}
+	}
+
 	@Test
 	void rasterizedRibbonIconsAreCachedByNameAndSize() {
 		var first = IconManager.getRibbonIcon("ribbon.open", 20, 20);
@@ -246,6 +295,61 @@ class IconManagerRibbonIconTest {
 			graphics.dispose();
 		}
 		return canvas;
+	}
+
+	private static BufferedImage paintAtScale(javax.swing.Icon icon, double scale) {
+		int width = (int) Math.ceil(icon.getIconWidth() * scale);
+		int height = (int) Math.ceil(icon.getIconHeight() * scale);
+		BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+		var g2 = image.createGraphics();
+		try {
+			g2.scale(scale, scale);
+			icon.paintIcon(null, g2, 0, 0);
+		} finally {
+			g2.dispose();
+		}
+		return image;
+	}
+
+	private static BufferedImage enlarge(BufferedImage source, int width, int height) {
+		BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+		var g2 = image.createGraphics();
+		try {
+			g2.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION,
+				java.awt.RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+			g2.drawImage(source, 0, 0, width, height, null);
+		} finally {
+			g2.dispose();
+		}
+		return image;
+	}
+
+	private static int differingPixelCount(BufferedImage first, BufferedImage second) {
+		int count = 0;
+		for (int y = 0; y < first.getHeight(); y++) {
+			for (int x = 0; x < first.getWidth(); x++) {
+				if (first.getRGB(x, y) != second.getRGB(x, y))
+					count++;
+			}
+		}
+		return count;
+	}
+
+	private static void captureScaleEvidence(String iconName, javax.swing.Icon icon) {
+		String evidenceDirectory = System.getProperty("microproject.issue861.evidenceDir");
+		if (evidenceDirectory == null || evidenceDirectory.isBlank())
+			return;
+		try {
+			Path directory = Path.of(evidenceDirectory);
+			Files.createDirectories(directory);
+			for (double scale : new double[] {1.0, 1.25, 1.5}) {
+				String scaleName = (int) Math.round(scale * 100) + "";
+				Path output = directory.resolve(iconName + "-" + scaleName + ".png");
+				ImageIO.write(paintAtScale(icon, scale), "png", output.toFile());
+			}
+		} catch (IOException ex) {
+			throw new UncheckedIOException("Unable to save issue #861 icon evidence", ex);
+		}
 	}
 
 	private static int visibleColorCount(BufferedImage image) {

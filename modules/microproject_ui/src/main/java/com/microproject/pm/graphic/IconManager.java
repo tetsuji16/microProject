@@ -139,6 +139,17 @@ public class IconManager {
 		return new ImageIcon(url);
 	}
 
+	private static ImageIcon createScalableInformationIcon(URL url, int width, int height) {
+		if (url == null || url.getPath() == null || !url.getPath().toLowerCase(Locale.ROOT).endsWith(".svg"))
+			return null;
+		try {
+			FlatSVGIcon icon = new FlatSVGIcon(url);
+			return icon.hasFound() ? icon.derive(width, height) : null;
+		} catch (Exception ex) {
+			return null;
+		}
+	}
+
 	private static BufferedImage createRibbonImage(URL url, int width, int height) {
 		if (url == null)
 			return null;
@@ -243,7 +254,9 @@ public class IconManager {
 			URL url = iconName == null ? null : getIconResource(iconName);
 			if (url == null)
 				return null;
-			icon = createImageIcon(url);
+			icon = "infomation.icon".equals(key) ? createScalableInformationIcon(url, 16, 16) : null;
+			if (icon == null)
+				icon = createImageIcon(url);
 			if (icon == null || icon.getIconWidth() <= 0 || icon.getIconHeight() <= 0) {
 				URL fallbackUrl = getIconResourceWithExtension(iconName, null);
 				if (fallbackUrl != null && !fallbackUrl.equals(url))
@@ -268,6 +281,11 @@ public class IconManager {
 			if (preferredUrl == null)
 				preferredUrl = getIconResourceWithExtension(iconName, ".svg");
 			URL fallbackUrl = getIconResourceWithExtension(iconName, null);
+			if ("ribbon.information".equals(name)) {
+				ImageIcon vectorIcon = createScalableInformationIcon(preferredUrl, width, height);
+				if (vectorIcon != null)
+					return vectorIcon;
+			}
 			BufferedImage image = createRibbonImage(preferredUrl, width, height);
 			if (image == null)
 				image = createRibbonImage(fallbackUrl, width, height);
