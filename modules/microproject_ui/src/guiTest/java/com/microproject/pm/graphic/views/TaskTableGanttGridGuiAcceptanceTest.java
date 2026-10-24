@@ -2297,9 +2297,18 @@ class TaskTableGanttGridGuiAcceptanceTest {
 	private static String sheetLayout(SpreadSheet sheet) {
 		String[] layout = new String[1];
 		try {
-			SwingUtilities.invokeAndWait(() -> layout[0] = "sheetOnScreen=" + sheet.getLocationOnScreen()
-				+ " header=" + sheet.getTableHeader().getHeight() + " headerPreferred="
-				+ sheet.getTableHeader().getPreferredSize().height);
+			SwingUtilities.invokeAndWait(() -> {
+				StringBuilder columns = new StringBuilder();
+				for (int index = 0; index < sheet.getColumnModel().getColumnCount(); index++) {
+					var tableColumn = sheet.getColumnModel().getColumn(index);
+					columns.append(tableColumn.getIdentifier() instanceof com.microproject.field.Field field
+						? field.getId().replace("Field.", "") : "?").append('=').append(tableColumn.getWidth()).append(' ');
+				}
+				layout[0] = "sheetOnScreen=" + sheet.getLocationOnScreen()
+					+ " header=" + sheet.getTableHeader().getHeight() + " headerPreferred="
+					+ sheet.getTableHeader().getPreferredSize().height + " visible=" + sheet.getVisibleRect()
+					+ " columns=[" + columns.toString().trim() + "]";
+			});
 		} catch (Exception exception) {
 			return "unavailable: " + exception;
 		}
