@@ -74,7 +74,7 @@ class CollaborationMetadataStoreTest {
 	@Test
 	void unversionedLegacySidecarLoadsAndIsUpgradedWithoutLosingUsers() throws Exception {
 		Path project = Files.createTempFile("mpo-collaboration-legacy", ".mpo");
-		Path sidecar = CollaborationMetadataStore.buildSidecarFile(project.toFile()).toPath();
+		Path sidecar = legacySidecar(project);
 		Files.writeString(sidecar,
 			"{\"projectFingerprint\":\"legacy-fingerprint\",\"users\":{\"alice\":{\"userKey\":\"alice\"}}}",
 			StandardCharsets.UTF_8);
@@ -85,8 +85,38 @@ class CollaborationMetadataStoreTest {
 		assertEquals(CollaborationMetadataStore.SCHEMA_VERSION, metadata.getSchemaVersion());
 		assertEquals("legacy-fingerprint", metadata.getProjectFingerprint());
 		assertEquals("alice", metadata.getUsers().get("alice").getUserKey());
-		String upgraded = Files.readString(sidecar);
+		Path canonical = store.getSidecarFile().toPath();
+		assertTrue(Files.exists(canonical), "legacy metadata is migrated on save");
+		assertTrue(Files.exists(sidecar), "migration preserves the legacy file");
+		String upgraded = Files.readString(canonical);
 		assertTrue(upgraded.contains("\"schemaVersion\":1"));
+	}
+
+	@Test
+	void canonicalSidecarWinsWhenBothNamesExist() throws Exception {
+		Path project = Files.createTempFile("mpo-collaboration-priority", ".mpo");
+		Path canonical = CollaborationMetadataStore.buildSidecarFile(project.toFile()).toPath();
+		Path legacy = legacySidecar(project);
+		Files.writeString(canonical, "{\"projectFingerprint\":\"canonical\"}");
+		Files.writeString(legacy, "{\"projectFingerprint\":\"legacy\"}");
+
+		CollaborationMetadataStore store = new CollaborationMetadataStore(project.toFile());
+		assertEquals("canonical", store.load().getProjectFingerprint());
+		assertTrue(Files.exists(legacy), "the losing legacy file is preserved");
+	}
+
+	@Test
+	void malformedCanonicalSidecarDoesNotFallBackToLegacy() throws Exception {
+		Path project = Files.createTempFile("mpo-collaboration-no-fallback", ".mpo");
+		Path canonical = CollaborationMetadataStore.buildSidecarFile(project.toFile()).toPath();
+		Path legacy = legacySidecar(project);
+		byte[] partial = "{\"schemaVersion\":".getBytes(StandardCharsets.UTF_8);
+		Files.write(canonical, partial);
+		Files.writeString(legacy, "{\"projectFingerprint\":\"must-not-win\"}");
+
+		CollaborationMetadataStore store = new CollaborationMetadataStore(project.toFile());
+		assertThrows(RuntimeException.class, store::load);
+		assertArrayEquals(partial, Files.readAllBytes(canonical));
 	}
 
 	@Test
@@ -106,9 +136,9 @@ class CollaborationMetadataStoreTest {
 		Path project = Files.createTempFile("mpo-collaboration", ".mpo");
 		Path sidecar = CollaborationMetadataStore.buildSidecarFile(project.toFile()).toPath();
 
-		assertTrue(sidecar.getFileName().toString().endsWith(".projectlibre-sync.json"));
+		assertTrue(sidecar.getFileName().toString().endsWith(".microproject-sync.json"));
 		assertTrue(CollaborationMetadataStore.buildLockFile(sidecar.toFile()).getName()
-				.endsWith(".projectlibre-sync.lock"));
+				.endsWith(".microproject-sync.lock"));
 	}
 
 	@Test
@@ -246,6 +276,32 @@ class CollaborationMetadataStoreTest {
 		assertEquals(0, CollaborationMetadataStore.jvmLockRegistrySizeForTests());
 	}
 
+	@Test
+	void concurrentLegacyMigrationAndUpdatesUseCanonicalLock() throws Exception {
+		Path project = Files.createTempFile("mpo-collaboration-legacy-concurrent", ".mpo");
+		Path legacy = legacySidecar(project);
+		Files.writeString(legacy,
+				"{\"users\":{\"legacy\":{\"userKey\":\"legacy\"}}}", StandardCharsets.UTF_8);
+		CollaborationMetadataStore first = new CollaborationMetadataStore(project.toFile());
+		CollaborationMetadataStore second = new CollaborationMetadataStore(project.toFile());
+		ExecutorService executor = Executors.newFixedThreadPool(2);
+		try {
+			Future<Void> firstUpdate = executor.submit(mutateUser(first, "first"));
+			Future<Void> secondUpdate = executor.submit(mutateUser(second, "second"));
+			firstUpdate.get();
+			secondUpdate.get();
+		} finally {
+			executor.shutdownNow();
+		}
+
+		CollaborationMetadataStore.Metadata metadata = first.load();
+		assertTrue(Files.exists(first.getSidecarFile().toPath()));
+		assertTrue(Files.exists(legacy), "migration preserves the legacy source");
+		assertEquals("legacy", metadata.getUsers().get("legacy").getUserKey());
+		assertEquals("first", metadata.getUsers().get("first").getUserKey());
+		assertEquals("second", metadata.getUsers().get("second").getUserKey());
+	}
+
 	private static Callable<Void> mutateUser(CollaborationMetadataStore store, String userKey) {
 		return () -> {
 			store.mutate(metadata -> {
@@ -255,5 +311,11 @@ class CollaborationMetadataStoreTest {
 			});
 			return null;
 		};
+	}
+
+	private static Path legacySidecar(Path project) {
+		String name = project.getFileName().toString();
+		int dot = name.lastIndexOf('.');
+		return project.resolveSibling(name.substring(0, dot) + ".projectlibre-sync.json");
 	}
 }

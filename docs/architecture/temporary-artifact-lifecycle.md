@@ -12,7 +12,14 @@ published only after its contents and manifest have been fully written.
 | POD atomic save / `LocalFileImporter` | Destination parent, target-name `.tmp` | Atomic replace, then delete staging file | Preserve destination; enqueue staging path for retry | Next save and workspace cleanup retry the marker |
 | MSPDI atomic save / `MicrosoftImporter`, `MSPDISerializer` | Destination parent, target-name `.tmp` | Atomic replace, then delete staging file | Preserve destination; enqueue staging path for retry | Next save and workspace cleanup retry the marker |
 | MPOF atomic save / `MpoFileImporter` | Destination parent, target-name `.tmp` | Atomic replace, then delete staging file | Preserve destination and operation state; enqueue staging path | Next save/workspace cleanup retries the marker |
-| Collaboration sidecar / `CollaborationMetadataStore` | Beside MPOF (`*.projectlibre-sync.json`) | Keep sidecar; release active OS/JVM lock | Preserve last valid JSON; partial write is removed/marked | Lock marker remains; active lock is released and stale temp is retried |
+| Collaboration sidecar / `CollaborationMetadataStore` | Beside MPOF (`*.microproject-sync.json`; reads legacy `*.projectlibre-sync.json`) | Keep canonical sidecar; release active OS/JVM lock | Preserve last valid JSON; partial write is removed/marked | Canonical lock marker remains; active lock is released and stale temp is retried |
+
+New writes use the canonical sidecar and `<base>.microproject-sync.lock`. When
+only the legacy sidecar exists, migration holds both canonical and legacy locks
+while reading it and writing the canonical file; the legacy source is retained.
+Once present, canonical metadata is authoritative. An older application that
+writes the legacy file after migration is not merged with canonical metadata;
+avoid simultaneous editing from old and new versions.
 
 Deletion is idempotent.  A `.delete` marker never authorizes deleting an
 unrelated path: cleanup is restricted to a path explicitly queued by the

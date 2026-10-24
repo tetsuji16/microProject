@@ -56,7 +56,7 @@ class ProjectLoadWorkflowTest {
 		assertEquals(LocalSession.MPO_PROJECT_IMPORTER, options.getImporter());
 		assertTrue(options.isCollaborationEnabled());
 		assertEquals("alice", options.getCollaborationUserKey());
-		assertTrue(options.getSidecarFileName().endsWith(".projectlibre-sync.json"));
+		assertTrue(options.getSidecarFileName().endsWith(".microproject-sync.json"));
 	}
 
 	@Test

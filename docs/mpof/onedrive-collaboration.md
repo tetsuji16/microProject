@@ -2,35 +2,37 @@
 
 microProject collaboration works with a OneDrive shared folder through the
 OneDrive sync client. Put the `.mpo` file and its adjacent
-`.projectlibre-sync.json` collaboration sidecar in the same shared folder, and have every
-editor add that shared folder to OneDrive and wait until both files show as
-synced before opening the project.
+`.microproject-sync.json` collaboration sidecar in the same shared folder, and
+have every editor add that shared folder to OneDrive and wait until both files
+show as synced before opening the project. Existing
+`.projectlibre-sync.json` metadata is read when the canonical file is absent
+and copied to the canonical name on save; the legacy file is retained.
 
-Each metadata read/modify/write also uses a stable
-`<base>.projectlibre-sync.lock` file in the same folder as a short-lived
-inter-process transaction lock. The file name is retained as a compatibility
-identifier for existing shared folders; it is not a project-file lock and its
-presence does not indicate that a process is currently writing. The active
-`FileChannel`/operating-system lock is released when the writer exits, while
-the empty marker file itself may remain after a normal or abnormal exit. This
-serializes metadata updates before the atomic replacement of the `.mpo` file.
+Each metadata read/modify/write uses a stable
+`<base>.microproject-sync.lock` file in the same folder as a short-lived
+inter-process transaction lock. During legacy migration, the application also
+locks `<base>.projectlibre-sync.lock` while it copies the old metadata. The
+canonical lock serializes current clients; the active OS lock is released when
+the writer exits, while marker files may remain. The canonical sidecar is
+authoritative once present, including when it is malformed.
 
-Do not delete or rename this lock file manually while another editor may be
-open. The `projectlibre` portion is a legacy on-disk compatibility name; a
-future migration may introduce a microProject-branded name only together with
-an explicit mixed-version locking and sidecar migration protocol.
+Do not delete or rename either lock file manually while another editor may be
+open. Older application versions only use the legacy sidecar and lock. If an
+older version writes the legacy sidecar after a newer version has migrated it,
+those edits are not merged; newer versions continue using the canonical file.
+Do not edit the same shared project concurrently from old and new versions.
 
 ## Temporary files and cleanup contract
 
 The sidecar writer creates a uniquely named temporary file in the same
-directory as the sidecar (for example, `.projectlibre-sync.json.<random>.tmp`).
+directory as the sidecar (for example, `.microproject-sync.json.<random>.tmp`).
 The file is fully written and flushed before it is atomically moved over the
 sidecar. It is an implementation artifact, not a collaboration record. A
 writer removes it in its `finally` path when the move fails; if Windows
 Defender, OneDrive, or another process still has an open handle, removal may
 be deferred and the next maintenance/startup cleanup may retry it.
 
-The `.projectlibre-sync.lock` file is also an implementation artifact. Its
+The `.microproject-sync.lock` file is also an implementation artifact. Its
 presence does **not** mean that a writer is running: the authoritative lock is
 the active operating-system `FileLock` held on its open channel. The marker
 file is normally not deleted after a successful transaction, normal shutdown,
@@ -73,7 +75,7 @@ shared file and verifies that both editors' task changes survive. This exercises
 the same lock/merge path used by a OneDrive-synchronized folder; OneDrive
 remains the file transport and synchronization service.
 
-The adjacent `.projectlibre-sync.json` sidecar contains per-task leases and each editor renews its leases while
+The adjacent `.microproject-sync.json` sidecar contains per-task leases and each editor renews its leases while
 the project is open. An editor cannot acquire a task that has an active lease
 from another editor. Sequential OneDrive-sync saves of independent task edits
 merge their MPOF task-operation logs, so both edits survive the later save.
