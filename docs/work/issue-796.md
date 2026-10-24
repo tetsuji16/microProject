@@ -27,16 +27,16 @@ Owner/reviewer: Sol; bounded investigation/implementation/verification: Luna.
 
 ## Current slice
 
-**Current slice:** #918 verifies the frozen XML/MSPDI duration, baseline and
-availability matrix using literal inputs and independent semantic expectations.
-**Done when:** XML read, MPO reload and XML reimport pass the finite contract,
-including malformed/missing input and explicit evidence limits.
-**Then:** #919/#920/#921/#922, one active implementation at a time.
+**Current slice:** #919 verifies prior MPO writers, native payload evolution
+and failure/cancel/overwrite preservation against its frozen matrix.
+**Done when:** real old-writer and synthetic policy evidence are distinct,
+current native lifecycle and physical Save As preservation pass, and Sol reviews.
+**Then:** #920/#921/#922, one active implementation at a time.
 
 ## Children and closure
 
 Native GitHub sub-issue relationships verified for #916–#922 on 2026-10-24.
-Inventory #916 is closed via PR #924 / `ed276d5a4`; MPP #917 is closed via PR #925 / `565998a34`. #918 is active.
+Inventory #916 is closed via PR #924 / `ed276d5a4`; MPP #917 is closed via PR #925 / `565998a34`. #918 is closed via PR #926 / `b0bf09782`; #919 is active.
 Parent body has the ordered checklist; each child contains scope/dependencies/
 acceptance/verification rules. No child status alone proves parent acceptance.
 Do not remove or defer an original failing criterion to close a child or parent.
@@ -63,3 +63,5 @@ Do not remove or defer an original failing criterion to close a child or parent.
   from a job name or the #432 closure.
 
 - #917: MPP8/9/12/14 bounded manifests, calendar semantics and typed invalid-input checks passed; exchange module 339 tests, zero failures/errors/skips. Required Build 40116689195 and GUI 40116689198 passed on head 8ac404dcf, tree identical to merge 565998a34. Other fields/builds remain explicitly unverified.
+
+- #918 integrated b0bf09782, same tree as tested dd49d8b52: core 1,182 and exchange 344 tests passed; final UTC exchange + UTC/Tokyo focused lifecycle checks passed. Required Build 40124226992 and Windows GUI 40124227051 passed (53 total, 1 known skip, 0 failures/errors). Initial Linux failure40123626606 was a test timezone/cache defect, corrected without changing expectations. See issue-918.md; no general XML parity claim.

@@ -25,6 +25,7 @@
 package com.microproject.core.pm.exchange.converters.mpx;
 
 import java.util.Date;
+import java.util.Objects;
 
 import com.microproject.core.pm.exchange.converters.type.DateUTCConverter;
 import com.microproject.datatype.DurationDefaults;
@@ -32,6 +33,7 @@ import com.microproject.datatype.TimeUnit;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.task.Project;
 
+import net.sf.mpxj.ProjectCalendar;
 import net.sf.mpxj.ProjectProperties;
 import net.sf.mpxj.ScheduleFrom;
 
@@ -43,7 +45,8 @@ import net.sf.mpxj.ScheduleFrom;
  */
 public class MpxProjectConverter {
 
-	public void from(ProjectProperties mpxProjectHeader, Project project, MpxImportState state) {
+	public void from(ProjectProperties mpxProjectHeader, Iterable<ProjectCalendar> sourceCalendars, Project project,
+		MpxImportState state) {
 		project.setDurationDefaults(durationDefaults(mpxProjectHeader));
 		if (mpxProjectHeader.getName() != null)
 			project.setName(mpxProjectHeader.getName());
@@ -63,16 +66,43 @@ public class MpxProjectConverter {
 			project.setFinishDate(toLong(mpxProjectHeader.getFinishDate()));
 		project.setStatusDate(toLong(mpxProjectHeader.getStatusDate()));
 
-		WorkCalendar calendar = null;
-		if (mpxProjectHeader.getDefaultCalendar() != null)
-			calendar = state.getMappedBaseCalendar(mpxProjectHeader.getDefaultCalendar().getName());
-		if (calendar == null)
-			calendar = state.getProjectBaseCalendar();
+		WorkCalendar calendar = sourceDefaultCalendar(mpxProjectHeader, sourceCalendars, state);
 		try {
 			project.setBaseCalendar(calendar);
 		} catch (com.microproject.configuration.CircularDependencyException e) {
 			// ignore: a self-referential base calendar is not expected here
 		}
+	}
+
+	public void from(ProjectProperties mpxProjectHeader, Project project, MpxImportState state) {
+		from(mpxProjectHeader, null, project, state);
+	}
+
+	/** Resolves the source project's default calendar consistently before and after task import. */
+	public static WorkCalendar sourceDefaultCalendar(ProjectProperties source,
+		Iterable<ProjectCalendar> sourceCalendars, MpxImportState state) {
+		ProjectCalendar sourceCalendar = source == null ? null : source.getDefaultCalendar();
+		// Earlier serialized projects can contain duplicate calendar UIDs. Do not
+		// guess by object or name in that ambiguous case; retain the established
+		// imported standard/base calendar choice for backward compatibility.
+		if (sourceCalendar != null && hasDuplicateUid(sourceCalendar, sourceCalendars))
+			return state.getProjectBaseCalendar();
+		WorkCalendar calendar = sourceCalendar == null ? null : state.getImportedCalendar(sourceCalendar);
+		if (calendar == null && sourceCalendar != null)
+			calendar = state.getMappedBaseCalendar(sourceCalendar.getName());
+		return calendar == null ? state.getProjectBaseCalendar() : calendar;
+	}
+
+	private static boolean hasDuplicateUid(ProjectCalendar sourceCalendar, Iterable<ProjectCalendar> sourceCalendars) {
+		Integer uid = sourceCalendar.getUniqueID();
+		if (uid == null || sourceCalendars == null)
+			return false;
+		int matches = 0;
+		for (ProjectCalendar calendar : sourceCalendars) {
+			if (calendar != null && Objects.equals(uid, calendar.getUniqueID()) && ++matches > 1)
+				return true;
+		}
+		return false;
 	}
 
 	public static DurationDefaults durationDefaults(ProjectProperties source) {

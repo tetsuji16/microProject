@@ -2831,12 +2831,17 @@ class MpoFileImporterTest {
 	}
 
 	@Test
-	void mpoTaskSplitMetadataWithoutProvenanceTreatsExistingGapsAsManual() throws Exception {
+	void mpoTaskSplitMetadataWithoutProvenanceKeepsGapsManualAndDropsManualDateState() throws Exception {
 		Project original = projectForRoundTrip();
 		NormalTask task = (NormalTask) firstTask(original);
 		long day = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
 		task.setDuration(4L * day);
 		long start = task.getStart();
+		long finish = task.getEnd();
+		long shift = com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		task.setManuallyScheduled(true);
+		task.setManualDates(start + shift, finish + shift);
+		task.setLevelingManualDateState(new Task.LevelingManualDateState(start, finish, start + shift, finish + shift));
 		long manualFrom = task.getEffectiveWorkCalendar().add(start, day, false);
 		long manualTo = task.getEffectiveWorkCalendar().add(manualFrom, day, false);
 		assertTrue(com.microproject.pm.scheduling.ScheduleService.getInstance().split(this, task, manualFrom, manualTo, null));
@@ -2847,7 +2852,8 @@ class MpoFileImporterTest {
 		com.fasterxml.jackson.databind.node.ObjectNode root = (com.fasterxml.jackson.databind.node.ObjectNode)
 			mapper.readTree(entries.get(MpoFileImporter.TASK_SPLITS_ENTRY));
 		for (com.fasterxml.jackson.databind.JsonNode node : root.path("tasks")) {
-			((com.fasterxml.jackson.databind.node.ObjectNode) node).remove(List.of("manualIntervals", "levelingIntervals"));
+			((com.fasterxml.jackson.databind.node.ObjectNode) node).remove(
+				List.of("manualIntervals", "levelingIntervals", "manualLevelingDates"));
 		}
 		byte[] legacySplits = mapper.writeValueAsBytes(root);
 		entries.put(MpoFileImporter.TASK_SPLITS_ENTRY, legacySplits);
@@ -2857,6 +2863,8 @@ class MpoFileImporterTest {
 		assertEquals(task.getTaskSplitIntervals(), restored.getManualTaskSplitIntervals());
 		assertTrue(restored.getLevelingTaskSplitIntervals().isEmpty(),
 			"version-1 MPO task split records without provenance are treated as user-owned splits");
+		assertNull(restored.getLevelingManualDateState(),
+			"the absent manualLevelingDates record must not invent task-owned leveling provenance");
 	}
 
 	@Test

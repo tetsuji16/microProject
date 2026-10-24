@@ -296,7 +296,7 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 				baselineSnapshot.setCurrentSchedule(baselineSchedule);
 			}
 			assignment.setTaskSchedule(baselineSchedule);
-			assignment.convertToBaselineAssignment(true);
+			assignment.convertToBaselineAssignment(false);
 		}
 
 

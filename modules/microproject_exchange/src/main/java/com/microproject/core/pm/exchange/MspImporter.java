@@ -632,7 +632,7 @@ public class MspImporter {
 	
 	protected void importProjectHeader(Project project) {
 		MpxProjectConverter converter=new MpxProjectConverter();
-		converter.from(mpxProjectFile.getProjectProperties(), project, state);
+		converter.from(mpxProjectFile.getProjectProperties(), mpxProjectFile.getCalendars(), project, state);
 
 		if (earliestTaskStart!=-1L) //fix project start
 			project.setStart(earliestTaskStart);
@@ -658,13 +658,18 @@ public class MspImporter {
 		if (standardBaseCalendar == null) {
 			standardBaseCalendar = CalendarService.getInstance().getStandardInstance();
 		}
+		state.setProjectBaseCalendar(standardBaseCalendar);
+		WorkCalendar sourceDefaultCalendar = MpxProjectConverter.sourceDefaultCalendar(
+			mpxProjectFile.getProjectProperties(), mpxProjectFile.getCalendars(), state);
+		if (sourceDefaultCalendar != null)
+			standardBaseCalendar = sourceDefaultCalendar;
+		state.setProjectBaseCalendar(standardBaseCalendar);
 		try {
 			project.setBaseCalendar(standardBaseCalendar);
 		} catch (com.microproject.configuration.CircularDependencyException e) {
 			// ignore: a self-referential base calendar is not expected here
 		}
 		project.setWorkCalendar(standardBaseCalendar);
-		state.setProjectBaseCalendar(standardBaseCalendar);
 	}
 	
 	protected void importResourcePool(Project project) {
