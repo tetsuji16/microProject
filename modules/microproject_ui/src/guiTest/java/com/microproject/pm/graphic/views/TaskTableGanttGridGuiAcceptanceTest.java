@@ -583,6 +583,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			assertEquals(Set.of(retainedRow[0]), fixture.gantt.getHighlightedRows(),
 				"a presentation-only column selection must not select every Gantt task row");
 		});
+		assertActiveHeaderOutlineClosedOnScreen(robot, fixture.sheet, column);
 
 		int cellRow = 0;
 		Point cellAfterHeader = screenCenter(fixture.sheet, fixture.sheet.getCellRect(cellRow, column, true));
@@ -1491,6 +1492,94 @@ class TaskTableGanttGridGuiAcceptanceTest {
 				assertTrue(((javax.swing.JComponent) component).getBorder() instanceof LineBorder,
 					"active header must retain its visible focus border");
 		}
+	}
+
+	/**
+	 * Issue #860: the selected column header must show a closed outline on the
+	 * physical screen. Each edge is scanned along its full length, skipping the
+	 * corners; within its outermost two pixels it must contain a pixel closer to
+	 * the active outline colour than to the header fill, because fractional UI
+	 * scales blend the 1px line with the fill. The device-resolution capture is
+	 * used so that downsampling to user space cannot drop a fractional-scale
+	 * edge. The screen is sampled until the asynchronous repaint settles, and
+	 * the last capture is kept as evidence.
+	 */
+	private static void assertActiveHeaderOutlineClosedOnScreen(Robot robot, SpreadSheet sheet, int column) throws Exception {
+		Rectangle[] bounds = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> {
+			Rectangle cell = sheet.getTableHeader().getHeaderRect(column);
+			Point origin = sheet.getTableHeader().getLocationOnScreen();
+			bounds[0] = new Rectangle(origin.x + cell.x, origin.y + cell.y, cell.width, cell.height);
+		});
+		java.awt.Color outline = FlatUiSupport.spreadsheetActiveCellBorderColor();
+		long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(3);
+		BufferedImage capture;
+		String openEdge;
+		do {
+			robot.waitForIdle();
+			robot.delay(100);
+			capture = deviceResolutionCapture(robot, bounds[0]);
+			openEdge = findOpenOutlineEdge(capture, outline);
+		} while (openEdge != null && System.nanoTime() < deadline);
+		Path directory = Path.of(System.getProperty("microproject.gui.artifacts.dir", "build/guiTest-artifacts"));
+		Files.createDirectories(directory);
+		ImageIO.write(capture, "png", directory.resolve("task-table-active-column-header.png").toFile());
+		assertTrue(openEdge == null, "selected column header outline is open: " + openEdge);
+	}
+
+	private static String findOpenOutlineEdge(BufferedImage capture, java.awt.Color outline) {
+		int width = capture.getWidth();
+		int height = capture.getHeight();
+		int band = 3;
+		java.awt.Color fill = new java.awt.Color(capture.getRGB(band + 1, band + 1));
+		for (int x = band; x < width - band; x++) {
+			if (!nearColor(capture, x, 0, x, band - 1, outline, fill))
+				return "top edge at x=" + x;
+			if (!nearColor(capture, x, height - band, x, height - 1, outline, fill))
+				return "bottom edge at x=" + x;
+		}
+		for (int y = band; y < height - band; y++) {
+			if (!nearColor(capture, 0, y, band - 1, y, outline, fill))
+				return "left edge at y=" + y;
+			if (!nearColor(capture, width - band, y, width - 1, y, outline, fill))
+				return "right edge at y=" + y;
+		}
+		return null;
+	}
+
+	private static BufferedImage deviceResolutionCapture(Robot robot, Rectangle bounds) {
+		java.awt.Image largest = null;
+		for (java.awt.Image variant : robot.createMultiResolutionScreenCapture(bounds).getResolutionVariants()) {
+			if (largest == null || variant.getWidth(null) > largest.getWidth(null))
+				largest = variant;
+		}
+		if (largest instanceof BufferedImage buffered)
+			return buffered;
+		BufferedImage copy = new BufferedImage(largest.getWidth(null), largest.getHeight(null), BufferedImage.TYPE_INT_RGB);
+		java.awt.Graphics2D graphics = copy.createGraphics();
+		try {
+			graphics.drawImage(largest, 0, 0, null);
+		} finally {
+			graphics.dispose();
+		}
+		return copy;
+	}
+
+	private static boolean nearColor(BufferedImage image, int x0, int y0, int x1, int y1, java.awt.Color expected,
+			java.awt.Color fill) {
+		for (int x = x0; x <= x1; x++) {
+			for (int y = y0; y <= y1; y++) {
+				java.awt.Color actual = new java.awt.Color(image.getRGB(x, y));
+				if (colorDistance(actual, expected) < colorDistance(actual, fill))
+					return true;
+			}
+		}
+		return false;
+	}
+
+	private static int colorDistance(java.awt.Color a, java.awt.Color b) {
+		return Math.abs(a.getRed() - b.getRed()) + Math.abs(a.getGreen() - b.getGreen())
+			+ Math.abs(a.getBlue() - b.getBlue());
 	}
 
 	private static Point screenCenter(javax.swing.JComponent component, Rectangle bounds) throws Exception {

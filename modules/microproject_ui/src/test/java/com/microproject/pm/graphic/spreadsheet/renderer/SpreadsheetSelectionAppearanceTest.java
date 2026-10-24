@@ -30,6 +30,9 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.Rectangle;
+import java.awt.image.BufferedImage;
 
 import javax.swing.JComponent;
 import javax.swing.JLabel;
@@ -37,10 +40,13 @@ import javax.swing.JTable;
 import javax.swing.SwingUtilities;
 import javax.swing.border.LineBorder;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.JTableHeader;
 
 import org.junit.jupiter.api.Test;
 
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet;
+import com.microproject.pm.graphic.spreadsheet.common.CommonTableHeader;
+import com.microproject.util.FlatLafSupport;
 import com.microproject.util.FlatUiSupport;
 
 class SpreadsheetSelectionAppearanceTest {
@@ -107,6 +113,52 @@ class SpreadsheetSelectionAppearanceTest {
 
 			assertEquals(FlatUiSupport.spreadsheetHeaderSelectedBackground(), component.getBackground());
 			assertTrue(component.getBorder() instanceof LineBorder);
+		});
+	}
+
+	@Test
+	void paintedActiveColumnHeaderOutlineIsClosedOnAllFourSides() throws Exception {
+		FlatLafSupport.initialize();
+		SwingUtilities.invokeAndWait(() -> {
+			PlainTable table = new PlainTable();
+			table.setModel(new DefaultTableModel(new Object[][] { { "A", "B", "C" } }, new Object[] { "Name", "Start", "Finish" }));
+			FlatUiSupport.applySpreadsheetTableStyle(table);
+			JTableHeader header = new CommonTableHeader(table.getColumnModel());
+			table.setTableHeader(header);
+			SpreadSheetColumnHeaderRenderer renderer = new SpreadSheetColumnHeaderRenderer();
+			for (int i = 0; i < table.getColumnCount(); i++)
+				table.getColumnModel().getColumn(i).setHeaderRenderer(renderer);
+			table.getColumnModel().getSelectionModel().setSelectionInterval(1, 1);
+			header.setSize(300, header.getPreferredSize().height);
+			header.doLayout();
+
+			BufferedImage image = new BufferedImage(header.getWidth(), header.getHeight(), BufferedImage.TYPE_INT_ARGB);
+			Graphics2D g = image.createGraphics();
+			try {
+				header.paint(g);
+			} finally {
+				g.dispose();
+			}
+
+			int expected = FlatUiSupport.spreadsheetActiveCellBorderColor().getRGB();
+			Rectangle cell = header.getHeaderRect(1);
+			int left = cell.x;
+			int right = cell.x + cell.width - 1;
+			int top = cell.y;
+			int bottom = cell.y + cell.height - 1;
+			for (int x = left; x <= right; x++) {
+				assertEquals(expected, image.getRGB(x, top), "top edge open at x=" + x);
+				assertEquals(expected, image.getRGB(x, bottom), "bottom edge open at x=" + x);
+			}
+			for (int y = top; y <= bottom; y++) {
+				assertEquals(expected, image.getRGB(left, y), "left edge open at y=" + y);
+				assertEquals(expected, image.getRGB(right, y), "right edge open at y=" + y);
+			}
+			Rectangle inactive = header.getHeaderRect(0);
+			int inactiveBottom = image.getRGB(inactive.x + 3, inactive.y + inactive.height - 1);
+			int inactiveFill = image.getRGB(inactive.x + 3, inactive.y + inactive.height / 2);
+			assertFalse(inactiveBottom == inactiveFill, "inactive header cells keep their bottom separator");
+			assertFalse(inactiveBottom == expected, "inactive header cells do not take the active outline");
 		});
 	}
 }
