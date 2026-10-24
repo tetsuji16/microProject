@@ -29,6 +29,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertIterableEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import org.junit.jupiter.api.Test;
@@ -98,5 +100,29 @@ class SpreadSheetFieldArrayTest {
         fields.move(2, 1);
         assertIterableEquals(java.util.List.of(-1, 80, -1), fields.getWidths());
         assertIterableEquals(java.util.List.of(false, false, false), fields.getManualWidths());
+    }
+
+    @Test
+    void headerWrapDefaultsOnAndStaysAlignedThroughCloneInsertRemoveMove() {
+        SpreadSheetFieldArray fields = new SpreadSheetFieldArray();
+        for (int index = 0; index < 4; index++)
+            fields.add(new Field());
+        assertTrue(fields.isHeaderWrap(2));
+        assertNull(fields.getHeaderWraps());
+
+        fields.setHeaderWraps(new ArrayList<>(java.util.List.of(true, true, false, true)));
+        assertFalse(fields.isHeaderWrap(2));
+        SpreadSheetFieldArray copy = fields.clone();
+        copy.setHeaderWraps(new ArrayList<>(java.util.List.of(true, true, true, true)));
+        assertFalse(fields.isHeaderWrap(2), "clone owns its own flags");
+        assertNull(copy.getHeaderWraps(), "all-default flags are stored implicitly");
+
+        fields.insertField(1, new Field());
+        assertIterableEquals(java.util.List.of(true, true, true, false, true), fields.getHeaderWraps());
+        fields.move(3, 1);
+        assertIterableEquals(java.util.List.of(true, false, true, true, true), fields.getHeaderWraps());
+        fields.removeField(1);
+        assertIterableEquals(java.util.List.of(true, true, true, true), fields.getHeaderWraps());
+        assertTrue(fields.isHeaderWrap(99));
     }
 }

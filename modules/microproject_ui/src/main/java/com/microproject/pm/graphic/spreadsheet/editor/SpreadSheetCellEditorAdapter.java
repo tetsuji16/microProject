@@ -59,6 +59,10 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 		this.editor=editor;
 		
 	}
+	/** The wrapped editor, for callers that must know which kind of editor a column uses. */
+	public TableCellEditor getDelegate() {
+		return editor;
+	}
 	public static void clearLastTable() {
 		lastTable = null;
 	}

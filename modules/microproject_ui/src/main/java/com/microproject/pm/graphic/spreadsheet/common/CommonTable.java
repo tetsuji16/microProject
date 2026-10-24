@@ -39,9 +39,10 @@ import org.netbeans.swing.outline.Outline;
 import com.microproject.pm.graphic.spreadsheet.editor.DateEditor;
 import com.microproject.pm.graphic.spreadsheet.editor.SimpleEditor;
 import com.microproject.pm.graphic.spreadsheet.editor.SpreadSheetCellEditorAdapter;
+import com.microproject.pm.graphic.spreadsheet.editor.YesNoComboBoxEditor;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.pm.graphic.spreadsheet.renderer.DateRenderer;
-import com.microproject.pm.graphic.spreadsheet.renderer.OfflineCapableBooleanRenderer;
+import com.microproject.pm.graphic.spreadsheet.renderer.YesNoRenderer;
 import com.microproject.pm.graphic.spreadsheet.renderer.SimpleRenderer;
 import com.microproject.pm.graphic.spreadsheet.renderer.SpreadSheetCellRendererAdapter;
 import com.microproject.datatype.Duration;
@@ -224,9 +225,8 @@ public class CommonTable extends Outline {
 //       setAdaptedRenderer(Date.class, new DateRendererDecorator( new SimpleRenderer(), format)); // format will be used
        setAdaptedRenderer(Date.class,new DateRenderer());
        
-       setAdaptedRenderer(Boolean.class,new OfflineCapableBooleanRenderer());
-		//setAdaptedRenderer(Boolean.class,null);
-		setAdaptedEditor(Boolean.class,null);
+       setAdaptedRenderer(Boolean.class,new YesNoRenderer());
+		setAdaptedEditor(Boolean.class,new YesNoComboBoxEditor(null));
 		
 		setAdaptedRenderer(Work.class,new SimpleRenderer(compact));
 		setAdaptedEditor(Work.class,new SimpleEditor(Work.class));

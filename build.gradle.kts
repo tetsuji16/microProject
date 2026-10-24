@@ -110,6 +110,13 @@ subprojects {
         enabled = false
     }
 
+    // Unit tests assert English display text; pin the JVM locale so a Japanese
+    // desktop does not localize it (issue #893). guiTest chooses its own locale.
+    tasks.withType<Test>().matching { it.name == "test" }.configureEach {
+        systemProperty("user.language", "en")
+        systemProperty("user.country", "US")
+    }
+
 }
 
 tasks.register("stageAppDist") {
@@ -831,7 +838,7 @@ tasks.register<JavaExec>("generateUpdateConfiguration") {
             "--output", windowsReleaseRoot.get().file("release-assets/configuration.xml").asFile.absolutePath,
             "--private-key", keyFile,
             "--version", releaseVersion,
-            "--asset-base", "https://github.com/tetsuji16/ProjectLibre/releases/download/$releaseLabel/"
+            "--asset-base", "https://github.com/tetsuji16/microProject/releases/download/$releaseLabel/"
         )
     }
 }

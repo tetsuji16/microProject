@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Locale;
+
 import org.junit.jupiter.api.Test;
 
 import com.microproject.strings.Messages;
@@ -90,6 +92,34 @@ class ChangeWorkingTimeDialogBoxSaveTest {
 				"ChangeWorkingTimeDialogBox.NonDefaultWorkingTime",
 				"ChangeWorkingTimeDialogBox.ImportNonWorkingDays" }) {
 			assertFalse(Messages.getString(key).startsWith("!"), key);
+		}
+	}
+
+	/**
+	 * Issue #862: the import button and its file filter are user-visible, so
+	 * they must live in the translatable client bundle rather than the
+	 * untranslated internal bundle that is searched first.
+	 */
+	@Test
+	void importNonWorkingDaysLabelsAreLocalizedInJapanese() {
+		Locale original = Locale.getDefault();
+		try {
+			Locale.setDefault(Locale.ENGLISH);
+			Messages.reset();
+			String englishLabel = Messages.getString("ChangeWorkingTimeDialogBox.ImportNonWorkingDays");
+			String englishFilter = Messages.getString("ChangeWorkingTimeDialogBox.ImportNonWorkingDaysFilter");
+			assertEquals("Import nonworking days...", englishLabel);
+			assertEquals("CSV or iCalendar (*.csv, *.ics)", englishFilter);
+
+			Locale.setDefault(Locale.JAPANESE);
+			Messages.reset();
+			assertEquals("非稼働日のインポート...",
+				Messages.getString("ChangeWorkingTimeDialogBox.ImportNonWorkingDays"));
+			assertEquals("CSV または iCalendar (*.csv, *.ics)",
+				Messages.getString("ChangeWorkingTimeDialogBox.ImportNonWorkingDaysFilter"));
+		} finally {
+			Locale.setDefault(original);
+			Messages.reset();
 		}
 	}
 

@@ -1,246 +1,188 @@
 # microProject
 
-This is the Windows-targeted ProjectLibre desktop fork; its release workflow
-also builds Linux x64 and macOS Apple Silicon packages. Packaging availability
-does not itself assert equal platform-specific behavior. microProject is a
-desktop planning application with a task
-hierarchy, schedules, dependencies, resources, progress, and a Gantt view. Its
-product goal is complete compatibility with the standalone Microsoft Project
-desktop application, including the current Microsoft 365 ribbon visual style
-and desktop command behavior. **That compatibility goal is not yet achieved.**
-MPO (`.mpo`) is the application's authoritative native format and default save
-format. MPP (`.mpp`) remains a separate external interoperability target for
-reading; MPP writing is out of scope. It is not the native project format. POD
-is a frozen legacy import format. Desktop workflows and native microProject
-automation/extensions remain measurable acceptance gates. VBA/macros, COM,
-VSTO, and Microsoft Office add-ins are out of scope. Project Server, PWA,
-Project Online, and Microsoft
-Planner cloud authentication or synchronization are outside this standalone
-product goal. The [compatibility goal](docs/msp-compatibility-goal.md) and
-[roadmap](docs/msp-compatibility-roadmap.md) define the full scope.
+**microProject** is a desktop project planning application for Windows, Linux,
+and macOS. It brings the task outline, schedule, dependencies, resources,
+progress, and Gantt chart together in one workspace, with an Office-style
+ribbon and keyboard-driven editing.
 
-microProject は、タスク階層、日程、依存関係、リソース、進捗をガント
-チャートと一緒に管理するデスクトップ計画アプリです。製品目標は、
-スタンドアロンの Microsoft Project デスクトップとの完全互換です。最新
-Microsoft 365 版のリボン外観とデスクトップ操作を目標にしますが、互換性は
-まだ完了していません。MPO（`.mpo`）を製品の正式なネイティブ形式かつ標準の
-保存形式とします。MPP（`.mpp`）は別個の外部互換形式で、読込が対象です。書出しは対象外です。
-POD は wire 形式を変更しない旧形式の読込用です。デスクトップ業務フローとローカルの
-自動化・拡張機能も個別に検証します。VBA / マクロ、COM、VSTO、Microsoft Office add-in は
-対象外です。Project Server、PWA、Project Online、
-Microsoft Planner のクラウド認証・同期はこの製品目標の対象外です。詳細は
-互換性目標とロードマップを参照してください。
+**microProject** は、タスク階層・日程・依存関係・リソース・進捗をガント
+チャートと同じ画面で扱うデスクトップ計画アプリです（[日本語の概要](#日本語)）。
 
-Quick links:
-
-- [Stable releases and downloads](https://github.com/tetsuji16/ProjectLibre/releases/latest)
-- [Stable release operator runbook](docs/releasing.md)
-- [Trial release checklist](docs/trial-release-plan.md) — prerelease route, basic user journey, and known limits
-- [microProject documentation](https://o-server.main.jp/micro-project/)
-- [Microsoft Project desktop compatibility roadmap](docs/msp-compatibility-roadmap.md) — goal, phased acceptance gates, and review of every currently open issue
-- [Current ribbon command inventory](docs/MSP_STANDARD_COMMAND_INVENTORY.md)
-- [Beta release plans](docs/beta-release-plan.md) (historical release planning)
-
-| Gate | Scope | Status |
-|---|---|---|
-| M0 | Target and complete coverage inventory | Open — [#792](https://github.com/tetsuji16/ProjectLibre/issues/792) |
-| M1 | Current Office-style ribbon visuals | Open — [#793](https://github.com/tetsuji16/ProjectLibre/issues/793) |
-| M2 | Offline desktop workflow parity | Open — [#794](https://github.com/tetsuji16/ProjectLibre/issues/794) |
-| M3 | MPP reading and other file interoperability (MPP writing out of scope) | Open — [#796](https://github.com/tetsuji16/ProjectLibre/issues/796) |
-| M4 | Microsoft Project-specific automation and extensions | Excluded by product scope — [#797](https://github.com/tetsuji16/ProjectLibre/issues/797) |
-| M5 | Release compatibility acceptance | Open — [#795](https://github.com/tetsuji16/ProjectLibre/issues/795) |
+[Download the latest release](https://github.com/tetsuji16/microProject/releases/latest) ·
+[Documentation and user guide](https://o-server.main.jp/micro-project/) ·
+[Compatibility roadmap](docs/msp-compatibility-roadmap.md)
 
 ![microProject commercial construction project plan in the Gantt view](docs/images/demo_gannt.png)
 
-The screenshot shows a commercial construction plan. The left pane organizes work as a WBS-style task hierarchy, while the Gantt pane shows the schedule, linked tasks, milestones, and parallel work streams on a shared timeline. Use the File menu to create, open, and save plans; the application also provides import, export, print, and PDF workflows from its desktop interface.
+*A commercial construction plan: the WBS task outline on the left, linked tasks,
+milestones, and parallel work streams on the shared Gantt timeline on the right.*
 
-## Related repositories
+## Features
 
-The repositories with similar names are separate projects rather than runtime
-modules of this application. `ProjectLibre` is this Java/Swing desktop fork;
-`MicroProject` is the independent product direction and shared design space;
-`oneProject` and `RustyProject` are separate experiments (including the Rust
-implementation). They do not share project-file state or release artifacts.
+- **Task table and Gantt in one view** — edit a WBS outline in the spreadsheet
+  and see durations, links, milestones, and progress on the timeline.
+- **Scheduling** — dependencies, calendars, constraints, baselines, and
+  resource assignments with automatic rescheduling.
+- **Critical Chain (CCPM)** — preview and apply resource-aware leveling, view
+  the critical-chain network, and track project and feeding buffer consumption.
+- **Office-style desktop UI** — a ribbon modelled on current Microsoft 365
+  applications, Microsoft Project–style shortcut keys, Undo/Redo, printing, and
+  PDF output.
+- **Open file formats** — the native `.mpo` format, with import of Microsoft
+  Project `.mpp` and MPX files and exchange through Project XML and XLSX.
+- **Self-contained packages** — the Java runtime is bundled; no separate Java
+  installation is needed.
 
-## What This Fork Is For
+## Download
 
-- **Goal: complete standalone Microsoft Project desktop compatibility.** This
-  is a work objective; compatibility is not complete. The target includes desktop
-  workflows and project-file behavior, with MPP reading as an explicit
-  interoperability gate; MPP writing is out of scope. See the
-  [compatibility roadmap](docs/msp-compatibility-roadmap.md) for scope, open
-  coverage gaps, milestones, and issue review. Project Server, PWA, Project
-  Online, and Microsoft Planner cloud services are outside the goal; local
-  files, offline collaboration and native microProject automation/extensions
-  remain in scope. VBA/macros, COM, VSTO, and Microsoft Office add-ins are out
-  of scope.
-  See [the compatibility goal](docs/msp-compatibility-goal.md) for verification
-  rules.
-- Keep microProject usable on a modern JDK and packaging toolchain
-- Improve real-world planning workflows: task hierarchies, schedules, dependencies, resources, and progress in one desktop workspace
-- Add collaboration-oriented features for teams sharing project files locally
-- Make the Gantt and spreadsheet views smoother to use for large schedules
+| Platform | Package | Link |
+|---|---|---|
+| Windows | MSI installer (recommended) | [microProject-latest.msi](https://github.com/tetsuji16/microProject/releases/latest/download/microProject-latest.msi) |
+| Windows | Portable ZIP — unzip and run `microProject.exe` | [microProject-latest-app-image.zip](https://github.com/tetsuji16/microProject/releases/latest/download/microProject-latest-app-image.zip) |
+| Linux x64 | App-image ZIP (published with major updates) | [Releases](https://github.com/tetsuji16/microProject/releases) |
+| macOS Apple Silicon | App-image ZIP (published with major updates) | [Releases](https://github.com/tetsuji16/microProject/releases) |
 
-## Clean-room reconstruction status
+Windows is the reference platform. Linux and macOS packages are built from the
+same source, and platform-specific behavior is verified separately. The
+[documentation site](https://o-server.main.jp/micro-project/) always points at
+the newest stable package for each platform.
 
-microProject is being rebuilt through clean-room implementations based on
-documented behavior, the OpenProj prototype, and independent fixtures. The
-reconstruction is still in progress: some corrections have not yet been
-completed, and legacy, compatibility, and newly reconstructed source code are
-currently mixed in parts of the repository. Until this work is finished,
-internal implementation boundaries may change and some areas should be
-treated as transitional.
+## File formats
 
-## Repository Layout
+| Format | Role |
+|---|---|
+| `.mpo` (MPO) | Native format and default save format. Newer releases keep reading files from earlier supported releases. |
+| `.mpp` | Microsoft Project files — import only. Writing MPP is out of scope; save as `.mpo` instead. |
+| Project XML, XLSX | External interchange formats — open and save. |
+| MPX | Older Microsoft Project exchange format — import only. |
+| `.pod` | ProjectLibre's standard format — opens and saves, but CCPM settings are not stored; use `.mpo` to keep them. |
 
-The repository uses `microProject` as the user-visible product name. The
-Gradle root and module/JAR identifiers intentionally retain the historical
-lower-case `microproject` spelling for build-path and artifact compatibility;
-this is not a character-limit requirement. The full boundary and migration
-policy is documented in [`docs/architecture/naming-policy.md`](docs/architecture/naming-policy.md).
+## Microsoft Project compatibility
 
-The Gradle build currently contains eight production subprojects. The
-authoritative list and source-directory mapping are maintained in
-[`settings.gradle.kts`](settings.gradle.kts); keep this summary synchronized
-when a module is added, removed, or renamed.
+microProject's goal is compatibility with the standalone **Microsoft Project
+desktop** application: scheduling semantics, views, commands, keyboard and
+mouse interaction, and project files. **That goal is not yet achieved**; the
+milestones below are tracked publicly.
 
-- `modules/microproject_core`: scheduling engine, data model, collaboration logic, and configuration
-- `modules/microproject_application`: application workflows, file policies, and save/open coordination
-- `modules/microproject_ui`: Swing UI, Gantt rendering, spreadsheet views, menus, and startup flow
-- `modules/microproject_exchange`: file exchange, import/export, and format integration code
-- `modules/microproject_reports`: report-related code and templates
-- `modules/microproject_contrib`: shared third-party dependencies built into the app distribution
-- `modules/microproject_bootstrap`: update/bootstrap entry point and packaged launch support
-- `modules/microproject_ribbon`: reusable Swing ribbon API and extension SPI, independent of project-domain commands
-- `packaging`: active packaging assets, licenses, and Windows release icons
-- `samples`: sample project files for screenshots and manual verification
-- `scripts`: launch helpers for local verification
+| Gate | Scope | Status |
+|---|---|---|
+| M0 | Target and complete coverage inventory | Open — [#792](https://github.com/tetsuji16/microProject/issues/792) |
+| M1 | Current Office-style ribbon visuals | Open — [#793](https://github.com/tetsuji16/microProject/issues/793) |
+| M2 | Offline desktop workflow parity | Open — [#794](https://github.com/tetsuji16/microProject/issues/794) |
+| M3 | MPP reading and other file interoperability (MPP writing out of scope) | Open — [#796](https://github.com/tetsuji16/microProject/issues/796) |
+| M4 | Microsoft Project-specific automation and extensions | Excluded by product scope — [#797](https://github.com/tetsuji16/microProject/issues/797) |
+| M5 | Release compatibility acceptance | Open — [#795](https://github.com/tetsuji16/microProject/issues/795) |
 
-The reports and import/export modules have an enforced independent boundary:
-they may depend on the core model and their format/report libraries, but not on
-the desktop UI or application workflow. Run `.\gradlew.bat verifyIndependentBoundaries`
-to check this rule.
+Out of scope: Project Server, Project Web App, Project Online, Microsoft
+Planner and other cloud sign-in or synchronization; VBA/macros, COM, VSTO, and
+Microsoft Office add-ins. Local files, linked/master projects, shared
+resources, offline collaboration, and microProject's own automation and
+extensions remain in scope. See the [compatibility goal](docs/msp-compatibility-goal.md),
+the [roadmap](docs/msp-compatibility-roadmap.md), and the
+[ribbon command inventory](docs/MSP_STANDARD_COMMAND_INVENTORY.md).
 
-## Requirements
+## Build from source
 
-- Windows, Linux, or macOS with a full JDK that includes `jpackage` (platform packages must be built on their target OS)
-- Java 25 or newer is required. Gradle compiles every Java source with
-  `--release 25`; a newer installed JDK may be used as the toolchain runtime.
-- Gradle Wrapper support files are included in this repository
-- WiX Toolset on `PATH` for MSI packaging
+Requirements:
 
-If `JAVA_HOME` is not set, the Gradle release tasks fall back to `C:\Program Files\Java\jdk-25`.
-
-## Build System Status
-
-- `Gradle` is the supported build and release entrypoint for this repository
-- `build.gradle.kts` drives module compilation, installable app layout generation, and Windows `jpackage` packaging
-- The root build applies Java toolchains to all eight subprojects and pins
-  `JavaCompile.options.release` to 25 for reproducible API compatibility
-- CI uses Temurin JDK 25 and runs `verifyArchitectureBoundaries` before the
-  repository build; see [`.github/workflows/build.yml`](.github/workflows/build.yml)
-- `packaging` is the source of active packaging assets, icons, and license notices consumed by the Gradle tasks
-- `packaging/windows/installer-resources` contains the English and Japanese WiX localization resources used by the Windows installers
-- Keep `microproject_contrib` jars lean when updating dependencies so the packaged app size does not grow unnecessarily
-- CI is aligned to the Gradle flow and validates the installable desktop layout on JDK 25
-
-## Build The App
-
-Compile every module and assemble the desktop application layout:
+- Windows, Linux, or macOS with a full JDK **25 or newer** that includes
+  `jpackage`. Every module compiles with `--release 25`. If `JAVA_HOME` is not
+  set, the Windows release tasks fall back to `C:\Program Files\Java\jdk-25`.
+- The checked-in Gradle Wrapper (no separate Gradle install).
+- WiX Toolset on `PATH` for the Windows MSI. A per-user WiX install under
+  `%LOCALAPPDATA%\Programs\WiX Toolset v7.0\bin` is picked up automatically.
 
 ```powershell
-.\gradlew.bat build
+.\gradlew.bat build          # compile and test all modules
+.\gradlew.bat stageAppDist   # create the runnable desktop layout
+.\scripts\run_microproject_clean.bat   # clean build and launch on Windows
 ```
 
-Create the runnable installed app layout:
+The runnable layout is `modules\microproject_ui\build\install\microproject_ui`.
+For manual UI checks always use a freshly generated layout, never an older
+`build/install` copy; see [docs/build-and-run.md](docs/build-and-run.md).
 
-```powershell
-.\gradlew.bat stageAppDist
-```
+Packaging tasks (outputs go to `build\releases\v<version>\`):
 
-Key Gradle entrypoints:
+| Task | Output |
+|---|---|
+| `packageWindowsMsi` | Windows MSI with English and Japanese installer UI |
+| `packageWindowsExe` | Windows self-contained EXE installer |
+| `packageWindowsAppImage` / `packageWindowsZip` | Portable app-image and ZIP |
 
-- `.\gradlew.bat projects`: show the multi-project layout
-- `.\gradlew.bat build`: compile the production modules and assemble per-module jars
-- `.\gradlew.bat stageAppDist`: create the installed desktop app layout from `:microproject_ui:installDist`
-- `.\gradlew.bat cleanLegacyPackagingArtifacts`: remove generated legacy packaging scratch output such as `isolated-build`
-- `.\gradlew.bat packageWindowsAppImage`: build a Windows app-image with `jpackage`
-- `.\gradlew.bat packageWindowsMsi`: build the Windows MSI
-- `.\gradlew.bat packageWindowsExe`: build the Windows self-contained EXE
-- `.\gradlew.bat publishReleaseToDocs`: publish the split EXE artifacts into local `docs/downloads` scratch space when needed
+Platform packages must be built on their target OS. Public binaries are
+GitHub Release assets; `docs/downloads/` is local scratch space and is never
+committed.
 
-When you are manually verifying a UI fix, use the installed app layout created by `stageAppDist` / `installDist`, not an older `build/install` copy. See [docs/build-and-run.md](docs/build-and-run.md) for the exact runbook.
+## Repository layout
 
-On Windows, the safest one-step launcher is `scripts\run_microproject_clean.bat`, and `scripts\run_projectlibre.bat` is a double-click entry point to the same flow.
+The Gradle build has eight production modules, listed authoritatively in
+[`settings.gradle.kts`](settings.gradle.kts). Module and JAR identifiers use the
+lower-case `microproject` spelling; see the
+[naming policy](docs/architecture/naming-policy.md).
 
-The runnable application layout is generated under:
+| Path | Contents |
+|---|---|
+| `modules/microproject_core` | Scheduling engine, data model, collaboration logic, configuration |
+| `modules/microproject_application` | Open/save workflows, file policies, document coordination |
+| `modules/microproject_ui` | Swing UI, spreadsheet and Gantt views, menus, startup |
+| `modules/microproject_exchange` | MPO, MPP, XML, XLSX, and other import/export |
+| `modules/microproject_reports` | Reports and templates |
+| `modules/microproject_ribbon` | Reusable Swing ribbon API and extension SPI |
+| `modules/microproject_bootstrap` | Update/bootstrap entry point |
+| `modules/microproject_contrib` | Bundled third-party compatibility code |
+| `packaging` | Icons, licenses, file associations, installer resources |
+| `samples` | Sample projects for screenshots and manual checks |
+| `website` | Source of the [documentation site](https://o-server.main.jp/micro-project/) |
 
-- `modules\microproject_ui\build\install\microproject_ui`
+The reports and exchange modules must not depend on the desktop UI or the
+application workflow; `.\gradlew.bat verifyIndependentBoundaries` enforces this.
+CI runs on Temurin JDK 25 ([build.yml](.github/workflows/build.yml)), and
+Windows GUI acceptance runs in [gui-acceptance.yml](.github/workflows/gui-acceptance.yml).
 
-The root release work area is generated under:
+## Contributing and releases
 
-- `build\releases\v<version>\`
+- Contributor and agent rules: [AGENTS.md](AGENTS.md)
+- Regression matrix: [TEST_PLAN.md](TEST_PLAN.md) and the
+  [GUI quality gate](docs/gui-quality-gate.md)
+- Stable release procedure: [docs/releasing.md](docs/releasing.md);
+  prerelease route: [docs/trial-release-plan.md](docs/trial-release-plan.md)
+- Documentation publishing: [docs/site-publishing.md](docs/site-publishing.md)
 
-Legacy packaging scratch output, if present, is disposable and should not be committed:
+The release workflow packages the Windows MSI and portable ZIP for every stable
+release, and Linux x64 and macOS Apple Silicon ZIPs for major updates. A stable
+release requires the full GUI gate. Beta releases are prereleases and never
+replace the stable `latest` assets or the update feed.
 
-- `isolated-build\`
+## Development status
 
-## Build The Windows Release
-
-Build the Windows release artifacts and stage them locally:
-
-```powershell
-.\gradlew.bat packageWindowsMsi
-```
-
-The Windows MSI and EXE installers include English (`en-US`) and Japanese (`ja-JP`) WiX localization resources. Windows Installer selects the matching language for the package UI where supported; the application language remains controlled by the application's own locale settings.
-
-The Gradle Windows release flow stages the packaging input under:
-
-- `build\releases\v0.0.23\jpackage-input\`
-
-The local MSI output is generated under:
-
-- `build\releases\v0.0.23\msi\microProject-0.0.23.msi`
-
-If you need the portable app-image ZIP or split EXE staging flow, use:
-
-```powershell
-.\gradlew.bat packageWindowsAppImage
-.\gradlew.bat packageWindowsZip
-.\gradlew.bat publishReleaseToDocs
-```
-
-Files under `docs/downloads/` are scratch space and must not be committed. Public binaries are GitHub Release assets.
-
-## Automated Release and Documentation Deployment
-
-The Release workflow packages Windows MSI and portable ZIP artifacts and builds Linux x64 and macOS Apple Silicon app-image ZIPs for stable branch releases. Stable publication requires the full GUI gate and all platform package jobs. See the [stable release operator runbook](docs/releasing.md) for the single release procedure and verification steps. Beta releases remain prereleases and do not replace stable `latest` assets or the unattended update feed.
-
-The canonical documentation and download entry point is [o-server.main.jp/micro-project/](https://o-server.main.jp/micro-project/), built from `website/` by the o-server documentation workflow. GitHub Pages publishes redirect stubs from `pages-redirect/`; `docs/*.html` are legacy redirects.
-
-If WiX was installed per-user rather than system-wide, keep its `bin` directory available on `PATH`. The Gradle MSI task also prepends the common per-user install path automatically:
-
-```text
-%LOCALAPPDATA%\Programs\WiX Toolset v7.0\bin
-```
-
-## Screenshot Procedure Used In This Repository
-
-The README screenshot is intentionally captured so that only the application UI is visible.
-
-- Launch the app by itself, not the whole desktop workspace
-- Open `samples\sampledata.mpp`
-- Arrange the main Gantt view at a readable zoom level
-- Capture only the app window client area so title-bar paths, taskbar items, IDE windows, notifications, and personal information do not appear
-
-## Quick Verification
-
-- `.\gradlew.bat projects`: the multi-project Gradle layout resolves
-- `.\gradlew.bat build`: all production modules compile successfully
-- `.\gradlew.bat stageAppDist`: the runnable desktop layout is generated
-- `.\gradlew.bat packageWindowsMsi`: the MSI is emitted successfully
+microProject is being built through clean-room implementations based on
+documented Microsoft Project behavior and independent fixtures. That work is
+still in progress, so parts of the source tree still mix legacy, compatibility,
+and newly implemented code, and internal boundaries may change.
 
 ## License
 
-microProject keeps the original OpenProj/ProjectLibre license materials and third-party notices in `packaging/licenses`; product branding and distribution metadata are maintained separately.
+License texts and third-party notices are kept in
+[`packaging/licenses`](packaging/licenses). New and moved source files carry
+the MIT header `Copyright (c) 2026 microProject`.
+
+## 日本語
+
+microProject は、タスク階層、日程、依存関係、リソース、進捗を Gantt チャートと
+同じ画面で管理するデスクトップ計画アプリです。Microsoft 365 風のリボン、
+Microsoft Project 形式のショートカット、CCPM（クリティカルチェーン）による
+バッファ管理、印刷・PDF 出力を備え、Java ランタイム同梱のパッケージで配布します。
+
+- **ダウンロード**: [最新リリース](https://github.com/tetsuji16/microProject/releases/latest)
+  （Windows MSI / Portable ZIP。Linux x64・macOS Apple Silicon は大きな更新時に提供）
+- **使い方**: [オンラインヘルプ・ダウンロード案内](https://o-server.main.jp/micro-project/)
+- **ファイル形式**: `.mpo`（MPO）が正式なネイティブ形式かつ標準の保存形式です。
+  Microsoft Project の `.mpp` と MPX は読込のみ対応（MPP 書出しは対象外）。
+  Project XML と XLSX は読込・保存の両方に対応します。`.pod` は ProjectLibre の標準形式で、開いて保存できますが CCPM 設定は保存されません。
+- **互換性**: スタンドアロンの Microsoft Project デスクトップとの完全互換を目標に
+  していますが、まだ達成していません。Project Server、PWA、Project Online、
+  Microsoft Planner のクラウド連携と、VBA / マクロ、COM、VSTO、Office アドインは
+  対象外です。
+- **開発状況**: 公開仕様と独自のテストデータに基づくクリーンルーム実装を
+  進めています。

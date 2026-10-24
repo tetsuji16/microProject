@@ -114,6 +114,41 @@ class MpoFileImporterTest {
 			.map(association -> (Task) ((Dependency) association).getSuccessor()).toList());
 	}
 
+	/**
+	 * Issue #887: MSP Estimated is a stored task field (MSPDI {@code Estimated}).
+	 * A default "1 day?" task must stay estimated after MPO reload and a no-op
+	 * resave, and an explicit firm duration must stay firm.
+	 */
+	@Test
+	void mpoRoundTripPreservesEstimatedAndFirmDurations() throws Exception {
+		Project project = projectForRoundTrip();
+		project.setStartDate(java.time.Instant.parse("2030-06-03T08:00:00Z").toEpochMilli());
+		NormalTask estimated = (NormalTask) firstTask(project);
+		NormalTask firm = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		estimated.setName("Estimated default duration");
+		firm.setName("Firm explicit duration");
+		long day = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		firm.setDuration(2L * day);
+		project.recalculate();
+		assignPositiveUniqueIds(project);
+		long estimatedDuration = estimated.getDuration();
+		long firmDuration = firm.getDuration();
+		assertTrue(estimated.isEstimated());
+		assertTrue(com.microproject.datatype.Duration.isEstimated(estimatedDuration));
+		assertFalse(firm.isEstimated());
+
+		Project reopened = loadFromBytes(saveProjectBytes(project));
+		Project resaved = loadFromBytes(saveProjectBytes(reopened));
+		for (Project restored : List.of(reopened, resaved)) {
+			NormalTask restoredEstimated = (NormalTask) restored.findByUniqueId(estimated.getUniqueId());
+			NormalTask restoredFirm = (NormalTask) restored.findByUniqueId(firm.getUniqueId());
+			assertTrue(restoredEstimated.isEstimated());
+			assertEquals(estimatedDuration, restoredEstimated.getDuration());
+			assertFalse(restoredFirm.isEstimated());
+			assertEquals(firmDuration, restoredFirm.getDuration());
+		}
+	}
+
 	@Test
 	void mpoRoundTripPreservesFixedDateSsFiftyPercentDurationLag() throws Exception {
 		Project project = projectForRoundTrip();
@@ -2365,6 +2400,38 @@ class MpoFileImporterTest {
 		assertTrue(restored.isManualWidth(0));
 		assertFalse(restored.isManualWidth(1));
 		assertTrue(restored.isManualWidth(2));
+	}
+
+	@Test
+	void headerWrapOffSurvivesMpoSaveAndReloadWhileDefaultLayoutsStayUnchanged() throws Exception {
+		FieldDictionary dictionary = FieldDictionary.getInstance();
+		Project defaults = projectForRoundTrip();
+		SpreadSheetFieldArray plain = new SpreadSheetFieldArray();
+		plain.add(dictionary.getFieldFromId("Field.name"));
+		plain.add(dictionary.getFieldFromId("Field.duration"));
+		defaults.setFieldArray(plain);
+		ByteArrayOutputStream defaultArchive = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(defaults, defaultArchive));
+		String defaultLayout = new String(readEntries(defaultArchive.toByteArray()).get(MpoFileImporter.LAYOUT_ENTRY),
+			StandardCharsets.UTF_8);
+		assertFalse(defaultLayout.contains("wrapHeader"), "default layouts keep the previous bytes");
+		assertTrue(loadFromBytes(defaultArchive.toByteArray()).getFieldArray().isHeaderWrap(1),
+			"a layout without the key loads with wrapping on");
+
+		Project original = projectForRoundTrip();
+		SpreadSheetFieldArray layout = new SpreadSheetFieldArray();
+		layout.add(dictionary.getFieldFromId("Field.name"));
+		layout.add(dictionary.getFieldFromId("Field.duration"));
+		layout.add(dictionary.getFieldFromId("Field.percentComplete"));
+		layout.setWidths(new ArrayList<>(List.of(240, 88, 72)));
+		layout.setHeaderWraps(new ArrayList<>(List.of(true, false, true)));
+		original.setFieldArray(layout);
+		ByteArrayOutputStream archive = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(original, archive));
+		SpreadSheetFieldArray restored = loadFromBytes(archive.toByteArray()).getFieldArray();
+		assertTrue(restored.isHeaderWrap(0));
+		assertFalse(restored.isHeaderWrap(1));
+		assertTrue(restored.isHeaderWrap(2));
 	}
 
 	@Test

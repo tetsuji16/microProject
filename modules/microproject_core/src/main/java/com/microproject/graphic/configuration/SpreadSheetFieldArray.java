@@ -52,12 +52,19 @@ public class SpreadSheetFieldArray extends ArrayList<Field> implements NamedItem
 	transient boolean userCreated = false;
 	ArrayList<Integer> widths = null;//new ArrayList<Integer>();
 	ArrayList<Boolean> manualWidths = null;
+	/**
+	 * Per-column header wrapping (Microsoft Project "Header Wrapping"); null or a missing
+	 * entry means wrapping is on.  Transient on purpose: the POD wire format stays frozen,
+	 * so POD files load with the default and only MPO persists the switch.
+	 */
+	transient ArrayList<Boolean> headerWraps = null;
 	@Override
 	public SpreadSheetFieldArray clone() {
 		SpreadSheetFieldArray copy = (SpreadSheetFieldArray) super.clone();
 		copy.map = new LinkedHashMap<>(map);
 		copy.widths = widths == null ? null : new ArrayList<>(widths);
 		copy.manualWidths = manualWidths == null ? null : new ArrayList<>(manualWidths);
+		copy.headerWraps = headerWraps == null ? null : new ArrayList<>(headerWraps);
 		return copy;
 	}
 
@@ -100,6 +107,17 @@ public class SpreadSheetFieldArray extends ArrayList<Field> implements NamedItem
 		f.removeColumnMetadata(position);
 		return f;
 	}
+	/** Same editable-copy contract as {@link #insertField}: returns the array carrying the new wrap flag. */
+	public SpreadSheetFieldArray withHeaderWrap(int position, boolean wrap) {
+		SpreadSheetFieldArray f = makeEditableVersion();
+		f.alignColumnMetadata();
+		ArrayList<Boolean> flags = new ArrayList<>(f.size());
+		for (int index = 0; index < f.size(); index++)
+			flags.add(index == position ? Boolean.valueOf(wrap) : Boolean.valueOf(f.isHeaderWrap(index)));
+		f.setHeaderWraps(flags);
+		return f;
+	}
+
 	public SpreadSheetFieldArray move(int oldPosition, int newPosition) {
 		SpreadSheetFieldArray f = makeEditableVersion();
 		f.alignColumnMetadata();
@@ -115,6 +133,7 @@ public class SpreadSheetFieldArray extends ArrayList<Field> implements NamedItem
 	private void alignColumnMetadata() {
 		alignMetadata(widths, -1);
 		alignMetadata(manualWidths, false);
+		alignMetadata(headerWraps, true);
 	}
 
 	private <T> void alignMetadata(ArrayList<T> metadata, T defaultValue) {
@@ -131,6 +150,8 @@ public class SpreadSheetFieldArray extends ArrayList<Field> implements NamedItem
 			widths.add(position, -1);
 		if (manualWidths != null)
 			manualWidths.add(position, false);
+		if (headerWraps != null)
+			headerWraps.add(position, true);
 	}
 
 	private void removeColumnMetadata(int position) {
@@ -138,11 +159,14 @@ public class SpreadSheetFieldArray extends ArrayList<Field> implements NamedItem
 			widths.remove(position);
 		if (manualWidths != null)
 			manualWidths.remove(position);
+		if (headerWraps != null)
+			headerWraps.remove(position);
 	}
 
 	private void moveColumnMetadata(int oldPosition, int newPosition) {
 		moveMetadata(widths, oldPosition, newPosition);
 		moveMetadata(manualWidths, oldPosition, newPosition);
+		moveMetadata(headerWraps, oldPosition, newPosition);
 	}
 
 	private <T> void moveMetadata(ArrayList<T> metadata, int oldPosition, int newPosition) {
@@ -388,6 +412,22 @@ public class SpreadSheetFieldArray extends ArrayList<Field> implements NamedItem
 
 
 
+
+	/** Whether the heading of this field-array column may wrap onto several lines (default true). */
+	public boolean isHeaderWrap(int column) {
+		return headerWraps == null || column < 0 || column >= headerWraps.size()
+				|| !Boolean.FALSE.equals(headerWraps.get(column));
+	}
+
+	public ArrayList<Boolean> getHeaderWraps() {
+		return headerWraps;
+	}
+
+	/** Stores the per-column wrap flags; an all-true list is stored as null so defaults stay implicit. */
+	public void setHeaderWraps(ArrayList<Boolean> headerWraps) {
+		this.headerWraps = headerWraps == null || headerWraps.stream().allMatch(value -> !Boolean.FALSE.equals(value))
+				? null : headerWraps;
+	}
 
 	public WorkspaceSetting createWorkspace(int context) {
 		Workspace ws = new Workspace();

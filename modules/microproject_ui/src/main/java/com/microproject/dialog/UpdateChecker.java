@@ -43,8 +43,8 @@ import com.microproject.temporary.TemporaryCleanupQueue;
  */
 public final class UpdateChecker {
 	private static final Logger logger = Logger.getLogger(UpdateChecker.class.getName());
-	static final String RELEASES_URL = "https://github.com/tetsuji16/ProjectLibre/releases/latest";
-	private static final String API_URL = "https://api.github.com/repos/tetsuji16/ProjectLibre/releases/latest";
+	static final String RELEASES_URL = "https://github.com/tetsuji16/microProject/releases/latest";
+	private static final String API_URL = "https://api.github.com/repos/tetsuji16/microProject/releases/latest";
 	private static final int TIMEOUT_MILLIS = 5000;
 	private static final int MAX_RELEASE_JSON_BYTES = 1024 * 1024;
 	private static final String STAGING_DIRECTORY_PROPERTY = "microproject.update.staging-directory";

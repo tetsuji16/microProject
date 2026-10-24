@@ -47,21 +47,28 @@ public class SimpleComboBoxEditor extends DefaultCellEditor  {
 	 * @param arg0
 	 */
 	public SimpleComboBoxEditor(ComboBoxModel arg0) {
-		super(new JComboBox(arg0));
+		this(new JComboBox(arg0));
+	}
+
+	protected SimpleComboBoxEditor(JComboBox comboBox) {
+		super(comboBox);
 	}
 	
 	public Component getTableCellEditorComponent(JTable arg0, Object arg1,
 			boolean arg2, int row, int column) {
 		cachedTable = arg0;
 		component=(JComboBox)super.getTableCellEditorComponent(arg0, arg1, arg2, row, column);
-		field = ((SpreadSheetModel)arg0.getModel()).getFieldInViewColumn(column);
-		component.setEditable(field.hasDynamicSelect()); // don't allow the user to type a choice if field has fixed values
+		field = arg0 != null && arg0.getModel() instanceof SpreadSheetModel model ? model.getFieldInViewColumn(column) : null;
+		component.setEditable(field != null && isFreeTextAllowed(field)); // don't allow the user to type a choice if field has fixed values
 		JTextField f = (JTextField) component.getEditor().getEditorComponent();
 
 		oldValue = f.getText();
 		return component;
 	}
 
-	
+	/** Whether the user may type a choice that is not in the list. */
+	protected boolean isFreeTextAllowed(Field field) {
+		return field.hasDynamicSelect();
+	}
 }
 

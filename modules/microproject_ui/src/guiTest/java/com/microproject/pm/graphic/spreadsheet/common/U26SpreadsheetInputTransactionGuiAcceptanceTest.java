@@ -20,6 +20,7 @@ import java.awt.event.KeyEvent;
 import java.util.Calendar;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.logging.Handler;
@@ -125,7 +126,7 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		robot.setAutoDelay(35);
 		SwingUtilities.invokeAndWait(() -> tabs.setSelectedIndex(0));
 		activate(fixture.entrySheet, robot);
-		editWithPhysicalKeys(robot, fixture.entrySheet, fixture.entryRow, fixture.durationColumn, "10", "8 days");
+		editWithPhysicalKeys(robot, fixture.entrySheet, fixture.entryRow, fixture.durationColumn, "10", shown("8 days"));
 		assertEquals(10L * 60L * 60L * 1000L, Duration.millis(fixture.task.getRawDuration()),
 			"physical bare duration input must use the owning project's default hours");
 		// Task schedules normalize entered durations to physical milliseconds; parsing
@@ -156,7 +157,7 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		BarGeometry predecessorBarBeforeDurationTransaction = ganttBarGeometry(fixture, fixture.task);
 		BarGeometry successorBarBeforeDurationTransaction = ganttBarGeometry(fixture, successor);
 		int successorRow = findTaskRow(fixture.entrySheet, successor);
-		editWithPhysicalKeys(robot, fixture.entrySheet, fixture.entryRow, fixture.durationColumn, "12", "10 hours");
+		editWithPhysicalKeys(robot, fixture.entrySheet, fixture.entryRow, fixture.durationColumn, "12", shown("10 hours"));
 		long predecessorFinishAfterDurationTransaction = fixture.task.getEnd();
 		long successorStartAfterDurationTransaction = successor.getStart();
 		long successorFinishAfterDurationTransaction = successor.getEnd();
@@ -168,7 +169,7 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		assertTrue(successorFinishAfterDurationTransaction > successorFinishBeforeDurationTransaction);
 		String predecessorDurationAfterTransaction = renderedCellText(fixture.entrySheet,
 			findTaskRow(fixture.entrySheet, fixture.task), fixture.durationColumn);
-		assertEquals("1.5 days", predecessorDurationAfterTransaction,
+		assertEquals(shown("1.5 days"), predecessorDurationAfterTransaction,
 			"duration cell must redraw 12 hours using the project's six-hour day");
 		int successorStartColumn = findColumn(fixture.entrySheet, "Field.start");
 		Field successorStartField = ((SpreadSheetModel) fixture.entrySheet.getModel()).getFieldInColumn(
@@ -229,7 +230,7 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 			renderedCellText(fixture.entrySheet, findTaskRow(fixture.entrySheet, successor), successorStartColumn));
 		assertTrue(!ganttBarGeometry(fixture, fixture.task).equals(predecessorBarBeforeDurationTransaction));
 		assertTrue(!ganttBarGeometry(fixture, successor).equals(successorBarBeforeDurationTransaction));
-		editWithPhysicalKeys(robot, fixture.entrySheet, fixture.entryRow, fixture.durationColumn, "10", "12 hours");
+		editWithPhysicalKeys(robot, fixture.entrySheet, fixture.entryRow, fixture.durationColumn, "10", shown("12 hours"));
 
 		editWithPhysicalKeys(robot, fixture.entrySheet, fixture.entryRow, fixture.startColumn, "2026/9/25", null,
 			KeyEvent.VK_ENTER, false);
@@ -319,19 +320,19 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 
 		SwingUtilities.invokeAndWait(() -> tabs.setSelectedIndex(0));
 		activate(fixture.entrySheet, robot);
-		editWithPhysicalKeys(robot, fixture.entrySheet, fixture.entryRow, fixture.durationColumn, "1 day", "10 hours");
+		editWithPhysicalKeys(robot, fixture.entrySheet, fixture.entryRow, fixture.durationColumn, "1 day", shown("10 hours"));
 		assertEquals(6L * 60L * 60L * 1000L, Duration.millis(fixture.task.getRawDuration()),
 			"with a six-hour project day, physical 1 day input must store six hours");
 		assertEquals(TimeUnit.DAYS, fixture.task.getDurationDisplayUnit());
-		assertEquals("1 day", durationText(fixture.task,
+		assertEquals(shown("1 day"), durationText(fixture.task,
 			((SpreadSheetModel) fixture.entrySheet.getModel()).getFieldContext()));
-		editWithPhysicalKeys(robot, fixture.entrySheet, fixture.entryRow, fixture.durationColumn, "6 hours", "1 day");
+		editWithPhysicalKeys(robot, fixture.entrySheet, fixture.entryRow, fixture.durationColumn, "6 hours", shown("1 day"));
 		assertEquals(6L * 60L * 60L * 1000L, Duration.millis(fixture.task.getRawDuration()),
 			"physical 6 hours input must match 1 day on this project's calendar");
 		assertEquals(TimeUnit.HOURS, fixture.task.getDurationDisplayUnit());
-		assertEquals("6 hours", durationText(fixture.task,
+		assertEquals(shown("6 hours"), durationText(fixture.task,
 			((SpreadSheetModel) fixture.entrySheet.getModel()).getFieldContext()));
-		editWithPhysicalKeys(robot, fixture.entrySheet, fixture.entryRow, fixture.durationColumn, "10", "6 hours");
+		editWithPhysicalKeys(robot, fixture.entrySheet, fixture.entryRow, fixture.durationColumn, "10", shown("6 hours"));
 		assertEquals(10L * 60L * 60L * 1000L, Duration.millis(fixture.task.getRawDuration()),
 			"restore the bare project-hour duration for the structural save/reload assertions");
 		assertEquals(TimeUnit.HOURS, fixture.task.getDurationDisplayUnit());
@@ -390,7 +391,7 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		assertEquals(DurationFormat.getProjectInstance().format(restored.getDurationForDisplay(),
 			reopened.getDurationDefaults()), durationText(restored, reopenedContext),
 			"MPO reopen must retain the project duration display unit for the task cell");
-		assertEquals("0 hours", FieldDictionary.getInstance().getFieldFromId("Field.remainingDuration")
+		assertEquals(shown("0 hours"), FieldDictionary.getInstance().getFieldFromId("Field.remainingDuration")
 			.getText(restored, reopenedContext), "MPO reopen must render zero remaining duration using project defaults");
 		assertEquals("100%", FieldDictionary.getInstance().getFieldFromId("Field.percentComplete")
 			.getText(restored, reopenedContext), "MPO reopen must render the committed progress value as 100%");
@@ -976,6 +977,13 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		Field field = FieldDictionary.getInstance().getFieldFromId("Field.remainingDuration");
 		return field.getText(fixture.task,
 			((SpreadSheetModel) fixture.entrySheet.getModel()).getFieldContext());
+	}
+
+	/** Expected display text: the ja GUI locale shows Japanese duration units (issue #893). */
+	private static String shown(String english) {
+		if (!"ja".equals(Locale.getDefault().getLanguage()))
+			return english;
+		return english.replaceFirst(" days?$", " \u65e5").replaceFirst(" hours?$", " \u6642\u9593");
 	}
 
 	private static String durationText(NormalTask task, FieldContext context) {

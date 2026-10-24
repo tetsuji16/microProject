@@ -143,11 +143,20 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> dialog != null && dialog.isVisible(), "working-time dialog did not open");
 		int[] exceptionsBefore = new int[1];
 		SwingUtilities.invokeAndWait(() -> exceptionsBefore[0] = dialog.getScratchCalendar().getExceptionDays().length);
+		String importLabel = Messages.getString("ChangeWorkingTimeDialogBox.ImportNonWorkingDays");
+		SwingUtilities.invokeAndWait(() -> {
+			assertEquals(importLabel, dialog.importNonWorkingDays.getText(),
+				"import button must show the active-locale label (issue #862)");
+			assertTrue(dialog.importNonWorkingDays.getWidth() >= dialog.importNonWorkingDays.getPreferredSize().width,
+				"import button label must not be clipped by the dialog layout");
+		});
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		click(robot, dialog.importNonWorkingDays);
 		GuiAcceptanceSupport.await(() -> visibleFileChooser() != null, "calendar import did not open the shared chooser");
 		Window chooser = visibleFileChooser();
+		if (chooser instanceof JDialog chooserDialog)
+			assertEquals(importLabel, chooserDialog.getTitle(), "import chooser title must use the localized label");
 		AbstractButton cancel = findChooserCancel(chooser);
 		assertTrue(cancel != null,
 			"calendar import chooser must expose Cancel");
