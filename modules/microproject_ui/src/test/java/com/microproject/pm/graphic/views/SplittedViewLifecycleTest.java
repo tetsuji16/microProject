@@ -32,6 +32,9 @@ import java.util.List;
 
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JRootPane;
+import javax.swing.SwingUtilities;
+import javax.swing.border.EmptyBorder;
 
 import org.junit.jupiter.api.Test;
 
@@ -77,6 +80,74 @@ class SplittedViewLifecycleTest {
 			view.getRightScrollPane().getAccessibleContext().getAccessibleName());
 	}
 
+	@Test
+	void restoredDividerChoiceLocksBothMainViewChildrenAgainstResponsiveDefaults() throws Exception {
+		TestView[] views = new TestView[2];
+		int[] restoredLocation = new int[1];
+		SwingUtilities.invokeAndWait(() -> {
+			MainView mainView = new MainView();
+			mainView.setSize(1000, 600);
+			views[0] = new TestView(new Synchronizer(), 180);
+			views[1] = new TestView(new Synchronizer());
+			views[0].init();
+			views[1].init();
+			views[0].setSize(1000, 260);
+			views[1].setSize(1000, 260);
+			views[0].setParentView(mainView);
+			views[1].setParentView(mainView);
+			mainView.setTopComponent(views[0]);
+			mainView.setBottomComponent(views[1]);
+			views[1].restoreForTest(360);
+			restoredLocation[0] = views[0].getDividerLocation();
+			assertTrue(views[0].isDividerLocationManuallyAdjusted());
+			assertTrue(views[1].isDividerLocationManuallyAdjusted());
+		});
+		SwingUtilities.invokeAndWait(views[0]::requestResponsiveForTest);
+		assertEquals(restoredLocation[0], views[0].getDividerLocation(),
+			"the responsive sibling must preserve the divider restored through its peer");
+	}
+
+	@Test
+	void responsiveClampAccountsForSplitInsetsAndRightPaneChrome() throws Exception {
+		TestView[] view = new TestView[1];
+		SwingUtilities.invokeAndWait(() -> {
+			view[0] = new TestView(new Synchronizer(), 420, 180);
+			view[0].setBorder(new EmptyBorder(3, 5, 4, 7));
+			view[0].setSize(400, 260);
+			view[0].init();
+			view[0].getRightScrollPane().setBorder(new EmptyBorder(0, 2, 0, 3));
+			view[0].doLayout();
+			view[0].requestResponsiveForTest();
+		});
+		SwingUtilities.invokeAndWait(() -> view[0].doLayout());
+		SwingUtilities.invokeAndWait(() -> {
+			int rightPaneWidth = view[0].getRightScrollPane().getWidth();
+			assertTrue(rightPaneWidth >= 180,
+				"the responsive clamp must reserve the complete right-pane minimum including scrollpane chrome");
+			assertTrue(view[0].getDividerLocation() <= 400 - 5 - 7 - view[0].getDividerSize() - 180 + 5,
+				"the divider coordinate must include the split's left inset and reserve the right inset");
+			view[0].cleanUp();
+		});
+	}
+
+	@Test
+	void reinitializeRequestsValidationAtOutermostAttachedSplitRoot() throws Exception {
+		CountingRootPane[] rootPane = new CountingRootPane[1];
+		TestView[] view = new TestView[1];
+		SwingUtilities.invokeAndWait(() -> {
+			rootPane[0] = new CountingRootPane();
+			MainView mainView = new MainView();
+			view[0] = new TestView(new Synchronizer());
+			view[0].init();
+			mainView.setTop(view[0]);
+			rootPane[0].setContentPane(mainView);
+			rootPane[0].revalidateCalls = 0;
+			view[0].reinitialize();
+		});
+		assertTrue(rootPane[0].revalidateCalls > 0,
+			"rebuilding an inner split must request validation from the outermost attached Swing validate root");
+	}
+
 	private static int synchronizerCount(Synchronizer synchronizer) throws ReflectiveOperationException {
 		Field field = Synchronizer.class.getDeclaredField("scrollPaneSynchronizers");
 		field.setAccessible(true);
@@ -86,9 +157,21 @@ class SplittedViewLifecycleTest {
 	private static final class TestView extends SplittedView {
 		private int leftCreated;
 		private int rightCreated;
+		private final int preferredLeftWidth;
+		private final int minimumRightWidth;
 
 		private TestView(Synchronizer synchronizer) {
+			this(synchronizer, -1, 96);
+		}
+
+		private TestView(Synchronizer synchronizer, int preferredLeftWidth) {
+			this(synchronizer, preferredLeftWidth, 96);
+		}
+
+		private TestView(Synchronizer synchronizer, int preferredLeftWidth, int minimumRightWidth) {
 			super(synchronizer);
+			this.preferredLeftWidth = preferredLeftWidth;
+			this.minimumRightWidth = minimumRightWidth;
 		}
 
 		@Override
@@ -105,6 +188,30 @@ class SplittedViewLifecycleTest {
 
 		private void restoreForTest(int location) {
 			restoreDividerLocation(location);
+		}
+
+		@Override
+		protected int preferredLeftPaneWidth() {
+			return preferredLeftWidth;
+		}
+
+		@Override
+		protected int minimumResponsiveRightPaneWidth() {
+			return minimumRightWidth;
+		}
+
+		private void requestResponsiveForTest() {
+			requestResponsiveDividerLayout();
+		}
+	}
+
+	private static final class CountingRootPane extends JRootPane {
+		private int revalidateCalls;
+
+		@Override
+		public void revalidate() {
+			revalidateCalls++;
+			super.revalidate();
 		}
 	}
 }

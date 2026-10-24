@@ -12,12 +12,16 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Dimension;
+import java.awt.GraphicsConfiguration;
+import java.awt.GraphicsDevice;
 import java.awt.GraphicsEnvironment;
+import java.awt.Insets;
 import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.Point;
 import java.awt.Component;
 import java.awt.Container;
+import java.awt.Toolkit;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.Window;
@@ -80,6 +84,8 @@ import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
+import com.microproject.pm.graphic.spreadsheet.SpreadSheetColumnModel;
+import com.microproject.pm.graphic.spreadsheet.renderer.NameCellComponent;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetColumnMenu;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetPopupMenu;
 import com.microproject.pm.graphic.spreadsheet.common.SpreadSheetRowHeader;
@@ -112,11 +118,16 @@ class TaskTableGanttGridGuiAcceptanceTest {
 	private TaskSelectionController selectionController;
 	private com.microproject.pm.graphic.timescale.ScaledScrollPane ganttTimescalePane;
 	private GraphicManager popupGraphicManager;
+	private GraphicManager productionGraphicManager;
 	@AfterEach
 	void closeWindow() throws Exception {
 		if (popupGraphicManager != null) {
 			SwingUtilities.invokeAndWait(() -> popupGraphicManager.cleanUp());
 			popupGraphicManager = null;
+		}
+		if (productionGraphicManager != null) {
+			SwingUtilities.invokeAndWait(() -> productionGraphicManager.cleanUp());
+			productionGraphicManager = null;
 		}
 		if (selectionController != null) {
 			SwingUtilities.invokeAndWait(() -> selectionController.close());
@@ -227,6 +238,417 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> tableScroll.getVerticalScrollBar().getValue() > 0,
 			"mouse wheel must scroll the 20-task table");
 		assertTrue(tableScroll.getVerticalScrollBar().getValue() > 0, "table must remain scrollable with 20 tasks");
+	}
+
+	@Test
+	void productionTaskColumnsReportReadableLayoutAtCommonWindowSizes() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Issue432WindowSizes windowSizes = issue432WindowSizes();
+		Fixture fixture = createFixture(10);
+		SpreadSheetFieldArray taskTemplate = SpreadsheetViewSupport.getTaskFields();
+		String templateBeforeView = "defaultWidths=" + taskTemplate.getWidths()
+			+ " defaultManualWidths=" + taskTemplate.getManualWidths();
+		for (int index = 1; index <= 10; index++) {
+			NormalTask task = (NormalTask) findTaskNode(fixture.project, "Sequential " + index).getImpl();
+			task.setName(String.format(java.util.Locale.ROOT, "Task %02d", index));
+		}
+		DocumentFrame[] document = new DocumentFrame[1];
+		SwingUtilities.invokeAndWait(() -> {
+			var mainWindow = new com.microproject.pm.graphic.frames.MainRibbonFrame("Issue 432 task layout", null);
+			frame = mainWindow;
+			productionGraphicManager = new GraphicManager(mainWindow);
+			mainWindow.setGraphicManager(productionGraphicManager);
+			productionGraphicManager.initView();
+			document[0] = productionGraphicManager.addProjectFrame(fixture.project);
+			mainWindow.setExtendedState(JFrame.NORMAL);
+			mainWindow.setBounds(windowSizes.usableWorkArea().x, windowSizes.usableWorkArea().y,
+				windowSizes.wide().width, windowSizes.wide().height);
+			mainWindow.setAlwaysOnTop(true);
+			mainWindow.setVisible(true);
+			document[0].activateGanttView();
+			taskLayoutView[0] = (GanttView) document[0].getActiveTopView();
+		});
+		GuiAcceptanceSupport.await(() -> frame.isShowing() && document[0].isShowing(),
+			"production Gantt task view did not become visible");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(35);
+		GuiAcceptanceSupport.activateAndAwaitRenderedWindow(frame, frame.getContentPane(), robot, true,
+			"Issue 432 production task layout");
+		GanttView view = taskLayoutView[0];
+		Path directory = Path.of(System.getProperty("microproject.gui.artifacts.dir", "build/guiTest-artifacts"));
+		Files.createDirectories(directory);
+		StringBuilder evidence = new StringBuilder("Issue #432 production layout diagnostic\n")
+			.append("taskTemplateBeforeView=").append(templateBeforeView).append('\n')
+			.append("projectFieldArrayBeforeView=").append(fixture.project.getFieldArray()).append('\n')
+			.append("usableWorkArea=").append(windowSizes.usableWorkArea())
+			.append(" displayScale=").append(windowSizes.displayScale()).append('\n')
+			.append("wideWindowSize=").append(windowSizes.wide())
+			.append(" narrowWindowSize=").append(windowSizes.narrow()).append('\n');
+		Files.writeString(directory.resolve("issue-432-layout.txt"), evidence.toString());
+		double[] previousGanttCenterDate = { Double.NaN };
+		for (Dimension size : List.of(windowSizes.wide(), windowSizes.narrow(), windowSizes.wide())) {
+			evidence.append("requestedWindowSize=").append(size).append(" frameBeforeResize=")
+				.append(frame.getBounds()).append('\n');
+			Files.writeString(directory.resolve("issue-432-layout.txt"), evidence.toString());
+			SwingUtilities.invokeAndWait(() -> {
+				frame.setExtendedState(JFrame.NORMAL);
+				frame.setBounds(windowSizes.usableWorkArea().x, windowSizes.usableWorkArea().y, size.width, size.height);
+			});
+			GuiAcceptanceSupport.await(() -> frame.getWidth() == size.width && frame.getHeight() == size.height,
+				"window resize did not reach " + size.width + "x" + size.height
+					+ " usable=" + windowSizes.usableWorkArea() + " scale=" + windowSizes.displayScale()
+					+ " actual=" + frame.getBounds());
+			GuiAcceptanceSupport.await(() -> frame.getContentPane().isValid() && document[0].getContentPane().isValid(),
+				"visible task layout content did not validate after resize: " + size);
+			robot.delay(350);
+			String layout = issue432LayoutSnapshot(view, fixture.project);
+			evidence.append(size.width).append('x').append(size.height).append('\n').append(layout).append('\n');
+			if (!Double.isNaN(previousGanttCenterDate[0])) {
+				double visibleCenterX = view.getGantt().getVisibleRect().getCenterX();
+				double preservedCenterX = view.coord.toX(previousGanttCenterDate[0]);
+				assertTrue(Math.abs(visibleCenterX - preservedCenterX) <= 1.0d,
+					"responsive resizing must keep the Gantt's visible center date; expectedX="
+						+ preservedCenterX + " actualCenterX=" + visibleCenterX);
+			}
+			previousGanttCenterDate[0] = ganttVisibleCenterDate(view);
+			robot.mouseMove(0, 0);
+			robot.delay(100);
+			captureVisibleLayout(robot, "issue-432-" + size.width + "x" + size.height + "-" + evidence.length() + ".png");
+			Files.writeString(directory.resolve("issue-432-layout.txt"), evidence.toString());
+			assertIssue432ReadableLayout(view, fixture.project);
+		}
+		int nameColumn = findColumn(view.getSpreadSheet(), "Field.name");
+		int initialNameWidth = view.getSpreadSheet().getColumnModel().getColumn(nameColumn).getWidth();
+		dragColumnBoundary(robot, view.getSpreadSheet(), nameColumn, -30);
+		GuiAcceptanceSupport.await(() -> view.getSpreadSheet().getColumnModel().getColumn(nameColumn).getWidth() < initialNameWidth,
+			"physical header drag did not reduce the task-name column");
+		int manuallySavedNameWidth = view.getSpreadSheet().getColumnModel().getColumn(nameColumn).getWidth();
+		assertTrue(manuallySavedNameWidth > 0, "the physical header resize must produce a usable width");
+		assertTrue(manuallySavedNameWidth < 140, "the saved manual width must be narrower than the fresh name default");
+		SpreadSheetColumnModel liveColumns = (SpreadSheetColumnModel) view.getSpreadSheet().getColumnModel();
+		assertTrue(liveColumns.isWidthManuallyAdjusted("Field.name"),
+			"a physical header drag must be recorded as a user-saved width");
+		SpreadSheetFieldArray[] savedFields = new SpreadSheetFieldArray[1];
+		SwingUtilities.invokeAndWait(() -> savedFields[0] = view.getSpreadSheet().getFieldArrayWithWidths(
+			((SpreadSheetFieldArray) view.getSpreadSheet().getFieldArray()).clone()));
+		SwingUtilities.invokeAndWait(() -> {
+			fixture.project.setFieldArray(savedFields[0]);
+			view.reinitialize();
+		});
+		GuiAcceptanceSupport.await(() -> view.getSpreadSheet().isShowing() && view.getGantt().isShowing(),
+			"the production task view did not return after a saved-width rebuild");
+		try {
+			GuiAcceptanceSupport.await(() -> frame.getContentPane().isValid() && document[0].getContentPane().isValid(),
+				"visible task layout content did not validate after rebuild");
+		} catch (AssertionError readinessFailure) {
+			String readinessState = issue432ReadinessSnapshot(document[0], view);
+			Files.writeString(directory.resolve("issue-432-readiness-after-rebuild.txt"), readinessState);
+			throw new AssertionError(readinessFailure.getMessage() + "\n" + readinessState, readinessFailure);
+		}
+		assertEquals(manuallySavedNameWidth,
+			view.getSpreadSheet().getColumnModel().getColumn(findColumn(view.getSpreadSheet(), "Field.name")).getWidth(),
+			"an explicitly saved manual width must survive the production view rebuild");
+		assertTrue(((SpreadSheetColumnModel) view.getSpreadSheet().getColumnModel()).isWidthManuallyAdjusted("Field.name"),
+			"the rebuilt column must retain its manual-width provenance");
+		assertColumnHeadersAligned(view.getSpreadSheet());
+		captureVisibleLayout(robot, "issue-432-manual-width-after-rebuild.png");
+		SwingUtilities.invokeAndWait(() -> {
+			frame.setExtendedState(JFrame.NORMAL);
+			frame.setBounds(windowSizes.usableWorkArea().x, windowSizes.usableWorkArea().y,
+				windowSizes.narrow().width, windowSizes.narrow().height);
+		});
+		GuiAcceptanceSupport.await(() -> frame.getWidth() == windowSizes.narrow().width
+				&& frame.getHeight() == windowSizes.narrow().height,
+			"window resize after width restore did not settle: " + windowSizes);
+		GuiAcceptanceSupport.await(() -> frame.getContentPane().isValid() && document[0].getContentPane().isValid(),
+			"visible task layout content did not validate after saved-width resize");
+		robot.delay(350);
+		assertEquals(manuallySavedNameWidth,
+			view.getSpreadSheet().getColumnModel().getColumn(findColumn(view.getSpreadSheet(), "Field.name")).getWidth(),
+			"window resizing must not overwrite a manually saved width");
+		assertTrue(view.getGantt().getWidth() > 200, "the Gantt must remain visible after resizing around a saved column width");
+		assertColumnHeadersAligned(view.getSpreadSheet());
+		captureVisibleLayout(robot, "issue-432-manual-width-after-resize.png");
+		int dividerBeforeDrag = view.getDividerLocation();
+		String dividerTarget = dragSplitDivider(robot, view, 35);
+		assertTrue(dividerBeforeDrag != view.getDividerLocation(),
+			"physical divider gesture did not move the split; target=" + dividerTarget
+				+ " before=" + dividerBeforeDrag + " after=" + view.getDividerLocation());
+		GuiAcceptanceSupport.await(view::isDividerLocationManuallyAdjusted,
+			"physical divider drag must mark the chosen split as explicit; target=" + dividerTarget
+				+ " before=" + dividerBeforeDrag + " after=" + view.getDividerLocation());
+		int restoredDividerLocation = view.getDividerLocation() - 20;
+		SwingUtilities.invokeAndWait(() -> view.restoreDividerLocation(restoredDividerLocation));
+		assertEquals(restoredDividerLocation, view.getDividerLocation(),
+			"restoring a saved divider location must apply the saved pixel position");
+		SwingUtilities.invokeAndWait(() -> {
+			frame.setExtendedState(JFrame.NORMAL);
+			frame.setBounds(windowSizes.usableWorkArea().x, windowSizes.usableWorkArea().y,
+				windowSizes.wide().width, windowSizes.wide().height);
+		});
+		GuiAcceptanceSupport.await(() -> frame.getWidth() == windowSizes.wide().width
+				&& frame.getHeight() == windowSizes.wide().height,
+			"window resize after explicit divider drag did not settle: " + windowSizes);
+		GuiAcceptanceSupport.await(() -> frame.getContentPane().isValid() && document[0].getContentPane().isValid(),
+			"visible task layout content did not validate after restored-divider resize");
+		robot.delay(350);
+		assertEquals(restoredDividerLocation, view.getDividerLocation(),
+			"resizing must preserve the explicitly restored divider location");
+		Files.writeString(directory.resolve("issue-432-layout.txt"), evidence.toString());
+	}
+
+	private final GanttView[] taskLayoutView = new GanttView[1];
+
+	private record Issue432WindowSizes(Rectangle usableWorkArea, Dimension wide, Dimension narrow, String displayScale) {
+	}
+
+	private static Issue432WindowSizes issue432WindowSizes() {
+		GraphicsDevice device = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice();
+		GraphicsConfiguration configuration = device.getDefaultConfiguration();
+		Rectangle screen = configuration.getBounds();
+		Insets insets = Toolkit.getDefaultToolkit().getScreenInsets(configuration);
+		Rectangle usable = new Rectangle(screen.x + insets.left, screen.y + insets.top,
+			screen.width - insets.left - insets.right, screen.height - insets.top - insets.bottom);
+		Dimension wide = new Dimension(Math.min(1300, usable.width - 16), Math.min(820, usable.height - 16));
+		Dimension narrow = new Dimension(Math.min(1009, wide.width - 64), Math.min(762, wide.height - 32));
+		String scale = configuration.getDefaultTransform().getScaleX() + "x"
+			+ configuration.getDefaultTransform().getScaleY();
+		Assumptions.assumeTrue(wide.width >= 994 && narrow.width >= 930 && wide.height >= 650 && narrow.height >= 620,
+			"Issue #432 needs two distinct usable desktop sizes; usable=" + usable + " scale=" + scale
+				+ " requestedWide=" + wide + " requestedNarrow=" + narrow);
+		return new Issue432WindowSizes(usable, wide, narrow, scale);
+	}
+
+	private static String issue432LayoutSnapshot(GanttView view, Project project) throws Exception {
+		String[] snapshot = new String[1];
+		SwingUtilities.invokeAndWait(() -> {
+			SpreadSheet sheet = view.getSpreadSheet();
+			var columns = sheet.getColumnModel();
+			JScrollPane tableScroll = (JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class, sheet);
+			JScrollPane ganttScroll = (JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class, view.getGantt());
+			var columnModel = (com.microproject.pm.graphic.spreadsheet.SpreadSheetColumnModel) columns;
+			StringBuilder details = new StringBuilder();
+			SpreadSheetFieldArray viewFields = (SpreadSheetFieldArray) sheet.getFieldArray();
+			SpreadSheetFieldArray defaults = SpreadsheetViewSupport.getTaskFields();
+			details.append("projectFieldArray=").append(project.getFieldArray() == null ? "null" : project.getFieldArray().getWidths())
+				.append(" viewFieldsAliasDefault=").append(viewFields == defaults)
+				.append(" viewFieldWidths=").append(viewFields.getWidths())
+				.append(" viewFieldManualWidths=").append(viewFields.getManualWidths())
+				.append(" defaultWidths=").append(defaults.getWidths())
+				.append(" defaultManualWidths=").append(defaults.getManualWidths()).append('\n');
+			details.append("autoResizeMode=").append(sheet.getAutoResizeMode())
+				.append(" sheet=").append(sheet.getWidth()).append('x').append(sheet.getHeight())
+				.append(" tableViewport=").append(tableScroll.getViewport().getExtentSize())
+				.append(" ganttScrollPane=").append(ganttScroll.getWidth()).append('x').append(ganttScroll.getHeight())
+				.append(" ganttScrollInsets=").append(ganttScroll.getInsets())
+				.append(" ganttViewport=").append(ganttScroll.getViewport().getExtentSize())
+				.append(" ganttPaneChrome=")
+				.append(ganttScroll.getWidth() - ganttScroll.getViewport().getExtentSize().width)
+				.append(" ganttPosition=").append(ganttScroll.getViewport().getViewPosition())
+				.append(" ganttCenterDate=").append(ganttVisibleCenterDate(view))
+				.append(" split=").append(view.getWidth()).append('x').append(view.getHeight())
+				.append(" splitInsets=").append(view.getInsets())
+				.append(" divider=").append(view.getDividerLocation())
+				.append(" coordOrigin=").append(view.coord.getOrigin())
+				.append(" gantt=").append(view.getGantt().getWidth()).append('x').append(view.getGantt().getHeight())
+				.append(" columns=").append(columns.getColumnCount()).append('\n');
+			for (int index = 0; index < columns.getColumnCount(); index++) {
+				var column = columns.getColumn(index);
+				Field field = (Field) column.getIdentifier();
+				details.append(field.getId()).append(" width=").append(column.getWidth())
+					.append(" preferred=").append(column.getPreferredWidth())
+					.append(" minimum=").append(column.getMinWidth())
+					.append(" maximum=").append(column.getMaxWidth())
+					.append(" savedManual=").append(columnModel.isWidthManuallyAdjusted(field.getId()))
+					.append(" bodyX=").append(sheet.getCellRect(0, index, true).x)
+					.append(" headerX=").append(sheet.getTableHeader().getHeaderRect(index).x).append('\n');
+			}
+			int nameColumn = findColumn(sheet, "Field.name");
+			Component renderer = sheet.getCellRenderer(0, nameColumn).getTableCellRendererComponent(
+				sheet, sheet.getValueAt(0, nameColumn), false, false, 0, nameColumn);
+			details.append("taskNames=Task 01..10 nameCellWidth=").append(sheet.getColumnModel().getColumn(nameColumn).getWidth())
+				.append(" rendererPreferred=").append(renderer.getPreferredSize().width).append('\n');
+			int firstTaskRow = taskRow(sheet, project, "Task 01");
+			GraphicNode firstTask = (GraphicNode) view.cache.getElementAt(firstTaskRow);
+			Rectangle visibleGantt = view.gantt.getVisibleRect();
+			details.append("firstTaskBarX=").append(view.coord.toX(firstTask.getStart())).append("..")
+				.append(view.coord.toX(firstTask.getEnd())).append(" visibleX=").append(visibleGantt.x).append("..")
+				.append(visibleGantt.x + visibleGantt.width).append(" visibleBars=")
+				.append(visibleTaskBarCount(view, project)).append('\n');
+			snapshot[0] = details.toString();
+		});
+		return snapshot[0];
+	}
+
+	private String issue432ReadinessSnapshot(DocumentFrame document, GanttView view) throws Exception {
+		String[] snapshot = new String[1];
+		SwingUtilities.invokeAndWait(() -> {
+			StringBuilder state = new StringBuilder("Issue #432 content readiness after rebuild\n")
+				.append("frame=").append(frame.getBounds()).append(" showing=").append(frame.isShowing())
+				.append(" valid=").append(frame.isValid()).append(" content=")
+				.append(frame.getContentPane().getClass().getName()).append(' ')
+				.append(frame.getContentPane().getBounds()).append(" showing=").append(frame.getContentPane().isShowing())
+				.append(" valid=").append(frame.getContentPane().isValid()).append('\n')
+				.append("document=").append(document.getBounds()).append(" showing=").append(document.isShowing())
+				.append(" valid=").append(document.isValid()).append(" content=")
+				.append(document.getContentPane().getClass().getName()).append(' ')
+				.append(document.getContentPane().getBounds()).append(" showing=")
+				.append(document.getContentPane().isShowing()).append(" valid=")
+				.append(document.getContentPane().isValid()).append('\n')
+				.append("view=").append(view.getBounds()).append(" showing=").append(view.isShowing())
+				.append(" valid=").append(view.isValid()).append(" divider=").append(view.getDividerLocation())
+				.append(" splitInsets=").append(view.getInsets()).append('\n');
+			appendComponentAncestors(state, "frameContentAncestors", frame.getContentPane());
+			appendComponentAncestors(state, "documentContentAncestors", document.getContentPane());
+			appendComponentAncestors(state, "viewAncestors", view);
+			for (JScrollPane pane : List.of(view.getLeftScrollPane(), view.getRightScrollPane())) {
+				JViewport viewport = pane.getViewport();
+				state.append(pane.getClass().getSimpleName()).append(" pane=").append(pane.getBounds())
+					.append(" showing=").append(pane.isShowing()).append(" valid=").append(pane.isValid())
+					.append(" viewport=").append(viewport.getBounds()).append(" showing=").append(viewport.isShowing())
+					.append(" valid=").append(viewport.isValid()).append(" view=")
+					.append(viewport.getView() == null ? "null" : viewport.getView().getClass().getSimpleName())
+					.append(" viewValid=").append(viewport.getView() != null && viewport.getView().isValid()).append('\n');
+			}
+			snapshot[0] = state.toString();
+		});
+		return snapshot[0];
+	}
+
+	private static void appendComponentAncestors(StringBuilder state, String label, Component component) {
+		state.append(label).append('=');
+		for (Component current = component; current != null; current = current.getParent()) {
+			state.append(current.getClass().getSimpleName()).append("[valid=").append(current.isValid())
+				.append(",showing=").append(current.isShowing()).append(",validateRoot=")
+				.append(current instanceof JComponent swingComponent && swingComponent.isValidateRoot())
+				.append(",bounds=").append(current.getBounds()).append("] ");
+		}
+		state.append('\n');
+	}
+
+	private static void assertIssue432ReadableLayout(GanttView view, Project project) throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			SpreadSheet sheet = view.getSpreadSheet();
+			SpreadSheetColumnModel columns = (SpreadSheetColumnModel) sheet.getColumnModel();
+			assertTrue(view.getGantt().getWidth() > 200, "the Gantt view must remain visible beside the task table");
+			JScrollPane ganttScroll = (JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class, view.getGantt());
+			assertNotNull(ganttScroll, "the Gantt must remain hosted by its scroll pane");
+			int minimumGanttWidth = view.getGantt().getFontMetrics(view.getGantt().getFont()).charWidth('M') * 16;
+			assertTrue(ganttScroll.getViewport().getExtentSize().width >= minimumGanttWidth,
+				"the responsive divider must preserve a font-scaled Gantt viewport; actual="
+					+ ganttScroll.getViewport().getExtentSize().width + " minimum=" + minimumGanttWidth);
+			assertTrue(visibleTaskBarCount(view, project) > 0,
+				"at least one fixture task bar must remain visible in the Gantt after resizing; visible="
+					+ view.getGantt().getVisibleRect() + " origin=" + view.coord.getOrigin());
+			for (String fieldId : List.of("Field.name", "Field.duration", "Field.start", "Field.finish")) {
+				int columnIndex = findColumn(sheet, fieldId);
+				var column = columns.getColumn(columnIndex);
+				int minimum = switch (fieldId) {
+					case "Field.name" -> 140;
+					case "Field.duration" -> 60;
+					case "Field.start", "Field.finish" -> 100;
+					default -> throw new IllegalArgumentException("Unexpected issue #432 field: " + fieldId);
+				};
+				assertTrue(column.getWidth() >= minimum,
+					fieldId + " must meet its default readable width after layout; actual=" + column.getWidth()
+						+ " preferred=" + column.getPreferredWidth());
+				assertFalse(columns.isWidthManuallyAdjusted(fieldId),
+					"initial layout must not mark " + fieldId + " as a user-saved manual width");
+				assertEquals(sheet.getCellRect(0, columnIndex, true).x,
+					sheet.getTableHeader().getHeaderRect(columnIndex).x,
+					fieldId + " header and body must stay horizontally aligned");
+				Component renderer = sheet.getCellRenderer(0, columnIndex).getTableCellRendererComponent(
+					sheet, sheet.getValueAt(0, columnIndex), false, false, 0, columnIndex);
+				assertTrue(sheet.getCellRect(0, columnIndex, true).width >= renderer.getPreferredSize().width,
+					fieldId + " must show its first task value without clipping");
+			}
+			int nameColumn = findColumn(sheet, "Field.name");
+			for (int index = 1; index <= 10; index++) {
+				String taskName = String.format(java.util.Locale.ROOT, "Task %02d", index);
+				int row = taskRow(sheet, project, taskName);
+				Component renderer = sheet.getCellRenderer(row, nameColumn).getTableCellRendererComponent(
+					sheet, sheet.getValueAt(row, nameColumn), false, false, row, nameColumn);
+				assertEquals(taskName, renderer instanceof NameCellComponent nameCell ? nameCell.getText() : "",
+					"the renderer must supply the full task name for " + taskName);
+				assertTrue(sheet.getCellRect(row, nameColumn, true).width >= renderer.getPreferredSize().width,
+					"the visible name cell must have room for its renderer content: " + taskName);
+			}
+			int finishColumn = findColumn(sheet, "Field.finish");
+			Rectangle finishCell = sheet.getCellRect(0, finishColumn, true);
+			int visibleRight = sheet.getVisibleRect().x + sheet.getVisibleRect().width;
+			assertTrue(finishCell.x + finishCell.width <= visibleRight,
+				"the Finish value must be visible without horizontal clipping; cellRight="
+					+ (finishCell.x + finishCell.width) + " viewportRight=" + visibleRight
+					+ " divider=" + view.getDividerLocation() + " manual=" + view.isDividerLocationManuallyAdjusted()
+					+ " preferredLeft=" + view.preferredLeftPaneWidth() + " viewWidth=" + view.getWidth());
+		});
+	}
+
+	private static int visibleTaskBarCount(GanttView view, Project project) {
+		Rectangle visible = view.getGantt().getVisibleRect();
+		int visibleCount = 0;
+		for (int index = 1; index <= 10; index++) {
+			int row = taskRow(view.getSpreadSheet(), project,
+				String.format(java.util.Locale.ROOT, "Task %02d", index));
+			GraphicNode task = (GraphicNode) view.cache.getElementAt(row);
+			double startX = view.coord.toX(task.getStart());
+			double endX = view.coord.toX(task.getEnd());
+			double rowY = (double) row * view.getGantt().getRowHeight();
+			if (endX >= visible.x && startX <= visible.x + visible.width
+					&& rowY < visible.y + visible.height && rowY + view.getGantt().getRowHeight() > visible.y)
+				visibleCount++;
+		}
+		return visibleCount;
+	}
+
+	private static double ganttVisibleCenterDate(GanttView view) {
+		Rectangle visible = view.getGantt().getVisibleRect();
+		return view.coord.toTime(visible.getCenterX());
+	}
+
+	private static void assertColumnHeadersAligned(SpreadSheet sheet) throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			for (int index = 0; index < sheet.getColumnCount(); index++)
+				assertEquals(sheet.getCellRect(0, index, true).x, sheet.getTableHeader().getHeaderRect(index).x,
+					"body and header must remain aligned for view column " + index);
+		});
+	}
+
+	private static void dragColumnBoundary(Robot robot, SpreadSheet sheet, int viewColumn, int delta) throws Exception {
+		Point[] target = new Point[1];
+		SwingUtilities.invokeAndWait(() -> {
+			Rectangle header = sheet.getTableHeader().getHeaderRect(viewColumn);
+			Point origin = sheet.getTableHeader().getLocationOnScreen();
+			target[0] = new Point(origin.x + header.x + header.width - 1, origin.y + header.y + header.height / 2);
+		});
+		robot.mouseMove(target[0].x, target[0].y);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseMove(target[0].x + delta, target[0].y);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.delay(250);
+	}
+
+	private static String dragSplitDivider(Robot robot, GanttView view, int delta) throws Exception {
+		Point[] target = new Point[1];
+		String[] componentName = new String[1];
+		SwingUtilities.invokeAndWait(() -> {
+			for (Component component : view.getComponents()) {
+				if (component.getClass().getName().contains("Divider")) {
+					Point origin = component.getLocationOnScreen();
+					Rectangle bounds = component.getBounds();
+					target[0] = new Point(origin.x + bounds.width / 2, origin.y + bounds.height / 2);
+					componentName[0] = component.getClass().getName() + " bounds=" + bounds;
+					return;
+				}
+			}
+			throw new AssertionError("the Gantt split divider is not installed");
+		});
+		robot.mouseMove(target[0].x, target[0].y);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseMove(target[0].x + delta, target[0].y);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.delay(250);
+		return componentName[0] + " point=" + target[0];
 	}
 
 	/**

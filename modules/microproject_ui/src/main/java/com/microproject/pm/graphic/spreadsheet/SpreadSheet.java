@@ -36,6 +36,7 @@ import java.awt.datatransfer.Transferable;
 import java.awt.datatransfer.UnsupportedFlavorException;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.IOException;
 import java.io.Reader;
@@ -1243,6 +1244,26 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	public static final String COLUMN_HEADER_HEIGHT_PROPERTY = "columnHeaderHeight";
 	private int columnHeaderHeight = GraphicConfiguration.getInstance().getColumnHeaderHeight();
 	private boolean updatingColumnHeaderHeight;
+	private TableColumn resizingColumn;
+	private int resizingColumnInitialWidth;
+	private final MouseAdapter columnResizeTracker = new MouseAdapter() {
+		@Override
+		public void mousePressed(MouseEvent event) {
+			resizingColumn = columnAtResizeBoundary((JTableHeader) event.getSource(), event.getX());
+			resizingColumnInitialWidth = resizingColumn == null ? -1 : resizingColumn.getWidth();
+		}
+
+		@Override
+		public void mouseReleased(MouseEvent event) {
+			if (resizingColumn != null && resizingColumn.getWidth() != resizingColumnInitialWidth
+					&& resizingColumn.getIdentifier() instanceof Field field
+					&& getColumnModel() instanceof SpreadSheetColumnModel columns) {
+				columns.markWidthManuallyAdjusted(field.getId());
+			}
+			resizingColumn = null;
+			resizingColumnInitialWidth = -1;
+		}
+	};
 	private final TableColumnModelListener columnHeaderHeightListener = new TableColumnModelListener() {
 		public void columnAdded(TableColumnModelEvent e) { updateColumnHeaderHeight(); }
 		public void columnRemoved(TableColumnModelEvent e) { updateColumnHeaderHeight(); }
@@ -1361,6 +1382,17 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		setTableHeader(h);
 		
 	}
+
+	private TableColumn columnAtResizeBoundary(JTableHeader header, int x) {
+		for (int index = 0; index < header.getColumnModel().getColumnCount(); index++) {
+			TableColumn column = header.getColumnModel().getColumn(index);
+			if (!column.getResizable()) continue;
+			Rectangle bounds = header.getHeaderRect(index);
+			if (Math.abs(x - (bounds.x + bounds.width)) <= Math.max(2, header.getColumnModel().getColumnMargin() + 1))
+				return column;
+		}
+		return null;
+	}
 	public SpreadSheetPopupMenu getPopup(){
 		if (popup == null && (hasRowPopup()
 				|| SpreadSheetCategories.taskSpreadsheetCategory.equals(getSpreadSheetCategory()))) {
@@ -1419,6 +1451,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		getColumnModel().addColumnModelListener(columnHeaderHeightListener);
 		updateColumnHeaderHeight();
 		header.addMouseListener(new HeaderMouseListener(this));
+		header.addMouseListener(columnResizeTracker);
 
 		installTableMouseHandler();
 
