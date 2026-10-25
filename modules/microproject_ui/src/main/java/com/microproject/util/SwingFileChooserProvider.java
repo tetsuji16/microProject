@@ -272,7 +272,6 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 		chooser.setAcceptAllFileFilterUsed(true);
 		if (save) {
 			chooser.addChoosableFileFilter(nativeProjectFilter);
-			chooser.addChoosableFileFilter(legacyPodFilter);
 			chooser.addChoosableFileFilter(microsoftXMLFilter);
 			chooser.addChoosableFileFilter(microsoftXlsxFilter);
 		} else {
@@ -298,8 +297,6 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 		String extension = preferredSaveExtension(selectedFileName);
 		if (DEFAULT_FILE_EXTENSION.equals(extension) && nativeProjectFilter != null) {
 			chooser.setFileFilter(nativeProjectFilter);
-		} else if (LEGACY_POD_FILE_EXTENSION.equals(extension)) {
-			chooser.setFileFilter(legacyPodFilter);
 		} else if ("xlsx".equals(extension)) {
 			chooser.setFileFilter(microsoftXlsxFilter);
 		} else {
@@ -346,9 +343,6 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 		if (filter == nativeProjectFilter) {
 			return changeFileExtension(baseFileName, DEFAULT_FILE_EXTENSION);
 		}
-		if (filter == legacyPodFilter) {
-			return changeFileExtension(baseFileName, LEGACY_POD_FILE_EXTENSION);
-		}
 		return baseFileName;
 	}
 
@@ -373,9 +367,6 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 		}
 		if (filter == nativeProjectFilter) {
 			return DEFAULT_FILE_EXTENSION;
-		}
-		if (filter == legacyPodFilter) {
-			return LEGACY_POD_FILE_EXTENSION;
 		}
 		return null;
 	}

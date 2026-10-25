@@ -26,6 +26,7 @@ package com.microproject.ui.shell;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -34,14 +35,16 @@ import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.prefs.Preferences;
 
 import javax.swing.AbstractButton;
 import javax.swing.Action;
 import javax.swing.Box;
-import javax.swing.ImageIcon;
+import javax.swing.Icon;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
 import javax.swing.JToolBar;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -190,13 +193,17 @@ class MicroProjectShellTest {
 	}
 
 	@Test
-	void officeChromeHelpButtonPreservesItsMulticolorQuestionMarkIcon() {
-		OfficeChromePanel panel = new OfficeChromePanel(MenuManager.getInstance(MenuActionMapSupport.noopActionMap()), new JPanel(), () -> {});
-		AbstractButton help = (AbstractButton) findComponent(panel, OfficeChromePanel.HELP_BUTTON_NAME);
+	void officeChromeHelpButtonPreservesItsMulticolorQuestionMarkIcon() throws Exception {
+		AtomicReference<Icon> iconReference = new AtomicReference<>();
+		SwingUtilities.invokeAndWait(() -> {
+			OfficeChromePanel panel = new OfficeChromePanel(MenuManager.getInstance(MenuActionMapSupport.noopActionMap()), new JPanel(), () -> {});
+			AbstractButton help = (AbstractButton) findComponent(panel, OfficeChromePanel.HELP_BUTTON_NAME);
+			assertNotNull(help.getIcon(), "help uses the mapped ribbon icon");
+			iconReference.set(help.getIcon());
+		});
 
-		assertTrue(help.getIcon() instanceof ImageIcon, "help uses the mapped scalable ribbon icon");
-		ImageIcon icon = (ImageIcon) help.getIcon();
-		BufferedImage image = (BufferedImage) icon.getImage();
+		Icon icon = iconReference.get();
+		BufferedImage image = paint(icon);
 		Set<Integer> visibleColors = new HashSet<>();
 		int whitePixels = 0;
 		int greenPixels = 0;
@@ -246,6 +253,17 @@ class MicroProjectShellTest {
 		java.awt.Graphics graphics = image.getGraphics();
 		try {
 			button.paint(graphics);
+		} finally {
+			graphics.dispose();
+		}
+		return image;
+	}
+
+	private static BufferedImage paint(javax.swing.Icon icon) {
+		BufferedImage image = new BufferedImage(icon.getIconWidth(), icon.getIconHeight(), BufferedImage.TYPE_INT_ARGB);
+		java.awt.Graphics graphics = image.getGraphics();
+		try {
+			icon.paintIcon(null, graphics, 0, 0);
 		} finally {
 			graphics.dispose();
 		}

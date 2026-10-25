@@ -80,20 +80,16 @@ public class MpxCalendarConverter {
 		for (int i = 0; i < 7; i++) {
 			Day mpxDayId = Day.getInstance(i + 1);
 			ProjectCalendarHours mpxDay = mpxCalendar.getCalendarHours(mpxDayId);
-			net.sf.mpxj.DayType mpxDayType = mpxCalendar.getDayType(mpxDayId);
-			WorkDay day = null;
-			if (mpxDay == null) {
-				if (mpxCalendar.isDerived() && baseCalendar != null) {
-					if (mpxDayType == net.sf.mpxj.DayType.DEFAULT)
-						day = baseCalendar.getWeekDay(i);
-					else if (mpxBaseCalendarIsWorking(mpxCalendar, mpxDayId))
-						day = WorkDay.getNonWorkingDay();
+			net.sf.mpxj.DayType mpxDayType = mpxCalendar.getCalendarDayType(mpxDayId);
+			WorkDay day = declaredDay(mpxDayType, mpxDay, rangeConverter);
+			if (day == null && mpxDayType == net.sf.mpxj.DayType.WORKING
+					&& mpxCalendar.isDerived() && baseCalendar != null) {
+				WorkDay inheritedDay = baseCalendar.getConcreteInstance().getWeekDay(i);
+				if (inheritedDay == null || !inheritedDay.isWorking()) {
+					ProjectCalendarHours effectiveHours = mpxCalendar.getHours(mpxDayId);
+					WorkDay effectiveDay = declaredDay(mpxDayType, effectiveHours, rangeConverter);
+					if (effectiveDay != null && effectiveDay.isWorking()) day = effectiveDay;
 				}
-			} else {
-				WorkingHours hours = rangeConverter.from(mpxDay);
-				day = hours.getDuration() > 0 ? new WorkDay() : WorkDay.getNonWorkingDay();
-				if (hours.getDuration() > 0)
-					day.setWorkingHours(hours);
 			}
 			if (day != null)
 				calendar.setWeekDay(i, day);
@@ -108,13 +104,9 @@ public class MpxCalendarConverter {
 				Day dayId = Day.getInstance(i + 1);
 				ProjectCalendarHours hours = mpxWeek.getCalendarHours(dayId);
 				net.sf.mpxj.DayType dayType = mpxWeek.getCalendarDayType(dayId);
-				if (dayType == net.sf.mpxj.DayType.NON_WORKING) {
-					week.setWeekDay(i, WorkDay.getNonWorkingDay());
-				} else if (hours != null) {
-					WorkingHours workingHours = rangeConverter.from(hours);
-					WorkDay workDay = workingHours.getDuration() > 0 ? new WorkDay() : WorkDay.getNonWorkingDay();
-					if (workingHours.getDuration() > 0) workDay.setWorkingHours(workingHours);
-					week.setWeekDay(i, workDay);
+				WorkDay declared = declaredDay(dayType, hours, rangeConverter);
+				if (declared != null) {
+					week.setWeekDay(i, declared);
 				} else if (dayType == net.sf.mpxj.DayType.WORKING) {
 					week.setWeekDay(i, new WorkDay());
 				}
@@ -149,11 +141,15 @@ public class MpxCalendarConverter {
 		}
 	}
 
-	private static boolean mpxBaseCalendarIsWorking(ProjectCalendar mpxCalendar, Day day) {
-		try {
-			return mpxCalendar.isWorkingDay(day);
-		} catch (Exception e) {
-			return false;
-		}
+	private WorkDay declaredDay(net.sf.mpxj.DayType dayType, ProjectCalendarHours hours,
+		MpxRangeConverter rangeConverter) {
+		if (dayType == net.sf.mpxj.DayType.NON_WORKING) return WorkDay.getNonWorkingDay();
+		if (hours == null) return null;
+		WorkingHours workingHours = rangeConverter.from(hours);
+		if (workingHours.getDuration() <= 0) return WorkDay.getNonWorkingDay();
+		WorkDay day = new WorkDay();
+		day.setWorkingHours(workingHours);
+		return day;
 	}
+
 }

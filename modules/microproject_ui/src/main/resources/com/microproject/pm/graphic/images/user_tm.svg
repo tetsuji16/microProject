@@ -1,0 +1,5 @@
+<!-- MIT License. Copyright (c) 2026 microProject. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+	<circle cx="8" cy="3.5" r="2" fill="#000000"/>
+	<path d="M6.2 6.2h3.6c.9 0 1.4.6 1.4 1.4v.8h1.2v2h-2.2v-1h-.6V11h-.7v1.4h.8V15H8.2l-.6-2.3h-.4L6.6 15H4.8v-2.6h.8V11h-.7V9.4h-.6v1H2.1v-2h1.2v-.8c0-.8.6-1.4 1.4-1.4z" fill="#000000"/>
+</svg>

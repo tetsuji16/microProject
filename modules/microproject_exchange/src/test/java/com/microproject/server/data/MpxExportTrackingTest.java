@@ -1054,8 +1054,103 @@ class MpxExportTrackingTest {
 		assertProject2019Assignments(roundTripMpo(assignmentMspdi));
 
 		Project calendars = importMppFixture(fixtureDirectory.resolve("calendar-calendars-project2019-mpp14.mpp"));
+		String calendarSource = Files.readString(fixtureDirectory.resolve("calendar-calendars-project2019-mspdi.xml"));
+		assertTrue(calendarSource.contains("<DayType>2</DayType>"));
+		assertTrue(calendarSource.contains("<DayType>1</DayType>"));
+		assertTrue(calendarSource.contains("<DayType>7</DayType>"));
+		assertTrue(calendarSource.contains("<FromTime>08:00:00</FromTime>"));
+		assertTrue(calendarSource.contains("<ToTime>12:00:00</ToTime>"));
+		assertTrue(calendarSource.contains("<FromTime>13:00:00</FromTime>"));
+		assertTrue(calendarSource.contains("<ToTime>17:00:00</ToTime>"));
+		assertProject2019Calendars(calendars);
+		assertProject2019CalendarInheritanceTracksBaseChange(calendars);
 		assertProject2019Calendars(calendars);
 		assertProject2019Calendars(roundTripMpo(calendars));
+	}
+
+	@Test
+	void project2003Mpp8AndProject2007Mpp12LinksMatchIndependentManifestAndMpoReload() throws Exception {
+		Path fixtureRoot = Path.of("modules", "microproject_exchange", "testdata", "mpxj");
+		if (!Files.isDirectory(fixtureRoot)) fixtureRoot = Path.of("testdata", "mpxj");
+		assertTaskLinkFamilyFixture(fixtureRoot.resolve("project2003"), "project2003", "mpp8");
+		assertTaskLinkFamilyFixture(fixtureRoot.resolve("project2007"), "project2007", "mpp12");
+	}
+
+	private void assertTaskLinkFamilyFixture(Path directory, String source, String family) throws Exception {
+		Path sourceMspdi = directory.resolve("task-links-" + source + "-mspdi.xml");
+		String independentSource = Files.readString(sourceMspdi);
+		assertTrue(independentSource.contains("<MinutesPerDay>480</MinutesPerDay>"), source + " workday source literal");
+		assertTrue(independentSource.contains("<MinutesPerWeek>2400</MinutesPerWeek>"), source + " workweek source literal");
+		Project imported = importMppFixture(directory.resolve("task-links-" + source + "-" + family + ".mpp"));
+		assertTaskLinkFamilyManifest(imported, family);
+		assertTaskLinkFamilyManifest(roundTripMpo(imported), family);
+	}
+
+	private void assertTaskLinkFamilyManifest(Project project, String family) {
+		int[] predecessors = {1, 3, 5, 7, 9, 11, 13, 15};
+		int[] successors = {2, 4, 6, 8, 10, 12, 14, 16};
+		int[] types = {1, 1, 1, 1, 1, 2, 3, 0}; // FS, FS, FS, FS, FS, SF, SS, FF
+		long workday = 8L * 60L * 60L * 1000L; // MSPDI source: 480 minutes/day, 2400 minutes/week
+		long[] lags = {0L, workday, 2L * workday, 5L * workday, 10L * workday,
+			2L * workday, 2L * workday, 2L * workday};
+		assertEquals(16, project.getTaskList().size(), family + " source task count");
+		for (int uid = 1; uid <= 16; uid++) {
+			Task task = project.findByUniqueId(uid);
+			assertNotNull(task, family + " source task UID " + uid);
+			assertEquals((uid & 1) == 1 ? "Task 1" : "Task 2", task.getName(), family + " source task UID " + uid);
+			assertEquals(0, task.getOutlineLevel(), family + " top-level task UID " + uid);
+		}
+		assertNull(project.findByUniqueId(17), family + " fixture has no extra source task UID");
+		for (int index = 0; index < predecessors.length; index++) {
+			Task successor = project.findByUniqueId(successors[index]);
+			assertEquals(1, successor.getPredecessorList().size(), family + " predecessor count UID " + successors[index]);
+			Dependency dependency = (Dependency) successor.getPredecessorList().get(0);
+			assertEquals(predecessors[index], ((Task) dependency.getPredecessor()).getUniqueId(),
+				family + " predecessor UID for successor " + successors[index]);
+			assertEquals(types[index], dependency.getDependencyType(), family + " relation type " + index);
+			assertEquals(lags[index], dependency.getLag(), family + " scheduled lag milliseconds " + index);
+		}
+	}
+
+	@Test
+	void malformedAndUnknownFamilyMppFailAtImporterBoundaryWithoutPublicationOrInputMutation() throws Exception {
+		Path fixtureRoot = Path.of("modules", "microproject_exchange", "testdata", "mpxj", "project2019");
+		if (!Files.isDirectory(fixtureRoot)) fixtureRoot = Path.of("testdata", "mpxj", "project2019");
+		byte[] validOleUnknownFamily = Files.readAllBytes(fixtureRoot.resolve("task-links-project2019-mpp14.mpp"));
+		byte[] unknownToken = "MSProject.MPP14".getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+		byte[] replacementToken = "MSProject.MPP99".getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+		int tokenOffset = indexOf(validOleUnknownFamily, unknownToken);
+		assertTrue(tokenOffset >= 0, "MPP14 OLE CompObj family token exists");
+		assertEquals(-1, indexOf(java.util.Arrays.copyOfRange(validOleUnknownFamily, tokenOffset + 1,
+			validOleUnknownFamily.length), unknownToken), "only one dispatch token appears in the fixed OLE fixture");
+		assertTrue(tokenOffset > 27 && new String(validOleUnknownFamily, tokenOffset - 27, 22,
+			java.nio.charset.StandardCharsets.US_ASCII).contains("Microsoft.Project 16.0"),
+			"the changed token is the CompObj application-format field");
+		System.arraycopy(replacementToken, 0, validOleUnknownFamily, tokenOffset, replacementToken.length);
+		assertMppParseFailure(validOleUnknownFamily, "unknown family MSProject.MPP99");
+		assertMppParseFailure(new byte[] {(byte) 0xD0, (byte) 0xCF, 0x11}, "truncated OLE header");
+	}
+
+	private int indexOf(byte[] source, byte[] target) {
+		outer: for (int index = 0; index <= source.length - target.length; index++) {
+			for (int offset = 0; offset < target.length; offset++)
+				if (source[index + offset] != target[offset]) continue outer;
+			return index;
+		}
+		return -1;
+	}
+
+	private void assertMppParseFailure(byte[] data, String scenario) {
+		byte[] original = data.clone();
+		List<String> progress = new java.util.ArrayList<>();
+		net.sf.mpxj.MPXJException failure = assertThrows(net.sf.mpxj.MPXJException.class,
+			() -> new com.microproject.core.pm.exchange.MspImporter().importProject(
+			new ByteArrayInputStream(data), "mpp", (value, label) -> progress.add(label)), scenario);
+		if (scenario.contains("MPP99")) {
+			assertTrue(failure.getMessage().contains("MSProject.MPP99"), failure.toString());
+		}
+		assertArrayEquals(original, data, scenario + " input bytes remain unchanged");
+		assertEquals(List.of("Start"), progress, scenario + " fails before the importer publishes parsed/model state");
 	}
 
 	@Test
@@ -1220,6 +1315,8 @@ class MpxExportTrackingTest {
 			"MPP14 scalar baseline cost follows the pinned MPXJ MPP oracle");
 		assertEquals(2.0d, taskNamed(mppImport, "Baseline1 Cost - Task").getBaselineCost(1), 0.00001d);
 		assertEquals(11.0d, taskNamed(mppImport, "Baseline10 Cost - Task").getBaselineCost(10), 0.00001d);
+		assertProject2019MppTaskBaselines(mppImport);
+		assertProject2019MppTaskBaselines(roundTripMpo(mppImport));
 
 		NormalTask importedCostTask = (NormalTask) taskNamed(importMspdi(mspdi), "Baseline Cost - Task");
 		Project lifecycleProject = (Project) importedCostTask.getProject();
@@ -1422,12 +1519,105 @@ class MpxExportTrackingTest {
 			"an absent baseline stays absent rather than becoming an explicit zero-cost baseline");
 	}
 
+	private void assertProject2019MppTaskBaselines(Project project) {
+		assertBaselineDuration(taskNamed(project, "Baseline Duration - Task").getBaselineDuration(0),
+			11.0d, com.microproject.datatype.TimeUnit.DAYS);
+		assertBaselineDuration(taskNamed(project, "Baseline1 Duration - Task").getBaselineDuration(1),
+			12.0d, com.microproject.datatype.TimeUnit.DAYS);
+		assertBaselineDuration(taskNamed(project, "Baseline10 Duration - Task").getBaselineDuration(10),
+			21.0d, com.microproject.datatype.TimeUnit.DAYS);
+		assertEquals(1.0d, taskNamed(project, "Baseline Cost - Task").getBaselineCost(0), 0.00001d);
+		assertEquals(2.0d, taskNamed(project, "Baseline1 Cost - Task").getBaselineCost(1), 0.00001d);
+		assertEquals(11.0d, taskNamed(project, "Baseline10 Cost - Task").getBaselineCost(10), 0.00001d);
+		assertMppBaselineFixedCost(project, "Baseline Fixed Cost - Task", 0, 11.0d);
+		assertMppBaselineFixedCost(project, "Baseline1 Fixed Cost - Task", 1, 12.0d);
+		assertMppBaselineFixedCost(project, "Baseline10 Fixed Cost - Task", 10, 21.0d);
+	}
+
+	private void assertMppBaselineFixedCost(Project project, String name, int slot, double expected) {
+		com.microproject.pm.snapshot.DataSnapshot baseline = taskNamed(project, name).getSnapshot(Integer.valueOf(slot));
+		assertInstanceOf(com.microproject.pm.task.TaskSnapshot.class, baseline, name + " baseline slot " + slot);
+		assertEquals(expected, ((com.microproject.pm.task.TaskSnapshot) baseline).getFixedCost(),
+			"MPXJ v11.5.4 TaskBaselinesTest fixed cost at slot " + slot);
+	}
+
 	private void assertProject2019Calendars(Project project) {
+		long fourHours = 4L * 60L * 60L * 1000L;
+		long eightHours = 8L * 60L * 60L * 1000L;
+		long mondayKey = modelWallTime("2019-05-06T00:00:00");
+		long sundayKey = modelWallTime("2019-05-05T00:00:00");
+		long saturdayKey = modelWallTime("2019-05-11T00:00:00");
 		for (String resourceName : List.of("Resource One", "Resource Two")) {
 			com.microproject.pm.resource.Resource resource =
 				com.microproject.pm.resource.ResourcePool.findResourceByName(resourceName, project.getResourcePool());
 			assertNotNull(resource, "MPP14 calendar fixture resource " + resourceName);
 			assertEquals(resourceName, resource.getWorkCalendar().getName(), "resource calendar for " + resourceName);
+			var calendar = (com.microproject.pm.calendar.WorkingCalendar) resource.getWorkCalendar();
+			var monday = com.microproject.pm.calendar.CalendarService.getInstance()
+				.getDay(calendar, mondayKey);
+			assertTrue(monday.isWorking(), "effective Monday date key resolves to work");
+			assertEquals(eightHours, monday.getWorkingHours().getDuration(),
+				"source calendar has two four-hour Monday work periods");
+			var firstPeriod = monday.getWorkingHours().getInterval(0);
+			var secondPeriod = monday.getWorkingHours().getInterval(1);
+			assertNotNull(firstPeriod);
+			assertNotNull(secondPeriod);
+			assertEquals(com.microproject.pm.calendar.WorkingHours.hourTime(8), firstPeriod.getStart(),
+				"first period starts at 08:00");
+			assertEquals(com.microproject.pm.calendar.WorkingHours.hourTime(12), firstPeriod.getEnd(),
+				"first period ends at 12:00");
+			assertEquals(com.microproject.pm.calendar.WorkingHours.hourTime(13), secondPeriod.getStart(),
+				"second period starts at 13:00");
+			assertEquals(com.microproject.pm.calendar.WorkingHours.hourTime(17), secondPeriod.getEnd(),
+				"second period ends at 17:00");
+			assertEquals(fourHours, firstPeriod.getElapsedDuration(), "first period is 08:00–12:00");
+			assertEquals(fourHours, secondPeriod.getElapsedDuration(), "second period is 13:00–17:00");
+			assertEquals(60L * 60L * 1000L, secondPeriod.getStart() - firstPeriod.getEnd(), "lunch gap is one hour");
+			assertEquals(eightHours, calendar.compare(modelWallTime("2019-05-06T17:00:00"),
+				modelWallTime("2019-05-06T08:00:00"), false), "Monday worktime excludes the lunch gap");
+			assertEquals(0L, calendar.compare(modelWallTime("2019-05-06T13:00:00"),
+				modelWallTime("2019-05-06T12:00:00"), false), "lunch interval is nonworking");
+			assertEquals(0L, calendar.compare(modelWallTime("2019-05-11T17:00:00"),
+				modelWallTime("2019-05-11T08:00:00"), false), "Saturday daytime is nonworking");
+			assertEquals(0L, calendar.compare(modelWallTime("2019-05-05T17:00:00"),
+				modelWallTime("2019-05-05T08:00:00"), false), "Sunday daytime is nonworking");
+			assertFalse(com.microproject.pm.calendar.CalendarService.getInstance()
+				.getDay(calendar, sundayKey).isWorking(), "Sunday date key is nonworking");
+			assertFalse(com.microproject.pm.calendar.CalendarService.getInstance()
+				.getDay(calendar, saturdayKey).isWorking(), "Saturday date key is nonworking");
+		}
+	}
+
+	private void assertProject2019CalendarInheritanceTracksBaseChange(Project project) throws Exception {
+		com.microproject.pm.resource.Resource resource = com.microproject.pm.resource.ResourcePool.findResourceByName(
+			"Resource One", project.getResourcePool());
+		assertNotNull(resource);
+		com.microproject.pm.calendar.WorkCalendar base = resource.getWorkCalendar().getBaseCalendar();
+		assertInstanceOf(com.microproject.pm.calendar.WorkingCalendar.class, base);
+		var standard = (com.microproject.pm.calendar.WorkingCalendar) base;
+		com.microproject.pm.calendar.WorkDay originalMonday = standard.getWeekDay(1);
+		com.microproject.pm.calendar.WorkingHours sixHourDay = new com.microproject.pm.calendar.WorkingHours();
+		sixHourDay.setInterval(0, com.microproject.pm.calendar.WorkingHours.hourTime(8),
+			com.microproject.pm.calendar.WorkingHours.hourTime(11));
+		sixHourDay.setInterval(1, com.microproject.pm.calendar.WorkingHours.hourTime(13),
+			com.microproject.pm.calendar.WorkingHours.hourTime(16));
+		com.microproject.pm.calendar.WorkDay changedMonday = new com.microproject.pm.calendar.WorkDay();
+		changedMonday.setWorkingHours(sixHourDay);
+		try {
+			standard.setWeekDay(1, changedMonday);
+			standard.invalidate();
+			for (String resourceName : List.of("Resource One", "Resource Two")) {
+				com.microproject.pm.resource.Resource derived = com.microproject.pm.resource.ResourcePool.findResourceByName(
+					resourceName, project.getResourcePool());
+				var derivedCalendar = (com.microproject.pm.calendar.WorkingCalendar) derived.getWorkCalendar();
+				assertEquals(6L * 60L * 60L * 1000L,
+					com.microproject.pm.calendar.CalendarService.getInstance().getDay(derivedCalendar,
+						modelWallTime("2019-05-06T00:00:00")).getWorkingHours().getDuration(),
+					"derived resource calendar follows the edited base weekday");
+			}
+		} finally {
+			standard.setWeekDay(1, originalMonday);
+			standard.invalidate();
 		}
 	}
 

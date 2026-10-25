@@ -105,10 +105,14 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 			while (a.hasNext()&&s.hasNext()){
 				String f=a.next().getId();
 				int size=s.next();
-				size = Math.max(size, minimumReadableWidth(f));
+				boolean manuallyAdjusted = sa.isManualWidth(column);
+				if (!manuallyAdjusted) size = Math.max(size, minimumReadableWidth(f));
 				if (!colWidthMap.containsKey(f)) {
 					colWidthMap.put(f, size);
-					if (size > 0 && sa.isManualWidth(column)) configuredWidthFields.add(f);
+					if (size > 0 && manuallyAdjusted) {
+						configuredWidthFields.add(f);
+						manuallyAdjustedWidthFields.add(f);
+					}
 				}
 				column++;
 			}
@@ -141,7 +145,7 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 				width = Math.max(width, component.getPreferredSize().width);
 			}
 
-			column.setPreferredWidth(Math.max(1, width));
+			column.setPreferredWidth(Math.max(minimumReadableWidth(field.getId()), width));
 			colWidthMap.put(field.getId(), column.getPreferredWidth());
 			totalWidth += column.getPreferredWidth();
 		}
@@ -162,9 +166,10 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 			if (field == null) continue;
 			int width = fields.getWidth(index);
 			if (width <= 0) continue;
-			int safeWidth = Math.max(width, minimumReadableWidth(field.getId()));
+			boolean manuallyAdjusted = fields.isManualWidth(index);
+			int safeWidth = manuallyAdjusted ? width : Math.max(width, minimumReadableWidth(field.getId()));
 			colWidthMap.put(field.getId(), safeWidth);
-			if (fields.isManualWidth(index)) {
+			if (manuallyAdjusted) {
 				configuredWidthFields.add(field.getId());
 				manuallyAdjustedWidthFields.add(field.getId());
 			}
@@ -180,7 +185,8 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 				if (!(column.getIdentifier() instanceof Field field)) continue;
 				Integer width = colWidthMap.get(field.getId());
 				if (width == null || width <= 0) continue;
-				int safeWidth = Math.max(width, minimumReadableWidth(field.getId()));
+				int safeWidth = manuallyAdjustedWidthFields.contains(field.getId())
+						? width : Math.max(width, minimumReadableWidth(field.getId()));
 				column.setPreferredWidth(safeWidth);
 				column.setWidth(safeWidth);
 			}
@@ -259,15 +265,10 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 			}
 			Integer size=colWidthMap.get(field.getId());
 			if (size==null||size<=0) colWidthMap.put(field.getId(),tc.getPreferredWidth());
-			else tc.setPreferredWidth(Math.max(size, minimumReadableWidth(field.getId())));
+			else tc.setPreferredWidth(manuallyAdjustedWidthFields.contains(field.getId())
+					? size : Math.max(size, minimumReadableWidth(field.getId())));
 			tc.setWidth(Math.max(tc.getWidth(), tc.getPreferredWidth()));
 			colWidth += tc.getPreferredWidth();
-			tc.addPropertyChangeListener(event -> {
-				if (!applyingSavedWidths && "width".equals(event.getPropertyName()) && event.getNewValue() instanceof Number number
-						&& number.intValue() > 0) {
-					manuallyAdjustedWidthFields.add(field.getId());
-				}
-			});
 		}
 		columnIndex++;
 	}
@@ -278,6 +279,18 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 		if ("Field.duration".equals(fieldId)) return 60;
 		if (BooleanText.isTaskMode(fieldId)) return 110; // icon + 手動スケジュール (#899)
 		return 1;
+	}
+
+	/** Applies shared readability floors before JTable lays out preferred widths. */
+	public void ensureMinimumReadableWidths() {
+		for (int index = 0; index < getColumnCount(); index++) {
+			TableColumn column = getColumn(index);
+			if (!(column.getIdentifier() instanceof Field field)) continue;
+			int minimum = minimumReadableWidth(field.getId());
+			if (manuallyAdjustedWidthFields.contains(field.getId()) || column.getPreferredWidth() >= minimum) continue;
+			column.setPreferredWidth(minimum);
+			if (column.getWidth() < minimum) column.setWidth(minimum);
+		}
 	}
 
 	public void removeColumn(TableColumn column) {
@@ -333,6 +346,14 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 
 	public boolean isWidthManuallyAdjusted(String fieldId) {
 		return manuallyAdjustedWidthFields.contains(fieldId);
+	}
+
+	/** Records a width changed through the physical table-header resize gesture. */
+	public void markWidthManuallyAdjusted(String fieldId) {
+		if (fieldId != null) {
+			manuallyAdjustedWidthFields.add(fieldId);
+			configuredWidthFields.add(fieldId);
+		}
 	}
 
 	public boolean isSvg() {

@@ -1,0 +1,13 @@
+<!-- MIT License. Copyright (c) 2026 microProject. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <defs>
+    <linearGradient id="indicator-blue" x1="8" y1="1" x2="8" y2="15" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7195E3"/>
+      <stop offset="0.52" stop-color="#3C69C0"/>
+      <stop offset="1" stop-color="#214A9A"/>
+    </linearGradient>
+  </defs>
+  <circle cx="8" cy="8" r="6.25" fill="#EEF4FF" stroke="url(#indicator-blue)" stroke-width="1.5"/>
+  <circle cx="8" cy="4.9" r="0.95" fill="#2F5FB8"/>
+  <path d="M7.2 6.7h1.6v4.7H7.2z" fill="#2F5FB8"/>
+</svg>
