@@ -353,6 +353,7 @@ public class MicroProjectXlsxReader extends AbstractProjectReader {
 			net.sf.mpxj.Task task = tasks.get(entry.getKey());
 			net.sf.mpxj.Task parent = tasks.get(entry.getValue());
 			parent.addChildTask(task);
+			project.getChildTasks().remove(task);
 		}
 		return tasks;
 	}
