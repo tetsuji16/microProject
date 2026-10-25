@@ -78,12 +78,23 @@ public class MpxAssignmentConverter {
 			: Math.max(0L, sourceWork - sourceActualWork);
 		CustomWorkPlan customWorkPlan = customWorkContour
 			? customWorkPlan(mpxAssignment, sourceWork, sourceActualWork, sourceRemainingWork, rawWork, state) : null;
+		boolean issue919Diagnostic = task.getName() != null && task.getName().toLowerCase(java.util.Locale.ROOT).contains("baseline");
+		if (issue919Diagnostic) System.out.println("ISSUE919_ASSIGN beforeLink srcUid=" + mpxAssignment.getUniqueID()
+			+ " srcWork=" + sourceWork + " srcActual=" + sourceActualWork + " srcRemaining=" + sourceRemainingWork
+			+ " srcUnits=" + mpxAssignment.getUnits() + " taskDuration=" + task.getRawDuration()
+			+ " taskStart=" + task.getStart() + " taskEnd=" + task.getEnd());
 		assignment.setTaskAndResource(task, resource);
+		if (issue919Diagnostic) System.out.println("ISSUE919_ASSIGN linked work=" + assignment.getWork(null)
+			+ " actual=" + assignment.getActualWork(null) + " remaining=" + assignment.getRemainingWork(null)
+			+ " units=" + assignment.getUnits() + " duration=" + assignment.getDuration());
 		// MSPDI stores assignment units as a percentage (100 = 1.0 in the
 		// microProject model). Restore this explicitly before work is applied;
 		// otherwise a round trip can leave the assignment at the default 0 units.
 		if (mpxAssignment.getUnits() != null)
 			assignment.forceUnits(mpxAssignment.getUnits().doubleValue() / 100.0D);
+		if (issue919Diagnostic) System.out.println("ISSUE919_ASSIGN units work=" + assignment.getWork(null)
+			+ " actual=" + assignment.getActualWork(null) + " remaining=" + assignment.getRemainingWork(null)
+			+ " units=" + assignment.getUnits() + " duration=" + assignment.getDuration());
 		// Import current schedule values here; scalar baseline slots are imported
 		// separately by importBaselines after this current assignment is attached.
 		long assignmentStart = rawWork != null && rawWork.start() != null ? rawWork.start().longValue()
@@ -96,6 +107,10 @@ public class MpxAssignmentConverter {
 		// AssignmentDetail stores a start as a delay relative to the task. During
 		// import the task's schedule can still be uninitialised, so feeding the
 		// identical task date through setStart turns it into an epoch-sized delay.
+		if (issue919Diagnostic) System.out.println("ISSUE919_ASSIGN boundsBefore work=" + assignment.getWork(null)
+			+ " actual=" + assignment.getActualWork(null) + " remaining=" + assignment.getRemainingWork(null)
+			+ " units=" + assignment.getUnits() + " duration=" + assignment.getDuration()
+			+ " start=" + assignmentStart + " finish=" + assignmentFinish);
 		assignment.initializeImportedBounds(assignmentStart,
 			assignmentFinish == null ? 0L : assignmentFinish.longValue());
 		// Install the source profile before applying Work. A standard contour's
