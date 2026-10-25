@@ -56,7 +56,7 @@ plugins {
 }
 
 group = "com.microproject"
-version = providers.gradleProperty("releaseVersion").getOrElse("0.0.24")
+version = providers.gradleProperty("releaseVersion").getOrElse("0.1.0")
 val minimumJavaRelease = 25
 val activeToolchainVersion = maxOf(minimumJavaRelease, JavaVersion.current().majorVersion.toInt())
 
