@@ -32,6 +32,7 @@ import com.microproject.exchange.ResourceMappingForm;
 import com.microproject.strings.Messages;
 import com.microproject.testsupport.DialogLayoutAssertions;
 import com.microproject.testsupport.GuiAcceptanceSupport;
+import com.microproject.testsupport.WindowAcceptanceAssertions;
 
 /** Captures the Resource Mapping popup and checks its screen/resize contract (#724). */
 class ResourceMappingDialogGuiAcceptanceTest {
@@ -76,9 +77,9 @@ class ResourceMappingDialogGuiAcceptanceTest {
 		Files.createDirectories(artifactDirectory);
 		ImageIO.write(screenshot, "png", artifactDirectory.resolve("resource-mapping-dialog.png").toFile());
 
-		Point readOnlyLocation = dialog.localProject.getLocationOnScreen();
-		robot.mouseMove(readOnlyLocation.x + dialog.localProject.getWidth() / 2,
-			readOnlyLocation.y + dialog.localProject.getHeight() / 2);
+		Point readOnlyTarget = WindowAcceptanceAssertions.robotPointFor(
+			WindowAcceptanceAssertions.boundsOnScreen(dialog.localProject));
+		robot.mouseMove(readOnlyTarget.x, readOnlyTarget.y);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 		robot.waitForIdle();
@@ -89,9 +90,9 @@ class ResourceMappingDialogGuiAcceptanceTest {
 			assertFalse(associationTable.isEnabled(), "Read-only mode must disable resource associations");
 		});
 
-		Point cancelLocation = dialog.cancel.getLocationOnScreen();
-		robot.mouseMove(cancelLocation.x + dialog.cancel.getWidth() / 2,
-			cancelLocation.y + dialog.cancel.getHeight() / 2);
+		Point cancelTarget = WindowAcceptanceAssertions.robotPointFor(
+			WindowAcceptanceAssertions.boundsOnScreen(dialog.cancel));
+		robot.mouseMove(cancelTarget.x, cancelTarget.y);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 		GuiAcceptanceSupport.await(() -> !dialog.isShowing(), "Cancel did not close Resource Mapping dialog");
@@ -100,8 +101,10 @@ class ResourceMappingDialogGuiAcceptanceTest {
 	}
 
 	private void activateDialog(Robot robot) throws Exception {
-		Rectangle bounds = dialog.getBounds();
-		robot.mouseMove(bounds.x + 60, bounds.y + 14);
+		Rectangle bounds = WindowAcceptanceAssertions.boundsOnScreen(dialog);
+		Point target = WindowAcceptanceAssertions.robotPointFor(
+			new Rectangle(bounds.x, bounds.y, 120, 28));
+		robot.mouseMove(target.x, target.y);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 		GuiAcceptanceSupport.await(dialog::isActive, "Resource Mapping dialog did not receive the physical activation click");
