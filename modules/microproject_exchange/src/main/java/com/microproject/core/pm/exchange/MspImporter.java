@@ -64,6 +64,7 @@ import com.microproject.core.pm.exchange.converters.type.DateUTCConverter;
 import com.microproject.core.pm.exchange.converters.type.PercentNumberRatioDoubleConverter;
 import com.microproject.datatype.DurationDefaults;
 import com.microproject.exchange.ImportedCalendarService;
+import com.microproject.exchange.MspdiProjectBoundary;
 import com.microproject.exchange.BoundedInput;
 import com.microproject.grouping.core.Node;
 import com.microproject.pm.calendar.CalendarService;
@@ -97,6 +98,7 @@ public class MspImporter {
 	protected Project nativeProject;
 	protected long earliestTaskStart=-1L;
 	protected net.sf.mpxj.Task mpxRootTask=null;
+	private MspdiProjectBoundary.Declarations rawProjectBoundary = MspdiProjectBoundary.Declarations.NONE;
 	private final List<ImportedAssignmentScheduleDelays> importedAssignmentScheduleDelays = new ArrayList<>();
 
 	private record ImportedAssignmentScheduleDelays(ResourceAssignment source, Assignment target) {}
@@ -135,10 +137,12 @@ public class MspImporter {
 		progress.updateProgress(0.3f, "Options converted");
 		importCalendars(project);
 		progress.updateProgress(0.4f, "Calendars converted");
-		// Source schedule mode changes can recalculate immediately while tasks are
-		// still being imported. Install the source project boundary before that
-		// happens; the final header pass below still applies the earliest-task fix.
-		importProjectHeader(project);
+		if (hasDeclaredProjectBoundary()) {
+			// Source schedule mode changes can recalculate immediately while tasks are
+			// still being imported. Apply a declared source boundary before that happens;
+			// the final header pass below still applies inferred defaults and task fixes.
+			importProjectHeader(project);
+		}
 		importResourcePool(project);
 		progress.updateProgress(0.5f, "Resources converted");
 		importTasks(project);
@@ -197,8 +201,10 @@ public class MspImporter {
 	
 	
 	public void parseProject(InputStream in, String extension) throws Exception {
+		resetRawMspdiInputState();
 		try {
 			InputStream source;
+			byte[] rawMspdiXml = null;
 			if ("xlsx".equalsIgnoreCase(extension)) {
 				// microProject XLSX contains both a lossless native payload and an
 				// MSPDI payload. Keep a replayable copy so native failure can use the
@@ -220,27 +226,62 @@ public class MspImporter {
 			} else {
 				nativeProject = null;
 				if ("xml".equalsIgnoreCase(extension)) {
-					byte[] data = in.readAllBytes();
-					RawMspdiData rawData = parseRawMspdiData(data);
-					state.setRawMspdiAssignmentWork(rawData.assignmentWork());
-					state.setRawMspdiAssignmentBaselineWork(rawData.assignmentBaselineWork());
-					state.setRawMspdiAssignmentBaselineCost(rawData.assignmentBaselineCost());
-					state.setRawMspdiAssignmentBaselines(rawData.assignmentBaselines());
-					state.setRawMspdiTaskBaselines(rawData.taskBaselines());
-					state.setRawMspdiResourceRates(rawData.resourceRates());
-					source = prepareProjectStream(new ByteArrayInputStream(data));
+					rawMspdiXml = in.readAllBytes();
+					source = prepareProjectStream(new ByteArrayInputStream(rawMspdiXml));
 				} else {
 					source = prepareProjectStream(in);
 				}
 			}
 			String effectiveExtension = normalizeExtension(extension, source);
+			if ("xml".equalsIgnoreCase(effectiveExtension)) {
+				if (rawMspdiXml == null)
+					rawMspdiXml = source.readAllBytes();
+				applyRawMspdiData(rawMspdiXml);
+				source = prepareProjectStream(new ByteArrayInputStream(rawMspdiXml));
+			}
 			reader = createReader(effectiveExtension);
 			mpxProjectFile = readProjectFile(source);
+			if (reader instanceof MicroProjectXlsxReader xlsxReader) {
+				byte[] embeddedMspdiXml = xlsxReader.consumeEmbeddedMspdiXml();
+				if (embeddedMspdiXml != null)
+					rawProjectBoundary = MspdiProjectBoundary.declarations(
+						MspdiProjectBoundary.parseSecureDocument(embeddedMspdiXml));
+			}
 			state.setMpxProjectFile(mpxProjectFile);
 		} finally {
 			if (in!=null)
 				in.close();
 		}	
+	}
+
+	private void resetRawMspdiInputState() {
+		rawProjectBoundary = MspdiProjectBoundary.Declarations.NONE;
+		mpxProjectFile = null;
+		reader = null;
+		earliestTaskStart = -1L;
+		mpxRootTask = null;
+		state.setMspdi(false);
+		state.setRawMspdiAssignmentWork(Map.of());
+		state.setRawMspdiAssignmentBaselineWork(Map.of());
+		state.setRawMspdiAssignmentBaselineCost(Map.of());
+		state.setRawMspdiAssignmentBaselines(Map.of());
+		state.setRawMspdiTaskBaselines(Map.of());
+		state.setRawMspdiResourceRates(Map.of());
+	}
+
+	private boolean hasDeclaredProjectBoundary() {
+		return rawProjectBoundary.appliesTo(mpxProjectFile.getProjectProperties().getScheduleFrom());
+	}
+
+	private void applyRawMspdiData(byte[] xml) throws Exception {
+		RawMspdiData rawData = parseRawMspdiData(xml);
+		rawProjectBoundary = rawData.projectBoundary();
+		state.setRawMspdiAssignmentWork(rawData.assignmentWork());
+		state.setRawMspdiAssignmentBaselineWork(rawData.assignmentBaselineWork());
+		state.setRawMspdiAssignmentBaselineCost(rawData.assignmentBaselineCost());
+		state.setRawMspdiAssignmentBaselines(rawData.assignmentBaselines());
+		state.setRawMspdiTaskBaselines(rawData.taskBaselines());
+		state.setRawMspdiResourceRates(rawData.resourceRates());
 	}
 
 	private AbstractProjectReader createReader(String extension) {
@@ -280,7 +321,8 @@ public class MspImporter {
 		return new BufferedInputStream(in);
 	}
 
-	private record RawMspdiData(Map<Long, MpxImportState.RawMspdiAssignmentWork> assignmentWork,
+	private record RawMspdiData(MspdiProjectBoundary.Declarations projectBoundary,
+		Map<Long, MpxImportState.RawMspdiAssignmentWork> assignmentWork,
 		Map<Long, Map<Integer, List<MpxImportState.RawMspdiWorkInterval>>> assignmentBaselineWork,
 		Map<Long, Map<Integer, List<MpxImportState.RawMspdiCostInterval>>> assignmentBaselineCost,
 		Map<Long, Map<Integer, MpxImportState.RawMspdiAssignmentBaseline>> assignmentBaselines,
@@ -289,17 +331,8 @@ public class MspImporter {
 
 	private RawMspdiData parseRawMspdiData(byte[] xml)
 			throws Exception {
-		javax.xml.parsers.DocumentBuilderFactory factory = javax.xml.parsers.DocumentBuilderFactory.newInstance();
-		factory.setNamespaceAware(true);
-		factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-		factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
-		factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
-		factory.setXIncludeAware(false);
-		factory.setExpandEntityReferences(false);
-		factory.setAttribute(javax.xml.XMLConstants.ACCESS_EXTERNAL_DTD, "");
-		factory.setAttribute(javax.xml.XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
-		org.w3c.dom.Document document = factory.newDocumentBuilder()
-			.parse(new ByteArrayInputStream(xml));
+		org.w3c.dom.Document document = MspdiProjectBoundary.parseSecureDocument(xml);
+		MspdiProjectBoundary.Declarations projectBoundary = MspdiProjectBoundary.declarations(document);
 		String namespace = document.getDocumentElement().getNamespaceURI();
 		com.microproject.core.pm.exchange.converters.mpx.MpxCustomFieldsConverter
 			.validateMspdiValues(document, namespace);
@@ -458,7 +491,7 @@ public class MspImporter {
 				assignmentStart, assignmentFinish, work, actual, remaining, intervals)) != null)
 				throw new IllegalArgumentException("MSPDI contains duplicate assignment UIDs");
 		}
-		return new RawMspdiData(Map.copyOf(result), Map.copyOf(assignmentBaselineWork),
+		return new RawMspdiData(projectBoundary, Map.copyOf(result), Map.copyOf(assignmentBaselineWork),
 			Map.copyOf(assignmentBaselineCost), Map.copyOf(assignmentBaselines), Map.copyOf(taskBaselines),
 			Map.copyOf(resourceRates));
 	}
