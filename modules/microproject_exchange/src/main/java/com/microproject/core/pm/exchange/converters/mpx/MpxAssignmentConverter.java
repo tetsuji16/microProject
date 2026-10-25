@@ -86,7 +86,10 @@ public class MpxAssignmentConverter {
 		assignment.setTaskAndResource(task, resource);
 		if (issue919Diagnostic) System.out.println("ISSUE919_ASSIGN linked work=" + assignment.getWork(null)
 			+ " actual=" + assignment.getActualWork(null) + " remaining=" + assignment.getRemainingWork(null)
-			+ " units=" + assignment.getUnits() + " duration=" + assignment.getDuration());
+			+ " workMillis=" + com.microproject.datatype.Duration.millis(assignment.getWork(null))
+			+ " units=" + assignment.getUnits() + " duration=" + assignment.getDuration()
+			+ " resourceType=" + assignment.getResource().getResourceType()
+			+ " isLabor=" + assignment.isLabor() + " importedProfile=" + assignment.hasImportedTimephasedWork());
 		// MSPDI stores assignment units as a percentage (100 = 1.0 in the
 		// microProject model). Restore this explicitly before work is applied;
 		// otherwise a round trip can leave the assignment at the default 0 units.
@@ -94,7 +97,11 @@ public class MpxAssignmentConverter {
 			assignment.forceUnits(mpxAssignment.getUnits().doubleValue() / 100.0D);
 		if (issue919Diagnostic) System.out.println("ISSUE919_ASSIGN units work=" + assignment.getWork(null)
 			+ " actual=" + assignment.getActualWork(null) + " remaining=" + assignment.getRemainingWork(null)
-			+ " units=" + assignment.getUnits() + " duration=" + assignment.getDuration());
+			+ " workMillis=" + com.microproject.datatype.Duration.millis(assignment.getWork(null))
+			+ " remainingMillis=" + com.microproject.datatype.Duration.millis(assignment.getRemainingWork(null))
+			+ " units=" + assignment.getUnits() + " duration=" + assignment.getDuration()
+			+ " resourceType=" + assignment.getResource().getResourceType()
+			+ " isLabor=" + assignment.isLabor() + " importedProfile=" + assignment.hasImportedTimephasedWork());
 		// Import current schedule values here; scalar baseline slots are imported
 		// separately by importBaselines after this current assignment is attached.
 		long assignmentStart = rawWork != null && rawWork.start() != null ? rawWork.start().longValue()
@@ -109,7 +116,11 @@ public class MpxAssignmentConverter {
 		// identical task date through setStart turns it into an epoch-sized delay.
 		if (issue919Diagnostic) System.out.println("ISSUE919_ASSIGN boundsBefore work=" + assignment.getWork(null)
 			+ " actual=" + assignment.getActualWork(null) + " remaining=" + assignment.getRemainingWork(null)
+			+ " workMillis=" + com.microproject.datatype.Duration.millis(assignment.getWork(null))
+			+ " remainingMillis=" + com.microproject.datatype.Duration.millis(assignment.getRemainingWork(null))
 			+ " units=" + assignment.getUnits() + " duration=" + assignment.getDuration()
+			+ " resourceType=" + assignment.getResource().getResourceType()
+			+ " isLabor=" + assignment.isLabor() + " importedProfile=" + assignment.hasImportedTimephasedWork()
 			+ " start=" + assignmentStart + " finish=" + assignmentFinish);
 		assignment.initializeImportedBounds(assignmentStart,
 			assignmentFinish == null ? 0L : assignmentFinish.longValue());
