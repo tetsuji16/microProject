@@ -47,6 +47,7 @@ import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.time.ImmutableInterval;
+import com.microproject.util.Environment;
 
 /**
  * Converts an MPXJ ResourceAssignment into a microproject Assignment.
@@ -90,6 +91,7 @@ public class MpxAssignmentConverter {
 			+ " units=" + assignment.getUnits() + " duration=" + assignment.getDuration()
 			+ " resourceType=" + assignment.getResource().getResourceType()
 			+ " isLabor=" + assignment.isLabor() + " importedProfile=" + assignment.hasImportedTimephasedWork());
+		if (issue919Diagnostic) System.out.println("ISSUE919_ASSIGN linkedSchedule " + issue919ScheduleDiagnostic(assignment));
 		// MSPDI stores assignment units as a percentage (100 = 1.0 in the
 		// microProject model). Restore this explicitly before work is applied;
 		// otherwise a round trip can leave the assignment at the default 0 units.
@@ -184,7 +186,13 @@ public class MpxAssignmentConverter {
 		return "calendar=" + calendar.getClass().getName() + "/" + calendar.getName()
 			+ " start=" + start + " finish=" + assignment.getFinish() + " duration=" + assignment.getDuration()
 			+ " add0=" + forward + "/" + reverse + " compare=" + calendar.compare(forward, reverse, false)
-			+ " contour=" + contour.getTypeKind() + " buckets=" + buckets;
+			+ " contour=" + contour.getTypeKind() + " buckets=" + buckets
+			+ " taskStart=" + assignment.getTask().getStart() + " taskEnd=" + assignment.getTask().getEnd()
+			+ " taskRawStart=" + assignment.getTask().getCurrentSchedule().getStart()
+			+ " taskRawFinish=" + assignment.getTask().getCurrentSchedule().getFinish()
+			+ " taskManual=" + assignment.getTask().isManuallyScheduled()
+			+ " projectStart=" + assignment.getTask().getProject().getStart()
+			+ " importing=" + Environment.isImporting() + " clientSide=" + Environment.isClientSide();
 	}
 
 	/**
