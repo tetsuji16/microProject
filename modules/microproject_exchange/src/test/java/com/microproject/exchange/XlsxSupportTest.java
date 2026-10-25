@@ -27,6 +27,7 @@ package test.com.microproject.exchange;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -647,6 +648,43 @@ public class XlsxSupportTest {
 			workbook.getSheet("_MicroProject_NATIVE").getRow(1).getCell(0).setCellValue("!")));
 		assertProjectFileReadFails(rewriteWorkbook(bothNames, workbook ->
 			workbook.getSheet("_MicroProject_MSPDI").getRow(2).getCell(0).setCellValue("not XML")));
+	}
+
+	@Test
+	void mspImporterUsesDeclaredBoundaryFromEmbeddedMspdiFallback() throws Exception {
+		byte[] canonical = writeNativeWorkbook("Embedded MSPDI fallback task");
+		byte[] embeddedOnly = rewriteWorkbook(canonical, workbook -> {
+			int nativeIndex = workbook.getSheetIndex("_MicroProject_NATIVE");
+			assertTrue(nativeIndex >= 0);
+			workbook.removeSheetAt(nativeIndex);
+		});
+		byte[] summaryOnly = rewriteWorkbook(embeddedOnly, workbook -> {
+			int mspdiIndex = workbook.getSheetIndex("_MicroProject_MSPDI");
+			assertTrue(mspdiIndex >= 0);
+			workbook.removeSheetAt(mspdiIndex);
+		});
+
+		MicroProjectXlsxReader reader = new MicroProjectXlsxReader();
+		reader.read(new ByteArrayInputStream(embeddedOnly));
+		assertNotNull(reader.consumeEmbeddedMspdiXml());
+		assertNull("consuming the payload clears reader state", reader.consumeEmbeddedMspdiXml());
+		reader.read(new ByteArrayInputStream(summaryOnly));
+		assertNull("a subsequent summary-only read has no stale payload", reader.consumeEmbeddedMspdiXml());
+
+		HeaderTrackingMspImporter importer = new HeaderTrackingMspImporter();
+		com.microproject.pm.task.Project project = importer.importProject(new ByteArrayInputStream(embeddedOnly), "xlsx",
+			(progress, label) -> {});
+		assertTrue(project.getTaskList().stream().anyMatch(task -> "Embedded MSPDI fallback task".equals(task.getName())));
+		assertEquals("embedded declared project boundary is applied before tasks", 1, importer.earlyHeaderPasses);
+	}
+
+	private static final class HeaderTrackingMspImporter extends MspImporter {
+		private int earlyHeaderPasses;
+
+		@Override protected void importProjectHeader(com.microproject.pm.task.Project project) {
+			if (project.getTaskList().isEmpty()) earlyHeaderPasses++;
+			super.importProjectHeader(project);
+		}
 	}
 
 	@Test

@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertAll;
 
@@ -26,11 +27,14 @@ import org.w3c.dom.Element;
 
 import com.microproject.exchange.MicrosoftImporter;
 import com.microproject.exchange.MpoFileImporter;
+import com.microproject.exchange.MspdiProjectBoundary;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.TaskSnapshot;
+
+import net.sf.mpxj.ScheduleFrom;
 
 /**
  * Independent fixed-value coverage for baseline fields and assignment timephased types.
@@ -138,8 +142,9 @@ class MspdiBaselineMatrixContractTest {
 	@Test
 	void sourceProjectStartIsInstalledBeforeManualTaskImportAndSurvivesMpoReload() throws Exception {
 		String xml = literalManualTaskImportXml();
+		byte[] xmlBytes = xml.getBytes(StandardCharsets.UTF_8);
 		Project imported = new BoundaryMspImporter().importProject(
-			new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8)), "xml", (progress, label) -> {});
+			new ByteArrayInputStream(xmlBytes), "xml", (progress, label) -> {});
 		assertAll("manual task import uses source project boundary before assignment bounds initialize",
 			() -> assertTrue(taskNamed(imported).isManuallyScheduled()),
 			() -> assertManifest(imported));
@@ -150,6 +155,42 @@ class MspdiBaselineMatrixContractTest {
 		assertAll("manual task and baseline scalars survive MPO reload",
 			() -> assertTrue(taskNamed(reopened).isManuallyScheduled()),
 			() -> assertManifest(reopened));
+
+		Project xmlWithXlsxExtension = new BoundaryMspImporter().importProject(
+			new ByteArrayInputStream(xmlBytes), "xlsx", (progress, label) -> {});
+		assertAll("explicit MSPDI boundary is retained for XML supplied with XLSX extension",
+			() -> assertTrue(taskNamed(xmlWithXlsxExtension).isManuallyScheduled()),
+			() -> assertManifest(xmlWithXlsxExtension));
+	}
+
+	@Test
+	void projectBoundaryProvenanceUsesRootFieldsAndScheduleDirection() throws Exception {
+		String xml = literalManualTaskImportXml();
+		MspdiProjectBoundary.Declarations both = boundaryDeclarations(xml);
+		assertTrue(both.appliesTo(ScheduleFrom.START));
+		assertTrue(both.appliesTo(ScheduleFrom.FINISH));
+
+		MspdiProjectBoundary.Declarations startOnly = boundaryDeclarations(withoutProjectDate(xml, "FinishDate"));
+		assertTrue(startOnly.appliesTo(ScheduleFrom.START));
+		assertFalse(startOnly.appliesTo(ScheduleFrom.FINISH));
+
+		MspdiProjectBoundary.Declarations finishOnly = boundaryDeclarations(withoutProjectDate(xml, "StartDate"));
+		assertFalse(finishOnly.appliesTo(ScheduleFrom.START));
+		assertTrue(finishOnly.appliesTo(ScheduleFrom.FINISH));
+
+		MspdiProjectBoundary.Declarations taskDatesOnly = boundaryDeclarations(
+			withoutProjectDate(withoutProjectDate(xml, "StartDate"), "FinishDate"));
+		assertFalse(taskDatesOnly.appliesTo(ScheduleFrom.START));
+		assertFalse(taskDatesOnly.appliesTo(ScheduleFrom.FINISH));
+	}
+
+	private static MspdiProjectBoundary.Declarations boundaryDeclarations(String xml) throws Exception {
+		return MspdiProjectBoundary.declarations(MspdiProjectBoundary.parseSecureDocument(
+			xml.getBytes(StandardCharsets.UTF_8)));
+	}
+
+	private static String withoutProjectDate(String xml, String field) {
+		return xml.replaceFirst("<" + field + ">[^<]*</" + field + ">", "");
 	}
 
 	private record ImportStage(String name, long currentTaskFinish, long currentAssignmentFinish, long currentAssignmentWork,

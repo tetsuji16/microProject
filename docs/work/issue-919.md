@@ -1,95 +1,93 @@
 # Issue #919 — MPO backward/native contracts
 
-State: ACTIVE — bounded historical/native contracts and headless workflows pass;
-post-fix physical GUI CI is pending Sol's integration gate.
+State: ACTIVE — finite historical/native and headless workflows pass; post-fix
+physical GUI route is pending Sol's integration gate.
 Issue: https://github.com/tetsuji16/microProject/issues/919
-Frozen: 2026-10-25, issue-body A1–A4 and finite intake matrix. Scope is #919 only.
-Baseline HEAD: `b0bf097825c4f59c101805fcb2b99991ca30eccd` (tree tested as
-`dd49d8b52a0c07ce4c7668087e98e88ba15c156b`). Final tested worktree SHA is assigned
-after root commits. Preserve unrelated attachment/sample sync files.
+Frozen 2026-10-25: issue-body A1–A4 and finite intake matrix. Scope remains #919;
+#920+ has not started. No display-resolution changes or scale-specific remediation.
+Baseline HEAD `b0bf097825c4f59c101805fcb2b99991ca30eccd` (tree tested as
+`dd49d8b52a0c07ce4c7668087e98e88ba15c156b`). Root will record final integrated SHA.
 
 ## Frozen acceptance
 
 | ID | Contract | Evidence / status |
 |---|---|---|
-| A1 | Distinguish MPOF container 1.0 from app/payload generations; bound the tested historical cohorts without shrinking supported reads. | Pass for representative cohorts; no per-patch/build claim. MPOF introduction and .23/.24 evidence are inventoried in `docs/msp-exchange-format-inventory.md` and `docs/mpof/MPOF.md`. |
-| A2 | Previous-writer archive and independent literal semantics through current read, save, reopen. | Pass for .23 selected fields and .24 task/resource/assignment, dates, calendars, duration, constraints, progress, links, native entries, and separately bounded baseline-cost probe. |
-| A3 | Native/default writes and transaction preservation, including failure/cancel/overwrite refusal. | Headless transaction/application tests pass. Physical Ribbon Save As route previously failed after source-preservation assertions; post-fix exact-head Robot run remains pending. |
-| A4 | Record provenance, exact evidence, commands/counts, and limitations. | Archive/content hashes and source are below. Current staged-blob hash and post-fix physical result remain pending. |
+| A1 | Distinguish MPOF container 1.0 from app/payload generations; bounded cohorts without shrinking supported reads. | Pass for representative .23/.24 cohorts; no per-patch/build claim. See MPOF and inventory docs. |
+| A2 | Previous-writer archive and independent literal semantics through current read/save/reopen. | Pass for .23 selected fields and .24 task/resource/assignment, dates, calendars, duration, constraints, progress, links, populated native entries, plus separate baseline-cost probe. |
+| A3 | Native/default and transaction preservation, including failure/cancel/overwrite refusal. | Headless tests pass; post-fix physical Save As/cancel/refusal route pending. |
+| A4 | Provenance, exact commands/counts, limits, and evidence layers. | Fixture provenance and local counts recorded; final candidate/staged hash and post-fix physical result pending. |
 
 ## Fixture provenance and semantic limits
 
-- `testdata/mpo/v024-1265-previous-writer.mpo` was produced in an isolated
-  archive of historical writer commit `8404a6c3a15eeda8bc32e06d92cda11cb2fd52af`,
-  with JDK `25.0.4.101-hotspot`, UTC/English. The generator asserts the literal
-  source model before invoking that writer and uses no current production code.
-- Accepted archive SHA-256:
-  `0CBB233D8836B472F80FBC8932CAE99CC9858670A61AC1F4DC70E31B7C1DFDD8`;
-  content SHA-256: `DDB6A49BD2F7D5CA2E6432FE29B5711D08E8DA406EDB43664E9E4C29C1E34A7A`.
-  Initial uncommitted bytes were overwritten during generator iteration; the
-  exact-tag source shape was recreated and failure reproduced. Accepted bytes
-  are not claimed identical to the first uncommitted archive.
-- Literal populated payloads include sheet layout; hidden UID 4201; manual split
-  UID 4202; leveling options; Dialog 15pt text styling; calendars; baseline
-  profile slot 0/resource UID 7/duration 28,800,000 ms. Current import and MPO
-  reopen assert their corresponding model state. Assignment-level leveling v2
-  entry is empty; it proves entry presence only. Synthetic v1 migration tests
-  are separately identified. See `testdata/mpo/README.md` for generation and
-  payload-by-payload coverage.
-- Synthetic missing-data probes distinguish absent `task-schedules` from a
-  retained v1 schedule payload missing project/task calendar graph fields;
-  schedule values remain and MSPDI calendar/date fallback is asserted. Missing
-  split provenance removes `manualIntervals`, `levelingIntervals`, and
-  `manualLevelingDates` together; gaps remain manual without invented dates.
-- Unique source calendar UIDs resolve by imported source identity before name
-  or global fallback. This is document-derived from Microsoft's project-local
-  [`CalendarUID`](https://learn.microsoft.com/en-us/office-project/xml-data-interchange/calendaruid-element?view=project-client-2016)
+- `testdata/mpo/v024-1265-previous-writer.mpo`: isolated historical writer commit
+  `8404a6c3a15eeda8bc32e06d92cda11cb2fd52af`, JDK `25.0.4.101-hotspot`, UTC/English.
+  Generator asserts its literal model before save and uses no current production code.
+- Accepted archive SHA-256 `0CBB233D8836B472F80FBC8932CAE99CC9858670A61AC1F4DC70E31B7C1DFDD8`;
+  content SHA-256 `DDB6A49BD2F7D5CA2E6432FE29B5711D08E8DA406EDB43664E9E4C29C1E34A7A`.
+  Initial uncommitted bytes were overwritten; exact-tag source shape was recreated
+  and failure reproduced. Accepted bytes are not claimed identical to that first copy.
+- Populated literal payloads include layout, hidden UID 4201, manual split UID 4202,
+  leveling options, Dialog 15pt styling, calendars, and baseline profile slot 0/resource
+  UID 7/duration 28,800,000 ms. Import and MPO reopen assert corresponding state.
+  Assignment-leveling v2 entry is empty; only entry presence is proven. Synthetic v1
+  migration is separate. See `testdata/mpo/README.md` for field-level coverage.
+- Synthetic fallback probes distinguish missing `task-schedules` from a retained v1
+  payload without its project/task calendar graph. Missing split provenance removes
+  `manualIntervals`, `levelingIntervals`, and `manualLevelingDates`; gaps stay manual.
+- Unique source calendar UIDs resolve by imported identity before name/global fallback,
+  document-derived from Microsoft's project-local [`CalendarUID`](https://learn.microsoft.com/en-us/office-project/xml-data-interchange/calendaruid-element?view=project-client-2016)
   and [`UID`](https://learn.microsoft.com/en-us/office-project/xml-data-interchange/uid-element?view=project-client-2016)
-  rules. Duplicate UID 2 in the .23 sample retains the prior Standard/base
-  fallback as an old-file compatibility choice, not Microsoft behavior; date
-  parity for that malformed calendar graph is not claimed. Baseline assignments
-  privately snapshot the current effective task/resource calendar.
+  rules. Duplicate UID 2 in malformed .23 content retains old Standard/base fallback
+  as compatibility behavior, not Microsoft conformance; date parity is not claimed.
+  Baseline assignments privately snapshot their effective task/resource calendar.
 
-## Confirmed import-order defect and fix
+## Confirmed import-order defects and fixes
 
-The physical journey reached its scalar MPO reload after completing source
-preservation assertions, then failed in `Assignment.initializeImportedBounds`.
-The MSPDI project header start date was applied only after task import. A manual
-task triggered recalculation against the importing project's initial Today
-boundary; its derived resource calendar then clamped the assignment to the next
-day. The raw task dates remained source dates, but the zero-duration assignment
-query returned one working day, tripping the unchanged bounds guard.
+The physical journey completed source-preservation assertions, then scalar MPO reload
+failed at `Assignment.initializeImportedBounds`. The MSPDI project start was applied
+only after task import; a manual task recalculated against the initial Today boundary,
+and a derived resource calendar clamped its assignment to the next day. The zero-duration
+query returned one working day and hit the unchanged bounds guard. The literal regression
+uses a fixed Sunday initial boundary, failed before the early header pass, and passes
+through public MSPDI import and MPO save/reload after it.
 
-`MspImporter` now applies the existing project-header routine immediately after
-calendar import and before resources/tasks, then reapplies it after tasks for
-the existing earliest-task correction. The regression uses a literal source
-header and a fixed Sunday initial boundary (no runtime-date dependence), imports
-through public `MspImporter`, and checks baseline/current manifest values before
-and after MPO save/reload. It failed before the early call at the bounds guard
-and passed after. The guard and source assertions are unchanged. Temporary
-diagnostic logs and temporary repro tests were removed.
+Applying that early header unconditionally also failed summary-only XLSX fallback:
+its header dates are inferred from task rows (not declared project bounds), and its
+converted task start differed from the raw date by eight hours. Old-order A/B rerun
+passed. The current gate applies the early existing header routine only when a secure
+raw MSPDI parse sees a nonblank Project-level date matching `ScheduleFrom` direction.
+The same provenance path handles direct XML, XML with `.xlsx` extension, and selected
+embedded MSPDI fallback. Reader/provenance state resets per parse/consume. All readers
+retain the final header/default and earliest-task correction. Temporary diagnostics
+were removed; guard and source assertions remain unchanged.
 
 ## Verification and remaining gate
 
-Exact local commands (UTC/Japanese locale used for the latter runs):
+Final local source worktree runs used UTC/English and `--rerun-tasks`:
 
 ```powershell
-$env:JAVA_TOOL_OPTIONS='-Duser.timezone=UTC -Duser.language=ja -Duser.country=JP'; .\gradlew.bat :microproject_exchange:test --console=plain
-$env:JAVA_TOOL_OPTIONS='-Duser.timezone=UTC -Duser.language=ja -Duser.country=JP'; .\gradlew.bat :microproject_application:test --console=plain
-$env:JAVA_TOOL_OPTIONS='-Duser.timezone=UTC -Duser.language=ja -Duser.country=JP'; .\gradlew.bat :microproject_ui:test --tests 'com.microproject.pm.graphic.frames.DocumentGenerationTest' --console=plain
+$env:JAVA_TOOL_OPTIONS='-Duser.timezone=UTC -Duser.language=en -Duser.country=US'; .\gradlew.bat :microproject_exchange:test --rerun-tasks --console=plain
+$env:JAVA_TOOL_OPTIONS='-Duser.timezone=UTC -Duser.language=en -Duser.country=US'; .\gradlew.bat :microproject_application:test --rerun-tasks --console=plain
+$env:JAVA_TOOL_OPTIONS='-Duser.timezone=UTC -Duser.language=en -Duser.country=US'; .\gradlew.bat :microproject_ui:test --tests 'com.microproject.pm.graphic.frames.DocumentGenerationTest' --rerun-tasks --console=plain
 ```
 
-Final local results: exchange 348 tests, application 37, UI `DocumentGenerationTest`
-3; all 0 failures, 0 errors, 0 skipped. Earlier unchanged-source evidence remains
-core 1,183 pass; UI `OfficeChromePanelVisualSmokeTest` 2 pass (0 skipped); the
-latter does not cover the importer fix. The source-calendar and baseline-copy
-regressions, historical archive, transactions, and synthetic fallback probes
-remain in the exchange suite.
+Results: exchange 350, application 37, UI `DocumentGenerationTest` 3; each had
+0 failures, 0 errors, 0 skipped, with all Gradle tasks executed. Earlier separate
+evidence remains core 1,183 pass and `OfficeChromePanelVisualSmokeTest` 2 pass;
+those runs predate this gate and do not prove the importer fix.
 
-Physical runs 40127457597, 40168853294, 40169897816, 40170415649, and 40170978982
-record prior failures during diagnosis; none is post-fix pass evidence. The
-post-fix physical route
-`RibbonExternalCommandGuiAcceptanceTest.robotSavesImportedMppAsMpoAndCancellationOrOverwriteRefusalKeepsSource`
-must run on the exact committed candidate. Do not change display resolution or
-add resolution-specific remediation. No MPP write, POD wire, dependency, cloud,
-or new GUI route is in this slice.
+Required Build [40172018137](https://github.com/tetsuji16/microProject/actions/runs/40172018137)
+failed the XLSX summary fallback with the assignment bounds guard. Old-order A/B and
+the new provenance-gated source now pass the isolated reproduction and full exchange
+suite locally; no post-fix CI run exists yet. Targeted Robot
+[40172015362](https://github.com/tetsuji16/microProject/actions/runs/40172015362)
+reported 1 JUnit test / 0 failures / 0 errors / 0 skips, but the GUI gate failed on a
+deferred EDT `CellUtility.setAppearance` NPE because `CellStyles` was uninitialized.
+Shared `createWindow` initialization/assertion was integrated and GUI-test compilation
+passed; post-fix physical execution is pending.
+
+Prior diagnostic runs 40127457597, 40168853294, 40169897816, 40170415649,
+40170978982 remain failures, not pass evidence. Required GUI smoke
+[40172018126](https://github.com/tetsuji16/microProject/actions/runs/40172018126)
+passed 53 / 0 failures / 0 errors / 1 skip on pre-gate SHA; it does not cover the
+post-fix physical route. A3/A4 remain pending. Root will record latest candidate SHA.
