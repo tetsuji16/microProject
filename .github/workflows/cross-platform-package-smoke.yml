@@ -87,9 +87,10 @@ jobs:
           asset_id="$(python3 -c 'import json; print(json.load(open("asset.json"))["id"])')"
           expected_digest="$(python3 -c 'import json; print(json.load(open("asset.json")).get("digest") or "")')"
           [[ "$expected_digest" =~ ^sha256:[0-9a-fA-F]{64}$ ]] || { echo "Release asset has no valid SHA256 digest" >&2; exit 1; }
-          curl --fail --silent --show-error -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/octet-stream" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/assets/${asset_id}" -o package.zip
+          curl --fail --silent --show-error --retry 3 --retry-all-errors --retry-delay 2 -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/octet-stream" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/assets/${asset_id}" -o package.zip
           actual_digest="$(shasum -a 256 package.zip | awk '{print tolower($1)}')"
           expected_hex="$(printf '%s' "${expected_digest#sha256:}" | tr '[:upper:]' '[:lower:]')"
+          echo "Expected SHA256: $expected_hex; downloaded SHA256: $actual_digest; bytes: $(wc -c < package.zip | tr -d ' ')" | tee launch-logs/download-digest.txt
           [[ "$actual_digest" == "$expected_hex" ]] || { echo "Downloaded package digest mismatch" >&2; exit 1; }
           mkdir -p "$RUNNER_TEMP/package"
           python3 - package.zip "$RUNNER_TEMP/package" <<'PY'
