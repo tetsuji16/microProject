@@ -251,6 +251,11 @@ class ResourcePoolInitialViewGuiAcceptanceTest {
 				"A desktop session is required for Robot acceptance coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
+		previousClientSide = Environment.isClientSide();
+		previousBatchMode = Environment.isBatchMode();
+		Environment.setClientSide(true);
+		Environment.setBatchMode(false);
+		com.microproject.util.Alert.setPresenter(new SwingAlertPresenter());
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
 		Project first = namedProject("phase4-window-first", false);
@@ -261,9 +266,14 @@ class ResourcePoolInitialViewGuiAcceptanceTest {
 			manager = new GraphicManager(window);
 			window.setGraphicManager(manager);
 			manager.initView();
-			manager.addProjectFrame(first);
-			manager.addProjectFrame(second);
-			manager.addProjectFrame(pool);
+			previousJobQueue = SessionFactory.getInstance().getJobQueue();
+			SessionFactory.getInstance().setJobQueue(manager.getJobQueue());
+			// Model genuine open documents in the portfolio so their close event
+			// follows the same ProjectFactory deletion path as user-opened files.
+			ProjectFactory factory = ProjectFactory.getInstance();
+			factory.addProject(first, false, false);
+			factory.addProject(second, false, false);
+			factory.addProject(pool, false, false);
 			DocumentFrame firstFrame = manager.getFrameForProject(first);
 			window.setWindowCloseAction(() -> {
 				manager.closeDocumentWindow(firstFrame);
@@ -327,9 +337,16 @@ class ResourcePoolInitialViewGuiAcceptanceTest {
 		java.util.List<MainRibbonFrame> closeOrder = java.util.List.of(
 			secondWindow, poolWindow, firstWindow);
 		for (MainRibbonFrame documentWindow : closeOrder) {
+			Project expectedProject = documentWindow == secondWindow ? second
+				: documentWindow == poolWindow ? pool : first;
+			assertTrue(expectedProject.needsSaving(),
+				"the close journey must retain the real unsaved-change confirmation");
 			activateNativeWindow(robot, documentWindow);
 			AbstractButton close = WindowAcceptanceAssertions.findFlatLafTitleButton(documentWindow, "Close");
 			WindowAcceptanceAssertions.clickComponent(robot, close);
+			Dialog savePrompt = awaitVisibleDialog();
+			WindowAcceptanceAssertions.clickComponent(robot,
+				GuiAcceptanceSupport.findShowingButtonByText(savePrompt, UIManager.getString("OptionPane.noButtonText")));
 			GuiAcceptanceSupport.await(() -> !documentWindow.isShowing(),
 				"Robot title-bar close did not close " + documentWindow.getTitle());
 		}

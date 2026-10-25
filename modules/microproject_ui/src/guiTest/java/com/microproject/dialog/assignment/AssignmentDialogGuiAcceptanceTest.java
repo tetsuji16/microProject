@@ -168,6 +168,8 @@ class AssignmentDialogGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> task.findAssignment(resource) != null,
 			"Assign Resources did not create the assignment after lock acceptance");
 		assertSame(task, task.findAssignment(resource).getTask());
+		GuiAcceptanceSupport.await(() -> isTaskSelected(taskSheet, task),
+			"Assign Resources cleared the source task selection after assignment");
 		Color[] assignmentStatusBackground = new Color[1];
 		SwingUtilities.invokeAndWait(() -> assignmentStatusBackground[0] = resourceSheet.prepareRenderer(
 			resourceSheet.getCellRenderer(resourceRow, nameColumn(resourceSheet)), resourceRow, nameColumn(resourceSheet)).getBackground());
@@ -175,7 +177,10 @@ class AssignmentDialogGuiAcceptanceTest {
 			"fully assigned resources should use the muted theme status color");
 
 		SwingUtilities.invokeAndWait(dialog::dispose);
-		activateWindow(robot);
+		GuiAcceptanceSupport.await(() -> isTaskSelected(taskSheet, task),
+			"Closing Assign Resources cleared the source task selection");
+		GuiAcceptanceSupport.await(window::isActive,
+			"closing Assign Resources did not return activation to the main window");
 		AbstractButton reopenedAssignResources = com.microproject.testsupport.RibbonGuiSupport
 			.findVisibleOrExpand(robot, window, "RibbonAssignResources");
 		GuiAcceptanceSupport.await(reopenedAssignResources::isEnabled,
@@ -193,6 +198,10 @@ class AssignmentDialogGuiAcceptanceTest {
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
 		GuiAcceptanceSupport.await(() -> task.findAssignment(resource) != null,
 			"Ctrl+Y did not restore the assignment created by Assign Resources");
+	}
+
+	private static boolean isTaskSelected(SpreadSheet sheet, NormalTask task) {
+		return sheet.getSelectedNodes().stream().anyMatch(node -> node != null && node.getImpl() == task);
 	}
 
 	/** GUI-MSP-ASSIGNMENT-02: Replace preserves actual work and moves remaining work. */
