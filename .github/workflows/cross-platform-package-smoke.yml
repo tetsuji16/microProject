@@ -94,19 +94,34 @@ jobs:
           [[ "$actual_digest" == "$expected_hex" ]] || { echo "Downloaded package digest mismatch" >&2; exit 1; }
           mkdir -p "$RUNNER_TEMP/package"
           python3 - package.zip "$RUNNER_TEMP/package" <<'PY'
-          import pathlib, stat, sys, zipfile
+          import os, pathlib, stat, sys, zipfile
           archive = pathlib.Path(sys.argv[1])
           destination = pathlib.Path(sys.argv[2]).resolve()
           with zipfile.ZipFile(archive) as zf:
+              entries = []
+              symlinks = []
               directories = []
               for info in zf.infolist():
-                  target = (destination / info.filename).resolve()
-                  if target != destination and destination not in target.parents:
+                  parts = pathlib.PurePosixPath(info.filename).parts
+                  if not parts or pathlib.PurePosixPath(info.filename).is_absolute() or ".." in parts or "\\" in info.filename:
                       raise SystemExit(f"Unsafe archive path: {info.filename!r}")
+                  target = destination.joinpath(*parts)
                   mode = info.external_attr >> 16
-                  if stat.S_ISLNK(mode):
-                      raise SystemExit(f"Symbolic links are not allowed in package archive: {info.filename!r}")
                   permissions = mode & 0o777
+                  if stat.S_ISLNK(mode):
+                      link_target = zf.read(info).decode("utf-8")
+                      if pathlib.PurePosixPath(link_target).is_absolute() or "\\" in link_target:
+                          raise SystemExit(f"Unsafe symbolic link target: {info.filename!r} -> {link_target!r}")
+                      resolved_link = pathlib.Path(os.path.normpath(target.parent / link_target))
+                      if resolved_link != destination and destination not in resolved_link.parents:
+                          raise SystemExit(f"Symbolic link escapes package root: {info.filename!r} -> {link_target!r}")
+                      symlinks.append((info, target, resolved_link))
+                      continue
+                  entries.append((info, target, permissions))
+              symlink_paths = {target for _, target, _ in symlinks}
+              if any(parent in symlink_paths for info, _, _ in entries for parent in (destination.joinpath(*pathlib.PurePosixPath(info.filename).parts[:i]) for i in range(1, len(pathlib.PurePosixPath(info.filename).parts)))):
+                  raise SystemExit("Archive entries cannot be nested beneath symbolic links")
+              for info, target, permissions in entries:
                   if info.is_dir():
                       target.mkdir(parents=True, exist_ok=True)
                       if permissions:
@@ -117,6 +132,12 @@ jobs:
                       output.write(source.read())
                   if permissions:
                       target.chmod(permissions)
+              for info, target, resolved_link in symlinks:
+                  if target.exists() or target.is_symlink():
+                      raise SystemExit(f"Symbolic link path collides with another archive entry: {info.filename!r}")
+                  if not resolved_link.exists():
+                      raise SystemExit(f"Symbolic link target is missing from package: {info.filename!r}")
+                  target.symlink_to(os.path.relpath(resolved_link, target.parent))
               for directory, mode in reversed(directories):
                   directory.chmod(mode)
           PY
