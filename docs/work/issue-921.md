@@ -1,9 +1,9 @@
 # Issue #921 — advertised secondary external format contracts
 
-State: ACTIVE; finite scope implemented and verified; no issue closure or external approval claimed.
+State: Implemented and integrated; A1–A4 are complete within the frozen finite scope.
 Issue: https://github.com/tetsuji16/microProject/issues/921
 Contract frozen: 2026-10-25 from issue body and finite intake.
-Tested source SHA: `2db12efacf7d5c0da0c7c5c8e1c74bec1ba8f26b`; focused test evidence was collected against this exact source tree.
+Tested source SHA: `6235dbf45983793a651d3ea923833dc60d1ec03f`; focused tests and PR workflows passed on this exact source tree.
 Baseline working tree included untracked `.codex-remote-attachments/` and sample sync sidecars; preserved.
 
 ## Acceptance
@@ -41,5 +41,10 @@ MPP, MSPDI XML, and POD are covered by their separate issue/format contracts; th
 - `.\gradlew.bat :microproject_exchange:test --tests "com.microproject.exchange.MalformedExternalImporterTest" --console=plain` — PASS, 3 tests (two malformed imports and valid empty Planner).
 - `.\gradlew.bat :microproject_exchange:test --tests "com.microproject.exchange.MpxIndependentFixtureImportTest" --console=plain` — PASS, 3 tests; `PlannerIndependentFixtureImportTest` — PASS, 1; `RegisteredExternalWriterTest` plus `ProjectWriterFactoryTest` — PASS, 4; `XlsxSupportTest` — PASS, 22 (recorded in slice evidence before this final invalid-input slice).
 - `.\gradlew.bat :microproject_exchange:cleanTest :microproject_exchange:test --no-daemon --max-workers=1 --console=plain` — PASS, 365 tests, 0 failures/errors; sequential clean rerun after an earlier overlapping invocation ended in `java.io.EOFException` while reading test results. `git diff --check` — PASS.
-- Exact pushed PR head `aab0f6e465150cc9dc2d84709e2b90c309b511c4`: Build workflow dispatch PASS, [run 40189900233](https://github.com/tetsuji16/microProject/actions/runs/40189900233). The PR base is #920's open branch, so repository PR workflows (filtered to `master`) do not trigger automatically; this dispatch verified the pushed head directly.
+- Exact PR head `6235dbf45983793a651d3ea923833dc60d1ec03f`: Build PASS, [run 40191516443](https://github.com/tetsuji16/microProject/actions/runs/40191516443); GUI acceptance PASS, [run 40191516426](https://github.com/tetsuji16/microProject/actions/runs/40191516426).
 - Remaining limits: bounded fixture field coverage only; MPX/Planner writers are tested via format readback, not a claim of full interoperability; MPX valid empty-project semantics are not asserted. PMXML/JSON/SDEF versions, semantics, and read paths remain unverified/absent as shown above. Physical MSP was not used. POD wire format and product UI formats were not changed.
+
+## Integration
+
+- Dependency PR #928 merged to `master` as `5f31b7591b6dd7bdf0cb38a0948dfa552d60a023` before #921 integration.
+- Implementation PR #929 merged to `master` as `42c81851b0c9307d556c9bd1277153f3795a411c` after Build and GUI acceptance passed on its exact head `6235dbf45983793a651d3ea923833dc60d1ec03f`.
