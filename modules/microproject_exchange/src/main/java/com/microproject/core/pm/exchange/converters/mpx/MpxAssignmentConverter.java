@@ -102,6 +102,7 @@ public class MpxAssignmentConverter {
 			+ " units=" + assignment.getUnits() + " duration=" + assignment.getDuration()
 			+ " resourceType=" + assignment.getResource().getResourceType()
 			+ " isLabor=" + assignment.isLabor() + " importedProfile=" + assignment.hasImportedTimephasedWork());
+		if (issue919Diagnostic) System.out.println("ISSUE919_ASSIGN unitsSchedule " + issue919ScheduleDiagnostic(assignment));
 		// Import current schedule values here; scalar baseline slots are imported
 		// separately by importBaselines after this current assignment is attached.
 		long assignmentStart = rawWork != null && rawWork.start() != null ? rawWork.start().longValue()
@@ -122,6 +123,7 @@ public class MpxAssignmentConverter {
 			+ " resourceType=" + assignment.getResource().getResourceType()
 			+ " isLabor=" + assignment.isLabor() + " importedProfile=" + assignment.hasImportedTimephasedWork()
 			+ " start=" + assignmentStart + " finish=" + assignmentFinish);
+		if (issue919Diagnostic) System.out.println("ISSUE919_ASSIGN boundsSchedule " + issue919ScheduleDiagnostic(assignment));
 		assignment.initializeImportedBounds(assignmentStart,
 			assignmentFinish == null ? 0L : assignmentFinish.longValue());
 		// Install the source profile before applying Work. A standard contour's
@@ -162,6 +164,27 @@ public class MpxAssignmentConverter {
 		restoreScheduleDelays(mpxAssignment, assignment, state);
 		if (mpxAssignment.getUniqueID() != null)
 			assignment.setUniqueId(mpxAssignment.getUniqueID().longValue());
+	}
+
+	private static String issue919ScheduleDiagnostic(Assignment assignment) {
+		com.microproject.pm.calendar.WorkCalendar calendar = assignment.getEffectiveWorkCalendar();
+		long start = assignment.getStart();
+		long forward = calendar.add(start, 0L, false);
+		long reverse = calendar.add(start, 0L, true);
+		AbstractContour contour = assignment.getWorkContour();
+		StringBuilder buckets = new StringBuilder();
+		if (contour.getContourBuckets() != null) {
+			for (int i = 0; i < contour.getContourBuckets().length; i++) {
+				AbstractContourBucket bucket = contour.getContourBuckets()[i];
+				if (i > 0) buckets.append(',');
+				buckets.append(bucket.getClass().getSimpleName()).append(':')
+					.append(bucket.getBucketDuration(0L)).append('@').append(bucket.getUnits());
+			}
+		}
+		return "calendar=" + calendar.getClass().getName() + "/" + calendar.getName()
+			+ " start=" + start + " finish=" + assignment.getFinish() + " duration=" + assignment.getDuration()
+			+ " add0=" + forward + "/" + reverse + " compare=" + calendar.compare(forward, reverse, false)
+			+ " contour=" + contour.getTypeKind() + " buckets=" + buckets;
 	}
 
 	/**
