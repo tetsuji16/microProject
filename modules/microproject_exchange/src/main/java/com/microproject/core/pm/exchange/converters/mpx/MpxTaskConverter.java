@@ -148,7 +148,21 @@ public class MpxTaskConverter {
 		}
 
 		task.setInactiveTask(!mpxTask.getActive());
+		boolean issue919Diagnostic = task.getName() != null
+			&& task.getName().toLowerCase(java.util.Locale.ROOT).contains("baseline");
+		if (issue919Diagnostic) System.out.println("ISSUE919_TASK beforeManual sourceMode=" + mpxTask.getTaskMode()
+			+ " sourceStart=" + (mpxTask.getStart() == null ? null : mpxTask.getStart().getTime())
+			+ " sourceFinish=" + (mpxTask.getFinish() == null ? null : mpxTask.getFinish().getTime())
+			+ " domainStart=" + task.getStart() + " domainFinish=" + task.getEnd()
+			+ " scheduleStart=" + task.getCurrentSchedule().getStart()
+			+ " scheduleFinish=" + task.getCurrentSchedule().getFinish()
+			+ " manual=" + task.isManuallyScheduled());
 		task.setManuallyScheduled(mpxTask.getTaskMode() == TaskMode.MANUALLY_SCHEDULED);
+		if (issue919Diagnostic) System.out.println("ISSUE919_TASK afterManual sourceMode=" + mpxTask.getTaskMode()
+			+ " domainStart=" + task.getStart() + " domainFinish=" + task.getEnd()
+			+ " scheduleStart=" + task.getCurrentSchedule().getStart()
+			+ " scheduleFinish=" + task.getCurrentSchedule().getFinish()
+			+ " manual=" + task.isManuallyScheduled());
 
 	}
 
