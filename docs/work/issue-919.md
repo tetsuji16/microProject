@@ -1,7 +1,6 @@
 # Issue #919 — MPO backward/native contracts
 
-State: ACTIVE — finite historical/native and headless workflows pass; post-fix
-physical GUI route is pending Sol's integration gate.
+State: VERIFIED source/physical; delivery tracked in PR #927.
 Issue: https://github.com/tetsuji16/microProject/issues/919
 Frozen 2026-10-25: issue-body A1–A4 and finite intake matrix. Scope remains #919;
 #920+ has not started. No display-resolution changes or scale-specific remediation.
@@ -14,8 +13,8 @@ Baseline HEAD `b0bf097825c4f59c101805fcb2b99991ca30eccd` (tree tested as
 |---|---|---|
 | A1 | Distinguish MPOF container 1.0 from app/payload generations; bounded cohorts without shrinking supported reads. | Pass for representative .23/.24 cohorts; no per-patch/build claim. See MPOF and inventory docs. |
 | A2 | Previous-writer archive and independent literal semantics through current read/save/reopen. | Pass for .23 selected fields and .24 task/resource/assignment, dates, calendars, duration, constraints, progress, links, populated native entries, plus separate baseline-cost probe. |
-| A3 | Native/default and transaction preservation, including failure/cancel/overwrite refusal. | Headless tests pass; post-fix physical Save As/cancel/refusal route pending. |
-| A4 | Provenance, exact commands/counts, limits, and evidence layers. | Fixture provenance and local counts recorded; final candidate/staged hash and post-fix physical result pending. |
+| A3 | Native/default and transaction preservation, including failure/cancel/overwrite refusal. | Pass: post-fix physical Save As/cancel/refusal route below; headless transaction tests pass. |
+| A4 | Provenance, exact commands/counts, limits, and evidence layers. | Evidence recorded below; required CI completion and merge remain tracked in live PR #927. |
 
 ## Fixture provenance and semantic limits
 
@@ -24,8 +23,8 @@ Baseline HEAD `b0bf097825c4f59c101805fcb2b99991ca30eccd` (tree tested as
   Generator asserts its literal model before save and uses no current production code.
 - Accepted archive SHA-256 `0CBB233D8836B472F80FBC8932CAE99CC9858670A61AC1F4DC70E31B7C1DFDD8`;
   content SHA-256 `DDB6A49BD2F7D5CA2E6432FE29B5711D08E8DA406EDB43664E9E4C29C1E34A7A`.
-  Initial uncommitted bytes were overwritten; exact-tag source shape was recreated
-  and failure reproduced. Accepted bytes are not claimed identical to that first copy.
+  Initial uncommitted bytes were overwritten; exact-tag shape was recreated and failure
+  reproduced. Accepted bytes are not claimed identical to that first copy.
 - Populated literal payloads include layout, hidden UID 4201, manual split UID 4202,
   leveling options, Dialog 15pt styling, calendars, and baseline profile slot 0/resource
   UID 7/duration 28,800,000 ms. Import and MPO reopen assert corresponding state.
@@ -71,23 +70,31 @@ $env:JAVA_TOOL_OPTIONS='-Duser.timezone=UTC -Duser.language=en -Duser.country=US
 $env:JAVA_TOOL_OPTIONS='-Duser.timezone=UTC -Duser.language=en -Duser.country=US'; .\gradlew.bat :microproject_ui:test --tests 'com.microproject.pm.graphic.frames.DocumentGenerationTest' --rerun-tasks --console=plain
 ```
 
-Results: exchange 350, application 37, UI `DocumentGenerationTest` 3; each had
-0 failures, 0 errors, 0 skipped, with all Gradle tasks executed. Earlier separate
-evidence remains core 1,183 pass and `OfficeChromePanelVisualSmokeTest` 2 pass;
-those runs predate this gate and do not prove the importer fix.
+Tested source SHA: `7f2d94b0626382d7048ac787658cee44b52c8f1a`.
+Results: exchange 350, application 37, UI `DocumentGenerationTest` 3; each had 0 failures,
+errors, or skips, with all tasks executed. Separate earlier evidence: core 1,183 and
+`OfficeChromePanelVisualSmokeTest` 2 pass; these predate this gate and do not prove the importer fix.
 
 Required Build [40172018137](https://github.com/tetsuji16/microProject/actions/runs/40172018137)
-failed the XLSX summary fallback with the assignment bounds guard. Old-order A/B and
-the new provenance-gated source now pass the isolated reproduction and full exchange
-suite locally; no post-fix CI run exists yet. Targeted Robot
+failed the XLSX summary fallback with the assignment bounds guard. Old-order A/B and the
+provenance-gated source pass locally. Required Build [40174030261](https://github.com/tetsuji16/microProject/actions/runs/40174030261)
+passed on the tested SHA; required GUI [40174030287](https://github.com/tetsuji16/microProject/actions/runs/40174030287)
+was running at packet update. Check live PR #927 for final CI/merge; all CI is not claimed passed.
+Targeted Robot
 [40172015362](https://github.com/tetsuji16/microProject/actions/runs/40172015362)
 reported 1 JUnit test / 0 failures / 0 errors / 0 skips, but the GUI gate failed on a
 deferred EDT `CellUtility.setAppearance` NPE because `CellStyles` was uninitialized.
 Shared `createWindow` initialization/assertion was integrated and GUI-test compilation
-passed; post-fix physical execution is pending.
+passed. The post-fix target physical run
+[40174026825](https://github.com/tetsuji16/microProject/actions/runs/40174026825)
+passed on the tested SHA: 1 test / 0 failures / 0 errors / 0 skips; deferred EDT gate
+passed with no `CellStyles` initialization failure. Artifact [12591357259](https://github.com/tetsuji16/microProject/actions/runs/40174026825/artifacts/12591357259)
+contains GUI report, logs, and pre-approval screenshot. Reuse this physical evidence for
+the documentation-only delivery commit; source/tests are unchanged from `7f2d94b0626382d7048ac787658cee44b52c8f1a`.
 
-Prior diagnostic runs 40127457597, 40168853294, 40169897816, 40170415649,
-40170978982 remain failures, not pass evidence. Required GUI smoke
+Prior diagnostic runs 40127457597, 40168853294, 40169897816, 40170415649, 40170978982
+remain failures, not pass evidence. Required GUI smoke
 [40172018126](https://github.com/tetsuji16/microProject/actions/runs/40172018126)
 passed 53 / 0 failures / 0 errors / 1 skip on pre-gate SHA; it does not cover the
-post-fix physical route. A3/A4 remain pending. Root will record latest candidate SHA.
+post-fix physical route. No implementation remains in scope; stop after current #919
+delivery and leave #920+ open.
