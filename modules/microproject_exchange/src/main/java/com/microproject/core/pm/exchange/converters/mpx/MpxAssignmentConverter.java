@@ -47,7 +47,6 @@ import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.time.ImmutableInterval;
-import com.microproject.util.Environment;
 
 /**
  * Converts an MPXJ ResourceAssignment into a microproject Assignment.
@@ -79,32 +78,12 @@ public class MpxAssignmentConverter {
 			: Math.max(0L, sourceWork - sourceActualWork);
 		CustomWorkPlan customWorkPlan = customWorkContour
 			? customWorkPlan(mpxAssignment, sourceWork, sourceActualWork, sourceRemainingWork, rawWork, state) : null;
-		boolean issue919Diagnostic = task.getName() != null && task.getName().toLowerCase(java.util.Locale.ROOT).contains("baseline");
-		if (issue919Diagnostic) System.out.println("ISSUE919_ASSIGN beforeLink srcUid=" + mpxAssignment.getUniqueID()
-			+ " srcWork=" + sourceWork + " srcActual=" + sourceActualWork + " srcRemaining=" + sourceRemainingWork
-			+ " srcUnits=" + mpxAssignment.getUnits() + " taskDuration=" + task.getRawDuration()
-			+ " taskStart=" + task.getStart() + " taskEnd=" + task.getEnd());
 		assignment.setTaskAndResource(task, resource);
-		if (issue919Diagnostic) System.out.println("ISSUE919_ASSIGN linked work=" + assignment.getWork(null)
-			+ " actual=" + assignment.getActualWork(null) + " remaining=" + assignment.getRemainingWork(null)
-			+ " workMillis=" + com.microproject.datatype.Duration.millis(assignment.getWork(null))
-			+ " units=" + assignment.getUnits() + " duration=" + assignment.getDuration()
-			+ " resourceType=" + assignment.getResource().getResourceType()
-			+ " isLabor=" + assignment.isLabor() + " importedProfile=" + assignment.hasImportedTimephasedWork());
-		if (issue919Diagnostic) System.out.println("ISSUE919_ASSIGN linkedSchedule " + issue919ScheduleDiagnostic(assignment));
 		// MSPDI stores assignment units as a percentage (100 = 1.0 in the
 		// microProject model). Restore this explicitly before work is applied;
 		// otherwise a round trip can leave the assignment at the default 0 units.
 		if (mpxAssignment.getUnits() != null)
 			assignment.forceUnits(mpxAssignment.getUnits().doubleValue() / 100.0D);
-		if (issue919Diagnostic) System.out.println("ISSUE919_ASSIGN units work=" + assignment.getWork(null)
-			+ " actual=" + assignment.getActualWork(null) + " remaining=" + assignment.getRemainingWork(null)
-			+ " workMillis=" + com.microproject.datatype.Duration.millis(assignment.getWork(null))
-			+ " remainingMillis=" + com.microproject.datatype.Duration.millis(assignment.getRemainingWork(null))
-			+ " units=" + assignment.getUnits() + " duration=" + assignment.getDuration()
-			+ " resourceType=" + assignment.getResource().getResourceType()
-			+ " isLabor=" + assignment.isLabor() + " importedProfile=" + assignment.hasImportedTimephasedWork());
-		if (issue919Diagnostic) System.out.println("ISSUE919_ASSIGN unitsSchedule " + issue919ScheduleDiagnostic(assignment));
 		// Import current schedule values here; scalar baseline slots are imported
 		// separately by importBaselines after this current assignment is attached.
 		long assignmentStart = rawWork != null && rawWork.start() != null ? rawWork.start().longValue()
@@ -117,15 +96,6 @@ public class MpxAssignmentConverter {
 		// AssignmentDetail stores a start as a delay relative to the task. During
 		// import the task's schedule can still be uninitialised, so feeding the
 		// identical task date through setStart turns it into an epoch-sized delay.
-		if (issue919Diagnostic) System.out.println("ISSUE919_ASSIGN boundsBefore work=" + assignment.getWork(null)
-			+ " actual=" + assignment.getActualWork(null) + " remaining=" + assignment.getRemainingWork(null)
-			+ " workMillis=" + com.microproject.datatype.Duration.millis(assignment.getWork(null))
-			+ " remainingMillis=" + com.microproject.datatype.Duration.millis(assignment.getRemainingWork(null))
-			+ " units=" + assignment.getUnits() + " duration=" + assignment.getDuration()
-			+ " resourceType=" + assignment.getResource().getResourceType()
-			+ " isLabor=" + assignment.isLabor() + " importedProfile=" + assignment.hasImportedTimephasedWork()
-			+ " start=" + assignmentStart + " finish=" + assignmentFinish);
-		if (issue919Diagnostic) System.out.println("ISSUE919_ASSIGN boundsSchedule " + issue919ScheduleDiagnostic(assignment));
 		assignment.initializeImportedBounds(assignmentStart,
 			assignmentFinish == null ? 0L : assignmentFinish.longValue());
 		// Install the source profile before applying Work. A standard contour's
@@ -166,33 +136,6 @@ public class MpxAssignmentConverter {
 		restoreScheduleDelays(mpxAssignment, assignment, state);
 		if (mpxAssignment.getUniqueID() != null)
 			assignment.setUniqueId(mpxAssignment.getUniqueID().longValue());
-	}
-
-	private static String issue919ScheduleDiagnostic(Assignment assignment) {
-		com.microproject.pm.calendar.WorkCalendar calendar = assignment.getEffectiveWorkCalendar();
-		long start = assignment.getStart();
-		long forward = calendar.add(start, 0L, false);
-		long reverse = calendar.add(start, 0L, true);
-		AbstractContour contour = assignment.getWorkContour();
-		StringBuilder buckets = new StringBuilder();
-		if (contour.getContourBuckets() != null) {
-			for (int i = 0; i < contour.getContourBuckets().length; i++) {
-				AbstractContourBucket bucket = contour.getContourBuckets()[i];
-				if (i > 0) buckets.append(',');
-				buckets.append(bucket.getClass().getSimpleName()).append(':')
-					.append(bucket.getBucketDuration(0L)).append('@').append(bucket.getUnits());
-			}
-		}
-		return "calendar=" + calendar.getClass().getName() + "/" + calendar.getName()
-			+ " start=" + start + " finish=" + assignment.getFinish() + " duration=" + assignment.getDuration()
-			+ " add0=" + forward + "/" + reverse + " compare=" + calendar.compare(forward, reverse, false)
-			+ " contour=" + contour.getTypeKind() + " buckets=" + buckets
-			+ " taskStart=" + assignment.getTask().getStart() + " taskEnd=" + assignment.getTask().getEnd()
-			+ " taskRawStart=" + assignment.getTask().getCurrentSchedule().getStart()
-			+ " taskRawFinish=" + assignment.getTask().getCurrentSchedule().getFinish()
-			+ " taskManual=" + assignment.getTask().isManuallyScheduled()
-			+ " projectStart=" + assignment.getTask().getProject().getStart()
-			+ " importing=" + Environment.isImporting() + " clientSide=" + Environment.isClientSide();
 	}
 
 	/**

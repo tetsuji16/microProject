@@ -135,13 +135,17 @@ public class MspImporter {
 		progress.updateProgress(0.3f, "Options converted");
 		importCalendars(project);
 		progress.updateProgress(0.4f, "Calendars converted");
+		// Source schedule mode changes can recalculate immediately while tasks are
+		// still being imported. Install the source project boundary before that
+		// happens; the final header pass below still applies the earliest-task fix.
+		importProjectHeader(project);
 		importResourcePool(project);
 		progress.updateProgress(0.5f, "Resources converted");
 		importTasks(project);
 		progress.updateProgress(0.7f, "Tasks converted");
 		importDependencies(project);
 		progress.updateProgress(0.8f, "Dependencies converted");
-		importProjectHeader(project); //must be done after tasks to correct project start
+		importProjectHeader(project); // Reapply the header after tasks to correct the project start.
 		progress.updateProgress(0.9f, "Project headers converted");
 		// Tasks and links are created while importing is active, so their normal
 		// incremental scheduling callbacks are intentionally suppressed.  Restore
