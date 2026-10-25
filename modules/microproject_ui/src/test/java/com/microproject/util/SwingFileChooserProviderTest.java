@@ -133,6 +133,25 @@ class SwingFileChooserProviderTest {
 		assertTrue(chooser.getFileFilter().getDescription().contains("*.mpo"));
 	}
 
+	@Test
+	void podFilterRemainsAvailableForOpenAndIsAbsentFromSave() {
+		SwingFileChooserProvider provider = new SwingFileChooserProvider();
+		SystemFileChooser openChooser = new SystemFileChooser();
+		provider.configureFileChooser(openChooser, false);
+		assertTrue(findFilter(openChooser, "pod").getDescription().contains("*.pod"));
+
+		SystemFileChooser saveChooser = new SystemFileChooser();
+		provider.configureFileChooser(saveChooser, true);
+		assertFalse(java.util.Arrays.stream(saveChooser.getChoosableFileFilters())
+			.filter(FileNameExtensionFilter.class::isInstance)
+			.map(FileNameExtensionFilter.class::cast)
+			.anyMatch(filter -> java.util.Arrays.asList(filter.getExtensions()).contains("pod")));
+		assertEquals(4, saveChooser.getChoosableFileFilters().length,
+			"Save should show MPO, XML, XLSX, and All Files filters");
+		assertEquals(new File("C:\\projects\\source.mpo"),
+			provider.prepareFileChooser(true, "C:\\projects\\source.pod").getSelectedFile());
+	}
+
 	private static FileNameExtensionFilter findFilter(SystemFileChooser chooser, String extension) {
 		return java.util.Arrays.stream(chooser.getChoosableFileFilters())
 			.filter(FileNameExtensionFilter.class::isInstance)

@@ -61,6 +61,9 @@ public final class ProjectFilePolicies {
 	}
 
 	public static String resolveSaveImporter(String fileName) {
+		if (FileHelper.isPodFile(fileName)) {
+			throw new IllegalArgumentException("POD is import-only for user saves; save as MPO instead");
+		}
 		if (FileHelper.isMpoFile(fileName)) {
 			return LocalSession.MPO_PROJECT_IMPORTER;
 		}

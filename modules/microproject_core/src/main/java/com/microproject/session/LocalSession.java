@@ -439,7 +439,10 @@ public class LocalSession extends AbstractSession{
 		for (final Project project : projs) {
 			//if projs.size()>1 opt.getFileName() must be null
 			String fileN=(requestedFileName!=null && i == 0) ? requestedFileName : project.getGuessedFileName();
-			if (!FileHelper.isFileNameAllowed(fileN, true)){
+			if (!opt.isRecoverySnapshot() && FileHelper.isPodFile(fileN)) {
+				throw new IllegalArgumentException("POD is import-only for user saves; save as MPO instead");
+			}
+			if (!opt.isRecoverySnapshot() && !FileHelper.isFileNameAllowed(fileN, true)){
 				fileN=SessionFactory.getInstance().getLocalSession().chooseFileName(true,FileHelper.changeFileExtension(fileN, FileHelper.MPO_FILE_TYPE));
 			}
 			// POD remains byte-compatible with the legacy format and therefore

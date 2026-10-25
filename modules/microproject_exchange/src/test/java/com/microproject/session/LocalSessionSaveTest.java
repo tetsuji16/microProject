@@ -7,6 +7,7 @@ package com.microproject.session;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
@@ -32,6 +33,7 @@ import com.microproject.pm.task.ProjectListener;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.UiDispatch;
 import com.microproject.util.UiDispatcher;
+import com.microproject.util.UiServices;
 
 /**
  * Integration coverage for LocalSession POD persistence.  This test belongs to
@@ -70,11 +72,11 @@ class LocalSessionSaveTest {
 		LocalSession session = new LocalSession();
 		session.setJobQueue(new JobQueue("save-test", false));
 
-		Path original = tempDirectory.resolve("original.pod");
+		Path original = tempDirectory.resolve("original.mpo");
 		saveAndAwait(session, project, original, false);
 		assertEquals(original.toString(), project.getFileName());
 
-		Path copy = tempDirectory.resolve("another.pod");
+		Path copy = tempDirectory.resolve("another.mpo");
 		saveAndAwait(session, project, copy, true);
 		assertEquals(copy.toString(), project.getFileName());
 		assertTrue(Files.size(original) > 0L);
@@ -107,7 +109,7 @@ class LocalSessionSaveTest {
 
 		LocalSession session = new LocalSession();
 		session.setJobQueue(new JobQueue("save-dirty-test", false));
-		Path destination = tempDirectory.resolve("dirty-cleared.pod");
+		Path destination = tempDirectory.resolve("dirty-cleared.mpo");
 		saveAndAwait(session, project, destination, false);
 
 		assertTrue(notified.await(15, TimeUnit.SECONDS), "groupDirtyChanged was not fired after save");
@@ -142,6 +144,41 @@ class LocalSessionSaveTest {
 		assertEquals(null, project.getFileName());
 	}
 
+	@Test
+	void ordinaryPodSaveOptionsFailBeforeChooserOrWriter() throws Exception {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("ordinary-pod-save", undoController), undoController);
+		LocalSession session = new LocalSession();
+		session.setJobQueue(new JobQueue("ordinary-pod-save", false));
+		Path destination = tempDirectory.resolve("ordinary.pod");
+		AtomicBoolean chooserCalled = new AtomicBoolean();
+		UiServices.FileChooserProvider previousChooser = UiServices.getFileChooserProvider();
+		UiServices.setFileChooserProvider((save, selectedFileName, parent) -> {
+			chooserCalled.set(true);
+			return null;
+		});
+		try {
+			SaveOptions options = new SaveOptions();
+			options.setLocal(true);
+			options.setFileName(destination.toString());
+			options.setImporter(LocalSession.LOCAL_PROJECT_IMPORTER);
+			assertThrows(IllegalArgumentException.class,
+				() -> session.getSaveProjectJob(Collections.singletonList(project), options));
+			SaveOptions mismatchedImporter = new SaveOptions();
+			mismatchedImporter.setLocal(true);
+			mismatchedImporter.setFileName(tempDirectory.resolve("wrong-importer.pod").toString());
+			mismatchedImporter.setImporter(LocalSession.MPO_PROJECT_IMPORTER);
+			assertThrows(IllegalArgumentException.class,
+				() -> session.getSaveProjectJob(Collections.singletonList(project), mismatchedImporter));
+			assertFalse(chooserCalled.get(), "ordinary POD dispatch must fail before showing a chooser");
+			assertFalse(Files.exists(destination), "ordinary POD dispatch must fail before invoking the writer");
+			assertFalse(Files.exists(tempDirectory.resolve("wrong-importer.pod")),
+				"MPO importer dispatch must not write to a POD-named target");
+		} finally {
+			UiServices.setFileChooserProvider(previousChooser);
+		}
+	}
+
 	private static void saveAndAwait(LocalSession session, Project project, Path destination, boolean saveAs)
 			throws Exception {
 		CountDownLatch completed = new CountDownLatch(1);
@@ -152,7 +189,7 @@ class LocalSessionSaveTest {
 		options.setLocal(true);
 		options.setSaveAs(saveAs);
 		options.setFileName(destination.toString());
-		options.setImporter(LocalSession.LOCAL_PROJECT_IMPORTER);
+		options.setImporter(LocalSession.MPO_PROJECT_IMPORTER);
 		options.setPostSaving(value -> {
 			callbackOnEdt.set(SwingUtilities.isEventDispatchThread());
 			fileVisibleToCallback.set(Files.isRegularFile(destination));

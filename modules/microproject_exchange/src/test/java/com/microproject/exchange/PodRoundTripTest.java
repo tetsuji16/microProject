@@ -29,6 +29,8 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.ObjectInputStream;
 import java.nio.file.Files;
@@ -456,6 +458,63 @@ public class PodRoundTripTest {
 		assertRoundTrip("June_1_sample.pod");
 		assertRoundTrip("Commercial construction project plan.pod");
 		assertRoundTrip("Commercial construction project plan2.pod");
+	}
+
+	@Test
+	public void fixedPodFixturesMatchLiteralRepresentativeSemanticManifests() throws Exception {
+		Project june = load(findSample("June_1_sample.pod"));
+		List<TaskState> juneStates = snapshot(june);
+		assertEquals(8, juneStates.size());
+		assertEquals("June 1 Sample Project", juneStates.getFirst().name);
+		assertEquals("Kickoff[parent=June 1 Sample Project,1783411200000,1783443600000,0,0.0,500,[Scope check:1:1585267068834414592],[Unassigned:1.0:0:0:0]]",
+			stateNamed(juneStates, "Kickoff").toString());
+		assertEquals(List.of("未割り当て", "tetsu"), june.getResourcePool().getResourceList().stream().map(Resource::getName).toList());
+
+		for (String sample : List.of("Commercial construction project plan.pod", "Commercial construction project plan2.pod")) {
+			Project construction = load(findSample(sample));
+			List<TaskState> states = snapshot(construction);
+			assertEquals(sample + " task count", 145, states.size());
+			assertEquals(sample + " root task", "Three-story Office Building (76,000 square feet)", states.getFirst().name);
+			assertEquals("Prepare and submit project schedule[parent=General Conditions,947491200000,947610000000,57600000,0.0,500,[Submit bond and insurance documents:1:1441151880758558720],[G.C. Project Management:0.25:14400000:0:14400000, G.C. Scheduler:1.0:57600000:0:57600000]]",
+				stateNamed(states, "Prepare and submit project schedule").toString());
+			assertTrue(sample, construction.getResourcePool().getResourceList().stream()
+				.anyMatch(resource -> "G.C. Scheduler".equals(resource.getName())));
+		}
+	}
+
+	@Test
+	public void fixedPodFixturesPreserveLiteralSelectedSemanticsThroughCurrentMpoReload() throws Exception {
+		assertMpoReloadManifest("June_1_sample.pod", 8, "June 1 Sample Project", "Kickoff",
+			"Kickoff[parent=June 1 Sample Project,1783411200000,1783443600000,0,0.0,500,[Scope check:1:0],[Unassigned:1.0:201600000:0:201600000]]");
+		String constructionTask = "Prepare and submit project schedule";
+		// The fixed POD encodes this dependency's zero lag with the HOURS unit
+		// bit (10 << 57); MSPDI/MPO normalizes it to zero milliseconds.
+		String constructionManifest = "Prepare and submit project schedule[parent=General Conditions,947491200000,947610000000,57600000,0.0,500,[Submit bond and insurance documents:1:0],[G.C. Project Management:0.25:14400000:0:14400000, G.C. Scheduler:1.0:57600000:0:57600000]]";
+		assertMpoReloadManifest("Commercial construction project plan.pod", 145,
+			"Three-story Office Building (76,000 square feet)", constructionTask, constructionManifest);
+		assertMpoReloadManifest("Commercial construction project plan2.pod", 145,
+			"Three-story Office Building (76,000 square feet)", constructionTask, constructionManifest);
+	}
+
+	private static void assertMpoReloadManifest(String sample, int taskCount, String rootName, String taskName,
+		String expectedTaskState) throws Exception {
+		Project imported = load(findSample(sample));
+		ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+		assertTrue(sample + " MPO save", new MpoFileImporter().saveProject(imported, bytes));
+		MpoFileImporter reader = new MpoFileImporter();
+		reader.setProjectFactory(ProjectFactory.getInstance());
+		Project reopened = reader.loadProject(new ByteArrayInputStream(bytes.toByteArray()));
+		assertNotNull(sample + " MPO reload", reopened);
+		List<TaskState> states = snapshot(reopened);
+		assertEquals(sample + " task count", taskCount, states.size());
+		assertEquals(sample + " root hierarchy", rootName, states.getFirst().name);
+		assertEquals(sample + " selected hierarchy/date/duration/progress/dependency/assignment manifest",
+			expectedTaskState, stateNamed(states, taskName).toString());
+	}
+
+	private static TaskState stateNamed(List<TaskState> states, String name) {
+		return states.stream().filter(state -> name.equals(state.name)).findFirst()
+			.orElseThrow(() -> new AssertionError("Missing task state: " + name));
 	}
 
 	@Test

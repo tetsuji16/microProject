@@ -25,6 +25,7 @@
 package com.microproject.application;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -53,7 +54,7 @@ class ProjectDocumentWorkflowTest {
 
 		SaveOptions options = ProjectDocumentWorkflow.prepareSaveOptions(
 			project,
-			"plan.pod",
+			"plan.mpo",
 			false,
 			true,
 			null,
@@ -62,9 +63,16 @@ class ProjectDocumentWorkflowTest {
 			null);
 
 		assertNotNull(options);
-		assertEquals("plan.pod", options.getFileName());
-		assertEquals(LocalSession.LOCAL_PROJECT_IMPORTER, options.getImporter());
+		assertEquals("plan.mpo", options.getFileName());
+		assertEquals(LocalSession.MPO_PROJECT_IMPORTER, options.getImporter());
 		assertFalse(options.isSaveAs());
+	}
+
+	@Test
+	void workflowRejectsOrdinaryPodSaveOptions() {
+		Project project = ProjectFactory.getInstance().createProject();
+		assertThrows(IllegalArgumentException.class, () -> ProjectDocumentWorkflow.prepareSaveOptions(
+			project, "plan.pod", false, true, null, "user", null, null));
 	}
 
 	@Test
@@ -80,7 +88,7 @@ class ProjectDocumentWorkflowTest {
 			}
 		};
 
-		SaveOptions options = ProjectDocumentWorkflow.prepareSaveOptions(project, "plan.pod", false, true, null, "user", null, callbacks);
+		SaveOptions options = ProjectDocumentWorkflow.prepareSaveOptions(project, "plan.mpo", false, true, null, "user", null, callbacks);
 
 		assertNotNull(options.getPostSaving());
 		options.getPostSaving().accept(null);

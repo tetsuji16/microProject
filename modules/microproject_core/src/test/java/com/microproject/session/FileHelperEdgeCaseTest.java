@@ -56,7 +56,13 @@ class FileHelperEdgeCaseTest {
 	}
 
 	@Test
-	void importOnlySaveTargetsMigrateToMpoWithoutChangingLegacyPodOrdinarySavePolicy() {
+	void podIsOpenableButImportOnlyAndMigratesToMpoForOrdinarySaves() {
+		assertTrue(FileHelper.isFileNameAllowed("source.pod", false));
+		assertFalse(FileHelper.isFileNameAllowed("source.pod", true));
+		assertTrue(FileHelper.requiresSaveAs("source.pod"));
+		assertTrue(FileHelper.isFileNameAllowed("source.mpo", true));
+		assertTrue(FileHelper.isFileNameAllowed("source.xml", true));
+		assertTrue(FileHelper.isFileNameAllowed("source.xlsx", true));
 		assertTrue(FileHelper.requiresSaveAs("source.mpp"));
 		assertTrue(FileHelper.requiresSaveAs("source.mpx"));
 		assertEquals("source.mpo", FileHelper.defaultNativeSaveAsFileName("source.mpp", false));
