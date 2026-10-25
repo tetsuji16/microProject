@@ -88,8 +88,9 @@ jobs:
           expected_digest="$(python3 -c 'import json; print(json.load(open("asset.json")).get("digest") or "")')"
           [[ "$expected_digest" =~ ^sha256:[0-9a-fA-F]{64}$ ]] || { echo "Release asset has no valid SHA256 digest" >&2; exit 1; }
           curl --fail --silent --show-error -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/octet-stream" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/assets/${asset_id}" -o package.zip
-          actual_digest="sha256:$(shasum -a 256 package.zip | awk '{print $1}')"
-          [[ "${actual_digest,,}" == "${expected_digest,,}" ]] || { echo "Downloaded package digest mismatch" >&2; exit 1; }
+          actual_digest="$(shasum -a 256 package.zip | awk '{print tolower($1)}')"
+          expected_hex="$(printf '%s' "${expected_digest#sha256:}" | tr '[:upper:]' '[:lower:]')"
+          [[ "$actual_digest" == "$expected_hex" ]] || { echo "Downloaded package digest mismatch" >&2; exit 1; }
           mkdir -p "$RUNNER_TEMP/package"
           python3 - package.zip "$RUNNER_TEMP/package" <<'PY'
           import pathlib, sys, zipfile
@@ -111,10 +112,22 @@ jobs:
           command -v xvfb-run >/dev/null || { echo "xvfb-run is required" >&2; exit 1; }
           [[ "$(uname -m)" == "x86_64" ]] || { echo "Expected Linux x64 runner" >&2; exit 1; }
           mkdir -p launch-logs
-          executable="$RUNNER_TEMP/package/microProject/bin/microProject"
-          [[ -x "$executable" ]] || { echo "Missing executable: $executable" >&2; exit 1; }
+          python3 - "$RUNNER_TEMP/package" <<'PY' >launch-logs/package-files.txt
+          import pathlib, sys
+          root = pathlib.Path(sys.argv[1])
+          for path in sorted(root.rglob("*")):
+              print(path.relative_to(root))
+          PY
+          launchers="$(find "$RUNNER_TEMP/package" -type f -name microProject -print)"
+          launcher_count="$(printf '%s\n' "$launchers" | awk 'NF { count++ } END { print count + 0 }')"
+          if [[ "$launcher_count" -ne 1 ]]; then
+            echo "Expected one executable named microProject; found $launcher_count" | tee launch-logs/launch-error.log >&2
+            exit 1
+          fi
+          executable="$launchers"
+          [[ -x "$executable" ]] || { echo "Package launcher is not executable: $executable" | tee launch-logs/launch-error.log >&2; exit 1; }
           set +e
-          timeout --signal=TERM 30s xvfb-run -a "$executable" >launch-logs/stdout.log 2>launch-logs/stderr.log
+          timeout --signal=TERM --kill-after=5s 30s xvfb-run -a "$executable" >launch-logs/stdout.log 2>launch-logs/stderr.log
           result=$?
           set -e
           [[ "$result" -eq 0 || "$result" -eq 124 ]] || { echo "Linux launch failed with exit $result" >&2; exit "$result"; }
@@ -126,8 +139,20 @@ jobs:
           set -euo pipefail
           [[ "$(uname -m)" == "arm64" ]] || { echo "Expected macOS Apple Silicon runner" >&2; exit 1; }
           mkdir -p launch-logs
-          executable="$RUNNER_TEMP/package/microProject.app/Contents/MacOS/microProject"
-          [[ -x "$executable" ]] || { echo "Missing executable: $executable" >&2; exit 1; }
+          python3 - "$RUNNER_TEMP/package" <<'PY' >launch-logs/package-files.txt
+          import pathlib, sys
+          root = pathlib.Path(sys.argv[1])
+          for path in sorted(root.rglob("*")):
+              print(path.relative_to(root))
+          PY
+          launchers="$(find "$RUNNER_TEMP/package" -type f -path '*/Contents/MacOS/microProject' -print)"
+          launcher_count="$(printf '%s\n' "$launchers" | awk 'NF { count++ } END { print count + 0 }')"
+          if [[ "$launcher_count" -ne 1 ]]; then
+            echo "Expected one macOS app executable; found $launcher_count" | tee launch-logs/launch-error.log >&2
+            exit 1
+          fi
+          executable="$launchers"
+          [[ -x "$executable" ]] || { echo "macOS package launcher is not executable: $executable" | tee launch-logs/launch-error.log >&2; exit 1; }
           python3 - "$executable" <<'PY'
           import subprocess, sys
           from pathlib import Path
