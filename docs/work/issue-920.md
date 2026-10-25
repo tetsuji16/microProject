@@ -1,6 +1,6 @@
 # Issue #920 — frozen POD read and wire contract
 
-State: IN PROGRESS
+State: IMPLEMENTED; PR checks passed
 Issue: https://github.com/tetsuji16/microProject/issues/920
 Contract frozen at: 2026-10-25 (issue body and frozen finite intake)
 Baseline HEAD: `c41af1560f0c83090b38a05f2ae55ba7e26bba10`
@@ -17,19 +17,19 @@ Blockers: none. #919 is closed and PR #927 merged before this baseline.
 
 | ID | Required result/evidence | State | Evidence (SHA + link) |
 |---|---|---|---|
-| A1 | Pin provenance/hash/version/descriptors and literal semantic manifests for three fixed POD fixtures. | locally verified | hashes, version/descriptors and semantic tests below; source SHA pending commit |
-| A2 | Existing import and selected MPO save/reload semantics; malformed/missing/unsafe rejection without partial publication or source mutation, retaining XML recovery. | locally verified | importer/round-trip tests and physical XML-recovery Robot below; source SHA pending commit |
-| A3 | No field/layout/order/identifier/version/wire/alias expansion; ordinary Save/chooser/user dispatch cannot write POD; recovery snapshots/read remain. | locally verified | focused policy tests and physical MPP/POD Save As Robot below; source SHA pending commit |
-| A4 | Unsupported fields and exact SHA/commands/results recorded; no original criterion deferred. | in progress | unsupported fields listed below; broad module checks and exact candidate CI pending |
+| A1 | Pin provenance/hash/version/descriptors and literal semantic manifests for three fixed POD fixtures. | passed | fixed hashes/version/descriptor + round-trip manifest tests on `d971cf201e145b0aaa528e5767785ba533e29a8a`; PR CI below |
+| A2 | Existing import and selected MPO save/reload semantics; malformed/missing/unsafe rejection without partial publication or source mutation, retaining XML recovery. | passed | importer/round-trip tests and physical XML-recovery Robot on `d971cf201e145b0aaa528e5767785ba533e29a8a`; PR CI below |
+| A3 | No field/layout/order/identifier/version/wire/alias expansion; ordinary Save/chooser/user dispatch cannot write POD; recovery snapshots/read remain. | passed | focused policy tests and physical MPP/POD Save As Robot on `d971cf201e145b0aaa528e5767785ba533e29a8a`; PR CI below |
+| A4 | Unsupported fields and exact SHA/commands/results recorded; no original criterion deferred. | passed | limitations and exact commands recorded below; PR checks passed for rebased candidate `bdb53abe8b720cfe955388d763621620da4bb522` |
 
 ## Current slice
 
 **Completed:** ordinary Save accepts MPO/XML/XLSX only; POD imports require Save As/MPO; Save chooser excludes POD while Open retains it; policy/workflow and LocalSession central dispatch reject ordinary POD targets before chooser/writer regardless of requested importer. Recovery snapshot `.recovery.pod` write remains covered and passes. The existing physical MPP Save As journey is now shared by MPP and copied `June_1_sample.pod`: both exercise ordinary Save, MPO sibling default, Escape cancellation, overwrite refusal, fresh MPO target success, source preservation, association/dirty-state transitions, and MPO task/assignment semantic reload. The existing scalar XML Save As route still runs after closing the POD-saved project.
-**Next slice:** finish integration evidence: record unsupported fields and final local test results, commit the reviewed candidate, and check CI on that exact SHA.
+**Next slice:** none. PR #928 contains the reviewed #920 change; merge after normal review.
 
 ## Remaining blockers
 
-- Exact-candidate CI is pending. External/original provenance of the three POD samples is absent from repository history and remains explicitly unknown.
+- External/original provenance of the three POD samples is absent from repository history and remains explicitly unknown; repository first-seen provenance and file hashes are pinned below.
 
 ## Latest evidence
 
@@ -49,7 +49,8 @@ Blockers: none. #919 is closed and PR #927 merged before this baseline.
 - Ordinary Save route evidence: the physical Ribbon Save As journey for the imported POD opens MPO-default Save As; cancellation and overwrite refusal preserve the POD source/target bytes and document state; new MPO save and reload retain selected semantics. Physical XML recovery route also passed 1/1 in `robotOpensPodEmbeddedAndPlainXmlRecoveryFromTheFileRibbon`.
 - During verification the first LocalSession run found recovery snapshots still entered the ordinary extension/chooser path after POD became import-only. Recovery snapshots now bypass that ordinary-save check; the focused class passes with its existing `.recovery.pod` writer assertion intact. A stale importer alone does not block an allowed MPO target; the central rejection is based on the POD target extension.
 - Tested base HEAD: `c41af1560f0c83090b38a05f2ae55ba7e26bba10`; implementation checks passed with only this packet update afterward. No POD fixture bytes or descriptor inventory were changed. Candidate commit SHA and exact-candidate CI result will be recorded after integration.
-- CI: pending exact candidate SHA.
+- Local full-module tests ran on `d971cf201e145b0aaa528e5767785ba533e29a8a`; PR candidate `bdb53abe8b720cfe955388d763621620da4bb522` is the same implementation diff rebased onto latest `master` after #919/#927 landed. No production/test source changed during rebase.
+- Exact candidate CI: Build PASS, [run 40177582811](https://github.com/tetsuji16/microProject/actions/runs/40177582811); GUI acceptance PASS, [run 40177582845](https://github.com/tetsuji16/microProject/actions/runs/40177582845), both on `bdb53abe8b720cfe955388d763621620da4bb522`.
 
 ## Frozen finite intake
 
