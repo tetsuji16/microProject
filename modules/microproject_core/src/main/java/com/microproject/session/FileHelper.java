@@ -74,7 +74,7 @@ public class FileHelper {
 
     public static boolean isFileNameAllowed(String fileName,boolean save) {
     	if (save) {
-			return hasExtension(fileName, "xml") || hasExtension(fileName, "xlsx") || isNativeFile(fileName);
+			return isMpoFile(fileName) || hasExtension(fileName, "xml") || hasExtension(fileName, "xlsx");
 		}
 		return isMicrosoftProjectFile(fileName) || isNativeFile(fileName);
 	}

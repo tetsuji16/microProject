@@ -79,11 +79,6 @@ public class MpxAssignmentConverter {
 		CustomWorkPlan customWorkPlan = customWorkContour
 			? customWorkPlan(mpxAssignment, sourceWork, sourceActualWork, sourceRemainingWork, rawWork, state) : null;
 		assignment.setTaskAndResource(task, resource);
-		// MSPDI stores assignment units as a percentage (100 = 1.0 in the
-		// microProject model). Restore this explicitly before work is applied;
-		// otherwise a round trip can leave the assignment at the default 0 units.
-		if (mpxAssignment.getUnits() != null)
-			assignment.forceUnits(mpxAssignment.getUnits().doubleValue() / 100.0D);
 		// Import current schedule values here; scalar baseline slots are imported
 		// separately by importBaselines after this current assignment is attached.
 		long assignmentStart = rawWork != null && rawWork.start() != null ? rawWork.start().longValue()
@@ -98,6 +93,13 @@ public class MpxAssignmentConverter {
 		// identical task date through setStart turns it into an epoch-sized delay.
 		assignment.initializeImportedBounds(assignmentStart,
 			assignmentFinish == null ? 0L : assignmentFinish.longValue());
+		// MSPDI stores assignment units as a percentage (100 = 1.0 in the
+		// microProject model). Initialize date bounds first: applying nonzero units
+		// against an uninitialized assignment can derive work from the task span,
+		// violating initializeImportedBounds' zero-work precondition. Units still
+		// precede the explicit source work and progress values below.
+		if (mpxAssignment.getUnits() != null)
+			assignment.forceUnits(mpxAssignment.getUnits().doubleValue() / 100.0D);
 		// Install the source profile before applying Work. A standard contour's
 		// inverse maps the scalar to the assignment span; applying Work as flat
 		// first would shrink the span and reinterpret ActualWork later.

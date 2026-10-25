@@ -124,6 +124,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 	private WindowTrace saveWindowTrace;
 	private JobQueue previousJobQueue;
 	private Path legacyPod;
+	private Path plainXmlPod;
 	private Path importedMpp;
 	private Path mpoSaveTarget;
 	private Path mpoSavedCopy;
@@ -160,6 +161,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		if (previousJobQueue != null || manager != null)
 			SessionFactory.getInstance().setJobQueue(previousJobQueue);
 		if (legacyPod != null) Files.deleteIfExists(legacyPod);
+		if (plainXmlPod != null) Files.deleteIfExists(plainXmlPod);
 		if (mppSaveDirectory != null && Files.exists(mppSaveDirectory)) {
 			List<Path> cleanupPaths;
 			// This directory belongs only to this fixture; do not follow symlinks.
@@ -192,9 +194,9 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		}
 	}
 
-	/** GUI-RIBBON-FILE-02: File/Open must reach the legacy importer, not MPO zip validation. */
+	/** GUI-RIBBON-FILE-02: File/Open recovers both legacy embedded and plain MSPDI XML through the POD importer. */
 	@Test
-	void robotOpensLegacyPodFromTheFileRibbon() throws Exception {
+	void robotOpensPodEmbeddedAndPlainXmlRecoveryFromTheFileRibbon() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(),
 			"A desktop session is required for Robot acceptance coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
@@ -204,26 +206,71 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		Environment.setClientSide(true);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
-		legacyPod = Files.createTempFile("ribbon-legacy-sample-", ".pod");
-		Files.copy(Path.of(System.getProperty("microproject.project.dir"), "samples", "June_1_sample.pod"), legacyPod,
-			java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+		Path sample = Path.of(System.getProperty("microproject.project.dir"), "samples", "June_1_sample.pod");
+		byte[] sampleBytes = Files.readAllBytes(sample);
+		byte[] separator = "@@@@@@@@@@ProjectLibreSeparator_MSXML@@@@@@@@@@"
+			.getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+		int separatorOffset = indexOf(sampleBytes, separator);
+		assertTrue(separatorOffset >= 0, "fixed POD fixture must contain embedded MSPDI XML");
+		byte[] embeddedRecovery = sampleBytes.clone();
+		embeddedRecovery[0] ^= (byte) 0xff;
+		legacyPod = Files.createTempFile("ribbon-pod-embedded-xml-recovery-", ".pod");
+		Files.write(legacyPod, embeddedRecovery);
+		plainXmlPod = Files.createTempFile("ribbon-pod-plain-xml-recovery-", ".pod");
+		byte[] plainXml = java.util.Arrays.copyOfRange(sampleBytes, separatorOffset + separator.length, sampleBytes.length);
+		assertTrue(new String(plainXml, 0, Math.min(5, plainXml.length), java.nio.charset.StandardCharsets.US_ASCII)
+			.startsWith("<?xml"), "embedded trailer must be plain MSPDI XML");
+		Files.write(plainXmlPod, plainXml);
 		createWindow("microProject — Legacy sample File/Open acceptance");
+		java.util.concurrent.atomic.AtomicReference<Path> openPath =
+			new java.util.concurrent.atomic.AtomicReference<>(legacyPod);
 		UiServices.setFileChooserProvider(new UiServices.FileChooserProvider() {
 			@Override public String chooseFileName(boolean save, String selectedFileName, Object parent) { return null; }
 			@Override public List<String> chooseFileNames(boolean save, String selectedFileName, Object parent) {
-				return save ? List.of() : List.of(legacyPod.toString());
+				return save ? List.of() : List.of(openPath.get().toString());
 			}
 		});
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
-		clickBackstageOpenTile(robot);
-		GuiAcceptanceSupport.await(() -> manager.findFrameForProjectFile(legacyPod.toString()) != null,
-			"File/Open rejected the selected legacy POD before its importer ran");
-		assertTrue(manager.findFrameForProjectFile(legacyPod.toString()).getProject() != null,
-			"File/Open registered a legacy POD frame without a project model");
+		for (Path source : List.of(legacyPod, plainXmlPod)) {
+			openPath.set(source);
+			activateWindowForRobot(robot);
+			clickBackstageOpenTile(robot);
+			GuiAcceptanceSupport.await(() -> manager.findFrameForProjectFile(source.toString()) != null,
+				"File/Open did not publish the project recovered from " + source.getFileName());
+			Project recovered = manager.findFrameForProjectFile(source.toString()).getProject();
+			assertNotNull(recovered, "File/Open must publish a project model for " + source.getFileName());
+			assertRecoveredJuneProject(recovered, source);
+			byte[] before = source.equals(legacyPod) ? embeddedRecovery : plainXml;
+			assertArrayEquals(before, Files.readAllBytes(source), "recovery must not mutate source bytes");
+			// Both routes intentionally reuse the same historical MSPDI project
+			// identity. Close the first clean document before opening the second so
+			// the portfolio does not reuse/replace an already-open project identity.
+			var recoveredFrame = manager.findFrameForProjectFile(source.toString());
+			SwingUtilities.invokeAndWait(() -> manager.closeDocumentWindow(recoveredFrame));
+			GuiAcceptanceSupport.await(() -> manager.findFrameForProjectFile(source.toString()) == null,
+				"recovered project did not close before the next XML fallback route");
+		}
 	}
 
-	/** GUI-MPO-SAVE-01: ordinary Save of an imported MPP asks for an MPO target and preserves its source. */
+	private static void assertRecoveredJuneProject(Project project, Path source) {
+		assertEquals("June 1 Sample Project", project.getName(), source.getFileName() + " recovered project name");
+		assertTrue(project.getTaskList().stream().anyMatch(task -> "Kickoff".equals(task.getName())),
+			source.getFileName() + " must publish MSPDI tasks, not a partial serialized project");
+		assertTrue(project.getTaskList().stream().anyMatch(task -> "Scope check".equals(task.getName())),
+			source.getFileName() + " must include sibling MSPDI task state");
+	}
+
+	private static int indexOf(byte[] bytes, byte[] sequence) {
+		outer: for (int offset = 0; offset <= bytes.length - sequence.length; offset++) {
+			for (int index = 0; index < sequence.length; index++)
+				if (bytes[offset + index] != sequence[index]) continue outer;
+			return offset;
+		}
+		return -1;
+	}
+
+	/** GUI-MPO-SAVE-01: ordinary Save of imported MPP and POD sources asks for MPO and preserves each source. */
 	@Test
 	void robotSavesImportedMppAsMpoAndCancellationOrOverwriteRefusalKeepsSource() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(),
@@ -242,14 +289,16 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		mppSaveDirectory = Files.createTempDirectory("mpp-save-as-mpo-");
 		importedMpp = mppSaveDirectory.resolve("Imported sample.mpp");
 		mpoSaveTarget = mppSaveDirectory.resolve("Imported sample.mpo");
-		mpoSavedCopy = mppSaveDirectory.resolve("Saved project.mpo");
-		Path sample = Path.of(System.getProperty("microproject.project.dir"), "modules", "microproject_exchange", "testdata", "New Product.mpp");
-		Files.copy(sample, importedMpp);
+		mpoSavedCopy = mppSaveDirectory.resolve("Saved MPP project.mpo");
+		Path mppFixture = Path.of(System.getProperty("microproject.project.dir"), "modules", "microproject_exchange", "testdata", "New Product.mpp");
+		Files.copy(mppFixture, importedMpp);
+		Path podSource = mppSaveDirectory.resolve("June_1_sample.pod");
+		Path podFixture = Path.of(System.getProperty("microproject.project.dir"), "samples", "June_1_sample.pod");
+		Files.copy(podFixture, podSource);
+		Path podOverwriteTarget = mppSaveDirectory.resolve("June_1_sample.mpo");
+		Path podSavedCopy = mppSaveDirectory.resolve("Saved POD project.mpo");
 		AtomicReference<Path> openPath = new AtomicReference<>(importedMpp);
-		byte[] originalMppBytes = Files.readAllBytes(importedMpp);
-		byte[] existingMpoBytes = "existing MPO must survive a declined overwrite".getBytes(java.nio.charset.StandardCharsets.UTF_8);
-		Files.write(mpoSaveTarget, existingMpoBytes);
-		createWindow("microProject — imported MPP Save acceptance");
+		createWindow("microProject — imported project Save acceptance");
 		saveWindowTrace = new WindowTrace();
 		saveWindowTrace.open();
 		UiServices.setFileChooserProvider(new UiServices.FileChooserProvider() {
@@ -263,105 +312,22 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindowForRobot(robot);
-		clickBackstageOpenTile(robot);
-		GuiAcceptanceSupport.await(() -> manager.findFrameForProjectFile(importedMpp.toString()) != null,
-			"File/Open did not import the MPP fixture");
-		Project project = manager.findFrameForProjectFile(importedMpp.toString()).getProject();
-		String originalAssociation = project.getFileName();
-		java.util.Iterator<Task> taskIterator = project.getTaskOutlineIterator();
-		assertTrue(taskIterator.hasNext(), "MPP fixture must contain an editable task");
-		Task editedTask = taskIterator.next();
-		List<String> expectedAssignmentBaselines = assignmentBaselineSemantics(project);
-		SwingUtilities.invokeAndWait(() -> {
-			editedTask.setManuallyScheduled(true);
-		});
-		assertTrue(project.needsSaving(), "manual schedule change must make ordinary Save eligible");
-		List<String> expectedTaskSemantics = taskSemantics(project);
-
-		activateWindowForRobot(robot);
-		click(robot, findCommandButton(window.getRibbonPanel(), "RibbonSaveProject", robot));
-		GuiAcceptanceSupport.await(() -> visibleFileChooserDialog() != null,
-			"ordinary Save of an MPP import did not open Save As");
-		JFileChooser chooser = findFileChooser(visibleFileChooserDialog());
-		assertEquals(mpoSaveTarget.getFileName().toString(), chooser.getSelectedFile().getName(),
-			"Save As must suggest the MPO sibling for an imported MPP");
-		robot.keyPress(java.awt.event.KeyEvent.VK_ESCAPE);
-		robot.keyRelease(java.awt.event.KeyEvent.VK_ESCAPE);
-		GuiAcceptanceSupport.await(() -> visibleFileChooserDialog() == null, "Save As Escape did not cancel");
-		assertEquals(originalAssociation, project.getFileName(), "cancellation must preserve the source association");
-		assertTrue(project.needsSaving(), "cancellation must preserve the dirty state");
-		assertArrayEquals(originalMppBytes, Files.readAllBytes(importedMpp), "cancellation must leave MPP source bytes untouched");
-		assertArrayEquals(existingMpoBytes, Files.readAllBytes(mpoSaveTarget), "cancellation must preserve an existing MPO target");
-
-		activateWindowForRobot(robot);
-		click(robot, findCommandButton(window.getRibbonPanel(), "RibbonSaveProject", robot));
-		GuiAcceptanceSupport.await(() -> visibleFileChooserDialog() != null,
-			"ordinary Save did not reopen Save As after cancellation");
-		Window saveDialog = visibleFileChooserDialog();
-		JFileChooser saveChooser = findFileChooser(saveDialog);
-		assertEquals(mpoSaveTarget.getFileName().toString(), saveChooser.getSelectedFile().getName(),
-			"retry must retain the suggested MPO target");
-		assertTrue(selectFileChooserSaveButton(saveDialog) != null, "Save As chooser has no visible Save button");
-		click(robot, selectFileChooserSaveButton(saveDialog));
-		GuiAcceptanceSupport.await(() -> visibleOptionDialog() != null, "existing MPO target did not trigger overwrite confirmation");
-		robot.keyPress(java.awt.event.KeyEvent.VK_ESCAPE);
-		robot.keyRelease(java.awt.event.KeyEvent.VK_ESCAPE);
-		GuiAcceptanceSupport.await(() -> visibleOptionDialog() == null,
-			"overwrite refusal dialog did not close");
-		assertArrayEquals(existingMpoBytes, Files.readAllBytes(mpoSaveTarget), "declined overwrite must preserve the existing MPO");
-		assertEquals(originalAssociation, project.getFileName(), "declined overwrite must preserve the source association");
-		assertTrue(project.needsSaving(), "declined overwrite must preserve the dirty state");
-
-		GuiAcceptanceSupport.await(() -> visibleFileChooserDialog() != null,
-			"declining overwrite must leave Save As open for another target");
-		saveDialog = visibleFileChooserDialog();
-		JTextField fileNameField = findFileChooserNameField(saveDialog);
-		click(robot, fileNameField);
-		GuiAcceptanceSupport.await(() -> isFocusOwnerOnEdt(fileNameField),
-			"Save As filename field did not acquire keyboard focus after its physical click");
-		robot.keyPress(java.awt.event.KeyEvent.VK_CONTROL);
-		robot.keyPress(java.awt.event.KeyEvent.VK_A);
-		robot.keyRelease(java.awt.event.KeyEvent.VK_A);
-		robot.keyRelease(java.awt.event.KeyEvent.VK_CONTROL);
-		type(robot, mpoSavedCopy.getFileName().toString());
-		GuiAcceptanceSupport.awaitInputAndEventQueueIdle(robot, "Save As filename entry");
-		assertEquals(mpoSavedCopy.getFileName().toString(), textOnEdt(fileNameField),
-			"physical filename entry must be present in the chooser field before approval");
-		AbstractButton finalApproveButton = selectFileChooserSaveButton(saveDialog);
-		String preApproveState = saveAsChooserDiagnostics(saveDialog, finalApproveButton);
-		java.util.concurrent.atomic.AtomicBoolean approveActionFired = new java.util.concurrent.atomic.AtomicBoolean();
-		finalApproveButton.addActionListener(event -> approveActionFired.set(true));
-		System.err.println("=== Save As pre-approve diagnostic ===\n" + preApproveState);
-		captureNativeChooserScreen(robot, "mpp-save-as-before-final-approve.png");
-		click(robot, finalApproveButton);
-		try {
-			GuiAcceptanceSupport.await(() -> visibleFileChooserDialog() == null && Files.isRegularFile(mpoSavedCopy),
-				"selected MPO copy was not written");
-		} catch (AssertionError failure) {
-			throw new AssertionError(failure.getMessage() + "\nPre-approve chooser state:\n" + preApproveState
-				+ "\nApprove action fired=" + approveActionFired.get()
-				+ "\nPost-approve chooser state:\n" + saveAsChooserDiagnostics(saveDialog, finalApproveButton)
-				+ "\n" + saveWindowTrace.snapshot(), failure);
-		}
-		GuiAcceptanceSupport.await(() -> mpoSavedCopy.toString().equals(project.getFileName()) && !project.needsSaving(),
-			"successful MPO save did not update association and clear dirty state");
-		assertArrayEquals(originalMppBytes, Files.readAllBytes(importedMpp), "MPO save must leave the MPP source untouched");
-		com.microproject.exchange.MpoFileImporter reader = new com.microproject.exchange.MpoFileImporter();
-		reader.setFileName(mpoSavedCopy.toString());
-		reader.importFile();
-		assertEquals(expectedTaskSemantics, taskSemantics(reader.getProject()),
-			"MPO reopen must preserve imported task names and schedule dates");
-		assertEquals(expectedAssignmentBaselines, assignmentBaselineSemantics(reader.getProject()),
-			"MPO reopen must preserve imported assignment baseline scalar values");
-
+		exerciseOrdinarySaveAsToMpo(robot, openPath, importedMpp, mpoSaveTarget, mpoSavedCopy,
+			Files.readAllBytes(importedMpp));
+		click(robot, findCommandButton(window.getRibbonPanel(), "RibbonCloseProject", robot));
+		GuiAcceptanceSupport.await(() -> manager.findFrameForProjectFile(mpoSavedCopy.toString()) == null,
+			"saved MPP import did not close before the POD Save As route");
+		openPath.set(podSource);
+		exerciseOrdinarySaveAsToMpo(robot, openPath, podSource, podOverwriteTarget, podSavedCopy,
+			Files.readAllBytes(podSource));
 		Path scalarXmlFixture = Path.of(System.getProperty("microproject.project.dir"), "modules",
 			"microproject_exchange", "testdata", "Assignment Baseline Scalars.xml");
 		Path scalarXml = mppSaveDirectory.resolve("assignment-baseline-scalars.xml");
 		Path scalarMpo = mppSaveDirectory.resolve("assignment-baseline-scalars.mpo");
 		Files.copy(scalarXmlFixture, scalarXml);
 		click(robot, findCommandButton(window.getRibbonPanel(), "RibbonCloseProject", robot));
-		GuiAcceptanceSupport.await(() -> manager.findFrameForProjectFile(mpoSavedCopy.toString()) == null,
-			"saved MPP import did not close before the separate MSPDI fixture route");
+		GuiAcceptanceSupport.await(() -> manager.findFrameForProjectFile(podSavedCopy.toString()) == null,
+			"POD-saved project did not close before the separate MSPDI fixture route");
 		openPath.set(scalarXml);
 		activateWindowForRobot(robot);
 		clickBackstageOpenTile(robot);
@@ -449,6 +415,104 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		assertEquals(scalarAssignment.getBaselineValues(0), reopenedScalarAssignment.getBaselineValues(0));
 		assertEquals(scalarAssignment.getBaselineValues(9), reopenedScalarAssignment.getBaselineValues(9));
 		assertEquals(scalarAssignment.getBaselineValues(10), reopenedScalarAssignment.getBaselineValues(10));
+	}
+
+	private void exerciseOrdinarySaveAsToMpo(Robot robot, AtomicReference<Path> openPath, Path sourceFile,
+		Path overwriteTarget, Path savedCopy, byte[] originalSourceBytes) throws Exception {
+		byte[] existingMpoBytes = "existing MPO must survive a declined overwrite".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+		Files.write(overwriteTarget, existingMpoBytes);
+		clickBackstageOpenTile(robot);
+		GuiAcceptanceSupport.await(() -> manager.findFrameForProjectFile(sourceFile.toString()) != null,
+			"File/Open did not import the source fixture");
+		Project project = manager.findFrameForProjectFile(sourceFile.toString()).getProject();
+		String originalAssociation = project.getFileName();
+		java.util.Iterator<Task> taskIterator = project.getTaskOutlineIterator();
+		assertTrue(taskIterator.hasNext(), "source fixture must contain an editable task");
+		Task editedTask = taskIterator.next();
+		List<String> expectedAssignmentBaselines = assignmentBaselineSemantics(project);
+		SwingUtilities.invokeAndWait(() -> {
+			editedTask.setManuallyScheduled(true);
+		});
+		assertTrue(project.needsSaving(), "manual schedule change must make ordinary Save eligible");
+		List<String> expectedTaskSemantics = taskSemantics(project);
+
+		activateWindowForRobot(robot);
+		click(robot, findCommandButton(window.getRibbonPanel(), "RibbonSaveProject", robot));
+		GuiAcceptanceSupport.await(() -> visibleFileChooserDialog() != null,
+			"ordinary Save of a source import did not open Save As");
+		JFileChooser chooser = findFileChooser(visibleFileChooserDialog());
+		assertEquals(overwriteTarget.getFileName().toString(), chooser.getSelectedFile().getName(),
+			"Save As must suggest the MPO sibling for an imported source");
+		robot.keyPress(java.awt.event.KeyEvent.VK_ESCAPE);
+		robot.keyRelease(java.awt.event.KeyEvent.VK_ESCAPE);
+		GuiAcceptanceSupport.await(() -> visibleFileChooserDialog() == null, "Save As Escape did not cancel");
+		assertEquals(originalAssociation, project.getFileName(), "cancellation must preserve the source association");
+		assertTrue(project.needsSaving(), "cancellation must preserve the dirty state");
+		assertArrayEquals(originalSourceBytes, Files.readAllBytes(sourceFile), "cancellation must leave source file bytes untouched");
+		assertArrayEquals(existingMpoBytes, Files.readAllBytes(overwriteTarget), "cancellation must preserve an existing MPO target");
+
+		activateWindowForRobot(robot);
+		click(robot, findCommandButton(window.getRibbonPanel(), "RibbonSaveProject", robot));
+		GuiAcceptanceSupport.await(() -> visibleFileChooserDialog() != null,
+			"ordinary Save did not reopen Save As after cancellation");
+		Window saveDialog = visibleFileChooserDialog();
+		JFileChooser saveChooser = findFileChooser(saveDialog);
+		assertEquals(overwriteTarget.getFileName().toString(), saveChooser.getSelectedFile().getName(),
+			"retry must retain the suggested MPO target");
+		assertTrue(selectFileChooserSaveButton(saveDialog) != null, "Save As chooser has no visible Save button");
+		click(robot, selectFileChooserSaveButton(saveDialog));
+		GuiAcceptanceSupport.await(() -> visibleOptionDialog() != null, "existing MPO target did not trigger overwrite confirmation");
+		robot.keyPress(java.awt.event.KeyEvent.VK_ESCAPE);
+		robot.keyRelease(java.awt.event.KeyEvent.VK_ESCAPE);
+		GuiAcceptanceSupport.await(() -> visibleOptionDialog() == null,
+			"overwrite refusal dialog did not close");
+		assertArrayEquals(existingMpoBytes, Files.readAllBytes(overwriteTarget), "declined overwrite must preserve the existing MPO");
+		assertArrayEquals(originalSourceBytes, Files.readAllBytes(sourceFile), "declined overwrite must leave source bytes untouched");
+		assertEquals(originalAssociation, project.getFileName(), "declined overwrite must preserve the source association");
+		assertTrue(project.needsSaving(), "declined overwrite must preserve the dirty state");
+
+		GuiAcceptanceSupport.await(() -> visibleFileChooserDialog() != null,
+			"declining overwrite must leave Save As open for another target");
+		saveDialog = visibleFileChooserDialog();
+		JTextField fileNameField = findFileChooserNameField(saveDialog);
+		click(robot, fileNameField);
+		GuiAcceptanceSupport.await(() -> isFocusOwnerOnEdt(fileNameField),
+			"Save As filename field did not acquire keyboard focus after its physical click");
+		robot.keyPress(java.awt.event.KeyEvent.VK_CONTROL);
+		robot.keyPress(java.awt.event.KeyEvent.VK_A);
+		robot.keyRelease(java.awt.event.KeyEvent.VK_A);
+		robot.keyRelease(java.awt.event.KeyEvent.VK_CONTROL);
+		type(robot, savedCopy.getFileName().toString());
+		GuiAcceptanceSupport.awaitInputAndEventQueueIdle(robot, "Save As filename entry");
+		assertEquals(savedCopy.getFileName().toString(), textOnEdt(fileNameField),
+			"physical filename entry must be present in the chooser field before approval");
+		AbstractButton finalApproveButton = selectFileChooserSaveButton(saveDialog);
+		String preApproveState = saveAsChooserDiagnostics(saveDialog, finalApproveButton);
+		java.util.concurrent.atomic.AtomicBoolean approveActionFired = new java.util.concurrent.atomic.AtomicBoolean();
+		finalApproveButton.addActionListener(event -> approveActionFired.set(true));
+		System.err.println("=== Save As pre-approve diagnostic ===\n" + preApproveState);
+		captureNativeChooserScreen(robot, "mpp-save-as-before-final-approve.png");
+		click(robot, finalApproveButton);
+		try {
+			GuiAcceptanceSupport.await(() -> visibleFileChooserDialog() == null && Files.isRegularFile(savedCopy),
+				"selected MPO copy was not written");
+		} catch (AssertionError failure) {
+			throw new AssertionError(failure.getMessage() + "\nPre-approve chooser state:\n" + preApproveState
+				+ "\nApprove action fired=" + approveActionFired.get()
+				+ "\nPost-approve chooser state:\n" + saveAsChooserDiagnostics(saveDialog, finalApproveButton)
+				+ "\n" + saveWindowTrace.snapshot(), failure);
+		}
+		GuiAcceptanceSupport.await(() -> savedCopy.toString().equals(project.getFileName()) && !project.needsSaving(),
+			"successful MPO save did not update association and clear dirty state");
+		assertArrayEquals(originalSourceBytes, Files.readAllBytes(sourceFile), "MPO save must leave the source file untouched");
+		com.microproject.exchange.MpoFileImporter reader = new com.microproject.exchange.MpoFileImporter();
+		reader.setFileName(savedCopy.toString());
+		reader.importFile();
+		assertEquals(expectedTaskSemantics, taskSemantics(reader.getProject()),
+			"MPO reopen must preserve imported task names and schedule dates");
+		assertEquals(expectedAssignmentBaselines, assignmentBaselineSemantics(reader.getProject()),
+			"MPO reopen must preserve imported assignment baseline scalar values");
+
 	}
 
 	/** GUI-RIBBON-FILE-03: a persisted CCPM fever-chart history survives the physical File/Open route. */
