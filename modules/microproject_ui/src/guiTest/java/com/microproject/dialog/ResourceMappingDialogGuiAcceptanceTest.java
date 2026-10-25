@@ -8,23 +8,19 @@ package com.microproject.dialog;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static com.microproject.testsupport.DialogLayoutAssertions.physicallyClick;
+import static com.microproject.testsupport.DialogLayoutAssertions.physicallyScrollIntoView;
 
 import java.awt.GraphicsEnvironment;
 import java.awt.Component;
-import java.awt.MouseInfo;
 import java.awt.Rectangle;
 import java.awt.Robot;
-import java.awt.Point;
-import java.awt.Window;
-import java.awt.geom.AffineTransform;
-import java.awt.geom.Point2D;
 import java.awt.event.InputEvent;
 import java.awt.image.BufferedImage;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.BooleanSupplier;
 
 import javax.imageio.ImageIO;
 import javax.swing.JTable;
@@ -76,82 +72,56 @@ class ResourceMappingDialogGuiAcceptanceTest {
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.waitForIdle();
 		activateDialog(robot);
+		physicallyScrollIntoView(robot, dialog.localProject, "Read-only local project choice");
+		assertReadOnlyChoiceVisible();
 		Rectangle bounds = dialog.getBounds();
 		BufferedImage screenshot = robot.createScreenCapture(bounds);
 		Path artifactDirectory = Path.of(System.getProperty("microproject.gui.artifacts.dir", "build/guiTest-artifacts"));
 		Files.createDirectories(artifactDirectory);
 		ImageIO.write(screenshot, "png", artifactDirectory.resolve("resource-mapping-dialog.png").toFile());
 
-		ClickTarget readOnlyTarget = robotTargetFor(dialog.localProject);
-		List<String> readOnlyAttempts = clickUntil(robot, readOnlyTarget, form::isLocal);
+		physicallyClick(robot, dialog.localProject, "Read-only local project choice");
+		GuiAcceptanceSupport.await(form::isLocal, "The read-only choice did not select the local project route");
 		SwingUtilities.invokeAndWait(() -> {
 			JTable associationTable = dialog.associationTable;
-			assertTrue(form.isLocal(), "The read-only choice must stay on the local project route; "
-				+ readOnlyTarget.diagnostic(readOnlyAttempts));
+			assertTrue(form.isLocal(), "The read-only choice must stay on the local project route");
 			assertFalse(dialog.field1.isEnabled(), "Read-only mode must disable resource merge-field editing");
 			assertFalse(associationTable.isEnabled(), "Read-only mode must disable resource associations");
 		});
 
-		ClickTarget cancelTarget = robotTargetFor(dialog.cancel);
-		List<String> cancelAttempts = clickUntil(robot, cancelTarget, () -> !dialog.isShowing());
-		assertFalse(dialog.isShowing(), "Cancel did not close Resource Mapping dialog; "
-			+ cancelTarget.diagnostic(cancelAttempts));
+		clickAtComponentCenter(robot, dialog.cancel);
+		GuiAcceptanceSupport.await(() -> !dialog.isShowing(), "Cancel did not close Resource Mapping dialog");
+		assertFalse(dialog.isShowing(), "Cancel did not close Resource Mapping dialog");
 		assertTrue(form.getSelectedResources().size() == 1,
 			"Capturing and resizing the dialog must preserve its imported-resource mapping state");
 	}
 
 	private void activateDialog(Robot robot) throws Exception {
-		ClickTarget target = robotTargetFor(dialog);
-		List<String> attempts = clickUntil(robot, target, dialog::isActive);
-		assertTrue(dialog.isActive(), "Resource Mapping dialog did not receive the physical activation click; "
-			+ target.diagnostic(attempts));
+		physicallyClick(robot, dialog.associationTable, "Resource Mapping association table activation");
+		GuiAcceptanceSupport.await(dialog::isActive, "Resource Mapping dialog did not receive the physical activation click");
+		assertTrue(dialog.isActive(), "Resource Mapping dialog did not receive the physical activation click");
 	}
 
-	private static ClickTarget robotTargetFor(Component component) throws Exception {
-		Object[] values = new Object[2];
+	private static void clickAtComponentCenter(Robot robot, Component component) throws Exception {
+		java.awt.Point[] screenPoint = new java.awt.Point[1];
 		SwingUtilities.invokeAndWait(() -> {
-			Window window = component instanceof Window targetWindow
-				? targetWindow : SwingUtilities.getWindowAncestor(component);
-			Point componentLocation = component.getLocationOnScreen();
-			Rectangle bounds = new Rectangle(componentLocation, component.getSize());
-			Point logicalTarget = new Point((int) Math.round(bounds.getCenterX()),
-				(int) Math.round(bounds.getCenterY()));
-			var graphicsConfiguration = window.getGraphicsConfiguration();
-			AffineTransform transform = graphicsConfiguration.getDefaultTransform();
-			Point2D physical = transform.transform(logicalTarget, null);
-			Point transformedTarget = new Point((int) Math.round(physical.getX()), (int) Math.round(physical.getY()));
-			Rectangle physicalScreen = transform.createTransformedShape(graphicsConfiguration.getBounds())
-				.getBounds();
-			values[1] = new ClickTarget(bounds, logicalTarget, transform, transformedTarget, physicalScreen);
+			java.awt.Point location = component.getLocationOnScreen();
+			screenPoint[0] = new java.awt.Point(location.x + component.getWidth() / 2,
+				location.y + component.getHeight() / 2);
 		});
-		return (ClickTarget) values[1];
+		robot.mouseMove(screenPoint[0].x, screenPoint[0].y);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
 	}
 
-	private static List<String> clickUntil(Robot robot, ClickTarget target, BooleanSupplier completed)
-		throws Exception {
-		List<String> attempts = new ArrayList<>();
-		for (Point candidate : List.of(target.transformed(), target.logical())) {
-			robot.mouseMove(candidate.x, candidate.y);
-			robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-			robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-			robot.waitForIdle();
-			boolean done[] = new boolean[1];
-			SwingUtilities.invokeAndWait(() -> done[0] = completed.getAsBoolean());
-			Point pointer = MouseInfo.getPointerInfo() == null ? null : MouseInfo.getPointerInfo().getLocation();
-			attempts.add("candidate=" + candidate + ", pointer=" + pointer + ", completed=" + done[0]);
-			if (done[0]) break;
-		}
-		return attempts;
-	}
-
-	private record ClickTarget(Rectangle logicalBounds, Point logical, AffineTransform transform, Point transformed,
-			Rectangle physicalScreen) {
-		String diagnostic(List<String> attempts) {
-			return "logicalBounds=" + logicalBounds + ", logicalTarget=" + logical
-				+ ", transformedTarget=" + transformed
-				+ ", defaultTransform=" + transform + ", physicalScreenBounds=" + physicalScreen
-				+ ", attempts=" + attempts;
-		}
+	private void assertReadOnlyChoiceVisible() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Rectangle checkbox = new Rectangle(0, 0, dialog.localProject.getWidth(), dialog.localProject.getHeight());
+			assertTrue(dialog.localProject.isShowing() && dialog.localProject.getVisibleRect().contains(checkbox),
+				"Read-only local project choice must be visible before screenshot and activation; bounds="
+					+ dialog.localProject.getBounds() + " visibleRect=" + dialog.localProject.getVisibleRect());
+		});
 	}
 
 	private static ResourceMappingForm createForm() {
