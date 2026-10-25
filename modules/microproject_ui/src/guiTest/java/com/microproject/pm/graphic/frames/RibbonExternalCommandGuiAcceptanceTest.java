@@ -432,6 +432,9 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			"MSPDI assignment baseline project was not saved as MPO");
 		MpoFileImporter scalarReader = new MpoFileImporter();
 		scalarReader.setFileName(scalarMpo.toString());
+		Files.createDirectories(guiArtifactDirectory());
+		Files.copy(scalarMpo, guiArtifactDirectory().resolve("issue919-scalar-before-reload.mpo"),
+			java.nio.file.StandardCopyOption.REPLACE_EXISTING);
 		scalarReader.importFile();
 		Project scalarReopened = scalarReader.getProject();
 		com.microproject.pm.task.NormalTask reopenedBaselineTask = (com.microproject.pm.task.NormalTask)
