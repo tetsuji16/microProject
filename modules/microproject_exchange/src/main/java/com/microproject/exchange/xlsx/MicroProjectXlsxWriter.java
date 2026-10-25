@@ -240,7 +240,7 @@ public class MicroProjectXlsxWriter implements ProjectWriter {
 				safe(task.getNotes()),
 				valueOf(task.getStart()),
 				valueOf(task.getEnd()),
-				valueOf(task.getPercentComplete()),
+				valueOf(toPercent(task.getPercentComplete())),
 				safe(task.getWbs()));
 		}
 		autoSize(sheet, 9);
