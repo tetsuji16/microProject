@@ -3,7 +3,7 @@
 State: ACTIVE; finite scope implemented and verified; no issue closure or external approval claimed.
 Issue: https://github.com/tetsuji16/microProject/issues/921
 Contract frozen: 2026-10-25 from issue body and finite intake.
-Tested source SHA: `82bcd02209b349efdf2fba1979cdc47fb27ff364`; all listed changes are uncommitted.
+Tested source SHA: `2db12efacf7d5c0da0c7c5c8e1c74bec1ba8f26b`; focused test evidence was collected against this exact source tree.
 Baseline working tree included untracked `.codex-remote-attachments/` and sample sync sidecars; preserved.
 
 ## Acceptance
