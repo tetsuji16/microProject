@@ -73,6 +73,7 @@ public class MicroProjectXlsxReader extends AbstractProjectReader {
 	private static final String RESOURCES_SHEET = "Resources";
 	private static final String ASSIGNMENTS_SHEET = "Assignments";
 	private static final String DEPENDENCIES_SHEET = "Dependencies";
+	private byte[] embeddedMspdiXml;
 
 	private static final class WorkbookMetadata {
 		private final String kind;
@@ -105,6 +106,7 @@ public class MicroProjectXlsxReader extends AbstractProjectReader {
 	}
 
 	public ProjectFile read(InputStream in) throws MPXJException {
+		embeddedMspdiXml = null;
 		try {
 			XSSFWorkbook workbook = new XSSFWorkbook(in);
 			try {
@@ -132,6 +134,13 @@ public class MicroProjectXlsxReader extends AbstractProjectReader {
 		} catch (Exception e) {
 			throw new MPXJException("Failed to read microProject XLSX stream", e);
 		}
+	}
+
+	/** Returns the MSPDI payload selected by this read, clearing it for reuse. */
+	public byte[] consumeEmbeddedMspdiXml() {
+		byte[] result = embeddedMspdiXml;
+		embeddedMspdiXml = null;
+		return result == null ? null : result.clone();
 	}
 
 	public List<ProjectFile> readAll(InputStream in) throws MPXJException {
@@ -256,7 +265,8 @@ public class MicroProjectXlsxReader extends AbstractProjectReader {
 			}
 			return null;
 		}
-		ByteArrayInputStream in = new ByteArrayInputStream(xml.toString().getBytes(StandardCharsets.UTF_8));
+		embeddedMspdiXml = xml.toString().getBytes(StandardCharsets.UTF_8);
+		ByteArrayInputStream in = new ByteArrayInputStream(embeddedMspdiXml);
 		return new MSPDIReader().read(in);
 	}
 
@@ -280,7 +290,8 @@ public class MicroProjectXlsxReader extends AbstractProjectReader {
 		if (source.length() == 0) {
 			return null;
 		}
-		ByteArrayInputStream in = new ByteArrayInputStream(source.getBytes(StandardCharsets.UTF_8));
+		embeddedMspdiXml = source.getBytes(StandardCharsets.UTF_8);
+		ByteArrayInputStream in = new ByteArrayInputStream(embeddedMspdiXml);
 		return new MSPDIReader().read(in);
 	}
 

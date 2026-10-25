@@ -29,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.awt.Component;
+import java.awt.EventQueue;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
@@ -39,6 +40,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Callable;
 
 import javax.swing.AbstractButton;
 import javax.swing.JComponent;
@@ -61,49 +63,51 @@ import com.microproject.menu.testsupport.UiComponentWalker;
 class OfficeChromePanelVisualSmokeTest {
 	@Test
 	void rendersOfficeChromeRibbonSnapshot() throws IOException {
-		FlatLafSupport.initialize();
-		MicroProjectTheme.installLight();
-		assertEquals(new java.awt.Color(0xF3F2F1), MicroProjectTheme.tokens().ribbonChromeBackground(),
-			"Office chrome should retain its light neutral gray");
-		assertEquals(java.awt.Color.WHITE, MicroProjectTheme.tokens().ribbonSurfaceBackground(),
-			"the expanded Office ribbon command surface should be white");
-		MenuManager menuManager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
-		ExtToolBarFactory buttonFactory = new ExtToolBarFactory(
-			MenuActionMapSupport.noopActionMap(),
-			MenuDefinitionSupport.ribbonBundles(Locale.JAPAN));
-		SwingRibbonFactory ribbonFactory = new SwingRibbonFactory(
-			new com.microproject.menu.MenuRibbonCommandSource(buttonFactory),
-			MenuDefinitionSupport.ribbonBundles(Locale.JAPAN));
-		JPanel ribbonPanel = ribbonFactory.createPanel(MenuManager.STANDARD_RIBBON, () -> {});
-		OfficeChromePanel panel = new OfficeChromePanel(menuManager, ribbonPanel, () -> {});
-		panel.setSize(1024, 208);
-		panel.doLayout();
-		layoutRecursively(panel);
-		assertSearchIsAttachedToChromeHeader(panel);
-		JComponent searchBox = findNamedComponent(panel, OfficeChromePanel.SEARCH_BOX_NAME);
-		RibbonController ribbonController = (RibbonController) ribbonPanel.getClientProperty(
-			RibbonController.CONTEXTUAL_TABS_PROPERTY);
-		assertTrue(ribbonPanel.getHeight() >= ribbonPanel.getPreferredSize().height,
-			"the screenshot viewport must contain the full ribbon, including group captions");
-		assertRibbonBandsUseTheAvailableWidth(panel);
-		assertRibbonCommandsAreLeftAligned(panel);
+		BufferedImage renderedImage = onEdt(() -> {
+			FlatLafSupport.initialize();
+			MicroProjectTheme.installLight();
+			assertEquals(new java.awt.Color(0xF3F2F1), MicroProjectTheme.tokens().ribbonChromeBackground(),
+				"Office chrome should retain its light neutral gray");
+			assertEquals(java.awt.Color.WHITE, MicroProjectTheme.tokens().ribbonSurfaceBackground(),
+				"the expanded Office ribbon command surface should be white");
+			MenuManager menuManager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
+			ExtToolBarFactory buttonFactory = new ExtToolBarFactory(
+				MenuActionMapSupport.noopActionMap(),
+				MenuDefinitionSupport.ribbonBundles(Locale.JAPAN));
+			SwingRibbonFactory ribbonFactory = new SwingRibbonFactory(
+				new com.microproject.menu.MenuRibbonCommandSource(buttonFactory),
+				MenuDefinitionSupport.ribbonBundles(Locale.JAPAN));
+			JPanel ribbonPanel = ribbonFactory.createPanel(MenuManager.STANDARD_RIBBON, () -> {});
+			OfficeChromePanel panel = new OfficeChromePanel(menuManager, ribbonPanel, () -> {});
+			panel.setSize(1024, 208);
+			panel.doLayout();
+			layoutRecursively(panel);
+			assertSearchIsAttachedToChromeHeader(panel);
+			JComponent searchBox = findNamedComponent(panel, OfficeChromePanel.SEARCH_BOX_NAME);
+			RibbonController ribbonController = (RibbonController) ribbonPanel.getClientProperty(
+				RibbonController.CONTEXTUAL_TABS_PROPERTY);
+			assertTrue(ribbonPanel.getHeight() >= ribbonPanel.getPreferredSize().height,
+				"the screenshot viewport must contain the full ribbon, including group captions");
+			assertRibbonBandsUseTheAvailableWidth(panel);
+			assertRibbonCommandsAreLeftAligned(panel);
 
-		BufferedImage image = new BufferedImage(1024, 208, BufferedImage.TYPE_INT_ARGB);
-		Graphics2D graphics = image.createGraphics();
-		try {
-			panel.printAll(graphics);
-		} finally {
-			graphics.dispose();
-		}
-		assertRibbonColorsArePresentInRenderedPixels(image, panel);
-		assertSearchBoxUsesOfficeOutline(image, panel, searchBox);
+			BufferedImage image = new BufferedImage(1024, 208, BufferedImage.TYPE_INT_ARGB);
+			Graphics2D graphics = image.createGraphics();
+			try {
+				panel.printAll(graphics);
+			} finally {
+				graphics.dispose();
+			}
+			assertRibbonColorsArePresentInRenderedPixels(image, panel);
+			assertSearchBoxUsesOfficeOutline(image, panel, searchBox);
 
+			assertTrue(hasVisibleInk(image));
+			return image;
+		});
 		Path output = Path.of("build", "reports", "ribbon", "office-chrome-ribbon-smoke.png");
 		Files.createDirectories(output.getParent());
-		ImageIO.write(image, "png", output.toFile());
-
+		ImageIO.write(renderedImage, "png", output.toFile());
 		assertTrue(Files.exists(output));
-		assertTrue(hasVisibleInk(image));
 	}
 
 	private static void assertRibbonBandsUseTheAvailableWidth(JPanel panel) {
@@ -174,6 +178,15 @@ class OfficeChromePanelVisualSmokeTest {
 	}
 
 	private static void renderTabContactSheet(Locale locale, int width) throws IOException {
+		BufferedImage sheet = onEdt(() -> renderTabContactSheetOnEdt(locale, width));
+		String localeName = Locale.JAPAN.equals(locale) ? "ja" : "en";
+		Path output = Path.of("build", "reports", "ribbon", "office-ribbon-" + localeName + "-" + width + ".png");
+		Files.createDirectories(output.getParent());
+		ImageIO.write(sheet, "png", output.toFile());
+		assertTrue(Files.exists(output));
+	}
+
+	private static BufferedImage renderTabContactSheetOnEdt(Locale locale, int width) {
 		// Keep screenshots independent of JUnit test ordering and other LAF tests.
 		MicroProjectTheme.installLight();
 		MenuManager menuManager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
@@ -247,11 +260,38 @@ class OfficeChromePanelVisualSmokeTest {
 			sheetGraphics.dispose();
 		}
 
-		String localeName = Locale.JAPAN.equals(locale) ? "ja" : "en";
-		Path output = Path.of("build", "reports", "ribbon", "office-ribbon-" + localeName + "-" + width + ".png");
-		Files.createDirectories(output.getParent());
-		ImageIO.write(sheet, "png", output.toFile());
 		assertTrue(hasVisibleInk(sheet));
+		return sheet;
+	}
+
+	private static <T> T onEdt(Callable<T> operation) {
+		if (EventQueue.isDispatchThread()) {
+			try {
+				return operation.call();
+			} catch (Exception exception) {
+				throw new AssertionError("EDT operation failed", exception);
+			}
+		}
+		Object[] result = new Object[1];
+		Throwable[] failure = new Throwable[1];
+		try {
+			EventQueue.invokeAndWait(() -> {
+				try {
+					result[0] = operation.call();
+				} catch (Throwable throwable) {
+					failure[0] = throwable;
+				}
+			});
+		} catch (Exception exception) {
+			throw new AssertionError("Could not run test operation on the EDT", exception);
+		}
+		if (failure[0] != null) {
+			if (failure[0] instanceof AssertionError assertionError) throw assertionError;
+			throw new AssertionError("EDT operation failed", failure[0]);
+		}
+		@SuppressWarnings("unchecked")
+		T value = (T) result[0];
+		return value;
 	}
 
 	private static void assertSearchIsAttachedToChromeHeader(JPanel panel) {

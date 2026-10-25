@@ -8,6 +8,7 @@ package com.microproject.pm.graphic.frames;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Component;
@@ -78,6 +79,7 @@ import com.microproject.dialog.ProjectInformationDialog;
 import com.microproject.dialog.PreferencesDialogBox;
 import com.microproject.job.JobQueue;
 import com.microproject.exchange.MpoFileImporter;
+import com.microproject.graphic.configuration.CellStyles;
 import com.microproject.init.Init;
 import com.microproject.menu.MenuActionConstants;
 import com.microproject.pm.ccpm.CriticalChainBufferHistory;
@@ -432,6 +434,9 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			"MSPDI assignment baseline project was not saved as MPO");
 		MpoFileImporter scalarReader = new MpoFileImporter();
 		scalarReader.setFileName(scalarMpo.toString());
+		Files.createDirectories(guiArtifactDirectory());
+		Files.copy(scalarMpo, guiArtifactDirectory().resolve("issue919-scalar-before-reload.mpo"),
+			java.nio.file.StandardCopyOption.REPLACE_EXISTING);
 		scalarReader.importFile();
 		Project scalarReopened = scalarReader.getProject();
 		com.microproject.pm.task.NormalTask reopenedBaselineTask = (com.microproject.pm.task.NormalTask)
@@ -752,7 +757,6 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
 
-		Init.initialize();
 		createWindow("microProject — locale preference acceptance");
 		LocaleDialog dialog = LocaleDialog.getInstance(manager);
 		SwingUtilities.invokeLater(dialog::doModal);
@@ -942,8 +946,6 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		previousLocalePreference = localePreferences.get("locale", null);
 		localePreferences.put("locale", "default");
 		localePreferences.flush();
-		Init.initialize();
-
 		createStartedWindow("microProject — locale restart acceptance");
 		GraphicManager initialManager = manager;
 		Robot robot = new com.microproject.testsupport.GuiRobot();
@@ -1058,6 +1060,8 @@ class RibbonExternalCommandGuiAcceptanceTest {
 	}
 
 	private void createWindow(String title) throws Exception {
+		Init.initialize();
+		assertNotNull(CellStyles.getInstance(), "application cell styles must be initialized before creating the window");
 		previousJobQueue = SessionFactory.getInstance().getJobQueue();
 		SwingUtilities.invokeAndWait(() -> {
 			window = new MainRibbonFrame(title, null);

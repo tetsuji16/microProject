@@ -1,6 +1,6 @@
 # Issue #918 — XML/MSPDI semantic contracts
 
-State: IMPLEMENTED; Sol review pending
+State: CLOSED
 Issue: https://github.com/tetsuji16/microProject/issues/918
 Contract frozen: 2026-10-25, issue body plus finite intake matrix
 Baseline HEAD: `565998a34ad2e04057d35b30b95616e4503b695c`
@@ -25,7 +25,7 @@ MPP writing, POD wire changes, dependencies, and new UI routes are excluded.
 
 **Current slice complete:** F1 duration formats, F2 baseline slots and
 future/historical offset isolation, and F3 availability lifecycle/rejections
-are covered. Sol review remains.
+are covered. Sol reviewed and merged PR #926.
 
 ## Implemented evidence
 
@@ -84,3 +84,5 @@ are covered. Sol review remains.
 - PASS: `.\gradlew.bat "-Duser.timezone=UTC" :microproject_exchange:test --tests "com.microproject.core.pm.exchange.converters.mpx.MpxResourceConverterTest.literalMspdiAvailabilityPeriodsRoundTripThroughModelMpoAndMspdi" --no-daemon --console=plain` (1 test, 0 failures/errors/skips).
 - PASS: `.\gradlew.bat "-Duser.timezone=Asia/Tokyo" :microproject_exchange:test --tests "com.microproject.core.pm.exchange.converters.mpx.MpxResourceConverterTest.literalMspdiAvailabilityPeriodsRoundTripThroughModelMpoAndMspdi" --rerun-tasks --no-daemon --console=plain` (1 test, 0 failures/errors/skips).
 - PASS: `.\gradlew.bat "-Duser.timezone=UTC" :microproject_exchange:test --no-daemon --console=plain` (344 tests, 0 failures/errors/skips). Core production source did not change; the earlier core 1,182-test result remains applicable.
+
+- Integrated via PR #926 / b0bf097825c4f59c101805fcb2b99991ca30eccd, tree identical to tested dd49d8b52a0c07ce4c7668087e98e88ba15c156b. Required Build 40124226992 and Windows GUI 40124227051 passed; GUI smoke reported 53 tests, 0 failures/errors, 1 known HiDPI-only skip (52 passes). Initial failed Build remains recorded above.
