@@ -228,6 +228,10 @@ public class MspImporter {
 				if ("xml".equalsIgnoreCase(extension)) {
 					rawMspdiXml = in.readAllBytes();
 					source = prepareProjectStream(new ByteArrayInputStream(rawMspdiXml));
+				} else if ("mpx".equalsIgnoreCase(extension)) {
+					byte[] rawMpx = in.readAllBytes();
+					validateMpxProjectHeader(rawMpx);
+					source = prepareProjectStream(new ByteArrayInputStream(rawMpx));
 				} else {
 					source = prepareProjectStream(in);
 				}
@@ -252,6 +256,16 @@ public class MspImporter {
 			if (in!=null)
 				in.close();
 		}	
+	}
+
+	private static void validateMpxProjectHeader(byte[] data) throws net.sf.mpxj.MPXJException {
+		String text = new String(data, StandardCharsets.ISO_8859_1);
+		for (String line : text.split("\\r?\\n")) {
+			if (line.startsWith("30,")) {
+				return;
+			}
+		}
+		throw new net.sf.mpxj.MPXJException("Invalid MPX file: missing Project Header record (30)");
 	}
 
 	private void resetRawMspdiInputState() {

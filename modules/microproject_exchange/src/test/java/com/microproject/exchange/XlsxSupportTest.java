@@ -322,6 +322,9 @@ public class XlsxSupportTest {
 			workbook.write(out);
 		}
 
+		ProjectFile externalRead = new MicroProjectXlsxReader().read(new ByteArrayInputStream(out.toByteArray()));
+		assertEquals(1, externalRead.getChildTasks().size());
+		assertEquals(4, externalRead.getTasks().size());
 		com.microproject.pm.task.Project imported = new MspImporter().importProject(
 			new ByteArrayInputStream(out.toByteArray()), "xlsx", (progress, label) -> {});
 		com.microproject.pm.task.Task parent = imported.getTaskList().stream()
@@ -391,8 +394,47 @@ public class XlsxSupportTest {
 			new ByteArrayInputStream(summaryOnly.toByteArray()), "xlsx", (progress, label) -> {});
 		NormalTask summaryChild = (NormalTask) summaryImported.getTaskList().stream()
 			.filter(task -> "Deploy".equals(task.getName())).findFirst().orElseThrow();
+		com.microproject.pm.task.Task summaryParent = summaryImported.getTaskList().stream()
+			.filter(task -> "Release".equals(task.getName())).findFirst().orElseThrow();
+		NormalTask summaryZeroUnit = (NormalTask) summaryImported.getTaskList().stream()
+			.filter(task -> "Audit".equals(task.getName())).findFirst().orElseThrow();
+		NormalTask summaryMissingUnits = (NormalTask) summaryImported.getTaskList().stream()
+			.filter(task -> "Review".equals(task.getName())).findFirst().orElseThrow();
+		assertEquals("Release", summaryChild.getWbsParentTask().getName());
+		assertEquals(3, summaryParent.getWbsChildrenNodes().size());
+		assertEquals(0.4D, summaryChild.getPercentComplete(), 0.0001D);
+		assertEquals(0.0D, ((com.microproject.pm.assignment.Assignment) summaryZeroUnit.getAssignments().get(0)).getUnits(), 0.0001D);
+		assertEquals(1.0D, ((com.microproject.pm.assignment.Assignment) summaryMissingUnits.getAssignments().get(0)).getUnits(), 0.0001D);
 		assertEquals(0.5D, ((com.microproject.pm.assignment.Assignment) summaryChild.getAssignments().get(0))
 			.getResource().getMaximumUnits(), 0.0001D);
+		com.microproject.pm.task.Project mpoReloaded = mpoRoundTrip(summaryImported);
+		assertSummarySemantics(mpoReloaded);
+	}
+
+	private static void assertSummarySemantics(com.microproject.pm.task.Project project) {
+		com.microproject.pm.task.Task parent = project.getTaskList().stream()
+			.filter(task -> "Release".equals(task.getName())).findFirst().orElseThrow();
+		NormalTask deploy = (NormalTask) project.getTaskList().stream()
+			.filter(task -> "Deploy".equals(task.getName())).findFirst().orElseThrow();
+		NormalTask audit = (NormalTask) project.getTaskList().stream()
+			.filter(task -> "Audit".equals(task.getName())).findFirst().orElseThrow();
+		NormalTask review = (NormalTask) project.getTaskList().stream()
+			.filter(task -> "Review".equals(task.getName())).findFirst().orElseThrow();
+		assertEquals(4, project.getTaskList().size());
+		assertEquals("Release", deploy.getWbsParentTask().getName());
+		assertEquals(3, parent.getWbsChildrenNodes().size());
+		assertEquals(0.4D, deploy.getPercentComplete(), 0.0001D);
+		assertEquals(0.0D, ((com.microproject.pm.assignment.Assignment) audit.getAssignments().get(0)).getUnits(), 0.0001D);
+		assertEquals(1.0D, ((com.microproject.pm.assignment.Assignment) review.getAssignments().get(0)).getUnits(), 0.0001D);
+		assertEquals(0.5D, ((com.microproject.pm.assignment.Assignment) deploy.getAssignments().get(0))
+			.getResource().getMaximumUnits(), 0.0001D);
+	}
+
+	private static com.microproject.pm.task.Project mpoRoundTrip(com.microproject.pm.task.Project project) throws Exception {
+		ByteArrayOutputStream output = new ByteArrayOutputStream();
+		com.microproject.exchange.MpoFileImporter writer = new com.microproject.exchange.MpoFileImporter();
+		assertTrue(writer.saveProject(project, output));
+		return new com.microproject.exchange.MpoFileImporter().loadProject(new ByteArrayInputStream(output.toByteArray()));
 	}
 
 	@Test
@@ -624,6 +666,9 @@ public class XlsxSupportTest {
 			assertEquals(microsoftTask.getUniqueId(), directTask.getUniqueId());
 			assertEquals(microsoftTask.getName(), directTask.getName());
 		}
+		com.microproject.pm.task.Project nativeMpoReloaded = mpoRoundTrip(directProject);
+		assertEquals(java.util.Set.of("Native first task", "Native second task"), nativeMpoReloaded.getTaskList().stream()
+			.map(com.microproject.pm.task.Task::getName).collect(java.util.stream.Collectors.toSet()));
 	}
 
 	@Test
@@ -676,6 +721,9 @@ public class XlsxSupportTest {
 			(progress, label) -> {});
 		assertTrue(project.getTaskList().stream().anyMatch(task -> "Embedded MSPDI fallback task".equals(task.getName())));
 		assertEquals("embedded declared project boundary is applied before tasks", 1, importer.earlyHeaderPasses);
+		com.microproject.pm.task.Project embeddedMpoReloaded = mpoRoundTrip(project);
+		assertTrue(embeddedMpoReloaded.getTaskList().stream()
+			.anyMatch(task -> "Embedded MSPDI fallback task".equals(task.getName())));
 	}
 
 	private static final class HeaderTrackingMspImporter extends MspImporter {
