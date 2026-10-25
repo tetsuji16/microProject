@@ -1,0 +1,158 @@
+name: Cross-platform package smoke
+run-name: Read-only package smoke for ${{ inputs.release_tag }} (does not publish or alter release/latest assets)
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Published release tag (vMAJOR.MINOR.PATCH.BUILD)
+        required: true
+        type: string
+      expected_sha:
+        description: Expected release target commit SHA (40 hexadecimal characters)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  package-smoke:
+    name: ${{ matrix.platform }} read-only launch smoke
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            platform: linux-x64
+          - runner: macos-latest
+            platform: macos-aarch64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Prepare launch log directory
+        run: mkdir -p launch-logs
+
+      - name: Validate inputs and release metadata
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          REPOSITORY: ${{ github.repository }}
+          PLATFORM: ${{ matrix.platform }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid release_tag" >&2; exit 1; }
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-fA-F]{40}$ ]] || { echo "Invalid expected_sha" >&2; exit 1; }
+          version="${RELEASE_TAG#v}"
+          release_json="$(mktemp)"
+          api="https://api.github.com/repos/${REPOSITORY}/releases/tags/${RELEASE_TAG}"
+          curl --fail --silent --show-error -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" -o "$release_json"
+          python3 - "$release_json" "$RELEASE_TAG" "$EXPECTED_SHA" "$version" "$PLATFORM" <<'PY'
+          import json, sys
+          data = json.load(open(sys.argv[1], encoding="utf-8"))
+          tag, sha, version, platform = sys.argv[2:]
+          if data.get("tag_name") != tag:
+              raise SystemExit(f"Release tag mismatch: {data.get('tag_name')!r}")
+          if data.get("target_commitish", "").lower() != sha.lower():
+              raise SystemExit(f"Release target_commitish mismatch: {data.get('target_commitish')!r}")
+          assets = data.get("assets", [])
+          name = f"microProject-{version}-{platform}.zip"
+          if sum(asset.get("name") == name for asset in assets) != 1:
+              raise SystemExit(f"Expected exactly one release asset named {name!r}")
+          PY
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "release_json=$release_json" >> "$GITHUB_OUTPUT"
+
+      - name: Download and verify published package
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          PLATFORM: ${{ matrix.platform }}
+          VERSION: ${{ steps.release.outputs.version }}
+          RELEASE_JSON: ${{ steps.release.outputs.release_json }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          asset_name="microProject-${VERSION}-${PLATFORM}.zip"
+          python3 - "$RELEASE_JSON" "$asset_name" > asset.json <<'PY'
+          import json, sys
+          data = json.load(open(sys.argv[1], encoding="utf-8"))
+          matches = [asset for asset in data.get("assets", []) if asset.get("name") == sys.argv[2]]
+          if len(matches) != 1:
+              raise SystemExit(f"Expected exactly one release asset named {sys.argv[2]!r}; found {len(matches)}")
+          print(json.dumps(matches[0]))
+          PY
+          asset_id="$(python3 -c 'import json; print(json.load(open("asset.json"))["id"])')"
+          expected_digest="$(python3 -c 'import json; print(json.load(open("asset.json")).get("digest") or "")')"
+          [[ "$expected_digest" =~ ^sha256:[0-9a-fA-F]{64}$ ]] || { echo "Release asset has no valid SHA256 digest" >&2; exit 1; }
+          curl --fail --silent --show-error -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/octet-stream" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/assets/${asset_id}" -o package.zip
+          actual_digest="sha256:$(shasum -a 256 package.zip | awk '{print $1}')"
+          [[ "${actual_digest,,}" == "${expected_digest,,}" ]] || { echo "Downloaded package digest mismatch" >&2; exit 1; }
+          mkdir -p "$RUNNER_TEMP/package"
+          python3 - package.zip "$RUNNER_TEMP/package" <<'PY'
+          import pathlib, sys, zipfile
+          archive = pathlib.Path(sys.argv[1])
+          destination = pathlib.Path(sys.argv[2]).resolve()
+          with zipfile.ZipFile(archive) as zf:
+              for info in zf.infolist():
+                  target = (destination / info.filename).resolve()
+                  if target != destination and destination not in target.parents:
+                      raise SystemExit(f"Unsafe archive path: {info.filename!r}")
+              zf.extractall(destination)
+          PY
+
+      - name: Launch Linux package under Xvfb
+        if: matrix.platform == 'linux-x64'
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v xvfb-run >/dev/null || { echo "xvfb-run is required" >&2; exit 1; }
+          [[ "$(uname -m)" == "x86_64" ]] || { echo "Expected Linux x64 runner" >&2; exit 1; }
+          mkdir -p launch-logs
+          executable="$RUNNER_TEMP/package/microProject/bin/microProject"
+          [[ -x "$executable" ]] || { echo "Missing executable: $executable" >&2; exit 1; }
+          set +e
+          timeout --signal=TERM 30s xvfb-run -a "$executable" >launch-logs/stdout.log 2>launch-logs/stderr.log
+          result=$?
+          set -e
+          [[ "$result" -eq 0 || "$result" -eq 124 ]] || { echo "Linux launch failed with exit $result" >&2; exit "$result"; }
+
+      - name: Launch macOS package
+        if: matrix.platform == 'macos-aarch64'
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(uname -m)" == "arm64" ]] || { echo "Expected macOS Apple Silicon runner" >&2; exit 1; }
+          mkdir -p launch-logs
+          executable="$RUNNER_TEMP/package/microProject.app/Contents/MacOS/microProject"
+          [[ -x "$executable" ]] || { echo "Missing executable: $executable" >&2; exit 1; }
+          python3 - "$executable" <<'PY'
+          import subprocess, sys
+          from pathlib import Path
+          Path("launch-logs").mkdir(exist_ok=True)
+          with open("launch-logs/stdout.log", "wb") as stdout, open("launch-logs/stderr.log", "wb") as stderr:
+              process = subprocess.Popen([sys.argv[1]], stdout=stdout, stderr=stderr)
+              try:
+                  code = process.wait(timeout=30)
+              except subprocess.TimeoutExpired:
+                  process.terminate()
+                  try:
+                      process.wait(timeout=5)
+                  except subprocess.TimeoutExpired:
+                      process.kill()
+                      process.wait()
+                  raise SystemExit(0)
+              if code != 0:
+                  raise SystemExit(f"macOS launch exited with {code}")
+          PY
+
+      - name: Upload launch logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: launch-logs-${{ matrix.platform }}
+          path: launch-logs/
+          if-no-files-found: warn
+          retention-days: 7
