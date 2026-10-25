@@ -135,6 +135,23 @@ class MspdiBaselineMatrixContractTest {
 		}
 	}
 
+	@Test
+	void sourceProjectStartIsInstalledBeforeManualTaskImportAndSurvivesMpoReload() throws Exception {
+		String xml = literalManualTaskImportXml();
+		Project imported = new BoundaryMspImporter().importProject(
+			new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8)), "xml", (progress, label) -> {});
+		assertAll("manual task import uses source project boundary before assignment bounds initialize",
+			() -> assertTrue(taskNamed(imported).isManuallyScheduled()),
+			() -> assertManifest(imported));
+
+		ByteArrayOutputStream mpo = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(imported, mpo));
+		Project reopened = new MpoFileImporter().loadProject(new ByteArrayInputStream(mpo.toByteArray()));
+		assertAll("manual task and baseline scalars survive MPO reload",
+			() -> assertTrue(taskNamed(reopened).isManuallyScheduled()),
+			() -> assertManifest(reopened));
+	}
+
 	private record ImportStage(String name, long currentTaskFinish, long currentAssignmentFinish, long currentAssignmentWork,
 		com.microproject.pm.scheduling.ConstraintType.Kind constraint,
 		Object currentTaskSchedule, Object taskBaselineSchedule, Object currentAssignment,
@@ -152,6 +169,8 @@ class MspdiBaselineMatrixContractTest {
 		}
 		@Override protected void importProjectHeader(Project project) {
 			super.importProjectHeader(project);
+			if (project.getTaskList().stream().noneMatch(task -> "Assignment baseline task".equals(task.getName())))
+				return;
 			capture("importProjectHeader", project);
 		}
 		private void capture(String stage, Project project) {
@@ -165,6 +184,14 @@ class MspdiBaselineMatrixContractTest {
 				snapshot == null ? 0L : snapshot.getCurrentSchedule().getFinish(), baseline == null ? 0L : baseline.getFinish()));
 		}
 		List<ImportStage> stages() { return List.copyOf(stages); }
+	}
+
+	private static final class BoundaryMspImporter extends com.microproject.core.pm.exchange.MspImporter {
+		@Override protected void importOptions(Project project) {
+			// Reproduce an initialized importing project whose current boundary is today,
+			// before the source header is applied by the normal import path.
+			project.setStartConstraint(wallTime("2026-10-25T08:00:00"));
+		}
 	}
 
 	private static void assertManifest(Project project) {
@@ -321,6 +348,21 @@ class MspdiBaselineMatrixContractTest {
 		String withBaselines = xml.substring(0, assignmentEnd) + assignmentBaselines + xml.substring(assignmentEnd);
 		int assignmentsEnd = withBaselines.indexOf("</Assignments>");
 		return withBaselines.substring(0, assignmentsEnd) + controlledAssignment + withBaselines.substring(assignmentsEnd);
+	}
+
+	private static String literalManualTaskImportXml() throws Exception {
+		String xml = literalBaselineTableXml();
+		xml = xml.replace("<Name>Assignment baseline task</Name>",
+			"<Name>Assignment baseline task</Name><Manual>1</Manual>");
+		xml = xml.replace("</Calendars>",
+			"        <Calendar><UID>2</UID><Name>Baseline test resource</Name>"
+				+ "<IsBaseCalendar>0</IsBaseCalendar><BaseCalendarUID>1</BaseCalendarUID></Calendar>\n    </Calendars>");
+		xml = xml.replace("<Name>Baseline test resource</Name><IsNull>0</IsNull>",
+			"<Name>Baseline test resource</Name><CalendarUID>2</CalendarUID><IsNull>0</IsNull>");
+		assertTrue(xml.contains("<Manual>1</Manual>"), "manual-task source literal");
+		assertTrue(xml.contains("<BaseCalendarUID>1</BaseCalendarUID>"), "derived resource-calendar source literal");
+		assertTrue(xml.contains("<CalendarUID>2</CalendarUID><IsNull>0</IsNull>"), "resource calendar reference");
+		return xml;
 	}
 
 	private static String slotStart(int slot) {
