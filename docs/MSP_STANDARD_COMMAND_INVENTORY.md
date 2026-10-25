@@ -209,7 +209,7 @@ from a filename filter or an XML trailer.
 | MPX write | `ProjectWriterFactory` maps MPX to MPXWriter. | PARTIAL | #796 | S33 explicitly says current Microsoft Project desktop does not open or save MPX; MPXJ is the product's legacy interoperability implementation. | Exact field/version limits and field-loss matrix remain to be recorded. |
 | MPO native read | `MpoFileImporter` and importer/archive tests cover native read and backward-version handling. | VERIFIED | #796 | Product-owned format; Microsoft applicability not applicable. | Retain earlier supported MPO backward reads and field-level round trips; no MSP parity claim. |
 | MPO native write | `MpoFileImporter` archive/container writer and transaction tests cover native write behavior. | VERIFIED | #796 | Product-owned format; Microsoft applicability not applicable. | Product-native contract only; no MSP parity claim. |
-| POD compatibility | `PodRoundTripTest` covers established POD serialization and embedded MSPDI data. | PARTIAL | #796 | Frozen microProject legacy format; Microsoft applicability not applicable. | Preserve wire layout/fixed fixtures; current chooser/writer exposure remains a policy discrepancy. |
+| POD compatibility | `PodRoundTripTest` covers established POD reads, MPO migration, and embedded MSPDI data; `LocalSessionSaveTest.recoverySnapshotDoesNotRenameOrMarkProjectClean` retains internal recovery serialization. | PARTIAL | #796 | Frozen microProject legacy format; Microsoft applicability not applicable. | POD remains available for Open and historical recovery reads; ordinary user saves use MPO, XML, or XLSX. Only recovery snapshots may invoke the POD writer. |
 | XLSX read | `MicroProjectXlsxReader` and `XlsxSupportTest` cover native payload, summary sheets, and MSPDI fallback. | PARTIAL | #796 | S33 says Project desktop imports/exports Excel field data, not entire projects; microProject's native XLSX payload and its MSPDI fallback are product/exchange contracts, not Microsoft Project compatibility claims. | Field-loss and external workbook semantic matrix remains incomplete. |
 | XLSX write | `MicroProjectXlsxWriter` and `XlsxSupportTest` cover native payload and MSPDI worksheet output. | PARTIAL | #796 | S33 says Project's Excel export is limited to Project field data rather than whole-project export; microProject native XLSX payload remains a product extension, with MSPDI worksheet output a separate contract. | Field-loss and external workbook semantic matrix remains incomplete. |
 | PMXML export | Writer factory registers `PrimaveraPMFileWriter`; no importer path found. | PARTIAL | #796 | MPXJ writer path; Microsoft Project edition not applicable. | Export semantics and user-facing advertisement/contract need a separate row review. |
@@ -272,9 +272,10 @@ state.
 POD's serialized schema is frozen. Do not add serialized fields, record
 components, alter class descriptors, or otherwise change its format. New
 features do not need full POD persistence or behavioral parity when POD cannot
-represent them. Keep existing POD open/save behavior where it already applies,
-but test new feature persistence through MPO and document any POD limitation
-instead of extending the POD schema.
+represent them. Keep POD available for opening existing files and for internal
+recovery snapshots; ordinary user saves must use MPO, XML, or XLSX. Test new
+feature persistence through MPO and document any POD limitation instead of
+extending the POD schema.
 
 ## Review and closure rule
 

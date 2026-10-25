@@ -187,6 +187,7 @@ public class LocalFileImporter extends FileImporter {
 						logger.log(Level.WARNING, "Error during file import", e1);
 					}
 				}
+				if (ex != null) throw ex;
 			}
         }
 	}

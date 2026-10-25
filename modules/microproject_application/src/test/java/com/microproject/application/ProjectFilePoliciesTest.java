@@ -26,6 +26,7 @@ package com.microproject.application;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
@@ -49,6 +50,7 @@ class ProjectFilePoliciesTest {
 		assertFalse(ProjectFilePolicies.isPodFile("plan.mpp"));
 		assertTrue(ProjectFilePolicies.isPodFile("plan.pod"));
 		assertEquals(LocalSession.MPO_PROJECT_IMPORTER, ProjectFilePolicies.resolveSaveImporter("plan.mpo"));
+		assertThrows(IllegalArgumentException.class, () -> ProjectFilePolicies.resolveSaveImporter("plan.pod"));
 	}
 
 	@Test
@@ -61,6 +63,7 @@ class ProjectFilePoliciesTest {
 		assertEquals("plan.mpo", ProjectFilePolicies.defaultSaveAsFileName("plan.xlsx"));
 		assertFalse(ProjectFilePolicies.requiresSaveAs("plan.mpo"));
 		assertFalse(ProjectFilePolicies.requiresSaveAs("plan.xml"));
+		assertTrue(ProjectFilePolicies.requiresSaveAs("plan.pod"));
 	}
 
 	@Test
@@ -74,5 +77,7 @@ class ProjectFilePoliciesTest {
 		ProjectFilePolicies.configureSaveOptions(saveOptions, "plan.mpp");
 		assertEquals("plan.mpp", saveOptions.getFileName());
 		assertEquals(LocalSession.MICROSOFT_PROJECT_IMPORTER, saveOptions.getImporter());
+		assertThrows(IllegalArgumentException.class,
+			() -> ProjectFilePolicies.configureSaveOptions(new SaveOptions(), "plan.pod"));
 	}
 }
