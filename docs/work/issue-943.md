@@ -1,6 +1,6 @@
 # Issue #943 — EVM user workflow and reporting
 
-State: IN PROGRESS
+State: COMPLETE
 Issue: https://github.com/tetsuji16/microProject/issues/943
 Contract frozen at: 2026-10-26, issue body fetched at intake
 Baseline HEAD: `6d430c1591202a84ffeb08103988b868eb196313`
@@ -20,13 +20,13 @@ Blockers: none known.
 | A1 | User-facing paths for PV/EV/AC and status date found or absent items grounded in code | pass | `configuration.xml` editable percent/actual-work and read-only actual-cost fields; task/project EVM spreadsheet presets; Status Date dialog and EVM fields now selectable in Custom Report |
 | A2 | Known-value SV/CV/SPI/CPI formulas, aggregation, currency, and status-date relationship verified | pass | known formulas and MPO project aggregation/round-trip pass; early-vs-late status dates show BCWS increase and BCWP/ACWP nondecrease; mixed-source currency behavior documented |
 | A3 | MPO save/reload values and presentation confirmed; implemented routes have focused regressions | pass | MPO seven-value round trip + report-column availability tests pass; physical EVM preview/CSV Robot journey passed at `1d08ee174d98607028d75ee5ce02fda61221bc1c` ([run 40364453938](https://github.com/tetsuji16/microProject/actions/runs/40364453938)) |
-| A4 | Book/user-guide explainable operation scope defined from evidence | pass | Japanese chapters 5/10/12 describe tested calculation/input scope, status date, report field limitation, MPO persistence, and currency caveat; physical GUI evidence is explicitly marked pending |
+| A4 | Book/user-guide explainable operation scope defined from evidence | pass | Japanese chapters 5/10/12 describe tested calculation/input scope, status date, report fields, MPO persistence, and the mixed-currency caveat |
 
 ## Current slice
 
 **Current slice:** Targeted Windows GUI acceptance passed on the issue implementation SHA.
 **Done when:** The physical Robot journey selects BCWS/BCWP/ACWP/CV/SV/CPI/SPI, observes calculated preview values, exports CSV, and asserts the exported values. Complete.
-**Then:** Close #943 with all acceptance evidence.
+**Then:** Complete. All acceptance criteria have evidence.
 
 ## Remaining blockers
 
