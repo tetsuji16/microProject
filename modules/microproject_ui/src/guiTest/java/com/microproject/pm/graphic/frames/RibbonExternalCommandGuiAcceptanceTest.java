@@ -77,11 +77,13 @@ import com.microproject.dialog.LicenseDialog;
 import com.microproject.dialog.ProjectDialog;
 import com.microproject.dialog.ProjectInformationDialog;
 import com.microproject.dialog.PreferencesDialogBox;
+import com.microproject.dialog.UsabilityStrings;
 import com.microproject.job.JobQueue;
 import com.microproject.exchange.MpoFileImporter;
 import com.microproject.graphic.configuration.CellStyles;
 import com.microproject.init.Init;
 import com.microproject.menu.MenuActionConstants;
+import com.microproject.menu.MenuManager;
 import com.microproject.pm.ccpm.CriticalChainBufferHistory;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.Project;
@@ -183,7 +185,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			Messages.reset();
 		}
 		for (Window open : Window.getWindows()) {
-			if (open instanceof ProjectDialog || open instanceof LocaleDialog
+			if (open instanceof ProjectDialog || open instanceof PreferencesDialogBox || open instanceof LocaleDialog
 				|| open instanceof HelpDialog || open instanceof AboutDialog) {
 				open.dispose();
 			}
@@ -579,7 +581,21 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		robot.setAutoDelay(45);
 		clickAndClose(robot, "RibbonNewProject", ProjectDialog.class);
 		clickAndDispose(robot, "RibbonBackstageOptions", PreferencesDialogBox.class);
-		clickAndClose(robot, "RibbonLocale", LocaleDialog.class);
+		AbstractButton localeCommand = findCommandButton(window.getRibbonPanel(), "RibbonLocale", robot);
+		click(robot, localeCommand);
+		GuiAcceptanceSupport.await(() -> visibleDialog(PreferencesDialogBox.class) != null,
+			"RibbonLocale did not open Preferences");
+		PreferencesDialogBox localePreferencesDialog = (PreferencesDialogBox) visibleDialog(PreferencesDialogBox.class);
+		JTabbedPane localeTabs = flatten(localePreferencesDialog).stream().filter(JTabbedPane.class::isInstance)
+			.map(JTabbedPane.class::cast).findFirst()
+			.orElseThrow(() -> new AssertionError("Preferences dialog has no settings tabs"));
+		assertEquals(UsabilityStrings.text("preferences.languageLocale"), localeTabs.getTitleAt(1));
+		assertEquals(1, localeTabs.getSelectedIndex(), "RibbonLocale must select Language and locale");
+		assertNotNull(findButton(localePreferencesDialog, MenuManager.getMenuString("Help.text")),
+			"Language and locale tab must expose its Help route");
+		click(robot, findButton(localePreferencesDialog, UsabilityStrings.text("preferences.cancel")));
+		GuiAcceptanceSupport.await(() -> visibleDialog(PreferencesDialogBox.class) == null,
+			"Preferences dialog did not close through Cancel");
 		AbstractButton helpTab = findRibbonTab(window.getRibbonPanel(), "Help", "ヘルプ");
 		click(robot, helpTab);
 		robot.waitForIdle();
@@ -803,7 +819,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 	}
 
 	@Test
-	void localeDialogPersistsLanguageAndCountryAndTheirFormattersFollowSelection() throws Exception {
+	void preferencesLanguageLocaleTabPersistsLanguageAndCountryAndTheirFormattersFollowSelection() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(),
 			"A desktop session is required for Robot acceptance coverage.");
 		previousLocalePreference = null;
@@ -822,12 +838,17 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		Environment.setNewLook(true);
 
 		createWindow("microProject — locale preference acceptance");
-		LocaleDialog dialog = LocaleDialog.getInstance(manager);
-		SwingUtilities.invokeLater(dialog::doModal);
-		GuiAcceptanceSupport.await(dialog::isShowing, "Locale dialog did not open");
-		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(dialog, "Locale Settings dialog");
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
+		AbstractButton localeCommand = findCommandButton(window.getRibbonPanel(), "RibbonLocale", robot);
+		click(robot, localeCommand);
+		GuiAcceptanceSupport.await(() -> visibleDialog(PreferencesDialogBox.class) != null,
+			"RibbonLocale did not open Preferences");
+		PreferencesDialogBox dialog = (PreferencesDialogBox) visibleDialog(PreferencesDialogBox.class);
+		JTabbedPane tabs = flatten(dialog).stream().filter(JTabbedPane.class::isInstance).map(JTabbedPane.class::cast)
+			.findFirst().orElseThrow(() -> new AssertionError("Preferences dialog has no settings tabs"));
+		assertEquals(1, tabs.getSelectedIndex(), "RibbonLocale must select Language and locale");
+		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(dialog, "Preferences Language and locale tab");
 		JComboBox<?>[] selectors = new JComboBox<?>[2];
 		SwingUtilities.invokeAndWait(() -> {
 			selectors[0] = findComboWithItem(dialog, "de");
@@ -845,11 +866,11 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			assertEquals("de", selectors[0].getSelectedItem());
 			assertEquals("Germany", String.valueOf(selectors[1].getSelectedItem()));
 		});
-		click(robot, findButton(dialog, Messages.getString("ButtonText.OK")));
-		GuiAcceptanceSupport.await(() -> !dialog.isShowing(), "Locale dialog did not commit and close");
+		click(robot, findButton(dialog, UsabilityStrings.text("preferences.apply")));
+		GuiAcceptanceSupport.await(() -> !dialog.isShowing(), "Preferences dialog did not apply the locale");
 
 		assertEquals("de_DE", localePreferences.get("locale", "missing"),
-			"Locale dialog did not persist its selected language and country");
+			"Preferences dialog did not persist its selected language and country");
 		Locale.setDefault(Locale.GERMANY);
 		assertEquals("1234,50 €", com.microproject.datatype.Money.normalCurrencyFormat(1234.5, false));
 		assertTrue(com.microproject.util.DateTime.utcDateFormatInstance()
@@ -1015,13 +1036,24 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		click(robot, findCommandButton(window.getRibbonPanel(), "RibbonLocale", robot));
-		GuiAcceptanceSupport.await(() -> visibleDialog(LocaleDialog.class) != null,
-			"Locale dialog did not open from the ribbon");
-		LocaleDialog dialog = (LocaleDialog) visibleDialog(LocaleDialog.class);
+		GuiAcceptanceSupport.await(() -> visibleDialog(PreferencesDialogBox.class) != null,
+			"RibbonLocale did not open Preferences");
+		PreferencesDialogBox dialog = (PreferencesDialogBox) visibleDialog(PreferencesDialogBox.class);
+		JTabbedPane tabs = flatten(dialog).stream().filter(JTabbedPane.class::isInstance).map(JTabbedPane.class::cast)
+			.findFirst().orElseThrow(() -> new AssertionError("Preferences dialog has no settings tabs"));
+		assertEquals(1, tabs.getSelectedIndex(), "RibbonLocale must open Language and locale");
+		click(robot, findButton(dialog, UsabilityStrings.text("preferences.cancel")));
+		GuiAcceptanceSupport.await(() -> visibleDialog(PreferencesDialogBox.class) == null,
+			"Preferences dialog did not close through Cancel");
+		assertEquals("default", localePreferences.get("locale", "missing"), "Cancel must leave locale unchanged");
+		click(robot, findCommandButton(window.getRibbonPanel(), "RibbonLocale", robot));
+		GuiAcceptanceSupport.await(() -> visibleDialog(PreferencesDialogBox.class) != null,
+			"RibbonLocale did not reopen Preferences");
+		PreferencesDialogBox reopenedDialog = (PreferencesDialogBox) visibleDialog(PreferencesDialogBox.class);
 		JComboBox<?>[] selectors = new JComboBox<?>[2];
 		SwingUtilities.invokeAndWait(() -> {
-			selectors[0] = findComboWithItem(dialog, "de");
-			selectors[1] = findComboWithItem(dialog, "Germany");
+			selectors[0] = findComboWithItem(reopenedDialog, "de");
+			selectors[1] = findComboWithItem(reopenedDialog, "Germany");
 		});
 		click(robot, selectors[0]);
 		type(robot, "de");
@@ -1035,9 +1067,10 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			assertEquals("de", selectors[0].getSelectedItem());
 			assertEquals("Germany", String.valueOf(selectors[1].getSelectedItem()));
 		});
-		String okText = Messages.getString("ButtonText.OK");
-		click(robot, findButton(dialog, okText));
-		GuiAcceptanceSupport.await(() -> !dialog.isShowing(), "Locale dialog did not close after confirmation");
+		click(robot, findButton(reopenedDialog, UsabilityStrings.text("preferences.apply")));
+		GuiAcceptanceSupport.await(() -> visibleDialog(PreferencesDialogBox.class) == null,
+			"Preferences dialog did not close after applying locale");
+		assertEquals("de_DE", localePreferences.get("locale", "missing"), "Apply must persist de_DE before restart");
 		GuiAcceptanceSupport.await(() -> window.getGraphicManager() != null
 			&& window.getGraphicManager() != initialManager,
 			"Locale change did not install a new GraphicManager through StartupFactory");
@@ -1917,12 +1950,8 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			assertFalse(title.contains("ProjectLibre"), commandId + " dialog title still renders the upstream product name");
 		}
 		assertDialogBodyIsRendered(dialog, commandId);
-		if (dialog instanceof LocaleDialog)
-			DialogLayoutAssertions.assertTextControlsAtPreferredHeight(dialog, "Locale Settings dialog (#590 body image 4)");
 		if (dialog instanceof HelpDialog)
 			DialogLayoutAssertions.assertTextControlsAtPreferredHeight(dialog, "Help dialog (#590 body image 3)");
-		if (dialog instanceof LocaleDialog)
-			DialogScreenshotArtifacts.capture((java.awt.Dialog) dialog, "issue-590-locale-settings");
 		if (dialog instanceof HelpDialog)
 			DialogScreenshotArtifacts.capture((java.awt.Dialog) dialog, "issue-590-help");
 		if (dialog instanceof HelpDialog)

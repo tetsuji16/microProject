@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Graphics;
 import java.awt.event.MouseEvent;
@@ -35,6 +36,8 @@ import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
+import com.microproject.ui.theme.MicroProjectTheme;
+import com.microproject.ui.theme.MicroProjectThemeTokens;
 import com.microproject.undo.DataFactoryUndoController;
 
 /**
@@ -116,6 +119,54 @@ class CriticalChainApplyAndRenderTest {
 		} finally {
 			g.dispose();
 		}
+	}
+
+	@Test
+	void graphPanelUsesThemeTokensForDarkAndPreservesLightPalette() throws Exception {
+		MicroProjectThemeTokens originalTokens = MicroProjectTheme.tokens();
+		boolean wasDark = !originalTokens.appBackground().equals(MicroProjectThemeTokens.light().appBackground());
+		try {
+			Project project = buildProjectWithTasksAndResources();
+			CriticalChainService service = new CriticalChainService();
+			CriticalChainService.Settings settings = service.settings(project);
+			settings.setEnabled(true);
+			CriticalChainService.Analysis applied = service.apply(project, null, settings);
+			CriticalChainGraphPanel panel = new CriticalChainGraphPanel(project);
+			panel.setAnalysis(applied);
+			panel.setSize(700, 420);
+
+			MicroProjectTheme.installDark();
+			MicroProjectThemeTokens dark = MicroProjectTheme.tokens();
+			BufferedImage darkImage = paint(panel);
+			assertEquals(dark.tableBackground().getRGB(), darkImage.getRGB(0, 0), "dark canvas must use the table background token");
+			CriticalChainGraphScene.Node darkTask = CriticalChainGraphScene.from(project, applied).nodes().stream()
+				.filter(node -> node.kind() == CriticalChainGraphScene.NodeKind.TASK).findFirst().orElseThrow();
+			assertEquals(dark.headerBackground().getRGB(), darkImage.getRGB(darkTask.bounds().x() + 12, darkTask.bounds().y() + 12),
+				"dark task nodes must use the header background token");
+			assertTrue(containsColor(darkImage, dark.labelForeground()), "dark graph text must use the readable label foreground token");
+
+			MicroProjectTheme.installLight();
+			BufferedImage lightImage = paint(panel);
+			assertEquals(java.awt.Color.WHITE.getRGB(), lightImage.getRGB(0, 0), "light canvas must remain white");
+			assertEquals(new java.awt.Color(255, 238, 190).getRGB(), lightImage.getRGB(darkTask.bounds().x() + 12, darkTask.bounds().y() + 12),
+				"light task nodes must retain their existing palette");
+		} finally {
+			if (wasDark) MicroProjectTheme.installDark(); else MicroProjectTheme.installLight();
+		}
+	}
+
+	private static BufferedImage paint(CriticalChainGraphPanel panel) {
+		BufferedImage image = new BufferedImage(panel.getWidth(), panel.getHeight(), BufferedImage.TYPE_INT_ARGB);
+		Graphics graphics = image.getGraphics();
+		try { panel.paint(graphics); } finally { graphics.dispose(); }
+		return image;
+	}
+
+	private static boolean containsColor(BufferedImage image, java.awt.Color color) {
+		for (int y = 0; y < image.getHeight(); y++)
+			for (int x = 0; x < image.getWidth(); x++)
+				if (image.getRGB(x, y) == color.getRGB()) return true;
+		return false;
 	}
 
 	@Test
