@@ -48,8 +48,10 @@ import org.junit.jupiter.api.Test;
 import com.microproject.graphic.configuration.GanttBarFormatOverrides;
 import com.microproject.graphic.configuration.GanttBarFormatOverrides.BarFormat;
 import com.microproject.pm.assignment.Assignment;
+import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.costing.ExpenseType;
 import com.microproject.pm.costing.EarnedValueMethodType;
+import com.microproject.pm.costing.EarnedValueCalculator;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
@@ -64,6 +66,9 @@ import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourceType;
+import com.microproject.pm.snapshot.Snapshottable;
+import com.microproject.datatype.Rate;
+import com.microproject.datatype.TimeUnit;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.model.NodeModel;
@@ -71,6 +76,61 @@ import com.microproject.server.data.ProjectData;
 import com.microproject.server.data.Serializer;
 
 public class PodRoundTripTest {
+	@Test
+	public void earnedValueMetricsSurviveNativeMpoRoundTrip() throws Exception {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("earned-value-mpo", undo), undo);
+		project.initialize(false, false);
+		NormalTask task = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		task.setName("Earned value MPO task");
+		long day = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		task.setDuration(10L * day);
+		Resource resource = project.getResourcePool().newResourceInstance();
+		resource.setStandardRate(new Rate(60.0D, TimeUnit.HOURS));
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1.0D, 0L, this);
+		assignment.setWork(10L * day, null);
+		project.saveCurrentToSnapshot(Snapshottable.BASELINE, true, null);
+		assignment.setWork(20L * day, null);
+		assignment.setActualWork(5L * day, null);
+		long earlyStatusDate = task.getStart() + 3L * day;
+		project.setStatusDate(earlyStatusDate);
+		earlyStatusDate = project.getStatusDate();
+		double[] earlyMetrics = earnedValueMetrics(project);
+		project.setStatusDate(task.getEnd());
+		double[] taskEndMetrics = earnedValueMetrics(project);
+		assertTrue("BCWS must accumulate as the status date advances: early=" + earlyMetrics[0]
+			+ ", taskEnd=" + taskEndMetrics[0] + ", earlyDate=" + earlyStatusDate + ", taskStart="
+			+ task.getStart() + ", taskEndDate=" + task.getEnd(),
+			earlyMetrics[0] > 0.0D && earlyMetrics[0] < taskEndMetrics[0]);
+		assertTrue("BCWP must not decrease as the status date advances",
+			earlyMetrics[1] > 0.0D && earlyMetrics[1] <= taskEndMetrics[1]);
+		assertTrue("ACWP must not decrease as the status date advances",
+			earlyMetrics[2] > 0.0D && earlyMetrics[2] <= taskEndMetrics[2]);
+		project.setStatusDate(earlyStatusDate);
+		long expectedStatusDate = project.getStatusDate();
+		double[] expectedMetrics = earnedValueMetrics(project);
+		assertTrue(expectedMetrics[0] > 0.0D);
+		assertTrue(expectedMetrics[1] > 0.0D);
+		assertTrue(expectedMetrics[2] > 0.0D);
+		assertTrue(expectedMetrics[0] != expectedMetrics[1]);
+		assertTrue(expectedMetrics[1] != expectedMetrics[2]);
+
+		ByteArrayOutputStream archive = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, archive));
+		Project reopened = new MpoFileImporter().loadProject(new ByteArrayInputStream(archive.toByteArray()));
+		assertTrue(reopened.isStatusDateSet());
+		assertEquals(expectedStatusDate, reopened.getStatusDate());
+		double[] restoredMetrics = earnedValueMetrics(reopened);
+		for (int index = 0; index < expectedMetrics.length; index++)
+			assertEquals(expectedMetrics[index], restoredMetrics[index], 0.001D);
+	}
+
+	private static double[] earnedValueMetrics(Project project) {
+		EarnedValueCalculator calculator = EarnedValueCalculator.getInstance();
+		return new double[] { calculator.bcws(project), calculator.bcwp(project), calculator.acwp(project),
+			calculator.cv(project), calculator.sv(project), calculator.cpi(project), calculator.spi(project) };
+	}
+
 	@Test
 	public void typedProjectChoicesSurviveNativePodRoundTrip() throws Exception {
 		DataFactoryUndoController undo = new DataFactoryUndoController();

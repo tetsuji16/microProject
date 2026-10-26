@@ -25,17 +25,20 @@ import com.microproject.pm.ccpm.CriticalChainService;
 import com.microproject.pm.task.Project;
 import com.microproject.dialog.UsabilityStrings;
 import com.microproject.util.FlatUiSupport;
+import com.microproject.ui.theme.MicroProjectTheme;
+import com.microproject.ui.theme.MicroProjectThemeTokens;
 
 /** Lightweight, read-only CCPM network view including resource constraints. */
 public final class CriticalChainGraphPanel extends JPanel {
 	private static final long serialVersionUID = 1L;
+	private static final MicroProjectThemeTokens LIGHT_TOKENS = MicroProjectThemeTokens.light();
 	private final Project project;
 	private CriticalChainGraphScene scene = CriticalChainGraphScene.from(null, null);
 	private String selectedNodeKey;
 
 	public CriticalChainGraphPanel(Project project) {
 		this.project = project;
-		setBackground(Color.WHITE);
+		setBackground(backgroundColor());
 		setPreferredSize(scene.preferredSize());
 		getAccessibleContext().setAccessibleName(UsabilityStrings.text("ccpm.graphAccessible"));
 		setToolTipText(UsabilityStrings.text("ccpm.graphTooltip"));
@@ -98,6 +101,7 @@ public final class CriticalChainGraphPanel extends JPanel {
 	}
 
 	@Override protected void paintComponent(Graphics graphics) {
+		setBackground(backgroundColor());
 		super.paintComponent(graphics);
 		if (scene.nodes().isEmpty()) return;
 		Graphics2D g = (Graphics2D) graphics.create();
@@ -118,8 +122,12 @@ public final class CriticalChainGraphPanel extends JPanel {
 		if (from == null || to == null) return;
 		CriticalChainGraphScene.Bounds source = from.bounds();
 		CriticalChainGraphScene.Bounds target = to.bounds();
-		g.setColor(edge.kind() == CriticalChainGraphScene.EdgeKind.RESOURCE_CONSTRAINT ? new Color(220, 125, 35)
-			: edge.kind() == CriticalChainGraphScene.EdgeKind.BUFFER_PROTECTION ? new Color(70, 145, 85) : new Color(55, 105, 180));
+		MicroProjectThemeTokens tokens = MicroProjectTheme.tokens();
+		g.setColor(isDark(tokens)
+			? (edge.kind() == CriticalChainGraphScene.EdgeKind.RESOURCE_CONSTRAINT ? tokens.errorColor()
+				: edge.kind() == CriticalChainGraphScene.EdgeKind.BUFFER_PROTECTION ? tokens.accentColor() : tokens.spreadsheetActiveCellBorder())
+			: (edge.kind() == CriticalChainGraphScene.EdgeKind.RESOURCE_CONSTRAINT ? new Color(220, 125, 35)
+				: edge.kind() == CriticalChainGraphScene.EdgeKind.BUFFER_PROTECTION ? new Color(70, 145, 85) : new Color(55, 105, 180)));
 		g.setStroke(edge.kind() == CriticalChainGraphScene.EdgeKind.BUFFER_PROTECTION
 			? new BasicStroke(1.5f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 1f, new float[] { 5f, 4f }, 0f) : new BasicStroke(2f));
 		int x1 = source.x() + source.width();
@@ -134,16 +142,22 @@ public final class CriticalChainGraphPanel extends JPanel {
 	private void drawNode(Graphics2D g, CriticalChainGraphScene.Node node) {
 		CriticalChainGraphScene.Bounds box = node.bounds();
 		boolean buffer = node.kind() != CriticalChainGraphScene.NodeKind.TASK;
-		g.setColor(buffer ? new Color(224, 242, 227) : new Color(255, 238, 190));
+		MicroProjectThemeTokens tokens = MicroProjectTheme.tokens();
+		boolean dark = isDark(tokens);
+		g.setColor(dark
+			? (buffer ? tokens.spreadsheetBodyBackground() : tokens.headerBackground())
+			: (buffer ? new Color(224, 242, 227) : new Color(255, 238, 190)));
 		g.fillRoundRect(box.x(), box.y(), box.width(), box.height(), 10, 10);
-		g.setColor(buffer ? new Color(70, 145, 85) : new Color(170, 100, 20));
+		g.setColor(dark
+			? (buffer ? tokens.accentColor() : tokens.borderColor())
+			: (buffer ? new Color(70, 145, 85) : new Color(170, 100, 20)));
 		g.drawRoundRect(box.x(), box.y(), box.width(), box.height(), 10, 10);
 		if (node.key().equals(selectedNodeKey)) {
-			g.setColor(new Color(30, 90, 180));
+			g.setColor(dark ? tokens.spreadsheetActiveCellBorder() : new Color(30, 90, 180));
 			g.setStroke(new BasicStroke(3f));
 			g.drawRoundRect(box.x() - 2, box.y() - 2, box.width() + 4, box.height() + 4, 12, 12);
 		}
-		g.setColor(Color.DARK_GRAY);
+		g.setColor(dark ? tokens.labelForeground() : Color.DARK_GRAY);
 		g.drawString(trim(node.title()), box.x() + 8, box.y() + 19);
 		g.drawString(node.detail(), box.x() + 8, box.y() + 36);
 	}
@@ -151,16 +165,26 @@ public final class CriticalChainGraphPanel extends JPanel {
 	private void drawLegend(Graphics2D g) {
 		int x = 12;
 		int y = Math.max(18, getHeight() - 12);
-		g.setColor(Color.DARK_GRAY);
+		MicroProjectThemeTokens tokens = MicroProjectTheme.tokens();
+		g.setColor(isDark(tokens) ? tokens.labelForeground() : Color.DARK_GRAY);
 		g.drawString("Dependency", x, y);
-		g.setColor(new Color(220, 125, 35));
+		g.setColor(isDark(MicroProjectTheme.tokens()) ? MicroProjectTheme.tokens().errorColor() : new Color(220, 125, 35));
 		g.drawString("Resource constraint", x + 105, y);
-		g.setColor(new Color(70, 145, 85));
+		g.setColor(isDark(MicroProjectTheme.tokens()) ? MicroProjectTheme.tokens().accentColor() : new Color(70, 145, 85));
 		g.drawString("Buffer protection", x + 245, y);
 	}
 
 	private static String trim(String value) {
 		if (value == null) return "";
 		return value.length() <= 24 ? value : value.substring(0, 21) + "...";
+	}
+
+	private static Color backgroundColor() {
+		MicroProjectThemeTokens tokens = MicroProjectTheme.tokens();
+		return isDark(tokens) ? tokens.tableBackground() : Color.WHITE;
+	}
+
+	private static boolean isDark(MicroProjectThemeTokens tokens) {
+		return !tokens.appBackground().equals(LIGHT_TOKENS.appBackground());
 	}
 }

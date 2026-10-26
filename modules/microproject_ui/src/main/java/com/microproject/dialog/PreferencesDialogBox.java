@@ -18,6 +18,8 @@ import javax.swing.JColorChooser;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTabbedPane;
 import javax.swing.JSpinner;
 import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
@@ -32,25 +34,31 @@ import com.microproject.ui.util.PopupDialogSupport;
 /** User-level settings which are independent of a project file. */
 public final class PreferencesDialogBox extends FlatLafDialog {
 	private static final long serialVersionUID = 1L;
+	private boolean applied;
 
 	public static void showDialog(Frame owner, GlobalPreferences preferences) {
-		showDialog(owner, preferences, null);
+		showDialog(owner, preferences, null, null, false);
 	}
 
 	/** Opens preferences and optionally exposes the application-wide locale action. */
 	public static void showDialog(Frame owner, GlobalPreferences preferences, Runnable localeAction) {
-		PreferencesDialogBox dialog = new PreferencesDialogBox(owner, preferences, localeAction, null);
-		dialog.setVisible(true);
+		showDialog(owner, preferences, localeAction, null, false);
 	}
 
 	public static void showDialog(Frame owner, GlobalPreferences preferences, Runnable localeAction,
 			AutoSaveControl autoSaveControl) {
-		PreferencesDialogBox dialog = new PreferencesDialogBox(owner, preferences, localeAction, autoSaveControl);
-		dialog.setVisible(true);
+		showDialog(owner, preferences, localeAction, autoSaveControl, false);
 	}
 
-	private PreferencesDialogBox(Frame owner, GlobalPreferences preferences, Runnable localeAction,
-			AutoSaveControl autoSaveControl) {
+	public static void showDialog(Frame owner, GlobalPreferences preferences, Runnable localeAction,
+			AutoSaveControl autoSaveControl, boolean showLocaleTab) {
+		PreferencesDialogBox dialog = new PreferencesDialogBox(owner, preferences, autoSaveControl, showLocaleTab);
+		dialog.setVisible(true);
+		if (dialog.applied && localeAction != null) localeAction.run();
+	}
+
+	private PreferencesDialogBox(Frame owner, GlobalPreferences preferences, AutoSaveControl autoSaveControl,
+			boolean showLocaleTab) {
 		super(owner, UsabilityStrings.text("preferences.title"), true);
 		FlatUiSupport.styleDialogRoot(getRootPane());
 		PopupDialogSupport.bindEscapeToDispose(this);
@@ -153,11 +161,11 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 		if (recoveryInterval != null) {
 			form.add(new JLabel(UsabilityStrings.text("preferences.autoSaveInterval"))); form.add(recoveryInterval);
 		}
-		if (localeAction != null) {
-			JButton locale = new JButton(UsabilityStrings.text("preferences.locale"));
-			locale.addActionListener(event -> { dispose(); localeAction.run(); });
-			form.add(new JLabel()); form.add(locale);
-		}
+		LocaleDialog localeSettings = LocaleDialog.createPreferencesSection(owner);
+		JTabbedPane tabs = new JTabbedPane();
+		tabs.addTab(UsabilityStrings.text("preferences.general"), new JScrollPane(form));
+		tabs.addTab(UsabilityStrings.text("preferences.languageLocale"), localeSettings.createPreferencesContent());
+		tabs.setSelectedIndex(showLocaleTab ? 1 : 0);
 
 		JButton apply = new JButton(UsabilityStrings.text("preferences.apply"));
 		apply.addActionListener(event -> {
@@ -168,6 +176,8 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 					UsabilityStrings.text("preferences.title"), JOptionPane.ERROR_MESSAGE);
 				return;
 			}
+			if (!localeSettings.savePreferencesContent()) return;
+			applied = true;
 			preferences.setUserName(userName.getText());
 			preferences.setShowRowLines(rowLines.isSelected());
 			Object selectedFont = font.getSelectedItem();
@@ -197,7 +207,7 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 		JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
 		buttons.add(cancel); buttons.add(apply);
 		setLayout(new BorderLayout());
-		add(form, BorderLayout.CENTER); add(buttons, BorderLayout.SOUTH);
+		add(tabs, BorderLayout.CENTER); add(buttons, BorderLayout.SOUTH);
 		pack(); setLocationRelativeTo(owner);
 	}
 

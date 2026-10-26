@@ -53,7 +53,7 @@ public class EarnedValueCalculator {
 		return ev.bac(defaultStart,defaultEnd); 
 	}
 	public double bcwp(EarnedValueValues ev) {
-		return ev.acwp(defaultStart,defaultEnd); 
+		return ev.bcwp(defaultStart,defaultEnd);
 	}
 	public double bcws(EarnedValueValues ev) {
 		return ev.bcws(defaultStart,defaultEnd); 

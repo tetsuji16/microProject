@@ -24,17 +24,72 @@ import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
+import com.microproject.field.Field;
+import com.microproject.datatype.Rate;
+import com.microproject.datatype.TimeUnit;
+import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.undo.DataFactoryUndoController;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microproject.reports.model.ReportCsvWriter;
+import com.microproject.reports.model.ReportModel;
 
 class CustomReportDialogBoxCsvTest {
 	private static final long HOUR = 60L * 60L * 1000L;
+	@Test
+	void earnedValueFieldsAreAvailableAsOptionalReportColumns() {
+		List<String> availableIds = CustomReportDialogBox.reportFields().stream().map(Field::getId).toList();
+		assertTrue(availableIds.containsAll(List.of("Field.bcws", "Field.bcwp", "Field.acwp", "Field.cv",
+			"Field.sv", "Field.cpi", "Field.spi")));
+	}
+
+	@Test
+	void earnedValueReportFieldsAndCsvUseKnownTaskValues() throws Exception {
+		Project project = newProject();
+		NormalTask task = task(project, "EVM report task");
+		long day = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		task.setDuration(10L * day);
+		ResourceImpl resource = project.getResourcePool().newResourceInstance();
+		resource.setStandardRate(new Rate(60.0D, TimeUnit.HOURS));
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1.0D, 0L, this);
+		assignment.setWork(10L * day, null);
+		project.saveCurrentToSnapshot(Snapshottable.BASELINE, true, null);
+		assignment.setWork(20L * day, null);
+		assignment.setActualWork(5L * day, null);
+		project.setStatusDate(task.getStart() + 3L * day);
+
+		List<String> ids = List.of("Field.bcws", "Field.bcwp", "Field.acwp", "Field.cv", "Field.sv", "Field.cpi", "Field.spi");
+		List<Field> columns = CustomReportDialogBox.reportFields().stream()
+			.filter(field -> ids.contains(field.getId())).toList();
+		assertEquals(ids, columns.stream().map(Field::getId).toList());
+		assertTrue(task.getBcws(null) > 0.0D);
+		assertTrue(task.getBcwp(null) > 0.0D);
+		assertTrue(task.getAcwp(null) > 0.0D);
+		List<String> values = columns.stream().map(field -> field.getText(task, null)).toList();
+		assertTrue(values.stream().noneMatch(String::isBlank), "every calculated EVM field must have a rendered value");
+		ReportModel report = new ReportModel("EVM", columns, List.of(new java.util.ArrayList<>(values)),
+			columns.stream().mapToInt(field -> Math.max(60, field.getColumnWidth())).toArray(), -1,
+			java.util.Collections.singletonList(null), project.getName(), false, false, false);
+
+		ByteArrayOutputStream output = new ByteArrayOutputStream();
+		ReportCsvWriter.write(report, output);
+		try (CSVParser parser = CSVParser.parse(bodyWithoutBom(output), CSVFormat.RFC4180)) {
+			List<CSVRecord> records = parser.getRecords();
+			assertEquals(2, records.size());
+			assertEquals(columns.stream().map(Field::getName).toList(), records.get(0).toList());
+			assertEquals(values, records.get(1).toList());
+			for (int column = 0; column < values.size(); column++) {
+				assertFalse(values.get(column).isBlank());
+				assertEquals(columns.get(column).getText(task, null), records.get(1).get(column));
+			}
+		}
+	}
+
 	@Test
 	void reportDialogSubscribesToScheduleChangesAndCleansUpOnDispose() throws Exception {
 		String source = reportDialogSource();
