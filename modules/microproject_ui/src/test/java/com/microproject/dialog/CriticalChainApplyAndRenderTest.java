@@ -141,14 +141,16 @@ class CriticalChainApplyAndRenderTest {
 			assertEquals(dark.tableBackground().getRGB(), darkImage.getRGB(0, 0), "dark canvas must use the table background token");
 			CriticalChainGraphScene.Node darkTask = CriticalChainGraphScene.from(project, applied).nodes().stream()
 				.filter(node -> node.kind() == CriticalChainGraphScene.NodeKind.TASK).findFirst().orElseThrow();
-			assertEquals(dark.headerBackground().getRGB(), darkImage.getRGB(darkTask.bounds().x() + 12, darkTask.bounds().y() + 12),
+			int taskFillX = darkTask.bounds().x() + darkTask.bounds().width() / 2;
+			int taskFillY = darkTask.bounds().y() + darkTask.bounds().height() / 2;
+			assertEquals(dark.headerBackground().getRGB(), darkImage.getRGB(taskFillX, taskFillY),
 				"dark task nodes must use the header background token");
 			assertTrue(containsColor(darkImage, dark.labelForeground()), "dark graph text must use the readable label foreground token");
 
 			MicroProjectTheme.installLight();
 			BufferedImage lightImage = paint(panel);
 			assertEquals(java.awt.Color.WHITE.getRGB(), lightImage.getRGB(0, 0), "light canvas must remain white");
-			assertEquals(new java.awt.Color(255, 238, 190).getRGB(), lightImage.getRGB(darkTask.bounds().x() + 12, darkTask.bounds().y() + 12),
+			assertEquals(new java.awt.Color(255, 238, 190).getRGB(), lightImage.getRGB(taskFillX, taskFillY),
 				"light task nodes must retain their existing palette");
 		} finally {
 			if (wasDark) MicroProjectTheme.installDark(); else MicroProjectTheme.installLight();
