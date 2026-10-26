@@ -384,6 +384,26 @@ public final class LocaleDialog extends AbstractDialog {
 		return dialog;
 	}
 
+	/** Creates the existing locale controls for inclusion in Preferences. */
+	public static LocaleDialog createPreferencesSection(Frame owner) {
+		LocaleDialog dialog = new LocaleDialog(owner);
+		dialog.addDocHelp("Locale_Dialog");
+		return dialog;
+	}
+
+	public JComponent createPreferencesContent() {
+		JPanel content = new JPanel(new BorderLayout());
+		content.add(createContentPanel(), BorderLayout.CENTER);
+		JPanel helpPanel = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT));
+		helpPanel.add(getHelpButton());
+		content.add(helpPanel, BorderLayout.SOUTH);
+		return content;
+	}
+
+	public boolean savePreferencesContent() {
+		return bind(false);
+	}
+
 	private LocaleDialog(Frame owner) {
 		super(owner, "", true);
 		languageCombo=new JComboBox();

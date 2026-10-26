@@ -22,6 +22,7 @@ import javax.swing.AbstractButton;
 import javax.swing.JDialog;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
+import javax.swing.JTabbedPane;
 import javax.swing.JSpinner;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
@@ -31,6 +32,8 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.preference.GlobalPreferences;
+import com.microproject.preference.ConfigurationFile;
+import com.microproject.configuration.Settings;
 import com.microproject.pm.graphic.gantt.MilestoneShapeChoice;
 import com.microproject.testsupport.DialogLayoutAssertions;
 import com.microproject.testsupport.GuiAcceptanceSupport;
@@ -45,13 +48,16 @@ class PreferencesDialogGuiAcceptanceTest {
 	private String originalDateTimePattern;
 	private String originalCurrencyCode;
 	private String originalMilestoneShape;
+	private java.util.prefs.Preferences localePreferences;
+	private String originalLocalePreference;
+	private String originalLanguages;
 
 	@AfterEach
 	void closeDialogs() throws Exception {
 		GlobalPreferences preferences = testPreferences;
 		SwingUtilities.invokeAndWait(() -> {
 			for (Window window : Window.getWindows())
-				if (window instanceof PreferencesDialogBox)
+				if (window instanceof PreferencesDialogBox || window instanceof LocaleDialog)
 					window.dispose();
 			if (preferences != null) {
 				preferences.setDarkTheme(originalDarkTheme);
@@ -61,8 +67,66 @@ class PreferencesDialogGuiAcceptanceTest {
 				preferences.setDefaultMilestoneShape(originalMilestoneShape);
 				FlatLafSupport.initialize();
 			}
+			if (localePreferences != null) {
+				if (originalLocalePreference == null) localePreferences.remove("locale");
+				else localePreferences.put("locale", originalLocalePreference);
+				try { localePreferences.flush(); } catch (java.util.prefs.BackingStoreException error) { throw new RuntimeException(error); }
+			}
+			if (originalLanguages != null) Settings.LANGUAGES = originalLanguages;
 		});
 		testPreferences = null;
+	}
+
+	@Test
+	void languageLocaleTabHelpApplyAndCancelUseThePreferencesDialog() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		localePreferences = java.util.prefs.Preferences.userNodeForPackage(ConfigurationFile.class);
+		originalLanguages = Settings.LANGUAGES;
+		Settings.LANGUAGES = "default;de";
+		originalLocalePreference = localePreferences.get("locale", null);
+		localePreferences.put("locale", "default");
+		localePreferences.flush();
+		testPreferences = new GlobalPreferences();
+		originalDarkTheme = testPreferences.isDarkTheme();
+		originalDatePattern = testPreferences.getDatePattern();
+		originalDateTimePattern = testPreferences.getDateTimePattern();
+		originalCurrencyCode = testPreferences.getCurrencyCode();
+		originalMilestoneShape = testPreferences.getDefaultMilestoneShape();
+		AtomicInteger restartRequests = new AtomicInteger();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		SwingUtilities.invokeLater(() -> PreferencesDialogBox.showDialog(null, testPreferences,
+			restartRequests::incrementAndGet, null, true));
+		GuiAcceptanceSupport.await(() -> findDialog() != null, "Preferences dialog did not open on Language and locale");
+		PreferencesDialogBox dialog = findDialog();
+		JTabbedPane tabs = findNamedComponent(dialog, JTabbedPane.class, null);
+		assertTrue(tabs != null, "Preferences dialog must expose its settings tabs");
+		assertEquals(UsabilityStrings.text("preferences.languageLocale"), tabs.getTitleAt(1));
+		assertEquals(1, tabs.getSelectedIndex(), "Ribbon locale route must select Language and locale");
+		JComboBox<?> language = findComboWithItem(dialog, "de");
+		JComboBox<?> country = findComboWithItem(dialog, "Germany");
+		assertTrue(language != null && country != null, "Language and locale tab must expose language and country selectors");
+		AbstractButton help = findButton(dialog, com.microproject.menu.MenuManager.getMenuString("Help.text"));
+		assertTrue(help != null && help.isShowing() && help.isEnabled(), "Locale Help route must be visible and enabled");
+		selectCombo(robot, language, "de");
+		selectCombo(robot, country, "Germany");
+		click(robot, findButton(dialog, UsabilityStrings.text("preferences.cancel")));
+		GuiAcceptanceSupport.await(() -> findDialog() == null, "Preferences dialog did not close after Cancel");
+		assertEquals("default", localePreferences.get("locale", "missing"), "Cancel must leave locale unchanged");
+		assertEquals(0, restartRequests.get(), "Cancel must not request an application restart");
+
+		SwingUtilities.invokeLater(() -> PreferencesDialogBox.showDialog(null, testPreferences,
+			restartRequests::incrementAndGet, null, true));
+		GuiAcceptanceSupport.await(() -> findDialog() != null, "Preferences dialog did not reopen");
+		PreferencesDialogBox appliedDialog = findDialog();
+		language = findComboWithItem(appliedDialog, "de");
+		country = findComboWithItem(appliedDialog, "Germany");
+		selectCombo(robot, language, "de");
+		selectCombo(robot, country, "Germany");
+		click(robot, findButton(appliedDialog, UsabilityStrings.text("preferences.apply")));
+		GuiAcceptanceSupport.await(() -> findDialog() == null, "Preferences dialog did not close after Apply");
+		assertEquals("de_DE", localePreferences.get("locale", "missing"), "Apply must persist the selected language and country");
+		assertEquals(1, restartRequests.get(), "Applying a locale change must request application restart");
 	}
 
 	@Test
@@ -238,7 +302,7 @@ class PreferencesDialogGuiAcceptanceTest {
 	private static <T extends java.awt.Component> T findNamedComponent(java.awt.Container container, Class<T> type,
 			String name) {
 		for (java.awt.Component child : container.getComponents()) {
-			if (type.isInstance(child) && name.equals(child.getName())) return type.cast(child);
+			if (type.isInstance(child) && java.util.Objects.equals(name, child.getName())) return type.cast(child);
 			if (child instanceof java.awt.Container nested) {
 				T found = findNamedComponent(nested, type, name);
 				if (found != null) return found;
@@ -255,6 +319,30 @@ class PreferencesDialogGuiAcceptanceTest {
 			if (child instanceof java.awt.Container nested && hasComboItem(nested, text)) return true;
 		}
 		return false;
+	}
+
+	private static JComboBox<?> findComboWithItem(java.awt.Container container, String item) {
+		for (java.awt.Component child : container.getComponents()) {
+			if (child instanceof JComboBox<?> combo)
+				for (int index = 0; index < combo.getItemCount(); index++)
+					if (item.equals(String.valueOf(combo.getItemAt(index)))) return combo;
+			if (child instanceof java.awt.Container nested) {
+				JComboBox<?> found = findComboWithItem(nested, item);
+				if (found != null) return found;
+			}
+		}
+		return null;
+	}
+
+	private static void selectCombo(Robot robot, JComboBox<?> combo, String item) throws Exception {
+		click(robot, combo);
+		for (char character : item.toCharArray()) {
+			int keyCode = KeyEvent.getExtendedKeyCodeForChar(character);
+			robot.keyPress(keyCode); robot.keyRelease(keyCode);
+		}
+		robot.keyPress(KeyEvent.VK_ENTER); robot.keyRelease(KeyEvent.VK_ENTER);
+		robot.waitForIdle();
+		assertEquals(item, String.valueOf(selectedItem(combo)), "Robot did not select " + item);
 	}
 
 	private static Object selectedItem(JComboBox<?> combo) {
