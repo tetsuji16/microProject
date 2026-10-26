@@ -45,6 +45,7 @@ import com.microproject.pm.graphic.network.layout.NetworkLayoutListener;
 import com.microproject.pm.graphic.link_routing.DefaultNetworkLinkRouting;
 import com.microproject.graphic.configuration.GraphicConfiguration;
 import com.microproject.pm.task.Project;
+import com.microproject.util.FlatUiSupport;
 import com.microproject.workspace.SavableToWorkspace;
 import com.microproject.workspace.WorkspaceSetting;
 
@@ -63,6 +64,7 @@ public class Network extends Graph implements NetworkLayoutListener, NetworkPara
 	}
 	protected Network(NetworkModel model, Project project) {
 		super(model,project);
+		setForeground(FlatUiSupport.tableForeground());
 	}
 
 
