@@ -19,21 +19,21 @@ Blockers: none known.
 |---|---|---|---|
 | A1 | User-facing paths for PV/EV/AC and status date found or absent items grounded in code | pass | `configuration.xml` editable percent/actual-work and read-only actual-cost fields; task/project EVM spreadsheet presets; Status Date dialog and EVM fields now selectable in Custom Report |
 | A2 | Known-value SV/CV/SPI/CPI formulas, aggregation, currency, and status-date relationship verified | pass | known formulas and MPO project aggregation/round-trip pass; early-vs-late status dates show BCWS increase and BCWP/ACWP nondecrease; mixed-source currency behavior documented |
-| A3 | MPO save/reload values and presentation confirmed; implemented routes have focused regressions | partial | MPO seven-value round trip + report-column availability tests pass; physical EVM preview/CSV assertion is pending |
-| A4 | Book/user-guide explainable operation scope defined from evidence | pass | Japanese chapters 5/10/12 describe tested calculation/input scope, status date, report field limitation, MPO persistence, and currency caveat; physical GUI evidence is explicitly marked pending |
+| A3 | MPO save/reload values and presentation confirmed; implemented routes have focused regressions | pass | MPO seven-value round trip + report-column availability tests pass; Windows Robot selected all seven EVM columns, asserted preview values, exported CSV, and asserted exported values (run `40341421912`) |
+| A4 | Book/user-guide explainable operation scope defined from evidence | pass | Japanese chapters 5/10/12 describe tested calculation/input scope, status date, report fields, MPO persistence, and currency caveat; Windows Robot evidence is recorded below |
 
 ## Current slice
 
-**Next slice:** Commit the isolated #943 changes and run the targeted Windows GUI acceptance journey on that exact candidate SHA in GitHub Actions.
-**Done when:** The physical Robot journey selects BCWS/BCWP/ACWP/CV/SV/CPI/SPI, observes calculated preview values, exports CSV, and asserts the exported values.
-**Then:** Complete A3, integrate the passing candidate, and close #943 with all acceptance evidence.
+**Current slice:** Implementation and acceptance evidence are complete on the issue branch, rebased onto the current `master` head. PR #949 is the review/integration path.
+**Done when:** Merge PR #949 after required checks are green; then close #943 with this packet linked as evidence.
 
 ## Remaining blockers
 
-- A3 is partial. Local Robot execution was stopped twice by the desktop contention guard because foreground MSPaint (PID 25288, title `ch05-tracking-gantt.png - ペイント`) overlapped the report dialog; it stopped before product assertions. Use the isolated candidate's Windows GUI workflow for physical evidence. Mixed-source currency amounts cannot be detected or converted; guidance now says normalize before consolidation.
+- No implementation blockers. The local Robot attempts were stopped twice by the desktop contention guard because foreground MSPaint overlapped the report dialog; hosted Windows GUI acceptance subsequently supplied physical-route evidence. Mixed-source currency amounts cannot be detected or converted; guidance says normalize before consolidation.
 
 ## Latest evidence
 
 - Tests/build: `./gradlew.bat :microproject_core:test --tests "com.microproject.pm.costing.EarnedValueCalculatorTest" --console=plain`, `./gradlew.bat :microproject_exchange:test --tests "com.microproject.exchange.PodRoundTripTest" --console=plain`, and `./gradlew.bat :microproject_ui:test --tests "com.microproject.dialog.CustomReportDialogBoxCsvTest" --console=plain` — BUILD SUCCESSFUL. Book EPUB `--check` passed (EPUBCheck zero issues); `git diff --check` passed. Target GUI command failed before assertions due desktop contention; no screenshot was produced.
-- Physical GUI/manual: `./gradlew.bat :microproject_ui:guiTest --tests "com.microproject.dialog.CustomReportDialogBoxChooserGuiAcceptanceTest.robotSelectsEarnedValueColumnsAndExportsTheirPreviewValues" --console=plain` failed before product assertions due `GUI_ENVIRONMENT_CONTENDED` from foreground MSPaint PID 25288. This is environment contention, not a product assertion result. No resolution or other app was changed.
-- CI: targeted Windows GUI dispatch planned for the isolated candidate branch; no run yet.
+- Physical GUI: [targeted Windows GUI acceptance run 40341421912](https://github.com/tetsuji16/microProject/actions/runs/40341421912) passed on code SHA `d9eed608ae6b2c5938fbdd926c19c2ba06a5d665` (Japanese locale, 100% scale): Robot test started and passed; 1 test, 0 failures/errors/skips. It selected BCWS/BCWP/ACWP/CV/SV/CPI/SPI, checked preview values, and exported/asserted CSV values.
+- CI build: [Build run 40341402877](https://github.com/tetsuji16/microProject/actions/runs/40341402877) passed on code SHA `d9eed608ae6b2c5938fbdd926c19c2ba06a5d665`. The PR's default GUI smoke is still running as of this packet update.
+- Current branch has been rebased onto `origin/master` at `5e3a665d3`; targeted GUI evidence above is for the same issue code before that unrelated one-commit rebase. Re-run required checks on the rebased head before merge.
