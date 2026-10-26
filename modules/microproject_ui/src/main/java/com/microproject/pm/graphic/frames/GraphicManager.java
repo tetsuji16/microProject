@@ -2242,8 +2242,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
-			PreferencesDialogBox.showDialog(getFrame(), getPreferences(), GraphicManager.this::showLocaleDialog,
-				autoRecoveryManager);
+			showPreferences(false);
 		}
 	}
 
@@ -2974,12 +2973,18 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	}
 
 	private void showLocaleDialog() {
+		showPreferences(true);
+	}
+
+	private void showPreferences(boolean showLocaleTab) {
 		Preferences pref = Preferences.userNodeForPackage(ConfigurationFile.class);
 		String previousLocale = pref.get("locale", "default");
-		LocaleDialog localeDialog = LocaleDialog.getInstance(getGraphicManager());
-		if (!localeDialog.doModal()) {
-			return;
-		}
+		PreferencesDialogBox.showDialog(getFrame(), getPreferences(), () -> applyLocaleChange(previousLocale),
+			autoRecoveryManager, showLocaleTab);
+	}
+
+	private void applyLocaleChange(String previousLocale) {
+		Preferences pref = Preferences.userNodeForPackage(ConfigurationFile.class);
 		String currentLocale = pref.get("locale", "default");
 		if (Objects.equals(previousLocale, currentLocale)) {
 			return;

@@ -56,6 +56,7 @@ import com.microproject.graphic.configuration.FormFormat;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.strings.Messages;
+import com.microproject.ui.theme.MicroProjectTheme;
 import com.microproject.util.Alert;
 import com.microproject.util.FlatUiSupport;
 
@@ -112,7 +113,7 @@ public class FormComponent extends JPanel{
 		for (FormBox box : boxes){
 			if (zoom<box.getMinZoom()) return;
 			JComponent component;
-			if(box.getFieldId()==null) component=new JLabel(Messages.getString(box.getTextId()));
+			if(box.getFieldId()==null) { component=new JLabel(Messages.getString(box.getTextId())); component.setForeground(MicroProjectTheme.tokens().labelForeground()); }
 			else{
 				if (editor&&!box.getField().isReadOnly()){
 					component=new ChangeAwareTextField();
@@ -127,6 +128,8 @@ public class FormComponent extends JPanel{
 			}
 			Font font = NetworkFormFontResolver.resolve(formBoxLayout, box.getFont());
 			if (font!=null) component.setFont(font);
+			component.setForeground(component instanceof JTextField
+				? FlatUiSupport.tableForeground() : MicroProjectTheme.tokens().labelForeground());
 			builder.add(component,(box.getAlignment()==null)?
 					cc.xywh(box.getColumn(),box.getRow(),box.getColumnSpan(),box.getRowSpan()):
 					cc.xywh(box.getColumn(),box.getRow(),box.getColumnSpan(),box.getRowSpan(),box.getAlignment()));

@@ -22,6 +22,7 @@ import java.awt.KeyboardFocusManager;
 import java.awt.Toolkit;
 import java.awt.Dialog;
 import java.awt.Component;
+import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Point;
 import java.awt.Rectangle;
@@ -131,6 +132,8 @@ import com.microproject.options.CalendarOption;
 import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.configuration.ReportDefinition;
 import com.microproject.pm.graphic.views.ResourceView;
+import com.microproject.ui.theme.MicroProjectTheme;
+import com.microproject.ui.theme.MicroProjectThemeTokens;
 import com.microproject.print.GraphPageable;
 import com.microproject.print.PrintDocumentFactory;
 import com.microproject.reports.render.ReportPreview;
@@ -2586,10 +2589,14 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	@Test
 	void robotNetworkAndWbsRibbonRoutesRenderTheirDedicatedViews() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for GUI view coverage.");
+		MicroProjectThemeTokens originalTheme = MicroProjectTheme.tokens();
+		boolean wasDark = !originalTheme.appBackground().equals(MicroProjectThemeTokens.light().appBackground());
+		try {
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
+		MicroProjectTheme.installDark();
 		NormalTask task = createTask();
 		showProject(task.getOwningProject());
 		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
@@ -2607,15 +2614,40 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, network);
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getActiveTopView() instanceof PertView,
 			"RibbonNetwork did not activate the real network view");
-		assertTrue(isShowingView(manager.getCurrentFrame().getActiveTopView()),
-			"network view was activated without becoming visible");
+		assertDarkReadableView(manager.getCurrentFrame().getActiveTopView(), "network");
 
 		AbstractButton wbs = findShowingButtonByCommand("RibbonWBS");
 		click(robot, wbs);
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getActiveTopView() instanceof TreeView,
 			"RibbonWBS did not activate the real WBS view");
-		assertTrue(isShowingView(manager.getCurrentFrame().getActiveTopView()),
-			"WBS view was activated without becoming visible");
+		assertDarkReadableView(manager.getCurrentFrame().getActiveTopView(), "WBS");
+
+		AbstractButton rbs = findShowingButtonByCommand("RibbonRBS");
+		click(robot, rbs);
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getActiveTopView() instanceof TreeView tree && tree.showsResources(),
+			"RibbonRBS did not activate the real RBS view");
+		assertDarkReadableView(manager.getCurrentFrame().getActiveTopView(), "RBS");
+		} finally {
+			if (wasDark) MicroProjectTheme.installDark(); else MicroProjectTheme.installLight();
+		}
+	}
+
+	private static void assertDarkReadableView(Object view, String viewName) {
+		assertTrue(isShowingView(view), viewName + " view was activated without becoming visible");
+		MicroProjectThemeTokens tokens = MicroProjectTheme.tokens();
+		boolean hasDarkBackground = false;
+		boolean hasReadableForeground = false;
+		for (Component component : UiComponentWalker.flatten((Component) view)) {
+			if (!component.isShowing()) continue;
+			Color background = component.getBackground();
+			Color foreground = component.getForeground();
+			hasDarkBackground |= tokens.tableBackground().equals(background)
+				|| tokens.spreadsheetBodyBackground().equals(background) || tokens.panelBackground().equals(background);
+			hasReadableForeground |= tokens.tableForeground().equals(foreground)
+				|| tokens.labelForeground().equals(foreground) || tokens.headerForeground().equals(foreground);
+		}
+		assertTrue(hasDarkBackground, viewName + " view must expose an active dark theme background token");
+		assertTrue(hasReadableForeground, viewName + " view must expose an active readable foreground token");
 	}
 
 	private static boolean isShowingView(Object view) {
