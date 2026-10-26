@@ -37,9 +37,38 @@ public final class TaskModeService {
 		for (boolean value : before) changed |= value != target;
 		List<Project> projects = List.copyOf(projectSnapshots.keySet());
 		Map<Project, ProjectMutationState.Scope> mutations = new IdentityHashMap<>();
-		for (Project project : projects) {
-			mutations.put(project, project.getMutationState().begin());
-			project.beginEventBatch();
+		List<Project> batched = new ArrayList<>();
+		try {
+			for (Project project : projects) {
+				mutations.put(project, project.getMutationState().begin());
+				project.beginEventBatch();
+				batched.add(project);
+			}
+		} catch (RuntimeException | Error failure) {
+			// Never leave the process-wide mutation barrier held (issue #946).
+			for (int i = projects.size() - 1; i >= 0; i--) {
+				Project project = projects.get(i);
+				ProjectMutationState.Scope mutation = mutations.get(project);
+				if (mutation == null) continue;
+				if (batched.contains(project)) {
+					try {
+						project.endEventBatch(false);
+					} catch (RuntimeException | Error compensationFailure) {
+						failure.addSuppressed(compensationFailure);
+					}
+				}
+				try {
+					mutation.commit(false);
+				} catch (RuntimeException | Error compensationFailure) {
+					failure.addSuppressed(compensationFailure);
+				}
+				try {
+					mutation.close();
+				} catch (RuntimeException | Error compensationFailure) {
+					failure.addSuppressed(compensationFailure);
+				}
+			}
+			throw failure;
 		}
 		int attempted = 0;
 		try {

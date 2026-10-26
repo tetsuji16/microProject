@@ -13,6 +13,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Proxy;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -112,5 +115,51 @@ class TaskModeServiceTest {
 		assertFalse(first.isManuallyScheduled() || second.isManuallyScheduled());
 		result.change().redo();
 		assertTrue(first.isManuallyScheduled() && second.isManuallyScheduled());
+	}
+
+	/** Issue #946: a batch-setup failure on a later project must release every barrier already taken. */
+	@Test
+	void batchSetupFailureReleasesEveryProjectBarrier() throws Exception {
+		DataFactoryUndoController firstUndo = new DataFactoryUndoController();
+		Project firstProject = Project.createProject(ResourcePool.createRourcePool("first-barrier", firstUndo), firstUndo);
+		firstProject.initialize(false, false);
+		NormalTask first = firstProject.createScriptedTask();
+		FailingUndoController secondUndo = new FailingUndoController();
+		Project secondProject = Project.createProject(ResourcePool.createRourcePool("second-barrier", secondUndo), secondUndo);
+		secondProject.initialize(false, false);
+		NormalTask second = secondProject.createScriptedTask();
+		long firstRevision = firstProject.getMutationState().revision();
+		long secondRevision = secondProject.getMutationState().revision();
+
+		secondUndo.fail = true;
+		assertThrows(IllegalStateException.class,
+			() -> new TaskModeService().apply(List.of(first, second), TaskModeService.Mode.MANUAL));
+		secondUndo.fail = false;
+
+		assertFalse(firstProject.getMutationState().isHeldByCurrentThread(), "the failing thread must release the barrier");
+		assertFalse(first.isManuallyScheduled() || second.isManuallyScheduled());
+		assertEquals(firstRevision, firstProject.getMutationState().revision());
+		assertEquals(secondRevision, secondProject.getMutationState().revision());
+		assertEquals(0, firstProject.pendingEventCount());
+		assertFalse(firstUndo.getEditSupport().hasPendingHistory(), "the abandoned batch must not leave an open undo command");
+		ExecutorService worker = Executors.newSingleThreadExecutor();
+		try {
+			TaskModeService.Result result = worker.submit(
+				() -> new TaskModeService().apply(List.of(first, second), TaskModeService.Mode.MANUAL))
+				.get(2, TimeUnit.SECONDS);
+			assertTrue(result.manual());
+		} finally {
+			worker.shutdownNow();
+		}
+		assertTrue(first.isManuallyScheduled() && second.isManuallyScheduled());
+	}
+
+	/** Undo controller whose command support fails on demand, after project initialization. */
+	private static final class FailingUndoController extends DataFactoryUndoController {
+		volatile boolean fail;
+		@Override public com.microproject.undo.EditSupport getEditSupport() {
+			if (fail) throw new IllegalStateException("undo command support unavailable");
+			return super.getEditSupport();
+		}
 	}
 }
