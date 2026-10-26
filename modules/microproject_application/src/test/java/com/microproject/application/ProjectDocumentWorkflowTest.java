@@ -37,10 +37,11 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.job.JobQueue;
 import com.microproject.pm.task.Project;
-import com.microproject.pm.task.ProjectFactory;
+import com.microproject.pm.resource.ResourcePool;
 import com.microproject.session.LocalSession;
 import com.microproject.session.SaveOptions;
 import com.microproject.session.SessionFactory;
+import com.microproject.undo.DataFactoryUndoController;
 
 class ProjectDocumentWorkflowTest {
 	@BeforeEach
@@ -50,7 +51,7 @@ class ProjectDocumentWorkflowTest {
 
 	@Test
 	void prepareSaveOptionsUsesFilePoliciesWithoutCollaboration() {
-		Project project = ProjectFactory.getInstance().createProject();
+		Project project = project();
 
 		SaveOptions options = ProjectDocumentWorkflow.prepareSaveOptions(
 			project,
@@ -70,14 +71,14 @@ class ProjectDocumentWorkflowTest {
 
 	@Test
 	void workflowRejectsOrdinaryPodSaveOptions() {
-		Project project = ProjectFactory.getInstance().createProject();
+		Project project = project();
 		assertThrows(IllegalArgumentException.class, () -> ProjectDocumentWorkflow.prepareSaveOptions(
 			project, "plan.pod", false, true, null, "user", null, null));
 	}
 
 	@Test
 	void normalSaveRunsTheCompletionCallbackThatClearsTheDocumentDirtyState() {
-		Project project = ProjectFactory.getInstance().createProject();
+		Project project = project();
 		AtomicInteger completions = new AtomicInteger();
 		ProjectDocumentWorkflow.SaveCallbacks callbacks = new ProjectDocumentWorkflow.SaveCallbacks() {
 			@Override public void persistWorkspace(Project ignored) { }
@@ -97,7 +98,7 @@ class ProjectDocumentWorkflowTest {
 
 	@Test
 	void mppImportSaveAsOptionsKeepSourceAssociationPendingSuccess() {
-		Project project = ProjectFactory.getInstance().createProject();
+		Project project = project();
 		project.setFileName("source.mpp");
 
 		SaveOptions options = ProjectDocumentWorkflow.prepareSaveOptions(project, "source.mpo", true, true,
@@ -107,5 +108,14 @@ class ProjectDocumentWorkflowTest {
 		assertEquals(LocalSession.MPO_PROJECT_IMPORTER, options.getImporter());
 		assertTrue(options.isSaveAs());
 		assertEquals("source.mpp", project.getFileName(), "source association changes only after a successful save");
+	}
+
+	private static Project project() {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("document-workflow-test", undo);
+		pool.setLocal(true);
+		Project project = Project.createProject(pool, undo);
+		project.initialize(false, false);
+		return project;
 	}
 }
