@@ -18,6 +18,7 @@ import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.Toolkit;
 import java.awt.Window;
+import java.awt.Point;
 import java.awt.event.InputEvent;
 import java.awt.event.AWTEventListener;
 import java.awt.event.KeyEvent;
@@ -70,6 +71,8 @@ import com.microproject.pm.graphic.timescale.CoordinatesConverter;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.task.Task;
+import com.microproject.ui.theme.MicroProjectTheme;
+import com.microproject.ui.theme.MicroProjectThemeTokens;
 import com.microproject.pm.scheduling.ConstraintType;
 import com.microproject.options.CalendarOption;
 import com.microproject.grouping.core.Node;
@@ -85,6 +88,8 @@ class CcpmSampleProgressGuiAcceptanceTest {
 	private int durationColumn;
 	private int percentCompleteColumn;
 	private DialogObserver observer;
+	private boolean restoreThemeAfterTest;
+	private boolean previousDarkTheme;
 
 	@AfterEach
 	void closeWindows() throws Exception {
@@ -96,11 +101,17 @@ class CcpmSampleProgressGuiAcceptanceTest {
 		}
 		if (frame != null) SwingUtilities.invokeAndWait(() -> { frame.dispose(); frame = null; });
 		if (gantt != null) { gantt.cleanUp(); gantt = null; }
+		if (restoreThemeAfterTest) {
+			if (previousDarkTheme) MicroProjectTheme.installDark(); else MicroProjectTheme.installLight();
+			restoreThemeAfterTest = false;
+		}
 	}
 
 	@Test
 	void mixedProgressSampleRendersInGanttAndCcpmStatusDialogs() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousDarkTheme = !MicroProjectTheme.tokens().appBackground().equals(MicroProjectThemeTokens.light().appBackground());
+		restoreThemeAfterTest = true;
 		Project project = loadSample();
 		showGantt(project);
 		Robot robot = new com.microproject.testsupport.GuiRobot();
@@ -119,6 +130,7 @@ class CcpmSampleProgressGuiAcceptanceTest {
 		settings.setEnabled(true);
 		service.apply(project, null, settings);
 		assertNotNull(service.findBaseline(project), "CCPM apply must establish a baseline before opening status dialogs");
+		MicroProjectTheme.installDark();
 		showAndCapture(robot, project, CriticalChainStatusDialogBox.Surface.NETWORK,
 			CriticalChainGraphPanel.class, "ccpm-sample-progress-network.png");
 		showBufferTransitionScenario(robot, project, service);
@@ -235,11 +247,41 @@ class CcpmSampleProgressGuiAcceptanceTest {
 		SwingUtilities.invokeLater(() -> CriticalChainStatusDialogBox.show(frame, project, surface));
 		CriticalChainStatusDialogBox dialog = observer.awaitDialog();
 		GuiAcceptanceSupport.await(() -> visibleComponentExists(dialog, expected), "CCPM dialog did not render " + expected.getSimpleName());
+		if (expected == CriticalChainGraphPanel.class) assertDarkGraphColors(robot, dialog);
 		capture(robot, dialog, artifact);
 		clickClose(robot, dialog);
 		GuiAcceptanceSupport.await(() -> !dialog.isShowing(), "CCPM dialog did not close after the Robot click");
 		observer.close();
 		observer = null;
+	}
+
+	private static void assertDarkGraphColors(Robot robot, Window dialog) throws Exception {
+		CriticalChainGraphPanel panel = findComponent(dialog, CriticalChainGraphPanel.class);
+		assertNotNull(panel, "Critical Chain Network panel is missing");
+		GuiAcceptanceSupport.await(() -> panel.isShowing()
+			&& panel.getBackground().equals(MicroProjectTheme.tokens().tableBackground()),
+			"Critical Chain Network must show the active dark canvas token");
+		MicroProjectThemeTokens tokens = MicroProjectTheme.tokens();
+		Rectangle panelBounds = new Rectangle();
+		SwingUtilities.invokeAndWait(() -> {
+			Point location = panel.getLocationOnScreen();
+			Rectangle visible = panel.getVisibleRect();
+			panelBounds.setBounds(location.x + visible.x, location.y + visible.y, visible.width, visible.height);
+		});
+		Rectangle captureBounds = panelBounds.intersection(GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds());
+		assertTrue(captureBounds.width > 0 && captureBounds.height > 0, "Critical Chain Network canvas must be physically visible on screen");
+		BufferedImage image = robot.createScreenCapture(captureBounds);
+		assertTrue(containsColor(image, tokens.labelForeground()),
+			"visible Critical Chain Network text must use the active readable foreground token");
+		assertTrue(containsColor(image, tokens.headerBackground()),
+			"visible Critical Chain Network task nodes must use the active dark node background token");
+	}
+
+	private static boolean containsColor(BufferedImage image, java.awt.Color color) {
+		for (int y = 0; y < image.getHeight(); y++)
+			for (int x = 0; x < image.getWidth(); x++)
+				if (image.getRGB(x, y) == color.getRGB()) return true;
+		return false;
 	}
 
 	private void showBufferTransitionScenario(Robot robot, Project project, CriticalChainService service) throws Exception {
