@@ -69,7 +69,7 @@ function Save-GuiFailureScreenshot([string]$label) {
   }
 }
 
-function Minimize-HostedRunnerConsole([switch]$Quiet) {
+function Minimize-HostedRunnerConsole {
   if (-not ('MicroProject.GuiTestDesktop' -as [type])) {
     Add-Type -TypeDefinition @'
 using System;
@@ -97,10 +97,8 @@ namespace MicroProject {
     if (-not [MicroProject.GuiTestDesktop]::IsIconic($foreground)) {
       throw "Could not minimize the known hosted-runner console before GUI tests: $windowTitle"
     }
-    if (-not $Quiet) {
-      Write-Host "Minimized the hosted-runner console before GUI gate: $windowTitle"
-    }
-  } elseif (-not $Quiet) {
+    Write-Host "Minimized the hosted-runner console before GUI gate: $windowTitle"
+  } else {
     Write-Host "Foreground window before GUI gate: $windowTitle"
   }
 }
@@ -141,16 +139,7 @@ function Invoke-GuiGate([string]$label, [string[]]$arguments, [int]$timeoutSecon
     -PassThru -RedirectStandardOutput $stdout `
     -RedirectStandardError $stderr -WindowStyle Hidden
   $timer = [System.Diagnostics.Stopwatch]::StartNew()
-  $deadline = [Diagnostics.Stopwatch]::StartNew()
-  $processExited = $false
-  while ($deadline.Elapsed.TotalSeconds -lt $timeoutSeconds) {
-    if ($script:isGitHubActions) { Minimize-HostedRunnerConsole -Quiet }
-    if ($process.WaitForExit(1000)) {
-      $processExited = $true
-      break
-    }
-  }
-  if (-not $processExited) {
+  if (-not $process.WaitForExit($timeoutSeconds * 1000)) {
     $timer.Stop()
     taskkill.exe /PID $process.Id /T /F | Out-Null
     Save-GuiFailureScreenshot $label
