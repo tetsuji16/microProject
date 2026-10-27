@@ -320,9 +320,20 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		java.util.Objects.requireNonNull(additionalManagers, "additionalManagers");
 		ProjectMutationState state = getMutationState();
 		ProjectMutationState.Scope mutation = state.begin();
-		AtomicEventCheckpoint eventCheckpoint = atomicFailure ? atomicEventCheckpoint(additionalManagers) : null;
-		int initialPendingEvents = pendingEventCount();
-		beginEventBatch(additionalManagers);
+		int depthBeforeBatch;
+		synchronized (this) {
+			depthBeforeBatch = eventBatchDepth;
+		}
+		AtomicEventCheckpoint eventCheckpoint;
+		int initialPendingEvents;
+		try {
+			eventCheckpoint = atomicFailure ? atomicEventCheckpoint(additionalManagers) : null;
+			initialPendingEvents = pendingEventCount();
+			beginEventBatch(additionalManagers);
+		} catch (RuntimeException | Error failure) {
+			abandonModelCommandStart(mutation, depthBeforeBatch, failure);
+			throw failure;
+		}
 		boolean[] applied = { false };
 		T result;
 		PendingEventBatch pending;
@@ -359,6 +370,29 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 			additional.putIfAbsent(participant.manager(), participant.manager().pendingEventCount());
 		return new AtomicEventCheckpoint(objectEventManager.pendingEventCount(),
 			scheduleEventManager.pendingEventCount(), additional);
+	}
+
+	/**
+	 * Releases a command whose batch setup failed before its operation ran.  The
+	 * process-wide mutation barrier must never stay held, or every later model
+	 * access waits forever (issue #946).
+	 */
+	private void abandonModelCommandStart(ProjectMutationState.Scope mutation, int depthBeforeBatch,
+			Throwable failure) {
+		try {
+			boolean batchStarted;
+			synchronized (this) {
+				batchStarted = eventBatchDepth > depthBeforeBatch;
+			}
+			if (batchStarted) endEventBatch(false);
+		} catch (Throwable cleanupFailure) {
+			if (cleanupFailure != failure) failure.addSuppressed(cleanupFailure);
+		} finally {
+			try { mutation.close(); }
+			catch (Throwable cleanupFailure) {
+				if (cleanupFailure != failure) failure.addSuppressed(cleanupFailure);
+			}
+		}
 	}
 
 	private void rollbackAtomicModelCommand(ProjectMutationState.Scope mutation,

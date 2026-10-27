@@ -25,7 +25,7 @@ The user explicitly directed work on issues #941, #944, and #945, overriding the
 ## Current slice
 
 **Implemented slice:** Preferences now has General and Language and locale tabs. LocaleDialog supplies the existing locale controls as embedded content; Preferences Apply commits locale and general settings, and the established locale-change restart path runs only after Apply. RibbonLocale opens the same Preferences dialog on Language and locale; Options opens General.
-**Verification:** UI module tests and GUI test compilation pass on the working tree based on `ec0df6e9e6a4173cbf08301655b902f7c75c9efb`. The focused Robot test reached the locale selectors after the fixture was corrected, then the desktop guard stopped before physical input because MSPaint (PID 25288) overlapped the Preferences window. The environment failure artifact is `modules/microproject_ui/build/reports/guiTest-artifacts/gui-test-contended-1793002342258-44696.txt`. Exact-candidate CI remains pending.
+**Verification:** On candidate `ee61b2ca0a3cd6cb40baa6543dc1bf795516ac1e`, `:microproject_ui:test --console=plain` and `:microproject_ui:compileGuiTestJava --console=plain` passed. The focused Robot test on the identical scoped code/test tree reached locale selector interaction, then the desktop guard stopped before physical input because MSPaint (PID 25288) overlapped the Preferences window. The environment artifact is `modules/microproject_ui/build/reports/guiTest-artifacts/gui-test-contended-1793002342258-44696.txt`. Exact-candidate GitHub CI remains pending.
 
 ## Remaining blockers
 
@@ -34,7 +34,6 @@ The user explicitly directed work on issues #941, #944, and #945, overriding the
 ## Latest evidence
 
 - Reporter notes overlap and the existing Preferences link to Language and locale; no additional requested setting was listed.
-- Tests/build: none run for this issue (task instruction).
-- Unit tests: `:microproject_ui:test --console=plain` passed; GUI test compilation passed.
+- Tests/build: candidate `ee61b2ca0a3cd6cb40baa6543dc1bf795516ac1e` — `:microproject_ui:test --console=plain` passed; `:microproject_ui:compileGuiTestJava --console=plain` passed.
 - Physical GUI: `:microproject_ui:guiTest --tests "com.microproject.dialog.PreferencesDialogGuiAcceptanceTest.languageLocaleTabHelpApplyAndCancelUseThePreferencesDialog" --console=plain` stopped before dispatch due to the documented foreign foreground window; locale Apply/Cancel and restart Robot assertions remain unverified.
 - CI: none.
