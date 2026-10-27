@@ -51,6 +51,27 @@ class ProjectModelCommandReleaseTest {
 		assertEventsStillPublish(project);
 	}
 
+	@Test
+	void rejectsClosedScopeBeforeDetachingPendingEvents() {
+		Project project = newProject();
+		AtomicInteger scheduleEvents = new AtomicInteger();
+		project.addScheduleListener(event -> scheduleEvents.incrementAndGet());
+		project.beginEventBatch();
+		project.fireScheduleChanged(project, ScheduleEvent.SCHEDULE);
+		ProjectMutationState.Scope closed = project.getMutationState().begin();
+		closed.close();
+
+		assertThrows(IllegalStateException.class, () -> project.commitEventBatch(closed, true));
+		assertTrue(project.pendingEventCount() > 0, "failed commit validation must preserve deferred facts");
+		long revision = project.getMutationState().revision();
+		try (ProjectMutationState.Scope mutation = project.getMutationState().begin()) {
+			Project.PendingEventBatch pending = project.commitEventBatch(mutation, true);
+			project.publishEventBatch(pending);
+		}
+		assertTrue(scheduleEvents.get() > 0, "the preserved facts must still reach observers");
+		assertEquals(revision + 1, project.getMutationState().revision());
+	}
+
 	private static Project newProject() {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		Project project = Project.createProject(ResourcePool.createRourcePool("release", undo), undo);

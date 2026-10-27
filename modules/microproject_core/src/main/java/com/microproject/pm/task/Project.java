@@ -1679,6 +1679,9 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	/** Atomically detaches notifications and commits the revision before releasing the mutation barrier. */
 	public PendingEventBatch commitEventBatch(com.microproject.transaction.ProjectMutationState.Scope mutation,
 		boolean changed) {
+		// Validate before detaching events: a stale or out-of-order scope must not
+		// consume notifications that cannot be committed to a project revision.
+		mutation.validateActive();
 		try {
 			return commitEventBatchInternal(mutation, changed);
 		} catch (RuntimeException | Error failure) {
