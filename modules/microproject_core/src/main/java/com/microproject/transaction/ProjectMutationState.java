@@ -220,10 +220,17 @@ public final class ProjectMutationState {
 			this.owner = owner;
 		}
 
-		/** Marks this completed mutation as committed; no-op commits leave the revision unchanged. */
-		public void commit(boolean changed) {
+		/** Validates that this scope can still commit and close in stack order. */
+		public void validateActive() {
 			if (closed || Thread.currentThread() != owner)
 				throw new IllegalStateException("Project mutation scope is not active on this thread");
+			if (state.scopes.peek() != this)
+				throw new IllegalStateException("Project mutation scopes must close in LIFO order");
+		}
+
+		/** Marks this completed mutation as committed; no-op commits leave the revision unchanged. */
+		public void commit(boolean changed) {
+			validateActive();
 			this.committed = true;
 			this.changed = changed;
 		}
