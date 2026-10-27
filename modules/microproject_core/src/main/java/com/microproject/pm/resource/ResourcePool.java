@@ -396,11 +396,6 @@ public class ResourcePool implements Document, NodeModelDataFactory {
 	
 	private transient boolean isDirty=false;
 	public final boolean isGroupDirty() {
-//		for (Iterator i=getProjects().iterator();i.hasNext();){
-//			Project project=(Project)i.next();
-//			if (project.isGroupDirty()) return true;
-//		}
-//		return false;
 		return isDirty;
 	}
 	public final void setGroupDirty(boolean isDirty) {
