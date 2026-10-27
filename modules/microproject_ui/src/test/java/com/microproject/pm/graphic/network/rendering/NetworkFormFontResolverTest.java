@@ -25,6 +25,7 @@ package com.microproject.pm.graphic.network.rendering;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Color;
 import java.awt.Font;
@@ -127,6 +128,28 @@ class NetworkFormFontResolverTest {
 		}
 	}
 
+	@Test
+	void customStartAndEndShapesKeepTheirConfiguredColorsAndPaintInDarkTheme() {
+		boolean wasDark = !MicroProjectTheme.tokens().appBackground().equals(MicroProjectThemeTokens.light().appBackground());
+		MicroProjectTheme.installDark();
+		try {
+			for (String endpoint : List.of("start", "end")) {
+				FormComponent form = formWithBuiltInStyle("WBS.task", "BLACK", endpoint);
+				var image = render(form);
+				assertEquals(Color.WHITE, dominantColor(image), endpoint + " custom shape must keep its transparent paint background");
+				assertTrue(containsColor(image, Color.RED), endpoint + " custom shape must keep its configured color");
+			}
+		} finally {
+			if (wasDark) MicroProjectTheme.installDark(); else MicroProjectTheme.installLight();
+		}
+	}
+
+	private static boolean containsColor(java.awt.image.BufferedImage image, Color expected) {
+		for (int y = 0; y < image.getHeight(); y++) for (int x = 0; x < image.getWidth(); x++)
+			if (image.getRGB(x, y) == expected.getRGB()) return true;
+		return false;
+	}
+
 	private static java.awt.image.BufferedImage render(FormComponent form) {
 		form.setSize(240, 80);
 		var image = new java.awt.image.BufferedImage(240, 80, java.awt.image.BufferedImage.TYPE_INT_ARGB);
@@ -147,6 +170,10 @@ class NetworkFormFontResolverTest {
 	}
 
 	private static FormComponent formWithBuiltInStyle(String id, String colorName) {
+		return formWithBuiltInStyle(id, colorName, null);
+	}
+
+	private static FormComponent formWithBuiltInStyle(String id, String colorName, String customEndpoint) {
 		TexturedShape middle = new TexturedShape();
 		middle.setShapeName("FULL_HEIGHT");
 		middle.setColorName(colorName);
@@ -155,6 +182,15 @@ class NetworkFormFontResolverTest {
 		BarFormat format = new BarFormat();
 		format.setId(id);
 		format.setMiddle(middle);
+		if (customEndpoint != null) {
+			TexturedShape endpoint = new TexturedShape();
+			endpoint.setShapeName("FULL_HEIGHT");
+			endpoint.setColorName("RED");
+			endpoint.setPaintName("TRANSPARENT");
+			endpoint.setStrokeName("LARGE_FRAMED");
+			if ("start".equals(customEndpoint)) format.setStart(endpoint);
+			else format.setEnd(endpoint);
+		}
 		FormFormat form = new FormFormat();
 		FormBoxLayout layout = new FormBoxLayout(); layout.setDefaultZoom(true); layout.setColumnGrid("pref"); layout.setRowGrid("pref"); form.addLayout(layout);
 		FormBox box = new FormBox(); box.setColumn(1); box.setRow(1); box.setTextId("Field.name"); form.addBox(box);

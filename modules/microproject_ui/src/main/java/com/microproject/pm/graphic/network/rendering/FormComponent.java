@@ -310,6 +310,7 @@ public class FormComponent extends JPanel{
 
 	private static boolean isDefaultDarkSurfaceFormat(BarFormat format) {
 		if (format == null || !MicroProjectTheme.tokens().appBackground().equals(MicroProjectThemeTokens.dark().appBackground())) return false;
+		if (format.getStart() != null || format.getEnd() != null) return false;
 		String id = format.getId();
 		if (id == null) return false;
 		TexturedShape shape = format.getMiddle();
