@@ -1,0 +1,112 @@
+/* Styles for the EPUB build (build_epub.py).  No fonts are embedded; no scripts. */
+/* Keep body at 1em so the reader's font-size control remains authoritative. */
+/* Use compact page margins to give text more room; readers may override these for accessibility. */
+@page { margin: 3% 4%; }
+body { margin: 0; padding: 0; line-height: 1.5; }
+p { margin: 0.45em 0; }
+p.prose { margin: 0.35em 0; text-indent: 1em; widows: 2; orphans: 2; }
+a { text-decoration: underline; }
+/* Relative steps show chapter, section, and subsection hierarchy. */
+h1, h2, h3 { line-height: 1.4; page-break-after: avoid; }
+h1 { font-size: 1.6em; margin: 0.9em 0 0.45em; page-break-before: always; }
+h2 { font-size: 1.3em; margin: 1.25em 0 0.45em; border-bottom: 1px solid #999999; padding-bottom: 0.15em; }
+h3 { font-size: 1.1em; margin: 1em 0 0.3em; }
+header { margin-bottom: 0.8em; }
+.chap-no { display: block; font-size: 0.85em; letter-spacing: 0.08em; color: #286c63; font-weight: bold; }
+.summary { color: #555555; margin: 0.4em 0 1em; }
+.secnum { color: #286c63; font-size: 0.85em; margin-right: 0.4em; }
+ul, ol { margin: 0.4em 0; padding-left: 1.6em; }
+li { margin: 0.2em 0; }
+
+/* cover, title page, front matter */
+.cover-page, .cover { margin: 0; padding: 0; text-align: center; }
+.cover img { max-width: 100%; max-height: 100%; height: auto; }
+.titlepage { text-align: center; margin-top: 25%; }
+.titlepage h1.book-title { page-break-before: auto; font-size: 2.2em; margin-bottom: 0.4em; }
+.book-subtitle { font-size: 1.1em; color: #444444; }
+.book-author { margin-top: 3em; font-size: 1.1em; }
+.copyright p { font-size: 0.9em; }
+.trademark { font-weight: bold; }
+.part-title { margin-top: 30%; text-align: center; font-size: 1.8em; }
+.part-intro { text-align: left; }
+ol.part-chapters { list-style: none; padding-left: 0; margin-top: 2em; }
+nav ol { list-style: none; padding-left: 1.2em; }
+nav > ol { padding-left: 0; }
+nav li { margin: 0.25em 0; }
+
+/* inline code */
+code { font-family: monospace, monospace; font-size: 0.92em; background-color: #eef3f1; padding: 0 0.2em; }
+pre code { background-color: transparent; padding: 0; font-size: 1em; }
+
+/* code listings */
+.code { margin: 0.8em 0; border: 1px solid #d1d9e0; background-color: #ffffff; }
+/* Code stays near body size for legibility; filenames are secondary metadata. */
+.code-name { display: flex; align-items: center; justify-content: space-between; gap: 0.8em; margin: 0; padding: 0.3em 0.65em; background-color: #f6f8fa; color: #1f2328; border-bottom: 1px solid #d1d9e0; font-family: monospace, monospace; font-size: 0.88em; }
+.code-kind { font-weight: bold; }
+.code-file { padding: 0.08em 0.45em; border-radius: 0.25em; background-color: #eaeef2; color: #59636e; font-size: 0.85em; white-space: nowrap; }
+.code-lang { font-weight: normal; color: #59636e; }
+pre { margin: 0; padding: 0.55em 0.7em; color: #1f2328; font-family: monospace, monospace; font-size: 0.88em; line-height: 1.55; white-space: pre-wrap; word-break: break-all; overflow-wrap: anywhere; }
+.k { color: #cf222e; font-weight: bold; }
+.t { color: #0550ae; }
+.s { color: #0a3069; }
+.c { color: #6e7781; font-style: italic; }
+.n { color: #953800; }
+.d { color: #8250df; }
+
+/* terminal: prompt + command + recorded output */
+.term { margin: 0.8em 0; border: 1px solid #d1d9e0; background-color: #f6f8fa; }
+.term-title { display: flex; align-items: center; justify-content: space-between; gap: 0.8em; margin: 0; padding: 0.3em 0.65em; background-color: #f6f8fa; color: #1f2328; border-bottom: 1px solid #d1d9e0; font-family: monospace, monospace; font-size: 0.88em; }
+.term-kind { font-weight: bold; }
+.term-env { padding: 0.08em 0.45em; border-radius: 0.25em; background-color: #eaeef2; color: #59636e; font-size: 0.85em; white-space: nowrap; }
+.term-body { color: #1f2328; font-size: 0.88em; line-height: 1.55; }
+.term .prompt { color: #1a7f37; }
+.term .cmd { color: #0969da; font-weight: bold; }
+.term .out { color: #59636e; }
+
+/* columns */
+.adm { margin: 0.9em 0; padding: 0.1em 0.9em 0.3em; border: 1px solid #888888; border-left-width: 5px; background-color: #f5f5f0; }
+.adm-label { margin: 0.5em 0 0.3em; font-weight: bold; font-size: 0.95em; }
+.adm-title { margin-left: 0.5em; }
+.adm-python { border-color: #4a6fa5; background-color: #eef1f8; }
+.adm-python .adm-label { color: #2f4f80; }
+.adm-why { border-color: #286c63; background-color: #eaf2ef; }
+.adm-why .adm-label { color: #1d5249; }
+.adm-trap { border-color: #b4651f; background-color: #f8eee3; }
+.adm-trap .adm-label { color: #8a4a10; }
+.adm-note { border-color: #8a8f86; background-color: #f1f0ea; }
+.adm .code, .adm .term { margin: 0.8em 0; }
+
+/* figures */
+.fig { margin: 1em 0; text-align: center; page-break-inside: avoid; }
+.fig img { max-width: 100%; height: auto; border: 1px solid #cccccc; }
+figcaption { margin-top: 0.4em; font-size: 0.85em; color: #444444; text-align: center; }
+.fig-no { font-weight: bold; margin-right: 0.3em; }
+
+/* tables */
+/* Numbered table title sits above its table and remains visually secondary. */
+.tbl { margin: 0.8em 0; text-align: center; }
+.tbl figcaption { margin: 0 0 0.25em; color: #59636e; font-size: 0.9em; text-align: center; }
+.tbl-no { color: #1f2328; font-weight: bold; }
+.tbl table { border-collapse: collapse; margin: 0 auto; font-size: 0.95em; max-width: 100%; }
+thead { display: table-header-group; page-break-after: avoid; break-after: avoid-page; }
+tr { page-break-inside: avoid; break-inside: avoid; }
+th, td { border: 1px solid #999999; padding: 0.3em 0.5em; vertical-align: top; text-align: left; }
+th { background-color: #eaf2ef; }
+.al-center { text-align: center; }
+.al-right { text-align: right; }
+
+/* quiz / exercises / answers */
+.quiz, .exercise { margin: 1em 0; padding: 0 0.9em 0.6em; border: 1px solid #286c63; border-top: 4px solid #286c63; }
+.quiz h2 { border-bottom: none; }
+.q { font-weight: bold; }
+.jump { margin: 0.3em 0; font-size: 0.9em; text-align: right; }
+.ex-no { margin-right: 0.4em; color: #286c63; }
+.answers .a, .exercise .a { margin: 0.4em 0; padding-left: 0.8em; border-left: 3px solid #bbbbbb; }
+.answer { margin-bottom: 1.5em; }
+
+/* citations and references */
+.cite { font-size: 0.8em; line-height: 0; }
+.cite a { text-decoration: none; }
+.refs { margin-top: 1.4em; font-size: 0.9em; }
+.refs li { margin: 0.5em 0; overflow-wrap: anywhere; word-break: break-all; }
+.back { text-decoration: none; margin-left: 0.3em; }

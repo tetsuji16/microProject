@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="500" viewBox="0 0 1200 500" role="img" aria-labelledby="title desc">
+  <title id="title">ビューで分析し、レポートで共有する</title>
+  <desc id="desc">計画データをビューと条件で整理して読み取り、結果をレポート、印刷、ファイル出力で共有する概念図。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="9" refY="6" orient="auto">
+      <path d="M1 1 L10 6 L1 11 Z" fill="#58738f"/>
+    </marker>
+    <style>
+      .bg { fill: #f4f7fb; }
+      .title { font: 700 32px sans-serif; fill: #18324d; }
+      .heading { font: 700 25px sans-serif; fill: #18324d; }
+      .body { font: 20px sans-serif; fill: #40566d; }
+      .card { fill: #fff; stroke: #c8d5e3; stroke-width: 2; }
+      .blue { fill: #e5eef8; stroke: #9db7d3; }
+      .green { fill: #e5f2e7; stroke: #a3c8aa; }
+      .line { stroke: #58738f; stroke-width: 4; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect class="bg" width="1200" height="500" rx="28"/>
+  <text class="title" x="600" y="58" text-anchor="middle">計画データを読み、必要な形で共有する</text>
+
+  <rect class="card blue" x="55" y="165" width="250" height="170" rx="22"/>
+  <text class="heading" x="180" y="218" text-anchor="middle">計画データ</text>
+  <text class="body" x="180" y="264" text-anchor="middle">タスク・日程・担当</text>
+  <text class="body" x="180" y="298" text-anchor="middle">進捗・コスト</text>
+
+  <path class="line" d="M315 250 H385"/>
+  <rect class="card" x="400" y="135" width="355" height="230" rx="22"/>
+  <text class="heading" x="577" y="190" text-anchor="middle">ビューで分析</text>
+  <text class="body" x="577" y="236" text-anchor="middle">列・フィルター・グループ</text>
+  <text class="body" x="577" y="272" text-anchor="middle">並べ替え・表示倍率</text>
+  <text class="body" x="577" y="320" text-anchor="middle">表示とデータ変更を見分ける</text>
+
+  <path class="line" d="M765 250 H835"/>
+  <rect class="card green" x="850" y="125" width="295" height="250" rx="22"/>
+  <text class="heading" x="997" y="180" text-anchor="middle">結果を共有</text>
+  <text class="body" x="997" y="230" text-anchor="middle">レポート</text>
+  <text class="body" x="997" y="270" text-anchor="middle">印刷・PDF</text>
+  <text class="body" x="997" y="310" text-anchor="middle">CSV・HTML</text>
+  <text class="body" x="600" y="425" text-anchor="middle">対象・条件・基準日・値の出所を確かめてから共有する</text>
+</svg>

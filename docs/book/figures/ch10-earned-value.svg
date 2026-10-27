@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 360" role="img" aria-labelledby="title desc" font-family="'Yu Gothic', 'Meiryo', sans-serif">
+  <title id="title">出来高管理の基本式</title>
+  <desc id="desc">PV、EV、ACの比較からスケジュール差異とコスト差異、SPIとCPIを求める計算例。</desc>
+  <rect width="760" height="360" rx="18" fill="#f4f7fb"/>
+  <text x="380" y="42" text-anchor="middle" font-size="22" font-weight="700" fill="#17324d">同じ基準日で3つの値を比べる</text>
+  <g font-size="17" text-anchor="middle" font-weight="700">
+    <rect x="65" y="72" width="180" height="64" rx="12" fill="#dcecf7"/><text x="155" y="99" fill="#17324d">PV</text><text x="155" y="122" font-size="14" font-weight="400" fill="#263746">計画価値 100万円</text>
+    <rect x="290" y="72" width="180" height="64" rx="12" fill="#e6f1df"/><text x="380" y="99" fill="#17324d">EV</text><text x="380" y="122" font-size="14" font-weight="400" fill="#263746">出来高 80万円</text>
+    <rect x="515" y="72" width="180" height="64" rx="12" fill="#f8e8d8"/><text x="605" y="99" fill="#17324d">AC</text><text x="605" y="122" font-size="14" font-weight="400" fill="#263746">実コスト 90万円</text>
+  </g>
+  <path d="M155 148v27h225v-27M380 148v27M605 148v27H380" fill="none" stroke="#718397" stroke-width="2"/>
+  <rect x="50" y="190" width="315" height="116" rx="12" fill="#fff" stroke="#c5d2de"/>
+  <rect x="395" y="190" width="315" height="116" rx="12" fill="#fff" stroke="#c5d2de"/>
+  <text x="207" y="222" text-anchor="middle" font-size="18" font-weight="700" fill="#245b86">スケジュール</text>
+  <text x="207" y="254" text-anchor="middle" font-size="17" fill="#263746">SV = EV − PV = −20万円</text>
+  <text x="207" y="282" text-anchor="middle" font-size="16" fill="#526577">SPI = EV ÷ PV = 0.80</text>
+  <text x="552" y="222" text-anchor="middle" font-size="18" font-weight="700" fill="#9a5a28">コスト</text>
+  <text x="552" y="254" text-anchor="middle" font-size="17" fill="#263746">CV = EV − AC = −10万円</text>
+  <text x="552" y="282" text-anchor="middle" font-size="16" fill="#526577">CPI = EV ÷ AC ≈ 0.89</text>
+  <text x="380" y="337" text-anchor="middle" font-size="13" fill="#526577">SVは金額単位の差であり、遅延日数ではない</text>
+</svg>
