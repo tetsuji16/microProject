@@ -351,6 +351,7 @@ public abstract class NetworkRenderer extends GraphRenderer{
 				editor.paintEditor(node);
 			}else{
 				JComponent c=renderer.getRendererComponent(node,((NetworkParams)graphInfo).getZoom());
+				if (c == null) return;
 				if (container==null){
 					//c=new JLabel("test");
 			    	c.setDoubleBuffered(false);

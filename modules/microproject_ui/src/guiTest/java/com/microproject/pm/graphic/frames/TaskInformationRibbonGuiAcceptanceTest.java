@@ -2759,7 +2759,15 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			while (nodes.hasNext()) {
 				GraphicNode node = nodes.next();
 				FormComponent actualForm = cellRenderer.getRendererComponent(node, network.getZoom());
-				if (actualForm == null) continue;
+				if (actualForm == null) {
+					var modelNode = node.getNode();
+					Object implementation = modelNode == null ? null : modelNode.getImpl();
+					System.out.println("Skipping network form contrast for node without a main BarFormat: view=" + viewName
+						+ ", node=" + modelNode + ", implementation="
+						+ (implementation == null ? "null" : implementation.getClass().getName())
+						+ ", level=" + node.getLevel());
+					continue;
+				}
 				java.util.List<BarFormat> formats = (java.util.List<BarFormat>) formatsField.get(actualForm);
 				for (BarFormat format : formats) {
 					TexturedShape shape = format.getMiddle() != null ? format.getMiddle()
@@ -6120,6 +6128,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	@Test
 	void physicalTaskRowHeaderDragReordersStableTasksAndSurvivesUndoAndReload() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		beginCommandDiagnosticCapture();
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
 		Environment.setRibbonUI(true);
@@ -6218,7 +6227,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			assertEquals(Cursor.MOVE_CURSOR, observedDrag[2], "valid row-header target must show move cursor before release; "
 				+ "cursor=" + observedDrag[2] + " dragEvents=" + observedDrag[0] + " dragRow=" + observedDrag[1]
 				+ " sourcePoint=" + points[0] + " targetPoint=" + points[1] + " pointer="
-				+ java.awt.MouseInfo.getPointerInfo().getLocation() + " target=" + currentTarget[0]);
+				+ java.awt.MouseInfo.getPointerInfo().getLocation() + " target=" + currentTarget[0]
+				+ "; " + rowDragFailureDiagnostics(sheet, rowHeader, first, second, sourceRow, targetRow,
+					observedDrag, currentTarget[0]));
 
 			assertEquals(targetRow, rowHeaderHoverRow(rowHeader),
 				"physical pointer must remain over the target task row before release");
@@ -6477,13 +6488,19 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Environment.setBatchMode(false);
 		Alert.setPresenter(new SwingAlertPresenter());
 		undo.clear();
+		AtomicInteger lockAcquireAttempts = new AtomicInteger();
+		CopyOnWriteArrayList<Long> lockRequestedTaskIds = new CopyOnWriteArrayList<>();
 		project.setCollaborationSession(new CollaborationSession(project,
 				System.getProperty("java.io.tmpdir") + "/microproject-ribbon-link-lock.mpo", "link-lock-test") {
 			@Override
 			public Task tryAcquireTasks(Iterable<Task> tasks) {
+				lockAcquireAttempts.incrementAndGet();
 				if (tasks == null) return null;
 				java.util.Iterator<Task> iterator = tasks.iterator();
-				return iterator.hasNext() ? iterator.next() : null;
+				if (!iterator.hasNext()) return null;
+				Task locked = iterator.next();
+				lockRequestedTaskIds.add(locked.getUniqueId());
+				return locked;
 			}
 
 			@Override
@@ -6491,9 +6508,15 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				return "robot link lock test";
 			}
 		});
+		RibbonCommandResult previousLinkOutcome = manager.getLastRibbonCommandResult();
 		click(robot, link);
-		GuiAcceptanceSupport.await(() -> findDialogContainingText("locked by robot link lock test") != null,
+		try {
+			GuiAcceptanceSupport.await(() -> findDialogContainingText("locked by robot link lock test") != null,
 				"the Ribbon Link route did not show the collaboration lock rejection");
+		} catch (AssertionError failure) {
+			throw new AssertionError(failure.getMessage() + "; " + linkLockFailureDiagnostics(link, linkOverflow[0],
+				predecessor, successor, gantt, undo, previousLinkOutcome, lockAcquireAttempts, lockRequestedTaskIds), failure);
+		}
 		Dialog lockWarning = findDialogContainingText("locked by robot link lock test");
 		assertTrue(successor.getPredecessorList().isEmpty(), "a lock-rejected Ribbon Link must not mutate dependencies");
 		assertEquals(0, gantt.getModel().getCache().getEdgesSize(), "a lock-rejected Ribbon Link must not add a Gantt edge");
@@ -6505,7 +6528,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> !lockWarning.isShowing(), "the Ribbon Link lock warning did not close after Enter");
 		project.setCollaborationSession(null);
 		GuiAcceptanceSupport.await(link::isEnabled, "Link stayed disabled after dismissing the lock rejection");
-		RibbonCommandResult previousLinkOutcome = manager.getLastRibbonCommandResult();
+		previousLinkOutcome = manager.getLastRibbonCommandResult();
 		click(robot, link);
 		GuiAcceptanceSupport.await(() -> successor.getPredecessorList().size() == 1,
 				"Link did not create a dependency between the selected tasks");
@@ -9381,6 +9404,74 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			return "windowSnapshotError=" + exception;
 		}
 		return value[0];
+	}
+
+	private String rowDragFailureDiagnostics(SpreadSheet sheet, JTable rowHeader, NormalTask first, NormalTask second,
+		int sourceRow, int targetRow, int[] observedDrag, RowHeaderTarget target) {
+		Point localMouse = componentMousePosition(rowHeader);
+		java.awt.dnd.DropTarget dropTarget = rowHeader.getDropTarget();
+		List<String> selectedTasks = manager.getCurrentFrame().getSelectedImpls(false).stream()
+			.filter(Task.class::isInstance).map(Task.class::cast)
+			.map(task -> task.getUniqueId() + ":" + task.getName()).sorted().toList();
+		RibbonCommandResult outcome = manager.getLastRibbonCommandResult();
+		return "dragSnapshot={releaseAttempted=false, activeView=" + manager.getCurrentFrame().getTopViewId()
+			+ ", selectedTaskIds=" + selectedTasks + ", sheetSelectedRows=" + java.util.Arrays.toString(sheet.getSelectedRows())
+			+ ", headerSelectedRows=" + java.util.Arrays.toString(rowHeader.getSelectedRows())
+			+ ", sourceTask=" + second.getUniqueId() + ":" + second.getName() + "@row" + sourceRow
+			+ ", targetTask=" + first.getUniqueId() + ":" + first.getName() + "@row" + targetRow
+			+ ", localPointer=" + localMouse + ", hoverRow=" + (localMouse == null ? -1 : rowHeader.rowAtPoint(localMouse))
+			+ ", sourceCell=" + rowHeader.getCellRect(sourceRow, 0, true) + ", targetCell=" + rowHeader.getCellRect(targetRow, 0, true)
+			+ ", dragEnabled=" + rowHeader.getDragEnabled() + ", dropMode=" + rowHeader.getDropMode()
+			+ ", transferHandler=" + (rowHeader.getTransferHandler() == null ? "null" : rowHeader.getTransferHandler().getClass().getName())
+			+ ", dropTarget=" + (dropTarget == null ? "null" : dropTarget.getClass().getName()
+				+ "[active=" + dropTarget.isActive() + ", actions=" + dropTarget.getDefaultActions() + "]")
+			+ ", dragEvents=" + observedDrag[0] + ", lastDragRow=" + observedDrag[1] + ", cursor=" + observedDrag[2]
+			+ ", commandOutcome=" + outcome + ", commandDiagnostics=" + List.copyOf(diagnosticMessages)
+			+ ", component=" + componentInputDiagnostics(rowHeader) + ", windows={" + visibleWindowInputDiagnostics() + "}}";
+	}
+
+	private String linkLockFailureDiagnostics(AbstractButton link, JPopupMenu overflow, NormalTask predecessor,
+		NormalTask successor, Gantt gantt, DataFactoryUndoController undo, RibbonCommandResult previousOutcome,
+		AtomicInteger lockAcquireAttempts, List<Long> lockRequestedTaskIds) {
+		List<String> selectedTasks = manager.getCurrentFrame().getSelectedImpls(false).stream()
+			.filter(Task.class::isInstance).map(Task.class::cast)
+			.map(task -> task.getUniqueId() + ":" + task.getName()).sorted().toList();
+		RibbonCommandResult currentOutcome = manager.getLastRibbonCommandResult();
+		return "linkLockSnapshot={activeView=" + manager.getCurrentFrame().getTopViewId()
+			+ ", selectedTaskIds=" + selectedTasks
+			+ ", popupShowing=" + (overflow != null && overflow.isShowing())
+			+ ", popupInvoker=" + (overflow == null ? "null" : overflow.getInvoker())
+			+ ", linkEnabled=" + link.isEnabled() + ", alertAllowed=" + Alert.allowPopups()
+			+ ", lockAcquireAttempts=" + lockAcquireAttempts.get() + ", lockRequestedTaskIds=" + List.copyOf(lockRequestedTaskIds)
+			+ ", previousOutcome=" + previousOutcome + ", currentOutcome=" + currentOutcome
+			+ ", outcomeUnchanged=" + (previousOutcome == currentOutcome)
+			+ ", predecessorTask=" + predecessor.getUniqueId() + ":" + predecessor.getName()
+			+ ", successorTask=" + successor.getUniqueId() + ":" + successor.getName()
+			+ ", successorPredecessorCount=" + successor.getPredecessorList().size()
+			+ ", ganttEdgeCount=" + gantt.getModel().getCache().getEdgesSize()
+			+ ", undoCanUndo=" + undo.canUndo()
+			+ ", visibleDialogs=" + visibleDialogTextDiagnostics()
+			+ ", commandDiagnostics=" + List.copyOf(diagnosticMessages)
+			+ ", component=" + componentInputDiagnostics(link)
+			+ ", windows={" + visibleWindowInputDiagnostics() + "}}";
+	}
+
+	private static String visibleDialogTextDiagnostics() {
+		String[] result = new String[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> result[0] = java.util.Arrays.stream(Window.getWindows())
+				.filter(Dialog.class::isInstance).map(Dialog.class::cast).filter(Dialog::isShowing)
+				.map(dialog -> dialog.getClass().getSimpleName() + "[title=" + dialog.getTitle()
+					+ ",modal=" + dialog.isModal() + ",text=" + UiComponentWalker.flatten(dialog).stream()
+						.filter(component -> component instanceof JLabel || component instanceof AbstractButton)
+						.map(component -> component instanceof JLabel label ? label.getText()
+							: ((AbstractButton) component).getText())
+						.filter(java.util.Objects::nonNull).collect(Collectors.joining("|")) + "]")
+				.collect(Collectors.joining("; ")));
+		} catch (Exception exception) {
+			return "dialogSnapshotError=" + exception;
+		}
+		return result[0];
 	}
 
 	private static boolean hasShowingCommand(String command) {

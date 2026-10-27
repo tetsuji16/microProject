@@ -42,6 +42,7 @@ public class NetworkCellRenderer{
 
 	public FormComponent getRendererComponent(GraphicNode node,int zoom){
 		FormComponent form=formatSelector.getForm(node,zoom,false);
+		if (form == null) return null;
 		form.setFields(node.getNode(),params.getCache().getModel());
 		return form;
 	}

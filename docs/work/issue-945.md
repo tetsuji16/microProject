@@ -32,7 +32,9 @@ Blockers: Exact-candidate CI remains pending; selected-node/high-contrast covera
 
 **Verification:** `gradlew.bat :microproject_ui:test --tests "com.microproject.pm.graphic.network.DarkLinkArrowShapeCacheTest" --tests "com.microproject.pm.graphic.network.rendering.NetworkFormFontResolverTest" --console=plain` passed. `gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.robotNetworkAndWbsRibbonRoutesRenderTheirDedicatedViews" --max-workers=1 --no-daemon --console=plain` passed after correcting the light-capture assertion; the route covers Network/WBS/RBS dark, light, and restored-dark physical views. `git diff --check` passed.
 
-**Next slice:** Exact-candidate CI remains pending.
+**CI follow-up (2026-10-28):** GUI CI runs `40593939402` and `40595116620` both reported row-header drag (default cursor after two drag events) and Ribbon Link (lock rejection not observed). The no-main-format NPE in the Network contrast helper was reproduced with an empty main-format selection, fixed in `NetworkCellRenderer`/`NetworkRenderer`, and covered by `NetworkCellRendererTest.skipsNodeWithNoMainBarFormat`; the physical Network/WBS/RBS route passed after the fix. Added failure snapshots for row drag and Link. A local combined run reproduced both outstanding symptoms: row header reports `dragEnabled=false`, `dropTarget=null`, and only the Basic Swing transfer handler before release; Link command result is `REJECTED/task-selection-not-stable`, `tryAcquireTasks` was never called, and dependency/Undo state stayed unchanged. These observations localize each failure before the expected operation but do not establish why CI and local isolated runs differ. Do not classify as flaky or environmental; retain exact-candidate GUI diagnostics/reproduction as pending.
+
+**Next slice:** Exact-candidate CI remains pending; investigate why the drag target is not initialized and why selected Link tasks fail stability validation before lock acquisition.
 **Done when:** each dark-theme view has focused checks and physical dark-theme GUI evidence.
 
 ## Remaining blockers
