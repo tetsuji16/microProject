@@ -37,18 +37,20 @@ public final class TaskModeService {
 		for (boolean value : before) changed |= value != target;
 		List<Project> projects = List.copyOf(projectSnapshots.keySet());
 		Map<Project, ProjectMutationState.Scope> mutations = new IdentityHashMap<>();
-		for (Project project : projects) {
-			mutations.put(project, project.getMutationState().begin());
-			project.beginEventBatch();
-		}
+		List<Project> batched = new ArrayList<>(projects.size());
 		int attempted = 0;
 		try {
+			for (Project project : projects) {
+				mutations.put(project, project.getMutationState().begin());
+				project.beginEventBatch();
+				batched.add(project);
+			}
 			for (Task task : selected) {
 				attempted++;
 				task.setManuallyScheduled(target);
 			}
 		} catch (RuntimeException | Error failure) {
-			for (Map.Entry<Project, ProjectTaskSnapshot> entry : projectSnapshots.entrySet()) {
+			if (attempted > 0) for (Map.Entry<Project, ProjectTaskSnapshot> entry : projectSnapshots.entrySet()) {
 				try {
 					entry.getValue().restore(entry.getKey(), this);
 				} catch (RuntimeException | Error compensationFailure) {
@@ -65,7 +67,8 @@ public final class TaskModeService {
 			}
 			for (int i = projects.size() - 1; i >= 0; i--) {
 				Project project = projects.get(i);
-				try {
+				if (!mutations.containsKey(project)) continue;
+				if (batched.contains(project)) try {
 					project.endEventBatch(false);
 				} catch (RuntimeException | Error compensationFailure) {
 					failure.addSuppressed(compensationFailure);

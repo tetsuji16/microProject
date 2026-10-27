@@ -121,7 +121,12 @@ public class CollaborationSession {
 		timer.scheduleAtFixedRate(new TimerTask() {
 			@Override
 			public void run() {
-				poll();
+				// An uncaught failure would cancel the Timer permanently and stop lease heartbeats.
+				try {
+					poll();
+				} catch (Throwable e) {
+					logger.log(Level.WARNING, "Collaboration poll failed for " + projectFile, e);
+				}
 			}
 		}, POLL_INTERVAL_MS, POLL_INTERVAL_MS);
 	}

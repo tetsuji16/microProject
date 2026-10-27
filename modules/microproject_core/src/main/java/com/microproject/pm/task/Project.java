@@ -320,9 +320,20 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		java.util.Objects.requireNonNull(additionalManagers, "additionalManagers");
 		ProjectMutationState state = getMutationState();
 		ProjectMutationState.Scope mutation = state.begin();
-		AtomicEventCheckpoint eventCheckpoint = atomicFailure ? atomicEventCheckpoint(additionalManagers) : null;
-		int initialPendingEvents = pendingEventCount();
-		beginEventBatch(additionalManagers);
+		AtomicEventCheckpoint eventCheckpoint;
+		int initialPendingEvents;
+		try {
+			eventCheckpoint = atomicFailure ? atomicEventCheckpoint(additionalManagers) : null;
+			initialPendingEvents = pendingEventCount();
+			beginEventBatch(additionalManagers);
+		} catch (RuntimeException | Error failure) {
+			// The process-wide coordinator must never outlive a failed command setup.
+			try { mutation.close(); }
+			catch (Throwable cleanupFailure) {
+				if (cleanupFailure != failure) failure.addSuppressed(cleanupFailure);
+			}
+			throw failure;
+		}
 		boolean[] applied = { false };
 		T result;
 		PendingEventBatch pending;
@@ -338,11 +349,18 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 			@SuppressWarnings("unchecked") E typedFailure = (E) failure;
 			throw typedFailure;
 		}
-		boolean hasFacts = pendingEventCount() > initialPendingEvents;
-		if (hasFacts) result = resultWhenEventsWereEmitted.apply(result);
-		boolean changed = changedResult.test(result) || hasFacts;
-		if (changed && !hasFacts)
-			fireScheduleChanged(this, com.microproject.pm.scheduling.ScheduleEvent.SCHEDULE);
+		boolean changed;
+		try {
+			boolean hasFacts = pendingEventCount() > initialPendingEvents;
+			if (hasFacts) result = resultWhenEventsWereEmitted.apply(result);
+			changed = changedResult.test(result) || hasFacts;
+			if (changed && !hasFacts)
+				fireScheduleChanged(this, com.microproject.pm.scheduling.ScheduleEvent.SCHEDULE);
+		} catch (RuntimeException | Error failure) {
+			// The model operation already applied; publish what it emitted and release the barrier.
+			finishModelCommandFailure(mutation, initialPendingEvents, true, failure);
+			throw failure;
+		}
 		pending = commitEventBatch(mutation, changed);
 		publishEventBatch(pending);
 		return result;
@@ -1637,6 +1655,19 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	}
 	/** Atomically detaches notifications and commits the revision before releasing the mutation barrier. */
 	public PendingEventBatch commitEventBatch(com.microproject.transaction.ProjectMutationState.Scope mutation,
+		boolean changed) {
+		try {
+			return commitDetachedEventBatch(mutation, changed);
+		} catch (RuntimeException | Error failure) {
+			// Never leave the process-wide coordinator held when the commit cannot complete.
+			try { mutation.close(); }
+			catch (Throwable cleanupFailure) {
+				if (cleanupFailure != failure) failure.addSuppressed(cleanupFailure);
+			}
+			throw failure;
+		}
+	}
+	private PendingEventBatch commitDetachedEventBatch(com.microproject.transaction.ProjectMutationState.Scope mutation,
 		boolean changed) {
 		PendingEventBatch detached = detachEventBatch(true);
 		com.microproject.document.ObjectEventManager.PendingBatch objectEvents = detached.objectEvents();
