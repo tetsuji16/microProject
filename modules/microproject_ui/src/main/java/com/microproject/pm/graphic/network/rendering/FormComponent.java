@@ -134,7 +134,7 @@ public class FormComponent extends JPanel{
 				
 				fieldComponents.put(box.getFieldId(),component);
 			}
-			component.setForeground(getForeground());
+			component.setForeground(component instanceof JTextField ? FlatUiSupport.tableForeground() : getForeground());
 			Font font = NetworkFormFontResolver.resolve(formBoxLayout, box.getFont());
 			if (font!=null) component.setFont(font);
 			builder.add(component,(box.getAlignment()==null)?

@@ -5,7 +5,8 @@ param(
   [ValidateSet('ja', 'en')]
   [string]$Locale = 'ja',
   [ValidateSet('1.0', '1.25', '1.5')]
-  [string]$Scale = '1.0'
+  [string]$Scale = '1.0',
+  [switch]$StableReleaseGate
 )
 
 $ErrorActionPreference = 'Stop'
@@ -68,7 +69,7 @@ function Save-GuiFailureScreenshot([string]$label) {
   }
 }
 
-function Minimize-HostedRunnerConsole([switch]$Quiet) {
+function Minimize-HostedRunnerConsole {
   if (-not ('MicroProject.GuiTestDesktop' -as [type])) {
     Add-Type -TypeDefinition @'
 using System;
@@ -96,10 +97,8 @@ namespace MicroProject {
     if (-not [MicroProject.GuiTestDesktop]::IsIconic($foreground)) {
       throw "Could not minimize the known hosted-runner console before GUI tests: $windowTitle"
     }
-    if (-not $Quiet) {
-      Write-Host "Minimized the hosted-runner console before GUI gate: $windowTitle"
-    }
-  } elseif (-not $Quiet) {
+    Write-Host "Minimized the hosted-runner console before GUI gate: $windowTitle"
+  } else {
     Write-Host "Foreground window before GUI gate: $windowTitle"
   }
 }
@@ -140,16 +139,7 @@ function Invoke-GuiGate([string]$label, [string[]]$arguments, [int]$timeoutSecon
     -PassThru -RedirectStandardOutput $stdout `
     -RedirectStandardError $stderr -WindowStyle Hidden
   $timer = [System.Diagnostics.Stopwatch]::StartNew()
-  $deadline = [Diagnostics.Stopwatch]::StartNew()
-  $processExited = $false
-  while ($deadline.Elapsed.TotalSeconds -lt $timeoutSeconds) {
-    if ($script:isGitHubActions) { Minimize-HostedRunnerConsole -Quiet }
-    if ($process.WaitForExit(1000)) {
-      $processExited = $true
-      break
-    }
-  }
-  if (-not $processExited) {
+  if (-not $process.WaitForExit($timeoutSeconds * 1000)) {
     $timer.Stop()
     taskkill.exe /PID $process.Id /T /F | Out-Null
     Save-GuiFailureScreenshot $label
@@ -259,8 +249,8 @@ function Invoke-GuiGate([string]$label, [string[]]$arguments, [int]$timeoutSecon
   }
 }
 
-# Stable-candidate PRs use these visual acceptance selectors at 100% and in
-# each locale/scale leg. Full ja/100% remains the complete functional suite.
+# Stable-candidate releases use these visual acceptance selectors at 100%.
+# Full ja/100% remains the complete functional suite.
 $visualClasses = @(
   'com.microproject.dialog.ProjectDialogGuiAcceptanceTest',
   'com.microproject.dialog.calendar.ChangeWorkingTimeDialogGuiAcceptanceTest',
@@ -358,27 +348,39 @@ try {
   }
 
   if ($Suite -in @('full', 'visual')) {
-    Write-Host 'GUI acceptance Step 2/2: run the visual matrix after the 100% suite passed.'
-    foreach ($locale in @('ja', 'en')) {
-      # Step 1 already ran the Japanese 100% baseline for either the full suite
-      # or these selected visual classes. Test English 100% plus both locales
-      # at higher scales without repeating the Japanese baseline.
-      $scales = if ($locale -eq 'ja') { @('1.25', '1.5') } else { @('1.0', '1.25', '1.5') }
-      foreach ($scale in $scales) {
-        Write-Host "GUI visual gate: locale=$locale scale=$scale"
-        $gradleArgs = @(
-          ':microproject_ui:guiTest', '--max-workers=1', '--console=plain',
-          "-PguiTestLocale=$locale", "-PguiTestUiScale=$scale"
-        )
-        foreach ($testClass in $visualTests) { $gradleArgs += @('--tests', $testClass) }
-        try {
-          Invoke-GuiGate "visual-$locale-$scale" $gradleArgs 1200
-        } catch {
-          if ($_.Exception.Message -match 'GUI_ENVIRONMENT_CONTENDED|GUI_ENVIRONMENT_MONITOR_UNAVAILABLE') {
-            throw "Full GUI matrix stopped at $locale/$scale because the desktop session became unusable: $($_.Exception.Message)"
+    if ($StableReleaseGate) {
+      Write-Host 'GUI acceptance Step 2/2: run the English 100% visual leg after the Japanese 100% suite passed.'
+      $locale = 'en'
+      $scale = '1.0'
+      Write-Host "GUI visual gate: locale=$locale scale=$scale"
+      $gradleArgs = @(
+        ':microproject_ui:guiTest', '--max-workers=1', '--console=plain',
+        "-PguiTestLocale=$locale", "-PguiTestUiScale=$scale"
+      )
+      foreach ($testClass in $visualTests) { $gradleArgs += @('--tests', $testClass) }
+      Invoke-GuiGate "visual-$locale-$scale" $gradleArgs 1200
+    } else {
+      Write-Host 'GUI acceptance Step 2/2: run the broader visual matrix after the 100% suite passed.'
+      foreach ($locale in @('ja', 'en')) {
+        # Step 1 already ran the Japanese 100% baseline. Run the remaining
+        # visual legs without repeating that baseline.
+        $scales = if ($locale -eq 'ja') { @('1.25', '1.5') } else { @('1.0', '1.25', '1.5') }
+        foreach ($scale in $scales) {
+          Write-Host "GUI visual gate: locale=$locale scale=$scale"
+          $gradleArgs = @(
+            ':microproject_ui:guiTest', '--max-workers=1', '--console=plain',
+            "-PguiTestLocale=$locale", "-PguiTestUiScale=$scale"
+          )
+          foreach ($testClass in $visualTests) { $gradleArgs += @('--tests', $testClass) }
+          try {
+            Invoke-GuiGate "visual-$locale-$scale" $gradleArgs 1200
+          } catch {
+            if ($_.Exception.Message -match 'GUI_ENVIRONMENT_CONTENDED|GUI_ENVIRONMENT_MONITOR_UNAVAILABLE') {
+              throw "Full GUI audit stopped at $locale/$scale because the desktop session became unusable: $($_.Exception.Message)"
+            }
+            $gateFailures.Add($_.Exception.Message)
+            Write-Warning "Continuing GUI audit after visual gate failure: $($_.Exception.Message)"
           }
-          $gateFailures.Add($_.Exception.Message)
-          Write-Warning "Continuing GUI audit after visual gate failure: $($_.Exception.Message)"
         }
       }
     }
