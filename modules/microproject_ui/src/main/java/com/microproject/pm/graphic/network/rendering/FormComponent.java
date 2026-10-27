@@ -128,6 +128,8 @@ public class FormComponent extends JPanel{
 			}
 			Font font = NetworkFormFontResolver.resolve(formBoxLayout, box.getFont());
 			if (font!=null) component.setFont(font);
+			component.setForeground(component instanceof JTextField
+				? FlatUiSupport.tableForeground() : MicroProjectTheme.tokens().labelForeground());
 			builder.add(component,(box.getAlignment()==null)?
 					cc.xywh(box.getColumn(),box.getRow(),box.getColumnSpan(),box.getRowSpan()):
 					cc.xywh(box.getColumn(),box.getRow(),box.getColumnSpan(),box.getRowSpan(),box.getAlignment()));

@@ -25,6 +25,21 @@ product limitation; `UNASSESSED` means the row still needs source/code review;
 `EXCLUDED` means an explicit scope decision. These statuses describe each
 row's current evidence, not completion of #794, #796, or the overall goal.
 
+Owner references to roadmap gates #792–#797 are historical: those gates were
+closed on 2026-10-23/25 against their frozen bounded scopes. They do not mean
+a remaining `PARTIAL`, `MISSING` or `UNASSESSED` row is finished. Until a row
+is re-owned individually, track its remaining work here:
+
+- Report and Timeline contextual formatting: #942.
+- Task > Clipboard > Format Painter: #941.
+- Ribbon and QAT customization: #770.
+- Ribbon visual fidelity: #765.
+- CCPM rows: specification #453; implementation tracked by #769.
+- All other ribbon command rows: #769.
+- File-format rows owned by #796: closed bounded contracts. A new gap needs
+  its own issue.
+
+
 For Microsoft-published support pages, the applicability entry below records
 the Project editions listed in the page's current “Applies to” metadata.
 Publication/build dates are recorded as unstated when the page does not give
