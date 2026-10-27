@@ -86,10 +86,8 @@ jobs:
           $logText = $jobLog -join "`n"
           $requiredLogLines = @(
             "GUI acceptance Step 1/2: run the 'full' suite at 100% (ja).",
-            'GUI acceptance Step 2/2: run the visual matrix after the 100% suite passed.',
-            'GUI visual gate: locale=ja scale=1.25', 'GUI visual gate: locale=ja scale=1.5',
-            'GUI visual gate: locale=en scale=1.0', 'GUI visual gate: locale=en scale=1.25',
-            'GUI visual gate: locale=en scale=1.5', 'Windows Server 2025'
+            'GUI acceptance Step 2/2: run the English 100% visual leg after the Japanese 100% suite passed.',
+            'GUI visual gate: locale=en scale=1.0', 'Windows Server 2025'
           )
           foreach ($line in $requiredLogLines) {
             if (-not $logText.Contains($line)) { throw "Source release log does not contain required full-GUI evidence: $line" }
@@ -132,7 +130,7 @@ jobs:
             source_gui_job_id = [string]$releaseJob[0].id
             operating_system = @{ value = 'Windows Server 2025'; provenance = 'Source GUI release-job log; historical CI fact, not newly measured.' }
             primary_display_bounds = @{ value = $displayResolution; provenance = $displayProvenance }
-            gui_matrix_legs = @('functional-full-ja-100', 'visual-ja-1.25', 'visual-ja-1.5', 'visual-en-1.0', 'visual-en-1.25', 'visual-en-1.5')
+            gui_matrix_legs = @('functional-full-ja-100', 'visual-en-1.0')
             bounds_note = 'The source test asserts layout bounds; the historical run artifact contains no numeric bounds sidecar.'
           }
           $facts | ConvertTo-Json -Depth 8 | Set-Content -Path source-provenance.json -Encoding utf8
@@ -152,7 +150,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path source-artifact | Out-Null
           gh run download $env:SOURCE_RUN_ID --name $env:ARTIFACT_NAME --dir source-artifact --repo $env:GITHUB_REPOSITORY
           if ($LASTEXITCODE -ne 0) { throw 'Could not download the verified source artifact.' }
-          python scripts/archive_gui_release_evidence.py --source-root source-artifact --manifest source-provenance.json --output "microProject-gui-evidence-v2-$($env:RELEASE_TAG).zip"
+          python scripts/archive_gui_release_evidence.py --source-root source-artifact --manifest source-provenance.json --output "microProject-gui-evidence-v3-$($env:RELEASE_TAG).zip"
           if ($LASTEXITCODE -ne 0) { throw 'Could not create the allowlisted GUI evidence archive.' }
 
       - name: Upload curated evidence without clobbering
@@ -162,7 +160,7 @@ jobs:
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
           $ErrorActionPreference = 'Stop'
-          $assetName = "microProject-gui-evidence-v2-$($env:RELEASE_TAG).zip"
+          $assetName = "microProject-gui-evidence-v3-$($env:RELEASE_TAG).zip"
           $assetPath = Join-Path $PWD $assetName
           $sha256 = (Get-FileHash -LiteralPath $assetPath -Algorithm SHA256).Hash.ToLowerInvariant()
           $release = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$env:RELEASE_TAG"

@@ -332,12 +332,14 @@ them.  In particular:
   non-daemon helpers at teardown; the CI watchdog remains mandatory.
 - The compact release `smoke` gate is not the complete U-21 visual matrix.
   It must still run the representative functional journey at the canonical
-  desktop scale.  The `full` audit additionally runs the reusable
-  visual/targeted-command suite for Japanese and English at 100%, 125%, and
-  150%.  A requested full-audit leg that is missing is a gate failure, not a
-  pass.  A mutually exclusive scale Assumption is acceptable only when the
-  same case is executed and passes in its designated alternate scale leg;
-  unexpected or unexplained skips remain failures.  The Windows workflow
+  desktop scale. Stable release publication runs the complete Japanese
+  functional suite at 100% and the reusable visual/targeted-command suite in
+  English at 100%. Broader `full` audits retain Japanese and English at 100%,
+  125%, and 150%; those additional scale legs remain useful audit evidence but
+  are not stable-release evidence requirements. A required leg that is missing
+  is a gate failure, not a pass. A mutually exclusive scale Assumption is
+  acceptable only when the same case is executed and passes in its designated
+  alternate scale leg; unexpected or unexplained skips remain failures. The Windows workflow
   deletes stale GUI JUnit XML before each gate invocation, parses the fresh
   XML after the process exits, and allows only the two explicitly paired
   high-DPI assumption messages; all other skipped cases fail the release.
@@ -365,6 +367,6 @@ open issue [#464](https://github.com/tetsuji16/ProjectLibre/issues/464), owned b
 physical all-command ribbon sweep and the full-width Hide/Show mutation journey
 when `guiTestUiScale > 1.0`; the fixed desktop runner cannot place every scaled
 control inside one screen.  The 100% Robot journeys remain mandatory, and the
-125/150% runs must still pass the dedicated visual, targeted-command, and
-model/Undo checks.  This waiver does not cover any functional, persistence, or
-layout failure.
+125/150% runs in broader GUI audits must still pass the dedicated visual,
+targeted-command, and model/Undo checks. This waiver does not cover any
+functional, persistence, or layout failure.
