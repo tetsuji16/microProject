@@ -54,8 +54,14 @@ import com.microproject.graphic.configuration.BarStyles;
 import com.microproject.graphic.configuration.GraphicConfiguration;
 import com.microproject.graphic.configuration.TexturedShape;
 import com.microproject.pm.dependency.Dependency;
+import com.microproject.ui.theme.MicroProjectTheme;
+import com.microproject.ui.theme.MicroProjectThemeTokens;
 
 public abstract class NetworkRenderer extends GraphRenderer{
+	// Visual Studio's Fluent SystemFillSolidNeutral dark value; this is a product-theme choice, not an MSP-prescribed value.
+	// https://learn.microsoft.com/visualstudio/extensibility/ux-guidelines/theme-color-token-reference
+	private static final Color DARK_NEUTRAL_CONNECTOR_COLOR = new Color(0x8A8A8A);
+	private final DarkLinkArrowShapeCache darkLinkArrowShapeCache = new DarkLinkArrowShapeCache();
 	protected LinkRenderer linkRenderer;
 	protected NetworkCellRenderer renderer;
 	protected NetworkCellEditor editor;
@@ -141,6 +147,8 @@ public abstract class NetworkRenderer extends GraphRenderer{
 					g2.setStroke(GraphRenderer.DISABLED_LINK_STROKE);
 				if (dep != null && dep.isCrossProject())
 					g2.setColor(GraphRenderer.EXTERNAL_LINK_COLOR);
+				else if (isDefaultDarkLink(format))
+					g2.setColor(defaultDarkLinkColor());
 				else
 					g2.setColor(format.getMiddle().getColor());
 				g2.draw(path);
@@ -167,9 +175,31 @@ public abstract class NetworkRenderer extends GraphRenderer{
 				shape.setPaint(GraphRenderer.EXTERNAL_LINK_COLOR);
 			g2.setColor(shape.getColor());
 			LinkRouting routing=getRouting();
-			shape.draw(g2,x,y,transform,useTextures());
+			TexturedShape drawShape = shape;
+			if (isDefaultDarkLink(format) && (dep == null || !dep.isCrossProject())) {
+				drawShape = darkLinkArrowShapeCache.resolve(shape, defaultDarkLinkColor());
+				g2.setColor(defaultDarkLinkColor());
+			}
+			drawShape.draw(g2,x,y,transform,useTextures());
 			if (dep != null && dep.isCrossProject())
 				shape.setPaint(oldEndColor);
+		}
+
+		private boolean isDefaultDarkLink(BarFormat format) {
+			if (format == null || !"Link.link1".equals(format.getId()) || format.getStart() != null
+				|| format.getEnd() == null || format.getMiddle() == null
+				|| !MicroProjectTheme.tokens().appBackground().equals(MicroProjectThemeTokens.dark().appBackground())) return false;
+			TexturedShape line = format.getMiddle();
+			TexturedShape arrow = format.getEnd();
+			return "DARK_SLATE_GRAY".equals(line.getColorName()) && "SOLID".equals(line.getPaintName())
+				&& "SOLID".equals(line.getStrokeName()) && line.getShapeName() == null
+				&& "LINK_ARROW1".equals(arrow.getShapeName()) && "DARK_SLATE_GRAY".equals(arrow.getColorName())
+				&& "SOLID".equals(arrow.getPaintName()) && "SOLID".equals(arrow.getStrokeName())
+				&& arrow.getShapeScaleX() == 10d && arrow.getShapeScaleY() == 5d;
+		}
+
+		private Color defaultDarkLinkColor() {
+			return DARK_NEUTRAL_CONNECTOR_COLOR;
 		}
 
 	}

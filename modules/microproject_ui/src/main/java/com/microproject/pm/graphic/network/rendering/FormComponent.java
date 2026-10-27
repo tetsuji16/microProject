@@ -30,10 +30,14 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Paint;
+import java.awt.TexturePaint;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.Map;
+import java.awt.image.BufferedImage;
 
 import javax.swing.JComponent;
 import javax.swing.JLabel;
@@ -50,6 +54,7 @@ import com.microproject.configuration.Configuration;
 import com.microproject.field.Field;
 import com.microproject.field.FieldConverter;
 import com.microproject.graphic.configuration.BarFormat;
+import com.microproject.graphic.configuration.TexturedShape;
 import com.microproject.graphic.configuration.FormBox;
 import com.microproject.graphic.configuration.FormBoxLayout;
 import com.microproject.graphic.configuration.FormFormat;
@@ -57,6 +62,7 @@ import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.strings.Messages;
 import com.microproject.ui.theme.MicroProjectTheme;
+import com.microproject.ui.theme.MicroProjectThemeTokens;
 import com.microproject.util.Alert;
 import com.microproject.util.FlatUiSupport;
 
@@ -68,6 +74,8 @@ public class FormComponent extends JPanel{
 	protected boolean editor;
 	protected int zoom;
 	protected boolean texture=true;
+	private final Map<TexturedShape, RepresentativeFill> representativeFillCache = new IdentityHashMap<>();
+	private final Map<TexturedShape, ThemedShape> themedShapeCache = new IdentityHashMap<>();
 	
 	
 	public FormComponent(List<BarFormat> selectedFormats,int zoom,boolean editor,boolean texture){
@@ -77,13 +85,13 @@ public class FormComponent extends JPanel{
 		this.editor=editor;
 		this.zoom=zoom;
 		this.texture=texture;
+		setForeground(editor ? FlatUiSupport.tableForeground() : barTextForeground(selectedFormats));
+		setBackground(FlatUiSupport.panelBackground());
 		BarFormat format;
 		if (selectedFormats==null||selectedFormats.size()==0) format=null;
 		else format=(BarFormat)selectedFormats.get(0);
 		init(format);
 		setOpaque(false);
-		setForeground(FlatUiSupport.tableForeground());
-		setBackground(FlatUiSupport.panelBackground());
 	}
 	
 	
@@ -113,7 +121,7 @@ public class FormComponent extends JPanel{
 		for (FormBox box : boxes){
 			if (zoom<box.getMinZoom()) return;
 			JComponent component;
-			if(box.getFieldId()==null) { component=new JLabel(Messages.getString(box.getTextId())); component.setForeground(MicroProjectTheme.tokens().labelForeground()); }
+			if(box.getFieldId()==null) component=new JLabel(Messages.getString(box.getTextId()));
 			else{
 				if (editor&&!box.getField().isReadOnly()){
 					component=new ChangeAwareTextField();
@@ -126,12 +134,102 @@ public class FormComponent extends JPanel{
 				
 				fieldComponents.put(box.getFieldId(),component);
 			}
+			component.setForeground(getForeground());
 			Font font = NetworkFormFontResolver.resolve(formBoxLayout, box.getFont());
 			if (font!=null) component.setFont(font);
 			builder.add(component,(box.getAlignment()==null)?
 					cc.xywh(box.getColumn(),box.getRow(),box.getColumnSpan(),box.getRowSpan()):
 					cc.xywh(box.getColumn(),box.getRow(),box.getColumnSpan(),box.getRowSpan(),box.getAlignment()));
 		}
+	}
+
+	private Color barTextForeground(List<BarFormat> formats) {
+		if (MicroProjectTheme.tokens().appBackground().equals(MicroProjectThemeTokens.light().appBackground()))
+			return MicroProjectTheme.tokens().labelForeground();
+		if (formats != null && formats.stream().anyMatch(FormComponent::isDefaultDarkSurfaceFormat))
+			return MicroProjectTheme.tokens().labelForeground();
+		if (formats != null) {
+			for (BarFormat format : formats) {
+				TexturedShape shape = format.getMiddle();
+				if (shape == null) shape = format.getStart();
+				if (shape == null) shape = format.getEnd();
+				Color background = representativeFill(shape);
+				if (background != null) {
+					Color darkForeground = new Color(0x202226);
+					Color lightForeground = MicroProjectTheme.tokens().labelForeground();
+					return contrastRatio(darkForeground, background) >= contrastRatio(lightForeground, background)
+						? darkForeground : lightForeground;
+				}
+			}
+		}
+		return MicroProjectTheme.tokens().labelForeground();
+	}
+
+	private Color representativeFill(TexturedShape shape) {
+		if (shape == null) return null;
+		Paint paint = shape.getPaint();
+		RepresentativeFill cached = representativeFillCache.get(shape);
+		if (cached != null && cached.paint == paint) return cached.color;
+		Color color = computeRepresentativeFill(shape, paint);
+		if (color != null) representativeFillCache.put(shape, new RepresentativeFill(paint, color));
+		return color;
+	}
+
+	private Color computeRepresentativeFill(TexturedShape shape, Paint paint) {
+		if (paint instanceof TexturePaint texturePaint) {
+			BufferedImage image = texturePaint.getImage();
+			if (texture) {
+				Map<Integer, Integer> colorCounts = new HashMap<>();
+				int dominantColor = 0;
+				int highestCount = 0;
+				for (int x = 0; x < image.getWidth(); x++) {
+					for (int y = 0; y < image.getHeight(); y++) {
+						int rgb = image.getRGB(x, y) & 0x00ffffff;
+						int count = colorCounts.merge(rgb, 1, Integer::sum);
+						if (count > highestCount) {
+							dominantColor = rgb;
+							highestCount = count;
+						}
+					}
+				}
+				return new Color(dominantColor);
+			}
+			long red = 0;
+			long green = 0;
+			long blue = 0;
+			int pixels = image.getWidth() * image.getHeight();
+			for (int x = 0; x < image.getWidth(); x++) {
+				for (int y = 0; y < image.getHeight(); y++) {
+					int rgb = image.getRGB(x, y);
+					red += (rgb >>> 16) & 0xff;
+					green += (rgb >>> 8) & 0xff;
+					blue += rgb & 0xff;
+				}
+			}
+			return new Color((int) (red / pixels), (int) (green / pixels), (int) (blue / pixels));
+		}
+		if (paint instanceof Color color) return color;
+		return shape.getColor();
+	}
+
+	private record RepresentativeFill(Paint paint, Color color) {}
+
+	private static double contrastRatio(Color foreground, Color background) {
+		double foregroundLuminance = relativeLuminance(foreground);
+		double backgroundLuminance = relativeLuminance(background);
+		double lighter = Math.max(foregroundLuminance, backgroundLuminance);
+		double darker = Math.min(foregroundLuminance, backgroundLuminance);
+		return (lighter + 0.05d) / (darker + 0.05d);
+	}
+
+	private static double relativeLuminance(Color color) {
+		return 0.2126d * linearize(color.getRed() / 255d)
+			+ 0.7152d * linearize(color.getGreen() / 255d)
+			+ 0.0722d * linearize(color.getBlue() / 255d);
+	}
+
+	private static double linearize(double channel) {
+		return channel <= 0.04045d ? channel / 12.92d : Math.pow((channel + 0.055d) / 1.055d, 2.4d);
 	}
 	
 	
@@ -188,19 +286,19 @@ public class FormComponent extends JPanel{
 
 	void paintSelectedBars(Graphics2D g2, double width, double height){
 		for (BarFormat format : selectedFormats){
-			if (format.getMiddle()!=null) format.getMiddle().draw(g2,
+			if (format.getMiddle()!=null) drawFormatShape(g2, format, format.getMiddle(),
 					width,
 					height,
 					0,
 					+height/2,
 					texture);
-			if (format.getStart()!=null) format.getStart().draw(g2,
+			if (format.getStart()!=null) drawFormatShape(g2, format, format.getStart(),
 					width,
 					height,
 					0,
 					+height/2,
 					texture);
-			if (format.getEnd()!=null) format.getEnd().draw(g2,
+			if (format.getEnd()!=null) drawFormatShape(g2, format, format.getEnd(),
 					width,
 					height,
 					0,
@@ -209,6 +307,72 @@ public class FormComponent extends JPanel{
 		}
 		
 	}
+
+	private static boolean isDefaultDarkSurfaceFormat(BarFormat format) {
+		if (format == null || !MicroProjectTheme.tokens().appBackground().equals(MicroProjectThemeTokens.dark().appBackground())) return false;
+		String id = format.getId();
+		if (id == null) return false;
+		TexturedShape shape = format.getMiddle();
+		if (shape == null || !defaultShapeName(id).equals(shape.getShapeName())
+			|| !"LARGE_FRAMED".equals(shape.getStrokeName())) return false;
+		return switch (id) {
+			case "Pert.task" -> "BLUE".equals(shape.getColorName()) && "VERY_SPACED_DOTS".equals(shape.getPaintName());
+			case "Pert.critical" -> "RED".equals(shape.getColorName()) && "VERY_SPACED_DOTS".equals(shape.getPaintName());
+			case "Pert.milestone", "Pert.summary", "WBS.task", "WBS.milestone", "WBS.summary", "RBS.resource", "RBS.summary" ->
+				"BLACK".equals(shape.getColorName()) && "TRANSPARENT".equals(shape.getPaintName());
+			default -> false;
+		};
+	}
+
+	private static String defaultShapeName(String id) {
+		return switch (id) {
+			case "WBS.task", "RBS.resource" -> "FULL_HEIGHT";
+			case "WBS.milestone" -> "HEXAGON";
+			case "WBS.summary", "RBS.summary", "Pert.summary" -> "PARALLELOGRAM";
+			case "Pert.task", "Pert.critical" -> "FULL_HEIGHT";
+			case "Pert.milestone" -> "HEXAGON";
+			default -> "";
+		};
+	}
+
+	private void drawFormatShape(Graphics2D g2, BarFormat format, TexturedShape shape,
+		double width, double height, double x, double y, boolean useTexture) {
+		if (!isDefaultDarkSurfaceFormat(format)) {
+			shape.draw(g2, width, height, x, y, useTexture);
+			return;
+		}
+		themedShape(format, shape).draw(g2, width, height, x, y, useTexture);
+	}
+
+	private TexturedShape themedShape(BarFormat format, TexturedShape shape) {
+		Color surface = MicroProjectTheme.tokens().spreadsheetBodyBackground();
+		Color accent = format.getId().equals("Pert.critical") ? MicroProjectTheme.tokens().errorColor()
+			: format.getId().equals("Pert.task") ? MicroProjectTheme.tokens().accentColor() : MicroProjectTheme.tokens().borderColor();
+		Paint sourcePaint = shape.getPaint();
+		ThemedShape cached = themedShapeCache.get(shape);
+		if (cached != null && cached.sourcePaint == sourcePaint && cached.surface.equals(surface) && cached.accent.equals(accent))
+			return cached.shape;
+		TexturedShape themed = new TexturedShape();
+		themed.setShape(shape.getShape());
+		themed.setPaint(surface);
+		themed.setColor(accent);
+		themed.setStroke(com.microproject.graphic.configuration.shape.PredefinedStroke.find("FRAMED"));
+		if (sourcePaint instanceof TexturePaint source && !"TRANSPARENT".equals(shape.getPaintName())) {
+			BufferedImage original = source.getImage();
+			BufferedImage darkPattern = new BufferedImage(original.getWidth(), original.getHeight(), BufferedImage.TYPE_INT_ARGB);
+			for (int px = 0; px < original.getWidth(); px++) for (int py = 0; py < original.getHeight(); py++) {
+				int rgb = original.getRGB(px, py);
+				darkPattern.setRGB(px, py, (rgb & 0x00ffffff) == 0x00ffffff ? surface.getRGB() : rgb);
+			}
+			themed.setPaint(new TexturePaint(darkPattern, source.getAnchorRect()));
+		}
+		themed.setShapeScaleX(shape.getShapeScaleX());
+		themed.setShapeScaleY(shape.getShapeScaleY());
+		themedShapeCache.put(shape, new ThemedShape(sourcePaint, surface, accent, themed));
+		return themed;
+	}
+
+	private record ThemedShape(Paint sourcePaint, Color surface, Color accent, TexturedShape shape) {}
 	
 	
 	
@@ -217,6 +381,9 @@ public class FormComponent extends JPanel{
 		if (cell.getNode().isVoid()) return;*/
 		
 		Graphics2D g2=(Graphics2D)g;
+		Color textForeground = editor ? FlatUiSupport.tableForeground() : barTextForeground(selectedFormats);
+		setForeground(textForeground);
+		for (Component component : getComponents()) component.setForeground(textForeground);
 		Dimension d=getSize();
 		double w=d.getWidth();
 		double h=d.getHeight();

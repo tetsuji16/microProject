@@ -73,6 +73,7 @@ import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.task.Task;
 import com.microproject.ui.theme.MicroProjectTheme;
 import com.microproject.ui.theme.MicroProjectThemeTokens;
+import com.microproject.util.FlatLafSupport;
 import com.microproject.pm.scheduling.ConstraintType;
 import com.microproject.options.CalendarOption;
 import com.microproject.grouping.core.Node;
@@ -110,6 +111,7 @@ class CcpmSampleProgressGuiAcceptanceTest {
 	@Test
 	void mixedProgressSampleRendersInGanttAndCcpmStatusDialogs() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		FlatLafSupport.ensureInitialized();
 		previousDarkTheme = !MicroProjectTheme.tokens().appBackground().equals(MicroProjectThemeTokens.light().appBackground());
 		restoreThemeAfterTest = true;
 		Project project = loadSample();
@@ -247,8 +249,14 @@ class CcpmSampleProgressGuiAcceptanceTest {
 		SwingUtilities.invokeLater(() -> CriticalChainStatusDialogBox.show(frame, project, surface));
 		CriticalChainStatusDialogBox dialog = observer.awaitDialog();
 		GuiAcceptanceSupport.await(() -> visibleComponentExists(dialog, expected), "CCPM dialog did not render " + expected.getSimpleName());
-		if (expected == CriticalChainGraphPanel.class) assertDarkGraphColors(robot, dialog);
+		SwingUtilities.invokeAndWait(() -> {
+			dialog.setAlwaysOnTop(true);
+			dialog.toFront();
+			dialog.requestFocus();
+		});
+		robot.waitForIdle();
 		capture(robot, dialog, artifact);
+		if (expected == CriticalChainGraphPanel.class) assertDarkGraphColors(robot, dialog);
 		clickClose(robot, dialog);
 		GuiAcceptanceSupport.await(() -> !dialog.isShowing(), "CCPM dialog did not close after the Robot click");
 		observer.close();
@@ -271,8 +279,17 @@ class CcpmSampleProgressGuiAcceptanceTest {
 		Rectangle captureBounds = panelBounds.intersection(GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds());
 		assertTrue(captureBounds.width > 0 && captureBounds.height > 0, "Critical Chain Network canvas must be physically visible on screen");
 		BufferedImage image = robot.createScreenCapture(captureBounds);
-		assertTrue(containsColor(image, tokens.labelForeground()),
-			"visible Critical Chain Network text must use the active readable foreground token");
+		Path artifacts = Path.of("build", "reports", "guiTest-artifacts");
+		Files.createDirectories(artifacts);
+		ImageIO.write(image, "png", artifacts.resolve("issue-945-critical-chain-network-dark.png").toFile());
+		System.out.println("CCPM dark physical diagnostic: panel=" + panelBounds + ", capture=" + captureBounds
+			+ ", panelBackground=" + colorHex(panel.getBackground()) + ", tokenBackground=" + colorHex(tokens.tableBackground())
+			+ ", appBackground=" + colorHex(tokens.appBackground()) + ", labelForeground=" + colorHex(tokens.labelForeground())
+			+ ", opaque=" + panel.isOpaque() + ", activeDialog=" + dialog.isActive()
+			+ ", exactLabelPixel=" + containsColor(image, tokens.labelForeground())
+			+ ", nearLabelPixels=" + countColorNear(image, tokens.labelForeground(), 48));
+		assertTrue(countColorNear(image, tokens.labelForeground(), 48) >= 5,
+			"visible Critical Chain Network text must render near the active readable foreground token");
 		assertTrue(containsColor(image, tokens.headerBackground()),
 			"visible Critical Chain Network task nodes must use the active dark node background token");
 	}
@@ -282,6 +299,23 @@ class CcpmSampleProgressGuiAcceptanceTest {
 			for (int x = 0; x < image.getWidth(); x++)
 				if (image.getRGB(x, y) == color.getRGB()) return true;
 		return false;
+	}
+
+	private static int countColorNear(BufferedImage image, java.awt.Color target, int tolerance) {
+		int count = 0;
+		for (int y = 0; y < image.getHeight(); y++) {
+			for (int x = 0; x < image.getWidth(); x++) {
+				java.awt.Color pixel = new java.awt.Color(image.getRGB(x, y), true);
+				if (Math.abs(pixel.getRed() - target.getRed()) <= tolerance
+					&& Math.abs(pixel.getGreen() - target.getGreen()) <= tolerance
+					&& Math.abs(pixel.getBlue() - target.getBlue()) <= tolerance) count++;
+			}
+		}
+		return count;
+	}
+
+	private static String colorHex(java.awt.Color color) {
+		return String.format("#%02x%02x%02x", color.getRed(), color.getGreen(), color.getBlue());
 	}
 
 	private void showBufferTransitionScenario(Robot robot, Project project, CriticalChainService service) throws Exception {

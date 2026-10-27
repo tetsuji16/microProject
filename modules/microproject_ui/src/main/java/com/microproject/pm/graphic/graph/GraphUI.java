@@ -39,6 +39,7 @@ import javax.swing.plaf.ComponentUI;
 import com.microproject.pm.graphic.model.cache.GraphicDependency;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.graphic.configuration.GraphicConfiguration;
+import com.microproject.util.FlatUiSupport;
 
 /**
  *
@@ -138,6 +139,7 @@ public class GraphUI extends ComponentUI implements Serializable {
     	graphRenderer.updateShapes();
     }
     public void update(Graphics g, JComponent c) {
+		if (c != null) FlatUiSupport.applyDataSurface(c);
     	if (c != null && c.isOpaque()) {
     		Color oldColor = g.getColor();
     		g.setColor(c.getBackground());

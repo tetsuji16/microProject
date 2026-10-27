@@ -72,17 +72,25 @@ public class TexturedShape {
 		this.shapeName = shapeName;
 	}
 
+	public String getShapeName() { return shapeName; }
+
 	public void setColorName(String colorName) {
 		this.colorName = colorName;
 	}
+
+	public String getColorName() { return colorName; }
 
 	public void setStrokeName(String strokeName) {
 		this.strokeName = strokeName;
 	}
 
+	public String getStrokeName() { return strokeName; }
+
 	public void setPaintName(String paintName) {
 		this.paintName = paintName;
 	}
+
+	public String getPaintName() { return paintName; }
 
 	public Color getColor() {
 		return color;
