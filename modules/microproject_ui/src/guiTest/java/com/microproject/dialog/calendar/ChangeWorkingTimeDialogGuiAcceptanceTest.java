@@ -22,6 +22,8 @@ import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.io.File;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.awt.image.BufferedImage;
 import java.awt.Graphics2D;
 import java.nio.file.Path;
@@ -71,6 +73,7 @@ import com.microproject.testsupport.DialogScreenshotArtifacts;
 import com.microproject.testsupport.WindowAcceptanceAssertions;
 import com.microproject.strings.Messages;
 import com.microproject.exchange.LocalFileImporter;
+import com.microproject.exchange.MpoFileImporter;
 import com.microproject.pm.task.ProjectFactory;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.SwingFileChooserProvider;
@@ -839,6 +842,12 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 		assertTrue(dialog.isCalendarCommitted(), "OK must commit calendar changes");
 		DayDescriptor changed = CalendarService.getInstance().getDay(calendar, selectedDate);
 		assertFalse(changed.isWorking(), "Selected displayed date must be persisted as non-working");
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		MpoFileImporter mpo = new MpoFileImporter();
+		assertTrue(mpo.saveProject(project, saved), "MPO save rejected the edited working calendar");
+		Project restored = mpo.loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		assertFalse(CalendarService.getInstance().getDay((WorkingCalendar) restored.getWorkCalendar(), selectedDate).isWorking(),
+			"MPO reload must preserve the selected Gregorian date's non-working exception");
 	}
 
 	@Test
