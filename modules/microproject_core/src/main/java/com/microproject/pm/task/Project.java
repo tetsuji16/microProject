@@ -350,10 +350,17 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 			throw typedFailure;
 		}
 		boolean hasFacts = pendingEventCount() > initialPendingEvents;
-		if (hasFacts) result = resultWhenEventsWereEmitted.apply(result);
-		boolean changed = changedResult.test(result) || hasFacts;
-		if (changed && !hasFacts)
-			fireScheduleChanged(this, com.microproject.pm.scheduling.ScheduleEvent.SCHEDULE);
+		boolean changed;
+		try {
+			if (hasFacts) result = resultWhenEventsWereEmitted.apply(result);
+			changed = changedResult.test(result) || hasFacts;
+			if (changed && !hasFacts)
+				fireScheduleChanged(this, com.microproject.pm.scheduling.ScheduleEvent.SCHEDULE);
+		} catch (RuntimeException | Error failure) {
+			// The operation already ran; publish its facts and release the barrier.
+			finishModelCommandFailure(mutation, initialPendingEvents, true, failure);
+			throw failure;
+		}
 		pending = commitEventBatch(mutation, changed);
 		publishEventBatch(pending);
 		return result;
@@ -1671,6 +1678,19 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	}
 	/** Atomically detaches notifications and commits the revision before releasing the mutation barrier. */
 	public PendingEventBatch commitEventBatch(com.microproject.transaction.ProjectMutationState.Scope mutation,
+		boolean changed) {
+		try {
+			return commitEventBatchInternal(mutation, changed);
+		} catch (RuntimeException | Error failure) {
+			// A failed commit must not retain the process-wide mutation barrier.
+			try { mutation.close(); }
+			catch (Throwable cleanupFailure) {
+				if (cleanupFailure != failure) failure.addSuppressed(cleanupFailure);
+			}
+			throw failure;
+		}
+	}
+	private PendingEventBatch commitEventBatchInternal(com.microproject.transaction.ProjectMutationState.Scope mutation,
 		boolean changed) {
 		PendingEventBatch detached = detachEventBatch(true);
 		com.microproject.document.ObjectEventManager.PendingBatch objectEvents = detached.objectEvents();

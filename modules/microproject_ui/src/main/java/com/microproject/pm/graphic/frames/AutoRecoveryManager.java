@@ -259,7 +259,10 @@ final class AutoRecoveryManager implements AutoSaveControl {
 					recordSnapshotAsync(projectId, project.getName(), originalFileName, snapshotPath);
 				}
 			});
-			Job job = projectFactory.getSaveProjectJob(project, options);
+			// Building the job updates project dates; never interleave that with an
+			// in-flight EDT model command on this worker thread.
+			Job job = com.microproject.transaction.ProjectMutationState.coordinated(
+					() -> projectFactory.getSaveProjectJob(project, options));
 			if (job == null) {
 				completeSave(projectId);
 				return;
