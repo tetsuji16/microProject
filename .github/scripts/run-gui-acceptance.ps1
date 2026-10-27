@@ -5,7 +5,8 @@ param(
   [ValidateSet('ja', 'en')]
   [string]$Locale = 'ja',
   [ValidateSet('1.0', '1.25', '1.5')]
-  [string]$Scale = '1.0'
+  [string]$Scale = '1.0',
+  [switch]$StableReleaseGate
 )
 
 $ErrorActionPreference = 'Stop'
@@ -259,8 +260,8 @@ function Invoke-GuiGate([string]$label, [string[]]$arguments, [int]$timeoutSecon
   }
 }
 
-# Stable-candidate PRs use these visual acceptance selectors at 100% and in
-# each locale/scale leg. Full ja/100% remains the complete functional suite.
+# Stable-candidate releases use these visual acceptance selectors at 100%.
+# Full ja/100% remains the complete functional suite.
 $visualClasses = @(
   'com.microproject.dialog.ProjectDialogGuiAcceptanceTest',
   'com.microproject.dialog.calendar.ChangeWorkingTimeDialogGuiAcceptanceTest',
@@ -358,27 +359,39 @@ try {
   }
 
   if ($Suite -in @('full', 'visual')) {
-    Write-Host 'GUI acceptance Step 2/2: run the visual matrix after the 100% suite passed.'
-    foreach ($locale in @('ja', 'en')) {
-      # Step 1 already ran the Japanese 100% baseline for either the full suite
-      # or these selected visual classes. Test English 100% plus both locales
-      # at higher scales without repeating the Japanese baseline.
-      $scales = if ($locale -eq 'ja') { @('1.25', '1.5') } else { @('1.0', '1.25', '1.5') }
-      foreach ($scale in $scales) {
-        Write-Host "GUI visual gate: locale=$locale scale=$scale"
-        $gradleArgs = @(
-          ':microproject_ui:guiTest', '--max-workers=1', '--console=plain',
-          "-PguiTestLocale=$locale", "-PguiTestUiScale=$scale"
-        )
-        foreach ($testClass in $visualTests) { $gradleArgs += @('--tests', $testClass) }
-        try {
-          Invoke-GuiGate "visual-$locale-$scale" $gradleArgs 1200
-        } catch {
-          if ($_.Exception.Message -match 'GUI_ENVIRONMENT_CONTENDED|GUI_ENVIRONMENT_MONITOR_UNAVAILABLE') {
-            throw "Full GUI matrix stopped at $locale/$scale because the desktop session became unusable: $($_.Exception.Message)"
+    if ($StableReleaseGate) {
+      Write-Host 'GUI acceptance Step 2/2: run the English 100% visual leg after the Japanese 100% suite passed.'
+      $locale = 'en'
+      $scale = '1.0'
+      Write-Host "GUI visual gate: locale=$locale scale=$scale"
+      $gradleArgs = @(
+        ':microproject_ui:guiTest', '--max-workers=1', '--console=plain',
+        "-PguiTestLocale=$locale", "-PguiTestUiScale=$scale"
+      )
+      foreach ($testClass in $visualTests) { $gradleArgs += @('--tests', $testClass) }
+      Invoke-GuiGate "visual-$locale-$scale" $gradleArgs 1200
+    } else {
+      Write-Host 'GUI acceptance Step 2/2: run the broader visual matrix after the 100% suite passed.'
+      foreach ($locale in @('ja', 'en')) {
+        # Step 1 already ran the Japanese 100% baseline. Run the remaining
+        # visual legs without repeating that baseline.
+        $scales = if ($locale -eq 'ja') { @('1.25', '1.5') } else { @('1.0', '1.25', '1.5') }
+        foreach ($scale in $scales) {
+          Write-Host "GUI visual gate: locale=$locale scale=$scale"
+          $gradleArgs = @(
+            ':microproject_ui:guiTest', '--max-workers=1', '--console=plain',
+            "-PguiTestLocale=$locale", "-PguiTestUiScale=$scale"
+          )
+          foreach ($testClass in $visualTests) { $gradleArgs += @('--tests', $testClass) }
+          try {
+            Invoke-GuiGate "visual-$locale-$scale" $gradleArgs 1200
+          } catch {
+            if ($_.Exception.Message -match 'GUI_ENVIRONMENT_CONTENDED|GUI_ENVIRONMENT_MONITOR_UNAVAILABLE') {
+              throw "Full GUI audit stopped at $locale/$scale because the desktop session became unusable: $($_.Exception.Message)"
+            }
+            $gateFailures.Add($_.Exception.Message)
+            Write-Warning "Continuing GUI audit after visual gate failure: $($_.Exception.Message)"
           }
-          $gateFailures.Add($_.Exception.Message)
-          Write-Warning "Continuing GUI audit after visual gate failure: $($_.Exception.Message)"
         }
       }
     }

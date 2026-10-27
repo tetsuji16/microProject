@@ -256,7 +256,11 @@ jobs:
             $requestedSuite = if ($isStableCandidate) { 'full' } else { 'smoke' }
           }
           if ($isStableCandidate -and $requestedSuite -ne 'full') { throw 'Stable releases require gui_suite=full.' }
-          .\.github\scripts\run-gui-acceptance.ps1 -Suite $requestedSuite
+          if ($isStableCandidate) {
+            .\.github\scripts\run-gui-acceptance.ps1 -Suite $requestedSuite -StableReleaseGate
+          } else {
+            .\.github\scripts\run-gui-acceptance.ps1 -Suite $requestedSuite
+          }
       - name: Capture GUI failure diagnostics
         if: failure()
         shell: pwsh

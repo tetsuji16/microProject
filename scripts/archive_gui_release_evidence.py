@@ -21,19 +21,15 @@ EVIDENCE_FILES = (
     "ribbon-tabs-overflow-focused-320.png",
     "ribbon-tabs-overflow-popup-320.png",
 )
-EVIDENCE_PACKET_VERSION = 2
+EVIDENCE_PACKET_VERSION = 3
 EVIDENCE_ASSET_PREFIX = f"microProject-gui-evidence-v{EVIDENCE_PACKET_VERSION}"
 GUI_LEGS = (
     "functional-full-ja-100",
-    "visual-ja-1.25",
-    "visual-ja-1.5",
     "visual-en-1.0",
-    "visual-en-1.25",
-    "visual-en-1.5",
 )
 GUI_LEG_LOG_PREFIX = "GUI gate elapsed: "
 LEG_DIRECTORY = re.compile(
-    r"^(?P<label>functional-full-ja-100|visual-(?:ja|en)-(?:1\.25|1\.5|1\.0))-(?P<invocation>[0-9a-f]{32})$"
+    r"^(?P<label>functional-full-ja-100|visual-en-1\.0)-(?:[0-9a-f]{32})$"
 )
 
 
@@ -79,7 +75,7 @@ def _find_leg(root: Path, label: str) -> Path:
 
 
 def build_archive(source_root: Path, archive_path: Path, manifest: dict) -> dict:
-    """Package only source-listed images, preserving all six GUI matrix-leg paths."""
+    """Package only source-listed images, preserving the required stable-release legs."""
     source_root = source_root.resolve(strict=True)
     archive_path.parent.mkdir(parents=True, exist_ok=True)
     staged: list[tuple[str, Path]] = []
