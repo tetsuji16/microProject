@@ -1,32 +1,54 @@
 # Issue #945 — Dark theme for Network, WBS, Critical Chain, and RBS
 
-State: Theme integration implemented; candidate GUI CI rerun pending.
+State: Partial; Network/WBS/RBS dark rendering and physical screenshots pass on the multi-node construction sample, including light/dark transitions. Critical Chain physical evidence exists; exact-candidate CI remains pending.
 Issue: https://github.com/tetsuji16/microProject/issues/945
-Contract frozen at: 2026-10-26, issue body and two comments.
-Baseline HEAD: `ec0df6e9e6a4173cbf08301655b902f7c75c9efb`.
+Contract frozen at: 2026-10-27, issue body and comments through https://github.com/tetsuji16/microProject/issues/945#issuecomment-6434040983.
+Tested HEAD: `e695b33ac2e8453774d13eca134b59e207bc71f5` plus current uncommitted changes.
+Baseline working tree: pre-existing edits in docs/MSP_STANDARD_COMMAND_INVENTORY.md and three UI test/source paths; untracked .codex-remote-attachments/, docs/book/, docs/work/issue-941.md, and sample sync sidecars. Preserve all.
 
 ## Goal and scope
 
 Make the Network, WBS, Critical Chain Network, and RBS views readable and visually consistent with the application's dark theme. The four-view scope comes from the issue body and replies.
 
 Out of scope: light theme changes, unrelated view redesign, and chart behavior changes.
+Blockers: Exact-candidate CI remains pending; selected-node/high-contrast coverage is outside this slice.
 
 ## Acceptance
 
-| ID | Required result/evidence | State | Evidence |
+| ID | Required result/evidence | State | Evidence (SHA + link) |
 |---|---|---|---|
-| A1 | Network view has readable dark-theme canvas, labels, nodes, edges, and controls | pending | Network/RBS/WBS GUI assertion failed on candidate because foreground was not exposed on the view; corrected in follow-up |
-| A2 | WBS view has readable dark-theme canvas, labels, hierarchy, and controls | pending | Candidate view-route assertion reached after Network; full GUI rerun pending |
-| A3 | Critical Chain Network view has readable dark-theme canvas, labels, nodes, edges, and controls | pending | Focused pixel test passed; physical GUI evidence pending |
-| A4 | RBS view has readable dark-theme canvas, labels, hierarchy, and controls | pending | Full GUI rerun pending |
-| A5 | Views retain their current data and interactions in dark and light themes | pending | Module tests passed; GUI rerun pending |
+| A1 | Network view has readable dark-theme canvas, labels, nodes, edges, and controls | pass | `modules/microproject_ui/build/reports/guiTest-artifacts/issue-945-network-dark.png`; multi-node/edge physical capture, dark pixel ratio 97.58%, bright 0%; visible connector color `#8a8a8a`, contrast 4.61 against `#202226` |
+| A2 | WBS view has readable dark-theme canvas, labels, hierarchy, and controls | pass | `issue-945-wbs-dark.png`; multi-level hierarchy, default card fill `#202226`, text `#e3e5e8`, contrast 12.62, screen dark ratio 99.13% |
+| A3 | Critical Chain Network view has readable dark-theme canvas, labels, nodes, edges, and controls | pass | Physical Robot route passed and image exists at `issue-945-critical-chain-network-dark.png`; typography assertion tolerates antialiasing |
+| A4 | RBS view has readable dark-theme canvas, labels, hierarchy, and controls | pass | `issue-945-rbs-dark.png`; multiple resource cards, dark default fill, text contrast 12.62, screen dark ratio 99.57% |
+| A5 | Views retain their current data and interactions in dark and light themes | partial | Network/WBS/RBS GUI route switches dark→light→dark and preserves node counts; Critical Chain transition coverage remains pending |
 
-## Implementation and verification
+## Current slice
 
-Dark theme semantic tokens cover Network/WBS/RBS form text and view foreground, plus Critical Chain canvas, text, node fills, borders, selection, edges, and legend. Light-theme colors and project-format distinctions remain intact.
+**Changed source scope:** `FormComponent` chooses text contrast from the dominant rendered texture color and uses cached rendering-only dark clones for exact default card signatures. Custom color/pattern/shape/stroke settings remain unchanged. `NetworkRenderer` adjusts only the exact default `Link.link1` dark color. No format data is mutated or persisted. The GUI route offscreen-renders real forms and physically captures the multi-node sample.
+**Root-cause review:** `TexturedShape.build()` wraps even `TRANSPARENT` with a white background while defaults use thick framed strokes. Before the fix, WBS/RBS offscreen output was 17,522 white vs 1,340 black pixels, despite `shape.getColor()=#000000`; the white background was the true card fill. Exact untouched built-ins now render with semantic dark surface/border and thinner frames. PERT default task and critical cards preserve blue/red pattern marks on the dark surface. Default links use Visual Studio Fluent `SystemFillSolidNeutral` dark value `#8a8a8a`; the physical screenshot contains 1,136 matching connector pixels and contrast is 4.61:1 on `#202226`. This Microsoft token is from Visual Studio's palette, not an MSP-specified color: https://learn.microsoft.com/visualstudio/extensibility/ux-guidelines/theme-color-token-reference. Microsoft Project documents user choice of shape/pattern/color, but no dark RGB; the Office theme page similarly omits chart RGB: https://support.microsoft.com/en-us/project/format-the-bar-chart-of-a-gantt-chart-view, https://support.microsoft.com/en-us/office/foundations-experiences/the-new-look-of-office. Windows color guidance emphasizes consistent semantic color use: https://learn.microsoft.com/en-us/windows/win32/uxguide/vis-color.
+**Verification:** `.\gradlew.bat :microproject_ui:test --tests "com.microproject.pm.graphic.network.rendering.NetworkFormFontResolverTest" --console=plain` passed (4 tests). `.\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.robotNetworkAndWbsRibbonRoutesRenderTheirDedicatedViews" --max-workers=1 --no-daemon --console=plain` passed using read-only `samples/Commercial construction project plan.pod`; physical screen pixel ratios: Network dark 97.58%, WBS dark 99.13%, RBS dark 99.57%, all bright 0%. Network connector `#8a8a8a` achieved contrast 4.61 and 1,136 captured pixels. WBS/RBS actual renderer fills `#202226`, text `#e3e5e8`, contrast 12.62; light transition fill `#ffffff`, text `#1f2937`, contrast 14.68. `.\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.views.CcpmSampleProgressGuiAcceptanceTest.mixedProgressSampleRendersInGanttAndCcpmStatusDialogs" --max-workers=1 --no-daemon --console=plain` passed with Critical Chain physical evidence. Restored-dark assertion false negative was corrected to check relative luminance because components use intermediate dark shades.
+**Review follow-up (2026-10-28):** The contrast gate now renders each actual format individually and measures that render's local fill, preventing a high-area sibling form from masking a failing card. The light→dark route captures the physical view after restoration and checks dark canvas/card coverage plus Network connector pixels, alongside per-format rendered colors. A first GUI rerun exposed a test-only false failure: the light-theme capture name triggered the dark-pixel assertion (`dark=2.1%`, `bright=94.5%`); light captures are now excluded from that dark-only check, while restored-dark captures remain checked. `NetworkRenderer` resolves the default dark arrow through an identity-keyed cached copy, avoiding `TexturedShape` allocation on every paint. Cache entries validate source color, paint, shape identity, stroke, scales, and target theme color; original arrows remain unchanged. `DarkLinkArrowShapeCacheTest` covers reuse and invalidation for scale, shape, and theme-color changes.
 
-On candidate `ee61b2ca0a3cd6cb40baa6543dc1bf795516ac1e`, `:microproject_ui:test --console=plain`, `:microproject_ui:compileGuiTestJava --console=plain`, and the focused Critical Chain pixel test passed. GitHub build passed. GitHub GUI acceptance run `40292081440` executed 53 tests with one failure: `TaskInformationRibbonGuiAcceptanceTest#robotNetworkAndWbsRibbonRoutesRenderTheirDedicatedViews` found no readable foreground token on Network. Follow-up sets the view foreground and explicit renderer component foregrounds. Focused local Robot verification remained blocked before input by MSPaint PID 25288 overlapping the test window.
+**Verification:** `gradlew.bat :microproject_ui:test --tests "com.microproject.pm.graphic.network.DarkLinkArrowShapeCacheTest" --tests "com.microproject.pm.graphic.network.rendering.NetworkFormFontResolverTest" --console=plain` passed. `gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.robotNetworkAndWbsRibbonRoutesRenderTheirDedicatedViews" --max-workers=1 --no-daemon --console=plain` passed after correcting the light-capture assertion; the route covers Network/WBS/RBS dark, light, and restored-dark physical views. `git diff --check` passed.
 
-## Next step
+**CI follow-up (2026-10-28):** GUI CI runs `40593939402` and `40595116620` reported row-header drag (default cursor after two drag events) and Ribbon Link (lock rejection not observed). The latter run also exposed a separate no-main-format NPE in the Network contrast helper. `NetworkCellRenderer`/`NetworkRenderer` now skip nodes with no selected main format, covered by `NetworkCellRendererTest.skipsNodeWithNoMainBarFormat`; the physical Network/WBS/RBS route passes. Row drag and Link shared a production key-contract defect: ordinary local fixtures received negative project/task unique IDs from `LocalSession`, but `ProjectTaskKey` rejected all nonpositive IDs, making `ProjectionRowKey` create `SyntheticRow`. Both selection snapshots then returned null; Link rejected before lock acquisition, and drag could not create a relocation intent. The candidate change accepts nonzero project-scoped IDs and rejects zero/-1; tests cover negative projection keys, workspace selection/anchor serialization, and sentinel handling. The original same-process Network/WBS/RBS → row drag → Link sequence passes 3/3. The row drag journey confirms the task's serialized UID remains stable across MPO reload while its LocalSession runtime ID remaps.
 
-Run the candidate's Windows GUI acceptance after the Network foreground correction. Close only after all acceptance criteria have passing evidence.
+**Identity follow-up (2026-10-28):** `LocalSession.resetLocalSeed()` can repeat the same negative project/task numeric pair across distinct unsaved Projects. The runtime key now includes the owning Project instance, so duplicate numeric pairs have distinct projection/command identities without changing seed behavior or MPO. `ProjectTaskKey` is runtime-only and not serializable. Workspace V2 preserves its primitive field layout and resolves only positive project/task IDs; negative runtime IDs use the stored legacy row/pixel fallback. Missing or ambiguous stable matches produce no restored selection, and multi-selection restoration is all-or-nothing. Local collaboration serializes workspace payloads, but does not persist `ProjectTaskKey`; workspace selection fields remain the existing V2 primitive arrays. Focused core/ui tests pass. Physical Robot routes pass for row drag (including Undo/Redo/MPO reload), Ribbon Link/Unlink, task popup Delete, and V2 workspace restore/fallback.
+
+`Serializer` leaves `owningProject` unset for external POD task placeholders but sets their containing document via `task.setProject(project)`. In that path `ProjectTaskKey` now uses the containing document as the runtime scope and preserves the external source project ID in its numeric key. None of the three checked-in fixed POD samples contain external tasks; a generated POD round-trip regression exercises this exact branch and verifies projection keys remain `TaskRow`.
+
+**Next slice:** Exact-candidate CI remains pending. The `dragEnabled=false`, `dropTarget=null`, and Basic JTable transfer handler are expected with the row header's custom `MouseInputAdapter`; FormatSelector does not create projection keys.
+**Done when:** each dark-theme view has focused checks and physical dark-theme GUI evidence.
+
+## Remaining blockers
+
+- Exact-candidate CI, selected-node state, and high-contrast OS theme coverage remain pending.
+
+## Latest evidence
+
+- Comments expand target scope to Critical Chain Network and RBS.
+- Tests/build: Network form unit tests (4) and physical Robot routes for Network/WBS/RBS and Critical Chain passed.
+- Physical GUI: `modules/microproject_ui/build/reports/guiTest-artifacts/issue-945-{network,wbs,rbs}-dark.png`; screenshots show dark patterned cards, connected nodes, WBS hierarchy, and multiple RBS resources on dark canvases.
+- Release check: v0.1.0.1276 was published 2026-10-27T04:15Z; commit `6d430c159` with theme changes is dated 2026-10-26T17:21+09:00 and is not an ancestor of release commit `6ac176f3db5f1eeb313570cb71f476f7ea13ed11`.
+- CI: none.

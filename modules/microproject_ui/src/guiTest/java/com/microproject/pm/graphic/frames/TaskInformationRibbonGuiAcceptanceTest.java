@@ -27,6 +27,7 @@ import java.awt.Cursor;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Robot;
+import javax.swing.LookAndFeel;
 import java.awt.Window;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
@@ -61,6 +62,7 @@ import javax.swing.JCheckBox;
 import javax.swing.JComponent;
 import javax.swing.JComboBox;
 import javax.swing.JTextField;
+import javax.swing.UIManager;
 import javax.swing.JFrame;
 import javax.swing.JTabbedPane;
 import javax.swing.JScrollPane;
@@ -82,6 +84,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.formdev.flatlaf.FlatDarkLaf;
+import com.formdev.flatlaf.FlatLightLaf;
 import com.microproject.dialog.BaselineDialog;
 import com.microproject.dialog.TaskInspectorPanel;
 import com.microproject.dialog.TaskInformationDialog;
@@ -101,6 +105,7 @@ import com.microproject.ui.ribbon.RibbonController;
 import com.microproject.ribbon.RibbonCommandResult;
 import com.microproject.ui.diagnostics.UiButtonDiagnostics;
 import com.microproject.exchange.MpoFileImporter;
+import com.microproject.exchange.LocalFileImporter;
 import com.microproject.collaboration.CollaborationSession;
 import com.microproject.field.Field;
 import com.microproject.grouping.core.Node;
@@ -118,6 +123,11 @@ import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.graphic.gantt.Gantt;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
+import com.microproject.pm.graphic.model.cache.NodeModelCache;
+import com.microproject.pm.graphic.network.Network;
+import com.microproject.pm.graphic.network.NetworkRenderer;
+import com.microproject.pm.graphic.network.rendering.FormComponent;
+import com.microproject.pm.graphic.network.rendering.NetworkCellRenderer;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetPopupMenu;
@@ -126,6 +136,8 @@ import com.microproject.pm.graphic.views.GanttView;
 import com.microproject.pm.graphic.views.UsageDetailView;
 import com.microproject.pm.graphic.views.PertView;
 import com.microproject.pm.graphic.views.TreeView;
+import com.microproject.graphic.configuration.BarFormat;
+import com.microproject.graphic.configuration.TexturedShape;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.resource.Resource;
 import com.microproject.options.CalendarOption;
@@ -140,6 +152,7 @@ import com.microproject.reports.render.ReportPreview;
 import com.microproject.reports.view.ReportView;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.ProjectTaskKey;
 import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.snapshot.Snapshottable;
@@ -155,6 +168,7 @@ import com.microproject.testsupport.DialogLayoutAssertions;
 import com.microproject.testsupport.DialogScreenshotArtifacts;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.Environment;
+import com.microproject.util.FlatLafSupport;
 import com.microproject.util.FlatUiSupport;
 import com.microproject.util.Alert;
 import com.microproject.util.UiServices;
@@ -2591,14 +2605,17 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for GUI view coverage.");
 		MicroProjectThemeTokens originalTheme = MicroProjectTheme.tokens();
 		boolean wasDark = !originalTheme.appBackground().equals(MicroProjectThemeTokens.light().appBackground());
+		LookAndFeel originalLookAndFeel = UIManager.getLookAndFeel();
 		try {
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
+		FlatLafSupport.ensureInitialized();
+		FlatDarkLaf.setup();
 		MicroProjectTheme.installDark();
-		NormalTask task = createTask();
-		showProject(task.getOwningProject());
+		Project themeProject = loadNetworkThemeSample();
+		showProject(themeProject);
 		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
 		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null,
 			"network/WBS test window did not become visible");
@@ -2614,40 +2631,267 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, network);
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getActiveTopView() instanceof PertView,
 			"RibbonNetwork did not activate the real network view");
+		assertNetworkThemeFixture(manager.getCurrentFrame().getActiveTopView());
+		captureDarkView(manager.getCurrentFrame().getActiveTopView(), "network");
 		assertDarkReadableView(manager.getCurrentFrame().getActiveTopView(), "network");
+		exerciseLightThemeTransition(manager.getCurrentFrame().getActiveTopView(), "network");
 
 		AbstractButton wbs = findShowingButtonByCommand("RibbonWBS");
 		click(robot, wbs);
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getActiveTopView() instanceof TreeView,
 			"RibbonWBS did not activate the real WBS view");
+		assertTrue(countViewNodes(manager.getCurrentFrame().getActiveTopView()) > 1, "WBS sample must render multiple visible tasks");
+		captureDarkView(manager.getCurrentFrame().getActiveTopView(), "wbs");
 		assertDarkReadableView(manager.getCurrentFrame().getActiveTopView(), "WBS");
+		exerciseLightThemeTransition(manager.getCurrentFrame().getActiveTopView(), "wbs");
 
 		AbstractButton rbs = findShowingButtonByCommand("RibbonRBS");
 		click(robot, rbs);
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getActiveTopView() instanceof TreeView tree && tree.showsResources(),
 			"RibbonRBS did not activate the real RBS view");
+		assertTrue(countViewNodes(manager.getCurrentFrame().getActiveTopView()) > 1, "RBS sample must render multiple visible resources");
+		captureDarkView(manager.getCurrentFrame().getActiveTopView(), "rbs");
 		assertDarkReadableView(manager.getCurrentFrame().getActiveTopView(), "RBS");
+		exerciseLightThemeTransition(manager.getCurrentFrame().getActiveTopView(), "rbs");
 		} finally {
+			UIManager.setLookAndFeel(originalLookAndFeel);
 			if (wasDark) MicroProjectTheme.installDark(); else MicroProjectTheme.installLight();
 		}
+	}
+
+	private static void assertNetworkThemeFixture(Object view) {
+		assertTrue(countViewNodes(view) > 1, "Network sample must render multiple visible tasks");
+		PertView pertView = (PertView) view;
+		Network network = (Network) pertView.getViewport().getView();
+		var dependencies = network.getModel().getDependencyIterator();
+		int count = 0;
+		while (dependencies.hasNext()) { dependencies.next(); count++; }
+		assertTrue(count > 0, "Network sample must render dependency edges");
+	}
+
+	private void exerciseLightThemeTransition(Object view, String viewName) throws Exception {
+		int originalNodeCount = countViewNodes(view);
+		SwingUtilities.invokeAndWait(() -> {
+			FlatLightLaf.setup();
+			MicroProjectTheme.installLight();
+			SwingUtilities.updateComponentTreeUI(window);
+		});
+		GuiAcceptanceSupport.await(() -> isShowingView(view), viewName + " view must remain visible after switching to light theme");
+		captureDarkView(view, viewName + "-light");
+		assertLightReadableView(view, viewName);
+		assertEquals(originalNodeCount, countViewNodes(view), viewName + " data must remain in the view after theme switching");
+		SwingUtilities.invokeAndWait(() -> {
+			FlatDarkLaf.setup();
+			MicroProjectTheme.installDark();
+			SwingUtilities.updateComponentTreeUI(window);
+			((Component) view).repaint();
+		});
+		GuiAcceptanceSupport.await(() -> isShowingView(view), viewName + " view must remain visible after returning to dark theme");
+		assertDarkReadableView(view, viewName + " (restored dark)");
+		captureDarkView(view, viewName.toLowerCase().startsWith("network") ? "network-restored-dark"
+			: viewName.toLowerCase().startsWith("wbs") ? "wbs-restored-dark" : "rbs-restored-dark");
+	}
+
+	private static void assertLightReadableView(Object view, String viewName) {
+		assertTrue(isShowingView(view), viewName + " view must remain visible in light theme");
+		MicroProjectThemeTokens tokens = MicroProjectTheme.tokens();
+		assertEquals(MicroProjectThemeTokens.light().appBackground(), tokens.appBackground(),
+			viewName + " theme tokens must switch to light");
+		boolean hasLightBackground = false;
+		java.util.List<String> backgrounds = new java.util.ArrayList<>();
+		for (Component component : UiComponentWalker.flatten((Component) view)) {
+			if (!component.isShowing()) continue;
+			Color background = component.getBackground();
+			backgrounds.add(component.getClass().getSimpleName() + "=" + colorHex(background));
+			hasLightBackground |= Color.WHITE.equals(background) || tokens.tableBackground().equals(background)
+				|| tokens.panelBackground().equals(background);
+		}
+		assertTrue(hasLightBackground, viewName + " must expose a light view background: " + backgrounds);
+		if (view instanceof TreeView treeView) assertRenderedNetworkFormContrast(
+			(Network) treeView.getViewport().getView(), treeView.getCache(), viewName + " (light)");
+		else if (view instanceof PertView pertView) assertRenderedNetworkFormContrast(
+			(Network) pertView.getViewport().getView(), pertView.getCache(), viewName + " (light)");
+	}
+
+	private static int countViewNodes(Object view) {
+		var cache = view instanceof TreeView treeView ? treeView.getCache()
+			: view instanceof PertView pertView ? pertView.getCache() : null;
+		assertNotNull(cache, "view must expose its node cache");
+		int count = 0;
+		java.util.ListIterator<GraphicNode> nodes = cache.getIterator();
+		while (nodes.hasNext()) { nodes.next(); count++; }
+		return count;
 	}
 
 	private static void assertDarkReadableView(Object view, String viewName) {
 		assertTrue(isShowingView(view), viewName + " view was activated without becoming visible");
 		MicroProjectThemeTokens tokens = MicroProjectTheme.tokens();
 		boolean hasDarkBackground = false;
-		boolean hasReadableForeground = false;
+		java.util.List<String> backgrounds = new java.util.ArrayList<>();
 		for (Component component : UiComponentWalker.flatten((Component) view)) {
 			if (!component.isShowing()) continue;
 			Color background = component.getBackground();
-			Color foreground = component.getForeground();
+			backgrounds.add(component.getClass().getSimpleName() + "=" + colorHex(background));
 			hasDarkBackground |= tokens.tableBackground().equals(background)
-				|| tokens.spreadsheetBodyBackground().equals(background) || tokens.panelBackground().equals(background);
-			hasReadableForeground |= tokens.tableForeground().equals(foreground)
-				|| tokens.labelForeground().equals(foreground) || tokens.headerForeground().equals(foreground);
+				|| tokens.spreadsheetBodyBackground().equals(background) || tokens.panelBackground().equals(background)
+				|| relativeLuminance(background) < 0.15d;
 		}
-		assertTrue(hasDarkBackground, viewName + " view must expose an active dark theme background token");
-		assertTrue(hasReadableForeground, viewName + " view must expose an active readable foreground token");
+		assertTrue(hasDarkBackground, viewName + " view must expose an active dark theme background token; app="
+			+ colorHex(tokens.appBackground()) + ", panel=" + colorHex(tokens.panelBackground())
+			+ ", body=" + colorHex(tokens.spreadsheetBodyBackground()) + ", components=" + backgrounds);
+		if (view instanceof TreeView treeView) assertRenderedNetworkFormContrast(
+			(Network) treeView.getViewport().getView(), treeView.getCache(), viewName);
+		else if (view instanceof PertView pertView) assertRenderedNetworkFormContrast(
+			(Network) pertView.getViewport().getView(), pertView.getCache(), viewName);
+	}
+
+	@SuppressWarnings("unchecked")
+	private static void assertRenderedNetworkFormContrast(Network network, NodeModelCache cache, String viewName) {
+		try {
+			NetworkRenderer graphRenderer = (NetworkRenderer) network.getUI().getGraphRenderer();
+			java.lang.reflect.Field rendererField = NetworkRenderer.class.getDeclaredField("renderer");
+			rendererField.setAccessible(true);
+			NetworkCellRenderer cellRenderer = (NetworkCellRenderer) rendererField.get(graphRenderer);
+			java.lang.reflect.Field formatsField = FormComponent.class.getDeclaredField("selectedFormats");
+			formatsField.setAccessible(true);
+			java.util.List<String> diagnostics = new java.util.ArrayList<>();
+			int checked = 0;
+			java.util.ListIterator<GraphicNode> nodes = cache.getIterator();
+			while (nodes.hasNext()) {
+				GraphicNode node = nodes.next();
+				FormComponent actualForm = cellRenderer.getRendererComponent(node, network.getZoom());
+				if (actualForm == null) {
+					var modelNode = node.getNode();
+					Object implementation = modelNode == null ? null : modelNode.getImpl();
+					System.out.println("Skipping network form contrast for node without a main BarFormat: view=" + viewName
+						+ ", node=" + modelNode + ", implementation="
+						+ (implementation == null ? "null" : implementation.getClass().getName())
+						+ ", level=" + node.getLevel());
+					continue;
+				}
+				java.util.List<BarFormat> formats = (java.util.List<BarFormat>) formatsField.get(actualForm);
+				for (BarFormat format : formats) {
+					TexturedShape shape = format.getMiddle() != null ? format.getMiddle()
+						: format.getStart() != null ? format.getStart() : format.getEnd();
+					if (shape == null) continue;
+					FormComponent isolatedFormat = new FormComponent(java.util.List.of(format), network.getZoom(), false, network.useTextures());
+					isolatedFormat.setSize(240, 80);
+					BufferedImage rendered = new BufferedImage(240, 80, BufferedImage.TYPE_INT_ARGB);
+					java.awt.Graphics2D graphics = rendered.createGraphics();
+					try { isolatedFormat.paint(graphics); } finally { graphics.dispose(); }
+					Color localCardFill = dominantRenderedColor(rendered);
+					if (localCardFill == null) continue;
+					int darkSurfacePixels = 0;
+					for (int x = 0; x < rendered.getWidth(); x++) for (int y = 0; y < rendered.getHeight(); y++) {
+						int pixel = rendered.getRGB(x, y);
+						if ((pixel >>> 24) != 0 && relativeLuminance(new Color(pixel, true)) < 0.15d) darkSurfacePixels++;
+					}
+					double ratio = contrastRatio(isolatedFormat.getForeground(), localCardFill);
+					diagnostics.add("format=" + format.getName() + ", localFill=" + colorHex(localCardFill)
+						+ ", paint=" + (shape.getPaint() == null ? "null" : shape.getPaint().getClass().getSimpleName())
+						+ ", isolatedDarkPixels=" + darkSurfacePixels
+						+ ", foreground=" + colorHex(isolatedFormat.getForeground()) + ", contrast=" + ratio);
+					checked++;
+					assertTrue(ratio >= 4.5d, viewName + " rendered form has unreadable contrast: " + diagnostics);
+					if (MicroProjectTheme.tokens().appBackground().equals(MicroProjectThemeTokens.dark().appBackground()))
+						assertTrue(darkSurfacePixels > 100, viewName + " individual format " + format.getName()
+							+ " must render its own dark local surface: " + diagnostics);
+				}
+			}
+			assertTrue(checked > 0, viewName + " has no rendered form with a measurable fill: " + diagnostics);
+			System.out.println("Dark renderer diagnostics [" + viewName + "]: " + diagnostics);
+		} catch (ReflectiveOperationException e) {
+			throw new AssertionError("Could not inspect actual " + viewName + " renderer state", e);
+		}
+	}
+
+	private static Color dominantRenderedColor(BufferedImage image) {
+		java.util.Map<Integer, Integer> counts = new java.util.HashMap<>();
+		int dominant = 0;
+		int highestCount = 0;
+		for (int x = 0; x < image.getWidth(); x++) {
+			for (int y = 0; y < image.getHeight(); y++) {
+				int pixel = image.getRGB(x, y);
+				if ((pixel >>> 24) == 0) continue;
+				int rgb = pixel & 0x00ffffff;
+				int count = counts.merge(rgb, 1, Integer::sum);
+				if (count > highestCount) {
+					dominant = rgb;
+					highestCount = count;
+				}
+			}
+		}
+		return highestCount == 0 ? null : new Color(dominant);
+	}
+
+	private static double contrastRatio(Color foreground, Color background) {
+		double foregroundLuminance = relativeLuminance(foreground);
+		double backgroundLuminance = relativeLuminance(background);
+		double lighter = Math.max(foregroundLuminance, backgroundLuminance);
+		double darker = Math.min(foregroundLuminance, backgroundLuminance);
+		return (lighter + 0.05d) / (darker + 0.05d);
+	}
+
+	private static double relativeLuminance(Color color) {
+		return 0.2126d * linearize(color.getRed() / 255d)
+			+ 0.7152d * linearize(color.getGreen() / 255d)
+			+ 0.0722d * linearize(color.getBlue() / 255d);
+	}
+
+	private static double linearize(double channel) {
+		return channel <= 0.04045d ? channel / 12.92d : Math.pow((channel + 0.055d) / 1.055d, 2.4d);
+	}
+
+	private static String colorHex(Color color) {
+		return String.format("#%02x%02x%02x", color.getRed(), color.getGreen(), color.getBlue());
+	}
+
+	private static void captureDarkView(Object view, String viewName) throws Exception {
+		Window owner = SwingUtilities.getWindowAncestor((Component) view);
+		if (owner != null) {
+			owner.setAlwaysOnTop(true);
+			owner.toFront();
+			owner.requestFocus();
+			owner.setAlwaysOnTop(false);
+			new Robot().delay(250);
+		}
+		Component component = (Component) view;
+		Point location = component.getLocationOnScreen();
+		Rectangle bounds = new Rectangle(location.x, location.y, component.getWidth(), component.getHeight());
+		Path artifacts = Path.of("build", "reports", "guiTest-artifacts");
+		Files.createDirectories(artifacts);
+		Path imagePath = artifacts.resolve("issue-945-" + viewName + "-dark.png");
+		ImageIO.write(new Robot().createScreenCapture(bounds), "png", imagePath.toFile());
+		if (!viewName.endsWith("-light") && (viewName.startsWith("network") || viewName.startsWith("wbs") || viewName.startsWith("rbs")))
+			assertDarkPhysicalCapture(imagePath, viewName);
+	}
+
+	private static void assertDarkPhysicalCapture(Path imagePath, String viewName) throws Exception {
+		BufferedImage image = ImageIO.read(imagePath.toFile());
+		long darkPixels = 0, brightPixels = 0;
+		long expectedLinkPixels = 0;
+		// The exact dark value is Microsoft's Visual Studio Fluent SystemFillSolidNeutral token, used as a neutral indicator-color reference;
+		// it is not documented as a Microsoft Project connector color.
+		Color expectedLink = new Color(0x8A8A8A);
+		for (int y = 0; y < image.getHeight(); y++) for (int x = 0; x < image.getWidth(); x++) {
+			Color color = new Color(image.getRGB(x, y), true);
+			if (relativeLuminance(color) < 0.15d) darkPixels++;
+			if (relativeLuminance(color) > 0.8d) brightPixels++;
+			if (Math.abs(color.getRed() - expectedLink.getRed()) <= 30
+				&& Math.abs(color.getGreen() - expectedLink.getGreen()) <= 30
+				&& Math.abs(color.getBlue() - expectedLink.getBlue()) <= 30) expectedLinkPixels++;
+		}
+		double darkRatio = darkPixels / (double) (image.getWidth() * image.getHeight());
+		double brightRatio = brightPixels / (double) (image.getWidth() * image.getHeight());
+		assertTrue(darkRatio > 0.50d, viewName + " physical screen capture must contain a dominant dark canvas; dark=" + darkRatio + ", bright=" + brightRatio);
+		assertTrue(brightRatio < 0.20d, viewName + " physical capture must not contain large bright cards on the dark canvas; dark=" + darkRatio + ", bright=" + brightRatio);
+		if (viewName.startsWith("network")) {
+			double linkContrast = contrastRatio(expectedLink, MicroProjectTheme.tokens().spreadsheetBodyBackground());
+			assertTrue(linkContrast >= 3d, "default connector token blend must retain at least 3:1 contrast: " + linkContrast);
+			assertTrue(expectedLinkPixels > 10, "physical Network image must show the resolved default connector color; pixels=" + expectedLinkPixels);
+			System.out.println("Physical connector [network]: color=" + colorHex(expectedLink) + ", contrast=" + linkContrast + ", pixels=" + expectedLinkPixels);
+		}
+		System.out.println("Physical dark capture [" + viewName + "]: dark=" + darkRatio + ", bright=" + brightRatio + ", path=" + imagePath.toAbsolutePath());
 	}
 
 	private static boolean isShowingView(Object view) {
@@ -5885,6 +6129,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	@Test
 	void physicalTaskRowHeaderDragReordersStableTasksAndSurvivesUndoAndReload() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		beginCommandDiagnosticCapture();
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
 		Environment.setRibbonUI(true);
@@ -5904,6 +6149,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		third.setName("Row drag third");
 		project.recalculate();
 		List<String> originalOrder = taskOrder(project);
+		ProjectTaskKey firstTaskKey = ProjectTaskKey.from(first).orElseThrow();
+		ProjectTaskKey secondTaskKey = ProjectTaskKey.from(second).orElseThrow();
 		assertEquals(List.of("Row drag first", "Row drag second", "Row drag third"), originalOrder);
 		showProject(project);
 		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
@@ -5915,6 +6162,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		robot.setAutoDelay(40);
 		activateWindow(robot, window);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		String selectionBeforePress = spreadSheetSelectionDiagnostics(sheet);
 		int sourceRow = rowForTask(sheet, second);
 		int targetRow = rowForTask(sheet, first);
 		JTable[] rowHeaderBox = new JTable[1];
@@ -5983,7 +6231,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			assertEquals(Cursor.MOVE_CURSOR, observedDrag[2], "valid row-header target must show move cursor before release; "
 				+ "cursor=" + observedDrag[2] + " dragEvents=" + observedDrag[0] + " dragRow=" + observedDrag[1]
 				+ " sourcePoint=" + points[0] + " targetPoint=" + points[1] + " pointer="
-				+ java.awt.MouseInfo.getPointerInfo().getLocation() + " target=" + currentTarget[0]);
+				+ java.awt.MouseInfo.getPointerInfo().getLocation() + " target=" + currentTarget[0]
+				+ "; " + rowDragFailureDiagnostics(sheet, rowHeader, first, second, sourceRow, targetRow,
+					observedDrag, currentTarget[0]) + "; selectionBeforePress=" + selectionBeforePress);
 
 			assertEquals(targetRow, rowHeaderHoverRow(rowHeader),
 				"physical pointer must remain over the target task row before release");
@@ -6011,6 +6261,16 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertTrue(importer.saveProject(project, saved), "row-drag hierarchy mutation must save as MPO");
 		Project reopened = importer.loadProject(new ByteArrayInputStream(saved.toByteArray()));
 		assertEquals(movedOrder, taskOrder(reopened), "row-drag hierarchy mutation must survive MPO save/reload");
+		NormalTask reopenedSecond = taskNamed(reopened, "Row drag second");
+		NormalTask reopenedFirst = taskNamed(reopened, "Row drag first");
+		assertEquals(second.getId(), reopenedSecond.getId(), "MPO reload must preserve the moved task's serialized UID");
+		assertEquals(first.getId(), reopenedFirst.getId(), "MPO reload must preserve the relocation anchor's serialized UID");
+		assertTrue(ProjectTaskKey.from(reopenedSecond).isPresent(), "MPO reload must publish an assigned project-scoped key");
+		assertTrue(ProjectTaskKey.from(reopenedFirst).isPresent(), "MPO reload must publish an assigned project-scoped key");
+		assertNotEquals(secondTaskKey, ProjectTaskKey.from(reopenedSecond).orElseThrow(),
+			"reload remaps the runtime LocalSession ID to the serialized task UID");
+		assertNotEquals(firstTaskKey, ProjectTaskKey.from(reopenedFirst).orElseThrow(),
+			"reload remaps the runtime LocalSession ID to the serialized task UID");
 		activateWindow(robot, window);
 		SwingUtilities.invokeAndWait(sheet::requestFocusInWindow);
 		GuiAcceptanceSupport.await(() -> sheet.isFocusOwner(), "task table did not regain focus for physical Undo/Redo");
@@ -6238,17 +6498,24 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		});
 		assertTrue(linkOverflow[0] != null && linkOverflow[0].isShowing(),
 				"Ribbon Link must be obtained from the visible Task overflow popup");
+		String selectionBeforeLinkDispatch = spreadSheetSelectionDiagnostics(sheet);
 		Environment.setClientSide(true);
 		Environment.setBatchMode(false);
 		Alert.setPresenter(new SwingAlertPresenter());
 		undo.clear();
+		AtomicInteger lockAcquireAttempts = new AtomicInteger();
+		CopyOnWriteArrayList<Long> lockRequestedTaskIds = new CopyOnWriteArrayList<>();
 		project.setCollaborationSession(new CollaborationSession(project,
 				System.getProperty("java.io.tmpdir") + "/microproject-ribbon-link-lock.mpo", "link-lock-test") {
 			@Override
 			public Task tryAcquireTasks(Iterable<Task> tasks) {
+				lockAcquireAttempts.incrementAndGet();
 				if (tasks == null) return null;
 				java.util.Iterator<Task> iterator = tasks.iterator();
-				return iterator.hasNext() ? iterator.next() : null;
+				if (!iterator.hasNext()) return null;
+				Task locked = iterator.next();
+				lockRequestedTaskIds.add(locked.getUniqueId());
+				return locked;
 			}
 
 			@Override
@@ -6256,9 +6523,16 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				return "robot link lock test";
 			}
 		});
+		RibbonCommandResult previousLinkOutcome = manager.getLastRibbonCommandResult();
 		click(robot, link);
-		GuiAcceptanceSupport.await(() -> findDialogContainingText("locked by robot link lock test") != null,
+		try {
+			GuiAcceptanceSupport.await(() -> findDialogContainingText("locked by robot link lock test") != null,
 				"the Ribbon Link route did not show the collaboration lock rejection");
+		} catch (AssertionError failure) {
+			throw new AssertionError(failure.getMessage() + "; " + linkLockFailureDiagnostics(link, linkOverflow[0],
+				predecessor, successor, gantt, undo, previousLinkOutcome, lockAcquireAttempts, lockRequestedTaskIds)
+				+ "; selectionBeforeLinkDispatch=" + selectionBeforeLinkDispatch, failure);
+		}
 		Dialog lockWarning = findDialogContainingText("locked by robot link lock test");
 		assertTrue(successor.getPredecessorList().isEmpty(), "a lock-rejected Ribbon Link must not mutate dependencies");
 		assertEquals(0, gantt.getModel().getCache().getEdgesSize(), "a lock-rejected Ribbon Link must not add a Gantt edge");
@@ -6270,7 +6544,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> !lockWarning.isShowing(), "the Ribbon Link lock warning did not close after Enter");
 		project.setCollaborationSession(null);
 		GuiAcceptanceSupport.await(link::isEnabled, "Link stayed disabled after dismissing the lock rejection");
-		RibbonCommandResult previousLinkOutcome = manager.getLastRibbonCommandResult();
+		previousLinkOutcome = manager.getLastRibbonCommandResult();
 		click(robot, link);
 		GuiAcceptanceSupport.await(() -> successor.getPredecessorList().size() == 1,
 				"Link did not create a dependency between the selected tasks");
@@ -8299,6 +8573,18 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		return task;
 	}
 
+	private static Project loadNetworkThemeSample() throws Exception {
+		Path sample = Path.of("..", "..", "samples", "Commercial construction project plan.pod").toAbsolutePath().normalize();
+		assertTrue(Files.isRegularFile(sample), "Physical dark-theme acceptance sample must exist: " + sample);
+		LocalFileImporter importer = new LocalFileImporter();
+		importer.setFileName(sample.toString());
+		importer.importFile();
+		Project project = importer.getProject();
+		assertNotNull(project, "Physical dark-theme POD sample must load");
+		assertTrue(project.getTaskList().size() > 1, "Theme sample must contain multiple tasks");
+		return project;
+	}
+
 	private static NormalTask createTaskWithProgress(double percentComplete) {
 		NormalTask task = createTask();
 		task.setDuration(CalendarOption.getInstance().getMillisPerDay());
@@ -9134,6 +9420,110 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			return "windowSnapshotError=" + exception;
 		}
 		return value[0];
+	}
+
+	private String rowDragFailureDiagnostics(SpreadSheet sheet, JTable rowHeader, NormalTask first, NormalTask second,
+		int sourceRow, int targetRow, int[] observedDrag, RowHeaderTarget target) {
+		Point localMouse = componentMousePosition(rowHeader);
+		java.awt.dnd.DropTarget dropTarget = rowHeader.getDropTarget();
+		List<String> selectedTasks = manager.getCurrentFrame().getSelectedImpls(false).stream()
+			.filter(Task.class::isInstance).map(Task.class::cast)
+			.map(task -> task.getUniqueId() + ":" + task.getName()).sorted().toList();
+		RibbonCommandResult outcome = manager.getLastRibbonCommandResult();
+		return "dragSnapshot={releaseAttempted=false, activeView=" + manager.getCurrentFrame().getTopViewId()
+			+ ", spreadsheetSelection=" + spreadSheetSelectionDiagnostics(sheet)
+			+ ", selectedTaskIds=" + selectedTasks + ", sheetSelectedRows=" + java.util.Arrays.toString(sheet.getSelectedRows())
+			+ ", headerSelectedRows=" + java.util.Arrays.toString(rowHeader.getSelectedRows())
+			+ ", sourceTask=" + second.getUniqueId() + ":" + second.getName() + "@row" + sourceRow
+			+ ", targetTask=" + first.getUniqueId() + ":" + first.getName() + "@row" + targetRow
+			+ ", localPointer=" + localMouse + ", hoverRow=" + (localMouse == null ? -1 : rowHeader.rowAtPoint(localMouse))
+			+ ", sourceCell=" + rowHeader.getCellRect(sourceRow, 0, true) + ", targetCell=" + rowHeader.getCellRect(targetRow, 0, true)
+			+ ", dragEnabled=" + rowHeader.getDragEnabled() + ", dropMode=" + rowHeader.getDropMode()
+			+ ", transferHandler=" + (rowHeader.getTransferHandler() == null ? "null" : rowHeader.getTransferHandler().getClass().getName())
+			+ ", dropTarget=" + (dropTarget == null ? "null" : dropTarget.getClass().getName()
+				+ "[active=" + dropTarget.isActive() + ", actions=" + dropTarget.getDefaultActions() + "]")
+			+ ", dragEvents=" + observedDrag[0] + ", lastDragRow=" + observedDrag[1] + ", cursor=" + observedDrag[2]
+			+ ", commandOutcome=" + outcome + ", commandDiagnostics=" + List.copyOf(diagnosticMessages)
+			+ ", component=" + componentInputDiagnostics(rowHeader) + ", windows={" + visibleWindowInputDiagnostics() + "}}";
+	}
+
+	private String linkLockFailureDiagnostics(AbstractButton link, JPopupMenu overflow, NormalTask predecessor,
+		NormalTask successor, Gantt gantt, DataFactoryUndoController undo, RibbonCommandResult previousOutcome,
+		AtomicInteger lockAcquireAttempts, List<Long> lockRequestedTaskIds) {
+		List<String> selectedTasks = manager.getCurrentFrame().getSelectedImpls(false).stream()
+			.filter(Task.class::isInstance).map(Task.class::cast)
+			.map(task -> task.getUniqueId() + ":" + task.getName()).sorted().toList();
+		RibbonCommandResult currentOutcome = manager.getLastRibbonCommandResult();
+		return "linkLockSnapshot={activeView=" + manager.getCurrentFrame().getTopViewId()
+			+ ", spreadsheetSelection=" + spreadSheetSelectionDiagnostics(manager.getCurrentFrame().getActiveSpreadSheet())
+			+ ", selectedTaskIds=" + selectedTasks
+			+ ", popupShowing=" + (overflow != null && overflow.isShowing())
+			+ ", popupInvoker=" + (overflow == null ? "null" : overflow.getInvoker())
+			+ ", linkEnabled=" + link.isEnabled() + ", alertAllowed=" + Alert.allowPopups()
+			+ ", lockAcquireAttempts=" + lockAcquireAttempts.get() + ", lockRequestedTaskIds=" + List.copyOf(lockRequestedTaskIds)
+			+ ", previousOutcome=" + previousOutcome + ", currentOutcome=" + currentOutcome
+			+ ", outcomeUnchanged=" + (previousOutcome == currentOutcome)
+			+ ", predecessorTask=" + predecessor.getUniqueId() + ":" + predecessor.getName()
+			+ ", successorTask=" + successor.getUniqueId() + ":" + successor.getName()
+			+ ", successorPredecessorCount=" + successor.getPredecessorList().size()
+			+ ", ganttEdgeCount=" + gantt.getModel().getCache().getEdgesSize()
+			+ ", undoCanUndo=" + undo.canUndo()
+			+ ", visibleDialogs=" + visibleDialogTextDiagnostics()
+			+ ", commandDiagnostics=" + List.copyOf(diagnosticMessages)
+			+ ", component=" + componentInputDiagnostics(link)
+			+ ", windows={" + visibleWindowInputDiagnostics() + "}}";
+	}
+
+	private static String spreadSheetSelectionDiagnostics(SpreadSheet sheet) {
+		if (sheet == null)
+			return "sheet=null";
+		String[] result = new String[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				if (!(sheet.getModel() instanceof SpreadSheetModel model) || model.getCache() == null) {
+					result[0] = "model=" + sheet.getModel().getClass().getName() + ",cache=null";
+					return;
+				}
+				var projection = model.getCache().getVisibleNodes().getProjectionIndex();
+				List<String> selectedRows = java.util.Arrays.stream(sheet.getSelectedRows()).mapToObj(viewRow -> {
+					int modelRow = sheet.convertRowIndexToModel(viewRow);
+					return viewRow + "->" + modelRow + ":" + (modelRow >= 0 && modelRow < projection.size()
+						? projection.keyAt(modelRow) : "out-of-range");
+				}).toList();
+				List<String> selectedImpls = sheet.getSelectedNodes().stream()
+					.map(node -> node == null ? "null" : node.getClass().getSimpleName() + "/"
+						+ (node.getImpl() == null ? "null" : node.getImpl().getClass().getSimpleName()))
+					.toList();
+				result[0] = "model=" + model.getClass().getSimpleName() + ",rowMultiple=" + model.getRowMultiple()
+					+ ",rows=" + sheet.getRowCount() + ",columns=" + sheet.getColumnCount()
+					+ ",selectedRows=" + selectedRows + ",selectedColumns="
+					+ java.util.Arrays.toString(sheet.getSelectedColumns()) + ",selectedNodes=" + selectedImpls
+					+ ",hierarchySnapshot=" + sheet.captureHierarchySelection()
+					+ ",dependencySnapshot=" + sheet.captureTaskDependencySelection()
+					+ ",projectionRevision=" + projection.topologyRevision();
+			});
+		} catch (Exception exception) {
+			return "selectionDiagnosticError=" + exception;
+		}
+		return result[0];
+	}
+
+	private static String visibleDialogTextDiagnostics() {
+		String[] result = new String[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> result[0] = java.util.Arrays.stream(Window.getWindows())
+				.filter(Dialog.class::isInstance).map(Dialog.class::cast).filter(Dialog::isShowing)
+				.map(dialog -> dialog.getClass().getSimpleName() + "[title=" + dialog.getTitle()
+					+ ",modal=" + dialog.isModal() + ",text=" + UiComponentWalker.flatten(dialog).stream()
+						.filter(component -> component instanceof JLabel || component instanceof AbstractButton)
+						.map(component -> component instanceof JLabel label ? label.getText()
+							: ((AbstractButton) component).getText())
+						.filter(java.util.Objects::nonNull).collect(Collectors.joining("|")) + "]")
+				.collect(Collectors.joining("; ")));
+		} catch (Exception exception) {
+			return "dialogSnapshotError=" + exception;
+		}
+		return result[0];
 	}
 
 	private static boolean hasShowingCommand(String command) {
