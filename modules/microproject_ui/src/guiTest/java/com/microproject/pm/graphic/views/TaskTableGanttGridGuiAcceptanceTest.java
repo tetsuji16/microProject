@@ -1109,6 +1109,23 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		robot.delay(150);
 		captureVisibleLayout(robot, "workspace-v2-restored-selection-anchor.png");
 
+		com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet.Workspace partiallyResolvable =
+			new com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet.Workspace();
+		partiallyResolvable.setWorkspaceVersion(2);
+		partiallyResolvable.setStableTaskSelectionPresent(true);
+		partiallyResolvable.setSelectedProjectIds(new long[] { saved[0].getSelectedProjectIds()[0],
+			saved[0].getSelectedProjectIds()[0] });
+		partiallyResolvable.setSelectedTaskIds(new long[] { saved[0].getSelectedTaskIds()[0],
+			saved[0].getSelectedTaskIds()[0] + 100_000L });
+		partiallyResolvable.setSelectedOccurrences(new int[] { 0, 0 });
+		partiallyResolvable.setSelectedRows(new int[] { 4 });
+		SwingUtilities.invokeAndWait(() -> {
+			fixture.sheet.restoreWorkspace(partiallyResolvable, SavableToWorkspace.VIEW);
+			assertEquals(0, fixture.sheet.getSelectedRowCount(),
+				"partially resolvable V2 selection must not restore a subset or fall back to unrelated rows");
+		});
+		SwingUtilities.invokeAndWait(() -> fixture.sheet.restoreWorkspace(serializedWorkspace, SavableToWorkspace.VIEW));
+
 		SwingUtilities.invokeAndWait(() -> fixture.sheet.getCache().deleteNodes(List.of(selectedTask[0].getNode())));
 		GuiAcceptanceSupport.await(() -> fixture.sheet.getCache().getVisibleNodes().getProjectionIndex()
 			.rowForNode(selectedTask[0]) < 0, "deleted V2 selection key must leave the projection");
@@ -1131,6 +1148,21 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			assertEquals(2, fixture.sheet.getSelectedRow(), "V1 must continue restoring its legacy row selection");
 			assertEquals(legacy.getViewPosition(), tableScroll.getViewport().getViewPosition(),
 				"V1 must continue restoring its legacy pixel scroll position");
+		});
+
+		com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet.Workspace localRuntimeIds =
+			new com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet.Workspace();
+		localRuntimeIds.setWorkspaceVersion(2);
+		localRuntimeIds.setStableTaskSelectionPresent(true);
+		localRuntimeIds.setSelectedProjectIds(new long[] { -999_999_991L });
+		localRuntimeIds.setSelectedTaskIds(new long[] { -999_999_984L });
+		localRuntimeIds.setSelectedOccurrences(new int[] { 0 });
+		localRuntimeIds.setSelectedRows(new int[] { 4 });
+		localRuntimeIds.setViewPosition(new Point(0, fixture.sheet.getCellRect(1, 0, true).y));
+		SwingUtilities.invokeAndWait(() -> {
+			fixture.sheet.restoreWorkspace(localRuntimeIds, SavableToWorkspace.VIEW);
+			assertEquals(4, fixture.sheet.getSelectedRow(),
+				"negative runtime IDs must fall back to the legacy row selection");
 		});
 
 		com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet.Workspace malformed =

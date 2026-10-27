@@ -152,6 +152,7 @@ import com.microproject.reports.render.ReportPreview;
 import com.microproject.reports.view.ReportView;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.ProjectTaskKey;
 import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.snapshot.Snapshottable;
@@ -6148,6 +6149,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		third.setName("Row drag third");
 		project.recalculate();
 		List<String> originalOrder = taskOrder(project);
+		ProjectTaskKey firstTaskKey = ProjectTaskKey.from(first).orElseThrow();
+		ProjectTaskKey secondTaskKey = ProjectTaskKey.from(second).orElseThrow();
 		assertEquals(List.of("Row drag first", "Row drag second", "Row drag third"), originalOrder);
 		showProject(project);
 		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
@@ -6159,6 +6162,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		robot.setAutoDelay(40);
 		activateWindow(robot, window);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		String selectionBeforePress = spreadSheetSelectionDiagnostics(sheet);
 		int sourceRow = rowForTask(sheet, second);
 		int targetRow = rowForTask(sheet, first);
 		JTable[] rowHeaderBox = new JTable[1];
@@ -6229,7 +6233,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				+ " sourcePoint=" + points[0] + " targetPoint=" + points[1] + " pointer="
 				+ java.awt.MouseInfo.getPointerInfo().getLocation() + " target=" + currentTarget[0]
 				+ "; " + rowDragFailureDiagnostics(sheet, rowHeader, first, second, sourceRow, targetRow,
-					observedDrag, currentTarget[0]));
+					observedDrag, currentTarget[0]) + "; selectionBeforePress=" + selectionBeforePress);
 
 			assertEquals(targetRow, rowHeaderHoverRow(rowHeader),
 				"physical pointer must remain over the target task row before release");
@@ -6257,6 +6261,16 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertTrue(importer.saveProject(project, saved), "row-drag hierarchy mutation must save as MPO");
 		Project reopened = importer.loadProject(new ByteArrayInputStream(saved.toByteArray()));
 		assertEquals(movedOrder, taskOrder(reopened), "row-drag hierarchy mutation must survive MPO save/reload");
+		NormalTask reopenedSecond = taskNamed(reopened, "Row drag second");
+		NormalTask reopenedFirst = taskNamed(reopened, "Row drag first");
+		assertEquals(second.getId(), reopenedSecond.getId(), "MPO reload must preserve the moved task's serialized UID");
+		assertEquals(first.getId(), reopenedFirst.getId(), "MPO reload must preserve the relocation anchor's serialized UID");
+		assertTrue(ProjectTaskKey.from(reopenedSecond).isPresent(), "MPO reload must publish an assigned project-scoped key");
+		assertTrue(ProjectTaskKey.from(reopenedFirst).isPresent(), "MPO reload must publish an assigned project-scoped key");
+		assertNotEquals(secondTaskKey, ProjectTaskKey.from(reopenedSecond).orElseThrow(),
+			"reload remaps the runtime LocalSession ID to the serialized task UID");
+		assertNotEquals(firstTaskKey, ProjectTaskKey.from(reopenedFirst).orElseThrow(),
+			"reload remaps the runtime LocalSession ID to the serialized task UID");
 		activateWindow(robot, window);
 		SwingUtilities.invokeAndWait(sheet::requestFocusInWindow);
 		GuiAcceptanceSupport.await(() -> sheet.isFocusOwner(), "task table did not regain focus for physical Undo/Redo");
@@ -6484,6 +6498,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		});
 		assertTrue(linkOverflow[0] != null && linkOverflow[0].isShowing(),
 				"Ribbon Link must be obtained from the visible Task overflow popup");
+		String selectionBeforeLinkDispatch = spreadSheetSelectionDiagnostics(sheet);
 		Environment.setClientSide(true);
 		Environment.setBatchMode(false);
 		Alert.setPresenter(new SwingAlertPresenter());
@@ -6515,7 +6530,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				"the Ribbon Link route did not show the collaboration lock rejection");
 		} catch (AssertionError failure) {
 			throw new AssertionError(failure.getMessage() + "; " + linkLockFailureDiagnostics(link, linkOverflow[0],
-				predecessor, successor, gantt, undo, previousLinkOutcome, lockAcquireAttempts, lockRequestedTaskIds), failure);
+				predecessor, successor, gantt, undo, previousLinkOutcome, lockAcquireAttempts, lockRequestedTaskIds)
+				+ "; selectionBeforeLinkDispatch=" + selectionBeforeLinkDispatch, failure);
 		}
 		Dialog lockWarning = findDialogContainingText("locked by robot link lock test");
 		assertTrue(successor.getPredecessorList().isEmpty(), "a lock-rejected Ribbon Link must not mutate dependencies");
@@ -9415,6 +9431,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			.map(task -> task.getUniqueId() + ":" + task.getName()).sorted().toList();
 		RibbonCommandResult outcome = manager.getLastRibbonCommandResult();
 		return "dragSnapshot={releaseAttempted=false, activeView=" + manager.getCurrentFrame().getTopViewId()
+			+ ", spreadsheetSelection=" + spreadSheetSelectionDiagnostics(sheet)
 			+ ", selectedTaskIds=" + selectedTasks + ", sheetSelectedRows=" + java.util.Arrays.toString(sheet.getSelectedRows())
 			+ ", headerSelectedRows=" + java.util.Arrays.toString(rowHeader.getSelectedRows())
 			+ ", sourceTask=" + second.getUniqueId() + ":" + second.getName() + "@row" + sourceRow
@@ -9438,6 +9455,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			.map(task -> task.getUniqueId() + ":" + task.getName()).sorted().toList();
 		RibbonCommandResult currentOutcome = manager.getLastRibbonCommandResult();
 		return "linkLockSnapshot={activeView=" + manager.getCurrentFrame().getTopViewId()
+			+ ", spreadsheetSelection=" + spreadSheetSelectionDiagnostics(manager.getCurrentFrame().getActiveSpreadSheet())
 			+ ", selectedTaskIds=" + selectedTasks
 			+ ", popupShowing=" + (overflow != null && overflow.isShowing())
 			+ ", popupInvoker=" + (overflow == null ? "null" : overflow.getInvoker())
@@ -9454,6 +9472,40 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			+ ", commandDiagnostics=" + List.copyOf(diagnosticMessages)
 			+ ", component=" + componentInputDiagnostics(link)
 			+ ", windows={" + visibleWindowInputDiagnostics() + "}}";
+	}
+
+	private static String spreadSheetSelectionDiagnostics(SpreadSheet sheet) {
+		if (sheet == null)
+			return "sheet=null";
+		String[] result = new String[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				if (!(sheet.getModel() instanceof SpreadSheetModel model) || model.getCache() == null) {
+					result[0] = "model=" + sheet.getModel().getClass().getName() + ",cache=null";
+					return;
+				}
+				var projection = model.getCache().getVisibleNodes().getProjectionIndex();
+				List<String> selectedRows = java.util.Arrays.stream(sheet.getSelectedRows()).mapToObj(viewRow -> {
+					int modelRow = sheet.convertRowIndexToModel(viewRow);
+					return viewRow + "->" + modelRow + ":" + (modelRow >= 0 && modelRow < projection.size()
+						? projection.keyAt(modelRow) : "out-of-range");
+				}).toList();
+				List<String> selectedImpls = sheet.getSelectedNodes().stream()
+					.map(node -> node == null ? "null" : node.getClass().getSimpleName() + "/"
+						+ (node.getImpl() == null ? "null" : node.getImpl().getClass().getSimpleName()))
+					.toList();
+				result[0] = "model=" + model.getClass().getSimpleName() + ",rowMultiple=" + model.getRowMultiple()
+					+ ",rows=" + sheet.getRowCount() + ",columns=" + sheet.getColumnCount()
+					+ ",selectedRows=" + selectedRows + ",selectedColumns="
+					+ java.util.Arrays.toString(sheet.getSelectedColumns()) + ",selectedNodes=" + selectedImpls
+					+ ",hierarchySnapshot=" + sheet.captureHierarchySelection()
+					+ ",dependencySnapshot=" + sheet.captureTaskDependencySelection()
+					+ ",projectionRevision=" + projection.topologyRevision();
+			});
+		} catch (Exception exception) {
+			return "selectionDiagnosticError=" + exception;
+		}
+		return result[0];
 	}
 
 	private static String visibleDialogTextDiagnostics() {

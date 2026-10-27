@@ -764,7 +764,7 @@ class TaskCommandGatewayTest {
 		Fixture fixture = createFixture();
 		RevisionedProjectionIndex projection = fixture.cache().getVisibleNodes().getProjectionIndex();
 		TaskCommandResult result = TaskCommandGateway.execute(fixture.model(),
-			new TaskFieldEditIntent(new ProjectTaskKey(fixture.project().getUniqueId(), fixture.task().getUniqueId() + 1000),
+			new TaskFieldEditIntent(new ProjectTaskKey(fixture.project(), fixture.project().getUniqueId(), fixture.task().getUniqueId() + 1000),
 				0, projection.topologyRevision(), FieldDictionary.getInstance().getFieldFromId("Field.name"), "Before", "Wrong"), this);
 
 		assertEquals(TaskCommandResult.Status.MISSING_TASK, result.status());

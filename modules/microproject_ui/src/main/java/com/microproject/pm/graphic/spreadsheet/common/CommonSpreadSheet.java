@@ -1917,6 +1917,9 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 			setEditingColumn(ws.editingColumn);
 		if (getRowCount() > ws.lastEditingRow)
 			lastEditingRow = ws.lastEditingRow;
+		clearSelection();
+		if (rowHeader != null)
+			rowHeader.clearSelection();
 		boolean restoredStableSelection = restoreStableTaskSelection(ws);
 		if (!restoredStableSelection)
 			restoreLegacyRowSelection(ws.selectedRows);
@@ -1983,18 +1986,17 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		if (!(getModel() instanceof SpreadSheetModel model) || model.getRowMultiple() != 1 || getCache() == null)
 			return false;
 		RevisionedProjectionIndex projection = getCache().getVisibleNodes().getProjectionIndex();
-		clearSelection();
-		if (rowHeader != null)
-			rowHeader.clearSelection();
+		int[] viewRows = new int[ws.selectedTaskIds.length];
 		for (int index = 0; index < ws.selectedTaskIds.length; index++) {
-			ProjectTaskKey taskKey = new ProjectTaskKey(ws.selectedProjectIds[index], ws.selectedTaskIds[index]);
-			ProjectionRowKey key = new ProjectionRowKey.TaskRow(taskKey, ws.selectedOccurrences[index]);
-			int modelRow = projection.rowForKey(key);
+			int modelRow = rowForWorkspaceTask(projection, ws.selectedProjectIds[index], ws.selectedTaskIds[index],
+				ws.selectedOccurrences[index]);
 			if (modelRow < 0)
-				continue;
-			int viewRow = convertRowIndexToView(modelRow);
-			if (viewRow < 0)
-				continue;
+				return true;
+			viewRows[index] = convertRowIndexToView(modelRow);
+			if (viewRows[index] < 0)
+				return true;
+		}
+		for (int viewRow : viewRows) {
 			addRowSelectionInterval(viewRow, viewRow);
 			rowHeader.addRowSelectionInterval(viewRow, viewRow);
 		}
@@ -2008,9 +2010,8 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 				|| model.getRowMultiple() != 1 || getCache() == null)
 			return null;
 		RevisionedProjectionIndex projection = getCache().getVisibleNodes().getProjectionIndex();
-		ProjectionRowKey key = new ProjectionRowKey.TaskRow(
-			new ProjectTaskKey(ws.scrollAnchorProjectId, ws.scrollAnchorTaskId), ws.scrollAnchorOccurrence);
-		int modelRow = projection.rowForKey(key);
+		int modelRow = rowForWorkspaceTask(projection, ws.scrollAnchorProjectId, ws.scrollAnchorTaskId,
+			ws.scrollAnchorOccurrence);
 		if (modelRow < 0)
 			return null;
 		int viewRow = convertRowIndexToView(modelRow);
@@ -2020,6 +2021,23 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		int offset = Math.min(ws.scrollAnchorOffset, Math.max(0, rowBounds.height - 1));
 		int x = ws.viewPosition == null ? 0 : Math.max(0, ws.viewPosition.x);
 		return new Point(x, Math.max(0, rowBounds.y + offset));
+	}
+
+	private static int rowForWorkspaceTask(RevisionedProjectionIndex projection, long projectId, long taskId,
+			int occurrence) {
+		int match = -1;
+		for (int row = 0; row < projection.size(); row++) {
+			if (!(projection.keyAt(row) instanceof ProjectionRowKey.TaskRow taskRow))
+				continue;
+			ProjectTaskKey key = taskRow.taskKey();
+			if (key.owningProjectId() == projectId && key.taskUniqueId() == taskId
+					&& taskRow.occurrence() == occurrence) {
+				if (match >= 0)
+					return -1;
+				match = row;
+			}
+		}
+		return match;
 	}
 
 	private void captureStableTaskSelection(Workspace ws) {
@@ -2037,6 +2055,8 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 				return;
 			projectIds[index] = taskRow.taskKey().owningProjectId();
 			taskIds[index] = taskRow.taskKey().taskUniqueId();
+			if (projectIds[index] <= 0L || taskIds[index] <= 0L)
+				return;
 			occurrences[index] = taskRow.occurrence();
 		}
 		ws.selectedProjectIds = projectIds;
@@ -2058,6 +2078,8 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		RevisionedProjectionIndex projection = getCache().getVisibleNodes().getProjectionIndex();
 		if (modelRow < 0 || modelRow >= projection.size()
 				|| !(projection.keyAt(modelRow) instanceof ProjectionRowKey.TaskRow taskRow))
+			return;
+		if (taskRow.taskKey().owningProjectId() <= 0L || taskRow.taskKey().taskUniqueId() <= 0L)
 			return;
 		Rectangle rowBounds = getCellRect(viewRow, 0, true);
 		ws.scrollAnchorProjectId = taskRow.taskKey().owningProjectId();
@@ -2096,15 +2118,17 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 					|| selectedProjectIds.length != selectedOccurrences.length)
 				return false;
 			for (int index = 0; index < selectedProjectIds.length; index++) {
-				if (selectedProjectIds[index] <= 0L || selectedTaskIds[index] <= 0L || selectedOccurrences[index] < 0)
+				if (selectedProjectIds[index] <= 0L || selectedTaskIds[index] <= 0L
+						|| selectedOccurrences[index] < 0)
 					return false;
 			}
 			return true;
 		}
 
 		boolean hasValidStableScrollAnchor() {
-			return workspaceVersion == 2 && stableScrollAnchorPresent && scrollAnchorProjectId > 0L
-					&& scrollAnchorTaskId > 0L && scrollAnchorOccurrence >= 0 && scrollAnchorOffset >= 0;
+			return workspaceVersion == 2 && stableScrollAnchorPresent
+					&& scrollAnchorProjectId > 0L && scrollAnchorTaskId > 0L
+					&& scrollAnchorOccurrence >= 0 && scrollAnchorOffset >= 0;
 		}
 
 		public int getWorkspaceVersion() {

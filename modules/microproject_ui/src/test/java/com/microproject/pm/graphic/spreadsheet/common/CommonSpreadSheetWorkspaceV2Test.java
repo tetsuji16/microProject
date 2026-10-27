@@ -40,6 +40,44 @@ class CommonSpreadSheetWorkspaceV2Test {
 	}
 
 	@Test
+	void localNegativeTaskSelectionAndScrollAnchorAreRejectedForIndexFallback() throws Exception {
+		CommonSpreadSheet.Workspace workspace = new CommonSpreadSheet.Workspace();
+		workspace.setWorkspaceVersion(2);
+		workspace.setStableTaskSelectionPresent(true);
+		workspace.setSelectedProjectIds(new long[] { -999_999_991L, -999_999_991L });
+		workspace.setSelectedTaskIds(new long[] { -999_999_984L, -999_999_983L });
+		workspace.setSelectedOccurrences(new int[] { 0, 0 });
+		workspace.setStableScrollAnchorPresent(true);
+		workspace.setScrollAnchorProjectId(-999_999_991L);
+		workspace.setScrollAnchorTaskId(-999_999_983L);
+		workspace.setScrollAnchorOccurrence(0);
+		workspace.setScrollAnchorOffset(6);
+
+		CommonSpreadSheet.Workspace restored = roundTrip(workspace);
+
+		assertFalse(restored.hasValidStableTaskSelection());
+		assertArrayEquals(new long[] { -999_999_984L, -999_999_983L }, restored.getSelectedTaskIds());
+		assertFalse(restored.hasValidStableScrollAnchor());
+	}
+
+	@Test
+	void zeroAndSentinelIdentifiersAreRejectedForWorkspaceV2() {
+		CommonSpreadSheet.Workspace workspace = new CommonSpreadSheet.Workspace();
+		workspace.setWorkspaceVersion(2);
+		workspace.setStableTaskSelectionPresent(true);
+		workspace.setSelectedProjectIds(new long[] { 17L, 17L });
+		workspace.setSelectedTaskIds(new long[] { 0L, -1L });
+		workspace.setSelectedOccurrences(new int[] { 0, 0 });
+		assertFalse(workspace.hasValidStableTaskSelection());
+		workspace.setStableScrollAnchorPresent(true);
+		workspace.setScrollAnchorProjectId(17L);
+		workspace.setScrollAnchorTaskId(0L);
+		workspace.setScrollAnchorOccurrence(0);
+		workspace.setScrollAnchorOffset(0);
+		assertFalse(workspace.hasValidStableScrollAnchor());
+	}
+
+	@Test
 	void legacyVersionOneAndMalformedV2PayloadsUseTheIndexFallback() {
 		CommonSpreadSheet.Workspace legacy = new CommonSpreadSheet.Workspace();
 		legacy.setWorkspaceVersion(1);
@@ -60,6 +98,17 @@ class CommonSpreadSheetWorkspaceV2Test {
 		malformed.setScrollAnchorOccurrence(0);
 		malformed.setScrollAnchorOffset(-1);
 		assertFalse(malformed.hasValidStableScrollAnchor());
+
+		malformed.setScrollAnchorOffset(0);
+		malformed.setScrollAnchorProjectId(-1L);
+		malformed.setScrollAnchorTaskId(-999_999_983L);
+		assertFalse(malformed.hasValidStableScrollAnchor(), "the unassigned -1 sentinel is not a stable project ID");
+
+		malformed.setStableTaskSelectionPresent(true);
+		malformed.setSelectedProjectIds(new long[] { -999_999_991L });
+		malformed.setSelectedTaskIds(new long[] { -1L });
+		malformed.setSelectedOccurrences(new int[] { 0 });
+		assertFalse(malformed.hasValidStableTaskSelection(), "the unassigned -1 sentinel is not a stable task ID");
 	}
 
 	private static CommonSpreadSheet.Workspace roundTrip(CommonSpreadSheet.Workspace workspace) throws Exception {
