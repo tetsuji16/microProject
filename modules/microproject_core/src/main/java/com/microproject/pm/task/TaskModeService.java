@@ -37,20 +37,47 @@ public final class TaskModeService {
 		for (boolean value : before) changed |= value != target;
 		List<Project> projects = List.copyOf(projectSnapshots.keySet());
 		Map<Project, ProjectMutationState.Scope> mutations = new IdentityHashMap<>();
-		List<Project> batched = new ArrayList<>(projects.size());
-		int attempted = 0;
+		List<Project> batched = new ArrayList<>();
 		try {
 			for (Project project : projects) {
 				mutations.put(project, project.getMutationState().begin());
 				project.beginEventBatch();
 				batched.add(project);
 			}
+		} catch (RuntimeException | Error failure) {
+			// Never leave the process-wide mutation barrier held (issue #946).
+			for (int i = projects.size() - 1; i >= 0; i--) {
+				Project project = projects.get(i);
+				ProjectMutationState.Scope mutation = mutations.get(project);
+				if (mutation == null) continue;
+				if (batched.contains(project)) {
+					try {
+						project.endEventBatch(false);
+					} catch (RuntimeException | Error compensationFailure) {
+						failure.addSuppressed(compensationFailure);
+					}
+				}
+				try {
+					mutation.commit(false);
+				} catch (RuntimeException | Error compensationFailure) {
+					failure.addSuppressed(compensationFailure);
+				}
+				try {
+					mutation.close();
+				} catch (RuntimeException | Error compensationFailure) {
+					failure.addSuppressed(compensationFailure);
+				}
+			}
+			throw failure;
+		}
+		int attempted = 0;
+		try {
 			for (Task task : selected) {
 				attempted++;
 				task.setManuallyScheduled(target);
 			}
 		} catch (RuntimeException | Error failure) {
-			if (attempted > 0) for (Map.Entry<Project, ProjectTaskSnapshot> entry : projectSnapshots.entrySet()) {
+			for (Map.Entry<Project, ProjectTaskSnapshot> entry : projectSnapshots.entrySet()) {
 				try {
 					entry.getValue().restore(entry.getKey(), this);
 				} catch (RuntimeException | Error compensationFailure) {
@@ -67,8 +94,7 @@ public final class TaskModeService {
 			}
 			for (int i = projects.size() - 1; i >= 0; i--) {
 				Project project = projects.get(i);
-				if (!mutations.containsKey(project)) continue;
-				if (batched.contains(project)) try {
+				try {
 					project.endEventBatch(false);
 				} catch (RuntimeException | Error compensationFailure) {
 					failure.addSuppressed(compensationFailure);

@@ -25,6 +25,7 @@ import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.scheduling.ScheduleEvent;
 import com.microproject.pm.task.Project;
 import com.microproject.undo.DataFactoryUndoController;
+import com.microproject.document.ObjectEventManager;
 import org.junit.jupiter.api.Test;
 
 class ProjectMutationStateTest {
@@ -416,6 +417,73 @@ class ProjectMutationStateTest {
 				"another thread must acquire the coordinator after closeAll");
 		} finally {
 			worker.shutdownNow();
+		}
+	}
+
+	/** Issue #946: a failure while opening the event batch must not keep the process-wide barrier. */
+	@Test
+	void batchSetupFailureBeforeTheBatchStartsReleasesTheBarrier() throws Exception {
+		FailingUndoController undo = new FailingUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("batch-start-failure", undo), undo);
+		project.initialize(false, false);
+		undo.fail = true;
+		assertThrows(IllegalStateException.class, () -> project.runModelMutation(markApplied -> {
+			markApplied.run();
+			return true;
+		}));
+		undo.fail = false;
+		assertFalse(project.getMutationState().isHeldByCurrentThread(), "the failing thread must release the barrier");
+		assertAnotherThreadCanCommit(project);
+	}
+
+	/** Issue #946: a failure after the batch started must close the batch and release the barrier. */
+	@Test
+	void batchSetupFailureAfterTheBatchStartsClosesItAndReleasesTheBarrier() throws Exception {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("batch-join-failure", undo), undo);
+		project.initialize(false, false);
+		ObjectEventManager failingManager = new ObjectEventManager() {
+			@Override public synchronized void beginBatch() {
+				throw new IllegalStateException("participant cannot join");
+			}
+		};
+		ResourcePool participant = new ResourcePool("failing-participant", new DataFactoryUndoController()) {
+			@Override public ObjectEventManager getObjectEventManager() {
+				return failingManager;
+			}
+		};
+		Project.AdditionalObjectEventManager joined = new Project.AdditionalObjectEventManager(failingManager,
+			participant, participant, List.of());
+		assertThrows(IllegalStateException.class, () -> project.runModelCommand(markApplied -> {
+			markApplied.run();
+			return Boolean.TRUE;
+		}, Boolean.TRUE::equals, changed -> Boolean.TRUE, List.of(joined)));
+		assertFalse(project.getMutationState().isHeldByCurrentThread(), "the failing thread must release the barrier");
+		assertEquals(0, project.pendingEventCount());
+		assertAnotherThreadCanCommit(project);
+		assertFalse(undo.getEditSupport().hasPendingHistory(), "the abandoned batch must not leave an open undo command");
+	}
+
+	private static void assertAnotherThreadCanCommit(Project project) throws Exception {
+		long before = project.getMutationState().revision();
+		ExecutorService worker = Executors.newSingleThreadExecutor();
+		try {
+			assertTrue(worker.submit(() -> project.runModelMutation(markApplied -> {
+				markApplied.run();
+				return true;
+			})).get(2, TimeUnit.SECONDS), "a later thread must enter and commit a project command");
+		} finally {
+			worker.shutdownNow();
+		}
+		assertEquals(before + 1, project.getMutationState().revision());
+	}
+
+	/** Undo controller whose command support fails on demand, after project initialization. */
+	private static final class FailingUndoController extends DataFactoryUndoController {
+		volatile boolean fail;
+		@Override public com.microproject.undo.EditSupport getEditSupport() {
+			if (fail) throw new IllegalStateException("undo command support unavailable");
+			return super.getEditSupport();
 		}
 	}
 }

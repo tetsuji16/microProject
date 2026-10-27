@@ -121,14 +121,25 @@ public class CollaborationSession {
 		timer.scheduleAtFixedRate(new TimerTask() {
 			@Override
 			public void run() {
-				// An uncaught failure would cancel the Timer permanently and stop lease heartbeats.
-				try {
-					poll();
-				} catch (Throwable e) {
-					logger.log(Level.WARNING, "Collaboration poll failed for " + projectFile, e);
-				}
+				runGuardedPoll(CollaborationSession.this::poll);
 			}
 		}, POLL_INTERVAL_MS, POLL_INTERVAL_MS);
+	}
+
+	/**
+	 * Runs one scheduled poll without letting a failure escape to the
+	 * {@link Timer}.  An uncaught exception cancels a {@code java.util.Timer}
+	 * permanently, which would silently stop heartbeats and lock renewal for
+	 * the rest of the session (issue #946).  JVM-level errors still propagate.
+	 */
+	static void runGuardedPoll(Runnable poll) {
+		try {
+			poll.run();
+		} catch (VirtualMachineError fatal) {
+			throw fatal;
+		} catch (Throwable failure) {
+			logger.log(Level.WARNING, "Collaboration poll failed; polling continues", failure);
+		}
 	}
 
 	public void stop() {
