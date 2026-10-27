@@ -8647,6 +8647,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			thirdTarget.getId(), untouched.getId());
 		long[] originalDates = { firstTarget.getStart(), firstTarget.getEnd(), secondTarget.getStart(),
 			secondTarget.getEnd(), thirdTarget.getStart(), thirdTarget.getEnd(), untouched.getStart(), untouched.getEnd() };
+		long[] originalDurations = { firstTarget.getDurationMillis(), secondTarget.getDurationMillis(),
+			thirdTarget.getDurationMillis(), untouched.getDurationMillis() };
 		undo.clear();
 
 		showProject(project);
@@ -8698,12 +8700,17 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertTrue(painter.isSelected(), "the current Format Painter control must show its armed state");
 		dismissTaskRibbonOverflow(robot, painter, this::formatPainterActionSelected,
 			"Format Painter must remain armed after dismissing its overflow");
-		clickUntilSelected(robot, window, sheet, rowForTask(sheet, firstTarget), 0);
-		GuiAcceptanceSupport.await(() -> firstTarget.isFontBold() && firstTarget.isFontItalic()
-				&& firstTarget.isFontStrikethrough() && firstTarget.getFontSize() == 15
-				&& java.util.Objects.equals(firstTarget.getFontFamily(), "Dialog")
-				&& java.util.Objects.equals(firstTarget.getFontColor(), 0x2457A6),
-			"the physical target-row selection did not receive all six source text-style properties");
+		assertTrue(isDefaultTaskTextStyle(firstTarget) && isDefaultTaskTextStyle(secondTarget)
+				&& isDefaultTaskTextStyle(thirdTarget),
+			"moving focus to the ribbon while Format Painter is armed must not apply formatting");
+		robot.keyPress(KeyEvent.VK_SHIFT);
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, secondTarget), 0));
+		robot.keyRelease(KeyEvent.VK_SHIFT);
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).size() == 3
+				&& manager.getCurrentFrame().getSelectedImpls(false).containsAll(List.of(source, firstTarget, secondTarget)),
+			"one physical Shift-click must select the source and both target tasks together");
+		GuiAcceptanceSupport.await(() -> hasTaskTextStyle(firstTarget, source) && hasTaskTextStyle(secondTarget, source),
+			"one physical multi-row target selection did not receive all six source text-style properties");
 		GuiAcceptanceSupport.await(() -> !formatPainterActionSelected(),
 			"one-shot Format Painter must disarm after one target selection");
 		painter = findShowingButtonByCommand("RibbonFormatPainter");
@@ -8712,9 +8719,14 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"one-shot Format Painter must remain disarmed");
 		assertTrue(undo.canUndo(), "one target application must create one undoable mutation");
 		assertEquals("Format first target", firstTarget.getName(), "format painting must preserve task data");
+		assertEquals("Format second target", secondTarget.getName(), "format painting must preserve every selected task name");
+		assertEquals("Format third target", thirdTarget.getName(), "format painting must preserve unselected task data");
+		assertEquals("Format untouched", untouched.getName(), "format painting must preserve unrelated task data");
 		assertArrayEquals(originalDates, new long[] { firstTarget.getStart(), firstTarget.getEnd(), secondTarget.getStart(),
 			secondTarget.getEnd(), thirdTarget.getStart(), thirdTarget.getEnd(), untouched.getStart(), untouched.getEnd() },
 			"text formatting must not change schedule dates");
+		assertArrayEquals(originalDurations, new long[] { firstTarget.getDurationMillis(), secondTarget.getDurationMillis(),
+			thirdTarget.getDurationMillis(), untouched.getDurationMillis() }, "text formatting must preserve task durations");
 		java.awt.Font fallback = new java.awt.Font("SansSerif", java.awt.Font.PLAIN, 12);
 		assertEquals(com.microproject.pm.graphic.TaskFontStyle.resolveFont(source, fallback),
 			com.microproject.pm.graphic.TaskFontStyle.resolveFont(firstTarget, fallback),
@@ -8726,25 +8738,32 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			renderedTaskName.getForeground(), "the rendered task-table name must display the copied font color");
 
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
-		GuiAcceptanceSupport.await(() -> !firstTarget.isFontBold() && firstTarget.getFontSize() == 0
-				&& firstTarget.getFontColor() == null,
-			"Undo did not restore the target's original task text style");
+		GuiAcceptanceSupport.await(() -> isDefaultTaskTextStyle(firstTarget) && isDefaultTaskTextStyle(secondTarget),
+			"one Undo did not restore both targets' original task text styles atomically");
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
-		GuiAcceptanceSupport.await(() -> firstTarget.isFontBold() && firstTarget.getFontSize() == 15,
-			"Redo did not restore the copied task text style");
+		GuiAcceptanceSupport.await(() -> hasTaskTextStyle(firstTarget, source) && hasTaskTextStyle(secondTarget, source),
+			"one Redo did not restore both targets' copied task text styles atomically");
 
 		ByteArrayOutputStream saved = new ByteArrayOutputStream();
 		MpoFileImporter importer = new MpoFileImporter();
 		assertTrue(importer.saveProject(project, saved), "MPO save rejected the formatted task project");
 		Project reloaded = importer.loadProject(new ByteArrayInputStream(saved.toByteArray()));
 		Task reloadedFirst = taskNamed(reloaded, "Format first target");
+		Task reloadedSecond = taskNamed(reloaded, "Format second target");
 		assertTrue(reloadedFirst.isFontBold() && reloadedFirst.isFontItalic() && reloadedFirst.isFontStrikethrough());
 		assertEquals("Dialog", reloadedFirst.getFontFamily());
 		assertEquals(15, reloadedFirst.getFontSize());
 		assertEquals(Integer.valueOf(0x2457A6), reloadedFirst.getFontColor());
+		assertTrue(hasTaskTextStyle(reloadedSecond, source), "MPO reload must preserve the second painted target style");
 
-		clickUntilSelected(robot, window, sheet, rowForTask(sheet, source), 0);
+		// Undo/Redo leaves the painted multi-row selection active. The helper below
+		// only checks the lead row and could skip the click while that selection
+		// still contains several tasks, so explicitly collapse it before rearming.
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, source), 0));
+		GuiAcceptanceSupport.await(() -> sheetHasOnlySelectedTask(sheet, source),
+			"a physical source-row click did not collapse the painted multi-row selection");
 		painter = findShowingButtonByCommand("RibbonFormatPainter");
+		GuiAcceptanceSupport.await(painter::isEnabled, "Format Painter must enable for the single source task");
 		click(robot, painter);
 		GuiAcceptanceSupport.await(this::formatPainterActionSelected, "Format Painter did not arm before continuous mode");
 		painter = findShowingButtonByCommand("RibbonFormatPainter");
@@ -8800,6 +8819,15 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	private boolean formatPainterActionSelected() {
 		Action action = manager.getMenuManager().getActionFromId("RibbonFormatPainter");
 		return action != null && Boolean.TRUE.equals(action.getValue(Action.SELECTED_KEY));
+	}
+
+	private static boolean hasTaskTextStyle(Task target, Task source) {
+		return TaskFormatPainterService.capture(target).equals(TaskFormatPainterService.capture(source));
+	}
+
+	private static boolean isDefaultTaskTextStyle(Task task) {
+		return TaskFormatPainterService.capture(task).equals(
+			new TaskFormatPainterService.TaskTextFormat(null, 0, null, false, false, false));
 	}
 
 	private void dismissTaskRibbonOverflow(Robot robot, Component command, BooleanSupplier preservedState,
