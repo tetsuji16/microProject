@@ -62,6 +62,8 @@ jobs:
             $createdPaths = [System.Collections.Generic.List[string]]::new()
             $result = 'not attempted'
             $restoreFailure = $null
+            $providerResult = 'not attempted'
+            $directResult = 'not needed'
             try {
               $keyExisted = Test-Path -LiteralPath $KeyPath
               $pathPrefix = ''
@@ -87,14 +89,45 @@ jobs:
               }
               $snapshotComplete = $true
               Write-Host "Registry probe before write: key=$KeyPath exists=$keyExisted value=$ValueName exists=$valueExisted value=$originalValue kind=$originalKind"
-              New-Item -Path $KeyPath -Force | Out-Null
-              New-ItemProperty -LiteralPath $KeyPath -Name $ValueName -PropertyType DWord -Value $ProbeValue -Force | Out-Null
-              $readKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($nativePath, $false)
-              if ($null -eq $readKey) { throw 'Could not reopen the registry key after the write' }
-              $observedValue = $readKey.GetValue($ValueName)
-              $readKey.Dispose()
-              if ([int]$observedValue -ne $ProbeValue) { throw "Write readback mismatch; observed=$observedValue expected=$ProbeValue" }
-              $result = 'write and readback succeeded'
+              $stage = 'PowerShell New-Item'
+              try {
+                New-Item -Path $KeyPath -Force | Out-Null
+                $stage = 'PowerShell New-ItemProperty'
+                New-ItemProperty -LiteralPath $KeyPath -Name $ValueName -PropertyType DWord -Value $ProbeValue -Force | Out-Null
+                $stage = 'PowerShell readback'
+                $readKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($nativePath, $false)
+                if ($null -eq $readKey) { throw 'Could not reopen the registry key after the write' }
+                $observedValue = $readKey.GetValue($ValueName)
+                $readKey.Dispose()
+                if ([int]$observedValue -ne $ProbeValue) { throw "Write readback mismatch; observed=$observedValue expected=$ProbeValue" }
+                $providerResult = 'write and readback succeeded'
+              } catch {
+                $providerResult = "$stage failed: $($_.Exception.Message)"
+              }
+              if ($providerResult -notlike 'write and readback succeeded') {
+                $stage = 'RegistryKey.OpenSubKey writable'
+                try {
+                  $writeKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($nativePath, $true)
+                  if ($null -eq $writeKey) { throw 'Writable OpenSubKey returned null' }
+                  $stage = 'RegistryKey.SetValue'
+                  $writeKey.SetValue($ValueName, $ProbeValue, [Microsoft.Win32.RegistryValueKind]::DWord)
+                  $writeKey.Flush()
+                  $writeKey.Dispose()
+                  $writeKey = $null
+                  $stage = 'direct registry readback'
+                  $readKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($nativePath, $false)
+                  if ($null -eq $readKey) { throw 'Direct registry write could not be reopened for readback' }
+                  $observedValue = $readKey.GetValue($ValueName)
+                  $readKey.Dispose()
+                  if ([int]$observedValue -ne $ProbeValue) { throw "Direct write readback mismatch; observed=$observedValue expected=$ProbeValue" }
+                  $directResult = 'write and readback succeeded'
+                } catch {
+                  $directResult = "$stage failed: $($_.Exception.Message)"
+                } finally {
+                  if ($null -ne $writeKey) { $writeKey.Dispose() }
+                }
+              }
+              $result = "PowerShell provider $providerResult; direct RegistryKey.SetValue $directResult"
             } catch {
               $result = "write or readback failed: $($_.Exception.Message)"
             } finally {
