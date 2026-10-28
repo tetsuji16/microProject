@@ -107,6 +107,7 @@ class ReleaseWorkflowPolicyTest(unittest.TestCase):
 		self.assertIn("finally {", diagnostics)
 		self.assertIn("Registry probe restoration failed", diagnostics)
 		self.assertIn("Press-WinN", diagnostics)
+		self.assertIn("IsNotificationCenterWindow(GetForegroundWindow())", diagnostics)
 		self.assertIn("Save-DesktopEvidence 'win-n-with-policy-before-reboot'", diagnostics)
 		self.assertIn("Policy cleanup: $policyRestoreState", diagnostics)
 		self.assertNotIn("run-gui-acceptance.ps1", diagnostics)

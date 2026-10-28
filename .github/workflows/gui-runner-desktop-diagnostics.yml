@@ -221,23 +221,23 @@ jobs:
                       rect.Bottom - rect.Top, IsWindowVisible(window));
               }
 
+              private static bool IsNotificationCenterWindow(IntPtr window) {
+                  if (window == IntPtr.Zero || !IsWindowVisible(window)) return false;
+                  uint pid;
+                  GetWindowThreadProcessId(window, out pid);
+                  var windowClass = new StringBuilder(256);
+                  GetClassName(window, windowClass, windowClass.Capacity);
+                  Rect rect;
+                  GetWindowRect(window, out rect);
+                  string processName = "unknown";
+                  try { processName = Process.GetProcessById((int)pid).ProcessName; } catch { }
+                  return processName.Equals("ShellExperienceHost", StringComparison.OrdinalIgnoreCase)
+                      && windowClass.ToString().Equals("Windows.UI.Core.CoreWindow", StringComparison.OrdinalIgnoreCase)
+                      && rect.Right - rect.Left >= 250 && rect.Bottom - rect.Top >= 400;
+              }
+
               public static bool IsNotificationCenterVisible() {
-                  bool found = false;
-                  EnumWindows((window, parameter) => {
-                      uint pid;
-                      GetWindowThreadProcessId(window, out pid);
-                      var windowClass = new StringBuilder(256);
-                      GetClassName(window, windowClass, windowClass.Capacity);
-                      Rect rect;
-                      GetWindowRect(window, out rect);
-                      string processName = "unknown";
-                      try { processName = Process.GetProcessById((int)pid).ProcessName; } catch { }
-                      if (IsWindowVisible(window) && processName.Equals("ShellExperienceHost", StringComparison.OrdinalIgnoreCase)
-                          && windowClass.ToString().Equals("Windows.UI.Core.CoreWindow", StringComparison.OrdinalIgnoreCase)
-                          && rect.Right - rect.Left >= 250 && rect.Bottom - rect.Top >= 400) found = true;
-                      return true;
-                  }, IntPtr.Zero);
-                  return found;
+                  return IsNotificationCenterWindow(GetForegroundWindow());
               }
 
               public static string Snapshot() {
