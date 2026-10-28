@@ -167,16 +167,6 @@ public class ConfigurationFile {
 	public static File getGeneratedDirectory(String externalDirectory) {
 		File directory=new File(externalDirectory,"import");
 		return directory.isDirectory()?directory:null;
-
-		//		File directory=null;
-//		Preferences pref=Preferences.userNodeForPackage(ConfigurationFile.class);
-//		if (pref.getBoolean("useExternalLocales",false)) {
-//			String dir=pref.get("externalLocalesDirectory","");
-//			directory=new File(dir,"generated");
-//			if (!directory.isDirectory())
-//				return null;
-//		}		
-//		return directory;
 	}
 	
 	public static File getExportDirectory(String externalDirectory) {
@@ -195,8 +185,6 @@ public class ConfigurationFile {
 			if (!directory.isDirectory())
 				return null;
 		}
-//		if (directory==null)
-//			directory=getConfDir();
 		if (directory == null)
 			return null;
 		try {
