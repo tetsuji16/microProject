@@ -136,4 +136,3 @@ class MspdiResourceImportTest {
 		return new MpoFileImporter().loadProject(new ByteArrayInputStream(mpo.toByteArray()));
 	}
 }
-
