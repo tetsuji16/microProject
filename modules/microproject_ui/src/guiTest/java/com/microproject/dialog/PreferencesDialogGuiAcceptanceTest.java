@@ -103,6 +103,8 @@ class PreferencesDialogGuiAcceptanceTest {
 		assertTrue(tabs != null, "Preferences dialog must expose its settings tabs");
 		assertEquals(UsabilityStrings.text("preferences.languageLocale"), tabs.getTitleAt(1));
 		assertEquals(1, tabs.getSelectedIndex(), "Ribbon locale route must select Language and locale");
+		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(tabs, "Preferences language and locale tab");
+		DialogLayoutAssertions.assertWithinUsableScreen(dialog, "Preferences language and locale tab");
 		JComboBox<?> language = findComboWithItem(dialog, "de");
 		JComboBox<?> country = findComboWithItem(dialog, "Germany");
 		assertTrue(language != null && country != null, "Language and locale tab must expose language and country selectors");

@@ -9,6 +9,9 @@ import java.awt.FlowLayout;
 import java.awt.Frame;
 import java.awt.GridLayout;
 import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.GraphicsEnvironment;
+import java.awt.Rectangle;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -164,7 +167,8 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 		LocaleDialog localeSettings = LocaleDialog.createPreferencesSection(owner);
 		JTabbedPane tabs = new JTabbedPane();
 		tabs.addTab(UsabilityStrings.text("preferences.general"), new JScrollPane(form));
-		tabs.addTab(UsabilityStrings.text("preferences.languageLocale"), localeSettings.createPreferencesContent());
+		tabs.addTab(UsabilityStrings.text("preferences.languageLocale"),
+			new JScrollPane(localeSettings.createPreferencesContent()));
 		tabs.setSelectedIndex(showLocaleTab ? 1 : 0);
 
 		JButton apply = new JButton(UsabilityStrings.text("preferences.apply"));
@@ -208,7 +212,11 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 		buttons.add(cancel); buttons.add(apply);
 		setLayout(new BorderLayout());
 		add(tabs, BorderLayout.CENTER); add(buttons, BorderLayout.SOUTH);
-		pack(); setLocationRelativeTo(owner);
+		pack();
+		Rectangle usableBounds = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
+		Dimension packedSize = getSize();
+		setSize(Math.min(packedSize.width, usableBounds.width), Math.min(packedSize.height, usableBounds.height));
+		setLocationRelativeTo(owner);
 	}
 
 	private static void updateGridColorButton(JButton button, Color color) {
