@@ -296,20 +296,24 @@ jobs:
             [GuiRunnerShellProbe]::PressWinN()
             Start-Sleep -Seconds 2
           }
+          function Ensure-PanelClosed([string]$Label) {
+            $state = Save-DesktopEvidence "$Label-before-close-check"
+            if ($state) {
+              Press-WinN
+              $state = Save-DesktopEvidence "$Label-after-close-key"
+            }
+            return (-not $state)
+          }
 
           $ambientState = Save-DesktopEvidence 'ambient-before'
           if ($ambientState) {
             Press-WinN
             $ambientState = Save-DesktopEvidence 'ambient-reset'
           }
+          $baselineStartClosed = Ensure-PanelClosed 'baseline'
           Press-WinN
           $baselineState = Save-DesktopEvidence 'win-n-before-policy'
-          if ($baselineState) {
-            Press-WinN
-            $baselineClosedState = Save-DesktopEvidence 'baseline-reset'
-          } else {
-            $baselineClosedState = $false
-          }
+          $baselineCloseConfirmed = Ensure-PanelClosed 'baseline-close'
 
           $policyNativePath = 'Software\Policies\Microsoft\Windows\Explorer'
           $policyName = 'DisableNotificationCenter'
@@ -319,6 +323,7 @@ jobs:
           $policyWriteSucceeded = $false
           $policyVisualState = 'not tested'
           $policyRestoreState = 'not required'
+          $restoredVisualState = 'not tested'
           $policyRead = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($policyNativePath, $false)
           $policyKeyExists = $null -ne $policyRead
           if ($policyKeyExists) {
@@ -329,7 +334,7 @@ jobs:
             }
             $policyRead.Dispose()
           }
-          Write-Host "Policy visual probe original state: keyExists=$policyKeyExists valueExists=$policyOriginalExists value=$policyOriginalValue kind=$policyOriginalKind baselineOpen=$baselineState baselineClosed=$baselineClosedState"
+          Write-Host "Policy visual probe original state: keyExists=$policyKeyExists valueExists=$policyOriginalExists value=$policyOriginalValue kind=$policyOriginalKind baselineStartClosed=$baselineStartClosed baselineOpen=$baselineState baselineCloseConfirmed=$baselineCloseConfirmed"
           try {
             if (-not $policyKeyExists) {
               $policyVisualState = 'skipped: policy key missing; no new key was created'
@@ -347,9 +352,11 @@ jobs:
               if ([int]$policyObserved -ne 1) { throw "DisableNotificationCenter readback was $policyObserved" }
               $policyWriteSucceeded = $true
               Write-Host "Temporarily set DisableNotificationCenter=1 at $([DateTime]::UtcNow.ToString('o')); no reboot or shell restart is performed."
+              $policyStartClosed = Ensure-PanelClosed 'policy-active'
               Press-WinN
               $policyPanelVisible = Save-DesktopEvidence 'win-n-with-policy-before-reboot'
-              $policyVisualState = "Win+N returned notificationCenterVisible=$policyPanelVisible before reboot"
+              $policyCloseConfirmed = Ensure-PanelClosed 'policy-active-close'
+              $policyVisualState = "startClosed=$policyStartClosed Win+N notificationCenterVisible=$policyPanelVisible closeConfirmed=$policyCloseConfirmed before reboot"
             }
           } catch {
             $policyVisualState = "not completed: $($_.Exception.Message)"
@@ -377,6 +384,11 @@ jobs:
                   $policyRestoreState = 'temporary value removed and verified absent'
                 }
                 $policyVerify.Dispose()
+                $restoredStartClosed = Ensure-PanelClosed 'policy-restored'
+                Press-WinN
+                $restoredPanelVisible = Save-DesktopEvidence 'win-n-after-policy-restore'
+                $restoredCloseConfirmed = Ensure-PanelClosed 'policy-restored-close'
+                $restoredVisualState = "startClosed=$restoredStartClosed Win+N notificationCenterVisible=$restoredPanelVisible closeConfirmed=$restoredCloseConfirmed"
               } catch {
                 $policyRestoreState = "restore failed: $($_.Exception.Message)"
                 Write-Error "Could not restore the runner taskbar policy: $policyRestoreState"
@@ -391,8 +403,9 @@ jobs:
             "- HKCU PushNotifications ToastEnabled: $toastResult.",
             "- ``$policyKey\DisableNotificationCenter``: $policyResult.",
             "- Ambient notification-center state: $ambientState.",
-            "- Physical Win+N baseline state before policy: $baselineState; reset to closed=$(-not $baselineClosedState).",
-            "- Physical Win+N state with temporary policy before reboot: $policyVisualState.",
+            "- Physical Win+N baseline: startClosed=$baselineStartClosed, notificationCenterVisible=$baselineState, closeConfirmed=$baselineCloseConfirmed.",
+            "- Physical Win+N with temporary policy before reboot: $policyVisualState.",
+            "- Physical Win+N after restoring policy: $restoredVisualState.",
             "- Policy cleanup: $policyRestoreState.",
             '- This run does not launch project GUI tests or reboot the hosted runner. Desktop images and native-window reports are uploaded as an artifact.',
             '- Microsoft documents that the Remove Notifications and Action Center policy requires a reboot to take effect: https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-admx-taskbar . The diagnostic does not reboot the hosted runner.'
