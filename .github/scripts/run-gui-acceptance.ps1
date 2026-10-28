@@ -19,6 +19,27 @@ $gateFailures = [System.Collections.Generic.List[string]]::new()
 $hostedWarningWatcher = $null
 $isGitHubActions = $env:GITHUB_ACTIONS -eq 'true'
 New-Item -ItemType Directory -Force -Path $gateLogs | Out-Null
+
+function Disable-HostedToastNotifications {
+  if (-not $script:isGitHubActions) { return }
+  # GUI runners are dedicated, short-lived accounts. Request that user toast
+  # notifications be disabled before launching Swing. This registry setting does
+  # not guarantee that Windows will avoid notification-center or tray-overflow
+  # flyouts. Preserve the native foreground-overlap gate.
+  $notificationKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\PushNotifications'
+  New-Item -Path $notificationKey -Force | Out-Null
+  Set-ItemProperty -LiteralPath $notificationKey -Name ToastEnabled -Type DWord -Value 0
+  $effectiveValue = (Get-ItemProperty -LiteralPath $notificationKey -Name ToastEnabled).ToastEnabled
+  if ([int]$effectiveValue -ne 0) {
+    throw "Could not disable hosted-user toast notifications; ToastEnabled=$effectiveValue"
+  }
+  Write-Host 'Set hosted-user toast notification preference to disabled before GUI acceptance (HKCU PushNotifications ToastEnabled=0); shell flyouts may still occur.'
+  if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_STEP_SUMMARY)) {
+    Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value '- Hosted GUI preparation: ToastEnabled=0 was set and read back; this does not guarantee prevention of notification-center or tray-overflow flyouts. desktop contention detection remains enabled.'
+  }
+}
+
+Disable-HostedToastNotifications
 $primaryDisplay = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
 Write-Host "GUI runner primary display bounds: $($primaryDisplay.Width)x$($primaryDisplay.Height)"
 if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_STEP_SUMMARY)) {

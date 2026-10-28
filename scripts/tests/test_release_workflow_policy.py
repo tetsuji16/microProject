@@ -98,6 +98,15 @@ class ReleaseWorkflowPolicyTest(unittest.TestCase):
 			self.assertRegex(source, rf"(?m)^\s*@Test\s*(?:\r?\n\s*)+void\s+{re.escape(method)}\s*\(")
 		self.assertIn("Visual GUI test method must map to exactly one @Test source method", runner)
 
+	def test_hosted_gui_runner_disables_toasts_before_desktop_acceptance(self):
+		runner = (REPO_ROOT / ".github" / "scripts" / "run-gui-acceptance.ps1").read_text(encoding="utf-8")
+		self.assertLess(runner.index("Disable-HostedToastNotifications\n$primaryDisplay"), runner.index("function Invoke-GuiGate"))
+		self.assertIn("if (-not $script:isGitHubActions) { return }", runner)
+		self.assertRegex(runner, r"Set-ItemProperty[^\n]*ToastEnabled[^\n]*-Value 0")
+		self.assertIn("$effectiveValue = (Get-ItemProperty", runner)
+		self.assertIn("does not guarantee prevention of notification-center or tray-overflow flyouts", runner)
+		self.assertIn("desktop contention detection remains enabled", runner)
+
 
 if __name__ == "__main__":
 	unittest.main()
