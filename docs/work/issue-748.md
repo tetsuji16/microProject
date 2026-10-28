@@ -154,3 +154,9 @@ Blockers: none for this WBS/XBS slice.
 - `ResourceMappingDialog` now caps the table viewport at eight rows, leaving the read-only choice in view while larger mappings remain scrollable. The GUI acceptance test asserts the checkbox's full visible rectangle before using Robot to click it, then retains the existing local/read-only model and disabled-editor assertions.
 - On the updated candidate, targeted Robot runs passed at ja 150%, ja 125%, and en 150% (one test each); `:microproject_ui:compileJava :microproject_ui:compileGuiTestJava` and `git diff --check` also passed. Screenshots/logs are retained at `%TEMP%\gui-acceptance-evidence-40653668829`.
 - No Release workflow was dispatched. This focused correction does not resolve the separate restored-dark contrast discrepancy or establish full release acceptance.
+
+## Release reruns blocked by hosted desktop contention (2026-10-28)
+
+- Release run [40651035737](https://github.com/tetsuji16/microProject/actions/runs/40651035737) and Release run [40655007965](https://github.com/tetsuji16/microProject/actions/runs/40655007965) both tested the exact candidate commit `debceb1086a420237ec9aa2594caa7dde98dc0d6`. The build phase passed in both runs.
+- In both runs, the Gantt FF Robot journey was blocked before sending input when `ShellExperienceHost` overlapped the test window at the same screen geometry. The fail-closed guard aborted nine subsequent GUI cases in each run. No application assertion failed in those aborted cases; these runs provide no new product acceptance evidence.
+- Release acceptance remains pending a clean hosted GUI run. Do not treat either rerun as a regression or as a passing release gate.
