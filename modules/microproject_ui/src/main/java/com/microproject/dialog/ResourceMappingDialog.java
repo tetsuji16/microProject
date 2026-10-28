@@ -25,6 +25,7 @@
 package com.microproject.dialog;
 
 import java.awt.Component;
+import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.lang.reflect.InvocationTargetException;
@@ -230,6 +231,7 @@ public final class ResourceMappingDialog extends AbstractDialog {
 	    public AssociationTable() {
 	        super(new AssociationTableModel(),new AssociationTableColumnModel());
 			setCellSelectionEnabled(true);
+			setPreferredScrollableViewportSize(new Dimension(450, getRowHeight() * 8));
 
 			getTableHeader().setDefaultRenderer(new HeaderRenderer());
 
