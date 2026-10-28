@@ -1,0 +1,421 @@
+name: GUI runner desktop diagnostics
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/gui-runner-desktop-diagnostics.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gui-runner-desktop-diagnostics-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  desktop-diagnostics:
+    name: Desktop policy diagnostics
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Inspect runner identity and notification policy registry
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+          $principal = [System.Security.Principal.WindowsPrincipal]::new($identity)
+          $os = Get-CimInstance -ClassName Win32_OperatingSystem
+          Write-Host "Identity: $($identity.Name) SID=$($identity.User.Value) IsAdministrator=$($principal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator))"
+          Write-Host "OS: $($os.Caption) version=$($os.Version) build=$($os.BuildNumber)"
+          whoami.exe /groups
+
+          $inspectedKeys = @(
+            'HKCU:\Software\Microsoft\Windows\CurrentVersion\PushNotifications',
+            'HKCU:\Software\Policies\Microsoft\Windows\Explorer'
+          )
+          foreach ($keyPath in $inspectedKeys) {
+            Write-Host "Registry key: $keyPath"
+            try {
+              if (-not (Test-Path -LiteralPath $keyPath)) {
+                Write-Host '  State: missing'
+                continue
+              }
+              $acl = Get-Acl -LiteralPath $keyPath
+              Write-Host "  Owner: $($acl.Owner)"
+              Write-Host "  SDDL: $($acl.Sddl)"
+              $acl.Access | ForEach-Object {
+                Write-Host "  ACE: Identity=$($_.IdentityReference) Type=$($_.AccessControlType) Rights=$($_.RegistryRights) Inherited=$($_.IsInherited)"
+              }
+            } catch {
+              Write-Host "  Inspection error: $($_.Exception.Message)"
+            }
+          }
+
+          function Test-RegistryDwordWriteAndRestore([string]$KeyPath, [string]$ValueName, [int]$ProbeValue) {
+            $nativePath = $KeyPath -replace '^HKCU:\\', ''
+            $keyExisted = $false
+            $valueExisted = $false
+            $snapshotComplete = $false
+            $originalValue = $null
+            $originalKind = $null
+            $createdPaths = [System.Collections.Generic.List[string]]::new()
+            $result = 'not attempted'
+            $restoreFailure = $null
+            $providerResult = 'not attempted'
+            $directResult = 'not needed'
+            try {
+              $keyExisted = Test-Path -LiteralPath $KeyPath
+              $pathPrefix = ''
+              foreach ($segment in $nativePath.Split('\')) {
+                $pathPrefix = if ([string]::IsNullOrEmpty($pathPrefix)) { $segment } else { "$pathPrefix\$segment" }
+                $pathProbe = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($pathPrefix, $false)
+                if ($null -eq $pathProbe) { $createdPaths.Add($pathPrefix) }
+                else { $pathProbe.Dispose() }
+              }
+              if ($keyExisted) {
+                $readKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($nativePath, $false)
+                if ($null -eq $readKey) { throw 'Could not open the existing registry key for read access' }
+                $valueExisted = $readKey.GetValueNames() -contains $ValueName
+                if ($valueExisted) {
+                  $originalValue = $readKey.GetValue($ValueName)
+                  $originalKind = $readKey.GetValueKind($ValueName)
+                  if ($originalKind -ne [Microsoft.Win32.RegistryValueKind]::DWord) {
+                    $readKey.Dispose()
+                    throw "Existing $ValueName is $originalKind, not DWord; no write was attempted"
+                  }
+                }
+                $readKey.Dispose()
+              }
+              $snapshotComplete = $true
+              Write-Host "Registry probe before write: key=$KeyPath exists=$keyExisted value=$ValueName exists=$valueExisted value=$originalValue kind=$originalKind"
+              $stage = 'PowerShell New-Item'
+              try {
+                New-Item -Path $KeyPath -Force | Out-Null
+                $stage = 'PowerShell New-ItemProperty'
+                New-ItemProperty -LiteralPath $KeyPath -Name $ValueName -PropertyType DWord -Value $ProbeValue -Force | Out-Null
+                $stage = 'PowerShell readback'
+                $readKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($nativePath, $false)
+                if ($null -eq $readKey) { throw 'Could not reopen the registry key after the write' }
+                $observedValue = $readKey.GetValue($ValueName)
+                $readKey.Dispose()
+                if ([int]$observedValue -ne $ProbeValue) { throw "Write readback mismatch; observed=$observedValue expected=$ProbeValue" }
+                $providerResult = 'write and readback succeeded'
+              } catch {
+                $providerResult = "$stage failed: $($_.Exception.Message)"
+              }
+              if ($providerResult -notlike 'write and readback succeeded') {
+                $stage = 'RegistryKey.OpenSubKey writable'
+                try {
+                  $writeKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($nativePath, $true)
+                  if ($null -eq $writeKey) { throw 'Writable OpenSubKey returned null' }
+                  $stage = 'RegistryKey.SetValue'
+                  $writeKey.SetValue($ValueName, $ProbeValue, [Microsoft.Win32.RegistryValueKind]::DWord)
+                  $writeKey.Flush()
+                  $writeKey.Dispose()
+                  $writeKey = $null
+                  $stage = 'direct registry readback'
+                  $readKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($nativePath, $false)
+                  if ($null -eq $readKey) { throw 'Direct registry write could not be reopened for readback' }
+                  $observedValue = $readKey.GetValue($ValueName)
+                  $readKey.Dispose()
+                  if ([int]$observedValue -ne $ProbeValue) { throw "Direct write readback mismatch; observed=$observedValue expected=$ProbeValue" }
+                  $directResult = 'write and readback succeeded'
+                } catch {
+                  $directResult = "$stage failed: $($_.Exception.Message)"
+                } finally {
+                  if ($null -ne $writeKey) { $writeKey.Dispose() }
+                }
+              }
+              $result = "PowerShell provider $providerResult; direct RegistryKey.SetValue $directResult"
+            } catch {
+              $result = "write or readback failed: $($_.Exception.Message)"
+            } finally {
+              if ($snapshotComplete) {
+                try {
+                  $currentKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($nativePath, $false)
+                  $currentExists = $null -ne $currentKey -and ($currentKey.GetValueNames() -contains $ValueName)
+                  $currentValue = if ($currentExists) { $currentKey.GetValue($ValueName) } else { $null }
+                  $currentKind = if ($currentExists) { $currentKey.GetValueKind($ValueName) } else { $null }
+                  if ($null -ne $currentKey) { $currentKey.Dispose() }
+                  if ($valueExisted) {
+                    if (-not $currentExists -or $currentValue -ne $originalValue -or $currentKind -ne $originalKind) {
+                      New-ItemProperty -LiteralPath $KeyPath -Name $ValueName -PropertyType $originalKind.ToString() -Value $originalValue -Force | Out-Null
+                    }
+                    $verifyKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($nativePath, $false)
+                    if ($null -eq $verifyKey -or $verifyKey.GetValue($ValueName) -ne $originalValue -or $verifyKey.GetValueKind($ValueName) -ne $originalKind) {
+                      throw "Could not restore original $ValueName value"
+                    }
+                    $verifyKey.Dispose()
+                  } elseif ($currentExists) {
+                    Remove-ItemProperty -LiteralPath $KeyPath -Name $ValueName -ErrorAction Stop
+                  }
+                  if (-not $valueExisted) {
+                    $verifyKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($nativePath, $false)
+                    if ($null -ne $verifyKey) {
+                      $probeValueRemains = $verifyKey.GetValueNames() -contains $ValueName
+                      $verifyKey.Dispose()
+                      if ($probeValueRemains) { throw "Temporary $ValueName value remains after cleanup" }
+                    }
+                  }
+                  for ($pathIndex = $createdPaths.Count - 1; $pathIndex -ge 0; $pathIndex--) {
+                    $createdPath = $createdPaths[$pathIndex]
+                    $createdKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($createdPath, $false)
+                    if ($null -eq $createdKey) { continue }
+                    $isEmpty = $createdKey.GetValueNames().Length -eq 0 -and $createdKey.GetSubKeyNames().Length -eq 0
+                    $createdKey.Dispose()
+                    if (-not $isEmpty) { throw "Refusing to remove non-empty temporary registry key $createdPath" }
+                    [Microsoft.Win32.Registry]::CurrentUser.DeleteSubKey($createdPath, $false)
+                  }
+                } catch {
+                  $restoreFailure = $_.Exception.Message
+                  Write-Error "Registry probe restoration failed: $restoreFailure"
+                }
+              } else {
+                Write-Host "Registry probe stopped before mutation because the original state could not be read: $KeyPath\$ValueName"
+              }
+            }
+            if ($null -ne $restoreFailure) { throw "Registry probe restoration failed: $restoreFailure" }
+            Write-Host "Registry probe result: $result; original state restored and verified when write was attempted"
+            return $result
+          }
+
+          $toastResult = Test-RegistryDwordWriteAndRestore `
+            'HKCU:\Software\Microsoft\Windows\CurrentVersion\PushNotifications' 'ToastEnabled' 0
+          $policyKey = 'HKCU:\Software\Policies\Microsoft\Windows\Explorer'
+          $policyResult = Test-RegistryDwordWriteAndRestore $policyKey 'DisableNotificationCenter' 1
+
+          Add-Type -AssemblyName System.Windows.Forms
+          Add-Type -AssemblyName System.Drawing
+          Add-Type -TypeDefinition @'
+          using System;
+          using System.Collections.Generic;
+          using System.Diagnostics;
+          using System.Runtime.InteropServices;
+          using System.Text;
+          public static class GuiRunnerShellProbe {
+              [StructLayout(LayoutKind.Sequential)] private struct Rect { public int Left, Top, Right, Bottom; }
+              private delegate bool EnumWindowsCallback(IntPtr window, IntPtr parameter);
+              [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
+              [DllImport("user32.dll")] private static extern bool EnumWindows(EnumWindowsCallback callback, IntPtr parameter);
+              [DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr window);
+              [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr window, out Rect rect);
+              [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetClassName(IntPtr window, StringBuilder text, int capacity);
+              [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowText(IntPtr window, StringBuilder text, int capacity);
+              [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);
+              [DllImport("user32.dll")] private static extern void keybd_event(byte key, byte scan, uint flags, UIntPtr extraInfo);
+
+              private static string Describe(IntPtr window) {
+                  uint pid;
+                  GetWindowThreadProcessId(window, out pid);
+                  var title = new StringBuilder(512);
+                  var windowClass = new StringBuilder(256);
+                  GetWindowText(window, title, title.Capacity);
+                  GetClassName(window, windowClass, windowClass.Capacity);
+                  Rect rect;
+                  GetWindowRect(window, out rect);
+                  string processName = "unknown";
+                  try { processName = Process.GetProcessById((int)pid).ProcessName; } catch { }
+                  return String.Format("pid={0} process={1} class={2} title={3} bounds={4},{5},{6},{7} visible={8}",
+                      pid, processName, windowClass, title, rect.Left, rect.Top, rect.Right - rect.Left,
+                      rect.Bottom - rect.Top, IsWindowVisible(window));
+              }
+
+              private static bool IsNotificationCenterWindow(IntPtr window) {
+                  if (window == IntPtr.Zero || !IsWindowVisible(window)) return false;
+                  uint pid;
+                  GetWindowThreadProcessId(window, out pid);
+                  var windowClass = new StringBuilder(256);
+                  GetClassName(window, windowClass, windowClass.Capacity);
+                  Rect rect;
+                  GetWindowRect(window, out rect);
+                  string processName = "unknown";
+                  try { processName = Process.GetProcessById((int)pid).ProcessName; } catch { }
+                  return processName.Equals("ShellExperienceHost", StringComparison.OrdinalIgnoreCase)
+                      && windowClass.ToString().Equals("Windows.UI.Core.CoreWindow", StringComparison.OrdinalIgnoreCase)
+                      && rect.Right - rect.Left >= 250 && rect.Bottom - rect.Top >= 400;
+              }
+
+              public static bool IsNotificationCenterVisible() {
+                  return IsNotificationCenterWindow(GetForegroundWindow());
+              }
+
+              public static string Snapshot() {
+                  var lines = new List<string>();
+                  IntPtr foreground = GetForegroundWindow();
+                  lines.Add("foreground " + (foreground == IntPtr.Zero ? "none" : Describe(foreground)));
+                  EnumWindows((window, parameter) => {
+                      uint pid;
+                      GetWindowThreadProcessId(window, out pid);
+                      var windowClass = new StringBuilder(256);
+                      GetClassName(window, windowClass, windowClass.Capacity);
+                      string processName = "unknown";
+                      try { processName = Process.GetProcessById((int)pid).ProcessName; } catch { }
+                      if (IsWindowVisible(window) && (processName.Equals("ShellExperienceHost", StringComparison.OrdinalIgnoreCase)
+                          || windowClass.ToString().Equals("TopLevelWindowForOverflowXamlIsland", StringComparison.OrdinalIgnoreCase)))
+                          lines.Add("shell " + Describe(window));
+                      return true;
+                  }, IntPtr.Zero);
+                  lines.Add("notificationCenterVisible=" + IsNotificationCenterVisible());
+                  return String.Join(Environment.NewLine, lines);
+              }
+
+              public static void PressWinN() {
+                  const uint keyUp = 0x0002;
+                  keybd_event(0x5B, 0, 0, UIntPtr.Zero);
+                  System.Threading.Thread.Sleep(100);
+                  keybd_event(0x4E, 0, 0, UIntPtr.Zero);
+                  System.Threading.Thread.Sleep(100);
+                  keybd_event(0x4E, 0, keyUp, UIntPtr.Zero);
+                  keybd_event(0x5B, 0, keyUp, UIntPtr.Zero);
+              }
+          }
+          '@
+
+          $evidenceDir = Join-Path $env:RUNNER_TEMP 'gui-runner-notification-policy'
+          New-Item -ItemType Directory -Force -Path $evidenceDir | Out-Null
+          function Save-DesktopEvidence([string]$Label) {
+            $utc = [DateTime]::UtcNow.ToString('o')
+            $snapshot = [GuiRunnerShellProbe]::Snapshot()
+            Write-Host "Desktop evidence $Label at $utc`n$snapshot"
+            [System.IO.File]::WriteAllText((Join-Path $evidenceDir "$Label-windows.txt"), "utc=$utc`n$snapshot")
+            $screen = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+            $bitmap = [System.Drawing.Bitmap]::new($screen.Width, $screen.Height)
+            $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+            try {
+              $graphics.CopyFromScreen($screen.Location, [System.Drawing.Point]::Empty, $screen.Size)
+              $bitmap.Save((Join-Path $evidenceDir "$Label.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+            } finally {
+              $graphics.Dispose()
+              $bitmap.Dispose()
+            }
+            return [GuiRunnerShellProbe]::IsNotificationCenterVisible()
+          }
+          function Press-WinN {
+            Write-Host "Sending Windows+N through user32 keybd_event at $([DateTime]::UtcNow.ToString('o'))"
+            [GuiRunnerShellProbe]::PressWinN()
+            Start-Sleep -Seconds 2
+          }
+          function Ensure-PanelClosed([string]$Label) {
+            $state = Save-DesktopEvidence "$Label-before-close-check"
+            if ($state) {
+              Press-WinN
+              $state = Save-DesktopEvidence "$Label-after-close-key"
+            }
+            return (-not $state)
+          }
+
+          $ambientState = Save-DesktopEvidence 'ambient-before'
+          if ($ambientState) {
+            Press-WinN
+            $ambientState = Save-DesktopEvidence 'ambient-reset'
+          }
+          $baselineStartClosed = Ensure-PanelClosed 'baseline'
+          Press-WinN
+          $baselineState = Save-DesktopEvidence 'win-n-before-policy'
+          $baselineCloseConfirmed = Ensure-PanelClosed 'baseline-close'
+
+          $policyNativePath = 'Software\Policies\Microsoft\Windows\Explorer'
+          $policyName = 'DisableNotificationCenter'
+          $policyOriginalExists = $false
+          $policyOriginalValue = $null
+          $policyOriginalKind = $null
+          $policyWriteSucceeded = $false
+          $policyVisualState = 'not tested'
+          $policyRestoreState = 'not required'
+          $restoredVisualState = 'not tested'
+          $policyRead = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($policyNativePath, $false)
+          $policyKeyExists = $null -ne $policyRead
+          if ($policyKeyExists) {
+            $policyOriginalExists = $policyRead.GetValueNames() -contains $policyName
+            if ($policyOriginalExists) {
+              $policyOriginalValue = $policyRead.GetValue($policyName)
+              $policyOriginalKind = $policyRead.GetValueKind($policyName)
+            }
+            $policyRead.Dispose()
+          }
+          Write-Host "Policy visual probe original state: keyExists=$policyKeyExists valueExists=$policyOriginalExists value=$policyOriginalValue kind=$policyOriginalKind baselineStartClosed=$baselineStartClosed baselineOpen=$baselineState baselineCloseConfirmed=$baselineCloseConfirmed"
+          try {
+            if (-not $policyKeyExists) {
+              $policyVisualState = 'skipped: policy key missing; no new key was created'
+            } elseif ($policyOriginalExists -and $policyOriginalKind -ne [Microsoft.Win32.RegistryValueKind]::DWord) {
+              $policyVisualState = "skipped: existing value has unsupported type $policyOriginalKind"
+            } else {
+              $policyWrite = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($policyNativePath, $true)
+              if ($null -eq $policyWrite) { throw 'Could not open the taskbar policy key for write' }
+              $policyWrite.SetValue($policyName, 1, [Microsoft.Win32.RegistryValueKind]::DWord)
+              $policyWrite.Flush()
+              $policyWrite.Dispose()
+              $policyCheck = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($policyNativePath, $false)
+              $policyObserved = $policyCheck.GetValue($policyName)
+              $policyCheck.Dispose()
+              if ([int]$policyObserved -ne 1) { throw "DisableNotificationCenter readback was $policyObserved" }
+              $policyWriteSucceeded = $true
+              Write-Host "Temporarily set DisableNotificationCenter=1 at $([DateTime]::UtcNow.ToString('o')); no reboot or shell restart is performed."
+              $policyStartClosed = Ensure-PanelClosed 'policy-active'
+              Press-WinN
+              $policyPanelVisible = Save-DesktopEvidence 'win-n-with-policy-before-reboot'
+              $policyCloseConfirmed = Ensure-PanelClosed 'policy-active-close'
+              $policyVisualState = "startClosed=$policyStartClosed Win+N notificationCenterVisible=$policyPanelVisible closeConfirmed=$policyCloseConfirmed before reboot"
+            }
+          } catch {
+            $policyVisualState = "not completed: $($_.Exception.Message)"
+          } finally {
+            if ($policyKeyExists) {
+              try {
+                $policyRestore = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($policyNativePath, $true)
+                if ($null -eq $policyRestore) { throw 'Could not open the policy key to restore it' }
+                if ($policyOriginalExists) {
+                  $policyRestore.SetValue($policyName, $policyOriginalValue, $policyOriginalKind)
+                } else {
+                  $policyRestore.DeleteValue($policyName, $false)
+                }
+                $policyRestore.Flush()
+                $policyRestore.Dispose()
+                $policyVerify = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($policyNativePath, $false)
+                $policyNowExists = $policyVerify.GetValueNames() -contains $policyName
+                if ($policyOriginalExists) {
+                  if (-not $policyNowExists -or $policyVerify.GetValue($policyName) -ne $policyOriginalValue -or $policyVerify.GetValueKind($policyName) -ne $policyOriginalKind) {
+                    throw 'Original DisableNotificationCenter value was not restored'
+                  }
+                  $policyRestoreState = 'original value restored and verified'
+                } else {
+                  if ($policyNowExists) { throw 'Temporary DisableNotificationCenter value remains after restoration' }
+                  $policyRestoreState = 'temporary value removed and verified absent'
+                }
+                $policyVerify.Dispose()
+                $restoredStartClosed = Ensure-PanelClosed 'policy-restored'
+                Press-WinN
+                $restoredPanelVisible = Save-DesktopEvidence 'win-n-after-policy-restore'
+                $restoredCloseConfirmed = Ensure-PanelClosed 'policy-restored-close'
+                $restoredVisualState = "startClosed=$restoredStartClosed Win+N notificationCenterVisible=$restoredPanelVisible closeConfirmed=$restoredCloseConfirmed"
+              } catch {
+                $policyRestoreState = "restore failed: $($_.Exception.Message)"
+                Write-Error "Could not restore the runner taskbar policy: $policyRestoreState"
+              }
+            }
+          }
+          $summary = @(
+            '## GUI runner desktop policy diagnostics',
+            '',
+            "- Runner identity: ``$($identity.Name)`` (SID ``$($identity.User.Value)``); Administrator=$($principal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator).ToString().ToLowerInvariant()).",
+            "- OS: ``$($os.Caption)`` version ``$($os.Version)`` build ``$($os.BuildNumber)``.",
+            "- HKCU PushNotifications ToastEnabled: $toastResult.",
+            "- ``$policyKey\DisableNotificationCenter``: $policyResult.",
+            "- Ambient notification-center state: $ambientState.",
+            "- Physical Win+N baseline: startClosed=$baselineStartClosed, notificationCenterVisible=$baselineState, closeConfirmed=$baselineCloseConfirmed.",
+            "- Physical Win+N with temporary policy before reboot: $policyVisualState.",
+            "- Physical Win+N after restoring policy: $restoredVisualState.",
+            "- Policy cleanup: $policyRestoreState.",
+            '- This run does not launch project GUI tests or reboot the hosted runner. Desktop images and native-window reports are uploaded as an artifact.',
+            '- Microsoft documents that the Remove Notifications and Action Center policy requires a reboot to take effect: https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-admx-taskbar . The diagnostic does not reboot the hosted runner.'
+          )
+          Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value ($summary -join [Environment]::NewLine)
+
+      - name: Upload notification center evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gui-runner-notification-policy-${{ github.run_id }}
+          path: ${{ runner.temp }}/gui-runner-notification-policy
+          if-no-files-found: warn

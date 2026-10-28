@@ -309,7 +309,13 @@ public class FormComponent extends JPanel{
 	}
 
 	private static boolean isDefaultDarkSurfaceFormat(BarFormat format) {
-		if (format == null || !MicroProjectTheme.tokens().appBackground().equals(MicroProjectThemeTokens.dark().appBackground())) return false;
+		return format != null
+			&& MicroProjectTheme.tokens().appBackground().equals(MicroProjectThemeTokens.dark().appBackground())
+			&& isDefaultDiagramFormat(format);
+	}
+
+	private static boolean isDefaultDiagramFormat(BarFormat format) {
+		if (format == null) return false;
 		if (format.getStart() != null || format.getEnd() != null) return false;
 		String id = format.getId();
 		if (id == null) return false;
@@ -338,7 +344,7 @@ public class FormComponent extends JPanel{
 
 	private void drawFormatShape(Graphics2D g2, BarFormat format, TexturedShape shape,
 		double width, double height, double x, double y, boolean useTexture) {
-		if (!isDefaultDarkSurfaceFormat(format)) {
+		if (!isDefaultDiagramFormat(format)) {
 			shape.draw(g2, width, height, x, y, useTexture);
 			return;
 		}
@@ -347,30 +353,31 @@ public class FormComponent extends JPanel{
 
 	private TexturedShape themedShape(BarFormat format, TexturedShape shape) {
 		Color surface = MicroProjectTheme.tokens().spreadsheetBodyBackground();
+		boolean dark = MicroProjectTheme.tokens().appBackground().equals(MicroProjectThemeTokens.dark().appBackground());
 		Color accent = format.getId().equals("Pert.critical") ? MicroProjectTheme.tokens().errorColor()
-			: format.getId().equals("Pert.task") ? MicroProjectTheme.tokens().accentColor() : MicroProjectTheme.tokens().borderColor();
+			: format.getId().equals("Pert.task") ? MicroProjectTheme.tokens().accentColor()
+			: dark ? MicroProjectTheme.tokens().borderColor() : MicroProjectTheme.tokens().labelForeground();
+		Color fill = dark ? surface : blend(surface, accent, 0.10d);
 		Paint sourcePaint = shape.getPaint();
 		ThemedShape cached = themedShapeCache.get(shape);
-		if (cached != null && cached.sourcePaint == sourcePaint && cached.surface.equals(surface) && cached.accent.equals(accent))
+		if (cached != null && cached.sourcePaint == sourcePaint && cached.surface.equals(fill) && cached.accent.equals(accent))
 			return cached.shape;
 		TexturedShape themed = new TexturedShape();
 		themed.setShape(shape.getShape());
-		themed.setPaint(surface);
+		themed.setPaint(fill);
 		themed.setColor(accent);
 		themed.setStroke(com.microproject.graphic.configuration.shape.PredefinedStroke.find("FRAMED"));
-		if (sourcePaint instanceof TexturePaint source && !"TRANSPARENT".equals(shape.getPaintName())) {
-			BufferedImage original = source.getImage();
-			BufferedImage darkPattern = new BufferedImage(original.getWidth(), original.getHeight(), BufferedImage.TYPE_INT_ARGB);
-			for (int px = 0; px < original.getWidth(); px++) for (int py = 0; py < original.getHeight(); py++) {
-				int rgb = original.getRGB(px, py);
-				darkPattern.setRGB(px, py, (rgb & 0x00ffffff) == 0x00ffffff ? surface.getRGB() : rgb);
-			}
-			themed.setPaint(new TexturePaint(darkPattern, source.getAnchorRect()));
-		}
 		themed.setShapeScaleX(shape.getShapeScaleX());
 		themed.setShapeScaleY(shape.getShapeScaleY());
-		themedShapeCache.put(shape, new ThemedShape(sourcePaint, surface, accent, themed));
+		themedShapeCache.put(shape, new ThemedShape(sourcePaint, fill, accent, themed));
 		return themed;
+	}
+
+	private static Color blend(Color background, Color foreground, double amount) {
+		return new Color(
+			(int) Math.round(background.getRed() * (1d - amount) + foreground.getRed() * amount),
+			(int) Math.round(background.getGreen() * (1d - amount) + foreground.getGreen() * amount),
+			(int) Math.round(background.getBlue() * (1d - amount) + foreground.getBlue() * amount));
 	}
 
 	private record ThemedShape(Paint sourcePaint, Color surface, Color accent, TexturedShape shape) {}

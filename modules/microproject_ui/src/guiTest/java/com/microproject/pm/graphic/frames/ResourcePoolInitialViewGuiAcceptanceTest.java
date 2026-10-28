@@ -324,12 +324,19 @@ class ResourcePoolInitialViewGuiAcceptanceTest {
 		assertSame(secondFrame, manager.getCurrentFrame(),
 			"the harmless ribbon command must leave the active project stable");
 
+		SwingUtilities.invokeAndWait(() -> {
+			for (Project project : java.util.List.of(first, second, pool)) {
+				project.setDirty(false);
+				project.setGroupDirty(false);
+			}
+		});
+		assertTrue(java.util.List.of(first, second, pool).stream().noneMatch(Project::needsSaving),
+			"the physical title-bar close journey must start from clean projects, without save prompts");
 		java.util.List<MainRibbonFrame> closeOrder = java.util.List.of(
 			secondWindow, poolWindow, firstWindow);
 		for (MainRibbonFrame documentWindow : closeOrder) {
 			activateNativeWindow(robot, documentWindow);
-			AbstractButton close = WindowAcceptanceAssertions.findFlatLafTitleButton(documentWindow, "Close");
-			WindowAcceptanceAssertions.clickComponent(robot, close);
+			WindowAcceptanceAssertions.clickNativeTitleButton(robot, documentWindow, "Close");
 			GuiAcceptanceSupport.await(() -> !documentWindow.isShowing(),
 				"Robot title-bar close did not close " + documentWindow.getTitle());
 		}
