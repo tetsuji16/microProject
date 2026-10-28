@@ -644,7 +644,10 @@ class AssignmentDialogGuiAcceptanceTest {
 	}
 
 	private void activateWindow(Robot robot) throws Exception {
-		click(robot, bounds(window));
+		Rectangle windowBounds = bounds(window);
+		// Bring the frame forward without clicking the spreadsheet's blank insertion row,
+		// which clears the task selection and correctly disables Assign Resources.
+		click(robot, new Rectangle(windowBounds.x + windowBounds.width / 2, windowBounds.y + 8, 1, 1));
 		GuiAcceptanceSupport.await(window::isActive, "main window did not become active for undo");
 	}
 

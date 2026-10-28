@@ -2792,6 +2792,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 						+ ", isolatedDarkPixels=" + darkSurfacePixels
 						+ ", foreground=" + colorHex(isolatedFormat.getForeground()) + ", contrast=" + ratio);
 					checked++;
+					if (ratio < 4.5d) saveIsolatedContrastFailure(viewName, network, format, formats,
+						shape, rendered, isolatedFormat.getForeground(), localCardFill, ratio, darkSurfacePixels);
 					assertTrue(ratio >= 4.5d, viewName + " rendered form has unreadable contrast: " + diagnostics);
 					if (MicroProjectTheme.tokens().appBackground().equals(MicroProjectThemeTokens.dark().appBackground()))
 						assertTrue(darkSurfacePixels > 100, viewName + " individual format " + format.getName()
@@ -2802,6 +2804,55 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			System.out.println("Dark renderer diagnostics [" + viewName + "]: " + diagnostics);
 		} catch (ReflectiveOperationException e) {
 			throw new AssertionError("Could not inspect actual " + viewName + " renderer state", e);
+		}
+	}
+
+	private static void saveIsolatedContrastFailure(String viewName, Network network, BarFormat format,
+		java.util.List<BarFormat> selectedFormats, TexturedShape shape, BufferedImage rendered,
+		Color foreground, Color localFill, double contrast, int darkSurfacePixels) {
+		try {
+			Path artifacts = Path.of(System.getProperty("microproject.gui.artifacts.dir", "build/reports/guiTest-artifacts"));
+			Files.createDirectories(artifacts);
+			String safeView = viewName.replaceAll("[^A-Za-z0-9._-]", "_");
+			String safeFormat = String.valueOf(format.getId()).replaceAll("[^A-Za-z0-9._-]", "_");
+			String baseName = "diagram-contrast-failure-" + safeView + "-" + safeFormat + "-" + Instant.now().toEpochMilli();
+			Path imagePath = artifacts.resolve(baseName + ".png");
+			Path metadataPath = artifacts.resolve(baseName + ".txt");
+			ImageIO.write(rendered, "png", imagePath.toFile());
+			StringBuilder metadata = new StringBuilder()
+				.append("view=").append(viewName).append('\n')
+				.append("format.id=").append(format.getId()).append('\n')
+				.append("format.name=").append(format.getName()).append('\n')
+				.append("format.layer=").append(format.getLayer()).append('\n')
+				.append("format.main=").append(format.isMain()).append('\n')
+				.append("raster.width=").append(rendered.getWidth()).append('\n')
+				.append("raster.height=").append(rendered.getHeight()).append('\n')
+				.append("network.useTextures=").append(network.useTextures()).append('\n')
+				.append("theme.appBackground=").append(colorHex(MicroProjectTheme.tokens().appBackground())).append('\n')
+				.append("theme.panelBackground=").append(colorHex(MicroProjectTheme.tokens().panelBackground())).append('\n')
+				.append("theme.spreadsheetBodyBackground=").append(colorHex(MicroProjectTheme.tokens().spreadsheetBodyBackground())).append('\n')
+				.append("theme.labelForeground=").append(colorHex(MicroProjectTheme.tokens().labelForeground())).append('\n')
+				.append("foreground=").append(colorHex(foreground)).append('\n')
+				.append("dominantRasterColor=").append(colorHex(localFill)).append('\n')
+				.append("contrast=").append(contrast).append('\n')
+				.append("darkPixels=").append(darkSurfacePixels).append('\n')
+				.append("selectedFormats=").append(selectedFormats.stream()
+					.map(selected -> selected.getId() + ":" + selected.getName() + ":layer=" + selected.getLayer())
+					.toList()).append('\n')
+				.append("shape.name=").append(shape.getShapeName()).append('\n')
+				.append("shape.colorName=").append(shape.getColorName()).append('\n')
+				.append("shape.color=").append(shape.getColor() == null ? "null" : colorHex(shape.getColor())).append('\n')
+				.append("shape.paintName=").append(shape.getPaintName()).append('\n')
+				.append("shape.paintClass=").append(shape.getPaint() == null ? "null" : shape.getPaint().getClass().getName()).append('\n')
+				.append("shape.strokeName=").append(shape.getStrokeName()).append('\n')
+				.append("shape.strokeClass=").append(shape.getStroke() == null ? "null" : shape.getStroke().getClass().getName()).append('\n')
+				.append("shape.scaleX=").append(shape.getShapeScaleX()).append('\n')
+				.append("shape.scaleY=").append(shape.getShapeScaleY()).append('\n')
+				.append("rasterFile=").append(imagePath.getFileName()).append('\n');
+			Files.writeString(metadataPath, metadata.toString(), java.nio.charset.StandardCharsets.UTF_8);
+			System.out.println("Saved diagram contrast failure diagnostics: " + imagePath + " and " + metadataPath);
+		} catch (Exception diagnosticFailure) {
+			System.err.println("Could not save isolated diagram contrast diagnostic: " + diagnosticFailure);
 		}
 	}
 
