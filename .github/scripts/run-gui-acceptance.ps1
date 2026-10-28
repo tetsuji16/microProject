@@ -50,28 +50,42 @@ function Stop-HostedWarningWatcher {
   $script:hostedWarningWatcher = $null
 }
 
-function Start-HostedNotificationCenterPolicy {
+function Start-HostedNotificationCenterPolicy([string]$path = 'Software\Policies\Microsoft\Windows\Explorer') {
   if (-not $script:isGitHubActions) { return }
-  $path = 'Software\Policies\Microsoft\Windows\Explorer'
   $name = 'DisableNotificationCenter'
-  $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($path, $true)
-  if ($null -eq $key) {
-    throw "Hosted GUI policy key is unavailable; refusing to create it: HKCU:\$path"
+  $createdKeyPaths = [System.Collections.Generic.List[string]]::new()
+  $currentPath = ''
+  foreach ($part in $path.Split('\')) {
+    $currentPath = if ([string]::IsNullOrEmpty($currentPath)) { $part } else { "$currentPath\$part" }
+    $probe = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($currentPath, $false)
+    if ($null -eq $probe) {
+      $createdKeyPaths.Add($currentPath)
+    } else {
+      $probe.Dispose()
+    }
   }
+  $script:hostedNotificationPolicySnapshot = @{
+    Path = $path
+    Name = $name
+    KeyExisted = $createdKeyPaths.Count -eq 0
+    CreatedKeyPaths = @($createdKeyPaths.ToArray())
+    ValueStateCaptured = $false
+    ValueExists = $false
+    Value = $null
+    Kind = $null
+  }
+  $key = $null
   try {
+    $key = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey($path)
+    if ($null -eq $key) { throw "Could not create or open hosted GUI policy key: HKCU:\$path" }
     $exists = $key.GetValueNames() -contains $name
     $value = if ($exists) { $key.GetValue($name) } else { $null }
     $kind = if ($exists) { $key.GetValueKind($name) } else { $null }
-    if ($exists -and $kind -ne [Microsoft.Win32.RegistryValueKind]::DWord) {
-      throw "Hosted GUI policy has unsupported existing value type: $kind"
-    }
-    $script:hostedNotificationPolicySnapshot = @{
-      Path = $path
-      Name = $name
-      ValueExists = $exists
-      Value = $value
-      Kind = $kind
-    }
+    $script:hostedNotificationPolicySnapshot.ValueExists = $exists
+    $script:hostedNotificationPolicySnapshot.Value = $value
+    $script:hostedNotificationPolicySnapshot.Kind = $kind
+    $script:hostedNotificationPolicySnapshot.ValueStateCaptured = $true
+    if ($exists -and $kind -ne [Microsoft.Win32.RegistryValueKind]::DWord) { throw "Hosted GUI policy has unsupported existing value type: $kind" }
     $key.SetValue($name, 1, [Microsoft.Win32.RegistryValueKind]::DWord)
     $key.Flush()
     if ([int]$key.GetValue($name) -ne 1 -or $key.GetValueKind($name) -ne [Microsoft.Win32.RegistryValueKind]::DWord) {
@@ -82,32 +96,85 @@ function Start-HostedNotificationCenterPolicy {
       Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value '- Hosted GUI notification-center policy: temporarily set and read back as DWORD 1; original value will be restored after the gate.'
     }
   } catch {
-    $key.Dispose()
-    try { Stop-HostedNotificationCenterPolicy } catch { Write-Error "Could not roll back a failed policy setup: $($_.Exception.Message)" }
+    $setupError = $_.Exception.Message
+    if ($null -ne $key) { $key.Dispose(); $key = $null }
+    try {
+      Stop-HostedNotificationCenterPolicy
+    } catch {
+      $rollbackError = $_.Exception.Message
+      $script:hostedNotificationPolicySnapshot = $null
+      throw "Hosted GUI policy setup failed ($setupError); rollback also failed ($rollbackError)"
+    }
     throw
+  } finally {
+    if ($null -ne $key) { $key.Dispose() }
   }
-  $key.Dispose()
 }
 
 function Stop-HostedNotificationCenterPolicy {
   if ($null -eq $script:hostedNotificationPolicySnapshot) { return }
   $snapshot = $script:hostedNotificationPolicySnapshot
   $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($snapshot.Path, $true)
-  if ($null -eq $key) { throw "Could not reopen hosted GUI policy key for restoration: HKCU:\$($snapshot.Path)" }
+  if ($null -eq $key -and $snapshot.KeyExisted) { throw "Could not reopen hosted GUI policy key for restoration: HKCU:\$($snapshot.Path)" }
   try {
-    if ($snapshot.ValueExists) {
-      $key.SetValue($snapshot.Name, $snapshot.Value, $snapshot.Kind)
-    } else {
-      $key.DeleteValue($snapshot.Name, $false)
-    }
-    $key.Flush()
-    $exists = $key.GetValueNames() -contains $snapshot.Name
-    if ($snapshot.ValueExists) {
-      if (-not $exists -or $key.GetValue($snapshot.Name) -ne $snapshot.Value -or $key.GetValueKind($snapshot.Name) -ne $snapshot.Kind) {
-        throw 'Original hosted GUI notification-center policy was not restored exactly'
+    if ($snapshot.ValueStateCaptured) {
+      if ($null -ne $key) {
+        if ($snapshot.ValueExists) {
+          $key.SetValue($snapshot.Name, $snapshot.Value, $snapshot.Kind)
+        } else {
+          $key.DeleteValue($snapshot.Name, $false)
+        }
+        $key.Flush()
+        $exists = $key.GetValueNames() -contains $snapshot.Name
+        if ($snapshot.ValueExists) {
+          if (-not $exists -or $key.GetValue($snapshot.Name) -ne $snapshot.Value -or $key.GetValueKind($snapshot.Name) -ne $snapshot.Kind) {
+            throw 'Original hosted GUI notification-center policy was not restored exactly'
+          }
+        } elseif ($exists) {
+          throw 'Temporary hosted GUI notification-center policy remains after restoration'
+        }
+      } elseif ($snapshot.ValueExists) {
+        throw 'Original hosted GUI notification-center policy key is missing during restoration'
       }
-    } elseif ($exists) {
-      throw 'Temporary hosted GUI notification-center policy remains after restoration'
+    }
+
+    if ($null -ne $key) {
+      $key.Dispose()
+      $key = $null
+    }
+
+    if (-not $snapshot.KeyExisted) {
+      foreach ($createdPath in @($snapshot.CreatedKeyPaths | Sort-Object { $_.Length } -Descending)) {
+        $createdKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($createdPath, $true)
+        if ($null -eq $createdKey) { continue }
+        try {
+          if ($createdKey.GetValueNames().Count -gt 0 -or $createdKey.GetSubKeyNames().Count -gt 0) {
+            throw "Refusing to remove temporary policy key containing unrelated data: HKCU:\$createdPath"
+          }
+        } finally {
+          $createdKey.Dispose()
+        }
+        $separator = $createdPath.LastIndexOf('\')
+        $parentPath = if ($separator -ge 0) { $createdPath.Substring(0, $separator) } else { '' }
+        $childName = if ($separator -ge 0) { $createdPath.Substring($separator + 1) } else { $createdPath }
+        $parentKey = if ([string]::IsNullOrEmpty($parentPath)) { [Microsoft.Win32.Registry]::CurrentUser } else { [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($parentPath, $true) }
+        if ($null -eq $parentKey) { throw "Could not open temporary policy parent for cleanup: HKCU:\$parentPath" }
+        try {
+          $parentKey.DeleteSubKey($childName, $false)
+        } finally {
+          if (-not [string]::IsNullOrEmpty($parentPath)) { $parentKey.Dispose() }
+        }
+        $verifyCreatedKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($createdPath, $false)
+        if ($null -ne $verifyCreatedKey) {
+          $verifyCreatedKey.Dispose()
+          throw "Temporary policy key remains after cleanup: HKCU:\$createdPath"
+        }
+      }
+      $verifyOriginalPath = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($snapshot.Path, $false)
+      if ($null -ne $verifyOriginalPath) {
+        $verifyOriginalPath.Dispose()
+        throw "Original absent hosted GUI policy key remains after restoration: HKCU:\$($snapshot.Path)"
+      }
     }
     Write-Host 'Restored and verified the original hosted GUI notification-center policy state.'
     if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_STEP_SUMMARY)) {
@@ -115,7 +182,7 @@ function Stop-HostedNotificationCenterPolicy {
     }
     $script:hostedNotificationPolicySnapshot = $null
   } finally {
-    $key.Dispose()
+    if ($null -ne $key) { $key.Dispose() }
   }
 }
 
