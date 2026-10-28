@@ -184,6 +184,205 @@ jobs:
             'HKCU:\Software\Microsoft\Windows\CurrentVersion\PushNotifications' 'ToastEnabled' 0
           $policyKey = 'HKCU:\Software\Policies\Microsoft\Windows\Explorer'
           $policyResult = Test-RegistryDwordWriteAndRestore $policyKey 'DisableNotificationCenter' 1
+
+          Add-Type -AssemblyName System.Windows.Forms
+          Add-Type -AssemblyName System.Drawing
+          Add-Type -TypeDefinition @'
+          using System;
+          using System.Collections.Generic;
+          using System.Diagnostics;
+          using System.Runtime.InteropServices;
+          using System.Text;
+          public static class GuiRunnerShellProbe {
+              [StructLayout(LayoutKind.Sequential)] private struct Rect { public int Left, Top, Right, Bottom; }
+              private delegate bool EnumWindowsCallback(IntPtr window, IntPtr parameter);
+              [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
+              [DllImport("user32.dll")] private static extern bool EnumWindows(EnumWindowsCallback callback, IntPtr parameter);
+              [DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr window);
+              [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr window, out Rect rect);
+              [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetClassName(IntPtr window, StringBuilder text, int capacity);
+              [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowText(IntPtr window, StringBuilder text, int capacity);
+              [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);
+              [DllImport("user32.dll")] private static extern void keybd_event(byte key, byte scan, uint flags, UIntPtr extraInfo);
+
+              private static string Describe(IntPtr window) {
+                  uint pid;
+                  GetWindowThreadProcessId(window, out pid);
+                  var title = new StringBuilder(512);
+                  var windowClass = new StringBuilder(256);
+                  GetWindowText(window, title, title.Capacity);
+                  GetClassName(window, windowClass, windowClass.Capacity);
+                  Rect rect;
+                  GetWindowRect(window, out rect);
+                  string processName = "unknown";
+                  try { processName = Process.GetProcessById((int)pid).ProcessName; } catch { }
+                  return String.Format("pid={0} process={1} class={2} title={3} bounds={4},{5},{6},{7} visible={8}",
+                      pid, processName, windowClass, title, rect.Left, rect.Top, rect.Right - rect.Left,
+                      rect.Bottom - rect.Top, IsWindowVisible(window));
+              }
+
+              public static bool IsNotificationCenterVisible() {
+                  bool found = false;
+                  EnumWindows((window, parameter) => {
+                      uint pid;
+                      GetWindowThreadProcessId(window, out pid);
+                      var windowClass = new StringBuilder(256);
+                      GetClassName(window, windowClass, windowClass.Capacity);
+                      Rect rect;
+                      GetWindowRect(window, out rect);
+                      string processName = "unknown";
+                      try { processName = Process.GetProcessById((int)pid).ProcessName; } catch { }
+                      if (IsWindowVisible(window) && processName.Equals("ShellExperienceHost", StringComparison.OrdinalIgnoreCase)
+                          && windowClass.ToString().Equals("Windows.UI.Core.CoreWindow", StringComparison.OrdinalIgnoreCase)
+                          && rect.Right - rect.Left >= 250 && rect.Bottom - rect.Top >= 400) found = true;
+                      return true;
+                  }, IntPtr.Zero);
+                  return found;
+              }
+
+              public static string Snapshot() {
+                  var lines = new List<string>();
+                  IntPtr foreground = GetForegroundWindow();
+                  lines.Add("foreground " + (foreground == IntPtr.Zero ? "none" : Describe(foreground)));
+                  EnumWindows((window, parameter) => {
+                      uint pid;
+                      GetWindowThreadProcessId(window, out pid);
+                      var windowClass = new StringBuilder(256);
+                      GetClassName(window, windowClass, windowClass.Capacity);
+                      string processName = "unknown";
+                      try { processName = Process.GetProcessById((int)pid).ProcessName; } catch { }
+                      if (IsWindowVisible(window) && (processName.Equals("ShellExperienceHost", StringComparison.OrdinalIgnoreCase)
+                          || windowClass.ToString().Equals("TopLevelWindowForOverflowXamlIsland", StringComparison.OrdinalIgnoreCase)))
+                          lines.Add("shell " + Describe(window));
+                      return true;
+                  }, IntPtr.Zero);
+                  lines.Add("notificationCenterVisible=" + IsNotificationCenterVisible());
+                  return String.Join(Environment.NewLine, lines);
+              }
+
+              public static void PressWinN() {
+                  const uint keyUp = 0x0002;
+                  keybd_event(0x5B, 0, 0, UIntPtr.Zero);
+                  System.Threading.Thread.Sleep(100);
+                  keybd_event(0x4E, 0, 0, UIntPtr.Zero);
+                  System.Threading.Thread.Sleep(100);
+                  keybd_event(0x4E, 0, keyUp, UIntPtr.Zero);
+                  keybd_event(0x5B, 0, keyUp, UIntPtr.Zero);
+              }
+          }
+          '@
+
+          $evidenceDir = Join-Path $env:RUNNER_TEMP 'gui-runner-notification-policy'
+          New-Item -ItemType Directory -Force -Path $evidenceDir | Out-Null
+          function Save-DesktopEvidence([string]$Label) {
+            $utc = [DateTime]::UtcNow.ToString('o')
+            $snapshot = [GuiRunnerShellProbe]::Snapshot()
+            Write-Host "Desktop evidence $Label at $utc`n$snapshot"
+            [System.IO.File]::WriteAllText((Join-Path $evidenceDir "$Label-windows.txt"), "utc=$utc`n$snapshot")
+            $screen = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+            $bitmap = [System.Drawing.Bitmap]::new($screen.Width, $screen.Height)
+            $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+            try {
+              $graphics.CopyFromScreen($screen.Location, [System.Drawing.Point]::Empty, $screen.Size)
+              $bitmap.Save((Join-Path $evidenceDir "$Label.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+            } finally {
+              $graphics.Dispose()
+              $bitmap.Dispose()
+            }
+            return [GuiRunnerShellProbe]::IsNotificationCenterVisible()
+          }
+          function Press-WinN {
+            Write-Host "Sending Windows+N through user32 keybd_event at $([DateTime]::UtcNow.ToString('o'))"
+            [GuiRunnerShellProbe]::PressWinN()
+            Start-Sleep -Seconds 2
+          }
+
+          $ambientState = Save-DesktopEvidence 'ambient-before'
+          if ($ambientState) {
+            Press-WinN
+            $ambientState = Save-DesktopEvidence 'ambient-reset'
+          }
+          Press-WinN
+          $baselineState = Save-DesktopEvidence 'win-n-before-policy'
+          if ($baselineState) {
+            Press-WinN
+            $baselineClosedState = Save-DesktopEvidence 'baseline-reset'
+          } else {
+            $baselineClosedState = $false
+          }
+
+          $policyNativePath = 'Software\Policies\Microsoft\Windows\Explorer'
+          $policyName = 'DisableNotificationCenter'
+          $policyOriginalExists = $false
+          $policyOriginalValue = $null
+          $policyOriginalKind = $null
+          $policyWriteSucceeded = $false
+          $policyVisualState = 'not tested'
+          $policyRestoreState = 'not required'
+          $policyRead = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($policyNativePath, $false)
+          $policyKeyExists = $null -ne $policyRead
+          if ($policyKeyExists) {
+            $policyOriginalExists = $policyRead.GetValueNames() -contains $policyName
+            if ($policyOriginalExists) {
+              $policyOriginalValue = $policyRead.GetValue($policyName)
+              $policyOriginalKind = $policyRead.GetValueKind($policyName)
+            }
+            $policyRead.Dispose()
+          }
+          Write-Host "Policy visual probe original state: keyExists=$policyKeyExists valueExists=$policyOriginalExists value=$policyOriginalValue kind=$policyOriginalKind baselineOpen=$baselineState baselineClosed=$baselineClosedState"
+          try {
+            if (-not $policyKeyExists) {
+              $policyVisualState = 'skipped: policy key missing; no new key was created'
+            } elseif ($policyOriginalExists -and $policyOriginalKind -ne [Microsoft.Win32.RegistryValueKind]::DWord) {
+              $policyVisualState = "skipped: existing value has unsupported type $policyOriginalKind"
+            } else {
+              $policyWrite = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($policyNativePath, $true)
+              if ($null -eq $policyWrite) { throw 'Could not open the taskbar policy key for write' }
+              $policyWrite.SetValue($policyName, 1, [Microsoft.Win32.RegistryValueKind]::DWord)
+              $policyWrite.Flush()
+              $policyWrite.Dispose()
+              $policyCheck = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($policyNativePath, $false)
+              $policyObserved = $policyCheck.GetValue($policyName)
+              $policyCheck.Dispose()
+              if ([int]$policyObserved -ne 1) { throw "DisableNotificationCenter readback was $policyObserved" }
+              $policyWriteSucceeded = $true
+              Write-Host "Temporarily set DisableNotificationCenter=1 at $([DateTime]::UtcNow.ToString('o')); no reboot or shell restart is performed."
+              Press-WinN
+              $policyPanelVisible = Save-DesktopEvidence 'win-n-with-policy-before-reboot'
+              $policyVisualState = "Win+N returned notificationCenterVisible=$policyPanelVisible before reboot"
+            }
+          } catch {
+            $policyVisualState = "not completed: $($_.Exception.Message)"
+          } finally {
+            if ($policyKeyExists) {
+              try {
+                $policyRestore = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($policyNativePath, $true)
+                if ($null -eq $policyRestore) { throw 'Could not open the policy key to restore it' }
+                if ($policyOriginalExists) {
+                  $policyRestore.SetValue($policyName, $policyOriginalValue, $policyOriginalKind)
+                } else {
+                  $policyRestore.DeleteValue($policyName, $false)
+                }
+                $policyRestore.Flush()
+                $policyRestore.Dispose()
+                $policyVerify = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($policyNativePath, $false)
+                $policyNowExists = $policyVerify.GetValueNames() -contains $policyName
+                if ($policyOriginalExists) {
+                  if (-not $policyNowExists -or $policyVerify.GetValue($policyName) -ne $policyOriginalValue -or $policyVerify.GetValueKind($policyName) -ne $policyOriginalKind) {
+                    throw 'Original DisableNotificationCenter value was not restored'
+                  }
+                  $policyRestoreState = 'original value restored and verified'
+                } else {
+                  if ($policyNowExists) { throw 'Temporary DisableNotificationCenter value remains after restoration' }
+                  $policyRestoreState = 'temporary value removed and verified absent'
+                }
+                $policyVerify.Dispose()
+              } catch {
+                $policyRestoreState = "restore failed: $($_.Exception.Message)"
+                Write-Error "Could not restore the runner taskbar policy: $policyRestoreState"
+              }
+            }
+          }
           $summary = @(
             '## GUI runner desktop policy diagnostics',
             '',
@@ -191,7 +390,19 @@ jobs:
             "- OS: ``$($os.Caption)`` version ``$($os.Version)`` build ``$($os.BuildNumber)``.",
             "- HKCU PushNotifications ToastEnabled: $toastResult.",
             "- ``$policyKey\DisableNotificationCenter``: $policyResult.",
-            '- This run does not launch GUI tests and does not retain a policy change.',
+            "- Ambient notification-center state: $ambientState.",
+            "- Physical Win+N baseline state before policy: $baselineState; reset to closed=$(-not $baselineClosedState).",
+            "- Physical Win+N state with temporary policy before reboot: $policyVisualState.",
+            "- Policy cleanup: $policyRestoreState.",
+            '- This run does not launch project GUI tests or reboot the hosted runner. Desktop images and native-window reports are uploaded as an artifact.',
             '- Microsoft documents that the Remove Notifications and Action Center policy requires a reboot to take effect: https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-admx-taskbar . The diagnostic does not reboot the hosted runner.'
           )
           Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value ($summary -join [Environment]::NewLine)
+
+      - name: Upload notification center evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gui-runner-notification-policy-${{ github.run_id }}
+          path: ${{ runner.temp }}/gui-runner-notification-policy
+          if-no-files-found: warn
