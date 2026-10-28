@@ -1,6 +1,6 @@
 # Issue #748 — WBS/XBS diagram contract
 
-State: IN PROGRESS (WBS/XBS slice inventoried; issue remains open)
+State: ACCEPTANCE COMPLETE (master verification complete; issue remains open for primary-owner closure)
 Issue: https://github.com/tetsuji16/microProject/issues/748
 Contract frozen at: 2026-10-28; issue body, 2026-10-27 addendum, 2026-10-28 scope comment
 Baseline HEAD: `293b43fa03bb7e02970664ad81a692539a21433f`
@@ -17,12 +17,12 @@ Blockers: none for this WBS/XBS slice.
 
 | ID | Required result/evidence | State | Evidence (SHA + link) |
 |---|---|---|---|
-| A1 | Record all three diagram families, changes, OpenProj provenance/boundaries, and intentional differences | partial | WBS and PERT call paths/provenance and their geometry distinction recorded below; Gantt/link inventory added below |
-| A2 | Per family, organize types/APIs and consolidate confirmed duplicate responsibility or document the evidence-backed difference | partial | WBS hierarchy geometry and PERT DAG geometry remain distinct; Gantt uses direction/floor-aware routing, unlike shared orthogonal Network routing. GUI physical helpers consolidated for WBS/PERT |
-| A3 | Per family, Robot interaction route and screenshot evidence | partial | WBS and PERT Robot routes physically activate their Ribbon views, select tasks, zoom, scroll and resize; four state captures per family under `modules/microproject_ui/build/reports/guiTest-artifacts/issue-748/`. Gantt's existing Robot route physically creates an FS link by dragging between bars and captures the post-Redo view; see latest evidence |
-| A4 | Focused layout/coordinate/render verification; for GUI-visible changes Robot and screenshot comparison | partial | `XbsLayoutGeometryTest` covers WBS parent centering/connectors; `PertLayoutGeometryTest` covers DAG levels, node coordinates and dependency endpoints. WBS and PERT physical captures assert layout state after zoom/scroll/resize; no production visual behavior changed |
+| A1 | Record all three diagram families, changes, OpenProj provenance/boundaries, and intentional differences | complete | WBS, PERT and Gantt/link call paths, provenance and intentional geometry/routing differences are recorded below and in PR #964: https://github.com/tetsuji16/microProject/pull/964 |
+| A2 | Per family, organize types/APIs and consolidate confirmed duplicate responsibility or document the evidence-backed difference | complete | WBS hierarchy geometry, PERT DAG geometry and direction/floor-aware Gantt routing are distinct. Shared WBS/PERT physical test helpers were consolidated; see inventory below and PR #964. |
+| A3 | Per family, Robot interaction route and screenshot evidence | complete | WBS and PERT physically activate views, select tasks, zoom, scroll and resize; Gantt physically creates an FS link and verifies Undo/Redo/MPO reload. PR #964 records four targeted Robot journeys and screenshot evidence. |
+| A4 | Focused layout/coordinate/render verification; for GUI-visible changes Robot and screenshot comparison | complete | Focused WBS/PERT geometry, Gantt routing and themed/custom-card rendering tests passed; visual WBS/PERT changes were compared and Robot verified. PR #964 Verification records the exact commands and outcomes. |
 | A5 | If Gantt/WBS edit paths change: model/view, Undo/Redo, save/reload and project-file compatibility | n/a for this slice | No edit or persisted behavior changed |
-| A6 | `git diff --check`, relevant module tests, architecture check, Actions Build and Windows Release pass | partial | Current-worktree UI tests, architecture/naming checks and `git diff --check` passed; Actions Build and Windows Release evidence remains from ancestor `8369053e0`, not exact-candidate evidence |
+| A6 | `git diff --check`, relevant module tests, architecture check, Actions Build and Windows Release pass | complete | PR #964 records module tests (1,326 passed), `build installDist` (2,959 passed), GUI test compilation, four targeted Robot tests, architecture/naming and `git diff --check`. Exact integrated SHA `e65729257db39ae9f9f4335abaca300396382be8` is `master` and tag `v0.1.0.1284`; Actions Build #1597 [success](https://github.com/tetsuji16/microProject/actions/runs/40690406564), GUI acceptance #1171 [success](https://github.com/tetsuji16/microProject/actions/runs/40690406632), and Windows Release #1284 [success](https://github.com/tetsuji16/microProject/actions/runs/40690591856), including Windows full GUI acceptance and packaging. |
 
 ## WBS/XBS inventory and contract
 
@@ -62,15 +62,16 @@ Blockers: none for this WBS/XBS slice.
 - Added `DefaultGanttLinkRoutingTest`: normal routes for each dependency kind must start and end on their selected bar edges; the nearby FS case must terminate at the target row floor. This test directly exercises the router and its arrow endpoint state.
 - WBS/PERT GUI comparison: task-graph construction, node coordinate adapters (`getXbsCenter` vs `getPertCenter`), selection resolution, and scroll axis are intentionally view-specific. Shared mechanics (EDT reads, component screen bounds, physical rectangle click, and full-window capture) were extracted into `NetworkDiagramGuiSupport`; no shared fixture or model builder was introduced.
 
-**Then:** finish the Gantt/link evidence matrix and run the remaining architecture and exact-candidate gates.
+**Then:** no unmet acceptance criterion remains. Primary owner to decide and perform the external GitHub issue closure.
 
 ## Remaining blockers
 
-- A1–A6: complete Gantt Robot evidence as required by the full issue contract, architecture check, and exact-candidate Build/Windows Release evidence. WBS/PERT geometry and physical interaction matrices have focused evidence.
+- None. A1–A6 have evidence on integrated master/release SHA `e65729257db39ae9f9f4335abaca300396382be8`; issue remains open until the primary owner closes it.
 
 ## Latest evidence
 
 - Baseline: `293b43fa03bb7e02970664ad81a692539a21433f`; 2026-10-28. Existing user changes were preserved; the GUI acceptance test already had a user edit at intake.
+- Final integration: PR #964 merged as `e65729257db39ae9f9f4335abaca300396382be8`, which is current `master` and release tag `v0.1.0.1284`. Release published 2026-10-28. Exact-SHA Build #1597, GUI acceptance #1171 and Windows Release #1284 all succeeded; the Release run's Windows job reports the full GUI acceptance gate, packaging, packaged-content verification and release publication as successful.
 - Reused tests/build: at `8369053e092ef627330d63586294385ee8df4a87`, `:microproject_ui:test --console=plain` and `:microproject_ui:guiTest --tests "com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.robotNetworkAndWbsRibbonRoutesRenderTheirDedicatedViews" --max-workers=1 --no-daemon --console=plain` passed. Existing physical evidence includes WBS multi-node dark/light/restored-dark view captures. Scoped evidence is reusable because this slice changed only this packet.
 - CI: Windows Release, including release GUI acceptance and packaging, passed at `8369053e0`; https://github.com/tetsuji16/ProjectLibre/actions/runs/36600589637. It is an ancestor of baseline, not evidence for a later changed candidate.
 - Geometry fixture: `NetworkSVGRendererLifecycleTest` supplied the project/cache construction pattern; task hierarchy is built with `NodeModel.indent(..., NodeModel.SILENT)`, matching established test setup in `ViewNodeModelCacheHierarchyDependencyTest`.
