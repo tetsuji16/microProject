@@ -119,6 +119,14 @@ function Stop-HostedNotificationCenterPolicy {
   }
 }
 
+function Complete-GuiAcceptanceCleanup {
+  try {
+    Stop-HostedNotificationCenterPolicy
+  } finally {
+    Stop-HostedWarningWatcher
+  }
+}
+
 function Save-GuiFailureScreenshot([string]$label) {
   try {
     Add-Type -AssemblyName System.Windows.Forms
@@ -458,8 +466,7 @@ try {
     }
   }
 } finally {
-  Stop-HostedNotificationCenterPolicy
-  Stop-HostedWarningWatcher
+  Complete-GuiAcceptanceCleanup
 }
 
 if ($gateFailures.Count -gt 0) {

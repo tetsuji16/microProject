@@ -79,20 +79,6 @@ class ReleaseWorkflowPolicyTest(unittest.TestCase):
 		self.assertIn('providers.gradleProperty("guiTestSuite").orElse("full")', gui_build)
 		self.assertIn('} else require(guiTestSuite == "full")', gui_build)
 		self.assertNotIn("excludeTags", gui_build)
-
-	def test_hosted_notification_center_policy_is_temporary_and_exactly_restored(self):
-		runner = (REPO_ROOT / ".github" / "scripts" / "run-gui-acceptance.ps1").read_text(encoding="utf-8")
-		self.assertIn("function Start-HostedNotificationCenterPolicy", runner)
-		self.assertIn("if (-not $script:isGitHubActions) { return }", runner)
-		self.assertIn("function Stop-HostedNotificationCenterPolicy", runner)
-		self.assertIn("Start-HostedNotificationCenterPolicy", runner)
-		self.assertIn("Stop-HostedNotificationCenterPolicy", runner)
-		self.assertIn("$key.SetValue($name, 1, [Microsoft.Win32.RegistryValueKind]::DWord)", runner)
-		self.assertIn("Original hosted GUI notification-center policy was not restored exactly", runner)
-		self.assertIn("Temporary hosted GUI notification-center policy remains after restoration", runner)
-		self.assertIn("finally {\n  Stop-HostedNotificationCenterPolicy\n  Stop-HostedWarningWatcher", runner)
-		self.assertNotIn("ToastEnabled", runner)
-
 		method_block = re.search(r"\$taskInformationVisualMethods = @\((.*?)\n\)", runner, re.S).group(1)
 		methods = re.findall(r"'([^']+)'", method_block)
 		self.assertEqual(21, len(methods))
@@ -110,6 +96,28 @@ class ReleaseWorkflowPolicyTest(unittest.TestCase):
 		for method in methods:
 			self.assertRegex(source, rf"(?m)^\s*@Test\s*(?:\r?\n\s*)+void\s+{re.escape(method)}\s*\(")
 		self.assertIn("Visual GUI test method must map to exactly one @Test source method", runner)
+
+	def test_policy_restore_failure_still_stops_the_hosted_warning_watcher(self):
+		runner = (REPO_ROOT / ".github" / "scripts" / "run-gui-acceptance.ps1").read_text(encoding="utf-8")
+		cleanup = re.search(r"(?ms)^function Complete-GuiAcceptanceCleanup \{(.*?)^\}", runner).group(1)
+		self.assertRegex(cleanup, r"(?s)try\s*\{\s*Stop-HostedNotificationCenterPolicy\s*\}\s*finally\s*\{\s*Stop-HostedWarningWatcher\s*\}")
+		self.assertIn("Complete-GuiAcceptanceCleanup", runner[runner.rfind("} finally {"):])
+		restore = re.search(r"(?ms)^function Stop-HostedNotificationCenterPolicy \{(.*?)^\}", runner).group(1)
+		self.assertIn("throw 'Original hosted GUI notification-center policy was not restored exactly'", restore)
+		self.assertIn("throw 'Temporary hosted GUI notification-center policy remains after restoration'", restore)
+
+	def test_hosted_notification_center_policy_is_temporary_and_exactly_restored(self):
+		runner = (REPO_ROOT / ".github" / "scripts" / "run-gui-acceptance.ps1").read_text(encoding="utf-8")
+		self.assertIn("function Start-HostedNotificationCenterPolicy", runner)
+		self.assertIn("if (-not $script:isGitHubActions) { return }", runner)
+		self.assertIn("function Stop-HostedNotificationCenterPolicy", runner)
+		self.assertIn("Start-HostedNotificationCenterPolicy", runner)
+		self.assertIn("Stop-HostedNotificationCenterPolicy", runner)
+		self.assertIn("$key.SetValue($name, 1, [Microsoft.Win32.RegistryValueKind]::DWord)", runner)
+		self.assertIn("Original hosted GUI notification-center policy was not restored exactly", runner)
+		self.assertIn("Temporary hosted GUI notification-center policy remains after restoration", runner)
+		self.assertIn("finally {\n  Complete-GuiAcceptanceCleanup", runner)
+		self.assertNotIn("ToastEnabled", runner)
 
 	def test_gui_runner_diagnostics_are_isolated_and_restore_registry_values(self):
 		diagnostics = (REPO_ROOT / ".github" / "workflows" / "gui-runner-desktop-diagnostics.yml").read_text(encoding="utf-8")
