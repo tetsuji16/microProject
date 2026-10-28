@@ -1,7 +1,7 @@
 # Hosted GUI shell interruption
 
-State: temporary hosted notification-center policy added to GUI runner; full acceptance pending
-Integrated HEAD: `c9e47fdc237c0d75bf9e87dbf4eb409a65fb9720`
+State: temporary hosted notification-center policy integrated and full GUI acceptance passed
+Integrated HEAD: `37636197e6afe8c784af5d2c33338d30be9f938b`
 
 ## Evidence and cause
 
@@ -24,10 +24,10 @@ The corrected A-B-A diagnostic [run `40680727086`](https://github.com/tetsuji16/
 ## Verification
 
 - `python -m unittest scripts.tests.test_release_workflow_policy` — 8 tests passed, including hosted-only gating and exact restoration checks.
-- PowerShell parser validation of `.github/scripts/run-gui-acceptance.ps1` and the diagnostic workflow's embedded script — passed after the diagnostic A-B-A update; rerun after wrapper change is pending.
+- PowerShell parser validation of `.github/scripts/run-gui-acceptance.ps1` and the diagnostic workflow's embedded script — passed after the diagnostic A-B-A update and again after the hosted policy wrapper change.
 - `git diff --check` — passed.
 - Hosted full run `40675661733` (`ac3e092b`) — failed before launching the GUI suite because the runner denied creation of the HKCU PushNotifications key. Build and preflight checks passed; failure diagnostics were uploaded.
 - Hosted full run `40676042015` (`d624553b`) — build and preflight checks passed. The warning fallback recorded that the toast registry write was denied, then allowed the full Japanese functional suite to run. At `2026-10-28T11:11:24.3799327Z`, `ShellExperienceHost` / `Windows.UI.Core.CoreWindow` / `Windows Shell Experience Host` overlapped the Gantt test window. JUnit reported 208 tests and 10 failures: the triggering test plus nine later initialization failures after the coordinator latched desktop contention. The full run stopped before the locale/scale matrix; no failures were retried or suppressed. Artifacts include the foreground-overlap record and screenshots.
 - Hosted runner identity/ACL/write diagnostic `40679420384` and staged probe `40679631765` — both successful; the latter isolates the provider operation, with direct registry value write and restoration passing.
 - Hosted A-B-A notification-center diagnostic `40680727086` — passed; screenshots and native window inventory uploaded at [artifact](https://github.com/tetsuji16/microProject/actions/runs/40680727086/artifacts).
-- Full GUI acceptance after the temporary-policy wrapper change is pending.
+- Hosted full GUI acceptance [run `40681063590`](https://github.com/tetsuji16/microProject/actions/runs/40681063590) on `37636197e6` passed in 40m13s. Japanese 100% functional suite: 247 tests, 0 failures, 0 errors, 1 allowed skip. Visual matrix: ja/1.25, ja/1.5, en/1.0, en/1.25, en/1.5 each 65 tests, 0 failures, 0 errors, 1 allowed skip. The runner logged temporary policy application before Step 1 and exact original-state restoration after all legs. Failure diagnostics were skipped because the suite passed; GUI evidence uploaded successfully. This verifies this hosted run and tested Win+N behavior, not post-reboot policy effect on every Windows route.
