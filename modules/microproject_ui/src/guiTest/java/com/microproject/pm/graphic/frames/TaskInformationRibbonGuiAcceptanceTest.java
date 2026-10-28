@@ -1277,7 +1277,6 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		long beforeSuccessorFinish = successor.getEnd();
 		long beforeUnrelatedStart = unrelated.getStart();
 		long beforeUnrelatedFinish = unrelated.getEnd();
-		long taskUid = task.getUniqueId();
 		assertTrue(beforeTargetStart >= constraintDate, "SNET fixture must schedule target no earlier than its explicit constraint date");
 		assertEquals(successor.getEffectiveWorkCalendar().adjustInsideCalendar(beforeTargetFinish, false), beforeSuccessorStart,
 			"FS successor must start at the next working interval in its effective task calendar");
@@ -1371,8 +1370,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertTrue(importer.saveProject(project, saved), "MPO save rejected physical constraint type edit");
 		Project reopened = importer.loadProject(new ByteArrayInputStream(saved.toByteArray()));
 		NormalTask reopenedTask = (NormalTask) reopened.getTaskList().stream()
-			.filter(candidate -> candidate.getUniqueId() == taskUid && task.getName().equals(candidate.getName()))
+			.filter(candidate -> candidate.getId() == task.getId() && task.getName().equals(candidate.getName()))
 			.findFirst().orElseThrow();
+		assertEquals(task.getId(), reopenedTask.getId(), "MPO reload must retain the task's serialized UID");
 		NormalTask reopenedSuccessor = taskNamed(reopened, successor.getName());
 		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.ASAP.code(), reopenedTask.getConstraintType());
 		assertEquals(0L, reopenedTask.getConstraintDate());
@@ -1420,7 +1420,6 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		long beforeSuccessorFinish = successor.getEnd();
 		long beforeUnrelatedStart = unrelated.getStart();
 		long beforeUnrelatedFinish = unrelated.getEnd();
-		long taskUid = task.getUniqueId();
 		assertTrue(beforeTargetStart >= originalConstraintDate, "SNET fixture must honor its initial constraint date");
 		assertEquals(successor.getEffectiveWorkCalendar().adjustInsideCalendar(beforeTargetFinish, false), beforeSuccessorStart);
 		showProject(project);
@@ -1607,8 +1606,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertTrue(importer.saveProject(project, saved), "MPO save rejected physical constraint date edit");
 		Project reopened = importer.loadProject(new ByteArrayInputStream(saved.toByteArray()));
 		NormalTask reopenedTask = (NormalTask) reopened.getTaskList().stream()
-			.filter(candidate -> candidate.getUniqueId() == taskUid && task.getName().equals(candidate.getName()))
+			.filter(candidate -> candidate.getId() == task.getId() && task.getName().equals(candidate.getName()))
 			.findFirst().orElseThrow();
+		assertEquals(task.getId(), reopenedTask.getId(), "MPO reload must retain the task's serialized UID");
 		assertEquals(editedConstraintDate[0], reopenedTask.getConstraintDate());
 		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET.code(), reopenedTask.getConstraintType());
 		assertEquals(editedTargetStart, reopenedTask.getStart());
@@ -2747,6 +2747,26 @@ class TaskInformationRibbonGuiAcceptanceTest {
 
 	@SuppressWarnings("unchecked")
 	private static void assertRenderedNetworkFormContrast(Network network, NodeModelCache cache, String viewName) {
+		if (SwingUtilities.isEventDispatchThread()) {
+			assertRenderedNetworkFormContrastOnEdt(network, cache, viewName);
+			return;
+		}
+		try {
+			SwingUtilities.invokeAndWait(() -> assertRenderedNetworkFormContrastOnEdt(network, cache, viewName));
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			throw new AssertionError("Interrupted while rendering " + viewName + " form contrast on the EDT", e);
+		} catch (java.lang.reflect.InvocationTargetException e) {
+			Throwable cause = e.getCause();
+			if (cause instanceof AssertionError assertionError) throw assertionError;
+			if (cause instanceof RuntimeException runtimeException) throw runtimeException;
+			if (cause instanceof Error error) throw error;
+			throw new AssertionError("Could not render " + viewName + " form contrast on the EDT", cause);
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	private static void assertRenderedNetworkFormContrastOnEdt(Network network, NodeModelCache cache, String viewName) {
 		try {
 			NetworkRenderer graphRenderer = (NetworkRenderer) network.getUI().getGraphRenderer();
 			java.lang.reflect.Field rendererField = NetworkRenderer.class.getDeclaredField("renderer");
@@ -4309,25 +4329,25 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			if (reloaded.getStatusDate() != project.getStatusDate()) return stage + ": project Status Date mismatch";
 			for (NormalTask task : tasks) {
 				Task found = reloaded.getTaskList().stream()
-					.filter(candidate -> candidate.getUniqueId() == task.getUniqueId()).findFirst().orElse(null);
-				if (!(found instanceof NormalTask copy)) return stage + ": missing task uid=" + task.getUniqueId();
+					.filter(candidate -> candidate.getId() == task.getId()).findFirst().orElse(null);
+				if (!(found instanceof NormalTask copy)) return stage + ": missing task id=" + task.getId();
 				if (copy.getPercentComplete() != task.getPercentComplete()) return stage + ": percent mismatch task=" + task.getName();
 				if (copy.getActualWork(null) != task.getActualWork(null)) return stage + ": task actual work mismatch task=" + task.getName();
 				if (copy.getRemainingWork() != task.getRemainingWork()) return stage + ": task remaining work mismatch task=" + task.getName();
 			}
 			for (Assignment assignment : assignments) {
 				NormalTask task = (NormalTask) reloaded.getTaskList().stream()
-					.filter(candidate -> candidate.getUniqueId() == assignment.getTask().getUniqueId())
+					.filter(candidate -> candidate.getId() == assignment.getTask().getId())
 					.findFirst().orElse(null);
-				if (task == null) return stage + ": missing owning task for assignment=" + assignment.getUniqueId();
+				if (task == null) return stage + ": missing owning task id=" + assignment.getTask().getId();
 				Assignment copy = (Assignment) task.getAssignments().stream()
 				.filter(candidate -> {
 					Assignment candidateAssignment = (Assignment) candidate;
 					return !candidateAssignment.isDefault()
-						&& candidateAssignment.getResource().getUniqueId() == assignment.getResource().getUniqueId();
+						&& candidateAssignment.getResource().getId() == assignment.getResource().getId();
 				}).map(Assignment.class::cast).findFirst().orElse(null);
 				if (copy == null) return stage + ": missing task/resource assignment taskUid="
-					+ assignment.getTask().getUniqueId() + " resourceUid=" + assignment.getResource().getUniqueId();
+					+ assignment.getTask().getId() + " resourceId=" + assignment.getResource().getId();
 				if (copy.getActualWork(null) != assignment.getActualWork(null)) return stage + ": assignment actual work mismatch uid=" + assignment.getUniqueId();
 				if (copy.getRemainingWork() != assignment.getRemainingWork()) return stage + ": assignment remaining work mismatch uid=" + assignment.getUniqueId();
 			}
@@ -6171,10 +6191,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Project reopened = importer.loadProject(new ByteArrayInputStream(saved.toByteArray()));
 		assertEquals(List.of("Move shortcut second", "Move shortcut first"), taskOrder(reopened),
 			"MPO reload must preserve the moved row order");
-		assertEquals(second.getUniqueId(), taskNamed(reopened, "Move shortcut second").getUniqueId(),
-			"MPO reload must preserve the moved task's stable identity");
-		assertEquals(first.getUniqueId(), taskNamed(reopened, "Move shortcut first").getUniqueId(),
-			"MPO reload must preserve the other task's stable identity");
+		assertEquals(second.getId(), taskNamed(reopened, "Move shortcut second").getId(),
+			"MPO reload must preserve the moved task's serialized UID");
+		assertEquals(first.getId(), taskNamed(reopened, "Move shortcut first").getId(),
+			"MPO reload must preserve the other task's serialized UID");
 	}
 
 	@Test

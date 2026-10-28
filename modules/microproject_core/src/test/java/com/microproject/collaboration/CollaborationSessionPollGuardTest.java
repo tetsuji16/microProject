@@ -28,8 +28,9 @@ class CollaborationSessionPollGuardTest {
 			timer.scheduleAtFixedRate(new TimerTask() {
 				@Override public void run() {
 					CollaborationSession.runGuardedPoll(() -> {
+						int poll = polls.incrementAndGet();
 						thirdPoll.countDown();
-						if (polls.incrementAndGet() == 1)
+						if (poll == 1)
 							throw new IllegalStateException("transient metadata failure");
 					});
 				}
