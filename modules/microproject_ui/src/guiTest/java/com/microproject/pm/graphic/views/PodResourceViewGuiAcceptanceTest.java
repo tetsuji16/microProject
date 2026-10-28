@@ -124,7 +124,7 @@ class PodResourceViewGuiAcceptanceTest {
 			GuiAcceptanceSupport.await(() -> onEdt(sheet::isFocusOwner), "resource cell did not receive physical focus");
 			robot.keyPress(KeyEvent.VK_F2); robot.keyRelease(KeyEvent.VK_F2);
 			GuiAcceptanceSupport.await(() -> onEdt(sheet::isEditing), "physical F2 did not open the resource editor");
-			java.awt.Component editor = onEdt(sheet::getEditorComponent);
+			java.awt.Component editor = onEdt(() -> nameEditorText(sheet));
 			SwingUtilities.invokeAndWait(editor::requestFocusInWindow);
 			GuiAcceptanceSupport.await(() -> onEdt(editor::isFocusOwner), "resource editor did not receive focus");
 			key(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_A);
@@ -162,6 +162,15 @@ class PodResourceViewGuiAcceptanceTest {
 		}
 	}
 
+	private static java.awt.Component nameEditorText(SpreadSheet sheet) {
+		java.awt.Component editor = sheet.getEditorComponent();
+		assertTrue(editor instanceof com.microproject.pm.graphic.spreadsheet.renderer.NameCellComponent,
+			"Name field must attach its name editor");
+		java.awt.Component text = ((com.microproject.pm.graphic.spreadsheet.renderer.NameCellComponent) editor).getTextComponent();
+		assertTrue(text instanceof javax.swing.text.JTextComponent, "Name editor must expose a text input");
+		return text;
+	}
+
 	private static int nameColumn(SpreadSheet sheet) {
 		for (int i = 0; i < sheet.getFieldArray().size(); i++)
 			if ("Field.name".equals(sheet.getFieldArray().get(i).getId())) return sheet.convertColumnIndexToView(i);
@@ -180,7 +189,7 @@ class PodResourceViewGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> onEdt(sheet::isFocusOwner), "task cell did not receive focus");
 		robot.keyPress(KeyEvent.VK_F2); robot.keyRelease(KeyEvent.VK_F2);
 		GuiAcceptanceSupport.await(() -> onEdt(sheet::isEditing), "physical F2 did not open task editor");
-		java.awt.Component editor = onEdt(sheet::getEditorComponent);
+		java.awt.Component editor = onEdt(() -> nameEditorText(sheet));
 		SwingUtilities.invokeAndWait(editor::requestFocusInWindow);
 		GuiAcceptanceSupport.await(() -> onEdt(editor::isFocusOwner), "task editor did not receive focus");
 		key(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_A);
@@ -208,7 +217,8 @@ class PodResourceViewGuiAcceptanceTest {
 		String[] text = new String[1];
 		SwingUtilities.invokeAndWait(() -> {
 			java.awt.Component renderer = sheet.prepareRenderer(sheet.getCellRenderer(row, column), row, column);
-			text[0] = renderer instanceof javax.swing.JLabel label ? label.getText() : renderer.toString();
+			text[0] = renderer instanceof com.microproject.pm.graphic.spreadsheet.renderer.NameCellComponent name
+				? name.getText() : renderer instanceof javax.swing.JLabel label ? label.getText() : renderer.toString();
 		});
 		return text[0];
 	}
