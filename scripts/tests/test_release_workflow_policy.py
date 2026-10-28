@@ -1,4 +1,6 @@
 import re
+import shutil
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -99,12 +101,38 @@ class ReleaseWorkflowPolicyTest(unittest.TestCase):
 
 	def test_policy_restore_failure_still_stops_the_hosted_warning_watcher(self):
 		runner = (REPO_ROOT / ".github" / "scripts" / "run-gui-acceptance.ps1").read_text(encoding="utf-8")
-		cleanup = re.search(r"(?ms)^function Complete-GuiAcceptanceCleanup \{(.*?)^\}", runner).group(1)
+		cleanup_match = re.search(r"(?ms)^function Complete-GuiAcceptanceCleanup \{.*?^\}", runner)
+		cleanup = cleanup_match.group(0)
 		self.assertRegex(cleanup, r"(?s)try\s*\{\s*Stop-HostedNotificationCenterPolicy\s*\}\s*finally\s*\{\s*Stop-HostedWarningWatcher\s*\}")
 		self.assertIn("Complete-GuiAcceptanceCleanup", runner[runner.rfind("} finally {"):])
 		restore = re.search(r"(?ms)^function Stop-HostedNotificationCenterPolicy \{(.*?)^\}", runner).group(1)
 		self.assertIn("throw 'Original hosted GUI notification-center policy was not restored exactly'", restore)
 		self.assertIn("throw 'Temporary hosted GUI notification-center policy remains after restoration'", restore)
+		powershell = shutil.which("pwsh") or shutil.which("powershell")
+		if powershell is None:
+			self.skipTest("PowerShell is unavailable for the cleanup failure-path probe")
+			return
+		probe = r"""
+$ErrorActionPreference = 'Stop'
+$script:watcherStopped = $false
+function Stop-HostedNotificationCenterPolicy { throw 'RESTORE_FAILURE_SENTINEL' }
+function Stop-HostedWarningWatcher { $script:watcherStopped = $true }
+""" + cleanup + r"""
+$restoreFailurePropagated = $false
+try { Complete-GuiAcceptanceCleanup } catch {
+  if ($_.Exception.Message -ne 'RESTORE_FAILURE_SENTINEL') { throw }
+  $restoreFailurePropagated = $true
+}
+if (-not $script:watcherStopped) { throw 'Watcher cleanup was skipped after policy restoration failed' }
+if (-not $restoreFailurePropagated) { throw 'Policy restoration failure was hidden' }
+"""
+		result = subprocess.run(
+			[powershell, "-NoProfile", "-NonInteractive", "-Command", probe],
+			capture_output=True,
+			text=True,
+			check=False,
+		)
+		self.assertEqual(0, result.returncode, result.stdout + result.stderr)
 
 	def test_hosted_notification_center_policy_is_temporary_and_exactly_restored(self):
 		runner = (REPO_ROOT / ".github" / "scripts" / "run-gui-acceptance.ps1").read_text(encoding="utf-8")
