@@ -743,7 +743,7 @@ public class MspImporter {
 				state.mapResource(mpxResource, resource);
 				continue;
 			}
-			resource=resourcePool.newResourceInstance();
+			resource=resourcePool.createScriptedResource();
 			converter.from(mpxResource, resource, state);
 			state.mapResource(mpxResource, resource);
 		}
@@ -969,6 +969,7 @@ public class MspImporter {
 			Assignment assignment = Assignment.getInstance(task, ResourceImpl.getUnassignedInstance(), 0, 0);
 			converter.from(mpxAssignment, assignment, state, task, 0);
 			((NormalTask) task).addAssignment(assignment);
+			assignment.getResource().addAssignment(assignment);
 			// Attaching a non-default assignment can copy the default assignment's
 			// detail object and erase this imported value.
 			converter.restoreScheduleDelays(mpxAssignment, assignment, state);
