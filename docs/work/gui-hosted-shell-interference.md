@@ -11,10 +11,10 @@ Baseline HEAD: `5e9d49ee68f8a3e79e89cdf5f81a58d7ba329e93`
 
 ## Mitigation
 
-The hosted GUI runner now sets the dedicated, short-lived account's `HKCU\Software\Microsoft\Windows\CurrentVersion\PushNotifications\ToastEnabled` to `0` and verifies the effective value before any gate leg. Local runs are unchanged. This records the requested toast-notification preference; reading back `0` does not prove that notification-center or tray-overflow flyouts are prevented, and the trigger for those shell windows remains unknown. The foreground-overlap detector and Robot input block remain active, with no retry, suppression, or resolution change.
+The hosted GUI runner attempts to set the dedicated, short-lived account's `HKCU\Software\Microsoft\Windows\CurrentVersion\PushNotifications\ToastEnabled` to `0` and verifies the effective value before any gate leg. A denied write or failed readback is recorded as a warning and in the step summary, then the gate continues with the foreground-overlap detector and Robot input block active. Local runs are unchanged. A successful readback records only the requested toast-notification preference; it does not prove that notification-center or tray-overflow flyouts are prevented, and the trigger for those shell windows remains unknown.
 
 ## Verification
 
-- `python -m unittest scripts.tests.test_release_workflow_policy` — pending.
-- PowerShell parser validation of `.github/scripts/run-gui-acceptance.ps1` — pending.
-- Hosted GUI run after this change — pending; required to establish whether the intervention addresses the recorded runner behavior.
+- `python -m unittest scripts.tests.test_release_workflow_policy` — passed on the initial integration commit.
+- PowerShell parser validation of `.github/scripts/run-gui-acceptance.ps1` — passed on the initial integration commit.
+- Hosted full run `40675661733` (`ac3e092b`) — failed before launching the GUI suite: runner denied `New-Item` for the HKCU PushNotifications key (`Unauthorized operation`, script line 30). Build and preflight checks passed; failure diagnostics were uploaded. The next run must determine whether the GUI gate runs with the warning fallback and whether the original shell interference recurs.

@@ -27,15 +27,22 @@ function Disable-HostedToastNotifications {
   # not guarantee that Windows will avoid notification-center or tray-overflow
   # flyouts. Preserve the native foreground-overlap gate.
   $notificationKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\PushNotifications'
-  New-Item -Path $notificationKey -Force | Out-Null
-  Set-ItemProperty -LiteralPath $notificationKey -Name ToastEnabled -Type DWord -Value 0
-  $effectiveValue = (Get-ItemProperty -LiteralPath $notificationKey -Name ToastEnabled).ToastEnabled
-  if ([int]$effectiveValue -ne 0) {
-    throw "Could not disable hosted-user toast notifications; ToastEnabled=$effectiveValue"
+  try {
+    New-Item -Path $notificationKey -Force | Out-Null
+    Set-ItemProperty -LiteralPath $notificationKey -Name ToastEnabled -Type DWord -Value 0
+    $effectiveValue = (Get-ItemProperty -LiteralPath $notificationKey -Name ToastEnabled).ToastEnabled
+    if ([int]$effectiveValue -ne 0) {
+      throw "ToastEnabled readback was $effectiveValue"
+    }
+    Write-Host 'Set hosted-user toast notification preference to disabled before GUI acceptance (HKCU PushNotifications ToastEnabled=0); shell flyouts may still occur.'
+    $summary = '- Hosted GUI preparation: ToastEnabled=0 was set and read back; this does not guarantee prevention of notification-center or tray-overflow flyouts. desktop contention detection remains enabled.'
+  } catch {
+    $failureMessage = $_.Exception.Message
+    Write-Warning "Could not set or verify hosted-user toast notification preference; continuing with desktop contention detection enabled. $failureMessage"
+    $summary = "- Hosted GUI preparation: ToastEnabled=0 could not be set or verified ($failureMessage); desktop contention detection remains enabled."
   }
-  Write-Host 'Set hosted-user toast notification preference to disabled before GUI acceptance (HKCU PushNotifications ToastEnabled=0); shell flyouts may still occur.'
   if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_STEP_SUMMARY)) {
-    Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value '- Hosted GUI preparation: ToastEnabled=0 was set and read back; this does not guarantee prevention of notification-center or tray-overflow flyouts. desktop contention detection remains enabled.'
+    Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value $summary
   }
 }
 

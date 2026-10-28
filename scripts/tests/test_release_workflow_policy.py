@@ -106,6 +106,8 @@ class ReleaseWorkflowPolicyTest(unittest.TestCase):
 		self.assertIn("$effectiveValue = (Get-ItemProperty", runner)
 		self.assertIn("does not guarantee prevention of notification-center or tray-overflow flyouts", runner)
 		self.assertIn("desktop contention detection remains enabled", runner)
+		self.assertIn("Could not set or verify hosted-user toast notification preference", runner)
+		self.assertIn("continuing with desktop contention detection enabled", runner)
 
 
 if __name__ == "__main__":
