@@ -24,6 +24,31 @@ import com.microproject.undo.DataFactoryUndoController;
 
 class TaskFormatPainterServiceTest {
 	@Test
+	void appliesToMultipleTargetsAsOneUndoableChangeAndRejectsEmptySelection() {
+		Project project = createProject();
+		Task first = (Task)project.createLocalTaskNode(null).getImpl();
+		Task second = (Task)project.createLocalTaskNode(null).getImpl();
+		TaskFormatPainterService.TaskTextFormat requested =
+			new TaskFormatPainterService.TaskTextFormat("Dialog", 14, 0x123456, true, true, true);
+		project.getUndoController().clear();
+
+		assertTrue(TaskFormatPainterService.apply(project, List.of(), requested,
+			project.getUndoController()).isEmpty(), "an empty selection must be rejected");
+		assertFalse(project.getUndoController().canUndo());
+		assertEquals(List.of(first.getUniqueId(), second.getUniqueId()), TaskFormatPainterService.apply(project,
+			List.of(first, second), requested, project.getUndoController()));
+		assertEquals(requested, TaskFormatPainterService.capture(first));
+		assertEquals(requested, TaskFormatPainterService.capture(second));
+		assertTrue(project.getUndoController().canUndo(), "the multi-target apply must have one undo step");
+		project.getUndoController().undo();
+		assertTrue(isDefaultFormat(first));
+		assertTrue(isDefaultFormat(second));
+		project.getUndoController().redo();
+		assertEquals(requested, TaskFormatPainterService.capture(first));
+		assertEquals(requested, TaskFormatPainterService.capture(second));
+	}
+
+	@Test
 	void copiesAllTaskTextStylePropertiesAsOneUndoableChangeAndPreservesTaskData() {
 		Project project = createProject();
 		Task source = (Task)project.createLocalTaskNode(null).getImpl();
@@ -203,5 +228,10 @@ class TaskFormatPainterServiceTest {
 		task.setFontBold(format.bold());
 		task.setFontItalic(format.italic());
 		task.setFontStrikethrough(format.strikethrough());
+	}
+
+	private static boolean isDefaultFormat(Task task) {
+		return TaskFormatPainterService.capture(task).equals(
+			new TaskFormatPainterService.TaskTextFormat(null, 0, null, false, false, false));
 	}
 }
