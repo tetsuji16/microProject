@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 330" role="img" aria-labelledby="title desc" font-family="'Yu Gothic', 'Meiryo', sans-serif">
+  <title id="title">プロジェクト情報を整理する4つの方法</title>
+  <desc id="desc">テーブルで列を選び、フィルターで絞り、グループでまとめ、並べ替えで順序を整える。</desc>
+  <rect width="760" height="330" rx="18" fill="#f4f7fb"/>
+  <text x="380" y="44" text-anchor="middle" font-size="22" font-weight="700" fill="#17324d">見たい情報へ段階的に整理する</text>
+  <g>
+    <rect x="35" y="97" width="155" height="130" rx="14" fill="#fff" stroke="#477fa5" stroke-width="3"/>
+    <rect x="220" y="97" width="155" height="130" rx="14" fill="#fff" stroke="#477fa5" stroke-width="3"/>
+    <rect x="405" y="97" width="155" height="130" rx="14" fill="#fff" stroke="#477fa5" stroke-width="3"/>
+    <rect x="590" y="97" width="135" height="130" rx="14" fill="#fff" stroke="#477fa5" stroke-width="3"/>
+    <text x="112" y="137" text-anchor="middle" font-size="20" font-weight="700" fill="#245b86">テーブル</text><text x="112" y="172" text-anchor="middle" font-size="15" fill="#263746">必要な列を選ぶ</text><text x="112" y="198" text-anchor="middle" font-size="14" fill="#526577">何を表示するか</text>
+    <text x="297" y="137" text-anchor="middle" font-size="20" font-weight="700" fill="#245b86">フィルター</text><text x="297" y="172" text-anchor="middle" font-size="15" fill="#263746">対象を絞る</text><text x="297" y="198" text-anchor="middle" font-size="14" fill="#526577">何を表示するか</text>
+    <text x="482" y="137" text-anchor="middle" font-size="20" font-weight="700" fill="#245b86">グループ</text><text x="482" y="172" text-anchor="middle" font-size="15" fill="#263746">条件別にまとめる</text><text x="482" y="198" text-anchor="middle" font-size="14" fill="#526577">どう分類するか</text>
+    <text x="657" y="137" text-anchor="middle" font-size="19" font-weight="700" fill="#245b86">並べ替え</text><text x="657" y="172" text-anchor="middle" font-size="15" fill="#263746">順序を整える</text><text x="657" y="198" text-anchor="middle" font-size="14" fill="#526577">どの順か</text>
+    <path d="M194 161h20m-6-7 7 7-7 7M379 161h20m-6-7 7 7-7 7M564 161h20m-6-7 7 7-7 7" fill="none" stroke="#657b90" stroke-width="3"/>
+  </g>
+  <rect x="85" y="257" width="590" height="42" rx="10" fill="#e7eef4"/>
+  <text x="380" y="284" text-anchor="middle" font-size="16" fill="#263746">カスタムフィールドはチーム固有の値を一貫して持たせる</text>
+</svg>

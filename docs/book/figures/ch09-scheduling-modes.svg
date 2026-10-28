@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 300" role="img" aria-labelledby="title desc" font-family="'Yu Gothic', 'Meiryo', sans-serif">
+  <title id="title">手動スケジュールと自動スケジュール</title>
+  <desc id="desc">自動スケジュールは期間、依存関係、カレンダーから日程を計算し、手動スケジュールは入力した日付をより強く保つ。</desc>
+  <rect width="760" height="300" rx="18" fill="#f4f7fb"/>
+  <text x="380" y="42" text-anchor="middle" font-size="22" font-weight="700" fill="#17324d">タスクモードで日付の決まり方が変わる</text>
+  <rect x="34" y="72" width="335" height="188" rx="14" fill="#ffffff" stroke="#3c78a8" stroke-width="3"/>
+  <rect x="391" y="72" width="335" height="188" rx="14" fill="#ffffff" stroke="#6a8f55" stroke-width="3"/>
+  <text x="201" y="109" text-anchor="middle" font-size="21" font-weight="700" fill="#245b86">自動スケジュール</text>
+  <text x="558" y="109" text-anchor="middle" font-size="21" font-weight="700" fill="#4b7136">手動スケジュール</text>
+  <text x="201" y="145" text-anchor="middle" font-size="16" fill="#263746">期間・リンク・カレンダー</text>
+  <path d="M201 154v25" stroke="#3c78a8" stroke-width="3" marker-end="url(#arrow)"/>
+  <rect x="107" y="188" width="188" height="43" rx="8" fill="#e6f1f8"/>
+  <text x="201" y="216" text-anchor="middle" font-size="18" font-weight="700" fill="#17324d">日程を再計算</text>
+  <text x="558" y="145" text-anchor="middle" font-size="16" fill="#263746">入力した日付・期間</text>
+  <path d="M558 154v25" stroke="#6a8f55" stroke-width="3" marker-end="url(#arrow2)"/>
+  <rect x="464" y="188" width="188" height="43" rx="8" fill="#edf4e8"/>
+  <text x="558" y="216" text-anchor="middle" font-size="18" font-weight="700" fill="#17324d">値をより強く保持</text>
+  <text x="380" y="285" text-anchor="middle" font-size="13" fill="#526577">モード変更時の具体的な変換結果は、対象タスクで確認する</text>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#3c78a8"/></marker>
+    <marker id="arrow2" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#6a8f55"/></marker>
+  </defs>
+</svg>

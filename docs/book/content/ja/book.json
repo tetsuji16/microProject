@@ -1,0 +1,75 @@
+{
+  "lang": "ja",
+  "title": "microProject はじめてのプロジェクト計画",
+  "subtitle": "計画づくりから進捗管理まで学ぶデスクトップ教科書",
+  "description": "タスク、日程、リソース、進捗、レポート、複数プロジェクト、microProject独自のCCPM機能を学ぶ日本語の実践書です。",
+  "microproject_version": "0.1.0.1271",
+  "base_url": "https://o-server.main.jp/micro-project/book/",
+  "epub": {
+    "uuid": "695a936d-7715-4afe-95d5-c7d088a6f250",
+    "author": "microProject プロジェクト"
+  },
+  "parts": [
+    {
+      "id": "part1",
+      "title": "第I部　計画を始める",
+      "intro": "プロジェクト計画の考え方と、microProjectの画面・ファイルを理解します。",
+      "chapters": [
+        "ch01",
+        "ch02"
+      ]
+    },
+    {
+      "id": "part2",
+      "title": "第II部　日程とリソースを組み立てる",
+      "intro": "タスク、日程、依存関係、担当者を設定し、ガントチャートで計画を確かめます。",
+      "chapters": [
+        "ch03",
+        "ch04"
+      ]
+    },
+    {
+      "id": "part3",
+      "title": "第III部　実行を管理する",
+      "intro": "基準計画と実績を使って進捗をとらえ、表示やレポートで状況を伝えます。",
+      "chapters": [
+        "ch05",
+        "ch06"
+      ]
+    },
+    {
+      "id": "part4",
+      "title": "第IV部　複数プロジェクトをつなぐ",
+      "intro": "複数ウィンドウ、マスター／サブプロジェクト、プロジェクト間依存関係を区別して使います。",
+      "chapters": [
+        "ch07"
+      ]
+    },
+    {
+      "id": "part5",
+      "title": "第V部　クリティカルチェーンで管理する",
+      "intro": "microProject独自のCCPM機能を、計画の準備からバッファの週次確認まで実習します。",
+      "chapters": [
+        "ch08"
+      ]
+    },
+    {
+      "id": "part6",
+      "title": "第VI部　日程・コスト・分析を深める",
+      "intro": "スケジュール方式、コスト、出来高、情報の整理など、計画管理の実務テーマを学びます。",
+      "chapters": [
+        "ch09",
+        "ch10",
+        "ch11"
+      ]
+    },
+    {
+      "id": "part7",
+      "title": "第VII部　計画を仕上げて共有する",
+      "intro": "計画を見直してMPOで保存し、開き直してから相手に渡します。",
+      "chapters": [
+        "ch12"
+      ]
+    }
+  ]
+}
