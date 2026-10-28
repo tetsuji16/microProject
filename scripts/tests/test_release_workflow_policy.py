@@ -80,6 +80,19 @@ class ReleaseWorkflowPolicyTest(unittest.TestCase):
 		self.assertIn('} else require(guiTestSuite == "full")', gui_build)
 		self.assertNotIn("excludeTags", gui_build)
 
+	def test_hosted_notification_center_policy_is_temporary_and_exactly_restored(self):
+		runner = (REPO_ROOT / ".github" / "scripts" / "run-gui-acceptance.ps1").read_text(encoding="utf-8")
+		self.assertIn("function Start-HostedNotificationCenterPolicy", runner)
+		self.assertIn("if (-not $script:isGitHubActions) { return }", runner)
+		self.assertIn("function Stop-HostedNotificationCenterPolicy", runner)
+		self.assertIn("Start-HostedNotificationCenterPolicy", runner)
+		self.assertIn("Stop-HostedNotificationCenterPolicy", runner)
+		self.assertIn("$key.SetValue($name, 1, [Microsoft.Win32.RegistryValueKind]::DWord)", runner)
+		self.assertIn("Original hosted GUI notification-center policy was not restored exactly", runner)
+		self.assertIn("Temporary hosted GUI notification-center policy remains after restoration", runner)
+		self.assertIn("finally {\n  Stop-HostedNotificationCenterPolicy\n  Stop-HostedWarningWatcher", runner)
+		self.assertNotIn("ToastEnabled", runner)
+
 		method_block = re.search(r"\$taskInformationVisualMethods = @\((.*?)\n\)", runner, re.S).group(1)
 		methods = re.findall(r"'([^']+)'", method_block)
 		self.assertEqual(21, len(methods))

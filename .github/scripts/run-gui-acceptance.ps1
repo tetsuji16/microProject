@@ -18,6 +18,7 @@ $gateLogs = 'modules/microproject_ui/build/reports/guiTest-artifacts'
 $gateFailures = [System.Collections.Generic.List[string]]::new()
 $hostedWarningWatcher = $null
 $isGitHubActions = $env:GITHUB_ACTIONS -eq 'true'
+$hostedNotificationPolicySnapshot = $null
 New-Item -ItemType Directory -Force -Path $gateLogs | Out-Null
 
 $primaryDisplay = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
@@ -47,6 +48,75 @@ function Stop-HostedWarningWatcher {
     [void]$script:hostedWarningWatcher.WaitForExit(5000)
   }
   $script:hostedWarningWatcher = $null
+}
+
+function Start-HostedNotificationCenterPolicy {
+  if (-not $script:isGitHubActions) { return }
+  $path = 'Software\Policies\Microsoft\Windows\Explorer'
+  $name = 'DisableNotificationCenter'
+  $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($path, $true)
+  if ($null -eq $key) {
+    throw "Hosted GUI policy key is unavailable; refusing to create it: HKCU:\$path"
+  }
+  try {
+    $exists = $key.GetValueNames() -contains $name
+    $value = if ($exists) { $key.GetValue($name) } else { $null }
+    $kind = if ($exists) { $key.GetValueKind($name) } else { $null }
+    if ($exists -and $kind -ne [Microsoft.Win32.RegistryValueKind]::DWord) {
+      throw "Hosted GUI policy has unsupported existing value type: $kind"
+    }
+    $script:hostedNotificationPolicySnapshot = @{
+      Path = $path
+      Name = $name
+      ValueExists = $exists
+      Value = $value
+      Kind = $kind
+    }
+    $key.SetValue($name, 1, [Microsoft.Win32.RegistryValueKind]::DWord)
+    $key.Flush()
+    if ([int]$key.GetValue($name) -ne 1 -or $key.GetValueKind($name) -ne [Microsoft.Win32.RegistryValueKind]::DWord) {
+      throw 'Hosted GUI notification-center policy did not read back as DWORD 1'
+    }
+    Write-Host 'Temporarily enabled DisableNotificationCenter for hosted GUI acceptance; the original value will be restored in finally.'
+    if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_STEP_SUMMARY)) {
+      Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value '- Hosted GUI notification-center policy: temporarily set and read back as DWORD 1; original value will be restored after the gate.'
+    }
+  } catch {
+    $key.Dispose()
+    try { Stop-HostedNotificationCenterPolicy } catch { Write-Error "Could not roll back a failed policy setup: $($_.Exception.Message)" }
+    throw
+  }
+  $key.Dispose()
+}
+
+function Stop-HostedNotificationCenterPolicy {
+  if ($null -eq $script:hostedNotificationPolicySnapshot) { return }
+  $snapshot = $script:hostedNotificationPolicySnapshot
+  $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($snapshot.Path, $true)
+  if ($null -eq $key) { throw "Could not reopen hosted GUI policy key for restoration: HKCU:\$($snapshot.Path)" }
+  try {
+    if ($snapshot.ValueExists) {
+      $key.SetValue($snapshot.Name, $snapshot.Value, $snapshot.Kind)
+    } else {
+      $key.DeleteValue($snapshot.Name, $false)
+    }
+    $key.Flush()
+    $exists = $key.GetValueNames() -contains $snapshot.Name
+    if ($snapshot.ValueExists) {
+      if (-not $exists -or $key.GetValue($snapshot.Name) -ne $snapshot.Value -or $key.GetValueKind($snapshot.Name) -ne $snapshot.Kind) {
+        throw 'Original hosted GUI notification-center policy was not restored exactly'
+      }
+    } elseif ($exists) {
+      throw 'Temporary hosted GUI notification-center policy remains after restoration'
+    }
+    Write-Host 'Restored and verified the original hosted GUI notification-center policy state.'
+    if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_STEP_SUMMARY)) {
+      Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value '- Hosted GUI notification-center policy: original value restored and verified (or temporary value verified absent).'
+    }
+    $script:hostedNotificationPolicySnapshot = $null
+  } finally {
+    $key.Dispose()
+  }
 }
 
 function Save-GuiFailureScreenshot([string]$label) {
@@ -317,6 +387,7 @@ foreach ($testSelector in $visualTests) {
 }
 
 try {
+  Start-HostedNotificationCenterPolicy
   if (-not [string]::IsNullOrWhiteSpace($TestFilter)) {
     $safeFilter = ($TestFilter -replace '[^A-Za-z0-9_.-]', '_')
     $safeScale = $Scale.Replace('.', '-')
@@ -387,6 +458,7 @@ try {
     }
   }
 } finally {
+  Stop-HostedNotificationCenterPolicy
   Stop-HostedWarningWatcher
 }
 
