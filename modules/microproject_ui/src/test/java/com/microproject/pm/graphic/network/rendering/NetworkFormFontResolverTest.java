@@ -24,6 +24,7 @@
 package com.microproject.pm.graphic.network.rendering;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -144,6 +145,26 @@ class NetworkFormFontResolverTest {
 		}
 	}
 
+	@Test
+	void lightThemeUsesQuietAccentCardsForBuiltInPertFormatsAndPreservesCustomFormats() {
+		boolean wasDark = !MicroProjectTheme.tokens().appBackground().equals(MicroProjectThemeTokens.light().appBackground());
+		MicroProjectTheme.installLight();
+		try {
+			FormComponent standard = formWithBuiltInStyle("Pert.task", "BLUE");
+			FormComponent wbs = formWithBuiltInStyle("WBS.task", "BLACK");
+			FormComponent customized = formWithBuiltInStyle("Pert.task", "RED");
+			Color standardFill = dominantColor(render(standard));
+			Color wbsFill = dominantColor(render(wbs));
+			Color customFill = dominantColor(render(customized));
+
+			assertNotEquals(Color.WHITE, standardFill, "the built-in task texture should become a restrained accent wash");
+			assertNotEquals(Color.WHITE, wbsFill, "the built-in WBS card should use the quiet neutral surface");
+			assertEquals(Color.WHITE, customFill, "customized format keeps its configured texture");
+		} finally {
+			if (wasDark) MicroProjectTheme.installDark(); else MicroProjectTheme.installLight();
+		}
+	}
+
 	private static boolean containsColor(java.awt.image.BufferedImage image, Color expected) {
 		for (int y = 0; y < image.getHeight(); y++) for (int x = 0; x < image.getWidth(); x++)
 			if (image.getRGB(x, y) == expected.getRGB()) return true;
@@ -177,7 +198,7 @@ class NetworkFormFontResolverTest {
 		TexturedShape middle = new TexturedShape();
 		middle.setShapeName("FULL_HEIGHT");
 		middle.setColorName(colorName);
-		middle.setPaintName("TRANSPARENT");
+		middle.setPaintName(id.equals("Pert.task") ? "VERY_SPACED_DOTS" : "TRANSPARENT");
 		middle.setStrokeName("LARGE_FRAMED");
 		BarFormat format = new BarFormat();
 		format.setId(id);
