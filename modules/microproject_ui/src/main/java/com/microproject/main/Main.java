@@ -43,12 +43,14 @@ import javax.swing.SwingUtilities;
 
 import com.microproject.util.Environment;
 import com.microproject.util.FlatLafSupport;
+import com.microproject.ui.diagnostics.EdtWatchdog;
 
 
 /**
  *
  */
 public class Main {
+	private static EdtWatchdog edtWatchdog;
 	private static final String UI_DEBUG_PROPERTY = "microproject.ui.debug";
 	private static final String UI_DEBUG_LOG_FILE_PROPERTY = "microproject.ui.debug.logFile";
 	private static final String RUN_NUMBER_KEY = "microprojectRunNumber";
@@ -236,11 +238,24 @@ public class Main {
 		return parsed == null ? defaultValue : parsed.longValue();
 	}
 	private static void configureRuntimeLogging() {
+		RuntimeErrorLogging.configure(RuntimeErrorLogging.defaultLogDirectory(
+				System.getenv("LOCALAPPDATA"), System.getProperty("os.name", ""), System.getProperty("user.home", ".")));
+		startEdtWatchdog();
 		Logger.getLogger("com.microproject.pm.calendar.WorkWeek").setLevel(Level.WARNING);
 		Logger.getLogger("org.openide.util").setLevel(Level.SEVERE);
 		Logger.getLogger("org.openide.util.ImageUtilities").setLevel(Level.SEVERE);
 		Logger.getLogger("org.openide.util.ImageUtilities$CachedLookupLoader").setLevel(Level.SEVERE);
 		configureUiDebugLogging();
+	}
+
+	private static synchronized void startEdtWatchdog() {
+		if (edtWatchdog != null) return;
+		try {
+			edtWatchdog = EdtWatchdog.start();
+			Runtime.getRuntime().addShutdownHook(new Thread(edtWatchdog::close, "microproject-edt-watchdog-shutdown"));
+		} catch (RuntimeException | Error failure) {
+			Logger.getLogger(Main.class.getName()).log(Level.WARNING, "Could not start EDT watchdog.", failure);
+		}
 	}
 
 	/**

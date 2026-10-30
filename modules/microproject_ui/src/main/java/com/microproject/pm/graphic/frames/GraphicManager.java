@@ -319,6 +319,14 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	}
 
 	public GraphicManager(Container container) throws HeadlessException {
+		this(container, null, null, null);
+	}
+
+	GraphicManager(Container container, java.nio.file.Path workspaceRoot,
+			com.microproject.application.AutoRecoveryStore recoveryStore, java.util.prefs.Preferences recoveryPreferences) throws HeadlessException {
+		if ((workspaceRoot == null || recoveryStore == null || recoveryPreferences == null)
+				&& (workspaceRoot != null || recoveryStore != null || recoveryPreferences != null))
+			throw new IllegalArgumentException("Test workspace, recovery store and preferences must be supplied together");
 		AssignmentCalendarWarningPresenter.install();
 		DependencyWarningPresenter.install();
 		MANAGER_REGISTRY.register(this);
@@ -333,14 +341,21 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 		projectFactory = ProjectFactory.getInstance();
 		try {
-			if (!projectArtifactLifecycleCoordinator.openDefaultWorkspace(LocalSession.MPO_PROJECT_IMPORTER))
+			boolean opened = workspaceRoot == null
+				? projectArtifactLifecycleCoordinator.openDefaultWorkspace(LocalSession.MPO_PROJECT_IMPORTER)
+				: projectArtifactLifecycleCoordinator.ownWorkspace(LocalSession.MPO_PROJECT_IMPORTER,
+					com.microproject.application.TemporaryWorkspace.open(workspaceRoot,
+						com.microproject.application.TemporaryWorkspace.DEFAULT_RETENTION));
+			if (!opened)
 				logger.warning("No MPO project artifact lifecycle provider is registered");
 		} catch (IOException exception) {
+			if (workspaceRoot != null) throw new java.io.UncheckedIOException(exception);
 			// MPOF falls back to the same platform default when the workspace cannot
 			// be initialized; opening ordinary project files must remain available.
 			logger.log(Level.WARNING, "Unable to initialize temporary workspace", exception);
 		}
-		autoRecoveryManager = new AutoRecoveryManager(projectFactory, this);
+		autoRecoveryManager = recoveryStore == null ? new AutoRecoveryManager(projectFactory, this)
+			: new AutoRecoveryManager(projectFactory, this, recoveryStore, java.util.Objects.requireNonNull(recoveryPreferences));
 		projectFactory.getPortfolio().addObjectListener(this);
 
 		this.container=container;
@@ -5606,22 +5621,38 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		return lastGraphicManager.history;
 	}
 
-	Project loadRecoveryDocument(com.microproject.application.AutoRecoveryStore.Entry entry) {
-		LoadOptions options = ProjectLoadWorkflow.prepareLoadOptions(entry.snapshot().toString(), true,
-			getCollaborationUserKey());
-		Project project = projectFactory.openProject(options);
-		if (project != null) {
-			project.setFileName(entry.originalFileName());
-			project.setGroupDirty(true);
-			if (entry.originalFileName() != null) {
-				initializeCollaboration(project);
-			}
-		}
-		return project;
+	void loadRecoveryDocument(com.microproject.application.AutoRecoveryStore.Entry entry,
+			java.util.function.Consumer<Boolean> completed) {
+		loadRecoveryDocument(entry, getCollaborationUserKey(), options -> projectFactory.openProject(options),
+			this::initializeCollaboration, completed);
 	}
 
-	boolean offerRecoveryAtStartup() {
-		return autoRecoveryManager.offerRecoveryAtStartup();
+	static void loadRecoveryDocument(com.microproject.application.AutoRecoveryStore.Entry entry, String userKey,
+			java.util.function.Consumer<LoadOptions> load, java.util.function.Consumer<Project> initialize,
+			java.util.function.Consumer<Boolean> completed) {
+		LoadOptions options = ProjectLoadWorkflow.prepareLoadOptions(entry.snapshot().toString(), true, userKey);
+		java.util.concurrent.atomic.AtomicBoolean delivered = new java.util.concurrent.atomic.AtomicBoolean();
+		options.setEndSwingClosure(result -> {
+			if (!delivered.compareAndSet(false, true)) return;
+			boolean loaded = false;
+			try {
+				Project project = (Project) result;
+				if (project != null) {
+					project.setFileName(entry.originalFileName());
+					project.setGroupDirty(true);
+					if (entry.originalFileName() != null) initialize.accept(project);
+					loaded = true;
+				}
+			} catch (RuntimeException ex) {
+				logger.log(Level.WARNING, "Could not initialize recovered project", ex);
+			}
+			completed.accept(loaded);
+		});
+		load.accept(options);
+	}
+
+	void offerRecoveryAtStartup(java.util.function.Consumer<Boolean> completed) {
+		autoRecoveryManager.offerRecoveryAtStartup(completed);
 	}
 
 }

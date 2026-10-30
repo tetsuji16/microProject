@@ -24,6 +24,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.collaboration.CollaborationSession;
+import com.microproject.collaboration.CollaborationLockUnavailableException;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
@@ -88,10 +89,47 @@ class CollaborationHelperTest {
 		assertSame(parent, actualParent.get());
 	}
 
+	@Test
+	void unavailableOwnerMetadataStillRejectsAndWarns() throws Exception {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("collaboration-lock-busy-warning", undo), undo);
+		project.initialize(false, false);
+		NormalTask task = project.createScriptedTask();
+		task.setName("Locked task");
+		project.setCollaborationSession(new RejectingCollaborationSession(project, true));
+		CountDownLatch warningShown = new CountDownLatch(1);
+		AtomicReference<Object> actualMessage = new AtomicReference<>();
+		Alert.setPresenter(new AlertPresenter() {
+			@Override public void warn(Object message, Object parent) {
+				actualMessage.set(message);
+				warningShown.countDown();
+			}
+			@Override public void error(Object message, Object parent) { }
+			@Override public int confirmYesNo(Object message) { return Alert.NO_OPTION; }
+			@Override public int confirm(Object message) { return Alert.NO_OPTION; }
+			@Override public boolean okCancel(Object message) { return true; }
+			@Override public String renameProject(String name, Set<String> projectNames, boolean saveAs) { return name; }
+			@Override public void warnWithOnceOption(Object message, String preference, Object parent) { }
+		});
+		Environment.setClientSide(true);
+		Environment.setBatchMode(false);
+
+		assertFalse(CollaborationHelper.tryLockObject(project, task, null, "edit"));
+		assertTrue(warningShown.await(2, TimeUnit.SECONDS), "the lock-busy warning presenter was not invoked");
+		assertEquals("Cannot edit because the collaboration lock is busy. Please try again.", actualMessage.get());
+	}
+
 	private static final class RejectingCollaborationSession extends CollaborationSession {
+		private final boolean ownerUnavailable;
+
 		private RejectingCollaborationSession(Project project) {
+			this(project, false);
+		}
+
+		private RejectingCollaborationSession(Project project, boolean ownerUnavailable) {
 			super(project, new File(System.getProperty("java.io.tmpdir"), "microproject-collaboration-warning.mpo").getAbsolutePath(),
 				"test-user");
+			this.ownerUnavailable = ownerUnavailable;
 		}
 
 		@Override
@@ -101,6 +139,9 @@ class CollaborationHelperTest {
 
 		@Override
 		public String describeLockOwner(Task task) {
+			if (ownerUnavailable) {
+				throw new CollaborationLockUnavailableException("metadata lock unavailable");
+			}
 			return "another user";
 		}
 	}

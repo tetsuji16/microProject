@@ -1602,36 +1602,71 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		beginEventBatch(List.of());
 	}
 	private synchronized void beginEventBatch(Collection<AdditionalObjectEventManager> requestedManagers) {
-		if (eventBatchDepth == 0 && undoController != null) {
-			undoBatchActivation = undoController.getEditSupport().beginCommand();
-		}
-		if (undoBatchActivation != null)
-			undoBatchCheckpoints.add(undoController.getEditSupport().checkpoint(undoBatchActivation.group()));
-		objectEventManager.beginBatch();
-		scheduleEventManager.beginBatch();
-		for (AdditionalObjectEventManager participant : additionalEventManagers)
-			participant.manager().beginBatch();
-		eventBatchDepth++;
-		for (AdditionalObjectEventManager participant : requestedManagers) {
-			int existingIndex = -1;
-			for (int index = 0; index < additionalEventManagers.size(); index++)
-				if (additionalEventManagers.get(index).manager() == participant.manager()) {
-					existingIndex = index;
-					break;
-				}
-			if (existingIndex < 0) {
-				for (int depth = 0; depth < eventBatchDepth; depth++)
-					participant.manager().beginBatch();
-				additionalEventManagers.add(participant);
-			} else {
-				AdditionalObjectEventManager existing = additionalEventManagers.get(existingIndex);
-				List<Object> refreshObjects = new ArrayList<>(existing.refreshObjects());
-				for (Object refreshObject : participant.refreshObjects())
-					if (refreshObjects.stream().noneMatch(existingObject -> existingObject == refreshObject))
-						refreshObjects.add(refreshObject);
-				additionalEventManagers.set(existingIndex, new AdditionalObjectEventManager(existing.manager(),
-					existing.revisionOwner(), existing.source(), refreshObjects));
+		int previousDepth = eventBatchDepth;
+		EditSupport.Activation previousActivation = undoBatchActivation;
+		List<EditSupport.Checkpoint> previousCheckpoints = new ArrayList<>(undoBatchCheckpoints);
+		List<AdditionalObjectEventManager> previousAdditional = new ArrayList<>(additionalEventManagers);
+		List<ObjectEventManager> begunAdditional = new ArrayList<>();
+		boolean objectBatchBegun = false;
+		boolean scheduleBatchBegun = false;
+		try {
+			if (eventBatchDepth == 0 && undoController != null)
+				undoBatchActivation = undoController.getEditSupport().beginCommand();
+			if (undoBatchActivation != null)
+				undoBatchCheckpoints.add(undoController.getEditSupport().checkpoint(undoBatchActivation.group()));
+			objectEventManager.beginBatch();
+			objectBatchBegun = true;
+			scheduleEventManager.beginBatch();
+			scheduleBatchBegun = true;
+			for (AdditionalObjectEventManager participant : additionalEventManagers) {
+				participant.manager().beginBatch();
+				begunAdditional.add(participant.manager());
 			}
+			eventBatchDepth++;
+			for (AdditionalObjectEventManager participant : requestedManagers) {
+				int existingIndex = -1;
+				for (int index = 0; index < additionalEventManagers.size(); index++)
+					if (additionalEventManagers.get(index).manager() == participant.manager()) {
+						existingIndex = index;
+						break;
+					}
+				if (existingIndex < 0) {
+					for (int depth = 0; depth < eventBatchDepth; depth++) {
+						participant.manager().beginBatch();
+						begunAdditional.add(participant.manager());
+					}
+					additionalEventManagers.add(participant);
+				} else {
+					AdditionalObjectEventManager existing = additionalEventManagers.get(existingIndex);
+					List<Object> refreshObjects = new ArrayList<>(existing.refreshObjects());
+					for (Object refreshObject : participant.refreshObjects())
+						if (refreshObjects.stream().noneMatch(existingObject -> existingObject == refreshObject))
+							refreshObjects.add(refreshObject);
+					additionalEventManagers.set(existingIndex, new AdditionalObjectEventManager(existing.manager(),
+						existing.revisionOwner(), existing.source(), refreshObjects));
+				}
+			}
+		} catch (RuntimeException | Error failure) {
+			for (int index = begunAdditional.size() - 1; index >= 0; index--) {
+				try { begunAdditional.get(index).endBatch(true); }
+				catch (Throwable cleanupFailure) { if (cleanupFailure != failure) failure.addSuppressed(cleanupFailure); }
+			}
+			if (scheduleBatchBegun) try { scheduleEventManager.endBatch(true); }
+			catch (Throwable cleanupFailure) { if (cleanupFailure != failure) failure.addSuppressed(cleanupFailure); }
+			if (objectBatchBegun) try { objectEventManager.endBatch(true); }
+			catch (Throwable cleanupFailure) { if (cleanupFailure != failure) failure.addSuppressed(cleanupFailure); }
+			eventBatchDepth = previousDepth;
+			additionalEventManagers.clear();
+			additionalEventManagers.addAll(previousAdditional);
+			undoBatchCheckpoints.clear();
+			undoBatchCheckpoints.addAll(previousCheckpoints);
+			EditSupport.Activation failedActivation = undoBatchActivation;
+			undoBatchActivation = previousActivation;
+			if (previousActivation == null && failedActivation != null) {
+				try { failedActivation.close(); }
+				catch (Throwable cleanupFailure) { if (cleanupFailure != failure) failure.addSuppressed(cleanupFailure); }
+			}
+			throw failure;
 		}
 	}
 	/** Number of deferred observer facts in the current nested transaction batches. */

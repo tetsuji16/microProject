@@ -240,8 +240,8 @@ public abstract class StartupFactory {
 				// requested project obtains its own registered document window.
 				gm.openLocalProjectsSequentially(projectUrls);
 			}else{
-				SwingUtilities.invokeLater(() -> {
-					if (gm.offerRecoveryAtStartup()) {
+				gm.offerRecoveryAtStartup(recovered -> {
+					if (recovered) {
 						return;
 					}
 					if (welcome&&!Environment.isPlugin()) {

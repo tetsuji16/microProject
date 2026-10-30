@@ -40,6 +40,8 @@ import java.util.Map;
 import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -48,13 +50,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class CollaborationMetadataStore {
 	private static final Logger logger = Logger.getLogger(CollaborationMetadataStore.class.getName());
 	private static final int MAX_METADATA_BYTES = 1024 * 1024; // 1 MB safety limit
+	private static final long EDT_LOCK_TIMEOUT_MILLIS = 300L;
 	public static final int SCHEMA_VERSION = 1;
 	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 	private static final Object JVM_LOCK_REGISTRY_GUARD = new Object();
 	private static final ConcurrentHashMap<String, JvmLockEntry> JVM_LOCKS = new ConcurrentHashMap<String, JvmLockEntry>();
 
 	private static final class JvmLockEntry {
-		private final Object monitor = new Object();
+		private final ReentrantLock monitor = new ReentrantLock();
 		private final AtomicInteger references = new AtomicInteger();
 	}
 
@@ -151,7 +154,9 @@ public class CollaborationMetadataStore {
 			entry.references.incrementAndGet();
 		}
 		try {
-			synchronized (entry.monitor) {
+			long deadline = lockDeadline();
+			acquireJvmLock(entry.monitor, deadline);
+			try {
 				try (FileChannel channel = FileChannel.open(lockFile.toPath(),
 						StandardOpenOption.CREATE, StandardOpenOption.WRITE);
 					 FileLock ignored = channel.tryLock()) {
@@ -165,7 +170,12 @@ public class CollaborationMetadataStore {
 					logger.log(Level.WARNING, "Could not remove collaboration artifacts for " + projectFile, error);
 					return false;
 				}
+			} finally {
+				entry.monitor.unlock();
 			}
+		} catch (CollaborationLockUnavailableException error) {
+			logger.log(Level.FINE, "Collaboration lock is busy during cleanup " + projectFile, error);
+			return false;
 		} catch (java.nio.channels.OverlappingFileLockException error) {
 			logger.log(Level.FINE, "Collaboration lock is already held for cleanup " + projectFile, error);
 			return false;
@@ -214,9 +224,13 @@ public class CollaborationMetadataStore {
 			entry = JVM_LOCKS.computeIfAbsent(lockKey, key -> new JvmLockEntry());
 			entry.references.incrementAndGet();
 		}
+		long deadline = lockDeadline();
 		try {
-			synchronized (entry.monitor) {
-				return withLockedMetadataUnderJvmLock(callback);
+			acquireJvmLock(entry.monitor, deadline);
+			try {
+				return withLockedMetadataUnderJvmLock(callback, deadline);
+			} finally {
+				entry.monitor.unlock();
 			}
 		} finally {
 			releaseJvmLock(lockKey, entry);
@@ -267,7 +281,7 @@ public class CollaborationMetadataStore {
 		}
 	}
 
-	private <T> T withLockedMetadataUnderJvmLock(MetadataCallback<T> callback) {
+	private <T> T withLockedMetadataUnderJvmLock(MetadataCallback<T> callback, long deadline) {
 		FileChannel channel = null;
 		FileLock lock = null;
 		FileChannel legacyChannel = null;
@@ -278,7 +292,7 @@ public class CollaborationMetadataStore {
 				Files.createDirectories(parent.toPath());
 			}
 			channel = FileChannel.open(lockFile.toPath(), StandardOpenOption.CREATE, StandardOpenOption.WRITE);
-			lock = channel.lock();
+			lock = acquireFileLock(channel, deadline);
 			// The canonical path is authoritative once present. During one-time
 			// migration, hold the legacy marker too so older local writers cannot
 			// change the source while it is copied; all new writers serialize on
@@ -287,7 +301,7 @@ public class CollaborationMetadataStore {
 			if (useLegacy) {
 				File legacyLockFile = buildLockFile(legacySidecarFile);
 				legacyChannel = FileChannel.open(legacyLockFile.toPath(), StandardOpenOption.CREATE, StandardOpenOption.WRITE);
-				legacyLock = legacyChannel.lock();
+				legacyLock = acquireFileLock(legacyChannel, deadline);
 			}
 			byte[] originalBytes = useLegacy ? readAllBytes(legacySidecarFile) : readAllBytes(sidecarFile);
 			Metadata metadata;
@@ -330,6 +344,49 @@ public class CollaborationMetadataStore {
 				}
 			} catch (IOException e) {
 				logger.log(Level.FINE, "Failed to close file channel on {0}", sidecarFile);
+			}
+		}
+	}
+
+	private static long lockDeadline() {
+		return java.awt.EventQueue.isDispatchThread()
+				? System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(EDT_LOCK_TIMEOUT_MILLIS)
+				: 0L;
+	}
+
+	private static void acquireJvmLock(ReentrantLock lock, long deadline) {
+		try {
+			if (deadline == 0L) {
+				lock.lock();
+			} else if (!lock.tryLock(Math.max(0L, deadline - System.nanoTime()), TimeUnit.NANOSECONDS)) {
+				throw new CollaborationLockUnavailableException("Timed out waiting for the local collaboration lock");
+			}
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			throw new CollaborationLockUnavailableException("Interrupted while waiting for the local collaboration lock", e);
+		}
+	}
+
+	private static FileLock acquireFileLock(FileChannel channel, long deadline) throws IOException {
+		if (deadline == 0L) {
+			return channel.lock();
+		}
+		while (true) {
+			try {
+				FileLock lock = channel.tryLock();
+				if (lock != null) return lock;
+			} catch (java.nio.channels.OverlappingFileLockException ignored) {
+				// A different local session holds this marker; retry only until the EDT deadline.
+			}
+			long remaining = deadline - System.nanoTime();
+			if (remaining <= 0L) {
+				throw new CollaborationLockUnavailableException("Timed out waiting for the collaboration file lock");
+			}
+			try {
+				TimeUnit.NANOSECONDS.sleep(Math.min(remaining, TimeUnit.MILLISECONDS.toNanos(10L)));
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				throw new CollaborationLockUnavailableException("Interrupted while waiting for the collaboration file lock", e);
 			}
 		}
 	}
@@ -439,6 +496,9 @@ public class CollaborationMetadataStore {
 		T execute(Metadata metadata);
 
 		default T onError(Exception e) {
+			if (e instanceof CollaborationLockUnavailableException lockUnavailable) {
+				throw lockUnavailable;
+			}
 			throw new RuntimeException(e);
 		}
 	}

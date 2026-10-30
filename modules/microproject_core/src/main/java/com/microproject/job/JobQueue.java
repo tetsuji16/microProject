@@ -24,16 +24,18 @@
  *******************************************************************************/
 package com.microproject.job;
 
-import java.util.Collections;
 import java.util.function.Consumer;
 import java.util.EventListener;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.HashMap;
+import java.util.Map;
 import java.lang.reflect.Array;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiConsumer;
+import java.util.function.Supplier;
 
 
 
@@ -61,7 +63,9 @@ public class JobQueue extends ThreadGroup{
 
 	/** Returns whether a scheduled job is executing, including work dispatched off this ThreadGroup. */
 	public boolean hasExecutingJobs() {
-		return !executingJobs.isEmpty();
+		synchronized (executingJobs) {
+			return !executingJobs.isEmpty();
+		}
 	}
 	public synchronized void startNext(){
 		if (hasNext()){
@@ -81,18 +85,88 @@ public class JobQueue extends ThreadGroup{
 		}
 	}
 
-	private Set<String> executingJobs=Collections.synchronizedSet(new HashSet<>());
+	private final Map<String, AdmissionState> executingJobs = new HashMap<>();
+
+	private static final class AdmissionState {
+		private final Job job;
+		private int retainedRequests;
+		private boolean terminal;
+
+		private AdmissionState(Job job) {
+			this.job = job;
+		}
+	}
+
+	/** Holds an admission key until its UI-side request completion has run. */
+	public final class AdmissionTicket implements AutoCloseable {
+		private final String key;
+		private final Job job;
+		private final AtomicBoolean released = new AtomicBoolean();
+
+		private AdmissionTicket(String key, Job job) {
+			this.key = key;
+			this.job = job;
+		}
+
+		public Job getJob() {
+			return job;
+		}
+
+		@Override
+		public void close() {
+			if (released.compareAndSet(false, true))
+				releaseAdmission(this);
+		}
+	}
 
 	public void addExecutingJob(Job job) {
-		executingJobs.add(job.getName());
+		synchronized (executingJobs) {
+			executingJobs.putIfAbsent(job.getQueueAdmissionKey(), new AdmissionState(job));
+		}
 	}
 	public void removeExecutingJob(Job job) {
-		executingJobs.remove(job.getName());
+		synchronized (executingJobs) {
+			AdmissionState state = executingJobs.get(job.getQueueAdmissionKey());
+			if (state == null || state.job != job)
+				return;
+			state.terminal = true;
+			if (state.retainedRequests == 0)
+				executingJobs.remove(job.getQueueAdmissionKey(), state);
+		}
 	}
 
 	public void schedule(Job job){
+		trySchedule(job);
+	}
+
+	/** Schedules a job unless another live job already occupies its queue name. */
+	public boolean trySchedule(Job job){
+		return tryScheduleOrCoalesce(job, null);
+	}
+
+	/**
+	 * Schedules a job by admission key, or attaches a completion listener to the
+	 * already active job with that key. Ordinary callers can continue using
+	 * {@link #schedule(Job)}; this is for workflows that can share one loaded result.
+	 *
+	 * @return true when this job was admitted; false when it joined an active job
+	 */
+	public boolean tryScheduleOrCoalesce(Job job, Consumer<Job> coalescedCompletion) {
+		Objects.requireNonNull(job, "job");
+		String admissionKey = job.getQueueAdmissionKey();
+		Job activeJob;
 		synchronized (executingJobs) {
-			if (!executingJobs.add(job.getName())) return; // avoid double click
+			AdmissionState state = executingJobs.get(admissionKey);
+			activeJob = state == null ? null : state.job;
+			if (state == null) {
+				executingJobs.put(admissionKey, new AdmissionState(job));
+			}
+		}
+		if (activeJob != null) {
+			logger.fine(() -> "Coalescing duplicate active job request: " + admissionKey);
+			if (coalescedCompletion != null)
+				activeJob.addCompletionRunnable(() -> coalescedCompletion.accept(activeJob));
+			return false;
 		}
 		// A queued load can own the critical section while a user presses Save.
 		// Starting the save synchronously from the EDT would then wait for that
@@ -105,6 +179,105 @@ public class JobQueue extends ThreadGroup{
 			scheduler.start();
 		} else {
 			job.execute();
+		}
+		return true;
+	}
+
+	/**
+	 * Schedules a new job or joins the active job while retaining its admission
+	 * key until every request has finished its UI-side completion. The callbacks
+	 * run before a new job starts, so the admitted owner can register its terminal
+	 * listener without racing a fast job.
+	 */
+	public void scheduleOrJoinRetained(Job job, Consumer<AdmissionTicket> admitted,
+			BiConsumer<Job, AdmissionTicket> coalesced) {
+		scheduleOrJoinRetained(job, job::getQueueAdmissionKey, admitted, coalesced);
+	}
+
+	/** Resolves the canonical admission key away from the EDT before reserving it. */
+	public void scheduleOrJoinRetained(Job job, Supplier<String> admissionKeyResolver,
+			Consumer<AdmissionTicket> admitted, BiConsumer<Job, AdmissionTicket> coalesced) {
+		Objects.requireNonNull(job, "job");
+		Objects.requireNonNull(admissionKeyResolver, "admissionKeyResolver");
+		Objects.requireNonNull(admitted, "admitted");
+		Objects.requireNonNull(coalesced, "coalesced");
+		Runnable resolveAndSchedule = () -> {
+			String key;
+			try {
+				key = admissionKeyResolver.get();
+			} catch (RuntimeException | Error e) {
+				logger.log(Level.WARNING, "Could not resolve canonical admission key for " + job.getName(), e);
+				key = job.getQueueAdmissionKey();
+			}
+			job.setQueueAdmissionKey(key);
+			reserveAndSchedule(job, key, admitted, coalesced);
+		};
+		if (UiDispatch.isDispatchThread()) {
+			Thread resolver = new Thread(resolveAndSchedule, job.getName() + "_admission");
+			resolver.setDaemon(job.isDaemon());
+			resolver.start();
+		} else {
+			resolveAndSchedule.run();
+		}
+	}
+
+	private void reserveAndSchedule(Job job, String key, Consumer<AdmissionTicket> admitted,
+			BiConsumer<Job, AdmissionTicket> coalesced) {
+		AdmissionState state;
+		boolean isAdmitted;
+		AdmissionTicket ticket;
+		synchronized (executingJobs) {
+			state = executingJobs.get(key);
+			isAdmitted = state == null;
+			if (isAdmitted) {
+				state = new AdmissionState(job);
+				executingJobs.put(key, state);
+			}
+			state.retainedRequests++;
+			ticket = new AdmissionTicket(key, state.job);
+		}
+		if (!isAdmitted) {
+			AdmissionState activeState = state;
+			AdmissionTicket joinedTicket = ticket;
+			activeState.job.addCompletionRunnable(() -> {
+				try {
+					coalesced.accept(activeState.job, joinedTicket);
+				} catch (RuntimeException | Error e) {
+					joinedTicket.close();
+					throw e;
+				}
+			});
+			return;
+		}
+		try {
+			admitted.accept(ticket);
+		} catch (RuntimeException | Error e) {
+			synchronized (executingJobs) {
+				AdmissionState current = executingJobs.get(key);
+				if (current == state)
+					current.terminal = true;
+			}
+			ticket.close();
+			throw e;
+		}
+		if (UiDispatch.isDispatchThread()) {
+			Thread scheduler = new Thread(job::execute, job.getName() + "_scheduler");
+			scheduler.setDaemon(job.isDaemon());
+			scheduler.start();
+		} else {
+			job.execute();
+		}
+	}
+
+	private void releaseAdmission(AdmissionTicket ticket) {
+		synchronized (executingJobs) {
+			AdmissionState state = executingJobs.get(ticket.key);
+			if (state == null || state.job != ticket.job)
+				return;
+			if (state.retainedRequests > 0)
+				state.retainedRequests--;
+			if (state.terminal && state.retainedRequests == 0)
+				executingJobs.remove(ticket.key, state);
 		}
 	}
 	public JobProgressMonitor getProgressMonitor(String name, Object component) {
