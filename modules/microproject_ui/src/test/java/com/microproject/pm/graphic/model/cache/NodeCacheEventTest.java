@@ -29,12 +29,39 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
 import com.microproject.pm.graphic.model.event.CacheEvent;
 
 class NodeCacheEventTest {
+	@Test
+	void removalDiffRetainsOrderAndOriginalIntervals() {
+		ArrayList<String> original = new ArrayList<>(List.of("a", "b", "c", "d", "e", "f"));
+		ArrayList<String> removed = new ArrayList<>();
+		ArrayList<CacheInterval> ranges = new ArrayList<>();
+		HashSet<String> updates = new HashSet<>(List.of("a", "c", "e"));
+		NodeCache.createRemoveDiff(original, new ArrayList<>(List.of("b", "d", "f")), removed, ranges, updates);
+		assertEquals(List.of("b", "d", "f"), original);
+		assertEquals(List.of("a", "c", "e"), removed);
+		assertEquals(List.of("[0;0]", "[2;2]", "[4;4]"), ranges.stream().map(Object::toString).toList());
+		assertEquals(Set.of(), updates);
+	}
+
+	@Test
+	void initialProjectionProducesOneInsertionRange() {
+		List<CacheEvent> events = new ArrayList<>();
+		ArrayList<Integer> rows = new ArrayList<>();
+		for (int i = 0; i < 10_000; i++) rows.add(i);
+		NodeCache.applyUpdates(new ArrayList<>(), rows, null, events, this);
+		assertEquals(1, events.size());
+		assertEquals(CacheEvent.NODES_INSERTED, events.get(0).getType());
+		assertEquals(rows, events.get(0).getNodes());
+		List<Object> intervals = new ArrayList<>();
+		events.get(0).forIntervals(intervals::add);
+		assertEquals(List.of("[0;9999]"), intervals.stream().map(Object::toString).toList());
+	}
 	@Test
 	void changedRowsRetainEncounterPositionsAndContiguousRanges() {
 		ArrayList<Object> changed = new ArrayList<>();

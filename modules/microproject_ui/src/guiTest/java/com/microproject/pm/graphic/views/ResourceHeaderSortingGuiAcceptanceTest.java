@@ -60,6 +60,7 @@ import com.microproject.exchange.MpoFileImporter;
 import com.microproject.ribbon.RibbonCommandResult;
 import com.microproject.ui.diagnostics.UiButtonDiagnostics;
 import com.microproject.testsupport.GuiAcceptanceSupport;
+import com.microproject.testsupport.RibbonGuiSupport;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.Environment;
 
@@ -398,6 +399,15 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 
 	@Test
 	void physicalResourceStandardRateEditUndoRedoAndMpoRoundTrip() throws Exception {
+		physicalResourceStandardRateEditUndoRedoAndMpoRoundTrip(false);
+	}
+
+	@Test
+	void largeProjectPhysicalGanttToResourceEditUndoRedoAndMpoRoundTrip() throws Exception {
+		physicalResourceStandardRateEditUndoRedoAndMpoRoundTrip(true);
+	}
+
+	private void physicalResourceStandardRateEditUndoRedoAndMpoRoundTrip(boolean largeProject) throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
@@ -406,9 +416,9 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		ResourcePool pool = ResourcePool.createRourcePool("resource-field-edit", undo);
 		pool.setLocal(true);
-		pool.setMaster(true);
+		pool.setMaster(!largeProject);
 		Project project = Project.createProject(pool, undo);
-		project.setResourcePoolProject(true);
+		project.setResourcePoolProject(!largeProject);
 		project.initialize(false, false);
 		pool.addProject(project);
 		Resource resource = pool.createScriptedResource();
@@ -416,6 +426,13 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 		resource.setStandardRate(new Rate(20.0D
 			/ com.microproject.datatype.Duration.timeUnitFactor(com.microproject.datatype.TimeUnit.HOURS),
 			com.microproject.datatype.TimeUnit.HOURS));
+		if (largeProject) {
+			for (int index = 0; index < 5000; index++) {
+				Resource extra = pool.createScriptedResource();
+				extra.setName("Bulk Resource " + index);
+			}
+		}
+		int initialResourceCount = pool.getResourceList().size();
 		SwingUtilities.invokeAndWait(() -> {
 			window = new MainRibbonFrame("resource-field-edit", null);
 			manager = new GraphicManager(window);
@@ -424,8 +441,26 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 			manager.addProjectFrame(project);
 			window.setSize(1120, 700);
 			window.setVisible(true);
-			manager.getFrameForProject(project).activateResourceView();
+			if (!largeProject) manager.getFrameForProject(project).activateResourceView();
 		});
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		if (largeProject) {
+			DocumentFrame frame = manager.getFrameForProject(project);
+			assertTrue(frame.getActiveTopView().showsTasks(), "the journey must start on a task view");
+			String viewTabText = java.util.ResourceBundle.getBundle("com.microproject.menu.menu")
+				.getString("ViewRibbonTask.title");
+			click(robot, GuiAcceptanceSupport.findShowingButtonByText(window, viewTabText));
+			click(robot, RibbonGuiSupport.findVisibleOrExpand(robot, window.getRibbonPanel(), "RibbonResources"));
+			// No notification is specified by the Resource View command. An unknown
+			// dialog may be an error and must not be silently acknowledged.
+			List<Window> dialogs = java.util.Arrays.stream(Window.getWindows())
+				.filter(candidate -> candidate instanceof java.awt.Dialog && candidate.isShowing()).toList();
+			assertTrue(dialogs.isEmpty(), "unexpected dialog after Resource View command: " + dialogs);
+			GuiAcceptanceSupport.await(() -> frame.getActiveTopView() instanceof ResourceView,
+				"physical Resource ribbon command did not activate Resource View");
+			assertEquals(initialResourceCount, pool.getResourceList().size(), "opening the view must retain all resources");
+		}
 		SpreadSheet sheet = manager.getFrameForProject(project).getResourceView().getSpreadSheet();
 		GuiAcceptanceSupport.await(() -> sheet.isShowing() && rowFor(sheet, resource) >= 0,
 			"resource spreadsheet did not show the edited resource");
@@ -435,8 +470,6 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 		assertTrue(modelColumn >= 0, "resource Standard Rate column must be present");
 		int column = sheet.convertColumnIndexToView(modelColumn);
 		int row = rowFor(sheet, resource);
-		Robot robot = new com.microproject.testsupport.GuiRobot();
-		robot.setAutoDelay(45);
 		clickVisibleCell(robot, window, sheet, row, column);
 		try {
 			GuiAcceptanceSupport.await(sheet::isFocusOwner, "Standard Rate cell did not receive physical focus");
@@ -497,6 +530,8 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 		ByteArrayOutputStream saved = new ByteArrayOutputStream();
 		assertTrue(new MpoFileImporter().saveProject(project, saved), "MPO save rejected the physical rate edit");
 		Project restored = new MpoFileImporter().loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		if (largeProject) assertEquals(initialResourceCount, restored.getResourcePool().getResourceList().size(),
+			"MPO reopen must retain every resource in the large project");
 		Resource restoredResource = restored.getResourcePool().getResourceList().stream()
 			.filter(candidate -> "Field Edit Resource".equals(candidate.getName())).findFirst().orElseThrow();
 		assertEquals(expectedEditRate, restoredResource.getStandardRate().getValue(), 0.0000001D,

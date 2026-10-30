@@ -306,6 +306,7 @@ class ResourceLevelingDialogGuiAcceptanceTest {
 		ResourceLevelingDialogBox dialog = openDialog(project, owner);
 		AbstractButton preview = findButton(dialog, UsabilityStrings.text("leveling.preview"));
 		AbstractButton includeProposed = findButton(dialog, UsabilityStrings.text("leveling.includeProposed"));
+		AbstractButton apply = findButton(dialog, UsabilityStrings.text("leveling.apply"));
 		AbstractButton includeManual = findButton(dialog, UsabilityStrings.text("leveling.includeManual"));
 		JComboBox<?> order = findComboBox(dialog, 0);
 		JComboBox<?> sensitivity = findComboBox(dialog, 1);
@@ -339,6 +340,8 @@ class ResourceLevelingDialogGuiAcceptanceTest {
 		assertTrue(isSelected(includeProposed), "physical opt-in must stay selected while showing the plan");
 		for (int index : new int[] {0, 1}) {
 			GuiAcceptanceSupport.selectComboBoxItem(robot, sensitivity, index);
+			GuiAcceptanceSupport.await(() -> tableRowCountUnchecked(dialog) == 0 && !apply.isEnabled(),
+				"changing sensitivity must clear the previous preview and disable Apply until recalculation");
 			click(robot, preview);
 			GuiAcceptanceSupport.await(() -> tableRowCountUnchecked(dialog) > 0,
 				"minute and hour sensitivity must show the same full-day conflict");

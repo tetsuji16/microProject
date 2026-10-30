@@ -85,14 +85,19 @@ public class CollaborationSession {
 	private volatile long pendingExternalReloadLength;
 	private volatile long pendingExternalReloadDetectedAt;
 	private volatile long lastHeartbeatAt;
+	private volatile boolean projectStatsRefreshPending;
 
 	public CollaborationSession(Project project, String fileName, String userKey) {
+		this(project, fileName, userKey, new CollaborationMetadataStore(fileName == null ? null : new File(fileName)));
+	}
+
+	CollaborationSession(Project project, String fileName, String userKey, CollaborationMetadataStore store) {
 		this.project = project;
 		this.projectFile = fileName == null ? null : new File(fileName);
 		this.userKey = CollaborationUserIdentity.normalize(userKey);
 		this.displayName = this.userKey;
 		this.clientInstanceId = UUID.randomUUID().toString();
-		this.store = new CollaborationMetadataStore(projectFile);
+		this.store = store;
 		this.lockManager = new TaskLockManager(store, this.userKey, this.displayName, this.clientInstanceId);
 		refreshKnownFileStats();
 	}
@@ -144,8 +149,13 @@ public class CollaborationSession {
 
 	public void stop() {
 		if (timer == null) {
-			lockManager.releaseAll();
-			lockBaselineStates.clear();
+			try {
+				lockManager.releaseAll();
+			} catch (RuntimeException e) {
+				logger.log(Level.WARNING, "Collaboration locks could not be released; leases will expire", e);
+			} finally {
+				lockBaselineStates.clear();
+			}
 			return;
 		}
 		try {
@@ -153,10 +163,15 @@ public class CollaborationSession {
 		} catch (Exception e) {
 			logger.log(Level.FINE, "Failed to save workspace on session stop", e);
 		}
-		lockManager.releaseAll();
-		lockBaselineStates.clear();
-		timer.cancel();
-		timer = null;
+		try {
+			lockManager.releaseAll();
+		} catch (RuntimeException e) {
+			logger.log(Level.WARNING, "Collaboration locks could not be released; leases will expire", e);
+		} finally {
+			lockBaselineStates.clear();
+			timer.cancel();
+			timer = null;
+		}
 	}
 
 	private void registerUser() {
@@ -189,6 +204,9 @@ public class CollaborationSession {
 	void pollAt(long now) {
 		if (projectFile == null) {
 			return;
+		}
+		if (projectStatsRefreshPending) {
+			refreshProjectStatsIfPending();
 		}
 		if (now - lastHeartbeatAt >= HEARTBEAT_INTERVAL_MS) {
 			lockManager.renewAll();
@@ -373,12 +391,38 @@ public class CollaborationSession {
 		if (tasks == null) {
 			return null;
 		}
+		java.util.List<Long> newlyAcquired = new java.util.ArrayList<>();
 		for (Task task : tasks) {
-			if (!tryAcquireTaskLock(task)) {
-				return task;
+			if (task == null) continue;
+			long taskId = task.getUniqueId();
+			boolean alreadyHeld = lockManager.isLockedByCurrentUser(taskId);
+			try {
+				if (!tryAcquireTaskLock(task)) {
+					releaseNewlyAcquiredLocks(newlyAcquired);
+					return task;
+				}
+			} catch (RuntimeException e) {
+				if (!alreadyHeld && lockManager.isLockedByCurrentUser(taskId)) {
+					newlyAcquired.add(Long.valueOf(taskId));
+				}
+				releaseNewlyAcquiredLocks(newlyAcquired);
+				throw e;
 			}
+			if (!alreadyHeld) newlyAcquired.add(Long.valueOf(taskId));
 		}
 		return null;
+	}
+
+	private void releaseNewlyAcquiredLocks(java.util.List<Long> taskIds) {
+		for (Long taskId : taskIds) {
+			try {
+				lockManager.release(taskId.longValue());
+			} catch (RuntimeException e) {
+				// release() forgets the local lease in a finally block; an unreleased lease expires.
+				logger.log(Level.WARNING, "Could not roll back a task lock after a later lock request failed", e);
+			}
+			lockBaselineStates.remove(taskId);
+		}
 	}
 
 	public boolean requiresSaveConfirmation() {
@@ -390,12 +434,20 @@ public class CollaborationSession {
 	}
 
 	public void afterSave() {
-		store.mutate(metadata -> {
-			store.refreshProjectStats(metadata);
-		});
+		projectStatsRefreshPending = true;
+		refreshProjectStatsIfPending();
 		refreshLockBaselines();
 		refreshKnownFileStats();
 		resetExternalChangeState(true);
+	}
+
+	private void refreshProjectStatsIfPending() {
+		try {
+			store.mutate(metadata -> store.refreshProjectStats(metadata));
+			projectStatsRefreshPending = false;
+		} catch (CollaborationLockUnavailableException e) {
+			logger.log(Level.WARNING, "Could not update collaboration metadata after save; a later poll will retry", e);
+		}
 	}
 
 	public void afterExternalProjectRefresh() {

@@ -56,6 +56,33 @@ import com.microproject.undo.DataFactoryUndoController;
 
 class ViewNodeModelCacheHierarchyDependencyTest {
 	@Test
+	void rootChildrenFollowEachPublishedProjection() {
+		Dictionary.getInstance();
+		Project project = createProject();
+		NormalTask first = createTask(project, "First");
+		ReferenceNodeModelCache reference = NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel());
+		ViewNodeModelCache view = (ViewNodeModelCache) NodeModelCacheFactory.getInstance()
+			.createFilteredCache(reference, "root-children-test", null);
+		reference.update();
+		try {
+			Object root = view.getRoot();
+			GraphicNode firstNode = reference.getGraphicNode(project.getTaskModel().search(first));
+			assertSame(firstNode, view.getChild(root, 0));
+			assertEquals(0, view.getIndexOfChild(root, firstNode));
+			int count = view.getChildCount(root);
+			NormalTask second = createTask(project, "Second");
+			reference.update();
+			GraphicNode secondNode = reference.getGraphicNode(project.getTaskModel().search(second));
+			assertEquals(count + 1, view.getChildCount(root));
+			int secondRow = view.getRowAt(secondNode);
+			assertSame(secondNode, view.getChild(root, secondRow));
+			assertEquals(secondRow, view.getIndexOfChild(root, secondNode));
+		} finally {
+			view.close();
+			reference.close();
+		}
+	}
+	@Test
 	void dependencyElementsRemainUntransformed() {
 		VisibleDependencies visibleDependencies = new VisibleDependencies("dependency-test");
 		GraphicDependency first = new GraphicDependency(null, null, null);

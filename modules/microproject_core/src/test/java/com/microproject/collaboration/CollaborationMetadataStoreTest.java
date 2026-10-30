@@ -11,7 +11,13 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
+import java.awt.EventQueue;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import com.microproject.util.UiDispatcher;
+import com.microproject.util.UiDispatch;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
@@ -23,10 +29,24 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
 
 class CollaborationMetadataStoreTest {
+	@BeforeEach
+	void useEdtDispatcher() {
+		UiDispatch.setDispatcher(new UiDispatcher() {
+			@Override public void invokeLater(Runnable task) { EventQueue.invokeLater(task); }
+			@Override public boolean isDispatchThread() { return EventQueue.isDispatchThread(); }
+		});
+	}
+
+	@AfterEach
+	void restoreUiDispatcher() {
+		UiDispatch.setDispatcher(null);
+	}
+
 	@Test
 	void onlyMpoFilesAreCollaborationCandidates() {
 		assertTrue(CollaborationMetadataStore.isMpoCollaborationCandidate("plan.mpo"));
@@ -152,6 +172,28 @@ class CollaborationMetadataStoreTest {
 		try (FileChannel channel = FileChannel.open(lockPath, StandardOpenOption.WRITE);
 			 FileLock lock = channel.tryLock()) {
 			assertNotNull(lock, "the transaction must release its active OS lock");
+		}
+	}
+
+	@Test
+	void eventDispatchThreadDoesNotWaitIndefinitelyForExternalMetadataLock() throws Exception {
+		Path project = Files.createTempFile("mpo-collaboration-edt-lock", ".mpo");
+		CollaborationMetadataStore store = new CollaborationMetadataStore(project.toFile());
+		Path lockPath = CollaborationMetadataStore.buildLockFile(store.getSidecarFile()).toPath();
+		long startedAt = System.nanoTime();
+		try (FileChannel channel = FileChannel.open(lockPath, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+			 FileLock ignored = channel.lock()) {
+			java.util.concurrent.atomic.AtomicReference<Throwable> failure = new java.util.concurrent.atomic.AtomicReference<>();
+			EventQueue.invokeAndWait(() -> {
+				try {
+					store.load();
+				} catch (Throwable error) {
+					failure.set(error);
+				}
+			});
+			long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
+			assertInstanceOf(CollaborationLockUnavailableException.class, failure.get());
+			assertTrue(elapsedMillis < 2000L, "the EDT lock wait must remain bounded");
 		}
 	}
 

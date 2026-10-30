@@ -55,6 +55,14 @@ class CriticalChainApplyAndRenderTest {
 			CriticalChainStatusDialogBox.retractionFailureMessage(outcome));
 	}
 
+	@Test
+	void duplicateTaskIdentityWarningIsLocalized() {
+		String message = ResourceLevelingDialogBox.duplicateTaskIdentityMessage();
+		assertEquals(UsabilityStrings.text("ccpm.duplicateTaskId"), message);
+		assertFalse(message.isBlank());
+		assertFalse(message.equals(UsabilityStrings.text("ccpm.analysisFailed")));
+	}
+
 	private static Project buildProjectWithTasksAndResources() throws Exception {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		ResourcePool pool = ResourcePool.createRourcePool("ccpm-apply", undo);

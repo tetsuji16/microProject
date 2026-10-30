@@ -129,6 +129,26 @@ public final class ResourceLevelingDialogBox extends FlatLafDialog {
 		}
 		buildUi();
 		preview();
+		installPreviewInvalidation();
+	}
+
+	private void installPreviewInvalidation() {
+		java.awt.event.ActionListener changed = event -> invalidatePreview();
+		order.addActionListener(changed);
+		sensitivity.addActionListener(changed);
+		for (JCheckBox option : List.of(slackOnly, allowSplits, levelAssignments, includeProposed, includeManual, ccpm))
+			option.addActionListener(changed);
+		bufferPercent.addChangeListener(event -> invalidatePreview());
+		resources.addListSelectionListener(event -> { if (!event.getValueIsAdjusting()) invalidatePreview(); });
+	}
+
+	private void invalidatePreview() {
+		currentPlan = null;
+		changes.setPlan(null);
+		criticalChainGraph.setAnalysis(null);
+		criticalChainBufferChart.setAnalysis(null, false);
+		apply.setEnabled(false);
+		status.setText(UsabilityStrings.text("ccpm.analysisStale"));
 	}
 
 	private void buildUi() {
@@ -232,7 +252,13 @@ public final class ResourceLevelingDialogBox extends FlatLafDialog {
 		workingSettings.setLevelAssignments(levelAssignments.isSelected());
 		workingSettings.setIncludeProposedResources(includeProposed.isSelected());
 		workingSettings.setLevelManuallyScheduledTasks(includeManual.isSelected());
-		CriticalChainService.Analysis analysis = criticalChainService.preview(project, selected.isEmpty() ? null : selected, workingSettings);
+		CriticalChainService.Analysis analysis;
+		try {
+			analysis = criticalChainService.preview(project, selected.isEmpty() ? null : selected, workingSettings);
+		} catch (CriticalChainService.DuplicateTaskIdentityException conflict) {
+			showDuplicateTaskIdentityWarning();
+			return;
+		}
 		criticalChainGraph.setAnalysis(analysis);
 		criticalChainBufferChart.setAnalysis(analysis, ccpm.isSelected());
 		currentPlan = analysis.levelingPlan();
@@ -265,7 +291,12 @@ public final class ResourceLevelingDialogBox extends FlatLafDialog {
 			}
 		}
 		if (ccpm.isSelected()) {
-			criticalChainService.apply(project, resources.getSelectedValuesList(), workingSettings);
+			try {
+				criticalChainService.apply(project, resources.getSelectedValuesList(), workingSettings);
+			} catch (CriticalChainService.DuplicateTaskIdentityException conflict) {
+				showDuplicateTaskIdentityWarning();
+				return;
+			}
 		} else {
 			com.microproject.undo.EditSupport edits = project.getUndoController().getEditSupport();
 			if (edits != null) edits.beginUpdate();
@@ -277,6 +308,21 @@ public final class ResourceLevelingDialogBox extends FlatLafDialog {
 			}
 		}
 		preview();
+	}
+
+	private void showDuplicateTaskIdentityWarning() {
+		currentPlan = null;
+		changes.setPlan(null);
+		criticalChainGraph.setAnalysis(null);
+		criticalChainBufferChart.setAnalysis(null, false);
+		apply.setEnabled(false);
+		status.setText(duplicateTaskIdentityMessage());
+		JOptionPane.showMessageDialog(this, duplicateTaskIdentityMessage(),
+			UsabilityStrings.text("leveling.title"), JOptionPane.WARNING_MESSAGE);
+	}
+
+	static String duplicateTaskIdentityMessage() {
+		return UsabilityStrings.text("ccpm.duplicateTaskId");
 	}
 
 	private void clear() {

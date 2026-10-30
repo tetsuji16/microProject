@@ -65,6 +65,8 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
     protected String viewName;
     private final boolean ownsReference;
     private boolean closed;
+    private RevisionedProjectionIndex rootChildrenProjection;
+    private List<GraphicNode> rootChildren = List.of();
 
 
     ViewNodeModelCache(ReferenceNodeModelCache reference,String viewName,Consumer<Object> transformerClosure) {
@@ -267,6 +269,8 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 		if (closed)
 			return;
 		closed = true;
+		rootChildrenProjection = null;
+		rootChildren = List.of();
 		visibleNodes.removeNodeModelListener(this);
 		((NodeCacheTransformer) visibleNodes.getTransformer()).getTransformer().removeViewTransformerListener(this);
 		reference.unbindView(visibleNodes, visibleDependencies);
@@ -645,7 +649,25 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 
 
     //TreeModel
+	private List<GraphicNode> rootChildren() {
+		RevisionedProjectionIndex projection = visibleNodes.getProjectionIndex();
+		if (rootChildrenProjection != projection) {
+			List<GraphicNode> children = new ArrayList<>();
+			for (GraphicNode node : projection.nodes()) {
+				int level = treeLevel(node);
+				if (level <= 0) break;
+				if (level == 1) children.add(node);
+			}
+			rootChildren = children;
+			rootChildrenProjection = projection;
+		}
+		return rootChildren;
+	}
 	public Object getChild(Object obj, int index) {
+		if (obj == getRoot()) {
+			List<GraphicNode> children = rootChildren();
+			return index >= 0 && index < children.size() ? children.get(index) : null;
+		}
 		ListIterator i=getIterator();
 		GraphicNode node;
 		GraphicNode ref=null;
@@ -670,6 +692,7 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 		return null;
 	}
 	public int getChildCount(Object obj) {
+		if (obj == getRoot()) return rootChildren().size();
 		ListIterator i=getIterator();
 		GraphicNode node;
 		GraphicNode ref=null;
@@ -691,6 +714,7 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 		return count;
 	}
 	public int getIndexOfChild(Object parent, Object child) {
+		if (parent == getRoot()) return rootChildren().indexOf(child);
 		ListIterator i=getIterator();
 		GraphicNode node;
 		GraphicNode ref=null;
