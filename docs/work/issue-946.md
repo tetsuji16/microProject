@@ -28,9 +28,9 @@ Out of scope: unrelated view redesign, broad performance optimization, and fixin
 - Earlier source review (comment 6419599124) candidates: coordinator lock leak in `Project.runModelCommand`/`TaskModeService`, uncoordinated off-EDT recovery save, collaboration timer without a guard, `JobQueue` dropping a named job. These are hardened in this change; none is confirmed as the reported cause.
 - The soak (`ViewResponsivenessSoakGuiAcceptanceTest`) is not in the smoke or visual selectors; run it with `gui_test_filter`.
 
-## Open and split out (no issue filed yet)
+## Open and split out
 
-- Data-loss race during MPO save: four `@Disabled` tests in `MpoTransactionBoundaryTest`.
+- Data-loss race during MPO save: issue #970, four `@Disabled` tests in `MpoTransactionBoundaryTest`.
 - Complete recovery snapshot for linked projects: see `docs/work/issue-946-recovery-design.md`.
 - CCPM preview and collaboration file I/O still run on the EDT.
 

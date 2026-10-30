@@ -154,7 +154,7 @@ class MpoTransactionBoundaryTest {
 		}
 	}
 
-	@Disabled("Known data-loss race during MPO save; see docs/work/issue-946.md")
+	@Disabled("Known data-loss race during MPO save: issue #970")
 	@Test
 	void laterEditMustSurviveRemoteMergeCommit() throws Exception {
 		Project local = loadSample();
@@ -222,7 +222,7 @@ class MpoTransactionBoundaryTest {
 		}
 	}
 
-	@Disabled("Known data-loss race during MPO save; see docs/work/issue-946.md")
+	@Disabled("Known data-loss race during MPO save: issue #970")
 	@Test
 	void laterDurationEditMustNotBeReportedAsSaved() throws Exception {
 		Project local = loadSample();
@@ -282,7 +282,7 @@ class MpoTransactionBoundaryTest {
 		}
 	}
 
-	@Disabled("Known data-loss race during MPO save; see docs/work/issue-946.md")
+	@Disabled("Known data-loss race during MPO save: issue #970")
 	@Test
 	void laterNotesOnSameFieldMustSurviveRemoteMerge() throws Exception {
 		Project local = loadSample();
@@ -312,7 +312,7 @@ class MpoTransactionBoundaryTest {
 		}
 	}
 
-	@Disabled("Known data-loss race during MPO save; see docs/work/issue-946.md")
+	@Disabled("Known data-loss race during MPO save: issue #970")
 	@Test
 	void editDuringInitialSaveMustNotBeReportedAsSaved() throws Exception {
 		Project local = loadSample();
