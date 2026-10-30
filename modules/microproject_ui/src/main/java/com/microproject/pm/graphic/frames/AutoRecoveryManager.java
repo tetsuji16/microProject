@@ -50,8 +50,6 @@ import com.microproject.application.AutoRecoveryStore;
 import com.microproject.dialog.UsabilityStrings;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectFactory;
-import com.microproject.pm.ccpm.CriticalChainService;
-import com.microproject.session.FileHelper;
 import com.microproject.session.LocalSession;
 import com.microproject.session.SaveOptions;
 import com.microproject.session.SessionFactory;
@@ -363,15 +361,14 @@ final class AutoRecoveryManager implements AutoSaveControl {
 		Runnable release = () -> { if (released.compareAndSet(false, true)) completeSave(projectId); };
 		try {
 			String originalFileName = project.getFileName();
-			boolean mpoSnapshot = FileHelper.isMpoFile(originalFileName)
-					|| new CriticalChainService().requiresMpo(project);
-			java.nio.file.Path snapshotPath = store.newSnapshotPath(projectId, mpoSnapshot);
+			// Always MPO, whatever the source format: only its writer detects an edit
+			// made during the snapshot.  POD snapshots from earlier versions still open.
+			java.nio.file.Path snapshotPath = store.newSnapshotPath(projectId, true);
 			SaveOptions options = new SaveOptions();
 			options.setLocal(true);
 			options.setSaveAs(true);
 			options.setRecoverySnapshot(true);
-			options.setImporter(mpoSnapshot ? LocalSession.MPO_PROJECT_IMPORTER
-					: LocalSession.LOCAL_PROJECT_IMPORTER);
+			options.setImporter(LocalSession.MPO_PROJECT_IMPORTER);
 			options.setFileName(snapshotPath.toString());
 			options.setPostSaving(new Consumer<Object>() { public void accept(Object ignored) {
 					// LocalSession invokes postSaving from a Swing completion runnable.
