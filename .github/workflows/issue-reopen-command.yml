@@ -1,0 +1,26 @@
+name: Issue reopen command
+on:
+  issue_comment:
+    types: [created]
+permissions:
+  issues: write
+jobs:
+  reopen:
+    # 66808535 is the immutable account id of humphreylee; a login can be renamed and reclaimed.
+    if: >-
+      github.event.comment.user.id == 66808535 &&
+      github.event.issue.state == 'closed' &&
+      github.event.issue.pull_request == null
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reopen the issue when the comment is exactly /reopen
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          if [[ "$COMMENT_BODY" =~ ^[[:space:]]*/reopen[[:space:]]*$ ]]; then
+            gh issue reopen "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY"
+          else
+            echo "Comment is not the /reopen command; nothing to do."
+          fi
