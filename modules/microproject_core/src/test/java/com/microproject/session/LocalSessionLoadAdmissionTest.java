@@ -20,8 +20,14 @@ import com.microproject.job.Job;
 import com.microproject.job.JobQueue;
 
 class LocalSessionLoadAdmissionTest {
+	/** A relative alias needs the working drive, and hosted Windows keeps temp files on another one. */
+	private static Path directoryOnWorkingDrive() throws java.io.IOException {
+		return Files.createTempDirectory(Files.createDirectories(Path.of("build", "tmp").toAbsolutePath()), "load-admission");
+	}
+
 	@Test
-	void canonicalFileIdentityCoalescesRelativeAbsoluteAndPlatformCaseVariants(@TempDir Path tempDirectory) throws Exception {
+	void canonicalFileIdentityCoalescesRelativeAbsoluteAndPlatformCaseVariants() throws Exception {
+		Path tempDirectory = directoryOnWorkingDrive();
 		Path projectFile = Files.createFile(tempDirectory.resolve("MasterPlan.mpo"));
 		Path relative = Path.of("").toAbsolutePath().normalize().relativize(projectFile.toAbsolutePath().normalize());
 		LocalSession session = sessionWithQueue();
@@ -58,7 +64,8 @@ class LocalSessionLoadAdmissionTest {
 	}
 
 	@Test
-	void realPathAdmissionCoalescesRelativeAndSymbolicFileAliases(@TempDir Path tempDirectory) throws Exception {
+	void realPathAdmissionCoalescesRelativeAndSymbolicFileAliases() throws Exception {
+		Path tempDirectory = directoryOnWorkingDrive();
 		Path projectFile = Files.createFile(tempDirectory.resolve("real-project.mpo"));
 		Path relative = Path.of("").toAbsolutePath().relativize(projectFile.toAbsolutePath());
 		Path symbolicLink = tempDirectory.resolve("linked-project.mpo");
