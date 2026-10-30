@@ -323,7 +323,7 @@ public class ProjectFactory {
 		});
 		if (opt.isSync()) job.addSync();
 		session.getJobQueue().scheduleOrJoinRetained(job,
-				() -> LocalSession.resolveProjectLoadAdmissionKey(opt.getFileName(), opt.getId()),
+				() -> openAdmissionKey(opt),
 				ticket -> admissionTicket.set(ticket), (activeJob, ticket) -> {
 					try {
 						completion.accept(null);
@@ -336,6 +336,16 @@ public class ProjectFactory {
 		} catch (Exception e) {//Forward exception + Alert
 			return null;
 		}
+	}
+
+	/**
+	 * Admission key of an open request. A request that carries its own input stream (the XML
+	 * recovery of an unreadable file, started from inside the load of that same file) is a
+	 * different load and must not join the active file load, which would never publish it.
+	 */
+	static String openAdmissionKey(LoadOptions opt) {
+		String key = LocalSession.resolveProjectLoadAdmissionKey(opt.getFileName(), opt.getId());
+		return key != null && opt.getFileInputStream() != null ? key + ":stream" : key;
 	}
 
 	@FunctionalInterface
