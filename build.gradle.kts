@@ -555,8 +555,8 @@ val releaseChannel = providers.gradleProperty("releaseChannel").orElse("stable")
 require(releaseChannel == "stable" || releaseChannel == "beta") {
     "releaseChannel must be 'stable' or 'beta', got '$releaseChannel'"
 }
-val updaterEnabledForRelease = releaseChannel != "beta"
-val updaterEnabledJavaOption = "-Dmicroproject.updates.enabled=$updaterEnabledForRelease"
+// Updates are delivered as new packages; no release publishes an update feed.
+val updaterEnabledJavaOption = "-Dmicroproject.updates.enabled=false"
 val applicationVendor = "microProject contributors"
 val applicationDescription = "microProject desktop project management software"
 val applicationCopyright = "Copyright © 2026 microProject contributors"
@@ -569,7 +569,6 @@ val docsDownloadsDir = layout.projectDirectory.dir("docs/downloads")
 val windowsPortableLauncher = layout.projectDirectory.file("packaging/windows/launchers/microProject.cmd")
 val windowsFileAssociationsDir = layout.projectDirectory.dir("packaging/windows/file-associations")
 val windowsInstallerResourcesDir = layout.projectDirectory.dir("packaging/windows/installer-resources")
-val update4jPrivateKeyFile = providers.environmentVariable("UPDATE4J_PRIVATE_KEY_FILE")
 val jpackageJavaHomeProvider = providers.environmentVariable("JAVA_HOME")
     .orElse(providers.systemProperty("java.home"))
     .orElse("C:\\Program Files\\Java\\latest")
@@ -666,7 +665,7 @@ tasks.register<Exec>("packageWindowsAppImage") {
             "jpackage did not generate the expected launcher config: $launcherConfig"
         }
         check(launcherConfig.readText(Charsets.UTF_8).contains(updaterEnabledJavaOption)) {
-            "Packaged launcher is missing the $releaseChannel update policy: $updaterEnabledJavaOption"
+            "Packaged launcher is missing the update policy: $updaterEnabledJavaOption"
         }
         val classpathEntries = launcherConfig.readLines(Charsets.UTF_8)
             .filter { it.startsWith("app.classpath=") }
@@ -814,32 +813,6 @@ tasks.register<Zip>("packageWindowsZip") {
                 "Portable ZIP is missing microProject.cmd: $archive"
             }
         }
-    }
-}
-
-tasks.register<JavaExec>("generateUpdateConfiguration") {
-    group = "distribution"
-    description = "Generates a signed update4j configuration for the staged Windows app image."
-    dependsOn("packageWindowsAppImage", ":microproject_bootstrap:classes")
-
-    val bootstrapSourceSet = project(":microproject_bootstrap")
-        .extensions.getByType<SourceSetContainer>().named("main")
-    classpath = bootstrapSourceSet.get().runtimeClasspath
-    mainClass.set("com.microproject.bootstrap.ConfigurationGenerator")
-    onlyIf {
-        val keyFile = update4jPrivateKeyFile.orNull
-        keyFile != null && File(keyFile).isFile
-    }
-    doFirst {
-        val keyFile = update4jPrivateKeyFile.orNull
-            ?: throw GradleException("UPDATE4J_PRIVATE_KEY_FILE is required to sign the update manifest")
-        args(
-            "--app-dir", windowsAppImageDir.get().dir("microProject/app").asFile.absolutePath,
-            "--output", windowsReleaseRoot.get().file("release-assets/configuration.xml").asFile.absolutePath,
-            "--private-key", keyFile,
-            "--version", releaseVersion,
-            "--asset-base", "https://github.com/tetsuji16/microProject/releases/download/$releaseLabel/"
-        )
     }
 }
 

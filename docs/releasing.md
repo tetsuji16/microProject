@@ -90,7 +90,7 @@ stable branch pushではWindows・Linux x64・macOS Apple Siliconのpackage job�
 
 ## 公開後の確認
 
-完了runのsummaryからtagを取得し、Release APIでversioned assetsとdigestを確認します。GitHub CLI `gh release view --json`に`isLatest`はありません。latest stableは`/releases/latest`のtagと照合します。バイナリは通常downloadせず、`SHA256SUMS`のみ取得します。asset API digestがない場合だけ該当assetをdownloadし、manifestと照合します。
+完了runのsummaryからtagを取得し、Release APIでassetとdigestを確認します。GitHub CLI `gh release view --json`に`isLatest`はありません。latest stableは`/releases/latest`のtagと照合します。公開するのは配布パッケージだけで、チェックサムはGitHubがassetごとに記録するSHA-256 digestを使います。バイナリは通常downloadしません。
 
 ```powershell
 $tag = Read-Host '今回完了したrun summaryのtag'
@@ -101,41 +101,17 @@ $release | Select-Object tag_name,target_commitish,html_url
 "latest stable: $latest"
 gh api "repos/tetsuji16/ProjectLibre/git/ref/tags/$tag"
 $version = $tag -replace '^v',''
-$required = @("microProject-$version.msi", "microProject-$version-app-image.zip", "microProject-$version-linux-x64.zip", "microProject-$version-macos-aarch64.zip", 'microProject-latest.msi', 'microProject-latest-app-image.zip', 'SHA256SUMS')
+$required = @('microProject-latest.msi', 'microProject-latest-app-image.zip', "microProject-$version-linux-x64.zip", "microProject-$version-macos-aarch64.zip")
 $missing = @($required | Where-Object { -not $assets.ContainsKey($_) })
 if ($missing.Count) { throw "Missing release assets: $($missing -join ', ')" }
+$unexpected = @($assets.Keys | Where-Object { $_ -notin $required })
+if ($unexpected.Count) { throw "Unexpected release assets: $($unexpected -join ', ')" }
 if ($latest -ne $tag) { throw "Latest stable tag is $latest, expected $tag" }
-if ($assets["microProject-$version.msi"].digest -and $assets['microProject-latest.msi'].digest -and $assets["microProject-$version.msi"].digest -ne $assets['microProject-latest.msi'].digest) { throw 'MSI latest alias digest differs from versioned asset.' }
-if ($assets["microProject-$version-app-image.zip"].digest -and $assets['microProject-latest-app-image.zip'].digest -and $assets["microProject-$version-app-image.zip"].digest -ne $assets['microProject-latest-app-image.zip'].digest) { throw 'App-image latest alias digest differs from versioned asset.' }
-$stamp = Get-Date -AsUTC -Format yyyyMMddTHHmmssZ
-$verifyDir = Join-Path $env:TEMP "release-check-$tag-$stamp"
-New-Item -ItemType Directory -Force -Path $verifyDir | Out-Null
-gh release download $tag --pattern SHA256SUMS --dir $verifyDir
-if ($LASTEXITCODE -ne 0) { throw 'Could not download SHA256SUMS.' }
-$manifestHashes = @{}
-Get-Content (Join-Path $verifyDir 'SHA256SUMS') | ForEach-Object {
-  if ($_ -notmatch '^([0-9a-fA-F]{64})  (.+)$') { throw "Invalid checksum entry: $_" }
-  $name = $Matches[2]; $expected = $Matches[1].ToLowerInvariant()
-  if (-not $assets.ContainsKey($name)) { throw "Manifest asset missing from release: $name" }
-  $manifestHashes[$name] = $expected
-  $digest = $assets[$name].digest
-  if ($digest) {
-    if ($digest -ne "sha256:$expected") { throw "Manifest/API digest mismatch: $name" }
-  } else {
-    gh release download $tag --pattern $name --dir $verifyDir
-    if ($LASTEXITCODE -ne 0) { throw "Could not download asset without API digest: $name" }
-    $actual = (Get-FileHash (Join-Path $verifyDir $name) -Algorithm SHA256).Hash.ToLowerInvariant()
-    if ($actual -ne $expected) { throw "Checksum mismatch: $name" }
-  }
-}
-$missingFromManifest = @($assets.Keys | Where-Object { $_ -ne 'SHA256SUMS' -and -not $manifestHashes.ContainsKey($_) })
-if ($missingFromManifest.Count) { throw "Assets missing from SHA256SUMS: $($missingFromManifest -join ', ')" }
-if ($manifestHashes["microProject-$version.msi"] -ne $manifestHashes['microProject-latest.msi']) { throw 'MSI latest alias checksum differs from versioned asset.' }
-if ($manifestHashes["microProject-$version-app-image.zip"] -ne $manifestHashes['microProject-latest-app-image.zip']) { throw 'App-image latest alias checksum differs from versioned asset.' }
+$required | ForEach-Object { "$($assets[$_].digest)  $_" }
 ```
 
-tag refがannotated tagなら、ref objectをGit tag APIで解決し、commit SHAが対象runの`headSha`と同じことを確認します。安定版Release、versioned/latest Windows aliasとLinux/macOS assets、`SHA256SUMS`のmanifest/API digestを記録します。workflow内のWindows packaged launch/import checksも成功していることを確認してください。
+tag refがannotated tagなら、ref objectをGit tag APIで解決し、commit SHAが対象runの`headSha`と同じことを確認します。安定版ReleaseのWindows/Linux/macOS assetとAPI digestを記録します。Linux/macOS packageを生成しない安定版では、`$required`から該当2件を除いて確認します。workflow内のWindows packaged launch/import checksも成功していることを確認してください。
 
-成功済みexact-SHA runでplatform package生成まで成功し、Releaseへのasset追加だけ漏れた場合は、同じrunの`package-linux-x64` / `package-macos-aarch64` artifactを補充元として使えます。このasset-only修復ではfull GUIを繰り返しません。補充前にrun ID・head SHA・artifact名を照合し、追加した各ファイルの名前とSHA-256を記録します。最終asset set全体から`SHA256SUMS`を作り直し、Release API digestとlatest aliasの一致を再確認して、検証結果を同じrun ID/SHAに結び付けます。
+成功済みexact-SHA runでplatform package生成まで成功し、Releaseへのasset追加だけ漏れた場合は、同じrunの`package-linux-x64` / `package-macos-aarch64` artifactを補充元として使えます。このasset-only修復ではfull GUIを繰り返しません。補充前にrun ID・head SHA・artifact名を照合し、追加した各ファイルの名前とSHA-256を記録します。補充後のRelease API digestがartifactのSHA-256と一致することを確認し、検証結果を同じrun ID/SHAに結び付けます。
 
 issueを閉じる場合は公開後、凍結した各acceptance criterionをevidence packetと照合します。参照issueがopenであることだけを未達の根拠にしません。
