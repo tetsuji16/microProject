@@ -36,6 +36,7 @@ import com.microproject.pm.graphic.spreadsheet.renderer.NameCellComponent;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.task.Task;
+import com.microproject.session.SessionFactory;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.testsupport.GuiRobot;
 import com.microproject.testsupport.WindowAcceptanceAssertions;
@@ -66,6 +67,7 @@ class AutoRecoveryGuiAcceptanceTest {
 				window[0] = new MainRibbonFrame("Recovery acceptance", null);
 				manager[0] = new GraphicManager(window[0], temp.resolve("workspace"), store, prefs);
 				window[0].setGraphicManager(manager[0]);
+				SessionFactory.getInstance().setJobQueue(manager[0].getJobQueue());
 				manager[0].initView();
 				factory.addProject(original, false, false);
 				manager[0].addProjectFrame(original);
@@ -97,6 +99,7 @@ class AutoRecoveryGuiAcceptanceTest {
 				window[0] = new MainRibbonFrame("Recovery acceptance", null);
 				manager[0] = new GraphicManager(window[0], temp.resolve("workspace"), store, prefs);
 				window[0].setGraphicManager(manager[0]);
+				SessionFactory.getInstance().setJobQueue(manager[0].getJobQueue());
 				manager[0].initView();
 				window[0].setSize(1120, 700);
 				window[0].setVisible(true);

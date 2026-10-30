@@ -447,6 +447,8 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 		robot.setAutoDelay(45);
 		if (largeProject) {
 			DocumentFrame frame = manager.getFrameForProject(project);
+			// DocumentFrame activates its first view in a later EDT event.
+			GuiAcceptanceSupport.await(() -> frame.getActiveTopView() != null, "the initial view did not activate");
 			assertTrue(frame.getActiveTopView().showsTasks(), "the journey must start on a task view");
 			String viewTabText = java.util.ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("ViewRibbonTask.title");
