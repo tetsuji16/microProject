@@ -275,7 +275,8 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 		observer.close();
 		observer = null;
 		CriticalChainStatusDialogBox buffer = openStatusDialog(project, robot);
-		assertTrue(visibleComponentExists(buffer, CriticalChainBufferChartPanel.class),
+		// The analysis aggregates in a worker, so the chart arrives after the dialog opens.
+		GuiAcceptanceSupport.await(() -> visibleComponentExists(buffer, CriticalChainBufferChartPanel.class),
 			"applied plan must render the buffer view");
 		robot.keyPress(java.awt.event.KeyEvent.VK_CONTROL);
 		robot.keyPress(java.awt.event.KeyEvent.VK_Z);

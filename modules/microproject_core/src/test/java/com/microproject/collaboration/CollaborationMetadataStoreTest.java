@@ -14,6 +14,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 import java.awt.EventQueue;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import com.microproject.util.UiDispatcher;
+import com.microproject.util.UiDispatch;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
@@ -30,6 +34,19 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 
 class CollaborationMetadataStoreTest {
+	@BeforeEach
+	void useEdtDispatcher() {
+		UiDispatch.setDispatcher(new UiDispatcher() {
+			@Override public void invokeLater(Runnable task) { EventQueue.invokeLater(task); }
+			@Override public boolean isDispatchThread() { return EventQueue.isDispatchThread(); }
+		});
+	}
+
+	@AfterEach
+	void restoreUiDispatcher() {
+		UiDispatch.setDispatcher(null);
+	}
+
 	@Test
 	void onlyMpoFilesAreCollaborationCandidates() {
 		assertTrue(CollaborationMetadataStore.isMpoCollaborationCandidate("plan.mpo"));

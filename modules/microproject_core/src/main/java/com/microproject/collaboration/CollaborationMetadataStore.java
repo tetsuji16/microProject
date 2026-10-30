@@ -349,7 +349,7 @@ public class CollaborationMetadataStore {
 	}
 
 	private static long lockDeadline() {
-		return java.awt.EventQueue.isDispatchThread()
+		return com.microproject.util.UiDispatch.isDispatchThread()
 				? System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(EDT_LOCK_TIMEOUT_MILLIS)
 				: 0L;
 	}

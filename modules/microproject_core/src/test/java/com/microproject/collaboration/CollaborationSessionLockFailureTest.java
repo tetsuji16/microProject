@@ -10,6 +10,10 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.EventQueue;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import com.microproject.util.UiDispatcher;
+import com.microproject.util.UiDispatch;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.file.Files;
@@ -28,6 +32,19 @@ import com.microproject.pm.task.Task;
 import com.microproject.undo.DataFactoryUndoController;
 
 class CollaborationSessionLockFailureTest {
+	@BeforeEach
+	void useEdtDispatcher() {
+		UiDispatch.setDispatcher(new UiDispatcher() {
+			@Override public void invokeLater(Runnable task) { EventQueue.invokeLater(task); }
+			@Override public boolean isDispatchThread() { return EventQueue.isDispatchThread(); }
+		});
+	}
+
+	@AfterEach
+	void restoreUiDispatcher() {
+		UiDispatch.setDispatcher(null);
+	}
+
 	@Test
 	void taskLocksAcquiredBeforeMetadataTimeoutAreForgottenAndNotRenewed() throws Exception {
 		Path projectFile = Files.createTempFile("mpo-collaboration-rollback", ".mpo");

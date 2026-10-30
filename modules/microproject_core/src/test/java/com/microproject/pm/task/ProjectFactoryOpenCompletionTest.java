@@ -439,4 +439,14 @@ class ProjectFactoryOpenCompletionTest {
 			}
 		});
 	}
+	@Test
+	void streamBackedXmlRecoveryDoesNotShareTheFileLoadAdmissionKey() {
+		LoadOptions file = new LoadOptions();
+		file.setFileName("recovery-key.pod");
+		LoadOptions recovery = new LoadOptions();
+		recovery.setFileName("recovery-key.pod");
+		recovery.setFileInputStream(new java.io.ByteArrayInputStream(new byte[0]));
+		assertFalse(ProjectFactory.openAdmissionKey(file).equals(ProjectFactory.openAdmissionKey(recovery)),
+			"the XML recovery started from inside the file load must be admitted, not joined to it");
+	}
 }
