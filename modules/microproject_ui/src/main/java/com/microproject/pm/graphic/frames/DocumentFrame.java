@@ -50,6 +50,7 @@ import javax.swing.undo.UndoableEdit;
 
 import com.microproject.dialog.BaselineDialog;
 import com.microproject.dialog.DelegateTaskDialog;
+import com.microproject.dialog.DependencyDialog;
 import com.microproject.dialog.FindDialog;
 import com.microproject.dialog.ResourceLevelingDialogBox;
 import com.microproject.dialog.TeamPlannerDialogBox;
@@ -119,7 +120,6 @@ import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.HasDependencies;
-import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.graphic.undo.SwingUndoAdapter;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourceLevelingService;
@@ -149,6 +149,7 @@ import com.microproject.workspace.SavableToWorkspace;
 import com.microproject.workspace.WorkspaceSetting;
 import com.microproject.ribbon.CommandId;
 import com.microproject.ribbon.RibbonCommandResult;
+import static com.microproject.util.IdentityCollections.addIdentity;
 
 /**
  *
@@ -1015,10 +1016,6 @@ public class DocumentFrame extends NamedFrame implements
 		}
 	}
 
-	private static void addIdentity(List<Task> tasks, Task candidate) {
-		if (candidate != null && tasks.stream().noneMatch(task -> task == candidate)) tasks.add(candidate);
-	}
-
 	private RibbonCommandResult clearResourceLeveling(CommandId command, boolean selectedOnly) {
 		ActiveTaskSelectionResolver.Selection selection = resolveTaskSelection(true, false);
 		List<Long> selectedIds = selection.stableTaskIds();
@@ -1313,7 +1310,7 @@ public class DocumentFrame extends NamedFrame implements
 			List<Dependency> incident = DependencyService.getInstance()
 				.getIncidentDependencies(dependencies);
 			if (incident.size() > 1) {
-				Dependency selected = chooseDependencyToUnlink(incident);
+				Dependency selected = DependencyDialog.chooseDependency(this, incident);
 				if (selected == null) {
 					publishTaskCommandResult(CommandId.UNLINK, RibbonCommandResult.Status.REJECTED,
 						"dependency-not-selected", taskNodes);
@@ -1360,22 +1357,6 @@ public class DocumentFrame extends NamedFrame implements
 		publishTaskCommandResult(command, status, reason, taskNodes);
 	}
 
-	private Dependency chooseDependencyToUnlink(List<Dependency> dependencies) {
-		Object[] choices = new Object[dependencies.size()];
-		for (int i = 0; i < dependencies.size(); i++) {
-			Dependency dependency = dependencies.get(i);
-			choices[i] = dependency.getQualifiedPredecessorName() + " → "
-				+ dependency.getQualifiedSuccessorName() + " ("
-				+ DependencyType.toLongString(dependency.getDependencyKind()) + ")";
-		}
-		Object selected = JOptionPane.showInputDialog(this,
-			Messages.getString("UnlinkDialog.SelectDependency"),
-			Messages.getString("UnlinkDialog.Title"), JOptionPane.PLAIN_MESSAGE, null, choices, choices[0]);
-		if (selected == null) return null;
-		for (int i = 0; i < choices.length; i++)
-			if (choices[i].equals(selected)) return dependencies.get(i);
-		return null;
-	}
 	public void doUndoRedo(boolean isUndo) {
 		if (!isActive())
 			return;

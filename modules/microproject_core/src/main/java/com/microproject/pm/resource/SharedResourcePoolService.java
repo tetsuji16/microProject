@@ -12,6 +12,7 @@ import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.task.Project;
 import com.microproject.transaction.ProjectMutationState;
 import com.microproject.util.FilePathUtils;
+import static com.microproject.util.IdentityCollections.containsIdentity;
 
 /**
  * Connects a sharer project to a separately saved resource-pool project.
@@ -239,10 +240,4 @@ public final class SharedResourcePoolService {
 		return canonical == null || canonical.isBlank() ? null : canonical;
 	}
 
-	private static boolean containsIdentity(Iterable<Project> projects, Project expected) {
-		for (Project project : projects)
-			if (project == expected)
-				return true;
-		return false;
-	}
 }

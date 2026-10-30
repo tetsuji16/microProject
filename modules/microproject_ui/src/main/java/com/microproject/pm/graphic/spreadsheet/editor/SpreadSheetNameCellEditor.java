@@ -48,9 +48,6 @@ public class SpreadSheetNameCellEditor extends SpreadSheetCellEditorAdapter{
 	public SpreadSheetNameCellEditor(TableCellEditor editor) {
 		super(editor);
 	}
-	public static void clearLastTable() {
-		lastTable = null;
-	}
 
 	public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {
 		if (table!=null&&lastTable!=null&&table!=lastTable){

@@ -47,7 +47,6 @@ import java.util.List;
 import java.util.Locale;
 
 import javax.swing.JButton;
-import javax.swing.JOptionPane;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -61,8 +60,6 @@ import com.microproject.ui.shell.WindowBoundsSupport;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.HasDependencies;
-import com.microproject.pm.dependency.DependencyType;
-import com.microproject.strings.Messages;
 import com.microproject.util.Alert;
 import com.microproject.help.HelpUtil;
 import com.microproject.ui.util.PopupDialogSupport;
@@ -279,28 +276,13 @@ public final class CalendarViewDialogBox extends FlatLafDialog {
 			List<Dependency> dependencies = DependencyService.getInstance()
 				.getIncidentDependencies((HasDependencies) task);
 			if (dependencies.isEmpty()) return;
-			Dependency dependency = dependencies.size() == 1 ? dependencies.get(0) : chooseDependency(dependencies);
+			Dependency dependency = dependencies.size() == 1 ? dependencies.get(0)
+				: DependencyDialog.chooseDependency(CalendarViewDialogBox.this, dependencies);
 			if (dependency == null) return;
 			java.awt.Frame owner = getOwner() instanceof java.awt.Frame frame ? frame : null;
 			DependencyDialog.doDialog(new DependencyDialog(owner, dependency), dependency);
 			project.recalculate();
 			repaint();
-		}
-
-		private Dependency chooseDependency(List<Dependency> dependencies) {
-			Object[] choices = new Object[dependencies.size()];
-			for (int i = 0; i < dependencies.size(); i++) {
-				Dependency dependency = dependencies.get(i);
-				choices[i] = dependency.getQualifiedPredecessorName() + " → "
-					+ dependency.getQualifiedSuccessorName() + " ("
-					+ DependencyType.toLongString(dependency.getDependencyKind()) + ")";
-			}
-			Object selected = JOptionPane.showInputDialog(CalendarViewDialogBox.this,
-				Messages.getString("UnlinkDialog.SelectDependency"), Messages.getString("UnlinkDialog.Title"),
-				JOptionPane.PLAIN_MESSAGE, null, choices, choices[0]);
-			if (selected == null) return null;
-			for (int i = 0; i < choices.length; i++) if (choices[i].equals(selected)) return dependencies.get(i);
-			return null;
 		}
 	}
 

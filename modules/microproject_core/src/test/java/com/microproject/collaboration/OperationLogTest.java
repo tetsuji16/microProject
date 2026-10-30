@@ -79,6 +79,21 @@ class OperationLogTest {
 		assertEquals(1, log.merge(restored.operations()).conflicts().size());
 	}
 
+	@Test void jsonAndJsonlWritersEmitTheSameOperationRecord() throws Exception {
+		OperationLog log = new OperationLog();
+		OperationLog.Operation first = new OperationLog.Operation(FIRST, ACTOR_A, 1, Set.of(), "task.update", ENTITY, Map.of("name", "A"));
+		OperationLog.Operation next = new OperationLog.Operation(NEXT, ACTOR_B, 2, Set.of(FIRST), "task.update", ENTITY, Map.of("notes", "B"));
+		com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+
+		com.fasterxml.jackson.databind.JsonNode operations = mapper.readTree(log.write(DOCUMENT, List.of(first, next))).get("operations");
+		String[] lines = new String(log.writeJsonl(DOCUMENT, List.of(first, next)), java.nio.charset.StandardCharsets.UTF_8).split("\n");
+
+		assertEquals(2, operations.size());
+		for (int index = 0; index < operations.size(); index++)
+			assertEquals(mapper.writeValueAsString(operations.get(index)), lines[index + 1]);
+		assertTrue(lines[1].startsWith("{\"id\":\"" + FIRST + "\",\"actorId\":\"" + ACTOR_A + "\",\"sequence\":1,\"parents\":[],\"kind\":\"task.update\""));
+	}
+
 	@Test void jsonlRoundTripPreservesAppliedGenerationSubset() throws Exception {
 		OperationLog log = new OperationLog();
 		OperationLog.Operation first = new OperationLog.Operation(FIRST, ACTOR_A, 1, Set.of(), "task.update", ENTITY, Map.of("name", "A"));

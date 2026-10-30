@@ -661,7 +661,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		// Refresh is initiated on the EDT.  The generic synchronous save job
 		// waits for Swing callbacks and therefore deadlocks here.  MPO children
 		// can be written atomically without scheduling a nested Swing job.
-		if (fileName.toLowerCase(Locale.ROOT).endsWith(".mpo")) {
+		if (FileHelper.isMpoFile(fileName)) {
 			var result = new ProjectPortCoordinator().exportProject(
 					LocalSession.MPO_PROJECT_IMPORTER, child, Path.of(fileName));
 			if (!result.succeeded()) {
@@ -3695,41 +3695,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 //
 //		};
 
-	}
-	protected void saveLocalDocument(Project project,String fileName){
-		//showWaitCursor(true);
-		CollaborationSession collaborationSession = project.getCollaborationSession();
-		SaveOptions opt = com.microproject.application.ProjectDocumentWorkflow.prepareSaveOptions(project, fileName, false, true,
-			collaborationSession,
-			getCollaborationUserKey(),
-			collaborationSession == null ? null : collaborationSession.getSidecarFileName(),
-			new com.microproject.application.ProjectDocumentWorkflow.SaveCallbacks() {
-				public void persistWorkspace(Project projectToPersist) {
-					persistCollaborationWorkspace(projectToPersist);
-				}
-
-				public int resolveSaveDecision(Project projectToSave, CollaborationSession session) {
-					return CollaborationHelper.checkBeforeSave(session, getCurrentFrame());
-				}
-
-				public String chooseSaveAsCopyFileName(Project projectToSave) {
-					return SessionFactory.getInstance().getLocalSession().chooseFileName(true, projectToSave.getGuessedFileName());
-				}
-
-				public void afterSave(Project savedProject, boolean saveAsRequested, boolean fileNameChanged, boolean collaborationEnabled) {
-					autoRecoveryManager.discard(savedProject);
-					recentProjectStore.recordOpened(savedProject.getFileName());
-					if (collaborationEnabled && savedProject.getCollaborationSession() != null) {
-						savedProject.getCollaborationSession().afterSave();
-					}
-				}
-			});
-		if (opt == null) {
-			return;
-		}
-		opt.setPreSaving(getSavingClosure());
-	    projectFactory.saveProject(project,opt);
-		//showWaitCursor(false);
 	}
 
 	protected void closeProject(Project project){

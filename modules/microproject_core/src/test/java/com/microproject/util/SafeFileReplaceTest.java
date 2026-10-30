@@ -63,6 +63,21 @@ class SafeFileReplaceTest {
 	}
 
 	@Test
+	void moveAtomicallyHonoursReplaceExisting() throws Exception {
+		File target = write(new File(dir, "target.bin"), "ORIGINAL");
+		File first = write(new File(dir, "first.tmp"), "FIRST");
+		File second = write(new File(dir, "second.tmp"), "SECOND");
+
+		SafeFileReplace.moveAtomically(second.toPath(), target.toPath(), true);
+		assertEquals("SECOND", read(target));
+		assertFalse(second.exists());
+
+		File fresh = new File(dir, "fresh.bin");
+		SafeFileReplace.moveAtomically(first.toPath(), fresh.toPath(), false);
+		assertEquals("FIRST", read(fresh));
+	}
+
+	@Test
 	void replaceSameFileIsNoOp() throws Exception {
 		File f = write(new File(dir, "same.xml"), "DATA");
 		assertTrue(SafeFileReplace.replace(f, f));

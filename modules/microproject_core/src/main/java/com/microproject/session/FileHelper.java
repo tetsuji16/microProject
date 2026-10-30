@@ -103,6 +103,11 @@ public class FileHelper {
 		if (i>0&&i<fileName.length()-1) return fileName.substring(i+1).toLowerCase(Locale.ROOT);
         return null;
     }
+    /** Returns the lower-case extension, or {@code defaultExtension} when the name has none (or ends in a dot). */
+    public static String getFileExtension(String fileName, String defaultExtension) {
+		String extension = getFileExtension(fileName);
+		return extension == null ? defaultExtension : extension;
+    }
     public static String changeFileExtension(String fileName,int fileType) {
     	return changeFileExtension(fileName, getFileExtension(fileType));
     }

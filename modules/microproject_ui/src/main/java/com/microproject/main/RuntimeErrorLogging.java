@@ -1,6 +1,7 @@
 /* Copyright (c) 2026 microProject. SPDX-License-Identifier: MIT */
 package com.microproject.main;
 
+import com.microproject.util.Environment;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -131,7 +132,7 @@ final class RuntimeErrorLogging {
 	static Path defaultLogDirectory(String localAppData, String osName, String userHome) {
 		if (localAppData != null && !localAppData.isBlank())
 			return Path.of(localAppData, "microProject", "logs");
-		if (osName != null && osName.toLowerCase(java.util.Locale.ROOT).contains("win"))
+		if (Environment.isWindows(osName))
 			return Path.of(userHome == null || userHome.isBlank() ? "." : userHome, "AppData", "Local", "microProject", "logs");
 		return Path.of(userHome == null || userHome.isBlank() ? "." : userHome, ".microproject", "logs");
 	}
