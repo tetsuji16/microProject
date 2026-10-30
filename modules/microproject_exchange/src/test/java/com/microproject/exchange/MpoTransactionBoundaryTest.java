@@ -6,6 +6,7 @@ package com.microproject.exchange;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -18,7 +19,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.pm.task.Project;
@@ -74,7 +74,7 @@ class MpoTransactionBoundaryTest {
 	}
 
 	@Test
-	void failedMergedReplacementLeavesProjectAndOperationStateUntouched() throws Exception {
+	void failedMergedReplacementKeepsArchiveModelAndReservedOperationIds() throws Exception {
 		Project project = loadSample();
 		Path target = Files.createTempFile("mpof-merge-failure-", ".mpo");
 		try {
@@ -84,7 +84,6 @@ class MpoTransactionBoundaryTest {
 			initial.exportFile();
 			byte[] archiveBefore = Files.readAllBytes(target);
 			Object state = operationState(project);
-			byte[] operationJsonBefore = ((byte[]) field(state, "json")).clone();
 			int operationCountBefore = ((List<?>) field(state, "operations")).size();
 			Task task = (Task) project.getTaskOutlineIterator().next();
 			String changedName = task.getName() + " (local edit)";
@@ -101,9 +100,17 @@ class MpoTransactionBoundaryTest {
 			assertThrows(IOException.class, failing::exportFile);
 			assertArrayEquals(archiveBefore, Files.readAllBytes(target));
 			assertEquals(changedName, task.getName(), "a failed merge must not replace the live project");
-			assertArrayEquals(operationJsonBefore, (byte[]) field(state, "json"),
-				"a failed merge must not commit its operation plan");
-			assertEquals(operationCountBefore, ((List<?>) field(state, "operations")).size());
+			List<String> reserved = operationIds(state);
+			assertEquals(operationCountBefore + 1, reserved.size(), "the edit keeps one reserved operation");
+			assertThrows(IOException.class, failing::exportFile);
+			assertEquals(reserved, operationIds(state), "a retry must not issue new operation IDs");
+
+			MpoFileImporter retry = new MpoFileImporter();
+			retry.setFileName(target.toString());
+			retry.setProject(project);
+			retry.exportFile();
+			assertEquals(reserved, operationIds(state), "the successful retry must write the reserved IDs");
+			assertEquals(reserved, archivedOperationIds(target));
 		} finally {
 			Files.deleteIfExists(target);
 			Files.deleteIfExists(target.resolveSibling(target.getFileName() + ".lock"));
@@ -154,7 +161,6 @@ class MpoTransactionBoundaryTest {
 		}
 	}
 
-	@Disabled("Known data-loss race during MPO save: issue #970")
 	@Test
 	void laterEditMustSurviveRemoteMergeCommit() throws Exception {
 		Project local = loadSample();
@@ -208,10 +214,14 @@ class MpoTransactionBoundaryTest {
 					if (editOnce.getAndSet(false)) localTask.setNotes("later notes");
 				}
 			};
-			writer.setFileName(target.toString()); writer.setProject(local); writer.exportFile();
-			assertEquals("remote edit", localTask.getName());
+			writer.setFileName(target.toString()); writer.setProject(local);
+			assertThrows(MpoPartialApplyException.class, writer::exportFile,
+				"the later notes are not in the archive, so this save must not report success");
 			assertEquals("later notes", localTask.getNotes());
 			writer.exportFile();
+			assertTrue(writer.confirmSavedState(), "a merged save must leave the project confirmed as saved");
+			assertEquals("remote edit", localTask.getName());
+			assertEquals("later notes", localTask.getNotes());
 			Project reopened = reader.loadProject(new ByteArrayInputStream(Files.readAllBytes(target)));
 			Task reopenedTask = (Task) reopened.getTaskOutlineIterator().next();
 			assertEquals("remote edit", reopenedTask.getName());
@@ -222,7 +232,6 @@ class MpoTransactionBoundaryTest {
 		}
 	}
 
-	@Disabled("Known data-loss race during MPO save: issue #970")
 	@Test
 	void laterDurationEditMustNotBeReportedAsSaved() throws Exception {
 		Project local = loadSample();
@@ -282,7 +291,6 @@ class MpoTransactionBoundaryTest {
 		}
 	}
 
-	@Disabled("Known data-loss race during MPO save: issue #970")
 	@Test
 	void laterNotesOnSameFieldMustSurviveRemoteMerge() throws Exception {
 		Project local = loadSample();
@@ -312,7 +320,6 @@ class MpoTransactionBoundaryTest {
 		}
 	}
 
-	@Disabled("Known data-loss race during MPO save: issue #970")
 	@Test
 	void editDuringInitialSaveMustNotBeReportedAsSaved() throws Exception {
 		Project local = loadSample();
@@ -331,6 +338,102 @@ class MpoTransactionBoundaryTest {
 		} finally {
 			Files.deleteIfExists(target);
 			Files.deleteIfExists(target.resolveSibling(target.getFileName() + ".lock"));
+		}
+	}
+
+	@Test
+	void editBeforeReplacementIsNotReportedAsSaved() throws Exception {
+		Project local = loadSample();
+		Path target = Files.createTempFile("mpof-edit-before-replace-", ".mpo");
+		try {
+			Task localTask = (Task) local.getTaskOutlineIterator().next();
+			MpoFileImporter writer = new MpoFileImporter() {
+				@Override protected java.io.File createTemporaryFile(java.io.File destination) throws IOException {
+					localTask.setName("edit while staging");
+					return super.createTemporaryFile(destination);
+				}
+			};
+			writer.setFileName(target.toString()); writer.setProject(local);
+			assertThrows(MpoPartialApplyException.class, writer::exportFile);
+			assertEquals("edit while staging", localTask.getName());
+			assertFalse(writer.confirmSavedState());
+		} finally {
+			Files.deleteIfExists(target);
+			Files.deleteIfExists(target.resolveSibling(target.getFileName() + ".lock"));
+		}
+	}
+
+	@Test
+	void editAfterCommitLeavesProjectUnconfirmed() throws Exception {
+		Project local = loadSample();
+		Path target = Files.createTempFile("mpof-edit-after-commit-", ".mpo");
+		try {
+			MpoFileImporter writer = new MpoFileImporter();
+			writer.setFileName(target.toString()); writer.setProject(local); writer.exportFile();
+			assertTrue(writer.confirmSavedState());
+			((Task) local.getTaskOutlineIterator().next()).setNotes("after the commit");
+			assertFalse(writer.confirmSavedState());
+		} finally {
+			Files.deleteIfExists(target);
+			Files.deleteIfExists(target.resolveSibling(target.getFileName() + ".lock"));
+		}
+	}
+
+	/** Every completed save must hold the name the project had when it reported success. */
+	@Test
+	void concurrentEditsAreSavedOrReported() throws Exception {
+		Project local = loadSample();
+		Path target = Files.createTempFile("mpof-concurrent-edit-", ".mpo");
+		Task localTask = (Task) local.getTaskOutlineIterator().next();
+		AtomicBoolean stop = new AtomicBoolean();
+		java.util.concurrent.atomic.AtomicInteger edits = new java.util.concurrent.atomic.AtomicInteger();
+		Thread editor = new Thread(() -> {
+			while (!stop.get()) {
+				localTask.setName("edit " + edits.incrementAndGet());
+				try { Thread.sleep(5L); } catch (InterruptedException interrupted) { return; }
+			}
+		});
+		editor.start();
+		try {
+			MpoFileImporter writer = new MpoFileImporter();
+			writer.setFileName(target.toString()); writer.setProject(local);
+			for (int attempt = 0; attempt < 5; attempt++) {
+				try {
+					writer.exportFile();
+				} catch (IOException reported) {
+					assertTrue(reported instanceof MpoPartialApplyException
+						|| reported.getMessage().contains("kept changing"), reported.toString());
+				}
+			}
+		} finally {
+			stop.set(true);
+			editor.join();
+		}
+		try {
+			MpoFileImporter writer = new MpoFileImporter();
+			writer.setFileName(target.toString()); writer.setProject(local); writer.exportFile();
+			MpoFileImporter reader = new MpoFileImporter();
+			reader.setProjectFactory(ProjectFactory.getInstance());
+			Project reopened = reader.loadProject(new ByteArrayInputStream(Files.readAllBytes(target)));
+			assertEquals(localTask.getName(), ((Task) reopened.getTaskOutlineIterator().next()).getName());
+		} finally {
+			Files.deleteIfExists(target);
+			Files.deleteIfExists(target.resolveSibling(target.getFileName() + ".lock"));
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	private static List<String> operationIds(Object state) throws Exception {
+		return ((List<OperationLog.Operation>) field(state, "operations")).stream().map(OperationLog.Operation::id).toList();
+	}
+
+	private static List<String> archivedOperationIds(Path target) throws IOException {
+		try (java.util.zip.ZipFile zip = new java.util.zip.ZipFile(target.toFile())) {
+			java.util.zip.ZipEntry entry = zip.getEntry(MpoFileImporter.OPERATIONS_ENTRY);
+			try (java.io.InputStream in = zip.getInputStream(entry)) {
+				return new OperationLog().readJsonl(in.readAllBytes()).operations().stream()
+					.map(OperationLog.Operation::id).toList();
+			}
 		}
 	}
 

@@ -80,6 +80,7 @@ import com.microproject.pm.task.TaskSnapshot;
 import com.microproject.field.Field;
 import com.microproject.graphic.configuration.SpreadSheetFieldArray;
 import com.microproject.pm.assignment.TimeDistributedHelper;
+import com.microproject.transaction.ProjectMutationState;
 import com.microproject.session.LocalSession;
 import com.microproject.session.SessionFactory;
 import com.microproject.strings.Messages;
@@ -92,6 +93,10 @@ import com.microproject.temporary.TemporaryCleanupQueue;
  */
 public class MpoFileImporter extends FileImporter {
 	private static final Object EXPORT_LOCK_GUARD = new Object();
+	private static final int CAPTURE_ATTEMPTS = 3;
+	private static final Pattern SERIALIZER_CLOCK = Pattern.compile("<CurrentDate>[^<]*</CurrentDate>");
+	private boolean replaceDifferentDocument;
+	private volatile boolean committed;
 	private static volatile Path extractionWorkspaceRoot;
 	static final String MIMETYPE_ENTRY = "mimetype";
 	static final String MANIFEST_ENTRY = "META-INF/manifest.xml";
@@ -405,35 +410,30 @@ public class MpoFileImporter extends FileImporter {
 	}
 
 	private MpoConflictRecoveryException persistLockFailureRecovery(File target, IOException lockFailure) throws IOException {
-		MpoOperationState operationState = workingOperationStateFor(project);
-		operationState.appendChanges(project);
-		ensureOperationCount(operationState.operations);
-		Path recoveryCopy = persistRecoveryCopy(target, project, operationState,
+		MpoCapture captured = captureLiveModel(project);
+		MpoOperationState operationState = captured.operationState();
+		Path recoveryCopy = persistRecoveryCopy(target, captured, operationState,
 				new java.util.ArrayList<>(operationState.operations), null);
-		commitOperationState(project, operationState);
 		return MpoConflictRecoveryException.lockUnavailable(recoveryCopy, lockFailure);
 	}
 
+	/**
+	 * The one save protocol shared by ordinary saves, recovery snapshots and
+	 * merges: capture the live model, build and replace the archive from that
+	 * detached capture with no model barrier held, then commit only if the live
+	 * model still equals what was captured.
+	 */
 	private void exportFileLocked(File target) throws Exception {
-		MpoOperationState operationState = workingOperationStateFor(project);
-		operationState.appendChanges(project);
-		ensureOperationCount(operationState.operations);
-		MpoMergePreparation merge;
-		try {
-			merge = target.isFile() && target.length() > 0L
-					? prepareExternalMerge(target, project, operationState) : null;
-		} catch (MpoConflictRecoveryException conflict) {
-			// Keep the attempted local operation IDs stable across a retry. The
-			// recovery archive already contains this detached state; the shared file
-			// remains untouched and the user's edited model values remain in memory.
-			commitOperationState(project, operationState);
-			throw conflict;
-		}
-		Project outputProject = project;
+		committed = false;
+		MpoCapture captured = captureLiveModel(project);
+		MpoOperationState operationState = captured.operationState();
+		MpoMergePreparation merge = target.isFile() && target.length() > 0L
+				? prepareExternalMerge(target, captured, operationState) : null;
+		MpoCapture output = captured;
 		if (merge != null) {
 			// Apply concurrent operations only to an isolated candidate.  The live
 			// Project and its operation state are committed after the archive replace.
-			outputProject = copyProjectForTransaction(project);
+			Project outputProject = copyProjectForTransaction(project, captured.serialized().xml());
 			applyMergedOperationsOnEdt(outputProject, merge.replayOperations(), merge.alreadyAppliedOperationIds());
 			merge.applyExtensions(outputProject);
 			operationState.operations.clear();
@@ -442,17 +442,15 @@ public class MpoFileImporter extends FileImporter {
 			operationState.appliedOperationIds.addAll(merge.appliedOperationIds());
 			operationState.json = new OperationLog().writeJsonl(operationState.documentId, operationState.operations,
 					operationState.appliedOperationIds);
-			operationState.capture(outputProject);
+			// Merging may apply operations from a concurrent editor.  Serialize only
+			// after that merge so content.xml and the journal describe the same state.
+			output = captureModel(outputProject, serializeProject(outputProject));
+			operationState.remapTaskIds(readTaskIdentities(output.entries().get(TASK_IDENTITIES_ENTRY)));
 		}
-		// Merging may apply operations from a concurrent editor.  Serialize only
-		// after that merge so content.xml and the journal describe the same state.
-		SerializedProjectXml serialized = serializeProject(outputProject);
-		byte[] snapshot = serialized.xml();
-		operationState.remapTaskIds(readTaskIdentities(taskIdentitiesFor(outputProject, snapshot).getBytes(StandardCharsets.UTF_8)));
 		File temporary = createTemporaryFile(target);
 		boolean completed = false;
 		try (OutputStream out = new FileOutputStream(temporary)) {
-			writeMpo(outputProject, out, snapshot, operationState, serialized.assignmentUids());
+			writeCapture(output, out, operationState);
 			completed = true;
 		} finally {
 			if (!completed) {
@@ -472,24 +470,156 @@ public class MpoFileImporter extends FileImporter {
 			// The destination was never touched when moveTemporary fails.
 			if (!moved) TemporaryCleanupQueue.deleteOrEnqueue(temporary.toPath());
 		}
+		boolean appliesExternalOperations = merge != null && merge.replayOperations().stream()
+				.anyMatch(operation -> !merge.alreadyAppliedOperationIds().contains(operation.id()));
+		// Serialization can take seconds, so the full comparison stays off the EDT.
+		verifyLiveModelUnchanged(target, captured);
+		IoAction commit = () -> commitReplacedArchive(target, merge, operationState, appliesExternalOperations);
+		if (appliesExternalOperations) runOnEdt(commit);
+		else commit.run();
+	}
+
+	private void commitReplacedArchive(File target, MpoMergePreparation merge,
+			MpoOperationState plan, boolean appliesExternalOperations) throws IOException {
+		// Remote operations only touch fields the journal tracks, so this cheap check
+		// on the same EDT step keeps them from overwriting an edit made just before.
+		if (hasUnjournaledChanges(project))
+			throw new MpoPartialApplyException(target.toPath(),
+					new IOException("The project changed while it was being saved"));
 		if (merge != null) {
 			// This is deterministic after the isolated candidate succeeded.  No
 			// mutation occurs on any read/write/move failure above.  If the final
 			// in-memory phase fails, preserve the detached operation state and
 			// expose a retryable, explicit partial-apply result.
 			try {
-				applyMergedOperationsOnEdt(project, merge.replayOperations(), merge.alreadyAppliedOperationIds());
+				if (appliesExternalOperations)
+					applyMergedOperationsOnEdt(project, merge.replayOperations(), merge.alreadyAppliedOperationIds());
 				merge.applyExtensions(project);
 			} catch (RuntimeException | IOException exception) {
 				throw new MpoPartialApplyException(target.toPath(), exception);
 			}
 		}
-		commitOperationState(project, operationState);
+		// The baseline describes the live model, never the MSPDI copy, whose values
+		// can round differently and would then look like an edit on the next save.
+		if (appliesExternalOperations) plan.capture(project);
+		commitOperationState(project, plan);
+		committed = true;
+	}
+
+	/** Compares the model with the journal baseline; cheap enough for the EDT. */
+	private static boolean hasUnjournaledChanges(Project project) throws IOException {
+		MpoOperationState probe = workingOperationStateFor(project);
+		int before = probe.operations.size();
+		probe.appendChanges(project);
+		return probe.operations.size() != before;
+	}
+
+	private void verifyLiveModelUnchanged(File target, MpoCapture captured) throws IOException {
+		String current;
+		try {
+			current = fingerprintOf(project);
+		} catch (RuntimeException | IOException unreadable) {
+			// A structural edit can invalidate the read itself.
+			throw new MpoPartialApplyException(target.toPath(), unreadable);
+		}
+		if (!captured.fingerprint().equals(current))
+			throw new MpoPartialApplyException(target.toPath(),
+					new IOException("The project changed while it was being saved"));
+	}
+
+	/**
+	 * Reads one stable generation of the live model and reserves its operation
+	 * IDs.  No lock is held while reading, because serialization can take seconds
+	 * and edits on the EDT must not wait for it.  The archive content itself is
+	 * read twice and compared instead, so an edit through any setter is detected
+	 * and no list of writers has to be kept complete.
+	 */
+	private static MpoCapture captureLiveModel(Project project) throws IOException {
+		Exception last = null;
+		for (int attempt = 0; attempt < CAPTURE_ATTEMPTS; attempt++) {
+			try {
+				MpoCapture captured = captureOnce(project);
+				if (captured != null) return captured;
+			} catch (UncheckedIOException exception) {
+				throw exception.getCause();
+			} catch (RuntimeException concurrentEdit) {
+				// Reading a list while the EDT restructures it fails rather than tears.
+				last = concurrentEdit;
+			}
+		}
+		throw new IOException("The project kept changing while it was being saved; save again", last);
+	}
+
+	/** @return the capture, or {@code null} when the model changed while it was read */
+	private static MpoCapture captureOnce(Project project) throws IOException {
+		MpoCapture captured = captureModel(project, serializeProject(project));
+		java.util.Map<Long, Long> taskIdentities = readTaskIdentities(captured.entries().get(TASK_IDENTITIES_ENTRY));
+		MpoOperationState reservation = ProjectMutationState.coordinated(() -> {
+			try {
+				MpoOperationState working = workingOperationStateFor(project);
+				working.appendChanges(project);
+				ensureOperationCount(working.operations);
+				return working;
+			} catch (IOException exception) {
+				throw new UncheckedIOException(exception);
+			}
+		});
+		if (!captured.fingerprint().equals(fingerprintOf(project))) return null;
+		reservation.remapTaskIds(taskIdentities);
+		// Reserved on the live journal so a failed write or replacement retries with
+		// the same operation IDs, and a later edit becomes a separate operation.
+		commitOperationState(project, reservation);
+		return new MpoCapture(captured.serialized(), captured.entries(), captured.metadata(), captured.fingerprint(),
+				reservation.copy());
+	}
+
+	@FunctionalInterface
+	private interface IoAction {
+		void run() throws IOException;
+	}
+
+	private static void runOnEdt(IoAction action) throws IOException {
+		if (SwingUtilities.isEventDispatchThread()) {
+			action.run();
+			return;
+		}
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				try {
+					action.run();
+				} catch (IOException exception) {
+					throw new UncheckedIOException(exception);
+				}
+			});
+		} catch (InterruptedException exception) {
+			Thread.currentThread().interrupt();
+			throw new IOException("Interrupted while applying merged MPO operations", exception);
+		} catch (java.lang.reflect.InvocationTargetException exception) {
+			if (exception.getCause() instanceof UncheckedIOException ioException)
+				throw ioException.getCause();
+			throw new IOException("Could not apply merged MPO operations", exception.getCause());
+		}
+	}
+
+	@Override
+	public void setReplaceDifferentDocument(boolean replaceDifferentDocument) {
+		this.replaceDifferentDocument = replaceDifferentDocument;
+	}
+
+	/** Runs on the EDT with the dirty-flag update, so it uses only the cheap check. */
+	@Override
+	public boolean confirmSavedState() {
+		if (!committed) return false;
+		try {
+			return !hasUnjournaledChanges(project);
+		} catch (RuntimeException | IOException exception) {
+			return false;
+		}
 	}
 
 	protected void verifyMergeApplicability(Project source, java.util.List<OperationLog.Operation> operations,
 			java.util.Set<String> alreadyAppliedOperationIds) throws IOException {
-		Project preflight = copyProjectForTransaction(source);
+		Project preflight = copyProjectForTransaction(source, serializeProjectXml(source));
 		// Preflight is an internal validation pass.  Keep it independent from
 		// the overridable commit-stage seam so an injected commit failure cannot
 		// accidentally make the archive replacement happen later than intended.
@@ -512,64 +642,98 @@ public class MpoFileImporter extends FileImporter {
 
 	@Override
 	public boolean saveProject(Project project, OutputStream out) throws Exception {
-		SerializedProjectXml serialized = serializeProject(project);
-		byte[] projectXml = serialized.xml();
-		MpoOperationState operationState = workingOperationStateFor(project);
-		operationState.appendChanges(project);
-		ensureOperationCount(operationState.operations);
-		String taskIdentities = taskIdentitiesFor(project, projectXml);
-		operationState.remapTaskIds(readTaskIdentities(taskIdentities.getBytes(StandardCharsets.UTF_8)));
-		boolean written = writeMpo(project, out, projectXml, operationState, serialized.assignmentUids());
-		if (written) commitOperationState(project, operationState);
-		return written;
+		MpoCapture captured = captureLiveModel(project);
+		writeCapture(captured, out, captured.operationState());
+		if (!captured.fingerprint().equals(fingerprintOf(project)))
+			throw new IOException("The project changed while it was being saved");
+		return true;
 	}
 
-	private boolean writeMpo(Project project, OutputStream out, byte[] projectXml, MpoOperationState operationState,
-		java.util.Map<Assignment, Integer> assignmentUids) throws Exception {
+	private static String fingerprintOf(Project project) throws IOException {
+		return captureModel(project, serializeProject(project)).fingerprint();
+	}
+
+	/** Reads everything an archive takes from the model, into detached bytes. */
+	private static MpoCapture captureModel(Project project, SerializedProjectXml serialized) throws IOException {
+		byte[] projectXml = serialized.xml();
+		java.util.LinkedHashMap<String, byte[]> entries = new java.util.LinkedHashMap<>();
+		CriticalChainService.Settings ccpm = existingCcpm(project);
+		entries.put(SETTINGS_ENTRY, settingsXml(ccpm, ccpm == null ? null : new CriticalChainService().findBaseline(project)).getBytes(StandardCharsets.UTF_8));
+		byte[] layout = layoutJson(project);
+		if (layout != null) entries.put(LAYOUT_ENTRY, layout);
+		// Filled from the operation plan when written; the journal is not model content.
+		entries.put(OPERATIONS_ENTRY, new byte[0]);
+		String taskIdentities = taskIdentitiesFor(project, projectXml);
+		entries.put(TASK_IDENTITIES_ENTRY, taskIdentities.getBytes(StandardCharsets.UTF_8));
+		entries.put(VISIBILITY_ENTRY, visibilityJson(project, taskIdentities));
+		entries.put(TASK_SPLITS_ENTRY, taskSplitsJson(project, taskIdentities));
+		entries.put(TASK_LEVELING_OPTIONS_ENTRY, taskLevelingOptionsJson(project, taskIdentities));
+		entries.put(TASK_TEXT_STYLES_ENTRY, taskTextStylesJson(project, taskIdentities));
+		entries.put(TASK_SCHEDULES_ENTRY, taskSchedulesJson(project, taskIdentities));
+		entries.put(BASELINE_PROFILES_ENTRY, baselineProfilesJson(project, taskIdentities,
+			resourceIdentitiesForMpo(project)));
+		entries.put(ASSIGNMENT_LEVELING_SPLITS_ENTRY, assignmentLevelingSplitsJson(project, serialized.assignmentUids()));
+		entries.put(CCPM_HISTORY_ENTRY, ccpmHistoryJson(project));
+		MpoExtensions extensions = project.findTransientDocumentState(MpoExtensions.class);
+		if (extensions != null) for (java.util.Map.Entry<String, byte[]> extension : extensions.entries.entrySet()) {
+			if (MIMETYPE_ENTRY.equals(extension.getKey()) || MANIFEST_ENTRY.equals(extension.getKey()) || META_ENTRY.equals(extension.getKey()) || SETTINGS_ENTRY.equals(extension.getKey()) || CCPM_HISTORY_ENTRY.equals(extension.getKey()) || LAYOUT_ENTRY.equals(extension.getKey()) || VISIBILITY_ENTRY.equals(extension.getKey()) || TASK_SPLITS_ENTRY.equals(extension.getKey()) || TASK_LEVELING_OPTIONS_ENTRY.equals(extension.getKey()) || TASK_TEXT_STYLES_ENTRY.equals(extension.getKey()) || TASK_SCHEDULES_ENTRY.equals(extension.getKey()) || BASELINE_PROFILES_ENTRY.equals(extension.getKey()) || ASSIGNMENT_LEVELING_SPLITS_ENTRY.equals(extension.getKey()) || PROJECT_ENTRY.equals(extension.getKey()) || OPERATIONS_ENTRY.equals(extension.getKey()) || TASK_IDENTITIES_ENTRY.equals(extension.getKey()) || extension.getKey().startsWith(EMBEDDED_PROJECT_PREFIX)) continue;
+			entries.put(extension.getKey(), extension.getValue().clone());
+		}
+		MpoDocumentMetadata metadata = new MpoDocumentMetadata(project.getDocumentId(), project.getUniqueId(),
+				String.valueOf(project.getName()), project.getSharedResourcePoolFile(),
+				project.getSharedResourcePoolProjectId(), project.isStatusDateSet() ? project.getStatusDate() : 0L,
+				embeddedSourcesFor(project));
+		return new MpoCapture(serialized, entries, metadata, fingerprint(projectXml, entries, metadata), null);
+	}
+
+	/** Digest of all model content an archive holds; the journal is excluded. */
+	private static String fingerprint(byte[] projectXml, java.util.Map<String, byte[]> entries, MpoDocumentMetadata metadata) {
+		try {
+			MessageDigest digest = MessageDigest.getInstance("SHA-256");
+			digest.update(metadata.toString().getBytes(StandardCharsets.UTF_8));
+			// The serializer stamps the wall clock here; that is not model content.
+			digest.update(SERIALIZER_CLOCK.matcher(new String(projectXml, StandardCharsets.UTF_8)).replaceAll("")
+				.getBytes(StandardCharsets.UTF_8));
+			for (java.util.Map.Entry<String, byte[]> entry : entries.entrySet()) {
+				digest.update((byte) 0);
+				digest.update(entry.getKey().getBytes(StandardCharsets.UTF_8));
+				digest.update((byte) 0);
+				digest.update(entry.getValue());
+			}
+			return java.util.HexFormat.of().formatHex(digest.digest());
+		} catch (NoSuchAlgorithmException exception) {
+			throw new IllegalStateException("SHA-256 is required by the Java runtime", exception);
+		}
+	}
+
+	/** Writes a detached capture; only linked files are read, and no model state. */
+	private static void writeCapture(MpoCapture capture, OutputStream out, MpoOperationState operationState) throws Exception {
 		ensureOperationCount(operationState.operations);
-		java.util.List<EmbeddedProject> embeddedProjects = embeddedProjectsFor(project);
+		MpoDocumentMetadata metadata = capture.metadata();
+		byte[] projectXml = capture.serialized().xml();
+		java.util.List<EmbeddedProject> embeddedProjects = readEmbeddedProjects(metadata.embeddedSources());
 		java.util.LinkedHashMap<String, byte[]> archiveEntries = new java.util.LinkedHashMap<>();
 		archiveEntries.put(MIMETYPE_ENTRY, MIME_TYPE.getBytes(StandardCharsets.US_ASCII));
 		archiveEntries.put(META_ENTRY, metaXml().getBytes(StandardCharsets.UTF_8));
 		archiveEntries.put(PROJECT_ENTRY, projectXml);
 		for (EmbeddedProject embedded : embeddedProjects)
 			archiveEntries.put(embedded.entryName(), embedded.contents());
-		CriticalChainService.Settings ccpm = existingCcpm(project);
-		archiveEntries.put(SETTINGS_ENTRY, settingsXml(ccpm, ccpm == null ? null : new CriticalChainService().findBaseline(project)).getBytes(StandardCharsets.UTF_8));
-		byte[] layout = layoutJson(project);
-		if (layout != null) archiveEntries.put(LAYOUT_ENTRY, layout);
+		archiveEntries.putAll(capture.entries());
 		archiveEntries.put(OPERATIONS_ENTRY, operationState.json);
-		String taskIdentities = taskIdentitiesFor(project, projectXml);
-		archiveEntries.put(TASK_IDENTITIES_ENTRY, taskIdentities.getBytes(StandardCharsets.UTF_8));
-		archiveEntries.put(VISIBILITY_ENTRY, visibilityJson(project, taskIdentities));
-		archiveEntries.put(TASK_SPLITS_ENTRY, taskSplitsJson(project, taskIdentities));
-		archiveEntries.put(TASK_LEVELING_OPTIONS_ENTRY, taskLevelingOptionsJson(project, taskIdentities));
-		archiveEntries.put(TASK_TEXT_STYLES_ENTRY, taskTextStylesJson(project, taskIdentities));
-		archiveEntries.put(TASK_SCHEDULES_ENTRY, taskSchedulesJson(project, taskIdentities));
-		archiveEntries.put(BASELINE_PROFILES_ENTRY, baselineProfilesJson(project, taskIdentities,
-			resourceIdentitiesForMpo(project)));
-		archiveEntries.put(ASSIGNMENT_LEVELING_SPLITS_ENTRY, assignmentLevelingSplitsJson(project, assignmentUids));
-		archiveEntries.put(CCPM_HISTORY_ENTRY, ccpmHistoryJson(project));
-		MpoExtensions extensions = project.findTransientDocumentState(MpoExtensions.class);
-		if (extensions != null) for (java.util.Map.Entry<String, byte[]> extension : extensions.entries.entrySet()) {
-			if (MIMETYPE_ENTRY.equals(extension.getKey()) || MANIFEST_ENTRY.equals(extension.getKey()) || META_ENTRY.equals(extension.getKey()) || SETTINGS_ENTRY.equals(extension.getKey()) || CCPM_HISTORY_ENTRY.equals(extension.getKey()) || LAYOUT_ENTRY.equals(extension.getKey()) || VISIBILITY_ENTRY.equals(extension.getKey()) || TASK_SPLITS_ENTRY.equals(extension.getKey()) || TASK_LEVELING_OPTIONS_ENTRY.equals(extension.getKey()) || TASK_TEXT_STYLES_ENTRY.equals(extension.getKey()) || TASK_SCHEDULES_ENTRY.equals(extension.getKey()) || BASELINE_PROFILES_ENTRY.equals(extension.getKey()) || ASSIGNMENT_LEVELING_SPLITS_ENTRY.equals(extension.getKey()) || PROJECT_ENTRY.equals(extension.getKey()) || OPERATIONS_ENTRY.equals(extension.getKey()) || TASK_IDENTITIES_ENTRY.equals(extension.getKey()) || extension.getKey().startsWith(EMBEDDED_PROJECT_PREFIX)) continue;
-			archiveEntries.put(extension.getKey(), extension.getValue());
-		}
-		MpoArchiveSnapshot snapshot = snapshotForWrite(project, projectXml, archiveEntries, embeddedProjects);
+		MpoArchiveSnapshot snapshot = snapshotForWrite(metadata, projectXml, archiveEntries, embeddedProjects);
 		java.util.List<MpoMergePlan.Operation> writeOperations = archiveEntries.keySet().stream()
 				.map(name -> new MpoMergePlan.Operation(name, MpoMergePlan.Action.KEEP)).toList();
 		validateMergePlan(planFor(snapshot, writeOperations, java.util.List.of()));
 		try (ZipOutputStream zip = new ZipOutputStream(out, StandardCharsets.UTF_8)) {
 			writeMimetypeEntry(zip);
-			writeEntry(zip, MANIFEST_ENTRY, manifestFor(projectXml, project.getDocumentId(), project.getUniqueId(),
-					project.getSharedResourcePoolFile(), embeddedProjects, archiveEntries,
-					project.getSharedResourcePoolProjectId(), project.isStatusDateSet() ? project.getStatusDate() : 0L).getBytes(StandardCharsets.UTF_8));
+			writeEntry(zip, MANIFEST_ENTRY, manifestFor(projectXml, metadata.documentId(), metadata.uniqueId(),
+					metadata.sharedResourcePoolFile(), embeddedProjects, archiveEntries,
+					metadata.sharedResourcePoolProjectId(), metadata.statusDate()).getBytes(StandardCharsets.UTF_8));
 			for (java.util.Map.Entry<String, byte[]> entry : archiveEntries.entrySet()) {
 				if (!MANIFEST_ENTRY.equals(entry.getKey()) && !MIMETYPE_ENTRY.equals(entry.getKey()))
 					writeEntry(zip, entry.getKey(), entry.getValue());
 			}
 		}
-		return true;
 	}
 
 	private static void ensureOperationCount(java.util.Collection<OperationLog.Operation> operations) throws IOException {
@@ -577,12 +741,12 @@ public class MpoFileImporter extends FileImporter {
 			throw new IOException("MPOF operation log exceeds " + MAX_OPERATION_COUNT + " operations");
 	}
 
-	private static MpoArchiveSnapshot snapshotForWrite(Project project, byte[] projectXml,
+	private static MpoArchiveSnapshot snapshotForWrite(MpoDocumentMetadata metadata, byte[] projectXml,
 			java.util.Map<String, byte[]> archiveEntries, java.util.List<EmbeddedProject> embeddedProjects) {
-		String documentId = project.getDocumentId() == null ? "" : project.getDocumentId();
+		String documentId = metadata.documentId() == null ? "" : metadata.documentId();
 		java.util.List<String> embedded = embeddedProjects.stream().map(EmbeddedProject::sourcePath).toList();
 		return new MpoArchiveSnapshot(archiveEntries,
-				new MpoArchiveSnapshot.MspProjection(documentId, String.valueOf(project.getName()),
+				new MpoArchiveSnapshot.MspProjection(documentId, metadata.name(),
 						new String(projectXml, StandardCharsets.UTF_8)),
 				new MpoArchiveSnapshot.MpofMetadata(FORMAT_VERSION, documentId, embedded));
 	}
@@ -608,8 +772,7 @@ public class MpoFileImporter extends FileImporter {
 		current.commitFrom(plan);
 	}
 
-	private Project copyProjectForTransaction(Project source) throws IOException {
-		byte[] xml = serializeProjectXml(source);
+	private Project copyProjectForTransaction(Project source, byte[] xml) throws IOException {
 		MicrosoftImporter delegate = new MicrosoftImporter();
 		delegate.setFileName(PROJECT_ENTRY);
 		delegate.setProjectFactory(projectFactory == null ? ProjectFactory.getInstance() : projectFactory);
@@ -717,6 +880,10 @@ public class MpoFileImporter extends FileImporter {
 	}
 
 	private record SerializedProjectXml(byte[] xml, java.util.Map<Assignment, Integer> assignmentUids) { }
+	private record MpoDocumentMetadata(String documentId, long uniqueId, String name, String sharedResourcePoolFile,
+			long sharedResourcePoolProjectId, long statusDate, java.util.Map<String, String> embeddedSources) { }
+	private record MpoCapture(SerializedProjectXml serialized, java.util.Map<String, byte[]> entries,
+			MpoDocumentMetadata metadata, String fingerprint, MpoOperationState operationState) { }
 
 	private static String taskIdentitiesFor(Project project, byte[] projectXml) throws IOException {
 		ObjectNode root = JSON.createObjectNode();
@@ -734,19 +901,36 @@ public class MpoFileImporter extends FileImporter {
 			java.util.Iterator<?> modelTasks = project.getTaskOutlineIterator();
 			for (int i = 0; i < xmlTasks.getLength() && modelTasks.hasNext(); i++) {
 				org.w3c.dom.Element xmlTask = (org.w3c.dom.Element) xmlTasks.item(i);
-				org.w3c.dom.NodeList nullValues = xmlTask.getElementsByTagName("IsNull");
-				if (nullValues.getLength() == 0) nullValues = xmlTask.getElementsByTagName("Null");
-				if (nullValues.getLength() > 0 && "1".equals(nullValues.item(0).getTextContent().trim())) continue;
-				org.w3c.dom.NodeList uids = xmlTask.getElementsByTagName("UID");
-				if (uids.getLength() > 0) {
+				String nullValue = childText(xmlTask, "IsNull");
+				if (nullValue == null) nullValue = childText(xmlTask, "Null");
+				if ("1".equals(nullValue == null ? null : nullValue.trim())) continue;
+				String uid = childText(xmlTask, "UID");
+				if (uid != null) {
 					Task task = (Task) modelTasks.next();
-					root.put(String.valueOf(task.getUniqueId()), Long.parseLong(uids.item(0).getTextContent()));
+					root.put(String.valueOf(task.getUniqueId()), Long.parseLong(uid));
 				}
 			}
 			return JSON.writeValueAsString(root);
 		} catch (Exception exception) {
 			throw new IOException("Unable to build mpo task identity map", exception);
 		}
+	}
+
+	/** Direct-child lookup; searching the subtree of every task is quadratic in practice. */
+	private static String childText(org.w3c.dom.Element parent, String name) {
+		for (org.w3c.dom.Node child = parent.getFirstChild(); child != null; child = child.getNextSibling())
+			if (name.equals(child.getNodeName())) return child.getTextContent();
+		return null;
+	}
+
+	/** One pass over the outline, for callers that would otherwise search it per task. */
+	private static java.util.Map<Long, Task> tasksByUniqueId(Project project) {
+		java.util.Map<Long, Task> tasks = new java.util.HashMap<>();
+		for (java.util.Iterator<Task> iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
+			Task task = iterator.next();
+			tasks.putIfAbsent(Long.valueOf(task.getUniqueId()), task);
+		}
+		return tasks;
 	}
 
 	private static byte[] visibilityJson(Project project, String taskIdentities) throws IOException {
@@ -756,11 +940,13 @@ public class MpoFileImporter extends FileImporter {
 			ObjectNode root = JSON.createObjectNode();
 			root.put("version", 1);
 			com.fasterxml.jackson.databind.node.ArrayNode hidden = root.putArray("hiddenTaskUniqueIds");
+			java.util.Map<Long, Task> tasks = tasksByUniqueId(project);
 			java.util.Iterator<java.util.Map.Entry<String, JsonNode>> fields = identities.fields();
 			while (fields.hasNext()) {
 				java.util.Map.Entry<String, JsonNode> entry = fields.next();
 				long sourceId = Long.parseLong(entry.getKey());
-				if (project.findByUniqueId(sourceId) instanceof Task task && task.isHiddenTask())
+				Task task = tasks.get(Long.valueOf(sourceId));
+				if (task != null && task.isHiddenTask())
 					hidden.add(entry.getValue().longValue());
 			}
 			return JSON.writeValueAsBytes(root);
@@ -1563,6 +1749,7 @@ public class MpoFileImporter extends FileImporter {
 				(WorkingCalendar) project.getWorkCalendar(), null));
 			com.fasterxml.jackson.databind.node.ArrayNode tasks = root.putArray("tasks");
 			java.util.Set<Long> seenSerializedIds = new java.util.HashSet<>();
+			java.util.Map<Long, Task> modelTasks = tasksByUniqueId(project);
 			java.util.Iterator<java.util.Map.Entry<String, JsonNode>> identityIterator = identities.fields();
 			while (identityIterator.hasNext()) {
 				java.util.Map.Entry<String, JsonNode> identity = identityIterator.next();
@@ -1570,7 +1757,7 @@ public class MpoFileImporter extends FileImporter {
 				JsonNode serializedUid = identity.getValue();
 				if (!serializedUid.canConvertToLong()) throw new IOException("Invalid serialized task identity for schedule snapshot");
 				if (!seenSerializedIds.add(serializedUid.longValue())) continue;
-				if (!(project.findByUniqueId(sourceId) instanceof NormalTask normalTask)) continue;
+				if (!(modelTasks.get(Long.valueOf(sourceId)) instanceof NormalTask normalTask)) continue;
 				ObjectNode taskNode = tasks.addObject();
 				taskNode.put("taskUid", serializedUid.longValue());
 				taskNode.put("constraintType", normalTask.getConstraintType());
@@ -1820,8 +2007,11 @@ public class MpoFileImporter extends FileImporter {
 		return result;
 	}
 
-	private MpoMergePreparation prepareExternalMerge(File target, Project project, MpoOperationState local) throws IOException {
+	private MpoMergePreparation prepareExternalMerge(File target, MpoCapture captured, MpoOperationState local) throws IOException {
 		ExternalMpo external = externalOperations(target);
+		// An explicit Save As over another document replaces it; there is nothing to merge.
+		if (replaceDifferentDocument && !(local.documentId.equals(external.document.documentId())
+				&& local.documentId.equals(external.manifestDocumentId))) return null;
 		if (!local.documentId.equals(external.document.documentId())) throw new IOException("Cannot merge mpo files with different document IDs");
 		if (!local.documentId.equals(external.manifestDocumentId)) throw new IOException("Cannot merge mpo with mismatched manifest document ID");
 		// The numeric Project unique id is an in-memory/importer identifier and is
@@ -1848,7 +2038,7 @@ public class MpoFileImporter extends FileImporter {
 			if (!merged.conflicts().isEmpty()) {
 				java.util.List<OperationLog.Operation> conflictOperations = new java.util.ArrayList<>(merged.ready());
 				conflictOperations.addAll(merged.pending());
-				Path recoveryCopy = persistRecoveryCopy(target, project, local, conflictOperations,
+				Path recoveryCopy = persistRecoveryCopy(target, captured, local, conflictOperations,
 						external.extensions);
 				throw new MpoConflictRecoveryException(recoveryCopy, merged.conflicts());
 			}
@@ -1872,9 +2062,9 @@ public class MpoFileImporter extends FileImporter {
 		}
 	}
 
-	private Path persistRecoveryCopy(File target, Project project, MpoOperationState local,
+	private Path persistRecoveryCopy(File target, MpoCapture captured, MpoOperationState local,
 			java.util.List<OperationLog.Operation> mergedOperations, MpoExtensions externalExtensions) throws IOException {
-		Project recoveryProject = copyProjectForTransaction(project);
+		Project recoveryProject = copyProjectForTransaction(project, captured.serialized().xml());
 		if (externalExtensions != null && !externalExtensions.entries.isEmpty()) {
 			MpoExtensions recoveryExtensions = recoveryProject.getOrCreateTransientDocumentState(MpoExtensions.class,
 					MpoExtensions::new);
@@ -1887,15 +2077,13 @@ public class MpoFileImporter extends FileImporter {
 		try {
 			recoveryState.json = new OperationLog().writeJsonl(recoveryState.documentId,
 				recoveryState.operations, recoveryState.appliedOperationIds);
-			SerializedProjectXml serialized = serializeProject(recoveryProject);
-			byte[] projectXml = serialized.xml();
-			recoveryState.remapTaskIds(readTaskIdentities(
-				taskIdentitiesFor(recoveryProject, projectXml).getBytes(StandardCharsets.UTF_8)));
+			MpoCapture recoveryCapture = captureModel(recoveryProject, serializeProject(recoveryProject));
+			recoveryState.remapTaskIds(readTaskIdentities(recoveryCapture.entries().get(TASK_IDENTITIES_ENTRY)));
 			File temporary = createTemporaryFile(target);
 			boolean moved = false;
 			try {
 				try (OutputStream out = new FileOutputStream(temporary)) {
-					writeMpo(recoveryProject, out, projectXml, recoveryState, serialized.assignmentUids());
+					writeCapture(recoveryCapture, out, recoveryState);
 				}
 				Path recovery = target.toPath().toAbsolutePath().resolveSibling(target.getName()
 					+ ".conflict-" + java.util.UUID.randomUUID() + ".mpo");
@@ -2316,14 +2504,13 @@ public class MpoFileImporter extends FileImporter {
 		readManifest(manifest.getBytes(StandardCharsets.UTF_8), projectXml);
 	}
 
-	private static java.util.List<EmbeddedProject> embeddedProjectsFor(Project master) throws IOException {
+	/** Linked files to embed, read from the model without touching the disk. */
+	private static java.util.Map<String, String> embeddedSourcesFor(Project master) {
 		if (master == null)
-			return java.util.List.of();
-		java.util.List<EmbeddedProject> embedded = new java.util.ArrayList<EmbeddedProject>();
+			return java.util.Map.of();
 		java.util.Map<String, String> sourcePaths = new java.util.LinkedHashMap<String, String>();
 		if (master.getSharedResourcePoolFile() != null && !master.getSharedResourcePoolFile().isBlank())
 			sourcePaths.put(master.getSharedResourcePoolFile(), null);
-		int index = 0;
 		if (master.isMaster()) for (java.util.Iterator<?> tasks = master.getTaskOutlineIterator(); tasks.hasNext();) {
 			Object value = tasks.next();
 			if (value instanceof SubProj reference) {
@@ -2334,6 +2521,12 @@ public class MpoFileImporter extends FileImporter {
 					sourcePaths.putIfAbsent(child.getSharedResourcePoolFile(), null);
 			}
 		}
+		return sourcePaths;
+	}
+
+	private static java.util.List<EmbeddedProject> readEmbeddedProjects(java.util.Map<String, String> sourcePaths) throws IOException {
+		java.util.List<EmbeddedProject> embedded = new java.util.ArrayList<EmbeddedProject>();
+		int index = 0;
 		java.util.Set<String> seen = new java.util.LinkedHashSet<String>();
 		for (java.util.Map.Entry<String, String> sourceEntry : sourcePaths.entrySet()) {
 			String sourcePath = sourceEntry.getKey();
@@ -2458,31 +2651,7 @@ public class MpoFileImporter extends FileImporter {
 	private static void applyMergedOperationsOnEdtInternal(Project project,
 			java.util.List<OperationLog.Operation> operations,
 			java.util.Set<String> alreadyAppliedOperationIds) throws IOException {
-		Runnable apply = () -> {
-			try {
-				new MpoTaskOperationService().apply(project, operations, alreadyAppliedOperationIds);
-			} catch (IOException exception) {
-				throw new UncheckedIOException(exception);
-			}
-		};
-		if (SwingUtilities.isEventDispatchThread()) {
-			try {
-				apply.run();
-			} catch (UncheckedIOException exception) {
-				throw exception.getCause();
-			}
-			return;
-		}
-		try {
-			SwingUtilities.invokeAndWait(apply);
-		} catch (InterruptedException exception) {
-			Thread.currentThread().interrupt();
-			throw new IOException("Interrupted while applying merged MPO operations", exception);
-		} catch (java.lang.reflect.InvocationTargetException exception) {
-			if (exception.getCause() instanceof UncheckedIOException ioException)
-				throw ioException.getCause();
-			throw new IOException("Could not apply merged MPO operations", exception.getCause());
-		}
+		runOnEdt(() -> new MpoTaskOperationService().apply(project, operations, alreadyAppliedOperationIds));
 	}
 
 	private static void restoreEmbeddedProjectReferences(Project master, ManifestData manifest,
