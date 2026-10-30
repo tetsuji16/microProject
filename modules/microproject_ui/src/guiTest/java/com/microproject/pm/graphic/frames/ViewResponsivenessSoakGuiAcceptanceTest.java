@@ -259,7 +259,15 @@ class ViewResponsivenessSoakGuiAcceptanceTest {
 		String previous = onEdt(task::getName);
 		robot.keyPress(KeyEvent.VK_F2);
 		robot.keyRelease(KeyEvent.VK_F2);
-		GuiAcceptanceSupport.await(() -> Boolean.TRUE.equals(onEdtQuiet(sheet::isEditing)), "F2 did not start editing");
+		long editDeadline = System.currentTimeMillis() + 5_000;
+		while (!Boolean.TRUE.equals(onEdtQuiet(sheet::isEditing)) && System.currentTimeMillis() < editDeadline) Thread.sleep(50);
+		if (!Boolean.TRUE.equals(onEdtQuiet(sheet::isEditing))) {
+			String line = "F2 task=" + previous + " summary=" + onEdt(task::isWbsParent) + " editable=" + onEdt(() -> sheet.isCellEditable(cell[0], cell[1]))
+				+ " " + describeMiss(robot, sheet, cell[0], 0, onEdt(sheet::getRowCount));
+			System.out.println("SOAK MISS " + line);
+			clickMisses.add(line);
+			return null;
+		}
 		robot.keyPress(KeyEvent.VK_CONTROL);
 		robot.keyPress(KeyEvent.VK_A);
 		robot.keyRelease(KeyEvent.VK_A);
