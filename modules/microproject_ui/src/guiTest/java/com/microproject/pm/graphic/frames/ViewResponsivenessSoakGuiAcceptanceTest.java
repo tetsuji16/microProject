@@ -121,6 +121,9 @@ class ViewResponsivenessSoakGuiAcceptanceTest {
 		}
 	}
 
+	private final List<String> clickMisses = new java.util.concurrent.CopyOnWriteArrayList<>();
+	private final java.util.Deque<String> recentMouse = new java.util.concurrent.ConcurrentLinkedDeque<>();
+
 	private void soak(GraphicManager manager, DocumentFrame frame, Project project, List<Throwable> uncaught) throws Exception {
 		String configured = System.getProperty("microproject.soak.minutes", System.getenv("MICROPROJECT_SOAK_MINUTES"));
 		long minutes = configured == null || configured.isBlank() ? 12 : Long.parseLong(configured.trim());
@@ -129,6 +132,11 @@ class ViewResponsivenessSoakGuiAcceptanceTest {
 		long nextRecovery = System.nanoTime() + TimeUnit.SECONDS.toNanos(60);
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
+		java.awt.Toolkit.getDefaultToolkit().addAWTEventListener(event -> {
+			if (event.getID() != java.awt.event.MouseEvent.MOUSE_PRESSED) return;
+			recentMouse.addLast(event.getSource().getClass().getSimpleName() + "@" + ((java.awt.event.MouseEvent) event).getPoint());
+			while (recentMouse.size() > 4) recentMouse.pollFirst();
+		}, java.awt.AWTEvent.MOUSE_EVENT_MASK);
 		Task[] edited = new Task[1];
 		String previousName = null;
 		for (int cycle = 1; System.nanoTime() < deadline; cycle++) {
@@ -162,6 +170,8 @@ class ViewResponsivenessSoakGuiAcceptanceTest {
 		}
 		assertNotNull(project.getCollaborationSession(), "collaboration session vanished during soak");
 		for (Throwable t : uncaught) System.out.println(stack(t));
+		assertTrue(clickMisses.isEmpty(), "clicks that did not select: " + clickMisses.size() + ", first: "
+			+ (clickMisses.isEmpty() ? "" : clickMisses.get(0)));
 		assertTrue(uncaught.isEmpty(), "uncaught throwables during soak: " + uncaught.size() + ", first: "
 			+ (uncaught.isEmpty() ? "" : stack(uncaught.get(0))));
 	}
@@ -174,9 +184,43 @@ class ViewResponsivenessSoakGuiAcceptanceTest {
 		if (rows == 0) return 0;
 		int row = rows > 1 ? 1 + cycle % Math.min(rows - 1, 8) : 0;
 		clickCell(robot, sheet, nameCell(sheet, row));
-		GuiAcceptanceSupport.await(() -> Integer.valueOf(row).equals(onEdtQuiet(sheet::getSelectedRow)),
-			"click on row " + row + " did not select it (cycle " + cycle + ", rows=" + rows + ")");
+		if (!selectedWithin(sheet, row, 5_000)) {
+			String first = describeMiss(robot, sheet, row, cycle, rows);
+			clickCell(robot, sheet, nameCell(sheet, row));
+			boolean retried = selectedWithin(sheet, row, 5_000);
+			String line = first + " retryOk=" + retried;
+			System.out.println("SOAK MISS " + line);
+			clickMisses.add(line);
+		}
 		return rows;
+	}
+
+	private boolean selectedWithin(SpreadSheet sheet, int row, long millis) throws Exception {
+		long end = System.currentTimeMillis() + millis;
+		while (System.currentTimeMillis() < end) {
+			if (Integer.valueOf(row).equals(onEdtQuiet(sheet::getSelectedRow))) return true;
+			Thread.sleep(50);
+		}
+		return false;
+	}
+
+	private String describeMiss(Robot robot, SpreadSheet sheet, int row, int cycle, int rows) throws Exception {
+		if (clickMisses.size() < 3) {
+			java.nio.file.Path dir = java.nio.file.Path.of("build/reports/guiTest-artifacts");
+			java.nio.file.Files.createDirectories(dir);
+			javax.imageio.ImageIO.write(robot.createScreenCapture(new Rectangle(java.awt.Toolkit.getDefaultToolkit().getScreenSize())),
+				"png", dir.resolve("soak-miss-" + clickMisses.size() + ".png").toFile());
+		}
+		return onEdt(() -> {
+			Object node = ((com.microproject.pm.graphic.spreadsheet.SpreadSheetModel) sheet.getModel()).getNodeForDisplayRow(row);
+			StringBuilder windows = new StringBuilder();
+			for (java.awt.Window w : java.awt.Window.getWindows()) if (w.isShowing()) windows.append(w.getClass().getSimpleName()).append(w.isActive() ? "*" : "").append(',');
+			java.awt.Component focus = java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
+			return "cycle=" + cycle + " row=" + row + " rows=" + rows + " selected=" + java.util.Arrays.toString(sheet.getSelectedRows())
+				+ " editing=" + sheet.isEditing() + " rect=" + sheet.getCellRect(row, 0, true) + " visible=" + sheet.getVisibleRect()
+				+ " node=" + (node == null ? "null" : node.getClass().getSimpleName()) + " focus=" + (focus == null ? "null" : focus.getClass().getSimpleName())
+				+ " windows=" + windows + " mouse=" + recentMouse;
+		});
 	}
 
 	private int[] nameCell(SpreadSheet sheet, int row) throws Exception {
