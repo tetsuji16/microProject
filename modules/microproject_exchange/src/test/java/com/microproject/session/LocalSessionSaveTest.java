@@ -179,6 +179,25 @@ class LocalSessionSaveTest {
 		}
 	}
 
+	/** Issue #967: Save As over a remnant of another document replaces it and clears dirty. */
+	@Test
+	void saveAsReplacesFileHoldingAnotherDocument() throws Exception {
+		Path destination = tempDirectory.resolve("remnant.mpo");
+		DataFactoryUndoController firstUndo = new DataFactoryUndoController();
+		Project remnant = Project.createProject(ResourcePool.createRourcePool("remnant", firstUndo), firstUndo);
+		LocalSession session = new LocalSession();
+		session.setJobQueue(new JobQueue("save-as-remnant", false));
+		saveAndAwait(session, remnant, destination, true);
+
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("replacement", undoController), undoController);
+		project.setGroupDirty(true);
+		saveAndAwait(session, project, destination, true);
+
+		assertFalse(project.isGroupDirty(), "a confirmed save must clear the unsaved state");
+		assertEquals(destination.toString(), project.getFileName());
+	}
+
 	private static void saveAndAwait(LocalSession session, Project project, Path destination, boolean saveAs)
 			throws Exception {
 		CountDownLatch completed = new CountDownLatch(1);
