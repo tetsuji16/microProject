@@ -675,7 +675,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 
 		clickBackstageOpenTile(robot);
 		awaitWithWindowTrace(() -> visibleFileChooserDialog() != null,
-			"File/Open did not show the Swing file chooser; providerStarted=" + chooserCallStarted.get()
+			() -> "File/Open did not show the Swing file chooser; providerStarted=" + chooserCallStarted.get()
 				+ ", providerReturned=" + chooserCallReturned.get());
 		Window escapeChooser = visibleFileChooserDialog();
 		GuiAcceptanceSupport.await(() -> {
@@ -2378,10 +2378,15 @@ class RibbonExternalCommandGuiAcceptanceTest {
 	}
 
 	private void awaitWithWindowTrace(BooleanSupplier condition, String message) throws Exception {
+		awaitWithWindowTrace(condition, () -> message);
+	}
+
+	/** Builds the message at timeout, so diagnostics report the state at the failure. */
+	private void awaitWithWindowTrace(BooleanSupplier condition, java.util.function.Supplier<String> message) throws Exception {
 		try {
-			GuiAcceptanceSupport.await(condition, message);
+			GuiAcceptanceSupport.await(condition, "condition not met within the timeout");
 		} catch (AssertionError failure) {
-			throw new AssertionError(failure.getMessage() + "\n" + saveWindowTrace.snapshot(), failure);
+			throw new AssertionError(message.get() + "\n" + saveWindowTrace.snapshot(), failure);
 		}
 	}
 
