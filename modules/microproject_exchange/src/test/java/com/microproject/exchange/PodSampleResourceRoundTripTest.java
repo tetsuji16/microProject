@@ -17,6 +17,9 @@ import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.server.data.MPXConverter;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import com.microproject.grouping.core.NodeFactory;
+import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.task.Project;
 
@@ -57,5 +60,86 @@ class PodSampleResourceRoundTripTest {
 			}
 			assertNotNull(reopened.getResourcePool().getResourceOutline().search(resource), resource.getName());
 		}
+	}
+
+	/** Issue #967: POD, add a row, save as MPO, re-save, reopen from the file. */
+	@Test
+	void editedPodSavedAsMpoFileKeepsResourcesAcrossResave(@TempDir Path directory) throws Exception {
+		Project original = loadSample();
+		List<String> names = resourceNames(original);
+		int assignments = assignmentCount(original);
+		assertTrue(assignments > 0);
+		addRow(original);
+		Path target = directory.resolve("Commercial construction project plan2.mpo");
+		export(original, target);
+		assertReopenedResources(target, names, assignments);
+		// The second save merges with the archive written by the first one.
+		addRow(original);
+		MpoFileImporter resave = new MpoFileImporter();
+		resave.setFileName(target.toString());
+		resave.setProject(original);
+		resave.exportFile();
+		assertTrue(resave.confirmSavedState(), "a re-save must not leave the project looking edited");
+		assertReopenedResources(target, names, assignments);
+	}
+
+	/** Issue #967: a remnant MPO from an earlier attempt must not block Save As. */
+	@Test
+	void savingPodOverRemnantMpoFromEarlierAttemptKeepsResources(@TempDir Path directory) throws Exception {
+		Path target = directory.resolve("Commercial construction project plan2.mpo");
+		export(loadSample(), target);
+		Project original = loadSample();
+		List<String> names = resourceNames(original);
+		int assignments = assignmentCount(original);
+		addRow(original);
+		// A plain save must not replace a file that holds another document.
+		assertThrows(java.io.IOException.class, () -> export(original, target));
+		MpoFileImporter saveAs = new MpoFileImporter();
+		saveAs.setFileName(target.toString());
+		saveAs.setProject(original);
+		saveAs.setReplaceDifferentDocument(true);
+		saveAs.exportFile();
+		assertReopenedResources(target, names, assignments);
+	}
+
+	private static Project loadSample() throws Exception {
+		LocalFileImporter pod = new LocalFileImporter();
+		pod.setFileName(Path.of("../../samples/Commercial construction project plan2.pod").toAbsolutePath().normalize().toString());
+		pod.importFile();
+		return pod.getProject();
+	}
+
+	private static void addRow(Project project) {
+		NormalTask row = new NormalTask(project);
+		row.setName("Row added after POD open");
+		project.connectTask(row);
+		project.addToDefaultOutline(null, NodeFactory.getInstance().createNode(row));
+	}
+
+	private static void export(Project project, Path target) throws Exception {
+		MpoFileImporter writer = new MpoFileImporter();
+		writer.setFileName(target.toString());
+		writer.setProject(project);
+		writer.exportFile();
+	}
+
+	private static void assertReopenedResources(Path target, List<String> names, int assignments) throws Exception {
+		MpoFileImporter reader = new MpoFileImporter();
+		reader.setFileName(target.toString());
+		reader.setProjectFactory(ProjectFactory.getInstance());
+		reader.importFile();
+		Project reopened = reader.getProject();
+		assertEquals(names, resourceNames(reopened));
+		assertEquals(assignments, assignmentCount(reopened));
+		for (Resource resource : reopened.getResourcePool().getResourceList())
+			assertNotNull(reopened.getResourcePool().getResourceOutline().search(resource), resource.getName());
+	}
+
+	private static List<String> resourceNames(Project project) {
+		return project.getResourcePool().getResourceList().stream().map(Resource::getName).sorted().toList();
+	}
+
+	private static int assignmentCount(Project project) {
+		return project.getResourcePool().getResourceList().stream().mapToInt(r -> r.getAssignments().size()).sum();
 	}
 }

@@ -22,6 +22,10 @@ public interface SessionImporter {
 	Job getExportFileJob();
 	void importFile() throws Exception;
 	void exportFile() throws Exception;
+	/** Allows an explicit Save As to replace an existing file holding another document. */
+	default void setReplaceDifferentDocument(boolean replaceDifferentDocument) { }
+	/** Whether the open project still equals what the completed export wrote. */
+	default boolean confirmSavedState() { return true; }
 	boolean saveProject(Project project, OutputStream out) throws Exception;
 	Project loadProject(InputStream in) throws Exception;
 	void setFileName(String fileName);
