@@ -71,9 +71,11 @@ class LocalSessionLoadAdmissionTest {
 		String canonicalKey = LocalSession.resolveProjectLoadAdmissionKey(projectFile.toString(), 0L);
 		assertEquals(canonicalKey, LocalSession.resolveProjectLoadAdmissionKey(relative.toString(), 0L));
 		assertEquals(canonicalKey, LocalSession.resolveProjectLoadAdmissionKey(symbolicLink.toString(), 0L));
-		assertEquals(File.separatorChar == '\\', canonicalKey.equals(
-				LocalSession.resolveProjectLoadAdmissionKey(projectFile.toString().toUpperCase(Locale.ROOT), 0L)),
-				"real path case aliases coalesce only on case-insensitive Windows paths");
+		Path caseAlias = Path.of(projectFile.toString().toUpperCase(Locale.ROOT));
+		boolean sameFile = Files.exists(caseAlias) && Files.isSameFile(caseAlias, projectFile);
+		assertEquals(sameFile, canonicalKey.equals(
+				LocalSession.resolveProjectLoadAdmissionKey(caseAlias.toString(), 0L)),
+				"a case alias coalesces exactly when the file system resolves it to the same file");
 	}
 
 	@Test
