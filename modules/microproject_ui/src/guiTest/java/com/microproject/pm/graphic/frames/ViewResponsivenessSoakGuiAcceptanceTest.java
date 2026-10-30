@@ -59,6 +59,7 @@ class ViewResponsivenessSoakGuiAcceptanceTest {
 	Path temp;
 
 	@Test
+	@org.junit.jupiter.api.Timeout(value = 20, unit = TimeUnit.MINUTES)
 	void mpoViewsStayResponsiveDuringLongSession() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Path pod = locateSample();
@@ -183,8 +184,6 @@ class ViewResponsivenessSoakGuiAcceptanceTest {
 		int rows = onEdt(sheet::getRowCount);
 		if (rows == 0) return 0;
 		int row = rows > 1 ? 1 + cycle % Math.min(rows - 1, 8) : 0;
-		// Keep view-switch clicks on one screen spot from registering as a double-click.
-		Thread.sleep(800);
 		clickCell(robot, sheet, nameCell(sheet, row));
 		if (!selectedWithin(sheet, row, 5_000)) {
 			String first = describeMiss(robot, sheet, row, cycle, rows);
@@ -233,6 +232,8 @@ class ViewResponsivenessSoakGuiAcceptanceTest {
 	}
 
 	private void clickCell(Robot robot, SpreadSheet sheet, int[] cell) throws Exception {
+		// Keep repeated clicks on one screen spot from registering as a double-click.
+		Thread.sleep(800);
 		Rectangle[] r = new Rectangle[1];
 		SwingUtilities.invokeAndWait(() -> {
 			sheet.scrollRectToVisible(sheet.getCellRect(cell[0], cell[1], true));
