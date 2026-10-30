@@ -34,6 +34,7 @@ import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 
 import com.microproject.collaboration.CollaborationSession;
+import com.microproject.collaboration.CollaborationLockUnavailableException;
 import com.microproject.grouping.core.Node;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.task.Project;
@@ -100,17 +101,30 @@ public final class CollaborationHelper {
 	}
 
 	private static boolean tryAcquireTasks(CollaborationSession session, Iterable<Task> tasks, Component parent, String actionLabel) {
-		Task blockedTask = session.tryAcquireTasks(tasks);
+		Task blockedTask;
+		try {
+			blockedTask = session.tryAcquireTasks(tasks);
+		} catch (CollaborationLockUnavailableException e) {
+			SwingUtilities.invokeLater(() -> Alert.warn(
+					"Cannot " + actionLabel + " because the collaboration lock is busy. Please try again.", parent));
+			return false;
+		}
 		if (blockedTask == null) {
 			return true;
 		}
-		String owner = session.describeLockOwner(blockedTask);
-		String warning = "Cannot " + actionLabel + " task \"" + blockedTask.getName()
-				+ "\" because it is locked by " + owner + ".";
+		String warning;
+		try {
+			String owner = session.describeLockOwner(blockedTask);
+			warning = "Cannot " + actionLabel + " task \"" + blockedTask.getName()
+					+ "\" because it is locked by " + owner + ".";
+		} catch (CollaborationLockUnavailableException e) {
+			warning = "Cannot " + actionLabel + " because the collaboration lock is busy. Please try again.";
+		}
+		String finalWarning = warning;
 		// Let the command return its semantic REJECTED outcome before the modal
 		// warning enters Swing's nested event loop. This keeps diagnostics and
 		// callers observable while the user-facing rejection is still open.
-		SwingUtilities.invokeLater(() -> Alert.warn(warning, parent));
+		SwingUtilities.invokeLater(() -> Alert.warn(finalWarning, parent));
 		return false;
 	}
 

@@ -225,6 +225,13 @@ public final class ResourceLevelingService {
 			return unresolved.isEmpty();
 		}
 
+		/** Revalidates preview inputs without mutating the model. */
+		public void assertCurrent() {
+			ProjectMutationState.coordinated(() -> {
+				if (sourceState != null) sourceState.assertUnchanged();
+			});
+		}
+
 		public void apply() {
 			applyAtomically(null, List.of(), null, null);
 		}
@@ -242,7 +249,11 @@ public final class ResourceLevelingService {
 		private void applyAtomicallyCoordinated(EditSupport editSupport, Collection<? extends Task> requiredTasks,
 			Runnable validationCheck, Runnable invariantCheck) {
 			List<Project> projects = affectedProjects(requiredTasks);
-			if (!hasMutations()) return;
+			if (!hasMutations()) {
+				if (sourceState != null) sourceState.assertUnchanged();
+				if (validationCheck != null) validationCheck.run();
+				return;
+			}
 			if (projects.isEmpty()) throw new IllegalStateException("Leveling plan has no owning project");
 			List<ProjectMutationState.Scope> scopes = new ArrayList<>(projects.size());
 			List<Project> openedScopes = new ArrayList<>(projects.size());
@@ -451,15 +462,19 @@ public final class ResourceLevelingService {
 		private final List<ResourceInput> resources;
 		private final List<AssignmentInput> assignments;
 		private final List<TaskInput> tasks;
+		private final Map<WorkCalendar, byte[]> calendars;
+		private final int weekStartsOn;
 
 		private PlanSourceState(List<ProjectRevision> projectRevisions, List<ResourcePoolRevision> resourcePoolRevisions,
 			List<ResourceInput> resources,
-			List<AssignmentInput> assignments, List<TaskInput> tasks) {
+			List<AssignmentInput> assignments, List<TaskInput> tasks, Map<WorkCalendar, byte[]> calendars) {
 			this.projectRevisions = List.copyOf(projectRevisions);
 			this.resourcePoolRevisions = List.copyOf(resourcePoolRevisions);
 			this.resources = List.copyOf(resources);
 			this.assignments = List.copyOf(assignments);
 			this.tasks = List.copyOf(tasks);
+			this.calendars = calendars;
+			this.weekStartsOn = CalendarOption.getInstance().getWeekStartsOn();
 		}
 
 		private static PlanSourceState capture(Collection<? extends Resource> sourceResources) {
@@ -468,6 +483,7 @@ public final class ResourceLevelingService {
 			List<ResourceInput> resourceInputs = new ArrayList<>();
 			List<AssignmentInput> assignmentInputs = new ArrayList<>();
 			List<TaskInput> taskInputs = new ArrayList<>();
+			Map<WorkCalendar, byte[]> calendars = new IdentityHashMap<>();
 			Set<Resource> seenResources = Collections.newSetFromMap(new IdentityHashMap<>());
 			Set<Assignment> seenAssignments = Collections.newSetFromMap(new IdentityHashMap<>());
 			Set<Task> seenTasks = Collections.newSetFromMap(new IdentityHashMap<>());
@@ -477,9 +493,15 @@ public final class ResourceLevelingService {
 				for (Object value : resource.getAssignments()) {
 					if (!(value instanceof Assignment assignment)) continue;
 					resourceAssignments.add(assignment);
-					if (seenAssignments.add(assignment)) assignmentInputs.add(AssignmentInput.capture(assignment));
+					if (seenAssignments.add(assignment)) {
+						assignmentInputs.add(AssignmentInput.capture(assignment));
+						captureCalendar(calendars, assignment.getEffectiveWorkCalendar());
+					}
 					Task task = assignment.getTask();
-					if (task != null && seenTasks.add(task)) taskInputs.add(TaskInput.capture(task));
+					if (task != null && seenTasks.add(task)) {
+						taskInputs.add(TaskInput.capture(task));
+						captureCalendar(calendars, task.getEffectiveWorkCalendar());
+					}
 					Project project = task == null ? null : task.getOwningProject();
 					if (project != null) {
 						revisions.putIfAbsent(project, project.getMutationState().revision());
@@ -491,14 +513,39 @@ public final class ResourceLevelingService {
 			for (ValueObjectForInterval interval : resource.getAvailabilityTable().getList())
 				availability.add(new AvailabilityInput(interval.getStart(), interval.getEnd(),
 					((Availability) interval).getMaximumUnits()));
-				resourceInputs.add(new ResourceInput(resource, resource.getMaximumUnits(), resource.getBookingTypeKind(),
+				captureCalendar(calendars, resource.getEffectiveWorkCalendar());
+				resourceInputs.add(new ResourceInput(resource, resource.getUniqueId(), resource.getName(), resource.getMaximumUnits(), resource.getBookingTypeKind(),
 				resource.isLabor(), resource.getEffectiveWorkCalendar(), List.copyOf(resourceAssignments), List.copyOf(availability)));
 			}
 			return new PlanSourceState(projectRevisions(revisions), poolRevisions(resourcePoolRevisions),
-				resourceInputs, assignmentInputs, taskInputs);
+				resourceInputs, assignmentInputs, taskInputs, calendars);
+		}
+
+		private static void captureCalendar(Map<WorkCalendar, byte[]> calendars, WorkCalendar calendar) {
+			if (calendar != null && !calendars.containsKey(calendar)) calendars.put(calendar, calendarRules(calendar));
+		}
+
+		/* Serialize only the effective rules, excluding mutable scheduling caches. */
+		private static byte[] calendarRules(WorkCalendar calendar) {
+			var definition = calendar.getConcreteInstance();
+			try (var bytes = new java.io.ByteArrayOutputStream(); var output = new java.io.ObjectOutputStream(bytes)) {
+				for (int day = 0; day < 7; day++) output.writeObject(definition.getWeekDay(day));
+				output.writeObject(definition.getExceptionDays());
+				output.writeObject(new ArrayList<>(definition.getWorkWeekPeriods()));
+				output.writeObject(new ArrayList<>(definition.getRecurringExceptions()));
+				output.flush();
+				return bytes.toByteArray();
+			} catch (java.io.IOException exception) {
+				throw new IllegalStateException("Unable to capture leveling calendar rules", exception);
+			}
 		}
 
 		private void assertUnchanged() {
+			if (weekStartsOn != CalendarOption.getInstance().getWeekStartsOn())
+				throw new IllegalStateException("Leveling preview is stale because the first weekday changed");
+			for (var entry : calendars.entrySet())
+				if (!java.util.Arrays.equals(entry.getValue(), calendarRules(entry.getKey())))
+					throw new IllegalStateException("Leveling preview is stale because calendar rules changed");
 			for (ProjectRevision revision : projectRevisions)
 				if (revision.project().getMutationState().revision() != revision.revision())
 					throw new IllegalStateException("Leveling preview is stale because the project changed");
@@ -526,10 +573,11 @@ public final class ResourceLevelingService {
 		private record ProjectRevision(Project project, long revision) { }
 		private record ResourcePoolRevision(ResourcePool pool, long revision) { }
 		private record AvailabilityInput(long start, long end, double units) { }
-		private record ResourceInput(Resource resource, double maximumUnits, BookingType.Kind bookingType,
+		private record ResourceInput(Resource resource, long uniqueId, String name, double maximumUnits, BookingType.Kind bookingType,
 			boolean labor, WorkCalendar calendar, List<Assignment> assignments, List<AvailabilityInput> availability) {
 			private boolean matches() {
-				if (resource.getMaximumUnits() != maximumUnits || resource.getBookingTypeKind() != bookingType
+				if (resource.getUniqueId() != uniqueId || !Objects.equals(resource.getName(), name)
+					|| resource.getMaximumUnits() != maximumUnits || resource.getBookingTypeKind() != bookingType
 					|| resource.isLabor() != labor || resource.getEffectiveWorkCalendar() != calendar) return false;
 				List<Assignment> currentAssignments = new ArrayList<>();
 				for (Object value : resource.getAssignments())
@@ -557,19 +605,25 @@ public final class ResourceLevelingService {
 					&& contour.equals(assignment.getWorkContour().toString(assignment.getDurationMillis()));
 			}
 		}
-		private record TaskInput(Task task, Project project, long start, long end, long delay, long totalSlack,
+		private record TaskInput(Task task, Project project, long id, long uniqueId, boolean summary, boolean milestone,
+			List<TaskSplitInterval> splits, long start, long end, long delay, long totalSlack,
 			long actualStart, double percentComplete, int priority, boolean manuallyScheduled, boolean inactive,
 			boolean complete, boolean readOnly, boolean levelingCanSplit, boolean levelAssignments,
 			WorkCalendar calendar) {
 			private static TaskInput capture(Task task) {
 				WorkCalendar calendar = task.getEffectiveWorkCalendar();
-				return new TaskInput(task, task.getOwningProject(), task.getStart(), task.getEnd(), task.getLevelingDelay(),
+				return new TaskInput(task, task.getOwningProject(), task.getId(), task.getUniqueId(), task.isSummary(), task.isMilestone(),
+					task instanceof NormalTask normal ? List.copyOf(normal.getTaskSplitIntervals()) : List.of(),
+					task.getStart(), task.getEnd(), task.getLevelingDelay(),
 					task.getTotalSlack(), task.getActualStart(), task.getPercentComplete(), task.getPriority(),
 					task.isManuallyScheduled(), task.isInactiveTask(), task.isComplete(), task.isReadOnly(),
 					task.isLevelingCanSplit(), task.isLevelAssignments(), calendar);
 			}
 			private boolean matches() {
-				return task.getOwningProject() == project && task.getStart() == start && task.getEnd() == end
+				return task.getOwningProject() == project && task.getId() == id && task.getUniqueId() == uniqueId
+					&& task.isSummary() == summary && task.isMilestone() == milestone
+					&& (task instanceof NormalTask normal ? normal.getTaskSplitIntervals() : List.of()).equals(splits)
+					&& task.getStart() == start && task.getEnd() == end
 					&& task.getLevelingDelay() == delay && task.getTotalSlack() == totalSlack
 					&& task.getActualStart() == actualStart && Double.compare(task.getPercentComplete(), percentComplete) == 0
 					&& task.getPriority() == priority && task.isManuallyScheduled() == manuallyScheduled

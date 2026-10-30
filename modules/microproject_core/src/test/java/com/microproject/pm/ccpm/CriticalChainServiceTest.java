@@ -47,6 +47,165 @@ class CriticalChainServiceTest {
 		assertEquals(2, calls.get());
 	}
 	@Test
+	void resourceConstraintSweepUsesDetachedValuesAndIdentityTokens() {
+		var first = new CriticalChainService.ResourceInterval(0, 7L, 10L, 30L);
+		var second = new CriticalChainService.ResourceInterval(1, 7L, 20L, 40L);
+		var sameTask = new CriticalChainService.ResourceInterval(1, 7L, 21L, 25L);
+		var milestone = new CriticalChainService.ResourceInterval(2, 9L, 22L, 22L);
+		var input = new java.util.ArrayList<>(List.of(first, second, sameTask, milestone));
+		var groups = new java.util.ArrayList<List<CriticalChainService.ResourceInterval>>();
+		groups.add(input);
+		var snapshot = new CriticalChainService.ResourceConstraints(groups);
+		input.clear();
+		groups.clear();
+
+		assertEquals(List.of(new CriticalChainService.ResourceLink(0, 1, 7L, 7L)),
+			CriticalChainService.resourceLinks(snapshot),
+			"linked-project ID collisions must not erase distinct task identities; milestones consume no interval");
+		assertThrows(UnsupportedOperationException.class, () -> snapshot.resources().get(0).clear());
+	}
+
+	@Test
+	void duplicateTaskIdsFailBeforePreviewApplyOrRefreshCanPublishAmbiguousResults() {
+		Fixture fixture = fixture();
+		NormalTask first = task(fixture.project, "First");
+		NormalTask second = task(fixture.project, "Second");
+		CriticalChainService service = new CriticalChainService();
+		service.settings(fixture.project).setEnabled(true);
+		service.apply(fixture.project, List.of(fixture.resource));
+		var baseline = service.findBaseline(fixture.project);
+		var snapshot = service.findAnalysis(fixture.project);
+		long delay = second.getLevelingDelay();
+		second.setUniqueId(first.getUniqueId());
+
+		var error = assertThrows(IllegalStateException.class, () -> service.preview(fixture.project, List.of(fixture.resource)));
+		assertTrue(error.getMessage().contains("duplicate unique ID"));
+		assertThrows(IllegalStateException.class, () -> service.apply(fixture.project, List.of(fixture.resource)));
+		assertThrows(IllegalStateException.class, () -> service.prepareAnalysis(fixture.project));
+		assertThrows(IllegalStateException.class, () -> service.analysis(fixture.project));
+		assertSame(baseline, service.findBaseline(fixture.project));
+		assertSame(snapshot, service.findAnalysis(fixture.project));
+		assertEquals(delay, second.getLevelingDelay());
+	}
+
+	@Test
+	void sharedResourceRejectsCollidingTaskFromAnotherProject() {
+		Fixture master = fixture();
+		Fixture linked = fixture();
+		NormalTask first = task(master.project, "Master");
+		NormalTask second = task(linked.project, "Linked");
+		second.setUniqueId(first.getUniqueId());
+		AssignmentService.getInstance().newAssignment(first, master.resource, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(second, master.resource, 1D, 0L, this);
+		CriticalChainService service = new CriticalChainService();
+		service.settings(master.project).setEnabled(true);
+		assertThrows(IllegalStateException.class, () -> service.preview(master.project, List.of(master.resource)));
+		assertThrows(IllegalStateException.class, () -> service.apply(master.project, List.of(master.resource)));
+		assertNull(service.findBaseline(master.project));
+	}
+
+	@Test
+	void ordinaryLevelingPreviewDoesNotRequireCcpmTaskIds() {
+		Fixture fixture = fixture();
+		NormalTask first = task(fixture.project, "First");
+		NormalTask second = task(fixture.project, "Second");
+		second.setUniqueId(first.getUniqueId());
+		AssignmentService.getInstance().newAssignment(first, fixture.resource, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(second, fixture.resource, 1D, 0L, this);
+
+		CriticalChainService.Analysis analysis = new CriticalChainService().preview(fixture.project,
+			List.of(fixture.resource), new CriticalChainService.Settings());
+		assertNotNull(analysis.levelingPlan(), "ordinary leveling still needs its scheduling preview");
+		assertTrue(analysis.criticalTaskIds().isEmpty(), "CCPM-only analysis is omitted while CCPM is disabled");
+		assertNull(analysis.projectBuffer(), "ordinary leveling must not publish an ambiguous CCPM buffer");
+	}
+
+	@Test
+	void stagedStatusAnalysisMatchesSynchronousAnalysisAndRejectsChangedInputs() throws Exception {
+		Fixture fixture = fixture();
+		NormalTask first = task(fixture.project, "First");
+		NormalTask second = task(fixture.project, "Second");
+		AssignmentService.getInstance().newAssignment(first, fixture.resource, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(second, fixture.resource, 1D, 0L, this);
+		CriticalChainService service = new CriticalChainService();
+		service.settings(fixture.project).setEnabled(true);
+		service.settings(fixture.project).setLevelAssignments(false);
+		service.apply(fixture.project, List.of(fixture.resource));
+		var expected = service.analysis(fixture.project);
+		var pending = service.prepareAnalysis(fixture.project);
+		var worker = java.util.concurrent.Executors.newSingleThreadExecutor();
+		try {
+			var result = worker.submit(pending.work()::compute).get();
+			var actual = service.finishAnalysis(pending, result);
+			assertNotNull(actual);
+			assertEquals(expected.criticalTaskIds(), actual.criticalTaskIds());
+			assertEquals(expected.resourcePredecessors(), actual.resourcePredecessors());
+			assertEquals(expected.projectBuffer(), actual.projectBuffer());
+			assertEquals(expected.feedingBuffers(), actual.feedingBuffers());
+			assertEquals(expected.resourceBuffers(), actual.resourceBuffers());
+			assertEquals(java.util.Set.copyOf(expected.graphEdges()), java.util.Set.copyOf(actual.graphEdges()));
+
+			pending = service.prepareAnalysis(fixture.project);
+			result = worker.submit(pending.work()::compute).get();
+			first.setPriority(first.getPriority() - 1);
+			assertNull(service.finishAnalysis(pending, result), "changed model inputs must discard the result");
+			assertSame(actual, service.findAnalysis(fixture.project), "stale work must not publish an analysis");
+			pending = service.prepareAnalysis(fixture.project);
+			result = worker.submit(pending.work()::compute).get();
+			service.settings(fixture.project).setBufferFraction(0.25D);
+			assertNull(service.finishAnalysis(pending, result), "changed options must discard the result");
+			service.settings(fixture.project).setBufferFraction(0.5D);
+			pending = service.prepareAnalysis(fixture.project);
+			result = worker.submit(pending.work()::compute).get();
+			first.setPercentComplete(0.5D);
+			assertNull(service.finishAnalysis(pending, result), "changed progress must discard detached buffer results");
+			var refreshed = service.prepareAnalysis(fixture.project);
+			var refreshedResult = worker.submit(refreshed.work()::compute).get();
+			assertEquals(service.analysis(fixture.project).resourceBuffers(),
+				service.finishAnalysis(refreshed, refreshedResult).resourceBuffers());
+		} finally { worker.shutdownNow(); }
+	}
+
+	@Test
+	void levelingPreviewRejectsIdAndWeekStartChanges() {
+		Fixture fixture = fixture();
+		NormalTask first = task(fixture.project, "First");
+		AssignmentService.getInstance().newAssignment(first, fixture.resource, 1D, 0L, this);
+		CriticalChainService service = new CriticalChainService();
+		var staleId = service.preview(fixture.project, List.of(fixture.resource)).levelingPlan();
+		first.setId(first.getId() + 100L);
+		assertThrows(IllegalStateException.class, staleId::assertCurrent);
+		var staleWeek = service.preview(fixture.project, List.of(fixture.resource)).levelingPlan();
+		CalendarOption calendarOptions = CalendarOption.getInstance();
+		int oldWeekStart = calendarOptions.getWeekStartsOn();
+		try {
+			calendarOptions.setWeekStartsOn(oldWeekStart == java.util.Calendar.MONDAY ? java.util.Calendar.SUNDAY : java.util.Calendar.MONDAY);
+			assertThrows(IllegalStateException.class, staleWeek::assertCurrent);
+		} finally { calendarOptions.setWeekStartsOn(oldWeekStart); }
+	}
+
+	@Test
+	void detachedResourceWorkHonorsInterruptAndRejectsAnotherRequestResult() throws Exception {
+		Fixture fixture = fixture();
+		NormalTask task = task(fixture.project, "Task");
+		AssignmentService.getInstance().newAssignment(task, fixture.resource, 1D, 0L, this);
+		CriticalChainService service = new CriticalChainService();
+		service.settings(fixture.project).setEnabled(true);
+		service.apply(fixture.project, List.of(fixture.resource));
+		var first = service.prepareAnalysis(fixture.project);
+		var second = service.prepareAnalysis(fixture.project);
+		assertThrows(IllegalArgumentException.class, () -> service.finishAnalysis(first, second.work().compute()));
+		var worker = java.util.concurrent.Executors.newSingleThreadExecutor();
+		try {
+			assertTrue(worker.submit(() -> {
+				Thread.currentThread().interrupt();
+				try { first.work().compute(); return false; }
+				catch (java.util.concurrent.CancellationException expected) { return true; }
+			}).get());
+		} finally { worker.shutdownNow(); }
+	}
+
+	@Test
 	void previewFindsResourceConstraintWithoutMutatingSchedule() {
 		Fixture fixture = fixture();
 		NormalTask first = task(fixture.project, "First");

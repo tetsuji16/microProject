@@ -68,6 +68,7 @@ public class Job extends Thread {
 	protected boolean customCriticalSection;
 	protected Object monitorComponent;
 	private volatile Exception failureException;
+	private volatile String queueAdmissionKey;
 
 	public Job(JobQueue jobQueue, String name,String title,boolean showProgress) {
 		this(jobQueue,name,title,showProgress,null);
@@ -107,6 +108,20 @@ public class Job extends Thread {
 
 	public JobQueue getJobQueue() {
 		return jobQueue;
+	}
+
+	/**
+	 * Sets the queue coalescing key, which may differ from the user-visible job
+	 * name. An unset key preserves the historical name-based behavior.
+	 */
+	public void setQueueAdmissionKey(String queueAdmissionKey) {
+		this.queueAdmissionKey = queueAdmissionKey == null || queueAdmissionKey.isBlank()
+				? null : queueAdmissionKey;
+	}
+
+	public String getQueueAdmissionKey() {
+		String key = queueAdmissionKey;
+		return key == null ? getName() : key;
 	}
 
 
@@ -467,6 +482,11 @@ public class Job extends Thread {
 
 	protected Object getResult(){
 		return (previousRunnable==null)?null:previousRunnable.getResult();
+	}
+
+	/** Returns the last runnable's result after a completion listener is invoked. */
+	public Object getCompletionResult() {
+		return getResult();
 	}
 	/**
 	 * Returns the exception that caused execution to enter an exception handler.

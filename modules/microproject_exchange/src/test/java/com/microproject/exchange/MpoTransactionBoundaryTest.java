@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.pm.task.Project;
@@ -147,6 +148,186 @@ class MpoTransactionBoundaryTest {
 				"a post-replacement apply failure must be explicit and retryable");
 			retrying.exportFile();
 			assertTrue(Files.size(target) > 0L, "retry must leave a readable archive");
+		} finally {
+			Files.deleteIfExists(target);
+			Files.deleteIfExists(target.resolveSibling(target.getFileName() + ".lock"));
+		}
+	}
+
+	@Disabled("Known data-loss race during MPO save: issue #970")
+	@Test
+	void laterEditMustSurviveRemoteMergeCommit() throws Exception {
+		Project local = loadSample();
+		Path target = Files.createTempFile("mpof-later-edit-", ".mpo");
+		try {
+			MpoFileImporter initial = new MpoFileImporter();
+			initial.setFileName(target.toString()); initial.setProject(local); initial.exportFile();
+			MpoFileImporter reader = new MpoFileImporter();
+			reader.setProjectFactory(ProjectFactory.getInstance());
+			Project remote = reader.loadProject(new ByteArrayInputStream(Files.readAllBytes(target)));
+			Task remoteTask = (Task) remote.getTaskOutlineIterator().next();
+			remoteTask.setName("remote edit");
+			MpoFileImporter remoteWriter = new MpoFileImporter();
+			remoteWriter.setFileName(target.toString()); remoteWriter.setProject(remote); remoteWriter.exportFile();
+			Task localTask = (Task) local.getTaskOutlineIterator().next();
+			MpoFileImporter writer = new MpoFileImporter() {
+				@Override protected void moveTemporary(Path temporary, Path destination) throws IOException {
+					super.moveTemporary(temporary, destination);
+					localTask.setName("later local edit");
+				}
+			};
+			writer.setFileName(target.toString()); writer.setProject(local);
+			assertThrows(MpoPartialApplyException.class, writer::exportFile);
+			assertEquals("later local edit", localTask.getName());
+			assertThrows(MpoConflictRecoveryException.class, writer::exportFile);
+			assertEquals("later local edit", localTask.getName());
+		} finally {
+			Files.deleteIfExists(target);
+			Files.deleteIfExists(target.resolveSibling(target.getFileName() + ".lock"));
+		}
+	}
+
+	@Test
+	void laterDifferentFieldSurvivesMergeAndRetry() throws Exception {
+		Project local = loadSample();
+		Path target = Files.createTempFile("mpof-later-notes-", ".mpo");
+		try {
+			MpoFileImporter initial = new MpoFileImporter();
+			initial.setFileName(target.toString()); initial.setProject(local); initial.exportFile();
+			MpoFileImporter reader = new MpoFileImporter();
+			reader.setProjectFactory(ProjectFactory.getInstance());
+			Project remote = reader.loadProject(new ByteArrayInputStream(Files.readAllBytes(target)));
+			((Task) remote.getTaskOutlineIterator().next()).setName("remote edit");
+			MpoFileImporter remoteWriter = new MpoFileImporter();
+			remoteWriter.setFileName(target.toString()); remoteWriter.setProject(remote); remoteWriter.exportFile();
+			Task localTask = (Task) local.getTaskOutlineIterator().next();
+			AtomicBoolean editOnce = new AtomicBoolean(true);
+			MpoFileImporter writer = new MpoFileImporter() {
+				@Override protected void moveTemporary(Path temporary, Path destination) throws IOException {
+					super.moveTemporary(temporary, destination);
+					if (editOnce.getAndSet(false)) localTask.setNotes("later notes");
+				}
+			};
+			writer.setFileName(target.toString()); writer.setProject(local); writer.exportFile();
+			assertEquals("remote edit", localTask.getName());
+			assertEquals("later notes", localTask.getNotes());
+			writer.exportFile();
+			Project reopened = reader.loadProject(new ByteArrayInputStream(Files.readAllBytes(target)));
+			Task reopenedTask = (Task) reopened.getTaskOutlineIterator().next();
+			assertEquals("remote edit", reopenedTask.getName());
+			assertEquals("later notes", reopenedTask.getNotes());
+		} finally {
+			Files.deleteIfExists(target);
+			Files.deleteIfExists(target.resolveSibling(target.getFileName() + ".lock"));
+		}
+	}
+
+	@Disabled("Known data-loss race during MPO save: issue #970")
+	@Test
+	void laterDurationEditMustNotBeReportedAsSaved() throws Exception {
+		Project local = loadSample();
+		Path target = Files.createTempFile("mpof-later-duration-", ".mpo");
+		try {
+			MpoFileImporter initial = new MpoFileImporter();
+			initial.setFileName(target.toString()); initial.setProject(local); initial.exportFile();
+			MpoFileImporter reader = new MpoFileImporter();
+			reader.setProjectFactory(ProjectFactory.getInstance());
+			Project remote = reader.loadProject(new ByteArrayInputStream(Files.readAllBytes(target)));
+			((Task) remote.getTaskOutlineIterator().next()).setName("remote edit");
+			MpoFileImporter remoteWriter = new MpoFileImporter();
+			remoteWriter.setFileName(target.toString()); remoteWriter.setProject(remote); remoteWriter.exportFile();
+			Task localTask = (Task) local.getTaskOutlineIterator().next();
+			long laterDuration = localTask.getDuration() + 8L * 60 * 60 * 1000;
+			MpoFileImporter writer = new MpoFileImporter() {
+				@Override protected void moveTemporary(Path temporary, Path destination) throws IOException {
+					super.moveTemporary(temporary, destination);
+					localTask.setDuration(laterDuration);
+				}
+			};
+			writer.setFileName(target.toString()); writer.setProject(local);
+			assertThrows(MpoPartialApplyException.class, writer::exportFile);
+			assertEquals(laterDuration, localTask.getDuration());
+		} finally {
+			Files.deleteIfExists(target);
+			Files.deleteIfExists(target.resolveSibling(target.getFileName() + ".lock"));
+		}
+	}
+	@Test
+	void failedMergePreflightRemovesStagedArchive() throws Exception {
+		Project local = loadSample();
+		Path target = Files.createTempFile("mpof-preflight-cleanup-", ".mpo");
+		try {
+			MpoFileImporter initial = new MpoFileImporter();
+			initial.setFileName(target.toString()); initial.setProject(local); initial.exportFile();
+			byte[] before = Files.readAllBytes(target);
+			Path[] stage = new Path[1];
+			MpoFileImporter writer = new MpoFileImporter() {
+				@Override protected java.io.File createTemporaryFile(java.io.File destination) throws IOException {
+					java.io.File file = super.createTemporaryFile(destination);
+					stage[0] = file.toPath();
+					return file;
+				}
+				@Override protected void verifyMergeApplicability(Project source,
+						List<OperationLog.Operation> operations, java.util.Set<String> applied) throws IOException {
+					throw new IOException("injected preflight failure");
+				}
+			};
+			writer.setFileName(target.toString()); writer.setProject(local);
+			assertThrows(IOException.class, writer::exportFile);
+			assertTrue(stage[0] != null && !Files.exists(stage[0]));
+			assertArrayEquals(before, Files.readAllBytes(target));
+		} finally {
+			Files.deleteIfExists(target);
+			Files.deleteIfExists(target.resolveSibling(target.getFileName() + ".lock"));
+		}
+	}
+
+	@Disabled("Known data-loss race during MPO save: issue #970")
+	@Test
+	void laterNotesOnSameFieldMustSurviveRemoteMerge() throws Exception {
+		Project local = loadSample();
+		Path target = Files.createTempFile("mpof-later-same-notes-", ".mpo");
+		try {
+			MpoFileImporter initial = new MpoFileImporter();
+			initial.setFileName(target.toString()); initial.setProject(local); initial.exportFile();
+			MpoFileImporter reader = new MpoFileImporter();
+			reader.setProjectFactory(ProjectFactory.getInstance());
+			Project remote = reader.loadProject(new ByteArrayInputStream(Files.readAllBytes(target)));
+			((Task) remote.getTaskOutlineIterator().next()).setNotes("remote notes");
+			MpoFileImporter remoteWriter = new MpoFileImporter();
+			remoteWriter.setFileName(target.toString()); remoteWriter.setProject(remote); remoteWriter.exportFile();
+			Task localTask = (Task) local.getTaskOutlineIterator().next();
+			MpoFileImporter writer = new MpoFileImporter() {
+				@Override protected void moveTemporary(Path temporary, Path destination) throws IOException {
+					super.moveTemporary(temporary, destination);
+					localTask.setNotes("later local notes");
+				}
+			};
+			writer.setFileName(target.toString()); writer.setProject(local);
+			assertThrows(MpoPartialApplyException.class, writer::exportFile);
+			assertEquals("later local notes", localTask.getNotes());
+		} finally {
+			Files.deleteIfExists(target);
+			Files.deleteIfExists(target.resolveSibling(target.getFileName() + ".lock"));
+		}
+	}
+
+	@Disabled("Known data-loss race during MPO save: issue #970")
+	@Test
+	void editDuringInitialSaveMustNotBeReportedAsSaved() throws Exception {
+		Project local = loadSample();
+		Path target = Files.createTempFile("mpof-initial-later-edit-", ".mpo");
+		try {
+			Task localTask = (Task) local.getTaskOutlineIterator().next();
+			MpoFileImporter writer = new MpoFileImporter() {
+				@Override protected void moveTemporary(Path temporary, Path destination) throws IOException {
+					super.moveTemporary(temporary, destination);
+					localTask.setName("later local edit");
+				}
+			};
+			writer.setFileName(target.toString()); writer.setProject(local);
+			assertThrows(MpoPartialApplyException.class, writer::exportFile);
+			assertEquals("later local edit", localTask.getName());
 		} finally {
 			Files.deleteIfExists(target);
 			Files.deleteIfExists(target.resolveSibling(target.getFileName() + ".lock"));

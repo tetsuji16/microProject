@@ -81,7 +81,7 @@ public final class TaskModeService {
 				try {
 					entry.getValue().restore(entry.getKey(), this);
 				} catch (RuntimeException | Error compensationFailure) {
-					failure.addSuppressed(compensationFailure);
+					if (compensationFailure != failure) failure.addSuppressed(compensationFailure);
 				}
 			}
 			for (int i = attempted - 1; i >= 0; i--) {
@@ -89,7 +89,7 @@ public final class TaskModeService {
 				try {
 					task.restoreManualSchedulingState(before[i], manualStarts[i], manualFinishes[i]);
 				} catch (RuntimeException | Error compensationFailure) {
-					failure.addSuppressed(compensationFailure);
+					if (compensationFailure != failure) failure.addSuppressed(compensationFailure);
 				}
 			}
 			for (int i = projects.size() - 1; i >= 0; i--) {
@@ -97,13 +97,13 @@ public final class TaskModeService {
 				try {
 					project.endEventBatch(false);
 				} catch (RuntimeException | Error compensationFailure) {
-					failure.addSuppressed(compensationFailure);
+					if (compensationFailure != failure) failure.addSuppressed(compensationFailure);
 				}
 				try {
 					mutations.get(project).commit(false);
 					mutations.get(project).close();
 				} catch (RuntimeException | Error compensationFailure) {
-					failure.addSuppressed(compensationFailure);
+					if (compensationFailure != failure) failure.addSuppressed(compensationFailure);
 				}
 			}
 			throw failure;

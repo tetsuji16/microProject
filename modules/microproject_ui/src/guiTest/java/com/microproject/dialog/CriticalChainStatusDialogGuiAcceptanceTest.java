@@ -250,6 +250,15 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 		ResourceLevelingDialogBox settings = findResourceLevelingDialog();
 		assertTrue(findButton(settings, UsabilityStrings.text("leveling.apply")) != null,
 			"CCPM settings must expose Apply");
+		AbstractButton toggle = findButton(settings, UsabilityStrings.text("ccpm.enabled"));
+		click(robot, toggle);
+		assertFalse(findButton(settings, UsabilityStrings.text("leveling.apply")).isEnabled(),
+			"changing CCPM mode must invalidate the displayed preview");
+		assertTrue(service.findBaseline(project) == null);
+		click(robot, toggle);
+		assertFalse(findButton(settings, UsabilityStrings.text("leveling.apply")).isEnabled());
+		click(robot, findButton(settings, UsabilityStrings.text("leveling.preview")));
+		assertTrue(findButton(settings, UsabilityStrings.text("leveling.apply")).isEnabled());
 		click(robot, findButton(settings, UsabilityStrings.text("leveling.apply")));
 		GuiAcceptanceSupport.await(() -> service.findBaseline(project) != null,
 			"physical Apply did not generate and persist the CCPM baseline");
@@ -266,7 +275,8 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 		observer.close();
 		observer = null;
 		CriticalChainStatusDialogBox buffer = openStatusDialog(project, robot);
-		assertTrue(visibleComponentExists(buffer, CriticalChainBufferChartPanel.class),
+		// The analysis aggregates in a worker, so the chart arrives after the dialog opens.
+		GuiAcceptanceSupport.await(() -> visibleComponentExists(buffer, CriticalChainBufferChartPanel.class),
 			"applied plan must render the buffer view");
 		robot.keyPress(java.awt.event.KeyEvent.VK_CONTROL);
 		robot.keyPress(java.awt.event.KeyEvent.VK_Z);
@@ -295,16 +305,38 @@ class CriticalChainStatusDialogGuiAcceptanceTest {
 
 	private void assertDialogShows(Project project, CriticalChainStatusDialogBox.Surface surface,
 		Class<? extends Component> expectedComponent) throws Exception {
+		CriticalChainService service = new CriticalChainService();
+		CriticalChainService.Baseline baseline = service.findBaseline(project);
+		boolean couldUndo = project.getUndoController().canUndo();
+		var starts = project.getTaskList().stream().map(Task::getStart).toList();
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		observer = new DialogObserver();
 		observer.open(project, robot);
-		observer.show(project, surface);
+		// The root-pane keyboard route is the documented physical shortcut for
+		// the same network and buffer commands exposed on the ribbon.
+		int shortcut = surface == CriticalChainStatusDialogBox.Surface.NETWORK
+			? java.awt.event.KeyEvent.VK_N : java.awt.event.KeyEvent.VK_K;
+		robot.keyPress(java.awt.event.KeyEvent.VK_CONTROL);
+		robot.keyPress(java.awt.event.KeyEvent.VK_SHIFT);
+		robot.keyPress(shortcut);
+		robot.keyRelease(shortcut);
+		robot.keyRelease(java.awt.event.KeyEvent.VK_SHIFT);
+		robot.keyRelease(java.awt.event.KeyEvent.VK_CONTROL);
 		CriticalChainStatusDialogBox dialog = observer.awaitDialog();
 		GuiAcceptanceSupport.await(() -> visibleComponentExists(dialog, expectedComponent),
 			"CCPM " + surface + " dialog did not render " + expectedComponent.getSimpleName());
 		assertTrue(isShowing(dialog), "CCPM result dialog must remain visibly open while its graph is rendered");
-		SwingUtilities.invokeAndWait(dialog::dispose);
-		assertTrue(observer.showReturned.await(5, TimeUnit.SECONDS), "modal CCPM dialog did not close");
+		SwingUtilities.invokeAndWait(() -> { dialog.setAlwaysOnTop(true); dialog.toFront(); dialog.requestFocus(); });
+		AbstractButton close = findButton(dialog, UsabilityStrings.text("common.close"));
+		assertTrue(close != null && close.isShowing(), "CCPM result must expose a physical Close button");
+		click(robot, close);
+		GuiAcceptanceSupport.await(() -> !isShowing(dialog), "physical Close did not close the modal CCPM dialog");
+		assertFalse(isShowing(dialog), "physical Close must hide the rendered result");
+		assertEquals(baseline, service.findBaseline(project), "read-only analysis must not change the CCPM baseline");
+		assertEquals(starts, project.getTaskList().stream().map(Task::getStart).toList(),
+			"opening and closing the result must not move tasks");
+		assertEquals(couldUndo, project.getUndoController().canUndo(),
+			"read-only analysis must not add or consume Undo history");
 		observer.close();
 		observer = null;
 	}

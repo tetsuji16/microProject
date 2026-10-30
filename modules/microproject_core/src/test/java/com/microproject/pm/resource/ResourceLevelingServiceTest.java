@@ -254,6 +254,59 @@ class ResourceLevelingServiceTest {
 	}
 
 	@Test
+	void applyRejectsChangesToEffectiveCalendarRulesEvenWhenCalendarIdentityIsUnchanged() {
+		Fixture fixture = fixture();
+		var calendar = com.microproject.pm.calendar.WorkingCalendar.getStandardBasedInstance();
+		fixture.resource.setWorkCalendar(calendar);
+		NormalTask first = task(fixture.project, "First", 1L);
+		NormalTask second = task(fixture.project, "Second", 1L);
+		AssignmentService.getInstance().newAssignment(first, fixture.resource, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(second, fixture.resource, 1D, 0L, this);
+		ResourceLevelingService.Plan stale = new ResourceLevelingService().preview(
+			fixture.project, List.of(fixture.resource), wholeTaskOptions());
+		assertTrue(stale.hasChanges());
+		var workingMonday = calendar.getConcreteInstance().getWeekDay(1).clone();
+		calendar.setWeekDay(0, workingMonday);
+		calendar.invalidate();
+		assertThrows(IllegalStateException.class, stale::apply);
+		assertEquals(0L, second.getLevelingDelay());
+	}
+
+	@Test
+	void applyRejectsAddedCalendarExceptionOutsideCurrentTaskDates() {
+		Fixture fixture = fixture();
+		var calendar = com.microproject.pm.calendar.WorkingCalendar.getStandardBasedInstance();
+		fixture.resource.setWorkCalendar(calendar);
+		NormalTask first = task(fixture.project, "First", 1L);
+		NormalTask second = task(fixture.project, "Second", 1L);
+		AssignmentService.getInstance().newAssignment(first, fixture.resource, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(second, fixture.resource, 1D, 0L, this);
+		ResourceLevelingService.Plan stale = new ResourceLevelingService().preview(
+			fixture.project, List.of(fixture.resource), wholeTaskOptions());
+		long later = second.getEnd() + 30L * com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_DAY;
+		calendar.addOrReplaceException(new com.microproject.pm.calendar.WorkDay(later, later, "Later exception"));
+		assertThrows(IllegalStateException.class, stale::apply);
+		assertEquals(0L, second.getLevelingDelay());
+	}
+
+	@Test
+	void emptyPlanStillRejectsChangedCalendarRules() {
+		Fixture fixture = fixture();
+		var calendar = com.microproject.pm.calendar.WorkingCalendar.getStandardBasedInstance();
+		fixture.resource.setWorkCalendar(calendar);
+		NormalTask task = task(fixture.project, "Only task", 1L);
+		AssignmentService.getInstance().newAssignment(task, fixture.resource, 1D, 0L, this);
+		ResourceLevelingService.Plan stale = new ResourceLevelingService().preview(
+			fixture.project, List.of(fixture.resource), wholeTaskOptions());
+		assertFalse(stale.hasChanges());
+		var workingMonday = calendar.getConcreteInstance().getWeekDay(1).clone();
+		calendar.setWeekDay(0, workingMonday);
+		calendar.invalidate();
+		assertThrows(IllegalStateException.class, stale::apply);
+		assertEquals(0L, task.getLevelingDelay());
+	}
+
+	@Test
 	void applyRejectsStaleTaskScheduleRevisionBeforeMutation() {
 		Fixture fixture = fixture();
 		NormalTask first = task(fixture.project, "First", 1L);
