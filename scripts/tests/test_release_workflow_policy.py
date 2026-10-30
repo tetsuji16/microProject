@@ -43,9 +43,12 @@ try {
 		)
 		self.assertEqual(0, result.returncode, result.stdout + result.stderr)
 
-	def test_manual_build_can_target_macos_and_keeps_test_reports(self):
-		self.assertRegex(self.build, r"(?ms)^  workflow_dispatch:\n    inputs:\n      runner_os:.*?default: ubuntu-latest\n        type: choice\n        options:\n          - ubuntu-latest\n          - macos-latest")
-		self.assertIn("runs-on: ${{ github.event_name == 'workflow_dispatch' && inputs.runner_os || 'ubuntu-latest' }}", self.build)
+	def test_build_tests_every_release_os_and_keeps_test_reports(self):
+		self.assertRegex(self.build, r"(?ms)^  workflow_dispatch:\n    inputs:\n      runner_os:.*?default: ubuntu-latest\n        type: choice\n        options:\n          - ubuntu-latest\n          - windows-latest\n          - macos-latest")
+		self.assertIn("""fromJSON('["ubuntu-latest","windows-latest","macos-latest"]')""", self.build)
+		self.assertIn("fail-fast: false", self.build)
+		self.assertIn("needs: verify", self.build)
+		self.assertIn('test "${{ needs.verify.result }}" = success', self.build)
 		self.assertRegex(self.build, r"(?ms)- name: Install fonts used by report rendering tests\n        if: runner.os == 'Linux'\n")
 		self.assertIn("if: always()", self.build)
 		self.assertIn("modules/**/build/reports/tests/test", self.build)
