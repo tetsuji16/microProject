@@ -519,6 +519,7 @@ public class LocalSession extends AbstractSession{
 			
 			importer.setFileName(fileName);
 			importer.setProject(project);
+			importer.setReplaceDifferentDocument(opt.isSaveAs() && requestedFileName != null && i == 0);
 			if (opt.getPreSaving() != null)
 				opt.getPreSaving().accept(project);
 
@@ -526,8 +527,10 @@ public class LocalSession extends AbstractSession{
 			job.addSwingRunnable(new JobRunnable("Local: saveProject end"){
 				public Object run() throws Exception{
 					if (!opt.isRecoverySnapshot()) {
+						// An edit made after the export committed stays unsaved.
+						boolean saved = importer.confirmSavedState();
 						project.setFileName(fileName);
-					project.setGroupDirty(false);
+						if (saved) project.setGroupDirty(false);
 					}
 					if (opt.getPostSaving()!=null) opt.getPostSaving().accept(project);
 	    	    	return null;
