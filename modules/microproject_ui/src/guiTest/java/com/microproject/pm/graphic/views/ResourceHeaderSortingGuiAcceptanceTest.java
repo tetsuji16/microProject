@@ -447,6 +447,16 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 		robot.setAutoDelay(45);
 		if (largeProject) {
 			DocumentFrame frame = manager.getFrameForProject(project);
+			// DocumentFrame activates its first view in a queued EDT task.
+			GuiAcceptanceSupport.await(() -> {
+				boolean[] active = new boolean[1];
+				try {
+					SwingUtilities.invokeAndWait(() -> active[0] = frame.getActiveTopView() != null);
+				} catch (Exception ex) {
+					throw new RuntimeException(ex);
+				}
+				return active[0];
+			}, "the first view was not activated");
 			assertTrue(frame.getActiveTopView().showsTasks(), "the journey must start on a task view");
 			String viewTabText = java.util.ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("ViewRibbonTask.title");
