@@ -102,7 +102,8 @@ class ViewResponsivenessSoakGuiAcceptanceTest {
 				"real Open route did not open the MPO");
 			DocumentFrame frame = m[0].findFrameForProjectFile(mpo.toString());
 			Project project = frame.getProject();
-			assertNotNull(project.getCollaborationSession(), "MPO opened through the real route must own a CollaborationSession");
+			GuiAcceptanceSupport.await(() -> project.getCollaborationSession() != null,
+				"MPO opened through the real route must own a CollaborationSession");
 			GuiAcceptanceSupport.await(frame::isShowing, "document frame did not become visible");
 			applyCcpm(project);
 			soak(m[0], frame, project, uncaught);
