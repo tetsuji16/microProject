@@ -22,7 +22,7 @@ import com.microproject.job.JobQueue;
 class LocalSessionLoadAdmissionTest {
 	/** A relative alias needs the working drive, and hosted Windows keeps temp files on another one. */
 	private static Path directoryOnWorkingDrive() throws java.io.IOException {
-		return Files.createTempDirectory(Files.createDirectories(Path.of("build", "tmp")), "load-admission");
+		return Files.createTempDirectory(Files.createDirectories(Path.of("build", "tmp").toAbsolutePath()), "load-admission");
 	}
 
 	@Test
