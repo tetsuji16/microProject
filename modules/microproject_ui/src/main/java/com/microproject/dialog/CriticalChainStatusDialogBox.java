@@ -47,6 +47,7 @@ public final class CriticalChainStatusDialogBox extends FlatLafDialog {
 	private JButton retractObservation;
 	private final JLabel feedback = new JLabel(" ");
 	private boolean settingsOpening;
+	private javax.swing.SwingWorker<CriticalChainService.ResourceWorkResult, Void> analysisWorker;
 
 	public enum Surface { BUFFER_STATUS, NETWORK }
 
@@ -162,34 +163,65 @@ public final class CriticalChainStatusDialogBox extends FlatLafDialog {
 		});
 	}
 
+	@Override public void dispose() {
+		if (analysisWorker != null) analysisWorker.cancel(true);
+		super.dispose();
+	}
+
 	private void loadAnalysis(CriticalChainService service, Project project, Surface surface, JPanel content) {
-		// The project model is edited on the EDT and is not safe to traverse while
-		// spreadsheet edits are in progress. Defer one event so the loading label
-		// paints, then analyze on the same thread that owns the model.
+		// Capture and the remaining model operations stay on the EDT. Only the
+		// immutable resource interval sweep and buffer aggregation run in the worker.
 		SwingUtilities.invokeLater(() -> {
-				if (content == null) return;
-				try {
-					CriticalChainService.Analysis analysis = service.analysis(project);
-					content.removeAll();
-					if (analysis == null) content.add(new JLabel(UsabilityStrings.text("ccpm.noAppliedPlan")), BorderLayout.CENTER);
-					else if (surface == Surface.NETWORK) {
-						CriticalChainGraphPanel graph = new CriticalChainGraphPanel(project);
-						graph.setAnalysis(analysis);
-						content.add(new JScrollPane(graph), BorderLayout.CENTER);
-					} else {
-						bufferChart = new CriticalChainBufferChartPanel(project);
-						bufferChart.setSelectionListener(ignored -> updateRetractionEnabled());
-						bufferChart.setAnalysis(analysis, true);
-						content.add(bufferChart, BorderLayout.CENTER);
-						updateRetractionEnabled();
+			if (!isDisplayable()) return;
+			try {
+				CriticalChainService.PendingAnalysis pending = service.prepareAnalysis(project);
+				if (pending == null) { showAnalysisMessage(content, "ccpm.noAppliedPlan"); return; }
+				CriticalChainService.ResourceWork work = pending.work();
+				analysisWorker = new javax.swing.SwingWorker<>() {
+					@Override protected CriticalChainService.ResourceWorkResult doInBackground() { return work.compute(); }
+					@Override protected void done() {
+						if (!isDisplayable() || isCancelled()) return;
+						try {
+							CriticalChainService.Analysis analysis = service.finishAnalysis(pending, get());
+							if (analysis == null) { showAnalysisMessage(content, "ccpm.analysisStale"); return; }
+							content.removeAll();
+							if (surface == Surface.NETWORK) {
+								CriticalChainGraphPanel graph = new CriticalChainGraphPanel(project);
+								graph.setAnalysis(analysis);
+								content.add(new JScrollPane(graph), BorderLayout.CENTER);
+							} else {
+								bufferChart = new CriticalChainBufferChartPanel(project);
+								bufferChart.setSelectionListener(ignored -> updateRetractionEnabled());
+								bufferChart.setAnalysis(analysis, true);
+								content.add(bufferChart, BorderLayout.CENTER);
+								updateRetractionEnabled();
+							}
+							content.revalidate(); content.repaint();
+						} catch (Exception failure) {
+							showAnalysisMessage(content, duplicateTaskIdentityFailure(failure)
+								? "ccpm.duplicateTaskId" : "ccpm.analysisFailed");
+						}
 					}
-				} catch (Exception exception) {
-					content.removeAll();
-					content.add(new JLabel(UsabilityStrings.text("ccpm.analysisFailed")), BorderLayout.CENTER);
-				}
-				content.revalidate();
-				content.repaint();
+				};
+				analysisWorker.execute();
+			} catch (Exception failure) {
+				showAnalysisMessage(content, duplicateTaskIdentityFailure(failure)
+					? "ccpm.duplicateTaskId" : "ccpm.analysisFailed");
+			}
 		});
+	}
+
+	private static boolean duplicateTaskIdentityFailure(Throwable failure) {
+		for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+			if (cause instanceof CriticalChainService.DuplicateTaskIdentityException) return true;
+		}
+		return false;
+	}
+
+	private static void showAnalysisMessage(JPanel content, String key) {
+		content.removeAll();
+		content.add(new JLabel(UsabilityStrings.text(key)), BorderLayout.CENTER);
+		content.revalidate(); content.repaint();
 	}
 
 	private void updateRetractionEnabled() {

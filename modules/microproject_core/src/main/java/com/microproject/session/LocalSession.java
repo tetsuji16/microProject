@@ -26,6 +26,7 @@ package com.microproject.session;
 
 import java.io.File;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -61,6 +62,7 @@ import com.microproject.strings.Messages;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.Alert;
 import com.microproject.util.Environment;
+import com.microproject.util.FilePathUtils;
 
 public class LocalSession extends AbstractSession{
 	private static final Logger logger = Logger.getLogger(LocalSession.class.getName());
@@ -320,6 +322,7 @@ public class LocalSession extends AbstractSession{
     	}
     	if (resolvedFileName == null) {
     		Job missingJob = new Job(jobQueue, "loadProject", "Loading...", false);
+			missingJob.setQueueAdmissionKey(projectLoadAdmissionKey(null, opt.getId()));
     		missingJob.addRunnable(new JobRunnable("LocalAccess: missingProject", 1.0f) {
     			public Object run() throws Exception {
     				Alert.error(Messages.getString("Error.projectDoesNotExist"));
@@ -340,6 +343,7 @@ public class LocalSession extends AbstractSession{
     		}
     	}
 	    final Job job=new Job(jobQueue,"loadProject","Loading...",true);
+		job.setQueueAdmissionKey(projectLoadAdmissionKey(resolvedFileName, opt.getId()));
 		setCancelMonitorClosure(job);
 		try {
 			final SessionImporter importer = IMPORTER_REGISTRY.create(opt.getImporter());
@@ -409,6 +413,45 @@ public class LocalSession extends AbstractSession{
 		}
      	return job;
     }
+
+	static String projectLoadAdmissionKey(String fileName, long projectId) {
+		if (fileName != null && !fileName.isBlank()) {
+			boolean windowsDrivePath = fileName.length() >= 3 && fileName.charAt(1) == ':'
+					&& (fileName.charAt(2) == '\\' || fileName.charAt(2) == '/');
+			// Normalize lexically only: resolving a canonical/real path can block on
+			// network shares when file-open commands are initiated from the EDT.
+			String pathIdentity = windowsDrivePath && File.separatorChar != '\\'
+					? FilePathUtils.canonicalPath(fileName)
+					: Path.of(fileName).toAbsolutePath().normalize().toString();
+			boolean windowsPath = File.separatorChar == '\\' || windowsDrivePath;
+			if (windowsPath)
+				pathIdentity = pathIdentity.toLowerCase(Locale.ROOT);
+			return "local-project-load:path:" + pathIdentity;
+		}
+		return projectId > 0L ? "local-project-load:id:" + projectId : null;
+	}
+
+	/** Resolves symlinks and junctions for queue admission; callers run this off the EDT. */
+	public static String resolveProjectLoadAdmissionKey(String fileName, long projectId) {
+		if (fileName == null || fileName.isBlank())
+			return projectId > 0L ? "local-project-load:id:" + projectId : null;
+		boolean windowsDrivePath = fileName.length() >= 3 && fileName.charAt(1) == ':'
+				&& (fileName.charAt(2) == '\\' || fileName.charAt(2) == '/');
+		String pathIdentity;
+		if (windowsDrivePath && File.separatorChar != '\\') {
+			pathIdentity = FilePathUtils.canonicalPath(fileName);
+		} else {
+			Path path = Path.of(fileName);
+			try {
+				pathIdentity = path.toRealPath().toString();
+			} catch (java.io.IOException | SecurityException e) {
+				pathIdentity = path.toAbsolutePath().normalize().toString();
+			}
+		}
+		if (File.separatorChar == '\\' || windowsDrivePath)
+			pathIdentity = pathIdentity.toLowerCase(Locale.ROOT);
+		return "local-project-load:path:" + pathIdentity;
+	}
 
     
     public static SessionImporter getImporter(String name){

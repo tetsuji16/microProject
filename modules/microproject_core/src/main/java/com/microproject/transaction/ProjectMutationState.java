@@ -37,6 +37,18 @@ public final class ProjectMutationState {
 		return COORDINATOR.isHeldByCurrentThread();
 	}
 
+	/** Returns whether the current thread holds the process-wide coordinator for any project. */
+	public static boolean isCoordinatorHeldByCurrentThread() {
+		return COORDINATOR.isHeldByCurrentThread();
+	}
+
+	/** Diagnostic probe: whether the coordinator can be obtained within the timeout. */
+	public static boolean isCoordinatorAvailable(long timeoutMillis) throws InterruptedException {
+		if (!COORDINATOR.tryLock(timeoutMillis, java.util.concurrent.TimeUnit.MILLISECONDS)) return false;
+		COORDINATOR.unlock();
+		return true;
+	}
+
 	/** Runs a read or membership operation under the same process-wide coordination boundary. */
 	public static <T> T coordinated(java.util.function.Supplier<T> operation) {
 		COORDINATOR.lock();

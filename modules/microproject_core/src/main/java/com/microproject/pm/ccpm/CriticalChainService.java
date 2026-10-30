@@ -9,10 +9,12 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.PriorityQueue;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
 import javax.swing.undo.AbstractUndoableEdit;
@@ -34,6 +36,13 @@ import com.microproject.pm.task.Task;
  * is explicitly called.
  */
 public final class CriticalChainService {
+	public static final class DuplicateTaskIdentityException extends IllegalStateException {
+		private static final long serialVersionUID = 1L;
+
+		public DuplicateTaskIdentityException(long uniqueId) {
+			super("Critical chain cannot distinguish tasks with duplicate unique ID " + uniqueId);
+		}
+	}
 	/** Generation guard shared by asynchronous Analyze/Apply/Refresh callers. */
 	public static final class Generation {
 		private final AtomicLong value = new AtomicLong();
@@ -254,6 +263,92 @@ public final class CriticalChainService {
 		return analysis;
 	}
 
+	/** Immutable-only work item; compute() never reads a live project. */
+	public static final class ResourceWork {
+		private final ResourceConstraints constraints;
+		private final List<ResourceBufferInput> buffers;
+		private final double fraction;
+		private ResourceWork(ResourceConstraints constraints, List<ResourceBufferInput> buffers, double fraction) {
+			this.constraints = constraints; this.buffers = buffers; this.fraction = fraction;
+		}
+		public ResourceWorkResult compute() { return new ResourceWorkResult(this, resourceGraph(resourceLinks(constraints)), resourceBuffers(buffers, fraction)); }
+	}
+	public static final class ResourceWorkResult {
+		private final ResourceWork work;
+		private final ResourceGraph graph;
+		private final Map<Long, Buffer> buffers;
+		private ResourceWorkResult(ResourceWork work, ResourceGraph graph, Map<Long, Buffer> buffers) {
+			this.work = work; this.graph = graph; this.buffers = buffers;
+		}
+	}
+	/** Caller-owned model references remain on the model thread. */
+	public static final class PendingAnalysis {
+		private final Project project;
+		private final Settings settings;
+		private final Baseline baseline;
+		private final long revision;
+		private final ResourceLevelingService.Plan plan;
+		private final ResourceCapture capture;
+		private final ResourceWork work;
+		private PendingAnalysis(Project project, Settings settings, Baseline baseline,
+			ResourceLevelingService.Plan plan, ResourceCapture capture) {
+			this.project = project; this.settings = settings.copy(); this.baseline = baseline;
+			this.revision = project.getMutationState().revision(); this.plan = plan; this.capture = capture;
+			this.work = new ResourceWork(capture.constraints(), capture.buffers(), settings.getBufferFraction());
+		}
+		public ResourceWork work() { return work; }
+	}
+
+	/** Captures the status analysis on the model thread. Leveling remains synchronous. */
+	public PendingAnalysis prepareAnalysis(Project project) {
+		Settings settings = findSettings(project);
+		Baseline baseline = findBaseline(project);
+		if (settings == null || !settings.isEnabled() || baseline == null) return null;
+		Settings copy = settings.copy();
+		Collection<? extends Resource> resources = resourcesForBaseline(project);
+		assertUnambiguousTaskIds(project, resources);
+		ResourceLevelingService.Options options = new ResourceLevelingService.Options(copy.getLevelingOrder(),
+			copy.isOnlyWithinAvailableSlack(), copy.isAllowTaskSplits(), Long.MIN_VALUE, Long.MAX_VALUE,
+			copy.isIncludeProposedResources(), copy.getSensitivity(), copy.isLevelAssignments(), copy.isLevelManuallyScheduledTasks());
+		ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(project, resources, options);
+		return new PendingAnalysis(project, copy, baseline, plan, captureResourceConstraints(project, resources, plan));
+	}
+
+	/** Returns null for a stale result; finish on the model thread. */
+	public Analysis finishAnalysis(PendingAnalysis pending, ResourceWorkResult result) {
+		Objects.requireNonNull(pending, "pending");
+		if (result == null || result.work != pending.work) throw new IllegalArgumentException("Mismatched CCPM work result");
+		return com.microproject.transaction.ProjectMutationState.coordinated(() -> {
+			Project project = pending.project;
+			if (project.getMutationState().revision() != pending.revision
+				|| !Objects.equals(findBaseline(project), pending.baseline)
+				|| !sameSettings(findSettings(project), pending.settings)) return null;
+			try { pending.plan.assertCurrent(); } catch (IllegalStateException stale) { return null; }
+			Collection<? extends Resource> resources = resourcesForBaseline(project);
+			assertUnambiguousTaskIds(project, resources);
+			ResourceCapture current = captureResourceConstraints(project, resources, pending.plan);
+			if (!current.constraints().equals(pending.capture.constraints())
+				|| !current.buffers().equals(pending.capture.buffers())
+				|| current.tasks().size() != pending.capture.tasks().size()) return null;
+			for (int i = 0; i < current.tasks().size(); i++)
+				if (current.tasks().get(i) != pending.capture.tasks().get(i)) return null;
+			Analysis analysis = analyze(project, pending.plan, pending.settings, resources, current, result.graph, result.buffers);
+			rememberAnalysis(project, analysis);
+			return analysis;
+		});
+	}
+
+	private static boolean sameSettings(Settings left, Settings right) {
+		return left != null && left.isEnabled() == right.isEnabled()
+			&& Double.compare(left.getBufferFraction(), right.getBufferFraction()) == 0
+			&& left.getLevelingOrder() == right.getLevelingOrder() && left.getSensitivity() == right.getSensitivity()
+			&& left.isOnlyWithinAvailableSlack() == right.isOnlyWithinAvailableSlack()
+			&& left.isAllowTaskSplits() == right.isAllowTaskSplits()
+			&& left.isLevelAssignments() == right.isLevelAssignments()
+			&& left.isIncludeProposedResources() == right.isIncludeProposedResources()
+			&& left.isLevelManuallyScheduledTasks() == right.isLevelManuallyScheduledTasks();
+	}
+
 	/** Restores the mpo-only reference used to measure later schedule slippage. */
 	public void restoreBaseline(Project project, Baseline baseline) {
 		Objects.requireNonNull(project, "project");
@@ -268,10 +363,19 @@ public final class CriticalChainService {
 
 	public Analysis preview(Project project, Collection<? extends Resource> resources, Settings settings) {
 		Objects.requireNonNull(settings, "settings");
+		Objects.requireNonNull(project, "project");
+		if (settings.isEnabled()) assertUnambiguousTaskIds(project, resources);
 		ResourceLevelingService.Options options = new ResourceLevelingService.Options(settings.getLevelingOrder(),
 			settings.isOnlyWithinAvailableSlack(), settings.isAllowTaskSplits(), Long.MIN_VALUE, Long.MAX_VALUE,
 			settings.isIncludeProposedResources(), settings.getSensitivity(), settings.isLevelAssignments(), settings.isLevelManuallyScheduledTasks());
 		ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(project, resources, options);
+		if (!settings.isEnabled()) {
+			try {
+				assertUnambiguousTaskIds(project, resources);
+			} catch (DuplicateTaskIdentityException ambiguous) {
+				return new Analysis(plan, List.of(), 0L, Map.of(), null, Map.of(), Map.of(), List.of(), Map.of());
+			}
+		}
 		return analyze(project, plan, settings, resources);
 	}
 
@@ -287,6 +391,7 @@ public final class CriticalChainService {
 	}
 
 	public Analysis apply(Project project, Collection<? extends Resource> resources, Settings requestedSettings) {
+		assertUnambiguousTaskIds(project, resources);
 		EditSupport editSupport = project.getUndoController().getEditSupport();
 		State before = captureState(project);
 		if (editSupport != null) editSupport.beginUpdate();
@@ -374,6 +479,29 @@ public final class CriticalChainService {
 			() -> new AnalysisSnapshot(analysis, analysisFingerprint(project, project.findTransientDocumentState(Settings.class))));
 	}
 
+	/** The persisted baseline and public projections use unqualified task IDs.
+	 * Refuse ambiguous input before leveling or publishing a misleading result. */
+	private static void assertUnambiguousTaskIds(Project project, Collection<? extends Resource> selectedResources) {
+		Objects.requireNonNull(project, "project");
+		Map<Long, Task> tasks = new LinkedHashMap<>();
+		for (Task task : project.getTaskList()) registerTaskId(tasks, task);
+		for (Task task : ProjectHierarchyQueries.outline(project)) registerTaskId(tasks, task);
+		Collection<? extends Resource> resources = selectedResources == null
+			? project.getResourcePool().getResourceList() : selectedResources;
+		for (Resource resource : resources) {
+			for (Object value : resource.getAssignments()) {
+				Task task = ((Assignment) value).getTask();
+				if (task != null) registerTaskId(tasks, task);
+			}
+		}
+	}
+
+	private static void registerTaskId(Map<Long, Task> tasks, Task task) {
+		Task previous = tasks.putIfAbsent(Long.valueOf(task.getUniqueId()), task);
+		if (previous != null && previous != task)
+			throw new DuplicateTaskIdentityException(task.getUniqueId());
+	}
+
 	private static List<Long> resourceIds(Collection<? extends Resource> resources) {
 		List<Long> ids = new ArrayList<>(resources.size());
 		for (Resource resource : resources) ids.add(Long.valueOf(resource.getUniqueId()));
@@ -430,6 +558,13 @@ public final class CriticalChainService {
 	}
 
 	private Analysis analyze(Project project, ResourceLevelingService.Plan plan, Settings settings, Collection<? extends Resource> selectedResources) {
+		ResourceCapture capture = captureResourceConstraints(project, selectedResources, plan);
+		return analyze(project, plan, settings, selectedResources, capture, resourceGraph(resourceLinks(capture.constraints())),
+			resourceBuffers(capture.buffers(), settings.getBufferFraction()));
+	}
+
+	private Analysis analyze(Project project, ResourceLevelingService.Plan plan, Settings settings,
+		Collection<? extends Resource> selectedResources, ResourceCapture capture, ResourceGraph graph, Map<Long, Buffer> resourceBuffers) {
 		java.util.Set<Task> criticalSet = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<Task, Boolean>());
 		Map<Long, Task> tasksById = LinkedHashMap.newLinkedHashMap(project.getTaskList().size());
 		for (Task task : ProjectHierarchyQueries.outline(project)) {
@@ -444,7 +579,8 @@ public final class CriticalChainService {
 		for (ResourceLevelingService.Change change : plan.changes()) {
 			if (!change.task().isSummary()) criticalSet.add(change.task());
 		}
-		Map<Long, List<Long>> resourcePredecessors = resourcePredecessors(project, selectedResources, plan, criticalSet);
+		for (Integer taskIndex : graph.taskIndices()) criticalSet.add(capture.tasks().get(taskIndex.intValue()));
+		Map<Long, List<Long>> resourcePredecessors = graph.predecessors();
 		List<ChainEdge> graphEdges = new ArrayList<>(Math.max(4, criticalSet.size() * 2));
 		for (Task successor : criticalSet) {
 			for (Object value : successor.getPredecessorList()) {
@@ -493,7 +629,6 @@ public final class CriticalChainService {
 			long referenceStart = baselineMatches ? baseline.feedingTaskStartMillis().getOrDefault(entry.getKey(), target == null ? 0L : target.getStart()) : (target == null ? 0L : target.getStart());
 			feedingBuffers.put(entry.getKey(), buffer(planned, target == null ? 0L : Math.max(0L, target.getStart() - referenceStart), BufferKind.FEEDING));
 		}
-		Map<Long, Buffer> resourceBuffers = resourceBuffers(selectedResources, settings, project);
 		return new Analysis(plan, ids, recommendedProjectBuffer, feeding, projectBuffer, feedingBuffers, resourcePredecessors, graphEdges, resourceBuffers);
 	}
 
@@ -507,86 +642,129 @@ public final class CriticalChainService {
 		return finish == Long.MIN_VALUE ? project.getEnd() : finish;
 	}
 
-	private static Map<Long, Buffer> resourceBuffers(Collection<? extends Resource> selectedResources, Settings settings, Project project) {
-		Collection<? extends Resource> resources = selectedResources == null ? project.getResourcePool().getResourceList() : selectedResources;
+	private record BufferAssignment(long duration, double percentComplete) { }
+	private record ResourceBufferInput(long id, List<BufferAssignment> assignments) {
+		ResourceBufferInput { assignments = List.copyOf(assignments); }
+	}
+
+	private static Map<Long, Buffer> resourceBuffers(List<ResourceBufferInput> resources, double fraction) {
 		Map<Long, Buffer> result = LinkedHashMap.newLinkedHashMap(resources.size());
-		for (Resource resource : resources) {
+		for (ResourceBufferInput resource : resources) {
+			if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException();
 			long planned = 0L;
 			long consumed = 0L;
-			for (Object value : resource.getAssignments()) {
-				Assignment assignment = (Assignment) value;
-				Task task = assignment.getTask();
-				if (task == null || task.isSummary() || assignment.isDefault()) continue;
-				long duration = Math.max(0L, assignment.getEnd() - assignment.getStart());
+			for (BufferAssignment assignment : resource.assignments()) {
+				if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException();
+				long duration = assignment.duration();
 				planned = Math.addExact(planned, duration);
-				long remaining = Math.max(0L, Math.round(duration * Math.max(0D, 1D - task.getPercentComplete())));
+				long remaining = Math.max(0L, Math.round(duration * Math.max(0D, 1D - assignment.percentComplete())));
 				consumed = Math.addExact(consumed, Math.max(0L, duration - remaining));
 			}
-			long plannedBuffer = scaled(planned, settings.getBufferFraction());
-			long consumedBuffer = Math.min(plannedBuffer, scaled(consumed, settings.getBufferFraction()));
-			result.put(Long.valueOf(resource.getUniqueId()), buffer(plannedBuffer, consumedBuffer, BufferKind.RESOURCE));
+			long plannedBuffer = scaled(planned, fraction);
+			long consumedBuffer = Math.min(plannedBuffer, scaled(consumed, fraction));
+			result.put(Long.valueOf(resource.id()), buffer(plannedBuffer, consumedBuffer, BufferKind.RESOURCE));
 		}
 		return result;
 	}
 
-	private static Map<Long, List<Long>> resourcePredecessors(Project project, Collection<? extends Resource> selectedResources,
-		ResourceLevelingService.Plan plan, java.util.Set<Task> criticalSet) {
+	/* These values contain no live model references. taskIndex is an identity token,
+	 * since task IDs need not be unique across linked projects. */
+	static record ResourceInterval(int taskIndex, long taskId, long start, long end) { }
+	static record ResourceLink(int predecessorIndex, int successorIndex, long predecessorId, long successorId) { }
+	static record ResourceConstraints(List<List<ResourceInterval>> resources) {
+		ResourceConstraints {
+			resources = resources.stream().map(List::copyOf).toList();
+		}
+	}
+
+	private record ResourceCapture(ResourceConstraints constraints, List<Task> tasks, List<ResourceBufferInput> buffers) { }
+
+	private static ResourceCapture captureResourceConstraints(Project project, Collection<? extends Resource> selectedResources,
+		ResourceLevelingService.Plan plan) {
 		Collection<? extends Resource> resources = selectedResources == null ? project.getResourcePool().getResourceList() : selectedResources;
 		Map<Task, ResourceLevelingService.Change> changes = new java.util.IdentityHashMap<>();
 		for (ResourceLevelingService.Change change : plan.changes()) changes.put(change.task(), change);
-		Map<Long, List<Long>> result = new LinkedHashMap<>(Math.max(4, resources.size() * 2));
+		Map<Task, Integer> taskIndices = new java.util.IdentityHashMap<>();
+		Map<Assignment, ResourceInterval> assignmentIntervals = new java.util.IdentityHashMap<>();
+		List<Task> tasks = new ArrayList<>();
+		List<List<ResourceInterval>> groups = new ArrayList<>(resources.size());
+		List<ResourceBufferInput> buffers = new ArrayList<>(resources.size());
 		for (Resource resource : resources) {
-			List<Assignment> assignments = new ArrayList<>(resource.getAssignments().size());
-			for (Object value : resource.getAssignments()) { Assignment assignment = (Assignment) value; if (assignment.getTask() != null && !assignment.getTask().isSummary() && !assignment.isDefault()) assignments.add(assignment); }
-			assignments.sort(java.util.Comparator.<Assignment>comparingLong(value -> originalStart(value.getTask(), changes)).thenComparingLong(value -> value.getTask().getUniqueId()));
-			// Sweep the intervals by start time.  The latest active assignment is
-			// the direct resource predecessor for the current task; retaining every
-			// overlapping interval would produce a quadratic edge set for a shared
-			// resource whose assignments all overlap.
-			java.util.Set<Assignment> active = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<Assignment, Boolean>());
-			PriorityQueue<Assignment> byEnd = new PriorityQueue<>((left, right) -> {
-				long leftEnd = originalStart(left.getTask(), changes) + Math.max(0L, left.getEnd() - left.getStart());
-				long rightEnd = originalStart(right.getTask(), changes) + Math.max(0L, right.getEnd() - right.getStart());
-				int compared = Long.compare(leftEnd, rightEnd);
-				return compared != 0 ? compared : Long.compare(left.getTask().getUniqueId(), right.getTask().getUniqueId());
-			});
-			PriorityQueue<Assignment> byStartDescending = new PriorityQueue<>((left, right) -> {
-				int compared = Long.compare(originalStart(right.getTask(), changes), originalStart(left.getTask(), changes));
-				return compared != 0 ? compared : Long.compare(right.getTask().getUniqueId(), left.getTask().getUniqueId());
-			});
-			for (Assignment current : assignments) {
-				Task currentTask = current.getTask(); long currentStart = originalStart(currentTask, changes);
-				long currentDuration = Math.max(0L, current.getEnd() - current.getStart());
-				long currentEnd = currentStart + currentDuration;
-				// Milestones do not consume a resource interval and therefore cannot
-				// introduce a resource-constraint edge.
-				if (currentEnd <= currentStart) continue;
-				while (!byEnd.isEmpty()) {
-					Assignment previous = byEnd.peek();
-					Task previousTask = previous.getTask();
-					long previousEnd = originalStart(previousTask, changes) + Math.max(0L, previous.getEnd() - previous.getStart());
-					if (previousEnd > currentStart) break;
-					byEnd.poll();
-					active.remove(previous);
+			List<ResourceInterval> intervals = new ArrayList<>(resource.getAssignments().size());
+			List<BufferAssignment> bufferAssignments = new ArrayList<>(resource.getAssignments().size());
+			for (Object value : resource.getAssignments()) {
+				Assignment assignment = (Assignment) value;
+				Task task = assignment.getTask();
+				if (task == null || task.isSummary() || assignment.isDefault()) continue;
+				Integer index = taskIndices.get(task);
+				if (index == null) {
+					index = Integer.valueOf(tasks.size());
+					taskIndices.put(task, index);
+					tasks.add(task);
 				}
+				long start = originalStart(task, changes);
+				long duration = Math.max(0L, assignment.getEnd() - assignment.getStart());
+				bufferAssignments.add(new BufferAssignment(duration, task.getPercentComplete()));
+				ResourceInterval interval = assignmentIntervals.get(assignment);
+				if (interval == null) {
+					interval = new ResourceInterval(index.intValue(), task.getUniqueId(), start, start + duration);
+					assignmentIntervals.put(assignment, interval);
+				}
+				intervals.add(interval);
+			}
+			groups.add(intervals);
+			buffers.add(new ResourceBufferInput(resource.getUniqueId(), bufferAssignments));
+		}
+		return new ResourceCapture(new ResourceConstraints(groups), List.copyOf(tasks), List.copyOf(buffers));
+	}
+
+	private record ResourceGraph(Map<Long, List<Long>> predecessors, List<Integer> taskIndices) { }
+
+	/** Build graph data from detached links without touching model objects. */
+	private static ResourceGraph resourceGraph(List<ResourceLink> links) {
+		Map<Long, List<Long>> result = new LinkedHashMap<>();
+		Set<Integer> taskIndices = new LinkedHashSet<>();
+		for (ResourceLink link : links) {
+			if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException();
+			result.computeIfAbsent(Long.valueOf(link.successorId()), ignored -> new ArrayList<>(1))
+				.add(Long.valueOf(link.predecessorId()));
+			taskIndices.add(Integer.valueOf(link.predecessorIndex()));
+			taskIndices.add(Integer.valueOf(link.successorIndex()));
+		}
+		for (Map.Entry<Long, List<Long>> entry : result.entrySet()) entry.setValue(List.copyOf(entry.getValue()));
+		return new ResourceGraph(java.util.Collections.unmodifiableMap(result), List.copyOf(taskIndices));
+	}
+
+	/** Pure sweep over an immutable resource interval snapshot. */
+	static List<ResourceLink> resourceLinks(ResourceConstraints snapshot) {
+		List<ResourceLink> result = new ArrayList<>();
+		for (List<ResourceInterval> resource : snapshot.resources()) {
+			if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException();
+			List<ResourceInterval> assignments = new ArrayList<>(resource);
+			assignments.sort(java.util.Comparator.comparingLong(ResourceInterval::start).thenComparingLong(ResourceInterval::taskId));
+			java.util.Set<ResourceInterval> active = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+			PriorityQueue<ResourceInterval> byEnd = new PriorityQueue<>(java.util.Comparator.comparingLong(ResourceInterval::end)
+				.thenComparingLong(ResourceInterval::taskId));
+			PriorityQueue<ResourceInterval> byStartDescending = new PriorityQueue<>((left, right) -> {
+				int compared = Long.compare(right.start(), left.start());
+				return compared != 0 ? compared : Long.compare(right.taskId(), left.taskId());
+			});
+			for (ResourceInterval current : assignments) {
+				if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException();
+				if (current.end() <= current.start()) continue;
+				while (!byEnd.isEmpty() && byEnd.peek().end() <= current.start()) active.remove(byEnd.poll());
 				while (!byStartDescending.isEmpty() && !active.contains(byStartDescending.peek())) byStartDescending.poll();
-				Assignment previous = byStartDescending.peek();
-				if (previous != null) {
-					Task previousTask = previous.getTask();
-					long previousStart = originalStart(previousTask, changes);
-					long previousEnd = previousStart + Math.max(0L, previous.getEnd() - previous.getStart());
-					if (previousTask != currentTask && previousStart < currentEnd && currentStart < previousEnd) {
-						result.computeIfAbsent(Long.valueOf(currentTask.getUniqueId()), ignored -> new ArrayList<>(1)).add(Long.valueOf(previousTask.getUniqueId()));
-						criticalSet.add(currentTask); criticalSet.add(previousTask);
-					}
+				ResourceInterval previous = byStartDescending.peek();
+				if (previous != null && previous.taskIndex() != current.taskIndex()
+					&& previous.start() < current.end() && current.start() < previous.end()) {
+					result.add(new ResourceLink(previous.taskIndex(), current.taskIndex(), previous.taskId(), current.taskId()));
 				}
 				active.add(current);
 				byEnd.add(current);
 				byStartDescending.add(current);
 			}
 		}
-		for (Map.Entry<Long,List<Long>> entry : result.entrySet()) entry.setValue(List.copyOf(entry.getValue()));
-		return result;
+		return List.copyOf(result);
 	}
 
 	private static long originalStart(Task task, Map<Task, ResourceLevelingService.Change> changes) { ResourceLevelingService.Change change = changes.get(task); return change == null ? task.getStart() : change.oldStart(); }

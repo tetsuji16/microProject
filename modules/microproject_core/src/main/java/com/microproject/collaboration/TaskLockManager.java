@@ -93,17 +93,21 @@ public class TaskLockManager {
 	}
 
 	public void release(long taskId) {
-		store.mutate(new CollaborationMetadataStore.MetadataMutation() {
-			public void mutate(Metadata metadata) {
-				cleanupExpiredLocks(metadata, System.currentTimeMillis());
-				LockRecord existing = metadata.getLocks().get(String.valueOf(taskId));
-				if (existing != null && ownerKey.equals(existing.getOwnerKey())) {
-					metadata.getLocks().remove(String.valueOf(taskId));
+		try {
+			store.mutate(new CollaborationMetadataStore.MetadataMutation() {
+				public void mutate(Metadata metadata) {
+					cleanupExpiredLocks(metadata, System.currentTimeMillis());
+					LockRecord existing = metadata.getLocks().get(String.valueOf(taskId));
+					if (existing != null && ownerKey.equals(existing.getOwnerKey())) {
+						metadata.getLocks().remove(String.valueOf(taskId));
+					}
+					store.refreshProjectStats(metadata);
 				}
-				store.refreshProjectStats(metadata);
-			}
-		});
-		localLocks.remove(Long.valueOf(taskId));
+			});
+		} finally {
+			// If the metadata store is unavailable, stop renewing this lease. It expires naturally.
+			localLocks.remove(Long.valueOf(taskId));
+		}
 	}
 
 	public void releaseAll() {
@@ -111,8 +115,16 @@ public class TaskLockManager {
 		synchronized (localLocks) {
 			locks = new ArrayList<Long>(localLocks);
 		}
+		RuntimeException firstFailure = null;
 		for (Long taskId : locks) {
-			release(taskId.longValue());
+			try {
+				release(taskId.longValue());
+			} catch (RuntimeException e) {
+				if (firstFailure == null) firstFailure = e;
+			}
+		}
+		if (firstFailure != null) {
+			throw firstFailure;
 		}
 	}
 

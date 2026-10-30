@@ -152,9 +152,10 @@ public class NodeCache extends CellCache<GraphicNode, VisibleNodes> {
 		int row=0;
 		int begin=-1;
 		int end=-1;
-		T current;
-		for (ListIterator<T> i=oldList.listIterator();i.hasNext();row++){
-			if (!newCol.contains(current=i.next())){
+		int retained=0;
+		for (;row<oldList.size();row++){
+			T current=oldList.get(row);
+			if (!newCol.contains(current)){
 				nodeDiff.add(current);
 				if (updates!=null) updates.remove(current); //to avoid remove/insert followed by update
 				if (begin==-1){
@@ -168,9 +169,13 @@ public class NodeCache extends CellCache<GraphicNode, VisibleNodes> {
 						end=row;
 					}
 				}
-				i.remove();
+			} else {
+				oldList.set(retained++, current);
 			}
 		}
+		// Compact once instead of shifting the tail after every removal. Initial
+		// population removes every row from the comparison copy.
+		oldList.subList(retained, oldList.size()).clear();
 		if (begin!=-1) intervaldiff.add(new CacheInterval(begin,end));
 	}
 	

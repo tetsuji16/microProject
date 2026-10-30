@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeFactory;
@@ -21,6 +22,7 @@ import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.undo.DataFactoryUndoController;
+import com.microproject.session.SaveOptions;
 
 class ProjectFactorySubprojectReplacementTest {
 	@Test
@@ -404,6 +406,86 @@ class ProjectFactorySubprojectReplacementTest {
 		Project project = Project.createProject(ResourcePool.createRourcePool(name, undo), undo);
 		project.setName(name);
 		return project;
+	}
+
+	@Test
+	void recoverySaveRefusesLinkedBranchesBeforeCreatingAnExportJob(@TempDir java.nio.file.Path tempDirectory) {
+		ProjectFactory factory = ProjectFactory.getInstance();
+		Portfolio originalPortfolio = factory.portfolio;
+		ResourcePoolFactory poolFactory = ResourcePoolFactory.getInstance();
+		List<ResourcePool> originalPools = new ArrayList<>(poolFactory.getResourcePools());
+		factory.portfolio = new Portfolio(factory);
+		try {
+			Project master = newProject("recovery master");
+			Project child = newProject("recovery child");
+			child.createScriptedTask();
+			DefaultSubProj reference = new DefaultSubProj(master, child.getUniqueId());
+			Node referenceNode = NodeFactory.getInstance().createNode(reference);
+			master.addToDefaultOutline(null, referenceNode);
+			factory.getPortfolio().addProject(master, false, false);
+			factory.getPortfolio().addProject(child, false, false);
+			master.getSubprojectHandler().addSubproject(child, referenceNode, true, false);
+
+			SaveOptions options = new SaveOptions();
+			options.setSaveAs(true);
+			options.setRecoverySnapshot(true);
+			options.setImporter(com.microproject.session.LocalSession.MPO_PROJECT_IMPORTER);
+			options.setFileName(tempDirectory.resolve("recovery-master.mpo").toString());
+
+			IllegalStateException failure = assertThrows(IllegalStateException.class,
+				() -> factory.getSaveProjectJob(master, options));
+			assertEquals("Recovery snapshot skipped: linked project branches are not supported yet",
+				failure.getMessage());
+			assertNull(master.getFileName(), "recovery rejection must not change source file associations");
+			assertNull(child.getFileName(), "recovery rejection must not change linked source associations");
+			assertFalse(java.nio.file.Files.exists(java.nio.file.Path.of(options.getFileName())),
+				"rejected recovery must not create an export target");
+		} finally {
+			factory.portfolio = originalPortfolio;
+			poolFactory.getResourcePools().removeIf(pool -> !originalPools.contains(pool));
+		}
+	}
+
+	@Test
+	void recoveryRejectsUnresolvedLinksAndSharedPoolsWithoutTouchingFiles(@TempDir java.nio.file.Path directory) throws Exception {
+		ProjectFactory factory = ProjectFactory.getInstance();
+		Portfolio originalPortfolio = factory.portfolio;
+		ResourcePoolFactory poolFactory = ResourcePoolFactory.getInstance();
+		List<ResourcePool> originalPools = new ArrayList<>(poolFactory.getResourcePools());
+		factory.portfolio = new Portfolio(factory);
+		try {
+			java.nio.file.Path original = directory.resolve("original.mpo");
+			java.nio.file.Path linked = directory.resolve("linked.mpo");
+			java.nio.file.Files.writeString(original, "original bytes");
+			java.nio.file.Files.writeString(linked, "linked bytes");
+			for (int referenceType = 0; referenceType < 3; referenceType++) {
+				Project project = newProject("recovery");
+				project.setFileName(original.toString());
+				if (referenceType == 1) project.setSharedResourcePoolFile(linked.toString());
+				else if (referenceType == 2) project.createScriptedTask().setExternalProjectFile(linked.toString());
+				else {
+					DefaultSubProj reference = new DefaultSubProj(project, 123L);
+					reference.setSubprojectFile(linked.toString());
+					project.addToDefaultOutline(null, NodeFactory.getInstance().createNode(reference));
+				}
+				factory.getPortfolio().addProject(project, false, false);
+				SaveOptions options = new SaveOptions();
+				options.setSaveAs(true);
+				options.setRecoverySnapshot(true);
+				options.setImporter(com.microproject.session.LocalSession.MPO_PROJECT_IMPORTER);
+				options.setFileName(directory.resolve("recovery.mpo").toString());
+				java.util.concurrent.atomic.AtomicBoolean completed = new java.util.concurrent.atomic.AtomicBoolean();
+				options.setPostSaving(ignored -> completed.set(true));
+				assertThrows(IllegalStateException.class, () -> factory.getSaveProjectJob(project, options));
+				assertFalse(completed.get());
+				assertFalse(java.nio.file.Files.exists(java.nio.file.Path.of(options.getFileName())));
+				assertEquals("original bytes", java.nio.file.Files.readString(original));
+				assertEquals("linked bytes", java.nio.file.Files.readString(linked));
+			}
+		} finally {
+			factory.portfolio = originalPortfolio;
+			poolFactory.getResourcePools().removeIf(pool -> !originalPools.contains(pool));
+		}
 	}
 
 	@Test

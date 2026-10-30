@@ -459,22 +459,17 @@ public class MpoFileImporter extends FileImporter {
 				TemporaryCleanupQueue.deleteOrEnqueue(temporary.toPath());
 			}
 		}
-		if (merge != null) {
-			// Re-run the complete operation plan against a fresh copy of the live
-			// project immediately before replacement.  This is the second phase of
-			// the in-memory transaction: malformed references, hierarchy failures,
-			// and service-level validation errors are discovered while the target
-			// archive and live model are still untouched.
-			verifyMergeApplicability(project, merge.replayOperations(), merge.alreadyAppliedOperationIds());
-		}
 		boolean moved = false;
 		try {
+			if (merge != null) {
+				// Validate before replacement; failures must also clean up the stage.
+				verifyMergeApplicability(project, merge.replayOperations(), merge.alreadyAppliedOperationIds());
+			}
 			moveTemporary(temporary.toPath(), target.toPath());
 			moved = true;
 		} finally {
-			// A replacement failure must not leave an unbounded stream of staged
-			// archives beside the destination.  The destination itself was never
-			// touched when moveTemporary fails.
+			// A preflight or replacement failure must not leave a staged archive.
+			// The destination was never touched when moveTemporary fails.
 			if (!moved) TemporaryCleanupQueue.deleteOrEnqueue(temporary.toPath());
 		}
 		if (merge != null) {
@@ -492,7 +487,7 @@ public class MpoFileImporter extends FileImporter {
 		commitOperationState(project, operationState);
 	}
 
-	private void verifyMergeApplicability(Project source, java.util.List<OperationLog.Operation> operations,
+	protected void verifyMergeApplicability(Project source, java.util.List<OperationLog.Operation> operations,
 			java.util.Set<String> alreadyAppliedOperationIds) throws IOException {
 		Project preflight = copyProjectForTransaction(source);
 		// Preflight is an internal validation pass.  Keep it independent from

@@ -37,6 +37,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
@@ -53,6 +55,7 @@ import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.grouping.core.model.NodeModelUtil;
 import com.microproject.grouping.core.summaries.DeepChildWalker;
 import com.microproject.job.Job;
+import com.microproject.job.JobQueue;
 import com.microproject.job.JobRunnable;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.resource.ResourcePoolFactory;
@@ -162,6 +165,7 @@ public class ProjectFactory {
 		portfolio.addProject(project,createJob,verify);
 	}
 	protected Set<Long> loadingProjects = new HashSet<>();
+	private final Map<Long, Integer> loadingProjectReferences = new HashMap<>();
 	protected Set<Long> closingProjects = new HashSet<>();
 	private final Map<Long, List<Runnable>> projectClosedCallbacks = new HashMap<>();
 	public synchronized Set<Long> getOpenOrLoadingProjects(){
@@ -173,10 +177,19 @@ public class ProjectFactory {
     	return projectIds;
 	}
 	public synchronized void addLoadingProject(long id){
-		loadingProjects.add(Long.valueOf(id));
+		Long projectId = Long.valueOf(id);
+		loadingProjectReferences.merge(projectId, 1, Integer::sum);
+		loadingProjects.add(projectId);
 	}
 	public synchronized void removeLoadingProject(long id){
-		loadingProjects.remove(Long.valueOf(id));
+		Long projectId = Long.valueOf(id);
+		Integer references = loadingProjectReferences.get(projectId);
+		if (references == null || references <= 1) {
+			loadingProjectReferences.remove(projectId);
+			loadingProjects.remove(projectId);
+		} else {
+			loadingProjectReferences.put(projectId, references - 1);
+		}
 	}
 	public synchronized void addClosingProjects(Collection<Long> ids){
 		closingProjects.addAll(ids);
@@ -250,36 +263,50 @@ public class ProjectFactory {
 		}else recover=false;
 
 		if (job==null) job=session.getLoadProjectJob(opt);
+		Runnable terminalCleanup = () -> {
+			if (!recover && opt.getId() > 0)
+				removeLoadingProject(opt.getId());
+		};
+		AtomicReference<JobQueue.AdmissionTicket> admissionTicket = new AtomicReference<>();
+		Consumer<Object> completion = registerOpenProjectCompletion(job, opt, terminalCleanup, () -> {
+			JobQueue.AdmissionTicket ticket = admissionTicket.get();
+			if (ticket != null)
+				ticket.close();
+		});
 		job.addSwingRunnable(new JobRunnable("Local: addProject"){
 			public Object run() throws Exception{
 				Project project=(Project)getPreviousResult();
-				if (!recover){
-					if (project!=null) {
-						// A child belongs to the master outline; it must not create a
-						// separate top-level document frame while loading.
-						if (opt.isSubproject()) project.setOpenedAsSubproject(true);
-						addProject(project,false,true);
+				return finishProjectOpen(project, completion, loadedProject -> {
+					if (!recover){
+						if (loadedProject!=null) {
+							// A child belongs to the master outline; it must not create a
+							// separate top-level document frame while loading.
+							if (opt.isSubproject()) loadedProject.setOpenedAsSubproject(true);
+							addProject(loadedProject,false,true);
+						}
 					}
-					if (opt.getId()>0) removeLoadingProject(opt.getId());
-				}
-				// A canonical local file can be recovered from the portfolio instead
-				// of imported again.  Both that recovery route and a first import must
-				// reattach a master's persisted child references.
-				if (project != null && !opt.isSubproject())
-					restoreLinkedLocalSubprojects(project);
-				if (opt.getEndSwingClosure()!=null) opt.getEndSwingClosure().accept(project);
+					// A canonical local file can be recovered from the portfolio instead
+					// of imported again.  Both that recovery route and a first import must
+					// reattach a master's persisted child references.
+					if (loadedProject != null && !opt.isSubproject())
+						restoreLinkedLocalSubprojects(loadedProject);
 
+					if (loadedProject != null && opt.isOpenAs() && loadedProject.isMaster())
+						loadedProject.setReadOnly(true); // don't allow copy of master
 
-				if (project != null && opt.isOpenAs() && project.isMaster())
-					project.setReadOnly(true); // don't allow copy of master
-
-				if (project != null && opt.isOpenAs()) {
-					project.setReadOnly(true);
-					project.setLocal(true);
-				}
-				return project;
+					if (loadedProject != null && opt.isOpenAs()) {
+						loadedProject.setReadOnly(true);
+						loadedProject.setLocal(true);
+					}
+				});
 			}
 		},false);
+		// Keep the admission key reserved until project registration and linked
+		// child scheduling have completed on the EDT. Child files use their own
+		// canonical keys, so this does not reject nested loads.
+		job.addRunnable(new JobRunnable("Local: finish project registration") {
+			@Override public Object run() { return getPreviousResult(); }
+		});
 		// Local file import failures occur on the job before the project can be
 		// registered.  Without an exception handler they were only logged, leaving
 		// an asynchronous open with neither a visible explanation nor a cleared
@@ -287,23 +314,109 @@ public class ProjectFactory {
 		// failing path directly to the user.
 		job.addExceptionRunnable(new JobRunnable("Local: report project load failure") {
 			public Object run() throws Exception {
-				if (!recover && opt.getId() > 0)
-					removeLoadingProject(opt.getId());
 				Exception failure = job.getFailureException();
 				logger.log(Level.WARNING, "Project could not be opened: " + opt.getFileName(), failure);
-				if (opt.getEndSwingClosure() != null)
-					opt.getEndSwingClosure().accept(null);
+				completion.accept(null);
 				Alert.error(projectLoadFailureMessage(opt.getFileName(), failure));
 				return null;
 			}
 		});
 		if (opt.isSync()) job.addSync();
-		session.schedule(job);
+		session.getJobQueue().scheduleOrJoinRetained(job,
+				() -> LocalSession.resolveProjectLoadAdmissionKey(opt.getFileName(), opt.getId()),
+				ticket -> admissionTicket.set(ticket), (activeJob, ticket) -> {
+					try {
+						completion.accept(null);
+					} finally {
+						ticket.close();
+					}
+				});
 		try {
 			return (opt.isSync())?(Project)job.waitResult():null;
 		} catch (Exception e) {//Forward exception + Alert
 			return null;
 		}
+	}
+
+	@FunctionalInterface
+	interface OpenProjectRegistration {
+		void register(Project project) throws Exception;
+	}
+
+	static Project finishProjectOpen(Project project, Consumer<Object> completion,
+			OpenProjectRegistration registration) throws Exception {
+		try {
+			registration.register(project);
+			completion.accept(project);
+			return project;
+		} catch (Exception | Error failure) {
+			completion.accept(null);
+			throw failure;
+		}
+	}
+
+	/**
+	 * Routes all open outcomes through one callback and supplies a null result if
+	 * cancellation prevents either the success or failure runnable from running.
+	 */
+	static Consumer<Object> registerOpenProjectCompletion(Job job, LoadOptions options, Runnable terminalCleanup) {
+		return registerOpenProjectCompletion(job, options, terminalCleanup, () -> { });
+	}
+
+	static Consumer<Object> registerOpenProjectCompletion(Job job, LoadOptions options, Runnable terminalCleanup,
+			Runnable afterUiDelivery) {
+		Consumer<Object> endSwingClosure = options.getEndSwingClosure();
+		AtomicBoolean delivered = new AtomicBoolean();
+		Consumer<Object> completion = project -> {
+			if (!delivered.compareAndSet(false, true))
+				return;
+			try {
+				if (terminalCleanup != null)
+					terminalCleanup.run();
+			} finally {
+				Runnable callback = () -> {
+					try {
+						if (endSwingClosure != null)
+							endSwingClosure.accept(project);
+					} finally {
+						afterUiDelivery.run();
+					}
+				};
+				if (UiDispatch.isDispatchThread())
+					callback.run();
+				else {
+					try {
+						UiDispatch.invokeLater(callback);
+					} catch (RuntimeException | Error e) {
+						afterUiDelivery.run();
+						throw e;
+					}
+				}
+			}
+		};
+		job.addCompletionRunnable(() -> {
+			if (job.isCanceled() || job.isInterrupted() || job.getFailureException() != null) {
+				completion.accept(null);
+				return;
+			}
+			if (delivered.get())
+				return;
+			// The final Swing runnable is free and may still be queued. Check after
+			// it on the UI dispatcher so a later cancel or EDT-side registration error
+			// cannot leave the open request without a terminal callback.
+			UiDispatch.invokeLater(() -> {
+				if (!delivered.get())
+					completion.accept(null);
+			});
+		});
+		return completion;
+	}
+
+	static boolean scheduleOpenProjectJob(JobQueue queue, Job job, Consumer<Object> completion) {
+		if (queue.trySchedule(job))
+			return true;
+		completion.accept(null);
+		return false;
 	}
 
 	/** Produces an actionable standalone-file error without exposing importer internals as the primary message. */
@@ -398,67 +511,103 @@ public class ProjectFactory {
 		LoadOptions opt=subprojectLoadOptions(parent, id);
 		Job job=session.getLoadProjectJob(opt);
 		subprojectTask.setFetching(true);
+		AtomicBoolean requestFinished = new AtomicBoolean();
+		Consumer<JobQueue.AdmissionTicket> finishRequest = ticket -> {
+			Runnable finishOnEdt = () -> {
+				try {
+					if (!requestFinished.compareAndSet(false, true))
+						return;
+					if (!subprojectTask.isSubprojectOpen()
+							&& subprojectTask.getLoadStatus() == SubProj.LoadStatus.NOT_LOADED)
+						subprojectTask.setLoadStatus(SubProj.LoadStatus.UNAVAILABLE);
+					subprojectTask.setFetching(false);
+					removeLoadingProject(id);
+					if (!parent.isOpenedAsSubproject())
+						restoreLinkedLocalSubprojects(parent);
+				} finally {
+					ticket.close();
+				}
+			};
+			try {
+				UiDispatch.invokeLater(finishOnEdt);
+			} catch (RuntimeException | Error e) {
+				ticket.close();
+				throw e;
+			}
+		};
 
 		job.addSwingRunnable(new JobRunnable("Local: insertProject"){
 			public Object run() throws Exception{
+				Project subproject = null;
 				try {
-					Project subproject = (Project)getPreviousResult();
+					subproject = (Project)getPreviousResult();
+					if (subproject == null)
+						return null;
 
 					//add assignments in the outline, paste uses only assignments present in the nodeModel
 					AssignmentNodeModel parentModel = (AssignmentNodeModel)subproject.getTaskOutline();
 					parentModel.addAssignments(parentModel.iterator()); // assignments
 
-					if (subproject != null) {// is it possible it can be null?
-						// A local linked child is saved back to the file named by its
-						// master reference.  The importer only knows the loading id, so
-						// preserve that concrete path before any later master Save.
-						if (subprojectTask.getSubprojectFile() != null
-								&& !subprojectTask.getSubprojectFile().isBlank())
-							subproject.setFileName(subprojectTask.getSubprojectFile());
-						if (parent.getSubprojectHandler().wouldCreateCircularReference(subproject)) {
-							subprojectTask.setLoadStatus(SubProj.LoadStatus.CYCLE);
-							Alert.error(circularSubprojectReferenceMessage(parent, subproject));
-							return null;
-						}
-						if (requestedReadOnly)
-							subproject.setReadOnly(true);
-						parent.getSubprojectHandler().addSubproject(subproject, subprojectNode,creating, false);
-						parent.fireUpdateEvent(ProjectFactory.this, subprojectTask);
-						// Local and server importers only construct the Project.  Register
-						// the child after marking it as a subproject so its tasks resolve
-						// through the master placeholder without opening a document frame.
-						if (portfolio.findByUniqueId(subproject.getUniqueId()) == null)
-							addProject(subproject, false, true);
-						portfolio.handleExternalTasks(subproject, true, false);
-						subprojectTask.setLoadStatus(SubProj.LoadStatus.OPEN);
-						if (subproject.isReadOnly()){
-							Alert.warn(MessageFormat.format(Messages.getString("Message.readOnlySubproject"),new Object[]{subproject.getName()}));
-						}
-//
-//						subproject.setGroupDirty(true);
-//						//TODO something more precise here
-					}
-				} catch (Exception e) {
+					attachLoadedSubproject(parent, subprojectNode, creating, subproject, requestedReadOnly);
+				} catch (Exception | Error e) {
 					SubProj.LoadStatus status = subprojectLoadFailureStatus(e);
 					subprojectTask.setLoadStatus(status);
 					logger.log(Level.WARNING, "Linked subproject could not be loaded (" + status + ")", e);
 					Alert.warn(subprojectLoadFailureMessage(status, e));
-				} finally {
-					subprojectTask.setFetching(false);
-					removeLoadingProject(id);
-					// Resume a master reopen one child at a time after this job releases
-					// the queue's critical section.  This is also safe after a failed
-					// child: only NOT_LOADED references are eligible for the next scan.
-					if (!parent.isOpenedAsSubproject())
-						UiDispatch.invokeLater(() -> restoreLinkedLocalSubprojects(parent));
-
 				}
-    	    	return null; //return not used anyway
+				return subproject;
 			}
 		},false);
 
-		session.schedule(job);
+		session.getJobQueue().scheduleOrJoinRetained(job,
+			() -> LocalSession.resolveProjectLoadAdmissionKey(opt.getFileName(), id), ticket ->
+			job.addCompletionRunnable(() -> finishRequest.accept(ticket)), (activeJob, ticket) -> {
+			UiDispatch.invokeLater(() -> {
+				try {
+					Project loaded = activeJob.isCanceled() || activeJob.isInterrupted()
+							|| activeJob.getFailureException() != null
+							? null : (Project) activeJob.getCompletionResult();
+					if (loaded == null) {
+						if (subprojectTask.getLoadStatus() == SubProj.LoadStatus.NOT_LOADED)
+							subprojectTask.setLoadStatus(SubProj.LoadStatus.UNAVAILABLE);
+					} else {
+						attachLoadedSubproject(parent, subprojectNode, creating, loaded, requestedReadOnly);
+					}
+				} catch (Exception | Error e) {
+					SubProj.LoadStatus status = subprojectLoadFailureStatus(e);
+					subprojectTask.setLoadStatus(status);
+					logger.log(Level.WARNING, "Linked subproject could not be attached (" + status + ")", e);
+					Alert.warn(subprojectLoadFailureMessage(status, e));
+				} finally {
+					finishRequest.accept(ticket);
+				}
+			});
+		});
 		return ((Task)subprojectTask).getProject();
+	}
+
+	private void attachLoadedSubproject(Project parent, Node subprojectNode, boolean creating,
+			Project subproject, boolean requestedReadOnly) {
+		SubProj subprojectTask = (SubProj) subprojectNode.getImpl();
+		if (subprojectTask.getSubproject() == subproject && subprojectTask.isSubprojectOpen())
+			return;
+		if (subprojectTask.getSubprojectFile() != null && !subprojectTask.getSubprojectFile().isBlank())
+			subproject.setFileName(subprojectTask.getSubprojectFile());
+		if (parent.getSubprojectHandler().wouldCreateCircularReference(subproject)) {
+			subprojectTask.setLoadStatus(SubProj.LoadStatus.CYCLE);
+			Alert.error(circularSubprojectReferenceMessage(parent, subproject));
+			return;
+		}
+		if (requestedReadOnly)
+			subproject.setReadOnly(true);
+		parent.getSubprojectHandler().addSubproject(subproject, subprojectNode, creating, false);
+		parent.fireUpdateEvent(this, subprojectTask);
+		if (portfolio.findByUniqueId(subproject.getUniqueId()) == null)
+			addProject(subproject, false, true);
+		portfolio.handleExternalTasks(subproject, true, false);
+		subprojectTask.setLoadStatus(SubProj.LoadStatus.OPEN);
+		if (subproject.isReadOnly())
+			Alert.warn(MessageFormat.format(Messages.getString("Message.readOnlySubproject"), new Object[]{subproject.getName()}));
 	}
 
 	/** Maps loader failures onto stable, repairable master-reference states. */
@@ -609,7 +758,6 @@ public class ProjectFactory {
 				// clean.  Save each dirty member of the branch independently;
 				// inheriting only the root's dirty flag silently lost that child.
 				if (shouldIncludeInBranchSave(p, opt)) {
-					p.setEarliestAndLatestDatesFromSchedule();  // we want subprojects to have their dates set by external constraints if any
 					projects.add(p);
 				}
 			}
@@ -619,6 +767,15 @@ public class ProjectFactory {
 		// real master hierarchy as well, otherwise Save on a clean master loses a
 		// dirty child that is visible in the consolidated Gantt.
 		collectLinkedProjectsForSave(project, opt, projects, new HashSet<>());
+		// Recovery currently stores and restores one project file. Saving a linked
+		// branch would send children after the root to their original file names,
+		// overwriting user data instead of creating recovery snapshots.
+		if (opt.isRecoverySnapshot() && (projects.size() > 1 || hasRecoveryExternalReferences(project))) {
+			throw new IllegalStateException("Recovery snapshot skipped: linked project branches are not supported yet");
+		}
+		// Normalize dates only after the recovery branch has passed its safety check.
+		for (Project savedProject : projects)
+			savedProject.setEarliestAndLatestDatesFromSchedule();  // external constraints determine subproject dates
 		if (projects.size()>0){
 			Session session=SessionFactory.getInstance().getLocalSession();
 			final SaveOptions o=(SaveOptions)opt.clone();
@@ -644,6 +801,21 @@ public class ProjectFactory {
 		return null;
 	}
 
+	/** Until branch capture is supported, never publish a snapshot that could
+	 * restore a linked document or pool from an original on-disk path. */
+	private static boolean hasRecoveryExternalReferences(Project project) {
+		if (project == null) return false;
+		String pool = project.getSharedResourcePoolFile();
+		if (pool != null && !pool.isBlank()) return true;
+		for (Iterator<Task> iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
+			Task task = iterator.next();
+			if (task instanceof SubProj) return true;
+			String external = task.getExternalProjectFile();
+			if (external != null && !external.isBlank()) return true;
+		}
+		return false;
+	}
+
 	/** Determines whether one project in a master-save branch must be persisted. */
 	static boolean shouldIncludeInBranchSave(Project project, SaveOptions options) {
 		return project != null && (project.needsSaving() || options.isSaveAs() || options.getImporter() != null);
@@ -654,7 +826,6 @@ public class ProjectFactory {
 		if (project == null || !visited.add(project))
 			return;
 		if (shouldIncludeInBranchSave(project, options) && !projects.contains(project)) {
-			project.setEarliestAndLatestDatesFromSchedule();
 			projects.add(project);
 		}
 		for (Iterator<Task> iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {

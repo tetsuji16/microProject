@@ -24,11 +24,65 @@ import java.util.concurrent.atomic.AtomicReference;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.scheduling.ScheduleEvent;
 import com.microproject.pm.task.Project;
+import com.microproject.document.ObjectEventManager;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.document.ObjectEventManager;
 import org.junit.jupiter.api.Test;
 
 class ProjectMutationStateTest {
+	@Test
+	void commandBatchSetupFailureReleasesCoordinatorAndPreservesOuterBatch() throws Exception {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("batch-setup-failure", undo);
+		Project project = Project.createProject(pool, undo);
+		project.initialize(false, false);
+		FailingObjectEventManager participantManager = new FailingObjectEventManager();
+		setResourcePoolEventManager(pool, participantManager);
+		Project.AdditionalObjectEventManager participant = new Project.AdditionalObjectEventManager(
+			participantManager, pool, participantManager, List.of());
+		List<ScheduleEvent> publications = new ArrayList<>();
+		project.addScheduleListener(publications::add);
+		project.beginEventBatch();
+		project.fireScheduleChanged("outer", ScheduleEvent.SCHEDULE, "preserved");
+		participantManager.failOnNextBegin();
+
+		assertThrows(IllegalStateException.class, () -> project.runModelCommand(markApplied -> {
+			markApplied.run();
+			return true;
+		}, Boolean.TRUE::equals, ignored -> Boolean.TRUE, List.of(participant)));
+		assertFalse(project.getMutationState().isHeldByCurrentThread());
+		assertTrue(publications.isEmpty(), "the caller's outer event batch remains open");
+
+		ExecutorService worker = Executors.newSingleThreadExecutor();
+		try {
+			assertTrue(worker.submit(() -> ProjectMutationState.coordinated(() -> Boolean.TRUE))
+				.get(2, TimeUnit.SECONDS), "another thread must acquire the released coordinator");
+		} finally {
+			worker.shutdownNow();
+		}
+		project.endEventBatch(true);
+		assertEquals(1, publications.size());
+		assertEquals("preserved", publications.getFirst().getObject());
+	}
+
+	private static void setResourcePoolEventManager(ResourcePool pool, ObjectEventManager manager) throws Exception {
+		var field = ResourcePool.class.getDeclaredField("objectEventManager");
+		field.setAccessible(true);
+		field.set(pool, manager);
+	}
+
+	private static final class FailingObjectEventManager extends ObjectEventManager {
+		private boolean failNextBegin;
+		private void failOnNextBegin() { failNextBegin = true; }
+		@Override public synchronized void beginBatch() {
+			if (failNextBegin) {
+				failNextBegin = false;
+				throw new IllegalStateException("injected participant batch setup failure");
+			}
+			super.beginBatch();
+		}
+	}
+
 	@Test
 	void mismatchedAdditionalEventOwnerIsRejectedBeforeAProjectCommandCanLeakItsBarrier() throws Exception {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
