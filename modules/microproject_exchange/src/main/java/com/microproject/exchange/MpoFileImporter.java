@@ -24,7 +24,6 @@ import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
@@ -85,6 +84,8 @@ import com.microproject.session.LocalSession;
 import com.microproject.session.SessionFactory;
 import com.microproject.strings.Messages;
 import com.microproject.temporary.TemporaryCleanupQueue;
+import com.microproject.util.MarkupEscape;
+import com.microproject.util.SafeFileReplace;
 
 /**
  * Reads and writes MPOF v1.0 containers. An mpo file is a ZIP containing a
@@ -633,11 +634,7 @@ public class MpoFileImporter extends FileImporter {
 
 	/** Replaces the destination only after the complete archive has been written. */
 	protected void moveTemporary(Path temporary, Path target) throws IOException {
-		try {
-			Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-		} catch (java.nio.file.AtomicMoveNotSupportedException e) {
-			Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
-		}
+		SafeFileReplace.moveAtomically(temporary, target, true);
 	}
 
 	@Override
@@ -888,14 +885,7 @@ public class MpoFileImporter extends FileImporter {
 	private static String taskIdentitiesFor(Project project, byte[] projectXml) throws IOException {
 		ObjectNode root = JSON.createObjectNode();
 		try {
-			javax.xml.parsers.DocumentBuilderFactory factory = javax.xml.parsers.DocumentBuilderFactory.newInstance();
-			factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-			factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
-			factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
-			factory.setXIncludeAware(false);
-			factory.setExpandEntityReferences(false);
-			factory.setAttribute(javax.xml.XMLConstants.ACCESS_EXTERNAL_DTD, "");
-			factory.setAttribute(javax.xml.XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+			javax.xml.parsers.DocumentBuilderFactory factory = secureDocumentBuilderFactory();
 			org.w3c.dom.Document document = factory.newDocumentBuilder().parse(new ByteArrayInputStream(projectXml));
 			org.w3c.dom.NodeList xmlTasks = document.getElementsByTagName("Task");
 			java.util.Iterator<?> modelTasks = project.getTaskOutlineIterator();
@@ -2087,11 +2077,7 @@ public class MpoFileImporter extends FileImporter {
 				}
 				Path recovery = target.toPath().toAbsolutePath().resolveSibling(target.getName()
 					+ ".conflict-" + java.util.UUID.randomUUID() + ".mpo");
-				try {
-					Files.move(temporary.toPath(), recovery, StandardCopyOption.ATOMIC_MOVE);
-				} catch (java.nio.file.AtomicMoveNotSupportedException unsupported) {
-					Files.move(temporary.toPath(), recovery);
-				}
+				SafeFileReplace.moveAtomically(temporary.toPath(), recovery, false);
 				moved = true;
 				return recovery;
 			} finally {
@@ -2373,20 +2359,29 @@ public class MpoFileImporter extends FileImporter {
 		}
 	}
 
+	private static java.util.UUID historyEntryId(JsonNode value, String source) {
+		return value.hasNonNull("id") ? java.util.UUID.fromString(value.path("id").asText())
+			: java.util.UUID.nameUUIDFromBytes(source.getBytes(StandardCharsets.UTF_8));
+	}
+
+	private static CriticalChainBufferHistory.Retraction retractionFrom(JsonNode value, java.util.UUID id) {
+		return new CriticalChainBufferHistory.Retraction(id,
+			Instant.parse(value.path("retractedAt").asText()), value.path("actorId").asText("unknown"),
+			value.path("actorName").asText("unknown"), value.path("reason").asText());
+	}
+
+	private static CriticalChainBufferHistory.Point pointFrom(JsonNode value, java.util.UUID id) {
+		return new CriticalChainBufferHistory.Point(id, Instant.parse(value.path("observedAt").asText()),
+			value.path("actorId").asText("unknown"), value.path("actorName").asText("unknown"),
+			value.path("progressPercent").asDouble(), value.path("consumptionPercent").asDouble(),
+			value.path("zone").asText("UNKNOWN"), value.path("baselineId").asText(""));
+	}
+
 	private static void validateCcpmHistoryEntry(JsonNode value, String source) throws IOException {
 		try {
-			java.util.UUID id = value.hasNonNull("id") ? java.util.UUID.fromString(value.path("id").asText())
-				: java.util.UUID.nameUUIDFromBytes(source.getBytes(StandardCharsets.UTF_8));
-			if ("retraction".equals(value.path("kind").asText())) {
-				new CriticalChainBufferHistory.Retraction(id,
-					Instant.parse(value.path("retractedAt").asText()), value.path("actorId").asText("unknown"),
-					value.path("actorName").asText("unknown"), value.path("reason").asText());
-			} else {
-				new CriticalChainBufferHistory.Point(id, Instant.parse(value.path("observedAt").asText()),
-					value.path("actorId").asText("unknown"), value.path("actorName").asText("unknown"),
-					value.path("progressPercent").asDouble(), value.path("consumptionPercent").asDouble(),
-					value.path("zone").asText("UNKNOWN"), value.path("baselineId").asText(""));
-			}
+			java.util.UUID id = historyEntryId(value, source);
+			if ("retraction".equals(value.path("kind").asText())) retractionFrom(value, id);
+			else pointFrom(value, id);
 		} catch (RuntimeException exception) {
 			throw new IOException("Invalid CCPM history entry", exception);
 		}
@@ -2458,10 +2453,10 @@ public class MpoFileImporter extends FileImporter {
 			java.util.Map<String, byte[]> archiveEntries, long sharedResourcePoolProjectId, long statusDate) {
 		StringBuilder manifest = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<manifest format=\"mpof\" formatVersion=\"")
 			.append(FORMAT_VERSION).append("\" projectEntry=\"").append(PROJECT_ENTRY).append("\" projectSha256=\"").append(sha256(projectXml)).append("\"");
-		if (documentId != null) manifest.append(" documentId=\"").append(xmlEscape(documentId)).append("\"");
+		if (documentId != null) manifest.append(" documentId=\"").append(MarkupEscape.escape(documentId)).append("\"");
 		if (documentId != null && projectUniqueId != null) manifest.append(" projectUniqueId=\"").append(projectUniqueId.longValue()).append("\"");
 		if (sharedResourcePoolPath != null && !sharedResourcePoolPath.isBlank())
-			manifest.append(" sharedResourcePoolPath=\"").append(xmlEscape(sharedResourcePoolPath)).append("\"");
+			manifest.append(" sharedResourcePoolPath=\"").append(MarkupEscape.escape(sharedResourcePoolPath)).append("\"");
 		if (sharedResourcePoolProjectId != 0L)
 			manifest.append(" sharedResourcePoolProjectId=\"").append(sharedResourcePoolProjectId).append("\"");
 		if (statusDate > 0L)
@@ -2470,15 +2465,15 @@ public class MpoFileImporter extends FileImporter {
 		if ((embeddedProjects == null || embeddedProjects.isEmpty()) && !hasArchiveChecksums) return manifest.append("/>\n").toString();
 		manifest.append(">\n");
 		if (embeddedProjects != null) for (EmbeddedProject embedded : embeddedProjects) {
-			manifest.append("  <embeddedProject entry=\"").append(xmlEscape(embedded.entryName())).append("\" sourcePath=\"")
-				.append(xmlEscape(embedded.sourcePath())).append("\" sha256=\"").append(sha256(embedded.contents())).append("\"");
+			manifest.append("  <embeddedProject entry=\"").append(MarkupEscape.escape(embedded.entryName())).append("\" sourcePath=\"")
+				.append(MarkupEscape.escape(embedded.sourcePath())).append("\" sha256=\"").append(sha256(embedded.contents())).append("\"");
 			if (embedded.referenceId() != null && !embedded.referenceId().isBlank())
-				manifest.append(" referenceId=\"").append(xmlEscape(embedded.referenceId())).append("\"");
+				manifest.append(" referenceId=\"").append(MarkupEscape.escape(embedded.referenceId())).append("\"");
 			manifest.append("/>\n");
 		}
 		if (archiveEntries != null) for (java.util.Map.Entry<String, byte[]> entry : archiveEntries.entrySet()) {
 			if (MANIFEST_ENTRY.equals(entry.getKey())) continue;
-			manifest.append("  <entry path=\"").append(xmlEscape(entry.getKey())).append("\" sha256=\"")
+			manifest.append("  <entry path=\"").append(MarkupEscape.escape(entry.getKey())).append("\" sha256=\"")
 				.append(sha256(entry.getValue())).append("\"/>\n");
 		}
 		return manifest.append("</manifest>\n").toString();
@@ -2622,13 +2617,7 @@ public class MpoFileImporter extends FileImporter {
 		if (operations != null) readBoundedOperationLog(operations, false);
 		else if (draftOperations != null) readBoundedOperationLog(draftOperations, true);
 		try {
-			javax.xml.parsers.DocumentBuilderFactory factory = javax.xml.parsers.DocumentBuilderFactory.newInstance();
-			factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-			factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
-			factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
-			factory.setXIncludeAware(false);
-			factory.setExpandEntityReferences(false);
-			factory.newDocumentBuilder().parse(new ByteArrayInputStream(projectXml));
+			secureDocumentBuilderFactory().newDocumentBuilder().parse(new ByteArrayInputStream(projectXml));
 		} catch (Exception invalidXml) {
 			throw new IOException("Embedded MPOF project payload is not valid XML", invalidXml);
 		}
@@ -2762,7 +2751,7 @@ public class MpoFileImporter extends FileImporter {
 		// longer point at the master's shared project instance.
 		for (EmbeddedProjectReference nested : originalManifest.embeddedProjects()) {
 			entries.remove(nested.entryName());
-			String escapedEntry = java.util.regex.Pattern.quote(xmlEscape(nested.entryName()));
+			String escapedEntry = java.util.regex.Pattern.quote(MarkupEscape.escape(nested.entryName()));
 			manifestText = manifestText.replaceAll("(?m)^\\s*<embeddedProject\\b[^>]*entry=\\\""
 					+ escapedEntry + "\\\"[^>]*/>\\s*\\r?\\n?", "");
 			manifestText = manifestText.replaceAll("(?m)^\\s*<entry\\s+path=\\\"" + escapedEntry
@@ -2784,11 +2773,7 @@ public class MpoFileImporter extends FileImporter {
 				for (java.util.Map.Entry<String, byte[]> entry : entries.entrySet())
 					writeEntry(zip, entry.getKey(), entry.getValue());
 			}
-			try {
-				Files.move(temporary, extractedFile, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-			} catch (java.nio.file.AtomicMoveNotSupportedException unsupported) {
-				Files.move(temporary, extractedFile, StandardCopyOption.REPLACE_EXISTING);
-			}
+			SafeFileReplace.moveAtomically(temporary, extractedFile, true);
 			moved = true;
 		} finally {
 			if (!moved) TemporaryCleanupQueue.deleteOrEnqueue(temporary);
@@ -2800,7 +2785,7 @@ public class MpoFileImporter extends FileImporter {
 		String rewritten = new String(xml, StandardCharsets.UTF_8);
 		for (java.util.Map.Entry<String, String> entry : extractedBySource.entrySet()) {
 			String source = entry.getKey();
-			String target = xmlEscape(entry.getValue());
+			String target = MarkupEscape.escape(entry.getValue());
 			// XML produced by different Windows/JDK combinations can use either
 			// slash direction and may normalize drive/path casing differently.
 			// Match the complete escaped path case-insensitively while accepting
@@ -2825,7 +2810,7 @@ public class MpoFileImporter extends FileImporter {
 				// Keep the raw forms above when a malformed legacy path is encountered.
 			}
 			for (String path : pathVariants) {
-				String escaped = xmlEscape(path);
+				String escaped = MarkupEscape.escape(path);
 				rewritten = java.util.regex.Pattern.compile(java.util.regex.Pattern.quote(escaped),
 						java.util.regex.Pattern.CASE_INSENSITIVE)
 					.matcher(rewritten)
@@ -2863,11 +2848,7 @@ public class MpoFileImporter extends FileImporter {
 		String document = new String(manifestBytes, StandardCharsets.UTF_8).trim();
 		if (document.startsWith("{")) return readDraftJsonManifest(document, projectXml);
 		try {
-			javax.xml.parsers.DocumentBuilderFactory factory = javax.xml.parsers.DocumentBuilderFactory.newInstance();
-			factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-			factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
-			factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
-			factory.setXIncludeAware(false); factory.setExpandEntityReferences(false);
+			javax.xml.parsers.DocumentBuilderFactory factory = secureDocumentBuilderFactory();
 			org.w3c.dom.Element root = factory.newDocumentBuilder().parse(new ByteArrayInputStream(manifestBytes)).getDocumentElement();
 			if (!"manifest".equals(root.getTagName()) || !FORMAT_ID.equals(root.getAttribute("format")) || !PROJECT_ENTRY.equals(root.getAttribute("projectEntry"))) throw new IOException("Unsupported or invalid MPOF manifest");
 			requireReadableFormatVersion(root.getAttribute("formatVersion"));
@@ -2959,16 +2940,7 @@ public class MpoFileImporter extends FileImporter {
 				? com.microproject.pm.resource.ResourceLevelingService.Sensitivity.valueOf(text(root, "sensitivity"))
 				: com.microproject.pm.resource.ResourceLevelingService.Sensitivity.DAY);
 			CriticalChainService service = new CriticalChainService();
-			CriticalChainService.Settings target = service.settings(project);
-			target.setEnabled(settings.isEnabled());
-			target.setBufferFraction(settings.getBufferFraction());
-			target.setLevelingOrder(settings.getLevelingOrder());
-			target.setOnlyWithinAvailableSlack(settings.isOnlyWithinAvailableSlack());
-			target.setAllowTaskSplits(settings.isAllowTaskSplits());
-			target.setLevelAssignments(settings.isLevelAssignments());
-			target.setIncludeProposedResources(settings.isIncludeProposedResources());
-			target.setLevelManuallyScheduledTasks(settings.isLevelManuallyScheduledTasks());
-			target.setSensitivity(settings.getSensitivity());
+			applySettings(service.settings(project), settings);
 			JsonNode baseline = root.get("baseline");
 			if (baseline != null) service.restoreBaseline(project, baseline(baseline));
 		} catch (RuntimeException e) {
@@ -3023,7 +2995,7 @@ public class MpoFileImporter extends FileImporter {
 		return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<meta formatVersion=\"1.0\" generator=\"microProject\"" +
 			" " + LEVELING_DELAY_UNIT_ATTRIBUTE + "=\"" + LEVELING_DELAY_UNIT_MINUTES + "\"" +
 			" " + ASSIGNMENT_BASELINE_COST_UNIT_ATTRIBUTE + "=\"" + ASSIGNMENT_BASELINE_COST_UNIT_HUNDREDTHS + "\"" +
-			(version == null ? "" : " applicationVersion=\"" + xmlEscape(version) + "\"") + "/>\n";
+			(version == null ? "" : " applicationVersion=\"" + MarkupEscape.escape(version) + "\"") + "/>\n";
 	}
 
 	private static boolean isLegacyMicroprojectAssignmentBaselineCost(byte[] xmlBytes) throws IOException {
@@ -3108,12 +3080,7 @@ public class MpoFileImporter extends FileImporter {
 	}
 
 	private static javax.xml.parsers.DocumentBuilderFactory secureDocumentBuilderFactory() throws javax.xml.parsers.ParserConfigurationException {
-		javax.xml.parsers.DocumentBuilderFactory factory = javax.xml.parsers.DocumentBuilderFactory.newInstance();
-		factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-		factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
-		factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
-		factory.setXIncludeAware(false); factory.setExpandEntityReferences(false);
-		return factory;
+		return MspdiProjectBoundary.secureDocumentBuilderFactory(false);
 	}
 
 	private static void validateMeta(byte[] xmlBytes) throws IOException {
@@ -3157,13 +3124,21 @@ public class MpoFileImporter extends FileImporter {
 		return xml.append("</settings>\n").toString();
 	}
 
+	private static void applySettings(CriticalChainService.Settings target, CriticalChainService.Settings settings) {
+		target.setEnabled(settings.isEnabled());
+		target.setBufferFraction(settings.getBufferFraction());
+		target.setLevelingOrder(settings.getLevelingOrder());
+		target.setOnlyWithinAvailableSlack(settings.isOnlyWithinAvailableSlack());
+		target.setAllowTaskSplits(settings.isAllowTaskSplits());
+		target.setLevelAssignments(settings.isLevelAssignments());
+		target.setIncludeProposedResources(settings.isIncludeProposedResources());
+		target.setLevelManuallyScheduledTasks(settings.isLevelManuallyScheduledTasks());
+		target.setSensitivity(settings.getSensitivity());
+	}
+
 	private static void restoreSettings(Project project, byte[] xmlBytes) throws IOException {
 		try {
-			javax.xml.parsers.DocumentBuilderFactory factory = javax.xml.parsers.DocumentBuilderFactory.newInstance();
-			factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-			factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
-			factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
-			factory.setXIncludeAware(false); factory.setExpandEntityReferences(false);
+			javax.xml.parsers.DocumentBuilderFactory factory = secureDocumentBuilderFactory();
 			org.w3c.dom.Element root = factory.newDocumentBuilder().parse(new ByteArrayInputStream(xmlBytes)).getDocumentElement();
 			if (!"settings".equals(root.getTagName()) || !"1".equals(root.getAttribute("schemaVersion"))) throw new IOException("Unsupported settings.xml schemaVersion");
 			org.w3c.dom.NodeList nodes = root.getElementsByTagName("ccpm");
@@ -3184,13 +3159,8 @@ public class MpoFileImporter extends FileImporter {
 			settings.setSensitivity(value.hasAttribute("sensitivity")
 				? com.microproject.pm.resource.ResourceLevelingService.Sensitivity.valueOf(value.getAttribute("sensitivity"))
 				: com.microproject.pm.resource.ResourceLevelingService.Sensitivity.DAY);
-			CriticalChainService service = new CriticalChainService(); CriticalChainService.Settings target = service.settings(project);
-			target.setEnabled(settings.isEnabled()); target.setBufferFraction(settings.getBufferFraction()); target.setLevelingOrder(settings.getLevelingOrder());
-			target.setOnlyWithinAvailableSlack(settings.isOnlyWithinAvailableSlack()); target.setAllowTaskSplits(settings.isAllowTaskSplits());
-			target.setLevelAssignments(settings.isLevelAssignments());
-			target.setIncludeProposedResources(settings.isIncludeProposedResources());
-			target.setLevelManuallyScheduledTasks(settings.isLevelManuallyScheduledTasks());
-			target.setSensitivity(settings.getSensitivity());
+			CriticalChainService service = new CriticalChainService();
+			applySettings(service.settings(project), settings);
 			org.w3c.dom.NodeList baselines = value.getElementsByTagName("baseline");
 			if (baselines.getLength() > 0) {
 				org.w3c.dom.Element baseline = (org.w3c.dom.Element) baselines.item(0);
@@ -3219,8 +3189,6 @@ public class MpoFileImporter extends FileImporter {
 	private static String requiredAttribute(org.w3c.dom.Element element, String name) throws IOException {
 		String value = element.getAttribute(name); if (value == null || value.isBlank()) throw new IOException("Missing settings.xml attribute: " + name); return value;
 	}
-	private static String xmlEscape(String value) { return value.replace("&", "&amp;").replace("\"", "&quot;").replace("<", "&lt;").replace(">", "&gt;"); }
-
 	private static byte[] ccpmHistoryJson(Project project) throws IOException {
 		CriticalChainBufferHistory history = project.findTransientDocumentState(CriticalChainBufferHistory.class);
 		if (history == null || (history.points().isEmpty() && history.retractions().isEmpty())) return new byte[0];
@@ -3259,18 +3227,9 @@ public class MpoFileImporter extends FileImporter {
 				throw new IOException("MPOF CCPM history exceeds " + MAX_CCPM_HISTORY_ENTRIES + " entries");
 			try {
 				JsonNode value = JSON.readTree(line);
-				java.util.UUID id = value.hasNonNull("id") ? java.util.UUID.fromString(value.path("id").asText())
-					: java.util.UUID.nameUUIDFromBytes(line.getBytes(StandardCharsets.UTF_8));
-				if ("retraction".equals(value.path("kind").asText())) {
-					history.recordRetraction(new CriticalChainBufferHistory.Retraction(id,
-						Instant.parse(value.path("retractedAt").asText()), value.path("actorId").asText("unknown"),
-						value.path("actorName").asText("unknown"), value.path("reason").asText()));
-				} else {
-					history.add(new CriticalChainBufferHistory.Point(id, Instant.parse(value.path("observedAt").asText()),
-						value.path("actorId").asText("unknown"), value.path("actorName").asText("unknown"),
-						value.path("progressPercent").asDouble(), value.path("consumptionPercent").asDouble(),
-						value.path("zone").asText("UNKNOWN"), value.path("baselineId").asText("")));
-				}
+				java.util.UUID id = historyEntryId(value, line);
+				if ("retraction".equals(value.path("kind").asText())) history.recordRetraction(retractionFrom(value, id));
+				else history.add(pointFrom(value, id));
 			} catch (RuntimeException | IOException exception) {
 				throw new IOException("Invalid CCPM history entry", exception);
 			}

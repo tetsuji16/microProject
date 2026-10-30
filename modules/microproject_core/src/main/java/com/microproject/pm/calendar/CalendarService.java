@@ -46,6 +46,8 @@ import com.microproject.timescale.CalendarUtil;
 import com.microproject.transaction.ProjectMutationState;
 import com.microproject.undo.CalendarEdit;
 import com.microproject.undo.EditSupport;
+import static com.microproject.util.IdentityCollections.addIdentity;
+import static com.microproject.util.IdentityCollections.containsIdentity;
 
 /**
  * Facade for manipulating calendars via a dialog or web interface
@@ -509,13 +511,6 @@ public class CalendarService {
 
 	private static <T> List<T> identityList() {
 		return new ArrayList<>();
-	}
-	private static <T> void addIdentity(List<T> values, T value) {
-		if (value != null && !containsIdentity(values, value)) values.add(value);
-	}
-	private static <T> boolean containsIdentity(List<T> values, T candidate) {
-		for (T value : values) if (value == candidate) return true;
-		return false;
 	}
 
 	/**

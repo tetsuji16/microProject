@@ -194,8 +194,8 @@ public final class OperationLog {
 		requireUuid(documentId, "document id");
 		ObjectNode root = JSON.createObjectNode(); root.put("schemaVersion", 1); root.put("documentId", documentId);
 		ArrayNode values = root.putArray("operations");
-		MergeResult merged = merge(operations); List<Operation> all = new ArrayList<>(merged.ready()); all.addAll(merged.pending());
-		for (Operation op : all) { ObjectNode value = values.addObject(); value.put("id", op.id()); value.put("actorId", op.actorId()); value.put("sequence", op.sequence()); ArrayNode parents = value.putArray("parents"); op.parents().stream().sorted().forEach(parents::add); value.put("kind", op.kind()); value.put("entityId", op.entityId()); value.set("payload", JSON.valueToTree(op.payload())); }
+		MergeResult merged = merge(operations);
+		for (Operation op : mergeAll(merged)) values.add(operationNode(op));
 		writeConflictMetadata(root, merged.conflicts());
 		ArrayNode applied = root.putArray("appliedOperationIds");
 		merged.ready().stream().map(Operation::id).sorted().forEach(applied::add);

@@ -134,7 +134,7 @@ public final class FlatLafSupport {
 	 * normal Swing/OS decoration fallback.
 	 */
 	private static boolean configureNativeWindowDecorations() {
-		if (!isWindows()
+		if (!Environment.isWindows()
 			|| "false".equalsIgnoreCase(System.getProperty("flatlaf.useWindowDecorations"))
 			|| !FlatLaf.supportsNativeWindowDecorations()) {
 			return false;
@@ -150,7 +150,7 @@ public final class FlatLafSupport {
 
 	private static Font createDefaultFont() {
 		String fontName;
-		if (isWindows()) {
+		if (Environment.isWindows()) {
 			fontName = firstDisplayable(JAPANESE_FONT_SAMPLE, JAPANESE_UI_FONT, "Yu Gothic", LEGACY_JAPANESE_UI_FONT, "Meiryo", MS_PROJECT_FONT, "SansSerif");
 		} else if (isMac()) {
 			fontName = firstDisplayable(JAPANESE_FONT_SAMPLE, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Hiragino Kaku Gothic Pro", "SansSerif");
@@ -224,11 +224,6 @@ public final class FlatLafSupport {
 				return family;
 		}
 		return fallback;
-	}
-
-	private static boolean isWindows() {
-		String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
-		return osName.startsWith("windows");
 	}
 
 	private static boolean isMac() {

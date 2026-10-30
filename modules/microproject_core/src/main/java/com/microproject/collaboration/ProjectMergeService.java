@@ -58,6 +58,7 @@ import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.task.ProjectTaskSnapshot;
 import com.microproject.pm.task.Task;
+import com.microproject.session.FileHelper;
 import com.microproject.session.LocalSession;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.Environment;
@@ -241,7 +242,7 @@ public class ProjectMergeService {
 			Project project;
 			if (fileName.toLowerCase(Locale.ROOT).endsWith(".pod")) {
 				project = loadPodProject(fileName);
-			} else if (fileName.toLowerCase(Locale.ROOT).endsWith(".mpo")) {
+			} else if (FileHelper.isMpoFile(fileName)) {
 				project = loadMpoProject(fileName);
 			} else {
 				try (InputStream in = new FileInputStream(fileName)) {
