@@ -25,6 +25,7 @@ package com.microproject.dialog;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -41,6 +42,7 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.model.NodeModelDataFactory;
+import com.microproject.menu.MenuActionConstants;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetUtils;
@@ -204,6 +206,26 @@ class ResourceTableEditDirtyTest {
 			assertEquals(rows, table.getList().size(), "project redo must not change table rows");
 			assertTrue(f.project().needsSaving(), "project redo must keep the row removal unsaved");
 		}, table, "availabilitySpreadsheet", "Spreadsheet.availability");
+	}
+
+	/** Before any command has run, a right-click must already find Delete and Cut on both tables. */
+	@Test
+	void bothTablesOfferRowCommandsFromTheirFirstPopup() throws Exception {
+		Fixture f = fixture();
+		onEdt(f, sheet -> assertRowCommands(sheet), f.resource().getAvailabilityTable(),
+				"availabilitySpreadsheet", "Spreadsheet.availability");
+		onEdt(f, sheet -> assertRowCommands(sheet), f.resource().getCostRateTable(0),
+				"costRates", "Spreadsheet.costRates");
+	}
+
+	private static void assertRowCommands(SpreadSheet sheet) {
+		var popup = sheet.getPopup();
+		assertNotNull(popup, "the table must have a row popup");
+		var items = new ArrayList<String>();
+		for (var component : popup.getComponents())
+			items.add(component.getName());
+		assertTrue(items.contains("popup." + MenuActionConstants.ACTION_DELETE), () -> "Delete missing: " + items);
+		assertTrue(items.contains("popup." + MenuActionConstants.ACTION_CUT), () -> "Cut missing: " + items);
 	}
 
 	@Test

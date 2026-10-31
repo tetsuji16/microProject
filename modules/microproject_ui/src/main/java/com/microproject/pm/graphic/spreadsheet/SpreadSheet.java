@@ -2240,11 +2240,14 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		if (actionId == null) {
 			return null;
 		}
+		return actions().get(actionId);
+	}
+	private Map<String, CommonSpreadSheetAction> actions() {
 		if (actionMap == null) {
 			actionMap = new HashMap<>();
 			addActions(getActionList());
 		}
-		return actionMap.get(actionId);
+		return actionMap;
 	}
 	private void addAction(String action,String spreadSheetActionId,CommonSpreadSheetAction spreadSheetAction){
 		if (spreadSheetActionId.equals(action)){
@@ -2509,8 +2512,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 //		return popupActions != null && popupActions.length > 0;
 //	}
 	public boolean hasRowPopup() {
-		getAction(null);
-		return actionMap != null && actionMap.size() > 0;
+		return !actions().isEmpty();
 	}
 
 	public SpreadSheetAction getCopyAction() {
