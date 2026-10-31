@@ -586,6 +586,53 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 			"MPO reload must retain the physical Start edit on the same stable task");
 	}
 
+	@Test
+	void robotMovingToAnotherTableStopsTheNameCellEdit() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(),
+			"A desktop session is required for U-26 physical input coverage.");
+		Fixture fixture = createFixture();
+		showFixture(fixture);
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(35);
+		SwingUtilities.invokeAndWait(() -> tabs.setSelectedIndex(0));
+		activate(fixture.entrySheet, robot);
+		int nameColumn = findColumn(fixture.entrySheet, "Field.name");
+		cellOnScreen(fixture.entrySheet, fixture.entryRow, nameColumn);
+		Rectangle nameCell = currentCellOnScreen(fixture.entrySheet, fixture.entryRow, nameColumn);
+		clickCell(robot, nameCell, 0);
+		clickCell(robot, nameCell, 0);
+		GuiAcceptanceSupport.await(fixture.entrySheet::isEditing, "a physical double-click must start the name-cell edit");
+
+		// Move to the other table by clicking its tab, then start a non-name edit there.
+		Rectangle[] tab = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> {
+			Rectangle bounds = tabs.getBoundsAt(1);
+			Point origin = tabs.getLocationOnScreen();
+			tab[0] = new Rectangle(origin.x + bounds.x, origin.y + bounds.y, bounds.width, bounds.height);
+		});
+		clickCell(robot, tab[0], 0);
+		GuiAcceptanceSupport.await(() -> selectedTabIndexQuietly() == 1, "the physical tab click must select the tracking table");
+		activate(fixture.trackingSheet, robot);
+		cellOnScreen(fixture.trackingSheet, fixture.trackingRow, fixture.percentColumn);
+		Rectangle percentCell = currentCellOnScreen(fixture.trackingSheet, fixture.trackingRow, fixture.percentColumn);
+		clickCell(robot, percentCell, 0);
+		clickCell(robot, percentCell, 0);
+		GuiAcceptanceSupport.await(fixture.trackingSheet::isEditing, "a physical double-click must start the non-name edit");
+
+		boolean[] previousStillEditing = new boolean[1];
+		SwingUtilities.invokeAndWait(() -> previousStillEditing[0] = fixture.entrySheet.isEditing());
+		assertTrue(!previousStillEditing[0], "starting an edit in another table must stop the previous table's name-cell edit");
+		SwingUtilities.invokeAndWait(() -> fixture.trackingSheet.getCellEditor().cancelCellEditing());
+	}
+
+	private int selectedTabIndexQuietly() {
+		try {
+			return selectedTabIndex();
+		} catch (Exception exception) {
+			throw new AssertionError(exception);
+		}
+	}
+
 	private void showFixture(Fixture fixture) throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			frame = new MainRibbonFrame("microProject — U-26 spreadsheet input transaction", null);
