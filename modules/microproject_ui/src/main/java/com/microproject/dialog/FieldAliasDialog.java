@@ -109,7 +109,7 @@ public final class FieldAliasDialog extends AbstractDialog {
 			newName.setText(field.getName());
 		} else {
 			result =newName.getText().trim();
-			if (result.equals(oldName))
+			if (result.equals(oldName.getText()))
 				return true; // no change
 			if (result.length() == 0) {
 				Alert.warn(Messages.getString("RenameDialog.TheNameCannotBeEmpty"),this); //$NON-NLS-1$

@@ -25,7 +25,6 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.text.DateFormatSymbols;
-import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
@@ -47,7 +46,6 @@ import javax.swing.ListSelectionModel;
 import javax.swing.event.ListSelectionEvent;
 
 import com.microproject.pm.calendar.WorkDay;
-import com.microproject.pm.calendar.WorkRangeException;
 import com.microproject.pm.calendar.WorkWeek;
 import com.microproject.pm.calendar.WorkWeekPeriod;
 import com.microproject.pm.calendar.WorkingCalendar;
@@ -56,7 +54,6 @@ import com.microproject.strings.Messages;
 import com.microproject.util.DateTime;
 import static com.microproject.dialog.calendar.CalendarEditorSupport.dateSpinner;
 import static com.microproject.dialog.calendar.CalendarEditorSupport.formatTime;
-import static com.microproject.dialog.calendar.CalendarEditorSupport.timeValue;
 
 /** Editable MSP-style dated work-week rules on the dialog's private scratch calendar. */
 final class WorkWeekEditorPanel extends JPanel {
@@ -233,27 +230,7 @@ final class WorkWeekEditorPanel extends JPanel {
 					week.setWeekDay(day, WorkDay.getNonWorkingDay());
 					continue;
 				}
-				WorkingHours hours = new WorkingHours();
-				int count = 0;
-				LocalTime previousFinish = null;
-				try {
-					for (int slot = 0; slot < from[day].length; slot++) {
-						String begin = from[day][slot].getText().trim();
-						String finish = to[day][slot].getText().trim();
-						if (begin.isEmpty() && finish.isEmpty()) continue;
-						if (begin.isEmpty() || finish.isEmpty())
-							throw new IllegalArgumentException(Messages.getString("ChangeWorkingTimeDialogBox.WorkWeekTimePairRequired"));
-						LocalTime startTime = LocalTime.parse(begin);
-						LocalTime finishTime = LocalTime.parse(finish);
-						if (!finishTime.isAfter(startTime) || (previousFinish != null && startTime.isBefore(previousFinish)))
-							throw new IllegalArgumentException(Messages.getString("ChangeWorkingTimeDialogBox.WorkWeekInvalidTime"));
-						hours.setInterval(count++, timeValue(begin), timeValue(finish));
-						previousFinish = finishTime;
-					}
-				} catch (WorkRangeException | java.time.format.DateTimeParseException invalid) {
-					throw new IllegalArgumentException(Messages.getString("ChangeWorkingTimeDialogBox.WorkWeekInvalidTime"), invalid);
-				}
-				if (count == 0) throw new IllegalArgumentException(Messages.getString("ChangeWorkingTimeDialogBox.WorkWeekTimeRequired"));
+				WorkingHours hours = CalendarEditorSupport.workingHours(from[day], to[day]);
 				WorkDay workDay = new WorkDay();
 				workDay.setWorkingHours(hours);
 				week.setWeekDay(day, workDay);
