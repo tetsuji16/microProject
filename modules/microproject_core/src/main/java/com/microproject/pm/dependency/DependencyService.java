@@ -93,15 +93,12 @@ public class DependencyService {
 				dependencyType, lead);
 		DependencyGraphSnapshot snapshot = new DependencyGraphSnapshot(List.of(dependency), List.of(predecessorTask, successorTask));
 		runDependencyMutation(List.of(predecessorTask, successorTask), eventSource, (context, mutationSource) -> {
-			try {
+			return restoringOnFailure(snapshot, () -> {
 				dependency.testValid(false); // throws if exception
 				connectInternal(dependency, mutationSource, undoProject, context);
 				dependency.setDirty(true);
 				return true;
-			} catch (RuntimeException | Error failure) {
-				snapshot.restore();
-				throw failure;
-			}
+			});
 		}, true);
 		return dependency;
 	}
@@ -174,12 +171,9 @@ public class DependencyService {
 		Task successor = (Task) dependency.getSuccessor();
 		DependencyGraphSnapshot snapshot = new DependencyGraphSnapshot(List.of(dependency), List.of(predecessor, successor));
 		runDependencyMutation(List.of(predecessor, successor), eventSource, (context, mutationSource) -> {
-			try {
+			return restoringOnFailure(snapshot, () -> {
 				return connectInternal(dependency, mutationSource, context);
-			} catch (RuntimeException | Error failure) {
-				snapshot.restore();
-				throw failure;
-			}
+			});
 		}, true);
 	}
 
@@ -311,12 +305,9 @@ public class DependencyService {
 		Task successor = (Task) dependency.getSuccessor();
 		DependencyGraphSnapshot snapshot = new DependencyGraphSnapshot(List.of(dependency), List.of(predecessor, successor));
 		runDependencyMutation(List.of(predecessor, successor), eventSource, (context, mutationSource) -> {
-			try {
+			return restoringOnFailure(snapshot, () -> {
 				return removeInternal(dependency, mutationSource, undo, undoProject, context);
-			} catch (RuntimeException | Error failure) {
-				snapshot.restore();
-				throw failure;
-			}
+			});
 		}, true);
 	}
 
@@ -405,6 +396,22 @@ public class DependencyService {
 
 	private static boolean shouldRecordUndo(Object eventSource) {
 		return !(eventSource instanceof UndoableEdit) && eventSource != LiveDependencyRefreshSource.INSTANCE;
+	}
+
+	@FunctionalInterface
+	private interface RollbackableMutation<T, E extends Exception> {
+		T apply() throws E;
+	}
+
+	/** The one rollback procedure for dependency mutations: restore the captured graph on any unchecked failure. */
+	private static <T, E extends Exception> T restoringOnFailure(DependencyGraphSnapshot snapshot,
+			RollbackableMutation<T, E> mutation) throws E {
+		try {
+			return mutation.apply();
+		} catch (RuntimeException | Error failure) {
+			snapshot.restore();
+			throw failure;
+		}
 	}
 
 	@FunctionalInterface
@@ -613,14 +620,11 @@ public class DependencyService {
 			}
 			DependencyGraphSnapshot snapshot = new DependencyGraphSnapshot(newDependencies,
 				connectableTasks.stream().map(Task.class::cast).toList());
-			try {
+			return restoringOnFailure(snapshot, () -> {
 				for (Dependency dependency : newDependencies)
 					connectInternal(dependency, mutationSource, undoProject, context);
 				return !newDependencies.isEmpty();
-			} catch (RuntimeException | Error failure) {
-				snapshot.restore();
-				throw failure;
-			}
+			});
 		}, true);
 	}
 	/**
@@ -661,15 +665,12 @@ public class DependencyService {
 		}
 		DependencyGraphSnapshot snapshot = new DependencyGraphSnapshot(dependencies, endpoints);
 		runDependencyMutation(endpoints, eventSource, (context, mutationSource) -> {
-			try {
+			return restoringOnFailure(snapshot, () -> {
 				boolean changed = false;
 				for (Dependency dependency : dependencies)
 					changed |= removeInternal(dependency, mutationSource, undo, undoProject, context);
 				return changed;
-			} catch (RuntimeException | Error failure) {
-				snapshot.restore();
-				throw failure;
-			}
+			});
 		}, true);
 	}
 
