@@ -1,6 +1,6 @@
 # Issue #989 — MSPDI default start/finish times shift with the host time zone
 
-State: IN PROGRESS
+State: DONE
 Issue: https://github.com/tetsuji16/microProject/issues/989
 Contract frozen at: 2026-10-31, issue body at intake
 Baseline HEAD: `47a8239fe`
@@ -23,7 +23,7 @@ Blockers: none
 
 ## Next slice
 
-Merge after CI is green for the exact PR SHA.
+None.
 
 ## Evidence
 
