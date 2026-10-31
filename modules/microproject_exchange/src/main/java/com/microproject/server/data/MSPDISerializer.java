@@ -893,45 +893,35 @@ public class MSPDISerializer implements ProjectSerializer {
 
 	private static void normalizeAssignmentBaselineWorkRows(org.w3c.dom.Document document,
 		org.w3c.dom.Element assignment, int slot, List<ExactWorkRow> rows) throws IOException {
-		org.w3c.dom.Element baseline = findBaseline(assignment, slot);
-		if (baseline == null) {
-			baseline = document.createElementNS(assignment.getNamespaceURI(), "Baseline");
-			insertBaselineAtSchemaPosition(assignment, baseline, slot);
-		}
-		int type = MpxImportState.assignmentBaselineWorkType(slot);
-		for (org.w3c.dom.Element existing : directChildren(baseline, "TimephasedData")) {
-			if (Integer.toString(type).equals(childText(existing, "Type"))) baseline.removeChild(existing);
-		}
-		org.w3c.dom.Element number = childElement(baseline, "Number");
-		if (number == null) {
-			number = document.createElementNS(assignment.getNamespaceURI(), "Number");
-			number.setTextContent(Integer.toString(slot));
-			baseline.appendChild(number);
-		} else if (!Integer.toString(slot).equals(number.getTextContent().trim())) {
-			throw new IOException("MSPDI output assignment baseline number does not match its slot");
-		}
-		String assignmentUid = childText(assignment, "UID");
-		if (assignmentUid == null) throw new IOException("MSPDI output assignment has no UID");
-		for (ExactWorkRow row : rows) {
-			org.w3c.dom.Element timephased = document.createElementNS(assignment.getNamespaceURI(), "TimephasedData");
-			appendTextElement(document, timephased, "Type", Integer.toString(type));
-			appendTextElement(document, timephased, "UID", assignmentUid);
-			appendTextElement(document, timephased, "Start", formatMspdiWallTime(row.start()));
-			appendTextElement(document, timephased, "Finish", formatMspdiWallTime(row.finish()));
-			appendTextElement(document, timephased, "Unit", "2");
-			appendTextElement(document, timephased, "Value", durationMillisToMspdi(row.work()));
-			baseline.insertBefore(timephased, number);
-		}
+		normalizeAssignmentBaselineRows(document, assignment, slot, MpxImportState.assignmentBaselineWorkType(slot),
+			rows, ExactWorkRow::start, ExactWorkRow::finish, row -> durationMillisToMspdi(row.work()));
 	}
 
 	private static void normalizeAssignmentBaselineCostRows(org.w3c.dom.Document document,
 		org.w3c.dom.Element assignment, int slot, List<ExactCostRow> rows) throws IOException {
+		normalizeAssignmentBaselineRows(document, assignment, slot, MpxImportState.assignmentBaselineCostType(slot),
+			rows, ExactCostRow::start, ExactCostRow::finish, row -> serializeMspdiCurrency(row.cost()));
+	}
+
+	/**
+	 * Replaces the timephased rows of one type inside an assignment baseline. Work and cost rows differ
+	 * only in their MSPDI TimephasedData type code and in how the row value is formatted.
+	 */
+	/** Formats the Value element of one baseline row; may reject an unrepresentable value. */
+	@FunctionalInterface
+	private interface BaselineRowValue<R> {
+		String format(R row) throws IOException;
+	}
+
+	private static <R> void normalizeAssignmentBaselineRows(org.w3c.dom.Document document,
+		org.w3c.dom.Element assignment, int slot, int type, List<R> rows,
+		java.util.function.ToLongFunction<R> start, java.util.function.ToLongFunction<R> finish,
+		BaselineRowValue<R> value) throws IOException {
 		org.w3c.dom.Element baseline = findBaseline(assignment, slot);
 		if (baseline == null) {
 			baseline = document.createElementNS(assignment.getNamespaceURI(), "Baseline");
 			insertBaselineAtSchemaPosition(assignment, baseline, slot);
 		}
-		int type = MpxImportState.assignmentBaselineCostType(slot);
 		for (org.w3c.dom.Element existing : directChildren(baseline, "TimephasedData")) {
 			if (Integer.toString(type).equals(childText(existing, "Type"))) baseline.removeChild(existing);
 		}
@@ -945,14 +935,14 @@ public class MSPDISerializer implements ProjectSerializer {
 		}
 		String assignmentUid = childText(assignment, "UID");
 		if (assignmentUid == null) throw new IOException("MSPDI output assignment has no UID");
-		for (ExactCostRow row : rows) {
+		for (R row : rows) {
 			org.w3c.dom.Element timephased = document.createElementNS(assignment.getNamespaceURI(), "TimephasedData");
 			appendTextElement(document, timephased, "Type", Integer.toString(type));
 			appendTextElement(document, timephased, "UID", assignmentUid);
-			appendTextElement(document, timephased, "Start", formatMspdiWallTime(row.start()));
-			appendTextElement(document, timephased, "Finish", formatMspdiWallTime(row.finish()));
+			appendTextElement(document, timephased, "Start", formatMspdiWallTime(start.applyAsLong(row)));
+			appendTextElement(document, timephased, "Finish", formatMspdiWallTime(finish.applyAsLong(row)));
 			appendTextElement(document, timephased, "Unit", "2");
-			appendTextElement(document, timephased, "Value", serializeMspdiCurrency(row.cost()));
+			appendTextElement(document, timephased, "Value", value.format(row));
 			baseline.insertBefore(timephased, number);
 		}
 	}

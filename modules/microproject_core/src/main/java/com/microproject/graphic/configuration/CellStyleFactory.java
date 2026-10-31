@@ -34,7 +34,7 @@ import com.microproject.strings.Messages;
 /**
  *
  */
-public class CellStyleFactory {
+public class CellStyleFactory implements FormulaCatalog.Factory<CellStyle> {
 	private static final Logger logger = Logger.getLogger(CellStyleFactory.class.getName());
 	protected String formulaText;
 	protected String formulaClass;
@@ -43,6 +43,10 @@ public class CellStyleFactory {
 	protected String type = null; 
 	protected String format = null; 
 	
+	public CellStyle create() throws InvalidFormulaException {
+		return getCellStyle();
+	}
+
 	public CellStyle getCellStyle() throws InvalidFormulaException{
 		if (formulaClass!=null){
 			try {

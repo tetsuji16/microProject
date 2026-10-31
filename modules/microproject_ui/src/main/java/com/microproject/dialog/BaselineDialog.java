@@ -27,7 +27,6 @@ package com.microproject.dialog;
 import java.awt.Frame;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.util.ResourceBundle;
 import java.util.function.Predicate;
 
 import javax.swing.ButtonGroup;
@@ -152,9 +151,8 @@ public final class BaselineDialog extends AbstractDialog {
 		entireProject = new JRadioButton(Messages.getString("Text.EntireProject")); //$NON-NLS-1$
 		selectedTasks = new JRadioButton(Messages.getString("Text.SelectedTasks")); //$NON-NLS-1$
 		if (allowRollup) {
-			ResourceBundle labels = ResourceBundle.getBundle("com.microproject.dialog.usability");
-			rollupToSummaryTasks = new JCheckBox(labels.getString("baseline.rollupToSummaryTasks"));
-			rollupFromSubtasks = new JCheckBox(labels.getString("baseline.rollupFromSubtasks"));
+			rollupToSummaryTasks = new JCheckBox(UsabilityStrings.text("baseline.rollupToSummaryTasks"));
+			rollupFromSubtasks = new JCheckBox(UsabilityStrings.text("baseline.rollupFromSubtasks"));
 		}
 		
 		// for some strange reason, the value of the buttons is not correct in bind at the end, so I am using a listener instead

@@ -19,6 +19,8 @@ import java.util.zip.ZipInputStream;
 public final class MpoArchiveBudgetValidator {
 	/** Conservative limits shared by file, stream, and embedded MPOF readers. */
 	public static final Budget DEFAULT_BUDGET = new Budget(128L * 1024L * 1024L, 128, 64);
+	private static final String DECOMPRESSED_SIZE_LIMIT = "decompressed-size-limit";
+
 	private MpoArchiveBudgetValidator() {
 	}
 
@@ -39,33 +41,21 @@ public final class MpoArchiveBudgetValidator {
 		if (source == null) return invalid("source-null", 0, 0, 0);
 		if (!Files.isRegularFile(source)) return invalid("source-missing", 0, 0, 0);
 		Objects.requireNonNull(budget, "budget");
-		long bytes = 0;
-		int entries = 0;
-		int depth = 0;
+		Accounting accounting = new Accounting(budget);
 		try (ZipFile zip = new ZipFile(source.toFile(), StandardCharsets.UTF_8)) {
 			var iterator = zip.entries();
 			while (iterator.hasMoreElements()) {
 				ZipEntry entry = iterator.nextElement();
-				entries++;
-				if (entries > budget.maxEntries()) return invalid("entry-count-limit", bytes, entries, depth);
-				int entryDepth = pathDepth(entry.getName());
-				if (entryDepth < 0) return invalid("invalid-entry-path", bytes, entries, depth);
-				depth = Math.max(depth, entryDepth);
-				if (depth > budget.maxPathDepth()) return invalid("path-depth-limit", bytes, entries, depth);
+				String rejection = accounting.admit(entry);
+				if (rejection != null) return accounting.invalid(rejection);
 				if (entry.isDirectory()) continue;
 				try (InputStream input = zip.getInputStream(entry)) {
-					byte[] buffer = new byte[8192];
-					int read;
-					while ((read = input.read(buffer)) != -1) {
-						if (read > budget.maxDecompressedBytes() - bytes)
-							return invalid("decompressed-size-limit", bytes, entries, depth);
-						bytes += read;
-					}
+					if (!accounting.drain(input)) return accounting.invalid(DECOMPRESSED_SIZE_LIMIT);
 				}
 			}
-			return new Result(true, "", bytes, entries, depth);
+			return accounting.valid();
 		} catch (IOException | RuntimeException failure) {
-			return invalid(failure.getClass().getSimpleName(), bytes, entries, depth);
+			return accounting.invalid(failure.getClass().getSimpleName());
 		}
 	}
 
@@ -73,32 +63,61 @@ public final class MpoArchiveBudgetValidator {
 	public static Result validate(byte[] source, Budget budget) {
 		if (source == null) return invalid("source-null", 0, 0, 0);
 		Objects.requireNonNull(budget, "budget");
+		Accounting accounting = new Accounting(budget);
 		try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(source), StandardCharsets.UTF_8)) {
-			long bytes = 0;
-			int entries = 0;
-			int depth = 0;
 			ZipEntry entry;
 			while ((entry = zip.getNextEntry()) != null) {
-				entries++;
-				if (entries > budget.maxEntries()) return invalid("entry-count-limit", bytes, entries, depth);
-				int entryDepth = pathDepth(entry.getName());
-				if (entryDepth < 0) return invalid("invalid-entry-path", bytes, entries, depth);
-				depth = Math.max(depth, entryDepth);
-				if (depth > budget.maxPathDepth()) return invalid("path-depth-limit", bytes, entries, depth);
-				if (!entry.isDirectory()) {
-					byte[] buffer = new byte[8192];
-					int read;
-					while ((read = zip.read(buffer)) != -1) {
-						if (read > budget.maxDecompressedBytes() - bytes)
-							return invalid("decompressed-size-limit", bytes, entries, depth);
-						bytes += read;
-					}
-				}
+				String rejection = accounting.admit(entry);
+				if (rejection != null) return accounting.invalid(rejection);
+				if (!entry.isDirectory() && !accounting.drain(zip)) return accounting.invalid(DECOMPRESSED_SIZE_LIMIT);
 				zip.closeEntry();
 			}
-			return new Result(true, "", bytes, entries, depth);
+			return accounting.valid();
 		} catch (IOException | RuntimeException failure) {
+			// A stream that cannot be read reports no measurements, unlike the file route.
 			return invalid(failure.getClass().getSimpleName(), 0, 0, 0);
+		}
+	}
+
+	/** The single implementation of the entry-count, path, and decompressed-size limits for both routes. */
+	private static final class Accounting {
+		private final Budget budget;
+		private long bytes;
+		private int entries;
+		private int depth;
+
+		Accounting(Budget budget) {
+			this.budget = budget;
+		}
+
+		/** Counts one entry; returns the rejection reason, or null when the entry fits the budget. */
+		String admit(ZipEntry entry) {
+			entries++;
+			if (entries > budget.maxEntries()) return "entry-count-limit";
+			int entryDepth = pathDepth(entry.getName());
+			if (entryDepth < 0) return "invalid-entry-path";
+			depth = Math.max(depth, entryDepth);
+			if (depth > budget.maxPathDepth()) return "path-depth-limit";
+			return null;
+		}
+
+		/** Reads the current entry's decompressed bytes; false when the total would exceed the budget. */
+		boolean drain(InputStream input) throws IOException {
+			byte[] buffer = new byte[8192];
+			int read;
+			while ((read = input.read(buffer)) != -1) {
+				if (read > budget.maxDecompressedBytes() - bytes) return false;
+				bytes += read;
+			}
+			return true;
+		}
+
+		Result valid() {
+			return new Result(true, "", bytes, entries, depth);
+		}
+
+		Result invalid(String reason) {
+			return MpoArchiveBudgetValidator.invalid(reason, bytes, entries, depth);
 		}
 	}
 

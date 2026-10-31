@@ -43,21 +43,10 @@ final class RollupSpanCalculator {
 	}
 
 	static RollupSpan forChildren(Task task, Collection<?> children) {
-		long start = Long.MAX_VALUE;
-		long finish = Long.MIN_VALUE;
-		for (Object childNode : children) {
-			if (!(childNode instanceof Node node) || !(node.getImpl() instanceof Task childTask))
-				continue;
-			RollupSpan childRollup = childTask.calculateRollupSpan();
-			if (childRollup.getStart() != 0L)
-				start = Math.min(start, childRollup.getStart());
-			if (childRollup.getFinish() != 0L)
-				finish = Math.max(finish, childRollup.getFinish());
-		}
-
-		if (start == Long.MAX_VALUE || finish == Long.MIN_VALUE)
+		long[] bounds = childBounds(children);
+		if (bounds == null)
 			return taskSpan(task);
-		return span(task, start, finish);
+		return span(task, bounds[0], bounds[1]);
 	}
 
 	static RollupSpan forProject(Project project) {
@@ -65,6 +54,15 @@ final class RollupSpanCalculator {
 		if (children == null || children.isEmpty())
 			return projectSpan(project);
 
+		long[] bounds = childBounds(children);
+		if (bounds == null)
+			return projectSpan(project);
+		long duration = project.getEffectiveWorkCalendar().compare(bounds[1], bounds[0], false);
+		return new RollupSpan(bounds[0], bounds[1], duration);
+	}
+
+	/** Earliest start and latest finish over the children's rollups, or null when none has a dated span. */
+	private static long[] childBounds(Collection<?> children) {
 		long start = Long.MAX_VALUE;
 		long finish = Long.MIN_VALUE;
 		for (Object childNode : children) {
@@ -76,11 +74,9 @@ final class RollupSpanCalculator {
 			if (childRollup.getFinish() != 0L)
 				finish = Math.max(finish, childRollup.getFinish());
 		}
-
 		if (start == Long.MAX_VALUE || finish == Long.MIN_VALUE)
-			return projectSpan(project);
-		long duration = project.getEffectiveWorkCalendar().compare(finish, start, false);
-		return new RollupSpan(start, finish, duration);
+			return null;
+		return new long[] { start, finish };
 	}
 
 	private static RollupSpan taskSpan(Task task) {

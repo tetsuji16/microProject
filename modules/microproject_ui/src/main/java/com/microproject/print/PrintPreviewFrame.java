@@ -162,11 +162,7 @@ public class PrintPreviewFrame extends FlatLafFrame implements  ProjectMenuActio
 		if (actionsMap == null)
 			addHandlers();
 
-		Action action = actionsMap.getConcreteAction(key);
-		if (action == null)
-			throw new MissingListenerException("no listener for PrintPreviewFrame", getClass().getName(),key); //$NON-NLS-1$
-
-		return action;
+		return actionsMap.requireAction(key, "PrintPreviewFrame", getClass().getName()); //$NON-NLS-1$
 	}
 	public String getStringFromAction(Action action) throws MissingListenerException {
 		if (actionsMap == null)

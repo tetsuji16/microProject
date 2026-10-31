@@ -391,7 +391,7 @@ public class LocalSession extends AbstractSession{
 					// metadata. Those changes are part of opening the document, not edits
 					// made by the user; establish the clean baseline after all load-time
 					// identity and locality adjustments are complete.
-					project.setGroupDirty(false);
+					project.markSaved();
 	     			setProgress(1.0f);
 	                return project;
 	 			
@@ -530,7 +530,7 @@ public class LocalSession extends AbstractSession{
 						// An edit made after the export committed stays unsaved.
 						boolean saved = importer.confirmSavedState();
 						project.setFileName(fileName);
-						if (saved) project.setGroupDirty(false);
+						if (saved) project.markSaved();
 					}
 					if (opt.getPostSaving()!=null) opt.getPostSaving().accept(project);
 	    	    	return null;

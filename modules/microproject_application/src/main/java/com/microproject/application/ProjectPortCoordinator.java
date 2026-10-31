@@ -45,6 +45,14 @@ public final class ProjectPortCoordinator {
 		return port.exportProject(project, new ExportPort.ExportRequest(target));
 	}
 
+	/** Exports as the project's save: the project is marked saved only if no edit raced the export. */
+	public PortResult<Path> saveProject(String formatKey, Project project, Path target) {
+		if (project == null || target == null) return failure("EXPORT_ARGUMENT", "Project and export target are required");
+		ExportPort port = lookupExport(formatKey);
+		if (port == null) return failure("EXPORT_PROVIDER_MISSING", "No export provider for format: " + formatKey);
+		return port.exportProject(project, new ExportPort.ExportRequest(target, true));
+	}
+
 	private ImportPort lookupImport(String key) {
 		if (key == null || key.isBlank()) return null;
 		return registry.importPort(key);

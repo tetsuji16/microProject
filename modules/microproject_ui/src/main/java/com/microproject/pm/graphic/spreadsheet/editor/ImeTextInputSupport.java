@@ -44,6 +44,17 @@ public final class ImeTextInputSupport {
 		}
 	}
 
+	/**
+	 * True for a plain printable KEY_TYPED character that an editable text component
+	 * should insert itself: no Ctrl/Alt/Meta, not a control character. Shared by the
+	 * text and date editors that must not lose a physical multi-character burst.
+	 */
+	public static boolean isPlainTypedCharacter(KeyEvent event, JTextComponent field) {
+		return event.getID() == KeyEvent.KEY_TYPED && event.getKeyChar() != KeyEvent.CHAR_UNDEFINED
+				&& !event.isControlDown() && !event.isAltDown() && !event.isMetaDown()
+				&& !Character.isISOControl(event.getKeyChar()) && field.isEditable() && field.isEnabled();
+	}
+
 	public static boolean isCompositionActive(JComponent component) {
 		return component != null && Boolean.TRUE.equals(component.getClientProperty(COMPOSITION_PROPERTY));
 	}

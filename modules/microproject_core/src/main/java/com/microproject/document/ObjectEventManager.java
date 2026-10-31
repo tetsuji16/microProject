@@ -29,8 +29,8 @@ import com.microproject.field.Field;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.undo.NodeUndoInfo;
+import com.microproject.util.DeferredEventBatch;
 import com.microproject.util.ListenerRegistry;
-import java.util.ArrayList;
 import java.util.List;
 
 
@@ -39,33 +39,27 @@ import java.util.List;
  */
 public class ObjectEventManager {
     private final ListenerRegistry<ObjectEvent.Listener> listeners = new ListenerRegistry<>();
-    private final List<EventFacts> deferredEvents = new ArrayList<>();
-    private int batchDepth;
-    private boolean rollbackOnly;
+    private final DeferredEventBatch<EventFacts> batch = new DeferredEventBatch<>(
+        "No object-event batch is active", "Invalid object-event checkpoint");
 
     /** Defers observer callbacks until a surrounding model transaction commits. */
-    public synchronized void beginBatch() {
-        batchDepth++;
+    public void beginBatch() {
+        batch.begin();
     }
 
     /** Number of deferred facts currently waiting in this nested batch stack. */
-    public synchronized int pendingEventCount() {
-        return deferredEvents.size();
+    public int pendingEventCount() {
+        return batch.pendingCount();
     }
 
     /** Discards facts added after an atomic command's checkpoint without affecting its parent batch. */
-    public synchronized void discardPendingEventsAfter(int checkpoint) {
-        if (checkpoint < 0 || checkpoint > deferredEvents.size())
-            throw new IllegalArgumentException("Invalid object-event checkpoint");
-        deferredEvents.subList(checkpoint, deferredEvents.size()).clear();
+    public void discardPendingEventsAfter(int checkpoint) {
+        batch.discardAfter(checkpoint);
     }
 
     /** Whether this batch contains a fact for the exact object identity after the supplied checkpoint. */
-    public synchronized boolean hasPendingEventFor(Object object, int afterCount) {
-        int start = Math.max(0, afterCount);
-        for (int index = start; index < deferredEvents.size(); index++)
-            if (deferredEvents.get(index).object == object) return true;
-        return false;
+    public boolean hasPendingEventFor(Object object, int afterCount) {
+        return batch.anyFrom(afterCount, facts -> facts.object == object);
     }
 
     /** Publishes deferred events on commit, or releases them without notifying observers on rollback. */
@@ -75,18 +69,8 @@ public class ObjectEventManager {
 
     /** Detaches one completed outer batch without invoking observer callbacks. */
     public PendingBatch detachBatch(boolean publish) {
-        List<EventFacts> events = null;
-        synchronized (this) {
-            if (batchDepth == 0) throw new IllegalStateException("No object-event batch is active");
-            if (!publish) rollbackOnly = true;
-            if (--batchDepth == 0) {
-                events = new ArrayList<>(deferredEvents);
-                deferredEvents.clear();
-                publish = !rollbackOnly;
-                rollbackOnly = false;
-            }
-        }
-        return events == null ? null : new PendingBatch(List.copyOf(events), publish);
+        DeferredEventBatch.Detached<EventFacts> detached = batch.detach(publish, facts -> facts);
+        return detached == null ? null : new PendingBatch(detached.events(), detached.publish());
     }
 
     /** Publishes a batch detached after its model revision was committed. */
@@ -195,14 +179,8 @@ public class ObjectEventManager {
     }
     
     public void fire(ObjectEvent evt) {
-        boolean deferred = false;
-        synchronized (this) {
-            if (batchDepth > 0) {
-                deferredEvents.add(new EventFacts(evt.getSource(), evt.getObject(), evt.getType(),
-                    evt.getInfo(), evt.getField()));
-                deferred = true;
-            }
-        }
+        boolean deferred = batch.tryDefer(() -> new EventFacts(evt.getSource(), evt.getObject(), evt.getType(),
+            evt.getInfo(), evt.getField()));
         if (deferred) evt.recycle();
         else dispatch(evt);
     }

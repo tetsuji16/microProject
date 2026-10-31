@@ -586,6 +586,46 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 			"MPO reload must retain the physical Start edit on the same stable task");
 	}
 
+	@Test
+	void robotMovingToAnotherTableStopsTheNameCellEdit() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(),
+			"A desktop session is required for U-26 physical input coverage.");
+		Fixture fixture = createFixture();
+		showFixture(fixture);
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(35);
+		SwingUtilities.invokeAndWait(() -> tabs.setSelectedIndex(0));
+		activate(fixture.entrySheet, robot);
+		int nameColumn = findColumn(fixture.entrySheet, "Field.name");
+		// A double-click on a task row opens Task Information, so the edit starts from a typed key.
+		startEditingFromFirstPhysicalKey(robot, fixture.entrySheet, fixture.entryRow, nameColumn, 'a');
+
+		// Move to the other table by clicking its tab, then start a non-name edit there.
+		Rectangle[] tab = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> {
+			Rectangle bounds = tabs.getBoundsAt(1);
+			Point origin = tabs.getLocationOnScreen();
+			tab[0] = new Rectangle(origin.x + bounds.x, origin.y + bounds.y, bounds.width, bounds.height);
+		});
+		clickCell(robot, tab[0], 0);
+		GuiAcceptanceSupport.await(() -> selectedTabIndexQuietly() == 1, "the physical tab click must select the tracking table");
+		activate(fixture.trackingSheet, robot);
+		startEditingFromFirstPhysicalKey(robot, fixture.trackingSheet, fixture.trackingRow, fixture.percentColumn, '5');
+
+		boolean[] previousStillEditing = new boolean[1];
+		SwingUtilities.invokeAndWait(() -> previousStillEditing[0] = fixture.entrySheet.isEditing());
+		assertTrue(!previousStillEditing[0], "starting an edit in another table must stop the previous table's name-cell edit");
+		SwingUtilities.invokeAndWait(() -> fixture.trackingSheet.getCellEditor().cancelCellEditing());
+	}
+
+	private int selectedTabIndexQuietly() {
+		try {
+			return selectedTabIndex();
+		} catch (Exception exception) {
+			throw new AssertionError(exception);
+		}
+	}
+
 	private void showFixture(Fixture fixture) throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			frame = new MainRibbonFrame("microProject — U-26 spreadsheet input transaction", null);
@@ -666,9 +706,10 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		return typePercentFromFirstPhysicalKey(robot, sheet, row, column, value, KeyEvent.VK_ENTER, false);
 	}
 
-	private List<Long> typePercentFromFirstPhysicalKey(Robot robot, SpreadSheet sheet, int row, int column, String value,
-			int commitKey, boolean shiftCommit) throws Exception {
+	private List<Long> startEditingFromFirstPhysicalKey(Robot robot, SpreadSheet sheet, int row, int column,
+			char firstCharacter) throws Exception {
 		cellOnScreen(sheet, row, column); // Bring the target into view before measuring its physical position.
+
 		Rectangle cell = currentCellOnScreen(sheet, row, column);
 		clickCell(robot, cell, 0);
 		robot.waitForIdle();
@@ -688,13 +729,19 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		assertEquals(column, selected[1], "physical arrow navigation must focus the target cell before typing");
 		List<Long> selectedTaskIdsBeforeTyping = stableSelectedTaskIds(sheet);
 
-		int firstKey = KeyEvent.getExtendedKeyCodeForChar(value.charAt(0));
-		boolean firstUppercase = Character.isUpperCase(value.charAt(0));
+		int firstKey = KeyEvent.getExtendedKeyCodeForChar(firstCharacter);
+		boolean firstUppercase = Character.isUpperCase(firstCharacter);
 		if (firstUppercase) robot.keyPress(KeyEvent.VK_SHIFT);
 		robot.keyPress(firstKey);
 		robot.keyRelease(firstKey);
 		if (firstUppercase) robot.keyRelease(KeyEvent.VK_SHIFT);
 		GuiAcceptanceSupport.await(sheet::isEditing, "the first physical character must start cell editing without F2");
+		return selectedTaskIdsBeforeTyping;
+	}
+
+	private List<Long> typePercentFromFirstPhysicalKey(Robot robot, SpreadSheet sheet, int row, int column, String value,
+			int commitKey, boolean shiftCommit) throws Exception {
+		List<Long> selectedTaskIdsBeforeTyping = startEditingFromFirstPhysicalKey(robot, sheet, row, column, value.charAt(0));
 		JTextComponent input = editorInputComponent(sheet);
 		assertTrue(input.isFocusOwner(), "the first physical character must focus the active cell editor");
 		for (char character : value.substring(1).toCharArray()) {

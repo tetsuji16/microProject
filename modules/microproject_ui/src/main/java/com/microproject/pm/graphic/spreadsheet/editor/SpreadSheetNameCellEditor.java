@@ -31,10 +31,8 @@ import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.table.TableCellEditor;
 
-import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.pm.graphic.spreadsheet.renderer.CellUtility;
-import com.microproject.pm.graphic.spreadsheet.renderer.FontManager;
 import com.microproject.pm.graphic.spreadsheet.renderer.NameCellComponent;
 
 
@@ -42,7 +40,6 @@ import com.microproject.pm.graphic.spreadsheet.renderer.NameCellComponent;
  * Adapter to modify defaults editors behaviour
  */
 public class SpreadSheetNameCellEditor extends SpreadSheetCellEditorAdapter{
-	protected static JTable lastTable;
 	protected NameCellComponent component=null;
 	
 	public SpreadSheetNameCellEditor(TableCellEditor editor) {
@@ -50,14 +47,7 @@ public class SpreadSheetNameCellEditor extends SpreadSheetCellEditorAdapter{
 	}
 
 	public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {
-		if (table!=null&&lastTable!=null&&table!=lastTable){
-			if(lastTable.isEditing()){
-				TableCellEditor lastEditor=lastTable.getCellEditor();
-				if (lastEditor!=null) lastEditor.stopCellEditing();
-			}
-			lastTable.clearSelection();
-		}
-		lastTable=table;
+		trackEditingTable(table);
 
 		JComponent textComponent = (JComponent)editor.getTableCellEditorComponent(table,value,isSelected,row,column);
 		if (textComponent instanceof JTextField) {
@@ -69,18 +59,7 @@ public class SpreadSheetNameCellEditor extends SpreadSheetCellEditorAdapter{
 		CellUtility.setAppearance(table, value, isSelected, true, row, column, component);
 		if (table.getModel() instanceof SpreadSheetModel) {
 			SpreadSheetModel model = (SpreadSheetModel)table.getModel();
-			GraphicNode node = model.getNode(row);
-			component.setText(value == null ? "" : value.toString());
-			int level = model.getCache().getLevel(node);
-			component.setLevel((node.isVoid()) ? (level + 1) : level);
-			component.setLazy(node.isLazyParent());
-			component.setFetched(node.isFetched());
-			if (model.getCellProperties(node).isCompositeIcon()) {
-				component.setCollapsed(node.isCollapsed());
-			} else {
-				component.setLeaf(node.isVoid());
-			}
-			FontManager.setComponentFont(model.getCellProperties(node), component);
+			component.setupNode(model, model.getNode(row), value, isSelected);
 			component.doLayout();
 		}
 		return component;

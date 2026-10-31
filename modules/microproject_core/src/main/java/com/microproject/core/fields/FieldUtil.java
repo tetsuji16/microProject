@@ -64,56 +64,32 @@ public class FieldUtil {
 //		if (fieldName2.startsWith("customCost")){
 //			log.info("convertFieldSeries("+hasFields+", "+fieldName1+", "+startIndex1+", "+endIndex1+", "+fieldName2+", "+startIndex2+", "+endIndex2+", "+index+")");
 //		}
-		String[] elements1=fieldName1.split(":", -1);
-		if (elements1.length==3){
-			fieldName1=elements1[0];
-			startIndex1=Integer.parseInt(elements1[1]);
-			endIndex1=Integer.parseInt(elements1[2]);
-			int len=endIndex1-startIndex1+1;
-			if (index==-1){
-				for (int i=0;i<len;i++)
-					convertFieldSeries(hasFields, inClass, inObject, fieldName1, startIndex1, endIndex1, fieldName2, startIndex2, endIndex2, i, converterName, from);
-			}else convertFieldSeries(hasFields, inClass, inObject, fieldName1, startIndex1, endIndex1, fieldName2, startIndex2, endIndex2, index, converterName, from);
-			return;
-		}
-		String[] elements2=fieldName2.split(":", -1);
-		if (elements2.length==3){
-			fieldName2=elements2[0];
-			startIndex2=Integer.parseInt(elements2[1]);
-			endIndex2=Integer.parseInt(elements2[2]);
-			int len=endIndex2-startIndex2+1;
-			if (index==-1){
-				for (int i=0;i<len;i++)
-					convertFieldSeries(hasFields, inClass, inObject, fieldName1, startIndex1, endIndex1, fieldName2, startIndex2, endIndex2, i, converterName, from);
-			}else convertFieldSeries(hasFields, inClass, inObject, fieldName1, startIndex1, endIndex1, fieldName2, startIndex2, endIndex2, index, converterName, from);
-			return;
+		// "name:start:end" (or "name,start,end") on either field expands into one conversion per element.
+		for (String separator : new String[] { ":", "," }) {
+			for (int side = 1; side <= 2; side++) {
+				String[] elements = (side == 1 ? fieldName1 : fieldName2).split(separator, -1);
+				if (elements.length != 3)
+					continue;
+				int start = Integer.parseInt(elements[1]);
+				int end = Integer.parseInt(elements[2]);
+				if (side == 1) {
+					fieldName1 = elements[0];
+					startIndex1 = start;
+					endIndex1 = end;
+				} else {
+					fieldName2 = elements[0];
+					startIndex2 = start;
+					endIndex2 = end;
+				}
+				if (index == -1) {
+					for (int i = 0; i < end - start + 1; i++)
+						convertFieldSeries(hasFields, inClass, inObject, fieldName1, startIndex1, endIndex1, fieldName2, startIndex2, endIndex2, i, converterName, from);
+				} else
+					convertFieldSeries(hasFields, inClass, inObject, fieldName1, startIndex1, endIndex1, fieldName2, startIndex2, endIndex2, index, converterName, from);
+				return;
+			}
 		}
 
-		elements1=fieldName1.split(",", -1);
-		if (elements1.length==3){
-			fieldName1=elements1[0];
-			startIndex1=Integer.parseInt(elements1[1]);
-			endIndex1=Integer.parseInt(elements1[2]);
-			int len=endIndex1-startIndex1+1;
-			if (index==-1){
-				for (int i=0;i<len;i++)
-					convertFieldSeries(hasFields, inClass, inObject, fieldName1, startIndex1, endIndex1, fieldName2, startIndex2, endIndex2, i, converterName, from);
-			}else convertFieldSeries(hasFields, inClass, inObject, fieldName1, startIndex1, endIndex1, fieldName2, startIndex2, endIndex2, index, converterName, from);
-			return;
-		}
-		elements2=fieldName2.split(",", -1);
-		if (elements2.length==3){
-			fieldName2=elements2[0];
-			startIndex2=Integer.parseInt(elements2[1]);
-			endIndex2=Integer.parseInt(elements2[2]);
-			int len=endIndex2-startIndex2+1;
-			if (index==-1){
-				for (int i=0;i<len;i++)
-					convertFieldSeries(hasFields, inClass, inObject, fieldName1, startIndex1, endIndex1, fieldName2, startIndex2, endIndex2, i, converterName, from);
-			}else convertFieldSeries(hasFields, inClass, inObject, fieldName1, startIndex1, endIndex1, fieldName2, startIndex2, endIndex2, index, converterName, from);
-			return;
-		}
-		
 		convertField(hasFields, inClass, inObject, fieldName1, index==-1? -1: index+startIndex1, fieldName2, index==-1? -1: index+startIndex2, converterName, from);
 	}
 	
