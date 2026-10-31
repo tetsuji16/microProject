@@ -14,7 +14,6 @@ import java.time.LocalTime;
 import java.util.BitSet;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.GregorianCalendar;
 
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.DefaultListModel;
@@ -28,7 +27,6 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JTextField;
-import javax.swing.SpinnerDateModel;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.ListSelectionModel;
 import javax.swing.event.ListSelectionEvent;
@@ -41,6 +39,9 @@ import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.calendar.WorkingHours;
 import com.microproject.strings.Messages;
 import com.microproject.util.DateTime;
+import static com.microproject.dialog.calendar.CalendarEditorSupport.dateSpinner;
+import static com.microproject.dialog.calendar.CalendarEditorSupport.formatTime;
+import static com.microproject.dialog.calendar.CalendarEditorSupport.timeValue;
 
 /** Scratch-only management of one-off and recurring date exceptions. */
 final class ExceptionEditorPanel extends JPanel {
@@ -440,12 +441,6 @@ final class ExceptionEditorPanel extends JPanel {
 		c.gridx = 1; panel.add(component, c);
 	}
 
-	private static JSpinner dateSpinner(Date value) {
-		JSpinner spinner = new JSpinner(new SpinnerDateModel(value, null, null, Calendar.DAY_OF_MONTH));
-		spinner.setEditor(new JSpinner.DateEditor(spinner, "yyyy-MM-dd"));
-		return spinner;
-	}
-
 	private static long dayValue(JSpinner spinner) {
 		return DateTime.dayFloor(((Date) spinner.getValue()).getTime());
 	}
@@ -453,19 +448,5 @@ final class ExceptionEditorPanel extends JPanel {
 	private static int isoDay(Calendar calendar) {
 		int day = calendar.get(Calendar.DAY_OF_WEEK);
 		return day == Calendar.SUNDAY ? 7 : day - 1;
-	}
-
-	private static String formatTime(long value) {
-		GregorianCalendar calendar = DateTime.calendarInstance();
-		calendar.setTimeInMillis(value);
-		return "%02d:%02d".formatted(calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.MINUTE));
-	}
-
-	private static long timeValue(String value) {
-		LocalTime time = LocalTime.parse(value);
-		GregorianCalendar calendar = DateTime.calendarInstance();
-		calendar.clear();
-		calendar.set(1970, Calendar.JANUARY, 1, time.getHour(), time.getMinute());
-		return calendar.getTimeInMillis();
 	}
 }

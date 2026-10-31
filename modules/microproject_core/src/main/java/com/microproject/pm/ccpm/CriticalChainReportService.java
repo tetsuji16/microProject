@@ -4,6 +4,7 @@
  ******************************************************************************/
 package com.microproject.pm.ccpm;
 
+import com.microproject.util.MarkupEscape;
 import java.time.ZoneOffset;
 import java.time.temporal.IsoFields;
 import java.io.IOException;
@@ -38,8 +39,8 @@ public final class CriticalChainReportService {
 
 	public String toHtml(String projectName, CriticalChainBufferHistory history) {
 		StringBuilder out = new StringBuilder("<!doctype html><meta charset=\"utf-8\"><title>CCPM report</title><h1>CCPM report: ");
-		out.append(escape(projectName == null ? "" : projectName)).append("</h1><table><thead><tr><th>Observed</th><th>Actor</th><th>Progress %</th><th>Buffer %</th><th>Zone</th></tr></thead><tbody>");
-		if (history != null) for (CriticalChainBufferHistory.Point p : history.points()) out.append("<tr><td>").append(p.observedAt()).append("</td><td>").append(escape(p.actorName())).append("</td><td>").append(p.progressPercent()).append("</td><td>").append(p.consumptionPercent()).append("</td><td>").append(escape(p.zone())).append("</td></tr>");
+		out.append(MarkupEscape.escape(projectName == null ? "" : projectName)).append("</h1><table><thead><tr><th>Observed</th><th>Actor</th><th>Progress %</th><th>Buffer %</th><th>Zone</th></tr></thead><tbody>");
+		if (history != null) for (CriticalChainBufferHistory.Point p : history.points()) out.append("<tr><td>").append(p.observedAt()).append("</td><td>").append(MarkupEscape.escape(p.actorName())).append("</td><td>").append(p.progressPercent()).append("</td><td>").append(p.consumptionPercent()).append("</td><td>").append(MarkupEscape.escape(p.zone())).append("</td></tr>");
 		return out.append("</tbody></table>").toString();
 	}
 
@@ -57,5 +58,4 @@ public final class CriticalChainReportService {
 	}
 
 	private static String csv(String value) { String s = value == null ? "" : value; return s.contains(",") || s.contains("\"") ? "\"" + s.replace("\"", "\"\"") + "\"" : s; }
-	private static String escape(String value) { return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;"); }
 }

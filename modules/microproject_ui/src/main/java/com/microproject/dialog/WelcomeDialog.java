@@ -58,6 +58,7 @@ import com.microproject.pm.graphic.IconManager;
 import com.microproject.strings.Messages;
 import com.microproject.util.Environment;
 import com.microproject.application.RecentProjectStore;
+import com.microproject.util.MarkupEscape;
 
 public final class WelcomeDialog extends AbstractDialog {
 	private static final long serialVersionUID = 1L;
@@ -227,11 +228,6 @@ public final class WelcomeDialog extends AbstractDialog {
 		return builder;
 	}
 
-	/** Escapes text for the HTML two-line recent-project cell renderer. */
-	private static String escapeHtml(String text) {
-		return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
-	}
-
 	/** Renders the recent-project name and folder after the default renderer applies selection colors. */
 	static DefaultListCellRenderer recentProjectRenderer() {
 		return new DefaultListCellRenderer() {
@@ -243,12 +239,12 @@ public final class WelcomeDialog extends AbstractDialog {
 				// folder path beneath it. RecentProjectStore supplies existing files only.
 				String pinMark = entry.pinned() ? "★ " : "";
 				setText("<html><div style='line-height:1.2'><b>"
-					+ escapeHtml(pinMark + entry.path().getFileName())
+					+ MarkupEscape.escape(pinMark + entry.path().getFileName())
 					+ "</b></div><div style='color:#6e6e6e;font-size:0.85em'>"
 					// Japanese Windows fonts can render ASCII backslash as a yen mark.
 					// Use a portable display separator while retaining the native Path
 					// object for opening, pinning, and removing the recent project.
-					+ escapeHtml(entry.path().getParent().toString().replace('\\', '/'))
+					+ MarkupEscape.escape(entry.path().getParent().toString().replace('\\', '/'))
 					+ "</div></html>");
 				return this;
 			}

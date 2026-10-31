@@ -26,8 +26,6 @@ package com.microproject.pm.graphic.network;
 
 import java.awt.Rectangle;
 import java.awt.geom.AffineTransform;
-import java.awt.geom.GeneralPath;
-import java.awt.geom.Point2D;
 
 import com.microproject.pm.graphic.graph.GraphParams;
 import com.microproject.pm.graphic.graph.LinkRouting;
@@ -114,38 +112,6 @@ public class NetworkParamsImpl implements NetworkParams,Cloneable {
 
 
 
-	public GeneralPath scale(GeneralPath path){
-		if (path == null)
-			return null;
-		GeneralPath transformed=(GeneralPath)path.clone();
-		transformed.transform(getTransform());
-		return transformed;
-	}
-	public Point2D scale(Point2D p){
-		AffineTransform t=getTransform();
-		return new Point2D.Double(p.getX()*t.getScaleX()+t.getTranslateX(),p.getY()*t.getScaleY()+t.getTranslateY());
-	}
-	public Point2D scaleVector(Point2D p){
-		AffineTransform t=getTransform();
-		return new Point2D.Double(p.getX()*t.getScaleX(),p.getY()*t.getScaleY());
-	}
-	public Point2D scaleVector_1(Point2D p){
-		AffineTransform t=getTransform();
-		return new Point2D.Double(p.getX()/t.getScaleX(),p.getY()/t.getScaleY());
-	}
-
-	public Rectangle scale(Rectangle r){
-		AffineTransform t=getTransform();
-		if (t==null) return r;
-		Rectangle sr=new Rectangle();
-		sr.setFrameFromDiagonal(
-				r.getMinX()*t.getScaleX()+t.getTranslateX(),
-				r.getMinY()*t.getScaleY()+t.getTranslateY(),
-				r.getMaxX()*t.getScaleX()+t.getTranslateX(),
-				r.getMaxY()*t.getScaleY()+t.getTranslateY()
-			);
-		return sr;
-	}
 
 
 

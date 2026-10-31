@@ -45,6 +45,7 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import com.microproject.exchange.MspdiProjectBoundary;
 import com.microproject.util.SafeFileReplace;
 
 import com.microproject.association.Association;
@@ -82,6 +83,7 @@ import net.sf.mpxj.ProjectProperties;
 import net.sf.mpxj.Relation;
 import net.sf.mpxj.RelationType;
 import net.sf.mpxj.ResourceAssignment;
+import static com.microproject.exchange.MspdiProjectBoundary.isNamedElement;
 
 /**
  *
@@ -565,15 +567,7 @@ public class MSPDISerializer implements ProjectSerializer {
 		if (expected.isEmpty() && personalContourAssignments.isEmpty() && baselineWorkRows.isEmpty()
 				&& baselineCostRows.isEmpty() && taskBaselineFixedCosts.isEmpty()
 				&& taskBaselineTotalCosts.isEmpty()) return xml;
-		javax.xml.parsers.DocumentBuilderFactory factory = javax.xml.parsers.DocumentBuilderFactory.newInstance();
-		factory.setNamespaceAware(true);
-		factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-		factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
-		factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
-		factory.setXIncludeAware(false);
-		factory.setExpandEntityReferences(false);
-		factory.setAttribute(javax.xml.XMLConstants.ACCESS_EXTERNAL_DTD, "");
-		factory.setAttribute(javax.xml.XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+		javax.xml.parsers.DocumentBuilderFactory factory = MspdiProjectBoundary.secureDocumentBuilderFactory(true);
 		org.w3c.dom.Document document = factory.newDocumentBuilder().parse(new ByteArrayInputStream(xml));
 		String namespace = document.getDocumentElement().getNamespaceURI();
 		org.w3c.dom.NodeList assignmentNodes = document.getElementsByTagNameNS(namespace, "Assignment");
@@ -586,7 +580,7 @@ public class MSPDISerializer implements ProjectSerializer {
 		java.util.Set<String> normalizedTaskTotalCosts = new java.util.HashSet<>();
 		for (int index = 0; index < taskNodes.getLength(); index++) {
 			org.w3c.dom.Element taskNode = (org.w3c.dom.Element) taskNodes.item(index);
-			String uid = childText(taskNode, "UID", namespace);
+			String uid = MspdiProjectBoundary.childText(taskNode, "UID", namespace);
 			Map<Integer, Double> costs = uid == null ? null : taskBaselineFixedCosts.get(uid);
 			if (costs == null) continue;
 			if (!normalizedTaskFixedCosts.add(uid))
@@ -599,7 +593,7 @@ public class MSPDISerializer implements ProjectSerializer {
 			throw new IOException("MSPDI output omitted a task with baseline fixed cost");
 		for (int index = 0; index < taskNodes.getLength(); index++) {
 			org.w3c.dom.Element taskNode = (org.w3c.dom.Element) taskNodes.item(index);
-			String uid = childText(taskNode, "UID", namespace);
+			String uid = MspdiProjectBoundary.childText(taskNode, "UID", namespace);
 			Map<Integer, Double> costs = uid == null ? null : taskBaselineTotalCosts.get(uid);
 			if (costs == null) continue;
 			if (!normalizedTaskTotalCosts.add(uid))
@@ -748,7 +742,7 @@ public class MSPDISerializer implements ProjectSerializer {
 		for (org.w3c.dom.Node child = task.getFirstChild(); child != null; child = child.getNextSibling()) {
 			if (!(child instanceof org.w3c.dom.Element element)) continue;
 			if (isNamedElement(element, "Baseline", task.getNamespaceURI())) {
-				String number = childText(element, "Number", task.getNamespaceURI());
+				String number = MspdiProjectBoundary.childText(element, "Number", task.getNamespaceURI());
 				try {
 					if (number != null && Integer.parseInt(number) > slot) {
 						greaterSlotBaseline = child;
@@ -890,7 +884,7 @@ public class MSPDISerializer implements ProjectSerializer {
 		org.w3c.dom.Element match = null;
 		for (int index = 0; index < assignments.getLength(); index++) {
 			org.w3c.dom.Element assignment = (org.w3c.dom.Element) assignments.item(index);
-			if (!uid.equals(childText(assignment, "UID", namespace))) continue;
+			if (!uid.equals(MspdiProjectBoundary.childText(assignment, "UID", namespace))) continue;
 			if (match != null) throw new IOException("MSPDI output contains duplicate assignment identities");
 			match = assignment;
 		}
@@ -978,7 +972,7 @@ public class MSPDISerializer implements ProjectSerializer {
 	private static long parseMspdiWallTime(String value) throws IOException {
 		if (value == null) throw new IOException("MSPDI personal-contour work row is missing its interval");
 		try {
-			return java.time.LocalDateTime.parse(value).toInstant(java.time.ZoneOffset.UTC).toEpochMilli();
+			return MspdiProjectBoundary.parseWallTime(value);
 		} catch (java.time.DateTimeException e) {
 			throw new IOException("MSPDI personal-contour work row has an invalid interval", e);
 		}
@@ -1031,15 +1025,7 @@ public class MSPDISerializer implements ProjectSerializer {
 	}
 
 	private static String childText(org.w3c.dom.Element parent, String name) {
-		return childText(parent, name, parent.getNamespaceURI());
-	}
-
-	private static String childText(org.w3c.dom.Element parent, String name, String namespace) {
-		for (org.w3c.dom.Node child = parent.getFirstChild(); child != null; child = child.getNextSibling()) {
-			if (child instanceof org.w3c.dom.Element element && isNamedElement(element, name, namespace))
-				return element.getTextContent();
-		}
-		return null;
+		return MspdiProjectBoundary.childText(parent, name, parent.getNamespaceURI());
 	}
 
 	private static org.w3c.dom.Element findBaseline(org.w3c.dom.Element assignment, int slot) throws IOException {
@@ -1049,7 +1035,7 @@ public class MSPDISerializer implements ProjectSerializer {
 		for (org.w3c.dom.Node child = assignment.getFirstChild(); child != null; child = child.getNextSibling()) {
 			if (!(child instanceof org.w3c.dom.Element element) || !isNamedElement(element, "Baseline", assignment.getNamespaceURI()))
 				continue;
-			String number = childText(element, "Number", assignment.getNamespaceURI());
+			String number = MspdiProjectBoundary.childText(element, "Number", assignment.getNamespaceURI());
 			int existingSlot;
 			try {
 				existingSlot = Integer.parseInt(number);
@@ -1075,7 +1061,7 @@ public class MSPDISerializer implements ProjectSerializer {
 		for (org.w3c.dom.Node child = assignment.getFirstChild(); child != null; child = child.getNextSibling()) {
 			if (!(child instanceof org.w3c.dom.Element element)) continue;
 			if (isNamedElement(element, "Baseline", assignment.getNamespaceURI())) {
-				String number = childText(element, "Number", assignment.getNamespaceURI());
+				String number = MspdiProjectBoundary.childText(element, "Number", assignment.getNamespaceURI());
 				try {
 					if (number != null && Integer.parseInt(number) > slot) {
 						greaterSlotBaseline = child;
@@ -1122,11 +1108,6 @@ public class MSPDISerializer implements ProjectSerializer {
 				result.add(element);
 		}
 		return result;
-	}
-
-	private static boolean isNamedElement(org.w3c.dom.Element element, String name, String namespace) {
-		String localName = element.getLocalName() == null ? element.getTagName() : element.getLocalName();
-		return name.equals(localName) && java.util.Objects.equals(namespace, element.getNamespaceURI());
 	}
 
 	private static org.w3c.dom.Node firstBaselineFieldAfterWork(org.w3c.dom.Element baseline) {

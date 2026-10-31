@@ -27,15 +27,11 @@ package com.microproject.pm.graphic.network;
 import com.microproject.util.DataUtils;
 import java.util.function.Consumer;
 
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 
 import javax.swing.JMenu;
-import javax.swing.JRadioButtonMenuItem;
 
 
 import com.microproject.pm.graphic.graph.GraphInteractor;
-import com.microproject.pm.graphic.graph.GraphModel;
 import com.microproject.pm.graphic.graph.GraphPopupMenu;
 import com.microproject.graphic.configuration.BarStyle;
 import com.microproject.strings.Messages;
@@ -47,23 +43,6 @@ import com.microproject.strings.Messages;
 public class NetworkPopupMenu extends GraphPopupMenu{
 	private static final long serialVersionUID = -3722404084932322411L;
 
-
-	private class BarMenuAction extends JRadioButtonMenuItem implements ActionListener {
-		private static final long serialVersionUID = 8977876028186923345L;
-		BarStyle style;
-    	
-    	BarMenuAction(final BarStyle style) {
-    		super(style.getName());
-    		this.style = style;
-    		setSelected(style.isActive());
-    		addActionListener(this);
-    	}
-    	public void actionPerformed(ActionEvent arg0) {
-    	    style.setActive(isSelected());
-    	    ((GraphModel)interactor.getGraph().getModel()).updateAll(true);
-    	}
-    }
-    
     
     
     public NetworkPopupMenu(final GraphInteractor interactor) {

@@ -27,17 +27,14 @@ package com.microproject.collaboration;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.TimeUnit;
@@ -46,6 +43,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.microproject.session.FileHelper;
+import com.microproject.util.SafeFileReplace;
 
 public class CollaborationMetadataStore {
 	private static final Logger logger = Logger.getLogger(CollaborationMetadataStore.class.getName());
@@ -74,11 +73,7 @@ public class CollaborationMetadataStore {
 	}
 
 	public static boolean isMpoCollaborationCandidate(String fileName) {
-		if (fileName == null) {
-			return false;
-		}
-		String lower = fileName.toLowerCase(Locale.ROOT);
-		return lower.endsWith(".mpo");
+		return FileHelper.isMpoFile(fileName);
 	}
 
 	/**
@@ -423,12 +418,7 @@ public class CollaborationMetadataStore {
 		Path temporary = Files.createTempFile(parent, sidecarFile.getName() + ".", ".tmp");
 		try {
 			writeTempFile(temporary, bytes);
-			try {
-				Files.move(temporary, sidecarFile.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-			} catch (AtomicMoveNotSupportedException e) {
-				logger.log(Level.WARNING, "Atomic move is not supported for collaboration metadata {0}; using replace move", sidecarFile);
-				Files.move(temporary, sidecarFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-			}
+			SafeFileReplace.moveAtomically(temporary, sidecarFile.toPath(), true);
 		} finally {
 			Files.deleteIfExists(temporary);
 		}

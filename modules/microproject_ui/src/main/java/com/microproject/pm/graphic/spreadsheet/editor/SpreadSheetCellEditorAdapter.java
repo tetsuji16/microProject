@@ -63,9 +63,6 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 	public TableCellEditor getDelegate() {
 		return editor;
 	}
-	public static void clearLastTable() {
-		lastTable = null;
-	}
 
 	/**
 	 * Swing's table editing path can consume VK_CONVERT before the active text

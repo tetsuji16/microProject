@@ -62,6 +62,7 @@ import com.microproject.ui.util.PopupDialogSupport;
 import com.microproject.pm.task.Project;
 import com.microproject.util.FlatUiSupport;
 import com.microproject.util.FlatLafDialog;
+import com.microproject.util.MarkupEscape;
 
 /** Resource-row timeline supporting drag rescheduling and reassignment. */
 public final class TeamPlannerDialogBox extends FlatLafDialog {
@@ -334,8 +335,8 @@ public final class TeamPlannerDialogBox extends FlatLafDialog {
 			}
 			Project sourceProject = slot.task().getOwningProject();
 			String source = sourceProject == null ? null : sourceProject.getName();
-			return "<html><b>" + escape(slot.task().getName()) + "</b><br>"
-				+ (source == null || source.isBlank() ? "" : "Project: " + escape(source) + "<br>")
+			return "<html><b>" + MarkupEscape.escape(slot.task().getName()) + "</b><br>"
+				+ (source == null || source.isBlank() ? "" : "Project: " + MarkupEscape.escape(source) + "<br>")
 				+ dateFormat.format(Instant.ofEpochMilli(slot.start())) + " – "
 				+ dateFormat.format(Instant.ofEpochMilli(slot.end())) + "<br>"
 				+ Math.round(slot.units() * 100D) + "% units"
@@ -375,10 +376,6 @@ public final class TeamPlannerDialogBox extends FlatLafDialog {
 				text = text.substring(0, text.length() - 1);
 			}
 			return text + "…";
-		}
-
-		private static String escape(String value) {
-			return value == null ? "" : value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
 		}
 	}
 }

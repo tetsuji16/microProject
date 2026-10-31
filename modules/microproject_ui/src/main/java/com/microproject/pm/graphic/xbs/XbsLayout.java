@@ -29,7 +29,6 @@ import java.awt.geom.GeneralPath;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
-import java.util.function.Consumer;
 import java.util.List;
 import java.util.ListIterator;
 
@@ -40,7 +39,6 @@ import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.event.CompositeCacheEvent;
 import com.microproject.pm.graphic.network.NetworkParams;
 import com.microproject.pm.graphic.network.layout.AbstractNetworkLayout;
-import com.microproject.graphic.configuration.BarFormat;
 import com.microproject.graphic.configuration.GraphicConfiguration;
 import com.microproject.graphic.configuration.TexturedShape;
 
@@ -59,29 +57,6 @@ public class XbsLayout extends AbstractNetworkLayout {
 		super.setCache(cache);
 	}
 	
-	protected TexturedShapeFinder texturedShapeFinder=new TexturedShapeFinder();
-	protected class TexturedShapeFinder implements Consumer<Object>{
-		protected BarFormat format;
-		protected GraphicNode node;
-		protected TexturedShape shape;
-		void initialize(GraphicNode node) {
-			this.node = node;
-			shape=null;
-		}
-		public void accept(Object arg0) {
-			format = (BarFormat)arg0;
-			if (format.getMiddle()!=null)
-				shape=format.getMiddle();
-		}
-		public TexturedShape getShape(){
-			return shape;
-		}
-	}
-	protected TexturedShape findShape(GraphicNode node){
-		texturedShapeFinder.initialize(node);
-		barStyles.apply(node.getNode().getImpl(),texturedShapeFinder);
-		return texturedShapeFinder.getShape();
-	}
 	
 	
 	

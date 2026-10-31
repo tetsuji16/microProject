@@ -49,22 +49,37 @@ public final class SafeFileReplace {
 		if (temp == null || target == null || temp.equals(target)) {
 			return true;
 		}
-		Path tempPath = temp.toPath();
-		Path targetPath = target.toPath();
 		try {
-			Files.move(tempPath, targetPath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+			moveAtomically(temp.toPath(), target.toPath(), true);
 			return true;
-		} catch (AtomicMoveNotSupportedException e) {
-			try {
-				Files.move(tempPath, targetPath, StandardCopyOption.REPLACE_EXISTING);
-				return true;
-			} catch (IOException ioe) {
-				logger.log(Level.WARNING, "Safe replace failed: could not move " + temp + " onto " + target, ioe);
-				return false;
-			}
 		} catch (IOException e) {
 			logger.log(Level.WARNING, "Safe replace failed: could not move " + temp + " onto " + target, e);
 			return false;
+		}
+	}
+
+	/**
+	 * Moves {@code source} to {@code target}, preferring an atomic move and falling
+	 * back to a plain move when the file store cannot move atomically.
+	 *
+	 * @param replaceExisting whether an existing target may be overwritten; when
+	 *        {@code false} the atomic move itself is platform-defined for an
+	 *        existing target (Windows overwrites it), so pass {@code false} only
+	 *        for targets that are expected not to exist
+	 */
+	public static void moveAtomically(Path source, Path target, boolean replaceExisting) throws IOException {
+		StandardCopyOption[] options = replaceExisting
+			? new StandardCopyOption[] { StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING }
+			: new StandardCopyOption[] { StandardCopyOption.ATOMIC_MOVE };
+		try {
+			Files.move(source, target, options);
+		} catch (AtomicMoveNotSupportedException e) {
+			logger.log(Level.WARNING, "Atomic move not supported for " + target + "; using plain move", e);
+			if (replaceExisting) {
+				Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
+			} else {
+				Files.move(source, target);
+			}
 		}
 	}
 }

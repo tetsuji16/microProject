@@ -15,7 +15,6 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.time.Duration;
 import java.time.Instant;
@@ -31,6 +30,9 @@ import javax.swing.SwingUtilities;
 
 import com.microproject.preference.GlobalPreferences;
 import com.microproject.util.Alert;
+import com.microproject.util.BrowserControl;
+import com.microproject.util.Environment;
+import com.microproject.util.SafeFileReplace;
 import com.microproject.util.VersionUtils;
 import com.microproject.temporary.TemporaryCleanupQueue;
 
@@ -95,7 +97,7 @@ public final class UpdateChecker {
 	public static void checkAndStageInBackground(Consumer<UpdateResult> callback) {
 		cleanupStaleArtifacts();
 		if (callback == null || java.awt.GraphicsEnvironment.isHeadless()) return;
-		if (!isWindows()) {
+		if (!Environment.isWindows()) {
 			String current = VersionUtils.getVersion();
 			SwingUtilities.invokeLater(() -> callback.accept(new UpdateResult(current, null, null)));
 			return;
@@ -145,7 +147,7 @@ public final class UpdateChecker {
 			discardStagedUpdate();
 			return false;
 		}
-		if (!isWindows()) {
+		if (!Environment.isWindows()) {
 			clearScheduledInstaller(update.installer());
 			deleteUpdateFiles(update);
 			return false;
@@ -333,7 +335,7 @@ public final class UpdateChecker {
 			if (Files.size(part) == 0) throw new IOException("Downloaded installer is empty");
 			checksum = sha256(part);
 			if (!asset.sha256().equalsIgnoreCase(checksum)) throw new IOException("Downloaded installer checksum mismatch");
-			moveAtomically(part, installer);
+			SafeFileReplace.moveAtomically(part, installer, true);
 			writeManifest(manifest, version, checksum, Instant.now());
 			StagedUpdate previous;
 			synchronized (STAGED_UPDATE_LOCK) {
@@ -361,14 +363,6 @@ public final class UpdateChecker {
 				throw new InterruptedIOException("Installer download interrupted");
 			}
 			out.write(buffer, 0, count);
-		}
-	}
-
-	private static void moveAtomically(Path source, Path target) throws IOException {
-		try {
-			Files.move(source, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-		} catch (java.nio.file.AtomicMoveNotSupportedException e) {
-			Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
 		}
 	}
 
@@ -412,7 +406,7 @@ public final class UpdateChecker {
 					+ "createdAt=" + createdAt + "\n";
 			Files.writeString(partial, content, StandardCharsets.UTF_8,
 					java.nio.file.StandardOpenOption.CREATE_NEW, java.nio.file.StandardOpenOption.WRITE);
-			moveAtomically(partial, manifest);
+			SafeFileReplace.moveAtomically(partial, manifest, true);
 		} finally {
 			deleteQuietly(partial, "partial update manifest");
 		}
@@ -428,10 +422,6 @@ public final class UpdateChecker {
 		synchronized (STAGED_UPDATE_LOCK) {
 			if (installer != null && installer.equals(installerScheduledForApply)) installerScheduledForApply = null;
 		}
-	}
-
-	private static boolean isWindows() {
-		return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
 	}
 
 	private static Path stagingDirectory() {
@@ -550,10 +540,6 @@ public final class UpdateChecker {
 				.replace("{0}", current == null ? "" : current)
 				.replace("{1}", latest);
 		if (!Alert.okCancel(message)) return;
-		try {
-			java.awt.Desktop.getDesktop().browse(URI.create(RELEASES_URL));
-		} catch (Exception e) {
-			logger.log(Level.WARNING, "Failed to open releases page", e);
-		}
+		BrowserControl.displayURL(RELEASES_URL);
 	}
 }

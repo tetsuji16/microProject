@@ -101,50 +101,22 @@ public class ConfigurationFile {
 		}
 		return locale;
 	}
+	/** Parses and caches the locale for a code such as {@code en_US}; an empty code yields the default locale. */
 	public static Locale getLocale(String code){
 		Locale defaultLocale=Locale.getDefault();
-		String language=null;
-		String country=null;
-		String variant=null;
-		StringTokenizer st=new StringTokenizer(code,"_-");
-		if (!st.hasMoreTokens()) locale=defaultLocale;
-		else{
-			language=st.nextToken();
-			if (!st.hasMoreTokens()) locale=new Locale(language,defaultLocale.getCountry());
-			else{
-				country=st.nextToken();
-				if (!st.hasMoreTokens()) locale=new Locale(language,country);
-				else{
-					variant=st.nextToken();
-					locale=new Locale(language,country,variant);
-				}
-				
-			}
-			
-		}
+		String[] codes=getLocaleCodes(code);
+		if (codes[0]==null) locale=defaultLocale;
+		else if (codes[1]==null) locale=new Locale(codes[0],defaultLocale.getCountry());
+		else if (codes[2]==null) locale=new Locale(codes[0],codes[1]);
+		else locale=new Locale(codes[0],codes[1],codes[2]);
 		return locale;
 	}
+	/** Splits a locale code into {language, country, variant}; absent parts are {@code null}. Does not touch the cached locale. */
 	public static String[] getLocaleCodes(String code){
-		Locale defaultLocale=Locale.getDefault();
-		String language=null;
-		String country=null;
-		String variant=null;
+		String[] codes=new String[3];
 		StringTokenizer st=new StringTokenizer(code,"_-");
-		if (!st.hasMoreTokens()) locale=defaultLocale;
-		else{
-			language=st.nextToken();
-			if (!st.hasMoreTokens()) locale=new Locale(language,defaultLocale.getCountry());
-			else{
-				country=st.nextToken();
-				if (!st.hasMoreTokens()) locale=new Locale(language,country);
-				else{
-					variant=st.nextToken();
-				}
-				
-			}
-			
-		}
-		return new String[] {language, country, variant};
+		for (int i=0;i<codes.length&&st.hasMoreTokens();i++) codes[i]=st.nextToken();
+		return codes;
 	}
 	
 	private static Properties runProps;

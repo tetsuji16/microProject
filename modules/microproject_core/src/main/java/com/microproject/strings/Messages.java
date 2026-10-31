@@ -197,25 +197,6 @@ public class Messages {
 	}
 
 
-	public static String toAppletVersion(String v){
-		StringBuilder sb = new StringBuilder();
-		String vNumbers[]=v.split("\\.", -1);
-		for (int i=0;i<4;i++){
-			int vn=(i>=vNumbers.length)?0:parseVersionSegment(vNumbers[i]);
-			if (i>0) sb.append('.');
-			String hex=Integer.toHexString(vn);
-			//for (int j=0;j<4-hex.length();j++) sb.append('0');
-			sb.append(hex);
-		}
-		return sb.toString();
-	}
-	private static int parseVersionSegment(String segment) {
-		try {
-			return Integer.parseInt(segment);
-		} catch (NumberFormatException e) {
-			return 0; // non-numeric segment (e.g. a suffix) degrades to 0 (issue #186)
-		}
-	}
 	public static String getContextString(String key) {
 		if ("Text.ApplicationTitle".equals(key) || "Text.ShortTitle".equals(key)) {
 			return "microProject";

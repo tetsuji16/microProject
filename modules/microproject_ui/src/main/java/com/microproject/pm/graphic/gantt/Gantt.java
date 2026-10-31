@@ -275,7 +275,7 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 	public void setColumnHeaderFont(Font columnHeaderFont) {
 	}
 
-	protected LinkRouting routing = new DefaultGanttLinkRouting();//new QuadraticGanttLinkRouting();
+	protected LinkRouting routing = new DefaultGanttLinkRouting();
 	public LinkRouting getRouting(){
 		return routing;
 	}

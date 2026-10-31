@@ -55,7 +55,6 @@ import com.microproject.core.pm.exchange.converters.mpx.type.MpxAccrueTypeConver
 import com.microproject.core.pm.exchange.converters.mpx.MpxCalendarConverter;
 import com.microproject.core.pm.exchange.converters.mpx.MpxDependencyConverter;
 import com.microproject.core.pm.exchange.converters.mpx.MpxImportState;
-import com.microproject.core.pm.exchange.converters.mpx.MpxOptionsConverter;
 import com.microproject.core.pm.exchange.converters.mpx.MpxProjectConverter;
 import com.microproject.core.pm.exchange.converters.mpx.MpxResourceConverter;
 import com.microproject.core.pm.exchange.converters.mpx.MpxTaskConverter;
@@ -83,6 +82,7 @@ import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.SubProj;
 import com.microproject.pm.task.DefaultSubProj;
 import com.microproject.pm.criticalpath.TaskSchedule;
+import com.microproject.session.FileHelper;
 import com.microproject.undo.DataFactoryUndoController;
 
 /**
@@ -643,7 +643,7 @@ public class MspImporter {
 
 	private static long parseMspdiWallTime(String value) {
 		if (value == null) throw new IllegalArgumentException("Custom MSPDI work row is missing a date bound");
-		return java.time.LocalDateTime.parse(value).toInstant(java.time.ZoneOffset.UTC).toEpochMilli();
+		return MspdiProjectBoundary.parseWallTime(value);
 	}
 
 	private static Long parseNullableMspdiWallTime(String value) {
@@ -669,8 +669,7 @@ public class MspImporter {
 	}
 	protected void parseProject(String fileName) throws Exception {
 		fileName=fileName.trim();
-		int extensionPosition=fileName.lastIndexOf("."); 
-		String extension = extensionPosition==-1 ? "xml" : fileName.substring(extensionPosition+1).toLowerCase(java.util.Locale.ROOT);
+		String extension = FileHelper.getFileExtension(fileName, "xml"); //$NON-NLS-1$
 		try (FileInputStream input = new FileInputStream(fileName)) {
 			parseProject(input, extension);
 		}
