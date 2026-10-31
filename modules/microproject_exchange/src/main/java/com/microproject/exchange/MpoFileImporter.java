@@ -324,6 +324,7 @@ public class MpoFileImporter extends FileImporter {
 			state.documentId = project.getDocumentId();
 			state.operations.addAll(normalized);
 			state.appliedOperationIds.addAll(operationLog.appliedOperationIds());
+			normalized.forEach(operation -> state.loadedOperationIds.add(operation.id()));
 			state.json = new OperationLog().writeJsonl(state.documentId, normalized, state.appliedOperationIds);
 			state.capture(project);
 		}
@@ -2018,7 +2019,12 @@ public class MpoFileImporter extends FileImporter {
 			throw new IOException("MPOF merged operation log exceeds " + MAX_OPERATION_COUNT + " operations");
 		try {
 			OperationLog.MergeResult merged = new OperationLog().merge(all);
-			java.util.List<MpoMergePlan.Conflict> planConflicts = merged.conflicts().stream()
+			// New operations carry no parents and each session has its own actor, so the log alone
+			// reports an edit as concurrent with the history it was made on top of.
+			java.util.List<OperationLog.Conflict> conflicts = merged.conflicts().stream()
+					.filter(conflict -> conflict.operationIds().stream().noneMatch(local.loadedOperationIds::contains))
+					.toList();
+			java.util.List<MpoMergePlan.Conflict> planConflicts = conflicts.stream()
 					.map(conflict -> new MpoMergePlan.Conflict(conflict.entityId(),
 							"Concurrent " + conflict.kind() + " operations: " + conflict.operationIds()))
 					.toList();
@@ -2028,12 +2034,12 @@ public class MpoFileImporter extends FileImporter {
 					.map(operation -> new MpoMergePlan.Operation(operation.id(), MpoMergePlan.Action.UPDATE))
 					.toList();
 			MpoMergePlan plan = planFor(external.snapshot(), plannedOperations, planConflicts);
-			if (!merged.conflicts().isEmpty()) {
+			if (!conflicts.isEmpty()) {
 				java.util.List<OperationLog.Operation> conflictOperations = new java.util.ArrayList<>(merged.ready());
 				conflictOperations.addAll(merged.pending());
 				Path recoveryCopy = persistRecoveryCopy(target, captured, local, conflictOperations,
 						external.extensions);
-				throw new MpoConflictRecoveryException(recoveryCopy, merged.conflicts());
+				throw new MpoConflictRecoveryException(recoveryCopy, conflicts);
 			}
 			validateMergePlan(plan);
 			// The snapshot already contains every local operation.  Replaying that
@@ -3406,6 +3412,8 @@ public class MpoFileImporter extends FileImporter {
 		private byte[] json; private String documentId; private String actorId = java.util.UUID.randomUUID().toString();
 		private final java.util.List<OperationLog.Operation> operations = new java.util.ArrayList<OperationLog.Operation>();
 		private final java.util.Set<String> appliedOperationIds = new java.util.LinkedHashSet<String>();
+		// History present when the document was opened: this session's edits follow it, so it cannot conflict with them.
+		private final java.util.Set<String> loadedOperationIds = new java.util.LinkedHashSet<String>();
 		private final java.util.Map<Long, TaskSnapshot> snapshots = new java.util.LinkedHashMap<Long, TaskSnapshot>();
 		private final java.util.Map<Long, Long> parentSnapshots = new java.util.LinkedHashMap<Long, Long>();
 		private final java.util.Set<String> dependencySnapshots = new java.util.LinkedHashSet<String>();
@@ -3507,6 +3515,7 @@ public class MpoFileImporter extends FileImporter {
 			copy.actorId = actorId;
 			copy.operations.addAll(operations);
 			copy.appliedOperationIds.addAll(appliedOperationIds);
+			copy.loadedOperationIds.addAll(loadedOperationIds);
 			copy.snapshots.putAll(snapshots);
 			copy.parentSnapshots.putAll(parentSnapshots);
 			copy.dependencySnapshots.addAll(dependencySnapshots);
@@ -3519,6 +3528,7 @@ public class MpoFileImporter extends FileImporter {
 			actorId = source.actorId;
 			operations.clear(); operations.addAll(source.operations);
 			appliedOperationIds.clear(); appliedOperationIds.addAll(source.appliedOperationIds);
+			loadedOperationIds.clear(); loadedOperationIds.addAll(source.loadedOperationIds);
 			snapshots.clear(); snapshots.putAll(source.snapshots);
 			parentSnapshots.clear(); parentSnapshots.putAll(source.parentSnapshots);
 			dependencySnapshots.clear(); dependencySnapshots.addAll(source.dependencySnapshots);

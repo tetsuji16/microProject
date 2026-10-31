@@ -162,6 +162,30 @@ class MpoTransactionBoundaryTest {
 	}
 
 	@Test
+	void reopeningAndEditingTheSameFieldAgainIsNotAConflict() throws Exception {
+		Path target = Files.createTempFile("mpof-reopen-edit-", ".mpo");
+		try {
+			MpoFileImporter initial = new MpoFileImporter();
+			initial.setFileName(target.toString()); initial.setProject(loadSample()); initial.exportFile();
+			for (String name : List.of("first session", "second session", "third session")) {
+				MpoFileImporter reader = new MpoFileImporter();
+				reader.setProjectFactory(ProjectFactory.getInstance());
+				Project session = reader.loadProject(new ByteArrayInputStream(Files.readAllBytes(target)));
+				((Task) session.getTaskOutlineIterator().next()).setName(name);
+				MpoFileImporter writer = new MpoFileImporter();
+				writer.setFileName(target.toString()); writer.setProject(session); writer.exportFile();
+				MpoFileImporter check = new MpoFileImporter();
+				check.setProjectFactory(ProjectFactory.getInstance());
+				Project reloaded = check.loadProject(new ByteArrayInputStream(Files.readAllBytes(target)));
+				assertEquals(name, ((Task) reloaded.getTaskOutlineIterator().next()).getName());
+			}
+		} finally {
+			Files.deleteIfExists(target);
+			Files.deleteIfExists(target.resolveSibling(target.getFileName() + ".lock"));
+		}
+	}
+
+	@Test
 	void laterEditMustSurviveRemoteMergeCommit() throws Exception {
 		Project local = loadSample();
 		Path target = Files.createTempFile("mpof-later-edit-", ".mpo");
