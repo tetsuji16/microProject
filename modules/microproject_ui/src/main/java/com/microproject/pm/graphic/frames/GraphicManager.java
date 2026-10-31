@@ -278,20 +278,11 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	public static GraphicManager getInstance(Component component){
 		Component c = component;
 		for (c = component; c != null; c = c.getParent()) {
-			if (c instanceof FrameHolder)
-				return ((FrameHolder)c).getGraphicManager();
-			else if (c.getName() != null && c.getName().endsWith("BootstrapApplet") && c.getClass().getName().endsWith("BootstrapApplet")){
-				logger.fine("applet: " + c.getClass().getName());
-				try {
-					FrameHolder holder=(FrameHolder)Class.forName("com.microproject.bootstrap.BootstrapApplet").getMethod("getObject").invoke(c);
-					return holder.getGraphicManager();
-				} catch (Exception e) {
-					return null;
-				}
+				if (c instanceof FrameHolder)
+					return ((FrameHolder)c).getGraphicManager();
 			}
+			return MANAGER_REGISTRY.getActiveManager(); // if none found, use last used one
 		}
-		return MANAGER_REGISTRY.getActiveManager(); // if none found, use last used one
-	}
 	public static GraphicManager getInstance(){
 		return MANAGER_REGISTRY.getActiveManager();
 	}
