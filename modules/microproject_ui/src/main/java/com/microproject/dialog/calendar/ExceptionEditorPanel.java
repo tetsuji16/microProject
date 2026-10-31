@@ -10,7 +10,6 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.text.DateFormatSymbols;
-import java.time.LocalTime;
 import java.util.BitSet;
 import java.util.Calendar;
 import java.util.Date;
@@ -34,14 +33,12 @@ import javax.swing.event.ListSelectionEvent;
 import com.microproject.pm.calendar.CalendarRecurrence;
 import com.microproject.pm.calendar.RecurringCalendarException;
 import com.microproject.pm.calendar.WorkDay;
-import com.microproject.pm.calendar.WorkRangeException;
 import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.calendar.WorkingHours;
 import com.microproject.strings.Messages;
 import com.microproject.util.DateTime;
 import static com.microproject.dialog.calendar.CalendarEditorSupport.dateSpinner;
 import static com.microproject.dialog.calendar.CalendarEditorSupport.formatTime;
-import static com.microproject.dialog.calendar.CalendarEditorSupport.timeValue;
 
 /** Scratch-only management of one-off and recurring date exceptions. */
 final class ExceptionEditorPanel extends JPanel {
@@ -371,30 +368,7 @@ final class ExceptionEditorPanel extends JPanel {
 			long last = dayValue(finish);
 			if (last < first) throw new IllegalArgumentException(
 				Messages.getString("ChangeWorkingTimeDialogBox.ExceptionInvalidRange"));
-			WorkingHours hours = new WorkingHours();
-			if (working.isSelected()) {
-				int count = 0;
-				java.time.LocalTime previous = null;
-				try {
-					for (int slot = 0; slot < from.length; slot++) {
-						String begin = from[slot].getText().trim();
-						String end = to[slot].getText().trim();
-						if (begin.isEmpty() && end.isEmpty()) continue;
-						if (begin.isEmpty() || end.isEmpty()) throw new IllegalArgumentException(
-							Messages.getString("ChangeWorkingTimeDialogBox.WorkWeekTimePairRequired"));
-						LocalTime fromTime = LocalTime.parse(begin);
-						LocalTime toTime = LocalTime.parse(end);
-						if (!toTime.isAfter(fromTime) || (previous != null && fromTime.isBefore(previous)))
-							throw new IllegalArgumentException(Messages.getString("ChangeWorkingTimeDialogBox.WorkWeekInvalidTime"));
-						hours.setInterval(count++, timeValue(begin), timeValue(end));
-						previous = toTime;
-					}
-				} catch (WorkRangeException | java.time.format.DateTimeParseException invalid) {
-					throw new IllegalArgumentException(Messages.getString("ChangeWorkingTimeDialogBox.WorkWeekInvalidTime"), invalid);
-				}
-				if (count == 0) throw new IllegalArgumentException(
-					Messages.getString("ChangeWorkingTimeDialogBox.WorkWeekTimeRequired"));
-			}
+			WorkingHours hours = working.isSelected() ? CalendarEditorSupport.workingHours(from, to) : new WorkingHours();
 			WorkDay template = new WorkDay(first, last, label);
 			template.setWorkingHours(hours);
 			if (!recurring.isSelected()) return new Entry(template, null);

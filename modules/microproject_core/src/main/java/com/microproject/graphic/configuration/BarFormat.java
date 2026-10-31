@@ -289,9 +289,8 @@ public class BarFormat implements NamedItem {
 		getField();
 	}
 	public Field getField(){
-		if (field==null||field.getId()!=fieldId){
-			if (fieldId==null) field=null;
-			field=FieldDictionary.getInstance().getFieldFromId(fieldId);
+		if (field==null||!java.util.Objects.equals(field.getId(),fieldId)){
+			field=fieldId==null?null:FieldDictionary.getInstance().getFieldFromId(fieldId);
 		}
 		return field;
 	}
