@@ -599,9 +599,11 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		int nameColumn = findColumn(fixture.entrySheet, "Field.name");
 		cellOnScreen(fixture.entrySheet, fixture.entryRow, nameColumn);
 		Rectangle nameCell = currentCellOnScreen(fixture.entrySheet, fixture.entryRow, nameColumn);
+		// A double-click on a task row opens Task Information, so the edit starts with F2.
 		clickCell(robot, nameCell, 0);
-		clickCell(robot, nameCell, 0);
-		GuiAcceptanceSupport.await(fixture.entrySheet::isEditing, "a physical double-click must start the name-cell edit");
+		robot.keyPress(KeyEvent.VK_F2);
+		robot.keyRelease(KeyEvent.VK_F2);
+		GuiAcceptanceSupport.await(fixture.entrySheet::isEditing, "physical F2 must start the name-cell edit");
 
 		// Move to the other table by clicking its tab, then start a non-name edit there.
 		Rectangle[] tab = new Rectangle[1];
@@ -616,8 +618,9 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		cellOnScreen(fixture.trackingSheet, fixture.trackingRow, fixture.percentColumn);
 		Rectangle percentCell = currentCellOnScreen(fixture.trackingSheet, fixture.trackingRow, fixture.percentColumn);
 		clickCell(robot, percentCell, 0);
-		clickCell(robot, percentCell, 0);
-		GuiAcceptanceSupport.await(fixture.trackingSheet::isEditing, "a physical double-click must start the non-name edit");
+		robot.keyPress(KeyEvent.VK_F2);
+		robot.keyRelease(KeyEvent.VK_F2);
+		GuiAcceptanceSupport.await(fixture.trackingSheet::isEditing, "physical F2 must start the non-name edit");
 
 		boolean[] previousStillEditing = new boolean[1];
 		SwingUtilities.invokeAndWait(() -> previousStillEditing[0] = fixture.entrySheet.isEditing());
