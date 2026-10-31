@@ -24,6 +24,7 @@ import javax.swing.SwingUtilities;
 import com.microproject.pm.ccpm.CriticalChainService;
 import com.microproject.pm.task.Project;
 import com.microproject.dialog.UsabilityStrings;
+import com.microproject.util.ColorLuminance;
 import com.microproject.util.FlatUiSupport;
 import com.microproject.ui.theme.MicroProjectTheme;
 import com.microproject.ui.theme.MicroProjectThemeTokens;
@@ -31,7 +32,6 @@ import com.microproject.ui.theme.MicroProjectThemeTokens;
 /** Lightweight, read-only CCPM network view including resource constraints. */
 public final class CriticalChainGraphPanel extends JPanel {
 	private static final long serialVersionUID = 1L;
-	private static final MicroProjectThemeTokens LIGHT_TOKENS = MicroProjectThemeTokens.light();
 	private final Project project;
 	private CriticalChainGraphScene scene = CriticalChainGraphScene.from(null, null);
 	private String selectedNodeKey;
@@ -185,6 +185,6 @@ public final class CriticalChainGraphPanel extends JPanel {
 	}
 
 	private static boolean isDark(MicroProjectThemeTokens tokens) {
-		return !tokens.appBackground().equals(LIGHT_TOKENS.appBackground());
+		return ColorLuminance.isDark(tokens.appBackground());
 	}
 }
