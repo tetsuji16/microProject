@@ -364,6 +364,33 @@ class MpoTransactionBoundaryTest {
 	}
 
 	@Test
+	void linkedChildSaveMarksSavedOnlyWhenNoEditRacedTheExport() throws Exception {
+		Project local = loadSample();
+		Path target = Files.createTempFile("mpof-child-save-", ".mpo");
+		try {
+			local.setGroupDirty(true);
+			var clean = new FileImporterPortAdapter("mpo", MpoFileImporter::new);
+			assertTrue(clean.exportProject(local, new com.microproject.port.ExportPort.ExportRequest(target, true)).succeeded());
+			assertFalse(local.needsSaving(), "an unraced save marks the project saved");
+
+			Task task = (Task) local.getTaskOutlineIterator().next();
+			var racing = new FileImporterPortAdapter("mpo", () -> new MpoFileImporter() {
+				@Override public void exportFile() throws Exception {
+					super.exportFile();
+					task.setNotes("edited after the commit");
+					local.setDirty(true); // the edit route marks the project modified
+				}
+			});
+			var result = racing.exportProject(local, new com.microproject.port.ExportPort.ExportRequest(target, true));
+			assertFalse(result.succeeded());
+			assertTrue(local.needsSaving(), "an edit made after the save must stay unsaved");
+		} finally {
+			Files.deleteIfExists(target);
+			Files.deleteIfExists(target.resolveSibling(target.getFileName() + ".lock"));
+		}
+	}
+
+	@Test
 	void editAfterCommitLeavesProjectUnconfirmed() throws Exception {
 		Project local = loadSample();
 		Path target = Files.createTempFile("mpof-edit-after-commit-", ".mpo");
