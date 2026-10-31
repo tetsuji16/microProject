@@ -45,7 +45,7 @@ class MpoMspdiConsolidationGoldenTest {
 		Map.entry("mpo:changes/task-identities.json",
 			"002110d1d9da8da95128c8ade4ab33f62ab5a02b247bbc4a8d229a820d9a4b88"),
 		Map.entry("mpo:content.xml",
-			"dbfdc16ac13ef1cecd9a0514a241ba0d289a8a2104dbfbb57e4611f2677fdbb8"),
+			"b10e651f23935ac056389fbd787931f5956b53c468a66f3cc29db696a9817f48"),
 		Map.entry("mpo:meta.xml",
 			"9e1c3c32896f620ab0b937a329af41c59eb219d98f14c7641116e33d15601f08"),
 		Map.entry("mpo:microproject/assignment-leveling-splits.json",
@@ -69,7 +69,7 @@ class MpoMspdiConsolidationGoldenTest {
 		Map.entry("mpo:settings.xml",
 			"d4cafce40b45ca0550508c61ad15e3441d687d23779448cf83c8f50cc7fae8b4"),
 		Map.entry("mspdi",
-			"dbfdc16ac13ef1cecd9a0514a241ba0d289a8a2104dbfbb57e4611f2677fdbb8")));
+			"b10e651f23935ac056389fbd787931f5956b53c468a66f3cc29db696a9817f48")));
 
 	@Test
 	void mpoAndMspdiBytesAreDeterministicAndMatchGolden() throws Exception {
@@ -170,12 +170,10 @@ class MpoMspdiConsolidationGoldenTest {
 	 * CurrentDate is the export wall clock. The manifest records the digest of content.xml as written
 	 * (clock included), so that digest is masked, and likewise the baseline-profiles digest. profileUid comes from a
 	 * process-wide id counter and depends on which tests ran first, so it is masked too. XML line ends follow the OS.
-	 * The project default times shift with the default time zone (#989); drop that mask once it is fixed.
 	 * The application version comes from the build (-PreleaseVersion), so it and the meta.xml checksum are masked.
 	 */
 	private static byte[] withoutClock(byte[] bytes) {
 		return new String(bytes, StandardCharsets.UTF_8).replaceAll("<CurrentDate>[^<]*</CurrentDate>", "")
-			.replaceAll("<Default(Start|Finish)Time>[^<]*</Default\\1Time>", "")
 			.replace("\r\n", "\n")
 			.replaceAll("\"profileUid\":-?\\d+", "\"profileUid\":0")
 			.replaceAll("projectUniqueId=\"-?[0-9]+\"", "projectUniqueId=\"0\"")

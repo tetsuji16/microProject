@@ -172,8 +172,7 @@ public class MPXConverter {
 		projectHeader.setDefaultDurationUnits(MpxUtils.toMpxTimeUnit(defaults.durationEnteredIn()));
 		projectHeader.setDefaultWorkUnits(MpxUtils.toMpxTimeUnit(defaults.workUnit()));
 
-		projectHeader.setDefaultStartTime(calendarOption.getDefaultStartTime().getTime());
-		projectHeader.setDefaultEndTime(calendarOption.getDefaultEndTime().getTime());
+		setDefaultTimes(projectHeader, calendarOption);
 	}
 
 	private static int mspdiInteger(double value, String name) {
@@ -194,8 +193,7 @@ public class MPXConverter {
 		projectHeader.setScheduleFrom(project.isForward() ? ScheduleFrom.START : ScheduleFrom.FINISH);
 		projectHeader.setStartDate(toMpxDate(project.getStartDate()));
 		projectHeader.setFinishDate(toMpxDate(project.getFinishDate()));
-		projectHeader.setDefaultStartTime(CalendarOption.getInstance().getDefaultStartTime().getTime());
-		projectHeader.setDefaultEndTime(CalendarOption.getInstance().getDefaultEndTime().getTime());
+		setDefaultTimes(projectHeader, CalendarOption.getInstance());
 
 	}
 
@@ -865,6 +863,24 @@ private static int autoId = 0;
 	/** Converts a model wall-time epoch into MPXJ's host-local date representation. */
 	private static Date toMpxDate(long modelWallTime) {
 		return new Date(TimeUtil.removeTimeZoneOffset(modelWallTime));
+	}
+
+	private static void setDefaultTimes(ProjectProperties projectHeader, CalendarOption calendarOption) {
+		projectHeader.setDefaultStartTime(toMpxTimeOfDay(calendarOption.getDefaultStartTime()));
+		projectHeader.setDefaultEndTime(toMpxTimeOfDay(calendarOption.getDefaultEndTime()));
+	}
+
+	/**
+	 * Converts a model time of day into the host-local date MPXJ prints as an MSPDI floating time.
+	 * The reference date stays fixed because the option's own date may be a DST transition day,
+	 * where the host offset at that instant would move the printed hour (#989).
+	 */
+	public static Date toMpxTimeOfDay(GregorianCalendar modelWallClock) {
+		Calendar local = Calendar.getInstance();
+		local.clear();
+		local.set(2000, Calendar.JANUARY, 1, modelWallClock.get(Calendar.HOUR_OF_DAY),
+			modelWallClock.get(Calendar.MINUTE), modelWallClock.get(Calendar.SECOND));
+		return local.getTime();
 	}
 
 	private static String truncName(String name) {
