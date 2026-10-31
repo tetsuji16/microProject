@@ -32,7 +32,11 @@ public final class UsabilityStrings {
 	private static final ResourceBundle BUNDLE = ResourceBundle.getBundle("com.microproject.dialog.usability");
 	private UsabilityStrings() { }
 	public static String text(String key) {
+		return text(key, key);
+	}
+	/** The bundle text, or {@code fallback} when the key is missing. */
+	public static String text(String key, String fallback) {
 		try { return BUNDLE.getString(key); }
-		catch (MissingResourceException error) { return key; }
+		catch (MissingResourceException error) { return fallback; }
 	}
 }

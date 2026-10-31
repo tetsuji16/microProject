@@ -55,6 +55,7 @@ import com.microproject.dialog.FindDialog;
 import com.microproject.dialog.ResourceLevelingDialogBox;
 import com.microproject.dialog.TeamPlannerDialogBox;
 import com.microproject.dialog.TimelineDialogBox;
+import com.microproject.dialog.UsabilityStrings;
 import com.microproject.dialog.CalendarViewDialogBox;
 import com.microproject.dialog.CustomFieldsDialogBox;
 import com.microproject.dialog.CustomReportDialogBox;
@@ -380,9 +381,8 @@ public class DocumentFrame extends NamedFrame implements
 				: new BaselineRollupOptions(form.isRollupToSummaryTasks(), form.isRollupFromSubtasks());
 				if (!getProject().hasBaselineData(form.getBaselineNumber(), form.isEntireProject(), target, options))
 					return true;
-				java.util.ResourceBundle labels = java.util.ResourceBundle.getBundle("com.microproject.dialog.usability");
 				return PopupDialogSupport.showConfirmDialog(baselineDialog,
-					labels.getString("baseline.overwritePrompt"), labels.getString("baseline.overwriteTitle"),
+					UsabilityStrings.text("baseline.overwritePrompt"), UsabilityStrings.text("baseline.overwriteTitle"),
 					JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE) == JOptionPane.YES_OPTION;
 			});
 		}

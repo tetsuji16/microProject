@@ -1855,11 +1855,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		if (actionsMap == null)
 			addHandlers();
 
-		Action action = actionsMap.getConcreteAction(key);
-		if (action == null)
-			throw new MissingListenerException("no listener for mainFrame", getClass().getName(),key); //$NON-NLS-1$
-
-		return action;
+		return actionsMap.requireAction(key, "mainFrame", getClass().getName()); //$NON-NLS-1$
 	}
 
 	public String getStringFromAction(Action action) throws MissingListenerException {
