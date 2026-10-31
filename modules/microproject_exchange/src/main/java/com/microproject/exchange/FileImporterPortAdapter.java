@@ -65,6 +65,13 @@ public final class FileImporterPortAdapter implements ImportPort, ExportPort {
 			importer.setFileName(request.target().toString());
 			importer.setProject(project);
 			importer.exportFile();
+			if (request.markSaved()) {
+				// The same confirmation LocalSession applies to its save end job.
+				if (!importer.confirmSavedState())
+					return failure("EXPORT_CHANGED_DURING_SAVE",
+							new java.io.IOException("The project changed while it was being saved"), request.target());
+				project.markSaved();
+			}
 			return PortResult.success(request.target());
 		} catch (java.io.IOException exception) {
 			return failure("EXPORT_IO", exception, request.target());

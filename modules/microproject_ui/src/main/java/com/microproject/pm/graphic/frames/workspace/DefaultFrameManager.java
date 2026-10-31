@@ -58,6 +58,7 @@ import javax.swing.border.LineBorder;
 import javax.swing.ListCellRenderer;
 
 import com.microproject.pm.graphic.frames.DocumentFrame;
+import com.microproject.pm.graphic.frames.DocumentTitles;
 import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.pm.graphic.frames.MainRibbonFrame;
 import com.microproject.pm.task.Project;
@@ -214,18 +215,7 @@ public class DefaultFrameManager implements FrameManager {
 			return "";
 		StringBuilder description = new StringBuilder();
 		if (frame instanceof DocumentFrame documentFrame && documentFrame.getProject() != null) {
-			Project project = documentFrame.getProject();
-			String name = project.getName();
-			if (name == null || name.isBlank())
-				name = documentFrame.getTitle();
-			description.append(Messages.getContextString("Text.ApplicationTitle"));
-			description.append(" - ").append(name == null ? "(unnamed project)" : name);
-			if (project.isMaster())
-				description.append(" [Master]");
-			if (project.isReadOnly())
-				description.append(" [Read-only]");
-			if (project.needsSaving())
-				description.append(" *");
+			description.append(DocumentTitles.windowTitle(documentFrame.getProject(), documentFrame.getTitle(), false));
 		} else {
 			description.append(frame.getTitle() == null ? frame.getId() : frame.getTitle());
 		}
