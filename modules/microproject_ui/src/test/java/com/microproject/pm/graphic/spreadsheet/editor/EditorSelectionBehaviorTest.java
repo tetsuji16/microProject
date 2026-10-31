@@ -114,6 +114,60 @@ class EditorSelectionBehaviorTest {
 	}
 
 	@Test
+	void windowsReconversionWithoutAFocusedWindowReportsFailureAndKeepsTheEditor() throws Exception {
+		org.junit.jupiter.api.Assumptions.assumeTrue(WindowsImeReconversion.isWindows());
+		SwingUtilities.invokeAndWait(() -> {
+			JTextField field = new JTextField("abc");
+			field.select(1, 3);
+			int listeners = field.getInputMethodListeners().length;
+			int[] failures = new int[1];
+			WindowsImeReconversion.request(field, field.getText(), 1, 3, () -> failures[0]++);
+			assertEquals(1, failures[0]);
+			assertEquals("bc", field.getSelectedText());
+			assertEquals(listeners, field.getInputMethodListeners().length, "a failed request must not leave its cancel guard behind");
+			assertEquals(ImeTextInputSupport.ReconversionResult.NOTHING_TO_CONVERT,
+				ImeTextInputSupport.requestReconversion(new JTextField()));
+		});
+	}
+
+	@Test
+	void cancelledReconversionRestoresTheTextAnImeDoesNotCommitBack() throws Exception {
+		JTextField[] field = new JTextField[1];
+		SwingUtilities.invokeAndWait(() -> {
+			field[0] = new JTextField("abc");
+			field[0].addInputMethodListener(new WindowsImeReconversion.CancelGuard(field[0], "abc", 1, 3));
+			field[0].select(1, 3);
+			field[0].dispatchEvent(imeEvent(field[0], "x", 0));
+			assertEquals("ax", field[0].getText(), "the composition replaces the selection");
+			field[0].dispatchEvent(imeEvent(field[0], null, 0));
+		});
+		SwingUtilities.invokeAndWait(() -> {
+			assertEquals("abc", field[0].getText());
+			assertEquals("bc", field[0].getSelectedText());
+		});
+	}
+
+	@Test
+	void committedReconversionKeepsTheCommittedText() throws Exception {
+		JTextField[] field = new JTextField[1];
+		SwingUtilities.invokeAndWait(() -> {
+			field[0] = new JTextField("abc");
+			field[0].addInputMethodListener(new WindowsImeReconversion.CancelGuard(field[0], "abc", 0, 3));
+			field[0].selectAll();
+			field[0].dispatchEvent(imeEvent(field[0], "x", 0));
+			field[0].dispatchEvent(imeEvent(field[0], "y", 1));
+			field[0].dispatchEvent(imeEvent(field[0], null, 0));
+		});
+		SwingUtilities.invokeAndWait(() -> assertEquals("y", field[0].getText()));
+	}
+
+	private static java.awt.event.InputMethodEvent imeEvent(JTextField field, String text, int committed) {
+		java.text.AttributedCharacterIterator iterator = text == null ? null : new java.text.AttributedString(text).getIterator();
+		return new java.awt.event.InputMethodEvent(field, java.awt.event.InputMethodEvent.INPUT_METHOD_TEXT_CHANGED,
+			iterator, committed, null, null);
+	}
+
+	@Test
 	void spreadsheetEditorRoutesConvertKeyToImeWithoutChangingTheSelection() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			String unsupported = com.microproject.dialog.UsabilityStrings.text("spreadsheet.imeReconversionUnsupported");
@@ -158,7 +212,8 @@ class EditorSelectionBehaviorTest {
 			convert.run();
 			assertEquals(ImeTextInputSupport.ReconversionResult.REQUESTED,
 				ImeTextInputSupport.requestReconversion(field, field::getInputContext, status::set));
-			assertEquals(2, requests[0], "editor binding and shared route must both reach the input context");
+			// On Windows the editor binding goes through IMM32 instead of the input context (#991).
+			assertEquals(WindowsImeReconversion.isWindows() ? 1 : 2, requests[0], "editor binding and shared route must both reach the input context");
 			assertEquals(null, status.get(), "a supported input method must not be reported as unavailable");
 			assertEquals("済みの", field.getSelectedText());
 		});
