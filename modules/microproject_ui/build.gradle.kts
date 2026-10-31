@@ -47,6 +47,7 @@ dependencies {
 
 application {
     mainClass.set("com.microproject.main.Main")
+    applicationDefaultJvmArgs = listOf("--enable-native-access=ALL-UNNAMED")
 }
 
 tasks.named<CreateStartScripts>("startScripts") {

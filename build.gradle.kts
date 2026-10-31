@@ -557,6 +557,7 @@ require(releaseChannel == "stable" || releaseChannel == "beta") {
 }
 // Updates are delivered as new packages; no release publishes an update feed.
 val updaterEnabledJavaOption = "-Dmicroproject.updates.enabled=false"
+val nativeAccessJavaOption = "--enable-native-access=ALL-UNNAMED"
 val applicationVendor = "microProject contributors"
 val applicationDescription = "microProject desktop project management software"
 val applicationCopyright = "Copyright © 2026 microProject contributors"
@@ -651,6 +652,7 @@ tasks.register<Exec>("packageWindowsAppImage") {
             "--main-jar", "microproject_bootstrap.jar",
             "--main-class", "com.microproject.bootstrap.MicroProjectUpdater",
             "--java-options", updaterEnabledJavaOption,
+            "--java-options", nativeAccessJavaOption,
             "--icon", File(inputDir, "microproject.ico").absolutePath,
             "--add-modules", windowsRuntimeModules.joinToString(","),
             "--dest", windowsAppImageDir.get().asFile.absolutePath,
@@ -716,6 +718,7 @@ tasks.register<Exec>("packageWindowsMsi") {
             "--main-jar", "microproject_bootstrap.jar",
             "--main-class", "com.microproject.bootstrap.MicroProjectUpdater",
             "--java-options", updaterEnabledJavaOption,
+            "--java-options", nativeAccessJavaOption,
             "--icon", File(inputDir, "microproject.ico").absolutePath,
             "--license-file", File(inputDir, "license.txt").absolutePath,
             "--resource-dir", windowsInstallerResourcesDir.asFile.absolutePath,
