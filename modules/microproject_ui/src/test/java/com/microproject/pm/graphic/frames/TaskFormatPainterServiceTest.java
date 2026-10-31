@@ -118,7 +118,7 @@ class TaskFormatPainterServiceTest {
 		TaskFormatPainterService.TaskTextFormat secondBefore = TaskFormatPainterService.capture(second);
 		TaskFormatPainterService.TaskTextFormat requested =
 			new TaskFormatPainterService.TaskTextFormat("Dialog", 16, 0xABCDEF, true, true, true);
-		project.setDirty(false);
+		project.markSaved();
 		first.setDirty(false);
 		second.setDirty(false);
 		long revision = project.getMutationState().revision();
@@ -136,6 +136,7 @@ class TaskFormatPainterServiceTest {
 		assertFalse(first.isDirty());
 		assertFalse(second.isDirty());
 		assertFalse(project.isDirty());
+		assertFalse(project.isGroupDirty(), "rollback must also restore the group-dirty flag");
 		assertEquals(revision, project.getMutationState().revision());
 		assertEquals(0, events[0]);
 		assertFalse(project.getUndoController().canUndo());
