@@ -16,6 +16,7 @@ import javax.swing.AbstractAction;
 import javax.swing.JComponent;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
+import javax.swing.text.JTextComponent;
 
 import com.microproject.dialog.UsabilityStrings;
 import com.microproject.pm.graphic.frames.DocumentFrame;
@@ -24,8 +25,11 @@ import com.microproject.pm.graphic.frames.DocumentFrame;
 public final class ImeTextInputSupport {
 	public static final String COMPOSITION_PROPERTY = "projectlibre.input.composing";
 	public static final String RECONVERT_ACTION_KEY = "spreadsheet.imeReconvert";
-	/** {@code REQUESTED} means the input method accepted the request, not that text changed. */
-	public enum ReconversionResult { REQUESTED, UNSUPPORTED }
+	/**
+	 * {@code REQUESTED} means the request was passed on, not that text changed; on
+	 * Windows an IME may still decline it, which is reported to the document later.
+	 */
+	public enum ReconversionResult { REQUESTED, UNSUPPORTED, NOTHING_TO_CONVERT }
 	private ImeTextInputSupport() {
 	}
 
@@ -58,20 +62,38 @@ public final class ImeTextInputSupport {
 
 	/**
 	 * The single Convert-key reconversion route, shared by the editor-local
-	 * binding and the spreadsheet's start-editing-for-Convert path.  Native
-	 * reconversion is requested from the editor's input context; when the
-	 * platform cannot provide it the edited text and selection are left
-	 * untouched and the owning document reports that reconversion is
-	 * unavailable instead of silently claiming success.
+	 * binding and the spreadsheet's start-editing-for-Convert path.  When the
+	 * platform cannot provide reconversion the edited text and selection are
+	 * left untouched and the owning document reports that it is unavailable
+	 * instead of silently claiming success.
 	 * <p>
 	 * The JDK's Windows input-method adapter ({@code sun.awt.windows.WInputMethod})
 	 * does not override {@code InputMethodAdapter.reconvert()}, so on Windows
 	 * {@link InputContext#reconvert()} always throws
-	 * {@link UnsupportedOperationException} regardless of the active IME (#866).
+	 * {@link UnsupportedOperationException} regardless of the active IME.  Windows
+	 * text editors therefore go through {@link WindowsImeReconversion} (#991).
 	 */
 	public static ReconversionResult requestReconversion(JComponent editor) {
-		return requestReconversion(editor, editor == null ? null : editor::getInputContext,
-			message -> reportToDocument(editor, message));
+		Consumer<String> report = message -> reportToDocument(editor, message);
+		if (WindowsImeReconversion.isWindows() && editor instanceof JTextComponent text)
+			return requestWindowsReconversion(text, report);
+		return requestReconversion(editor, editor == null ? null : editor::getInputContext, report);
+	}
+
+	private static ReconversionResult requestWindowsReconversion(JTextComponent text, Consumer<String> report) {
+		if (isCompositionActive(text))
+			return ReconversionResult.REQUESTED;
+		String value = text.getText();
+		if (value.isEmpty())
+			return ReconversionResult.NOTHING_TO_CONVERT;
+		WindowsImeReconversion.request(text, value, text.getSelectionStart(), text.getSelectionEnd(),
+			() -> report.accept(UsabilityStrings.text("spreadsheet.imeReconversionUnsupported")));
+		return ReconversionResult.REQUESTED;
+	}
+
+	/** Lets a physical acceptance test pick the oracle matching the desktop it runs on. */
+	public static boolean isJapaneseImeActive() {
+		return WindowsImeReconversion.isJapaneseImeActive();
 	}
 
 	static ReconversionResult requestReconversion(JComponent editor, Supplier<InputContext> inputContextSupplier,
