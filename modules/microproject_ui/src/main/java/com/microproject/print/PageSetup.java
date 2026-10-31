@@ -957,42 +957,29 @@ public class PageSetup{
 	}
 
 	private JComponent createPaperPanel(){
-		FormLayout layout = new FormLayout(
-		        "8dlu, p,p,8dlu",
-				"p, 3dlu:grow,p, 2dlu");
-
-		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
-		CellConstraints cc = new CellConstraints();
-		builder.add(createPaperSizePanel(),cc.xyw(2,1,2));
-		JPanel panel=builder.getPanel();
-		panel.setBorder(new TitledBorder(Messages.getString("PageSetupDialog.Paper")));
-		return panel;
+		return paperPanel("8dlu, p,p,8dlu", "p, 3dlu:grow,p, 2dlu", 2, createPaperSizePanel());
 	}
 	private JComponent createFlowPaperPanel(){
-		FormLayout layout = new FormLayout(
-		        "1dlu, p,p,p:grow,1dlu",
-				"p, 3dlu:grow, 2dlu");
+		return paperPanel("1dlu, p,p,p:grow,1dlu", "p, 3dlu:grow, 2dlu", 3, createFlowPaperSizePanel());
+	}
+	private JComponent paperPanel(String columns, String rows, int sizeSpan, JComponent sizePanel){
+		FormLayout layout = new FormLayout(columns, rows);
 
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		CellConstraints cc = new CellConstraints();
-		builder.add(createFlowPaperSizePanel(),cc.xyw(2,1,3));
+		builder.add(sizePanel,cc.xyw(2,1,sizeSpan));
 		JPanel panel=builder.getPanel();
 		panel.setBorder(new TitledBorder(Messages.getString("PageSetupDialog.Paper")));
 		return panel;
 	}
 	private JComponent createPaperSizePanel(){
-		FormLayout layout = new FormLayout("p, 3dlu,50dlu","p, 3dlu, p, 3dlu, p");
-		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
-		CellConstraints cc = new CellConstraints();
-		builder.add(paperSize,cc.xyw(1, 1, 3));
-		builder.add(paperWidthLabel,cc.xy(1,3));
-		builder.add(paperWidth,cc.xy(3,3));
-		builder.add(paperHeightLabel,cc.xy(1,5));
-		builder.add(paperHeight,cc.xy(3,5));
-		return builder.getPanel();
+		return paperSizePanel("p, 3dlu,50dlu");
 	}
 	private JComponent createFlowPaperSizePanel(){
-		FormLayout layout = new FormLayout("p, 3dlu,40dlu","p, 3dlu, p, 3dlu, p");
+		return paperSizePanel("p, 3dlu,40dlu");
+	}
+	private JComponent paperSizePanel(String columns){
+		FormLayout layout = new FormLayout(columns,"p, 3dlu, p, 3dlu, p");
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		CellConstraints cc = new CellConstraints();
 		builder.add(paperSize,cc.xyw(1, 1, 3));
@@ -1004,21 +991,13 @@ public class PageSetup{
 	}
 
 	private JComponent createOrientationPanel(){
-		FormLayout layout = new FormLayout(
-		        "8dlu, 100dlu, 8dlu",
-				"p,2dlu");
-
-		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
-		CellConstraints cc = new CellConstraints();
-		builder.add(orientation,cc.xy(2,1));
-		JPanel panel=builder.getPanel();
-		panel.setBorder(new TitledBorder(Messages.getString("PageSetupDialog.Orientation")));
-		return panel;
+		return orientationPanel("8dlu, 100dlu, 8dlu");
 	}
 	private JComponent createFlowOrientationPanel(){
-		FormLayout layout = new FormLayout(
-		        "1dlu, p:grow, 1dlu",
-				"p,2dlu");
+		return orientationPanel("1dlu, p:grow, 1dlu");
+	}
+	private JComponent orientationPanel(String columns){
+		FormLayout layout = new FormLayout(columns,"p,2dlu");
 
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		CellConstraints cc = new CellConstraints();
@@ -1030,28 +1009,13 @@ public class PageSetup{
 
 
 	private JComponent createMarginsPanel(){
-		FormLayout layout = new FormLayout(
-		        "8dlu, 50dlu, 3dlu, 50dlu, 8dlu",
-				"p,1dlu,p,3dlu, p,1dlu,p,2dlu");
-
-		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
-		CellConstraints cc = new CellConstraints();
-		builder.add(marginLeftLabel,cc.xy(2,1));
-		builder.add(marginLeft,cc.xy(2,3));
-		builder.add(marginRightLabel,cc.xy(4,1));
-		builder.add(marginRight,cc.xy(4,3));
-		builder.add(marginTopLabel,cc.xy(2,5));
-		builder.add(marginTop,cc.xy(2,7));
-		builder.add(marginBottomLabel,cc.xy(4,5));
-		builder.add(marginBottom,cc.xy(4,7));
-		JPanel panel=builder.getPanel();
-		panel.setBorder(new TitledBorder(Messages.getString("PageSetupDialog.Margins")));
-		return panel;
+		return marginsPanel("8dlu, 50dlu, 3dlu, 50dlu, 8dlu");
 	}
 	private JComponent createFlowMarginsPanel(){
-		FormLayout layout = new FormLayout(
-		        "1dlu, 41dlu, 3dlu, 41dlu, 1dlu",
-				"p,1dlu,p,3dlu, p,1dlu,p,2dlu");
+		return marginsPanel("1dlu, 41dlu, 3dlu, 41dlu, 1dlu");
+	}
+	private JComponent marginsPanel(String columns){
+		FormLayout layout = new FormLayout(columns,"p,1dlu,p,3dlu, p,1dlu,p,2dlu");
 
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		CellConstraints cc = new CellConstraints();

@@ -208,6 +208,22 @@ public class DurationFormat extends Format {
 		pos.setIndex(durationString.length());
 		return new Duration(longResult);
 	}
+	/** Duration in its display unit, the number to print (already scaled for a percent) and the unit type. */
+	private record FormattedValue(long duration, double value, int type) { }
+
+	private FormattedValue formattedValue(Object durationObject, DurationDefaults defaults) {
+		long duration = ((Duration)durationObject).getEncodedMillis();
+		if (((Duration)durationObject).isWork() && Duration.getType(duration) != TimeUnit.NON_TEMPORAL) {
+			int workUnit = defaults == null ? ScheduleOption.getInstance().getWorkUnit() : defaults.workUnit();
+			duration = Duration.setAsTimeUnit(duration, workUnit);
+		}
+		double value = defaults == null ? Duration.getValue(duration) : Duration.getValue(duration, defaults);
+		int type = effectiveType(duration, defaults);
+		if (Duration.isPercent(duration))
+			value *= 100.0;
+		return new FormattedValue(duration, value, type);
+	}
+
 	public StringBuffer format(Object durationObject, StringBuffer toAppendTo, FieldPosition pos) {
 		return format(durationObject, toAppendTo, pos, null);
 	}
@@ -215,19 +231,12 @@ public class DurationFormat extends Format {
 	/** Formats using an explicit project's unit defaults; null preserves legacy preference behavior. */
 	public StringBuffer format(Object durationObject, StringBuffer toAppendTo, FieldPosition pos,
 		DurationDefaults defaults) {
-		long duration = ((Duration)durationObject).getEncodedMillis();
-		if (((Duration)durationObject).isWork() && Duration.getType(duration) != TimeUnit.NON_TEMPORAL) {
-			int workUnit = defaults == null ? ScheduleOption.getInstance().getWorkUnit() : defaults.workUnit();
-			duration = Duration.setAsTimeUnit(duration, workUnit);
-		}
-		
-		double value = defaults == null ? Duration.getValue(duration) : Duration.getValue(duration, defaults);
-		int type = effectiveType(duration, defaults);
+		FormattedValue shown = formattedValue(durationObject, defaults);
+		long duration = shown.duration();
+		double value = shown.value();
+		int type = shown.type();
 		if (value > 0D && showPlusSign)
 			toAppendTo.append("+");
-		boolean isPercent = Duration.isPercent(duration);
-		if (isPercent)
-			value *= 100.0;
 		decimalFormat().format(value,toAppendTo,pos);
 		
 		String unit = formatTypeUnit(type
@@ -250,19 +259,12 @@ public class DurationFormat extends Format {
 
 	public String formatCompact(Object durationObject, DurationDefaults defaults) {
 		StringBuilder toAppendTo = new StringBuilder();
-		long duration = ((Duration)durationObject).getEncodedMillis();
-		if (((Duration)durationObject).isWork() && Duration.getType(duration) != TimeUnit.NON_TEMPORAL) {
-			int workUnit = defaults == null ? ScheduleOption.getInstance().getWorkUnit() : defaults.workUnit();
-			duration = Duration.setAsTimeUnit(duration, workUnit);
-		}
-		
-		double value = defaults == null ? Duration.getValue(duration) : Duration.getValue(duration, defaults);
-		int type = effectiveType(duration, defaults);
+		FormattedValue shown = formattedValue(durationObject, defaults);
+		long duration = shown.duration();
+		double value = shown.value();
+		int type = shown.type();
 		if (value > 0D && showPlusSign)
 			toAppendTo.append("+");
-		boolean isPercent = Duration.isPercent(duration);
-		if (isPercent)
-			value *= 100.0;
 		toAppendTo.append(decimalFormat().format(value));
 		
 		String unit = formatTypeUnit(type

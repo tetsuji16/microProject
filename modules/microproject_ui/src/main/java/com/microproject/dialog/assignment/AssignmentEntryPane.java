@@ -33,7 +33,6 @@ import java.util.List;
 import javax.swing.JLabel;
 import javax.swing.JScrollPane;
 import javax.swing.JViewport;
-import javax.swing.event.ChangeEvent;
 import javax.swing.table.TableCellEditor;
 import javax.swing.table.TableCellRenderer;
 
@@ -84,13 +83,14 @@ public class AssignmentEntryPane extends JScrollPane implements HierarchyListene
 	private static final int REQUEST_DEMAND_TYPE_COLUMN = 0; // hidden now
 	private static final int UNITS_COLUMN = REQUEST_DEMAND_TYPE_COLUMN+1;
 	
-	class AssignmentSpreadSheet extends SpreadSheet {
+	class AssignmentSpreadSheet extends DialogEntrySpreadSheet {
 		private static final long serialVersionUID = 1L;
 		ResourceAssigner resourceAssigner;
 		/**
 		 * @param resourceAssigner
 		 */
 		public AssignmentSpreadSheet(ResourceAssigner resourceAssigner) {
+			super(dialog);
 			this.resourceAssigner = resourceAssigner;
 	    	setCanModifyColumns(false);
 	    	setCanSelectFieldArray(false);
@@ -202,19 +202,6 @@ public class AssignmentEntryPane extends JScrollPane implements HierarchyListene
 		}
 		
 		
-        public Component prepareEditor(TableCellEditor editor, int row,
-                int column) {
-            dialog.setEditorButtonsVisible(true);
-            return super.prepareEditor(editor, row, column);
-        }
-        public void editingCanceled(ChangeEvent e) {
-            dialog.setEditorButtonsVisible(false);
-            super.editingCanceled(e);
-        }
-        public void editingStopped(ChangeEvent e) {
-            dialog.setEditorButtonsVisible(false);
-            super.editingStopped(e);
-        }
         
         public void doDoubleClick(int row, int col) {
                 if (dialog instanceof AssignmentDialog assignmentDialog) {

@@ -3342,10 +3342,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	public void setCalendarOption(CalendarOption calendarOption) {
 		this.calendarOption = calendarOption;
 		if (calendarOption != null) {
-			DurationDefaults current = getDurationDefaults();
-			durationDefaults = new DurationDefaults(calendarOption.getHoursPerDay() * 60.0D,
-				calendarOption.getHoursPerWeek() * 60.0D, calendarOption.getDaysPerMonth(),
-				current.durationEnteredIn(), current.workUnit());
+			durationDefaults = getDurationDefaults().withCalendar(calendarOption);
 		}
 		setGroupDirty(true);
 	}
