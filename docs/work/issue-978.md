@@ -55,3 +55,7 @@ Link/Unlink reports `no-active-document`; sibling-row check extracted to
 - Tests/build: `:microproject_ui:test --tests RibbonButtonBehaviorTest` 54 pass, 0 fail; full `:microproject_ui:test` see report; `:microproject_ui:compileGuiTestJava` OK.
 - Physical GUI/manual: pending, run by CI (not run locally; shared desktop).
 - CI: pending.
+
+## CI evidence
+
+Robot `TaskInformationRibbonGuiAcceptanceTest.percentCompleteRibbonRouteSetsSelectedTasksWithUndoRedoAndMpo` passed in full GUI run 41164587679 (ja 100%, SHA 96d6ed4f7).

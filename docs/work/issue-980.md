@@ -49,3 +49,7 @@ Blockers: none
 
 - `:microproject_core:test` pass; `:microproject_application:test`,
   `:microproject_exchange:test`, `:microproject_ui:test` pass (no Robot/guiTest).
+
+## CI evidence
+
+Build passed on Windows, Linux and macOS at d7ab49e1e (PR #986).

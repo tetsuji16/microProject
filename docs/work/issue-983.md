@@ -71,3 +71,7 @@ Blockers: none
 - Tests/build: `:microproject_ui:test` (see report), new `ColorLuminanceTest`, `SwingUiDispatcherTest`.
 - Physical GUI/manual: pending (CI).
 - CI: pending.
+
+## CI evidence
+
+Visual suite passed in run 41168128790 at d7ab49e1e (PR #986).
