@@ -597,13 +597,8 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> tabs.setSelectedIndex(0));
 		activate(fixture.entrySheet, robot);
 		int nameColumn = findColumn(fixture.entrySheet, "Field.name");
-		cellOnScreen(fixture.entrySheet, fixture.entryRow, nameColumn);
-		Rectangle nameCell = currentCellOnScreen(fixture.entrySheet, fixture.entryRow, nameColumn);
-		// A double-click on a task row opens Task Information, so the edit starts with F2.
-		clickCell(robot, nameCell, 0);
-		robot.keyPress(KeyEvent.VK_F2);
-		robot.keyRelease(KeyEvent.VK_F2);
-		GuiAcceptanceSupport.await(fixture.entrySheet::isEditing, "physical F2 must start the name-cell edit");
+		// A double-click on a task row opens Task Information, so the edit starts from a typed key.
+		startEditingFromFirstPhysicalKey(robot, fixture.entrySheet, fixture.entryRow, nameColumn, 'a');
 
 		// Move to the other table by clicking its tab, then start a non-name edit there.
 		Rectangle[] tab = new Rectangle[1];
@@ -615,12 +610,7 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		clickCell(robot, tab[0], 0);
 		GuiAcceptanceSupport.await(() -> selectedTabIndexQuietly() == 1, "the physical tab click must select the tracking table");
 		activate(fixture.trackingSheet, robot);
-		cellOnScreen(fixture.trackingSheet, fixture.trackingRow, fixture.percentColumn);
-		Rectangle percentCell = currentCellOnScreen(fixture.trackingSheet, fixture.trackingRow, fixture.percentColumn);
-		clickCell(robot, percentCell, 0);
-		robot.keyPress(KeyEvent.VK_F2);
-		robot.keyRelease(KeyEvent.VK_F2);
-		GuiAcceptanceSupport.await(fixture.trackingSheet::isEditing, "physical F2 must start the non-name edit");
+		startEditingFromFirstPhysicalKey(robot, fixture.trackingSheet, fixture.trackingRow, fixture.percentColumn, '5');
 
 		boolean[] previousStillEditing = new boolean[1];
 		SwingUtilities.invokeAndWait(() -> previousStillEditing[0] = fixture.entrySheet.isEditing());
@@ -716,9 +706,10 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		return typePercentFromFirstPhysicalKey(robot, sheet, row, column, value, KeyEvent.VK_ENTER, false);
 	}
 
-	private List<Long> typePercentFromFirstPhysicalKey(Robot robot, SpreadSheet sheet, int row, int column, String value,
-			int commitKey, boolean shiftCommit) throws Exception {
+	private List<Long> startEditingFromFirstPhysicalKey(Robot robot, SpreadSheet sheet, int row, int column,
+			char firstCharacter) throws Exception {
 		cellOnScreen(sheet, row, column); // Bring the target into view before measuring its physical position.
+
 		Rectangle cell = currentCellOnScreen(sheet, row, column);
 		clickCell(robot, cell, 0);
 		robot.waitForIdle();
@@ -738,13 +729,19 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 		assertEquals(column, selected[1], "physical arrow navigation must focus the target cell before typing");
 		List<Long> selectedTaskIdsBeforeTyping = stableSelectedTaskIds(sheet);
 
-		int firstKey = KeyEvent.getExtendedKeyCodeForChar(value.charAt(0));
-		boolean firstUppercase = Character.isUpperCase(value.charAt(0));
+		int firstKey = KeyEvent.getExtendedKeyCodeForChar(firstCharacter);
+		boolean firstUppercase = Character.isUpperCase(firstCharacter);
 		if (firstUppercase) robot.keyPress(KeyEvent.VK_SHIFT);
 		robot.keyPress(firstKey);
 		robot.keyRelease(firstKey);
 		if (firstUppercase) robot.keyRelease(KeyEvent.VK_SHIFT);
 		GuiAcceptanceSupport.await(sheet::isEditing, "the first physical character must start cell editing without F2");
+		return selectedTaskIdsBeforeTyping;
+	}
+
+	private List<Long> typePercentFromFirstPhysicalKey(Robot robot, SpreadSheet sheet, int row, int column, String value,
+			int commitKey, boolean shiftCommit) throws Exception {
+		List<Long> selectedTaskIdsBeforeTyping = startEditingFromFirstPhysicalKey(robot, sheet, row, column, value.charAt(0));
 		JTextComponent input = editorInputComponent(sheet);
 		assertTrue(input.isFocusOwner(), "the first physical character must focus the active cell editor");
 		for (char character : value.substring(1).toCharArray()) {
