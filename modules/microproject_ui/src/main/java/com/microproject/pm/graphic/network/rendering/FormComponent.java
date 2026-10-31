@@ -62,7 +62,6 @@ import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.strings.Messages;
 import com.microproject.ui.theme.MicroProjectTheme;
-import com.microproject.ui.theme.MicroProjectThemeTokens;
 import com.microproject.util.Alert;
 import com.microproject.util.ColorLuminance;
 import com.microproject.util.FlatUiSupport;
@@ -145,7 +144,7 @@ public class FormComponent extends JPanel{
 	}
 
 	private Color barTextForeground(List<BarFormat> formats) {
-		if (MicroProjectTheme.tokens().appBackground().equals(MicroProjectThemeTokens.light().appBackground()))
+		if (!ColorLuminance.isDark(MicroProjectTheme.tokens().appBackground()))
 			return MicroProjectTheme.tokens().labelForeground();
 		if (formats != null && formats.stream().anyMatch(FormComponent::isDefaultDarkSurfaceFormat))
 			return MicroProjectTheme.tokens().labelForeground();
@@ -302,7 +301,7 @@ public class FormComponent extends JPanel{
 
 	private static boolean isDefaultDarkSurfaceFormat(BarFormat format) {
 		return format != null
-			&& MicroProjectTheme.tokens().appBackground().equals(MicroProjectThemeTokens.dark().appBackground())
+			&& ColorLuminance.isDark(MicroProjectTheme.tokens().appBackground())
 			&& isDefaultDiagramFormat(format);
 	}
 
@@ -345,7 +344,7 @@ public class FormComponent extends JPanel{
 
 	private TexturedShape themedShape(BarFormat format, TexturedShape shape) {
 		Color surface = MicroProjectTheme.tokens().spreadsheetBodyBackground();
-		boolean dark = MicroProjectTheme.tokens().appBackground().equals(MicroProjectThemeTokens.dark().appBackground());
+		boolean dark = ColorLuminance.isDark(MicroProjectTheme.tokens().appBackground());
 		Color accent = format.getId().equals("Pert.critical") ? MicroProjectTheme.tokens().errorColor()
 			: format.getId().equals("Pert.task") ? MicroProjectTheme.tokens().accentColor()
 			: dark ? MicroProjectTheme.tokens().borderColor() : MicroProjectTheme.tokens().labelForeground();
@@ -366,10 +365,7 @@ public class FormComponent extends JPanel{
 	}
 
 	private static Color blend(Color background, Color foreground, double amount) {
-		return new Color(
-			(int) Math.round(background.getRed() * (1d - amount) + foreground.getRed() * amount),
-			(int) Math.round(background.getGreen() * (1d - amount) + foreground.getGreen() * amount),
-			(int) Math.round(background.getBlue() * (1d - amount) + foreground.getBlue() * amount));
+		return ColorLuminance.mix(background, foreground, (float) amount);
 	}
 
 	private record ThemedShape(Paint sourcePaint, Color surface, Color accent, TexturedShape shape) {}

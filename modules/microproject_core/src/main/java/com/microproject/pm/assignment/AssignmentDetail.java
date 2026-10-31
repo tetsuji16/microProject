@@ -843,19 +843,10 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 		long beforeDuration = previous == null ? duration : previous.beforeDuration();
 		ArrayList<TaskSplitInterval> gaps = new ArrayList<>();
 		if (previous != null) gaps.addAll(previous.generatedGaps());
-		from = Math.max(from, getResume());
-		if (from >= to) return false;
-		WorkCalendar calendar = getEffectiveWorkCalendar();
-		long splitDuration = calendar.compare(to, from, false);
-		long taskStart = task == null ? getStart() : task.getStart();
-		long startOffset = calendar.compare(from, taskStart, false);
-		long endOffset = calendar.compare(getEnd(), taskStart, false);
-		if (getResume() != 0 && from >= getResume()) {
-			long existingSplitDuration = getSplitDuration();
-			startOffset -= existingSplitDuration;
-			endOffset -= existingSplitDuration;
-		}
-		if (startOffset >= endOffset || splitDuration <= 0L) return false;
+		SplitSpan span = splitSpan(from, to);
+		if (span == null || span.startOffset() >= span.endOffset() || span.splitDuration() <= 0L) return false;
+		long startOffset = span.startOffset();
+		long splitDuration = span.splitDuration();
 		TaskSplitInterval proposedGap = new TaskSplitInterval(startOffset, Math.addExact(startOffset, splitDuration));
 		if (previous != null && previous.generatedGaps().contains(proposedGap)) return false;
 		boolean changed = applySplit(from, to);
@@ -866,12 +857,13 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 		return true;
 	}
 
-	private boolean applySplit(long from, long to) {
-		AbstractContour originalContour = copyContour(workContour);
-		long originalDuration = duration;
+	/** The work offsets (from the task start, minus an existing split) that a split of [from, to) covers. */
+	private record SplitSpan(long splitDuration, long startOffset, long endOffset) { }
+
+	private SplitSpan splitSpan(long from, long to) {
 		from = Math.max(from, getResume());
 		if (from >= to)
-			return false;
+			return null;
 		WorkCalendar calendar = getEffectiveWorkCalendar();
 		long splitDuration = calendar.compare(to, from, false);
 		long taskStart = task == null ? getStart() : task.getStart();
@@ -882,12 +874,19 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 			startOffset -= existingSplitDuration;
 			endOffset -= existingSplitDuration;
 		}
-		if (startOffset >= endOffset)
+		return new SplitSpan(splitDuration, startOffset, endOffset);
+	}
+
+	private boolean applySplit(long from, long to) {
+		AbstractContour originalContour = copyContour(workContour);
+		long originalDuration = duration;
+		SplitSpan span = splitSpan(from, to);
+		if (span == null || span.startOffset() >= span.endOffset())
 			return false;
 		if (!workContour.isPersonal()) {
 			workContour = PersonalContour.makePersonal(workContour, getDuration());
 		}
-		shift(startOffset, endOffset, splitDuration);
+		shift(span.startOffset(), span.endOffset(), span.splitDuration());
 		return duration != originalDuration || !sameContour(originalContour, workContour, originalDuration, duration);
 	}
 

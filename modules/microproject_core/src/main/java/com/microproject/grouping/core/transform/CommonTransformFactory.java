@@ -39,9 +39,6 @@ public abstract class CommonTransformFactory extends CommonTransform{
  	protected String id = null;
  	protected String name = null;
 	protected String formulaText = null;
-	protected boolean showSummary = true;
-	protected boolean showEmptyLines=true;
-	protected boolean showEndEmptyLines=true;
 	protected String definition=null;
 	protected String arguments=null;
 	protected Transformer composition=null;
@@ -68,12 +65,6 @@ public abstract class CommonTransformFactory extends CommonTransform{
     }
     public void setFormulaText(String formulaText) {
         this.formulaText = formulaText;
-    }
-    public boolean isShowSummary() {
-        return showSummary;
-    }
-    public void setShowSummary(boolean showSummary) {
-        this.showSummary = showSummary;
     }
 
     public String getDefinition() {
@@ -109,43 +100,10 @@ public abstract class CommonTransformFactory extends CommonTransform{
     }
     
     
-    public boolean isShowEmptyLines() {
-        return showEmptyLines;
-    }
-    public void setShowEmptyLines(boolean showEmptyLines) {
-        this.showEmptyLines = showEmptyLines;
-    }
 
-    public boolean isShowEndEmptyLines() {
-		return showEndEmptyLines;
-	}
-	public void setShowEndEmptyLines(boolean showEndEmptyLines) {
-		this.showEndEmptyLines = showEndEmptyLines;
-	}
 	
-	protected boolean showEmptySummaries = true;
-	public boolean isShowEmptySummaries() {
-		return showEmptySummaries;
-	}
-	public void setShowEmptySummaries(boolean showEmptySummaries) {
-		this.showEmptySummaries = showEmptySummaries;
-	}
 	
-	protected boolean showAssignments = true;
-    public boolean isShowAssignments() {
-		return showAssignments;
-	}
-	public void setShowAssignments(boolean showAssignments) {
-		this.showAssignments = showAssignments;
-	}
 	
-	protected boolean preserveHierarchy = true;
-	public boolean isPreserveHierarchy() {
-		return preserveHierarchy;
-	}
-	public void setPreserveHierarchy(boolean preserveHierarchy) {
-		this.preserveHierarchy = preserveHierarchy;
-	}
 
     
 

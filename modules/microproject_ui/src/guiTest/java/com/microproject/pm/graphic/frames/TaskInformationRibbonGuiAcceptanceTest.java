@@ -3592,6 +3592,30 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> sheetHasOnlySelectedTask(sheet, third), "single-task selection for 100% failed");
 		AbstractButton hundred = findVisibleOrOverflowButton(robot, "RibbonPercentComplete100");
 		GuiAcceptanceSupport.await(hundred::isEnabled, "100% Complete stayed disabled for a selected task");
+		// #978: a collaborator lock on the target blocks the physical ribbon click with the canonical reason.
+		project.getUndoController().clear();
+		project.setCollaborationSession(new CollaborationSession(project,
+				System.getProperty("java.io.tmpdir") + "/microproject-percent-lock.mpo", "percent-lock-test") {
+			@Override
+			public Task tryAcquireTasks(Iterable<Task> tasks) {
+				if (tasks == null) return null;
+				java.util.Iterator<Task> iterator = tasks.iterator();
+				return iterator.hasNext() ? iterator.next() : null;
+			}
+
+			@Override
+			public String describeLockOwner(Task task) {
+				return "percent lock test";
+			}
+		});
+		click(robot, hundred);
+		GuiAcceptanceSupport.await(() -> manager.getLastRibbonCommandResult() != null
+				&& manager.getLastRibbonCommandResult().status() == RibbonCommandResult.Status.REJECTED,
+			"a locked 100% Complete click did not publish a rejection");
+		assertEquals("collaboration-lock-denied", manager.getLastRibbonCommandResult().reason());
+		assertEquals(0.1d, third.getPercentComplete(), 0.00001d, "a lock-rejected 100% Complete changed the task");
+		assertFalse(project.getUndoController().canUndo(), "a lock-rejected 100% Complete must not post an Undo edit");
+		project.setCollaborationSession(null);
 		click(robot, hundred);
 		GuiAcceptanceSupport.await(() -> third.getPercentComplete() == 1.0d, "100% Complete did not complete the selected task");
 		assertEquals(0.5d, first.getPercentComplete(), 0.00001d, "100% Complete changed an unselected task");
@@ -6037,7 +6061,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				"a rejected Hide must preserve both table and Gantt rows");
 		assertEquals(RibbonCommandResult.Status.REJECTED, manager.getLastRibbonCommandResult().status(),
 				"the popup route must publish a rejected semantic command outcome when locking fails");
-		assertEquals("lock-failed", manager.getLastRibbonCommandResult().reason());
+		assertEquals("collaboration-lock-denied", manager.getLastRibbonCommandResult().reason());
 		press(robot, KeyEvent.VK_ENTER);
 		GuiAcceptanceSupport.await(() -> !lockWarning.isShowing(), "the collaboration lock warning did not close after Enter");
 		project.setCollaborationSession(null);
@@ -6462,7 +6486,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getLastTaskCommandResult() != null
 				&& manager.getCurrentFrame().getLastTaskCommandResult().status() == RibbonCommandResult.Status.REJECTED,
 			"the physical hierarchy shortcut did not publish the collaboration lock rejection");
-		assertEquals("lock-failed", manager.getCurrentFrame().getLastTaskCommandResult().reason());
+		assertEquals("collaboration-lock-denied", manager.getCurrentFrame().getLastTaskCommandResult().reason());
 		assertNull(target.getWbsParentTask(), "a collaboration-locked Indent shortcut changed the hierarchy");
 		assertTrue(isTaskVisible(sheet, target) && isTaskVisibleInGantt(gantt, target),
 			"a collaboration-locked Indent shortcut changed the table or Gantt projection");
@@ -6609,7 +6633,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertEquals(0, gantt.getModel().getCache().getEdgesSize(), "a lock-rejected Ribbon Link must not add a Gantt edge");
 		assertEquals(RibbonCommandResult.Status.REJECTED, manager.getLastRibbonCommandResult().status(),
 				"the Ribbon Link route must publish rejection while its warning remains open");
-		assertEquals("lock-failed", manager.getLastRibbonCommandResult().reason());
+		assertEquals("collaboration-lock-denied", manager.getLastRibbonCommandResult().reason());
 		assertFalse(undo.canUndo(), "a lock-rejected Ribbon Link must not create an undo edit");
 		press(robot, KeyEvent.VK_ENTER);
 		GuiAcceptanceSupport.await(() -> !lockWarning.isShowing(), "the Ribbon Link lock warning did not close after Enter");

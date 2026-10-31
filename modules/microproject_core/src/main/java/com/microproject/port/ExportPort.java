@@ -14,9 +14,18 @@ public interface ExportPort {
 	String formatKey();
 	PortResult<Path> exportProject(Project project, ExportRequest request);
 
-	record ExportRequest(Path target) {
+	/**
+	 * @param markSaved when true the export is the project's save: the project is
+	 *        marked saved only if it still equals what was written, otherwise the
+	 *        result fails and the project stays modified.
+	 */
+	record ExportRequest(Path target, boolean markSaved) {
 		public ExportRequest {
 			target = Objects.requireNonNull(target, "target").toAbsolutePath().normalize();
+		}
+
+		public ExportRequest(Path target) {
+			this(target, false);
 		}
 	}
 }

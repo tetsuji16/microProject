@@ -204,6 +204,7 @@ import com.microproject.util.FilePathUtils;
 import com.microproject.util.FlatUiSupport;
 import com.microproject.util.FlatLafSupport;
 import com.microproject.ui.util.PopupDialogSupport;
+import com.microproject.ui.util.SwingUiDispatcher;
 import com.microproject.util.UiLinkTargets;
 import com.microproject.workspace.SavableToWorkspace;
 import com.microproject.workspace.WorkspaceSetting;
@@ -662,15 +663,13 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		// waits for Swing callbacks and therefore deadlocks here.  MPO children
 		// can be written atomically without scheduling a nested Swing job.
 		if (FileHelper.isMpoFile(fileName)) {
-			var result = new ProjectPortCoordinator().exportProject(
+			var result = new ProjectPortCoordinator().saveProject(
 					LocalSession.MPO_PROJECT_IMPORTER, child, Path.of(fileName));
 			if (!result.succeeded()) {
 				logger.warning("Unable to save linked MPO project: " + result.diagnostics());
 				Alert.warn("The linked project could not be saved. Refresh was cancelled and its in-memory edits were retained.");
 				return false;
 			}
-			child.setDirty(false);
-			child.setGroupDirty(false);
 			return true;
 		}
 		SaveOptions options = new SaveOptions();
@@ -701,8 +700,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			Alert.warn("The linked project could not be replaced safely. Its unsaved edits were retained.");
 			return false;
 		}
-		load.getProject().setDirty(false);
-		load.getProject().setGroupDirty(false);
+		load.getProject().markSaved();
 		if (sourceFrame != null) {
 			// The replacement succeeded; now discard the old view and build one bound
 			// to the newly loaded child.  Keeping the old view until this point makes
@@ -845,20 +843,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 	void setTitle(boolean isSaving) {
 		DocumentFrame dframe = getCurrentFrame();
-		String title=Messages.getContextString("Text.ApplicationTitle"); //$NON-NLS-1$
-		if (dframe != null && dframe.getProject() != null) {
-			Project project = dframe.getProject();
-			String name = project.getName();
-			if (name == null || name.isBlank())
-				name = project.getTitle();
-			title += " - " + (name == null || name.isBlank() ? "(unnamed project)" : name); //$NON-NLS-1$
-			if (project.isMaster())
-				title += " [Master]"; //$NON-NLS-1$
-			if (project.isReadOnly())
-				title += " [Read-only]"; //$NON-NLS-1$
-			if (!isSaving && dframe.getProject().needsSaving())
-				title += " *"; // modified; //$NON-NLS-1$
-		}
+		Project project = dframe == null ? null : dframe.getProject();
+		String title = DocumentTitles.windowTitle(project, project == null ? null : project.getTitle(), isSaving);
 		FrameManager frameManager = getFrameManager();
 		if (dframe != null && frameManager != null && frameManager.setDocumentWindowTitle(dframe, title))
 			return;
@@ -1869,11 +1855,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		if (actionsMap == null)
 			addHandlers();
 
-		Action action = actionsMap.getConcreteAction(key);
-		if (action == null)
-			throw new MissingListenerException("no listener for mainFrame", getClass().getName(),key); //$NON-NLS-1$
-
-		return action;
+		return actionsMap.requireAction(key, "mainFrame", getClass().getName()); //$NON-NLS-1$
 	}
 
 	public String getStringFromAction(Action action) throws MissingListenerException {
@@ -4671,10 +4653,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		DocumentFrame frame = getCurrentFrame();
 		Project project = frame == null ? null : frame.getProject();
 		getMenuManager().setActionEnabled(ACTION_SAVE_PROJECT, project != null && !isSaving && project.needsSaving());
-		setTitle(isSaving);
-
 		FrameManager dm=getFrameManager();
-		if (dm!=null) dm.update(); //update project combo
+		if (dm!=null) dm.update(); //update project combo; it titles every window as not saving
+		setTitle(isSaving); // so the saving title of the current frame is applied last
 	}
 
 	public void objectChanged(ObjectEvent objectEvent) {
@@ -5448,12 +5429,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			throw new IllegalStateException("quitApplication must not wait on the EDT");
 		}
 		final AtomicReference<QuitOperation> operationReference = new AtomicReference<>();
-		try {
-			SwingUtilities.invokeAndWait(() -> operationReference.set(prepareQuitOperation()));
-		} catch (InterruptedException ex) {
-			Thread.currentThread().interrupt();
-			throw ex;
-		}
+		SwingUiDispatcher.runAndWait(() -> operationReference.set(prepareQuitOperation()));
 		QuitOperation operation = operationReference.get();
 		if (operation == null)
 			throw new IllegalStateException("Quit operation was not prepared");
@@ -5515,19 +5491,11 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			return;
 		final AtomicReference<QuitOperation> operationReference = new AtomicReference<>();
 		try {
-			Runnable prepare = () -> operationReference.set(prepareQuitOperation());
-			if (SwingUtilities.isEventDispatchThread())
-				prepare.run();
-			else
-				SwingUtilities.invokeAndWait(prepare);
+			SwingUiDispatcher.runAndWait(() -> operationReference.set(prepareQuitOperation()));
 			QuitOperation operation = operationReference.get();
 			if (operation == null)
 				throw new IllegalStateException("Quit operation was not prepared");
-			Runnable schedule = () -> SessionFactory.getInstance().getLocalSession().schedule(operation.job());
-			if (SwingUtilities.isEventDispatchThread())
-				schedule.run();
-			else
-				SwingUtilities.invokeAndWait(schedule);
+			SwingUiDispatcher.runAndWait(() -> SessionFactory.getInstance().getLocalSession().schedule(operation.job()));
 			QuitCompletionAwaiter.awaitAsync(operation.monitor(), operation.completed(), QUIT_WAIT_TIMEOUT_MILLIS,
 					completed -> {
 						if (completed && operation.closeStatus()[0]) {

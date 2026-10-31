@@ -196,6 +196,21 @@ public class ResourceInformationDialog extends InformationDialog {
     }
 	
 	
+	/**
+	 * Availability and cost-rate rows are not DataObjects and their tables have no owner link, so a
+	 * committed cell edit would never reach the project's save state.  The resource pool is the
+	 * established owner of that state (ResourcePool.setGroupDirty marks every project using it).
+	 */
+	static void trackTableEdits(SpreadSheet sheet, java.util.function.Supplier<Object> resource) {
+		((SpreadSheetModel) sheet.getModel()).setCommittedValueListener(() -> {
+			if (resource.get() instanceof ResourceImpl resourceImpl) {
+				resourceImpl.setDirty(true);
+				if (resourceImpl.getResourcePool() != null)
+					resourceImpl.getResourcePool().setGroupDirty(true);
+			}
+		});
+	}
+
 	private SpreadSheet availabilitySpreadsheet;
 	JScrollPane availabilityPane;
 	
@@ -226,6 +241,7 @@ public class ResourceInformationDialog extends InformationDialog {
 //				,resourceImpl.getGlobalResource().isLocal()
 //				,resourceImpl.getGlobalResource().isMaster()
 				);
+		trackTableEdits(availabilitySpreadsheet, () -> object);
 		availabilityPane = SpreadSheetUtils.makeSpreadsheetScrollPane(availabilitySpreadsheet);
 		if (availabilitySpreadsheet.getCache() != null)
 			availabilitySpreadsheet.getCache().setReceiveEvents(listenersActivated);
@@ -288,6 +304,7 @@ public class ResourceInformationDialog extends InformationDialog {
 //					,resourceImpl.getGlobalResource().isLocal()
 //					,resourceImpl.getGlobalResource().isMaster()
 					);
+			trackTableEdits(costTableSpreadsheets[i], () -> object);
 		}
 		setCostTableReceiveEvents(listenersActivated);
     }

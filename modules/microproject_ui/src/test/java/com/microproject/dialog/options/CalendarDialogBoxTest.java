@@ -69,4 +69,18 @@ class CalendarDialogBoxTest {
 			defaultOption.setDefaultEndHour(originalDefaultEndHour);
 		}
 	}
+
+	/** DurationDefaults throws for a zero conversion value, so the spinner must not offer 0 (issue #984 d). */
+	@Test
+	void durationConversionSpinnersRejectZeroAndAcceptTheDurationDefaultsContract() {
+		javax.swing.SpinnerNumberModel model = CalendarDialogBox.positiveSpinnerModel(0.0, 24.0, 0.5);
+		assertEquals(CalendarDialogBox.MIN_POSITIVE, ((Number) model.getValue()).doubleValue(), "stored 0 is lifted");
+		assertEquals(CalendarDialogBox.MIN_POSITIVE, ((Number) model.getMinimum()).doubleValue());
+		double minimum = ((Number) model.getMinimum()).doubleValue();
+		org.junit.jupiter.api.Assertions.assertDoesNotThrow(() ->
+			new com.microproject.datatype.DurationDefaults(minimum * 60.0D, minimum * 60.0D, minimum));
+		org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+			() -> new com.microproject.datatype.DurationDefaults(0.0D, 60.0D, 1.0D));
+		assertEquals(24.0, ((Number) CalendarDialogBox.positiveSpinnerModel(99.0, 24.0, 0.5).getValue()).doubleValue());
+	}
 }

@@ -80,9 +80,7 @@ final class PercentWorkCompleteService {
 
 		double currentProgress = aggregate(parent);
 		boolean rollback = DisplayMath.clampProgressValue(targetProgress) < currentProgress;
-		long cutoff = rollback
-				? resolveRollbackCutoff(activeLeaves, targetCompletedWork)
-				: resolveForwardCutoff(activeLeaves, targetCompletedWork);
+		long cutoff = resolveCutoff(activeLeaves, targetCompletedWork, rollback);
 		for (LeafTaskProgress leaf : activeLeaves) {
 			long completed = rollback ? completedBeforeRollbackCutoff(leaf, cutoff) : completedBeforeCutoff(leaf, cutoff);
 			double progress = leaf.work <= 0L ? 0.0d : ((double) completed) / leaf.work;
@@ -90,20 +88,20 @@ final class PercentWorkCompleteService {
 		}
 	}
 
-	private static long resolveForwardCutoff(List<LeafTaskProgress> leaves, long targetCompletedDuration) {
-		if (targetCompletedDuration <= 0L) {
-			long earliestStart = Long.MAX_VALUE;
-			for (LeafTaskProgress leaf : leaves)
-				earliestStart = Math.min(earliestStart, leaf.task.getStart());
-			return earliestStart == Long.MAX_VALUE ? 0L : earliestStart;
-		}
-
+	/**
+	 * The earliest cutoff at which the leaves' completed work reaches the target.  Going forward the
+	 * search ends at the latest task end; rolling back it ends at the latest end of completed work.
+	 */
+	private static long resolveCutoff(List<LeafTaskProgress> leaves, long targetCompletedDuration, boolean rollback) {
 		long earliestStart = Long.MAX_VALUE;
-		long latestEnd = Long.MIN_VALUE;
-		for (LeafTaskProgress leaf : leaves) {
+		for (LeafTaskProgress leaf : leaves)
 			earliestStart = Math.min(earliestStart, leaf.task.getStart());
-			latestEnd = Math.max(latestEnd, leaf.task.getEnd());
-		}
+		if (targetCompletedDuration <= 0L)
+			return earliestStart == Long.MAX_VALUE ? 0L : earliestStart;
+
+		long latestEnd = Long.MIN_VALUE;
+		for (LeafTaskProgress leaf : leaves)
+			latestEnd = Math.max(latestEnd, rollback ? completedEnd(leaf) : leaf.task.getEnd());
 		if (earliestStart == Long.MAX_VALUE || latestEnd == Long.MIN_VALUE)
 			return 0L;
 
@@ -111,37 +109,7 @@ final class PercentWorkCompleteService {
 		long high = latestEnd;
 		while (low < high) {
 			long mid = low + ((high - low) / 2L);
-			long completed = completedThroughCutoff(leaves, mid);
-			if (completed >= targetCompletedDuration)
-				high = mid;
-			else
-				low = mid + 1L;
-		}
-		return low;
-	}
-
-	private static long resolveRollbackCutoff(List<LeafTaskProgress> leaves, long targetCompletedDuration) {
-		if (targetCompletedDuration <= 0L) {
-			long earliestStart = Long.MAX_VALUE;
-			for (LeafTaskProgress leaf : leaves)
-				earliestStart = Math.min(earliestStart, leaf.task.getStart());
-			return earliestStart == Long.MAX_VALUE ? 0L : earliestStart;
-		}
-
-		long earliestStart = Long.MAX_VALUE;
-		long latestCompletedEnd = Long.MIN_VALUE;
-		for (LeafTaskProgress leaf : leaves) {
-			earliestStart = Math.min(earliestStart, leaf.task.getStart());
-			latestCompletedEnd = Math.max(latestCompletedEnd, completedEnd(leaf));
-		}
-		if (earliestStart == Long.MAX_VALUE || latestCompletedEnd == Long.MIN_VALUE)
-			return 0L;
-
-		long low = earliestStart;
-		long high = latestCompletedEnd;
-		while (low < high) {
-			long mid = low + ((high - low) / 2L);
-			long completed = completedThroughRollbackCutoff(leaves, mid);
+			long completed = rollback ? completedThroughRollbackCutoff(leaves, mid) : completedThroughCutoff(leaves, mid);
 			if (completed >= targetCompletedDuration)
 				high = mid;
 			else
