@@ -100,6 +100,27 @@ try {
 		release_job = re.search(r"(?ms)^  release:\r?\n(.*?)(?=^  [a-z][a-z-]*:\r?$)", self.release).group(1)
 		self.assertIn("needs.unix-packages.result == 'success' || needs.unix-packages.result == 'skipped'", release_job)
 
+	def test_release_publishes_only_distribution_packages(self):
+		stage = re.search(
+			r"(?ms)^      - name: Stage release assets\r?\n(.*?)(?=^      - name: )",
+			self.release,
+		).group(1)
+		self.assertEqual(
+			{
+				"microProject-latest.msi",
+				"microProject-latest-app-image.zip",
+				"microProject-$version.msi",
+				"microProject-$version-app-image.zip",
+				"$($package[0].Name)",
+			},
+			set(re.findall(r'"release-assets/([^"]+)"', stage)),
+		)
+		self.assertIn("files: release-assets/*", self.release)
+		for retired in ("SHA256SUMS", "configuration.xml", "UPDATE4J_", "generateUpdateConfiguration", "*.jar"):
+			self.assertNotIn(retired, self.release)
+		self.assertEqual(2, self.release.count("-Dmicroproject.updates.enabled=false"))
+		self.assertNotIn("-Dmicroproject.updates.enabled=$", self.release)
+
 	def test_visual_gate_keeps_all_classes_and_only_the_reviewed_task_information_methods(self):
 		runner = (REPO_ROOT / ".github" / "scripts" / "run-gui-acceptance.ps1").read_text(encoding="utf-8")
 		class_block = re.search(r"\$visualClasses = @\((.*?)\n\)", runner, re.S).group(1)
