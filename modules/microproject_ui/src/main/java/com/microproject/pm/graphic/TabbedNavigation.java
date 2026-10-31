@@ -231,21 +231,12 @@ public class TabbedNavigation implements MenuActionConstants, Serializable {
 
 	private JComponent tracking() {
 		final JButton p = new JButton(Messages.getString("Spreadsheet.Task.tracking"), IconManager.getIcon("print.down")) {
-			public Point getToolTipLocation(MouseEvent event) { // the tip MUST be touching the button if html because you can click on links
-				if (getToolTipText().startsWith("<html>"))
-					return new Point(0, getHeight()-2);
-				else
-					return super.getToolTipLocation(event);
+			public Point getToolTipLocation(MouseEvent event) {
+				return HyperLinkToolTip.isHtmlTip(getToolTipText()) ? HyperLinkToolTip.touchingLocation(this) : super.getToolTipLocation(event);
 			}
 
 			public JToolTip createToolTip() {
-				if (getToolTipText().startsWith("<html>")) {
-					JToolTip tip = new HyperLinkToolTip();
-					tip.setComponent(this);
-					return tip;
-				} else {
-					return super.createToolTip();
-				}
+				return HyperLinkToolTip.isHtmlTip(getToolTipText()) ? HyperLinkToolTip.createFor(this) : super.createToolTip();
 			}
 
 		};

@@ -204,6 +204,7 @@ import com.microproject.util.FilePathUtils;
 import com.microproject.util.FlatUiSupport;
 import com.microproject.util.FlatLafSupport;
 import com.microproject.ui.util.PopupDialogSupport;
+import com.microproject.ui.util.SwingUiDispatcher;
 import com.microproject.util.UiLinkTargets;
 import com.microproject.workspace.SavableToWorkspace;
 import com.microproject.workspace.WorkspaceSetting;
@@ -5432,12 +5433,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			throw new IllegalStateException("quitApplication must not wait on the EDT");
 		}
 		final AtomicReference<QuitOperation> operationReference = new AtomicReference<>();
-		try {
-			SwingUtilities.invokeAndWait(() -> operationReference.set(prepareQuitOperation()));
-		} catch (InterruptedException ex) {
-			Thread.currentThread().interrupt();
-			throw ex;
-		}
+		SwingUiDispatcher.runAndWait(() -> operationReference.set(prepareQuitOperation()));
 		QuitOperation operation = operationReference.get();
 		if (operation == null)
 			throw new IllegalStateException("Quit operation was not prepared");
@@ -5499,19 +5495,11 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			return;
 		final AtomicReference<QuitOperation> operationReference = new AtomicReference<>();
 		try {
-			Runnable prepare = () -> operationReference.set(prepareQuitOperation());
-			if (SwingUtilities.isEventDispatchThread())
-				prepare.run();
-			else
-				SwingUtilities.invokeAndWait(prepare);
+			SwingUiDispatcher.runAndWait(() -> operationReference.set(prepareQuitOperation()));
 			QuitOperation operation = operationReference.get();
 			if (operation == null)
 				throw new IllegalStateException("Quit operation was not prepared");
-			Runnable schedule = () -> SessionFactory.getInstance().getLocalSession().schedule(operation.job());
-			if (SwingUtilities.isEventDispatchThread())
-				schedule.run();
-			else
-				SwingUtilities.invokeAndWait(schedule);
+			SwingUiDispatcher.runAndWait(() -> SessionFactory.getInstance().getLocalSession().schedule(operation.job()));
 			QuitCompletionAwaiter.awaitAsync(operation.monitor(), operation.completed(), QUIT_WAIT_TIMEOUT_MILLIS,
 					completed -> {
 						if (completed && operation.closeStatus()[0]) {

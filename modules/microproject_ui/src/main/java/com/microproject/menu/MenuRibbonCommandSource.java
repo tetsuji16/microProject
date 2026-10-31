@@ -5,7 +5,6 @@
  *******************************************************************************/
 package com.microproject.menu;
 
-import java.awt.EventQueue;
 import java.awt.event.ActionEvent;
 import java.beans.PropertyChangeListener;
 import java.util.Collection;
@@ -27,6 +26,7 @@ import javax.swing.JComponent;
 import com.microproject.ribbon.RibbonCommandInvocation;
 import com.microproject.ribbon.RibbonCommandResult;
 import com.microproject.ribbon.RibbonCommandSource;
+import com.microproject.ui.util.SwingUiDispatcher;
 import com.microproject.ui.diagnostics.UiButtonDiagnostics;
 
 /**
@@ -111,9 +111,7 @@ public final class MenuRibbonCommandSource implements RibbonCommandSource {
 	@Override
 	public RibbonCommandResult dispatch(RibbonCommandInvocation invocation) {
 		Objects.requireNonNull(invocation, "invocation");
-		if (EventQueue.isDispatchThread())
-			return dispatchOnEdt(invocation);
-		return callOnEdtAndWait(() -> dispatchOnEdt(invocation));
+		return SwingUiDispatcher.callAndWait(() -> dispatchOnEdt(invocation));
 	}
 
 	private AbstractButton bind(AbstractButton button, String commandId) {
@@ -194,25 +192,6 @@ public final class MenuRibbonCommandSource implements RibbonCommandSource {
 		RibbonCommandResult result = RibbonCommandResult.rejected(commandId, reason);
 		logger.fine("UI_COMMAND_FAILURE id=" + commandId + " reason=" + reason);
 		return result;
-	}
-
-	private static <T> T callOnEdtAndWait(java.util.concurrent.Callable<T> callable) {
-		final java.util.concurrent.atomic.AtomicReference<T> result = new java.util.concurrent.atomic.AtomicReference<>();
-		final java.util.concurrent.atomic.AtomicReference<Throwable> failure = new java.util.concurrent.atomic.AtomicReference<>();
-		try {
-			EventQueue.invokeAndWait(() -> {
-				try { result.set(callable.call()); }
-				catch (Throwable exception) { failure.set(exception); }
-			});
-		} catch (InterruptedException interrupted) {
-			Thread.currentThread().interrupt();
-			throw new IllegalStateException("Interrupted while dispatching UI command", interrupted);
-		} catch (java.lang.reflect.InvocationTargetException invocationFailure) {
-			throw new IllegalStateException("Unable to dispatch UI command", invocationFailure.getCause());
-		}
-		if (failure.get() != null)
-			throw new IllegalStateException("UI command failed on EDT", failure.get());
-		return result.get();
 	}
 
 	private final class CommandBinding {

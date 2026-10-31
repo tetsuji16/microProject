@@ -340,7 +340,7 @@ public class ChartLegend  implements SelectionNodeListener, Serializable , Savab
 	}
 
 	static Color readableTextColor(Color background) {
-		return ColorLuminance.relativeLuminance(background) > 0.179 ? Color.BLACK : Color.WHITE;
+		return ColorLuminance.isDark(background) ? Color.WHITE : Color.BLACK;
 	}
 
 	
