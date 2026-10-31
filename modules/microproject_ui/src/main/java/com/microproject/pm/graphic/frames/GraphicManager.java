@@ -280,15 +280,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		for (c = component; c != null; c = c.getParent()) {
 			if (c instanceof FrameHolder)
 				return ((FrameHolder)c).getGraphicManager();
-			else if (c.getName() != null && c.getName().endsWith("BootstrapApplet") && c.getClass().getName().endsWith("BootstrapApplet")){
-				logger.fine("applet: " + c.getClass().getName());
-				try {
-					FrameHolder holder=(FrameHolder)Class.forName("com.microproject.bootstrap.BootstrapApplet").getMethod("getObject").invoke(c);
-					return holder.getGraphicManager();
-				} catch (Exception e) {
-					return null;
-				}
-			}
 		}
 		return MANAGER_REGISTRY.getActiveManager(); // if none found, use last used one
 	}
@@ -366,14 +357,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 //			frame = JOptionPane.getFrameForComponent(container);
 		if (container instanceof FrameHolder frameHolder)
 			frameHolder.setGraphicManager(this);
-//		else if (container instanceof BootstrapApplet){
-		else{
-			try {
-				FrameHolder holder=(FrameHolder)Class.forName("com.microproject.bootstrap.BootstrapApplet").getMethod("getObject").invoke(container);
-				holder.setGraphicManager(this);
-			} catch (Exception e) {
-			}
-		}
 		registerForMacOSXEvents();
 	}
 	public void cleanUp() {

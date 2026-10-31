@@ -65,17 +65,14 @@ class GraphicManagerLinkRouteTest {
 	}
 
 	@Test
-	void componentLookupResolvesBootstrapAppletManagerThroughItsStaticAccessor() {
+	void componentLookupResolvesManagerThroughFrameHolderAncestor() {
 		GraphicManager manager = new GraphicManager(new JPanel());
 		BootstrapApplet applet = new BootstrapApplet();
-		applet.setName("BootstrapApplet");
-		BootstrapApplet.setGraphicManager(manager);
+		JPanel child = new JPanel();
+		applet.add(child);
+		applet.setGraphicManager(manager);
 
-		try {
-			assertSame(manager, GraphicManager.getInstance(applet));
-		} finally {
-			BootstrapApplet.setGraphicManager(null);
-		}
+		assertSame(manager, GraphicManager.getInstance(child));
 	}
 
 	@Test
@@ -84,10 +81,9 @@ class GraphicManagerLinkRouteTest {
 		GraphicManager manager = new GraphicManager(applet);
 
 		try {
-			assertSame(manager, BootstrapApplet.getObject().getGraphicManager());
+			assertSame(manager, applet.getGraphicManager());
 		} finally {
 			manager.cleanUp();
-			BootstrapApplet.setGraphicManager(null);
 		}
 	}
 

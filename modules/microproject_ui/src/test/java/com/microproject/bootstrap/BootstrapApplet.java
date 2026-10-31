@@ -25,29 +25,21 @@ import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.pm.graphic.frames.workspace.FrameHolder;
 import com.microproject.pm.graphic.frames.workspace.FrameManager;
 
-public final class BootstrapApplet extends JPanel {
-	private static GraphicManager graphicManager;
+public final class BootstrapApplet extends JPanel implements FrameHolder {
+	private GraphicManager graphicManager;
 
-	public static void setGraphicManager(GraphicManager manager) {
-		graphicManager = manager;
+	@Override
+	public FrameManager getFrameManager() {
+		return null;
 	}
 
-	public static FrameHolder getObject() {
-		return new FrameHolder() {
-			@Override
-			public FrameManager getFrameManager() {
-				return null;
-			}
+	@Override
+	public GraphicManager getGraphicManager() {
+		return graphicManager;
+	}
 
-			@Override
-			public GraphicManager getGraphicManager() {
-				return graphicManager;
-			}
-
-			@Override
-			public void setGraphicManager(GraphicManager manager) {
-				graphicManager = manager;
-			}
-		};
+	@Override
+	public void setGraphicManager(GraphicManager manager) {
+		graphicManager = manager;
 	}
 }
