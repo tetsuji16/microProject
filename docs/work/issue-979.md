@@ -55,3 +55,7 @@ Blockers: none
 - Compile: `:microproject_ui:compileGuiTestJava` BUILD SUCCESSFUL.
 - Physical GUI/manual: pending (CI).
 - CI: pending.
+
+## CI evidence
+
+Robot `U26SpreadsheetInputTransactionGuiAcceptanceTest` passed, all 3 cases including the table move, in run 41167312172 (ja 100%, SHA 6015cd0b9). A double-click on a task row opens Task Information, so the journey starts edits from a typed key.

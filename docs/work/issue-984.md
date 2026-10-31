@@ -58,3 +58,7 @@ Blockers: none
 
 - Tests/build: see final report of the delegating session (module tests, `:microproject_ui:compileGuiTestJava`).
 - Physical GUI/manual: pending. Open Resource Information, edit an availability and a cost-rate cell, close the project and confirm the save prompt; Rename Field with an unchanged name.
+
+## CI evidence
+
+Build passed on Windows, Linux and macOS at d7ab49e1e (PR #986). Follow-ups: #987 (row delete, cut, Undo/Redo dirty) and #988 (BootstrapApplet). The Resource Information, Rename Field, Calendar options and layout checks have no dedicated Robot journey; only the GUI suites ran.

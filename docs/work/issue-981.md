@@ -63,3 +63,7 @@ Blockers: none
 - core+application+exchange+ui test tasks: BUILD SUCCESSFUL (385 exchange tests, 0 failed); guiTest compiles.
 - Physical GUI: pending (not run locally; shared desktop). Window title during save
   and linked-child refresh-with-save need physical confirmation.
+
+## CI evidence
+
+Build passed on Windows, Linux and macOS at d7ab49e1e (PR #986). AutoRecovery save/reload Robot passed in run 41167773310.
