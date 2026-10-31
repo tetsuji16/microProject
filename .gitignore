@@ -95,3 +95,20 @@ mp_clean_run.log
 
 # Playwright CLI browser snapshots
 .playwright-cli/
+
+# Tracked artifact cleanup (issue #998)
+.svn/
+*.bak-*
+rerr.txt
+rout.txt
+run_err.txt
+run_out.txt
+.codex-issue-regression-audit.md
+ISSUES_TRIAGE_PLAN.md
+STALE_FILE_AUDIT_*.md
+todo.md
+wf_todo.md
+send_esc.py
+launch_app.sh
+launch_sample.sh
+run_gradlew.sh
