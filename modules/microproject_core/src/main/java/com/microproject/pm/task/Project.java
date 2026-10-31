@@ -2681,6 +2681,26 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	public final boolean isGroupDirty() {
 		return isGroupDirty;
 	}
+
+	/** The two flags that decide whether the project looks edited. */
+	public record DirtyState(boolean dirty, boolean groupDirty) { }
+
+	/** Captures the flags before an edit so a rollback can put both back. */
+	public final DirtyState captureDirtyState() {
+		return new DirtyState(isDirty, isGroupDirty);
+	}
+
+	/** Restores both flags; {@link #setDirty} alone cannot clear the group flag. */
+	public final void restoreDirtyState(DirtyState state) {
+		java.util.Objects.requireNonNull(state, "state");
+		this.isDirty = state.dirty();
+		setGroupDirty(state.groupDirty());
+	}
+
+	/** The one transition to the saved (clean) state. */
+	public final void markSaved() {
+		restoreDirtyState(new DirtyState(false, false));
+	}
 	public final void setGroupDirty(boolean isGroupDirty) {
 		boolean old=this.isGroupDirty;
 		this.isGroupDirty = isGroupDirty;

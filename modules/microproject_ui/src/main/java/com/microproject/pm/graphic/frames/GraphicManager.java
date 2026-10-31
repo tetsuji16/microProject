@@ -662,15 +662,13 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		// waits for Swing callbacks and therefore deadlocks here.  MPO children
 		// can be written atomically without scheduling a nested Swing job.
 		if (FileHelper.isMpoFile(fileName)) {
-			var result = new ProjectPortCoordinator().exportProject(
+			var result = new ProjectPortCoordinator().saveProject(
 					LocalSession.MPO_PROJECT_IMPORTER, child, Path.of(fileName));
 			if (!result.succeeded()) {
 				logger.warning("Unable to save linked MPO project: " + result.diagnostics());
 				Alert.warn("The linked project could not be saved. Refresh was cancelled and its in-memory edits were retained.");
 				return false;
 			}
-			child.setDirty(false);
-			child.setGroupDirty(false);
 			return true;
 		}
 		SaveOptions options = new SaveOptions();
@@ -701,8 +699,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			Alert.warn("The linked project could not be replaced safely. Its unsaved edits were retained.");
 			return false;
 		}
-		load.getProject().setDirty(false);
-		load.getProject().setGroupDirty(false);
+		load.getProject().markSaved();
 		if (sourceFrame != null) {
 			// The replacement succeeded; now discard the old view and build one bound
 			// to the newly loaded child.  Keeping the old view until this point makes
@@ -845,20 +842,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 	void setTitle(boolean isSaving) {
 		DocumentFrame dframe = getCurrentFrame();
-		String title=Messages.getContextString("Text.ApplicationTitle"); //$NON-NLS-1$
-		if (dframe != null && dframe.getProject() != null) {
-			Project project = dframe.getProject();
-			String name = project.getName();
-			if (name == null || name.isBlank())
-				name = project.getTitle();
-			title += " - " + (name == null || name.isBlank() ? "(unnamed project)" : name); //$NON-NLS-1$
-			if (project.isMaster())
-				title += " [Master]"; //$NON-NLS-1$
-			if (project.isReadOnly())
-				title += " [Read-only]"; //$NON-NLS-1$
-			if (!isSaving && dframe.getProject().needsSaving())
-				title += " *"; // modified; //$NON-NLS-1$
-		}
+		Project project = dframe == null ? null : dframe.getProject();
+		String title = DocumentTitles.windowTitle(project, project == null ? null : project.getTitle(), isSaving);
 		FrameManager frameManager = getFrameManager();
 		if (dframe != null && frameManager != null && frameManager.setDocumentWindowTitle(dframe, title))
 			return;
@@ -4671,10 +4656,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		DocumentFrame frame = getCurrentFrame();
 		Project project = frame == null ? null : frame.getProject();
 		getMenuManager().setActionEnabled(ACTION_SAVE_PROJECT, project != null && !isSaving && project.needsSaving());
-		setTitle(isSaving);
-
 		FrameManager dm=getFrameManager();
-		if (dm!=null) dm.update(); //update project combo
+		if (dm!=null) dm.update(); //update project combo; it titles every window as not saving
+		setTitle(isSaving); // so the saving title of the current frame is applied last
 	}
 
 	public void objectChanged(ObjectEvent objectEvent) {

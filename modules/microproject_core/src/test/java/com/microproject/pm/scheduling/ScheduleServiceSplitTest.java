@@ -65,7 +65,7 @@ class ScheduleServiceSplitTest {
 		task.setDuration(3L * CalendarOption.getInstance().getMillisPerDay());
 		undoController.discardAllEdits();
 		task.setDirty(false);
-		project.setDirty(false);
+		project.markSaved();
 		long originalStart = task.getStart();
 		long originalEnd = task.getEnd();
 		long originalDuration = task.getDurationMillis();
@@ -98,6 +98,7 @@ class ScheduleServiceSplitTest {
 		assertEquals(originalDuration, task.getDurationMillis());
 		assertFalse(task.isDirty());
 		assertFalse(project.isDirty());
+		assertFalse(project.isGroupDirty(), "rollback must also restore the group-dirty flag");
 		assertEquals(revision, project.getMutationState().revision());
 		assertFalse(undoController.canUndo());
 		assertFalse(undoController.canRedo());
