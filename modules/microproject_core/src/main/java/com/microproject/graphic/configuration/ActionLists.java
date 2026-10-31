@@ -24,91 +24,33 @@
  *******************************************************************************/
 package com.microproject.graphic.configuration;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 import org.apache.commons.digester3.Digester;
 
 import com.microproject.configuration.Dictionary;
-import com.microproject.configuration.NamedItem;
-import com.microproject.field.InvalidFormulaException;
-import com.microproject.strings.Messages;
-import java.util.logging.Logger;
-import java.util.logging.Level;
 
 /**
  *
  */
-public class ActionLists implements NamedItem {
-	private static final Logger logger = Logger.getLogger(ActionLists.class.getName());
+public class ActionLists extends FormulaCatalog<ActionList, ActionListFactory> {
 	public static final String category="ActionListsCategory";
 	public String getCategory() {
 		return category;
 	}
-	
-	String name = null;
-	String id = null;
-	Map<String, ActionList> actionListMap = new HashMap<>();
-	Map<String, ActionListFactory> factoryMap = new HashMap<>();
-	List<ActionListFactory> factories = new ArrayList<>();
 
 	public ActionLists() {}
-	
-	
+
 	public void addActionList(ActionListFactory factory) {
-		factories.add(factory);
-		factoryMap.put(factory.getId(),factory);
-	}
-	/**
-	 * @return Returns the name.
-	 */
-	public String getName() {
-		return name;
-	}
-	/**
-	 * @param name The name to set.
-	 */
-	public void setName(String name) {
-		this.name = name;
-	}
-	
-	public void setId(String id) {
-		this.id = id;
-		setName(Messages.getString(id));
-	}	
-	/**
-	 * @return Returns the id.
-	 */
-	public String getId() {
-		return id;
+		register(factory);
 	}
 
 	public ActionList getActionList(String id) {
-		ActionList actionList=actionListMap.get(id);
-	    if (actionList==null){
-            ActionListFactory factory=getFactory(id);
-            try {
-                    actionList=factory.getActionList();
-                    actionListMap.put(id,actionList);
-                } catch (InvalidFormulaException e) {
-        			logger.severe("Formula not set: invalid formula text: " +factory.getFormulaText());
-                }
-	    }
-	    return actionList;
+		return resolve(id);
 	}
 	public ActionList getDefaultActionList(){
 	    return getActionList("ActionList.default");
 	}
-	
-	public ActionListFactory getFactory(String id) {
-		return factoryMap.get(id);
-	}
-	public List<ActionListFactory> getFactories() {
-		return factories;
-	}
-	
+
 	public static void addDigesterEvents(Digester digester){
 		// main properties of bar
 		digester.addObjectCreate("*/actionLists", "com.microproject.graphic.configuration.ActionLists");

@@ -49,6 +49,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.text.DateFormatter;
 
 import com.microproject.options.EditOption;
+import com.microproject.pm.graphic.spreadsheet.editor.ImeTextInputSupport;
 import com.microproject.dialog.UsabilityStrings;
 import com.microproject.util.DateFieldSupport;
 
@@ -185,9 +186,7 @@ public class MicroProjectDateField extends JPanel {
 
 		@Override
 		protected void processKeyEvent(KeyEvent event) {
-			if (event.getID() == KeyEvent.KEY_TYPED && event.getKeyChar() != KeyEvent.CHAR_UNDEFINED
-					&& !event.isControlDown() && !event.isAltDown() && !event.isMetaDown()
-					&& !Character.isISOControl(event.getKeyChar()) && isEditable() && isEnabled()) {
+			if (ImeTextInputSupport.isPlainTypedCharacter(event, this)) {
 				// DateFormatter eagerly reparses every partial edit.  That can turn the
 				// first digit of a physical multi-character ISO date into a different
 				// valid date before the remaining digits arrive.  Keep the text transaction

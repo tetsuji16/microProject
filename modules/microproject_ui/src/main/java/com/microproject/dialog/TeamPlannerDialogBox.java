@@ -120,14 +120,7 @@ public final class TeamPlannerDialogBox extends FlatLafDialog {
 	/** Creates the Team Planner UI for embedding in a document view. */
 	public static JPanel createEmbeddedPanel(java.awt.Frame owner, Project project) {
 		TeamPlannerDialogBox dialog = new TeamPlannerDialogBox(owner, project);
-		java.awt.Container content = dialog.getContentPane();
-		if (!(content instanceof JPanel panel)) {
-			dialog.dispose();
-			throw new IllegalStateException("Team Planner content is not a Swing panel");
-		}
-		dialog.getRootPane().setContentPane(new JPanel(new BorderLayout()));
-		dialog.dispose();
-		return panel;
+		return PopupDialogSupport.detachContentPanel(dialog, "Team Planner");
 	}
 
 	static final class TeamPlannerCanvas extends JPanel {

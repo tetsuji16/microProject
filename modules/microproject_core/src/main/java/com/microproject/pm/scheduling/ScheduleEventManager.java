@@ -24,8 +24,8 @@
  *******************************************************************************/
 package com.microproject.pm.scheduling;
 
+import com.microproject.util.DeferredEventBatch;
 import com.microproject.util.ListenerRegistry;
-import java.util.ArrayList;
 import java.util.List;
 
 
@@ -35,25 +35,22 @@ import java.util.List;
 public class ScheduleEventManager {
 
     private final ListenerRegistry<ScheduleEventListener> listeners = new ListenerRegistry<>();
-    private final List<ScheduleEvent> deferredEvents = new ArrayList<>();
-    private int batchDepth;
-    private boolean rollbackOnly;
+    private final DeferredEventBatch<ScheduleEvent> batch = new DeferredEventBatch<>(
+        "No schedule-event batch is active", "Invalid schedule-event checkpoint");
 
     /** Defers schedule observer callbacks until a surrounding model transaction commits. */
-    public synchronized void beginBatch() {
-        batchDepth++;
+    public void beginBatch() {
+        batch.begin();
     }
 
     /** Number of deferred facts currently waiting in this nested batch stack. */
-    public synchronized int pendingEventCount() {
-        return deferredEvents.size();
+    public int pendingEventCount() {
+        return batch.pendingCount();
     }
 
     /** Discards facts added after an atomic command's checkpoint without affecting its parent batch. */
-    public synchronized void discardPendingEventsAfter(int checkpoint) {
-        if (checkpoint < 0 || checkpoint > deferredEvents.size())
-            throw new IllegalArgumentException("Invalid schedule-event checkpoint");
-        deferredEvents.subList(checkpoint, deferredEvents.size()).clear();
+    public void discardPendingEventsAfter(int checkpoint) {
+        batch.discardAfter(checkpoint);
     }
 
     /** Publishes deferred events on commit, or drops them after rollback. */
@@ -63,21 +60,10 @@ public class ScheduleEventManager {
 
     /** Detaches one completed outer batch without invoking observer callbacks. */
     public PendingBatch detachBatch(boolean publish) {
-        List<EventFacts> events = null;
-        synchronized (this) {
-            if (batchDepth == 0) throw new IllegalStateException("No schedule-event batch is active");
-            if (!publish) rollbackOnly = true;
-            if (--batchDepth == 0) {
-                events = new ArrayList<>(deferredEvents.size());
-                for (ScheduleEvent event : deferredEvents)
-                    events.add(new EventFacts(event.getSource(), event.getType(), event.getObject(),
-                        event.getSnapshot(), event.isSaveSnapshot()));
-                deferredEvents.clear();
-                publish = !rollbackOnly;
-                rollbackOnly = false;
-            }
-        }
-        return events == null ? null : new PendingBatch(List.copyOf(events), publish);
+        DeferredEventBatch.Detached<EventFacts> detached = batch.detach(publish,
+            event -> new EventFacts(event.getSource(), event.getType(), event.getObject(),
+                event.getSnapshot(), event.isSaveSnapshot()));
+        return detached == null ? null : new PendingBatch(detached.events(), detached.publish());
     }
 
     /** Publishes a batch detached after its model revision was committed. */
@@ -147,12 +133,7 @@ public class ScheduleEventManager {
     	fire (evt);
     }
     private void fire(ScheduleEvent evt) {
-		synchronized (this) {
-			if (batchDepth > 0) {
-				deferredEvents.add(evt);
-				return;
-			}
-		}
+		if (batch.tryDefer(() -> evt)) return;
 		dispatch(evt);
 	}
 	private void dispatch(ScheduleEvent evt) {

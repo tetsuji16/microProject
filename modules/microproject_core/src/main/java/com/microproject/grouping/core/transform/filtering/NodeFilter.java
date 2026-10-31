@@ -40,9 +40,6 @@ import com.microproject.grouping.core.transform.CommonTransform;
  *
  */
 public abstract class NodeFilter extends CommonTransform implements Predicate<Object>{
-	protected boolean showSummary = true;
-	protected boolean showEmptyLines = true;
-	protected boolean showEndEmptyLines = true;
 	protected NodeModel model;
 	public NodeModel getModel() {
 		return model;
@@ -53,49 +50,10 @@ public abstract class NodeFilter extends CommonTransform implements Predicate<Ob
 	
 	
 	
-    public boolean isShowEmptyLines() {
-        return showEmptyLines;
-    }
-    public void setShowEmptyLines(boolean showEmptyLines) {
-        this.showEmptyLines = showEmptyLines;
-    }
     
-    public boolean isShowEndEmptyLines() {
-		return showEndEmptyLines;
-	}
-	public void setShowEndEmptyLines(boolean showEndEmptyLines) {
-		this.showEndEmptyLines = showEndEmptyLines;
-	}
 	
-	public boolean isShowSummary() {
-        return showSummary;
-    }
-    public void setShowSummary(boolean showSummary) {
-        this.showSummary = showSummary;
-    }
     
-	protected boolean showEmptySummaries = true;
-	public boolean isShowEmptySummaries() {
-		return showEmptySummaries;
-	}
-	public void setShowEmptySummaries(boolean showEmptySummaries) {
-		this.showEmptySummaries = showEmptySummaries;
-	}
-	protected boolean showAssignments = true;
-    public boolean isShowAssignments() {
-		return showAssignments;
-	}
-	public void setShowAssignments(boolean showAssignments) {
-		this.showAssignments = showAssignments;
-	}
     
-	protected boolean preserveHierarchy = true;
-	public boolean isPreserveHierarchy() {
-		return preserveHierarchy;
-	}
-	public void setPreserveHierarchy(boolean preserveHierarchy) {
-		this.preserveHierarchy = preserveHierarchy;
-	}
     
     
 	//util

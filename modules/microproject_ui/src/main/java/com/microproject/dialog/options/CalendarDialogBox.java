@@ -176,6 +176,13 @@ public class CalendarDialogBox extends AbstractDialog{
     		return new CalendarDialogBox(owner, option);
     	}
 
+	/** Smallest accepted duration conversion value: DurationDefaults rejects zero, so the dialog must too. */
+	static final double MIN_POSITIVE = 0.01;
+
+	static SpinnerNumberModel positiveSpinnerModel(double value, double max, double step) {
+		return new SpinnerNumberModel(Math.min(Math.max(value, MIN_POSITIVE), max), MIN_POSITIVE, max, step);
+	}
+
     	private CalendarDialogBox(Frame owner, CalendarOption option) {
     		super(owner, Messages.getString("CalendarDialogBox.DurationSettings"), true); //$NON-NLS-1$
    			this.form = new Form(option);
@@ -199,17 +206,17 @@ public class CalendarDialogBox extends AbstractDialog{
             startTime= new JTextField(form.getStartTime());
             endTime= new JTextField(form.getEndTime());
     	              
-    		hoursPerDay = new JSpinner(new SpinnerNumberModel(form.getHoursPerDay().doubleValue(),0,24.0,0.5));
+		hoursPerDay = new JSpinner(positiveSpinnerModel(form.getHoursPerDay().doubleValue(),24.0,0.5));
     		JSpinner.NumberEditor editor1;
     		editor1 = new JSpinner.NumberEditor(hoursPerDay,"##.##"); //$NON-NLS-1$
     		hoursPerDay.setEditor(editor1);
     		
-    		hoursPerWeek = new JSpinner(new SpinnerNumberModel(form.getHoursPerWeek().doubleValue(),0,168.0,0.5));
+		hoursPerWeek = new JSpinner(positiveSpinnerModel(form.getHoursPerWeek().doubleValue(),168.0,0.5));
     		JSpinner.NumberEditor editor2;
     		editor2 = new JSpinner.NumberEditor(hoursPerWeek,"##.##"); //$NON-NLS-1$
     		hoursPerWeek.setEditor(editor2);
     		
-    		daysPerMonth = new JSpinner(new SpinnerNumberModel(form.getDaysPerMonth().doubleValue(),0,31.0,1.0));
+		daysPerMonth = new JSpinner(positiveSpinnerModel(form.getDaysPerMonth().doubleValue(),31.0,1.0));
     		JSpinner.NumberEditor editor3;
     		editor3 = new JSpinner.NumberEditor(daysPerMonth,"##.##"); //$NON-NLS-1$
     		daysPerMonth.setEditor(editor3);

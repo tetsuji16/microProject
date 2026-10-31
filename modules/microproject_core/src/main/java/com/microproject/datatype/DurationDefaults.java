@@ -57,10 +57,19 @@ public record DurationDefaults(double minutesPerDay, double minutesPerWeek, doub
 	}
 
 	public static DurationDefaults from(CalendarOption options, ScheduleOption scheduleOptions) {
-		Objects.requireNonNull(options, "options");
 		Objects.requireNonNull(scheduleOptions, "scheduleOptions");
+		return of(options, scheduleOptions.getDurationEnteredIn(), scheduleOptions.getWorkUnit());
+	}
+
+	/** These defaults' entry and work units with the day/week/month lengths of {@code options}. */
+	public DurationDefaults withCalendar(CalendarOption options) {
+		return of(options, durationEnteredIn, workUnit);
+	}
+
+	private static DurationDefaults of(CalendarOption options, int durationEnteredIn, int workUnit) {
+		Objects.requireNonNull(options, "options");
 		return new DurationDefaults(options.getHoursPerDay() * 60.0D,
 			options.getHoursPerWeek() * 60.0D, options.getDaysPerMonth(),
-			scheduleOptions.getDurationEnteredIn(), scheduleOptions.getWorkUnit());
+			durationEnteredIn, workUnit);
 	}
 }

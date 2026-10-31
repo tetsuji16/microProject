@@ -25,6 +25,7 @@
 package com.microproject.pm.graphic.spreadsheet.editor;
 
 import java.awt.Component;
+import java.lang.ref.WeakReference;
 import java.awt.event.InputMethodEvent;
 import java.awt.event.InputMethodListener;
 import java.awt.event.KeyEvent;
@@ -47,7 +48,8 @@ import com.microproject.pm.graphic.spreadsheet.renderer.CellUtility;
  * Adapter to modify defaults editors behaviour
  */
 public class SpreadSheetCellEditorAdapter implements TableCellEditor {
-	protected static JTable lastTable;
+	/** The single previous-table record for every spreadsheet editor; weak so a closed document's table is not retained. */
+	private static WeakReference<JTable> lastTableRef = new WeakReference<>(null);
 	private static final String COMPOSITION_PROPERTY = ImeTextInputSupport.COMPOSITION_PROPERTY;
 	private static final String COMPOSITION_LISTENER_INSTALLED_PROPERTY = "projectlibre.compositionListenerInstalled";
 	private static final String NAME_UNDO_ACTION = "spreadsheet.nameColumnUndo";
@@ -90,14 +92,7 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 	 * @see javax.swing.table.TableCellEditor#getTableCellEditorComponent(javax.swing.JTable, java.lang.Object, boolean, int, int)
 	 */
 	public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {
-		if (table!=null&&lastTable!=null&&table!=lastTable){
-			if(lastTable.isEditing()){
-				TableCellEditor lastEditor=lastTable.getCellEditor();
-				if (lastEditor!=null) lastEditor.stopCellEditing();
-			}
-			lastTable.clearSelection();
-		}
-		lastTable=table;
+		trackEditingTable(table);
 		activeDurationField = isDurationField(table, column);
 		
 		JComponent component=(JComponent)editor.getTableCellEditorComponent(table,value,isSelected,row,column);
@@ -111,6 +106,26 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 		}
 		
 		return component;
+	}
+
+	protected static JTable lastTable() {
+		return lastTableRef.get();
+	}
+
+	/**
+	 * Single entry point for name and non-name editors: when editing moves to another
+	 * table, the previous table's editor is stopped and its selection cleared.
+	 */
+	protected static void trackEditingTable(JTable table) {
+		JTable previous = lastTableRef.get();
+		if (table != null && previous != null && table != previous) {
+			if (previous.isEditing()) {
+				TableCellEditor lastEditor = previous.getCellEditor();
+				if (lastEditor != null) lastEditor.stopCellEditing();
+			}
+			previous.clearSelection();
+		}
+		lastTableRef = new WeakReference<>(table);
 	}
 
 	private static boolean isDurationField(JTable table, int column) {
@@ -174,8 +189,9 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 				return null;
 			}
 		}
-		if (lastTable != null && lastTable.getModel() instanceof SpreadSheetModel model) {
-			int viewColumn = lastTable.getEditingColumn();
+		JTable editingTable = lastTable();
+		if (editingTable != null && editingTable.getModel() instanceof SpreadSheetModel model) {
+			int viewColumn = editingTable.getEditingColumn();
 			com.microproject.field.Field field = viewColumn < 0 ? null : model.getFieldInViewColumn(viewColumn);
 			if (field != null && (field.isDuration() || "Field.duration".equals(field.getId()))
 					&& activeEditorComponent instanceof JTextComponent text) {
@@ -193,7 +209,8 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 	private Object parseDuration(String text) throws java.text.ParseException {
 		com.microproject.datatype.DurationFormat format = (com.microproject.datatype.DurationFormat)
 			com.microproject.datatype.DurationFormat.getInstance();
-		if (lastTable != null && lastTable.getModel() instanceof SpreadSheetModel model
+		JTable editingTable = lastTable();
+		if (editingTable != null && editingTable.getModel() instanceof SpreadSheetModel model
 				&& model.getFieldContext() != null
 				&& model.getFieldContext().getDurationDefaults() != null)
 			return format.parseObject(text, new java.text.ParsePosition(0), model.getFieldContext().getDurationDefaults());

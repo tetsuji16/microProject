@@ -31,12 +31,16 @@ import com.microproject.strings.Messages;
 /**
  *
  */
-public class ActionListFactory {
+public class ActionListFactory implements FormulaCatalog.Factory<ActionList> {
 	protected String formulaText;
  	protected String id = null;
  	protected String name = null;
 	protected String type = null; 
 	
+	public ActionList create() throws InvalidFormulaException {
+		return getActionList();
+	}
+
 	public ActionList getActionList() throws InvalidFormulaException{
 	    StringBuilder classText = new StringBuilder();
 	    classText.append("package com.microproject.graphic.configuration;\n");

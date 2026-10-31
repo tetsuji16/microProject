@@ -219,8 +219,7 @@ public final class FlatUiSupport {
 	}
 
 	public static boolean isDarkTheme() {
-		Color background = panelBackground();
-		return background.getRed() + background.getGreen() + background.getBlue() < 384;
+		return ColorLuminance.isDark(panelBackground());
 	}
 
 	public static Color tableBackground() {
@@ -698,12 +697,7 @@ public final class FlatUiSupport {
 	}
 
 	public static Color blend(Color first, Color second, float firstWeight) {
-		float weight = Math.max(0f, Math.min(1f, firstWeight));
-		float secondWeight = 1f - weight;
-		int red = Math.round(first.getRed() * weight + second.getRed() * secondWeight);
-		int green = Math.round(first.getGreen() * weight + second.getGreen() * secondWeight);
-		int blue = Math.round(first.getBlue() * weight + second.getBlue() * secondWeight);
-		return new Color(red, green, blue);
+		return ColorLuminance.mix(second, first, firstWeight);
 	}
 
 	public static void enableAntialiasing(Graphics2D g2) {
@@ -783,36 +777,27 @@ public final class FlatUiSupport {
 	}
 
 	public static void styleRibbonLargeButton(AbstractButton button) {
-		if (button == null)
-			return;
-		button.setFocusable(false);
-		button.putClientProperty(BUTTON_STYLE_ROLE_PROPERTY, BUTTON_STYLE_ROLE_RIBBON_LARGE);
-		button.setOpaque(false);
-		button.setBackground(ribbonSurfaceColor());
-		button.setForeground(labelForeground());
-		button.setBorder(new CommandButtonBorder(new Insets(2, 5, 2, 5), ribbonButtonArc()));
-		button.setContentAreaFilled(false);
-		button.setBorderPainted(true);
-		button.setFocusPainted(false);
-		button.setRolloverEnabled(true);
-		button.setMargin(new Insets(2, 2, 2, 2));
-		installRibbonCommandStatePainting(button);
+		styleRibbonCommandButton(button, BUTTON_STYLE_ROLE_RIBBON_LARGE, new Insets(2, 5, 2, 5), new Insets(2, 2, 2, 2));
 	}
 
 	public static void styleRibbonSmallButton(AbstractButton button) {
+		styleRibbonCommandButton(button, BUTTON_STYLE_ROLE_RIBBON_SMALL, new Insets(1, 3, 1, 3), new Insets(1, 2, 1, 2));
+	}
+
+	private static void styleRibbonCommandButton(AbstractButton button, String role, Insets borderInsets, Insets margin) {
 		if (button == null)
 			return;
 		button.setFocusable(false);
-		button.putClientProperty(BUTTON_STYLE_ROLE_PROPERTY, BUTTON_STYLE_ROLE_RIBBON_SMALL);
+		button.putClientProperty(BUTTON_STYLE_ROLE_PROPERTY, role);
 		button.setOpaque(false);
 		button.setBackground(ribbonSurfaceColor());
 		button.setForeground(labelForeground());
-		button.setBorder(new CommandButtonBorder(new Insets(1, 3, 1, 3), ribbonButtonArc()));
+		button.setBorder(new CommandButtonBorder(borderInsets, ribbonButtonArc()));
 		button.setContentAreaFilled(false);
 		button.setBorderPainted(true);
 		button.setFocusPainted(false);
 		button.setRolloverEnabled(true);
-		button.setMargin(new Insets(1, 2, 1, 2));
+		button.setMargin(margin);
 		installRibbonCommandStatePainting(button);
 	}
 

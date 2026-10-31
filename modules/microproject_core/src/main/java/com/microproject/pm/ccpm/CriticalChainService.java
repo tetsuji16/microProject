@@ -295,9 +295,7 @@ public final class CriticalChainService {
 		Settings copy = settings.copy();
 		Collection<? extends Resource> resources = resourcesForBaseline(project);
 		assertUnambiguousTaskIds(project, resources);
-		ResourceLevelingService.Options options = new ResourceLevelingService.Options(copy.getLevelingOrder(),
-			copy.isOnlyWithinAvailableSlack(), copy.isAllowTaskSplits(), Long.MIN_VALUE, Long.MAX_VALUE,
-			copy.isIncludeProposedResources(), copy.getSensitivity(), copy.isLevelAssignments(), copy.isLevelManuallyScheduledTasks());
+		ResourceLevelingService.Options options = levelingOptions(copy);
 		ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(project, resources, options);
 		return new PendingAnalysis(project, copy, baseline, plan, captureResourceConstraints(project, resources, plan));
 	}
@@ -353,9 +351,7 @@ public final class CriticalChainService {
 		Objects.requireNonNull(settings, "settings");
 		Objects.requireNonNull(project, "project");
 		if (settings.isEnabled()) assertUnambiguousTaskIds(project, resources);
-		ResourceLevelingService.Options options = new ResourceLevelingService.Options(settings.getLevelingOrder(),
-			settings.isOnlyWithinAvailableSlack(), settings.isAllowTaskSplits(), Long.MIN_VALUE, Long.MAX_VALUE,
-			settings.isIncludeProposedResources(), settings.getSensitivity(), settings.isLevelAssignments(), settings.isLevelManuallyScheduledTasks());
+		ResourceLevelingService.Options options = levelingOptions(settings);
 		ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(project, resources, options);
 		if (!settings.isEnabled()) {
 			try {
@@ -365,6 +361,13 @@ public final class CriticalChainService {
 			}
 		}
 		return analyze(project, plan, settings, resources);
+	}
+
+	/** Leveling options for a CCPM run: the whole project span, with the CCPM settings' choices. */
+	private static ResourceLevelingService.Options levelingOptions(Settings settings) {
+		return new ResourceLevelingService.Options(settings.getLevelingOrder(),
+			settings.isOnlyWithinAvailableSlack(), settings.isAllowTaskSplits(), Long.MIN_VALUE, Long.MAX_VALUE,
+			settings.isIncludeProposedResources(), settings.getSensitivity(), settings.isLevelAssignments(), settings.isLevelManuallyScheduledTasks());
 	}
 
 	private Settings settingsOrDefault(Project project) {
@@ -397,9 +400,7 @@ public final class CriticalChainService {
 			if (!settings.isEnabled()) {
 				throw new IllegalStateException("Enable CCPM before applying a critical chain");
 			}
-			ResourceLevelingService.Options options = new ResourceLevelingService.Options(settings.getLevelingOrder(),
-				settings.isOnlyWithinAvailableSlack(), settings.isAllowTaskSplits(), Long.MIN_VALUE, Long.MAX_VALUE,
-				settings.isIncludeProposedResources(), settings.getSensitivity(), settings.isLevelAssignments(), settings.isLevelManuallyScheduledTasks());
+			ResourceLevelingService.Options options = levelingOptions(settings);
 			ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(project, resources, options);
 			plan.apply(editSupport);
 			Analysis analysis = analyze(project, plan, settings, resources);
