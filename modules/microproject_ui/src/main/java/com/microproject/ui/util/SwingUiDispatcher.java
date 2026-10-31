@@ -23,6 +23,11 @@
  *******************************************************************************/
 package com.microproject.ui.util;
 
+import java.lang.reflect.InvocationTargetException;
+import java.util.Objects;
+import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicReference;
+
 import javax.swing.SwingUtilities;
 
 import com.microproject.util.UiDispatcher;
@@ -37,5 +42,59 @@ public final class SwingUiDispatcher implements UiDispatcher {
 	@Override
 	public boolean isDispatchThread() {
 		return SwingUtilities.isEventDispatchThread();
+	}
+
+	/** Runs {@code task} on the EDT and waits; see {@link #callAndWait(Callable)}. */
+	public static void runAndWait(Runnable task) {
+		Objects.requireNonNull(task, "task");
+		callAndWait(() -> {
+			task.run();
+			return null;
+		});
+	}
+
+	/**
+	 * Runs {@code task} on the EDT and returns its result. When already on the
+	 * EDT the task runs inline. Failures are converted once: runtime exceptions
+	 * and errors thrown by the task propagate unchanged, checked exceptions are
+	 * wrapped in {@link IllegalStateException}, and interruption restores the
+	 * interrupt flag before an {@link IllegalStateException} is thrown.
+	 */
+	public static <T> T callAndWait(Callable<T> task) {
+		Objects.requireNonNull(task, "task");
+		if (SwingUtilities.isEventDispatchThread()) {
+			try {
+				return task.call();
+			} catch (Exception exception) {
+				throw convert(exception);
+			}
+		}
+		final AtomicReference<T> result = new AtomicReference<>();
+		final AtomicReference<Throwable> failure = new AtomicReference<>();
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				try {
+					result.set(task.call());
+				} catch (Throwable exception) {
+					failure.set(exception);
+				}
+			});
+		} catch (InterruptedException interrupted) {
+			Thread.currentThread().interrupt();
+			throw new IllegalStateException("Interrupted while waiting for the UI thread", interrupted);
+		} catch (InvocationTargetException invocationFailure) {
+			throw convert(invocationFailure.getCause());
+		}
+		if (failure.get() != null)
+			throw convert(failure.get());
+		return result.get();
+	}
+
+	private static RuntimeException convert(Throwable cause) {
+		if (cause instanceof RuntimeException runtimeException)
+			return runtimeException;
+		if (cause instanceof Error error)
+			throw error;
+		return new IllegalStateException("UI task failed", cause);
 	}
 }

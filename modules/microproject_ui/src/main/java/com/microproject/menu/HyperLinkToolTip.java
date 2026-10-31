@@ -25,7 +25,9 @@
 package com.microproject.menu;
 
 import java.awt.BorderLayout;
+import java.awt.Point;
 
+import javax.swing.JComponent;
 import javax.swing.JEditorPane;
 import javax.swing.JToolTip;
 import javax.swing.LookAndFeel;
@@ -73,6 +75,22 @@ public class HyperLinkToolTip extends JToolTip {
 		setUI(new ToolTipUI() {});
 	}
 	
+	/** True when the tip is HTML and so needs the clickable tooltip. */
+	public static boolean isHtmlTip(String tipText) {
+		return tipText != null && tipText.startsWith("<html>");
+	}
+
+	/** The tip must touch the component, otherwise it disappears before its links can be clicked. */
+	public static Point touchingLocation(JComponent component) {
+		return new Point(0, component.getHeight() - 2);
+	}
+
+	public static JToolTip createFor(JComponent component) {
+		JToolTip tip = new HyperLinkToolTip();
+		tip.setComponent(component);
+		return tip;
+	}
+
 	private static final String htmlPrefix = "<html><font face=\"Dialog\" size=\"2\">";//$NON-NLS-1$
 	
 	public static String helpTipText(String text,String helpLink, String demoLink, String docLink) {

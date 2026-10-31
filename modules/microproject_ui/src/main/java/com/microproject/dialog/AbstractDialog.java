@@ -408,9 +408,7 @@ public abstract class AbstractDialog extends FlatLafDialog {
 		}
 
 		public JToolTip createToolTip() {
-				JToolTip tip = new HyperLinkToolTip();
-				tip.setComponent(this);
-				return tip;
+				return HyperLinkToolTip.createFor(this);
 		}
 
 		public void mouseClicked(MouseEvent e) {

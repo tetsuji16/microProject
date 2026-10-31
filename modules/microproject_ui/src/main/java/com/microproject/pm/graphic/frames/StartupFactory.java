@@ -110,18 +110,7 @@ public abstract class StartupFactory {
 				graphicManager.finishInitialization();
 			}
 		};
-		if (SwingUtilities.isEventDispatchThread()) {
-			initialize.run();
-		} else {
-			try {
-				SwingUtilities.invokeAndWait(initialize);
-			} catch (InterruptedException exception) {
-				Thread.currentThread().interrupt();
-				throw new IllegalStateException("Interrupted while restoring the application window", exception);
-			} catch (java.lang.reflect.InvocationTargetException exception) {
-				throw new IllegalStateException("Failed to restore the application window", exception.getCause());
-			}
-		}
+		SwingUiDispatcher.runAndWait(initialize);
 //		graphicManager.invalidate();
 		return graphicManager;
 	}
