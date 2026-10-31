@@ -71,3 +71,5 @@ read, the file route reports the running counters (existing behaviour, kept).
   Final masks were re-pinned against the stashed (unmodified) production code before comparing.
 - Physical GUI/manual: not applicable (no GUI-observable change).
 - CI: pending push.
+
+CI on `96d6ed4f7` showed the first golden depended on the OS line ends and the default time zone (#989). After masking both, `origin/master` `25c41fd32` and the consolidated code produce the same digests under Asia/Tokyo and UTC.
