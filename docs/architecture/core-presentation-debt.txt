@@ -38,6 +38,7 @@ com/microproject/graphic/configuration/FormBoxLayout.java	com.microproject.graph
 com/microproject/graphic/configuration/FormFormat.java	com.microproject.graphic.configuration
 com/microproject/graphic/configuration/FormFormat.java	com.microproject.graphic.configuration.FormBox
 com/microproject/graphic/configuration/FormFormat.java	com.microproject.graphic.configuration.FormBoxLayout
+com/microproject/graphic/configuration/FormulaCatalog.java	com.microproject.graphic.configuration
 com/microproject/graphic/configuration/GanttBarFormatOverrides.java	com.microproject.graphic.configuration
 com/microproject/graphic/configuration/GanttBarFormatOverrides.java	com.microproject.graphic.configuration.shape.PredefinedShape
 com/microproject/graphic/configuration/GraphicConfiguration.java	com.microproject.graphic.configuration
