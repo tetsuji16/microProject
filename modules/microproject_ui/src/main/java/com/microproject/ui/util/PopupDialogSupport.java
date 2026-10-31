@@ -39,6 +39,8 @@ import javax.swing.JOptionPane;
 import javax.swing.JRootPane;
 import javax.swing.KeyStroke;
 
+import com.microproject.dialog.UsabilityStrings;
+
 public final class PopupDialogSupport {
 	static final String ESCAPE_ACTION_KEY = "microproject.closeOnEscape";
 
@@ -97,11 +99,7 @@ public final class PopupDialogSupport {
 	}
 
 	private static String localized(String key, String fallback) {
-		try {
-			return java.util.ResourceBundle.getBundle("com.microproject.dialog.usability").getString(key);
-		} catch (Exception ignored) {
-			return fallback;
-		}
+		return UsabilityStrings.text(key, fallback);
 	}
 
 	public static int showOptionDialog(Component parentComponent, Object message, String title, int optionType, int messageType,
