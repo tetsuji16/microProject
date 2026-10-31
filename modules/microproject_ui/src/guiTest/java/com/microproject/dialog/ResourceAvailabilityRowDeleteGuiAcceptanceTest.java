@@ -84,6 +84,7 @@ class ResourceAvailabilityRowDeleteGuiAcceptanceTest {
 		GeneralOption.getInstance().setConfirmDeletes(false);
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		ResourcePool pool = ResourcePool.createRourcePool("resource-availability-delete", undo);
+		pool.setLocal(true);
 		Project project = Project.createProject(pool, undo);
 		project.initialize(false, false);
 		pool.addProject(project);
