@@ -270,23 +270,19 @@ public class MPXConverter {
 	}
 
 	public static  void toMpxCalendarDay(WorkDay day,ProjectCalendarHours mpxDay) {
-		if  (day==null)
-			return;
-		WorkingHours workingHours=day.getWorkingHours();
-
-		for (WorkRange range : workingHours.getIntervals()) { //claur
-			if (range!=null)
-				mpxDay.add(new DateRange(toMpxDate(range.getNormalizedStartTime().getTime()),
-						toMpxDate(range.getNormalizedEndTime().getTime())));
-		}
+		addRanges(day, mpxDay);
 	}
 
+	/** ProjectCalendarException is a ProjectCalendarHours, so the range copy is shared. */
 	public static  void toMpxExceptionDay(WorkDay day,ProjectCalendarException mpxDay) {
+		addRanges(day, mpxDay);
+	}
+
+	private static void addRanges(WorkDay day, ProjectCalendarHours mpxDay) {
 		if  (day==null)
 			return;
-		WorkingHours workingHours=day.getWorkingHours();
-		for (WorkRange range : workingHours.getIntervals()) {
-			if (range != null)
+		for (WorkRange range : day.getWorkingHours().getIntervals()) {
+			if (range!=null)
 				mpxDay.add(new DateRange(toMpxDate(range.getNormalizedStartTime().getTime()),
 						toMpxDate(range.getNormalizedEndTime().getTime())));
 		}

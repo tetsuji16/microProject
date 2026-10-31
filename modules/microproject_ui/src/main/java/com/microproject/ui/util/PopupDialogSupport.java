@@ -102,6 +102,21 @@ public final class PopupDialogSupport {
 		return UsabilityStrings.text(key, fallback);
 	}
 
+	/**
+	 * Detaches a dialog's content panel and disposes the dialog, so the panel (with all its
+	 * listeners and state) can be adopted by a document view.
+	 */
+	public static javax.swing.JPanel detachContentPanel(javax.swing.JDialog dialog, String description) {
+		java.awt.Container content = dialog.getContentPane();
+		if (!(content instanceof javax.swing.JPanel panel)) {
+			dialog.dispose();
+			throw new IllegalStateException(description + " content is not a Swing panel");
+		}
+		dialog.getRootPane().setContentPane(new javax.swing.JPanel(new java.awt.BorderLayout()));
+		dialog.dispose();
+		return panel;
+	}
+
 	public static int showOptionDialog(Component parentComponent, Object message, String title, int optionType, int messageType,
 		Icon icon, Object[] options, Object initialValue) {
 		return showOptionDialog(parentComponent, message, title, optionType, messageType, icon, options, initialValue, JOptionPane.CLOSED_OPTION);

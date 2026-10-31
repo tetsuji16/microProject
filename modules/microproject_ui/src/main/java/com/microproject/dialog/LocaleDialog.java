@@ -650,62 +650,11 @@ public final class LocaleDialog extends AbstractDialog {
 		exportResourceFile(Messages.class,"client");
 		
 		Map<String, LanguageProperties> fileMap=new TreeMap<>();
-		for (File file:clientFiles) {
-			Matcher m = clientPattern.matcher(file.getName());
-			if(m.matches()) {
-				String code=m.group(1);
-				String extension=m.group(5);
-				if (extension==null)
-					continue;
-				File generatedFile=null;
-				generatedFile=convertToPropertyFile(file,new File(generated,"client_"+code+".properties"),extension);
-				if (generatedFile==null)
-					continue;
-				if (fileMap.containsKey(code)) {
-					LanguageProperties p=fileMap.get(code);
-					p.setClient(file);	
-					p.setClientStatus(generatedFile==null?
-								FileStatus.ERROR:
-									FileStatus.OK);
-				}else fileMap.put(code, new LanguageProperties(code, 
-						file, 
-						generatedFile==null?
-								FileStatus.ERROR:
-									FileStatus.OK,
-						null, 
-						FileStatus.MISSING));
-			}
-		}
-		
+		collectImportedFiles(fileMap, clientFiles, clientPattern, "client", generated, true);
 		
 		exportResourceFile(MenuManager.class,"menu");
 		
-		for (File file:menuFiles) {
-			Matcher m = menuPattern.matcher(file.getName());
-			if(m.matches()) {
-				String code=m.group(1);
-				String extension=m.group(5);
-				if (extension==null)
-					continue;
-				File generatedFile=null;
-				generatedFile=convertToPropertyFile(file,new File(generated,"menu_"+code+".properties"),extension);
-				if (generatedFile==null)
-					continue;
-				if (fileMap.containsKey(code)) {
-					LanguageProperties p=fileMap.get(code);
-					p.setMenu(file);	
-					p.setMenuStatus(generatedFile==null?
-							FileStatus.ERROR:
-								FileStatus.OK);
-				}else fileMap.put(code, new LanguageProperties(code, 
-						null, 
-						FileStatus.MISSING, 
-						file, 
-						generatedFile==null?
-								FileStatus.ERROR:
-									FileStatus.OK));
-			}
-		}
+		collectImportedFiles(fileMap, menuFiles, menuPattern, "menu", generated, false);
 		
 		files.addAll(fileMap.values());
 		
@@ -717,6 +666,35 @@ public final class LocaleDialog extends AbstractDialog {
 	}
 
 	
+	/** Converts each listed client_/menu_ file and records it under its language code. */
+	private void collectImportedFiles(Map<String, LanguageProperties> fileMap, File[] listed, Pattern pattern,
+			String prefix, File generated, boolean client) {
+		for (File file:listed) {
+			Matcher m = pattern.matcher(file.getName());
+			if(!m.matches())
+				continue;
+			String code=m.group(1);
+			String extension=m.group(5);
+			if (extension==null)
+				continue;
+			File generatedFile=convertToPropertyFile(file,new File(generated,prefix+"_"+code+".properties"),extension);
+			if (generatedFile==null)
+				continue;
+			LanguageProperties p=fileMap.get(code);
+			if (p==null)
+				fileMap.put(code, client
+					? new LanguageProperties(code, file, FileStatus.OK, null, FileStatus.MISSING)
+					: new LanguageProperties(code, null, FileStatus.MISSING, file, FileStatus.OK));
+			else if (client) {
+				p.setClient(file);
+				p.setClientStatus(FileStatus.OK);
+			} else {
+				p.setMenu(file);
+				p.setMenuStatus(FileStatus.OK);
+			}
+		}
+	}
+
 	public void refreshExportFiles() {
 		File directory=new File(directoryField.getText());
 		if (!directory.isDirectory()) {
