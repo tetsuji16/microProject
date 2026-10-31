@@ -47,9 +47,6 @@ import com.microproject.grouping.core.transform.HierarchicObject;
  */
 public class NodeSorter extends CommonTransform implements Comparator<Object>{
 	private static final Logger logger = Logger.getLogger(NodeSorter.class.getName());
-	protected boolean showSummary = true;
-	protected boolean showEmptyLines = true;
-	protected boolean showEndEmptyLines = true;
 	protected List fields = null;
 
 	protected NodeModel model;
@@ -68,49 +65,10 @@ public class NodeSorter extends CommonTransform implements Comparator<Object>{
 	
 	
 	
-    public boolean isShowEmptyLines() {
-        return showEmptyLines;
-    }
-    public void setShowEmptyLines(boolean showEmptyLines) {
-        this.showEmptyLines = showEmptyLines;
-    }
     
-    public boolean isShowEndEmptyLines() {
-		return showEndEmptyLines;
-	}
-	public void setShowEndEmptyLines(boolean showEndEmptyLines) {
-		this.showEndEmptyLines = showEndEmptyLines;
-	}
 	
-    public boolean isShowSummary() {
-        return showSummary;
-    }
-    public void setShowSummary(boolean showSummary) {
-        this.showSummary = showSummary;
-    }
     
-	protected boolean showEmptySummaries = true;
-	public boolean isShowEmptySummaries() {
-		return showEmptySummaries;
-	}
-	public void setShowEmptySummaries(boolean showEmptySummaries) {
-		this.showEmptySummaries = showEmptySummaries;
-	}
-	protected boolean showAssignments = true;
-    public boolean isShowAssignments() {
-		return showAssignments;
-	}
-	public void setShowAssignments(boolean showAssignments) {
-		this.showAssignments = showAssignments;
-	}
 	
-	protected boolean preserveHierarchy = true;
-	public boolean isPreserveHierarchy() {
-		return preserveHierarchy;
-	}
-	public void setPreserveHierarchy(boolean preserveHierarchy) {
-		this.preserveHierarchy = preserveHierarchy;
-	}
 	
 	public <T extends HierarchicObject<T>> List<T> sortList(List<T> list,boolean preserverHierarchy){
 	    return sortHierarchically(list,this,preserverHierarchy);
@@ -155,24 +113,6 @@ private class ListFactory extends BasePoolableObjectFactory {
 	public void activateObject(Object arg0){ //claur{
 	}
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     public void setRedefinitionCallBack(Consumer<Object> callback){}
 	

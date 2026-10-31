@@ -40,20 +40,49 @@ import java.util.logging.Logger;
 public abstract class CommonTransform {
 	protected static final Logger logger = Logger.getLogger(CommonTransform.class.getName());
 
-    public abstract boolean isShowEmptyLines();
-    public abstract void setShowEmptyLines(boolean showEmptyLines);
-    public abstract boolean isShowEndEmptyLines();
-    public abstract void setShowEndEmptyLines(boolean showEndEmptyLines);
-    public abstract boolean isShowSummary();
-    public abstract void setShowSummary(boolean showSummary);
-    public abstract boolean isShowEmptySummaries();
-    public abstract void setShowEmptySummaries(boolean showEmptySummaries);
-//    public abstract boolean isShowBadBranches();
-//    public abstract void setShowBadBranches(boolean showBadBranches);
-    public abstract boolean isShowAssignments();
-	public abstract void setShowAssignments(boolean showAssignments);
-	public abstract boolean isPreserveHierarchy();
-	public abstract void setPreserveHierarchy(boolean preserveHierarchy);
+	/** Display options shared by every filter, sorter, transformer and factory; all default to showing. */
+	protected boolean showEmptyLines = true;
+	protected boolean showEndEmptyLines = true;
+	protected boolean showSummary = true;
+	protected boolean showEmptySummaries = true;
+	protected boolean showAssignments = true;
+	protected boolean preserveHierarchy = true;
+	public boolean isShowEmptyLines() {
+		return showEmptyLines;
+	}
+	public void setShowEmptyLines(boolean showEmptyLines) {
+		this.showEmptyLines = showEmptyLines;
+	}
+	public boolean isShowEndEmptyLines() {
+		return showEndEmptyLines;
+	}
+	public void setShowEndEmptyLines(boolean showEndEmptyLines) {
+		this.showEndEmptyLines = showEndEmptyLines;
+	}
+	public boolean isShowSummary() {
+		return showSummary;
+	}
+	public void setShowSummary(boolean showSummary) {
+		this.showSummary = showSummary;
+	}
+	public boolean isShowEmptySummaries() {
+		return showEmptySummaries;
+	}
+	public void setShowEmptySummaries(boolean showEmptySummaries) {
+		this.showEmptySummaries = showEmptySummaries;
+	}
+	public boolean isShowAssignments() {
+		return showAssignments;
+	}
+	public void setShowAssignments(boolean showAssignments) {
+		this.showAssignments = showAssignments;
+	}
+	public boolean isPreserveHierarchy() {
+		return preserveHierarchy;
+	}
+	public void setPreserveHierarchy(boolean preserveHierarchy) {
+		this.preserveHierarchy = preserveHierarchy;
+	}
     protected Transformer composition=null;
     public Transformer getComposition() {
         return composition;
