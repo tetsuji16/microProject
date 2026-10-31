@@ -26,14 +26,18 @@ package com.microproject.pm.graphic.network.layout;
 
 import java.awt.Rectangle;
 import java.util.EventListener;
+import java.util.function.Consumer;
 
 import javax.swing.event.EventListenerList;
 
+import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.event.CompositeCacheEvent;
 import com.microproject.pm.graphic.network.NetworkParams;
 import com.microproject.document.ObjectEvent;
+import com.microproject.graphic.configuration.BarFormat;
 import com.microproject.graphic.configuration.BarStyles;
+import com.microproject.graphic.configuration.TexturedShape;
 import com.microproject.pm.scheduling.ScheduleEvent;
 
 /**
@@ -57,6 +61,30 @@ public abstract class AbstractNetworkLayout implements NetworkLayout {
 	}
 	
 	public abstract void updateBounds();
+
+	protected TexturedShapeFinder texturedShapeFinder=new TexturedShapeFinder();
+	protected class TexturedShapeFinder implements Consumer<Object>{
+		protected BarFormat format;
+		protected GraphicNode node;
+		protected TexturedShape shape;
+		void initialize(GraphicNode node) {
+			this.node = node;
+			shape=null;
+		}
+		public void accept(Object arg0) {
+			format = (BarFormat)arg0;
+			if (format.getMiddle()!=null)
+				shape=format.getMiddle();
+		}
+		public TexturedShape getShape(){
+			return shape;
+		}
+	}
+	protected TexturedShape findShape(GraphicNode node){
+		texturedShapeFinder.initialize(node);
+		barStyles.apply(node.getNode().getImpl(),texturedShapeFinder);
+		return texturedShapeFinder.getShape();
+	}
 	
 	
 	

@@ -26,10 +26,8 @@ package com.microproject.script;
 
 import java.util.Iterator;
 
-import com.microproject.configuration.Dictionary;
 import com.microproject.field.Field;
 import com.microproject.graphic.configuration.SpreadSheetFieldArray;
-import com.microproject.strings.Messages;
 
 public class FieldArrayUtil {
 	public static final String HIDDEN_SUFFIX="_Hidden";
@@ -59,9 +57,9 @@ public class FieldArrayUtil {
 	public static SpreadSheetFieldArray getFieldArray(int type, String id){
 		if (id==null) return null;
 		String category=typetoCategory(type);
-		Object o=getFromId(category, id);
+		Object o=SpreadSheetFieldArray.getFromId(category, id);
 		if (o==null) {
-			o=getFromId(category+SERVER_SUFFIX,id);
+			o=SpreadSheetFieldArray.getFromId(category+SERVER_SUFFIX,id);
 		}
 		if (o == null)
 			return null;
@@ -70,7 +68,7 @@ public class FieldArrayUtil {
 	public static SpreadSheetFieldArray getHiddenFieldArray(int type, String id){
 		if (id==null) return null;
 		String category=typetoHiddenCategory(type);
-		Object o=getFromId(category, id);
+		Object o=SpreadSheetFieldArray.getFromId(category, id);
 		if (o==null) return null;
 		else return removeNonWebFields((SpreadSheetFieldArray)o);
 	}
@@ -88,13 +86,5 @@ public class FieldArrayUtil {
 
 		else return null;
 	}
-	//more general than SpreadSheetFieldArray.getFromId, useful?
-	private static final Object getFromId(String category, String id) {
-		Object result = Dictionary.get(category, Messages.getString(id));
-		if (result == null)
-			result = Dictionary.get(category, id);
-		return result;
-	}
-
 
 }

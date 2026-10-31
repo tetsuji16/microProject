@@ -23,6 +23,8 @@ class RuntimeErrorLoggingTest {
 				null, "Linux", "/home/test"));
 		assertEquals(Path.of("C:/Users/home/AppData/Local/microProject/logs"), RuntimeErrorLogging.defaultLogDirectory(
 				null, "Windows 11", "C:/Users/home"));
+		assertEquals(Path.of("/Users/test/.microproject/logs"), RuntimeErrorLogging.defaultLogDirectory(
+				null, "Darwin", "/Users/test"));
 	}
 
 	@Test

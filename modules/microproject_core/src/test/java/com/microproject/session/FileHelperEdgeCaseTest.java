@@ -81,4 +81,11 @@ class FileHelperEdgeCaseTest {
 		assertFalse(message.contains("pod format"));
 	}
 
+	@Test
+	void extensionDefaultAppliesWhenNameHasNoUsableExtension() {
+		assertEquals("mpp", FileHelper.getFileExtension("a.MPP", "xml"));
+		assertEquals("xml", FileHelper.getFileExtension("a", "xml"));
+		assertEquals("xml", FileHelper.getFileExtension("a.", "xml"));
+		assertEquals("xml", FileHelper.getFileExtension(null, "xml"));
+	}
 }

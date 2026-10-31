@@ -37,12 +37,38 @@ public interface NetworkParams extends GraphParams,NetworkLayoutListener{
 	public AffineTransform getTransform();
 	public int getZoom();
 
-	public GeneralPath scale(GeneralPath path);
-	public Point2D scale(Point2D p);
-	public Point2D scaleVector(Point2D p);
-	public Point2D scaleVector_1(Point2D p);
-	
-	public Rectangle scale(Rectangle r);
+	public default GeneralPath scale(GeneralPath path){
+		if (path == null)
+			return null;
+		GeneralPath transformed=(GeneralPath)path.clone();
+		transformed.transform(getTransform());
+		return transformed;
+	}
+	public default Point2D scale(Point2D p){
+		AffineTransform t=getTransform();
+		return new Point2D.Double(p.getX()*t.getScaleX()+t.getTranslateX(),p.getY()*t.getScaleY()+t.getTranslateY());
+	}
+	public default Point2D scaleVector(Point2D p){
+		AffineTransform t=getTransform();
+		return new Point2D.Double(p.getX()*t.getScaleX(),p.getY()*t.getScaleY());
+	}
+	public default Point2D scaleVector_1(Point2D p){
+		AffineTransform t=getTransform();
+		return new Point2D.Double(p.getX()/t.getScaleX(),p.getY()/t.getScaleY());
+	}
+
+	public default Rectangle scale(Rectangle r){
+		AffineTransform t=getTransform();
+		if (t==null) return r;
+		Rectangle sr=new Rectangle();
+		sr.setFrameFromDiagonal(
+				r.getMinX()*t.getScaleX()+t.getTranslateX(),
+				r.getMinY()*t.getScaleY()+t.getTranslateY(),
+				r.getMaxX()*t.getScaleX()+t.getTranslateX(),
+				r.getMaxY()*t.getScaleY()+t.getTranslateY()
+			);
+		return sr;
+	}
 	public NetworkLayout getNetworkLayout();
 	
 

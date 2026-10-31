@@ -66,6 +66,23 @@ public class DependencyDialog extends AbstractDialog {
 	boolean remove=false;
 	Dependency dependency;
 	
+	/** Asks which of several dependencies to act on; returns {@code null} when cancelled. */
+	public static Dependency chooseDependency(java.awt.Component parent, java.util.List<Dependency> dependencies) {
+		Object[] choices = new Object[dependencies.size()];
+		for (int i = 0; i < dependencies.size(); i++) {
+			Dependency dependency = dependencies.get(i);
+			choices[i] = dependency.getQualifiedPredecessorName() + " → "
+				+ dependency.getQualifiedSuccessorName() + " ("
+				+ DependencyType.toLongString(dependency.getDependencyKind()) + ")";
+		}
+		Object selected = JOptionPane.showInputDialog(parent,
+			Messages.getString("UnlinkDialog.SelectDependency"), Messages.getString("UnlinkDialog.Title"),
+			JOptionPane.PLAIN_MESSAGE, null, choices, choices[0]);
+		if (selected == null) return null;
+		for (int i = 0; i < choices.length; i++) if (choices[i].equals(selected)) return dependencies.get(i);
+		return null;
+	}
+
 	public static boolean doDialog(DependencyDialog dialog, Dependency dependency) {
 		dialog.setDependency(dependency);
 		boolean result;
