@@ -45,6 +45,9 @@ import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetUtils;
 import com.microproject.association.AssociationList;
 import com.microproject.configuration.Settings;
+import com.microproject.grouping.core.Node;
+import com.microproject.grouping.core.event.HierarchyEvent;
+import com.microproject.grouping.core.event.HierarchyListener;
 import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.pm.costing.CostRateTable;
 import com.microproject.pm.resource.Resource;
@@ -200,13 +203,45 @@ public class ResourceInformationDialog extends InformationDialog {
 	 * Availability and cost-rate rows are not DataObjects and their tables have no owner link, so a
 	 * committed cell edit would never reach the project's save state.  The resource pool is the
 	 * established owner of that state (ResourcePool.setGroupDirty marks every project using it).
+	 * Row removal and insertion never pass through the cell-commit path, so the rows' hierarchy
+	 * reports them; refilling the sheet for another resource only fires structureChanged or
+	 * adds the trailing void row, neither of which is an edit (#987).
 	 */
 	static void trackTableEdits(SpreadSheet sheet, java.util.function.Supplier<Object> resource) {
-		((SpreadSheetModel) sheet.getModel()).setCommittedValueListener(() -> {
+		Runnable markEdited = () -> {
 			if (resource.get() instanceof ResourceImpl resourceImpl) {
 				resourceImpl.setDirty(true);
 				if (resourceImpl.getResourcePool() != null)
 					resourceImpl.getResourcePool().setGroupDirty(true);
+			}
+		};
+		((SpreadSheetModel) sheet.getModel()).setCommittedValueListener(markEdited);
+		sheet.getCache().getModel().getHierarchy().addHierarchyListener(new HierarchyListener() {
+			@Override
+			public void nodesRemoved(HierarchyEvent e) {
+				markIfDataRows(e);
+			}
+
+			@Override
+			public void nodesInserted(HierarchyEvent e) {
+				markIfDataRows(e);
+			}
+
+			@Override
+			public void nodesChanged(HierarchyEvent e) {
+			}
+
+			@Override
+			public void structureChanged(HierarchyEvent e) {
+			}
+
+			private void markIfDataRows(HierarchyEvent e) {
+				for (Object node : e.getNodes()) {
+					if (node instanceof Node row && !row.isVoid()) {
+						markEdited.run();
+						return;
+					}
+				}
 			}
 		});
 	}
