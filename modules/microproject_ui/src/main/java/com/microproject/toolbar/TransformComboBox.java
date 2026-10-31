@@ -69,23 +69,12 @@ public class TransformComboBox extends JComboBox {
 			setSelectedItem(selectedItem);//JComboBox local state update
 		}
 	}
-	public Point getToolTipLocation(MouseEvent event) { // the tip MUST be touching the button if html because you can click on links
-		String tipText = getToolTipText();
-		if (tipText != null && tipText.startsWith("<html>"))
-			return new Point(0, getHeight()-2);
-		else
-			return super.getToolTipLocation(event);
+	public Point getToolTipLocation(MouseEvent event) {
+		return HyperLinkToolTip.isHtmlTip(getToolTipText()) ? HyperLinkToolTip.touchingLocation(this) : super.getToolTipLocation(event);
 	}
 
 	public JToolTip createToolTip() {
-		String tipText = getToolTipText();
-		if (tipText != null && tipText.startsWith("<html>")) {
-			JToolTip tip = new HyperLinkToolTip();
-			tip.setComponent(this);
-			return tip;
-		} else {
-			return super.createToolTip();
-		}
+		return HyperLinkToolTip.isHtmlTip(getToolTipText()) ? HyperLinkToolTip.createFor(this) : super.createToolTip();
 	}
 	
 	public void paintComponent(Graphics graphics) {

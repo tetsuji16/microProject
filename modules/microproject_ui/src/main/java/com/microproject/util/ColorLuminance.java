@@ -6,9 +6,36 @@ package com.microproject.util;
 
 import java.awt.Color;
 
-/** WCAG relative luminance, shared by the callers that pick readable text colours. */
+/**
+ * Shared colour maths: WCAG relative luminance, the single light/dark
+ * classification and the single RGB mix used by theme and palette code.
+ */
 public final class ColorLuminance {
 	private ColorLuminance() {
+	}
+
+	/**
+	 * Relative luminance at which black and white text have equal WCAG contrast;
+	 * colours at or below it are dark (white text reads better on them).
+	 */
+	public static final double DARK_LUMINANCE_THRESHOLD = 0.179;
+
+	/** The one dark/light classification: a null colour is not dark. */
+	public static boolean isDark(Color color) {
+		return color != null && relativeLuminance(color) <= DARK_LUMINANCE_THRESHOLD;
+	}
+
+	/**
+	 * Returns {@code base * (1 - targetWeight) + target * targetWeight} per
+	 * channel (opaque result, weight clamped to 0..1, float arithmetic).
+	 */
+	public static Color mix(Color base, Color target, float targetWeight) {
+		float weight = Math.max(0f, Math.min(1f, targetWeight));
+		float baseWeight = 1f - weight;
+		int red = Math.round(base.getRed() * baseWeight + target.getRed() * weight);
+		int green = Math.round(base.getGreen() * baseWeight + target.getGreen() * weight);
+		int blue = Math.round(base.getBlue() * baseWeight + target.getBlue() * weight);
+		return new Color(red, green, blue);
 	}
 
 	public static double relativeLuminance(Color color) {

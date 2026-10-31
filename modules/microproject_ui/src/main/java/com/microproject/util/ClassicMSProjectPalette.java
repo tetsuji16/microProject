@@ -171,12 +171,7 @@ public class ClassicMSProjectPalette implements GanttColorPalette {
     }
 
     private static Color mix(Color color, Color target, float ratio) {
-        float weight = Math.max(0f, Math.min(1f, ratio));
-        float targetWeight = 1f - weight;
-        int red = Math.round(color.getRed() * targetWeight + target.getRed() * weight);
-        int green = Math.round(color.getGreen() * targetWeight + target.getGreen() * weight);
-        int blue = Math.round(color.getBlue() * targetWeight + target.getBlue() * weight);
-        return new Color(red, green, blue);
+        return ColorLuminance.mix(color, target, ratio);
     }
 
     private static Color withAlpha(Color color, int alpha) {
