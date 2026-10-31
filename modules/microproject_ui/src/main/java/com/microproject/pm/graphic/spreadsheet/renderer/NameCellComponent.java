@@ -200,6 +200,24 @@ public class NameCellComponent extends JPanel {
 				new Dimension(width, Short.MAX_VALUE));
 		if (offline) invalidate(); //needed for offline, otherwise filler don't change
 	}
+	/**
+	 * Single name-cell content setup shared by the renderer and the in-place editor:
+	 * text, outline level, icon and the task text style (same as SimpleRenderer cells).
+	 */
+	public void setupNode(CommonSpreadSheetModel model, GraphicNode node, Object value, boolean isSelected) {
+		setText(value == null ? "" : value.toString());
+		int nodeLevel = model.getCache().getLevel(node);
+		setLevel((node.isVoid()) ? (nodeLevel + 1) : nodeLevel);
+		setLazy(node.isLazyParent());
+		setFetched(node.isFetched());
+		if (model.getCellProperties(node).isCompositeIcon()) {
+			setCollapsed(node.isCollapsed());
+		} else {
+			setLeaf(node.isVoid());
+		}
+		FontManager.setComponentFont(model.getCellProperties(node), this);
+		TaskFontStyle.apply(this, node.getNode() == null ? null : node.getNode().getImpl(), isSelected);
+	}
 	public static NameCellComponent getInstance() {
 		NameCellComponent instance = new NameCellComponent();
 		instance.init();
@@ -262,20 +280,7 @@ public class NameCellComponent extends JPanel {
 				column, component);
 		// row-grid overlay is applied centrally in CellUtility.setAppearance (issue #349)
 		CommonSpreadSheetModel model = (CommonSpreadSheetModel) table.getModel();
-		GraphicNode node = model.getNode(row);
-		component.setText(value == null ? "" : value.toString());
-		int level=model.getCache().getLevel(node);
-		component.setLevel((node.isVoid())?(level+1):level);
-		component.setLazy(node.isLazyParent());
-		component.setFetched(node.isFetched());
-		if (model.getCellProperties(node).isCompositeIcon()) {
-			component.setCollapsed(node.isCollapsed());
-		} else {
-			component.setLeaf(node.isVoid());
-		}
-		FontManager.setComponentFont(model.getCellProperties(node),component);
-		// The task-name column must show the same task text style as SimpleRenderer cells.
-		TaskFontStyle.apply(component, node.getNode() == null ? null : node.getNode().getImpl(), isSelected);
+		component.setupNode(model, model.getNode(row), value, isSelected);
 		component.doLayout();
 		return component;
 	}
