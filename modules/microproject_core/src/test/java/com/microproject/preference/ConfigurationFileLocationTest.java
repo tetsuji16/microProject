@@ -30,4 +30,16 @@ class ConfigurationFileLocationTest {
 		assertEquals(legacy.toFile(), ConfigurationFile.findConfigurationFile(home.toFile(), "run.conf"));
 		assertNull(ConfigurationFile.findConfigurationFile(home.toFile(), "missing.conf"));
 	}
+
+	@Test void localeCodesParseWithoutReplacingTheCachedLocale() {
+		java.util.Locale cached = ConfigurationFile.getLocale("fr_CA");
+		assertEquals(cached, ConfigurationFile.getLocale("fr_CA"));
+		assertArrayEquals(new String[] { "ja", null, null }, ConfigurationFile.getLocaleCodes("ja"));
+		assertArrayEquals(new String[] { "en", "US", null }, ConfigurationFile.getLocaleCodes("en-US"));
+		assertArrayEquals(new String[] { "en", "US", "POSIX" }, ConfigurationFile.getLocaleCodes("en_US_POSIX"));
+		assertArrayEquals(new String[] { null, null, null }, ConfigurationFile.getLocaleCodes(""));
+		assertEquals(cached, ConfigurationFile.getLocale(), "getLocaleCodes must not overwrite the cached locale");
+		assertEquals(new java.util.Locale("en", "US", "POSIX"), ConfigurationFile.getLocale("en_US_POSIX"));
+		ConfigurationFile.getLocale(java.util.Locale.getDefault().toLanguageTag());
+	}
 }

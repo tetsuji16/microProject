@@ -59,6 +59,7 @@ import com.microproject.pm.scheduling.ScheduleService;
 import com.microproject.strings.Messages;
 import com.microproject.transaction.ModelTransaction;
 import com.microproject.transaction.ProjectMutationState;
+import static com.microproject.util.IdentityCollections.addIdentity;
 
 /**
  * Deterministic resource-leveling engine. It delays lower-ranked, unstarted
@@ -356,10 +357,6 @@ public final class ResourceLevelingService {
 			for (AssignmentSplit split : assignmentSplits) addIdentity(result, split.assignment().getTask());
 			for (Assignment assignment : clearGeneratedAssignmentSplits) addIdentity(result, assignment.getTask());
 			return List.copyOf(result);
-		}
-
-		private static void addIdentity(List<Task> tasks, Task candidate) {
-			if (candidate != null && tasks.stream().noneMatch(task -> task == candidate)) tasks.add(candidate);
 		}
 
 		private static void rollbackBatches(List<Project> openedScopes, List<Project> openedBatches,
@@ -1017,15 +1014,21 @@ public final class ResourceLevelingService {
 
 	private static boolean isOverallocated(long start, long end, Assignment candidate,
 		Resource resource, Sensitivity sensitivity, LevelingScratch scratch) {
+		return firstOverallocatedBucket(start, end, candidate, resource, sensitivity, scratch) != null;
+	}
+
+	/** Returns the start of the first bucket whose load exceeds the resource capacity, or {@code null}. */
+	private static Long firstOverallocatedBucket(long start, long end, Assignment candidate,
+		Resource resource, Sensitivity sensitivity, LevelingScratch scratch) {
 		for (long bucketStart = periodStart(start, sensitivity); bucketStart < end;
 			bucketStart = nextPeriodStart(bucketStart, sensitivity)) {
 			long bucketEnd = nextPeriodStart(bucketStart, sensitivity);
 			double load = assignmentLoad(candidate, start, end, bucketStart, bucketEnd, scratch)
 				+ scratch.bucketLoads.getOrDefault(bucketStart, 0D);
 			double available = bucketCapacity(resource, bucketStart, bucketEnd, scratch.bucketCapacities);
-			if (load > available + 1D) return true;
+			if (load > available + 1D) return Long.valueOf(bucketStart);
 		}
-		return false;
+		return null;
 	}
 
 	static boolean exceedsBucketLimit(long start, long end, Sensitivity sensitivity) {
@@ -1101,16 +1104,8 @@ public final class ResourceLevelingService {
 
 	private static Scheduled firstBlockingInterval(long start, long end, Assignment candidate,
 		Resource resource, Sensitivity sensitivity, LevelingScratch scratch) {
-		for (long bucketStart = periodStart(start, sensitivity); bucketStart < end;
-			bucketStart = nextPeriodStart(bucketStart, sensitivity)) {
-			long bucketEnd = nextPeriodStart(bucketStart, sensitivity);
-			double load = assignmentLoad(candidate, start, end, bucketStart, bucketEnd, scratch)
-				+ scratch.bucketLoads.getOrDefault(bucketStart, 0D);
-			double available = bucketCapacity(resource, bucketStart, bucketEnd, scratch.bucketCapacities);
-			if (load <= available + 1D) continue;
-			return scratch.firstBucketAssignments.get(bucketStart);
-		}
-		return null;
+		Long bucketStart = firstOverallocatedBucket(start, end, candidate, resource, sensitivity, scratch);
+		return bucketStart == null ? null : scratch.firstBucketAssignments.get(bucketStart);
 	}
 
 	private static double bucketCapacity(Resource resource, long bucketStart, long bucketEnd, Map<Long, Double> cache) {

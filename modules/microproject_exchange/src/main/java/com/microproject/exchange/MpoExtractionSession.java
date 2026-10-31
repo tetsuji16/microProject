@@ -8,13 +8,14 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Stream;
 
 import com.microproject.temporary.ProcessIdentity;
+import com.microproject.temporary.TemporaryRoot;
+import com.microproject.util.SafeFileReplace;
 
 /**
  * Owns one MPO embedded-project extraction lifetime.
@@ -25,7 +26,6 @@ import com.microproject.temporary.ProcessIdentity;
  * embedded projects have been closed.</p>
  */
 public final class MpoExtractionSession implements AutoCloseable {
-	private static final String ROOT_PROPERTY = "microproject.temporary-root";
 	private static final String DIRECTORY_PREFIX = "microProject-temp-mpof-";
 	private static final String MANIFEST_SUFFIX = ".manifest";
 	private static final String RETRY_SUFFIX = ".delete";
@@ -44,11 +44,7 @@ public final class MpoExtractionSession implements AutoCloseable {
 
 	/** Returns the same per-user root convention used by TemporaryWorkspace. */
 	public static Path defaultWorkspaceRoot() {
-		String override = System.getProperty(ROOT_PROPERTY);
-		if (override != null && !override.isBlank()) return Path.of(override);
-		String localAppData = System.getenv("LOCALAPPDATA");
-		if (localAppData != null && !localAppData.isBlank()) return Path.of(localAppData, "microProject", "temp");
-		return Path.of(System.getProperty("user.home", "."), "AppData", "Local", "microProject", "temp");
+		return TemporaryRoot.defaultRoot();
 	}
 
 	/** Creates an extraction directory below the supplied application workspace root. */
@@ -61,11 +57,7 @@ public final class MpoExtractionSession implements AutoCloseable {
 		try {
 			Files.writeString(part, session.manifestContents("open"),
 					java.nio.charset.StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
-			try {
-				Files.move(part, session.manifest, StandardCopyOption.ATOMIC_MOVE);
-			} catch (java.nio.file.AtomicMoveNotSupportedException exception) {
-				Files.move(part, session.manifest, StandardCopyOption.REPLACE_EXISTING);
-			}
+			SafeFileReplace.moveAtomically(part, session.manifest, false);
 			return session;
 		} catch (IOException | RuntimeException exception) {
 			deleteWithRetry(part);
@@ -113,11 +105,7 @@ public final class MpoExtractionSession implements AutoCloseable {
 		try {
 			Files.writeString(part, manifestContents("closed"), java.nio.charset.StandardCharsets.UTF_8,
 					StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
-			try {
-				Files.move(part, manifest, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-			} catch (java.nio.file.AtomicMoveNotSupportedException exception) {
-				Files.move(part, manifest, StandardCopyOption.REPLACE_EXISTING);
-			}
+			SafeFileReplace.moveAtomically(part, manifest, true);
 		} catch (IOException exception) {
 			// Deletion still proceeds. If the manifest remains open, its process
 			// identity prevents this process from reclaiming it; a later process can

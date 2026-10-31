@@ -44,6 +44,7 @@ import com.microproject.collaboration.CollaborationMetadataStore.Metadata;
 import com.microproject.collaboration.CollaborationMetadataStore.UserRecord;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
+import com.microproject.session.FileHelper;
 import com.microproject.util.SafeObjectInput;
 import com.microproject.workspace.WorkspaceSetting;
 
@@ -430,7 +431,7 @@ public class CollaborationSession {
 	}
 
 	private boolean isMpoProject() {
-		return projectFile != null && projectFile.getName().toLowerCase(java.util.Locale.ROOT).endsWith(".mpo");
+		return projectFile != null && FileHelper.isMpoFile(projectFile.getName());
 	}
 
 	public void afterSave() {

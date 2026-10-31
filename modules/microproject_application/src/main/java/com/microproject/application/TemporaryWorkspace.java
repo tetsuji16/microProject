@@ -8,7 +8,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.time.Instant;
@@ -24,6 +23,8 @@ import java.util.stream.Stream;
 
 import com.microproject.temporary.TemporaryCleanupQueue;
 import com.microproject.temporary.ProcessIdentity;
+import com.microproject.temporary.TemporaryRoot;
+import com.microproject.util.SafeFileReplace;
 
 /**
  * Owns process-scoped temporary artifacts outside the project directory.
@@ -32,7 +33,6 @@ import com.microproject.temporary.ProcessIdentity;
  */
 public final class TemporaryWorkspace implements AutoCloseable {
 	public static final Duration DEFAULT_RETENTION = Duration.ofDays(7);
-	private static final String ROOT_PROPERTY = "microproject.temporary-root";
 	private static final String FILE_PREFIX = "microProject-temp-";
 	private static final String MANIFEST_SUFFIX = ".manifest";
 	private static final String RETRY_SUFFIX = ".delete";
@@ -170,11 +170,7 @@ public final class TemporaryWorkspace implements AutoCloseable {
 	}
 
 	private static Path defaultRoot() {
-		String override = System.getProperty(ROOT_PROPERTY);
-		if (override != null && !override.isBlank()) return Path.of(override);
-		String localAppData = System.getenv("LOCALAPPDATA");
-		if (localAppData != null && !localAppData.isBlank()) return Path.of(localAppData, "microProject", "temp");
-		return Path.of(System.getProperty("user.home", "."), "AppData", "Local", "microProject", "temp");
+		return TemporaryRoot.defaultRoot();
 	}
 
 	private static String safeComponent(String value, String fallback) {
@@ -211,7 +207,7 @@ public final class TemporaryWorkspace implements AutoCloseable {
 			StringBuilder content = new StringBuilder();
 			values.forEach((key, value) -> content.append(key).append('=').append(value).append('\n'));
 			Files.writeString(temporary, content, StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
-			moveAtomically(temporary, manifest);
+			SafeFileReplace.moveAtomically(temporary, manifest, true);
 		} finally {
 			deleteQuietly(temporary, "partial temporary manifest");
 		}
@@ -371,14 +367,6 @@ public final class TemporaryWorkspace implements AutoCloseable {
 
 	private static Path manifestPath(Path artifact) {
 		return artifact.resolveSibling(artifact.getFileName() + MANIFEST_SUFFIX);
-	}
-
-	private static void moveAtomically(Path source, Path target) throws IOException {
-		try {
-			Files.move(source, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-		} catch (java.nio.file.AtomicMoveNotSupportedException ex) {
-			Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
-		}
 	}
 
 	private static void deleteQuietly(Path path, String description) {

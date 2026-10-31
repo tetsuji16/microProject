@@ -28,6 +28,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import com.microproject.session.FileHelper;
 import com.microproject.util.SafeFileReplace;
 import com.microproject.temporary.TemporaryCleanupQueue;
 import java.nio.file.Files;
@@ -39,7 +40,6 @@ import java.util.Map;
 
 
 import com.microproject.core.pm.exchange.MspImporter;
-import com.microproject.pm.calendar.CalendarOptions;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.scheduling.ScheduleFrom;
 import com.microproject.pm.task.Task;
@@ -204,6 +204,14 @@ public class MicrosoftImporter extends FileImporter {
 		}
 		plProject=plImporter.importProject(in, extension,
 			(progress, label) -> setProgress(progress * 0.1f));
+		requireImportedProject();
+		logger.info(plProject.toString());
+
+		setProgress(0.2f);
+		setProgress(1f);
+
+	}
+	private void requireImportedProject() throws Exception {
 		if (plProject == null) {
 			String errorText = (errorDescription == null) ? Messages.getString("Message.ImportError") : errorDescription; //$NON-NLS-1$
 			if (jobRunnable != null) {
@@ -213,11 +221,6 @@ public class MicrosoftImporter extends FileImporter {
 
 			throw lastException == null ? new Exception("Failed to import file") : lastException; //$NON-NLS-1$
 		}
-		logger.info(plProject.toString());
-
-		setProgress(0.2f);
-		setProgress(1f);
-
 	}
 	public void parse() throws Exception {
 		try {
@@ -259,15 +262,7 @@ public class MicrosoftImporter extends FileImporter {
 			plProject=plImporter.importProject(fileInputStream, getFileExtension(), progress);
 		}
 
-		if (plProject == null) {
-			String errorText = (errorDescription == null) ? Messages.getString("Message.ImportError") : errorDescription; //$NON-NLS-1$
-			if (jobRunnable != null) {
-				jobRunnable.getJob().error(errorText,false);
-				jobRunnable.getJob().cancel();
-			}
-
-			throw lastException == null ? new Exception("Failed to import file") : lastException; //$NON-NLS-1$
-		}
+		requireImportedProject();
 		logger.info(plProject.toString());
 
 		setProgress(0.2f);
@@ -374,14 +369,7 @@ public class MicrosoftImporter extends FileImporter {
 	}
 
 	private String getFileExtension(String name) {
-		if (name == null) {
-			return "xml"; //$NON-NLS-1$
-		}
-		int extensionPosition = name.lastIndexOf('.');
-		if (extensionPosition == -1 || extensionPosition == name.length() - 1) {
-			return "xml"; //$NON-NLS-1$
-		}
-		return name.substring(extensionPosition + 1).toLowerCase(java.util.Locale.ROOT);
+		return FileHelper.getFileExtension(name, "xml"); //$NON-NLS-1$
 	}
 
 
@@ -454,9 +442,6 @@ public class MicrosoftImporter extends FileImporter {
 	void applyImportedTrackingFields(Task task, NormalTask opTask) {
 	}
 
-	private double clampProgress(double value) {
-		return Math.max(0.0d, Math.min(1.0d, value));
-	}
 
 	protected double assignmentPercentFactor() {
 		return 100.0;

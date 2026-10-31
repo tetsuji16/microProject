@@ -140,7 +140,7 @@ public final class AlternativeCalendarDisplay {
 	}
 
 	private static Chronology readWindowsCalendar() {
-		if (!System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("windows"))
+		if (!Environment.isWindows())
 			return null;
 		try {
 			Process process = new ProcessBuilder("reg.exe", "query", "HKCU\\Control Panel\\International",

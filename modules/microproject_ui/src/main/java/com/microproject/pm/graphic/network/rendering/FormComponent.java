@@ -64,6 +64,7 @@ import com.microproject.strings.Messages;
 import com.microproject.ui.theme.MicroProjectTheme;
 import com.microproject.ui.theme.MicroProjectThemeTokens;
 import com.microproject.util.Alert;
+import com.microproject.util.ColorLuminance;
 import com.microproject.util.FlatUiSupport;
 
 public class FormComponent extends JPanel{
@@ -215,22 +216,13 @@ public class FormComponent extends JPanel{
 	private record RepresentativeFill(Paint paint, Color color) {}
 
 	private static double contrastRatio(Color foreground, Color background) {
-		double foregroundLuminance = relativeLuminance(foreground);
-		double backgroundLuminance = relativeLuminance(background);
+		double foregroundLuminance = ColorLuminance.relativeLuminance(foreground);
+		double backgroundLuminance = ColorLuminance.relativeLuminance(background);
 		double lighter = Math.max(foregroundLuminance, backgroundLuminance);
 		double darker = Math.min(foregroundLuminance, backgroundLuminance);
 		return (lighter + 0.05d) / (darker + 0.05d);
 	}
 
-	private static double relativeLuminance(Color color) {
-		return 0.2126d * linearize(color.getRed() / 255d)
-			+ 0.7152d * linearize(color.getGreen() / 255d)
-			+ 0.0722d * linearize(color.getBlue() / 255d);
-	}
-
-	private static double linearize(double channel) {
-		return channel <= 0.04045d ? channel / 12.92d : Math.pow((channel + 0.055d) / 1.055d, 2.4d);
-	}
 	
 	
 	public Component getComponent(String fieldId){

@@ -25,8 +25,6 @@
 package com.microproject.core.util;
 
 import java.lang.reflect.InvocationTargetException;
-import java.util.Locale;
-import java.util.ResourceBundle;
 
 /**
  * @author Laurent Chretienneau
@@ -37,14 +35,6 @@ public class ResourceUtil {
 		return ResourceUtil.class.getClassLoader();
 	}
 
-	public static ResourceBundle[] getBundles(String...bundleNames){
-		ResourceBundle[] bundles=new ResourceBundle[bundleNames.length];
-		int i=0;
-		for (String bundleName : bundleNames)
-			bundles[i++]=ResourceBundle.getBundle(bundleName,Locale.getDefault(),getClassLoader());
-		return bundles;
-	}
-	
 	public static Object createObject(String simpleClassName, String...packages){
 		for (String p : packages){
 			try {

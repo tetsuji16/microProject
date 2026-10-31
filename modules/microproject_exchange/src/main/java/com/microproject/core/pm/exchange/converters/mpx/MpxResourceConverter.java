@@ -29,7 +29,6 @@ import java.util.Date;
 import com.microproject.datatype.Duration;
 import com.microproject.datatype.DurationDefaults;
 import com.microproject.datatype.Rate;
-import com.microproject.datatype.TimeUnit;
 import com.microproject.interval.ValueObjectForInterval;
 import com.microproject.pm.costing.CostRate;
 import com.microproject.pm.calendar.WorkCalendar;
@@ -139,22 +138,7 @@ public class MpxResourceConverter {
 
 	private static Rate fromMpxRate(net.sf.mpxj.Rate rate, DurationDefaults defaults) {
 		if (rate == null) return new Rate();
-		int unit = switch (rate.getUnits()) {
-			case MINUTES -> TimeUnit.MINUTES;
-			case HOURS -> TimeUnit.HOURS;
-			case DAYS -> TimeUnit.DAYS;
-			case WEEKS -> TimeUnit.WEEKS;
-			case MONTHS -> TimeUnit.MONTHS;
-			case YEARS -> TimeUnit.YEARS;
-			case PERCENT -> TimeUnit.PERCENT;
-			case ELAPSED_MINUTES -> TimeUnit.ELAPSED_MINUTES;
-			case ELAPSED_HOURS -> TimeUnit.ELAPSED_HOURS;
-			case ELAPSED_DAYS -> TimeUnit.ELAPSED_DAYS;
-			case ELAPSED_WEEKS -> TimeUnit.ELAPSED_WEEKS;
-			case ELAPSED_MONTHS -> TimeUnit.ELAPSED_MONTHS;
-			case ELAPSED_YEARS -> TimeUnit.ELAPSED_YEARS;
-			case ELAPSED_PERCENT -> TimeUnit.ELAPSED_PERCENT;
-		};
+		int unit = MpxUtils.toProjectTimeUnit(rate.getUnits());
 		return new Rate(rate.getAmount() / Duration.timeUnitFactor(unit, defaults), unit);
 	}
 }
