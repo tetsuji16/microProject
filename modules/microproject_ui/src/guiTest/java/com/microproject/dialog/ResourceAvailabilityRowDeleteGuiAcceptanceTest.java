@@ -132,7 +132,7 @@ class ResourceAvailabilityRowDeleteGuiAcceptanceTest {
 		Rectangle[] secondRow = new Rectangle[1];
 		SwingUtilities.invokeAndWait(() -> secondRow[0] = sheet.getCellRect(1, 1, true));
 		click(robot, sheet, secondRow[0], InputEvent.BUTTON3_DOWN_MASK);
-		GuiAcceptanceSupport.await(() -> sheet.getPopup() != null && sheet.getPopup().isVisible(),
+		GuiAcceptanceSupport.await(() -> popupVisible(sheet),
 				"Physical right-click did not open the availability row popup");
 		SpreadSheetPopupMenu popup = sheet.getPopup();
 		assertEquals(1, popup.getRow(), "Popup context must resolve the clicked row");
@@ -145,6 +145,16 @@ class ResourceAvailabilityRowDeleteGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> table.getList().size() == 1, "Popup Delete did not remove the availability row");
 		GuiAcceptanceSupport.await(() -> sheet.getRowCount() == 2, "The table must render one data row and the void row");
 		assertTrue(project.needsSaving(), "Removing an availability row must prompt to save");
+	}
+
+	private static boolean popupVisible(SpreadSheet sheet) {
+		boolean[] visible = new boolean[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> visible[0] = sheet.getPopup() != null && sheet.getPopup().isVisible());
+		} catch (Exception e) {
+			throw new IllegalStateException(e);
+		}
+		return visible[0];
 	}
 
 	private static void click(Robot robot, Component component, Rectangle area, int button) throws Exception {
