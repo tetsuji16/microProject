@@ -36,6 +36,7 @@ import com.microproject.pm.graphic.spreadsheet.renderer.NameCellComponent;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.task.Task;
+import com.microproject.session.SessionFactory;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.testsupport.GuiRobot;
 import com.microproject.testsupport.WindowAcceptanceAssertions;
@@ -59,6 +60,7 @@ class AutoRecoveryGuiAcceptanceTest {
 		Preferences prefs = new MemoryPreferences();
 		prefs.putBoolean(AutoRecoveryManager.ENABLED_PREFERENCE, true);
 		ProjectFactory factory = ProjectFactory.getInstance();
+		var previousJobQueue = SessionFactory.getInstance().getJobQueue();
 		MainRibbonFrame[] window = new MainRibbonFrame[1];
 		GraphicManager[] manager = new GraphicManager[1];
 		try {
@@ -67,6 +69,8 @@ class AutoRecoveryGuiAcceptanceTest {
 				manager[0] = new GraphicManager(window[0], temp.resolve("workspace"), store, prefs);
 				window[0].setGraphicManager(manager[0]);
 				manager[0].initView();
+				// Production wires the session queue in StartupFactory; recovery saves and Ctrl+S need it.
+				SessionFactory.getInstance().setJobQueue(manager[0].getJobQueue());
 				factory.addProject(original, false, false);
 				manager[0].addProjectFrame(original);
 				window[0].setSize(1120, 700);
@@ -98,6 +102,8 @@ class AutoRecoveryGuiAcceptanceTest {
 				manager[0] = new GraphicManager(window[0], temp.resolve("workspace"), store, prefs);
 				window[0].setGraphicManager(manager[0]);
 				manager[0].initView();
+				// Production wires the session queue in StartupFactory; recovery saves and Ctrl+S need it.
+				SessionFactory.getInstance().setJobQueue(manager[0].getJobQueue());
 				window[0].setSize(1120, 700);
 				window[0].setVisible(true);
 				manager[0].offerRecoveryAtStartup(outcome::set);
@@ -140,6 +146,7 @@ class AutoRecoveryGuiAcceptanceTest {
 			assertTrue(reloaded.getTaskList().stream().anyMatch(item -> "Final Task".equals(item.getName())));
 		} finally {
 			SwingUtilities.invokeAndWait(() -> { if (manager[0] != null) manager[0].cleanUp(); if (window[0] != null) window[0].dispose(); });
+			SessionFactory.getInstance().setJobQueue(previousJobQueue);
 		}
 	}
 
