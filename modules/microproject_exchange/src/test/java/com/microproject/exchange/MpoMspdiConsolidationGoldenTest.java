@@ -39,7 +39,7 @@ class MpoMspdiConsolidationGoldenTest {
 	/** SHA-256 per MPO entry (zip entry names sorted) and for the MSPDI export, captured pre-consolidation. */
 	private static final Map<String, String> GOLDEN = new TreeMap<>(Map.ofEntries(
 		Map.entry("mpo:META-INF/manifest.xml",
-			"a46f21f07590426e7bc5cf5925ca1cf2b061651cd1601f0ab18cac963aba6e5f"),
+			"61d8a018338fcd46de53980af75bec4d1e29cb7f9262ac02195548cfaa1ab524"),
 		Map.entry("mpo:ccpm/history.jsonl",
 			"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"),
 		Map.entry("mpo:changes/task-identities.json",
@@ -47,7 +47,7 @@ class MpoMspdiConsolidationGoldenTest {
 		Map.entry("mpo:content.xml",
 			"dbfdc16ac13ef1cecd9a0514a241ba0d289a8a2104dbfbb57e4611f2677fdbb8"),
 		Map.entry("mpo:meta.xml",
-			"4817955d2e433f40588437e0172cbb9a8c4edf61dff2875c76ef5c210e74acfc"),
+			"9e1c3c32896f620ab0b937a329af41c59eb219d98f14c7641116e33d15601f08"),
 		Map.entry("mpo:microproject/assignment-leveling-splits.json",
 			"d08651ac0d6ba728e312fd8a690ff3717bde335bf7876fe7f6677eecd5fd6171"),
 		Map.entry("mpo:microproject/baseline-profiles.json",
@@ -171,6 +171,7 @@ class MpoMspdiConsolidationGoldenTest {
 	 * (clock included), so that digest is masked, and likewise the baseline-profiles digest. profileUid comes from a
 	 * process-wide id counter and depends on which tests ran first, so it is masked too. XML line ends follow the OS.
 	 * The project default times shift with the default time zone (#989); drop that mask once it is fixed.
+	 * The application version comes from the build (-PreleaseVersion), so it and the meta.xml checksum are masked.
 	 */
 	private static byte[] withoutClock(byte[] bytes) {
 		return new String(bytes, StandardCharsets.UTF_8).replaceAll("<CurrentDate>[^<]*</CurrentDate>", "")
@@ -178,8 +179,9 @@ class MpoMspdiConsolidationGoldenTest {
 			.replace("\r\n", "\n")
 			.replaceAll("\"profileUid\":-?\\d+", "\"profileUid\":0")
 			.replaceAll("projectUniqueId=\"-?[0-9]+\"", "projectUniqueId=\"0\"")
+			.replaceAll(" applicationVersion=\"[^\"]*\"", "")
 			.replaceAll("projectSha256=\"[0-9a-f]+\"", "projectSha256=\"\"")
-			.replaceAll("(path=\"(?:content.xml|microproject/baseline-profiles.json)\" sha256=)\"[0-9a-f]+\"", "$1\"\"")
+			.replaceAll("(path=\"(?:content.xml|meta.xml|microproject/baseline-profiles.json)\" sha256=)\"[0-9a-f]+\"", "$1\"\"")
 			.getBytes(StandardCharsets.UTF_8);
 	}
 
