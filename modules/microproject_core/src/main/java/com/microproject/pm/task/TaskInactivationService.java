@@ -4,8 +4,6 @@
  ******************************************************************************/
 package com.microproject.pm.task;
 
-import com.microproject.transaction.ModelTransaction;
-import com.microproject.transaction.ProjectMutationState;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -51,70 +49,24 @@ public final class TaskInactivationService {
 		long changed = selected.stream().filter(task -> task.isInactiveTask() != inactive).count();
 		if (changed == 0) return new Result(0, ReversibleModelChange.unchanged());
 
-		ProjectTaskSnapshot[] before = new ProjectTaskSnapshot[1];
-		ProjectTaskSnapshot[] after = new ProjectTaskSnapshot[1];
-		try (ProjectMutationState.Scope mutation = project.getMutationState().begin()) {
-			project.beginEventBatch();
-			try {
-				ModelTransaction.execute(new ModelTransaction.Steps<ProjectTaskSnapshot, Integer>() {
-					@Override public void validate() { }
-					@Override public void authorize() {
-						if (project.isReadOnly()) throw new IllegalStateException("Cannot inactivate tasks in a read-only project");
+		ReversibleModelChange change = ProjectTaskMutation.run(project, ProjectTaskSnapshot::capture,
+			this, TaskInactivationService.class, "Inactivate", new ProjectTaskMutation.Operation() {
+				@Override public void authorize() {
+					if (project.isReadOnly()) throw new IllegalStateException("Cannot inactivate tasks in a read-only project");
+				}
+				@Override public void apply() {
+					for (Task task : selected) if (task.isInactiveTask() != inactive) {
+						task.setInactiveTask(inactive);
+						afterTaskTransition.accept(task);
 					}
-					@Override public ProjectTaskSnapshot capture() {
-						before[0] = ProjectTaskSnapshot.capture(project);
-						return before[0];
-					}
-					@Override public ModelTransaction.Mutation<Integer> apply() {
-						for (Task task : selected) if (task.isInactiveTask() != inactive) {
-							task.setInactiveTask(inactive);
-							afterTaskTransition.accept(task);
-						}
-						return ModelTransaction.Mutation.changed((int) changed);
-					}
-					@Override public void schedule() { project.recalculate(); }
-					@Override public void checkInvariants() {
-						for (Task task : selected)
-							if (task.isInactiveTask() != inactive) throw new IllegalStateException("Active state did not apply");
-						after[0] = ProjectTaskSnapshot.capture(project);
-					}
-					@Override public void restore(ProjectTaskSnapshot snapshot) { snapshot.restore(project, TaskInactivationService.this); }
-					@Override public void commit(Integer count) { }
-				});
-				Project.PendingEventBatch pending = project.commitEventBatch(mutation, true);
-				project.publishEventBatch(pending);
-			} catch (ModelTransaction.ModelTransactionException failure) {
-				rollbackEvents(project, failure);
-				throw new IllegalStateException("Inactivate failed during " + failure.failedStage() + ": "
-					+ (failure.getCause() == null ? "unknown" : failure.getCause().getMessage()), failure);
-			} catch (RuntimeException | Error failure) {
-				rollbackEvents(project, failure);
-				throw failure;
-			}
-		}
-		return new Result((int) changed, ReversibleModelChange.changed(
-			() -> restore(project, before[0]), () -> restore(project, after[0])));
-	}
-
-	private static void rollbackEvents(Project project, Throwable failure) {
-		try { project.endEventBatch(false); }
-		catch (Throwable closeFailure) { failure.addSuppressed(closeFailure); }
-	}
-
-	private static void restore(Project project, ProjectTaskSnapshot snapshot) {
-		try (ProjectMutationState.Scope mutation = project.getMutationState().begin()) {
-			project.beginEventBatch();
-			Project.PendingEventBatch pending;
-			try {
-				snapshot.restore(project, TaskInactivationService.class);
-				project.setDirty(true);
-				pending = project.commitEventBatch(mutation, true);
-			} catch (RuntimeException | Error failure) {
-				rollbackEvents(project, failure);
-				throw failure;
-			}
-			project.publishEventBatch(pending);
-		}
+				}
+				@Override public void schedule() { project.recalculate(); }
+				@Override public void checkInvariants(ProjectTaskSnapshot before) {
+					for (Task task : selected)
+						if (task.isInactiveTask() != inactive) throw new IllegalStateException("Active state did not apply");
+				}
+			});
+		return new Result((int) changed, change);
 	}
 
 	public record Result(int changedCount, ReversibleModelChange change) { }
