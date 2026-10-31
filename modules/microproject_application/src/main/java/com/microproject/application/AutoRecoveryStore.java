@@ -24,6 +24,8 @@
  *******************************************************************************/
 package com.microproject.application;
 
+import com.microproject.session.FileHelper;
+import com.microproject.util.SafeFileReplace;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -31,13 +33,11 @@ import java.nio.file.DirectoryIteratorException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.logging.Level;
@@ -149,7 +149,7 @@ public final class AutoRecoveryStore {
 
 	/** Selects MPO for an MPO source file while retaining POD compatibility for legacy files. */
 	public Path snapshotPath(long projectId, String originalFileName) throws IOException {
-		return snapshotPath(projectId, isMpoFileName(originalFileName));
+		return snapshotPath(projectId, FileHelper.isMpoFile(originalFileName));
 	}
 
 	public void recordCompletedSnapshot(long projectId, String displayName,
@@ -159,7 +159,7 @@ public final class AutoRecoveryStore {
 		// even when its original path used the legacy POD extension.  Prefer the
 		// actually written sibling before reporting a missing snapshot.
 		if (!Files.isRegularFile(snapshot)) {
-			Path alternate = snapshotPath(projectId, !isMpoFileName(originalFileName));
+			Path alternate = snapshotPath(projectId, !FileHelper.isMpoFile(originalFileName));
 			if (Files.isRegularFile(alternate))
 				snapshot = alternate;
 		}
@@ -521,11 +521,7 @@ public final class AutoRecoveryStore {
 			try (OutputStream output = Files.newOutputStream(temporary.path())) {
 				properties.store(output, "ProjectLibre AutoRecovery");
 			}
-			try {
-				Files.move(temporary.path(), metadata, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-			} catch (java.nio.file.AtomicMoveNotSupportedException ex) {
-				Files.move(temporary.path(), metadata, StandardCopyOption.REPLACE_EXISTING);
-			}
+			SafeFileReplace.moveAtomically(temporary.path(), metadata, true);
 		}
 	}
 
@@ -643,10 +639,6 @@ public final class AutoRecoveryStore {
 		}
 	}
 
-	private static boolean isMpoFileName(String fileName) {
-		return fileName != null && fileName.toLowerCase(Locale.ROOT).endsWith(".mpo");
-	}
-
 	private static boolean isMpoSnapshot(Path snapshot) {
 		Path fileName = snapshot.getFileName();
 		return fileName != null && fileName.toString().endsWith(MPO_SNAPSHOT_SUFFIX);
@@ -654,7 +646,7 @@ public final class AutoRecoveryStore {
 
 	private static boolean parseMpoFormat(String value, String originalFileName) {
 		if (value == null || value.isBlank())
-			return isMpoFileName(originalFileName);
+			return FileHelper.isMpoFile(originalFileName);
 		if ("mpo".equalsIgnoreCase(value))
 			return true;
 		if ("pod".equalsIgnoreCase(value))

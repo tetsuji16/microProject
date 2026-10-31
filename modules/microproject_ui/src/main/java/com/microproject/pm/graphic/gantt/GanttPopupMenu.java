@@ -64,22 +64,6 @@ public class GanttPopupMenu extends GraphPopupMenu{
 	private static final String ANNOTATION_FIELD_TASK_NAME = "Field.name";
 
 
-	private class BarMenuAction extends JRadioButtonMenuItem implements ActionListener {
-		private static final long serialVersionUID = 8168153384233811506L;
-		BarStyle style;
-    	
-    	BarMenuAction(final BarStyle style) {
-    		super(style.getName());
-    		this.style = style;
-    		setSelected(style.isActive());
-    		addActionListener(this);
-    	}
-    	public void actionPerformed(ActionEvent arg0) {
-    	    style.setActive(isSelected());
-    	    ((GraphModel)interactor.getGraph().getModel()).updateAll(true);
-    	}
-    }
-    
     private class AssignmentsMenuAction extends JRadioButtonMenuItem implements ActionListener {
 		private static final long serialVersionUID = 3480838269288912755L;
 		BaseFilter filter,filterOffline;

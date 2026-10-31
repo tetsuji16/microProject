@@ -410,33 +410,21 @@ public class Job extends Thread {
 		}
 	}
 	private void runSwing(final InternalRunnable runnable,final JobMutex runMutex){
-		if (runnable.isSwing()){
-			UiDispatch.invokeLater(() -> {
-				try{
-					if (isInterrupted() || (isCanceled() && !runnable.isExceptionHandler())) // if thread is not alive, do nothing
-						return;
-					logBegin("running "+runnable.runnable.getName());
-					runnable.run();
-					if (runnable.getException()!=null) cancel();
-				}finally{
-					logEnd("running "+runnable.runnable.getName());
-					if (runMutex!=null) runMutex.unlock();
-					if (!isCustomCriticalSection()&&(runnable==lastRunnable||runnable.getException()!=null)) jobQueue.endCriticalSection(Job.this);
-				}
-			});
-		}else{
+		Runnable body = () -> {
 			try{
 				if (isInterrupted() || (isCanceled() && !runnable.isExceptionHandler())) // if thread is not alive, do nothing
 					return;
-    			logBegin("running "+runnable.runnable.getName());
-    			runnable.run();
-    			if (runnable.getException()!=null) cancel();
-    		}finally{
-    			logEnd("running "+runnable.runnable.getName());
-    			if (runMutex!=null) runMutex.unlock();
-    			if (!isCustomCriticalSection()&&(runnable==lastRunnable||runnable.getException()!=null)) jobQueue.endCriticalSection(Job.this);
-    		}
-		}
+				logBegin("running "+runnable.runnable.getName());
+				runnable.run();
+				if (runnable.getException()!=null) cancel();
+			}finally{
+				logEnd("running "+runnable.runnable.getName());
+				if (runMutex!=null) runMutex.unlock();
+				if (!isCustomCriticalSection()&&(runnable==lastRunnable||runnable.getException()!=null)) jobQueue.endCriticalSection(Job.this);
+			}
+		};
+		if (runnable.isSwing()) UiDispatch.invokeLater(body);
+		else body.run();
 	}
 
 	public void warm(final String message,boolean wait){

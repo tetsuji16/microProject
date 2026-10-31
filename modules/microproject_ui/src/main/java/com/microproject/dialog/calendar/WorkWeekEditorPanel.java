@@ -29,7 +29,6 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.GregorianCalendar;
 import java.util.List;
 
 import javax.swing.DefaultListModel;
@@ -44,7 +43,6 @@ import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JTextField;
 import javax.swing.JLabel;
-import javax.swing.SpinnerDateModel;
 import javax.swing.ListSelectionModel;
 import javax.swing.event.ListSelectionEvent;
 
@@ -56,6 +54,9 @@ import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.calendar.WorkingHours;
 import com.microproject.strings.Messages;
 import com.microproject.util.DateTime;
+import static com.microproject.dialog.calendar.CalendarEditorSupport.dateSpinner;
+import static com.microproject.dialog.calendar.CalendarEditorSupport.formatTime;
+import static com.microproject.dialog.calendar.CalendarEditorSupport.timeValue;
 
 /** Editable MSP-style dated work-week rules on the dialog's private scratch calendar. */
 final class WorkWeekEditorPanel extends JPanel {
@@ -258,26 +259,6 @@ final class WorkWeekEditorPanel extends JPanel {
 				week.setWeekDay(day, workDay);
 			}
 			return new WorkWeekPeriod(label, first, last, week);
-		}
-
-		private static JSpinner dateSpinner(Date value) {
-			JSpinner spinner = new JSpinner(new SpinnerDateModel(value, null, null, Calendar.DAY_OF_MONTH));
-			spinner.setEditor(new JSpinner.DateEditor(spinner, "yyyy-MM-dd"));
-			return spinner;
-		}
-
-		private static String formatTime(long value) {
-			GregorianCalendar calendar = DateTime.calendarInstance();
-			calendar.setTimeInMillis(value);
-			return "%02d:%02d".formatted(calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.MINUTE));
-		}
-
-		private static long timeValue(String value) {
-			LocalTime time = LocalTime.parse(value);
-			GregorianCalendar calendar = DateTime.calendarInstance();
-			calendar.clear();
-			calendar.set(1970, Calendar.JANUARY, 1, time.getHour(), time.getMinute());
-			return calendar.getTimeInMillis();
 		}
 	}
 }

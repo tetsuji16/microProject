@@ -6,7 +6,6 @@
 package com.microproject.pm.ccpm;
 
 import java.time.Instant;
-import java.util.List;
 import java.util.UUID;
 import java.util.logging.Logger;
 
@@ -30,7 +29,7 @@ public final class CriticalChainBufferHistoryService {
 		if (reason == null || reason.isBlank()) return rejected("reason-required", observationId);
 		CriticalChainBufferHistory history = project.findTransientDocumentState(CriticalChainBufferHistory.class);
 		if (history == null) return rejected("history-empty", observationId);
-		HistoryState before = HistoryState.capture(history);
+		BufferHistoryState before = BufferHistoryState.capture(history);
 		CriticalChainBufferHistory.Point point;
 		try {
 			point = history.retract(observationId, reason.trim(), actorId, actorName, Instant.now());
@@ -40,7 +39,7 @@ public final class CriticalChainBufferHistoryService {
 			return new Outcome(Status.FAILED, "mutation-failed", null);
 		}
 		if (point == null) return rejected("observation-not-found", observationId);
-		HistoryState after = HistoryState.capture(history);
+		BufferHistoryState after = BufferHistoryState.capture(history);
 		postUndo(project, before, after);
 		LOGGER.info(() -> "UI_COMMAND id=CCPM_BUFFER_OBSERVATION_RETRACT status=changed observationId=" + observationId
 			+ " modelBefore=active observation modelAfter=retracted undo=posted");
@@ -53,7 +52,7 @@ public final class CriticalChainBufferHistoryService {
 		return new Outcome(Status.REJECTED, reason, null);
 	}
 
-	private static void postUndo(Project project, HistoryState before, HistoryState after) {
+	private static void postUndo(Project project, BufferHistoryState before, BufferHistoryState after) {
 		EditSupport edits = project.getUndoController().getEditSupport();
 		if (edits == null) return;
 		edits.postEdit(new AbstractUndoableEdit() {
@@ -62,17 +61,5 @@ public final class CriticalChainBufferHistoryService {
 			@Override public void undo() { super.undo(); before.restore(project); }
 			@Override public void redo() { super.redo(); after.restore(project); }
 		});
-	}
-
-	private record HistoryState(List<CriticalChainBufferHistory.Point> points,
-		List<CriticalChainBufferHistory.Retraction> retractions) {
-		static HistoryState capture(CriticalChainBufferHistory history) {
-			return new HistoryState(List.copyOf(history.points()), history.retractions());
-		}
-		void restore(Project project) {
-			CriticalChainBufferHistory history = project.getOrCreateTransientDocumentState(
-				CriticalChainBufferHistory.class, CriticalChainBufferHistory::new);
-			history.replace(points, retractions);
-		}
 	}
 }

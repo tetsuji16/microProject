@@ -25,8 +25,13 @@
 package com.microproject.pm.graphic.graph;
 
 import java.awt.Component;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 
 import javax.swing.JPopupMenu;
+import javax.swing.JRadioButtonMenuItem;
+
+import com.microproject.graphic.configuration.BarStyle;
 
 
 /**
@@ -42,6 +47,23 @@ public abstract class GraphPopupMenu extends JPopupMenu{
     
 	
 	protected void init(){}
+
+	/** Radio item that toggles whether a bar style is drawn. */
+	protected class BarMenuAction extends JRadioButtonMenuItem implements ActionListener {
+		private static final long serialVersionUID = 8168153384233811506L;
+		BarStyle style;
+
+		public BarMenuAction(final BarStyle style) {
+			super(style.getName());
+			this.style = style;
+			setSelected(style.isActive());
+			addActionListener(this);
+		}
+		public void actionPerformed(ActionEvent arg0) {
+			style.setActive(isSelected());
+			((GraphModel)interactor.getGraph().getModel()).updateAll(true);
+		}
+	}
 
 	/**
 	 * Show the menu, making sure to build it fresh each time

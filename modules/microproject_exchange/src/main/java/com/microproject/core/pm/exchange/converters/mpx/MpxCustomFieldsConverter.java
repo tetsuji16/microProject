@@ -35,6 +35,8 @@ import com.microproject.server.data.CustomFieldsMapper;
 import net.sf.mpxj.FieldContainer;
 import net.sf.mpxj.FieldType;
 
+import static com.microproject.exchange.MspdiProjectBoundary.childText;
+
 /** Maps the indexed custom-field types shared by task and resource imports. */
 public final class MpxCustomFieldsConverter {
 	private MpxCustomFieldsConverter() {
@@ -150,15 +152,6 @@ public final class MpxCustomFieldsConverter {
 			throw new IllegalArgumentException("Invalid MSPDI " + type + " value for " + elementName
 				+ " custom FieldID " + fieldId + ": " + value, invalid);
 		}
-	}
-
-	private static String childText(org.w3c.dom.Element parent, String name, String namespace) {
-		for (org.w3c.dom.Node child = parent.getFirstChild(); child != null; child = child.getNextSibling()) {
-			if (child instanceof org.w3c.dom.Element element && name.equals(element.getLocalName())
-					&& java.util.Objects.equals(namespace, element.getNamespaceURI()))
-				return element.getTextContent();
-		}
-		return null;
 	}
 
 	private static void copyNumbers(FieldContainer source, CustomFields target, FieldType[] fields, int kind) {

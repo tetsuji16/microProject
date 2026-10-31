@@ -112,23 +112,14 @@ public final class TaskSheetScheduleWorkflow {
 	}
 
 	private static Long getTaskDisplayValue(Task task, String fieldId) {
-		RollupSpan rollup = task.calculateRollupSpan();
-		SummaryEnvelope envelope = task.getSummaryEnvelope();
-		if (START_FIELD_ID.equals(fieldId)) {
-			return envelope.hasManualStart() ? envelope.getManualStart() : Long.valueOf(rollup.getStart());
-		}
-		if (FINISH_FIELD_ID.equals(fieldId)) {
-			return envelope.hasManualFinish() ? envelope.getManualFinish() : Long.valueOf(rollup.getFinish());
-		}
-		if (DURATION_FIELD_ID.equals(fieldId)) {
-			return envelope.hasManualDuration() ? envelope.getManualDuration() : Long.valueOf(rollup.getDuration());
-		}
-		return null;
+		return displayValue(task.calculateRollupSpan(), task.getSummaryEnvelope(), fieldId);
 	}
 
 	private static Long getProjectDisplayValue(Project project, String fieldId) {
-		RollupSpan rollup = project.calculateRollupSpan();
-		SummaryEnvelope envelope = project.getSummaryEnvelope();
+		return displayValue(project.calculateRollupSpan(), project.getSummaryEnvelope(), fieldId);
+	}
+
+	private static Long displayValue(RollupSpan rollup, SummaryEnvelope envelope, String fieldId) {
 		if (START_FIELD_ID.equals(fieldId)) {
 			return envelope.hasManualStart() ? envelope.getManualStart() : Long.valueOf(rollup.getStart());
 		}

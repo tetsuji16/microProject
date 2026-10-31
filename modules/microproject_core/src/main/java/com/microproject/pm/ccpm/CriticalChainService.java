@@ -191,18 +191,6 @@ public final class CriticalChainService {
 		private AnalysisSnapshot(Analysis analysis, long fingerprint) { this.analysis = analysis; this.fingerprint = fingerprint; }
 	}
 
-	private record BufferHistoryState(List<CriticalChainBufferHistory.Point> points,
-		List<CriticalChainBufferHistory.Retraction> retractions) {
-		static BufferHistoryState capture(CriticalChainBufferHistory history) {
-			return history == null ? null : new BufferHistoryState(history.points(), history.retractions());
-		}
-		void restore(Project project) {
-			CriticalChainBufferHistory history = project.getOrCreateTransientDocumentState(
-				CriticalChainBufferHistory.class, CriticalChainBufferHistory::new);
-			history.replace(points, retractions);
-		}
-	}
-
 	private record State(Settings settings, Baseline baseline, Analysis analysis, BufferHistoryState history) { }
 
 	public Settings settings(Project project) {

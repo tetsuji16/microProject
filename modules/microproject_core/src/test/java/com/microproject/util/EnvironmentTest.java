@@ -25,4 +25,14 @@ class EnvironmentTest {
 			assertEquals(false, Environment.isWindows());
 		}
 	}
+
+	@Test
+	void isWindowsMatchesOnlyWindowsPrefix() {
+		org.junit.jupiter.api.Assertions.assertTrue(Environment.isWindows("Windows 11"));
+		org.junit.jupiter.api.Assertions.assertTrue(Environment.isWindows("windows server 2022"));
+		org.junit.jupiter.api.Assertions.assertFalse(Environment.isWindows("Darwin"));
+		org.junit.jupiter.api.Assertions.assertFalse(Environment.isWindows("Mac OS X"));
+		org.junit.jupiter.api.Assertions.assertFalse(Environment.isWindows("Linux"));
+		org.junit.jupiter.api.Assertions.assertFalse(Environment.isWindows(null));
+	}
 }

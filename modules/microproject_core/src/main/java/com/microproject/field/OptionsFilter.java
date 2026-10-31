@@ -41,16 +41,6 @@ public  class OptionsFilter {
 	}
 	private String method;
 
-	public Object[] getOptionValues(Object obj, String method, String[] optionKeys, Object[] optionValues) {
-		List<Object> keys = new ArrayList<>(Arrays.asList(optionKeys));
-		try {
-			Method m=findMethod(obj, method);
-			m.invoke(obj, new Object[]{keys,optionValues});
-		} catch (Exception e) {
-			logger.log(Level.FINE, "Failed to invoke method {0} on {1}", new Object[]{method, obj.getClass().getName()});
-		}
-		return keys.toArray();
-	}
 
 	public void setMethod(String method) {
 		this.method = method;

@@ -663,22 +663,23 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 		}
 		return rootChildren;
 	}
+	/** Advances {@code i} past {@code target} and returns it (the root is returned without advancing), or {@code null}. */
+	private GraphicNode findNode(ListIterator i, Object target) {
+		if (target==getRoot()) return (GraphicNode)getRoot();
+		while (i.hasNext()){
+			GraphicNode node=(GraphicNode)i.next();
+			if (node==target) return node;
+		}
+		return null;
+	}
 	public Object getChild(Object obj, int index) {
 		if (obj == getRoot()) {
 			List<GraphicNode> children = rootChildren();
 			return index >= 0 && index < children.size() ? children.get(index) : null;
 		}
 		ListIterator i=getIterator();
+		GraphicNode ref=findNode(i,obj);
 		GraphicNode node;
-		GraphicNode ref=null;
-		if (obj==getRoot()) ref=(GraphicNode)getRoot();
-		else while (i.hasNext()){
-			node=(GraphicNode)i.next();
-			if (node==obj){
-				ref=node;
-				break;
-			}
-		}
 		if (ref==null) return null;
 		int count=0;
 		while (i.hasNext()){
@@ -694,16 +695,8 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 	public int getChildCount(Object obj) {
 		if (obj == getRoot()) return rootChildren().size();
 		ListIterator i=getIterator();
+		GraphicNode ref=findNode(i,obj);
 		GraphicNode node;
-		GraphicNode ref=null;
-		if (obj==getRoot()) ref=(GraphicNode)getRoot();
-		else while (i.hasNext()){
-			node=(GraphicNode)i.next();
-			if (node==obj){
-				ref=node;
-				break;
-			}
-		}
 		int count=0;
 		if (ref!=null)
 		while (i.hasNext()){
@@ -716,16 +709,8 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 	public int getIndexOfChild(Object parent, Object child) {
 		if (parent == getRoot()) return rootChildren().indexOf(child);
 		ListIterator i=getIterator();
+		GraphicNode ref=findNode(i,parent);
 		GraphicNode node;
-		GraphicNode ref=null;
-		if (parent==getRoot()) ref=(GraphicNode)getRoot();
-		else while (i.hasNext()){
-			node=(GraphicNode)i.next();
-			if (node==parent){
-				ref=node;
-				break;
-			}
-		}
 		if (ref==null) return -1;
 		int count=0;
 		while (i.hasNext()){
@@ -743,16 +728,8 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 	}
 	public boolean isLeaf(Object obj) {
 		ListIterator i=getIterator();
+		GraphicNode ref=findNode(i,obj);
 		GraphicNode node;
-		GraphicNode ref=null;
-		if (obj==getRoot()) ref=(GraphicNode)getRoot();
-		else while (i.hasNext()){
-			node=(GraphicNode)i.next();
-			if (node==obj){
-				ref=node;
-				break;
-			}
-		}
 		if (ref==null) return true;
 		if (i.hasNext()){
 			node=(GraphicNode)i.next();

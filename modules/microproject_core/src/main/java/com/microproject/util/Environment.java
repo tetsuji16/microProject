@@ -91,8 +91,11 @@ public class Environment {
 		Environment.partnerId = partnerId;
 	}
 	public static final boolean isWindows() {
-		String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
-		return osName.startsWith("windows");
+		return isWindows(System.getProperty("os.name", ""));
+	}
+	/** Whether an {@code os.name} value names Windows; "Darwin" and other names containing "win" do not. */
+	public static boolean isWindows(String osName) {
+		return osName != null && osName.toLowerCase(Locale.ROOT).startsWith("windows");
 	}
 	public static boolean isImporting() {
 		return importing;

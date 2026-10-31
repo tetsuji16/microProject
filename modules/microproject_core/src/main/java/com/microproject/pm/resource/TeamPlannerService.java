@@ -39,6 +39,7 @@ import com.microproject.pm.task.ProjectHierarchyQueries;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.scheduling.ConstraintType;
 import com.microproject.pm.scheduling.ScheduleService;
+import static com.microproject.util.IdentityCollections.containsIdentity;
 
 /** Model operations used by the interactive Team Planner timeline. */
 public final class TeamPlannerService {
@@ -106,12 +107,6 @@ public final class TeamPlannerService {
 		return projects;
 	}
 
-	private static boolean containsIdentity(Iterable<Project> projects, Project expected) {
-		for (Project project : projects)
-			if (project == expected)
-				return true;
-		return false;
-	}
 
 	public void reschedule(Task task, long newStart, Object eventSource) {
 		Objects.requireNonNull(task, "task");

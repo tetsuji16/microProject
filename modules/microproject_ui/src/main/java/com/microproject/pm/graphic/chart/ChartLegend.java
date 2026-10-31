@@ -79,6 +79,7 @@ import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.task.Project;
 import com.microproject.strings.Messages;
+import com.microproject.util.ColorLuminance;
 import com.microproject.util.Environment;
 import com.microproject.workspace.SavableToWorkspace;
 import com.microproject.workspace.WorkspaceSetting;
@@ -339,18 +340,9 @@ public class ChartLegend  implements SelectionNodeListener, Serializable , Savab
 	}
 
 	static Color readableTextColor(Color background) {
-		return relativeLuminance(background) > 0.179 ? Color.BLACK : Color.WHITE;
+		return ColorLuminance.relativeLuminance(background) > 0.179 ? Color.BLACK : Color.WHITE;
 	}
 
-	private static double relativeLuminance(Color color) {
-		return 0.2126 * linearize(color.getRed() / 255.0)
-				+ 0.7152 * linearize(color.getGreen() / 255.0)
-				+ 0.0722 * linearize(color.getBlue() / 255.0);
-	}
-
-	private static double linearize(double channel) {
-		return channel <= 0.04045 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4);
-	}
 	
 	private List<Resource> pathsToList(TreePath[] paths) {
 		List<Resource> list = new ArrayList<>(paths == null ? 0 : paths.length);
