@@ -137,7 +137,8 @@ lower-case `microproject` spelling; see the
 
 The reports and exchange modules must not depend on the desktop UI or the
 application workflow; `.\gradlew.bat verifyIndependentBoundaries` enforces this.
-CI runs on Temurin JDK 25 ([build.yml](.github/workflows/build.yml)), and
+CI builds and tests on Linux, Windows, and macOS with Temurin JDK 25
+([build.yml](.github/workflows/build.yml)), and
 Windows GUI acceptance runs in [gui-acceptance.yml](.github/workflows/gui-acceptance.yml).
 
 ## Contributing and releases
