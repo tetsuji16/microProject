@@ -32,6 +32,7 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import com.microproject.application.AutoRecoveryStore;
 import com.microproject.exchange.LocalFileImporter;
 import com.microproject.exchange.MpoFileImporter;
 import com.microproject.pm.ccpm.CriticalChainService;
@@ -89,7 +90,12 @@ class ViewResponsivenessSoakGuiAcceptanceTest {
 		try {
 			SwingUtilities.invokeAndWait(() -> {
 				w[0] = new MainRibbonFrame("microProject - view responsiveness soak (#946)", null);
-				m[0] = new GraphicManager(w[0]);
+				// The soak saves dirty projects on purpose. Its snapshots must not reach
+				// the store a later acceptance class opens, or that class gets a recovery prompt.
+				var preferences = new AutoRecoveryGuiAcceptanceTest.MemoryPreferences();
+				preferences.putBoolean(AutoRecoveryManager.ENABLED_PREFERENCE, true);
+				m[0] = new GraphicManager(w[0], temp.resolve("workspace"),
+					new AutoRecoveryStore(temp.resolve("recovery")), preferences);
 				w[0].setGraphicManager(m[0]);
 				m[0].initView();
 				SessionFactory.getInstance().setJobQueue(m[0].getJobQueue());

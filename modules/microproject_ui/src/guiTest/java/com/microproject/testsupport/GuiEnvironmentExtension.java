@@ -19,6 +19,8 @@ import java.util.concurrent.TimeUnit;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Comparator;
+import java.util.stream.Stream;
 import javax.imageio.ImageIO;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.AfterEachCallback;
@@ -75,6 +77,8 @@ public final class GuiEnvironmentExtension implements BeforeAllCallback, AfterAl
 		}
 		GuiDesktopSessionCoordinator.ForegroundMonitor monitor = null;
 		try {
+			String localAppData = System.getenv("LOCALAPPDATA");
+			if (localAppData != null) clearIsolatedUserData(Path.of(localAppData), Path.of("build"));
 			String configuredDirectory = System.getProperty("microproject.gui.artifacts.dir", "build/reports/guiTest-artifacts");
 			monitor = GuiDesktopSessionCoordinator.monitorForegroundOverlaps(Path.of(configuredDirectory));
 			context.getStore(SESSION_NAMESPACE).put(SESSION_LEASE, new DesktopSession(lease, monitor));
@@ -98,6 +102,21 @@ public final class GuiEnvironmentExtension implements BeforeAllCallback, AfterAl
 				failure.addSuppressed(closeFailure);
 			}
 			throw failure;
+		}
+	}
+
+	/**
+	 * Each class starts without user data left by an earlier class, whatever order Gradle runs them in.
+	 * A directory outside the build is left alone, so this can never delete a real user profile.
+	 */
+	static void clearIsolatedUserData(Path userData, Path buildDirectory) throws IOException {
+		Path directory = userData.toAbsolutePath().normalize();
+		Path build = buildDirectory.toAbsolutePath().normalize();
+		if (directory.equals(build) || !directory.startsWith(build) || !Files.isDirectory(directory)) return;
+		try (Stream<Path> paths = Files.walk(directory)) {
+			for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
+				if (!path.equals(directory)) Files.delete(path);
+			}
 		}
 	}
 

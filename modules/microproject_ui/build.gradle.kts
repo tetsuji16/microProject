@@ -219,5 +219,14 @@ tasks.register<Test>("guiTest") {
 	// Expose the fixture root explicitly so sample-file acceptance routes test
 	// the same release classpath without relying on a process working directory.
 	systemProperty("microproject.project.dir", rootProject.projectDir.absolutePath)
+	// AutoRecoveryStore resolves %LOCALAPPDATA%. A snapshot left in the real
+	// profile opens a modal recovery prompt in every later GUI run and in the
+	// user's own application, so each Gradle invocation starts from an empty one.
+	val guiTestLocalAppData = layout.buildDirectory.dir("tmp/guiTest/localAppData").get().asFile
+	environment("LOCALAPPDATA", guiTestLocalAppData.absolutePath)
+	doFirst {
+		guiTestLocalAppData.deleteRecursively()
+		guiTestLocalAppData.mkdirs()
+	}
     mustRunAfter(tasks.test)
 }

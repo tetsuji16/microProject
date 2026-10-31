@@ -26,7 +26,7 @@ These are document-derived compatibility decisions, based on the Microsoft IMM32
 
 ## Verification notes
 
-The physical run used Microsoft IME, HKL `0x04110411`, Temurin 25.0.4.1. The user's Hermes window was in the foreground and overlapped the test window, so the desktop gate correctly blocked Robot input. The passing run moved the test window clear of it with a temporary uncommitted patch and waited for the window to be active before any key. The gate itself was not changed.
+The physical run used Microsoft IME, HKL `0x04110411`, Temurin 25.0.4.1. The user's Hermes window was in the foreground and overlapped the test window, so the desktop gate correctly blocked Robot input. That run moved the test window clear of it with a temporary uncommitted patch and waited for the window to be active before any key. The unmodified test then passed on `6b6de1432` with that window closed. The gate itself was not changed.
 
 A separate throwaway harness with a foreground check before every key ran production code on a plain `JTextField`. Full selection, partial selection (`東京都庁` selecting `東京`), and a caret at the end or middle all gave correct results. Space and Enter committed `トウキョウ`, and Esc restored the original text.
 

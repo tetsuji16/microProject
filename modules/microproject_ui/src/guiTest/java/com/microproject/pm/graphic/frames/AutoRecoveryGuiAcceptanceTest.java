@@ -46,6 +46,13 @@ class AutoRecoveryGuiAcceptanceTest {
 	@TempDir Path temp;
 
 	@Test
+	void guiTestsDoNotUseTheRealUserRecoveryStore() {
+		Path buildDirectory = Path.of("build").toAbsolutePath().normalize();
+		assertTrue(Path.of(System.getenv("LOCALAPPDATA")).startsWith(buildDirectory),
+			"GUI tests must not read or write recovery data in the user's profile");
+	}
+
+	@Test
 	void recoversSnapshotAndSavesTheRecoveredDocument() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless());
 		Path source = Path.of("../../samples/Commercial construction project plan2.pod").toAbsolutePath().normalize();
@@ -178,7 +185,7 @@ class AutoRecoveryGuiAcceptanceTest {
 	private static String renderedName(SpreadSheet sheet, int row, int column) { return onEdt(() -> { Component c = sheet.prepareRenderer(sheet.getCellRenderer(row, column), row, column); return c instanceof NameCellComponent name ? name.getText() : ((javax.swing.JLabel) c).getText(); }); }
 	private static void key(Robot robot, int modifier, int key) { robot.keyPress(modifier); robot.keyPress(key); robot.keyRelease(key); robot.keyRelease(modifier); robot.waitForIdle(); }
 	private static <T> T onEdt(java.util.concurrent.Callable<T> action) { try { FutureTask<T> task = new FutureTask<>(action); SwingUtilities.invokeAndWait(task); return task.get(); } catch (Exception ex) { throw new RuntimeException(ex); } }
-	private static final class MemoryPreferences extends AbstractPreferences {
+	static final class MemoryPreferences extends AbstractPreferences {
 		private final Map<String, String> values = new HashMap<>();
 		MemoryPreferences() { super(null, ""); }
 		protected void putSpi(String key, String value) { values.put(key, value); }
