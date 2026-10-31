@@ -830,6 +830,93 @@ class RibbonButtonBehaviorTest {
 			"PercentComplete25", "PercentComplete50", "PercentComplete75", "PercentComplete100"));
 	}
 
+	/** Commands that resolve their targets through the shared editable-task boundary (#978). */
+	private static final List<CommandId> SHARED_PRECONDITION_COMMANDS = List.of(CommandId.PERCENT_COMPLETE_50,
+		CommandId.TASK_MODE_MANUAL, CommandId.INACTIVATE_TASK, CommandId.RESPECT_LINKS, CommandId.MARK_ON_TRACK,
+		CommandId.LINK, CommandId.UNLINK, CommandId.RESOURCE_LEVEL_SELECTION,
+		CommandId.RESOURCE_CLEAR_LEVEL_SELECTION, CommandId.RESOURCE_LEVEL_ALL, CommandId.RESOURCE_CLEAR_LEVEL_ALL);
+
+	@Test
+	void taskCommandFamiliesShareOneRejectionReasonForDocumentAndSelectionPreconditions() throws Exception {
+		Harness harness = newHarness();
+		harness.setTaskInformation(true, false);
+		SwingUtilities.invokeAndWait(() -> {
+			harness.frame.setExecuteLinkForSelectionTest(true);
+			harness.frame.setExecuteUnlinkForSelectionTest(true);
+			List<Long> bothIds = List.of(harness.task.getUniqueId(), harness.secondTask.getUniqueId());
+			// Read-only wins over an empty selection, for every family.
+			harness.frame.getTopSpreadSheet().clearSelection();
+			harness.frame.setSelection(null);
+			harness.project.setReadOnly(true);
+			for (CommandId command : SHARED_PRECONDITION_COMMANDS)
+				assertRejected(harness, command, "document-read-only", List.of());
+			// Read-only reports the selected ids too.
+			harness.frame.getTopSpreadSheet().setRowSelectionInterval(0, 1);
+			for (CommandId command : SHARED_PRECONDITION_COMMANDS)
+				assertRejected(harness, command, "document-read-only", bothIds);
+			// Writable document with nothing selected: selection-scoped commands agree on one reason.
+			harness.project.setReadOnly(false);
+			harness.frame.getTopSpreadSheet().clearSelection();
+			harness.frame.setSelection(null);
+			for (CommandId command : SHARED_PRECONDITION_COMMANDS) {
+				if (command == CommandId.RESOURCE_LEVEL_ALL || command == CommandId.RESOURCE_CLEAR_LEVEL_ALL)
+					continue; // document-scoped: no selection required
+				assertRejected(harness, command, "no-selection", List.of());
+			}
+		});
+	}
+
+	private static void assertRejected(Harness harness, CommandId command, String reason, List<Long> selectedIds) {
+		RibbonCommandResult result = harness.frame.routeTaskCommand(command);
+		assertEquals(RibbonCommandResult.Status.REJECTED, result.status(), command.toString());
+		assertEquals(reason, result.reason(), command.toString());
+		assertEquals(selectedIds, result.selectedTaskIds(), command.toString());
+		assertTrue(result.affectedTaskIds().isEmpty(), command.toString());
+		assertEquals(harness.frame.getTopViewId(), result.activeViewId(), command.toString());
+	}
+
+	@Test
+	void persistedStateTaskCommandsAreBlockedByCollaborationLockWithoutMutationOrUndo() throws Exception {
+		Harness harness = newHarness();
+		harness.setTaskInformation(true, false);
+		List<List<Task>> requestedLocks = new ArrayList<>();
+		CollaborationSession session = new CollaborationSession(harness.project,
+				System.getProperty("java.io.tmpdir") + "/microproject-task-command-lock-test.mpo", "lock-test") {
+			@Override
+			public Task tryAcquireTasks(Iterable<Task> tasks) {
+				List<Task> requested = new ArrayList<>();
+				if (tasks != null) tasks.forEach(requested::add);
+				requestedLocks.add(requested);
+				return requested.isEmpty() ? null : requested.get(0);
+			}
+
+			@Override
+			public String describeLockOwner(Task task) {
+				return "lock test";
+			}
+		};
+		harness.project.setCollaborationSession(session);
+		List<Long> bothIds = List.of(harness.task.getUniqueId(), harness.secondTask.getUniqueId());
+		SwingUtilities.invokeAndWait(() -> {
+			harness.frame.getTopSpreadSheet().setRowSelectionInterval(0, 1);
+			harness.undoController.clear();
+			double percentBefore = harness.task.getPercentComplete();
+			boolean manualBefore = harness.task.isManuallyScheduled();
+			boolean inactiveBefore = harness.task.isInactiveTask();
+			for (CommandId command : List.of(CommandId.PERCENT_COMPLETE_50, CommandId.TASK_MODE_MANUAL,
+					CommandId.INACTIVATE_TASK, CommandId.RESPECT_LINKS, CommandId.MARK_ON_TRACK)) {
+				requestedLocks.clear();
+				assertRejected(harness, command, "collaboration-lock-denied", bothIds);
+				assertEquals(List.of(List.of(harness.task, harness.secondTask)), requestedLocks,
+					command + " must lock exactly its selected target tasks");
+				assertFalse(harness.undoController.canUndo(), command + " must not post an Undo edit when denied");
+			}
+			assertEquals(percentBefore, harness.task.getPercentComplete(), 1e-6);
+			assertEquals(manualBefore, harness.task.isManuallyScheduled());
+			assertEquals(inactiveBefore, harness.task.isInactiveTask());
+		});
+	}
+
 	@Test
 	void insertMilestoneAddsOneZeroDurationTaskAboveTheSelectionAsOneUndoEdit() throws Exception {
 		Harness harness = newHarness();
