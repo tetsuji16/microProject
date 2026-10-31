@@ -153,7 +153,8 @@ Windows GUI acceptance runs in [gui-acceptance.yml](.github/workflows/gui-accept
 The release workflow packages the Windows MSI and portable ZIP for every stable
 release, and Linux x64 and macOS Apple Silicon ZIPs for major updates. A stable
 release requires the full GUI gate. Beta releases are prereleases and never
-replace the stable `latest` assets or the update feed.
+replace the stable `latest` assets. Release assets contain only these packages;
+GitHub shows each asset's SHA-256 digest. Update by installing a newer package.
 
 ## Development status
 
