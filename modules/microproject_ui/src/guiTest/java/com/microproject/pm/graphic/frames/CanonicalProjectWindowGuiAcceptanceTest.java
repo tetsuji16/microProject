@@ -234,20 +234,20 @@ class CanonicalProjectWindowGuiAcceptanceTest {
 	}
 
 	@Test
-	void robotConvertReportsUnsupportedImeOnBothSpreadsheetRoutesWithoutChangingText() throws Exception {
+	void robotConvertReconvertsOrReportsUnsupportedImeOnBothSpreadsheetRoutes() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
-		// Environment-dependent oracle (#866): the JDK Windows input-method adapter
-		// never implements reconvert(), so "unsupported" is the Windows contract.
-		// Other platforms may support native reconversion and need their own oracle.
+		// Environment-dependent oracle (#991): a desktop with a Japanese IME must really
+		// reconvert; without one the request fails and the text must survive unchanged.
+		// Other platforms use the JDK input context and need their own oracle.
 		Assumptions.assumeTrue(System.getProperty("os.name", "").startsWith("Windows"),
-			"The unsupported-reconversion oracle applies to the Windows JDK input-method adapter.");
+			"These oracles apply to the Windows IMM32 reconversion route.");
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
 		Project project = project("IME reconversion", null);
 		NormalTask task = project.createScriptedTask();
-		task.setName("とうきょう");
+		task.setName(RECONVERSION_TEXT);
 		DocumentFrame[] document = new DocumentFrame[1];
 		SpreadSheet[] sheets = new SpreadSheet[1];
 		int[] cell = new int[2];
@@ -289,8 +289,12 @@ class CanonicalProjectWindowGuiAcceptanceTest {
 		robot.keyRelease(KeyEvent.VK_SHIFT);
 		GuiAcceptanceSupport.await(() -> {
 			Component focus = java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
-			return focus instanceof JTextField field && "とうきょう".equals(field.getSelectedText());
+			return focus instanceof JTextField field && RECONVERSION_TEXT.equals(field.getSelectedText());
 		}, "could not physically select the existing Japanese text in the active spreadsheet editor");
+		if (com.microproject.pm.graphic.spreadsheet.editor.ImeTextInputSupport.isJapaneseImeActive()) {
+			assertImeReconversionJourney(robot, task, sheets[0], cell, bounds[0]);
+			return;
+		}
 		robot.keyPress(KeyEvent.VK_CONVERT);
 		robot.keyRelease(KeyEvent.VK_CONVERT);
 		String expected = com.microproject.dialog.UsabilityStrings.text("spreadsheet.imeReconversionUnsupported");
@@ -311,7 +315,114 @@ class CanonicalProjectWindowGuiAcceptanceTest {
 		robot.keyPress(KeyEvent.VK_ESCAPE);
 		robot.keyRelease(KeyEvent.VK_ESCAPE);
 		GuiAcceptanceSupport.await(() -> !sheets[0].isEditing(), "physical Escape did not end cell editing");
-		SwingUtilities.invokeAndWait(() -> assertEquals("とうきょう", task.getName(), "cancelling after unsupported reconversion changed the model"));
+		SwingUtilities.invokeAndWait(() -> assertEquals(RECONVERSION_TEXT, task.getName(), "cancelling after unsupported reconversion changed the model"));
+	}
+
+	private static final String RECONVERSION_TEXT = "東京";
+
+	private static void assertImeReconversionJourney(Robot robot, NormalTask task, SpreadSheet sheet, int[] cell, Rectangle bounds) throws Exception {
+		java.awt.im.InputContext context = sheet.getInputContext();
+		boolean wasOpen = context.isCompositionEnabled();
+		try {
+			// A closed IME must open: Convert is an explicit request.
+			context.setCompositionEnabled(false);
+			// Route 1: the editor's selection, cancelled and then committed.
+			pressKey(robot, KeyEvent.VK_CONVERT);
+			awaitComposition(true, "editor route: Convert did not start a composition");
+			cancelReconversion(robot);
+			assertEditorAndModelText(task, sheet, cell, RECONVERSION_TEXT, "editor route cancel");
+			pressKey(robot, KeyEvent.VK_HOME);
+			robot.keyPress(KeyEvent.VK_SHIFT);
+			pressKey(robot, KeyEvent.VK_END);
+			robot.keyRelease(KeyEvent.VK_SHIFT);
+			pressKey(robot, KeyEvent.VK_CONVERT);
+			assertReconversionCommitsWithUndo(robot, task, sheet, cell, "editor route");
+
+			// Route 2: Convert on a selected, non-editing cell, cancelled and then committed.
+			java.awt.Point origin = sheet.getLocationOnScreen();
+			robot.mouseMove(origin.x + bounds.x + Math.max(2, bounds.width / 2), origin.y + bounds.y + bounds.height / 2);
+			robot.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+			robot.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+			robot.delay(600);
+			pressKey(robot, KeyEvent.VK_CONVERT);
+			GuiAcceptanceSupport.await(sheet::isEditing, "cell route: Convert did not start editing");
+			awaitComposition(true, "cell route: Convert did not start a composition");
+			cancelReconversion(robot);
+			assertEditorAndModelText(task, sheet, cell, RECONVERSION_TEXT, "cell route cancel");
+			pressKey(robot, KeyEvent.VK_ESCAPE);
+			GuiAcceptanceSupport.await(() -> !sheet.isEditing(), "physical Escape did not end cell editing");
+			pressKey(robot, KeyEvent.VK_CONVERT);
+			GuiAcceptanceSupport.await(sheet::isEditing, "cell route: second Convert did not start editing");
+			assertReconversionCommitsWithUndo(robot, task, sheet, cell, "cell route");
+		} finally {
+			context.setCompositionEnabled(wasOpen);
+		}
+	}
+
+	/** Selects the next candidate, commits it, and proves model, rendered value and Undo/Redo. */
+	private static void assertReconversionCommitsWithUndo(Robot robot, NormalTask task, SpreadSheet sheet, int[] cell, String route) throws Exception {
+		awaitComposition(true, route + ": Convert did not start a composition");
+		pressKey(robot, KeyEvent.VK_SPACE);
+		robot.delay(500);
+		pressKey(robot, KeyEvent.VK_ENTER);
+		awaitComposition(false, route + ": Enter did not commit the composition");
+		String[] committed = new String[1];
+		SwingUtilities.invokeAndWait(() -> committed[0] = ((JTextField) java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner()).getText());
+		assertTrue(!committed[0].isEmpty() && !RECONVERSION_TEXT.equals(committed[0]), route + ": the next candidate was not committed: " + committed[0]);
+		pressKey(robot, KeyEvent.VK_ENTER);
+		GuiAcceptanceSupport.await(() -> !sheet.isEditing(), route + ": Enter did not end cell editing");
+		GuiAcceptanceSupport.await(() -> committed[0].equals(task.getName()), route + ": the committed candidate did not reach the model");
+		SwingUtilities.invokeAndWait(() -> assertEquals(committed[0], sheet.getValueAt(cell[0], cell[1]), route + ": rendered value differs"));
+		pressCtrl(robot, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> RECONVERSION_TEXT.equals(task.getName()), route + ": Undo did not restore the text");
+		pressCtrl(robot, KeyEvent.VK_Y);
+		GuiAcceptanceSupport.await(() -> committed[0].equals(task.getName()), route + ": Redo did not reapply the candidate");
+		pressCtrl(robot, KeyEvent.VK_Z);
+		GuiAcceptanceSupport.await(() -> RECONVERSION_TEXT.equals(task.getName()), route + ": second Undo did not restore the text");
+	}
+
+	/** The number of Escapes an IME needs depends on its state; one too many would cancel the cell edit. */
+	private static void cancelReconversion(Robot robot) throws Exception {
+		for (int attempt = 0; attempt < 6 && isEditorComposing(); attempt++) {
+			pressKey(robot, KeyEvent.VK_ESCAPE);
+			robot.delay(400);
+		}
+		awaitComposition(false, "Escape did not end the composition");
+	}
+
+	private static void awaitComposition(boolean active, String failure) throws Exception {
+		GuiAcceptanceSupport.await(() -> isEditorComposing() == active, failure);
+	}
+
+	private static boolean isEditorComposing() {
+		boolean[] composing = new boolean[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> composing[0] = java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner() instanceof JTextField field
+				&& com.microproject.pm.graphic.spreadsheet.editor.ImeTextInputSupport.isCompositionActive(field));
+		} catch (InterruptedException | java.lang.reflect.InvocationTargetException failure) {
+			throw new AssertionError(failure);
+		}
+		return composing[0];
+	}
+
+	private static void assertEditorAndModelText(NormalTask task, SpreadSheet sheet, int[] cell, String expected, String route) throws Exception {
+		GuiAcceptanceSupport.await(() -> java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner() instanceof JTextField field
+			&& expected.equals(field.getText()), route + ": the editor did not keep the original text");
+		SwingUtilities.invokeAndWait(() -> {
+			assertEquals(expected, task.getName(), route + ": the model changed");
+			assertEquals(expected, sheet.getValueAt(cell[0], cell[1]), route + ": the rendered cell changed");
+		});
+	}
+
+	private static void pressKey(Robot robot, int key) {
+		robot.keyPress(key);
+		robot.keyRelease(key);
+	}
+
+	private static void pressCtrl(Robot robot, int key) {
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		pressKey(robot, key);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
 	}
 
 	private static void assertUnsupportedReconversionKeptText(NormalTask task, SpreadSheet sheet, int[] cell, String route) throws Exception {
@@ -319,10 +430,10 @@ class CanonicalProjectWindowGuiAcceptanceTest {
 			Component focus = java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
 			assertTrue(focus instanceof JTextField, route + ": editor focus was lost after unsupported reconversion");
 			JTextField field = (JTextField) focus;
-			assertEquals("とうきょう", field.getText(), route + ": unsupported reconversion changed the edited text");
-			assertEquals("とうきょう", field.getSelectedText(), route + ": unsupported reconversion lost the selection");
-			assertEquals("とうきょう", task.getName(), route + ": unsupported reconversion changed the committed model value");
-			assertEquals("とうきょう", sheet.getValueAt(cell[0], cell[1]), route + ": unsupported reconversion changed the rendered cell");
+			assertEquals(RECONVERSION_TEXT, field.getText(), route + ": unsupported reconversion changed the edited text");
+			assertEquals(RECONVERSION_TEXT, field.getSelectedText(), route + ": unsupported reconversion lost the selection");
+			assertEquals(RECONVERSION_TEXT, task.getName(), route + ": unsupported reconversion changed the committed model value");
+			assertEquals(RECONVERSION_TEXT, sheet.getValueAt(cell[0], cell[1]), route + ": unsupported reconversion changed the rendered cell");
 		});
 	}
 
