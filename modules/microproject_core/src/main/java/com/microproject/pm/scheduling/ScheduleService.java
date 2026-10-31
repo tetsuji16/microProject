@@ -177,12 +177,12 @@ public class ScheduleService {
 			final Object editDetail = detailBackup;
 			Object rollbackDetail = editDetail != null ? editDetail : task.backupDetail();
 			boolean taskDirty = task.isDirty();
-			boolean projectDirty = project.isDirty();
+			Project.DirtyState projectDirty = project.captureDirtyState();
 			runAtomicIntervalEdit(project, schedule, eventSource, targetStart, targetEnd, interval, editDetail,
 				undoableEditSupport, () -> {
 					task.restoreDetail(eventSource, rollbackDetail, false);
 					task.setDirty(taskDirty);
-					project.setDirty(projectDirty);
+					project.restoreDirtyState(projectDirty);
 				});
 			return true;
 		}
@@ -195,14 +195,14 @@ public class ScheduleService {
 			Object taskRollbackDetail = task.backupDetail();
 			boolean assignmentDirty = assignment.isDirty();
 			boolean taskDirty = task.isDirty();
-			boolean projectDirty = project.isDirty();
+			Project.DirtyState projectDirty = project.captureDirtyState();
 			runAtomicIntervalEdit(project, schedule, eventSource, targetStart, targetEnd, interval, editDetail,
 				undoableEditSupport, () -> {
 					task.restoreDetail(eventSource, taskRollbackDetail, false);
 					assignment.restoreDetail(eventSource, assignmentRollbackDetail, false);
 					assignment.setDirty(assignmentDirty);
 					task.setDirty(taskDirty);
-					project.setDirty(projectDirty);
+					project.restoreDirtyState(projectDirty);
 				});
 			return true;
 		}
@@ -265,7 +265,7 @@ public class ScheduleService {
 		if (!levelingGenerated && schedule instanceof NormalTask task) {
 			Project project = task.getProject();
 			boolean taskDirty = task.isDirty();
-			boolean projectDirty = project.isDirty();
+			Project.DirtyState projectDirty = project.captureDirtyState();
 			return project.runAtomicModelCommand(markApplied -> {
 				try {
 					markApplied.run();
@@ -280,7 +280,7 @@ public class ScheduleService {
 					try {
 						task.restoreDetail(eventSource, detailBackup, false);
 						task.setDirty(taskDirty);
-						project.setDirty(projectDirty);
+						project.restoreDirtyState(projectDirty);
 					} catch (RuntimeException | Error rollbackFailure) {
 						failure.addSuppressed(rollbackFailure);
 					}
@@ -294,7 +294,7 @@ public class ScheduleService {
 			Object taskDetailBackup = task.backupDetail();
 			boolean assignmentDirty = assignment.isDirty();
 			boolean taskDirty = task.isDirty();
-			boolean projectDirty = project.isDirty();
+			Project.DirtyState projectDirty = project.captureDirtyState();
 			return project.runAtomicModelCommand(markApplied -> {
 				try {
 					markApplied.run();
@@ -313,7 +313,7 @@ public class ScheduleService {
 						task.restoreDetail(eventSource, taskDetailBackup, false);
 						assignment.setDirty(assignmentDirty);
 						task.setDirty(taskDirty);
-						project.setDirty(projectDirty);
+						project.restoreDirtyState(projectDirty);
 					} catch (RuntimeException | Error rollbackFailure) {
 						failure.addSuppressed(rollbackFailure);
 					}

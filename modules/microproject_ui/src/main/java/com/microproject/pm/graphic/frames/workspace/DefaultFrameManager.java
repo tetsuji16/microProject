@@ -58,6 +58,7 @@ import javax.swing.border.LineBorder;
 import javax.swing.ListCellRenderer;
 
 import com.microproject.pm.graphic.frames.DocumentFrame;
+import com.microproject.pm.graphic.frames.DocumentTitles;
 import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.pm.graphic.frames.MainRibbonFrame;
 import com.microproject.pm.task.Project;
@@ -214,18 +215,7 @@ public class DefaultFrameManager implements FrameManager {
 			return "";
 		StringBuilder description = new StringBuilder();
 		if (frame instanceof DocumentFrame documentFrame && documentFrame.getProject() != null) {
-			Project project = documentFrame.getProject();
-			String name = project.getName();
-			if (name == null || name.isBlank())
-				name = documentFrame.getTitle();
-			description.append(Messages.getContextString("Text.ApplicationTitle"));
-			description.append(" - ").append(name == null ? "(unnamed project)" : name);
-			if (project.isMaster())
-				description.append(" [Master]");
-			if (project.isReadOnly())
-				description.append(" [Read-only]");
-			if (project.needsSaving())
-				description.append(" *");
+			description.append(DocumentTitles.windowTitle(documentFrame.getProject(), documentFrame.getTitle(), false));
 		} else {
 			description.append(frame.getTitle() == null ? frame.getId() : frame.getTitle());
 		}
@@ -328,16 +318,8 @@ public class DefaultFrameManager implements FrameManager {
 		leaveArrangeAll();
 		if (previous != null)
 			container.remove(previous);
-		int columns;
-		int rows;
-		switch (arrangement) {
-		case HORIZONTAL -> { rows = 1; columns = count; }
-		case VERTICAL -> { rows = count; columns = 1; }
-		case TILE -> {
-			columns = (int) Math.ceil(Math.sqrt(count));
-			rows = (int) Math.ceil((double) count / columns);
-		}
-		case CASCADE -> {
+		int[] grid = gridFor(arrangement, count);
+		if (grid == null) {
 			arrangedFrames = new CascadePanel();
 			addArrangedFrames(count);
 			currentArrangement = arrangement;
@@ -345,13 +327,25 @@ public class DefaultFrameManager implements FrameManager {
 			refreshContainer();
 			return;
 		}
-		default -> throw new IllegalStateException("Unsupported arrangement: " + arrangement);
-		}
-		arrangedFrames = new JPanel(new GridLayout(rows, columns, 6, 6));
+		arrangedFrames = new JPanel(new GridLayout(grid[0], grid[1], 6, 6));
 		addArrangedFrames(count);
 		currentArrangement = arrangement;
 		container.add(arrangedFrames, "Center");
 		refreshContainer();
+	}
+
+	/** {rows, columns} for a grid arrangement of {@code count} frames; null for CASCADE, which has no grid. */
+	private static int[] gridFor(WindowArrangement arrangement, int count) {
+		return switch (arrangement) {
+		case HORIZONTAL -> new int[] { 1, count };
+		case VERTICAL -> new int[] { count, 1 };
+		case TILE -> {
+			int columns = (int) Math.ceil(Math.sqrt(count));
+			yield new int[] { (int) Math.ceil((double) count / columns), columns };
+		}
+		case CASCADE -> null;
+		default -> throw new IllegalStateException("Unsupported arrangement: " + arrangement);
+		};
 	}
 
 	private void arrangeDesktopWindows(WindowArrangement arrangement) {
@@ -366,19 +360,15 @@ public class DefaultFrameManager implements FrameManager {
 			activateFrame(previous);
 			return;
 		}
-		int count = windows.size(); int rows; int columns;
-		switch (arrangement) {
-		case HORIZONTAL -> { rows = 1; columns = count; }
-		case VERTICAL -> { rows = count; columns = 1; }
-		case TILE -> { columns = (int)Math.ceil(Math.sqrt(count)); rows = (int)Math.ceil((double)count / columns); }
-		case CASCADE -> {
+		int count = windows.size();
+		int[] grid = gridFor(arrangement, count);
+		if (grid == null) {
 			int offset = Math.max(24, Math.min(48, Math.min(area.width, area.height) / 12));
 			for (int i = 0; i < count; i++) windows.get(i).setBounds(area.x + i * offset, area.y + i * offset,
 					area.width - offset * (count - 1), area.height - offset * (count - 1));
 			currentArrangement = arrangement; return;
 		}
-		default -> throw new IllegalStateException("Unsupported arrangement: " + arrangement);
-		}
+		int rows = grid[0]; int columns = grid[1];
 		int width = area.width / columns; int height = area.height / rows;
 		for (int i = 0; i < count; i++) windows.get(i).setBounds(area.x + (i % columns) * width,
 				area.y + (i / columns) * height, width, height);

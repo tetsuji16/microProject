@@ -62,7 +62,7 @@ final class TaskFormatPainterService {
 
 	private static void applyStatesAtomically(Project project, Map<Task, TaskTextFormat> states,
 			UndoController undoController, ApplyHook hook, Runnable committed) {
-		boolean projectWasDirty = project.isDirty();
+		Project.DirtyState projectWasDirty = project.captureDirtyState();
 		try (ProjectMutationState.Scope mutation = project.getMutationState().begin()) {
 			project.beginEventBatch();
 			Project.PendingEventBatch pending;
@@ -99,7 +99,7 @@ final class TaskFormatPainterService {
 							entry.getValue().format().applyTo(entry.getKey());
 							entry.getKey().setDirty(entry.getValue().dirty());
 						}
-						project.setDirty(projectWasDirty);
+						project.restoreDirtyState(projectWasDirty);
 					}
 					@Override public void commit(Void ignored) {
 						for (Task task : states.keySet()) project.fireUpdateEvent(TaskFormatPainterService.class, task);

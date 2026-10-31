@@ -32,6 +32,8 @@ import java.util.Set;
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 
+import com.microproject.menu.resource.MissingListenerException;
+
 /**
  * The menu builder code requires an action map.  Here, I make a dummy ActionMap that defers to a dummy MenuAction.
  * This menu action is not used, though we can add things like logging for it later.
@@ -66,6 +68,14 @@ public class MenuActionsMap {
 	public Action getConcreteAction(String key) {
 		return actionById.get(key);
 	}
+	/** The registered action for a menu key, or MissingListenerException naming the frame that lacks it. */
+	public Action requireAction(String key, String frameName, String className) throws MissingListenerException {
+		Action action = actionById.get(key);
+		if (action == null)
+			throw new MissingListenerException("no listener for " + frameName, className, key);
+		return action;
+	}
+
 	public String getStringFromAction(Action action) {
 		return keyByAction.get(action);
 	}

@@ -324,6 +324,7 @@ public class MpoFileImporter extends FileImporter {
 			state.documentId = project.getDocumentId();
 			state.operations.addAll(normalized);
 			state.appliedOperationIds.addAll(operationLog.appliedOperationIds());
+			normalized.forEach(operation -> state.loadedOperationIds.add(operation.id()));
 			state.json = new OperationLog().writeJsonl(state.documentId, normalized, state.appliedOperationIds);
 			state.capture(project);
 		}
@@ -985,117 +986,127 @@ public class MpoFileImporter extends FileImporter {
 	}
 
 	private static byte[] taskLevelingOptionsJson(Project project, String taskIdentities) throws IOException {
-		try {
-			JsonNode identities = JSON.readTree(taskIdentities);
-			ObjectNode root = JSON.createObjectNode();
-			root.put("version", 1);
-			var tasks = root.putArray("tasks");
-			for (java.util.Iterator<?> iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
-				Task task = (Task) iterator.next();
-				// The current core model cannot encode MSPDI recurrence. Preserve an
-				// imported recurring task's effective No/Yes values even when they equal
-				// that source task's recurrence-sensitive defaults.
-				if (!task.isRecurringTask() && task.isLevelingCanSplit() && task.isLevelAssignments()) continue;
-				JsonNode serializedUid = identities.path(String.valueOf(task.getUniqueId()));
-				if (!serializedUid.canConvertToLong()) throw new IOException("Missing serialized task identity for leveling options");
-				ObjectNode node = tasks.addObject();
-				node.put("taskUid", serializedUid.longValue());
+		return perTaskOptionsJson(project, taskIdentities, "leveling options", "leveling options",
+			// The current core model cannot encode MSPDI recurrence. Preserve an
+			// imported recurring task's effective No/Yes values even when they equal
+			// that source task's recurrence-sensitive defaults.
+			task -> !task.isRecurringTask() && task.isLevelingCanSplit() && task.isLevelAssignments(),
+			(task, node) -> {
 				node.put("levelingCanSplit", task.isLevelingCanSplit());
 				node.put("levelAssignments", task.isLevelAssignments());
-			}
-			return JSON.writeValueAsBytes(root);
-		} catch (IOException exception) {
-			throw exception;
-		} catch (Exception exception) {
-			throw new IOException("Unable to serialize mpo task leveling options", exception);
-		}
+			});
 	}
 
 	private static void restoreTaskLevelingOptions(Project project, byte[] bytes) throws IOException {
-		JsonNode root = JSON.readTree(bytes);
-		JsonNode tasks = root.path("tasks");
-		if (requiredInt(root, "version") != 1 || !tasks.isArray())
-			throw new IOException("Invalid mpo task leveling options");
-		java.util.HashSet<Long> seen = new java.util.HashSet<>();
-		int count = 0;
-		for (JsonNode node : tasks) {
-			if (++count > MAX_OPERATION_COUNT) throw new IOException("MPO contains too many task leveling options");
-			long serializedId = integralLong(node.path("taskUid"), "taskUid");
-			if (!seen.add(Long.valueOf(serializedId))) throw new IOException("Duplicate MPO task leveling option identity");
-			JsonNode canSplit = node.get("levelingCanSplit");
-			JsonNode levelAssignments = node.get("levelAssignments");
-			if (canSplit == null || !canSplit.isBoolean() || levelAssignments == null || !levelAssignments.isBoolean())
-				throw new IOException("Invalid MPO task leveling option values");
-			Task task = project.findByUniqueId(serializedId);
-			if (task == null) throw new IOException("MPO task leveling options reference an unknown task");
-			task.setLevelingCanSplit(canSplit.booleanValue());
-			task.setLevelAssignments(levelAssignments.booleanValue());
-		}
+		restorePerTaskOptions(project, bytes, "Invalid mpo task leveling options",
+			"MPO contains too many task leveling options", "Duplicate MPO task leveling option identity",
+			"MPO task leveling options reference an unknown task", node -> {
+				JsonNode canSplit = node.get("levelingCanSplit");
+				JsonNode levelAssignments = node.get("levelAssignments");
+				if (canSplit == null || !canSplit.isBoolean() || levelAssignments == null || !levelAssignments.isBoolean())
+					throw new IOException("Invalid MPO task leveling option values");
+				return task -> {
+					task.setLevelingCanSplit(canSplit.booleanValue());
+					task.setLevelAssignments(levelAssignments.booleanValue());
+				};
+			});
 	}
 
 	private static byte[] taskTextStylesJson(Project project, String taskIdentities) throws IOException {
-		try {
-			JsonNode identities = JSON.readTree(taskIdentities);
-			ObjectNode root = JSON.createObjectNode();
-			root.put("version", 1);
-			var tasks = root.putArray("tasks");
-			for (java.util.Iterator<?> iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
-				Task task = (Task) iterator.next();
-				if (task.getFontFamily() == null && task.getFontSize() == 0 && task.getFontColor() == null
-						&& !task.isFontBold() && !task.isFontItalic() && !task.isFontStrikethrough()) continue;
-				JsonNode serializedUid = identities.path(String.valueOf(task.getUniqueId()));
-				if (!serializedUid.canConvertToLong()) throw new IOException("Missing serialized task identity for text style");
-				ObjectNode node = tasks.addObject();
-				node.put("taskUid", serializedUid.longValue());
+		return perTaskOptionsJson(project, taskIdentities, "text style", "text styles",
+			task -> task.getFontFamily() == null && task.getFontSize() == 0 && task.getFontColor() == null
+				&& !task.isFontBold() && !task.isFontItalic() && !task.isFontStrikethrough(),
+			(task, node) -> {
 				if (task.getFontFamily() != null) node.put("fontFamily", task.getFontFamily());
 				node.put("fontSize", task.getFontSize());
 				if (task.getFontColor() != null) node.put("fontColor", task.getFontColor().intValue());
 				node.put("bold", task.isFontBold());
 				node.put("italic", task.isFontItalic());
 				node.put("strikethrough", task.isFontStrikethrough());
+			});
+	}
+
+	private static void restoreTaskTextStyles(Project project, byte[] bytes) throws IOException {
+		restorePerTaskOptions(project, bytes, "Invalid mpo task text styles", "MPO contains too many task text styles",
+			"Duplicate MPO task text style identity", "MPO task text styles reference an unknown task", node -> {
+				JsonNode family = node.get("fontFamily");
+				JsonNode size = node.get("fontSize");
+				JsonNode color = node.get("fontColor");
+				JsonNode bold = node.get("bold");
+				JsonNode italic = node.get("italic");
+				JsonNode strikethrough = node.get("strikethrough");
+				// Task.setFontSize accepts 0 (inherit) through 72 points; a larger stored value
+				// is corrupted data, not a size to clamp silently.
+				if ((family != null && !family.isTextual()) || size == null || !size.isIntegralNumber()
+						|| !size.canConvertToInt() || size.intValue() < 0 || size.intValue() > 72
+						|| (color != null && (!color.isIntegralNumber() || !color.canConvertToInt()
+							|| color.intValue() < 0 || color.intValue() > 0xFFFFFF))
+						|| bold == null || !bold.isBoolean() || italic == null || !italic.isBoolean()
+						|| strikethrough == null || !strikethrough.isBoolean())
+					throw new IOException("Invalid MPO task text style values");
+				return task -> {
+					task.setFontFamily(family == null ? null : family.textValue());
+					task.setFontSize(size.intValue());
+					task.setFontColor(color == null ? null : Integer.valueOf(color.intValue()));
+					task.setFontBold(bold.booleanValue());
+					task.setFontItalic(italic.booleanValue());
+					task.setFontStrikethrough(strikethrough.booleanValue());
+				};
+			});
+	}
+
+	/** Validates one per-task record and returns the mutation to apply once its task is found. */
+	@FunctionalInterface
+	private interface TaskOptionReader {
+		java.util.function.Consumer<Task> read(JsonNode node) throws IOException;
+	}
+
+	/**
+	 * Shared frame of the per-task option entries: version 1 plus a "tasks" array of {taskUid, fields},
+	 * listing only tasks whose options are not the defaults ({@code isDefault}).
+	 */
+	private static byte[] perTaskOptionsJson(Project project, String taskIdentities, String identityLabel,
+		String serializeLabel, java.util.function.Predicate<Task> isDefault,
+		java.util.function.BiConsumer<Task, ObjectNode> fields) throws IOException {
+		try {
+			JsonNode identities = JSON.readTree(taskIdentities);
+			ObjectNode root = JSON.createObjectNode();
+			root.put("version", 1);
+			var tasks = root.putArray("tasks");
+			for (java.util.Iterator<?> iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
+				Task task = (Task) iterator.next();
+				if (isDefault.test(task)) continue;
+				JsonNode serializedUid = identities.path(String.valueOf(task.getUniqueId()));
+				if (!serializedUid.canConvertToLong())
+					throw new IOException("Missing serialized task identity for " + identityLabel);
+				ObjectNode node = tasks.addObject();
+				node.put("taskUid", serializedUid.longValue());
+				fields.accept(task, node);
 			}
 			return JSON.writeValueAsBytes(root);
 		} catch (IOException exception) {
 			throw exception;
 		} catch (Exception exception) {
-			throw new IOException("Unable to serialize mpo task text styles", exception);
+			throw new IOException("Unable to serialize mpo task " + serializeLabel, exception);
 		}
 	}
 
-	private static void restoreTaskTextStyles(Project project, byte[] bytes) throws IOException {
+	private static void restorePerTaskOptions(Project project, byte[] bytes, String invalidMessage,
+		String tooManyMessage, String duplicateMessage, String unknownTaskMessage, TaskOptionReader reader)
+		throws IOException {
 		JsonNode root = JSON.readTree(bytes);
 		JsonNode tasks = root.path("tasks");
-		if (requiredInt(root, "version") != 1 || !tasks.isArray())
-			throw new IOException("Invalid mpo task text styles");
+		if (requiredInt(root, "version") != 1 || !tasks.isArray()) throw new IOException(invalidMessage);
 		java.util.HashSet<Long> seen = new java.util.HashSet<>();
 		int count = 0;
 		for (JsonNode node : tasks) {
-			if (++count > MAX_OPERATION_COUNT) throw new IOException("MPO contains too many task text styles");
+			if (++count > MAX_OPERATION_COUNT) throw new IOException(tooManyMessage);
 			long serializedId = integralLong(node.path("taskUid"), "taskUid");
-			if (!seen.add(Long.valueOf(serializedId))) throw new IOException("Duplicate MPO task text style identity");
-			JsonNode family = node.get("fontFamily");
-			JsonNode size = node.get("fontSize");
-			JsonNode color = node.get("fontColor");
-			JsonNode bold = node.get("bold");
-			JsonNode italic = node.get("italic");
-			JsonNode strikethrough = node.get("strikethrough");
-			// Task.setFontSize accepts 0 (inherit) through 72 points; a larger stored value
-			// is corrupted data, not a size to clamp silently.
-			if ((family != null && !family.isTextual()) || size == null || !size.isIntegralNumber()
-					|| !size.canConvertToInt() || size.intValue() < 0 || size.intValue() > 72
-					|| (color != null && (!color.isIntegralNumber() || !color.canConvertToInt()
-						|| color.intValue() < 0 || color.intValue() > 0xFFFFFF))
-					|| bold == null || !bold.isBoolean() || italic == null || !italic.isBoolean()
-					|| strikethrough == null || !strikethrough.isBoolean())
-				throw new IOException("Invalid MPO task text style values");
+			if (!seen.add(Long.valueOf(serializedId))) throw new IOException(duplicateMessage);
+			java.util.function.Consumer<Task> apply = reader.read(node);
 			Task task = project.findByUniqueId(serializedId);
-			if (task == null) throw new IOException("MPO task text styles reference an unknown task");
-			task.setFontFamily(family == null ? null : family.textValue());
-			task.setFontSize(size.intValue());
-			task.setFontColor(color == null ? null : Integer.valueOf(color.intValue()));
-			task.setFontBold(bold.booleanValue());
-			task.setFontItalic(italic.booleanValue());
-			task.setFontStrikethrough(strikethrough.booleanValue());
+			if (task == null) throw new IOException(unknownTaskMessage);
+			apply.accept(task);
 		}
 	}
 
@@ -1374,13 +1385,25 @@ public class MpoFileImporter extends FileImporter {
 	private static void writeCalendar(ObjectNode node, com.microproject.pm.calendar.WorkCalendar calendar) {
 		CalendarDefinition definition = calendar.getConcreteInstance();
 		node.put("name", calendar.getName());
+		writeCalendarBody(node, definition::getWeekDay, definition.getExceptionDays(),
+			definition.getWorkWeekPeriods(), definition.getRecurringExceptions());
+	}
+
+	/**
+	 * Shared week / exceptions / workWeeks / recurringExceptions block of both calendar schemas. The
+	 * callers differ on purpose in what they pass: project and resource calendars write their
+	 * concrete (inheritance-resolved) definition, schedule calendars write only their own differences.
+	 */
+	private static void writeCalendarBody(ObjectNode node, java.util.function.IntFunction<WorkDay> weekDay,
+		WorkDay[] exceptionDays, java.util.List<WorkWeekPeriod> workWeekPeriods,
+		java.util.List<RecurringCalendarException> recurringExceptions) {
 		var week = node.putArray("week");
 		for (int day = 0; day < WorkWeek.DAYS_IN_WEEK; day++)
-			writeCalendarDay(week.addObject(), definition.getWeekDay(day));
+			writeCalendarDay(week.addObject(), weekDay.apply(day));
 		var exceptions = node.putArray("exceptions");
-		for (WorkDay day : definition.getExceptionDays()) writeCalendarDay(exceptions.addObject(), day);
+		for (WorkDay day : exceptionDays) writeCalendarDay(exceptions.addObject(), day);
 		var periods = node.putArray("workWeeks");
-		for (WorkWeekPeriod period : definition.getWorkWeekPeriods()) {
+		for (WorkWeekPeriod period : workWeekPeriods) {
 			ObjectNode item = periods.addObject();
 			item.put("name", period.getName());
 			item.put("start", period.getStart());
@@ -1390,7 +1413,7 @@ public class MpoFileImporter extends FileImporter {
 				writeCalendarDay(days.addObject(), period.getWeekDay(day));
 		}
 		var recurring = node.putArray("recurringExceptions");
-		for (RecurringCalendarException exception : definition.getRecurringExceptions()) {
+		for (RecurringCalendarException exception : recurringExceptions) {
 			ObjectNode item = recurring.addObject();
 			writeCalendarDay(item.putObject("template"), exception.getTemplate());
 			writeRecurrence(item.putObject("recurrence"), exception.getRecurrence());
@@ -1780,27 +1803,8 @@ public class MpoFileImporter extends FileImporter {
 			node.put("baseProjectCalendar", true);
 		else if (calendar.getBaseCalendar() != null)
 			node.set("baseCalendar", scheduleCalendarJson((WorkingCalendar) calendar.getBaseCalendar(), projectCalendar));
-		var week = node.putArray("week");
-		for (int day = 0; day < WorkWeek.DAYS_IN_WEEK; day++)
-			writeCalendarDay(week.addObject(), calendar.getWeekDay(day));
-		var exceptions = node.putArray("exceptions");
-		for (WorkDay day : calendar.getExceptionDays()) writeCalendarDay(exceptions.addObject(), day);
-		var periods = node.putArray("workWeeks");
-		for (WorkWeekPeriod period : calendar.getWorkWeekPeriods()) {
-			ObjectNode item = periods.addObject();
-			item.put("name", period.getName());
-			item.put("start", period.getStart());
-			item.put("end", period.getEnd());
-			var days = item.putArray("week");
-			for (int day = 0; day < WorkWeek.DAYS_IN_WEEK; day++)
-				writeCalendarDay(days.addObject(), period.getWeekDay(day));
-		}
-		var recurring = node.putArray("recurringExceptions");
-		for (RecurringCalendarException exception : calendar.getRecurringExceptions()) {
-			ObjectNode item = recurring.addObject();
-			writeCalendarDay(item.putObject("template"), exception.getTemplate());
-			writeRecurrence(item.putObject("recurrence"), exception.getRecurrence());
-		}
+		writeCalendarBody(node, calendar::getWeekDay, calendar.getExceptionDays(), calendar.getWorkWeekPeriods(),
+			calendar.getRecurringExceptions());
 		return node;
 	}
 
@@ -2015,7 +2019,12 @@ public class MpoFileImporter extends FileImporter {
 			throw new IOException("MPOF merged operation log exceeds " + MAX_OPERATION_COUNT + " operations");
 		try {
 			OperationLog.MergeResult merged = new OperationLog().merge(all);
-			java.util.List<MpoMergePlan.Conflict> planConflicts = merged.conflicts().stream()
+			// New operations carry no parents and each session has its own actor, so the log alone
+			// reports an edit as concurrent with the history it was made on top of.
+			java.util.List<OperationLog.Conflict> conflicts = merged.conflicts().stream()
+					.filter(conflict -> conflict.operationIds().stream().noneMatch(local.loadedOperationIds::contains))
+					.toList();
+			java.util.List<MpoMergePlan.Conflict> planConflicts = conflicts.stream()
 					.map(conflict -> new MpoMergePlan.Conflict(conflict.entityId(),
 							"Concurrent " + conflict.kind() + " operations: " + conflict.operationIds()))
 					.toList();
@@ -2025,12 +2034,12 @@ public class MpoFileImporter extends FileImporter {
 					.map(operation -> new MpoMergePlan.Operation(operation.id(), MpoMergePlan.Action.UPDATE))
 					.toList();
 			MpoMergePlan plan = planFor(external.snapshot(), plannedOperations, planConflicts);
-			if (!merged.conflicts().isEmpty()) {
+			if (!conflicts.isEmpty()) {
 				java.util.List<OperationLog.Operation> conflictOperations = new java.util.ArrayList<>(merged.ready());
 				conflictOperations.addAll(merged.pending());
 				Path recoveryCopy = persistRecoveryCopy(target, captured, local, conflictOperations,
 						external.extensions);
-				throw new MpoConflictRecoveryException(recoveryCopy, merged.conflicts());
+				throw new MpoConflictRecoveryException(recoveryCopy, conflicts);
 			}
 			validateMergePlan(plan);
 			// The snapshot already contains every local operation.  Replaying that
@@ -3403,6 +3412,8 @@ public class MpoFileImporter extends FileImporter {
 		private byte[] json; private String documentId; private String actorId = java.util.UUID.randomUUID().toString();
 		private final java.util.List<OperationLog.Operation> operations = new java.util.ArrayList<OperationLog.Operation>();
 		private final java.util.Set<String> appliedOperationIds = new java.util.LinkedHashSet<String>();
+		// History present when the document was opened: this session's edits follow it, so it cannot conflict with them.
+		private final java.util.Set<String> loadedOperationIds = new java.util.LinkedHashSet<String>();
 		private final java.util.Map<Long, TaskSnapshot> snapshots = new java.util.LinkedHashMap<Long, TaskSnapshot>();
 		private final java.util.Map<Long, Long> parentSnapshots = new java.util.LinkedHashMap<Long, Long>();
 		private final java.util.Set<String> dependencySnapshots = new java.util.LinkedHashSet<String>();
@@ -3504,6 +3515,7 @@ public class MpoFileImporter extends FileImporter {
 			copy.actorId = actorId;
 			copy.operations.addAll(operations);
 			copy.appliedOperationIds.addAll(appliedOperationIds);
+			copy.loadedOperationIds.addAll(loadedOperationIds);
 			copy.snapshots.putAll(snapshots);
 			copy.parentSnapshots.putAll(parentSnapshots);
 			copy.dependencySnapshots.addAll(dependencySnapshots);
@@ -3516,6 +3528,7 @@ public class MpoFileImporter extends FileImporter {
 			actorId = source.actorId;
 			operations.clear(); operations.addAll(source.operations);
 			appliedOperationIds.clear(); appliedOperationIds.addAll(source.appliedOperationIds);
+			loadedOperationIds.clear(); loadedOperationIds.addAll(source.loadedOperationIds);
 			snapshots.clear(); snapshots.putAll(source.snapshots);
 			parentSnapshots.clear(); parentSnapshots.putAll(source.parentSnapshots);
 			dependencySnapshots.clear(); dependencySnapshots.addAll(source.dependencySnapshots);

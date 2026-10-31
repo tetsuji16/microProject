@@ -36,7 +36,6 @@ import java.util.List;
 
 import javax.swing.JScrollPane;
 import javax.swing.JViewport;
-import javax.swing.event.ChangeEvent;
 
 import com.microproject.association.Association;
 import com.microproject.field.Field;
@@ -67,8 +66,12 @@ public class TimesheetEntryPane extends JScrollPane {
 	private SpreadSheet spreadSheet;
 	private final Collection editableTimesheetFields;
 
-	private class TimesheetSpreadSheet extends SpreadSheet {
+	private class TimesheetSpreadSheet extends DialogEntrySpreadSheet {
 		private static final long serialVersionUID = 1L;
+
+		private TimesheetSpreadSheet() {
+			super(dialog);
+		}
 
 		private TimesheetAssignment getEntryInRow(int row) {
 			Node node = ((SpreadSheetModel) getModel()).getNode(row).getNode();
@@ -87,20 +90,6 @@ public class TimesheetEntryPane extends JScrollPane {
 			}
 		}
 
-		public java.awt.Component prepareEditor(javax.swing.table.TableCellEditor editor, int row, int column) {
-			dialog.setEditorButtonsVisible(true);
-			return super.prepareEditor(editor, row, column);
-		}
-
-		public void editingCanceled(ChangeEvent e) {
-			dialog.setEditorButtonsVisible(false);
-			super.editingCanceled(e);
-		}
-
-		public void editingStopped(ChangeEvent e) {
-			dialog.setEditorButtonsVisible(false);
-			super.editingStopped(e);
-		}
 	}
 
 	public TimesheetEntryPane(CommonAssignmentDialog dialog, Project project) {

@@ -281,20 +281,19 @@ public final class CustomReportDialogBox extends FlatLafDialog implements Schedu
 	}
 
 	private void showTablePreview() {
-		previewCards.removeAll();
-		previewCards.add(reportModel == null ? new JPanel()
-			: new com.microproject.reports.render.ReportPreview(new ReportPrintable(reportModel)), "table");
-		previewCards.add(chartPreview, "chart");
-		((CardLayout)previewCards.getLayout()).show(previewCards, "table");
-		previewCards.revalidate(); previewCards.repaint();
+		showPreview("table");
 	}
 
 	private void showChartPreview() {
+		showPreview("chart");
+	}
+
+	private void showPreview(String card) {
 		previewCards.removeAll();
 		previewCards.add(reportModel == null ? new JPanel()
 			: new com.microproject.reports.render.ReportPreview(new ReportPrintable(reportModel)), "table");
 		previewCards.add(chartPreview, "chart");
-		((CardLayout)previewCards.getLayout()).show(previewCards, "chart");
+		((CardLayout)previewCards.getLayout()).show(previewCards, card);
 		previewCards.revalidate(); previewCards.repaint();
 	}
 

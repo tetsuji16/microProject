@@ -58,6 +58,7 @@ import org.netbeans.swing.outline.RowModel;
 public class SpreadSheetModel extends CommonSpreadSheetModel implements OutlineModel, RowModel {
 	protected boolean readOnly;
 	private transient TaskFieldEditOutcomeHandler taskFieldEditOutcomeHandler;
+	private transient Runnable committedValueListener;
 	private static final String DEPENDENCY_TYPE_FIELD_ID = "Field.dependencyType";
 	private static final String DEPENDENCY_LAG_FIELD_ID = "Field.lag";
 	/**
@@ -69,6 +70,11 @@ public class SpreadSheetModel extends CommonSpreadSheetModel implements OutlineM
 
 	public void setTaskFieldEditOutcomeHandler(TaskFieldEditOutcomeHandler handler) {
 		taskFieldEditOutcomeHandler = handler;
+	}
+
+	/** Runs after a cell value was committed; for sheets whose rows have no dirty-tracking owner of their own. */
+	public void setCommittedValueListener(Runnable listener) {
+		committedValueListener = listener;
 	}
 
 	public interface TaskFieldEditOutcomeHandler {
@@ -197,6 +203,8 @@ public class SpreadSheetModel extends CommonSpreadSheetModel implements OutlineM
 		} catch (FieldParseException e) {
 			throw new RuntimeException(e); // exceptions will be treated by the spreadsheet, not the model, because there is a popup.  Because this method doesn't have an exception, a runtime exception will be caught by the spreadsheet
 		}
+		if (committedValueListener != null)
+			committedValueListener.run();
 	}
 
 	static long getDependencyLag(Field editedField, Object value, Dependency dependency) {

@@ -113,7 +113,7 @@ class AutoRecoveryGuiAcceptanceTest {
 				for (Window candidate : Window.getWindows()) {
 					if (!candidate.isShowing()) continue;
 					try { button.set(GuiAcceptanceSupport.findShowingButtonByText(candidate, UsabilityStrings.text("recovery.recover"))); }
-					catch (Exception ignored) { }
+					catch (Exception | AssertionError notShownYet) { }
 					if (button.get() != null) return true;
 				}
 				return false;

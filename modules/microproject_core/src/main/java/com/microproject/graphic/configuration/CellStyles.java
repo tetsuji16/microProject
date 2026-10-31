@@ -24,91 +24,33 @@
  *******************************************************************************/
 package com.microproject.graphic.configuration;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 import org.apache.commons.digester3.Digester;
 
 import com.microproject.configuration.Dictionary;
-import com.microproject.configuration.NamedItem;
-import com.microproject.field.InvalidFormulaException;
-import com.microproject.strings.Messages;
-import java.util.logging.Logger;
-import java.util.logging.Level;
 
 /**
  *
  */
-public class CellStyles implements NamedItem {
-	private static final Logger logger = Logger.getLogger(CellStyles.class.getName());
+public class CellStyles extends FormulaCatalog<CellStyle, CellStyleFactory> {
 	public static final String category="CellStylesCategory";
 	public String getCategory() {
 		return category;
 	}
-	
-	String name = null;
-	String id = null;
-	Map<String, CellStyle> styleMap = new HashMap<>();
-	Map<String, CellStyleFactory> factoryMap = new HashMap<>();
-	List<CellStyleFactory> factories = new ArrayList<>();
 
 	public CellStyles() {}
-	
-	
+
 	public void addStyle(CellStyleFactory factory) {
-		factories.add(factory);
-		factoryMap.put(factory.getId(),factory);
-	}
-	/**
-	 * @return Returns the name.
-	 */
-	public String getName() {
-		return name;
-	}
-	/**
-	 * @param name The name to set.
-	 */
-	public void setName(String name) {
-		this.name = name;
-	}
-	
-	public void setId(String id) {
-		this.id = id;
-		setName(Messages.getString(id));
-	}	
-	/**
-	 * @return Returns the id.
-	 */
-	public String getId() {
-		return id;
+		register(factory);
 	}
 
 	public CellStyle getStyle(String id) {
-	    CellStyle style=styleMap.get(id);
-	    if (style==null){
-            CellStyleFactory factory=getFactory(id);
-            try {
-                    style=factory.getCellStyle();
-                    styleMap.put(id,style);
-                } catch (InvalidFormulaException e) {
-        			logger.severe("Formula not set: invalid formula text: " +factory.getFormulaText());
-                }
-	    }
-	    return style;
+	    return resolve(id);
 	}
 	public CellStyle getDefaultStyle(){
 	    return getStyle("CellStyle.default");
 	}
-	
-	public CellStyleFactory getFactory(String id) {
-		return factoryMap.get(id);
-	}
-	public List<CellStyleFactory> getFactories() {
-		return factories;
-	}
-	
+
 	public static void addDigesterEvents(Digester digester){
 		// main properties of bar
 		digester.addObjectCreate("*/cellstyles", "com.microproject.graphic.configuration.CellStyles");

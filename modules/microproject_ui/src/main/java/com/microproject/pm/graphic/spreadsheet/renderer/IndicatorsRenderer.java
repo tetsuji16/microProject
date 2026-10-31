@@ -78,32 +78,27 @@ public class IndicatorsRenderer extends DefaultTableCellRenderer implements Offl
 			
 			indicatorsComponent.setIndicators(value, label, text, isSelected, hasFocus);
 			
-			if (text.length() == 0){
-				if (table==null){
-					this.setText("");
-					setBorder(resolveCellBorder(table, isSelected, hasFocus));
-					return this;
-				}else {
-					JComponent empty = (JComponent)super.getTableCellRendererComponent(table,"",isSelected,hasFocus,row,column);//empty;
-					empty.setBorder(resolveCellBorder(table, isSelected, hasFocus));
-					return empty;
-				}
-			}
+			if (text.length() == 0)
+				return emptyCell(table, isSelected, hasFocus, row, column);
 			text.insert(0,"<html>");
 			text.append("</html>");
 			label.setToolTipText(text.toString());
 			return label;
 		} else {
-			if (table==null){
-				this.setText("");
-				setBorder(resolveCellBorder(table, isSelected, hasFocus));
-				return this;
-			}else {
-				JComponent empty = (JComponent)super.getTableCellRendererComponent(table,"",isSelected,hasFocus,row,column);//empty;
-				empty.setBorder(resolveCellBorder(table, isSelected, hasFocus));
-				return empty;
-			}
+			return emptyCell(table, isSelected, hasFocus, row, column);
 		}
+	}
+
+	/** A blank cell with the renderer's border: this renderer itself without a table, else the default cell. */
+	private Component emptyCell(JTable table, boolean isSelected, boolean hasFocus, int row, int column) {
+		if (table==null){
+			this.setText("");
+			setBorder(resolveCellBorder(table, isSelected, hasFocus));
+			return this;
+		}
+		JComponent empty = (JComponent)super.getTableCellRendererComponent(table,"",isSelected,hasFocus,row,column);
+		empty.setBorder(resolveCellBorder(table, isSelected, hasFocus));
+		return empty;
 	}
 
 	static Border resolveCellBorder(JTable table, boolean isSelected, boolean hasFocus) {

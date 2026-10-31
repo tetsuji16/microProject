@@ -42,8 +42,7 @@ public final class TaskProgressService {
 		Objects.requireNonNull(project, "project");
 		Objects.requireNonNull(tasks, "tasks");
 		long statusDate = project.getStatusDate();
-		List<Task> selected = tasks.stream().filter(Objects::nonNull).map(task -> (Task) task)
-			.filter(task -> !task.isWbsParent()).toList();
+		List<Task> selected = leafTasks(tasks);
 		double[] before = selected.stream().mapToDouble(Task::getPercentComplete).toArray();
 		return applyProgressBatch(project, selected, statusDate, task -> {
 			long start = task.getStart();
@@ -77,11 +76,16 @@ public final class TaskProgressService {
 		Objects.requireNonNull(tasks, "tasks");
 		if (Double.isNaN(fraction) || fraction < 0D || fraction > 1D)
 			throw new IllegalArgumentException("Percent complete must be within 0..1");
-		List<Task> selected = tasks.stream().filter(Objects::nonNull).map(task -> (Task) task)
-			.filter(task -> !task.isWbsParent()).toList();
+		List<Task> selected = leafTasks(tasks);
 		double[] before = selected.stream().mapToDouble(Task::getPercentComplete).toArray();
 		return applyProgressBatch(project, selected, project.isStatusDateSet() ? project.getStatusDate() : 0L,
 			task -> fraction, before);
+	}
+
+	/** Summary tasks are skipped: their progress is derived from their subtasks. */
+	private static List<Task> leafTasks(List<? extends Task> tasks) {
+		return tasks.stream().filter(Objects::nonNull).map(task -> (Task) task)
+			.filter(task -> !task.isWbsParent()).toList();
 	}
 
 	private static Result applyProgressBatch(Project project, List<Task> selected, long statusDate,

@@ -16,6 +16,7 @@ import javax.swing.AbstractAction;
 import javax.swing.JComponent;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
+import javax.swing.text.JTextComponent;
 
 import com.microproject.dialog.UsabilityStrings;
 import com.microproject.pm.graphic.frames.DocumentFrame;
@@ -38,6 +39,17 @@ public final class ImeTextInputSupport {
 		if (component != null) {
 			component.putClientProperty(COMPOSITION_PROPERTY, Boolean.valueOf(isComposing(event)));
 		}
+	}
+
+	/**
+	 * True for a plain printable KEY_TYPED character that an editable text component
+	 * should insert itself: no Ctrl/Alt/Meta, not a control character. Shared by the
+	 * text and date editors that must not lose a physical multi-character burst.
+	 */
+	public static boolean isPlainTypedCharacter(KeyEvent event, JTextComponent field) {
+		return event.getID() == KeyEvent.KEY_TYPED && event.getKeyChar() != KeyEvent.CHAR_UNDEFINED
+				&& !event.isControlDown() && !event.isAltDown() && !event.isMetaDown()
+				&& !Character.isISOControl(event.getKeyChar()) && field.isEditable() && field.isEnabled();
 	}
 
 	public static boolean isCompositionActive(JComponent component) {

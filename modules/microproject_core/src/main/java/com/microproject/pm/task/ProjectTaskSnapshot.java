@@ -11,8 +11,7 @@ import java.util.Map;
 /** Captures the project-wide task state needed to roll back a schedule mutation. */
 public final class ProjectTaskSnapshot {
 	private final Map<Task, TaskState> tasks;
-	private final boolean projectDirty;
-	private final boolean projectGroupDirty;
+	private final Project.DirtyState projectDirtyState;
 
 	private ProjectTaskSnapshot(Project project) {
 		Map<Task, TaskState> result = new LinkedHashMap<>();
@@ -23,8 +22,7 @@ public final class ProjectTaskSnapshot {
 				task.isManuallyScheduled(), task.getManualStart(), task.getManualFinish(), task.getLevelingDelay(), task.getLevelingManualDateState()));
 		}
 		tasks = Collections.unmodifiableMap(result);
-		projectDirty = project.isDirty();
-		projectGroupDirty = project.isGroupDirty();
+		projectDirtyState = project.captureDirtyState();
 	}
 
 	public static ProjectTaskSnapshot capture(Project project) {
@@ -46,8 +44,7 @@ public final class ProjectTaskSnapshot {
 		project.recalculate();
 		for (Map.Entry<Task, TaskState> entry : tasks.entrySet())
 			entry.getKey().setDirty(entry.getValue().dirty());
-		project.setDirty(projectDirty);
-		project.setGroupDirty(projectGroupDirty);
+		project.restoreDirtyState(projectDirtyState);
 	}
 
 	public Map<Task, TaskState> taskStates() { return tasks; }
