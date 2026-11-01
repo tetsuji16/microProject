@@ -48,7 +48,6 @@ public interface ScheduleWindow  {
     
 
 
-//    public void calcStartAndFinish();
 
         /** @return Returns the earlyStart. */
     public long getEarlyStart();
@@ -77,10 +76,6 @@ public interface ScheduleWindow  {
     public long getConstraintDate();
 	public boolean isReadOnlyConstraintDate(FieldContext fieldContext);
 
-//    public long calcSuccessorEarlyStart();
-//    public long calcPredecessorLateFinish();
-//    public long calcPredecessorLateFinish(Dependency dependency, long duration);
-//    public long calcSuccessorEarlyStart(Dependency dependency, long duration);    
     
     /**
      * Set the window values based on a schedule type. 
@@ -94,15 +89,7 @@ public interface ScheduleWindow  {
     public WorkCalendar getEffectiveWorkCalendar();
 
 
-//	Collection getScheduleChildren();
 
-	/**
-	 * @param dependencyDate TODO
-	 * @param dependency
-	 * @param duration
-	 * @return
-	 */
-//	public long calcStart(Dependency dependency, long duration);
 
 	//cp
 	long calcOffsetFrom(long startDate, long dependencyDate, boolean ahead, boolean remainingOnly, boolean useSooner);

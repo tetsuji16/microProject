@@ -78,8 +78,6 @@ public class CriticalPath implements SchedulingAlgorithm {
 	public CriticalPath(Project project) {
 		this.project = project;
 		project.setSchedulingAlgorithm(this); 
-//		project.addObjectListener(this);
-//		project.getMultipleTransactionManager().addListener(this);
 		fieldUpdater = CriticalPathFields.getInstance(this,project);
 
 		startSentinel = new NormalTask(true,project); //local
@@ -245,8 +243,6 @@ public class CriticalPath implements SchedulingAlgorithm {
 		Task task;
 		TaskSchedule schedule;
 
-//		int count = 0;
-//		long z = System.currentTimeMillis();
 		boolean projectForward = project.isForward();
 		while (forward ? i.hasNext() : i.hasPrevious()) {
 			taskReference = forward ? i.next() : i.previous();

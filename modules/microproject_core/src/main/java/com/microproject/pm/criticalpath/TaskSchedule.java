@@ -154,16 +154,6 @@ public final class TaskSchedule implements Cloneable {
 	}
 
 	
-//
-//	void copyDatesFrom(TaskSchedule from) {
-//		start = from.start;
-//		finish = from.finish;
-//		if (task.isWbsParent())
-//			rawDuration = from.rawDuration;
-//		dependencyDate = from.dependencyDate;
-//		remainingDependencyDate = from.remainingDependencyDate;
-//	}
-	
 	public long getBegin() {
 		return forward ? start : -finish;
 	}
@@ -477,13 +467,7 @@ public final class TaskSchedule implements Cloneable {
 
 				
 
-			//			if (context !=  null && context.pass == 3 && child.isReverseScheduled()) {
-//				
-			//				childSchedule = child.getSchedule(type.opposite());
-//			} else
 				childSchedule = child.getSchedule(scheduleType);
-//			if (assign && child.isReverseScheduled())
-//				childSchedule = childSchedule.getOppositeSchedule();
 
 			long childBegin = childSchedule.getBegin();
 			
@@ -564,7 +548,6 @@ public final class TaskSchedule implements Cloneable {
 		long begin = getBeginDependency();
 		Task parent = task.getWbsParentTask();
 		
-		//boolean useSooner = (forward != task.hasDuration()); // shortcut: if forward and is milestone, use sooner, otherwise later.  And conversely, if reverse and isn't milestone, use sooner, othewise later
 		boolean useSooner = task.isMilestone();
 		
 		if (parent != null) {
