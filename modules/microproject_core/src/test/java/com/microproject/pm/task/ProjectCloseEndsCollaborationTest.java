@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.awt.EventQueue;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -36,6 +37,8 @@ import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.Alert;
 import com.microproject.util.AlertPresenter;
 import com.microproject.util.Environment;
+import com.microproject.util.UiDispatch;
+import com.microproject.util.UiDispatcher;
 
 /** Issue #967: every route that closes a project ends its collaboration session once the close is certain. */
 class ProjectCloseEndsCollaborationTest {
@@ -54,6 +57,7 @@ class ProjectCloseEndsCollaborationTest {
 	@AfterEach
 	void restoreEnvironment() {
 		SessionFactory.getInstance().setJobQueue(originalQueue);
+		UiDispatch.setDispatcher(null);
 		Alert.setPresenter(null);
 		Environment.setClientSide(originalClientSide);
 		Environment.setBatchMode(originalBatchMode);
@@ -75,6 +79,13 @@ class ProjectCloseEndsCollaborationTest {
 		CollaborationSession session = startSession(project);
 		assertEquals(List.of("plan.microproject-sync.json", "plan.microproject-sync.lock", "plan.mpo"), fileNames());
 
+		assertEquals(List.of("plan.mpo"), quit(factory, calledFromSwing), "collaboration files must be gone before the process exits");
+		assertNull(project.getCollaborationSession());
+		session.stop(); // a second stop has nothing left to do
+		assertEquals(List.of("plan.mpo"), fileNames());
+	}
+
+	private List<String> quit(ProjectFactory factory, boolean calledFromSwing) throws Exception {
 		CountDownLatch exited = new CountDownLatch(1);
 		AtomicReference<List<String>> filesAtExit = new AtomicReference<>();
 		JobRunnable exit = new JobRunnable("exit") {
@@ -88,10 +99,90 @@ class ProjectCloseEndsCollaborationTest {
 		SessionFactory.getInstance().getLocalSession().schedule(job);
 
 		assertTrue(exited.await(30, TimeUnit.SECONDS), "the quit job did not reach the exit step");
-		assertEquals(List.of("plan.mpo"), filesAtExit.get(), "collaboration files must be gone before the process exits");
-		assertNull(project.getCollaborationSession());
-		session.stop(); // a second stop has nothing left to do
-		assertEquals(List.of("plan.mpo"), fileNames());
+		return filesAtExit.get();
+	}
+
+	@Test
+	void aLockBusyForLongerThanTheWindowThreadMayWaitIsStillWaitedFor() throws Exception {
+		useWindowThread();
+		ProjectFactory factory = ProjectFactory.createInstance();
+		Project project = openProject(factory);
+		startSession(project);
+		CountDownLatch release = new CountDownLatch(1);
+		Thread holder = holdCollaborationLock(project, release);
+		Thread releaser = new Thread(() -> {
+			try {
+				Thread.sleep(1000L);
+			} catch (InterruptedException interrupted) {
+				Thread.currentThread().interrupt();
+			}
+			release.countDown();
+		});
+		releaser.start();
+
+		try {
+			assertEquals(List.of("plan.mpo"), quit(factory, true), "a poll or another copy holding the lock must only delay the removal");
+		} finally {
+			release.countDown();
+			releaser.join();
+			holder.join();
+		}
+	}
+
+	@Test
+	void aLockThatIsNeverReleasedCannotStopTheApplicationFromExiting() throws Exception {
+		useWindowThread();
+		ProjectFactory factory = ProjectFactory.createInstance();
+		Project project = openProject(factory);
+		startSession(project);
+		CountDownLatch release = new CountDownLatch(1);
+		Thread holder = holdCollaborationLock(project, release);
+
+		try {
+			assertEquals(List.of("plan.microproject-sync.json", "plan.microproject-sync.lock", "plan.mpo"), quit(factory, true));
+			assertNull(project.getCollaborationSession());
+		} finally {
+			release.countDown();
+			holder.join();
+		}
+	}
+
+	@Test
+	void quittingWithSeveralProjectsOpenLeavesOnlyTheProjectFiles() throws Exception {
+		ProjectFactory factory = ProjectFactory.createInstance();
+		Project first = openProject(factory, "first.mpo");
+		Project second = openProject(factory, "second.mpo");
+		startSession(first);
+		startSession(second);
+
+		assertEquals(List.of("first.mpo", "second.mpo"), quit(factory, false));
+		assertNull(first.getCollaborationSession());
+		assertNull(second.getCollaborationSession());
+	}
+
+	private static void useWindowThread() {
+		UiDispatch.setDispatcher(new UiDispatcher() {
+			@Override public void invokeLater(Runnable task) { EventQueue.invokeLater(task); }
+			@Override public boolean isDispatchThread() { return EventQueue.isDispatchThread(); }
+		});
+	}
+
+	/** Stands in for a poll or another running copy; returns once the lock is held. */
+	private static Thread holdCollaborationLock(Project project, CountDownLatch release) throws Exception {
+		CountDownLatch held = new CountDownLatch(1);
+		CollaborationMetadataStore store = new CollaborationMetadataStore(new File(project.getFileName()));
+		Thread holder = new Thread(() -> store.withLockedMetadata(metadata -> {
+			held.countDown();
+			try {
+				release.await();
+			} catch (InterruptedException interrupted) {
+				Thread.currentThread().interrupt();
+			}
+			return null;
+		}));
+		holder.start();
+		assertTrue(held.await(10, TimeUnit.SECONDS), "the lock was not taken");
+		return holder;
 	}
 
 	@Test
@@ -139,7 +230,11 @@ class ProjectCloseEndsCollaborationTest {
 	}
 
 	private Project openProject(ProjectFactory factory) throws Exception {
-		Path projectFile = Files.writeString(folder.resolve("plan.mpo"), "saved project data");
+		return openProject(factory, "plan.mpo");
+	}
+
+	private Project openProject(ProjectFactory factory, String fileName) throws Exception {
+		Path projectFile = Files.writeString(folder.resolve(fileName), "saved project data");
 		Project project = newProject(projectFile);
 		factory.addProject(project, false, false);
 		return project;

@@ -45,8 +45,10 @@ Closing a project or the whole application retires `<file>.lock` and the sync
 lock. When the closing user is the sidecar's only user, their workspace layout
 moves to the per-user `LocalWorkspaceStore` and the sidecar is removed too, so a
 closed project leaves only its project files. A sidecar with another user's data
-stays. Cancelling the save prompt keeps the session and its files; the next open
-and close by the same user removes files an earlier release or a crash left.
+stays. Cancelling the save prompt keeps the session and its files. A busy lock or
+a file another program has open is retried for up to 3 seconds, so that a sync
+client delays the removal without blocking exit. The next open and close by the
+same user removes files left by that limit, an earlier release, or a crash.
 
 Do not include `.tmp` files in conflict resolution or copy them between
 machines. Do not delete `.lock` files as ordinary project cleanup. Removing a
