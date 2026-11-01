@@ -980,13 +980,19 @@ public class ProjectFactory {
 		else job.addJob(closeProjectJob);
 
 
-		job.addRunnable(new JobRunnable("Local: closeProjects"){
+		// Every close route ends here, after the save prompt and any save, so a
+		// cancelled or failed close keeps its session (issue #967).  This never runs
+		// on the window's thread: a lock in use elsewhere gets its full wait.
+		job.addRunnable(new JobRunnable("Local: endCollaboration"){
 			public Object run() throws Exception{
-				// Every close route ends here, after the save prompt and any save, so
-				// a cancelled or failed close keeps its session (issue #967).
 				endCollaboration(project);
 				for (Project p : projects)
 					endCollaboration(p);
+				return null;
+			}
+		},false,false,false,false);
+		job.addRunnable(new JobRunnable("Local: closeProjects"){
+			public Object run() throws Exception{
 				com.microproject.transaction.ProjectMutationState.coordinated(() -> {
 					List<Project> closingProjects = new ArrayList<>(toRemove.size());
 					for (Node node : toRemove) {

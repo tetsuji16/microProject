@@ -28,6 +28,8 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.ObjectOutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -153,24 +155,25 @@ public class CollaborationSession {
 	/** Ends the session, whether or not it got as far as starting.  Failures never block closing the project. */
 	public void stop() {
 		if (stopped) return;
+		store.beginClosing();
 		Timer runningTimer = timer;
+		timer = null;
 		if (runningTimer != null) {
+			runningTimer.cancel();
 			try {
 				saveWorkspace(project.getCollaborationWorkspace());
 			} catch (Exception e) {
 				logger.log(Level.FINE, "Failed to save workspace on session stop", e);
 			}
 		}
+		stopped = true;
 		try {
 			lockManager.releaseAll();
 		} catch (RuntimeException e) {
 			logger.log(Level.WARNING, "Collaboration locks could not be released; leases will expire", e);
 		} finally {
 			lockBaselineStates.clear();
-			if (runningTimer != null) runningTimer.cancel();
-			timer = null;
 		}
-		stopped = true;
 		removeProjectArtifacts();
 	}
 
@@ -180,9 +183,15 @@ public class CollaborationSession {
 		try {
 			LocalWorkspaceStore workspaces = new LocalWorkspaceStore(projectFile, userKey);
 			store.retireIfSoleUser(userKey, clientInstanceId, workspaces::save);
-			RetirableFileLock.retireIfUnheld(projectFile.toPath().resolveSibling(projectFile.getName() + ".lock"));
 		} catch (RuntimeException e) {
 			logger.log(Level.WARNING, "Collaboration files stay beside " + projectFile, e);
+		}
+		Path saveMarker = projectFile.toPath().resolveSibling(projectFile.getName() + ".lock");
+		while (Files.isRegularFile(saveMarker) && !RetirableFileLock.retireIfUnheld(saveMarker)) {
+			if (!store.pauseWhileClosing()) {
+				logger.log(Level.WARNING, "The save marker stays beside {0}: it stayed in use while it closed", projectFile);
+				return;
+			}
 		}
 	}
 

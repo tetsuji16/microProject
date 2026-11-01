@@ -1364,6 +1364,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		// the portfolio.  In that case removeProject has no delete event to drive
 		// the normal frame listener, but a clean document is safe to close now.
 		if (!needsSaving) {
+			releaseClosedProject(project);
 			Runnable removeFrame = () -> getFrameManager().removeFrame(frame);
 			if (SwingUtilities.isEventDispatchThread())
 				removeFrame.run();
@@ -3673,12 +3674,16 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	}
 
 	protected void closeProject(Project project){
-		autoRecoveryManager.discard(project);
 		persistCollaborationWorkspace(project);
+		projectFactory.removeProject(project,true,true,true);
+	}
+
+	/** The close is certain only here: until the save prompt is answered the document keeps its recovery snapshot and extracted files. */
+	private void releaseClosedProject(Project project) {
+		autoRecoveryManager.discard(project);
 		// Subprojects do not always have a DocumentFrame; release their MPOF
 		// extraction ownership at the project-removal boundary as well.
 		closeProjectArtifacts(project);
-		projectFactory.removeProject(project,true,true,true);
 	}
 
 	void closeProjectArtifacts(Project project) {
@@ -4665,6 +4670,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				}
 
 			} else if (objectEvent.isDelete()) {
+				releaseClosedProject(project);
 				closeProjectFrame(project);
 			}
 			informationDialogCoordinator.objectChanged(objectEvent);
