@@ -33,7 +33,7 @@ import java.util.Map;
 
 import groovy.lang.GroovyClassLoader;
 
-/** Shared, type-safe boundary for ProjectLibre's generated Groovy classes. */
+/** Shared, type-safe boundary for generated Groovy classes. */
 public final class GroovyClassCompiler {
     private static final int MAX_CACHED_CLASSES = 128;
     private static final Map<String, CompiledClass> CLASSES_BY_SOURCE =

@@ -32,13 +32,13 @@ public final class SwingAlertPresenter implements AlertPresenter {
 	@Override
 	public void warn(Object message, Object parent) {
 		PopupDialogSupport.showMessageDialog(parent(parent), message,
-				Messages.getString("Title.MicroProjectWarning"), JOptionPane.WARNING_MESSAGE);
+				Messages.getString("Title.ApplicationWarning"), JOptionPane.WARNING_MESSAGE);
 	}
 
 	@Override
 	public void error(Object message, Object parent) {
 		PopupDialogSupport.showMessageDialog(parent(parent), message,
-				Messages.getString("Title.MicroProjectError"), JOptionPane.ERROR_MESSAGE);
+				Messages.getString("Title.ApplicationError"), JOptionPane.ERROR_MESSAGE);
 	}
 
 	@Override

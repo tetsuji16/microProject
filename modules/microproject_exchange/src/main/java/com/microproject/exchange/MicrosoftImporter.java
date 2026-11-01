@@ -75,15 +75,15 @@ import com.microproject.exchange.xlsx.MicroProjectXlsxReader;
 import java.util.logging.Logger;
 /**
  * This class is based on the project mpxj http://www.tapsterrock.com/mpxj/
- * The enumerated types in projectlibre currently correspond exactly to the types in mpx, so there is no need to convert them.
- * However, if the projectlibre enumerations change, it will be necessary to map them to mpx types.
+ * The enumerated types in the project model currently correspond exactly to the types in mpx, so there is no need to convert them.
+ * However, if the project model enumerations change, it will be necessary to map them to mpx types.
  *
  */
 public class MicrosoftImporter extends FileImporter {
 	private static final Logger logger = Logger.getLogger(MicrosoftImporter.class.getName());
 	protected com.microproject.pm.task.Project plProject= null;
-	protected Map<Object, Object> taskMap = new HashMap<>(); // keeps track of mapping mpx tasks to projectlibre1 tasks
-	private Map<Number, Object> resourceMap = new HashMap<>(); // keeps track of mappy mpx resources to projectlibre1 resources
+	protected Map<Object, Object> taskMap = new HashMap<>(); // keeps track of mapping mpx tasks to project model tasks
+	private Map<Number, Object> resourceMap = new HashMap<>(); // keeps track of mapping mpx resources to project model resources
 	public static boolean ADD_SUMMARY_TASK = false; //Environment.isAddSummaryTask(); // whether to automatically add an extra project summary task or not //claur
 	private static final String ABORT = "Job aborted"; //$NON-NLS-1$
 	private String errorDescription = null;
@@ -378,7 +378,7 @@ public class MicrosoftImporter extends FileImporter {
 
 
 	/**
-	 * This method imports all resources defined in the file into the projectlibre1 model
+	 * This method imports all resources defined in the file into the project model
 	 *
 	 * @param file
 	 *            MPX file
@@ -411,7 +411,7 @@ public class MicrosoftImporter extends FileImporter {
 	}
 
 	/**
-	 * This method imports all tasks defined in the file into the projectlibre1 model
+	 * This method imports all tasks defined in the file into the project model
 	 *
 	 */
 	private void importTasks() {
@@ -429,7 +429,7 @@ public class MicrosoftImporter extends FileImporter {
 
 
 	/**
-	 * Import mpx assignments into projectlibre1 model
+	 * Import mpx assignments into the project model
 	 *
 	 */
 	protected void importAssignments() {

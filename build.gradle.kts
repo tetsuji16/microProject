@@ -51,6 +51,21 @@ fun requireArchitectureSet(label: String, module: String, expected: Set<String>,
     }
 }
 
+// Match internal names and resource keys, while leaving display text and historical
+// license/attribution lines untouched. Open-project commands are a separate concept.
+fun legacyNameReference(path: String, line: String, properties: Boolean): String? {
+    var item = line.trim().replace(Regex("\\s+"), " ")
+    if (properties) {
+        if (item.isEmpty() || item.startsWith("#") || item.startsWith("!")) return null
+        item = item.takeWhile { it != '=' && it != ':' && !it.isWhitespace() }
+    } else if ((item.startsWith("*") || item.startsWith("//")) &&
+        Regex("Copyright|@author|http://www\\.projectlibre\\.com", RegexOption.IGNORE_CASE).containsMatchIn(item)) {
+        return null
+    }
+    val pattern = Regex("projectlibre|openproj(?!ect)", RegexOption.IGNORE_CASE)
+    return if (pattern.containsMatchIn(item)) "$path\t$item" else null
+}
+
 plugins {
     base
 }
@@ -371,6 +386,33 @@ tasks.register("verifyNamingConventions") {
     description = "Verifies the microproject build identity, microProject product branding, and source namespace policy."
 
     doLast {
+        val allowlistFile = layout.projectDirectory.file("docs/architecture/legacy-name-allowlist.tsv").asFile
+        val allowedLegacyNames = allowlistFile.readLines().filter { it.isNotBlank() && !it.startsWith("#") }.map { entry ->
+            val columns = entry.split("\t", limit = 3)
+            require(columns.size == 3 && columns[2].isNotBlank()) { "Legacy-name exception requires a reason: $entry" }
+            "${columns[0]}\t${columns[1]}"
+        }.groupingBy { it }.eachCount()
+        val actualLegacyNames = fileTree(layout.projectDirectory.dir("modules")) {
+            include("**/src/main/**/*.java", "**/src/main/**/*.kt", "**/src/main/**/*.properties", "**/src/main/**/*.properties.*")
+            exclude("**/build/**")
+        }.flatMap { source ->
+            val relative = source.relativeTo(layout.projectDirectory.asFile).invariantSeparatorsPath
+            source.readLines().mapNotNull { legacyNameReference(relative, it, source.name.contains(".properties")) }
+        }.groupingBy { it }.eachCount()
+        val unexpectedNames = actualLegacyNames.filter { (name, count) -> count > (allowedLegacyNames[name] ?: 0) }
+        val obsoleteExceptions = allowedLegacyNames.filter { (name, count) -> count > (actualLegacyNames[name] ?: 0) }
+        require(unexpectedNames.isEmpty() && obsoleteExceptions.isEmpty()) {
+            "Legacy-name inventory changed; resolve new names or update justified exceptions:\n" +
+                unexpectedNames.keys.sorted().joinToString("\n") { "+ $it" } + "\n" +
+                obsoleteExceptions.keys.sorted().joinToString("\n") { "- $it" }
+        }
+        check(legacyNameReference("fixture.java", "String projectlibreVariable;", false) != null)
+        check(legacyNameReference("fixture.properties", "Title.ProjectLibreError=value", true) != null)
+        check(legacyNameReference("fixture.properties", "Title.ProjectLibreError: value", true) != null)
+        check(legacyNameReference("fixture.properties", "Title.ProjectLibreError value", true) != null)
+        check(legacyNameReference("fixture.properties", "Title.Error=ProjectLibre display text", true) == null)
+        check(legacyNameReference("fixture.java", "void openProject() {}", false) == null)
+
         // Gradle identifiers are lower-case for path portability; the
         // user-visible product name intentionally retains its capital P.
         val expectedModules = setOf(

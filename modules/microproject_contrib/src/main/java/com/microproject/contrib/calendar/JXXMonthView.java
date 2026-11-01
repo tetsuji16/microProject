@@ -9,7 +9,7 @@
  * The license is LGPL
  *
  * The modifications (June 2007) are marked
- * with 'PROJECTLIBRE_MODIFICATION' comments
+ * with 'APPLICATION_MODIFICATION' comments
  */
 package com.microproject.contrib.calendar;
 
@@ -288,9 +288,9 @@ public class JXXMonthView extends JComponent {
 		_ltr = getComponentOrientation().isLeftToRight();
 
 		// Set up calendar instance.
-		_cal = calendarInstance(); //PROJECTLIBRE_MODIFICATION
+		_cal = calendarInstance(); //APPLICATION_MODIFICATION
 		_cal.setFirstDayOfWeek(_firstDayOfWeek);
-		_cal.setMinimalDaysInFirstWeek(1); //PROJECTLIBRE_MODIFICATION // needed for weeks with less than 3 days so that they start on week 1 instead of week 0
+		_cal.setMinimalDaysInFirstWeek(1); //APPLICATION_MODIFICATION // needed for weeks with less than 3 days so that they start on week 1 instead of week 0
 
 		// Keep track of today.
 		_cal.set(Calendar.HOUR_OF_DAY, 0);
@@ -337,7 +337,7 @@ public class JXXMonthView extends JComponent {
 				.get("JXMonthView.daysOfTheWeek");
 		// Use some meaningful default if the UIManager doesn't have anything
 		// for us.
-//		PROJECTLIBRE_MODIFICATION
+//		APPLICATION_MODIFICATION
 		if (daysOfTheWeek == null) {
 			daysOfTheWeek = new String[DAYS_IN_WEEK];
 			Calendar weekCal = calendarInstance();
@@ -355,7 +355,7 @@ public class JXXMonthView extends JComponent {
 		// Use some meaningful default if the UIManager doesn't have anything
 		// for us.
 		if (color == null) {
-			color = Color.WHITE;//PROJECTLIBRE_MODIFICATION
+			color = Color.WHITE;//APPLICATION_MODIFICATION
 		}
 		setMonthStringBackground(color);
 
@@ -443,7 +443,7 @@ public class JXXMonthView extends JComponent {
 	 *            Date to make visible.
 	 */
 	public void ensureDateVisible(long date) {
-//		PROJECTLIBRE_MODIFICATION
+//		APPLICATION_MODIFICATION
 		/*
 		 * if (date < _firstDisplayedDate) { setFirstDisplayedDate(date); } else
 		 * if (date > _lastDisplayedDate) { _cal.setTimeInMillis(date); int
@@ -462,7 +462,7 @@ public class JXXMonthView extends JComponent {
 		 */
 	}
 
-//	PROJECTLIBRE_MODIFICATION
+//	APPLICATION_MODIFICATION
 	public boolean[] getSelectedWeekDays() {
 		return _selectedWeekDays;
 	}
@@ -470,7 +470,7 @@ public class JXXMonthView extends JComponent {
 	 * Returns a date span of the selected dates. The result will be null if no
 	 * dates are selected.
 	 */
-//	PROJECTLIBRE_MODIFICATION
+//	APPLICATION_MODIFICATION
 	public ContribIntervals getSelectedIntervals() {
 		return intervals;
 	}
@@ -486,7 +486,7 @@ public class JXXMonthView extends JComponent {
 	 *            DateSpan defining the selected dates. Passing
 	 *            <code>null</code> will clear the selection.
 	 */
-//	PROJECTLIBRE_MODIFICATION
+//	APPLICATION_MODIFICATION
 	/*
 	 * public void setSelectedDateSpan(DateSpan dateSpan) { DateSpan oldSpan =
 	 * null; if (_startSelectedDate != -1 && _endSelectedDate != -1) { oldSpan =
@@ -537,7 +537,7 @@ public class JXXMonthView extends JComponent {
 		return _selectionMode;
 	}
 
-//	PROJECTLIBRE_MODIFICATION
+//	APPLICATION_MODIFICATION
 	/*
 	 * public Vector initFlaggedDates(){ Vector flaggedDates=new
 	 * Vector(); long last = getLastDisplayedDate(); long first
@@ -561,7 +561,7 @@ public class JXXMonthView extends JComponent {
 		_selectionMode = mode;
 	}
 
-//	PROJECTLIBRE_MODIFICATION
+//	APPLICATION_MODIFICATION
 	private long roundToDay(long value) { //hk
 		if (isWeekDay(value))
 			return value;
@@ -578,7 +578,7 @@ public class JXXMonthView extends JComponent {
 	 * An array of longs defining days that should be flagged. This array is
 	 * assumed to be in sorted order from least to greatest.
 	 */
-//	PROJECTLIBRE_MODIFICATION
+//	APPLICATION_MODIFICATION
 	public void setFlaggedDates(long[] flaggedDates) {
 		_flaggedDates = flaggedDates;
 
@@ -603,7 +603,7 @@ public class JXXMonthView extends JComponent {
 	 * An array of longs defining days that should be flagged. This array is
 	 * assumed to be in sorted order from least to greatest.
 	 */
-//	PROJECTLIBRE_MODIFICATION
+//	APPLICATION_MODIFICATION
 	public void setColorDates(long[] coloredDates) {
 		_coloredDates = coloredDates;
 
@@ -623,10 +623,10 @@ public class JXXMonthView extends JComponent {
 	}
 
 /**
- * ProjectLibre extension
+ * Application extension
  * @param flaggedWeekDates
  */
-//	PROJECTLIBRE_MODIFICATION
+//	APPLICATION_MODIFICATION
 	public void setFlaggedWeekDates(boolean[] flaggedWeekDates) {
 		_flaggedWeekDates = flaggedWeekDates == null ? new boolean[DAYS_IN_WEEK] : flaggedWeekDates;
 		repaint();
@@ -634,10 +634,10 @@ public class JXXMonthView extends JComponent {
 
 
 /**
- * ProjectLibre extension
+ * Application extension
  * @param coloredWeekDates
  */
-//	PROJECTLIBRE_MODIFICATION
+//	APPLICATION_MODIFICATION
 	public void setColorWeekDates(boolean[] coloredWeekDates) {
 		_coloredWeekDates = coloredWeekDates == null ? new boolean[DAYS_IN_WEEK] : coloredWeekDates;
 		repaint();
@@ -1295,7 +1295,7 @@ public class JXXMonthView extends JComponent {
 					int month = weekCal.get(Calendar.MONTH);
 //					dayIndex = (_cal.get(Calendar.DAY_OF_WEEK) -1) %7;
 					for (int i = 0; i < DAYS_IN_WEEK; i++) {
-//						PROJECTLIBRE_MODIFICATION
+//						APPLICATION_MODIFICATION
 						// set the week calendar to the current day of week and make sure it's still in this month
 						weekCal.set(Calendar.DAY_OF_WEEK,dayIndex +1);
 						if (weekCal.get(Calendar.MONTH) != month)
@@ -1422,7 +1422,7 @@ public class JXXMonthView extends JComponent {
 			if (_bounds.intersects(clip)) {
 				numericDay = _dayOfMonthFormatter.format(_cal.getTime());
 
-//				PROJECTLIBRE_MODIFICATION
+//				APPLICATION_MODIFICATION
 //				// Paint Sunday
 //				if (_cal.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY
 //						|| _cal.get(Calendar.DAY_OF_WEEK) == Calendar.SATURDAY) {
@@ -1510,7 +1510,7 @@ public class JXXMonthView extends JComponent {
 					g.setFont(previousFont);
 					g.setColor(previousColor);
 				}
-//				PROJECTLIBRE_MODIFICATION
+//				APPLICATION_MODIFICATION
 //					g.setColor(defaultColor);
 //				} else {
 //					g.drawString(numericDay, _ltr ? _bounds.x + _boxPaddingX
@@ -1552,7 +1552,7 @@ public class JXXMonthView extends JComponent {
 		}
 	}
 
-	//	PROJECTLIBRE_MODIFICATION
+	//	APPLICATION_MODIFICATION
 	protected Color getWeekDayForeground(int calendarDayOfWeek) {
 		return getForeground();
 	}
@@ -1691,7 +1691,7 @@ public class JXXMonthView extends JComponent {
 			int width, int height) {
 //		g.setColor(getSelectedBackground());
 //		g.fillRect(x, y, width, height);
-//		PROJECTLIBRE_MODIFICATION
+//		APPLICATION_MODIFICATION
 		g.setColor(_todayBackgroundColor);
 		g.drawRect(x, y, width - 1, height - 1);
 	}
@@ -1702,7 +1702,7 @@ public class JXXMonthView extends JComponent {
 	 * and _endSelectedDate range.
 	 */
 	private boolean isSelectedDate(long time) {
-//		PROJECTLIBRE_MODIFICATION
+//		APPLICATION_MODIFICATION
 		Calendar temp = calendarInstance();
 		temp.setTimeInMillis(time);
 		int weekDay = temp.get(Calendar.DAY_OF_WEEK) - 1;
@@ -1769,7 +1769,7 @@ public class JXXMonthView extends JComponent {
 	 *         for date.
 	 */
 	private void calculateBoundsForDay(Rectangle bounds, Calendar cal, boolean weekDay) {
-//		PROJECTLIBRE_MODIFICATION
+//		APPLICATION_MODIFICATION
 		int year;
 		int month;
 		int dayOfWeek;
@@ -1834,7 +1834,7 @@ public class JXXMonthView extends JComponent {
 	 *            Y position
 	 * @return long The date, -1 if position does not contain a date.
 	 */
-//	PROJECTLIBRE_MODIFICATION
+//	APPLICATION_MODIFICATION
 	public long getDayAt(int x, int y) {
 		// Font changes invalidate the cached calendar geometry. Keep hit-testing
 		// in sync even when callers query a cell before the next paint.
@@ -1909,18 +1909,18 @@ public class JXXMonthView extends JComponent {
 		return selected;
 	}
 
-//	PROJECTLIBRE_MODIFICATION
+//	APPLICATION_MODIFICATION
 	private void calculateDirtyRectForSelection() {
 		for (Iterator i = intervals.iterator(); i.hasNext();) {
 			calculateDirtyRectForSelection((DateSpan) i.next());
 		}
 	}
 
-//	PROJECTLIBRE_MODIFICATION
+//	APPLICATION_MODIFICATION
 	private boolean isWeekDay(long val) {
 		return val < WEEKDAY_OFFSET;
 	}
-//	PROJECTLIBRE_MODIFICATION
+//	APPLICATION_MODIFICATION
 	private void calculateDirtyRectForSelection(DateSpan interval) {
 		long start = interval.getStart();
 		long end = interval.getEnd();
@@ -2014,7 +2014,7 @@ public class JXXMonthView extends JComponent {
 	}
 
 
-//	PROJECTLIBRE_MODIFICATION
+//	APPLICATION_MODIFICATION
 
 
 	/*
