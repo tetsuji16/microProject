@@ -309,8 +309,6 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     								} else{
     									d.setPredecessor(t);
     									t.getSuccessorList().add(d);
-    									//DependencyService.getInstance().updateSentinels(d);
-    									//DependencyService.getInstance().connect(d, this);
     								}
     							}
     							depsSet.add(d);
@@ -331,8 +329,6 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     								} else{
     									d.setSuccessor(t);
     									t.getPredecessorList().add(d);
-    									//DependencyService.getInstance().updateSentinels(d);
-    									//DependencyService.getInstance().connect(d, this);
     								}
     							}
     							depsSet.add(d);
@@ -348,7 +344,6 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
         		        if (snapshot==null) continue;
     			        AssociationList snapshotAssignments=snapshot.getHasAssignments().getAssignments();
     			        if (snapshotAssignments.size()>0){
-//    			        	ArrayList<Assignment> assignmentsToLink=new ArrayList<Assignment>();
 			            for (ListIterator<Association> a = snapshotAssignments.listIterator(); a.hasNext();) {
 			                Assignment assignment = (Assignment) a.next();
     			                Resource resource=assignment.getResource();
@@ -360,7 +355,6 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
                 							resource=destResource;
                 							assignment.getDetail().setResource(resource);
                 						}
-//                						assignmentsToLink.add(assignment);
                 						resource.addAssignment(assignment);
                 						NodeUndoInfo undo=new NodeUndoInfo(false);
                 						((ResourcePool)assignment.getResource().getDocument()).getObjectEventManager().fireCreateEvent(this,assignment,undo);
@@ -369,10 +363,6 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
             						assignment.getDetail().setResource(ResourceImpl.getUnassignedInstance());
             					}
     			            }
-//    			            for (Assignment assignment: assignmentsToLink){
-//    			            	AssignmentService.getInstance().remove(assignmentsToLink, this,false);
-//    			            	AssignmentService.getInstance().connect(assignment, this);
-//    			            }
 
 
     			        }
@@ -502,10 +492,9 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     }
     private void removeSubTree(Node node,NodeModel model,LinkedList<Node> toRemove,int actionType,boolean removeDependencies){
 		if (getUpdateLevel()==0){
-			//boolean singleRemoval=!(node.getImpl() instanceof Assignment);
 	    	try {
 				node.removeFromParent();
-	    		/*if (singleRemoval)*/ beginUpdate();
+				beginUpdate();
 				Node current;
 				int badCount = 0;
 				LinkedList<Node> enumeratedNodes=new LinkedList<>();
@@ -521,7 +510,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 				}
 				node.removeFromParent();
 			} finally{
-				/*if (singleRemoval)*/ endUpdate();
+				endUpdate();
 			}
 		}
    }
@@ -801,9 +790,6 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     	}
     }
 //
-//    private Iterator iterator(){
-//        return buildList(null).iterator();
-//    }
 
     private Node searchPrevious(Node node){
         if (node==null||node==root) return null;
@@ -956,7 +942,6 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 					for (int i=0;i<nbMultiprojectEndVoidNodes-count;i++){
 						node=NodeFactory.getInstance().createVoidNode();
 						setSubprojectLevel(node,subprojectLevel);
-						//node.setInSubproject(true);
 						parent.add(node);
 						inserted.add(node);
 					}
@@ -983,7 +968,6 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 
 		if (!subproject) checkSubprojectEndVoidNodes(root,inserted);
 		int nbEndVoids=subproject?nbMultiprojectEndVoidNodes:nbEndVoidNodes;
-		//int nbEndVoids=nbEndVoidNodes;
 		int count=0;
 		Node node;
 		for (ListIterator<TreeNode> i=root.childrenIterator(root.getChildCount());i.hasPrevious();){

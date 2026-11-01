@@ -19,7 +19,7 @@ Remove production code with demonstrably no callers and commented-out code. Excl
 
 ## Current slice
 
-**Next slice:** classify commented-code candidates in core grouping, graphic and scripting packages.
+**Next slice:** classify commented-code candidates in the remaining core `pm` packages.
 **Done when:** each candidate is removed or retained with a reason and core tests pass.
 **Then:** continue the remaining `src/main` inventory and unused-symbol audit.
 
@@ -33,3 +33,4 @@ Remove production code with demonstrably no callers and commented-out code. Excl
 - ScriptRunner slice removes only line-commented sample declarations and their line-commented explanatory text; no active declarations changed. `gradlew.bat :microproject_core:test --console=plain` passed (recompiled, tests up to date because compiled API was unchanged).
 - Algorithm/association/company/configuration slice: candidate comments were inactive field/constant/branch/logger statements; active declarations and code paths were unchanged. One match remains in `Configuration.java:52`: prose documenting monitor reentrancy, not code. `gradlew.bat :microproject_core:test --console=plain` passed (7 tasks, 2 executed).
 - Datatype/document/exchange/field slice: removed line-commented field and converter statements, including entire inactive conditional blocks; live read-only handling, conversions and summaries are unchanged. Four remaining matches in `DurationFormat`, `PercentFormat`, `RateFormat`, and `FieldValues` are explanatory prose about thread safety or capacity. `gradlew.bat :microproject_core:test --console=plain` passed (7 tasks, 2 executed).
+- Grouping/graphic/scripting slice: deleted only inactive declarations, debug calls and obsolete commented-out blocks. The two remaining search hits in `AssignmentNodeModel` and `TexturedShape` are explanatory prose. `gradlew.bat :microproject_core:test --console=plain` passed (7 tasks, 2 executed); a subsequent indentation-only correction resolved the staged whitespace check.

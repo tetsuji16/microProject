@@ -176,9 +176,6 @@ public class SpreadSheetFieldArray extends ArrayList<Field> implements NamedItem
 		metadata.add(newPosition, value);
 	}
 
-//	public void setWidth(int column, int width) {
-//		widths.set(column,width);
-//	}
 	/**
 	 * Equality is based on name, not on contents
 	 */
@@ -316,7 +313,6 @@ public class SpreadSheetFieldArray extends ArrayList<Field> implements NamedItem
 			}
 
 			add(field);
-			//widths.add(field.getColumnWidth());
 		} else {
 		}
 	}
@@ -327,7 +323,6 @@ public class SpreadSheetFieldArray extends ArrayList<Field> implements NamedItem
 			Field field=get(i);
 			if (fieldId.equals(field.getId())) {
 				remove(i);
-				//widths.remove(i);
 			}
 
 		}

@@ -27,7 +27,5 @@ package com.microproject.grouping.core.transform;
 import java.util.List;
 
 public interface HierarchicObject<T> {
-//	public int getLevel();
-//	public boolean isParent();
 	public List<T> getChildren();
 }

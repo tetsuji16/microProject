@@ -32,7 +32,6 @@ import com.microproject.pm.task.Task;
  * For internal use only
  */
 public class BaseFilter extends NodeFilter {
-   // protected boolean _showAssignments=false;
 	public BaseFilter(String arg) {
 		super();
 		if (arg!=null&&arg.length()>0)
