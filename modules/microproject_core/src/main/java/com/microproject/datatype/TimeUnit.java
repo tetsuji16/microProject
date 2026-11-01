@@ -29,9 +29,9 @@ package com.microproject.datatype;
  */
 public interface TimeUnit {
 	
-	   public static final int NON_TEMPORAL = -2; // projectlibre specific to indicate the value is not temporal
+	   public static final int NON_TEMPORAL = -2; // indicates the value is not temporal
 		
-	   public static final int NONE = -1; // projectlibre specific to indicate no value entered
+	   public static final int NONE = -1; // indicates no value was entered
 	   
 	   /**
 	    * Constant representing Minutes
