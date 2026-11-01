@@ -13,7 +13,7 @@ Separate task responsibilities along behavior and invariants while keeping Task/
 
 | ID | Required result | State | Evidence |
 |---|---|---|---|
-| A1 | Step 3: assignment-to-task rollups extracted or a reasoned non-extraction decision | Open | pending |
+| A1 | Step 3: assignment-to-task rollups extracted or a reasoned non-extraction decision | Local pass | stateless rollups, task-owned ratio and remaining boundaries documented; core and POD/MPO tests |
 | A2 | Step 4: interval operations extracted or a reasoned non-extraction decision | Open | pending |
 | A3 | Step 5: snapshot coordinator extracted or a reasoned non-extraction decision | Open | pending |
 | A4 | Preserve representative scheduling, assignment, progress and earned-value behavior | Open | pending regression tests |
@@ -22,9 +22,9 @@ Separate task responsibilities along behavior and invariants while keeping Task/
 
 ## Current slice
 
-**Next slice:** inventory remaining assignment-to-task rollups and determine whether further extraction is justified.
-**Done when:** remaining operations are extracted or their distinct aggregate invariants are documented.
-**Then:** characterize interval operations before extracting them.
+**Next slice:** characterize interval operations, including scheduling, split, parent rollup and event behavior.
+**Done when:** a representative test matrix establishes current invariants before extraction.
+**Then:** extract the interval responsibility only if those invariants and POD/MPO compatibility remain intact.
 
 ## Evidence
 
@@ -34,3 +34,5 @@ Separate task responsibilities along behavior and invariants while keeping Task/
 - `AssignmentValueRollup` now centralizes assignment start/resume/stop minima and maximum labor units. Task WBS summary handling and all mutations/events remain in `NormalTask`. Baseline and changed-head characterization covers empty and multiple assignments; `HasAssignmentsImplTest` covers distinct starts.
 - `gradlew.bat :microproject_core:test --console=plain` passed; `:microproject_exchange:test` with `PodRoundTripTest`, `PodDescriptorInventoryTest`, `MpoFileImporterTest` and `MpoHistoricalFixtureTest` passed. `serialver` reported `7226222599710405289L` for `HasAssignmentsImpl` before and after.
 - Initial two-start fixture failed because `Task.setStart` changes the dependency constraint rather than the current schedule. Setting the fixture schedule directly produced distinct assignment starts; the focused test passed. This was a fixture setup failure, not a product failure.
+- Step 3 continued: a positive-duration, zero-work assignment fixture proved total units return 1.0 while remaining units return 0.0; both now share task-owned `allocationUnits` while preserving lazy query order. Zero-duration and empty cases are covered. Milestone completion averaging moved to the stateless rollup helper; 0.2/0.8 assignments and the empty case passed before and after extraction. The responsibility map records why mutations, WBS selection and interval operations stay outside the pure rollup.
+- After these changes `gradlew.bat :microproject_core:test --console=plain` and the focused POD/MPO exchange fixture command passed again.

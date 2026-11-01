@@ -222,16 +222,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		if (importedPercentComplete != null)
 			return importedPercentComplete.doubleValue();
 		if (isZeroDuration()) { // special case for completion on milestones
-			int count = 0;
-			double pc = 0;
-			for (Association association : getAssignments()) {
-				Assignment ass = (Assignment) association;
-				pc += ass.getPercentComplete();
-				count++;
-			}
-			if (count == 0)
-				return 0.0D;
-			return pc / count;
+			return AssignmentValueRollup.averageCompletion(getAssignments());
 		} else {
 			return super.getPercentComplete();
 		}
@@ -1013,32 +1004,23 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	}
 
 	public double getUnits() {
-		if (getAssignments().isEmpty())
-			return 0;
-		long duration = getDurationMillis();
-		if (duration == 0.0)
-			return 1.0D; // degeneratate case
-		if (!isInitialized()) // the case when reading a file, don't boether to
-							  // calculate
-			return 1.0;
-		long work = calcWork();
-		if (work == 0) // degenerate case with no work yet
-			return 1.0;
-		return ((double) work) / duration;
+		return allocationUnits(false);
 	}
 
 	public double getRemainingUnits() {
+		return allocationUnits(true);
+	}
+
+	private double allocationUnits(boolean remaining) {
 		if (getAssignments().isEmpty())
 			return 0;
-		long duration = Duration.millis(getRemainingDuration());
-		if (duration == 0.0)
-			return 1.0D; // degeneratate case
-		if (!isInitialized()) // the case when reading a file, don't boether to
-							  // calculate
-			return 1.0;
-		long work = getRemainingWork(null);
+		long duration = remaining ? Duration.millis(getRemainingDuration()) : getDurationMillis();
+		if (duration == 0L || !isInitialized())
+			return 1.0D;
+		long work = remaining ? getRemainingWork(null) : calcWork();
+		if (!remaining && work == 0L)
+			return 1.0D;
 		return ((double) work) / duration;
-
 	}
 
 
