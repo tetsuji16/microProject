@@ -178,7 +178,6 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 
 	public Object clone() throws CloneNotSupportedException {
 		WorkingCalendar cal = (WorkingCalendar)super.clone();
-	//	cal.hasKey = new HasCommonKeyImpl(this);
 		cal.setName(getName());
 		return cal;
 	}
@@ -243,17 +242,10 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
     }
 
 
-//	public boolean isNew() {
-//		return hasKey.isNew();
-//	}
-//	public void setNew(boolean isNew) {
-//		hasKey.setNew(isNew);
-//	}
 	public void assignFrom(WorkingCalendar source) {
 		baseCalendar = source.baseCalendar;
 		if (!source.getName().equals(getName())) {
 			setName(source.getName());
-//			CalendarService.getInstance().add(this);
 		}
 		differences = source.differences;
 		invalidateConcreteInstance();
@@ -451,8 +443,6 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 
 
 	public long add(long date, long duration, boolean useSooner) {
-//		if (date == 0)
-//			DebugUtils.dumpStack("0 date");
 		return getConcreteInstance().add(date,duration,useSooner);
 	}
 	public long compare(long laterDate, long earlierDate, boolean elapsed) {
@@ -667,14 +657,6 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 		// the concrete base day made the calendar dialog display MSP weekday
 		// exceptions as if they used the base calendar.
 		descriptor.workDay = override != null ? override : getConcreteInstance().week.getWeekDay(dayNum);
-//		if (isBaseCalendar()) {
-//			// for base calendars, the notion of modified is based on the default work week
-//			WorkDay baseDay = WorkingCalendar.getDefaultInstance(null).getWeekDay(dayNum);
-//			descriptor.modified = !(baseDay.hasSameWorkHours(descriptor.workDay));
-//		} else {
-//			if (descriptor.workDay == null)
-//				descriptor.workDay = getConcreteInstance().week.getWeekDay(dayNum);
-//		}
 		return descriptor;
 	}
 
@@ -856,11 +838,6 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 			if (getWeekDay(i) == null)
 				nullCount++;
 		}
-//		if ( nullCount == 7) { // if all nulls, copy default cal
-//			for (int i = 0; i < 7; i++) {
-//				setWeekDay(i,(WorkDay) getDefaultInstance().getWeekDay(i).clone());
-//			}
-//		}
 
 	}
 

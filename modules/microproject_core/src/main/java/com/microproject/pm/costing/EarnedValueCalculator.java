@@ -67,7 +67,6 @@ public class EarnedValueCalculator {
 	private EarnedValueCalculator() {}
 	
 	public double cv(EarnedValueValues ev, long start, long end) {
-//		return ev.acwp(start,end) - ev.bcwp(start,end);
 		return ev.bcwp(start,end) - ev.acwp(start,end);
 	}
 	

@@ -258,7 +258,6 @@ public class WorkingHours implements Cloneable, Serializable {
 				}
 			}
 		}
-//		log.error("calcTimeAtRemainingWork didn't finish");
 		return -1; // error, return day start
 	}	
 
@@ -277,7 +276,6 @@ public class WorkingHours implements Cloneable, Serializable {
 				}
 			}
 		}
-//		log.error("calcTimeAtWork didn't finish");
 		return -1;//24L*60*60*1000; // error return midnight next day
 	}	
 	
