@@ -53,7 +53,7 @@
 
 
 AboutDialog.About=� ���������
-AboutDialog.copyright=Copyright 2026 microProject  ��� ����� ��������
+AboutDialog.copyright=Copyright (c) 2026 microProject. Licensed under the MIT License.
 AccessControlPolicy.PUBLIC=��� ������� (����� �������� � ���������)
 AccessControlPolicy.RESTRICTED=����������� �� ����� ������� � ���� ��������
 AccrualType.End=�����
