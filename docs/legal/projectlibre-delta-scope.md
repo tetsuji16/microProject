@@ -21,7 +21,7 @@ The planned independent product name is **microProject**. Do not rename packages
 - `KEEP_FORK_ORIGINAL`: use only after a reviewer documents that the work was created without ProjectLibre expression.
 - `DELETE_PROJECTLIBRE_DELTA`: remove an unused ProjectLibre-only feature or asset.
 - `REIMPLEMENT_PROJECTLIBRE_DELTA`: required behavior is specified by a public format, API contract, or black-box test and is implemented without copying ProjectLibre expression.
-- `REVIEW`: origin or mixed hunk remains unresolved. Do not remove headers or attribution while it is `REVIEW`.
+- `REVIEW`: origin or mixed hunk remains unresolved.
 
 ## Current generated inventory
 
