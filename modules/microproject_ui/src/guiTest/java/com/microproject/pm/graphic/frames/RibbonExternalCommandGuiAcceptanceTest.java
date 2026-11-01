@@ -322,6 +322,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		openPath.set(podSource);
 		exerciseOrdinarySaveAsToMpo(robot, openPath, podSource, podOverwriteTarget, podSavedCopy,
 			Files.readAllBytes(podSource));
+		exerciseInsertedRowSurvivesSaveCloseAndReopen(robot, openPath, podSavedCopy);
 		Path scalarXmlFixture = Path.of(System.getProperty("microproject.project.dir"), "modules",
 			"microproject_exchange", "testdata", "Assignment Baseline Scalars.xml");
 		Path scalarXml = mppSaveDirectory.resolve("assignment-baseline-scalars.xml");
@@ -417,6 +418,64 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		assertEquals(scalarAssignment.getBaselineValues(0), reopenedScalarAssignment.getBaselineValues(0));
 		assertEquals(scalarAssignment.getBaselineValues(9), reopenedScalarAssignment.getBaselineValues(9));
 		assertEquals(scalarAssignment.getBaselineValues(10), reopenedScalarAssignment.getBaselineValues(10));
+	}
+
+	/** GUI-MPO-SAVE-02: Insert, Save over the MPO, close and reopen keeps the rows and leaves only project files. */
+	private void exerciseInsertedRowSurvivesSaveCloseAndReopen(Robot robot, AtomicReference<Path> openPath,
+		Path savedMpo) throws Exception {
+		DocumentFrame frame = manager.findFrameForProjectFile(savedMpo.toString());
+		Project project = frame.getProject();
+		Point[] firstRow = new Point[1];
+		SwingUtilities.invokeAndWait(() -> {
+			var sheet = frame.getTopSpreadSheet();
+			Rectangle cell = sheet.getCellRect(1, 1, true);
+			Point origin = sheet.getLocationOnScreen();
+			firstRow[0] = new Point(origin.x + cell.x + cell.width / 2, origin.y + cell.y + cell.height / 2);
+		});
+		activateWindowForRobot(robot);
+		robot.mouseMove(firstRow[0].x, firstRow[0].y);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		GuiAcceptanceSupport.awaitInputAndEventQueueIdle(robot, "task row below the project summary selection");
+		int rowsBefore = outlineRows(project).size();
+		robot.keyPress(java.awt.event.KeyEvent.VK_INSERT);
+		robot.keyRelease(java.awt.event.KeyEvent.VK_INSERT);
+		GuiAcceptanceSupport.await(() -> outlineRows(project).size() == rowsBefore + 1, "Insert did not add a row");
+		assertTrue(project.needsSaving(), "an inserted row must make the project ask to be saved");
+		List<String> expectedRows = outlineRows(project);
+
+		activateWindowForRobot(robot);
+		click(robot, findCommandButton(window.getRibbonPanel(), "RibbonSaveProject", robot));
+		GuiAcceptanceSupport.await(() -> !project.needsSaving(), "ordinary Save did not finish over the existing MPO");
+		click(robot, findCommandButton(window.getRibbonPanel(), "RibbonCloseProject", robot));
+		GuiAcceptanceSupport.await(() -> manager.findFrameForProjectFile(savedMpo.toString()) == null,
+			"the saved project did not close");
+		try (java.util.stream.Stream<Path> files = Files.list(savedMpo.getParent())) {
+			assertEquals(List.of(), files.map(file -> file.getFileName().toString())
+				.filter(name -> name.endsWith(".lock") || name.contains("-sync.")).toList(),
+				"closing a project must leave only project files beside it");
+		}
+
+		openPath.set(savedMpo);
+		activateWindowForRobot(robot);
+		clickBackstageOpenTile(robot);
+		GuiAcceptanceSupport.await(() -> manager.findFrameForProjectFile(savedMpo.toString()) != null,
+			"File/Open did not reopen the saved MPO");
+		assertEquals(expectedRows, outlineRows(manager.findFrameForProjectFile(savedMpo.toString()).getProject()),
+			"reopening must show the rows that were saved, including the inserted one");
+	}
+
+	/** Every outline row in order: the task name, or an empty name for a blank row. */
+	private static List<String> outlineRows(Project project) {
+		List<String> rows = new ArrayList<>();
+		Object root = project.getTaskOutline().getHierarchy().getRoot();
+		for (java.util.Iterator<?> nodes = project.getTaskOutline().iterator(); nodes.hasNext();) {
+			com.microproject.grouping.core.Node row = (com.microproject.grouping.core.Node) nodes.next();
+			if (row != root) rows.add(row.getImpl() instanceof Task task ? task.getName() : "");
+		}
+		// Blank rows after the last task are the view's filler, which is not saved.
+		while (!rows.isEmpty() && rows.getLast().isEmpty()) rows.removeLast();
+		return rows;
 	}
 
 	private void exerciseOrdinarySaveAsToMpo(Robot robot, AtomicReference<Path> openPath, Path sourceFile,

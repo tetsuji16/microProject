@@ -18,6 +18,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import com.microproject.util.UiDispatcher;
 import com.microproject.util.UiDispatch;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
@@ -194,6 +195,79 @@ class CollaborationMetadataStoreTest {
 			long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
 			assertInstanceOf(CollaborationLockUnavailableException.class, failure.get());
 			assertTrue(elapsedMillis < 2000L, "the EDT lock wait must remain bounded");
+		}
+	}
+
+	@Test
+	void closingUserRetiresTheSidecarOnlyWhenNothingElseNeedsIt() throws Exception {
+		Path project = Files.createTempFile("mpo-collaboration", ".mpo");
+		CollaborationMetadataStore store = new CollaborationMetadataStore(project.toFile());
+		Path sidecar = store.getSidecarFile().toPath();
+		Path marker = CollaborationMetadataStore.buildLockFile(store.getSidecarFile()).toPath();
+		CollaborationMetadataStore.WorkspaceKeeper noLayout = payload -> { throw new AssertionError("no layout expected"); };
+
+		store.mutate(metadata -> {
+			CollaborationMetadataStore.LockRecord lock = new CollaborationMetadataStore.LockRecord();
+			lock.setOwnerKey("editor-1");
+			lock.setLeaseUntil(System.currentTimeMillis() + 60_000L);
+			metadata.getLocks().put("task-1", lock);
+		});
+		assertFalse(store.retireIfSoleUser("alice", "copy-1", noLayout), "a live lease blocks removal");
+		store.mutate(metadata -> metadata.getLocks().clear());
+
+		CollaborationMetadataStore.WorkspaceKeeper failing = payload -> { throw new IOException("disk full"); };
+		store.mutate(metadata -> {
+			UserWorkspaceState layout = new UserWorkspaceState();
+			layout.setWorkspacePayload("bGF5b3V0");
+			metadata.getPerUserWorkspace().put("alice", layout);
+		});
+		assertFalse(store.retireIfSoleUser("alice", "copy-1", failing), "a layout that cannot be kept stays in the sidecar");
+		assertTrue(Files.isRegularFile(sidecar));
+
+		Path legacy = project.resolveSibling(sidecar.getFileName().toString().replace(".microproject-sync.", ".projectlibre-sync."));
+		Files.writeString(legacy, "{}");
+		assertFalse(store.retireIfSoleUser("alice", "copy-1", payload -> { }), "a new sidecar would be migrated from the old one again");
+		Files.delete(legacy);
+
+		byte[] partial = "{\"users\":".getBytes(StandardCharsets.UTF_8);
+		byte[] valid = Files.readAllBytes(sidecar);
+		Files.write(sidecar, partial);
+		assertFalse(store.retireIfSoleUser("alice", "copy-1", payload -> { }), "a damaged sidecar is never removed");
+		assertArrayEquals(partial, Files.readAllBytes(sidecar));
+		Files.write(sidecar, valid);
+
+		assertTrue(store.retireIfSoleUser("alice", "copy-1", payload -> { }));
+		assertFalse(Files.exists(sidecar));
+		assertFalse(Files.exists(marker));
+	}
+
+	@Test
+	void closingWaitsOutAProgramThatBrieflyHoldsTheFilesOpen() throws Exception {
+		for (boolean holdSidecar : new boolean[] {true, false}) {
+			Path project = Files.createTempFile("mpo-collaboration", ".mpo");
+			CollaborationMetadataStore store = new CollaborationMetadataStore(project.toFile());
+			store.mutate(metadata -> metadata.getLocks().clear());
+			Path sidecar = store.getSidecarFile().toPath();
+			Path marker = CollaborationMetadataStore.buildLockFile(store.getSidecarFile()).toPath();
+			FileInputStream scanner = new FileInputStream((holdSidecar ? sidecar : marker).toFile());
+			Thread finishes = new Thread(() -> {
+				try {
+					Thread.sleep(500L);
+					scanner.close();
+				} catch (InterruptedException | IOException stopped) {
+					throw new IllegalStateException(stopped);
+				}
+			});
+
+			try {
+				finishes.start();
+				assertTrue(store.retireIfSoleUser("alice", "copy-1", payload -> { }), holdSidecar ? "sidecar held" : "marker held");
+				assertFalse(Files.exists(sidecar));
+				assertFalse(Files.exists(marker));
+			} finally {
+				finishes.join();
+				scanner.close();
+			}
 		}
 	}
 

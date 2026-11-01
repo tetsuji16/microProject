@@ -56,6 +56,23 @@ public class CalendarOption implements java.io.Serializable{
 	public static CalendarOption getNewInstance() {
 		return new CalendarOption();
 	}
+	/** Returns an independent copy for project-specific options. */
+	public CalendarOption copy() {
+		CalendarOption copy = new CalendarOption();
+		copy.showTimeInDates = showTimeInDates;
+		copy.weekStartsOn = weekStartsOn;
+		copy.fiscalYearStartsIn = fiscalYearStartsIn;
+		copy.defaultStartHour = defaultStartHour;
+		copy.defaultEndHour = defaultEndHour;
+		copy.defaultStartTime = defaultStartTime == null ? null : (GregorianCalendar) defaultStartTime.clone();
+		copy.defaultEndTime = defaultEndTime == null ? null : (GregorianCalendar) defaultEndTime.clone();
+		copy.hoursPerDay = hoursPerDay;
+		copy.hoursPerWeek = hoursPerWeek;
+		copy.daysPerMonth = daysPerMonth;
+		copy.defaultDuration = defaultDuration;
+		copy.addedCalendarTimeIsNonStop = addedCalendarTimeIsNonStop;
+		return copy;
+	}
 	public static CalendarOption getDefaultInstance() {
 		if (defaultInstance == null)
 			defaultInstance = new CalendarOption();

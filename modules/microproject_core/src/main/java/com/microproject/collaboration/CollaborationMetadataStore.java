@@ -43,12 +43,15 @@ import java.util.logging.Logger;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microproject.session.FileHelper;
+import com.microproject.util.RetirableFileLock;
 import com.microproject.util.SafeFileReplace;
 
 public class CollaborationMetadataStore {
 	private static final Logger logger = Logger.getLogger(CollaborationMetadataStore.class.getName());
 	private static final int MAX_METADATA_BYTES = 1024 * 1024; // 1 MB safety limit
 	private static final long EDT_LOCK_TIMEOUT_MILLIS = 300L;
+	private static final long CLOSE_TIMEOUT_MILLIS = 3000L;
+	private static final long CLOSE_RETRY_MILLIS = 50L;
 	public static final int SCHEMA_VERSION = 1;
 	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 	private static final Object JVM_LOCK_REGISTRY_GUARD = new Object();
@@ -63,6 +66,25 @@ public class CollaborationMetadataStore {
 	private final File sidecarFile;
 	private final File legacySidecarFile;
 	private final File lockFile;
+	private volatile boolean retired;
+	private volatile long closingDeadline;
+
+	/**
+	 * A callback whose {@code true} result removes the sidecar and its marker while the lock is held.
+	 * A {@code null} result means the attempt could not finish; {@code false} is a decision to keep them.
+	 */
+	private interface RetiringCallback extends MetadataCallback<Boolean> {
+		@Override
+		default Boolean onError(Exception error) {
+			logger.log(Level.FINE, "Collaboration files could not be removed yet", error);
+			return null;
+		}
+	}
+
+	/** Receives the leaving user's saved layout before the sidecar holding it is removed. */
+	public interface WorkspaceKeeper {
+		void keep(String workspacePayload) throws IOException;
+	}
 
 	public CollaborationMetadataStore(File projectFile) {
 		this.projectFile = projectFile;
@@ -108,77 +130,104 @@ public class CollaborationMetadataStore {
 	 * Removes collaboration artifacts for an explicitly deleted/unshared
 	 * project.  A malformed or partially synced sidecar is never treated as an
 	 * empty lease table.  The sidecar and marker are removed only after the
-	 * metadata has been read successfully, all leases are absent/expired, and
-	 * the OS lock has been acquired and released.
+	 * metadata has been read successfully and all leases are absent/expired,
+	 * while the OS lock is held.
 	 *
 	 * @return {@code true} when both artifacts were removed, otherwise
 	 *         {@code false} and the files are left untouched
 	 */
 	public boolean removeArtifactsIfUnowned() {
 		final long now = System.currentTimeMillis();
-		Boolean unowned = withLockedMetadata(new MetadataCallback<Boolean>() {
-			@Override
-			public Boolean execute(Metadata metadata) {
-				return Boolean.valueOf(metadata.getLocks().values().stream()
-						.noneMatch(lock -> lock != null && lock.getLeaseUntil() > now
-								&& ((lock.getOwnerKey() != null && !lock.getOwnerKey().isBlank())
-										|| (lock.getUserKey() != null && !lock.getUserKey().isBlank()))));
-			}
-
-			@Override
-			public Boolean onError(Exception error) {
-				return Boolean.FALSE;
-			}
-		});
-		if (!Boolean.TRUE.equals(unowned)) return false;
-
-		// Keep the JVM monitor while acquiring/releasing the OS lock.  This
-		// prevents another local caller from starting a new lease between the
-		// ownership check and cleanup; other processes are serialized by the
-		// marker lock itself.
-		String lockKey;
 		try {
-			lockKey = lockFile.getCanonicalPath();
-		} catch (IOException error) {
-			lockKey = lockFile.getAbsolutePath();
-		}
-		JvmLockEntry entry;
-		synchronized (JVM_LOCK_REGISTRY_GUARD) {
-			entry = JVM_LOCKS.computeIfAbsent(lockKey, key -> new JvmLockEntry());
-			entry.references.incrementAndGet();
-		}
-		try {
-			long deadline = lockDeadline();
-			acquireJvmLock(entry.monitor, deadline);
-			try {
-				try (FileChannel channel = FileChannel.open(lockFile.toPath(),
-						StandardOpenOption.CREATE, StandardOpenOption.WRITE);
-					 FileLock ignored = channel.tryLock()) {
-					if (ignored == null) return false;
-				}
-				try {
-					Files.deleteIfExists(sidecarFile.toPath());
-					Files.deleteIfExists(lockFile.toPath());
-					return true;
-				} catch (IOException error) {
-					logger.log(Level.WARNING, "Could not remove collaboration artifacts for " + projectFile, error);
-					return false;
-				}
-			} finally {
-				entry.monitor.unlock();
-			}
+			return Boolean.TRUE.equals(withLockedMetadata((RetiringCallback) metadata -> !hasLiveLease(metadata, now)));
 		} catch (CollaborationLockUnavailableException error) {
 			logger.log(Level.FINE, "Collaboration lock is busy during cleanup " + projectFile, error);
 			return false;
-		} catch (java.nio.channels.OverlappingFileLockException error) {
-			logger.log(Level.FINE, "Collaboration lock is already held for cleanup " + projectFile, error);
-			return false;
-		} catch (IOException error) {
-			logger.log(Level.WARNING, "Could not acquire collaboration lock for cleanup " + projectFile, error);
-			return false;
-		} finally {
-			releaseJvmLock(lockKey, entry);
 		}
+	}
+
+	/**
+	 * Removes the sidecar and marker when a closing session was their only user.
+	 * Anything that belongs to someone else keeps them in place: another user's
+	 * record or saved layout, another running copy, a live lease, or an older
+	 * release's sidecar that a new one would be migrated from again.  A busy
+	 * lock or a file another program has open is only a delay, so those attempts
+	 * repeat until {@link #beginClosing()}'s deadline.
+	 *
+	 * @return {@code true} when both artifacts were removed
+	 */
+	public boolean retireIfSoleUser(String userKey, String clientInstanceId, WorkspaceKeeper keeper) {
+		if (retired) return true;
+		beginClosing();
+		while (true) {
+			Boolean decided = attemptRetire(userKey, clientInstanceId, keeper);
+			if (decided != null) return decided;
+			if (!pauseWhileClosing()) {
+				logger.log(Level.WARNING, "Collaboration files stay beside {0}: they stayed in use while it closed", projectFile);
+				return false;
+			}
+		}
+	}
+
+	private Boolean attemptRetire(String userKey, String clientInstanceId, WorkspaceKeeper keeper) {
+		try {
+			return withLockedMetadata((RetiringCallback) metadata -> {
+				if (legacySidecarFile.exists() || hasLiveLease(metadata, System.currentTimeMillis())) return false;
+				if (!userKey.equals(soleKey(metadata.getUsers(), userKey))
+						|| !userKey.equals(soleKey(metadata.getPerUserWorkspace(), userKey))) return false;
+				UserRecord record = metadata.getUsers().get(userKey);
+				if (record != null && !clientInstanceId.equals(record.getClientInstanceId())) return false;
+				UserWorkspaceState workspace = metadata.getPerUserWorkspace().get(userKey);
+				if (workspace != null && workspace.getWorkspacePayload() != null) {
+					try {
+						keeper.keep(workspace.getWorkspacePayload());
+					} catch (IOException error) {
+						logger.log(Level.WARNING, "Could not keep the saved layout for " + projectFile, error);
+						return false;
+					}
+				}
+				return true;
+			});
+		} catch (CollaborationLockUnavailableException busy) {
+			logger.log(Level.FINE, "Collaboration lock is busy during close " + projectFile, busy);
+			return null;
+		}
+	}
+
+	/**
+	 * Starts the time allowed for a closing session, so that a lock nobody releases
+	 * cannot stop the application from exiting.  The window's thread keeps its
+	 * shorter limit.  Every later lock wait on this store shares the deadline.
+	 */
+	public void beginClosing() {
+		if (closingDeadline != 0L) return;
+		long allowed = com.microproject.util.UiDispatch.isDispatchThread() ? EDT_LOCK_TIMEOUT_MILLIS : CLOSE_TIMEOUT_MILLIS;
+		closingDeadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(allowed);
+	}
+
+	/** Waits before another attempt at closing. @return {@code false} once the closing time has run out */
+	boolean pauseWhileClosing() {
+		long remaining = closingDeadline - System.nanoTime();
+		if (remaining <= 0L) return false;
+		try {
+			TimeUnit.NANOSECONDS.sleep(Math.min(remaining, TimeUnit.MILLISECONDS.toNanos(CLOSE_RETRY_MILLIS)));
+			return true;
+		} catch (InterruptedException interrupted) {
+			Thread.currentThread().interrupt();
+			return false;
+		}
+	}
+
+	private static String soleKey(Map<String, ?> entries, String expected) {
+		if (entries.isEmpty()) return expected;
+		return entries.size() == 1 ? entries.keySet().iterator().next() : null;
+	}
+
+	private static boolean hasLiveLease(Metadata metadata, long now) {
+		return metadata.getLocks().values().stream()
+				.anyMatch(lock -> lock != null && lock.getLeaseUntil() > now
+						&& ((lock.getOwnerKey() != null && !lock.getOwnerKey().isBlank())
+								|| (lock.getUserKey() != null && !lock.getUserKey().isBlank())));
 	}
 
 	static File buildLockFile(File sidecarFile) {
@@ -276,8 +325,10 @@ public class CollaborationMetadataStore {
 	}
 
 	private <T> T withLockedMetadataUnderJvmLock(MetadataCallback<T> callback, long deadline) {
-		FileChannel channel = null;
-		FileLock lock = null;
+		if (retired) {
+			return callback.onError(new CollaborationLockUnavailableException("Collaboration metadata was closed"));
+		}
+		RetirableFileLock markerLock = null;
 		FileChannel legacyChannel = null;
 		FileLock legacyLock = null;
 		try {
@@ -285,8 +336,7 @@ public class CollaborationMetadataStore {
 			if (parent != null) {
 				Files.createDirectories(parent.toPath());
 			}
-			channel = FileChannel.open(lockFile.toPath(), StandardOpenOption.CREATE, StandardOpenOption.WRITE);
-			lock = acquireFileLock(channel, deadline);
+			markerLock = RetirableFileLock.acquire(lockFile.toPath(), channel -> acquireFileLock(channel, deadline));
 			// The canonical path is authoritative once present. During one-time
 			// migration, hold the legacy marker too so older local writers cannot
 			// change the source while it is copied; all new writers serialize on
@@ -310,6 +360,13 @@ public class CollaborationMetadataStore {
 			}
 			normalize(metadata);
 			T result = callback.execute(metadata);
+			if (callback instanceof RetiringCallback) {
+				if (!Boolean.TRUE.equals(result)) return result;
+				Files.deleteIfExists(sidecarFile.toPath());
+				if (!markerLock.retire()) return callback.onError(new IOException("Lock marker stays in place"));
+				retired = true;
+				return result;
+			}
 			writeMetadataIfChanged(useLegacy ? null : originalBytes, metadata);
 			return result;
 		} catch (Exception e) {
@@ -326,23 +383,17 @@ public class CollaborationMetadataStore {
 				logger.log(Level.FINE, "Failed to close legacy file channel on {0}", legacySidecarFile);
 			}
 			try {
-				if (lock != null) {
-					lock.release();
+				if (markerLock != null) {
+					markerLock.close();
 				}
 			} catch (IOException e) {
 				logger.log(Level.FINE, "Failed to release file lock on {0}", sidecarFile);
 			}
-			try {
-				if (channel != null) {
-					channel.close();
-				}
-			} catch (IOException e) {
-				logger.log(Level.FINE, "Failed to close file channel on {0}", sidecarFile);
-			}
 		}
 	}
 
-	private static long lockDeadline() {
+	private long lockDeadline() {
+		if (closingDeadline != 0L) return closingDeadline;
 		return com.microproject.util.UiDispatch.isDispatchThread()
 				? System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(EDT_LOCK_TIMEOUT_MILLIS)
 				: 0L;
