@@ -1,0 +1,32 @@
+# Issue #1000 — neutral internal identifiers
+
+State: IN PROGRESS
+Issue: https://github.com/tetsuji16/microProject/issues/1000
+Contract frozen: 2026-11-01, issue body
+Baseline HEAD: `1bc21058b`; isolated worktree clean.
+
+## Goal and scope
+
+Neutralize the named internal identifiers, comments, and UI resource keys; add a build check with justified exceptions. Preserve behavior and update all callers. Exclude persistent identifiers, open-project commands, license headers, and display meaning.
+
+## Acceptance
+
+| ID | Required result | State | Evidence |
+|---|---|---|---|
+| A1 | All remaining in-scope names are removed or justified on an allowlist | Open | inventory and build check pending |
+| A2 | Behavior unchanged and callers of renamed public APIs updated | Open | partial source search; tests pending |
+| A3 | `gradlew.bat build --console=plain` and `git diff --check` pass | Open | pending |
+
+## Current slice
+
+**Next slice:** inventory and neutralize the remaining issue-listed internal identifiers and comments.
+**Done when:** each named source has been reviewed and safe renames verified.
+**Then:** add the allowlisted build check and run the full build.
+
+- `MPXConverter` source-side parameter/local identifiers were renamed without changing types or behavior. `gradlew.bat :microproject_exchange:test --console=plain` passed on the baseline plus these changes.
+
+- `MergeField` renamed its target property and unassigned parameter; repository caller search found no external accessor calls. `gradlew.bat :microproject_core:test :microproject_exchange:test --tests com.microproject.exchange.ResourceMappingFormTest --console=plain` passed on baseline plus this change.
+
+## Remaining blockers
+
+- A1–A3: remaining inventory, build check and full-build evidence are required.
