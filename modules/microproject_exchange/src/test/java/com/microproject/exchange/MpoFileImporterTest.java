@@ -2480,6 +2480,36 @@ class MpoFileImporterTest {
 	}
 
 	@Test
+	void savingOverAnExistingFileKeepsTheTaskDataMspdiCannotHold(@org.junit.jupiter.api.io.TempDir Path folder) throws Exception {
+		Project original = projectForRoundTrip();
+		NormalTask task = (NormalTask) firstTask(original);
+		long day = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		task.setDuration(3L * day);
+		List<TaskSplitInterval> split = List.of(new TaskSplitInterval(4L * 60L * 60L * 1000L, 5L * 60L * 60L * 1000L));
+		task.restoreTaskSplitIntervals(this, split);
+		task.setFontBold(true);
+		task.setHiddenTask(true);
+		long start = task.getStart();
+		long finish = task.getEnd();
+
+		Path file = folder.resolve("saved twice.mpo");
+		for (int save = 0; save < 2; save++) {
+			MpoFileImporter writer = new MpoFileImporter();
+			writer.setFileName(file.toString());
+			writer.setProject(original);
+			writer.exportFile();
+		}
+
+		NormalTask reopened = (NormalTask) firstTask(loadFromBytes(Files.readAllBytes(file)));
+		org.junit.jupiter.api.Assertions.assertAll(
+			() -> assertEquals(split, reopened.getTaskSplitIntervals()),
+			() -> assertTrue(reopened.isFontBold(), "text style"),
+			() -> assertTrue(reopened.isHiddenTask(), "hidden flag"),
+			() -> assertEquals(start, reopened.getStart()),
+			() -> assertEquals(finish, reopened.getEnd()));
+	}
+
+	@Test
 	void assignmentLevelingSplitStateSurvivesMpoSaveReloadAndClear() throws Exception {
 		Project original = projectForRoundTrip();
 		NormalTask task = (NormalTask) firstTask(original);
@@ -3409,6 +3439,14 @@ class MpoFileImporterTest {
 		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, restored.getConstraintTypeKind());
 		assertEquals(constraintDate, restored.getConstraintDate());
 		assertNotNull(restoredSecond, "the high-runtime-UID task after a blank row must be restored");
+		com.microproject.grouping.core.Node previousRow = null;
+		Object reopenedRoot = reopened.getTaskOutline().getHierarchy().getRoot();
+		for (java.util.Iterator<?> rows = reopened.getTaskOutline().iterator(); rows.hasNext();) {
+			com.microproject.grouping.core.Node row = (com.microproject.grouping.core.Node) rows.next();
+			if (row.getImpl() == restoredSecond) break;
+			if (row != reopenedRoot) previousRow = row;
+		}
+		assertTrue(previousRow != null && previousRow.isVoid(), "the blank row must stay directly before the next task");
 		assertEquals(secondStart, restoredSecond.getStart());
 		assertEquals(secondFinish, restoredSecond.getEnd());
 	}
@@ -4372,7 +4410,7 @@ class MpoFileImporterTest {
 		assignPositiveUniqueIds(initial);
 		File shared = File.createTempFile("mpo-shared", ".mpo"); shared.deleteOnExit();
 		MpoFileImporter initialWriter = new MpoFileImporter(); initialWriter.setFileName(shared.getAbsolutePath()); initialWriter.setProject(initial); initialWriter.exportFile();
-		org.junit.jupiter.api.Assertions.assertTrue(new File(shared.getAbsolutePath() + ".lock").isFile(), "shared saves use a stable transaction lock");
+		org.junit.jupiter.api.Assertions.assertFalse(new File(shared.getAbsolutePath() + ".lock").exists(), "a finished save leaves no transaction lock");
 		Project firstEditor = load(shared); Project secondEditor = load(shared);
 		firstTask(firstEditor).setName("First editor");
 		secondEditor.findByUniqueId(second.getUniqueId()).setName("Second editor");
@@ -4553,7 +4591,7 @@ class MpoFileImporterTest {
 		byte[] sharedArchive = Files.readAllBytes(shared.toPath());
 		Project editor = load(shared);
 		firstTask(editor).setName("Recover after lock failure");
-		Files.delete(lockPath);
+		Files.deleteIfExists(lockPath);
 		Files.createDirectory(lockPath);
 		MpoFileImporter writer = new MpoFileImporter();
 		writer.setFileName(shared.getAbsolutePath());

@@ -1,14 +1,27 @@
 # Issue 967: application error with MPO format
 
-Baseline: `cff021950` (origin/master). Work is uncommitted on branch `claude/issues-967-970`. The latest release when the issue was filed was v0.1.0.1284.
+Base: `e8a4a2350` (origin/master). Latest report: v0.1.0.1290, the row inserted after opening a POD was missing after reopening the MPO, and `.lock` files stayed after closing.
 
 | ID | Acceptance | State and evidence |
 | --- | --- | --- |
-| A1 | POD, add a row, save as MPO, reopen: resources are present | Fixed by #966, merged after v0.1.0.1284. `editedPodSavedAsMpoFileKeepsResourcesAcrossResave` passes, headless, including a second save. No release contains it yet |
-| A2 | Remnant files do not cause a save error | Reproduced and fixed: `Cannot merge mpo files with different document IDs`. Each POD open gets a new document ID, so a remnant `.mpo` from an earlier attempt blocked Save As. An explicit Save As now replaces it; a plain save still refuses |
-| A3 | Remnant files do not cause an error on open | Not reproduced. The reporter gave no error text. Sync sidecars are not tied to a document ID, and nothing here shows a cause |
-| A4 | Reporter verification on a release | Pending |
+| A1 | POD, add a row, save as MPO, reopen: resources are present | Fixed by #966; the reporter confirmed it on v0.1.0.1290. |
+| A2 | Remnant files do not cause a save error | Fixed: a re-save with a new document ID no longer fails on old sidecars. |
+| A3 | Remnant files do not cause an error on open | Not reproduced; the reporter gave no error text. Closing now removes the remnants. |
+| A4 | Inserted rows survive save and reopen | Fixed; `reporterRouteFromPodToReopenedMpoKeepsTheDocumentAndLeavesOnlyProjectFiles`. Physical route GUI-MPO-SAVE-02 awaits a Windows GUI run. |
+| A5 | Closing a project leaves only project files beside it | Fixed; same test, plus `RetirableFileLockTest` and `CollaborationConflictTest`. |
+| A6 | Reporter verification on a release | Pending |
 
-The reporter's size comparison (32 KB MPO, 1,235 KB POD) was made on a file with no resources. The size after the fix has not been measured.
+## Causes
 
-Next slice: release, then ask the reporter to retest and send the exact text if an error still appears on open (A3).
+- A blank row was dropped on reload: `MspImporter` skipped MSPDI `IsNull` rows.
+- Reopened summaries and durations were wrong: restoring a snapshot rolled up from children not yet restored, and left the import's dependency date and raw duration in place.
+- Saving over an existing MPO wrote a copy rebuilt from MSPDI. It lost schedule snapshots, splits, leveling options, text styles, baseline profiles, and hidden flags. `MpoFileImporter.copyOfCapture` now applies them as opening does; `savingOverAnExistingFileKeepsTheTaskDataMspdiCannotHold` fails without it.
+- Lock markers and sidecars stayed because they were never removed on close.
+
+## Known limits
+
+- A blank row at the end of a summary's children reopens before the next real task; blank rows after the last task are view filler and are not saved.
+- MSPDI rounds summary percent complete to a whole percent.
+- An older release waiting on a retired marker does not check the mark.
+
+Next slice: Windows GUI run of GUI-MPO-SAVE-02, release, reporter retest (A6).

@@ -47,6 +47,7 @@ import com.microproject.pm.task.Task;
 import com.microproject.session.FileHelper;
 import com.microproject.util.SafeObjectInput;
 import com.microproject.workspace.WorkspaceSetting;
+import com.microproject.util.RetirableFileLock;
 
 public class CollaborationSession {
 	private static final Logger logger = Logger.getLogger(CollaborationSession.class.getName());
@@ -87,6 +88,7 @@ public class CollaborationSession {
 	private volatile long pendingExternalReloadDetectedAt;
 	private volatile long lastHeartbeatAt;
 	private volatile boolean projectStatsRefreshPending;
+	private volatile boolean stopped;
 
 	public CollaborationSession(Project project, String fileName, String userKey) {
 		this(project, fileName, userKey, new CollaborationMetadataStore(fileName == null ? null : new File(fileName)));
@@ -173,6 +175,16 @@ public class CollaborationSession {
 			timer.cancel();
 			timer = null;
 		}
+		stopped = true;
+		removeProjectArtifacts();
+	}
+
+	/** Leaves nothing beside the project once no other user needs it (issue #967). */
+	private void removeProjectArtifacts() {
+		if (projectFile == null) return;
+		LocalWorkspaceStore workspaces = new LocalWorkspaceStore(projectFile, userKey);
+		store.retireIfSoleUser(userKey, clientInstanceId, workspaces::save);
+		RetirableFileLock.retireIfUnheld(projectFile.toPath().resolveSibling(projectFile.getName() + ".lock"));
 	}
 
 	private void registerUser() {
@@ -203,7 +215,7 @@ public class CollaborationSession {
 
 	/** Runs one change-detection cycle at the supplied time for deterministic package tests. */
 	void pollAt(long now) {
-		if (projectFile == null) {
+		if (projectFile == null || stopped) {
 			return;
 		}
 		if (projectStatsRefreshPending) {
@@ -497,7 +509,7 @@ public class CollaborationSession {
 		return lockManager.getLocalLocks();
 	}
 	public void saveWorkspace(WorkspaceSetting workspace) {
-		if (workspace == null) {
+		if (workspace == null || stopped) {
 			return;
 		}
 		try (ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -525,10 +537,13 @@ public class CollaborationSession {
 			return null;
 		}
 		UserWorkspaceState state = metadata.getPerUserWorkspace().get(userKey);
-		if (state == null || state.getWorkspacePayload() == null) {
+		String payload = state != null && state.getWorkspacePayload() != null
+			? state.getWorkspacePayload()
+			: projectFile == null ? null : new LocalWorkspaceStore(projectFile, userKey).load();
+		if (payload == null) {
 			return null;
 		}
-		byte[] data = Base64.getDecoder().decode(state.getWorkspacePayload());
+		byte[] data = Base64.getDecoder().decode(payload);
 		try (var in = SafeObjectInput.create(new ByteArrayInputStream(data))) {
 				return (WorkspaceSetting) in.readObject();
 			} catch (Exception e) {

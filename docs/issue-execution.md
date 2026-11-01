@@ -46,6 +46,14 @@ Before enabling successful publication from a low-level setter, inventory its
 callers, including initialization and detached/internal objects, and gate
 project revisions on canonical project ownership where appropriate.
 
+## Before asking a reporter to retest
+
+Run the reporter's exact steps end to end, with their kind of file, as one test:
+open, edit, save, save again, close, and reopen. Compare the whole document on
+the screen, not only the field the issue names, and check what is left beside
+the file. Include saving over an existing file, which takes a different code path
+from a first save. Add this to the existing route test for that format.
+
 ## Evidence and integration
 
 ### Classify GUI evidence before diagnosis
