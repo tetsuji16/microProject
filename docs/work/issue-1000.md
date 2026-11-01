@@ -19,9 +19,11 @@ Neutralize the named internal identifiers, comments, and UI resource keys; add a
 
 ## Current slice
 
-**Next slice:** audit and neutralize legacy resource keys while preserving their values and updating all callers.
-**Done when:** resource key inventory, callers, and locale fallback are verified.
-**Then:** add the allowlisted build check and run the full build.
+**Next slice:** audit remaining historical resource keys and implement the reasoned legacy-name build allowlist.
+**Done when:** each remaining match is either neutralized or explicitly justified and the check rejects new matches.
+**Then:** run the full build and review all acceptance criteria.
+
+- Error/warning and legacy file-label resource keys and their callers were renamed with values unchanged across locales. Core `ClientBundleProductNameTest` and UI `DocumentStatusBarTest` passed via `gradlew.bat :microproject_core:test --tests com.microproject.strings.ClientBundleProductNameTest :microproject_ui:test --tests com.microproject.pm.graphic.frames.DocumentStatusBarTest --console=plain`.
 
 - The named comments and exchange warning were neutralized; third-party modification markers retain their meaning. `gradlew.bat build --console=plain` passed on `b49cc679a` plus this slice (56 tasks).
 
