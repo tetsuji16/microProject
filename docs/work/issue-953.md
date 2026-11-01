@@ -19,8 +19,8 @@ Remove production code with demonstrably no callers and commented-out code. Excl
 
 ## Current slice
 
-**Next slice:** review inactive blocks in `pm/assignment/AssignmentDetail`.
-**Done when:** every removed block consists only of comments and core tests pass.
+**Next slice:** classify remaining inactive candidates in `pm/assignment` and `pm/assignment/contour`.
+**Done when:** every candidate is removed or retained with a reason and core tests pass.
 **Then:** continue the remaining core `pm` inventory and unused-symbol audit.
 
 ## Evidence
@@ -36,3 +36,4 @@ Remove production code with demonstrably no callers and commented-out code. Excl
 - Grouping/graphic/scripting slice: deleted only inactive declarations, debug calls and obsolete commented-out blocks. The two remaining search hits in `AssignmentNodeModel` and `TexturedShape` are explanatory prose. `gradlew.bat :microproject_core:test --console=plain` passed (7 tasks, 2 executed); a subsequent indentation-only correction resolved the staged whitespace check.
 - `PersonalContour`: removed four wholly line-commented incomplete or obsolete methods (`makeFlatIfPossible`, `setContiguousDuration`, `adjustUnitsOld`, `setValue`); the compiled API, serialization fields and active contour algorithms were unchanged. `gradlew.bat :microproject_core:test --console=plain` passed (7 tasks, 2 executed). Hermes Beam suggested the four ranges; each was checked against source before removal.
 - `pm/criticalpath`: removed inactive listener registration, old schedule-copy and alternate calculation snippets, and commented interface declarations; repository search confirms `copyDatesFrom` exists only in its former commented block. One remaining search hit is prose explaining event barriers. Active scheduling paths are unchanged; `gradlew.bat :microproject_core:test --console=plain` passed (7 tasks, 2 executed).
+- `AssignmentDetail`: removed 105 lines from 13 inactive scheduling/debug blocks. A byte comparison of all non-comment, nonblank lines against `c623e70b2` confirmed that active code, including `readObject` and `writeObject`, is unchanged. Commented alternatives inside `readObject` were retained because POD/MPO readers are excluded. `gradlew.bat :microproject_core:test --console=plain` passed (7 tasks, 2 executed). Hermes Beam suggested ranges; each was verified before editing.
