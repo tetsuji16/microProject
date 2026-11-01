@@ -1,7 +1,6 @@
 /*******************************************************************************
  * MIT License
  *
- * Copyright (c) 2012-2019 ProjectLibre, Inc.  (Previous Copyright Holder)
  * Copyright (c) 2026 microProject
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -30,8 +29,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.InputStream;
+import java.io.StringReader;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.Properties;
 
 import javax.swing.JEditorPane;
 import javax.swing.UIManager;
@@ -63,22 +64,27 @@ class LicenseDialogResourceTest {
 		assertEditorPaneCanLoad("license/third-party/index.html");
 		assertInstallerLicenseCopyIsReadable();
 		assertCurrentOpenSourceNotices();
+		assertAboutCopyrightUsesMitNotice();
 	}
 
 	private void assertInstallerLicenseCopyIsReadable() throws Exception {
 		String license = readResource("license/license.txt");
 		assertTrue(license.startsWith("MICROPROJECT LICENSE"));
-		assertTrue(license.contains("Common Public Attribution License"));
-		assertFalse(license.contains("Attibution"));
+		assertTrue(license.contains("Copyright (c) 2026 microProject"));
+		assertNoRemovedLicenseText(license);
 
 		String licenseHtml = readResource("license/index.html");
 		assertFalse(licenseHtml.contains("FONT SIZE=2"));
-		assertTrue(licenseHtml.contains("FONT SIZE=3"));
 		assertTrue(licenseHtml.contains("microProject License"));
-		assertTrue(licenseHtml.contains("Copyright (c) 2012-2026 ProjectLibre, Inc."));
 		assertTrue(licenseHtml.contains("Copyright (c) 2026 microProject"));
-		assertTrue(licenseHtml.contains("com/microproject/contrib/util/Log.java"));
-		assertTrue(licenseHtml.contains("com/microproject/contrib/util/LogFactory.java"));
+		assertNoRemovedLicenseText(licenseHtml);
+	}
+
+	private void assertNoRemovedLicenseText(String text) {
+		assertFalse(text.contains("Common Public Attribution"));
+		assertFalse(text.contains("CPAL"));
+		assertFalse(text.toLowerCase(java.util.Locale.ROOT).contains("projectlibre"));
+		assertFalse(text.toLowerCase(java.util.Locale.ROOT).contains("openproj"));
 	}
 
 	private void assertCurrentOpenSourceNotices() throws Exception {
@@ -89,6 +95,18 @@ class LicenseDialogResourceTest {
 		assertTrue(notices.contains("MPXJ"));
 		assertFalse(notices.contains("Apache ANT"));
 		assertFalse(notices.contains("JUnit"));
+	}
+
+	private void assertAboutCopyrightUsesMitNotice() throws Exception {
+		for (String bundle : new String[] {"client", "client_ja", "client_de", "client_fr", "client_zh_CN", "client_sv"}) {
+			Properties strings = new Properties();
+			strings.load(new StringReader(readResource("com/microproject/strings/" + bundle + ".properties")));
+			String notice = strings.getProperty("AboutDialog.copyright");
+			assertTrue(notice.startsWith("Copyright (c) 2026 microProject. "), bundle);
+			assertTrue(notice.contains("MIT"), bundle);
+			assertFalse(notice.contains("\n"), bundle + " must not append a translator credit");
+			assertEquals(bundle.equals("client"), notice.contains("Licensed under the MIT License."), bundle);
+		}
 	}
 
 	private String readResource(String resourceName) throws Exception {

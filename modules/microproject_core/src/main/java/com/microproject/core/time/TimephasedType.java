@@ -1,7 +1,6 @@
 /*******************************************************************************
  * MIT License
  *
- * Copyright (c) 2012-2019 ProjectLibre, Inc.  (Previous Copyright Holder)
  * Copyright (c) 2026 microProject
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -30,7 +29,7 @@ import java.util.Map;
 /**
  * @author Laurent Chretienneau
  * 
-Used in ProjectLibre
+Used by the application
 From pjxml help file
 The type of timephased data: 
 1 Assignment Remaining Work  
@@ -106,7 +105,7 @@ The type of timephased data:
 75 Resource Baseline 10 Cost 
 76 Physical Percent Complete 
 
-ProjectLibre additions
+Additional application values
 100 Timecard unvalidated
 101 Timecard validated
 

@@ -1,7 +1,6 @@
 /*******************************************************************************
  * MIT License
  *
- * Copyright (c) 2012-2019 ProjectLibre, Inc.  (Previous Copyright Holder)
  * Copyright (c) 2026 microProject
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -120,7 +119,7 @@ public class DataSource implements ObjectRef {
 public Object getFieldValue(String fieldName) {
 		cleanField = new DecoratedField(fieldName);
 		
-		// get ProjectLibre equiv. field
+		// get the equivalent project field
 		Field field = cleanField.fieldForReportField();
 		if(cleanField.isTimeBased()) {
 			setInterval(cleanField.getStart(), cleanField.getEnd());

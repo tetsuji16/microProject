@@ -1,7 +1,6 @@
 /*******************************************************************************
  * MIT License
  *
- * Copyright (c) 2012-2019 ProjectLibre, Inc.  (Previous Copyright Holder)
  * Copyright (c) 2026 microProject
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -468,7 +467,7 @@ public class MSPDISerializer implements ProjectSerializer {
 		try {
 			saveProjectOrThrow(project, out);
 		} catch (Exception e) {
-			logger.log(Level.WARNING, "Failed to save ProjectLibre project as MSPDI", e);
+			logger.log(Level.WARNING, "Failed to save project as MSPDI", e);
 			return false;
 		}
 		return true;

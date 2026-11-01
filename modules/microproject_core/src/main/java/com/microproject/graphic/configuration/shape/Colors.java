@@ -1,7 +1,6 @@
 /*******************************************************************************
  * MIT License
  *
- * Copyright (c) 2012-2019 ProjectLibre, Inc.  (Previous Copyright Holder)
  * Copyright (c) 2026 microProject
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -167,7 +166,7 @@ public class Colors {
 	public static final Color YELLOW = new Color(0xffff00);
 	public static final Color YELLOW_GREEN = new Color(0x9acd32);
 
-	// A few added for ProjectLibre
+	// Additional application colors
 	public static final Color NORMAL_YELLOW = new Color(0xffffb0);
 	public static final Color NORMAL_LIGHT_YELLOW = new Color(0xffffe0);
 	public static final Color MULTIPROJET1 = new Color(0xececec);

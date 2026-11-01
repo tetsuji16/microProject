@@ -1,7 +1,6 @@
 /*******************************************************************************
  * MIT License
  *
- * Copyright (c) 2012-2019 ProjectLibre, Inc.  (Previous Copyright Holder)
  * Copyright (c) 2026 microProject
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -43,7 +42,7 @@ public class ImageLink extends Hyperlink {
 	}
 	
 	public static ImageLink trafficLight(String label,double value, double green, double yellow) {
-		String url; //http://www.projectlibre.com/web/img/
+		String url;
 		String icon;
 		if (value == 0.0D) {
 			url = "/img/GrayCircle.gif";

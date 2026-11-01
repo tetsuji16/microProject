@@ -1,7 +1,6 @@
 /*******************************************************************************
  * MIT License
  *
- * Copyright (c) 2012-2019 ProjectLibre, Inc.  (Previous Copyright Holder)
  * Copyright (c) 2026 microProject
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -30,7 +29,7 @@ import net.sf.mpxj.ResourceAssignment;
 import net.sf.mpxj.WorkContour;
 
 /**
- * Keeps MPXJ API version details out of ProjectLibre's scheduling model.
+ * Keeps MPXJ API version details out of the scheduling model.
  */
 public final class MpxjApi {
 	private static final TaskType[] TASK_TYPES = {

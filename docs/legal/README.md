@@ -2,6 +2,8 @@
 
 The Phase 0/1 audit separates OpenProj origin, ProjectLibre additions, fork-original work, and third-party code. It is deliberately conservative: an unknown or mixed file is recorded as `REVIEW` until a human compares the OpenProj source, ProjectLibre history, and current implementation at hunk level.
 
+On 2026-10-31 the project owner confirmed the rights position and removed the ProjectLibre/OpenProj copyright notices and CPAL text from the license documents, source and resource headers, and the About dialog copyright string. The generated ledgers in this directory predate that removal.
+
 The planned independent product name is **microProject**. This name applies to the independent product brand only; provenance labels such as OpenProj and ProjectLibre remain in the audit records because they identify source history and licensing obligations.
 
 Run from the repository root:

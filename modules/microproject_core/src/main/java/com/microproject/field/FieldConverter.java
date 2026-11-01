@@ -1,7 +1,6 @@
 /*******************************************************************************
  * MIT License
  *
- * Copyright (c) 2012-2019 ProjectLibre, Inc.  (Previous Copyright Holder)
  * Copyright (c) 2026 microProject
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -43,7 +42,7 @@ import com.microproject.options.EditOption;
 import com.microproject.strings.Messages;
 import com.microproject.util.DateTime;
 /**
- * Converts field values while applying ProjectLibre specific types and validation.
+ * Converts field values while applying application-specific types and validation.
  */
 public class FieldConverter  {
 	private static final Logger logger = Logger.getLogger(FieldConverter.class.getName());

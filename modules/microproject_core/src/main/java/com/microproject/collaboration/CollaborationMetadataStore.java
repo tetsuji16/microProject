@@ -1,7 +1,6 @@
 /*******************************************************************************
  * MIT License
  *
- * Copyright (c) 2012-2019 ProjectLibre, Inc.  (Previous Copyright Holder)
  * Copyright (c) 2026 microProject
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -51,6 +50,8 @@ public class CollaborationMetadataStore {
 	private static final Logger logger = Logger.getLogger(CollaborationMetadataStore.class.getName());
 	private static final int MAX_METADATA_BYTES = 1024 * 1024; // 1 MB safety limit
 	private static final long EDT_LOCK_TIMEOUT_MILLIS = 300L;
+	private static final long CLOSE_TIMEOUT_MILLIS = 3000L;
+	private static final long CLOSE_RETRY_MILLIS = 50L;
 	public static final int SCHEMA_VERSION = 1;
 	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 	private static final Object JVM_LOCK_REGISTRY_GUARD = new Object();
@@ -66,12 +67,17 @@ public class CollaborationMetadataStore {
 	private final File legacySidecarFile;
 	private final File lockFile;
 	private volatile boolean retired;
+	private volatile long closingDeadline;
 
-	/** A callback whose {@code true} result removes the sidecar and its marker while the lock is held. */
+	/**
+	 * A callback whose {@code true} result removes the sidecar and its marker while the lock is held.
+	 * A {@code null} result means the attempt could not finish; {@code false} is a decision to keep them.
+	 */
 	private interface RetiringCallback extends MetadataCallback<Boolean> {
 		@Override
 		default Boolean onError(Exception error) {
-			return Boolean.FALSE;
+			logger.log(Level.FINE, "Collaboration files could not be removed yet", error);
+			return null;
 		}
 	}
 
@@ -133,7 +139,7 @@ public class CollaborationMetadataStore {
 	public boolean removeArtifactsIfUnowned() {
 		final long now = System.currentTimeMillis();
 		try {
-			return withLockedMetadata((RetiringCallback) metadata -> !hasLiveLease(metadata, now));
+			return Boolean.TRUE.equals(withLockedMetadata((RetiringCallback) metadata -> !hasLiveLease(metadata, now)));
 		} catch (CollaborationLockUnavailableException error) {
 			logger.log(Level.FINE, "Collaboration lock is busy during cleanup " + projectFile, error);
 			return false;
@@ -144,15 +150,29 @@ public class CollaborationMetadataStore {
 	 * Removes the sidecar and marker when a closing session was their only user.
 	 * Anything that belongs to someone else keeps them in place: another user's
 	 * record or saved layout, another running copy, a live lease, or an older
-	 * release's sidecar that a new one would be migrated from again.
+	 * release's sidecar that a new one would be migrated from again.  A busy
+	 * lock or a file another program has open is only a delay, so those attempts
+	 * repeat until {@link #beginClosing()}'s deadline.
 	 *
 	 * @return {@code true} when both artifacts were removed
 	 */
 	public boolean retireIfSoleUser(String userKey, String clientInstanceId, WorkspaceKeeper keeper) {
-		final long now = System.currentTimeMillis();
+		if (retired) return true;
+		beginClosing();
+		while (true) {
+			Boolean decided = attemptRetire(userKey, clientInstanceId, keeper);
+			if (decided != null) return decided;
+			if (!pauseWhileClosing()) {
+				logger.log(Level.WARNING, "Collaboration files stay beside {0}: they stayed in use while it closed", projectFile);
+				return false;
+			}
+		}
+	}
+
+	private Boolean attemptRetire(String userKey, String clientInstanceId, WorkspaceKeeper keeper) {
 		try {
 			return withLockedMetadata((RetiringCallback) metadata -> {
-				if (legacySidecarFile.exists() || hasLiveLease(metadata, now)) return false;
+				if (legacySidecarFile.exists() || hasLiveLease(metadata, System.currentTimeMillis())) return false;
 				if (!userKey.equals(soleKey(metadata.getUsers(), userKey))
 						|| !userKey.equals(soleKey(metadata.getPerUserWorkspace(), userKey))) return false;
 				UserRecord record = metadata.getUsers().get(userKey);
@@ -168,8 +188,32 @@ public class CollaborationMetadataStore {
 				}
 				return true;
 			});
-		} catch (CollaborationLockUnavailableException error) {
-			logger.log(Level.FINE, "Collaboration lock is busy during close " + projectFile, error);
+		} catch (CollaborationLockUnavailableException busy) {
+			logger.log(Level.FINE, "Collaboration lock is busy during close " + projectFile, busy);
+			return null;
+		}
+	}
+
+	/**
+	 * Starts the time allowed for a closing session, so that a lock nobody releases
+	 * cannot stop the application from exiting.  The window's thread keeps its
+	 * shorter limit.  Every later lock wait on this store shares the deadline.
+	 */
+	public void beginClosing() {
+		if (closingDeadline != 0L) return;
+		long allowed = com.microproject.util.UiDispatch.isDispatchThread() ? EDT_LOCK_TIMEOUT_MILLIS : CLOSE_TIMEOUT_MILLIS;
+		closingDeadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(allowed);
+	}
+
+	/** Waits before another attempt at closing. @return {@code false} once the closing time has run out */
+	boolean pauseWhileClosing() {
+		long remaining = closingDeadline - System.nanoTime();
+		if (remaining <= 0L) return false;
+		try {
+			TimeUnit.NANOSECONDS.sleep(Math.min(remaining, TimeUnit.MILLISECONDS.toNanos(CLOSE_RETRY_MILLIS)));
+			return true;
+		} catch (InterruptedException interrupted) {
+			Thread.currentThread().interrupt();
 			return false;
 		}
 	}
@@ -319,8 +363,9 @@ public class CollaborationMetadataStore {
 			if (callback instanceof RetiringCallback) {
 				if (!Boolean.TRUE.equals(result)) return result;
 				Files.deleteIfExists(sidecarFile.toPath());
+				if (!markerLock.retire()) return callback.onError(new IOException("Lock marker stays in place"));
 				retired = true;
-				return markerLock.retire() ? result : callback.onError(new IOException("Lock marker stays in place"));
+				return result;
 			}
 			writeMetadataIfChanged(useLegacy ? null : originalBytes, metadata);
 			return result;
@@ -347,7 +392,8 @@ public class CollaborationMetadataStore {
 		}
 	}
 
-	private static long lockDeadline() {
+	private long lockDeadline() {
+		if (closingDeadline != 0L) return closingDeadline;
 		return com.microproject.util.UiDispatch.isDispatchThread()
 				? System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(EDT_LOCK_TIMEOUT_MILLIS)
 				: 0L;
