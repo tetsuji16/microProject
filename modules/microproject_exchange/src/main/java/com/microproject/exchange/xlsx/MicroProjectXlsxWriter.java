@@ -24,6 +24,8 @@
  *******************************************************************************/
 package com.microproject.exchange.xlsx;
 
+import static com.microproject.exchange.xlsx.XlsxFormatIdentifiers.*;
+
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -64,9 +66,6 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 public class MicroProjectXlsxWriter implements ProjectWriter {
-	private static final String META_SHEET = "_MicroProject_META";
-	private static final String DATA_SHEET = "_MicroProject_MSPDI";
-	private static final String NATIVE_DATA_SHEET = "_MicroProject_NATIVE";
 	private static final String TASKS_SHEET = "Tasks";
 	private static final String RESOURCES_SHEET = "Resources";
 	private static final String ASSIGNMENTS_SHEET = "Assignments";
@@ -97,8 +96,8 @@ public class MicroProjectXlsxWriter implements ProjectWriter {
 	private void writeWorkbookFromProjectFile(ProjectFile projectFile, OutputStream out) throws IOException {
 		XSSFWorkbook workbook = new XSSFWorkbook();
 		try {
-			writeMeta(workbook, "projectfile", "2");
-			writePayload(workbook, serializeProjectFileXml(projectFile), "projectfile");
+			writeMeta(workbook, PROJECT_FILE_KIND, PROJECT_FILE_VERSION);
+			writePayload(workbook, serializeProjectFileXml(projectFile), PROJECT_FILE_KIND);
 			writeProjectFileSummarySheets(workbook, projectFile);
 			workbook.write(out);
 		} catch (Exception e) {
@@ -111,8 +110,8 @@ public class MicroProjectXlsxWriter implements ProjectWriter {
 	private void writeWorkbookFromMicroProjectProject(Project project, OutputStream out) throws IOException {
 		XSSFWorkbook workbook = new XSSFWorkbook();
 		try {
-			writeMeta(workbook, "microproject", "3");
-			writePayload(workbook, serializeMicroProjectXml(project), "microproject");
+			writeMeta(workbook, CURRENT_KIND, NATIVE_VERSION);
+			writePayload(workbook, serializeMicroProjectXml(project), CURRENT_KIND);
 			writeNativePayload(workbook, project);
 			writeMicroProjectSummarySheets(workbook, project);
 			workbook.write(out);
@@ -130,7 +129,7 @@ public class MicroProjectXlsxWriter implements ProjectWriter {
 		}
 		String payload = Base64.getEncoder().encodeToString(bytes.toByteArray());
 		Sheet sheet = workbook.createSheet(NATIVE_DATA_SHEET);
-		sheet.createRow(0).createCell(0).setCellValue("MicroProjectNativeData");
+		sheet.createRow(0).createCell(0).setCellValue(CURRENT_NATIVE_MARKER);
 		int rowIndex = 1;
 		for (int offset = 0; offset < payload.length(); offset += PAYLOAD_CHUNK_SIZE) {
 			int end = Math.min(offset + PAYLOAD_CHUNK_SIZE, payload.length());
@@ -148,10 +147,10 @@ public class MicroProjectXlsxWriter implements ProjectWriter {
 	private void writeMeta(XSSFWorkbook workbook, String workbookKind, String version) {
 		Sheet sheet = workbook.createSheet(META_SHEET);
 		Row kindRow = sheet.createRow(0);
-		kindRow.createCell(0).setCellValue("WorkbookKind");
+		kindRow.createCell(0).setCellValue(WORKBOOK_KIND_LABEL);
 		kindRow.createCell(1).setCellValue(workbookKind);
 		Row versionRow = sheet.createRow(1);
-		versionRow.createCell(0).setCellValue("SchemaVersion");
+		versionRow.createCell(0).setCellValue(SCHEMA_VERSION_LABEL);
 		versionRow.createCell(1).setCellValue(version);
 	}
 
@@ -170,9 +169,9 @@ public class MicroProjectXlsxWriter implements ProjectWriter {
 
 	private void writePayload(XSSFWorkbook workbook, String payload, String kind) {
 		Sheet sheet = workbook.createSheet(DATA_SHEET);
-		sheet.createRow(0).createCell(0).setCellValue("PayloadKind");
+		sheet.createRow(0).createCell(0).setCellValue(PAYLOAD_KIND_LABEL);
 		sheet.getRow(0).createCell(1).setCellValue(kind);
-		sheet.createRow(1).createCell(0).setCellValue("Payload");
+		sheet.createRow(1).createCell(0).setCellValue(PAYLOAD_LABEL);
 		int rowIndex = 2;
 		for (int offset = 0; offset < payload.length(); offset += PAYLOAD_CHUNK_SIZE) {
 			int end = Math.min(offset + PAYLOAD_CHUNK_SIZE, payload.length());
@@ -498,7 +497,7 @@ public class MicroProjectXlsxWriter implements ProjectWriter {
 	private void writeMicroProjectTimephased(XSSFWorkbook workbook, Project project) {
 		Sheet sheet = workbook.createSheet(TIMEPHASED_SHEET);
 		writeRow(sheet, 0, "TaskUniqueID", "ResourceUniqueID", "Kind", "Start", "Finish", "Value");
-		writeRow(sheet, 1, "", "", "payload", "", "", "see _MicroProject_MSPDI for full timephased data");
+		writeRow(sheet, 1, "", "", "payload", "", "", "see " + DATA_SHEET + " for full timephased data");
 		autoSize(sheet, 6);
 	}
 

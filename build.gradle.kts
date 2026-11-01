@@ -228,9 +228,8 @@ tasks.register("verifyArchitectureBoundaries") {
         // compatibility adapter narrow and explicit; all other legacy FQNs are
         // still rejected, including new reflection/package leaks.
         val legacyNamespaceAllowlist = mapOf(
-            "modules/microproject_core/src/main/java/com/microproject/util/SafeObjectInput.java" to setOf("com.projectlibre1"),
-            "modules/microproject_exchange/src/main/java/com/microproject/exchange/DefaultFileImporterProvider.java" to setOf(
-                "com.projectlibre1.exchange.LocalFileImporter", "com.projectlibre.exchange.LocalFileImporter"
+            "modules/microproject_core/src/main/java/com/microproject/exchange/PodFormatIdentifiers.java" to setOf(
+                "com.projectlibre1", "com.projectlibre1.exchange.LocalFileImporter", "com.projectlibre.exchange.LocalFileImporter"
             ),
         )
         val legacyFqnPattern = Regex("(?<![A-Za-z0-9_$])com\\.projectlibre(?:1)?(?:\\.[A-Za-z0-9_$]+)*(?![A-Za-z0-9_$])")

@@ -1,7 +1,6 @@
 /*******************************************************************************
  * MIT License
  *
- * Copyright (c) 2012-2019 ProjectLibre, Inc.  (Previous Copyright Holder)
  * Copyright (c) 2026 microProject
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -59,7 +58,6 @@ import com.microproject.temporary.TemporaryCleanupQueue;
 public class LocalFileImporter extends FileImporter {
 	private static final Logger logger = Logger.getLogger(LocalFileImporter.class.getName());
 	public static final String VERSION="1.0.0"; //$NON-NLS-1$
-	private static final String MICRO_PROJECT_FILE_SEPARATOR="@@@@@@@@@@ProjectLibreSeparator_MSXML@@@@@@@@@@";
 	private static final String XML_FILE_START="<?xml";
 	/**
 	 *
@@ -107,7 +105,7 @@ public class LocalFileImporter extends FileImporter {
 				//using xml
 				logger.info("Trying to recover with XML...");
 				fin=new FileInputStream(f);
-				byte[] keyBuf=MICRO_PROJECT_FILE_SEPARATOR.getBytes();
+				byte[] keyBuf=PodFormatIdentifiers.EMBEDDED_XML_SEPARATOR.getBytes();
 				byte[] startXmlKeyBuf=XML_FILE_START.getBytes();
 				int bufSize=100;
 				if (bufSize<keyBuf.length) bufSize=keyBuf.length;
@@ -120,7 +118,7 @@ public class LocalFileImporter extends FileImporter {
 				boolean first=true;
 				in.mark(bufSize);
 				while ( (n=in.read( buf, 0, bufSize )) != -1 ){
-					// testing if it's xml without MICRO_PROJECT_FILE_SEPARATOR
+					// testing if it's xml without PodFormatIdentifiers.EMBEDDED_XML_SEPARATOR
 					if (first && n>startXmlKeyBuf.length) {
 						 for (int i=0; i<startXmlKeyBuf.length; i++ ){
 							 if (startXmlKeyBuf[i]!=buf[i]) {
@@ -193,7 +191,7 @@ public class LocalFileImporter extends FileImporter {
 	}
 	static boolean isLegacyProjectDataFailure(Exception exception) {
 		return exception instanceof ClassNotFoundException
-				&& "com.projity.server.data.ProjectData".equals(exception.getMessage());
+				&& PodFormatIdentifiers.LEGACY_MISSING_PROJECT_DATA.equals(exception.getMessage());
 	}
 	@Override
 	public void exportFile() throws Exception{
@@ -242,7 +240,7 @@ public class LocalFileImporter extends FileImporter {
 					// POD document above is complete and remains directly readable.
 					logger.info("Skipping optional MSPDI recovery payload for an empty project");
 				} else {
-					bout.write(MICRO_PROJECT_FILE_SEPARATOR.getBytes());
+					bout.write(PodFormatIdentifiers.EMBEDDED_XML_SEPARATOR.getBytes());
 					bout.flush();
 					com.microproject.port.SessionImporter importer=LocalSession.getImporter(LocalSession.MICROSOFT_PROJECT_IMPORTER);
 					if (importer == null) {
