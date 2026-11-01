@@ -1,7 +1,6 @@
 /*******************************************************************************
  * MIT License
  *
- * Copyright (c) 2012-2019 ProjectLibre, Inc.  (Previous Copyright Holder)
  * Copyright (c) 2026 microProject
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -48,6 +47,8 @@ public class MpxProjectConverter {
 	public void from(ProjectProperties mpxProjectHeader, Iterable<ProjectCalendar> sourceCalendars, Project project,
 		MpxImportState state) {
 		project.setDurationDefaults(durationDefaults(mpxProjectHeader));
+		project.setDefaultTimes(timeOfDay(mpxProjectHeader.getDefaultStartTime()),
+			timeOfDay(mpxProjectHeader.getDefaultEndTime()));
 		if (mpxProjectHeader.getName() != null)
 			project.setName(mpxProjectHeader.getName());
 		if (mpxProjectHeader.getManager() != null)
@@ -118,6 +119,10 @@ public class MpxProjectConverter {
 			source.getMinutesPerWeek() == null ? product.minutesPerWeek() : source.getMinutesPerWeek().doubleValue(),
 			source.getDaysPerMonth() == null ? product.daysPerMonth() : source.getDaysPerMonth().doubleValue(),
 			durationUnit, workUnit);
+	}
+
+	private static java.time.LocalTime timeOfDay(Date value) {
+		return value == null ? null : value.toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalTime();
 	}
 
 	private static long toLong(Date d) {

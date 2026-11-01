@@ -71,21 +71,37 @@ class MspdiDefaultTimeZoneTest {
 		if (!Files.isRegularFile(fixture))
 			fixture = Path.of("modules", "microproject_exchange", "testdata", "Assignment Baseline Scalars.xml");
 		Project project;
-		try (InputStream input = Files.newInputStream(fixture)) {
+		// Microsoft defines these optional Project children as the defaults for new tasks:
+		// https://learn.microsoft.com/en-us/office-project/xml-data-interchange/project-element?view=project-client-2016
+		String source = Files.readString(fixture, StandardCharsets.UTF_8)
+			.replace("<DefaultStartTime>08:00:00</DefaultStartTime>", "<DefaultStartTime>09:00:00</DefaultStartTime>")
+			.replace("<DefaultFinishTime>17:00:00</DefaultFinishTime>", "<DefaultFinishTime>18:00:00</DefaultFinishTime>");
+		try (InputStream input = new ByteArrayInputStream(source.getBytes(StandardCharsets.UTF_8))) {
 			project = new MspImporter().importProject(input, "xml", (progress, label) -> { });
 		}
-		assertDefaultTimes(mspdi(project), "MSPDI export");
+		String exported = mspdi(project);
+		assertDefaultTimes(exported, "MSPDI export");
+		Project xmlReloaded = new MspImporter().importProject(
+			new ByteArrayInputStream(exported.getBytes(StandardCharsets.UTF_8)), "xml", (progress, label) -> { });
+		assertDefaultTimes(mspdi(xmlReloaded), "MSPDI export after XML reopen");
 		byte[] mpo = mpo(project);
 		assertDefaultTimes(contentXml(mpo), "MPO content.xml");
 
 		Project reopened = new MpoFileImporter().loadProject(new ByteArrayInputStream(mpo));
 		assertDefaultTimes(contentXml(mpo(reopened)), "MPO content.xml after reopen");
 		assertDefaultTimes(mspdi(reopened), "MSPDI export after reopen");
+		assertEquals(9, reopened.getCalendarOption().getDefaultStartTime().get(Calendar.HOUR_OF_DAY));
+		assertEquals(18, reopened.getCalendarOption().getDefaultEndTime().get(Calendar.HOUR_OF_DAY));
+		com.microproject.options.CalendarOption edited = reopened.getCalendarOption().copy();
+		edited.getDefaultStartTime().set(Calendar.HOUR_OF_DAY, 10);
+		reopened.setCalendarOption(edited);
+		assertTrue(mspdi(reopened).contains("<DefaultStartTime>10:00:00</DefaultStartTime>"));
+		assertDefaultTimes(mspdi(project), "original project after editing reopened project");
 	}
 
 	private static void assertDefaultTimes(String xml, String route) {
-		assertTrue(xml.contains("<DefaultStartTime>08:00:00</DefaultStartTime>"), route + " DefaultStartTime");
-		assertTrue(xml.contains("<DefaultFinishTime>17:00:00</DefaultFinishTime>"), route + " DefaultFinishTime");
+		assertTrue(xml.contains("<DefaultStartTime>09:00:00</DefaultStartTime>"), route + " DefaultStartTime");
+		assertTrue(xml.contains("<DefaultFinishTime>18:00:00</DefaultFinishTime>"), route + " DefaultFinishTime");
 	}
 
 	private static String mspdi(Project project) throws Exception {
@@ -111,7 +127,7 @@ class MspdiDefaultTimeZoneTest {
 
 	private static String readLog(Path log) {
 		try {
-			return Files.readString(log, StandardCharsets.UTF_8);
+			return new String(Files.readAllBytes(log), StandardCharsets.UTF_8);
 		} catch (java.io.IOException e) {
 			return "worker log unavailable: " + e;
 		}
