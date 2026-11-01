@@ -1,7 +1,6 @@
 /*******************************************************************************
  * MIT License
  *
- * Copyright (c) 2012-2019 ProjectLibre, Inc.  (Previous Copyright Holder)
  * Copyright (c) 2026 microProject
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -67,6 +66,96 @@ import com.microproject.menu.testsupport.RibbonInventory;
 
 class IconManagerRibbonIconTest {
 	private record VectorIconFixture(String key, String rasterName, int primaryRgb, int accentRgb) { }
+
+
+	@Test
+	void smallTaskIconsUseSpaceAndKeepOpposingActionsAndProgressDistinct() {
+		for (int size : new int[] {16, 20}) {
+			for (String key : List.of("ribbon.link", "ribbon.unlink", "ribbon.expand", "ribbon.collapse",
+					"ribbon.insert", "ribbon.delete")) {
+				assertTrue(IconManager.hasSizeSpecificRibbonResource(key, size));
+				BufferedImage image = paint(IconManager.getRibbonIcon(key, size, size), size, size);
+				Rectangle bounds = visibleBounds(image);
+				assertTrue(bounds.width >= size * 0.65, key + " should use the small icon canvas");
+				assertTrue(bounds.height >= size * 0.5, key + " should remain recognizable at small sizes");
+			}
+			int previous = -1;
+			for (String key : List.of("ribbon.percent0", "ribbon.percent25", "ribbon.percent50",
+					"ribbon.percent75", "ribbon.percent100")) {
+				BufferedImage image = paint(IconManager.getRibbonIcon(key, size, size), size, size);
+				int ink = 0;
+				for (int y = size * 5 / 16; y < size * 11 / 16; y++) {
+					for (int x = size * 3 / 16; x < size * 13 / 16; x++) {
+						if ((image.getRGB(x, y) >>> 24) >= 128) ink++;
+					}
+				}
+				assertTrue(ink > previous, key + " must show more filled area than the preceding progress value");
+				previous = ink;
+			}
+			assertFalse(imagesHaveSamePixels(paint(IconManager.getRibbonIcon("ribbon.expand", size, size), size, size),
+					paint(IconManager.getRibbonIcon("ribbon.collapse", size, size), size, size)));
+			assertFalse(imagesHaveSamePixels(paint(IconManager.getRibbonIcon("ribbon.insert", size, size), size, size),
+					paint(IconManager.getRibbonIcon("ribbon.delete", size, size), size, size)));
+			assertFalse(imagesHaveSamePixels(paint(IconManager.getRibbonIcon("ribbon.link", size, size), size, size),
+					paint(IconManager.getRibbonIcon("ribbon.unlink", size, size), size, size)));
+		}
+	}
+
+
+	@Test
+	void smallTaskIconsRenderVisibleAtDesktopScalesAndInDisabledState() {
+		for (String key : List.of("ribbon.link", "ribbon.unlink", "ribbon.expand", "ribbon.collapse",
+				"ribbon.insert", "ribbon.delete", "ribbon.percent0", "ribbon.percent25", "ribbon.percent50",
+				"ribbon.percent75", "ribbon.percent100")) {
+			for (int size : new int[] {16, 20}) {
+				for (double scale : new double[] {1.0, 1.25, 1.5}) {
+					BufferedImage image = paintAtScale(IconManager.getRibbonIcon(key, size, size), scale);
+					for (Color background : List.of(Color.WHITE, new Color(0x25272A))) {
+						assertTrue(contrastingPixels(image, background) >= 5,
+								key + " needs visible contrast at " + scale + "x on " + background);
+					}
+					BufferedImage disabled = paintAtScale(IconManager.getRibbonIconDisabled(key, size, size), scale);
+					assertTrue(hasVisiblePixel(disabled), key + " disabled state must remain visible");
+					assertTrue(maxAlpha(disabled) < maxAlpha(image), key + " disabled state must be subdued");
+				}
+			}
+		}
+	}
+
+	private static int contrastingPixels(BufferedImage image, Color background) {
+		int count = 0;
+		double base = luminance(background.getRed(), background.getGreen(), background.getBlue());
+		for (int y = 0; y < image.getHeight(); y++) {
+			for (int x = 0; x < image.getWidth(); x++) {
+				int pixel = image.getRGB(x, y);
+				double alpha = ((pixel >>> 24) & 255) / 255.0;
+				int red = (int) Math.round(((pixel >>> 16) & 255) * alpha + background.getRed() * (1 - alpha));
+				int green = (int) Math.round(((pixel >>> 8) & 255) * alpha + background.getGreen() * (1 - alpha));
+				int blue = (int) Math.round((pixel & 255) * alpha + background.getBlue() * (1 - alpha));
+				double value = luminance(red, green, blue);
+				if ((Math.max(value, base) + 0.05) / (Math.min(value, base) + 0.05) >= 3) count++;
+			}
+		}
+		return count;
+	}
+
+	private static double luminance(int red, int green, int blue) {
+		return 0.2126 * linearChannel(red) + 0.7152 * linearChannel(green) + 0.0722 * linearChannel(blue);
+	}
+
+	private static double linearChannel(int channel) {
+		double value = channel / 255.0;
+		return value <= 0.04045 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4);
+	}
+
+	private static boolean imagesHaveSamePixels(BufferedImage left, BufferedImage right) {
+		for (int y = 0; y < left.getHeight(); y++) {
+			for (int x = 0; x < left.getWidth(); x++) {
+				if (left.getRGB(x, y) != right.getRGB(x, y)) return false;
+			}
+		}
+		return true;
+	}
 
 	@Test
 	void informationIconsRenderScaleSpecificDetailAtCommonScaleFactors() throws Exception {
