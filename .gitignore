@@ -95,3 +95,20 @@ mp_clean_run.log
 
 # Playwright CLI browser snapshots
 .playwright-cli/
+
+# Local scratch and timestamped backup artifacts
+**/.svn/
+*.bak-*
+/rerr.txt
+/rout.txt
+/run_err.txt
+/run_out.txt
+/todo.md
+/wf_todo.md
+/send_esc.py
+/launch_app.sh
+/launch_sample.sh
+/run_gradlew.sh
+/.codex-issue-regression-audit.md
+/ISSUES_TRIAGE_PLAN.md
+/STALE_FILE_AUDIT_2026-06-02.md
