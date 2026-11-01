@@ -1,7 +1,7 @@
 /*******************************************************************************
- * Minimal ProjectLibre-compatible replacement for JDNC DateSpan.
+ * Minimal replacement for JDNC DateSpan.
  *
- * The original ProjectLibre code only relies on the start/end accessors and
+ * The application only relies on the start/end accessors and
  * the two long-based constructors, so this local implementation keeps that
  * surface area and avoids bundling the legacy JDNC jar.
  *******************************************************************************/

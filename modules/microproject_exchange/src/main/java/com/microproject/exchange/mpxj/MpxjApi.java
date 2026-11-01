@@ -30,7 +30,7 @@ import net.sf.mpxj.ResourceAssignment;
 import net.sf.mpxj.WorkContour;
 
 /**
- * Keeps MPXJ API version details out of ProjectLibre's scheduling model.
+ * Keeps MPXJ API version details out of the scheduling model.
  */
 public final class MpxjApi {
 	private static final TaskType[] TASK_TYPES = {

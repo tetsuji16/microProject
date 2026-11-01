@@ -106,8 +106,8 @@ import com.microproject.util.ClassUtils;
 			return unassignedResource;
 		}
 
-		public void setUnassignedResource(Object projectlibreUnassignedResource) {
-			this.unassignedResource = projectlibreUnassignedResource;
+		public void setUnassignedResource(Object unassignedResource) {
+			this.unassignedResource = unassignedResource;
 		}
 
 		public MergeField getMergeField() {
@@ -122,7 +122,7 @@ import com.microproject.util.ClassUtils;
 			if (mergeField!=NO_MERGE) {
 			for (Object resource : resources){
 				try {
-					Object value=ClassUtils.getSimpleProperty(resource,mergeField.getProjectLibreName());
+					Object value=ClassUtils.getSimpleProperty(resource,mergeField.getTargetName());
 					if (notMergedValues.contains(value)) continue;
 					if (mergeFieldMap.containsKey(value)){ //not duplicates
 						mergeFieldMap.remove(value);
@@ -161,12 +161,12 @@ import com.microproject.util.ClassUtils;
 		
 		
 		public static class MergeField{
-			protected String importName,projectlibreName,displayName;
+			protected String importName,targetName,displayName;
 
-			public MergeField(String importName, String projectlibreName, String displayName) {
+			public MergeField(String importName, String targetName, String displayName) {
 				super();
 				this.importName = importName;
-				this.projectlibreName = projectlibreName;
+				this.targetName = targetName;
 				this.displayName = displayName;
 			}
 
@@ -178,12 +178,12 @@ import com.microproject.util.ClassUtils;
 				this.importName = importName;
 			}
 
-			public String getProjectLibreName() {
-				return projectlibreName;
+			public String getTargetName() {
+				return targetName;
 			}
 
-			public void setProjectLibreName(String projectlibreName) {
-				this.projectlibreName = projectlibreName;
+			public void setTargetName(String targetName) {
+				this.targetName = targetName;
 			}
 			
 			public String getDisplayName() {

@@ -250,7 +250,7 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 			formatFilterLabel(Messages.getString("File.nativeProject"), "*." + DEFAULT_FILE_EXTENSION),
 			DEFAULT_FILE_EXTENSION);
 		legacyPodFilter = new FileNameExtensionFilter(
-			formatFilterLabel(Messages.getString("File.projectlibrePod"), "*." + LEGACY_POD_FILE_EXTENSION),
+			formatFilterLabel(Messages.getString("File.LegacyPod"), "*." + LEGACY_POD_FILE_EXTENSION),
 			LEGACY_POD_FILE_EXTENSION);
 		microsoftFilter = new FileNameExtensionFilter(
 			formatFilterLabel(Messages.getString("File.microsoft"), "*.mpp, *.mpx"),

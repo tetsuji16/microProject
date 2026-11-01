@@ -33,21 +33,21 @@ import java.util.Map;
 /**
  * @author Laurent Chretienneau
  * 
- * contants from mpxj with 2 additional ones from ProjectLibre
+ * constants from MPXJ with two additional application values
  */
 /** @deprecated Use {@code com.microproject.datatype.TimeUnit} in domain code. Kept for MPXJ compatibility. */
 @Deprecated(forRemoval = false)
 public enum TimeUnit{
 	
 	/**
-	 * projectlibre specific to indicate the value is not temporal
+	 * indicates the value is not temporal
 	 */
-	NON_TEMPORAL(-2,""), //-2 in ProjectLibre
+	NON_TEMPORAL(-2,""), // application value
 
 	/**
-	 * projectlibre specific to indicate no value entered
+	 * indicates no value was entered
 	 */
-	NONE(-1,""), //-1 in ProjectLibre
+	NONE(-1,""), // application value
 	
 	/**
 	 * Constant representing Minutes.
