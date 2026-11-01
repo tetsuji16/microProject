@@ -63,12 +63,17 @@ class ProjectCloseReleaseTest {
 		manager.setFrameManager((FrameManager) Proxy.newProxyInstance(FrameManager.class.getClassLoader(),
 			new Class<?>[] { FrameManager.class },
 			(proxy, method, args) -> method.getReturnType() == boolean.class ? Boolean.TRUE : null));
+		// Other tests leave managers listening to the shared factory, so this one gets its own.
+		manager.getProjectFactory().getPortfolio().removeObjectListener(manager);
+		ProjectFactory factory = ProjectFactory.createInstance();
+		manager.projectFactory = factory;
+		factory.getPortfolio().addObjectListener(manager);
 		SessionFactory.getInstance().setJobQueue(manager.getJobQueue());
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		Project project = Project.createProject(ResourcePool.createRourcePool("release test", undo), undo);
 		project.setLocal(true);
 		project.setFileName(folder.resolve("plan.mpo").toString());
-		ProjectFactory.getInstance().addProject(project, false, false);
+		factory.addProject(project, false, false);
 		project.createScriptedTask().setManuallyScheduled(true);
 		project.setGroupDirty(true);
 		assertTrue(project.needsSaving(), "fixture must prompt before closing");
