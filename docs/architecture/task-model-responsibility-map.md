@@ -20,9 +20,28 @@ Both are persistent compatibility types. `Task` has `serialVersionUID = 78666533
 
 - WBS summary actual-date propagation (`NormalTask.assignActualDatesFromChildren`) and project-wide actual-date aggregation (`Project.TaskAggregationFacade`) both scan tasks, but they do not implement the same rule. A WBS summary ignores children with no progress, infers actual start from scheduled start for a fully complete child with no explicit actual start, and rolls its actual span from known actual finishes/stops. A project returns no actual finish while any project task is unfinished. Merging these loops would change summary versus whole-project semantics.
 - Project percent complete is computed from total task actual duration divided by total task duration. A WBS summary's percent complete is its stored schedule progress; percent work complete is separately derived from leaf assignment work by `PercentWorkCompleteService`. These are distinct metrics and must not share an aggregation formula.
-- `NormalTask.getUnits()` and `getRemainingUnits()` both calculate task allocation ratios, but their zero-work branches differ: total units return the historical `1.0` fallback, while remaining units divide work by remaining duration after the shared empty-assignment, zero-duration, and uninitialized checks. For an ordinary empty-work task, remaining duration is also zero and the shared zero-duration fallback masks this branch difference; do not merge the formulas without a representative nonzero-duration/zero-work fixture.
+- `NormalTask.getUnits()` and `getRemainingUnits()` share the task-owned `allocationUnits` orchestration, preserving their distinct zero-work rules: total units return `1.0`, while remaining units divide by remaining duration. A zero-unit assignment with imported positive bounds and zero work exercises this difference; empty, zero-duration and uninitialized checks retain their original order. The task keeps access to its own duration, initialization and work state.
 - The `Allocation.getMostLoadedAssignmentUnits()` implementation on a leaf `Assignment` returns its own units, while `NormalTask` returns the maximum labor units across its assignments. The matching method name reflects polymorphic scope: one allocation versus the task's assignment set.
 - Assignment and task snapshot aggregation remain separate persistence scopes: assignment snapshots contain resource-specific calendar/rate state, while task snapshots coordinate scenario state. A shared interface is appropriate only where the values and filtering rules are identical.
+
+## Remaining assignment-to-task boundaries
+
+The task continues to choose WBS children versus its assignment list and retains
+`importedPercentComplete` precedence. `AssignmentValueRollup` handles pure
+assignment minima, maximum labor units, and the zero-duration completion
+average; `TimeDistributedDataConsolidator` handles the cost/work/earned-value
+sums. The two allocation ratios share `allocationUnits` on the task because
+their duration, initialization and work queries are task-owned and their
+zero-work fallbacks differ. Replacing these queries with eagerly evaluated
+arguments would change which work is read for empty or uninitialized tasks.
+
+Assignment mutation loops in `setWork`, `adjustRemainingUnits`,
+`adjustRemainingWork`, `setResume`, `setEnd` and completion updates remain at
+the aggregate boundary: they invoke scheduling rules or publish task events and
+are not pure rollups. Assignment offset calculations, move/split operations,
+and their ordering are the separate interval-operation step. User ownership and
+invalid-calendar checks are boolean eligibility queries rather than numerical
+rollups; they retain their short-circuit behavior on the task.
 
 ## Responsibility map
 
@@ -33,7 +52,7 @@ Both are persistent compatibility types. `Task` has `serialVersionUID = 78666533
 | `TaskSnapshot` and assignment detail types | Concrete schedule, cost, work, assignment, and date state for a scenario/snapshot | These objects are part of existing snapshot, save/reload, and clone behavior. Do not duplicate their formulas in new services. |
 | Existing services (`EarnedValueCalculator`, `ScheduleService`, `AssignmentService`, `TaskModeService`, `TaskProgressService`) | Reusable calculations and selected task operations already extracted from the aggregate | Search and route callers through an existing canonical service before adding another helper. Preserve event and transaction boundaries at the aggregate. |
 | `TimeDistributedDataConsolidator` | Canonical summation of cost, actual/remaining/baseline work and cost, fixed cost, and earned-value fields | Summary `NormalTask` rollups for cost, actual cost, work, actual/remaining work, baseline work/cost, fixed cost, and ACWP/BAC/BCWP/BCWS delegate here for child/assignment values. `NormalTask` retains the decision to select children and preserves unfiltered work behavior. Tests exercise summary rollup routing, baseline work from child snapshots, and nonzero earned-value sums at the consolidator boundary. Baseline-cost summation preserves fractional currency values. |
-| `AssignmentValueRollup` | Stateless minima for assignment start, resume and stop, plus maximum labor units | `HasAssignmentsImpl` and leaf `NormalTask` delegate without changing assignment order, empty sentinels, or task-owned WBS summary handling. The helper has no serialized state; aggregate mutation and events remain on the task. |
+| `AssignmentValueRollup` | Stateless minima for assignment start, resume and stop, maximum labor units, and milestone completion average | `HasAssignmentsImpl` and leaf `NormalTask` delegate without changing assignment order, empty sentinels, or task-owned WBS summary handling. The helper has no serialized state; aggregate mutation and events remain on the task. |
 | `TimeDistributedFieldVisibility` | Shared baseline field visibility for child rollups | `Project` and `EnterpriseResource` use the same empty-child and all-children-hidden rule through one implementation; aggregate selection and other field visibility rules remain local. |
 | `RollupSpanCalculator` | Pure task/project visible WBS span calculation | `Task.calculateRollupSpan()` and the project scheduling facade both delegate here. `TaskSheetScheduleWorkflow` retains sheet-driven constraint edits but no longer owns date-span calculations. |
 | `SummaryActualDateSpan` | Pure WBS-child actual start/finish selection | `NormalTask.assignActualDatesFromChildren()` retains calendar-duration calculation and updates schedule progress; this value calculator owns child filtering and completed-child fallback. It deliberately does not share Project-wide actual-date policy. |

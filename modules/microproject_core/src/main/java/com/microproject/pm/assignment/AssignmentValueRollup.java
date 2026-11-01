@@ -45,6 +45,16 @@ public final class AssignmentValueRollup {
 		return minimum(assignments, Assignment::getEarliestStop);
 	}
 
+	public static double averageCompletion(Collection<? extends Association> assignments) {
+		int count = 0;
+		double total = 0;
+		for (Association association : assignments) {
+			total += ((Assignment) association).getPercentComplete();
+			count++;
+		}
+		return count == 0 ? 0.0D : total / count;
+	}
+
 	public static double maximumLaborUnits(Collection<? extends Association> assignments) {
 		double result = 0;
 		for (Association association : assignments)

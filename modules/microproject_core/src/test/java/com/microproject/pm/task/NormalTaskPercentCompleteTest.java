@@ -177,6 +177,29 @@ class NormalTaskPercentCompleteTest {
 	}
 
 	@Test
+	void zeroWorkWithPositiveDurationHasDistinctTotalAndRemainingUnitFallbacks() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		long start = java.time.LocalDateTime.of(2025, 1, 6, 9, 0)
+			.atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();
+		task.getCurrentSchedule().setStart(start);
+		ResourceImpl resource = project.getResourcePool().newResourceInstance();
+		Assignment assignment = Assignment.getInstance(task, resource, 0.0d, 0L);
+		task.getAssignments().clear();
+		task.getAssignments().add(assignment);
+		long finish = task.getEffectiveWorkCalendar().add(start, 60L * 60L * 1000L, false);
+		assignment.initializeImportedBounds(start, finish);
+
+		assertTrue(task.hasRealAssignments());
+		assertTrue(task.getDurationMillis() > 0L);
+		assertTrue(Duration.millis(task.getRemainingDuration()) > 0L);
+		assertEquals(0L, task.calcWork());
+		assertEquals(0L, task.getRemainingWork(null));
+		assertEquals(1.0d, task.getUnits());
+		assertEquals(0.0d, task.getRemainingUnits());
+	}
+
+	@Test
 	void assignmentRollupsUseTheirEmptyAndMultipleAssignmentBoundaries() {
 		Project project = createProject();
 		NormalTask task = createTask(project);
@@ -197,6 +220,29 @@ class NormalTaskPercentCompleteTest {
 		assertEquals(Long.MAX_VALUE, task.getResume());
 		assertEquals(Long.MAX_VALUE, task.getEarliestStop());
 		assertEquals(0.0d, task.getMostLoadedAssignmentUnits());
+		assertEquals(0.0d, task.getUnits());
+		assertEquals(0.0d, task.getRemainingUnits());
+	}
+
+	@Test
+	void milestoneCompletionAveragesMultipleAssignmentsAndHandlesNoAssignments() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		task.setDuration(0L);
+		ResourceImpl firstResource = project.getResourcePool().newResourceInstance();
+		ResourceImpl secondResource = project.getResourcePool().newResourceInstance();
+		Assignment first = AssignmentService.getInstance().newAssignment(task, firstResource, 1.0d, 0L, this);
+		Assignment second = AssignmentService.getInstance().newAssignment(task, secondResource, 1.0d, 0L, this);
+		first.setPercentComplete(0.2d);
+		second.setPercentComplete(0.8d);
+
+		assertEquals(0.2d, first.getPercentComplete(), 0.00001d);
+		assertEquals(0.8d, second.getPercentComplete(), 0.00001d);
+		assertEquals(0.5d, task.getPercentComplete(), 0.00001d);
+		assertEquals(1.0d, task.getUnits());
+		assertEquals(1.0d, task.getRemainingUnits());
+		task.getAssignments().clear();
+		assertEquals(0.0d, task.getPercentComplete());
 	}
 
 	@Test
