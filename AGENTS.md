@@ -137,8 +137,7 @@ Anything that still carries the `projectLibre` / `ProjectLibre`
   ProjectLibre namespace into `microproject_*` runtime modules.
 - **License headers**: files should carry the MIT header with
   `Copyright (c) 2026 microProject`. Old CPAL/`Copyright (c) 2012-2019 ProjectLibre Inc.`
-  headers are being phased out (see issue #43 phase 1); do not copy the old header into
-  new or moved files.
+  headers have been removed; do not reintroduce them in new or moved files.
 
 ## Implementation conventions
 
