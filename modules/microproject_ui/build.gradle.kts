@@ -157,7 +157,8 @@ tasks.register<Test>("guiTest") {
 		"com.microproject.dialog.CriticalChainStatusDialogGuiAcceptanceTest.robotAppliesCcpmAndUndoRedoSurvivesMpoReload",
 		"com.microproject.pm.graphic.frames.RibbonExternalCommandGuiAcceptanceTest.robotEscapeAndCancelCloseTheFileOpenChooserWithoutOpeningAProject",
 		"com.microproject.pm.graphic.frames.RibbonExternalCommandGuiAcceptanceTest.robotSavesImportedMppAsMpoAndCancellationOrOverwriteRefusalKeepsSource",
-		"com.microproject.ui.shell.WindowShellNativeDecorationGuiAcceptanceTest.physicalCaptionDragUsesNativeWindowShell"
+		"com.microproject.ui.shell.WindowShellNativeDecorationGuiAcceptanceTest.physicalCaptionDragUsesNativeWindowShell",
+		"com.microproject.pm.graphic.frames.ApplicationCloseGuiAcceptanceTest.closingTheApplicationWindowLeavesOnlyTheProjectFile"
 	)
 	inputs.property("guiTestSuite", guiTestSuite)
 	if (guiTestSuite == "smoke") {
