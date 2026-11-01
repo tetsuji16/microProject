@@ -150,21 +150,16 @@ public class CollaborationSession {
 		}
 	}
 
+	/** Ends the session, whether or not it got as far as starting.  Failures never block closing the project. */
 	public void stop() {
-		if (timer == null) {
+		if (stopped) return;
+		Timer runningTimer = timer;
+		if (runningTimer != null) {
 			try {
-				lockManager.releaseAll();
-			} catch (RuntimeException e) {
-				logger.log(Level.WARNING, "Collaboration locks could not be released; leases will expire", e);
-			} finally {
-				lockBaselineStates.clear();
+				saveWorkspace(project.getCollaborationWorkspace());
+			} catch (Exception e) {
+				logger.log(Level.FINE, "Failed to save workspace on session stop", e);
 			}
-			return;
-		}
-		try {
-			saveWorkspace(project.getCollaborationWorkspace());
-		} catch (Exception e) {
-			logger.log(Level.FINE, "Failed to save workspace on session stop", e);
 		}
 		try {
 			lockManager.releaseAll();
@@ -172,7 +167,7 @@ public class CollaborationSession {
 			logger.log(Level.WARNING, "Collaboration locks could not be released; leases will expire", e);
 		} finally {
 			lockBaselineStates.clear();
-			timer.cancel();
+			if (runningTimer != null) runningTimer.cancel();
 			timer = null;
 		}
 		stopped = true;
@@ -182,9 +177,13 @@ public class CollaborationSession {
 	/** Leaves nothing beside the project once no other user needs it (issue #967). */
 	private void removeProjectArtifacts() {
 		if (projectFile == null) return;
-		LocalWorkspaceStore workspaces = new LocalWorkspaceStore(projectFile, userKey);
-		store.retireIfSoleUser(userKey, clientInstanceId, workspaces::save);
-		RetirableFileLock.retireIfUnheld(projectFile.toPath().resolveSibling(projectFile.getName() + ".lock"));
+		try {
+			LocalWorkspaceStore workspaces = new LocalWorkspaceStore(projectFile, userKey);
+			store.retireIfSoleUser(userKey, clientInstanceId, workspaces::save);
+			RetirableFileLock.retireIfUnheld(projectFile.toPath().resolveSibling(projectFile.getName() + ".lock"));
+		} catch (RuntimeException e) {
+			logger.log(Level.WARNING, "Collaboration files stay beside " + projectFile, e);
+		}
 	}
 
 	private void registerUser() {

@@ -47,6 +47,7 @@ import java.util.logging.Logger;
 
 
 
+import com.microproject.collaboration.CollaborationSession;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeBridge;
 import com.microproject.grouping.core.model.AssignmentNodeModel;
@@ -981,6 +982,11 @@ public class ProjectFactory {
 
 		job.addRunnable(new JobRunnable("Local: closeProjects"){
 			public Object run() throws Exception{
+				// Every close route ends here, after the save prompt and any save, so
+				// a cancelled or failed close keeps its session (issue #967).
+				endCollaboration(project);
+				for (Project p : projects)
+					endCollaboration(p);
 				com.microproject.transaction.ProjectMutationState.coordinated(() -> {
 					List<Project> closingProjects = new ArrayList<>(toRemove.size());
 					for (Node node : toRemove) {
@@ -1000,6 +1006,14 @@ public class ProjectFactory {
 			}
 		},/*!calledFromSwing*/false,false,calledFromSwing,false);
 		return job;
+	}
+
+	private static void endCollaboration(Project project) {
+		CollaborationSession session = project.getCollaborationSession();
+		if (session == null)
+			return;
+		project.setCollaborationSession(null);
+		session.stop();
 	}
 
 	static void removePortfolioNodesAndPublish(NodeModel nodeModel, List<Node> nodes) {

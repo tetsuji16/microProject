@@ -943,6 +943,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			session.start();
 		} catch (RuntimeException e) {
 			logger.log(java.util.logging.Level.WARNING, "Collaboration could not be initialized for " + fileName, e);
+			session.stop();
 			project.setCollaborationSession(null);
 			project.setCollaborationWorkspace(null);
 			return;
@@ -967,6 +968,17 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			WorkspaceSetting workspace = frame.createWorkspace(SavableToWorkspace.VIEW);
 			project.setCollaborationWorkspace(workspace);
 			session.saveWorkspace(workspace);
+		}
+	}
+
+	/** Captures every open document's layout while its frame still exists; a failure never blocks quitting. */
+	private void persistOpenCollaborationWorkspaces() {
+		for (DocumentFrame frame : getOpenDocumentFrames()) {
+			try {
+				persistCollaborationWorkspace(frame.getProject());
+			} catch (RuntimeException e) {
+				logger.log(Level.WARNING, "Workspace could not be saved on quit", e);
+			}
 		}
 	}
 
@@ -3369,6 +3381,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	public void closeApplication(){
 		addHistory("closeApplication");
 		quitting = true;
+		persistOpenCollaborationWorkspaces();
 //		if (true) {
 //			Frame frame=getFrame();
 //			if (frame!=null)
@@ -3685,10 +3698,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		// Subprojects do not always have a DocumentFrame; release their MPOF
 		// extraction ownership at the project-removal boundary as well.
 		closeProjectArtifacts(project);
-		if (project.getCollaborationSession() != null) {
-			project.getCollaborationSession().stop();
-			project.setCollaborationSession(null);
-		}
 		projectFactory.removeProject(project,true,true,true);
 	}
 
@@ -5457,13 +5466,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	/** Captures the close job on the caller's UI/model context without waiting. */
 	private QuitOperation prepareQuitOperation() {
 		quitting = true;
-		for (DocumentFrame frame : getOpenDocumentFrames()) {
-			Project project = frame.getProject();
-			persistCollaborationWorkspace(project);
-			if (project != null && project.getCollaborationSession() != null) {
-				project.getCollaborationSession().stop();
-			}
-		}
+		persistOpenCollaborationWorkspaces();
 		final Object monitor = new Object();
 		final boolean[] completed = new boolean[]{false};
 
