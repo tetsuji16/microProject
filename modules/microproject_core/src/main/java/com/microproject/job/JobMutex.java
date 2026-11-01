@@ -43,7 +43,6 @@ public class JobMutex extends Mutex{
 
 	public synchronized void setObject(Object object) {
 		this.object = object;
-		//unlock();
 	}
 
 	public synchronized Exception getException() {

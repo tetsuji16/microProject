@@ -60,7 +60,6 @@ public class Job extends Thread {
 	protected List<InternalRunnable> runnables=new ArrayList<>();
 	private final List<Runnable> completionRunnables = new ArrayList<>();
 	private boolean completionRunnablesExecuted;
-	protected InternalRunnable exceptionHandlerRunnable;
 	protected JobMutex mutex;
 	protected Mutex globalMutex,groupMutex;
 	protected InternalRunnable previousRunnable=null;
@@ -193,7 +192,6 @@ public class Job extends Thread {
 	}
 
 	protected void end(){
-		//((JobQueue)getThreadGroup()).startNext();
 	}
 
 	ListIterator<InternalRunnable> runnableIterator;
@@ -283,7 +281,6 @@ public class Job extends Thread {
 				}
 			}
 		}finally{
-			//mutex.unlock();//just in case an exception occurs
 			logEnd("global");
 			globalMutex.unlock();
 			if (!asyncExecuting) jobQueue.removeExecutingJob(this); //because it's done in run(false);
@@ -299,7 +296,6 @@ public class Job extends Thread {
 		boolean exceptionHandlerExecuted = false;
 		try{
 			final JobQueue jobQueue=getJobQueue();
-			//jobQueue.enableComponent(false);
 			if (showProgess){
 				progressMonitor=jobQueue.getProgressMonitor(title,monitorComponent);
 				if (progressMonitor!=null&&cancelMonitorClosure!=null&&monitorChecker==null){
@@ -374,13 +370,6 @@ public class Job extends Thread {
 				}
 				if (runnable.getException()!=null){
 					log(runnable.runnable.getName()+": Aborting job, exception="+runnable.getException().getMessage());
-//					if (exceptionHandlerRunnable!=null){
-//						runMutex=mutex;
-//						runMutex.lock();
-//						runThread(exceptionHandlerRunnable,runMutex);
-//						runMutex.waitUntilUnlocked();
-//					}
-//					break;
 				}
 				if (runnable.isExceptionHandler()) {
 					exceptionHandlerExecuted = true;
