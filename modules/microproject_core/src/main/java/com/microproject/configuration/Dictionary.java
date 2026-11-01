@@ -89,7 +89,7 @@ public class Dictionary implements ProvidesDigesterEvents {
 				if (replace)
 					subMap.put(namedItem.getName(), namedItem);
 
-//this is actually normal if overriding with another xml file				ConfigurationReader.log.warn("named item " + namedItem + " already in category " + category);
+				// Overriding an item from another XML file is normal.
 			}
 		}
 	}

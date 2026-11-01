@@ -94,8 +94,6 @@ public class NonGroupedCalculatedValues  implements CalculatedValues  {
 				duration = assignmentCalendar.compare(endDate,startDate,false); // need to divide by duration to get value
 				if (duration != 0) // avoid divide by zero
 					v /= (((double)duration) / CalendarOption.getInstance().getMillisPerDay());
-//				else if (origin == 0) // for bars
-//					return;
 			}
 				
 			setValue(startDate,v);

@@ -133,7 +133,6 @@ public class FieldDictionary {
 	private LinkedList<Field> resourceAndAssignmentFields = new LinkedList<>();	
 	
 	void setDonePopulating() { 
-// in case we use a FastHashMap do this:		map.setFast(true);
 		taskFields = new LinkedList<>();
 		resourceFields = new LinkedList<>();
 		assignmentFields = new LinkedList<>();
