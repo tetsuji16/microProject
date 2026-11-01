@@ -29,8 +29,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.InputStream;
+import java.io.StringReader;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.Properties;
 
 import javax.swing.JEditorPane;
 import javax.swing.UIManager;
@@ -97,8 +99,13 @@ class LicenseDialogResourceTest {
 
 	private void assertAboutCopyrightUsesMitNotice() throws Exception {
 		for (String bundle : new String[] {"client", "client_ja", "client_de", "client_fr", "client_zh_CN", "client_sv"}) {
-			String strings = readResource("com/microproject/strings/" + bundle + ".properties");
-			assertTrue(strings.contains("AboutDialog.copyright=Copyright (c) 2026 microProject. Licensed under the MIT License."), bundle);
+			Properties strings = new Properties();
+			strings.load(new StringReader(readResource("com/microproject/strings/" + bundle + ".properties")));
+			String notice = strings.getProperty("AboutDialog.copyright");
+			assertTrue(notice.startsWith("Copyright (c) 2026 microProject. "), bundle);
+			assertTrue(notice.contains("MIT"), bundle);
+			assertFalse(notice.contains("\n"), bundle + " must not append a translator credit");
+			assertEquals(bundle.equals("client"), notice.contains("Licensed under the MIT License."), bundle);
 		}
 	}
 
