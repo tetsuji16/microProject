@@ -11,7 +11,7 @@ Audit the listed tracked tools, outputs, logs, notes, backups and SVN metadata; 
 |---|---|---|---|
 | A | Each listed path removed or retained with reason | pass | disposition below |
 | B | Prevent recurrence via ignore rules | pass | .gitignore |
-| C | build installDist and diff check pass | pending | build installDist passed; staged diff check pending |
+| C | build installDist and diff check pass | pass | Windows local build and staged diff check; Build CI 41300696593 |
 
 ## Disposition
 - Delete all 1,976 .tools files (including jpackage outputs): no tracked build or workflow references; wrapper and supported Gradle build are independent. Existing local ignored copy retained.
@@ -23,8 +23,8 @@ Audit the listed tracked tools, outputs, logs, notes, backups and SVN metadata; 
 - Search: rg --hidden excluding .git, .tools and docs/work for the exact path names and .tools/.svn; only self references and historical audit/provenance records appeared. Also inspected .github/workflows.
 
 ## Current slice
-**Next slice:** check staged diff and candidate CI. **Done when:** checks pass. **Then:** integrate and close.
+**Next slice:** check CI for the reviewed test-only follow-up. **Done when:** exact-candidate checks pass. **Then:** integrate and close.
 
 ## Remaining blockers
-- C: staged diff check and exact-candidate CI pending.
+- Build and GUI acceptance passed for 8492ce672 (runs 41300696593 and 41300696560). Exact-candidate CI and integration are pending after the test-only correction.
 - Local: `./gradlew.bat build installDist --console=plain` passed on Windows JDK 25, 2026-11-01.

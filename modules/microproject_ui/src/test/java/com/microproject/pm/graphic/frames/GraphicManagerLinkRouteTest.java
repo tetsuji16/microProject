@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
 
 import org.junit.jupiter.api.Test;
 
@@ -66,17 +67,23 @@ class GraphicManagerLinkRouteTest {
 	}
 
 	@Test
-	void componentLookupFindsAncestorFrameHolder() {
-		TestFrameHolder holder = new TestFrameHolder();
-		GraphicManager manager = new GraphicManager(holder);
-		JPanel child = new JPanel();
-		holder.add(child);
-		try {
-			assertSame(manager, holder.getGraphicManager());
-			assertSame(manager, GraphicManager.getInstance(child));
-		} finally {
-			manager.cleanUp();
-		}
+	void componentLookupFindsAncestorFrameHolder() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			TestFrameHolder holder = new TestFrameHolder();
+			GraphicManager manager = new GraphicManager(holder);
+			GraphicManager activeManager = new GraphicManager(new JPanel());
+			JPanel child = new JPanel();
+			holder.add(child);
+			try {
+				activeManager.setMeAsLastGraphicManager();
+				assertSame(activeManager, GraphicManager.getInstance());
+				assertSame(manager, holder.getGraphicManager());
+				assertSame(manager, GraphicManager.getInstance(child));
+			} finally {
+				activeManager.cleanUp();
+				manager.cleanUp();
+			}
+		});
 	}
 
 	private static final class TestFrameHolder extends JPanel implements FrameHolder {
