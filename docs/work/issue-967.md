@@ -7,7 +7,7 @@ Base: `e8a4a2350` (origin/master). Latest report: v0.1.0.1290, the row inserted 
 | A1 | POD, add a row, save as MPO, reopen: resources are present | Fixed by #966; the reporter confirmed it on v0.1.0.1290. |
 | A2 | Remnant files do not cause a save error | Fixed: a re-save with a new document ID no longer fails on old sidecars. |
 | A3 | Remnant files do not cause an error on open | Not reproduced; the reporter gave no error text. Closing now removes the remnants. |
-| A4 | Inserted rows survive save and reopen | Fixed; `reporterRouteFromPodToReopenedMpoKeepsTheDocumentAndLeavesOnlyProjectFiles`. Physical route GUI-MPO-SAVE-02 awaits a Windows GUI run. |
+| A4 | Inserted rows survive save and reopen | Fixed; `reporterRouteFromPodToReopenedMpoKeepsTheDocumentAndLeavesOnlyProjectFiles`. Physical route GUI-MPO-SAVE-02 passed on Windows: `robotSavesImportedMppAsMpoAndCancellationOrOverwriteRefusalKeepsSource`, GUI run 41270550783. |
 | A5 | Closing a project leaves only project files beside it | Fixed; same test, plus `RetirableFileLockTest` and `CollaborationConflictTest`. |
 | A6 | Reporter verification on a release | Pending |
 
@@ -24,4 +24,4 @@ Base: `e8a4a2350` (origin/master). Latest report: v0.1.0.1290, the row inserted 
 - MSPDI rounds summary percent complete to a whole percent.
 - An older release waiting on a retired marker does not check the mark.
 
-Next slice: Windows GUI run of GUI-MPO-SAVE-02, release, reporter retest (A6).
+Next slice: release, reporter retest (A6).
