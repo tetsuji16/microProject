@@ -141,43 +141,6 @@ public class ContourBucketIntervalGenerator implements IntervalGenerator {
 		return true;
 	}
 
-//		start = workCalendar.add(end,0,false); // move to next working time, skipping non calendar time
-//		specialBucket = null;
-//		long bucketDuration = contourBuckets[index].getBucketDuration(assignmentDuration);
-//		consumedDuration += bucketDuration;
-//
-//		if (consumedDuration > splitAtDuration) {
-//			remainingSplitBucketDuration = consumedDuration - splitAtDuration; // for latter half of bucket
-//			consumedDuration = splitAtDuration - bucketDuration; // for next pass we want consumed==splitAt
-//			
-//			bucketDuration -= remainingSplitBucketDuration;
-//			
-//			specialBucket = PersonalContourBucket.getInstance(bucketDuration,contourBuckets[index].getUnits());
-//			index--; // need to repeat the last bucket
-//
-//		} else if (consumedDuration == splitAtDuration) { // need to do dead time
-//			bucketDuration = splitDuration;
-//			specialBucket = FillerContourBucket.getInstance(bucketDuration);
-//
-//			index--;// need to repeat the last bucket
-//			splitAtDuration = Long.MAX_VALUE; // we don't want to treat the start split or this again
-//		} else if (remainingSplitBucketDuration > 0) {
-//			bucketDuration = remainingSplitBucketDuration;
-//			double units =contourBuckets[index].getUnits();
-//// Turn off this handling.  It seems as if we don't want it after all			
-////			if (units == 0) // split occurs during off time - reduce buckets duration to eliminate any off time that occurs during split
-////				bucketDuration = Math.max(0,bucketDuration-splitDuration);// need to skip dead time during split duration
-//
-//			if (bucketDuration > 0)	
-//				specialBucket = PersonalContourBucket.getInstance(remainingSplitBucketDuration,units);
-//			remainingSplitBucketDuration = 0;
-//		}
-////		consumedDuration += bucketDuration;
-//	
-//		end = workCalendar.add(end,bucketDuration,true);
-//
-//		return true;
-//	}
 
 	/**
 	 * @return Returns the end.

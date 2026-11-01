@@ -345,10 +345,6 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 
 	public String toString() {
 		return getTask() + "/" + getResource(); //super.toString();
-//		return "[start] " + new java.util.Date(getStart())
-//		      + "\n[end] " +  new java.util.Date(getEnd())
-//			  +"\n[units] " + getUnits()// in hours
-//			  +"\n[work] " + getWork() / (1000*60*60); // in hours
 	}
 
 	/**
@@ -616,12 +612,6 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 
 
 
-//	public AssignmentFieldFunctor work(SelectFrom clause, AssignmentFieldFunctor using) {
-//		ContourBucketIntervalGenerator contour = using.getContourBucketIntervalGenerator();
-//		WorkFunctor workF = WorkFunctor.getInstance(this, contour.getWorkCalendar(), contour, detail.calcOvertimeUnits());
-//		clause.select(workF);
-//		return workF;
-//	}
 
 	private AssignmentFieldFunctor percentAlloc(SelectFrom clause, boolean threshold) {
 		ContourBucketIntervalGenerator contour = contourGeneratorInstance(WORK);
@@ -659,7 +649,6 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 		return functor;
 	}
 
-//	PercentAllocFunctor(Assignment assignment, WorkCalendar workCalendar, ContourBucketIntervalGenerator contourBucketIntervalGenerator) {
 	/**
 	 * Convenience function to fill in the SelectFrom clause and return the cost functor.
 	 * One particularity of this function is that if the cost has been saved in the cost contour, then the cost contour is used.
@@ -785,13 +774,6 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 		return dataFunctor.getValue();
 	}
 
-//	public void forEach(Object type, Consumer<Object> actionVisitor) {
-//		SelectFrom clause = SelectFrom.getInstance();
-//		AssignmentFieldFunctor dataFunctor = getDataSelect(type,clause,false);
-//		Query.getInstance().selectFrom(clause)
-//		.action(actionVisitor)
-//		.execute();
-//	}
 
 	public void buildReverseQuery(ReverseQuery reverseQuery) {
 		SelectFrom clause = SelectFrom.getInstance();
@@ -828,7 +810,6 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 		}
 		forEachWorkingInterval(barClosureInstance,true,getEffectiveWorkCalendar());
 		if (inProgress) {
-//			barClosureInstance.initCount();
 			bounds.setStart(bounds.getEnd()); // shift for second half
 			bounds.setEnd(getEnd());
 
@@ -941,31 +922,6 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 		 *   NNNNNNNNNN
 		 */
 
-//		long delay = getDelay();
-//		long levelingDelay = getLevelingDelay();
-//		long oldTotalDelay = calcTotalDelay();
-//		if (newDelay == oldTotalDelay)
-//			return;
-//
-//		if (newDelay <= delay) {
-//			delay = newDelay;
-//			levelingDelay = 0;
-//		}
-//		else {
-//			delay = 0;
-//			levelingDelay =
-//		}
-//		if (newDelay < oldTotalDelay) {
-//			delay -= newDelay;
-//			if (delay < 0) {
-//				levelingDelay += delay;
-//				delay = 0;
-//			}
-//		} else {
-//			delay += (newDelay - oldTotalDelay);
-//		}
-//		setDelay(delay);
-//		setLevelingDelay(levelingDelay);
 
 		setDelay(newDelay);
 		setLevelingDelay(0);
@@ -1282,15 +1238,6 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 		if (cost == 0)
 			return 0;
 		return efficiency() * cost;
-//
-//		Query query = Query.getInstance();
-//		long boundaryStart = detail.getStart(); // always use assignment start and never start
-//		long boundaryEnd = Math.min(getStatusDate(),baselineAssignment.getEffectiveWorkCalendar().add(boundaryStart, (long) (baselineAssignment.getDuration() * getPercentComplete()),false));
-//		SelectFrom clause = SelectFrom.getInstance().whereInRange(boundaryStart,Math.min(end,boundaryEnd));
-//		query.selectFrom(clause)
-//			.action(baselineData(COST,clause))
-//			.execute();
-//		return ((DoubleValue)query.getActionVisitor()).getValue();
 	}
 
 	public double bac(long start, long end) {
@@ -1318,8 +1265,6 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	public long work(long start, long end) {
 		if (!isInRange(start,end))
 			return NO_VALUE_LONG;
-//		if (!isLabor()) // Non-labor work is handled elsewhere for this path.
-//			return 0;
 		Query query = Query.getInstance();
 		SelectFrom clause = SelectFrom.getInstance().whereInRange(start,end);
 		query.selectFrom(clause)
@@ -1370,8 +1315,6 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	}
 
 	public double baselineCost(long start, long end) {
-//		if (!isInRange(start,end))
-//			return NO_VALUE_DOUBLE;
 
 		Query query = Query.getInstance();
 		SelectFrom clause = SelectFrom.getInstance().whereInRange(start,end);
@@ -1383,8 +1326,6 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 
 
 	public long baselineWork(long start, long end) {
-//		if (!isInRange(start,end))
-//			return NO_VALUE_LONG;
 		if (!isLabor())
 			return 0;
 		Query query = Query.getInstance();
@@ -1588,9 +1529,6 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	public long getUniqueId() {
 		return hasKey.getUniqueId();
 	}
-//	public void setNew(boolean isNew) {
-//		hasKey.setNew(isNew);
-//	}
 	/**
 	 * @param created
 	 */
@@ -1677,8 +1615,6 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	 */
 
 	public void makeContourPersonal() {
-//		if (getWorkContour().isPersonal())
-//			return;
 		Object type = WORK;
 		ContourBucketIntervalGenerator contourGenerator = contourGeneratorInstance(type); //contour
 		PersonalContourMaker contourBuilder = PersonalContourMaker.getInstance(this, contourGenerator);
