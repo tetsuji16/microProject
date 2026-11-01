@@ -53,6 +53,7 @@ import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.resource.ResourcePoolFactory;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.TaskSnapshot;
+import com.microproject.temporary.TemporaryRoot;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.workspace.WorkspaceSetting;
 
@@ -398,6 +399,8 @@ class CollaborationConflictTest {
 		assertTrue(session.tryAcquireTaskLock(podTask));
 		try {
 			session.saveWorkspace(new TestWorkspaceSetting("gantt"));
+			assertTrue(sidecar.exists());
+			assertTrue(sidecar.length() > 0L);
 		} finally {
 			session.stop();
 		}
@@ -406,8 +409,56 @@ class CollaborationConflictTest {
 		assertTrue(Arrays.equals(before, after),
 			"Collaboration must store metadata in the sidecar, not mutate the POD file.");
 		assertEquals(lastModified, podFile.lastModified());
-		assertTrue(sidecar.exists());
-		assertTrue(sidecar.length() > 0L);
+	}
+
+	/** Issue #967: closing a project leaves nothing beside it unless someone else still needs it. */
+	@Test
+	void closingTheLastSessionRemovesItsFilesAndKeepsTheLayoutOnThisComputer() throws Exception {
+		String previousRoot = System.getProperty(TemporaryRoot.ROOT_PROPERTY);
+		System.setProperty(TemporaryRoot.ROOT_PROPERTY, tempDir.resolve("application-data/temp").toString());
+		try {
+			File project = createPodFile("First", "Second");
+			File sidecar = CollaborationMetadataStore.buildSidecarFile(project);
+			File marker = CollaborationMetadataStore.buildLockFile(sidecar);
+			File transactionLock = new File(project.getPath() + ".lock");
+			assertTrue(transactionLock.createNewFile(), "a marker left by an older release");
+
+			CollaborationSession closing = new CollaborationSession(null, project.getPath(), "alice");
+			closing.start();
+			closing.saveWorkspace(new TestWorkspaceSetting("gantt"));
+			assertTrue(sidecar.exists());
+			closing.stop();
+			assertFalse(sidecar.exists());
+			assertFalse(marker.exists());
+			assertFalse(transactionLock.exists());
+			closing.saveWorkspace(new TestWorkspaceSetting("late"));
+			closing.pollAt(System.currentTimeMillis());
+			assertFalse(sidecar.exists(), "a stopped session must not write its files back");
+			assertFalse(marker.exists(), "a stopped session must not write its files back");
+
+			CollaborationSession reopened = new CollaborationSession(null, project.getPath(), "alice");
+			reopened.start();
+			assertEquals("gantt", ((TestWorkspaceSetting) reopened.loadWorkspace()).viewName);
+
+			CollaborationSession secondCopy = new CollaborationSession(null, project.getPath(), "alice");
+			secondCopy.start();
+			reopened.stop();
+			assertTrue(sidecar.exists(), "the same user's other running copy still uses the sidecar");
+			secondCopy.stop();
+			assertFalse(sidecar.exists());
+
+			CollaborationSession alice = new CollaborationSession(null, project.getPath(), "alice");
+			CollaborationSession bob = new CollaborationSession(null, project.getPath(), "bob");
+			alice.start();
+			bob.start();
+			alice.stop();
+			bob.stop();
+			assertTrue(sidecar.exists(), "the other user's record must survive either close");
+			assertTrue(marker.exists());
+		} finally {
+			if (previousRoot == null) System.clearProperty(TemporaryRoot.ROOT_PROPERTY);
+			else System.setProperty(TemporaryRoot.ROOT_PROPERTY, previousRoot);
+		}
 	}
 
 	@Test

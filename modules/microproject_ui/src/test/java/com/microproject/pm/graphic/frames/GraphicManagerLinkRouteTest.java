@@ -37,11 +37,13 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
 
 import org.junit.jupiter.api.Test;
 
 import com.microproject.dialog.ProjectDialog;
-import com.microproject.bootstrap.BootstrapApplet;
+import com.microproject.pm.graphic.frames.workspace.FrameHolder;
+import com.microproject.pm.graphic.frames.workspace.FrameManager;
 import com.microproject.document.ObjectEvent;
 import com.microproject.pm.task.DefaultSubProj;
 import com.microproject.pm.task.Project;
@@ -64,29 +66,41 @@ class GraphicManagerLinkRouteTest {
 	}
 
 	@Test
-	void componentLookupResolvesBootstrapAppletManagerThroughItsStaticAccessor() {
-		GraphicManager manager = new GraphicManager(new JPanel());
-		BootstrapApplet applet = new BootstrapApplet();
-		applet.setName("BootstrapApplet");
-		BootstrapApplet.setGraphicManager(manager);
-
-		try {
-			assertSame(manager, GraphicManager.getInstance(applet));
-		} finally {
-			BootstrapApplet.setGraphicManager(null);
-		}
+	void componentLookupFindsAncestorFrameHolder() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			TestFrameHolder holder = new TestFrameHolder();
+			GraphicManager manager = new GraphicManager(holder);
+			GraphicManager activeManager = new GraphicManager(new JPanel());
+			JPanel child = new JPanel();
+			holder.add(child);
+			try {
+				activeManager.setMeAsLastGraphicManager();
+				assertSame(activeManager, GraphicManager.getInstance());
+				assertSame(manager, holder.getGraphicManager());
+				assertSame(manager, GraphicManager.getInstance(child));
+			} finally {
+				activeManager.cleanUp();
+				manager.cleanUp();
+			}
+		});
 	}
 
-	@Test
-	void constructionBindsGraphicManagerToBootstrapAppletFrameHolder() {
-		BootstrapApplet applet = new BootstrapApplet();
-		GraphicManager manager = new GraphicManager(applet);
+	private static final class TestFrameHolder extends JPanel implements FrameHolder {
+		private GraphicManager manager;
 
-		try {
-			assertSame(manager, BootstrapApplet.getObject().getGraphicManager());
-		} finally {
-			manager.cleanUp();
-			BootstrapApplet.setGraphicManager(null);
+		@Override
+		public FrameManager getFrameManager() {
+			return null;
+		}
+
+		@Override
+		public GraphicManager getGraphicManager() {
+			return manager;
+		}
+
+		@Override
+		public void setGraphicManager(GraphicManager manager) {
+			this.manager = manager;
 		}
 	}
 

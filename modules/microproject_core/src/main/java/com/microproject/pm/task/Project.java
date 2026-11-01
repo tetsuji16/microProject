@@ -3315,6 +3315,33 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	// Persisted native projects carry these defaults in their MSPDI Project header.
 	// Keep the object transient so the frozen POD serialization descriptor is unchanged.
 	private transient DurationDefaults durationDefaults;
+	// Stored in the MPO/MSPDI header; transient preserves the frozen POD descriptor.
+	private transient java.time.LocalTime defaultStartTime;
+	private transient java.time.LocalTime defaultFinishTime;
+
+	public java.time.LocalTime getDefaultStartTime() { return defaultStartTime; }
+	public java.time.LocalTime getDefaultFinishTime() { return defaultFinishTime; }
+	public void setDefaultTimes(java.time.LocalTime start, java.time.LocalTime finish) {
+		defaultStartTime = start;
+		defaultFinishTime = finish;
+		if (start != null || finish != null) {
+			calendarOption = (calendarOption == null ? CalendarOption.getDefaultInstance() : calendarOption).copy();
+			if (start != null)
+				calendarOption.setDefaultStartTime(optionCalendar(calendarOption.getDefaultStartTime(), start));
+			if (finish != null)
+				calendarOption.setDefaultEndTime(optionCalendar(calendarOption.getDefaultEndTime(), finish));
+		}
+	}
+
+	private static java.util.GregorianCalendar optionCalendar(java.util.GregorianCalendar original, java.time.LocalTime time) {
+		java.util.GregorianCalendar result = original == null ? new java.util.GregorianCalendar()
+			: (java.util.GregorianCalendar) original.clone();
+		result.set(java.util.Calendar.HOUR_OF_DAY, time.getHour());
+		result.set(java.util.Calendar.MINUTE, time.getMinute());
+		result.set(java.util.Calendar.SECOND, time.getSecond());
+		result.set(java.util.Calendar.MILLISECOND, 0);
+		return result;
+	}
 
 	public DurationDefaults getDurationDefaults() {
 		if (durationDefaults == null)
@@ -3342,8 +3369,15 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		this.calendarOption = calendarOption;
 		if (calendarOption != null) {
 			durationDefaults = getDurationDefaults().withCalendar(calendarOption);
+			defaultStartTime = optionTime(calendarOption.getDefaultStartTime());
+			defaultFinishTime = optionTime(calendarOption.getDefaultEndTime());
 		}
 		setGroupDirty(true);
+	}
+
+	private static java.time.LocalTime optionTime(java.util.Calendar time) {
+		return time == null ? null : java.time.LocalTime.of(time.get(java.util.Calendar.HOUR_OF_DAY),
+			time.get(java.util.Calendar.MINUTE), time.get(java.util.Calendar.SECOND));
 	}
 
 	public PrintSettings getTmpSettings() {

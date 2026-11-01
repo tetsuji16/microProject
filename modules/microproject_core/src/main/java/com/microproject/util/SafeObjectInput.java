@@ -43,9 +43,6 @@ public final class SafeObjectInput {
 
 	private static final String[] ALLOWED_APPLICATION_PREFIXES = {
 		"com.microproject.",
-		"com.projectlibre1.", // legacy POD files serialized under the old package (see issue #154)
-		"org.projectlibre.",
-		"org.projectlibre1.",
 		"org.jdesktop.swingx.calendar." // legacy workspace compatibility
 	};
 	private static final String[] ALLOWED_JDK_PACKAGES = {
@@ -86,7 +83,7 @@ public final class SafeObjectInput {
 	}
 
 	/**
-	 * ObjectInputStream that rewrites legacy {@code com.projectlibre1.*} class names to the
+	 * ObjectInputStream that rewrites legacy serialized class names to the
 	 * renamed {@code com.microproject.*} package during deserialization, so POD files written
 	 * by older ProjectLibre releases can still be loaded (see issue #154).
 	 */
@@ -99,7 +96,7 @@ public final class SafeObjectInput {
 		@Override
 		protected Class<?> resolveClass(ObjectStreamClass desc) throws IOException, ClassNotFoundException {
 			String name = desc.getName();
-			String remapped = name.replace("com.projectlibre1.", "com.microproject.");
+			String remapped = com.microproject.exchange.PodFormatIdentifiers.remapClassName(name);
 			if (!remapped.equals(name)) {
 				try {
 					return Class.forName(remapped, false, RemappingObjectInputStream.class.getClassLoader());
@@ -128,6 +125,8 @@ public final class SafeObjectInput {
 			return ObjectInputFilter.Status.ALLOWED;
 
 		String className = type.getName();
+		if (com.microproject.exchange.PodFormatIdentifiers.isAllowedLegacyClass(className))
+			return ObjectInputFilter.Status.ALLOWED;
 		for (String allowedClass : ALLOWED_JDK_CLASSES) {
 			if (className.equals(allowedClass))
 				return ObjectInputFilter.Status.ALLOWED;

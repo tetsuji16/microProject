@@ -13,7 +13,8 @@ Each metadata read/modify/write uses a stable
 inter-process transaction lock. During legacy migration, the application also
 locks `<base>.projectlibre-sync.lock` while it copies the old metadata. The
 canonical lock serializes current clients; the active OS lock is released when
-the writer exits, while marker files may remain. The canonical sidecar is
+the writer exits, and closing the project removes its markers. A crash or an
+older release can still leave a marker, which is harmless. The canonical sidecar is
 authoritative once present, including when it is malformed.
 
 Do not delete or rename either lock file manually while another editor may be
@@ -34,11 +35,20 @@ be deferred and the next maintenance/startup cleanup may retry it.
 
 The `.microproject-sync.lock` file is also an implementation artifact. Its
 presence does **not** mean that a writer is running: the authoritative lock is
-the active operating-system `FileLock` held on its open channel. The marker
-file is normally not deleted after a successful transaction, normal shutdown,
-or crash, because deleting it would introduce a create/delete race for other
-editors and would make cloud-sync ordering less predictable. An empty or old
-marker is therefore harmless.
+the active operating-system `FileLock` held on its open channel. Deleting a
+locked marker directly would race with other editors, so `RetirableFileLock`
+first takes the lock, writes a retired mark into the file, and only then deletes
+it; a waiter that gets a marked file opens a new one. An empty or old marker from
+a crash or an older release is treated as live and is harmless.
+
+Closing a project or the whole application retires `<file>.lock` and the sync
+lock. When the closing user is the sidecar's only user, their workspace layout
+moves to the per-user `LocalWorkspaceStore` and the sidecar is removed too, so a
+closed project leaves only its project files. A sidecar with another user's data
+stays. Cancelling the save prompt keeps the session and its files. A busy lock or
+a file another program has open is retried for up to 3 seconds, so that a sync
+client delays the removal without blocking exit. The next open and close by the
+same user removes files left by that limit, an earlier release, or a crash.
 
 Do not include `.tmp` files in conflict resolution or copy them between
 machines. Do not delete `.lock` files as ordinary project cleanup. Removing a
