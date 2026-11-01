@@ -47,6 +47,7 @@ import java.util.logging.Logger;
 
 
 
+import com.microproject.collaboration.CollaborationSession;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeBridge;
 import com.microproject.grouping.core.model.AssignmentNodeModel;
@@ -979,6 +980,17 @@ public class ProjectFactory {
 		else job.addJob(closeProjectJob);
 
 
+		// Every close route ends here, after the save prompt and any save, so a
+		// cancelled or failed close keeps its session (issue #967).  This never runs
+		// on the window's thread: a lock in use elsewhere gets its full wait.
+		job.addRunnable(new JobRunnable("Local: endCollaboration"){
+			public Object run() throws Exception{
+				endCollaboration(project);
+				for (Project p : projects)
+					endCollaboration(p);
+				return null;
+			}
+		},false,false,false,false);
 		job.addRunnable(new JobRunnable("Local: closeProjects"){
 			public Object run() throws Exception{
 				com.microproject.transaction.ProjectMutationState.coordinated(() -> {
@@ -1000,6 +1012,14 @@ public class ProjectFactory {
 			}
 		},/*!calledFromSwing*/false,false,calledFromSwing,false);
 		return job;
+	}
+
+	private static void endCollaboration(Project project) {
+		CollaborationSession session = project.getCollaborationSession();
+		if (session == null)
+			return;
+		project.setCollaborationSession(null);
+		session.stop();
 	}
 
 	static void removePortfolioNodesAndPublish(NodeModel nodeModel, List<Node> nodes) {
