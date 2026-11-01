@@ -62,6 +62,7 @@ class LicenseDialogResourceTest {
 		assertEditorPaneCanLoad("license/third-party/index.html");
 		assertInstallerLicenseCopyIsReadable();
 		assertCurrentOpenSourceNotices();
+		assertAboutCopyrightUsesMitNotice();
 	}
 
 	private void assertInstallerLicenseCopyIsReadable() throws Exception {
@@ -92,6 +93,13 @@ class LicenseDialogResourceTest {
 		assertTrue(notices.contains("MPXJ"));
 		assertFalse(notices.contains("Apache ANT"));
 		assertFalse(notices.contains("JUnit"));
+	}
+
+	private void assertAboutCopyrightUsesMitNotice() throws Exception {
+		for (String bundle : new String[] {"client", "client_ja", "client_de", "client_fr", "client_zh_CN", "client_sv"}) {
+			String strings = readResource("com/microproject/strings/" + bundle + ".properties");
+			assertTrue(strings.contains("AboutDialog.copyright=Copyright (c) 2026 microProject. Licensed under the MIT License."), bundle);
+		}
 	}
 
 	private String readResource(String resourceName) throws Exception {
