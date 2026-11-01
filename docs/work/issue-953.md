@@ -19,8 +19,8 @@ Remove production code with demonstrably no callers and commented-out code. Excl
 
 ## Current slice
 
-**Next slice:** classify commented-code candidates in `pm/criticalpath`.
-**Done when:** each candidate is removed or retained with a reason and core tests pass.
+**Next slice:** review inactive blocks in `pm/assignment/AssignmentDetail`.
+**Done when:** every removed block consists only of comments and core tests pass.
 **Then:** continue the remaining core `pm` inventory and unused-symbol audit.
 
 ## Evidence
@@ -35,3 +35,4 @@ Remove production code with demonstrably no callers and commented-out code. Excl
 - Datatype/document/exchange/field slice: removed line-commented field and converter statements, including entire inactive conditional blocks; live read-only handling, conversions and summaries are unchanged. Four remaining matches in `DurationFormat`, `PercentFormat`, `RateFormat`, and `FieldValues` are explanatory prose about thread safety or capacity. `gradlew.bat :microproject_core:test --console=plain` passed (7 tasks, 2 executed).
 - Grouping/graphic/scripting slice: deleted only inactive declarations, debug calls and obsolete commented-out blocks. The two remaining search hits in `AssignmentNodeModel` and `TexturedShape` are explanatory prose. `gradlew.bat :microproject_core:test --console=plain` passed (7 tasks, 2 executed); a subsequent indentation-only correction resolved the staged whitespace check.
 - `PersonalContour`: removed four wholly line-commented incomplete or obsolete methods (`makeFlatIfPossible`, `setContiguousDuration`, `adjustUnitsOld`, `setValue`); the compiled API, serialization fields and active contour algorithms were unchanged. `gradlew.bat :microproject_core:test --console=plain` passed (7 tasks, 2 executed). Hermes Beam suggested the four ranges; each was checked against source before removal.
+- `pm/criticalpath`: removed inactive listener registration, old schedule-copy and alternate calculation snippets, and commented interface declarations; repository search confirms `copyDatesFrom` exists only in its former commented block. One remaining search hit is prose explaining event barriers. Active scheduling paths are unchanged; `gradlew.bat :microproject_core:test --console=plain` passed (7 tasks, 2 executed).
