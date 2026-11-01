@@ -428,7 +428,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		Point[] firstRow = new Point[1];
 		SwingUtilities.invokeAndWait(() -> {
 			var sheet = frame.getTopSpreadSheet();
-			Rectangle cell = sheet.getCellRect(0, 1, true);
+			Rectangle cell = sheet.getCellRect(1, 1, true);
 			Point origin = sheet.getLocationOnScreen();
 			firstRow[0] = new Point(origin.x + cell.x + cell.width / 2, origin.y + cell.y + cell.height / 2);
 		});
@@ -436,7 +436,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		robot.mouseMove(firstRow[0].x, firstRow[0].y);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-		GuiAcceptanceSupport.awaitInputAndEventQueueIdle(robot, "first task row selection");
+		GuiAcceptanceSupport.awaitInputAndEventQueueIdle(robot, "task row below the project summary selection");
 		int rowsBefore = outlineRows(project).size();
 		robot.keyPress(java.awt.event.KeyEvent.VK_INSERT);
 		robot.keyRelease(java.awt.event.KeyEvent.VK_INSERT);
