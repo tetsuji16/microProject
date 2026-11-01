@@ -1,7 +1,6 @@
 /*******************************************************************************
  * MIT License
  *
- * Copyright (c) 2012-2019 ProjectLibre, Inc.  (Previous Copyright Holder)
  * Copyright (c) 2026 microProject
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -280,15 +279,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		for (c = component; c != null; c = c.getParent()) {
 			if (c instanceof FrameHolder)
 				return ((FrameHolder)c).getGraphicManager();
-			else if (c.getName() != null && c.getName().endsWith("BootstrapApplet") && c.getClass().getName().endsWith("BootstrapApplet")){
-				logger.fine("applet: " + c.getClass().getName());
-				try {
-					FrameHolder holder=(FrameHolder)Class.forName("com.microproject.bootstrap.BootstrapApplet").getMethod("getObject").invoke(c);
-					return holder.getGraphicManager();
-				} catch (Exception e) {
-					return null;
-				}
-			}
 		}
 		return MANAGER_REGISTRY.getActiveManager(); // if none found, use last used one
 	}
@@ -362,18 +352,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		this.container=container;
 		if (container instanceof Frame ownerFrame)
 			frame=ownerFrame;
-//		else if (container instanceof JApplet)
-//			frame = JOptionPane.getFrameForComponent(container);
 		if (container instanceof FrameHolder frameHolder)
 			frameHolder.setGraphicManager(this);
-//		else if (container instanceof BootstrapApplet){
-		else{
-			try {
-				FrameHolder holder=(FrameHolder)Class.forName("com.microproject.bootstrap.BootstrapApplet").getMethod("getObject").invoke(container);
-				holder.setGraphicManager(this);
-			} catch (Exception e) {
-			}
-		}
 		registerForMacOSXEvents();
 	}
 	public void cleanUp() {

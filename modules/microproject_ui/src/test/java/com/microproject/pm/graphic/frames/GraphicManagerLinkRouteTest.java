@@ -42,7 +42,8 @@ import javax.swing.JPanel;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.dialog.ProjectDialog;
-import com.microproject.bootstrap.BootstrapApplet;
+import com.microproject.pm.graphic.frames.workspace.FrameHolder;
+import com.microproject.pm.graphic.frames.workspace.FrameManager;
 import com.microproject.document.ObjectEvent;
 import com.microproject.pm.task.DefaultSubProj;
 import com.microproject.pm.task.Project;
@@ -65,29 +66,35 @@ class GraphicManagerLinkRouteTest {
 	}
 
 	@Test
-	void componentLookupResolvesBootstrapAppletManagerThroughItsStaticAccessor() {
-		GraphicManager manager = new GraphicManager(new JPanel());
-		BootstrapApplet applet = new BootstrapApplet();
-		applet.setName("BootstrapApplet");
-		BootstrapApplet.setGraphicManager(manager);
-
+	void componentLookupFindsAncestorFrameHolder() {
+		TestFrameHolder holder = new TestFrameHolder();
+		GraphicManager manager = new GraphicManager(holder);
+		JPanel child = new JPanel();
+		holder.add(child);
 		try {
-			assertSame(manager, GraphicManager.getInstance(applet));
+			assertSame(manager, holder.getGraphicManager());
+			assertSame(manager, GraphicManager.getInstance(child));
 		} finally {
-			BootstrapApplet.setGraphicManager(null);
+			manager.cleanUp();
 		}
 	}
 
-	@Test
-	void constructionBindsGraphicManagerToBootstrapAppletFrameHolder() {
-		BootstrapApplet applet = new BootstrapApplet();
-		GraphicManager manager = new GraphicManager(applet);
+	private static final class TestFrameHolder extends JPanel implements FrameHolder {
+		private GraphicManager manager;
 
-		try {
-			assertSame(manager, BootstrapApplet.getObject().getGraphicManager());
-		} finally {
-			manager.cleanUp();
-			BootstrapApplet.setGraphicManager(null);
+		@Override
+		public FrameManager getFrameManager() {
+			return null;
+		}
+
+		@Override
+		public GraphicManager getGraphicManager() {
+			return manager;
+		}
+
+		@Override
+		public void setGraphicManager(GraphicManager manager) {
+			this.manager = manager;
 		}
 	}
 
