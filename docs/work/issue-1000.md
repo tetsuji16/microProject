@@ -25,6 +25,7 @@ Neutralize the named internal identifiers, comments, and UI resource keys; add a
 
 - Error/warning and legacy file-label resource keys and their callers were renamed with values unchanged across locales. Core `ClientBundleProductNameTest` and UI `DocumentStatusBarTest` passed via `gradlew.bat :microproject_core:test --tests com.microproject.strings.ClientBundleProductNameTest :microproject_ui:test --tests com.microproject.pm.graphic.frames.DocumentStatusBarTest --console=plain`.
 
+- The persisted-data input filter constant was renamed without changing its filter; `gradlew.bat :microproject_core:test --tests com.microproject.util.SafeObjectInputTest --console=plain` passed.
 - The named comments and exchange warning were neutralized; third-party modification markers retain their meaning. `gradlew.bat build --console=plain` passed on `b49cc679a` plus this slice (56 tasks).
 
 - `MPXConverter` source-side parameter/local identifiers were renamed without changing types or behavior. `gradlew.bat :microproject_exchange:test --console=plain` passed on the baseline plus these changes.
