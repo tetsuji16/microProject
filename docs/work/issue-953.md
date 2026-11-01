@@ -19,7 +19,7 @@ Remove production code with demonstrably no callers and commented-out code. Excl
 
 ## Current slice
 
-**Next slice:** classify the remaining `src/main` search candidates and investigate unused symbols by production callers, reflection and configuration.
+**Next slice:** classify the remaining `src/main` candidates and investigate unused symbols by callers, reflection and configuration.
 **Done when:** each candidate has a justified disposition and affected module tests pass.
 **Then:** check the complete inventory, CI and issue acceptance.
 
@@ -30,3 +30,4 @@ Remove production code with demonstrably no callers and commented-out code. Excl
 
 - Job slice: the deleted mutex, queue and exception-handler statements were already line comments. `rg` found no production or non-module reference to `exceptionHandlerRunnable` beyond its declaration and the deleted comments; the field type `InternalRunnable` is private. Live `runThread`, `groupMutex`/`globalMutex` release and completion paths remain. `JobQueue.startNext` remains public and was not removed based on repository search alone.
 - `gradlew.bat :microproject_core:test --console=plain` passed on `1bc21058b` plus the Job slice (7 tasks, 3 executed).
+- ScriptRunner slice removes only line-commented sample declarations and their line-commented explanatory text; no active declarations changed. `gradlew.bat :microproject_core:test --console=plain` passed (recompiled, tests up to date because compiled API was unchanged).
