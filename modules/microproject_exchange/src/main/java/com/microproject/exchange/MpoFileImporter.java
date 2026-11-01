@@ -18,7 +18,6 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.nio.channels.FileChannel;
-import java.nio.channels.FileLock;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
@@ -85,6 +84,7 @@ import com.microproject.session.SessionFactory;
 import com.microproject.strings.Messages;
 import com.microproject.temporary.TemporaryCleanupQueue;
 import com.microproject.util.MarkupEscape;
+import com.microproject.util.RetirableFileLock;
 import com.microproject.util.SafeFileReplace;
 
 /**
@@ -329,21 +329,26 @@ public class MpoFileImporter extends FileImporter {
 		}
 		if (!extensions.entries.isEmpty()) project.getOrCreateTransientDocumentState(MpoExtensions.class, MpoExtensions::new).entries.putAll(extensions.entries);
 		restoreEmbeddedProjectReferences(project, manifestData, extensions.entries, embeddedProjectFailures);
-		if (extensions.entries.containsKey(TASK_SPLITS_ENTRY))
-			restoreTaskSplits(project, extensions.entries.get(TASK_SPLITS_ENTRY));
-		if (extensions.entries.containsKey(TASK_LEVELING_OPTIONS_ENTRY))
-			restoreTaskLevelingOptions(project, extensions.entries.get(TASK_LEVELING_OPTIONS_ENTRY));
+		restoreTaskExtensions(project, extensions.entries);
+		return project;
+	}
+
+	/** Applies the task data MSPDI cannot hold; opening a file and copying a model must agree on it. */
+	private static void restoreTaskExtensions(Project project, java.util.Map<String, byte[]> entries) throws IOException {
+		if (entries.containsKey(TASK_SPLITS_ENTRY))
+			restoreTaskSplits(project, entries.get(TASK_SPLITS_ENTRY));
+		if (entries.containsKey(TASK_LEVELING_OPTIONS_ENTRY))
+			restoreTaskLevelingOptions(project, entries.get(TASK_LEVELING_OPTIONS_ENTRY));
 		else
 			resetLegacyTaskLevelingDefaults(project);
-		if (extensions.entries.containsKey(TASK_TEXT_STYLES_ENTRY))
-			restoreTaskTextStyles(project, extensions.entries.get(TASK_TEXT_STYLES_ENTRY));
-		if (extensions.entries.containsKey(TASK_SCHEDULES_ENTRY))
-			restoreTaskSchedules(project, extensions.entries.get(TASK_SCHEDULES_ENTRY));
-		if (extensions.entries.containsKey(BASELINE_PROFILES_ENTRY))
-			restoreBaselineProfiles(project, extensions.entries.get(BASELINE_PROFILES_ENTRY));
-		if (extensions.entries.containsKey(ASSIGNMENT_LEVELING_SPLITS_ENTRY))
-			restoreAssignmentLevelingSplits(project, extensions.entries.get(ASSIGNMENT_LEVELING_SPLITS_ENTRY));
-		return project;
+		if (entries.containsKey(TASK_TEXT_STYLES_ENTRY))
+			restoreTaskTextStyles(project, entries.get(TASK_TEXT_STYLES_ENTRY));
+		if (entries.containsKey(TASK_SCHEDULES_ENTRY))
+			restoreTaskSchedules(project, entries.get(TASK_SCHEDULES_ENTRY));
+		if (entries.containsKey(BASELINE_PROFILES_ENTRY))
+			restoreBaselineProfiles(project, entries.get(BASELINE_PROFILES_ENTRY));
+		if (entries.containsKey(ASSIGNMENT_LEVELING_SPLITS_ENTRY))
+			restoreAssignmentLevelingSplits(project, entries.get(ASSIGNMENT_LEVELING_SPLITS_ENTRY));
 	}
 
 	@Override
@@ -359,25 +364,22 @@ public class MpoFileImporter extends FileImporter {
 		Files.createDirectories(parent);
 		Path lockPath = target.toPath().toAbsolutePath().resolveSibling(target.getName() + ".lock");
 		// OneDrive can start two desktop writers at nearly the same time.  Lock a
-		// stable sidecar (rather than the atomically replaced mpo inode) so the
-		// read/merge/write transaction is serialized across JVMs as well.
+		// sidecar (rather than the atomically replaced mpo inode) so the
+		// read/merge/write transaction is serialized across JVMs as well.  The
+		// sidecar exists only for that transaction and is removed at its end.
 		synchronized (EXPORT_LOCK_GUARD) {
-			FileChannel lockChannel;
+			RetirableFileLock transactionLock;
 			try {
-				lockChannel = FileChannel.open(lockPath, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+				transactionLock = RetirableFileLock.acquire(lockPath, FileChannel::lock);
 			} catch (IOException lockFailure) {
 				throw persistLockFailureRecovery(target, lockFailure);
 			}
-			try (lockChannel) {
-				FileLock fileLock;
+			try (transactionLock) {
 				try {
-					fileLock = lockChannel.lock();
-				} catch (IOException lockFailure) {
-					throw persistLockFailureRecovery(target, lockFailure);
-				}
-				try (fileLock) {
 					cleanupAbandonedTemporaryFiles(target);
 					exportFileLocked(target);
+				} finally {
+					transactionLock.retire();
 				}
 			}
 		}
@@ -434,7 +436,7 @@ public class MpoFileImporter extends FileImporter {
 		if (merge != null) {
 			// Apply concurrent operations only to an isolated candidate.  The live
 			// Project and its operation state are committed after the archive replace.
-			Project outputProject = copyProjectForTransaction(project, captured.serialized().xml());
+			Project outputProject = copyOfCapture(captured);
 			applyMergedOperationsOnEdt(outputProject, merge.replayOperations(), merge.alreadyAppliedOperationIds());
 			merge.applyExtensions(outputProject);
 			operationState.operations.clear();
@@ -767,6 +769,14 @@ public class MpoFileImporter extends FileImporter {
 		if (current == null)
 			current = project.getOrCreateTransientDocumentState(MpoOperationState.class, MpoOperationState::new);
 		current.commitFrom(plan);
+	}
+
+	/** The candidate written to an existing file: the document as reopening the capture would show it. */
+	private Project copyOfCapture(MpoCapture captured) throws IOException {
+		Project copy = copyProjectForTransaction(project, captured.serialized().xml());
+		restoreVisibility(copy, captured.entries().get(VISIBILITY_ENTRY));
+		restoreTaskExtensions(copy, captured.entries());
+		return copy;
 	}
 
 	private Project copyProjectForTransaction(Project source, byte[] xml) throws IOException {
@@ -2062,7 +2072,7 @@ public class MpoFileImporter extends FileImporter {
 
 	private Path persistRecoveryCopy(File target, MpoCapture captured, MpoOperationState local,
 			java.util.List<OperationLog.Operation> mergedOperations, MpoExtensions externalExtensions) throws IOException {
-		Project recoveryProject = copyProjectForTransaction(project, captured.serialized().xml());
+		Project recoveryProject = copyOfCapture(captured);
 		if (externalExtensions != null && !externalExtensions.entries.isEmpty()) {
 			MpoExtensions recoveryExtensions = recoveryProject.getOrCreateTransientDocumentState(MpoExtensions.class,
 					MpoExtensions::new);

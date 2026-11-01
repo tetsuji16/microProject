@@ -66,6 +66,7 @@ import com.microproject.exchange.ImportedCalendarService;
 import com.microproject.exchange.MspdiProjectBoundary;
 import com.microproject.exchange.BoundedInput;
 import com.microproject.grouping.core.Node;
+import com.microproject.grouping.core.NodeFactory;
 import com.microproject.pm.calendar.CalendarService;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.calendar.WorkingCalendar;
@@ -768,16 +769,19 @@ public class MspImporter {
 			if (mpxTask.getExternalTask() && state.getTask(mpxTask)==null && !shouldSkipTask(mpxTask))
 				importRegularTask(project,mpxTask,null);
 		}
+		restoreBlankRows(project);
 	}
 	
 	protected void importTasks(Project project,net.sf.mpxj.Task mpxTask, Task parentTask) {
-		if (shouldSkipTask(mpxTask)) {
+		if (mpxTask.getID()==null) {
 			logSkippedTask(mpxTask);
 			return;
 		}
 
 		Task task = null;
-		if (isRootTask(mpxTask)) {
+		if (mpxTask.getNull()) {
+			task = parentTask; // restoreBlankRows places the row itself
+		} else if (isRootTask(mpxTask)) {
 			registerRootTask(mpxTask);
 		} else {
 			task = importRegularTask(project, mpxTask, parentTask);
@@ -785,6 +789,30 @@ public class MspImporter {
 		
 		for (net.sf.mpxj.Task mpxChildTask : mpxTask.getChildTasks()){
 			importTasks(project,mpxChildTask,task);
+		}
+	}
+
+	/**
+	 * MPXJ lists blank rows after the task hierarchy, so their place comes from
+	 * the row order: each goes directly before the next real task.  A blank row
+	 * with no task after it is end-of-table filler and is not kept.
+	 */
+	private void restoreBlankRows(Project project) {
+		int pendingBlankRows = 0;
+		for (net.sf.mpxj.Task mpxTask : mpxProjectFile.getTasks()) {
+			if (mpxTask.getID() == null || mpxTask.getExternalTask()) continue;
+			if (mpxTask.getNull()) {
+				pendingBlankRows++;
+				continue;
+			}
+			Task task = state.getTask(mpxTask);
+			if (task == null || pendingBlankRows == 0) continue;
+			Node node = project.getTaskModel().search(task);
+			Node parent = (Node) node.getParent();
+			int position = parent.getIndex(node);
+			for (; pendingBlankRows > 0; pendingBlankRows--) {
+				project.addToDefaultOutline(parent, NodeFactory.getInstance().createVoidNode(), position, false);
+			}
 		}
 	}
 
