@@ -32,7 +32,6 @@ public interface ApplicationUser {
 	public static final long INFINITE_IDLE_TIME=Long.MAX_VALUE;
 
 	//roles
-	//public static final int INTERNAL = 4;
 	public static final int TEAM_MEMBER = 8;
 	public static final int PROJECT_MANAGER = 16;
 	public static final int TEAM_RESOURCE = 32;
@@ -45,13 +44,6 @@ public interface ApplicationUser {
 	public static final int ADMINISTRATOR = 1;
 	public static final int EXTERNAL = 2; //license option
 	
-//	public static final int PORTFOLIO_MANANGER = 13;
-//	public static final int RESOURCE_MANANGER = 14;
-//	public static final int TEAM_LEAD = 7;
-//	public static final int EXECUTIVE = 8;
-//	public static final int HUMAN_RESOURCES = 9;
-//	public static final int SUBSCRIBER = 10;
-//	public static final int SUBCONTRACTOR = 12; // no costs
 
 	public static final String ADMINISTRATOR_NAME = "Administrator";
 	public static final String TEAM_MEMBER_NAME = "TeamMember";

@@ -19,9 +19,9 @@ Remove production code with demonstrably no callers and commented-out code. Excl
 
 ## Current slice
 
-**Next slice:** classify the remaining `src/main` candidates and investigate unused symbols by callers, reflection and configuration.
-**Done when:** each candidate has a justified disposition and affected module tests pass.
-**Then:** check the complete inventory, CI and issue acceptance.
+**Next slice:** classify commented-code candidates in core datatype, document, exchange and field packages.
+**Done when:** each candidate is removed or retained with a reason and core tests pass.
+**Then:** continue the remaining `src/main` inventory and unused-symbol audit.
 
 ## Evidence
 
@@ -31,3 +31,4 @@ Remove production code with demonstrably no callers and commented-out code. Excl
 - Job slice: the deleted mutex, queue and exception-handler statements were already line comments. `rg` found no production or non-module reference to `exceptionHandlerRunnable` beyond its declaration and the deleted comments; the field type `InternalRunnable` is private. Live `runThread`, `groupMutex`/`globalMutex` release and completion paths remain. `JobQueue.startNext` remains public and was not removed based on repository search alone.
 - `gradlew.bat :microproject_core:test --console=plain` passed on `1bc21058b` plus the Job slice (7 tasks, 3 executed).
 - ScriptRunner slice removes only line-commented sample declarations and their line-commented explanatory text; no active declarations changed. `gradlew.bat :microproject_core:test --console=plain` passed (recompiled, tests up to date because compiled API was unchanged).
+- Algorithm/association/company/configuration slice: candidate comments were inactive field/constant/branch/logger statements; active declarations and code paths were unchanged. One match remains in `Configuration.java:52`: prose documenting monitor reentrancy, not code. `gradlew.bat :microproject_core:test --console=plain` passed (7 tasks, 2 executed).

@@ -43,7 +43,6 @@ public class GroupedCalculatedValues implements CalculatedValues, Serializable {
 	ArrayList<Point> values = new ArrayList<>(); //(x,y pairs) //TODO a set would be better because this is often sparse
 	double yScale;
 	private static final Double ZERO = Double.valueOf(0.0D);
-//	boolean dayByDay;
 	/**
 	 * 
 	 */
