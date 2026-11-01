@@ -108,9 +108,6 @@ public class FieldConverter  {
 						logger.fine("no context converter found");
 					result = convertValue(string, clazz);
 				}
-	//			if (result instanceof java.util.Date) { //  dates need to be normalized
-	//				result = new Date(DateTime.gmt((Date) result));
-	//			}
 				if (result == null) {
 					throw new FieldParseException("Invalid type");
 				}

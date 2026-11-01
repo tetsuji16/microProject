@@ -588,8 +588,6 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 		if (node.getImpl() instanceof GroupNodeImpl) {
 			sum = getSummaryForGroup();
 		}
-//		if (node.getImpl() instanceof Document) // for projects which don't roll up
-//			return true;
 
 		return (sum == NONE || sum == THIS || !nodeModel.isSummary(node));
 	}
@@ -603,10 +601,6 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 		Object object = node.getImpl();
 		if (object instanceof VoidNodeImpl)
 			return null;
-//		if ("Field.userRole".equals(id) && object instanceof ResourceImpl){
-//			ResourceImpl r=(ResourceImpl)object;
-//			if (!r.isUser()) return null;
-//		}z
 		if (!(object instanceof GroupNodeImpl) && isHidden(object, context))
 			return null;
 		if (context == null)
@@ -772,9 +766,6 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 		if (hideZeroValues && isZero(result))
 			return null;
 
-//		if (result != null && url != null) {
-//			result = "<html><a href=\"" + result + "\">" + url + "</a></html>";
-//		}
 		return result;
 	}
 
@@ -791,7 +782,6 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 			context = specialFieldContext;
 		if (isReadOnly(object, context)) { // don't allow setting of read only
 											// fields
-		// logger.warning("Tried to set text of read only field" + getId());
 			return;
 		}
 		Object value = preprocessText(object, textValue, context);
@@ -827,7 +817,6 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 			context = specialFieldContext;
 		if (isReadOnly(node, nodeModel, context)) { // don't allow setting of
 													// read only fields
-		// logger.warning("Tried to set text of read only field" + getId());
 			return;
 		}
 		Object object = node.getImpl();
@@ -984,7 +973,6 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 			context = specialFieldContext;
 		if (!FieldContext.isForceValue(context) && isReadOnly(object, context)) { // don't allow setting of read only
 											// fields
-		// logger.warning("Tried to set value of read only field" + getId());
 			return false;
 		}
 
@@ -1164,8 +1152,6 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 		}
 		if (isFormula())
 			return true;
-		// if (isHidden(object,context))
-		// return true;
 
 		if (hierarchy != null) { // for dialogs
 		// for parents with This summary type
