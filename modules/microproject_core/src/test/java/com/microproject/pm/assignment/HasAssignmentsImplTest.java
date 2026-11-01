@@ -60,6 +60,13 @@ class HasAssignmentsImplTest {
 
 		assertEquals(assignment.isLabor(), hasAssignments.hasLaborAssignment());
 		assertEquals(assignment.getStart(), hasAssignments.getEarliestAssignmentStart());
+
+		NormalTask laterTask = createTask(project);
+		laterTask.getCurrentSchedule().setStart(assignment.getStart() + 86_400_000L);
+		Assignment laterAssignment = firstAssignment(laterTask);
+		assertTrue(assignment.getStart() != laterAssignment.getStart(), "fixture must exercise a real minimum");
+		hasAssignments.addAssignment(laterAssignment);
+		assertEquals(Math.min(assignment.getStart(), laterAssignment.getStart()), hasAssignments.getEarliestAssignmentStart());
 	}
 
 	@Test

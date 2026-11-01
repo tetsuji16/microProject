@@ -177,6 +177,29 @@ class NormalTaskPercentCompleteTest {
 	}
 
 	@Test
+	void assignmentRollupsUseTheirEmptyAndMultipleAssignmentBoundaries() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		Assignment first = assignWork(project, task, 8L * 60L * 60L * 1000L);
+		ResourceImpl secondResource = project.getResourcePool().newResourceInstance();
+		Assignment second = AssignmentService.getInstance().newAssignment(task, secondResource, 2.0d, 0L, this);
+		second.setWork(8L * 60L * 60L * 1000L, null);
+		first.setPercentComplete(0.25d);
+		second.setPercentComplete(0.75d);
+
+		assertTrue(first.getResume() != second.getResume(), "fixture must exercise a real minimum");
+		assertTrue(first.getLaborUnits() != second.getLaborUnits(), "fixture must exercise a real maximum");
+		assertEquals(Math.min(first.getResume(), second.getResume()), task.getResume());
+		assertEquals(Math.min(first.getEarliestStop(), second.getEarliestStop()), task.getEarliestStop());
+		assertEquals(Math.max(first.getLaborUnits(), second.getLaborUnits()), task.getMostLoadedAssignmentUnits());
+
+		task.getAssignments().clear();
+		assertEquals(Long.MAX_VALUE, task.getResume());
+		assertEquals(Long.MAX_VALUE, task.getEarliestStop());
+		assertEquals(0.0d, task.getMostLoadedAssignmentUnits());
+	}
+
+	@Test
 	void mostLoadedAssignmentUnitsIncludesAssignedResources() {
 		Project project = createProject();
 		NormalTask task = createTask(project);

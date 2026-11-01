@@ -67,6 +67,7 @@ import com.microproject.options.CalendarOption;
 import com.microproject.options.ScheduleOption;
 import com.microproject.pm.assignment.Allocation;
 import com.microproject.pm.assignment.Assignment;
+import com.microproject.pm.assignment.AssignmentValueRollup;
 import com.microproject.pm.assignment.AssignmentFormat;
 import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.assignment.HasAssignments;
@@ -1071,11 +1072,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	}
 
 	public double getMostLoadedAssignmentUnits() {
-		double result = 0;
-		for (Association association : getAssignments())
-			result = Math.max(result, ((Assignment) association).getLaborUnits());
-
-		return result;
+		return AssignmentValueRollup.maximumLaborUnits(getAssignments());
 	}
 	public void adjustRemainingDuration(long newDuration, boolean doChildren) {
 //~~		setRawDuration(newDuration); // keep units
@@ -1196,12 +1193,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	 * @return
 	 */
 	public long getResume() {
-		long resume = Long.MAX_VALUE;
-		for (Association association : getAssignments()) {
-			Assignment assignment = (Assignment) association;
-			resume = Math.min(resume,assignment.getResume());
-		}
-		return resume;
+		return AssignmentValueRollup.earliestResume(getAssignments());
 	}
 	/**
 	 * @param resume
@@ -2446,10 +2438,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 				stop = Math.min(stop, schedule.getEarliestStop());
 			}
 		} else {
-			for (Association association : getAssignments()) {
-				Assignment assignment = (Assignment) association;
-				stop = Math.min(stop, assignment.getEarliestStop());
-			}
+			stop = AssignmentValueRollup.earliestStop(getAssignments());
 		}
 		return stop;
 	}
