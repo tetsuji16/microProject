@@ -2080,7 +2080,13 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		setScheduleConstraint(constraintType, constraintDate);
 		getCurrentSchedule().setStart(start);
 		getCurrentSchedule().setFinish(finish);
-		setActualStartNoEvent(actualStart);
+		// A dependency date from the import calculation would push assignments past the restored start.
+		if (getCurrentSchedule().getDependencyDate() > start) getCurrentSchedule().setDependencyDate(start);
+		// A summary shows its stored duration, which must describe the restored span.
+		if (isWbsParent()) setRawDuration(Duration.setAsEstimated(
+			getEffectiveWorkCalendar().compare(finish, start, false), Duration.isEstimated(getRawDuration())));
+		// Every task has its own snapshot, so nothing rolls up from children that are not restored yet.
+		this.actualStart = actualStart;
 	}
 
 	/**
