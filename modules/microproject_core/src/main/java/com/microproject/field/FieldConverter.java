@@ -42,7 +42,7 @@ import com.microproject.options.EditOption;
 import com.microproject.strings.Messages;
 import com.microproject.util.DateTime;
 /**
- * Converts field values while applying ProjectLibre specific types and validation.
+ * Converts field values while applying application-specific types and validation.
  */
 public class FieldConverter  {
 	private static final Logger logger = Logger.getLogger(FieldConverter.class.getName());

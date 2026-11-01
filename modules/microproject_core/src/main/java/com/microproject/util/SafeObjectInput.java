@@ -71,14 +71,14 @@ public final class SafeObjectInput {
 		"sun.util.calendar.ZoneInfo" // serialized by legacy java.util.TimeZone instances in POD files
 	};
 
-	private static final ObjectInputFilter PROJECTLIBRE_FILTER = SafeObjectInput::checkInput;
+	private static final ObjectInputFilter PERSISTED_DATA_FILTER = SafeObjectInput::checkInput;
 
 	private SafeObjectInput() {
 	}
 
 	public static ObjectInputStream create(InputStream input) throws IOException {
 		ObjectInputStream stream = new RemappingObjectInputStream(input);
-		stream.setObjectInputFilter(PROJECTLIBRE_FILTER);
+		stream.setObjectInputFilter(PERSISTED_DATA_FILTER);
 		return stream;
 	}
 
