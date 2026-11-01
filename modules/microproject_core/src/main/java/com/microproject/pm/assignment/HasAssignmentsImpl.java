@@ -497,11 +497,7 @@ public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedDat
 	}
 
 	public long getEarliestAssignmentStart() {
-		long result = Long.MAX_VALUE;
-		for (Association association : assignments) {
-			result = Math.min(result, ((Assignment) association).getStart());
-		}
-		return result;
+		return AssignmentValueRollup.earliestStart(assignments);
 	}
 
 	private Assignment findAssignment(AssignmentMatcher matcher) {
