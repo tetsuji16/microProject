@@ -41,10 +41,12 @@ first takes the lock, writes a retired mark into the file, and only then deletes
 it; a waiter that gets a marked file opens a new one. An empty or old marker from
 a crash or an older release is treated as live and is harmless.
 
-Closing a project retires `<file>.lock` and the sync lock. When the closing user
-is the sidecar's only user, their workspace layout moves to the per-user
-`LocalWorkspaceStore` and the sidecar is removed too, so a closed project leaves
-only its project files. A sidecar with another user's data stays.
+Closing a project or the whole application retires `<file>.lock` and the sync
+lock. When the closing user is the sidecar's only user, their workspace layout
+moves to the per-user `LocalWorkspaceStore` and the sidecar is removed too, so a
+closed project leaves only its project files. A sidecar with another user's data
+stays. Cancelling the save prompt keeps the session and its files; the next open
+and close by the same user removes files an earlier release or a crash left.
 
 Do not include `.tmp` files in conflict resolution or copy them between
 machines. Do not delete `.lock` files as ordinary project cleanup. Removing a
