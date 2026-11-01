@@ -57,7 +57,6 @@ public class FormulaClass {
 	private Exception compileException = null;
 	public synchronized void compile() {
 		if (invocationTargets == null && compileException == null) {
-//					long x = System.currentTimeMillis();
 			String classText = buildClassText();
 			try {
 				Class<? extends GroovyObject> groovyClass = GroovyClassCompiler.compile(classText, GroovyObject.class);

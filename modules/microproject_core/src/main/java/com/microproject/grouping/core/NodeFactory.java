@@ -89,7 +89,6 @@ public class NodeFactory {
 		try{
 			GroupNodeImpl groupImpl=new GroupNodeImpl();
 			groupImpl.setName((name==null)?group.getSorterId():name);
-			//groupImpl.setGroupFields(group.getSorter().getFields());
 			return new NodeBridge(groupImpl);
 		}catch (Exception e) {return null;}
 	}

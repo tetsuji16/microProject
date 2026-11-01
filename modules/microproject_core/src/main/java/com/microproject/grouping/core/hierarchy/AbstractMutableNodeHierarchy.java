@@ -384,15 +384,12 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
 		}
 	}
 	protected void fireNodesChanged(Object source, Object[] nodes) {
-//		dump();
 	    fireNodesChanged(source,nodes,null,null);
 	}
 	protected void fireNodesInserted(Object source, Object[] nodes) {
-//		dump();
 	    fireNodesInserted(source,nodes,null,null);
 	}
 	protected void fireNodesRemoved(Object source, Object[] nodes) {
-//		dump();
 	    fireNodesRemoved(source,nodes,null,null);
 	}
 	/**

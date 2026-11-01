@@ -96,6 +96,5 @@ public class NodeSorterFactory extends CommonTransformFactory{
     
 	protected void setProperties(CommonTransform t) throws InvalidFormulaException{
 		super.setProperties(t);
-		//((NodeSorter)t).setFieldsText(getFieldsText());
 	}
 }

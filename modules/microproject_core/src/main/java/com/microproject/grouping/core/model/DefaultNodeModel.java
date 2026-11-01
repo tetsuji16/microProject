@@ -845,15 +845,10 @@ public class DefaultNodeModel implements NodeModel {
 		int actionType, boolean changedOnlyUndo) throws FieldParseException {
 		Object oldValue=field.getValue(node,this,context);
 
-//		// this prevents the field from sending an update message.  However, ideally the field will send the message and the hiearchy event wont
-//		if (context != null)
-//			context.setUserObject(FieldContext.getNoUpdateInstance());
 
 
 		field.setValue(node, this,eventSource, value, context);
 
-//		No longer sending update event
-//		if (isEvent(actionType)) hierarchy.fireUpdate(new Node[]{node});
 		// Field notifications are handled by the field implementation.
 
 		//Undo

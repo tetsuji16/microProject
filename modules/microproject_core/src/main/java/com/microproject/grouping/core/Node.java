@@ -87,7 +87,6 @@ public interface Node extends MutableTreeNode{
 	public int getSubprojectLevel();
 	public void setSubprojectLevel(int subprojectLevel);
 	public boolean isInSubproject();
-	//public void setInSubproject(boolean inSubproject);
 	
 
 

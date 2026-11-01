@@ -42,7 +42,6 @@ import com.microproject.server.data.DataObject;
  * Bridge of the bridge pattern
  */
 public class NodeBridge extends DefaultMutableTreeNode implements Node{
-	//protected Object impl;
 	protected boolean virtual = false;
 	protected boolean voidNode=false;
 	protected boolean root=false;
@@ -174,9 +173,6 @@ public class NodeBridge extends DefaultMutableTreeNode implements Node{
 	public boolean isInSubproject(){
 		return getSubprojectLevel()>0;
 	}
-//	public void setInSubproject(boolean inSubproject){
-//		setSubprojectLevel(inSubproject?1:0);
-//	}
 
 
 }
