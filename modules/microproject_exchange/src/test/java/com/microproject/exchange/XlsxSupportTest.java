@@ -786,6 +786,17 @@ public class XlsxSupportTest {
 	}
 
 	@Test
+	void fixedConstructionXlsxCanBeReadSavedAndReadAgain() throws Exception {
+		File fixture = findSample("Commercial construction project plan.xlsx");
+		ProjectFile original = new MicroProjectXlsxReader().read(fixture);
+		assertFalse(original.getTasks().isEmpty());
+		ByteArrayOutputStream output = new ByteArrayOutputStream();
+		new MicroProjectXlsxWriter().write(original, output);
+		ProjectFile reopened = new MicroProjectXlsxReader().read(new ByteArrayInputStream(output.toByteArray()));
+		assertEquals(original.getTasks().size(), reopened.getTasks().size());
+	}
+
+	@Test
 	void commercialConstructionPodExportsAndReloadsAsXlsx() throws Exception {
 		File sample = findSample("Commercial construction project plan.pod");
 
