@@ -1,7 +1,6 @@
 /*******************************************************************************
  * MIT License
  *
- * Copyright (c) 2012-2019 ProjectLibre, Inc.  (Previous Copyright Holder)
  * Copyright (c) 2026 microProject
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -23,6 +22,8 @@
  * SOFTWARE.
  *******************************************************************************/
 package com.microproject.exchange.xlsx;
+
+import static com.microproject.exchange.xlsx.XlsxFormatIdentifiers.*;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -62,13 +63,6 @@ import com.microproject.util.SafeObjectInput;
 
 public class MicroProjectXlsxReader extends AbstractProjectReader {
 	private static final Logger logger = Logger.getLogger(MicroProjectXlsxReader.class.getName());
-	private static final String META_SHEET = "_MicroProject_META";
-	private static final String DATA_SHEET = "_MicroProject_MSPDI";
-	private static final String NATIVE_DATA_SHEET = "_MicroProject_NATIVE";
-	private static final String LEGACY_META_SHEET = "_PL_META";
-	private static final String LEGACY_DATA_SHEET = "_PL_DATA";
-	private static final String LEGACY_NATIVE_DATA_SHEET = "_PL_NATIVE";
-	private static final String LEGACY_EMBEDDED_MSPDI_SHEET = "_ProjectLibre_MSPDI";
 	private static final String TASKS_SHEET = "Tasks";
 	private static final String RESOURCES_SHEET = "Resources";
 	private static final String ASSIGNMENTS_SHEET = "Assignments";
@@ -161,11 +155,11 @@ public class MicroProjectXlsxReader extends AbstractProjectReader {
 		String kindLabel = stringCell(sheet.getRow(0), 0);
 		String versionLabel = stringCell(sheet.getRow(1), 0);
 		boolean supported = canonical
-			? ("microproject".equals(kind) && "3".equals(version))
-				|| ("projectfile".equals(kind) && "2".equals(version))
-			: ("projectlibre".equals(kind) && "3".equals(version))
-				|| ("projectfile".equals(kind) && "2".equals(version));
-		boolean validLabels = "WorkbookKind".equals(kindLabel) && "SchemaVersion".equals(versionLabel);
+			? (CURRENT_KIND.equals(kind) && NATIVE_VERSION.equals(version))
+				|| (PROJECT_FILE_KIND.equals(kind) && PROJECT_FILE_VERSION.equals(version))
+			: (LEGACY_KIND.equals(kind) && NATIVE_VERSION.equals(version))
+				|| (PROJECT_FILE_KIND.equals(kind) && PROJECT_FILE_VERSION.equals(version));
+		boolean validLabels = WORKBOOK_KIND_LABEL.equals(kindLabel) && SCHEMA_VERSION_LABEL.equals(versionLabel);
 		boolean legacyWriterLabelsMissing = !canonical && kindLabel.isEmpty() && versionLabel.isEmpty();
 		if ((!validLabels && !legacyWriterLabelsMissing) || !supported) {
 			throw new MPXJException("Invalid " + (canonical ? "canonical" : "legacy") + " XLSX metadata");
@@ -191,11 +185,11 @@ public class MicroProjectXlsxReader extends AbstractProjectReader {
 			if (sheet == null) {
 				return null;
 			}
-			if (canonicalPayload && metadata.canonical && !"microproject".equals(metadata.kind)) {
+			if (canonicalPayload && metadata.canonical && !CURRENT_KIND.equals(metadata.kind)) {
 				throw new MPXJException("Canonical native XLSX payload conflicts with workbook metadata");
 			}
 			try {
-				String expectedMarker = canonicalPayload ? "MicroProjectNativeData" : "ProjectLibreNativeData";
+				String expectedMarker = canonicalPayload ? CURRENT_NATIVE_MARKER : LEGACY_NATIVE_MARKER;
 				if (!expectedMarker.equals(reader.stringCell(sheet.getRow(0), 0))) {
 					throw new MPXJException("Invalid native XLSX payload marker");
 				}
@@ -244,9 +238,9 @@ public class MicroProjectXlsxReader extends AbstractProjectReader {
 		}
 		if (canonicalPayload) {
 			String payloadKind = stringCell(sheet.getRow(0), 1);
-			boolean validKind = "microproject".equals(payloadKind) || "projectfile".equals(payloadKind);
-			if (!"PayloadKind".equals(stringCell(sheet.getRow(0), 0))
-					|| !"Payload".equals(stringCell(sheet.getRow(1), 0)) || !validKind
+			boolean validKind = CURRENT_KIND.equals(payloadKind) || PROJECT_FILE_KIND.equals(payloadKind);
+			if (!PAYLOAD_KIND_LABEL.equals(stringCell(sheet.getRow(0), 0))
+					|| !PAYLOAD_LABEL.equals(stringCell(sheet.getRow(1), 0)) || !validKind
 					|| (metadata.canonical && !payloadKind.equals(metadata.kind))) {
 				throw new MPXJException("Invalid canonical MSPDI XLSX payload metadata");
 			}
