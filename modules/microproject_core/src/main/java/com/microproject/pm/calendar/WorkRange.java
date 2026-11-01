@@ -110,7 +110,6 @@ public class WorkRange extends ImmutableInterval implements Cloneable,Serializab
 	public static Date getNormalized(long time) {
 		GregorianCalendar cal = DateTime.calendarInstance();;
 		cal.setTimeInMillis(time);
-//		cal.roll(GregorianCalendar.HOUR_OF_DAY,false);
 		return cal.getTime();
 	}
 

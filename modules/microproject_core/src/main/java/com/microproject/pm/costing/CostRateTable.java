@@ -37,15 +37,12 @@ public class CostRateTable extends ValueObjectForIntervalTable{
 	static final long serialVersionUID = 555455555229L;
 	public CostRateTable(String name) {
 		super(name);
-//		initUndo();
 	}
 	public CostRateTable() {
 		super();
-//		initUndo();
 	}
 	public CostRateTable(String name, ArrayList valueObjects) { //serialization
 		super(name,valueObjects);
-//		initUndo();
 	}
 	
 	public String getCategory() {

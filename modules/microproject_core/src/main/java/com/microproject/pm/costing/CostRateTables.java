@@ -130,17 +130,6 @@ public class CostRateTables implements Cost, Serializable, Cloneable {
 		super();
 		costRateTableArray = new CostRateTable[Settings.NUM_COST_RATES]; // initialize array
 		costRateTableArray[DEFAULT] = new CostRateTable(getName(DEFAULT)); //add default element
-//		java.util.GregorianCalendar start1 = new java.util.GregorianCalendar(2003,java.util.GregorianCalendar.JANUARY,4,0,0);
-//		java.util.GregorianCalendar start2 = new java.util.GregorianCalendar(2005,java.util.GregorianCalendar.JANUARY,7,0,0);	
-//		try {
-//			CostRate test;
-//			test = costRateTableArray[DEFAULT].newRate(start1.getTimeInMillis());
-//			test.setStandardRate(100.0/(1000*60*60*8));
-//			test.setOvertimeRate(110.0/(1000*60*60*8));
-//			test.setCostPerUse(450);
-//			test = costRateTableArray[DEFAULT].newRate(start2.getTimeInMillis());
-//			test.setStandardRate(13);
-//			test.setOvertimeRate(1300);
 	}
 	public long getEffectiveDate() {
 		return getCurrent().getEffectiveDate();
