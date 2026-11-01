@@ -1,7 +1,6 @@
 /*******************************************************************************
  * MIT License
  *
- * Copyright (c) 2012-2019 ProjectLibre, Inc.  (Previous Copyright Holder)
  * Copyright (c) 2026 microProject
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -172,7 +171,7 @@ public class MPXConverter {
 		projectHeader.setDefaultDurationUnits(MpxUtils.toMpxTimeUnit(defaults.durationEnteredIn()));
 		projectHeader.setDefaultWorkUnits(MpxUtils.toMpxTimeUnit(defaults.workUnit()));
 
-		setDefaultTimes(projectHeader, calendarOption);
+		setDefaultTimes(projectHeader, project, calendarOption);
 	}
 
 	private static int mspdiInteger(double value, String name) {
@@ -193,7 +192,6 @@ public class MPXConverter {
 		projectHeader.setScheduleFrom(project.isForward() ? ScheduleFrom.START : ScheduleFrom.FINISH);
 		projectHeader.setStartDate(toMpxDate(project.getStartDate()));
 		projectHeader.setFinishDate(toMpxDate(project.getFinishDate()));
-		setDefaultTimes(projectHeader, CalendarOption.getInstance());
 
 	}
 
@@ -865,9 +863,18 @@ private static int autoId = 0;
 		return new Date(TimeUtil.removeTimeZoneOffset(modelWallTime));
 	}
 
-	private static void setDefaultTimes(ProjectProperties projectHeader, CalendarOption calendarOption) {
-		projectHeader.setDefaultStartTime(toMpxTimeOfDay(calendarOption.getDefaultStartTime()));
-		projectHeader.setDefaultEndTime(toMpxTimeOfDay(calendarOption.getDefaultEndTime()));
+	private static void setDefaultTimes(ProjectProperties projectHeader, Project project, CalendarOption calendarOption) {
+		projectHeader.setDefaultStartTime(project.getDefaultStartTime() == null
+			? toMpxTimeOfDay(calendarOption.getDefaultStartTime()) : toMpxTimeOfDay(project.getDefaultStartTime()));
+		projectHeader.setDefaultEndTime(project.getDefaultFinishTime() == null
+			? toMpxTimeOfDay(calendarOption.getDefaultEndTime()) : toMpxTimeOfDay(project.getDefaultFinishTime()));
+	}
+
+	private static Date toMpxTimeOfDay(java.time.LocalTime time) {
+		Calendar local = Calendar.getInstance();
+		local.clear();
+		local.set(2000, Calendar.JANUARY, 1, time.getHour(), time.getMinute(), time.getSecond());
+		return local.getTime();
 	}
 
 	/**

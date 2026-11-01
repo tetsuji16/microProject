@@ -130,7 +130,6 @@ public class MpoFileImporter extends FileImporter {
 	 * (issue #356). A different major version is rejected with an explicit message.
 	 */
 	static final int SUPPORTED_FORMAT_MAJOR = MpoFormatVersion.CURRENT.major();
-	private static final String MIME_TYPE = "application/vnd.microproject.openproject";
 	/** Marker added once MPOF snapshots use the MSPDI minute-based delay unit. */
 	private static final String LEVELING_DELAY_UNIT_ATTRIBUTE = "levelingDelayUnit";
 	private static final String LEVELING_DELAY_UNIT_MINUTES = "minutes";
@@ -713,7 +712,7 @@ public class MpoFileImporter extends FileImporter {
 		byte[] projectXml = capture.serialized().xml();
 		java.util.List<EmbeddedProject> embeddedProjects = readEmbeddedProjects(metadata.embeddedSources());
 		java.util.LinkedHashMap<String, byte[]> archiveEntries = new java.util.LinkedHashMap<>();
-		archiveEntries.put(MIMETYPE_ENTRY, MIME_TYPE.getBytes(StandardCharsets.US_ASCII));
+		archiveEntries.put(MIMETYPE_ENTRY, MpoFormatIdentifiers.WRITE_AND_READ_MIME_TYPE.getBytes(StandardCharsets.US_ASCII));
 		archiveEntries.put(META_ENTRY, metaXml().getBytes(StandardCharsets.UTF_8));
 		archiveEntries.put(PROJECT_ENTRY, projectXml);
 		for (EmbeddedProject embedded : embeddedProjects)
@@ -2139,7 +2138,7 @@ public class MpoFileImporter extends FileImporter {
 			}
 		}
 		if (manifest == null || projectXml == null) throw new IOException("Cannot merge MPOF without its manifest and project snapshot");
-		if (mimetype != null && !MIME_TYPE.equals(new String(mimetype, StandardCharsets.UTF_8).trim()))
+		if (mimetype != null && !MpoFormatIdentifiers.WRITE_AND_READ_MIME_TYPE.equals(new String(mimetype, StandardCharsets.UTF_8).trim()))
 			throw new IOException("Invalid MPOF mimetype entry");
 		ManifestData manifestData = readManifest(manifest, projectXml);
 		if (meta != null) validateMeta(meta);
@@ -2436,7 +2435,7 @@ public class MpoFileImporter extends FileImporter {
 		ZipEntry entry = new ZipEntry(MIMETYPE_ENTRY);
 		entry.setTime(0L);
 		zip.putNextEntry(entry);
-		zip.write(MIME_TYPE.getBytes(StandardCharsets.US_ASCII));
+		zip.write(MpoFormatIdentifiers.WRITE_AND_READ_MIME_TYPE.getBytes(StandardCharsets.US_ASCII));
 		zip.closeEntry();
 	}
 
@@ -2624,7 +2623,7 @@ public class MpoFileImporter extends FileImporter {
 		}
 		if (manifest == null || projectXml == null)
 			throw new IOException("Embedded MPOF is missing its manifest or project payload");
-		if (mimetype != null && !MIME_TYPE.equals(new String(mimetype, StandardCharsets.UTF_8).trim()))
+		if (mimetype != null && !MpoFormatIdentifiers.WRITE_AND_READ_MIME_TYPE.equals(new String(mimetype, StandardCharsets.UTF_8).trim()))
 			throw new IOException("Embedded MPOF has an invalid mimetype");
 		ManifestData embeddedManifest = readManifest(manifest, projectXml);
 		if (meta != null) validateMeta(meta);
@@ -3361,7 +3360,7 @@ public class MpoFileImporter extends FileImporter {
 				if (mimetype != null) throw new IOException("Duplicate mpo entry: " + MIMETYPE_ENTRY);
 				mimetype = value;
 				String mime = new String(value, StandardCharsets.UTF_8).trim();
-				if (!MIME_TYPE.equals(mime)) throw new IOException("Invalid MPOF mimetype entry: " + mime);
+				if (!MpoFormatIdentifiers.WRITE_AND_READ_MIME_TYPE.equals(mime)) throw new IOException("Invalid MPOF mimetype entry: " + mime);
 			} else if (MANIFEST_ENTRY.equals(name)) {
 				if (manifest != null) throw new IOException("Duplicate manifest entry");
 				manifest = value;
