@@ -120,7 +120,7 @@ public class DataSource implements ObjectRef {
 public Object getFieldValue(String fieldName) {
 		cleanField = new DecoratedField(fieldName);
 		
-		// get ProjectLibre equiv. field
+		// get the equivalent project field
 		Field field = cleanField.fieldForReportField();
 		if(cleanField.isTimeBased()) {
 			setInterval(cleanField.getStart(), cleanField.getEnd());

@@ -19,9 +19,11 @@ Neutralize the named internal identifiers, comments, and UI resource keys; add a
 
 ## Current slice
 
-**Next slice:** inventory and neutralize the remaining issue-listed internal identifiers and comments.
-**Done when:** each named source has been reviewed and safe renames verified.
+**Next slice:** audit and neutralize legacy resource keys while preserving their values and updating all callers.
+**Done when:** resource key inventory, callers, and locale fallback are verified.
 **Then:** add the allowlisted build check and run the full build.
+
+- The named comments and exchange warning were neutralized; third-party modification markers retain their meaning. `gradlew.bat build --console=plain` passed on `b49cc679a` plus this slice (56 tasks).
 
 - `MPXConverter` source-side parameter/local identifiers were renamed without changing types or behavior. `gradlew.bat :microproject_exchange:test --console=plain` passed on the baseline plus these changes.
 
