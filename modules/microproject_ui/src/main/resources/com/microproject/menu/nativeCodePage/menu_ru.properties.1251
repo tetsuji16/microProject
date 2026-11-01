@@ -1,82 +1,6 @@
-###############################################################################
-# The contents of this file are subject to the Common Public Attribution License 
-# Version 1.0 (the "License"); you may not use this file except in compliance with 
-# the License. You may obtain a copy of the License at 
-# http://www.projectlibre.com/license . The License is based on the Mozilla Public 
-# License Version 1.1 but Sections 14 and 15 have been added to cover use of 
-# software over a computer network and provide for limited attribution for the 
-# Original Developer. In addition, Exhibit A has been modified to be consistent 
-# with Exhibit B. 
-#
-# Software distributed under the License is distributed on an "AS IS" basis, 
-# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for the 
-# specific language governing rights and limitations under the License. The 
-# Original Code is ProjectLibre. The Original Developer is the Initial Developer 
-# and is ProjectLibre Inc. All portions of the code written by ProjectLibre are 
-# Copyright (c) 2012-2019. All Rights Reserved. All portions of the code written by 
-# ProjectLibre are Copyright (c) 2012-2019. All Rights Reserved. Contributor 
-# ProjectLibre, Inc.
-#
-# Alternatively, the contents of this file may be used under the terms of the 
-# ProjectLibre End-User License Agreement (the ProjectLibre License) in which case 
-# the provisions of the ProjectLibre License are applicable instead of those above. 
-# If you wish to allow use of your version of this file only under the terms of the 
-# ProjectLibre License and not to allow others to use your version of this file 
-# under the CPAL, indicate your decision by deleting the provisions above and 
-# replace them with the notice and other provisions required by the ProjectLibre 
-# License. If you do not delete the provisions above, a recipient may use your 
-# version of this file under either the CPAL or the ProjectLibre Licenses. 
-#
-#
-# [NOTE: The text of this Exhibit A may differ slightly from the text of the notices 
-# in the Source Code files of the Original Code. You should use the text of this 
-# Exhibit A rather than the text found in the Original Code Source Code for Your 
-# Modifications.] 
-#
-# EXHIBIT B. Attribution Information for ProjectLibre required
-#
-# Attribution Copyright Notice: Copyright (c) 2012-2019, ProjectLibre, Inc.
-# Attribution Phrase (not exceeding 10 words): 
-# ProjectLibre, open source project management software.
-# Attribution URL: http://www.projectlibre.com
-# Graphic Image as provided in the Covered Code as file: projectlibre-logo.png with 
-# alternatives listed on http://www.projectlibre.com/logo 
-#
-# Display of Attribution Information is required in Larger Works which are defined 
-# in the CPAL as a work which combines Covered Code or portions thereof with code 
-# not governed by the terms of the CPAL. However, in addition to the other notice 
-# obligations, all copies of the Covered Code in Executable and Source Code form 
-# distributed must, as a form of attribution of the original author, include on 
-# each user interface screen the "ProjectLibre" logo visible to all users. 
-# The ProjectLibre logo should be located horizontally aligned with the menu bar 
-# and left justified on the top left of the screen adjacent to the File menu. The 
-# logo must be at least 144 x 31 pixels. When users click on the "ProjectLibre" 
-# logo it must direct them back to http://www.projectlibre.com. 
-###############################################################################
+# MIT License
+# Copyright (c) 2026 microProject
 
-##########################################################
-##########################################################
-##########################################################
-#This file is in codepage 1251. It is useful for the translator wishing to modify the text
-##########################################################
-##########################################################
-##########################################################
-
-##########################################################
-#A big thank you to Marat Latypov for the Russian translation                                         #
-##########################################################
-
-# The lines to change have the following suffixes
-# .text
-# .tooltip
-# .tip
-# .mnemonic
-# .accelerator
-# Other lines must not be changed
-# Note that the mnemonic should correspond to the first letter of the text, and the accelerator should be CTRL+(first letter).  
-# The ... after some text items should be preserved in the translation.
-# All comments should be kept as is. Comments are lines starting with #
- 
 PaletteMenu = Palette LookAndFeel FullScreen
 Palette.type        = ITEM
 Palette.text   = ������ ������������...
@@ -97,7 +21,6 @@ Refresh.type        = ITEM
 Refresh.text   = ��������
 Refresh.icon        = menu24.refresh
 Refresh.action      = RefreshAction
-
 
 StandardMenuBar =  MicroProject File Edit View Insert Tools Project Help
 ServerStandardMenuBar = ServerFile Edit View ServerInsert ServerTools Project Help
@@ -140,7 +63,6 @@ ExportMSProject.mnemonic    = E
 ExportMSProject.action      = ExportMSProjectAction
 ExportMSProject.icon      = menu.export
 
-
 CloseProject.type        = ITEM
 CloseProject.text        = �������
 CloseProject.mnemonic    = C
@@ -166,9 +88,7 @@ SaveProjectAs.mnemonic    = A
 SaveProjectAs.action      = SaveProjectAsAction
 SaveProjectAs.accelerator = Ctrl+A
 
-
 DelegateTasks.action      = DelegateTasksAction
-
 
 Print.type        = ITEM
 Print.text        = ������...
@@ -187,7 +107,6 @@ Exit.type        = ITEM
 Exit.text        = �����
 Exit.mnemonic    = X
 Exit.action      = ExitAction
-
 
 # Edit menu ################
 Edit = Cut Copy Paste - Delete - Link Unlink - Undo Redo
@@ -254,7 +173,6 @@ Split.type        = ITEM
 Split.text        = ���������
 Split.mnemonic    = K
 Split.action      = SplitAction
-
 
 # View menu ################
 View = Gantt TrackingGantt Network Resources Projects WBS RBS Report TaskUsageDetail ResourceUsageDetail - Histogram Charts TaskUsage ResourceUsage NoSubWindow - ZoomIn ZoomOut ScrollToTask
@@ -378,7 +296,6 @@ ServerInsert.type = MENU
 ServerInsert.text = �������
 ServerInsert.mnemonic = I
 
-
 InsertTask.type        = ITEM
 InsertTask.text        = ����� ������/������
 InsertTask.icon		   = menu.insertTask
@@ -492,7 +409,6 @@ TeamFilter.mnemonic    = R
 TeamFilter.action      = TeamFilterAction
 TeamFilter.selected	  = false
 
-
 UpdateTasks.type        = ITEM
 UpdateTasks.text        = �������� ������
 UpdateTasks.mnemonic    = T
@@ -560,7 +476,6 @@ EditOptions.type        = ITEM
 EditOptions.text        = ������
 EditOptions.mnemonic    = E
 EditOptions.action      = EditOptions
-
 
 #Project menu ################
 Project = Information Notes - ProjectInformation Documents -
@@ -732,7 +647,6 @@ ProjectInformation.text        = ���������� � ����
 ProjectInformation.mnemonic    = P
 ProjectInformation.action      = ProjectInformationAction
 
-
 Documents.type        = ITEM
 Documents.text        = ���������...
 Documents.mnemonic    = D
@@ -744,7 +658,6 @@ EnterpriseResources.type        = ITEM
 EnterpriseResources.text        = ������� �����������...
 EnterpriseResources.mnemonic    = E
 EnterpriseResources.action      = EnterpriseResourcesAction
-
 
 Help = AboutMicroProject MicroProjectDocumentation
 Help.type        = MENU
@@ -763,9 +676,7 @@ MicroProjectDocumentation.mnemonic    = H
 MicroProjectDocumentation.action      = MicroProjectDocumentationAction
 MicroProjectDocumentation.icon=menu.Help
 
-#
 # Definition of the tool bar
-#
 
 #          ToolPrint - ToolPrintPreview - \
 #        ToolCut ToolCopy ToolPaste - \
@@ -831,7 +742,6 @@ ToolLink.toolip=�������� �����
 ToolUnlink.icon=menu.unlink
 ToolUnlink.action      = UnlinkAction
 ToolUnlink.toolip=������ �����
-
 
 ToolZoomIn.icon      = menu.zoomin
 ToolZoomIn.action    = ZoomInAction
@@ -963,8 +873,6 @@ Tool24Link.tooltip=�������� �����
 #Tool24Link.help=http://www.projectlibre.com/docs/tutorial/Project-ON-Demand%20Tutorial%20Chapter%203.htm#modifyinglinks
 Tool24Link.demo=http://www.projectlibre.com/docs/tutorial_video/POD_LinkingTasks/POD_LinkingTasks.html
 
-
-
 Tool24Unlink.icon=menu24.unlink
 Tool24Unlink.action      = UnlinkAction
 Tool24Unlink.tooltip=������ �����
@@ -1048,7 +956,6 @@ Tool24InsertTask.action =InsertTaskAction
 Tool24InsertTask.tooltip =�������� ������
 #Tool24InsertTask.help=http://www.proijty.com/docs/tutorial/Project-ON-Demand%20Tutorial%20Chapter%203.htm#enteringactivities
 Tool24InsertTask.demo=http://www.projectlibre.com/docs/tutorial_video/POD_AddingActivities/POD_AddingActivities.html
-
 
 Tool24InsertProject.icon =menu24.insertProject
 Tool24InsertProject.action =InsertProjectAction
@@ -1174,10 +1081,6 @@ ToolExportMSProject.icon      = menu.export
 ToolExportMSProject.action      = ExportMSProjectAction
 ToolExportMSProject.tip   = ������� � MS Project
 
-
-
-
-
 PrintPreviewToolBar = PrintPreviewFirst PrintPreviewBack PrintPreviewForward PrintPreviewUp PrintPreviewDown PrintPreviewLast - \
 		   PrintPreviewZoomIn PrintPreviewZoomReset PrintPreviewZoomOut - \
 		   PrintPreviewFormat PrintPreviewPrint
@@ -1229,6 +1132,3 @@ PrintPreviewPrint.tip   = ������
 manageResources.tooltip   = ��� ���������� ���������
 #manageResources.help=http://www.projectlibre.com/docs/tutorial/Project-ON-Demand%20Tutorial%20Chapter%203.htm
 manageResources.demo=http://www.projectlibre.com/docs/tutorial_video/POD_ResourcePool/POD_ResourcePool.html
-
-
-
