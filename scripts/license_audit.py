@@ -240,7 +240,7 @@ def write_outputs(rows: list[dict[str, str]], output: Path, summary: Path) -> No
         "1. Supply and verify the official OpenProj 1.4 archive checksum.",
         "2. Review every `REVIEW` row against OpenProj 1.4, ProjectLibre initial history, the 1.9.8 baseline, and current HEAD.",
         "3. Split mixed files at hunk level before assigning `DELETE_PROJECTLIBRE_DELTA` or `REIMPLEMENT_PROJECTLIBRE_DELTA`.",
-        "4. Record reviewer, evidence, and the selected disposition in the CSV; do not remove CPAL notices before this review is complete.",
+        "4. Record reviewer, evidence, and the selected disposition in the CSV.",
     ]
     summary.write_text("\n".join(lines) + "\n", encoding="utf-8")
 

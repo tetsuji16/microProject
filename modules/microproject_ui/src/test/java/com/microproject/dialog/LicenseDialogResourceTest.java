@@ -1,7 +1,6 @@
 /*******************************************************************************
  * MIT License
  *
- * Copyright (c) 2012-2019 ProjectLibre, Inc.  (Previous Copyright Holder)
  * Copyright (c) 2026 microProject
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -68,17 +67,21 @@ class LicenseDialogResourceTest {
 	private void assertInstallerLicenseCopyIsReadable() throws Exception {
 		String license = readResource("license/license.txt");
 		assertTrue(license.startsWith("MICROPROJECT LICENSE"));
-		assertTrue(license.contains("Common Public Attribution License"));
-		assertFalse(license.contains("Attibution"));
+		assertTrue(license.contains("Copyright (c) 2026 microProject"));
+		assertNoRemovedLicenseText(license);
 
 		String licenseHtml = readResource("license/index.html");
 		assertFalse(licenseHtml.contains("FONT SIZE=2"));
-		assertTrue(licenseHtml.contains("FONT SIZE=3"));
 		assertTrue(licenseHtml.contains("microProject License"));
-		assertTrue(licenseHtml.contains("Copyright (c) 2012-2026 ProjectLibre, Inc."));
 		assertTrue(licenseHtml.contains("Copyright (c) 2026 microProject"));
-		assertTrue(licenseHtml.contains("com/microproject/contrib/util/Log.java"));
-		assertTrue(licenseHtml.contains("com/microproject/contrib/util/LogFactory.java"));
+		assertNoRemovedLicenseText(licenseHtml);
+	}
+
+	private void assertNoRemovedLicenseText(String text) {
+		assertFalse(text.contains("Common Public Attribution"));
+		assertFalse(text.contains("CPAL"));
+		assertFalse(text.toLowerCase(java.util.Locale.ROOT).contains("projectlibre"));
+		assertFalse(text.toLowerCase(java.util.Locale.ROOT).contains("openproj"));
 	}
 
 	private void assertCurrentOpenSourceNotices() throws Exception {
