@@ -1,26 +1,6 @@
 # MIT License
 # Copyright (c) 2026 microProject
 
-##########################################################
-##########################################################
-##########################################################
-#This file is in codepage 1251. It is useful for the translator wishing to modify the text
-##########################################################
-##########################################################
-##########################################################
-
-
-# The lines to change have the following suffixes
-# .text
-# .tooltip
-# .tip
-# .mnemonic
-# .accelerator
-# Other lines must not be changed
-# Note that the mnemonic should correspond to the first letter of the text, and the accelerator should be CTRL+(first letter).  
-# The ... after some text items should be preserved in the translation.
-# All comments should be kept as is. Comments are lines starting with #
- 
 PaletteMenu = Palette LookAndFeel FullScreen
 Palette.type        = ITEM
 Palette.text   = ������ ������������...
@@ -41,7 +21,6 @@ Refresh.type        = ITEM
 Refresh.text   = ��������
 Refresh.icon        = menu24.refresh
 Refresh.action      = RefreshAction
-
 
 StandardMenuBar =  MicroProject File Edit View Insert Tools Project Help
 ServerStandardMenuBar = ServerFile Edit View ServerInsert ServerTools Project Help
@@ -84,7 +63,6 @@ ExportMSProject.mnemonic    = E
 ExportMSProject.action      = ExportMSProjectAction
 ExportMSProject.icon      = menu.export
 
-
 CloseProject.type        = ITEM
 CloseProject.text        = �������
 CloseProject.mnemonic    = C
@@ -110,9 +88,7 @@ SaveProjectAs.mnemonic    = A
 SaveProjectAs.action      = SaveProjectAsAction
 SaveProjectAs.accelerator = Ctrl+A
 
-
 DelegateTasks.action      = DelegateTasksAction
-
 
 Print.type        = ITEM
 Print.text        = ������...
@@ -131,7 +107,6 @@ Exit.type        = ITEM
 Exit.text        = �����
 Exit.mnemonic    = X
 Exit.action      = ExitAction
-
 
 # Edit menu ################
 Edit = Cut Copy Paste - Delete - Link Unlink - Undo Redo
@@ -198,7 +173,6 @@ Split.type        = ITEM
 Split.text        = ���������
 Split.mnemonic    = K
 Split.action      = SplitAction
-
 
 # View menu ################
 View = Gantt TrackingGantt Network Resources Projects WBS RBS Report TaskUsageDetail ResourceUsageDetail - Histogram Charts TaskUsage ResourceUsage NoSubWindow - ZoomIn ZoomOut ScrollToTask
@@ -322,7 +296,6 @@ ServerInsert.type = MENU
 ServerInsert.text = �������
 ServerInsert.mnemonic = I
 
-
 InsertTask.type        = ITEM
 InsertTask.text        = ����� ������/������
 InsertTask.icon		   = menu.insertTask
@@ -436,7 +409,6 @@ TeamFilter.mnemonic    = R
 TeamFilter.action      = TeamFilterAction
 TeamFilter.selected	  = false
 
-
 UpdateTasks.type        = ITEM
 UpdateTasks.text        = �������� ������
 UpdateTasks.mnemonic    = T
@@ -504,7 +476,6 @@ EditOptions.type        = ITEM
 EditOptions.text        = ������
 EditOptions.mnemonic    = E
 EditOptions.action      = EditOptions
-
 
 #Project menu ################
 Project = Information Notes - ProjectInformation Documents -
@@ -676,7 +647,6 @@ ProjectInformation.text        = ���������� � ����
 ProjectInformation.mnemonic    = P
 ProjectInformation.action      = ProjectInformationAction
 
-
 Documents.type        = ITEM
 Documents.text        = ���������...
 Documents.mnemonic    = D
@@ -688,7 +658,6 @@ EnterpriseResources.type        = ITEM
 EnterpriseResources.text        = ������� �����������...
 EnterpriseResources.mnemonic    = E
 EnterpriseResources.action      = EnterpriseResourcesAction
-
 
 Help = AboutMicroProject MicroProjectDocumentation
 Help.type        = MENU
@@ -707,9 +676,7 @@ MicroProjectDocumentation.mnemonic    = H
 MicroProjectDocumentation.action      = MicroProjectDocumentationAction
 MicroProjectDocumentation.icon=menu.Help
 
-#
 # Definition of the tool bar
-#
 
 #          ToolPrint - ToolPrintPreview - \
 #        ToolCut ToolCopy ToolPaste - \
@@ -775,7 +742,6 @@ ToolLink.toolip=�������� �����
 ToolUnlink.icon=menu.unlink
 ToolUnlink.action      = UnlinkAction
 ToolUnlink.toolip=������ �����
-
 
 ToolZoomIn.icon      = menu.zoomin
 ToolZoomIn.action    = ZoomInAction
@@ -907,8 +873,6 @@ Tool24Link.tooltip=�������� �����
 #Tool24Link.help=http://www.projectlibre.com/docs/tutorial/Project-ON-Demand%20Tutorial%20Chapter%203.htm#modifyinglinks
 Tool24Link.demo=http://www.projectlibre.com/docs/tutorial_video/POD_LinkingTasks/POD_LinkingTasks.html
 
-
-
 Tool24Unlink.icon=menu24.unlink
 Tool24Unlink.action      = UnlinkAction
 Tool24Unlink.tooltip=������ �����
@@ -992,7 +956,6 @@ Tool24InsertTask.action =InsertTaskAction
 Tool24InsertTask.tooltip =�������� ������
 #Tool24InsertTask.help=http://www.proijty.com/docs/tutorial/Project-ON-Demand%20Tutorial%20Chapter%203.htm#enteringactivities
 Tool24InsertTask.demo=http://www.projectlibre.com/docs/tutorial_video/POD_AddingActivities/POD_AddingActivities.html
-
 
 Tool24InsertProject.icon =menu24.insertProject
 Tool24InsertProject.action =InsertProjectAction
@@ -1118,10 +1081,6 @@ ToolExportMSProject.icon      = menu.export
 ToolExportMSProject.action      = ExportMSProjectAction
 ToolExportMSProject.tip   = ������� � MS Project
 
-
-
-
-
 PrintPreviewToolBar = PrintPreviewFirst PrintPreviewBack PrintPreviewForward PrintPreviewUp PrintPreviewDown PrintPreviewLast - \
 		   PrintPreviewZoomIn PrintPreviewZoomReset PrintPreviewZoomOut - \
 		   PrintPreviewFormat PrintPreviewPrint
@@ -1173,6 +1132,4 @@ PrintPreviewPrint.tip   = ������
 manageResources.tooltip   = ��� ���������� ���������
 #manageResources.help=http://www.projectlibre.com/docs/tutorial/Project-ON-Demand%20Tutorial%20Chapter%203.htm
 manageResources.demo=http://www.projectlibre.com/docs/tutorial_video/POD_ResourcePool/POD_ResourcePool.html
-
-
-
+
