@@ -26,8 +26,8 @@ Neutralize the named internal identifiers, comments, and UI resource keys; add a
 
 ## Evidence
 
-- `gradlew.bat build --console=plain` passed on baseline `f95bb2cb1` plus naming-check changes: 56 tasks, 15 executed, 41 up to date.
-- `verifyNamingConventions` passed; adding a new `projectlibreProbe` in an unallowlisted source caused the check to fail with that path and identifier, then the temporary fixture was removed.
+- `gradlew.bat build --console=plain` passed on `f95bb2cb1` plus the initial naming check: 56 tasks, 15 executed, 41 up to date. The subsequent check-only change added the native-code-page file pattern and passed `verifyNamingConventions`; no production or test code changed.
+- `verifyNamingConventions` passed; temporary unallowlisted Java and `.properties.1251` probes each caused the check to fail with the precise path and identifier and were removed. Native-code-page resources are included in the guard.
 - 42 changed localization resource files matched the baseline after reversing only the renamed keys and normalizing line endings; display values were unchanged.
 - Earlier focused core/exchange resource-mapping tests, localization tests and `SafeObjectInputTest` passed; the full build included relevant module tests.
 - Existing old-format compatibility, runtime migration identifiers (#999), and dormant localization/menu keys (#954/#953) are recorded with exact lines and reasons. License and attribution headers, and open-project commands, remain out of scope.

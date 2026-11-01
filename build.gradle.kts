@@ -393,11 +393,11 @@ tasks.register("verifyNamingConventions") {
             "${columns[0]}\t${columns[1]}"
         }.groupingBy { it }.eachCount()
         val actualLegacyNames = fileTree(layout.projectDirectory.dir("modules")) {
-            include("**/src/main/**/*.java", "**/src/main/**/*.kt", "**/src/main/**/*.properties")
+            include("**/src/main/**/*.java", "**/src/main/**/*.kt", "**/src/main/**/*.properties", "**/src/main/**/*.properties.*")
             exclude("**/build/**")
         }.flatMap { source ->
             val relative = source.relativeTo(layout.projectDirectory.asFile).invariantSeparatorsPath
-            source.readLines().mapNotNull { legacyNameReference(relative, it, source.extension == "properties") }
+            source.readLines().mapNotNull { legacyNameReference(relative, it, source.name.contains(".properties")) }
         }.groupingBy { it }.eachCount()
         val unexpectedNames = actualLegacyNames.filter { (name, count) -> count > (allowedLegacyNames[name] ?: 0) }
         val obsoleteExceptions = allowedLegacyNames.filter { (name, count) -> count > (actualLegacyNames[name] ?: 0) }
