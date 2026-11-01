@@ -43,7 +43,7 @@ public class ImageLink extends Hyperlink {
 	}
 	
 	public static ImageLink trafficLight(String label,double value, double green, double yellow) {
-		String url; //http://www.projectlibre.com/web/img/
+		String url;
 		String icon;
 		if (value == 0.0D) {
 			url = "/img/GrayCircle.gif";

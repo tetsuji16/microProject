@@ -48,7 +48,7 @@ import org.junit.jupiter.api.Test;
 class ClientBundleProductNameTest {
 	private static final List<String> PRODUCT_TITLE_KEYS = List.of(
 		"Text.welcomeToPod", "Text.ApplicationTitle", "Text.ShortTitle",
-		"Title.MicroProjectError", "Title.MicroProjectWarning");
+		"Title.ApplicationError", "Title.ApplicationWarning");
 
 	@Test
 	void everyClientLocaleNamesTheCurrentProductInWelcomeAndMessageTitles() throws Exception {
@@ -90,8 +90,8 @@ class ClientBundleProductNameTest {
 
 		assertEquals("Welcome to microProject", base.getString("Text.welcomeToPod"));
 		assertEquals("microProject へようこそ", japanese.getString("Text.welcomeToPod"));
-		assertEquals("microProject エラー", japanese.getString("Title.MicroProjectError"));
-		assertEquals("microProject 警告", japanese.getString("Title.MicroProjectWarning"));
+		assertEquals("microProject エラー", japanese.getString("Title.ApplicationError"));
+		assertEquals("microProject 警告", japanese.getString("Title.ApplicationWarning"));
 		assertFalse(japanese.getString("Text.welcomeToPod").contains("ProjectLibre"));
 	}
 }

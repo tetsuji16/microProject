@@ -468,7 +468,7 @@ public class MSPDISerializer implements ProjectSerializer {
 		try {
 			saveProjectOrThrow(project, out);
 		} catch (Exception e) {
-			logger.log(Level.WARNING, "Failed to save ProjectLibre project as MSPDI", e);
+			logger.log(Level.WARNING, "Failed to save project as MSPDI", e);
 			return false;
 		}
 		return true;
