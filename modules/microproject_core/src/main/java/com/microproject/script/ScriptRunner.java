@@ -55,7 +55,6 @@ public interface ScriptRunner {
 	public static final int RESOURCE=2;
 	public static final int PROJECT=3;
 	public static final int ASSIGNMENT=4;
-	//public static final int PORTFOLIO=6;
 
 	public static final int PROJECT_DESCRIPTOR=100;
 	public static final int PROJECT_DESCRIPTOR_AS_TASK=101;
@@ -85,23 +84,9 @@ public interface ScriptRunner {
 	 * @return the content of the project
 	 */
 	public LiteProject getProject(long projectId,ConverterContext context) throws Exception;
-	//public LiteProject getProject(long projectId) throws Exception;
 
 	public List getContexts(int type) throws Exception;
 	public Object[] getCharts(int type)  throws Exception;
-
-//	public LiteResourcePool getResourcePool(long projectId) throws Exception;
-//	public LiteProject getPortfolio() throws Exception;
-//	public LiteProject getResourcePoolWithUsage() throws Exception;
-//	/**
-//	 * Returns all the tasks of a project.
-//	 * Opens the project if it's not already opened
-//	 * @param projectId
-//	 * @param explorationMaxLevel 1: returns only the parent tasks, 2: returns the parent tasks and their children ...
-//	 * @return the content of the project
-//	 */
-//	public LiteProject getProject(long projectId,int explorationMaxLevel) throws Exception;
-//	public LiteResourcePool getResourcePool(long projectId,int explorationMaxLevel) throws Exception;
 
 	public LiteProject setValue(long projectId, String fieldId, int type, long id, String value,boolean returnChanges) throws Exception;
 	/**
@@ -138,43 +123,6 @@ public interface ScriptRunner {
 	public Object translateWindow(long projectId,int type,int amount,float center,boolean returnChange) throws Exception;
 
 
-
-//	// methods for finding existing proxy objects
-//	Project project(long id);
-//	Task task(long id);
-//	Resource resource(long id);
-//	Field field(String name);
-//	Field fieldFromId(String id);
-//
-//	// Factory methods
-//	Project createProject();
-//	Task createTask(Project project);
-//	Resource createResource();
-//
-//	void saveProject(); // I put these methods here and not in project since they are impl dependent
-//	void saveProjectAs(String newName);
-//	void closeProject();
-//
-//	void assignResource(Task task, Resource resource);
-//	void link(Task pred,Task succ);
-//
-//	// also have node versions?
-//	void setText(Field field, Scriptable obj, String textValue);
-//	String getText(Field field, Scriptable obj);
-//	String getValue(Field field, Scriptable obj);
-//
-//	void select(Collection objects);
-//	// Selection specific methods
-//	void indent();
-//	void outdent();
-//	void fold();
-//	void unfold();
-//	void link(); // selected
-//	void setTextOnSelection(Field field, String textValue); // for things like update task where multiple objects ar changd
-//
-//	void undo();
-//	void redo();
-//	// cut, copy, paste ?
 
 	public ReportData getReport(String reportId, String fieldArrayId) throws Exception;
 
