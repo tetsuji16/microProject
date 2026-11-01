@@ -18,6 +18,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import com.microproject.util.UiDispatcher;
 import com.microproject.util.UiDispatch;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
@@ -238,6 +239,36 @@ class CollaborationMetadataStoreTest {
 		assertTrue(store.retireIfSoleUser("alice", "copy-1", payload -> { }));
 		assertFalse(Files.exists(sidecar));
 		assertFalse(Files.exists(marker));
+	}
+
+	@Test
+	void closingWaitsOutAProgramThatBrieflyHoldsTheFilesOpen() throws Exception {
+		for (boolean holdSidecar : new boolean[] {true, false}) {
+			Path project = Files.createTempFile("mpo-collaboration", ".mpo");
+			CollaborationMetadataStore store = new CollaborationMetadataStore(project.toFile());
+			store.mutate(metadata -> metadata.getLocks().clear());
+			Path sidecar = store.getSidecarFile().toPath();
+			Path marker = CollaborationMetadataStore.buildLockFile(store.getSidecarFile()).toPath();
+			FileInputStream scanner = new FileInputStream((holdSidecar ? sidecar : marker).toFile());
+			Thread finishes = new Thread(() -> {
+				try {
+					Thread.sleep(500L);
+					scanner.close();
+				} catch (InterruptedException | IOException stopped) {
+					throw new IllegalStateException(stopped);
+				}
+			});
+
+			try {
+				finishes.start();
+				assertTrue(store.retireIfSoleUser("alice", "copy-1", payload -> { }), holdSidecar ? "sidecar held" : "marker held");
+				assertFalse(Files.exists(sidecar));
+				assertFalse(Files.exists(marker));
+			} finally {
+				finishes.join();
+				scanner.close();
+			}
+		}
 	}
 
 	@Test
