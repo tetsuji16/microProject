@@ -1,6 +1,5 @@
 /*
- * (C) Copyright 2012-2019, by ProjectLibre Inc. and Contributors.
- * http://www.projectlibre.com
+ * (C) Copyright 2026 microProject
  *
  *
  * This library is free software; you can redistribute it and/or modify it

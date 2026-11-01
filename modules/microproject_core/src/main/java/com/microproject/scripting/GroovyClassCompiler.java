@@ -1,7 +1,6 @@
 /*******************************************************************************
  * MIT License
  *
- * Copyright (c) 2012-2019 ProjectLibre, Inc.  (Previous Copyright Holder)
  * Copyright (c) 2026 microProject
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -34,7 +33,7 @@ import java.util.Map;
 
 import groovy.lang.GroovyClassLoader;
 
-/** Shared, type-safe boundary for ProjectLibre's generated Groovy classes. */
+/** Shared, type-safe boundary for generated Groovy classes. */
 public final class GroovyClassCompiler {
     private static final int MAX_CACHED_CLASSES = 128;
     private static final Map<String, CompiledClass> CLASSES_BY_SOURCE =

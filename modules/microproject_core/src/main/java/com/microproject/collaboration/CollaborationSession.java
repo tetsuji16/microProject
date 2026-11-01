@@ -1,7 +1,6 @@
 /*******************************************************************************
  * MIT License
  *
- * Copyright (c) 2012-2019 ProjectLibre, Inc.  (Previous Copyright Holder)
  * Copyright (c) 2026 microProject
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -28,6 +27,8 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.ObjectOutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -150,41 +151,47 @@ public class CollaborationSession {
 		}
 	}
 
+	/** Ends the session, whether or not it got as far as starting.  Failures never block closing the project. */
 	public void stop() {
-		if (timer == null) {
+		if (stopped) return;
+		store.beginClosing();
+		Timer runningTimer = timer;
+		timer = null;
+		if (runningTimer != null) {
+			runningTimer.cancel();
 			try {
-				lockManager.releaseAll();
-			} catch (RuntimeException e) {
-				logger.log(Level.WARNING, "Collaboration locks could not be released; leases will expire", e);
-			} finally {
-				lockBaselineStates.clear();
+				saveWorkspace(project.getCollaborationWorkspace());
+			} catch (Exception e) {
+				logger.log(Level.FINE, "Failed to save workspace on session stop", e);
 			}
-			return;
 		}
-		try {
-			saveWorkspace(project.getCollaborationWorkspace());
-		} catch (Exception e) {
-			logger.log(Level.FINE, "Failed to save workspace on session stop", e);
-		}
+		stopped = true;
 		try {
 			lockManager.releaseAll();
 		} catch (RuntimeException e) {
 			logger.log(Level.WARNING, "Collaboration locks could not be released; leases will expire", e);
 		} finally {
 			lockBaselineStates.clear();
-			timer.cancel();
-			timer = null;
 		}
-		stopped = true;
 		removeProjectArtifacts();
 	}
 
 	/** Leaves nothing beside the project once no other user needs it (issue #967). */
 	private void removeProjectArtifacts() {
 		if (projectFile == null) return;
-		LocalWorkspaceStore workspaces = new LocalWorkspaceStore(projectFile, userKey);
-		store.retireIfSoleUser(userKey, clientInstanceId, workspaces::save);
-		RetirableFileLock.retireIfUnheld(projectFile.toPath().resolveSibling(projectFile.getName() + ".lock"));
+		try {
+			LocalWorkspaceStore workspaces = new LocalWorkspaceStore(projectFile, userKey);
+			store.retireIfSoleUser(userKey, clientInstanceId, workspaces::save);
+		} catch (RuntimeException e) {
+			logger.log(Level.WARNING, "Collaboration files stay beside " + projectFile, e);
+		}
+		Path saveMarker = projectFile.toPath().resolveSibling(projectFile.getName() + ".lock");
+		while (Files.isRegularFile(saveMarker) && !RetirableFileLock.retireIfUnheld(saveMarker)) {
+			if (!store.pauseWhileClosing()) {
+				logger.log(Level.WARNING, "The save marker stays beside {0}: it stayed in use while it closed", projectFile);
+				return;
+			}
+		}
 	}
 
 	private void registerUser() {

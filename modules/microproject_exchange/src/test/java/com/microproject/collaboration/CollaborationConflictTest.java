@@ -1,7 +1,6 @@
 /*******************************************************************************
  * MIT License
  *
- * Copyright (c) 2012-2019 ProjectLibre, Inc.  (Previous Copyright Holder)
  * Copyright (c) 2026 microProject
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -400,6 +399,8 @@ class CollaborationConflictTest {
 		assertTrue(session.tryAcquireTaskLock(podTask));
 		try {
 			session.saveWorkspace(new TestWorkspaceSetting("gantt"));
+			assertTrue(sidecar.exists());
+			assertTrue(sidecar.length() > 0L);
 		} finally {
 			session.stop();
 		}
@@ -408,8 +409,6 @@ class CollaborationConflictTest {
 		assertTrue(Arrays.equals(before, after),
 			"Collaboration must store metadata in the sidecar, not mutate the POD file.");
 		assertEquals(lastModified, podFile.lastModified());
-		assertTrue(sidecar.exists());
-		assertTrue(sidecar.length() > 0L);
 	}
 
 	/** Issue #967: closing a project leaves nothing beside it unless someone else still needs it. */
