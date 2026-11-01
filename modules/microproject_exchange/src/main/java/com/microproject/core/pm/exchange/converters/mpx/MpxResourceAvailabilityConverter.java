@@ -56,9 +56,10 @@ public final class MpxResourceAvailabilityConverter {
 
 	/** Writes every domain row, including default and zero rows, as an MPXJ period. */
 	public static void to(AvailabilityTable source, Resource target) {
-		List<net.sf.mpxj.Availability> converted = new ArrayList<>();
+		List<ValueObjectForInterval> sourceRows = source.getList();
+		List<net.sf.mpxj.Availability> converted = new ArrayList<>(sourceRows.size());
 		long previousStart = DOMAIN_START;
-		for (ValueObjectForInterval value : source.getList()) {
+		for (ValueObjectForInterval value : sourceRows) {
 			if (!(value instanceof Availability availability))
 				throw new IllegalArgumentException("Unsupported resource availability row");
 			long start = value.getStart();
