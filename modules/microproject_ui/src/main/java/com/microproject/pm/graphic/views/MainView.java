@@ -25,6 +25,8 @@ package com.microproject.pm.graphic.views;
 
 import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
@@ -63,7 +65,13 @@ public class MainView extends JSplitPane implements TimeScaleListener, SavableTo
         setOneTouchExpandable(true);
         defaultDividerSize = getDividerSize();
         setDividerSize(0);
-        
+        // Request a full view repaint after native window resizing; Swing coalesces requests.
+        addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentResized(ComponentEvent event) {
+                repaint();
+            }
+        });
     }
     public void setTop(Component top) {
     	if (top==null) return;
@@ -76,6 +84,8 @@ public class MainView extends JSplitPane implements TimeScaleListener, SavableTo
 		if (top instanceof SplittedView splitView)
 			splitView.setParentView(this);
 		setTopComponent(top);
+		revalidate();
+		repaint();
 
 		if (getTopComponent() instanceof SplittedView topView
 				&& getBottomComponent() instanceof SplittedView bottomView) {
@@ -96,6 +106,8 @@ public class MainView extends JSplitPane implements TimeScaleListener, SavableTo
 		if (bottom instanceof SplittedView splitView)
 			splitView.setParentView(this);
 		setBottomComponent(bottom);
+		revalidate();
+		repaint();
 
 		if (getTopComponent() instanceof SplittedView topView
 				&& getBottomComponent() instanceof SplittedView bottomView) {
