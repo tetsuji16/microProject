@@ -88,6 +88,8 @@ public class CollaborationSession {
 	private final AtomicReference<Object> operationGateToken = new AtomicReference<Object>();
 	private final AtomicLong workspaceSaveGeneration = new AtomicLong();
 	private final AtomicLong workspaceFallbackDurableGeneration = new AtomicLong();
+	private final AtomicLong workspaceLastSuccessfulGeneration = new AtomicLong();
+	private final AtomicLong workspaceConflictNoticeGeneration = new AtomicLong();
 	private volatile LongSupplier workspaceSaveClock = System::currentTimeMillis;
 	private volatile java.util.function.LongConsumer workspaceFallbackStagedHook = generation -> { };
 	private final ThreadLocal<Object> acquisitionBatchToken = new ThreadLocal<Object>();
@@ -357,6 +359,24 @@ public class CollaborationSession {
 		if (workspaceFallbackDurableGeneration.get() > generation) {
 			localWorkspaceStore.clearFallbacksForSessionThrough(clientInstanceId, generation);
 		}
+	}
+
+	private void markWorkspaceConflict(long generation) {
+		while (true) {
+			if (generation < workspaceLastSuccessfulGeneration.get()) return;
+			long current = workspaceConflictNoticeGeneration.get();
+			if (current >= generation) return;
+			if (!workspaceConflictNoticeGeneration.compareAndSet(current, generation)) continue;
+			if (generation < workspaceLastSuccessfulGeneration.get())
+				workspaceConflictNoticeGeneration.compareAndSet(generation, 0L);
+			return;
+		}
+	}
+
+	private void clearWorkspaceConflictThrough(long generation) {
+		workspaceLastSuccessfulGeneration.accumulateAndGet(generation, Math::max);
+		workspaceConflictNoticeGeneration.updateAndGet(conflict -> conflict <= generation ? 0L : conflict);
+		workspaceFallbackAmbiguous = false;
 	}
 
 	/** Leaves nothing beside the project once no other user needs it (issue #967). */
@@ -895,8 +915,8 @@ public class CollaborationSession {
 		}
 		return snapshot;
 	}
-	public void saveWorkspace(WorkspaceSetting workspace) {
-		saveWorkspace(workspace, false);
+	public boolean saveWorkspace(WorkspaceSetting workspace) {
+		return saveWorkspace(workspace, false);
 	}
 
 	private boolean saveWorkspace(WorkspaceSetting workspace, boolean closingSession) {
@@ -945,10 +965,6 @@ public class CollaborationSession {
 			}
 			return false;
 		}
-		if (workspaceFallbackAmbiguous) {
-			logger.warning("Workspace save is blocked because the local fallback and shared sidecar have conflicting layouts; this session's layout was retained locally when possible");
-			return false;
-		}
 		if (localWorkspaceStore != null) {
 			try {
 				localWorkspaceStore.ensureFallbacksAgreeWithSidecar(payload);
@@ -961,6 +977,7 @@ public class CollaborationSession {
 					}
 					return false;
 				}
+				markWorkspaceConflict(saveGeneration);
 				logger.log(Level.SEVERE, "Workspace save is ambiguous; preserving all local copies and the shared sidecar", ambiguous);
 				return false;
 			}
@@ -989,10 +1006,12 @@ public class CollaborationSession {
 				if (committed[0]) {
 					workspaceBaselinePayload = payload;
 					workspaceBaselineKnown = true;
+					clearWorkspaceConflictThrough(saveGeneration);
 				}
 			});
 			if (!committed[0]) {
 				if (blockedBySidecarConflict[0]) {
+					markWorkspaceConflict(saveGeneration);
 					logger.warning("Workspace save was blocked because the shared sidecar changed concurrently; both versions were retained");
 				}
 				if (fallbackSaved && !blockedBySidecarConflict[0])
@@ -1056,7 +1075,11 @@ public class CollaborationSession {
 	}
 
 	public boolean hasAmbiguousWorkspaceFallback() {
-		return workspaceFallbackAmbiguous;
+		return workspaceFallbackAmbiguous || workspaceConflictNoticeGeneration.get() != 0L;
+	}
+
+	public boolean hasWorkspaceConflictNotice() {
+		return workspaceFallbackAmbiguous || workspaceConflictNoticeGeneration.get() != 0L;
 	}
 
 	public String getSidecarFileName() {

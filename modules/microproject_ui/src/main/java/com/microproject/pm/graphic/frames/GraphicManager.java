@@ -217,6 +217,7 @@ import com.microproject.ribbon.CommandId;
  */
 public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowStateListener,  SelectionNodeListener, ObjectEvent.Listener, ProjectMenuActionMap, MenuActionConstants, SavableToWorkspace {
 	private static final Logger logger = Logger.getLogger(GraphicManager.class.getName());
+	private static final String WORKSPACE_CONFLICT_STATUS = "Workspace saving did not complete. Local and shared layouts are preserved; resolve the conflict before retrying.";
 	private static final String UI_DEBUG_PROPERTY = "microproject.ui.debug";
 	private static final String ACTION_CANCEL_FORMAT_PAINTER = "CancelFormatPainter";
 	private RibbonCommandResult lastRibbonCommandResult;
@@ -929,8 +930,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			return;
 		}
 		DocumentFrame frame = getFrameForProject(project);
-		if (frame != null && session.hasAmbiguousWorkspaceFallback()) {
-			frame.statusBar.setMessage("Local and shared workspace layouts conflict. Both copies were preserved; workspace saving is paused until the conflict is resolved.");
+		if (frame != null && session.hasWorkspaceConflictNotice()) {
+			frame.statusBar.setMessage(WORKSPACE_CONFLICT_STATUS);
 		}
 		if (frame != null && project.getCollaborationWorkspace() != null) {
 			frame.restoreWorkspace(project.getCollaborationWorkspace(), SavableToWorkspace.VIEW);
@@ -950,7 +951,12 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		if (frame != null) {
 			WorkspaceSetting workspace = frame.createWorkspace(SavableToWorkspace.VIEW);
 			project.setCollaborationWorkspace(workspace);
-			session.saveWorkspace(workspace);
+			boolean saved = session.saveWorkspace(workspace);
+			if (session.hasWorkspaceConflictNotice()) {
+				frame.statusBar.setMessage(WORKSPACE_CONFLICT_STATUS);
+			} else if (saved) {
+				frame.statusBar.clearMessageIfEquals(WORKSPACE_CONFLICT_STATUS);
+			}
 		}
 	}
 
