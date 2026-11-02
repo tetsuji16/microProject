@@ -1018,7 +1018,9 @@ public class ProjectFactory {
 		if (session == null)
 			return;
 		project.setCollaborationSession(null);
-		session.stop();
+		if (!session.stopAndAwaitClose(CollaborationSession.CLOSE_OPERATION_WAIT_TIMEOUT_MS)) {
+			logger.warning("Collaboration cleanup timed out or failed during project close; collaboration files may remain for recovery");
+		}
 	}
 
 	static void removePortfolioNodesAndPublish(NodeModel nodeModel, List<Node> nodes) {

@@ -45,7 +45,8 @@ Closing a project or the whole application retires `<file>.lock` and the sync
 lock. When the closing user is the sidecar's only user, their workspace layout
 moves to the per-user `LocalWorkspaceStore` and the sidecar is removed too, so a
 closed project leaves only its project files. A sidecar with another user's data
-stays. Cancelling the save prompt keeps the session and its files. A busy lock or
+stays, including offline user records retained after their last session closes.
+Cancelling the save prompt keeps the session and its files. A busy lock or
 a file another program has open is retried for up to 3 seconds, so that a sync
 client delays the removal without blocking exit. The next open and close by the
 same user removes files left by that limit, an earlier release, or a crash.
@@ -89,6 +90,21 @@ The adjacent `.microproject-sync.json` sidecar contains per-task leases and each
 the project is open. An editor cannot acquire a task that has an active lease
 from another editor. Sequential OneDrive-sync saves of independent task edits
 merge their MPOF task-operation logs, so both edits survive the later save.
+
+The v1 `users` object keeps one canonical entry per account for compatibility
+and also stores reserved per-instance entries for open application sessions.
+These entries use the existing user-record fields and do not change the JSON
+shape. This lets two local sessions signed in as the same user close
+independently without removing metadata still used by the other session.
+Older releases can parse these records, but may display them as additional
+users and conservatively retain collaboration files. Avoid editing one shared
+project from old and new releases at the same time. A crashed process can leave
+a session record; records positively identified as sessions expire after two
+minutes without a heartbeat when their timestamp is valid. Unknown, malformed,
+or timestamp-less records are retained because their liveness cannot be
+established safely. If a sync client prevents cleanup, the remaining sidecar
+is safe and can be removed on a later open/close after the stale session has
+expired.
 
 When a task with a local lease changes externally, the application does not
 overwrite the shared MPOF. It offers **Save Copy** or **Cancel** so that both
