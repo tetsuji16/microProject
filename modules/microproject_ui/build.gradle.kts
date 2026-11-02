@@ -180,6 +180,12 @@ tasks.register<Test>("guiTest") {
 	} else require(guiTestSuite == "full") {
 		"guiTestSuite must be 'full' or 'smoke'"
 	}
+	// This two-invocation acceptance case uses a shared temp workspace and a fresh
+	// Gradle test worker per phase. Keep it out of ordinary full-suite discovery;
+	// the dedicated driver supplies the workspace and requires phase markers.
+	if (providers.environmentVariable("MICROPROJECT_ISSUE967_WORKSPACE").orNull.isNullOrBlank()) {
+		exclude("com/microproject/pm/graphic/frames/FreshProcessMpoRestartGuiAcceptanceTest.class")
+	}
 	// Swing singletons (locale, menu factories, windows and focus state) are
 	// process-wide. One acceptance class may not leave that state behind for
 	// another class: doing so turns a real physical-route failure into a
