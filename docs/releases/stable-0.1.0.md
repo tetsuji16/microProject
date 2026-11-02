@@ -8,6 +8,7 @@ microProject 0.1.0 is a tested stable release for the workflows and platforms th
 - MPO is microProject’s native and default save format. The release gates verify native save/reload and reading supported earlier MPO versions.
 - MPP support is bounded to the tested Microsoft Project file read/interoperability cases; it is not a claim of complete MPP compatibility. POD remains a frozen legacy import format, with its serialized contract unchanged.
 - Linux x64 and macOS Apple Silicon packages are optional major-update assets. Their exact-candidate package and launch evidence is recorded only after the release is published; this note does not assert that evidence in advance.
+- Some Windows users have reported an obscured or unresponsive project view, including after reopening MPO files. The cause remains under investigation ([#946](https://github.com/tetsuji16/microProject/issues/946), [#967](https://github.com/tetsuji16/microProject/issues/967)); passing the automated reopen journey does not establish that the reported freeze is fixed.
 
 VBA/macros, the Microsoft Project object model, COM automation and add-ins, VSTO, and local Office add-ins are excluded from this release claim. MPP write interoperability and other unverified Microsoft Project behaviors remain residual compatibility limits tracked in the roadmap. Project Server, PWA, Project Online, Planner, and other connected cloud services are outside the product scope.
 
