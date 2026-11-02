@@ -32,6 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
@@ -50,8 +51,12 @@ import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.Project;
 import com.microproject.interval.ValueObjectForIntervalTable;
+import com.microproject.strings.Messages;
 import com.microproject.undo.DataFactoryUndoController;
+import com.microproject.util.Alert;
+import com.microproject.util.AlertPresenter;
 import com.microproject.util.DateTime;
+import com.microproject.util.Environment;
 
 /**
  * The Resource Information dialog edits AvailabilityTable and CostRateTable rows in its own
@@ -113,11 +118,22 @@ class ResourceTableEditDirtyTest {
 		return sheet;
 	}
 
-	private static List<Node> lastDataRow(SpreadSheet sheet) {
+	private static List<Node> firstDataRow(SpreadSheet sheet) {
+		List<Node> rows = dataRows(sheet);
+		assertTrue(rows.size() >= 2, "second row");
+		return new ArrayList<>(rows.subList(0, 1));
+	}
+
+	private static List<Node> dataRows(SpreadSheet sheet) {
 		List<Node> rows = new ArrayList<>();
 		sheet.getCache().getModel().getHierarchy().getChildren(null).forEach(o -> {
 			if (!((Node) o).isVoid()) rows.add((Node) o);
 		});
+		return rows;
+	}
+
+	private static List<Node> lastDataRow(SpreadSheet sheet) {
+		List<Node> rows = dataRows(sheet);
 		assertTrue(rows.size() >= 2, "second row");
 		return new ArrayList<>(rows.subList(rows.size() - 1, rows.size()));
 	}
@@ -146,6 +162,66 @@ class ResourceTableEditDirtyTest {
 		}, table, availability ? "availabilitySpreadsheet" : "costRates",
 			availability ? "Spreadsheet.availability" : "Spreadsheet.costRates");
 		assertTrue(f.project().needsSaving(), "row removal must prompt to save");
+	}
+
+	/**
+	 * Issue #997: the base row of both tables has no effective date, so its Delete and Cut are
+	 * refused. The refusal used to be silent and the row still disappeared from the view while the
+	 * table kept the interval; the user must now be told and nothing may change.
+	 */
+	@Test
+	void deletingTheFirstRowIsRefusedWithAMessage() throws Exception {
+		assertFirstRowRemovalRefused(true, sheet -> sheet.getCache().deleteNodes(firstDataRow(sheet)));
+	}
+
+	@Test
+	void cuttingTheFirstRowIsRefusedWithAMessage() throws Exception {
+		assertFirstRowRemovalRefused(false, sheet -> sheet.getCache().cutNodes(firstDataRow(sheet)));
+	}
+
+	private static void assertFirstRowRemovalRefused(boolean availability, Consumer<SpreadSheet> route)
+			throws Exception {
+		Fixture f = fixture();
+		ValueObjectForIntervalTable table = availability ? f.resource().getAvailabilityTable()
+			: (ValueObjectForIntervalTable) f.resource().getCostRateTable(0);
+		List<String> errors = new ArrayList<>();
+		boolean clientSide = Environment.isClientSide();
+		Environment.setClientSide(true);
+		Alert.setPresenter(new RecordingAlertPresenter(errors));
+		try {
+			onEdt(f, sheet -> {
+				int rowsBefore = table.getList().size();
+				int sheetRowsBefore = sheet.getRowCount();
+				route.accept(sheet);
+				assertEquals(rowsBefore, table.getList().size(), "the first row must stay in the table");
+				assertEquals(sheetRowsBefore, sheet.getRowCount(), "the first row must stay visible");
+				assertEquals(rowsBefore, dataRows(sheet).size(), "row and data must stay in step");
+			}, table, availability ? "availabilitySpreadsheet" : "costRates",
+				availability ? "Spreadsheet.availability" : "Spreadsheet.costRates");
+			assertFalse(f.project().needsSaving(), "a refused removal is not an edit");
+		} finally {
+			Alert.setPresenter(null);
+			Environment.setClientSide(clientSide);
+		}
+		assertEquals(List.of(Messages.getString("ValueObjectForIntervalTable.YouCannotRemoveTheFirst")), errors,
+				"the refusal must reach the user");
+	}
+
+	/** Records the message the view shows when it refuses a row removal (issue #997). */
+	private static final class RecordingAlertPresenter implements AlertPresenter {
+		private final List<String> errors;
+
+		private RecordingAlertPresenter(List<String> errors) {
+			this.errors = errors;
+		}
+
+		@Override public void warn(Object message, Object parent) { }
+		@Override public void error(Object message, Object parent) { errors.add(String.valueOf(message)); }
+		@Override public int confirmYesNo(Object message) { return Alert.NO_OPTION; }
+		@Override public int confirm(Object message) { return Alert.NO_OPTION; }
+		@Override public boolean okCancel(Object message) { return true; }
+		@Override public String renameProject(String name, Set<String> projectNames, boolean saveAs) { return name; }
+		@Override public void warnWithOnceOption(Object message, String preference, Object parent) { }
 	}
 
 	@Test

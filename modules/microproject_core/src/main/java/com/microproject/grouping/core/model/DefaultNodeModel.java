@@ -1245,7 +1245,18 @@ public class DefaultNodeModel implements NodeModel {
 
 	}
 
+	/**
+	 * Refuses a removal the backing factory would reject, before the hierarchy changes. Without
+	 * this check the view removed the row while the factory kept its data, so rendered rows and
+	 * the factory list diverged and the project was marked unsaved for a change that never
+	 * happened (#997: the first effective date of an availability or cost-rate table).
+	 */
 	public boolean confirmRemove(List<Node> nodes) {
+		if (dataFactory == null || nodes == null)
+			return true;
+		for (Node node : nodes)
+			if (node != null && !node.isVoid() && !dataFactory.canRemove(node.getImpl()))
+				return false;
 		return true;
 	}
 

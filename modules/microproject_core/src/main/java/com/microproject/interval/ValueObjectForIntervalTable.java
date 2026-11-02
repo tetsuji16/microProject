@@ -197,6 +197,20 @@ public abstract class ValueObjectForIntervalTable implements NodeModelDataFactor
 	}
 
 
+	/**
+ * The first row holds the base interval (no effective date, see {@link ValueObjectForInterval#isFirst()})
+ * that every later row's range depends on, so it cannot be removed. Microsoft Project's cost rate
+ * tables work the same way: the base row has no effective date and later rows are date changes, so
+ * only the later rows can be deleted (document-derived compatibility decision, issue #997).
+ * <p>
+ * The view asks this before it touches the hierarchy; {@link #remove(ValueObjectForInterval)} keeps
+ * the same rule as the data-layer guard.
+ */
+	@Override
+	public boolean canRemove(Object object) {
+		return !(object instanceof ValueObjectForInterval valueObject) || !valueObject.isFirst();
+	}
+
 	public void remove(Object toRemove, NodeModel nodeModel,boolean deep,boolean undo,boolean removeDependencies){
 		try {
 			remove((ValueObjectForInterval) toRemove);

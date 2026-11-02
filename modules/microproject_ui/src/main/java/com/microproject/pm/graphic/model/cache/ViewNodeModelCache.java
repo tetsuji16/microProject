@@ -43,6 +43,7 @@ import com.microproject.association.InvalidAssociationException;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.hierarchy.HierarchyUtils;
 import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.grouping.core.model.NodeModelDataFactory;
 import com.microproject.grouping.core.model.WalkersNodeModel;
 import com.microproject.grouping.core.transform.TransformList;
 import com.microproject.grouping.core.transform.ViewTransformerEvent;
@@ -308,6 +309,33 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
     	return true;
     }
 
+    /**
+     * The single gate for row removal: Delete, the row popup, Ctrl+X and the clipboard cut
+     * completion all end in {@link #deleteNodes} or {@link #cutNodes}.
+     * <p>
+     * Besides the read-only check it asks the backing factory whether a row may go. A table that
+     * keeps a row (the first effective date of an availability or cost-rate table) must not lose it
+     * from the view either, or the rendered rows and {@code getList()} disagree and the project is
+     * marked unsaved for a change that never happened (#997).
+     */
+    private boolean isAllowedRemoval(List<?> nodes){
+        if (!isAllowedAction(nodes,false)) return false;
+        NodeModelDataFactory dataFactory = getModel().getDataFactory();
+        if (dataFactory==null) return true;
+        for (Object o:nodes){
+            if (o==null) continue;
+            if (o instanceof GraphicNode) o=((GraphicNode)o).getNode();
+            Node node=(Node)o;
+            if (node.isVoid()) continue;
+            if (!dataFactory.canRemove(node.getImpl())){
+                // Interval tables are the only factories that keep a row today.
+                Alert.error(Messages.getString("ValueObjectForIntervalTable.YouCannotRemoveTheFirst")); //$NON-NLS-1$
+                return false;
+            }
+        }
+        return true;
+    }
+
 	public void newNode(GraphicNode gnode){
 		Node node=gnode.getNode();
 		if (!isAllowedAction(node,false)) return;
@@ -370,11 +398,11 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 
 
 	public void deleteNodes(List nodes){
-		if (!isAllowedAction(nodes,false)) return;
+		if (!isAllowedRemoval(nodes)) return;
 		getModel().remove(nodes,NodeModel.NORMAL);
 	}
 	public void cutNodes(List nodes){
-		if (!isAllowedAction(nodes,false)) return;
+		if (!isAllowedRemoval(nodes)) return;
 		List newNodes=getModel().cut(nodes,NodeModel.NORMAL);
 		nodes.clear();
 		nodes.addAll(newNodes);

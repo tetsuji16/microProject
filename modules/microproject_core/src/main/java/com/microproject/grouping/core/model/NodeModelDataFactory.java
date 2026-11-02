@@ -66,6 +66,20 @@ public interface NodeModelDataFactory {
  * @param cleanDependencies whether dependencies should be cleaned up
   */
 	void remove(Object toRemove, NodeModel nodeModel,boolean deep,boolean undo,boolean cleanDependencies);
+
+/**
+ * Reports whether a backing object may be removed from its model.
+ * <p>
+ * The data layer uses {@link #remove} to keep its own list in step with the node model; a row
+ * the factory refuses to drop must not be removed from the view either, otherwise the rendered
+ * rows and the backing list diverge. Callers that remove rows (the view, commands, undo) must
+ * therefore ask this before mutating the hierarchy.
+ * @param object backing object the caller is about to remove
+ * @return {@code false} when the object is required and must stay in the model
+ */
+	default boolean canRemove(Object object) {
+		return true;
+	}
 	
 	
 	
