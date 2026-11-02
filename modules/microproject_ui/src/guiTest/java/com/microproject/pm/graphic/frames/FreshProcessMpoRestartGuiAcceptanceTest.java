@@ -186,8 +186,9 @@ class FreshProcessMpoRestartGuiAcceptanceTest {
 		robot.keyRelease(KeyEvent.VK_F2);
 		GuiAcceptanceSupport.await(() -> onEdtUnchecked(sheet::isEditing), "F2 did not start editing the selected task name");
 		Component editor = onEdt(sheet::getEditorComponent);
-		assertTrue(editor instanceof JTextComponent, "task name editor must expose physical text input");
-		GuiAcceptanceSupport.await(() -> onEdtUnchecked(() -> editor.isFocusOwner()),
+		assertTrue(editor instanceof NameCellComponent, "task name editor must use the NameCellComponent wrapper");
+		JTextComponent input = onEdt(() -> (JTextComponent) ((NameCellComponent) editor).getTextComponent());
+		GuiAcceptanceSupport.await(() -> onEdtUnchecked(input::isFocusOwner),
 			"F2 did not transfer focus to the task name editor");
 		StringBuilder inputEvents = new StringBuilder();
 		AWTEventListener eventRecorder = event -> {
@@ -214,7 +215,7 @@ class FreshProcessMpoRestartGuiAcceptanceTest {
 				robot.keyRelease(keyCode);
 			}
 			robot.waitForIdle();
-			assertEquals("issue 967 persisted task", onEdt(() -> ((JTextComponent) editor).getText()),
+			assertEquals("issue 967 persisted task", onEdt(input::getText),
 				"physical multi-character input must replace the existing task name before Enter");
 			assertEquals(selectedIdentity.name(), onEdt(selectedAfterRestart::getName),
 				"the project model must remain unchanged until the editor commits");
@@ -592,7 +593,8 @@ class FreshProcessMpoRestartGuiAcceptanceTest {
 			Object fieldValue = row >= 0 && row < sheet.getRowCount() && column >= 0 && column < sheet.getColumnCount()
 				? sheet.getValueAt(row, column) : "<outside-table>";
 			Component focus = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
-			String editorText = editor instanceof JTextComponent text ? text.getText() : "<not-text-component>";
+			Component textInput = editor instanceof NameCellComponent nameCell ? nameCell.getTextComponent() : editor;
+			String editorText = textInput instanceof JTextComponent text ? text.getText() : "<not-text-component>";
 			String selected = sheet.getSelection().getActiveRow() + "," + sheet.getSelection().getActiveColumn();
 			List<String> taskNames = new ArrayList<>();
 			Object root = project.getTaskOutline().getHierarchy().getRoot();
@@ -607,7 +609,7 @@ class FreshProcessMpoRestartGuiAcceptanceTest {
 				+ " nodeVoid=" + (node != null && node.isVoid()) + " implClass=" + (impl == null ? "<null>" : impl.getClass().getName())
 				+ " implName=" + (impl instanceof Task task ? task.getName() : "<not-task>") + System.lineSeparator()
 				+ "fieldValue=" + fieldValue + " editorClass=" + (editor == null ? "<null>" : editor.getClass().getName())
-				+ " editorText=" + editorText + " editorFocus=" + (editor != null && editor.isFocusOwner())
+				+ " editorText=" + editorText + " editorFocus=" + (textInput != null && textInput.isFocusOwner())
 				+ " focusOwner=" + (focus == null ? "<null>" : focus.getClass().getName()) + System.lineSeparator()
 				+ "projectTasks=" + tasks + System.lineSeparator();
 		});
